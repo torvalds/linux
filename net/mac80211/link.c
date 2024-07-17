@@ -37,7 +37,7 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 	link_conf->link_id = link_id;
 	link_conf->vif = &sdata->vif;
 
-	wiphy_work_init(&link->csa_finalize_work,
+	wiphy_work_init(&link->csa.finalize_work,
 			ieee80211_csa_finalize_work);
 	wiphy_work_init(&link->color_change_finalize_work,
 			ieee80211_color_change_finalize_work);
@@ -45,8 +45,6 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 			  ieee80211_color_collision_detection_work);
 	INIT_LIST_HEAD(&link->assigned_chanctx_list);
 	INIT_LIST_HEAD(&link->reserved_chanctx_list);
-	wiphy_delayed_work_init(&link->dfs_cac_timer_work,
-				ieee80211_dfs_cac_timer_work);
 
 	if (!deflink) {
 		switch (sdata->vif.type) {
@@ -74,7 +72,9 @@ void ieee80211_link_stop(struct ieee80211_link_data *link)
 
 	cancel_delayed_work_sync(&link->color_collision_detect_work);
 	wiphy_work_cancel(link->sdata->local->hw.wiphy,
-			  &link->csa_finalize_work);
+			  &link->color_change_finalize_work);
+	wiphy_work_cancel(link->sdata->local->hw.wiphy,
+			  &link->csa.finalize_work);
 	ieee80211_link_release_channel(link);
 }
 
@@ -358,7 +358,19 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_teardown_tdls_peers(link);
 
-		ieee80211_link_release_channel(link);
+		__ieee80211_link_release_channel(link, true);
+
+		/*
+		 * If CSA is (still) active while the link is deactivated,
+		 * just schedule the channel switch work for the time we
+		 * had previously calculated, and we'll take the process
+		 * from there.
+		 */
+		if (link->conf->csa_active)
+			wiphy_delayed_work_queue(local->hw.wiphy,
+						 &link->u.mgd.csa.switch_work,
+						 link->u.mgd.csa.time -
+						 jiffies);
 	}
 
 	list_for_each_entry(sta, &local->sta_list, list) {
@@ -404,9 +416,24 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
 
-		ret = ieee80211_link_use_channel(link,
-						 &link->conf->chanreq,
-						 IEEE80211_CHANCTX_SHARED);
+		/*
+		 * This call really should not fail. Unfortunately, it appears
+		 * that this may happen occasionally with some drivers. Should
+		 * it happen, we are stuck in a bad place as going backwards is
+		 * not really feasible.
+		 *
+		 * So lets just tell link_use_channel that it must not fail to
+		 * assign the channel context (from mac80211's perspective) and
+		 * assume the driver is going to trigger a recovery flow if it
+		 * had a failure.
+		 * That really is not great nor guaranteed to work. But at least
+		 * the internal mac80211 state remains consistent and there is
+		 * a chance that we can recover.
+		 */
+		ret = _ieee80211_link_use_channel(link,
+						  &link->conf->chanreq,
+						  IEEE80211_CHANCTX_SHARED,
+						  true);
 		WARN_ON_ONCE(ret);
 
 		ieee80211_mgd_set_link_qos_params(link);
@@ -450,10 +477,13 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	if (WARN_ON(!active_links))
 		return -EINVAL;
 
+	old_active = sdata->vif.active_links;
+	if (old_active == active_links)
+		return 0;
+
 	if (!drv_can_activate_links(local, sdata, active_links))
 		return -EINVAL;
 
-	old_active = sdata->vif.active_links;
 	if (old_active & active_links) {
 		/*
 		 * if there's at least one link that stays active across

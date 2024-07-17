@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+
+<domain name="A6XX" width="32" prefix="variant" varset="chip">
+
+	<bitset name="A6XX_GMU_GPU_IDLE_STATUS">
+		<bitfield name="BUSY_IGN_AHB" pos="23"/>
+		<bitfield name="CX_GX_CPU_BUSY_IGN_AHB" pos="30"/>
+	</bitset>
+
+	<bitset name="A6XX_GMU_OOB">
+		<bitfield name="BOOT_SLUMBER_SET_MASK" pos="22"/>
+		<bitfield name="BOOT_SLUMBER_CHECK_MASK" pos="30"/>
+		<bitfield name="BOOT_SLUMBER_CLEAR_MASK" pos="30"/>
+		<bitfield name="DCVS_SET_MASK" pos="23"/>
+		<bitfield name="DCVS_CHECK_MASK" pos="31"/>
+		<bitfield name="DCVS_CLEAR_MASK" pos="31"/>
+		<bitfield name="GPU_SET_MASK" pos="18"/>
+		<bitfield name="GPU_CHECK_MASK" pos="26"/>
+		<bitfield name="GPU_CLEAR_MASK" pos="26"/>
+		<bitfield name="PERFCNTR_SET_MASK" pos="17"/>
+		<bitfield name="PERFCNTR_CHECK_MASK" pos="25"/>
+		<bitfield name="PERFCNTR_CLEAR_MASK" pos="25"/>
+	</bitset>
+
+	<bitset name="A6XX_HFI_IRQ">
+		<bitfield name="MSGQ_MASK" pos="0" />
+		<bitfield name="DSGQ_MASK" pos="1"/>
+		<bitfield name="BLOCKED_MSG_MASK" pos="2"/>
+		<bitfield name="CM3_FAULT_MASK" pos="23"/>
+		<bitfield name="GMU_ERR_MASK" low="16" high="22"/>
+		<bitfield name="OOB_MASK" low="24" high="31"/>
+	</bitset>
+
+	<bitset name="A6XX_HFI_H2F">
+		<bitfield name="IRQ_MASK_BIT" pos="0" />
+	</bitset>
+
+	<reg32 offset="0x80" name="GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL"/>
+	<reg32 offset="0x81" name="GMU_GX_SPTPRAC_POWER_CONTROL"/>
+	<reg32 offset="0xc00" name="GMU_CM3_ITCM_START"/>
+	<reg32 offset="0x1c00" name="GMU_CM3_DTCM_START"/>
+	<reg32 offset="0x23f0" name="GMU_NMI_CONTROL_STATUS"/>
+	<reg32 offset="0x23f8" name="GMU_BOOT_SLUMBER_OPTION"/>
+	<reg32 offset="0x23f9" name="GMU_GX_VOTE_IDX"/>
+	<reg32 offset="0x23fa" name="GMU_MX_VOTE_IDX"/>
+	<reg32 offset="0x23fc" name="GMU_DCVS_ACK_OPTION"/>
+	<reg32 offset="0x23fd" name="GMU_DCVS_PERF_SETTING"/>
+	<reg32 offset="0x23fe" name="GMU_DCVS_BW_SETTING"/>
+	<reg32 offset="0x23ff" name="GMU_DCVS_RETURN"/>
+	<reg32 offset="0x4c00" name="GMU_ICACHE_CONFIG"/>
+	<reg32 offset="0x4c01" name="GMU_DCACHE_CONFIG"/>
+	<reg32 offset="0x4c0f" name="GMU_SYS_BUS_CONFIG"/>
+	<reg32 offset="0x5000" name="GMU_CM3_SYSRESET"/>
+	<reg32 offset="0x5001" name="GMU_CM3_BOOT_CONFIG"/>
+	<reg32 offset="0x501a" name="GMU_CM3_FW_BUSY"/>
+	<reg32 offset="0x501c" name="GMU_CM3_FW_INIT_RESULT"/>
+	<reg32 offset="0x502d" name="GMU_CM3_CFG"/>
+	<reg32 offset="0x5040" name="GMU_CX_GMU_POWER_COUNTER_ENABLE"/>
+	<reg32 offset="0x5041" name="GMU_CX_GMU_POWER_COUNTER_SELECT_0"/>
+	<reg32 offset="0x5042" name="GMU_CX_GMU_POWER_COUNTER_SELECT_1"/>
+	<reg32 offset="0x5044" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L"/>
+	<reg32 offset="0x5045" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H"/>
+	<reg32 offset="0x5046" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_1_L"/>
+	<reg32 offset="0x5047" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_1_H"/>
+	<reg32 offset="0x5048" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_2_L"/>
+	<reg32 offset="0x5049" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_2_H"/>
+	<reg32 offset="0x504a" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_3_L"/>
+	<reg32 offset="0x504b" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_3_H"/>
+	<reg32 offset="0x504c" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_4_L"/>
+	<reg32 offset="0x504d" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_4_H"/>
+	<reg32 offset="0x504e" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_5_L"/>
+	<reg32 offset="0x504f" name="GMU_CX_GMU_POWER_COUNTER_XOCLK_5_H"/>
+	<reg32 offset="0x50c0" name="GMU_PWR_COL_INTER_FRAME_CTRL">
+		<bitfield name="IFPC_ENABLE" pos="0" type="boolean"/>
+		<bitfield name="HM_POWER_COLLAPSE_ENABLE" pos="1" type="boolean"/>
+		<bitfield name="SPTPRAC_POWER_CONTROL_ENABLE" pos="2" type="boolean"/>
+		<bitfield name="NUM_PASS_SKIPS" low="10" high="13"/>
+		<bitfield name="MIN_PASS_LENGTH" low="14" high="31"/>
+	</reg32>
+	<reg32 offset="0x50c1" name="GMU_PWR_COL_INTER_FRAME_HYST"/>
+	<reg32 offset="0x50c2" name="GMU_PWR_COL_SPTPRAC_HYST"/>
+	<reg32 offset="0x50d0" name="GMU_SPTPRAC_PWR_CLK_STATUS">
+		<bitfield name="SPTPRAC_GDSC_POWERING_OFF" pos="0" type="boolean"/>
+		<bitfield name="SPTPRAC_GDSC_POWERING_ON" pos="1" type="boolean"/>
+		<bitfield name="SPTPRAC_GDSC_POWER_OFF" pos="2" type="boolean"/>
+		<bitfield name="SPTPRAC_GDSC_POWER_ON" pos="3" type="boolean"/>
+		<bitfield name="SP_CLOCK_OFF" pos="4" type="boolean"/>
+		<bitfield name="GMU_UP_POWER_STATE" pos="5" type="boolean"/>
+		<bitfield name="GX_HM_GDSC_POWER_OFF" pos="6" type="boolean"/>
+		<bitfield name="GX_HM_CLK_OFF" pos="7" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x50e4" name="GMU_GPU_NAP_CTRL">
+		<bitfield name="HW_NAP_ENABLE" pos="0"/>
+		<bitfield name="SID" low="4" high="8"/>
+	</reg32>
+	<reg32 offset="0x50e8" name="GMU_RPMH_CTRL">
+		<bitfield name="RPMH_INTERFACE_ENABLE" pos="0" type="boolean"/>
+		<bitfield name="LLC_VOTE_ENABLE" pos="4" type="boolean"/>
+		<bitfield name="DDR_VOTE_ENABLE" pos="8" type="boolean"/>
+		<bitfield name="MX_VOTE_ENABLE" pos="9" type="boolean"/>
+		<bitfield name="CX_VOTE_ENABLE" pos="10" type="boolean"/>
+		<bitfield name="GFX_VOTE_ENABLE" pos="11" type="boolean"/>
+		<bitfield name="DDR_MIN_VOTE_ENABLE" pos="12" type="boolean"/>
+		<bitfield name="MX_MIN_VOTE_ENABLE" pos="13" type="boolean"/>
+		<bitfield name="CX_MIN_VOTE_ENABLE" pos="14" type="boolean"/>
+		<bitfield name="GFX_MIN_VOTE_ENABLE" pos="15" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x50e9" name="GMU_RPMH_HYST_CTRL"/>
+	<reg32 offset="0x50ec" name="GPU_GMU_CX_GMU_RPMH_POWER_STATE"/>
+	<reg32 offset="0x50f0" name="GPU_GMU_CX_GMU_CX_FAL_INTF"/>
+	<reg32 offset="0x50f1" name="GPU_GMU_CX_GMU_CX_FALNEXT_INTF"/>
+	<reg32 offset="0x5100" name="GPU_GMU_CX_GMU_PWR_COL_CP_MSG"/>
+	<reg32 offset="0x5101" name="GPU_GMU_CX_GMU_PWR_COL_CP_RESP"/>
+	<reg32 offset="0x51f0" name="GMU_BOOT_KMD_LM_HANDSHAKE"/>
+	<reg32 offset="0x5157" name="GMU_LLM_GLM_SLEEP_CTRL"/>
+	<reg32 offset="0x5158" name="GMU_LLM_GLM_SLEEP_STATUS"/>
+	<reg32 offset="0x5088" name="GMU_ALWAYS_ON_COUNTER_L"/>
+	<reg32 offset="0x5089" name="GMU_ALWAYS_ON_COUNTER_H"/>
+	<reg32 offset="0x50c3" name="GMU_GMU_PWR_COL_KEEPALIVE"/>
+	<reg32 offset="0x5180" name="GMU_HFI_CTRL_STATUS"/>
+	<reg32 offset="0x5181" name="GMU_HFI_VERSION_INFO"/>
+	<reg32 offset="0x5182" name="GMU_HFI_SFR_ADDR"/>
+	<reg32 offset="0x5183" name="GMU_HFI_MMAP_ADDR"/>
+	<reg32 offset="0x5184" name="GMU_HFI_QTBL_INFO"/>
+	<reg32 offset="0x5185" name="GMU_HFI_QTBL_ADDR"/>
+	<reg32 offset="0x5186" name="GMU_HFI_CTRL_INIT"/>
+	<reg32 offset="0x5190" name="GMU_GMU2HOST_INTR_SET"/>
+	<reg32 offset="0x5191" name="GMU_GMU2HOST_INTR_CLR"/>
+	<reg32 offset="0x5192" name="GMU_GMU2HOST_INTR_INFO">
+		<bitfield name="MSGQ" pos="0" type="boolean"/>
+		<bitfield name="CM3_FAULT" pos="23" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x5193" name="GMU_GMU2HOST_INTR_MASK"/>
+	<reg32 offset="0x5194" name="GMU_HOST2GMU_INTR_SET"/>
+	<reg32 offset="0x5195" name="GMU_HOST2GMU_INTR_CLR"/>
+	<reg32 offset="0x5196" name="GMU_HOST2GMU_INTR_RAW_INFO"/>
+	<reg32 offset="0x5197" name="GMU_HOST2GMU_INTR_EN_0"/>
+	<reg32 offset="0x5198" name="GMU_HOST2GMU_INTR_EN_1"/>
+	<reg32 offset="0x5199" name="GMU_HOST2GMU_INTR_EN_2"/>
+	<reg32 offset="0x519a" name="GMU_HOST2GMU_INTR_EN_3"/>
+	<reg32 offset="0x519b" name="GMU_HOST2GMU_INTR_INFO_0"/>
+	<reg32 offset="0x519c" name="GMU_HOST2GMU_INTR_INFO_1"/>
+	<reg32 offset="0x519d" name="GMU_HOST2GMU_INTR_INFO_2"/>
+	<reg32 offset="0x519e" name="GMU_HOST2GMU_INTR_INFO_3"/>
+	<reg32 offset="0x51c5" name="GMU_GENERAL_0"/>
+	<reg32 offset="0x51c6" name="GMU_GENERAL_1"/>
+	<reg32 offset="0x51cb" name="GMU_GENERAL_6"/>
+	<reg32 offset="0x51cc" name="GMU_GENERAL_7"/>
+	<reg32 offset="0x51cd" name="GMU_GENERAL_8" variants="A7XX"/>
+	<reg32 offset="0x51ce" name="GMU_GENERAL_9" variants="A7XX"/>
+	<reg32 offset="0x51cf" name="GMU_GENERAL_10" variants="A7XX"/>
+	<reg32 offset="0x515d" name="GMU_ISENSE_CTRL"/>
+	<reg32 offset="0x8920" name="GPU_CS_ENABLE_REG"/>
+	<reg32 offset="0x515d" name="GPU_GMU_CX_GMU_ISENSE_CTRL"/>
+	<reg32 offset="0x8578" name="GPU_CS_AMP_CALIBRATION_CONTROL3"/>
+	<reg32 offset="0x8558" name="GPU_CS_AMP_CALIBRATION_CONTROL2"/>
+	<reg32 offset="0x8580" name="GPU_CS_A_SENSOR_CTRL_0"/>
+	<reg32 offset="0x27ada" name="GPU_CS_A_SENSOR_CTRL_2"/>
+	<reg32 offset="0x881a" name="GPU_CS_SENSOR_GENERAL_STATUS"/>
+	<reg32 offset="0x8957" name="GPU_CS_AMP_CALIBRATION_CONTROL1"/>
+	<reg32 offset="0x881a" name="GPU_CS_SENSOR_GENERAL_STATUS"/>
+	<reg32 offset="0x881d" name="GPU_CS_AMP_CALIBRATION_STATUS1_0"/>
+	<reg32 offset="0x881f" name="GPU_CS_AMP_CALIBRATION_STATUS1_2"/>
+	<reg32 offset="0x8821" name="GPU_CS_AMP_CALIBRATION_STATUS1_4"/>
+	<reg32 offset="0x8965" name="GPU_CS_AMP_CALIBRATION_DONE"/>
+	<reg32 offset="0x896d" name="GPU_CS_AMP_PERIOD_CTRL"/>
+	<reg32 offset="0x8965" name="GPU_CS_AMP_CALIBRATION_DONE"/>
+	<reg32 offset="0x514d" name="GPU_GMU_CX_GMU_PWR_THRESHOLD"/>
+	<reg32 offset="0x9303" name="GMU_AO_INTERRUPT_EN"/>
+	<reg32 offset="0x9304" name="GMU_AO_HOST_INTERRUPT_CLR"/>
+	<reg32 offset="0x9305" name="GMU_AO_HOST_INTERRUPT_STATUS">
+		<bitfield name="WDOG_BITE" pos="0" type="boolean"/>
+		<bitfield name="RSCC_COMP" pos="1" type="boolean"/>
+		<bitfield name="VDROOP" pos="2" type="boolean"/>
+		<bitfield name="FENCE_ERR" pos="3" type="boolean"/>
+		<bitfield name="DBD_WAKEUP" pos="4" type="boolean"/>
+		<bitfield name="HOST_AHB_BUS_ERROR" pos="5" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x9306" name="GMU_AO_HOST_INTERRUPT_MASK"/>
+	<reg32 offset="0x9309" name="GPU_GMU_AO_GMU_CGC_MODE_CNTL"/>
+	<reg32 offset="0x930a" name="GPU_GMU_AO_GMU_CGC_DELAY_CNTL"/>
+	<reg32 offset="0x930b" name="GPU_GMU_AO_GMU_CGC_HYST_CNTL"/>
+	<reg32 offset="0x930c" name="GPU_GMU_AO_GPU_CX_BUSY_STATUS">
+		<bitfield name = "GPUBUSYIGNAHB" pos="23" type="boolean"/>
+	</reg32>
+	<reg32 offset="0x930d" name="GPU_GMU_AO_GPU_CX_BUSY_STATUS2"/>
+	<reg32 offset="0x930e" name="GPU_GMU_AO_GPU_CX_BUSY_MASK"/>
+	<reg32 offset="0x9310" name="GMU_AO_AHB_FENCE_CTRL"/>
+	<reg32 offset="0x9313" name="GMU_AHB_FENCE_STATUS"/>
+	<reg32 offset="0x9314" name="GMU_AHB_FENCE_STATUS_CLR"/>
+	<reg32 offset="0x9315" name="GMU_RBBM_INT_UNMASKED_STATUS"/>
+	<reg32 offset="0x9316" name="GMU_AO_SPARE_CNTL"/>
+	<reg32 offset="0x9307" name="GMU_RSCC_CONTROL_REQ"/>
+	<reg32 offset="0x9308" name="GMU_RSCC_CONTROL_ACK"/>
+	<reg32 offset="0x9311" name="GMU_AHB_FENCE_RANGE_0"/>
+	<reg32 offset="0x9312" name="GMU_AHB_FENCE_RANGE_1"/>
+	<reg32 offset="0x9c03" name="GPU_CC_GX_GDSCR"/>
+	<reg32 offset="0x9d42" name="GPU_CC_GX_DOMAIN_MISC"/>
+	<reg32 offset="0xc001" name="GPU_CPR_FSM_CTL"/>
+
+	<!-- starts at offset 0x8c00 on most gpus -->
+	<reg32 offset="0x0004" name="GPU_RSCC_RSC_STATUS0_DRV0"/>
+	<reg32 offset="0x0008" name="RSCC_PDC_SEQ_START_ADDR"/>
+	<reg32 offset="0x0009" name="RSCC_PDC_MATCH_VALUE_LO"/>
+	<reg32 offset="0x000a" name="RSCC_PDC_MATCH_VALUE_HI"/>
+	<reg32 offset="0x000b" name="RSCC_PDC_SLAVE_ID_DRV0"/>
+	<reg32 offset="0x000d" name="RSCC_HIDDEN_TCS_CMD0_ADDR"/>
+	<reg32 offset="0x000e" name="RSCC_HIDDEN_TCS_CMD0_DATA"/>
+	<reg32 offset="0x0082" name="RSCC_TIMESTAMP_UNIT0_TIMESTAMP_L_DRV0"/>
+	<reg32 offset="0x0083" name="RSCC_TIMESTAMP_UNIT0_TIMESTAMP_H_DRV0"/>
+	<reg32 offset="0x0089" name="RSCC_TIMESTAMP_UNIT1_EN_DRV0"/>
+	<reg32 offset="0x008c" name="RSCC_TIMESTAMP_UNIT1_OUTPUT_DRV0"/>
+	<reg32 offset="0x0100" name="RSCC_OVERRIDE_START_ADDR"/>
+	<reg32 offset="0x0101" name="RSCC_SEQ_BUSY_DRV0"/>
+	<reg32 offset="0x0154" name="RSCC_SEQ_MEM_0_DRV0_A740" variants="A7XX"/>
+	<reg32 offset="0x0180" name="RSCC_SEQ_MEM_0_DRV0"/>
+	<reg32 offset="0x0346" name="RSCC_TCS0_DRV0_STATUS"/>
+	<reg32 offset="0x03ee" name="RSCC_TCS1_DRV0_STATUS"/>
+	<reg32 offset="0x0496" name="RSCC_TCS2_DRV0_STATUS"/>
+	<reg32 offset="0x053e" name="RSCC_TCS3_DRV0_STATUS"/>
+</domain>
+
+</database>

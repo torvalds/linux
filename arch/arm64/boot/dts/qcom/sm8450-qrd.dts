@@ -467,6 +467,14 @@
 	vdda-pll-supply = <&vreg_l5b_0p88>;
 	vdda18-supply = <&vreg_l1c_1p8>;
 	vdda33-supply = <&vreg_l2b_3p07>;
+	qcom,squelch-detector-bp = <(-2090)>;
+	qcom,hs-disconnect-bp = <1743>;
+	qcom,pre-emphasis-amplitude-bp = <40000>;
+	qcom,pre-emphasis-duration-bp = <20000>;
+	qcom,hs-amplitude-bp = <2000>;
+	qcom,hs-output-impedance-micro-ohms = <2600000>;
+	qcom,hs-crossover-voltage-microvolt = <(-31000)>;
+	qcom,hs-rise-fall-time-bp = <(-4100)>;
 };
 
 &usb_1_qmpphy {

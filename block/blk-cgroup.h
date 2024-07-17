@@ -301,19 +301,6 @@ static inline struct blkcg *cpd_to_blkcg(struct blkcg_policy_data *cpd)
 }
 
 /**
- * blkg_path - format cgroup path of blkg
- * @blkg: blkg of interest
- * @buf: target buffer
- * @buflen: target buffer length
- *
- * Format the path of the cgroup of @blkg into @buf.
- */
-static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
-{
-	return cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-}
-
-/**
  * blkg_get - get a blkg reference
  * @blkg: blkg to get
  *

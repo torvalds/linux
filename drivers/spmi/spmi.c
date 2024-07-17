@@ -378,7 +378,7 @@ static int spmi_drv_uevent(const struct device *dev, struct kobj_uevent_env *env
 	return 0;
 }
 
-static struct bus_type spmi_bus_type = {
+static const struct bus_type spmi_bus_type = {
 	.name		= "spmi",
 	.match		= spmi_device_match,
 	.probe		= spmi_drv_probe,

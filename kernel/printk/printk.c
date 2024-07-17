@@ -178,9 +178,9 @@ static int __init control_devkmsg(char *str)
 	 * Set sysctl string accordingly:
 	 */
 	if (devkmsg_log == DEVKMSG_LOG_MASK_ON)
-		strcpy(devkmsg_log_str, "on");
+		strscpy(devkmsg_log_str, "on");
 	else if (devkmsg_log == DEVKMSG_LOG_MASK_OFF)
-		strcpy(devkmsg_log_str, "off");
+		strscpy(devkmsg_log_str, "off");
 	/* else "ratelimit" which is set by default. */
 
 	/*
@@ -209,7 +209,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 			return -EINVAL;
 
 		old = devkmsg_log;
-		strncpy(old_str, devkmsg_log_str, DEVKMSG_STR_MAX_SIZE);
+		strscpy(old_str, devkmsg_log_str);
 	}
 
 	err = proc_dostring(table, write, buffer, lenp, ppos);
@@ -227,7 +227,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 			/* ... and restore old setting. */
 			devkmsg_log = old;
-			strncpy(devkmsg_log_str, old_str, DEVKMSG_STR_MAX_SIZE);
+			strscpy(devkmsg_log_str, old_str);
 
 			return -EINVAL;
 		}
@@ -2506,22 +2506,22 @@ static int __init console_setup(char *str)
 	/*
 	 * Decode str into name, index, options.
 	 */
-	if (str[0] >= '0' && str[0] <= '9') {
-		strcpy(buf, "ttyS");
-		strncpy(buf + 4, str, sizeof(buf) - 5);
-	} else {
-		strncpy(buf, str, sizeof(buf) - 1);
-	}
-	buf[sizeof(buf) - 1] = 0;
+	if (isdigit(str[0]))
+		scnprintf(buf, sizeof(buf), "ttyS%s", str);
+	else
+		strscpy(buf, str);
+
 	options = strchr(str, ',');
 	if (options)
 		*(options++) = 0;
+
 #ifdef __sparc__
 	if (!strcmp(str, "ttya"))
-		strcpy(buf, "ttyS0");
+		strscpy(buf, "ttyS0");
 	if (!strcmp(str, "ttyb"))
-		strcpy(buf, "ttyS1");
+		strscpy(buf, "ttyS1");
 #endif
+
 	for (s = buf; *s; s++)
 		if (isdigit(*s) || *s == ',')
 			break;
@@ -3146,6 +3146,40 @@ void console_unblank(void)
 		pr_flush(1000, true);
 }
 
+/*
+ * Rewind all consoles to the oldest available record.
+ *
+ * IMPORTANT: The function is safe only when called under
+ *            console_lock(). It is not enforced because
+ *            it is used as a best effort in panic().
+ */
+static void __console_rewind_all(void)
+{
+	struct console *c;
+	short flags;
+	int cookie;
+	u64 seq;
+
+	seq = prb_first_valid_seq(prb);
+
+	cookie = console_srcu_read_lock();
+	for_each_console_srcu(c) {
+		flags = console_srcu_read_flags(c);
+
+		if (flags & CON_NBCON) {
+			nbcon_seq_force(c, seq);
+		} else {
+			/*
+			 * This assignment is safe only when called under
+			 * console_lock(). On panic, legacy consoles are
+			 * only best effort.
+			 */
+			c->seq = seq;
+		}
+	}
+	console_srcu_read_unlock(cookie);
+}
+
 /**
  * console_flush_on_panic - flush console content on panic
  * @mode: flush all messages in buffer or just the pending ones
@@ -3174,30 +3208,8 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	 */
 	console_may_schedule = 0;
 
-	if (mode == CONSOLE_REPLAY_ALL) {
-		struct console *c;
-		short flags;
-		int cookie;
-		u64 seq;
-
-		seq = prb_first_valid_seq(prb);
-
-		cookie = console_srcu_read_lock();
-		for_each_console_srcu(c) {
-			flags = console_srcu_read_flags(c);
-
-			if (flags & CON_NBCON) {
-				nbcon_seq_force(c, seq);
-			} else {
-				/*
-				 * This is an unsynchronized assignment. On
-				 * panic legacy consoles are only best effort.
-				 */
-				c->seq = seq;
-			}
-		}
-		console_srcu_read_unlock(cookie);
-	}
+	if (mode == CONSOLE_REPLAY_ALL)
+		__console_rewind_all();
 
 	console_flush_all(false, &next_seq, &handover);
 }
@@ -4286,6 +4298,23 @@ void kmsg_dump_rewind(struct kmsg_dump_iter *iter)
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 
+/**
+ * console_replay_all - replay kernel log on consoles
+ *
+ * Try to obtain lock on console subsystem and replay all
+ * available records in printk buffer on the consoles.
+ * Does nothing if lock is not obtained.
+ *
+ * Context: Any context.
+ */
+void console_replay_all(void)
+{
+	if (console_trylock()) {
+		__console_rewind_all();
+		/* Consoles are flushed as part of console_unlock(). */
+		console_unlock();
+	}
+}
 #endif
 
 #ifdef CONFIG_SMP

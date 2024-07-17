@@ -30,37 +30,40 @@ void *__memset(void *s, int c, size_t n);
 #define __HAVE_ARCH_MEMSET16
 static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
 {
-	long d0, d1;
-	asm volatile("rep\n\t"
-		     "stosw"
-		     : "=&c" (d0), "=&D" (d1)
-		     : "a" (v), "1" (s), "0" (n)
-		     : "memory");
-	return s;
+	const __auto_type s0 = s;
+	asm volatile (
+		"rep stosw"
+		: "+D" (s), "+c" (n)
+		: "a" (v)
+		: "memory"
+	);
+	return s0;
 }
 
 #define __HAVE_ARCH_MEMSET32
 static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
 {
-	long d0, d1;
-	asm volatile("rep\n\t"
-		     "stosl"
-		     : "=&c" (d0), "=&D" (d1)
-		     : "a" (v), "1" (s), "0" (n)
-		     : "memory");
-	return s;
+	const __auto_type s0 = s;
+	asm volatile (
+		"rep stosl"
+		: "+D" (s), "+c" (n)
+		: "a" (v)
+		: "memory"
+	);
+	return s0;
 }
 
 #define __HAVE_ARCH_MEMSET64
 static inline void *memset64(uint64_t *s, uint64_t v, size_t n)
 {
-	long d0, d1;
-	asm volatile("rep\n\t"
-		     "stosq"
-		     : "=&c" (d0), "=&D" (d1)
-		     : "a" (v), "1" (s), "0" (n)
-		     : "memory");
-	return s;
+	const __auto_type s0 = s;
+	asm volatile (
+		"rep stosq"
+		: "+D" (s), "+c" (n)
+		: "a" (v)
+		: "memory"
+	);
+	return s0;
 }
 #endif
 

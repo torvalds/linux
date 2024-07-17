@@ -118,7 +118,18 @@ void seq_vprintf(struct seq_file *m, const char *fmt, va_list args);
 __printf(2, 3)
 void seq_printf(struct seq_file *m, const char *fmt, ...);
 void seq_putc(struct seq_file *m, char c);
-void seq_puts(struct seq_file *m, const char *s);
+void __seq_puts(struct seq_file *m, const char *s);
+
+static __always_inline void seq_puts(struct seq_file *m, const char *s)
+{
+	if (!__builtin_constant_p(*s))
+		__seq_puts(m, s);
+	else if (s[0] && !s[1])
+		seq_putc(m, s[0]);
+	else
+		seq_write(m, s, __builtin_strlen(s));
+}
+
 void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
 			       unsigned long long num, unsigned int width);
 void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,

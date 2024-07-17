@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
+ifeq ($(MAKELEVEL),0)
+$(error This Makefile is not intended to be run standalone, but only as a part \
+of the  main one in the parent dir)
+endif
+
 OUTPUT := ./
 ifeq ("$(origin O)", "command line")
 ifneq ($(O),)

@@ -108,13 +108,6 @@ struct fsck_err_state {
 	char			*last_msg;
 };
 
-enum bch_fsck_flags {
-	FSCK_CAN_FIX		= 1 << 0,
-	FSCK_CAN_IGNORE		= 1 << 1,
-	FSCK_NEED_FSCK		= 1 << 2,
-	FSCK_NO_RATELIMIT	= 1 << 3,
-};
-
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
 
 __printf(4, 5) __cold

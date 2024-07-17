@@ -35,7 +35,7 @@
  * @cur_c_fb_dma:	current plane C frame buffer dma address
  * @bs_dma:		bitstream dma address
  * @bs_sz:		bitstream size
- * @resolution_changed:resolution change flag 1 - changed,  0 - not change
+ * @resolution_changed:resolution change flag 1 - changed,  0 - not changed
  * @frame_header_type:	current frame header type
  * @crc:		used to check whether hardware's status is right
  * @reserved:		reserved, currently unused

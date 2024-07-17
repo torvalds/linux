@@ -2294,7 +2294,7 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 	int ret = 0;
 
 	if (!netif_running(dev)) {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		goto out_0;
 	}
 
@@ -2336,7 +2336,7 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		tmp_vptr->rx = rx;
 		tmp_vptr->tx = tx;
 
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 
 		velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 

@@ -450,14 +450,14 @@ static int am33xx_pm_rtc_setup(void)
 
 		rtc_base_virt = of_iomap(np, 0);
 		if (!rtc_base_virt) {
-			pr_warn("PM: could not iomap rtc");
+			pr_warn("PM: could not iomap rtc\n");
 			error = -ENODEV;
 			goto err_clk_put;
 		}
 
 		omap_rtc = rtc_class_open("rtc0");
 		if (!omap_rtc) {
-			pr_warn("PM: rtc0 not available");
+			pr_warn("PM: rtc0 not available\n");
 			error = -EPROBE_DEFER;
 			goto err_iounmap;
 		}

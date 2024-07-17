@@ -190,7 +190,7 @@ int irq_inject_interrupt(unsigned int irq)
 	 *  - not NMI type
 	 *  - activated
 	 */
-	if ((desc->istate & IRQS_NMI) || !irqd_is_activated(&desc->irq_data))
+	if (irq_is_nmi(desc) || !irqd_is_activated(&desc->irq_data))
 		err = -EINVAL;
 	else
 		err = check_irq_resend(desc, true);

@@ -29,6 +29,7 @@ static inline void *bpf_iter_num_new(struct bpf_iter_num *it, int i, int j) { re
 static inline void bpf_iter_num_destroy(struct bpf_iter_num *it) {}
 static inline bool bpf_iter_num_next(struct bpf_iter_num *it) { return true; }
 #define cond_break ({})
+#define can_loop true
 #endif
 
 /* Safely walk link list elements. Deletion of elements is allowed. */
@@ -36,8 +37,7 @@ static inline bool bpf_iter_num_next(struct bpf_iter_num *it) { return true; }
 	for (void * ___tmp = (pos = list_entry_safe((head)->first,		\
 						    typeof(*(pos)), member),	\
 			      (void *)0);					\
-	     pos && ({ ___tmp = (void *)pos->member.next; 1; });		\
-	     cond_break,							\
+	     pos && ({ ___tmp = (void *)pos->member.next; 1; }) && can_loop;    \
 	     pos = list_entry_safe((void __arena *)___tmp, typeof(*(pos)), member))
 
 static inline void list_add_head(arena_list_node_t *n, arena_list_head_t *h)

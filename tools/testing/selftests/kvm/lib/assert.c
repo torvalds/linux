@@ -4,9 +4,6 @@
  *
  * Copyright (C) 2018, Google LLC.
  */
-
-#define _GNU_SOURCE /* for getline(3) and strchrnul(3)*/
-
 #include "test_util.h"
 
 #include <execinfo.h>

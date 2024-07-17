@@ -2,6 +2,6 @@
 
 iwlwifi-tests-y += module.o devinfo.o
 
-ccflags-y += -I$(srctree)/$(src)/../
+ccflags-y += -I$(src)/../
 
 obj-$(CONFIG_IWLWIFI_KUNIT_TESTS) += iwlwifi-tests.o

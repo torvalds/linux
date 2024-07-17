@@ -95,7 +95,7 @@ static void release_pcibus_dev(struct device *dev)
 	kfree(pci_bus);
 }
 
-static struct class pcibus_class = {
+static const struct class pcibus_class = {
 	.name		= "pci_bus",
 	.dev_release	= &release_pcibus_dev,
 	.dev_groups	= pcibus_groups,
@@ -1482,6 +1482,9 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	}
 
 out:
+	/* Clear errors in the Secondary Status Register */
+	pci_write_config_word(dev, PCI_SEC_STATUS, 0xffff);
+
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bctl);
 
 	pm_runtime_put(&dev->dev);
@@ -3066,7 +3069,9 @@ int pci_host_probe(struct pci_host_bridge *bridge)
 	struct pci_bus *bus, *child;
 	int ret;
 
+	pci_lock_rescan_remove();
 	ret = pci_scan_root_bus_bridge(bridge);
+	pci_unlock_rescan_remove();
 	if (ret < 0) {
 		dev_err(bridge->dev.parent, "Scanning root bridge failed");
 		return ret;

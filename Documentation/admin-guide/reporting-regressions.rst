@@ -42,12 +42,12 @@ The important basics
 --------------------
 
 
-What is a "regression" and what is the "no regressions rule"?
+What is a "regression" and what is the "no regressions" rule?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's a regression if some application or practical use case running fine with
 one Linux kernel works worse or not at all with a newer version compiled using a
-similar configuration. The "no regressions rule" forbids this to take place; if
+similar configuration. The "no regressions" rule forbids this to take place; if
 it happens by accident, developers that caused it are expected to quickly fix
 the issue.
 
@@ -173,7 +173,7 @@ Additional details about regressions
 ------------------------------------
 
 
-What is the goal of the "no regressions rule"?
+What is the goal of the "no regressions" rule?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Users should feel safe when updating kernel versions and not have to worry
@@ -199,8 +199,8 @@ Exceptions to this rule are extremely rare; in the past developers almost always
 turned out to be wrong when they assumed a particular situation was warranting
 an exception.
 
-Who ensures the "no regressions" is actually followed?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Who ensures the "no regressions" rule is actually followed?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The subsystem maintainers should take care of that, which are watched and
 supported by the tree maintainers -- e.g. Linus Torvalds for mainline and

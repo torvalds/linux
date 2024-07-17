@@ -10,8 +10,7 @@ obj-y   += $(builtindtb-y).dtb.o
 dtb-y := $(builtindtb-y).dtb
 
 # for CONFIG_OF_ALL_DTBS test
-dtstree	:= $(srctree)/$(src)
-dtb-	:= $(patsubst $(dtstree)/%.dts,%.dtb, $(wildcard $(dtstree)/*.dts))
+dtb-	:= $(patsubst $(src)/%.dts,%.dtb, $(wildcard $(src)/*.dts))
 
 # board-specific dtc flags
 DTC_FLAGS_hsdk += --pad 20

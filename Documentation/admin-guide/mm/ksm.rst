@@ -308,7 +308,7 @@ limited by the ``advisor_max_cpu`` parameter. In addition there is also the
 ``advisor_target_scan_time`` parameter. This parameter sets the target time to
 scan all the KSM candidate pages. The parameter ``advisor_target_scan_time``
 decides how aggressive the scan time advisor scans candidate pages. Lower
-values make the scan time advisor to scan more aggresively. This is the most
+values make the scan time advisor to scan more aggressively. This is the most
 important parameter for the configuration of the scan time advisor.
 
 The initial value and the maximum value can be changed with

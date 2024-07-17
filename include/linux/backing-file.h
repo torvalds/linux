@@ -22,6 +22,9 @@ struct backing_file_ctx {
 struct file *backing_file_open(const struct path *user_path, int flags,
 			       const struct path *real_path,
 			       const struct cred *cred);
+struct file *backing_tmpfile_open(const struct path *user_path, int flags,
+				  const struct path *real_parentpath,
+				  umode_t mode, const struct cred *cred);
 ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
 			       struct kiocb *iocb, int flags,
 			       struct backing_file_ctx *ctx);

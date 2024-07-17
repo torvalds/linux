@@ -488,7 +488,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 
-	hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL);
+	hu = kzalloc(sizeof(*hu), GFP_KERNEL);
 	if (!hu) {
 		BT_ERR("Can't allocate control structure");
 		return -ENFILE;
@@ -667,11 +667,6 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
-	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
-		hdev->dev_type = HCI_AMP;
-	else
-		hdev->dev_type = HCI_PRIMARY;
-
 	/* Only call open() for the protocol after hdev is fully initialized as
 	 * open() (or a timer/workqueue it starts) may attempt to reference it.
 	 */
@@ -722,7 +717,6 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 {
 	unsigned long valid_flags = BIT(HCI_UART_RAW_DEVICE) |
 				    BIT(HCI_UART_RESET_ON_INIT) |
-				    BIT(HCI_UART_CREATE_AMP) |
 				    BIT(HCI_UART_INIT_PENDING) |
 				    BIT(HCI_UART_EXT_CONFIG) |
 				    BIT(HCI_UART_VND_DETECT);

@@ -872,10 +872,6 @@
 /* Position the attr at the correct index */
 #define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
 
-/* id_aa64pfr0 */
-#define ID_AA64PFR0_EL1_ELx_64BIT_ONLY		0x1
-#define ID_AA64PFR0_EL1_ELx_32BIT_64BIT		0x2
-
 /* id_aa64mmfr0 */
 #define ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN	0x0
 #define ID_AA64MMFR0_EL1_TGRAN4_LPA2		ID_AA64MMFR0_EL1_TGRAN4_52_BIT
@@ -1036,18 +1032,18 @@
  * Permission Indirection Extension (PIE) permission encodings.
  * Encodings with the _O suffix, have overlays applied (Permission Overlay Extension).
  */
-#define PIE_NONE_O	0x0
-#define PIE_R_O		0x1
-#define PIE_X_O		0x2
-#define PIE_RX_O	0x3
-#define PIE_RW_O	0x5
-#define PIE_RWnX_O	0x6
-#define PIE_RWX_O	0x7
-#define PIE_R		0x8
-#define PIE_GCS		0x9
-#define PIE_RX		0xa
-#define PIE_RW		0xc
-#define PIE_RWX		0xe
+#define PIE_NONE_O	UL(0x0)
+#define PIE_R_O		UL(0x1)
+#define PIE_X_O		UL(0x2)
+#define PIE_RX_O	UL(0x3)
+#define PIE_RW_O	UL(0x5)
+#define PIE_RWnX_O	UL(0x6)
+#define PIE_RWX_O	UL(0x7)
+#define PIE_R		UL(0x8)
+#define PIE_GCS		UL(0x9)
+#define PIE_RX		UL(0xa)
+#define PIE_RW		UL(0xc)
+#define PIE_RWX		UL(0xe)
 
 #define PIRx_ELx_PERM(idx, perm)	((perm) << ((idx) * 4))
 

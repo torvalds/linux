@@ -78,7 +78,7 @@ static const struct acpi_device_id __maybe_unused cs42l42_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, cs42l42_acpi_match);
 
 static const struct i2c_device_id cs42l42_id[] = {
-	{"cs42l42", 0},
+	{"cs42l42"},
 	{}
 };
 

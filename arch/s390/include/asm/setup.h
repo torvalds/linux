@@ -127,20 +127,6 @@ extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);
 extern void (*_machine_power_off)(void);
 
-extern unsigned long __kaslr_offset;
-static inline unsigned long kaslr_offset(void)
-{
-	return __kaslr_offset;
-}
-
-extern int __kaslr_enabled;
-static inline int kaslr_enabled(void)
-{
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-		return __kaslr_enabled;
-	return 0;
-}
-
 struct oldmem_data {
 	unsigned long start;
 	unsigned long size;

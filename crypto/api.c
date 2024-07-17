@@ -202,18 +202,18 @@ static void crypto_start_test(struct crypto_larval *larval)
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval = (void *)alg;
-	long timeout;
+	long time_left;
 
 	if (!crypto_boot_test_finished())
 		crypto_start_test(larval);
 
-	timeout = wait_for_completion_killable_timeout(
+	time_left = wait_for_completion_killable_timeout(
 		&larval->completion, 60 * HZ);
 
 	alg = larval->adult;
-	if (timeout < 0)
+	if (time_left < 0)
 		alg = ERR_PTR(-EINTR);
-	else if (!timeout)
+	else if (!time_left)
 		alg = ERR_PTR(-ETIMEDOUT);
 	else if (!alg)
 		alg = ERR_PTR(-ENOENT);

@@ -441,29 +441,6 @@ INT_HANDLER ext_int_handler,__LC_EXT_OLD_PSW,do_ext_irq
 INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
 
 /*
- * Load idle PSW.
- */
-SYM_FUNC_START(psw_idle)
-	stg	%r14,(__SF_GPRS+8*8)(%r15)
-	stg	%r3,__SF_EMPTY(%r15)
-	larl	%r1,psw_idle_exit
-	stg	%r1,__SF_EMPTY+8(%r15)
-	larl	%r1,smp_cpu_mtid
-	llgf	%r1,0(%r1)
-	ltgr	%r1,%r1
-	jz	.Lpsw_idle_stcctm
-	.insn	rsy,0xeb0000000017,%r1,5,__MT_CYCLES_ENTER(%r2)
-.Lpsw_idle_stcctm:
-	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
-	BPON
-	stckf	__CLOCK_IDLE_ENTER(%r2)
-	stpt	__TIMER_IDLE_ENTER(%r2)
-	lpswe	__SF_EMPTY(%r15)
-SYM_INNER_LABEL(psw_idle_exit, SYM_L_GLOBAL)
-	BR_EX	%r14
-SYM_FUNC_END(psw_idle)
-
-/*
  * Machine check handler routines
  */
 SYM_CODE_START(mcck_int_handler)

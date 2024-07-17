@@ -991,6 +991,7 @@ void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 
 	return __raw_xsave_addr(xsave, xfeature_nr);
 }
+EXPORT_SYMBOL_GPL(get_xsave_addr);
 
 #ifdef CONFIG_ARCH_HAS_PKEYS
 
@@ -1434,8 +1435,8 @@ static bool xstate_op_valid(struct fpstate *fpstate, u64 mask, bool rstor)
 		return rstor;
 
 	/*
-	 * XSAVE(S): clone(), fpu_swap_kvm_fpu()
-	 * XRSTORS(S): fpu_swap_kvm_fpu()
+	 * XSAVE(S): clone(), fpu_swap_kvm_fpstate()
+	 * XRSTORS(S): fpu_swap_kvm_fpstate()
 	 */
 
 	/*

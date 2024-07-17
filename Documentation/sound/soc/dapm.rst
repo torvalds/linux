@@ -7,8 +7,8 @@ Description
 
 Dynamic Audio Power Management (DAPM) is designed to allow portable
 Linux devices to use the minimum amount of power within the audio
-subsystem at all times. It is independent of other kernel PM and as
-such, can easily co-exist with the other PM systems.
+subsystem at all times. It is independent of other kernel power
+management frameworks and, as such, can easily co-exist with them.
 
 DAPM is also completely transparent to all user space applications as
 all power switching is done within the ASoC core. No code changes or
@@ -16,11 +16,29 @@ recompiling are required for user space applications. DAPM makes power
 switching decisions based upon any audio stream (capture/playback)
 activity and audio mixer settings within the device.
 
-DAPM spans the whole machine. It covers power control within the entire
-audio subsystem, this includes internal codec power blocks and machine
-level power systems.
+DAPM is based on two basic elements, called widgets and routes:
 
-There are 4 power domains within DAPM
+ * a **widget** is every part of the audio hardware that can be enabled by
+   software when in use and disabled to save power when not in use
+ * a **route** is an interconnection between widgets that exists when sound
+   can flow from one widget to the other
+
+All DAPM power switching decisions are made automatically by consulting an
+audio routing graph. This graph is specific to each sound card and spans
+the whole sound card, so some DAPM routes connect two widgets belonging to
+different components (e.g. the LINE OUT pin of a CODEC and the input pin of
+an amplifier).
+
+The graph for the STM32MP1-DK1 sound card is shown in picture:
+
+.. kernel-figure:: dapm-graph.svg
+    :alt:   Example DAPM graph
+    :align: center
+
+DAPM power domains
+==================
+
+There are 4 power domains within DAPM:
 
 Codec bias domain
       VREF, VMID (core codec and audio power)
@@ -47,17 +65,11 @@ Stream domain
       Enabled and disabled when stream playback/capture is started and
       stopped respectively. e.g. aplay, arecord.
 
-All DAPM power switching decisions are made automatically by consulting an audio
-routing map of the whole machine. This map is specific to each machine and
-consists of the interconnections between every audio component (including
-internal codec components). All audio components that effect power are called
-widgets hereafter.
-
 
 DAPM Widgets
 ============
 
-Audio DAPM widgets fall into a number of types:-
+Audio DAPM widgets fall into a number of types:
 
 Mixer
 	Mixes several analog signals into a single analog signal.
@@ -141,14 +153,14 @@ Stream Widgets relate to the stream power domain and only consist of ADCs
 (analog to digital converters), DACs (digital to analog converters),
 AIF IN and AIF OUT.
 
-Stream widgets have the following format:-
+Stream widgets have the following format:
 ::
 
   SND_SOC_DAPM_DAC(name, stream name, reg, shift, invert),
   SND_SOC_DAPM_AIF_IN(name, stream, slot, reg, shift, invert)
 
 NOTE: the stream name must match the corresponding stream name in your codec
-snd_soc_codec_dai.
+snd_soc_dai_driver.
 
 e.g. stream widgets for HiFi playback and capture
 ::
@@ -167,7 +179,7 @@ Path Domain Widgets
 -------------------
 
 Path domain widgets have a ability to control or affect the audio signal or
-audio paths within the audio subsystem. They have the following form:-
+audio paths within the audio subsystem. They have the following form:
 ::
 
   SND_SOC_DAPM_PGA(name, reg, shift, invert, controls, num_controls)
@@ -207,7 +219,7 @@ powered. e.g.
 A machine widget can have an optional call back.
 
 e.g. Jack connector widget for an external Mic that enables Mic Bias
-when the Mic is inserted:-::
+when the Mic is inserted::
 
   static int spitz_mic_bias(struct snd_soc_dapm_widget* w, int event)
   {
@@ -221,7 +233,7 @@ when the Mic is inserted:-::
 Codec (BIAS) Domain
 -------------------
 
-The codec bias power domain has no widgets and is handled by the codecs DAPM
+The codec bias power domain has no widgets and is handled by the codec DAPM
 event handler. This handler is called when the codec powerstate is changed wrt
 to any stream event or by kernel PM events.
 
@@ -229,17 +241,58 @@ to any stream event or by kernel PM events.
 Virtual Widgets
 ---------------
 
-Sometimes widgets exist in the codec or machine audio map that don't have any
+Sometimes widgets exist in the codec or machine audio graph that don't have any
 corresponding soft power control. In this case it is necessary to create
 a virtual widget - a widget with no control bits e.g.
 ::
 
   SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-This can be used to merge to signal paths together in software.
+This can be used to merge two signal paths together in software.
 
-After all the widgets have been defined, they can then be added to the DAPM
-subsystem individually with a call to snd_soc_dapm_new_control().
+Registering DAPM controls
+=========================
+
+In many cases the DAPM widgets are implemented statically in a ``static
+const struct snd_soc_dapm_widget`` array in a codec driver, and simply
+declared via the ``dapm_widgets`` and ``num_dapm_widgets`` fields of the
+``struct snd_soc_component_driver``.
+
+Similarly, routes connecting them are implemented statically in a ``static
+const struct snd_soc_dapm_route`` array and declared via the
+``dapm_routes`` and ``num_dapm_routes`` fields of the same struct.
+
+With the above declared, the driver registration will take care of
+populating them::
+
+  static const struct snd_soc_dapm_widget wm2000_dapm_widgets[] = {
+  	SND_SOC_DAPM_OUTPUT("SPKN"),
+  	SND_SOC_DAPM_OUTPUT("SPKP"),
+  	...
+  };
+
+  /* Target, Path, Source */
+  static const struct snd_soc_dapm_route wm2000_audio_map[] = {
+  	{ "SPKN", NULL, "ANC Engine" },
+  	{ "SPKP", NULL, "ANC Engine" },
+	...
+  };
+
+  static const struct snd_soc_component_driver soc_component_dev_wm2000 = {
+	...
+  	.dapm_widgets		= wm2000_dapm_widgets,
+  	.num_dapm_widgets	= ARRAY_SIZE(wm2000_dapm_widgets),
+  	.dapm_routes            = wm2000_audio_map,
+  	.num_dapm_routes        = ARRAY_SIZE(wm2000_audio_map),
+	...
+  };
+
+In more complex cases the list of DAPM widgets and/or routes can be only
+known at probe time. This happens for example when a driver supports
+different models having a different set of features. In those cases
+separate widgets and routes arrays implementing the case-specific features
+can be registered programmatically by calling snd_soc_dapm_new_controls()
+and snd_soc_dapm_add_routes().
 
 
 Codec/DSP Widget Interconnections
@@ -247,31 +300,29 @@ Codec/DSP Widget Interconnections
 
 Widgets are connected to each other within the codec, platform and machine by
 audio paths (called interconnections). Each interconnection must be defined in
-order to create a map of all audio paths between widgets.
+order to create a graph of all audio paths between widgets.
 
 This is easiest with a diagram of the codec or DSP (and schematic of the machine
 audio system), as it requires joining widgets together via their audio signal
 paths.
 
-e.g., from the WM8731 output mixer (wm8731.c)
-
-The WM8731 output mixer has 3 inputs (sources)
+For example the WM8731 output mixer (wm8731.c) has 3 inputs (sources):
 
 1. Line Bypass Input
 2. DAC (HiFi playback)
 3. Mic Sidetone Input
 
-Each input in this example has a kcontrol associated with it (defined in example
-above) and is connected to the output mixer via its kcontrol name. We can now
-connect the destination widget (wrt audio signal) with its source widgets.
-::
+Each input in this example has a kcontrol associated with it (defined in
+the example above) and is connected to the output mixer via its kcontrol
+name. We can now connect the destination widget (wrt audio signal) with its
+source widgets.  ::
 
 	/* output mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
 	{"Output Mixer", "HiFi Playback Switch", "DAC"},
 	{"Output Mixer", "Mic Sidetone Switch", "Mic Bias"},
 
-So we have :-
+So we have:
 
 * Destination Widget  <=== Path Name <=== Source Widget, or
 * Sink, Path, Source, or
@@ -280,12 +331,11 @@ So we have :-
 When there is no path name connecting widgets (e.g. a direct connection) we
 pass NULL for the path name.
 
-Interconnections are created with a call to:-
-::
+Interconnections are created with a call to::
 
   snd_soc_dapm_connect_input(codec, sink, path, source);
 
-Finally, snd_soc_dapm_new_widgets(codec) must be called after all widgets and
+Finally, snd_soc_dapm_new_widgets() must be called after all widgets and
 interconnections have been registered with the core. This causes the core to
 scan the codec and machine so that the internal DAPM state matches the
 physical state of the machine.
@@ -326,35 +376,44 @@ jacks can also be switched OFF.
 DAPM Widget Events
 ==================
 
-Some widgets can register their interest with the DAPM core in PM events.
-e.g. A Speaker with an amplifier registers a widget so the amplifier can be
-powered only when the spk is in use.
-::
+Widgets needing to implement a more complex behaviour than what DAPM can do
+can set a custom "event handler" by setting a function pointer. An example
+is a power supply needing to enable a GPIO::
 
-  /* turn speaker amplifier on/off depending on use */
-  static int corgi_amp_event(struct snd_soc_dapm_widget *w, int event)
+  static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
+  					  struct snd_kcontrol *kcontrol, int event)
   {
-	gpio_set_value(CORGI_GPIO_APM_ON, SND_SOC_DAPM_EVENT_ON(event));
-	return 0;
+  	if (SND_SOC_DAPM_EVENT_ON(event))
+  		gpiod_set_value_cansleep(gpio_pa, true);
+  	else
+  		gpiod_set_value_cansleep(gpio_pa, false);
+
+  	return 0;
   }
 
-  /* corgi machine dapm widgets */
-  static const struct snd_soc_dapm_widget wm8731_dapm_widgets =
-	SND_SOC_DAPM_SPK("Ext Spk", corgi_amp_event);
+  static const struct snd_soc_dapm_widget st_widgets[] = {
+  	...
+  	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+  			    sof_es8316_speaker_power_event,
+  			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+  };
 
-Please see soc-dapm.h for all other widgets that support events.
+See soc-dapm.h for all other widgets that support events.
 
 
 Event types
 -----------
 
-The following event types are supported by event widgets.
-::
+The following event types are supported by event widgets::
 
   /* dapm event types */
-  #define SND_SOC_DAPM_PRE_PMU	0x1 	/* before widget power up */
-  #define SND_SOC_DAPM_POST_PMU	0x2		/* after widget power up */
-  #define SND_SOC_DAPM_PRE_PMD	0x4 	/* before widget power down */
-  #define SND_SOC_DAPM_POST_PMD	0x8		/* after widget power down */
-  #define SND_SOC_DAPM_PRE_REG	0x10	/* before audio path setup */
-  #define SND_SOC_DAPM_POST_REG	0x20	/* after audio path setup */
+  #define SND_SOC_DAPM_PRE_PMU		0x1	/* before widget power up */
+  #define SND_SOC_DAPM_POST_PMU		0x2	/* after  widget power up */
+  #define SND_SOC_DAPM_PRE_PMD		0x4	/* before widget power down */
+  #define SND_SOC_DAPM_POST_PMD		0x8	/* after  widget power down */
+  #define SND_SOC_DAPM_PRE_REG		0x10	/* before audio path setup */
+  #define SND_SOC_DAPM_POST_REG		0x20	/* after  audio path setup */
+  #define SND_SOC_DAPM_WILL_PMU		0x40	/* called at start of sequence */
+  #define SND_SOC_DAPM_WILL_PMD		0x80	/* called at start of sequence */
+  #define SND_SOC_DAPM_PRE_POST_PMD	(SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD)
+  #define SND_SOC_DAPM_PRE_POST_PMU	(SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU)

@@ -14,199 +14,177 @@ tool for BPF code-generation
 SYNOPSIS
 ========
 
-	**bpftool** [*OPTIONS*] **gen** *COMMAND*
+**bpftool** [*OPTIONS*] **gen** *COMMAND*
 
-	*OPTIONS* := { |COMMON_OPTIONS| | { **-L** | **--use-loader** } }
+*OPTIONS* := { |COMMON_OPTIONS| | { **-L** | **--use-loader** } }
 
-	*COMMAND* := { **object** | **skeleton** | **help** }
+*COMMAND* := { **object** | **skeleton** | **help** }
 
 GEN COMMANDS
 =============
 
-|	**bpftool** **gen object** *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
-|	**bpftool** **gen skeleton** *FILE* [**name** *OBJECT_NAME*]
-|	**bpftool** **gen subskeleton** *FILE* [**name** *OBJECT_NAME*]
-|	**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
-|	**bpftool** **gen help**
+| **bpftool** **gen object** *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
+| **bpftool** **gen skeleton** *FILE* [**name** *OBJECT_NAME*]
+| **bpftool** **gen subskeleton** *FILE* [**name** *OBJECT_NAME*]
+| **bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
+| **bpftool** **gen help**
 
 DESCRIPTION
 ===========
-	**bpftool gen object** *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
-		  Statically link (combine) together one or more *INPUT_FILE*'s
-		  into a single resulting *OUTPUT_FILE*. All the files involved
-		  are BPF ELF object files.
+bpftool gen object *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
+    Statically link (combine) together one or more *INPUT_FILE*'s into a single
+    resulting *OUTPUT_FILE*. All the files involved are BPF ELF object files.
 
-		  The rules of BPF static linking are mostly the same as for
-		  user-space object files, but in addition to combining data
-		  and instruction sections, .BTF and .BTF.ext (if present in
-		  any of the input files) data are combined together. .BTF
-		  data is deduplicated, so all the common types across
-		  *INPUT_FILE*'s will only be represented once in the resulting
-		  BTF information.
+    The rules of BPF static linking are mostly the same as for user-space
+    object files, but in addition to combining data and instruction sections,
+    .BTF and .BTF.ext (if present in any of the input files) data are combined
+    together. .BTF data is deduplicated, so all the common types across
+    *INPUT_FILE*'s will only be represented once in the resulting BTF
+    information.
 
-		  BPF static linking allows to partition BPF source code into
-		  individually compiled files that are then linked into
-		  a single resulting BPF object file, which can be used to
-		  generated BPF skeleton (with **gen skeleton** command) or
-		  passed directly into **libbpf** (using **bpf_object__open()**
-		  family of APIs).
+    BPF static linking allows to partition BPF source code into individually
+    compiled files that are then linked into a single resulting BPF object
+    file, which can be used to generated BPF skeleton (with **gen skeleton**
+    command) or passed directly into **libbpf** (using **bpf_object__open()**
+    family of APIs).
 
-	**bpftool gen skeleton** *FILE*
-		  Generate BPF skeleton C header file for a given *FILE*.
+bpftool gen skeleton *FILE*
+    Generate BPF skeleton C header file for a given *FILE*.
 
-		  BPF skeleton is an alternative interface to existing libbpf
-		  APIs for working with BPF objects. Skeleton code is intended
-		  to significantly shorten and simplify code to load and work
-		  with BPF programs from userspace side. Generated code is
-		  tailored to specific input BPF object *FILE*, reflecting its
-		  structure by listing out available maps, program, variables,
-		  etc. Skeleton eliminates the need to lookup mentioned
-		  components by name. Instead, if skeleton instantiation
-		  succeeds, they are populated in skeleton structure as valid
-		  libbpf types (e.g., **struct bpf_map** pointer) and can be
-		  passed to existing generic libbpf APIs.
+    BPF skeleton is an alternative interface to existing libbpf APIs for
+    working with BPF objects. Skeleton code is intended to significantly
+    shorten and simplify code to load and work with BPF programs from userspace
+    side. Generated code is tailored to specific input BPF object *FILE*,
+    reflecting its structure by listing out available maps, program, variables,
+    etc. Skeleton eliminates the need to lookup mentioned components by name.
+    Instead, if skeleton instantiation succeeds, they are populated in skeleton
+    structure as valid libbpf types (e.g., **struct bpf_map** pointer) and can
+    be passed to existing generic libbpf APIs.
 
-		  In addition to simple and reliable access to maps and
-		  programs, skeleton provides a storage for BPF links (**struct
-		  bpf_link**) for each BPF program within BPF object. When
-		  requested, supported BPF programs will be automatically
-		  attached and resulting BPF links stored for further use by
-		  user in pre-allocated fields in skeleton struct. For BPF
-		  programs that can't be automatically attached by libbpf,
-		  user can attach them manually, but store resulting BPF link
-		  in per-program link field. All such set up links will be
-		  automatically destroyed on BPF skeleton destruction. This
-		  eliminates the need for users to manage links manually and
-		  rely on libbpf support to detach programs and free up
-		  resources.
+    In addition to simple and reliable access to maps and programs, skeleton
+    provides a storage for BPF links (**struct bpf_link**) for each BPF program
+    within BPF object. When requested, supported BPF programs will be
+    automatically attached and resulting BPF links stored for further use by
+    user in pre-allocated fields in skeleton struct. For BPF programs that
+    can't be automatically attached by libbpf, user can attach them manually,
+    but store resulting BPF link in per-program link field. All such set up
+    links will be automatically destroyed on BPF skeleton destruction. This
+    eliminates the need for users to manage links manually and rely on libbpf
+    support to detach programs and free up resources.
 
-		  Another facility provided by BPF skeleton is an interface to
-		  global variables of all supported kinds: mutable, read-only,
-		  as well as extern ones. This interface allows to pre-setup
-		  initial values of variables before BPF object is loaded and
-		  verified by kernel. For non-read-only variables, the same
-		  interface can be used to fetch values of global variables on
-		  userspace side, even if they are modified by BPF code.
+    Another facility provided by BPF skeleton is an interface to global
+    variables of all supported kinds: mutable, read-only, as well as extern
+    ones. This interface allows to pre-setup initial values of variables before
+    BPF object is loaded and verified by kernel. For non-read-only variables,
+    the same interface can be used to fetch values of global variables on
+    userspace side, even if they are modified by BPF code.
 
-		  During skeleton generation, contents of source BPF object
-		  *FILE* is embedded within generated code and is thus not
-		  necessary to keep around. This ensures skeleton and BPF
-		  object file are matching 1-to-1 and always stay in sync.
-		  Generated code is dual-licensed under LGPL-2.1 and
-		  BSD-2-Clause licenses.
+    During skeleton generation, contents of source BPF object *FILE* is
+    embedded within generated code and is thus not necessary to keep around.
+    This ensures skeleton and BPF object file are matching 1-to-1 and always
+    stay in sync. Generated code is dual-licensed under LGPL-2.1 and
+    BSD-2-Clause licenses.
 
-		  It is a design goal and guarantee that skeleton interfaces
-		  are interoperable with generic libbpf APIs. User should
-		  always be able to use skeleton API to create and load BPF
-		  object, and later use libbpf APIs to keep working with
-		  specific maps, programs, etc.
+    It is a design goal and guarantee that skeleton interfaces are
+    interoperable with generic libbpf APIs. User should always be able to use
+    skeleton API to create and load BPF object, and later use libbpf APIs to
+    keep working with specific maps, programs, etc.
 
-		  As part of skeleton, few custom functions are generated.
-		  Each of them is prefixed with object name. Object name can
-		  either be derived from object file name, i.e., if BPF object
-		  file name is **example.o**, BPF object name will be
-		  **example**. Object name can be also specified explicitly
-		  through **name** *OBJECT_NAME* parameter. The following
-		  custom functions are provided (assuming **example** as
-		  the object name):
+    As part of skeleton, few custom functions are generated. Each of them is
+    prefixed with object name. Object name can either be derived from object
+    file name, i.e., if BPF object file name is **example.o**, BPF object name
+    will be **example**. Object name can be also specified explicitly through
+    **name** *OBJECT_NAME* parameter. The following custom functions are
+    provided (assuming **example** as the object name):
 
-		  - **example__open** and **example__open_opts**.
-		    These functions are used to instantiate skeleton. It
-		    corresponds to libbpf's **bpf_object__open**\ () API.
-		    **_opts** variants accepts extra **bpf_object_open_opts**
-		    options.
+    - **example__open** and **example__open_opts**.
+      These functions are used to instantiate skeleton. It corresponds to
+      libbpf's **bpf_object__open**\ () API. **_opts** variants accepts extra
+      **bpf_object_open_opts** options.
 
-		  - **example__load**.
-		    This function creates maps, loads and verifies BPF
-		    programs, initializes global data maps. It corresponds to
-		    libppf's **bpf_object__load**\ () API.
+    - **example__load**.
+      This function creates maps, loads and verifies BPF programs, initializes
+      global data maps. It corresponds to libppf's **bpf_object__load**\ ()
+      API.
 
-		  - **example__open_and_load** combines **example__open** and
-		    **example__load** invocations in one commonly used
-		    operation.
+    - **example__open_and_load** combines **example__open** and
+      **example__load** invocations in one commonly used operation.
 
-		  - **example__attach** and **example__detach**
-		    This pair of functions allow to attach and detach,
-		    correspondingly, already loaded BPF object. Only BPF
-		    programs of types supported by libbpf for auto-attachment
-		    will be auto-attached and their corresponding BPF links
-		    instantiated. For other BPF programs, user can manually
-		    create a BPF link and assign it to corresponding fields in
-		    skeleton struct. **example__detach** will detach both
-		    links created automatically, as well as those populated by
-		    user manually.
+    - **example__attach** and **example__detach**.
+      This pair of functions allow to attach and detach, correspondingly,
+      already loaded BPF object. Only BPF programs of types supported by libbpf
+      for auto-attachment will be auto-attached and their corresponding BPF
+      links instantiated. For other BPF programs, user can manually create a
+      BPF link and assign it to corresponding fields in skeleton struct.
+      **example__detach** will detach both links created automatically, as well
+      as those populated by user manually.
 
-		  - **example__destroy**
-		    Detach and unload BPF programs, free up all the resources
-		    used by skeleton and BPF object.
+    - **example__destroy**.
+      Detach and unload BPF programs, free up all the resources used by
+      skeleton and BPF object.
 
-		  If BPF object has global variables, corresponding structs
-		  with memory layout corresponding to global data data section
-		  layout will be created. Currently supported ones are: *.data*,
-		  *.bss*, *.rodata*, and *.kconfig* structs/data sections.
-		  These data sections/structs can be used to set up initial
-		  values of variables, if set before **example__load**.
-		  Afterwards, if target kernel supports memory-mapped BPF
-		  arrays, same structs can be used to fetch and update
-		  (non-read-only) data from userspace, with same simplicity
-		  as for BPF side.
+    If BPF object has global variables, corresponding structs with memory
+    layout corresponding to global data data section layout will be created.
+    Currently supported ones are: *.data*, *.bss*, *.rodata*, and *.kconfig*
+    structs/data sections. These data sections/structs can be used to set up
+    initial values of variables, if set before **example__load**. Afterwards,
+    if target kernel supports memory-mapped BPF arrays, same structs can be
+    used to fetch and update (non-read-only) data from userspace, with same
+    simplicity as for BPF side.
 
-	**bpftool gen subskeleton** *FILE*
-		  Generate BPF subskeleton C header file for a given *FILE*.
+bpftool gen subskeleton *FILE*
+    Generate BPF subskeleton C header file for a given *FILE*.
 
-		  Subskeletons are similar to skeletons, except they do not own
-		  the corresponding maps, programs, or global variables. They
-		  require that the object file used to generate them is already
-		  loaded into a *bpf_object* by some other means.
+    Subskeletons are similar to skeletons, except they do not own the
+    corresponding maps, programs, or global variables. They require that the
+    object file used to generate them is already loaded into a *bpf_object* by
+    some other means.
 
-		  This functionality is useful when a library is included into a
-		  larger BPF program. A subskeleton for the library would have
-		  access to all objects and globals defined in it, without
-		  having to know about the larger program.
+    This functionality is useful when a library is included into a larger BPF
+    program. A subskeleton for the library would have access to all objects and
+    globals defined in it, without having to know about the larger program.
 
-		  Consequently, there are only two functions defined
-		  for subskeletons:
+    Consequently, there are only two functions defined for subskeletons:
 
-		  - **example__open(bpf_object\*)**
-		    Instantiates a subskeleton from an already opened (but not
-		    necessarily loaded) **bpf_object**.
+    - **example__open(bpf_object\*)**.
+      Instantiates a subskeleton from an already opened (but not necessarily
+      loaded) **bpf_object**.
 
-		  - **example__destroy()**
-		    Frees the storage for the subskeleton but *does not* unload
-		    any BPF programs or maps.
+    - **example__destroy()**.
+      Frees the storage for the subskeleton but *does not* unload any BPF
+      programs or maps.
 
-	**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
-		  Generate a minimum BTF file as *OUTPUT*, derived from a given
-		  *INPUT* BTF file, containing all needed BTF types so one, or
-		  more, given eBPF objects CO-RE relocations may be satisfied.
+bpftool gen min_core_btf *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
+    Generate a minimum BTF file as *OUTPUT*, derived from a given *INPUT* BTF
+    file, containing all needed BTF types so one, or more, given eBPF objects
+    CO-RE relocations may be satisfied.
 
-		  When kernels aren't compiled with CONFIG_DEBUG_INFO_BTF,
-		  libbpf, when loading an eBPF object, has to rely on external
-		  BTF files to be able to calculate CO-RE relocations.
+    When kernels aren't compiled with CONFIG_DEBUG_INFO_BTF, libbpf, when
+    loading an eBPF object, has to rely on external BTF files to be able to
+    calculate CO-RE relocations.
 
-		  Usually, an external BTF file is built from existing kernel
-		  DWARF data using pahole. It contains all the types used by
-		  its respective kernel image and, because of that, is big.
+    Usually, an external BTF file is built from existing kernel DWARF data
+    using pahole. It contains all the types used by its respective kernel image
+    and, because of that, is big.
 
-		  The min_core_btf feature builds smaller BTF files, customized
-		  to one or multiple eBPF objects, so they can be distributed
-		  together with an eBPF CO-RE based application, turning the
-		  application portable to different kernel versions.
+    The min_core_btf feature builds smaller BTF files, customized to one or
+    multiple eBPF objects, so they can be distributed together with an eBPF
+    CO-RE based application, turning the application portable to different
+    kernel versions.
 
-		  Check examples bellow for more information how to use it.
+    Check examples bellow for more information how to use it.
 
-	**bpftool gen help**
-		  Print short help message.
+bpftool gen help
+    Print short help message.
 
 OPTIONS
 =======
-	.. include:: common_options.rst
+.. include:: common_options.rst
 
-	-L, --use-loader
-		  For skeletons, generate a "light" skeleton (also known as "loader"
-		  skeleton). A light skeleton contains a loader eBPF program. It does
-		  not use the majority of the libbpf infrastructure, and does not need
-		  libelf.
+-L, --use-loader
+    For skeletons, generate a "light" skeleton (also known as "loader"
+    skeleton). A light skeleton contains a loader eBPF program. It does not use
+    the majority of the libbpf infrastructure, and does not need libelf.
 
 EXAMPLES
 ========

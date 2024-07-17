@@ -658,7 +658,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1263,7 +1263,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1426,7 +1426,7 @@ int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1762,9 +1762,9 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
@@ -1878,9 +1878,9 @@ int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 	struct cca_info ci;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);

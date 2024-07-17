@@ -40,15 +40,7 @@ static u8 *rci2_base;
 static u32 rci2_table_len;
 unsigned long rci2_table_phys __ro_after_init = EFI_INVALID_TABLE_ADDR;
 
-static ssize_t raw_table_read(struct file *file, struct kobject *kobj,
-			      struct bin_attribute *attr, char *buf,
-			      loff_t pos, size_t count)
-{
-	memcpy(buf, attr->private + pos, count);
-	return count;
-}
-
-static BIN_ATTR(rci2, S_IRUSR, raw_table_read, NULL, 0);
+static BIN_ATTR_SIMPLE_ADMIN_RO(rci2);
 
 static u16 checksum(void)
 {

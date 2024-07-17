@@ -1,0 +1,11 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/8.Conclusion.rst
+
+.. _sp_development_conclusion:
+
+Para más información
+====================
+
+.. warning::
+	TODO aún no traducido

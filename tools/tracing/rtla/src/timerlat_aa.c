@@ -16,6 +16,9 @@ enum timelat_state {
 	TIMERLAT_WAITING_THREAD,
 };
 
+/* Used to fill spaces in the output */
+static const char *spaces  = "                                                         ";
+
 #define MAX_COMM		24
 
 /*
@@ -274,14 +277,17 @@ static int timerlat_aa_nmi_handler(struct trace_seq *s, struct tep_record *recor
 		taa_data->prev_irq_timstamp = start;
 
 		trace_seq_reset(taa_data->prev_irqs_seq);
-		trace_seq_printf(taa_data->prev_irqs_seq, "\t%24s	\t\t\t%9.2f us\n",
-			 "nmi", ns_to_usf(duration));
+		trace_seq_printf(taa_data->prev_irqs_seq, "  %24s %.*s %9.2f us\n",
+				 "nmi",
+				 24, spaces,
+				 ns_to_usf(duration));
 		return 0;
 	}
 
 	taa_data->thread_nmi_sum += duration;
-	trace_seq_printf(taa_data->nmi_seq, "	%24s	\t\t\t%9.2f us\n",
-		 "nmi", ns_to_usf(duration));
+	trace_seq_printf(taa_data->nmi_seq, "  %24s %.*s %9.2f us\n",
+			 "nmi",
+			 24, spaces, ns_to_usf(duration));
 
 	return 0;
 }
@@ -323,8 +329,10 @@ static int timerlat_aa_irq_handler(struct trace_seq *s, struct tep_record *recor
 		taa_data->prev_irq_timstamp = start;
 
 		trace_seq_reset(taa_data->prev_irqs_seq);
-		trace_seq_printf(taa_data->prev_irqs_seq, "\t%24s:%-3llu	\t\t%9.2f us\n",
-				 desc, vector, ns_to_usf(duration));
+		trace_seq_printf(taa_data->prev_irqs_seq, "  %24s:%-3llu %.*s %9.2f us\n",
+				 desc, vector,
+				 15, spaces,
+				 ns_to_usf(duration));
 		return 0;
 	}
 
@@ -372,8 +380,10 @@ static int timerlat_aa_irq_handler(struct trace_seq *s, struct tep_record *recor
 	 * IRQ interference.
 	 */
 	taa_data->thread_irq_sum += duration;
-	trace_seq_printf(taa_data->irqs_seq, "	%24s:%-3llu	\t	%9.2f us\n",
-			 desc, vector, ns_to_usf(duration));
+	trace_seq_printf(taa_data->irqs_seq, "  %24s:%-3llu %.*s %9.2f us\n",
+			 desc, vector,
+			 24, spaces,
+			 ns_to_usf(duration));
 
 	return 0;
 }
@@ -408,8 +418,10 @@ static int timerlat_aa_softirq_handler(struct trace_seq *s, struct tep_record *r
 
 	taa_data->thread_softirq_sum += duration;
 
-	trace_seq_printf(taa_data->softirqs_seq, "\t%24s:%-3llu	\t	%9.2f us\n",
-			 softirq_name[vector], vector, ns_to_usf(duration));
+	trace_seq_printf(taa_data->softirqs_seq, "  %24s:%-3llu %.*s %9.2f us\n",
+			 softirq_name[vector], vector,
+			 24, spaces,
+			 ns_to_usf(duration));
 	return 0;
 }
 
@@ -452,8 +464,10 @@ static int timerlat_aa_thread_handler(struct trace_seq *s, struct tep_record *re
 	} else {
 		taa_data->thread_thread_sum += duration;
 
-		trace_seq_printf(taa_data->threads_seq, "\t%24s:%-3llu	\t\t%9.2f us\n",
-			 comm, pid, ns_to_usf(duration));
+		trace_seq_printf(taa_data->threads_seq, "  %24s:%-12llu %.*s %9.2f us\n",
+				 comm, pid,
+				 15, spaces,
+				 ns_to_usf(duration));
 	}
 
 	return 0;
@@ -482,7 +496,8 @@ static int timerlat_aa_stack_handler(struct trace_seq *s, struct tep_record *rec
 			function = tep_find_function(taa_ctx->tool->trace.tep, caller[i]);
 			if (!function)
 				break;
-			trace_seq_printf(taa_data->stack_seq, "\t\t-> %s\n", function);
+			trace_seq_printf(taa_data->stack_seq, " %.*s -> %s\n",
+					 14, spaces, function);
 		}
 	}
 	return 0;
@@ -568,23 +583,24 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	exp_irq_ts = taa_data->timer_irq_start_time - taa_data->timer_irq_start_delay;
 	if (exp_irq_ts < taa_data->prev_irq_timstamp + taa_data->prev_irq_duration) {
 		if (taa_data->prev_irq_timstamp < taa_data->timer_irq_start_time)
-			printf("  Previous IRQ interference:	\t\t up to  %9.2f us\n",
-				ns_to_usf(taa_data->prev_irq_duration));
+			printf("  Previous IRQ interference: %.*s up to  %9.2f us\n",
+			       16, spaces,
+			       ns_to_usf(taa_data->prev_irq_duration));
 	}
 
 	/*
 	 * The delay that the IRQ suffered before starting.
 	 */
-	printf("  IRQ handler delay:		%16s	%9.2f us (%.2f %%)\n",
-		(ns_to_usf(taa_data->timer_exit_from_idle) > 10) ? "(exit from idle)" : "",
-		ns_to_usf(taa_data->timer_irq_start_delay),
-		ns_to_per(total, taa_data->timer_irq_start_delay));
+	printf("  IRQ handler delay: %.*s %16s  %9.2f us (%.2f %%)\n", 16, spaces,
+	       (ns_to_usf(taa_data->timer_exit_from_idle) > 10) ? "(exit from idle)" : "",
+	       ns_to_usf(taa_data->timer_irq_start_delay),
+	       ns_to_per(total, taa_data->timer_irq_start_delay));
 
 	/*
 	 * Timerlat IRQ.
 	 */
-	printf("  IRQ latency:	\t\t\t\t	%9.2f us\n",
-		ns_to_usf(taa_data->tlat_irq_latency));
+	printf("  IRQ latency: %.*s %9.2f us\n", 40, spaces,
+	       ns_to_usf(taa_data->tlat_irq_latency));
 
 	if (irq) {
 		/*
@@ -595,15 +611,16 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 		 * so it will be displayed, it is the key.
 		 */
 		printf("  Blocking thread:\n");
-		printf("	%24s:%-9llu\n",
-			taa_data->run_thread_comm, taa_data->run_thread_pid);
+		printf(" %.*s %24s:%-9llu\n", 6, spaces, taa_data->run_thread_comm,
+		       taa_data->run_thread_pid);
 	} else  {
 		/*
 		 * The duration of the IRQ handler that handled the timerlat IRQ.
 		 */
-		printf("  Timerlat IRQ duration:	\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->timer_irq_duration),
-			ns_to_per(total, taa_data->timer_irq_duration));
+		printf("  Timerlat IRQ duration: %.*s %9.2f us (%.2f %%)\n",
+		       30, spaces,
+		       ns_to_usf(taa_data->timer_irq_duration),
+		       ns_to_per(total, taa_data->timer_irq_duration));
 
 		/*
 		 * The amount of time that the current thread postponed the scheduler.
@@ -611,13 +628,13 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 		 * Recalling that it is net from NMI/IRQ/Softirq interference, so there
 		 * is no need to compute values here.
 		 */
-		printf("  Blocking thread:	\t\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->thread_blocking_duration),
-			ns_to_per(total, taa_data->thread_blocking_duration));
+		printf("  Blocking thread: %.*s %9.2f us (%.2f %%)\n", 36, spaces,
+		       ns_to_usf(taa_data->thread_blocking_duration),
+		       ns_to_per(total, taa_data->thread_blocking_duration));
 
-		printf("	%24s:%-9llu		%9.2f us\n",
-			taa_data->run_thread_comm, taa_data->run_thread_pid,
-			ns_to_usf(taa_data->thread_blocking_duration));
+		printf(" %.*s %24s:%-9llu %.*s %9.2f us\n", 6, spaces,
+		       taa_data->run_thread_comm, taa_data->run_thread_pid,
+		       12, spaces, ns_to_usf(taa_data->thread_blocking_duration));
 	}
 
 	/*
@@ -629,9 +646,9 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	 * NMIs can happen during the IRQ, so they are always possible.
 	 */
 	if (taa_data->thread_nmi_sum)
-		printf("  NMI interference	\t\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->thread_nmi_sum),
-			ns_to_per(total, taa_data->thread_nmi_sum));
+		printf("  NMI interference %.*s %9.2f us (%.2f %%)\n", 36, spaces,
+		       ns_to_usf(taa_data->thread_nmi_sum),
+		       ns_to_per(total, taa_data->thread_nmi_sum));
 
 	/*
 	 * If it is an IRQ latency, the other factors can be skipped.
@@ -643,9 +660,9 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	 * Prints the interference caused by IRQs to the thread latency.
 	 */
 	if (taa_data->thread_irq_sum) {
-		printf("  IRQ interference	\t\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->thread_irq_sum),
-			ns_to_per(total, taa_data->thread_irq_sum));
+		printf("  IRQ interference %.*s %9.2f us (%.2f %%)\n", 36, spaces,
+		       ns_to_usf(taa_data->thread_irq_sum),
+		       ns_to_per(total, taa_data->thread_irq_sum));
 
 		trace_seq_do_printf(taa_data->irqs_seq);
 	}
@@ -654,9 +671,9 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	 * Prints the interference caused by Softirqs to the thread latency.
 	 */
 	if (taa_data->thread_softirq_sum) {
-		printf("  Softirq interference	\t\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->thread_softirq_sum),
-			ns_to_per(total, taa_data->thread_softirq_sum));
+		printf("  Softirq interference %.*s %9.2f us (%.2f %%)\n", 32, spaces,
+		       ns_to_usf(taa_data->thread_softirq_sum),
+		       ns_to_per(total, taa_data->thread_softirq_sum));
 
 		trace_seq_do_printf(taa_data->softirqs_seq);
 	}
@@ -670,9 +687,9 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	 * timer handling latency.
 	 */
 	if (taa_data->thread_thread_sum) {
-		printf("  Thread interference	\t\t\t	%9.2f us (%.2f %%)\n",
-			ns_to_usf(taa_data->thread_thread_sum),
-			ns_to_per(total, taa_data->thread_thread_sum));
+		printf("  Thread interference %.*s %9.2f us (%.2f %%)\n", 33, spaces,
+		       ns_to_usf(taa_data->thread_thread_sum),
+		       ns_to_per(total, taa_data->thread_thread_sum));
 
 		trace_seq_do_printf(taa_data->threads_seq);
 	}
@@ -682,8 +699,8 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	 */
 print_total:
 	printf("------------------------------------------------------------------------\n");
-	printf("  %s latency:	\t\t\t	%9.2f us (100%%)\n", irq ? "IRQ" : "Thread",
-		ns_to_usf(total));
+	printf("  %s latency: %.*s %9.2f us (100%%)\n", irq ? "   IRQ" : "Thread",
+	       37, spaces, ns_to_usf(total));
 }
 
 static int timerlat_auto_analysis_collect_trace(struct timerlat_aa_context *taa_ctx)

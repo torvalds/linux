@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2008, Intel Corporation
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018, 2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2018, 2020, 2022-2024 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -155,6 +155,7 @@ validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_eht_operation _oper;
 		struct ieee80211_eht_operation_info _oper_info;
 	} __packed eht;
+	const struct ieee80211_eht_operation *eht_oper;
 
 	if (conn->mode < IEEE80211_CONN_MODE_HE) {
 		chandef->chan = NULL;
@@ -203,19 +204,18 @@ validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (conn->mode < IEEE80211_CONN_MODE_EHT) {
-		if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
-						    NULL, chandef))
-			chandef->chan = NULL;
+		eht_oper = NULL;
 	} else {
 		eht._oper.params = IEEE80211_EHT_OPER_INFO_PRESENT;
 		eht._oper_info.control = he._6ghz_oper.control;
 		eht._oper_info.ccfs0 = he._6ghz_oper.ccfs0;
 		eht._oper_info.ccfs1 = he._6ghz_oper.ccfs1;
-
-		if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
-						    &eht._oper, chandef))
-			chandef->chan = NULL;
+		eht_oper = &eht._oper;
 	}
+
+	if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
+					    eht_oper, chandef))
+		chandef->chan = NULL;
 }
 
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
@@ -223,7 +223,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
 				 struct ieee80211_conn_settings *conn,
-				 u8 *bssid,
+				 u8 *bssid, bool unprot_action,
 				 struct ieee80211_csa_ie *csa_ie)
 {
 	enum nl80211_band new_band = current_band;
@@ -258,8 +258,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 		if (!ieee80211_operating_class_to_band(new_op_class, &new_band)) {
 			new_op_class = 0;
-			sdata_info(sdata, "cannot understand ECSA IE operating class, %d, ignoring\n",
-				   ext_chansw_elem->new_operating_class);
+			if (!unprot_action)
+				sdata_info(sdata,
+					   "cannot understand ECSA IE operating class, %d, ignoring\n",
+					   ext_chansw_elem->new_operating_class);
 		} else {
 			new_chan_no = ext_chansw_elem->new_ch_num;
 			csa_ie->count = ext_chansw_elem->count;
@@ -293,9 +295,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
 	new_chan = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
 	if (!new_chan || new_chan->flags & IEEE80211_CHAN_DISABLED) {
-		sdata_info(sdata,
-			   "BSS %pM switches to unsupported channel (%d MHz), disconnecting\n",
-			   bssid, new_freq);
+		if (!unprot_action)
+			sdata_info(sdata,
+				   "BSS %pM switches to unsupported channel (%d MHz), disconnecting\n",
+				   bssid, new_freq);
 		return -EINVAL;
 	}
 
@@ -340,6 +343,9 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
+	/* capture the AP configuration */
+	csa_ie->chanreq.ap = csa_ie->chanreq.oper;
+
 	/* parse one of the Elements to build a new chandef */
 	memset(&new_chandef, 0, sizeof(new_chandef));
 	new_chandef.chan = new_chan;
@@ -348,6 +354,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		new_chandef = csa_ie->chanreq.oper;
 		/* and update the width accordingly */
 		ieee80211_chandef_eht_oper(&bwi->info, &new_chandef);
+
+		if (bwi->params & IEEE80211_BW_IND_DIS_SUBCH_PRESENT)
+			new_chandef.punctured =
+				get_unaligned_le16(bwi->info.optional);
 	} else if (!wide_bw_chansw_ie || !wbcs_elem_to_chandef(wide_bw_chansw_ie,
 							       &new_chandef)) {
 		if (!ieee80211_operating_class_to_chandef(new_op_class, new_chan,
@@ -364,6 +374,9 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 	/* if data is there validate the bandwidth & use it */
 	if (new_chandef.chan) {
+		/* capture the AP chandef before (potential) downgrading */
+		csa_ie->chanreq.ap = new_chandef;
+
 		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_320 &&
 		    new_chandef.width == NL80211_CHAN_WIDTH_320)
 			ieee80211_chandef_downgrade(&new_chandef, NULL);

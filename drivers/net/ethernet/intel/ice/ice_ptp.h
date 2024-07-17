@@ -29,8 +29,15 @@ enum ice_ptp_pin_e810t {
 struct ice_perout_channel {
 	bool ena;
 	u32 gpio_pin;
+	u32 flags;
 	u64 period;
 	u64 start_time;
+};
+
+struct ice_extts_channel {
+	bool ena;
+	u32 gpio_pin;
+	u32 flags;
 };
 
 /* The ice hardware captures Tx hardware timestamps in the PHY. The timestamp
@@ -153,6 +160,7 @@ struct ice_ptp_tx {
 #define INDEX_PER_QUAD			64
 #define INDEX_PER_PORT_E82X		16
 #define INDEX_PER_PORT_E810		64
+#define INDEX_PER_PORT_ETH56G		64
 
 /**
  * struct ice_ptp_port - data used to initialize an external port for PTP
@@ -226,6 +234,7 @@ enum ice_ptp_state {
  * @ext_ts_irq: the external timestamp IRQ in use
  * @kworker: kwork thread for handling periodic work
  * @perout_channels: periodic output data
+ * @extts_channels: channels for external timestamps
  * @info: structure defining PTP hardware capabilities
  * @clock: pointer to registered PTP clock device
  * @tstamp_config: hardware timestamping configuration
@@ -249,6 +258,7 @@ struct ice_ptp {
 	u8 ext_ts_irq;
 	struct kthread_worker *kworker;
 	struct ice_perout_channel perout_channels[GLTSYN_TGT_H_IDX_MAX];
+	struct ice_extts_channel extts_channels[GLTSYN_TGT_H_IDX_MAX];
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	struct hwtstamp_config tstamp_config;

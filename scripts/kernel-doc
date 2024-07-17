@@ -62,7 +62,7 @@ my $anon_struct_union = 0;
 
 # match expressions used to find embedded type information
 my $type_constant = '\b``([^\`]+)``\b';
-my $type_constant2 = '\%([-_\w]+)';
+my $type_constant2 = '\%([-_*\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)';
 my $type_param_ref = '([\!~\*]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)';
@@ -1143,6 +1143,7 @@ sub dump_struct($$) {
         $members =~ s/\s*$attribute/ /gi;
         $members =~ s/\s*__aligned\s*\([^;]*\)/ /gos;
         $members =~ s/\s*__counted_by\s*\([^;]*\)/ /gos;
+        $members =~ s/\s*__counted_by_(le|be)\s*\([^;]*\)/ /gos;
         $members =~ s/\s*__packed\s*/ /gos;
         $members =~ s/\s*CRYPTO_MINALIGN_ATTR/ /gos;
         $members =~ s/\s*____cacheline_aligned_in_smp/ /gos;
@@ -1151,7 +1152,8 @@ sub dump_struct($$) {
         # - first eat non-declaration parameters and rewrite for final match
         # - then remove macro, outer parens, and trailing semicolon
         $members =~ s/\bstruct_group\s*\(([^,]*,)/STRUCT_GROUP(/gos;
-        $members =~ s/\bstruct_group_(attr|tagged)\s*\(([^,]*,){2}/STRUCT_GROUP(/gos;
+        $members =~ s/\bstruct_group_attr\s*\(([^,]*,){2}/STRUCT_GROUP(/gos;
+        $members =~ s/\bstruct_group_tagged\s*\(([^,]*),([^,]*),/struct $1 $2; STRUCT_GROUP(/gos;
         $members =~ s/\b__struct_group\s*\(([^,]*,){3}/STRUCT_GROUP(/gos;
         $members =~ s/\bSTRUCT_GROUP(\(((?:(?>[^)(]+)|(?1))*)\))[^;]*;/$2/gos;
 
@@ -1723,6 +1725,7 @@ sub dump_function($$) {
     $prototype =~ s/__must_check +//;
     $prototype =~ s/__weak +//;
     $prototype =~ s/__sched +//;
+    $prototype =~ s/_noprof//;
     $prototype =~ s/__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +//;
     $prototype =~ s/__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +//;
     $prototype =~ s/__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +//;

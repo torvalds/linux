@@ -23,3 +23,6 @@ The BPF calling convention is defined as:
 
 R0 - R5 are scratch registers and BPF programs needs to spill/fill them if
 necessary across calls.
+
+The BPF program needs to store the return value into register R0 before doing an
+``EXIT``.

@@ -225,7 +225,7 @@ skip_init_ctx:
 	fp->jited_len = proglen + FUNCTION_DESCR_SIZE;
 
 	if (!fp->is_func || extra_pass) {
-		if (bpf_jit_binary_pack_finalize(fp, fhdr, hdr)) {
+		if (bpf_jit_binary_pack_finalize(fhdr, hdr)) {
 			fp = org_fp;
 			goto out_addrs;
 		}
@@ -348,7 +348,7 @@ void bpf_jit_free(struct bpf_prog *fp)
 		 * before freeing it.
 		 */
 		if (jit_data) {
-			bpf_jit_binary_pack_finalize(fp, jit_data->fhdr, jit_data->hdr);
+			bpf_jit_binary_pack_finalize(jit_data->fhdr, jit_data->hdr);
 			kvfree(jit_data->addrs);
 			kfree(jit_data);
 		}
@@ -358,4 +358,14 @@ void bpf_jit_free(struct bpf_prog *fp)
 	}
 
 	bpf_prog_unlock_free(fp);
+}
+
+bool bpf_jit_supports_kfunc_call(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_far_kfunc_call(void)
+{
+	return IS_ENABLED(CONFIG_PPC64);
 }

@@ -322,7 +322,7 @@ static inline void ehb(void)
 	"	.set	push				\n"	\
 	"	.set	"MIPS_ISA_LEVEL"		\n"	\
 	_ASM_SET_MFTC0							\
-	"	mftc0	$1, " #rt ", " #sel "		\n"	\
+	"	mftc0	%0, " #rt ", " #sel "		\n"	\
 	_ASM_UNSET_MFTC0						\
 	"	.set	pop				\n"	\
 	: "=r" (__res));						\

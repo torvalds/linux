@@ -44,6 +44,7 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_PM_NOTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
+	select KVM_WERROR if WERROR
 	help
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -66,7 +67,7 @@ config KVM_WERROR
 	# FRAME_WARN, i.e. KVM_WERROR=y with KASAN=y requires special tuning.
 	# Building KVM with -Werror and KASAN is still doable via enabling
 	# the kernel-wide WERROR=y.
-	depends on KVM && EXPERT && !KASAN
+	depends on KVM && ((EXPERT && !KASAN) || WERROR)
 	help
 	  Add -Werror to the build flags for KVM.
 
@@ -94,6 +95,21 @@ config KVM_INTEL
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-intel.
+
+config KVM_INTEL_PROVE_VE
+        bool "Check that guests do not receive #VE exceptions"
+        depends on KVM_INTEL && EXPERT
+        help
+          Checks that KVM's page table management code will not incorrectly
+          let guests receive a virtualization exception.  Virtualization
+          exceptions will be trapped by the hypervisor rather than injected
+          in the guest.
+
+          Note: some CPUs appear to generate spurious EPT Violations #VEs
+          that trigger KVM's WARN, in particular with eptad=0 and/or nested
+          virtualization.
+
+          If unsure, say N.
 
 config X86_SGX_KVM
 	bool "Software Guard eXtensions (SGX) Virtualization"

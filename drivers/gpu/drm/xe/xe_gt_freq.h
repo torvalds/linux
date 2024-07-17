@@ -8,6 +8,6 @@
 
 struct xe_gt;
 
-void xe_gt_freq_init(struct xe_gt *gt);
+int xe_gt_freq_init(struct xe_gt *gt);
 
 #endif

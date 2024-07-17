@@ -165,7 +165,7 @@ static int ksmbd_inode_init(struct ksmbd_inode *ci, struct ksmbd_file *fp)
 	ci->m_fattr = 0;
 	INIT_LIST_HEAD(&ci->m_fp_list);
 	INIT_LIST_HEAD(&ci->m_op_list);
-	rwlock_init(&ci->m_lock);
+	init_rwsem(&ci->m_lock);
 	ci->m_de = fp->filp->f_path.dentry;
 	return 0;
 }
@@ -254,21 +254,22 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 		ci->m_flags &= ~S_DEL_ON_CLS_STREAM;
 		err = ksmbd_vfs_remove_xattr(file_mnt_idmap(filp),
 					     &filp->f_path,
-					     fp->stream.name);
+					     fp->stream.name,
+					     true);
 		if (err)
 			pr_err("remove xattr failed : %s\n",
 			       fp->stream.name);
 	}
 
 	if (atomic_dec_and_test(&ci->m_count)) {
-		write_lock(&ci->m_lock);
+		down_write(&ci->m_lock);
 		if (ci->m_flags & (S_DEL_ON_CLS | S_DEL_PENDING)) {
 			ci->m_flags &= ~(S_DEL_ON_CLS | S_DEL_PENDING);
-			write_unlock(&ci->m_lock);
+			up_write(&ci->m_lock);
 			ksmbd_vfs_unlink(filp);
-			write_lock(&ci->m_lock);
+			down_write(&ci->m_lock);
 		}
-		write_unlock(&ci->m_lock);
+		up_write(&ci->m_lock);
 
 		ksmbd_inode_free(ci);
 	}
@@ -289,9 +290,9 @@ static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp
 	if (!has_file_id(fp->volatile_id))
 		return;
 
-	write_lock(&fp->f_ci->m_lock);
+	down_write(&fp->f_ci->m_lock);
 	list_del_init(&fp->node);
-	write_unlock(&fp->f_ci->m_lock);
+	up_write(&fp->f_ci->m_lock);
 
 	write_lock(&ft->lock);
 	idr_remove(ft->idr, fp->volatile_id);
@@ -523,17 +524,17 @@ struct ksmbd_file *ksmbd_lookup_fd_inode(struct dentry *dentry)
 	if (!ci)
 		return NULL;
 
-	read_lock(&ci->m_lock);
+	down_read(&ci->m_lock);
 	list_for_each_entry(lfp, &ci->m_fp_list, node) {
 		if (inode == file_inode(lfp->filp)) {
 			atomic_dec(&ci->m_count);
 			lfp = ksmbd_fp_get(lfp);
-			read_unlock(&ci->m_lock);
+			up_read(&ci->m_lock);
 			return lfp;
 		}
 	}
 	atomic_dec(&ci->m_count);
-	read_unlock(&ci->m_lock);
+	up_read(&ci->m_lock);
 	return NULL;
 }
 
@@ -705,13 +706,13 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 
 	conn = fp->conn;
 	ci = fp->f_ci;
-	write_lock(&ci->m_lock);
+	down_write(&ci->m_lock);
 	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
 		if (op->conn != conn)
 			continue;
 		op->conn = NULL;
 	}
-	write_unlock(&ci->m_lock);
+	up_write(&ci->m_lock);
 
 	fp->conn = NULL;
 	fp->tcon = NULL;
@@ -801,13 +802,13 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	fp->tcon = work->tcon;
 
 	ci = fp->f_ci;
-	write_lock(&ci->m_lock);
+	down_write(&ci->m_lock);
 	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
 		if (op->conn)
 			continue;
 		op->conn = fp->conn;
 	}
-	write_unlock(&ci->m_lock);
+	up_write(&ci->m_lock);
 
 	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
 	if (!has_file_id(fp->volatile_id)) {

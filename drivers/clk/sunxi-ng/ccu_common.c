@@ -44,6 +44,16 @@ bool ccu_is_better_rate(struct ccu_common *common,
 			unsigned long current_rate,
 			unsigned long best_rate)
 {
+	unsigned long min_rate, max_rate;
+
+	clk_hw_get_rate_range(&common->hw, &min_rate, &max_rate);
+
+	if (current_rate > max_rate)
+		return false;
+
+	if (current_rate < min_rate)
+		return false;
+
 	if (common->features & CCU_FEATURE_CLOSEST_RATE)
 		return abs(current_rate - target_rate) < abs(best_rate - target_rate);
 
@@ -136,6 +146,21 @@ static int sunxi_ccu_probe(struct sunxi_ccu *ccu, struct device *dev,
 			pr_err("Couldn't register clock %d - %s\n", i, name);
 			goto err_clk_unreg;
 		}
+	}
+
+	for (i = 0; i < desc->num_ccu_clks; i++) {
+		struct ccu_common *cclk = desc->ccu_clks[i];
+
+		if (!cclk)
+			continue;
+
+		if (cclk->max_rate)
+			clk_hw_set_rate_range(&cclk->hw, cclk->min_rate,
+					      cclk->max_rate);
+		else
+			WARN(cclk->min_rate,
+			     "No max_rate, ignoring min_rate of clock %d - %s\n",
+			     i, clk_hw_get_name(&cclk->hw));
 	}
 
 	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,

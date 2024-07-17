@@ -566,7 +566,7 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	if (!(rx_end->status & RX_RES_STATUS_NO_CRC32_ERROR) ||
 	    !(rx_end->status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
 		D_RX("Bad CRC or FIFO: 0x%08X.\n", rx_end->status);
-		return;
+		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 
 	/* Convert 3945's rssi indicator to dBm */

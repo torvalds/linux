@@ -68,7 +68,7 @@ The expected flow for the consumers:
 can be enabled for the device.
 2. Call `amd_wbrf_register_notifier` to register for notification
 of frequency band change(add or remove) from other producers.
-3. Call the `amd_wbrf_retrieve_freq_band` initally to retrieve
+3. Call the `amd_wbrf_retrieve_freq_band` initially to retrieve
 current active frequency bands considering some producers may broadcast
 such information before the consumer is up.
 4. On receiving a notification for frequency band change, run

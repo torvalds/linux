@@ -8,7 +8,7 @@
 #include "rk3566-powkiddy-rk2023.dtsi"
 
 / {
-	model = "RK2023";
+	model = "Powkiddy RK2023";
 	compatible = "powkiddy,rk2023", "rockchip,rk3566";
 };
 

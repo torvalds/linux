@@ -116,8 +116,7 @@ static int gfs2_write_jdata_folio(struct folio *folio,
  * @folio: The folio to write
  * @wbc: The writeback control
  *
- * This is shared between writepage and writepages and implements the
- * core of the writepage operation. If a transaction is required then
+ * Implements the core of write back. If a transaction is required then
  * the checked flag will have been set and the transaction will have
  * already been started before this is called.
  */
@@ -755,6 +754,7 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.readahead = gfs2_readahead,
 	.dirty_folio = jdata_dirty_folio,
 	.bmap = gfs2_bmap,
+	.migrate_folio = buffer_migrate_folio,
 	.invalidate_folio = gfs2_invalidate_folio,
 	.release_folio = gfs2_release_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,

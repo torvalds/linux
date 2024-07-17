@@ -29,7 +29,6 @@ required:
   - compatible
   - reg
   - clocks
-  - "#pwm-cells"
 
 additionalProperties: false
 

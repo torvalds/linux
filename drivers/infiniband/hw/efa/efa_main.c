@@ -671,11 +671,22 @@ static void efa_remove(struct pci_dev *pdev)
 	efa_remove_device(pdev);
 }
 
+static void efa_shutdown(struct pci_dev *pdev)
+{
+	struct efa_dev *dev = pci_get_drvdata(pdev);
+
+	efa_destroy_eqs(dev);
+	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_SHUTDOWN);
+	efa_free_irq(dev, &dev->admin_irq);
+	efa_disable_msix(dev);
+}
+
 static struct pci_driver efa_pci_driver = {
 	.name           = DRV_MODULE_NAME,
 	.id_table       = efa_pci_tbl,
 	.probe          = efa_probe,
 	.remove         = efa_remove,
+	.shutdown       = efa_shutdown,
 };
 
 module_pci_driver(efa_pci_driver);

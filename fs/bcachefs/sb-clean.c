@@ -266,9 +266,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 	}
 }
 
-static int bch2_sb_clean_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_clean_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 
@@ -276,6 +275,17 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 		prt_printf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&clean->field), sizeof(*clean));
 		return -BCH_ERR_invalid_sb_clean;
+	}
+
+	for (struct jset_entry *entry = clean->start;
+	     entry != vstruct_end(&clean->field);
+	     entry = vstruct_next(entry)) {
+		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field)) {
+			prt_str(err, "entry type ");
+			bch2_prt_jset_entry_type(err, entry->type);
+			prt_str(err, " overruns end of section");
+			return -BCH_ERR_invalid_sb_clean;
+		}
 	}
 
 	return 0;
@@ -287,14 +297,15 @@ static void bch2_sb_clean_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 	struct jset_entry *entry;
 
-	prt_printf(out, "flags:          %x",	le32_to_cpu(clean->flags));
-	prt_newline(out);
-	prt_printf(out, "journal_seq:    %llu",	le64_to_cpu(clean->journal_seq));
-	prt_newline(out);
+	prt_printf(out, "flags:          %x\n",		le32_to_cpu(clean->flags));
+	prt_printf(out, "journal_seq:    %llu\n",	le64_to_cpu(clean->journal_seq));
 
 	for (entry = clean->start;
 	     entry != vstruct_end(&clean->field);
 	     entry = vstruct_next(entry)) {
+		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field))
+			break;
+
 		if (entry->type == BCH_JSET_ENTRY_btree_keys &&
 		    !entry->u64s)
 			continue;
@@ -377,6 +388,8 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 		bch_err(c, "error writing marking filesystem clean: validate error");
 		goto out;
 	}
+
+	bch2_journal_pos_from_member_info_set(c);
 
 	bch2_write_super(c);
 out:

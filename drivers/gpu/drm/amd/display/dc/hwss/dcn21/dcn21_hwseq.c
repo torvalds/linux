@@ -66,7 +66,7 @@ static void mmhub_update_page_table_config(struct dcn_hubbub_phys_addr_config *c
 
 int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
-	struct dcn_hubbub_phys_addr_config config;
+	struct dcn_hubbub_phys_addr_config config = {0};
 
 	config.system_aperture.fb_top = pa_config->system_aperture.fb_top;
 	config.system_aperture.fb_offset = pa_config->system_aperture.fb_offset;

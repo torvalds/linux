@@ -20,7 +20,7 @@
 #ifdef CONFIG_FSL_SOC
 extern void fsl_spi_cpm_reinit_txrx(struct mpc8xxx_spi *mspi);
 extern int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-			    struct spi_transfer *t, bool is_dma_mapped);
+			    struct spi_transfer *t);
 extern void fsl_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi);
 extern void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events);
 extern int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi);
@@ -28,8 +28,7 @@ extern void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi);
 #else
 static inline void fsl_spi_cpm_reinit_txrx(struct mpc8xxx_spi *mspi) { }
 static inline int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-				   struct spi_transfer *t,
-				   bool is_dma_mapped) { return 0; }
+				   struct spi_transfer *t) { return 0; }
 static inline void fsl_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi) { }
 static inline void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events) { }
 static inline int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi) { return 0; }

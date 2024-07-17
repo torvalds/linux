@@ -1,10 +1,8 @@
-NOUVEAU_PATH ?= $(srctree)
-
 # SPDX-License-Identifier: MIT
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include/nvkm
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/nvkm
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)
+ccflags-y += -I $(src)/include
+ccflags-y += -I $(src)/include/nvkm
+ccflags-y += -I $(src)/nvkm
+ccflags-y += -I $(src)
 
 # NVKM - HW resource manager
 #- code also used by various userspace tools/tests

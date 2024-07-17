@@ -85,7 +85,6 @@ static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_stop = internal_dev_stop,
 	.ndo_start_xmit = internal_dev_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
-	.ndo_get_stats64 = dev_get_tstats64,
 };
 
 static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {
@@ -140,11 +139,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 		err = -ENOMEM;
 		goto error_free_vport;
 	}
-	vport->dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!vport->dev->tstats) {
-		err = -ENOMEM;
-		goto error_free_netdev;
-	}
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	dev_net_set(vport->dev, ovs_dp_get_net(vport->dp));
 	dev->ifindex = parms->desired_ifindex;
@@ -169,8 +164,6 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 
 error_unlock:
 	rtnl_unlock();
-	free_percpu(dev->tstats);
-error_free_netdev:
 	free_netdev(dev);
 error_free_vport:
 	ovs_vport_free(vport);
@@ -186,7 +179,6 @@ static void internal_dev_destroy(struct vport *vport)
 
 	/* unregister_netdevice() waits for an RCU grace period. */
 	unregister_netdevice(vport->dev);
-	free_percpu(vport->dev->tstats);
 	rtnl_unlock();
 }
 

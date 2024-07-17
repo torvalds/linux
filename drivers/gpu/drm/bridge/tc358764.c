@@ -401,7 +401,6 @@ static struct mipi_dsi_driver tc358764_driver = {
 	.remove = tc358764_remove,
 	.driver = {
 		.name = "tc358764",
-		.owner = THIS_MODULE,
 		.of_match_table = tc358764_of_match,
 	},
 };

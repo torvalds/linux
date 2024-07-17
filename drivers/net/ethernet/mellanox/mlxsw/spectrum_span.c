@@ -413,8 +413,8 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 			    __be32 *saddrp, __be32 *daddrp)
 {
 	struct ip_tunnel *tun = netdev_priv(to_dev);
+	struct ip_tunnel_parm_kern parms;
 	struct net_device *dev = NULL;
-	struct ip_tunnel_parm parms;
 	struct rtable *rt = NULL;
 	struct flowi4 fl4;
 
@@ -451,7 +451,7 @@ mlxsw_sp_span_entry_gretap4_parms(struct mlxsw_sp *mlxsw_sp,
 				  const struct net_device *to_dev,
 				  struct mlxsw_sp_span_parms *sparmsp)
 {
-	struct ip_tunnel_parm tparm = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	struct ip_tunnel_parm_kern tparm = mlxsw_sp_ipip_netdev_parms4(to_dev);
 	union mlxsw_sp_l3addr saddr = { .addr4 = tparm.iph.saddr };
 	union mlxsw_sp_l3addr daddr = { .addr4 = tparm.iph.daddr };
 	bool inherit_tos = tparm.iph.tos & 0x1;
@@ -461,7 +461,8 @@ mlxsw_sp_span_entry_gretap4_parms(struct mlxsw_sp *mlxsw_sp,
 
 	if (!(to_dev->flags & IFF_UP) ||
 	    /* Reject tunnels with GRE keys, checksums, etc. */
-	    tparm.i_flags || tparm.o_flags ||
+	    !ip_tunnel_flags_empty(tparm.i_flags) ||
+	    !ip_tunnel_flags_empty(tparm.o_flags) ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
 	    /* A destination address may not be "any". */
@@ -539,7 +540,7 @@ mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
 	if (!dst || dst->error)
 		goto out;
 
-	rt6 = container_of(dst, struct rt6_info, dst);
+	rt6 = dst_rt6_info(dst);
 
 	dev = dst->dev;
 	*saddrp = fl6.saddr;
@@ -565,7 +566,8 @@ mlxsw_sp_span_entry_gretap6_parms(struct mlxsw_sp *mlxsw_sp,
 
 	if (!(to_dev->flags & IFF_UP) ||
 	    /* Reject tunnels with GRE keys, checksums, etc. */
-	    tparm.i_flags || tparm.o_flags ||
+	    !ip_tunnel_flags_empty(tparm.i_flags) ||
+	    !ip_tunnel_flags_empty(tparm.o_flags) ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
 	    /* A destination address may not be "any". */

@@ -2346,8 +2346,6 @@ static void fw_devlink_link_device(struct device *dev)
 
 /* Device links support end. */
 
-int (*platform_notify)(struct device *dev) = NULL;
-int (*platform_notify_remove)(struct device *dev) = NULL;
 static struct kobject *dev_kobj;
 
 /* /sys/dev/char */
@@ -2395,16 +2393,10 @@ static void device_platform_notify(struct device *dev)
 	acpi_device_notify(dev);
 
 	software_node_notify(dev);
-
-	if (platform_notify)
-		platform_notify(dev);
 }
 
 static void device_platform_notify_remove(struct device *dev)
 {
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
-
 	software_node_notify_remove(dev);
 
 	acpi_device_notify_remove(dev);
@@ -2545,6 +2537,15 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "%d\n", *(bool *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_bool);
+
+ssize_t device_show_string(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	return sysfs_emit(buf, "%s\n", (char *)ea->var);
+}
+EXPORT_SYMBOL_GPL(device_show_string);
 
 /**
  * device_release - free device structure.
@@ -2738,8 +2739,11 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 	if (!env)
 		return -ENOMEM;
 
+	/* Synchronize with really_probe() */
+	device_lock(dev);
 	/* let the kset specific function add its keys */
 	retval = kset->uevent_ops->uevent(&dev->kobj, env);
+	device_unlock(dev);
 	if (retval)
 		goto out;
 
@@ -2844,15 +2848,6 @@ static void devm_attr_group_remove(struct device *dev, void *res)
 	sysfs_remove_group(&dev->kobj, group);
 }
 
-static void devm_attr_groups_remove(struct device *dev, void *res)
-{
-	union device_attr_group_devres *devres = res;
-	const struct attribute_group **groups = devres->groups;
-
-	dev_dbg(dev, "%s: removing groups %p\n", __func__, groups);
-	sysfs_remove_groups(&dev->kobj, groups);
-}
-
 /**
  * devm_device_add_group - given a device, create a managed attribute group
  * @dev:	The device to create the group for
@@ -2884,42 +2879,6 @@ int devm_device_add_group(struct device *dev, const struct attribute_group *grp)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_device_add_group);
-
-/**
- * devm_device_add_groups - create a bunch of managed attribute groups
- * @dev:	The device to create the group for
- * @groups:	The attribute groups to create, NULL terminated
- *
- * This function creates a bunch of managed attribute groups.  If an error
- * occurs when creating a group, all previously created groups will be
- * removed, unwinding everything back to the original state when this
- * function was called.  It will explicitly warn and error if any of the
- * attribute files being created already exist.
- *
- * Returns 0 on success or error code from sysfs_create_group on failure.
- */
-int devm_device_add_groups(struct device *dev,
-			   const struct attribute_group **groups)
-{
-	union device_attr_group_devres *devres;
-	int error;
-
-	devres = devres_alloc(devm_attr_groups_remove,
-			      sizeof(*devres), GFP_KERNEL);
-	if (!devres)
-		return -ENOMEM;
-
-	error = sysfs_create_groups(&dev->kobj, groups);
-	if (error) {
-		devres_free(devres);
-		return error;
-	}
-
-	devres->groups = groups;
-	devres_add(dev, devres);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(devm_device_add_groups);
 
 static int device_add_attrs(struct device *dev)
 {

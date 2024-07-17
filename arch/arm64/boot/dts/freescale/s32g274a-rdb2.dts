@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (c) 2021 SUSE LLC
- * Copyright (c) 2019-2021 NXP
+ * Copyright 2019-2021, 2024 NXP
  */
 
 /dts-v1/;
@@ -36,5 +36,9 @@
 
 /* UART (J1) to Micro USB port */
 &uart1 {
+	status = "okay";
+};
+
+&usdhc0 {
 	status = "okay";
 };

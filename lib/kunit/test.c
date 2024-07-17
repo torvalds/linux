@@ -712,6 +712,9 @@ int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_
 {
 	unsigned int i;
 
+	if (num_suites == 0)
+		return 0;
+
 	if (!kunit_enabled() && num_suites > 0) {
 		pr_info("kunit: disabled\n");
 		return 0;
@@ -935,4 +938,5 @@ static void __exit kunit_exit(void)
 }
 module_exit(kunit_exit);
 
+MODULE_DESCRIPTION("Base unit test (KUnit) API");
 MODULE_LICENSE("GPL v2");

@@ -95,7 +95,7 @@ static int vcn_v5_0_0_sw_init(void *handle)
 		return r;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		volatile struct amdgpu_vcn4_fw_shared *fw_shared;
+		volatile struct amdgpu_vcn5_fw_shared *fw_shared;
 
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
@@ -154,7 +154,7 @@ static int vcn_v5_0_0_sw_fini(void *handle)
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-			volatile struct amdgpu_vcn4_fw_shared *fw_shared;
+			volatile struct amdgpu_vcn5_fw_shared *fw_shared;
 
 			if (adev->vcn.harvest_config & (1 << i))
 				continue;
@@ -203,6 +203,7 @@ static int vcn_v5_0_0_hw_init(void *handle)
 			goto done;
 	}
 
+	return 0;
 done:
 	if (!r)
 		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
@@ -334,7 +335,7 @@ static void vcn_v5_0_0_mc_resume(struct amdgpu_device *adev, int inst)
 		upper_32_bits(adev->vcn.inst[inst].fw_shared.gpu_addr));
 	WREG32_SOC15(VCN, inst, regUVD_VCPU_NONCACHE_OFFSET0, 0);
 	WREG32_SOC15(VCN, inst, regUVD_VCPU_NONCACHE_SIZE0,
-		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)));
+		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn5_fw_shared)));
 }
 
 /**
@@ -438,7 +439,7 @@ static void vcn_v5_0_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_i
 		VCN, inst_idx, regUVD_VCPU_NONCACHE_OFFSET0), 0, 0, indirect);
 	WREG32_SOC24_DPG_MODE(inst_idx, SOC24_DPG_MODE_OFFSET(
 		VCN, inst_idx, regUVD_VCPU_NONCACHE_SIZE0),
-		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)), 0, indirect);
+		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn5_fw_shared)), 0, indirect);
 
 	/* VCN global tiling registers */
 	WREG32_SOC24_DPG_MODE(inst_idx, SOC24_DPG_MODE_OFFSET(
@@ -615,7 +616,7 @@ static void vcn_v5_0_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
  */
 static int vcn_v5_0_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
 {
-	volatile struct amdgpu_vcn4_fw_shared *fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
+	volatile struct amdgpu_vcn5_fw_shared *fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 
@@ -712,7 +713,7 @@ static int vcn_v5_0_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, b
  */
 static int vcn_v5_0_0_start(struct amdgpu_device *adev)
 {
-	volatile struct amdgpu_vcn4_fw_shared *fw_shared;
+	volatile struct amdgpu_vcn5_fw_shared *fw_shared;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 	int i, j, k, r;
@@ -893,7 +894,7 @@ static void vcn_v5_0_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
  */
 static int vcn_v5_0_0_stop(struct amdgpu_device *adev)
 {
-	volatile struct amdgpu_vcn4_fw_shared *fw_shared;
+	volatile struct amdgpu_vcn5_fw_shared *fw_shared;
 	uint32_t tmp;
 	int i, r = 0;
 
@@ -1328,6 +1329,8 @@ static const struct amd_ip_funcs vcn_v5_0_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = vcn_v5_0_0_set_clockgating_state,
 	.set_powergating_state = vcn_v5_0_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version vcn_v5_0_0_ip_block = {

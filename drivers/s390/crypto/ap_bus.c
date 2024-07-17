@@ -39,13 +39,15 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <asm/uv.h>
+#include <asm/chsc.h>
 
 #include "ap_bus.h"
 #include "ap_debug.h"
 
-/*
- * Module parameters; note though this file itself isn't modular.
- */
+MODULE_AUTHOR("IBM Corporation");
+MODULE_DESCRIPTION("Adjunct Processor Bus driver");
+MODULE_LICENSE("GPL");
+
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
 module_param_named(domain, ap_domain_index, int, 0440);
@@ -90,8 +92,9 @@ static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
 /* completion for APQN bindings complete */
 static DECLARE_COMPLETION(ap_apqn_bindings_complete);
 
-static struct ap_config_info *ap_qci_info;
-static struct ap_config_info *ap_qci_info_old;
+static struct ap_config_info qci[2];
+static struct ap_config_info *const ap_qci_info = &qci[0];
+static struct ap_config_info *const ap_qci_info_old = &qci[1];
 
 /*
  * AP bus related debug feature things.
@@ -203,9 +206,7 @@ static int ap_apft_available(void)
  */
 static inline int ap_qact_available(void)
 {
-	if (ap_qci_info)
-		return ap_qci_info->qact;
-	return 0;
+	return ap_qci_info->qact;
 }
 
 /*
@@ -215,9 +216,7 @@ static inline int ap_qact_available(void)
  */
 int ap_sb_available(void)
 {
-	if (ap_qci_info)
-		return ap_qci_info->apsb;
-	return 0;
+	return ap_qci_info->apsb;
 }
 
 /*
@@ -229,23 +228,6 @@ bool ap_is_se_guest(void)
 }
 EXPORT_SYMBOL(ap_is_se_guest);
 
-/*
- * ap_fetch_qci_info(): Fetch cryptographic config info
- *
- * Returns the ap configuration info fetched via PQAP(QCI).
- * On success 0 is returned, on failure a negative errno
- * is returned, e.g. if the PQAP(QCI) instruction is not
- * available, the return value will be -EOPNOTSUPP.
- */
-static inline int ap_fetch_qci_info(struct ap_config_info *info)
-{
-	if (!ap_qci_available())
-		return -EOPNOTSUPP;
-	if (!info)
-		return -EINVAL;
-	return ap_qci(info);
-}
-
 /**
  * ap_init_qci_info(): Allocate and query qci config info.
  * Does also update the static variables ap_max_domain_id
@@ -253,27 +235,12 @@ static inline int ap_fetch_qci_info(struct ap_config_info *info)
  */
 static void __init ap_init_qci_info(void)
 {
-	if (!ap_qci_available()) {
+	if (!ap_qci_available() ||
+	    ap_qci(ap_qci_info)) {
 		AP_DBF_INFO("%s QCI not supported\n", __func__);
 		return;
 	}
-
-	ap_qci_info = kzalloc(sizeof(*ap_qci_info), GFP_KERNEL);
-	if (!ap_qci_info)
-		return;
-	ap_qci_info_old = kzalloc(sizeof(*ap_qci_info_old), GFP_KERNEL);
-	if (!ap_qci_info_old) {
-		kfree(ap_qci_info);
-		ap_qci_info = NULL;
-		return;
-	}
-	if (ap_fetch_qci_info(ap_qci_info) != 0) {
-		kfree(ap_qci_info);
-		kfree(ap_qci_info_old);
-		ap_qci_info = NULL;
-		ap_qci_info_old = NULL;
-		return;
-	}
+	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
 	AP_DBF_INFO("%s successful fetched initial qci info\n", __func__);
 
 	if (ap_qci_info->apxa) {
@@ -288,8 +255,6 @@ static void __init ap_init_qci_info(void)
 				    __func__, ap_max_domain_id);
 		}
 	}
-
-	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
 }
 
 /*
@@ -312,7 +277,7 @@ static inline int ap_test_config_card_id(unsigned int id)
 {
 	if (id > ap_max_adapter_id)
 		return 0;
-	if (ap_qci_info)
+	if (ap_qci_info->flags)
 		return ap_test_config(ap_qci_info->apm, id);
 	return 1;
 }
@@ -329,7 +294,7 @@ int ap_test_config_usage_domain(unsigned int domain)
 {
 	if (domain > ap_max_domain_id)
 		return 0;
-	if (ap_qci_info)
+	if (ap_qci_info->flags)
 		return ap_test_config(ap_qci_info->aqm, domain);
 	return 1;
 }
@@ -767,9 +732,9 @@ static void ap_check_bindings_complete(void)
 		if (bound == apqns) {
 			if (!completion_done(&ap_apqn_bindings_complete)) {
 				complete_all(&ap_apqn_bindings_complete);
+				ap_send_bindings_complete_uevent();
 				pr_debug("%s all apqn bindings complete\n", __func__);
 			}
-			ap_send_bindings_complete_uevent();
 		}
 	}
 }
@@ -929,6 +894,12 @@ static int ap_device_probe(struct device *dev)
 			goto out;
 	}
 
+	/*
+	 * Rearm the bindings complete completion to trigger
+	 * bindings complete when all devices are bound again
+	 */
+	reinit_completion(&ap_apqn_bindings_complete);
+
 	/* Add queue/card to list of active queues/cards */
 	spin_lock_bh(&ap_queues_lock);
 	if (is_queue_dev(dev))
@@ -1061,22 +1032,24 @@ EXPORT_SYMBOL(ap_bus_force_rescan);
 /*
  * A config change has happened, force an ap bus rescan.
  */
-void ap_bus_cfg_chg(void)
+static int ap_bus_cfg_chg(struct notifier_block *nb,
+			  unsigned long action, void *data)
 {
+	if (action != CHSC_NOTIFY_AP_CFG)
+		return NOTIFY_DONE;
+
 	pr_debug("%s config change, forcing bus rescan\n", __func__);
 
 	ap_bus_force_rescan();
+
+	return NOTIFY_OK;
 }
 
-/*
- * hex2bitmap() - parse hex mask string and set bitmap.
- * Valid strings are "0x012345678" with at least one valid hex number.
- * Rest of the bitmap to the right is padded with 0. No spaces allowed
- * within the string, the leading 0x may be omitted.
- * Returns the bitmask with exactly the bits set as given by the hex
- * string (both in big endian order).
- */
-static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
+static struct notifier_block ap_bus_nb = {
+	.notifier_call = ap_bus_cfg_chg,
+};
+
+int ap_hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 {
 	int i, n, b;
 
@@ -1103,6 +1076,7 @@ static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
 		return -EINVAL;
 	return 0;
 }
+EXPORT_SYMBOL(ap_hex2bitmap);
 
 /*
  * modify_bitmap() - parse bitmask argument and modify an existing
@@ -1123,7 +1097,7 @@ static int hex2bitmap(const char *str, unsigned long *bitmap, int bits)
  */
 static int modify_bitmap(const char *str, unsigned long *bitmap, int bits)
 {
-	int a, i, z;
+	unsigned long a, i, z;
 	char *np, sign;
 
 	/* bits needs to be a multiple of 8 */
@@ -1168,7 +1142,7 @@ static int ap_parse_bitmap_str(const char *str, unsigned long *bitmap, int bits,
 		rc = modify_bitmap(str, newmap, bits);
 	} else {
 		memset(newmap, 0, size);
-		rc = hex2bitmap(str, newmap, bits);
+		rc = ap_hex2bitmap(str, newmap, bits);
 	}
 	return rc;
 }
@@ -1234,7 +1208,7 @@ static BUS_ATTR_RW(ap_domain);
 
 static ssize_t ap_control_domain_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1248,7 +1222,7 @@ static BUS_ATTR_RO(ap_control_domain_mask);
 
 static ssize_t ap_usage_domain_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1262,7 +1236,7 @@ static BUS_ATTR_RO(ap_usage_domain_mask);
 
 static ssize_t ap_adapter_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1595,7 +1569,7 @@ static ssize_t features_show(const struct bus_type *bus, char *buf)
 {
 	int n = 0;
 
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "-\n");
 
 	if (ap_qci_info->apsc)
@@ -2158,11 +2132,11 @@ static inline void ap_scan_adapter(int ap)
  */
 static bool ap_get_configuration(void)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return false;
 
 	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
-	ap_fetch_qci_info(ap_qci_info);
+	ap_qci(ap_qci_info);
 
 	return memcmp(ap_qci_info, ap_qci_info_old,
 		      sizeof(struct ap_config_info)) != 0;
@@ -2179,7 +2153,7 @@ static bool ap_config_has_new_aps(void)
 
 	unsigned long m[BITS_TO_LONGS(AP_DEVICES)];
 
-	if (!ap_qci_info)
+	if (!ap_qci_info->flags)
 		return false;
 
 	bitmap_andnot(m, (unsigned long *)ap_qci_info->apm,
@@ -2200,7 +2174,7 @@ static bool ap_config_has_new_doms(void)
 {
 	unsigned long m[BITS_TO_LONGS(AP_DOMAINS)];
 
-	if (!ap_qci_info)
+	if (!ap_qci_info->flags)
 		return false;
 
 	bitmap_andnot(m, (unsigned long *)ap_qci_info->aqm,
@@ -2310,7 +2284,82 @@ static void ap_scan_bus_wq_callback(struct work_struct *unused)
 	}
 }
 
-static int __init ap_debug_init(void)
+static inline void __exit ap_async_exit(void)
+{
+	if (ap_thread_flag)
+		ap_poll_thread_stop();
+	chsc_notifier_unregister(&ap_bus_nb);
+	cancel_work(&ap_scan_bus_work);
+	hrtimer_cancel(&ap_poll_timer);
+	timer_delete(&ap_scan_bus_timer);
+}
+
+static inline int __init ap_async_init(void)
+{
+	int rc;
+
+	/* Setup the AP bus rescan timer. */
+	timer_setup(&ap_scan_bus_timer, ap_scan_bus_timer_callback, 0);
+
+	/*
+	 * Setup the high resolution poll timer.
+	 * If we are running under z/VM adjust polling to z/VM polling rate.
+	 */
+	if (MACHINE_IS_VM)
+		poll_high_timeout = 1500000;
+	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	ap_poll_timer.function = ap_poll_timeout;
+
+	queue_work(system_long_wq, &ap_scan_bus_work);
+
+	rc = chsc_notifier_register(&ap_bus_nb);
+	if (rc)
+		goto out;
+
+	/* Start the low priority AP bus poll thread. */
+	if (!ap_thread_flag)
+		return 0;
+
+	rc = ap_poll_thread_start();
+	if (rc)
+		goto out_notifier;
+
+	return 0;
+
+out_notifier:
+	chsc_notifier_unregister(&ap_bus_nb);
+out:
+	cancel_work(&ap_scan_bus_work);
+	hrtimer_cancel(&ap_poll_timer);
+	timer_delete(&ap_scan_bus_timer);
+	return rc;
+}
+
+static inline void ap_irq_exit(void)
+{
+	if (ap_irq_flag)
+		unregister_adapter_interrupt(&ap_airq);
+}
+
+static inline int __init ap_irq_init(void)
+{
+	int rc;
+
+	if (!ap_interrupts_available() || !ap_useirq)
+		return 0;
+
+	rc = register_adapter_interrupt(&ap_airq);
+	ap_irq_flag = (rc == 0);
+
+	return rc;
+}
+
+static inline void ap_debug_exit(void)
+{
+	debug_unregister(ap_dbf_info);
+}
+
+static inline int __init ap_debug_init(void)
 {
 	ap_dbf_info = debug_register("ap", 2, 1,
 				     AP_DBF_MAX_SPRINTF_ARGS * sizeof(long));
@@ -2378,12 +2427,6 @@ static int __init ap_module_init(void)
 		ap_domain_index = -1;
 	}
 
-	/* enable interrupts if available */
-	if (ap_interrupts_available() && ap_useirq) {
-		rc = register_adapter_interrupt(&ap_airq);
-		ap_irq_flag = (rc == 0);
-	}
-
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
 	if (rc)
@@ -2396,38 +2439,37 @@ static int __init ap_module_init(void)
 		goto out_bus;
 	ap_root_device->bus = &ap_bus_type;
 
-	/* Setup the AP bus rescan timer. */
-	timer_setup(&ap_scan_bus_timer, ap_scan_bus_timer_callback, 0);
+	/* enable interrupts if available */
+	rc = ap_irq_init();
+	if (rc)
+		goto out_device;
 
-	/*
-	 * Setup the high resolution poll timer.
-	 * If we are running under z/VM adjust polling to z/VM polling rate.
-	 */
-	if (MACHINE_IS_VM)
-		poll_high_timeout = 1500000;
-	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	ap_poll_timer.function = ap_poll_timeout;
-
-	/* Start the low priority AP bus poll thread. */
-	if (ap_thread_flag) {
-		rc = ap_poll_thread_start();
-		if (rc)
-			goto out_work;
-	}
-
-	queue_work(system_long_wq, &ap_scan_bus_work);
+	/* Setup asynchronous work (timers, workqueue, etc). */
+	rc = ap_async_init();
+	if (rc)
+		goto out_irq;
 
 	return 0;
 
-out_work:
-	hrtimer_cancel(&ap_poll_timer);
+out_irq:
+	ap_irq_exit();
+out_device:
 	root_device_unregister(ap_root_device);
 out_bus:
 	bus_unregister(&ap_bus_type);
 out:
-	if (ap_irq_flag)
-		unregister_adapter_interrupt(&ap_airq);
-	kfree(ap_qci_info);
+	ap_debug_exit();
 	return rc;
 }
-device_initcall(ap_module_init);
+
+static void __exit ap_module_exit(void)
+{
+	ap_async_exit();
+	ap_irq_exit();
+	root_device_unregister(ap_root_device);
+	bus_unregister(&ap_bus_type);
+	ap_debug_exit();
+}
+
+module_init(ap_module_init);
+module_exit(ap_module_exit);

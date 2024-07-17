@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -197,11 +198,18 @@ static int cros_ec_gpio_probe(struct platform_device *pdev)
 	return devm_gpiochip_add_data(dev, gc, cros_ec);
 }
 
+static const struct platform_device_id cros_ec_gpio_id[] = {
+	{ "cros-ec-gpio", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_gpio_id);
+
 static struct platform_driver cros_ec_gpio_driver = {
 	.probe = cros_ec_gpio_probe,
 	.driver = {
 		.name = "cros-ec-gpio",
 	},
+	.id_table = cros_ec_gpio_id,
 };
 module_platform_driver(cros_ec_gpio_driver);
 

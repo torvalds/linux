@@ -16,6 +16,8 @@ struct mnt_namespace {
 	u64 event;
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
+	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
+	refcount_t		passive; /* number references not pinning @mounts */
 } __randomize_layout;
 
 struct mnt_pcp {
@@ -152,3 +154,4 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 }
 
 extern void mnt_cursor_del(struct mnt_namespace *ns, struct mount *cursor);
+bool has_locked_children(struct mount *mnt, struct dentry *dentry);

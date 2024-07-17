@@ -56,5 +56,5 @@ struct regmap *__devm_regmap_init_i3c(struct i3c_device *i3c,
 EXPORT_SYMBOL_GPL(__devm_regmap_init_i3c);
 
 MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
-MODULE_DESCRIPTION("Regmap I3C Module");
+MODULE_DESCRIPTION("regmap I3C Module");
 MODULE_LICENSE("GPL v2");

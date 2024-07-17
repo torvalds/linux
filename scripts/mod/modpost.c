@@ -601,11 +601,6 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		    strstarts(symname, "_savevr_") ||
 		    strcmp(symname, ".TOC.") == 0)
 			return 1;
-
-	if (info->hdr->e_machine == EM_S390)
-		/* Expoline thunks are linked on all kernel modules during final link of .ko */
-		if (strstarts(symname, "__s390_indirect_jump_r"))
-			return 1;
 	/* Do not ignore this symbol */
 	return 0;
 }
@@ -1652,10 +1647,11 @@ static void read_symbols(const char *modname)
 			namespace = get_next_modinfo(&info, "import_ns",
 						     namespace);
 		}
+
+		if (extra_warn && !get_modinfo(&info, "description"))
+			warn("missing MODULE_DESCRIPTION() in %s\n", modname);
 	}
 
-	if (extra_warn && !get_modinfo(&info, "description"))
-		warn("missing MODULE_DESCRIPTION() in %s\n", modname);
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
 		symname = remove_dot(info.strtab + sym->st_name);
 

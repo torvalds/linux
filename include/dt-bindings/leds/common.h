@@ -46,6 +46,7 @@
 #define LED_FUNCTION_CAPSLOCK "capslock"
 #define LED_FUNCTION_SCROLLLOCK "scrolllock"
 #define LED_FUNCTION_NUMLOCK "numlock"
+#define LED_FUNCTION_FNLOCK "fnlock"
 /*   Obsolete equivalents: "tpacpi::thinklight" (IBM/Lenovo Thinkpads),
      "lp5523:kb{1,2,3,4,5,6}" (Nokia N900) */
 #define LED_FUNCTION_KBD_BACKLIGHT "kbd_backlight"
@@ -90,11 +91,14 @@
 #define LED_FUNCTION_INDICATOR "indicator"
 #define LED_FUNCTION_LAN "lan"
 #define LED_FUNCTION_MAIL "mail"
+#define LED_FUNCTION_MOBILE "mobile"
 #define LED_FUNCTION_MTD "mtd"
 #define LED_FUNCTION_PANIC "panic"
 #define LED_FUNCTION_PROGRAMMING "programming"
 #define LED_FUNCTION_RX "rx"
 #define LED_FUNCTION_SD "sd"
+#define LED_FUNCTION_SPEED_LAN "speed-lan"
+#define LED_FUNCTION_SPEED_WAN "speed-wan"
 #define LED_FUNCTION_STANDBY "standby"
 #define LED_FUNCTION_TORCH "torch"
 #define LED_FUNCTION_TX "tx"

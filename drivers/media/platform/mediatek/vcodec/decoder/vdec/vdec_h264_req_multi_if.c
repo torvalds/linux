@@ -51,7 +51,7 @@ struct vdec_h264_slice_lat_dec_param {
  * struct vdec_h264_slice_info - decode information
  *
  * @nal_info:		nal info of current picture
- * @timeout:		Decode timeout: 1 timeout, 0 no timeount
+ * @timeout:		Decode timeout: 1 timeout, 0 no timeout
  * @bs_buf_size:	bitstream size
  * @bs_buf_addr:	bitstream buffer dma address
  * @y_fb_dma:		Y frame buffer dma address
@@ -131,9 +131,9 @@ struct vdec_h264_slice_share_info {
 /**
  * struct vdec_h264_slice_inst - h264 decoder instance
  *
- * @slice_dec_num:	how many picture be decoded
+ * @slice_dec_num:	Number of frames to be decoded
  * @ctx:		point to mtk_vcodec_dec_ctx
- * @pred_buf:		HW working predication buffer
+ * @pred_buf:		HW working prediction buffer
  * @mv_buf:		HW working motion vector buffer
  * @vpu:		VPU instance
  * @vsi:		vsi used for lat

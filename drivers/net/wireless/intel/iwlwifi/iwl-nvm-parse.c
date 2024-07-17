@@ -38,16 +38,13 @@ enum nvm_offsets {
 	N_HW_ADDRS = 3,
 	NVM_CHANNELS = 0x1E0 - NVM_SW_SECTION,
 
-	/* NVM calibration section offset (in words) definitions */
-	NVM_CALIB_SECTION = 0x2B8,
-	XTAL_CALIB = 0x316 - NVM_CALIB_SECTION,
-
 	/* NVM REGULATORY -Section offset (in words) definitions */
 	NVM_CHANNELS_SDP = 0,
 };
 
 enum ext_nvm_offsets {
 	/* NVM HW-Section offset (in words) definitions */
+
 	MAC_ADDRESS_OVERRIDE_EXT_NVM = 1,
 
 	/* NVM SW-Section offset (in words) definitions */
@@ -373,7 +370,9 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 		flags |= IEEE80211_CHAN_IR_CONCURRENT;
 
 	/* Set the AP type for the UHB case. */
-	if (!(nvm_flags & NVM_CHANNEL_VLP))
+	if (nvm_flags & NVM_CHANNEL_VLP)
+		flags |= IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP;
+	else
 		flags |= IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT;
 	if (!(nvm_flags & NVM_CHANNEL_AFC))
 		flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
@@ -392,11 +391,14 @@ static enum nl80211_band iwl_nl80211_band_from_channel_idx(int ch_idx)
 	return NL80211_BAND_2GHZ;
 }
 
-static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
+static int iwl_init_channel_map(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
 				struct iwl_nvm_data *data,
 				const void * const nvm_ch_flags,
 				u32 sbands_flags, bool v4)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
+	struct device *dev = trans->dev;
 	int ch_idx;
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
@@ -478,11 +480,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		else
 			channel->flags = 0;
 
-		/* TODO: Don't put limitations on UHB devices as we still don't
-		 * have NVM for them
-		 */
-		if (cfg->uhb_supported)
-			channel->flags = 0;
+		if (fw_has_capa(&fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS))
+			channel->flags |= IEEE80211_CHAN_CAN_MONITOR;
+
 		iwl_nvm_print_channel_flags(dev, IWL_DL_EEPROM,
 					    channel->hw_value, ch_flags);
 		IWL_DEBUG_EEPROM(dev, "Ch. %d: %ddBm\n",
@@ -597,7 +598,8 @@ static const u8 iwl_vendor_caps[] = {
 
 static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 	{
-		.types_mask = BIT(NL80211_IFTYPE_STATION),
+		.types_mask = BIT(NL80211_IFTYPE_STATION) |
+			      BIT(NL80211_IFTYPE_P2P_CLIENT),
 		.he_cap = {
 			.has_he = true,
 			.he_cap_elem = {
@@ -753,7 +755,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 		},
 	},
 	{
-		.types_mask = BIT(NL80211_IFTYPE_AP),
+		.types_mask = BIT(NL80211_IFTYPE_AP) |
+			      BIT(NL80211_IFTYPE_P2P_GO),
 		.he_cap = {
 			.has_he = true,
 			.he_cap_elem = {
@@ -906,7 +909,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			 u8 tx_chains, u8 rx_chains,
 			 const struct iwl_fw *fw)
 {
-	bool is_ap = iftype_data->types_mask & BIT(NL80211_IFTYPE_AP);
+	bool is_ap = iftype_data->types_mask & (BIT(NL80211_IFTYPE_AP) |
+						BIT(NL80211_IFTYPE_P2P_GO));
 	bool no_320;
 
 	no_320 = (!trans->trans_cfg->integrated &&
@@ -1023,8 +1027,6 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 
 	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_GF:
-	case IWL_CFG_RF_TYPE_MR:
-	case IWL_CFG_RF_TYPE_MS:
 	case IWL_CFG_RF_TYPE_FM:
 	case IWL_CFG_RF_TYPE_WH:
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[9] |=
@@ -1176,12 +1178,11 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 			    const struct iwl_fw *fw)
 {
 	struct device *dev = trans->dev;
-	const struct iwl_cfg *cfg = trans->cfg;
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
-	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
+	n_channels = iwl_init_channel_map(trans, fw, data, nvm_ch_flags,
 					  sbands_flags, v4);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;
@@ -1572,9 +1573,6 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			     &regulatory[NVM_CHANNELS_SDP] :
 			     &nvm_sw[NVM_CHANNELS];
 
-		/* in family 8000 Xtal calibration values moved to OTP */
-		data->xtal_calib[0] = *(nvm_calib + XTAL_CALIB);
-		data->xtal_calib[1] = *(nvm_calib + XTAL_CALIB + 1);
 		lar_enabled = true;
 	} else {
 		u16 lar_offset = data->nvm_version < 0xE39 ?
@@ -1612,8 +1610,7 @@ IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
 static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       int ch_idx, u16 nvm_flags,
 				       struct iwl_reg_capa reg_capa,
-				       const struct iwl_cfg *cfg,
-				       bool uats_enabled)
+				       const struct iwl_cfg *cfg)
 {
 	u32 flags = NL80211_RRF_NO_HT40;
 
@@ -1623,11 +1620,15 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 			flags &= ~NL80211_RRF_NO_HT40PLUS;
 		if (nvm_chan[ch_idx] >= FIRST_2GHZ_HT_MINUS)
 			flags &= ~NL80211_RRF_NO_HT40MINUS;
-	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
+	} else if (ch_idx < NUM_2GHZ_CHANNELS + NUM_5GHZ_CHANNELS &&
+		   nvm_flags & NVM_CHANNEL_40MHZ) {
 		if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
 			flags &= ~NL80211_RRF_NO_HT40PLUS;
 		else
 			flags &= ~NL80211_RRF_NO_HT40MINUS;
+	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
+		flags &= ~NL80211_RRF_NO_HT40PLUS;
+		flags &= ~NL80211_RRF_NO_HT40MINUS;
 	}
 
 	if (!(nvm_flags & NVM_CHANNEL_80MHZ))
@@ -1660,13 +1661,13 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	}
 
 	/* Set the AP type for the UHB case. */
-	if (uats_enabled) {
-		if (!(nvm_flags & NVM_CHANNEL_VLP))
-			flags |= NL80211_RRF_NO_6GHZ_VLP_CLIENT;
+	if (nvm_flags & NVM_CHANNEL_VLP)
+		flags |= NL80211_RRF_ALLOW_6GHZ_VLP_AP;
+	else
+		flags |= NL80211_RRF_NO_6GHZ_VLP_CLIENT;
 
-		if (!(nvm_flags & NVM_CHANNEL_AFC))
-			flags |= NL80211_RRF_NO_6GHZ_AFC_CLIENT;
-	}
+	if (!(nvm_flags & NVM_CHANNEL_AFC))
+		flags |= NL80211_RRF_NO_6GHZ_AFC_CLIENT;
 
 	/*
 	 * reg_capa is per regulatory domain so apply it for every channel
@@ -1722,7 +1723,7 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
-		       u16 geo_info, u32 cap, u8 resp_ver, bool uats_enabled)
+		       u16 geo_info, u32 cap, u8 resp_ver)
 {
 	int ch_idx;
 	u16 ch_flags;
@@ -1730,7 +1731,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	const u16 *nvm_chan;
 	struct ieee80211_regdomain *regd, *copy_rd;
 	struct ieee80211_reg_rule *rule;
-	enum nl80211_band band;
 	int center_freq, prev_center_freq = 0;
 	int valid_rules = 0;
 	bool new_rule;
@@ -1774,8 +1774,10 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	reg_capa = iwl_get_reg_capa(cap, resp_ver);
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
+		enum nl80211_band band =
+			iwl_nl80211_band_from_channel_idx(ch_idx);
+
 		ch_flags = (u16)__le32_to_cpup(channels + ch_idx);
-		band = iwl_nl80211_band_from_channel_idx(ch_idx);
 		center_freq = ieee80211_channel_to_frequency(nvm_chan[ch_idx],
 							     band);
 		new_rule = false;
@@ -1788,7 +1790,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 		reg_rule_flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
 							     ch_flags, reg_capa,
-							     cfg, uats_enabled);
+							     cfg);
 
 		/* we can't continue the same rule */
 		if (ch_idx == 0 || prev_reg_rule_flags != reg_rule_flags ||

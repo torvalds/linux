@@ -79,7 +79,7 @@ xfs_prealloc_blocks(
 }
 
 /*
- * The number of blocks per AG that we withhold from xfs_mod_fdblocks to
+ * The number of blocks per AG that we withhold from xfs_dec_fdblocks to
  * guarantee that we can refill the AGFL prior to allocating space in a nearly
  * full AG.  Although the space described by the free space btrees, the
  * blocks used by the freesp btrees themselves, and the blocks owned by the
@@ -89,7 +89,7 @@ xfs_prealloc_blocks(
  * until the fs goes down, we subtract this many AG blocks from the incore
  * fdblocks to ensure user allocation does not overcommit the space the
  * filesystem needs for the AGFLs.  The rmap btree uses a per-AG reservation to
- * withhold space from xfs_mod_fdblocks, so we do not account for that here.
+ * withhold space from xfs_dec_fdblocks, so we do not account for that here.
  */
 #define XFS_ALLOCBT_AGFL_RESERVE	4
 
@@ -1008,13 +1008,12 @@ xfs_alloc_cur_finish(
 	struct xfs_alloc_arg	*args,
 	struct xfs_alloc_cur	*acur)
 {
-	struct xfs_agf __maybe_unused *agf = args->agbp->b_addr;
 	int			error;
 
 	ASSERT(acur->cnt && acur->bnolt);
 	ASSERT(acur->bno >= acur->rec_bno);
 	ASSERT(acur->bno + acur->len <= acur->rec_bno + acur->rec_len);
-	ASSERT(acur->rec_bno + acur->rec_len <= be32_to_cpu(agf->agf_length));
+	ASSERT(xfs_verify_agbext(args->pag, acur->rec_bno, acur->rec_len));
 
 	error = xfs_alloc_fixup_trees(acur->cnt, acur->bnolt, acur->rec_bno,
 				      acur->rec_len, acur->bno, acur->len, 0);
@@ -1217,7 +1216,6 @@ STATIC int			/* error */
 xfs_alloc_ag_vextent_exact(
 	xfs_alloc_arg_t	*args)	/* allocation argument structure */
 {
-	struct xfs_agf __maybe_unused *agf = args->agbp->b_addr;
 	struct xfs_btree_cur *bno_cur;/* by block-number btree cursor */
 	struct xfs_btree_cur *cnt_cur;/* by count btree cursor */
 	int		error;
@@ -1297,7 +1295,7 @@ xfs_alloc_ag_vextent_exact(
 	 */
 	cnt_cur = xfs_cntbt_init_cursor(args->mp, args->tp, args->agbp,
 					args->pag);
-	ASSERT(args->agbno + args->len <= be32_to_cpu(agf->agf_length));
+	ASSERT(xfs_verify_agbext(args->pag, args->agbno, args->len));
 	error = xfs_alloc_fixup_trees(cnt_cur, bno_cur, fbno, flen, args->agbno,
 				      args->len, XFSA_FIXUP_BNO_OK);
 	if (error) {

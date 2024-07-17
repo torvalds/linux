@@ -47,13 +47,23 @@ struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 
 int msm_gem_prime_pin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach)
-		msm_gem_pin_pages(obj);
-	return 0;
+	struct page **pages;
+	int ret = 0;
+
+	if (obj->import_attach)
+		return 0;
+
+	pages = msm_gem_pin_pages_locked(obj);
+	if (IS_ERR(pages))
+		ret = PTR_ERR(pages);
+
+	return ret;
 }
 
 void msm_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach)
-		msm_gem_unpin_pages(obj);
+	if (obj->import_attach)
+		return;
+
+	msm_gem_unpin_pages_locked(obj);
 }

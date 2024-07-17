@@ -304,8 +304,8 @@ TRACE_EVENT(ath6kl_log_dbg_dump,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, msg);
-		__assign_str(prefix, prefix);
+		__assign_str(msg);
+		__assign_str(prefix);
 		__entry->buf_len = buf_len;
 		memcpy(__get_dynamic_array(buf), buf, buf_len);
 	),

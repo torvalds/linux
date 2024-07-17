@@ -59,7 +59,7 @@ static inline void part_stat_set_all(struct block_device *part, int value)
 
 #define part_stat_add(part, field, addnd)	do {			\
 	__part_stat_add((part), field, addnd);				\
-	if ((part)->bd_partno)						\
+	if (bdev_is_partition(part))					\
 		__part_stat_add(bdev_whole(part), field, addnd);	\
 } while (0)
 

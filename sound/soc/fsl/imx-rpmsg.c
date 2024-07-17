@@ -108,10 +108,8 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 static int imx_rpmsg_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link_component *dlc;
-	struct device *dev = pdev->dev.parent;
-	/* rpmsg_pdev is the platform device for the rpmsg node that probed us */
-	struct platform_device *rpmsg_pdev = to_platform_device(dev);
-	struct device_node *np = rpmsg_pdev->dev.of_node;
+	struct snd_soc_dai *cpu_dai;
+	struct device_node *np = NULL;
 	struct of_phandle_args args;
 	const char *platform_name;
 	struct imx_rpmsg *data;
@@ -126,10 +124,6 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
-	if (ret)
-		dev_warn(&pdev->dev, "no reserved DMA memory\n");
 
 	data->dai.cpus = &dlc[0];
 	data->dai.num_cpus = 1;
@@ -152,6 +146,23 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	 */
 	data->dai.ignore_pmdown_time = 1;
 
+	data->dai.cpus->dai_name = pdev->dev.platform_data;
+	cpu_dai = snd_soc_find_dai(data->dai.cpus);
+	if (!cpu_dai) {
+		ret = -EPROBE_DEFER;
+		goto fail;
+	}
+	np = cpu_dai->dev->of_node;
+	if (!np) {
+		dev_err(&pdev->dev, "failed to parse CPU DAI device node\n");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
+	if (ret)
+		dev_warn(&pdev->dev, "no reserved DMA memory\n");
+
 	/* Optional codec node */
 	ret = of_parse_phandle_with_fixed_args(np, "audio-codec", 0, 0, &args);
 	if (ret) {
@@ -170,7 +181,6 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 			data->sysclk = clk_get_rate(clk);
 	}
 
-	data->dai.cpus->dai_name = dev_name(&rpmsg_pdev->dev);
 	if (!of_property_read_string(np, "fsl,rpmsg-channel-name", &platform_name))
 		data->dai.platforms->name = platform_name;
 	else

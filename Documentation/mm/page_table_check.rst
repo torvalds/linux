@@ -14,13 +14,20 @@ Page table check performs extra verifications at the time when new pages become
 accessible from the userspace by getting their page table entries (PTEs PMDs
 etc.) added into the table.
 
-In case of detected corruption, the kernel is crashed. There is a small
+In case of most detected corruption, the kernel is crashed. There is a small
 performance and memory overhead associated with the page table check. Therefore,
 it is disabled by default, but can be optionally enabled on systems where the
 extra hardening outweighs the performance costs. Also, because page table check
 is synchronous, it can help with debugging double map memory corruption issues,
 by crashing kernel at the time wrong mapping occurs instead of later which is
 often the case with memory corruptions bugs.
+
+It can also be used to do page table entry checks over various flags, dump
+warnings when illegal combinations of entry flags are detected.  Currently,
+userfaultfd is the only user of such to sanity check wr-protect bit against
+any writable flags.  Illegal flag combinations will not directly cause data
+corruption in this case immediately, but that will cause read-only data to
+be writable, leading to corrupt when the page content is later modified.
 
 Double mapping detection logic
 ==============================

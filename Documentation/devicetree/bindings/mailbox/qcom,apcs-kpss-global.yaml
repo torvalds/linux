@@ -30,6 +30,7 @@ properties:
           - const: syscon
       - items:
           - enum:
+              - qcom,msm8974-apcs-kpss-global
               - qcom,msm8976-apcs-kpss-global
           - const: qcom,msm8994-apcs-kpss-global
           - const: syscon

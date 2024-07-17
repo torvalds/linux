@@ -192,12 +192,6 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 	case IWL_CFG_RF_TYPE_GF:
 		rf = "gf";
 		break;
-	case IWL_CFG_RF_TYPE_MR:
-		rf = "mr";
-		break;
-	case IWL_CFG_RF_TYPE_MS:
-		rf = "ms";
-		break;
 	case IWL_CFG_RF_TYPE_FM:
 		rf = "fm";
 		break;
@@ -988,16 +982,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			minor = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
-			if (major >= 35)
-				snprintf(drv->fw.fw_version,
-					 sizeof(drv->fw.fw_version),
-					"%u.%08x.%u %s", major, minor,
-					local_comp, iwl_reduced_fw_name(drv));
-			else
-				snprintf(drv->fw.fw_version,
-					 sizeof(drv->fw.fw_version),
-					"%u.%u.%u %s", major, minor,
-					local_comp, iwl_reduced_fw_name(drv));
+			snprintf(drv->fw.fw_version,
+				 sizeof(drv->fw.fw_version),
+				 "%u.%08x.%u %s", major, minor,
+				 local_comp, iwl_reduced_fw_name(drv));
 			break;
 			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
@@ -1484,7 +1472,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	size_t trigger_tlv_sz[FW_DBG_TRIGGER_MAX];
 	u32 api_ver;
 	int i;
-	bool load_module = false;
 	bool usniffer_images = false;
 	bool failure = true;
 
@@ -1732,19 +1719,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			goto out_unbind;
 		}
 	} else {
-		load_module = true;
+		request_module_nowait("%s", op->name);
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 	complete(&drv->request_firmware_complete);
 
-	/*
-	 * Load the module last so we don't block anything
-	 * else from proceeding if the module fails to load
-	 * or hangs loading.
-	 */
-	if (load_module)
-		request_module("%s", op->name);
 	failure = false;
 	goto free;
 
@@ -1829,8 +1809,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 err_fw:
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	debugfs_remove_recursive(drv->dbgfs_drv);
-	iwl_dbg_tlv_free(drv->trans);
 #endif
+	iwl_dbg_tlv_free(drv->trans);
 	kfree(drv);
 err:
 	return ERR_PTR(ret);
@@ -1856,7 +1836,7 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	drv->trans->ops->debugfs_cleanup(drv->trans);
+	iwl_trans_debugfs_cleanup(drv->trans);
 
 	debugfs_remove_recursive(drv->dbgfs_drv);
 #endif

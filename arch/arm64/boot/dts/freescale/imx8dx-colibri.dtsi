@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2018-2021 Toradex
+ */
+
+#include "imx8dx.dtsi"
+#include "imx8x-colibri.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX8DX Module";
+};

@@ -102,13 +102,6 @@ static const struct intel_step_info adlp_revids[] = {
 	[0xC] = { COMMON_GT_MEDIA_STEP(C0), .display_step = STEP_D0 },
 };
 
-static const struct intel_step_info xehpsdv_revids[] = {
-	[0x0] = { COMMON_GT_MEDIA_STEP(A0) },
-	[0x1] = { COMMON_GT_MEDIA_STEP(A1) },
-	[0x4] = { COMMON_GT_MEDIA_STEP(B0) },
-	[0x8] = { COMMON_GT_MEDIA_STEP(C0) },
-};
-
 static const struct intel_step_info dg2_g10_revid_step_tbl[] = {
 	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_A0 },
 	[0x1] = { COMMON_GT_MEDIA_STEP(A1), .display_step = STEP_A0 },
@@ -153,8 +146,6 @@ static u8 gmd_to_intel_step(struct drm_i915_private *i915,
 	return step;
 }
 
-static void pvc_step_init(struct drm_i915_private *i915, int pci_revid);
-
 void intel_step_init(struct drm_i915_private *i915)
 {
 	const struct intel_step_info *revids = NULL;
@@ -178,10 +169,7 @@ void intel_step_init(struct drm_i915_private *i915)
 		return;
 	}
 
-	if (IS_PONTEVECCHIO(i915)) {
-		pvc_step_init(i915, revid);
-		return;
-	} else if (IS_DG2_G10(i915)) {
+	if (IS_DG2_G10(i915)) {
 		revids = dg2_g10_revid_step_tbl;
 		size = ARRAY_SIZE(dg2_g10_revid_step_tbl);
 	} else if (IS_DG2_G11(i915)) {
@@ -190,9 +178,6 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_DG2_G12(i915)) {
 		revids = dg2_g12_revid_step_tbl;
 		size = ARRAY_SIZE(dg2_g12_revid_step_tbl);
-	} else if (IS_XEHPSDV(i915)) {
-		revids = xehpsdv_revids;
-		size = ARRAY_SIZE(xehpsdv_revids);
 	} else if (IS_ALDERLAKE_P_N(i915)) {
 		revids = adlp_n_revids;
 		size = ARRAY_SIZE(adlp_n_revids);
@@ -275,69 +260,6 @@ void intel_step_init(struct drm_i915_private *i915)
 		return;
 
 	RUNTIME_INFO(i915)->step = step;
-}
-
-#define PVC_BD_REVID	GENMASK(5, 3)
-#define PVC_CT_REVID	GENMASK(2, 0)
-
-static const int pvc_bd_subids[] = {
-	[0x0] = STEP_A0,
-	[0x3] = STEP_B0,
-	[0x4] = STEP_B1,
-	[0x5] = STEP_B3,
-};
-
-static const int pvc_ct_subids[] = {
-	[0x3] = STEP_A0,
-	[0x5] = STEP_B0,
-	[0x6] = STEP_B1,
-	[0x7] = STEP_C0,
-};
-
-static int
-pvc_step_lookup(struct drm_i915_private *i915, const char *type,
-		const int *table, int size, int subid)
-{
-	if (subid < size && table[subid] != STEP_NONE)
-		return table[subid];
-
-	drm_warn(&i915->drm, "Unknown %s id 0x%02x\n", type, subid);
-
-	/*
-	 * As on other platforms, try to use the next higher ID if we land on a
-	 * gap in the table.
-	 */
-	while (subid < size && table[subid] == STEP_NONE)
-		subid++;
-
-	if (subid < size) {
-		drm_dbg(&i915->drm, "Using steppings for %s id 0x%02x\n",
-			type, subid);
-		return table[subid];
-	}
-
-	drm_dbg(&i915->drm, "Using future steppings\n");
-	return STEP_FUTURE;
-}
-
-/*
- * PVC needs special handling since we don't lookup the
- * revid in a table, but rather specific bitfields within
- * the revid for various components.
- */
-static void pvc_step_init(struct drm_i915_private *i915, int pci_revid)
-{
-	int ct_subid, bd_subid;
-
-	bd_subid = FIELD_GET(PVC_BD_REVID, pci_revid);
-	ct_subid = FIELD_GET(PVC_CT_REVID, pci_revid);
-
-	RUNTIME_INFO(i915)->step.basedie_step =
-		pvc_step_lookup(i915, "Base Die", pvc_bd_subids,
-				ARRAY_SIZE(pvc_bd_subids), bd_subid);
-	RUNTIME_INFO(i915)->step.graphics_step =
-		pvc_step_lookup(i915, "Compute Tile", pvc_ct_subids,
-				ARRAY_SIZE(pvc_ct_subids), ct_subid);
 }
 
 #define STEP_NAME_CASE(name)	\

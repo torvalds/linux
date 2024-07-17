@@ -69,7 +69,8 @@ void acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
-#ifdef CONFIG_PCI
+
+#if defined(CONFIG_X86) && defined(CONFIG_PCI)
 void acpi_lpss_init(void);
 #else
 static inline void acpi_lpss_init(void) {}
@@ -185,7 +186,6 @@ enum acpi_ec_event_state {
 
 struct acpi_ec {
 	acpi_handle handle;
-	acpi_handle address_space_handler_holder;
 	int gpe;
 	int irq;
 	unsigned long command_addr;
@@ -302,6 +302,10 @@ void acpi_mipi_check_crs_csi2(acpi_handle handle);
 void acpi_mipi_scan_crs_csi2(void);
 void acpi_mipi_init_crs_csi2_swnodes(void);
 void acpi_mipi_crs_csi2_cleanup(void);
+#ifdef CONFIG_X86
 bool acpi_graph_ignore_port(acpi_handle handle);
+#else
+static inline bool acpi_graph_ignore_port(acpi_handle handle) { return false; }
+#endif
 
 #endif /* _ACPI_INTERNAL_H_ */

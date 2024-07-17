@@ -623,3 +623,20 @@ void bch2_shoot_down_journal_keys(struct bch_fs *c, enum btree_id btree,
 			keys->data[dst++] = *i;
 	keys->nr = keys->gap = dst;
 }
+
+void bch2_journal_keys_dump(struct bch_fs *c)
+{
+	struct journal_keys *keys = &c->journal_keys;
+	struct printbuf buf = PRINTBUF;
+
+	pr_info("%zu keys:", keys->nr);
+
+	move_gap(keys, keys->nr);
+
+	darray_for_each(*keys, i) {
+		printbuf_reset(&buf);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
+		pr_err("%s l=%u %s", bch2_btree_id_str(i->btree_id), i->level, buf.buf);
+	}
+	printbuf_exit(&buf);
+}

@@ -38,9 +38,10 @@
 /* Battery power unit: 0 means mW, 1 means mA */
 #define ACPI_BATTERY_POWER_UNIT_MA	1
 
-#define ACPI_BATTERY_STATE_DISCHARGING	0x1
-#define ACPI_BATTERY_STATE_CHARGING	0x2
-#define ACPI_BATTERY_STATE_CRITICAL	0x4
+#define ACPI_BATTERY_STATE_DISCHARGING		0x1
+#define ACPI_BATTERY_STATE_CHARGING		0x2
+#define ACPI_BATTERY_STATE_CRITICAL		0x4
+#define ACPI_BATTERY_STATE_CHARGE_LIMITING	0x8
 
 #define MAX_STRING_LENGTH	64
 
@@ -155,7 +156,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static int acpi_battery_is_charged(struct acpi_battery *battery)
 {
-	/* charging, discharging or critical low */
+	/* charging, discharging, critical low or charge limited */
 	if (battery->state != 0)
 		return 0;
 
@@ -215,6 +216,8 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = acpi_battery_handle_discharging(battery);
 		else if (battery->state & ACPI_BATTERY_STATE_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (battery->state & ACPI_BATTERY_STATE_CHARGE_LIMITING)
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else if (acpi_battery_is_charged(battery))
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
@@ -308,7 +311,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
-static enum power_supply_property charge_battery_props[] = {
+static const enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -326,7 +329,7 @@ static enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static enum power_supply_property charge_battery_full_cap_broken_props[] = {
+static const enum power_supply_property charge_battery_full_cap_broken_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -340,7 +343,7 @@ static enum power_supply_property charge_battery_full_cap_broken_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static enum power_supply_property energy_battery_props[] = {
+static const enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -358,7 +361,7 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
-static enum power_supply_property energy_battery_full_cap_broken_props[] = {
+static const enum power_supply_property energy_battery_full_cap_broken_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
@@ -661,7 +664,7 @@ static ssize_t acpi_battery_alarm_show(struct device *dev,
 {
 	struct acpi_battery *battery = to_acpi_battery(dev_get_drvdata(dev));
 
-	return sprintf(buf, "%d\n", battery->alarm * 1000);
+	return sysfs_emit(buf, "%d\n", battery->alarm * 1000);
 }
 
 static ssize_t acpi_battery_alarm_store(struct device *dev,
@@ -678,11 +681,17 @@ static ssize_t acpi_battery_alarm_store(struct device *dev,
 	return count;
 }
 
-static const struct device_attribute alarm_attr = {
+static struct device_attribute alarm_attr = {
 	.attr = {.name = "alarm", .mode = 0644},
 	.show = acpi_battery_alarm_show,
 	.store = acpi_battery_alarm_store,
 };
+
+static struct attribute *acpi_battery_attrs[] = {
+	&alarm_attr.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(acpi_battery);
 
 /*
  * The Battery Hooking API
@@ -756,6 +765,21 @@ end:
 }
 EXPORT_SYMBOL_GPL(battery_hook_register);
 
+static void devm_battery_hook_unregister(void *data)
+{
+	struct acpi_battery_hook *hook = data;
+
+	battery_hook_unregister(hook);
+}
+
+int devm_battery_hook_register(struct device *dev, struct acpi_battery_hook *hook)
+{
+	battery_hook_register(hook);
+
+	return devm_add_action_or_reset(dev, devm_battery_hook_unregister, hook);
+}
+EXPORT_SYMBOL_GPL(devm_battery_hook_register);
+
 /*
  * This function gets called right after the battery sysfs
  * attributes have been added, so that the drivers that
@@ -823,7 +847,10 @@ static void __exit battery_hook_exit(void)
 
 static int sysfs_add_battery(struct acpi_battery *battery)
 {
-	struct power_supply_config psy_cfg = { .drv_data = battery, };
+	struct power_supply_config psy_cfg = {
+		.drv_data = battery,
+		.attr_grp = acpi_battery_groups,
+	};
 	bool full_cap_broken = false;
 
 	if (!ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity) &&
@@ -868,7 +895,7 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 		return result;
 	}
 	battery_hook_add_battery(battery);
-	return device_create_file(&battery->bat->dev, &alarm_attr);
+	return 0;
 }
 
 static void sysfs_remove_battery(struct acpi_battery *battery)
@@ -879,7 +906,6 @@ static void sysfs_remove_battery(struct acpi_battery *battery)
 		return;
 	}
 	battery_hook_remove_battery(battery);
-	device_remove_file(&battery->bat->dev, &alarm_attr);
 	power_supply_unregister(battery->bat);
 	battery->bat = NULL;
 	mutex_unlock(&battery->sysfs_lock);

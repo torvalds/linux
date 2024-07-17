@@ -306,7 +306,7 @@ int efx_siena_change_mtu(struct net_device *net_dev, int new_mtu)
 	efx_siena_stop_all(efx);
 
 	mutex_lock(&efx->mac_lock);
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	efx_siena_mac_reconfigure(efx, true);
 	mutex_unlock(&efx->mac_lock);
 

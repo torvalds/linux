@@ -160,8 +160,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	if (!fs_info)
 		return;
 
-	if (WARN_ON(!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
-			      &fs_info->fs_state)))
+	if (WARN_ON(!btrfs_is_testing(fs_info)))
 		return;
 
 	test_mnt->mnt_sb->s_fs_info = NULL;

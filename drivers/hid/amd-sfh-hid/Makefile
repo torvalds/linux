@@ -13,4 +13,4 @@ amd_sfh-objs += sfh1_1/amd_sfh_init.o
 amd_sfh-objs += sfh1_1/amd_sfh_interface.o
 amd_sfh-objs += sfh1_1/amd_sfh_desc.o
 
-ccflags-y += -I $(srctree)/$(src)/
+ccflags-y += -I $(src)/

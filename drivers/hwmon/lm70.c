@@ -6,9 +6,9 @@
  * Copyright (C) 2006 Kaiwan N Billimoria <kaiwan@designergraphix.com>
  *
  * The LM70 communicates with a host processor via an SPI/Microwire Bus
- * interface. The complete datasheet is available at National's website
+ * interface. The complete datasheet is available at TI's website
  * here:
- * http://www.national.com/pf/LM/LM70.html
+ * https://www.ti.com/product/LM70
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -169,11 +169,7 @@ static int lm70_probe(struct spi_device *spi)
 	struct lm70 *p_lm70;
 	int chip;
 
-	if (dev_fwnode(&spi->dev))
-		chip = (int)(uintptr_t)device_get_match_data(&spi->dev);
-	else
-		chip = spi_get_device_id(spi)->driver_data;
-
+	chip = (kernel_ulong_t)spi_get_device_match_data(spi);
 
 	/* signaling is SPI_MODE_0 */
 	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)

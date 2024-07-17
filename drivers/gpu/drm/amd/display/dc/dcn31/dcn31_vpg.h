@@ -26,6 +26,7 @@
 #ifndef __DAL_DCN31_VPG_H__
 #define __DAL_DCN31_VPG_H__
 
+#include "vpg.h"
 
 #define DCN31_VPG_FROM_VPG(vpg)\
 	container_of(vpg, struct dcn31_vpg, base)

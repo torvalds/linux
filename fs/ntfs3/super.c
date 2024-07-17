@@ -259,8 +259,8 @@ enum Opt {
 
 // clang-format off
 static const struct fs_parameter_spec ntfs_fs_parameters[] = {
-	fsparam_u32("uid",			Opt_uid),
-	fsparam_u32("gid",			Opt_gid),
+	fsparam_uid("uid",			Opt_uid),
+	fsparam_gid("gid",			Opt_gid),
 	fsparam_u32oct("umask",			Opt_umask),
 	fsparam_u32oct("dmask",			Opt_dmask),
 	fsparam_u32oct("fmask",			Opt_fmask),
@@ -319,14 +319,10 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_uid:
-		opts->fs_uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(opts->fs_uid))
-			return invalf(fc, "ntfs3: Invalid value for uid.");
+		opts->fs_uid = result.uid;
 		break;
 	case Opt_gid:
-		opts->fs_gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(opts->fs_gid))
-			return invalf(fc, "ntfs3: Invalid value for gid.");
+		opts->fs_gid = result.gid;
 		break;
 	case Opt_umask:
 		if (result.uint_32 & ~07777)
@@ -1347,7 +1343,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Check bitmap boundary. */
 	tt = sbi->used.bitmap.nbits;
-	if (inode->i_size < bitmap_size(tt)) {
+	if (inode->i_size < ntfs3_bitmap_size(tt)) {
 		ntfs_err(sb, "$Bitmap is corrupted.");
 		err = -EINVAL;
 		goto put_inode_out;
@@ -1860,8 +1856,6 @@ bool is_legacy_ntfs(struct super_block *sb) { return false; }
 static int __init init_ntfs_fs(void)
 {
 	int err;
-
-	pr_info("ntfs3: Max link count %u\n", NTFS_LINK_MAX);
 
 	if (IS_ENABLED(CONFIG_NTFS3_FS_POSIX_ACL))
 		pr_info("ntfs3: Enabled Linux POSIX ACLs support\n");

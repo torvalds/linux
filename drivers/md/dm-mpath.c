@@ -704,8 +704,7 @@ static void process_queued_bios(struct work_struct *work)
 		return;
 	}
 
-	bio_list_merge(&bios, &m->queued_bios);
-	bio_list_init(&m->queued_bios);
+	bio_list_merge_init(&bios, &m->queued_bios);
 
 	spin_unlock_irqrestore(&m->lock, flags);
 

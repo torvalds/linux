@@ -20,6 +20,7 @@
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <linux/vmalloc.h>
 #include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
@@ -266,7 +267,11 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
-	strscpy(_value, buf, sizeof(_value));				\
+	if (len >= sizeof(_value))					\
+		return -E2BIG;						\
+	len = strscpy(_value, buf, sizeof(_value));			\
+	if (len < 0)							\
+		return len;						\
 	strim(_value);							\
 	return len;							\
 }									\
@@ -274,6 +279,61 @@ static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name, 0644,						\
 			sys_##_prefix##_##_name##_show,			\
 			sys_##_prefix##_##_name##_store)
+
+#define IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)			\
+static ssize_t sys_##_prefix##_scp_data_show(struct file *filp,		\
+					    struct kobject *kobj,	\
+					    struct bin_attribute *attr,	\
+					    char *buf, loff_t off,	\
+					    size_t count)		\
+{									\
+	size_t size = _ipl_block.scp_data_len;				\
+	void *scp_data = _ipl_block.scp_data;				\
+									\
+	return memory_read_from_buffer(buf, count, &off,		\
+				       scp_data, size);			\
+}
+
+#define IPL_ATTR_SCP_DATA_STORE_FN(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len)\
+static ssize_t sys_##_prefix##_scp_data_store(struct file *filp,	\
+					struct kobject *kobj,		\
+					struct bin_attribute *attr,	\
+					char *buf, loff_t off,		\
+					size_t count)			\
+{									\
+	size_t scpdata_len = count;					\
+	size_t padding;							\
+									\
+	if (off)							\
+		return -EINVAL;						\
+									\
+	memcpy(_ipl_block.scp_data, buf, count);			\
+	if (scpdata_len % 8) {						\
+		padding = 8 - (scpdata_len % 8);			\
+		memset(_ipl_block.scp_data + scpdata_len,		\
+		       0, padding);					\
+		scpdata_len += padding;					\
+	}								\
+									\
+	_ipl_block_hdr.len = _ipl_bp_len + scpdata_len;			\
+	_ipl_block.len = _ipl_bp0_len + scpdata_len;			\
+	_ipl_block.scp_data_len = scpdata_len;				\
+									\
+	return count;							\
+}
+
+#define DEFINE_IPL_ATTR_SCP_DATA_RO(_prefix, _ipl_block, _size)		\
+IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)				\
+static struct bin_attribute sys_##_prefix##_scp_data_attr =		\
+	__BIN_ATTR(scp_data, 0444, sys_##_prefix##_scp_data_show,	\
+		   NULL, _size)
+
+#define DEFINE_IPL_ATTR_SCP_DATA_RW(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len, _size)\
+IPL_ATTR_SCP_DATA_SHOW_FN(_prefix, _ipl_block)					\
+IPL_ATTR_SCP_DATA_STORE_FN(_prefix, _ipl_block_hdr, _ipl_block, _ipl_bp_len, _ipl_bp0_len)\
+static struct bin_attribute sys_##_prefix##_scp_data_attr =			\
+	__BIN_ATTR(scp_data, 0644, sys_##_prefix##_scp_data_show,		\
+		   sys_##_prefix##_scp_data_store, _size)
 
 /*
  * ipl section
@@ -373,71 +433,38 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 static struct kobj_attribute sys_ipl_device_attr =
 	__ATTR(device, 0444, sys_ipl_device_show, NULL);
 
-static ssize_t ipl_parameter_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *attr, char *buf,
-				  loff_t off, size_t count)
+static ssize_t sys_ipl_parameter_read(struct file *filp, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t off, size_t count)
 {
 	return memory_read_from_buffer(buf, count, &off, &ipl_block,
 				       ipl_block.hdr.len);
 }
-static struct bin_attribute ipl_parameter_attr =
-	__BIN_ATTR(binary_parameter, 0444, ipl_parameter_read, NULL,
+static struct bin_attribute sys_ipl_parameter_attr =
+	__BIN_ATTR(binary_parameter, 0444, sys_ipl_parameter_read, NULL,
 		   PAGE_SIZE);
 
-static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr, char *buf,
-				 loff_t off, size_t count)
-{
-	unsigned int size = ipl_block.fcp.scp_data_len;
-	void *scp_data = &ipl_block.fcp.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static ssize_t ipl_nvme_scp_data_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr, char *buf,
-				 loff_t off, size_t count)
-{
-	unsigned int size = ipl_block.nvme.scp_data_len;
-	void *scp_data = &ipl_block.nvme.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static ssize_t ipl_eckd_scp_data_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *attr, char *buf,
-				      loff_t off, size_t count)
-{
-	unsigned int size = ipl_block.eckd.scp_data_len;
-	void *scp_data = &ipl_block.eckd.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static struct bin_attribute ipl_scp_data_attr =
-	__BIN_ATTR(scp_data, 0444, ipl_scp_data_read, NULL, PAGE_SIZE);
-
-static struct bin_attribute ipl_nvme_scp_data_attr =
-	__BIN_ATTR(scp_data, 0444, ipl_nvme_scp_data_read, NULL, PAGE_SIZE);
-
-static struct bin_attribute ipl_eckd_scp_data_attr =
-	__BIN_ATTR(scp_data, 0444, ipl_eckd_scp_data_read, NULL, PAGE_SIZE);
+DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_fcp, ipl_block.fcp, PAGE_SIZE);
 
 static struct bin_attribute *ipl_fcp_bin_attrs[] = {
-	&ipl_parameter_attr,
-	&ipl_scp_data_attr,
+	&sys_ipl_parameter_attr,
+	&sys_ipl_fcp_scp_data_attr,
 	NULL,
 };
+
+DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_nvme, ipl_block.nvme, PAGE_SIZE);
 
 static struct bin_attribute *ipl_nvme_bin_attrs[] = {
-	&ipl_parameter_attr,
-	&ipl_nvme_scp_data_attr,
+	&sys_ipl_parameter_attr,
+	&sys_ipl_nvme_scp_data_attr,
 	NULL,
 };
 
+DEFINE_IPL_ATTR_SCP_DATA_RO(ipl_eckd, ipl_block.eckd, PAGE_SIZE);
+
 static struct bin_attribute *ipl_eckd_bin_attrs[] = {
-	&ipl_parameter_attr,
-	&ipl_eckd_scp_data_attr,
+	&sys_ipl_parameter_attr,
+	&sys_ipl_eckd_scp_data_attr,
 	NULL,
 };
 
@@ -776,44 +803,10 @@ static struct kobj_attribute sys_reipl_ccw_vmparm_attr =
 
 /* FCP reipl device attributes */
 
-static ssize_t reipl_fcp_scpdata_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *attr,
-				      char *buf, loff_t off, size_t count)
-{
-	size_t size = reipl_block_fcp->fcp.scp_data_len;
-	void *scp_data = reipl_block_fcp->fcp.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
-				       struct bin_attribute *attr,
-				       char *buf, loff_t off, size_t count)
-{
-	size_t scpdata_len = count;
-	size_t padding;
-
-
-	if (off)
-		return -EINVAL;
-
-	memcpy(reipl_block_fcp->fcp.scp_data, buf, count);
-	if (scpdata_len % 8) {
-		padding = 8 - (scpdata_len % 8);
-		memset(reipl_block_fcp->fcp.scp_data + scpdata_len,
-		       0, padding);
-		scpdata_len += padding;
-	}
-
-	reipl_block_fcp->hdr.len = IPL_BP_FCP_LEN + scpdata_len;
-	reipl_block_fcp->fcp.len = IPL_BP0_FCP_LEN + scpdata_len;
-	reipl_block_fcp->fcp.scp_data_len = scpdata_len;
-
-	return count;
-}
-static struct bin_attribute sys_reipl_fcp_scp_data_attr =
-	__BIN_ATTR(scp_data, 0644, reipl_fcp_scpdata_read,
-		   reipl_fcp_scpdata_write, DIAG308_SCPDATA_SIZE);
+DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_fcp, reipl_block_fcp->hdr,
+			    reipl_block_fcp->fcp,
+			    IPL_BP_FCP_LEN, IPL_BP0_FCP_LEN,
+			    DIAG308_SCPDATA_SIZE);
 
 static struct bin_attribute *reipl_fcp_bin_attrs[] = {
 	&sys_reipl_fcp_scp_data_attr,
@@ -934,44 +927,10 @@ static struct kobj_attribute sys_reipl_fcp_clear_attr =
 
 /* NVME reipl device attributes */
 
-static ssize_t reipl_nvme_scpdata_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *attr,
-				      char *buf, loff_t off, size_t count)
-{
-	size_t size = reipl_block_nvme->nvme.scp_data_len;
-	void *scp_data = reipl_block_nvme->nvme.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static ssize_t reipl_nvme_scpdata_write(struct file *filp, struct kobject *kobj,
-				       struct bin_attribute *attr,
-				       char *buf, loff_t off, size_t count)
-{
-	size_t scpdata_len = count;
-	size_t padding;
-
-	if (off)
-		return -EINVAL;
-
-	memcpy(reipl_block_nvme->nvme.scp_data, buf, count);
-	if (scpdata_len % 8) {
-		padding = 8 - (scpdata_len % 8);
-		memset(reipl_block_nvme->nvme.scp_data + scpdata_len,
-		       0, padding);
-		scpdata_len += padding;
-	}
-
-	reipl_block_nvme->hdr.len = IPL_BP_FCP_LEN + scpdata_len;
-	reipl_block_nvme->nvme.len = IPL_BP0_FCP_LEN + scpdata_len;
-	reipl_block_nvme->nvme.scp_data_len = scpdata_len;
-
-	return count;
-}
-
-static struct bin_attribute sys_reipl_nvme_scp_data_attr =
-	__BIN_ATTR(scp_data, 0644, reipl_nvme_scpdata_read,
-		   reipl_nvme_scpdata_write, DIAG308_SCPDATA_SIZE);
+DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_nvme, reipl_block_nvme->hdr,
+			    reipl_block_nvme->nvme,
+			    IPL_BP_NVME_LEN, IPL_BP0_NVME_LEN,
+			    DIAG308_SCPDATA_SIZE);
 
 static struct bin_attribute *reipl_nvme_bin_attrs[] = {
 	&sys_reipl_nvme_scp_data_attr,
@@ -1067,44 +1026,10 @@ static struct attribute_group reipl_ccw_attr_group_lpar = {
 
 /* ECKD reipl device attributes */
 
-static ssize_t reipl_eckd_scpdata_read(struct file *filp, struct kobject *kobj,
-				       struct bin_attribute *attr,
-				       char *buf, loff_t off, size_t count)
-{
-	size_t size = reipl_block_eckd->eckd.scp_data_len;
-	void *scp_data = reipl_block_eckd->eckd.scp_data;
-
-	return memory_read_from_buffer(buf, count, &off, scp_data, size);
-}
-
-static ssize_t reipl_eckd_scpdata_write(struct file *filp, struct kobject *kobj,
-					struct bin_attribute *attr,
-					char *buf, loff_t off, size_t count)
-{
-	size_t scpdata_len = count;
-	size_t padding;
-
-	if (off)
-		return -EINVAL;
-
-	memcpy(reipl_block_eckd->eckd.scp_data, buf, count);
-	if (scpdata_len % 8) {
-		padding = 8 - (scpdata_len % 8);
-		memset(reipl_block_eckd->eckd.scp_data + scpdata_len,
-		       0, padding);
-		scpdata_len += padding;
-	}
-
-	reipl_block_eckd->hdr.len = IPL_BP_ECKD_LEN + scpdata_len;
-	reipl_block_eckd->eckd.len = IPL_BP0_ECKD_LEN + scpdata_len;
-	reipl_block_eckd->eckd.scp_data_len = scpdata_len;
-
-	return count;
-}
-
-static struct bin_attribute sys_reipl_eckd_scp_data_attr =
-	__BIN_ATTR(scp_data, 0644, reipl_eckd_scpdata_read,
-		   reipl_eckd_scpdata_write, DIAG308_SCPDATA_SIZE);
+DEFINE_IPL_ATTR_SCP_DATA_RW(reipl_eckd, reipl_block_eckd->hdr,
+			    reipl_block_eckd->eckd,
+			    IPL_BP_ECKD_LEN, IPL_BP0_ECKD_LEN,
+			    DIAG308_SCPDATA_SIZE);
 
 static struct bin_attribute *reipl_eckd_bin_attrs[] = {
 	&sys_reipl_eckd_scp_data_attr,
@@ -1209,8 +1134,8 @@ static struct attribute_group reipl_nss_attr_group = {
 
 void set_os_info_reipl_block(void)
 {
-	os_info_entry_add(OS_INFO_REIPL_BLOCK, reipl_block_actual,
-			  reipl_block_actual->hdr.len);
+	os_info_entry_add_data(OS_INFO_REIPL_BLOCK, reipl_block_actual,
+			       reipl_block_actual->hdr.len);
 }
 
 /* reipl type */
@@ -1648,6 +1573,11 @@ DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
 		   dump_block_fcp->fcp.devno);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_fcp, dump_block_fcp->hdr,
+			    dump_block_fcp->fcp,
+			    IPL_BP_FCP_LEN, IPL_BP0_FCP_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_fcp_attrs[] = {
 	&sys_dump_fcp_device_attr.attr,
 	&sys_dump_fcp_wwpn_attr.attr,
@@ -1657,9 +1587,15 @@ static struct attribute *dump_fcp_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_fcp_bin_attrs[] = {
+	&sys_dump_fcp_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_fcp_attr_group = {
 	.name  = IPL_FCP_STR,
 	.attrs = dump_fcp_attrs,
+	.bin_attrs = dump_fcp_bin_attrs,
 };
 
 /* NVME dump device attributes */
@@ -1672,6 +1608,11 @@ DEFINE_IPL_ATTR_RW(dump_nvme, bootprog, "%lld\n", "%llx\n",
 DEFINE_IPL_ATTR_RW(dump_nvme, br_lba, "%lld\n", "%llx\n",
 		   dump_block_nvme->nvme.br_lba);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_nvme, dump_block_nvme->hdr,
+			    dump_block_nvme->nvme,
+			    IPL_BP_NVME_LEN, IPL_BP0_NVME_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_nvme_attrs[] = {
 	&sys_dump_nvme_fid_attr.attr,
 	&sys_dump_nvme_nsid_attr.attr,
@@ -1680,9 +1621,15 @@ static struct attribute *dump_nvme_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_nvme_bin_attrs[] = {
+	&sys_dump_nvme_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_nvme_attr_group = {
 	.name  = IPL_NVME_STR,
 	.attrs = dump_nvme_attrs,
+	.bin_attrs = dump_nvme_bin_attrs,
 };
 
 /* ECKD dump device attributes */
@@ -1696,6 +1643,11 @@ IPL_ATTR_BR_CHR_STORE_FN(dump, dump_block_eckd->eckd);
 static struct kobj_attribute sys_dump_eckd_br_chr_attr =
 	__ATTR(br_chr, 0644, eckd_dump_br_chr_show, eckd_dump_br_chr_store);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_eckd, dump_block_eckd->hdr,
+			    dump_block_eckd->eckd,
+			    IPL_BP_ECKD_LEN, IPL_BP0_ECKD_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_eckd_attrs[] = {
 	&sys_dump_eckd_device_attr.attr,
 	&sys_dump_eckd_bootprog_attr.attr,
@@ -1703,9 +1655,15 @@ static struct attribute *dump_eckd_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_eckd_bin_attrs[] = {
+	&sys_dump_eckd_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_eckd_attr_group = {
 	.name  = IPL_ECKD_STR,
 	.attrs = dump_eckd_attrs,
+	.bin_attrs = dump_eckd_bin_attrs,
 };
 
 /* CCW dump device attributes */
@@ -1858,9 +1816,9 @@ static int __init dump_nvme_init(void)
 	}
 	dump_block_nvme->hdr.len = IPL_BP_NVME_LEN;
 	dump_block_nvme->hdr.version = IPL_PARM_BLOCK_VERSION;
-	dump_block_nvme->fcp.len = IPL_BP0_NVME_LEN;
-	dump_block_nvme->fcp.pbt = IPL_PBT_NVME;
-	dump_block_nvme->fcp.opt = IPL_PB0_NVME_OPT_DUMP;
+	dump_block_nvme->nvme.len = IPL_BP0_NVME_LEN;
+	dump_block_nvme->nvme.pbt = IPL_PBT_NVME;
+	dump_block_nvme->nvme.opt = IPL_PB0_NVME_OPT_DUMP;
 	dump_capabilities |= DUMP_TYPE_NVME;
 	return 0;
 }
@@ -1940,7 +1898,7 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 	    reipl_type == IPL_TYPE_NSS ||
 	    reipl_type == IPL_TYPE_UNKNOWN)
 		os_info_flags |= OS_INFO_FLAG_REIPL_CLEAR;
-	os_info_entry_add(OS_INFO_FLAGS_ENTRY, &os_info_flags, sizeof(os_info_flags));
+	os_info_entry_add_data(OS_INFO_FLAGS_ENTRY, &os_info_flags, sizeof(os_info_flags));
 	csum = (__force unsigned int)cksm(reipl_block_actual, reipl_block_actual->hdr.len, 0);
 	abs_lc = get_abs_lowcore();
 	abs_lc->ipib = __pa(reipl_block_actual);
@@ -1958,11 +1916,13 @@ static struct shutdown_action __refdata dump_reipl_action = {
  * vmcmd shutdown action: Trigger vm command on shutdown.
  */
 
-static char vmcmd_on_reboot[128];
-static char vmcmd_on_panic[128];
-static char vmcmd_on_halt[128];
-static char vmcmd_on_poff[128];
-static char vmcmd_on_restart[128];
+#define VMCMD_MAX_SIZE	240
+
+static char vmcmd_on_reboot[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_panic[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_halt[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_poff[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_restart[VMCMD_MAX_SIZE + 1];
 
 DEFINE_IPL_ATTR_STR_RW(vmcmd, on_reboot, "%s\n", "%s\n", vmcmd_on_reboot);
 DEFINE_IPL_ATTR_STR_RW(vmcmd, on_panic, "%s\n", "%s\n", vmcmd_on_panic);
@@ -2288,8 +2248,8 @@ static int __init vmcmd_on_reboot_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_reboot, str, 127);
-	vmcmd_on_reboot[127] = 0;
+	strncpy_skip_quote(vmcmd_on_reboot, str, VMCMD_MAX_SIZE);
+	vmcmd_on_reboot[VMCMD_MAX_SIZE] = 0;
 	on_reboot_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2299,8 +2259,8 @@ static int __init vmcmd_on_panic_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_panic, str, 127);
-	vmcmd_on_panic[127] = 0;
+	strncpy_skip_quote(vmcmd_on_panic, str, VMCMD_MAX_SIZE);
+	vmcmd_on_panic[VMCMD_MAX_SIZE] = 0;
 	on_panic_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2310,8 +2270,8 @@ static int __init vmcmd_on_halt_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_halt, str, 127);
-	vmcmd_on_halt[127] = 0;
+	strncpy_skip_quote(vmcmd_on_halt, str, VMCMD_MAX_SIZE);
+	vmcmd_on_halt[VMCMD_MAX_SIZE] = 0;
 	on_halt_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2321,8 +2281,8 @@ static int __init vmcmd_on_poff_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_poff, str, 127);
-	vmcmd_on_poff[127] = 0;
+	strncpy_skip_quote(vmcmd_on_poff, str, VMCMD_MAX_SIZE);
+	vmcmd_on_poff[VMCMD_MAX_SIZE] = 0;
 	on_poff_trigger.action = &vmcmd_action;
 	return 1;
 }

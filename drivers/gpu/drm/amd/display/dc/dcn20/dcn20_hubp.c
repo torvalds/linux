@@ -1331,6 +1331,12 @@ void hubp2_read_state(struct hubp *hubp)
 		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
 		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
 
+	if (REG(DCHUBP_CNTL))
+		s->hubp_cntl = REG_READ(DCHUBP_CNTL);
+
+	if (REG(DCSURF_FLIP_CONTROL))
+		s->flip_control = REG_READ(DCSURF_FLIP_CONTROL);
+
 }
 
 static void hubp2_validate_dml_output(struct hubp *hubp,

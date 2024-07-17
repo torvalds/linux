@@ -296,6 +296,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
 	mvmvif->time_event_data.id = TE_MAX;
+	mvmvif->roc_activity = ROC_NUM_ACTIVITIES;
 
 	mvmvif->deflink.bcast_sta.sta_id = IWL_MVM_INVALID_STA;
 	mvmvif->deflink.mcast_sta.sta_id = IWL_MVM_INVALID_STA;
@@ -873,7 +874,7 @@ void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
 	}
 }
 
-static u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
+u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
 {
 	struct ieee80211_mgmt *mgmt = (void *)beacon;
 	const u8 *ie;
@@ -1010,12 +1011,13 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 	tx->tx_flags = cpu_to_le32(tx_flags);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
-			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION))
+			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION)) {
 		iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
-	tx->rate_n_flags =
-		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
-			    RATE_MCS_ANT_POS);
+		tx->rate_n_flags =
+			cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
+				    RATE_MCS_ANT_POS);
+	}
 
 	rate = iwl_mvm_mac_ctxt_get_beacon_rate(mvm, info, vif);
 
@@ -1162,6 +1164,13 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 		cpu_to_le32(iwl_mvm_find_ie_offset(beacon->data,
 						   WLAN_EID_EXT_CHANSWITCH_ANN,
 						   beacon->len));
+
+	if (vif->type == NL80211_IFTYPE_AP &&
+	    iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD, 0) >= 14)
+		beacon_cmd.btwt_offset =
+			cpu_to_le32(iwl_mvm_find_ie_offset(beacon->data,
+							   WLAN_EID_S1G_TWT,
+							   beacon->len));
 
 	return iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
 						sizeof(beacon_cmd));
@@ -1591,23 +1600,23 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	u32 id = le32_to_cpu(mb->link_id);
 	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
 	u32 mac_type;
+	int link_id = -1;
 	u8 notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					       MISSED_BEACONS_NOTIFICATION,
 					       0);
 
-	rcu_read_lock();
-
 	/* before version four the ID in the notification refers to mac ID */
 	if (notif_ver < 4) {
-		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
 	} else {
 		struct ieee80211_bss_conf *bss_conf =
-			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, true);
+			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, false);
 
 		if (!bss_conf)
-			goto out;
+			return;
 
 		vif = bss_conf->vif;
+		link_id = bss_conf->link_id;
 	}
 
 	IWL_DEBUG_INFO(mvm,
@@ -1620,7 +1629,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mb->num_expected_beacons));
 
 	if (!vif)
-		goto out;
+		return;
 
 	mac_type = iwl_mvm_get_mac_type(vif);
 
@@ -1647,6 +1656,10 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				 "missed_beacons:%d, missed_beacons_since_rx:%d\n",
 				 rx_missed_bcon, rx_missed_bcon_since_rx);
 		}
+	} else if (rx_missed_bcon >= IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH &&
+		   link_id >= 0 && hweight16(vif->active_links) > 1) {
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_MISSED_BEACON,
+				 iwl_mvm_get_other_link(vif, link_id));
 	} else if (rx_missed_bcon_since_rx > IWL_MVM_MISSED_BEACONS_THRESHOLD) {
 		if (!iwl_mvm_has_new_tx_api(mvm))
 			ieee80211_beacon_loss(vif);
@@ -1660,7 +1673,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	trigger = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
 					FW_DBG_TRIGGER_MISSED_BEACONS);
 	if (!trigger)
-		goto out;
+		return;
 
 	bcon_trig = (void *)trigger->data;
 	stop_trig_missed_bcon = le32_to_cpu(bcon_trig->stop_consec_missed_bcon);
@@ -1672,9 +1685,6 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
 		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, NULL);
-
-out:
-	rcu_read_unlock();
 }
 
 void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,

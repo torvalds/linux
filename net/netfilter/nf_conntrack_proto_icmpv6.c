@@ -62,7 +62,9 @@ static const u_int8_t noct_valid_new[] = {
 	[NDISC_ROUTER_ADVERTISEMENT - 130] = 1,
 	[NDISC_NEIGHBOUR_SOLICITATION - 130] = 1,
 	[NDISC_NEIGHBOUR_ADVERTISEMENT - 130] = 1,
-	[ICMPV6_MLD2_REPORT - 130] = 1
+	[ICMPV6_MLD2_REPORT - 130] = 1,
+	[ICMPV6_MRDISC_ADV - 130] = 1,
+	[ICMPV6_MRDISC_SOL - 130] = 1
 };
 
 bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,

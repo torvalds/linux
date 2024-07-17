@@ -143,12 +143,6 @@ struct ampdu_info {
 	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
 };
 
-/* used for flushing ampdu packets */
-struct cb_del_ampdu_pars {
-	struct ieee80211_sta *sta;
-	u16 tid;
-};
-
 static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 {
 	u32 rate, mcs;
@@ -225,7 +219,7 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	struct ampdu_info *ampdu;
 	int i;
 
-	ampdu = kzalloc(sizeof(struct ampdu_info), GFP_ATOMIC);
+	ampdu = kzalloc(sizeof(*ampdu), GFP_ATOMIC);
 	if (!ampdu)
 		return NULL;
 

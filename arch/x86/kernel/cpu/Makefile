@@ -34,7 +34,7 @@ obj-$(CONFIG_PROC_FS)			+= proc.o
 
 obj-$(CONFIG_IA32_FEAT_CTL)		+= feat_ctl.o
 ifdef CONFIG_CPU_SUP_INTEL
-obj-y					+= intel.o intel_pconfig.o tsx.o
+obj-y					+= intel.o tsx.o
 obj-$(CONFIG_PM)			+= intel_epb.o
 endif
 obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
@@ -60,7 +60,7 @@ obj-$(CONFIG_ACRN_GUEST)		+= acrn.o
 obj-$(CONFIG_DEBUG_FS)			+= debugfs.o
 
 quiet_cmd_mkcapflags = MKCAP   $@
-      cmd_mkcapflags = $(CONFIG_SHELL) $(srctree)/$(src)/mkcapflags.sh $@ $^
+      cmd_mkcapflags = $(CONFIG_SHELL) $(src)/mkcapflags.sh $@ $^
 
 cpufeature = $(src)/../../include/asm/cpufeatures.h
 vmxfeature = $(src)/../../include/asm/vmxfeatures.h

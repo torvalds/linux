@@ -1227,8 +1227,8 @@ static DEFINE_SIMPLE_DEV_PM_OPS(raydium_i2c_pm_ops,
 				raydium_i2c_suspend, raydium_i2c_resume);
 
 static const struct i2c_device_id raydium_i2c_id[] = {
-	{ "raydium_i2c", 0 },
-	{ "rm32380", 0 },
+	{ "raydium_i2c" },
+	{ "rm32380" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, raydium_i2c_id);

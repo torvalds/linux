@@ -64,7 +64,7 @@
 			active-low;
 			label = "imx6:red:front";
 			max-brightness = <248>;
-			pwms = <&pwm1 0 50000>;
+			pwms = <&pwm1 0 50000 0>;
 		};
 	};
 
@@ -233,7 +233,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 

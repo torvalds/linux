@@ -79,6 +79,13 @@ static inline bool is_via_compact_memory(int order) { return false; }
 #define COMPACTION_HPAGE_ORDER	(PMD_SHIFT - PAGE_SHIFT)
 #endif
 
+static struct page *mark_allocated_noprof(struct page *page, unsigned int order, gfp_t gfp_flags)
+{
+	post_alloc_hook(page, order, __GFP_MOVABLE);
+	return page;
+}
+#define mark_allocated(...)	alloc_hooks(mark_allocated_noprof(__VA_ARGS__))
+
 static void split_map_pages(struct list_head *freepages)
 {
 	unsigned int i, order;
@@ -93,7 +100,7 @@ static void split_map_pages(struct list_head *freepages)
 
 			nr_pages = 1 << order;
 
-			post_alloc_hook(page, order, __GFP_MOVABLE);
+			mark_allocated(page, order, __GFP_MOVABLE);
 			if (order)
 				split_page(page, order);
 
@@ -122,7 +129,7 @@ static unsigned long release_free_list(struct list_head *freepages)
 			 * Convert free pages into post allocation pages, so
 			 * that we can free them via __free_page.
 			 */
-			post_alloc_hook(page, order, __GFP_MOVABLE);
+			mark_allocated(page, order, __GFP_MOVABLE);
 			__free_pages(page, order);
 			if (pfn > high_pfn)
 				high_pfn = pfn;
@@ -1851,7 +1858,7 @@ static void isolate_freepages(struct compact_control *cc)
  * This is a migrate-callback that "allocates" freepages by taking pages
  * from the isolated freelists in the block we are migrating to.
  */
-static struct folio *compaction_alloc(struct folio *src, unsigned long data)
+static struct folio *compaction_alloc_noprof(struct folio *src, unsigned long data)
 {
 	struct compact_control *cc = (struct compact_control *)data;
 	struct folio *dst;
@@ -1896,6 +1903,11 @@ again:
 	cc->nr_freepages -= 1 << order;
 	cc->nr_migratepages -= 1 << order;
 	return page_rmappable_folio(&dst->page);
+}
+
+static struct folio *compaction_alloc(struct folio *src, unsigned long data)
+{
+	return alloc_hooks(compaction_alloc_noprof(src, data));
 }
 
 /*
@@ -3345,7 +3357,6 @@ static struct ctl_table vm_compaction[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{ }
 };
 
 static int __init kcompactd_init(void)

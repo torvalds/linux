@@ -7,12 +7,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/acpi.h>
-#include <linux/of.h>
 #include <linux/property.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -327,115 +322,13 @@ static const struct acpi_device_id hidma_mgmt_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, hidma_mgmt_acpi_ids);
 #endif
 
-static const struct of_device_id hidma_mgmt_match[] = {
-	{.compatible = "qcom,hidma-mgmt-1.0",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, hidma_mgmt_match);
-
 static struct platform_driver hidma_mgmt_driver = {
 	.probe = hidma_mgmt_probe,
 	.driver = {
 		   .name = "hidma-mgmt",
-		   .of_match_table = hidma_mgmt_match,
 		   .acpi_match_table = ACPI_PTR(hidma_mgmt_acpi_ids),
 	},
 };
 
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-static int object_counter;
-
-static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
-{
-	struct platform_device *pdev_parent = of_find_device_by_node(np);
-	struct platform_device_info pdevinfo;
-	struct device_node *child;
-	struct resource *res;
-	int ret = 0;
-
-	/* allocate a resource array */
-	res = kcalloc(3, sizeof(*res), GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	for_each_available_child_of_node(np, child) {
-		struct platform_device *new_pdev;
-
-		ret = of_address_to_resource(child, 0, &res[0]);
-		if (!ret)
-			goto out;
-
-		ret = of_address_to_resource(child, 1, &res[1]);
-		if (!ret)
-			goto out;
-
-		ret = of_irq_to_resource(child, 0, &res[2]);
-		if (ret <= 0)
-			goto out;
-
-		memset(&pdevinfo, 0, sizeof(pdevinfo));
-		pdevinfo.fwnode = &child->fwnode;
-		pdevinfo.parent = pdev_parent ? &pdev_parent->dev : NULL;
-		pdevinfo.name = child->name;
-		pdevinfo.id = object_counter++;
-		pdevinfo.res = res;
-		pdevinfo.num_res = 3;
-		pdevinfo.data = NULL;
-		pdevinfo.size_data = 0;
-		pdevinfo.dma_mask = DMA_BIT_MASK(64);
-		new_pdev = platform_device_register_full(&pdevinfo);
-		if (IS_ERR(new_pdev)) {
-			ret = PTR_ERR(new_pdev);
-			goto out;
-		}
-		new_pdev->dev.of_node = child;
-		of_dma_configure(&new_pdev->dev, child, true);
-		/*
-		 * It is assumed that calling of_msi_configure is safe on
-		 * platforms with or without MSI support.
-		 */
-		of_msi_configure(&new_pdev->dev, child);
-	}
-
-	kfree(res);
-
-	return ret;
-
-out:
-	of_node_put(child);
-	kfree(res);
-
-	return ret;
-}
-#endif
-
-static int __init hidma_mgmt_init(void)
-{
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-	struct device_node *child;
-
-	for_each_matching_node(child, hidma_mgmt_match) {
-		/* device tree based firmware here */
-		hidma_mgmt_of_populate_channels(child);
-	}
-#endif
-	/*
-	 * We do not check for return value here, as it is assumed that
-	 * platform_driver_register must not fail. The reason for this is that
-	 * the (potential) hidma_mgmt_of_populate_channels calls above are not
-	 * cleaned up if it does fail, and to do this work is quite
-	 * complicated. In particular, various calls of of_address_to_resource,
-	 * of_irq_to_resource, platform_device_register_full, of_dma_configure,
-	 * and of_msi_configure which then call other functions and so on, must
-	 * be cleaned up - this is not a trivial exercise.
-	 *
-	 * Currently, this module is not intended to be unloaded, and there is
-	 * no module_exit function defined which does the needed cleanup. For
-	 * this reason, we have to assume success here.
-	 */
-	platform_driver_register(&hidma_mgmt_driver);
-
-	return 0;
-}
-module_init(hidma_mgmt_init);
+module_platform_driver(hidma_mgmt_driver);
 MODULE_LICENSE("GPL v2");

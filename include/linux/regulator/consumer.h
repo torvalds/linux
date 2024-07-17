@@ -128,11 +128,11 @@ struct regulator;
  *
  * @supply:       The name of the supply.  Initialised by the user before
  *                using the bulk regulator APIs.
+ * @consumer:     The regulator consumer for the supply.  This will be managed
+ *                by the bulk API.
  * @init_load_uA: After getting the regulator, regulator_set_load() will be
  *                called with this load.  Initialised by the user before
  *                using the bulk regulator APIs.
- * @consumer:     The regulator consumer for the supply.  This will be managed
- *                by the bulk API.
  *
  * The regulator APIs provide a series of regulator_bulk_() API calls as
  * a convenience to consumers which require multiple supplies.  This
@@ -140,8 +140,8 @@ struct regulator;
  */
 struct regulator_bulk_data {
 	const char *supply;
-	int init_load_uA;
 	struct regulator *consumer;
+	int init_load_uA;
 
 	/* private: Internal use */
 	int ret;
@@ -164,6 +164,7 @@ struct regulator *__must_check devm_regulator_get_optional(struct device *dev,
 							   const char *id);
 int devm_regulator_get_enable(struct device *dev, const char *id);
 int devm_regulator_get_enable_optional(struct device *dev, const char *id);
+int devm_regulator_get_enable_read_voltage(struct device *dev, const char *id);
 void regulator_put(struct regulator *regulator);
 void devm_regulator_put(struct regulator *regulator);
 
@@ -249,6 +250,7 @@ int regulator_get_hardware_vsel_register(struct regulator *regulator,
 					 unsigned *vsel_mask);
 int regulator_list_hardware_vsel(struct regulator *regulator,
 				 unsigned selector);
+int regulator_hardware_enable(struct regulator *regulator, bool enable);
 
 /* regulator notifier block */
 int regulator_register_notifier(struct regulator *regulator,
@@ -320,11 +322,17 @@ devm_regulator_get_exclusive(struct device *dev, const char *id)
 
 static inline int devm_regulator_get_enable(struct device *dev, const char *id)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline int devm_regulator_get_enable_optional(struct device *dev,
 						     const char *id)
+{
+	return 0;
+}
+
+static inline int devm_regulator_get_enable_read_voltage(struct device *dev,
+							 const char *id)
 {
 	return -ENODEV;
 }
@@ -560,6 +568,12 @@ static inline int regulator_get_hardware_vsel_register(struct regulator *regulat
 
 static inline int regulator_list_hardware_vsel(struct regulator *regulator,
 					       unsigned selector)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int regulator_hardware_enable(struct regulator *regulator,
+					    bool enable)
 {
 	return -EOPNOTSUPP;
 }

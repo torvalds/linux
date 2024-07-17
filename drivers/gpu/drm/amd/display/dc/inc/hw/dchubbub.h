@@ -160,7 +160,7 @@ struct hubbub_funcs {
 
 	bool (*program_watermarks)(
 			struct hubbub *hubbub,
-			struct dcn_watermark_set *watermarks,
+			union dcn_watermark_set *watermarks,
 			unsigned int refclk_mhz,
 			bool safe_to_lower);
 

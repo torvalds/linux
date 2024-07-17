@@ -40,7 +40,7 @@ static int is_seen(struct ctl_table_set *set)
 
 /* Return standard mode bits for table entry. */
 static int net_ctl_permissions(struct ctl_table_header *head,
-			       struct ctl_table *table)
+			       const struct ctl_table *table)
 {
 	struct net *net = container_of(head->set, struct net, sysctls);
 
@@ -54,7 +54,6 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 }
 
 static void net_ctl_set_ownership(struct ctl_table_header *head,
-				  struct ctl_table *table,
 				  kuid_t *uid, kgid_t *gid)
 {
 	struct net *net = container_of(head->set, struct net, sysctls);
@@ -128,7 +127,7 @@ static void ensure_safe_net_sysctl(struct net *net, const char *path,
 
 	pr_debug("Registering net sysctl (net %p): %s\n", net, path);
 	ent = table;
-	for (size_t i = 0; i < table_size && ent->procname; ent++, i++) {
+	for (size_t i = 0; i < table_size; ent++, i++) {
 		unsigned long addr;
 		const char *where;
 
@@ -166,17 +165,10 @@ struct ctl_table_header *register_net_sysctl_sz(struct net *net,
 						struct ctl_table *table,
 						size_t table_size)
 {
-	int count;
-	struct ctl_table *entry;
-
 	if (!net_eq(net, &init_net))
 		ensure_safe_net_sysctl(net, path, table, table_size);
 
-	entry = table;
-	for (count = 0 ; count < table_size && entry->procname; entry++, count++)
-		;
-
-	return __register_sysctl_table(&net->sysctls, path, table, count);
+	return __register_sysctl_table(&net->sysctls, path, table, table_size);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_sz);
 

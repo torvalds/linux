@@ -145,9 +145,9 @@ void efx_mcdi_filter_del_vlan(struct efx_nic *efx, u16 vid);
 
 void efx_mcdi_rx_free_indir_table(struct efx_nic *efx);
 int efx_mcdi_rx_push_rss_context_config(struct efx_nic *efx,
-					struct efx_rss_context *ctx,
+					struct efx_rss_context_priv *ctx,
 					const u32 *rx_indir_table,
-					const u8 *key);
+					const u8 *key, bool delete);
 int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 				   const u32 *rx_indir_table,
 				   const u8 *key);
@@ -161,10 +161,6 @@ int efx_mcdi_push_default_indir_table(struct efx_nic *efx,
 int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx);
 int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
 					struct efx_rss_context *ctx);
-int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context,
-				   u32 *flags);
-void efx_mcdi_set_rss_context_flags(struct efx_nic *efx,
-				    struct efx_rss_context *ctx);
 void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx);
 
 static inline void efx_mcdi_update_rx_scatter(struct efx_nic *efx)

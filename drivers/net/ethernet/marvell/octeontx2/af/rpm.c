@@ -38,6 +38,7 @@ static struct mac_ops		rpm_mac_ops   = {
 	.pfc_config =                   rpm_lmac_pfc_config,
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 	.mac_reset   =			rpm_lmac_reset,
+	.mac_stats_reset		 =	  rpm_stats_reset,
 };
 
 static struct mac_ops		rpm2_mac_ops   = {
@@ -70,6 +71,7 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.pfc_config =                   rpm_lmac_pfc_config,
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 	.mac_reset   =			rpm_lmac_reset,
+	.mac_stats_reset	    =	rpm_stats_reset,
 };
 
 bool is_dev_rpm2(void *rpmd)
@@ -440,6 +442,21 @@ int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat)
 	*tx_stat = (val_hi << 32 | val_lo);
 
 	mutex_unlock(&rpm->lock);
+	return 0;
+}
+
+int rpm_stats_reset(void *rpmd, int lmac_id)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	cfg = rpm_read(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL);
+	cfg |= RPMX_CMD_CLEAR_TX | RPMX_CMD_CLEAR_RX | BIT_ULL(lmac_id);
+	rpm_write(rpm, 0, RPMX_MTI_STAT_STATN_CONTROL, cfg);
+
 	return 0;
 }
 

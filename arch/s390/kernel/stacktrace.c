@@ -5,6 +5,7 @@
  *  Copyright IBM Corp. 2006
  */
 
+#include <linux/perf_event.h>
 #include <linux/stacktrace.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
@@ -62,42 +63,121 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 	return 0;
 }
 
-void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
-			  const struct pt_regs *regs)
+static inline bool store_ip(stack_trace_consume_fn consume_entry, void *cookie,
+			    struct perf_callchain_entry_ctx *entry, bool perf,
+			    unsigned long ip)
 {
+#ifdef CONFIG_PERF_EVENTS
+	if (perf) {
+		if (perf_callchain_store(entry, ip))
+			return false;
+		return true;
+	}
+#endif
+	return consume_entry(cookie, ip);
+}
+
+static inline bool ip_invalid(unsigned long ip)
+{
+	/*
+	 * Perform some basic checks if an instruction address taken
+	 * from unreliable source is invalid.
+	 */
+	if (ip & 1)
+		return true;
+	if (ip < mmap_min_addr)
+		return true;
+	if (ip >= current->mm->context.asce_limit)
+		return true;
+	return false;
+}
+
+static inline bool ip_within_vdso(unsigned long ip)
+{
+	return in_range(ip, current->mm->context.vdso_base, vdso_text_size());
+}
+
+void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
+				 struct perf_callchain_entry_ctx *entry,
+				 const struct pt_regs *regs, bool perf)
+{
+	struct stack_frame_vdso_wrapper __user *sf_vdso;
 	struct stack_frame_user __user *sf;
 	unsigned long ip, sp;
 	bool first = true;
 
 	if (is_compat_task())
 		return;
-	if (!consume_entry(cookie, instruction_pointer(regs)))
+	if (!current->mm)
+		return;
+	ip = instruction_pointer(regs);
+	if (!store_ip(consume_entry, cookie, entry, perf, ip))
 		return;
 	sf = (void __user *)user_stack_pointer(regs);
 	pagefault_disable();
 	while (1) {
 		if (__get_user(sp, &sf->back_chain))
 			break;
-		if (__get_user(ip, &sf->gprs[8]))
+		/*
+		 * VDSO entry code has a non-standard stack frame layout.
+		 * See VDSO user wrapper code for details.
+		 */
+		if (!sp && ip_within_vdso(ip)) {
+			sf_vdso = (void __user *)sf;
+			if (__get_user(ip, &sf_vdso->return_address))
+				break;
+			sp = (unsigned long)sf + STACK_FRAME_VDSO_OVERHEAD;
+			sf = (void __user *)sp;
+			if (__get_user(sp, &sf->back_chain))
+				break;
+		} else {
+			sf = (void __user *)sp;
+			if (__get_user(ip, &sf->gprs[8]))
+				break;
+		}
+		/* Sanity check: ABI requires SP to be 8 byte aligned. */
+		if (sp & 0x7)
 			break;
-		if (ip & 0x1) {
+		if (ip_invalid(ip)) {
 			/*
 			 * If the instruction address is invalid, and this
 			 * is the first stack frame, assume r14 has not
 			 * been written to the stack yet. Otherwise exit.
 			 */
-			if (first && !(regs->gprs[14] & 0x1))
-				ip = regs->gprs[14];
-			else
+			if (!first)
+				break;
+			ip = regs->gprs[14];
+			if (ip_invalid(ip))
 				break;
 		}
-		if (!consume_entry(cookie, ip))
-			break;
-		/* Sanity check: ABI requires SP to be aligned 8 bytes. */
-		if (!sp || sp & 0x7)
-			break;
-		sf = (void __user *)sp;
+		if (!store_ip(consume_entry, cookie, entry, perf, ip))
+			return;
 		first = false;
 	}
 	pagefault_enable();
 }
+
+void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
+			  const struct pt_regs *regs)
+{
+	arch_stack_walk_user_common(consume_entry, cookie, NULL, regs, false);
+}
+
+unsigned long return_address(unsigned int n)
+{
+	struct unwind_state state;
+	unsigned long addr;
+
+	/* Increment to skip current stack entry */
+	n++;
+
+	unwind_for_each_frame(&state, NULL, NULL, 0) {
+		addr = unwind_get_return_address(&state);
+		if (!addr)
+			break;
+		if (!n--)
+			return addr;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(return_address);

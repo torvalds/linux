@@ -172,7 +172,7 @@
 				reg = <0xef602800 0x60>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x4 0x4>;
-				/* This thing is a bit weird.  It has it's own UIC
+				/* This thing is a bit weird.  It has its own UIC
 				 * that it uses to generate snapshot triggers.  We
 				 * don't really support this device yet, and it needs
 				 * work to figure this out.

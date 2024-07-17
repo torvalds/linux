@@ -31,6 +31,7 @@
 #define __INLINE_STREAM2MMIO__
 #endif
 
+#include <linux/args.h>
 #include <linux/string.h> /* for strscpy() */
 
 #include "ia_css_debug.h"
@@ -861,7 +862,7 @@ void ia_css_debug_wake_up_sp(void)
 }
 
 #define FIND_DMEM_PARAMS_TYPE(stream, kernel, type) \
-	(struct HRTCAT(HRTCAT(sh_css_isp_, type), _params) *) \
+	(struct CONCATENATE(CONCATENATE(sh_css_isp_, type), _params) *) \
 	findf_dmem_params(stream, offsetof(struct ia_css_memory_offsets, dmem.kernel))
 
 #define FIND_DMEM_PARAMS(stream, kernel) FIND_DMEM_PARAMS_TYPE(stream, kernel, kernel)
@@ -1547,23 +1548,6 @@ ia_css_debug_dump_stream_config_source(
 				    config->source.port.timeout);
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "compression: %d\n",
 				    config->source.port.compression.type);
-		break;
-	case IA_CSS_INPUT_MODE_TPG:
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "source.tpg\n");
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "id: %d\n",
-				    config->source.tpg.id);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "mode: %d\n",
-				    config->source.tpg.mode);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "x_mask: 0x%x\n",
-				    config->source.tpg.x_mask);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "x_delta: %d\n",
-				    config->source.tpg.x_delta);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "y_mask: 0x%x\n",
-				    config->source.tpg.y_mask);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "y_delta: %d\n",
-				    config->source.tpg.y_delta);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "xy_mask: 0x%x\n",
-				    config->source.tpg.xy_mask);
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "source.prbs\n");

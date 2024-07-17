@@ -91,6 +91,8 @@ properties:
       - boe,nv133fhm-n62
         # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
       - boe,nv140fhmn49
+        # Crystal Clear Technology CMT430B19N00 4.3" 480x272 TFT-LCD panel
+      - cct,cmt430b19n00
         # CDTech(H.K.) Electronics Limited 4.3" 480x272 color TFT-LCD panel
       - cdtech,s043wq26h-ct7
         # CDTech(H.K.) Electronics Limited 7" WSVGA (1024x600) TFT LCD Panel
@@ -188,6 +190,8 @@ properties:
       - innolux,g121i1-l01
         # Innolux Corporation 12.1" G121X1-L03 XGA (1024x768) TFT LCD panel
       - innolux,g121x1-l03
+        # Innolux Corporation 12.1" G121XCE-L01 XGA (1024x768) TFT LCD panel
+      - innolux,g121xce-l01
         # Innolux Corporation 11.6" WXGA (1366x768) TFT LCD panel
       - innolux,n116bca-ea1
         # Innolux Corporation 11.6" WXGA (1366x768) TFT LCD panel
@@ -272,6 +276,8 @@ properties:
       - osddisplays,osd070t1718-19ts
         # One Stop Displays OSD101T2045-53TS 10.1" 1920x1200 panel
       - osddisplays,osd101t2045-53ts
+        # POWERTIP PH128800T006-ZHC01 10.1" WXGA TFT LCD panel
+      - powertip,ph128800t006-zhc01
         # POWERTIP PH800480T013-IDF2 7.0" WVGA TFT LCD panel
       - powertip,ph800480t013-idf02
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel
@@ -348,15 +354,6 @@ properties:
         # Yes Optoelectronics YTC700TLAG-05-201C 7" TFT LCD panel
       - yes-optoelectronics,ytc700tlag-05-201c
 
-  backlight: true
-  ddc-i2c-bus: true
-  enable-gpios: true
-  port: true
-  power-supply: true
-  no-hpd: true
-  hpd-gpios: true
-  data-mapping: true
-
 if:
   not:
     properties:
@@ -367,7 +364,7 @@ then:
   properties:
     data-mapping: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

@@ -23,6 +23,9 @@ int bch2_btree_write_buffer_flush_sync(struct btree_trans *);
 int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *);
 int bch2_btree_write_buffer_tryflush(struct btree_trans *);
 
+struct bkey_buf;
+int bch2_btree_write_buffer_maybe_flush(struct btree_trans *, struct bkey_s_c, struct bkey_buf *);
+
 struct journal_keys_to_wb {
 	struct btree_write_buffer_keys	*wb;
 	size_t				room;

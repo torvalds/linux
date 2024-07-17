@@ -14,7 +14,7 @@ static void arm_cmdq_cq(struct erdma_cmdq *cmdq)
 		      FIELD_PREP(ERDMA_CQDB_CMDSN_MASK, cmdq->cq.cmdsn) |
 		      FIELD_PREP(ERDMA_CQDB_IDX_MASK, cmdq->cq.cmdsn);
 
-	*cmdq->cq.db_record = db_data;
+	*cmdq->cq.dbrec = db_data;
 	writeq(db_data, dev->func_bar + ERDMA_CMDQ_CQDB_REG);
 
 	atomic64_inc(&cmdq->cq.armed_num);
@@ -25,7 +25,7 @@ static void kick_cmdq_db(struct erdma_cmdq *cmdq)
 	struct erdma_dev *dev = container_of(cmdq, struct erdma_dev, cmdq);
 	u64 db_data = FIELD_PREP(ERDMA_CMD_HDR_WQEBB_INDEX_MASK, cmdq->sq.pi);
 
-	*cmdq->sq.db_record = db_data;
+	*cmdq->sq.dbrec = db_data;
 	writeq(db_data, dev->func_bar + ERDMA_CMDQ_SQDB_REG);
 }
 
@@ -89,20 +89,18 @@ static int erdma_cmdq_sq_init(struct erdma_dev *dev)
 {
 	struct erdma_cmdq *cmdq = &dev->cmdq;
 	struct erdma_cmdq_sq *sq = &cmdq->sq;
-	u32 buf_size;
 
 	sq->wqebb_cnt = SQEBB_COUNT(ERDMA_CMDQ_SQE_SIZE);
 	sq->depth = cmdq->max_outstandings * sq->wqebb_cnt;
 
-	buf_size = sq->depth << SQEBB_SHIFT;
-
-	sq->qbuf =
-		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
-				   &sq->qbuf_dma_addr, GFP_KERNEL);
+	sq->qbuf = dma_alloc_coherent(&dev->pdev->dev, sq->depth << SQEBB_SHIFT,
+				      &sq->qbuf_dma_addr, GFP_KERNEL);
 	if (!sq->qbuf)
 		return -ENOMEM;
 
-	sq->db_record = (u64 *)(sq->qbuf + buf_size);
+	sq->dbrec = dma_pool_zalloc(dev->db_pool, GFP_KERNEL, &sq->dbrec_dma);
+	if (!sq->dbrec)
+		goto err_out;
 
 	spin_lock_init(&sq->lock);
 
@@ -111,30 +109,33 @@ static int erdma_cmdq_sq_init(struct erdma_dev *dev)
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_SQ_ADDR_L_REG,
 			  lower_32_bits(sq->qbuf_dma_addr));
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_DEPTH_REG, sq->depth);
-	erdma_reg_write64(dev, ERDMA_CMDQ_SQ_DB_HOST_ADDR_REG,
-			  sq->qbuf_dma_addr + buf_size);
+	erdma_reg_write64(dev, ERDMA_CMDQ_SQ_DB_HOST_ADDR_REG, sq->dbrec_dma);
 
 	return 0;
+
+err_out:
+	dma_free_coherent(&dev->pdev->dev, sq->depth << SQEBB_SHIFT,
+			  sq->qbuf, sq->qbuf_dma_addr);
+
+	return -ENOMEM;
 }
 
 static int erdma_cmdq_cq_init(struct erdma_dev *dev)
 {
 	struct erdma_cmdq *cmdq = &dev->cmdq;
 	struct erdma_cmdq_cq *cq = &cmdq->cq;
-	u32 buf_size;
 
 	cq->depth = cmdq->sq.depth;
-	buf_size = cq->depth << CQE_SHIFT;
-
-	cq->qbuf =
-		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
-				   &cq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
+	cq->qbuf = dma_alloc_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
+				      &cq->qbuf_dma_addr, GFP_KERNEL);
 	if (!cq->qbuf)
 		return -ENOMEM;
 
 	spin_lock_init(&cq->lock);
 
-	cq->db_record = (u64 *)(cq->qbuf + buf_size);
+	cq->dbrec = dma_pool_zalloc(dev->db_pool, GFP_KERNEL, &cq->dbrec_dma);
+	if (!cq->dbrec)
+		goto err_out;
 
 	atomic64_set(&cq->armed_num, 0);
 
@@ -142,24 +143,25 @@ static int erdma_cmdq_cq_init(struct erdma_dev *dev)
 			  upper_32_bits(cq->qbuf_dma_addr));
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_CQ_ADDR_L_REG,
 			  lower_32_bits(cq->qbuf_dma_addr));
-	erdma_reg_write64(dev, ERDMA_CMDQ_CQ_DB_HOST_ADDR_REG,
-			  cq->qbuf_dma_addr + buf_size);
+	erdma_reg_write64(dev, ERDMA_CMDQ_CQ_DB_HOST_ADDR_REG, cq->dbrec_dma);
 
 	return 0;
+
+err_out:
+	dma_free_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT, cq->qbuf,
+			  cq->qbuf_dma_addr);
+
+	return -ENOMEM;
 }
 
 static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 {
 	struct erdma_cmdq *cmdq = &dev->cmdq;
 	struct erdma_eq *eq = &cmdq->eq;
-	u32 buf_size;
 
 	eq->depth = cmdq->max_outstandings;
-	buf_size = eq->depth << EQE_SHIFT;
-
-	eq->qbuf =
-		dma_alloc_coherent(&dev->pdev->dev, WARPPED_BUFSIZE(buf_size),
-				   &eq->qbuf_dma_addr, GFP_KERNEL | __GFP_ZERO);
+	eq->qbuf = dma_alloc_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT,
+				      &eq->qbuf_dma_addr, GFP_KERNEL);
 	if (!eq->qbuf)
 		return -ENOMEM;
 
@@ -167,17 +169,24 @@ static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 	atomic64_set(&eq->event_num, 0);
 
 	eq->db = dev->func_bar + ERDMA_REGS_CEQ_DB_BASE_REG;
-	eq->db_record = (u64 *)(eq->qbuf + buf_size);
+	eq->dbrec = dma_pool_zalloc(dev->db_pool, GFP_KERNEL, &eq->dbrec_dma);
+	if (!eq->dbrec)
+		goto err_out;
 
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_EQ_ADDR_H_REG,
 			  upper_32_bits(eq->qbuf_dma_addr));
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_EQ_ADDR_L_REG,
 			  lower_32_bits(eq->qbuf_dma_addr));
 	erdma_reg_write32(dev, ERDMA_REGS_CMDQ_EQ_DEPTH_REG, eq->depth);
-	erdma_reg_write64(dev, ERDMA_CMDQ_EQ_DB_HOST_ADDR_REG,
-			  eq->qbuf_dma_addr + buf_size);
+	erdma_reg_write64(dev, ERDMA_CMDQ_EQ_DB_HOST_ADDR_REG, eq->dbrec_dma);
 
 	return 0;
+
+err_out:
+	dma_free_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT, eq->qbuf,
+			  eq->qbuf_dma_addr);
+
+	return -ENOMEM;
 }
 
 int erdma_cmdq_init(struct erdma_dev *dev)
@@ -211,16 +220,16 @@ int erdma_cmdq_init(struct erdma_dev *dev)
 	return 0;
 
 err_destroy_cq:
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->cq.depth << CQE_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
+	dma_free_coherent(&dev->pdev->dev, cmdq->cq.depth << CQE_SHIFT,
 			  cmdq->cq.qbuf, cmdq->cq.qbuf_dma_addr);
 
+	dma_pool_free(dev->db_pool, cmdq->cq.dbrec, cmdq->cq.dbrec_dma);
+
 err_destroy_sq:
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->sq.depth << SQEBB_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
+	dma_free_coherent(&dev->pdev->dev, cmdq->sq.depth << SQEBB_SHIFT,
 			  cmdq->sq.qbuf, cmdq->sq.qbuf_dma_addr);
+
+	dma_pool_free(dev->db_pool, cmdq->sq.dbrec, cmdq->sq.dbrec_dma);
 
 	return err;
 }
@@ -238,18 +247,20 @@ void erdma_cmdq_destroy(struct erdma_dev *dev)
 
 	clear_bit(ERDMA_CMDQ_STATE_OK_BIT, &cmdq->state);
 
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->eq.depth << EQE_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
+	dma_free_coherent(&dev->pdev->dev, cmdq->eq.depth << EQE_SHIFT,
 			  cmdq->eq.qbuf, cmdq->eq.qbuf_dma_addr);
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->sq.depth << SQEBB_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
+
+	dma_pool_free(dev->db_pool, cmdq->eq.dbrec, cmdq->eq.dbrec_dma);
+
+	dma_free_coherent(&dev->pdev->dev, cmdq->sq.depth << SQEBB_SHIFT,
 			  cmdq->sq.qbuf, cmdq->sq.qbuf_dma_addr);
-	dma_free_coherent(&dev->pdev->dev,
-			  (cmdq->cq.depth << CQE_SHIFT) +
-				  ERDMA_EXTRA_BUFFER_SIZE,
+
+	dma_pool_free(dev->db_pool, cmdq->sq.dbrec, cmdq->sq.dbrec_dma);
+
+	dma_free_coherent(&dev->pdev->dev, cmdq->cq.depth << CQE_SHIFT,
 			  cmdq->cq.qbuf, cmdq->cq.qbuf_dma_addr);
+
+	dma_pool_free(dev->db_pool, cmdq->cq.dbrec, cmdq->cq.dbrec_dma);
 }
 
 static void *get_next_valid_cmdq_cqe(struct erdma_cmdq *cmdq)

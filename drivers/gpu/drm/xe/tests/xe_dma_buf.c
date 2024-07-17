@@ -12,6 +12,7 @@
 #include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
+#include "xe_pm.h"
 
 static bool p2p_enabled(struct dma_buf_test_params *params)
 {
@@ -36,14 +37,14 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	xe_bo_assert_held(imported);
 
 	mem_type = XE_PL_VRAM0;
-	if (!(params->mem_mask & XE_BO_CREATE_VRAM0_BIT))
+	if (!(params->mem_mask & XE_BO_FLAG_VRAM0))
 		/* No VRAM allowed */
 		mem_type = XE_PL_TT;
 	else if (params->force_different_devices && !p2p_enabled(params))
 		/* No P2P */
 		mem_type = XE_PL_TT;
 	else if (params->force_different_devices && !is_dynamic(params) &&
-		 (params->mem_mask & XE_BO_CREATE_SYSTEM_BIT))
+		 (params->mem_mask & XE_BO_FLAG_SYSTEM))
 		/* Pin migrated to TT */
 		mem_type = XE_PL_TT;
 
@@ -93,7 +94,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	 * possible, saving a migration step as the transfer is just
 	 * likely as fast from system memory.
 	 */
-	if (params->mem_mask & XE_BO_CREATE_SYSTEM_BIT)
+	if (params->mem_mask & XE_BO_FLAG_SYSTEM)
 		KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, XE_PL_TT));
 	else
 		KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, mem_type));
@@ -115,17 +116,17 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 
 	/* No VRAM on this device? */
 	if (!ttm_manager_type(&xe->ttm, XE_PL_VRAM0) &&
-	    (params->mem_mask & XE_BO_CREATE_VRAM0_BIT))
+	    (params->mem_mask & XE_BO_FLAG_VRAM0))
 		return;
 
 	size = PAGE_SIZE;
-	if ((params->mem_mask & XE_BO_CREATE_VRAM0_BIT) &&
+	if ((params->mem_mask & XE_BO_FLAG_VRAM0) &&
 	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
 		size = SZ_64K;
 
 	kunit_info(test, "running %s\n", __func__);
 	bo = xe_bo_create_user(xe, NULL, NULL, size, DRM_XE_GEM_CPU_CACHING_WC,
-			       ttm_bo_type_device, XE_BO_CREATE_USER_BIT | params->mem_mask);
+			       ttm_bo_type_device, params->mem_mask);
 	if (IS_ERR(bo)) {
 		KUNIT_FAIL(test, "xe_bo_create() failed with err=%ld\n",
 			   PTR_ERR(bo));
@@ -148,7 +149,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 		 */
 		if (params->force_different_devices &&
 		    !p2p_enabled(params) &&
-		    !(params->mem_mask & XE_BO_CREATE_SYSTEM_BIT)) {
+		    !(params->mem_mask & XE_BO_FLAG_SYSTEM)) {
 			KUNIT_FAIL(test,
 				   "xe_gem_prime_import() succeeded when it shouldn't have\n");
 		} else {
@@ -161,7 +162,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			/* Pinning in VRAM is not allowed. */
 			if (!is_dynamic(params) &&
 			    params->force_different_devices &&
-			    !(params->mem_mask & XE_BO_CREATE_SYSTEM_BIT))
+			    !(params->mem_mask & XE_BO_FLAG_SYSTEM))
 				KUNIT_EXPECT_EQ(test, err, -EINVAL);
 			/* Otherwise only expect interrupts or success. */
 			else if (err && err != -EINTR && err != -ERESTARTSYS)
@@ -180,7 +181,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			   PTR_ERR(import));
 	} else if (!params->force_different_devices ||
 		   p2p_enabled(params) ||
-		   (params->mem_mask & XE_BO_CREATE_SYSTEM_BIT)) {
+		   (params->mem_mask & XE_BO_FLAG_SYSTEM)) {
 		/* Shouldn't fail if we can reuse same bo, use p2p or use system */
 		KUNIT_FAIL(test, "dynamic p2p attachment failed with err=%ld\n",
 			   PTR_ERR(import));
@@ -203,52 +204,52 @@ static const struct dma_buf_attach_ops nop2p_attach_ops = {
  * gem object.
  */
 static const struct dma_buf_test_params test_params[] = {
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_VRAM0,
 	 .attach_ops = &xe_dma_buf_attach_ops},
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_VRAM0,
 	 .attach_ops = &xe_dma_buf_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_VRAM0,
 	 .attach_ops = &nop2p_attach_ops},
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_VRAM0,
 	 .attach_ops = &nop2p_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT},
-	{.mem_mask = XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_VRAM0},
+	{.mem_mask = XE_BO_FLAG_VRAM0,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM,
 	 .attach_ops = &xe_dma_buf_attach_ops},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM,
 	 .attach_ops = &xe_dma_buf_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM,
 	 .attach_ops = &nop2p_attach_ops},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM,
 	 .attach_ops = &nop2p_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM},
+	{.mem_mask = XE_BO_FLAG_SYSTEM,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0,
 	 .attach_ops = &xe_dma_buf_attach_ops},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0,
 	 .attach_ops = &xe_dma_buf_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0,
 	 .attach_ops = &nop2p_attach_ops},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0,
 	 .attach_ops = &nop2p_attach_ops,
 	 .force_different_devices = true},
 
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT},
-	{.mem_mask = XE_BO_CREATE_SYSTEM_BIT | XE_BO_CREATE_VRAM0_BIT,
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0},
+	{.mem_mask = XE_BO_FLAG_SYSTEM | XE_BO_FLAG_VRAM0,
 	 .force_different_devices = true},
 
 	{}
@@ -259,6 +260,7 @@ static int dma_buf_run_device(struct xe_device *xe)
 	const struct dma_buf_test_params *params;
 	struct kunit *test = xe_cur_kunit();
 
+	xe_pm_runtime_get(xe);
 	for (params = test_params; params->mem_mask; ++params) {
 		struct dma_buf_test_params p = *params;
 
@@ -266,6 +268,7 @@ static int dma_buf_run_device(struct xe_device *xe)
 		test->priv = &p;
 		xe_test_dmabuf_import_same_driver(xe);
 	}
+	xe_pm_runtime_put(xe);
 
 	/* A non-zero return would halt iteration over driver devices */
 	return 0;

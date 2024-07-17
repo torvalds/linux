@@ -541,8 +541,9 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 
 static int shmem_huge __read_mostly = SHMEM_HUGE_NEVER;
 
-bool shmem_is_huge(struct inode *inode, pgoff_t index, bool shmem_huge_force,
-		   struct mm_struct *mm, unsigned long vm_flags)
+static bool __shmem_is_huge(struct inode *inode, pgoff_t index,
+			    bool shmem_huge_force, struct mm_struct *mm,
+			    unsigned long vm_flags)
 {
 	loff_t i_size;
 
@@ -571,6 +572,16 @@ bool shmem_is_huge(struct inode *inode, pgoff_t index, bool shmem_huge_force,
 	default:
 		return false;
 	}
+}
+
+bool shmem_is_huge(struct inode *inode, pgoff_t index,
+		   bool shmem_huge_force, struct mm_struct *mm,
+		   unsigned long vm_flags)
+{
+	if (HPAGE_PMD_ORDER > MAX_PAGECACHE_ORDER)
+		return false;
+
+	return __shmem_is_huge(inode, index, shmem_huge_force, mm, vm_flags);
 }
 
 #if defined(CONFIG_SYSFS)
@@ -1786,7 +1797,7 @@ static int shmem_replace_folio(struct folio **foliop, gfp_t gfp,
 	xa_lock_irq(&swap_mapping->i_pages);
 	error = shmem_replace_entry(swap_mapping, swap_index, old, new);
 	if (!error) {
-		mem_cgroup_migrate(old, new);
+		mem_cgroup_replace_folio(old, new);
 		__lruvec_stat_mod_folio(new, NR_FILE_PAGES, 1);
 		__lruvec_stat_mod_folio(new, NR_SHMEM, 1);
 		__lruvec_stat_mod_folio(old, NR_FILE_PAGES, -1);
@@ -1907,7 +1918,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	 * Some architectures may have to restore extra metadata to the
 	 * folio after reading from swap.
 	 */
-	arch_swap_restore(swap, folio);
+	arch_swap_restore(folio_swap(swap, folio), folio);
 
 	if (shmem_should_replace_folio(folio, gfp)) {
 		error = shmem_replace_folio(&folio, gfp, info, index);
@@ -2267,8 +2278,6 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 				      unsigned long uaddr, unsigned long len,
 				      unsigned long pgoff, unsigned long flags)
 {
-	unsigned long (*get_area)(struct file *,
-		unsigned long, unsigned long, unsigned long, unsigned long);
 	unsigned long addr;
 	unsigned long offset;
 	unsigned long inflated_len;
@@ -2278,8 +2287,8 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
-	get_area = current->mm->get_unmapped_area;
-	addr = get_area(file, uaddr, len, pgoff, flags);
+	addr = mm_get_unmapped_area(current->mm, file, uaddr, len, pgoff,
+				    flags);
 
 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
 		return addr;
@@ -2336,7 +2345,8 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 	if (inflated_len < len)
 		return addr;
 
-	inflated_addr = get_area(NULL, uaddr, inflated_len, 0, flags);
+	inflated_addr = mm_get_unmapped_area(current->mm, NULL, uaddr,
+					     inflated_len, 0, flags);
 	if (IS_ERR_VALUE(inflated_addr))
 		return addr;
 	if (inflated_addr & ~PAGE_MASK)
@@ -3167,10 +3177,13 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		struct folio *folio;
 
 		/*
-		 * Good, the fallocate(2) manpage permits EINTR: we may have
-		 * been interrupted because we are using up too much memory.
+		 * Check for fatal signal so that we abort early in OOM
+		 * situations. We don't want to abort in case of non-fatal
+		 * signals as large fallocate can take noticeable time and
+		 * e.g. periodic timers may result in fallocate constantly
+		 * restarting.
 		 */
-		if (signal_pending(current))
+		if (fatal_signal_pending(current))
 			error = -EINTR;
 		else if (shmem_falloc.nr_unswapped > shmem_falloc.nr_falloced)
 			error = -ENOMEM;
@@ -3467,8 +3480,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 			return error;
 	}
 
-	simple_offset_remove(shmem_get_offset_ctx(old_dir), old_dentry);
-	error = simple_offset_add(shmem_get_offset_ctx(new_dir), old_dentry);
+	error = simple_offset_rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (error)
 		return error;
 
@@ -3905,14 +3917,14 @@ static const struct constant_table shmem_param_enums_huge[] = {
 };
 
 const struct fs_parameter_spec shmem_fs_parameters[] = {
-	fsparam_u32   ("gid",		Opt_gid),
+	fsparam_gid   ("gid",		Opt_gid),
 	fsparam_enum  ("huge",		Opt_huge,  shmem_param_enums_huge),
 	fsparam_u32oct("mode",		Opt_mode),
 	fsparam_string("mpol",		Opt_mpol),
 	fsparam_string("nr_blocks",	Opt_nr_blocks),
 	fsparam_string("nr_inodes",	Opt_nr_inodes),
 	fsparam_string("size",		Opt_size),
-	fsparam_u32   ("uid",		Opt_uid),
+	fsparam_uid   ("uid",		Opt_uid),
 	fsparam_flag  ("inode32",	Opt_inode32),
 	fsparam_flag  ("inode64",	Opt_inode64),
 	fsparam_flag  ("noswap",	Opt_noswap),
@@ -3972,9 +3984,7 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 		ctx->mode = result.uint_32 & 07777;
 		break;
 	case Opt_uid:
-		kuid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(kuid))
-			goto bad_value;
+		kuid = result.uid;
 
 		/*
 		 * The requested uid must be representable in the
@@ -3986,9 +3996,7 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 		ctx->uid = kuid;
 		break;
 	case Opt_gid:
-		kgid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(kgid))
-			goto bad_value;
+		kgid = result.gid;
 
 		/*
 		 * The requested gid must be representable in the
@@ -4801,7 +4809,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 				      unsigned long addr, unsigned long len,
 				      unsigned long pgoff, unsigned long flags)
 {
-	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, file, addr, len, pgoff, flags);
 }
 #endif
 

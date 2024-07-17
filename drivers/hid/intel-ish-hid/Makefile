@@ -11,6 +11,7 @@ intel-ishtp-objs += ishtp/client.o
 intel-ishtp-objs += ishtp/bus.o
 intel-ishtp-objs += ishtp/dma-if.o
 intel-ishtp-objs += ishtp/client-buffers.o
+intel-ishtp-objs += ishtp/loader.o
 
 obj-$(CONFIG_INTEL_ISH_HID) += intel-ish-ipc.o
 intel-ish-ipc-objs := ipc/ipc.o
@@ -23,4 +24,4 @@ intel-ishtp-hid-objs += ishtp-hid-client.o
 obj-$(CONFIG_INTEL_ISH_FIRMWARE_DOWNLOADER) += intel-ishtp-loader.o
 intel-ishtp-loader-objs += ishtp-fw-loader.o
 
-ccflags-y += -I $(srctree)/$(src)/ishtp
+ccflags-y += -I $(src)/ishtp

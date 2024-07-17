@@ -42,7 +42,7 @@ struct vp9_dram_buf {
 
 /**
  * struct vp9_fb_info - contains frame buffer info
- * @fb : frmae buffer
+ * @fb : frame buffer
  * @reserved : reserved field used by vpu
  */
 struct vp9_fb_info {
@@ -90,7 +90,7 @@ struct vp9_sf_ref_fb {
  *	AP-W/R : AP is writer/reader on this item
  *	VPU-W/R: VPU is write/reader on this item
  * @sf_bs_buf : super frame backup buffer (AP-W, VPU-R)
- * @sf_ref_fb : record supoer frame reference buffer information
+ * @sf_ref_fb : record super frame reference buffer information
  *	(AP-R/W, VPU-R/W)
  * @sf_next_ref_fb_idx : next available super frame (AP-W, VPU-R)
  * @sf_frm_cnt : super frame count, filled by vpu (AP-R, VPU-W)

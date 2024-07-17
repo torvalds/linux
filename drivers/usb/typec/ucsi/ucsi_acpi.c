@@ -23,9 +23,9 @@ struct ucsi_acpi {
 	void *base;
 	struct completion complete;
 	unsigned long flags;
-#define UCSI_ACPI_SUPPRESS_EVENT	0
 #define UCSI_ACPI_COMMAND_PENDING	1
 #define UCSI_ACPI_ACK_PENDING		2
+#define UCSI_ACPI_CHECK_BOGUS_EVENT	3
 	guid_t guid;
 	u64 cmd;
 };
@@ -129,46 +129,55 @@ static const struct ucsi_operations ucsi_zenbook_ops = {
 	.async_write = ucsi_acpi_async_write
 };
 
-/*
- * Some Dell laptops don't like ACK commands with the
- * UCSI_ACK_CONNECTOR_CHANGE but not the UCSI_ACK_COMMAND_COMPLETE
- * bit set. To work around this send a dummy command and bundle the
- * UCSI_ACK_CONNECTOR_CHANGE with the UCSI_ACK_COMMAND_COMPLETE
- * for the dummy command.
- */
-static int
-ucsi_dell_sync_write(struct ucsi *ucsi, unsigned int offset,
-		     const void *val, size_t val_len)
+static int ucsi_gram_read(struct ucsi *ucsi, unsigned int offset,
+			  void *val, size_t val_len)
 {
+	u16 bogus_change = UCSI_CONSTAT_POWER_LEVEL_CHANGE |
+			   UCSI_CONSTAT_PDOS_CHANGE;
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-	u64 cmd = *(u64 *)val;
-	u64 dummycmd = UCSI_GET_CAPABILITY;
+	struct ucsi_connector_status *status;
 	int ret;
 
-	if (cmd == (UCSI_ACK_CC_CI | UCSI_ACK_CONNECTOR_CHANGE)) {
-		cmd |= UCSI_ACK_COMMAND_COMPLETE;
+	ret = ucsi_acpi_read(ucsi, offset, val, val_len);
+	if (ret < 0)
+		return ret;
 
-		/*
-		 * The UCSI core thinks it is sending a connector change ack
-		 * and will accept new connector change events. We don't want
-		 * this to happen for the dummy command as its response will
-		 * still report the very event that the core is trying to clear.
-		 */
-		set_bit(UCSI_ACPI_SUPPRESS_EVENT, &ua->flags);
-		ret = ucsi_acpi_sync_write(ucsi, UCSI_CONTROL, &dummycmd,
-					   sizeof(dummycmd));
-		clear_bit(UCSI_ACPI_SUPPRESS_EVENT, &ua->flags);
+	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_CONNECTOR_STATUS &&
+	    test_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags) &&
+	    offset == UCSI_MESSAGE_IN) {
+		status = (struct ucsi_connector_status *)val;
 
-		if (ret < 0)
-			return ret;
+		/* Clear the bogus change */
+		if (status->change == bogus_change)
+			status->change = 0;
+
+		clear_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags);
 	}
 
-	return ucsi_acpi_sync_write(ucsi, UCSI_CONTROL, &cmd, sizeof(cmd));
+	return ret;
 }
 
-static const struct ucsi_operations ucsi_dell_ops = {
-	.read = ucsi_acpi_read,
-	.sync_write = ucsi_dell_sync_write,
+static int ucsi_gram_sync_write(struct ucsi *ucsi, unsigned int offset,
+				const void *val, size_t val_len)
+{
+	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
+	int ret;
+
+	ret = ucsi_acpi_sync_write(ucsi, offset, val, val_len);
+	if (ret < 0)
+		return ret;
+
+	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_PDOS &&
+	    ua->cmd & UCSI_GET_PDOS_PARTNER_PDO(1) &&
+	    ua->cmd & UCSI_GET_PDOS_SRC_PDOS)
+		set_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags);
+
+	return ret;
+}
+
+static const struct ucsi_operations ucsi_gram_ops = {
+	.read = ucsi_gram_read,
+	.sync_write = ucsi_gram_sync_write,
 	.async_write = ucsi_acpi_async_write
 };
 
@@ -182,9 +191,11 @@ static const struct dmi_system_id ucsi_acpi_quirks[] = {
 	},
 	{
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "LG gram PC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "90Q"),
 		},
-		.driver_data = (void *)&ucsi_dell_ops,
+		.driver_data = (void *)&ucsi_gram_ops,
 	},
 	{ }
 };
@@ -199,11 +210,11 @@ static void ucsi_acpi_notify(acpi_handle handle, u32 event, void *data)
 	if (ret)
 		return;
 
-	if (UCSI_CCI_CONNECTOR(cci) &&
-	    !test_bit(UCSI_ACPI_SUPPRESS_EVENT, &ua->flags))
+	if (UCSI_CCI_CONNECTOR(cci))
 		ucsi_connector_change(ua->ucsi, UCSI_CCI_CONNECTOR(cci));
 
-	if (cci & UCSI_CCI_ACK_COMPLETE && test_bit(ACK_PENDING, &ua->flags))
+	if (cci & UCSI_CCI_ACK_COMPLETE &&
+	    test_bit(UCSI_ACPI_ACK_PENDING, &ua->flags))
 		complete(&ua->complete);
 	if (cci & UCSI_CCI_COMMAND_COMPLETE &&
 	    test_bit(UCSI_ACPI_COMMAND_PENDING, &ua->flags))

@@ -10,12 +10,14 @@
 #include <adf_fw_config.h>
 #include <adf_gen4_config.h>
 #include <adf_gen4_dc.h>
+#include <adf_gen4_hw_csr_data.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
 #include <adf_gen4_pm.h>
 #include <adf_gen4_ras.h>
 #include <adf_gen4_timer.h>
 #include <adf_gen4_tl.h>
+#include <adf_gen4_vf_mig.h>
 #include "adf_420xx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -296,7 +298,7 @@ static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
 	if (adf_gen4_init_thd2arb_map(accel_dev))
 		dev_warn(&GET_DEV(accel_dev),
-			 "Generate of the thread to arbiter map failed");
+			 "Failed to generate thread to arbiter mapping");
 
 	return GET_HW_DATA(accel_dev)->thd_to_arb_map;
 }
@@ -487,6 +489,7 @@ void adf_init_hw_data_420xx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	adf_gen4_init_dc_ops(&hw_data->dc_ops);
 	adf_gen4_init_ras_ops(&hw_data->ras_ops);
 	adf_gen4_init_tl_data(&hw_data->tl_data);
+	adf_gen4_init_vf_mig_ops(&hw_data->vfmig_ops);
 	adf_init_rl_data(&hw_data->rl_data);
 }
 

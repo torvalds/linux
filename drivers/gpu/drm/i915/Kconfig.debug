@@ -27,8 +27,8 @@ config DRM_I915_DEBUG
 	select REF_TRACKER
 	select STACKDEPOT
 	select STACKTRACE
-	select DRM_DP_AUX_CHARDEV
-	select DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE if DRM_I915_DP_TUNNEL
+	select DRM_DISPLAY_DP_AUX_CHARDEV
+	select DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG if DRM_I915_DP_TUNNEL
 	select X86_MSR # used by igt/pm_rpm
 	select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
 	select DRM_DEBUG_MM if DRM=y

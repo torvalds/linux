@@ -11,7 +11,7 @@ quiet_cmd_policy = POLICY  $@
 	printf '\t"";\n';) \
 	} > $@
 
-$(obj)/builtin-policy.h: $(wildcard $(obj)/policy/*.conf $(srctree)/$(src)/policy/*.conf.default) FORCE
+$(obj)/builtin-policy.h: $(wildcard $(obj)/policy/*.conf $(src)/policy/*.conf.default) FORCE
 	$(call if_changed,policy)
 
 ifndef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING

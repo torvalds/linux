@@ -11,7 +11,7 @@ if [ "$(uname -m)" != "x86_64" ]; then
 	exit 1
 fi
 
-cd $(dirname $0)
+cd "$(dirname $0)"
 
 trap 'echo "Might need a more recent version of binutils"' EXIT
 

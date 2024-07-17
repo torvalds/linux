@@ -112,10 +112,15 @@ struct insn {
 #define X86_SIB_INDEX(sib) (((sib) & 0x38) >> 3)
 #define X86_SIB_BASE(sib) ((sib) & 0x07)
 
-#define X86_REX_W(rex) ((rex) & 8)
-#define X86_REX_R(rex) ((rex) & 4)
-#define X86_REX_X(rex) ((rex) & 2)
-#define X86_REX_B(rex) ((rex) & 1)
+#define X86_REX2_M(rex) ((rex) & 0x80)	/* REX2 M0 */
+#define X86_REX2_R(rex) ((rex) & 0x40)	/* REX2 R4 */
+#define X86_REX2_X(rex) ((rex) & 0x20)	/* REX2 X4 */
+#define X86_REX2_B(rex) ((rex) & 0x10)	/* REX2 B4 */
+
+#define X86_REX_W(rex) ((rex) & 8)	/* REX or REX2 W */
+#define X86_REX_R(rex) ((rex) & 4)	/* REX or REX2 R3 */
+#define X86_REX_X(rex) ((rex) & 2)	/* REX or REX2 X3 */
+#define X86_REX_B(rex) ((rex) & 1)	/* REX or REX2 B3 */
 
 /* VEX bit flags  */
 #define X86_VEX_W(vex)	((vex) & 0x80)	/* VEX3 Byte2 */
@@ -161,6 +166,18 @@ static inline void insn_get_attribute(struct insn *insn)
 /* Instruction uses RIP-relative addressing */
 extern int insn_rip_relative(struct insn *insn);
 
+static inline int insn_is_rex2(struct insn *insn)
+{
+	if (!insn->prefixes.got)
+		insn_get_prefixes(insn);
+	return insn->rex_prefix.nbytes == 2;
+}
+
+static inline insn_byte_t insn_rex2_m_bit(struct insn *insn)
+{
+	return X86_REX2_M(insn->rex_prefix.bytes[1]);
+}
+
 static inline int insn_is_avx(struct insn *insn)
 {
 	if (!insn->prefixes.got)
@@ -196,6 +213,13 @@ static inline insn_byte_t insn_vex_p_bits(struct insn *insn)
 		return X86_VEX_P(insn->vex_prefix.bytes[1]);
 	else
 		return X86_VEX_P(insn->vex_prefix.bytes[2]);
+}
+
+static inline insn_byte_t insn_vex_w_bit(struct insn *insn)
+{
+	if (insn->vex_prefix.nbytes < 3)
+		return 0;
+	return X86_VEX_W(insn->vex_prefix.bytes[2]);
 }
 
 /* Get the last prefix id from last prefix or VEX prefix */

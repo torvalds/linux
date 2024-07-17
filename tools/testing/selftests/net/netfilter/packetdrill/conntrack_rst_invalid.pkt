@@ -1,0 +1,59 @@
+// check that out of window resets are marked as INVALID and conntrack remains
+// in ESTABLISHED state.
+
+`packetdrill/common.sh`
+
++0 `$xtables -A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
++0 `$xtables -A OUTPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+0.1 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+
+0.1 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1 ecr 0,nop,wscale 8>
+
++0.1 < S. 1:1(0) ack 1 win 65535 <mss 1460>
+
++0 > . 1:1(0) ack 1 win 65535
++0 < . 1:1001(1000) ack 1 win 65535
++0 < . 1001:2001(1000) ack 1 win 65535
++0 < . 2001:3001(1000) ack 1 win 65535
+
++0 > . 1:1(0) ack 1001 win 65535
++0 > . 1:1(0) ack 2001 win 65535
++0 > . 1:1(0) ack 3001 win 65535
+
++0 write(3, ..., 1000) = 1000
+
+// out of window
++0.0 < R	0:0(0)	win 0
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q ESTABLISHED`
+
+// out of window
++0.0 < R	1000000:1000000(0)	win 0
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q ESTABLISHED`
+
+// in-window but not exact match
++0.0 < R	42:42(0)	win 0
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q ESTABLISHED`
+
++0.0 > P. 1:1001(1000) ack 3001 win 65535
+
++0.1 read(3, ..., 1000) = 1000
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q ESTABLISHED`
+
++0 < . 3001:3001(0) ack 1001 win 65535
+
++0.0 < R. 3000:3000(0) ack 1001 win 0
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q ESTABLISHED`
+
+// exact next sequence
++0.0 < R. 3001:3001(0) ack 1001 win 0
+// Conntrack should move to CLOSE
+
+// Expect four invalid RSTs
++0 `$xtables -v -S INPUT  | grep INVALID | grep -q -- "-c 4 "`
++0 `$xtables -v -S OUTPUT | grep INVALID | grep -q -- "-c 0 0"`
+
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q CLOSE\ `

@@ -53,6 +53,7 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 				     size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
+	struct i40e_vsi *main_vsi;
 	int bytes_not_copied;
 	int buf_size = 256;
 	char *buf;
@@ -68,8 +69,8 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 	if (!buf)
 		return -ENOSPC;
 
-	len = snprintf(buf, buf_size, "%s: %s\n",
-		       pf->vsi[pf->lan_vsi]->netdev->name,
+	main_vsi = i40e_pf_get_main_vsi(pf);
+	len = snprintf(buf, buf_size, "%s: %s\n", main_vsi->netdev->name,
 		       i40e_dbg_command_buf);
 
 	bytes_not_copied = copy_to_user(buffer, buf, len);
@@ -128,7 +129,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		dev_info(&pf->pdev->dev,
 			 "    state[%d] = %08lx\n",
 			 i, vsi->state[i]);
-	if (vsi == pf->vsi[pf->lan_vsi])
+	if (vsi->type == I40E_VSI_MAIN)
 		dev_info(&pf->pdev->dev, "    MAC address: %pM Port MAC: %pM\n",
 			 pf->hw.mac.addr,
 			 pf->hw.mac.port_addr);
@@ -786,7 +787,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		cnt = sscanf(&cmd_buf[7], "%i", &vsi_seid);
 		if (cnt == 0) {
 			/* default to PF VSI */
-			vsi_seid = pf->vsi[pf->lan_vsi]->seid;
+			vsi = i40e_pf_get_main_vsi(pf);
+			vsi_seid = vsi->seid;
 		} else if (vsi_seid < 0) {
 			dev_info(&pf->pdev->dev, "add VSI %d: bad vsi seid\n",
 				 vsi_seid);
@@ -867,7 +869,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		veb = i40e_veb_setup(pf, 0, uplink_seid, vsi_seid, enabled_tc);
+		veb = i40e_veb_setup(pf, uplink_seid, vsi_seid, enabled_tc);
 		if (veb)
 			dev_info(&pf->pdev->dev, "added relay %d\n", veb->seid);
 		else
@@ -1030,7 +1032,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				goto command_write_done;
 			}
 
-			vsi = pf->vsi[pf->lan_vsi];
+			vsi = i40e_pf_get_main_vsi(pf);
 			switch_id =
 				le16_to_cpu(vsi->info.switch_id) &
 					    I40E_AQ_VSI_SW_ID_MASK;
@@ -1380,6 +1382,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "FD current total filter count for this interface: %d\n",
 			 i40e_get_current_fd_count(pf));
 	} else if (strncmp(cmd_buf, "lldp", 4) == 0) {
+		/* Get main VSI */
+		struct i40e_vsi *main_vsi = i40e_pf_get_main_vsi(pf);
+
 		if (strncmp(&cmd_buf[5], "stop", 4) == 0) {
 			int ret;
 
@@ -1391,10 +1396,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				goto command_write_done;
 			}
 			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
-						pf->hw.mac.addr,
-						ETH_P_LLDP, 0,
-						pf->vsi[pf->lan_vsi]->seid,
-						0, true, NULL, NULL);
+						pf->hw.mac.addr, ETH_P_LLDP, 0,
+						main_vsi->seid, 0, true, NULL,
+						NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
 					"%s: Add Control Packet Filter AQ command failed =0x%x\n",
@@ -1409,10 +1413,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			int ret;
 
 			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
-						pf->hw.mac.addr,
-						ETH_P_LLDP, 0,
-						pf->vsi[pf->lan_vsi]->seid,
-						0, false, NULL, NULL);
+						pf->hw.mac.addr, ETH_P_LLDP, 0,
+						main_vsi->seid, 0, false, NULL,
+						NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
 					"%s: Remove Control Packet Filter AQ command failed =0x%x\n",
@@ -1639,6 +1642,7 @@ static ssize_t i40e_dbg_netdev_ops_read(struct file *filp, char __user *buffer,
 					size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
+	struct i40e_vsi *main_vsi;
 	int bytes_not_copied;
 	int buf_size = 256;
 	char *buf;
@@ -1654,8 +1658,8 @@ static ssize_t i40e_dbg_netdev_ops_read(struct file *filp, char __user *buffer,
 	if (!buf)
 		return -ENOSPC;
 
-	len = snprintf(buf, buf_size, "%s: %s\n",
-		       pf->vsi[pf->lan_vsi]->netdev->name,
+	main_vsi = i40e_pf_get_main_vsi(pf);
+	len = snprintf(buf, buf_size, "%s: %s\n", main_vsi->netdev->name,
 		       i40e_dbg_netdev_ops_buf);
 
 	bytes_not_copied = copy_to_user(buffer, buf, len);

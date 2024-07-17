@@ -40,6 +40,8 @@ struct osnoise_top_params {
 	int			set_sched;
 	int			cgroup;
 	int			hk_cpus;
+	int			warmup;
+	int			buffer_size;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
@@ -281,8 +283,8 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 
 	static const char * const msg[] = {
 		" [-h] [-q] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
-		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
-		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-C[=cgroup_name]]",
+		"	  [-T us] [-t[file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
+		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-C[=cgroup_name]] [--warm-up s]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -296,7 +298,7 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
-		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
+		"	  -t/--trace[file]: save the stopped trace to [file|osnoise_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <filter>: enable a trace event filter to the previous -e event",
 		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
@@ -307,6 +309,8 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 		"		f:prio - use SCHED_FIFO with prio",
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
 		"						       in nanoseconds",
+		"	     --warm-up s: let the workload run for s seconds before collecting data",
+		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
 		NULL,
 	};
 
@@ -381,13 +385,15 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			{"trace",		optional_argument,	0, 't'},
 			{"trigger",		required_argument,	0, '0'},
 			{"filter",		required_argument,	0, '1'},
+			{"warm-up",		required_argument,	0, '2'},
+			{"trace-buffer-size",	required_argument,	0, '3'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::d:De:hH:p:P:qr:s:S:t::T:0:1:",
+		c = getopt_long(argc, argv, "a:c:C::d:De:hH:p:P:qr:s:S:t::T:0:1:2:3:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -480,9 +486,13 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			params->stop_total_us = get_llong_from_str(optarg);
 			break;
 		case 't':
-			if (optarg)
-				/* skip = */
-				params->trace_output = &optarg[1];
+			if (optarg) {
+				if (optarg[0] == '=')
+					params->trace_output = &optarg[1];
+				else
+					params->trace_output = &optarg[0];
+			} else if (optind < argc && argv[optind][0] != '-')
+				params->trace_output = argv[optind];
 			else
 				params->trace_output = "osnoise_trace.txt";
 			break;
@@ -510,6 +520,12 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			} else {
 				osnoise_top_usage(params, "--filter requires a previous -e\n");
 			}
+			break;
+		case '2':
+			params->warmup = get_llong_from_str(optarg);
+			break;
+		case '3':
+			params->buffer_size = get_llong_from_str(optarg);
 			break;
 		default:
 			osnoise_top_usage(params, "Invalid option");
@@ -719,6 +735,12 @@ int osnoise_top_main(int argc, char **argv)
 			if (retval)
 				goto out_top;
 		}
+
+		if (params->buffer_size > 0) {
+			retval = trace_set_buffer_size(&record->trace, params->buffer_size);
+			if (retval)
+				goto out_top;
+		}
 	}
 
 	/*
@@ -731,6 +753,25 @@ int osnoise_top_main(int argc, char **argv)
 	if (params->trace_output)
 		trace_instance_start(&record->trace);
 	trace_instance_start(trace);
+
+	if (params->warmup > 0) {
+		debug_msg("Warming up for %d seconds\n", params->warmup);
+		sleep(params->warmup);
+		if (stop_tracing)
+			goto out_top;
+
+		/*
+		 * Clean up the buffer. The osnoise workload do not run
+		 * with tracing off to avoid creating a performance penalty
+		 * when not needed.
+		 */
+		retval = tracefs_instance_file_write(trace->inst, "trace", "");
+		if (retval < 0) {
+			debug_msg("Error cleaning up the buffer");
+			goto out_top;
+		}
+
+	}
 
 	tool->start_time = time(NULL);
 	osnoise_top_set_signals(params);

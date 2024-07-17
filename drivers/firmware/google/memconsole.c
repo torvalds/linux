@@ -50,4 +50,5 @@ void memconsole_exit(void)
 EXPORT_SYMBOL(memconsole_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Architecture-independent parts of the memory based BIOS console");
 MODULE_LICENSE("GPL");

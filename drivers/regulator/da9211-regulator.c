@@ -68,7 +68,7 @@ static const struct regmap_config da9211_regmap_config = {
 	.val_bits = 8,
 	.max_register = 5 * 128,
 	.volatile_reg = da9211_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.ranges = da9211_regmap_range,
 	.num_ranges = ARRAY_SIZE(da9211_regmap_range),
 };

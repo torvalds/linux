@@ -14,10 +14,6 @@
 
         Print debug info.
 
-**-t**, **--trace**\[*=file*]
-
-        Save the stopped trace to [*file|osnoise_trace.txt*].
-
 **-e**, **--event** *sys:event*
 
         Enable an event in the trace (**-t**) session. The argument can be a specific event, e.g., **-e** *sched:sched_switch*, or all events of a system group, e.g., **-e** *sched*. Multiple **-e** are allowed. It is only active when **-t** or **-a** are set.
@@ -49,6 +45,13 @@
 **-C**, **--cgroup**\[*=cgroup*]
 
         Set a *cgroup* to the tracer's threads. If the **-C** option is passed without arguments, the tracer's thread will inherit **rtla**'s *cgroup*. Otherwise, the threads will be placed on the *cgroup* passed to the option.
+
+**--warm-up** *s*
+
+        After starting the workload, let it run for *s* seconds before starting collecting the data, allowing the system to warm-up. Statistical data generated during warm-up is discarded.
+
+**--trace-buffer-size** *kB*
+        Set the per-cpu trace buffer size in kB for the tracing output.
 
 **-h**, **--help**
 

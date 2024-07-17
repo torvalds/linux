@@ -38,6 +38,7 @@ properties:
               - qcom,sc7280-cpufreq-epss
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sdx75-cpufreq-epss
+              - qcom,sm4450-cpufreq-epss
               - qcom,sm6375-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
               - qcom,sm8350-cpufreq-epss
@@ -133,6 +134,7 @@ allOf:
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
+              - qcom,sm4450-cpufreq-epss
               - qcom,sm6115-cpufreq-hw
               - qcom,sm6350-cpufreq-hw
               - qcom,sm6375-cpufreq-epss

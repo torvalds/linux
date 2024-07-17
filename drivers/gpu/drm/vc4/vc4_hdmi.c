@@ -412,15 +412,14 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 				    enum drm_connector_status status)
 {
 	struct drm_connector *connector = &vc4_hdmi->connector;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	/*
-	 * NOTE: This function should really be called with
-	 * vc4_hdmi->mutex held, but doing so results in reentrancy
-	 * issues since cec_s_phys_addr_from_edid might call
-	 * .adap_enable, which leads to that funtion being called with
-	 * our mutex held.
+	 * NOTE: This function should really be called with vc4_hdmi->mutex
+	 * held, but doing so results in reentrancy issues since
+	 * cec_s_phys_addr() might call .adap_enable, which leads to that
+	 * funtion being called with our mutex held.
 	 *
 	 * A similar situation occurs with vc4_hdmi_reset_link() that
 	 * will call into our KMS hooks if the scrambling was enabled.
@@ -435,12 +434,16 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 		return;
 	}
 
-	edid = drm_get_edid(connector, vc4_hdmi->ddc);
-	if (!edid)
+	drm_edid = drm_edid_read_ddc(connector, vc4_hdmi->ddc);
+
+	drm_edid_connector_update(connector, drm_edid);
+	cec_s_phys_addr(vc4_hdmi->cec_adap,
+			connector->display_info.source_physical_address, false);
+
+	if (!drm_edid)
 		return;
 
-	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	for (;;) {
 		ret = vc4_hdmi_reset_link(connector, ctx);
@@ -492,28 +495,29 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct vc4_hdmi *vc4_hdmi = connector_to_vc4_hdmi(connector);
 	struct vc4_dev *vc4 = to_vc4_dev(connector->dev);
+	const struct drm_edid *drm_edid;
 	int ret = 0;
-	struct edid *edid;
 
 	/*
-	 * NOTE: This function should really take vc4_hdmi->mutex, but
-	 * doing so results in reentrancy issues since
-	 * cec_s_phys_addr_from_edid might call .adap_enable, which
-	 * leads to that funtion being called with our mutex held.
+	 * NOTE: This function should really take vc4_hdmi->mutex, but doing so
+	 * results in reentrancy issues since cec_s_phys_addr() might call
+	 * .adap_enable, which leads to that funtion being called with our mutex
+	 * held.
 	 *
 	 * Concurrency isn't an issue at the moment since we don't share
 	 * any state with any of the other frameworks so we can ignore
 	 * the lock for now.
 	 */
 
-	edid = drm_get_edid(connector, vc4_hdmi->ddc);
-	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
-	if (!edid)
+	drm_edid = drm_edid_read_ddc(connector, vc4_hdmi->ddc);
+	drm_edid_connector_update(connector, drm_edid);
+	cec_s_phys_addr(vc4_hdmi->cec_adap,
+			connector->display_info.source_physical_address, false);
+	if (!drm_edid)
 		return 0;
 
-	drm_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	ret = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	if (!vc4->hvs->vc5_hdmi_enable_hdmi_20) {
 		struct drm_device *drm = connector->dev;
@@ -2740,6 +2744,8 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *vc4_hdmi)
 		index = 1;
 
 	addr = of_get_address(dev->of_node, index, NULL, NULL);
+	if (!addr)
+		return -EINVAL;
 
 	vc4_hdmi->audio.dma_data.addr = be32_to_cpup(addr) + mai_data->offset;
 	vc4_hdmi->audio.dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;

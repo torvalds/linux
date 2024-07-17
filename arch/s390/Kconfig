@@ -17,6 +17,9 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+
 config GENERIC_HWEIGHT
 	def_bool y
 
@@ -174,7 +177,7 @@ config S390
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
-	select HAVE_FAST_GUP
+	select HAVE_GUP_FAST
 	select HAVE_FENTRY
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_ARG_ACCESS_API
@@ -552,7 +555,7 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool n
+	def_bool y if EXPOLINE
 	depends on EXPOLINE
 	depends on CC_IS_GCC && GCC_VERSION >= 110200
 	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
@@ -590,18 +593,6 @@ config RELOCATABLE
 	  Note: this option exists only for documentation purposes, please do
 	  not remove it.
 
-config PIE_BUILD
-	def_bool CC_IS_CLANG && !$(cc-option,-munaligned-symbols)
-	help
-	  If the compiler is unable to generate code that can manage unaligned
-	  symbols, the kernel is linked as a position-independent executable
-	  (PIE) and includes dynamic relocations that are processed early
-	  during bootup.
-
-	  For kpatch functionality, it is recommended to build the kernel
-	  without the PIE_BUILD option. PIE_BUILD is only enabled when the
-	  compiler lacks proper support for handling unaligned symbols.
-
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image (KASLR)"
 	default y
@@ -610,6 +601,25 @@ config RANDOMIZE_BASE
 	  this randomizes the address at which the kernel image is loaded,
 	  as a security feature that deters exploit attempts relying on
 	  knowledge of the location of kernel internals.
+
+config KERNEL_IMAGE_BASE
+	hex "Kernel image base address"
+	range 0x100000 0x1FFFFFE0000000 if !KASAN
+	range 0x100000 0x1BFFFFE0000000 if KASAN
+	default 0x3FFE0000000 if !KASAN
+	default 0x7FFFE0000000 if KASAN
+	help
+	  This is the address at which the kernel image is loaded in case
+	  Kernel Address Space Layout Randomization (KASLR) is disabled.
+
+	  In case the Protected virtualization guest support is enabled the
+	  Ultravisor imposes a virtual address limit. If the value of this
+	  option leads to the kernel image exceeding the Ultravisor limit,
+	  this option is ignored and the image is loaded below the limit.
+
+	  If the value of this option leads to the kernel image overlapping
+	  the virtual memory where other data structures are located, this
+	  option is ignored and the image is loaded above the structures.
 
 endmenu
 
@@ -724,6 +734,33 @@ config EADM_SCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called eadm_sch.
 
+config AP
+	def_tristate y
+	prompt "Support for Adjunct Processors (ap)"
+	help
+	  This driver allows usage to Adjunct Processor (AP) devices via
+	  the ap bus, cards and queues. Supported Adjunct Processors are
+	  the CryptoExpress Cards (CEX).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ap.
+
+	  If unsure, say Y (default).
+
+config AP_DEBUG
+	def_bool n
+	prompt "Enable debug features for Adjunct Processor (ap) devices"
+	depends on AP
+	help
+	  Say 'Y' here to enable some additional debug features for Adjunct
+	  Processor (ap) devices.
+
+	  There will be some more sysfs attributes displayed for ap queues.
+
+	  Do not enable on production level kernel build.
+
+	  If unsure, say N.
+
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
@@ -740,7 +777,7 @@ config VFIO_AP
 	prompt "VFIO support for AP devices"
 	depends on KVM
 	depends on VFIO
-	depends on ZCRYPT
+	depends on AP
 	select VFIO_MDEV
 	help
 	  This driver grants access to Adjunct Processor (AP) devices

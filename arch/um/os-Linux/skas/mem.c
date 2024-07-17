@@ -17,10 +17,9 @@
 #include <skas.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/stub.h>
+#include "../internal.h"
 
 extern char batch_syscall_stub[], __syscall_stub_start[];
-
-extern void wait_stub_done(int pid);
 
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)

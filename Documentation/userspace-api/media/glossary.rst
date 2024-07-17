@@ -25,6 +25,13 @@ Glossary
 
 	See :ref:`cec`.
 
+    Data Unit
+
+	Unit of data transported by a bus. On parallel buses, the data unit
+	consists of one or more related samples while on serial buses the data
+	unit is logical. If the data unit is image data, it may also be called a
+	pixel.
+
     Device Driver
 	Part of the Linux Kernel that implements support for a hardware
 	component.
@@ -172,6 +179,11 @@ Glossary
 
 	An integrated circuit that integrates all components of a computer
 	or other electronic systems.
+
+    Stream
+	A distinct flow of data (image data or metadata) from an initial source
+	to a final sink. The initial source may be e.g. an image sensor and the
+	final sink e.g. a memory buffer.
 
     V4L2 API
 	**V4L2 userspace API**

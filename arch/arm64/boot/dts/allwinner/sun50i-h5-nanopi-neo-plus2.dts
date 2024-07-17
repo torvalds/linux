@@ -68,7 +68,7 @@
 		states = <1100000 0>, <1300000 1>;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 		post-power-on-delay-ms = <200>;

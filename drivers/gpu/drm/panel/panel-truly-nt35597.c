@@ -550,10 +550,8 @@ static int truly_nt35597_probe(struct mipi_dsi_device *dsi)
 
 	dsi1_host = of_find_mipi_dsi_host_by_node(dsi1);
 	of_node_put(dsi1);
-	if (!dsi1_host) {
-		dev_err(dev, "failed to find dsi host\n");
-		return -EPROBE_DEFER;
-	}
+	if (!dsi1_host)
+		return dev_err_probe(dev, -EPROBE_DEFER, "failed to find dsi host\n");
 
 	/* register the second DSI device */
 	dsi1_device = mipi_dsi_device_register_full(dsi1_host, &info);

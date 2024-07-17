@@ -24,6 +24,7 @@
 #include "xfs_ioctl32.h"
 #include "xfs_trace.h"
 #include "xfs_sb.h"
+#include "xfs_handle.h"
 
 #define  _NATIVE_IOC(cmd, type) \
 	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))

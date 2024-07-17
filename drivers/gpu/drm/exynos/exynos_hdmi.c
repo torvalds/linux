@@ -887,11 +887,11 @@ static int hdmi_get_modes(struct drm_connector *connector)
 	int ret;
 
 	if (!hdata->ddc_adpt)
-		return 0;
+		goto no_edid;
 
 	edid = drm_get_edid(connector, hdata->ddc_adpt);
 	if (!edid)
-		return 0;
+		goto no_edid;
 
 	hdata->dvi_mode = !connector->display_info.is_hdmi;
 	DRM_DEV_DEBUG_KMS(hdata->dev, "%s : width[%d] x height[%d]\n",
@@ -906,6 +906,9 @@ static int hdmi_get_modes(struct drm_connector *connector)
 	kfree(edid);
 
 	return ret;
+
+no_edid:
+	return drm_add_modes_noedid(connector, 640, 480);
 }
 
 static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
@@ -1919,10 +1922,9 @@ static int hdmi_get_ddc_adapter(struct hdmi_context *hdata)
 static int hdmi_get_phy_io(struct hdmi_context *hdata)
 {
 	const char *compatible_str = "samsung,exynos4212-hdmiphy";
-	struct device_node *np;
-	int ret = 0;
+	struct device_node *np __free(device_node) =
+		of_find_compatible_node(NULL, NULL, compatible_str);
 
-	np = of_find_compatible_node(NULL, NULL, compatible_str);
 	if (!np) {
 		np = of_parse_phandle(hdata->dev->of_node, "phy", 0);
 		if (!np) {
@@ -1937,21 +1939,17 @@ static int hdmi_get_phy_io(struct hdmi_context *hdata)
 		if (!hdata->regs_hdmiphy) {
 			DRM_DEV_ERROR(hdata->dev,
 				      "failed to ioremap hdmi phy\n");
-			ret = -ENOMEM;
-			goto out;
+			return -ENOMEM;
 		}
 	} else {
 		hdata->hdmiphy_port = of_find_i2c_device_by_node(np);
 		if (!hdata->hdmiphy_port) {
 			DRM_INFO("Failed to get hdmi phy i2c client\n");
-			ret = -EPROBE_DEFER;
-			goto out;
+			return -EPROBE_DEFER;
 		}
 	}
 
-out:
-	of_node_put(np);
-	return ret;
+	return 0;
 }
 
 static int hdmi_probe(struct platform_device *pdev)
@@ -2126,7 +2124,6 @@ struct platform_driver hdmi_driver = {
 	.remove_new	= hdmi_remove,
 	.driver		= {
 		.name	= "exynos-hdmi",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_hdmi_pm_ops,
 		.of_match_table = hdmi_match_types,
 	},

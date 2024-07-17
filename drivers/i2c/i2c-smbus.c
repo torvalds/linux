@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(i2c_free_slave_host_notify_device);
  * target systems are the same.
  * Restrictions to automatic SPD instantiation:
  *  - Only works if all filled slots have the same memory type
- *  - Only works for DDR, DDR2, DDR3 and DDR4 for now
+ *  - Only works for (LP)DDR memory types up to DDR5
  *  - Only works on systems with 1 to 8 memory slots
  */
 #if IS_ENABLED(CONFIG_DMI)
@@ -381,6 +381,10 @@ void i2c_register_spd(struct i2c_adapter *adap)
 	case 0x1A:	/* DDR4 */
 	case 0x1E:	/* LPDDR4 */
 		name = "ee1004";
+		break;
+	case 0x22:	/* DDR5 */
+	case 0x23:	/* LPDDR5 */
+		name = "spd5118";
 		break;
 	default:
 		dev_info(&adap->dev,

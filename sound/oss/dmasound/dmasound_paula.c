@@ -740,5 +740,6 @@ static struct platform_driver amiga_audio_driver __refdata = {
 
 module_platform_driver_probe(amiga_audio_driver, amiga_audio_probe);
 
+MODULE_DESCRIPTION("Amiga Paula DMA Sound Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-audio");

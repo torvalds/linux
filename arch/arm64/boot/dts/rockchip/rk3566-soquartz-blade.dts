@@ -10,7 +10,7 @@
 #include "rk3566-soquartz.dtsi"
 
 / {
-	model = "PINE64 RK3566 SOQuartz on Blade carrier board";
+	model = "Pine64 SOQuartz on Blade carrier board";
 	compatible = "pine64,soquartz-blade", "pine64,soquartz", "rockchip,rk3566";
 
 	aliases {

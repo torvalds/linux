@@ -259,7 +259,6 @@ struct amdgpu_cu_info {
 struct amdgpu_gfx_ras {
 	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
-	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
 	int (*rlc_gc_fed_irq)(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry);
@@ -434,6 +433,10 @@ struct amdgpu_gfx {
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 	bool				mcbp; /* mid command buffer preemption */
+
+	/* IP reg dump */
+	uint32_t			*ip_dump;
+	uint32_t			reg_count;
 };
 
 struct amdgpu_gfx_ras_reg_entry {

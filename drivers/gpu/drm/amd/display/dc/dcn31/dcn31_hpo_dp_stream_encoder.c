@@ -474,6 +474,10 @@ static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 				&info_frame->hdrsmd,
 				true);
 
+	/* packetIndex 4 is used for send immediate sdp message, and please
+	 * use other packetIndex (such as 5,6) for other info packet
+	 */
+
 	if (info_frame->adaptive_sync.valid)
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,

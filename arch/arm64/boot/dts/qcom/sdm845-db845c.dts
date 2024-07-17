@@ -195,6 +195,12 @@
 
 		gpio = <&tlmm 90 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		/*
+		 * FIXME: this regulator is responsible for VBUS on the left USB
+		 * port. Keep it always on until we can correctly model this
+		 * relationship.
+		 */
+		regulator-always-on;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie0_pwren_state>;

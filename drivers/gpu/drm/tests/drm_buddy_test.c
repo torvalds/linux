@@ -23,9 +23,11 @@ static inline u64 get_size(int order, u64 chunk_size)
 
 static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 {
-	u32 mm_size, ps, bias_size, bias_start, bias_end, bias_rem;
+	u32 mm_size, size, ps, bias_size, bias_start, bias_end, bias_rem;
 	DRM_RND_STATE(prng, random_seed);
 	unsigned int i, count, *order;
+	struct drm_buddy_block *block;
+	unsigned long flags;
 	struct drm_buddy mm;
 	LIST_HEAD(allocated);
 
@@ -103,7 +105,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 							      DRM_BUDDY_RANGE_ALLOCATION),
 				       "buddy_alloc i failed with bias(%x-%x), size=%u, ps=%u\n",
 				       bias_start, bias_end, bias_size, bias_size);
-		drm_buddy_free_list(&mm, &tmp);
+		drm_buddy_free_list(&mm, &tmp, 0);
 
 		/* single page with internal round_up */
 		KUNIT_ASSERT_FALSE_MSG(test,
@@ -113,7 +115,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 							      DRM_BUDDY_RANGE_ALLOCATION),
 				       "buddy_alloc failed with bias(%x-%x), size=%u, ps=%u\n",
 				       bias_start, bias_end, ps, bias_size);
-		drm_buddy_free_list(&mm, &tmp);
+		drm_buddy_free_list(&mm, &tmp, 0);
 
 		/* random size within */
 		size = max(round_up(prandom_u32_state(&prng) % bias_rem, ps), ps);
@@ -153,14 +155,14 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 			 * unallocated, and ideally not always on the bias
 			 * boundaries.
 			 */
-			drm_buddy_free_list(&mm, &tmp);
+			drm_buddy_free_list(&mm, &tmp, 0);
 		} else {
 			list_splice_tail(&tmp, &allocated);
 		}
 	}
 
 	kfree(order);
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 
 	/*
@@ -220,7 +222,181 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 			      "buddy_alloc passed with bias(%x-%x), size=%u\n",
 			      bias_start, bias_end, ps);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
+	drm_buddy_fini(&mm);
+
+	/*
+	 * Allocate cleared blocks in the bias range when the DRM buddy's clear avail is
+	 * zero. This will validate the bias range allocation in scenarios like system boot
+	 * when no cleared blocks are available and exercise the fallback path too. The resulting
+	 * blocks should always be dirty.
+	 */
+
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, ps),
+			       "buddy_init failed\n");
+
+	bias_start = round_up(prandom_u32_state(&prng) % (mm_size - ps), ps);
+	bias_end = round_up(bias_start + prandom_u32_state(&prng) % (mm_size - bias_start), ps);
+	bias_end = max(bias_end, bias_start + ps);
+	bias_rem = bias_end - bias_start;
+
+	flags = DRM_BUDDY_CLEAR_ALLOCATION | DRM_BUDDY_RANGE_ALLOCATION;
+	size = max(round_up(prandom_u32_state(&prng) % bias_rem, ps), ps);
+
+	KUNIT_ASSERT_FALSE_MSG(test,
+			       drm_buddy_alloc_blocks(&mm, bias_start,
+						      bias_end, size, ps,
+						      &allocated,
+						      flags),
+			       "buddy_alloc failed with bias(%x-%x), size=%u, ps=%u\n",
+			       bias_start, bias_end, size, ps);
+
+	list_for_each_entry(block, &allocated, link)
+		KUNIT_EXPECT_EQ(test, drm_buddy_block_is_clear(block), false);
+
+	drm_buddy_free_list(&mm, &allocated, 0);
+	drm_buddy_fini(&mm);
+}
+
+static void drm_test_buddy_alloc_clear(struct kunit *test)
+{
+	unsigned long n_pages, total, i = 0;
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned long ps = SZ_4K;
+	struct drm_buddy_block *block;
+	const int max_order = 12;
+	LIST_HEAD(allocated);
+	struct drm_buddy mm;
+	unsigned int order;
+	u32 mm_size, size;
+	LIST_HEAD(dirty);
+	LIST_HEAD(clean);
+
+	mm_size = SZ_4K << max_order;
+	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, mm_size, ps));
+
+	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
+
+	/*
+	 * Idea is to allocate and free some random portion of the address space,
+	 * returning those pages as non-dirty and randomly alternate between
+	 * requesting dirty and non-dirty pages (not going over the limit
+	 * we freed as non-dirty), putting that into two separate lists.
+	 * Loop over both lists at the end checking that the dirty list
+	 * is indeed all dirty pages and vice versa. Free it all again,
+	 * keeping the dirty/clear status.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							    5 * ps, ps, &allocated,
+							    DRM_BUDDY_TOPDOWN_ALLOCATION),
+				"buddy_alloc hit an error size=%lu\n", 5 * ps);
+	drm_buddy_free_list(&mm, &allocated, DRM_BUDDY_CLEARED);
+
+	n_pages = 10;
+	do {
+		unsigned long flags;
+		struct list_head *list;
+		int slot = i % 2;
+
+		if (slot == 0) {
+			list = &dirty;
+			flags = 0;
+		} else {
+			list = &clean;
+			flags = DRM_BUDDY_CLEAR_ALLOCATION;
+		}
+
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list,
+								    flags),
+					"buddy_alloc hit an error size=%lu\n", ps);
+	} while (++i < n_pages);
+
+	list_for_each_entry(block, &clean, link)
+		KUNIT_EXPECT_EQ(test, drm_buddy_block_is_clear(block), true);
+
+	list_for_each_entry(block, &dirty, link)
+		KUNIT_EXPECT_EQ(test, drm_buddy_block_is_clear(block), false);
+
+	drm_buddy_free_list(&mm, &clean, DRM_BUDDY_CLEARED);
+
+	/*
+	 * Trying to go over the clear limit for some allocation.
+	 * The allocation should never fail with reasonable page-size.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							    10 * ps, ps, &clean,
+							    DRM_BUDDY_CLEAR_ALLOCATION),
+				"buddy_alloc hit an error size=%lu\n", 10 * ps);
+
+	drm_buddy_free_list(&mm, &clean, DRM_BUDDY_CLEARED);
+	drm_buddy_free_list(&mm, &dirty, 0);
+	drm_buddy_fini(&mm);
+
+	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, mm_size, ps));
+
+	/*
+	 * Create a new mm. Intentionally fragment the address space by creating
+	 * two alternating lists. Free both lists, one as dirty the other as clean.
+	 * Try to allocate double the previous size with matching min_page_size. The
+	 * allocation should never fail as it calls the force_merge. Also check that
+	 * the page is always dirty after force_merge. Free the page as dirty, then
+	 * repeat the whole thing, increment the order until we hit the max_order.
+	 */
+
+	i = 0;
+	n_pages = mm_size / ps;
+	do {
+		struct list_head *list;
+		int slot = i % 2;
+
+		if (slot == 0)
+			list = &dirty;
+		else
+			list = &clean;
+
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list, 0),
+					"buddy_alloc hit an error size=%lu\n", ps);
+	} while (++i < n_pages);
+
+	drm_buddy_free_list(&mm, &clean, DRM_BUDDY_CLEARED);
+	drm_buddy_free_list(&mm, &dirty, 0);
+
+	order = 1;
+	do {
+		size = SZ_4K << order;
+
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+								    size, size, &allocated,
+								    DRM_BUDDY_CLEAR_ALLOCATION),
+					"buddy_alloc hit an error size=%u\n", size);
+		total = 0;
+		list_for_each_entry(block, &allocated, link) {
+			if (size != mm_size)
+				KUNIT_EXPECT_EQ(test, drm_buddy_block_is_clear(block), false);
+			total += drm_buddy_block_size(&mm, block);
+		}
+		KUNIT_EXPECT_EQ(test, total, size);
+
+		drm_buddy_free_list(&mm, &allocated, 0);
+	} while (++order <= max_order);
+
+	drm_buddy_fini(&mm);
+
+	/*
+	 * Create a new mm with a non power-of-two size. Allocate a random size, free as
+	 * cleared and then call fini. This will ensure the multi-root force merge during
+	 * fini.
+	 */
+	mm_size = 12 * SZ_4K;
+	size = max(round_up(prandom_u32_state(&prng) % mm_size, ps), ps);
+	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, mm_size, ps));
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							    size, ps, &allocated,
+							    DRM_BUDDY_TOPDOWN_ALLOCATION),
+				"buddy_alloc hit an error size=%u\n", size);
+	drm_buddy_free_list(&mm, &allocated, DRM_BUDDY_CLEARED);
 	drm_buddy_fini(&mm);
 }
 
@@ -269,7 +445,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc didn't error size=%lu\n", 3 * ps);
 
-	drm_buddy_free_list(&mm, &middle);
+	drm_buddy_free_list(&mm, &middle, 0);
 	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							   3 * ps, ps, &allocated,
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -279,7 +455,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc didn't error size=%lu\n", 2 * ps);
 
-	drm_buddy_free_list(&mm, &right);
+	drm_buddy_free_list(&mm, &right, 0);
 	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							   3 * ps, ps, &allocated,
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -294,7 +470,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc hit an error size=%lu\n", 2 * ps);
 
-	drm_buddy_free_list(&mm, &left);
+	drm_buddy_free_list(&mm, &left, 0);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							    3 * ps, ps, &allocated,
 							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -306,7 +482,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, total, ps * 2 + ps * 3);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -329,8 +505,8 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 	 * Eventually we will have a fully 50% fragmented mm.
 	 */
 
-	mm_size = PAGE_SIZE << max_order;
-	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, PAGE_SIZE),
+	mm_size = SZ_4K << max_order;
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, SZ_4K),
 			       "buddy_init failed\n");
 
 	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
@@ -344,7 +520,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 		}
 
 		for (order = top; order--;) {
-			size = get_size(order, PAGE_SIZE);
+			size = get_size(order, mm.chunk_size);
 			KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start,
 									    mm_size, size, size,
 										&tmp, flags),
@@ -358,7 +534,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 		}
 
 		/* There should be one final page for this sub-allocation */
-		size = get_size(0, PAGE_SIZE);
+		size = get_size(0, mm.chunk_size);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
 							   "buddy_alloc hit -ENOMEM for hole\n");
@@ -368,18 +544,18 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 
 		list_move_tail(&block->link, &holes);
 
-		size = get_size(top, PAGE_SIZE);
+		size = get_size(top, mm.chunk_size);
 		KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								   size, size, &tmp, flags),
 							  "buddy_alloc unexpectedly succeeded at top-order %d/%d, it should be full!",
 							  top, max_order);
 	}
 
-	drm_buddy_free_list(&mm, &holes);
+	drm_buddy_free_list(&mm, &holes, 0);
 
 	/* Nothing larger than blocks of chunk_size now available */
 	for (order = 1; order <= max_order; order++) {
-		size = get_size(order, PAGE_SIZE);
+		size = get_size(order, mm.chunk_size);
 		KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								   size, size, &tmp, flags),
 							  "buddy_alloc unexpectedly succeeded at order %d, it should be full!",
@@ -387,7 +563,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 	}
 
 	list_splice_tail(&holes, &blocks);
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -408,14 +584,14 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 	 * page left.
 	 */
 
-	mm_size = PAGE_SIZE << max_order;
-	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, PAGE_SIZE),
+	mm_size = SZ_4K << max_order;
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, SZ_4K),
 			       "buddy_init failed\n");
 
 	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
 
 	for (order = 0; order < max_order; order++) {
-		size = get_size(order, PAGE_SIZE);
+		size = get_size(order, mm.chunk_size);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
 							   "buddy_alloc hit -ENOMEM with order=%d\n",
@@ -428,7 +604,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 	}
 
 	/* And now the last remaining block available */
-	size = get_size(0, PAGE_SIZE);
+	size = get_size(0, mm.chunk_size);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 							    size, size, &tmp, flags),
 						   "buddy_alloc hit -ENOMEM on final alloc\n");
@@ -440,7 +616,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 
 	/* Should be completely full! */
 	for (order = max_order; order--;) {
-		size = get_size(order, PAGE_SIZE);
+		size = get_size(order, mm.chunk_size);
 		KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								   size, size, &tmp, flags),
 							  "buddy_alloc unexpectedly succeeded, it should be full!");
@@ -456,7 +632,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 		list_del(&block->link);
 		drm_buddy_free_block(&mm, block);
 
-		size = get_size(order, PAGE_SIZE);
+		size = get_size(order, mm.chunk_size);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
 							   "buddy_alloc hit -ENOMEM with order=%d\n",
@@ -471,7 +647,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 	}
 
 	/* To confirm, now the whole mm should be available */
-	size = get_size(max_order, PAGE_SIZE);
+	size = get_size(max_order, mm.chunk_size);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 							    size, size, &tmp, flags),
 						   "buddy_alloc (realloc) hit -ENOMEM with order=%d\n",
@@ -482,7 +658,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 
 	list_del(&block->link);
 	drm_buddy_free_block(&mm, block);
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -502,15 +678,15 @@ static void drm_test_buddy_alloc_optimistic(struct kunit *test)
 	 * try to allocate them all.
 	 */
 
-	mm_size = PAGE_SIZE * ((1 << (max_order + 1)) - 1);
+	mm_size = SZ_4K * ((1 << (max_order + 1)) - 1);
 
-	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, PAGE_SIZE),
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, SZ_4K),
 			       "buddy_init failed\n");
 
 	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
 
 	for (order = 0; order <= max_order; order++) {
-		size = get_size(order, PAGE_SIZE);
+		size = get_size(order, mm.chunk_size);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
 							   "buddy_alloc hit -ENOMEM with order=%d\n",
@@ -523,12 +699,12 @@ static void drm_test_buddy_alloc_optimistic(struct kunit *test)
 	}
 
 	/* Should be completely full! */
-	size = get_size(0, PAGE_SIZE);
+	size = get_size(0, mm.chunk_size);
 	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 							   size, size, &tmp, flags),
 						  "buddy_alloc unexpectedly succeeded, it should be full!");
 
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -540,7 +716,7 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 	LIST_HEAD(allocated);
 	struct drm_buddy mm;
 
-	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, size, PAGE_SIZE));
+	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, size, SZ_4K));
 
 	KUNIT_EXPECT_EQ_MSG(test, mm.max_order, DRM_BUDDY_MAX_ORDER,
 			    "mm.max_order(%d) != %d\n", mm.max_order,
@@ -548,7 +724,7 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 
 	size = mm.chunk_size << mm.max_order;
 	KUNIT_EXPECT_FALSE(test, drm_buddy_alloc_blocks(&mm, start, size, size,
-							PAGE_SIZE, &allocated, flags));
+							mm.chunk_size, &allocated, flags));
 
 	block = list_first_entry_or_null(&allocated, struct drm_buddy_block, link);
 	KUNIT_EXPECT_TRUE(test, block);
@@ -558,12 +734,12 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 						drm_buddy_block_order(block), mm.max_order);
 
 	KUNIT_EXPECT_EQ_MSG(test, drm_buddy_block_size(&mm, block),
-			    BIT_ULL(mm.max_order) * PAGE_SIZE,
+			    BIT_ULL(mm.max_order) * mm.chunk_size,
 						"block size(%llu) != %llu\n",
 						drm_buddy_block_size(&mm, block),
-						BIT_ULL(mm.max_order) * PAGE_SIZE);
+						BIT_ULL(mm.max_order) * mm.chunk_size);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -584,6 +760,7 @@ static struct kunit_case drm_buddy_tests[] = {
 	KUNIT_CASE(drm_test_buddy_alloc_pessimistic),
 	KUNIT_CASE(drm_test_buddy_alloc_pathological),
 	KUNIT_CASE(drm_test_buddy_alloc_contiguous),
+	KUNIT_CASE(drm_test_buddy_alloc_clear),
 	KUNIT_CASE(drm_test_buddy_alloc_range_bias),
 	{}
 };

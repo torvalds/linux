@@ -48,6 +48,7 @@ void hclge_comm_cmd_reuse_desc(struct hclge_desc *desc, bool is_read)
 	else
 		desc->flag &= cpu_to_le16(~HCLGE_COMM_CMD_FLAG_WR);
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_reuse_desc);
 
 static void hclge_comm_set_default_capability(struct hnae3_ae_dev *ae_dev,
 					      bool is_pf)
@@ -72,6 +73,7 @@ void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
 	if (is_read)
 		desc->flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_WR);
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_setup_basic_desc);
 
 int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev,
 				      struct hclge_comm_hw *hw, bool en)
@@ -158,6 +160,7 @@ static const struct hclge_comm_caps_bit_map hclge_pf_cmd_caps[] = {
 	{HCLGE_COMM_CAP_WOL_B, HNAE3_DEV_SUPPORT_WOL_B},
 	{HCLGE_COMM_CAP_TM_FLUSH_B, HNAE3_DEV_SUPPORT_TM_FLUSH_B},
 	{HCLGE_COMM_CAP_VF_FAULT_B, HNAE3_DEV_SUPPORT_VF_FAULT_B},
+	{HCLGE_COMM_CAP_ERR_MOD_GEN_REG_B, HNAE3_DEV_SUPPORT_ERR_MOD_GEN_REG_B},
 };
 
 static const struct hclge_comm_caps_bit_map hclge_vf_cmd_caps[] = {
@@ -470,9 +473,13 @@ static int hclge_comm_cmd_check_result(struct hclge_comm_hw *hw,
 int hclge_comm_cmd_send(struct hclge_comm_hw *hw, struct hclge_desc *desc,
 			int num)
 {
+	bool is_special = hclge_comm_is_special_opcode(le16_to_cpu(desc->opcode));
 	struct hclge_comm_cmq_ring *csq = &hw->cmq.csq;
 	int ret;
 	int ntc;
+
+	if (hw->cmq.ops.trace_cmd_send)
+		hw->cmq.ops.trace_cmd_send(hw, desc, num, is_special);
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
@@ -507,8 +514,12 @@ int hclge_comm_cmd_send(struct hclge_comm_hw *hw, struct hclge_desc *desc,
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 
+	if (hw->cmq.ops.trace_cmd_get)
+		hw->cmq.ops.trace_cmd_get(hw, desc, num, is_special);
+
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_send);
 
 static void hclge_comm_cmd_uninit_regs(struct hclge_comm_hw *hw)
 {
@@ -545,6 +556,7 @@ void hclge_comm_cmd_uninit(struct hnae3_ae_dev *ae_dev,
 	hclge_comm_free_cmd_desc(&cmdq->csq);
 	hclge_comm_free_cmd_desc(&cmdq->crq);
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_uninit);
 
 int hclge_comm_cmd_queue_init(struct pci_dev *pdev, struct hclge_comm_hw *hw)
 {
@@ -583,6 +595,19 @@ err_csq:
 	hclge_comm_free_cmd_desc(&hw->cmq.csq);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_queue_init);
+
+void hclge_comm_cmd_init_ops(struct hclge_comm_hw *hw,
+			     const struct hclge_comm_cmq_ops *ops)
+{
+	struct hclge_comm_cmq *cmdq = &hw->cmq;
+
+	if (ops) {
+		cmdq->ops.trace_cmd_send = ops->trace_cmd_send;
+		cmdq->ops.trace_cmd_get = ops->trace_cmd_get;
+	}
+}
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_init_ops);
 
 int hclge_comm_cmd_init(struct hnae3_ae_dev *ae_dev, struct hclge_comm_hw *hw,
 			u32 *fw_version, bool is_pf,
@@ -653,3 +678,8 @@ err_cmd_init:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_cmd_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("HNS3: Hisilicon Ethernet PF/VF Common Library");
+MODULE_AUTHOR("Huawei Tech. Co., Ltd.");

@@ -4,7 +4,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/hrtimer.h>
 #include <linux/timekeeper_internal.h>
 #include <vdso/datapage.h>
 #include <asm/vgtod.h>

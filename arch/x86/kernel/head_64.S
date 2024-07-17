@@ -66,7 +66,7 @@ SYM_CODE_START_NOALIGN(startup_64)
 	mov	%rsi, %r15
 
 	/* Set up the stack for verify_cpu() */
-	leaq	(__end_init_task - TOP_OF_KERNEL_STACK_PADDING - PTREGS_SIZE)(%rip), %rsp
+	leaq	__top_init_kernel_stack(%rip), %rsp
 
 	/* Setup GSBASE to allow stack canary access for C code */
 	movl	$MSR_GS_BASE, %ecx
@@ -720,7 +720,7 @@ SYM_DATA(smpboot_control,		.long 0)
 SYM_DATA(phys_base, .quad 0x0)
 EXPORT_SYMBOL(phys_base)
 
-#include "../../x86/xen/xen-head.S"
+#include "../xen/xen-head.S"
 
 	__PAGE_ALIGNED_BSS
 SYM_DATA_START_PAGE_ALIGNED(empty_zero_page)

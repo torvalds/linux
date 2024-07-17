@@ -113,7 +113,7 @@
 		};
 	};
 
-	idle-states{
+	idle-states {
 		entry-method = "psci";
 
 		CORE_PD: core_pd {
@@ -135,18 +135,6 @@
 		};
 	};
 
-	gic: interrupt-controller@12001000 {
-		compatible = "arm,gic-400";
-		reg = <0 0x12001000 0 0x1000>,
-		      <0 0x12002000 0 0x2000>,
-		      <0 0x12004000 0 0x2000>,
-		      <0 0x12006000 0 0x2000>;
-		#interrupt-cells = <3>;
-		interrupt-controller;
-		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8)
-					| IRQ_TYPE_LEVEL_HIGH)>;
-	};
-
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
@@ -165,7 +153,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
@@ -185,6 +173,18 @@
 	};
 
 	soc {
+		gic: interrupt-controller@12001000 {
+			compatible = "arm,gic-400";
+			reg = <0 0x12001000 0 0x1000>,
+			      <0 0x12002000 0 0x2000>,
+			      <0 0x12004000 0 0x2000>,
+			      <0 0x12006000 0 0x2000>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8)
+						| IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
 		pmu_gate: pmu-gate {
 			compatible = "sprd,sc9860-pmu-gate";
 			sprd,syscon = <&pmu_regs>; /* 0x402b0000 */
@@ -207,7 +207,7 @@
 			#clock-cells = <1>;
 		};
 
-		aon_prediv: aon-prediv {
+		aon_prediv: aon-prediv@402d0000 {
 			compatible = "sprd,sc9860-aon-prediv";
 			reg = <0 0x402d0000 0 0x400>;
 			clocks = <&ext_26m>, <&pll 0>,
@@ -682,34 +682,6 @@
 							<&cluster1_funnel_in_port3>;
 					};
 				};
-			};
-		};
-
-		gpio-keys {
-			compatible = "gpio-keys";
-
-			key-volumedown {
-				label = "Volume Down Key";
-				linux,code = <KEY_VOLUMEDOWN>;
-				gpios = <&eic_debounce 2 GPIO_ACTIVE_LOW>;
-				debounce-interval = <2>;
-				wakeup-source;
-			};
-
-			key-volumeup {
-				label = "Volume Up Key";
-				linux,code = <KEY_VOLUMEUP>;
-				gpios = <&pmic_eic 10 GPIO_ACTIVE_HIGH>;
-				debounce-interval = <2>;
-				wakeup-source;
-			};
-
-			key-power {
-				label = "Power Key";
-				linux,code = <KEY_POWER>;
-				gpios = <&pmic_eic 1 GPIO_ACTIVE_HIGH>;
-				debounce-interval = <2>;
-				wakeup-source;
 			};
 		};
 	};

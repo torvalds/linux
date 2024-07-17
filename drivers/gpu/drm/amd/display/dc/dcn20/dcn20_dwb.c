@@ -299,6 +299,17 @@ void dwb2_set_scaler(struct dwbc *dwbc, struct dc_dwb_params *params)
 		}
 	}
 
+
+	if (dwbc20->dwbc_mask->WBSCL_COEF_RAM_SEL) {
+		/* Swap double buffered coefficient set */
+		uint32_t wbscl_mode = REG_READ(WBSCL_MODE);
+		bool coef_ram_current = get_reg_field_value_ex(
+			wbscl_mode, dwbc20->dwbc_mask->WBSCL_COEF_RAM_SEL_CURRENT,
+			dwbc20->dwbc_shift->WBSCL_COEF_RAM_SEL_CURRENT);
+
+		REG_UPDATE(WBSCL_MODE, WBSCL_COEF_RAM_SEL, !coef_ram_current);
+	}
+
 }
 
 static const struct dwbc_funcs dcn20_dwbc_funcs = {

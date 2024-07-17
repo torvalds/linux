@@ -2184,7 +2184,7 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 		}
 	} else {
 		pch_gbe_reset(adapter);
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 		adapter->hw.mac.max_frame_size = max_frame;
 	}
 

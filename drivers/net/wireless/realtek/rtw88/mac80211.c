@@ -62,7 +62,7 @@ static int rtw_ops_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void rtw_ops_stop(struct ieee80211_hw *hw)
+static void rtw_ops_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 
@@ -386,6 +386,8 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_coex_media_status_notify(rtwdev, vif->cfg.assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
+
+			rtw_fw_beacon_filter_config(rtwdev, true, vif);
 		} else {
 			rtw_leave_lps(rtwdev);
 			rtw_bf_disassoc(rtwdev, vif, conf);

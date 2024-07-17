@@ -127,37 +127,71 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	return -EOPNOTSUPP;
 }
 
-static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
+static int ksz8_port_queue_split(struct ksz_device *dev, int port, int queues)
 {
-	u8 hi, lo;
+	u8 mask_4q, mask_2q;
+	u8 reg_4q, reg_2q;
+	u8 data_4q = 0;
+	u8 data_2q = 0;
+	int ret;
 
-	/* Number of queues can only be 1, 2, or 4. */
-	switch (queue) {
-	case 4:
-	case 3:
-		queue = PORT_QUEUE_SPLIT_4;
-		break;
-	case 2:
-		queue = PORT_QUEUE_SPLIT_2;
-		break;
-	default:
-		queue = PORT_QUEUE_SPLIT_1;
+	if (ksz_is_ksz88x3(dev)) {
+		mask_4q = KSZ8873_PORT_4QUEUE_SPLIT_EN;
+		mask_2q = KSZ8873_PORT_2QUEUE_SPLIT_EN;
+		reg_4q = REG_PORT_CTRL_0;
+		reg_2q = REG_PORT_CTRL_2;
+
+		/* KSZ8795 family switches have Weighted Fair Queueing (WFQ)
+		 * enabled by default. Enable it for KSZ8873 family switches
+		 * too. Default value for KSZ8873 family is strict priority,
+		 * which should be enabled by using TC_SETUP_QDISC_ETS, not
+		 * by default.
+		 */
+		ret = ksz_rmw8(dev, REG_SW_CTRL_3, WEIGHTED_FAIR_QUEUE_ENABLE,
+			       WEIGHTED_FAIR_QUEUE_ENABLE);
+		if (ret)
+			return ret;
+	} else {
+		mask_4q = KSZ8795_PORT_4QUEUE_SPLIT_EN;
+		mask_2q = KSZ8795_PORT_2QUEUE_SPLIT_EN;
+		reg_4q = REG_PORT_CTRL_13;
+		reg_2q = REG_PORT_CTRL_0;
+
+		/* TODO: this is legacy from initial KSZ8795 driver, should be
+		 * moved to appropriate place in the future.
+		 */
+		ret = ksz_rmw8(dev, REG_SW_CTRL_19,
+			       SW_OUT_RATE_LIMIT_QUEUE_BASED,
+			       SW_OUT_RATE_LIMIT_QUEUE_BASED);
+		if (ret)
+			return ret;
 	}
-	ksz_pread8(dev, port, REG_PORT_CTRL_0, &lo);
-	ksz_pread8(dev, port, P_DROP_TAG_CTRL, &hi);
-	lo &= ~PORT_QUEUE_SPLIT_L;
-	if (queue & PORT_QUEUE_SPLIT_2)
-		lo |= PORT_QUEUE_SPLIT_L;
-	hi &= ~PORT_QUEUE_SPLIT_H;
-	if (queue & PORT_QUEUE_SPLIT_4)
-		hi |= PORT_QUEUE_SPLIT_H;
-	ksz_pwrite8(dev, port, REG_PORT_CTRL_0, lo);
-	ksz_pwrite8(dev, port, P_DROP_TAG_CTRL, hi);
 
-	/* Default is port based for egress rate limit. */
-	if (queue != PORT_QUEUE_SPLIT_1)
-		ksz_cfg(dev, REG_SW_CTRL_19, SW_OUT_RATE_LIMIT_QUEUE_BASED,
-			true);
+	if (queues == 4)
+		data_4q = mask_4q;
+	else if (queues == 2)
+		data_2q = mask_2q;
+
+	ret = ksz_prmw8(dev, port, reg_4q, mask_4q, data_4q);
+	if (ret)
+		return ret;
+
+	return ksz_prmw8(dev, port, reg_2q, mask_2q, data_2q);
+}
+
+int ksz8_all_queues_split(struct ksz_device *dev, int queues)
+{
+	struct dsa_switch *ds = dev->ds;
+	const struct dsa_port *dp;
+
+	dsa_switch_for_each_port(dp, ds) {
+		int ret = ksz8_port_queue_split(dev, dp->index, queues);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
@@ -385,39 +419,39 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 	int timeout = 100;
 	const u32 *masks;
 	const u16 *regs;
+	int ret;
 
 	masks = dev->info->masks;
 	regs = dev->info->regs;
 
 	do {
-		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
+		ret = ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
+		if (ret)
+			return ret;
+
 		timeout--;
 	} while ((*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) && timeout);
 
 	/* Entry is not ready for accessing. */
-	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
-		return -EAGAIN;
-	/* Entry is ready for accessing. */
-	} else {
-		ksz_read8(dev, regs[REG_IND_DATA_8], data);
+	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY])
+		return -ETIMEDOUT;
 
-		/* There is no valid entry in the table. */
-		if (*data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY])
-			return -ENXIO;
-	}
-	return 0;
+	/* Entry is ready for accessing. */
+	return ksz_read8(dev, regs[REG_IND_DATA_8], data);
 }
 
-int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
-			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries)
+static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
+				u8 *fid, u8 *src_port, u16 *entries)
 {
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	const u16 *regs;
 	u16 ctrl_addr;
+	u64 buf = 0;
 	u8 data;
-	int rc;
+	int cnt;
+	int ret;
 
 	shifts = dev->info->shifts;
 	masks = dev->info->masks;
@@ -426,49 +460,50 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	ctrl_addr = IND_ACC_TABLE(TABLE_DYNAMIC_MAC | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	if (ret)
+		goto unlock_alu;
 
-	rc = ksz8_valid_dyn_entry(dev, &data);
-	if (rc == -EAGAIN) {
-		if (addr == 0)
-			*entries = 0;
-	} else if (rc == -ENXIO) {
+	ret = ksz8_valid_dyn_entry(dev, &data);
+	if (ret)
+		goto unlock_alu;
+
+	if (data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY]) {
 		*entries = 0;
-	/* At least one valid entry in the table. */
-	} else {
-		u64 buf = 0;
-		int cnt;
-
-		ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
-		data_hi = (u32)(buf >> 32);
-		data_lo = (u32)buf;
-
-		/* Check out how many valid entry in the table. */
-		cnt = data & masks[DYNAMIC_MAC_TABLE_ENTRIES_H];
-		cnt <<= shifts[DYNAMIC_MAC_ENTRIES_H];
-		cnt |= (data_hi & masks[DYNAMIC_MAC_TABLE_ENTRIES]) >>
-			shifts[DYNAMIC_MAC_ENTRIES];
-		*entries = cnt + 1;
-
-		*fid = (data_hi & masks[DYNAMIC_MAC_TABLE_FID]) >>
-			shifts[DYNAMIC_MAC_FID];
-		*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
-			shifts[DYNAMIC_MAC_SRC_PORT];
-		*timestamp = (data_hi & masks[DYNAMIC_MAC_TABLE_TIMESTAMP]) >>
-			shifts[DYNAMIC_MAC_TIMESTAMP];
-
-		mac_addr[5] = (u8)data_lo;
-		mac_addr[4] = (u8)(data_lo >> 8);
-		mac_addr[3] = (u8)(data_lo >> 16);
-		mac_addr[2] = (u8)(data_lo >> 24);
-
-		mac_addr[1] = (u8)data_hi;
-		mac_addr[0] = (u8)(data_hi >> 8);
-		rc = 0;
+		goto unlock_alu;
 	}
+
+	ret = ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
+	if (ret)
+		goto unlock_alu;
+
+	data_hi = (u32)(buf >> 32);
+	data_lo = (u32)buf;
+
+	/* Check out how many valid entry in the table. */
+	cnt = data & masks[DYNAMIC_MAC_TABLE_ENTRIES_H];
+	cnt <<= shifts[DYNAMIC_MAC_ENTRIES_H];
+	cnt |= (data_hi & masks[DYNAMIC_MAC_TABLE_ENTRIES]) >>
+		shifts[DYNAMIC_MAC_ENTRIES];
+	*entries = cnt + 1;
+
+	*fid = (data_hi & masks[DYNAMIC_MAC_TABLE_FID]) >>
+		shifts[DYNAMIC_MAC_FID];
+	*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
+		shifts[DYNAMIC_MAC_SRC_PORT];
+
+	mac_addr[5] = (u8)data_lo;
+	mac_addr[4] = (u8)(data_lo >> 8);
+	mac_addr[3] = (u8)(data_lo >> 16);
+	mac_addr[2] = (u8)(data_lo >> 24);
+
+	mac_addr[1] = (u8)data_hi;
+	mac_addr[0] = (u8)(data_hi >> 8);
+
+unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
 
-	return rc;
+	return ret;
 }
 
 static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
@@ -1193,28 +1228,28 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 int ksz8_fdb_dump(struct ksz_device *dev, int port,
 		  dsa_fdb_dump_cb_t *cb, void *data)
 {
-	int ret = 0;
-	u16 i = 0;
-	u16 entries = 0;
-	u8 timestamp = 0;
-	u8 fid;
-	u8 src_port;
 	u8 mac[ETH_ALEN];
+	u8 src_port, fid;
+	u16 entries = 0;
+	int ret, i;
 
-	do {
+	for (i = 0; i < KSZ8_DYN_MAC_ENTRIES; i++) {
 		ret = ksz8_r_dyn_mac_table(dev, i, mac, &fid, &src_port,
-					   &timestamp, &entries);
-		if (!ret && port == src_port) {
+					   &entries);
+		if (ret)
+			return ret;
+
+		if (i >= entries)
+			return 0;
+
+		if (port == src_port) {
 			ret = cb(mac, fid, false, data);
 			if (ret)
-				break;
+				return ret;
 		}
-		i++;
-	} while (i < entries);
-	if (i >= entries)
-		ret = 0;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ksz8_add_sta_mac(struct ksz_device *dev, int port,
@@ -1512,6 +1547,7 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct dsa_switch *ds = dev->ds;
 	const u32 *masks;
+	int queues;
 	u8 member;
 
 	masks = dev->info->masks;
@@ -1519,18 +1555,19 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable broadcast storm limit */
 	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
 
-	if (!ksz_is_ksz88x3(dev))
-		ksz8795_set_prio_queue(dev, port, 4);
+	/* For KSZ88x3 enable only one queue by default, otherwise we won't
+	 * be able to get rid of PCP prios on Port 2.
+	 */
+	if (ksz_is_ksz88x3(dev))
+		queues = 1;
+	else
+		queues = dev->info->num_tx_queues;
 
-	/* disable DiffServ priority */
-	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_DIFFSERV_ENABLE, false);
+	ksz8_port_queue_split(dev, port, queues);
 
 	/* replace priority */
 	ksz_port_cfg(dev, port, P_802_1P_CTRL,
 		     masks[PORT_802_1P_REMAPPING], false);
-
-	/* enable 802.1p priority */
-	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_ENABLE, true);
 
 	if (cpu_port)
 		member = dsa_user_ports(ds);
@@ -1701,11 +1738,15 @@ static void ksz8_cpu_port_link_up(struct ksz_device *dev, int speed, int duplex,
 		 SW_10_MBIT, ctrl);
 }
 
-void ksz8_phylink_mac_link_up(struct ksz_device *dev, int port,
-			      unsigned int mode, phy_interface_t interface,
-			      struct phy_device *phydev, int speed, int duplex,
+void ksz8_phylink_mac_link_up(struct phylink_config *config,
+			      struct phy_device *phydev, unsigned int mode,
+			      phy_interface_t interface, int speed, int duplex,
 			      bool tx_pause, bool rx_pause)
 {
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
+	int port = dp->index;
+
 	/* If the port is the CPU port, apply special handling. Only the CPU
 	 * port is configured via global registers.
 	 */

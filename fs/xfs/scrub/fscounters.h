@@ -12,6 +12,7 @@ struct xchk_fscounters {
 	uint64_t		ifree;
 	uint64_t		fdblocks;
 	uint64_t		frextents;
+	uint64_t		frextents_delayed;
 	unsigned long long	icount_min;
 	unsigned long long	icount_max;
 	bool			frozen;

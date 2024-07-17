@@ -793,4 +793,5 @@ static void __exit exit_hpfs_fs(void)
 
 module_init(init_hpfs_fs)
 module_exit(exit_hpfs_fs)
+MODULE_DESCRIPTION("OS/2 HPFS file system support");
 MODULE_LICENSE("GPL");

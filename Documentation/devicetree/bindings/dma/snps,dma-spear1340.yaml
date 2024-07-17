@@ -93,10 +93,10 @@ properties:
   data-width:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: Data bus width per each DMA master in bytes.
+    minItems: 1
+    maxItems: 4
     items:
-      maxItems: 4
-      items:
-        enum: [4, 8, 16, 32]
+      enum: [4, 8, 16, 32]
 
   data_width:
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -106,28 +106,28 @@ properties:
       deprecated. It' usage is discouraged in favor of data-width one. Moreover
       the property incorrectly permits to define data-bus width of 8 and 16
       bits, which is impossible in accordance with DW DMAC IP-core data book.
+    minItems: 1
+    maxItems: 4
     items:
-      maxItems: 4
-      items:
-        enum:
-          - 0 # 8 bits
-          - 1 # 16 bits
-          - 2 # 32 bits
-          - 3 # 64 bits
-          - 4 # 128 bits
-          - 5 # 256 bits
-        default: 0
+      enum:
+        - 0 # 8 bits
+        - 1 # 16 bits
+        - 2 # 32 bits
+        - 3 # 64 bits
+        - 4 # 128 bits
+        - 5 # 256 bits
+      default: 0
 
   multi-block:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       LLP-based multi-block transfer supported by hardware per
       each DMA channel.
+    minItems: 1
+    maxItems: 8
     items:
-      maxItems: 8
-      items:
-        enum: [0, 1]
-        default: 1
+      enum: [0, 1]
+      default: 1
 
   snps,max-burst-len:
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -138,11 +138,11 @@ properties:
       will be from 1 to max-burst-len words. It's an array property with one
       cell per channel in the units determined by the value set in the
       CTLx.SRC_TR_WIDTH/CTLx.DST_TR_WIDTH fields (data width).
+    minItems: 1
+    maxItems: 8
     items:
-      maxItems: 8
-      items:
-        enum: [4, 8, 16, 32, 64, 128, 256]
-        default: 256
+      enum: [4, 8, 16, 32, 64, 128, 256]
+      default: 256
 
   snps,dma-protection-control:
     $ref: /schemas/types.yaml#/definitions/uint32

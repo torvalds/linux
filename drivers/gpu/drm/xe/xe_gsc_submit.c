@@ -41,6 +41,21 @@ gsc_to_gt(struct xe_gsc *gsc)
 }
 
 /**
+ * xe_gsc_create_host_session_id - Creates a random 64 bit host_session id with
+ * bits 56-63 masked.
+ *
+ * Returns: random host_session_id which can be used to send messages to gsc cs
+ */
+u64 xe_gsc_create_host_session_id(void)
+{
+	u64 host_session_id;
+
+	get_random_bytes(&host_session_id, sizeof(u64));
+	host_session_id &= ~HOST_SESSION_CLIENT_MASK;
+	return host_session_id;
+}
+
+/**
  * xe_gsc_emit_header - write the MTL GSC header in memory
  * @xe: the Xe device
  * @map: the iosys map to write to

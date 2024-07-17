@@ -301,6 +301,8 @@ struct kunit {
 	struct list_head resources; /* Protected by lock. */
 
 	char status_comment[KUNIT_STATUS_COMMENT_SIZE];
+	/* Saves the last seen test. Useful to help with faults. */
+	struct kunit_loc last_seen;
 };
 
 static inline void kunit_set_failure(struct kunit *test)
@@ -478,6 +480,23 @@ static inline void *kunit_kcalloc(struct kunit *test, size_t n, size_t size, gfp
 	return kunit_kmalloc_array(test, n, size, gfp | __GFP_ZERO);
 }
 
+/**
+ * kunit_vm_mmap() - Allocate KUnit-tracked vm_mmap() area
+ * @test: The test context object.
+ * @file: struct file pointer to map from, if any
+ * @addr: desired address, if any
+ * @len: how many bytes to allocate
+ * @prot: mmap PROT_* bits
+ * @flag: mmap flags
+ * @offset: offset into @file to start mapping from.
+ *
+ * See vm_mmap() for more information.
+ */
+unsigned long kunit_vm_mmap(struct kunit *test, struct file *file,
+			    unsigned long addr, unsigned long len,
+			    unsigned long prot, unsigned long flag,
+			    unsigned long offset);
+
 void kunit_cleanup(struct kunit *test);
 
 void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt, ...);
@@ -567,6 +586,15 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
 #define kunit_err(test, fmt, ...) \
 	kunit_printk(KERN_ERR, test, fmt, ##__VA_ARGS__)
 
+/*
+ * Must be called at the beginning of each KUNIT_*_ASSERTION().
+ * Cf. KUNIT_CURRENT_LOC.
+ */
+#define _KUNIT_SAVE_LOC(test) do {					       \
+	WRITE_ONCE(test->last_seen.file, __FILE__);			       \
+	WRITE_ONCE(test->last_seen.line, __LINE__);			       \
+} while (0)
+
 /**
  * KUNIT_SUCCEED() - A no-op expectation. Only exists for code clarity.
  * @test: The test context object.
@@ -575,7 +603,7 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
  * words, it does nothing and only exists for code clarity. See
  * KUNIT_EXPECT_TRUE() for more information.
  */
-#define KUNIT_SUCCEED(test) do {} while (0)
+#define KUNIT_SUCCEED(test) _KUNIT_SAVE_LOC(test)
 
 void __noreturn __kunit_abort(struct kunit *test);
 
@@ -601,14 +629,16 @@ void __printf(6, 7) __kunit_do_failed_assertion(struct kunit *test,
 } while (0)
 
 
-#define KUNIT_FAIL_ASSERTION(test, assert_type, fmt, ...)		       \
+#define KUNIT_FAIL_ASSERTION(test, assert_type, fmt, ...) do {		       \
+	_KUNIT_SAVE_LOC(test);						       \
 	_KUNIT_FAILED(test,						       \
 		      assert_type,					       \
 		      kunit_fail_assert,				       \
 		      kunit_fail_assert_format,				       \
 		      {},						       \
 		      fmt,						       \
-		      ##__VA_ARGS__)
+		      ##__VA_ARGS__);					       \
+} while (0)
 
 /**
  * KUNIT_FAIL() - Always causes a test to fail when evaluated.
@@ -637,6 +667,7 @@ void __printf(6, 7) __kunit_do_failed_assertion(struct kunit *test,
 			      fmt,					       \
 			      ...)					       \
 do {									       \
+	_KUNIT_SAVE_LOC(test);						       \
 	if (likely(!!(condition_) == !!expected_true_))			       \
 		break;							       \
 									       \
@@ -698,6 +729,7 @@ do {									       \
 		.right_text = #right,					       \
 	};								       \
 									       \
+	_KUNIT_SAVE_LOC(test);						       \
 	if (likely(__left op __right))					       \
 		break;							       \
 									       \
@@ -758,6 +790,7 @@ do {									       \
 		.right_text = #right,					       \
 	};								       \
 									       \
+	_KUNIT_SAVE_LOC(test);						       \
 	if (likely((__left) && (__right) && (strcmp(__left, __right) op 0)))   \
 		break;							       \
 									       \
@@ -791,6 +824,7 @@ do {									       \
 		.right_text = #right,					       \
 	};								       \
 									       \
+	_KUNIT_SAVE_LOC(test);						       \
 	if (likely(__left && __right))					       \
 		if (likely(memcmp(__left, __right, __size) op 0))	       \
 			break;						       \
@@ -815,6 +849,7 @@ do {									       \
 do {									       \
 	const typeof(ptr) __ptr = (ptr);				       \
 									       \
+	_KUNIT_SAVE_LOC(test);						       \
 	if (!IS_ERR_OR_NULL(__ptr))					       \
 		break;							       \
 									       \
@@ -1193,7 +1228,18 @@ do {									       \
 						fmt,			       \
 						##__VA_ARGS__)
 
-#define KUNIT_ASSERT_FAILURE(test, fmt, ...) \
+/**
+ * KUNIT_FAIL_AND_ABORT() - Always causes a test to fail and abort when evaluated.
+ * @test: The test context object.
+ * @fmt: an informational message to be printed when the assertion is made.
+ * @...: string format arguments.
+ *
+ * The opposite of KUNIT_SUCCEED(), it is an assertion that always fails. In
+ * other words, it always results in a failed assertion, and consequently
+ * always causes the test case to fail and abort when evaluated.
+ * See KUNIT_ASSERT_TRUE() for more information.
+ */
+#define KUNIT_FAIL_AND_ABORT(test, fmt, ...) \
 	KUNIT_FAIL_ASSERTION(test, KUNIT_ASSERTION, fmt, ##__VA_ARGS__)
 
 /**
@@ -1420,12 +1466,12 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_STRNEQ() - Expects that strings @left and @right are not equal.
+ * KUNIT_ASSERT_STRNEQ() - An assertion that strings @left and @right are not equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a null terminated string.
  * @right: an arbitrary expression that evaluates to a null terminated string.
  *
- * Sets an expectation that the values that @left and @right evaluate to are
+ * Sets an assertion that the values that @left and @right evaluate to are
  * not equal. This is semantically equivalent to
  * KUNIT_ASSERT_TRUE(@test, strcmp((@left), (@right))). See KUNIT_ASSERT_TRUE()
  * for more information.
@@ -1439,6 +1485,60 @@ do {									       \
 				   left, !=, right,			       \
 				   fmt,					       \
 				   ##__VA_ARGS__)
+
+/**
+ * KUNIT_ASSERT_MEMEQ() - Asserts that the first @size bytes of @left and @right are equal.
+ * @test: The test context object.
+ * @left: An arbitrary expression that evaluates to the specified size.
+ * @right: An arbitrary expression that evaluates to the specified size.
+ * @size: Number of bytes compared.
+ *
+ * Sets an assertion that the values that @left and @right evaluate to are
+ * equal. This is semantically equivalent to
+ * KUNIT_ASSERT_TRUE(@test, !memcmp((@left), (@right), (@size))). See
+ * KUNIT_ASSERT_TRUE() for more information.
+ *
+ * Although this assertion works for any memory block, it is not recommended
+ * for comparing more structured data, such as structs. This assertion is
+ * recommended for comparing, for example, data arrays.
+ */
+#define KUNIT_ASSERT_MEMEQ(test, left, right, size) \
+	KUNIT_ASSERT_MEMEQ_MSG(test, left, right, size, NULL)
+
+#define KUNIT_ASSERT_MEMEQ_MSG(test, left, right, size, fmt, ...)	       \
+	KUNIT_MEM_ASSERTION(test,					       \
+			    KUNIT_ASSERTION,				       \
+			    left, ==, right,				       \
+			    size,					       \
+			    fmt,					       \
+			    ##__VA_ARGS__)
+
+/**
+ * KUNIT_ASSERT_MEMNEQ() - Asserts that the first @size bytes of @left and @right are not equal.
+ * @test: The test context object.
+ * @left: An arbitrary expression that evaluates to the specified size.
+ * @right: An arbitrary expression that evaluates to the specified size.
+ * @size: Number of bytes compared.
+ *
+ * Sets an assertion that the values that @left and @right evaluate to are
+ * not equal. This is semantically equivalent to
+ * KUNIT_ASSERT_TRUE(@test, memcmp((@left), (@right), (@size))). See
+ * KUNIT_ASSERT_TRUE() for more information.
+ *
+ * Although this assertion works for any memory block, it is not recommended
+ * for comparing more structured data, such as structs. This assertion is
+ * recommended for comparing, for example, data arrays.
+ */
+#define KUNIT_ASSERT_MEMNEQ(test, left, right, size) \
+	KUNIT_ASSERT_MEMNEQ_MSG(test, left, right, size, NULL)
+
+#define KUNIT_ASSERT_MEMNEQ_MSG(test, left, right, size, fmt, ...)	       \
+	KUNIT_MEM_ASSERTION(test,					       \
+			    KUNIT_ASSERTION,				       \
+			    left, !=, right,				       \
+			    size,					       \
+			    fmt,					       \
+			    ##__VA_ARGS__)
 
 /**
  * KUNIT_ASSERT_NULL() - Asserts that pointers @ptr is null.

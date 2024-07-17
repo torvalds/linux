@@ -163,7 +163,7 @@ struct bpf_iter_task_vma;
 
 extern int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 				 struct task_struct *task,
-				 unsigned long addr) __ksym;
+				 __u64 addr) __ksym;
 extern struct vm_area_struct *bpf_iter_task_vma_next(struct bpf_iter_task_vma *it) __ksym;
 extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
 
@@ -326,9 +326,49 @@ l_true:												\
        })
 #endif
 
+/*
+ * Note that cond_break can only be portably used in the body of a breakable
+ * construct, whereas can_loop can be used anywhere.
+ */
+#ifdef __BPF_FEATURE_MAY_GOTO
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("may_goto %l[l_break]"	\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
 #define cond_break					\
 	({ __label__ l_break, l_continue;		\
-	 asm volatile goto("1:.byte 0xe5;			\
+	asm volatile goto("may_goto %l[l_break]"	\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+#else
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long ((%l[l_break] - 1b - 8) / 8) & 0xffff;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	asm volatile goto("1:.byte 0xe5;		\
 		      .byte 0;				\
 		      .long ((%l[l_break] - 1b - 8) / 8) & 0xffff;	\
 		      .short 0"				\
@@ -337,6 +377,34 @@ l_true:												\
 	l_break: break;					\
 	l_continue:;					\
 	})
+#else
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long (((%l[l_break] - 1b - 8) / 8) & 0xffff) << 16;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long (((%l[l_break] - 1b - 8) / 8) & 0xffff) << 16;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+#endif
+#endif
 
 #ifndef bpf_nop_mov
 #define bpf_nop_mov(var) \
@@ -385,6 +453,28 @@ l_true:												\
 		     : [off]"i"(BPF_ADDR_SPACE_CAST) \
 		     , [as]"i"((dst_as << 16) | src_as));
 #endif
+
+void bpf_preempt_disable(void) __weak __ksym;
+void bpf_preempt_enable(void) __weak __ksym;
+
+typedef struct {
+} __bpf_preempt_t;
+
+static inline __bpf_preempt_t __bpf_preempt_constructor(void)
+{
+	__bpf_preempt_t ret = {};
+
+	bpf_preempt_disable();
+	return ret;
+}
+static inline void __bpf_preempt_destructor(__bpf_preempt_t *t)
+{
+	bpf_preempt_enable();
+}
+#define bpf_guard_preempt() \
+	__bpf_preempt_t ___bpf_apply(preempt, __COUNTER__)			\
+	__attribute__((__unused__, __cleanup__(__bpf_preempt_destructor))) =	\
+	__bpf_preempt_constructor()
 
 /* Description
  *	Assert that a conditional expression is true.
@@ -459,4 +549,11 @@ extern int bpf_iter_css_new(struct bpf_iter_css *it,
 extern struct cgroup_subsys_state *bpf_iter_css_next(struct bpf_iter_css *it) __weak __ksym;
 extern void bpf_iter_css_destroy(struct bpf_iter_css *it) __weak __ksym;
 
+extern int bpf_wq_init(struct bpf_wq *wq, void *p__map, unsigned int flags) __weak __ksym;
+extern int bpf_wq_start(struct bpf_wq *wq, unsigned int flags) __weak __ksym;
+extern int bpf_wq_set_callback_impl(struct bpf_wq *wq,
+		int (callback_fn)(void *map, int *key, void *value),
+		unsigned int flags__k, void *aux__ign) __ksym;
+#define bpf_wq_set_callback(timer, cb, flags) \
+	bpf_wq_set_callback_impl(timer, cb, flags, NULL)
 #endif

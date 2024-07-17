@@ -241,13 +241,14 @@ static void sh4_flush_cache_page(void *args)
 	if ((vma->vm_mm == current->active_mm))
 		vaddr = NULL;
 	else {
+		struct folio *folio = page_folio(page);
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
-			test_bit(PG_dcache_clean, &page->flags) &&
-			page_mapcount(page));
+			test_bit(PG_dcache_clean, folio_flags(folio, 0)) &&
+			page_mapped(page));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);
 		else
@@ -375,8 +376,6 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 		base_addr += way_incr;
 	} while (--way_count != 0);
 }
-
-extern void __weak sh4__flush_region_init(void);
 
 /*
  * SH-4 has virtually indexed and physically tagged cache.

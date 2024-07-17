@@ -883,7 +883,8 @@ struct ocfs2_group_desc
 	__le16	bg_free_bits_count;     /* Free bits count */
 	__le16   bg_chain;               /* What chain I am in. */
 /*10*/	__le32   bg_generation;
-	__le32	bg_reserved1;
+	__le16   bg_contig_free_bits;   /* max contig free bits length */
+	__le16   bg_reserved1;
 	__le64   bg_next_group;          /* Next group in my list, in
 					   blocks */
 /*20*/	__le64   bg_parent_dinode;       /* dinode which owns me, in

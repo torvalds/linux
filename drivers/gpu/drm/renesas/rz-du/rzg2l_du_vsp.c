@@ -66,9 +66,6 @@ void rzg2l_du_vsp_disable(struct rzg2l_du_crtc *crtc)
 void rzg2l_du_vsp_atomic_flush(struct rzg2l_du_crtc *crtc)
 {
 	struct vsp1_du_atomic_pipe_config cfg = { { 0, } };
-	struct rzg2l_du_crtc_state *state;
-
-	state = to_rzg2l_crtc_state(crtc->crtc.state);
 
 	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }

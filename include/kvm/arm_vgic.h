@@ -210,6 +210,12 @@ struct vgic_its {
 	struct mutex		its_lock;
 	struct list_head	device_list;
 	struct list_head	collection_list;
+
+	/*
+	 * Caches the (device_id, event_id) -> vgic_irq translation for
+	 * LPIs that are mapped and enabled.
+	 */
+	struct xarray		translation_cache;
 };
 
 struct vgic_state_iter;
@@ -274,13 +280,8 @@ struct vgic_dist {
 	 */
 	u64			propbaser;
 
-	/* Protects the lpi_list. */
-	raw_spinlock_t		lpi_list_lock;
+#define LPI_XA_MARK_DEBUG_ITER	XA_MARK_0
 	struct xarray		lpi_xa;
-	atomic_t		lpi_count;
-
-	/* LPI translation cache */
-	struct list_head	lpi_translation_cache;
 
 	/* used by vgic-debug */
 	struct vgic_state_iter *iter;
@@ -330,7 +331,7 @@ struct vgic_cpu {
 		struct vgic_v3_cpu_if	vgic_v3;
 	};
 
-	struct vgic_irq private_irqs[VGIC_NR_PRIVATE_IRQS];
+	struct vgic_irq *private_irqs;
 
 	raw_spinlock_t ap_list_lock;	/* Protects the ap_list */
 
@@ -388,7 +389,6 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu);
 void kvm_vgic_put(struct kvm_vcpu *vcpu);
-void kvm_vgic_vmcr_sync(struct kvm_vcpu *vcpu);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	((k)->arch.vgic.initialized)

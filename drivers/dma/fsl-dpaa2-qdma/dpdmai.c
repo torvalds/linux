@@ -1,47 +1,52 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright 2019 NXP
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/fsl/mc.h>
 #include "dpdmai.h"
 
+#define DEST_TYPE_MASK 0xF
+
 struct dpdmai_rsp_get_attributes {
 	__le32 id;
 	u8 num_of_priorities;
-	u8 pad0[3];
+	u8 num_of_queues;
+	u8 pad0[2];
 	__le16 major;
 	__le16 minor;
 };
 
 struct dpdmai_cmd_queue {
 	__le32 dest_id;
-	u8 priority;
-	u8 queue;
+	u8 dest_priority;
+	union {
+		u8 queue;
+		u8 pri;
+	};
 	u8 dest_type;
-	u8 pad;
+	u8 queue_idx;
 	__le64 user_ctx;
 	union {
 		__le32 options;
 		__le32 fqid;
 	};
-};
+} __packed;
 
 struct dpdmai_rsp_get_tx_queue {
 	__le64 pad;
 	__le32 fqid;
 };
 
-#define MC_CMD_OP(_cmd, _param, _offset, _width, _type, _arg) \
-	((_cmd).params[_param] |= mc_enc((_offset), (_width), _arg))
+struct dpdmai_cmd_open {
+	__le32 dpdmai_id;
+} __packed;
 
-/* cmd, param, offset, width, type, arg_name */
-#define DPDMAI_CMD_CREATE(cmd, cfg) \
-do { \
-	MC_CMD_OP(cmd, 0, 8,  8,  u8,  (cfg)->priorities[0]);\
-	MC_CMD_OP(cmd, 0, 16, 8,  u8,  (cfg)->priorities[1]);\
-} while (0)
+struct dpdmai_cmd_destroy {
+	__le32 dpdmai_id;
+} __packed;
 
 static inline u64 mc_enc(int lsoffset, int width, u64 val)
 {
@@ -68,16 +73,16 @@ static inline u64 mc_enc(int lsoffset, int width, u64 val)
 int dpdmai_open(struct fsl_mc_io *mc_io, u32 cmd_flags,
 		int dpdmai_id, u16 *token)
 {
+	struct dpdmai_cmd_open *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
-	__le64 *cmd_dpdmai_id;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPDMAI_CMDID_OPEN,
 					  cmd_flags, 0);
 
-	cmd_dpdmai_id = cmd.params;
-	*cmd_dpdmai_id = cpu_to_le32(dpdmai_id);
+	cmd_params = (struct dpdmai_cmd_open *)&cmd.params;
+	cmd_params->dpdmai_id = cpu_to_le32(dpdmai_id);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -116,64 +121,25 @@ int dpdmai_close(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 EXPORT_SYMBOL_GPL(dpdmai_close);
 
 /**
- * dpdmai_create() - Create the DPDMAI object
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @cfg:	Configuration structure
- * @token:	Returned token; use in subsequent API calls
- *
- * Create the DPDMAI object, allocate required resources and
- * perform required initialization.
- *
- * The object can be created either by declaring it in the
- * DPL file, or by calling this function.
- *
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent calls to
- * this specific object. For objects that are created using the
- * DPL file, call dpdmai_open() function to get an authentication
- * token first.
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpdmai_create(struct fsl_mc_io *mc_io, u32 cmd_flags,
-		  const struct dpdmai_cfg *cfg, u16 *token)
-{
-	struct fsl_mc_command cmd = { 0 };
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPDMAI_CMDID_CREATE,
-					  cmd_flags, 0);
-	DPDMAI_CMD_CREATE(cmd, cfg);
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	*token = mc_cmd_hdr_read_token(&cmd);
-
-	return 0;
-}
-
-/**
  * dpdmai_destroy() - Destroy the DPDMAI object and release all its resources.
  * @mc_io:      Pointer to MC portal's I/O object
  * @cmd_flags:  Command flags; one or more of 'MC_CMD_FLAG_'
+ * @dpdmai_id:	The object id; it must be a valid id within the container that created this object;
  * @token:      Token of DPDMAI object
  *
  * Return:      '0' on Success; error code otherwise.
  */
-int dpdmai_destroy(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
+int dpdmai_destroy(struct fsl_mc_io *mc_io, u32 cmd_flags, u32 dpdmai_id, u16 token)
 {
+	struct dpdmai_cmd_destroy *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPDMAI_CMDID_DESTROY,
 					  cmd_flags, token);
+
+	cmd_params = (struct dpdmai_cmd_destroy *)&cmd.params;
+	cmd_params->dpdmai_id = cpu_to_le32(dpdmai_id);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -274,6 +240,7 @@ int dpdmai_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
 	attr->version.major = le16_to_cpu(rsp_params->major);
 	attr->version.minor = le16_to_cpu(rsp_params->minor);
 	attr->num_of_priorities = rsp_params->num_of_priorities;
+	attr->num_of_queues = rsp_params->num_of_queues;
 
 	return 0;
 }
@@ -284,13 +251,14 @@ EXPORT_SYMBOL_GPL(dpdmai_get_attributes);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA queue index
  * @priority:	Select the queue relative to number of
  *		priorities configured at DPDMAI creation
  * @cfg:	Rx queue configuration
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u8 queue_idx,
 			u8 priority, const struct dpdmai_rx_queue_cfg *cfg)
 {
 	struct dpdmai_cmd_queue *cmd_params;
@@ -302,11 +270,12 @@ int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	cmd_params = (struct dpdmai_cmd_queue *)cmd.params;
 	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
-	cmd_params->priority = cfg->dest_cfg.priority;
-	cmd_params->queue = priority;
+	cmd_params->dest_priority = cfg->dest_cfg.priority;
+	cmd_params->pri = priority;
 	cmd_params->dest_type = cfg->dest_cfg.dest_type;
 	cmd_params->user_ctx = cpu_to_le64(cfg->user_ctx);
 	cmd_params->options = cpu_to_le32(cfg->options);
+	cmd_params->queue_idx = queue_idx;
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -318,13 +287,14 @@ EXPORT_SYMBOL_GPL(dpdmai_set_rx_queue);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA Queue index
  * @priority:	Select the queue relative to number of
  *				priorities configured at DPDMAI creation
  * @attr:	Returned Rx queue attributes
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u8 queue_idx,
 			u8 priority, struct dpdmai_rx_queue_attr *attr)
 {
 	struct dpdmai_cmd_queue *cmd_params;
@@ -337,6 +307,7 @@ int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	cmd_params = (struct dpdmai_cmd_queue *)cmd.params;
 	cmd_params->queue = priority;
+	cmd_params->queue_idx = queue_idx;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -345,8 +316,8 @@ int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	/* retrieve response parameters */
 	attr->dest_cfg.dest_id = le32_to_cpu(cmd_params->dest_id);
-	attr->dest_cfg.priority = cmd_params->priority;
-	attr->dest_cfg.dest_type = cmd_params->dest_type;
+	attr->dest_cfg.priority = cmd_params->dest_priority;
+	attr->dest_cfg.dest_type = FIELD_GET(DEST_TYPE_MASK, cmd_params->dest_type);
 	attr->user_ctx = le64_to_cpu(cmd_params->user_ctx);
 	attr->fqid = le32_to_cpu(cmd_params->fqid);
 
@@ -359,14 +330,15 @@ EXPORT_SYMBOL_GPL(dpdmai_get_rx_queue);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA queue index
  * @priority:	Select the queue relative to number of
  *			priorities configured at DPDMAI creation
- * @fqid:	Returned Tx queue
+ * @attr:	Returned DMA Tx queue attributes
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			u16 token, u8 priority, u32 *fqid)
+			u16 token, u8 queue_idx, u8 priority, struct dpdmai_tx_queue_attr *attr)
 {
 	struct dpdmai_rsp_get_tx_queue *rsp_params;
 	struct dpdmai_cmd_queue *cmd_params;
@@ -379,6 +351,7 @@ int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	cmd_params = (struct dpdmai_cmd_queue *)cmd.params;
 	cmd_params->queue = priority;
+	cmd_params->queue_idx = queue_idx;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -388,7 +361,7 @@ int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags,
 	/* retrieve response parameters */
 
 	rsp_params = (struct dpdmai_rsp_get_tx_queue *)cmd.params;
-	*fqid = le32_to_cpu(rsp_params->fqid);
+	attr->fqid = le32_to_cpu(rsp_params->fqid);
 
 	return 0;
 }

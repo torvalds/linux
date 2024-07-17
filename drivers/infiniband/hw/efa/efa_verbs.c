@@ -263,6 +263,9 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, RDMA_WRITE))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_WRITE;
 
+		if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV;
+
 		if (dev->neqs)
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_NOTIFICATIONS;
 
@@ -639,6 +642,7 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	struct efa_ibv_create_qp cmd = {};
 	struct efa_qp *qp = to_eqp(ibqp);
 	struct efa_ucontext *ucontext;
+	u16 supported_efa_flags = 0;
 	int err;
 
 	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
@@ -676,10 +680,20 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		goto err_out;
 	}
 
-	if (cmd.comp_mask) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_90)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, unknown fields in udata\n");
 		err = -EINVAL;
+		goto err_out;
+	}
+
+	if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
+		supported_efa_flags |= EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV;
+
+	if (cmd.flags & ~supported_efa_flags) {
+		ibdev_dbg(&dev->ibdev, "Unsupported EFA QP create flags[%#x], supported[%#x]\n",
+			  cmd.flags, supported_efa_flags);
+		err = -EOPNOTSUPP;
 		goto err_out;
 	}
 
@@ -721,6 +735,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			  qp->rq_cpu_addr, qp->rq_size, &qp->rq_dma_addr);
 		create_qp_params.rq_base_addr = qp->rq_dma_addr;
 	}
+
+	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
+		create_qp_params.unsolicited_write_recv = true;
 
 	err = efa_com_create_qp(&dev->edev, &create_qp_params,
 				&create_qp_resp);

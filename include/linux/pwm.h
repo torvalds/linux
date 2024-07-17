@@ -2,9 +2,13 @@
 #ifndef __LINUX_PWM_H
 #define __LINUX_PWM_H
 
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+
+MODULE_IMPORT_NS(PWM);
 
 struct pwm_chip;
 
@@ -248,9 +252,7 @@ struct pwm_capture {
  * @free: optional hook for freeing a PWM
  * @capture: capture and report PWM signal
  * @apply: atomically apply a new PWM config
- * @get_state: get the current PWM state. This function is only
- *	       called once per PWM device when the PWM chip is
- *	       registered.
+ * @get_state: get the current PWM state.
  */
 struct pwm_ops {
 	int (*request)(struct pwm_chip *chip, struct pwm_device *pwm);
@@ -272,11 +274,11 @@ struct pwm_ops {
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @atomic: can the driver's ->apply() be called in atomic context
- * @driver_data: Private pointer for driver specific info
+ * @uses_pwmchip_alloc: signals if pwmchip_allow was used to allocate this chip
  * @pwms: array of PWM devices allocated by the framework
  */
 struct pwm_chip {
-	struct device *dev;
+	struct device dev;
 	const struct pwm_ops *ops;
 	struct module *owner;
 	unsigned int id;
@@ -287,31 +289,23 @@ struct pwm_chip {
 	bool atomic;
 
 	/* only used internally by the PWM framework */
-	void *driver_data;
-	struct pwm_device *pwms;
+	bool uses_pwmchip_alloc;
+	struct pwm_device pwms[] __counted_by(npwm);
 };
 
 static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
 {
-	return chip->dev;
+	return chip->dev.parent;
 }
 
 static inline void *pwmchip_get_drvdata(struct pwm_chip *chip)
 {
-	/*
-	 * After pwm_chip got a dedicated struct device, this can be replaced by
-	 * dev_get_drvdata(&chip->dev);
-	 */
-	return chip->driver_data;
+	return dev_get_drvdata(&chip->dev);
 }
 
 static inline void pwmchip_set_drvdata(struct pwm_chip *chip, void *data)
 {
-	/*
-	 * After pwm_chip got a dedicated struct device, this can be replaced by
-	 * dev_set_drvdata(&chip->dev, data);
-	 */
-	chip->driver_data = data;
+	dev_set_drvdata(&chip->dev, data);
 }
 
 #if IS_ENABLED(CONFIG_PWM)
@@ -414,10 +408,6 @@ void pwmchip_remove(struct pwm_chip *chip);
 int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner);
 #define devm_pwmchip_add(dev, chip) __devm_pwmchip_add(dev, chip, THIS_MODULE)
 
-struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-					 unsigned int index,
-					 const char *label);
-
 struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *chip,
 		const struct of_phandle_args *args);
 struct pwm_device *of_pwm_single_xlate(struct pwm_chip *chip,
@@ -512,14 +502,6 @@ static inline int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip)
 	return -EINVAL;
 }
 
-static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-						       unsigned int index,
-						       const char *label)
-{
-	might_sleep();
-	return ERR_PTR(-ENODEV);
-}
-
 static inline struct pwm_device *pwm_get(struct device *dev,
 					 const char *consumer)
 {
@@ -581,13 +563,6 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	pwm_apply_might_sleep(pwm, &state);
 }
 
-/* only for backwards-compatibility, new code should not use this */
-static inline int pwm_apply_state(struct pwm_device *pwm,
-				  const struct pwm_state *state)
-{
-	return pwm_apply_might_sleep(pwm, state);
-}
-
 struct pwm_lookup {
 	struct list_head list;
 	const char *provider;
@@ -627,18 +602,5 @@ static inline void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
 }
 #endif
-
-#ifdef CONFIG_PWM_SYSFS
-void pwmchip_sysfs_export(struct pwm_chip *chip);
-void pwmchip_sysfs_unexport(struct pwm_chip *chip);
-#else
-static inline void pwmchip_sysfs_export(struct pwm_chip *chip)
-{
-}
-
-static inline void pwmchip_sysfs_unexport(struct pwm_chip *chip)
-{
-}
-#endif /* CONFIG_PWM_SYSFS */
 
 #endif /* __LINUX_PWM_H */

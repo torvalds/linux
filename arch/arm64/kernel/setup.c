@@ -298,8 +298,15 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	dynamic_scs_init();
 
 	/*
-	 * Unmask SError as soon as possible after initializing earlycon so
-	 * that we can report any SErrors immediately.
+	 * The primary CPU enters the kernel with all DAIF exceptions masked.
+	 *
+	 * We must unmask Debug and SError before preemption or scheduling is
+	 * possible to ensure that these are consistently unmasked across
+	 * threads, and we want to unmask SError as soon as possible after
+	 * initializing earlycon so that we can report any SErrors immediately.
+	 *
+	 * IRQ and FIQ will be unmasked after the root irqchip has been
+	 * detected and initialized.
 	 */
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 

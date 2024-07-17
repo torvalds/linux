@@ -7,11 +7,13 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -37,6 +39,9 @@
 #define   ADI_AXI_REG_RSTN_MMCM_RSTN		BIT(1)
 #define   ADI_AXI_REG_RSTN_RSTN			BIT(0)
 
+#define ADI_AXI_ADC_REG_CTRL			0x0044
+#define    ADI_AXI_ADC_CTRL_DDR_EDGESEL_MASK	BIT(1)
+
 /* ADC Channel controls */
 
 #define ADI_AXI_REG_CHAN_CTRL(c)		(0x0400 + (c) * 0x40)
@@ -51,14 +56,28 @@
 #define   ADI_AXI_REG_CHAN_CTRL_PN_TYPE_OWR	BIT(1)
 #define   ADI_AXI_REG_CHAN_CTRL_ENABLE		BIT(0)
 
+#define ADI_AXI_ADC_REG_CHAN_STATUS(c)		(0x0404 + (c) * 0x40)
+#define   ADI_AXI_ADC_CHAN_STAT_PN_MASK		GENMASK(2, 1)
+
+#define ADI_AXI_ADC_REG_CHAN_CTRL_3(c)		(0x0418 + (c) * 0x40)
+#define   ADI_AXI_ADC_CHAN_PN_SEL_MASK		GENMASK(19, 16)
+
+/* IO Delays */
+#define ADI_AXI_ADC_REG_DELAY(l)		(0x0800 + (l) * 0x4)
+#define   AXI_ADC_DELAY_CTRL_MASK		GENMASK(4, 0)
+
+#define ADI_AXI_ADC_MAX_IO_NUM_LANES		15
+
 #define ADI_AXI_REG_CHAN_CTRL_DEFAULTS		\
 	(ADI_AXI_REG_CHAN_CTRL_FMT_SIGNEXT |	\
 	 ADI_AXI_REG_CHAN_CTRL_FMT_EN |		\
 	 ADI_AXI_REG_CHAN_CTRL_ENABLE)
 
 struct adi_axi_adc_state {
-	struct regmap				*regmap;
-	struct device				*dev;
+	struct regmap *regmap;
+	struct device *dev;
+	/* lock to protect multiple accesses to the device registers */
+	struct mutex lock;
 };
 
 static int axi_adc_enable(struct iio_backend *back)
@@ -104,6 +123,100 @@ static int axi_adc_data_format_set(struct iio_backend *back, unsigned int chan,
 				  ADI_AXI_REG_CHAN_CTRL_FMT_MASK, val);
 }
 
+static int axi_adc_data_sample_trigger(struct iio_backend *back,
+				       enum iio_backend_sample_trigger trigger)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+
+	switch (trigger) {
+	case IIO_BACKEND_SAMPLE_TRIGGER_EDGE_RISING:
+		return regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_CTRL,
+					 ADI_AXI_ADC_CTRL_DDR_EDGESEL_MASK);
+	case IIO_BACKEND_SAMPLE_TRIGGER_EDGE_FALLING:
+		return regmap_set_bits(st->regmap, ADI_AXI_ADC_REG_CTRL,
+				       ADI_AXI_ADC_CTRL_DDR_EDGESEL_MASK);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int axi_adc_iodelays_set(struct iio_backend *back, unsigned int lane,
+				unsigned int tap)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	int ret;
+	u32 val;
+
+	if (tap > FIELD_MAX(AXI_ADC_DELAY_CTRL_MASK))
+		return -EINVAL;
+	if (lane > ADI_AXI_ADC_MAX_IO_NUM_LANES)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+	ret = regmap_write(st->regmap, ADI_AXI_ADC_REG_DELAY(lane), tap);
+	if (ret)
+		return ret;
+	/*
+	 * If readback is ~0, that means there are issues with the
+	 * delay_clk.
+	 */
+	ret = regmap_read(st->regmap, ADI_AXI_ADC_REG_DELAY(lane), &val);
+	if (ret)
+		return ret;
+	if (val == U32_MAX)
+		return -EIO;
+
+	return 0;
+}
+
+static int axi_adc_test_pattern_set(struct iio_backend *back,
+				    unsigned int chan,
+				    enum iio_backend_test_pattern pattern)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+
+	switch (pattern) {
+	case IIO_BACKEND_NO_TEST_PATTERN:
+		/* nothing to do */
+		return 0;
+	case IIO_BACKEND_ADI_PRBS_9A:
+		return regmap_update_bits(st->regmap, ADI_AXI_ADC_REG_CHAN_CTRL_3(chan),
+					  ADI_AXI_ADC_CHAN_PN_SEL_MASK,
+					  FIELD_PREP(ADI_AXI_ADC_CHAN_PN_SEL_MASK, 0));
+	default:
+		return -EINVAL;
+	}
+}
+
+static int axi_adc_chan_status(struct iio_backend *back, unsigned int chan,
+			       bool *error)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	int ret;
+	u32 val;
+
+	guard(mutex)(&st->lock);
+	/* reset test bits by setting them */
+	ret = regmap_write(st->regmap, ADI_AXI_ADC_REG_CHAN_STATUS(chan),
+			   ADI_AXI_ADC_CHAN_STAT_PN_MASK);
+	if (ret)
+		return ret;
+
+	/* let's give enough time to validate or erroring the incoming pattern */
+	fsleep(1000);
+
+	ret = regmap_read(st->regmap, ADI_AXI_ADC_REG_CHAN_STATUS(chan), &val);
+	if (ret)
+		return ret;
+
+	if (ADI_AXI_ADC_CHAN_STAT_PN_MASK & val)
+		*error = true;
+	else
+		*error = false;
+
+	return 0;
+}
+
 static int axi_adc_chan_enable(struct iio_backend *back, unsigned int chan)
 {
 	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
@@ -124,26 +237,12 @@ static struct iio_buffer *axi_adc_request_buffer(struct iio_backend *back,
 						 struct iio_dev *indio_dev)
 {
 	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
-	struct iio_buffer *buffer;
 	const char *dma_name;
-	int ret;
 
 	if (device_property_read_string(st->dev, "dma-names", &dma_name))
 		dma_name = "rx";
 
-	buffer = iio_dmaengine_buffer_alloc(st->dev, dma_name);
-	if (IS_ERR(buffer)) {
-		dev_err(st->dev, "Could not get DMA buffer, %ld\n",
-			PTR_ERR(buffer));
-		return ERR_CAST(buffer);
-	}
-
-	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
-	ret = iio_device_attach_buffer(indio_dev, buffer);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return buffer;
+	return iio_dmaengine_buffer_setup(st->dev, indio_dev, dma_name);
 }
 
 static void axi_adc_free_buffer(struct iio_backend *back,
@@ -156,7 +255,6 @@ static const struct regmap_config axi_adc_regmap_config = {
 	.val_bits = 32,
 	.reg_bits = 32,
 	.reg_stride = 4,
-	.max_register = 0x0800,
 };
 
 static const struct iio_backend_ops adi_axi_adc_generic = {
@@ -167,6 +265,10 @@ static const struct iio_backend_ops adi_axi_adc_generic = {
 	.chan_disable = axi_adc_chan_disable,
 	.request_buffer = axi_adc_request_buffer,
 	.free_buffer = axi_adc_free_buffer,
+	.data_sample_trigger = axi_adc_data_sample_trigger,
+	.iodelay_set = axi_adc_iodelays_set,
+	.test_pattern_set = axi_adc_test_pattern_set,
+	.chan_status = axi_adc_chan_status,
 };
 
 static int adi_axi_adc_probe(struct platform_device *pdev)
@@ -175,6 +277,7 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	struct adi_axi_adc_state *st;
 	void __iomem *base;
 	unsigned int ver;
+	struct clk *clk;
 	int ret;
 
 	st = devm_kzalloc(&pdev->dev, sizeof(*st), GFP_KERNEL);
@@ -195,6 +298,10 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	if (!expected_ver)
 		return -ENODEV;
 
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
 	/*
 	 * Force disable the core. Up to the frontend to enable us. And we can
 	 * still read/write registers...
@@ -207,9 +314,9 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (*expected_ver > ver) {
+	if (ADI_AXI_PCORE_VER_MAJOR(ver) != ADI_AXI_PCORE_VER_MAJOR(*expected_ver)) {
 		dev_err(&pdev->dev,
-			"IP core version is too old. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
+			"Major version mismatch. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
 			ADI_AXI_PCORE_VER_MAJOR(*expected_ver),
 			ADI_AXI_PCORE_VER_MINOR(*expected_ver),
 			ADI_AXI_PCORE_VER_PATCH(*expected_ver),

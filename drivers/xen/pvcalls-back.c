@@ -517,6 +517,10 @@ static void __pvcalls_back_accept(struct work_struct *work)
 {
 	struct sockpass_mapping *mappass = container_of(
 		work, struct sockpass_mapping, register_work);
+	struct proto_accept_arg arg = {
+		.flags = O_NONBLOCK,
+		.kern = true,
+	};
 	struct sock_mapping *map;
 	struct pvcalls_ioworker *iow;
 	struct pvcalls_fedata *fedata;
@@ -548,7 +552,7 @@ static void __pvcalls_back_accept(struct work_struct *work)
 	sock->type = mappass->sock->type;
 	sock->ops = mappass->sock->ops;
 
-	ret = inet_accept(mappass->sock, sock, O_NONBLOCK, true);
+	ret = inet_accept(mappass->sock, sock, &arg);
 	if (ret == -EAGAIN) {
 		sock_release(sock);
 		return;

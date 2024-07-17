@@ -247,7 +247,6 @@ MODULE_DEVICE_TABLE(of, onie_tlv_of_match_table);
 
 static struct nvmem_layout_driver onie_tlv_layout = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "onie-tlv-layout",
 		.of_match_table = onie_tlv_of_match_table,
 	},

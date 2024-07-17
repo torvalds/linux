@@ -40,7 +40,7 @@ struct mlx5_ttc_rule {
 struct mlx5_ttc_table;
 
 struct ttc_params {
-	struct mlx5_flow_namespace *ns;
+	enum mlx5_flow_namespace_type ns_type;
 	struct mlx5_flow_table_attr ft_attr;
 	struct mlx5_flow_destination dests[MLX5_NUM_TT];
 	DECLARE_BITMAP(ignore_dests, MLX5_NUM_TT);

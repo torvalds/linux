@@ -271,6 +271,11 @@ static inline void __clear_open_fd(unsigned int fd, struct fdtable *fdt)
 	__clear_bit(fd / BITS_PER_LONG, fdt->full_fds_bits);
 }
 
+static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
+{
+	return test_bit(fd, fdt->open_fds);
+}
+
 static unsigned int count_open_files(struct fdtable *fdt)
 {
 	unsigned int size = fdt->max_fds;
@@ -481,12 +486,12 @@ struct files_struct init_files = {
 
 static unsigned int find_next_fd(struct fdtable *fdt, unsigned int start)
 {
-	unsigned int maxfd = fdt->max_fds;
+	unsigned int maxfd = fdt->max_fds; /* always multiple of BITS_PER_LONG */
 	unsigned int maxbit = maxfd / BITS_PER_LONG;
 	unsigned int bitbit = start / BITS_PER_LONG;
 
 	bitbit = find_next_zero_bit(fdt->full_fds_bits, maxbit, bitbit) * BITS_PER_LONG;
-	if (bitbit > maxfd)
+	if (bitbit >= maxfd)
 		return maxfd;
 	if (bitbit > start)
 		start = bitbit;
@@ -915,13 +920,8 @@ struct file *get_file_rcu(struct file __rcu **f)
 		struct file __rcu *file;
 
 		file = __get_file_rcu(f);
-		if (unlikely(!file))
-			return NULL;
-
-		if (unlikely(IS_ERR(file)))
-			continue;
-
-		return file;
+		if (!IS_ERR(file))
+			return file;
 	}
 }
 EXPORT_SYMBOL_GPL(get_file_rcu);
@@ -1219,12 +1219,9 @@ void set_close_on_exec(unsigned int fd, int flag)
 
 bool get_close_on_exec(unsigned int fd)
 {
-	struct files_struct *files = current->files;
-	struct fdtable *fdt;
 	bool res;
 	rcu_read_lock();
-	fdt = files_fdtable(files);
-	res = close_on_exec(fd, fdt);
+	res = close_on_exec(fd, current->files);
 	rcu_read_unlock();
 	return res;
 }

@@ -197,7 +197,7 @@ static int g760a_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id g760a_id[] = {
-	{ "g760a", 0 },
+	{ "g760a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, g760a_id);

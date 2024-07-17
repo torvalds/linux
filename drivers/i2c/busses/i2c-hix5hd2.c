@@ -314,7 +314,7 @@ static void hix5hd2_i2c_message_start(struct hix5hd2_i2c_priv *priv, int stop)
 static int hix5hd2_i2c_xfer_msg(struct hix5hd2_i2c_priv *priv,
 				struct i2c_msg *msgs, int stop)
 {
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 
 	priv->msg = msgs;
@@ -327,9 +327,9 @@ static int hix5hd2_i2c_xfer_msg(struct hix5hd2_i2c_priv *priv,
 	reinit_completion(&priv->msg_complete);
 	hix5hd2_i2c_message_start(priv, stop);
 
-	timeout = wait_for_completion_timeout(&priv->msg_complete,
-					      priv->adap.timeout);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&priv->msg_complete,
+						priv->adap.timeout);
+	if (time_left == 0) {
 		priv->state = HIX5I2C_STAT_RW_ERR;
 		priv->err = -ETIMEDOUT;
 		dev_warn(priv->dev, "%s timeout=%d\n",

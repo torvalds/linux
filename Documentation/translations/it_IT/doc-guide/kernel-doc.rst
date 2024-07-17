@@ -180,9 +180,9 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
      se provate a formattare bene il vostro testo come nel seguente esempio::
 
 	* Return:
-	* 0 - OK
-	* -EINVAL - invalid argument
-	* -ENOMEM - out of memory
+	* %0 - OK
+	* %-EINVAL - invalid argument
+	* %-ENOMEM - out of memory
 
      le righe verranno unite e il risultato sarà::
 
@@ -192,8 +192,8 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
      utilizzare una lista ReST, ad esempio::
 
       * Return:
-      * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * %0		- OK to runtime suspend the device
+      * * %-EBUSY	- Device should not be runtime suspended
 
   #) Se il vostro testo ha delle righe che iniziano con una frase seguita dai
      due punti, allora ognuna di queste frasi verrà considerata come il nome

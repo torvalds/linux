@@ -216,6 +216,7 @@ static void gve_tx_free_ring_gqi(struct gve_priv *priv, struct gve_tx_ring *tx,
 	struct device *hdev = &priv->pdev->dev;
 	int idx = tx->q_num;
 	size_t bytes;
+	u32 qpl_id;
 	u32 slots;
 
 	slots = tx->mask + 1;
@@ -223,9 +224,12 @@ static void gve_tx_free_ring_gqi(struct gve_priv *priv, struct gve_tx_ring *tx,
 			  tx->q_resources, tx->q_resources_bus);
 	tx->q_resources = NULL;
 
-	if (!tx->raw_addressing) {
-		gve_tx_fifo_release(priv, &tx->tx_fifo);
-		gve_unassign_qpl(cfg->qpl_cfg, tx->tx_fifo.qpl->id);
+	if (tx->tx_fifo.qpl) {
+		if (tx->tx_fifo.base)
+			gve_tx_fifo_release(priv, &tx->tx_fifo);
+
+		qpl_id = gve_tx_qpl_id(priv, tx->q_num);
+		gve_free_queue_page_list(priv, tx->tx_fifo.qpl, qpl_id);
 		tx->tx_fifo.qpl = NULL;
 	}
 
@@ -256,6 +260,8 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 				 int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
+	int qpl_page_cnt;
+	u32 qpl_id = 0;
 	size_t bytes;
 
 	/* Make sure everything is zeroed to start */
@@ -280,9 +286,14 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 	tx->raw_addressing = cfg->raw_addressing;
 	tx->dev = hdev;
 	if (!tx->raw_addressing) {
-		tx->tx_fifo.qpl = gve_assign_tx_qpl(cfg, idx);
+		qpl_id = gve_tx_qpl_id(priv, tx->q_num);
+		qpl_page_cnt = priv->tx_pages_per_qpl;
+
+		tx->tx_fifo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
+							    qpl_page_cnt);
 		if (!tx->tx_fifo.qpl)
 			goto abort_with_desc;
+
 		/* map Tx FIFO */
 		if (gve_tx_fifo_init(priv, &tx->tx_fifo))
 			goto abort_with_qpl;
@@ -302,8 +313,10 @@ abort_with_fifo:
 	if (!tx->raw_addressing)
 		gve_tx_fifo_release(priv, &tx->tx_fifo);
 abort_with_qpl:
-	if (!tx->raw_addressing)
-		gve_unassign_qpl(cfg->qpl_cfg, tx->tx_fifo.qpl->id);
+	if (!tx->raw_addressing) {
+		gve_free_queue_page_list(priv, tx->tx_fifo.qpl, qpl_id);
+		tx->tx_fifo.qpl = NULL;
+	}
 abort_with_desc:
 	dma_free_coherent(hdev, bytes, tx->desc, tx->bus);
 	tx->desc = NULL;
@@ -319,12 +332,6 @@ int gve_tx_alloc_rings_gqi(struct gve_priv *priv,
 	struct gve_tx_ring *tx = cfg->tx;
 	int err = 0;
 	int i, j;
-
-	if (!cfg->raw_addressing && !cfg->qpls) {
-		netif_err(priv, drv, priv->dev,
-			  "Cannot alloc QPL ring before allocing QPLs\n");
-		return -EINVAL;
-	}
 
 	if (cfg->start_idx + cfg->num_rings > cfg->qcfg->max_queues) {
 		netif_err(priv, drv, priv->dev,

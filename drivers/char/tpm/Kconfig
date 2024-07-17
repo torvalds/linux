@@ -27,6 +27,20 @@ menuconfig TCG_TPM
 
 if TCG_TPM
 
+config TCG_TPM2_HMAC
+	bool "Use HMAC and encrypted transactions on the TPM bus"
+	default X86_64
+	select CRYPTO_ECDH
+	select CRYPTO_LIB_AESCFB
+	select CRYPTO_LIB_SHA256
+	help
+	  Setting this causes us to deploy a scheme which uses request
+	  and response HMACs in addition to encryption for
+	  communicating with the TPM to prevent or detect bus snooping
+	  and interposer attacks (see tpm-security.rst).  Saying Y
+	  here adds some encryption overhead to all kernel to TPM
+	  transactions.
+
 config HW_RANDOM_TPM
 	bool "TPM HW Random Number Generator support"
 	depends on TCG_TPM && HW_RANDOM && !(TCG_TPM=y && HW_RANDOM=m)
@@ -149,6 +163,7 @@ config TCG_NSC
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
 	depends on PPC64 || HAS_IOPORT_MAP
+	depends on HAS_IOPORT
 	help
 	  If you have a TPM security chip from Atmel say Yes and it 
 	  will be accessible from within Linux.  To compile this driver 
@@ -156,7 +171,7 @@ config TCG_ATMEL
 
 config TCG_INFINEON
 	tristate "Infineon Technologies TPM Interface"
-	depends on PNP
+	depends on PNP || COMPILE_TEST
 	help
 	  If you have a TPM security chip from Infineon Technologies
 	  (either SLD 9630 TT 1.1 or SLB 9635 TT 1.2) say Yes and it

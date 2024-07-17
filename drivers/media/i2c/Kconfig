@@ -195,6 +195,7 @@ config VIDEO_IMX334
 config VIDEO_IMX335
 	tristate "Sony IMX335 sensor support"
 	depends on OF_GPIO
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX335 camera.
@@ -405,6 +406,7 @@ config VIDEO_OV2740
 config VIDEO_OV4689
 	tristate "OmniVision OV4689 sensor support"
 	depends on GPIOLIB
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV4689 camera.

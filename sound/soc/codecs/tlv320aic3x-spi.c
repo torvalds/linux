@@ -63,7 +63,6 @@ MODULE_DEVICE_TABLE(of, aic3x_of_id);
 static struct spi_driver aic3x_spi_driver = {
 	.driver = {
 		.name = "tlv320aic3x",
-		.owner = THIS_MODULE,
 		.of_match_table = aic3x_of_id,
 	},
 	.probe = aic3x_spi_probe,

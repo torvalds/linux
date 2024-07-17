@@ -1,0 +1,11 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/6.Followthrough.rst
+
+.. _sp_development_followthrough:
+
+Seguimiento
+===========
+
+.. warning::
+	TODO aún no traducido

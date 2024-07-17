@@ -494,6 +494,9 @@ _xfs_buf_obj_cmp(
 		 * it stale has not yet committed. i.e. we are
 		 * reallocating a busy extent. Skip this buffer and
 		 * continue searching for an exact match.
+		 *
+		 * Note: If we're scanning for incore buffers to stale, don't
+		 * complain if we find non-stale buffers.
 		 */
 		if (!(map->bm_flags & XBM_LIVESCAN))
 			ASSERT(bp->b_flags & XBF_STALE);
@@ -2043,7 +2046,7 @@ xfs_setsize_buftarg(
 	btp->bt_meta_sectorsize = sectorsize;
 	btp->bt_meta_sectormask = sectorsize - 1;
 
-	if (set_blocksize(btp->bt_bdev, sectorsize)) {
+	if (set_blocksize(btp->bt_bdev_file, sectorsize)) {
 		xfs_warn(btp->bt_mount,
 			"Cannot set_blocksize to %u on device %pg",
 			sectorsize, btp->bt_bdev);

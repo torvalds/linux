@@ -135,7 +135,7 @@ extern void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip);
 # define do_ftrace_record_recursion(ip, pip)	do { } while (0)
 #endif
 
-#ifdef CONFIG_ARCH_WANTS_NO_INSTR
+#ifdef CONFIG_FTRACE_VALIDATE_RCU_IS_WATCHING
 # define trace_warn_on_no_rcu(ip)					\
 	({								\
 		bool __ret = !rcu_is_watching();			\

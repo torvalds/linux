@@ -519,7 +519,7 @@ static void mt7996_irq_tasklet(struct tasklet_struct *t)
 	struct mt7996_dev *dev = from_tasklet(dev, t, mt76.irq_tasklet);
 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 	struct mtk_wed_device *wed_hif2 = &dev->mt76.mmio.wed_hif2;
-	u32 i, intr, mask, intr1;
+	u32 i, intr, mask, intr1 = 0;
 
 	if (dev->hif2 && mtk_wed_device_active(wed_hif2)) {
 		mtk_wed_device_irq_set_mask(wed_hif2, 0);

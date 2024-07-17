@@ -577,6 +577,7 @@ struct nau8821 {
 	int dmic_clk_threshold;
 	int dmic_slew_rate;
 	int key_enable;
+	int adc_delay;
 };
 
 int nau8821_enable_jack_detect(struct snd_soc_component *component,

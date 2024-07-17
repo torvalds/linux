@@ -150,6 +150,10 @@ static const struct rpmsg_device_id pmic_pdcharger_ulog_rpmsg_id_match[] = {
 	{ "PMIC_LOGS_ADSP_APPS" },
 	{}
 };
+/*
+ * No MODULE_DEVICE_TABLE intentionally: that's a debugging module, to be
+ * loaded manually only.
+ */
 
 static struct rpmsg_driver pmic_pdcharger_ulog_rpmsg_driver = {
 	.probe = pmic_pdcharger_ulog_rpmsg_probe,

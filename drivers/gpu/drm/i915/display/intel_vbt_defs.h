@@ -485,6 +485,7 @@ struct child_device_config {
 	u8 hdmi_iboost_level:4;					/* 196+ */
 	u8 dp_max_link_rate:3;					/* 216+ */
 	u8 dp_max_link_rate_reserved:5;				/* 216+ */
+	u8 efp_index;						/* 256+ */
 } __packed;
 
 struct bdb_general_definitions {
@@ -602,22 +603,22 @@ struct bdb_driver_features {
 	u8 custom_vbt_version;					/* 155+ */
 
 	/* Driver Feature Flags */
-	u16 rmpm_enabled:1;					/* 165+ */
-	u16 s2ddt_enabled:1;					/* 165+ */
-	u16 dpst_enabled:1;					/* 165-227 */
-	u16 bltclt_enabled:1;					/* 165+ */
-	u16 adb_enabled:1;					/* 165-227 */
-	u16 drrs_enabled:1;					/* 165-227 */
-	u16 grs_enabled:1;					/* 165+ */
-	u16 gpmt_enabled:1;					/* 165+ */
-	u16 tbt_enabled:1;					/* 165+ */
+	u16 rmpm_enabled:1;					/* 159+ */
+	u16 s2ddt_enabled:1;					/* 159+ */
+	u16 dpst_enabled:1;					/* 159-227 */
+	u16 bltclt_enabled:1;					/* 159+ */
+	u16 adb_enabled:1;					/* 159-227 */
+	u16 drrs_enabled:1;					/* 159-227 */
+	u16 grs_enabled:1;					/* 159+ */
+	u16 gpmt_enabled:1;					/* 159+ */
+	u16 tbt_enabled:1;					/* 159+ */
 	u16 psr_enabled:1;					/* 165-227 */
 	u16 ips_enabled:1;					/* 165+ */
-	u16 dpfs_enabled:1;					/* 165+ */
+	u16 dfps_enabled:1;					/* 165+ */
 	u16 dmrrs_enabled:1;					/* 174-227 */
 	u16 adt_enabled:1;					/* ???-228 */
 	u16 hpd_wake:1;						/* 201-240 */
-	u16 pc_feature_valid:1;
+	u16 pc_feature_valid:1;					/* 159+ */
 } __packed;
 
 /*
@@ -880,11 +881,12 @@ struct bdb_lvds_lfp_data_tail {
 struct lfp_backlight_data_entry {
 	u8 type:2;
 	u8 active_low_pwm:1;
-	u8 obsolete1:5;
+	u8 i2c_pin:3;						/* obsolete since ? */
+	u8 i2c_speed:2;						/* obsolete since ? */
 	u16 pwm_freq_hz;
 	u8 min_brightness;					/* ???-233 */
-	u8 obsolete2;
-	u8 obsolete3;
+	u8 i2c_address;						/* obsolete since ? */
+	u8 i2c_command;						/* obsolete since ? */
 } __packed;
 
 struct lfp_backlight_control_method {
@@ -897,16 +899,11 @@ struct lfp_brightness_level {
 	u16 reserved;
 } __packed;
 
-#define EXP_BDB_LFP_BL_DATA_SIZE_REV_191 \
-	offsetof(struct bdb_lfp_backlight_data, brightness_level)
-#define EXP_BDB_LFP_BL_DATA_SIZE_REV_234 \
-	offsetof(struct bdb_lfp_backlight_data, brightness_precision_bits)
-
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
-	u8 level[16];							/* ???-233 */
-	struct lfp_backlight_control_method backlight_control[16];
+	u8 level[16];							/* 162-233 */
+	struct lfp_backlight_control_method backlight_control[16];	/* 191+ */
 	struct lfp_brightness_level brightness_level[16];		/* 234+ */
 	struct lfp_brightness_level brightness_min_level[16];		/* 234+ */
 	u8 brightness_precision_bits[16];				/* 236+ */
@@ -917,7 +914,7 @@ struct bdb_lfp_backlight_data {
  * Block 44 - LFP Power Conservation Features Block
  */
 struct lfp_power_features {
-	u8 reserved1:1;
+	u8 dpst_support:1;						/* ???-159 */
 	u8 power_conservation_pref:3;
 	u8 reserved2:1;
 	u8 lace_enabled_status:1;					/* 210+ */

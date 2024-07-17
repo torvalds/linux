@@ -89,6 +89,14 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 
 	memset(waddr, c, len);
 
+	/*
+	 * We could have just patched a function that is about to be
+	 * called so make sure we don't execute partially patched
+	 * instructions by flushing the icache as soon as possible.
+	 */
+	local_flush_icache_range((unsigned long)waddr,
+				 (unsigned long)waddr + len);
+
 	patch_unmap(FIX_TEXT_POKE0);
 
 	if (across_pages)
@@ -134,6 +142,14 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
 	ret = copy_to_kernel_nofault(waddr, insn, len);
+
+	/*
+	 * We could have just patched a function that is about to be
+	 * called so make sure we don't execute partially patched
+	 * instructions by flushing the icache as soon as possible.
+	 */
+	local_flush_icache_range((unsigned long)waddr,
+				 (unsigned long)waddr + len);
 
 	patch_unmap(FIX_TEXT_POKE0);
 
@@ -189,14 +205,11 @@ int patch_text_set_nosync(void *addr, u8 c, size_t len)
 
 	ret = patch_insn_set(tp, c, len);
 
-	if (!ret)
-		flush_icache_range((uintptr_t)tp, (uintptr_t)tp + len);
-
 	return ret;
 }
 NOKPROBE_SYMBOL(patch_text_set_nosync);
 
-static int patch_insn_write(void *addr, const void *insn, size_t len)
+int patch_insn_write(void *addr, const void *insn, size_t len)
 {
 	size_t patched = 0;
 	size_t size;
@@ -224,9 +237,6 @@ int patch_text_nosync(void *addr, const void *insns, size_t len)
 
 	ret = patch_insn_write(tp, insns, len);
 
-	if (!ret)
-		flush_icache_range((uintptr_t) tp, (uintptr_t) tp + len);
-
 	return ret;
 }
 NOKPROBE_SYMBOL(patch_text_nosync);
@@ -240,14 +250,21 @@ static int patch_text_cb(void *data)
 	if (atomic_inc_return(&patch->cpu_count) == num_online_cpus()) {
 		for (i = 0; ret == 0 && i < patch->ninsns; i++) {
 			len = GET_INSN_LENGTH(patch->insns[i]);
-			ret = patch_text_nosync(patch->addr + i * len,
-						&patch->insns[i], len);
+			ret = patch_insn_write(patch->addr + i * len, &patch->insns[i], len);
 		}
-		atomic_inc(&patch->cpu_count);
+		/*
+		 * Make sure the patching store is effective *before* we
+		 * increment the counter which releases all waiting CPUs
+		 * by using the release variant of atomic increment. The
+		 * release pairs with the call to local_flush_icache_all()
+		 * on the waiting CPU.
+		 */
+		atomic_inc_return_release(&patch->cpu_count);
 	} else {
 		while (atomic_read(&patch->cpu_count) <= num_online_cpus())
 			cpu_relax();
-		smp_mb();
+
+		local_flush_icache_all();
 	}
 
 	return ret;

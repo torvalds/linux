@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
 
-#include <string.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <linux/stddef.h>
-#include <linux/bpf.h>
-#include <linux/ipv6.h>
-#include <linux/tcp.h>
-#include <linux/if_ether.h>
-#include <linux/pkt_cls.h>
-
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-#include "bpf_tcp_helpers.h"
+
+#ifndef ENOENT
+#define ENOENT 2
+#endif
 
 struct sockaddr_in6 srv_sa6 = {};
 __u16 listen_tp_sport = 0;

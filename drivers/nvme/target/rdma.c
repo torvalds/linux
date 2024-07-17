@@ -474,12 +474,8 @@ nvmet_rdma_alloc_rsps(struct nvmet_rdma_queue *queue)
 	return 0;
 
 out_free:
-	while (--i >= 0) {
-		struct nvmet_rdma_rsp *rsp = &queue->rsps[i];
-
-		list_del(&rsp->free_list);
-		nvmet_rdma_free_rsp(ndev, rsp);
-	}
+	while (--i >= 0)
+		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
 	kfree(queue->rsps);
 out:
 	return ret;
@@ -490,12 +486,8 @@ static void nvmet_rdma_free_rsps(struct nvmet_rdma_queue *queue)
 	struct nvmet_rdma_device *ndev = queue->dev;
 	int i, nr_rsps = queue->recv_queue_size * 2;
 
-	for (i = 0; i < nr_rsps; i++) {
-		struct nvmet_rdma_rsp *rsp = &queue->rsps[i];
-
-		list_del(&rsp->free_list);
-		nvmet_rdma_free_rsp(ndev, rsp);
-	}
+	for (i = 0; i < nr_rsps; i++)
+		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
 	kfree(queue->rsps);
 }
 
@@ -860,12 +852,12 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 	if (!nvme_is_write(rsp->req.cmd)) {
 		rsp->req.error_loc =
 			offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	if (off + len > rsp->queue->dev->inline_data_size) {
 		pr_err("invalid inline data offset!\n");
-		return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_OFFSET | NVME_STATUS_DNR;
 	}
 
 	/* no data command? */
@@ -927,7 +919,7 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	case NVME_KEY_SGL_FMT_DATA_DESC:
 		switch (sgl->type & 0xf) {
@@ -939,12 +931,12 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	default:
 		pr_err("invalid SGL type: %#x\n", sgl->type);
 		rsp->req.error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_TYPE | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_TYPE | NVME_STATUS_DNR;
 	}
 }
 
@@ -1814,18 +1806,14 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 
 static void nvmet_rdma_delete_ctrl(struct nvmet_ctrl *ctrl)
 {
-	struct nvmet_rdma_queue *queue;
+	struct nvmet_rdma_queue *queue, *n;
 
-restart:
 	mutex_lock(&nvmet_rdma_queue_mutex);
-	list_for_each_entry(queue, &nvmet_rdma_queue_list, queue_list) {
-		if (queue->nvme_sq.ctrl == ctrl) {
-			list_del_init(&queue->queue_list);
-			mutex_unlock(&nvmet_rdma_queue_mutex);
-
-			__nvmet_rdma_queue_disconnect(queue);
-			goto restart;
-		}
+	list_for_each_entry_safe(queue, n, &nvmet_rdma_queue_list, queue_list) {
+		if (queue->nvme_sq.ctrl != ctrl)
+			continue;
+		list_del_init(&queue->queue_list);
+		__nvmet_rdma_queue_disconnect(queue);
 	}
 	mutex_unlock(&nvmet_rdma_queue_mutex);
 }
@@ -2012,6 +2000,17 @@ static void nvmet_rdma_disc_port_addr(struct nvmet_req *req,
 	}
 }
 
+static ssize_t nvmet_rdma_host_port_addr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_len)
+{
+	struct nvmet_sq *nvme_sq = ctrl->sqs[0];
+	struct nvmet_rdma_queue *queue =
+		container_of(nvme_sq, struct nvmet_rdma_queue, nvme_sq);
+
+	return snprintf(traddr, traddr_len, "%pISc",
+			(struct sockaddr *)&queue->cm_id->route.addr.dst_addr);
+}
+
 static u8 nvmet_rdma_get_mdts(const struct nvmet_ctrl *ctrl)
 {
 	if (ctrl->pi_support)
@@ -2036,6 +2035,7 @@ static const struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.queue_response		= nvmet_rdma_queue_response,
 	.delete_ctrl		= nvmet_rdma_delete_ctrl,
 	.disc_traddr		= nvmet_rdma_disc_port_addr,
+	.host_traddr		= nvmet_rdma_host_port_addr,
 	.get_mdts		= nvmet_rdma_get_mdts,
 	.get_max_queue_size	= nvmet_rdma_get_max_queue_size,
 };

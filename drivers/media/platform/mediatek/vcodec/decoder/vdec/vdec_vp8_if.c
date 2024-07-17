@@ -56,7 +56,7 @@
  * @cur_c_fb_dma      : current plane C frame buffer dma address
  * @bs_dma	      : bitstream dma address
  * @bs_sz	      : bitstream size
- * @resolution_changed: resolution change flag 1 - changed,  0 - not change
+ * @resolution_changed: resolution change flag 1 - changed,  0 - not changed
  * @show_frame	      : display this frame or not
  * @wait_key_frame    : wait key frame coming
  */
@@ -109,7 +109,7 @@ struct vdec_vp8_hw_reg_base {
 /**
  * struct vdec_vp8_vpu_inst - VPU instance for VP8 decode
  * @wq_hd	: Wait queue to wait VPU message ack
- * @signaled	: 1 - Host has received ack message from VPU, 0 - not receive
+ * @signaled	: 1 - Host has received ack message from VPU, 0 - not received
  * @failure	: VPU execution result status 0 - success, others - fail
  * @inst_addr	: VPU decoder instance address
  */

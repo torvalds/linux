@@ -209,7 +209,6 @@ void synchronize_rcu_tasks_rude(void);
 
 #define rcu_note_voluntary_context_switch(t) rcu_tasks_qs(t, false)
 void exit_tasks_rcu_start(void);
-void exit_tasks_rcu_stop(void);
 void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
 #define rcu_tasks_classic_qs(t, preempt) do { } while (0)
@@ -218,7 +217,6 @@ void exit_tasks_rcu_finish(void);
 #define call_rcu_tasks call_rcu
 #define synchronize_rcu_tasks synchronize_rcu
 static inline void exit_tasks_rcu_start(void) { }
-static inline void exit_tasks_rcu_stop(void) { }
 static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU_GENERIC */
 
@@ -401,15 +399,15 @@ static inline int debug_lockdep_rcu_enabled(void)
 		}							\
 	} while (0)
 
-#if defined(CONFIG_PROVE_RCU) && !defined(CONFIG_PREEMPT_RCU)
+#ifndef CONFIG_PREEMPT_RCU
 static inline void rcu_preempt_sleep_check(void)
 {
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_lock_map),
 			 "Illegal context switch in RCU read-side critical section");
 }
-#else /* #ifdef CONFIG_PROVE_RCU */
+#else // #ifndef CONFIG_PREEMPT_RCU
 static inline void rcu_preempt_sleep_check(void) { }
-#endif /* #else #ifdef CONFIG_PROVE_RCU */
+#endif // #else // #ifndef CONFIG_PREEMPT_RCU
 
 #define rcu_sleep_check()						\
 	do {								\
@@ -421,10 +419,70 @@ static inline void rcu_preempt_sleep_check(void) { }
 				 "Illegal context switch in RCU-sched read-side critical section"); \
 	} while (0)
 
+// See RCU_LOCKDEP_WARN() for an explanation of the double call to
+// debug_lockdep_rcu_enabled().
+static inline bool lockdep_assert_rcu_helper(bool c)
+{
+	return debug_lockdep_rcu_enabled() &&
+	       (c || !rcu_is_watching() || !rcu_lockdep_current_cpu_online()) &&
+	       debug_lockdep_rcu_enabled();
+}
+
+/**
+ * lockdep_assert_in_rcu_read_lock - WARN if not protected by rcu_read_lock()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock() in effect.
+ */
+#define lockdep_assert_in_rcu_read_lock() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_read_lock_bh - WARN if not protected by rcu_read_lock_bh()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock_bh() in effect.
+ * Note that local_bh_disable() and friends do not suffice here, instead an
+ * actual rcu_read_lock_bh() is required.
+ */
+#define lockdep_assert_in_rcu_read_lock_bh() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_bh_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_read_lock_sched - WARN if not protected by rcu_read_lock_sched()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock_sched()
+ * in effect.  Note that preempt_disable() and friends do not suffice here,
+ * instead an actual rcu_read_lock_sched() is required.
+ */
+#define lockdep_assert_in_rcu_read_lock_sched() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_sched_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_reader - WARN if not within some type of RCU reader
+ *
+ * Splats if lockdep is enabled and there is no RCU reader of any
+ * type in effect.  Note that regions of code protected by things like
+ * preempt_disable, local_bh_disable(), and local_irq_disable() all qualify
+ * as RCU readers.
+ *
+ * Note that this will never trigger in PREEMPT_NONE or PREEMPT_VOLUNTARY
+ * kernels that are not also built with PREEMPT_COUNT.  But if you have
+ * lockdep enabled, you might as well also enable PREEMPT_COUNT.
+ */
+#define lockdep_assert_in_rcu_reader()								\
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_lock_map) &&			\
+					       !lock_is_held(&rcu_bh_lock_map) &&		\
+					       !lock_is_held(&rcu_sched_lock_map) &&		\
+					       preemptible()))
+
 #else /* #ifdef CONFIG_PROVE_RCU */
 
 #define RCU_LOCKDEP_WARN(c, s) do { } while (0 && (c))
 #define rcu_sleep_check() do { } while (0)
+
+#define lockdep_assert_in_rcu_read_lock() do { } while (0)
+#define lockdep_assert_in_rcu_read_lock_bh() do { } while (0)
+#define lockdep_assert_in_rcu_read_lock_sched() do { } while (0)
+#define lockdep_assert_in_rcu_reader() do { } while (0)
 
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
 
@@ -809,9 +867,9 @@ static inline void rcu_read_unlock(void)
 {
 	RCU_LOCKDEP_WARN(!rcu_is_watching(),
 			 "rcu_read_unlock() used illegally while idle");
+	rcu_lock_release(&rcu_lock_map); /* Keep acq info for rls diags. */
 	__release(RCU);
 	__rcu_read_unlock();
-	rcu_lock_release(&rcu_lock_map); /* Keep acq info for rls diags. */
 }
 
 /**
@@ -1090,6 +1148,18 @@ rcu_head_after_call_rcu(struct rcu_head *rhp, rcu_callback_t f)
 extern int rcu_expedited;
 extern int rcu_normal;
 
-DEFINE_LOCK_GUARD_0(rcu, rcu_read_lock(), rcu_read_unlock())
+DEFINE_LOCK_GUARD_0(rcu,
+	do {
+		rcu_read_lock();
+		/*
+		 * sparse doesn't call the cleanup function,
+		 * so just release immediately and don't track
+		 * the context. We don't need to anyway, since
+		 * the whole point of the guard is to not need
+		 * the explicit unlock.
+		 */
+		__release(RCU);
+	} while (0),
+	rcu_read_unlock())
 
 #endif /* __LINUX_RCUPDATE_H */

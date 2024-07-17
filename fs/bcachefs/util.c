@@ -252,8 +252,10 @@ void bch2_prt_u64_base2(struct printbuf *out, u64 v)
 	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
-void bch2_print_string_as_lines(const char *prefix, const char *lines)
+static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
+					 bool nonblocking)
 {
+	bool locked = false;
 	const char *p;
 
 	if (!lines) {
@@ -261,7 +263,13 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 		return;
 	}
 
-	console_lock();
+	if (!nonblocking) {
+		console_lock();
+		locked = true;
+	} else {
+		locked = console_trylock();
+	}
+
 	while (1) {
 		p = strchrnul(lines, '\n');
 		printk("%s%.*s\n", prefix, (int) (p - lines), lines);
@@ -269,7 +277,18 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 			break;
 		lines = p + 1;
 	}
-	console_unlock();
+	if (locked)
+		console_unlock();
+}
+
+void bch2_print_string_as_lines(const char *prefix, const char *lines)
+{
+	return __bch2_print_string_as_lines(prefix, lines, false);
+}
+
+void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines)
+{
+	return __bch2_print_string_as_lines(prefix, lines, true);
 }
 
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr,
@@ -348,15 +367,12 @@ static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 {
 	const struct time_unit *u = bch2_pick_time_units(ns);
 
-	prt_printf(out, "%llu ", div64_u64(ns, u->nsecs));
-	prt_tab_rjust(out);
-	prt_printf(out, "%s", u->name);
+	prt_printf(out, "%llu \r%s", div64_u64(ns, u->nsecs), u->name);
 }
 
 static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)
 {
-	prt_str(out, name);
-	prt_tab(out);
+	prt_printf(out, "%s\t", name);
 	bch2_pr_time_units_aligned(out, ns);
 	prt_newline(out);
 }
@@ -389,12 +405,8 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	}
 
 	printbuf_tabstop_push(out, out->indent + TABSTOP_SIZE);
-	prt_printf(out, "count:");
-	prt_tab(out);
-	prt_printf(out, "%llu ",
-			 stats->duration_stats.n);
+	prt_printf(out, "count:\t%llu\n", stats->duration_stats.n);
 	printbuf_tabstop_pop(out);
-	prt_newline(out);
 
 	printbuf_tabstops_reset(out);
 
@@ -403,13 +415,8 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, 0);
 	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
 
-	prt_tab(out);
-	prt_printf(out, "since mount");
-	prt_tab_rjust(out);
-	prt_tab(out);
+	prt_printf(out, "\tsince mount\r\trecent\r\n");
 	prt_printf(out, "recent");
-	prt_tab_rjust(out);
-	prt_newline(out);
 
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, out->indent + 20);
@@ -417,23 +424,20 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, 2);
 	printbuf_tabstop_push(out, TABSTOP_SIZE);
 
-	prt_printf(out, "duration of events");
-	prt_newline(out);
+	prt_printf(out, "duration of events\n");
 	printbuf_indent_add(out, 2);
 
 	pr_name_and_units(out, "min:", stats->min_duration);
 	pr_name_and_units(out, "max:", stats->max_duration);
 	pr_name_and_units(out, "total:", stats->total_duration);
 
-	prt_printf(out, "mean:");
-	prt_tab(out);
+	prt_printf(out, "mean:\t");
 	bch2_pr_time_units_aligned(out, d_mean);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->duration_stats_weighted, TIME_STATS_MV_WEIGHT));
 	prt_newline(out);
 
-	prt_printf(out, "stddev:");
-	prt_tab(out);
+	prt_printf(out, "stddev:\t");
 	bch2_pr_time_units_aligned(out, d_stddev);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->duration_stats_weighted, TIME_STATS_MV_WEIGHT));
@@ -441,22 +445,19 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_indent_sub(out, 2);
 	prt_newline(out);
 
-	prt_printf(out, "time between events");
-	prt_newline(out);
+	prt_printf(out, "time between events\n");
 	printbuf_indent_add(out, 2);
 
 	pr_name_and_units(out, "min:", stats->min_freq);
 	pr_name_and_units(out, "max:", stats->max_freq);
 
-	prt_printf(out, "mean:");
-	prt_tab(out);
+	prt_printf(out, "mean:\t");
 	bch2_pr_time_units_aligned(out, f_mean);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT));
 	prt_newline(out);
 
-	prt_printf(out, "stddev:");
-	prt_tab(out);
+	prt_printf(out, "stddev:\t");
 	bch2_pr_time_units_aligned(out, f_stddev);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT));
@@ -589,40 +590,31 @@ void bch2_pd_controller_debug_to_text(struct printbuf *out, struct bch_pd_contro
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 20);
 
-	prt_printf(out, "rate:");
-	prt_tab(out);
+	prt_printf(out, "rate:\t");
 	prt_human_readable_s64(out, pd->rate.rate);
 	prt_newline(out);
 
-	prt_printf(out, "target:");
-	prt_tab(out);
+	prt_printf(out, "target:\t");
 	prt_human_readable_u64(out, pd->last_target);
 	prt_newline(out);
 
-	prt_printf(out, "actual:");
-	prt_tab(out);
+	prt_printf(out, "actual:\t");
 	prt_human_readable_u64(out, pd->last_actual);
 	prt_newline(out);
 
-	prt_printf(out, "proportional:");
-	prt_tab(out);
+	prt_printf(out, "proportional:\t");
 	prt_human_readable_s64(out, pd->last_proportional);
 	prt_newline(out);
 
-	prt_printf(out, "derivative:");
-	prt_tab(out);
+	prt_printf(out, "derivative:\t");
 	prt_human_readable_s64(out, pd->last_derivative);
 	prt_newline(out);
 
-	prt_printf(out, "change:");
-	prt_tab(out);
+	prt_printf(out, "change:\t");
 	prt_human_readable_s64(out, pd->last_change);
 	prt_newline(out);
 
-	prt_printf(out, "next io:");
-	prt_tab(out);
-	prt_printf(out, "%llims", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
-	prt_newline(out);
+	prt_printf(out, "next io:\t%llims\n", div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC));
 }
 
 /* misc: */

@@ -289,7 +289,6 @@ int ext4_mpage_readpages(struct inode *inode,
 
 				if (ext4_map_blocks(NULL, inode, &map, 0) < 0) {
 				set_error_page:
-					folio_set_error(folio);
 					folio_zero_segment(folio, 0,
 							  folio_size(folio));
 					folio_unlock(folio);

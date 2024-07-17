@@ -19,8 +19,6 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port);
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port);
 int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
 int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
-int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
-			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries);
 void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt);
 void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 		    u64 *dropped, u64 *cnt);
@@ -56,9 +54,10 @@ int ksz8_reset_switch(struct ksz_device *dev);
 int ksz8_switch_init(struct ksz_device *dev);
 void ksz8_switch_exit(struct ksz_device *dev);
 int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu);
-void ksz8_phylink_mac_link_up(struct ksz_device *dev, int port,
-			      unsigned int mode, phy_interface_t interface,
-			      struct phy_device *phydev, int speed, int duplex,
+void ksz8_phylink_mac_link_up(struct phylink_config *config,
+			      struct phy_device *phydev, unsigned int mode,
+			      phy_interface_t interface, int speed, int duplex,
 			      bool tx_pause, bool rx_pause);
+int ksz8_all_queues_split(struct ksz_device *dev, int queues);
 
 #endif

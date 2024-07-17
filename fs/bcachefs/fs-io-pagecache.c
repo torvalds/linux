@@ -214,7 +214,7 @@ retry:
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
-			   BTREE_ITER_SLOTS, k, ret) {
+			   BTREE_ITER_slots, k, ret) {
 		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
 		unsigned state = bkey_to_sector_state(k);
 

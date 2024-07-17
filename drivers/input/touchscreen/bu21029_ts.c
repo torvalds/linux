@@ -441,7 +441,7 @@ static int bu21029_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(bu21029_pm_ops, bu21029_suspend, bu21029_resume);
 
 static const struct i2c_device_id bu21029_ids[] = {
-	{ DRIVER_NAME, 0 },
+	{ DRIVER_NAME },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, bu21029_ids);

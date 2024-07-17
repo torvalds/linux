@@ -3278,6 +3278,7 @@ static const struct of_device_id gcc_msm8917_match_table[] = {
 	{ .compatible = "qcom,gcc-qm215", .data = &gcc_qm215_desc },
 	{},
 };
+MODULE_DEVICE_TABLE(of, gcc_msm8917_match_table);
 
 static struct platform_driver gcc_msm8917_driver = {
 	.probe = gcc_msm8917_probe,

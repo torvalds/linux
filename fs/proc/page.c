@@ -107,10 +107,13 @@ static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
 	return ((kflags >> kbit) & 1) << ubit;
 }
 
-u64 stable_page_flags(struct page *page)
+u64 stable_page_flags(const struct page *page)
 {
-	u64 k;
-	u64 u;
+	const struct folio *folio;
+	unsigned long k;
+	unsigned long mapping;
+	bool is_anon;
+	u64 u = 0;
 
 	/*
 	 * pseudo flag: KPF_NOPAGE
@@ -118,48 +121,46 @@ u64 stable_page_flags(struct page *page)
 	 */
 	if (!page)
 		return 1 << KPF_NOPAGE;
+	folio = page_folio(page);
 
-	k = page->flags;
-	u = 0;
+	k = folio->flags;
+	mapping = (unsigned long)folio->mapping;
+	is_anon = mapping & PAGE_MAPPING_ANON;
 
 	/*
 	 * pseudo flags for the well known (anonymous) memory mapped pages
 	 */
 	if (page_mapped(page))
 		u |= 1 << KPF_MMAP;
-	if (PageAnon(page))
+	if (is_anon) {
 		u |= 1 << KPF_ANON;
-	if (PageKsm(page))
-		u |= 1 << KPF_KSM;
+		if (mapping & PAGE_MAPPING_KSM)
+			u |= 1 << KPF_KSM;
+	}
 
 	/*
 	 * compound pages: export both head/tail info
 	 * they together define a compound page's start/end pos and order
 	 */
-	if (PageHead(page))
-		u |= 1 << KPF_COMPOUND_HEAD;
-	if (PageTail(page))
+	if (page == &folio->page)
+		u |= kpf_copy_bit(k, KPF_COMPOUND_HEAD, PG_head);
+	else
 		u |= 1 << KPF_COMPOUND_TAIL;
-	if (PageHuge(page))
+	if (folio_test_hugetlb(folio))
 		u |= 1 << KPF_HUGE;
 	/*
-	 * PageTransCompound can be true for non-huge compound pages (slab
-	 * pages or pages allocated by drivers with __GFP_COMP) because it
-	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
+	 * We need to check PageLRU/PageAnon
 	 * to make sure a given page is a thp, not a non-huge compound page.
 	 */
-	else if (PageTransCompound(page)) {
-		struct page *head = compound_head(page);
-
-		if (PageLRU(head) || PageAnon(head))
+	else if (folio_test_large(folio)) {
+		if ((k & (1 << PG_lru)) || is_anon)
 			u |= 1 << KPF_THP;
-		else if (is_huge_zero_page(head)) {
+		else if (is_huge_zero_folio(folio)) {
 			u |= 1 << KPF_ZERO_PAGE;
 			u |= 1 << KPF_THP;
 		}
 	} else if (is_zero_pfn(page_to_pfn(page)))
 		u |= 1 << KPF_ZERO_PAGE;
-
 
 	/*
 	 * Caveats on high order pages: PG_buddy and PG_slab will only be set
@@ -174,16 +175,17 @@ u64 stable_page_flags(struct page *page)
 		u |= 1 << KPF_OFFLINE;
 	if (PageTable(page))
 		u |= 1 << KPF_PGTABLE;
-
-	if (page_is_idle(page))
-		u |= 1 << KPF_IDLE;
-
-	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
-
-	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-	if (PageTail(page) && PageSlab(page))
+	if (folio_test_slab(folio))
 		u |= 1 << KPF_SLAB;
 
+#if defined(CONFIG_PAGE_IDLE_FLAG) && defined(CONFIG_64BIT)
+	u |= kpf_copy_bit(k, KPF_IDLE,          PG_idle);
+#else
+	if (folio_test_idle(folio))
+		u |= 1 << KPF_IDLE;
+#endif
+
+	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
 	u |= kpf_copy_bit(k, KPF_ERROR,		PG_error);
 	u |= kpf_copy_bit(k, KPF_DIRTY,		PG_dirty);
 	u |= kpf_copy_bit(k, KPF_UPTODATE,	PG_uptodate);
@@ -194,7 +196,8 @@ u64 stable_page_flags(struct page *page)
 	u |= kpf_copy_bit(k, KPF_ACTIVE,	PG_active);
 	u |= kpf_copy_bit(k, KPF_RECLAIM,	PG_reclaim);
 
-	if (PageSwapCache(page))
+#define SWAPCACHE ((1 << PG_swapbacked) | (1 << PG_swapcache))
+	if ((k & SWAPCACHE) == SWAPCACHE)
 		u |= 1 << KPF_SWAPCACHE;
 	u |= kpf_copy_bit(k, KPF_SWAPBACKED,	PG_swapbacked);
 
@@ -202,7 +205,10 @@ u64 stable_page_flags(struct page *page)
 	u |= kpf_copy_bit(k, KPF_MLOCKED,	PG_mlocked);
 
 #ifdef CONFIG_MEMORY_FAILURE
-	u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
+	if (u & (1 << KPF_HUGE))
+		u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
+	else
+		u |= kpf_copy_bit(page->flags, KPF_HWPOISON,	PG_hwpoison);
 #endif
 
 #ifdef CONFIG_ARCH_USES_PG_UNCACHED
@@ -228,7 +234,6 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 {
 	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
-	struct page *ppage;
 	unsigned long src = *ppos;
 	unsigned long pfn;
 	ssize_t ret = 0;
@@ -245,9 +250,9 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 		 * TODO: ZONE_DEVICE support requires to identify
 		 * memmaps that were actually initialized.
 		 */
-		ppage = pfn_to_online_page(pfn);
+		struct page *page = pfn_to_online_page(pfn);
 
-		if (put_user(stable_page_flags(ppage), out)) {
+		if (put_user(stable_page_flags(page), out)) {
 			ret = -EFAULT;
 			break;
 		}

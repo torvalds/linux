@@ -878,7 +878,13 @@ static void __exit atari_scsi_remove(struct platform_device *pdev)
 		atari_stram_free(atari_dma_buffer);
 }
 
-static struct platform_driver atari_scsi_driver = {
+/*
+ * atari_scsi_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver atari_scsi_driver __refdata = {
 	.remove_new = __exit_p(atari_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,

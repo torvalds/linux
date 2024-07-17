@@ -346,7 +346,7 @@ ccflags-y, asflags-y and ldflags-y
   Example::
 
     #arch/cris/boot/compressed/Makefile
-    ldflags-y += -T $(srctree)/$(src)/decompress_$(arch-y).lds
+    ldflags-y += -T $(src)/decompress_$(arch-y).lds
 
 subdir-ccflags-y, subdir-asflags-y
   The two flags listed above are similar to ccflags-y and asflags-y.
@@ -426,14 +426,14 @@ path to prerequisite files and target files.
 Two variables are used when defining custom rules:
 
 $(src)
-  $(src) is a relative path which points to the directory
-  where the Makefile is located. Always use $(src) when
+  $(src) is the directory where the Makefile is located. Always use $(src) when
   referring to files located in the src tree.
 
 $(obj)
-  $(obj) is a relative path which points to the directory
-  where the target is saved. Always use $(obj) when
-  referring to generated files.
+  $(obj) is the directory where the target is saved. Always use $(obj) when
+  referring to generated files. Use $(obj) for pattern rules that need to work
+  for both generated files and real sources (VPATH will help to find the
+  prerequisites not only in the object tree but also in the source tree).
 
   Example::
 

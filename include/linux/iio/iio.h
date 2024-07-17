@@ -788,6 +788,19 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 }
 #endif
 
+#ifdef CONFIG_ACPI
+bool iio_read_acpi_mount_matrix(struct device *dev,
+				struct iio_mount_matrix *orientation,
+				char *acpi_method);
+#else
+static inline bool iio_read_acpi_mount_matrix(struct device *dev,
+					      struct iio_mount_matrix *orientation,
+					      char *acpi_method)
+{
+	return false;
+}
+#endif
+
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 
 int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,

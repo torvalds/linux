@@ -10,8 +10,11 @@
 #include "internal.h"
 
 /*
- * Unlock the folios in a read operation.  We need to set PG_fscache on any
+ * Unlock the folios in a read operation.  We need to set PG_writeback on any
  * folios we're going to write back before we unlock them.
+ *
+ * Note that if the deprecated NETFS_RREQ_USE_PGPRIV2 is set then we use
+ * PG_private_2 and do a direct write to the cache from here instead.
  */
 void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 {
@@ -48,14 +51,14 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 	xas_for_each(&xas, folio, last_page) {
 		loff_t pg_end;
 		bool pg_failed = false;
-		bool folio_started;
+		bool wback_to_cache = false;
+		bool folio_started = false;
 
 		if (xas_retry(&xas, folio))
 			continue;
 
 		pg_end = folio_pos(folio) + folio_size(folio) - 1;
 
-		folio_started = false;
 		for (;;) {
 			loff_t sreq_end;
 
@@ -63,10 +66,16 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 				pg_failed = true;
 				break;
 			}
-			if (!folio_started && test_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags)) {
-				trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
-				folio_start_fscache(folio);
-				folio_started = true;
+			if (test_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags)) {
+				if (!folio_started && test_bit(NETFS_SREQ_COPY_TO_CACHE,
+							       &subreq->flags)) {
+					trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
+					folio_start_private_2(folio);
+					folio_started = true;
+				}
+			} else {
+				wback_to_cache |=
+					test_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags);
 			}
 			pg_failed |= subreq_failed;
 			sreq_end = subreq->start + subreq->len - 1;
@@ -98,12 +107,17 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 				kfree(finfo);
 			}
 			folio_mark_uptodate(folio);
+			if (wback_to_cache && !WARN_ON_ONCE(folio_get_private(folio) != NULL)) {
+				trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
+				folio_attach_private(folio, NETFS_FOLIO_COPY_TO_CACHE);
+				filemap_dirty_folio(folio->mapping, folio);
+			}
 		}
 
 		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_FOLIOS, &rreq->flags)) {
 			if (folio->index == rreq->no_unlock_folio &&
 			    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags))
-				_debug("no unlock");
+				kdebug("no unlock");
 			else
 				folio_unlock(folio);
 		}
@@ -116,7 +130,9 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 }
 
 static void netfs_cache_expand_readahead(struct netfs_io_request *rreq,
-					 loff_t *_start, size_t *_len, loff_t i_size)
+					 unsigned long long *_start,
+					 unsigned long long *_len,
+					 unsigned long long i_size)
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
 
@@ -188,7 +204,7 @@ void netfs_readahead(struct readahead_control *ractl)
 	struct netfs_inode *ctx = netfs_inode(ractl->mapping->host);
 	int ret;
 
-	_enter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
+	kenter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
 
 	if (readahead_count(ractl) == 0)
 		return;
@@ -252,7 +268,7 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 	struct folio *sink = NULL;
 	int ret;
 
-	_enter("%lx", folio->index);
+	kenter("%lx", folio->index);
 
 	rreq = netfs_alloc_request(mapping, file,
 				   folio_file_pos(folio), folio_size(folio),
@@ -266,7 +282,7 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 	if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS)
 		goto discard;
 
-	netfs_stat(&netfs_n_rh_readpage);
+	netfs_stat(&netfs_n_rh_read_folio);
 	trace_netfs_read(rreq, rreq->start, rreq->len, netfs_read_trace_readpage);
 
 	/* Set up the output buffer */
@@ -450,7 +466,7 @@ retry:
 	if (!netfs_is_cache_enabled(ctx) &&
 	    netfs_skip_folio_read(folio, pos, len, false)) {
 		netfs_stat(&netfs_n_rh_write_zskip);
-		goto have_folio_no_wait;
+		goto have_folio;
 	}
 
 	rreq = netfs_alloc_request(mapping, file,
@@ -491,12 +507,8 @@ retry:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
 
 have_folio:
-	ret = folio_wait_fscache_killable(folio);
-	if (ret < 0)
-		goto error;
-have_folio_no_wait:
 	*_folio = folio;
-	_leave(" = 0");
+	kleave(" = 0");
 	return 0;
 
 error_put:
@@ -506,7 +518,7 @@ error:
 		folio_unlock(folio);
 		folio_put(folio);
 	}
-	_leave(" = %d", ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_write_begin);
@@ -524,7 +536,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 	size_t flen = folio_size(folio);
 	int ret;
 
-	_enter("%zx @%llx", flen, start);
+	kenter("%zx @%llx", flen, start);
 
 	ret = -ENOMEM;
 
@@ -555,7 +567,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 error_put:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
 error:
-	_leave(" = %d", ret);
+	kleave(" = %d", ret);
 	return ret;
 }
 

@@ -2,7 +2,7 @@
 /*
  * soc-topology-test.c  --  ALSA SoC Topology Kernel Unit Tests
  *
- * Copyright(c) 2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2021 Intel Corporation.
  */
 
 #include <linux/firmware.h>
@@ -819,4 +819,5 @@ static struct kunit_suite snd_soc_tplg_test_suite = {
 
 kunit_test_suites(&snd_soc_tplg_test_suite);
 
+MODULE_DESCRIPTION("ASoC Topology Kernel Unit Tests");
 MODULE_LICENSE("GPL");

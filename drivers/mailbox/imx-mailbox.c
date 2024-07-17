@@ -21,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "mailbox.h"
 
@@ -80,7 +81,7 @@ struct imx_mu_con_priv {
 	char			irq_desc[IMX_MU_CHAN_NAME_SIZE];
 	enum imx_mu_chan_type	type;
 	struct mbox_chan	*chan;
-	struct tasklet_struct	txdb_tasklet;
+	struct work_struct 	txdb_work;
 };
 
 struct imx_mu_priv {
@@ -232,7 +233,7 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 		break;
 	case IMX_MU_TYPE_TXDB:
 		imx_mu_xcr_rmw(priv, IMX_MU_GCR, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx), 0);
-		tasklet_schedule(&cp->txdb_tasklet);
+		queue_work(system_bh_wq, &cp->txdb_work);
 		break;
 	case IMX_MU_TYPE_TXDB_V2:
 		imx_mu_xcr_rmw(priv, IMX_MU_GCR, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx), 0);
@@ -420,7 +421,7 @@ static int imx_mu_seco_tx(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp,
 		}
 
 		/* Simulate hack for mbox framework */
-		tasklet_schedule(&cp->txdb_tasklet);
+		queue_work(system_bh_wq, &cp->txdb_work);
 
 		break;
 	default:
@@ -484,9 +485,9 @@ exit:
 	return err;
 }
 
-static void imx_mu_txdb_tasklet(unsigned long data)
+static void imx_mu_txdb_work(struct work_struct *t)
 {
-	struct imx_mu_con_priv *cp = (struct imx_mu_con_priv *)data;
+	struct imx_mu_con_priv *cp = from_work(cp, t, txdb_work);
 
 	mbox_chan_txdone(cp->chan, 0);
 }
@@ -570,8 +571,7 @@ static int imx_mu_startup(struct mbox_chan *chan)
 
 	if (cp->type == IMX_MU_TYPE_TXDB) {
 		/* Tx doorbell don't have ACK support */
-		tasklet_init(&cp->txdb_tasklet, imx_mu_txdb_tasklet,
-			     (unsigned long)cp);
+		INIT_WORK(&cp->txdb_work, imx_mu_txdb_work);
 		return 0;
 	}
 
@@ -615,7 +615,7 @@ static void imx_mu_shutdown(struct mbox_chan *chan)
 	}
 
 	if (cp->type == IMX_MU_TYPE_TXDB) {
-		tasklet_kill(&cp->txdb_tasklet);
+		cancel_work_sync(&cp->txdb_work);
 		pm_runtime_put_sync(priv->dev);
 		return;
 	}

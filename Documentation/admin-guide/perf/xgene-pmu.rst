@@ -13,7 +13,7 @@ PMU (perf) driver
 
 The xgene-pmu driver registers several perf PMU drivers. Each of the perf
 driver provides description of its available events and configuration options
-in sysfs, see /sys/devices/<l3cX/iobX/mcbX/mcX>/.
+in sysfs, see /sys/bus/event_source/devices/<l3cX/iobX/mcbX/mcX>/.
 
 The "format" directory describes format of the config (event ID),
 config1 (agent ID) fields of the perf_event_attr structure. The "events"

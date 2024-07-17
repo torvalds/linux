@@ -90,11 +90,11 @@ static struct ctl_table smc_table[] = {
 		.extra1		= &conns_per_lgr_min,
 		.extra2		= &conns_per_lgr_max,
 	},
-	{  }
 };
 
 int __net_init smc_sysctl_net_init(struct net *net)
 {
+	size_t table_size = ARRAY_SIZE(smc_table);
 	struct ctl_table *table;
 
 	table = smc_table;
@@ -105,12 +105,12 @@ int __net_init smc_sysctl_net_init(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		for (i = 0; i < ARRAY_SIZE(smc_table) - 1; i++)
+		for (i = 0; i < table_size; i++)
 			table[i].data += (void *)net - (void *)&init_net;
 	}
 
 	net->smc.smc_hdr = register_net_sysctl_sz(net, "net/smc", table,
-						  ARRAY_SIZE(smc_table));
+						  table_size);
 	if (!net->smc.smc_hdr)
 		goto err_reg;
 
@@ -133,7 +133,7 @@ err_alloc:
 
 void __net_exit smc_sysctl_net_exit(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	table = net->smc.smc_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->smc.smc_hdr);

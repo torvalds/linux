@@ -282,7 +282,7 @@ static void _dpu_hw_setup_scaler3_de(struct dpu_hw_blk_reg_map *c,
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		u32 scaler_offset, u32 scaler_version,
-		const struct dpu_format *format)
+		const struct msm_format *format)
 {
 	u32 op_mode = 0;
 	u32 phase_init, preload, src_y_rgb, src_uv, dst;
@@ -293,7 +293,7 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 	op_mode |= BIT(0);
 	op_mode |= (scaler3_cfg->y_rgb_filter_cfg & 0x3) << 16;
 
-	if (format && DPU_FORMAT_IS_YUV(format)) {
+	if (format && MSM_FORMAT_IS_YUV(format)) {
 		op_mode |= BIT(12);
 		op_mode |= (scaler3_cfg->uv_filter_cfg & 0x3) << 24;
 	}
@@ -367,7 +367,7 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 	DPU_REG_WRITE(c, QSEED3_DST_SIZE + scaler_offset, dst);
 
 end:
-	if (format && !DPU_FORMAT_IS_DX(format))
+	if (format && !MSM_FORMAT_IS_DX(format))
 		op_mode |= BIT(14);
 
 	if (format && format->alpha_enable) {
@@ -522,16 +522,16 @@ int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
 #define CDP_PRELOAD_AHEAD_64	BIT(3)
 
 void dpu_setup_cdp(struct dpu_hw_blk_reg_map *c, u32 offset,
-		   const struct dpu_format *fmt, bool enable)
+		   const struct msm_format *fmt, bool enable)
 {
 	u32 cdp_cntl = CDP_PRELOAD_AHEAD_64;
 
 	if (enable)
 		cdp_cntl |= CDP_ENABLE;
-	if (DPU_FORMAT_IS_UBWC(fmt))
+	if (MSM_FORMAT_IS_UBWC(fmt))
 		cdp_cntl |= CDP_UBWC_META_ENABLE;
-	if (DPU_FORMAT_IS_UBWC(fmt) ||
-	    DPU_FORMAT_IS_TILE(fmt))
+	if (MSM_FORMAT_IS_UBWC(fmt) ||
+	    MSM_FORMAT_IS_TILE(fmt))
 		cdp_cntl |= CDP_TILE_AMORTIZE_ENABLE;
 
 	DPU_REG_WRITE(c, offset, cdp_cntl);

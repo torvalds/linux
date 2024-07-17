@@ -37,10 +37,10 @@ properties:
     maxItems: 1
 
   regulators:
-    $ref: ../regulator/richtek,rt4831-regulator.yaml
+    $ref: /schemas/regulator/richtek,rt4831-regulator.yaml
 
   backlight:
-    $ref: ../leds/backlight/richtek,rt4831-backlight.yaml
+    $ref: /schemas/leds/backlight/richtek,rt4831-backlight.yaml
 
 required:
   - compatible

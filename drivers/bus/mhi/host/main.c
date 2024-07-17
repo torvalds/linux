@@ -1691,3 +1691,19 @@ void mhi_unprepare_from_transfer(struct mhi_device *mhi_dev)
 	}
 }
 EXPORT_SYMBOL_GPL(mhi_unprepare_from_transfer);
+
+int mhi_get_channel_doorbell_offset(struct mhi_controller *mhi_cntrl, u32 *chdb_offset)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	void __iomem *base = mhi_cntrl->regs;
+	int ret;
+
+	ret = mhi_read_reg(mhi_cntrl, base, CHDBOFF, chdb_offset);
+	if (ret) {
+		dev_err(dev, "Unable to read CHDBOFF register\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mhi_get_channel_doorbell_offset);

@@ -42,7 +42,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+static int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
@@ -104,7 +104,7 @@ static int ena_change_mtu(struct net_device *dev, int new_mtu)
 	if (!ret) {
 		netif_dbg(adapter, drv, dev, "Set MTU to %d\n", new_mtu);
 		update_rx_ring_mtu(adapter, new_mtu);
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 	} else {
 		netif_err(adapter, drv, dev, "Failed to set MTU to %d\n",
 			  new_mtu);
@@ -1347,6 +1347,8 @@ error:
 	if (rc == -ENOSPC) {
 		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
+	} else if (rc == -EFAULT) {
+		ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 	} else {
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
 				  &rx_ring->syncp);
@@ -2701,6 +2703,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 {
 	struct device *dev = &pdev->dev;
 	struct ena_admin_host_info *host_info;
+	ssize_t ret;
 	int rc;
 
 	/* Allocate only the host info */
@@ -2715,11 +2718,19 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	host_info->bdf = pci_dev_id(pdev);
 	host_info->os_type = ENA_ADMIN_OS_LINUX;
 	host_info->kernel_ver = LINUX_VERSION_CODE;
-	strscpy(host_info->kernel_ver_str, utsname()->version,
-		sizeof(host_info->kernel_ver_str) - 1);
+	ret = strscpy(host_info->kernel_ver_str, utsname()->version,
+		      sizeof(host_info->kernel_ver_str));
+	if (ret < 0)
+		dev_dbg(dev,
+			"kernel version string will be truncated, status = %zd\n", ret);
+
 	host_info->os_dist = 0;
-	strscpy(host_info->os_dist_str, utsname()->release,
-		sizeof(host_info->os_dist_str));
+	ret = strscpy(host_info->os_dist_str, utsname()->release,
+		      sizeof(host_info->os_dist_str));
+	if (ret < 0)
+		dev_dbg(dev,
+			"OS distribution string will be truncated, status = %zd\n", ret);
+
 	host_info->driver_version =
 		(DRV_MODULE_GEN_MAJOR) |
 		(DRV_MODULE_GEN_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
@@ -3235,14 +3246,15 @@ err_disable_msix:
 	return rc;
 }
 
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
+static int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	bool dev_up;
+	int rc = 0;
 
 	if (!test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
-		return;
+		return 0;
 
 	netif_carrier_off(netdev);
 
@@ -3260,7 +3272,7 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	 *  and device is up, ena_down() already reset the device.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
-		ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
+		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 
 	ena_free_mgmnt_irq(adapter);
 
@@ -3279,6 +3291,8 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
+
+	return rc;
 }
 
 static int ena_restore_device(struct ena_adapter *adapter)
@@ -3355,14 +3369,17 @@ err:
 
 static void ena_fw_reset_device(struct work_struct *work)
 {
+	int rc = 0;
+
 	struct ena_adapter *adapter =
 		container_of(work, struct ena_adapter, reset_task);
 
 	rtnl_lock();
 
 	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
-		ena_destroy_device(adapter, false);
-		ena_restore_device(adapter);
+		rc |= ena_destroy_device(adapter, false);
+		rc |= ena_restore_device(adapter);
+		adapter->dev_stats.reset_fail += !!rc;
 
 		dev_err(&adapter->pdev->dev, "Device reset completed successfully\n");
 	}

@@ -279,6 +279,12 @@
 		};
 	};
 
+	refclk200mhz: refclk200mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
@@ -297,12 +303,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-
-		refclk200mhz: refclk200mhz {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <200000000>;
-		};
 
 		uart0: serial@80300000 {
 			compatible = "snps,dw-apb-uart";

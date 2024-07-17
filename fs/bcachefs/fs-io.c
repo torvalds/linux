@@ -202,7 +202,10 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		goto out;
 	ret = bch2_flush_inode(c, inode);
 out:
-	return bch2_err_class(ret);
+	ret = bch2_err_class(ret);
+	if (ret == -EROFS)
+		ret = -EIO;
+	return ret;
 }
 
 /* truncate: */
@@ -594,7 +597,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			POS(inode->v.i_ino, start_sector),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			BTREE_ITER_slots|BTREE_ITER_intent);
 
 	while (!ret && bkey_lt(iter.pos, end_pos)) {
 		s64 i_sectors_delta = 0;
@@ -1009,7 +1012,7 @@ retry:
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   BTREE_ITER_SLOTS, k, ret) {
+			   BTREE_ITER_slots, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
 					offset, MAX_LFS_FILESIZE, 0, false);

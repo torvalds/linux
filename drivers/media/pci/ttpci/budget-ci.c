@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * budget-ci.c: driver for the SAA7146 based Budget DVB cards
+ * budget-ci.ko: driver for the SAA7146 based Budget DVB cards
+ *               with CI (but without analog video input)
  *
  * Compiled from various sources by Michael Hunold <michael@mihu.de>
  *
@@ -123,7 +124,7 @@ static void msp430_ir_interrupt(struct tasklet_struct *t)
 	 */
 
 	if (ir_debug)
-		printk("budget_ci: received byte 0x%02x\n", command);
+		pr_info("received byte 0x%02x\n", command);
 
 	/* Remove repeat bit, we use every command */
 	command = command & 0x7f;
@@ -164,7 +165,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
-		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
+		pr_err("IR interface initialisation failed\n");
 		return -ENOMEM;
 	}
 
@@ -223,7 +224,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 
 	error = rc_register_device(dev);
 	if (error) {
-		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
+		pr_err("could not init driver for IR device (code %d)\n", error);
 		rc_free_device(dev);
 		return error;
 	}
@@ -411,24 +412,21 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
 	if (flags & CICONTROL_CAMDETECT) {
 		// mark it as present if it wasn't before
-		if (budget_ci->slot_status & SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status & SLOTSTATUS_NONE)
 			budget_ci->slot_status = SLOTSTATUS_PRESENT;
-		}
 
 		// during a RESET, we check if we can read from IO memory to see when CAM is ready
 		if (budget_ci->slot_status & SLOTSTATUS_RESET) {
-			if (ciintf_read_attribute_mem(ca, slot, 0) == 0x1d) {
+			if (ciintf_read_attribute_mem(ca, slot, 0) == 0x1d)
 				budget_ci->slot_status = SLOTSTATUS_READY;
-			}
 		}
 	} else {
 		budget_ci->slot_status = SLOTSTATUS_NONE;
 	}
 
 	if (budget_ci->slot_status != SLOTSTATUS_NONE) {
-		if (budget_ci->slot_status & SLOTSTATUS_READY) {
+		if (budget_ci->slot_status & SLOTSTATUS_READY)
 			return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
-		}
 		return DVB_CA_EN50221_POLL_CAM_PRESENT;
 	}
 
@@ -483,21 +481,21 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	budget_ci->ca.slot_ts_enable = ciintf_slot_ts_enable;
 	budget_ci->ca.poll_slot_status = ciintf_poll_slot_status;
 	budget_ci->ca.data = budget_ci;
-	if ((result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
-					  &budget_ci->ca,
-					  ca_flags, 1)) != 0) {
-		printk("budget_ci: CI interface detected, but initialisation failed.\n");
+
+	result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
+				     &budget_ci->ca, ca_flags, 1);
+	if (result != 0) {
+		pr_err("CI interface detected, but initialisation failed.\n");
 		goto error;
 	}
 
 	// Setup CI slot IRQ
 	if (budget_ci->ci_irq) {
 		tasklet_setup(&budget_ci->ciintf_irq_tasklet, ciintf_interrupt);
-		if (budget_ci->slot_status != SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status != SLOTSTATUS_NONE)
 			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQLO);
-		} else {
+		else
 			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
-		}
 		SAA7146_IER_ENABLE(saa, MASK_03);
 	}
 
@@ -506,7 +504,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 			       CICONTROL_RESET, 1, 0);
 
 	// success!
-	printk("budget_ci: CI interface initialised\n");
+	pr_info("CI interface initialised\n");
 	budget_ci->budget.ci_present = 1;
 
 	// forge a fake CI IRQ so the CAM state is setup correctly
@@ -551,7 +549,7 @@ static void ciintf_deinit(struct budget_ci *budget_ci)
 	saa7146_write(saa, MC1, MASK_27);
 }
 
-static void budget_ci_irq(struct saa7146_dev *dev, u32 * isr)
+static void budget_ci_irq(struct saa7146_dev *dev, u32 *isr)
 {
 	struct budget_ci *budget_ci = dev->ext_priv;
 
@@ -651,7 +649,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	u32 div;
 	u8 buf[4];
-	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	struct i2c_msg msg = {.addr = 0x60, .flags = 0, .buf = buf, .len = sizeof(buf) };
 
 	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
@@ -701,7 +699,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	static u8 td1316_init[] = { 0x0b, 0xf5, 0x85, 0xab };
 	static u8 disable_mc44BC374c[] = { 0x1d, 0x74, 0xa0, 0x68 };
-	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = td1316_init,.len =
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address, .flags = 0, .buf = td1316_init, .len =
 			sizeof(td1316_init) };
 
 	// setup PLL configuration
@@ -731,7 +729,7 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	u8 tuner_buf[4];
-	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = tuner_buf,.len = sizeof(tuner_buf) };
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address, .flags = 0, .buf = tuner_buf, .len = sizeof(tuner_buf) };
 	int tuner_frequency = 0;
 	u8 band, cp, filter;
 
@@ -856,9 +854,9 @@ static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 
 	// determine charge pump
 	tuner_frequency = p->frequency + 36125000;
-	if (tuner_frequency < 87000000)
+	if (tuner_frequency < 87000000) {
 		return -EINVAL;
-	else if (tuner_frequency < 130000000) {
+	} else if (tuner_frequency < 130000000) {
 		cp = 3;
 		band = 1;
 	} else if (tuner_frequency < 160000000) {
@@ -885,8 +883,9 @@ static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 	} else if (tuner_frequency < 895000000) {
 		cp = 7;
 		band = 4;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	// assume PLL filter should always be 8MHz for the moment.
 	filter = 1;
@@ -1035,222 +1034,222 @@ static struct tda827x_config tda827x_config = {
 /* TT S2-3200 DVB-S (STB0899) Inittab */
 static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 
-	{ STB0899_DEV_ID		, 0x81 },
-	{ STB0899_DISCNTRL1		, 0x32 },
-	{ STB0899_DISCNTRL2		, 0x80 },
-	{ STB0899_DISRX_ST0		, 0x04 },
-	{ STB0899_DISRX_ST1		, 0x00 },
-	{ STB0899_DISPARITY		, 0x00 },
-	{ STB0899_DISSTATUS		, 0x20 },
-	{ STB0899_DISF22		, 0x8c },
-	{ STB0899_DISF22RX		, 0x9a },
-	{ STB0899_SYSREG		, 0x0b },
-	{ STB0899_ACRPRESC		, 0x11 },
-	{ STB0899_ACRDIV1		, 0x0a },
-	{ STB0899_ACRDIV2		, 0x05 },
-	{ STB0899_DACR1			, 0x00 },
-	{ STB0899_DACR2			, 0x00 },
-	{ STB0899_OUTCFG		, 0x00 },
-	{ STB0899_MODECFG		, 0x00 },
-	{ STB0899_IRQSTATUS_3		, 0x30 },
-	{ STB0899_IRQSTATUS_2		, 0x00 },
-	{ STB0899_IRQSTATUS_1		, 0x00 },
-	{ STB0899_IRQSTATUS_0		, 0x00 },
-	{ STB0899_IRQMSK_3		, 0xf3 },
-	{ STB0899_IRQMSK_2		, 0xfc },
-	{ STB0899_IRQMSK_1		, 0xff },
-	{ STB0899_IRQMSK_0		, 0xff },
-	{ STB0899_IRQCFG		, 0x00 },
-	{ STB0899_I2CCFG		, 0x88 },
-	{ STB0899_I2CRPT		, 0x48 }, /* 12k Pullup, Repeater=16, Stop=disabled */
-	{ STB0899_IOPVALUE5		, 0x00 },
-	{ STB0899_IOPVALUE4		, 0x20 },
-	{ STB0899_IOPVALUE3		, 0xc9 },
-	{ STB0899_IOPVALUE2		, 0x90 },
-	{ STB0899_IOPVALUE1		, 0x40 },
-	{ STB0899_IOPVALUE0		, 0x00 },
-	{ STB0899_GPIO00CFG		, 0x82 },
-	{ STB0899_GPIO01CFG		, 0x82 },
-	{ STB0899_GPIO02CFG		, 0x82 },
-	{ STB0899_GPIO03CFG		, 0x82 },
-	{ STB0899_GPIO04CFG		, 0x82 },
-	{ STB0899_GPIO05CFG		, 0x82 },
-	{ STB0899_GPIO06CFG		, 0x82 },
-	{ STB0899_GPIO07CFG		, 0x82 },
-	{ STB0899_GPIO08CFG		, 0x82 },
-	{ STB0899_GPIO09CFG		, 0x82 },
-	{ STB0899_GPIO10CFG		, 0x82 },
-	{ STB0899_GPIO11CFG		, 0x82 },
-	{ STB0899_GPIO12CFG		, 0x82 },
-	{ STB0899_GPIO13CFG		, 0x82 },
-	{ STB0899_GPIO14CFG		, 0x82 },
-	{ STB0899_GPIO15CFG		, 0x82 },
-	{ STB0899_GPIO16CFG		, 0x82 },
-	{ STB0899_GPIO17CFG		, 0x82 },
-	{ STB0899_GPIO18CFG		, 0x82 },
-	{ STB0899_GPIO19CFG		, 0x82 },
-	{ STB0899_GPIO20CFG		, 0x82 },
-	{ STB0899_SDATCFG		, 0xb8 },
-	{ STB0899_SCLTCFG		, 0xba },
-	{ STB0899_AGCRFCFG		, 0x1c }, /* 0x11 */
-	{ STB0899_GPIO22		, 0x82 }, /* AGCBB2CFG */
-	{ STB0899_GPIO21		, 0x91 }, /* AGCBB1CFG */
-	{ STB0899_DIRCLKCFG		, 0x82 },
-	{ STB0899_CLKOUT27CFG		, 0x7e },
-	{ STB0899_STDBYCFG		, 0x82 },
-	{ STB0899_CS0CFG		, 0x82 },
-	{ STB0899_CS1CFG		, 0x82 },
-	{ STB0899_DISEQCOCFG		, 0x20 },
-	{ STB0899_GPIO32CFG		, 0x82 },
-	{ STB0899_GPIO33CFG		, 0x82 },
-	{ STB0899_GPIO34CFG		, 0x82 },
-	{ STB0899_GPIO35CFG		, 0x82 },
-	{ STB0899_GPIO36CFG		, 0x82 },
-	{ STB0899_GPIO37CFG		, 0x82 },
-	{ STB0899_GPIO38CFG		, 0x82 },
-	{ STB0899_GPIO39CFG		, 0x82 },
-	{ STB0899_NCOARSE		, 0x15 }, /* 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz */
-	{ STB0899_SYNTCTRL		, 0x02 }, /* 0x00 = CLK from CLKI, 0x02 = CLK from XTALI */
-	{ STB0899_FILTCTRL		, 0x00 },
-	{ STB0899_SYSCTRL		, 0x00 },
-	{ STB0899_STOPCLK1		, 0x20 },
-	{ STB0899_STOPCLK2		, 0x00 },
-	{ STB0899_INTBUFSTATUS		, 0x00 },
-	{ STB0899_INTBUFCTRL		, 0x0a },
-	{ 0xffff			, 0xff },
+	{ STB0899_DEV_ID,		0x81 },
+	{ STB0899_DISCNTRL1,		0x32 },
+	{ STB0899_DISCNTRL2,		0x80 },
+	{ STB0899_DISRX_ST0,		0x04 },
+	{ STB0899_DISRX_ST1,		0x00 },
+	{ STB0899_DISPARITY,		0x00 },
+	{ STB0899_DISSTATUS,		0x20 },
+	{ STB0899_DISF22,		0x8c },
+	{ STB0899_DISF22RX,		0x9a },
+	{ STB0899_SYSREG,		0x0b },
+	{ STB0899_ACRPRESC,		0x11 },
+	{ STB0899_ACRDIV1,		0x0a },
+	{ STB0899_ACRDIV2,		0x05 },
+	{ STB0899_DACR1,		0x00 },
+	{ STB0899_DACR2,		0x00 },
+	{ STB0899_OUTCFG,		0x00 },
+	{ STB0899_MODECFG,		0x00 },
+	{ STB0899_IRQSTATUS_3,		0x30 },
+	{ STB0899_IRQSTATUS_2,		0x00 },
+	{ STB0899_IRQSTATUS_1,		0x00 },
+	{ STB0899_IRQSTATUS_0,		0x00 },
+	{ STB0899_IRQMSK_3,		0xf3 },
+	{ STB0899_IRQMSK_2,		0xfc },
+	{ STB0899_IRQMSK_1,		0xff },
+	{ STB0899_IRQMSK_0,		0xff },
+	{ STB0899_IRQCFG,		0x00 },
+	{ STB0899_I2CCFG,		0x88 },
+	{ STB0899_I2CRPT,		0x48 }, /* 12k Pullup, Repeater=16, Stop=disabled */
+	{ STB0899_IOPVALUE5,		0x00 },
+	{ STB0899_IOPVALUE4,		0x20 },
+	{ STB0899_IOPVALUE3,		0xc9 },
+	{ STB0899_IOPVALUE2,		0x90 },
+	{ STB0899_IOPVALUE1,		0x40 },
+	{ STB0899_IOPVALUE0,		0x00 },
+	{ STB0899_GPIO00CFG,		0x82 },
+	{ STB0899_GPIO01CFG,		0x82 },
+	{ STB0899_GPIO02CFG,		0x82 },
+	{ STB0899_GPIO03CFG,		0x82 },
+	{ STB0899_GPIO04CFG,		0x82 },
+	{ STB0899_GPIO05CFG,		0x82 },
+	{ STB0899_GPIO06CFG,		0x82 },
+	{ STB0899_GPIO07CFG,		0x82 },
+	{ STB0899_GPIO08CFG,		0x82 },
+	{ STB0899_GPIO09CFG,		0x82 },
+	{ STB0899_GPIO10CFG,		0x82 },
+	{ STB0899_GPIO11CFG,		0x82 },
+	{ STB0899_GPIO12CFG,		0x82 },
+	{ STB0899_GPIO13CFG,		0x82 },
+	{ STB0899_GPIO14CFG,		0x82 },
+	{ STB0899_GPIO15CFG,		0x82 },
+	{ STB0899_GPIO16CFG,		0x82 },
+	{ STB0899_GPIO17CFG,		0x82 },
+	{ STB0899_GPIO18CFG,		0x82 },
+	{ STB0899_GPIO19CFG,		0x82 },
+	{ STB0899_GPIO20CFG,		0x82 },
+	{ STB0899_SDATCFG,		0xb8 },
+	{ STB0899_SCLTCFG,		0xba },
+	{ STB0899_AGCRFCFG,		0x1c }, /* 0x11 */
+	{ STB0899_GPIO22,		0x82 }, /* AGCBB2CFG */
+	{ STB0899_GPIO21,		0x91 }, /* AGCBB1CFG */
+	{ STB0899_DIRCLKCFG,		0x82 },
+	{ STB0899_CLKOUT27CFG,		0x7e },
+	{ STB0899_STDBYCFG,		0x82 },
+	{ STB0899_CS0CFG,		0x82 },
+	{ STB0899_CS1CFG,		0x82 },
+	{ STB0899_DISEQCOCFG,		0x20 },
+	{ STB0899_GPIO32CFG,		0x82 },
+	{ STB0899_GPIO33CFG,		0x82 },
+	{ STB0899_GPIO34CFG,		0x82 },
+	{ STB0899_GPIO35CFG,		0x82 },
+	{ STB0899_GPIO36CFG,		0x82 },
+	{ STB0899_GPIO37CFG,		0x82 },
+	{ STB0899_GPIO38CFG,		0x82 },
+	{ STB0899_GPIO39CFG,		0x82 },
+	{ STB0899_NCOARSE,		0x15 }, /* 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz */
+	{ STB0899_SYNTCTRL,		0x02 }, /* 0x00 = CLK from CLKI, 0x02 = CLK from XTALI */
+	{ STB0899_FILTCTRL,		0x00 },
+	{ STB0899_SYSCTRL,		0x00 },
+	{ STB0899_STOPCLK1,		0x20 },
+	{ STB0899_STOPCLK2,		0x00 },
+	{ STB0899_INTBUFSTATUS,		0x00 },
+	{ STB0899_INTBUFCTRL,		0x0a },
+	{ 0xffff,			0xff },
 };
 
 static const struct stb0899_s1_reg tt3200_stb0899_s1_init_3[] = {
-	{ STB0899_DEMOD			, 0x00 },
-	{ STB0899_RCOMPC		, 0xc9 },
-	{ STB0899_AGC1CN		, 0x41 },
-	{ STB0899_AGC1REF		, 0x10 },
-	{ STB0899_RTC			, 0x7a },
-	{ STB0899_TMGCFG		, 0x4e },
-	{ STB0899_AGC2REF		, 0x34 },
-	{ STB0899_TLSR			, 0x84 },
-	{ STB0899_CFD			, 0xc7 },
-	{ STB0899_ACLC			, 0x87 },
-	{ STB0899_BCLC			, 0x94 },
-	{ STB0899_EQON			, 0x41 },
-	{ STB0899_LDT			, 0xdd },
-	{ STB0899_LDT2			, 0xc9 },
-	{ STB0899_EQUALREF		, 0xb4 },
-	{ STB0899_TMGRAMP		, 0x10 },
-	{ STB0899_TMGTHD		, 0x30 },
-	{ STB0899_IDCCOMP		, 0xfb },
-	{ STB0899_QDCCOMP		, 0x03 },
-	{ STB0899_POWERI		, 0x3b },
-	{ STB0899_POWERQ		, 0x3d },
-	{ STB0899_RCOMP			, 0x81 },
-	{ STB0899_AGCIQIN		, 0x80 },
-	{ STB0899_AGC2I1		, 0x04 },
-	{ STB0899_AGC2I2		, 0xf5 },
-	{ STB0899_TLIR			, 0x25 },
-	{ STB0899_RTF			, 0x80 },
-	{ STB0899_DSTATUS		, 0x00 },
-	{ STB0899_LDI			, 0xca },
-	{ STB0899_CFRM			, 0xf1 },
-	{ STB0899_CFRL			, 0xf3 },
-	{ STB0899_NIRM			, 0x2a },
-	{ STB0899_NIRL			, 0x05 },
-	{ STB0899_ISYMB			, 0x17 },
-	{ STB0899_QSYMB			, 0xfa },
-	{ STB0899_SFRH			, 0x2f },
-	{ STB0899_SFRM			, 0x68 },
-	{ STB0899_SFRL			, 0x40 },
-	{ STB0899_SFRUPH		, 0x2f },
-	{ STB0899_SFRUPM		, 0x68 },
-	{ STB0899_SFRUPL		, 0x40 },
-	{ STB0899_EQUAI1		, 0xfd },
-	{ STB0899_EQUAQ1		, 0x04 },
-	{ STB0899_EQUAI2		, 0x0f },
-	{ STB0899_EQUAQ2		, 0xff },
-	{ STB0899_EQUAI3		, 0xdf },
-	{ STB0899_EQUAQ3		, 0xfa },
-	{ STB0899_EQUAI4		, 0x37 },
-	{ STB0899_EQUAQ4		, 0x0d },
-	{ STB0899_EQUAI5		, 0xbd },
-	{ STB0899_EQUAQ5		, 0xf7 },
-	{ STB0899_DSTATUS2		, 0x00 },
-	{ STB0899_VSTATUS		, 0x00 },
-	{ STB0899_VERROR		, 0xff },
-	{ STB0899_IQSWAP		, 0x2a },
-	{ STB0899_ECNT1M		, 0x00 },
-	{ STB0899_ECNT1L		, 0x00 },
-	{ STB0899_ECNT2M		, 0x00 },
-	{ STB0899_ECNT2L		, 0x00 },
-	{ STB0899_ECNT3M		, 0x00 },
-	{ STB0899_ECNT3L		, 0x00 },
-	{ STB0899_FECAUTO1		, 0x06 },
-	{ STB0899_FECM			, 0x01 },
-	{ STB0899_VTH12			, 0xf0 },
-	{ STB0899_VTH23			, 0xa0 },
-	{ STB0899_VTH34			, 0x78 },
-	{ STB0899_VTH56			, 0x4e },
-	{ STB0899_VTH67			, 0x48 },
-	{ STB0899_VTH78			, 0x38 },
-	{ STB0899_PRVIT			, 0xff },
-	{ STB0899_VITSYNC		, 0x19 },
-	{ STB0899_RSULC			, 0xb1 }, /* DVB = 0xb1, DSS = 0xa1 */
-	{ STB0899_TSULC			, 0x42 },
-	{ STB0899_RSLLC			, 0x40 },
-	{ STB0899_TSLPL			, 0x12 },
-	{ STB0899_TSCFGH		, 0x0c },
-	{ STB0899_TSCFGM		, 0x00 },
-	{ STB0899_TSCFGL		, 0x0c },
-	{ STB0899_TSOUT			, 0x4d }, /* 0x0d for CAM */
-	{ STB0899_RSSYNCDEL		, 0x00 },
-	{ STB0899_TSINHDELH		, 0x02 },
-	{ STB0899_TSINHDELM		, 0x00 },
-	{ STB0899_TSINHDELL		, 0x00 },
-	{ STB0899_TSLLSTKM		, 0x00 },
-	{ STB0899_TSLLSTKL		, 0x00 },
-	{ STB0899_TSULSTKM		, 0x00 },
-	{ STB0899_TSULSTKL		, 0xab },
-	{ STB0899_PCKLENUL		, 0x00 },
-	{ STB0899_PCKLENLL		, 0xcc },
-	{ STB0899_RSPCKLEN		, 0xcc },
-	{ STB0899_TSSTATUS		, 0x80 },
-	{ STB0899_ERRCTRL1		, 0xb6 },
-	{ STB0899_ERRCTRL2		, 0x96 },
-	{ STB0899_ERRCTRL3		, 0x89 },
-	{ STB0899_DMONMSK1		, 0x27 },
-	{ STB0899_DMONMSK0		, 0x03 },
-	{ STB0899_DEMAPVIT		, 0x5c },
-	{ STB0899_PLPARM		, 0x1f },
-	{ STB0899_PDELCTRL		, 0x48 },
-	{ STB0899_PDELCTRL2		, 0x00 },
-	{ STB0899_BBHCTRL1		, 0x00 },
-	{ STB0899_BBHCTRL2		, 0x00 },
-	{ STB0899_HYSTTHRESH		, 0x77 },
-	{ STB0899_MATCSTM		, 0x00 },
-	{ STB0899_MATCSTL		, 0x00 },
-	{ STB0899_UPLCSTM		, 0x00 },
-	{ STB0899_UPLCSTL		, 0x00 },
-	{ STB0899_DFLCSTM		, 0x00 },
-	{ STB0899_DFLCSTL		, 0x00 },
-	{ STB0899_SYNCCST		, 0x00 },
-	{ STB0899_SYNCDCSTM		, 0x00 },
-	{ STB0899_SYNCDCSTL		, 0x00 },
-	{ STB0899_ISI_ENTRY		, 0x00 },
-	{ STB0899_ISI_BIT_EN		, 0x00 },
-	{ STB0899_MATSTRM		, 0x00 },
-	{ STB0899_MATSTRL		, 0x00 },
-	{ STB0899_UPLSTRM		, 0x00 },
-	{ STB0899_UPLSTRL		, 0x00 },
-	{ STB0899_DFLSTRM		, 0x00 },
-	{ STB0899_DFLSTRL		, 0x00 },
-	{ STB0899_SYNCSTR		, 0x00 },
-	{ STB0899_SYNCDSTRM		, 0x00 },
-	{ STB0899_SYNCDSTRL		, 0x00 },
-	{ STB0899_CFGPDELSTATUS1	, 0x10 },
-	{ STB0899_CFGPDELSTATUS2	, 0x00 },
-	{ STB0899_BBFERRORM		, 0x00 },
-	{ STB0899_BBFERRORL		, 0x00 },
-	{ STB0899_UPKTERRORM		, 0x00 },
-	{ STB0899_UPKTERRORL		, 0x00 },
-	{ 0xffff			, 0xff },
+	{ STB0899_DEMOD,		0x00 },
+	{ STB0899_RCOMPC,		0xc9 },
+	{ STB0899_AGC1CN,		0x41 },
+	{ STB0899_AGC1REF,		0x10 },
+	{ STB0899_RTC,			0x7a },
+	{ STB0899_TMGCFG,		0x4e },
+	{ STB0899_AGC2REF,		0x34 },
+	{ STB0899_TLSR,			0x84 },
+	{ STB0899_CFD,			0xc7 },
+	{ STB0899_ACLC,			0x87 },
+	{ STB0899_BCLC,			0x94 },
+	{ STB0899_EQON,			0x41 },
+	{ STB0899_LDT,			0xdd },
+	{ STB0899_LDT2,			0xc9 },
+	{ STB0899_EQUALREF,		0xb4 },
+	{ STB0899_TMGRAMP,		0x10 },
+	{ STB0899_TMGTHD,		0x30 },
+	{ STB0899_IDCCOMP,		0xfb },
+	{ STB0899_QDCCOMP,		0x03 },
+	{ STB0899_POWERI,		0x3b },
+	{ STB0899_POWERQ,		0x3d },
+	{ STB0899_RCOMP,		0x81 },
+	{ STB0899_AGCIQIN,		0x80 },
+	{ STB0899_AGC2I1,		0x04 },
+	{ STB0899_AGC2I2,		0xf5 },
+	{ STB0899_TLIR,			0x25 },
+	{ STB0899_RTF,			0x80 },
+	{ STB0899_DSTATUS,		0x00 },
+	{ STB0899_LDI,			0xca },
+	{ STB0899_CFRM,			0xf1 },
+	{ STB0899_CFRL,			0xf3 },
+	{ STB0899_NIRM,			0x2a },
+	{ STB0899_NIRL,			0x05 },
+	{ STB0899_ISYMB,		0x17 },
+	{ STB0899_QSYMB,		0xfa },
+	{ STB0899_SFRH,			0x2f },
+	{ STB0899_SFRM,			0x68 },
+	{ STB0899_SFRL,			0x40 },
+	{ STB0899_SFRUPH,		0x2f },
+	{ STB0899_SFRUPM,		0x68 },
+	{ STB0899_SFRUPL,		0x40 },
+	{ STB0899_EQUAI1,		0xfd },
+	{ STB0899_EQUAQ1,		0x04 },
+	{ STB0899_EQUAI2,		0x0f },
+	{ STB0899_EQUAQ2,		0xff },
+	{ STB0899_EQUAI3,		0xdf },
+	{ STB0899_EQUAQ3,		0xfa },
+	{ STB0899_EQUAI4,		0x37 },
+	{ STB0899_EQUAQ4,		0x0d },
+	{ STB0899_EQUAI5,		0xbd },
+	{ STB0899_EQUAQ5,		0xf7 },
+	{ STB0899_DSTATUS2,		0x00 },
+	{ STB0899_VSTATUS,		0x00 },
+	{ STB0899_VERROR,		0xff },
+	{ STB0899_IQSWAP,		0x2a },
+	{ STB0899_ECNT1M,		0x00 },
+	{ STB0899_ECNT1L,		0x00 },
+	{ STB0899_ECNT2M,		0x00 },
+	{ STB0899_ECNT2L,		0x00 },
+	{ STB0899_ECNT3M,		0x00 },
+	{ STB0899_ECNT3L,		0x00 },
+	{ STB0899_FECAUTO1,		0x06 },
+	{ STB0899_FECM,			0x01 },
+	{ STB0899_VTH12,		0xf0 },
+	{ STB0899_VTH23,		0xa0 },
+	{ STB0899_VTH34,		0x78 },
+	{ STB0899_VTH56,		0x4e },
+	{ STB0899_VTH67,		0x48 },
+	{ STB0899_VTH78,		0x38 },
+	{ STB0899_PRVIT,		0xff },
+	{ STB0899_VITSYNC,		0x19 },
+	{ STB0899_RSULC,		0xb1 }, /* DVB = 0xb1, DSS = 0xa1 */
+	{ STB0899_TSULC,		0x42 },
+	{ STB0899_RSLLC,		0x40 },
+	{ STB0899_TSLPL,		0x12 },
+	{ STB0899_TSCFGH,		0x0c },
+	{ STB0899_TSCFGM,		0x00 },
+	{ STB0899_TSCFGL,		0x0c },
+	{ STB0899_TSOUT,		0x4d }, /* 0x0d for CAM */
+	{ STB0899_RSSYNCDEL,		0x00 },
+	{ STB0899_TSINHDELH,		0x02 },
+	{ STB0899_TSINHDELM,		0x00 },
+	{ STB0899_TSINHDELL,		0x00 },
+	{ STB0899_TSLLSTKM,		0x00 },
+	{ STB0899_TSLLSTKL,		0x00 },
+	{ STB0899_TSULSTKM,		0x00 },
+	{ STB0899_TSULSTKL,		0xab },
+	{ STB0899_PCKLENUL,		0x00 },
+	{ STB0899_PCKLENLL,		0xcc },
+	{ STB0899_RSPCKLEN,		0xcc },
+	{ STB0899_TSSTATUS,		0x80 },
+	{ STB0899_ERRCTRL1,		0xb6 },
+	{ STB0899_ERRCTRL2,		0x96 },
+	{ STB0899_ERRCTRL3,		0x89 },
+	{ STB0899_DMONMSK1,		0x27 },
+	{ STB0899_DMONMSK0,		0x03 },
+	{ STB0899_DEMAPVIT,		0x5c },
+	{ STB0899_PLPARM,		0x1f },
+	{ STB0899_PDELCTRL,		0x48 },
+	{ STB0899_PDELCTRL2,		0x00 },
+	{ STB0899_BBHCTRL1,		0x00 },
+	{ STB0899_BBHCTRL2,		0x00 },
+	{ STB0899_HYSTTHRESH,		0x77 },
+	{ STB0899_MATCSTM,		0x00 },
+	{ STB0899_MATCSTL,		0x00 },
+	{ STB0899_UPLCSTM,		0x00 },
+	{ STB0899_UPLCSTL,		0x00 },
+	{ STB0899_DFLCSTM,		0x00 },
+	{ STB0899_DFLCSTL,		0x00 },
+	{ STB0899_SYNCCST,		0x00 },
+	{ STB0899_SYNCDCSTM,		0x00 },
+	{ STB0899_SYNCDCSTL,		0x00 },
+	{ STB0899_ISI_ENTRY,		0x00 },
+	{ STB0899_ISI_BIT_EN,		0x00 },
+	{ STB0899_MATSTRM,		0x00 },
+	{ STB0899_MATSTRL,		0x00 },
+	{ STB0899_UPLSTRM,		0x00 },
+	{ STB0899_UPLSTRL,		0x00 },
+	{ STB0899_DFLSTRM,		0x00 },
+	{ STB0899_DFLSTRL,		0x00 },
+	{ STB0899_SYNCSTR,		0x00 },
+	{ STB0899_SYNCDSTRM,		0x00 },
+	{ STB0899_SYNCDSTRL,		0x00 },
+	{ STB0899_CFGPDELSTATUS1,	0x10 },
+	{ STB0899_CFGPDELSTATUS2,	0x00 },
+	{ STB0899_BBFERRORM,		0x00 },
+	{ STB0899_BBFERRORL,		0x00 },
+	{ STB0899_UPKTERRORM,		0x00 },
+	{ STB0899_UPKTERRORL,		0x00 },
+	{ 0xffff,			0xff },
 };
 
 static struct stb0899_config tt3200_config = {
@@ -1359,7 +1358,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 			budget_ci->budget.dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
 			if (dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				pr_err("%s(): No LNBP21 found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1370,7 +1369,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend = dvb_attach(tda10023_attach, &tda10023_config, &budget_ci->budget.i2c_adap, 0x48);
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(tda827x_attach, budget_ci->budget.dvb_frontend, 0x61, &budget_ci->budget.i2c_adap, &tda827x_config) == NULL) {
-				printk(KERN_ERR "%s: No tda827x found!\n", __func__);
+				pr_err("%s(): No tda827x found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1382,12 +1381,12 @@ static void frontend_init(struct budget_ci *budget_ci)
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(stb6000_attach, budget_ci->budget.dvb_frontend, 0x63, &budget_ci->budget.i2c_adap)) {
 				if (!dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
-					printk(KERN_ERR "%s: No LNBP21 found!\n", __func__);
+					pr_err("%s(): No LNBP21 found!\n", __func__);
 					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 					budget_ci->budget.dvb_frontend = NULL;
 				}
 			} else {
-				printk(KERN_ERR "%s: No STB6000 found!\n", __func__);
+				pr_err("%s(): No STB6000 found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
@@ -1422,13 +1421,13 @@ static void frontend_init(struct budget_ci *budget_ci)
 		if (budget_ci->budget.dvb_frontend) {
 			if (dvb_attach(stb6100_attach, budget_ci->budget.dvb_frontend, &tt3200_stb6100_config, &budget_ci->budget.i2c_adap)) {
 				if (!dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
-					printk("%s: No LNBP21 found!\n", __func__);
+					pr_err("%s(): No LNBP21 found!\n", __func__);
 					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 					budget_ci->budget.dvb_frontend = NULL;
 				}
 			} else {
-					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
-					budget_ci->budget.dvb_frontend = NULL;
+				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
+				budget_ci->budget.dvb_frontend = NULL;
 			}
 		}
 		break;
@@ -1436,7 +1435,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	}
 
 	if (budget_ci->budget.dvb_frontend == NULL) {
-		printk("budget-ci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget_ci->budget.dev->pci->vendor,
 		       budget_ci->budget.dev->pci->device,
 		       budget_ci->budget.dev->pci->subsystem_vendor,
@@ -1444,7 +1443,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	} else {
 		if (dvb_register_frontend
 		    (&budget_ci->budget.dvb_adapter, budget_ci->budget.dvb_frontend)) {
-			printk("budget-ci: Frontend registration failed!\n");
+			pr_err("Frontend registration failed!\n");
 			dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 			budget_ci->budget.dvb_frontend = NULL;
 		}
@@ -1538,7 +1537,7 @@ static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs1500b, 0x13c2, 0x101b),
 	{
 	 .vendor = 0,
-	 }
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, pci_tbl);

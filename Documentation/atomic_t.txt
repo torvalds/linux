@@ -171,14 +171,14 @@ The rule of thumb:
  - RMW operations that are conditional are unordered on FAILURE,
    otherwise the above rules apply.
 
-Except of course when an operation has an explicit ordering like:
+Except of course when a successful operation has an explicit ordering like:
 
  {}_relaxed: unordered
  {}_acquire: the R of the RMW (or atomic_read) is an ACQUIRE
  {}_release: the W of the RMW (or atomic_set)  is a  RELEASE
 
 Where 'unordered' is against other memory locations. Address dependencies are
-not defeated.
+not defeated.  Conditional operations are still unordered on FAILURE.
 
 Fully ordered primitives are ordered against everything prior and everything
 subsequent. Therefore a fully ordered primitive is like having an smp_mb()

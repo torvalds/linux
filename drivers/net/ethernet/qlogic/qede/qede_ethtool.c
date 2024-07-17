@@ -1026,7 +1026,7 @@ static int qede_get_regs_len(struct net_device *ndev)
 static void qede_update_mtu(struct qede_dev *edev,
 			    struct qede_reload_args *args)
 {
-	edev->ndev->mtu = args->u.mtu;
+	WRITE_ONCE(edev->ndev->mtu, args->u.mtu);
 }
 
 /* Netdevice NDOs */
@@ -1137,7 +1137,7 @@ static int qede_set_channels(struct net_device *dev,
 }
 
 static int qede_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 

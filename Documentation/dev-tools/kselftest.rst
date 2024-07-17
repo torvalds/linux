@@ -183,7 +183,7 @@ expected time it takes to run a test. If you have control over the systems
 which will run the tests you can configure a test runner on those systems to
 use a greater or lower timeout on the command line as with the `-o` or
 the `--override-timeout` argument. For example to use 165 seconds instead
-one would use:
+one would use::
 
    $ ./run_kselftest.sh --override-timeout 165
 
@@ -227,6 +227,13 @@ In general, the rules for selftests are
 
  * Don't cause the top-level "make run_tests" to fail if your feature is
    unconfigured.
+
+ * The output of tests must conform to the TAP standard to ensure high
+   testing quality and to capture failures/errors with specific details.
+   The kselftest.h and kselftest_harness.h headers provide wrappers for
+   outputting test results. These wrappers should be used for pass,
+   fail, exit, and skip messages. CI systems can easily parse TAP output
+   messages to detect test results.
 
 Contributing new tests (details)
 ================================

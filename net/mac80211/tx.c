@@ -1609,8 +1609,8 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	local->cparams.target = MS2TIME(20);
 	local->cparams.ecn = true;
 
-	local->cvars = kcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
-			       GFP_KERNEL);
+	local->cvars = kvcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
+				GFP_KERNEL);
 	if (!local->cvars) {
 		spin_lock_bh(&fq->lock);
 		fq_reset(fq, fq_skb_free_func);
@@ -1630,7 +1630,7 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 {
 	struct fq *fq = &local->fq;
 
-	kfree(local->cvars);
+	kvfree(local->cvars);
 	local->cvars = NULL;
 
 	spin_lock_bh(&fq->lock);
@@ -2774,8 +2774,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 
 		if (tdls_peer) {
 			/* For TDLS only one link can be valid with peer STA */
-			int tdls_link_id = sta->sta.valid_links ?
-					   __ffs(sta->sta.valid_links) : 0;
+			int tdls_link_id = ieee80211_tdls_sta_link_id(sta);
 			struct ieee80211_link_data *link;
 
 			/* DA SA BSSID */
@@ -3101,8 +3100,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	case NL80211_IFTYPE_STATION:
 		if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 			/* For TDLS only one link can be valid with peer STA */
-			int tdls_link_id = sta->sta.valid_links ?
-					   __ffs(sta->sta.valid_links) : 0;
+			int tdls_link_id = ieee80211_tdls_sta_link_id(sta);
 			struct ieee80211_link_data *link;
 
 			/* DA SA BSSID */

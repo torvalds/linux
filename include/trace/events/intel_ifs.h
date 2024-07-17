@@ -28,7 +28,7 @@ TRACE_EVENT(ifs_status,
 		__entry->status	= status;
 	),
 
-	TP_printk("batch: %.2d, start: %.4x, stop: %.4x, status: %.16llx",
+	TP_printk("batch: 0x%.2x, start: 0x%.4x, stop: 0x%.4x, status: 0x%.16llx",
 		__entry->batch,
 		__entry->start,
 		__entry->stop,

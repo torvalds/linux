@@ -3332,7 +3332,8 @@ static int mlx5_fs_mode_validate(struct devlink *devlink, u32 id,
 }
 
 static int mlx5_fs_mode_set(struct devlink *devlink, u32 id,
-			    struct devlink_param_gset_ctx *ctx)
+			    struct devlink_param_gset_ctx *ctx,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	enum mlx5_flow_steering_mode mode;
@@ -3352,9 +3353,9 @@ static int mlx5_fs_mode_get(struct devlink *devlink, u32 id,
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
 	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS)
-		strcpy(ctx->val.vstr, "smfs");
+		strscpy(ctx->val.vstr, "smfs", sizeof(ctx->val.vstr));
 	else
-		strcpy(ctx->val.vstr, "dmfs");
+		strscpy(ctx->val.vstr, "dmfs", sizeof(ctx->val.vstr));
 	return 0;
 }
 

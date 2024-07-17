@@ -137,8 +137,6 @@ examples:
         assigned-clock-parents = <&ext_gmac>;
 
         rockchip,grf = <&grf>;
-        phy-mode = "rgmii";
+        phy-mode = "rgmii-id";
         clock_in_out = "input";
-        tx_delay = <0x30>;
-        rx_delay = <0x10>;
     };

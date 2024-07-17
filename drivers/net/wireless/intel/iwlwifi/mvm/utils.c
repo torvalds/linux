@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -344,6 +344,26 @@ static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
+#define PERIODIC_STAT_RATE 5
+
+int iwl_mvm_request_periodic_system_statistics(struct iwl_mvm *mvm, bool enable)
+{
+	u32 flags = enable ? 0 : IWL_STATS_CFG_FLG_DISABLE_NTFY_MSK;
+	u32 type = enable ? (IWL_STATS_NTFY_TYPE_ID_OPER |
+			     IWL_STATS_NTFY_TYPE_ID_OPER_PART1) : 0;
+	struct iwl_system_statistics_cmd system_cmd = {
+		.cfg_mask = cpu_to_le32(flags),
+		.config_time_sec = cpu_to_le32(enable ?
+					       PERIODIC_STAT_RATE : 0),
+		.type_id_mask = cpu_to_le32(type),
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(SYSTEM_GROUP,
+					    SYSTEM_STATISTICS_CMD),
+				    0, sizeof(system_cmd), &system_cmd);
+}
+
 static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
 					     u8 cmd_ver)
 {
@@ -414,6 +434,13 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 						   SYSTEM_STATISTICS_CMD),
 					   IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
+
+	/*
+	 * Don't request statistics during restart, they'll not have any useful
+	 * information right after restart, nor is clearing needed
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return 0;
 
 	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
 		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);
@@ -865,7 +892,7 @@ static void iwl_mvm_tcm_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 
 static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 {
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	ieee80211_iterate_active_interfaces(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -873,8 +900,6 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		iwl_mvm_config_scan(mvm);
-
-	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
@@ -1103,10 +1128,9 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 	spin_unlock(&mvm->tcm.lock);
 
 	if (handle_uapsd && iwl_mvm_has_new_rx_api(mvm)) {
-		mutex_lock(&mvm->mutex);
+		guard(mvm)(mvm);
 		if (iwl_mvm_request_statistics(mvm, true))
 			handle_uapsd = false;
-		mutex_unlock(&mvm->mutex);
 	}
 
 	spin_lock(&mvm->tcm.lock);

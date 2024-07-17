@@ -56,14 +56,12 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 struct edac_device_ctl_info *
 edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instances,
 			   char *blk_name, unsigned nr_blocks, unsigned off_val,
-			   struct edac_dev_sysfs_block_attribute *attrib_spec,
-			   unsigned nr_attrib, int device_index)
+			   int device_index)
 {
-	struct edac_dev_sysfs_block_attribute *dev_attrib, *attrib_p, *attrib;
 	struct edac_device_block *dev_blk, *blk_p, *blk;
 	struct edac_device_instance *dev_inst, *inst;
 	struct edac_device_ctl_info *dev_ctl;
-	unsigned instance, block, attr;
+	unsigned instance, block;
 	void *pvt;
 	int err;
 
@@ -84,15 +82,6 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 		goto free;
 
 	dev_ctl->blocks = dev_blk;
-
-	if (nr_attrib) {
-		dev_attrib = kcalloc(nr_attrib, sizeof(struct edac_dev_sysfs_block_attribute),
-				     GFP_KERNEL);
-		if (!dev_attrib)
-			goto free;
-
-		dev_ctl->attribs = dev_attrib;
-	}
 
 	if (pvt_sz) {
 		pvt = kzalloc(pvt_sz, GFP_KERNEL);
@@ -132,44 +121,6 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 
 			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
 				 instance, inst, block, blk, blk->name);
-
-			/* if there are NO attributes OR no attribute pointer
-			 * then continue on to next block iteration
-			 */
-			if ((nr_attrib == 0) || (attrib_spec == NULL))
-				continue;
-
-			/* setup the attribute array for this block */
-			blk->nr_attribs = nr_attrib;
-			attrib_p = &dev_attrib[block*nr_instances*nr_attrib];
-			blk->block_attributes = attrib_p;
-
-			edac_dbg(4, "THIS BLOCK_ATTRIB=%p\n",
-				 blk->block_attributes);
-
-			/* Initialize every user specified attribute in this
-			 * block with the data the caller passed in
-			 * Each block gets its own copy of pointers,
-			 * and its unique 'value'
-			 */
-			for (attr = 0; attr < nr_attrib; attr++) {
-				attrib = &attrib_p[attr];
-
-				/* populate the unique per attrib
-				 * with the code pointers and info
-				 */
-				attrib->attr = attrib_spec[attr].attr;
-				attrib->show = attrib_spec[attr].show;
-				attrib->store = attrib_spec[attr].store;
-
-				attrib->block = blk;	/* up link */
-
-				edac_dbg(4, "alloc-attrib=%p attrib_name='%s' attrib-spec=%p spec-name=%s\n",
-					 attrib, attrib->attr.name,
-					 &attrib_spec[attr],
-					 attrib_spec[attr].attr.name
-					);
-			}
 		}
 	}
 

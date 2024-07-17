@@ -1236,6 +1236,8 @@ static int nct6683_probe(struct platform_device *pdev)
 	default:
 		if (!force)
 			return -ENODEV;
+		dev_warn(dev, "Enabling support for unknown customer ID 0x%04x\n", data->customer_id);
+		break;
 	}
 
 	nct6683_init_device(data);

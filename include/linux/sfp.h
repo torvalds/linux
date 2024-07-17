@@ -284,6 +284,12 @@ enum {
 	SFF8024_ID_QSFP_8438		= 0x0c,
 	SFF8024_ID_QSFP_8436_8636	= 0x0d,
 	SFF8024_ID_QSFP28_8636		= 0x11,
+	SFF8024_ID_QSFP_DD		= 0x18,
+	SFF8024_ID_OSFP			= 0x19,
+	SFF8024_ID_DSFP			= 0x1B,
+	SFF8024_ID_QSFP_PLUS_CMIS	= 0x1E,
+	SFF8024_ID_SFP_DD_CMIS		= 0x1F,
+	SFF8024_ID_SFP_PLUS_CMIS	= 0x20,
 
 	SFF8024_ENCODING_UNSPEC		= 0x00,
 	SFF8024_ENCODING_8B10B		= 0x01,
@@ -554,7 +560,7 @@ bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id);
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support, unsigned long *interfaces);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-				     unsigned long *link_modes);
+				     const unsigned long *link_modes);
 
 int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo);
 int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
@@ -592,7 +598,7 @@ static inline void sfp_parse_support(struct sfp_bus *bus,
 }
 
 static inline phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-						   unsigned long *link_modes)
+						const unsigned long *link_modes)
 {
 	return PHY_INTERFACE_MODE_NA;
 }

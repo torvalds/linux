@@ -160,7 +160,6 @@ static struct ctl_table xs_tunables_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{ },
 };
 
 /*
@@ -2442,6 +2441,13 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		transport->srcport = 0;
 		status = -EAGAIN;
 		break;
+	case -EPERM:
+		/* Happens, for instance, if a BPF program is preventing
+		 * the connect. Remap the error so upper layers can better
+		 * deal with it.
+		 */
+		status = -ECONNREFUSED;
+		fallthrough;
 	case -EINVAL:
 		/* Happens, for instance, if the user specified a link
 		 * local IPv6 address without a scope-id.
@@ -2664,6 +2670,7 @@ static void xs_tcp_tls_setup_socket(struct work_struct *work)
 		.xprtsec	= {
 			.policy		= RPC_XPRTSEC_NONE,
 		},
+		.stats		= upper_clnt->cl_stats,
 	};
 	unsigned int pflags = current->flags;
 	struct rpc_clnt *lower_clnt;

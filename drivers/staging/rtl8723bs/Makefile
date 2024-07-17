@@ -62,4 +62,4 @@ r8723bs-y = \
 
 obj-$(CONFIG_RTL8723BS) := r8723bs.o
 
-ccflags-y += -I$(srctree)/$(src)/include -I$(srctree)/$(src)/hal
+ccflags-y += -I$(src)/include -I$(src)/hal

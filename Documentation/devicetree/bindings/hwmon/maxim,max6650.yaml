@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/maxim,max6650.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX6650 and MAX6651 I2C Fan Controllers
+
+maintainers:
+  - Javier Carrasco <javier.carrasco.cruz@gmail.com>
+
+description: |
+  The MAX6650 and MAX6651 regulate and monitor the speed
+  of 5VDC/12VDC burshless fans with built-in tachometers.
+
+  Datasheets:
+    https://datasheets.maximintegrated.com/en/ds/MAX6650-MAX6651.pdf
+
+properties:
+  compatible:
+    enum:
+      - maxim,max6650
+      - maxim,max6651
+
+  reg:
+    maxItems: 1
+
+  maxim,fan-microvolt:
+    description:
+      The supply voltage of the fan, either 5000000 uV or
+      12000000 uV.
+    enum: [5000000, 12000000]
+
+  maxim,fan-prescale:
+    description:
+      Pre-scaling value, as per datasheet. Lower values
+      allow more fine-grained control of slower fans.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8, 16]
+
+  maxim,fan-target-rpm:
+    description:
+      Initial requested fan rotation speed. If specified, the
+      driver selects closed-loop mode and the requested speed.
+      This ensures the fan is already running before userspace
+      takes over.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 30000
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        fan-controller@1b {
+            compatible = "maxim,max6650";
+            reg = <0x1b>;
+            maxim,fan-microvolt = <12000000>;
+            maxim,fan-prescale = <4>;
+            maxim,fan-target-rpm = <1200>;
+        };
+    };

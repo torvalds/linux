@@ -256,7 +256,8 @@ int pdsc_dl_flash_update(struct devlink *dl,
 int pdsc_dl_enable_get(struct devlink *dl, u32 id,
 		       struct devlink_param_gset_ctx *ctx);
 int pdsc_dl_enable_set(struct devlink *dl, u32 id,
-		       struct devlink_param_gset_ctx *ctx);
+		       struct devlink_param_gset_ctx *ctx,
+		       struct netlink_ext_ack *extack);
 int pdsc_dl_enable_validate(struct devlink *dl, u32 id,
 			    union devlink_param_value val,
 			    struct netlink_ext_ack *extack);

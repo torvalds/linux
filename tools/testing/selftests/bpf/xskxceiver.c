@@ -81,6 +81,7 @@
 #include <linux/mman.h>
 #include <linux/netdev.h>
 #include <linux/bitmap.h>
+#include <linux/ethtool.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <locale.h>
@@ -105,10 +106,14 @@
 #include "../kselftest.h"
 #include "xsk_xdp_common.h"
 
+#include <network_helpers.h>
+
 static bool opt_verbose;
 static bool opt_print_tests;
 static enum test_mode opt_mode = TEST_MODE_ALL;
 static u32 opt_run_test = RUN_ALL_TESTS;
+
+void test__fail(void) { /* for network_helpers.c */ }
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
@@ -191,6 +196,12 @@ static int xsk_configure_umem(struct ifobject *ifobj, struct xsk_umem_info *umem
 	};
 	int ret;
 
+	if (umem->fill_size)
+		cfg.fill_size = umem->fill_size;
+
+	if (umem->comp_size)
+		cfg.comp_size = umem->comp_size;
+
 	if (umem->unaligned_mode)
 		cfg.flags |= XDP_UMEM_UNALIGNED_CHUNK_FLAG;
 
@@ -239,7 +250,7 @@ static void enable_busy_poll(struct xsk_socket_info *xsk)
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		exit_with_error(errno);
 
-	sock_opt = BATCH_SIZE;
+	sock_opt = xsk->batch_size;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
 		exit_with_error(errno);
@@ -260,6 +271,10 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 		cfg.bind_flags |= XDP_SHARED_UMEM;
 	if (ifobject->mtu > MAX_ETH_PKT_SIZE)
 		cfg.bind_flags |= XDP_USE_SG;
+	if (umem->comp_size)
+		cfg.tx_size = umem->comp_size;
+	if (umem->fill_size)
+		cfg.rx_size = umem->fill_size;
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
@@ -409,6 +424,33 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	}
 }
 
+static int set_ring_size(struct ifobject *ifobj)
+{
+	int ret;
+	u32 ctr = 0;
+
+	while (ctr++ < SOCK_RECONF_CTR) {
+		ret = set_hw_ring_size(ifobj->ifname, &ifobj->ring);
+		if (!ret)
+			break;
+
+		/* Retry if it fails */
+		if (ctr >= SOCK_RECONF_CTR || errno != EBUSY)
+			return -errno;
+
+		usleep(USLEEP_MAX);
+	}
+
+	return ret;
+}
+
+static int hw_ring_size_reset(struct ifobject *ifobj)
+{
+	ifobj->ring.tx_pending = ifobj->set_ring.default_tx;
+	ifobj->ring.rx_pending = ifobj->set_ring.default_rx;
+	return set_ring_size(ifobj);
+}
+
 static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 			     struct ifobject *ifobj_rx)
 {
@@ -439,6 +481,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		for (j = 0; j < MAX_SOCKETS; j++) {
 			memset(&ifobj->xsk_arr[j], 0, sizeof(ifobj->xsk_arr[j]));
 			ifobj->xsk_arr[j].rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
+			ifobj->xsk_arr[j].batch_size = DEFAULT_BATCH_SIZE;
 			if (i == 0)
 				ifobj->xsk_arr[j].pkt_stream = test->tx_pkt_stream_default;
 			else
@@ -451,12 +494,16 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		}
 	}
 
+	if (ifobj_tx->hw_ring_size_supp)
+		hw_ring_size_reset(ifobj_tx);
+
 	test->ifobj_tx = ifobj_tx;
 	test->ifobj_rx = ifobj_rx;
 	test->current_step = 0;
 	test->total_steps = 1;
 	test->nb_sockets = 1;
 	test->fail = false;
+	test->set_ring = false;
 	test->mtu = MAX_ETH_PKT_SIZE;
 	test->xdp_prog_rx = ifobj_rx->xdp_progs->progs.xsk_def_prog;
 	test->xskmap_rx = ifobj_rx->xdp_progs->maps.xsk;
@@ -1087,7 +1134,7 @@ static int __receive_pkts(struct test_spec *test, struct xsk_socket_info *xsk)
 			return TEST_CONTINUE;
 	}
 
-	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
+	rcvd = xsk_ring_cons__peek(&xsk->rx, xsk->batch_size, &idx_rx);
 	if (!rcvd)
 		return TEST_CONTINUE;
 
@@ -1239,7 +1286,8 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 
 	buffer_len = pkt_get_buffer_len(umem, pkt_stream->max_pkt_len);
 	/* pkts_in_flight might be negative if many invalid packets are sent */
-	if (pkts_in_flight >= (int)((umem_size(umem) - BATCH_SIZE * buffer_len) / buffer_len)) {
+	if (pkts_in_flight >= (int)((umem_size(umem) - xsk->batch_size * buffer_len) /
+	    buffer_len)) {
 		ret = kick_tx(xsk);
 		if (ret)
 			return TEST_FAILURE;
@@ -1249,7 +1297,7 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 	fds.fd = xsk_socket__fd(xsk->xsk);
 	fds.events = POLLOUT;
 
-	while (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) < BATCH_SIZE) {
+	while (xsk_ring_prod__reserve(&xsk->tx, xsk->batch_size, &idx) < xsk->batch_size) {
 		if (use_poll) {
 			ret = poll(&fds, 1, POLL_TMOUT);
 			if (timeout) {
@@ -1269,10 +1317,10 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 			}
 		}
 
-		complete_pkts(xsk, BATCH_SIZE);
+		complete_pkts(xsk, xsk->batch_size);
 	}
 
-	for (i = 0; i < BATCH_SIZE; i++) {
+	for (i = 0; i < xsk->batch_size; i++) {
 		struct pkt *pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
 		u32 nb_frags_left, nb_frags, bytes_written = 0;
 
@@ -1280,9 +1328,9 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, b
 			break;
 
 		nb_frags = pkt_nb_frags(umem->frame_size, pkt_stream, pkt);
-		if (nb_frags > BATCH_SIZE - i) {
+		if (nb_frags > xsk->batch_size - i) {
 			pkt_stream_cancel(pkt_stream);
-			xsk_ring_prod__cancel(&xsk->tx, BATCH_SIZE - i);
+			xsk_ring_prod__cancel(&xsk->tx, xsk->batch_size - i);
 			break;
 		}
 		nb_frags_left = nb_frags;
@@ -1370,7 +1418,7 @@ static int wait_for_tx_completion(struct xsk_socket_info *xsk)
 			return TEST_FAILURE;
 		}
 
-		complete_pkts(xsk, BATCH_SIZE);
+		complete_pkts(xsk, xsk->batch_size);
 	}
 
 	return TEST_PASS;
@@ -1578,7 +1626,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 	if (umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
 		buffers_to_fill = umem->num_frames;
 	else
-		buffers_to_fill = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+		buffers_to_fill = umem->fill_size;
 
 	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
 	if (ret != buffers_to_fill)
@@ -1858,6 +1906,18 @@ static int testapp_validate_traffic(struct test_spec *test)
 	    (ifobj_tx->umem->unaligned_mode && !ifobj_tx->unaligned_supp)) {
 		ksft_test_result_skip("No huge pages present.\n");
 		return TEST_SKIP;
+	}
+
+	if (test->set_ring) {
+		if (ifobj_tx->hw_ring_size_supp) {
+			if (set_ring_size(ifobj_tx)) {
+				ksft_test_result_skip("Failed to change HW ring size.\n");
+				return TEST_FAILURE;
+			}
+		} else {
+			ksft_test_result_skip("Changing HW ring size not supported.\n");
+			return TEST_SKIP;
+		}
 	}
 
 	xsk_attach_xdp_progs(test, ifobj_rx, ifobj_tx);
@@ -2373,6 +2433,54 @@ static int testapp_xdp_metadata_mb(struct test_spec *test)
 	return testapp_xdp_metadata_copy(test);
 }
 
+static int testapp_hw_sw_min_ring_size(struct test_spec *test)
+{
+	int ret;
+
+	test->set_ring = true;
+	test->total_steps = 2;
+	test->ifobj_tx->ring.tx_pending = DEFAULT_BATCH_SIZE;
+	test->ifobj_tx->ring.rx_pending = DEFAULT_BATCH_SIZE * 2;
+	test->ifobj_tx->xsk->batch_size = 1;
+	test->ifobj_rx->xsk->batch_size = 1;
+	ret = testapp_validate_traffic(test);
+	if (ret)
+		return ret;
+
+	/* Set batch size to hw_ring_size - 1 */
+	test->ifobj_tx->xsk->batch_size = DEFAULT_BATCH_SIZE - 1;
+	test->ifobj_rx->xsk->batch_size = DEFAULT_BATCH_SIZE - 1;
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_hw_sw_max_ring_size(struct test_spec *test)
+{
+	u32 max_descs = XSK_RING_PROD__DEFAULT_NUM_DESCS * 4;
+	int ret;
+
+	test->set_ring = true;
+	test->total_steps = 2;
+	test->ifobj_tx->ring.tx_pending = test->ifobj_tx->ring.tx_max_pending;
+	test->ifobj_tx->ring.rx_pending  = test->ifobj_tx->ring.rx_max_pending;
+	test->ifobj_rx->umem->num_frames = max_descs;
+	test->ifobj_rx->umem->fill_size = max_descs;
+	test->ifobj_rx->umem->comp_size = max_descs;
+	test->ifobj_tx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+	test->ifobj_rx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+
+	ret = testapp_validate_traffic(test);
+	if (ret)
+		return ret;
+
+	/* Set batch_size to 8152 for testing, as the ice HW ignores the 3 lowest bits when
+	 * updating the Rx HW tail register.
+	 */
+	test->ifobj_tx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
+	test->ifobj_rx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
+	pkt_stream_replace(test, max_descs, MIN_PKT_SIZE);
+	return testapp_validate_traffic(test);
+}
+
 static void run_pkt_test(struct test_spec *test)
 {
 	int ret;
@@ -2477,7 +2585,9 @@ static const struct test_spec tests[] = {
 	{.name = "ALIGNED_INV_DESC_MULTI_BUFF", .test_func = testapp_aligned_inv_desc_mb},
 	{.name = "UNALIGNED_INV_DESC_MULTI_BUFF", .test_func = testapp_unaligned_inv_desc_mb},
 	{.name = "TOO_MANY_FRAGS", .test_func = testapp_too_many_frags},
-};
+	{.name = "HW_SW_MIN_RING_SIZE", .test_func = testapp_hw_sw_min_ring_size},
+	{.name = "HW_SW_MAX_RING_SIZE", .test_func = testapp_hw_sw_max_ring_size},
+	};
 
 static void print_tests(void)
 {
@@ -2497,6 +2607,7 @@ int main(int argc, char **argv)
 	int modes = TEST_MODE_SKB + 1;
 	struct test_spec test;
 	bool shared_netdev;
+	int ret;
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
@@ -2532,6 +2643,13 @@ int main(int argc, char **argv)
 		modes++;
 		if (ifobj_zc_avail(ifobj_tx))
 			modes++;
+	}
+
+	ret = get_hw_ring_size(ifobj_tx->ifname, &ifobj_tx->ring);
+	if (!ret) {
+		ifobj_tx->hw_ring_size_supp = true;
+		ifobj_tx->set_ring.default_tx = ifobj_tx->ring.tx_pending;
+		ifobj_tx->set_ring.default_rx = ifobj_tx->ring.rx_pending;
 	}
 
 	init_iface(ifobj_rx, worker_testapp_validate_rx);
@@ -2580,6 +2698,9 @@ int main(int argc, char **argv)
 				failed_tests++;
 		}
 	}
+
+	if (ifobj_tx->hw_ring_size_supp)
+		hw_ring_size_reset(ifobj_tx);
 
 	pkt_stream_delete(tx_pkt_stream_default);
 	pkt_stream_delete(rx_pkt_stream_default);

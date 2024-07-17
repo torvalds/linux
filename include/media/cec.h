@@ -173,7 +173,7 @@ struct cec_adap_ops {
  *			case the transmit will finish, but will not retransmit
  *			and be marked as ABORTED.
  * @xfer_timeout_ms:	the transfer timeout in ms.
- *			If 0, then timeout after 2.1 ms.
+ *			If 0, then timeout after 2100 ms.
  * @kthread_config:	kthread used to configure a CEC adapter
  * @config_completion:	used to signal completion of the config kthread
  * @kthread:		main CEC processing thread
@@ -187,6 +187,7 @@ struct cec_adap_ops {
  *	in order to transmit or receive CEC messages. This is usually a HW
  *	limitation.
  * @is_enabled:		the CEC adapter is enabled
+ * @is_claiming_log_addrs:  true if cec_claim_log_addrs() is running
  * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
  * @must_reconfigure:	while configuring, the PA changed, so reclaim LAs
  * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
@@ -258,6 +259,7 @@ struct cec_adapter {
 	u16 phys_addr;
 	bool needs_hpd;
 	bool is_enabled;
+	bool is_claiming_log_addrs;
 	bool is_configuring;
 	bool must_reconfigure;
 	bool is_configured;

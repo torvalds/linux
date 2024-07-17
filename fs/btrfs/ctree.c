@@ -291,7 +291,7 @@ static void add_root_to_dirty_list(struct btrfs_root *root)
 	spin_lock(&fs_info->trans_lock);
 	if (!test_and_set_bit(BTRFS_ROOT_DIRTY, &root->state)) {
 		/* Want the extent tree to be the last on the list */
-		if (root->root_key.objectid == BTRFS_EXTENT_TREE_OBJECTID)
+		if (btrfs_root_id(root) == BTRFS_EXTENT_TREE_OBJECTID)
 			list_move_tail(&root->dirty_list,
 				       &fs_info->dirty_cowonly_roots);
 		else
@@ -454,7 +454,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		}
 	} else {
 		refs = 1;
-		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
+		if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID ||
 		    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
 			flags = BTRFS_BLOCK_FLAG_FULL_BACKREF;
 		else
@@ -466,15 +466,14 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 	       !(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF));
 
 	if (refs > 1) {
-		if ((owner == root->root_key.objectid ||
-		     root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) &&
+		if ((owner == btrfs_root_id(root) ||
+		     btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) &&
 		    !(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)) {
 			ret = btrfs_inc_ref(trans, root, buf, 1);
 			if (ret)
 				return ret;
 
-			if (root->root_key.objectid ==
-			    BTRFS_TREE_RELOC_OBJECTID) {
+			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
 				ret = btrfs_dec_ref(trans, root, buf, 0);
 				if (ret)
 					return ret;
@@ -485,8 +484,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			new_flags |= BTRFS_BLOCK_FLAG_FULL_BACKREF;
 		} else {
 
-			if (root->root_key.objectid ==
-			    BTRFS_TREE_RELOC_OBJECTID)
+			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
 				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
 				ret = btrfs_inc_ref(trans, root, cow, 0);
@@ -500,8 +498,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		}
 	} else {
 		if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
-			if (root->root_key.objectid ==
-			    BTRFS_TREE_RELOC_OBJECTID)
+			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
 				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
 				ret = btrfs_inc_ref(trans, root, cow, 0);
@@ -563,13 +560,13 @@ int btrfs_force_cow_block(struct btrfs_trans_handle *trans,
 	else
 		btrfs_node_key(buf, &disk_key, 0);
 
-	if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) {
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
 		if (parent)
 			parent_start = parent->start;
 		reloc_src_root = btrfs_header_owner(buf);
 	}
 	cow = btrfs_alloc_tree_block(trans, root, parent_start,
-				     root->root_key.objectid, &disk_key, level,
+				     btrfs_root_id(root), &disk_key, level,
 				     search_start, empty_size, reloc_src_root, nest);
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
@@ -582,10 +579,10 @@ int btrfs_force_cow_block(struct btrfs_trans_handle *trans,
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
 	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN |
 				     BTRFS_HEADER_FLAG_RELOC);
-	if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID)
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
 		btrfs_set_header_flag(cow, BTRFS_HEADER_FLAG_RELOC);
 	else
-		btrfs_set_header_owner(cow, root->root_key.objectid);
+		btrfs_set_header_owner(cow, btrfs_root_id(root));
 
 	write_extent_buffer_fsid(cow, fs_info->fs_devices->metadata_uuid);
 
@@ -609,7 +606,7 @@ int btrfs_force_cow_block(struct btrfs_trans_handle *trans,
 
 	if (buf == root->node) {
 		WARN_ON(parent && parent != buf);
-		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
+		if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID ||
 		    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
 			parent_start = buf->start;
 
@@ -685,7 +682,7 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 	 */
 	if (btrfs_header_generation(buf) == trans->transid &&
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN) &&
-	    !(root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID &&
+	    !(btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
 	      btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)) &&
 	    !test_bit(BTRFS_ROOT_FORCE_COW, &root->state))
 		return 0;
@@ -1003,7 +1000,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
+		btrfs_tree_lock_nested(left, BTRFS_NESTING_LEFT);
 		wret = btrfs_cow_block(trans, root, left,
 				       parent, pslot - 1, &left,
 				       BTRFS_NESTING_LEFT_COW);
@@ -1021,7 +1018,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
+		btrfs_tree_lock_nested(right, BTRFS_NESTING_RIGHT);
 		wret = btrfs_cow_block(trans, root, right,
 				       parent, pslot + 1, &right,
 				       BTRFS_NESTING_RIGHT_COW);
@@ -1205,7 +1202,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		if (IS_ERR(left))
 			return PTR_ERR(left);
 
-		__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
+		btrfs_tree_lock_nested(left, BTRFS_NESTING_LEFT);
 
 		left_nr = btrfs_header_nritems(left);
 		if (left_nr >= BTRFS_NODEPTRS_PER_BLOCK(fs_info) - 1) {
@@ -1265,7 +1262,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		if (IS_ERR(right))
 			return PTR_ERR(right);
 
-		__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
+		btrfs_tree_lock_nested(right, BTRFS_NESTING_RIGHT);
 
 		right_nr = btrfs_header_nritems(right);
 		if (right_nr >= BTRFS_NODEPTRS_PER_BLOCK(fs_info) - 1) {
@@ -1511,7 +1508,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	check.has_first_key = true;
 	check.level = parent_level - 1;
 	check.transid = gen;
-	check.owner_root = root->root_key.objectid;
+	check.owner_root = btrfs_root_id(root);
 
 	/*
 	 * If we need to read an extent buffer from disk and we are holding locks
@@ -1556,7 +1553,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			btrfs_release_path(p);
 			return -EIO;
 		}
-		if (btrfs_check_eb_owner(tmp, root->root_key.objectid)) {
+		if (btrfs_check_eb_owner(tmp, btrfs_root_id(root))) {
 			free_extent_buffer(tmp);
 			btrfs_release_path(p);
 			return -EUCLEAN;
@@ -2865,7 +2862,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	else
 		btrfs_node_key(lower, &lower_key, 0);
 
-	c = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+	c = btrfs_alloc_tree_block(trans, root, 0, btrfs_root_id(root),
 				   &lower_key, level, root->node->start, 0,
 				   0, BTRFS_NESTING_NEW_ROOT);
 	if (IS_ERR(c))
@@ -3009,7 +3006,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	mid = (c_nritems + 1) / 2;
 	btrfs_node_key(c, &disk_key, mid);
 
-	split = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+	split = btrfs_alloc_tree_block(trans, root, 0, btrfs_root_id(root),
 				       &disk_key, level, c->start, 0,
 				       0, BTRFS_NESTING_SPLIT);
 	if (IS_ERR(split))
@@ -3267,7 +3264,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (IS_ERR(right))
 		return PTR_ERR(right);
 
-	__btrfs_tree_lock(right, BTRFS_NESTING_RIGHT);
+	btrfs_tree_lock_nested(right, BTRFS_NESTING_RIGHT);
 
 	free_space = btrfs_leaf_free_space(right);
 	if (free_space < data_size)
@@ -3483,7 +3480,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (IS_ERR(left))
 		return PTR_ERR(left);
 
-	__btrfs_tree_lock(left, BTRFS_NESTING_LEFT);
+	btrfs_tree_lock_nested(left, BTRFS_NESTING_LEFT);
 
 	free_space = btrfs_leaf_free_space(left);
 	if (free_space < data_size) {
@@ -3761,7 +3758,7 @@ again:
 	 * BTRFS_NESTING_SPLIT_THE_SPLITTENING if we need to, but for now just
 	 * use BTRFS_NESTING_NEW_ROOT.
 	 */
-	right = btrfs_alloc_tree_block(trans, root, 0, root->root_key.objectid,
+	right = btrfs_alloc_tree_block(trans, root, 0, btrfs_root_id(root),
 				       &disk_key, 0, l->start, 0, 0,
 				       num_doubles ? BTRFS_NESTING_NEW_ROOT :
 				       BTRFS_NESTING_SPLIT);

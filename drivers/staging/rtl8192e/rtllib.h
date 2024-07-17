@@ -121,7 +121,7 @@ struct cb_desc {
 
 	u8 bRTSBW:1;
 	u8 bPacketBW:1;
-	u8 bRTSUseShortPreamble:1;
+	u8 rts_use_short_preamble:1;
 	u8 bRTSUseShortGI:1;
 	u8 multicast:1;
 	u8 bBroadcast:1;
@@ -299,7 +299,7 @@ enum rt_op_mode {
 	RT_OP_MODE_NO_LINK,
 };
 
-#define aSifsTime						\
+#define asifs_time						\
 	 ((priv->rtllib->current_network.mode == WIRELESS_MODE_N_24G) ? 16 : 10)
 
 #define MGMT_QUEUE_NUM 5
@@ -343,7 +343,7 @@ enum rt_op_mode {
 #define IsQoSDataFrame(pframe)			\
 	((*(u16 *)pframe&(IEEE80211_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA)) ==	\
 	(IEEE80211_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA))
-#define Frame_Order(pframe)     (*(u16 *)pframe&IEEE80211_FCTL_ORDER)
+#define frame_order(pframe)     (*(u16 *)pframe&IEEE80211_FCTL_ORDER)
 #define SN_LESS(a, b)		(((a-b)&0x800) != 0)
 #define SN_EQUAL(a, b)	(a == b)
 #define MAX_DEV_ADDR_SIZE 8
@@ -482,8 +482,8 @@ struct rtllib_rx_stats {
 	u16 bCRC:1;
 	u16 bICV:1;
 	u16 Decrypted:1;
-	u32 TimeStampLow;
-	u32 TimeStampHigh;
+	u32 time_stamp_low;
+	u32 time_stamp_high;
 
 	u8    RxDrvInfoSize;
 	u8    RxBufShift;
@@ -1051,7 +1051,7 @@ enum rt_rf_power_state {
 struct rt_pwr_save_ctrl {
 	bool				bSwRfProcessing;
 	enum rt_rf_power_state eInactivePowerState;
-	enum ips_callback_function ReturnPoint;
+	enum ips_callback_function return_point;
 
 	bool				bLeisurePs;
 	u8				lps_idle_count;
@@ -1477,8 +1477,8 @@ struct rtllib_device {
 	void (*set_hw_reg_handler)(struct net_device *dev, u8 variable, u8 *val);
 
 	void (*allow_all_dest_addr_handler)(struct net_device *dev,
-					    bool bAllowAllDA,
-					    bool WriteIntoReg);
+					    bool allow_all_da,
+					    bool write_into_reg);
 
 	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
@@ -1736,13 +1736,13 @@ void ht_set_connect_bw_mode(struct rtllib_device *ieee,
 			enum ht_extchnl_offset Offset);
 void ht_update_default_setting(struct rtllib_device *ieee);
 void ht_construct_capability_element(struct rtllib_device *ieee,
-				  u8 *posHTCap, u8 *len,
+				  u8 *pos_ht_cap, u8 *len,
 				  u8 isEncrypt, bool bAssoc);
 void ht_construct_rt2rt_agg_element(struct rtllib_device *ieee,
 				u8 *posRT2RTAgg, u8 *len);
 void ht_on_assoc_rsp(struct rtllib_device *ieee);
 void ht_initialize_ht_info(struct rtllib_device *ieee);
-void ht_initialize_bss_desc(struct bss_ht *pBssHT);
+void ht_initialize_bss_desc(struct bss_ht *bss_ht);
 void ht_reset_self_and_save_peer_setting(struct rtllib_device *ieee,
 				   struct rtllib_network *pNetwork);
 void HT_update_self_and_peer_setting(struct rtllib_device *ieee,

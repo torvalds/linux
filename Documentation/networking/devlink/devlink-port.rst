@@ -134,6 +134,9 @@ Users may also set the IPsec crypto capability of the function using
 Users may also set the IPsec packet capability of the function using
 `devlink port function set ipsec_packet` command.
 
+Users may also set the maximum IO event queues of the function
+using `devlink port function set max_io_eqs` command.
+
 Function attributes
 ===================
 
@@ -294,6 +297,36 @@ policy is processed in software by the kernel.
     pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
         function:
             hw_addr 00:00:00:00:00:00 ipsec_packet enabled
+
+Maximum IO events queues setup
+------------------------------
+When user sets maximum number of IO event queues for a SF or
+a VF, such function driver is limited to consume only enforced
+number of IO event queues.
+
+IO event queues deliver events related to IO queues, including network
+device transmit and receive queues (txq and rxq) and RDMA Queue Pairs (QPs).
+For example, the number of netdevice channels and RDMA device completion
+vectors are derived from the function's IO event queues. Usually, the number
+of interrupt vectors consumed by the driver is limited by the number of IO
+event queues per device, as each of the IO event queues is connected to an
+interrupt vector.
+
+- Get maximum IO event queues of the VF device::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_packet disabled max_io_eqs 10
+
+- Set maximum IO event queues of the VF device::
+
+    $ devlink port function set pci/0000:06:00.0/2 max_io_eqs 32
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_packet disabled max_io_eqs 32
 
 Subfunction
 ============

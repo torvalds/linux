@@ -151,6 +151,8 @@ patternProperties:
     description: ARM Ltd.
   "^armadeus,.*":
     description: ARMadeus Systems SARL
+  "^armsom,.*":
+    description: ArmSoM Technology Co., Ltd.
   "^arrow,.*":
     description: Arrow Electronics
   "^artesyn,.*":
@@ -256,6 +258,8 @@ patternProperties:
     description: Catalyst Semiconductor, Inc.
   "^cavium,.*":
     description: Cavium, Inc.
+  "^cct,.*":
+    description: Crystal Clear Technology Sdn. Bhd.
   "^cdns,.*":
     description: Cadence Design Systems Inc.
   "^cdtech,.*":
@@ -334,6 +338,8 @@ patternProperties:
     description: Czech Technical University in Prague
   "^cubietech,.*":
     description: Cubietech, Ltd.
+  "^cudy,.*":
+    description: Shenzhen Cudy Technology Co., Ltd.
   "^cui,.*":
     description: CUI Devices
   "^cypress,.*":
@@ -390,6 +396,8 @@ patternProperties:
     description: DPTechnics
   "^dragino,.*":
     description: Dragino Technology Co., Limited
+  "^dream,.*":
+    description: Dream Property GmbH
   "^ds,.*":
     description: DaSheng, Inc.
   "^dserve,.*":
@@ -438,6 +446,8 @@ patternProperties:
     description: Dongguan EmbedFire Electronic Technology Co., Ltd.
   "^embest,.*":
     description: Shenzhen Embest Technology Co., Ltd.
+  "^emcraft,.*":
+    description: Emcraft Systems
   "^emlid,.*":
     description: Emlid, Ltd.
   "^emmicro,.*":
@@ -529,6 +539,8 @@ patternProperties:
     description: FX Technology Ltd.
   "^galaxycore,.*":
     description: GalaxyCore Inc.
+  "^gameforce,.*":
+    description: GameForce
   "^gardena,.*":
     description: GARDENA GmbH
   "^gateway,.*":
@@ -987,6 +999,8 @@ patternProperties:
     description: MYIR Tech Limited
   "^national,.*":
     description: National Semiconductor
+  "^neardi,.*":
+    description: Shanghai Neardi Technology Co., Ltd.
   "^nec,.*":
     description: NEC LCD Technologies, Ltd.
   "^neonode,.*":
@@ -1074,6 +1088,8 @@ patternProperties:
     description: OpenPandora GmbH
   "^openrisc,.*":
     description: OpenRISC.io
+  "^openwrt,.*":
+    description: OpenWrt
   "^option,.*":
     description: Option NV
   "^oranth,.*":
@@ -1246,6 +1262,8 @@ patternProperties:
     description: Smart Battery System
   "^schindler,.*":
     description: Schindler
+  "^schneider,.*":
+    description: Schneider Electric
   "^seagate,.*":
     description: Seagate Technology PLC
   "^seeed,.*":
@@ -1627,6 +1645,8 @@ patternProperties:
     description: Wondermedia Technologies, Inc.
   "^wobo,.*":
     description: Wobo
+  "^wolfvision,.*":
+    description: WolfVision GmbH
   "^x-powers,.*":
     description: X-Powers
   "^xen,.*":

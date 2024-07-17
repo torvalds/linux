@@ -109,11 +109,9 @@ struct hda_codec_ops {
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
-#ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
-#endif
 	void (*stream_pm)(struct hda_codec *codec, hda_nid_t nid, bool on);
 };
 
@@ -259,11 +257,9 @@ struct hda_codec {
 	unsigned int no_stream_clean_at_suspend:1; /* do not clean streams at suspend */
 	unsigned int ctl_dev_id:1; /* old control element id build behaviour */
 
-#ifdef CONFIG_PM
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
-#endif
 
 	/* filter the requested power state per nid */
 	unsigned int (*power_filter)(struct hda_codec *codec, hda_nid_t nid,
@@ -481,10 +477,8 @@ extern const struct dev_pm_ops hda_codec_driver_pm;
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
-#ifdef CONFIG_PM
 	if (codec->patch_ops.check_power_status)
 		return codec->patch_ops.check_power_status(codec, nid);
-#endif
 	return 0;
 }
 
@@ -495,14 +489,9 @@ int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 #define snd_hda_power_up_pm(codec)	snd_hdac_power_up_pm(&(codec)->core)
 #define snd_hda_power_down(codec)	snd_hdac_power_down(&(codec)->core)
 #define snd_hda_power_down_pm(codec)	snd_hdac_power_down_pm(&(codec)->core)
-#ifdef CONFIG_PM
 void snd_hda_codec_set_power_save(struct hda_codec *codec, int delay);
 void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
-#else
-static inline void snd_hda_codec_set_power_save(struct hda_codec *codec, int delay) {}
-static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
-#endif
 
 static inline bool hda_codec_need_resume(struct hda_codec *codec)
 {

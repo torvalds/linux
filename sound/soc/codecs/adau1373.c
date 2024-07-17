@@ -1496,7 +1496,7 @@ static int adau1373_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adau1373_i2c_id[] = {
-	{ "adau1373", 0 },
+	{ "adau1373" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1373_i2c_id);

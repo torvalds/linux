@@ -811,7 +811,7 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *rp;
 
-	dl_cmd = kmalloc(sizeof(struct rtl_download_cmd), GFP_KERNEL);
+	dl_cmd = kmalloc(sizeof(*dl_cmd), GFP_KERNEL);
 	if (!dl_cmd)
 		return -ENOMEM;
 
@@ -1338,6 +1338,13 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 	ret = btrtl_download_firmware(hdev, btrtl_dev);
 
 	btrtl_set_quirks(hdev, btrtl_dev);
+
+	hci_set_hw_info(hdev,
+			"RTL lmp_subver=%u hci_rev=%u hci_ver=%u hci_bus=%u",
+			btrtl_dev->ic_info->lmp_subver,
+			btrtl_dev->ic_info->hci_rev,
+			btrtl_dev->ic_info->hci_ver,
+			btrtl_dev->ic_info->hci_bus);
 
 	btrtl_free(btrtl_dev);
 	return ret;

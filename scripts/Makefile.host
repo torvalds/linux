@@ -112,7 +112,7 @@ endif
 quiet_cmd_host-csingle 	= HOSTCC  $@
       cmd_host-csingle	= $(HOSTCC) $(hostc_flags) $(KBUILD_HOSTLDFLAGS) -o $@ $< \
 		$(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem))
-$(host-csingle): $(obj)/%: $(src)/%.c FORCE
+$(host-csingle): $(obj)/%: $(obj)/%.c FORCE
 	$(call if_changed_dep,host-csingle)
 
 # Link an executable based on list of .o files, all plain c
@@ -129,7 +129,7 @@ $(call multi_depend, $(host-cmulti), , -objs)
 # host-cobjs -> .o
 quiet_cmd_host-cobjs	= HOSTCC  $@
       cmd_host-cobjs	= $(HOSTCC) $(hostc_flags) -c -o $@ $<
-$(host-cobjs): $(obj)/%.o: $(src)/%.c FORCE
+$(host-cobjs): $(obj)/%.o: $(obj)/%.c FORCE
 	$(call if_changed_dep,host-cobjs)
 
 # Link an executable based on list of .o files, a mixture of .c and .cc
@@ -146,7 +146,7 @@ $(call multi_depend, $(host-cxxmulti), , -objs -cxxobjs)
 # Create .o file from a single .cc (C++) file
 quiet_cmd_host-cxxobjs	= HOSTCXX $@
       cmd_host-cxxobjs	= $(HOSTCXX) $(hostcxx_flags) -c -o $@ $<
-$(host-cxxobjs): $(obj)/%.o: $(src)/%.cc FORCE
+$(host-cxxobjs): $(obj)/%.o: $(obj)/%.cc FORCE
 	$(call if_changed_dep,host-cxxobjs)
 
 # Create executable from a single Rust crate (which may consist of

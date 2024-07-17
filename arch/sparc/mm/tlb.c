@@ -183,12 +183,12 @@ static void __set_pmd_acct(struct mm_struct *mm, unsigned long addr,
 		 * hugetlb_pte_count.
 		 */
 		if (pmd_val(pmd) & _PAGE_PMD_HUGE) {
-			if (is_huge_zero_page(pmd_page(pmd)))
+			if (is_huge_zero_pmd(pmd))
 				mm->context.hugetlb_pte_count++;
 			else
 				mm->context.thp_pte_count++;
 		} else {
-			if (is_huge_zero_page(pmd_page(orig)))
+			if (is_huge_zero_pmd(orig))
 				mm->context.hugetlb_pte_count--;
 			else
 				mm->context.thp_pte_count--;
@@ -249,6 +249,7 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 {
 	pmd_t old, entry;
 
+	VM_WARN_ON_ONCE(!pmd_present(*pmdp));
 	entry = __pmd(pmd_val(*pmdp) & ~_PAGE_VALID);
 	old = pmdp_establish(vma, address, pmdp, entry);
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
@@ -259,7 +260,7 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 	 * Sanity check pmd before doing the actual decrement.
 	 */
 	if ((pmd_val(entry) & _PAGE_PMD_HUGE) &&
-	    !is_huge_zero_page(pmd_page(entry)))
+	    !is_huge_zero_pmd(entry))
 		(vma->vm_mm)->context.thp_pte_count--;
 
 	return old;

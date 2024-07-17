@@ -40,7 +40,7 @@ IO dies (SICL, Super I/O Cluster), where there's one PCIe Root
 Complex for each SICL.
 ::
 
-    /sys/devices/hisi_ptt<sicl_id>_<core_id>
+    /sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>
 
 Tune
 ====
@@ -53,7 +53,7 @@ Each event is presented as a file under $(PTT PMU dir)/tune, and
 a simple open/read/write/close cycle will be used to tune the event.
 ::
 
-    $ cd /sys/devices/hisi_ptt<sicl_id>_<core_id>/tune
+    $ cd /sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune
     $ ls
     qos_tx_cpl    qos_tx_np    qos_tx_p
     tx_path_rx_req_alloc_buf_level

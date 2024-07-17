@@ -14,8 +14,6 @@
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
-#include <linux/sched.h>
-#include <linux/sched/loadavg.h>
 #include <linux/sched/stat.h>
 #include <linux/math64.h>
 
@@ -95,16 +93,11 @@
  * state, and thus the less likely a busy CPU will hit such a deep
  * C state.
  *
- * Two factors are used in determing this multiplier:
- * a value of 10 is added for each point of "per cpu load average" we have.
- * a value of 5 points is added for each process that is waiting for
- * IO on this CPU.
- * (these values are experimentally determined)
- *
- * The load average factor gives a longer term (few seconds) input to the
- * decision, while the iowait value gives a cpu local instantanious input.
- * The iowait factor may look low, but realize that this is also already
- * represented in the system load average.
+ * Currently there is only one value determining the factor:
+ * 10 points are added for each process that is waiting for IO on this CPU.
+ * (This value was experimentally determined.)
+ * Utilization is no longer a factor as it was shown that it never contributed
+ * significantly to the performance multiplier in the first place.
  *
  */
 

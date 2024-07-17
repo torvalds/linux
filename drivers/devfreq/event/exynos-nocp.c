@@ -275,18 +275,16 @@ static int exynos_nocp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_nocp_remove(struct platform_device *pdev)
+static void exynos_nocp_remove(struct platform_device *pdev)
 {
 	struct exynos_nocp *nocp = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(nocp->clk);
-
-	return 0;
 }
 
 static struct platform_driver exynos_nocp_driver = {
 	.probe	= exynos_nocp_probe,
-	.remove	= exynos_nocp_remove,
+	.remove_new = exynos_nocp_remove,
 	.driver = {
 		.name	= "exynos-nocp",
 		.of_match_table = exynos_nocp_id_match,

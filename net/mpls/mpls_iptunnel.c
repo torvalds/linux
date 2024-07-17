@@ -81,7 +81,7 @@ static int mpls_xmit(struct sk_buff *skb)
 			ttl = net->mpls.default_ttl;
 		else
 			ttl = ip_hdr(skb)->ttl;
-		rt = (struct rtable *)dst;
+		rt = dst_rtable(dst);
 	} else if (dst->ops->family == AF_INET6) {
 		if (tun_encap_info->ttl_propagate == MPLS_TTL_PROP_DISABLED)
 			ttl = tun_encap_info->default_ttl;
@@ -90,7 +90,7 @@ static int mpls_xmit(struct sk_buff *skb)
 			ttl = net->mpls.default_ttl;
 		else
 			ttl = ipv6_hdr(skb)->hop_limit;
-		rt6 = (struct rt6_info *)dst;
+		rt6 = dst_rt6_info(dst);
 	} else {
 		goto drop;
 	}

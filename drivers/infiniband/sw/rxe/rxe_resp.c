@@ -49,18 +49,8 @@ static char *resp_state_name[] = {
 /* rxe_recv calls here to add a request packet to the input queue */
 void rxe_resp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
 {
-	int must_sched;
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
-
 	skb_queue_tail(&qp->req_pkts, skb);
-
-	must_sched = (pkt->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST) ||
-			(skb_queue_len(&qp->req_pkts) > 1);
-
-	if (must_sched)
-		rxe_sched_task(&qp->resp.task);
-	else
-		rxe_run_task(&qp->resp.task);
+	rxe_sched_task(&qp->recv_task);
 }
 
 static inline enum resp_states get_req(struct rxe_qp *qp,
@@ -354,6 +344,19 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 	 * receive buffer later. For rmda operations additional
 	 * length checks are performed in check_rkey.
 	 */
+	if ((qp_type(qp) == IB_QPT_GSI) || (qp_type(qp) == IB_QPT_UD)) {
+		unsigned int payload = payload_size(pkt);
+		unsigned int recv_buffer_len = 0;
+		int i;
+
+		for (i = 0; i < qp->resp.wqe->dma.num_sge; i++)
+			recv_buffer_len += qp->resp.wqe->dma.sge[i].length;
+		if (payload + 40 > recv_buffer_len) {
+			rxe_dbg_qp(qp, "The receive buffer is too small for this UD packet.\n");
+			return RESPST_ERR_LENGTH;
+		}
+	}
+
 	if (pkt->mask & RXE_PAYLOAD_MASK && ((qp_type(qp) == IB_QPT_RC) ||
 					     (qp_type(qp) == IB_QPT_UC))) {
 		unsigned int mtu = qp->mtu;
@@ -1485,7 +1488,7 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 	qp->resp.wqe = NULL;
 }
 
-int rxe_responder(struct rxe_qp *qp)
+int rxe_receiver(struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	enum resp_states state;

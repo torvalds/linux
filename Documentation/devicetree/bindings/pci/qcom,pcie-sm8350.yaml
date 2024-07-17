@@ -71,28 +71,6 @@ properties:
     items:
       - const: pci
 
-oneOf:
-  - properties:
-      interrupts:
-        maxItems: 1
-      interrupt-names:
-        items:
-          - const: msi
-
-  - properties:
-      interrupts:
-        minItems: 8
-      interrupt-names:
-        items:
-          - const: msi0
-          - const: msi1
-          - const: msi2
-          - const: msi3
-          - const: msi4
-          - const: msi5
-          - const: msi6
-          - const: msi7
-
 allOf:
   - $ref: qcom,pcie-common.yaml#
 

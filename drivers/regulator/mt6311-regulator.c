@@ -20,7 +20,7 @@ static const struct regmap_config mt6311_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MT6311_FQMTR_CON4,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* Default limits measured in millivolts and milliamps */
@@ -133,8 +133,8 @@ static int mt6311_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id mt6311_i2c_id[] = {
-	{"mt6311", 0},
-	{},
+	{ "mt6311" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, mt6311_i2c_id);
 

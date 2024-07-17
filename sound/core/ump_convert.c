@@ -404,7 +404,6 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 			midi2->pg.bank_msb = cc->cc_bank_msb;
 			midi2->pg.bank_lsb = cc->cc_bank_lsb;
 			cc->bank_set = 0;
-			cc->cc_bank_msb = cc->cc_bank_lsb = 0;
 		}
 		break;
 	case UMP_MSG_STATUS_CHANNEL_PRESSURE:

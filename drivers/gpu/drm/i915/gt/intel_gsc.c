@@ -103,19 +103,6 @@ static const struct gsc_def gsc_def_dg1[] = {
 	}
 };
 
-static const struct gsc_def gsc_def_xehpsdv[] = {
-	{
-		/* HECI1 not enabled on the device. */
-	},
-	{
-		.name = "mei-gscfi",
-		.bar = DG1_GSC_HECI2_BASE,
-		.bar_size = GSC_BAR_LENGTH,
-		.use_polling = true,
-		.slow_firmware = true,
-	}
-};
-
 static const struct gsc_def gsc_def_dg2[] = {
 	{
 		.name = "mei-gsc",
@@ -188,8 +175,6 @@ static void gsc_init_one(struct drm_i915_private *i915, struct intel_gsc *gsc,
 
 	if (IS_DG1(i915)) {
 		def = &gsc_def_dg1[intf_id];
-	} else if (IS_XEHPSDV(i915)) {
-		def = &gsc_def_xehpsdv[intf_id];
 	} else if (IS_DG2(i915)) {
 		def = &gsc_def_dg2[intf_id];
 	} else {

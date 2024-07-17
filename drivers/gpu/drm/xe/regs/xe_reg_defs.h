@@ -6,6 +6,8 @@
 #ifndef _XE_REG_DEFS_H_
 #define _XE_REG_DEFS_H_
 
+#include <linux/build_bug.h>
+
 #include "compat-i915-headers/i915_reg_defs.h"
 
 /**
@@ -36,6 +38,10 @@ struct xe_reg {
 			 */
 			u32 mcr:1;
 			/**
+			 * @vf: register is accessible from the Virtual Function.
+			 */
+			u32 vf:1;
+			/**
 			 * @ext: access MMIO extension space for current register.
 			 */
 			u32 ext:1;
@@ -44,6 +50,7 @@ struct xe_reg {
 		u32 raw;
 	};
 };
+static_assert(sizeof(struct xe_reg) == sizeof(u32));
 
 /**
  * struct xe_reg_mcr - MCR register definition
@@ -74,6 +81,13 @@ struct xe_reg_mcr {
  * To be used with XE_REG(). XE_REG_MCR() and XE_REG_INITIALIZER()
  */
 #define XE_REG_OPTION_MASKED		.masked = 1
+
+/**
+ * XE_REG_OPTION_VF - Register is "VF" accessible.
+ *
+ * To be used with XE_REG() and XE_REG_INITIALIZER().
+ */
+#define XE_REG_OPTION_VF		.vf = 1
 
 /**
  * XE_REG_INITIALIZER - Initializer for xe_reg_t.
@@ -116,5 +130,10 @@ struct xe_reg_mcr {
 #define XE_REG_MCR(r_, ...)	((const struct xe_reg_mcr){					\
 				 .__reg = XE_REG_INITIALIZER(r_,  ##__VA_ARGS__, .mcr = 1)	\
 				 })
+
+static inline bool xe_reg_is_valid(struct xe_reg r)
+{
+	return r.addr;
+}
 
 #endif

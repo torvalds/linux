@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <cpu/sh7785.h>
+#include <mach/highlander.h>
 
 void __init highlander_plat_pinmux_setup(void)
 {

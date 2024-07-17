@@ -8,28 +8,28 @@
  * VEMotherBoard.lisa
  */
 / {
-	v2m_clk24mhz: clk24mhz {
+	v2m_clk24mhz: clock-24000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
 		clock-output-names = "v2m:clk24mhz";
 	};
 
-	v2m_refclk1mhz: refclk1mhz {
+	v2m_refclk1mhz: clock-1000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <1000000>;
 		clock-output-names = "v2m:refclk1mhz";
 	};
 
-	v2m_refclk32khz: refclk32khz {
+	v2m_refclk32khz: clock-32768 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 		clock-output-names = "v2m:refclk32khz";
 	};
 
-	v2m_fixed_3v3: v2m-3v3 {
+	v2m_fixed_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "3V3";
 		regulator-min-microvolt = <3300000>;
@@ -41,7 +41,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		v2m_oscclk1: oscclk1 {
+		v2m_oscclk1: clock-controller {
 			/* CLCD clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;

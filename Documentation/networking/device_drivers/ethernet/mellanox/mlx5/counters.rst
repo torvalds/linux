@@ -189,27 +189,33 @@ the software port.
 
    * - `rx[i]_gro_packets`
      - Number of received packets processed using hardware-accelerated GRO. The
-       number of hardware GRO offloaded packets received on ring i.
+       number of hardware GRO offloaded packets received on ring i. Only true GRO
+       packets are counted: only packets that are in an SKB with a GRO count > 1.
      - Acceleration
 
    * - `rx[i]_gro_bytes`
      - Number of received bytes processed using hardware-accelerated GRO. The
-       number of hardware GRO offloaded bytes received on ring i.
+       number of hardware GRO offloaded bytes received on ring i. Only true GRO
+       packets are counted: only packets that are in an SKB with a GRO count > 1.
      - Acceleration
 
    * - `rx[i]_gro_skbs`
-     - The number of receive SKBs constructed while performing
-       hardware-accelerated GRO.
-     - Informative
-
-   * - `rx[i]_gro_match_packets`
-     - Number of received packets processed using hardware-accelerated GRO that
-       met the flow table match criteria.
+     - The number of GRO SKBs constructed from hardware-accelerated GRO. Only SKBs
+       with a GRO count > 1 are counted.
      - Informative
 
    * - `rx[i]_gro_large_hds`
      - Number of receive packets using hardware-accelerated GRO that have large
        headers that require additional memory to be allocated.
+     - Informative
+
+   * - `rx[i]_hds_nodata_packets`
+     - Number of header only packets in header/data split mode [#accel]_.
+     - Informative
+
+   * - `rx[i]_hds_nodata_bytes`
+     - Number of bytes for header only packets in header/data split mode
+       [#accel]_.
      - Informative
 
    * - `rx[i]_lro_packets`
@@ -298,6 +304,11 @@ the software port.
        near to the end of cyclic buffer the driver may add those empty WQEs to
        avoid handling a state the a WQE start in the end of the queue and ends
        in the beginning of the queue. This is a normal condition.
+     - Informative
+
+   * - `tx[i]_timestamps`
+     - Transmitted packets that were hardware timestamped at the device's DMA
+       layer.
      - Informative
 
    * - `tx[i]_added_vlan_packets`
@@ -700,6 +711,12 @@ the software port.
      - Number of times a CQE has been delivered on the PTP timestamping CQ when
        the CQE was not expected since a certain amount of time had elapsed where
        the device typically ensures not posting the CQE.
+     - Error
+
+   * - `ptp_cq[i]_lost_cqe`
+     - Number of times a CQE is expected to not be delivered on the PTP
+       timestamping CQE by the device due to a time delta elapsing. If such a
+       CQE is somehow delivered, `ptp_cq[i]_late_cqe` is incremented.
      - Error
 
 .. [#ring_global] The corresponding ring and global counters do not share the

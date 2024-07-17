@@ -432,6 +432,7 @@
         "BriefDescription": "Retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches.",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_PMM",
+        "PEBS": "1",
         "PublicDescription": "Counts retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3.",
         "SampleAfterValue": "100007",
         "UMask": "0x10"

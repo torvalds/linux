@@ -2,7 +2,7 @@
 /*
  * mac80211 drop reason list
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 
 #ifndef MAC80211_DROP_H
@@ -66,6 +66,7 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_UNEXPECTED_STA_4ADDR)	\
 	R(RX_DROP_U_UNEXPECTED_VLAN_MCAST)	\
 	R(RX_DROP_U_NOT_PORT_CONTROL)		\
+	R(RX_DROP_U_UNKNOWN_ACTION_REJECTED)	\
 /* this line for the trailing \ - add before this */
 
 /* having two enums allows for checking ieee80211_rx_result use with sparse */

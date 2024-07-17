@@ -85,7 +85,7 @@ thread_info_type = utils.CachedType("struct thread_info")
 
 def get_thread_info(task):
     thread_info_ptr_type = thread_info_type.get_type().pointer()
-    if task.type.fields()[0].type == thread_info_type.get_type():
+    if task_type.get_type().fields()[0].type == thread_info_type.get_type():
         return task['thread_info']
     thread_info = task['stack'].cast(thread_info_ptr_type)
     return thread_info.dereference()

@@ -120,7 +120,7 @@ static __init void snp_enable(void *arg)
 
 bool snp_probe_rmptable_info(void)
 {
-	u64 max_rmp_pfn, calc_rmp_sz, rmp_sz, rmp_base, rmp_end;
+	u64 rmp_sz, rmp_base, rmp_end;
 
 	rdmsrl(MSR_AMD64_RMP_BASE, rmp_base);
 	rdmsrl(MSR_AMD64_RMP_END, rmp_end);
@@ -137,30 +137,49 @@ bool snp_probe_rmptable_info(void)
 
 	rmp_sz = rmp_end - rmp_base + 1;
 
-	/*
-	 * Calculate the amount the memory that must be reserved by the BIOS to
-	 * address the whole RAM, including the bookkeeping area. The RMP itself
-	 * must also be covered.
-	 */
-	max_rmp_pfn = max_pfn;
-	if (PHYS_PFN(rmp_end) > max_pfn)
-		max_rmp_pfn = PHYS_PFN(rmp_end);
-
-	calc_rmp_sz = (max_rmp_pfn << 4) + RMPTABLE_CPU_BOOKKEEPING_SZ;
-
-	if (calc_rmp_sz > rmp_sz) {
-		pr_err("Memory reserved for the RMP table does not cover full system RAM (expected 0x%llx got 0x%llx)\n",
-		       calc_rmp_sz, rmp_sz);
-		return false;
-	}
-
 	probed_rmp_base = rmp_base;
 	probed_rmp_size = rmp_sz;
 
 	pr_info("RMP table physical range [0x%016llx - 0x%016llx]\n",
-		probed_rmp_base, probed_rmp_base + probed_rmp_size - 1);
+		rmp_base, rmp_end);
 
 	return true;
+}
+
+static void __init __snp_fixup_e820_tables(u64 pa)
+{
+	if (IS_ALIGNED(pa, PMD_SIZE))
+		return;
+
+	/*
+	 * Handle cases where the RMP table placement by the BIOS is not
+	 * 2M aligned and the kexec kernel could try to allocate
+	 * from within that chunk which then causes a fatal RMP fault.
+	 *
+	 * The e820_table needs to be updated as it is converted to
+	 * kernel memory resources and used by KEXEC_FILE_LOAD syscall
+	 * to load kexec segments.
+	 *
+	 * The e820_table_firmware needs to be updated as it is exposed
+	 * to sysfs and used by the KEXEC_LOAD syscall to load kexec
+	 * segments.
+	 *
+	 * The e820_table_kexec needs to be updated as it passed to
+	 * the kexec-ed kernel.
+	 */
+	pa = ALIGN_DOWN(pa, PMD_SIZE);
+	if (e820__mapped_any(pa, pa + PMD_SIZE, E820_TYPE_RAM)) {
+		pr_info("Reserving start/end of RMP table on a 2MB boundary [0x%016llx]\n", pa);
+		e820__range_update(pa, PMD_SIZE, E820_TYPE_RAM, E820_TYPE_RESERVED);
+		e820__range_update_table(e820_table_kexec, pa, PMD_SIZE, E820_TYPE_RAM, E820_TYPE_RESERVED);
+		e820__range_update_table(e820_table_firmware, pa, PMD_SIZE, E820_TYPE_RAM, E820_TYPE_RESERVED);
+	}
+}
+
+void __init snp_fixup_e820_tables(void)
+{
+	__snp_fixup_e820_tables(probed_rmp_base);
+	__snp_fixup_e820_tables(probed_rmp_base + probed_rmp_size);
 }
 
 /*
@@ -170,9 +189,8 @@ bool snp_probe_rmptable_info(void)
  */
 static int __init snp_rmptable_init(void)
 {
+	u64 max_rmp_pfn, calc_rmp_sz, rmptable_size, rmp_end, val;
 	void *rmptable_start;
-	u64 rmptable_size;
-	u64 val;
 
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return 0;
@@ -183,10 +201,28 @@ static int __init snp_rmptable_init(void)
 	if (!probed_rmp_size)
 		goto nosnp;
 
+	rmp_end = probed_rmp_base + probed_rmp_size - 1;
+
+	/*
+	 * Calculate the amount the memory that must be reserved by the BIOS to
+	 * address the whole RAM, including the bookkeeping area. The RMP itself
+	 * must also be covered.
+	 */
+	max_rmp_pfn = max_pfn;
+	if (PFN_UP(rmp_end) > max_pfn)
+		max_rmp_pfn = PFN_UP(rmp_end);
+
+	calc_rmp_sz = (max_rmp_pfn << 4) + RMPTABLE_CPU_BOOKKEEPING_SZ;
+	if (calc_rmp_sz > probed_rmp_size) {
+		pr_err("Memory reserved for the RMP table does not cover full system RAM (expected 0x%llx got 0x%llx)\n",
+		       calc_rmp_sz, probed_rmp_size);
+		goto nosnp;
+	}
+
 	rmptable_start = memremap(probed_rmp_base, probed_rmp_size, MEMREMAP_WB);
 	if (!rmptable_start) {
 		pr_err("Failed to map RMP table\n");
-		return 1;
+		goto nosnp;
 	}
 
 	/*

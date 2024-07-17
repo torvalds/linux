@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2021-2022 Linaro Ltd. */
+/* Copyright (C) 2021-2024 Linaro Ltd. */
 
-#include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 
 #include "ipa.h"
-#include "ipa_version.h"
 #include "ipa_sysfs.h"
+#include "ipa_version.h"
 
 static const char *ipa_version_string(struct ipa *ipa)
 {

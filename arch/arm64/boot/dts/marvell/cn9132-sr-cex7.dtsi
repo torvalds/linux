@@ -1,0 +1,712 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Josua Mayer <josua@solid-run.com>
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+/*
+ * Instantiate the first external CP115
+ */
+
+#define CP11X_NAME		cp1
+#define CP11X_BASE		f4000000
+#define CP11X_PCIEx_MEM_BASE(iface) (0xe2000000 + (iface * 0x1000000))
+#define CP11X_PCIEx_MEM_SIZE(iface) 0xf00000
+#define CP11X_PCIE0_BASE	f4600000
+#define CP11X_PCIE1_BASE	f4620000
+#define CP11X_PCIE2_BASE	f4640000
+
+#include "armada-cp115.dtsi"
+
+#undef CP11X_NAME
+#undef CP11X_BASE
+#undef CP11X_PCIEx_MEM_BASE
+#undef CP11X_PCIEx_MEM_SIZE
+#undef CP11X_PCIE0_BASE
+#undef CP11X_PCIE1_BASE
+#undef CP11X_PCIE2_BASE
+
+/*
+ * Instantiate the second external CP115
+ */
+
+#define CP11X_NAME		cp2
+#define CP11X_BASE		f6000000
+#define CP11X_PCIEx_MEM_BASE(iface) (0xe5000000 + (iface * 0x1000000))
+#define CP11X_PCIEx_MEM_SIZE(iface) 0xf00000
+#define CP11X_PCIE0_BASE	f6600000
+#define CP11X_PCIE1_BASE	f6620000
+#define CP11X_PCIE2_BASE	f6640000
+
+#include "armada-cp115.dtsi"
+
+#undef CP11X_NAME
+#undef CP11X_BASE
+#undef CP11X_PCIEx_MEM_BASE
+#undef CP11X_PCIEx_MEM_SIZE
+#undef CP11X_PCIE0_BASE
+#undef CP11X_PCIE1_BASE
+#undef CP11X_PCIE2_BASE
+
+/ {
+	model = "SolidRun CN9132 COM Express Type 7 Module";
+	compatible = "solidrun,cn9132-sr-cex7", "marvell,cn9130";
+
+	aliases {
+		ethernet0 = &cp0_eth1;
+		gpio3 = &cp1_gpio1;
+		gpio4 = &cp1_gpio2;
+		gpio5 = &cp2_gpio1;
+		gpio6 = &cp2_gpio2;
+		i2c0 = &cp0_i2c0;
+		i2c1 = &cp0_i2c1;
+		i2c2 = &com_clkgen_i2c;
+		i2c3 = &com_10g_led_i2c;
+		i2c4 = &com_10g_sfp_i2c0;
+		i2c5 = &com_smbus;
+		i2c6 = &com_fanctrl_i2c;
+		mmc0 = &ap_sdhci0;
+		rtc0 = &cp0_rtc;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		cooling-levels = <0 51 102 153 204 255>;
+		#cooling-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_fan_pwm_pins &cp0_fan_tacho_pins>;
+		pwms = <&cp0_gpio2 7 40000>;
+		interrupt-parent = <&cp0_gpio1>;
+		interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+	v_1_8: regulator-1-8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	ap_vhv: regulator-ap-vhv-1-8 {
+		compatible = "regulator-fixed";
+		regulator-name = "ap-vhv-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		pinctrl-0 = <&cp0_reg_ap_vhv_pins>;
+		pinctrl-names = "default";
+		gpios = <&cp0_gpio2 21 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	cp_vhv: regulator-cp-vhv-1-8 {
+		compatible = "regulator-fixed";
+		regulator-name = "cp-vhv-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		pinctrl-0 = <&cp0_reg_cp_vhv_pins>;
+		pinctrl-names = "default";
+		gpios = <&cp0_gpio2 17 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&ap_pinctrl {
+	ap_mmc0_pins: ap-mmc0-pins {
+		marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3", "mpp4", "mpp5",
+					   "mpp6", "mpp7", "mpp8", "mpp9", "mpp10", "mpp12";
+		marvell,function = "sdio";
+		/*
+		 * mpp12 is emmc reset, function should be sdio (hw_rst),
+		 * but pinctrl-mvebu does not support this.
+		 *
+		 * From pinctrl-mvebu.h:
+		 * "The name will be used to switch to this setting in DT description, e.g.
+		 * marvell,function = "uart2". subname is only for debugging purposes."
+		 */
+	};
+};
+
+&ap_sdhci0 {
+	bus-width = <8>;
+	pinctrl-0 = <&ap_mmc0_pins>;
+	pinctrl-names = "default";
+	vqmmc-supply = <&v_1_8>;
+	status = "okay";
+};
+
+&ap_thermal_ic {
+	polling-delay = <1000>;
+
+	trips {
+		ap_active: trip-active {
+			temperature = <40000>;
+			hysteresis = <4000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&ap_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+
+		map1 {
+			trip = <&ap_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&cp0_ethernet {
+	status = "okay";
+};
+
+&cp0_eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_eth1_pins>;
+	phy-mode = "rgmii-id";
+	phy = <&cp0_eth_phy0>;
+	status = "okay";
+};
+
+&cp0_gpio1 {
+	status = "okay";
+
+	/*
+	 * Tacho signal used as interrupt source by pwm-fan driver.
+	 * Hog IO as input to ensure mvebu-gpio irq driver`s
+	 * irq_set_type can succeed.
+	 */
+	pwm-tacho-irq-hog {
+		gpio-hog;
+		gpios = <26 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+		input;
+		line-name = "fan-tacho";
+	};
+};
+
+&cp0_gpio2 {
+	status = "okay";
+};
+
+&cp0_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c0_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	com_eeprom: eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <8>;
+	};
+
+	eeprom@53 {
+		compatible = "atmel,spd";
+		reg = <0x53>;
+	};
+};
+
+&cp0_i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c1_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	i2c-mux@77 {
+		compatible = "nxp,pca9547";
+		reg = <0x77>;
+		i2c-mux-idle-disconnect;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		com_clkgen_i2c: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			/* clock-controller@6b */
+		};
+
+		com_10g_led_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			/* Routed to B2B Connector as I2C_10G_LED_SCL/SDA */
+		};
+
+		com_10g_sfp_i2c0: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			/* Routed to B2B Connector as I2C_SFP0_CP0_SCL/SDA */
+		};
+
+		com_smbus: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			/* Routed to B2B Connector as SBM_CLK/DAT */
+		};
+
+		com_fanctrl_i2c: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+
+			/* fan-controller@2f (assembly option) */
+		};
+	};
+};
+
+&cp0_mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_mdio_pins>;
+	status = "okay";
+
+	cp0_eth_phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&cp0_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_spi1_pins>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		/* read command supports max. 50MHz */
+		spi-max-frequency = <50000000>;
+	};
+};
+
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
+		compatible = "marvell,cp115-standalone-pinctrl";
+
+		com_10g_int0_pins: cp0-10g-int-pins {
+			marvell,pins = "mpp24";
+			marvell,function = "gpio";
+		};
+
+		cp0_eth1_pins: cp0-eth1-pins {
+			marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
+				       "mpp4", "mpp5", "mpp6", "mpp7",
+				       "mpp8", "mpp9", "mpp10", "mpp11";
+			/* docs call it "ge1", but cp110-pinctrl "ge0" */
+			marvell,function = "ge0";
+		};
+
+		cp0_fan_pwm_pins: cp0-fan-pwm-pins {
+			marvell,pins = "mpp39";
+			marvell,function = "gpio";
+		};
+
+		cp0_fan_tacho_pins: cp0-fan-tacho-pins {
+			marvell,pins = "mpp26";
+			marvell,function = "gpio";
+		};
+
+		cp0_i2c0_pins: cp0-i2c0-pins {
+			marvell,pins = "mpp37", "mpp38";
+			marvell,function = "i2c0";
+		};
+
+		cp0_i2c1_pins: cp0-i2c1-pins {
+			marvell,pins = "mpp35", "mpp36";
+			marvell,function = "i2c1";
+		};
+
+		cp0_mdio_pins: cp0-mdio-pins {
+			marvell,pins = "mpp40", "mpp41";
+			marvell,function = "ge";
+		};
+
+		cp0_mmc0_pins: cp0-mmc0-pins {
+			marvell,pins = "mpp56", "mpp57", "mpp58", "mpp59",
+				       "mpp60", "mpp61";
+			marvell,function = "sdio";
+		};
+
+		cp0_mmc0_cd_pins: cp0-mmc0-cd-pins {
+			marvell,pins = "mpp55";
+			marvell,function = "sdio_cd";
+		};
+
+		cp0_pwrbtn_pins:  cp0-pwrbtn-pins {
+			marvell,pins = "mpp31";
+			marvell,function = "gpio";
+		};
+
+		cp0_reg_ap_vhv_pins: cp0-reg-ap-vhv-pins {
+			marvell,pins = "mpp53";
+			marvell,function = "gpio";
+		};
+
+		cp0_reg_cp_vhv_pins: cp0-reg-cp-vhv-pins {
+			marvell,pins = "mpp49";
+			marvell,function = "gpio";
+		};
+
+		cp0_spi1_pins: cp0-spi1-pins {
+			marvell,pins = "mpp13", "mpp14", "mpp15", "mpp16";
+			marvell,function = "spi1";
+		};
+
+		cp0_spi1_cs1_pins: cp0-spi1-cs1-pins {
+			marvell,pins = "mpp12";
+			marvell,function = "spi1";
+		};
+
+		cp0_uart2_pins: cp0-uart2-pins  {
+			marvell,pins = "mpp50", "mpp51";
+			marvell,function = "uart2";
+		};
+	};
+};
+
+&cp0_thermal_ic {
+	polling-delay = <1000>;
+
+	trips {
+		cp0_active: trip-active {
+			temperature = <40000>;
+			hysteresis = <4000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cp0_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+
+		map1 {
+			trip = <&cp0_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+/* USB-2.0 Host */
+&cp0_usb3_0 {
+	phys = <&cp0_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
+	status = "okay";
+};
+
+/* USB-2.0 Host */
+&cp0_usb3_1 {
+	phys = <&cp0_utmi1>;
+	phy-names = "utmi";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&cp0_utmi {
+	status = "okay";
+};
+
+&cp1_gpio1 {
+	status = "okay";
+};
+
+&cp1_gpio2 {
+	status = "okay";
+};
+
+&cp1_rtc {
+	status = "disabled";
+};
+
+&cp1_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_spi1_pins>;
+	status = "okay";
+
+	tpm@0 {
+		reg = <0>;
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		spi-max-frequency = <10000000>;
+		pinctrl-names  = "default";
+		pinctrl-0 = <&cp1_tpm_irq_pins>;
+		interrupt-parent = <&cp1_gpio1>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&cp1_syscon0 {
+	cp1_pinctrl: pinctrl {
+		compatible = "marvell,cp115-standalone-pinctrl";
+
+		com_10g_int1_pins: cp1-10g-int-pins {
+			marvell,pins = "mpp50";
+			marvell,function = "gpio";
+		};
+
+		cp1_10g_phy_rst_01_pins: cp1-10g-phy-rst-01-pins {
+			marvell,pins = "mpp43";
+			marvell,function = "gpio";
+		};
+
+		cp1_10g_phy_rst_23_pins: cp1-10g-phy-rst-23-pins {
+			marvell,pins = "mpp42";
+			marvell,function = "gpio";
+		};
+
+		cp1_batlow_pins: cp1-batlow-pins {
+			marvell,pins = "mpp11";
+			marvell,function = "gpio";
+		};
+
+		cp1_rsvd16_pins: cp1-rsvd16-pins {
+			marvell,pins = "mpp29";
+			marvell,function = "gpio";
+		};
+
+		cp1_sata_act_pins: cp1-sata-act-pins {
+			marvell,pins = "mpp39";
+			marvell,function = "gpio";
+		};
+
+		cp1_spi1_pins: cp1-spi1-pins {
+			marvell,pins = "mpp13", "mpp14", "mpp15", "mpp16";
+			marvell,function = "spi1";
+		};
+
+		cp1_thrm_irq_pins: cp1-thrm-irq-pins {
+			marvell,pins = "mpp34";
+			marvell,function = "gpio";
+		};
+
+		cp1_thrm_trip_pins: cp1-thrm-trip-pins {
+			marvell,pins = "mpp33";
+			marvell,function = "gpio";
+		};
+
+		cp1_tpm_irq_pins: cp1-tpm-irq-pins {
+			marvell,pins = "mpp17";
+			marvell,function = "gpio";
+		};
+
+		cp1_wake0_pins: cp1-wake0-pins {
+			marvell,pins = "mpp40";
+			marvell,function = "gpio";
+		};
+
+		cp1_wake1_pins: cp1-wake1-pins {
+			marvell,pins = "mpp51";
+			marvell,function = "gpio";
+		};
+
+		cp1_xmdio_pins: cp1-xmdio-pins {
+			marvell,pins = "mpp37", "mpp38";
+			marvell,function = "xg";
+		};
+	};
+};
+
+&cp1_thermal_ic {
+	polling-delay = <1000>;
+
+	trips {
+		cp1_active: trip-active {
+			temperature = <40000>;
+			hysteresis = <4000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cp1_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+
+		map1 {
+			trip = <&cp1_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+/* USB-2.0 Host */
+&cp1_usb3_0 {
+	phys = <&cp1_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&cp1_utmi {
+	status = "okay";
+};
+
+&cp2_ethernet {
+	status = "okay";
+};
+
+&cp2_gpio1 {
+	status = "okay";
+};
+
+&cp2_gpio2 {
+	status = "okay";
+};
+
+&cp2_rtc {
+	status = "disabled";
+};
+
+&cp2_syscon0 {
+	cp2_pinctrl: pinctrl {
+		compatible = "marvell,cp115-standalone-pinctrl";
+
+		com_10g_int2_pins: cp2-10g-int-pins {
+			marvell,pins = "mpp50";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd0_pins: cp2-rsvd0-pins {
+			marvell,pins = "mpp0";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd1_pins: cp2-rsvd1-pins {
+			marvell,pins = "mpp1";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd2_pins: cp2-rsvd2-pins {
+			marvell,pins = "mpp2";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd3_pins: cp2-rsvd3-pins {
+			marvell,pins = "mpp3";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd4_pins: cp2-rsvd4-pins {
+			marvell,pins = "mpp4";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd5_pins: cp2-rsvd5-pins {
+			marvell,pins = "mpp54";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd7_pins: cp2-rsvd7-pins {
+			marvell,pins = "mpp7";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd8_pins: cp2-rsvd8-pins {
+			marvell,pins = "mpp8";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd9_pins: cp2-rsvd9-pins {
+			marvell,pins = "mpp9";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd10_pins: cp2-rsvd10-pins {
+			marvell,pins = "mpp10";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd11_pins: cp2-rsvd11-pins {
+			marvell,pins = "mpp11";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd27_pins: cp2-rsvd27-pins {
+			marvell,pins = "mpp11";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd31_pins: cp2-rsvd31-pins {
+			marvell,pins = "mpp31";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd32_pins: cp2-rsvd32-pins {
+			marvell,pins = "mpp32";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd55_pins: cp2-rsvd55-pins {
+			marvell,pins = "mpp55";
+			marvell,function = "gpio";
+		};
+
+		cp2_rsvd56_pins: cp2-rsvd56-pins {
+			marvell,pins = "mpp56";
+			marvell,function = "gpio";
+		};
+
+		cp2_xmdio_pins: cp2-xmdio-pins {
+			marvell,pins = "mpp37", "mpp38";
+			marvell,function = "xg";
+		};
+	};
+};
+
+&cp2_thermal_ic {
+	polling-delay = <1000>;
+
+	trips {
+		cp2_active: trip-active {
+			temperature = <40000>;
+			hysteresis = <4000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cp2_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+
+		map1 {
+			trip = <&cp2_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+/* USB-2.0/3.0 Host */
+&cp2_usb3_0 {
+	phys = <&cp2_utmi0>, <&cp2_comphy1 0>;
+	phy-names = "utmi", "comphy";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&cp2_utmi {
+	status = "okay";
+};
+
+/* AP default console */
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

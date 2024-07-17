@@ -36,6 +36,7 @@
 struct dc_dp_mst_stream_allocation_table;
 struct aux_payload;
 enum aux_return_code_type;
+enum set_config_status;
 
 /*
  * Allocate memory accessible by the GPU
@@ -200,7 +201,7 @@ int dm_helper_dmub_aux_transfer_sync(
 		const struct dc_link *link,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);
-enum set_config_status;
+
 int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
 		const struct dc_link *link,
 		struct set_config_cmd_payload *payload,

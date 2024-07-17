@@ -518,9 +518,9 @@ static int max31785_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max31785_id[] = {
-	{ "max31785", 0 },
-	{ "max31785a", 0 },
-	{ "max31785b", 0 },
+	{ "max31785" },
+	{ "max31785a" },
+	{ "max31785b" },
 	{ },
 };
 

@@ -183,7 +183,7 @@ struct dpu_hw_sspp_ops {
 	 * @flags: Extra flags for format config
 	 */
 	void (*setup_format)(struct dpu_sw_pipe *pipe,
-			     const struct dpu_format *fmt, u32 flags);
+			     const struct msm_format *fmt, u32 flags);
 
 	/**
 	 * setup_rects - setup pipe ROI rectangles
@@ -279,7 +279,7 @@ struct dpu_hw_sspp_ops {
 	 */
 	void (*setup_scaler)(struct dpu_hw_sspp *ctx,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
-		const struct dpu_format *format);
+		const struct msm_format *format);
 
 	/**
 	 * setup_cdp - setup client driven prefetch
@@ -288,7 +288,7 @@ struct dpu_hw_sspp_ops {
 	 * @enable: whether the CDP should be enabled for this pipe
 	 */
 	void (*setup_cdp)(struct dpu_sw_pipe *pipe,
-			  const struct dpu_format *fmt,
+			  const struct msm_format *fmt,
 			  bool enable);
 };
 

@@ -200,12 +200,9 @@ of_k3_udma_glue_parse_chn_by_id(struct device_node *udmax_np, struct k3_udma_glu
 
 	ret = of_k3_udma_glue_parse(udmax_np, common);
 	if (ret)
-		goto out_put_spec;
+		return ret;
 
 	ret = of_k3_udma_glue_parse_chn_common(common, thread_id, tx_chn);
-
-out_put_spec:
-	of_node_put(udmax_np);
 	return ret;
 }
 
@@ -1530,6 +1527,9 @@ int k3_udma_glue_rx_get_irq(struct k3_udma_glue_rx_channel *rx_chn,
 	} else {
 		flow->virq = k3_ringacc_get_ring_irq_num(flow->ringrx);
 	}
+
+	if (!flow->virq)
+		return -ENXIO;
 
 	return flow->virq;
 }

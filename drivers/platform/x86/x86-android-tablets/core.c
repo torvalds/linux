@@ -52,10 +52,8 @@ int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 		return -ENOMEM;
 
 	lookup->dev_id = KBUILD_MODNAME;
-	lookup->table[0].key = chip;
-	lookup->table[0].chip_hwnum = pin;
-	lookup->table[0].con_id = con_id;
-	lookup->table[0].flags = active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH;
+	lookup->table[0] =
+		GPIO_LOOKUP(chip, pin, con_id, active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH);
 
 	gpiod_add_lookup_table(lookup);
 	gpiod = devm_gpiod_get(&x86_android_tablet_device->dev, con_id, dflags);
@@ -278,25 +276,25 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 {
 	int i;
 
-	for (i = 0; i < serdev_count; i++) {
+	for (i = serdev_count - 1; i >= 0; i--) {
 		if (serdevs[i])
 			serdev_device_remove(serdevs[i]);
 	}
 
 	kfree(serdevs);
 
-	for (i = 0; i < pdev_count; i++)
+	for (i = pdev_count - 1; i >= 0; i--)
 		platform_device_unregister(pdevs[i]);
 
 	kfree(pdevs);
 	kfree(buttons);
 
-	for (i = 0; i < spi_dev_count; i++)
+	for (i = spi_dev_count - 1; i >= 0; i--)
 		spi_unregister_device(spi_devs[i]);
 
 	kfree(spi_devs);
 
-	for (i = 0; i < i2c_client_count; i++)
+	for (i = i2c_client_count - 1; i >= 0; i--)
 		i2c_unregister_device(i2c_clients[i]);
 
 	kfree(i2c_clients);
@@ -343,7 +341,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
 
 	if (dev_info->init) {
-		ret = dev_info->init();
+		ret = dev_info->init(&pdev->dev);
 		if (ret < 0) {
 			x86_android_tablet_remove(pdev);
 			return ret;

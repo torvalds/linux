@@ -73,6 +73,29 @@ int BPF_PROG(handle_fentry_manual,
 	return 0;
 }
 
+__u32 fentry_explicit_read_sz = 0;
+
+SEC("fentry/bpf_testmod:bpf_testmod_test_read")
+int BPF_PROG(handle_fentry_explicit,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	fentry_explicit_read_sz = len;
+	return 0;
+}
+
+
+__u32 fentry_explicit_manual_read_sz = 0;
+
+SEC("fentry")
+int BPF_PROG(handle_fentry_explicit_manual,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	fentry_explicit_manual_read_sz = len;
+	return 0;
+}
+
 __u32 fexit_read_sz = 0;
 int fexit_ret = 0;
 

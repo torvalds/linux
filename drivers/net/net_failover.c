@@ -231,7 +231,7 @@ static int net_failover_change_mtu(struct net_device *dev, int new_mtu)
 		}
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
 }

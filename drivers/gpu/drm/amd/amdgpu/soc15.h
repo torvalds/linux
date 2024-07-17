@@ -88,6 +88,8 @@ struct soc15_ras_field_entry {
 };
 
 #define SOC15_REG_ENTRY(ip, inst, reg)	ip##_HWIP, inst, reg##_BASE_IDX, reg
+#define SOC15_REG_ENTRY_STR(ip, inst, reg) \
+	{ ip##_HWIP, inst, reg##_BASE_IDX, reg, #reg }
 
 #define SOC15_REG_ENTRY_OFFSET(entry)	(adev->reg_offset[entry.hwip][entry.inst][entry.seg] + entry.reg_offset)
 

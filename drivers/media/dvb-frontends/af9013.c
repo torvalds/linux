@@ -1480,7 +1480,7 @@ static int af9013_probe(struct i2c_client *client)
 		goto err_regmap_exit;
 	}
 	state->muxc->priv = state;
-	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0);
 	if (ret)
 		goto err_regmap_exit;
 

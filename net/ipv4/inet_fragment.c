@@ -175,7 +175,7 @@ static void fqdir_free_fn(struct work_struct *work)
 	}
 }
 
-static DECLARE_WORK(fqdir_free_work, fqdir_free_fn);
+static DECLARE_DELAYED_WORK(fqdir_free_work, fqdir_free_fn);
 
 static void fqdir_work_fn(struct work_struct *work)
 {
@@ -184,7 +184,7 @@ static void fqdir_work_fn(struct work_struct *work)
 	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
 
 	if (llist_add(&fqdir->free_list, &fqdir_free_list))
-		queue_work(system_wq, &fqdir_free_work);
+		queue_delayed_work(system_wq, &fqdir_free_work, HZ);
 }
 
 int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net)
@@ -619,7 +619,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 	skb_mark_not_on_list(head);
 	head->prev = NULL;
 	head->tstamp = q->stamp;
-	head->mono_delivery_time = q->mono_delivery_time;
+	head->tstamp_type = q->tstamp_type;
 
 	if (sk)
 		refcount_add(sum_truesize - head_truesize, &sk->sk_wmem_alloc);

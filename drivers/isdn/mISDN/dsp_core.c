@@ -172,6 +172,7 @@ module_param(debug, uint, S_IRUGO | S_IWUSR);
 module_param(options, uint, S_IRUGO | S_IWUSR);
 module_param(poll, uint, S_IRUGO | S_IWUSR);
 module_param(dtmfthreshold, uint, S_IRUGO | S_IWUSR);
+MODULE_DESCRIPTION("mISDN driver for Digital Audio Processing of transparent data");
 MODULE_LICENSE("GPL");
 
 /*int spinnest = 0;*/

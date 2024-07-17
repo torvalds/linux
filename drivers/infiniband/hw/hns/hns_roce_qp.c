@@ -410,7 +410,8 @@ static void free_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	bankid = get_qp_bankid(hr_qp->qpn);
 
-	ida_free(&hr_dev->qp_table.bank[bankid].ida, hr_qp->qpn >> 3);
+	ida_free(&hr_dev->qp_table.bank[bankid].ida,
+		 hr_qp->qpn / HNS_ROCE_QP_BANK_NUM);
 
 	mutex_lock(&hr_dev->qp_table.bank_mutex);
 	hr_dev->qp_table.bank[bankid].inuse--;
@@ -1117,7 +1118,6 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 }
 
 static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
-				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
 				     struct ib_udata *udata,
 				     struct hns_roce_qp *hr_qp)
@@ -1140,7 +1140,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	ret = set_qp_param(hr_dev, hr_qp, init_attr, udata, &ucmd);
 	if (ret) {
 		ibdev_err(ibdev, "failed to set QP param, ret = %d.\n", ret);
-		return ret;
+		goto err_out;
 	}
 
 	if (!udata) {
@@ -1148,7 +1148,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		if (ret) {
 			ibdev_err(ibdev, "failed to alloc wrid, ret = %d.\n",
 				  ret);
-			return ret;
+			goto err_out;
 		}
 	}
 
@@ -1219,6 +1219,8 @@ err_qpn:
 	free_qp_buf(hr_dev, hr_qp);
 err_buf:
 	free_kernel_wrid(hr_qp);
+err_out:
+	mutex_destroy(&hr_qp->mutex);
 	return ret;
 }
 
@@ -1234,6 +1236,7 @@ void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	free_qp_buf(hr_dev, hr_qp);
 	free_kernel_wrid(hr_qp);
 	free_qp_db(hr_dev, hr_qp, udata);
+	mutex_destroy(&hr_qp->mutex);
 }
 
 static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
@@ -1271,7 +1274,6 @@ int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
 	struct ib_device *ibdev = qp->device;
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibdev);
 	struct hns_roce_qp *hr_qp = to_hr_qp(qp);
-	struct ib_pd *pd = qp->pd;
 	int ret;
 
 	ret = check_qp_type(hr_dev, init_attr->qp_type, !!udata);
@@ -1286,7 +1288,7 @@ int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
 		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
 	}
 
-	ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, hr_qp);
+	ret = hns_roce_create_qp_common(hr_dev, init_attr, udata, hr_qp);
 	if (ret)
 		ibdev_err(ibdev, "create QP type 0x%x failed(%d)\n",
 			  init_attr->qp_type, ret);
@@ -1386,6 +1388,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct hns_roce_ib_modify_qp_resp resp = {};
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	enum ib_qp_state cur_state, new_state;
 	int ret = -EINVAL;
@@ -1427,6 +1430,18 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	ret = hr_dev->hw->modify_qp(ibqp, attr, attr_mask, cur_state,
 				    new_state, udata);
+	if (ret)
+		goto out;
+
+	if (udata && udata->outlen) {
+		resp.tc_mode = hr_qp->tc_mode;
+		resp.priority = hr_qp->sl;
+		ret = ib_copy_to_udata(udata, &resp,
+				       min(udata->outlen, sizeof(resp)));
+		if (ret)
+			ibdev_err_ratelimited(&hr_dev->ib_dev,
+					      "failed to copy modify qp resp.\n");
+	}
 
 out:
 	mutex_unlock(&hr_qp->mutex);
@@ -1561,5 +1576,7 @@ void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev)
 
 	for (i = 0; i < HNS_ROCE_QP_BANK_NUM; i++)
 		ida_destroy(&hr_dev->qp_table.bank[i].ida);
+	mutex_destroy(&hr_dev->qp_table.bank_mutex);
+	mutex_destroy(&hr_dev->qp_table.scc_mutex);
 	kfree(hr_dev->qp_table.idx_table.spare_idx);
 }

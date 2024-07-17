@@ -649,7 +649,7 @@ static int octeon_mgmt_change_mtu(struct net_device *netdev, int new_mtu)
 	struct octeon_mgmt *p = netdev_priv(netdev);
 	int max_packet = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	/* HW lifts the limit if the frame is VLAN tagged
 	 * (+4 bytes per each tag, up to two tags)

@@ -901,7 +901,7 @@ static int alx_init_intr(struct alx_priv *alx)
 	int ret;
 
 	ret = pci_alloc_irq_vectors(alx->hw.pdev, 1, 1,
-			PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+			PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (ret < 0)
 		return ret;
 
@@ -1176,7 +1176,7 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 	struct alx_priv *alx = netdev_priv(netdev);
 	int max_frame = ALX_MAX_FRAME_LEN(mtu);
 
-	netdev->mtu = mtu;
+	WRITE_ONCE(netdev->mtu, mtu);
 	alx->hw.mtu = mtu;
 	alx->rxbuf_size = max(max_frame, ALX_DEF_RXBUF_SIZE);
 	netdev_update_features(netdev);

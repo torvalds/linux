@@ -7,6 +7,8 @@
 
 #include <drm/drm_managed.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
@@ -19,6 +21,7 @@
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_wa.h"
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8
@@ -80,6 +83,10 @@ ads_to_map(struct xe_guc_ads *ads)
  *      +---------------------------------------+
  *      | padding                               |
  *      +---------------------------------------+ <== 4K aligned
+ *      | w/a KLVs                              |
+ *      +---------------------------------------+
+ *      | padding                               |
+ *      +---------------------------------------+ <== 4K aligned
  *      | capture lists                         |
  *      +---------------------------------------+
  *      | padding                               |
@@ -100,7 +107,7 @@ struct __guc_ads_blob {
 	struct guc_engine_usage engine_usage;
 	struct guc_um_init_params um_init_params;
 	/* From here on, location is dynamic! Refer to above diagram. */
-	struct guc_mmio_reg regset[0];
+	struct guc_mmio_reg regset[];
 } __packed;
 
 #define ads_blob_read(ads_, field_) \
@@ -129,6 +136,11 @@ static size_t guc_ads_regset_size(struct xe_guc_ads *ads)
 static size_t guc_ads_golden_lrc_size(struct xe_guc_ads *ads)
 {
 	return PAGE_ALIGN(ads->golden_lrc_size);
+}
+
+static u32 guc_ads_waklv_size(struct xe_guc_ads *ads)
+{
+	return PAGE_ALIGN(ads->ads_waklv_size);
 }
 
 static size_t guc_ads_capture_size(struct xe_guc_ads *ads)
@@ -167,12 +179,22 @@ static size_t guc_ads_golden_lrc_offset(struct xe_guc_ads *ads)
 	return PAGE_ALIGN(offset);
 }
 
+static size_t guc_ads_waklv_offset(struct xe_guc_ads *ads)
+{
+	u32 offset;
+
+	offset = guc_ads_golden_lrc_offset(ads) +
+		 guc_ads_golden_lrc_size(ads);
+
+	return PAGE_ALIGN(offset);
+}
+
 static size_t guc_ads_capture_offset(struct xe_guc_ads *ads)
 {
 	size_t offset;
 
-	offset = guc_ads_golden_lrc_offset(ads) +
-		guc_ads_golden_lrc_size(ads);
+	offset = guc_ads_waklv_offset(ads) +
+		 guc_ads_waklv_size(ads);
 
 	return PAGE_ALIGN(offset);
 }
@@ -260,6 +282,110 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
+static void guc_waklv_enable_one_word(struct xe_guc_ads *ads,
+				      enum xe_guc_klv_ids klv_id,
+				      u32 value,
+				      u32 *offset, u32 *remain)
+{
+	u32 size;
+	u32 klv_entry[] = {
+		/* 16:16 key/length */
+		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
+		FIELD_PREP(GUC_KLV_0_LEN, 1),
+		value,
+		/* 1 dword data */
+	};
+
+	size = sizeof(klv_entry);
+
+	if (*remain < size) {
+		drm_warn(&ads_to_xe(ads)->drm,
+			 "w/a klv buffer too small to add klv id %d\n", klv_id);
+	} else {
+		xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
+				 klv_entry, size);
+		*offset += size;
+		*remain -= size;
+	}
+}
+
+static void guc_waklv_enable_simple(struct xe_guc_ads *ads,
+				    enum xe_guc_klv_ids klv_id, u32 *offset, u32 *remain)
+{
+	u32 klv_entry[] = {
+		/* 16:16 key/length */
+		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
+		FIELD_PREP(GUC_KLV_0_LEN, 0),
+		/* 0 dwords data */
+	};
+	u32 size;
+
+	size = sizeof(klv_entry);
+
+	if (xe_gt_WARN(ads_to_gt(ads), *remain < size,
+		       "w/a klv buffer too small to add klv id %d\n", klv_id))
+		return;
+
+	xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
+			 klv_entry, size);
+	*offset += size;
+	*remain -= size;
+}
+
+static void guc_waklv_init(struct xe_guc_ads *ads)
+{
+	struct xe_gt *gt = ads_to_gt(ads);
+	u64 addr_ggtt;
+	u32 offset, remain, size;
+
+	offset = guc_ads_waklv_offset(ads);
+	remain = guc_ads_waklv_size(ads);
+
+	if (XE_WA(gt, 14019882105))
+		guc_waklv_enable_simple(ads,
+					GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED,
+					&offset, &remain);
+	if (XE_WA(gt, 18024947630))
+		guc_waklv_enable_simple(ads,
+					GUC_WORKAROUND_KLV_ID_GAM_PFQ_SHADOW_TAIL_POLLING,
+					&offset, &remain);
+	if (XE_WA(gt, 16022287689))
+		guc_waklv_enable_simple(ads,
+					GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE,
+					&offset, &remain);
+
+	/*
+	 * On RC6 exit, GuC will write register 0xB04 with the default value provided. As of now,
+	 * the default value for this register is determined to be 0xC40. This could change in the
+	 * future, so GuC depends on KMD to send it the correct value.
+	 */
+	if (XE_WA(gt, 13011645652))
+		guc_waklv_enable_one_word(ads,
+					  GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE,
+					  0xC40,
+					  &offset, &remain);
+
+	size = guc_ads_waklv_size(ads) - remain;
+	if (!size)
+		return;
+
+	offset = guc_ads_waklv_offset(ads);
+	addr_ggtt = xe_bo_ggtt_addr(ads->bo) + offset;
+
+	ads_blob_write(ads, ads.wa_klv_addr_lo, lower_32_bits(addr_ggtt));
+	ads_blob_write(ads, ads.wa_klv_addr_hi, upper_32_bits(addr_ggtt));
+	ads_blob_write(ads, ads.wa_klv_size, size);
+}
+
+static int calculate_waklv_size(struct xe_guc_ads *ads)
+{
+	/*
+	 * A single page is both the minimum size possible and
+	 * is sufficiently large enough for all current platforms.
+	 */
+	return SZ_4K;
+}
+
 #define MAX_GOLDEN_LRC_SIZE	(SZ_4K * 64)
 
 int xe_guc_ads_init(struct xe_guc_ads *ads)
@@ -271,10 +397,12 @@ int xe_guc_ads_init(struct xe_guc_ads *ads)
 
 	ads->golden_lrc_size = calculate_golden_lrc_size(ads);
 	ads->regset_size = calculate_regset_size(gt);
+	ads->ads_waklv_size = calculate_waklv_size(ads);
 
 	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ads_size(ads) + MAX_GOLDEN_LRC_SIZE,
-					  XE_BO_CREATE_SYSTEM_BIT |
-					  XE_BO_CREATE_GGTT_BIT);
+					  XE_BO_FLAG_SYSTEM |
+					  XE_BO_FLAG_GGTT |
+					  XE_BO_FLAG_GGTT_INVALIDATE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -597,6 +725,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 	guc_mapping_table_init(gt, &info_map);
 	guc_capture_list_init(ads);
 	guc_doorbell_init(ads);
+	guc_waklv_init(ads);
 
 	if (xe->info.has_usm) {
 		guc_um_init_params(ads);

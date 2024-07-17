@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "sun50i-h616.dtsi"
+#include "sun50i-h616-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -30,6 +31,10 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 	};
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdca>;
 };
 
 &ehci0 {

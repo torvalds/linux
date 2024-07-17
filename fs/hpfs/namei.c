@@ -472,9 +472,8 @@ out:
 
 static int hpfs_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	char *link = page_address(page);
-	struct inode *i = page->mapping->host;
+	char *link = folio_address(folio);
+	struct inode *i = folio->mapping->host;
 	struct fnode *fnode;
 	struct buffer_head *bh;
 	int err;
@@ -485,17 +484,9 @@ static int hpfs_symlink_read_folio(struct file *file, struct folio *folio)
 		goto fail;
 	err = hpfs_read_ea(i->i_sb, fnode, "SYMLINK", link, PAGE_SIZE);
 	brelse(bh);
-	if (err)
-		goto fail;
-	hpfs_unlock(i->i_sb);
-	SetPageUptodate(page);
-	unlock_page(page);
-	return 0;
-
 fail:
 	hpfs_unlock(i->i_sb);
-	SetPageError(page);
-	unlock_page(page);
+	folio_end_read(folio, err == 0);
 	return err;
 }
 

@@ -40,7 +40,7 @@
 #include <linux/sched/mm.h>
 
 static const struct address_space_operations hugetlbfs_aops;
-const struct file_operations hugetlbfs_file_operations;
+static const struct file_operations hugetlbfs_file_operations;
 static const struct inode_operations hugetlbfs_dir_inode_operations;
 static const struct inode_operations hugetlbfs_inode_operations;
 
@@ -73,13 +73,13 @@ enum hugetlb_param {
 };
 
 static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
-	fsparam_u32   ("gid",		Opt_gid),
+	fsparam_gid   ("gid",		Opt_gid),
 	fsparam_string("min_size",	Opt_min_size),
 	fsparam_u32oct("mode",		Opt_mode),
 	fsparam_string("nr_inodes",	Opt_nr_inodes),
 	fsparam_string("pagesize",	Opt_pagesize),
 	fsparam_string("size",		Opt_size),
-	fsparam_u32   ("uid",		Opt_uid),
+	fsparam_uid   ("uid",		Opt_uid),
 	{}
 };
 
@@ -176,14 +176,12 @@ hugetlb_get_unmapped_area_bottomup(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct hstate *h = hstate_file(file);
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = {};
 
-	info.flags = 0;
 	info.length = len;
 	info.low_limit = current->mm->mmap_base;
 	info.high_limit = arch_get_mmap_end(addr, len, flags);
 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-	info.align_offset = 0;
 	return vm_unmapped_area(&info);
 }
 
@@ -192,14 +190,13 @@ hugetlb_get_unmapped_area_topdown(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct hstate *h = hstate_file(file);
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = {};
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
 	info.high_limit = arch_get_mmap_base(addr, current->mm->mmap_base);
 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-	info.align_offset = 0;
 	addr = vm_unmapped_area(&info);
 
 	/*
@@ -249,11 +246,11 @@ generic_hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	}
 
 	/*
-	 * Use mm->get_unmapped_area value as a hint to use topdown routine.
+	 * Use MMF_TOPDOWN flag as a hint to use topdown routine.
 	 * If architectures have special needs, they should define their own
 	 * version of hugetlb_get_unmapped_area.
 	 */
-	if (mm->get_unmapped_area == arch_get_unmapped_area_topdown)
+	if (test_bit(MMF_TOPDOWN, &mm->flags))
 		return hugetlb_get_unmapped_area_topdown(file, addr, len,
 				pgoff, flags);
 	return hugetlb_get_unmapped_area_bottomup(file, addr, len,
@@ -1301,13 +1298,14 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-const struct file_operations hugetlbfs_file_operations = {
+static const struct file_operations hugetlbfs_file_operations = {
 	.read_iter		= hugetlbfs_read_iter,
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 	.llseek			= default_llseek,
 	.fallocate		= hugetlbfs_fallocate,
+	.fop_flags		= FOP_HUGE_PAGES,
 };
 
 static const struct inode_operations hugetlbfs_dir_inode_operations = {
@@ -1378,15 +1376,11 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 
 	switch (opt) {
 	case Opt_uid:
-		ctx->uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(ctx->uid))
-			goto bad_val;
+		ctx->uid = result.uid;
 		return 0;
 
 	case Opt_gid:
-		ctx->gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(ctx->gid))
-			goto bad_val;
+		ctx->gid = result.gid;
 		return 0;
 
 	case Opt_mode:

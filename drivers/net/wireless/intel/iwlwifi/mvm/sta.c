@@ -857,12 +857,6 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 		size = iwl_mvm_get_queue_size(sta);
 	}
 
-	/* take the min with bc tbl entries allowed */
-	size = min_t(u32, size, mvm->trans->txqs.bc_tbl_size / sizeof(u16));
-
-	/* size needs to be power of 2 values for calculating read/write pointers */
-	size = rounddown_pow_of_two(size);
-
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		struct ieee80211_link_sta *link_sta;
@@ -887,22 +881,13 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	if (!sta_mask)
 		return -EINVAL;
 
-	do {
-		queue = iwl_trans_txq_alloc(mvm->trans, 0, sta_mask,
-					    tid, size, timeout);
+	queue = iwl_trans_txq_alloc(mvm->trans, 0, sta_mask,
+				    tid, size, timeout);
 
-		if (queue < 0)
-			IWL_DEBUG_TX_QUEUES(mvm,
-					    "Failed allocating TXQ of size %d for sta mask %x tid %d, ret: %d\n",
-					    size, sta_mask, tid, queue);
-		size /= 2;
-	} while (queue < 0 && size >= 16);
-
-	if (queue < 0)
-		return queue;
-
-	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d for sta mask 0x%x tid %d\n",
-			    queue, sta_mask, tid);
+	if (queue >= 0)
+		IWL_DEBUG_TX_QUEUES(mvm,
+				    "Enabling TXQ #%d for sta mask 0x%x tid %d\n",
+				    queue, sta_mask, tid);
 
 	return queue;
 }
@@ -1847,6 +1832,18 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_toggle_tx_ant(mvm, &mvm_sta->tx_ant);
 
+	/* MPDUs are counted only when EMLSR is possible */
+	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    !sta->tdls && ieee80211_vif_is_mld(vif)) {
+		mvm_sta->mpdu_counters =
+			kcalloc(mvm->trans->num_rx_queues,
+				sizeof(*mvm_sta->mpdu_counters),
+				GFP_KERNEL);
+		if (mvm_sta->mpdu_counters)
+			for (int q = 0; q < mvm->trans->num_rx_queues; q++)
+				spin_lock_init(&mvm_sta->mpdu_counters[q].lock);
+	}
+
 	return 0;
 }
 
@@ -2746,7 +2743,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		 */
 		WARN_ON(1);
 
-		for (j = 0; j < reorder_buf->buf_size; j++)
+		for (j = 0; j < data->buf_size; j++)
 			__skb_queue_purge(&entries[j].frames);
 
 		spin_unlock_bh(&reorder_buf->lock);
@@ -2755,7 +2752,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 					struct iwl_mvm_baid_data *data,
-					u16 ssn, u16 buf_size)
+					u16 ssn)
 {
 	int i;
 
@@ -2768,12 +2765,10 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 
 		reorder_buf->num_stored = 0;
 		reorder_buf->head_sn = ssn;
-		reorder_buf->buf_size = buf_size;
 		spin_lock_init(&reorder_buf->lock);
-		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
 		reorder_buf->valid = false;
-		for (j = 0; j < reorder_buf->buf_size; j++)
+		for (j = 0; j < data->buf_size; j++)
 			__skb_queue_head_init(&entries[j].frames);
 	}
 }
@@ -2836,7 +2831,12 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 		.action = start ? cpu_to_le32(IWL_RX_BAID_ACTION_ADD) :
 				  cpu_to_le32(IWL_RX_BAID_ACTION_REMOVE),
 	};
-	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD);
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD),
+		.flags = CMD_SEND_IN_RFKILL,
+		.len[0] = sizeof(cmd),
+		.data[0] = &cmd,
+	};
 	int ret;
 
 	BUILD_BUG_ON(sizeof(struct iwl_rx_baid_cfg_resp) != sizeof(baid));
@@ -2848,7 +2848,7 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 		cmd.alloc.ssn = cpu_to_le16(ssn);
 		cmd.alloc.win_size = cpu_to_le16(buf_size);
 		baid = -EIO;
-	} else if (iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 1) == 1) {
+	} else if (iwl_fw_lookup_cmd_ver(mvm->fw, hcmd.id, 1) == 1) {
 		cmd.remove_v1.baid = cpu_to_le32(baid);
 		BUILD_BUG_ON(sizeof(cmd.remove_v1) > sizeof(cmd.remove));
 	} else {
@@ -2857,8 +2857,7 @@ static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
 		cmd.remove.tid = cpu_to_le32(tid);
 	}
 
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, cmd_id, sizeof(cmd),
-					  &cmd, &baid);
+	ret = iwl_mvm_send_cmd_status(mvm, &hcmd, &baid);
 	if (ret)
 		return ret;
 
@@ -2978,13 +2977,14 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
+		baid_data->buf_size = buf_size;
 
 		mvm_sta->tid_to_baid[tid] = baid;
 		if (timeout)
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
-		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn, buf_size);
+		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's
@@ -4391,4 +4391,81 @@ void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   &cancel_channel_switch_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to cancel the channel switch\n");
+}
+
+static int iwl_mvm_fw_sta_id_to_fw_link_id(struct iwl_mvm_vif *mvmvif,
+					   u8 fw_sta_id)
+{
+	struct ieee80211_link_sta *link_sta =
+		rcu_dereference(mvmvif->mvm->fw_id_to_link_sta[fw_sta_id]);
+	struct iwl_mvm_vif_link_info *link;
+
+	if (WARN_ON_ONCE(!link_sta))
+		return -EINVAL;
+
+	link = mvmvif->link[link_sta->link_id];
+
+	if (WARN_ON_ONCE(!link))
+		return -EINVAL;
+
+	return link->fw_link_id;
+}
+
+#define IWL_MVM_TPT_COUNT_WINDOW (IWL_MVM_TPT_COUNT_WINDOW_SEC * HZ)
+
+void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
+			bool tx, int queue)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvm_sta->vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct iwl_mvm_tpt_counter *queue_counter;
+	struct iwl_mvm_mpdu_counter *link_counter;
+	u32 total_mpdus = 0;
+	int fw_link_id;
+
+	/* Count only for a BSS sta, and only when EMLSR is possible */
+	if (!mvm_sta->mpdu_counters)
+		return;
+
+	/* Map sta id to link id */
+	fw_link_id = iwl_mvm_fw_sta_id_to_fw_link_id(mvmvif, fw_sta_id);
+	if (fw_link_id < 0)
+		return;
+
+	queue_counter = &mvm_sta->mpdu_counters[queue];
+	link_counter = &queue_counter->per_link[fw_link_id];
+
+	spin_lock_bh(&queue_counter->lock);
+
+	if (tx)
+		link_counter->tx += count;
+	else
+		link_counter->rx += count;
+
+	/*
+	 * When not in EMLSR, the window and the decision to enter EMLSR are
+	 * handled during counting, when in EMLSR - in the statistics flow
+	 */
+	if (mvmvif->esr_active)
+		goto out;
+
+	if (time_is_before_jiffies(queue_counter->window_start +
+					IWL_MVM_TPT_COUNT_WINDOW)) {
+		memset(queue_counter->per_link, 0,
+		       sizeof(queue_counter->per_link));
+		queue_counter->window_start = jiffies;
+
+		IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
+	}
+
+	for (int i = 0; i < IWL_MVM_FW_MAX_LINK_ID; i++)
+		total_mpdus += tx ? queue_counter->per_link[i].tx :
+				    queue_counter->per_link[i].rx;
+
+	if (total_mpdus > IWL_MVM_ENTER_ESR_TPT_THRESH)
+		wiphy_work_queue(mvmvif->mvm->hw->wiphy,
+				 &mvmvif->unblock_esr_tpt_wk);
+
+out:
+	spin_unlock_bh(&queue_counter->lock);
 }

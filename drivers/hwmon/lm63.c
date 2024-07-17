@@ -1104,10 +1104,7 @@ static int lm63_probe(struct i2c_client *client)
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
-	if (client->dev.of_node)
-		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		data->kind = i2c_match_id(lm63_id, client)->driver_data;
+	data->kind = (uintptr_t)i2c_get_match_data(client);
 	if (data->kind == lm64)
 		data->temp2_offset = 16000;
 

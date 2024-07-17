@@ -5,4 +5,4 @@
 #
 # Copyright (C) Arm Ltd., 2023
 
-./ftracetest -K
+./ftracetest -K -v

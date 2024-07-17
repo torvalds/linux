@@ -389,16 +389,9 @@ static void direntry_print_item(struct item_head *ih, char *item)
 		name = item + deh_location(deh);
 		if (name[namelen - 1] == 0)
 			namelen = strlen(name);
-		namebuf[0] = '"';
-		if (namelen > sizeof(namebuf) - 3) {
-			strncpy(namebuf + 1, name, sizeof(namebuf) - 3);
-			namebuf[sizeof(namebuf) - 2] = '"';
-			namebuf[sizeof(namebuf) - 1] = 0;
-		} else {
-			memcpy(namebuf + 1, name, namelen);
-			namebuf[namelen + 1] = '"';
-			namebuf[namelen + 2] = 0;
-		}
+
+		scnprintf(namebuf, sizeof(namebuf), "\"%.*s\"",
+			  (int)sizeof(namebuf)-3, name);
 
 		printk("%d:  %-15s%-15d%-15d%-15lld%-15lld(%s)\n",
 		       i, namebuf,

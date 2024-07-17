@@ -349,6 +349,33 @@ Leggete Documentation/translations/it_IT/process/email-clients.rst per
 le raccomandazioni sui programmi di posta elettronica e l'etichetta da usare
 sulle liste di discussione.
 
+.. _it_interleaved_replies:
+
+Rispondere alle email in riga e riducendo la citazioni
+------------------------------------------------------
+
+Nelle discussioni riguardo allo sviluppo del kernel viene fortemente scoraggiato
+l'uso di risposte in cima ai messaggi di posta elettronica. Rispondere in riga
+rende le conversazioni molto più scorrevoli. Maggiori dettagli possono essere
+trovati qui: https://en.wikipedia.org/wiki/Posting_style#Interleaved_style
+
+Come spesso citato nelle liste di discussione::
+
+  R: http://en.wikipedia.org/wiki/Top_post
+  D: Dove posso trovare informazioni riguardo alle "risposte in cima"?
+  R: Perché incasina il normale ordine con cui si legge un testo.
+  D: Perché è così terribile rispondere in cima?
+  R: Risposte in cima.
+  Q: Qual è la cosa più fastidiosa nei messaggi di posta elettronica?
+
+Allo stesso modo, per favore eliminate tutte le citazioni non necessarie per la
+vostra risposta. Questo permette di trovare più facilmente le risposte, e
+permette di risparmiare tempo e spazio. Per maggiori dettagli:
+http://daringfireball.net/2007/07/on_top ::
+
+  R: No.
+  D: Dovrei includere un blocco di citazione dopo la mia risposta?
+
 .. _it_resend_reminders:
 
 Non scoraggiatevi - o impazientitevi

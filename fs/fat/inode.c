@@ -16,7 +16,6 @@
 #include <linux/mpage.h>
 #include <linux/vfs.h>
 #include <linux/seq_file.h>
-#include <linux/parser.h>
 #include <linux/uio.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
@@ -804,16 +803,17 @@ static void __exit fat_destroy_inodecache(void)
 	kmem_cache_destroy(fat_inode_cachep);
 }
 
-static int fat_remount(struct super_block *sb, int *flags, char *data)
+int fat_reconfigure(struct fs_context *fc)
 {
 	bool new_rdonly;
+	struct super_block *sb = fc->root->d_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	*flags |= SB_NODIRATIME | (sbi->options.isvfat ? 0 : SB_NOATIME);
+	fc->sb_flags |= SB_NODIRATIME | (sbi->options.isvfat ? 0 : SB_NOATIME);
 
 	sync_filesystem(sb);
 
 	/* make sure we update state on remount. */
-	new_rdonly = *flags & SB_RDONLY;
+	new_rdonly = fc->sb_flags & SB_RDONLY;
 	if (new_rdonly != sb_rdonly(sb)) {
 		if (new_rdonly)
 			fat_set_state(sb, 0, 0);
@@ -822,6 +822,7 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(fat_reconfigure);
 
 static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -939,8 +940,6 @@ static const struct super_operations fat_sops = {
 	.evict_inode	= fat_evict_inode,
 	.put_super	= fat_put_super,
 	.statfs		= fat_statfs,
-	.remount_fs	= fat_remount,
-
 	.show_options	= fat_show_options,
 };
 
@@ -1037,355 +1036,282 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 }
 
 enum {
-	Opt_check_n, Opt_check_r, Opt_check_s, Opt_uid, Opt_gid,
-	Opt_umask, Opt_dmask, Opt_fmask, Opt_allow_utime, Opt_codepage,
-	Opt_usefree, Opt_nocase, Opt_quiet, Opt_showexec, Opt_debug,
-	Opt_immutable, Opt_dots, Opt_nodots,
-	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
-	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
-	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
-	Opt_obsolete, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
-	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_nfs, Opt_time_offset,
-	Opt_nfs_stale_rw, Opt_nfs_nostale_ro, Opt_err, Opt_dos1xfloppy,
+	Opt_check, Opt_uid, Opt_gid, Opt_umask, Opt_dmask, Opt_fmask,
+	Opt_allow_utime, Opt_codepage, Opt_usefree, Opt_nocase, Opt_quiet,
+	Opt_showexec, Opt_debug, Opt_immutable, Opt_dots, Opt_dotsOK,
+	Opt_charset, Opt_shortname, Opt_utf8, Opt_utf8_bool,
+	Opt_uni_xl, Opt_uni_xl_bool, Opt_nonumtail, Opt_nonumtail_bool,
+	Opt_obsolete, Opt_flush, Opt_tz, Opt_rodir, Opt_errors, Opt_discard,
+	Opt_nfs, Opt_nfs_enum, Opt_time_offset, Opt_dos1xfloppy,
 };
 
-static const match_table_t fat_tokens = {
-	{Opt_check_r, "check=relaxed"},
-	{Opt_check_s, "check=strict"},
-	{Opt_check_n, "check=normal"},
-	{Opt_check_r, "check=r"},
-	{Opt_check_s, "check=s"},
-	{Opt_check_n, "check=n"},
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_umask, "umask=%o"},
-	{Opt_dmask, "dmask=%o"},
-	{Opt_fmask, "fmask=%o"},
-	{Opt_allow_utime, "allow_utime=%o"},
-	{Opt_codepage, "codepage=%u"},
-	{Opt_usefree, "usefree"},
-	{Opt_nocase, "nocase"},
-	{Opt_quiet, "quiet"},
-	{Opt_showexec, "showexec"},
-	{Opt_debug, "debug"},
-	{Opt_immutable, "sys_immutable"},
-	{Opt_flush, "flush"},
-	{Opt_tz_utc, "tz=UTC"},
-	{Opt_time_offset, "time_offset=%d"},
-	{Opt_err_cont, "errors=continue"},
-	{Opt_err_panic, "errors=panic"},
-	{Opt_err_ro, "errors=remount-ro"},
-	{Opt_discard, "discard"},
-	{Opt_nfs_stale_rw, "nfs"},
-	{Opt_nfs_stale_rw, "nfs=stale_rw"},
-	{Opt_nfs_nostale_ro, "nfs=nostale_ro"},
-	{Opt_dos1xfloppy, "dos1xfloppy"},
-	{Opt_obsolete, "conv=binary"},
-	{Opt_obsolete, "conv=text"},
-	{Opt_obsolete, "conv=auto"},
-	{Opt_obsolete, "conv=b"},
-	{Opt_obsolete, "conv=t"},
-	{Opt_obsolete, "conv=a"},
-	{Opt_obsolete, "fat=%u"},
-	{Opt_obsolete, "blocksize=%u"},
-	{Opt_obsolete, "cvf_format=%20s"},
-	{Opt_obsolete, "cvf_options=%100s"},
-	{Opt_obsolete, "posix"},
-	{Opt_err, NULL},
-};
-static const match_table_t msdos_tokens = {
-	{Opt_nodots, "nodots"},
-	{Opt_nodots, "dotsOK=no"},
-	{Opt_dots, "dots"},
-	{Opt_dots, "dotsOK=yes"},
-	{Opt_err, NULL}
-};
-static const match_table_t vfat_tokens = {
-	{Opt_charset, "iocharset=%s"},
-	{Opt_shortname_lower, "shortname=lower"},
-	{Opt_shortname_win95, "shortname=win95"},
-	{Opt_shortname_winnt, "shortname=winnt"},
-	{Opt_shortname_mixed, "shortname=mixed"},
-	{Opt_utf8_no, "utf8=0"},		/* 0 or no or false */
-	{Opt_utf8_no, "utf8=no"},
-	{Opt_utf8_no, "utf8=false"},
-	{Opt_utf8_yes, "utf8=1"},		/* empty or 1 or yes or true */
-	{Opt_utf8_yes, "utf8=yes"},
-	{Opt_utf8_yes, "utf8=true"},
-	{Opt_utf8_yes, "utf8"},
-	{Opt_uni_xl_no, "uni_xlate=0"},		/* 0 or no or false */
-	{Opt_uni_xl_no, "uni_xlate=no"},
-	{Opt_uni_xl_no, "uni_xlate=false"},
-	{Opt_uni_xl_yes, "uni_xlate=1"},	/* empty or 1 or yes or true */
-	{Opt_uni_xl_yes, "uni_xlate=yes"},
-	{Opt_uni_xl_yes, "uni_xlate=true"},
-	{Opt_uni_xl_yes, "uni_xlate"},
-	{Opt_nonumtail_no, "nonumtail=0"},	/* 0 or no or false */
-	{Opt_nonumtail_no, "nonumtail=no"},
-	{Opt_nonumtail_no, "nonumtail=false"},
-	{Opt_nonumtail_yes, "nonumtail=1"},	/* empty or 1 or yes or true */
-	{Opt_nonumtail_yes, "nonumtail=yes"},
-	{Opt_nonumtail_yes, "nonumtail=true"},
-	{Opt_nonumtail_yes, "nonumtail"},
-	{Opt_rodir, "rodir"},
-	{Opt_err, NULL}
+static const struct constant_table fat_param_check[] = {
+	{"relaxed",	'r'},
+	{"r",		'r'},
+	{"strict",	's'},
+	{"s",		's'},
+	{"normal",	'n'},
+	{"n",		'n'},
+	{}
 };
 
-static int parse_options(struct super_block *sb, char *options, int is_vfat,
-			 int silent, int *debug, struct fat_mount_options *opts)
+static const struct constant_table fat_param_tz[] = {
+	{"UTC",		0},
+	{}
+};
+
+static const struct constant_table fat_param_errors[] = {
+	{"continue",	FAT_ERRORS_CONT},
+	{"panic",	FAT_ERRORS_PANIC},
+	{"remount-ro",	FAT_ERRORS_RO},
+	{}
+};
+
+
+static const struct constant_table fat_param_nfs[] = {
+	{"stale_rw",	FAT_NFS_STALE_RW},
+	{"nostale_ro",	FAT_NFS_NOSTALE_RO},
+	{}
+};
+
+/*
+ * These are all obsolete but we still reject invalid options.
+ * The corresponding values are therefore meaningless.
+ */
+static const struct constant_table fat_param_conv[] = {
+	{"binary",	0},
+	{"text",	0},
+	{"auto",	0},
+	{"b",		0},
+	{"t",		0},
+	{"a",		0},
+	{}
+};
+
+/* Core options. See below for vfat and msdos extras */
+const struct fs_parameter_spec fat_param_spec[] = {
+	fsparam_enum	("check",	Opt_check, fat_param_check),
+	fsparam_uid	("uid",		Opt_uid),
+	fsparam_gid	("gid",		Opt_gid),
+	fsparam_u32oct	("umask",	Opt_umask),
+	fsparam_u32oct	("dmask",	Opt_dmask),
+	fsparam_u32oct	("fmask",	Opt_fmask),
+	fsparam_u32oct	("allow_utime",	Opt_allow_utime),
+	fsparam_u32	("codepage",	Opt_codepage),
+	fsparam_flag	("usefree",	Opt_usefree),
+	fsparam_flag	("nocase",	Opt_nocase),
+	fsparam_flag	("quiet",	Opt_quiet),
+	fsparam_flag	("showexec",	Opt_showexec),
+	fsparam_flag	("debug",	Opt_debug),
+	fsparam_flag	("sys_immutable", Opt_immutable),
+	fsparam_flag	("flush",	Opt_flush),
+	fsparam_enum	("tz",		Opt_tz, fat_param_tz),
+	fsparam_s32	("time_offset",	Opt_time_offset),
+	fsparam_enum	("errors",	Opt_errors, fat_param_errors),
+	fsparam_flag	("discard",	Opt_discard),
+	fsparam_flag	("nfs",		Opt_nfs),
+	fsparam_enum	("nfs",		Opt_nfs_enum, fat_param_nfs),
+	fsparam_flag	("dos1xfloppy",	Opt_dos1xfloppy),
+	__fsparam(fs_param_is_enum,	"conv",
+		  Opt_obsolete, fs_param_deprecated, fat_param_conv),
+	__fsparam(fs_param_is_u32,	"fat",
+		  Opt_obsolete, fs_param_deprecated, NULL),
+	__fsparam(fs_param_is_u32,	"blocksize",
+		  Opt_obsolete, fs_param_deprecated, NULL),
+	__fsparam(fs_param_is_string,	"cvf_format",
+		  Opt_obsolete, fs_param_deprecated, NULL),
+	__fsparam(fs_param_is_string,	"cvf_options",
+		  Opt_obsolete, fs_param_deprecated, NULL),
+	__fsparam(NULL,			"posix",
+		  Opt_obsolete, fs_param_deprecated, NULL),
+	{}
+};
+EXPORT_SYMBOL_GPL(fat_param_spec);
+
+static const struct fs_parameter_spec msdos_param_spec[] = {
+	fsparam_flag_no	("dots",	Opt_dots),
+	fsparam_bool	("dotsOK",	Opt_dotsOK),
+	{}
+};
+
+static const struct constant_table fat_param_shortname[] = {
+	{"lower",	VFAT_SFN_DISPLAY_LOWER | VFAT_SFN_CREATE_WIN95},
+	{"win95",	VFAT_SFN_DISPLAY_WIN95 | VFAT_SFN_CREATE_WIN95},
+	{"winnt",	VFAT_SFN_DISPLAY_WINNT | VFAT_SFN_CREATE_WINNT},
+	{"mixed",	VFAT_SFN_DISPLAY_WINNT | VFAT_SFN_CREATE_WIN95},
+	{}
+};
+
+static const struct fs_parameter_spec vfat_param_spec[] = {
+	fsparam_string	("iocharset",	Opt_charset),
+	fsparam_enum	("shortname",	Opt_shortname, fat_param_shortname),
+	fsparam_flag	("utf8",	Opt_utf8),
+	fsparam_bool	("utf8",	Opt_utf8_bool),
+	fsparam_flag	("uni_xlate",	Opt_uni_xl),
+	fsparam_bool	("uni_xlate",	Opt_uni_xl_bool),
+	fsparam_flag	("nonumtail",	Opt_nonumtail),
+	fsparam_bool	("nonumtail",	Opt_nonumtail_bool),
+	fsparam_flag	("rodir",	Opt_rodir),
+	{}
+};
+
+int fat_parse_param(struct fs_context *fc, struct fs_parameter *param,
+			   bool is_vfat)
 {
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-	char *iocharset;
+	struct fat_mount_options *opts = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
 
-	opts->isvfat = is_vfat;
+	/* remount options have traditionally been ignored */
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
+		return 0;
 
-	opts->fs_uid = current_uid();
-	opts->fs_gid = current_gid();
-	opts->fs_fmask = opts->fs_dmask = current_umask();
-	opts->allow_utime = -1;
-	opts->codepage = fat_default_codepage;
-	fat_reset_iocharset(opts);
-	if (is_vfat) {
-		opts->shortname = VFAT_SFN_DISPLAY_WINNT|VFAT_SFN_CREATE_WIN95;
-		opts->rodir = 0;
-	} else {
-		opts->shortname = 0;
-		opts->rodir = 1;
+	opt = fs_parse(fc, fat_param_spec, param, &result);
+	/* If option not found in fat_param_spec, try vfat/msdos options */
+	if (opt == -ENOPARAM) {
+		if (is_vfat)
+			opt = fs_parse(fc, vfat_param_spec, param, &result);
+		else
+			opt = fs_parse(fc, msdos_param_spec, param, &result);
 	}
-	opts->name_check = 'n';
-	opts->quiet = opts->showexec = opts->sys_immutable = opts->dotsOK =  0;
-	opts->unicode_xlate = 0;
-	opts->numtail = 1;
-	opts->usefree = opts->nocase = 0;
-	opts->tz_set = 0;
-	opts->nfs = 0;
-	opts->errors = FAT_ERRORS_RO;
-	*debug = 0;
 
-	opts->utf8 = IS_ENABLED(CONFIG_FAT_DEFAULT_UTF8) && is_vfat;
+	if (opt < 0)
+		return opt;
 
-	if (!options)
-		goto out;
-
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		if (!*p)
-			continue;
-
-		token = match_token(p, fat_tokens, args);
-		if (token == Opt_err) {
-			if (is_vfat)
-				token = match_token(p, vfat_tokens, args);
-			else
-				token = match_token(p, msdos_tokens, args);
-		}
-		switch (token) {
-		case Opt_check_s:
-			opts->name_check = 's';
-			break;
-		case Opt_check_r:
-			opts->name_check = 'r';
-			break;
-		case Opt_check_n:
-			opts->name_check = 'n';
-			break;
-		case Opt_usefree:
-			opts->usefree = 1;
-			break;
-		case Opt_nocase:
-			if (!is_vfat)
-				opts->nocase = 1;
-			else {
-				/* for backward compatibility */
-				opts->shortname = VFAT_SFN_DISPLAY_WIN95
-					| VFAT_SFN_CREATE_WIN95;
-			}
-			break;
-		case Opt_quiet:
-			opts->quiet = 1;
-			break;
-		case Opt_showexec:
-			opts->showexec = 1;
-			break;
-		case Opt_debug:
-			*debug = 1;
-			break;
-		case Opt_immutable:
-			opts->sys_immutable = 1;
-			break;
-		case Opt_uid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			opts->fs_uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(opts->fs_uid))
-				return -EINVAL;
-			break;
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			opts->fs_gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(opts->fs_gid))
-				return -EINVAL;
-			break;
-		case Opt_umask:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->fs_fmask = opts->fs_dmask = option;
-			break;
-		case Opt_dmask:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->fs_dmask = option;
-			break;
-		case Opt_fmask:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->fs_fmask = option;
-			break;
-		case Opt_allow_utime:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->allow_utime = option & (S_IWGRP | S_IWOTH);
-			break;
-		case Opt_codepage:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			opts->codepage = option;
-			break;
-		case Opt_flush:
-			opts->flush = 1;
-			break;
-		case Opt_time_offset:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			/*
-			 * GMT+-12 zones may have DST corrections so at least
-			 * 13 hours difference is needed. Make the limit 24
-			 * just in case someone invents something unusual.
-			 */
-			if (option < -24 * 60 || option > 24 * 60)
-				return -EINVAL;
-			opts->tz_set = 1;
-			opts->time_offset = option;
-			break;
-		case Opt_tz_utc:
-			opts->tz_set = 1;
-			opts->time_offset = 0;
-			break;
-		case Opt_err_cont:
-			opts->errors = FAT_ERRORS_CONT;
-			break;
-		case Opt_err_panic:
-			opts->errors = FAT_ERRORS_PANIC;
-			break;
-		case Opt_err_ro:
-			opts->errors = FAT_ERRORS_RO;
-			break;
-		case Opt_nfs_stale_rw:
-			opts->nfs = FAT_NFS_STALE_RW;
-			break;
-		case Opt_nfs_nostale_ro:
-			opts->nfs = FAT_NFS_NOSTALE_RO;
-			break;
-		case Opt_dos1xfloppy:
-			opts->dos1xfloppy = 1;
-			break;
-
-		/* msdos specific */
-		case Opt_dots:
-			opts->dotsOK = 1;
-			break;
-		case Opt_nodots:
-			opts->dotsOK = 0;
-			break;
-
-		/* vfat specific */
-		case Opt_charset:
-			fat_reset_iocharset(opts);
-			iocharset = match_strdup(&args[0]);
-			if (!iocharset)
-				return -ENOMEM;
-			opts->iocharset = iocharset;
-			break;
-		case Opt_shortname_lower:
-			opts->shortname = VFAT_SFN_DISPLAY_LOWER
-					| VFAT_SFN_CREATE_WIN95;
-			break;
-		case Opt_shortname_win95:
+	switch (opt) {
+	case Opt_check:
+		opts->name_check = result.uint_32;
+		break;
+	case Opt_usefree:
+		opts->usefree = 1;
+		break;
+	case Opt_nocase:
+		if (!is_vfat)
+			opts->nocase = 1;
+		else {
+			/* for backward compatibility */
 			opts->shortname = VFAT_SFN_DISPLAY_WIN95
-					| VFAT_SFN_CREATE_WIN95;
-			break;
-		case Opt_shortname_winnt:
-			opts->shortname = VFAT_SFN_DISPLAY_WINNT
-					| VFAT_SFN_CREATE_WINNT;
-			break;
-		case Opt_shortname_mixed:
-			opts->shortname = VFAT_SFN_DISPLAY_WINNT
-					| VFAT_SFN_CREATE_WIN95;
-			break;
-		case Opt_utf8_no:		/* 0 or no or false */
-			opts->utf8 = 0;
-			break;
-		case Opt_utf8_yes:		/* empty or 1 or yes or true */
-			opts->utf8 = 1;
-			break;
-		case Opt_uni_xl_no:		/* 0 or no or false */
-			opts->unicode_xlate = 0;
-			break;
-		case Opt_uni_xl_yes:		/* empty or 1 or yes or true */
-			opts->unicode_xlate = 1;
-			break;
-		case Opt_nonumtail_no:		/* 0 or no or false */
-			opts->numtail = 1;	/* negated option */
-			break;
-		case Opt_nonumtail_yes:		/* empty or 1 or yes or true */
-			opts->numtail = 0;	/* negated option */
-			break;
-		case Opt_rodir:
-			opts->rodir = 1;
-			break;
-		case Opt_discard:
-			opts->discard = 1;
-			break;
-
-		/* obsolete mount options */
-		case Opt_obsolete:
-			fat_msg(sb, KERN_INFO, "\"%s\" option is obsolete, "
-			       "not supported now", p);
-			break;
-		/* unknown option */
-		default:
-			if (!silent) {
-				fat_msg(sb, KERN_ERR,
-				       "Unrecognized mount option \"%s\" "
-				       "or missing value", p);
-			}
-			return -EINVAL;
+				| VFAT_SFN_CREATE_WIN95;
 		}
-	}
+		break;
+	case Opt_quiet:
+		opts->quiet = 1;
+		break;
+	case Opt_showexec:
+		opts->showexec = 1;
+		break;
+	case Opt_debug:
+		opts->debug = 1;
+		break;
+	case Opt_immutable:
+		opts->sys_immutable = 1;
+		break;
+	case Opt_uid:
+		opts->fs_uid = result.uid;
+		break;
+	case Opt_gid:
+		opts->fs_gid = result.gid;
+		break;
+	case Opt_umask:
+		opts->fs_fmask = opts->fs_dmask = result.uint_32;
+		break;
+	case Opt_dmask:
+		opts->fs_dmask = result.uint_32;
+		break;
+	case Opt_fmask:
+		opts->fs_fmask = result.uint_32;
+		break;
+	case Opt_allow_utime:
+		opts->allow_utime = result.uint_32 & (S_IWGRP | S_IWOTH);
+		break;
+	case Opt_codepage:
+		opts->codepage = result.uint_32;
+		break;
+	case Opt_flush:
+		opts->flush = 1;
+		break;
+	case Opt_time_offset:
+		/*
+		 * GMT+-12 zones may have DST corrections so at least
+		 * 13 hours difference is needed. Make the limit 24
+		 * just in case someone invents something unusual.
+		 */
+		if (result.int_32 < -24 * 60 || result.int_32 > 24 * 60)
+			return -EINVAL;
+		opts->tz_set = 1;
+		opts->time_offset = result.int_32;
+		break;
+	case Opt_tz:
+		opts->tz_set = 1;
+		opts->time_offset = result.uint_32;
+		break;
+	case Opt_errors:
+		opts->errors = result.uint_32;
+		break;
+	case Opt_nfs:
+		opts->nfs = FAT_NFS_STALE_RW;
+		break;
+	case Opt_nfs_enum:
+		opts->nfs = result.uint_32;
+		break;
+	case Opt_dos1xfloppy:
+		opts->dos1xfloppy = 1;
+		break;
 
-out:
-	/* UTF-8 doesn't provide FAT semantics */
-	if (!strcmp(opts->iocharset, "utf8")) {
-		fat_msg(sb, KERN_WARNING, "utf8 is not a recommended IO charset"
-		       " for FAT filesystems, filesystem will be "
-		       "case sensitive!");
-	}
+	/* msdos specific */
+	case Opt_dots:	/* dots / nodots */
+		opts->dotsOK = !result.negated;
+		break;
+	case Opt_dotsOK:	/* dotsOK = yes/no */
+		opts->dotsOK = result.boolean;
+		break;
 
-	/* If user doesn't specify allow_utime, it's initialized from dmask. */
-	if (opts->allow_utime == (unsigned short)-1)
-		opts->allow_utime = ~opts->fs_dmask & (S_IWGRP | S_IWOTH);
-	if (opts->unicode_xlate)
-		opts->utf8 = 0;
-	if (opts->nfs == FAT_NFS_NOSTALE_RO) {
-		sb->s_flags |= SB_RDONLY;
-		sb->s_export_op = &fat_export_ops_nostale;
+	/* vfat specific */
+	case Opt_charset:
+		fat_reset_iocharset(opts);
+		opts->iocharset = param->string;
+		param->string = NULL;	/* Steal string */
+		break;
+	case Opt_shortname:
+		opts->shortname = result.uint_32;
+		break;
+	case Opt_utf8:
+		opts->utf8 = 1;
+		break;
+	case Opt_utf8_bool:
+		opts->utf8 = result.boolean;
+		break;
+	case Opt_uni_xl:
+		opts->unicode_xlate = 1;
+		break;
+	case Opt_uni_xl_bool:
+		opts->unicode_xlate = result.boolean;
+		break;
+	case Opt_nonumtail:
+		opts->numtail = 0;	/* negated option */
+		break;
+	case Opt_nonumtail_bool:
+		opts->numtail = !result.boolean; /* negated option */
+		break;
+	case Opt_rodir:
+		opts->rodir = 1;
+		break;
+	case Opt_discard:
+		opts->discard = 1;
+		break;
+
+	/* obsolete mount options */
+	case Opt_obsolete:
+		printk(KERN_INFO "FAT-fs: \"%s\" option is obsolete, "
+			"not supported now", param->key);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(fat_parse_param);
 
 static int fat_read_root(struct inode *inode)
 {
@@ -1604,9 +1530,11 @@ out:
 /*
  * Read the super block of an MS-DOS FS.
  */
-int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
+int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 		   void (*setup)(struct super_block *))
 {
+	struct fat_mount_options *opts = fc->fs_private;
+	int silent = fc->sb_flags & SB_SILENT;
 	struct inode *root_inode = NULL, *fat_inode = NULL;
 	struct inode *fsinfo_inode = NULL;
 	struct buffer_head *bh;
@@ -1614,7 +1542,6 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	struct msdos_sb_info *sbi;
 	u16 logical_sector_size;
 	u32 total_sectors, total_clusters, fat_clusters, rootdir_sectors;
-	int debug;
 	long error;
 	char buf[50];
 	struct timespec64 ts;
@@ -1643,9 +1570,27 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 
-	error = parse_options(sb, data, isvfat, silent, &debug, &sbi->options);
-	if (error)
-		goto out_fail;
+	/* UTF-8 doesn't provide FAT semantics */
+	if (!strcmp(opts->iocharset, "utf8")) {
+		fat_msg(sb, KERN_WARNING, "utf8 is not a recommended IO charset"
+		       " for FAT filesystems, filesystem will be"
+		       " case sensitive!");
+	}
+
+	/* If user doesn't specify allow_utime, it's initialized from dmask. */
+	if (opts->allow_utime == (unsigned short)-1)
+		opts->allow_utime = ~opts->fs_dmask & (S_IWGRP | S_IWOTH);
+	if (opts->unicode_xlate)
+		opts->utf8 = 0;
+	if (opts->nfs == FAT_NFS_NOSTALE_RO) {
+		sb->s_flags |= SB_RDONLY;
+		sb->s_export_op = &fat_export_ops_nostale;
+	}
+
+	/* Apply parsed options to sbi (structure copy) */
+	sbi->options = *opts;
+	/* Transfer ownership of iocharset to sbi->options */
+	opts->iocharset = NULL;
 
 	setup(sb); /* flavour-specific stuff that needs options */
 
@@ -1950,6 +1895,57 @@ int fat_flush_inodes(struct super_block *sb, struct inode *i1, struct inode *i2)
 }
 EXPORT_SYMBOL_GPL(fat_flush_inodes);
 
+int fat_init_fs_context(struct fs_context *fc, bool is_vfat)
+{
+	struct fat_mount_options *opts;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return -ENOMEM;
+
+	opts->isvfat = is_vfat;
+	opts->fs_uid = current_uid();
+	opts->fs_gid = current_gid();
+	opts->fs_fmask = opts->fs_dmask = current_umask();
+	opts->allow_utime = -1;
+	opts->codepage = fat_default_codepage;
+	fat_reset_iocharset(opts);
+	if (is_vfat) {
+		opts->shortname = VFAT_SFN_DISPLAY_WINNT|VFAT_SFN_CREATE_WIN95;
+		opts->rodir = 0;
+	} else {
+		opts->shortname = 0;
+		opts->rodir = 1;
+	}
+	opts->name_check = 'n';
+	opts->quiet = opts->showexec = opts->sys_immutable = opts->dotsOK =  0;
+	opts->unicode_xlate = 0;
+	opts->numtail = 1;
+	opts->usefree = opts->nocase = 0;
+	opts->tz_set = 0;
+	opts->nfs = 0;
+	opts->errors = FAT_ERRORS_RO;
+	opts->debug = 0;
+
+	opts->utf8 = IS_ENABLED(CONFIG_FAT_DEFAULT_UTF8) && is_vfat;
+
+	fc->fs_private = opts;
+	/* fc->ops assigned by caller */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fat_init_fs_context);
+
+void fat_free_fc(struct fs_context *fc)
+{
+	struct fat_mount_options *opts = fc->fs_private;
+
+	if (opts->iocharset != fat_default_iocharset)
+		kfree(opts->iocharset);
+	kfree(fc->fs_private);
+}
+EXPORT_SYMBOL_GPL(fat_free_fc);
+
 static int __init init_fat_fs(void)
 {
 	int err;
@@ -1978,4 +1974,5 @@ static void __exit exit_fat_fs(void)
 module_init(init_fat_fs)
 module_exit(exit_fat_fs)
 
+MODULE_DESCRIPTION("Core FAT filesystem support");
 MODULE_LICENSE("GPL");

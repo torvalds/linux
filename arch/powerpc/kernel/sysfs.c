@@ -139,7 +139,7 @@ static unsigned long dscr_default;
  * @val:	Returned cpu specific DSCR default value
  *
  * This function returns the per cpu DSCR default value
- * for any cpu which is contained in it's PACA structure.
+ * for any cpu which is contained in its PACA structure.
  */
 static void read_dscr(void *val)
 {
@@ -152,7 +152,7 @@ static void read_dscr(void *val)
  * @val:	New cpu specific DSCR default value to update
  *
  * This function updates the per cpu DSCR default value
- * for any cpu which is contained in it's PACA structure.
+ * for any cpu which is contained in its PACA structure.
  */
 static void write_dscr(void *val)
 {

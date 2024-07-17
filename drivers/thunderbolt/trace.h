@@ -87,23 +87,32 @@ static inline const char *show_data(struct trace_seq *p, u8 type,
 	const char *prefix = "";
 	int i;
 
-	show_route(p, data);
-
 	switch (type) {
 	case TB_CFG_PKG_READ:
 	case TB_CFG_PKG_WRITE:
+		show_route(p, data);
 		show_data_read_write(p, data);
 		break;
 
 	case TB_CFG_PKG_ERROR:
+		show_route(p, data);
 		show_data_error(p, data);
 		break;
 
 	case TB_CFG_PKG_EVENT:
+		show_route(p, data);
 		show_data_event(p, data);
 		break;
 
+	case TB_CFG_PKG_ICM_EVENT:
+	case TB_CFG_PKG_ICM_CMD:
+	case TB_CFG_PKG_ICM_RESP:
+		/* ICM messages always target the host router */
+		trace_seq_puts(p, "route=0, ");
+		break;
+
 	default:
+		show_route(p, data);
 		break;
 	}
 

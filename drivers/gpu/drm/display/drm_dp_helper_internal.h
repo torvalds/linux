@@ -5,7 +5,7 @@
 
 struct drm_dp_aux;
 
-#ifdef CONFIG_DRM_DP_AUX_CHARDEV
+#ifdef CONFIG_DRM_DISPLAY_DP_AUX_CHARDEV
 int drm_dp_aux_dev_init(void);
 void drm_dp_aux_dev_exit(void);
 int drm_dp_aux_register_devnode(struct drm_dp_aux *aux);

@@ -16,6 +16,7 @@
 #include "tests/xe_test.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_pm.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vm.h"
 
@@ -33,7 +34,7 @@ static int xe_dma_buf_attach(struct dma_buf *dmabuf,
 	if (!attach->peer2peer && !xe_bo_can_migrate(gem_to_xe_bo(obj), XE_PL_TT))
 		return -EOPNOTSUPP;
 
-	xe_device_mem_access_get(to_xe_device(obj->dev));
+	xe_pm_runtime_get(to_xe_device(obj->dev));
 	return 0;
 }
 
@@ -42,7 +43,7 @@ static void xe_dma_buf_detach(struct dma_buf *dmabuf,
 {
 	struct drm_gem_object *obj = attach->dmabuf->priv;
 
-	xe_device_mem_access_put(to_xe_device(obj->dev));
+	xe_pm_runtime_put(to_xe_device(obj->dev));
 }
 
 static int xe_dma_buf_pin(struct dma_buf_attachment *attach)
@@ -216,7 +217,7 @@ xe_dma_buf_init_obj(struct drm_device *dev, struct xe_bo *storage,
 	dma_resv_lock(resv, NULL);
 	bo = ___xe_bo_create_locked(xe, storage, NULL, resv, NULL, dma_buf->size,
 				    0, /* Will require 1way or 2way for vm_bind */
-				    ttm_bo_type_sg, XE_BO_CREATE_SYSTEM_BIT);
+				    ttm_bo_type_sg, XE_BO_FLAG_SYSTEM);
 	if (IS_ERR(bo)) {
 		ret = PTR_ERR(bo);
 		goto error;

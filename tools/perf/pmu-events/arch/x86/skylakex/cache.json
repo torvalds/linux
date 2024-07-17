@@ -764,6 +764,15 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "OFFCORE_RESPONSE.ALL_READS.L3_HIT.HIT_OTHER_CORE_FWD hit in the L3 and the snoop to one of the sibling cores hits the line in E/S/F state and the line is forwarded.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OFFCORE_RESPONSE.ALL_READS.L3_HIT.HIT_OTHER_CORE_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x8003C07F7",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts all demand & prefetch RFOs that have any response type.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.ANY_RESPONSE",

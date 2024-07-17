@@ -45,6 +45,7 @@
 #include "smu_v13_0_6_ppt.h"
 #include "smu_v13_0_7_ppt.h"
 #include "smu_v14_0_0_ppt.h"
+#include "smu_v14_0_2_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -319,6 +320,18 @@ static int smu_dpm_set_umsch_mm_enable(struct smu_context *smu,
 	ret = smu->ppt_funcs->dpm_set_umsch_mm_enable(smu, enable);
 	if (!ret)
 		atomic_set(&power_gate->umsch_mm_gated, !enable);
+
+	return ret;
+}
+
+static int smu_set_mall_enable(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (!smu->ppt_funcs->set_mall_enable)
+		return 0;
+
+	ret = smu->ppt_funcs->set_mall_enable(smu);
 
 	return ret;
 }
@@ -715,6 +728,10 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 1):
 		smu_v14_0_0_set_ppt_funcs(smu);
 		break;
+	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
+		smu_v14_0_2_set_ppt_funcs(smu);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -737,6 +754,7 @@ static int smu_early_init(void *handle)
 	smu->is_apu = false;
 	smu->smu_baco.state = SMU_BACO_STATE_NONE;
 	smu->smu_baco.platform_support = false;
+	smu->smu_baco.maco_support = false;
 	smu->user_dpm_profile.fan_mode = -1;
 
 	mutex_init(&smu->message_lock);
@@ -1785,6 +1803,7 @@ static int smu_hw_init(void *handle)
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_dpm_set_vpe_enable(smu, true);
 		smu_dpm_set_umsch_mm_enable(smu, true);
+		smu_set_mall_enable(smu);
 		smu_set_gfx_cgpg(smu, true);
 	}
 
@@ -3223,17 +3242,17 @@ static int smu_set_xgmi_pstate(void *handle,
 	return ret;
 }
 
-static bool smu_get_baco_capability(void *handle)
+static int smu_get_baco_capability(void *handle)
 {
 	struct smu_context *smu = handle;
 
 	if (!smu->pm_enabled)
 		return false;
 
-	if (!smu->ppt_funcs || !smu->ppt_funcs->baco_is_support)
+	if (!smu->ppt_funcs || !smu->ppt_funcs->get_bamaco_support)
 		return false;
 
-	return smu->ppt_funcs->baco_is_support(smu);
+	return smu->ppt_funcs->get_bamaco_support(smu);
 }
 
 static int smu_baco_set_state(void *handle, int state)

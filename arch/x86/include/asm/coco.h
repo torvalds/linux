@@ -25,6 +25,7 @@ u64 cc_mkdec(u64 val);
 void cc_random_init(void);
 #else
 #define cc_vendor (CC_VENDOR_NONE)
+static const u64 cc_mask = 0;
 
 static inline u64 cc_mkenc(u64 val)
 {

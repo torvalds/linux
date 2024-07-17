@@ -101,11 +101,12 @@ struct ffa_drv_info {
 	bool bitmap_created;
 	bool notif_enabled;
 	unsigned int sched_recv_irq;
+	unsigned int notif_pend_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	struct workqueue_struct *notif_pcpu_wq;
 	struct work_struct notif_pcpu_work;
-	struct work_struct irq_work;
+	struct work_struct sched_recv_irq_work;
 	struct xarray partition_info;
 	DECLARE_HASHTABLE(notifier_hash, ilog2(FFA_MAX_NOTIFICATIONS));
 	struct mutex notify_lock; /* lock to protect notifier hashtable  */
@@ -342,6 +343,38 @@ static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 	}
 
 	return -EINVAL;
+}
+
+static int ffa_msg_send2(u16 src_id, u16 dst_id, void *buf, size_t sz)
+{
+	u32 src_dst_ids = PACK_TARGET_INFO(src_id, dst_id);
+	struct ffa_indirect_msg_hdr *msg;
+	ffa_value_t ret;
+	int retval = 0;
+
+	if (sz > (RXTX_BUFFER_SIZE - sizeof(*msg)))
+		return -ERANGE;
+
+	mutex_lock(&drv_info->tx_lock);
+
+	msg = drv_info->tx_buffer;
+	msg->flags = 0;
+	msg->res0 = 0;
+	msg->offset = sizeof(*msg);
+	msg->send_recv_id = src_dst_ids;
+	msg->size = sz;
+	memcpy((u8 *)msg + msg->offset, buf, sz);
+
+	/* flags = 0, sender VMID = 0 works for both physical/virtual NS */
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_MSG_SEND2, .a1 = 0, .a2 = 0
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		retval = ffa_to_linux_errno((int)ret.a2);
+
+	mutex_unlock(&drv_info->tx_lock);
+	return retval;
 }
 
 static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
@@ -870,6 +903,11 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 				       dev->mode_32bit, data);
 }
 
+static int ffa_indirect_msg_send(struct ffa_device *dev, void *buf, size_t sz)
+{
+	return ffa_msg_send2(drv_info->vm_id, dev->vm_id, buf, sz);
+}
+
 static int ffa_memory_share(struct ffa_mem_ops_args *args)
 {
 	if (drv_info->mem_ops_native)
@@ -1108,7 +1146,7 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 	}
 }
 
-static void notif_pcpu_irq_work_fn(struct work_struct *work)
+static void notif_get_and_handle(void *unused)
 {
 	int rc;
 	struct ffa_notify_bitmaps bitmaps;
@@ -1131,10 +1169,17 @@ ffa_self_notif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
 	struct ffa_drv_info *info = cb_data;
 
 	if (!is_per_vcpu)
-		notif_pcpu_irq_work_fn(&info->notif_pcpu_work);
+		notif_get_and_handle(info);
 	else
-		queue_work_on(vcpu, info->notif_pcpu_wq,
-			      &info->notif_pcpu_work);
+		smp_call_function_single(vcpu, notif_get_and_handle, info, 0);
+}
+
+static void notif_pcpu_irq_work_fn(struct work_struct *work)
+{
+	struct ffa_drv_info *info = container_of(work, struct ffa_drv_info,
+						 notif_pcpu_work);
+
+	ffa_self_notif_handle(smp_processor_id(), true, info);
 }
 
 static const struct ffa_info_ops ffa_drv_info_ops = {
@@ -1145,6 +1190,7 @@ static const struct ffa_info_ops ffa_drv_info_ops = {
 static const struct ffa_msg_ops ffa_drv_msg_ops = {
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
+	.indirect_send = ffa_indirect_msg_send,
 };
 
 static const struct ffa_mem_ops ffa_drv_mem_ops = {
@@ -1178,14 +1224,6 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	int count, idx;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
-	/*
-	 * FF-A v1.1 provides UUID for each partition as part of the discovery
-	 * API, the discovered UUID must be populated in the device's UUID and
-	 * there is no need to copy the same from the driver table.
-	 */
-	if (drv_info->version > FFA_VERSION_1_0)
-		return;
-
 	count = ffa_partition_probe(uuid, &pbuf);
 	if (count <= 0)
 		return;
@@ -1196,6 +1234,35 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	kfree(pbuf);
 }
 
+static int
+ffa_bus_notifier(struct notifier_block *nb, unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct ffa_device *fdev = to_ffa_dev(dev);
+
+	if (action == BUS_NOTIFY_BIND_DRIVER) {
+		struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
+		const struct ffa_device_id *id_table= ffa_drv->id_table;
+
+		/*
+		 * FF-A v1.1 provides UUID for each partition as part of the
+		 * discovery API, the discovered UUID must be populated in the
+		 * device's UUID and there is no need to workaround by copying
+		 * the same from the driver table.
+		 */
+		if (uuid_is_null(&fdev->uuid))
+			ffa_device_match_uuid(fdev, &id_table->uuid);
+
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ffa_bus_nb = {
+	.notifier_call = ffa_bus_notifier,
+};
+
 static int ffa_setup_partitions(void)
 {
 	int count, idx, ret;
@@ -1203,6 +1270,12 @@ static int ffa_setup_partitions(void)
 	struct ffa_device *ffa_dev;
 	struct ffa_dev_part_info *info;
 	struct ffa_partition_info *pbuf, *tpbuf;
+
+	if (drv_info->version == FFA_VERSION_1_0) {
+		ret = bus_register_notifier(&ffa_bus_type, &ffa_bus_nb);
+		if (ret)
+			pr_err("Failed to register FF-A bus notifiers\n");
+	}
 
 	count = ffa_partition_probe(&uuid_null, &pbuf);
 	if (count <= 0) {
@@ -1215,7 +1288,7 @@ static int ffa_setup_partitions(void)
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
 		/* Note that if the UUID will be uuid_null, that will require
-		 * ffa_device_match() to find the UUID of this partition id
+		 * ffa_bus_notifier() to find the UUID of this partition id
 		 * with help of ffa_device_match_uuid(). FF-A v1.1 and above
 		 * provides UUID here for each partition as part of the
 		 * discovery API and the same is passed.
@@ -1226,6 +1299,8 @@ static int ffa_setup_partitions(void)
 			       __func__, tpbuf->id);
 			continue;
 		}
+
+		ffa_dev->properties = tpbuf->properties;
 
 		if (drv_info->version > FFA_VERSION_1_0 &&
 		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
@@ -1291,12 +1366,23 @@ static void ffa_partitions_cleanup(void)
 #define FFA_FEAT_SCHEDULE_RECEIVER_INT		(2)
 #define FFA_FEAT_MANAGED_EXIT_INT		(3)
 
-static irqreturn_t irq_handler(int irq, void *irq_data)
+static irqreturn_t ffa_sched_recv_irq_handler(int irq, void *irq_data)
 {
 	struct ffa_pcpu_irq *pcpu = irq_data;
 	struct ffa_drv_info *info = pcpu->info;
 
-	queue_work(info->notif_pcpu_wq, &info->irq_work);
+	queue_work(info->notif_pcpu_wq, &info->sched_recv_irq_work);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t notif_pend_irq_handler(int irq, void *irq_data)
+{
+	struct ffa_pcpu_irq *pcpu = irq_data;
+	struct ffa_drv_info *info = pcpu->info;
+
+	queue_work_on(smp_processor_id(), info->notif_pcpu_wq,
+		      &info->notif_pcpu_work);
 
 	return IRQ_HANDLED;
 }
@@ -1306,15 +1392,23 @@ static void ffa_sched_recv_irq_work_fn(struct work_struct *work)
 	ffa_notification_info_get();
 }
 
-static int ffa_sched_recv_irq_map(void)
+static int ffa_irq_map(u32 id)
 {
-	int ret, irq, sr_intid;
+	char *err_str;
+	int ret, irq, intid;
 
-	/* The returned sr_intid is assumed to be SGI donated to NS world */
-	ret = ffa_features(FFA_FEAT_SCHEDULE_RECEIVER_INT, 0, &sr_intid, NULL);
+	if (id == FFA_FEAT_NOTIFICATION_PENDING_INT)
+		err_str = "Notification Pending Interrupt";
+	else if (id == FFA_FEAT_SCHEDULE_RECEIVER_INT)
+		err_str = "Schedule Receiver Interrupt";
+	else
+		err_str = "Unknown ID";
+
+	/* The returned intid is assumed to be SGI donated to NS world */
+	ret = ffa_features(id, 0, &intid, NULL);
 	if (ret < 0) {
 		if (ret != -EOPNOTSUPP)
-			pr_err("Failed to retrieve scheduler Rx interrupt\n");
+			pr_err("Failed to retrieve FF-A %s %u\n", err_str, id);
 		return ret;
 	}
 
@@ -1329,12 +1423,12 @@ static int ffa_sched_recv_irq_map(void)
 
 		oirq.np = gic;
 		oirq.args_count = 1;
-		oirq.args[0] = sr_intid;
+		oirq.args[0] = intid;
 		irq = irq_create_of_mapping(&oirq);
 		of_node_put(gic);
 #ifdef CONFIG_ACPI
 	} else {
-		irq = acpi_register_gsi(NULL, sr_intid, ACPI_EDGE_SENSITIVE,
+		irq = acpi_register_gsi(NULL, intid, ACPI_EDGE_SENSITIVE,
 					ACPI_ACTIVE_HIGH);
 #endif
 	}
@@ -1347,23 +1441,28 @@ static int ffa_sched_recv_irq_map(void)
 	return irq;
 }
 
-static void ffa_sched_recv_irq_unmap(void)
+static void ffa_irq_unmap(unsigned int irq)
 {
-	if (drv_info->sched_recv_irq) {
-		irq_dispose_mapping(drv_info->sched_recv_irq);
-		drv_info->sched_recv_irq = 0;
-	}
+	if (!irq)
+		return;
+	irq_dispose_mapping(irq);
 }
 
 static int ffa_cpuhp_pcpu_irq_enable(unsigned int cpu)
 {
-	enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_NONE);
+	if (drv_info->sched_recv_irq)
+		enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_NONE);
+	if (drv_info->notif_pend_irq)
+		enable_percpu_irq(drv_info->notif_pend_irq, IRQ_TYPE_NONE);
 	return 0;
 }
 
 static int ffa_cpuhp_pcpu_irq_disable(unsigned int cpu)
 {
-	disable_percpu_irq(drv_info->sched_recv_irq);
+	if (drv_info->sched_recv_irq)
+		disable_percpu_irq(drv_info->sched_recv_irq);
+	if (drv_info->notif_pend_irq)
+		disable_percpu_irq(drv_info->notif_pend_irq);
 	return 0;
 }
 
@@ -1382,13 +1481,16 @@ static void ffa_uninit_pcpu_irq(void)
 	if (drv_info->sched_recv_irq)
 		free_percpu_irq(drv_info->sched_recv_irq, drv_info->irq_pcpu);
 
+	if (drv_info->notif_pend_irq)
+		free_percpu_irq(drv_info->notif_pend_irq, drv_info->irq_pcpu);
+
 	if (drv_info->irq_pcpu) {
 		free_percpu(drv_info->irq_pcpu);
 		drv_info->irq_pcpu = NULL;
 	}
 }
 
-static int ffa_init_pcpu_irq(unsigned int irq)
+static int ffa_init_pcpu_irq(void)
 {
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	int ret, cpu;
@@ -1402,13 +1504,31 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 
 	drv_info->irq_pcpu = irq_pcpu;
 
-	ret = request_percpu_irq(irq, irq_handler, "ARM-FFA", irq_pcpu);
-	if (ret) {
-		pr_err("Error registering notification IRQ %d: %d\n", irq, ret);
-		return ret;
+	if (drv_info->sched_recv_irq) {
+		ret = request_percpu_irq(drv_info->sched_recv_irq,
+					 ffa_sched_recv_irq_handler,
+					 "ARM-FFA-SRI", irq_pcpu);
+		if (ret) {
+			pr_err("Error registering percpu SRI nIRQ %d : %d\n",
+			       drv_info->sched_recv_irq, ret);
+			drv_info->sched_recv_irq = 0;
+			return ret;
+		}
 	}
 
-	INIT_WORK(&drv_info->irq_work, ffa_sched_recv_irq_work_fn);
+	if (drv_info->notif_pend_irq) {
+		ret = request_percpu_irq(drv_info->notif_pend_irq,
+					 notif_pend_irq_handler,
+					 "ARM-FFA-NPI", irq_pcpu);
+		if (ret) {
+			pr_err("Error registering percpu NPI nIRQ %d : %d\n",
+			       drv_info->notif_pend_irq, ret);
+			drv_info->notif_pend_irq = 0;
+			return ret;
+		}
+	}
+
+	INIT_WORK(&drv_info->sched_recv_irq_work, ffa_sched_recv_irq_work_fn);
 	INIT_WORK(&drv_info->notif_pcpu_work, notif_pcpu_irq_work_fn);
 	drv_info->notif_pcpu_wq = create_workqueue("ffa_pcpu_irq_notification");
 	if (!drv_info->notif_pcpu_wq)
@@ -1428,7 +1548,10 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 static void ffa_notifications_cleanup(void)
 {
 	ffa_uninit_pcpu_irq();
-	ffa_sched_recv_irq_unmap();
+	ffa_irq_unmap(drv_info->sched_recv_irq);
+	drv_info->sched_recv_irq = 0;
+	ffa_irq_unmap(drv_info->notif_pend_irq);
+	drv_info->notif_pend_irq = 0;
 
 	if (drv_info->bitmap_created) {
 		ffa_notification_bitmap_destroy();
@@ -1439,30 +1562,31 @@ static void ffa_notifications_cleanup(void)
 
 static void ffa_notifications_setup(void)
 {
-	int ret, irq;
+	int ret;
 
 	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
-	if (ret) {
-		pr_info("Notifications not supported, continuing with it ..\n");
-		return;
+	if (!ret) {
+		ret = ffa_notification_bitmap_create();
+		if (ret) {
+			pr_err("Notification bitmap create error %d\n", ret);
+			return;
+		}
+
+		drv_info->bitmap_created = true;
 	}
 
-	ret = ffa_notification_bitmap_create();
-	if (ret) {
-		pr_info("Notification bitmap create error %d\n", ret);
-		return;
-	}
-	drv_info->bitmap_created = true;
+	ret = ffa_irq_map(FFA_FEAT_SCHEDULE_RECEIVER_INT);
+	if (ret > 0)
+		drv_info->sched_recv_irq = ret;
 
-	irq = ffa_sched_recv_irq_map();
-	if (irq <= 0) {
-		ret = irq;
+	ret = ffa_irq_map(FFA_FEAT_NOTIFICATION_PENDING_INT);
+	if (ret > 0)
+		drv_info->notif_pend_irq = ret;
+
+	if (!drv_info->sched_recv_irq && !drv_info->notif_pend_irq)
 		goto cleanup;
-	}
 
-	drv_info->sched_recv_irq = irq;
-
-	ret = ffa_init_pcpu_irq(irq);
+	ret = ffa_init_pcpu_irq();
 	if (ret)
 		goto cleanup;
 
@@ -1484,14 +1608,9 @@ static int __init ffa_init(void)
 	if (ret)
 		return ret;
 
-	ret = arm_ffa_bus_init();
-	if (ret)
-		return ret;
-
 	drv_info = kzalloc(sizeof(*drv_info), GFP_KERNEL);
 	if (!drv_info) {
-		ret = -ENOMEM;
-		goto ffa_bus_exit;
+		return -ENOMEM;
 	}
 
 	ret = ffa_version_check(&drv_info->version);
@@ -1552,11 +1671,9 @@ free_pages:
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
 free_drv_info:
 	kfree(drv_info);
-ffa_bus_exit:
-	arm_ffa_bus_exit();
 	return ret;
 }
-subsys_initcall(ffa_init);
+module_init(ffa_init);
 
 static void __exit ffa_exit(void)
 {
@@ -1566,7 +1683,6 @@ static void __exit ffa_exit(void)
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
 	kfree(drv_info);
-	arm_ffa_bus_exit();
 }
 module_exit(ffa_exit);
 

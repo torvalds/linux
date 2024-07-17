@@ -107,7 +107,7 @@ static void sdhci_bcm_kona_sd_init(struct sdhci_host *host)
  * Software emulation of the SD card insertion/removal. Set insert=1 for insert
  * and insert=0 for removal. The card detection is done by GPIO. For Broadcom
  * IP to function properly the bit 0 of CORESTAT register needs to be set/reset
- * to generate the CD IRQ handled in sdhci.c which schedules card_tasklet.
+* to generate the CD IRQ handled in sdhci.c
  */
 static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 {

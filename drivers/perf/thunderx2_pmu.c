@@ -504,24 +504,19 @@ static void tx2_uncore_event_update(struct perf_event *event)
 
 static enum tx2_uncore_type get_tx2_pmu_type(struct acpi_device *adev)
 {
-	int i = 0;
-	struct acpi_tx2_pmu_device {
-		__u8 id[ACPI_ID_LEN];
-		enum tx2_uncore_type type;
-	} devices[] = {
+	struct acpi_device_id devices[] = {
 		{"CAV901D", PMU_TYPE_L3C},
 		{"CAV901F", PMU_TYPE_DMC},
 		{"CAV901E", PMU_TYPE_CCPI2},
-		{"", PMU_TYPE_INVALID}
+		{}
 	};
+	const struct acpi_device_id *id;
 
-	while (devices[i].type != PMU_TYPE_INVALID) {
-		if (!strcmp(acpi_device_hid(adev), devices[i].id))
-			break;
-		i++;
-	}
+	id = acpi_match_acpi_device(devices, adev);
+	if (!id)
+		return PMU_TYPE_INVALID;
 
-	return devices[i].type;
+	return (enum tx2_uncore_type)id->driver_data;
 }
 
 static bool tx2_uncore_validate_event(struct pmu *pmu,
@@ -729,6 +724,7 @@ static int tx2_uncore_pmu_register(
 	/* Perf event registration */
 	tx2_pmu->pmu = (struct pmu) {
 		.module         = THIS_MODULE,
+		.parent		= tx2_pmu->dev,
 		.attr_groups	= tx2_pmu->attr_groups,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= tx2_uncore_event_init,
@@ -932,9 +928,8 @@ static int tx2_uncore_pmu_online_cpu(unsigned int cpu,
 static int tx2_uncore_pmu_offline_cpu(unsigned int cpu,
 		struct hlist_node *hpnode)
 {
-	int new_cpu;
 	struct tx2_uncore_pmu *tx2_pmu;
-	struct cpumask cpu_online_mask_temp;
+	unsigned int new_cpu;
 
 	tx2_pmu = hlist_entry_safe(hpnode,
 			struct tx2_uncore_pmu, hpnode);
@@ -945,11 +940,8 @@ static int tx2_uncore_pmu_offline_cpu(unsigned int cpu,
 	if (tx2_pmu->hrtimer_callback)
 		hrtimer_cancel(&tx2_pmu->hrtimer);
 
-	cpumask_copy(&cpu_online_mask_temp, cpu_online_mask);
-	cpumask_clear_cpu(cpu, &cpu_online_mask_temp);
-	new_cpu = cpumask_any_and(
-			cpumask_of_node(tx2_pmu->node),
-			&cpu_online_mask_temp);
+	new_cpu = cpumask_any_and_but(cpumask_of_node(tx2_pmu->node),
+				      cpu_online_mask, cpu);
 
 	tx2_pmu->cpu = new_cpu;
 	if (new_cpu >= nr_cpu_ids)

@@ -209,6 +209,7 @@ static void gve_tx_free_ring_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 	struct device *hdev = &priv->pdev->dev;
 	int idx = tx->q_num;
 	size_t bytes;
+	u32 qpl_id;
 
 	if (tx->q_resources) {
 		dma_free_coherent(hdev, sizeof(*tx->q_resources),
@@ -237,7 +238,8 @@ static void gve_tx_free_ring_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 	tx->dqo.tx_qpl_buf_next = NULL;
 
 	if (tx->dqo.qpl) {
-		gve_unassign_qpl(cfg->qpl_cfg, tx->dqo.qpl->id);
+		qpl_id = gve_tx_qpl_id(priv, tx->q_num);
+		gve_free_queue_page_list(priv, tx->dqo.qpl, qpl_id);
 		tx->dqo.qpl = NULL;
 	}
 
@@ -285,7 +287,9 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 {
 	struct device *hdev = &priv->pdev->dev;
 	int num_pending_packets;
+	int qpl_page_cnt;
 	size_t bytes;
+	u32 qpl_id;
 	int i;
 
 	memset(tx, 0, sizeof(*tx));
@@ -295,9 +299,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 
 	/* Queue sizes must be a power of 2 */
 	tx->mask = cfg->ring_size - 1;
-	tx->dqo.complq_mask = priv->queue_format == GVE_DQO_RDA_FORMAT ?
-		priv->options_dqo_rda.tx_comp_ring_entries - 1 :
-		tx->mask;
+	tx->dqo.complq_mask = tx->mask;
 
 	/* The max number of pending packets determines the maximum number of
 	 * descriptors which maybe written to the completion queue.
@@ -354,7 +356,11 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 		goto err;
 
 	if (!cfg->raw_addressing) {
-		tx->dqo.qpl = gve_assign_tx_qpl(cfg, idx);
+		qpl_id = gve_tx_qpl_id(priv, tx->q_num);
+		qpl_page_cnt = priv->tx_pages_per_qpl;
+
+		tx->dqo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
+							qpl_page_cnt);
 		if (!tx->dqo.qpl)
 			goto err;
 
@@ -375,12 +381,6 @@ int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
 	struct gve_tx_ring *tx = cfg->tx;
 	int err = 0;
 	int i, j;
-
-	if (!cfg->raw_addressing && !cfg->qpls) {
-		netif_err(priv, drv, priv->dev,
-			  "Cannot alloc QPL ring before allocing QPLs\n");
-		return -EINVAL;
-	}
 
 	if (cfg->start_idx + cfg->num_rings > cfg->qcfg->max_queues) {
 		netif_err(priv, drv, priv->dev,
@@ -555,28 +555,18 @@ static int gve_prep_tso(struct sk_buff *skb)
 	if (unlikely(skb_shinfo(skb)->gso_size < GVE_TX_MIN_TSO_MSS_DQO))
 		return -1;
 
+	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
+		return -EINVAL;
+
 	/* Needed because we will modify header. */
 	err = skb_cow_head(skb, 0);
 	if (err < 0)
 		return err;
 
 	tcp = tcp_hdr(skb);
-
-	/* Remove payload length from checksum. */
 	paylen = skb->len - skb_transport_offset(skb);
-
-	switch (skb_shinfo(skb)->gso_type) {
-	case SKB_GSO_TCPV4:
-	case SKB_GSO_TCPV6:
-		csum_replace_by_diff(&tcp->check,
-				     (__force __wsum)htonl(paylen));
-
-		/* Compute length of segmentation header. */
-		header_len = skb_tcp_all_headers(skb);
-		break;
-	default:
-		return -EINVAL;
-	}
+	csum_replace_by_diff(&tcp->check, (__force __wsum)htonl(paylen));
+	header_len = skb_tcp_all_headers(skb);
 
 	if (unlikely(header_len > GVE_TX_MAX_HDR_SIZE_DQO))
 		return -EINVAL;

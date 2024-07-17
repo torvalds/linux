@@ -376,6 +376,16 @@ int setvbuf(FILE *stream __attribute__((unused)),
 	return 0;
 }
 
+static __attribute__((unused))
+const char *strerror(int errno)
+{
+	static char buf[18] = "errno=";
+
+	i64toa_r(errno, &buf[6]);
+
+	return buf;
+}
+
 /* make sure to include all global symbols */
 #include "nolibc.h"
 

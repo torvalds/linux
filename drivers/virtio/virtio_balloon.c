@@ -121,10 +121,13 @@ struct virtio_balloon {
 	struct page_reporting_dev_info pr_dev_info;
 
 	/* State for keeping the wakeup_source active while adjusting the balloon */
-	spinlock_t adjustment_lock;
-	bool adjustment_signal_pending;
-	bool adjustment_in_progress;
+	spinlock_t wakeup_lock;
+	bool processing_wakeup_event;
+	u32 wakeup_signal_mask;
 };
+
+#define VIRTIO_BALLOON_WAKEUP_SIGNAL_ADJUST (1 << 0)
+#define VIRTIO_BALLOON_WAKEUP_SIGNAL_STATS (1 << 1)
 
 static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_BALLOON, VIRTIO_DEV_ANY_ID },
@@ -138,6 +141,36 @@ static u32 page_to_balloon_pfn(struct page *page)
 	BUILD_BUG_ON(PAGE_SHIFT < VIRTIO_BALLOON_PFN_SHIFT);
 	/* Convert pfn from Linux page size to balloon page size. */
 	return pfn * VIRTIO_BALLOON_PAGES_PER_PAGE;
+}
+
+static void start_wakeup_event(struct virtio_balloon *vb, u32 mask)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vb->wakeup_lock, flags);
+	vb->wakeup_signal_mask |= mask;
+	if (!vb->processing_wakeup_event) {
+		vb->processing_wakeup_event = true;
+		pm_stay_awake(&vb->vdev->dev);
+	}
+	spin_unlock_irqrestore(&vb->wakeup_lock, flags);
+}
+
+static void process_wakeup_event(struct virtio_balloon *vb, u32 mask)
+{
+	spin_lock_irq(&vb->wakeup_lock);
+	vb->wakeup_signal_mask &= ~mask;
+	spin_unlock_irq(&vb->wakeup_lock);
+}
+
+static void finish_wakeup_event(struct virtio_balloon *vb)
+{
+	spin_lock_irq(&vb->wakeup_lock);
+	if (!vb->wakeup_signal_mask && vb->processing_wakeup_event) {
+		vb->processing_wakeup_event = false;
+		pm_relax(&vb->vdev->dev);
+	}
+	spin_unlock_irq(&vb->wakeup_lock);
 }
 
 static void balloon_ack(struct virtqueue *vq)
@@ -370,8 +403,10 @@ static void stats_request(struct virtqueue *vq)
 	struct virtio_balloon *vb = vq->vdev->priv;
 
 	spin_lock(&vb->stop_update_lock);
-	if (!vb->stop_update)
+	if (!vb->stop_update) {
+		start_wakeup_event(vb, VIRTIO_BALLOON_WAKEUP_SIGNAL_STATS);
 		queue_work(system_freezable_wq, &vb->update_balloon_stats_work);
+	}
 	spin_unlock(&vb->stop_update_lock);
 }
 
@@ -444,27 +479,8 @@ static void virtio_balloon_queue_free_page_work(struct virtio_balloon *vb)
 
 static void start_update_balloon_size(struct virtio_balloon *vb)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&vb->adjustment_lock, flags);
-	vb->adjustment_signal_pending = true;
-	if (!vb->adjustment_in_progress) {
-		vb->adjustment_in_progress = true;
-		pm_stay_awake(vb->vdev->dev.parent);
-	}
-	spin_unlock_irqrestore(&vb->adjustment_lock, flags);
-
+	start_wakeup_event(vb, VIRTIO_BALLOON_WAKEUP_SIGNAL_ADJUST);
 	queue_work(system_freezable_wq, &vb->update_balloon_size_work);
-}
-
-static void end_update_balloon_size(struct virtio_balloon *vb)
-{
-	spin_lock_irq(&vb->adjustment_lock);
-	if (!vb->adjustment_signal_pending && vb->adjustment_in_progress) {
-		vb->adjustment_in_progress = false;
-		pm_relax(vb->vdev->dev.parent);
-	}
-	spin_unlock_irq(&vb->adjustment_lock);
 }
 
 static void virtballoon_changed(struct virtio_device *vdev)
@@ -495,7 +511,10 @@ static void update_balloon_stats_func(struct work_struct *work)
 
 	vb = container_of(work, struct virtio_balloon,
 			  update_balloon_stats_work);
+
+	process_wakeup_event(vb, VIRTIO_BALLOON_WAKEUP_SIGNAL_STATS);
 	stats_handle_request(vb);
+	finish_wakeup_event(vb);
 }
 
 static void update_balloon_size_func(struct work_struct *work)
@@ -506,9 +525,7 @@ static void update_balloon_size_func(struct work_struct *work)
 	vb = container_of(work, struct virtio_balloon,
 			  update_balloon_size_work);
 
-	spin_lock_irq(&vb->adjustment_lock);
-	vb->adjustment_signal_pending = false;
-	spin_unlock_irq(&vb->adjustment_lock);
+	process_wakeup_event(vb, VIRTIO_BALLOON_WAKEUP_SIGNAL_ADJUST);
 
 	diff = towards_target(vb);
 
@@ -523,7 +540,7 @@ static void update_balloon_size_func(struct work_struct *work)
 	if (diff)
 		queue_work(system_freezable_wq, work);
 	else
-		end_update_balloon_size(vb);
+		finish_wakeup_event(vb);
 }
 
 static int init_vqs(struct virtio_balloon *vb)
@@ -1027,7 +1044,16 @@ static int virtballoon_probe(struct virtio_device *vdev)
 			goto out_unregister_oom;
 	}
 
-	spin_lock_init(&vb->adjustment_lock);
+	spin_lock_init(&vb->wakeup_lock);
+
+	/*
+	 * The virtio balloon itself can't wake up the device, but it is
+	 * responsible for processing wakeup events passed up from the transport
+	 * layer. Wakeup sources don't support nesting/chaining calls, so we use
+	 * our own wakeup source to ensure wakeup events are properly handled
+	 * without trampling on the transport layer's wakeup source.
+	 */
+	device_set_wakeup_capable(&vb->vdev->dev, true);
 
 	virtio_device_ready(vdev);
 
@@ -1155,7 +1181,6 @@ static struct virtio_driver virtio_balloon_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
-	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.validate =	virtballoon_validate,
 	.probe =	virtballoon_probe,

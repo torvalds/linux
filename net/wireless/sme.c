@@ -5,7 +5,7 @@
  * (for nl80211's connect() and wext)
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009, 2020, 2022-2023 Intel Corporation. All rights reserved.
+ * Copyright (C) 2009, 2020, 2022-2024 Intel Corporation. All rights reserved.
  * Copyright 2017	Intel Deutschland GmbH
  */
 
@@ -130,7 +130,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 
 	rdev->scan_req = request;
 
-	err = rdev_scan(rdev, request);
+	err = cfg80211_scan(rdev);
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
 		nl80211_send_scan_start(rdev, wdev);
@@ -1353,6 +1353,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		return;
 
 	cfg80211_wdev_release_bsses(wdev);
+	wdev->valid_links = 0;
 	wdev->connected = false;
 	wdev->u.client.ssid_len = 0;
 	wdev->conn_owner_nlportid = 0;

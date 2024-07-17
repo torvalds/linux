@@ -372,7 +372,7 @@ static inline int bch2_journal_res_get(struct journal *j, struct journal_res *re
 	int ret;
 
 	EBUG_ON(res->ref);
-	EBUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
+	EBUG_ON(!test_bit(JOURNAL_running, &j->flags));
 
 	res->u64s = u64s;
 
@@ -418,8 +418,8 @@ struct bch_dev;
 
 static inline void bch2_journal_set_replay_done(struct journal *j)
 {
-	BUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
-	set_bit(JOURNAL_REPLAY_DONE, &j->flags);
+	BUG_ON(!test_bit(JOURNAL_running, &j->flags));
+	set_bit(JOURNAL_replay_done, &j->flags);
 }
 
 void bch2_journal_unblock(struct journal *);
@@ -433,7 +433,7 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);
-int bch2_dev_journal_alloc(struct bch_dev *);
+int bch2_dev_journal_alloc(struct bch_dev *, bool);
 int bch2_fs_journal_alloc(struct bch_fs *);
 
 void bch2_dev_journal_stop(struct journal *, struct bch_dev *);

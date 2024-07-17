@@ -27,6 +27,10 @@
 #define MCU_UNI_EVENT_ROC  0x27
 #define MCU_UNI_EVENT_CLC  0x80
 
+#define EXT_CMD_RADIO_LED_CTRL_ENABLE   0x1
+#define EXT_CMD_RADIO_ON_LED            0x2
+#define EXT_CMD_RADIO_OFF_LED           0x3
+
 enum {
 	UNI_ROC_ACQUIRE,
 	UNI_ROC_ABORT,
@@ -196,6 +200,7 @@ int mt7921_mcu_fw_log_2_host(struct mt792x_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb);
 int mt7921_mcu_set_rxfilter(struct mt792x_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
+int mt7921_mcu_radio_led_ctrl(struct mt792x_dev *dev, u8 value);
 
 static inline u32
 mt7921_reg_map_l1(struct mt792x_dev *dev, u32 addr)
@@ -323,4 +328,5 @@ int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id);
 void mt7921_roc_abort_sync(struct mt792x_dev *dev);
+int mt7921_mcu_set_rssimonitor(struct mt792x_dev *dev, struct ieee80211_vif *vif);
 #endif

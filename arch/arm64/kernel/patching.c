@@ -36,7 +36,7 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 
 	if (image)
 		page = phys_to_page(__pa_symbol(addr));
-	else if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+	else if (IS_ENABLED(CONFIG_EXECMEM))
 		page = vmalloc_to_page(addr);
 	else
 		return addr;

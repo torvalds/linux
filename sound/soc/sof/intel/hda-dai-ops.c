@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
@@ -146,17 +146,9 @@ static struct hdac_ext_stream *hda_assign_hext_stream(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
 						      struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_dai *dai;
 	struct hdac_ext_stream *hext_stream;
 
-	/* only allocate a stream_tag for the first DAI in the dailink */
-	dai = snd_soc_rtd_to_cpu(rtd, 0);
-	if (dai == cpu_dai)
-		hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
-	else
-		hext_stream = snd_soc_dai_get_dma_data(dai, substream);
-
+	hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
 	if (!hext_stream)
 		return NULL;
 
@@ -169,14 +161,9 @@ static void hda_release_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai
 				    struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hext_stream = hda_get_hext_stream(sdev, cpu_dai, substream);
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snd_soc_dai *dai;
 
-	/* only release a stream_tag for the first DAI in the dailink */
-	dai = snd_soc_rtd_to_cpu(rtd, 0);
-	if (dai == cpu_dai)
-		snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
+	snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 }
 
 static void hda_setup_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream,
@@ -446,28 +433,6 @@ out:
 	return ret;
 }
 
-static struct hdac_ext_stream *sdw_hda_ipc4_get_hext_stream(struct snd_sof_dev *sdev,
-							    struct snd_soc_dai *cpu_dai,
-							    struct snd_pcm_substream *substream)
-{
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
-	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_sof_dai *dai = swidget->private;
-	struct sof_ipc4_copier *ipc4_copier = dai->private;
-	struct sof_ipc4_alh_configuration_blob *blob;
-
-	blob = (struct sof_ipc4_alh_configuration_blob *)ipc4_copier->copier_config;
-
-	/*
-	 * Starting with ACE_2_0, re-setting the device_count is mandatory to avoid using
-	 * the multi-gateway firmware configuration. The DMA hardware can take care of
-	 * multiple links without needing any firmware assistance
-	 */
-	blob->alh_cfg.device_count = 1;
-
-	return hda_ipc4_get_hext_stream(sdev, cpu_dai, substream);
-}
-
 static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
 	.get_hext_stream = hda_ipc4_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
@@ -509,7 +474,7 @@ static const struct hda_dai_widget_dma_ops dmic_ipc4_dma_ops = {
 };
 
 static const struct hda_dai_widget_dma_ops sdw_ipc4_dma_ops = {
-	.get_hext_stream = sdw_hda_ipc4_get_hext_stream,
+	.get_hext_stream = hda_ipc4_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
 	.release_hext_stream = hda_release_hext_stream,
 	.setup_hext_stream = hda_setup_hext_stream,

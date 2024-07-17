@@ -22,12 +22,12 @@ static int dummy_init_member(const struct btf_type *t,
 	return 0;
 }
 
-static int dummy_reg(void *kdata)
+static int dummy_reg(void *kdata, struct bpf_link *link)
 {
 	return 0;
 }
 
-static void dummy_unreg(void *kdata)
+static void dummy_unreg(void *kdata, struct bpf_link *link)
 {
 }
 

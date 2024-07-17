@@ -495,32 +495,53 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-int stmmac_xpcs_setup(struct mii_bus *bus)
+int stmmac_pcs_setup(struct net_device *ndev)
 {
-	struct net_device *ndev = bus->priv;
+	struct fwnode_handle *devnode, *pcsnode;
+	struct dw_xpcs *xpcs = NULL;
 	struct stmmac_priv *priv;
-	struct dw_xpcs *xpcs;
-	int mode, addr;
+	int addr, mode, ret;
 
 	priv = netdev_priv(ndev);
 	mode = priv->plat->phy_interface;
+	devnode = priv->plat->port_node;
 
-	/* Try to probe the XPCS by scanning all addresses. */
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		xpcs = xpcs_create_mdiodev(bus, addr, mode);
-		if (IS_ERR(xpcs))
-			continue;
-
-		priv->hw->xpcs = xpcs;
-		break;
+	if (priv->plat->pcs_init) {
+		ret = priv->plat->pcs_init(priv);
+	} else if (fwnode_property_present(devnode, "pcs-handle")) {
+		pcsnode = fwnode_find_reference(devnode, "pcs-handle", 0);
+		xpcs = xpcs_create_fwnode(pcsnode, mode);
+		fwnode_handle_put(pcsnode);
+		ret = PTR_ERR_OR_ZERO(xpcs);
+	} else if (priv->plat->mdio_bus_data &&
+		   priv->plat->mdio_bus_data->pcs_mask) {
+		addr = ffs(priv->plat->mdio_bus_data->pcs_mask) - 1;
+		xpcs = xpcs_create_mdiodev(priv->mii, addr, mode);
+		ret = PTR_ERR_OR_ZERO(xpcs);
+	} else {
+		return 0;
 	}
 
-	if (!priv->hw->xpcs) {
-		dev_warn(priv->device, "No xPCS found\n");
-		return -ENODEV;
-	}
+	if (ret)
+		return dev_err_probe(priv->device, ret, "No xPCS found\n");
+
+	priv->hw->xpcs = xpcs;
 
 	return 0;
+}
+
+void stmmac_pcs_clean(struct net_device *ndev)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	if (priv->plat->pcs_exit)
+		priv->plat->pcs_exit(priv);
+
+	if (!priv->hw->xpcs)
+		return;
+
+	xpcs_destroy(priv->hw->xpcs);
+	priv->hw->xpcs = NULL;
 }
 
 /**
@@ -587,7 +608,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
-	new_bus->phy_mask = mdio_bus_data->phy_mask;
+	new_bus->phy_mask = mdio_bus_data->phy_mask | mdio_bus_data->pcs_mask;
 	new_bus->parent = priv->device;
 
 	err = of_mdiobus_register(new_bus, mdio_node);
@@ -678,9 +699,6 @@ int stmmac_mdio_unregister(struct net_device *ndev)
 
 	if (!priv->mii)
 		return 0;
-
-	if (priv->hw->xpcs)
-		xpcs_destroy(priv->hw->xpcs);
 
 	mdiobus_unregister(priv->mii);
 	priv->mii->priv = NULL;

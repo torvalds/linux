@@ -729,8 +729,7 @@ out:
 	return rc;
 }
 
-int cxlflash_disk_release(struct scsi_device *sdev,
-			  struct dk_cxlflash_release *release)
+int cxlflash_disk_release(struct scsi_device *sdev, void *release)
 {
 	return _cxlflash_disk_release(sdev, NULL, release);
 }
@@ -955,8 +954,7 @@ out:
 	return rc;
 }
 
-static int cxlflash_disk_detach(struct scsi_device *sdev,
-				struct dk_cxlflash_detach *detach)
+static int cxlflash_disk_detach(struct scsi_device *sdev, void *detach)
 {
 	return _cxlflash_disk_detach(sdev, NULL, detach);
 }
@@ -1305,7 +1303,7 @@ retry:
 /**
  * cxlflash_disk_attach() - attach a LUN to a context
  * @sdev:	SCSI device associated with LUN.
- * @attach:	Attach ioctl data structure.
+ * @arg:	Attach ioctl data structure.
  *
  * Creates a context and attaches LUN to it. A LUN can only be attached
  * one time to a context (subsequent attaches for the same context/LUN pair
@@ -1314,9 +1312,9 @@ retry:
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_disk_attach(struct scsi_device *sdev,
-				struct dk_cxlflash_attach *attach)
+static int cxlflash_disk_attach(struct scsi_device *sdev, void *arg)
 {
+	struct dk_cxlflash_attach *attach = arg;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
 	struct afu *afu = cfg->afu;
@@ -1621,7 +1619,7 @@ err1:
 /**
  * cxlflash_afu_recover() - initiates AFU recovery
  * @sdev:	SCSI device associated with LUN.
- * @recover:	Recover ioctl data structure.
+ * @arg:	Recover ioctl data structure.
  *
  * Only a single recovery is allowed at a time to avoid exhausting CXL
  * resources (leading to recovery failure) in the event that we're up
@@ -1648,9 +1646,9 @@ err1:
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_afu_recover(struct scsi_device *sdev,
-				struct dk_cxlflash_recover_afu *recover)
+static int cxlflash_afu_recover(struct scsi_device *sdev, void *arg)
 {
+	struct dk_cxlflash_recover_afu *recover = arg;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
 	struct llun_info *lli = sdev->hostdata;
@@ -1829,13 +1827,13 @@ out:
 /**
  * cxlflash_disk_verify() - verifies a LUN is the same and handle size changes
  * @sdev:	SCSI device associated with LUN.
- * @verify:	Verify ioctl data structure.
+ * @arg:	Verify ioctl data structure.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_disk_verify(struct scsi_device *sdev,
-				struct dk_cxlflash_verify *verify)
+static int cxlflash_disk_verify(struct scsi_device *sdev, void *arg)
 {
+	struct dk_cxlflash_verify *verify = arg;
 	int rc = 0;
 	struct ctx_info *ctxi = NULL;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
@@ -2111,16 +2109,16 @@ int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 		size_t size;
 		sioctl ioctl;
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
-	{sizeof(struct dk_cxlflash_attach), (sioctl)cxlflash_disk_attach},
+	{sizeof(struct dk_cxlflash_attach), cxlflash_disk_attach},
 	{sizeof(struct dk_cxlflash_udirect), cxlflash_disk_direct_open},
-	{sizeof(struct dk_cxlflash_release), (sioctl)cxlflash_disk_release},
-	{sizeof(struct dk_cxlflash_detach), (sioctl)cxlflash_disk_detach},
-	{sizeof(struct dk_cxlflash_verify), (sioctl)cxlflash_disk_verify},
-	{sizeof(struct dk_cxlflash_recover_afu), (sioctl)cxlflash_afu_recover},
-	{sizeof(struct dk_cxlflash_manage_lun), (sioctl)cxlflash_manage_lun},
+	{sizeof(struct dk_cxlflash_release), cxlflash_disk_release},
+	{sizeof(struct dk_cxlflash_detach), cxlflash_disk_detach},
+	{sizeof(struct dk_cxlflash_verify), cxlflash_disk_verify},
+	{sizeof(struct dk_cxlflash_recover_afu), cxlflash_afu_recover},
+	{sizeof(struct dk_cxlflash_manage_lun), cxlflash_manage_lun},
 	{sizeof(struct dk_cxlflash_uvirtual), cxlflash_disk_virtual_open},
-	{sizeof(struct dk_cxlflash_resize), (sioctl)cxlflash_vlun_resize},
-	{sizeof(struct dk_cxlflash_clone), (sioctl)cxlflash_disk_clone},
+	{sizeof(struct dk_cxlflash_resize), cxlflash_vlun_resize},
+	{sizeof(struct dk_cxlflash_clone), cxlflash_disk_clone},
 	};
 
 	/* Hold read semaphore so we can drain if needed */

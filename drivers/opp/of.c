@@ -1444,6 +1444,38 @@ put_required_np:
 EXPORT_SYMBOL_GPL(of_get_required_opp_performance_state);
 
 /**
+ * dev_pm_opp_of_has_required_opp - Find out if a required-opps exists.
+ * @dev: The device to investigate.
+ *
+ * Returns true if the device's node has a "operating-points-v2" property and if
+ * the corresponding node for the opp-table describes opp nodes that uses the
+ * "required-opps" property.
+ *
+ * Return: True if a required-opps is present, else false.
+ */
+bool dev_pm_opp_of_has_required_opp(struct device *dev)
+{
+	struct device_node *opp_np, *np;
+	int count;
+
+	opp_np = _opp_of_get_opp_desc_node(dev->of_node, 0);
+	if (!opp_np)
+		return false;
+
+	np = of_get_next_available_child(opp_np, NULL);
+	of_node_put(opp_np);
+	if (!np) {
+		dev_warn(dev, "Empty OPP table\n");
+		return false;
+	}
+
+	count = of_count_phandle_with_args(np, "required-opps", NULL);
+	of_node_put(np);
+
+	return count > 0;
+}
+
+/**
  * dev_pm_opp_get_of_node() - Gets the DT node corresponding to an opp
  * @opp:	opp for which DT node has to be returned for
  *
@@ -1494,20 +1526,26 @@ _get_dt_power(struct device *dev, unsigned long *uW, unsigned long *kHz)
 	return 0;
 }
 
-/*
- * Callback function provided to the Energy Model framework upon registration.
+/**
+ * dev_pm_opp_calc_power() - Calculate power value for device with EM
+ * @dev		: Device for which an Energy Model has to be registered
+ * @uW		: New power value that is calculated
+ * @kHz		: Frequency for which the new power is calculated
+ *
  * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
  * frequency and @uW to the associated power. The power is estimated as
  * P = C * V^2 * f with C being the device's capacitance and V and f
  * respectively the voltage and frequency of the OPP.
+ * It is also used as a callback function provided to the Energy Model
+ * framework upon registration.
  *
  * Returns -EINVAL if the power calculation failed because of missing
  * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_power(struct device *dev, unsigned long *uW,
-				     unsigned long *kHz)
+int dev_pm_opp_calc_power(struct device *dev, unsigned long *uW,
+			  unsigned long *kHz)
 {
 	struct dev_pm_opp *opp;
 	struct device_node *np;
@@ -1544,6 +1582,7 @@ static int __maybe_unused _get_power(struct device *dev, unsigned long *uW,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dev_pm_opp_calc_power);
 
 static bool _of_has_opp_microwatt_property(struct device *dev)
 {
@@ -1619,7 +1658,7 @@ int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 		goto failed;
 	}
 
-	EM_SET_ACTIVE_POWER_CB(em_cb, _get_power);
+	EM_SET_ACTIVE_POWER_CB(em_cb, dev_pm_opp_calc_power);
 
 register_em:
 	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus, true);

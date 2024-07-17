@@ -18,14 +18,21 @@
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
 #define PTE_DEVMAP		(_AT(pteval_t, 1) << 57)
-#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
 
 /*
- * This bit indicates that the entry is present i.e. pmd_page()
- * still points to a valid huge page in memory even if the pmd
- * has been invalidated.
+ * PTE_PRESENT_INVALID=1 & PTE_VALID=0 indicates that the pte's fields should be
+ * interpreted according to the HW layout by SW but any attempted HW access to
+ * the address will result in a fault. pte_present() returns true.
  */
-#define PMD_PRESENT_INVALID	(_AT(pteval_t, 1) << 59) /* only when !PMD_SECT_VALID */
+#define PTE_PRESENT_INVALID	(PTE_NG)		 /* only when !PTE_VALID */
+
+#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+#define PTE_UFFD_WP		(_AT(pteval_t, 1) << 58) /* uffd-wp tracking */
+#define PTE_SWP_UFFD_WP		(_AT(pteval_t, 1) << 3)	 /* only for swp ptes */
+#else
+#define PTE_UFFD_WP		(_AT(pteval_t, 0))
+#define PTE_SWP_UFFD_WP		(_AT(pteval_t, 0))
+#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
 
 #define _PROT_DEFAULT		(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED)
 #define _PROT_SECT_DEFAULT	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S)
@@ -103,7 +110,7 @@ static inline bool __pure lpa2_is_enabled(void)
 		__val;							\
 	 })
 
-#define PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_VALID) | PTE_PROT_NONE | PTE_RDONLY | PTE_NG | PTE_PXN | PTE_UXN)
+#define PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_VALID) | PTE_PRESENT_INVALID | PTE_RDONLY | PTE_NG | PTE_PXN | PTE_UXN)
 /* shared+writable pages are clean by default, hence PTE_RDONLY|PTE_WRITE */
 #define PAGE_SHARED		__pgprot(_PAGE_SHARED)
 #define PAGE_SHARED_EXEC	__pgprot(_PAGE_SHARED_EXEC)

@@ -1722,7 +1722,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (IS_ERR(dst))
 		return;
 
-	rt = (struct rt6_info *) dst;
+	rt = dst_rt6_info(dst);
 
 	if (rt->rt6i_flags & RTF_GATEWAY) {
 		ND_PRINTK(2, warn,
@@ -1936,7 +1936,7 @@ static struct notifier_block ndisc_netdev_notifier = {
 };
 
 #ifdef CONFIG_SYSCTL
-static void ndisc_warn_deprecated_sysctl(struct ctl_table *ctl,
+static void ndisc_warn_deprecated_sysctl(const struct ctl_table *ctl,
 					 const char *func, const char *dev_name)
 {
 	static char warncomm[TASK_COMM_LEN];

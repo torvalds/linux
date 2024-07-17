@@ -22,23 +22,6 @@
 #include "../common/soc-intel-quirks.h"
 #include "sof_board_helpers.h"
 #include "sof_maxim_common.h"
-#include "sof_ssp_common.h"
-
-#define SOF_CS42L42_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
-#define SOF_CS42L42_SSP_CODEC_MASK		(GENMASK(2, 0))
-#define SOF_CS42L42_SSP_AMP_SHIFT		4
-#define SOF_CS42L42_SSP_AMP_MASK		(GENMASK(6, 4))
-#define SOF_CS42L42_SSP_AMP(quirk)	\
-	(((quirk) << SOF_CS42L42_SSP_AMP_SHIFT) & SOF_CS42L42_SSP_AMP_MASK)
-#define SOF_CS42L42_NUM_HDMIDEV_SHIFT		7
-#define SOF_CS42L42_NUM_HDMIDEV_MASK		(GENMASK(9, 7))
-#define SOF_CS42L42_NUM_HDMIDEV(quirk)	\
-	(((quirk) << SOF_CS42L42_NUM_HDMIDEV_SHIFT) & SOF_CS42L42_NUM_HDMIDEV_MASK)
-#define SOF_BT_OFFLOAD_PRESENT			BIT(25)
-#define SOF_CS42L42_SSP_BT_SHIFT		26
-#define SOF_CS42L42_SSP_BT_MASK			(GENMASK(28, 26))
-#define SOF_CS42L42_SSP_BT(quirk)	\
-	(((quirk) << SOF_CS42L42_SSP_BT_SHIFT) & SOF_CS42L42_SSP_BT_MASK)
 
 static struct snd_soc_jack_pin jack_pins[] = {
 	{
@@ -52,7 +35,7 @@ static struct snd_soc_jack_pin jack_pins[] = {
 };
 
 /* Default: SSP2 */
-static unsigned long sof_cs42l42_quirk = SOF_CS42L42_SSP_CODEC(2);
+static unsigned long sof_cs42l42_quirk = SOF_SSP_PORT_CODEC(2);
 
 static int sof_cs42l42_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -229,47 +212,25 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct sof_card_private *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_cs42l42_quirk = (unsigned long)pdev->id_entry->driver_data;
 
-	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
-	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
+	dev_dbg(&pdev->dev, "sof_cs42l42_quirk = %lx\n", sof_cs42l42_quirk);
+
+	/* initialize ctx with board quirk */
+	ctx = sof_intel_board_get_ctx(&pdev->dev, sof_cs42l42_quirk);
+	if (!ctx)
+		return -ENOMEM;
 
 	if (soc_intel_is_glk()) {
 		ctx->dmic_be_num = 1;
-		ctx->hdmi_num = 3;
 
 		/* overwrite the DAI link order for GLK boards */
 		ctx->link_order_overwrite = GLK_LINK_ORDER;
-	} else {
-		ctx->dmic_be_num = 2;
-		ctx->hdmi_num = (sof_cs42l42_quirk & SOF_CS42L42_NUM_HDMIDEV_MASK) >>
-			 SOF_CS42L42_NUM_HDMIDEV_SHIFT;
-		/* default number of HDMI DAI's */
-		if (!ctx->hdmi_num)
-			ctx->hdmi_num = 3;
 	}
 
 	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
-
-	dev_dbg(&pdev->dev, "sof_cs42l42_quirk = %lx\n", sof_cs42l42_quirk);
-
-	/* port number of peripherals attached to ssp interface */
-	ctx->ssp_bt = (sof_cs42l42_quirk & SOF_CS42L42_SSP_BT_MASK) >>
-			SOF_CS42L42_SSP_BT_SHIFT;
-
-	ctx->ssp_amp = (sof_cs42l42_quirk & SOF_CS42L42_SSP_AMP_MASK) >>
-			SOF_CS42L42_SSP_AMP_SHIFT;
-
-	ctx->ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
-
-	if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT)
-		ctx->bt_offload_present = true;
 
 	/* update dai_link */
 	ret = sof_card_dai_links_create(&pdev->dev, &sof_audio_card_cs42l42, ctx);
@@ -293,21 +254,36 @@ static int sof_audio_probe(struct platform_device *pdev)
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "glk_cs4242_mx98357a",
-		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(2) |
-					SOF_CS42L42_SSP_AMP(1)),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(1)),
 	},
 	{
 		.name = "jsl_cs4242_mx98360a",
-		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
-					SOF_CS42L42_SSP_AMP(1)),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1)),
 	},
 	{
-		.name = "adl_mx98360a_cs4242",
-		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
-				SOF_CS42L42_SSP_AMP(1) |
-				SOF_CS42L42_NUM_HDMIDEV(4) |
-				SOF_BT_OFFLOAD_PRESENT |
-				SOF_CS42L42_SSP_BT(2)),
+		.name = "adl_cs42l42_def",
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1) |
+					SOF_NUM_IDISP_HDMI(4) |
+					SOF_BT_OFFLOAD_PRESENT |
+					SOF_SSP_PORT_BT_OFFLOAD(2)),
+	},
+	{
+		.name = "rpl_cs42l42_def",
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1) |
+					SOF_NUM_IDISP_HDMI(4) |
+					SOF_BT_OFFLOAD_PRESENT |
+					SOF_SSP_PORT_BT_OFFLOAD(2)),
+	},
+	{
+		.name = "mtl_cs42l42_def",
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(0) |
+					SOF_BT_OFFLOAD_PRESENT |
+					SOF_SSP_PORT_BT_OFFLOAD(1)),
 	},
 	{ }
 };
@@ -329,4 +305,3 @@ MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);

@@ -315,6 +315,7 @@ void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
 void bch2_prt_u64_base2(struct printbuf *, u64);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
+void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
@@ -444,11 +445,6 @@ static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 
 void bch2_bio_map(struct bio *bio, void *base, size_t);
 int bch2_bio_alloc_pages(struct bio *, size_t, gfp_t);
-
-static inline sector_t bdev_sectors(struct block_device *bdev)
-{
-	return bdev->bd_inode->i_size >> 9;
-}
 
 #define closure_bio_submit(bio, cl)					\
 do {									\

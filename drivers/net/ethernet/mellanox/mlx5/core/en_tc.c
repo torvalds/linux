@@ -835,8 +835,7 @@ static void mlx5e_hairpin_set_ttc_params(struct mlx5e_hairpin *hp,
 
 	memset(ttc_params, 0, sizeof(*ttc_params));
 
-	ttc_params->ns = mlx5_get_flow_namespace(hp->func_mdev,
-						 MLX5_FLOW_NAMESPACE_KERNEL);
+	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		ttc_params->dests[tt].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 		ttc_params->dests[tt].tir_num =
@@ -2802,12 +2801,6 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		flow_rule_match_control(rule, &match);
 		addr_type = match.key->addr_type;
 
-		/* the HW doesn't support frag first/later */
-		if (match.mask->flags & FLOW_DIS_FIRST_FRAG) {
-			NL_SET_ERR_MSG_MOD(extack, "Match on frag first/later is not supported");
-			return -EOPNOTSUPP;
-		}
-
 		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag,
@@ -2820,6 +2813,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			else
 				*match_level = MLX5_MATCH_L3;
 		}
+
+		if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT,
+						     match.mask->flags, extack))
+			return -EOPNOTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -5464,12 +5461,15 @@ static bool mlx5e_tc_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct tunnel_match_enc_opts enc_opts = {};
 	struct mlx5_rep_uplink_priv *uplink_priv;
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct metadata_dst *tun_dst;
 	struct tunnel_match_key key;
 	u32 tun_id, enc_opts_id;
 	struct net_device *dev;
 	int err;
+
+	__set_bit(IP_TUNNEL_KEY_BIT, flags);
 
 	enc_opts_id = tunnel_id & ENC_OPTS_BITS_MASK;
 	tun_id = tunnel_id >> ENC_OPTS_BITS;
@@ -5503,14 +5503,14 @@ static bool mlx5e_tc_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb
 	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
 		tun_dst = __ip_tun_set_dst(key.enc_ipv4.src, key.enc_ipv4.dst,
 					   key.enc_ip.tos, key.enc_ip.ttl,
-					   key.enc_tp.dst, TUNNEL_KEY,
+					   key.enc_tp.dst, flags,
 					   key32_to_tunnel_id(key.enc_key_id.keyid),
 					   enc_opts.key.len);
 		break;
 	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 		tun_dst = __ipv6_tun_set_dst(&key.enc_ipv6.src, &key.enc_ipv6.dst,
 					     key.enc_ip.tos, key.enc_ip.ttl,
-					     key.enc_tp.dst, 0, TUNNEL_KEY,
+					     key.enc_tp.dst, 0, flags,
 					     key32_to_tunnel_id(key.enc_key_id.keyid),
 					     enc_opts.key.len);
 		break;
@@ -5528,11 +5528,16 @@ static bool mlx5e_tc_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb
 
 	tun_dst->u.tun_info.key.tp_src = key.enc_tp.src;
 
-	if (enc_opts.key.len)
+	if (enc_opts.key.len) {
+		ip_tunnel_flags_zero(flags);
+		if (enc_opts.key.dst_opt_type)
+			__set_bit(enc_opts.key.dst_opt_type, flags);
+
 		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
 					enc_opts.key.data,
 					enc_opts.key.len,
-					enc_opts.key.dst_opt_type);
+					flags);
+	}
 
 	skb_dst_set(skb, (struct dst_entry *)tun_dst);
 	dev = dev_get_by_index(&init_net, key.filter_ifindex);

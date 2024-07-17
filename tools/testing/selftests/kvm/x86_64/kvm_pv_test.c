@@ -183,9 +183,6 @@ int main(void)
 
 	vcpu_clear_cpuid_entry(vcpu, KVM_CPUID_FEATURES);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	enter_guest(vcpu);
 	kvm_vm_free(vm);
 

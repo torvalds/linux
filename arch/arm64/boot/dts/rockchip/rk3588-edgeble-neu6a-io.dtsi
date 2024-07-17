@@ -68,6 +68,10 @@
 	status = "okay";
 };
 
+&combphy2_psu {
+	status = "okay";
+};
+
 &i2c6 {
 	status = "okay";
 
@@ -228,5 +232,9 @@
 };
 
 &usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host2_xhci {
 	status = "okay";
 };

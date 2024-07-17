@@ -4,7 +4,6 @@
  * Copyright (C) 2020 Zong Li
  */
 
-#include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -533,13 +532,6 @@ static int __prci_register_clocks(struct device *dev, struct __prci_data *pd,
 		r = devm_clk_hw_register(dev, &pic->hw);
 		if (r) {
 			dev_warn(dev, "Failed to register clock %s: %d\n",
-				 init.name, r);
-			return r;
-		}
-
-		r = clk_hw_register_clkdev(&pic->hw, pic->name, dev_name(dev));
-		if (r) {
-			dev_warn(dev, "Failed to register clkdev for %s: %d\n",
 				 init.name, r);
 			return r;
 		}

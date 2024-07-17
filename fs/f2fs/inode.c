@@ -161,7 +161,8 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
 	if (!f2fs_enable_inode_chksum(sbi, page))
 #else
 	if (!f2fs_enable_inode_chksum(sbi, page) ||
-			PageDirty(page) || PageWriteback(page))
+			PageDirty(page) ||
+			folio_test_writeback(page_folio(page)))
 #endif
 		return true;
 
@@ -361,6 +362,12 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
+	if (fi->i_xattr_nid && f2fs_check_nid_range(sbi, fi->i_xattr_nid)) {
+		f2fs_warn(sbi, "%s: inode (ino=%lx) has corrupted i_xattr_nid: %u, run fsck to fix.",
+			  __func__, inode->i_ino, fi->i_xattr_nid);
+		return false;
+	}
+
 	return true;
 }
 
@@ -408,8 +415,7 @@ static int do_read_inode(struct inode *inode)
 	if (S_ISDIR(inode->i_mode))
 		fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
 	else if (S_ISREG(inode->i_mode))
-		fi->i_gc_failures[GC_FAILURE_PIN] =
-					le16_to_cpu(ri->i_gc_failures);
+		fi->i_gc_failures = le16_to_cpu(ri->i_gc_failures);
 	fi->i_xattr_nid = le32_to_cpu(ri->i_xattr_nid);
 	fi->i_flags = le32_to_cpu(ri->i_flags);
 	if (S_ISREG(inode->i_mode))
@@ -679,8 +685,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 		ri->i_current_depth =
 			cpu_to_le32(F2FS_I(inode)->i_current_depth);
 	else if (S_ISREG(inode->i_mode))
-		ri->i_gc_failures =
-			cpu_to_le16(F2FS_I(inode)->i_gc_failures[GC_FAILURE_PIN]);
+		ri->i_gc_failures = cpu_to_le16(F2FS_I(inode)->i_gc_failures);
 	ri->i_xattr_nid = cpu_to_le32(F2FS_I(inode)->i_xattr_nid);
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
 	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
@@ -804,6 +809,7 @@ void f2fs_evict_inode(struct inode *inode)
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	nid_t xnid = fi->i_xattr_nid;
 	int err = 0;
+	bool freeze_protected = false;
 
 	f2fs_abort_atomic_write(inode, true);
 
@@ -843,8 +849,10 @@ void f2fs_evict_inode(struct inode *inode)
 	f2fs_remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
 	f2fs_remove_ino_entry(sbi, inode->i_ino, FLUSH_INO);
 
-	if (!is_sbi_flag_set(sbi, SBI_IS_FREEZING))
+	if (!is_sbi_flag_set(sbi, SBI_IS_FREEZING)) {
 		sb_start_intwrite(inode->i_sb);
+		freeze_protected = true;
+	}
 	set_inode_flag(inode, FI_NO_ALLOC);
 	i_size_write(inode, 0);
 retry:
@@ -887,7 +895,7 @@ retry:
 		if (dquot_initialize_needed(inode))
 			set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
 	}
-	if (!is_sbi_flag_set(sbi, SBI_IS_FREEZING))
+	if (freeze_protected)
 		sb_end_intwrite(inode->i_sb);
 no_delete:
 	dquot_drop(inode);

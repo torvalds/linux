@@ -108,7 +108,7 @@ void rnr_nak_timer(struct timer_list *t)
 		/* request a send queue retry */
 		qp->req.need_retry = 1;
 		qp->req.wait_for_rnr_timer = 0;
-		rxe_sched_task(&qp->req.task);
+		rxe_sched_task(&qp->send_task);
 	}
 	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
@@ -545,6 +545,8 @@ static void update_wqe_state(struct rxe_qp *qp,
 	if (pkt->mask & RXE_END_MASK) {
 		if (qp_type(qp) == IB_QPT_RC)
 			wqe->state = wqe_state_pending;
+		else
+			wqe->state = wqe_state_done;
 	} else {
 		wqe->state = wqe_state_processing;
 	}
@@ -571,30 +573,6 @@ static void update_wqe_psn(struct rxe_qp *qp,
 		qp->req.psn = (wqe->first_psn + num_pkt) & BTH_PSN_MASK;
 	else
 		qp->req.psn = (qp->req.psn + 1) & BTH_PSN_MASK;
-}
-
-static void save_state(struct rxe_send_wqe *wqe,
-		       struct rxe_qp *qp,
-		       struct rxe_send_wqe *rollback_wqe,
-		       u32 *rollback_psn)
-{
-	rollback_wqe->state = wqe->state;
-	rollback_wqe->first_psn = wqe->first_psn;
-	rollback_wqe->last_psn = wqe->last_psn;
-	rollback_wqe->dma = wqe->dma;
-	*rollback_psn = qp->req.psn;
-}
-
-static void rollback_state(struct rxe_send_wqe *wqe,
-			   struct rxe_qp *qp,
-			   struct rxe_send_wqe *rollback_wqe,
-			   u32 rollback_psn)
-{
-	wqe->state = rollback_wqe->state;
-	wqe->first_psn = rollback_wqe->first_psn;
-	wqe->last_psn = rollback_wqe->last_psn;
-	wqe->dma = rollback_wqe->dma;
-	qp->req.psn = rollback_psn;
 }
 
 static void update_state(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
@@ -655,12 +633,6 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	wqe->status = IB_WC_SUCCESS;
 	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
 
-	/* There is no ack coming for local work requests
-	 * which can lead to a deadlock. So go ahead and complete
-	 * it now.
-	 */
-	rxe_sched_task(&qp->comp.task);
-
 	return 0;
 }
 
@@ -676,8 +648,6 @@ int rxe_requester(struct rxe_qp *qp)
 	int opcode;
 	int err;
 	int ret;
-	struct rxe_send_wqe rollback_wqe;
-	u32 rollback_psn;
 	struct rxe_queue *q = qp->sq.queue;
 	struct rxe_ah *ah;
 	struct rxe_av *av;
@@ -786,7 +756,6 @@ int rxe_requester(struct rxe_qp *qp)
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			rxe_sched_task(&qp->comp.task);
 			goto done;
 		}
 		payload = mtu;
@@ -798,9 +767,6 @@ int rxe_requester(struct rxe_qp *qp)
 	pkt.psn = qp->req.psn;
 	pkt.mask = rxe_opcode[opcode].mask;
 	pkt.wqe = wqe;
-
-	/* save wqe state before we build and send packet */
-	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
 
 	av = rxe_get_av(&pkt, &ah);
 	if (unlikely(!av)) {
@@ -834,31 +800,14 @@ int rxe_requester(struct rxe_qp *qp)
 	if (ah)
 		rxe_put(ah);
 
-	/* update wqe state as though we had sent it */
-	update_wqe_state(qp, wqe, &pkt);
-	update_wqe_psn(qp, wqe, &pkt, payload);
-
 	err = rxe_xmit_packet(qp, &pkt, skb);
 	if (err) {
-		if (err != -EAGAIN) {
-			wqe->status = IB_WC_LOC_QP_OP_ERR;
-			goto err;
-		}
-
-		/* the packet was dropped so reset wqe to the state
-		 * before we sent it so we can try to resend
-		 */
-		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
-
-		/* force a delay until the dropped packet is freed and
-		 * the send queue is drained below the low water mark
-		 */
-		qp->need_req_skb = 1;
-
-		rxe_sched_task(&qp->req.task);
-		goto exit;
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		goto err;
 	}
 
+	update_wqe_state(qp, wqe, &pkt);
+	update_wqe_psn(qp, wqe, &pkt, payload);
 	update_state(qp, &pkt);
 
 	/* A non-zero return value will cause rxe_do_task to
@@ -877,4 +826,21 @@ exit:
 	ret = -EAGAIN;
 out:
 	return ret;
+}
+
+int rxe_sender(struct rxe_qp *qp)
+{
+	int req_ret;
+	int comp_ret;
+
+	/* process the send queue */
+	req_ret = rxe_requester(qp);
+
+	/* process the response queue */
+	comp_ret = rxe_completer(qp);
+
+	/* exit the task loop if both requester and completer
+	 * are ready
+	 */
+	return (req_ret && comp_ret) ? -EAGAIN : 0;
 }

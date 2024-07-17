@@ -9,6 +9,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pfn_t.h>
+#include <linux/vmalloc.h>
 
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>

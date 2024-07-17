@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -299,54 +299,6 @@ void avs_dsp_process_response(struct avs_dev *adev, u64 header)
 	}
 
 	complete(&ipc->busy_completion);
-}
-
-irqreturn_t avs_irq_handler(struct avs_dev *adev)
-{
-	struct avs_ipc *ipc = adev->ipc;
-	const struct avs_spec *const spec = adev->spec;
-	u32 adspis, hipc_rsp, hipc_ack;
-	irqreturn_t ret = IRQ_NONE;
-
-	adspis = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPIS);
-	if (adspis == UINT_MAX || !(adspis & AVS_ADSP_ADSPIS_IPC))
-		return ret;
-
-	hipc_ack = snd_hdac_adsp_readl(adev, spec->hipc->ack_offset);
-	hipc_rsp = snd_hdac_adsp_readl(adev, spec->hipc->rsp_offset);
-
-	/* DSP acked host's request */
-	if (hipc_ack & spec->hipc->ack_done_mask) {
-		/*
-		 * As an extra precaution, mask done interrupt. Code executed
-		 * due to complete() found below does not assume any masking.
-		 */
-		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
-				      AVS_ADSP_HIPCCTL_DONE, 0);
-
-		complete(&ipc->done_completion);
-
-		/* tell DSP it has our attention */
-		snd_hdac_adsp_updatel(adev, spec->hipc->ack_offset,
-				      spec->hipc->ack_done_mask,
-				      spec->hipc->ack_done_mask);
-		/* unmask done interrupt */
-		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
-				      AVS_ADSP_HIPCCTL_DONE,
-				      AVS_ADSP_HIPCCTL_DONE);
-		ret = IRQ_HANDLED;
-	}
-
-	/* DSP sent new response to process */
-	if (hipc_rsp & spec->hipc->rsp_busy_mask) {
-		/* mask busy interrupt */
-		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
-				      AVS_ADSP_HIPCCTL_BUSY, 0);
-
-		ret = IRQ_WAKE_THREAD;
-	}
-
-	return ret;
 }
 
 static bool avs_ipc_is_busy(struct avs_ipc *ipc)

@@ -56,17 +56,20 @@
 
 #define RCAR_PD_ALWAYS_ON	32	/* Always-on power area */
 
-struct rcar_sysc_ch {
+struct rcar_sysc_pd {
+	struct generic_pm_domain genpd;
 	u16 chan_offs;
 	u8 chan_bit;
 	u8 isr_bit;
+	unsigned int flags;
+	char name[];
 };
 
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
 static u32 rcar_sysc_extmask_offs, rcar_sysc_extmask_val;
 
-static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch, bool on)
+static int rcar_sysc_pwr_on_off(const struct rcar_sysc_pd *pd, bool on)
 {
 	unsigned int sr_bit, reg_offs;
 	u32 val;
@@ -87,17 +90,20 @@ static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch, bool on)
 	if (ret)
 		return -EAGAIN;
 
+	/* Power-off delay quirk */
+	if (!on && (pd->flags & PD_OFF_DELAY))
+		udelay(1);
+
 	/* Submit power shutoff or power resume request */
-	iowrite32(BIT(sysc_ch->chan_bit),
-		  rcar_sysc_base + sysc_ch->chan_offs + reg_offs);
+	iowrite32(BIT(pd->chan_bit), rcar_sysc_base + pd->chan_offs + reg_offs);
 
 	return 0;
 }
 
-static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
+static int rcar_sysc_power(const struct rcar_sysc_pd *pd, bool on)
 {
-	unsigned int isr_mask = BIT(sysc_ch->isr_bit);
-	unsigned int chan_mask = BIT(sysc_ch->chan_bit);
+	unsigned int isr_mask = BIT(pd->isr_bit);
+	unsigned int chan_mask = BIT(pd->chan_bit);
 	unsigned int status, k;
 	unsigned long flags;
 	int ret;
@@ -125,12 +131,11 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 
 	/* Submit power shutoff or resume request until it was accepted */
 	for (k = 0; k < PWRER_RETRIES; k++) {
-		ret = rcar_sysc_pwr_on_off(sysc_ch, on);
+		ret = rcar_sysc_pwr_on_off(pd, on);
 		if (ret)
 			goto out;
 
-		status = ioread32(rcar_sysc_base +
-				  sysc_ch->chan_offs + PWRER_OFFS);
+		status = ioread32(rcar_sysc_base + pd->chan_offs + PWRER_OFFS);
 		if (!(status & chan_mask))
 			break;
 
@@ -158,27 +163,20 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 	spin_unlock_irqrestore(&rcar_sysc_lock, flags);
 
 	pr_debug("sysc power %s domain %d: %08x -> %d\n", on ? "on" : "off",
-		 sysc_ch->isr_bit, ioread32(rcar_sysc_base + SYSCISR), ret);
+		 pd->isr_bit, ioread32(rcar_sysc_base + SYSCISR), ret);
 	return ret;
 }
 
-static bool rcar_sysc_power_is_off(const struct rcar_sysc_ch *sysc_ch)
+static bool rcar_sysc_power_is_off(const struct rcar_sysc_pd *pd)
 {
 	unsigned int st;
 
-	st = ioread32(rcar_sysc_base + sysc_ch->chan_offs + PWRSR_OFFS);
-	if (st & BIT(sysc_ch->chan_bit))
+	st = ioread32(rcar_sysc_base + pd->chan_offs + PWRSR_OFFS);
+	if (st & BIT(pd->chan_bit))
 		return true;
 
 	return false;
 }
-
-struct rcar_sysc_pd {
-	struct generic_pm_domain genpd;
-	struct rcar_sysc_ch ch;
-	unsigned int flags;
-	char name[];
-};
 
 static inline struct rcar_sysc_pd *to_rcar_pd(struct generic_pm_domain *d)
 {
@@ -190,7 +188,7 @@ static int rcar_sysc_pd_power_off(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-	return rcar_sysc_power(&pd->ch, false);
+	return rcar_sysc_power(pd, false);
 }
 
 static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
@@ -198,7 +196,7 @@ static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-	return rcar_sysc_power(&pd->ch, true);
+	return rcar_sysc_power(pd, true);
 }
 
 static bool has_cpg_mstp;
@@ -252,12 +250,12 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		goto finalize;
 	}
 
-	if (!rcar_sysc_power_is_off(&pd->ch)) {
+	if (!rcar_sysc_power_is_off(pd)) {
 		pr_debug("%s: %s is already powered\n", __func__, genpd->name);
 		goto finalize;
 	}
 
-	rcar_sysc_power(&pd->ch, true);
+	rcar_sysc_power(pd, true);
 
 finalize:
 	error = pm_genpd_init(genpd, &simple_qos_governor, false);
@@ -412,9 +410,9 @@ static int __init rcar_sysc_pd_init(void)
 
 		memcpy(pd->name, area->name, n);
 		pd->genpd.name = pd->name;
-		pd->ch.chan_offs = area->chan_offs;
-		pd->ch.chan_bit = area->chan_bit;
-		pd->ch.isr_bit = area->isr_bit;
+		pd->chan_offs = area->chan_offs;
+		pd->chan_bit = area->chan_bit;
+		pd->isr_bit = area->isr_bit;
 		pd->flags = area->flags;
 
 		error = rcar_sysc_pd_setup(pd);
@@ -445,18 +443,6 @@ out_put:
 }
 early_initcall(rcar_sysc_pd_init);
 
-void __init rcar_sysc_nullify(struct rcar_sysc_area *areas,
-			      unsigned int num_areas, u8 id)
-{
-	unsigned int i;
-
-	for (i = 0; i < num_areas; i++)
-		if (areas[i].isr_bit == id) {
-			areas[i].name = NULL;
-			return;
-		}
-}
-
 #ifdef CONFIG_ARCH_R8A7779
 static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 {
@@ -473,10 +459,10 @@ static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 			continue;
 
 		pd = to_rcar_pd(genpd);
-		if (!(pd->flags & PD_CPU) || pd->ch.chan_bit != idx)
+		if (!(pd->flags & PD_CPU) || pd->chan_bit != idx)
 			continue;
 
-		return rcar_sysc_power(&pd->ch, on);
+		return rcar_sysc_power(pd, on);
 	}
 
 	return -ENOENT;

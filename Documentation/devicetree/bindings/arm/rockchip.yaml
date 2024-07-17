@@ -49,6 +49,11 @@ properties:
               - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
+      - description: ArmSoM Sige7 board
+        items:
+          - const: armsom,sige7
+          - const: rockchip,rk3588
+
       - description: Asus Tinker board
         items:
           - const: asus,rk3288-tinker
@@ -198,6 +203,13 @@ properties:
           - const: firefly,rk3568-roc-pc
           - const: rockchip,rk3568
 
+      - description: Forlinx FET3588-C SoM
+        items:
+          - enum:
+              - forlinx,ok3588-c
+          - const: forlinx,fet3588-c
+          - const: rockchip,rk3588
+
       - description: FriendlyElec NanoPi R2 series boards
         items:
           - enum:
@@ -235,6 +247,18 @@ properties:
         items:
           - const: friendlyarm,nanopc-t6
           - const: rockchip,rk3588
+
+      - description: FriendlyElec CM3588-based boards
+        items:
+          - enum:
+              - friendlyarm,cm3588-nas
+          - const: friendlyarm,cm3588
+          - const: rockchip,rk3588
+
+      - description: GameForce Chi
+        items:
+          - const: gameforce,chi
+          - const: rockchip,rk3326
 
       - description: GeekBuying GeekBox
         items:
@@ -610,6 +634,11 @@ properties:
           - const: mqmaker,miqi
           - const: rockchip,rk3288
 
+      - description: Neardi LBA3368
+        items:
+          - const: neardi,lba3368
+          - const: rockchip,rk3368
+
       - description: Netxeon R89 board
         items:
           - const: netxeon,r89
@@ -631,7 +660,7 @@ properties:
           - const: phytec,rk3288-phycore-som
           - const: rockchip,rk3288
 
-      - description: Pine64 PinebookPro
+      - description: Pine64 Pinebook Pro
         items:
           - const: pine64,pinebook-pro
           - const: rockchip,rk3399
@@ -644,7 +673,7 @@ properties:
           - const: pine64,pinenote
           - const: rockchip,rk3566
 
-      - description: Pine64 PinePhonePro
+      - description: Pine64 PinePhone Pro
         items:
           - const: pine64,pinephone-pro
           - const: rockchip,rk3399
@@ -682,7 +711,7 @@ properties:
           - const: pine64,quartzpro64
           - const: rockchip,rk3588
 
-      - description: Pine64 SoQuartz SoM
+      - description: Pine64 SOQuartz
         items:
           - enum:
               - pine64,soquartz-blade
@@ -700,12 +729,17 @@ properties:
               - powkiddy,x55
           - const: rockchip,rk3566
 
+      - description: Protonic MECSBC board
+        items:
+          - const: prt,mecsbc
+          - const: rockchip,rk3568
+
       - description: QNAP TS-433-4G 4-Bay NAS
         items:
           - const: qnap,ts433
           - const: rockchip,rk3568
 
-      - description: Radxa Compute Module 3(CM3)
+      - description: Radxa Compute Module 3 (CM3)
         items:
           - enum:
               - radxa,cm3-io
@@ -767,25 +801,52 @@ properties:
           - const: radxa,rockpis
           - const: rockchip,rk3308
 
-      - description: Radxa Rock2 Square
+      - description: Radxa Rock 2 Square
         items:
           - const: radxa,rock2-square
           - const: rockchip,rk3288
 
-      - description: Radxa ROCK3 Model A
+      - description: Radxa ROCK 3A
         items:
           - const: radxa,rock3a
           - const: rockchip,rk3568
 
-      - description: Radxa ROCK 5 Model A
+      - description: Radxa ROCK 3B
+        items:
+          - const: radxa,rock-3b
+          - const: rockchip,rk3568
+
+      - description: Radxa ROCK 3C
+        items:
+          - const: radxa,rock-3c
+          - const: rockchip,rk3566
+
+      - description: Radxa ROCK 5 ITX
+        items:
+          - const: radxa,rock-5-itx
+          - const: rockchip,rk3588
+
+      - description: Radxa ROCK 5A
         items:
           - const: radxa,rock-5a
           - const: rockchip,rk3588s
 
-      - description: Radxa ROCK 5 Model B
+      - description: Radxa ROCK 5B
         items:
           - const: radxa,rock-5b
           - const: rockchip,rk3588
+
+      - description: Radxa ROCK S0
+        items:
+          - const: radxa,rock-s0
+          - const: rockchip,rk3308
+
+      - description: Radxa ZERO 3W/3E
+        items:
+          - enum:
+              - radxa,zero-3e
+              - radxa,zero-3w
+          - const: rockchip,rk3566
 
       - description: Rikomagic MK808 v1
         items:
@@ -926,6 +987,19 @@ properties:
         items:
           - const: turing,rk1
           - const: rockchip,rk3588
+
+      - description: WolfVision PF5 mainboard
+        items:
+          - const: wolfvision,rk3568-pf5
+          - const: rockchip,rk3568
+
+      - description: Xunlong Orange Pi 3B
+        items:
+          - enum:
+              - xunlong,orangepi-3b-v1.1
+              - xunlong,orangepi-3b-v2.1
+          - const: xunlong,orangepi-3b
+          - const: rockchip,rk3566
 
       - description: Xunlong Orange Pi 5 Plus
         items:

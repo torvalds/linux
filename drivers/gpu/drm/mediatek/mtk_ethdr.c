@@ -14,8 +14,8 @@
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include <linux/soc/mediatek/mtk-mmsys.h>
 
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_drm_drv.h"
 #include "mtk_ethdr.h"
 
@@ -363,7 +363,6 @@ struct platform_driver mtk_ethdr_driver = {
 	.remove_new	= mtk_ethdr_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ethdr",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_ethdr_driver_dt_match,
 	},
 };

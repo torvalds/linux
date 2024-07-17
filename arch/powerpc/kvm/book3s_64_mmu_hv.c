@@ -1010,18 +1010,6 @@ bool kvm_test_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 		return kvm_test_age_rmapp(kvm, range->slot, range->start);
 }
 
-bool kvm_set_spte_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	WARN_ON(range->start + 1 != range->end);
-
-	if (kvm_is_radix(kvm))
-		kvm_unmap_radix(kvm, range->slot, range->start);
-	else
-		kvm_unmap_rmapp(kvm, range->slot, range->start);
-
-	return false;
-}
-
 static int vcpus_running(struct kvm *kvm)
 {
 	return atomic_read(&kvm->arch.vcpus_running) != 0;

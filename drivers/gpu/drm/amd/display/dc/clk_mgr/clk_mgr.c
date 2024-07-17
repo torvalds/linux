@@ -272,7 +272,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			return &clk_mgr->base;
 		}
-		if (asic_id.chip_id == DEVICE_ID_NV_13FE) {
+		if (ctx->dce_version == DCN_VERSION_2_01) {
 			dcn201_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			return &clk_mgr->base;
 		}
@@ -329,15 +329,14 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0: {
-	    struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
 
-	    if (clk_mgr == NULL) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	    }
-
-	    dcn32_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-	    return &clk_mgr->base;
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+		dcn32_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base;
 	}
 
 	case AMDGPU_FAMILY_GC_11_0_1: {

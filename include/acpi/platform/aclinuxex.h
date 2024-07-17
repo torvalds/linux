@@ -47,26 +47,19 @@ acpi_status acpi_os_terminate(void);
  * However, boot has  (system_state != SYSTEM_RUNNING)
  * to quiet __might_sleep() in kmalloc() and resume does not.
  */
-static inline void *acpi_os_allocate(acpi_size size)
-{
-	return kmalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
+#define acpi_os_allocate(_size)	\
+		kmalloc(_size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
 
-static inline void *acpi_os_allocate_zeroed(acpi_size size)
-{
-	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
+#define acpi_os_allocate_zeroed(_size)	\
+		kzalloc(_size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
 
 static inline void acpi_os_free(void *memory)
 {
 	kfree(memory);
 }
 
-static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
-{
-	return kmem_cache_zalloc(cache,
-				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
+#define acpi_os_acquire_object(_cache)	\
+		kmem_cache_zalloc(_cache, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
 
 static inline acpi_thread_id acpi_os_get_thread_id(void)
 {

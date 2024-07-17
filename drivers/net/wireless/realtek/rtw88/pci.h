@@ -215,7 +215,7 @@ struct rtw_pci {
 	bool running;
 
 	/* napi structure */
-	struct net_device netdev;
+	struct net_device *netdev;
 	struct napi_struct napi;
 
 	u16 rx_tag;

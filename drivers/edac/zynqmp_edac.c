@@ -381,7 +381,7 @@ static int edac_probe(struct platform_device *pdev)
 	}
 
 	dci = edac_device_alloc_ctl_info(sizeof(*priv), ZYNQMP_OCM_EDAC_STRING,
-					 1, ZYNQMP_OCM_EDAC_STRING, 1, 0, NULL, 0,
+					 1, ZYNQMP_OCM_EDAC_STRING, 1, 0,
 					 edac_device_alloc_index());
 	if (!dci)
 		return -ENOMEM;

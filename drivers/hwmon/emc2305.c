@@ -47,10 +47,10 @@ enum emc230x_product_id {
 };
 
 static const struct i2c_device_id emc2305_ids[] = {
-	{ "emc2305", 0 },
-	{ "emc2303", 0 },
-	{ "emc2302", 0 },
-	{ "emc2301", 0 },
+	{ "emc2305" },
+	{ "emc2303" },
+	{ "emc2302" },
+	{ "emc2301" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, emc2305_ids);

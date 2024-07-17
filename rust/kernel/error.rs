@@ -4,14 +4,10 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
-use crate::str::CStr;
+use crate::{alloc::AllocError, str::CStr};
 
-use alloc::{
-    alloc::{AllocError, LayoutError},
-    collections::TryReserveError,
-};
+use alloc::alloc::LayoutError;
 
-use core::convert::From;
 use core::fmt;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
@@ -130,6 +126,12 @@ impl Error {
         self.0
     }
 
+    #[cfg(CONFIG_BLOCK)]
+    pub(crate) fn to_blk_status(self) -> bindings::blk_status_t {
+        // SAFETY: `self.0` is a valid error due to its invariant.
+        unsafe { bindings::errno_to_blk_status(self.0) }
+    }
+
     /// Returns the error encoded as a pointer.
     #[allow(dead_code)]
     pub(crate) fn to_ptr<T>(self) -> *mut T {
@@ -189,12 +191,6 @@ impl From<TryFromIntError> for Error {
 impl From<Utf8Error> for Error {
     fn from(_: Utf8Error) -> Error {
         code::EINVAL
-    }
-}
-
-impl From<TryReserveError> for Error {
-    fn from(_: TryReserveError) -> Error {
-        code::ENOMEM
     }
 }
 

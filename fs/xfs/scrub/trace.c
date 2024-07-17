@@ -19,13 +19,19 @@
 #include "xfs_da_format.h"
 #include "xfs_dir2.h"
 #include "xfs_rmap.h"
+#include "xfs_parent.h"
 #include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
 #include "scrub/quota.h"
 #include "scrub/iscan.h"
+#include "scrub/orphanage.h"
 #include "scrub/nlinks.h"
 #include "scrub/fscounters.h"
+#include "scrub/bitmap.h"
+#include "scrub/ino_bitmap.h"
+#include "scrub/xfblob.h"
+#include "scrub/dirtree.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t

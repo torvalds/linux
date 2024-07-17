@@ -534,27 +534,31 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	sch_tree_lock(sch);
 
 	if (tb[TCA_HHF_BACKLOG_LIMIT])
-		sch->limit = nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]);
+		WRITE_ONCE(sch->limit, nla_get_u32(tb[TCA_HHF_BACKLOG_LIMIT]));
 
-	q->quantum = new_quantum;
-	q->hhf_non_hh_weight = new_hhf_non_hh_weight;
+	WRITE_ONCE(q->quantum, new_quantum);
+	WRITE_ONCE(q->hhf_non_hh_weight, new_hhf_non_hh_weight);
 
 	if (tb[TCA_HHF_HH_FLOWS_LIMIT])
-		q->hh_flows_limit = nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]);
+		WRITE_ONCE(q->hh_flows_limit,
+			   nla_get_u32(tb[TCA_HHF_HH_FLOWS_LIMIT]));
 
 	if (tb[TCA_HHF_RESET_TIMEOUT]) {
 		u32 us = nla_get_u32(tb[TCA_HHF_RESET_TIMEOUT]);
 
-		q->hhf_reset_timeout = usecs_to_jiffies(us);
+		WRITE_ONCE(q->hhf_reset_timeout,
+			   usecs_to_jiffies(us));
 	}
 
 	if (tb[TCA_HHF_ADMIT_BYTES])
-		q->hhf_admit_bytes = nla_get_u32(tb[TCA_HHF_ADMIT_BYTES]);
+		WRITE_ONCE(q->hhf_admit_bytes,
+			   nla_get_u32(tb[TCA_HHF_ADMIT_BYTES]));
 
 	if (tb[TCA_HHF_EVICT_TIMEOUT]) {
 		u32 us = nla_get_u32(tb[TCA_HHF_EVICT_TIMEOUT]);
 
-		q->hhf_evict_timeout = usecs_to_jiffies(us);
+		WRITE_ONCE(q->hhf_evict_timeout,
+			   usecs_to_jiffies(us));
 	}
 
 	qlen = sch->q.qlen;
@@ -657,15 +661,18 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_HHF_BACKLOG_LIMIT, sch->limit) ||
-	    nla_put_u32(skb, TCA_HHF_QUANTUM, q->quantum) ||
-	    nla_put_u32(skb, TCA_HHF_HH_FLOWS_LIMIT, q->hh_flows_limit) ||
+	if (nla_put_u32(skb, TCA_HHF_BACKLOG_LIMIT, READ_ONCE(sch->limit)) ||
+	    nla_put_u32(skb, TCA_HHF_QUANTUM, READ_ONCE(q->quantum)) ||
+	    nla_put_u32(skb, TCA_HHF_HH_FLOWS_LIMIT,
+			READ_ONCE(q->hh_flows_limit)) ||
 	    nla_put_u32(skb, TCA_HHF_RESET_TIMEOUT,
-			jiffies_to_usecs(q->hhf_reset_timeout)) ||
-	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES, q->hhf_admit_bytes) ||
+			jiffies_to_usecs(READ_ONCE(q->hhf_reset_timeout))) ||
+	    nla_put_u32(skb, TCA_HHF_ADMIT_BYTES,
+			READ_ONCE(q->hhf_admit_bytes)) ||
 	    nla_put_u32(skb, TCA_HHF_EVICT_TIMEOUT,
-			jiffies_to_usecs(q->hhf_evict_timeout)) ||
-	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT, q->hhf_non_hh_weight))
+			jiffies_to_usecs(READ_ONCE(q->hhf_evict_timeout))) ||
+	    nla_put_u32(skb, TCA_HHF_NON_HH_WEIGHT,
+			READ_ONCE(q->hhf_non_hh_weight)))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

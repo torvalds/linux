@@ -86,6 +86,7 @@ struct printbuf {
 	u8			atomic;
 	bool			allocation_failure:1;
 	bool			heap_allocated:1;
+	bool			overflow:1;
 	enum printbuf_si	si_units:1;
 	bool			human_readable_units:1;
 	bool			has_indent_or_tabstops:1;
@@ -142,7 +143,9 @@ void bch2_prt_bitflags_vector(struct printbuf *, const char * const[],
  */
 static inline unsigned printbuf_remaining_size(struct printbuf *out)
 {
-	return out->pos < out->size ? out->size - out->pos : 0;
+	if (WARN_ON(out->size && out->pos >= out->size))
+		out->pos = out->size - 1;
+	return out->size - out->pos;
 }
 
 /*
@@ -151,7 +154,7 @@ static inline unsigned printbuf_remaining_size(struct printbuf *out)
  */
 static inline unsigned printbuf_remaining(struct printbuf *out)
 {
-	return out->pos < out->size ? out->size - out->pos - 1 : 0;
+	return out->size ? printbuf_remaining_size(out) - 1 : 0;
 }
 
 static inline unsigned printbuf_written(struct printbuf *out)
@@ -159,30 +162,25 @@ static inline unsigned printbuf_written(struct printbuf *out)
 	return out->size ? min(out->pos, out->size - 1) : 0;
 }
 
-/*
- * Returns true if output was truncated:
- */
-static inline bool printbuf_overflowed(struct printbuf *out)
+static inline void printbuf_nul_terminate_reserved(struct printbuf *out)
 {
-	return out->pos >= out->size;
+	if (WARN_ON(out->size && out->pos >= out->size))
+		out->pos = out->size - 1;
+	if (out->size)
+		out->buf[out->pos] = 0;
 }
 
 static inline void printbuf_nul_terminate(struct printbuf *out)
 {
 	bch2_printbuf_make_room(out, 1);
-
-	if (out->pos < out->size)
-		out->buf[out->pos] = 0;
-	else if (out->size)
-		out->buf[out->size - 1] = 0;
+	printbuf_nul_terminate_reserved(out);
 }
 
 /* Doesn't call bch2_printbuf_make_room(), doesn't nul terminate: */
 static inline void __prt_char_reserved(struct printbuf *out, char c)
 {
 	if (printbuf_remaining(out))
-		out->buf[out->pos] = c;
-	out->pos++;
+		out->buf[out->pos++] = c;
 }
 
 /* Doesn't nul terminate: */
@@ -194,37 +192,34 @@ static inline void __prt_char(struct printbuf *out, char c)
 
 static inline void prt_char(struct printbuf *out, char c)
 {
-	__prt_char(out, c);
-	printbuf_nul_terminate(out);
+	bch2_printbuf_make_room(out, 2);
+	__prt_char_reserved(out, c);
+	printbuf_nul_terminate_reserved(out);
 }
 
 static inline void __prt_chars_reserved(struct printbuf *out, char c, unsigned n)
 {
-	unsigned i, can_print = min(n, printbuf_remaining(out));
+	unsigned can_print = min(n, printbuf_remaining(out));
 
-	for (i = 0; i < can_print; i++)
+	for (unsigned i = 0; i < can_print; i++)
 		out->buf[out->pos++] = c;
-	out->pos += n - can_print;
 }
 
 static inline void prt_chars(struct printbuf *out, char c, unsigned n)
 {
 	bch2_printbuf_make_room(out, n);
 	__prt_chars_reserved(out, c, n);
-	printbuf_nul_terminate(out);
+	printbuf_nul_terminate_reserved(out);
 }
 
 static inline void prt_bytes(struct printbuf *out, const void *b, unsigned n)
 {
-	unsigned i, can_print;
-
 	bch2_printbuf_make_room(out, n);
 
-	can_print = min(n, printbuf_remaining(out));
+	unsigned can_print = min(n, printbuf_remaining(out));
 
-	for (i = 0; i < can_print; i++)
+	for (unsigned i = 0; i < can_print; i++)
 		out->buf[out->pos++] = ((char *) b)[i];
-	out->pos += n - can_print;
 
 	printbuf_nul_terminate(out);
 }
@@ -241,18 +236,18 @@ static inline void prt_str_indented(struct printbuf *out, const char *str)
 
 static inline void prt_hex_byte(struct printbuf *out, u8 byte)
 {
-	bch2_printbuf_make_room(out, 2);
+	bch2_printbuf_make_room(out, 3);
 	__prt_char_reserved(out, hex_asc_hi(byte));
 	__prt_char_reserved(out, hex_asc_lo(byte));
-	printbuf_nul_terminate(out);
+	printbuf_nul_terminate_reserved(out);
 }
 
 static inline void prt_hex_byte_upper(struct printbuf *out, u8 byte)
 {
-	bch2_printbuf_make_room(out, 2);
+	bch2_printbuf_make_room(out, 3);
 	__prt_char_reserved(out, hex_asc_upper_hi(byte));
 	__prt_char_reserved(out, hex_asc_upper_lo(byte));
-	printbuf_nul_terminate(out);
+	printbuf_nul_terminate_reserved(out);
 }
 
 /**

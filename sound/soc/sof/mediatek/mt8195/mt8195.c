@@ -505,7 +505,7 @@ static struct snd_soc_dai_driver mt8195_dai[] = {
 };
 
 /* mt8195 ops */
-static struct snd_sof_dsp_ops sof_mt8195_ops = {
+static const struct snd_sof_dsp_ops sof_mt8195_ops = {
 	/* probe and remove */
 	.probe		= mt8195_dsp_probe,
 	.remove		= mt8195_dsp_remove,
@@ -619,6 +619,7 @@ static struct platform_driver snd_sof_of_mt8195_driver = {
 };
 module_platform_driver(snd_sof_of_mt8195_driver);
 
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for MTL 8195 platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_SOC_SOF_MTK_COMMON);
-MODULE_LICENSE("Dual BSD/GPL");

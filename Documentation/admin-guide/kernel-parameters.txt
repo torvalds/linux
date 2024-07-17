@@ -12,7 +12,7 @@
 	acpi=		[HW,ACPI,X86,ARM64,RISCV64,EARLY]
 			Advanced Configuration and Power Interface
 			Format: { force | on | off | strict | noirq | rsdt |
-				  copy_dsdt }
+				  copy_dsdt | nospcr }
 			force -- enable ACPI if default was off
 			on -- enable ACPI but allow fallback to DT [arm64,riscv64]
 			off -- disable ACPI if default was on
@@ -21,8 +21,12 @@
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
-			For ARM64 and RISCV64, ONLY "acpi=off", "acpi=on" or
-			"acpi=force" are available
+			nospcr -- disable console in ACPI SPCR table as
+				default _serial_ console on ARM64
+			For ARM64, ONLY "acpi=off", "acpi=on", "acpi=force" or
+			"acpi=nospcr" are available
+			For RISCV64, ONLY "acpi=off", "acpi=on" or "acpi=force"
+			are available
 
 			See also Documentation/power/runtime_pm.rst, pci=noacpi
 
@@ -430,6 +434,9 @@
 
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
+
+	arm64.no32bit_el0 [ARM64] Unconditionally disable the execution of
+			32 bit applications.
 
 	arm64.nobti	[ARM64] Unconditionally disable Branch Target
 			Identification support
@@ -1428,27 +1435,6 @@
 			you are really sure that your UEFI does sane gc and
 			fulfills the spec otherwise your board may brick.
 
-	efi_fake_mem=	nn[KMG]@ss[KMG]:aa[,nn[KMG]@ss[KMG]:aa,..] [EFI,X86,EARLY]
-			Add arbitrary attribute to specific memory range by
-			updating original EFI memory map.
-			Region of memory which aa attribute is added to is
-			from ss to ss+nn.
-
-			If efi_fake_mem=2G@4G:0x10000,2G@0x10a0000000:0x10000
-			is specified, EFI_MEMORY_MORE_RELIABLE(0x10000)
-			attribute is added to range 0x100000000-0x180000000 and
-			0x10a0000000-0x1120000000.
-
-			If efi_fake_mem=8G@9G:0x40000 is specified, the
-			EFI_MEMORY_SP(0x40000) attribute is added to
-			range 0x240000000-0x43fffffff.
-
-			Using this parameter you can do debugging of EFI memmap
-			related features. For example, you can do debugging of
-			Address Range Mirroring feature even if your box
-			doesn't support it, or mark specific memory as
-			"soft reserved".
-
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
 			that is to be dynamically loaded by Linux. If there are
 			multiple variables with the same name but with different
@@ -1899,6 +1885,28 @@
 				Format:
 				<bus_id>,<clkrate>
 
+	i2c_touchscreen_props= [HW,ACPI,X86]
+			Set device-properties for ACPI-enumerated I2C-attached
+			touchscreen, to e.g. fix coordinates of upside-down
+			mounted touchscreens. If you need this option please
+			submit a drivers/platform/x86/touchscreen_dmi.c patch
+			adding a DMI quirk for this.
+
+			Format:
+			<ACPI_HW_ID>:<prop_name>=<val>[:prop_name=val][:...]
+			Where <val> is one of:
+			Omit "=<val>" entirely	Set a boolean device-property
+			Unsigned number		Set a u32 device-property
+			Anything else		Set a string device-property
+
+			Examples (split over multiple lines):
+			i2c_touchscreen_props=GDIX1001:touchscreen-inverted-x:
+			touchscreen-inverted-y
+
+			i2c_touchscreen_props=MSSL1680:touchscreen-size-x=1920:
+			touchscreen-size-y=1080:touchscreen-inverted-y:
+			firmware-name=gsl1680-vendor-model.fw:silead,home-button
+
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.unmask_kbd_data
 			[HW] Enable printing of interrupt data from the KBD port
@@ -2251,6 +2259,8 @@
 			no_x2apic_optout
 				BIOS x2APIC opt-out request will be ignored
 			nopost	disable Interrupt Posting
+			posted_msi
+				enable MSIs delivered as posted interrupts
 
 	iomem=		Disable strict checking of access to MMIO memory
 		strict	regions from userspace.
@@ -3377,10 +3387,6 @@
 			deep    - Suspend-To-RAM or equivalent (if supported)
 			See Documentation/admin-guide/pm/sleep-states.rst.
 
-	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
-			Multi-Function General Purpose Timers on AMD Geode
-			platforms.
-
 	mfgptfix	[X86-32] Fix MFGPT timers on AMD Geode platforms when
 			the BIOS has incorrectly applied a workaround. TinyBIOS
 			version 0.98 is known to be affected, 0.99 fixes the
@@ -3422,6 +3428,9 @@
 			CPU vulnerabilities.  This is a set of curated,
 			arch-independent options, each of which is an
 			aggregation of existing arch-specific options.
+
+			Note, "mitigations" is supported if and only if the
+			kernel was built with CPU_MITIGATIONS=y.
 
 			off
 				Disable all optional CPU mitigations.  This
@@ -3773,10 +3782,12 @@
 			Format: [state][,regs][,debounce][,die]
 
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
-			Format: [panic,][nopanic,][num]
+			Format: [panic,][nopanic,][rNNN,][num]
 			Valid num: 0 or 1
 			0 - turn hardlockup detector in nmi_watchdog off
 			1 - turn hardlockup detector in nmi_watchdog on
+			rNNN - configure the watchdog with raw perf event 0xNNN
+
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to not panic on an NMI
 			watchdog, if CONFIG_BOOTPARAM_HARDLOCKUP_PANIC is set)
@@ -4170,13 +4181,11 @@
 
 	page_alloc.shuffle=
 			[KNL] Boolean flag to control whether the page allocator
-			should randomize its free lists. The randomization may
-			be automatically enabled if the kernel detects it is
-			running on a platform with a direct-mapped memory-side
-			cache, and this parameter can be used to
-			override/disable that behavior. The state of the flag
-			can be read from sysfs at:
+			should randomize its free lists. This parameter can be
+			used to enable/disable page randomization. The state of
+			the flag can be read from sysfs at:
 			/sys/module/page_alloc/parameters/shuffle.
+			This parameter is only available if CONFIG_SHUFFLE_PAGE_ALLOCATOR=y.
 
 	page_owner=	[KNL,EARLY] Boot-time page_owner enabling option.
 			Storage of the information about who allocated
@@ -4591,9 +4600,10 @@
 		norid		[S390] ignore the RID field and force use of
 				one PCI domain per PCI function
 
-	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
+	pcie_aspm=	[PCIE] Forcibly enable or ignore PCIe Active State Power
 			Management.
-		off	Disable ASPM.
+		off	Don't touch ASPM configuration at all.  Leave any
+			configuration done by firmware unchanged.
 		force	Enable ASPM even on devices that claim not to support it.
 			WARNING: Forcing ASPM on may cause system lockups.
 
@@ -4718,7 +4728,9 @@
 			none - Limited to cond_resched() calls
 			voluntary - Limited to cond_resched() and might_sleep() calls
 			full - Any section that isn't explicitly preempt disabled
-			       can be preempted anytime.
+			       can be preempted anytime.  Tasks will also yield
+			       contended spinlocks (if the critical section isn't
+			       explicitly preempt disabled beyond the lock itself).
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -4781,7 +4793,9 @@
 
 	prot_virt=	[S390] enable hosting protected virtual machines
 			isolated from the hypervisor (if hardware supports
-			that).
+			that). If enabled, the default kernel base address
+			might be overridden even when Kernel Address Space
+			Layout Randomization is disabled.
 			Format: <bool>
 
 	psi=		[KNL] Enable or disable pressure stall information
@@ -4982,6 +4996,14 @@
 			the ->nocb_bypass queue.  The definition of "too
 			many" is supplied by this kernel boot parameter.
 
+	rcutree.nohz_full_patience_delay= [KNL]
+			On callback-offloaded (rcu_nocbs) CPUs, avoid
+			disturbing RCU unless the grace period has
+			reached the specified age in milliseconds.
+			Defaults to zero.  Large values will be capped
+			at five seconds.  All values will be rounded down
+			to the nearest value representable by jiffies.
+
 	rcutree.qhimark= [KNL]
 			Set threshold of queued RCU callbacks beyond which
 			batch limiting is disabled.
@@ -5091,6 +5113,20 @@
 			To save power, batch RCU callbacks and flush after
 			delay, memory pressure or callback list growing too
 			big.
+
+	rcutree.rcu_normal_wake_from_gp= [KNL]
+			Reduces a latency of synchronize_rcu() call. This approach
+			maintains its own track of synchronize_rcu() callers, so it
+			does not interact with regular callbacks because it does not
+			use a call_rcu[_hurry]() path. Please note, this is for a
+			normal grace period.
+
+			How to enable it:
+
+			echo 1 > /sys/module/rcutree/parameters/rcu_normal_wake_from_gp
+			or pass a boot parameter "rcutree.rcu_normal_wake_from_gp=1"
+
+			Default is 0.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
@@ -5808,6 +5844,7 @@
 			but is useful for debugging and performance tuning.
 
 	sched_thermal_decay_shift=
+			[Deprecated]
 			[KNL, SMP] Set a decay shift for scheduler thermal
 			pressure signal. Thermal pressure signal follows the
 			default decay period of other scheduler pelt
@@ -6069,9 +6106,15 @@
 			deployment of the HW BHI control and the SW BHB
 			clearing sequence.
 
-			on   - (default) Enable the HW or SW mitigation
-			       as needed.
-			off  - Disable the mitigation.
+			on     - (default) Enable the HW or SW mitigation as
+				 needed.  This protects the kernel from
+				 both syscalls and VMs.
+			vmexit - On systems which don't have the HW mitigation
+				 available, enable the SW mitigation on vmexit
+				 ONLY.  On such systems, the host kernel is
+				 protected from VM-originated BHI attacks, but
+				 may still be vulnerable to syscall attacks.
+			off    - Disable the mitigation.
 
 	spectre_v2=	[X86,EARLY] Control mitigation of Spectre variant 2
 			(indirect branch speculation) vulnerability.
@@ -6745,6 +6788,7 @@
 			- "tpm"
 			- "tee"
 			- "caam"
+			- "dcp"
 			If not specified then it defaults to iterating through
 			the trust source list starting with TPM and assigns the
 			first trust source as a backend which is initialized
@@ -6759,6 +6803,18 @@
 			- "default"
 			If not specified, "default" is used. In this case,
 			the RNG's choice is left to each individual trust source.
+
+	trusted.dcp_use_otp_key
+			This is intended to be used in combination with
+			trusted.source=dcp and will select the DCP OTP key
+			instead of the DCP UNIQUE key blob encryption.
+
+	trusted.dcp_skip_zk_test
+			This is intended to be used in combination with
+			trusted.source=dcp and will disable the check if the
+			blob key is all zeros. This is helpful for situations where
+			having this key zero'ed is acceptable. E.g. in testing
+			scenarios.
 
 	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>
@@ -7320,7 +7376,7 @@
 			This can be changed after boot by writing to the
 			matching /sys/module/workqueue/parameters file. All
 			workqueues with the "default" affinity scope will be
-			updated accordignly.
+			updated accordingly.
 
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work
@@ -7366,16 +7422,17 @@
 			Crash from Xen panic notifier, without executing late
 			panic() code such as dumping handler.
 
+	xen_mc_debug	[X86,XEN,EARLY]
+			Enable multicall debugging when running as a Xen PV guest.
+			Enabling this feature will reduce performance a little
+			bit, so it should only be enabled for obtaining extended
+			debug data in case of multicall errors.
+
 	xen_msr_safe=	[X86,XEN,EARLY]
 			Format: <bool>
 			Select whether to always use non-faulting (safe) MSR
 			access functions when running as Xen PV guest. The
 			default value is controlled by CONFIG_XEN_PV_MSR_SAFE.
-
-	xen_nopvspin	[X86,XEN,EARLY]
-			Disables the qspinlock slowpath using Xen PV optimizations.
-			This parameter is obsoleted by "nopvspin" parameter, which
-			has equivalent effect for XEN platform.
 
 	xen_nopv	[X86]
 			Disables the PV optimizations forcing the HVM guest to
@@ -7464,4 +7521,3 @@
 				memory, and other data can't be written using
 				xmon commands.
 			off	xmon is disabled.
-

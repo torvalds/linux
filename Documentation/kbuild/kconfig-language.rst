@@ -150,6 +150,12 @@ applicable everywhere (see syntax).
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
 
+	If "select" <symbol> is followed by "if" <expr>, <symbol> will be
+	selected by the logical AND of the value of the current menu symbol
+	and <expr>. This means, the lower limit can be downgraded due to the
+	presence of "if" <expr>. This behavior may seem weird, but we rely on
+	it. (The future of this behavior is undecided.)
+
 - weak reverse dependencies: "imply" <symbol> ["if" <expr>]
 
   This is similar to "select" as it enforces a lower limit on another
@@ -184,7 +190,7 @@ applicable everywhere (see syntax).
   ability to hook into a secondary subsystem while allowing the user to
   configure that subsystem out without also having to unset these drivers.
 
-  Note: If the combination of FOO=y and BAR=m causes a link error,
+  Note: If the combination of FOO=y and BAZ=m causes a link error,
   you can guard the function call with IS_REACHABLE()::
 
 	foo_init()
@@ -201,6 +207,10 @@ applicable everywhere (see syntax).
 	tristate "foo"
 	imply BAR
 	imply BAZ
+
+  Note: If "imply" <symbol> is followed by "if" <expr>, the default of <symbol>
+  will be the logical AND of the value of the current menu symbol and <expr>.
+  (The future of this behavior is undecided.)
 
 - limiting menu display: "visible if" <expr>
 
@@ -409,9 +419,6 @@ selected, a tristate choice also allows any number of config entries
 to be set to 'm'. This can be used if multiple drivers for a single
 hardware exists and only a single driver can be compiled/loaded into
 the kernel, but all drivers can be compiled as modules.
-
-A choice accepts another option "optional", which allows to set the
-choice to 'n' and no entry needs to be selected.
 
 comment::
 

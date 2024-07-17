@@ -530,7 +530,7 @@ static int wait_netstamp_needed_key(void)
 	__u64 tstamp = 0;
 
 	nstoken = open_netns(NS_DST);
-	if (!nstoken)
+	if (!ASSERT_OK_PTR(nstoken, "setns dst"))
 		return -1;
 
 	srv_fd = start_server(AF_INET6, SOCK_DGRAM, "::1", 0, 0);
@@ -890,9 +890,6 @@ static void test_udp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
-	/* non mono delivery time is not forwarded */
-	ASSERT_EQ(dtimes[INGRESS_FWDNS_P101], 0,
-		  dtime_cnt_str(t, INGRESS_FWDNS_P101));
 	for (i = EGRESS_FWDNS_P100; i < SET_DTIME; i++)
 		ASSERT_GT(dtimes[i], 0, dtime_cnt_str(t, i));
 

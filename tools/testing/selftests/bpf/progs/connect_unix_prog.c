@@ -36,4 +36,10 @@ int connect_unix_prog(struct bpf_sock_addr *ctx)
 	return 1;
 }
 
+SEC("cgroup/connect_unix")
+int connect_unix_deny_prog(struct bpf_sock_addr *ctx)
+{
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

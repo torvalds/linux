@@ -38,6 +38,7 @@
 #include <linux/if_vlan.h>
 #include <linux/udp.h>
 #include <linux/highmem.h>
+#include <linux/skbuff_ref.h>
 
 #include <net/tcp.h>
 
@@ -1156,7 +1157,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 	uarg = skb_shinfo(skb)->destructor_arg;
 	/* increase inflight counter to offset decrement in callback */
 	atomic_inc(&queue->inflight_packets);
-	uarg->callback(NULL, uarg, true);
+	uarg->ops->complete(NULL, uarg, true);
 	skb_shinfo(skb)->destructor_arg = NULL;
 
 	/* Fill the skb with the new (local) frags. */
@@ -1278,8 +1279,9 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 	return work_done;
 }
 
-void xenvif_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *ubuf_base,
-			      bool zerocopy_success)
+static void xenvif_zerocopy_callback(struct sk_buff *skb,
+				     struct ubuf_info *ubuf_base,
+				     bool zerocopy_success)
 {
 	unsigned long flags;
 	pending_ring_idx_t index;
@@ -1311,6 +1313,10 @@ void xenvif_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *ubuf_base,
 		queue->stats.tx_zerocopy_fail++;
 	xenvif_skb_zerocopy_complete(queue);
 }
+
+const struct ubuf_info_ops xenvif_ubuf_ops = {
+	.complete = xenvif_zerocopy_callback,
+};
 
 static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 {

@@ -171,13 +171,13 @@ struct mdp5_encoder {
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
 	WARN_ON(mdp5_kms->enable_count <= 0);
-	msm_writel(data, mdp5_kms->mmio + reg);
+	writel(data, mdp5_kms->mmio + reg);
 }
 
 static inline u32 mdp5_read(struct mdp5_kms *mdp5_kms, u32 reg)
 {
 	WARN_ON(mdp5_kms->enable_count <= 0);
-	return msm_readl(mdp5_kms->mmio + reg);
+	return readl(mdp5_kms->mmio + reg);
 }
 
 static inline const char *stage2name(enum mdp_mixer_stage_id stage)

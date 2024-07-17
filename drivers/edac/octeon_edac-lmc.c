@@ -319,5 +319,6 @@ static struct platform_driver octeon_lmc_edac_driver = {
 };
 module_platform_driver(octeon_lmc_edac_driver);
 
+MODULE_DESCRIPTION("Cavium Octeon DRAM Memory Controller (LMC) EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

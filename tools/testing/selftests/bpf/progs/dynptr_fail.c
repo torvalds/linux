@@ -80,7 +80,7 @@ SEC("?raw_tp")
 __failure __msg("Unreleased reference id=2")
 int ringbuf_missing_release1(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	bpf_ringbuf_reserve_dynptr(&ringbuf, val, 0, &ptr);
 
@@ -964,7 +964,7 @@ int dynptr_invalidate_slice_reinit(void *ctx)
  * mem_or_null pointers.
  */
 SEC("?raw_tp")
-__failure __msg("R1 type=scalar expected=percpu_ptr_")
+__failure __regex("R[0-9]+ type=scalar expected=percpu_ptr_")
 int dynptr_invalidate_slice_or_null(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -982,7 +982,7 @@ int dynptr_invalidate_slice_or_null(void *ctx)
 
 /* Destruction of dynptr should also any slices obtained from it */
 SEC("?raw_tp")
-__failure __msg("R7 invalid mem access 'scalar'")
+__failure __regex("R[0-9]+ invalid mem access 'scalar'")
 int dynptr_invalidate_slice_failure(void *ctx)
 {
 	struct bpf_dynptr ptr1;
@@ -1069,7 +1069,7 @@ int dynptr_read_into_slot(void *ctx)
 
 /* bpf_dynptr_slice()s are read-only and cannot be written to */
 SEC("?tc")
-__failure __msg("R0 cannot write into rdonly_mem")
+__failure __regex("R[0-9]+ cannot write into rdonly_mem")
 int skb_invalid_slice_write(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
@@ -1385,7 +1385,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_adjust_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_adjust(&ptr, 1, 2);
@@ -1398,7 +1398,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_is_null_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_is_null(&ptr);
@@ -1411,7 +1411,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_is_rdonly_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_is_rdonly(&ptr);
@@ -1424,7 +1424,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_size_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_size(&ptr);
@@ -1437,7 +1437,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int clone_invalid1(void *ctx)
 {
-	struct bpf_dynptr ptr1;
+	struct bpf_dynptr ptr1 = {};
 	struct bpf_dynptr ptr2;
 
 	/* this should fail */
@@ -1685,4 +1685,28 @@ int test_dynptr_skb_small_buff(struct __sk_buff *skb)
 	data = bpf_dynptr_slice(&ptr, 0, buffer, 9);
 
 	return !!data;
+}
+
+__noinline long global_call_bpf_dynptr(const struct bpf_dynptr *dynptr)
+{
+	long ret = 0;
+	/* Avoid leaving this global function empty to avoid having the compiler
+	 * optimize away the call to this global function.
+	 */
+	__sink(ret);
+	return ret;
+}
+
+SEC("?raw_tp")
+__failure __msg("arg#1 expected pointer to stack or const struct bpf_dynptr")
+int test_dynptr_reg_type(void *ctx)
+{
+	struct task_struct *current = NULL;
+	/* R1 should be holding a PTR_TO_BTF_ID, so this shouldn't be a
+	 * reg->type that can be passed to a function accepting a
+	 * ARG_PTR_TO_DYNPTR | MEM_RDONLY. process_dynptr_func() should catch
+	 * this.
+	 */
+	global_call_bpf_dynptr((const struct bpf_dynptr *)current);
+	return 0;
 }

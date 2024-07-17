@@ -127,10 +127,11 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 	/* XXX: convert to managed bo */
 	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_SYSTEM_BIT |
-				  XE_BO_CREATE_GGTT_BIT |
-				  XE_BO_NEEDS_UC |
-				  XE_BO_NEEDS_CPU_ACCESS);
+				  XE_BO_FLAG_SYSTEM |
+				  XE_BO_FLAG_GGTT |
+				  XE_BO_FLAG_GGTT_INVALIDATE |
+				  XE_BO_FLAG_NEEDS_UC |
+				  XE_BO_FLAG_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out;

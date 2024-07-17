@@ -199,7 +199,10 @@ int nvmem_add_one_cell(struct nvmem_device *nvmem,
 int nvmem_layout_register(struct nvmem_layout *layout);
 void nvmem_layout_unregister(struct nvmem_layout *layout);
 
-int nvmem_layout_driver_register(struct nvmem_layout_driver *drv);
+#define nvmem_layout_driver_register(drv) \
+	__nvmem_layout_driver_register(drv, THIS_MODULE)
+int __nvmem_layout_driver_register(struct nvmem_layout_driver *drv,
+				   struct module *owner);
 void nvmem_layout_driver_unregister(struct nvmem_layout_driver *drv);
 #define module_nvmem_layout_driver(__nvmem_layout_driver)		\
 	module_driver(__nvmem_layout_driver, nvmem_layout_driver_register, \

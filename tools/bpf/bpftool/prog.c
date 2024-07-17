@@ -1778,7 +1778,10 @@ offload_dev:
 		goto err_close_obj;
 	}
 
-	err = mount_bpffs_for_pin(pinfile, !first_prog_only);
+	if (first_prog_only)
+		err = mount_bpffs_for_file(pinfile);
+	else
+		err = create_and_mount_bpffs_dir(pinfile);
 	if (err)
 		goto err_close_obj;
 
@@ -1810,6 +1813,10 @@ offload_dev:
 	}
 
 	if (pinmaps) {
+		err = create_and_mount_bpffs_dir(pinmaps);
+		if (err)
+			goto err_unpin;
+
 		err = bpf_object__pin_maps(obj, pinmaps);
 		if (err) {
 			p_err("failed to pin all maps");
@@ -2078,7 +2085,7 @@ static int profile_parse_metrics(int argc, char **argv)
 		NEXT_ARG();
 	}
 	if (selected_cnt > MAX_NUM_PROFILE_METRICS) {
-		p_err("too many (%d) metrics, please specify no more than %d metrics at at time",
+		p_err("too many (%d) metrics, please specify no more than %d metrics at a time",
 		      selected_cnt, MAX_NUM_PROFILE_METRICS);
 		return -1;
 	}

@@ -1448,7 +1448,7 @@ xfs_log_work_queue(
  * Clear the log incompat flags if we have the opportunity.
  *
  * This only happens if we're about to log the second dummy transaction as part
- * of covering the log and we can get the log incompat feature usage lock.
+ * of covering the log.
  */
 static inline void
 xlog_clear_incompat(
@@ -1463,11 +1463,7 @@ xlog_clear_incompat(
 	if (log->l_covered_state != XLOG_STATE_COVER_DONE2)
 		return;
 
-	if (!down_write_trylock(&log->l_incompat_users))
-		return;
-
 	xfs_clear_incompat_log_features(mp);
-	up_write(&log->l_incompat_users);
 }
 
 /*
@@ -1584,8 +1580,6 @@ xlog_alloc_log(
 		}
 	}
 	log->l_sectBBsize = 1 << log2_size;
-
-	init_rwsem(&log->l_incompat_users);
 
 	xlog_get_iclog_buffer_size(mp, log);
 
@@ -3870,24 +3864,4 @@ xfs_log_check_lsn(
 	}
 
 	return valid;
-}
-
-/*
- * Notify the log that we're about to start using a feature that is protected
- * by a log incompat feature flag.  This will prevent log covering from
- * clearing those flags.
- */
-void
-xlog_use_incompat_feat(
-	struct xlog		*log)
-{
-	down_read(&log->l_incompat_users);
-}
-
-/* Notify the log that we've finished using log incompat features. */
-void
-xlog_drop_incompat_feat(
-	struct xlog		*log)
-{
-	up_read(&log->l_incompat_users);
 }

@@ -428,7 +428,7 @@ static void cpum_cf_make_setsize(enum cpumf_ctr_set ctrset)
 	case CPUMF_CTR_SET_CRYPTO:
 		if (cpumf_ctr_info.csvn >= 1 && cpumf_ctr_info.csvn <= 5)
 			ctrset_size = 16;
-		else if (cpumf_ctr_info.csvn == 6 || cpumf_ctr_info.csvn == 7)
+		else if (cpumf_ctr_info.csvn >= 6)
 			ctrset_size = 20;
 		break;
 	case CPUMF_CTR_SET_EXT:

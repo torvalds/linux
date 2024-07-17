@@ -371,6 +371,11 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			err = -EINVAL;
 			goto err_wptr_map_gart;
 		}
+		if (dev->adev != amdgpu_ttm_adev(wptr_bo->tbo.bdev)) {
+			pr_err("Queue memory allocated to wrong device\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
 
 		err = amdgpu_amdkfd_map_gtt_bo_to_gart(wptr_bo);
 		if (err) {
@@ -1139,7 +1144,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 			goto err_unlock;
 		}
 		offset = dev->adev->rmmio_remap.bus_addr;
-		if (!offset) {
+		if (!offset || (PAGE_SIZE > 4096)) {
 			err = -ENOMEM;
 			goto err_unlock;
 		}
@@ -2307,7 +2312,7 @@ static int criu_restore_memory_of_gpu(struct kfd_process_device *pdd,
 			return -EINVAL;
 		}
 		offset = pdd->dev->adev->rmmio_remap.bus_addr;
-		if (!offset) {
+		if (!offset || (PAGE_SIZE > 4096)) {
 			pr_err("amdgpu_amdkfd_get_mmio_remap_phys_addr failed\n");
 			return -ENOMEM;
 		}
@@ -3347,6 +3352,9 @@ static int kfd_mmio_mmap(struct kfd_node *dev, struct kfd_process *process,
 	phys_addr_t address;
 
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	if (PAGE_SIZE > 4096)
 		return -EINVAL;
 
 	address = dev->adev->rmmio_remap.bus_addr;

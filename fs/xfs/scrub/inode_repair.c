@@ -46,6 +46,7 @@
 #include "scrub/repair.h"
 #include "scrub/iscan.h"
 #include "scrub/readdir.h"
+#include "scrub/tempfile.h"
 
 /*
  * Inode Record Repair
@@ -282,6 +283,51 @@ xrep_dinode_findmode_dirent(
 	return 0;
 }
 
+/* Try to lock a directory, or wait a jiffy. */
+static inline int
+xrep_dinode_ilock_nowait(
+	struct xfs_inode	*dp,
+	unsigned int		lock_mode)
+{
+	if (xfs_ilock_nowait(dp, lock_mode))
+		return true;
+
+	schedule_timeout_killable(1);
+	return false;
+}
+
+/*
+ * Try to lock a directory to look for ftype hints.  Since we already hold the
+ * AGI buffer, we cannot block waiting for the ILOCK because rename can take
+ * the ILOCK and then try to lock AGIs.
+ */
+STATIC int
+xrep_dinode_trylock_directory(
+	struct xrep_inode	*ri,
+	struct xfs_inode	*dp,
+	unsigned int		*lock_modep)
+{
+	unsigned long		deadline = jiffies + msecs_to_jiffies(30000);
+	unsigned int		lock_mode;
+	int			error = 0;
+
+	do {
+		if (xchk_should_terminate(ri->sc, &error))
+			return error;
+
+		if (xfs_need_iread_extents(&dp->i_df))
+			lock_mode = XFS_ILOCK_EXCL;
+		else
+			lock_mode = XFS_ILOCK_SHARED;
+
+		if (xrep_dinode_ilock_nowait(dp, lock_mode)) {
+			*lock_modep = lock_mode;
+			return 0;
+		}
+	} while (!time_is_before_jiffies(deadline));
+	return -EBUSY;
+}
+
 /*
  * If this is a directory, walk the dirents looking for any that point to the
  * scrub target inode.
@@ -295,11 +341,17 @@ xrep_dinode_findmode_walk_directory(
 	unsigned int		lock_mode;
 	int			error = 0;
 
+	/* Ignore temporary repair directories. */
+	if (xrep_is_tempfile(dp))
+		return 0;
+
 	/*
 	 * Scan the directory to see if there it contains an entry pointing to
 	 * the directory that we are repairing.
 	 */
-	lock_mode = xfs_ilock_data_map_shared(dp);
+	error = xrep_dinode_trylock_directory(ri, dp, &lock_mode);
+	if (error)
+		return error;
 
 	/*
 	 * If this directory is known to be sick, we cannot scan it reliably
@@ -356,6 +408,7 @@ xrep_dinode_find_mode(
 	 * so there's a real possibility that _iscan_iter can return EBUSY.
 	 */
 	xchk_iscan_start(sc, 5000, 100, &ri->ftype_iscan);
+	xchk_iscan_set_agi_trylock(&ri->ftype_iscan);
 	ri->ftype_iscan.skip_ino = sc->sm->sm_ino;
 	ri->alleged_ftype = XFS_DIR3_FT_UNKNOWN;
 	while ((error = xchk_iscan_iter(&ri->ftype_iscan, &dp)) == 1) {
@@ -461,6 +514,17 @@ xrep_dinode_mode(
 	dip->di_gid = 0;
 	ri->zap_acls = true;
 	return 0;
+}
+
+/* Fix unused link count fields having nonzero values. */
+STATIC void
+xrep_dinode_nlinks(
+	struct xfs_dinode	*dip)
+{
+	if (dip->di_version > 1)
+		dip->di_onlink = 0;
+	else
+		dip->di_nlink = 0;
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */
@@ -1324,6 +1388,7 @@ xrep_dinode_core(
 	iget_error = xrep_dinode_mode(ri, dip);
 	if (iget_error)
 		goto write;
+	xrep_dinode_nlinks(dip);
 	xrep_dinode_flags(sc, dip, ri->rt_extents > 0);
 	xrep_dinode_size(ri, dip);
 	xrep_dinode_extsize_hints(sc, dip);
@@ -1671,6 +1736,44 @@ xrep_inode_extsize(
 	}
 }
 
+/* Ensure this file has an attr fork if it needs to hold a parent pointer. */
+STATIC int
+xrep_inode_pptr(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip = sc->ip;
+	struct inode		*inode = VFS_I(ip);
+
+	if (!xfs_has_parent(mp))
+		return 0;
+
+	/*
+	 * Unlinked inodes that cannot be added to the directory tree will not
+	 * have a parent pointer.
+	 */
+	if (inode->i_nlink == 0 && !(inode->i_state & I_LINKABLE))
+		return 0;
+
+	/* The root directory doesn't have a parent pointer. */
+	if (ip == mp->m_rootip)
+		return 0;
+
+	/*
+	 * Metadata inodes are rooted in the superblock and do not have any
+	 * parents.
+	 */
+	if (xfs_is_metadata_inode(ip))
+		return 0;
+
+	/* Inode already has an attr fork; no further work possible here. */
+	if (xfs_inode_has_attr_fork(ip))
+		return 0;
+
+	return xfs_bmap_add_attrfork(sc->tp, ip,
+			sizeof(struct xfs_attr_sf_hdr), true);
+}
+
 /* Fix any irregularities in an inode that the verifiers don't catch. */
 STATIC int
 xrep_inode_problems(
@@ -1679,6 +1782,9 @@ xrep_inode_problems(
 	int			error;
 
 	error = xrep_inode_blockcounts(sc);
+	if (error)
+		return error;
+	error = xrep_inode_pptr(sc);
 	if (error)
 		return error;
 	xrep_inode_timestamps(sc->ip);
@@ -1695,6 +1801,46 @@ xrep_inode_problems(
 	trace_xrep_inode_fixed(sc);
 	xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
 	return xrep_roll_trans(sc);
+}
+
+/*
+ * Make sure this inode's unlinked list pointers are consistent with its
+ * link count.
+ */
+STATIC int
+xrep_inode_unlinked(
+	struct xfs_scrub	*sc)
+{
+	unsigned int		nlink = VFS_I(sc->ip)->i_nlink;
+	int			error;
+
+	/*
+	 * If this inode is linked from the directory tree and on the unlinked
+	 * list, remove it from the unlinked list.
+	 */
+	if (nlink > 0 && xfs_inode_on_unlinked_list(sc->ip)) {
+		struct xfs_perag	*pag;
+		int			error;
+
+		pag = xfs_perag_get(sc->mp,
+				XFS_INO_TO_AGNO(sc->mp, sc->ip->i_ino));
+		error = xfs_iunlink_remove(sc->tp, pag, sc->ip);
+		xfs_perag_put(pag);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * If this inode is not linked from the directory tree yet not on the
+	 * unlinked list, put it on the unlinked list.
+	 */
+	if (nlink == 0 && !xfs_inode_on_unlinked_list(sc->ip)) {
+		error = xfs_iunlink(sc->tp, sc->ip);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }
 
 /* Repair an inode's fields. */
@@ -1745,6 +1891,11 @@ xrep_inode(
 		if (error)
 			return error;
 	}
+
+	/* Reconnect incore unlinked list */
+	error = xrep_inode_unlinked(sc);
+	if (error)
+		return error;
 
 	return xrep_defer_finish(sc);
 }

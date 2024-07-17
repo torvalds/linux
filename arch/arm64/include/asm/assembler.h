@@ -50,16 +50,12 @@
 	msr	daif, \flags
 	.endm
 
-	.macro	enable_dbg
-	msr	daifclr, #8
-	.endm
-
 	.macro	disable_step_tsk, flgs, tmp
 	tbz	\flgs, #TIF_SINGLESTEP, 9990f
 	mrs	\tmp, mdscr_el1
 	bic	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
-	isb	// Synchronise with enable_dbg
+	isb	// Take effect before a subsequent clear of DAIF.D
 9990:
 	.endm
 
@@ -480,9 +476,10 @@ alternative_endif
  */
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1
-	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
-	cmp	\tmpreg, #1			// Skip if no PMU present
-	b.lt	9000f
+	ubfx	\tmpreg, \tmpreg, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
+	cmp	\tmpreg, #ID_AA64DFR0_EL1_PMUVer_NI
+	ccmp	\tmpreg, #ID_AA64DFR0_EL1_PMUVer_IMP_DEF, #4, ne
+	b.eq	9000f				// Skip if no PMU present or IMP_DEF
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0
 9000:
 	.endm

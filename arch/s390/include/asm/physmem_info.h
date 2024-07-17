@@ -22,7 +22,6 @@ enum reserved_range_type {
 	RR_DECOMPRESSOR,
 	RR_INITRD,
 	RR_VMLINUX,
-	RR_RELOC,
 	RR_AMODE31,
 	RR_IPLREPORT,
 	RR_CERT_COMP_LIST,
@@ -169,5 +168,8 @@ static inline unsigned long get_physmem_reserved(enum reserved_range_type type,
 	*size = physmem_info.reserved[type].end - physmem_info.reserved[type].start;
 	return *size;
 }
+
+#define AMODE31_START	(physmem_info.reserved[RR_AMODE31].start)
+#define AMODE31_END	(physmem_info.reserved[RR_AMODE31].end)
 
 #endif

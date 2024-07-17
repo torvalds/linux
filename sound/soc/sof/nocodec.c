@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -110,7 +110,7 @@ static struct platform_driver sof_nocodec_audio = {
 };
 module_platform_driver(sof_nocodec_audio)
 
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("ASoC sof nocodec");
 MODULE_AUTHOR("Liam Girdwood");
-MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:sof-nocodec");

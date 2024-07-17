@@ -811,6 +811,7 @@ alpha_\name:
 fork_like fork
 fork_like vfork
 fork_like clone
+fork_like clone3
 
 .macro	sigreturn_like name
 	.align	4

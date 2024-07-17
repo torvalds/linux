@@ -85,8 +85,8 @@ relativi file di documentatione che spiegano come usarele.
 Quando un cambiamento del kernel genera anche un cambiamento nell'interfaccia
 con lo spazio utente, è raccomandabile che inviate una notifica o una
 correzione alle pagine *man* spiegando tale modifica agli amministratori di
-queste pagine all'indirizzo mtk.manpages@gmail.com, aggiungendo
-in CC la lista linux-api@vger.kernel.org.
+queste pagine all'indirizzo alx@kernel.org, aggiungendo in CC la
+lista linux-api@vger.kernel.org.
 
 Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 è richiesto che voi leggiate:
@@ -144,7 +144,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     dello sviluppo di Linux ed è molto importante per le persone che arrivano
     da esperienze con altri Sistemi Operativi.
 
-  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`
+  :ref:`Documentation/translations/it_IT/process/security-bugs.rst <it_securitybugs>`
     Se ritenete di aver trovato un problema di sicurezza nel kernel Linux,
     seguite i passaggi scritti in questo documento per notificarlo agli
     sviluppatori del kernel, ed aiutare la risoluzione del problema.

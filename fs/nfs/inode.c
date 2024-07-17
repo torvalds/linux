@@ -2429,7 +2429,12 @@ static int nfs_net_init(struct net *net)
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	nfs_clients_init(net);
-	rpc_proc_register(net, &nn->rpcstats);
+
+	if (!rpc_proc_register(net, &nn->rpcstats)) {
+		nfs_clients_exit(net);
+		return -ENOMEM;
+	}
+
 	return nfs_fs_proc_net_init(net);
 }
 

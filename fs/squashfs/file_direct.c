@@ -106,14 +106,13 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	return 0;
 
 mark_errored:
-	/* Decompression failed, mark pages as errored.  Target_page is
+	/* Decompression failed.  Target_page is
 	 * dealt with by the caller
 	 */
 	for (i = 0; i < pages; i++) {
 		if (page[i] == NULL || page[i] == target_page)
 			continue;
 		flush_dcache_page(page[i]);
-		SetPageError(page[i]);
 		unlock_page(page[i]);
 		put_page(page[i]);
 	}

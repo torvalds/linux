@@ -446,6 +446,8 @@ static int __hugetlb_vmemmap_restore_folio(const struct hstate *h,
 	unsigned long vmemmap_reuse;
 
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_hugetlb(folio), folio);
+	VM_WARN_ON_ONCE_FOLIO(folio_ref_count(folio), folio);
+
 	if (!folio_test_hugetlb_vmemmap_optimized(folio))
 		return 0;
 
@@ -481,6 +483,9 @@ static int __hugetlb_vmemmap_restore_folio(const struct hstate *h,
  */
 int hugetlb_vmemmap_restore_folio(const struct hstate *h, struct folio *folio)
 {
+	/* avoid writes from page_ref_add_unless() while unfolding vmemmap */
+	synchronize_rcu();
+
 	return __hugetlb_vmemmap_restore_folio(h, folio, 0);
 }
 
@@ -504,6 +509,9 @@ long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 	struct folio *folio, *t_folio;
 	long restored = 0;
 	long ret = 0;
+
+	/* avoid writes from page_ref_add_unless() while unfolding vmemmap */
+	synchronize_rcu();
 
 	list_for_each_entry_safe(folio, t_folio, folio_list, lru) {
 		if (folio_test_hugetlb_vmemmap_optimized(folio)) {
@@ -550,6 +558,8 @@ static int __hugetlb_vmemmap_optimize_folio(const struct hstate *h,
 	unsigned long vmemmap_reuse;
 
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_hugetlb(folio), folio);
+	VM_WARN_ON_ONCE_FOLIO(folio_ref_count(folio), folio);
+
 	if (!vmemmap_should_optimize_folio(h, folio))
 		return ret;
 
@@ -601,6 +611,9 @@ void hugetlb_vmemmap_optimize_folio(const struct hstate *h, struct folio *folio)
 {
 	LIST_HEAD(vmemmap_pages);
 
+	/* avoid writes from page_ref_add_unless() while folding vmemmap */
+	synchronize_rcu();
+
 	__hugetlb_vmemmap_optimize_folio(h, folio, &vmemmap_pages, 0);
 	free_vmemmap_page_list(&vmemmap_pages);
 }
@@ -644,6 +657,9 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 
 	flush_tlb_all();
 
+	/* avoid writes from page_ref_add_unless() while folding vmemmap */
+	synchronize_rcu();
+
 	list_for_each_entry(folio, folio_list, lru) {
 		int ret;
 
@@ -679,7 +695,6 @@ static struct ctl_table hugetlb_vmemmap_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dobool,
 	},
-	{ }
 };
 
 static int __init hugetlb_vmemmap_init(void)

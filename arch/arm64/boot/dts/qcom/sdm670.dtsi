@@ -509,6 +509,18 @@
 			no-map;
 		};
 
+		smem@86000000 {
+			compatible = "qcom,smem";
+			reg = <0 0x86000000 0 0x200000>;
+			no-map;
+			hwlocks = <&tcsr_mutex 3>;
+		};
+
+		tz_mem: tz@86200000 {
+			reg = <0 0x86200000 0 0x2d00000>;
+			no-map;
+		};
+
 		camera_mem: camera-mem@8ab00000 {
 			reg = <0 0x8ab00000 0 0x500000>;
 			no-map;
@@ -1137,6 +1149,12 @@
 			reg = <0 0x01740000 0 0x1c100>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		tcsr_mutex: hwlock@1f40000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0 0x01f40000 0 0x20000>;
+			#hwlock-cells = <1>;
 		};
 
 		tlmm: pinctrl@3400000 {

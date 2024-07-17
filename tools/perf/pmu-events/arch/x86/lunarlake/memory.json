@@ -155,7 +155,7 @@
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x3FBFC00001",
+        "MSRValue": "0xFE7F8000001",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -175,7 +175,7 @@
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x3FBFC00002",
+        "MSRValue": "0xFE7F8000002",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"

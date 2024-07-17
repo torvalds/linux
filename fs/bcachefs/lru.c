@@ -11,7 +11,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_invalid(struct bch_fs *c, struct bkey_s_c k,
-		     enum bkey_invalid_flags flags,
+		     enum bch_validate_flags flags,
 		     struct printbuf *err)
 {
 	int ret = 0;
@@ -76,6 +76,45 @@ static const char * const bch2_lru_types[] = {
 #undef x
 	NULL
 };
+
+int bch2_lru_check_set(struct btree_trans *trans,
+		       u16 lru_id, u64 time,
+		       struct bkey_s_c referring_k,
+		       struct bkey_buf *last_flushed)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+	struct btree_iter lru_iter;
+	struct bkey_s_c lru_k =
+		bch2_bkey_get_iter(trans, &lru_iter, BTREE_ID_lru,
+				   lru_pos(lru_id,
+					   bucket_to_u64(referring_k.k->p),
+					   time), 0);
+	int ret = bkey_err(lru_k);
+	if (ret)
+		return ret;
+
+	if (lru_k.k->type != KEY_TYPE_set) {
+		ret = bch2_btree_write_buffer_maybe_flush(trans, referring_k, last_flushed);
+		if (ret)
+			goto err;
+
+		if (fsck_err(c, alloc_key_to_missing_lru_entry,
+			     "missing %s lru entry\n"
+			     "  %s",
+			     bch2_lru_types[lru_type(lru_k)],
+			     (bch2_bkey_val_to_text(&buf, c, referring_k), buf.buf))) {
+			ret = bch2_lru_set(trans, lru_id, bucket_to_u64(referring_k.k->p), time);
+			if (ret)
+				goto err;
+		}
+	}
+err:
+fsck_err:
+	bch2_trans_iter_exit(trans, &lru_iter);
+	printbuf_exit(&buf);
+	return ret;
+}
 
 static int bch2_check_lru_key(struct btree_trans *trans,
 			      struct btree_iter *lru_iter,
@@ -149,7 +188,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	struct bpos last_flushed_pos = POS_MIN;
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_lru, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			bch2_check_lru_key(trans, &iter, k, &last_flushed_pos)));
 	bch_err_fn(c, ret);

@@ -1,0 +1,11 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/5.Posting.rst
+
+.. _sp_development_posting:
+
+Publicar parches
+================
+
+.. warning::
+	TODO aún no traducido

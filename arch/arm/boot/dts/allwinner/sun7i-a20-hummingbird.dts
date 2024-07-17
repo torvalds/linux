@@ -65,7 +65,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	reg_mmc3_vdd: mmc3_vdd {
+	reg_mmc3_vdd: regulator-mmc3-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc3_vdd";
 		regulator-min-microvolt = <3000000>;
@@ -74,7 +74,7 @@
 		gpio = <&pio 7 9 GPIO_ACTIVE_HIGH>; /* PH9 */
 	};
 
-	reg_gmac_vdd: gmac_vdd {
+	reg_gmac_vdd: regulator-gmac-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "gmac_vdd";
 		regulator-min-microvolt = <3000000>;

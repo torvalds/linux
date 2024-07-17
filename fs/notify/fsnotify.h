@@ -9,37 +9,56 @@
 
 #include "../mount.h"
 
+/*
+ * fsnotify_connp_t is what we embed in objects which connector can be attached
+ * to.
+ */
+typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
+
 static inline struct inode *fsnotify_conn_inode(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct inode, i_fsnotify_marks);
+	return conn->obj;
 }
 
 static inline struct mount *fsnotify_conn_mount(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
+	return real_mount(conn->obj);
 }
 
 static inline struct super_block *fsnotify_conn_sb(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+	return conn->obj;
+}
+
+static inline struct super_block *fsnotify_object_sb(void *obj,
+			enum fsnotify_obj_type obj_type)
+{
+	switch (obj_type) {
+	case FSNOTIFY_OBJ_TYPE_INODE:
+		return ((struct inode *)obj)->i_sb;
+	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
+		return ((struct vfsmount *)obj)->mnt_sb;
+	case FSNOTIFY_OBJ_TYPE_SB:
+		return (struct super_block *)obj;
+	default:
+		return NULL;
+	}
 }
 
 static inline struct super_block *fsnotify_connector_sb(
 				struct fsnotify_mark_connector *conn)
 {
-	switch (conn->type) {
-	case FSNOTIFY_OBJ_TYPE_INODE:
-		return fsnotify_conn_inode(conn)->i_sb;
-	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
-		return fsnotify_conn_mount(conn)->mnt.mnt_sb;
-	case FSNOTIFY_OBJ_TYPE_SB:
-		return fsnotify_conn_sb(conn);
-	default:
-		return NULL;
-	}
+	return fsnotify_object_sb(conn->obj, conn->type);
+}
+
+static inline fsnotify_connp_t *fsnotify_sb_marks(struct super_block *sb)
+{
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
+
+	return sbinfo ? &sbinfo->sb_marks : NULL;
 }
 
 /* destroy all events sitting in this groups notification queue */
@@ -67,7 +86,7 @@ static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 /* run the list of all marks associated with sb and destroy them */
 static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
 {
-	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
+	fsnotify_destroy_marks(fsnotify_sb_marks(sb));
 }
 
 /*

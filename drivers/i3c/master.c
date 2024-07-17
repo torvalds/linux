@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -2812,6 +2813,10 @@ int i3c_master_register(struct i3c_master_controller *master,
 
 	i3c_bus_notify(i3cbus, I3C_NOTIFY_BUS_ADD);
 
+	pm_runtime_no_callbacks(&master->dev);
+	pm_suspend_ignore_children(&master->dev, true);
+	pm_runtime_enable(&master->dev);
+
 	/*
 	 * We're done initializing the bus and the controller, we can now
 	 * register I3C devices discovered during the initial DAA.
@@ -2849,6 +2854,7 @@ void i3c_master_unregister(struct i3c_master_controller *master)
 	i3c_master_i2c_adapter_cleanup(master);
 	i3c_master_unregister_i3c_devs(master);
 	i3c_master_bus_cleanup(master);
+	pm_runtime_disable(&master->dev);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(i3c_master_unregister);

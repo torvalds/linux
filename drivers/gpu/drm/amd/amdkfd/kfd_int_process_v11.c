@@ -193,6 +193,7 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 {
 	enum amdgpu_ras_block block = 0;
 	int ret = -EINVAL;
+	uint32_t reset = 0;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
 	if (!p)
@@ -212,10 +213,13 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 		if (dev->dqm->ops.reset_queues)
 			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
 		block = AMDGPU_RAS_BLOCK__GFX;
+		if (ret)
+			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		break;
 	case SOC21_INTSRC_SDMA_ECC:
 	default:
 		block = AMDGPU_RAS_BLOCK__GFX;
+		reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		break;
 	}
 
@@ -223,10 +227,7 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 
 	/* resetting queue passes, do page retirement without gpu reset
 	   resetting queue fails, fallback to gpu reset solution */
-	if (!ret)
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
-	else
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
+	amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, reset);
 }
 
 static bool event_interrupt_isr_v11(struct kfd_node *dev,

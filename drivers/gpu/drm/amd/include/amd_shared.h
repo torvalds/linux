@@ -24,6 +24,7 @@
 #define __AMD_SHARED_H__
 
 #include <drm/amd_asic_type.h>
+#include <drm/drm_print.h>
 
 
 #define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
@@ -321,6 +322,8 @@ struct amd_ip_funcs {
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u64 *flags);
+	void (*dump_ip_state)(void *handle);
+	void (*print_ip_state)(void *handle, struct drm_printer *p);
 };
 
 

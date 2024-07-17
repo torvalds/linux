@@ -548,7 +548,7 @@ static void rn_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_l
 
 	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 
-	for (i = 0; i < MAX_PIPES * 2; i++) {
+	for (i = 0; i < MAX_LINKS; i++) {
 		if (clk_mgr->cur_phyclk_req_table[i] > max_phyclk_req)
 			max_phyclk_req = clk_mgr->cur_phyclk_req_table[i];
 	}
@@ -642,7 +642,8 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 
 	j = -1;
 
-	ASSERT(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
+	static_assert(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL,
+		"number of reported FCLK DPM levels exceed maximum");
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
 

@@ -192,7 +192,7 @@ static inline long pmac_call_feature(int selector, struct device_node* node,
 
 /* PMAC_FTR_BMAC_ENABLE		(struct device_node* node, 0, int value)
  * enable/disable the bmac (ethernet) cell of a mac-io ASIC, also drive
- * it's reset line
+ * its reset line
  */
 #define PMAC_FTR_BMAC_ENABLE		PMAC_FTR_DEF(6)
 

@@ -32,12 +32,7 @@ static struct bch_dev *bch2_device_lookup(struct bch_fs *c, u64 dev,
 		if (dev >= c->sb.nr_devices)
 			return ERR_PTR(-EINVAL);
 
-		rcu_read_lock();
-		ca = rcu_dereference(c->devs[dev]);
-		if (ca)
-			percpu_ref_get(&ca->ref);
-		rcu_read_unlock();
-
+		ca = bch2_dev_tryget_noerror(c, dev);
 		if (!ca)
 			return ERR_PTR(-EINVAL);
 	} else {
@@ -221,7 +216,8 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
 			bch2_parse_mount_opts(NULL, &thr->opts, optstr);
-		kfree(optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
@@ -324,7 +320,8 @@ static long bch2_ioctl_disk_add(struct bch_fs *c, struct bch_ioctl_disk arg)
 		return ret;
 
 	ret = bch2_dev_add(c, path);
-	kfree(path);
+	if (!IS_ERR(path))
+		kfree(path);
 
 	return ret;
 }
@@ -391,7 +388,7 @@ static long bch2_ioctl_disk_offline(struct bch_fs *c, struct bch_ioctl_disk arg)
 		return PTR_ERR(ca);
 
 	ret = bch2_dev_offline(c, ca, arg.flags);
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -420,7 +417,7 @@ static long bch2_ioctl_disk_set_state(struct bch_fs *c,
 	if (ret)
 		bch_err(c, "Error setting device state: %s", bch2_err_str(ret));
 
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -615,7 +612,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 		arg.d[i].fragmented	= src.d[i].fragmented;
 	}
 
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 
 	return copy_to_user_errcode(user_arg, &arg, sizeof(arg));
 }
@@ -667,7 +664,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 			goto err;
 	}
 err:
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -689,11 +686,9 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 
 	if (arg.flags & BCH_READ_DEV) {
 		ca = bch2_device_lookup(c, arg.dev, arg.flags);
-
-		if (IS_ERR(ca)) {
-			ret = PTR_ERR(ca);
-			goto err;
-		}
+		ret = PTR_ERR_OR_ZERO(ca);
+		if (ret)
+			goto err_unlock;
 
 		sb = ca->disk_sb.sb;
 	} else {
@@ -708,8 +703,8 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 	ret = copy_to_user_errcode((void __user *)(unsigned long)arg.sb, sb,
 				   vstruct_bytes(sb));
 err:
-	if (!IS_ERR_OR_NULL(ca))
-		percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
+err_unlock:
 	mutex_unlock(&c->sb_lock);
 	return ret;
 }
@@ -753,7 +748,7 @@ static long bch2_ioctl_disk_resize(struct bch_fs *c,
 
 	ret = bch2_dev_resize(c, ca, arg.nbuckets);
 
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -779,7 +774,7 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 
 	ret = bch2_set_nr_journal_buckets(c, ca, arg.nbuckets);
 
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -857,7 +852,8 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
 			bch2_parse_mount_opts(c, &thr->opts, optstr);
-		kfree(optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
@@ -961,7 +957,9 @@ static const struct file_operations bch_chardev_fops = {
 };
 
 static int bch_chardev_major;
-static struct class *bch_chardev_class;
+static const struct class bch_chardev_class = {
+	.name = "bcachefs",
+};
 static struct device *bch_chardev;
 
 void bch2_fs_chardev_exit(struct bch_fs *c)
@@ -978,7 +976,7 @@ int bch2_fs_chardev_init(struct bch_fs *c)
 	if (c->minor < 0)
 		return c->minor;
 
-	c->chardev = device_create(bch_chardev_class, NULL,
+	c->chardev = device_create(&bch_chardev_class, NULL,
 				   MKDEV(bch_chardev_major, c->minor), c,
 				   "bcachefs%u-ctl", c->minor);
 	if (IS_ERR(c->chardev))
@@ -989,32 +987,39 @@ int bch2_fs_chardev_init(struct bch_fs *c)
 
 void bch2_chardev_exit(void)
 {
-	if (!IS_ERR_OR_NULL(bch_chardev_class))
-		device_destroy(bch_chardev_class,
-			       MKDEV(bch_chardev_major, U8_MAX));
-	if (!IS_ERR_OR_NULL(bch_chardev_class))
-		class_destroy(bch_chardev_class);
+	device_destroy(&bch_chardev_class, MKDEV(bch_chardev_major, U8_MAX));
+	class_unregister(&bch_chardev_class);
 	if (bch_chardev_major > 0)
 		unregister_chrdev(bch_chardev_major, "bcachefs");
 }
 
 int __init bch2_chardev_init(void)
 {
+	int ret;
+
 	bch_chardev_major = register_chrdev(0, "bcachefs-ctl", &bch_chardev_fops);
 	if (bch_chardev_major < 0)
 		return bch_chardev_major;
 
-	bch_chardev_class = class_create("bcachefs");
-	if (IS_ERR(bch_chardev_class))
-		return PTR_ERR(bch_chardev_class);
+	ret = class_register(&bch_chardev_class);
+	if (ret)
+		goto major_out;
 
-	bch_chardev = device_create(bch_chardev_class, NULL,
+	bch_chardev = device_create(&bch_chardev_class, NULL,
 				    MKDEV(bch_chardev_major, U8_MAX),
 				    NULL, "bcachefs-ctl");
-	if (IS_ERR(bch_chardev))
-		return PTR_ERR(bch_chardev);
+	if (IS_ERR(bch_chardev)) {
+		ret = PTR_ERR(bch_chardev);
+		goto class_out;
+	}
 
 	return 0;
+
+class_out:
+	class_unregister(&bch_chardev_class);
+major_out:
+	unregister_chrdev(bch_chardev_major, "bcachefs-ctl");
+	return ret;
 }
 
 #endif /* NO_BCACHEFS_CHARDEV */

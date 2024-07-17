@@ -118,7 +118,7 @@ Keys of dns_resolver type can be read from userspace using keyctl_read() or
 Mechanism
 =========
 
-The dnsresolver module registers a key type called "dns_resolver".  Keys of
+The dns_resolver module registers a key type called "dns_resolver".  Keys of
 this type are used to transport and cache DNS lookup results from userspace.
 
 When dns_query() is invoked, it calls request_key() to search the local
@@ -152,4 +152,4 @@ Debugging
 Debugging messages can be turned on dynamically by writing a 1 into the
 following file::
 
-	/sys/module/dnsresolver/parameters/debug
+	/sys/module/dns_resolver/parameters/debug

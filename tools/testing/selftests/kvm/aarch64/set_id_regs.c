@@ -327,8 +327,8 @@ uint64_t get_invalid_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
 	return ftr;
 }
 
-static void test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
-				 const struct reg_ftr_bits *ftr_bits)
+static uint64_t test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
+				     const struct reg_ftr_bits *ftr_bits)
 {
 	uint8_t shift = ftr_bits->shift;
 	uint64_t mask = ftr_bits->mask;
@@ -346,6 +346,8 @@ static void test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
 	vcpu_set_reg(vcpu, reg, val);
 	vcpu_get_reg(vcpu, reg, &new_val);
 	TEST_ASSERT_EQ(new_val, val);
+
+	return new_val;
 }
 
 static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
@@ -374,7 +376,15 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	TEST_ASSERT_EQ(val, old_val);
 }
 
-static void test_user_set_reg(struct kvm_vcpu *vcpu, bool aarch64_only)
+static uint64_t test_reg_vals[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+
+#define encoding_to_range_idx(encoding)							\
+	KVM_ARM_FEATURE_ID_RANGE_IDX(sys_reg_Op0(encoding), sys_reg_Op1(encoding),	\
+				     sys_reg_CRn(encoding), sys_reg_CRm(encoding),	\
+				     sys_reg_Op2(encoding))
+
+
+static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 {
 	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 	struct reg_mask_range range = {
@@ -398,9 +408,7 @@ static void test_user_set_reg(struct kvm_vcpu *vcpu, bool aarch64_only)
 		int idx;
 
 		/* Get the index to masks array for the idreg */
-		idx = KVM_ARM_FEATURE_ID_RANGE_IDX(sys_reg_Op0(reg_id), sys_reg_Op1(reg_id),
-						   sys_reg_CRn(reg_id), sys_reg_CRm(reg_id),
-						   sys_reg_Op2(reg_id));
+		idx = encoding_to_range_idx(reg_id);
 
 		for (int j = 0;  ftr_bits[j].type != FTR_END; j++) {
 			/* Skip aarch32 reg on aarch64 only system, since they are RAZ/WI. */
@@ -414,7 +422,9 @@ static void test_user_set_reg(struct kvm_vcpu *vcpu, bool aarch64_only)
 			TEST_ASSERT_EQ(masks[idx] & ftr_bits[j].mask, ftr_bits[j].mask);
 
 			test_reg_set_fail(vcpu, reg, &ftr_bits[j]);
-			test_reg_set_success(vcpu, reg, &ftr_bits[j]);
+
+			test_reg_vals[idx] = test_reg_set_success(vcpu, reg,
+								  &ftr_bits[j]);
 
 			ksft_test_result_pass("%s\n", ftr_bits[j].name);
 		}
@@ -425,7 +435,6 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 {
 	bool done = false;
 	struct ucall uc;
-	uint64_t val;
 
 	while (!done) {
 		vcpu_run(vcpu);
@@ -436,8 +445,8 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 			break;
 		case UCALL_SYNC:
 			/* Make sure the written values are seen by guest */
-			vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(uc.args[2]), &val);
-			TEST_ASSERT_EQ(val, uc.args[3]);
+			TEST_ASSERT_EQ(test_reg_vals[encoding_to_range_idx(uc.args[2])],
+				       uc.args[3]);
 			break;
 		case UCALL_DONE:
 			done = true;
@@ -448,13 +457,85 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 	}
 }
 
+/* Politely lifted from arch/arm64/include/asm/cache.h */
+/* Ctypen, bits[3(n - 1) + 2 : 3(n - 1)], for n = 1 to 7 */
+#define CLIDR_CTYPE_SHIFT(level)	(3 * (level - 1))
+#define CLIDR_CTYPE_MASK(level)		(7 << CLIDR_CTYPE_SHIFT(level))
+#define CLIDR_CTYPE(clidr, level)	\
+	(((clidr) & CLIDR_CTYPE_MASK(level)) >> CLIDR_CTYPE_SHIFT(level))
+
+static void test_clidr(struct kvm_vcpu *vcpu)
+{
+	uint64_t clidr;
+	int level;
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1), &clidr);
+
+	/* find the first empty level in the cache hierarchy */
+	for (level = 1; level < 7; level++) {
+		if (!CLIDR_CTYPE(clidr, level))
+			break;
+	}
+
+	/*
+	 * If you have a mind-boggling 7 levels of cache, congratulations, you
+	 * get to fix this.
+	 */
+	TEST_ASSERT(level <= 7, "can't find an empty level in cache hierarchy");
+
+	/* stick in a unified cache level */
+	clidr |= BIT(2) << CLIDR_CTYPE_SHIFT(level);
+
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1), clidr);
+	test_reg_vals[encoding_to_range_idx(SYS_CLIDR_EL1)] = clidr;
+}
+
+static void test_vcpu_ftr_id_regs(struct kvm_vcpu *vcpu)
+{
+	u64 val;
+
+	test_clidr(vcpu);
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &val);
+	val++;
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), val);
+
+	test_reg_vals[encoding_to_range_idx(SYS_MPIDR_EL1)] = val;
+	ksft_test_result_pass("%s\n", __func__);
+}
+
+static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, uint32_t encoding)
+{
+	size_t idx = encoding_to_range_idx(encoding);
+	uint64_t observed;
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(encoding), &observed);
+	TEST_ASSERT_EQ(test_reg_vals[idx], observed);
+}
+
+static void test_reset_preserves_id_regs(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Calls KVM_ARM_VCPU_INIT behind the scenes, which will do an
+	 * architectural reset of the vCPU.
+	 */
+	aarch64_vcpu_setup(vcpu, NULL);
+
+	for (int i = 0; i < ARRAY_SIZE(test_regs); i++)
+		test_assert_id_reg_unchanged(vcpu, test_regs[i].reg);
+
+	test_assert_id_reg_unchanged(vcpu, SYS_CLIDR_EL1);
+
+	ksft_test_result_pass("%s\n", __func__);
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	bool aarch64_only;
 	uint64_t val, el0;
-	int ftr_cnt;
+	int test_cnt;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES));
 
@@ -467,17 +548,21 @@ int main(void)
 
 	ksft_print_header();
 
-	ftr_cnt = ARRAY_SIZE(ftr_id_aa64dfr0_el1) + ARRAY_SIZE(ftr_id_dfr0_el1) +
-		  ARRAY_SIZE(ftr_id_aa64isar0_el1) + ARRAY_SIZE(ftr_id_aa64isar1_el1) +
-		  ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
-		  ARRAY_SIZE(ftr_id_aa64mmfr0_el1) + ARRAY_SIZE(ftr_id_aa64mmfr1_el1) +
-		  ARRAY_SIZE(ftr_id_aa64mmfr2_el1) + ARRAY_SIZE(ftr_id_aa64zfr0_el1) -
-		  ARRAY_SIZE(test_regs);
+	test_cnt = ARRAY_SIZE(ftr_id_aa64dfr0_el1) + ARRAY_SIZE(ftr_id_dfr0_el1) +
+		   ARRAY_SIZE(ftr_id_aa64isar0_el1) + ARRAY_SIZE(ftr_id_aa64isar1_el1) +
+		   ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
+		   ARRAY_SIZE(ftr_id_aa64mmfr0_el1) + ARRAY_SIZE(ftr_id_aa64mmfr1_el1) +
+		   ARRAY_SIZE(ftr_id_aa64mmfr2_el1) + ARRAY_SIZE(ftr_id_aa64zfr0_el1) -
+		   ARRAY_SIZE(test_regs) + 2;
 
-	ksft_set_plan(ftr_cnt);
+	ksft_set_plan(test_cnt);
 
-	test_user_set_reg(vcpu, aarch64_only);
+	test_vm_ftr_id_regs(vcpu, aarch64_only);
+	test_vcpu_ftr_id_regs(vcpu);
+
 	test_guest_reg_read(vcpu);
+
+	test_reset_preserves_id_regs(vcpu);
 
 	kvm_vm_free(vm);
 

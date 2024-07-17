@@ -11,6 +11,15 @@ maintainers:
   - Stephen Boyd <sboyd@kernel.org>
 
 properties:
+  $nodename:
+    anyOf:
+      - description:
+          Preferred name is 'clock-<freq>' with <freq> being the output
+          frequency as defined in the 'clock-frequency' property.
+        pattern: "^clock-([0-9]+|[a-z0-9-]+)$"
+      - description: Any name allowed
+        deprecated: true
+
   compatible:
     const: fixed-clock
 

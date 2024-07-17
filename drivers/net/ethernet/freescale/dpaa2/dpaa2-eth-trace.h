@@ -48,7 +48,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_fd,
 				   __entry->fd_addr = dpaa2_fd_get_addr(fd);
 				   __entry->fd_len = dpaa2_fd_get_len(fd);
 				   __entry->fd_offset = dpaa2_fd_get_offset(fd);
-				   __assign_str(name, netdev->name);
+				   __assign_str(name);
 		    ),
 
 		    /* This is what gets printed when the trace event is
@@ -144,7 +144,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_buf,
 				   __entry->dma_addr = dma_addr;
 				   __entry->map_size = map_size;
 				   __entry->bpid = bpid;
-				   __assign_str(name, netdev->name);
+				   __assign_str(name);
 		    ),
 
 		    /* This is what gets printed when the trace event is

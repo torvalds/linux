@@ -23,6 +23,7 @@ struct ecc_point {
  * struct ecc_curve - definition of elliptic curve
  *
  * @name:	Short name of the curve.
+ * @nbits:	The number of bits of a curve.
  * @g:		Generator point of the curve.
  * @p:		Prime number, if Barrett's reduction is used for this curve
  *		pre-calculated value 'mu' is appended to the @p after ndigits.
@@ -34,6 +35,7 @@ struct ecc_point {
  */
 struct ecc_curve {
 	char *name;
+	u32 nbits;
 	struct ecc_point g;
 	u64 *p;
 	u64 *n;

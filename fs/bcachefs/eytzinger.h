@@ -48,7 +48,7 @@ static inline unsigned eytzinger1_right_child(unsigned i)
 
 static inline unsigned eytzinger1_first(unsigned size)
 {
-	return rounddown_pow_of_two(size);
+	return size ? rounddown_pow_of_two(size) : 0;
 }
 
 static inline unsigned eytzinger1_last(unsigned size)
@@ -101,7 +101,9 @@ static inline unsigned eytzinger1_prev(unsigned i, unsigned size)
 
 static inline unsigned eytzinger1_extra(unsigned size)
 {
-	return (size + 1 - rounddown_pow_of_two(size)) << 1;
+	return size
+		? (size + 1 - rounddown_pow_of_two(size)) << 1
+		: 0;
 }
 
 static inline unsigned __eytzinger1_to_inorder(unsigned i, unsigned size,

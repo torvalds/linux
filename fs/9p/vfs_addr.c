@@ -26,36 +26,38 @@
 #include "cache.h"
 #include "fid.h"
 
-static void v9fs_upload_to_server(struct netfs_io_subrequest *subreq)
+/*
+ * Writeback calls this when it finds a folio that needs uploading.  This isn't
+ * called if writeback only has copy-to-cache to deal with.
+ */
+static void v9fs_begin_writeback(struct netfs_io_request *wreq)
+{
+	struct p9_fid *fid;
+
+	fid = v9fs_fid_find_inode(wreq->inode, true, INVALID_UID, true);
+	if (!fid) {
+		WARN_ONCE(1, "folio expected an open fid inode->i_ino=%lx\n",
+			  wreq->inode->i_ino);
+		return;
+	}
+
+	wreq->wsize = fid->clnt->msize - P9_IOHDRSZ;
+	if (fid->iounit)
+		wreq->wsize = min(wreq->wsize, fid->iounit);
+	wreq->netfs_priv = fid;
+	wreq->io_streams[0].avail = true;
+}
+
+/*
+ * Issue a subrequest to write to the server.
+ */
+static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 {
 	struct p9_fid *fid = subreq->rreq->netfs_priv;
 	int err, len;
 
-	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
 	len = p9_client_write(fid, subreq->start, &subreq->io_iter, &err);
 	netfs_write_subrequest_terminated(subreq, len ?: err, false);
-}
-
-static void v9fs_upload_to_server_worker(struct work_struct *work)
-{
-	struct netfs_io_subrequest *subreq =
-		container_of(work, struct netfs_io_subrequest, work);
-
-	v9fs_upload_to_server(subreq);
-}
-
-/*
- * Set up write requests for a writeback slice.  We need to add a write request
- * for each write we want to make.
- */
-static void v9fs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size_t len)
-{
-	struct netfs_io_subrequest *subreq;
-
-	subreq = netfs_create_write_request(wreq, NETFS_UPLOAD_TO_SERVER,
-					    start, len, v9fs_upload_to_server_worker);
-	if (subreq)
-		netfs_queue_write_request(subreq);
 }
 
 /**
@@ -87,11 +89,15 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
 	struct p9_fid *fid;
 	bool writing = (rreq->origin == NETFS_READ_FOR_WRITE ||
-			rreq->origin == NETFS_WRITEBACK ||
 			rreq->origin == NETFS_WRITETHROUGH ||
-			rreq->origin == NETFS_LAUNDER_WRITE ||
 			rreq->origin == NETFS_UNBUFFERED_WRITE ||
 			rreq->origin == NETFS_DIO_WRITE);
+
+	if (rreq->origin == NETFS_WRITEBACK)
+		return 0; /* We don't get the write handle until we find we
+			   * have actually dirty data and not just
+			   * copy-to-cache data.
+			   */
 
 	if (file) {
 		fid = file->private_data;
@@ -103,6 +109,10 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 		if (!fid)
 			goto no_fid;
 	}
+
+	rreq->wsize = fid->clnt->msize - P9_IOHDRSZ;
+	if (fid->iounit)
+		rreq->wsize = min(rreq->wsize, fid->iounit);
 
 	/* we might need to read from a fid that was opened write-only
 	 * for read-modify-write of page cache, use the writeback fid
@@ -132,7 +142,8 @@ const struct netfs_request_ops v9fs_req_ops = {
 	.init_request		= v9fs_init_request,
 	.free_request		= v9fs_free_request,
 	.issue_read		= v9fs_issue_read,
-	.create_write_requests	= v9fs_create_write_requests,
+	.begin_writeback	= v9fs_begin_writeback,
+	.issue_write		= v9fs_issue_write,
 };
 
 const struct address_space_operations v9fs_addr_operations = {
@@ -141,7 +152,6 @@ const struct address_space_operations v9fs_addr_operations = {
 	.dirty_folio		= netfs_dirty_folio,
 	.release_folio		= netfs_release_folio,
 	.invalidate_folio	= netfs_invalidate_folio,
-	.launder_folio		= netfs_launder_folio,
 	.direct_IO		= noop_direct_IO,
 	.writepages		= netfs_writepages,
 };

@@ -24,11 +24,29 @@ static const struct snd_soc_acpi_adr_device rt711_0_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
+	{
+		.adr = 0x000030025D071101ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "rt711"
+	}
+};
+
 static const struct snd_soc_acpi_link_adr arl_rvp[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_0_adr),
 		.adr_d = rt711_0_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr arl_sdca_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
 	},
 	{}
 };
@@ -45,6 +63,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 		.links = arl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-arl-rt711.tplg",
+	},
+	{
+		.link_mask = 0x1, /* link0 required */
+		.links = arl_sdca_rvp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-arl-rt711-l0.tplg",
 	},
 	{},
 };

@@ -67,12 +67,10 @@ struct gemini_gate_data {
  * struct clk_gemini_pci - Gemini PCI clock
  * @hw: corresponding clock hardware entry
  * @map: regmap to access the registers
- * @rate: current rate
  */
 struct clk_gemini_pci {
 	struct clk_hw hw;
 	struct regmap *map;
-	unsigned long rate;
 };
 
 /**

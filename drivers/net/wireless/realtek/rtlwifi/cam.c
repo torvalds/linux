@@ -18,7 +18,8 @@ void rtl_cam_reset_sec_info(struct ieee80211_hw *hw)
 }
 
 static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
-			   u8 *mac_addr, u8 *key_cont_128, u16 us_config)
+				  const u8 *mac_addr, u8 *key_cont_128,
+				  u16 us_config)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -94,7 +95,7 @@ static void rtl_cam_program_entry(struct ieee80211_hw *hw, u32 entry_no,
 		"after set key, usconfig:%x\n", us_config);
 }
 
-u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
+u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, const u8 *mac_addr,
 			 u32 ul_key_id, u32 ul_entry_idx, u32 ul_enc_alg,
 			 u32 ul_default_key, u8 *key_content)
 {

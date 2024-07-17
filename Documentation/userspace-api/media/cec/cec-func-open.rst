@@ -70,5 +70,5 @@ include:
 ``ENOMEM``
     Insufficient kernel memory was available.
 
-``ENXIO``
-    No device corresponding to this device special file exists.
+``ENODEV``
+    Device not found or was removed.

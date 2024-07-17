@@ -50,7 +50,7 @@
 static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 static const struct i2c_device_id fts_id[] = {
-	{ "ftsteutates", 0 },
+	{ "ftsteutates" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fts_id);

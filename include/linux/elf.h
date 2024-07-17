@@ -65,7 +65,7 @@ extern Elf64_Dyn _DYNAMIC [];
 struct file;
 struct coredump_params;
 
-#ifndef ARCH_HAVE_EXTRA_ELF_NOTES
+#ifndef CONFIG_ARCH_HAVE_EXTRA_ELF_NOTES
 static inline int elf_coredump_extra_notes_size(void) { return 0; }
 static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) { return 0; }
 #else

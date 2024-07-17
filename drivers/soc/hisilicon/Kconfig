@@ -6,7 +6,7 @@ menu "Hisilicon SoC drivers"
 config KUNPENG_HCCS
 	tristate "HCCS driver on Kunpeng SoC"
 	depends on ACPI
-	depends on MAILBOX
+	depends on PCC
 	depends on ARM64 || COMPILE_TEST
 	help
 	  The Huawei Cache Coherence System (HCCS) is a multi-chip

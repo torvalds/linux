@@ -32,6 +32,9 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 			params->rq_depth;
 	create_qp_cmd.uar = params->uarn;
 
+	if (params->unsolicited_write_recv)
+		EFA_SET(&create_qp_cmd.flags, EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV, 1);
+
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&create_qp_cmd,
 			       sizeof(create_qp_cmd),

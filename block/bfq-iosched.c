@@ -5463,29 +5463,10 @@ static void bfq_exit_icq_bfqq(struct bfq_io_cq *bic, bool is_sync,
 	}
 }
 
-static void bfq_exit_icq(struct io_cq *icq)
+static void _bfq_exit_icq(struct bfq_io_cq *bic, unsigned int num_actuators)
 {
-	struct bfq_io_cq *bic = icq_to_bic(icq);
-	struct bfq_data *bfqd = bic_to_bfqd(bic);
-	unsigned long flags;
-	unsigned int act_idx;
-	/*
-	 * If bfqd and thus bfqd->num_actuators is not available any
-	 * longer, then cycle over all possible per-actuator bfqqs in
-	 * next loop. We rely on bic being zeroed on creation, and
-	 * therefore on its unused per-actuator fields being NULL.
-	 */
-	unsigned int num_actuators = BFQ_MAX_ACTUATORS;
 	struct bfq_iocq_bfqq_data *bfqq_data = bic->bfqq_data;
-
-	/*
-	 * bfqd is NULL if scheduler already exited, and in that case
-	 * this is the last time these queues are accessed.
-	 */
-	if (bfqd) {
-		spin_lock_irqsave(&bfqd->lock, flags);
-		num_actuators = bfqd->num_actuators;
-	}
+	unsigned int act_idx;
 
 	for (act_idx = 0; act_idx < num_actuators; act_idx++) {
 		if (bfqq_data[act_idx].stable_merge_bfqq)
@@ -5494,9 +5475,30 @@ static void bfq_exit_icq(struct io_cq *icq)
 		bfq_exit_icq_bfqq(bic, true, act_idx);
 		bfq_exit_icq_bfqq(bic, false, act_idx);
 	}
+}
 
-	if (bfqd)
+static void bfq_exit_icq(struct io_cq *icq)
+{
+	struct bfq_io_cq *bic = icq_to_bic(icq);
+	struct bfq_data *bfqd = bic_to_bfqd(bic);
+	unsigned long flags;
+
+	/*
+	 * If bfqd and thus bfqd->num_actuators is not available any
+	 * longer, then cycle over all possible per-actuator bfqqs in
+	 * next loop. We rely on bic being zeroed on creation, and
+	 * therefore on its unused per-actuator fields being NULL.
+	 *
+	 * bfqd is NULL if scheduler already exited, and in that case
+	 * this is the last time these queues are accessed.
+	 */
+	if (bfqd) {
+		spin_lock_irqsave(&bfqd->lock, flags);
+		_bfq_exit_icq(bic, bfqd->num_actuators);
 		spin_unlock_irqrestore(&bfqd->lock, flags);
+	} else {
+		_bfq_exit_icq(bic, BFQ_MAX_ACTUATORS);
+	}
 }
 
 /*

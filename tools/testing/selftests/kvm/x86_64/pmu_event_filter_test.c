@@ -9,9 +9,6 @@
  * Verifies the expected behavior of allow lists and deny lists for
  * virtual PMU events.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "kvm_util.h"
 #include "pmu.h"
 #include "processor.h"
@@ -337,9 +334,6 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 	vm_enable_cap(vm, KVM_CAP_PMU_CAPABILITY, KVM_PMU_CAP_DISABLE);
 
 	vcpu = vm_vcpu_add(vm, 0, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	TEST_ASSERT(!sanity_check_pmu(vcpu),
 		    "Guest should not be able to use disabled PMU.");
 
@@ -875,9 +869,6 @@ int main(int argc, char *argv[])
 	guest_code = use_intel_pmu() ? intel_guest_code : amd_guest_code;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 
 	TEST_REQUIRE(sanity_check_pmu(vcpu));
 

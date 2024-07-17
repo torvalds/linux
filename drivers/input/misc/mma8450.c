@@ -186,8 +186,8 @@ static int mma8450_probe(struct i2c_client *c)
 }
 
 static const struct i2c_device_id mma8450_id[] = {
-	{ MMA8450_DRV_NAME, 0 },
-	{ },
+	{ MMA8450_DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8450_id);
 

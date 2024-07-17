@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-ccflags-y := -I $(srctree)/$(src)/../cxgb4
+ccflags-y := -I $(src)/../cxgb4
 
 obj-$(CONFIG_CHELSIO_LIB) += libcxgb.o
 

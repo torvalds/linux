@@ -331,7 +331,7 @@ static u64 notrace hisi_161010101_read_cntvct_el0(void)
 	return __hisi_161010101_read_reg(cntvct_el0);
 }
 
-static struct ate_acpi_oem_info hisi_161010101_oem_info[] = {
+static const struct ate_acpi_oem_info hisi_161010101_oem_info[] = {
 	/*
 	 * Note that trailing spaces are required to properly match
 	 * the OEM table information.
@@ -1556,7 +1556,7 @@ static int __init
 arch_timer_mem_frame_register(struct arch_timer_mem_frame *frame)
 {
 	void __iomem *base;
-	int ret, irq = 0;
+	int ret, irq;
 
 	if (arch_timer_mem_use_virtual)
 		irq = frame->virt_irq;

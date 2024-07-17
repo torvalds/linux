@@ -978,7 +978,6 @@ static int rt712_sdca_dmic_sdw_remove(struct sdw_slave *slave)
 static struct sdw_driver rt712_sdca_dmic_sdw_driver = {
 	.driver = {
 		.name = "rt712-sdca-dmic",
-		.owner = THIS_MODULE,
 		.pm = &rt712_sdca_dmic_pm,
 	},
 	.probe = rt712_sdca_dmic_sdw_probe,

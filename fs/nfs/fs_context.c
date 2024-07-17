@@ -600,9 +600,11 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_lock:
 		if (result.negated) {
+			ctx->lock_status = NFS_LOCK_NOLOCK;
 			ctx->flags |= NFS_MOUNT_NONLM;
 			ctx->flags |= (NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
 		} else {
+			ctx->lock_status = NFS_LOCK_LOCK;
 			ctx->flags &= ~NFS_MOUNT_NONLM;
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
 		}
@@ -1112,9 +1114,12 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		ctx->acdirmax	= data->acdirmax;
 		ctx->need_mount	= false;
 
-		memcpy(sap, &data->addr, sizeof(data->addr));
-		ctx->nfs_server.addrlen = sizeof(data->addr);
-		ctx->nfs_server.port = ntohs(data->addr.sin_port);
+		if (!is_remount_fc(fc)) {
+			memcpy(sap, &data->addr, sizeof(data->addr));
+			ctx->nfs_server.addrlen = sizeof(data->addr);
+			ctx->nfs_server.port = ntohs(data->addr.sin_port);
+		}
+
 		if (sap->ss_family != AF_INET ||
 		    !nfs_verify_server_address(sap))
 			goto out_no_address;

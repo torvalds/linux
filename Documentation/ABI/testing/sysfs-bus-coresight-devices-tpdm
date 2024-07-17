@@ -244,7 +244,7 @@ KernelVersion	6.9
 Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
 Description:
 		(RW) Read or write the status of timestamp upon all interface.
-		Only value 0 and 1  can be written to this node. Set this node to 1 to requeset
+		Only value 0 and 1  can be written to this node. Set this node to 1 to request
 		timestamp to all trace packet.
 		Accepts only one of the 2 values -  0 or 1.
 		0 : Disable the timestamp of all trace packets.

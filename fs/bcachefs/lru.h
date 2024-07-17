@@ -2,9 +2,6 @@
 #ifndef _BCACHEFS_LRU_H
 #define _BCACHEFS_LRU_H
 
-#define LRU_TIME_BITS	48
-#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
-
 static inline u64 lru_pos_id(struct bpos pos)
 {
 	return pos.inode >> LRU_TIME_BITS;
@@ -49,7 +46,7 @@ static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 }
 
 int bch2_lru_invalid(struct bch_fs *, struct bkey_s_c,
-		     enum bkey_invalid_flags, struct printbuf *);
+		     enum bch_validate_flags, struct printbuf *);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 void bch2_lru_pos_to_text(struct printbuf *, struct bpos);
@@ -63,6 +60,9 @@ void bch2_lru_pos_to_text(struct printbuf *, struct bpos);
 int bch2_lru_del(struct btree_trans *, u16, u64, u64);
 int bch2_lru_set(struct btree_trans *, u16, u64, u64);
 int bch2_lru_change(struct btree_trans *, u16, u64, u64, u64);
+
+struct bkey_buf;
+int bch2_lru_check_set(struct btree_trans *, u16, u64, struct bkey_s_c, struct bkey_buf *);
 
 int bch2_check_lrus(struct bch_fs *);
 

@@ -70,14 +70,10 @@ struct q6apm_dai_rtd {
 	unsigned int bytes_received;
 	unsigned int copied_total;
 	uint16_t bits_per_sample;
-	uint16_t source; /* Encoding source bit mask */
-	uint16_t session_id;
 	bool next_track;
 	enum stream_state state;
 	struct q6apm_graph *graph;
 	spinlock_t lock;
-	uint32_t initial_samples_drop;
-	uint32_t trailing_samples_drop;
 	bool notify_on_drain;
 };
 
@@ -85,7 +81,7 @@ struct q6apm_dai_data {
 	long long sid;
 };
 
-static struct snd_pcm_hardware q6apm_dai_hardware_capture = {
+static const struct snd_pcm_hardware q6apm_dai_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
@@ -104,7 +100,7 @@ static struct snd_pcm_hardware q6apm_dai_hardware_capture = {
 	.fifo_size =            0,
 };
 
-static struct snd_pcm_hardware q6apm_dai_hardware_playback = {
+static const struct snd_pcm_hardware q6apm_dai_hardware_playback = {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
@@ -331,7 +327,7 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
+	struct snd_soc_pcm_runtime *soc_prtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(soc_prtd, 0);
 	struct device *dev = component->dev;
 	struct q6apm_dai_data *pdata;
@@ -720,14 +716,12 @@ static int q6apm_dai_compr_set_metadata(struct snd_soc_component *component,
 
 	switch (metadata->key) {
 	case SNDRV_COMPRESS_ENCODER_PADDING:
-		prtd->trailing_samples_drop = metadata->value[0];
 		q6apm_remove_trailing_silence(component->dev, prtd->graph,
-					      prtd->trailing_samples_drop);
+					      metadata->value[0]);
 		break;
 	case SNDRV_COMPRESS_ENCODER_DELAY:
-		prtd->initial_samples_drop = metadata->value[0];
 		q6apm_remove_initial_silence(component->dev, prtd->graph,
-					     prtd->initial_samples_drop);
+					     metadata->value[0]);
 		break;
 	default:
 		ret = -EINVAL;

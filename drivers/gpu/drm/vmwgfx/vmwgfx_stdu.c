@@ -27,12 +27,14 @@
 
 #include "vmwgfx_bo.h"
 #include "vmwgfx_kms.h"
+#include "vmwgfx_vkms.h"
 #include "vmw_surface_cache.h"
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -41,7 +43,14 @@
 #define vmw_connector_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.connector)
 
-
+/*
+ * Some renderers such as llvmpipe will align the width and height of their
+ * buffers to match their tile size. We need to keep this in mind when exposing
+ * modes to userspace so that this possible over-allocation will not exceed
+ * graphics memory. 64x64 pixels seems to be a reasonable upper bound for the
+ * tile size of current renderers.
+ */
+#define GPU_TILE_SIZE 64
 
 enum stdu_content_type {
 	SAME_AS_DISPLAY = 0,
@@ -81,11 +90,6 @@ struct vmw_stdu_dirty {
 struct vmw_stdu_update {
 	SVGA3dCmdHeader header;
 	SVGA3dCmdUpdateGBScreenTarget body;
-};
-
-struct vmw_stdu_dma {
-	SVGA3dCmdHeader     header;
-	SVGA3dCmdSurfaceDMA body;
 };
 
 struct vmw_stdu_surface_copy {
@@ -407,23 +411,13 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			  crtc->x, crtc->y);
 }
 
-
-static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
-{
-}
-
-static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
-					struct drm_atomic_state *state)
-{
-}
-
 static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 					 struct drm_atomic_state *state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
+	struct drm_crtc_state *new_crtc_state;
 	int ret;
-
 
 	if (!crtc) {
 		DRM_ERROR("CRTC is NULL\n");
@@ -432,6 +426,10 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	stdu     = vmw_crtc_to_stdu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
+	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	if (dev_priv->vkms_enabled)
+		drm_crtc_vblank_off(crtc);
 
 	if (stdu->defined) {
 		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
@@ -439,6 +437,14 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 			DRM_ERROR("Failed to blank CRTC\n");
 
 		(void) vmw_stdu_update_st(dev_priv, stdu);
+
+		/* Don't destroy the Screen Target if we are only setting the
+		 * display as inactive
+		 */
+		if (new_crtc_state->enable &&
+		    !new_crtc_state->active &&
+		    !new_crtc_state->mode_changed)
+			return;
 
 		ret = vmw_stdu_destroy_st(dev_priv, stdu);
 		if (ret)
@@ -770,7 +776,6 @@ out_unref:
 	return ret;
 }
 
-
 /*
  *  Screen Target CRTC dispatch table
  */
@@ -782,6 +787,12 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
+	.enable_vblank		= vmw_vkms_enable_vblank,
+	.disable_vblank		= vmw_vkms_disable_vblank,
+	.get_vblank_timestamp	= vmw_vkms_get_vblank_timestamp,
+	.get_crc_sources	= vmw_vkms_get_crc_sources,
+	.set_crc_source		= vmw_vkms_set_crc_source,
+	.verify_crc_source	= vmw_vkms_verify_crc_source,
 };
 
 
@@ -830,7 +841,41 @@ static void vmw_stdu_connector_destroy(struct drm_connector *connector)
 	vmw_stdu_destroy(vmw_connector_to_stdu(connector));
 }
 
+static enum drm_mode_status
+vmw_stdu_connector_mode_valid(struct drm_connector *connector,
+			      struct drm_display_mode *mode)
+{
+	enum drm_mode_status ret;
+	struct drm_device *dev = connector->dev;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	u64 assumed_cpp = dev_priv->assume_16bpp ? 2 : 4;
+	/* Align width and height to account for GPU tile over-alignment */
+	u64 required_mem = ALIGN(mode->hdisplay, GPU_TILE_SIZE) *
+			   ALIGN(mode->vdisplay, GPU_TILE_SIZE) *
+			   assumed_cpp;
+	required_mem = ALIGN(required_mem, PAGE_SIZE);
 
+	ret = drm_mode_validate_size(mode, dev_priv->stdu_max_width,
+				     dev_priv->stdu_max_height);
+	if (ret != MODE_OK)
+		return ret;
+
+	ret = drm_mode_validate_size(mode, dev_priv->texture_max_width,
+				     dev_priv->texture_max_height);
+	if (ret != MODE_OK)
+		return ret;
+
+	if (required_mem > dev_priv->max_primary_mem)
+		return MODE_MEM;
+
+	if (required_mem > dev_priv->max_mob_pages * PAGE_SIZE)
+		return MODE_MEM;
+
+	if (required_mem > dev_priv->max_mob_size)
+		return MODE_MEM;
+
+	return MODE_OK;
+}
 
 static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
@@ -846,7 +891,7 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 static const struct
 drm_connector_helper_funcs vmw_stdu_connector_helper_funcs = {
 	.get_modes = vmw_connector_get_modes,
-	.mode_valid = vmw_connector_mode_valid
+	.mode_valid = vmw_stdu_connector_mode_valid
 };
 
 
@@ -1413,6 +1458,17 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		vmw_fence_obj_unreference(&fence);
 }
 
+static void
+vmw_stdu_crtc_atomic_flush(struct drm_crtc *crtc,
+			   struct drm_atomic_state *state)
+{
+	struct vmw_private *vmw = vmw_priv(crtc->dev);
+	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
+
+	if (vmw->vkms_enabled)
+		vmw_vkms_set_crc_surface(crtc, stdu->display_srf);
+	vmw_vkms_crtc_atomic_flush(crtc, state);
+}
 
 static const struct drm_plane_funcs vmw_stdu_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
@@ -1453,12 +1509,11 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
-	.prepare = vmw_stdu_crtc_helper_prepare,
 	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
-	.atomic_flush = vmw_du_crtc_atomic_flush,
-	.atomic_enable = vmw_stdu_crtc_atomic_enable,
+	.atomic_flush = vmw_stdu_crtc_atomic_flush,
+	.atomic_enable = vmw_vkms_crtc_atomic_enable,
 	.atomic_disable = vmw_stdu_crtc_atomic_disable,
 };
 
@@ -1575,6 +1630,9 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
+
+	vmw_du_init(&stdu->base);
+
 	return 0;
 
 err_free_unregister:

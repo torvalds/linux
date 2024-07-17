@@ -41,6 +41,7 @@
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "intel_mchbar_regs.h"
+#include "display/bxt_dpio_phy_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
@@ -49,9 +50,11 @@
 #include "display/intel_fdi_regs.h"
 #include "display/intel_pps_regs.h"
 #include "display/intel_psr_regs.h"
+#include "display/intel_sprite_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
+#include <linux/vmalloc.h>
 
 /* XXX FIXME i915 has changed PP_XXX definition */
 #define PCH_PP_STATUS  _MMIO(0xc7200)
@@ -2763,15 +2766,15 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(BXT_PORT_PCS_DW12_GRP(DPIO_PHY0, DPIO_CH0), D_BXT,
 		NULL, bxt_pcs_dw12_grp_write);
-	MMIO_DH(BXT_PORT_TX_DW3_LN0(DPIO_PHY0, DPIO_CH0), D_BXT,
+	MMIO_DH(BXT_PORT_TX_DW3_LN(DPIO_PHY0, DPIO_CH0, 0), D_BXT,
 		bxt_port_tx_dw3_read, NULL);
 	MMIO_DH(BXT_PORT_PCS_DW12_GRP(DPIO_PHY0, DPIO_CH1), D_BXT,
 		NULL, bxt_pcs_dw12_grp_write);
-	MMIO_DH(BXT_PORT_TX_DW3_LN0(DPIO_PHY0, DPIO_CH1), D_BXT,
+	MMIO_DH(BXT_PORT_TX_DW3_LN(DPIO_PHY0, DPIO_CH1, 0), D_BXT,
 		bxt_port_tx_dw3_read, NULL);
 	MMIO_DH(BXT_PORT_PCS_DW12_GRP(DPIO_PHY1, DPIO_CH0), D_BXT,
 		NULL, bxt_pcs_dw12_grp_write);
-	MMIO_DH(BXT_PORT_TX_DW3_LN0(DPIO_PHY1, DPIO_CH0), D_BXT,
+	MMIO_DH(BXT_PORT_TX_DW3_LN(DPIO_PHY1, DPIO_CH0, 0), D_BXT,
 		bxt_port_tx_dw3_read, NULL);
 	MMIO_DH(BXT_DE_PLL_ENABLE, D_BXT, NULL, bxt_de_pll_enable_write);
 	MMIO_DFH(GEN8_L3SQCREG1, D_BXT, F_CMD_ACCESS, NULL, NULL);

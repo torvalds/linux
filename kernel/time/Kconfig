@@ -202,7 +202,7 @@ config HIGH_RES_TIMERS
 	  the size of the kernel image.
 
 config CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
-	int "Clocksource watchdog maximum allowable skew (in μs)"
+	int "Clocksource watchdog maximum allowable skew (in microseconds)"
 	depends on CLOCKSOURCE_WATCHDOG
 	range 50 1000
 	default 125

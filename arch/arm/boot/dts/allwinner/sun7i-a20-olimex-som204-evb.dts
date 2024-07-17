@@ -65,7 +65,7 @@
 		};
 	};
 
-	rtl_pwrseq: rtl_pwrseq {
+	rtl_pwrseq: pwrseq-0 {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pio 6 9 GPIO_ACTIVE_LOW>;
 	};
@@ -177,7 +177,7 @@
 	non-removable;
 	status = "okay";
 
-	rtl8723bs: sdio_wifi@1 {
+	rtl8723bs: wifi@1 {
 		reg = <1>;
 	};
 };

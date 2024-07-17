@@ -188,8 +188,11 @@ static void init_state(struct dc *dc, struct dc_state *state)
 }
 
 /* Public dc_state functions */
-struct dc_state *dc_state_create(struct dc *dc)
+struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *params)
 {
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_configuration_options *dml2_opt = &dc->dml2_options;
+#endif
 	struct dc_state *state = kvzalloc(sizeof(struct dc_state),
 			GFP_KERNEL);
 
@@ -198,10 +201,16 @@ struct dc_state *dc_state_create(struct dc *dc)
 
 	init_state(dc, state);
 	dc_state_construct(dc, state);
+	state->power_source = params ? params->power_source : DC_POWER_SOURCE_AC;
 
 #ifdef CONFIG_DRM_AMD_DC_FP
-	if (dc->debug.using_dml2)
-		dml2_create(dc, &dc->dml2_options, &state->bw_ctx.dml2);
+	if (dc->debug.using_dml2) {
+		dml2_opt->use_clock_dc_limits = false;
+		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2);
+
+		dml2_opt->use_clock_dc_limits = true;
+		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2_dc_power_source);
+	}
 #endif
 
 	kref_init(&state->refcount);
@@ -214,6 +223,7 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 	struct kref refcount = dst_state->refcount;
 #ifdef CONFIG_DRM_AMD_DC_FP
 	struct dml2_context *dst_dml2 = dst_state->bw_ctx.dml2;
+	struct dml2_context *dst_dml2_dc_power_source = dst_state->bw_ctx.dml2_dc_power_source;
 #endif
 
 	dc_state_copy_internal(dst_state, src_state);
@@ -222,6 +232,10 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 	dst_state->bw_ctx.dml2 = dst_dml2;
 	if (src_state->bw_ctx.dml2)
 		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
+
+	dst_state->bw_ctx.dml2_dc_power_source = dst_dml2_dc_power_source;
+	if (src_state->bw_ctx.dml2_dc_power_source)
+		dml2_copy(dst_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source);
 #endif
 
 	/* context refcount should not be overridden */
@@ -242,6 +256,12 @@ struct dc_state *dc_state_create_copy(struct dc_state *src_state)
 #ifdef CONFIG_DRM_AMD_DC_FP
 	if (src_state->bw_ctx.dml2 &&
 			!dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2)) {
+		dc_state_release(new_state);
+		return NULL;
+	}
+
+	if (src_state->bw_ctx.dml2_dc_power_source &&
+			!dml2_create_copy(&new_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source)) {
 		dc_state_release(new_state);
 		return NULL;
 	}
@@ -310,7 +330,6 @@ void dc_state_destruct(struct dc_state *state)
 	memset(state->dc_dmub_cmd, 0, sizeof(state->dc_dmub_cmd));
 	state->dmub_cmd_count = 0;
 	memset(&state->perf_params, 0, sizeof(state->perf_params));
-	memset(&state->scratch, 0, sizeof(state->scratch));
 }
 
 void dc_state_retain(struct dc_state *state)
@@ -327,6 +346,9 @@ static void dc_state_free(struct kref *kref)
 #ifdef CONFIG_DRM_AMD_DC_FP
 	dml2_destroy(state->bw_ctx.dml2);
 	state->bw_ctx.dml2 = 0;
+
+	dml2_destroy(state->bw_ctx.dml2_dc_power_source);
+	state->bw_ctx.dml2_dc_power_source = 0;
 #endif
 
 	kvfree(state);
@@ -341,7 +363,7 @@ void dc_state_release(struct dc_state *state)
  * dc_state_add_stream() - Add a new dc_stream_state to a dc_state.
  */
 enum dc_status dc_state_add_stream(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
@@ -370,7 +392,7 @@ enum dc_status dc_state_add_stream(
  * dc_state_remove_stream() - Remove a stream from a dc_state.
  */
 enum dc_status dc_state_remove_stream(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
@@ -595,7 +617,7 @@ bool dc_state_add_all_planes_for_stream(
  */
 struct dc_stream_status *dc_state_get_stream_status(
 		struct dc_state *state,
-		struct dc_stream_state *stream)
+		const struct dc_stream_state *stream)
 {
 	uint8_t i;
 
@@ -689,7 +711,7 @@ void dc_state_release_phantom_stream(const struct dc *dc,
 	dc_stream_release(phantom_stream);
 }
 
-struct dc_plane_state *dc_state_create_phantom_plane(struct dc *dc,
+struct dc_plane_state *dc_state_create_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *main_plane)
 {
@@ -725,7 +747,7 @@ void dc_state_release_phantom_plane(const struct dc *dc,
 }
 
 /* add phantom streams to context and generate correct meta inside dc_state */
-enum dc_status dc_state_add_phantom_stream(struct dc *dc,
+enum dc_status dc_state_add_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream,
 		struct dc_stream_state *main_stream)
@@ -751,7 +773,7 @@ enum dc_status dc_state_add_phantom_stream(struct dc *dc,
 	return res;
 }
 
-enum dc_status dc_state_remove_phantom_stream(struct dc *dc,
+enum dc_status dc_state_remove_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream)
 {
@@ -845,7 +867,7 @@ bool dc_state_add_all_phantom_planes_for_stream(
 }
 
 bool dc_state_remove_phantom_streams_and_planes(
-	struct dc *dc,
+	const struct dc *dc,
 	struct dc_state *state)
 {
 	int i;
@@ -867,7 +889,7 @@ bool dc_state_remove_phantom_streams_and_planes(
 }
 
 void dc_state_release_phantom_streams_and_planes(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state)
 {
 	int i;
@@ -878,3 +900,19 @@ void dc_state_release_phantom_streams_and_planes(
 	for (i = 0; i < state->phantom_plane_count; i++)
 		dc_state_release_phantom_plane(dc, state, state->phantom_planes[i]);
 }
+
+struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state, unsigned int id)
+{
+	struct dc_stream_state *stream = NULL;
+	int i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i] && state->streams[i]->stream_id == id) {
+			stream = state->streams[i];
+			break;
+		}
+	}
+
+	return stream;
+}
+

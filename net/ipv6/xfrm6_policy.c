@@ -56,12 +56,18 @@ static int xfrm6_get_saddr(struct net *net, int oif,
 {
 	struct dst_entry *dst;
 	struct net_device *dev;
+	struct inet6_dev *idev;
 
 	dst = xfrm6_dst_lookup(net, 0, oif, NULL, daddr, mark);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
-	dev = ip6_dst_idev(dst)->dev;
+	idev = ip6_dst_idev(dst);
+	if (!idev) {
+		dst_release(dst);
+		return -EHOSTUNREACH;
+	}
+	dev = idev->dev;
 	ipv6_dev_get_saddr(dev_net(dev), dev, &daddr->in6, 0, &saddr->in6);
 	dst_release(dst);
 	return 0;
@@ -70,7 +76,7 @@ static int xfrm6_get_saddr(struct net *net, int oif,
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 			  const struct flowi *fl)
 {
-	struct rt6_info *rt = (struct rt6_info *)xdst->route;
+	struct rt6_info *rt = dst_rt6_info(xdst->route);
 
 	xdst->u.dst.dev = dev;
 	netdev_hold(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
@@ -184,7 +190,6 @@ static struct ctl_table xfrm6_policy_table[] = {
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec,
 	},
-	{ }
 };
 
 static int __net_init xfrm6_net_sysctl_init(struct net *net)
@@ -218,7 +223,7 @@ err_alloc:
 
 static void __net_exit xfrm6_net_sysctl_exit(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	if (!net->ipv6.sysctl.xfrm6_hdr)
 		return;
@@ -285,8 +290,14 @@ int __init xfrm6_init(void)
 	ret = register_pernet_subsys(&xfrm6_net_ops);
 	if (ret)
 		goto out_protocol;
+
+	ret = xfrm_nat_keepalive_init(AF_INET6);
+	if (ret)
+		goto out_nat_keepalive;
 out:
 	return ret;
+out_nat_keepalive:
+	unregister_pernet_subsys(&xfrm6_net_ops);
 out_protocol:
 	xfrm6_protocol_fini();
 out_state:
@@ -298,6 +309,7 @@ out_policy:
 
 void xfrm6_fini(void)
 {
+	xfrm_nat_keepalive_fini(AF_INET6);
 	unregister_pernet_subsys(&xfrm6_net_ops);
 	xfrm6_protocol_fini();
 	xfrm6_policy_fini();

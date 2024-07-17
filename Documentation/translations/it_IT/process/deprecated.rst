@@ -86,7 +86,7 @@ da kcalloc().
 Se questo tipo di allocatore non è disponibile, allora dovrebbero essere usate
 le funzioni del tipo *saturate-on-overflow*::
 
-	bar = vmalloc(array_size(count, size));
+	bar = dma_alloc_coherent(dev, array_size(count, size), &dma, GFP_KERNEL);
 
 Un altro tipico caso da evitare è quello di calcolare la dimensione di una
 struttura seguita da un vettore di altre strutture, come nel seguente caso::

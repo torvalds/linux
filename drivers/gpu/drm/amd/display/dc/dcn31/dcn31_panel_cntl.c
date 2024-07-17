@@ -173,5 +173,12 @@ void dcn31_panel_cntl_construct(
 		break;
 	}
 
-	dcn31_panel_cntl->base.pwrseq_inst = pwrseq_inst;
+	if (dcn31_panel_cntl->base.ctx->dc->config.support_edp0_on_dp1)
+		//If supported, power sequencer mapping shall follow the DIG instance
+		dcn31_panel_cntl->base.pwrseq_inst = pwrseq_inst;
+	else
+		/* If not supported, pwrseq will be assigned in order,
+		 * so first pwrseq will be assigned to first panel instance (legacy behavior)
+		 */
+		dcn31_panel_cntl->base.pwrseq_inst = dcn31_panel_cntl->base.inst;
 }

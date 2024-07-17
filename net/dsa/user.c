@@ -355,11 +355,51 @@ static int dsa_user_get_iflink(const struct net_device *dev)
 	return READ_ONCE(dsa_user_to_conduit(dev)->ifindex);
 }
 
-static int dsa_user_open(struct net_device *dev)
+int dsa_user_host_uc_install(struct net_device *dev, const u8 *addr)
 {
 	struct net_device *conduit = dsa_user_to_conduit(dev);
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	if (dsa_switch_supports_uc_filtering(ds)) {
+		err = dsa_port_standalone_host_fdb_add(dp, addr, 0);
+		if (err)
+			goto out;
+	}
+
+	if (!ether_addr_equal(addr, conduit->dev_addr)) {
+		err = dev_uc_add(conduit, addr);
+		if (err < 0)
+			goto del_host_addr;
+	}
+
+	return 0;
+
+del_host_addr:
+	if (dsa_switch_supports_uc_filtering(ds))
+		dsa_port_standalone_host_fdb_del(dp, addr, 0);
+out:
+	return err;
+}
+
+void dsa_user_host_uc_uninstall(struct net_device *dev)
+{
+	struct net_device *conduit = dsa_user_to_conduit(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ether_addr_equal(dev->dev_addr, conduit->dev_addr))
+		dev_uc_del(conduit, dev->dev_addr);
+
+	if (dsa_switch_supports_uc_filtering(ds))
+		dsa_port_standalone_host_fdb_del(dp, dev->dev_addr, 0);
+}
+
+static int dsa_user_open(struct net_device *dev)
+{
+	struct net_device *conduit = dsa_user_to_conduit(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	int err;
 
 	err = dev_open(conduit, NULL);
@@ -368,47 +408,29 @@ static int dsa_user_open(struct net_device *dev)
 		goto out;
 	}
 
-	if (dsa_switch_supports_uc_filtering(ds)) {
-		err = dsa_port_standalone_host_fdb_add(dp, dev->dev_addr, 0);
-		if (err)
-			goto out;
-	}
-
-	if (!ether_addr_equal(dev->dev_addr, conduit->dev_addr)) {
-		err = dev_uc_add(conduit, dev->dev_addr);
-		if (err < 0)
-			goto del_host_addr;
-	}
+	err = dsa_user_host_uc_install(dev, dev->dev_addr);
+	if (err)
+		goto out;
 
 	err = dsa_port_enable_rt(dp, dev->phydev);
 	if (err)
-		goto del_unicast;
+		goto out_del_host_uc;
 
 	return 0;
 
-del_unicast:
-	if (!ether_addr_equal(dev->dev_addr, conduit->dev_addr))
-		dev_uc_del(conduit, dev->dev_addr);
-del_host_addr:
-	if (dsa_switch_supports_uc_filtering(ds))
-		dsa_port_standalone_host_fdb_del(dp, dev->dev_addr, 0);
+out_del_host_uc:
+	dsa_user_host_uc_uninstall(dev);
 out:
 	return err;
 }
 
 static int dsa_user_close(struct net_device *dev)
 {
-	struct net_device *conduit = dsa_user_to_conduit(dev);
 	struct dsa_port *dp = dsa_user_to_port(dev);
-	struct dsa_switch *ds = dp->ds;
 
 	dsa_port_disable_rt(dp);
 
-	if (!ether_addr_equal(dev->dev_addr, conduit->dev_addr))
-		dev_uc_del(conduit, dev->dev_addr);
-
-	if (dsa_switch_supports_uc_filtering(ds))
-		dsa_port_standalone_host_fdb_del(dp, dev->dev_addr, 0);
+	dsa_user_host_uc_uninstall(dev);
 
 	return 0;
 }
@@ -448,7 +470,6 @@ static void dsa_user_set_rx_mode(struct net_device *dev)
 
 static int dsa_user_set_mac_address(struct net_device *dev, void *a)
 {
-	struct net_device *conduit = dsa_user_to_conduit(dev);
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
 	struct sockaddr *addr = a;
@@ -470,34 +491,16 @@ static int dsa_user_set_mac_address(struct net_device *dev, void *a)
 	if (!(dev->flags & IFF_UP))
 		goto out_change_dev_addr;
 
-	if (dsa_switch_supports_uc_filtering(ds)) {
-		err = dsa_port_standalone_host_fdb_add(dp, addr->sa_data, 0);
-		if (err)
-			return err;
-	}
+	err = dsa_user_host_uc_install(dev, addr->sa_data);
+	if (err)
+		return err;
 
-	if (!ether_addr_equal(addr->sa_data, conduit->dev_addr)) {
-		err = dev_uc_add(conduit, addr->sa_data);
-		if (err < 0)
-			goto del_unicast;
-	}
-
-	if (!ether_addr_equal(dev->dev_addr, conduit->dev_addr))
-		dev_uc_del(conduit, dev->dev_addr);
-
-	if (dsa_switch_supports_uc_filtering(ds))
-		dsa_port_standalone_host_fdb_del(dp, dev->dev_addr, 0);
+	dsa_user_host_uc_uninstall(dev);
 
 out_change_dev_addr:
 	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
-
-del_unicast:
-	if (dsa_switch_supports_uc_filtering(ds))
-		dsa_port_standalone_host_fdb_del(dp, addr->sa_data, 0);
-
-	return err;
 }
 
 struct dsa_user_dump_ctx {
@@ -1726,7 +1729,7 @@ static int dsa_user_set_rxnfc(struct net_device *dev,
 }
 
 static int dsa_user_get_ts_info(struct net_device *dev,
-				struct ethtool_ts_info *ts)
+				struct kernel_ethtool_ts_info *ts)
 {
 	struct dsa_user_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;
@@ -2120,7 +2123,7 @@ int dsa_user_change_mtu(struct net_device *dev, int new_mtu)
 	if (err)
 		goto out_port_failed;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	dsa_bridge_mtu_normalization(dp);
 
@@ -2134,6 +2137,32 @@ out_cpu_failed:
 		dev_set_mtu(conduit, old_conduit_mtu);
 out_conduit_failed:
 	return err;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_set_apptrust(struct net_device *dev, u8 *sel, int nsel)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->port_set_apptrust)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_set_apptrust(ds, port, sel, nsel);
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_get_apptrust(struct net_device *dev, u8 *sel, int *nsel)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->port_get_apptrust)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_get_apptrust(ds, port, sel, nsel);
 }
 
 static int __maybe_unused
@@ -2163,6 +2192,58 @@ dsa_user_dcbnl_set_default_prio(struct net_device *dev, struct dcb_app *app)
 	return 0;
 }
 
+/* Update the DSCP prio entries on all user ports of the switch in case
+ * the switch supports global DSCP prio instead of per port DSCP prios.
+ */
+static int dsa_user_dcbnl_ieee_global_dscp_setdel(struct net_device *dev,
+						  struct dcb_app *app, bool del)
+{
+	int (*setdel)(struct net_device *dev, struct dcb_app *app);
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
+	int err, restore_err;
+
+	if (del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		err = setdel(user, app);
+		if (err)
+			goto err_try_to_restore;
+	}
+
+	return 0;
+
+err_try_to_restore:
+
+	/* Revert logic to restore previous state of app entries */
+	if (!del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port_continue_reverse(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		restore_err = setdel(user, app);
+		if (restore_err)
+			netdev_err(user, "Failed to restore DSCP prio entry configuration\n");
+	}
+
+	return err;
+}
+
 static int __maybe_unused
 dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 {
@@ -2190,6 +2271,17 @@ dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_add_dscp_prio(ds, port, dscp, new_prio);
 	if (err) {
+		dcb_ieee_delapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, false);
+	if (err) {
+		if (ds->ops->port_del_dscp_prio)
+			ds->ops->port_del_dscp_prio(ds, port, dscp, new_prio);
 		dcb_ieee_delapp(dev, app);
 		return err;
 	}
@@ -2260,6 +2352,18 @@ dsa_user_dcbnl_del_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_del_dscp_prio(ds, port, dscp, app->priority);
 	if (err) {
+		dcb_ieee_setapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, true);
+	if (err) {
+		if (ds->ops->port_add_dscp_prio)
+			ds->ops->port_add_dscp_prio(ds, port, dscp,
+						    app->priority);
 		dcb_ieee_setapp(dev, app);
 		return err;
 	}
@@ -2376,6 +2480,8 @@ static const struct ethtool_ops dsa_user_ethtool_ops = {
 static const struct dcbnl_rtnl_ops __maybe_unused dsa_user_dcbnl_ops = {
 	.ieee_setapp		= dsa_user_dcbnl_ieee_setapp,
 	.ieee_delapp		= dsa_user_dcbnl_ieee_delapp,
+	.dcbnl_setapptrust	= dsa_user_dcbnl_set_apptrust,
+	.dcbnl_getapptrust	= dsa_user_dcbnl_get_apptrust,
 };
 
 static void dsa_user_get_stats64(struct net_device *dev,
@@ -2445,7 +2551,7 @@ EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_change);
 static void dsa_user_phylink_fixed_state(struct phylink_config *config,
 					 struct phylink_link_state *state)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 
 	/* No need to check that this operation is valid, the callback would
@@ -2775,12 +2881,6 @@ int dsa_user_change_conduit(struct net_device *dev, struct net_device *conduit,
 			    "nonfatal error updating MTU with new conduit: %pe\n",
 			    ERR_PTR(err));
 	}
-
-	/* If the port doesn't have its own MAC address and relies on the DSA
-	 * conduit's one, inherit it again from the new DSA conduit.
-	 */
-	if (is_zero_ether_addr(dp->mac))
-		eth_hw_addr_inherit(dev, conduit);
 
 	return 0;
 

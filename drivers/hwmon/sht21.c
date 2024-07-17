@@ -278,7 +278,7 @@ static int sht21_probe(struct i2c_client *client)
 
 /* Device ID table */
 static const struct i2c_device_id sht21_id[] = {
-	{ "sht21", 0 },
+	{ "sht21" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sht21_id);

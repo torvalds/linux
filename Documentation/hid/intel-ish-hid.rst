@@ -18,8 +18,8 @@ These ISH also comply to HID sensor specification, but the difference is the
 transport protocol used for communication. The current external sensor hubs
 mainly use HID over I2C or USB. But ISH doesn't use either I2C or USB.
 
-1. Overview
-===========
+Overview
+========
 
 Using a analogy with a usbhid implementation, the ISH follows a similar model
 for a very high speed communication::
@@ -58,8 +58,8 @@ implemented as a bus. Each client application executing in the ISH processor
 is registered as a device on this bus. The driver, which binds each device
 (ISH HID driver) identifies the device type and registers with the HID core.
 
-2. ISH Implementation: Block Diagram
-====================================
+ISH Implementation: Block Diagram
+=================================
 
 ::
 
@@ -96,27 +96,27 @@ is registered as a device on this bus. The driver, which binds each device
 	| ISH Hardware/Firmware(FW) |
 	 ----------------------------
 
-3. High level processing in above blocks
-========================================
+High level processing in above blocks
+=====================================
 
-3.1 Hardware Interface
-----------------------
+Hardware Interface
+------------------
 
 The ISH is exposed as "Non-VGA unclassified PCI device" to the host. The PCI
 product and vendor IDs are changed from different generations of processors. So
 the source code which enumerates drivers needs to update from generation to
 generation.
 
-3.2 Inter Processor Communication (IPC) driver
-----------------------------------------------
+Inter Processor Communication (IPC) driver
+------------------------------------------
 
 Location: drivers/hid/intel-ish-hid/ipc
 
 The IPC message uses memory mapped I/O. The registers are defined in
 hw-ish-regs.h.
 
-3.2.1 IPC/FW message types
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+IPC/FW message types
+^^^^^^^^^^^^^^^^^^^^
 
 There are two types of messages, one for management of link and another for
 messages to and from transport layers.
@@ -142,20 +142,20 @@ register has the following format::
   Bit 31: doorbell trigger (signal H/W interrupt to the other side)
   Other bits are reserved, should be 0.
 
-3.2.2 Transport layer interface
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Transport layer interface
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To abstract HW level IPC communication, a set of callbacks is registered.
 The transport layer uses them to send and receive messages.
 Refer to struct ishtp_hw_ops for callbacks.
 
-3.3 ISH Transport layer
------------------------
+ISH Transport layer
+-------------------
 
 Location: drivers/hid/intel-ish-hid/ishtp/
 
-3.3.1 A Generic Transport Layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A Generic Transport Layer
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The transport layer is a bi-directional protocol, which defines:
 - Set of commands to start, stop, connect, disconnect and flow control
@@ -166,8 +166,8 @@ This protocol resembles bus messages described in the following document:
 http://www.intel.com/content/dam/www/public/us/en/documents/technical-\
 specifications/dcmi-hi-1-0-spec.pdf "Chapter 7: Bus Message Layer"
 
-3.3.2 Connection and Flow Control Mechanism
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Connection and Flow Control Mechanism
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each FW client and a protocol is identified by a UUID. In order to communicate
 to a FW client, a connection must be established using connect request and
@@ -181,8 +181,8 @@ before receiving the next flow control credit.
 Either side can send disconnect request bus message to end communication. Also
 the link will be dropped if major FW reset occurs.
 
-3.3.3 Peer to Peer data transfer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Peer to Peer data transfer
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Peer to Peer data transfer can happen with or without using DMA. Depending on
 the sensor bandwidth requirement DMA can be enabled by using module parameter
@@ -217,8 +217,8 @@ In principle, multiple DMA_XFER and DMA_XFER_ACK messages may be sent at once
 Currently, ISH FW decides to send over DMA if ISHTP message is more than 3 IPC
 fragments and via IPC otherwise.
 
-3.3.4 Ring Buffers
-^^^^^^^^^^^^^^^^^^
+Ring Buffers
+^^^^^^^^^^^^
 
 When a client initiates a connection, a ring of RX and TX buffers is allocated.
 The size of ring can be specified by the client. HID client sets 16 and 32 for
@@ -228,8 +228,8 @@ bus message protocol. These buffers are required because the FW may have not
 have processed the last message and may not have enough flow control credits
 to send. Same thing holds true on receive side and flow control is required.
 
-3.3.5 Host Enumeration
-^^^^^^^^^^^^^^^^^^^^^^
+Host Enumeration
+^^^^^^^^^^^^^^^^
 
 The host enumeration bus command allows discovery of clients present in the FW.
 There can be multiple sensor clients and clients for calibration function.
@@ -252,8 +252,8 @@ Enumeration sequence of messages:
 - Once host received properties for that last discovered client, it considers
   ISHTP device fully functional (and allocates DMA buffers)
 
-3.4 HID over ISH Client
------------------------
+HID over ISH Client
+-------------------
 
 Location: drivers/hid/intel-ish-hid
 
@@ -265,16 +265,16 @@ The ISHTP client driver is responsible for:
 - Process Get/Set feature request
 - Get input reports
 
-3.5 HID Sensor Hub MFD and IIO sensor drivers
----------------------------------------------
+HID Sensor Hub MFD and IIO sensor drivers
+-----------------------------------------
 
 The functionality in these drivers is the same as an external sensor hub.
 Refer to
 Documentation/hid/hid-sensor.rst for HID sensor
 Documentation/ABI/testing/sysfs-bus-iio for IIO ABIs to user space.
 
-3.6 End to End HID transport Sequence Diagram
----------------------------------------------
+End to End HID transport Sequence Diagram
+-----------------------------------------
 
 ::
 
@@ -339,16 +339,81 @@ Documentation/ABI/testing/sysfs-bus-iio for IIO ABIs to user space.
           |                        |                       |                               |
 
 
-3.7 ISH Debugging
------------------
+ISH Firmware Loading from Host Flow
+-----------------------------------
+
+Starting from the Lunar Lake generation, the ISH firmware has been divided into two components for better space optimization and increased flexibility. These components include a bootloader that is integrated into the BIOS, and a main firmware that is stored within the operating system's file system.
+
+The process works as follows:
+
+- Initially, the ISHTP driver sends a command, HOST_START_REQ_CMD, to the ISH bootloader. In response, the bootloader sends back a HOST_START_RES_CMD. This response includes the ISHTP_SUPPORT_CAP_LOADER bit. Subsequently, the ISHTP driver checks if this bit is set. If it is, the firmware loading process from the host begins.
+
+- During this process, the ISHTP driver first invokes the request_firmware() function, followed by sending a LOADER_CMD_XFER_QUERY command. Upon receiving a response from the bootloader, the ISHTP driver sends a LOADER_CMD_XFER_FRAGMENT command. After receiving another response, the ISHTP driver sends a LOADER_CMD_START command. The bootloader responds and then proceeds to the Main Firmware.
+
+- After the process concludes, the ISHTP driver calls the release_firmware() function.
+
+For more detailed information, please refer to the flow descriptions provided below:
+
+::
+
+  +---------------+                                                    +-----------------+
+  | ISHTP Driver  |                                                    | ISH Bootloader  |
+  +---------------+                                                    +-----------------+
+          |                                                                     |
+          |~~~Send HOST_START_REQ_CMD~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send HOST_START_RES_CMD(Includes ISHTP_SUPPORT_CAP_LOADER bit)----|
+          |                                                                     |
+  ****************************************************************************************
+  * if ISHTP_SUPPORT_CAP_LOADER bit is set                                               *
+  ****************************************************************************************
+          |                                                                     |
+          |~~~start loading firmware from host process~~~+                      |
+          |                                              |                      |
+          |<---------------------------------------------+                      |
+          |                                                                     |
+  ---------------------------                                                   |
+  | Call request_firmware() |                                                   |
+  ---------------------------                                                   |
+          |                                                                     |
+          |~~~Send LOADER_CMD_XFER_QUERY~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |~~~Send LOADER_CMD_XFER_FRAGMENT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |~~~Send LOADER_CMD_START~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |                                                                     |~~~Jump to Main Firmware~~~+
+          |                                                                     |                           |
+          |                                                                     |<--------------------------+
+          |                                                                     |
+  ---------------------------                                                   |
+  | Call release_firmware() |                                                   |
+  ---------------------------                                                   |
+          |                                                                     |
+  ****************************************************************************************
+  * end if                                                                               *
+  ****************************************************************************************
+          |                                                                     |
+  +---------------+                                                    +-----------------+
+  | ISHTP Driver  |                                                    | ISH Bootloader  |
+  +---------------+                                                    +-----------------+
+
+ISH Debugging
+-------------
 
 To debug ISH, event tracing mechanism is used. To enable debug logs::
 
   echo 1 > /sys/kernel/tracing/events/intel_ish/enable
   cat /sys/kernel/tracing/trace
 
-3.8 ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
------------------------------------------------------
+ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
+-------------------------------------------------
 
 ::
 

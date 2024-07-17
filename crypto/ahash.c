@@ -27,22 +27,6 @@
 
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 
-static inline struct crypto_istat_hash *ahash_get_stat(struct ahash_alg *alg)
-{
-	return hash_get_stat(&alg->halg);
-}
-
-static inline int crypto_ahash_errstat(struct ahash_alg *alg, int err)
-{
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err && err != -EINPROGRESS && err != -EBUSY)
-		atomic64_inc(&ahash_get_stat(alg)->err_cnt);
-
-	return err;
-}
-
 /*
  * For an ahash tfm that is using an shash algorithm (instead of an ahash
  * algorithm), this returns the underlying shash tfm.
@@ -344,75 +328,47 @@ static void ahash_restore_req(struct ahash_request *req, int err)
 int crypto_ahash_update(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_alg *alg;
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_update(req, ahash_request_ctx(req));
 
-	alg = crypto_ahash_alg(tfm);
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		atomic64_add(req->nbytes, &ahash_get_stat(alg)->hash_tlen);
-	return crypto_ahash_errstat(alg, alg->update(req));
+	return crypto_ahash_alg(tfm)->update(req);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_update);
 
 int crypto_ahash_final(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_alg *alg;
 
 	if (likely(tfm->using_shash))
 		return crypto_shash_final(ahash_request_ctx(req), req->result);
 
-	alg = crypto_ahash_alg(tfm);
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		atomic64_inc(&ahash_get_stat(alg)->hash_cnt);
-	return crypto_ahash_errstat(alg, alg->final(req));
+	return crypto_ahash_alg(tfm)->final(req);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
 
 int crypto_ahash_finup(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_alg *alg;
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_finup(req, ahash_request_ctx(req));
 
-	alg = crypto_ahash_alg(tfm);
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_hash *istat = ahash_get_stat(alg);
-
-		atomic64_inc(&istat->hash_cnt);
-		atomic64_add(req->nbytes, &istat->hash_tlen);
-	}
-	return crypto_ahash_errstat(alg, alg->finup(req));
+	return crypto_ahash_alg(tfm)->finup(req);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
 int crypto_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_alg *alg;
-	int err;
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_digest(req, prepare_shash_desc(req, tfm));
 
-	alg = crypto_ahash_alg(tfm);
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_hash *istat = ahash_get_stat(alg);
-
-		atomic64_inc(&istat->hash_cnt);
-		atomic64_add(req->nbytes, &istat->hash_tlen);
-	}
-
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		err = -ENOKEY;
-	else
-		err = alg->digest(req);
+		return -ENOKEY;
 
-	return crypto_ahash_errstat(alg, err);
+	return crypto_ahash_alg(tfm)->digest(req);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
@@ -571,12 +527,6 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 		   __crypto_hash_alg_common(alg)->digestsize);
 }
 
-static int __maybe_unused crypto_ahash_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return crypto_hash_report_stat(skb, alg, "ahash");
-}
-
 static const struct crypto_type crypto_ahash_type = {
 	.extsize = crypto_ahash_extsize,
 	.init_tfm = crypto_ahash_init_tfm,
@@ -586,9 +536,6 @@ static const struct crypto_type crypto_ahash_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_ahash_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_ahash_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_AHASH_MASK,

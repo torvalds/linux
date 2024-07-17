@@ -142,7 +142,7 @@ static int inv_mpu_probe(struct i2c_client *client)
 		if (!st->muxc)
 			return -ENOMEM;
 		st->muxc->priv = dev_get_drvdata(&client->dev);
-		result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
+		result = i2c_mux_add_adapter(st->muxc, 0, 0);
 		if (result)
 			return result;
 		result = inv_mpu_acpi_create_mux_client(client);

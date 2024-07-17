@@ -74,7 +74,7 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p,
 		   struct mdp5_global_state *global_state);
 
 uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
-		const struct mdp_format *format,
+		const struct msm_format *format,
 		u32 width, bool hdecim);
 
 int mdp5_smp_assign(struct mdp5_smp *smp, struct mdp5_smp_state *state,

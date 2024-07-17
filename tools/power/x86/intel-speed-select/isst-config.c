@@ -16,9 +16,9 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.18";
+static const char *version_str = "v1.19";
 
-static const int supported_api_ver = 2;
+static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
 static int debug_flag;
@@ -46,6 +46,8 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 static int cgroupv2;
+static int max_die_id;
+static int max_punit_id;
 
 /* clos related */
 static int current_clos = -1;
@@ -562,6 +564,18 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 	}
 
 	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
+		if (max_die_id == max_punit_id) {
+			for (k = 0; k < MAX_PUNIT_PER_DIE && k < MAX_DIE_PER_PACKAGE; k++) {
+				id.cpu = cpus[i][k][k];
+				id.pkg = i;
+				id.die = k;
+				id.punit = k;
+				if (isst_is_punit_valid(&id))
+					callback(&id, arg1, arg2, arg3, arg4);
+			}
+			continue;
+		}
+
 		for (j = 0; j < MAX_DIE_PER_PACKAGE; j++) {
 			/*
 			 * Fix me:
@@ -794,6 +808,12 @@ static void create_cpu_map(void)
 		cpu_map[i].initialized = 1;
 
 		cpu_cnt[pkg_id][die_id][punit_id]++;
+
+		if (max_die_id < die_id)
+			max_die_id = die_id;
+
+		if (max_punit_id < cpu_map[i].punit_id)
+			max_punit_id = cpu_map[i].punit_id;
 
 		debug_printf(
 			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
@@ -2054,6 +2074,7 @@ static void dump_fact_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 	struct isst_fact_info fact_info;
 	int ret;
 
+	memset(&fact_info, 0, sizeof(fact_info));
 	ret = isst_get_fact_info(id, tdp_level, fact_bucket, &fact_info);
 	if (ret) {
 		isst_display_error_info_message(1, "Failed to get turbo-freq info at this level", 1, tdp_level);

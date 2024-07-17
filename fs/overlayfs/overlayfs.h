@@ -175,6 +175,9 @@ static inline int ovl_metadata_digest_size(const struct ovl_metacopy *metacopy)
 	return (int)metacopy->len - OVL_METACOPY_MIN_SIZE;
 }
 
+/* No atime modification on underlying */
+#define OVL_OPEN_FLAGS (O_NOATIME)
+
 extern const char *const ovl_xattr_table[][2];
 static inline const char *ovl_xattr(struct ovl_fs *ofs, enum ovl_xattr ox)
 {

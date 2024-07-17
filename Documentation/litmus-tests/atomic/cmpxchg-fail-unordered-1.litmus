@@ -1,0 +1,34 @@
+C cmpxchg-fail-unordered-1
+
+(*
+ * Result: Sometimes
+ *
+ * Demonstrate that a failing cmpxchg() operation does not act as a
+ * full barrier.  (In contrast, a successful cmpxchg() does act as a
+ * full barrier.)
+ *)
+
+{}
+
+P0(int *x, int *y, int *z)
+{
+	int r0;
+	int r1;
+
+	WRITE_ONCE(*x, 1);
+	r1 = cmpxchg(z, 1, 0);
+	r0 = READ_ONCE(*y);
+}
+
+P1(int *x, int *y, int *z)
+{
+	int r0;
+	int r1;
+
+	WRITE_ONCE(*y, 1);
+	r1 = cmpxchg(z, 1, 0);
+	r0 = READ_ONCE(*x);
+}
+
+locations[0:r1;1:r1]
+exists (0:r0=0 /\ 1:r0=0)

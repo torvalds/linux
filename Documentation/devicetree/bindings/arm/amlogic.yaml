@@ -91,6 +91,7 @@ properties:
               - libretech,aml-s905x-cc
               - libretech,aml-s905x-cc-v2
               - nexbox,a95x
+              - osmc,vero4k
           - const: amlogic,s905x
           - const: amlogic,meson-gxl
 
@@ -106,6 +107,13 @@ properties:
               - videostrong,gxl-kii-pro
           - const: amlogic,s905d
           - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXLX S905L SoC
+        items:
+          - enum:
+              - amlogic,p271
+          - const: amlogic,s905l
+          - const: amlogic,meson-gxlx
 
       - description: Boards with the Amlogic Meson GXM S912 SoC
         items:
@@ -157,6 +165,7 @@ properties:
         items:
           - enum:
               - bananapi,bpi-cm4io
+              - mntre,reform2-cm4
           - const: bananapi,bpi-cm4
           - const: amlogic,a311d
           - const: amlogic,g12b
@@ -168,6 +177,8 @@ properties:
               - azw,gtking
               - azw,gtking-pro
               - bananapi,bpi-m2s
+              - dream,dreambox-one
+              - dream,dreambox-two
               - hardkernel,odroid-go-ultra
               - hardkernel,odroid-n2
               - hardkernel,odroid-n2l
@@ -200,6 +211,18 @@ properties:
               - amlogic,ad401
               - amlogic,ad402
           - const: amlogic,a1
+
+      - description: Boards with the Amlogic A4 A113L2 SoC
+        items:
+          - enum:
+              - amlogic,ba400
+          - const: amlogic,a4
+
+      - description: Boards with the Amlogic A5 A113X2 SoC
+        items:
+          - enum:
+              - amlogic,av400
+          - const: amlogic,a5
 
       - description: Boards with the Amlogic C3 C302X/C308L SoC
         items:

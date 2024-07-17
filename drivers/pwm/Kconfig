@@ -29,10 +29,6 @@ menuconfig PWM
 
 if PWM
 
-config PWM_SYSFS
-	bool
-	default y if SYSFS
-
 config PWM_DEBUG
 	bool "PWM lowlevel drivers additional checks and debug messages"
 	depends on DEBUG_KERNEL
@@ -97,6 +93,19 @@ config PWM_ATMEL_TCB
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel-tcb.
+
+config PWM_AXI_PWMGEN
+	tristate "Analog Devices AXI PWM generator"
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This enables support for the Analog Devices AXI PWM generator.
+
+	  This is a configurable PWM generator with variable pulse width and
+	  period.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called pwm-axi-pwmgen.
 
 config PWM_BCM_IPROC
 	tristate "iProc PWM support"
@@ -226,6 +235,17 @@ config PWM_FSL_FTM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-fsl-ftm.
+
+config PWM_GPIO
+	tristate "GPIO PWM support"
+	depends on GPIOLIB
+	depends on HIGH_RES_TIMERS
+	help
+	  Generic PWM framework driver for software PWM toggling a GPIO pin
+	  from kernel high-resolution timers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-gpio.
 
 config PWM_HIBVT
 	tristate "HiSilicon BVT PWM support"

@@ -8,6 +8,7 @@
 
 /* xfile array index type, along with cursor initialization */
 typedef uint64_t		xfarray_idx_t;
+#define XFARRAY_NULLIDX		((__force xfarray_idx_t)-1ULL)
 #define XFARRAY_CURSOR_INIT	((__force xfarray_idx_t)0)
 
 /* Iterate each index of an xfile array. */
@@ -44,6 +45,8 @@ int xfarray_unset(struct xfarray *array, xfarray_idx_t idx);
 int xfarray_store(struct xfarray *array, xfarray_idx_t idx, const void *ptr);
 int xfarray_store_anywhere(struct xfarray *array, const void *ptr);
 bool xfarray_element_is_null(struct xfarray *array, const void *ptr);
+void xfarray_truncate(struct xfarray *array);
+unsigned long long xfarray_bytes(struct xfarray *array);
 
 /*
  * Load an array element, but zero the buffer if there's no data because we
@@ -123,6 +126,9 @@ struct xfarray_sortinfo {
 
 	/* XFARRAY_SORT_* flags; see below. */
 	unsigned int		flags;
+
+	/* next time we want to cond_resched() */
+	struct xchk_relax	relax;
 
 	/* Cache a folio here for faster scanning for pivots */
 	struct folio		*folio;

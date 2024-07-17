@@ -30,6 +30,8 @@ struct coredump_params {
 	struct core_vma_metadata *vma_meta;
 };
 
+extern unsigned int core_file_note_size_limit;
+
 /*
  * These are the only things you should do on a core-file: use only these
  * functions to write out all the necessary info.

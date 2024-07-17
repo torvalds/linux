@@ -782,7 +782,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id uda1380_i2c_id[] = {
-	{ "uda1380", 0 },
+	{ "uda1380" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, uda1380_i2c_id);
