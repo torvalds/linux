@@ -140,7 +140,7 @@ void init_rt_rq(struct rt_rq *rt_rq)
 		INIT_LIST_HEAD(array->queue + i);
 		__clear_bit(i, array->bitmap);
 	}
-	/* delimiter for bitsearch: */
+	/* delimiter for bit-search: */
 	__set_bit(MAX_RT_PRIO, array->bitmap);
 
 #if defined CONFIG_SMP
@@ -1135,7 +1135,7 @@ dec_rt_prio(struct rt_rq *rt_rq, int prio)
 
 		/*
 		 * This may have been our highest task, and therefore
-		 * we may have some recomputation to do
+		 * we may have some re-computation to do
 		 */
 		if (prio == prev_prio) {
 			struct rt_prio_array *array = &rt_rq->active;
@@ -1571,7 +1571,7 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	 *
 	 * For equal prio tasks, we just let the scheduler sort it out.
 	 *
-	 * Otherwise, just let it ride on the affined RQ and the
+	 * Otherwise, just let it ride on the affine RQ and the
 	 * post-schedule router will push the preempted task away
 	 *
 	 * This test is optimistic, if we get it wrong the load-balancer
@@ -2147,14 +2147,14 @@ static void push_rt_tasks(struct rq *rq)
  * if its the only CPU with multiple RT tasks queued, and a large number
  * of CPUs scheduling a lower priority task at the same time.
  *
- * Each root domain has its own irq work function that can iterate over
+ * Each root domain has its own IRQ work function that can iterate over
  * all CPUs with RT overloaded tasks. Since all CPUs with overloaded RT
  * task must be checked if there's one or many CPUs that are lowering
- * their priority, there's a single irq work iterator that will try to
+ * their priority, there's a single IRQ work iterator that will try to
  * push off RT tasks that are waiting to run.
  *
  * When a CPU schedules a lower priority task, it will kick off the
- * irq work iterator that will jump to each CPU with overloaded RT tasks.
+ * IRQ work iterator that will jump to each CPU with overloaded RT tasks.
  * As it only takes the first CPU that schedules a lower priority task
  * to start the process, the rto_start variable is incremented and if
  * the atomic result is one, then that CPU will try to take the rto_lock.
@@ -2162,7 +2162,7 @@ static void push_rt_tasks(struct rq *rq)
  * CPUs scheduling lower priority tasks.
  *
  * All CPUs that are scheduling a lower priority task will increment the
- * rt_loop_next variable. This will make sure that the irq work iterator
+ * rt_loop_next variable. This will make sure that the IRQ work iterator
  * checks all RT overloaded CPUs whenever a CPU schedules a new lower
  * priority task, even if the iterator is in the middle of a scan. Incrementing
  * the rt_loop_next will cause the iterator to perform another scan.
@@ -2242,7 +2242,7 @@ static void tell_cpu_to_push(struct rq *rq)
 	 * The rto_cpu is updated under the lock, if it has a valid CPU
 	 * then the IPI is still running and will continue due to the
 	 * update to loop_next, and nothing needs to be done here.
-	 * Otherwise it is finishing up and an ipi needs to be sent.
+	 * Otherwise it is finishing up and an IPI needs to be sent.
 	 */
 	if (rq->rd->rto_cpu < 0)
 		cpu = rto_next_cpu(rq->rd);
@@ -2594,7 +2594,7 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	watchdog(rq, p);
 
 	/*
-	 * RR tasks need a special form of timeslice management.
+	 * RR tasks need a special form of time-slice management.
 	 * FIFO tasks have no timeslices.
 	 */
 	if (p->policy != SCHED_RR)
@@ -2900,7 +2900,7 @@ static int sched_rt_global_constraints(void)
 
 int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
 {
-	/* Don't accept realtime tasks when there is no way for them to run */
+	/* Don't accept real-time tasks when there is no way for them to run */
 	if (rt_task(tsk) && tg->rt_bandwidth.rt_runtime == 0)
 		return 0;
 
@@ -3001,7 +3001,7 @@ static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	/*
 	 * Make sure that internally we keep jiffies.
-	 * Also, writing zero resets the timeslice to default:
+	 * Also, writing zero resets the time-slice to default:
 	 */
 	if (!ret && write) {
 		sched_rr_timeslice =

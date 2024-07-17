@@ -271,6 +271,9 @@ D: Driver for WaveFront soundcards (Turtle Beach Maui, Tropez, Tropez+)
 D: Various bugfixes and changes to sound drivers
 S: USA
 
+N: Daniel Bristot de Oliveira
+D: Scheduler contributions, notably: SCHED_DEADLINE
+
 N: Carlos Henrique Bauer
 E: chbauer@acm.org
 E: bauer@atlas.unisinos.br
