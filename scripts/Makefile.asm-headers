@@ -87,12 +87,20 @@ $(obj)/unistd_compat_%.h: $(syscalltbl) $(syshdr) FORCE
 $(obj)/syscall_table_%.h: $(syscalltbl) $(systbl) FORCE
 	$(call if_changed,systbl)
 
+targets := $(syscall-y)
+
 # Create output directory. Skip it if at least one old header exists
 # since we know the output directory already exists.
 ifeq ($(old-headers),)
 $(shell mkdir -p $(obj))
 endif
 
+PHONY += FORCE
+
 FORCE:
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
 
 .PHONY: $(PHONY)
