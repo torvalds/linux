@@ -20,6 +20,7 @@
 #include "xe_guc.h"
 #include "xe_irq.h"
 #include "xe_pcode.h"
+#include "xe_trace.h"
 #include "xe_wa.h"
 
 /**
@@ -87,6 +88,7 @@ int xe_pm_suspend(struct xe_device *xe)
 	int err;
 
 	drm_dbg(&xe->drm, "Suspending device\n");
+	trace_xe_pm_suspend(xe, __builtin_return_address(0));
 
 	for_each_gt(gt, xe, id)
 		xe_gt_suspend_prepare(gt);
@@ -131,6 +133,7 @@ int xe_pm_resume(struct xe_device *xe)
 	int err;
 
 	drm_dbg(&xe->drm, "Resuming device\n");
+	trace_xe_pm_resume(xe, __builtin_return_address(0));
 
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
@@ -326,6 +329,7 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	u8 id;
 	int err = 0;
 
+	trace_xe_pm_runtime_suspend(xe, __builtin_return_address(0));
 	/* Disable access_ongoing asserts and prevent recursive pm calls */
 	xe_pm_write_callback_task(xe, current);
 
@@ -399,6 +403,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	u8 id;
 	int err = 0;
 
+	trace_xe_pm_runtime_resume(xe, __builtin_return_address(0));
 	/* Disable access_ongoing asserts and prevent recursive pm calls */
 	xe_pm_write_callback_task(xe, current);
 
@@ -463,6 +468,7 @@ static void pm_runtime_lockdep_prime(void)
  */
 void xe_pm_runtime_get(struct xe_device *xe)
 {
+	trace_xe_pm_runtime_get(xe, __builtin_return_address(0));
 	pm_runtime_get_noresume(xe->drm.dev);
 
 	if (xe_pm_read_callback_task(xe) == current)
@@ -478,6 +484,7 @@ void xe_pm_runtime_get(struct xe_device *xe)
  */
 void xe_pm_runtime_put(struct xe_device *xe)
 {
+	trace_xe_pm_runtime_put(xe, __builtin_return_address(0));
 	if (xe_pm_read_callback_task(xe) == current) {
 		pm_runtime_put_noidle(xe->drm.dev);
 	} else {
@@ -495,6 +502,7 @@ void xe_pm_runtime_put(struct xe_device *xe)
  */
 int xe_pm_runtime_get_ioctl(struct xe_device *xe)
 {
+	trace_xe_pm_runtime_get_ioctl(xe, __builtin_return_address(0));
 	if (WARN_ON(xe_pm_read_callback_task(xe) == current))
 		return -ELOOP;
 
