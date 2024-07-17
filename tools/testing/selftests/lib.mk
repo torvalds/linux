@@ -38,6 +38,14 @@ else
 CLANG_FLAGS     += --target=$(notdir $(CROSS_COMPILE:%-=%))
 endif # CROSS_COMPILE
 
+# gcc defaults to silence (off) for the following warnings, but clang defaults
+# to the opposite. The warnings are not useful for the kernel itself, which is
+# why they have remained disabled in gcc for the main kernel build. And it is
+# only due to including kernel data structures in the selftests, that we get the
+# warnings from clang. Therefore, disable the warnings for clang builds.
+CFLAGS += -Wno-address-of-packed-member
+CFLAGS += -Wno-gnu-variable-sized-type-not-at-end
+
 CC := $(CLANG) $(CLANG_FLAGS) -fintegrated-as
 else
 CC := $(CROSS_COMPILE)gcc
