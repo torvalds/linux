@@ -58,9 +58,10 @@
  *       in
  * @name: Match name found by the auxiliary device driver,
  * @id: unique identitier if multiple devices of the same name are exported,
- * @irqs: irqs xarray contains irq indices which are used by the device,
- * @lock: Synchronize irq sysfs creation,
- * @irq_dir_exists: whether "irqs" directory exists,
+ * @sysfs: embedded struct which hold all sysfs related fields,
+ * @sysfs.irqs: irqs xarray contains irq indices which are used by the device,
+ * @sysfs.lock: Synchronize irq sysfs creation,
+ * @sysfs.irq_dir_exists: whether "irqs" directory exists,
  *
  * An auxiliary_device represents a part of its parent device's functionality.
  * It is given a name that, combined with the registering drivers
