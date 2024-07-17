@@ -2,7 +2,7 @@ variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
   DRM_CI_COMMIT_SHA: &drm-ci-commit-sha e2b9c5a9e3e4f9b532067af8022eaef8d6fc6c00
 
-  UPSTREAM_REPO: git://anongit.freedesktop.org/drm/drm
+  UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
 
   IGT_VERSION: f13702b8e4e847c56da3ef6f0969065d686049c5
