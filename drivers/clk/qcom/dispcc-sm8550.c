@@ -71,7 +71,7 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static const struct pll_vco lucid_ole_vco[] = {
+static struct pll_vco lucid_ole_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 
@@ -590,6 +590,18 @@ static const struct freq_tbl ftbl_disp_cc_mdss_mdp_clk_src[] = {
 	F(200000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	F(325000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	F(375000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(514000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_disp_cc_mdss_mdp_clk_src_sm8650[] = {
+	F(19200000, P_BI_TCXO, 1, 0, 0),
+	F(85714286, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(100000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(150000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(200000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(325000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
+	F(402000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	F(514000000, P_DISP_CC_PLL0_OUT_MAIN, 3, 0, 0),
 	{ }
 };
@@ -1739,6 +1751,7 @@ static struct qcom_cc_desc disp_cc_sm8550_desc = {
 
 static const struct of_device_id disp_cc_sm8550_match_table[] = {
 	{ .compatible = "qcom,sm8550-dispcc" },
+	{ .compatible = "qcom,sm8650-dispcc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, disp_cc_sm8550_match_table);
@@ -1760,6 +1773,13 @@ static int disp_cc_sm8550_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		goto err_put_rpm;
+	}
+
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sm8650-dispcc")) {
+		lucid_ole_vco[0].max_freq = 2100000000;
+		disp_cc_mdss_mdp_clk_src.freq_tbl = ftbl_disp_cc_mdss_mdp_clk_src_sm8650;
+		disp_cc_mdss_dptx1_usb_router_link_intf_clk.clkr.hw.init->parent_hws[0] =
+			&disp_cc_mdss_dptx1_link_div_clk_src.clkr.hw;
 	}
 
 	clk_lucid_ole_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
@@ -1795,5 +1815,5 @@ static struct platform_driver disp_cc_sm8550_driver = {
 
 module_platform_driver(disp_cc_sm8550_driver);
 
-MODULE_DESCRIPTION("QTI DISPCC SM8550 Driver");
+MODULE_DESCRIPTION("QTI DISPCC SM8550 / SM8650  Driver");
 MODULE_LICENSE("GPL");
