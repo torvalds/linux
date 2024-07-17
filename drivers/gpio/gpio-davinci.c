@@ -7,6 +7,7 @@
  */
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
@@ -195,6 +196,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 
 	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
@@ -273,6 +275,9 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	ret = davinci_gpio_irq_setup(pdev);
 	if (ret)
 		return ret;
+
+	if (of_property_read_bool(np, "wakeup-source"))
+		device_set_wakeup_capable(dev, true);
 
 	return 0;
 }
@@ -677,7 +682,24 @@ static int davinci_gpio_suspend(struct device *dev)
 	struct davinci_gpio_controller *chips = dev_get_drvdata(dev);
 	struct davinci_gpio_platform_data *pdata = dev_get_platdata(dev);
 	u32 nbank = DIV_ROUND_UP(pdata->ngpio, 32);
+	struct gpio_chip *chip = &chips->chip;
+	struct gpio_desc *desc;
+	bool wkup_set;
+	int irq;
 
+	/*
+	 * Check if any GPIO IRQs are wakeup enabled.  If so,
+	 * set the GPIO controller as wakeup enabled also.
+	 */
+	for_each_gpio_desc(chip, desc) {
+		irq = gpiod_to_irq(desc);
+		wkup_set = irqd_is_wakeup_set(irq_get_irq_data(irq));
+		if (wkup_set) {
+			dev_dbg(dev, "%s: IRQ %d wakeup enabled.", __func__, irq);
+			device_wakeup_enable(dev);
+			break;
+		}
+	}
 	davinci_gpio_save_context(chips, nbank);
 
 	return 0;
@@ -690,6 +712,9 @@ static int davinci_gpio_resume(struct device *dev)
 	u32 nbank = DIV_ROUND_UP(pdata->ngpio, 32);
 
 	davinci_gpio_restore_context(chips, nbank);
+
+	if (device_may_wakeup(dev))
+		device_wakeup_disable(dev);
 
 	return 0;
 }
