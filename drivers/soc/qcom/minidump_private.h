@@ -35,6 +35,7 @@
 extern unsigned int md_num_regions;
 extern struct md_elfhdr minidump_elfheader;
 extern spinlock_t mdt_lock;
+extern bool md_init_done;
 
 /**
  * md_ss_region - Minidump region

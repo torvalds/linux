@@ -29,7 +29,9 @@ struct md_core {
 	const struct md_ops	*ops;
 };
 
-static bool md_init_done;
+bool md_init_done;
+EXPORT_SYMBOL_GPL(md_init_done);
+
 static struct md_core md_core;
 
 DEFINE_SPINLOCK(mdt_lock);
@@ -246,7 +248,8 @@ int msm_minidump_add_region(const struct md_region *entry)
 	if (validate_region(entry))
 		return -EINVAL;
 
-	if (md_core.ops) {
+	/* Region adding should after init completes */
+	if (md_core.ops && smp_load_acquire(&md_init_done)) {
 		ret = md_core.ops->add_region(entry);
 	} else {
 		/* Local table not initialized
@@ -417,14 +420,15 @@ int msm_minidump_driver_probe(const struct md_init_data *data)
 		return ret;
 	}
 
+	/* All updates above should be visible, before init completes */
+	smp_store_release(&md_init_done, true);
+
 	ret = md_core.ops->add_pending_entry(&pending_list);
 	if (ret) {
 		pr_err("Add pending entry failed\n");
 		goto out;
 	}
 
-	/* All updates above should be visible, before init completes */
-	smp_store_release(&md_init_done, true);
 	msm_minidump_log_init();
 	pr_info("Enabled with max number of regions %d\n",
 		CONFIG_MINIDUMP_MAX_ENTRIES);
