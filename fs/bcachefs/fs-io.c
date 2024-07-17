@@ -978,50 +978,34 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_hole = MAX_LFS_FILESIZE;
-	u32 snapshot;
-	int ret;
 
 	isize = i_size_read(&inode->v);
 	if (offset >= isize)
 		return -ENXIO;
 
-	trans = bch2_trans_get(c);
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
-			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   BTREE_ITER_slots, k, ret) {
-		if (k.k->p.inode != inode->v.i_ino) {
-			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					offset, MAX_LFS_FILESIZE, 0, false);
-			break;
-		} else if (!bkey_extent_is_data(k.k)) {
-			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					max(offset, bkey_start_offset(k.k) << 9),
-					k.k->p.offset << 9, 0, false);
-
-			if (next_hole < k.k->p.offset << 9)
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+				   POS(inode->v.i_ino, offset >> 9),
+				   POS(inode->v.i_ino, U64_MAX),
+				   inum.subvol, BTREE_ITER_slots, k, ({
+			if (k.k->p.inode != inode->v.i_ino) {
+				next_hole = bch2_seek_pagecache_hole(&inode->v,
+						offset, MAX_LFS_FILESIZE, 0, false);
 				break;
-		} else {
-			offset = max(offset, bkey_start_offset(k.k) << 9);
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
+			} else if (!bkey_extent_is_data(k.k)) {
+				next_hole = bch2_seek_pagecache_hole(&inode->v,
+						max(offset, bkey_start_offset(k.k) << 9),
+						k.k->p.offset << 9, 0, false);
 
-	bch2_trans_put(trans);
+				if (next_hole < k.k->p.offset << 9)
+					break;
+			} else {
+				offset = max(offset, bkey_start_offset(k.k) << 9);
+			}
+			0;
+		})));
 	if (ret)
 		return ret;
 
