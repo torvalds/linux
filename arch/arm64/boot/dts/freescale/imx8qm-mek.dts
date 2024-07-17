@@ -287,12 +287,6 @@
 	pinctrl-0 = <&pinctrl_lpspi2 &pinctrl_lpspi2_cs>;
 	cs-gpios = <&lsio_gpio3 10 GPIO_ACTIVE_LOW>;
 	status = "okay";
-
-	spidev0: spi@0 {
-		reg = <0>;
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <30000000>;
-	};
 };
 
 &lsio_mu5 {
