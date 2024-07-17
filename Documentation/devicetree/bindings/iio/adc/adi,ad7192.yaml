@@ -39,11 +39,15 @@ properties:
 
   clocks:
     maxItems: 1
-    description: phandle to the master clock (mclk)
+    description:
+      Optionally, either a crystal can be attached externally between MCLK1 and
+      MCLK2 pins, or an external CMOS-compatible clock can drive the MCLK2
+      pin. If absent, internal 4.92MHz clock is used.
 
   clock-names:
-    items:
-      - const: mclk
+    enum:
+      - xtal
+      - mclk
 
   interrupts:
     maxItems: 1
@@ -134,8 +138,6 @@ patternProperties:
 required:
   - compatible
   - reg
-  - clocks
-  - clock-names
   - interrupts
   - dvdd-supply
   - avdd-supply
@@ -156,6 +158,16 @@ allOf:
     then:
       patternProperties:
         "^channel@[0-9a-f]+$": false
+  - if:
+      anyOf:
+        - required:
+            - clocks
+        - required:
+            - clock-names
+    then:
+      required:
+        - clocks
+        - clock-names
 
 unevaluatedProperties: false
 
