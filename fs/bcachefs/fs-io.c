@@ -794,41 +794,23 @@ static int quota_reserve_range(struct bch_inode_info *inode,
 			       u64 start, u64 end)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	u32 snapshot;
 	u64 sectors = end - start;
-	u64 pos = start;
-	int ret;
-retry:
-	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(trans, inode->ei_inum.subvol, &snapshot);
-	if (ret)
-		goto err;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter,
+				BTREE_ID_extents,
+				POS(inode->v.i_ino, start),
+				POS(inode->v.i_ino, end - 1),
+				inode->ei_inum.subvol, 0, k, ({
+			if (bkey_extent_is_allocation(k.k)) {
+				u64 s = min(end, k.k->p.offset) -
+					max(start, bkey_start_offset(k.k));
+				BUG_ON(s > sectors);
+				sectors -= s;
+			}
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
-			     SPOS(inode->v.i_ino, pos, snapshot), 0);
-
-	while (!(ret = btree_trans_too_many_iters(trans)) &&
-	       (k = bch2_btree_iter_peek_upto(&iter, POS(inode->v.i_ino, end - 1))).k &&
-	       !(ret = bkey_err(k))) {
-		if (bkey_extent_is_allocation(k.k)) {
-			u64 s = min(end, k.k->p.offset) -
-				max(start, bkey_start_offset(k.k));
-			BUG_ON(s > sectors);
-			sectors -= s;
-		}
-		bch2_btree_iter_advance(&iter);
-	}
-	pos = iter.pos.offset;
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
+			0;
+		})));
 
 	return ret ?: bch2_quota_reservation_add(c, inode, res, sectors, true);
 }
