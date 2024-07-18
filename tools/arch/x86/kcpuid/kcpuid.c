@@ -379,7 +379,7 @@ static int parse_line(char *line)
 	if (start)
 		bdesc->start = strtoul(start, NULL, 0);
 
-	strcpy(bdesc->simp, tokens[4]);
+	strcpy(bdesc->simp, strtok(tokens[4], " \t"));
 	strcpy(bdesc->detail, tokens[5]);
 	return 0;
 
