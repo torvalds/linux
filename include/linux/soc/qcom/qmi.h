@@ -233,6 +233,8 @@ struct qmi_handle {
 	struct mutex txn_lock;
 
 	const struct qmi_msg_handler *handlers;
+
+	unsigned int svc_id;
 };
 
 int qmi_add_lookup(struct qmi_handle *qmi, unsigned int service,
