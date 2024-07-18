@@ -67,6 +67,8 @@ struct thermal_governor {
  * @polling_delay_jiffies: number of jiffies to wait between polls when
  *			checking whether trip points have been crossed (0 for
  *			interrupt driven systems)
+ * @recheck_delay_jiffies: delay after a failed attempt to determine the zone
+ * 			temperature before trying again
  * @temperature:	current temperature.  This is only for core code,
  *			drivers should use thermal_zone_get_temp() to get the
  *			current temperature
@@ -108,6 +110,7 @@ struct thermal_zone_device {
 	int num_trips;
 	unsigned long passive_delay_jiffies;
 	unsigned long polling_delay_jiffies;
+	unsigned long recheck_delay_jiffies;
 	int temperature;
 	int last_temperature;
 	int emul_temperature;
@@ -137,10 +140,11 @@ struct thermal_zone_device {
 #define THERMAL_TEMP_INIT	INT_MIN
 
 /*
- * Default delay after a failing thermal zone temperature check before
- * attempting to check it again.
+ * Default and maximum delay after a failed thermal zone temperature check
+ * before attempting to check it again (in jiffies).
  */
-#define THERMAL_RECHECK_DELAY_MS	250
+#define THERMAL_RECHECK_DELAY		msecs_to_jiffies(250)
+#define THERMAL_MAX_RECHECK_DELAY	(120 * HZ)
 
 /* Default Thermal Governor */
 #if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
