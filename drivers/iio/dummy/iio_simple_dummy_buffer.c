@@ -68,7 +68,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	 * Here let's pretend we have random access. And the values are in the
 	 * constant table fakedata.
 	 */
-	for_each_set_bit(j, indio_dev->active_scan_mask, indio_dev->masklength)
+	iio_for_each_active_channel(indio_dev, j)
 		data[i++] = fakedata[j];
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data,
