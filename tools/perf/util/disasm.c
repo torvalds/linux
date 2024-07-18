@@ -44,6 +44,7 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
+static int disasm_line__parse_powerpc(struct disasm_line *dl);
 
 static __attribute__((constructor)) void symbol__init_regexpr(void)
 {
@@ -845,6 +846,51 @@ out:
 	return -1;
 }
 
+/*
+ * Parses the result captured from symbol__disassemble_*
+ * Example, line read from DSO file in powerpc:
+ * line:    38 01 81 e8
+ * opcode: fetched from arch specific get_opcode_insn
+ * rawp_insn: e8810138
+ *
+ * rawp_insn is used later to extract the reg/offset fields
+ */
+#define	PPC_OP(op)	(((op) >> 26) & 0x3F)
+#define	RAW_BYTES	11
+
+static int disasm_line__parse_powerpc(struct disasm_line *dl)
+{
+	char *line = dl->al.line;
+	const char **namep = &dl->ins.name;
+	char **rawp = &dl->ops.raw;
+	char *tmp_raw_insn, *name_raw_insn = skip_spaces(line);
+	char *name = skip_spaces(name_raw_insn + RAW_BYTES);
+	int objdump = 0;
+
+	if (strlen(line) > RAW_BYTES)
+		objdump = 1;
+
+	if (name_raw_insn[0] == '\0')
+		return -1;
+
+	if (objdump) {
+		disasm_line__parse(name, namep, rawp);
+	} else
+		*namep = "";
+
+	tmp_raw_insn = strndup(name_raw_insn, 11);
+	if (tmp_raw_insn == NULL)
+		return -1;
+
+	remove_spaces(tmp_raw_insn);
+
+	sscanf(tmp_raw_insn, "%x", &dl->raw.raw_insn);
+	if (objdump)
+		dl->raw.raw_insn = be32_to_cpu(dl->raw.raw_insn);
+
+	return 0;
+}
+
 static void annotation_line__init(struct annotation_line *al,
 				  struct annotate_args *args,
 				  int nr)
@@ -898,7 +944,10 @@ struct disasm_line *disasm_line__new(struct annotate_args *args)
 		goto out_delete;
 
 	if (args->offset != -1) {
-		if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
+		if (arch__is(args->arch, "powerpc")) {
+			if (disasm_line__parse_powerpc(dl) < 0)
+				goto out_free_line;
+		} else if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 			goto out_free_line;
 
 		disasm_line__init_ins(dl, args->arch, &args->ms);

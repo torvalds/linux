@@ -113,7 +113,10 @@ struct annotation_line {
 struct disasm_line {
 	struct ins		 ins;
 	struct ins_operands	 ops;
-
+	union {
+		u8 bytes[4];
+		u32 raw_insn;
+	} raw;
 	/* This needs to be at the end. */
 	struct annotation_line	 al;
 };
