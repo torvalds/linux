@@ -313,4 +313,9 @@ static inline bool kvm_is_addr_direct(struct kvm *kvm, gpa_t gpa)
 
 	return !gpa_direct_bits || (gpa & gpa_direct_bits);
 }
+
+static inline bool kvm_is_gfn_alias(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn & kvm_gfn_direct_bits(kvm);
+}
 #endif
