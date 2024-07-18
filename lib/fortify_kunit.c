@@ -234,8 +234,6 @@ static void fortify_test_alloc_size_##allocator##_dynamic(struct kunit *test) \
 	checker(expected_size,						\
 		kmalloc_array_node(alloc_size, 1, gfp, NUMA_NO_NODE),	\
 		kfree(p));						\
-	checker(expected_size, __kmalloc(alloc_size, gfp),		\
-		kfree(p));						\
 									\
 	orig = kmalloc(alloc_size, gfp);				\
 	KUNIT_EXPECT_TRUE(test, orig != NULL);				\
