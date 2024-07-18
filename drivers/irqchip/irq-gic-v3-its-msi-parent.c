@@ -134,7 +134,7 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 	int ret;
 
 	if (dev->of_node)
-		ret = of_pmsi_get_dev_id(domain, dev, &dev_id);
+		ret = of_pmsi_get_dev_id(domain->parent, dev, &dev_id);
 	else
 		ret = iort_pmsi_get_dev_id(dev, &dev_id);
 	if (ret)
