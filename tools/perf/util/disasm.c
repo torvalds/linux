@@ -1637,6 +1637,91 @@ err:
 }
 #endif
 
+static int symbol__disassemble_raw(char *filename, struct symbol *sym,
+					struct annotate_args *args)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct map *map = args->ms.map;
+	struct dso *dso = map__dso(map);
+	u64 start = map__rip_2objdump(map, sym->start);
+	u64 end = map__rip_2objdump(map, sym->end);
+	u64 len = end - start;
+	u64 offset;
+	int i, count;
+	u8 *buf = NULL;
+	char disasm_buf[512];
+	struct disasm_line *dl;
+	u32 *line;
+
+	/* Return if objdump is specified explicitly */
+	if (args->options->objdump_path)
+		return -1;
+
+	pr_debug("Reading raw instruction from : %s using dso__data_read_offset\n", filename);
+
+	buf = malloc(len);
+	if (buf == NULL)
+		goto err;
+
+	count = dso__data_read_offset(dso, NULL, sym->start, buf, len);
+
+	line = (u32 *)buf;
+
+	if ((u64)count != len)
+		goto err;
+
+	/* add the function address and name */
+	scnprintf(disasm_buf, sizeof(disasm_buf), "%#"PRIx64" <%s>:",
+		  start, sym->name);
+
+	args->offset = -1;
+	args->line = disasm_buf;
+	args->line_nr = 0;
+	args->fileloc = NULL;
+	args->ms.sym = sym;
+
+	dl = disasm_line__new(args);
+	if (dl == NULL)
+		goto err;
+
+	annotation_line__add(&dl->al, &notes->src->source);
+
+	/* Each raw instruction is 4 byte */
+	count = len/4;
+
+	for (i = 0, offset = 0; i < count; i++) {
+		args->offset = offset;
+		sprintf(args->line, "%x", line[i]);
+		dl = disasm_line__new(args);
+		if (dl == NULL)
+			goto err;
+
+		annotation_line__add(&dl->al, &notes->src->source);
+		offset += 4;
+	}
+
+	/* It failed in the middle */
+	if (offset != len) {
+		struct list_head *list = &notes->src->source;
+
+		/* Discard all lines and fallback to objdump */
+		while (!list_empty(list)) {
+			dl = list_first_entry(list, struct disasm_line, al.node);
+
+			list_del_init(&dl->al.node);
+			disasm_line__free(dl);
+		}
+		count = -1;
+	}
+
+out:
+	free(buf);
+	return count < 0 ? count : 0;
+
+err:
+	count = -1;
+	goto out;
+}
 /*
  * Possibly create a new version of line with tabs expanded. Returns the
  * existing or new line, storage is updated if a new line is allocated. If
@@ -1759,6 +1844,23 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 		decomp = true;
 		strcpy(symfs_filename, tmp);
+	}
+
+	/*
+	 * For powerpc data type profiling, use the dso__data_read_offset
+	 * to read raw instruction directly and interpret the binary code
+	 * to understand instructions and register fields. For sort keys as
+	 * type and typeoff, disassemble to mnemonic notation is
+	 * not required in case of powerpc.
+	 */
+	if (arch__is(args->arch, "powerpc")) {
+		extern const char *sort_order;
+
+		if (sort_order && !strstr(sort_order, "sym")) {
+			err = symbol__disassemble_raw(symfs_filename, sym, args);
+			if (err == 0)
+				goto out_remove_tmp;
+		}
 	}
 
 #ifdef HAVE_LIBCAPSTONE_SUPPORT
