@@ -305,6 +305,8 @@ static int parse_line(char *line)
 	struct bits_desc *bdesc;
 	int reg_index;
 	char *start, *end;
+	u32 subleaf_start, subleaf_end;
+	unsigned bit_start, bit_end;
 
 	/* Skip comments and NULL line */
 	if (line[0] == '#' || line[0] == '\n')
@@ -343,13 +345,25 @@ static int parse_line(char *line)
 		return 0;
 
 	/* subleaf */
-	sub = strtoul(tokens[1], NULL, 0);
-	if ((int)sub > func->nr)
-		return -1;
+	buf = tokens[1];
+	end = strtok(buf, ":");
+	start = strtok(NULL, ":");
+	subleaf_end = strtoul(end, NULL, 0);
 
-	leaf = &func->leafs[sub];
+	/* A subleaf range is given? */
+	if (start) {
+		subleaf_start = strtoul(start, NULL, 0);
+		subleaf_end = min(subleaf_end, (u32)(func->nr - 1));
+		if (subleaf_start > subleaf_end)
+			return 0;
+	} else {
+		subleaf_start = subleaf_end;
+		if (subleaf_start > (u32)(func->nr - 1))
+			return 0;
+	}
+
+	/* register */
 	buf = tokens[2];
-
 	if (strcasestr(buf, "EAX"))
 		reg_index = R_EAX;
 	else if (strcasestr(buf, "EBX"))
@@ -361,23 +375,23 @@ static int parse_line(char *line)
 	else
 		goto err_exit;
 
-	reg = &leaf->info[reg_index];
-	bdesc = &reg->descs[reg->nr++];
-
 	/* bit flag or bits field */
 	buf = tokens[3];
-
 	end = strtok(buf, ":");
-	bdesc->end = strtoul(end, NULL, 0);
-	bdesc->start = bdesc->end;
-
-	/* start != NULL means it is bit fields */
 	start = strtok(NULL, ":");
-	if (start)
-		bdesc->start = strtoul(start, NULL, 0);
+	bit_end = strtoul(end, NULL, 0);
+	bit_start = (start) ? strtoul(start, NULL, 0) : bit_end;
 
-	strcpy(bdesc->simp, strtok(tokens[4], " \t"));
-	strcpy(bdesc->detail, tokens[5]);
+	for (sub = subleaf_start; sub <= subleaf_end; sub++) {
+		leaf = &func->leafs[sub];
+		reg = &leaf->info[reg_index];
+		bdesc = &reg->descs[reg->nr++];
+
+		bdesc->end = bit_end;
+		bdesc->start = bit_start;
+		strcpy(bdesc->simp, strtok(tokens[4], " \t"));
+		strcpy(bdesc->detail, tokens[5]);
+	}
 	return 0;
 
 err_exit:
