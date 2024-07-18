@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-ita.rst
+.. include:: ../../disclaimer-ita.rst
 
-:Original: :doc:`../../../arch/riscv/patch-acceptance`
+:Original: :doc:`../../../../arch/riscv/patch-acceptance`
 :Translator: Federico Vaga <federico.vaga@vaga.pv.it>
 
 arch/riscv linee guida alla manutenzione per gli sviluppatori
@@ -21,6 +21,26 @@ preferisce codice ben revisionato e testato rispetto a quello
 sperimentale.  Desideriamo estendere questi stessi principi al codice
 relativo all'architettura RISC-V che verrà accettato per l'inclusione
 nel kernel.
+
+Patchwork
+---------
+
+RISC-V ha un'istanza di patchwork dov'è possibile controllare lo stato delle patch:
+
+  https://patchwork.kernel.org/project/linux-riscv/list/
+
+Se la vostra patch non appare nella vista predefinita, i manutentori di RISC-V
+hanno probabilmente richiesto delle modifiche o si aspettano che venga applicata
+a un altro albero.
+
+Il processo automatico viene eseguito su questa istanza di patchwork, costruendo
+e collaudando le patch man mano che arrivano. Il processo applica le patch al
+riferimento HEAD corrente dei rami `for-next` e `fixes` dei sorgenti RISC-V,
+questo a seconda che la patch sia stata o meno individuata come correzione. In
+caso contrario, utilizzerà il ramo `master` di RISC-V. L'esatto commit a cui è
+stata applicata una serie di patch sarà annotato su patchwork. È improbabile che
+vengano applicate Le patch che non passano i controlli, nella maggior parte dei
+casi dovranno essere ripresentate.
 
 In aggiunta alla lista delle verifiche da fare prima di inviare una patch
 -------------------------------------------------------------------------

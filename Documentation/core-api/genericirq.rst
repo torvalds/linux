@@ -210,7 +210,7 @@ implemented (simplified excerpt)::
         }
     }
 
-    noop(struct irq_data *data))
+    noop(struct irq_data *data)
     {
     }
 

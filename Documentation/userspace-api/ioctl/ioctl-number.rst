@@ -97,6 +97,8 @@ Code  Seq#    Include File                                           Comments
 '%'   00-0F  include/uapi/linux/stm.h                                System Trace Module subsystem
                                                                      <mailto:alexander.shishkin@linux.intel.com>
 '&'   00-07  drivers/firewire/nosy-user.h
+'*'   00-1F  uapi/linux/user_events.h                                User Events Subsystem
+                                                                     <mailto:linux-trace-kernel@vger.kernel.org>
 '1'   00-1F  linux/timepps.h                                         PPS kit from Ulrich Windl
                                                                      <ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
 '2'   01-04  linux/i2o.h

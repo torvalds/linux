@@ -1742,8 +1742,6 @@
 			for 64-bit NUMA, off otherwise.
 			Format: 0 | 1 (for off | on)
 
-	hcl=		[IA-64] SGI's Hardware Graph compatibility layer
-
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
 
@@ -2502,7 +2500,7 @@
 
 	keepinitrd	[HW,ARM] See retain_initrd.
 
-	kernelcore=	[KNL,X86,IA-64,PPC,EARLY]
+	kernelcore=	[KNL,X86,PPC,EARLY]
 			Format: nn[KMGTPE] | nn% | "mirror"
 			This parameter specifies the amount of memory usable by
 			the kernel for non-movable allocations.  The requested
@@ -3142,25 +3140,15 @@
 			unlikely, in the extreme case this might damage your
 			hardware.
 
-	ltpc=		[NET]
-			Format: <io>,<irq>,<dma>
-
 	lsm.debug	[SECURITY] Enable LSM initialization debugging output.
 
 	lsm=lsm1,...,lsmN
 			[SECURITY] Choose order of LSM initialization. This
 			overrides CONFIG_LSM, and the "security=" parameter.
 
-	machvec=	[IA-64] Force the use of a particular machine-vector
-			(machvec) in a generic kernel.
-			Example: machvec=hpzx1
-
 	machtype=	[Loongson] Share the same kernel image file between
 			different yeeloong laptops.
 			Example: machtype=lemote-yeeloong-2f-7inch
-
-	max_addr=nn[KMG]	[KNL,BOOT,IA-64] All physical memory greater
-			than or equal to this physical address is ignored.
 
 	maxcpus=	[SMP,EARLY] Maximum number of processors that an SMP kernel
 			will bring up during bootup.  maxcpus=n : n >= 0 limits
@@ -3399,9 +3387,6 @@
 			Enable or disable the microcode minimal revision
 			enforcement for the runtime microcode loader.
 
-	min_addr=nn[KMG]	[KNL,BOOT,IA-64] All physical memory below this
-			physical address is ignored.
-
 	mini2440=	[ARM,HW,KNL]
 			Format:[0..2][b][c][t]
 			Default: "0tb"
@@ -3566,7 +3551,7 @@
 	mousedev.yres=	[MOUSE] Vertical screen resolution, used for devices
 			reporting absolute coordinates, such as tablets
 
-	movablecore=	[KNL,X86,IA-64,PPC,EARLY]
+	movablecore=	[KNL,X86,PPC,EARLY]
 			Format: nn[KMGTPE] | nn%
 			This parameter is the complement to kernelcore=, it
 			specifies the amount of memory used for migratable
@@ -3591,11 +3576,6 @@
 
 	mtdparts=	[MTD]
 			See drivers/mtd/parsers/cmdlinepart.c
-
-	mtdset=		[ARM]
-			ARM/S3C2412 JIVE boot control
-
-			See arch/arm/mach-s3c/mach-jive.c
 
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
@@ -3845,8 +3825,6 @@
 
 	no_entry_flush  [PPC,EARLY] Don't flush the L1-D cache when entering the kernel.
 
-	noexec		[IA-64]
-
 	noexec32	[X86-64]
 			This affects only 32-bit executables.
 			noexec32=on: enable non-executable mappings (default)
@@ -3866,13 +3844,6 @@
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
-	nohalt		[IA-64] Tells the kernel not to use the power saving
-			function PAL_HALT_LIGHT when idle. This increases
-			power-consumption. On the positive side, it reduces
-			interrupt wake-up latency, which may improve performance
-			in certain environments such as networked servers or
-			real-time systems.
-
 	no_hash_pointers
 			[KNL,EARLY]
 			Force pointers printed to the console or buffers to be
@@ -3890,7 +3861,7 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
-	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,PPC,SH] Forces the kernel to
+	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,PPC,RISCV,SH] Forces the kernel to
 			busy wait in do_idle() and not use the arch_cpu_idle()
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
@@ -3927,8 +3898,6 @@
 			remapping.
 			[Deprecated - use intremap=off]
 
-	nointroute	[IA-64]
-
 	noinvpcid	[X86,EARLY] Disable the INVPCID cpu feature.
 
 	noiotrap	[SH] Disables trapped I/O port accesses.
@@ -3937,8 +3906,6 @@
 			disable unhandled interrupt sources.
 
 	noisapnp	[ISAPNP] Disables ISA PnP code.
-
-	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
 	nokaslr		[KNL,EARLY]
 			When CONFIG_RANDOMIZE_BASE is set, this disables
@@ -3953,8 +3920,6 @@
 	nolapic		[X86-32,APIC,EARLY] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC,EARLY] Do not use the local APIC timer.
-
-	nomca		[IA-64] Disable machine check abort handling
 
 	nomce		[X86-32] Disable Machine Check Exception
 
@@ -4006,8 +3971,6 @@
 
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
-
-	nosbagart	[IA-64]
 
 	no-scroll	[VGA] Disables scrollback.
 			This is required for the Braillex ib80-piezo Braille
@@ -4108,19 +4071,6 @@
 			in standard form of xsave area. By using this
 			parameter, xsave area per process might occupy more
 			memory on xsaves enabled systems.
-
-	nps_mtm_hs_ctr=	[KNL,ARC]
-			This parameter sets the maximum duration, in
-			cycles, each HW thread of the CTOP can run
-			without interruptions, before HW switches it.
-			The actual maximum duration is 16 times this
-			parameter's value.
-			Format: integer between 1 and 255
-			Default: 255
-
-	nptcg=		[IA-64] Override max number of concurrent global TLB
-			purges which is reported from either PAL_VM_SUMMARY or
-			SAL PALO.
 
 	nr_cpus=	[SMP,EARLY] Maximum number of processors that an SMP kernel
 			could support.  nr_cpus=n : n >= 1 limits the kernel to
@@ -5774,9 +5724,6 @@
 		2	The "airplane mode" button toggles between everything
 			blocked and everything unblocked.
 
-	rhash_entries=	[KNL,NET]
-			Set number of hash buckets for route cache
-
 	ring3mwait=disable
 			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
 			CPUs.
@@ -6009,9 +5956,6 @@
 			The parameter valid if only apic=debug or
 			apic=verbose is specified.
 			Example: apic=debug show_lapic=all
-
-	simeth=		[IA-64]
-	simscsi=
 
 	slab_debug[=options[,slabs][;[options[,slabs]]...]	[MM]
 			Enabling slab_debug allows one to determine the
@@ -6280,11 +6224,6 @@
 			Not specifying this option is equivalent to
 			spec_store_bypass_disable=auto.
 
-	spia_io_base=	[HW,MTD]
-	spia_fio_base=
-	spia_pedr=
-	spia_peddr=
-
 	split_lock_detect=
 			[X86] Enable split lock detection or bus lock detection
 
@@ -6540,7 +6479,7 @@
 			This parameter controls use of the Protected
 			Execution Facility on pSeries.
 
-	swiotlb=	[ARM,IA-64,PPC,MIPS,X86,EARLY]
+	swiotlb=	[ARM,PPC,MIPS,X86,S390,EARLY]
 			Format: { <int> [,<int>] | force | noforce }
 			<int> -- Number of I/O TLB slabs
 			<int> -- Second integer after comma. Number of swiotlb
@@ -6621,12 +6560,6 @@
 			e.g. base its process migration decisions on it.
 			Default is on.
 
-	topology_updates= [KNL, PPC, NUMA]
-			Format: {off}
-			Specify if the kernel should ignore (off)
-			topology updates sent by the hypervisor to this
-			LPAR.
-
 	torture.disable_onoff_at_boot= [KNL]
 			Prevent the CPU-hotplug component of torturing
 			until after init has spawned.
@@ -6645,8 +6578,6 @@
 
 	torture.verbose_sleep_duration= [KNL]
 			Duration of each verbose-printk() sleep in jiffies.
-
-	tp720=		[HW,PS2]
 
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
@@ -7183,9 +7114,6 @@
 
 			Try vdso32=0 if you encounter an error that says:
 			dl_main: Assertion `(void *) ph->p_vaddr == _rtld_local._dl_sysinfo_dso' failed!
-
-	vector=		[IA-64,SMP]
-			vector=percpu: enable percpu vector domain
 
 	video=		[FB,EARLY] Frame buffer configuration
 			See Documentation/fb/modedb.rst.
