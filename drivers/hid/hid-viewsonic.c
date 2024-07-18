@@ -102,4 +102,5 @@ static struct hid_driver viewsonic_driver = {
 };
 module_hid_driver(viewsonic_driver);
 
+MODULE_DESCRIPTION("HID driver for ViewSonic devices not fully compliant with HID standard");
 MODULE_LICENSE("GPL");
