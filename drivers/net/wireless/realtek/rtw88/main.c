@@ -2299,6 +2299,7 @@ void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	ieee80211_unregister_hw(hw);
 	rtw_unset_supported_band(hw, chip);
+	rtw_debugfs_deinit(rtwdev);
 }
 EXPORT_SYMBOL(rtw_unregister_hw);
 

@@ -50,6 +50,7 @@ extern const struct ieee80211_ops rtw_ops;
 #define RTW_MAX_CHANNEL_NUM_5G 49
 
 struct rtw_dev;
+struct rtw_debugfs;
 
 enum rtw_hci_type {
 	RTW_HCI_TYPE_PCIE,
@@ -2053,7 +2054,7 @@ struct rtw_dev {
 	bool beacon_loss;
 	struct completion lps_leave_check;
 
-	struct dentry *debugfs;
+	struct rtw_debugfs *debugfs;
 
 	u8 sta_cnt;
 	u32 rts_threshold;
