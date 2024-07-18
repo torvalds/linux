@@ -208,19 +208,19 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	unsigned int vdispend, vsyncstr, vsyncend, vtotal;
 	u8 misc, crtcext1, crtcext2, crtcext5;
 
-	hdispend = mode->hdisplay / 8 - 1;
-	hsyncstr = mode->hsync_start / 8 - 1;
-	hsyncend = mode->hsync_end / 8 - 1;
-	htotal = mode->htotal / 8 - 1;
+	hdispend = mode->crtc_hdisplay / 8 - 1;
+	hsyncstr = mode->crtc_hsync_start / 8 - 1;
+	hsyncend = mode->crtc_hsync_end / 8 - 1;
+	htotal = mode->crtc_htotal / 8 - 1;
 
 	/* Work around hardware quirk */
 	if ((htotal & 0x07) == 0x06 || (htotal & 0x07) == 0x04)
 		htotal++;
 
-	vdispend = mode->vdisplay - 1;
-	vsyncstr = mode->vsync_start - 1;
-	vsyncend = mode->vsync_end - 1;
-	vtotal = mode->vtotal - 2;
+	vdispend = mode->crtc_vdisplay - 1;
+	vsyncstr = mode->crtc_vsync_start - 1;
+	vsyncend = mode->crtc_vsync_end - 1;
+	vtotal = mode->crtc_vtotal - 2;
 
 	misc = RREG8(MGA_MISC_IN);
 
