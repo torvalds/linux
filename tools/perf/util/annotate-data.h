@@ -189,7 +189,11 @@ struct type_state_stack {
 };
 
 /* FIXME: This should be arch-dependent */
+#ifdef __powerpc__
+#define TYPE_STATE_MAX_REGS  32
+#else
 #define TYPE_STATE_MAX_REGS  16
+#endif
 
 /*
  * State table to maintain type info in each register and stack location.
