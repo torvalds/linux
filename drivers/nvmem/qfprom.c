@@ -204,6 +204,16 @@ static const struct qfprom_soc_compatible_data niobe_qfprom = {
 	.nkeepout = ARRAY_SIZE(niobe_qfprom_keepout)
 };
 
+static const struct nvmem_keepout pineapple_qfprom_keepout[] = {
+	{.start = 0, .end = 0x9b},
+	{.start = 0x9c, .end = 0x1000},
+};
+
+static const struct qfprom_soc_compatible_data pineapple_qfprom = {
+	.keepout = pineapple_qfprom_keepout,
+	.nkeepout = ARRAY_SIZE(pineapple_qfprom_keepout)
+};
+
 /**
  * qfprom_disable_fuse_blowing() - Undo enabling of fuse blowing.
  * @priv: Our driver data.
@@ -547,6 +557,7 @@ static const struct of_device_id qfprom_of_match[] = {
 	{ .compatible = "qcom,cliffs-qfprom", .data = &cliffs_qfprom},
 	{ .compatible = "qcom,pitti-qfprom", .data = &pitti_qfprom},
 	{ .compatible = "qcom,niobe-qfprom", .data = &niobe_qfprom},
+	{ .compatible = "qcom,pineapple-qfprom", .data = &pineapple_qfprom},
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, qfprom_of_match);
