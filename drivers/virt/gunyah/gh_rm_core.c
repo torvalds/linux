@@ -77,6 +77,7 @@ const static struct {
 	{GH_CPUSYS_VM, "cpusys_vm", "qcom,cpusysvm"},
 	{GH_OEM_VM, "oem_vm", "qcom,oemvm"},
 	{GH_AUTO_VM, "autoghgvm", "qcom,autoghgvm"},
+	{GH_AUTO_VM_LV, "autoghgvmlv", "qcom,autoghgvmlv"},
 };
 
 static gh_virtio_mmio_cb_t gh_virtio_mmio_fn;
