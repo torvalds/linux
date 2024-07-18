@@ -98,27 +98,17 @@ static inline void cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 
 static inline bool has_subleafs(u32 f)
 {
-	if (f == 0x7 || f == 0xd)
-		return true;
+	u32 with_subleaves[] = {
+		0x4,  0x7,  0xb,  0xd,  0xf,  0x10, 0x12,
+		0x14, 0x17, 0x18, 0x1b, 0x1d, 0x1f, 0x23,
+		0x8000001d, 0x80000020, 0x80000026,
+	};
 
-	if (is_amd) {
-		if (f == 0x8000001d)
+	for (unsigned i = 0; i < ARRAY_SIZE(with_subleaves); i++)
+		if (f == with_subleaves[i])
 			return true;
-		return false;
-	}
 
-	switch (f) {
-	case 0x4:
-	case 0xb:
-	case 0xf:
-	case 0x10:
-	case 0x14:
-	case 0x18:
-	case 0x1f:
-		return true;
-	default:
-		return false;
-	}
+	return false;
 }
 
 static void leaf_print_raw(struct subleaf *leaf)
@@ -253,11 +243,18 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 		 * Some can provide the exact number of subleafs,
 		 * others have to be tried (0xf)
 		 */
-		if (f == 0x7 || f == 0x14 || f == 0x17 || f == 0x18)
+		if (f == 0x7 || f == 0x14 || f == 0x17 || f == 0x18 || f == 0x1d)
 			max_subleaf = min((eax & 0xff) + 1, max_subleaf);
-
 		if (f == 0xb)
 			max_subleaf = 2;
+		if (f == 0x1f)
+			max_subleaf = 6;
+		if (f == 0x23)
+			max_subleaf = 4;
+		if (f == 0x80000020)
+			max_subleaf = 4;
+		if (f == 0x80000026)
+			max_subleaf = 5;
 
 		for (subleaf = 1; subleaf < max_subleaf; subleaf++) {
 			eax = f;
