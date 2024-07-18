@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Number of times an HLE execution aborted due to any reasons (multiple categories may count as one).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED",
         "PEBS": "1",
@@ -9,6 +10,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to various memory events (e.g., read/write capacity and conflicts).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC1",
         "SampleAfterValue": "2000003",
@@ -16,6 +18,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to uncommon conditions.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC2",
         "SampleAfterValue": "2000003",
@@ -23,6 +26,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to HLE-unfriendly instructions.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC3",
         "SampleAfterValue": "2000003",
@@ -30,6 +34,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to incompatible memory type.",
+        "Counter": "0,1,2,3",
         "Errata": "HSD65",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC4",
@@ -38,6 +43,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupts)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC5",
         "PublicDescription": "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupts).",
@@ -46,6 +52,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution successfully committed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.COMMIT",
         "SampleAfterValue": "2000003",
@@ -53,6 +60,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution started.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC8",
         "EventName": "HLE_RETIRED.START",
         "SampleAfterValue": "2000003",
@@ -60,6 +68,7 @@
     },
     {
         "BriefDescription": "Counts the number of machine clears due to memory order conflicts.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "PublicDescription": "This event counts the number of memory ordering machine clears detected. Memory ordering machine clears can result from memory address aliasing or snoops from another hardware thread or core to data inflight in the pipeline.  Machine clears can have a significant performance impact if they are happening frequently.",
@@ -68,6 +77,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 128.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -80,6 +90,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 16.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -92,6 +103,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 256.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -104,6 +116,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 32.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -116,6 +129,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 4.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -128,6 +142,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 512.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -140,6 +155,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 64.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -152,6 +168,7 @@
     },
     {
         "BriefDescription": "Randomly selected loads with latency value being above 8.",
+        "Counter": "3",
         "Data_LA": "1",
         "Errata": "HSD76, HSD25, HSM26",
         "EventCode": "0xcd",
@@ -164,6 +181,7 @@
     },
     {
         "BriefDescription": "Speculative cache line split load uops dispatched to L1 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x05",
         "EventName": "MISALIGN_MEM_REF.LOADS",
         "PublicDescription": "Speculative cache-line split load uops dispatched to L1D.",
@@ -172,6 +190,7 @@
     },
     {
         "BriefDescription": "Speculative cache line split STA uops dispatched to L1 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x05",
         "EventName": "MISALIGN_MEM_REF.STORES",
         "PublicDescription": "Speculative cache-line split store-address uops dispatched to L1D.",
@@ -180,6 +199,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch code reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -189,6 +209,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch code reads miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -198,6 +219,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch data reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -207,6 +229,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch data reads miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -216,6 +239,7 @@
     },
     {
         "BriefDescription": "miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -225,6 +249,7 @@
     },
     {
         "BriefDescription": "miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -234,6 +259,7 @@
     },
     {
         "BriefDescription": "Counts all requests miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -243,6 +269,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch RFOs miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -252,6 +279,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch RFOs miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -261,6 +289,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -270,6 +299,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -279,6 +309,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -288,6 +319,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -297,6 +329,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs) miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -306,6 +339,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs) miss the L3 and the data is returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -315,6 +349,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -324,6 +359,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -333,6 +369,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -342,6 +379,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -351,6 +389,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -360,6 +399,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs miss in the L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -369,6 +409,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED",
         "PEBS": "2",
@@ -377,6 +418,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC1",
         "PublicDescription": "Number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts).",
@@ -385,6 +427,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to various memory events (e.g., read/write capacity and conflicts).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC2",
         "SampleAfterValue": "2000003",
@@ -392,6 +435,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to HLE-unfriendly instructions.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC3",
         "SampleAfterValue": "2000003",
@@ -399,6 +443,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to incompatible memory type.",
+        "Counter": "0,1,2,3",
         "Errata": "HSD65",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC4",
@@ -407,6 +452,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC5",
         "PublicDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
@@ -415,6 +461,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution successfully committed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.COMMIT",
         "SampleAfterValue": "2000003",
@@ -422,6 +469,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution started.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC9",
         "EventName": "RTM_RETIRED.START",
         "SampleAfterValue": "2000003",
@@ -429,6 +477,7 @@
     },
     {
         "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC1",
         "SampleAfterValue": "2000003",
@@ -436,6 +485,7 @@
     },
     {
         "BriefDescription": "Counts the number of times a class of instructions (e.g., vzeroupper) that may cause a transactional abort was executed inside a transactional region.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC2",
         "SampleAfterValue": "2000003",
@@ -443,6 +493,7 @@
     },
     {
         "BriefDescription": "Counts the number of times an instruction execution caused the transactional nest count supported to be exceeded.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC3",
         "SampleAfterValue": "2000003",
@@ -450,6 +501,7 @@
     },
     {
         "BriefDescription": "Counts the number of times a XBEGIN instruction was executed inside an HLE transactional region.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC4",
         "SampleAfterValue": "2000003",
@@ -457,6 +509,7 @@
     },
     {
         "BriefDescription": "Counts the number of times an HLE XACQUIRE instruction was executed inside an RTM transactional region.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC5",
         "SampleAfterValue": "2000003",
@@ -464,6 +517,7 @@
     },
     {
         "BriefDescription": "Number of times a transactional abort was signaled due to a data capacity limitation for transactional writes.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CAPACITY_WRITE",
         "SampleAfterValue": "2000003",
@@ -471,6 +525,7 @@
     },
     {
         "BriefDescription": "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CONFLICT",
         "SampleAfterValue": "2000003",
@@ -478,6 +533,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "SampleAfterValue": "2000003",
@@ -485,6 +541,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
         "SampleAfterValue": "2000003",
@@ -492,6 +549,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to an unsupported read alignment from the elision buffer.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_UNSUPPORTED_ALIGNMENT",
         "SampleAfterValue": "2000003",
@@ -499,6 +557,7 @@
     },
     {
         "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
         "SampleAfterValue": "2000003",
@@ -506,6 +565,7 @@
     },
     {
         "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
         "SampleAfterValue": "2000003",
