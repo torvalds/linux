@@ -1717,7 +1717,6 @@ static inline int memcg_kmem_id(struct mem_cgroup *memcg)
 	return memcg ? memcg->kmemcg_id : -1;
 }
 
-struct mem_cgroup *mem_cgroup_from_obj(void *p);
 struct mem_cgroup *mem_cgroup_from_slab_obj(void *p);
 
 static inline void count_objcg_event(struct obj_cgroup *objcg,
@@ -1778,11 +1777,6 @@ static inline bool memcg_kmem_online(void)
 static inline int memcg_kmem_id(struct mem_cgroup *memcg)
 {
 	return -1;
-}
-
-static inline struct mem_cgroup *mem_cgroup_from_obj(void *p)
-{
-	return NULL;
 }
 
 static inline struct mem_cgroup *mem_cgroup_from_slab_obj(void *p)
