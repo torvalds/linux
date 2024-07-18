@@ -2083,7 +2083,7 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 	if (ata_id_has_trim(args->id)) {
 		u64 max_blocks = 65535 * ATA_MAX_TRIM_RNUM;
 
-		if (dev->horkage & ATA_HORKAGE_MAX_TRIM_128M)
+		if (dev->quirks & ATA_QUIRK_MAX_TRIM_128M)
 			max_blocks = 128 << (20 - SECTOR_SHIFT);
 
 		put_unaligned_be64(max_blocks, &rbuf[36]);
@@ -2561,11 +2561,11 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		rbuf[15] = lowest_aligned;
 
 		if (ata_id_has_trim(args->id) &&
-		    !(dev->horkage & ATA_HORKAGE_NOTRIM)) {
+		    !(dev->quirks & ATA_QUIRK_NOTRIM)) {
 			rbuf[14] |= 0x80; /* LBPME */
 
 			if (ata_id_has_zero_after_trim(args->id) &&
-			    dev->horkage & ATA_HORKAGE_ZERO_AFTER_TRIM) {
+			    dev->quirks & ATA_QUIRK_ZERO_AFTER_TRIM) {
 				ata_dev_info(dev, "Enabling discard_zeroes_data\n");
 				rbuf[14] |= 0x40; /* LBPRZ */
 			}
@@ -3229,8 +3229,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	}
 	scsi_16_lba_len(cdb, &block, &n_block);
 
-	if (!unmap ||
-	    (dev->horkage & ATA_HORKAGE_NOTRIM) ||
+	if (!unmap || (dev->quirks & ATA_QUIRK_NOTRIM) ||
 	    !ata_id_has_trim(dev->id)) {
 		fp = 1;
 		bp = 3;

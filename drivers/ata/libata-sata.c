@@ -818,7 +818,7 @@ static ssize_t ata_scsi_lpm_store(struct device *device,
 
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, &ap->link, ENABLED) {
-			if (dev->horkage & ATA_HORKAGE_NOLPM) {
+			if (dev->quirks & ATA_QUIRK_NOLPM) {
 				count = -EOPNOTSUPP;
 				goto out_unlock;
 			}

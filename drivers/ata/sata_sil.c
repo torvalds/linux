@@ -616,7 +616,7 @@ static void sil_dev_config(struct ata_device *dev)
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
 	/* This controller doesn't support trim */
-	dev->horkage |= ATA_HORKAGE_NOTRIM;
+	dev->quirks |= ATA_QUIRK_NOTRIM;
 
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 

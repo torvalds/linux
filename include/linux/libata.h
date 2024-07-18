@@ -362,40 +362,41 @@ enum {
 	 */
 	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 8,
 
-	/* Horkage types. May be set by libata or controller on drives
-	   (some horkage may be drive/controller pair dependent */
-
-	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
-	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */
-	ATA_HORKAGE_NONCQ	= (1 << 2),	/* Don't use NCQ */
-	ATA_HORKAGE_MAX_SEC_128	= (1 << 3),	/* Limit max sects to 128 */
-	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
-	ATA_HORKAGE_DISABLE	= (1 << 5),	/* Disable it */
-	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
-	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
-	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
-	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
-	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
-						    not multiple of 16 bytes */
-	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firmware update warning */
-	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
-	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
-	ATA_HORKAGE_BROKEN_FPDMA_AA	= (1 << 15),	/* skip AA */
-	ATA_HORKAGE_DUMP_ID	= (1 << 16),	/* dump IDENTIFY data */
-	ATA_HORKAGE_MAX_SEC_LBA48 = (1 << 17),	/* Set max sects to 65535 */
-	ATA_HORKAGE_ATAPI_DMADIR = (1 << 18),	/* device requires dmadir */
-	ATA_HORKAGE_NO_NCQ_TRIM	= (1 << 19),	/* don't use queued TRIM */
-	ATA_HORKAGE_NOLPM	= (1 << 20),	/* don't use LPM */
-	ATA_HORKAGE_WD_BROKEN_LPM = (1 << 21),	/* some WDs have broken LPM */
-	ATA_HORKAGE_ZERO_AFTER_TRIM = (1 << 22),/* guarantees zero after trim */
-	ATA_HORKAGE_NO_DMA_LOG	= (1 << 23),	/* don't use DMA for log read */
-	ATA_HORKAGE_NOTRIM	= (1 << 24),	/* don't use TRIM */
-	ATA_HORKAGE_MAX_SEC_1024 = (1 << 25),	/* Limit max sects to 1024 */
-	ATA_HORKAGE_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
-	ATA_HORKAGE_NO_NCQ_ON_ATI = (1 << 27),	/* Disable NCQ on ATI chipset */
-	ATA_HORKAGE_NO_ID_DEV_LOG = (1 << 28),	/* Identify device log missing */
-	ATA_HORKAGE_NO_LOG_DIR	= (1 << 29),	/* Do not read log directory */
-	ATA_HORKAGE_NO_FUA	= (1 << 30),	/* Do not use FUA */
+	/*
+	 * Quirk flags: may be set by libata or controller drivers on drives.
+	 * Some quirks may be drive/controller pair dependent.
+	 */
+	ATA_QUIRK_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
+	ATA_QUIRK_NODMA		= (1 << 1),	/* DMA problems */
+	ATA_QUIRK_NONCQ		= (1 << 2),	/* Do not use NCQ */
+	ATA_QUIRK_MAX_SEC_128	= (1 << 3),	/* Limit max sects to 128 */
+	ATA_QUIRK_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
+	ATA_QUIRK_DISABLE	= (1 << 5),	/* Disable it */
+	ATA_QUIRK_HPA_SIZE	= (1 << 6),	/* Native size off by one */
+	ATA_QUIRK_IVB		= (1 << 8),	/* CBL det validity bit bugs */
+	ATA_QUIRK_STUCK_ERR	= (1 << 9),	/* Stuck ERR on next PACKET */
+	ATA_QUIRK_BRIDGE_OK	= (1 << 10),	/* No bridge limits */
+	ATA_QUIRK_ATAPI_MOD16_DMA = (1 << 11),	/* Use ATAPI DMA for commands */
+						/* not multiple of 16 bytes */
+	ATA_QUIRK_FIRMWARE_WARN = (1 << 12),	/* Firmware update warning */
+	ATA_QUIRK_1_5_GBPS	= (1 << 13),	/* Force 1.5 Gbps */
+	ATA_QUIRK_NOSETXFER	= (1 << 14),	/* Skip SETXFER, SATA only */
+	ATA_QUIRK_BROKEN_FPDMA_AA = (1 << 15),	/* Skip AA */
+	ATA_QUIRK_DUMP_ID	= (1 << 16),	/* Dump IDENTIFY data */
+	ATA_QUIRK_MAX_SEC_LBA48 = (1 << 17),	/* Set max sects to 65535 */
+	ATA_QUIRK_ATAPI_DMADIR	= (1 << 18),	/* Device requires dmadir */
+	ATA_QUIRK_NO_NCQ_TRIM	= (1 << 19),	/* Do not use queued TRIM */
+	ATA_QUIRK_NOLPM		= (1 << 20),	/* Do not use LPM */
+	ATA_QUIRK_WD_BROKEN_LPM = (1 << 21),	/* Some WDs have broken LPM */
+	ATA_QUIRK_ZERO_AFTER_TRIM = (1 << 22),	/* Guarantees zero after trim */
+	ATA_QUIRK_NO_DMA_LOG	= (1 << 23),	/* Do not use DMA for log read */
+	ATA_QUIRK_NOTRIM	= (1 << 24),	/* Do not use TRIM */
+	ATA_QUIRK_MAX_SEC_1024	= (1 << 25),	/* Limit max sects to 1024 */
+	ATA_QUIRK_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
+	ATA_QUIRK_NO_NCQ_ON_ATI = (1 << 27),	/* Disable NCQ on ATI chipset */
+	ATA_QUIRK_NO_ID_DEV_LOG = (1 << 28),	/* Identify device log missing */
+	ATA_QUIRK_NO_LOG_DIR	= (1 << 29),	/* Do not read log directory */
+	ATA_QUIRK_NO_FUA	= (1 << 30),	/* Do not use FUA */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -663,7 +664,7 @@ struct ata_cpr_log {
 struct ata_device {
 	struct ata_link		*link;
 	unsigned int		devno;		/* 0 or 1 */
-	unsigned int		horkage;	/* List of broken features */
+	unsigned int		quirks;		/* List of broken features */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
 	void			*private_data;
