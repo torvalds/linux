@@ -1132,7 +1132,8 @@ static void dcn20_adjust_freesync_v_startup(
 					patched_crtc_timing.v_addressable -
 					patched_crtc_timing.v_border_top;
 
-	newVstartup = asic_blank_end + (patched_crtc_timing.v_total - asic_blank_start);
+	/* The newVStartUp is 1 line before vsync point */
+	newVstartup = asic_blank_end + 1;
 
 	*vstartup_start = ((newVstartup > *vstartup_start) ? newVstartup : *vstartup_start);
 }
