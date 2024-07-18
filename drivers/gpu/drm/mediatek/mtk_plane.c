@@ -321,7 +321,7 @@ static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {
 int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs, enum drm_plane_type type,
 		   unsigned int supported_rotations, const u32 *formats,
-		   size_t num_formats)
+		   size_t num_formats, unsigned int plane_idx)
 {
 	int err;
 
@@ -335,6 +335,22 @@ int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
 				       num_formats, modifiers, type, NULL);
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
+		return err;
+	}
+
+	/*
+	 * The hardware does not support repositioning planes by muxing: their
+	 * Z-position is infact fixed and the only way to change the actual
+	 * order is to swap the contents of the entire register set of one
+	 * overlay with another, which may be more expensive than desired.
+	 *
+	 * With no repositioning, the caller of this function guarantees that
+	 * the plane_idx is correct. This means that, for example, the PRIMARY
+	 * plane fed to this function will always have plane_idx zero.
+	 */
+	err = drm_plane_create_zpos_immutable_property(plane, plane_idx);
+	if (err) {
+		DRM_ERROR("Failed to create zpos property for plane %u\n", plane_idx);
 		return err;
 	}
 

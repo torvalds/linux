@@ -887,7 +887,7 @@ static int mtk_crtc_init_comp_planes(struct drm_device *drm_dev,
 				mtk_crtc_plane_type(mtk_crtc->layer_nr, num_planes),
 				mtk_ddp_comp_supported_rotations(comp),
 				mtk_ddp_comp_get_formats(comp),
-				mtk_ddp_comp_get_num_formats(comp));
+				mtk_ddp_comp_get_num_formats(comp), i);
 		if (ret)
 			return ret;
 
