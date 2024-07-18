@@ -976,15 +976,17 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 		goto out;
 
 	/* Check for compressed frame. */
-	err = attr_is_frame_compressed(ni, attr, vcn >> NTFS_LZNT_CUNIT, &hint);
+	err = attr_is_frame_compressed(ni, attr_b, vcn >> NTFS_LZNT_CUNIT,
+				       &hint);
 	if (err)
 		goto out;
 
 	if (hint) {
 		/* if frame is compressed - don't touch it. */
 		*lcn = COMPRESSED_LCN;
-		*len = hint;
-		err = -EOPNOTSUPP;
+		/* length to the end of frame. */
+		*len = NTFS_LZNT_CLUSTERS - (vcn & (NTFS_LZNT_CLUSTERS - 1));
+		err = 0;
 		goto out;
 	}
 
@@ -1027,16 +1029,16 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 
 		/* Check if 'vcn' and 'vcn0' in different attribute segments. */
 		if (vcn < svcn || evcn1 <= vcn) {
-			/* Load attribute for truncated vcn. */
-			attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0,
-					    &vcn, &mi);
-			if (!attr) {
+			struct ATTRIB *attr2;
+			/* Load runs for truncated vcn. */
+			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA, NULL,
+					     0, &vcn, &mi);
+			if (!attr2) {
 				err = -EINVAL;
 				goto out;
 			}
-			svcn = le64_to_cpu(attr->nres.svcn);
-			evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
-			err = attr_load_runs(attr, ni, run, NULL);
+			evcn1 = le64_to_cpu(attr2->nres.evcn) + 1;
+			err = attr_load_runs(attr2, ni, run, NULL);
 			if (err)
 				goto out;
 		}
@@ -1517,6 +1519,9 @@ out:
 
 /*
  * attr_is_frame_compressed - Used to detect compressed frame.
+ *
+ * attr - base (primary) attribute segment.
+ * Only base segments contains valid 'attr->nres.c_unit'
  */
 int attr_is_frame_compressed(struct ntfs_inode *ni, struct ATTRIB *attr,
 			     CLST frame, CLST *clst_data)

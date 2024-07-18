@@ -609,7 +609,8 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 
 	bytes = ((u64)len << cluster_bits) - off;
 
-	if (lcn == SPARSE_LCN) {
+	if (lcn >= sbi->used.bitmap.nbits) {
+		/* This case includes resident/compressed/sparse. */
 		if (!create) {
 			if (bh->b_size > bytes)
 				bh->b_size = bytes;
