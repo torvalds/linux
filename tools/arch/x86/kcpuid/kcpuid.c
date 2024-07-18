@@ -203,7 +203,7 @@ static void raw_dump_range(struct cpuid_range *range)
 	}
 }
 
-#define MAX_SUBLEAF_NUM		32
+#define MAX_SUBLEAF_NUM		64
 struct cpuid_range *setup_cpuid_range(u32 input_eax)
 {
 	u32 max_func, idx_func;
