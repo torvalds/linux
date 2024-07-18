@@ -714,6 +714,31 @@ void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic
 	mgag200_disable_display(mdev);
 }
 
+bool mgag200_crtc_helper_get_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+					      int *vpos, int *hpos,
+					      ktime_t *stime, ktime_t *etime,
+					      const struct drm_display_mode *mode)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 vcount;
+
+	if (stime)
+		*stime = ktime_get();
+
+	if (vpos) {
+		vcount = RREG32(MGAREG_VCOUNT);
+		*vpos = vcount & GENMASK(11, 0);
+	}
+
+	if (hpos)
+		*hpos = mode->htotal >> 1; // near middle of scanline on average
+
+	if (etime)
+		*etime = ktime_get();
+
+	return true;
+}
+
 void mgag200_crtc_reset(struct drm_crtc *crtc)
 {
 	struct mgag200_crtc_state *mgag200_crtc_state;
