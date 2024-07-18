@@ -509,6 +509,8 @@ config CLK_KUNIT_TEST
 	tristate "Basic Clock Framework Kunit Tests" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
+	select OF_OVERLAY if OF
+	select DTC
 	help
 	  Kunit tests for the common clock framework.
 
