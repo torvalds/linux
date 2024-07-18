@@ -154,7 +154,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	const char *op_str, *misc_op_str;
 	unsigned long flags;
 	u64 status_gpu_addr;
-	u32 status_offset;
+	u32 seq, status_offset;
 	u64 *status_ptr;
 	signed long r;
 	int ret;
@@ -182,6 +182,13 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	if (r)
 		goto error_unlock_free;
 
+	seq = ++ring->fence_drv.sync_seq;
+	r = amdgpu_fence_wait_polling(ring,
+				      seq - ring->fence_drv.num_fences_mask,
+				      timeout);
+	if (r < 1)
+		goto error_undo;
+
 	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
 	api_status->api_completion_fence_addr = status_gpu_addr;
 	api_status->api_completion_fence_value = 1;
@@ -194,8 +201,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	mes_status_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 	mes_status_pkt.api_status.api_completion_fence_addr =
 		ring->fence_drv.gpu_addr;
-	mes_status_pkt.api_status.api_completion_fence_value =
-		++ring->fence_drv.sync_seq;
+	mes_status_pkt.api_status.api_completion_fence_value = seq;
 
 	amdgpu_ring_write_multiple(ring, &mes_status_pkt,
 				   sizeof(mes_status_pkt) / 4);
@@ -215,7 +221,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 		dev_dbg(adev->dev, "MES msg=%d was emitted\n",
 			x_pkt->header.opcode);
 
-	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq, timeout);
+	r = amdgpu_fence_wait_polling(ring, seq, timeout);
 	if (r < 1 || !*status_ptr) {
 
 		if (misc_op_str)
@@ -237,6 +243,10 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 
 	amdgpu_device_wb_free(adev, status_offset);
 	return 0;
+
+error_undo:
+	dev_err(adev->dev, "MES ring buffer is full.\n");
+	amdgpu_ring_undo(ring);
 
 error_unlock_free:
 	spin_unlock_irqrestore(&mes->ring_lock, flags);
