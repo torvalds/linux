@@ -20,8 +20,6 @@
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #endif
 
-#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
-
 #ifndef __ASSEMBLY__
 extern void __fentry__(void);
 
