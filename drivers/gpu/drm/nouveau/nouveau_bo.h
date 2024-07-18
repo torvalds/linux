@@ -115,35 +115,6 @@ nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
 	return ioptr;
 }
 
-static inline void
-nouveau_bo_unmap_unpin_unref(struct nouveau_bo **pnvbo)
-{
-	if (*pnvbo) {
-		nouveau_bo_unmap(*pnvbo);
-		nouveau_bo_unpin(*pnvbo);
-		nouveau_bo_ref(NULL, pnvbo);
-	}
-}
-
-static inline int
-nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 domain,
-		       struct nouveau_bo **pnvbo)
-{
-	int ret = nouveau_bo_new(cli, size, align, domain,
-				 0, 0, NULL, NULL, pnvbo);
-	if (ret == 0) {
-		ret = nouveau_bo_pin(*pnvbo, domain, true);
-		if (ret == 0) {
-			ret = nouveau_bo_map(*pnvbo);
-			if (ret == 0)
-				return ret;
-			nouveau_bo_unpin(*pnvbo);
-		}
-		nouveau_bo_ref(NULL, pnvbo);
-	}
-	return ret;
-}
-
 int nv04_bo_move_init(struct nouveau_channel *, u32);
 int nv04_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
 		      struct ttm_resource *, struct ttm_resource *);
