@@ -705,10 +705,7 @@ static void __tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 {
 	struct tdp_iter iter;
 
-	gfn_t end = tdp_mmu_max_gfn_exclusive();
-	gfn_t start = 0;
-
-	for_each_tdp_pte_min_level(iter, kvm, root, zap_level, start, end) {
+	for_each_tdp_pte_min_level_all(iter, root, zap_level) {
 retry:
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, shared))
 			continue;

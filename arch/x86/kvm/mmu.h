@@ -292,4 +292,9 @@ static inline bool kvm_has_mirrored_tdp(const struct kvm *kvm)
 {
 	return kvm->arch.vm_type == KVM_X86_TDX_VM;
 }
+
+static inline gfn_t kvm_gfn_direct_bits(const struct kvm *kvm)
+{
+	return kvm->arch.gfn_direct_bits;
+}
 #endif
