@@ -1512,6 +1512,8 @@ symbol__disassemble_bpf_image(struct symbol *sym,
 #ifdef HAVE_LIBCAPSTONE_SUPPORT
 #include <capstone/capstone.h>
 
+int capstone_init(struct machine *machine, csh *cs_handle, bool is64, bool disassembler_style);
+
 static int open_capstone_handle(struct annotate_args *args, bool is_64bit,
 				csh *handle)
 {
