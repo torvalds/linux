@@ -157,31 +157,11 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 		uint32_t backlight_millinits,
 		uint32_t transition_time_in_ms)
 {
-	struct dpcd_source_backlight_set dpcd_backlight_set;
-	uint8_t backlight_control = isHDR ? 1 : 0;
-
 	if (!link || (link->connector_signal != SIGNAL_TYPE_EDP &&
 			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
-	// OLEDs have no PWM, they can only use AUX
-	if (link->dpcd_sink_ext_caps.bits.oled == 1)
-		backlight_control = 1;
-
-	*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
-	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
-
-
-	if (!link->dpcd_caps.panel_luminance_control) {
-		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
-			(uint8_t *)(&dpcd_backlight_set),
-			sizeof(dpcd_backlight_set)) != DC_OK)
-			return false;
-
-		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_CONTROL,
-			&backlight_control, 1) != DC_OK)
-			return false;
-	} else {
+	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX) {
 		uint8_t backlight_enable = 0;
 		struct target_luminance_value *target_luminance = NULL;
 
@@ -204,6 +184,24 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 		if (core_link_write_dpcd(link, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
 			(uint8_t *)(target_luminance),
 			sizeof(struct target_luminance_value)) != DC_OK)
+			return false;
+	} else {
+		struct dpcd_source_backlight_set dpcd_backlight_set;
+		*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
+		*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
+
+		uint8_t backlight_control = isHDR ? 1 : 0;
+		// OLEDs have no PWM, they can only use AUX
+		if (link->dpcd_sink_ext_caps.bits.oled == 1)
+			backlight_control = 1;
+
+		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+			(uint8_t *)(&dpcd_backlight_set),
+			sizeof(dpcd_backlight_set)) != DC_OK)
+			return false;
+
+		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_CONTROL,
+			&backlight_control, 1) != DC_OK)
 			return false;
 	}
 
