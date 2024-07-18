@@ -10,6 +10,7 @@ API Reference
 	resource
 	functionredirection
 	of
+	platformdevice
 
 
 This page documents the KUnit kernel testing API. It is divided into the
@@ -36,3 +37,7 @@ Driver KUnit API
 Documentation/dev-tools/kunit/api/of.rst
 
  - Documents the KUnit device tree (OF) API
+
+Documentation/dev-tools/kunit/api/platformdevice.rst
+
+ - Documents the KUnit platform device API
