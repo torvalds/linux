@@ -31,6 +31,7 @@ test_tcp_check_syncookie_user
 test_sysctl
 xdping
 test_cpp
+*.d
 *.subskel.h
 *.skel.h
 *.lskel.h
