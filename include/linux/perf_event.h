@@ -168,6 +168,9 @@ struct hw_perf_event {
 			struct hw_perf_event_extra extra_reg;
 			struct hw_perf_event_extra branch_reg;
 		};
+		struct { /* aux / Intel-PT */
+			u64		aux_config;
+		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
