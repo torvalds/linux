@@ -22,6 +22,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "mgag200_ddc.h"
 #include "mgag200_drv.h"
@@ -226,7 +227,14 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	vblkstr = mode->crtc_vblank_start;
 	vblkend = vtotal + 1;
 
-	linecomp = vdispend;
+	/*
+	 * There's no VBLANK interrupt on Matrox chipsets, so we use
+	 * the VLINE interrupt instead. It triggers when the current
+	 * <linecomp> has been reached. For VBLANK, this is the first
+	 * non-visible line at the bottom of the screen. Therefore,
+	 * keep <linecomp> in sync with <vblkstr>.
+	 */
+	linecomp = vblkstr;
 
 	misc = RREG8(MGA_MISC_IN);
 
@@ -640,6 +648,8 @@ void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_s
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_pending_vblank_event *event;
+	unsigned long flags;
 
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
 		const struct drm_format_info *format = mgag200_crtc_state->format;
@@ -648,6 +658,18 @@ void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_s
 			mgag200_crtc_set_gamma(mdev, format, crtc_state->gamma_lut->data);
 		else
 			mgag200_crtc_set_gamma_linear(mdev, format);
+	}
+
+	event = crtc->state->event;
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		if (drm_crtc_vblank_get(crtc) != 0)
+			drm_crtc_send_vblank_event(crtc, event);
+		else
+			drm_crtc_arm_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 
@@ -676,11 +698,15 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	if (mdev->info->sync_bmc)
 		mgag200_bmc_start_scanout(mdev);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
+
+	drm_crtc_vblank_off(crtc);
 
 	if (mdev->info->sync_bmc)
 		mgag200_bmc_stop_scanout(mdev);
@@ -730,6 +756,30 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 
 	__drm_atomic_helper_crtc_destroy_state(&mgag200_crtc_state->base);
 	kfree(mgag200_crtc_state);
+}
+
+int mgag200_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 ien;
+
+	WREG32(MGAREG_ICLEAR, MGAREG_ICLEAR_VLINEICLR);
+
+	ien = RREG32(MGAREG_IEN);
+	ien |= MGAREG_IEN_VLINEIEN;
+	WREG32(MGAREG_IEN, ien);
+
+	return 0;
+}
+
+void mgag200_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 ien;
+
+	ien = RREG32(MGAREG_IEN);
+	ien &= ~(MGAREG_IEN_VLINEIEN);
+	WREG32(MGAREG_IEN, ien);
 }
 
 /*
