@@ -526,7 +526,7 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 err_unresv:
 	if (hwpt_is_paging(hwpt))
 		iommufd_group_remove_reserved_iova(igroup,
-						   to_hwpt_paging(old_hwpt));
+						   to_hwpt_paging(hwpt));
 err_unlock:
 	mutex_unlock(&idev->igroup->lock);
 	return ERR_PTR(rc);
