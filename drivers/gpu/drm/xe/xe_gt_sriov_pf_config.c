@@ -25,6 +25,7 @@
 #include "xe_guc_fwif.h"
 #include "xe_guc_id_mgr.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_guc_klv_thresholds_set.h"
 #include "xe_guc_submit.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
@@ -187,19 +188,34 @@ static int pf_push_vf_cfg_dbs(struct xe_gt *gt, unsigned int vfid, u32 begin, u3
 	return pf_push_vf_cfg_klvs(gt, vfid, 2, klvs, ARRAY_SIZE(klvs));
 }
 
-static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 exec_quantum)
+static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 *exec_quantum)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, exec_quantum);
+	/* GuC will silently clamp values exceeding max */
+	*exec_quantum = min_t(u32, *exec_quantum, GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, *exec_quantum);
 }
 
-static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 preempt_timeout)
+static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 *preempt_timeout)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, preempt_timeout);
+	/* GuC will silently clamp values exceeding max */
+	*preempt_timeout = min_t(u32, *preempt_timeout, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, *preempt_timeout);
 }
 
 static int pf_push_vf_cfg_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	return pf_push_vf_cfg_u64(gt, vfid, GUC_KLV_VF_CFG_LMEM_SIZE_KEY, size);
+}
+
+static int pf_push_vf_cfg_threshold(struct xe_gt *gt, unsigned int vfid,
+				    enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+
+	xe_gt_assert(gt, key);
+	return pf_push_vf_cfg_u32(gt, vfid, key, value);
 }
 
 static struct xe_gt_sriov_config *pf_pick_vf_config(struct xe_gt *gt, unsigned int vfid)
@@ -1612,7 +1628,7 @@ static int pf_provision_exec_quantum(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_exec_quantum(gt, vfid, exec_quantum);
+	err = pf_push_vf_cfg_exec_quantum(gt, vfid, &exec_quantum);
 	if (unlikely(err))
 		return err;
 
@@ -1682,7 +1698,7 @@ static int pf_provision_preempt_timeout(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, preempt_timeout);
+	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, &preempt_timeout);
 	if (unlikely(err))
 		return err;
 
@@ -1748,6 +1764,83 @@ static void pf_reset_config_sched(struct xe_gt *gt, struct xe_gt_sriov_config *c
 
 	config->exec_quantum = 0;
 	config->preempt_timeout = 0;
+}
+
+static int pf_provision_threshold(struct xe_gt *gt, unsigned int vfid,
+				  enum xe_guc_klv_threshold_index index, u32 value)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+
+	err = pf_push_vf_cfg_threshold(gt, vfid, index, value);
+	if (unlikely(err))
+		return err;
+
+	config->thresholds[index] = value;
+
+	return 0;
+}
+
+static int pf_get_threshold(struct xe_gt *gt, unsigned int vfid,
+			    enum xe_guc_klv_threshold_index index)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+
+	return config->thresholds[index];
+}
+
+static const char *threshold_unit(u32 threshold)
+{
+	return threshold ? "" : "(disabled)";
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_threshold - Configure threshold for the VF.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ * @value: requested value (0 means disabled)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+	const char *name = xe_guc_klv_key_to_string(key);
+	int err;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_provision_threshold(gt, vfid, index, value);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_config_set_u32_done(gt, vfid, value,
+				      xe_gt_sriov_pf_config_get_threshold(gt, vfid, index),
+				      name, threshold_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_threshold - Get VF's threshold.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ *
+ * This function can only be called on PF.
+ *
+ * Return: value of VF's (or PF's) threshold.
+ */
+u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index)
+{
+	u32 value;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	value = pf_get_threshold(gt, vfid, index);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return value;
 }
 
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
@@ -1827,6 +1920,84 @@ int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh
 	}
 
 	return err;
+}
+
+static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	bool valid_ggtt, valid_ctxs, valid_dbs;
+	bool valid_any, valid_all;
+
+	valid_ggtt = pf_get_vf_config_ggtt(primary_gt, vfid);
+	valid_ctxs = pf_get_vf_config_ctxs(gt, vfid);
+	valid_dbs = pf_get_vf_config_dbs(gt, vfid);
+
+	/* note that GuC doorbells are optional */
+	valid_any = valid_ggtt || valid_ctxs || valid_dbs;
+	valid_all = valid_ggtt && valid_ctxs;
+
+	if (IS_DGFX(xe)) {
+		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+
+		valid_any = valid_any || valid_lmem;
+		valid_all = valid_all && valid_lmem;
+	}
+
+	return valid_all ? 1 : valid_any ? -ENOKEY : -ENODATA;
+}
+
+/**
+ * xe_gt_sriov_pf_config_is_empty - Check VF's configuration.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if VF mandatory configuration (GGTT, LMEM, ...) is empty.
+ */
+bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
+{
+	bool empty;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	empty = pf_validate_vf_config(gt, vfid) == -ENODATA;
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return empty;
+}
+
+/**
+ * xe_gt_sriov_pf_config_restart - Restart SR-IOV configurations after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * Any prior configurations pushed to GuC are lost when the GT is reset.
+ * Push again all non-empty VF configurations to the GuC.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	unsigned int fail = 0, skip = 0;
+
+	for (n = 1; n <= total_vfs; n++) {
+		if (xe_gt_sriov_pf_config_is_empty(gt, n))
+			skip++;
+		else if (xe_gt_sriov_pf_config_push(gt, n, false))
+			fail++;
+	}
+
+	if (fail)
+		xe_gt_sriov_notice(gt, "Failed to push %u of %u VF%s configurations\n",
+				   fail, total_vfs - skip, str_plural(total_vfs));
+
+	if (fail != total_vfs)
+		xe_gt_sriov_dbg(gt, "pushed %u skip %u of %u VF%s configurations\n",
+				total_vfs - skip - fail, skip, total_vfs, str_plural(total_vfs));
 }
 
 /**

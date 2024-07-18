@@ -56,6 +56,7 @@ extern const struct kfd2kgd_calls gc_9_4_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v11_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v12_kfd2kgd;
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
@@ -83,6 +84,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(4, 2, 2):/* ARCTURUS */
 	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
 	case IP_VERSION(4, 4, 2):
+	case IP_VERSION(4, 4, 5):
 	case IP_VERSION(5, 0, 0):/* NAVI10 */
 	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
 	case IP_VERSION(5, 0, 2):/* NAVI14 */
@@ -97,6 +99,9 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 0, 3):
 	case IP_VERSION(6, 1, 0):
 	case IP_VERSION(6, 1, 1):
+	case IP_VERSION(6, 1, 2):
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
 		break;
 	default:
@@ -115,6 +120,9 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 0, 3):
 	case IP_VERSION(6, 1, 0):
 	case IP_VERSION(6, 1, 1):
+	case IP_VERSION(6, 1, 2):
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
 		/* Reserve 1 for paging and 1 for gfx */
 		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
 		/* BIT(0)=engine-0 queue-0; BIT(1)=engine-1 queue-0; BIT(2)=engine-0 queue-1; ... */
@@ -143,6 +151,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
 		break;
 	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
+	case IP_VERSION(9, 4, 4): /* GC 9.4.4 */
 		kfd->device_info.event_interrupt_class =
 						&event_interrupt_class_v9_4_3;
 		break;
@@ -168,6 +177,12 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(11, 5, 1):
+	case IP_VERSION(11, 5, 2):
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
+		break;
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		/* GFX12_TODO: Change to v12 version. */
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
 	default:
@@ -220,6 +235,8 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			 */
 			kfd->device_info.needs_pci_atomics = true;
 			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+		} else {
+			kfd->device_info.needs_pci_atomics = true;
 		}
 	} else {
 		kfd->device_info.doorbell_size = 4;
@@ -332,6 +349,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 					   : 90401;
 			f2g = &gc_9_4_3_kfd2kgd;
 			break;
+		case IP_VERSION(9, 4, 4):
+			gfx_target_version = 90402;
+			f2g = &gc_9_4_3_kfd2kgd;
+			break;
 		/* Navi10 */
 		case IP_VERSION(10, 1, 10):
 			gfx_target_version = 100100;
@@ -420,6 +441,18 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			gfx_target_version = 110501;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
+		case IP_VERSION(11, 5, 2):
+			gfx_target_version = 110502;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(12, 0, 0):
+			gfx_target_version = 120000;
+			f2g = &gfx_v12_kfd2kgd;
+			break;
+		case IP_VERSION(12, 0, 1):
+			gfx_target_version = 120001;
+			f2g = &gfx_v12_kfd2kgd;
+			break;
 		default:
 			break;
 		}
@@ -473,7 +506,8 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
-		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+			   KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_4_3_hex)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
@@ -493,12 +527,16 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
-		} else {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(12, 0, 0)) {
 			/* The gfx11 cwsr trap handler must fit inside a single
 			   page. */
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx12_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_hex);
 		}
 
 		kfd->cwsr_enabled = true;
@@ -523,7 +561,8 @@ static int kfd_gws_init(struct kfd_node *node)
 			&& kfd->mec2_fw_version >= 0x30)   ||
 		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 2)
 			&& kfd->mec2_fw_version >= 0x28) ||
-		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3)) ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3) ||
+		 KFD_GC_VERSION(node) == IP_VERSION(9, 4, 4)) ||
 		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
 			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
 			&& kfd->mec2_fw_version >= 0x6b) ||
@@ -766,7 +805,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * xGMI connected in the topology so assign a unique hive id per
 	 * device based on the pci device location if device is in PCIe mode.
 	 */
-	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_nodes > 1)
+	if (!kfd->hive_id &&
+	    (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+	     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
+	    kfd->num_nodes > 1)
 		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
 	kfd->noretry = kfd->adev->gmc.noretry;
@@ -804,7 +846,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
 		}
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
+		if ((KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+		     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
 		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 		    kfd->num_nodes != 1) {
 			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
@@ -832,7 +875,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
 					&node->local_mem_info, node->xcp);
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3))
+		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4))
 			kfd_setup_interrupt_bitmap(node, i);
 
 		/* Initialize the KFD node */
@@ -887,7 +931,8 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	kfree(kfd);
 }
 
-int kgd2kfd_pre_reset(struct kfd_dev *kfd)
+int kgd2kfd_pre_reset(struct kfd_dev *kfd,
+		      struct amdgpu_reset_context *reset_context)
 {
 	struct kfd_node *node;
 	int i;
@@ -897,8 +942,7 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 
 	for (i = 0; i < kfd->num_nodes; i++) {
 		node = kfd->nodes[i];
-		kfd_smi_event_update_gpu_reset(node, false);
-		node->dqm->ops.pre_reset(node->dqm);
+		kfd_smi_event_update_gpu_reset(node, false, reset_context);
 	}
 
 	kgd2kfd_suspend(kfd, false);
@@ -937,7 +981,7 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	for (i = 0; i < kfd->num_nodes; i++) {
 		node = kfd->nodes[i];
 		atomic_set(&node->sram_ecc_flag, 0);
-		kfd_smi_event_update_gpu_reset(node, true);
+		kfd_smi_event_update_gpu_reset(node, true, NULL);
 	}
 
 	return 0;

@@ -18,7 +18,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -622,7 +622,7 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	drm_kms_helper_poll_init(drm);
 
-	drm_fbdev_generic_setup(drm, 0);
+	drm_fbdev_shmem_setup(drm, 0);
 
 	return 0;
 }
@@ -678,4 +678,5 @@ static struct usb_driver gud_usb_driver = {
 module_usb_driver(gud_usb_driver);
 
 MODULE_AUTHOR("Noralf Trønnes");
+MODULE_DESCRIPTION("GUD USB Display driver");
 MODULE_LICENSE("Dual MIT/GPL");

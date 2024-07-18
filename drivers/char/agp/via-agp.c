@@ -575,5 +575,6 @@ static void __exit agp_via_cleanup(void)
 module_init(agp_via_init);
 module_exit(agp_via_cleanup);
 
+MODULE_DESCRIPTION("VIA AGPGART routines");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dave Jones");

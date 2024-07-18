@@ -163,8 +163,8 @@ typedef struct _ATOM_Tonga_State {
 
 typedef struct _ATOM_Tonga_State_Array {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries;		/* Number of entries. */
-	ATOM_Tonga_State entries[];	/* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_State entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_State_Array;
 
 typedef struct _ATOM_Tonga_MCLK_Dependency_Record {
@@ -178,8 +178,8 @@ typedef struct _ATOM_Tonga_MCLK_Dependency_Record {
 
 typedef struct _ATOM_Tonga_MCLK_Dependency_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries; 										/* Number of entries. */
-	ATOM_Tonga_MCLK_Dependency_Record entries[];				/* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_MCLK_Dependency_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_MCLK_Dependency_Table;
 
 typedef struct _ATOM_Tonga_SCLK_Dependency_Record {
@@ -193,8 +193,8 @@ typedef struct _ATOM_Tonga_SCLK_Dependency_Record {
 
 typedef struct _ATOM_Tonga_SCLK_Dependency_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries; 										/* Number of entries. */
-	ATOM_Tonga_SCLK_Dependency_Record entries[];				 /* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_SCLK_Dependency_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_SCLK_Dependency_Table;
 
 typedef struct _ATOM_Polaris_SCLK_Dependency_Record {
@@ -209,8 +209,8 @@ typedef struct _ATOM_Polaris_SCLK_Dependency_Record {
 
 typedef struct _ATOM_Polaris_SCLK_Dependency_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries;							/* Number of entries. */
-	ATOM_Polaris_SCLK_Dependency_Record entries[];				 /* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Polaris_SCLK_Dependency_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Polaris_SCLK_Dependency_Table;
 
 typedef struct _ATOM_Tonga_PCIE_Record {
@@ -221,8 +221,8 @@ typedef struct _ATOM_Tonga_PCIE_Record {
 
 typedef struct _ATOM_Tonga_PCIE_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries; 										/* Number of entries. */
-	ATOM_Tonga_PCIE_Record entries[];							/* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_PCIE_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_PCIE_Table;
 
 typedef struct _ATOM_Polaris10_PCIE_Record {
@@ -234,8 +234,8 @@ typedef struct _ATOM_Polaris10_PCIE_Record {
 
 typedef struct _ATOM_Polaris10_PCIE_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries;                                         /* Number of entries. */
-	ATOM_Polaris10_PCIE_Record entries[];                      /* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Polaris10_PCIE_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Polaris10_PCIE_Table;
 
 
@@ -251,8 +251,8 @@ typedef struct _ATOM_Tonga_MM_Dependency_Record {
 
 typedef struct _ATOM_Tonga_MM_Dependency_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries; 										/* Number of entries. */
-	ATOM_Tonga_MM_Dependency_Record entries[]; 			   /* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_MM_Dependency_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_MM_Dependency_Table;
 
 typedef struct _ATOM_Tonga_Voltage_Lookup_Record {
@@ -264,8 +264,8 @@ typedef struct _ATOM_Tonga_Voltage_Lookup_Record {
 
 typedef struct _ATOM_Tonga_Voltage_Lookup_Table {
 	UCHAR ucRevId;
-	UCHAR ucNumEntries; 										/* Number of entries. */
-	ATOM_Tonga_Voltage_Lookup_Record entries[];				/* Dynamically allocate entries. */
+	UCHAR ucNumEntries;
+	ATOM_Tonga_Voltage_Lookup_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_Voltage_Lookup_Table;
 
 typedef struct _ATOM_Tonga_Fan_Table {
@@ -367,7 +367,7 @@ typedef struct _ATOM_Tonga_VCE_State_Record {
 typedef struct _ATOM_Tonga_VCE_State_Table {
 	UCHAR ucRevId;
 	UCHAR ucNumEntries;
-	ATOM_Tonga_VCE_State_Record entries[];
+	ATOM_Tonga_VCE_State_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_VCE_State_Table;
 
 typedef struct _ATOM_Tonga_PowerTune_Table {
@@ -481,7 +481,7 @@ typedef struct _ATOM_Tonga_Hard_Limit_Record {
 typedef struct _ATOM_Tonga_Hard_Limit_Table {
 	UCHAR ucRevId;
 	UCHAR ucNumEntries;
-	ATOM_Tonga_Hard_Limit_Record entries[];
+	ATOM_Tonga_Hard_Limit_Record entries[] __counted_by(ucNumEntries);
 } ATOM_Tonga_Hard_Limit_Table;
 
 typedef struct _ATOM_Tonga_GPIO_Table {

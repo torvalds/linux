@@ -12,14 +12,12 @@ config DRM_MGAG200
 	 of the modesetting userspace driver, and a version of mga driver
 	 that will fail on KMS enabled devices.
 
-config DRM_MGAG200_IOBURST_WORKAROUND
-	bool "Disable buffer caching"
-	depends on DRM_MGAG200 && PREEMPT_RT && X86
+config DRM_MGAG200_DISABLE_WRITECOMBINE
+	bool "Disable Write Combine mapping of VRAM"
+	depends on DRM_MGAG200 && PREEMPT_RT
 	help
-	  Enable a workaround to avoid I/O bursts within the mgag200 driver at
-	  the expense of overall display performance.
-	  It restores the <v5.10 behavior, by mapping the framebuffer in system
-	  RAM as Write-Combining, and flushing the cache after each write.
-	  This is only useful on x86_64 if you want to run processes with
-	  deterministic latency.
-	  If unsure, say N.
+	  The VRAM of the G200 is mapped with Write-Combine to improve
+	  performances. This can interfere with real-time tasks; even if they
+	  are running on other CPU cores than the graphics output.
+	  Enable this option only if you run realtime tasks on a server with a
+	  Matrox G200.

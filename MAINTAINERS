@@ -1081,7 +1081,7 @@ F:	Documentation/ABI/testing/sysfs-amd-pmf
 F:	drivers/platform/x86/amd/pmf/
 
 AMD POWERPLAY AND SWSMU
-M:	Evan Quan <evan.quan@amd.com>
+M:	Kenneth Feng <kenneth.feng@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
@@ -7001,6 +7001,11 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/display/panel/ilitek,ili9805.yaml
 F:	drivers/gpu/drm/panel/panel-ilitek-ili9805.c
 
+DRM DRIVER FOR ILITEK ILI9806E PANELS
+M:	Michael Walle <mwalle@kernel.org>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-ilitek-ili9806e.c
+
 DRM DRIVER FOR JADARD JD9365DA-H3 MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@edgeble.ai>
 S:	Maintained
@@ -7011,7 +7016,7 @@ DRM DRIVER FOR LG SW43408 PANELS
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 M:	Caleb Connolly <caleb.connolly@linaro.org>
 S:	Maintained
-T:	git git://anongit.freedesktop.org/drm/drm-misc
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/panel/lg,sw43408.yaml
 F:	drivers/gpu/drm/panel/panel-lg-sw43408.c
 
@@ -7298,6 +7303,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/gpu/vkms.rst
+F:	drivers/gpu/drm/ci/xfails/vkms*
 F:	drivers/gpu/drm/vkms/
 
 DRM DRIVER FOR VIRTUALBOX VIRTUAL GPU
@@ -7579,6 +7585,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/st,stm32-ltdc.yaml
+F:	Documentation/devicetree/bindings/display/st,stm32mp25-lvds.yaml
 F:	drivers/gpu/drm/stm
 
 DRM DRIVERS FOR TI KEYSTONE
@@ -7620,8 +7627,9 @@ F:	include/uapi/drm/v3d_drm.h
 
 DRM DRIVERS FOR VC4
 M:	Maxime Ripard <mripard@kernel.org>
+M:	Dave Stevenson <dave.stevenson@raspberrypi.com>
+R:	Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
 S:	Supported
-T:	git git://github.com/anholt/linux
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/brcm,bcm2835-*.yaml
 F:	drivers/gpu/drm/vc4/
@@ -7668,7 +7676,6 @@ F:	include/drm/gpu_scheduler.h
 DRM PANEL DRIVERS
 M:	Neil Armstrong <neil.armstrong@linaro.org>
 R:	Jessica Zhang <quic_jesszhan@quicinc.com>
-R:	Sam Ravnborg <sam@ravnborg.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -9712,11 +9719,11 @@ S:	Maintained
 F:	block/partitions/efi.*
 
 HABANALABS PCI DRIVER
-M:	Oded Gabbay <ogabbay@kernel.org>
+M:	Ofir Bitton <obitton@habana.ai>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 C:	irc://irc.oftc.net/dri-devel
-T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ogabbay/linux.git
+T:	git https://github.com/HabanaAI/drivers.accel.habanalabs.kernel.git
 F:	Documentation/ABI/testing/debugfs-driver-habanalabs
 F:	Documentation/ABI/testing/sysfs-driver-habanalabs
 F:	drivers/accel/habanalabs/
@@ -11140,6 +11147,7 @@ S:	Supported
 F:	drivers/gpu/drm/i915/display/
 F:	drivers/gpu/drm/xe/display/
 F:	drivers/gpu/drm/xe/compat-i915-headers
+F:	include/drm/intel/
 
 INTEL DRM I915 DRIVER (Meteor Lake, DG2 and older excluding Poulsbo, Moorestown and derivative)
 M:	Jani Nikula <jani.nikula@linux.intel.com>
@@ -11152,12 +11160,12 @@ W:	https://drm.pages.freedesktop.org/intel-docs/
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
 B:	https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 C:	irc://irc.oftc.net/intel-gfx
-T:	git git://anongit.freedesktop.org/drm-intel
+T:	git https://gitlab.freedesktop.org/drm/i915/kernel.git
 F:	Documentation/ABI/testing/sysfs-driver-intel-i915-hwmon
 F:	Documentation/gpu/i915.rst
 F:	drivers/gpu/drm/ci/xfails/i915*
 F:	drivers/gpu/drm/i915/
-F:	include/drm/i915*
+F:	include/drm/intel/
 F:	include/uapi/drm/i915_drm.h
 
 INTEL DRM XE DRIVER (Lunar Lake and newer)
@@ -11174,7 +11182,7 @@ T:	git https://gitlab.freedesktop.org/drm/xe/kernel.git
 F:	Documentation/ABI/testing/sysfs-driver-intel-xe-hwmon
 F:	Documentation/gpu/xe/
 F:	drivers/gpu/drm/xe/
-F:	include/drm/xe*
+F:	include/drm/intel/
 F:	include/uapi/drm/xe_drm.h
 
 INTEL ETHERNET DRIVERS
@@ -18861,7 +18869,7 @@ F:	drivers/net/wireless/quantenna
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
-M:	Pan, Xinhui <Xinhui.Pan@amd.com>
+M:	Xinhui Pan <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 B:	https://gitlab.freedesktop.org/drm/amd/-/issues

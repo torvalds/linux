@@ -329,6 +329,10 @@ struct dpp_funcs {
 
 	void (*dpp_get_gamut_remap)(struct dpp *dpp_base,
 				    struct dpp_grph_csc_adjustment *adjust);
+	void (*set_cursor_matrix)(
+		struct dpp *dpp_base,
+		enum dc_color_space color_space,
+		struct dc_csc_transform cursor_csc_color_matrix);
 };
 
 

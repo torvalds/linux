@@ -5,6 +5,7 @@
 
 #include <drm/drm_fourcc.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
@@ -96,9 +97,16 @@ struct ipu_pre {
 
 	dma_addr_t		buffer_paddr;
 	void			*buffer_virt;
-	bool			in_use;
-	unsigned int		safe_window_end;
-	unsigned int		last_bufaddr;
+
+	struct {
+		bool		in_use;
+		uint64_t	modifier;
+		unsigned int	height;
+		unsigned int	safe_window_end;
+		unsigned int	bufaddr;
+		u32		ctrl;
+		u8		cpp;
+	} cur;
 };
 
 static DEFINE_MUTEX(ipu_pre_list_mutex);
@@ -113,8 +121,8 @@ int ipu_pre_get_available_count(void)
 struct ipu_pre *
 ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 {
-	struct device_node *pre_node = of_parse_phandle(dev->of_node,
-							name, index);
+	struct device_node *pre_node __free(device_node) =
+		of_parse_phandle(dev->of_node, name, index);
 	struct ipu_pre *pre;
 
 	mutex_lock(&ipu_pre_list_mutex);
@@ -123,13 +131,10 @@ ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 			mutex_unlock(&ipu_pre_list_mutex);
 			device_link_add(dev, pre->dev,
 					DL_FLAG_AUTOREMOVE_CONSUMER);
-			of_node_put(pre_node);
 			return pre;
 		}
 	}
 	mutex_unlock(&ipu_pre_list_mutex);
-
-	of_node_put(pre_node);
 
 	return NULL;
 }
@@ -138,7 +143,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 {
 	u32 val;
 
-	if (pre->in_use)
+	if (pre->cur.in_use)
 		return -EBUSY;
 
 	/* first get the engine out of reset and remove clock gating */
@@ -151,7 +156,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 	      IPU_PRE_CTRL_SDW_UPDATE;
 	writel(val, pre->regs + IPU_PRE_CTRL);
 
-	pre->in_use = true;
+	pre->cur.in_use = true;
 	return 0;
 }
 
@@ -159,7 +164,41 @@ void ipu_pre_put(struct ipu_pre *pre)
 {
 	writel(IPU_PRE_CTRL_SFTRST, pre->regs + IPU_PRE_CTRL);
 
-	pre->in_use = false;
+	pre->cur.in_use = false;
+}
+
+static inline void
+ipu_pre_update_safe_window(struct ipu_pre *pre)
+{
+	if (pre->cur.modifier == DRM_FORMAT_MOD_LINEAR)
+		pre->cur.safe_window_end = pre->cur.height - 2;
+	else
+		pre->cur.safe_window_end = DIV_ROUND_UP(pre->cur.height, 4) - 1;
+}
+
+static void
+ipu_pre_configure_modifier(struct ipu_pre *pre, uint64_t modifier)
+{
+	u32 val;
+
+	val = readl(pre->regs + IPU_PRE_TPR_CTRL);
+	val &= ~IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK;
+	if (modifier != DRM_FORMAT_MOD_LINEAR) {
+		/* only support single buffer formats for now */
+		val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF;
+		if (modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED;
+		if (pre->cur.cpp == 2)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT;
+	}
+	writel(val, pre->regs + IPU_PRE_TPR_CTRL);
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		pre->cur.ctrl &= ~IPU_PRE_CTRL_BLOCK_EN;
+	else
+		pre->cur.ctrl |= IPU_PRE_CTRL_BLOCK_EN;
+
+	pre->cur.modifier = modifier;
 }
 
 void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
@@ -170,15 +209,16 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 	u32 active_bpp = info->cpp[0] >> 1;
 	u32 val;
 
+	pre->cur.bufaddr = bufaddr;
+	pre->cur.height = height;
+	pre->cur.cpp = info->cpp[0];
+	pre->cur.ctrl = readl(pre->regs + IPU_PRE_CTRL);
+
 	/* calculate safe window for ctrl register updates */
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		pre->safe_window_end = height - 2;
-	else
-		pre->safe_window_end = DIV_ROUND_UP(height, 4) - 1;
+	ipu_pre_update_safe_window(pre);
 
 	writel(bufaddr, pre->regs + IPU_PRE_CUR_BUF);
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
-	pre->last_bufaddr = bufaddr;
 
 	val = IPU_PRE_PREF_ENG_CTRL_INPUT_PIXEL_FORMAT(0) |
 	      IPU_PRE_PREF_ENG_CTRL_INPUT_ACTIVE_BPP(active_bpp) |
@@ -208,42 +248,30 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 
 	writel(pre->buffer_paddr, pre->regs + IPU_PRE_STORE_ENG_ADDR);
 
-	val = readl(pre->regs + IPU_PRE_TPR_CTRL);
-	val &= ~IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK;
-	if (modifier != DRM_FORMAT_MOD_LINEAR) {
-		/* only support single buffer formats for now */
-		val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF;
-		if (modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED)
-			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED;
-		if (info->cpp[0] == 2)
-			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT;
-	}
-	writel(val, pre->regs + IPU_PRE_TPR_CTRL);
+	ipu_pre_configure_modifier(pre, modifier);
 
-	val = readl(pre->regs + IPU_PRE_CTRL);
-	val |= IPU_PRE_CTRL_EN_REPEAT | IPU_PRE_CTRL_ENABLE |
-	       IPU_PRE_CTRL_SDW_UPDATE;
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		val &= ~IPU_PRE_CTRL_BLOCK_EN;
-	else
-		val |= IPU_PRE_CTRL_BLOCK_EN;
-	writel(val, pre->regs + IPU_PRE_CTRL);
+	pre->cur.ctrl |= IPU_PRE_CTRL_EN_REPEAT | IPU_PRE_CTRL_ENABLE;
+	writel(pre->cur.ctrl | IPU_PRE_CTRL_SDW_UPDATE,
+	       pre->regs + IPU_PRE_CTRL);
 }
 
-void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr)
+void ipu_pre_update(struct ipu_pre *pre, uint64_t modifier, unsigned int bufaddr)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(5);
-	unsigned short current_yblock;
-	u32 val;
-
-	if (bufaddr == pre->last_bufaddr)
+	if (bufaddr == pre->cur.bufaddr &&
+	    modifier == pre->cur.modifier)
 		return;
 
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
-	pre->last_bufaddr = bufaddr;
+	pre->cur.bufaddr = bufaddr;
 
-	do {
-		if (time_after(jiffies, timeout)) {
+	if (modifier != pre->cur.modifier)
+		ipu_pre_configure_modifier(pre, modifier);
+
+	for (int i = 0;; i++) {
+		unsigned short current_yblock;
+		u32 val;
+
+		if (i > 500) {
 			dev_warn(pre->dev, "timeout waiting for PRE safe window\n");
 			return;
 		}
@@ -252,9 +280,20 @@ void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr)
 		current_yblock =
 			(val >> IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT) &
 			IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK;
-	} while (current_yblock == 0 || current_yblock >= pre->safe_window_end);
 
-	writel(IPU_PRE_CTRL_SDW_UPDATE, pre->regs + IPU_PRE_CTRL_SET);
+		if (current_yblock != 0 &&
+		    current_yblock < pre->cur.safe_window_end)
+			break;
+
+		udelay(10);
+		cpu_relax();
+	}
+
+	writel(pre->cur.ctrl | IPU_PRE_CTRL_SDW_UPDATE,
+	       pre->regs + IPU_PRE_CTRL);
+
+	/* calculate safe window for the next update with the new modifier */
+	ipu_pre_update_safe_window(pre);
 }
 
 bool ipu_pre_update_pending(struct ipu_pre *pre)

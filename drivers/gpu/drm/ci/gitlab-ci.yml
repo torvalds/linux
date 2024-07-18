@@ -1,11 +1,11 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 9d162de9a05155e1c4041857a5848842749164cf
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha e2b9c5a9e3e4f9b532067af8022eaef8d6fc6c00
 
   UPSTREAM_REPO: git://anongit.freedesktop.org/drm/drm
   TARGET_BRANCH: drm-next
 
-  IGT_VERSION: d2af13d9f5be5ce23d996e4afd3e45990f5ab977
+  IGT_VERSION: 0df7b9b97f9da0e364f5ee30fe331004b8c86b56
 
   DEQP_RUNNER_GIT_URL: https://gitlab.freedesktop.org/anholt/deqp-runner.git
   DEQP_RUNNER_GIT_TAG: v0.15.0
@@ -19,33 +19,47 @@ variables:
           bash download-git-cache.sh
           rm download-git-cache.sh
           set +o xtrace
+  S3_JWT_FILE: /s3_jwt
   S3_HOST: s3.freedesktop.org
+  # This bucket is used to fetch the kernel image
+  S3_KERNEL_BUCKET: mesa-rootfs
+  # Bucket for git cache
+  S3_GITCACHE_BUCKET: git-cache
+  # Bucket for the pipeline artifacts pushed to S3
+  S3_ARTIFACTS_BUCKET: artifacts
   # per-pipeline artifact storage on MinIO
-  PIPELINE_ARTIFACTS_BASE: ${S3_HOST}/artifacts/${CI_PROJECT_PATH}/${CI_PIPELINE_ID}
+  PIPELINE_ARTIFACTS_BASE: ${S3_HOST}/${S3_ARTIFACTS_BUCKET}/${CI_PROJECT_PATH}/${CI_PIPELINE_ID}
   # per-job artifact storage on MinIO
   JOB_ARTIFACTS_BASE: ${PIPELINE_ARTIFACTS_BASE}/${CI_JOB_ID}
   # default kernel for rootfs before injecting the current kernel tree
   KERNEL_REPO: "gfx-ci/linux"
-  KERNEL_TAG: "v6.6.4-for-mesa-ci-e4f4c500f7fb"
-  KERNEL_IMAGE_BASE: https://${S3_HOST}/mesa-lava/${KERNEL_REPO}/${KERNEL_TAG}
+  KERNEL_TAG: "v6.6.21-mesa-f8ea"
+  KERNEL_IMAGE_BASE: https://${S3_HOST}/${S3_KERNEL_BUCKET}/${KERNEL_REPO}/${KERNEL_TAG}
+  PKG_REPO_REV: "3cc12a2a"
   LAVA_TAGS: subset-1-gfx
   LAVA_JOB_PRIORITY: 30
+  ARTIFACTS_BASE_URL: https://${CI_PROJECT_ROOT_NAMESPACE}.${CI_PAGES_DOMAIN}/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts
+  # Python scripts for structured logger
+  PYTHONPATH: "$PYTHONPATH:$CI_PROJECT_DIR/install"
 
 default:
+  id_tokens:
+    S3_JWT:
+      aud: https://s3.freedesktop.org
   before_script:
     - export SCRIPTS_DIR=$(mktemp -d)
     - curl -L -s --retry 4 -f --retry-all-errors --retry-delay 60 -O --output-dir "${SCRIPTS_DIR}" "${DRM_CI_PROJECT_URL}/-/raw/${DRM_CI_COMMIT_SHA}/.gitlab-ci/setup-test-env.sh"
     - source ${SCRIPTS_DIR}/setup-test-env.sh
     - echo -e "\e[0Ksection_start:$(date +%s):unset_env_vars_section[collapsed=true]\r\e[0KUnsetting vulnerable environment variables"
-    - export CI_JOB_JWT_FILE="${CI_JOB_JWT_FILE:-$(mktemp)}"
-    - echo -n "${CI_JOB_JWT}" > "${CI_JOB_JWT_FILE}"
-    - unset CI_JOB_JWT
+    - echo -n "${S3_JWT}" > "${S3_JWT_FILE}"
+    - unset CI_JOB_JWT S3_JWT
     - echo -e "\e[0Ksection_end:$(date +%s):unset_env_vars_section\r\e[0K"
 
     - echo -e "\e[0Ksection_start:$(date +%s):drm_ci_download_section[collapsed=true]\r\e[0KDownloading mesa from $DRM_CI_PROJECT_URL/-/archive/$DRM_CI_COMMIT_SHA/mesa-$DRM_CI_COMMIT_SHA.tar.gz"
     - cd $CI_PROJECT_DIR
     - curl --output - $DRM_CI_PROJECT_URL/-/archive/$DRM_CI_COMMIT_SHA/mesa-$DRM_CI_COMMIT_SHA.tar.gz | tar -xz
     - mv mesa-$DRM_CI_COMMIT_SHA/.gitlab-ci* .
+    - mv mesa-$DRM_CI_COMMIT_SHA/bin/ci .
     - rm -rf mesa-$DRM_CI_COMMIT_SHA/
     - echo -e "\e[0Ksection_end:$(date +%s):drm_ci_download_section\r\e[0K"
 
@@ -53,9 +67,9 @@ default:
     - >
       set +x
 
-      test -e "${CI_JOB_JWT_FILE}" &&
-      export CI_JOB_JWT="$(<${CI_JOB_JWT_FILE})" &&
-      rm "${CI_JOB_JWT_FILE}"
+      test -e "${S3_JWT_FILE}" &&
+      export S3_JWT="$(<${S3_JWT_FILE})" &&
+      rm "${S3_JWT_FILE}"
 
 include:
   - project: 'freedesktop/ci-templates'
@@ -87,6 +101,7 @@ include:
       - '/src/intel/ci/gitlab-ci-inc.yml'
       - '/src/freedreno/ci/gitlab-ci-inc.yml'
       - '/src/amd/ci/gitlab-ci-inc.yml'
+      - '/src/virtio/ci/gitlab-ci-inc.yml'
   - drivers/gpu/drm/ci/image-tags.yml
   - drivers/gpu/drm/ci/container.yml
   - drivers/gpu/drm/ci/static-checks.yml
@@ -98,6 +113,7 @@ include:
 stages:
   - sanity
   - container
+  - code-validation
   - git-archive
   - build
   - amdgpu
@@ -107,7 +123,7 @@ stages:
   - msm
   - rockchip
   - virtio-gpu
-  - lint
+  - software-driver
 
 # YAML anchors for rule conditions
 # --------------------------------
@@ -218,14 +234,15 @@ make git archive:
   script:
     # Remove drm-ci files we just added
     - rm -rf .gitlab-ci.*
+    - rm -rf ci
 
     # Compactify the .git directory
     - git gc --aggressive
     # compress the current folder
     - tar -cvzf ../$CI_PROJECT_NAME.tar.gz .
 
-    # login with the JWT token file
-    - ci-fairy s3cp --token-file "${CI_JOB_JWT_FILE}" ../$CI_PROJECT_NAME.tar.gz https://$S3_HOST/git-cache/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME.tar.gz
+    # Use id_tokens for JWT auth
+    - ci-fairy s3cp --token-file "${S3_JWT_FILE}" ../$CI_PROJECT_NAME.tar.gz https://$S3_HOST/${S3_GITCACHE_BUCKET}/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME.tar.gz
 
 
 # Sanity checks of MR settings and commit logs

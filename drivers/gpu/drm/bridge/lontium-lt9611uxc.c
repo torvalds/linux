@@ -337,11 +337,6 @@ static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc 
 {
 	int ret;
 
-	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
-	}
-
 	lt9611uxc->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_helper_add(&lt9611uxc->connector,
@@ -1021,6 +1016,7 @@ static struct i2c_driver lt9611uxc_driver = {
 module_i2c_driver(lt9611uxc_driver);
 
 MODULE_AUTHOR("Dmitry Baryshkov <dmitry.baryshkov@linaro.org>");
+MODULE_DESCRIPTION("Lontium LT9611UXC DSI/HDMI bridge driver");
 MODULE_LICENSE("GPL v2");
 
 MODULE_FIRMWARE(FW_FILE);

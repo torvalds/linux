@@ -312,4 +312,5 @@ drm_kunit_helper_create_crtc(struct kunit *test,
 EXPORT_SYMBOL_GPL(drm_kunit_helper_create_crtc);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("KUnit test suite helper functions");
 MODULE_LICENSE("GPL");

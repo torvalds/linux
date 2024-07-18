@@ -68,7 +68,7 @@ static bool get_plane_id(struct dml2_context *dml2, const struct dc_state *state
 		if (state->streams[i]->stream_id == stream_id) {
 			for (j = 0; j < state->stream_status[i].plane_count; j++) {
 				if (state->stream_status[i].plane_states[j] == plane &&
-					(!is_plane_duplicate || (is_plane_duplicate && (j == plane_index)))) {
+					(!is_plane_duplicate || (j == plane_index))) {
 					*plane_id = (i << 16) | j;
 					return true;
 				}
@@ -707,8 +707,8 @@ static void free_unused_pipes_for_plane(struct dml2_context *ctx, struct dc_stat
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		if (state->res_ctx.pipe_ctx[i].plane_state == plane &&
 			state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id &&
-			(!is_plane_duplicate || (is_plane_duplicate &&
-			ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[state->res_ctx.pipe_ctx[i].pipe_idx] == plane_index)) &&
+			(!is_plane_duplicate ||
+			ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[state->res_ctx.pipe_ctx[i].pipe_idx] == plane_index) &&
 			!is_pipe_used(pool, state->res_ctx.pipe_ctx[i].pipe_idx)) {
 			free_pipe(&state->res_ctx.pipe_ctx[i]);
 		}
@@ -812,6 +812,34 @@ static unsigned int get_target_mpc_factor(struct dml2_context *ctx,
 				stream->stream_id, plane_idx, &plane_id);
 		cfg_idx = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
 		mpc_factor = (unsigned int)disp_cfg->hw.DPPPerSurface[cfg_idx];
+	} else if (ctx->architecture == dml2_architecture_21) {
+		if (ctx->config.svp_pstate.callbacks.get_stream_subvp_type(state, stream) == SUBVP_PHANTOM) {
+			struct dc_stream_state *main_stream;
+			struct dc_stream_status *main_stream_status;
+
+			/* get stream id of main stream */
+			main_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(state, stream);
+			if (!main_stream) {
+				ASSERT(false);
+				return 1;
+			}
+
+			main_stream_status = ctx->config.callbacks.get_stream_status(state, main_stream);
+			if (!main_stream_status) {
+				ASSERT(false);
+				return 1;
+			}
+
+			/* get plane id for associated main plane */
+			get_plane_id(ctx, state, main_stream_status->plane_states[plane_idx],
+					main_stream->stream_id, plane_idx, &plane_id);
+		} else {
+			get_plane_id(ctx, state, status->plane_states[plane_idx],
+					stream->stream_id, plane_idx, &plane_id);
+		}
+
+		cfg_idx = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
+		mpc_factor = ctx->v21.mode_programming.programming->plane_programming[cfg_idx].num_dpps_required;
 	} else {
 		mpc_factor = 1;
 		ASSERT(false);
@@ -846,7 +874,27 @@ static unsigned int get_target_odm_factor(
 		default:
 			break;
 		}
+	} else if (ctx->architecture == dml2_architecture_21) {
+		if (ctx->config.svp_pstate.callbacks.get_stream_subvp_type(state, stream) == SUBVP_PHANTOM) {
+			struct dc_stream_state *main_stream;
+
+			/* get stream id of main stream */
+			main_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(state, stream);
+			if (!main_stream)
+				goto failed;
+
+			/* get cfg idx for associated main stream */
+			cfg_idx = find_disp_cfg_idx_by_stream_id(
+					mapping, main_stream->stream_id);
+		} else {
+			cfg_idx = find_disp_cfg_idx_by_stream_id(
+					mapping, stream->stream_id);
+		}
+
+		return ctx->v21.mode_programming.programming->stream_programming[cfg_idx].num_odms_required;
 	}
+
+failed:
 	ASSERT(false);
 	return 1;
 }
@@ -856,6 +904,9 @@ static unsigned int get_source_odm_factor(const struct dml2_context *ctx,
 		const struct dc_stream_state *stream)
 {
 	struct pipe_ctx *otg_master = ctx->config.callbacks.get_otg_master_for_stream(&state->res_ctx, stream);
+
+	if (!otg_master)
+		return 0;
 
 	return ctx->config.callbacks.get_odm_slice_count(otg_master);
 }
@@ -994,25 +1045,47 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 
 	unsigned int stream_disp_cfg_index;
 	unsigned int plane_disp_cfg_index;
+	unsigned int disp_cfg_index_max;
 
 	unsigned int plane_id;
 	unsigned int stream_id;
 
 	const unsigned int *ODMMode, *DPPPerSurface;
+	unsigned int odm_mode_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0}, dpp_per_surface_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	struct dc_pipe_mapping_scratch scratch;
 
 	if (ctx->config.map_dc_pipes_with_callbacks)
 		return map_dc_pipes_with_callbacks(
 				ctx, state, disp_cfg, mapping, existing_state);
 
-	ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
-	DPPPerSurface = disp_cfg->hw.DPPPerSurface;
+	if (ctx->architecture == dml2_architecture_21) {
+		/*
+		 * Extract ODM and DPP outputs from DML2.1 and map them in an array as required for pipe mapping in dml2_map_dc_pipes.
+		 * As data cannot be directly extracted in const pointers, assign these arrays to const pointers before proceeding to
+		 * maximize the reuse of existing code. Const pointers are required because dml2.0 dml_display_cfg_st is const.
+		 *
+		 */
+		for (i = 0; i < __DML2_WRAPPER_MAX_STREAMS_PLANES__; i++) {
+			odm_mode_array[i] = ctx->v21.mode_programming.programming->stream_programming[i].num_odms_required;
+			dpp_per_surface_array[i] = ctx->v21.mode_programming.programming->plane_programming[i].num_dpps_required;
+		}
+
+		ODMMode = (const unsigned int *)odm_mode_array;
+		DPPPerSurface = (const unsigned int *)dpp_per_surface_array;
+		disp_cfg_index_max = __DML2_WRAPPER_MAX_STREAMS_PLANES__;
+	} else {
+		ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
+		DPPPerSurface = disp_cfg->hw.DPPPerSurface;
+		disp_cfg_index_max = __DML_NUM_PLANES__;
+	}
 
 	for (stream_index = 0; stream_index < state->stream_count; stream_index++) {
 		memset(&scratch, 0, sizeof(struct dc_pipe_mapping_scratch));
 
 		stream_id = state->streams[stream_index]->stream_id;
 		stream_disp_cfg_index = find_disp_cfg_idx_by_stream_id(mapping, stream_id);
+		if (stream_disp_cfg_index >= disp_cfg_index_max)
+			continue;
 
 		if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_bypass) {
 			scratch.odm_info.odm_factor = 1;
@@ -1025,6 +1098,22 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 			scratch.odm_info.odm_factor = 1;
 		}
 
+		/* After DML2.1 update, ODM interpretation needs to change and is no longer same as for DML2.0.
+		 * This is not an issue with new resource management logic. This block ensure backcompat
+		 * with legacy pipe management with updated DML.
+		 * */
+		if (ctx->architecture == dml2_architecture_21) {
+			if (ODMMode[stream_disp_cfg_index] == 1) {
+				scratch.odm_info.odm_factor = 1;
+			} else if (ODMMode[stream_disp_cfg_index] == 2) {
+				scratch.odm_info.odm_factor = 2;
+			} else if (ODMMode[stream_disp_cfg_index] == 4) {
+				scratch.odm_info.odm_factor = 4;
+			} else {
+				ASSERT(false);
+				scratch.odm_info.odm_factor = 1;
+			}
+		}
 		calculate_odm_slices(state->streams[stream_index], scratch.odm_info.odm_factor, scratch.odm_info.odm_slice_end_x);
 
 		// If there are no planes, you still want to setup ODM...
@@ -1040,7 +1129,7 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 
 				// Setup mpc_info for this plane
 				scratch.mpc_info.prev_odm_pipe = NULL;
-				if (scratch.odm_info.odm_factor == 1) {
+				if (scratch.odm_info.odm_factor == 1 && plane_disp_cfg_index < disp_cfg_index_max) {
 					// If ODM combine is not inuse, then the number of pipes
 					// per plane is determined by MPC combine factor
 					scratch.mpc_info.mpc_factor = DPPPerSurface[plane_disp_cfg_index];

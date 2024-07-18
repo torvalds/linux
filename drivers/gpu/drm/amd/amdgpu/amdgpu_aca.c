@@ -119,7 +119,7 @@ static struct aca_regs_dump {
 static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, struct aca_bank *bank,
 			      struct ras_query_context *qctx)
 {
-	u64 event_id = qctx ? qctx->event_id : 0ULL;
+	u64 event_id = qctx ? qctx->evid.event_id : RAS_EVENT_INVALID_ID;
 	int i;
 
 	RAS_EVENT_LOG(adev, event_id, HW_ERR "Accelerator Check Architecture events logged\n");
@@ -534,7 +534,7 @@ int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *han
 	if (aca_handle_is_valid(handle))
 		return -EOPNOTSUPP;
 
-	if (!(BIT(type) & handle->mask))
+	if ((type < 0) || (!(BIT(type) & handle->mask)))
 		return  0;
 
 	return __aca_get_error_data(adev, handle, type, err_data, qctx);
@@ -686,7 +686,8 @@ static void aca_manager_fini(struct aca_handle_manager *mgr)
 
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev)
 {
-	return adev->aca.is_enabled;
+	return (adev->aca.is_enabled ||
+		adev->debug_enable_ras_aca);
 }
 
 int amdgpu_aca_init(struct amdgpu_device *adev)
@@ -714,9 +715,11 @@ void amdgpu_aca_fini(struct amdgpu_device *adev)
 
 int amdgpu_aca_reset(struct amdgpu_device *adev)
 {
-	amdgpu_aca_fini(adev);
+	struct amdgpu_aca *aca = &adev->aca;
 
-	return amdgpu_aca_init(adev);
+	atomic_set(&aca->ue_update_flag, 0);
+
+	return 0;
 }
 
 void amdgpu_aca_set_smu_funcs(struct amdgpu_device *adev, const struct aca_smu_funcs *smu_funcs)
@@ -892,7 +895,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(aca_debug_mode_fops, NULL, amdgpu_aca_smu_debug_mode_se
 void amdgpu_aca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (!root || adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 6))
+	if (!root)
 		return;
 
 	debugfs_create_file("aca_debug_mode", 0200, root, adev, &aca_debug_mode_fops);

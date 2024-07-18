@@ -824,6 +824,8 @@ patternProperties:
     description: Lichee Pi
   "^linaro,.*":
     description: Linaro Limited
+  "^lincolntech,.*":
+    description: Lincoln Technology Solutions
   "^lineartechnology,.*":
     description: Linear Technology
   "^linksprite,.*":
@@ -928,6 +930,8 @@ patternProperties:
     description: Microsoft Corporation
   "^microsys,.*":
     description: MicroSys Electronics GmbH
+  "^microtips,.*":
+    description: Microtips Technology USA
   "^mikroe,.*":
     description: MikroElektronika d.o.o.
   "^mikrotik,.*":
@@ -1168,6 +1172,8 @@ patternProperties:
     description: PowerVR (deprecated, use img)
   "^powkiddy,.*":
     description: Powkiddy
+  "^primeview,.*":
+    description: Prime View International (PVI)
   "^primux,.*":
     description: Primux Trading, S.L.
   "^probox2,.*":

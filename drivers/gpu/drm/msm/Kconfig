@@ -33,6 +33,7 @@ config DRM_MSM
 	select PM_OPP
 	select NVMEM
 	select PM_GENERIC_DOMAINS
+	select TRACE_GPU_MEM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 

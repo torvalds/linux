@@ -25,8 +25,8 @@ properties:
 
   reg:
     enum:
-      - 0x68
       - 0x0f
+      - 0x68
     description: |
         i2c address of the bridge, 0x68 or 0x0f, depending on bootstrap pins
 

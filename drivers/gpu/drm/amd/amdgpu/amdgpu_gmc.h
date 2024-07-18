@@ -199,6 +199,13 @@ struct amdgpu_mem_partition_info {
 
 #define INVALID_PFN    -1
 
+struct amdgpu_gmc_memrange {
+	uint64_t base_address;
+	uint64_t limit_address;
+	uint32_t flags;
+	int nid_mask;
+};
+
 enum amdgpu_gart_placement {
 	AMDGPU_GART_PLACEMENT_BEST_FIT = 0,
 	AMDGPU_GART_PLACEMENT_HIGH,
@@ -438,5 +445,9 @@ uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev);
 int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev);
+
+int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
+				 struct amdgpu_mem_partition_info *mem_ranges,
+				 int exp_ranges);
 
 #endif

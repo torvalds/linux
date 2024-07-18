@@ -45,7 +45,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "ast_ddc.h"
 #include "ast_drv.h"
@@ -304,7 +303,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 
 	/* Set SEQ; except Screen Disable field */
 	ast_set_index_reg(ast, AST_IO_VGASRI, 0x00, 0x03);
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, stdtable->seq[0]);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0x20, stdtable->seq[0]);
 	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
 		ast_set_index_reg(ast, AST_IO_VGASRI, (i + 1), jreg);
@@ -650,12 +649,12 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_framebuffer *old_fb = old_plane_state->fb;
 	struct ast_plane *ast_plane = to_ast_plane(plane);
+	struct drm_crtc *crtc = plane_state->crtc;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct drm_rect damage;
 	struct drm_atomic_helper_damage_iter iter;
 
-	if (!old_fb || (fb->format != old_fb->format)) {
-		struct drm_crtc *crtc = plane_state->crtc;
-		struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (!old_fb || (fb->format != old_fb->format) || crtc_state->mode_changed) {
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -691,15 +690,15 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 	 * Therefore only reprogram the address after enabling the plane.
 	 */
 	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x00);
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 						    struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_device(plane->dev);
-
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x20);
+	/*
+	 * Keep this empty function to avoid calling
+	 * atomic_update when disabling the plane.
+	 */
 }
 
 static int ast_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
@@ -1020,62 +1019,6 @@ static int ast_cursor_plane_init(struct ast_device *ast)
  * CRTC
  */
 
-static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct ast_device *ast = to_ast_device(crtc->dev);
-	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
-	struct ast_crtc_state *ast_state;
-	const struct drm_format_info *format;
-	struct ast_vbios_mode_info *vbios_mode_info;
-
-	/* TODO: Maybe control display signal generation with
-	 *       Sync Enable (bit CR17.7).
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
-		if (ast->tx_chip_types & AST_TX_DP501_BIT)
-			ast_set_dp501_video_output(crtc->dev, 1);
-
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
-			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
-			ast_wait_for_vretrace(ast);
-			ast_dp_set_on_off(crtc->dev, 1);
-		}
-
-		ast_state = to_ast_crtc_state(crtc->state);
-		format = ast_state->format;
-
-		if (format) {
-			vbios_mode_info = &ast_state->vbios_mode_info;
-
-			ast_set_color_reg(ast, format);
-			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
-			if (crtc->state->gamma_lut)
-				ast_crtc_set_gamma(ast, format, crtc->state->gamma_lut->data);
-			else
-				ast_crtc_set_gamma_linear(ast, format);
-		}
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		ch = mode;
-		if (ast->tx_chip_types & AST_TX_DP501_BIT)
-			ast_set_dp501_video_output(crtc->dev, 0);
-
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
-			ast_dp_set_on_off(crtc->dev, 0);
-			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
-		}
-
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0x20);
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, ch);
-		break;
-	}
-}
-
 static enum drm_mode_status
 ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
@@ -1148,6 +1091,33 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 	return status;
 }
 
+static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ast_device *ast = to_ast_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info =
+		&ast_crtc_state->vbios_mode_info;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+
+	/*
+	 * Ensure that no scanout takes place before reprogramming mode
+	 * and format registers.
+	 *
+	 * TODO: Get vblank interrupts working and remove this line.
+	 */
+	ast_wait_for_vretrace(ast);
+
+	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
+	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_crtthd_reg(ast);
+	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
+}
+
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
@@ -1207,7 +1177,6 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
 	/*
 	 * The gamma LUT has to be reloaded after changing the primary
@@ -1221,40 +1190,27 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 		else
 			ast_crtc_set_gamma_linear(ast, ast_crtc_state->format);
 	}
-
-	//Set Aspeed Display-Port
-	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
-		ast_dp_set_mode(crtc, vbios_mode_info);
 }
 
 static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_device(dev);
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info =
-		&ast_crtc_state->vbios_mode_info;
-	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct ast_device *ast = to_ast_device(crtc->dev);
 
-	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
-	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_crtthd_reg(ast);
-	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
-
-	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, 0x00);
 }
 
 static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
-	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_device(dev);
+	struct ast_device *ast = to_ast_device(crtc->dev);
+	u8 vgacrb6;
 
-	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, AST_IO_VGASR1_SD);
+
+	vgacrb6 = AST_IO_VGACRB6_VSYNC_OFF |
+		  AST_IO_VGACRB6_HSYNC_OFF;
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, vgacrb6);
 
 	/*
 	 * HW cursors require the underlying primary plane and CRTC to
@@ -1267,16 +1223,11 @@ static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 	 * simple pageflips on the planes.
 	 */
 	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
-
-	/*
-	 * Ensure that no scanout takes place before reprogramming mode
-	 * and format registers.
-	 */
-	ast_wait_for_vretrace(ast);
 }
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_valid = ast_crtc_helper_mode_valid,
+	.mode_set_nofb = ast_crtc_helper_mode_set_nofb,
 	.atomic_check = ast_crtc_helper_atomic_check,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
@@ -1359,6 +1310,14 @@ static int ast_crtc_init(struct drm_device *dev)
 }
 
 /*
+ * VGA Encoder
+ */
+
+static const struct drm_encoder_funcs ast_vga_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+/*
  * VGA Connector
  */
 
@@ -1411,7 +1370,8 @@ static int ast_vga_output_init(struct ast_device *ast)
 	struct drm_connector *connector = &ast->output.vga.connector;
 	int ret;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
+	ret = drm_encoder_init(dev, encoder, &ast_vga_encoder_funcs,
+			       DRM_MODE_ENCODER_DAC, NULL);
 	if (ret)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
@@ -1426,6 +1386,14 @@ static int ast_vga_output_init(struct ast_device *ast)
 
 	return 0;
 }
+
+/*
+ * SIL164 Encoder
+ */
+
+static const struct drm_encoder_funcs ast_sil164_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
 
 /*
  * SIL164 Connector
@@ -1480,7 +1448,8 @@ static int ast_sil164_output_init(struct ast_device *ast)
 	struct drm_connector *connector = &ast->output.sil164.connector;
 	int ret;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(dev, encoder, &ast_sil164_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
@@ -1495,6 +1464,35 @@ static int ast_sil164_output_init(struct ast_device *ast)
 
 	return 0;
 }
+
+/*
+ * DP501 Encoder
+ */
+
+static const struct drm_encoder_funcs ast_dp501_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 1);
+}
+
+static void ast_dp501_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 0);
+}
+
+static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
+	.atomic_enable = ast_dp501_encoder_helper_atomic_enable,
+	.atomic_disable = ast_dp501_encoder_helper_atomic_disable,
+};
 
 /*
  * DP501 Connector
@@ -1578,9 +1576,12 @@ static int ast_dp501_output_init(struct ast_device *ast)
 	struct drm_connector *connector = &ast->output.dp501.connector;
 	int ret;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(dev, encoder, &ast_dp501_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
+	drm_encoder_helper_add(encoder, &ast_dp501_encoder_helper_funcs);
+
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = ast_dp501_connector_init(dev, connector);
@@ -1593,6 +1594,51 @@ static int ast_dp501_output_init(struct ast_device *ast)
 
 	return 0;
 }
+
+/*
+ * ASPEED Display-Port Encoder
+ */
+
+static const struct drm_encoder_funcs ast_astdp_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder,
+						     struct drm_crtc_state *crtc_state,
+						     struct drm_connector_state *conn_state)
+{
+	struct drm_crtc *crtc = crtc_state->crtc;
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
+
+	ast_dp_set_mode(crtc, vbios_mode_info);
+}
+
+static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(dev);
+
+	ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+	ast_wait_for_vretrace(ast);
+	ast_dp_set_on_off(dev, 1);
+}
+
+static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_dp_set_on_off(dev, 0);
+	ast_dp_power_on_off(dev, AST_DP_POWER_OFF);
+}
+
+static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
+	.atomic_mode_set = ast_astdp_encoder_helper_atomic_mode_set,
+	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
+	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
+};
 
 /*
  * ASPEED Display-Port Connector
@@ -1688,9 +1734,12 @@ static int ast_astdp_output_init(struct ast_device *ast)
 	struct drm_connector *connector = &ast->output.astdp.connector;
 	int ret;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(dev, encoder, &ast_astdp_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
+	drm_encoder_helper_add(encoder, &ast_astdp_encoder_helper_funcs);
+
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = ast_astdp_connector_init(dev, connector);
@@ -1816,7 +1865,7 @@ static void ast_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *s
 	 * the I/O-register lock. Released in atomic_flush().
 	 */
 	mutex_lock(&ast->modeset_lock);
-	drm_atomic_helper_commit_tail_rpm(state);
+	drm_atomic_helper_commit_tail(state);
 	mutex_unlock(&ast->modeset_lock);
 }
 

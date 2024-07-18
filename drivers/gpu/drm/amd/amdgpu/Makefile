@@ -97,7 +97,7 @@ amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce
 amdgpu-y += \
 	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o \
 	vega20_reg_init.o nbio_v7_4.o nbio_v2_3.o nv.o arct_reg_init.o mxgpu_nv.o \
-	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o \
+	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o soc24.o \
 	sienna_cichlid.o smu_v13_0_10.o nbio_v4_3.o hdp_v6_0.o nbio_v7_7.o hdp_v5_2.o lsdma_v6_0.o \
 	nbio_v7_9.o aqua_vanjaram.o nbio_v7_11.o lsdma_v7_0.o hdp_v7_0.o nbif_v6_3_1.o
 
@@ -116,7 +116,7 @@ amdgpu-y += \
 	gfxhub_v2_0.o mmhub_v2_0.o gmc_v10_0.o gfxhub_v2_1.o mmhub_v2_3.o \
 	mmhub_v1_7.o gfxhub_v3_0.o mmhub_v3_0.o mmhub_v3_0_2.o gmc_v11_0.o \
 	mmhub_v3_0_1.o gfxhub_v3_0_3.o gfxhub_v1_2.o mmhub_v1_8.o mmhub_v3_3.o \
-	gfxhub_v11_5_0.o
+	gfxhub_v11_5_0.o mmhub_v4_1_0.o gfxhub_v12_0.o gmc_v12_0.o
 
 # add UMC block
 amdgpu-y += \
@@ -167,7 +167,9 @@ amdgpu-y += \
 	imu_v11_0.o \
 	gfx_v11_0.o \
 	gfx_v11_0_3.o \
-	imu_v11_0_3.o
+	imu_v11_0_3.o \
+	gfx_v12_0.o \
+	imu_v12_0.o
 
 # add async DMA block
 amdgpu-y += \
@@ -179,13 +181,14 @@ amdgpu-y += \
 	sdma_v4_4_2.o \
 	sdma_v5_0.o \
 	sdma_v5_2.o \
-	sdma_v6_0.o
+	sdma_v6_0.o \
+	sdma_v7_0.o
 
 # add MES block
 amdgpu-y += \
 	amdgpu_mes.o \
-	mes_v10_1.o \
-	mes_v11_0.o
+	mes_v11_0.o \
+	mes_v12_0.o
 
 # add UVD block
 amdgpu-y += \
@@ -277,7 +280,8 @@ amdgpu-y += \
 	amdgpu_amdkfd_gc_9_4_3.o \
 	amdgpu_amdkfd_gfx_v10.o \
 	amdgpu_amdkfd_gfx_v10_3.o \
-	amdgpu_amdkfd_gfx_v11.o
+	amdgpu_amdkfd_gfx_v11.o \
+	amdgpu_amdkfd_gfx_v12.o
 
 ifneq ($(CONFIG_DRM_AMDGPU_CIK),)
 amdgpu-y += amdgpu_amdkfd_gfx_v7.o
@@ -317,6 +321,14 @@ include $(FULL_AMD_DISPLAY_PATH)/Makefile
 
 amdgpu-y += $(AMD_DISPLAY_FILES)
 
+endif
+
+# add isp block
+ifneq ($(CONFIG_DRM_AMD_ISP),)
+amdgpu-y += \
+	amdgpu_isp.o \
+	isp_v4_1_0.o \
+	isp_v4_1_1.o
 endif
 
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o

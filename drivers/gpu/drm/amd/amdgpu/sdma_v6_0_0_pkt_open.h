@@ -91,6 +91,14 @@
 #define SDMA_GCR_GLM_WB			(1 << 4)
 #define SDMA_GCR_GL1_RANGE(x)		(((x) & 0x3) << 2)
 #define SDMA_GCR_GLI_INV(x)		(((x) & 0x3) << 0)
+
+#define SDMA_DCC_DATA_FORMAT(x) ((x) & 0x3f)
+#define SDMA_DCC_NUM_TYPE(x) (((x) & 0x7) << 9)
+#define SDMA_DCC_READ_CM(x) (((x) & 0x3) << 16)
+#define SDMA_DCC_WRITE_CM(x) (((x) & 0x3) << 18)
+#define SDMA_DCC_MAX_COM(x) (((x) & 0x3) << 24)
+#define SDMA_DCC_MAX_UCOM(x) (((x) & 0x1) << 26)
+
 /*
 ** Definitions for SDMA_PKT_COPY_LINEAR packet
 */

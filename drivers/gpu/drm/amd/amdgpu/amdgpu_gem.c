@@ -175,7 +175,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 		return -EPERM;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID &&
-	    abo->tbo.base.resv != vm->root.bo->tbo.base.resv)
+	    !amdgpu_vm_is_bo_always_valid(vm, abo))
 		return -EPERM;
 
 	r = amdgpu_bo_reserve(abo, false);
@@ -335,6 +335,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID |
 		      AMDGPU_GEM_CREATE_EXPLICIT_SYNC |
 		      AMDGPU_GEM_CREATE_ENCRYPTED |
+		      AMDGPU_GEM_CREATE_GFX12_DCC |
 		      AMDGPU_GEM_CREATE_DISCARDABLE))
 		return -EINVAL;
 
@@ -684,7 +685,7 @@ uint64_t amdgpu_gem_va_map_flags(struct amdgpu_device *adev, uint32_t flags)
 	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
 		pte_flag |= AMDGPU_PTE_WRITEABLE;
 	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
+		pte_flag |= AMDGPU_PTE_PRT_FLAG(adev);
 	if (flags & AMDGPU_VM_PAGE_NOALLOC)
 		pte_flag |= AMDGPU_PTE_NOALLOC;
 

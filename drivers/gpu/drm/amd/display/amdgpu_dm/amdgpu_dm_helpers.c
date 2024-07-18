@@ -69,6 +69,7 @@ static void apply_edid_quirks(struct edid *edid, struct dc_edid_caps *edid_caps)
 	case drm_edid_encode_panel_id('A', 'U', 'O', 0xE69B):
 	case drm_edid_encode_panel_id('B', 'O', 'E', 0x092A):
 	case drm_edid_encode_panel_id('L', 'G', 'D', 0x06D1):
+	case drm_edid_encode_panel_id('M', 'S', 'F', 0x1003):
 		DRM_DEBUG_DRIVER("Clearing DPCD 0x317 on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.remove_sink_ext_caps = true;
 		break;
@@ -574,10 +575,8 @@ bool dm_helpers_dp_write_dpcd(
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
-	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+	if (!aconnector)
 		return false;
-	}
 
 	return drm_dp_dpcd_write(&aconnector->dm_dp_aux.aux,
 			address, (uint8_t *)data, size) > 0;
@@ -805,9 +804,6 @@ bool dm_helpers_dp_write_dsc_enable(
 	uint8_t enable_dsc = enable ? DSC_DECODING : DSC_DISABLE;
 	uint8_t enable_passthrough = enable ? DSC_PASSTHROUGH : DSC_DISABLE;
 	uint8_t ret = 0;
-
-	if (!stream)
-		return false;
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		if (!aconnector->dsc_aux)
@@ -1044,30 +1040,8 @@ void *dm_helpers_allocate_gpu_mem(
 		long long *addr)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dal_allocation *da;
-	u32 domain = (type == DC_MEM_ALLOC_TYPE_GART) ?
-		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
-	int ret;
 
-	da = kzalloc(sizeof(struct dal_allocation), GFP_KERNEL);
-	if (!da)
-		return NULL;
-
-	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
-				      domain, &da->bo,
-				      &da->gpu_addr, &da->cpu_ptr);
-
-	*addr = da->gpu_addr;
-
-	if (ret) {
-		kfree(da);
-		return NULL;
-	}
-
-	/* add da to list in dm */
-	list_add(&da->list, &adev->dm.da_list);
-
-	return da->cpu_ptr;
+	return dm_allocate_gpu_mem(adev, type, size, addr);
 }
 
 void dm_helpers_free_gpu_mem(
@@ -1261,7 +1235,13 @@ void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz)
 
 void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
-	/* TODO: add periodic detection implementation */
+	struct amdgpu_device *adev = ctx->driver_context;
+
+	if (adev->dm.idle_workqueue) {
+		adev->dm.idle_workqueue->enable = enable;
+		if (enable && !adev->dm.idle_workqueue->running && amdgpu_dm_is_headless(adev))
+			schedule_work(&adev->dm.idle_workqueue->work);
+	}
 }
 
 void dm_helpers_dp_mst_update_branch_bandwidth(

@@ -33,6 +33,7 @@ struct dma_fence_array_cb {
  * @num_pending: fences in the array still pending
  * @fences: array of the fences
  * @work: internal irq_work function
+ * @callbacks: array of callback helpers
  */
 struct dma_fence_array {
 	struct dma_fence base;
@@ -43,6 +44,8 @@ struct dma_fence_array {
 	struct dma_fence **fences;
 
 	struct irq_work work;
+
+	struct dma_fence_array_cb callbacks[] __counted_by(num_fences);
 };
 
 /**
