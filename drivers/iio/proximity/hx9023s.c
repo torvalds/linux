@@ -936,7 +936,7 @@ static irqreturn_t hx9023s_trigger_handler(int irq, void *private)
 		goto out;
 	}
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		index = indio_dev->channels[bit].channel;
 		data->buffer.channels[i++] = cpu_to_le16(data->ch_data[index].diff);
 	}
@@ -957,7 +957,7 @@ static int hx9023s_buffer_preenable(struct iio_dev *indio_dev)
 	unsigned int bit;
 
 	guard(mutex)(&data->mutex);
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength)
+	iio_for_each_active_channel(indio_dev, bit)
 		__set_bit(indio_dev->channels[bit].channel, &channels);
 
 	hx9023s_update_chan_en(data, channels, data->chan_event);
