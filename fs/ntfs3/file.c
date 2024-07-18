@@ -789,10 +789,10 @@ out:
 }
 
 /*
- * ntfs3_setattr - inode_operations::setattr
+ * ntfs_setattr - inode_operations::setattr
  */
-int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		  struct iattr *attr)
+int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -1370,7 +1370,7 @@ static ssize_t ntfs_file_splice_write(struct pipe_inode_info *pipe,
 // clang-format off
 const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
-	.setattr	= ntfs3_setattr,
+	.setattr	= ntfs_setattr,
 	.listxattr	= ntfs_listxattr,
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,

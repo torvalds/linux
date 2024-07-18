@@ -503,7 +503,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.rename		= ntfs_rename,
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
-	.setattr	= ntfs3_setattr,
+	.setattr	= ntfs_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
 	.fiemap		= ntfs_fiemap,
@@ -512,7 +512,7 @@ const struct inode_operations ntfs_dir_inode_operations = {
 };
 
 const struct inode_operations ntfs_special_inode_operations = {
-	.setattr	= ntfs3_setattr,
+	.setattr	= ntfs_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
 	.get_acl	= ntfs_get_acl,

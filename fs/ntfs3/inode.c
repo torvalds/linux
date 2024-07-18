@@ -2122,7 +2122,7 @@ static const char *ntfs_get_link(struct dentry *de, struct inode *inode,
 // clang-format off
 const struct inode_operations ntfs_link_inode_operations = {
 	.get_link	= ntfs_get_link,
-	.setattr	= ntfs3_setattr,
+	.setattr	= ntfs_setattr,
 	.listxattr	= ntfs_listxattr,
 };
 
