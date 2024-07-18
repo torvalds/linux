@@ -187,9 +187,11 @@ static int mext_page_mkuptodate(struct folio *folio, size_t from, size_t to)
 	if (!head)
 		head = create_empty_buffers(folio, blocksize, 0);
 
-	block = (sector_t)folio->index << (PAGE_SHIFT - inode->i_blkbits);
-	for (bh = head, block_start = 0; bh != head || !block_start;
-	     block++, block_start = block_end, bh = bh->b_this_page) {
+	block = folio_pos(folio) >> inode->i_blkbits;
+	block_end = 0;
+	bh = head;
+	do {
+		block_start = block_end;
 		block_end = block_start + blocksize;
 		if (block_end <= from || block_start >= to) {
 			if (!buffer_uptodate(bh))
@@ -215,7 +217,8 @@ static int mext_page_mkuptodate(struct folio *folio, size_t from, size_t to)
 		}
 		ext4_read_bh_nowait(bh, 0, NULL);
 		nr++;
-	}
+	} while (block++, (bh = bh->b_this_page) != head);
+
 	/* No io required */
 	if (!nr)
 		goto out;
