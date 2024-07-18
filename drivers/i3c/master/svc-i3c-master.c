@@ -874,7 +874,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 				 * address this time.
 				 */
 				if (prov_id[dev_nb] == nacking_prov_id) {
-					ret = EIO;
+					ret = -EIO;
 					break;
 				}
 
