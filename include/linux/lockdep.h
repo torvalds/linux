@@ -178,9 +178,24 @@ static inline void lockdep_init_map(struct lockdep_map *lock, const char *name,
 			      (lock)->dep_map.wait_type_outer,		\
 			      (lock)->dep_map.lock_type)
 
+/**
+ * lockdep_set_novalidate_class: disable checking of lock ordering on a given
+ * lock
+ * @lock: Lock to mark
+ *
+ * Lockdep will still record that this lock has been taken, and print held
+ * instances when dumping locks
+ */
 #define lockdep_set_novalidate_class(lock) \
 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
 
+/**
+ * lockdep_set_notrack_class: disable lockdep tracking of a given lock entirely
+ * @lock: Lock to mark
+ *
+ * Bigger hammer than lockdep_set_novalidate_class: so far just for bcachefs,
+ * which takes more locks than lockdep is able to track (48).
+ */
 #define lockdep_set_notrack_class(lock) \
 	lockdep_set_class_and_name(lock, &__lockdep_no_track__, #lock)
 
