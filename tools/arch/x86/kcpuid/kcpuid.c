@@ -76,7 +76,6 @@ struct cpuid_range {
  */
 struct cpuid_range *leafs_basic, *leafs_ext;
 
-static int num_leafs;
 static bool is_amd;
 static bool show_details;
 static bool show_raw;
@@ -246,7 +245,6 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 		allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
 		if (allzero)
 			continue;
-		num_leafs++;
 
 		if (!has_subleafs(f))
 			continue;
@@ -272,7 +270,6 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 						eax, ebx, ecx, edx);
 			if (allzero)
 				continue;
-			num_leafs++;
 		}
 
 	}
