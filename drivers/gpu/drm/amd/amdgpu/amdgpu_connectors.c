@@ -442,6 +442,9 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 			continue;
 
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
+		if (!mode)
+			return;
+
 		drm_mode_probed_add(connector, mode);
 	}
 }
