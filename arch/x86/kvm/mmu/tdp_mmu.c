@@ -999,19 +999,21 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	struct kvm_mmu_page *root;
 
 	/*
-	 * Zap all roots, including invalid roots, as all SPTEs must be dropped
-	 * before returning to the caller.  Zap directly even if the root is
-	 * also being zapped by a worker.  Walking zapped top-level SPTEs isn't
-	 * all that expensive and mmu_lock is already held, which means the
-	 * worker has yielded, i.e. flushing the work instead of zapping here
-	 * isn't guaranteed to be any faster.
+	 * Zap all direct roots, including invalid direct roots, as all direct
+	 * SPTEs must be dropped before returning to the caller. For TDX, mirror
+	 * roots don't need handling in response to the mmu notifier (the caller).
+	 *
+	 * Zap directly even if the root is also being zapped by a concurrent
+	 * "fast zap".  Walking zapped top-level SPTEs isn't all that expensive
+	 * and mmu_lock is already held, which means the other thread has yielded.
 	 *
 	 * A TLB flush is unnecessary, KVM zaps everything if and only the VM
 	 * is being destroyed or the userspace VMM has exited.  In both cases,
 	 * KVM_RUN is unreachable, i.e. no vCPUs will ever service the request.
 	 */
 	lockdep_assert_held_write(&kvm->mmu_lock);
-	for_each_tdp_mmu_root_yield_safe(kvm, root)
+	__for_each_tdp_mmu_root_yield_safe(kvm, root, -1,
+					   KVM_DIRECT_ROOTS | KVM_INVALID_ROOTS)
 		tdp_mmu_zap_root(kvm, root, false);
 }
 
