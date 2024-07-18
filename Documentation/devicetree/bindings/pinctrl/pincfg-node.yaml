@@ -96,6 +96,9 @@ properties:
     type: boolean
     description: disable schmitt-trigger mode
 
+  input-schmitt-microvolt:
+    description: threshold strength for schmitt-trigger
+
   input-debounce:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: Takes the debounce time in usec as argument or 0 to disable
