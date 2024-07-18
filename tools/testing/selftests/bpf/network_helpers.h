@@ -23,7 +23,6 @@ typedef __u16 __sum16;
 
 struct network_helper_opts {
 	int timeout_ms;
-	bool must_fail;
 	int proto;
 	/* +ve: Passed to listen() as-is.
 	 *   0: Default when the test does not set

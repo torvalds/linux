@@ -277,33 +277,6 @@ error_close:
 	return -1;
 }
 
-static int connect_fd_to_addr(int fd,
-			      const struct sockaddr_storage *addr,
-			      socklen_t addrlen, const bool must_fail)
-{
-	int ret;
-
-	errno = 0;
-	ret = connect(fd, (const struct sockaddr *)addr, addrlen);
-	if (must_fail) {
-		if (!ret) {
-			log_err("Unexpected success to connect to server");
-			return -1;
-		}
-		if (errno != EPERM) {
-			log_err("Unexpected error from connect to server");
-			return -1;
-		}
-	} else {
-		if (ret) {
-			log_err("Failed to connect to server");
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t addrlen,
 		    const struct network_helper_opts *opts)
 {
@@ -318,14 +291,13 @@ int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t add
 		return -1;
 	}
 
-	if (connect_fd_to_addr(fd, addr, addrlen, opts->must_fail))
-		goto error_close;
+	if (connect(fd, (const struct sockaddr *)addr, addrlen)) {
+		log_err("Failed to connect to server");
+		save_errno_close(fd);
+		return -1;
+	}
 
 	return fd;
-
-error_close:
-	save_errno_close(fd);
-	return -1;
 }
 
 int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
@@ -383,8 +355,10 @@ int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms)
 		return -1;
 	}
 
-	if (connect_fd_to_addr(client_fd, &addr, len, false))
+	if (connect(client_fd, (const struct sockaddr *)&addr, len)) {
+		log_err("Failed to connect to server");
 		return -1;
+	}
 
 	return 0;
 }
