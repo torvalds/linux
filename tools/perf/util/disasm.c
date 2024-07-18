@@ -12,6 +12,7 @@
 #include <subcmd/run-command.h>
 
 #include "annotate.h"
+#include "annotate-data.h"
 #include "build-id.h"
 #include "debug.h"
 #include "disasm.h"
@@ -145,6 +146,9 @@ static struct arch architectures[] = {
 			.memory_ref_char = '(',
 			.imm_char = '$',
 		},
+#ifdef HAVE_DWARF_SUPPORT
+		.update_insn_state = update_insn_state_x86,
+#endif
 	},
 	{
 		.name = "powerpc",

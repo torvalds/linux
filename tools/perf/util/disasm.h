@@ -4,11 +4,18 @@
 
 #include "map_symbol.h"
 
+#ifdef HAVE_DWARF_SUPPORT
+#include "dwarf-aux.h"
+#endif
+
 struct annotation_options;
 struct disasm_line;
 struct ins;
 struct evsel;
 struct symbol;
+struct data_loc_info;
+struct type_state;
+struct disasm_line;
 
 struct arch {
 	const char	*name;
@@ -32,6 +39,11 @@ struct arch {
 		char memory_ref_char;
 		char imm_char;
 	} objdump;
+#ifdef HAVE_DWARF_SUPPORT
+	void		(*update_insn_state)(struct type_state *state,
+				struct data_loc_info *dloc, Dwarf_Die *cu_die,
+				struct disasm_line *dl);
+#endif
 };
 
 struct ins {

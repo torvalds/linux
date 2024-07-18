@@ -6,6 +6,7 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
 #include <linux/types.h>
+#include "dwarf-regs.h"
 #include "annotate.h"
 
 #ifdef HAVE_DWARF_SUPPORT
@@ -19,6 +20,14 @@ struct hist_browser_timer;
 struct hist_entry;
 struct map_symbol;
 struct thread;
+
+#define pr_debug_dtp(fmt, ...)					\
+do {								\
+	if (debug_type_profile)					\
+		pr_info(fmt, ##__VA_ARGS__);			\
+	else							\
+		pr_debug3(fmt, ##__VA_ARGS__);			\
+} while (0)
 
 enum type_state_kind {
 	TSR_KIND_INVALID = 0,
@@ -216,6 +225,20 @@ void global_var_type__tree_delete(struct rb_root *root);
 int hist_entry__annotate_data_tty(struct hist_entry *he, struct evsel *evsel);
 
 bool has_reg_type(struct type_state *state, int reg);
+struct type_state_stack *findnew_stack_state(struct type_state *state,
+						int offset, u8 kind,
+						Dwarf_Die *type_die);
+void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
+				Dwarf_Die *type_die);
+struct type_state_stack *find_stack_state(struct type_state *state,
+						int offset);
+bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
+				u64 ip, u64 var_addr, int *var_offset,
+				Dwarf_Die *type_die);
+bool get_global_var_info(struct data_loc_info *dloc, u64 addr,
+				const char **var_name, int *var_offset);
+void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind);
+
 #else /* HAVE_DWARF_SUPPORT */
 
 static inline struct annotated_data_type *
