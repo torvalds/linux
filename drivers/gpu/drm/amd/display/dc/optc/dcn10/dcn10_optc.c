@@ -148,6 +148,7 @@ void optc1_setup_vertical_interrupt2(
  * @vstartup_start: Vstartup period.
  * @vupdate_offset: Vupdate starting position.
  * @vupdate_width: Vupdate duration.
+ * @pstate_keepout: determines low power mode timing during refresh
  * @signal: DC signal types.
  * @use_vbios: to program timings from BIOS command table.
  *
