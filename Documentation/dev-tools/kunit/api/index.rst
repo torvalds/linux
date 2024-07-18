@@ -9,6 +9,7 @@ API Reference
 	test
 	resource
 	functionredirection
+	clk
 	of
 	platformdevice
 
@@ -33,6 +34,10 @@ Documentation/dev-tools/kunit/api/functionredirection.rst
 
 Driver KUnit API
 ================
+
+Documentation/dev-tools/kunit/api/clk.rst
+
+ - Documents the KUnit clk API
 
 Documentation/dev-tools/kunit/api/of.rst
 
