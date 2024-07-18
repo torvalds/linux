@@ -2,6 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 
 #include <sys/syscall.h>
+#include <limits.h>
 #include <test_progs.h>
 #include "bloom_filter_map.skel.h"
 
@@ -19,6 +20,11 @@ static void test_fail_cases(void)
 	/* Invalid value size */
 	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, 0, 100, NULL);
 	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid value size 0"))
+		close(fd);
+
+	/* Invalid value size: too big */
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, INT32_MAX, 100, NULL);
+	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid value too large"))
 		close(fd);
 
 	/* Invalid max entries size */
