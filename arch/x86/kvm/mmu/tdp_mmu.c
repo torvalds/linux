@@ -340,6 +340,29 @@ static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
 }
 
+static void remove_external_spte(struct kvm *kvm, gfn_t gfn, u64 old_spte,
+				 int level)
+{
+	kvm_pfn_t old_pfn = spte_to_pfn(old_spte);
+	int ret;
+
+	/*
+	 * External (TDX) SPTEs are limited to PG_LEVEL_4K, and external
+	 * PTs are removed in a special order, involving free_external_spt().
+	 * But remove_external_spte() will be called on non-leaf PTEs via
+	 * __tdp_mmu_zap_root(), so avoid the error the former would return
+	 * in this case.
+	 */
+	if (!is_last_spte(old_spte, level))
+		return;
+
+	/* Zapping leaf spte is allowed only when write lock is held. */
+	lockdep_assert_held_write(&kvm->mmu_lock);
+	/* Because write lock is held, operation should success. */
+	ret = static_call(kvm_x86_remove_external_spte)(kvm, gfn, level, old_pfn);
+	KVM_BUG_ON(ret, kvm);
+}
+
 /**
  * handle_removed_pt() - handle a page table removed from the TDP structure
  *
@@ -435,6 +458,23 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 		}
 		handle_changed_spte(kvm, kvm_mmu_page_as_id(sp), gfn,
 				    old_spte, FROZEN_SPTE, level, shared);
+
+		if (is_mirror_sp(sp)) {
+			KVM_BUG_ON(shared, kvm);
+			remove_external_spte(kvm, gfn, old_spte, level);
+		}
+	}
+
+	if (is_mirror_sp(sp) &&
+	    WARN_ON(static_call(kvm_x86_free_external_spt)(kvm, base_gfn, sp->role.level,
+							  sp->external_spt))) {
+		/*
+		 * Failed to free page table page in mirror page table and
+		 * there is nothing to do further.
+		 * Intentionally leak the page to prevent the kernel from
+		 * accessing the encrypted page.
+		 */
+		sp->external_spt = NULL;
 	}
 
 	call_rcu(&sp->rcu_head, tdp_mmu_free_sp_rcu_callback);
@@ -608,6 +648,13 @@ static inline int __must_check __tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	if (is_mirror_sptep(iter->sptep) && !is_frozen_spte(new_spte)) {
 		int ret;
 
+		/*
+		 * Users of atomic zapping don't operate on mirror roots,
+		 * so don't handle it and bug the VM if it's seen.
+		 */
+		if (KVM_BUG_ON(!is_shadow_present_pte(new_spte), kvm))
+			return -EBUSY;
+
 		ret = set_external_spte_present(kvm, iter->sptep, iter->gfn,
 						iter->old_spte, new_spte, iter->level);
 		if (ret)
@@ -700,8 +747,10 @@ static u64 tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
 	 * Users that do non-atomic setting of PTEs don't operate on mirror
 	 * roots, so don't handle it and bug the VM if it's seen.
 	 */
-	if (is_mirror_sptep(sptep))
+	if (is_mirror_sptep(sptep)) {
 		KVM_BUG_ON(is_shadow_present_pte(new_spte), kvm);
+		remove_external_spte(kvm, gfn, old_spte, level);
+	}
 
 	return old_spte;
 }
