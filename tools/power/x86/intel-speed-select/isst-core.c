@@ -283,6 +283,8 @@ int isst_set_trl(struct isst_id *id, unsigned long long trl)
 	return 0;
 }
 
+#define MSR_TRL_FREQ_MULTIPLIER		100
+
 int isst_set_trl_from_current_tdp(struct isst_id *id, unsigned long long trl)
 {
 	unsigned long long msr_trl;
@@ -309,6 +311,10 @@ int isst_set_trl_from_current_tdp(struct isst_id *id, unsigned long long trl)
 		msr_trl = 0;
 		for (i = 0; i < 8; ++i) {
 			unsigned long long _trl = trl[i];
+
+			/* MSR is always in 100 MHz unit */
+			if (isst_get_disp_freq_multiplier() == 1)
+				_trl /= MSR_TRL_FREQ_MULTIPLIER;
 
 			msr_trl |= (_trl << (i * 8));
 		}

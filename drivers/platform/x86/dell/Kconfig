@@ -91,6 +91,19 @@ config DELL_RBTN
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-rbtn.
 
+config DELL_PC
+	tristate "Dell PC Extras"
+	default m
+	depends on ACPI
+	depends on DMI
+	depends on DELL_SMBIOS
+	select ACPI_PLATFORM_PROFILE
+	help
+	This driver adds support for controlling the fan modes via platform_profile
+	on supported Dell systems regardless of formfactor.
+	Module will simply do nothing if thermal management commands are not
+	supported.
+
 #
 # The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
 # backends are selected. The "depends" line prevents a configuration
