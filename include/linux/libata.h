@@ -55,6 +55,46 @@
 /* defines only for the constants which don't work well as enums */
 #define ATA_TAG_POISON		0xfafbfcfdU
 
+/*
+ * Quirk flags bits.
+ * ata_device->quirks is an unsigned int, so __ATA_QUIRK_MAX must not exceed 32.
+ */
+enum ata_quirks {
+	__ATA_QUIRK_DIAGNOSTIC,		/* Failed boot diag */
+	__ATA_QUIRK_NODMA,		/* DMA problems */
+	__ATA_QUIRK_NONCQ,		/* Don't use NCQ */
+	__ATA_QUIRK_MAX_SEC_128,	/* Limit max sects to 128 */
+	__ATA_QUIRK_BROKEN_HPA,		/* Broken HPA */
+	__ATA_QUIRK_DISABLE,		/* Disable it */
+	__ATA_QUIRK_HPA_SIZE,		/* Native size off by one */
+	__ATA_QUIRK_IVB,		/* cbl det validity bit bugs */
+	__ATA_QUIRK_STUCK_ERR,		/* Stuck ERR on next PACKET */
+	__ATA_QUIRK_BRIDGE_OK,		/* No bridge limits */
+	__ATA_QUIRK_ATAPI_MOD16_DMA,	/* Use ATAPI DMA for commands that */
+					/* are not a multiple of 16 bytes */
+	__ATA_QUIRK_FIRMWARE_WARN,	/* Firmware update warning */
+	__ATA_QUIRK_1_5_GBPS,		/* Force 1.5 Gbps */
+	__ATA_QUIRK_NOSETXFER,		/* Skip SETXFER, SATA only */
+	__ATA_QUIRK_BROKEN_FPDMA_AA,	/* Skip AA */
+	__ATA_QUIRK_DUMP_ID,		/* Dump IDENTIFY data */
+	__ATA_QUIRK_MAX_SEC_LBA48,	/* Set max sects to 65535 */
+	__ATA_QUIRK_ATAPI_DMADIR,	/* Device requires dmadir */
+	__ATA_QUIRK_NO_NCQ_TRIM,	/* Do not use queued TRIM */
+	__ATA_QUIRK_NOLPM,		/* Do not use LPM */
+	__ATA_QUIRK_WD_BROKEN_LPM,	/* Some WDs have broken LPM */
+	__ATA_QUIRK_ZERO_AFTER_TRIM,	/* Guarantees zero after trim */
+	__ATA_QUIRK_NO_DMA_LOG,		/* Do not use DMA for log read */
+	__ATA_QUIRK_NOTRIM,		/* Do not use TRIM */
+	__ATA_QUIRK_MAX_SEC_1024,	/* Limit max sects to 1024 */
+	__ATA_QUIRK_MAX_TRIM_128M,	/* Limit max trim size to 128M */
+	__ATA_QUIRK_NO_NCQ_ON_ATI,	/* Disable NCQ on ATI chipset */
+	__ATA_QUIRK_NO_ID_DEV_LOG,	/* Identify device log missing */
+	__ATA_QUIRK_NO_LOG_DIR,		/* Do not read log directory */
+	__ATA_QUIRK_NO_FUA,		/* Do not use FUA */
+
+	__ATA_QUIRK_MAX,
+};
+
 enum {
 	/* various global constants */
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
@@ -366,40 +406,38 @@ enum {
 	 * Quirk flags: may be set by libata or controller drivers on drives.
 	 * Some quirks may be drive/controller pair dependent.
 	 */
-	ATA_QUIRK_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
-	ATA_QUIRK_NODMA		= (1 << 1),	/* DMA problems */
-	ATA_QUIRK_NONCQ		= (1 << 2),	/* Do not use NCQ */
-	ATA_QUIRK_MAX_SEC_128	= (1 << 3),	/* Limit max sects to 128 */
-	ATA_QUIRK_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
-	ATA_QUIRK_DISABLE	= (1 << 5),	/* Disable it */
-	ATA_QUIRK_HPA_SIZE	= (1 << 6),	/* Native size off by one */
-	ATA_QUIRK_IVB		= (1 << 8),	/* CBL det validity bit bugs */
-	ATA_QUIRK_STUCK_ERR	= (1 << 9),	/* Stuck ERR on next PACKET */
-	ATA_QUIRK_BRIDGE_OK	= (1 << 10),	/* No bridge limits */
-	ATA_QUIRK_ATAPI_MOD16_DMA = (1 << 11),	/* Use ATAPI DMA for commands */
-						/* not multiple of 16 bytes */
-	ATA_QUIRK_FIRMWARE_WARN = (1 << 12),	/* Firmware update warning */
-	ATA_QUIRK_1_5_GBPS	= (1 << 13),	/* Force 1.5 Gbps */
-	ATA_QUIRK_NOSETXFER	= (1 << 14),	/* Skip SETXFER, SATA only */
-	ATA_QUIRK_BROKEN_FPDMA_AA = (1 << 15),	/* Skip AA */
-	ATA_QUIRK_DUMP_ID	= (1 << 16),	/* Dump IDENTIFY data */
-	ATA_QUIRK_MAX_SEC_LBA48 = (1 << 17),	/* Set max sects to 65535 */
-	ATA_QUIRK_ATAPI_DMADIR	= (1 << 18),	/* Device requires dmadir */
-	ATA_QUIRK_NO_NCQ_TRIM	= (1 << 19),	/* Do not use queued TRIM */
-	ATA_QUIRK_NOLPM		= (1 << 20),	/* Do not use LPM */
-	ATA_QUIRK_WD_BROKEN_LPM = (1 << 21),	/* Some WDs have broken LPM */
-	ATA_QUIRK_ZERO_AFTER_TRIM = (1 << 22),	/* Guarantees zero after trim */
-	ATA_QUIRK_NO_DMA_LOG	= (1 << 23),	/* Do not use DMA for log read */
-	ATA_QUIRK_NOTRIM	= (1 << 24),	/* Do not use TRIM */
-	ATA_QUIRK_MAX_SEC_1024	= (1 << 25),	/* Limit max sects to 1024 */
-	ATA_QUIRK_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
-	ATA_QUIRK_NO_NCQ_ON_ATI = (1 << 27),	/* Disable NCQ on ATI chipset */
-	ATA_QUIRK_NO_ID_DEV_LOG = (1 << 28),	/* Identify device log missing */
-	ATA_QUIRK_NO_LOG_DIR	= (1 << 29),	/* Do not read log directory */
-	ATA_QUIRK_NO_FUA	= (1 << 30),	/* Do not use FUA */
+	ATA_QUIRK_DIAGNOSTIC		= (1U << __ATA_QUIRK_DIAGNOSTIC),
+	ATA_QUIRK_NODMA			= (1U << __ATA_QUIRK_NODMA),
+	ATA_QUIRK_NONCQ			= (1U << __ATA_QUIRK_NONCQ),
+	ATA_QUIRK_MAX_SEC_128		= (1U << __ATA_QUIRK_MAX_SEC_128),
+	ATA_QUIRK_BROKEN_HPA		= (1U << __ATA_QUIRK_BROKEN_HPA),
+	ATA_QUIRK_DISABLE		= (1U << __ATA_QUIRK_DISABLE),
+	ATA_QUIRK_HPA_SIZE		= (1U << __ATA_QUIRK_HPA_SIZE),
+	ATA_QUIRK_IVB			= (1U << __ATA_QUIRK_IVB),
+	ATA_QUIRK_STUCK_ERR		= (1U << __ATA_QUIRK_STUCK_ERR),
+	ATA_QUIRK_BRIDGE_OK		= (1U << __ATA_QUIRK_BRIDGE_OK),
+	ATA_QUIRK_ATAPI_MOD16_DMA	= (1U << __ATA_QUIRK_ATAPI_MOD16_DMA),
+	ATA_QUIRK_FIRMWARE_WARN		= (1U << __ATA_QUIRK_FIRMWARE_WARN),
+	ATA_QUIRK_1_5_GBPS		= (1U << __ATA_QUIRK_1_5_GBPS),
+	ATA_QUIRK_NOSETXFER		= (1U << __ATA_QUIRK_NOSETXFER),
+	ATA_QUIRK_BROKEN_FPDMA_AA	= (1U << __ATA_QUIRK_BROKEN_FPDMA_AA),
+	ATA_QUIRK_DUMP_ID		= (1U << __ATA_QUIRK_DUMP_ID),
+	ATA_QUIRK_MAX_SEC_LBA48		= (1U << __ATA_QUIRK_MAX_SEC_LBA48),
+	ATA_QUIRK_ATAPI_DMADIR		= (1U << __ATA_QUIRK_ATAPI_DMADIR),
+	ATA_QUIRK_NO_NCQ_TRIM		= (1U << __ATA_QUIRK_NO_NCQ_TRIM),
+	ATA_QUIRK_NOLPM			= (1U << __ATA_QUIRK_NOLPM),
+	ATA_QUIRK_WD_BROKEN_LPM		= (1U << __ATA_QUIRK_WD_BROKEN_LPM),
+	ATA_QUIRK_ZERO_AFTER_TRIM	= (1U << __ATA_QUIRK_ZERO_AFTER_TRIM),
+	ATA_QUIRK_NO_DMA_LOG		= (1U << __ATA_QUIRK_NO_DMA_LOG),
+	ATA_QUIRK_NOTRIM		= (1U << __ATA_QUIRK_NOTRIM),
+	ATA_QUIRK_MAX_SEC_1024		= (1U << __ATA_QUIRK_MAX_SEC_1024),
+	ATA_QUIRK_MAX_TRIM_128M		= (1U << __ATA_QUIRK_MAX_TRIM_128M),
+	ATA_QUIRK_NO_NCQ_ON_ATI		= (1U << __ATA_QUIRK_NO_NCQ_ON_ATI),
+	ATA_QUIRK_NO_ID_DEV_LOG		= (1U << __ATA_QUIRK_NO_ID_DEV_LOG),
+	ATA_QUIRK_NO_LOG_DIR		= (1U << __ATA_QUIRK_NO_LOG_DIR),
+	ATA_QUIRK_NO_FUA		= (1U << __ATA_QUIRK_NO_FUA),
 
-	 /* DMA mask for user DMA control: User visible values; DO NOT
-	    renumber */
+	/* User visible DMA mask for DMA control. DO NOT renumber. */
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
 	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */

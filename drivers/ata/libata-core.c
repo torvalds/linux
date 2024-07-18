@@ -3988,6 +3988,69 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	return rc;
 }
 
+static const char * const ata_quirk_names[] = {
+	[__ATA_QUIRK_DIAGNOSTIC]	= "diagnostic",
+	[__ATA_QUIRK_NODMA]		= "nodma",
+	[__ATA_QUIRK_NONCQ]		= "noncq",
+	[__ATA_QUIRK_MAX_SEC_128]	= "maxsec128",
+	[__ATA_QUIRK_BROKEN_HPA]	= "brokenhpa",
+	[__ATA_QUIRK_DISABLE]		= "disable",
+	[__ATA_QUIRK_HPA_SIZE]		= "hpasize",
+	[__ATA_QUIRK_IVB]		= "ivb",
+	[__ATA_QUIRK_STUCK_ERR]		= "stuckerr",
+	[__ATA_QUIRK_BRIDGE_OK]		= "bridgeok",
+	[__ATA_QUIRK_ATAPI_MOD16_DMA]	= "atapimod16dma",
+	[__ATA_QUIRK_FIRMWARE_WARN]	= "firmwarewarn",
+	[__ATA_QUIRK_1_5_GBPS]		= "1.5gbps",
+	[__ATA_QUIRK_NOSETXFER]		= "nosetxfer",
+	[__ATA_QUIRK_BROKEN_FPDMA_AA]	= "brokenfpdmaaa",
+	[__ATA_QUIRK_DUMP_ID]		= "dumpid",
+	[__ATA_QUIRK_MAX_SEC_LBA48]	= "maxseclba48",
+	[__ATA_QUIRK_ATAPI_DMADIR]	= "atapidmadir",
+	[__ATA_QUIRK_NO_NCQ_TRIM]	= "noncqtrim",
+	[__ATA_QUIRK_NOLPM]		= "nolpm",
+	[__ATA_QUIRK_WD_BROKEN_LPM]	= "wdbrokenlpm",
+	[__ATA_QUIRK_ZERO_AFTER_TRIM]	= "zeroaftertrim",
+	[__ATA_QUIRK_NO_DMA_LOG]	= "nodmalog",
+	[__ATA_QUIRK_NOTRIM]		= "notrim",
+	[__ATA_QUIRK_MAX_SEC_1024]	= "maxsec1024",
+	[__ATA_QUIRK_MAX_TRIM_128M]	= "maxtrim128m",
+	[__ATA_QUIRK_NO_NCQ_ON_ATI]	= "noncqonati",
+	[__ATA_QUIRK_NO_ID_DEV_LOG]	= "noiddevlog",
+	[__ATA_QUIRK_NO_LOG_DIR]	= "nologdir",
+	[__ATA_QUIRK_NO_FUA]		= "nofua",
+};
+
+static void ata_dev_print_quirks(const struct ata_device *dev,
+				 const char *model, const char *rev,
+				 unsigned int quirks)
+{
+	int n = 0, i;
+	size_t sz;
+	char *str;
+
+	if (!quirks)
+		return;
+
+	sz = 64 + ARRAY_SIZE(ata_quirk_names) * 16;
+	str = kmalloc(sz, GFP_KERNEL);
+	if (!str)
+		return;
+
+	n = snprintf(str, sz, "Model '%s', rev '%s', applying quirks:",
+		     model, rev);
+
+	for (i = 0; i < ARRAY_SIZE(ata_quirk_names); i++) {
+		if (quirks & (1U << i))
+			n += snprintf(str + n, sz - n,
+				      " %s", ata_quirk_names[i]);
+	}
+
+	ata_dev_warn(dev, "%s\n", str);
+
+	kfree(str);
+}
+
 struct ata_dev_quirks_entry {
 	const char *model_num;
 	const char *model_rev;
@@ -4273,15 +4336,18 @@ static unsigned int ata_dev_quirks(const struct ata_device *dev)
 	unsigned char model_rev[ATA_ID_FW_REV_LEN + 1];
 	const struct ata_dev_quirks_entry *ad = __ata_dev_quirks;
 
+	/* dev->quirks is an unsigned int. */
+	BUILD_BUG_ON(__ATA_QUIRK_MAX > 32);
+
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
 	while (ad->model_num) {
-		if (glob_match(ad->model_num, model_num)) {
-			if (ad->model_rev == NULL)
-				return ad->quirks;
-			if (glob_match(ad->model_rev, model_rev))
-				return ad->quirks;
+		if (glob_match(ad->model_num, model_num) &&
+		    (!ad->model_rev || glob_match(ad->model_rev, model_rev))) {
+			ata_dev_print_quirks(dev, model_num, model_rev,
+					     ad->quirks);
+			return ad->quirks;
 		}
 		ad++;
 	}
