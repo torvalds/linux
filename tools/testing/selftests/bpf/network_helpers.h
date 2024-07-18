@@ -23,7 +23,6 @@ typedef __u16 __sum16;
 
 struct network_helper_opts {
 	int timeout_ms;
-	bool must_fail;
 	int proto;
 	/* +ve: Passed to listen() as-is.
 	 *   0: Default when the test does not set
@@ -70,8 +69,10 @@ int client_socket(int family, int type,
 		  const struct network_helper_opts *opts);
 int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t len,
 		    const struct network_helper_opts *opts);
+int connect_to_addr_str(int family, int type, const char *addr_str, __u16 port,
+			const struct network_helper_opts *opts);
 int connect_to_fd(int server_fd, int timeout_ms);
-int connect_to_fd_opts(int server_fd, int type, const struct network_helper_opts *opts);
+int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts);
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms);
 int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
 		     int timeout_ms);

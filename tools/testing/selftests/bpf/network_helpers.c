@@ -277,33 +277,6 @@ error_close:
 	return -1;
 }
 
-static int connect_fd_to_addr(int fd,
-			      const struct sockaddr_storage *addr,
-			      socklen_t addrlen, const bool must_fail)
-{
-	int ret;
-
-	errno = 0;
-	ret = connect(fd, (const struct sockaddr *)addr, addrlen);
-	if (must_fail) {
-		if (!ret) {
-			log_err("Unexpected success to connect to server");
-			return -1;
-		}
-		if (errno != EPERM) {
-			log_err("Unexpected error from connect to server");
-			return -1;
-		}
-	} else {
-		if (ret) {
-			log_err("Failed to connect to server");
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t addrlen,
 		    const struct network_helper_opts *opts)
 {
@@ -318,23 +291,44 @@ int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t add
 		return -1;
 	}
 
-	if (connect_fd_to_addr(fd, addr, addrlen, opts->must_fail))
-		goto error_close;
+	if (connect(fd, (const struct sockaddr *)addr, addrlen)) {
+		log_err("Failed to connect to server");
+		save_errno_close(fd);
+		return -1;
+	}
 
 	return fd;
-
-error_close:
-	save_errno_close(fd);
-	return -1;
 }
 
-int connect_to_fd_opts(int server_fd, int type, const struct network_helper_opts *opts)
+int connect_to_addr_str(int family, int type, const char *addr_str, __u16 port,
+			const struct network_helper_opts *opts)
 {
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
 
 	if (!opts)
 		opts = &default_opts;
+
+	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
+		return -1;
+
+	return connect_to_addr(type, &addr, addrlen, opts);
+}
+
+int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
+{
+	struct sockaddr_storage addr;
+	socklen_t addrlen, optlen;
+	int type;
+
+	if (!opts)
+		opts = &default_opts;
+
+	optlen = sizeof(type);
+	if (getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &type, &optlen)) {
+		log_err("getsockopt(SOL_TYPE)");
+		return -1;
+	}
 
 	addrlen = sizeof(addr);
 	if (getsockname(server_fd, (struct sockaddr *)&addr, &addrlen)) {
@@ -350,14 +344,8 @@ int connect_to_fd(int server_fd, int timeout_ms)
 	struct network_helper_opts opts = {
 		.timeout_ms = timeout_ms,
 	};
-	int type, protocol;
 	socklen_t optlen;
-
-	optlen = sizeof(type);
-	if (getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &type, &optlen)) {
-		log_err("getsockopt(SOL_TYPE)");
-		return -1;
-	}
+	int protocol;
 
 	optlen = sizeof(protocol);
 	if (getsockopt(server_fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &optlen)) {
@@ -366,7 +354,7 @@ int connect_to_fd(int server_fd, int timeout_ms)
 	}
 	opts.proto = protocol;
 
-	return connect_to_fd_opts(server_fd, type, &opts);
+	return connect_to_fd_opts(server_fd, &opts);
 }
 
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms)
@@ -382,8 +370,10 @@ int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms)
 		return -1;
 	}
 
-	if (connect_fd_to_addr(client_fd, &addr, len, false))
+	if (connect(client_fd, (const struct sockaddr *)&addr, len)) {
+		log_err("Failed to connect to server");
 		return -1;
+	}
 
 	return 0;
 }
