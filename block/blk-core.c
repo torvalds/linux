@@ -791,8 +791,11 @@ void submit_bio_noacct(struct bio *bio)
 		}
 	}
 
-	if (!(q->limits.features & BLK_FEAT_POLL))
+	if (!(q->limits.features & BLK_FEAT_POLL) &&
+			(bio->bi_opf & REQ_POLLED)) {
 		bio_clear_polled(bio);
+		goto not_supported;
+	}
 
 	switch (bio_op(bio)) {
 	case REQ_OP_READ:
