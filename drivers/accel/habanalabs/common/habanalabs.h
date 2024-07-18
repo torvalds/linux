@@ -90,7 +90,9 @@ struct hl_fpriv;
 #define HL_COMMON_USER_CQ_INTERRUPT_ID	0xFFF
 #define HL_COMMON_DEC_INTERRUPT_ID	0xFFE
 
-#define HL_STATE_DUMP_HIST_LEN		5
+#define HL_STATE_DUMP_HIST_LEN			5
+#define HL_DBGFS_CFG_ACCESS_HIST_LEN		20
+#define HL_DBGFS_CFG_ACCESS_HIST_TIMEOUT_SEC	2 /* 2s */
 
 /* Default value for device reset trigger , an invalid value */
 #define HL_RESET_TRIGGER_DEFAULT	0xFF
@@ -2437,6 +2439,32 @@ struct hl_dbg_device_entry {
 };
 
 /**
+ * struct hl_debugfs_cfg_access_entry - single debugfs config access object, member of
+ * hl_debugfs_cfg_access.
+ * @seconds_since_epoch: seconds since January 1, 1970, used for time comparisons.
+ * @debugfs_type: the debugfs operation requested, can be READ32, WRITE32, READ64 or WRITE64.
+ * @addr: the requested address to access.
+ * @valid: if set, this entry has valid data for dumping at interrupt time.
+ */
+struct hl_debugfs_cfg_access_entry {
+	ktime_t				seconds_since_epoch;
+	enum debugfs_access_type	debugfs_type;
+	u64				addr;
+	bool				valid;
+};
+
+/**
+ * struct hl_debugfs_cfg_access - saves debugfs config region access requests history.
+ * @cfg_access_list: list of objects describing config region access requests.
+ * @head: next valid index to add new entry to in cfg_access_list.
+ */
+struct hl_debugfs_cfg_access {
+	struct hl_debugfs_cfg_access_entry	cfg_access_list[HL_DBGFS_CFG_ACCESS_HIST_LEN];
+	u32					head;
+	spinlock_t			lock; /* protects head and entries */
+};
+
+/**
  * struct hl_hw_obj_name_entry - single hw object name, member of
  * hl_state_dump_specs
  * @node: link to the containing hash table
@@ -3281,6 +3309,7 @@ struct eq_heartbeat_debug_info {
  * @hl_chip_info: ASIC's sensors information.
  * @device_status_description: device status description.
  * @hl_debugfs: device's debugfs manager.
+ * @debugfs_cfg_accesses: list of last debugfs config region accesses.
  * @cb_pool: list of pre allocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @internal_cb_pool_virt_addr: internal command buffer pool virtual address.
@@ -3461,6 +3490,7 @@ struct hl_device {
 	struct hwmon_chip_info		*hl_chip_info;
 
 	struct hl_dbg_device_entry	hl_debugfs;
+	struct hl_debugfs_cfg_access	debugfs_cfg_accesses;
 
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
@@ -4110,6 +4140,7 @@ void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
 					unsigned long length);
+void hl_debugfs_cfg_access_history_dump(struct hl_device *hdev);
 
 #else
 
@@ -4182,6 +4213,10 @@ static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
 
 static inline void hl_debugfs_set_state_dump(struct hl_device *hdev,
 					char *data, unsigned long length)
+{
+}
+
+static inline void hl_debugfs_cfg_access_history_dump(struct hl_device *hdev)
 {
 }
 

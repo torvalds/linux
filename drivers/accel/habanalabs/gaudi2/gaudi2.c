@@ -10610,6 +10610,7 @@ reset_device:
 	if (event_mask & HL_NOTIFIER_EVENT_GENERAL_HW_ERR)
 		hl_handle_critical_hw_err(hdev, event_type, &event_mask);
 
+	hl_debugfs_cfg_access_history_dump(hdev);
 	event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
 	hl_device_cond_reset(hdev, reset_flags, event_mask);
 }

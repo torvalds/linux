@@ -788,6 +788,113 @@ static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
 	}
 }
 
+static void dump_cfg_access_entry(struct hl_device *hdev,
+				  struct hl_debugfs_cfg_access_entry *entry)
+{
+	char *access_type = "";
+	struct tm tm;
+
+	switch (entry->debugfs_type) {
+	case DEBUGFS_READ32:
+		access_type = "READ32 from";
+		break;
+	case DEBUGFS_WRITE32:
+		access_type = "WRITE32 to";
+		break;
+	case DEBUGFS_READ64:
+		access_type = "READ64 from";
+		break;
+	case DEBUGFS_WRITE64:
+		access_type = "WRITE64 to";
+		break;
+	default:
+		dev_err(hdev->dev, "Invalid DEBUGFS access type (%u)\n", entry->debugfs_type);
+		return;
+	}
+
+	time64_to_tm(entry->seconds_since_epoch, 0, &tm);
+	dev_info(hdev->dev,
+		"%ld-%02d-%02d %02d:%02d:%02d (UTC): %s %#llx\n", tm.tm_year + 1900, tm.tm_mon + 1,
+		tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, access_type, entry->addr);
+}
+
+void hl_debugfs_cfg_access_history_dump(struct hl_device *hdev)
+{
+	struct hl_debugfs_cfg_access *dbgfs = &hdev->debugfs_cfg_accesses;
+	u32 i, head, count = 0;
+	time64_t entry_time, now;
+	unsigned long flags;
+
+	now = ktime_get_real_seconds();
+
+	spin_lock_irqsave(&dbgfs->lock, flags);
+	head = dbgfs->head;
+	if (head == 0)
+		i = HL_DBGFS_CFG_ACCESS_HIST_LEN - 1;
+	else
+		i = head - 1;
+
+	/* Walk back until timeout or invalid entry */
+	while (dbgfs->cfg_access_list[i].valid) {
+		entry_time = dbgfs->cfg_access_list[i].seconds_since_epoch;
+		/* Stop when entry is older than timeout */
+		if (now - entry_time > HL_DBGFS_CFG_ACCESS_HIST_TIMEOUT_SEC)
+			break;
+
+		/* print single entry under lock */
+		{
+			struct hl_debugfs_cfg_access_entry entry = dbgfs->cfg_access_list[i];
+			/*
+			 * We copy the entry out under lock and then print after
+			 * releasing the lock to minimize time under lock.
+			 */
+			spin_unlock_irqrestore(&dbgfs->lock, flags);
+			dump_cfg_access_entry(hdev, &entry);
+			spin_lock_irqsave(&dbgfs->lock, flags);
+		}
+
+		/* mark consumed */
+		dbgfs->cfg_access_list[i].valid = false;
+
+		if (i == 0)
+			i = HL_DBGFS_CFG_ACCESS_HIST_LEN - 1;
+		else
+			i--;
+		count++;
+		if (count >= HL_DBGFS_CFG_ACCESS_HIST_LEN)
+			break;
+	}
+	spin_unlock_irqrestore(&dbgfs->lock, flags);
+}
+
+static void check_if_cfg_access_and_log(struct hl_device *hdev, u64 addr, size_t access_size,
+					enum debugfs_access_type access_type)
+{
+	struct hl_debugfs_cfg_access *dbgfs_cfg_accesses = &hdev->debugfs_cfg_accesses;
+	struct pci_mem_region *mem_reg = &hdev->pci_mem_region[PCI_REGION_CFG];
+	struct hl_debugfs_cfg_access_entry *new_entry;
+	unsigned long flags;
+
+	/* Check if address is in config memory */
+	if (addr >= mem_reg->region_base &&
+		mem_reg->region_size >= access_size &&
+		addr <= mem_reg->region_base + mem_reg->region_size - access_size) {
+
+		spin_lock_irqsave(&dbgfs_cfg_accesses->lock, flags);
+
+		new_entry = &dbgfs_cfg_accesses->cfg_access_list[dbgfs_cfg_accesses->head];
+		new_entry->seconds_since_epoch = ktime_get_real_seconds();
+		new_entry->addr = addr;
+		new_entry->debugfs_type = access_type;
+		new_entry->valid = true;
+		dbgfs_cfg_accesses->head = (dbgfs_cfg_accesses->head + 1)
+						% HL_DBGFS_CFG_ACCESS_HIST_LEN;
+
+		spin_unlock_irqrestore(&dbgfs_cfg_accesses->lock, flags);
+
+	}
+}
+
 static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
 				enum debugfs_access_type acc_type)
 {
@@ -805,6 +912,7 @@ static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
 			return rc;
 	}
 
+	check_if_cfg_access_and_log(hdev, addr, acc_size, acc_type);
 	rc = hl_access_dev_mem_by_region(hdev, addr, val, acc_type, &found);
 	if (rc) {
 		dev_err(hdev->dev,
@@ -1761,6 +1869,9 @@ int hl_debugfs_device_init(struct hl_device *hdev)
 	spin_lock_init(&dev_entry->cs_job_spinlock);
 	spin_lock_init(&dev_entry->userptr_spinlock);
 	mutex_init(&dev_entry->ctx_mem_hash_mutex);
+
+	spin_lock_init(&hdev->debugfs_cfg_accesses.lock);
+	hdev->debugfs_cfg_accesses.head = 0; /* already zero by alloc but explicit init is fine */
 
 	return 0;
 }
