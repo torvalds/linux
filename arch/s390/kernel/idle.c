@@ -24,6 +24,7 @@ static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 void account_idle_time_irq(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
+	struct lowcore *lc = get_lowcore();
 	unsigned long idle_time;
 	u64 cycles_new[8];
 	int i;
@@ -34,13 +35,13 @@ void account_idle_time_irq(void)
 			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
 	}
 
-	idle_time = S390_lowcore.int_clock - idle->clock_idle_enter;
+	idle_time = lc->int_clock - idle->clock_idle_enter;
 
-	S390_lowcore.steal_timer += idle->clock_idle_enter - S390_lowcore.last_update_clock;
-	S390_lowcore.last_update_clock = S390_lowcore.int_clock;
+	lc->steal_timer += idle->clock_idle_enter - lc->last_update_clock;
+	lc->last_update_clock = lc->int_clock;
 
-	S390_lowcore.system_timer += S390_lowcore.last_update_timer - idle->timer_idle_enter;
-	S390_lowcore.last_update_timer = S390_lowcore.sys_enter_timer;
+	lc->system_timer += lc->last_update_timer - idle->timer_idle_enter;
+	lc->last_update_timer = lc->sys_enter_timer;
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	WRITE_ONCE(idle->idle_time, READ_ONCE(idle->idle_time) + idle_time);

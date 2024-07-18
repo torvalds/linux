@@ -185,6 +185,8 @@ int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 }
 EXPORT_SYMBOL(diag14);
 
+#define DIAG204_BUSY_RC 8
+
 static inline int __diag204(unsigned long *subcode, unsigned long size, void *addr)
 {
 	union register_pair rp = { .even = *subcode, .odd = size };
@@ -215,16 +217,18 @@ int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
 	if (addr) {
 		if (WARN_ON_ONCE(!is_vmalloc_addr(addr)))
-			return -1;
+			return -EINVAL;
 		if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)addr, PAGE_SIZE)))
-			return -1;
+			return -EINVAL;
 	}
 	if ((subcode & DIAG204_SUBCODE_MASK) == DIAG204_SUBC_STIB4)
 		addr = (void *)pfn_to_phys(vmalloc_to_pfn(addr));
 	diag_stat_inc(DIAG_STAT_X204);
 	size = __diag204(&subcode, size, addr);
-	if (subcode)
-		return -1;
+	if (subcode == DIAG204_BUSY_RC)
+		return -EBUSY;
+	else if (subcode)
+		return -EOPNOTSUPP;
 	return size;
 }
 EXPORT_SYMBOL(diag204);

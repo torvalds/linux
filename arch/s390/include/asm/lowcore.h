@@ -213,7 +213,10 @@ struct lowcore {
 	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed __aligned(8192);
 
-#define S390_lowcore (*((struct lowcore *) 0))
+static __always_inline struct lowcore *get_lowcore(void)
+{
+	return NULL;
+}
 
 extern struct lowcore *lowcore_ptr[];
 

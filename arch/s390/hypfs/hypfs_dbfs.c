@@ -39,7 +39,9 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 		return 0;
 
 	df = file_inode(file)->i_private;
-	mutex_lock(&df->lock);
+	if (mutex_lock_interruptible(&df->lock))
+		return -ERESTARTSYS;
+
 	data = hypfs_dbfs_data_alloc(df);
 	if (!data) {
 		mutex_unlock(&df->lock);

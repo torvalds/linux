@@ -1032,4 +1032,5 @@ MODULE_PARM_DESC(segments, "Name of DCSS segment(s) to be loaded, "
 		 "the contiguous segments - \n"
 		 "e.g. segments=\"mydcss1,mydcss2:mydcss3,mydcss4(local)\"");
 
+MODULE_DESCRIPTION("S/390 block driver for DCSS memory");
 MODULE_LICENSE("GPL");

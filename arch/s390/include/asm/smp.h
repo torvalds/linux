@@ -11,7 +11,7 @@
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 
-#define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
+#define raw_smp_processor_id()	(get_lowcore()->cpu_nr)
 
 extern struct mutex smp_cpu_state_mutex;
 extern unsigned int smp_cpu_mt_shift;
@@ -59,7 +59,7 @@ static inline void smp_cpus_done(unsigned int max_cpus)
 {
 }
 
-extern int smp_rescan_cpus(void);
+extern int smp_rescan_cpus(bool early);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);

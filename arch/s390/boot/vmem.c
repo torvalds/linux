@@ -476,13 +476,13 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 
 	kasan_populate_shadow(kernel_start, kernel_end);
 
-	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
-	S390_lowcore.user_asce = s390_invalid_asce;
+	get_lowcore()->kernel_asce.val = swapper_pg_dir | asce_bits;
+	get_lowcore()->user_asce = s390_invalid_asce;
 
-	local_ctl_load(1, &S390_lowcore.kernel_asce);
-	local_ctl_load(7, &S390_lowcore.user_asce);
-	local_ctl_load(13, &S390_lowcore.kernel_asce);
+	local_ctl_load(1, &get_lowcore()->kernel_asce);
+	local_ctl_load(7, &get_lowcore()->user_asce);
+	local_ctl_load(13, &get_lowcore()->kernel_asce);
 
-	init_mm.context.asce = S390_lowcore.kernel_asce.val;
+	init_mm.context.asce = get_lowcore()->kernel_asce.val;
 	init_mm.pgd = init_mm_pgd;
 }

@@ -119,7 +119,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	struct spin_wait *node, *next;
 	int lockval, ix, node_id, tail_id, old, new, owner, count;
 
-	ix = S390_lowcore.spinlock_index++;
+	ix = get_lowcore()->spinlock_index++;
 	barrier();
 	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
 	node = this_cpu_ptr(&spin_wait[ix]);
@@ -205,7 +205,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	}
 
  out:
-	S390_lowcore.spinlock_index--;
+	get_lowcore()->spinlock_index--;
 }
 
 static inline void arch_spin_lock_classic(arch_spinlock_t *lp)

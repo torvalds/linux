@@ -1030,11 +1030,12 @@ void kvm_arch_crypto_clear_masks(struct kvm *kvm);
 void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
 			       unsigned long *aqm, unsigned long *adm);
 
-int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa);
+int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa,
+	     unsigned long gasce);
 
-static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa)
+static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa, unsigned long gasce)
 {
-	return __sie64a(virt_to_phys(sie_block), sie_block, rsa);
+	return __sie64a(virt_to_phys(sie_block), sie_block, rsa, gasce);
 }
 
 extern char sie_exit;

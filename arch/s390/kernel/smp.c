@@ -74,8 +74,6 @@ enum {
 	CPU_STATE_CONFIGURED,
 };
 
-static DEFINE_PER_CPU(struct cpu *, cpu_device);
-
 struct pcpu {
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
@@ -203,7 +201,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	mcck_stack = stack_alloc();
 	if (!lc || !nodat_stack || !async_stack || !mcck_stack)
 		goto out;
-	memcpy(lc, &S390_lowcore, 512);
+	memcpy(lc, get_lowcore(), 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
 	lc->async_stack = async_stack + STACK_INIT_OFFSET;
 	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
@@ -265,9 +263,9 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
-	lc->kernel_asce = S390_lowcore.kernel_asce;
+	lc->kernel_asce = get_lowcore()->kernel_asce;
 	lc->user_asce = s390_invalid_asce;
-	lc->machine_flags = S390_lowcore.machine_flags;
+	lc->machine_flags = get_lowcore()->machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	abs_lc = get_abs_lowcore();
@@ -407,7 +405,7 @@ void smp_call_ipl_cpu(void (*func)(void *), void *data)
 	struct lowcore *lc = lowcore_ptr[0];
 
 	if (pcpu_devices[0].address == stap())
-		lc = &S390_lowcore;
+		lc = get_lowcore();
 
 	pcpu_delegate(&pcpu_devices[0], func, data,
 		      lc->nodat_stack);
@@ -719,8 +717,6 @@ static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 	}
 }
 
-static int smp_add_present_cpu(int cpu);
-
 static int smp_add_core(struct sclp_core_entry *core, cpumask_t *avail,
 			bool configured, bool early)
 {
@@ -744,7 +740,7 @@ static int smp_add_core(struct sclp_core_entry *core, cpumask_t *avail,
 			pcpu->state = CPU_STATE_STANDBY;
 		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		set_cpu_present(cpu, true);
-		if (!early && smp_add_present_cpu(cpu) != 0)
+		if (!early && arch_register_cpu(cpu))
 			set_cpu_present(cpu, false);
 		else
 			nr++;
@@ -831,9 +827,6 @@ void __init smp_detect_cpus(void)
 			s_cpus += smp_cpu_mtid + 1;
 	}
 	pr_info("%d configured CPUs, %d standby CPUs\n", c_cpus, s_cpus);
-
-	/* Add CPUs present at boot */
-	__smp_rescan_cpus(info, true);
 	memblock_free(info, sizeof(*info));
 }
 
@@ -842,15 +835,16 @@ void __init smp_detect_cpus(void)
  */
 static void smp_start_secondary(void *cpuvoid)
 {
+	struct lowcore *lc = get_lowcore();
 	int cpu = raw_smp_processor_id();
 
-	S390_lowcore.last_update_clock = get_tod_clock();
-	S390_lowcore.restart_stack = (unsigned long)restart_stack;
-	S390_lowcore.restart_fn = (unsigned long)do_restart;
-	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1U;
-	S390_lowcore.restart_flags = 0;
-	restore_access_regs(S390_lowcore.access_regs_save_area);
+	lc->last_update_clock = get_tod_clock();
+	lc->restart_stack = (unsigned long)restart_stack;
+	lc->restart_fn = (unsigned long)do_restart;
+	lc->restart_data = 0;
+	lc->restart_source = -1U;
+	lc->restart_flags = 0;
+	restore_access_regs(lc->access_regs_save_area);
 	cpu_init();
 	rcutree_report_cpu_starting(cpu);
 	init_cpu_timer();
@@ -973,6 +967,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
 	system_ctl_set_bit(0, 13);
+	smp_rescan_cpus(true);
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -981,16 +976,18 @@ void __init smp_prepare_boot_cpu(void)
 
 	WARN_ON(!cpu_present(0) || !cpu_online(0));
 	pcpu->state = CPU_STATE_CONFIGURED;
-	S390_lowcore.percpu_offset = __per_cpu_offset[0];
+	get_lowcore()->percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 }
 
 void __init smp_setup_processor_id(void)
 {
+	struct lowcore *lc = get_lowcore();
+
 	pcpu_devices[0].address = stap();
-	S390_lowcore.cpu_nr = 0;
-	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
-	S390_lowcore.spinlock_index = 0;
+	lc->cpu_nr = 0;
+	lc->spinlock_lockval = arch_spin_lockval(0);
+	lc->spinlock_index = 0;
 }
 
 /*
@@ -1108,35 +1105,34 @@ static struct attribute_group cpu_online_attr_group = {
 
 static int smp_cpu_online(unsigned int cpu)
 {
-	struct device *s = &per_cpu(cpu_device, cpu)->dev;
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
 
-	return sysfs_create_group(&s->kobj, &cpu_online_attr_group);
+	return sysfs_create_group(&c->dev.kobj, &cpu_online_attr_group);
 }
 
 static int smp_cpu_pre_down(unsigned int cpu)
 {
-	struct device *s = &per_cpu(cpu_device, cpu)->dev;
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
 
-	sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
+	sysfs_remove_group(&c->dev.kobj, &cpu_online_attr_group);
 	return 0;
 }
 
-static int smp_add_present_cpu(int cpu)
+bool arch_cpu_is_hotpluggable(int cpu)
 {
-	struct device *s;
-	struct cpu *c;
+	return !!cpu;
+}
+
+int arch_register_cpu(int cpu)
+{
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	int rc;
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c)
-		return -ENOMEM;
-	per_cpu(cpu_device, cpu) = c;
-	s = &c->dev;
-	c->hotpluggable = !!cpu;
+	c->hotpluggable = arch_cpu_is_hotpluggable(cpu);
 	rc = register_cpu(c, cpu);
 	if (rc)
 		goto out;
-	rc = sysfs_create_group(&s->kobj, &cpu_common_attr_group);
+	rc = sysfs_create_group(&c->dev.kobj, &cpu_common_attr_group);
 	if (rc)
 		goto out_cpu;
 	rc = topology_cpu_init(c);
@@ -1145,14 +1141,14 @@ static int smp_add_present_cpu(int cpu)
 	return 0;
 
 out_topology:
-	sysfs_remove_group(&s->kobj, &cpu_common_attr_group);
+	sysfs_remove_group(&c->dev.kobj, &cpu_common_attr_group);
 out_cpu:
 	unregister_cpu(c);
 out:
 	return rc;
 }
 
-int __ref smp_rescan_cpus(void)
+int __ref smp_rescan_cpus(bool early)
 {
 	struct sclp_core_info *info;
 	int nr;
@@ -1161,7 +1157,7 @@ int __ref smp_rescan_cpus(void)
 	if (!info)
 		return -ENOMEM;
 	smp_get_core_info(info, 0);
-	nr = __smp_rescan_cpus(info, false);
+	nr = __smp_rescan_cpus(info, early);
 	kfree(info);
 	if (nr)
 		topology_schedule_update();
@@ -1178,7 +1174,7 @@ static ssize_t __ref rescan_store(struct device *dev,
 	rc = lock_device_hotplug_sysfs();
 	if (rc)
 		return rc;
-	rc = smp_rescan_cpus();
+	rc = smp_rescan_cpus(false);
 	unlock_device_hotplug();
 	return rc ? rc : count;
 }
@@ -1187,7 +1183,7 @@ static DEVICE_ATTR_WO(rescan);
 static int __init s390_smp_init(void)
 {
 	struct device *dev_root;
-	int cpu, rc = 0;
+	int rc;
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
 	if (dev_root) {
@@ -1196,17 +1192,9 @@ static int __init s390_smp_init(void)
 		if (rc)
 			return rc;
 	}
-
-	for_each_present_cpu(cpu) {
-		rc = smp_add_present_cpu(cpu);
-		if (rc)
-			goto out;
-	}
-
 	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "s390/smp:online",
 			       smp_cpu_online, smp_cpu_pre_down);
 	rc = rc <= 0 ? rc : 0;
-out:
 	return rc;
 }
 subsys_initcall(s390_smp_init);
