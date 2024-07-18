@@ -272,6 +272,22 @@ static int __init thermal_register_governors(void)
 	return ret;
 }
 
+static int __thermal_zone_device_set_mode(struct thermal_zone_device *tz,
+					  enum thermal_device_mode mode)
+{
+	if (tz->ops.change_mode) {
+		int ret;
+
+		ret = tz->ops.change_mode(tz, mode);
+		if (ret)
+			return ret;
+	}
+
+	tz->mode = mode;
+
+	return 0;
+}
+
 /*
  * Zone update section: main control loop applied to each zone while monitoring
  * in polling mode. The monitoring is done using a workqueue.
@@ -540,7 +556,7 @@ monitor:
 static int thermal_zone_device_set_mode(struct thermal_zone_device *tz,
 					enum thermal_device_mode mode)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&tz->lock);
 
@@ -548,14 +564,15 @@ static int thermal_zone_device_set_mode(struct thermal_zone_device *tz,
 	if (mode == tz->mode) {
 		mutex_unlock(&tz->lock);
 
-		return ret;
+		return 0;
 	}
 
-	if (tz->ops.change_mode)
-		ret = tz->ops.change_mode(tz, mode);
+	ret = __thermal_zone_device_set_mode(tz, mode);
+	if (ret) {
+		mutex_unlock(&tz->lock);
 
-	if (!ret)
-		tz->mode = mode;
+		return ret;
+	}
 
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
@@ -566,7 +583,7 @@ static int thermal_zone_device_set_mode(struct thermal_zone_device *tz,
 	else
 		thermal_notify_tz_disable(tz);
 
-	return ret;
+	return 0;
 }
 
 int thermal_zone_device_enable(struct thermal_zone_device *tz)
