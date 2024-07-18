@@ -204,12 +204,12 @@ void mgag200_init_registers(struct mga_device *mdev)
 void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode,
 			   bool set_vidrst)
 {
-	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
-	unsigned int vdisplay, vsyncstart, vsyncend, vtotal;
+	unsigned int hdispend, hsyncstr, hsyncend, htotal;
+	unsigned int vdispend, vsyncstr, vsyncend, vtotal;
 	u8 misc, crtcext1, crtcext2, crtcext5;
 
-	hdisplay = mode->hdisplay / 8 - 1;
-	hsyncstart = mode->hsync_start / 8 - 1;
+	hdispend = mode->hdisplay / 8 - 1;
+	hsyncstr = mode->hsync_start / 8 - 1;
 	hsyncend = mode->hsync_end / 8 - 1;
 	htotal = mode->htotal / 8 - 1;
 
@@ -217,8 +217,8 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	if ((htotal & 0x07) == 0x06 || (htotal & 0x07) == 0x04)
 		htotal++;
 
-	vdisplay = mode->vdisplay - 1;
-	vsyncstart = mode->vsync_start - 1;
+	vdispend = mode->vdisplay - 1;
+	vsyncstr = mode->vsync_start - 1;
 	vsyncend = mode->vsync_end - 1;
 	vtotal = mode->vtotal - 2;
 
@@ -235,45 +235,45 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 		misc &= ~MGAREG_MISC_VSYNCPOL;
 
 	crtcext1 = (((htotal - 4) & 0x100) >> 8) |
-		   ((hdisplay & 0x100) >> 7) |
-		   ((hsyncstart & 0x100) >> 6) |
+		   ((hdispend & 0x100) >> 7) |
+		   ((hsyncstr & 0x100) >> 6) |
 		    (htotal & 0x40);
 	if (set_vidrst)
 		crtcext1 |= MGAREG_CRTCEXT1_VRSTEN |
 			    MGAREG_CRTCEXT1_HRSTEN;
 
 	crtcext2 = ((vtotal & 0xc00) >> 10) |
-		   ((vdisplay & 0x400) >> 8) |
-		   ((vdisplay & 0xc00) >> 7) |
-		   ((vsyncstart & 0xc00) >> 5) |
-		   ((vdisplay & 0x400) >> 3);
+		   ((vdispend & 0x400) >> 8) |
+		   ((vdispend & 0xc00) >> 7) |
+		   ((vsyncstr & 0xc00) >> 5) |
+		   ((vdispend & 0x400) >> 3);
 	crtcext5 = 0x00;
 
 	WREG_CRT(0x00, htotal - 4);
-	WREG_CRT(0x01, hdisplay);
-	WREG_CRT(0x02, hdisplay);
+	WREG_CRT(0x01, hdispend);
+	WREG_CRT(0x02, hdispend);
 	WREG_CRT(0x03, (htotal & 0x1f) | 0x80);
-	WREG_CRT(0x04, hsyncstart);
+	WREG_CRT(0x04, hsyncstr);
 	WREG_CRT(0x05, ((htotal & 0x20) << 2) | (hsyncend & 0x1f));
 	WREG_CRT(0x06, vtotal & 0xff);
 	WREG_CRT(0x07, ((vtotal & 0x100) >> 8) |
-		       ((vdisplay & 0x100) >> 7) |
-		       ((vsyncstart & 0x100) >> 6) |
-		       ((vdisplay & 0x100) >> 5) |
-		       ((vdisplay & 0x100) >> 4) | /* linecomp */
+		       ((vdispend & 0x100) >> 7) |
+		       ((vsyncstr & 0x100) >> 6) |
+		       ((vdispend & 0x100) >> 5) |
+		       ((vdispend & 0x100) >> 4) | /* linecomp */
 		       ((vtotal & 0x200) >> 4) |
-		       ((vdisplay & 0x200) >> 3) |
-		       ((vsyncstart & 0x200) >> 2));
-	WREG_CRT(0x09, ((vdisplay & 0x200) >> 4) |
-		       ((vdisplay & 0x200) >> 3));
-	WREG_CRT(0x10, vsyncstart & 0xff);
+		       ((vdispend & 0x200) >> 3) |
+		       ((vsyncstr & 0x200) >> 2));
+	WREG_CRT(0x09, ((vdispend & 0x200) >> 4) |
+		       ((vdispend & 0x200) >> 3));
+	WREG_CRT(0x10, vsyncstr & 0xff);
 	WREG_CRT(0x11, (vsyncend & 0x0f) | 0x20);
-	WREG_CRT(0x12, vdisplay & 0xff);
+	WREG_CRT(0x12, vdispend & 0xff);
 	WREG_CRT(0x14, 0);
-	WREG_CRT(0x15, vdisplay & 0xff);
+	WREG_CRT(0x15, vdispend & 0xff);
 	WREG_CRT(0x16, (vtotal + 1) & 0xff);
 	WREG_CRT(0x17, 0xc3);
-	WREG_CRT(0x18, vdisplay & 0xff);
+	WREG_CRT(0x18, vdispend & 0xff);
 
 	WREG_ECRT(0x01, crtcext1);
 	WREG_ECRT(0x02, crtcext2);
