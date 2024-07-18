@@ -321,4 +321,5 @@ static struct platform_driver goldfish_fb_driver = {
 
 module_platform_driver(goldfish_fb_driver);
 
+MODULE_DESCRIPTION("Goldfish Virtual Platform Framebuffer driver");
 MODULE_LICENSE("GPL v2");
