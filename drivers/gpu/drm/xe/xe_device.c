@@ -87,11 +87,14 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	spin_unlock(&xe->clients.lock);
 
 	file->driver_priv = xef;
+	kref_init(&xef->refcount);
+
 	return 0;
 }
 
-static void xe_file_destroy(struct xe_file *xef)
+static void xe_file_destroy(struct kref *ref)
 {
+	struct xe_file *xef = container_of(ref, struct xe_file, refcount);
 	struct xe_device *xe = xef->xe;
 
 	xa_destroy(&xef->exec_queue.xa);
@@ -105,6 +108,32 @@ static void xe_file_destroy(struct xe_file *xef)
 
 	xe_drm_client_put(xef->client);
 	kfree(xef);
+}
+
+/**
+ * xe_file_get() - Take a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Anyone with a pointer to xef must take a reference to the xe file
+ * object using this call.
+ *
+ * Return: xe file pointer
+ */
+struct xe_file *xe_file_get(struct xe_file *xef)
+{
+	kref_get(&xef->refcount);
+	return xef;
+}
+
+/**
+ * xe_file_put() - Drop a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Used to drop reference to the xef object
+ */
+void xe_file_put(struct xe_file *xef)
+{
+	kref_put(&xef->refcount, xe_file_destroy);
 }
 
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
@@ -129,7 +158,7 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 		xe_vm_close_and_put(vm);
 	mutex_unlock(&xef->vm.lock);
 
-	xe_file_destroy(xef);
+	xe_file_put(xef);
 }
 
 static const struct drm_ioctl_desc xe_ioctls[] = {
