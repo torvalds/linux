@@ -107,6 +107,7 @@ struct led_classdev {
 #define LED_BRIGHT_HW_CHANGED	BIT(21)
 #define LED_RETAIN_AT_SHUTDOWN	BIT(22)
 #define LED_INIT_DEFAULT_TRIGGER BIT(23)
+#define LED_REJECT_NAME_CONFLICT BIT(24)
 
 	/* set_brightness_work / blink_timer flags, atomic, private. */
 	unsigned long		work_flags;
@@ -426,6 +427,16 @@ void led_sysfs_enable(struct led_classdev *led_cdev);
  */
 int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		     char *led_classdev_name);
+
+/**
+ * led_get_color_name - get string representation of color ID
+ * @color_id: The LED_COLOR_ID_* constant
+ *
+ * Get the string name of a LED_COLOR_ID_* constant.
+ *
+ * Returns: A string constant or NULL on an invalid ID.
+ */
+const char *led_get_color_name(u8 color_id);
 
 /**
  * led_sysfs_is_disabled - check if LED sysfs interface is disabled
