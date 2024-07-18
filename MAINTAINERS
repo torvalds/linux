@@ -19127,7 +19127,6 @@ F:	include/uapi/linux/rtc.h
 F:	tools/testing/selftests/rtc/
 
 Real-time Linux Analysis (RTLA) tools
-M:	Daniel Bristot de Oliveira <bristot@kernel.org>
 M:	Steven Rostedt <rostedt@goodmis.org>
 L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
@@ -19774,7 +19773,6 @@ S:	Maintained
 F:	drivers/infiniband/ulp/rtrs/
 
 RUNTIME VERIFICATION (RV)
-M:	Daniel Bristot de Oliveira <bristot@kernel.org>
 M:	Steven Rostedt <rostedt@goodmis.org>
 L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
@@ -23067,7 +23065,6 @@ F:	kernel/trace/trace_mmiotrace.c
 
 TRACING OS NOISE / LATENCY TRACERS
 M:	Steven Rostedt <rostedt@goodmis.org>
-M:	Daniel Bristot de Oliveira <bristot@kernel.org>
 S:	Maintained
 F:	Documentation/trace/hwlat_detector.rst
 F:	Documentation/trace/osnoise-tracer.rst
