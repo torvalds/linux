@@ -1437,7 +1437,6 @@ static long __get_user_pages(struct mm_struct *mm,
 
 	do {
 		struct page *page;
-		unsigned int foll_flags = gup_flags;
 		unsigned int page_increm;
 
 		/* first iteration or cross vma bound */
@@ -1488,9 +1487,9 @@ retry:
 		}
 		cond_resched();
 
-		page = follow_page_mask(vma, start, foll_flags, &ctx);
+		page = follow_page_mask(vma, start, gup_flags, &ctx);
 		if (!page || PTR_ERR(page) == -EMLINK) {
-			ret = faultin_page(vma, start, foll_flags,
+			ret = faultin_page(vma, start, gup_flags,
 					   PTR_ERR(page) == -EMLINK, locked);
 			switch (ret) {
 			case 0:
@@ -1547,13 +1546,12 @@ next_page:
 				 * large folio, this should never fail.
 				 */
 				if (try_grab_folio(folio, page_increm - 1,
-						   foll_flags)) {
+						   gup_flags)) {
 					/*
 					 * Release the 1st page ref if the
 					 * folio is problematic, fail hard.
 					 */
-					gup_put_folio(folio, 1,
-						      foll_flags);
+					gup_put_folio(folio, 1, gup_flags);
 					ret = -EFAULT;
 					goto out;
 				}
