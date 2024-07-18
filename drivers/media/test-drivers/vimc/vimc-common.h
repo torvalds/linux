@@ -156,7 +156,7 @@ struct vimc_ent_type {
  */
 struct vimc_ent_config {
 	const char *name;
-	struct vimc_ent_type *type;
+	const struct vimc_ent_type *type;
 };
 
 /**
@@ -167,11 +167,11 @@ struct vimc_ent_config {
  */
 bool vimc_is_source(struct media_entity *ent);
 
-extern struct vimc_ent_type vimc_sensor_type;
-extern struct vimc_ent_type vimc_debayer_type;
-extern struct vimc_ent_type vimc_scaler_type;
-extern struct vimc_ent_type vimc_capture_type;
-extern struct vimc_ent_type vimc_lens_type;
+extern const struct vimc_ent_type vimc_sensor_type;
+extern const struct vimc_ent_type vimc_debayer_type;
+extern const struct vimc_ent_type vimc_scaler_type;
+extern const struct vimc_ent_type vimc_capture_type;
+extern const struct vimc_ent_type vimc_lens_type;
 
 /**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index
@@ -215,6 +215,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @num_pads:	number of pads to initialize
  * @pads:	the array of pads of the entity, the caller should set the
  *		flags of the pads
+ * @int_ops:	pointer to &struct v4l2_subdev_internal_ops.
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
@@ -227,6 +228,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 struct media_pad *pads,
+			 const struct v4l2_subdev_internal_ops *int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**

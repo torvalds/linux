@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/workqueue.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-dma-contig.h>
@@ -175,7 +176,7 @@ static const unsigned int intra4x4_lambda3[] = {
 static v4l2_std_id tw5864_get_v4l2_std(enum tw5864_vid_std std);
 static enum tw5864_vid_std tw5864_from_v4l2_std(v4l2_std_id v4l2_std);
 
-static void tw5864_handle_frame_task(struct tasklet_struct *t);
+static void tw5864_handle_frame_work(struct work_struct *t);
 static void tw5864_handle_frame(struct tw5864_h264_frame *frame);
 static void tw5864_frame_interval_set(struct tw5864_input *input);
 
@@ -1062,7 +1063,7 @@ int tw5864_video_init(struct tw5864_dev *dev, int *video_nr)
 	dev->irqmask |= TW5864_INTR_VLC_DONE | TW5864_INTR_TIMER;
 	tw5864_irqmask_apply(dev);
 
-	tasklet_setup(&dev->tasklet, tw5864_handle_frame_task);
+	INIT_WORK(&dev->bh_work, tw5864_handle_frame_work);
 
 	for (i = 0; i < TW5864_INPUTS; i++) {
 		dev->inputs[i].root = dev;
@@ -1079,7 +1080,7 @@ fini_video_inputs:
 	for (i = last_input_nr_registered; i >= 0; i--)
 		tw5864_video_input_fini(&dev->inputs[i]);
 
-	tasklet_kill(&dev->tasklet);
+	cancel_work_sync(&dev->bh_work);
 
 free_dma:
 	for (i = last_dma_allocated; i >= 0; i--) {
@@ -1198,7 +1199,7 @@ void tw5864_video_fini(struct tw5864_dev *dev)
 {
 	int i;
 
-	tasklet_kill(&dev->tasklet);
+	cancel_work_sync(&dev->bh_work);
 
 	for (i = 0; i < TW5864_INPUTS; i++)
 		tw5864_video_input_fini(&dev->inputs[i]);
@@ -1315,9 +1316,9 @@ static int tw5864_is_motion_triggered(struct tw5864_h264_frame *frame)
 	return detected;
 }
 
-static void tw5864_handle_frame_task(struct tasklet_struct *t)
+static void tw5864_handle_frame_work(struct work_struct *t)
 {
-	struct tw5864_dev *dev = from_tasklet(dev, t, tasklet);
+	struct tw5864_dev *dev = from_work(dev, t, bh_work);
 	unsigned long flags;
 	int batch_size = H264_BUF_CNT;
 

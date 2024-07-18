@@ -15,6 +15,9 @@
 
 #include "vimc-common.h"
 
+/* TODO: Add support for more output formats, we only support RGB888 for now. */
+#define VIMC_DEBAYER_SOURCE_MBUS_FMT	MEDIA_BUS_FMT_RGB888_1X24
+
 enum vimc_debayer_rgb_colors {
 	VIMC_DEBAYER_RED = 0,
 	VIMC_DEBAYER_GREEN = 1,
@@ -29,19 +32,26 @@ struct vimc_debayer_pix_map {
 struct vimc_debayer_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	/* The active format */
-	struct v4l2_mbus_framefmt sink_fmt;
-	u32 src_code;
+	struct v4l2_ctrl_handler hdl;
+	struct media_pad pads[2];
+
+	u8 *src_frame;
+
 	void (*set_rgb_src)(struct vimc_debayer_device *vdebayer,
 			    unsigned int lin, unsigned int col,
 			    unsigned int rgb[3]);
-	/* Values calculated when the stream starts */
-	u8 *src_frame;
-	const struct vimc_debayer_pix_map *sink_pix_map;
-	unsigned int sink_bpp;
-	unsigned int mean_win_size;
-	struct v4l2_ctrl_handler hdl;
-	struct media_pad pads[2];
+
+	/*
+	 * Virtual "hardware" configuration, filled when the stream starts or
+	 * when controls are set.
+	 */
+	struct {
+		const struct vimc_debayer_pix_map *sink_pix_map;
+		unsigned int sink_bpp;
+		struct v4l2_area size;
+		unsigned int mean_win_size;
+		u32 src_code;
+	} hw;
 };
 
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
@@ -153,18 +163,14 @@ static bool vimc_debayer_src_code_is_valid(u32 code)
 static int vimc_debayer_init_state(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state)
 {
-	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf;
-	unsigned int i;
 
 	mf = v4l2_subdev_state_get_format(sd_state, 0);
 	*mf = sink_fmt_default;
 
-	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_state_get_format(sd_state, i);
-		*mf = sink_fmt_default;
-		mf->code = vdebayer->src_code;
-	}
+	mf = v4l2_subdev_state_get_format(sd_state, 1);
+	*mf = sink_fmt_default;
+	mf->code = VIMC_DEBAYER_SOURCE_MBUS_FMT;
 
 	return 0;
 }
@@ -213,24 +219,6 @@ static int vimc_debayer_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vimc_debayer_get_fmt(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_format *fmt)
-{
-	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
-
-	/* Get the current sink format */
-	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_state_get_format(sd_state, 0) :
-		      vdebayer->sink_fmt;
-
-	/* Set the right code for the source pad */
-	if (VIMC_IS_SRC(fmt->pad))
-		fmt->format.code = vdebayer->src_code;
-
-	return 0;
-}
-
 static void vimc_debayer_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 {
 	const struct vimc_debayer_pix_map *vpix;
@@ -256,52 +244,42 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 				struct v4l2_subdev_format *fmt)
 {
 	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
-	struct v4l2_mbus_framefmt *sink_fmt;
-	u32 *src_code;
+	struct v4l2_mbus_framefmt *format;
 
-	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
-		if (vdebayer->src_frame)
-			return -EBUSY;
-
-		sink_fmt = &vdebayer->sink_fmt;
-		src_code = &vdebayer->src_code;
-	} else {
-		sink_fmt = v4l2_subdev_state_get_format(sd_state, 0);
-		src_code = &v4l2_subdev_state_get_format(sd_state, 1)->code;
-	}
+	/* Do not change the format while stream is on. */
+	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE && vdebayer->src_frame)
+		return -EBUSY;
 
 	/*
-	 * Do not change the format of the source pad,
-	 * it is propagated from the sink
+	 * Do not change the format of the source pad, it is propagated from
+	 * the sink.
 	 */
-	if (VIMC_IS_SRC(fmt->pad)) {
-		u32 code = fmt->format.code;
+	if (VIMC_IS_SRC(fmt->pad))
+		return v4l2_subdev_get_fmt(sd, sd_state, fmt);
 
-		fmt->format = *sink_fmt;
+	/* Set the new format in the sink pad. */
+	vimc_debayer_adjust_sink_fmt(&fmt->format);
 
-		if (vimc_debayer_src_code_is_valid(code))
-			*src_code = code;
+	format = v4l2_subdev_state_get_format(sd_state, 0);
 
-		fmt->format.code = *src_code;
-	} else {
-		/* Set the new format in the sink pad */
-		vimc_debayer_adjust_sink_fmt(&fmt->format);
+	dev_dbg(vdebayer->ved.dev, "%s: sink format update: "
+		"old:%dx%d (0x%x, %d, %d, %d, %d) "
+		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vdebayer->sd.name,
+		/* old */
+		format->width, format->height, format->code,
+		format->colorspace, format->quantization,
+		format->xfer_func, format->ycbcr_enc,
+		/* new */
+		fmt->format.width, fmt->format.height, fmt->format.code,
+		fmt->format.colorspace,	fmt->format.quantization,
+		fmt->format.xfer_func, fmt->format.ycbcr_enc);
 
-		dev_dbg(vdebayer->ved.dev, "%s: sink format update: "
-			"old:%dx%d (0x%x, %d, %d, %d, %d) "
-			"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vdebayer->sd.name,
-			/* old */
-			sink_fmt->width, sink_fmt->height, sink_fmt->code,
-			sink_fmt->colorspace, sink_fmt->quantization,
-			sink_fmt->xfer_func, sink_fmt->ycbcr_enc,
-			/* new */
-			fmt->format.width, fmt->format.height, fmt->format.code,
-			fmt->format.colorspace,	fmt->format.quantization,
-			fmt->format.xfer_func, fmt->format.ycbcr_enc);
+	*format = fmt->format;
 
-		*sink_fmt = fmt->format;
-	}
+	/* Propagate the format to the source pad. */
+	format = v4l2_subdev_state_get_format(sd_state, 1);
+	*format = fmt->format;
+	format->code = VIMC_DEBAYER_SOURCE_MBUS_FMT;
 
 	return 0;
 }
@@ -309,7 +287,7 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_pad_ops vimc_debayer_pad_ops = {
 	.enum_mbus_code		= vimc_debayer_enum_mbus_code,
 	.enum_frame_size	= vimc_debayer_enum_frame_size,
-	.get_fmt		= vimc_debayer_get_fmt,
+	.get_fmt		= v4l2_subdev_get_fmt,
 	.set_fmt		= vimc_debayer_set_fmt,
 };
 
@@ -321,8 +299,8 @@ static void vimc_debayer_process_rgb_frame(struct vimc_debayer_device *vdebayer,
 	const struct vimc_pix_map *vpix;
 	unsigned int i, index;
 
-	vpix = vimc_pix_map_by_code(vdebayer->src_code);
-	index = VIMC_FRAME_INDEX(lin, col, vdebayer->sink_fmt.width, 3);
+	vpix = vimc_pix_map_by_code(vdebayer->hw.src_code);
+	index = VIMC_FRAME_INDEX(lin, col, vdebayer->hw.size.width, 3);
 	for (i = 0; i < 3; i++) {
 		switch (vpix->pixelformat) {
 		case V4L2_PIX_FMT_RGB24:
@@ -340,24 +318,37 @@ static int vimc_debayer_s_stream(struct v4l2_subdev *sd, int enable)
 	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
 
 	if (enable) {
+		const struct v4l2_mbus_framefmt *sink_fmt;
+		const struct v4l2_mbus_framefmt *src_fmt;
+		struct v4l2_subdev_state *state;
 		const struct vimc_pix_map *vpix;
 		unsigned int frame_size;
 
 		if (vdebayer->src_frame)
 			return 0;
 
+		state = v4l2_subdev_lock_and_get_active_state(sd);
+		sink_fmt = v4l2_subdev_state_get_format(state, 0);
+		src_fmt = v4l2_subdev_state_get_format(state, 1);
+
 		/* Calculate the frame size of the source pad */
-		vpix = vimc_pix_map_by_code(vdebayer->src_code);
-		frame_size = vdebayer->sink_fmt.width * vdebayer->sink_fmt.height *
-				vpix->bpp;
+		vpix = vimc_pix_map_by_code(src_fmt->code);
+		frame_size = src_fmt->width * src_fmt->height * vpix->bpp;
 
 		/* Save the bytes per pixel of the sink */
-		vpix = vimc_pix_map_by_code(vdebayer->sink_fmt.code);
-		vdebayer->sink_bpp = vpix->bpp;
+		vpix = vimc_pix_map_by_code(sink_fmt->code);
+		vdebayer->hw.sink_bpp = vpix->bpp;
 
 		/* Get the corresponding pixel map from the table */
-		vdebayer->sink_pix_map =
-			vimc_debayer_pix_map_by_code(vdebayer->sink_fmt.code);
+		vdebayer->hw.sink_pix_map =
+			vimc_debayer_pix_map_by_code(sink_fmt->code);
+
+		vdebayer->hw.size.width = sink_fmt->width;
+		vdebayer->hw.size.height = sink_fmt->height;
+
+		vdebayer->hw.src_code = src_fmt->code;
+
+		v4l2_subdev_unlock_state(state);
 
 		/*
 		 * Allocate the frame buffer. Use vmalloc to be able to
@@ -366,7 +357,6 @@ static int vimc_debayer_s_stream(struct v4l2_subdev *sd, int enable)
 		vdebayer->src_frame = vmalloc(frame_size);
 		if (!vdebayer->src_frame)
 			return -ENOMEM;
-
 	} else {
 		if (!vdebayer->src_frame)
 			return 0;
@@ -427,13 +417,13 @@ static void vimc_debayer_calc_rgb_sink(struct vimc_debayer_device *vdebayer,
 	 * the top left corner of the mean window (considering the current
 	 * pixel as the center)
 	 */
-	seek = vdebayer->mean_win_size / 2;
+	seek = vdebayer->hw.mean_win_size / 2;
 
 	/* Sum the values of the colors in the mean window */
 
 	dev_dbg(vdebayer->ved.dev,
 		"deb: %s: --- Calc pixel %dx%d, window mean %d, seek %d ---\n",
-		vdebayer->sd.name, lin, col, vdebayer->sink_fmt.height, seek);
+		vdebayer->sd.name, lin, col, vdebayer->hw.size.height, seek);
 
 	/*
 	 * Iterate through all the lines in the mean window, start
@@ -442,7 +432,7 @@ static void vimc_debayer_calc_rgb_sink(struct vimc_debayer_device *vdebayer,
 	 * frame
 	 */
 	for (wlin = seek > lin ? 0 : lin - seek;
-	     wlin < lin + seek + 1 && wlin < vdebayer->sink_fmt.height;
+	     wlin < lin + seek + 1 && wlin < vdebayer->hw.size.height;
 	     wlin++) {
 
 		/*
@@ -452,17 +442,17 @@ static void vimc_debayer_calc_rgb_sink(struct vimc_debayer_device *vdebayer,
 		 * frame
 		 */
 		for (wcol = seek > col ? 0 : col - seek;
-		     wcol < col + seek + 1 && wcol < vdebayer->sink_fmt.width;
+		     wcol < col + seek + 1 && wcol < vdebayer->hw.size.width;
 		     wcol++) {
 			enum vimc_debayer_rgb_colors color;
 			unsigned int index;
 
 			/* Check which color this pixel is */
-			color = vdebayer->sink_pix_map->order[wlin % 2][wcol % 2];
+			color = vdebayer->hw.sink_pix_map->order[wlin % 2][wcol % 2];
 
 			index = VIMC_FRAME_INDEX(wlin, wcol,
-						 vdebayer->sink_fmt.width,
-						 vdebayer->sink_bpp);
+						 vdebayer->hw.size.width,
+						 vdebayer->hw.sink_bpp);
 
 			dev_dbg(vdebayer->ved.dev,
 				"deb: %s: RGB CALC: frame index %d, win pos %dx%d, color %d\n",
@@ -471,7 +461,7 @@ static void vimc_debayer_calc_rgb_sink(struct vimc_debayer_device *vdebayer,
 			/* Get its value */
 			rgb[color] = rgb[color] +
 				vimc_debayer_get_val(&frame[index],
-						     vdebayer->sink_bpp);
+						     vdebayer->hw.sink_bpp);
 
 			/* Save how many values we already added */
 			n_rgb[color]++;
@@ -509,8 +499,8 @@ static void *vimc_debayer_process_frame(struct vimc_ent_device *ved,
 	if (!vdebayer->src_frame)
 		return ERR_PTR(-EINVAL);
 
-	for (i = 0; i < vdebayer->sink_fmt.height; i++)
-		for (j = 0; j < vdebayer->sink_fmt.width; j++) {
+	for (i = 0; i < vdebayer->hw.size.height; i++)
+		for (j = 0; j < vdebayer->hw.size.width; j++) {
 			vimc_debayer_calc_rgb_sink(vdebayer, sink_frame, i, j, rgb);
 			vdebayer->set_rgb_src(vdebayer, i, j, rgb);
 		}
@@ -525,7 +515,7 @@ static int vimc_debayer_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case VIMC_CID_MEAN_WIN_SIZE:
-		vdebayer->mean_win_size = ctrl->val;
+		vdebayer->hw.mean_win_size = ctrl->val;
 		break;
 	default:
 		return -EINVAL;
@@ -543,6 +533,7 @@ static void vimc_debayer_release(struct vimc_ent_device *ved)
 		container_of(ved, struct vimc_debayer_device, ved);
 
 	v4l2_ctrl_handler_free(&vdebayer->hdl);
+	v4l2_subdev_cleanup(&vdebayer->sd);
 	media_entity_cleanup(vdebayer->ved.ent);
 	kfree(vdebayer);
 }
@@ -594,25 +585,15 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vdebayer->ved, &vdebayer->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
-				   vdebayer->pads, &vimc_debayer_ops);
+				   vdebayer->pads, &vimc_debayer_internal_ops,
+				   &vimc_debayer_ops);
 	if (ret)
 		goto err_free_hdl;
 
-	vdebayer->sd.internal_ops = &vimc_debayer_internal_ops;
-
 	vdebayer->ved.process_frame = vimc_debayer_process_frame;
 	vdebayer->ved.dev = vimc->mdev.dev;
-	vdebayer->mean_win_size = vimc_debayer_ctrl_mean_win_size.def;
+	vdebayer->hw.mean_win_size = vimc_debayer_ctrl_mean_win_size.def;
 
-	/* Initialize the frame format */
-	vdebayer->sink_fmt = sink_fmt_default;
-	/*
-	 * TODO: Add support for more output formats, we only support
-	 * RGB888 for now
-	 * NOTE: the src format is always the same as the sink, except
-	 * for the code
-	 */
-	vdebayer->src_code = MEDIA_BUS_FMT_RGB888_1X24;
 	vdebayer->set_rgb_src = vimc_debayer_process_rgb_frame;
 
 	return &vdebayer->ved;
@@ -625,7 +606,7 @@ err_free_vdebayer:
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_debayer_type = {
+const struct vimc_ent_type vimc_debayer_type = {
 	.add = vimc_debayer_add,
 	.release = vimc_debayer_release
 };

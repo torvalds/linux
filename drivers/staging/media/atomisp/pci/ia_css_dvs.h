@@ -20,6 +20,8 @@
  * This file contains types for DVS statistics
  */
 
+#include <linux/build_bug.h>
+
 #include <type_support.h>
 #include "ia_css_types.h"
 #include "ia_css_err.h"
@@ -54,6 +56,8 @@ struct ia_css_isp_skc_dvs_statistics;
 #define SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT			\
 	((3 * SIZE_OF_IA_CSS_PTR) +					\
 	 (4 * sizeof(uint32_t)))
+
+static_assert(sizeof(struct ia_css_isp_dvs_statistics) == SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT);
 
 /* Map with host-side pointers to ISP-format statistics.
  * These pointers can either be copies of ISP data or memory mapped

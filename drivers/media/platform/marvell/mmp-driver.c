@@ -30,6 +30,7 @@
 
 MODULE_ALIAS("platform:mmp-camera");
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
+MODULE_DESCRIPTION("Support for the camera device found on Marvell MMP processors");
 MODULE_LICENSE("GPL");
 
 static char *mcam_clks[] = {"axi", "func", "phy"};
