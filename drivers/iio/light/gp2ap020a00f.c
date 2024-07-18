@@ -965,8 +965,7 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 	size_t d_size = 0;
 	int i, out_val, ret;
 
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		ret = regmap_bulk_read(priv->regmap,
 				GP2AP020A00F_DATA_REG(i),
 				&priv->buffer[d_size], 2);
@@ -1397,8 +1396,7 @@ static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
 	 * two separate IIO channels they are treated in the driver logic
 	 * as if they were controlled independently.
 	 */
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		switch (i) {
 		case GP2AP020A00F_SCAN_MODE_LIGHT_CLEAR:
 			err = gp2ap020a00f_exec_cmd(data,
@@ -1435,8 +1433,7 @@ static int gp2ap020a00f_buffer_predisable(struct iio_dev *indio_dev)
 
 	mutex_lock(&data->lock);
 
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		switch (i) {
 		case GP2AP020A00F_SCAN_MODE_LIGHT_CLEAR:
 			err = gp2ap020a00f_exec_cmd(data,
