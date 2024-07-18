@@ -330,6 +330,9 @@ struct dmub_diagnostic_data {
 	uint32_t inbox0_rptr;
 	uint32_t inbox0_wptr;
 	uint32_t inbox0_size;
+	uint32_t outbox1_rptr;
+	uint32_t outbox1_wptr;
+	uint32_t outbox1_size;
 	uint32_t gpint_datain0;
 	struct dmub_srv_debug timeout_info;
 	uint8_t is_dmcub_enabled : 1;

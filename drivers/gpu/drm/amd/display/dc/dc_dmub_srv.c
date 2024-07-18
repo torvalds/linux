@@ -979,6 +979,9 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 	DC_LOG_DEBUG("    inbox0_rptr        : %08x", diag_data.inbox0_rptr);
 	DC_LOG_DEBUG("    inbox0_wptr        : %08x", diag_data.inbox0_wptr);
 	DC_LOG_DEBUG("    inbox0_size        : %08x", diag_data.inbox0_size);
+	DC_LOG_DEBUG("    outbox1_rptr       : %08x", diag_data.outbox1_rptr);
+	DC_LOG_DEBUG("    outbox1_wptr       : %08x", diag_data.outbox1_wptr);
+	DC_LOG_DEBUG("    outbox1_size       : %08x", diag_data.outbox1_size);
 	DC_LOG_DEBUG("    is_enabled         : %d", diag_data.is_dmcub_enabled);
 	DC_LOG_DEBUG("    is_soft_reset      : %d", diag_data.is_dmcub_soft_reset);
 	DC_LOG_DEBUG("    is_secure_reset    : %d", diag_data.is_dmcub_secure_reset);
