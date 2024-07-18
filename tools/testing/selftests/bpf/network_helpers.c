@@ -300,6 +300,21 @@ int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t add
 	return fd;
 }
 
+int connect_to_addr_str(int family, int type, const char *addr_str, __u16 port,
+			const struct network_helper_opts *opts)
+{
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+
+	if (!opts)
+		opts = &default_opts;
+
+	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
+		return -1;
+
+	return connect_to_addr(type, &addr, addrlen, opts);
+}
+
 int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
 {
 	struct sockaddr_storage addr;
