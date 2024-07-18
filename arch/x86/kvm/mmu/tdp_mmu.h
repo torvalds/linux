@@ -10,7 +10,7 @@
 void kvm_mmu_init_tdp_mmu(struct kvm *kvm);
 void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
 
-void kvm_tdp_mmu_alloc_root(struct kvm_vcpu *vcpu);
+void kvm_tdp_mmu_alloc_root(struct kvm_vcpu *vcpu, bool private);
 
 __must_check static inline bool kvm_tdp_mmu_get_root(struct kvm_mmu_page *root)
 {
@@ -21,10 +21,47 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root);
 
 enum kvm_tdp_mmu_root_types {
 	KVM_INVALID_ROOTS = BIT(0),
-
-	KVM_VALID_ROOTS = BIT(1),
+	KVM_DIRECT_ROOTS = BIT(1),
+	KVM_MIRROR_ROOTS = BIT(2),
+	KVM_VALID_ROOTS = KVM_DIRECT_ROOTS | KVM_MIRROR_ROOTS,
 	KVM_ALL_ROOTS = KVM_VALID_ROOTS | KVM_INVALID_ROOTS,
 };
+
+static inline enum kvm_tdp_mmu_root_types kvm_gfn_range_filter_to_root_types(struct kvm *kvm,
+							     enum kvm_gfn_range_filter process)
+{
+	enum kvm_tdp_mmu_root_types ret = 0;
+
+	if (!kvm_has_mirrored_tdp(kvm))
+		return KVM_DIRECT_ROOTS;
+
+	if (process & KVM_FILTER_PRIVATE)
+		ret |= KVM_MIRROR_ROOTS;
+	if (process & KVM_FILTER_SHARED)
+		ret |= KVM_DIRECT_ROOTS;
+
+	WARN_ON_ONCE(!ret);
+
+	return ret;
+}
+
+static inline struct kvm_mmu_page *tdp_mmu_get_root_for_fault(struct kvm_vcpu *vcpu,
+							      struct kvm_page_fault *fault)
+{
+	if (unlikely(!kvm_is_addr_direct(vcpu->kvm, fault->addr)))
+		return root_to_sp(vcpu->arch.mmu->mirror_root_hpa);
+
+	return root_to_sp(vcpu->arch.mmu->root.hpa);
+}
+
+static inline struct kvm_mmu_page *tdp_mmu_get_root(struct kvm_vcpu *vcpu,
+						    enum kvm_tdp_mmu_root_types type)
+{
+	if (unlikely(type == KVM_MIRROR_ROOTS))
+		return root_to_sp(vcpu->arch.mmu->mirror_root_hpa);
+
+	return root_to_sp(vcpu->arch.mmu->root.hpa);
+}
 
 bool kvm_tdp_mmu_zap_leafs(struct kvm *kvm, gfn_t start, gfn_t end, bool flush);
 bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp);
