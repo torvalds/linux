@@ -28,12 +28,12 @@ bool fscache_wait_for_operation(struct netfs_cache_resources *cres,
 
 again:
 	if (!fscache_cache_is_live(cookie->volume->cache)) {
-		kleave(" [broken]");
+		_leave(" [broken]");
 		return false;
 	}
 
 	state = fscache_cookie_state(cookie);
-	kenter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
+	_enter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
 
 	switch (state) {
 	case FSCACHE_COOKIE_STATE_CREATING:
@@ -52,7 +52,7 @@ again:
 	case FSCACHE_COOKIE_STATE_DROPPED:
 	case FSCACHE_COOKIE_STATE_RELINQUISHING:
 	default:
-		kleave(" [not live]");
+		_leave(" [not live]");
 		return false;
 	}
 
@@ -92,7 +92,7 @@ again:
 	spin_lock(&cookie->lock);
 
 	state = fscache_cookie_state(cookie);
-	kenter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
+	_enter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
 
 	switch (state) {
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
@@ -140,7 +140,7 @@ failed:
 	cres->cache_priv = NULL;
 	cres->ops = NULL;
 	fscache_end_cookie_access(cookie, fscache_access_io_not_live);
-	kleave(" = -ENOBUFS");
+	_leave(" = -ENOBUFS");
 	return -ENOBUFS;
 }
 
@@ -224,7 +224,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	if (len == 0)
 		goto abandon;
 
-	kenter("%llx,%zx", start, len);
+	_enter("%llx,%zx", start, len);
 
 	wreq = kzalloc(sizeof(struct fscache_write_request), GFP_NOFS);
 	if (!wreq)
