@@ -174,7 +174,9 @@ mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 	sector_t block;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	unsigned int blocksize, block_start, block_end;
-	int i, err,  nr = 0, partial = 0;
+	int i, nr = 0;
+	bool partial = false;
+
 	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(folio_test_writeback(folio));
 
@@ -192,13 +194,13 @@ mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 		block_end = block_start + blocksize;
 		if (block_end <= from || block_start >= to) {
 			if (!buffer_uptodate(bh))
-				partial = 1;
+				partial = true;
 			continue;
 		}
 		if (buffer_uptodate(bh))
 			continue;
 		if (!buffer_mapped(bh)) {
-			err = ext4_get_block(inode, block, bh, 0);
+			int err = ext4_get_block(inode, block, bh, 0);
 			if (err)
 				return err;
 			if (!buffer_mapped(bh)) {
@@ -207,6 +209,12 @@ mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 				continue;
 			}
 		}
+		lock_buffer(bh);
+		if (buffer_uptodate(bh)) {
+			unlock_buffer(bh);
+			continue;
+		}
+		ext4_read_bh_nowait(bh, 0, NULL);
 		BUG_ON(nr >= MAX_BUF_PER_PAGE);
 		arr[nr++] = bh;
 	}
@@ -216,11 +224,10 @@ mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 
 	for (i = 0; i < nr; i++) {
 		bh = arr[i];
-		if (!bh_uptodate_or_lock(bh)) {
-			err = ext4_read_bh(bh, 0, NULL);
-			if (err)
-				return err;
-		}
+		wait_on_buffer(bh);
+		if (buffer_uptodate(bh))
+			continue;
+		return -EIO;
 	}
 out:
 	if (!partial)
