@@ -156,6 +156,9 @@ static struct arch architectures[] = {
 	{
 		.name = "powerpc",
 		.init = powerpc__annotate_init,
+#ifdef HAVE_DWARF_SUPPORT
+		.update_insn_state = update_insn_state_powerpc,
+#endif
 	},
 	{
 		.name = "riscv64",
