@@ -364,6 +364,8 @@ properties:
           - sparkfun,qwiic-joystick
             # i2c serial eeprom (24cxx)
           - st,24c256
+            # Sierra Wireless mangOH Green SPI IoT interface
+          - swir,mangoh-iotport-spi
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
             # Temperature Monitoring and Fan Control
