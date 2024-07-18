@@ -294,7 +294,7 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 out_bo_unpin:
 	nouveau_bo_unpin(chunk->bo);
 out_bo_free:
-	nouveau_bo_ref(NULL, &chunk->bo);
+	nouveau_bo_fini(chunk->bo);
 out_release:
 	release_mem_region(chunk->pagemap.range.start, range_len(&chunk->pagemap.range));
 out_free:
@@ -426,7 +426,7 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 	list_for_each_entry_safe(chunk, tmp, &drm->dmem->chunks, list) {
 		nouveau_dmem_evict_chunk(chunk);
 		nouveau_bo_unpin(chunk->bo);
-		nouveau_bo_ref(NULL, &chunk->bo);
+		nouveau_bo_fini(chunk->bo);
 		WARN_ON(chunk->callocated);
 		list_del(&chunk->list);
 		memunmap_pages(&chunk->pagemap);

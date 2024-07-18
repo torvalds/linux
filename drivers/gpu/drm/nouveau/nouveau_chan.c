@@ -110,7 +110,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nouveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
 			nouveau_bo_unpin(chan->push.buffer);
-		nouveau_bo_ref(NULL, &chan->push.buffer);
+		nouveau_bo_fini(chan->push.buffer);
 		kfree(chan);
 	}
 	*pchan = NULL;

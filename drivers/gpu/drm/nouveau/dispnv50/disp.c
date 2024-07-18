@@ -2819,7 +2819,7 @@ nv50_display_destroy(struct drm_device *dev)
 	nouveau_bo_unmap(disp->sync);
 	if (disp->sync)
 		nouveau_bo_unpin(disp->sync);
-	nouveau_bo_ref(NULL, &disp->sync);
+	nouveau_bo_fini(disp->sync);
 
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
@@ -2862,7 +2862,7 @@ nv50_display_create(struct drm_device *dev)
 				nouveau_bo_unpin(disp->sync);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &disp->sync);
+			nouveau_bo_fini(disp->sync);
 	}
 
 	if (ret)

@@ -53,25 +53,10 @@ nouveau_bo(struct ttm_buffer_object *bo)
 	return container_of(bo, struct nouveau_bo, bo);
 }
 
-static inline int
-nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
+static inline void
+nouveau_bo_fini(struct nouveau_bo *bo)
 {
-	struct nouveau_bo *prev;
-
-	if (!pnvbo)
-		return -EINVAL;
-	prev = *pnvbo;
-
-	if (ref) {
-		ttm_bo_get(&ref->bo);
-		*pnvbo = nouveau_bo(&ref->bo);
-	} else {
-		*pnvbo = NULL;
-	}
-	if (prev)
-		ttm_bo_put(&prev->bo);
-
-	return 0;
+	ttm_bo_put(&bo->bo);
 }
 
 extern struct ttm_device_funcs nouveau_bo_driver;

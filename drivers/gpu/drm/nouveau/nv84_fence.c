@@ -188,7 +188,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 	nouveau_bo_unmap(priv->bo);
 	if (priv->bo)
 		nouveau_bo_unpin(priv->bo);
-	nouveau_bo_ref(NULL, &priv->bo);
+	nouveau_bo_fini(priv->bo);
 	drm->fence = NULL;
 	kfree(priv);
 }
@@ -232,7 +232,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 				nouveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			nouveau_bo_fini(priv->bo);
 	}
 
 	if (ret)

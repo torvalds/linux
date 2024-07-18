@@ -141,7 +141,7 @@ nv17_fence_create(struct nouveau_drm *drm)
 				nouveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			nouveau_bo_fini(priv->bo);
 	}
 
 	if (ret) {
