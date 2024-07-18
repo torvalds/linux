@@ -697,6 +697,9 @@ static int load_store__parse(struct arch *arch __maybe_unused, struct ins_operan
 {
 	ops->source.mem_ref = true;
 	ops->source.multi_regs = false;
+	/* opcode 31 is of X form */
+	if (PPC_OP(dl->raw.raw_insn) == 31)
+		ops->source.multi_regs = true;
 
 	ops->target.mem_ref = false;
 	ops->target.multi_regs = false;
