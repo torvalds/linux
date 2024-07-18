@@ -206,6 +206,7 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 {
 	unsigned int hdispend, hsyncstr, hsyncend, htotal, hblkstr, hblkend;
 	unsigned int vdispend, vsyncstr, vsyncend, vtotal, vblkstr, vblkend;
+	unsigned int linecomp;
 	u8 misc, crtcext1, crtcext2, crtcext5;
 
 	hdispend = mode->crtc_hdisplay / 8 - 1;
@@ -224,6 +225,8 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	vtotal = mode->crtc_vtotal - 2;
 	vblkstr = mode->crtc_vblank_start;
 	vblkend = vtotal + 1;
+
+	linecomp = vdispend;
 
 	misc = RREG8(MGA_MISC_IN);
 
@@ -249,7 +252,7 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 		   ((vdispend & 0x400) >> 8) |
 		   ((vblkstr & 0xc00) >> 7) |
 		   ((vsyncstr & 0xc00) >> 5) |
-		   ((vdispend & 0x400) >> 3);
+		   ((linecomp & 0x400) >> 3);
 	crtcext5 = 0x00;
 
 	WREG_CRT(0x00, htotal - 4);
@@ -263,12 +266,12 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 		       ((vdispend & 0x100) >> 7) |
 		       ((vsyncstr & 0x100) >> 6) |
 		       ((vblkstr & 0x100) >> 5) |
-		       ((vdispend & 0x100) >> 4) | /* linecomp */
+		       ((linecomp & 0x100) >> 4) |
 		       ((vtotal & 0x200) >> 4) |
 		       ((vdispend & 0x200) >> 3) |
 		       ((vsyncstr & 0x200) >> 2));
 	WREG_CRT(0x09, ((vblkstr & 0x200) >> 4) |
-		       ((vdispend & 0x200) >> 3));
+		       ((linecomp & 0x200) >> 3));
 	WREG_CRT(0x10, vsyncstr & 0xff);
 	WREG_CRT(0x11, (vsyncend & 0x0f) | 0x20);
 	WREG_CRT(0x12, vdispend & 0xff);
@@ -276,7 +279,7 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	WREG_CRT(0x15, vblkstr & 0xff);
 	WREG_CRT(0x16, vblkend & 0xff);
 	WREG_CRT(0x17, 0xc3);
-	WREG_CRT(0x18, vdispend & 0xff);
+	WREG_CRT(0x18, linecomp & 0xff);
 
 	WREG_ECRT(0x01, crtcext1);
 	WREG_ECRT(0x02, crtcext2);
