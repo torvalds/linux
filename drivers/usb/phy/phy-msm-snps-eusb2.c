@@ -222,11 +222,19 @@ static void msm_eusb2_phy_clocks(struct msm_eusb2_phy *phy, bool on)
 
 static void msm_eusb2_phy_update_eud_detect(struct msm_eusb2_phy *phy, bool set)
 {
-	if (set)
+	if (!phy->eud_detect_reg)
+		return;
+
+	if (set) {
+		/* Make sure all the writes are processed before setting EUD_DETECT */
+		mb();
 		writel_relaxed(EUD_DETECT, phy->eud_detect_reg);
-	else
+	} else {
 		writel_relaxed(readl_relaxed(phy->eud_detect_reg) & ~EUD_DETECT,
 					phy->eud_detect_reg);
+		/* Make sure clearing EUD_DETECT is completed before turning off the regulators */
+		mb();
+	}
 }
 
 static int msm_eusb2_phy_power(struct msm_eusb2_phy *phy, bool on)
@@ -281,8 +289,6 @@ static int msm_eusb2_phy_power(struct msm_eusb2_phy *phy, bool on)
 		goto unset_vdda12;
 	}
 
-	/* Make sure all the writes are processed before setting EUD_DETECT */
-	mb();
 	/* Set eud_detect_reg after powering on eUSB PHY rails to bring EUD out of reset */
 	msm_eusb2_phy_update_eud_detect(phy, true);
 
@@ -293,9 +299,6 @@ static int msm_eusb2_phy_power(struct msm_eusb2_phy *phy, bool on)
 clear_eud_det:
 	/* Clear eud_detect_reg to put EUD in reset */
 	msm_eusb2_phy_update_eud_detect(phy, false);
-
-	/* Make sure clearing EUD_DETECT is completed before turning off the regulators */
-	mb();
 
 	ret = regulator_disable(phy->vdda12);
 	if (ret)
@@ -856,8 +859,6 @@ static int msm_eusb2_phy_notify_disconnect(struct usb_phy *uphy,
 
 	if (is_eud_debug_mode_active(phy) && !(phy->phy.flags & EUD_SPOOF_DISCONNECT)) {
 		msm_eusb2_phy_update_eud_detect(phy, false);
-		/* Ensure that EUD disable occurs before re-enabling */
-		mb();
 		msm_eusb2_phy_update_eud_detect(phy, true);
 	}
 
@@ -967,17 +968,13 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eud_detect_reg");
-	if (!res) {
-		dev_err(dev, "missing eud_detect register address\n");
-		ret = -ENODEV;
-		goto err_ret;
-	}
-
-	phy->eud_detect_reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(phy->eud_detect_reg)) {
-		ret = PTR_ERR(phy->eud_detect_reg);
-		dev_err(dev, "eud_detect_reg ioremap err:%d\n", ret);
-		goto err_ret;
+	if (res) {
+		phy->eud_detect_reg = devm_ioremap_resource(dev, res);
+		if (IS_ERR(phy->eud_detect_reg)) {
+			ret = PTR_ERR(phy->eud_detect_reg);
+			dev_err(dev, "eud_detect_reg ioremap err:%d\n", ret);
+			goto err_ret;
+		}
 	}
 
 	phy->ref_clk_src = devm_clk_get(dev, "ref_clk_src");
