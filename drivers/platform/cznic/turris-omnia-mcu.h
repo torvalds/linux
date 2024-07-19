@@ -42,10 +42,12 @@ struct omnia_mcu {
 	unsigned long last_status;
 	bool button_pressed_emul;
 
+#ifdef CONFIG_TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
 	/* RTC device for configuring wake-up */
 	struct rtc_device *rtcdev;
 	u32 rtc_alarm;
 	bool front_button_poweron;
+#endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_WATCHDOG
 	/* MCU watchdog */
@@ -188,10 +190,17 @@ static inline int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd,
 
 extern const u8 omnia_int_to_gpio_idx[32];
 extern const struct attribute_group omnia_mcu_gpio_group;
-extern const struct attribute_group omnia_mcu_poweroff_group;
-
 int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
+extern const struct attribute_group omnia_mcu_poweroff_group;
 int omnia_mcu_register_sys_off_and_wakeup(struct omnia_mcu *mcu);
+#else
+static inline int omnia_mcu_register_sys_off_and_wakeup(struct omnia_mcu *mcu)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_TRNG
 int omnia_mcu_register_trng(struct omnia_mcu *mcu);

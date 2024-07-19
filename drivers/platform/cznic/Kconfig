@@ -18,15 +18,11 @@ config TURRIS_OMNIA_MCU
 	depends on I2C
 	depends on OF
 	depends on GPIOLIB
-	depends on RTC_CLASS
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to add support for the features implemented by the
 	  microcontroller on the CZ.NIC's Turris Omnia SOHO router.
 	  The features include:
-	  - board poweroff into true low power mode (with voltage regulators
-	    disabled) and the ability to configure wake up from this mode (via
-	    rtcwake)
 	  - GPIO pins
 	    - to get front button press events (the front button can be
 	      configured either to generate press events to the CPU or to change
@@ -44,6 +40,15 @@ config TURRIS_OMNIA_MCU
 	  called turris-omnia-mcu.
 
 if TURRIS_OMNIA_MCU
+
+config TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
+	bool "Turris Omnia MCU system off and RTC wakeup"
+	default y
+	depends on RTC_CLASS
+	help
+	  Say Y here to add support for CZ.NIC's Turris Omnia board poweroff
+	  into true low power mode (with voltage regulators disabled) and the
+	  ability to configure wake up from this mode (via rtcwake).
 
 config TURRIS_OMNIA_MCU_WATCHDOG
 	bool "Turris Omnia MCU watchdog"
