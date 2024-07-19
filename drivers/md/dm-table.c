@@ -160,6 +160,7 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 	t->type = DM_TYPE_NONE;
 	t->mode = mode;
 	t->md = md;
+	t->flush_bypasses_map = true;
 	*result = t;
 	return 0;
 }
@@ -330,23 +331,15 @@ static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
 }
 
 /*
- * Add a device to the list, or just increment the usage count if
- * it's already present.
- *
  * Note: the __ref annotation is because this function can call the __init
  * marked early_lookup_bdev when called during early boot code from dm-init.c.
  */
-int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
-		  struct dm_dev **result)
+int __ref dm_devt_from_path(const char *path, dev_t *dev_p)
 {
 	int r;
 	dev_t dev;
 	unsigned int major, minor;
 	char dummy;
-	struct dm_dev_internal *dd;
-	struct dm_table *t = ti->table;
-
-	BUG_ON(!t);
 
 	if (sscanf(path, "%u:%u%c", &major, &minor, &dummy) == 2) {
 		/* Extract the major/minor numbers */
@@ -362,6 +355,29 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		if (r)
 			return r;
 	}
+	*dev_p = dev;
+	return 0;
+}
+EXPORT_SYMBOL(dm_devt_from_path);
+
+/*
+ * Add a device to the list, or just increment the usage count if
+ * it's already present.
+ */
+int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
+		  struct dm_dev **result)
+{
+	int r;
+	dev_t dev;
+	struct dm_dev_internal *dd;
+	struct dm_table *t = ti->table;
+
+	BUG_ON(!t);
+
+	r = dm_devt_from_path(path, &dev);
+	if (r)
+		return r;
+
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
 
@@ -748,6 +764,9 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	if (ti->limit_swap_bios && !static_key_enabled(&swap_bios_enabled.key))
 		static_branch_enable(&swap_bios_enabled);
 
+	if (!ti->flush_bypasses_map)
+		t->flush_bypasses_map = false;
+
 	return 0;
 
  bad:
@@ -1031,6 +1050,7 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	unsigned int min_pool_size = 0, pool_size;
 	struct dm_md_mempools *pools;
 	unsigned int bioset_flags = 0;
+	bool mempool_needs_integrity = t->integrity_supported;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
 		DMERR("no table type is set, can't allocate mempools");
@@ -1055,6 +1075,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 
 		per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
 		min_pool_size = max(min_pool_size, ti->num_flush_bios);
+
+		mempool_needs_integrity |= ti->mempool_needs_integrity;
 	}
 	pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
 	front_pad = roundup(per_io_data_size,
@@ -1064,13 +1086,13 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 		__alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
 	if (bioset_init(&pools->io_bs, pool_size, io_front_pad, bioset_flags))
 		goto out_free_pools;
-	if (t->integrity_supported &&
+	if (mempool_needs_integrity &&
 	    bioset_integrity_create(&pools->io_bs, pool_size))
 		goto out_free_pools;
 init_bs:
 	if (bioset_init(&pools->bs, pool_size, front_pad, 0))
 		goto out_free_pools;
-	if (t->integrity_supported &&
+	if (mempool_needs_integrity &&
 	    bioset_integrity_create(&pools->bs, pool_size))
 		goto out_free_pools;
 

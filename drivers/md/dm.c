@@ -645,7 +645,7 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 
 	/* Set default bdev, but target must bio_set_dev() before issuing IO */
 	clone->bi_bdev = md->disk->part0;
-	if (unlikely(ti->needs_bio_set_dev))
+	if (likely(ti != NULL) && unlikely(ti->needs_bio_set_dev))
 		bio_set_dev(clone, md->disk->part0);
 
 	if (len) {
@@ -1107,7 +1107,7 @@ static void clone_endio(struct bio *bio)
 	blk_status_t error = bio->bi_status;
 	struct dm_target_io *tio = clone_to_tio(bio);
 	struct dm_target *ti = tio->ti;
-	dm_endio_fn endio = ti->type->end_io;
+	dm_endio_fn endio = likely(ti != NULL) ? ti->type->end_io : NULL;
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = io->md;
 
@@ -1154,7 +1154,7 @@ static void clone_endio(struct bio *bio)
 	}
 
 	if (static_branch_unlikely(&swap_bios_enabled) &&
-	    unlikely(swap_bios_limit(ti, bio)))
+	    likely(ti != NULL) && unlikely(swap_bios_limit(ti, bio)))
 		up(&md->swap_bios_semaphore);
 
 	free_tio(bio);
@@ -1553,17 +1553,43 @@ static void __send_empty_flush(struct clone_info *ci)
 	ci->sector_count = 0;
 	ci->io->tio.clone.bi_iter.bi_size = 0;
 
-	for (unsigned int i = 0; i < t->num_targets; i++) {
-		unsigned int bios;
-		struct dm_target *ti = dm_table_get_target(t, i);
+	if (!t->flush_bypasses_map) {
+		for (unsigned int i = 0; i < t->num_targets; i++) {
+			unsigned int bios;
+			struct dm_target *ti = dm_table_get_target(t, i);
 
-		if (unlikely(ti->num_flush_bios == 0))
-			continue;
+			if (unlikely(ti->num_flush_bios == 0))
+				continue;
 
-		atomic_add(ti->num_flush_bios, &ci->io->io_count);
-		bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios,
-					     NULL, GFP_NOWAIT);
-		atomic_sub(ti->num_flush_bios - bios, &ci->io->io_count);
+			atomic_add(ti->num_flush_bios, &ci->io->io_count);
+			bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios,
+						     NULL, GFP_NOWAIT);
+			atomic_sub(ti->num_flush_bios - bios, &ci->io->io_count);
+		}
+	} else {
+		/*
+		 * Note that there's no need to grab t->devices_lock here
+		 * because the targets that support flush optimization don't
+		 * modify the list of devices.
+		 */
+		struct list_head *devices = dm_table_get_devices(t);
+		unsigned int len = 0;
+		struct dm_dev_internal *dd;
+		list_for_each_entry(dd, devices, list) {
+			struct bio *clone;
+			/*
+			 * Note that the structure dm_target_io is not
+			 * associated with any target (because the device may be
+			 * used by multiple targets), so we set tio->ti = NULL.
+			 * We must check for NULL in the I/O processing path, to
+			 * avoid NULL pointer dereference.
+			 */
+			clone = alloc_tio(ci, NULL, 0, &len, GFP_NOIO);
+			atomic_add(1, &ci->io->io_count);
+			bio_set_dev(clone, dd->dm_dev->bdev);
+			clone->bi_end_io = clone_endio;
+			dm_submit_bio_remap(clone, NULL);
+		}
 	}
 
 	/*
@@ -1631,14 +1657,10 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 	case REQ_OP_SECURE_ERASE:
 		num_bios = ti->num_secure_erase_bios;
 		max_sectors = limits->max_secure_erase_sectors;
-		if (ti->max_secure_erase_granularity)
-			max_granularity = max_sectors;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;
 		max_sectors = limits->max_write_zeroes_sectors;
-		if (ti->max_write_zeroes_granularity)
-			max_granularity = max_sectors;
 		break;
 	default:
 		break;
