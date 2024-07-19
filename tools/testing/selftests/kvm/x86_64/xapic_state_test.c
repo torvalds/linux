@@ -70,12 +70,10 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 	vcpu_ioctl(vcpu, KVM_GET_LAPIC, &xapic);
 	icr = (u64)(*((u32 *)&xapic.regs[APIC_ICR])) |
 	      (u64)(*((u32 *)&xapic.regs[APIC_ICR2])) << 32;
-	if (!x->is_x2apic) {
+	if (!x->is_x2apic)
 		val &= (-1u | (0xffull << (32 + 24)));
-		TEST_ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
-	} else {
-		TEST_ASSERT_EQ(icr & ~APIC_ICR_BUSY, val & ~APIC_ICR_BUSY);
-	}
+
+	TEST_ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
 }
 
 #define X2APIC_RSVED_BITS_MASK  (GENMASK_ULL(31,20) | \
@@ -91,7 +89,15 @@ static void __test_icr(struct xapic_vcpu *x, uint64_t val)
 		 */
 		val &= ~X2APIC_RSVED_BITS_MASK;
 	}
-	____test_icr(x, val | APIC_ICR_BUSY);
+
+	/*
+	 * The BUSY bit is reserved on both AMD and Intel, but only AMD treats
+	 * it is as _must_ be zero.  Intel simply ignores the bit.  Don't test
+	 * the BUSY bit for x2APIC, as there is no single correct behavior.
+	 */
+	if (!x->is_x2apic)
+		____test_icr(x, val | APIC_ICR_BUSY);
+
 	____test_icr(x, val & ~(u64)APIC_ICR_BUSY);
 }
 
