@@ -1538,4 +1538,5 @@ core_initcall(vdpa_init);
 module_exit(vdpa_exit);
 
 MODULE_AUTHOR("Jason Wang <jasowang@redhat.com>");
+MODULE_DESCRIPTION("vDPA bus");
 MODULE_LICENSE("GPL v2");

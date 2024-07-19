@@ -127,8 +127,7 @@ bool vp_notify(struct virtqueue *vq);
 void vp_del_vqs(struct virtio_device *vdev);
 /* the config->find_vqs() implementation */
 int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
-		struct virtqueue *vqs[], vq_callback_t *callbacks[],
-		const char * const names[], const bool *ctx,
+		struct virtqueue *vqs[], struct virtqueue_info vqs_info[],
 		struct irq_affinity *desc);
 const char *vp_bus_name(struct virtio_device *vdev);
 

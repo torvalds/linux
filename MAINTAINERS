@@ -10786,7 +10786,7 @@ F:	net/ieee802154/
 F:	net/mac802154/
 
 Intel VIRTIO DATA PATH ACCELERATOR
-M:	Zhu Lingshan <lingshan.zhu@intel.com>
+M:	Zhu Lingshan <lingshan.zhu@kernel.org>
 L:	virtualization@lists.linux.dev
 S:	Supported
 F:	drivers/vdpa/ifcvf/
@@ -13610,6 +13610,11 @@ L:	linux-mmc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mmc/marvell,xenon-sdhci.yaml
 F:	drivers/mmc/host/sdhci-xenon*
+
+MARVELL OCTEON ENDPOINT VIRTIO DATA PATH ACCELERATOR
+R:	schalla@marvell.com
+R:	vattunuru@marvell.com
+F:	drivers/vdpa/octeon_ep/
 
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org

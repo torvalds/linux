@@ -567,12 +567,14 @@ struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
 
 static int um_pci_init_vqs(struct um_pci_device *dev)
 {
+	struct virtqueue_info vqs_info[] = {
+		{ "cmd", um_pci_cmd_vq_cb },
+		{ "irq", um_pci_irq_vq_cb },
+	};
 	struct virtqueue *vqs[2];
-	static const char *const names[2] = { "cmd", "irq" };
-	vq_callback_t *cbs[2] = { um_pci_cmd_vq_cb, um_pci_irq_vq_cb };
 	int err, i;
 
-	err = virtio_find_vqs(dev->vdev, 2, vqs, cbs, names, NULL);
+	err = virtio_find_vqs(dev->vdev, 2, vqs, vqs_info, NULL);
 	if (err)
 		return err;
 
