@@ -52,9 +52,11 @@ struct omnia_mcu {
 	struct watchdog_device wdt;
 #endif
 
+#ifdef CONFIG_TURRIS_OMNIA_MCU_TRNG
 	/* true random number generator */
 	struct hwrng trng;
 	struct completion trng_entropy_ready;
+#endif
 };
 
 int omnia_cmd_write_read(const struct i2c_client *client,
@@ -190,7 +192,15 @@ extern const struct attribute_group omnia_mcu_poweroff_group;
 
 int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
 int omnia_mcu_register_sys_off_and_wakeup(struct omnia_mcu *mcu);
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_TRNG
 int omnia_mcu_register_trng(struct omnia_mcu *mcu);
+#else
+static inline int omnia_mcu_register_trng(struct omnia_mcu *mcu)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_WATCHDOG
 int omnia_mcu_register_watchdog(struct omnia_mcu *mcu);

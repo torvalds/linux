@@ -18,7 +18,6 @@ config TURRIS_OMNIA_MCU
 	depends on I2C
 	depends on OF
 	depends on GPIOLIB
-	depends on HW_RANDOM
 	depends on RTC_CLASS
 	select GPIOLIB_IRQCHIP
 	help
@@ -28,7 +27,6 @@ config TURRIS_OMNIA_MCU
 	  - board poweroff into true low power mode (with voltage regulators
 	    disabled) and the ability to configure wake up from this mode (via
 	    rtcwake)
-	  - true random number generator (if available on the MCU)
 	  - GPIO pins
 	    - to get front button press events (the front button can be
 	      configured either to generate press events to the CPU or to change
@@ -55,6 +53,14 @@ config TURRIS_OMNIA_MCU_WATCHDOG
 	help
 	  Say Y here to add support for watchdog provided by CZ.NIC's Turris
 	  Omnia MCU.
+
+config TURRIS_OMNIA_MCU_TRNG
+	bool "Turris Omnia MCU true random number generator"
+	default y
+	depends on HW_RANDOM
+	help
+	  Say Y here to add support for the true random number generator
+	  provided by CZ.NIC's Turris Omnia MCU.
 
 endif # TURRIS_OMNIA_MCU
 
