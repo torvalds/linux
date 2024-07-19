@@ -82,6 +82,9 @@
 
 #include <trace/events/kmem.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/mm.h>
+
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -3494,6 +3497,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	 * not dirty accountable.
 	 */
 	folio = page_folio(vmf->page);
+	trace_android_vh_do_wp_page(folio);
 	if (folio_test_anon(folio)) {
 		/*
 		 * If the page is exclusive to this process we must reuse the
@@ -4077,6 +4081,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
 	dec_mm_counter_fast(vma->vm_mm, MM_SWAPENTS);
 	pte = mk_pte(page, vma->vm_page_prot);
+	trace_android_vh_do_swap_page(folio, &pte, vmf, entry);
 
 	/*
 	 * Same logic as in do_wp_page(); however, optimize for pages that are
@@ -4232,6 +4237,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 	 */
 	__SetPageUptodate(page);
 
+	trace_android_vh_do_anonymous_page(vma, page);
 	entry = mk_pte(page, vma->vm_page_prot);
 	entry = pte_sw_mkyoung(entry);
 	if (vma->vm_flags & VM_WRITE)
