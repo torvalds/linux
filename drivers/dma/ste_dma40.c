@@ -3632,11 +3632,7 @@ static int __init d40_probe(struct platform_device *pdev)
 	if (ret)
 		goto destroy_cache;
 
-	ret = dma_set_max_seg_size(base->dev, STEDMA40_MAX_SEG_SIZE);
-	if (ret) {
-		d40_err(dev, "Failed to set dma max seg size\n");
-		goto destroy_cache;
-	}
+	dma_set_max_seg_size(base->dev, STEDMA40_MAX_SEG_SIZE);
 
 	d40_hw_init(base);
 

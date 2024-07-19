@@ -524,13 +524,11 @@ static inline unsigned int dma_get_max_seg_size(struct device *dev)
 	return SZ_64K;
 }
 
-static inline int dma_set_max_seg_size(struct device *dev, unsigned int size)
+static inline void dma_set_max_seg_size(struct device *dev, unsigned int size)
 {
-	if (dev->dma_parms) {
-		dev->dma_parms->max_segment_size = size;
-		return 0;
-	}
-	return -EIO;
+	if (WARN_ON_ONCE(!dev->dma_parms))
+		return;
+	dev->dma_parms->max_segment_size = size;
 }
 
 static inline unsigned long dma_get_seg_boundary(struct device *dev)

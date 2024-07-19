@@ -13861,12 +13861,7 @@ fcponly:
 	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
 		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
 
-	rc = dma_set_max_seg_size(&phba->pcidev->dev, sli4_params->sge_supp_len);
-	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"6400 Can't set dma maximum segment size\n");
-		return rc;
-	}
+	dma_set_max_seg_size(&phba->pcidev->dev, sli4_params->sge_supp_len);
 
 	/*
 	 * Check whether the adapter supports an embedded copy of the
