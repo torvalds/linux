@@ -394,8 +394,12 @@ out:
  * @ber_level: Current BER level contour value
  * @voltage_steps: Number of mandatory voltage steps
  * @max_voltage_offset: Maximum mandatory voltage offset (in mV)
+ * @voltage_steps_optional_range: Number of voltage steps for optional range
+ * @max_voltage_offset_optional_range: Maximum voltage offset for the optional
+ *					range (in mV).
  * @time_steps: Number of time margin steps
  * @max_time_offset: Maximum time margin offset (in mUI)
+ * @optional_voltage_offset_range: Enable optional extended voltage range
  * @software: %true if software margining is used instead of hardware
  * @time: %true if time margining is used instead of voltage
  * @right_high: %false if left/low margin test is performed, %true if
@@ -414,8 +418,11 @@ struct tb_margining {
 	unsigned int ber_level;
 	unsigned int voltage_steps;
 	unsigned int max_voltage_offset;
+	unsigned int voltage_steps_optional_range;
+	unsigned int max_voltage_offset_optional_range;
 	unsigned int time_steps;
 	unsigned int max_time_offset;
+	bool optional_voltage_offset_range;
 	bool software;
 	bool time;
 	bool right_high;
@@ -452,6 +459,12 @@ static unsigned int
 independent_time_margins(const struct tb_margining *margining)
 {
 	return FIELD_GET(USB4_MARGIN_CAP_1_TIME_INDP_MASK, margining->caps[1]);
+}
+
+static bool
+supports_optional_voltage_offset_range(const struct tb_margining *margining)
+{
+	return margining->caps[0] & USB4_MARGIN_CAP_0_OPT_VOLTAGE_SUPPORT;
 }
 
 static ssize_t
@@ -553,6 +566,14 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		   margining->voltage_steps);
 	seq_printf(s, "# maximum voltage offset: %u mV\n",
 		   margining->max_voltage_offset);
+	seq_printf(s, "# optional voltage offset range support: %s\n",
+		   str_yes_no(supports_optional_voltage_offset_range(margining)));
+	if (supports_optional_voltage_offset_range(margining)) {
+		seq_printf(s, "# voltage margin steps, optional range: %u\n",
+			   margining->voltage_steps_optional_range);
+		seq_printf(s, "# maximum voltage offset, optional range: %u mV\n",
+			   margining->max_voltage_offset_optional_range);
+	}
 
 	switch (independent_voltage_margins(margining)) {
 	case USB4_MARGIN_CAP_0_VOLTAGE_MIN:
@@ -666,6 +687,42 @@ static int margining_lanes_show(struct seq_file *s, void *not_used)
 	return 0;
 }
 DEBUGFS_ATTR_RW(margining_lanes);
+
+static ssize_t
+margining_optional_voltage_offset_write(struct file *file,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct tb_margining *margining = s->private;
+	struct tb *tb = margining->port->sw->tb;
+	bool val;
+	int ret;
+
+	ret = kstrtobool_from_user(user_buf, count, &val);
+	if (ret)
+		return ret;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &tb->lock) {
+		margining->optional_voltage_offset_range = val;
+	}
+
+	return count;
+}
+
+static int margining_optional_voltage_offset_show(struct seq_file *s,
+						  void *not_used)
+{
+	struct tb_margining *margining = s->private;
+	struct tb *tb = margining->port->sw->tb;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &tb->lock) {
+		seq_printf(s, "%u\n", margining->optional_voltage_offset_range);
+	}
+
+	return 0;
+}
+DEBUGFS_ATTR_RW(margining_optional_voltage_offset);
 
 static ssize_t margining_mode_write(struct file *file,
 				   const char __user *user_buf,
@@ -785,6 +842,7 @@ static int margining_run_write(void *data, u64 val)
 			.lanes = margining->lanes,
 			.time = margining->time,
 			.right_high = margining->right_high,
+			.optional_voltage_offset_range = margining->optional_voltage_offset_range,
 		};
 
 		tb_port_dbg(port,
@@ -806,6 +864,7 @@ static int margining_run_write(void *data, u64 val)
 			.lanes = margining->lanes,
 			.time = margining->time,
 			.right_high = margining->right_high,
+			.optional_voltage_offset_range = margining->optional_voltage_offset_range,
 		};
 
 		/* Clear the results */
@@ -865,6 +924,8 @@ static void voltage_margin_show(struct seq_file *s,
 	if (val & USB4_MARGIN_HW_RES_1_EXCEEDS)
 		seq_puts(s, " exceeds maximum");
 	seq_puts(s, "\n");
+	if (margining->optional_voltage_offset_range)
+		seq_puts(s, " optional voltage offset range enabled\n");
 }
 
 static void time_margin_show(struct seq_file *s,
@@ -1104,6 +1165,15 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 	val = FIELD_GET(USB4_MARGIN_CAP_0_MAX_VOLTAGE_OFFSET_MASK, margining->caps[0]);
 	margining->max_voltage_offset = 74 + val * 2;
 
+	if (supports_optional_voltage_offset_range(margining)) {
+		val = FIELD_GET(USB4_MARGIN_CAP_0_VOLT_STEPS_OPT_MASK,
+				margining->caps[0]);
+		margining->voltage_steps_optional_range = val;
+		val = FIELD_GET(USB4_MARGIN_CAP_1_MAX_VOLT_OFS_OPT_MASK,
+				margining->caps[1]);
+		margining->max_voltage_offset_optional_range = 74 + val * 2;
+	}
+
 	if (supports_time(margining)) {
 		val = FIELD_GET(USB4_MARGIN_CAP_1_TIME_STEPS_MASK, margining->caps[1]);
 		margining->time_steps = val;
@@ -1140,6 +1210,10 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 	     independent_time_margins(margining) == USB4_MARGIN_CAP_1_TIME_LR))
 		debugfs_create_file("margin", 0600, dir, margining,
 				    &margining_margin_fops);
+
+	if (supports_optional_voltage_offset_range(margining))
+		debugfs_create_file("optional_voltage_offset", DEBUGFS_MODE, dir, margining,
+				    &margining_optional_voltage_offset_fops);
 	return margining;
 }
 
