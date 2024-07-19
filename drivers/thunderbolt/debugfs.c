@@ -780,13 +780,20 @@ static int margining_run_write(void *data, u64 val)
 	}
 
 	if (margining->software) {
+		struct usb4_port_margining_params params = {
+			.error_counter = USB4_MARGIN_SW_ERROR_COUNTER_CLEAR,
+			.lanes = margining->lanes,
+			.time = margining->time,
+			.right_high = margining->right_high,
+		};
+
 		tb_port_dbg(port,
 			    "running software %s lane margining for %s lanes %u\n",
 			    margining->time ? "time" : "voltage", dev_name(dev),
 			    margining->lanes);
-		ret = usb4_port_sw_margin(port, margining->target, margining->index,
-					  margining->lanes, margining->time, margining->right_high,
-					  USB4_MARGIN_SW_COUNTER_CLEAR, &margining->results[0]);
+
+		ret = usb4_port_sw_margin(port, margining->target, margining->index, &params,
+					  &margining->results[0]);
 		if (ret)
 			goto out_clx;
 
@@ -794,16 +801,23 @@ static int margining_run_write(void *data, u64 val)
 						 margining->index,
 						 &margining->results[0]);
 	} else {
+		struct usb4_port_margining_params params = {
+			.ber_level = margining->ber_level,
+			.lanes = margining->lanes,
+			.time = margining->time,
+			.right_high = margining->right_high,
+		};
+
+		/* Clear the results */
+		margining->results[0] = 0;
+		margining->results[1] = 0;
+
 		tb_port_dbg(port,
 			    "running hardware %s lane margining for %s lanes %u\n",
 			    margining->time ? "time" : "voltage", dev_name(dev),
 			    margining->lanes);
-		/* Clear the results */
-		margining->results[0] = 0;
-		margining->results[1] = 0;
-		ret = usb4_port_hw_margin(port, margining->target, margining->index,
-					  margining->lanes, margining->ber_level,
-					  margining->time, margining->right_high,
+
+		ret = usb4_port_hw_margin(port, margining->target, margining->index, &params,
 					  margining->results);
 	}
 
