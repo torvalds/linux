@@ -45,10 +45,12 @@ static void x2apic_guest_code(void)
 		uint64_t val = x2apic_read_reg(APIC_IRR) |
 			       x2apic_read_reg(APIC_IRR + 0x10) << 32;
 
-		if (val & X2APIC_RSVD_BITS_MASK)
+		if (val & X2APIC_RSVD_BITS_MASK) {
 			x2apic_write_reg_fault(APIC_ICR, val);
-		else
+		} else {
 			x2apic_write_reg(APIC_ICR, val);
+			GUEST_ASSERT_EQ(x2apic_read_reg(APIC_ICR), val);
+		}
 		GUEST_SYNC(val);
 	} while (1);
 }
