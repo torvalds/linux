@@ -1630,9 +1630,7 @@ static int psp_ras_send_cmd(struct psp_context *psp,
 
 	switch (cmd) {
 	case TA_RAS_COMMAND__TRIGGER_ERROR:
-		if (ret || psp->cmd_buf_mem->resp.status)
-			ret = -EINVAL;
-		else if (out)
+		if (!ret && out)
 			memcpy(out, &ras_cmd->ras_status, sizeof(ras_cmd->ras_status));
 		break;
 	case TA_RAS_COMMAND__QUERY_ADDRESS:
