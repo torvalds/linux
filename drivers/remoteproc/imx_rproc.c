@@ -796,6 +796,8 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		goto err_put_rproc;
 	}
 
+	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
+
 	ret = imx_rproc_xtr_mbox_init(rproc);
 	if (ret)
 		goto err_put_wkq;
@@ -813,8 +815,6 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	ret = imx_rproc_clk_enable(priv);
 	if (ret)
 		goto err_put_mbox;
-
-	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
 
 	if (rproc->state != RPROC_DETACHED)
 		rproc->auto_boot = of_property_read_bool(np, "fsl,auto-boot");
