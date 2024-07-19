@@ -4,12 +4,11 @@
 
 void bch2_io_timer_add(struct io_clock *, struct io_timer *);
 void bch2_io_timer_del(struct io_clock *, struct io_timer *);
-void bch2_kthread_io_clock_wait(struct io_clock *, unsigned long,
-				unsigned long);
+void bch2_kthread_io_clock_wait(struct io_clock *, u64, unsigned long);
 
-void __bch2_increment_clock(struct io_clock *, unsigned);
+void __bch2_increment_clock(struct io_clock *, u64);
 
-static inline void bch2_increment_clock(struct bch_fs *c, unsigned sectors,
+static inline void bch2_increment_clock(struct bch_fs *c, u64 sectors,
 					int rw)
 {
 	struct io_clock *clock = &c->io_clock[rw];
@@ -19,7 +18,7 @@ static inline void bch2_increment_clock(struct bch_fs *c, unsigned sectors,
 		__bch2_increment_clock(clock, this_cpu_xchg(*clock->pcpu_buf, 0));
 }
 
-void bch2_io_clock_schedule_timeout(struct io_clock *, unsigned long);
+void bch2_io_clock_schedule_timeout(struct io_clock *, u64);
 
 #define bch2_kthread_wait_event_ioclock_timeout(condition, clock, timeout)\
 ({									\

@@ -286,6 +286,17 @@ static inline int eytzinger0_find_gt(void *base, size_t nr, size_t size,
 	return eytzinger0_next(idx, nr);
 }
 
+static inline int eytzinger0_find_ge(void *base, size_t nr, size_t size,
+				     cmp_func_t cmp, const void *search)
+{
+	ssize_t idx = eytzinger0_find_le(base, nr, size, cmp, search);
+
+	if (idx < nr && !cmp(base + idx * size, search))
+		return idx;
+
+	return eytzinger0_next(idx, nr);
+}
+
 #define eytzinger0_find(base, nr, size, _cmp, search)			\
 ({									\
 	void *_base		= (base);				\

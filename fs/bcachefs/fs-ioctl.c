@@ -272,6 +272,70 @@ err1:
 	return ret;
 }
 
+static int bch2_ioc_getversion(struct bch_inode_info *inode, u32 __user *arg)
+{
+	return put_user(inode->v.i_generation, arg);
+}
+
+static int bch2_ioc_getlabel(struct bch_fs *c, char __user *user_label)
+{
+	int ret;
+	size_t len;
+	char label[BCH_SB_LABEL_SIZE];
+
+	BUILD_BUG_ON(BCH_SB_LABEL_SIZE >= FSLABEL_MAX);
+
+	mutex_lock(&c->sb_lock);
+	memcpy(label, c->disk_sb.sb->label, BCH_SB_LABEL_SIZE);
+	mutex_unlock(&c->sb_lock);
+
+	len = strnlen(label, BCH_SB_LABEL_SIZE);
+	if (len == BCH_SB_LABEL_SIZE) {
+		bch_warn(c,
+			"label is too long, return the first %zu bytes",
+			--len);
+	}
+
+	ret = copy_to_user(user_label, label, len);
+
+	return ret ? -EFAULT : 0;
+}
+
+static int bch2_ioc_setlabel(struct bch_fs *c,
+			     struct file *file,
+			     struct bch_inode_info *inode,
+			     const char __user *user_label)
+{
+	int ret;
+	char label[BCH_SB_LABEL_SIZE];
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(label, user_label, sizeof(label)))
+		return -EFAULT;
+
+	if (strnlen(label, BCH_SB_LABEL_SIZE) == BCH_SB_LABEL_SIZE) {
+		bch_err(c,
+			"unable to set label with more than %d bytes",
+			BCH_SB_LABEL_SIZE - 1);
+		return -EINVAL;
+	}
+
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
+	mutex_lock(&c->sb_lock);
+	strscpy(c->disk_sb.sb->label, label, BCH_SB_LABEL_SIZE);
+	mutex_unlock(&c->sb_lock);
+
+	ret = bch2_write_super(c);
+
+	mnt_drop_write_file(file);
+	return ret;
+}
+
 static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 {
 	u32 flags;
@@ -499,11 +563,19 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		break;
 
 	case FS_IOC_GETVERSION:
-		ret = -ENOTTY;
+		ret = bch2_ioc_getversion(inode, (u32 __user *) arg);
 		break;
 
 	case FS_IOC_SETVERSION:
 		ret = -ENOTTY;
+		break;
+
+	case FS_IOC_GETFSLABEL:
+		ret = bch2_ioc_getlabel(c, (void __user *) arg);
+		break;
+
+	case FS_IOC_SETFSLABEL:
+		ret = bch2_ioc_setlabel(c, file, inode, (const void __user *) arg);
 		break;
 
 	case FS_IOC_GOINGDOWN:
@@ -546,6 +618,12 @@ long bch2_compat_fs_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		break;
 	case FS_IOC32_SETFLAGS:
 		cmd = FS_IOC_SETFLAGS;
+		break;
+	case FS_IOC32_GETVERSION:
+		cmd = FS_IOC_GETVERSION;
+		break;
+	case FS_IOC_GETFSLABEL:
+	case FS_IOC_SETFSLABEL:
 		break;
 	default:
 		return -ENOIOCTLCMD;

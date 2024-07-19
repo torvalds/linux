@@ -99,7 +99,7 @@ int bch2_lru_check_set(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		if (fsck_err(c, alloc_key_to_missing_lru_entry,
+		if (fsck_err(trans, alloc_key_to_missing_lru_entry,
 			     "missing %s lru entry\n"
 			     "  %s",
 			     bch2_lru_types[lru_type(lru_k)],
@@ -133,8 +133,8 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 	u64 idx;
 	int ret;
 
-	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos), c,
-			lru_entry_to_invalid_bucket,
+	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos),
+			trans, lru_entry_to_invalid_bucket,
 			"lru key points to nonexistent device:bucket %llu:%llu",
 			alloc_pos.inode, alloc_pos.offset))
 		return bch2_btree_delete_at(trans, lru_iter, 0);
@@ -164,7 +164,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			goto out;
 		}
 
-		if (fsck_err(c, lru_entry_bad,
+		if (fsck_err(trans, lru_entry_bad,
 			     "incorrect lru entry: lru %s time %llu\n"
 			     "  %s\n"
 			     "  for %s",

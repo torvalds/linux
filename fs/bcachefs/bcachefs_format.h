@@ -417,7 +417,8 @@ static inline void bkey_init(struct bkey *k)
 	x(bucket_gens,		30)			\
 	x(snapshot_tree,	31)			\
 	x(logged_op_truncate,	32)			\
-	x(logged_op_finsert,	33)
+	x(logged_op_finsert,	33)			\
+	x(accounting,		34)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -467,18 +468,6 @@ struct bch_backpointer {
 	struct bpos		pos;
 } __packed __aligned(8);
 
-/* LRU btree: */
-
-struct bch_lru {
-	struct bch_val		v;
-	__le64			idx;
-} __packed __aligned(8);
-
-#define LRU_ID_STRIPES		(1U << 16)
-
-#define LRU_TIME_BITS	48
-#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
-
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -505,6 +494,9 @@ struct bch_sb_field {
 	x(downgrade,			14)
 
 #include "alloc_background_format.h"
+#include "dirent_format.h"
+#include "disk_accounting_format.h"
+#include "disk_groups_format.h"
 #include "extents_format.h"
 #include "ec_format.h"
 #include "dirent_format.h"
@@ -512,6 +504,7 @@ struct bch_sb_field {
 #include "inode_format.h"
 #include "journal_seq_blacklist_format.h"
 #include "logged_ops_format.h"
+#include "lru_format.h"
 #include "quota_format.h"
 #include "reflink_format.h"
 #include "replicas_format.h"
@@ -602,48 +595,6 @@ LE64_BITMASK(BCH_KDF_SCRYPT_N,	struct bch_sb_field_crypt, kdf_flags,  0, 16);
 LE64_BITMASK(BCH_KDF_SCRYPT_R,	struct bch_sb_field_crypt, kdf_flags, 16, 32);
 LE64_BITMASK(BCH_KDF_SCRYPT_P,	struct bch_sb_field_crypt, kdf_flags, 32, 48);
 
-#define BCH_DATA_TYPES()		\
-	x(free,		0)		\
-	x(sb,		1)		\
-	x(journal,	2)		\
-	x(btree,	3)		\
-	x(user,		4)		\
-	x(cached,	5)		\
-	x(parity,	6)		\
-	x(stripe,	7)		\
-	x(need_gc_gens,	8)		\
-	x(need_discard,	9)
-
-enum bch_data_type {
-#define x(t, n) BCH_DATA_##t,
-	BCH_DATA_TYPES()
-#undef x
-	BCH_DATA_NR
-};
-
-static inline bool data_type_is_empty(enum bch_data_type type)
-{
-	switch (type) {
-	case BCH_DATA_free:
-	case BCH_DATA_need_gc_gens:
-	case BCH_DATA_need_discard:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline bool data_type_is_hidden(enum bch_data_type type)
-{
-	switch (type) {
-	case BCH_DATA_sb:
-	case BCH_DATA_journal:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /*
  * On clean shutdown, store btree roots and current journal sequence number in
  * the superblock:
@@ -722,7 +673,9 @@ struct bch_sb_field_ext {
 	x(member_seq,			BCH_VERSION(1,  4))		\
 	x(subvolume_fs_parent,		BCH_VERSION(1,  5))		\
 	x(btree_subvolume_children,	BCH_VERSION(1,  6))		\
-	x(mi_btree_bitmap,		BCH_VERSION(1,  7))
+	x(mi_btree_bitmap,		BCH_VERSION(1,  7))		\
+	x(bucket_stripe_sectors,	BCH_VERSION(1,  8))		\
+	x(disk_accounting_v2,		BCH_VERSION(1,  9))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1174,7 +1127,6 @@ static inline bool jset_entry_is_key(struct jset_entry *e)
 	switch (e->type) {
 	case BCH_JSET_ENTRY_btree_keys:
 	case BCH_JSET_ENTRY_btree_root:
-	case BCH_JSET_ENTRY_overwrite:
 	case BCH_JSET_ENTRY_write_buffer_keys:
 		return true;
 	}
@@ -1375,7 +1327,9 @@ enum btree_id_flags {
 	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
 	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))			\
 	x(subvolume_children,	19,	0,					\
-	  BIT_ULL(KEY_TYPE_set))
+	  BIT_ULL(KEY_TYPE_set))						\
+	x(accounting,		20,	BTREE_ID_SNAPSHOT_FIELD,		\
+	  BIT_ULL(KEY_TYPE_accounting))						\
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

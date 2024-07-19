@@ -24,18 +24,6 @@ static inline struct bpos lru_pos(u16 lru_id, u64 dev_bucket, u64 time)
 	return pos;
 }
 
-#define BCH_LRU_TYPES()		\
-	x(read)			\
-	x(fragmentation)
-
-enum bch_lru_type {
-#define x(n) BCH_LRU_##n,
-	BCH_LRU_TYPES()
-#undef x
-};
-
-#define BCH_LRU_FRAGMENTATION_START	((1U << 16) - 1)
-
 static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 {
 	u16 lru_id = l.k->p.inode >> 48;

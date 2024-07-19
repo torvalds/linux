@@ -227,8 +227,8 @@ enum bch_fsck_flags {
 	x(deleted_inode_is_dir,					213,	0)		\
 	x(deleted_inode_not_unlinked,				214,	0)		\
 	x(extent_overlapping,					215,	0)		\
-	x(extent_in_missing_inode,				216,	0)		\
-	x(extent_in_non_reg_inode,				217,	0)		\
+	x(key_in_missing_inode,					216,	0)		\
+	x(key_in_wrong_inode_type,				217,	0)		\
 	x(extent_past_end_of_inode,				218,	0)		\
 	x(dirent_empty_name,					219,	0)		\
 	x(dirent_val_too_big,					220,	0)		\

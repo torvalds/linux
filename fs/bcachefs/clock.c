@@ -15,18 +15,15 @@ static inline long io_timer_cmp(io_timer_heap *h,
 
 void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 {
-	size_t i;
-
 	spin_lock(&clock->timer_lock);
 
-	if (time_after_eq((unsigned long) atomic64_read(&clock->now),
-			  timer->expire)) {
+	if (time_after_eq64((u64) atomic64_read(&clock->now), timer->expire)) {
 		spin_unlock(&clock->timer_lock);
 		timer->fn(timer);
 		return;
 	}
 
-	for (i = 0; i < clock->timers.used; i++)
+	for (size_t i = 0; i < clock->timers.used; i++)
 		if (clock->timers.data[i] == timer)
 			goto out;
 
@@ -37,11 +34,9 @@ out:
 
 void bch2_io_timer_del(struct io_clock *clock, struct io_timer *timer)
 {
-	size_t i;
-
 	spin_lock(&clock->timer_lock);
 
-	for (i = 0; i < clock->timers.used; i++)
+	for (size_t i = 0; i < clock->timers.used; i++)
 		if (clock->timers.data[i] == timer) {
 			heap_del(&clock->timers, i, io_timer_cmp, NULL);
 			break;
@@ -75,33 +70,31 @@ static void io_clock_cpu_timeout(struct timer_list *timer)
 	wake_up_process(wait->task);
 }
 
-void bch2_io_clock_schedule_timeout(struct io_clock *clock, unsigned long until)
+void bch2_io_clock_schedule_timeout(struct io_clock *clock, u64 until)
 {
-	struct io_clock_wait wait;
+	struct io_clock_wait wait = {
+		.io_timer.expire	= until,
+		.io_timer.fn		= io_clock_wait_fn,
+		.io_timer.fn2		= (void *) _RET_IP_,
+		.task			= current,
+	};
 
-	/* XXX: calculate sleep time rigorously */
-	wait.io_timer.expire	= until;
-	wait.io_timer.fn	= io_clock_wait_fn;
-	wait.task		= current;
-	wait.expired		= 0;
 	bch2_io_timer_add(clock, &wait.io_timer);
-
 	schedule();
-
 	bch2_io_timer_del(clock, &wait.io_timer);
 }
 
 void bch2_kthread_io_clock_wait(struct io_clock *clock,
-				unsigned long io_until,
-				unsigned long cpu_timeout)
+				u64 io_until, unsigned long cpu_timeout)
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
-	struct io_clock_wait wait;
+	struct io_clock_wait wait = {
+		.io_timer.expire	= io_until,
+		.io_timer.fn		= io_clock_wait_fn,
+		.io_timer.fn2		= (void *) _RET_IP_,
+		.task			= current,
+	};
 
-	wait.io_timer.expire	= io_until;
-	wait.io_timer.fn	= io_clock_wait_fn;
-	wait.task		= current;
-	wait.expired		= 0;
 	bch2_io_timer_add(clock, &wait.io_timer);
 
 	timer_setup_on_stack(&wait.cpu_timer, io_clock_cpu_timeout, 0);
@@ -127,21 +120,20 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 	bch2_io_timer_del(clock, &wait.io_timer);
 }
 
-static struct io_timer *get_expired_timer(struct io_clock *clock,
-					  unsigned long now)
+static struct io_timer *get_expired_timer(struct io_clock *clock, u64 now)
 {
 	struct io_timer *ret = NULL;
 
 	if (clock->timers.used &&
-	    time_after_eq(now, clock->timers.data[0]->expire))
+	    time_after_eq64(now, clock->timers.data[0]->expire))
 		heap_pop(&clock->timers, ret, io_timer_cmp, NULL);
 	return ret;
 }
 
-void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
+void __bch2_increment_clock(struct io_clock *clock, u64 sectors)
 {
 	struct io_timer *timer;
-	unsigned long now = atomic64_add_return(sectors, &clock->now);
+	u64 now = atomic64_add_return(sectors, &clock->now);
 
 	spin_lock(&clock->timer_lock);
 	while ((timer = get_expired_timer(clock, now)))
@@ -151,17 +143,18 @@ void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 
 void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 {
-	unsigned long now;
-	unsigned i;
-
 	out->atomic++;
 	spin_lock(&clock->timer_lock);
-	now = atomic64_read(&clock->now);
+	u64 now = atomic64_read(&clock->now);
 
-	for (i = 0; i < clock->timers.used; i++)
-		prt_printf(out, "%ps:\t%li\n",
+	printbuf_tabstop_push(out, 40);
+	prt_printf(out, "current time:\t%llu\n", now);
+
+	for (unsigned i = 0; i < clock->timers.used; i++)
+		prt_printf(out, "%ps %ps:\t%llu\n",
 		       clock->timers.data[i]->fn,
-		       clock->timers.data[i]->expire - now);
+		       clock->timers.data[i]->fn2,
+		       clock->timers.data[i]->expire);
 	spin_unlock(&clock->timer_lock);
 	--out->atomic;
 }
