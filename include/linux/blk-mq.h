@@ -672,8 +672,6 @@ enum {
 	BLK_MQ_S_INACTIVE	= 3,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
-
-	BLK_MQ_CPU_WORK_BATCH	= 8,
 };
 #define BLK_MQ_FLAG_TO_ALLOC_POLICY(flags) \
 	((flags >> BLK_MQ_F_ALLOC_POLICY_START_BIT) & \
