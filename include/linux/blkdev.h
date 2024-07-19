@@ -588,19 +588,22 @@ struct request_queue {
 };
 
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
-#define QUEUE_FLAG_DYING	1	/* queue being torn down */
-#define QUEUE_FLAG_NOMERGES     3	/* disable merge attempts */
-#define QUEUE_FLAG_SAME_COMP	4	/* complete on same CPU-group */
-#define QUEUE_FLAG_FAIL_IO	5	/* fake timeout */
-#define QUEUE_FLAG_NOXMERGES	9	/* No extended merges */
-#define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
-#define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
-#define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
-#define QUEUE_FLAG_REGISTERED	22	/* queue has been registered to a disk */
-#define QUEUE_FLAG_QUIESCED	24	/* queue has been quiesced */
-#define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
-#define QUEUE_FLAG_HCTX_ACTIVE	28	/* at least one blk-mq hctx is active */
-#define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
+enum {
+	QUEUE_FLAG_DYING,		/* queue being torn down */
+	QUEUE_FLAG_NOMERGES,		/* disable merge attempts */
+	QUEUE_FLAG_SAME_COMP,		/* complete on same CPU-group */
+	QUEUE_FLAG_FAIL_IO,		/* fake timeout */
+	QUEUE_FLAG_NOXMERGES,		/* No extended merges */
+	QUEUE_FLAG_SAME_FORCE,		/* force complete on same CPU */
+	QUEUE_FLAG_INIT_DONE,		/* queue is initialized */
+	QUEUE_FLAG_STATS,		/* track IO start and completion times */
+	QUEUE_FLAG_REGISTERED,		/* queue has been registered to a disk */
+	QUEUE_FLAG_QUIESCED,		/* queue has been quiesced */
+	QUEUE_FLAG_RQ_ALLOC_TIME,	/* record rq->alloc_time_ns */
+	QUEUE_FLAG_HCTX_ACTIVE,		/* at least one blk-mq hctx is active */
+	QUEUE_FLAG_SQ_SCHED,		/* single queue style io dispatch */
+	QUEUE_FLAG_MAX
+};
 
 #define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
 
