@@ -109,65 +109,65 @@ examples:
     // Example for a bus to be demuxed.  It contains various I2C clients for
     // HDMI, so the bus is named "i2c-hdmi":
     i2chdmi: i2c-mux3 {
-            compatible = "i2c-demux-pinctrl";
-            i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
-            i2c-bus-name = "i2c-hdmi";
-            #address-cells = <1>;
-            #size-cells = <0>;
+        compatible = "i2c-demux-pinctrl";
+        i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
+        i2c-bus-name = "i2c-hdmi";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-            ak4643: codec@12 {
-                    compatible = "asahi-kasei,ak4643";
-                    #sound-dai-cells = <0>;
-                    reg = <0x12>;
+        ak4643: codec@12 {
+            compatible = "asahi-kasei,ak4643";
+            #sound-dai-cells = <0>;
+            reg = <0x12>;
+        };
+
+        composite-in@20 {
+            compatible = "adi,adv7180";
+            reg = <0x20>;
+
+            port {
+                adv7180: endpoint {
+                    bus-width = <8>;
+                    remote-endpoint = <&vin1ep0>;
+                };
             };
+        };
 
-            composite-in@20 {
-                    compatible = "adi,adv7180";
-                    reg = <0x20>;
+        hdmi@39 {
+            compatible = "adi,adv7511w";
+            reg = <0x39>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+            clocks = <&cec_clock>;
+            clock-names = "cec";
 
-                    port {
-                            adv7180: endpoint {
-                                    bus-width = <8>;
-                                    remote-endpoint = <&vin1ep0>;
-                            };
+            avdd-supply = <&fixedregulator1v8>;
+            dvdd-supply = <&fixedregulator1v8>;
+            pvdd-supply = <&fixedregulator1v8>;
+            dvdd-3v-supply = <&fixedregulator3v3>;
+            bgvdd-supply = <&fixedregulator1v8>;
+
+            adi,input-depth = <8>;
+            adi,input-colorspace = "rgb";
+            adi,input-clock = "1x";
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    adv7511_in: endpoint {
+                        remote-endpoint = <&lvds0_out>;
                     };
-            };
+                };
 
-            hdmi@39 {
-                    compatible = "adi,adv7511w";
-                    reg = <0x39>;
-                    interrupt-parent = <&gpio1>;
-                    interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
-                    clocks = <&cec_clock>;
-                    clock-names = "cec";
-
-                    avdd-supply = <&fixedregulator1v8>;
-                    dvdd-supply = <&fixedregulator1v8>;
-                    pvdd-supply = <&fixedregulator1v8>;
-                    dvdd-3v-supply = <&fixedregulator3v3>;
-                    bgvdd-supply = <&fixedregulator1v8>;
-
-                    adi,input-depth = <8>;
-                    adi,input-colorspace = "rgb";
-                    adi,input-clock = "1x";
-
-                    ports {
-                            #address-cells = <1>;
-                            #size-cells = <0>;
-
-                            port@0 {
-                                    reg = <0>;
-                                    adv7511_in: endpoint {
-                                            remote-endpoint = <&lvds0_out>;
-                                    };
-                            };
-
-                            port@1 {
-                                    reg = <1>;
-                                    adv7511_out: endpoint {
-                                            remote-endpoint = <&hdmi_con_out>;
-                                    };
-                            };
+                port@1 {
+                    reg = <1>;
+                    adv7511_out: endpoint {
+                        remote-endpoint = <&hdmi_con_out>;
                     };
+                };
             };
+        };
     };

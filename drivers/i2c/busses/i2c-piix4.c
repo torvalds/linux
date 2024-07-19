@@ -589,7 +589,7 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 		result = -EIO;
 		dev_dbg(&piix4_adapter->dev, "Bus collision! SMBus may be "
 			"locked until next hard reset. (sorry!)\n");
-		/* Clock stops and slave is stuck in mid-transmission */
+		/* Clock stops and target is stuck in mid-transmission */
 	}
 
 	if (temp & 0x04) {

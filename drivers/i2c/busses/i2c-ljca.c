@@ -76,7 +76,7 @@ static int ljca_i2c_init(struct ljca_i2c_dev *ljca_i2c, u8 id)
 	return ret < 0 ? ret : 0;
 }
 
-static int ljca_i2c_start(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr,
+static int ljca_i2c_start(struct ljca_i2c_dev *ljca_i2c, u8 target_addr,
 			  enum ljca_xfer_type type)
 {
 	struct ljca_i2c_rw_packet *w_packet =
@@ -88,7 +88,7 @@ static int ljca_i2c_start(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr,
 
 	w_packet->id = ljca_i2c->i2c_info->id;
 	w_packet->len = cpu_to_le16(sizeof(*w_packet->data));
-	w_packet->data[0] = (slave_addr << 1) | type;
+	w_packet->data[0] = (target_addr << 1) | type;
 
 	ret = ljca_transfer(ljca_i2c->ljca, LJCA_I2C_START, (u8 *)w_packet,
 			    struct_size(w_packet, data, 1), (u8 *)r_packet,
@@ -107,7 +107,7 @@ static int ljca_i2c_start(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr,
 	return 0;
 }
 
-static void ljca_i2c_stop(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr)
+static void ljca_i2c_stop(struct ljca_i2c_dev *ljca_i2c, u8 target_addr)
 {
 	struct ljca_i2c_rw_packet *w_packet =
 			(struct ljca_i2c_rw_packet *)ljca_i2c->obuf;
@@ -169,16 +169,16 @@ static int ljca_i2c_pure_read(struct ljca_i2c_dev *ljca_i2c, u8 *data, u8 len)
 	return 0;
 }
 
-static int ljca_i2c_read(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr, u8 *data,
+static int ljca_i2c_read(struct ljca_i2c_dev *ljca_i2c, u8 target_addr, u8 *data,
 			 u8 len)
 {
 	int ret;
 
-	ret = ljca_i2c_start(ljca_i2c, slave_addr, LJCA_I2C_READ_XFER_TYPE);
+	ret = ljca_i2c_start(ljca_i2c, target_addr, LJCA_I2C_READ_XFER_TYPE);
 	if (!ret)
 		ret = ljca_i2c_pure_read(ljca_i2c, data, len);
 
-	ljca_i2c_stop(ljca_i2c, slave_addr);
+	ljca_i2c_stop(ljca_i2c, target_addr);
 
 	return ret;
 }
@@ -213,16 +213,16 @@ static int ljca_i2c_pure_write(struct ljca_i2c_dev *ljca_i2c, u8 *data, u8 len)
 	return 0;
 }
 
-static int ljca_i2c_write(struct ljca_i2c_dev *ljca_i2c, u8 slave_addr,
+static int ljca_i2c_write(struct ljca_i2c_dev *ljca_i2c, u8 target_addr,
 			  u8 *data, u8 len)
 {
 	int ret;
 
-	ret = ljca_i2c_start(ljca_i2c, slave_addr, LJCA_I2C_WRITE_XFER_TYPE);
+	ret = ljca_i2c_start(ljca_i2c, target_addr, LJCA_I2C_WRITE_XFER_TYPE);
 	if (!ret)
 		ret = ljca_i2c_pure_write(ljca_i2c, data, len);
 
-	ljca_i2c_stop(ljca_i2c, slave_addr);
+	ljca_i2c_stop(ljca_i2c, target_addr);
 
 	return ret;
 }
@@ -266,7 +266,7 @@ static const struct i2c_adapter_quirks ljca_i2c_quirks = {
 };
 
 static const struct i2c_algorithm ljca_i2c_algo = {
-	.master_xfer = ljca_i2c_xfer,
+	.xfer = ljca_i2c_xfer,
 	.functionality = ljca_i2c_func,
 };
 

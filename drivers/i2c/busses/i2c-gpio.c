@@ -216,8 +216,8 @@ static int fops_lose_arbitration_set(void *data, u64 duration)
 
 	priv->scl_irq_data = duration;
 	/*
-	 * Interrupt on falling SCL. This ensures that the master under test has
-	 * really started the transfer. Interrupt on falling SDA did only
+	 * Interrupt on falling SCL. This ensures that the controller under test
+	 * has really started the transfer. Interrupt on falling SDA did only
 	 * exercise 'bus busy' detection on some HW but not 'arbitration lost'.
 	 * Note that the interrupt latency may cause the first bits to be
 	 * transmitted correctly.
@@ -245,8 +245,8 @@ static int fops_inject_panic_set(void *data, u64 duration)
 
 	priv->scl_irq_data = duration;
 	/*
-	 * Interrupt on falling SCL. This ensures that the master under test has
-	 * really started the transfer.
+	 * Interrupt on falling SCL. This ensures that the controller under test
+	 * has really started the transfer.
 	 */
 	return i2c_gpio_fi_act_on_scl_irq(priv, inject_panic_irq);
 }

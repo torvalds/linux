@@ -191,8 +191,7 @@ static int rcar_i2c_get_scl(struct i2c_adapter *adap)
 	struct rcar_i2c_priv *priv = i2c_get_adapdata(adap);
 
 	return !!(rcar_i2c_read(priv, ICMCR) & FSCL);
-
-};
+}
 
 static void rcar_i2c_set_scl(struct i2c_adapter *adap, int val)
 {
@@ -204,7 +203,7 @@ static void rcar_i2c_set_scl(struct i2c_adapter *adap, int val)
 		priv->recovery_icmcr &= ~FSCL;
 
 	rcar_i2c_write(priv, ICMCR, priv->recovery_icmcr);
-};
+}
 
 static void rcar_i2c_set_sda(struct i2c_adapter *adap, int val)
 {
@@ -216,15 +215,14 @@ static void rcar_i2c_set_sda(struct i2c_adapter *adap, int val)
 		priv->recovery_icmcr &= ~FSDA;
 
 	rcar_i2c_write(priv, ICMCR, priv->recovery_icmcr);
-};
+}
 
 static int rcar_i2c_get_bus_free(struct i2c_adapter *adap)
 {
 	struct rcar_i2c_priv *priv = i2c_get_adapdata(adap);
 
 	return !(rcar_i2c_read(priv, ICMCR) & FSDA);
-
-};
+}
 
 static struct i2c_bus_recovery_info rcar_i2c_bri = {
 	.get_scl = rcar_i2c_get_scl,
@@ -233,6 +231,7 @@ static struct i2c_bus_recovery_info rcar_i2c_bri = {
 	.get_bus_free = rcar_i2c_get_bus_free,
 	.recover_bus = i2c_generic_scl_recovery,
 };
+
 static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 {
 	/* reset master mode */
@@ -553,7 +552,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 	u32 irqs_to_clear = MDE;
 
 	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
-	if (!(msr & MDE))
+	if (WARN(!(msr & MDE), "spurious irq"))
 		return;
 
 	if (msr & MAT)
