@@ -1642,9 +1642,15 @@ fw_err:
 
 static int __sev_snp_shutdown_locked(int *error, bool panic)
 {
-	struct sev_device *sev = psp_master->sev_data;
+	struct psp_device *psp = psp_master;
+	struct sev_device *sev;
 	struct sev_data_snp_shutdown_ex data;
 	int ret;
+
+	if (!psp || !psp->sev_data)
+		return 0;
+
+	sev = psp->sev_data;
 
 	if (!sev->snp_initialized)
 		return 0;
