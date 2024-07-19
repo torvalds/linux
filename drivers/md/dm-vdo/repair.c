@@ -1575,9 +1575,7 @@ static int parse_journal_for_recovery(struct repair_completion *repair)
 		if (header.metadata_type == VDO_METADATA_RECOVERY_JOURNAL) {
 			/* This is an old format block, so we need to upgrade */
 			vdo_log_error_strerror(VDO_UNSUPPORTED_VERSION,
-					       "Recovery journal is in the old format, a read-only rebuild is required.");
-			vdo_enter_read_only_mode(repair->completion.vdo,
-						 VDO_UNSUPPORTED_VERSION);
+					       "Recovery journal is in the old format. Downgrade and complete recovery, then upgrade with a clean volume");
 			return VDO_UNSUPPORTED_VERSION;
 		}
 
