@@ -13,6 +13,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_mmio.h"
+#include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_trace.h"
 #include "regs/xe_guc_regs.h"
@@ -41,6 +42,7 @@ __invalidation_fence_signal(struct xe_device *xe, struct xe_gt_tlb_invalidation_
 	bool stack = test_bit(FENCE_STACK_BIT, &fence->base.flags);
 
 	trace_xe_gt_tlb_invalidation_fence_signal(xe, fence);
+	xe_gt_tlb_invalidation_fence_fini(fence);
 	dma_fence_signal(&fence->base);
 	if (!stack)
 		dma_fence_put(&fence->base);
@@ -263,8 +265,10 @@ int xe_gt_tlb_invalidation_ggtt(struct xe_gt *gt)
 
 		xe_gt_tlb_invalidation_fence_init(gt, &fence, true);
 		ret = xe_gt_tlb_invalidation_guc(gt, &fence);
-		if (ret < 0)
+		if (ret < 0) {
+			xe_gt_tlb_invalidation_fence_fini(&fence);
 			return ret;
+		}
 
 		xe_gt_tlb_invalidation_fence_wait(&fence);
 	} else if (xe_device_uc_enabled(xe) && !xe_device_wedged(xe)) {
@@ -489,12 +493,15 @@ static const struct dma_fence_ops invalidation_fence_ops = {
  * @fence: TLB invalidation fence to initialize
  * @stack: fence is stack variable
  *
- * Initialize TLB invalidation fence for use
+ * Initialize TLB invalidation fence for use. xe_gt_tlb_invalidation_fence_fini
+ * must be called if fence is not signaled.
  */
 void xe_gt_tlb_invalidation_fence_init(struct xe_gt *gt,
 				       struct xe_gt_tlb_invalidation_fence *fence,
 				       bool stack)
 {
+	xe_pm_runtime_get_noresume(gt_to_xe(gt));
+
 	spin_lock_irq(&gt->tlb_invalidation.lock);
 	dma_fence_init(&fence->base, &invalidation_fence_ops,
 		       &gt->tlb_invalidation.lock,
@@ -505,4 +512,16 @@ void xe_gt_tlb_invalidation_fence_init(struct xe_gt *gt,
 		set_bit(FENCE_STACK_BIT, &fence->base.flags);
 	else
 		dma_fence_get(&fence->base);
+	fence->gt = gt;
+}
+
+/**
+ * xe_gt_tlb_invalidation_fence_fini - Finalize TLB invalidation fence
+ * @fence: TLB invalidation fence to finalize
+ *
+ * Drop PM ref which fence took durinig init.
+ */
+void xe_gt_tlb_invalidation_fence_fini(struct xe_gt_tlb_invalidation_fence *fence)
+{
+	xe_pm_runtime_put(gt_to_xe(fence->gt));
 }
