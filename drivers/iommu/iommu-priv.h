@@ -17,6 +17,13 @@ static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
 	return dev->iommu->iommu_dev->ops;
 }
 
+const struct iommu_ops *iommu_ops_from_fwnode(const struct fwnode_handle *fwnode);
+
+static inline const struct iommu_ops *iommu_fwspec_ops(struct iommu_fwspec *fwspec)
+{
+	return iommu_ops_from_fwnode(fwspec ? fwspec->iommu_fwnode : NULL);
+}
+
 int iommu_group_replace_domain(struct iommu_group *group,
 			       struct iommu_domain *new_domain);
 

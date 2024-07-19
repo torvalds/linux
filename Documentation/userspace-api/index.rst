@@ -45,7 +45,6 @@ Devices and I/O
    accelerators/ocxl
    dma-buf-alloc-exchange
    gpio/index
-   iommu
    iommufd
    media/index
    dcdbas
