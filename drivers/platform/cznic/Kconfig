@@ -17,11 +17,9 @@ config TURRIS_OMNIA_MCU
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on I2C
 	depends on OF
-	depends on WATCHDOG
 	depends on GPIOLIB
 	depends on HW_RANDOM
 	depends on RTC_CLASS
-	depends on WATCHDOG_CORE
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to add support for the features implemented by the
@@ -31,7 +29,6 @@ config TURRIS_OMNIA_MCU
 	    disabled) and the ability to configure wake up from this mode (via
 	    rtcwake)
 	  - true random number generator (if available on the MCU)
-	  - MCU watchdog
 	  - GPIO pins
 	    - to get front button press events (the front button can be
 	      configured either to generate press events to the CPU or to change
@@ -44,7 +41,21 @@ config TURRIS_OMNIA_MCU
 	      to be able to program SOC's OTP on board revisions 32+
 	    - to get input from the LED output pins of the WAN ethernet PHY, LAN
 	      switch and MiniPCIe ports
+	  Other features can be enabled by subsequent config options.
 	  To compile this driver as a module, choose M here; the module will be
 	  called turris-omnia-mcu.
+
+if TURRIS_OMNIA_MCU
+
+config TURRIS_OMNIA_MCU_WATCHDOG
+	bool "Turris Omnia MCU watchdog"
+	default y
+	depends on WATCHDOG
+	select WATCHDOG_CORE
+	help
+	  Say Y here to add support for watchdog provided by CZ.NIC's Turris
+	  Omnia MCU.
+
+endif # TURRIS_OMNIA_MCU
 
 endif # CZNIC_PLATFORMS
