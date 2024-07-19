@@ -321,7 +321,7 @@ drm_edid_load_firmware(struct drm_connector *connector)
 #ifdef CONFIG_DRM_PANIC
 bool drm_panic_is_enabled(struct drm_device *dev);
 #else
-bool drm_panic_is_enabled(struct drm_device *dev) {return false; }
+static inline bool drm_panic_is_enabled(struct drm_device *dev) { return false; }
 #endif
 
 #endif /* __DRM_CRTC_INTERNAL_H__ */

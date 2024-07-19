@@ -27,6 +27,8 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_print.h>
 
+#include "drm_crtc_internal.h"
+
 MODULE_AUTHOR("Jocelyn Falempe");
 MODULE_DESCRIPTION("DRM panic handler");
 MODULE_LICENSE("GPL");
