@@ -452,7 +452,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		dw_pcie_ep_init_notify(&pci->ep);
+		pci_epc_init_notify(pci->ep.epc);
 
 		break;
 	default:

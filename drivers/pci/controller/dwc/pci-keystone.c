@@ -1293,7 +1293,7 @@ static int ks_pcie_probe(struct platform_device *pdev)
 			goto err_ep_init;
 		}
 
-		dw_pcie_ep_init_notify(&pci->ep);
+		pci_epc_init_notify(pci->ep.epc);
 
 		break;
 	default:
