@@ -608,7 +608,7 @@ static int lkkbd_connect(struct serio *serio, struct serio_driver *drv)
 	int i;
 	int err;
 
-	lk = kzalloc(sizeof(struct lkkbd), GFP_KERNEL);
+	lk = kzalloc(sizeof(*lk), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!lk || !input_dev) {
 		err = -ENOMEM;

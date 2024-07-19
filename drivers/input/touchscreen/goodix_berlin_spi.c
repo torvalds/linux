@@ -36,13 +36,14 @@ static int goodix_berlin_spi_read(void *context, const void *reg_buf,
 	struct spi_transfer xfers;
 	struct spi_message spi_msg;
 	const u32 *reg = reg_buf; /* reg is stored as native u32 at start of buffer */
-	u8 *buf;
 	int error;
 
 	if (reg_size != GOODIX_BERLIN_REGISTER_WIDTH)
 		return -EINVAL;
 
-	buf = kzalloc(GOODIX_BERLIN_SPI_READ_PREFIX_LEN + val_size, GFP_KERNEL);
+	u8 *buf __free(kfree) =
+		kzalloc(GOODIX_BERLIN_SPI_READ_PREFIX_LEN + val_size,
+			GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -62,12 +63,12 @@ static int goodix_berlin_spi_read(void *context, const void *reg_buf,
 	spi_message_add_tail(&xfers, &spi_msg);
 
 	error = spi_sync(spi, &spi_msg);
-	if (error < 0)
+	if (error < 0) {
 		dev_err(&spi->dev, "spi transfer error, %d", error);
-	else
-		memcpy(val_buf, buf + GOODIX_BERLIN_SPI_READ_PREFIX_LEN, val_size);
+		return error;
+	}
 
-	kfree(buf);
+	memcpy(val_buf, buf + GOODIX_BERLIN_SPI_READ_PREFIX_LEN, val_size);
 	return error;
 }
 
@@ -79,10 +80,10 @@ static int goodix_berlin_spi_write(void *context, const void *data,
 	struct spi_transfer xfers;
 	struct spi_message spi_msg;
 	const u32 *reg = data; /* reg is stored as native u32 at start of buffer */
-	u8 *buf;
 	int error;
 
-	buf = kzalloc(GOODIX_BERLIN_SPI_WRITE_PREFIX_LEN + len, GFP_KERNEL);
+	u8 *buf __free(kfree) =
+		kzalloc(GOODIX_BERLIN_SPI_WRITE_PREFIX_LEN + len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -100,11 +101,12 @@ static int goodix_berlin_spi_write(void *context, const void *data,
 	spi_message_add_tail(&xfers, &spi_msg);
 
 	error = spi_sync(spi, &spi_msg);
-	if (error < 0)
+	if (error < 0) {
 		dev_err(&spi->dev, "spi transfer error, %d", error);
+		return error;
+	}
 
-	kfree(buf);
-	return error;
+	return 0;
 }
 
 static const struct regmap_config goodix_berlin_spi_regmap_conf = {
