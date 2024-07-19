@@ -86,13 +86,6 @@ static void gfs2_aspace_write_folio(struct folio *folio,
 		folio_end_writeback(folio);
 }
 
-static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wbc)
-{
-	gfs2_aspace_write_folio(page_folio(page), wbc);
-
-	return 0;
-}
-
 static int gfs2_aspace_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
@@ -115,7 +108,6 @@ const struct address_space_operations gfs2_meta_aops = {
 const struct address_space_operations gfs2_rgrp_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.writepage = gfs2_aspace_writepage,
 	.writepages = gfs2_aspace_writepages,
 	.release_folio = gfs2_release_folio,
 };
