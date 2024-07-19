@@ -24,6 +24,11 @@ properties:
     description: |
       GPIOs used to select the input line.
 
+  state-labels:
+    description: State of input line. default is "Input 1", "Input 2"
+    $ref: /schemas/types.yaml#/definitions/string-array
+    maxItems: 2
+
   sound-name-prefix: true
 
 required:
@@ -37,4 +42,5 @@ examples:
     mux {
         compatible = "simple-audio-mux";
         mux-gpios = <&gpio 3 0>;
+        state-labels = "Label_A", "Label_B";
     };

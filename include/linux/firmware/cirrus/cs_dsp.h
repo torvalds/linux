@@ -177,7 +177,7 @@ struct cs_dsp {
 	const struct cs_dsp_region *mem;
 	int num_mems;
 
-	int fw_ver;
+	int wmfw_ver;
 
 	bool booted;
 	bool running;
@@ -223,13 +223,13 @@ int cs_dsp_adsp2_init(struct cs_dsp *dsp);
 int cs_dsp_halo_init(struct cs_dsp *dsp);
 
 int cs_dsp_adsp1_power_up(struct cs_dsp *dsp,
-			  const struct firmware *wmfw_firmware, char *wmfw_filename,
-			  const struct firmware *coeff_firmware, char *coeff_filename,
+			  const struct firmware *wmfw_firmware, const char *wmfw_filename,
+			  const struct firmware *coeff_firmware, const char *coeff_filename,
 			  const char *fw_name);
 void cs_dsp_adsp1_power_down(struct cs_dsp *dsp);
 int cs_dsp_power_up(struct cs_dsp *dsp,
-		    const struct firmware *wmfw_firmware, char *wmfw_filename,
-		    const struct firmware *coeff_firmware, char *coeff_filename,
+		    const struct firmware *wmfw_firmware, const char *wmfw_filename,
+		    const struct firmware *coeff_firmware, const char *coeff_filename,
 		    const char *fw_name);
 void cs_dsp_power_down(struct cs_dsp *dsp);
 int cs_dsp_run(struct cs_dsp *dsp);

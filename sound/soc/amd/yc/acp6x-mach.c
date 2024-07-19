@@ -511,5 +511,6 @@ static struct platform_driver acp6x_mach_driver = {
 module_platform_driver(acp6x_mach_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
+MODULE_DESCRIPTION("AMD Yellow Carp support for DMIC");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);

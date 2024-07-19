@@ -978,7 +978,7 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_soc_component *scomp,
 	return NULL;
 }
 
-static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
+static int sof_dai_get_param(struct snd_soc_pcm_runtime *rtd, int param_type)
 {
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
@@ -991,8 +991,8 @@ static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
 	if (!dai)
 		return 0;
 
-	if (tplg_ops && tplg_ops->dai_get_clk)
-		return tplg_ops->dai_get_clk(sdev, dai, clk_type);
+	if (tplg_ops && tplg_ops->dai_get_param)
+		return tplg_ops->dai_get_param(sdev, dai, param_type);
 
 	return 0;
 }
@@ -1003,7 +1003,7 @@ static int sof_dai_get_clk(struct snd_soc_pcm_runtime *rtd, int clk_type)
  */
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd)
 {
-	return sof_dai_get_clk(rtd, SOF_DAI_CLK_INTEL_SSP_MCLK);
+	return sof_dai_get_param(rtd, SOF_DAI_PARAM_INTEL_SSP_MCLK);
 }
 EXPORT_SYMBOL(sof_dai_get_mclk);
 
@@ -1013,6 +1013,16 @@ EXPORT_SYMBOL(sof_dai_get_mclk);
  */
 int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd)
 {
-	return sof_dai_get_clk(rtd, SOF_DAI_CLK_INTEL_SSP_BCLK);
+	return sof_dai_get_param(rtd, SOF_DAI_PARAM_INTEL_SSP_BCLK);
 }
 EXPORT_SYMBOL(sof_dai_get_bclk);
+
+/*
+ * Helper to get SSP TDM slot number from a pcm_runtime.
+ * Return 0 if not exist.
+ */
+int sof_dai_get_tdm_slots(struct snd_soc_pcm_runtime *rtd)
+{
+	return sof_dai_get_param(rtd, SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS);
+}
+EXPORT_SYMBOL(sof_dai_get_tdm_slots);
