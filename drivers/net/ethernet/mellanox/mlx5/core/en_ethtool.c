@@ -1195,7 +1195,7 @@ static int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	bool ext;
 	int err;
 
-	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
+	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1, 0);
 	if (err) {
 		netdev_err(priv->netdev, "%s: query port ptys failed: %d\n",
 			   __func__, err);
