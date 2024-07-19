@@ -663,13 +663,6 @@ enum {
 	BLK_MQ_F_NO_SCHED_BY_DEFAULT	= 1 << 7,
 	BLK_MQ_F_ALLOC_POLICY_START_BIT = 8,
 	BLK_MQ_F_ALLOC_POLICY_BITS = 1,
-
-	BLK_MQ_S_STOPPED	= 0,
-	BLK_MQ_S_TAG_ACTIVE	= 1,
-	BLK_MQ_S_SCHED_RESTART	= 2,
-
-	/* hw queue is inactive after all its CPUs become offline */
-	BLK_MQ_S_INACTIVE	= 3,
 };
 #define BLK_MQ_FLAG_TO_ALLOC_POLICY(flags) \
 	((flags >> BLK_MQ_F_ALLOC_POLICY_START_BIT) & \
@@ -680,6 +673,16 @@ enum {
 
 #define BLK_MQ_MAX_DEPTH	(10240)
 #define BLK_MQ_NO_HCTX_IDX	(-1U)
+
+enum {
+	/* Keep hctx_state_name[] in sync with the definitions below */
+	BLK_MQ_S_STOPPED,
+	BLK_MQ_S_TAG_ACTIVE,
+	BLK_MQ_S_SCHED_RESTART,
+	/* hw queue is inactive after all its CPUs become offline */
+	BLK_MQ_S_INACTIVE,
+	BLK_MQ_S_MAX
+};
 
 struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
 		struct queue_limits *lim, void *queuedata,
