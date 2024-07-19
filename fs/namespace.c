@@ -5243,12 +5243,37 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
  * that, or if not simply grab a passive reference on our mount namespace and
  * return that.
  */
-static struct mnt_namespace *grab_requested_mnt_ns(u64 mnt_ns_id)
+static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq)
 {
-	if (mnt_ns_id)
-		return lookup_mnt_ns(mnt_ns_id);
-	refcount_inc(&current->nsproxy->mnt_ns->passive);
-	return current->nsproxy->mnt_ns;
+	struct mnt_namespace *mnt_ns;
+
+	if (kreq->mnt_ns_id && kreq->spare)
+		return ERR_PTR(-EINVAL);
+
+	if (kreq->mnt_ns_id)
+		return lookup_mnt_ns(kreq->mnt_ns_id);
+
+	if (kreq->spare) {
+		struct ns_common *ns;
+
+		CLASS(fd, f)(kreq->spare);
+		if (!f.file)
+			return ERR_PTR(-EBADF);
+
+		if (!proc_ns_file(f.file))
+			return ERR_PTR(-EINVAL);
+
+		ns = get_proc_ns(file_inode(f.file));
+		if (ns->ops->type != CLONE_NEWNS)
+			return ERR_PTR(-EINVAL);
+
+		mnt_ns = to_mnt_ns(ns);
+	} else {
+		mnt_ns = current->nsproxy->mnt_ns;
+	}
+
+	refcount_inc(&mnt_ns->passive);
+	return mnt_ns;
 }
 
 SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
@@ -5269,7 +5294,7 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 	if (ret)
 		return ret;
 
-	ns = grab_requested_mnt_ns(kreq.mnt_ns_id);
+	ns = grab_requested_mnt_ns(&kreq);
 	if (!ns)
 		return -ENOENT;
 
@@ -5396,7 +5421,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	if (!kmnt_ids)
 		return -ENOMEM;
 
-	ns = grab_requested_mnt_ns(kreq.mnt_ns_id);
+	ns = grab_requested_mnt_ns(&kreq);
 	if (!ns)
 		return -ENOENT;
 
