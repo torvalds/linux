@@ -222,7 +222,7 @@ enum ams_ps_pl_seq {
 #define PL_SEQ(x)		(AMS_PS_SEQ_MAX + (x))
 #define AMS_CTRL_SEQ_BASE	(AMS_PS_SEQ_MAX * 3)
 
-#define AMS_CHAN_TEMP(_scan_index, _addr) { \
+#define AMS_CHAN_TEMP(_scan_index, _addr, _name) { \
 	.type = IIO_TEMP, \
 	.indexed = 1, \
 	.address = (_addr), \
@@ -232,9 +232,10 @@ enum ams_ps_pl_seq {
 	.event_spec = ams_temp_events, \
 	.scan_index = _scan_index, \
 	.num_event_specs = ARRAY_SIZE(ams_temp_events), \
+	.datasheet_name = _name, \
 }
 
-#define AMS_CHAN_VOLTAGE(_scan_index, _addr, _alarm) { \
+#define AMS_CHAN_VOLTAGE(_scan_index, _addr, _alarm, _name) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
 	.address = (_addr), \
@@ -243,21 +244,24 @@ enum ams_ps_pl_seq {
 	.event_spec = (_alarm) ? ams_voltage_events : NULL, \
 	.scan_index = _scan_index, \
 	.num_event_specs = (_alarm) ? ARRAY_SIZE(ams_voltage_events) : 0, \
+	.datasheet_name = _name, \
 }
 
-#define AMS_PS_CHAN_TEMP(_scan_index, _addr) \
-	AMS_CHAN_TEMP(PS_SEQ(_scan_index), _addr)
-#define AMS_PS_CHAN_VOLTAGE(_scan_index, _addr) \
-	AMS_CHAN_VOLTAGE(PS_SEQ(_scan_index), _addr, true)
+#define AMS_PS_CHAN_TEMP(_scan_index, _addr, _name) \
+	AMS_CHAN_TEMP(PS_SEQ(_scan_index), _addr, _name)
+#define AMS_PS_CHAN_VOLTAGE(_scan_index, _addr, _name) \
+	AMS_CHAN_VOLTAGE(PS_SEQ(_scan_index), _addr, true, _name)
 
-#define AMS_PL_CHAN_TEMP(_scan_index, _addr) \
-	AMS_CHAN_TEMP(PL_SEQ(_scan_index), _addr)
-#define AMS_PL_CHAN_VOLTAGE(_scan_index, _addr, _alarm) \
-	AMS_CHAN_VOLTAGE(PL_SEQ(_scan_index), _addr, _alarm)
+#define AMS_PL_CHAN_TEMP(_scan_index, _addr, _name) \
+	AMS_CHAN_TEMP(PL_SEQ(_scan_index), _addr, _name)
+#define AMS_PL_CHAN_VOLTAGE(_scan_index, _addr, _alarm, _name) \
+	AMS_CHAN_VOLTAGE(PL_SEQ(_scan_index), _addr, _alarm, _name)
 #define AMS_PL_AUX_CHAN_VOLTAGE(_auxno) \
-	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(_auxno)), AMS_REG_VAUX(_auxno), false)
-#define AMS_CTRL_CHAN_VOLTAGE(_scan_index, _addr) \
-	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(AMS_SEQ(_scan_index))), _addr, false)
+	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(_auxno)), AMS_REG_VAUX(_auxno), false, \
+			 "VAUX" #_auxno)
+#define AMS_CTRL_CHAN_VOLTAGE(_scan_index, _addr, _name) \
+	AMS_CHAN_VOLTAGE(PL_SEQ(AMS_SEQ(AMS_SEQ(_scan_index))), _addr, false, \
+			 _name)
 
 /**
  * struct ams - This structure contains necessary state for xilinx-ams to operate
@@ -503,6 +507,12 @@ static int ams_init_device(struct ams *ams)
 	writel(AMS_ISR1_ALARM_MASK, ams->base + AMS_ISR_1);
 
 	return 0;
+}
+
+static int ams_read_label(struct iio_dev *indio_dev,
+			  struct iio_chan_spec const *chan, char *label)
+{
+	return sysfs_emit(label, "%s\n", chan->datasheet_name);
 }
 
 static int ams_enable_single_channel(struct ams *ams, unsigned int offset)
@@ -1116,37 +1126,37 @@ static const struct iio_event_spec ams_voltage_events[] = {
 };
 
 static const struct iio_chan_spec ams_ps_channels[] = {
-	AMS_PS_CHAN_TEMP(AMS_SEQ_TEMP, AMS_TEMP),
-	AMS_PS_CHAN_TEMP(AMS_SEQ_TEMP_REMOTE, AMS_TEMP_REMOTE),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY1, AMS_SUPPLY1),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY2, AMS_SUPPLY2),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY3, AMS_SUPPLY3),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY4, AMS_SUPPLY4),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY5, AMS_SUPPLY5),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY6, AMS_SUPPLY6),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY7, AMS_SUPPLY7),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY8, AMS_SUPPLY8),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY9, AMS_SUPPLY9),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY10, AMS_SUPPLY10),
-	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_VCCAMS, AMS_VCCAMS),
+	AMS_PS_CHAN_TEMP(AMS_SEQ_TEMP, AMS_TEMP, "Temp_LPD"),
+	AMS_PS_CHAN_TEMP(AMS_SEQ_TEMP_REMOTE, AMS_TEMP_REMOTE, "Temp_FPD"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY1, AMS_SUPPLY1, "VCC_PSINTLP"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY2, AMS_SUPPLY2, "VCC_PSINTFP"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY3, AMS_SUPPLY3, "VCC_PSAUX"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY4, AMS_SUPPLY4, "VCC_PSDDR"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY5, AMS_SUPPLY5, "VCC_PSIO3"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY6, AMS_SUPPLY6, "VCC_PSIO0"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY7, AMS_SUPPLY7, "VCC_PSIO1"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY8, AMS_SUPPLY8, "VCC_PSIO2"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY9, AMS_SUPPLY9, "PS_MGTRAVCC"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_SUPPLY10, AMS_SUPPLY10, "PS_MGTRAVTT"),
+	AMS_PS_CHAN_VOLTAGE(AMS_SEQ_VCCAMS, AMS_VCCAMS, "VCC_PSADC"),
 };
 
 static const struct iio_chan_spec ams_pl_channels[] = {
-	AMS_PL_CHAN_TEMP(AMS_SEQ_TEMP, AMS_TEMP),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY1, AMS_SUPPLY1, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY2, AMS_SUPPLY2, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VREFP, AMS_VREFP, false),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VREFN, AMS_VREFN, false),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY3, AMS_SUPPLY3, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY4, AMS_SUPPLY4, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY5, AMS_SUPPLY5, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY6, AMS_SUPPLY6, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VCCAMS, AMS_VCCAMS, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VP_VN, AMS_VP_VN, false),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY7, AMS_SUPPLY7, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY8, AMS_SUPPLY8, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY9, AMS_SUPPLY9, true),
-	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY10, AMS_SUPPLY10, true),
+	AMS_PL_CHAN_TEMP(AMS_SEQ_TEMP, AMS_TEMP, "Temp_PL"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY1, AMS_SUPPLY1, true, "VCCINT"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY2, AMS_SUPPLY2, true, "VCCAUX"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VREFP, AMS_VREFP, false, "VREFP"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VREFN, AMS_VREFN, false, "VREFN"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY3, AMS_SUPPLY3, true, "VCCBRAM"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY4, AMS_SUPPLY4, true, "VCC_PSINTLP"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY5, AMS_SUPPLY5, true, "VCC_PSINTFP"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY6, AMS_SUPPLY6, true, "VCC_PSAUX"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VCCAMS, AMS_VCCAMS, true, "VCCAMS"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_VP_VN, AMS_VP_VN, false, "VP_VN"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY7, AMS_SUPPLY7, true, "VUser0"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY8, AMS_SUPPLY8, true, "VUser1"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY9, AMS_SUPPLY9, true, "VUser2"),
+	AMS_PL_CHAN_VOLTAGE(AMS_SEQ_SUPPLY10, AMS_SUPPLY10, true, "VUser3"),
 	AMS_PL_AUX_CHAN_VOLTAGE(0),
 	AMS_PL_AUX_CHAN_VOLTAGE(1),
 	AMS_PL_AUX_CHAN_VOLTAGE(2),
@@ -1166,13 +1176,13 @@ static const struct iio_chan_spec ams_pl_channels[] = {
 };
 
 static const struct iio_chan_spec ams_ctrl_channels[] = {
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCC_PSPLL, AMS_VCC_PSPLL0),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCC_PSBATT, AMS_VCC_PSPLL3),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCINT, AMS_VCCINT),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCBRAM, AMS_VCCBRAM),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCAUX, AMS_VCCAUX),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_PSDDRPLL, AMS_PSDDRPLL),
-	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_INTDDR, AMS_PSINTFPDDR),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCC_PSPLL, AMS_VCC_PSPLL0, "VCC_PSPLL"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCC_PSBATT, AMS_VCC_PSPLL3, "VCC_PSBATT"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCINT, AMS_VCCINT, "VCCINT"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCBRAM, AMS_VCCBRAM, "VCCBRAM"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_VCCAUX, AMS_VCCAUX, "VCCAUX"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_PSDDRPLL, AMS_PSDDRPLL, "VCC_PSDDR_PLL"),
+	AMS_CTRL_CHAN_VOLTAGE(AMS_SEQ_INTDDR, AMS_PSINTFPDDR, "VCC_PSINTFP_DDR"),
 };
 
 static int ams_get_ext_chan(struct fwnode_handle *chan_node,
@@ -1336,6 +1346,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 }
 
 static const struct iio_info iio_ams_info = {
+	.read_label = ams_read_label,
 	.read_raw = &ams_read_raw,
 	.read_event_config = &ams_read_event_config,
 	.write_event_config = &ams_write_event_config,
@@ -1434,5 +1445,6 @@ static struct platform_driver ams_driver = {
 };
 module_platform_driver(ams_driver);
 
+MODULE_DESCRIPTION("Xilinx AMS driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Xilinx, Inc.");

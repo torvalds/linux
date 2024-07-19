@@ -236,7 +236,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend,
 				al3320a_resume);
 
 static const struct i2c_device_id al3320a_id[] = {
-	{"al3320a", 0},
+	{ "al3320a" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, al3320a_id);

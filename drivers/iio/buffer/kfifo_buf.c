@@ -287,4 +287,5 @@ int devm_iio_kfifo_buffer_setup_ext(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_kfifo_buffer_setup_ext);
 
+MODULE_DESCRIPTION("Industrial I/O buffering based on kfifo");
 MODULE_LICENSE("GPL");

@@ -2084,9 +2084,11 @@ int bmi323_core_probe(struct device *dev)
 	if (ret)
 		return -EINVAL;
 
-	ret = iio_read_mount_matrix(dev, &data->orientation);
-	if (ret)
-		return ret;
+	if (!iio_read_acpi_mount_matrix(dev, &data->orientation, "ROTM")) {
+		ret = iio_read_mount_matrix(dev, &data->orientation);
+		if (ret)
+			return ret;
+	}
 
 	indio_dev->name = "bmi323-imu";
 	indio_dev->info = &bmi323_info;

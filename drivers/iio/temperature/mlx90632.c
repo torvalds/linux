@@ -334,8 +334,8 @@ static int mlx90632_perform_measurement(struct mlx90632_data *data)
 	unsigned int reg_status;
 	int ret;
 
-	ret = regmap_update_bits(data->regmap, MLX90632_REG_STATUS,
-				 MLX90632_STAT_DATA_RDY, 0);
+	ret = regmap_clear_bits(data->regmap, MLX90632_REG_STATUS,
+				MLX90632_STAT_DATA_RDY);
 	if (ret < 0)
 		return ret;
 
@@ -1279,7 +1279,7 @@ static int mlx90632_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mlx90632_id[] = {
-	{ "mlx90632", 0 },
+	{ "mlx90632" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mlx90632_id);

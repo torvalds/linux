@@ -274,9 +274,8 @@ int inv_icm42600_buffer_update_watermark(struct inv_icm42600_state *st)
 
 	/* restore watermark interrupt */
 	if (restore) {
-		ret = regmap_update_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
-					 INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN,
-					 INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN);
+		ret = regmap_set_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
+				      INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN);
 		if (ret)
 			return ret;
 	}
@@ -318,9 +317,8 @@ static int inv_icm42600_buffer_postenable(struct iio_dev *indio_dev)
 	}
 
 	/* set FIFO threshold interrupt */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
-				 INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN,
-				 INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN);
+	ret = regmap_set_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
+			      INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN);
 	if (ret)
 		goto out_unlock;
 
@@ -375,8 +373,8 @@ static int inv_icm42600_buffer_predisable(struct iio_dev *indio_dev)
 		goto out_unlock;
 
 	/* disable FIFO threshold interrupt */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
-				 INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN, 0);
+	ret = regmap_clear_bits(st->map, INV_ICM42600_REG_INT_SOURCE0,
+				INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN);
 	if (ret)
 		goto out_unlock;
 

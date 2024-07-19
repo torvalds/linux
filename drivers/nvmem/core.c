@@ -179,12 +179,35 @@ static ssize_t type_show(struct device *dev,
 {
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
 
-	return sprintf(buf, "%s\n", nvmem_type_str[nvmem->type]);
+	return sysfs_emit(buf, "%s\n", nvmem_type_str[nvmem->type]);
 }
 
 static DEVICE_ATTR_RO(type);
 
+static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return sysfs_emit(buf, "%d\n", nvmem->read_only);
+}
+
+static ssize_t force_ro_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+	int ret = kstrtobool(buf, &nvmem->read_only);
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(force_ro);
+
 static struct attribute *nvmem_attrs[] = {
+	&dev_attr_force_ro.attr,
 	&dev_attr_type.attr,
 	NULL,
 };
@@ -203,18 +226,11 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 		dev = kobj_to_dev(kobj);
 	nvmem = to_nvmem_device(dev);
 
-	/* Stop the user from reading */
-	if (pos >= nvmem->size)
-		return 0;
-
 	if (!IS_ALIGNED(pos, nvmem->stride))
 		return -EINVAL;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
-
-	if (pos + count > nvmem->size)
-		count = nvmem->size - pos;
 
 	count = round_down(count, nvmem->word_size);
 
@@ -243,18 +259,11 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 		dev = kobj_to_dev(kobj);
 	nvmem = to_nvmem_device(dev);
 
-	/* Stop the user from writing */
-	if (pos >= nvmem->size)
-		return -EFBIG;
-
 	if (!IS_ALIGNED(pos, nvmem->stride))
 		return -EINVAL;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
-
-	if (pos + count > nvmem->size)
-		count = nvmem->size - pos;
 
 	count = round_down(count, nvmem->word_size);
 
@@ -297,6 +306,25 @@ static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
 	attr->size = nvmem->size;
 
 	return nvmem_bin_attr_get_umode(nvmem);
+}
+
+static umode_t nvmem_attr_is_visible(struct kobject *kobj,
+				     struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	/*
+	 * If the device has no .reg_write operation, do not allow
+	 * configuration as read-write.
+	 * If the device is set as read-only by configuration, it
+	 * can be forced into read-write mode using the 'force_ro'
+	 * attribute.
+	 */
+	if (attr == &dev_attr_force_ro.attr && !nvmem->reg_write)
+		return 0;	/* Attribute not visible */
+
+	return attr->mode;
 }
 
 static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
@@ -355,20 +383,11 @@ static const struct attribute_group nvmem_bin_group = {
 	.bin_attrs	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
-};
-
-/* Cell attributes will be dynamically allocated */
-static struct attribute_group nvmem_cells_group = {
-	.name		= "cells",
+	.is_visible	= nvmem_attr_is_visible,
 };
 
 static const struct attribute_group *nvmem_dev_groups[] = {
 	&nvmem_bin_group,
-	NULL,
-};
-
-static const struct attribute_group *nvmem_cells_groups[] = {
-	&nvmem_cells_group,
 	NULL,
 };
 
@@ -428,23 +447,24 @@ static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
 
 static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 {
-	struct bin_attribute **cells_attrs, *attrs;
+	struct attribute_group group = {
+		.name	= "cells",
+	};
 	struct nvmem_cell_entry *entry;
+	struct bin_attribute *attrs;
 	unsigned int ncells = 0, i = 0;
 	int ret = 0;
 
 	mutex_lock(&nvmem_mutex);
 
-	if (list_empty(&nvmem->cells) || nvmem->sysfs_cells_populated) {
-		nvmem_cells_group.bin_attrs = NULL;
+	if (list_empty(&nvmem->cells) || nvmem->sysfs_cells_populated)
 		goto unlock_mutex;
-	}
 
 	/* Allocate an array of attributes with a sentinel */
 	ncells = list_count_nodes(&nvmem->cells);
-	cells_attrs = devm_kcalloc(&nvmem->dev, ncells + 1,
-				   sizeof(struct bin_attribute *), GFP_KERNEL);
-	if (!cells_attrs) {
+	group.bin_attrs = devm_kcalloc(&nvmem->dev, ncells + 1,
+				       sizeof(struct bin_attribute *), GFP_KERNEL);
+	if (!group.bin_attrs) {
 		ret = -ENOMEM;
 		goto unlock_mutex;
 	}
@@ -471,13 +491,11 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 			goto unlock_mutex;
 		}
 
-		cells_attrs[i] = &attrs[i];
+		group.bin_attrs[i] = &attrs[i];
 		i++;
 	}
 
-	nvmem_cells_group.bin_attrs = cells_attrs;
-
-	ret = device_add_groups(&nvmem->dev, nvmem_cells_groups);
+	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)
 		goto unlock_mutex;
 

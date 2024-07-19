@@ -21,7 +21,14 @@ properties:
       - adi,ad7190
       - adi,ad7192
       - adi,ad7193
+      - adi,ad7194
       - adi,ad7195
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
 
   reg:
     maxItems: 1
@@ -40,6 +47,11 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  aincom-supply:
+    description: |
+      AINCOM voltage supply. Analog inputs AINx are referenced to this input
+      when configured for pseudo-differential operation.
 
   dvdd-supply:
     description: DVdd voltage supply
@@ -84,6 +96,42 @@ properties:
     description: see Documentation/devicetree/bindings/iio/adc/adc.yaml
     type: boolean
 
+patternProperties:
+  "^channel@[0-9a-f]+$":
+    type: object
+    $ref: adc.yaml
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description: The channel index.
+        minimum: 0
+        maximum: 271
+
+      diff-channels:
+        description:
+          Both inputs can be connected to pins AIN1 to AIN16 by choosing the
+          appropriate value from 1 to 16.
+        items:
+          minimum: 1
+          maximum: 16
+
+      single-channel:
+        description:
+          Positive input can be connected to pins AIN1 to AIN16 by choosing the
+          appropriate value from 1 to 16. Negative input is connected to AINCOM.
+        items:
+          minimum: 1
+          maximum: 16
+
+    oneOf:
+      - required:
+          - reg
+          - diff-channels
+      - required:
+          - reg
+          - single-channel
+
 required:
   - compatible
   - reg
@@ -98,6 +146,17 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          enum:
+            - adi,ad7190
+            - adi,ad7192
+            - adi,ad7193
+            - adi,ad7195
+    then:
+      patternProperties:
+        "^channel@[0-9a-f]+$": false
 
 unevaluatedProperties: false
 
@@ -117,6 +176,7 @@ examples:
             clock-names = "mclk";
             interrupts = <25 0x2>;
             interrupt-parent = <&gpio>;
+            aincom-supply = <&aincom>;
             dvdd-supply = <&dvdd>;
             avdd-supply = <&avdd>;
             vref-supply = <&vref>;
@@ -125,5 +185,40 @@ examples:
             adi,rejection-60-Hz-enable;
             adi,buffer-enable;
             adi,burnout-currents-enable;
+        };
+    };
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "adi,ad7194";
+            reg = <0>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            spi-max-frequency = <1000000>;
+            spi-cpol;
+            spi-cpha;
+            clocks = <&ad7192_mclk>;
+            clock-names = "mclk";
+            interrupts = <25 0x2>;
+            interrupt-parent = <&gpio>;
+            aincom-supply = <&aincom>;
+            dvdd-supply = <&dvdd>;
+            avdd-supply = <&avdd>;
+            vref-supply = <&vref>;
+
+            channel@0 {
+                reg = <0>;
+                diff-channels = <1 6>;
+            };
+
+            channel@1 {
+                reg = <1>;
+                single-channel = <1>;
+            };
         };
     };

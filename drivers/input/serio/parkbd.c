@@ -218,6 +218,5 @@ static struct parport_driver parkbd_parport_driver = {
 	.name = "parkbd",
 	.match_port = parkbd_attach,
 	.detach = parkbd_detach,
-	.devmodel = true,
 };
 module_parport_driver(parkbd_parport_driver);

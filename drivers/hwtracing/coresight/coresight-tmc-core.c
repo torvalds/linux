@@ -26,7 +26,6 @@
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
-#include <linux/acpi.h>
 
 #include "coresight-priv.h"
 #include "coresight-tmc.h"

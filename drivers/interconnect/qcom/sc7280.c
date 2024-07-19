@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -21,6 +22,12 @@ static struct qcom_icc_node qhm_qspi = {
 	.id = SC7280_MASTER_QSPI_0,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x7000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -30,6 +37,12 @@ static struct qcom_icc_node qhm_qup0 = {
 	.id = SC7280_MASTER_QUP_0,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x11000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -39,6 +52,12 @@ static struct qcom_icc_node qhm_qup1 = {
 	.id = SC7280_MASTER_QUP_1,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x8000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -57,6 +76,12 @@ static struct qcom_icc_node xm_sdc1 = {
 	.id = SC7280_MASTER_SDCC_1,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xc000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -66,6 +91,12 @@ static struct qcom_icc_node xm_sdc2 = {
 	.id = SC7280_MASTER_SDCC_2,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xe000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -75,6 +106,12 @@ static struct qcom_icc_node xm_sdc4 = {
 	.id = SC7280_MASTER_SDCC_4,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x9000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -84,6 +121,12 @@ static struct qcom_icc_node xm_ufs_mem = {
 	.id = SC7280_MASTER_UFS_MEM,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xa000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -102,6 +145,12 @@ static struct qcom_icc_node xm_usb3_0 = {
 	.id = SC7280_MASTER_USB3_0,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xb000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A1NOC_SNOC },
 };
@@ -111,6 +160,12 @@ static struct qcom_icc_node qhm_qdss_bam = {
 	.id = SC7280_MASTER_QDSS_BAM,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x18000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A2NOC_SNOC },
 };
@@ -129,6 +184,12 @@ static struct qcom_icc_node qnm_cnoc_datapath = {
 	.id = SC7280_MASTER_CNOC_A2NOC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x1c000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A2NOC_SNOC },
 };
@@ -138,6 +199,12 @@ static struct qcom_icc_node qxm_crypto = {
 	.id = SC7280_MASTER_CRYPTO,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x1d000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A2NOC_SNOC },
 };
@@ -147,6 +214,12 @@ static struct qcom_icc_node qxm_ipa = {
 	.id = SC7280_MASTER_IPA,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x10000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A2NOC_SNOC },
 };
@@ -173,6 +246,12 @@ static struct qcom_icc_node xm_qdss_etr = {
 	.id = SC7280_MASTER_QDSS_ETR,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x15000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_A2NOC_SNOC },
 };
@@ -305,6 +384,12 @@ static struct qcom_icc_node alm_gpu_tcu = {
 	.id = SC7280_MASTER_GPU_TCU,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xd7000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 2,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC },
 };
@@ -314,6 +399,12 @@ static struct qcom_icc_node alm_sys_tcu = {
 	.id = SC7280_MASTER_SYS_TCU,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xd6000 },
+		.prio = 6,
+		.urg_fwd = 0,
+	},
 	.num_links = 2,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC },
 };
@@ -333,6 +424,12 @@ static struct qcom_icc_node qnm_cmpnoc = {
 	.id = SC7280_MASTER_COMPUTE_NOC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 2,
+		.port_offsets = { 0x21000, 0x61000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 2,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC },
 };
@@ -353,6 +450,12 @@ static struct qcom_icc_node qnm_gpu = {
 	.id = SC7280_MASTER_GFX3D,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 2,
+		.port_offsets = { 0x22000, 0x62000 },
+		.prio = 0,
+		.urg_fwd = 0,
+	},
 	.num_links = 2,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC },
 };
@@ -362,6 +465,12 @@ static struct qcom_icc_node qnm_mnoc_hf = {
 	.id = SC7280_MASTER_MNOC_HF_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 2,
+		.port_offsets = { 0x23000, 0x63000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_LLCC },
 };
@@ -371,6 +480,12 @@ static struct qcom_icc_node qnm_mnoc_sf = {
 	.id = SC7280_MASTER_MNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xcf000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 2,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC },
 };
@@ -389,6 +504,12 @@ static struct qcom_icc_node qnm_snoc_gc = {
 	.id = SC7280_MASTER_SNOC_GC_MEM_NOC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xd3000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_LLCC },
 };
@@ -398,6 +519,12 @@ static struct qcom_icc_node qnm_snoc_sf = {
 	.id = SC7280_MASTER_SNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xd4000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 3,
 	.links = { SC7280_SLAVE_GEM_NOC_CNOC, SC7280_SLAVE_LLCC,
 		   SC7280_SLAVE_MEM_NOC_PCIE_SNOC },
@@ -437,6 +564,12 @@ static struct qcom_icc_node qnm_video0 = {
 	.id = SC7280_MASTER_VIDEO_P0,
 	.channels = 1,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x14000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_SF_MEM_NOC },
 };
@@ -446,6 +579,12 @@ static struct qcom_icc_node qnm_video_cpu = {
 	.id = SC7280_MASTER_VIDEO_PROC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x15000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_SF_MEM_NOC },
 };
@@ -455,6 +594,12 @@ static struct qcom_icc_node qxm_camnoc_hf = {
 	.id = SC7280_MASTER_CAMNOC_HF,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 2,
+		.port_offsets = { 0x10000, 0x10180 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_HF_MEM_NOC },
 };
@@ -464,6 +609,12 @@ static struct qcom_icc_node qxm_camnoc_icp = {
 	.id = SC7280_MASTER_CAMNOC_ICP,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x11000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_SF_MEM_NOC },
 };
@@ -473,6 +624,12 @@ static struct qcom_icc_node qxm_camnoc_sf = {
 	.id = SC7280_MASTER_CAMNOC_SF,
 	.channels = 1,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x12000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_SF_MEM_NOC },
 };
@@ -482,6 +639,12 @@ static struct qcom_icc_node qxm_mdp0 = {
 	.id = SC7280_MASTER_MDP0,
 	.channels = 1,
 	.buswidth = 32,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x16000 },
+		.prio = 0,
+		.urg_fwd = 1,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_MNOC_HF_MEM_NOC },
 };
@@ -536,6 +699,12 @@ static struct qcom_icc_node qxm_pimem = {
 	.id = SC7280_MASTER_PIMEM,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0x8000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_SNOC_GEM_NOC_GC },
 };
@@ -545,6 +714,12 @@ static struct qcom_icc_node xm_gic = {
 	.id = SC7280_MASTER_GIC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &(const struct qcom_icc_qosbox) {
+		.num_ports = 1,
+		.port_offsets = { 0xa000 },
+		.prio = 2,
+		.urg_fwd = 0,
+	},
 	.num_links = 1,
 	.links = { SC7280_SLAVE_SNOC_GEM_NOC_GC },
 };
@@ -1502,15 +1677,33 @@ static struct qcom_icc_node * const aggre1_noc_nodes[] = {
 	[SLAVE_SERVICE_A1NOC] = &srvc_aggre1_noc,
 };
 
+static const struct regmap_config sc7280_aggre1_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x1c080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_aggre1_noc = {
+	.config = &sc7280_aggre1_noc_regmap_config,
 	.nodes = aggre1_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 	.bcms = aggre1_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
+	.qos_clks_required = true,
 };
 
 static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
 	&bcm_ce0,
+};
+
+static const struct regmap_config sc7280_aggre2_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x2b080,
+	.fast_io = true,
 };
 
 static struct qcom_icc_node * const aggre2_noc_nodes[] = {
@@ -1525,10 +1718,12 @@ static struct qcom_icc_node * const aggre2_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sc7280_aggre2_noc = {
+	.config = &sc7280_aggre2_noc_regmap_config,
 	.nodes = aggre2_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
+	.qos_clks_required = true,
 };
 
 static struct qcom_icc_bcm * const clk_virt_bcms[] = {
@@ -1605,7 +1800,16 @@ static struct qcom_icc_node * const cnoc2_nodes[] = {
 	[SLAVE_SNOC_CFG] = &qns_snoc_cfg,
 };
 
+static const struct regmap_config sc7280_cnoc2_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x1000,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_cnoc2 = {
+	.config = &sc7280_cnoc2_regmap_config,
 	.nodes = cnoc2_nodes,
 	.num_nodes = ARRAY_SIZE(cnoc2_nodes),
 	.bcms = cnoc2_bcms,
@@ -1637,7 +1841,16 @@ static struct qcom_icc_node * const cnoc3_nodes[] = {
 	[SLAVE_TCU] = &xs_sys_tcu_cfg,
 };
 
+static const struct regmap_config sc7280_cnoc3_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x1000,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_cnoc3 = {
+	.config = &sc7280_cnoc3_regmap_config,
 	.nodes = cnoc3_nodes,
 	.num_nodes = ARRAY_SIZE(cnoc3_nodes),
 	.bcms = cnoc3_bcms,
@@ -1653,7 +1866,16 @@ static struct qcom_icc_node * const dc_noc_nodes[] = {
 	[SLAVE_GEM_NOC_CFG] = &qns_gemnoc,
 };
 
+static const struct regmap_config sc7280_dc_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x5080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_dc_noc = {
+	.config = &sc7280_dc_noc_regmap_config,
 	.nodes = dc_noc_nodes,
 	.num_nodes = ARRAY_SIZE(dc_noc_nodes),
 	.bcms = dc_noc_bcms,
@@ -1689,7 +1911,16 @@ static struct qcom_icc_node * const gem_noc_nodes[] = {
 	[SLAVE_SERVICE_GEM_NOC] = &srvc_sys_gemnoc,
 };
 
+static const struct regmap_config sc7280_gem_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0xe2200,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_gem_noc = {
+	.config = &sc7280_gem_noc_regmap_config,
 	.nodes = gem_noc_nodes,
 	.num_nodes = ARRAY_SIZE(gem_noc_nodes),
 	.bcms = gem_noc_bcms,
@@ -1709,7 +1940,16 @@ static struct qcom_icc_node * const lpass_ag_noc_nodes[] = {
 	[SLAVE_SERVICE_LPASS_AG_NOC] = &srvc_niu_lpass_agnoc,
 };
 
+static const struct regmap_config sc7280_lpass_ag_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0xf080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_lpass_ag_noc = {
+	.config = &sc7280_lpass_ag_noc_regmap_config,
 	.nodes = lpass_ag_noc_nodes,
 	.num_nodes = ARRAY_SIZE(lpass_ag_noc_nodes),
 	.bcms = lpass_ag_noc_bcms,
@@ -1726,7 +1966,16 @@ static struct qcom_icc_node * const mc_virt_nodes[] = {
 	[SLAVE_EBI1] = &ebi,
 };
 
+static const struct regmap_config sc7280_mc_virt_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x4,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_mc_virt = {
+	.config = &sc7280_mc_virt_regmap_config,
 	.nodes = mc_virt_nodes,
 	.num_nodes = ARRAY_SIZE(mc_virt_nodes),
 	.bcms = mc_virt_bcms,
@@ -1753,7 +2002,16 @@ static struct qcom_icc_node * const mmss_noc_nodes[] = {
 	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
 };
 
+static const struct regmap_config sc7280_mmss_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x1e080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_mmss_noc = {
+	.config = &sc7280_mmss_noc_regmap_config,
 	.nodes = mmss_noc_nodes,
 	.num_nodes = ARRAY_SIZE(mmss_noc_nodes),
 	.bcms = mmss_noc_bcms,
@@ -1772,7 +2030,16 @@ static struct qcom_icc_node * const nsp_noc_nodes[] = {
 	[SLAVE_SERVICE_NSP_NOC] = &service_nsp_noc,
 };
 
+static const struct regmap_config sc7280_nsp_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x10000,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_nsp_noc = {
+	.config = &sc7280_nsp_noc_regmap_config,
 	.nodes = nsp_noc_nodes,
 	.num_nodes = ARRAY_SIZE(nsp_noc_nodes),
 	.bcms = nsp_noc_bcms,
@@ -1797,7 +2064,16 @@ static struct qcom_icc_node * const system_noc_nodes[] = {
 	[SLAVE_SERVICE_SNOC] = &srvc_snoc,
 };
 
+static const struct regmap_config sc7280_system_noc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x15480,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc sc7280_system_noc = {
+	.config = &sc7280_system_noc_regmap_config,
 	.nodes = system_noc_nodes,
 	.num_nodes = ARRAY_SIZE(system_noc_nodes),
 	.bcms = system_noc_bcms,
