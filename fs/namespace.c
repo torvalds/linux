@@ -2060,14 +2060,41 @@ static bool is_mnt_ns_file(struct dentry *dentry)
 	       dentry->d_fsdata == &mntns_operations;
 }
 
-static struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct mnt_namespace, ns);
-}
-
 struct ns_common *from_mnt_ns(struct mnt_namespace *mnt)
 {
 	return &mnt->ns;
+}
+
+struct mnt_namespace *__lookup_next_mnt_ns(struct mnt_namespace *mntns, bool previous)
+{
+	guard(read_lock)(&mnt_ns_tree_lock);
+	for (;;) {
+		struct rb_node *node;
+
+		if (previous)
+			node = rb_prev(&mntns->mnt_ns_tree_node);
+		else
+			node = rb_next(&mntns->mnt_ns_tree_node);
+		if (!node)
+			return ERR_PTR(-ENOENT);
+
+		mntns = node_to_mnt_ns(node);
+		node = &mntns->mnt_ns_tree_node;
+
+		if (!ns_capable_noaudit(mntns->user_ns, CAP_SYS_ADMIN))
+			continue;
+
+		/*
+		 * Holding mnt_ns_tree_lock prevents the mount namespace from
+		 * being freed but it may well be on it's deathbed. We want an
+		 * active reference, not just a passive one here as we're
+		 * persisting the mount namespace.
+		 */
+		if (!refcount_inc_not_zero(&mntns->ns.count))
+			continue;
+
+		return mntns;
+	}
 }
 
 static bool mnt_ns_loop(struct dentry *dentry)
