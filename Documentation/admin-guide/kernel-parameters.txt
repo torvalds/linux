@@ -4619,6 +4619,38 @@
 				bridges without forcing it upstream. Note:
 				this removes isolation between devices and
 				may put more devices in an IOMMU group.
+		config_acs=
+				Format:
+				<ACS flags>@<pci_dev>[; ...]
+				Specify one or more PCI devices (in the format
+				specified above) optionally prepended with flags
+				and separated by semicolons. The respective
+				capabilities will be enabled, disabled or
+				unchanged based on what is specified in
+				flags.
+
+				ACS Flags is defined as follows:
+				  bit-0 : ACS Source Validation
+				  bit-1 : ACS Translation Blocking
+				  bit-2 : ACS P2P Request Redirect
+				  bit-3 : ACS P2P Completion Redirect
+				  bit-4 : ACS Upstream Forwarding
+				  bit-5 : ACS P2P Egress Control
+				  bit-6 : ACS Direct Translated P2P
+				Each bit can be marked as:
+				  '0' – force disabled
+				  '1' – force enabled
+				  'x' – unchanged
+				For example,
+				  pci=config_acs=10x
+				would configure all devices that support
+				ACS to enable P2P Request Redirect, disable
+				Translation Blocking, and leave Source
+				Validation unchanged from whatever power-up
+				or firmware set it to.
+
+				Note: this may remove isolation between devices
+				and may put more devices in an IOMMU group.
 		force_floating	[S390] Force usage of floating interrupts.
 		nomio		[S390] Do not use MIO instructions.
 		norid		[S390] ignore the RID field and force use of
