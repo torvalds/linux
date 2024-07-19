@@ -932,6 +932,53 @@ static void dccg35_disable_dpp_new(
 	dccg35_set_dppclk_rcg(dccg, inst, true);
 }
 
+static void dccg35_disable_dscclk_new(struct dccg *dccg,
+									  int inst)
+{
+	dccg35_set_dsc_clk_src_new(dccg, inst, DSC_CLK_REF_CLK);
+	dccg35_set_dsc_clk_rcg(dccg, inst, true);
+}
+
+static void dccg35_enable_dscclk_new(struct dccg *dccg,
+									 int inst,
+									 enum dsc_clk_source src)
+{
+	dccg35_set_dsc_clk_rcg(dccg, inst, false);
+	dccg35_set_dsc_clk_src_new(dccg, inst, src);
+}
+
+static void dccg35_enable_dtbclk_p_new(struct dccg *dccg,
+									   enum dtbclk_source src,
+									   int inst)
+{
+	dccg35_set_dtbclk_p_rcg(dccg, inst, false);
+	dccg35_set_dtbclk_p_src_new(dccg, src, inst);
+}
+
+static void dccg35_disable_dtbclk_p_new(struct dccg *dccg,
+										enum dtbclk_source src,
+										int inst)
+{
+	dccg35_set_dtbclk_p_src_new(dccg, DTBCLK_REFCLK, inst);
+	dccg35_set_dtbclk_p_rcg(dccg, inst, true);
+}
+
+static void dccg35_enable_dpstreamclk_new(struct dccg *dccg,
+										  enum dtbclk_source src,
+										  int inst)
+{
+	dccg35_set_dpstreamclk_src_new(dccg, DP_STREAM_REFCLK, inst);
+	dccg35_set_dpstreamclk_rcg(dccg, inst, true);
+}
+
+static void dccg35_disable_dpstreamclk_new(struct dccg *dccg,
+										   enum dtbclk_source src,
+										   int inst)
+{
+	dccg35_set_dpstreamclk_rcg(dccg, inst, false);
+	dccg35_set_dtbclk_p_src_new(dccg, src, inst);
+}
+
 static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
@@ -1965,7 +2012,12 @@ struct dccg *dccg35_create(
 	(void)&dccg35_disable_symclk32_le_new;
 	(void)&dccg35_enable_dpp_new;
 	(void)&dccg35_disable_dpp_new;
-
+	(void)&dccg35_disable_dscclk_new;
+	(void)&dccg35_enable_dscclk_new;
+	(void)&dccg35_enable_dtbclk_p_new;
+	(void)&dccg35_disable_dtbclk_p_new;
+	(void)&dccg35_enable_dpstreamclk_new;
+	(void)&dccg35_disable_dpstreamclk_new;
 	base = &dccg_dcn->base;
 	base->ctx = ctx;
 	base->funcs = &dccg35_funcs;
