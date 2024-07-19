@@ -1703,6 +1703,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
  * @timing: Perform timing margining instead of voltage
  * @right_high: Use Right/high margin instead of left/low
  * @counter: What to do with the error counter
+ * @results: Data word for the operation completion data
  *
  * Runs software lane margining on USB4 port. Read back the error
  * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
@@ -1710,7 +1711,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
  */
 int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
 			u8 index, unsigned int lanes, bool timing,
-			bool right_high, u32 counter)
+			bool right_high, u32 counter, u32 *results)
 {
 	u32 val;
 	int ret;
@@ -1728,8 +1729,14 @@ int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_op(port, target, index,
-			       USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+	ret = usb4_port_sb_op(port, target, index,
+			      USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, results,
+				 sizeof(*results));
+
 }
 
 /**

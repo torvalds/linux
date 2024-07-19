@@ -1360,7 +1360,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
 			bool timing, bool right_high, u32 *results);
 int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
 			u8 index, unsigned int lanes, bool timing,
-			bool right_high, u32 counter);
+			bool right_high, u32 counter, u32 *results);
 int usb4_port_sw_margin_errors(struct tb_port *port, enum usb4_sb_target target,
 			       u8 index, u32 *errors);
 

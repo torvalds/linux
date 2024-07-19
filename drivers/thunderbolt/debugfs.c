@@ -785,9 +785,8 @@ static int margining_run_write(void *data, u64 val)
 			    margining->time ? "time" : "voltage", dev_name(dev),
 			    margining->lanes);
 		ret = usb4_port_sw_margin(port, margining->target, margining->index,
-					  margining->lanes, margining->time,
-					  margining->right_high,
-					  USB4_MARGIN_SW_COUNTER_CLEAR);
+					  margining->lanes, margining->time, margining->right_high,
+					  USB4_MARGIN_SW_COUNTER_CLEAR, &margining->results[0]);
 		if (ret)
 			goto out_clx;
 
