@@ -369,6 +369,9 @@ OPTIONS
 --demangle-kernel::
 	Demangle kernel symbol names to human readable form (for C++ kernels).
 
+--addr2line=<path>::
+	Path to addr2line binary.
+
 --header
 	Show perf.data header.
 

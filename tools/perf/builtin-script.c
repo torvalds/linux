@@ -4052,6 +4052,8 @@ int cmd_script(int argc, const char **argv)
 			"Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 			"Enable kernel symbol demangling"),
+	OPT_STRING(0, "addr2line", &symbol_conf.addr2line_path, "path",
+			"addr2line binary to use for line numbers"),
 	OPT_STRING(0, "time", &script.time_str, "str",
 		   "Time span of interest (start,stop)"),
 	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
