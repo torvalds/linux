@@ -167,7 +167,7 @@ static int __maybe_unused emac_mdio_fe_xmit(struct emac_mdio_dev *pdev)
 	msg = &pdev->tx_msg;
 
 	/*lock*/
-	EMAC_MDIO_FE_INFO("Entry msg len =%d", msg->len);
+	EMAC_MDIO_FE_DBG("Entry msg len =%d", msg->len);
 	sg_init_one(sg, msg, sizeof(*msg));
 
 	spin_lock_irqsave(&pdev->txq_lock, flags);
@@ -181,7 +181,7 @@ static int __maybe_unused emac_mdio_fe_xmit(struct emac_mdio_dev *pdev)
 	}
 	/*update other side after add_buf*/
 	virtqueue_kick(pdev->emac_mdio_fe_txq);
-	EMAC_MDIO_FE_INFO("Kicked Host receive Q\n");
+	EMAC_MDIO_FE_DBG("Kicked Host receive Q\n");
 	/*unlock*/
 	spin_unlock_irqrestore(&pdev->txq_lock, flags);
 out:
@@ -202,7 +202,7 @@ static void emac_mdio_fe_replenish_rxbuf(struct emac_mdio_dev *pdev, struct be_t
 
 static void emac_mdio_fe_update(struct emac_mdio_dev *pdev, struct be_to_fe_msg *msg)
 {
-	EMAC_MDIO_FE_INFO("Receive msg->cmd= %d", msg->cmd);
+	EMAC_MDIO_FE_DBG("Receive msg->cmd= %d", msg->cmd);
 
 	switch (msg->cmd) {
 	case VIRTIO_EMAC_MDIO_HW_DOWN:
@@ -216,7 +216,7 @@ static void emac_mdio_fe_update(struct emac_mdio_dev *pdev, struct be_to_fe_msg 
 		break;
 
 	case VIRTIO_EMAC_MDIO_HW_REPLY:
-		EMAC_MDIO_FE_INFO("Notify VIRTIO_EMAC_MDIO_HW_REPLY");
+		EMAC_MDIO_FE_DBG("Notify VIRTIO_EMAC_MDIO_HW_REPLY");
 		pdev->phy_reply = msg->result;
 		up(&pdev->emac_mdio_fe_sem);
 		break;
@@ -243,10 +243,10 @@ static void emac_mdio_fe_recv_done(struct virtqueue *rvq)
 		msg = virtqueue_get_buf(pdev->emac_mdio_fe_rxq, &len);
 		if (!msg) {
 			spin_unlock_irqrestore(&pdev->rxq_lock, flags);
-			EMAC_MDIO_FE_ERR("incoming signal, but no used buffer\n");
+			EMAC_MDIO_FE_DBG("incoming signal, but no used buffer\n");
 			break;
 		}
-		EMAC_MDIO_FE_INFO("Got Buffer len %d ", len);
+		EMAC_MDIO_FE_DBG("Got Buffer len %d ", len);
 		spin_unlock_irqrestore(&pdev->rxq_lock, flags);
 		/*Process received message, can be stubbed out*/
 		emac_mdio_fe_update(pdev, msg);
@@ -267,7 +267,7 @@ static void emac_mdio_fe_xmit_done(struct virtqueue *txq)
 	unsigned long                           flags = 0;
 	unsigned int                            len = 0;
 
-	EMAC_MDIO_FE_INFO("-->");
+	EMAC_MDIO_FE_DBG("-->");
 	while (1) {
 		spin_lock_irqsave(&pdev->txq_lock, flags);
 		EMAC_MDIO_FE_DBG("Call virtqueue_get_buf");
@@ -276,7 +276,7 @@ static void emac_mdio_fe_xmit_done(struct virtqueue *txq)
 		if (!msg)
 			break;
 	} /*while*/
-	EMAC_MDIO_FE_INFO("<--");
+	EMAC_MDIO_FE_DBG("<--");
 }
 
 static void emac_mdio_fe_allocate_rxbufs(struct emac_mdio_dev *pdev)
@@ -344,7 +344,7 @@ int virtio_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	emac_mdio_fe_ctx->phy_reply = -1;
 	tmp = msecs_to_jiffies(WAIT_PHY_REPLY_MAX_TIMEOUT);
 	if (down_timeout(&emac_mdio_fe_ctx->emac_mdio_fe_sem, tmp) == -ETIME) {
-		EMAC_MDIO_FE_WARN("Wait for phy reply timeout\n");
+		EMAC_MDIO_FE_DBG("Wait for phy reply timeout\n");
 		mutex_unlock(&emac_mdio_fe_pdev->emac_mdio_fe_lock);
 		return -1;
 	}
