@@ -537,4 +537,5 @@ ssize_t fsg_store_forced_eject(struct fsg_lun *curlun, struct rw_semaphore *file
 }
 EXPORT_SYMBOL_GPL(fsg_store_forced_eject);
 
+MODULE_DESCRIPTION("Common definitions for mass storage functionality");
 MODULE_LICENSE("GPL");

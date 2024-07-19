@@ -14,12 +14,18 @@
 # the description and examples of the file structure and vocabulary.
 #
 
+import argparse
 import glob
-import ksft
 import os
 import re
 import sys
 import yaml
+
+# Allow ksft module to be imported from different directory
+this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(this_dir, "../../kselftest/"))
+
+import ksft
 
 pci_controllers = []
 usb_controllers = []
@@ -63,6 +69,22 @@ def get_dt_mmio(sysfs_dev_dir):
         sysfs_dev_dir = os.path.dirname(sysfs_dev_dir)
 
 
+def get_of_fullname(sysfs_dev_dir):
+    re_of_fullname = re.compile("OF_FULLNAME=(.*)")
+    of_full_name = None
+
+    # PCI controllers' sysfs don't have an of_node, so have to read it from the
+    # parent
+    while not of_full_name:
+        try:
+            with open(os.path.join(sysfs_dev_dir, "uevent")) as f:
+                of_fullname = re_of_fullname.search(f.read()).group(1)
+                return of_fullname
+        except:
+            pass
+        sysfs_dev_dir = os.path.dirname(sysfs_dev_dir)
+
+
 def get_acpi_uid(sysfs_dev_dir):
     with open(os.path.join(sysfs_dev_dir, "firmware_node", "uid")) as f:
         return f.read()
@@ -94,6 +116,11 @@ def find_controller_in_sysfs(controller, parent_sysfs=None):
 
         if controller.get("dt-mmio"):
             if str(controller["dt-mmio"]) != get_dt_mmio(c):
+                continue
+
+        if controller.get("of-fullname-regex"):
+            re_of_fullname = re.compile(str(controller["of-fullname-regex"]))
+            if not re_of_fullname.match(get_of_fullname(c)):
                 continue
 
         if controller.get("usb-version"):
@@ -193,6 +220,9 @@ def generate_pathname(device):
 
     if device.get("dt-mmio"):
         pathname += "@" + str(device["dt-mmio"])
+
+    if device.get("of-fullname-regex"):
+        pathname += "-" + str(device["of-fullname-regex"])
 
     if device.get("name"):
         pathname = pathname + "/" + device["name"]
@@ -296,14 +326,24 @@ def run_test(yaml_file):
         parse_device_tree_node(device_tree)
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--boards-dir", default="boards", help="Directory containing the board YAML files"
+)
+args = parser.parse_args()
+
 find_pci_controller_dirs()
 find_usb_controller_dirs()
 
 ksft.print_header()
 
+if not os.path.exists(args.boards_dir):
+    ksft.print_msg(f"Boards directory '{args.boards_dir}' doesn't exist")
+    ksft.exit_fail()
+
 board_file = ""
 for board_filename in get_board_filenames():
-    full_board_filename = os.path.join("boards", board_filename + ".yaml")
+    full_board_filename = os.path.join(args.boards_dir, board_filename + ".yaml")
 
     if os.path.exists(full_board_filename):
         board_file = full_board_filename

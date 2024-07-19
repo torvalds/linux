@@ -11,6 +11,10 @@
 # this, several optional keys can be used:
 # - dt-mmio: identify the MMIO address of the controller as defined in the
 #   Devicetree.
+# - of-fullname-regex: regular expression to match against the OF_FULLNAME
+#   property. Useful when the controller's address is not unique across other
+#   sibling controllers. In this case, dt-mmio can't be used, and this property
+#   allows the matching to include parent nodes as well to make it unique.
 # - usb-version: for USB controllers to differentiate between USB3 and USB2
 #   buses sharing the same controller.
 # - acpi-uid: _UID property of the controller as supplied by the ACPI. Useful to

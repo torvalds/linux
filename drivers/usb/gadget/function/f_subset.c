@@ -500,5 +500,6 @@ static struct usb_function *geth_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(geth, geth_alloc_inst, geth_alloc);
+MODULE_DESCRIPTION("\"CDC Subset\" Ethernet link function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

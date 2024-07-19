@@ -425,4 +425,5 @@ static struct usb_composite_driver zero_driver = {
 module_usb_composite_driver(zero_driver);
 
 MODULE_AUTHOR("David Brownell");
+MODULE_DESCRIPTION("Gadget Zero, for USB development");
 MODULE_LICENSE("GPL");

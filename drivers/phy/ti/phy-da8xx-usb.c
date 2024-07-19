@@ -14,11 +14,13 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_data/phy-da8xx-usb.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
 #define PHY_INIT_BITS	(CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN)
 
 struct da8xx_usb_phy {
+	struct device		*dev;
 	struct phy_provider	*phy_provider;
 	struct phy		*usb11_phy;
 	struct phy		*usb20_phy;
@@ -39,6 +41,12 @@ static int da8xx_usb11_phy_power_on(struct phy *phy)
 	regmap_write_bits(d_phy->regmap, CFGCHIP(2), CFGCHIP2_USB1SUSPENDM,
 			  CFGCHIP2_USB1SUSPENDM);
 
+	/*
+	 * USB1.1 can used USB2.0 output clock as reference clock so this is here to prevent USB2.0
+	 * from shutting PHY's power when USB1.1 might use it
+	 */
+	pm_runtime_get_sync(d_phy->dev);
+
 	return 0;
 }
 
@@ -49,6 +57,7 @@ static int da8xx_usb11_phy_power_off(struct phy *phy)
 	regmap_write_bits(d_phy->regmap, CFGCHIP(2), CFGCHIP2_USB1SUSPENDM, 0);
 
 	clk_disable_unprepare(d_phy->usb11_clk);
+	pm_runtime_put_sync(d_phy->dev);
 
 	return 0;
 }
@@ -118,6 +127,35 @@ static const struct phy_ops da8xx_usb20_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static int __maybe_unused da8xx_runtime_suspend(struct device *dev)
+{
+	struct da8xx_usb_phy *d_phy = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "Suspending ...\n");
+
+	regmap_set_bits(d_phy->regmap, CFGCHIP(2), CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN);
+
+	return 0;
+}
+
+static int __maybe_unused da8xx_runtime_resume(struct device *dev)
+{
+	u32 mask = CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN | CFGCHIP2_PHY_PLLON;
+	struct da8xx_usb_phy *d_phy = dev_get_drvdata(dev);
+	u32 pll_status;
+
+	regmap_update_bits(d_phy->regmap, CFGCHIP(2), mask, CFGCHIP2_PHY_PLLON);
+
+	dev_dbg(dev, "Resuming ...\n");
+
+	return regmap_read_poll_timeout(d_phy->regmap, CFGCHIP(2), pll_status,
+					pll_status & CFGCHIP2_PHYCLKGD, 1000, 500000);
+}
+
+static const struct dev_pm_ops da8xx_usb_phy_pm_ops = {
+	SET_RUNTIME_PM_OPS(da8xx_runtime_suspend, da8xx_runtime_resume, NULL)
+};
+
 static struct phy *da8xx_usb_phy_of_xlate(struct device *dev,
 					 const struct of_phandle_args *args)
 {
@@ -146,6 +184,8 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	d_phy = devm_kzalloc(dev, sizeof(*d_phy), GFP_KERNEL);
 	if (!d_phy)
 		return -ENOMEM;
+
+	d_phy->dev = dev;
 
 	if (pdata)
 		d_phy->regmap = pdata->cfgchip;
@@ -208,6 +248,14 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	regmap_write_bits(d_phy->regmap, CFGCHIP(2),
 			  PHY_INIT_BITS, PHY_INIT_BITS);
 
+	pm_runtime_set_active(dev);
+	devm_pm_runtime_enable(dev);
+	/*
+	 * Prevent runtime pm from being ON by default. Users can enable
+	 * it using power/control in sysfs.
+	 */
+	pm_runtime_forbid(dev);
+
 	return 0;
 }
 
@@ -232,6 +280,7 @@ static struct platform_driver da8xx_usb_phy_driver = {
 	.remove_new = da8xx_usb_phy_remove,
 	.driver	= {
 		.name	= "da8xx-usb-phy",
+		.pm	= &da8xx_usb_phy_pm_ops,
 		.of_match_table = da8xx_usb_phy_ids,
 	},
 };
