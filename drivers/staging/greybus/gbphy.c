@@ -354,4 +354,5 @@ static void __exit gbphy_exit(void)
 }
 module_exit(gbphy_exit);
 
+MODULE_DESCRIPTION("Greybus Bridged-Phy Bus driver");
 MODULE_LICENSE("GPL v2");

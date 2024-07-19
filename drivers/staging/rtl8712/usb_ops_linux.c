@@ -26,13 +26,6 @@
 #define	RTL871X_VENQT_READ	0xc0
 #define	RTL871X_VENQT_WRITE	0x40
 
-struct zero_bulkout_context {
-	void *pbuf;
-	void *purb;
-	void *pirp;
-	void *padapter;
-};
-
 uint r8712_usb_init_intf_priv(struct intf_priv *pintfpriv)
 {
 	pintfpriv->piorw_urb = usb_alloc_urb(0, GFP_ATOMIC);

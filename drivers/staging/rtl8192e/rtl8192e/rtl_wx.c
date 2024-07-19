@@ -241,7 +241,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 		    (ieee->link_state <= RTLLIB_ASSOCIATING_AUTHENTICATED))
 			return 0;
 		if ((priv->rtllib->link_state == MAC80211_LINKED) &&
-		    (priv->rtllib->CntAfterLink < 2))
+		    (priv->rtllib->cnt_after_link < 2))
 			return 0;
 	}
 

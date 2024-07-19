@@ -244,7 +244,6 @@ struct	xmit_priv {
 	int cmdseq;
 	struct  __queue free_xmitbuf_queue;
 	struct  __queue pending_xmitbuf_queue;
-	u8 *pallocated_xmitbuf;
 	u8 *pxmitbuf;
 	uint free_xmitbuf_cnt;
 };
