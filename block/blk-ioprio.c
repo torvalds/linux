@@ -50,14 +50,6 @@ static const char *policy_name[] = {
 static struct blkcg_policy ioprio_policy;
 
 /**
- * struct ioprio_blkg - Per (cgroup, request queue) data.
- * @pd: blkg_policy_data structure.
- */
-struct ioprio_blkg {
-	struct blkg_policy_data pd;
-};
-
-/**
  * struct ioprio_blkcg - Per cgroup data.
  * @cpd: blkcg_policy_data structure.
  * @prio_policy: One of the IOPRIO_CLASS_* values. See also <linux/ioprio.h>.
@@ -66,11 +58,6 @@ struct ioprio_blkcg {
 	struct blkcg_policy_data cpd;
 	enum prio_policy	 prio_policy;
 };
-
-static inline struct ioprio_blkg *pd_to_ioprio(struct blkg_policy_data *pd)
-{
-	return pd ? container_of(pd, struct ioprio_blkg, pd) : NULL;
-}
 
 static struct ioprio_blkcg *blkcg_to_ioprio_blkcg(struct blkcg *blkcg)
 {
@@ -106,25 +93,6 @@ static ssize_t ioprio_set_prio_policy(struct kernfs_open_file *of, char *buf,
 		return ret;
 	blkcg->prio_policy = ret;
 	return nbytes;
-}
-
-static struct blkg_policy_data *
-ioprio_alloc_pd(struct gendisk *disk, struct blkcg *blkcg, gfp_t gfp)
-{
-	struct ioprio_blkg *ioprio_blkg;
-
-	ioprio_blkg = kzalloc(sizeof(*ioprio_blkg), gfp);
-	if (!ioprio_blkg)
-		return NULL;
-
-	return &ioprio_blkg->pd;
-}
-
-static void ioprio_free_pd(struct blkg_policy_data *pd)
-{
-	struct ioprio_blkg *ioprio_blkg = pd_to_ioprio(pd);
-
-	kfree(ioprio_blkg);
 }
 
 static struct blkcg_policy_data *ioprio_alloc_cpd(gfp_t gfp)
@@ -169,9 +137,6 @@ static struct blkcg_policy ioprio_policy = {
 
 	.cpd_alloc_fn	= ioprio_alloc_cpd,
 	.cpd_free_fn	= ioprio_free_cpd,
-
-	.pd_alloc_fn	= ioprio_alloc_pd,
-	.pd_free_fn	= ioprio_free_pd,
 };
 
 void blkcg_set_ioprio(struct bio *bio)
@@ -207,16 +172,6 @@ void blkcg_set_ioprio(struct bio *bio)
 			IOPRIO_PRIO_VALUE(blkcg->prio_policy, 0));
 	if (prio > bio->bi_ioprio)
 		bio->bi_ioprio = prio;
-}
-
-void blk_ioprio_exit(struct gendisk *disk)
-{
-	blkcg_deactivate_policy(disk, &ioprio_policy);
-}
-
-int blk_ioprio_init(struct gendisk *disk)
-{
-	return blkcg_activate_policy(disk, &ioprio_policy);
 }
 
 static int __init ioprio_init(void)
