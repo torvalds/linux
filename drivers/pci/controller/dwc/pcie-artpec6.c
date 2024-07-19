@@ -94,7 +94,7 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 	regmap_write(artpec6_pcie->regmap, offset, val);
 }
 
-static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
+static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 cpu_addr)
 {
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
 	struct dw_pcie_rp *pp = &pci->pp;
@@ -102,13 +102,13 @@ static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
 
 	switch (artpec6_pcie->mode) {
 	case DW_PCIE_RC_TYPE:
-		return pci_addr - pp->cfg0_base;
+		return cpu_addr - pp->cfg0_base;
 	case DW_PCIE_EP_TYPE:
-		return pci_addr - ep->phys_base;
+		return cpu_addr - ep->phys_base;
 	default:
 		dev_err(pci->dev, "UNKNOWN device type\n");
 	}
-	return pci_addr;
+	return cpu_addr;
 }
 
 static int artpec6_pcie_establish_link(struct dw_pcie *pci)
