@@ -387,12 +387,13 @@
 		};
 
 		uart0: serial@10000000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x10000000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART0_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART0_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART0_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART0_APB>,
+				 <&syscrg JH7110_SYSRST_UART0_CORE>;
 			interrupts = <32>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
@@ -400,12 +401,13 @@
 		};
 
 		uart1: serial@10010000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x10010000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART1_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART1_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART1_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART1_APB>,
+				 <&syscrg JH7110_SYSRST_UART1_CORE>;
 			interrupts = <33>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
@@ -413,12 +415,13 @@
 		};
 
 		uart2: serial@10020000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x10020000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART2_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART2_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART2_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART2_APB>,
+				 <&syscrg JH7110_SYSRST_UART2_CORE>;
 			interrupts = <34>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
@@ -642,12 +645,13 @@
 		};
 
 		uart3: serial@12000000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x12000000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART3_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART3_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART3_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART3_APB>,
+				 <&syscrg JH7110_SYSRST_UART3_CORE>;
 			interrupts = <45>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
@@ -655,12 +659,13 @@
 		};
 
 		uart4: serial@12010000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x12010000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART4_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART4_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART4_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART4_APB>,
+				 <&syscrg JH7110_SYSRST_UART4_CORE>;
 			interrupts = <46>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
@@ -668,12 +673,13 @@
 		};
 
 		uart5: serial@12020000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
 			reg = <0x0 0x12020000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_UART5_CORE>,
 				 <&syscrg JH7110_SYSCLK_UART5_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&syscrg JH7110_SYSRST_UART5_APB>;
+			resets = <&syscrg JH7110_SYSRST_UART5_APB>,
+				 <&syscrg JH7110_SYSRST_UART5_CORE>;
 			interrupts = <47>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
