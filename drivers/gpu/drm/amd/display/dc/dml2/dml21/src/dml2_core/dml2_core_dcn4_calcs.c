@@ -7231,10 +7231,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	/* Cursor Support Check */
 	mode_lib->ms.support.CursorSupport = true;
 	for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
-		if (display_cfg->plane_descriptors[k].cursor.cursor_width > 0.0) {
-			if (display_cfg->plane_descriptors[k].cursor.cursor_bpp == 64 && mode_lib->ip.cursor_64bpp_support == false) {
+		if (display_cfg->plane_descriptors[k].cursor.num_cursors > 0) {
+			if (display_cfg->plane_descriptors[k].cursor.cursor_bpp == 64 && mode_lib->ip.cursor_64bpp_support == false)
 				mode_lib->ms.support.CursorSupport = false;
-			}
 		}
 	}
 
@@ -8091,27 +8090,31 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 		double line_time_us = (double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total / ((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000);
 		bool cursor_not_enough_urgent_latency_hiding = 0;
-		calculate_cursor_req_attributes(
-			display_cfg->plane_descriptors[k].cursor.cursor_width,
-			display_cfg->plane_descriptors[k].cursor.cursor_bpp,
 
-			// output
-			&s->cursor_lines_per_chunk[k],
-			&s->cursor_bytes_per_line[k],
-			&s->cursor_bytes_per_chunk[k],
-			&s->cursor_bytes[k]);
+		if (display_cfg->plane_descriptors[k].cursor.num_cursors > 0) {
+			calculate_cursor_req_attributes(
+				display_cfg->plane_descriptors[k].cursor.cursor_width,
+				display_cfg->plane_descriptors[k].cursor.cursor_bpp,
 
-		calculate_cursor_urgent_burst_factor(
-			mode_lib->ip.cursor_buffer_size,
-			display_cfg->plane_descriptors[k].cursor.cursor_width,
-			s->cursor_bytes_per_chunk[k],
-			s->cursor_lines_per_chunk[k],
-			line_time_us,
-			mode_lib->ms.UrgLatency,
+				// output
+				&s->cursor_lines_per_chunk[k],
+				&s->cursor_bytes_per_line[k],
+				&s->cursor_bytes_per_chunk[k],
+				&s->cursor_bytes[k]);
 
-			// output
-			&mode_lib->ms.UrgentBurstFactorCursor[k],
-			&cursor_not_enough_urgent_latency_hiding);
+			calculate_cursor_urgent_burst_factor(
+				mode_lib->ip.cursor_buffer_size,
+				display_cfg->plane_descriptors[k].cursor.cursor_width,
+				s->cursor_bytes_per_chunk[k],
+				s->cursor_lines_per_chunk[k],
+				line_time_us,
+				mode_lib->ms.UrgLatency,
+
+				// output
+				&mode_lib->ms.UrgentBurstFactorCursor[k],
+				&cursor_not_enough_urgent_latency_hiding);
+		}
+
 		mode_lib->ms.UrgentBurstFactorCursorPre[k] = mode_lib->ms.UrgentBurstFactorCursor[k];
 
 #ifdef __DML_VBA_DEBUG__
@@ -10592,31 +10595,33 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		bool cursor_not_enough_urgent_latency_hiding = 0;
-		double line_time_us;
+		double line_time_us = 0.0;
 
-		calculate_cursor_req_attributes(
-			display_cfg->plane_descriptors[k].cursor.cursor_width,
-			display_cfg->plane_descriptors[k].cursor.cursor_bpp,
+		line_time_us = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total /
+			((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000);
+		if (display_cfg->plane_descriptors[k].cursor.num_cursors > 0) {
+			calculate_cursor_req_attributes(
+				display_cfg->plane_descriptors[k].cursor.cursor_width,
+				display_cfg->plane_descriptors[k].cursor.cursor_bpp,
 
-			// output
-			&s->cursor_lines_per_chunk[k],
-			&s->cursor_bytes_per_line[k],
-			&s->cursor_bytes_per_chunk[k],
-			&s->cursor_bytes[k]);
+				// output
+				&s->cursor_lines_per_chunk[k],
+				&s->cursor_bytes_per_line[k],
+				&s->cursor_bytes_per_chunk[k],
+				&s->cursor_bytes[k]);
 
-		line_time_us = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total / ((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000);
+			calculate_cursor_urgent_burst_factor(
+				mode_lib->ip.cursor_buffer_size,
+				display_cfg->plane_descriptors[k].cursor.cursor_width,
+				s->cursor_bytes_per_chunk[k],
+				s->cursor_lines_per_chunk[k],
+				line_time_us,
+				mode_lib->mp.UrgentLatency,
 
-		calculate_cursor_urgent_burst_factor(
-			mode_lib->ip.cursor_buffer_size,
-			display_cfg->plane_descriptors[k].cursor.cursor_width,
-			s->cursor_bytes_per_chunk[k],
-			s->cursor_lines_per_chunk[k],
-			line_time_us,
-			mode_lib->mp.UrgentLatency,
-
-			// output
-			&mode_lib->mp.UrgentBurstFactorCursor[k],
-			&cursor_not_enough_urgent_latency_hiding);
+				// output
+				&mode_lib->mp.UrgentBurstFactorCursor[k],
+				&cursor_not_enough_urgent_latency_hiding);
+		}
 		mode_lib->mp.UrgentBurstFactorCursorPre[k] = mode_lib->mp.UrgentBurstFactorCursor[k];
 
 		CalculateUrgentBurstFactor(
