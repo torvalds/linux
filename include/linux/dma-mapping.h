@@ -559,13 +559,11 @@ static inline unsigned long dma_get_seg_boundary_nr_pages(struct device *dev,
 	return (dma_get_seg_boundary(dev) >> page_shift) + 1;
 }
 
-static inline int dma_set_seg_boundary(struct device *dev, unsigned long mask)
+static inline void dma_set_seg_boundary(struct device *dev, unsigned long mask)
 {
-	if (dev->dma_parms) {
-		dev->dma_parms->segment_boundary_mask = mask;
-		return 0;
-	}
-	return -EIO;
+	if (WARN_ON_ONCE(!dev->dma_parms))
+		return;
+	dev->dma_parms->segment_boundary_mask = mask;
 }
 
 static inline unsigned int dma_get_min_align_mask(struct device *dev)
