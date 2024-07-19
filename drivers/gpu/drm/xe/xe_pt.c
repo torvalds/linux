@@ -1153,7 +1153,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 
 	trace_xe_gt_tlb_invalidation_fence_create(gt_to_xe(gt), &ifence->base);
 
-	xe_gt_tlb_invalidation_fence_init(gt, &ifence->base);
+	xe_gt_tlb_invalidation_fence_init(gt, &ifence->base, false);
 
 	ifence->fence = fence;
 	ifence->gt = gt;
