@@ -31,6 +31,10 @@ static void xapic_guest_code(void)
 	}
 }
 
+#define X2APIC_RSVD_BITS_MASK  (GENMASK_ULL(31, 20) | \
+				GENMASK_ULL(17, 16) | \
+				GENMASK_ULL(13, 13))
+
 static void x2apic_guest_code(void)
 {
 	asm volatile("cli");
@@ -41,7 +45,10 @@ static void x2apic_guest_code(void)
 		uint64_t val = x2apic_read_reg(APIC_IRR) |
 			       x2apic_read_reg(APIC_IRR + 0x10) << 32;
 
-		x2apic_write_reg(APIC_ICR, val);
+		if (val & X2APIC_RSVD_BITS_MASK)
+			x2apic_write_reg_fault(APIC_ICR, val);
+		else
+			x2apic_write_reg(APIC_ICR, val);
 		GUEST_SYNC(val);
 	} while (1);
 }
@@ -72,24 +79,14 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 	      (u64)(*((u32 *)&xapic.regs[APIC_ICR2])) << 32;
 	if (!x->is_x2apic)
 		val &= (-1u | (0xffull << (32 + 24)));
+	else if (val & X2APIC_RSVD_BITS_MASK)
+		return;
 
 	TEST_ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
 }
 
-#define X2APIC_RSVED_BITS_MASK  (GENMASK_ULL(31,20) | \
-				 GENMASK_ULL(17,16) | \
-				 GENMASK_ULL(13,13))
-
 static void __test_icr(struct xapic_vcpu *x, uint64_t val)
 {
-	if (x->is_x2apic) {
-		/* Hardware writing vICR register requires reserved bits 31:20,
-		 * 17:16 and 13 kept as zero to avoid #GP exception. Data value
-		 * written to vICR should mask out those bits above.
-		 */
-		val &= ~X2APIC_RSVED_BITS_MASK;
-	}
-
 	/*
 	 * The BUSY bit is reserved on both AMD and Intel, but only AMD treats
 	 * it is as _must_ be zero.  Intel simply ignores the bit.  Don't test
