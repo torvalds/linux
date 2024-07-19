@@ -648,6 +648,7 @@ int of_pci_get_max_link_speed(struct device_node *node);
 u32 of_pci_get_slot_power_limit(struct device_node *node,
 				u8 *slot_power_limit_value,
 				u8 *slot_power_limit_scale);
+bool of_pci_preserve_config(struct device_node *node);
 int pci_set_of_node(struct pci_dev *dev);
 void pci_release_of_node(struct pci_dev *dev);
 void pci_set_bus_of_node(struct pci_bus *bus);
@@ -684,6 +685,11 @@ of_pci_get_slot_power_limit(struct device_node *node,
 	if (slot_power_limit_scale)
 		*slot_power_limit_scale = 0;
 	return 0;
+}
+
+static inline bool of_pci_preserve_config(struct device_node *node)
+{
+	return false;
 }
 
 static inline int pci_set_of_node(struct pci_dev *dev) { return 0; }
@@ -732,6 +738,7 @@ static inline void pci_restore_aer_state(struct pci_dev *dev) { }
 #endif
 
 #ifdef CONFIG_ACPI
+bool pci_acpi_preserve_config(struct pci_host_bridge *bridge);
 int pci_acpi_program_hp_params(struct pci_dev *dev);
 extern const struct attribute_group pci_dev_acpi_attr_group;
 void pci_set_acpi_fwnode(struct pci_dev *dev);
@@ -745,6 +752,10 @@ int acpi_pci_wakeup(struct pci_dev *dev, bool enable);
 bool acpi_pci_need_resume(struct pci_dev *dev);
 pci_power_t acpi_pci_choose_state(struct pci_dev *pdev);
 #else
+static inline bool pci_acpi_preserve_config(struct pci_host_bridge *bridge)
+{
+	return false;
+}
 static inline int pci_dev_acpi_reset(struct pci_dev *dev, bool probe)
 {
 	return -ENOTTY;
