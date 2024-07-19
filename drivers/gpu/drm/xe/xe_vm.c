@@ -3379,8 +3379,10 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 			 */
 			ret = xe_gt_tlb_invalidation_vma(tile->primary_gt,
 							 &fence[id], vma);
-			if (ret < 0)
+			if (ret < 0) {
+				xe_gt_tlb_invalidation_fence_fini(&fence[id]);
 				goto wait;
+			}
 
 			tile_needs_invalidate |= BIT(id);
 		}
