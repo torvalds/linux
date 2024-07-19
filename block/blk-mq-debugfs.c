@@ -240,7 +240,7 @@ static const char *const cmd_flag_name[] = {
 };
 #undef CMD_FLAG_NAME
 
-#define RQF_NAME(name) [ilog2((__force u32)RQF_##name)] = #name
+#define RQF_NAME(name) [__RQF_##name] = #name
 static const char *const rqf_name[] = {
 	RQF_NAME(STARTED),
 	RQF_NAME(FLUSH_SEQ),
