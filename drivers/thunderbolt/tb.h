@@ -1372,6 +1372,7 @@ enum usb4_margin_sw_error_counter {
  * @error_counter: Error counter operation for software margining
  * @ber_level: Current BER level contour value
  * @lanes: %0, %1 or %7 (all)
+ * @voltage_time_offset: Offset for voltage / time for software margining
  * @optional_voltage_offset_range: Enable optional extended voltage range
  * @right_high: %false if left/low margin test is performed, %true if right/high
  * @time: %true if time margining is used instead of voltage
@@ -1380,6 +1381,7 @@ struct usb4_port_margining_params {
 	enum usb4_margin_sw_error_counter error_counter;
 	u32 ber_level;
 	u32 lanes;
+	u32 voltage_time_offset;
 	bool optional_voltage_offset_range;
 	bool right_high;
 	bool time;
