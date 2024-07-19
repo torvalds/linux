@@ -794,13 +794,15 @@ static void pmc_core_substate_req_header_show(struct seq_file *s, int pmc_index)
 	pmc_for_each_mode(i, mode, pmcdev)
 		seq_printf(s, " %9s |", pmc_lpm_modes[mode]);
 
-	seq_printf(s, " %9s |\n", "Status");
+	seq_printf(s, " %9s |", "Status");
+	seq_printf(s, " %11s |\n", "Live Status");
 }
 
 static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
 	u32 sts_offset;
+	u32 sts_offset_live;
 	u32 *lpm_req_regs;
 	unsigned int mp, pmc_index;
 	int num_maps;
@@ -815,6 +817,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 		maps = pmc->map->lpm_sts;
 		num_maps = pmc->map->lpm_num_maps;
 		sts_offset = pmc->map->lpm_status_offset;
+		sts_offset_live = pmc->map->lpm_live_status_offset;
 		lpm_req_regs = pmc->lpm_req_regs;
 
 		/*
@@ -832,6 +835,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 		for (mp = 0; mp < num_maps; mp++) {
 			u32 req_mask = 0;
 			u32 lpm_status;
+			u32 lpm_status_live;
 			const struct pmc_bit_map *map;
 			int mode, idx, i, len = 32;
 
@@ -845,6 +849,9 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 
 			/* Get the last latched status for this map */
 			lpm_status = pmc_core_reg_read(pmc, sts_offset + (mp * 4));
+
+			/* Get the runtime status for this map */
+			lpm_status_live = pmc_core_reg_read(pmc, sts_offset_live + (mp * 4));
 
 			/*  Loop over elements in this map */
 			map = maps[mp];
@@ -871,6 +878,9 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 
 				/* In Status column, show the last captured state of this agent */
 				seq_printf(s, " %9s |", lpm_status & bit_mask ? "Yes" : " ");
+
+				/* In Live status column, show the live state of this agent */
+				seq_printf(s, " %11s |", lpm_status_live & bit_mask ? "Yes" : " ");
 
 				seq_puts(s, "\n");
 			}
