@@ -939,9 +939,16 @@ enum backlight_control_type {
 };
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+#define MAX_CRC_WINDOW_NUM	2
+
 struct otg_phy_mux {
 	uint8_t phy_output_num;
 	uint8_t otg_output_num;
+};
+
+struct crc_window {
+	struct rect rect;
+	bool enable;
 };
 #endif
 
