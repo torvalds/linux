@@ -138,10 +138,13 @@ void xe_file_put(struct xe_file *xef)
 
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 {
+	struct xe_device *xe = to_xe_device(dev);
 	struct xe_file *xef = file->driver_priv;
 	struct xe_vm *vm;
 	struct xe_exec_queue *q;
 	unsigned long idx;
+
+	xe_pm_runtime_get(xe);
 
 	/*
 	 * No need for exec_queue.lock here as there is no contention for it
@@ -159,6 +162,8 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	mutex_unlock(&xef->vm.lock);
 
 	xe_file_put(xef);
+
+	xe_pm_runtime_put(xe);
 }
 
 static const struct drm_ioctl_desc xe_ioctls[] = {
