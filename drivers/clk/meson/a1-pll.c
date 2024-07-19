@@ -354,8 +354,9 @@ static struct platform_driver a1_pll_clkc_driver = {
 		.of_match_table = a1_pll_clkc_match_table,
 	},
 };
-
 module_platform_driver(a1_pll_clkc_driver);
+
+MODULE_DESCRIPTION("Amlogic S4 PLL Clock Controller driver");
 MODULE_AUTHOR("Jian Hu <jian.hu@amlogic.com>");
 MODULE_AUTHOR("Dmitry Rokosov <ddrokosov@sberdevices.ru>");
 MODULE_LICENSE("GPL");

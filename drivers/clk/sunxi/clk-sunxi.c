@@ -852,17 +852,6 @@ CLK_OF_DECLARE(sun8i_axi, "allwinner,sun8i-a23-axi-clk",
 	       sun8i_axi_clk_setup);
 
 
-
-/*
- * sunxi_gates_clk_setup() - Setup function for leaf gates on clocks
- */
-
-#define SUNXI_GATES_MAX_SIZE	64
-
-struct gates_data {
-	DECLARE_BITMAP(mask, SUNXI_GATES_MAX_SIZE);
-};
-
 /*
  * sunxi_divs_clk_setup() helper data
  */

@@ -449,7 +449,7 @@ static int gpu_cc_sc8280xp_probe(struct platform_device *pdev)
 	qcom_branch_set_clk_en(regmap, 0x1170); /* GPU_CC_CB_CLK */
 	qcom_branch_set_clk_en(regmap, 0x109c); /* GPU_CC_CXO_CLK */
 
-	ret = qcom_cc_really_probe(pdev, &gpu_cc_sc8280xp_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &gpu_cc_sc8280xp_desc, regmap);
 	pm_runtime_put(&pdev->dev);
 
 	return ret;

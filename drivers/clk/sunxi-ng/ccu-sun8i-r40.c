@@ -1292,7 +1292,7 @@ static bool sun8i_r40_ccu_regmap_accessible_reg(struct device *dev,
 	return false;
 }
 
-static struct regmap_config sun8i_r40_ccu_regmap_config = {
+static const struct regmap_config sun8i_r40_ccu_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -1376,4 +1376,5 @@ static struct platform_driver sun8i_r40_ccu_driver = {
 module_platform_driver(sun8i_r40_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner R40 CCU");
 MODULE_LICENSE("GPL");

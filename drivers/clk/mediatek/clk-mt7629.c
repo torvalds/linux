@@ -698,4 +698,6 @@ static int clk_mt7629_init(void)
 }
 
 arch_initcall(clk_mt7629_init);
+
+MODULE_DESCRIPTION("MediaTek MT7629 main clocks driver");
 MODULE_LICENSE("GPL");
