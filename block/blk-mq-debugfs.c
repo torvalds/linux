@@ -196,6 +196,9 @@ static int hctx_flags_show(void *data, struct seq_file *m)
 	struct blk_mq_hw_ctx *hctx = data;
 	const int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(hctx->flags);
 
+	BUILD_BUG_ON(ARRAY_SIZE(hctx_flag_name) !=
+			BLK_MQ_F_ALLOC_POLICY_START_BIT);
+
 	seq_puts(m, "alloc_policy=");
 	if (alloc_policy < ARRAY_SIZE(alloc_policy_name) &&
 	    alloc_policy_name[alloc_policy])
