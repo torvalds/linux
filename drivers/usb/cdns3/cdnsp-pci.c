@@ -231,7 +231,7 @@ static const struct pci_device_id cdnsp_pci_ids[] = {
 
 static struct pci_driver cdnsp_pci_driver = {
 	.name = "cdnsp-pci",
-	.id_table = &cdnsp_pci_ids[0],
+	.id_table = cdnsp_pci_ids,
 	.probe = cdnsp_pci_probe,
 	.remove = cdnsp_pci_remove,
 	.driver = {

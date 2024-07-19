@@ -1128,5 +1128,6 @@ static struct pci_driver vmd_drv = {
 module_pci_driver(vmd_drv);
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Volume Management Device driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.6");

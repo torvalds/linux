@@ -293,11 +293,6 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
-struct acpi_handle_node {
-	struct list_head node;
-	acpi_handle handle;
-};
-
 /**
  * acpi_get_pci_dev - convert ACPI CA handle to struct pci_dev
  * @handle: the handle in question
