@@ -229,14 +229,13 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 	struct kvm_vfio_spapr_tce param;
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_file *kvf;
-	struct fd f;
 	int ret;
 
 	if (copy_from_user(&param, arg, sizeof(struct kvm_vfio_spapr_tce)))
 		return -EFAULT;
 
-	f = fdget(param.groupfd);
-	if (!fd_file(f))
+	CLASS(fd, f)(param.groupfd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	ret = -ENOENT;
@@ -262,7 +261,6 @@ static int kvm_vfio_file_set_spapr_tce(struct kvm_device *dev,
 
 err_fdput:
 	mutex_unlock(&kv->lock);
-	fdput(f);
 	return ret;
 }
 #endif

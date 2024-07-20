@@ -187,19 +187,13 @@ long do_ftruncate(struct file *file, loff_t length, int small)
 
 long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
-	struct fd f;
-	int error;
-
 	if (length < 0)
 		return -EINVAL;
-	f = fdget(fd);
-	if (!fd_file(f))
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
 
-	error = do_ftruncate(fd_file(f), length, small);
-
-	fdput(f);
-	return error;
+	return do_ftruncate(fd_file(f), length, small);
 }
 
 SYSCALL_DEFINE2(ftruncate, unsigned int, fd, off_t, length)

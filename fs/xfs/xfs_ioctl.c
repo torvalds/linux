@@ -881,41 +881,29 @@ xfs_ioc_swapext(
 	xfs_swapext_t	*sxp)
 {
 	xfs_inode_t     *ip, *tip;
-	struct fd	f, tmp;
-	int		error = 0;
 
 	/* Pull information for the target fd */
-	f = fdget((int)sxp->sx_fdtarget);
-	if (!fd_file(f)) {
-		error = -EINVAL;
-		goto out;
-	}
+	CLASS(fd, f)((int)sxp->sx_fdtarget);
+	if (fd_empty(f))
+		return -EINVAL;
 
 	if (!(fd_file(f)->f_mode & FMODE_WRITE) ||
 	    !(fd_file(f)->f_mode & FMODE_READ) ||
-	    (fd_file(f)->f_flags & O_APPEND)) {
-		error = -EBADF;
-		goto out_put_file;
-	}
+	    (fd_file(f)->f_flags & O_APPEND))
+		return -EBADF;
 
-	tmp = fdget((int)sxp->sx_fdtmp);
-	if (!fd_file(tmp)) {
-		error = -EINVAL;
-		goto out_put_file;
-	}
+	CLASS(fd, tmp)((int)sxp->sx_fdtmp);
+	if (fd_empty(tmp))
+		return -EINVAL;
 
 	if (!(fd_file(tmp)->f_mode & FMODE_WRITE) ||
 	    !(fd_file(tmp)->f_mode & FMODE_READ) ||
-	    (fd_file(tmp)->f_flags & O_APPEND)) {
-		error = -EBADF;
-		goto out_put_tmp_file;
-	}
+	    (fd_file(tmp)->f_flags & O_APPEND))
+		return -EBADF;
 
 	if (IS_SWAPFILE(file_inode(fd_file(f))) ||
-	    IS_SWAPFILE(file_inode(fd_file(tmp)))) {
-		error = -EINVAL;
-		goto out_put_tmp_file;
-	}
+	    IS_SWAPFILE(file_inode(fd_file(tmp))))
+		return -EINVAL;
 
 	/*
 	 * We need to ensure that the fds passed in point to XFS inodes
@@ -923,37 +911,22 @@ xfs_ioc_swapext(
 	 * control over what the user passes us here.
 	 */
 	if (fd_file(f)->f_op != &xfs_file_operations ||
-	    fd_file(tmp)->f_op != &xfs_file_operations) {
-		error = -EINVAL;
-		goto out_put_tmp_file;
-	}
+	    fd_file(tmp)->f_op != &xfs_file_operations)
+		return -EINVAL;
 
 	ip = XFS_I(file_inode(fd_file(f)));
 	tip = XFS_I(file_inode(fd_file(tmp)));
 
-	if (ip->i_mount != tip->i_mount) {
-		error = -EINVAL;
-		goto out_put_tmp_file;
-	}
+	if (ip->i_mount != tip->i_mount)
+		return -EINVAL;
 
-	if (ip->i_ino == tip->i_ino) {
-		error = -EINVAL;
-		goto out_put_tmp_file;
-	}
+	if (ip->i_ino == tip->i_ino)
+		return -EINVAL;
 
-	if (xfs_is_shutdown(ip->i_mount)) {
-		error = -EIO;
-		goto out_put_tmp_file;
-	}
+	if (xfs_is_shutdown(ip->i_mount))
+		return -EIO;
 
-	error = xfs_swap_extents(ip, tip, sxp);
-
- out_put_tmp_file:
-	fdput(tmp);
- out_put_file:
-	fdput(f);
- out:
-	return error;
+	return xfs_swap_extents(ip, tip, sxp);
 }
 
 static int

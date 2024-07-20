@@ -1062,19 +1062,16 @@ out:
  */
 void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 {
-	struct fd f;
-
 	if (!buf || !size)
 		return;
 
-	f = fdget(kernel_fd);
-	if (!fd_file(f))
+	CLASS(fd, f)(kernel_fd);
+	if (fd_empty(f))
 		return;
 
 	process_buffer_measurement(file_mnt_idmap(fd_file(f)), file_inode(fd_file(f)),
 				   buf, size, "kexec-cmdline", KEXEC_CMDLINE, 0,
 				   NULL, false, NULL, 0);
-	fdput(f);
 }
 
 /**

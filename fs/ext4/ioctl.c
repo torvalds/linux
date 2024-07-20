@@ -1330,7 +1330,6 @@ group_extend_out:
 
 	case EXT4_IOC_MOVE_EXT: {
 		struct move_extent me;
-		struct fd donor;
 		int err;
 
 		if (!(filp->f_mode & FMODE_READ) ||
@@ -1342,30 +1341,26 @@ group_extend_out:
 			return -EFAULT;
 		me.moved_len = 0;
 
-		donor = fdget(me.donor_fd);
-		if (!fd_file(donor))
+		CLASS(fd, donor)(me.donor_fd);
+		if (fd_empty(donor))
 			return -EBADF;
 
-		if (!(fd_file(donor)->f_mode & FMODE_WRITE)) {
-			err = -EBADF;
-			goto mext_out;
-		}
+		if (!(fd_file(donor)->f_mode & FMODE_WRITE))
+			return -EBADF;
 
 		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online defrag not supported with bigalloc");
-			err = -EOPNOTSUPP;
-			goto mext_out;
+			return -EOPNOTSUPP;
 		} else if (IS_DAX(inode)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online defrag not supported with DAX");
-			err = -EOPNOTSUPP;
-			goto mext_out;
+			return -EOPNOTSUPP;
 		}
 
 		err = mnt_want_write_file(filp);
 		if (err)
-			goto mext_out;
+			return err;
 
 		err = ext4_move_extents(filp, fd_file(donor), me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
@@ -1374,8 +1369,6 @@ group_extend_out:
 		if (copy_to_user((struct move_extent __user *)arg,
 				 &me, sizeof(me)))
 			err = -EFAULT;
-mext_out:
-		fdput(donor);
 		return err;
 	}
 

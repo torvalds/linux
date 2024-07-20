@@ -2371,13 +2371,12 @@ static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 	int res;
 	int oldfd;
 	struct fuse_dev *fud = NULL;
-	struct fd f;
 
 	if (get_user(oldfd, argp))
 		return -EFAULT;
 
-	f = fdget(oldfd);
-	if (!fd_file(f))
+	CLASS(fd, f)(oldfd);
+	if (fd_empty(f))
 		return -EINVAL;
 
 	/*
@@ -2394,7 +2393,6 @@ static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 		mutex_unlock(&fuse_mutex);
 	}
 
-	fdput(f);
 	return res;
 }
 
