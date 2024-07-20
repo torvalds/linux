@@ -1352,7 +1352,6 @@ static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
 	struct privcmd_kernel_ioeventfd *kioeventfd;
 	struct privcmd_kernel_ioreq *kioreq;
 	unsigned long flags;
-	struct fd f;
 	int ret;
 
 	/* Check for range overflow */
@@ -1372,15 +1371,7 @@ static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
 	if (!kioeventfd)
 		return -ENOMEM;
 
-	f = fdget(ioeventfd->event_fd);
-	if (!fd_file(f)) {
-		ret = -EBADF;
-		goto error_kfree;
-	}
-
-	kioeventfd->eventfd = eventfd_ctx_fileget(fd_file(f));
-	fdput(f);
-
+	kioeventfd->eventfd = eventfd_ctx_fdget(ioeventfd->event_fd);
 	if (IS_ERR(kioeventfd->eventfd)) {
 		ret = PTR_ERR(kioeventfd->eventfd);
 		goto error_kfree;
