@@ -3202,7 +3202,7 @@ static int idempotent_init_module(struct file *f, const char __user * uargs, int
 {
 	struct idempotent idem;
 
-	if (!f || !(f->f_mode & FMODE_READ))
+	if (!(f->f_mode & FMODE_READ))
 		return -EBADF;
 
 	/* Are we the winners of the race and get to do this? */
@@ -3234,6 +3234,8 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 		return -EINVAL;
 
 	f = fdget(fd);
+	if (fd_empty(f))
+		return -EBADF;
 	err = idempotent_init_module(fd_file(f), uargs, flags);
 	fdput(f);
 	return err;
