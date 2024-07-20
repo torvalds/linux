@@ -521,7 +521,7 @@ static void write_src(void)
 				table[i]->addr);
 			exit(EXIT_FAILURE);
 		}
-		printf("\t.long\t%#x	/* %s */\n", (int)offset, table[i]->sym);
+		printf("\t.long\t%#x\t/* %s */\n", (int)offset, table[i]->sym);
 	}
 	printf("\n");
 
