@@ -20,83 +20,8 @@
 #include <asm/byteorder.h>
 
 #include "core.h"
+#include "phy-packet-definitions.h"
 #include <trace/events/firewire.h>
-
-#define SELF_ID_PHY_ID(q)		(((q) >> 24) & 0x3f)
-#define SELF_ID_EXTENDED(q)		(((q) >> 23) & 0x01)
-#define SELF_ID_LINK_ON(q)		(((q) >> 22) & 0x01)
-#define SELF_ID_GAP_COUNT(q)		(((q) >> 16) & 0x3f)
-#define SELF_ID_PHY_SPEED(q)		(((q) >> 14) & 0x03)
-#define SELF_ID_CONTENDER(q)		(((q) >> 11) & 0x01)
-#define SELF_ID_PHY_INITIATOR(q)	(((q) >>  1) & 0x01)
-#define SELF_ID_MORE_PACKETS(q)		(((q) >>  0) & 0x01)
-
-#define SELF_ID_EXT_SEQUENCE(q)		(((q) >> 20) & 0x07)
-
-#define SELFID_PORT_CHILD	0x3
-#define SELFID_PORT_PARENT	0x2
-#define SELFID_PORT_NCONN	0x1
-#define SELFID_PORT_NONE	0x0
-
-static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
-{
-	u32 q;
-	int port_type, shift, seq;
-
-	*total_port_count = 0;
-	*child_port_count = 0;
-
-	shift = 6;
-	q = *sid;
-	seq = 0;
-
-	while (1) {
-		port_type = (q >> shift) & 0x03;
-		switch (port_type) {
-		case SELFID_PORT_CHILD:
-			(*child_port_count)++;
-			fallthrough;
-		case SELFID_PORT_PARENT:
-		case SELFID_PORT_NCONN:
-			(*total_port_count)++;
-			fallthrough;
-		case SELFID_PORT_NONE:
-			break;
-		}
-
-		shift -= 2;
-		if (shift == 0) {
-			if (!SELF_ID_MORE_PACKETS(q))
-				return sid + 1;
-
-			shift = 16;
-			sid++;
-			q = *sid;
-
-			/*
-			 * Check that the extra packets actually are
-			 * extended self ID packets and that the
-			 * sequence numbers in the extended self ID
-			 * packets increase as expected.
-			 */
-
-			if (!SELF_ID_EXTENDED(q) ||
-			    seq != SELF_ID_EXT_SEQUENCE(q))
-				return NULL;
-
-			seq++;
-		}
-	}
-}
-
-static int get_port_type(u32 *sid, int port_index)
-{
-	int index, shift;
-
-	index = (port_index + 5) / 8;
-	shift = 16 - ((port_index + 5) & 7) * 2;
-	return (sid[index] >> shift) & 0x03;
-}
 
 static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 {
@@ -107,10 +32,11 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 		return NULL;
 
 	node->color = color;
-	node->node_id = LOCAL_BUS | SELF_ID_PHY_ID(sid);
-	node->link_on = SELF_ID_LINK_ON(sid);
-	node->phy_speed = SELF_ID_PHY_SPEED(sid);
-	node->initiated_reset = SELF_ID_PHY_INITIATOR(sid);
+	node->node_id = LOCAL_BUS | phy_packet_self_id_get_phy_id(sid);
+	node->link_on = phy_packet_self_id_zero_get_link_active(sid);
+	// NOTE: Only two bits, thus only for SCODE_100, SCODE_200, SCODE_400, and SCODE_BETA.
+	node->phy_speed = phy_packet_self_id_zero_get_scode(sid);
+	node->initiated_reset = phy_packet_self_id_zero_get_initiated_reset(sid);
 	node->port_count = port_count;
 
 	refcount_set(&node->ref_count, 1);
@@ -169,13 +95,16 @@ static inline struct fw_node *fw_node(struct list_head *l)
  * internally consistent.  On success this function returns the
  * fw_node corresponding to the local card otherwise NULL.
  */
-static struct fw_node *build_tree(struct fw_card *card,
-				  u32 *sid, int self_id_count)
+static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self_id_count,
+				  unsigned int generation)
 {
+	struct self_id_sequence_enumerator enumerator = {
+		.cursor = sid,
+		.quadlet_count = self_id_count,
+	};
 	struct fw_node *node, *child, *local_node, *irm_node;
-	struct list_head stack, *h;
-	u32 *next_sid, *end, q;
-	int i, port_count, child_port_count, phy_id, parent_count, stack_depth;
+	struct list_head stack;
+	int phy_id, stack_depth;
 	int gap_count;
 	bool beta_repeaters_present;
 
@@ -183,24 +112,56 @@ static struct fw_node *build_tree(struct fw_card *card,
 	node = NULL;
 	INIT_LIST_HEAD(&stack);
 	stack_depth = 0;
-	end = sid + self_id_count;
 	phy_id = 0;
 	irm_node = NULL;
-	gap_count = SELF_ID_GAP_COUNT(*sid);
+	gap_count = phy_packet_self_id_zero_get_gap_count(*sid);
 	beta_repeaters_present = false;
 
-	while (sid < end) {
-		next_sid = count_ports(sid, &port_count, &child_port_count);
+	while (enumerator.quadlet_count > 0) {
+		unsigned int child_port_count = 0;
+		unsigned int total_port_count = 0;
+		unsigned int parent_count = 0;
+		unsigned int quadlet_count;
+		const u32 *self_id_sequence;
+		unsigned int port_capacity;
+		enum phy_packet_self_id_port_status port_status;
+		unsigned int port_index;
+		struct list_head *h;
+		int i;
 
-		if (next_sid == NULL) {
-			fw_err(card, "inconsistent extended self IDs\n");
-			return NULL;
+		self_id_sequence = self_id_sequence_enumerator_next(&enumerator, &quadlet_count);
+		if (IS_ERR(self_id_sequence)) {
+			if (PTR_ERR(self_id_sequence) != -ENODATA) {
+				fw_err(card, "inconsistent extended self IDs: %ld\n",
+				       PTR_ERR(self_id_sequence));
+				return NULL;
+			}
+			break;
 		}
 
-		q = *sid;
-		if (phy_id != SELF_ID_PHY_ID(q)) {
+		port_capacity = self_id_sequence_get_port_capacity(quadlet_count);
+		trace_self_id_sequence(card->index, self_id_sequence, quadlet_count, generation);
+
+		for (port_index = 0; port_index < port_capacity; ++port_index) {
+			port_status = self_id_sequence_get_port_status(self_id_sequence, quadlet_count,
+								       port_index);
+			switch (port_status) {
+			case PHY_PACKET_SELF_ID_PORT_STATUS_CHILD:
+				++child_port_count;
+				fallthrough;
+			case PHY_PACKET_SELF_ID_PORT_STATUS_PARENT:
+			case PHY_PACKET_SELF_ID_PORT_STATUS_NCONN:
+				++total_port_count;
+				fallthrough;
+			case PHY_PACKET_SELF_ID_PORT_STATUS_NONE:
+			default:
+				break;
+			}
+		}
+
+		if (phy_id != phy_packet_self_id_get_phy_id(self_id_sequence[0])) {
 			fw_err(card, "PHY ID mismatch in self ID: %d != %d\n",
-			       phy_id, SELF_ID_PHY_ID(q));
+			       phy_id, phy_packet_self_id_get_phy_id(self_id_sequence[0]));
 			return NULL;
 		}
 
@@ -221,7 +182,7 @@ static struct fw_node *build_tree(struct fw_card *card,
 		 */
 		child = fw_node(h);
 
-		node = fw_node_create(q, port_count, card->color);
+		node = fw_node_create(self_id_sequence[0], total_port_count, card->color);
 		if (node == NULL) {
 			fw_err(card, "out of memory while building topology\n");
 			return NULL;
@@ -230,48 +191,40 @@ static struct fw_node *build_tree(struct fw_card *card,
 		if (phy_id == (card->node_id & 0x3f))
 			local_node = node;
 
-		if (SELF_ID_CONTENDER(q))
+		if (phy_packet_self_id_zero_get_contender(self_id_sequence[0]))
 			irm_node = node;
 
-		parent_count = 0;
-
-		for (i = 0; i < port_count; i++) {
-			switch (get_port_type(sid, i)) {
-			case SELFID_PORT_PARENT:
-				/*
-				 * Who's your daddy?  We dont know the
-				 * parent node at this time, so we
-				 * temporarily abuse node->color for
-				 * remembering the entry in the
-				 * node->ports array where the parent
-				 * node should be.  Later, when we
-				 * handle the parent node, we fix up
-				 * the reference.
-				 */
-				parent_count++;
+		for (port_index = 0; port_index < total_port_count; ++port_index) {
+			port_status = self_id_sequence_get_port_status(self_id_sequence, quadlet_count,
+								       port_index);
+			switch (port_status) {
+			case PHY_PACKET_SELF_ID_PORT_STATUS_PARENT:
+				// Who's your daddy?  We dont know the parent node at this time, so
+				// we temporarily abuse node->color for remembering the entry in
+				// the node->ports array where the parent node should be.  Later,
+				// when we handle the parent node, we fix up the reference.
+				++parent_count;
 				node->color = i;
 				break;
 
-			case SELFID_PORT_CHILD:
-				node->ports[i] = child;
-				/*
-				 * Fix up parent reference for this
-				 * child node.
-				 */
+			case PHY_PACKET_SELF_ID_PORT_STATUS_CHILD:
+				node->ports[port_index] = child;
+				// Fix up parent reference for this child node.
 				child->ports[child->color] = node;
 				child->color = card->color;
 				child = fw_node(child->link.next);
 				break;
+			case PHY_PACKET_SELF_ID_PORT_STATUS_NCONN:
+			case PHY_PACKET_SELF_ID_PORT_STATUS_NONE:
+			default:
+				break;
 			}
 		}
 
-		/*
-		 * Check that the node reports exactly one parent
-		 * port, except for the root, which of course should
-		 * have no parents.
-		 */
-		if ((next_sid == end && parent_count != 0) ||
-		    (next_sid < end && parent_count != 1)) {
+		// Check that the node reports exactly one parent port, except for the root, which
+		// of course should have no parents.
+		if ((enumerator.quadlet_count == 0 && parent_count != 0) ||
+		    (enumerator.quadlet_count > 0 && parent_count != 1)) {
 			fw_err(card, "parent port inconsistency for node %d: "
 			       "parent_count=%d\n", phy_id, parent_count);
 			return NULL;
@@ -282,20 +235,16 @@ static struct fw_node *build_tree(struct fw_card *card,
 		list_add_tail(&node->link, &stack);
 		stack_depth += 1 - child_port_count;
 
-		if (node->phy_speed == SCODE_BETA &&
-		    parent_count + child_port_count > 1)
+		if (node->phy_speed == SCODE_BETA && parent_count + child_port_count > 1)
 			beta_repeaters_present = true;
 
-		/*
-		 * If PHYs report different gap counts, set an invalid count
-		 * which will force a gap count reconfiguration and a reset.
-		 */
-		if (SELF_ID_GAP_COUNT(q) != gap_count)
+		// If PHYs report different gap counts, set an invalid count which will force a gap
+		// count reconfiguration and a reset.
+		if (phy_packet_self_id_zero_get_gap_count(self_id_sequence[0]) != gap_count)
 			gap_count = 0;
 
 		update_hop_count(node);
 
-		sid = next_sid;
 		phy_id++;
 	}
 
@@ -536,7 +485,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 
-	local_node = build_tree(card, self_ids, self_id_count);
+	local_node = build_tree(card, self_ids, self_id_count, generation);
 
 	update_topology_map(card, self_ids, self_id_count);
 
