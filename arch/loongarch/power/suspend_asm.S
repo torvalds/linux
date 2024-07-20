@@ -73,11 +73,7 @@ SYM_FUNC_START(loongarch_suspend_enter)
 	 * Reload all of the registers and return.
 	 */
 SYM_INNER_LABEL(loongarch_wakeup_start, SYM_L_GLOBAL)
-	li.d		t0, CSR_DMW0_INIT	# UC, PLV0
-	csrwr		t0, LOONGARCH_CSR_DMWIN0
-	li.d		t0, CSR_DMW1_INIT	# CA, PLV0
-	csrwr		t0, LOONGARCH_CSR_DMWIN1
-
+	SETUP_DMWINS	t0
 	JUMP_VIRT_ADDR	t0, t1
 
 	/* Enable PG */
