@@ -45,7 +45,7 @@ static int clk_mt2701_g3dsys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_G3DSYS_NR);
 
-	mtk_clk_register_gates(node, g3d_clks, ARRAY_SIZE(g3d_clks),
+	mtk_clk_register_gates(&pdev->dev, node, g3d_clks, ARRAY_SIZE(g3d_clks),
 			       clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);

@@ -83,6 +83,15 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		.driver_data = (void *)&acepc_t8_data,
 	},
 	{
+		/* ACEPC W5 Pro Cherry Trail Z8350 HDMI stick, same wifi as the T8 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_CHASSIS_TYPE, "3"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
+		},
+		.driver_data = (void *)&acepc_t8_data,
+	},
+	{
 		/* Chuwi Hi8 Pro with D2D3_Hi8Pro.233 BIOS */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Hampoo"),

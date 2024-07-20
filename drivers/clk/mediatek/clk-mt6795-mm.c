@@ -87,7 +87,8 @@ static int clk_mt6795_mm_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	ret = mtk_clk_register_gates(node, mm_gates, ARRAY_SIZE(mm_gates), clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, mm_gates,
+				     ARRAY_SIZE(mm_gates), clk_data);
 	if (ret)
 		goto free_clk_data;
 
