@@ -1536,5 +1536,6 @@ static void __exit papr_scm_exit(void)
 module_exit(papr_scm_exit);
 
 MODULE_DEVICE_TABLE(of, papr_scm_match);
+MODULE_DESCRIPTION("PAPR Storage Class Memory interface driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

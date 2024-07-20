@@ -92,4 +92,5 @@ void __init chrp_nvram_init(void)
 	return;
 }
 
+MODULE_DESCRIPTION("PPC NVRAM device driver");
 MODULE_LICENSE("GPL v2");

@@ -103,10 +103,8 @@ int load_crashdump_segments_ppc64(struct kimage *image,
 int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 			  const void *fdt, unsigned long kernel_load_addr,
 			  unsigned long fdt_load_addr);
-unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image);
-int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
-			unsigned long initrd_load_addr,
-			unsigned long initrd_len, const char *cmdline);
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image, struct crash_mem *rmem);
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt, struct crash_mem *rmem);
 #endif /* CONFIG_PPC64 */
 
 #endif /* CONFIG_KEXEC_FILE */
