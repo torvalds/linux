@@ -283,6 +283,7 @@ static int reattach_inode(struct btree_trans *trans,
 			  struct bch_inode_unpacked *inode,
 			  u32 inode_snapshot)
 {
+	struct bch_fs *c = trans->c;
 	struct bch_hash_info dir_hash;
 	struct bch_inode_unpacked lostfound;
 	char name_buf[20];
@@ -317,7 +318,7 @@ static int reattach_inode(struct btree_trans *trans,
 			return ret;
 	}
 
-	dir_hash = bch2_hash_info_init(trans->c, &lostfound);
+	dir_hash = bch2_hash_info_init(c, &lostfound);
 
 	name = (struct qstr) QSTR(name_buf);
 
@@ -330,8 +331,10 @@ static int reattach_inode(struct btree_trans *trans,
 				inode->bi_subvol ?: inode->bi_inum,
 				&dir_offset,
 				STR_HASH_must_create);
-	if (ret)
+	if (ret) {
+		bch_err_msg(c, ret, "error creating dirent");
 		return ret;
+	}
 
 	inode->bi_dir		= lostfound.bi_inum;
 	inode->bi_dir_offset	= dir_offset;
