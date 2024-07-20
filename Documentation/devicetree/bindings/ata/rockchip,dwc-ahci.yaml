@@ -35,6 +35,9 @@ properties:
   ports-implemented:
     const: 1
 
+  power-domains:
+    maxItems: 1
+
   sata-port@0:
     $ref: /schemas/ata/snps,dwc-ahci-common.yaml#/$defs/dwc-ahci-port
 
