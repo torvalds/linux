@@ -36,7 +36,7 @@ struct sym_entry {
 	unsigned long long addr;
 	unsigned int len;
 	unsigned int seq;
-	unsigned int percpu_absolute;
+	bool percpu_absolute;
 	unsigned char sym[];
 };
 
@@ -181,7 +181,7 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	sym->len = len;
 	sym->sym[0] = type;
 	strcpy(sym_name(sym), name);
-	sym->percpu_absolute = 0;
+	sym->percpu_absolute = false;
 
 	return sym;
 }
@@ -339,7 +339,7 @@ static int expand_symbol(const unsigned char *data, int len, char *result)
 	return total;
 }
 
-static int symbol_absolute(const struct sym_entry *s)
+static bool symbol_absolute(const struct sym_entry *s)
 {
 	return s->percpu_absolute;
 }
@@ -781,7 +781,7 @@ static void make_percpus_absolute(void)
 			 * versions of this tool.
 			 */
 			table[i]->sym[0] = 'A';
-			table[i]->percpu_absolute = 1;
+			table[i]->percpu_absolute = true;
 		}
 }
 
