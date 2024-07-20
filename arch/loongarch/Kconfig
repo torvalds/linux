@@ -702,6 +702,7 @@ config ARCH_HIBERNATION_POSSIBLE
 
 source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
+source "drivers/cpufreq/Kconfig"
 
 endmenu
 

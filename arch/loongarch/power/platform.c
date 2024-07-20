@@ -34,6 +34,21 @@ void enable_pci_wakeup(void)
 		acpi_write_bit_register(ACPI_BITREG_PCIEXP_WAKE_DISABLE, 0);
 }
 
+static struct platform_device loongson3_cpufreq_device = {
+	.name = "loongson3_cpufreq",
+	.id = -1,
+};
+
+static int __init loongson_cpufreq_init(void)
+{
+	if (!cpu_has_scalefreq)
+		return -ENODEV;
+
+	return platform_device_register(&loongson3_cpufreq_device);
+}
+
+arch_initcall(loongson_cpufreq_init);
+
 static int __init loongson3_acpi_suspend_init(void)
 {
 #ifdef CONFIG_ACPI
