@@ -6,6 +6,7 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
+#include "tests/xe_kunit_helpers.h"
 #include "tests/xe_pci_test.h"
 #include "tests/xe_test.h"
 
@@ -135,7 +136,9 @@ static int mocs_kernel_test_run_device(struct xe_device *xe)
 
 static void xe_live_mocs_kernel_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(mocs_kernel_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	mocs_kernel_test_run_device(xe);
 }
 
 static int mocs_reset_test_run_device(struct xe_device *xe)
@@ -175,12 +178,14 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 
 static void xe_live_mocs_reset_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(mocs_reset_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	mocs_reset_test_run_device(xe);
 }
 
 static struct kunit_case xe_mocs_tests[] = {
-	KUNIT_CASE(xe_live_mocs_kernel_kunit),
-	KUNIT_CASE(xe_live_mocs_reset_kunit),
+	KUNIT_CASE_PARAM(xe_live_mocs_kernel_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM(xe_live_mocs_reset_kunit, xe_pci_live_device_gen_param),
 	{}
 };
 
@@ -188,5 +193,6 @@ VISIBLE_IF_KUNIT
 struct kunit_suite xe_mocs_test_suite = {
 	.name = "xe_mocs",
 	.test_cases = xe_mocs_tests,
+	.init = xe_kunit_helper_xe_device_live_test_init,
 };
 EXPORT_SYMBOL_IF_KUNIT(xe_mocs_test_suite);
