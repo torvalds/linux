@@ -1770,23 +1770,23 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	int live_threshold;
 
 	if (reg->hr_bdev_file)
-		goto out;
+		return -EINVAL;
 
 	/* We can't heartbeat without having had our node number
 	 * configured yet. */
 	if (o2nm_this_node() == O2NM_MAX_NODES)
-		goto out;
+		return -EINVAL;
 
 	fd = simple_strtol(p, &p, 0);
 	if (!p || (*p && (*p != '\n')))
-		goto out;
+		return -EINVAL;
 
 	if (fd < 0 || fd >= INT_MAX)
-		goto out;
+		return -EINVAL;
 
 	f = fdget(fd);
 	if (fd_file(f) == NULL)
-		goto out;
+		return -EINVAL;
 
 	if (reg->hr_blocks == 0 || reg->hr_start_block == 0 ||
 	    reg->hr_block_bytes == 0)
@@ -1908,7 +1908,6 @@ out3:
 	}
 out2:
 	fdput(f);
-out:
 	return ret;
 }
 
