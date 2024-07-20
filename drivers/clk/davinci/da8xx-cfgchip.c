@@ -749,11 +749,9 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 
 	clk_init = device_get_match_data(dev);
 	if (clk_init) {
-		struct device_node *parent;
+		struct device_node *parent __free(device_node) = of_get_parent(dev->of_node);
 
-		parent = of_get_parent(dev->of_node);
 		regmap = syscon_node_to_regmap(parent);
-		of_node_put(parent);
 	} else if (pdev->id_entry && pdata) {
 		clk_init = (void *)pdev->id_entry->driver_data;
 		regmap = pdata->cfgchip;
