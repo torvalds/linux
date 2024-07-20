@@ -1003,22 +1003,17 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 		 dfd, filename, flags);
 
 	if (filename == NULL) {
-		struct fd f = fdget(dfd);
+		CLASS(fd, f)(dfd);
 
-		ret = -EBADF;
-		if (!fd_file(f))
-			goto out;
+		if (fd_empty(f))
+			return -EBADF;
 
-		ret = -ENOTDIR;
 		if ((flags & FAN_MARK_ONLYDIR) &&
-		    !(S_ISDIR(file_inode(fd_file(f))->i_mode))) {
-			fdput(f);
-			goto out;
-		}
+		    !(S_ISDIR(file_inode(fd_file(f))->i_mode)))
+			return -ENOTDIR;
 
 		*path = fd_file(f)->f_path;
 		path_get(path);
-		fdput(f);
 	} else {
 		unsigned int lookup_flags = 0;
 

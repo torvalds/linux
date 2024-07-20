@@ -190,11 +190,10 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 {
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_file *kvf;
-	struct fd f;
+	CLASS(fd, f)(fd);
 	int ret;
 
-	f = fdget(fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
 	ret = -ENOENT;
@@ -220,9 +219,6 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 	kvm_vfio_update_coherency(dev);
 
 	mutex_unlock(&kv->lock);
-
-	fdput(f);
-
 	return ret;
 }
 

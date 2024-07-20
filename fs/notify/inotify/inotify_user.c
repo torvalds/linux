@@ -794,33 +794,26 @@ SYSCALL_DEFINE2(inotify_rm_watch, int, fd, __s32, wd)
 {
 	struct fsnotify_group *group;
 	struct inotify_inode_mark *i_mark;
-	struct fd f;
-	int ret = -EINVAL;
+	CLASS(fd, f)(fd);
 
-	f = fdget(fd);
-	if (unlikely(!fd_file(f)))
+	if (fd_empty(f))
 		return -EBADF;
 
 	/* verify that this is indeed an inotify instance */
 	if (unlikely(fd_file(f)->f_op != &inotify_fops))
-		goto out;
+		return -EINVAL;
 
 	group = fd_file(f)->private_data;
 
 	i_mark = inotify_idr_find(group, wd);
 	if (unlikely(!i_mark))
-		goto out;
-
-	ret = 0;
+		return -EINVAL;
 
 	fsnotify_destroy_mark(&i_mark->fsn_mark, group);
 
 	/* match ref taken by inotify_idr_find */
 	fsnotify_put_mark(&i_mark->fsn_mark);
-
-out:
-	fdput(f);
-	return ret;
+	return 0;
 }
 
 /*

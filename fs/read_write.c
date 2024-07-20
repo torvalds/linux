@@ -1663,36 +1663,32 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
 {
 	loff_t pos_in;
 	loff_t pos_out;
-	struct fd f_in;
-	struct fd f_out;
 	ssize_t ret = -EBADF;
 
-	f_in = fdget(fd_in);
-	if (!fd_file(f_in))
-		goto out2;
+	CLASS(fd, f_in)(fd_in);
+	if (fd_empty(f_in))
+		return -EBADF;
 
-	f_out = fdget(fd_out);
-	if (!fd_file(f_out))
-		goto out1;
+	CLASS(fd, f_out)(fd_out);
+	if (fd_empty(f_out))
+		return -EBADF;
 
-	ret = -EFAULT;
 	if (off_in) {
 		if (copy_from_user(&pos_in, off_in, sizeof(loff_t)))
-			goto out;
+			return -EFAULT;
 	} else {
 		pos_in = fd_file(f_in)->f_pos;
 	}
 
 	if (off_out) {
 		if (copy_from_user(&pos_out, off_out, sizeof(loff_t)))
-			goto out;
+			return -EFAULT;
 	} else {
 		pos_out = fd_file(f_out)->f_pos;
 	}
 
-	ret = -EINVAL;
 	if (flags != 0)
-		goto out;
+		return -EINVAL;
 
 	ret = vfs_copy_file_range(fd_file(f_in), pos_in, fd_file(f_out), pos_out, len,
 				  flags);
@@ -1714,12 +1710,6 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
 			fd_file(f_out)->f_pos = pos_out;
 		}
 	}
-
-out:
-	fdput(f_out);
-out1:
-	fdput(f_in);
-out2:
 	return ret;
 }
 

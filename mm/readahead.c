@@ -673,29 +673,22 @@ EXPORT_SYMBOL_GPL(page_cache_async_ra);
 
 ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 {
-	ssize_t ret;
-	struct fd f;
+	CLASS(fd, f)(fd);
 
-	ret = -EBADF;
-	f = fdget(fd);
-	if (!fd_file(f) || !(fd_file(f)->f_mode & FMODE_READ))
-		goto out;
+	if (fd_empty(f) || !(fd_file(f)->f_mode & FMODE_READ))
+		return -EBADF;
 
 	/*
 	 * The readahead() syscall is intended to run only on files
 	 * that can execute readahead. If readahead is not possible
 	 * on this file, then we must return -EINVAL.
 	 */
-	ret = -EINVAL;
 	if (!fd_file(f)->f_mapping || !fd_file(f)->f_mapping->a_ops ||
 	    (!S_ISREG(file_inode(fd_file(f))->i_mode) &&
 	    !S_ISBLK(file_inode(fd_file(f))->i_mode)))
-		goto out;
+		return -EINVAL;
 
-	ret = vfs_fadvise(fd_file(f), offset, count, POSIX_FADV_WILLNEED);
-out:
-	fdput(f);
-	return ret;
+	return vfs_fadvise(fd_file(f), offset, count, POSIX_FADV_WILLNEED);
 }
 
 SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)

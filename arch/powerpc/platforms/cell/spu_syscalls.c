@@ -64,12 +64,10 @@ SYSCALL_DEFINE4(spu_create, const char __user *, name, unsigned int, flags,
 		return -ENOSYS;
 
 	if (flags & SPU_CREATE_AFFINITY_SPU) {
-		struct fd neighbor = fdget(neighbor_fd);
+		CLASS(fd, neighbor)(neighbor_fd);
 		ret = -EBADF;
-		if (fd_file(neighbor)) {
+		if (!fd_empty(neighbor))
 			ret = calls->create_thread(name, flags, mode, fd_file(neighbor));
-			fdput(neighbor);
-		}
 	} else
 		ret = calls->create_thread(name, flags, mode, NULL);
 
