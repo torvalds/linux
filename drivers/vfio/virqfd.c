@@ -113,7 +113,6 @@ int vfio_virqfd_enable(void *opaque,
 		       void (*thread)(void *, void *),
 		       void *data, struct virqfd **pvirqfd, int fd)
 {
-	struct fd irqfd;
 	struct eventfd_ctx *ctx;
 	struct virqfd *virqfd;
 	int ret = 0;
@@ -133,8 +132,8 @@ int vfio_virqfd_enable(void *opaque,
 	INIT_WORK(&virqfd->inject, virqfd_inject);
 	INIT_WORK(&virqfd->flush_inject, virqfd_flush_inject);
 
-	irqfd = fdget(fd);
-	if (!fd_file(irqfd)) {
+	CLASS(fd, irqfd)(fd);
+	if (fd_empty(irqfd)) {
 		ret = -EBADF;
 		goto err_fd;
 	}
@@ -142,7 +141,7 @@ int vfio_virqfd_enable(void *opaque,
 	ctx = eventfd_ctx_fileget(fd_file(irqfd));
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
-		goto err_ctx;
+		goto err_fd;
 	}
 
 	virqfd->eventfd = ctx;
@@ -181,18 +180,9 @@ int vfio_virqfd_enable(void *opaque,
 		if ((!handler || handler(opaque, data)) && thread)
 			schedule_work(&virqfd->inject);
 	}
-
-	/*
-	 * Do not drop the file until the irqfd is fully initialized,
-	 * otherwise we might race against the EPOLLHUP.
-	 */
-	fdput(irqfd);
-
 	return 0;
 err_busy:
 	eventfd_ctx_put(ctx);
-err_ctx:
-	fdput(irqfd);
 err_fd:
 	kfree(virqfd);
 

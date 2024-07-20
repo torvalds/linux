@@ -967,9 +967,10 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	struct privcmd_kernel_irqfd *kirqfd, *tmp;
 	unsigned long flags;
 	__poll_t events;
-	struct fd f;
 	void *dm_op;
 	int ret, idx;
+
+	CLASS(fd, f)(irqfd->fd);
 
 	kirqfd = kzalloc(sizeof(*kirqfd) + irqfd->size, GFP_KERNEL);
 	if (!kirqfd)
@@ -986,8 +987,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	kirqfd->dom = irqfd->dom;
 	INIT_WORK(&kirqfd->shutdown, irqfd_shutdown);
 
-	f = fdget(irqfd->fd);
-	if (!fd_file(f)) {
+	if (fd_empty(f)) {
 		ret = -EBADF;
 		goto error_kfree;
 	}
@@ -995,7 +995,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	kirqfd->eventfd = eventfd_ctx_fileget(fd_file(f));
 	if (IS_ERR(kirqfd->eventfd)) {
 		ret = PTR_ERR(kirqfd->eventfd);
-		goto error_fd_put;
+		goto error_kfree;
 	}
 
 	/*
@@ -1028,19 +1028,10 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 		irqfd_inject(kirqfd);
 
 	srcu_read_unlock(&irqfds_srcu, idx);
-
-	/*
-	 * Do not drop the file until the kirqfd is fully initialized, otherwise
-	 * we might race against the EPOLLHUP.
-	 */
-	fdput(f);
 	return 0;
 
 error_eventfd:
 	eventfd_ctx_put(kirqfd->eventfd);
-
-error_fd_put:
-	fdput(f);
 
 error_kfree:
 	kfree(kirqfd);
