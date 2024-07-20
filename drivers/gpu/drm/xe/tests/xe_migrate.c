@@ -6,6 +6,7 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
+#include "tests/xe_kunit_helpers.h"
 #include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
@@ -355,7 +356,9 @@ static int migrate_test_run_device(struct xe_device *xe)
 
 static void xe_migrate_sanity_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(migrate_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	migrate_test_run_device(xe);
 }
 
 static struct dma_fence *blt_copy(struct xe_tile *tile,
@@ -731,13 +734,12 @@ static int validate_ccs_test_run_device(struct xe_device *xe)
 	int id;
 
 	if (!xe_device_has_flat_ccs(xe)) {
-		kunit_info(test, "Skipping non-flat-ccs device.\n");
+		kunit_skip(test, "non-flat-ccs device\n");
 		return 0;
 	}
 
 	if (!(GRAPHICS_VER(xe) >= 20 && IS_DGFX(xe))) {
-		kunit_info(test, "Skipping non-xe2 discrete device %s.\n",
-			   dev_name(xe->drm.dev));
+		kunit_skip(test, "non-xe2 discrete device\n");
 		return 0;
 	}
 
@@ -753,12 +755,14 @@ static int validate_ccs_test_run_device(struct xe_device *xe)
 
 static void xe_validate_ccs_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(validate_ccs_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	validate_ccs_test_run_device(xe);
 }
 
 static struct kunit_case xe_migrate_tests[] = {
-	KUNIT_CASE(xe_migrate_sanity_kunit),
-	KUNIT_CASE(xe_validate_ccs_kunit),
+	KUNIT_CASE_PARAM(xe_migrate_sanity_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM(xe_validate_ccs_kunit, xe_pci_live_device_gen_param),
 	{}
 };
 
@@ -766,5 +770,6 @@ VISIBLE_IF_KUNIT
 struct kunit_suite xe_migrate_test_suite = {
 	.name = "xe_migrate",
 	.test_cases = xe_migrate_tests,
+	.init = xe_kunit_helper_xe_device_live_test_init,
 };
 EXPORT_SYMBOL_IF_KUNIT(xe_migrate_test_suite);
