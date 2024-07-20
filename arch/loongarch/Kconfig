@@ -610,6 +610,7 @@ config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
 
 config RELOCATABLE
 	bool "Relocatable kernel"
+	select ARCH_HAS_RELR
 	help
 	  This builds the kernel as a Position Independent Executable (PIE),
 	  which retains all relocation metadata required, so as to relocate
