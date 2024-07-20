@@ -1917,22 +1917,21 @@ void free_huge_page(struct page *page)
 	 * Can't pass hstate in here because it is called from the
 	 * compound page destructor.
 	 */
-	struct folio *folio = page_folio(page);
-	struct hstate *h = folio_hstate(folio);
-	int nid = folio_nid(folio);
-	struct hugepage_subpool *spool = hugetlb_folio_subpool(folio);
+	struct hstate *h = page_hstate(page);
+	int nid = page_to_nid(page);
+	struct hugepage_subpool *spool = hugetlb_page_subpool(page);
 	bool restore_reserve;
 	unsigned long flags;
 
-	VM_BUG_ON_FOLIO(folio_ref_count(folio), folio);
-	VM_BUG_ON_FOLIO(folio_mapcount(folio), folio);
+	VM_BUG_ON_PAGE(page_count(page), page);
+	VM_BUG_ON_PAGE(page_mapcount(page), page);
 
-	hugetlb_set_folio_subpool(folio, NULL);
-	if (folio_test_anon(folio))
-		__ClearPageAnonExclusive(&folio->page);
-	folio->mapping = NULL;
-	restore_reserve = folio_test_hugetlb_restore_reserve(folio);
-	folio_clear_hugetlb_restore_reserve(folio);
+	hugetlb_set_page_subpool(page, NULL);
+	if (PageAnon(page))
+		__ClearPageAnonExclusive(page);
+	page->mapping = NULL;
+	restore_reserve = HPageRestoreReserve(page);
+	ClearHPageRestoreReserve(page);
 
 	/*
 	 * If HPageRestoreReserve was set on page, page allocation consumed a
@@ -1954,7 +1953,7 @@ void free_huge_page(struct page *page)
 	}
 
 	spin_lock_irqsave(&hugetlb_lock, flags);
-	folio_clear_hugetlb_migratable(folio);
+	ClearHPageMigratable(page);
 	hugetlb_cgroup_uncharge_page(hstate_index(h),
 				     pages_per_huge_page(h), page);
 	hugetlb_cgroup_uncharge_page_rsvd(hstate_index(h),
@@ -1962,7 +1961,7 @@ void free_huge_page(struct page *page)
 	if (restore_reserve)
 		h->resv_huge_pages++;
 
-	if (folio_test_hugetlb_temporary(folio)) {
+	if (HPageTemporary(page)) {
 		remove_hugetlb_page(h, page, false);
 		spin_unlock_irqrestore(&hugetlb_lock, flags);
 		update_and_free_page(h, page, true);
