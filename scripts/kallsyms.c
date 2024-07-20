@@ -393,7 +393,7 @@ static void write_src(void)
 {
 	unsigned int i, k, off;
 	unsigned int best_idx[256];
-	unsigned int *markers;
+	unsigned int *markers, markers_cnt;
 	char buf[KSYM_NAME_LEN];
 
 	printf("#include <asm/bitsperlong.h>\n");
@@ -413,7 +413,8 @@ static void write_src(void)
 
 	/* table of offset markers, that give the offset in the compressed stream
 	 * every 256 symbols */
-	markers = malloc(sizeof(unsigned int) * ((table_cnt + 255) / 256));
+	markers_cnt = (table_cnt + 255) / 256;
+	markers = malloc(sizeof(*markers) * markers_cnt);
 	if (!markers) {
 		fprintf(stderr, "kallsyms failure: "
 			"unable to allocate required memory\n");
@@ -469,7 +470,7 @@ static void write_src(void)
 	}
 
 	output_label("kallsyms_markers");
-	for (i = 0; i < ((table_cnt + 255) >> 8); i++)
+	for (i = 0; i < markers_cnt; i++)
 		printf("\t.long\t%u\n", markers[i]);
 	printf("\n");
 
