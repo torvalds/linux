@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
+#include <hashtable.h>
 #include <list.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
@@ -201,13 +202,8 @@ static struct module *new_module(const char *name, size_t namelen)
 	return mod;
 }
 
-/* A hash of all exported symbols,
- * struct symbol is also used for lists of unresolved symbols */
-
-#define SYMBOL_HASH_SIZE 1024
-
 struct symbol {
-	struct symbol *next;
+	struct hlist_node hnode;/* link to hash table */
 	struct list_head list;	/* link to module::exported_symbols or module::unresolved_symbols */
 	struct module *module;
 	char *namespace;
@@ -220,7 +216,7 @@ struct symbol {
 	char name[];
 };
 
-static struct symbol *symbolhash[SYMBOL_HASH_SIZE];
+static HASHTABLE_DEFINE(symbol_hashtable, 1U << 10);
 
 /* This is based on the hash algorithm from gdbm, via tdb */
 static inline unsigned int tdb_hash(const char *name)
@@ -252,11 +248,7 @@ static struct symbol *alloc_symbol(const char *name)
 /* For the hash of exported symbols */
 static void hash_add_symbol(struct symbol *sym)
 {
-	unsigned int hash;
-
-	hash = tdb_hash(sym->name) % SYMBOL_HASH_SIZE;
-	sym->next = symbolhash[hash];
-	symbolhash[hash] = sym;
+	hash_add(symbol_hashtable, &sym->hnode, tdb_hash(sym->name));
 }
 
 static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
@@ -277,7 +269,7 @@ static struct symbol *sym_find_with_module(const char *name, struct module *mod)
 	if (name[0] == '.')
 		name++;
 
-	for (s = symbolhash[tdb_hash(name) % SYMBOL_HASH_SIZE]; s; s = s->next) {
+	hash_for_each_possible(symbol_hashtable, s, hnode, tdb_hash(name)) {
 		if (strcmp(s->name, name) == 0 && (!mod || s->module == mod))
 			return s;
 	}
