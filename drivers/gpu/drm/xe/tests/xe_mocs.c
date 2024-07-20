@@ -138,6 +138,9 @@ static void xe_live_mocs_kernel_kunit(struct kunit *test)
 {
 	struct xe_device *xe = test->priv;
 
+	if (IS_SRIOV_VF(xe))
+		kunit_skip(test, "this test is N/A for VF");
+
 	mocs_kernel_test_run_device(xe);
 }
 
@@ -179,6 +182,9 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 static void xe_live_mocs_reset_kunit(struct kunit *test)
 {
 	struct xe_device *xe = test->priv;
+
+	if (IS_SRIOV_VF(xe))
+		kunit_skip(test, "this test is N/A for VF");
 
 	mocs_reset_test_run_device(xe);
 }
