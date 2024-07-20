@@ -731,6 +731,21 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 	return par;
 }
 
+static bool pan3_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime)
+{
+	u64 sctlr;
+
+	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR1_EL1, PAN, PAN3))
+		return false;
+
+	if (regime == TR_EL10)
+		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
+	else
+		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL2);
+
+	return sctlr & SCTLR_EL1_EPAN;
+}
+
 static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	bool perm_fail, ur, uw, ux, pr, pw, px;
@@ -797,7 +812,7 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 			bool pan;
 
 			pan = *vcpu_cpsr(vcpu) & PSR_PAN_BIT;
-			pan &= ur || uw;
+			pan &= ur || uw || (pan3_enabled(vcpu, wi.regime) && ux);
 			pw &= !pan;
 			pr &= !pan;
 		}
