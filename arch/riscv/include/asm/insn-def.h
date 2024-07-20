@@ -196,4 +196,8 @@
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(4))
 
+#define RISCV_PAUSE	".4byte 0x100000f"
+#define ZAWRS_WRS_NTO	".4byte 0x00d00073"
+#define ZAWRS_WRS_STO	".4byte 0x01d00073"
+
 #endif /* __ASM_INSN_DEF_H */
