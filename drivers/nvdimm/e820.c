@@ -69,5 +69,6 @@ static struct platform_driver e820_pmem_driver = {
 module_platform_driver(e820_pmem_driver);
 
 MODULE_ALIAS("platform:e820_pmem*");
+MODULE_DESCRIPTION("NVDIMM support for e820 type-12 memory");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
