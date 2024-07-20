@@ -1407,10 +1407,11 @@
 
 	serdes1_pcie0_link: phy@0 {
 		reg = <0>;
-		cdns,num-lanes = <2>;
+		cdns,num-lanes = <4>;
 		#phy-cells = <0>;
 		cdns,phy-type = <PHY_TYPE_PCIE>;
-		resets = <&serdes_wiz1 1>, <&serdes_wiz1 2>;
+		resets = <&serdes_wiz1 1>, <&serdes_wiz1 2>,
+			 <&serdes_wiz1 3>, <&serdes_wiz1 4>;
 	};
 };
 
