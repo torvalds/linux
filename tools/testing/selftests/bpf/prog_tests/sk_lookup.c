@@ -229,27 +229,6 @@ fail:
 	return -1;
 }
 
-static int make_client(int sotype, const char *ip, int port)
-{
-	struct sockaddr_storage addr = {0};
-	int err, fd;
-
-	fd = make_socket(sotype, ip, port, &addr);
-	if (fd < 0)
-		return -1;
-
-	err = connect(fd, (void *)&addr, inetaddr_len(&addr));
-	if (CHECK(err, "make_client", "connect")) {
-		log_err("failed to connect client socket");
-		goto fail;
-	}
-
-	return fd;
-fail:
-	close(fd);
-	return -1;
-}
-
 static __u64 socket_cookie(int fd)
 {
 	__u64 cookie;
@@ -646,8 +625,9 @@ static void run_lookup_prog(const struct test *t)
 			goto close;
 	}
 
-	client_fd = make_client(t->sotype, t->connect_to.ip, t->connect_to.port);
-	if (client_fd < 0)
+	client_fd = connect_to_addr_str(is_ipv6(t->connect_to.ip) ? AF_INET6 : AF_INET,
+					t->sotype, t->connect_to.ip, t->connect_to.port, NULL);
+	if (!ASSERT_OK_FD(client_fd, "connect_to_addr_str"))
 		goto close;
 
 	if (t->sotype == SOCK_STREAM)
@@ -1152,8 +1132,8 @@ static void run_sk_assign_connected(struct test_sk_lookup *skel,
 	if (server_fd < 0)
 		return;
 
-	connected_fd = make_client(sotype, EXT_IP4, EXT_PORT);
-	if (connected_fd < 0)
+	connected_fd = connect_to_addr_str(AF_INET, sotype, EXT_IP4, EXT_PORT, NULL);
+	if (!ASSERT_OK_FD(connected_fd, "connect_to_addr_str"))
 		goto out_close_server;
 
 	/* Put a connected socket in redirect map */
@@ -1166,8 +1146,8 @@ static void run_sk_assign_connected(struct test_sk_lookup *skel,
 		goto out_close_connected;
 
 	/* Try to redirect TCP SYN / UDP packet to a connected socket */
-	client_fd = make_client(sotype, EXT_IP4, EXT_PORT);
-	if (client_fd < 0)
+	client_fd = connect_to_addr_str(AF_INET, sotype, EXT_IP4, EXT_PORT, NULL);
+	if (!ASSERT_OK_FD(client_fd, "connect_to_addr_str"))
 		goto out_unlink_prog;
 	if (sotype == SOCK_DGRAM) {
 		send_byte(client_fd);
