@@ -12,12 +12,11 @@ extern "C" {
 
 #include <assert.h>
 #include <stdio.h>
-#include "list_types.h"
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
 
-#include "list_types.h"
+#include <list_types.h>
 
 typedef enum tristate {
 	no, mod, yes

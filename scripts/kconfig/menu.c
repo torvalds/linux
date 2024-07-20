@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <list.h>
 #include "lkc.h"
 #include "internal.h"
-#include "list.h"
 
 static const char nohelp_text[] = "There is no help available for this option.";
 

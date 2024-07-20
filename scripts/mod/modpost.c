@@ -20,6 +20,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <errno.h>
+
+#include <list.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
 
