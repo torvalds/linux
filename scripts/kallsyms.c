@@ -456,18 +456,16 @@ static void write_src(void)
 		}
 		for (k = 0; k < table[i]->len; k++)
 			printf(", 0x%02x", table[i]->sym[k]);
-		printf("\n");
-	}
-	printf("\n");
 
-	/*
-	 * Now that we wrote out the compressed symbol names, restore the
-	 * original names, which are needed in some of the later steps.
-	 */
-	for (i = 0; i < table_cnt; i++) {
+		/*
+		 * Now that we wrote out the compressed symbol name, restore the
+		 * original name and print it in the comment.
+		 */
 		expand_symbol(table[i]->sym, table[i]->len, buf);
 		strcpy((char *)table[i]->sym, buf);
+		printf("\t/* %s */\n", table[i]->sym);
 	}
+	printf("\n");
 
 	output_label("kallsyms_markers");
 	for (i = 0; i < markers_cnt; i++)
@@ -536,10 +534,11 @@ static void write_src(void)
 	sort_symbols_by_name();
 	output_label("kallsyms_seqs_of_names");
 	for (i = 0; i < table_cnt; i++)
-		printf("\t.byte 0x%02x, 0x%02x, 0x%02x\n",
+		printf("\t.byte 0x%02x, 0x%02x, 0x%02x\t/* %s */\n",
 			(unsigned char)(table[i]->seq >> 16),
 			(unsigned char)(table[i]->seq >> 8),
-			(unsigned char)(table[i]->seq >> 0));
+			(unsigned char)(table[i]->seq >> 0),
+		       table[i]->sym);
 	printf("\n");
 }
 
