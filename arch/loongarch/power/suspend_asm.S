@@ -66,7 +66,7 @@ SYM_FUNC_START(loongarch_suspend_enter)
 	la.pcrel	a0, loongarch_wakeup_start
 	la.pcrel	t0, loongarch_suspend_addr
 	ld.d		t0, t0, 0
-	jirl		a0, t0, 0 /* Call BIOS's STR sleep routine */
+	jirl		ra, t0, 0 /* Call BIOS's STR sleep routine */
 
 	/*
 	 * This is where we return upon wakeup.
