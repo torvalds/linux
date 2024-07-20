@@ -123,6 +123,32 @@ static inline __init bool kaslr_disabled(void)
 	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
 		return true;
 
+#ifdef CONFIG_HIBERNATION
+	str = strstr(builtin_cmdline, "nohibernate");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(boot_command_line, "nohibernate");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(builtin_cmdline, "noresume");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(boot_command_line, "noresume");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(builtin_cmdline, "resume=");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return true;
+
+	str = strstr(boot_command_line, "resume=");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return true;
+#endif
+
 	return false;
 }
 
