@@ -48,14 +48,6 @@ struct resource iomem_resource = {
 };
 EXPORT_SYMBOL(iomem_resource);
 
-/* constraints to be met while allocating resources */
-struct resource_constraint {
-	resource_size_t min, max, align;
-	resource_size_t (*alignf)(void *, const struct resource *,
-			resource_size_t, resource_size_t);
-	void *alignf_data;
-};
-
 static DEFINE_RWLOCK(resource_lock);
 
 static struct resource *next_resource(struct resource *p, bool skip_children)
@@ -610,14 +602,6 @@ void __weak arch_remove_reservations(struct resource *avail)
 {
 }
 
-static resource_size_t simple_align_resource(void *data,
-					     const struct resource *avail,
-					     resource_size_t size,
-					     resource_size_t align)
-{
-	return avail->start;
-}
-
 static void resource_clip(struct resource *res, resource_size_t min,
 			  resource_size_t max)
 {
@@ -628,16 +612,16 @@ static void resource_clip(struct resource *res, resource_size_t min,
 }
 
 /*
- * Find empty slot in the resource tree with the given range and
+ * Find empty space in the resource tree with the given range and
  * alignment constraints
  */
-static int __find_resource(struct resource *root, struct resource *old,
-			 struct resource *new,
-			 resource_size_t  size,
-			 struct resource_constraint *constraint)
+static int __find_resource_space(struct resource *root, struct resource *old,
+				 struct resource *new, resource_size_t size,
+				 struct resource_constraint *constraint)
 {
 	struct resource *this = root->child;
 	struct resource tmp = *new, avail, alloc;
+	resource_alignf alignf = constraint->alignf;
 
 	tmp.start = root->start;
 	/*
@@ -666,8 +650,12 @@ static int __find_resource(struct resource *root, struct resource *old,
 		avail.flags = new->flags & ~IORESOURCE_UNSET;
 		if (avail.start >= tmp.start) {
 			alloc.flags = avail.flags;
-			alloc.start = constraint->alignf(constraint->alignf_data, &avail,
-					size, constraint->align);
+			if (alignf) {
+				alloc.start = alignf(constraint->alignf_data,
+						     &avail, size, constraint->align);
+			} else {
+				alloc.start = avail.start;
+			}
 			alloc.end = alloc.start + size - 1;
 			if (alloc.start <= alloc.end &&
 			    resource_contains(&avail, &alloc)) {
@@ -687,15 +675,27 @@ next:		if (!this || this->end == root->end)
 	return -EBUSY;
 }
 
-/*
- * Find empty slot in the resource tree given range and alignment.
+/**
+ * find_resource_space - Find empty space in the resource tree
+ * @root:	Root resource descriptor
+ * @new:	Resource descriptor awaiting an empty resource space
+ * @size:	The minimum size of the empty space
+ * @constraint:	The range and alignment constraints to be met
+ *
+ * Finds an empty space under @root in the resource tree satisfying range and
+ * alignment @constraints.
+ *
+ * Return:
+ * * %0		- if successful, @new members start, end, and flags are altered.
+ * * %-EBUSY	- if no empty space was found.
  */
-static int find_resource(struct resource *root, struct resource *new,
+int find_resource_space(struct resource *root, struct resource *new,
 			resource_size_t size,
-			struct resource_constraint  *constraint)
+			struct resource_constraint *constraint)
 {
-	return  __find_resource(root, NULL, new, size, constraint);
+	return  __find_resource_space(root, NULL, new, size, constraint);
 }
+EXPORT_SYMBOL_GPL(find_resource_space);
 
 /**
  * reallocate_resource - allocate a slot in the resource tree given range & alignment.
@@ -717,7 +717,7 @@ static int reallocate_resource(struct resource *root, struct resource *old,
 
 	write_lock(&resource_lock);
 
-	if ((err = __find_resource(root, old, &new, newsize, constraint)))
+	if ((err = __find_resource_space(root, old, &new, newsize, constraint)))
 		goto out;
 
 	if (resource_contains(&new, old)) {
@@ -761,17 +761,11 @@ out:
 int allocate_resource(struct resource *root, struct resource *new,
 		      resource_size_t size, resource_size_t min,
 		      resource_size_t max, resource_size_t align,
-		      resource_size_t (*alignf)(void *,
-						const struct resource *,
-						resource_size_t,
-						resource_size_t),
+		      resource_alignf alignf,
 		      void *alignf_data)
 {
 	int err;
 	struct resource_constraint constraint;
-
-	if (!alignf)
-		alignf = simple_align_resource;
 
 	constraint.min = min;
 	constraint.max = max;
@@ -786,7 +780,7 @@ int allocate_resource(struct resource *root, struct resource *new,
 	}
 
 	write_lock(&resource_lock);
-	err = find_resource(root, new, size, &constraint);
+	err = find_resource_space(root, new, size, &constraint);
 	if (err >= 0 && __request_resource(root, new))
 		err = -EBUSY;
 	write_unlock(&resource_lock);
