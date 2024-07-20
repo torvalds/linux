@@ -36,7 +36,6 @@ struct sym_entry {
 	unsigned long long addr;
 	unsigned int len;
 	unsigned int seq;
-	unsigned int start_pos;
 	unsigned int percpu_absolute;
 	unsigned char sym[];
 };
@@ -278,7 +277,7 @@ static void read_map(const char *in)
 		if (!sym)
 			continue;
 
-		sym->start_pos = table_cnt;
+		sym->seq = table_cnt;
 
 		if (table_cnt >= table_size) {
 			table_size += 10000;
@@ -762,7 +761,7 @@ static int compare_symbols(const void *a, const void *b)
 		return wa - wb;
 
 	/* sort by initial order, so that other symbols are left undisturbed */
-	return sa->start_pos - sb->start_pos;
+	return sa->seq - sb->seq;
 }
 
 static void sort_symbols(void)
