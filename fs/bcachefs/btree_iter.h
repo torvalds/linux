@@ -885,7 +885,7 @@ struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *);
 	_ret = 0;							\
 	if (unlikely(!_p)) {						\
 		_gfp = GFP_KERNEL;					\
-		_ret = drop_locks_do(trans, ((_p = _do), 0));		\
+		_ret = drop_locks_do(_trans, ((_p = _do), 0));		\
 	}								\
 	_p;								\
 })
