@@ -3,6 +3,8 @@
  * Copyright (c) 2016-2017 Fuzhou Rockchip Electronics Co., Ltd
  */
 
+#include "rk3399.dtsi"
+
 / {
 	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";

@@ -7,8 +7,7 @@
 
 /dts-v1/;
 #include <dt-bindings/leds/common.h>
-#include "rk3399.dtsi"
-#include "rk3399-t-opp.dtsi"
+#include "rk3399-t.dtsi"
 
 / {
 	model = "Radxa ROCK 4C+";

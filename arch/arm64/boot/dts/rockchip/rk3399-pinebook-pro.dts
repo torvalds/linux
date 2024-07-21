@@ -12,7 +12,6 @@
 #include <dt-bindings/usb/pd.h>
 #include <dt-bindings/leds/common.h>
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Pine64 Pinebook Pro";
