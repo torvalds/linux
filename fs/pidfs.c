@@ -168,6 +168,8 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PIDFD_GET_TIME_NAMESPACE:
 		get_time_ns(nsp->time_ns);
 		ns_common = to_ns_common(nsp->time_ns);
+		if (!nsp->time_ns)
+			return -EINVAL;
 		break;
 	case PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE:
 		get_time_ns(nsp->time_ns_for_children);
