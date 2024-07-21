@@ -10,19 +10,19 @@ struct {
 	__uint(value_size, sizeof(int));
 } tx_port SEC(".maps");
 
-SEC("redirect_map_0")
+SEC("xdp")
 int xdp_redirect_map_0(struct xdp_md *xdp)
 {
 	return bpf_redirect_map(&tx_port, 0, 0);
 }
 
-SEC("redirect_map_1")
+SEC("xdp")
 int xdp_redirect_map_1(struct xdp_md *xdp)
 {
 	return bpf_redirect_map(&tx_port, 1, 0);
 }
 
-SEC("redirect_map_2")
+SEC("xdp")
 int xdp_redirect_map_2(struct xdp_md *xdp)
 {
 	return bpf_redirect_map(&tx_port, 2, 0);
