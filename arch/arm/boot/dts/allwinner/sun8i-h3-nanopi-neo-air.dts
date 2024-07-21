@@ -77,6 +77,39 @@
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 	};
+
+        cam_xclk: cam-xclk {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <24000000>;
+                clock-output-names = "cam-xclk";
+        };
+
+        reg_cam_avdd: cam-avdd {
+                compatible = "regulator-fixed";
+                regulator-name = "cam-avdd";
+                regulator-min-microvolt = <2800000>;
+                regulator-max-microvolt = <2800000>;
+                vin-supply = <&reg_vcc3v3>;
+        };
+
+        reg_cam_dovdd: cam-dovdd {
+                compatible = "regulator-fixed";
+                regulator-name = "cam-dovdd";
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+                vin-supply = <&reg_vcc3v3>;
+        };
+
+        reg_cam_dvdd: cam-dvdd {
+                compatible = "regulator-fixed";
+                regulator-name = "cam-dvdd";
+                regulator-min-microvolt = <1500000>;
+                regulator-max-microvolt = <1500000>;
+                vin-supply = <&reg_vcc3v3>;
+        };
+
+
 };
 
 &mmc0 {
@@ -140,4 +173,56 @@
 &usbphy {
 	/* USB VBUS is always on */
 	status = "okay";
+};
+
+&csi {
+    status = "okay";
+
+    port {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* Parallel bus endpoint */
+        csi_from_ov5640: endpoint {
+            remote-endpoint = <&ov5640_to_csi>;
+            bus-width = <8>;
+            data-shift = <2>;
+            hsync-active = <1>; /* Active high */
+            vsync-active = <0>; /* Active low */
+            data-active = <1>;  /* Active high */
+            pclk-sample = <1>;  /* Rising */
+        };
+    };
+};
+
+&i2c2 {
+   status = "okay";
+
+   ov5640: camera@3c {
+        compatible = "ovti,ov5640";
+        reg = <0x3c>;
+        clocks = <&cam_xclk>;
+        clock-names = "xclk";
+
+        reset-gpios = <&pio 4 14 GPIO_ACTIVE_LOW>;
+        powerdown-gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>;
+        AVDD-supply = <&reg_cam_avdd>;
+        DOVDD-supply = <&reg_cam_dovdd>;
+        DVDD-supply = <&reg_cam_dvdd>;
+
+        port {
+            ov5640_to_csi: endpoint {
+                remote-endpoint = <&csi_from_ov5640>;
+                bus-width = <8>;
+                data-shift = <2>;
+                hsync-active = <1>; /* Active high */
+                vsync-active = <0>; /* Active low */
+                data-active = <1>;  /* Active high */
+                pclk-sample = <1>;  /* Rising */
+            };
+        };
+    };
+};
+&i2c2_pins {
+   bias-pull-up;
 };
