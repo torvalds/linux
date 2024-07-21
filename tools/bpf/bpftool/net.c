@@ -684,10 +684,18 @@ static int do_attach(int argc, char **argv)
 		}
 	}
 
+	switch (attach_type) {
 	/* attach xdp prog */
-	if (is_prefix("xdp", attach_type_strings[attach_type]))
-		err = do_attach_detach_xdp(progfd, attach_type, ifindex,
-					   overwrite);
+	case NET_ATTACH_TYPE_XDP:
+	case NET_ATTACH_TYPE_XDP_GENERIC:
+	case NET_ATTACH_TYPE_XDP_DRIVER:
+	case NET_ATTACH_TYPE_XDP_OFFLOAD:
+		err = do_attach_detach_xdp(progfd, attach_type, ifindex, overwrite);
+		break;
+	default:
+		break;
+	}
+
 	if (err) {
 		p_err("interface %s attach failed: %s",
 		      attach_type_strings[attach_type], strerror(-err));
@@ -721,10 +729,18 @@ static int do_detach(int argc, char **argv)
 	if (ifindex < 1)
 		return -EINVAL;
 
+	switch (attach_type) {
 	/* detach xdp prog */
-	progfd = -1;
-	if (is_prefix("xdp", attach_type_strings[attach_type]))
+	case NET_ATTACH_TYPE_XDP:
+	case NET_ATTACH_TYPE_XDP_GENERIC:
+	case NET_ATTACH_TYPE_XDP_DRIVER:
+	case NET_ATTACH_TYPE_XDP_OFFLOAD:
+		progfd = -1;
 		err = do_attach_detach_xdp(progfd, attach_type, ifindex, NULL);
+		break;
+	default:
+		break;
+	}
 
 	if (err < 0) {
 		p_err("interface %s detach failed: %s",
