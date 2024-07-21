@@ -232,9 +232,18 @@ XZ_EXTERN void xz_dec_reset(struct xz_dec *s);
  */
 XZ_EXTERN void xz_dec_end(struct xz_dec *s);
 
-/*
- * Decompressor for MicroLZMA, an LZMA variant with a very minimal header.
- * See xz_dec_microlzma_alloc() below for details.
+/**
+ * DOC: MicroLZMA decompressor
+ *
+ * This MicroLZMA header format was created for use in EROFS but may be used
+ * by others too. **In most cases one needs the XZ APIs above instead.**
+ *
+ * The compressed format supported by this decoder is a raw LZMA stream
+ * whose first byte (always 0x00) has been replaced with bitwise-negation
+ * of the LZMA properties (lc/lp/pb) byte. For example, if lc/lp/pb is
+ * 3/0/2, the first byte is 0xA2. This way the first byte can never be 0x00.
+ * Just like with LZMA2, lc + lp <= 4 must be true. The LZMA end-of-stream
+ * marker must not be used. The unused values are reserved for future use.
  *
  * These functions aren't used or available in preboot code and thus aren't
  * marked with XZ_EXTERN. This avoids warnings about static functions that
@@ -262,15 +271,6 @@ struct xz_dec_microlzma;
  * On success, xz_dec_microlzma_alloc() returns a pointer to
  * struct xz_dec_microlzma. If memory allocation fails or
  * dict_size is invalid, NULL is returned.
- *
- * The compressed format supported by this decoder is a raw LZMA stream
- * whose first byte (always 0x00) has been replaced with bitwise-negation
- * of the LZMA properties (lc/lp/pb) byte. For example, if lc/lp/pb is
- * 3/0/2, the first byte is 0xA2. This way the first byte can never be 0x00.
- * Just like with LZMA2, lc + lp <= 4 must be true. The LZMA end-of-stream
- * marker must not be used. The unused values are reserved for future use.
- * This MicroLZMA header format was created for use in EROFS but may be used
- * by others too.
  */
 extern struct xz_dec_microlzma *xz_dec_microlzma_alloc(enum xz_mode mode,
 						       uint32_t dict_size);
