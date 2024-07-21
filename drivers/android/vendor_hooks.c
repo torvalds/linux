@@ -73,6 +73,7 @@
 #include <trace/hooks/delayacct.h>
 #include <trace/hooks/usb.h>
 #include <trace/hooks/sound.h>
+#include <trace/hooks/fuse.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -418,3 +419,18 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_hibernate_save_cmp_len);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_read_lazy_flag);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_tsk_need_resched_lazy);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_read_fault);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_queue_request_and_unlock);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fuse_request_end);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_read_trylock_failed);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_shmem_swapin_folio);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_wp_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_swap_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_anonymous_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_uprobes_replace_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_percpu_rwsem_down_read);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_percpu_rwsem_up_write);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_percpu_rwsem_wait_complete);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_record_rwsem_reader_owned);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_rwsem_reader_owned);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_record_rwsem_writer_owned);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_rwsem_writer_owned);
