@@ -16,7 +16,7 @@
 #include <linux/of.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/time64.h>
 
 /*

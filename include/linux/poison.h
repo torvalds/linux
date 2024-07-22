@@ -49,12 +49,6 @@
 /********** arch/$ARCH/mm/init.c **********/
 #define POISON_FREE_INITMEM	0xcc
 
-/********** arch/ia64/hp/common/sba_iommu.c **********/
-/*
- * arch/ia64/hp/common/sba_iommu.c uses a 16-byte poison string with a
- * value of "SBAIOMMU POISON\0" for spill-over poisoning.
- */
-
 /********** fs/jbd/journal.c **********/
 #define JBD_POISON_FREE		0x5b
 #define JBD2_POISON_FREE	0x5c

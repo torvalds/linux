@@ -4,7 +4,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cpuhplock.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/smp.h>
 
 struct device_node;

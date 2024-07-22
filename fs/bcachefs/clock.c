@@ -6,15 +6,29 @@
 #include <linux/kthread.h>
 #include <linux/preempt.h>
 
-static inline long io_timer_cmp(io_timer_heap *h,
-				struct io_timer *l,
-				struct io_timer *r)
+static inline bool io_timer_cmp(const void *l, const void *r, void __always_unused *args)
 {
-	return l->expire - r->expire;
+	struct io_timer **_l = (struct io_timer **)l;
+	struct io_timer **_r = (struct io_timer **)r;
+
+	return (*_l)->expire < (*_r)->expire;
+}
+
+static inline void io_timer_swp(void *l, void *r, void __always_unused *args)
+{
+	struct io_timer **_l = (struct io_timer **)l;
+	struct io_timer **_r = (struct io_timer **)r;
+
+	swap(*_l, *_r);
 }
 
 void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 {
+	const struct min_heap_callbacks callbacks = {
+		.less = io_timer_cmp,
+		.swp = io_timer_swp,
+	};
+
 	spin_lock(&clock->timer_lock);
 
 	if (time_after_eq64((u64) atomic64_read(&clock->now), timer->expire)) {
@@ -23,22 +37,27 @@ void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 		return;
 	}
 
-	for (size_t i = 0; i < clock->timers.used; i++)
+	for (size_t i = 0; i < clock->timers.nr; i++)
 		if (clock->timers.data[i] == timer)
 			goto out;
 
-	BUG_ON(!heap_add(&clock->timers, timer, io_timer_cmp, NULL));
+	BUG_ON(!min_heap_push(&clock->timers, &timer, &callbacks, NULL));
 out:
 	spin_unlock(&clock->timer_lock);
 }
 
 void bch2_io_timer_del(struct io_clock *clock, struct io_timer *timer)
 {
+	const struct min_heap_callbacks callbacks = {
+		.less = io_timer_cmp,
+		.swp = io_timer_swp,
+	};
+
 	spin_lock(&clock->timer_lock);
 
-	for (size_t i = 0; i < clock->timers.used; i++)
+	for (size_t i = 0; i < clock->timers.nr; i++)
 		if (clock->timers.data[i] == timer) {
-			heap_del(&clock->timers, i, io_timer_cmp, NULL);
+			min_heap_del(&clock->timers, i, &callbacks, NULL);
 			break;
 		}
 
@@ -123,10 +142,17 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 static struct io_timer *get_expired_timer(struct io_clock *clock, u64 now)
 {
 	struct io_timer *ret = NULL;
+	const struct min_heap_callbacks callbacks = {
+		.less = io_timer_cmp,
+		.swp = io_timer_swp,
+	};
 
-	if (clock->timers.used &&
-	    time_after_eq64(now, clock->timers.data[0]->expire))
-		heap_pop(&clock->timers, ret, io_timer_cmp, NULL);
+	if (clock->timers.nr &&
+	    time_after_eq64(now, clock->timers.data[0]->expire)) {
+		ret = *min_heap_peek(&clock->timers);
+		min_heap_pop(&clock->timers, &callbacks, NULL);
+	}
+
 	return ret;
 }
 
@@ -150,7 +176,7 @@ void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 	printbuf_tabstop_push(out, 40);
 	prt_printf(out, "current time:\t%llu\n", now);
 
-	for (unsigned i = 0; i < clock->timers.used; i++)
+	for (unsigned i = 0; i < clock->timers.nr; i++)
 		prt_printf(out, "%ps %ps:\t%llu\n",
 		       clock->timers.data[i]->fn,
 		       clock->timers.data[i]->fn2,
