@@ -54,6 +54,7 @@ static u32 cpg_mode __initdata;
 
 /* Fractional 8.25 PLL */
 #define CPG_PLLxCR0_NI8		GENMASK(27, 20)	/* Integer mult. factor */
+#define CPG_PLLxCR1_NF25	GENMASK(24, 0)	/* Fractional mult. factor */
 
 #define CPG_PLLxCR_STC		GENMASK(30, 24)	/* R_Car V3U PLLxCR */
 
@@ -67,6 +68,7 @@ static u32 cpg_mode __initdata;
 struct cpg_pll_clk {
 	struct clk_hw hw;
 	void __iomem *pllcr0_reg;
+	void __iomem *pllcr1_reg;
 	void __iomem *pllecr_reg;
 	u32 pllecr_pllst_mask;
 };
@@ -77,17 +79,26 @@ static unsigned long cpg_pll_8_25_clk_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
-	unsigned int mult;
+	u32 cr0 = readl(pll_clk->pllcr0_reg);
+	unsigned int ni, nf;
+	unsigned long rate;
 
-	mult = FIELD_GET(CPG_PLLxCR0_NI8, readl(pll_clk->pllcr0_reg)) + 1;
+	ni = (FIELD_GET(CPG_PLLxCR0_NI8, cr0) + 1) * 2;
+	rate = parent_rate * ni;
+	if (cr0 & CPG_PLLxCR0_SSMODE_FM) {
+		nf = FIELD_GET(CPG_PLLxCR1_NF25, readl(pll_clk->pllcr1_reg));
+		rate += mul_u64_u32_shr(parent_rate, nf, 24);
+	}
 
-	return parent_rate * mult * 2;
+	return rate;
 }
 
 static int cpg_pll_8_25_clk_determine_rate(struct clk_hw *hw,
 					   struct clk_rate_request *req)
 {
-	unsigned int min_mult, max_mult, mult;
+	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
+	unsigned int min_mult, max_mult, ni, nf;
+	u32 cr0 = readl(pll_clk->pllcr0_reg);
 	unsigned long prate;
 
 	prate = req->best_parent_rate * 2;
@@ -96,10 +107,23 @@ static int cpg_pll_8_25_clk_determine_rate(struct clk_hw *hw,
 	if (max_mult < min_mult)
 		return -EINVAL;
 
-	mult = DIV_ROUND_CLOSEST_ULL(req->rate, prate);
-	mult = clamp(mult, min_mult, max_mult);
+	if (cr0 & CPG_PLLxCR0_SSMODE_FM) {
+		ni = div64_ul(req->rate, prate);
+		if (ni < min_mult) {
+			ni = min_mult;
+			nf = 0;
+		} else {
+			ni = min(ni, max_mult);
+			nf = div64_ul((u64)(req->rate - prate * ni) << 24,
+				      req->best_parent_rate);
+		}
+	} else {
+		ni = DIV_ROUND_CLOSEST_ULL(req->rate, prate);
+		ni = clamp(ni, min_mult, max_mult);
+		nf = 0;
+	}
+	req->rate = prate * ni + mul_u64_u32_shr(req->best_parent_rate, nf, 24);
 
-	req->rate = prate * mult;
 	return 0;
 }
 
@@ -107,17 +131,34 @@ static int cpg_pll_8_25_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
-	unsigned int mult;
+	unsigned long prate = parent_rate * 2;
+	u32 cr0 = readl(pll_clk->pllcr0_reg);
+	unsigned int ni, nf;
 	u32 val;
 
-	mult = DIV_ROUND_CLOSEST_ULL(rate, parent_rate * 2);
-	mult = clamp(mult, 1U, 256U);
+	if (cr0 & CPG_PLLxCR0_SSMODE_FM) {
+		ni = div64_ul(rate, prate);
+		if (ni < 1) {
+			ni = 1;
+			nf = 0;
+		} else {
+			ni = min(ni, 256U);
+			nf = div64_ul((u64)(rate - prate * ni) << 24,
+				      parent_rate);
+		}
+	} else {
+		ni = DIV_ROUND_CLOSEST_ULL(rate, prate);
+		ni = clamp(ni, 1U, 256U);
+	}
 
 	if (readl(pll_clk->pllcr0_reg) & CPG_PLLxCR0_KICK)
 		return -EBUSY;
 
 	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_NI8,
-		       FIELD_PREP(CPG_PLLxCR0_NI8, mult - 1));
+		       FIELD_PREP(CPG_PLLxCR0_NI8, ni - 1));
+	if (cr0 & CPG_PLLxCR0_SSMODE_FM)
+		cpg_reg_modify(pll_clk->pllcr1_reg, CPG_PLLxCR1_NF25,
+			       FIELD_PREP(CPG_PLLxCR1_NF25, nf));
 
 	/*
 	 * Set KICK bit in PLLxCR0 to update hardware setting and wait for
@@ -167,12 +208,9 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 
 	pll_clk->hw.init = &init;
 	pll_clk->pllcr0_reg = base + cr0_offset;
+	pll_clk->pllcr1_reg = base + cr1_offset;
 	pll_clk->pllecr_reg = base + CPG_PLLECR;
 	pll_clk->pllecr_pllst_mask = CPG_PLLECR_PLLST(index);
-
-	/* Disable Fractional Multiplication and Frequency Dithering */
-	writel(0, base + cr1_offset);
-	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_SSMODE, 0);
 
 	clk = clk_register(NULL, &pll_clk->hw);
 	if (IS_ERR(clk))
@@ -180,6 +218,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 
 	return clk;
 }
+
 /*
  * Z0 Clock & Z1 Clock
  */
