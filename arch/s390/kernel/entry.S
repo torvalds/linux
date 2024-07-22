@@ -264,14 +264,15 @@ EXPORT_SYMBOL(sie_exit)
  */
 
 SYM_CODE_START(system_call)
-	stpt	__LC_SYS_ENTER_TIMER
-	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA_SYNC
+	GET_LC	%r13
+	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
 	lghi	%r14,0
 .Lsysc_per:
-	STBEAR	__LC_LAST_BREAK
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-	lg	%r15,__LC_KERNEL_STACK
+	STBEAR	__LC_LAST_BREAK(%r13)
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
+	lg	%r15,__LC_KERNEL_STACK(%r13)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	# clear user controlled register to prevent speculative use
@@ -286,17 +287,17 @@ SYM_CODE_START(system_call)
 	xgr	%r10,%r10
 	xgr	%r11,%r11
 	la	%r2,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
-	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA_SYNC
-	MBEAR	%r2,%r0
+	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA_SYNC(%r13)
+	MBEAR	%r2,%r13
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE
-	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
+	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
+	mvc	__LC_RETURN_PSW(16,%r13),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	BPON
 	LBEAR	STACK_FRAME_OVERHEAD+__PT_LAST_BREAK(%r15)
+	stpt	__LC_EXIT_TIMER(%r13)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
-	stpt	__LC_EXIT_TIMER
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
 SYM_CODE_END(system_call)
 
