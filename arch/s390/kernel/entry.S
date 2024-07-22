@@ -44,8 +44,9 @@ _LPP_OFFSET	= __LC_LPP
 	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193)
 	.endm
 
-	.macro MBEAR reg
-	ALTERNATIVE "brcl 0,0", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK), ALT_FACILITY(193)
+	.macro MBEAR reg, lowcore
+	ALTERNATIVE "brcl 0,0", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK(\lowcore)),\
+		ALT_FACILITY(193)
 	.endm
 
 	.macro	CHECK_STACK savearea
@@ -282,7 +283,7 @@ SYM_CODE_START(system_call)
 	xgr	%r11,%r11
 	la	%r2,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA_SYNC
-	MBEAR	%r2
+	MBEAR	%r2,%r0
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
 	STACKLEAK_ERASE
@@ -424,7 +425,7 @@ SYM_CODE_START(\name)
 	xgr	%r10,%r10
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
-	MBEAR	%r11
+	MBEAR	%r11,%r0
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,\handler
