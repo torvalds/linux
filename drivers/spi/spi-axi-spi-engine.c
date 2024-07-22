@@ -473,11 +473,15 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (irq <= 0)
 		return -ENXIO;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*spi_engine));
+	spi_engine = devm_kzalloc(&pdev->dev, sizeof(*spi_engine), GFP_KERNEL);
+	if (!spi_engine)
+		return -ENOMEM;
+
+	host = spi_alloc_host(&pdev->dev, 0);
 	if (!host)
 		return -ENOMEM;
 
-	spi_engine = spi_controller_get_devdata(host);
+	spi_controller_set_devdata(host, spi_engine);
 
 	spin_lock_init(&spi_engine->lock);
 
