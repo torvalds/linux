@@ -682,10 +682,8 @@ struct spi_controller {
 			       struct spi_message *message);
 	int (*unprepare_message)(struct spi_controller *ctlr,
 				 struct spi_message *message);
-	union {
-		int (*slave_abort)(struct spi_controller *ctlr);
-		int (*target_abort)(struct spi_controller *ctlr);
-	};
+	int (*slave_abort)(struct spi_controller *ctlr);
+	int (*target_abort)(struct spi_controller *ctlr);
 
 	/*
 	 * These hooks are for drivers that use a generic implementation
