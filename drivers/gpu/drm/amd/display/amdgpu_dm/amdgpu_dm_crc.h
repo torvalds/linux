@@ -51,13 +51,27 @@ struct phy_id_mapping {
 	u8 rad[8];
 };
 
+struct crc_data {
+	uint32_t crc_R;
+	uint32_t crc_G;
+	uint32_t crc_B;
+	uint32_t frame_count;
+	bool crc_ready;
+};
+
+struct crc_info {
+	struct crc_data crc[MAX_CRC_WINDOW_NUM];
+	struct completion completion;
+	spinlock_t lock;
+};
+
 struct crc_window_param {
 	uint16_t x_start;
 	uint16_t y_start;
 	uint16_t x_end;
 	uint16_t y_end;
 	/* CRC window is activated or not*/
-	bool activated;
+	bool enable;
 	/* Update crc window during vertical blank or not */
 	bool update_win;
 	/* skip reading/writing for few frames */
@@ -74,13 +88,16 @@ struct secure_display_crtc_context {
 	struct drm_crtc *crtc;
 
 	/* Region of Interest (ROI) */
-	struct rect rect;
+	struct crc_window roi[MAX_CRC_WINDOW_NUM];
+
+	struct crc_info crc_info;
 };
 
 struct secure_display_context {
 
 	struct secure_display_crtc_context *crtc_ctx;
-
+    /* Whether dmub support multiple ROI setting */
+	bool support_mul_roi;
 	bool phy_mapping_updated;
 	int phy_id_mapping_cnt;
 	struct phy_id_mapping phy_id_mapping[MAX_CRTC];

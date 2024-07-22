@@ -3480,8 +3480,8 @@ static int crc_win_x_start_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.window_param.x_start = (uint16_t) val;
-	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param[0].x_start = (uint16_t) val;
+	acrtc->dm_irq_params.window_param[0].update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3497,7 +3497,7 @@ static int crc_win_x_start_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.window_param.x_start;
+	*val = acrtc->dm_irq_params.window_param[0].x_start;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3517,8 +3517,8 @@ static int crc_win_y_start_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.window_param.y_start = (uint16_t) val;
-	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param[0].y_start = (uint16_t) val;
+	acrtc->dm_irq_params.window_param[0].update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3534,7 +3534,7 @@ static int crc_win_y_start_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.window_param.y_start;
+	*val = acrtc->dm_irq_params.window_param[0].y_start;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3553,8 +3553,8 @@ static int crc_win_x_end_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.window_param.x_end = (uint16_t) val;
-	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param[0].x_end = (uint16_t) val;
+	acrtc->dm_irq_params.window_param[0].update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3570,7 +3570,7 @@ static int crc_win_x_end_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.window_param.x_end;
+	*val = acrtc->dm_irq_params.window_param[0].x_end;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3589,8 +3589,8 @@ static int crc_win_y_end_set(void *data, u64 val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.window_param.y_end = (uint16_t) val;
-	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param[0].y_end = (uint16_t) val;
+	acrtc->dm_irq_params.window_param[0].update_win = false;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3606,7 +3606,7 @@ static int crc_win_y_end_get(void *data, u64 *val)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	*val = acrtc->dm_irq_params.window_param.y_end;
+	*val = acrtc->dm_irq_params.window_param[0].y_end;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return 0;
@@ -3633,9 +3633,10 @@ static int crc_win_update_set(void *data, u64 val)
 
 		spin_lock_irq(&adev_to_drm(adev)->event_lock);
 
-		acrtc->dm_irq_params.window_param.activated = true;
-		acrtc->dm_irq_params.window_param.update_win = true;
-		acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
+		acrtc->dm_irq_params.window_param[0].enable = true;
+		acrtc->dm_irq_params.window_param[0].update_win = true;
+		acrtc->dm_irq_params.window_param[0].skip_frame_cnt = 0;
+		acrtc->dm_irq_params.crc_window_activated = true;
 
 		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
 		mutex_unlock(&adev->dm.dc_lock);
