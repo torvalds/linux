@@ -2876,6 +2876,11 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	int i;
 
+	if (intel_dp->needs_modeset_retry)
+		return;
+
+	intel_dp->needs_modeset_retry = true;
+
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
 		intel_dp_queue_modeset_retry_work(intel_dp->attached_connector);
 
@@ -3009,6 +3014,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
 	intel_dp->link_trained = false;
+	intel_dp->needs_modeset_retry = false;
 	intel_dp->link_rate = link_rate;
 	intel_dp->lane_count = lane_count;
 }
