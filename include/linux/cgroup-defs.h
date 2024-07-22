@@ -539,9 +539,6 @@ struct cgroup {
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
 
-	/* If there is block congestion on this cgroup. */
-	atomic_t congestion_count;
-
 	/* Used to store internal freezer state */
 	struct cgroup_freezer_state freezer;
 
