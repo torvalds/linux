@@ -244,5 +244,11 @@ static inline void set_prefix(__u32 address)
 		ALT_LOWCORE
 .endm
 
+.macro STMG_LC start, end, savearea
+	ALTERNATIVE "stmg	\start, \end, \savearea",				\
+		__stringify(stmg	\start, \end, LOWCORE_ALT_ADDRESS + \savearea),	\
+		ALT_LOWCORE
+.endm
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_LOWCORE_H */

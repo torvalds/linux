@@ -40,8 +40,11 @@ _LPP_OFFSET	= __LC_LPP
 	ALTERNATIVE "nop", ".insn s,0xb2000000,\address", ALT_FACILITY(193)
 	.endm
 
-	.macro LPSWEY address,lpswe
-	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193)
+	.macro LPSWEY address, lpswe
+	ALTERNATIVE_2 "b \lpswe;nopr", \
+		".insn siy,0xeb0000000071,\address,0", ALT_FACILITY_EARLY(193),		\
+		__stringify(.insn siy,0xeb0000000071,LOWCORE_ALT_ADDRESS+\address,0),	\
+		ALT_LOWCORE
 	.endm
 
 	.macro MBEAR reg, lowcore
@@ -317,39 +320,40 @@ SYM_CODE_END(ret_from_fork)
  */
 
 SYM_CODE_START(pgm_check_handler)
-	stpt	__LC_SYS_ENTER_TIMER
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA_SYNC
+	GET_LC	%r13
+	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
-	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lgr	%r10,%r15
-	lmg	%r8,%r9,__LC_PGM_OLD_PSW
+	lmg	%r8,%r9,__LC_PGM_OLD_PSW(%r13)
 	tmhh	%r8,0x0001		# coming from user space?
 	jno	.Lpgm_skip_asce
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	2f			# -> enabled, can't be a double fault
-	tm	__LC_PGM_ILC+3,0x80	# check for per exception
+	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
-2:	CHECK_STACK __LC_SAVE_AREA_SYNC,%r0
+2:	CHECK_STACK __LC_SAVE_AREA_SYNC,%r13
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	# CHECK_VMAP_STACK branches to stack_overflow or 4f
-	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,%r0,4f
-3:	lg	%r15,__LC_KERNEL_STACK
+	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,%r13,4f
+3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
-	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
-	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK
+	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC(%r13)
+	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK(%r13)
 	stctg	%c1,%c1,__PT_CR1(%r11)
 #if IS_ENABLED(CONFIG_KVM)
-	ltg	%r12,__LC_GMAP
+	ltg	%r12,__LC_GMAP(%r13)
 	jz	5f
 	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
 	jne	5f
 	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r10),%r0
+	SIEEXIT __SF_SIE_CONTROL(%r10),%r13
 #endif
 5:	stmg	%r8,%r9,__PT_PSW(%r11)
 	# clear user controlled registers to prevent speculative use
@@ -365,11 +369,11 @@ SYM_CODE_START(pgm_check_handler)
 	tmhh	%r8,0x0001		# returning to user space?
 	jno	.Lpgm_exit_kernel
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE
+	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	BPON
-	stpt	__LC_EXIT_TIMER
+	stpt	__LC_EXIT_TIMER(%r13)
 .Lpgm_exit_kernel:
-	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
+	mvc	__LC_RETURN_PSW(16,%r13),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	LBEAR	STACK_FRAME_OVERHEAD+__PT_LAST_BREAK(%r15)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
@@ -378,11 +382,11 @@ SYM_CODE_START(pgm_check_handler)
 # single stepped system call
 #
 .Lpgm_svcper:
-	mvc	__LC_RETURN_PSW(8),__LC_SVC_NEW_PSW
+	mvc	__LC_RETURN_PSW(8,%r13),__LC_SVC_NEW_PSW(%r13)
 	larl	%r14,.Lsysc_per
-	stg	%r14,__LC_RETURN_PSW+8
+	stg	%r14,__LC_RETURN_PSW+8(%r13)
 	lghi	%r14,1
-	LBEAR	__LC_PGM_LAST_BREAK
+	LBEAR	__LC_PGM_LAST_BREAK(%r13)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE # branch to .Lsysc_per
 SYM_CODE_END(pgm_check_handler)
 
@@ -596,7 +600,8 @@ SYM_CODE_END(restart_int_handler)
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
 SYM_CODE_START(stack_overflow)
-	lg	%r15,__LC_NODAT_STACK	# change to panic stack
+	GET_LC	%r15
+	lg	%r15,__LC_NODAT_STACK(%r15) # change to panic stack
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	stmg	%r8,%r9,__PT_PSW(%r11)
