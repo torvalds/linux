@@ -395,26 +395,27 @@ SYM_CODE_END(pgm_check_handler)
  */
 .macro INT_HANDLER name,lc_old_psw,handler
 SYM_CODE_START(\name)
-	stckf	__LC_INT_CLOCK
-	stpt	__LC_SYS_ENTER_TIMER
-	STBEAR	__LC_LAST_BREAK
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA_ASYNC
+	GET_LC	%r13
+	stckf	__LC_INT_CLOCK(%r13)
+	stpt	__LC_SYS_ENTER_TIMER(%r13)
+	STBEAR	__LC_LAST_BREAK(%r13)
 	BPOFF
-	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
-	lmg	%r8,%r9,\lc_old_psw
+	lmg	%r8,%r9,\lc_old_psw(%r13)
 	tmhh	%r8,0x0001			# interrupting from user ?
 	jnz	1f
 #if IS_ENABLED(CONFIG_KVM)
-	lg	%r10,__LC_CURRENT
+	lg	%r10,__LC_CURRENT(%r13)
 	tm	__TI_sie(%r10),0xff
 	jz	0f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r15),%r0
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
 #endif
-0:	CHECK_STACK __LC_SAVE_AREA_ASYNC,%r0
+0:	CHECK_STACK __LC_SAVE_AREA_ASYNC,%r13
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
-1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-	lg	%r15,__LC_KERNEL_STACK
+1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
+	lg	%r15,__LC_KERNEL_STACK(%r13)
 2:	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -428,18 +429,18 @@ SYM_CODE_START(\name)
 	xgr	%r7,%r7
 	xgr	%r10,%r10
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
-	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
-	MBEAR	%r11,%r0
+	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC(%r13)
+	MBEAR	%r11,%r13
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,\handler
-	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
+	mvc	__LC_RETURN_PSW(16,%r13),__PT_PSW(%r11)
 	tmhh	%r8,0x0001		# returning to user ?
 	jno	2f
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE
+	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	BPON
-	stpt	__LC_EXIT_TIMER
+	stpt	__LC_EXIT_TIMER(%r13)
 2:	LBEAR	__PT_LAST_BREAK(%r11)
 	lmg	%r0,%r15,__PT_R0(%r11)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
