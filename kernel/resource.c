@@ -450,8 +450,7 @@ int walk_system_ram_res_rev(u64 start, u64 end, void *arg,
 			/* re-alloc */
 			struct resource *rams_new;
 
-			rams_new = kvrealloc(rams, rams_size * sizeof(struct resource),
-					     (rams_size + 16) * sizeof(struct resource),
+			rams_new = kvrealloc(rams, (rams_size + 16) * sizeof(struct resource),
 					     GFP_KERNEL);
 			if (!rams_new)
 				goto out;

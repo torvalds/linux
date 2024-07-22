@@ -156,10 +156,7 @@ static int vpd_blob_extend(struct vpd_blob *blob, const char *data, size_t len)
 	const char *old_ptr = blob->data;
 	char *new_ptr;
 
-	new_ptr = old_ptr ?
-		kvrealloc(old_ptr, old_len, new_len, GFP_KERNEL_ACCOUNT) :
-		kvmalloc(len, GFP_KERNEL_ACCOUNT);
-
+	new_ptr = kvrealloc(old_ptr, new_len, GFP_KERNEL_ACCOUNT);
 	if (!new_ptr)
 		return -ENOMEM;
 
