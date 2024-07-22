@@ -6020,12 +6020,12 @@ intel_dp_detect(struct drm_connector *connector,
 
 	intel_dp_detect_sdp_caps(intel_dp);
 
-	intel_dp_mst_configure(intel_dp);
-
 	if (intel_dp->reset_link_params) {
 		intel_dp_reset_link_params(intel_dp);
 		intel_dp->reset_link_params = false;
 	}
+
+	intel_dp_mst_configure(intel_dp);
 
 	intel_dp_print_rates(intel_dp);
 
