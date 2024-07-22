@@ -193,6 +193,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "SAM%mc6", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "SAMMHz", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "SAMAMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Die%c6", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -254,11 +255,12 @@ struct msr_counter bic[] = {
 #define	BIC_SAM_mc6		(1ULL << 55)
 #define	BIC_SAMMHz		(1ULL << 56)
 #define	BIC_SAMACTMHz		(1ULL << 57)
+#define	BIC_Diec6		(1ULL << 58)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
 #define BIC_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
-#define BIC_IDLE (BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6)
+#define BIC_IDLE (BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
 #define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
@@ -1475,6 +1477,11 @@ static struct msr_counter_arch_info msr_counter_arch_infos[] = {
 #define SYSFS_TELEM_PATH "/sys/class/intel_pmt"
 #endif
 
+#define PMT_COUNTER_MTL_DC6_OFFSET 120
+#define PMT_COUNTER_MTL_DC6_LSB    0
+#define PMT_COUNTER_MTL_DC6_MSB    63
+#define PMT_MTL_DC6_GUID           0x1a067102
+
 #define PMT_COUNTER_NAME_SIZE_BYTES      16
 #define PMT_COUNTER_TYPE_NAME_SIZE_BYTES 32
 
@@ -1496,6 +1503,7 @@ struct pmt_mmio {
 
 enum pmt_datatype {
 	PMT_TYPE_RAW,
+	PMT_TYPE_XTAL_TIME,
 };
 
 struct pmt_domain_info {
@@ -1630,6 +1638,7 @@ struct pkg_data {
 	struct rapl_counter rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
 	unsigned int uncore_mhz;
+	unsigned long long die_c6;
 	unsigned long long counter[MAX_ADDED_PACKAGE_COUNTERS];
 	unsigned long long perf_counter[MAX_ADDED_PACKAGE_COUNTERS];
 	unsigned long long pmt_counter[PMT_MAX_ADDED_PACKAGE_COUNTERS];
@@ -2281,6 +2290,10 @@ void print_header(char *delim)
 				outp += sprintf(outp, "%s%18.18s", (printed++ ? delim : ""), ppmt->name);
 
 			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			outp += sprintf(outp, "%s%s", delim, ppmt->name);
+			break;
 		}
 
 		ppmt = ppmt->next;
@@ -2351,6 +2364,10 @@ void print_header(char *delim)
 				outp += sprintf(outp, "%s%18.18s", (printed++ ? delim : ""), ppmt->name);
 
 			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			outp += sprintf(outp, "%s%s", delim, ppmt->name);
+			break;
 		}
 
 		ppmt = ppmt->next;
@@ -2400,6 +2417,8 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sPkg%%pc9", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%sPk%%pc10", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Diec6))
+		outp += sprintf(outp, "%sDie%%c6", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU_LPI))
 		outp += sprintf(outp, "%sCPU%%LPI", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_SYS_LPI))
@@ -2475,6 +2494,10 @@ void print_header(char *delim)
 			else
 				outp += sprintf(outp, "%s%18.18s", (printed++ ? delim : ""), ppmt->name);
 
+			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			outp += sprintf(outp, "%s%s", delim, ppmt->name);
 			break;
 		}
 
@@ -2775,6 +2798,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), t->pmt_counter[i]);
 
 			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			const unsigned long value_raw = t->pmt_counter[i];
+			const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			break;
 		}
 	}
 
@@ -2848,6 +2878,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			else
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), c->pmt_counter[i]);
 
+			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			const unsigned long value_raw = c->pmt_counter[i];
+			const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
 		}
 	}
@@ -2930,6 +2967,9 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc9 / tsc);
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc10 / tsc);
+
+	if (DO_BIC(BIC_Diec6))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->die_c6 / crystal_hz / interval_float);
 
 	if (DO_BIC(BIC_CPU_LPI)) {
 		if (p->cpu_lpi >= 0)
@@ -3037,6 +3077,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 				outp += sprintf(outp, "%s0x%016llx", (printed++ ? delim : ""), p->pmt_counter[i]);
 
 			break;
+
+		case PMT_TYPE_XTAL_TIME:
+			const unsigned long value_raw = p->pmt_counter[i];
+			const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			break;
 		}
 	}
 
@@ -3115,6 +3162,7 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc8 = new->pc8 - old->pc8;
 	old->pc9 = new->pc9 - old->pc9;
 	old->pc10 = new->pc10 - old->pc10;
+	old->die_c6 = new->die_c6 - old->die_c6;
 	old->cpu_lpi = new->cpu_lpi - old->cpu_lpi;
 	old->sys_lpi = new->sys_lpi - old->sys_lpi;
 	old->pkg_temp_c = new->pkg_temp_c;
@@ -3398,6 +3446,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pc8 = 0;
 	p->pc9 = 0;
 	p->pc10 = 0;
+	p->die_c6 = 0;
 	p->cpu_lpi = 0;
 	p->sys_lpi = 0;
 
@@ -3547,6 +3596,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.packages.pc8 += p->pc8;
 	average.packages.pc9 += p->pc9;
 	average.packages.pc10 += p->pc10;
+	average.packages.die_c6 += p->die_c6;
 
 	average.packages.cpu_lpi = p->cpu_lpi;
 	average.packages.sys_lpi = p->sys_lpi;
@@ -3642,6 +3692,7 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 	average.packages.pc8 /= topo.allowed_packages;
 	average.packages.pc9 /= topo.allowed_packages;
 	average.packages.pc10 /= topo.allowed_packages;
+	average.packages.die_c6 /= topo.allowed_packages;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -5505,6 +5556,7 @@ void msr_perf_init(void);
 void rapl_perf_init(void);
 void cstate_perf_init(void);
 void added_perf_counters_init(void);
+void pmt_init(void);
 
 void re_initialize(void)
 {
@@ -5515,6 +5567,7 @@ void re_initialize(void)
 	rapl_perf_init();
 	cstate_perf_init();
 	added_perf_counters_init();
+	pmt_init();
 	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus,
 		topo.allowed_cpus);
 }
@@ -8864,6 +8917,15 @@ int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
 	return 0;
 }
 
+void pmt_init(void)
+{
+	if (BIC_IS_ENABLED(BIC_Diec6)) {
+		pmt_add_counter(PMT_MTL_DC6_GUID, "Die%c6", PMT_TYPE_XTAL_TIME, PMT_COUNTER_MTL_DC6_LSB,
+				PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET, SCOPE_PACKAGE, FORMAT_DELTA,
+				0, PMT_OPEN_TRY);
+	}
+}
+
 void turbostat_init()
 {
 	setup_all_buffers(true);
@@ -8878,6 +8940,7 @@ void turbostat_init()
 	rapl_perf_init();
 	cstate_perf_init();
 	added_perf_counters_init();
+	pmt_init();
 
 	for_all_cpus(get_cpu_type, ODD_COUNTERS);
 	for_all_cpus(get_cpu_type, EVEN_COUNTERS);
@@ -9462,6 +9525,11 @@ next:
 
 		if (strcmp("raw", type_name) == 0) {
 			type = PMT_TYPE_RAW;
+			has_type = true;
+		}
+
+		if (strcmp("txtal_time", type_name) == 0) {
+			type = PMT_TYPE_XTAL_TIME;
 			has_type = true;
 		}
 
