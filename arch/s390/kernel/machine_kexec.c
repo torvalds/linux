@@ -62,7 +62,7 @@ static void __do_machine_kdump(void *data)
 	 * This need to be done *after* s390_reset_system set the
 	 * prefix register of this CPU to zero
 	 */
-	memcpy(absolute_pointer(__LC_FPREGS_SAVE_AREA),
+	memcpy(absolute_pointer(get_lowcore()->floating_pt_save_area),
 	       phys_to_virt(prefix + __LC_FPREGS_SAVE_AREA), 512);
 
 	call_nodat(1, int, purgatory, int, 1);
