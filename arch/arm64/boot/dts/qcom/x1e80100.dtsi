@@ -2959,6 +2959,7 @@
 				      "link_down";
 
 			power-domains = <&gcc GCC_PCIE_6A_GDSC>;
+			required-opps = <&rpmhpd_opp_nom>;
 
 			phys = <&pcie6a_phy>;
 			phy-names = "pciephy";
@@ -3080,6 +3081,7 @@
 				      "link_down";
 
 			power-domains = <&gcc GCC_PCIE_4_GDSC>;
+			required-opps = <&rpmhpd_opp_nom>;
 
 			phys = <&pcie4_phy>;
 			phy-names = "pciephy";
