@@ -2462,6 +2462,29 @@ void amd_iommu_domain_free(struct iommu_domain *dom)
 	protection_domain_free(domain);
 }
 
+static int blocked_domain_attach_device(struct iommu_domain *domain,
+					struct device *dev)
+{
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+
+	if (dev_data->domain)
+		detach_device(dev);
+
+	/* Clear DTE and flush the entry */
+	spin_lock(&dev_data->lock);
+	amd_iommu_dev_update_dte(dev_data, false);
+	spin_unlock(&dev_data->lock);
+
+	return 0;
+}
+
+static struct iommu_domain blocked_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &(const struct iommu_domain_ops) {
+		.attach_dev     = blocked_domain_attach_device,
+	}
+};
+
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev)
 {
@@ -2859,6 +2882,7 @@ static int amd_iommu_dev_disable_feature(struct device *dev,
 
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
+	.blocked_domain = &blocked_domain,
 	.domain_alloc = amd_iommu_domain_alloc,
 	.domain_alloc_user = amd_iommu_domain_alloc_user,
 	.domain_alloc_sva = amd_iommu_domain_alloc_sva,
