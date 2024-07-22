@@ -6,7 +6,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -79,32 +78,6 @@ struct spi_engine_program {
 	uint16_t instructions[];
 };
 
-/**
- * struct spi_engine_message_state - SPI engine per-message state
- */
-struct spi_engine_message_state {
-	/** Instructions for executing this message. */
-	struct spi_engine_program *p;
-	/** Number of elements in cmd_buf array. */
-	unsigned cmd_length;
-	/** Array of commands not yet written to CMD FIFO. */
-	const uint16_t *cmd_buf;
-	/** Next xfer with tx_buf not yet fully written to TX FIFO. */
-	struct spi_transfer *tx_xfer;
-	/** Size of tx_buf in bytes. */
-	unsigned int tx_length;
-	/** Bytes not yet written to TX FIFO. */
-	const uint8_t *tx_buf;
-	/** Next xfer with rx_buf not yet fully written to RX FIFO. */
-	struct spi_transfer *rx_xfer;
-	/** Size of tx_buf in bytes. */
-	unsigned int rx_length;
-	/** Bytes not yet written to the RX FIFO. */
-	uint8_t *rx_buf;
-	/** ID to correlate SYNC interrupts with this message. */
-	u8 sync_id;
-};
-
 struct spi_engine {
 	struct clk *clk;
 	struct clk *ref_clk;
@@ -114,7 +87,19 @@ struct spi_engine {
 	void __iomem *base;
 
 	struct spi_message *msg;
-	struct ida sync_ida;
+	struct spi_engine_program *p;
+	unsigned cmd_length;
+	const uint16_t *cmd_buf;
+
+	struct spi_transfer *tx_xfer;
+	unsigned int tx_length;
+	const uint8_t *tx_buf;
+
+	struct spi_transfer *rx_xfer;
+	unsigned int rx_length;
+	uint8_t *rx_buf;
+
+	unsigned int sync_id;
 	unsigned int completed_id;
 
 	unsigned int int_enable;
@@ -273,105 +258,100 @@ static void spi_engine_xfer_next(struct spi_engine *spi_engine,
 
 static void spi_engine_tx_next(struct spi_engine *spi_engine)
 {
-	struct spi_engine_message_state *st = spi_engine->msg->state;
-	struct spi_transfer *xfer = st->tx_xfer;
+	struct spi_transfer *xfer = spi_engine->tx_xfer;
 
 	do {
 		spi_engine_xfer_next(spi_engine, &xfer);
 	} while (xfer && !xfer->tx_buf);
 
-	st->tx_xfer = xfer;
+	spi_engine->tx_xfer = xfer;
 	if (xfer) {
-		st->tx_length = xfer->len;
-		st->tx_buf = xfer->tx_buf;
+		spi_engine->tx_length = xfer->len;
+		spi_engine->tx_buf = xfer->tx_buf;
 	} else {
-		st->tx_buf = NULL;
+		spi_engine->tx_buf = NULL;
 	}
 }
 
 static void spi_engine_rx_next(struct spi_engine *spi_engine)
 {
-	struct spi_engine_message_state *st = spi_engine->msg->state;
-	struct spi_transfer *xfer = st->rx_xfer;
+	struct spi_transfer *xfer = spi_engine->rx_xfer;
 
 	do {
 		spi_engine_xfer_next(spi_engine, &xfer);
 	} while (xfer && !xfer->rx_buf);
 
-	st->rx_xfer = xfer;
+	spi_engine->rx_xfer = xfer;
 	if (xfer) {
-		st->rx_length = xfer->len;
-		st->rx_buf = xfer->rx_buf;
+		spi_engine->rx_length = xfer->len;
+		spi_engine->rx_buf = xfer->rx_buf;
 	} else {
-		st->rx_buf = NULL;
+		spi_engine->rx_buf = NULL;
 	}
 }
 
 static bool spi_engine_write_cmd_fifo(struct spi_engine *spi_engine)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_CMD_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
 	unsigned int n, m, i;
 	const uint16_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CMD_FIFO_ROOM);
-	while (n && st->cmd_length) {
-		m = min(n, st->cmd_length);
-		buf = st->cmd_buf;
+	while (n && spi_engine->cmd_length) {
+		m = min(n, spi_engine->cmd_length);
+		buf = spi_engine->cmd_buf;
 		for (i = 0; i < m; i++)
 			writel_relaxed(buf[i], addr);
-		st->cmd_buf += m;
-		st->cmd_length -= m;
+		spi_engine->cmd_buf += m;
+		spi_engine->cmd_length -= m;
 		n -= m;
 	}
 
-	return st->cmd_length != 0;
+	return spi_engine->cmd_length != 0;
 }
 
 static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDO_DATA_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
 	unsigned int n, m, i;
 	const uint8_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDO_FIFO_ROOM);
-	while (n && st->tx_length) {
-		m = min(n, st->tx_length);
-		buf = st->tx_buf;
+	while (n && spi_engine->tx_length) {
+		m = min(n, spi_engine->tx_length);
+		buf = spi_engine->tx_buf;
 		for (i = 0; i < m; i++)
 			writel_relaxed(buf[i], addr);
-		st->tx_buf += m;
-		st->tx_length -= m;
+		spi_engine->tx_buf += m;
+		spi_engine->tx_length -= m;
 		n -= m;
-		if (st->tx_length == 0)
+		if (spi_engine->tx_length == 0)
 			spi_engine_tx_next(spi_engine);
 	}
 
-	return st->tx_length != 0;
+	return spi_engine->tx_length != 0;
 }
 
 static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDI_DATA_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
 	unsigned int n, m, i;
 	uint8_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
-	while (n && st->rx_length) {
-		m = min(n, st->rx_length);
-		buf = st->rx_buf;
+	while (n && spi_engine->rx_length) {
+		m = min(n, spi_engine->rx_length);
+		buf = spi_engine->rx_buf;
 		for (i = 0; i < m; i++)
 			buf[i] = readl_relaxed(addr);
-		st->rx_buf += m;
-		st->rx_length -= m;
+		spi_engine->rx_buf += m;
+		spi_engine->rx_length -= m;
 		n -= m;
-		if (st->rx_length == 0)
+		if (spi_engine->rx_length == 0)
 			spi_engine_rx_next(spi_engine);
 	}
 
-	return st->rx_length != 0;
+	return spi_engine->rx_length != 0;
 }
 
 static irqreturn_t spi_engine_irq(int irq, void *devid)
@@ -407,16 +387,12 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 			disable_int |= SPI_ENGINE_INT_SDI_ALMOST_FULL;
 	}
 
-	if (pending & SPI_ENGINE_INT_SYNC && spi_engine->msg) {
-		struct spi_engine_message_state *st = spi_engine->msg->state;
-
-		if (spi_engine->completed_id == st->sync_id) {
+	if (pending & SPI_ENGINE_INT_SYNC) {
+		if (spi_engine->msg &&
+		    spi_engine->completed_id == spi_engine->sync_id) {
 			struct spi_message *msg = spi_engine->msg;
-			struct spi_engine_message_state *st = msg->state;
 
-			ida_free(&spi_engine->sync_ida, st->sync_id);
-			kfree(st->p);
-			kfree(st);
+			kfree(spi_engine->p);
 			msg->status = 0;
 			msg->actual_length = msg->frame_length;
 			spi_engine->msg = NULL;
@@ -441,46 +417,29 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 {
 	struct spi_engine_program p_dry, *p;
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
-	struct spi_engine_message_state *st;
 	unsigned int int_enable = 0;
 	unsigned long flags;
 	size_t size;
-	int ret;
-
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
-		return -ENOMEM;
 
 	p_dry.length = 0;
 	spi_engine_compile_message(spi_engine, msg, true, &p_dry);
 
 	size = sizeof(*p->instructions) * (p_dry.length + 1);
 	p = kzalloc(sizeof(*p) + size, GFP_KERNEL);
-	if (!p) {
-		kfree(st);
+	if (!p)
 		return -ENOMEM;
-	}
-
-	ret = ida_alloc_range(&spi_engine->sync_ida, 0, U8_MAX, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(p);
-		kfree(st);
-		return ret;
-	}
-
-	st->sync_id = ret;
-
 	spi_engine_compile_message(spi_engine, msg, false, p);
 
 	spin_lock_irqsave(&spi_engine->lock, flags);
-	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(st->sync_id));
+	spi_engine->sync_id = (spi_engine->sync_id + 1) & 0xff;
+	spi_engine_program_add_cmd(p, false,
+		SPI_ENGINE_CMD_SYNC(spi_engine->sync_id));
 
-	msg->state = st;
 	spi_engine->msg = msg;
-	st->p = p;
+	spi_engine->p = p;
 
-	st->cmd_buf = p->instructions;
-	st->cmd_length = p->length;
+	spi_engine->cmd_buf = p->instructions;
+	spi_engine->cmd_length = p->length;
 	if (spi_engine_write_cmd_fifo(spi_engine))
 		int_enable |= SPI_ENGINE_INT_CMD_ALMOST_EMPTY;
 
@@ -489,7 +448,7 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 		int_enable |= SPI_ENGINE_INT_SDO_ALMOST_EMPTY;
 
 	spi_engine_rx_next(spi_engine);
-	if (st->rx_length != 0)
+	if (spi_engine->rx_length != 0)
 		int_enable |= SPI_ENGINE_INT_SDI_ALMOST_FULL;
 
 	int_enable |= SPI_ENGINE_INT_SYNC;
@@ -521,7 +480,6 @@ static int spi_engine_probe(struct platform_device *pdev)
 	spi_engine = spi_controller_get_devdata(host);
 
 	spin_lock_init(&spi_engine->lock);
-	ida_init(&spi_engine->sync_ida);
 
 	spi_engine->clk = devm_clk_get_enabled(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(spi_engine->clk))
