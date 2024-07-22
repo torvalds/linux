@@ -387,8 +387,14 @@ struct xe_gt {
 		unsigned long *engine;
 		/** @wa_active.lrc: bitmap with active LRC workarounds */
 		unsigned long *lrc;
-		/** @wa_active.oob: bitmap with active OOB workaroudns */
+		/** @wa_active.oob: bitmap with active OOB workarounds */
 		unsigned long *oob;
+		/**
+		 * @wa_active.oob_initialized: mark oob as initialized to help
+		 * detecting misuse of XE_WA() - it can only be called on
+		 * initialization after OOB WAs have being processed
+		 */
+		bool oob_initialized;
 	} wa_active;
 
 	/** @user_engines: engines present in GT and available to userspace */

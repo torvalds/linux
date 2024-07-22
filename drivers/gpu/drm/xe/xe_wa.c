@@ -755,6 +755,7 @@ void xe_wa_process_oob(struct xe_gt *gt)
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx, gt->wa_active.oob,
 						  ARRAY_SIZE(oob_was));
+	gt->wa_active.oob_initialized = true;
 	xe_rtp_process(&ctx, oob_was);
 }
 
