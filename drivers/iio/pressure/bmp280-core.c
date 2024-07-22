@@ -2265,7 +2265,7 @@ EXPORT_SYMBOL_NS(bmp580_chip_info, IIO_BMP280);
 
 static int bmp180_wait_for_eoc(struct bmp280_data *data, u8 ctrl_meas)
 {
-	const int conversion_time_max[] = { 4500, 7500, 13500, 25500 };
+	static const int conversion_time_max[] = { 4500, 7500, 13500, 25500 };
 	unsigned int delay_us;
 	unsigned int ctrl;
 	int ret;
