@@ -85,7 +85,7 @@ static void hsr_check_announce(struct net_device *hsr_dev)
 		}
 	} else {
 		/* Deactivate the announce timer  */
-		timer_delete(&hsr->announce_timer);
+		del_timer(&hsr->announce_timer);
 	}
 }
 
