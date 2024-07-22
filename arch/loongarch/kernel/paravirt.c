@@ -2,6 +2,7 @@
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/irq_work.h>
 #include <linux/jump_label.h>
 #include <linux/kvm_para.h>
 #include <linux/reboot.h>
@@ -126,6 +127,11 @@ static irqreturn_t pv_ipi_interrupt(int irq, void *dev)
 	if (action & SMP_CALL_FUNCTION) {
 		generic_smp_call_function_interrupt();
 		info->ipi_irqs[IPI_CALL_FUNCTION]++;
+	}
+
+	if (action & SMP_IRQ_WORK) {
+		irq_work_run();
+		info->ipi_irqs[IPI_IRQ_WORK]++;
 	}
 
 	return IRQ_HANDLED;

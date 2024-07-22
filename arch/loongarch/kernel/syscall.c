@@ -9,11 +9,14 @@
 #include <linux/entry-common.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
+#include <linux/objtool.h>
+#include <linux/randomize_kstack.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 
 #include <asm/asm.h>
 #include <asm/exception.h>
+#include <asm/loongarch.h>
 #include <asm/signal.h>
 #include <asm/switch_to.h>
 #include <asm-generic/syscalls.h>
@@ -39,7 +42,7 @@ void *sys_call_table[__NR_syscalls] = {
 typedef long (*sys_call_fn)(unsigned long, unsigned long,
 	unsigned long, unsigned long, unsigned long, unsigned long);
 
-void noinstr do_syscall(struct pt_regs *regs)
+void noinstr __no_stack_protector do_syscall(struct pt_regs *regs)
 {
 	unsigned long nr;
 	sys_call_fn syscall_fn;
@@ -55,11 +58,28 @@ void noinstr do_syscall(struct pt_regs *regs)
 
 	nr = syscall_enter_from_user_mode(regs, nr);
 
+	add_random_kstack_offset();
+
 	if (nr < NR_syscalls) {
 		syscall_fn = sys_call_table[nr];
 		regs->regs[4] = syscall_fn(regs->orig_a0, regs->regs[5], regs->regs[6],
 					   regs->regs[7], regs->regs[8], regs->regs[9]);
 	}
 
+	/*
+	 * This value will get limited by KSTACK_OFFSET_MAX(), which is 10
+	 * bits. The actual entropy will be further reduced by the compiler
+	 * when applying stack alignment constraints: 16-bytes (i.e. 4-bits)
+	 * aligned, which will remove the 4 low bits from any entropy chosen
+	 * here.
+	 *
+	 * The resulting 6 bits of entropy is seen in SP[9:4].
+	 */
+	choose_random_kstack_offset(drdtime());
+
 	syscall_exit_to_user_mode(regs);
 }
+
+#ifdef CONFIG_RANDOMIZE_KSTACK_OFFSET
+STACK_FRAME_NON_STANDARD(do_syscall);
+#endif

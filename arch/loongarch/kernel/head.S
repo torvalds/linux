@@ -44,11 +44,7 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	/* Config direct window and set PG */
-	li.d		t0, CSR_DMW0_INIT	# UC, PLV0, 0x8000 xxxx xxxx xxxx
-	csrwr		t0, LOONGARCH_CSR_DMWIN0
-	li.d		t0, CSR_DMW1_INIT	# CA, PLV0, 0x9000 xxxx xxxx xxxx
-	csrwr		t0, LOONGARCH_CSR_DMWIN1
-
+	SETUP_DMWINS	t0
 	JUMP_VIRT_ADDR	t0, t1
 
 	/* Enable PG */
@@ -124,11 +120,8 @@ SYM_CODE_END(kernel_entry)
  * function after setting up the stack and tp registers.
  */
 SYM_CODE_START(smpboot_entry)
-	li.d		t0, CSR_DMW0_INIT	# UC, PLV0
-	csrwr		t0, LOONGARCH_CSR_DMWIN0
-	li.d		t0, CSR_DMW1_INIT	# CA, PLV0
-	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
+	SETUP_DMWINS	t0
 	JUMP_VIRT_ADDR	t0, t1
 
 #ifdef CONFIG_PAGE_SIZE_4KB
