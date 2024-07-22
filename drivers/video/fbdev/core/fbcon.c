@@ -64,6 +64,8 @@
 #include <linux/console.h>
 #include <linux/string.h>
 #include <linux/kd.h>
+#include <linux/panic.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/fbcon.h>
@@ -272,7 +274,14 @@ static int fbcon_get_rotate(struct fb_info *info)
 
 static bool fbcon_skip_panic(struct fb_info *info)
 {
+/* panic_cpu is not exported, and can't be used if built as module. Use
+ * oops_in_progress instead, but non-fatal oops won't be printed.
+ */
+#if defined(MODULE)
+	return (info->skip_panic && unlikely(oops_in_progress));
+#else
 	return (info->skip_panic && unlikely(atomic_read(&panic_cpu) != PANIC_CPU_INVALID));
+#endif
 }
 
 static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
