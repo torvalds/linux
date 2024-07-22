@@ -311,5 +311,7 @@ void parse_boot_command_line(void)
 				prot_virt_host = 1;
 		}
 #endif
+		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
+			relocate_lowcore = 1;
 	}
 }
