@@ -4,6 +4,7 @@
 #include "disasm.h"
 
 struct print_insn_context {
+	char scratch[16];
 	char *buf;
 	size_t sz;
 };
@@ -18,6 +19,22 @@ static void print_insn_cb(void *private_data, const char *fmt, ...)
 	va_end(args);
 }
 
+static const char *print_call_cb(void *private_data, const struct bpf_insn *insn)
+{
+	struct print_insn_context *ctx = private_data;
+
+	/* For pseudo calls verifier.c:jit_subprogs() hides original
+	 * imm to insn->off and changes insn->imm to be an index of
+	 * the subprog instead.
+	 */
+	if (insn->src_reg == BPF_PSEUDO_CALL) {
+		snprintf(ctx->scratch, sizeof(ctx->scratch), "%+d", insn->off);
+		return ctx->scratch;
+	}
+
+	return NULL;
+}
+
 struct bpf_insn *disasm_insn(struct bpf_insn *insn, char *buf, size_t buf_sz)
 {
 	struct print_insn_context ctx = {
@@ -26,6 +43,7 @@ struct bpf_insn *disasm_insn(struct bpf_insn *insn, char *buf, size_t buf_sz)
 	};
 	struct bpf_insn_cbs cbs = {
 		.cb_print	= print_insn_cb,
+		.cb_call	= print_call_cb,
 		.private_data	= &ctx,
 	};
 	char *tmp, *pfx_end, *sfx_start;
