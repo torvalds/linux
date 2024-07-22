@@ -672,7 +672,7 @@ static ssize_t tls_key_show(struct device *dev,
 
 	if (!ctrl->tls_pskid)
 		return 0;
-	return sysfs_emit(buf, "%08x", ctrl->tls_pskid);
+	return sysfs_emit(buf, "%08x\n", ctrl->tls_pskid);
 }
 static DEVICE_ATTR_RO(tls_key);
 #endif
