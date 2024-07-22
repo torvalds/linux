@@ -1188,11 +1188,6 @@ static bool reduce_link_params_in_bw_order(struct intel_dp *intel_dp,
 		     intel_dp->link.force_lane_count != lane_count))
 			continue;
 
-		/* TODO: Make switching from UHBR to non-UHBR rates work. */
-		if (drm_dp_is_uhbr_rate(crtc_state->port_clock) !=
-		    drm_dp_is_uhbr_rate(link_rate))
-			continue;
-
 		break;
 	}
 
