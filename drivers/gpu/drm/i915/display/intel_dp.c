@@ -4254,6 +4254,9 @@ intel_dp_mst_configure(struct intel_dp *intel_dp)
 
 	intel_dp->is_mst = intel_dp->mst_detect != DRM_DP_SST;
 
+	if (intel_dp->is_mst)
+		intel_dp_mst_prepare_probe(intel_dp);
+
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 
 	/* Avoid stale info on the next detect cycle. */

@@ -43,6 +43,7 @@
 #include "intel_dp_hdcp.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_tunnel.h"
+#include "intel_dp_link_training.h"
 #include "intel_dpio_phy.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -2030,4 +2031,34 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
 	}
 
 	return false;
+}
+
+/**
+ * intel_dp_mst_prepare_probe - Prepare an MST link for topology probing
+ * @intel_dp: DP port object
+ *
+ * Prepare an MST link for topology probing, programming the target
+ * link parameters to DPCD. This step is a requirement of the enumaration
+ * of path resources during probing.
+ */
+void intel_dp_mst_prepare_probe(struct intel_dp *intel_dp)
+{
+	int link_rate = intel_dp_max_link_rate(intel_dp);
+	int lane_count = intel_dp_max_lane_count(intel_dp);
+	u8 rate_select;
+	u8 link_bw;
+
+	if (intel_dp->link_trained)
+		return;
+
+	if (intel_mst_probed_link_params_valid(intel_dp, link_rate, lane_count))
+		return;
+
+	intel_dp_compute_rate(intel_dp, link_rate, &link_bw, &rate_select);
+
+	intel_dp_link_training_set_mode(intel_dp, link_rate, false);
+	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, lane_count,
+				      drm_dp_enhanced_frame_cap(intel_dp->dpcd));
+
+	intel_mst_set_probed_link_params(intel_dp, link_rate, lane_count);
 }
