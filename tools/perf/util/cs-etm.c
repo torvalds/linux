@@ -1267,8 +1267,12 @@ static inline int cs_etm__t32_instr_size(struct cs_etm_queue *etmq,
 
 static inline u64 cs_etm__first_executed_instr(struct cs_etm_packet *packet)
 {
-	/* Returns 0 for the CS_ETM_DISCONTINUITY packet */
-	if (packet->sample_type == CS_ETM_DISCONTINUITY)
+	/*
+	 * Return 0 for packets that have no addresses so that CS_ETM_INVAL_ADDR doesn't
+	 * appear in samples.
+	 */
+	if (packet->sample_type == CS_ETM_DISCONTINUITY ||
+	    packet->sample_type == CS_ETM_EXCEPTION)
 		return 0;
 
 	return packet->start_addr;
