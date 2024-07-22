@@ -179,6 +179,10 @@ static int cpg_pll_8_25_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				  val & pll_clk->pllecr_pllst_mask, 0, 1000);
 }
 
+static const struct clk_ops cpg_pll_f8_25_clk_ops = {
+	.recalc_rate = cpg_pll_8_25_clk_recalc_rate,
+};
+
 static const struct clk_ops cpg_pll_v8_25_clk_ops = {
 	.recalc_rate = cpg_pll_8_25_clk_recalc_rate,
 	.determine_rate = cpg_pll_8_25_clk_determine_rate,
@@ -188,13 +192,15 @@ static const struct clk_ops cpg_pll_v8_25_clk_ops = {
 static struct clk * __init cpg_pll_clk_register(const char *name,
 						const char *parent_name,
 						void __iomem *base,
-						unsigned int index)
+						unsigned int index,
+						const struct clk_ops *ops)
 {
 	static const struct { u16 cr0, cr1; } pll_cr_offsets[] __initconst = {
-		[2 - 2] = { CPG_PLL2CR0, CPG_PLL2CR1 },
-		[3 - 2] = { CPG_PLL3CR0, CPG_PLL3CR1 },
-		[4 - 2] = { CPG_PLL4CR0, CPG_PLL4CR1 },
-		[6 - 2] = { CPG_PLL6CR0, CPG_PLL6CR1 },
+		[1 - 1] = { CPG_PLL1CR0, CPG_PLL1CR1 },
+		[2 - 1] = { CPG_PLL2CR0, CPG_PLL2CR1 },
+		[3 - 1] = { CPG_PLL3CR0, CPG_PLL3CR1 },
+		[4 - 1] = { CPG_PLL4CR0, CPG_PLL4CR1 },
+		[6 - 1] = { CPG_PLL6CR0, CPG_PLL6CR1 },
 	};
 	struct clk_init_data init = {};
 	struct cpg_pll_clk *pll_clk;
@@ -205,13 +211,13 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.ops = &cpg_pll_v8_25_clk_ops;
+	init.ops = ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
 	pll_clk->hw.init = &init;
-	pll_clk->pllcr0_reg = base + pll_cr_offsets[index - 2].cr0;
-	pll_clk->pllcr1_reg = base + pll_cr_offsets[index - 2].cr1;
+	pll_clk->pllcr0_reg = base + pll_cr_offsets[index - 1].cr0;
+	pll_clk->pllcr1_reg = base + pll_cr_offsets[index - 1].cr1;
 	pll_clk->pllecr_reg = base + CPG_PLLECR;
 	pll_clk->pllecr_pllst_mask = CPG_PLLECR_PLLST(index);
 
@@ -413,7 +419,7 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 		 * modes.
 		 */
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
-					    base, 2);
+					    base, 2, &cpg_pll_v8_25_clk_ops);
 
 	case CLK_TYPE_GEN4_PLL2:
 		mult = cpg_pll_config->pll2_mult;
@@ -445,9 +451,15 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 		mult = (FIELD_GET(CPG_PLLxCR_STC, value) + 1) * 2;
 		break;
 
+	case CLK_TYPE_GEN4_PLL_F8_25:
+		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
+					    base, core->offset,
+					    &cpg_pll_f8_25_clk_ops);
+
 	case CLK_TYPE_GEN4_PLL_V8_25:
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
-					    base, core->offset);
+					    base, core->offset,
+					    &cpg_pll_v8_25_clk_ops);
 
 	case CLK_TYPE_GEN4_Z:
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
