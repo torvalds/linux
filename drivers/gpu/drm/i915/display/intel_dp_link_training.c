@@ -21,6 +21,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <drm/display/drm_dp_helper.h>
+
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
@@ -703,26 +705,28 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp,
 	return true;
 }
 
-static void
-intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
-				const struct intel_crtc_state *crtc_state)
+void intel_dp_link_training_set_mode(struct intel_dp *intel_dp, int link_rate, bool is_vrr)
 {
 	u8 link_config[2];
 
-	link_config[0] = crtc_state->vrr.flipline ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
-	link_config[1] = intel_dp_is_uhbr(crtc_state) ?
+	link_config[0] = is_vrr ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
+	link_config[1] = drm_dp_is_uhbr_rate(link_rate) ?
 			 DP_SET_ANSI_128B132B : DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 }
 
-static void
-intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
-			    const struct intel_crtc_state *crtc_state,
-			    u8 link_bw, u8 rate_select)
+static void intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
+					    const struct intel_crtc_state *crtc_state)
 {
-	u8 lane_count = crtc_state->lane_count;
+	intel_dp_link_training_set_mode(intel_dp,
+					crtc_state->port_clock, crtc_state->vrr.flipline);
+}
 
-	if (crtc_state->enhanced_framing)
+void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
+				   int link_bw, int rate_select, int lane_count,
+				   bool enhanced_framing)
+{
+	if (enhanced_framing)
 		lane_count |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	if (link_bw) {
@@ -744,6 +748,14 @@ intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_LANE_COUNT_SET, lane_count);
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_LINK_RATE_SET, rate_select);
 	}
+}
+
+static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state,
+					u8 link_bw, u8 rate_select)
+{
+	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, crtc_state->lane_count,
+				      crtc_state->enhanced_framing);
 }
 
 /*
