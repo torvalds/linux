@@ -1193,6 +1193,36 @@ static int reduce_lane_count(struct intel_dp *intel_dp, int current_lane_count)
 	return current_lane_count >> 1;
 }
 
+static bool reduce_link_params_in_rate_lane_order(struct intel_dp *intel_dp,
+						  const struct intel_crtc_state *crtc_state,
+						  int *new_link_rate, int *new_lane_count)
+{
+	int link_rate;
+	int lane_count;
+
+	lane_count = crtc_state->lane_count;
+	link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
+	if (link_rate < 0) {
+		lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
+		link_rate = intel_dp_max_common_rate(intel_dp);
+	}
+
+	if (lane_count < 0)
+		return false;
+
+	*new_link_rate = link_rate;
+	*new_lane_count = lane_count;
+
+	return true;
+}
+
+static bool reduce_link_params(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state,
+			       int *new_link_rate, int *new_lane_count)
+{
+	return reduce_link_params_in_rate_lane_order(intel_dp, crtc_state,
+						     new_link_rate, new_lane_count);
+}
+
 static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 						   const struct intel_crtc_state *crtc_state)
 {
@@ -1206,14 +1236,7 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		return 0;
 	}
 
-	new_lane_count = crtc_state->lane_count;
-	new_link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
-	if (new_link_rate < 0) {
-		new_lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
-		new_link_rate = intel_dp_max_common_rate(intel_dp);
-	}
-
-	if (new_lane_count < 0)
+	if (!reduce_link_params(intel_dp, crtc_state, &new_link_rate, &new_lane_count))
 		return -1;
 
 	if (intel_dp_is_edp(intel_dp) &&
