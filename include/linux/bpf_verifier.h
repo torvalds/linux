@@ -576,6 +576,14 @@ struct bpf_insn_aux_data {
 	bool is_iter_next; /* bpf_iter_<type>_next() kfunc call */
 	bool call_with_percpu_alloc_ptr; /* {this,per}_cpu_ptr() with prog percpu alloc */
 	u8 alu_state; /* used in combination with alu_limit */
+	/* true if STX or LDX instruction is a part of a spill/fill
+	 * pattern for a no_caller_saved_registers call.
+	 */
+	u8 nocsr_pattern:1;
+	/* for CALL instructions, a number of spill/fill pairs in the
+	 * no_caller_saved_registers pattern.
+	 */
+	u8 nocsr_spills_num:3;
 
 	/* below fields are initialized once */
 	unsigned int orig_idx; /* original instruction index */
@@ -645,6 +653,10 @@ struct bpf_subprog_info {
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
 	u16 stack_extra;
+	/* offsets in range [stack_depth .. nocsr_stack_off)
+	 * are used for no_caller_saved_registers spills and fills.
+	 */
+	s16 nocsr_stack_off;
 	bool has_tail_call: 1;
 	bool tail_call_reachable: 1;
 	bool has_ld_abs: 1;
@@ -652,6 +664,8 @@ struct bpf_subprog_info {
 	bool is_async_cb: 1;
 	bool is_exception_cb: 1;
 	bool args_cached: 1;
+	/* true if nocsr stack region is used by functions that can't be inlined */
+	bool keep_nocsr_stack: 1;
 
 	u8 arg_cnt;
 	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
