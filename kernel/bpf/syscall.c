@@ -385,7 +385,7 @@ void bpf_map_free_id(struct bpf_map *map)
 	spin_unlock_irqrestore(&map_idr_lock, flags);
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 static void bpf_map_save_memcg(struct bpf_map *map)
 {
 	/* Currently if a map is created by a process belonging to the root
@@ -486,7 +486,7 @@ int bpf_map_alloc_pages(const struct bpf_map *map, gfp_t gfp, int nid,
 	unsigned long i, j;
 	struct page *pg;
 	int ret = 0;
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	struct mem_cgroup *memcg, *old_memcg;
 
 	memcg = bpf_map_get_memcg(map);
@@ -505,7 +505,7 @@ int bpf_map_alloc_pages(const struct bpf_map *map, gfp_t gfp, int nid,
 		break;
 	}
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	set_active_memcg(old_memcg);
 	mem_cgroup_put(memcg);
 #endif

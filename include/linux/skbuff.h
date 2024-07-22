@@ -3429,6 +3429,10 @@ static inline struct page *__dev_alloc_pages_noprof(gfp_t gfp_mask,
 }
 #define __dev_alloc_pages(...)	alloc_hooks(__dev_alloc_pages_noprof(__VA_ARGS__))
 
+/*
+ * This specialized allocator has to be a macro for its allocations to be
+ * accounted separately (to have a separate alloc_tag).
+ */
 #define dev_alloc_pages(_order) __dev_alloc_pages(GFP_ATOMIC | __GFP_NOWARN, _order)
 
 /**
@@ -3445,6 +3449,10 @@ static inline struct page *__dev_alloc_page_noprof(gfp_t gfp_mask)
 }
 #define __dev_alloc_page(...)	alloc_hooks(__dev_alloc_page_noprof(__VA_ARGS__))
 
+/*
+ * This specialized allocator has to be a macro for its allocations to be
+ * accounted separately (to have a separate alloc_tag).
+ */
 #define dev_alloc_page()	dev_alloc_pages(0)
 
 /**

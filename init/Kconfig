@@ -971,10 +971,22 @@ config MEMCG
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 
-config MEMCG_KMEM
-	bool
+config MEMCG_V1
+	bool "Legacy cgroup v1 memory controller"
 	depends on MEMCG
-	default y
+	default n
+	help
+	  Legacy cgroup v1 memory controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
+
+	  Please note that feature set of the legacy memory controller is likely
+	  going to shrink due to deprecation process. New deployments with v1
+	  controller are highly discouraged.
+
+	  San N is unsure.
 
 config BLK_CGROUP
 	bool "IO controller"

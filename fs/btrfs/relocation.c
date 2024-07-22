@@ -2981,8 +2981,7 @@ static int relocate_one_folio(struct reloc_control *rc,
 
 	if (folio_test_readahead(folio))
 		page_cache_async_readahead(inode->i_mapping, ra, NULL,
-					   folio, index,
-					   last_index + 1 - index);
+					   folio, last_index + 1 - index);
 
 	if (!folio_test_uptodate(folio)) {
 		btrfs_read_folio(NULL, folio);

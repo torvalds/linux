@@ -683,9 +683,8 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 		if (!PageOffline(pg))
 			__SetPageOffline(pg);
 		return;
-	}
-	if (PageOffline(pg))
-		__ClearPageOffline(pg);
+	} else if (!PageOffline(pg))
+		return;
 
 	/* This frame is currently backed; online the page. */
 	generic_online_page(pg, 0);

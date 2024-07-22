@@ -1162,72 +1162,16 @@ destroy_targets_out:
 	return err;
 }
 
-static int damon_sysfs_update_target_pid(struct damon_target *target, int pid)
-{
-	struct pid *pid_new;
-
-	pid_new = find_get_pid(pid);
-	if (!pid_new)
-		return -EINVAL;
-
-	if (pid_new == target->pid) {
-		put_pid(pid_new);
-		return 0;
-	}
-
-	put_pid(target->pid);
-	target->pid = pid_new;
-	return 0;
-}
-
-static int damon_sysfs_update_target(struct damon_target *target,
-		struct damon_ctx *ctx,
-		struct damon_sysfs_target *sys_target)
-{
-	int err = 0;
-
-	if (damon_target_has_pid(ctx)) {
-		err = damon_sysfs_update_target_pid(target, sys_target->pid);
-		if (err)
-			return err;
-	}
-
-	/*
-	 * Do monitoring target region boundary update only if one or more
-	 * regions are set by the user.  This is for keeping current monitoring
-	 * target results and range easier, especially for dynamic monitoring
-	 * target regions update ops like 'vaddr'.
-	 */
-	if (sys_target->regions->nr)
-		err = damon_sysfs_set_regions(target, sys_target->regions);
-	return err;
-}
-
-static int damon_sysfs_set_targets(struct damon_ctx *ctx,
+static int damon_sysfs_add_targets(struct damon_ctx *ctx,
 		struct damon_sysfs_targets *sysfs_targets)
 {
-	struct damon_target *t, *next;
-	int i = 0, err;
+	int i, err;
 
 	/* Multiple physical address space monitoring targets makes no sense */
 	if (ctx->ops.id == DAMON_OPS_PADDR && sysfs_targets->nr > 1)
 		return -EINVAL;
 
-	damon_for_each_target_safe(t, next, ctx) {
-		if (i < sysfs_targets->nr) {
-			err = damon_sysfs_update_target(t, ctx,
-					sysfs_targets->targets_arr[i]);
-			if (err)
-				return err;
-		} else {
-			if (damon_target_has_pid(ctx))
-				put_pid(t->pid);
-			damon_destroy_target(t);
-		}
-		i++;
-	}
-
-	for (; i < sysfs_targets->nr; i++) {
+	for (i = 0; i < sysfs_targets->nr; i++) {
 		struct damon_sysfs_target *st = sysfs_targets->targets_arr[i];
 
 		err = damon_sysfs_add_target(st, ctx);
@@ -1339,11 +1283,14 @@ static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
 	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
 	if (err)
 		return err;
-	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
+	err = damon_sysfs_add_targets(ctx, sys_ctx->targets);
 	if (err)
 		return err;
-	return damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
+	return damon_sysfs_add_schemes(ctx, sys_ctx->schemes);
 }
+
+static struct damon_ctx *damon_sysfs_build_ctx(
+		struct damon_sysfs_context *sys_ctx);
 
 /*
  * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
@@ -1353,14 +1300,22 @@ static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
  */
 static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 {
+	struct damon_ctx *param_ctx;
+	int err;
+
 	if (!damon_sysfs_kdamond_running(kdamond))
 		return -EINVAL;
 	/* TODO: Support multiple contexts per kdamond */
 	if (kdamond->contexts->nr != 1)
 		return -EINVAL;
 
-	return damon_sysfs_apply_inputs(kdamond->damon_ctx,
-			kdamond->contexts->contexts_arr[0]);
+	param_ctx = damon_sysfs_build_ctx(kdamond->contexts->contexts_arr[0]);
+	if (IS_ERR(param_ctx))
+		return PTR_ERR(param_ctx);
+	err = damon_commit_ctx(kdamond->damon_ctx, param_ctx);
+	damon_sysfs_destroy_targets(param_ctx);
+	damon_destroy_ctx(param_ctx);
+	return err;
 }
 
 static int damon_sysfs_commit_schemes_quota_goals(

@@ -41,7 +41,7 @@ enum _slab_flag_bits {
 #ifdef CONFIG_FAILSLAB
 	_SLAB_FAILSLAB,
 #endif
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	_SLAB_ACCOUNT,
 #endif
 #ifdef CONFIG_KASAN_GENERIC
@@ -171,7 +171,7 @@ enum _slab_flag_bits {
 # define SLAB_FAILSLAB		__SLAB_FLAG_UNUSED
 #endif
 /* Account to memcg */
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 # define SLAB_ACCOUNT		__SLAB_FLAG_BIT(_SLAB_ACCOUNT)
 #else
 # define SLAB_ACCOUNT		__SLAB_FLAG_UNUSED
@@ -407,7 +407,7 @@ enum kmalloc_cache_type {
 #ifndef CONFIG_ZONE_DMA
 	KMALLOC_DMA = KMALLOC_NORMAL,
 #endif
-#ifndef CONFIG_MEMCG_KMEM
+#ifndef CONFIG_MEMCG
 	KMALLOC_CGROUP = KMALLOC_NORMAL,
 #endif
 	KMALLOC_RANDOM_START = KMALLOC_NORMAL,
@@ -420,7 +420,7 @@ enum kmalloc_cache_type {
 #ifdef CONFIG_ZONE_DMA
 	KMALLOC_DMA,
 #endif
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	KMALLOC_CGROUP,
 #endif
 	NR_KMALLOC_TYPES
@@ -436,7 +436,7 @@ extern kmem_buckets kmalloc_caches[NR_KMALLOC_TYPES];
 #define KMALLOC_NOT_NORMAL_BITS					\
 	(__GFP_RECLAIMABLE |					\
 	(IS_ENABLED(CONFIG_ZONE_DMA)   ? __GFP_DMA : 0) |	\
-	(IS_ENABLED(CONFIG_MEMCG_KMEM) ? __GFP_ACCOUNT : 0))
+	(IS_ENABLED(CONFIG_MEMCG) ? __GFP_ACCOUNT : 0))
 
 extern unsigned long random_kmalloc_seed;
 
@@ -464,7 +464,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags, unsigne
 	 */
 	if (IS_ENABLED(CONFIG_ZONE_DMA) && (flags & __GFP_DMA))
 		return KMALLOC_DMA;
-	if (!IS_ENABLED(CONFIG_MEMCG_KMEM) || (flags & __GFP_RECLAIMABLE))
+	if (!IS_ENABLED(CONFIG_MEMCG) || (flags & __GFP_RECLAIMABLE))
 		return KMALLOC_RECLAIM;
 	else
 		return KMALLOC_CGROUP;
