@@ -664,19 +664,6 @@ static DEVICE_ATTR(dhchap_ctrl_secret, S_IRUGO | S_IWUSR,
 	nvme_ctrl_dhchap_ctrl_secret_show, nvme_ctrl_dhchap_ctrl_secret_store);
 #endif
 
-#ifdef CONFIG_NVME_TCP_TLS
-static ssize_t tls_key_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
-
-	if (!ctrl->tls_pskid)
-		return 0;
-	return sysfs_emit(buf, "%08x\n", ctrl->tls_pskid);
-}
-static DEVICE_ATTR_RO(tls_key);
-#endif
-
 static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_reset_controller.attr,
 	&dev_attr_rescan_controller.attr,
@@ -703,9 +690,6 @@ static struct attribute *nvme_dev_attrs[] = {
 #ifdef CONFIG_NVME_HOST_AUTH
 	&dev_attr_dhchap_secret.attr,
 	&dev_attr_dhchap_ctrl_secret.attr,
-#endif
-#ifdef CONFIG_NVME_TCP_TLS
-	&dev_attr_tls_key.attr,
 #endif
 	&dev_attr_adm_passthru_err_log_enabled.attr,
 	NULL
@@ -737,11 +721,6 @@ static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 	if (a == &dev_attr_dhchap_ctrl_secret.attr && !ctrl->opts)
 		return 0;
 #endif
-#ifdef CONFIG_NVME_TCP_TLS
-	if (a == &dev_attr_tls_key.attr &&
-	    (!ctrl->opts || strcmp(ctrl->opts->transport, "tcp")))
-		return 0;
-#endif
 
 	return a->mode;
 }
@@ -752,8 +731,49 @@ const struct attribute_group nvme_dev_attrs_group = {
 };
 EXPORT_SYMBOL_GPL(nvme_dev_attrs_group);
 
+#ifdef CONFIG_NVME_TCP_TLS
+static ssize_t tls_key_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	if (!ctrl->tls_pskid)
+		return 0;
+	return sysfs_emit(buf, "%08x\n", ctrl->tls_pskid);
+}
+static DEVICE_ATTR_RO(tls_key);
+
+static struct attribute *nvme_tls_attrs[] = {
+	&dev_attr_tls_key.attr,
+};
+
+static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	if (!ctrl->opts || strcmp(ctrl->opts->transport, "tcp"))
+		return 0;
+
+	if (a == &dev_attr_tls_key.attr &&
+	    !ctrl->opts->tls)
+		return 0;
+
+	return a->mode;
+}
+
+const struct attribute_group nvme_tls_attrs_group = {
+	.attrs		= nvme_tls_attrs,
+	.is_visible	= nvme_tls_attrs_are_visible,
+};
+#endif
+
 const struct attribute_group *nvme_dev_attr_groups[] = {
 	&nvme_dev_attrs_group,
+#ifdef CONFIG_NVME_TCP_TLS
+	&nvme_tls_attrs_group,
+#endif
 	NULL,
 };
 
