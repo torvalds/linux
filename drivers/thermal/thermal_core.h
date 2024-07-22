@@ -133,6 +133,9 @@ struct thermal_zone_device {
 	struct thermal_trip_desc trips[] __counted_by(num_trips);
 };
 
+/* Initial thermal zone temperature. */
+#define THERMAL_TEMP_INIT	INT_MIN
+
 /*
  * Default delay after a failing thermal zone temperature check before
  * attempting to check it again.
