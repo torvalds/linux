@@ -42,8 +42,6 @@
 #define IS_VALID_CS_TRACE_ID(id)	\
 	((id > CORESIGHT_TRACE_ID_RES_0) && (id < CORESIGHT_TRACE_ID_RES_TOP))
 
-/* Allocate and release IDs for a single default trace ID map */
-
 /**
  * Read and optionally allocate a CoreSight trace ID and associate with a CPU.
  *
@@ -60,6 +58,12 @@
 int coresight_trace_id_get_cpu_id(int cpu);
 
 /**
+ * Version of coresight_trace_id_get_cpu_id() that allows the ID map to operate
+ * on to be provided.
+ */
+int coresight_trace_id_get_cpu_id_map(int cpu, struct coresight_trace_id_map *id_map);
+
+/**
  * Release an allocated trace ID associated with the CPU.
  *
  * This will release the CoreSight trace ID associated with the CPU,
@@ -71,6 +75,12 @@ int coresight_trace_id_get_cpu_id(int cpu);
  * @cpu: The CPU index to release the associated trace ID.
  */
 void coresight_trace_id_put_cpu_id(int cpu);
+
+/**
+ * Version of coresight_trace_id_put_cpu_id() that allows the ID map to operate
+ * on to be provided.
+ */
+void coresight_trace_id_put_cpu_id_map(int cpu, struct coresight_trace_id_map *id_map);
 
 /**
  * Read the current allocated CoreSight Trace ID value for the CPU.
@@ -91,6 +101,12 @@ void coresight_trace_id_put_cpu_id(int cpu);
  * return: current value, will be 0 if unallocated.
  */
 int coresight_trace_id_read_cpu_id(int cpu);
+
+/**
+ * Version of coresight_trace_id_read_cpu_id() that allows the ID map to operate
+ * on to be provided.
+ */
+int coresight_trace_id_read_cpu_id_map(int cpu, struct coresight_trace_id_map *id_map);
 
 /**
  * Allocate a CoreSight trace ID for a system component.
