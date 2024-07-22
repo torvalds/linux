@@ -45,6 +45,7 @@ properties:
       the pwm uses a logic low output for 100% duty cycle. If set to 1 the pwm
       uses a logic high output for 100% duty cycle.
     $ref: /schemas/types.yaml#/definitions/uint32-array
+    deprecated: true
     minItems: 3
     maxItems: 3
     items:
@@ -121,7 +122,6 @@ examples:
         reg = <0x2e>;
         adi,bypass-attenuator-in0 = <1>;
         adi,bypass-attenuator-in1 = <0>;
-        adi,pwm-active-state = <1 0 1>;
         adi,pin10-function = "smbalert#";
         adi,pin14-function = "tach4";
         #pwm-cells = <4>;
