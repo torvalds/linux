@@ -128,6 +128,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->basic_out.always_scale = pipe_ctx->stream->ctx->dc->debug.always_scale;
 	// Make spl input basic output info alpha_en field point to plane res scl_data lb_params alpha_en
 	spl_in->basic_out.alpha_en = pipe_ctx->plane_res.scl_data.lb_params.alpha_en;
+	spl_in->basic_out.use_two_pixels_per_container = pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
 	// Make spl input basic input info scaling quality field point to plane state scaling_quality
 	populate_spltaps_from_taps(&spl_in->scaling_quality, &plane_state->scaling_quality);
 	// Translate edge adaptive scaler preference
