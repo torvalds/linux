@@ -377,6 +377,8 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 	drm_panel_init(&boe->panel, dev, &boe_bf060y8m_aj0_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
+	boe->panel.prepare_prev_first = true;
+
 	boe->panel.backlight = boe_bf060y8m_aj0_create_backlight(dsi);
 	if (IS_ERR(boe->panel.backlight))
 		return dev_err_probe(dev, PTR_ERR(boe->panel.backlight),
