@@ -123,7 +123,8 @@ _LPP_OFFSET	= __LC_LPP
 	lg	%r9,\sie_control		# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
+	lg	%r9,__LC_CURRENT
+	mvi	__TI_sie(%r9),0
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	.endm
 #endif
@@ -183,15 +184,15 @@ SYM_FUNC_END(__switch_to_asm)
  */
 SYM_FUNC_START(__sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
-	lg	%r12,__LC_CURRENT
+	lg	%r14,__LC_CURRENT
 	stg	%r2,__SF_SIE_CONTROL_PHYS(%r15)	# save sie block physical..
 	stg	%r3,__SF_SIE_CONTROL(%r15)	# ...and virtual addresses
 	stg	%r4,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
 	stg	%r5,__SF_SIE_GUEST_ASCE(%r15)	# save guest asce
 	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
-	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r12) # copy thread flags
+	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r14) # copy thread flags
 	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
-	oi	__LC_CPU_FLAGS+7,_CIF_SIE
+	mvi	__TI_sie(%r14),1
 	lctlg	%c1,%c1,__SF_SIE_GUEST_ASCE(%r15) # load primary asce
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
@@ -211,7 +212,8 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
+	lg	%r14,__LC_CURRENT
+	mvi	__TI_sie(%r14),0
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
@@ -394,7 +396,8 @@ SYM_CODE_START(\name)
 	tmhh	%r8,0x0001			# interrupting from user ?
 	jnz	1f
 #if IS_ENABLED(CONFIG_KVM)
-	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
+	lg	%r10,__LC_CURRENT
+	tm	__TI_sie(%r10),0xff
 	jz	0f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT __SF_SIE_CONTROL(%r15)
@@ -469,9 +472,10 @@ SYM_CODE_START(mcck_int_handler)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
-	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
+	lg	%r10,__LC_CURRENT
+	tm	__TI_sie(%r10),0xff
 	jz	.Lmcck_user
-	# Need to compare the address instead of a CIF_SIE* flag.
+	# Need to compare the address instead of __TI_SIE flag.
 	# Otherwise there would be a race between setting the flag
 	# and entering SIE (or leaving and clearing the flag). This
 	# would cause machine checks targeted at the guest to be

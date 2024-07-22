@@ -28,6 +28,7 @@ int main(void)
 	BLANK();
 	/* thread info offsets */
 	OFFSET(__TI_flags, task_struct, thread_info.flags);
+	OFFSET(__TI_sie, task_struct, thread_info.sie);
 	BLANK();
 	/* pt_regs offsets */
 	OFFSET(__PT_PSW, pt_regs, psw);
