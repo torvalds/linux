@@ -310,6 +310,10 @@ struct kfd_node {
 	struct kfd_local_mem_info local_mem_info;
 
 	struct kfd_dev *kfd;
+
+	/* Track per device allocated watch points */
+	uint32_t alloc_watch_ids;
+	spinlock_t watch_points_lock;
 };
 
 struct kfd_dev {
@@ -361,10 +365,6 @@ struct kfd_dev {
 
 	struct kfd_node *nodes[MAX_KFD_NODES];
 	unsigned int num_nodes;
-
-	/* Track per device allocated watch points */
-	uint32_t alloc_watch_ids;
-	spinlock_t watch_points_lock;
 
 	/* Kernel doorbells for KFD device */
 	struct amdgpu_bo *doorbells;

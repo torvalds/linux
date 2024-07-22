@@ -884,12 +884,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			dev_err(kfd_device, "Error initializing KFD node\n");
 			goto node_init_error;
 		}
+
+		spin_lock_init(&node->watch_points_lock);
+
 		kfd->nodes[i] = node;
 	}
 
 	svm_range_set_max_pages(kfd->adev);
-
-	spin_lock_init(&kfd->watch_points_lock);
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
