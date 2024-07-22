@@ -4214,7 +4214,9 @@ whether or not KVM_CAP_X86_USER_SPACE_MSR's KVM_MSR_EXIT_REASON_FILTER is
 enabled.  If KVM_MSR_EXIT_REASON_FILTER is enabled, KVM will exit to userspace
 on denied accesses, i.e. userspace effectively intercepts the MSR access.  If
 KVM_MSR_EXIT_REASON_FILTER is not enabled, KVM will inject a #GP into the guest
-on denied accesses.
+on denied accesses.  Note, if an MSR access is denied during emulation of MSR
+load/stores during VMX transitions, KVM ignores KVM_MSR_EXIT_REASON_FILTER.
+See the below warning for full details.
 
 If an MSR access is allowed by userspace, KVM will emulate and/or virtualize
 the access in accordance with the vCPU model.  Note, KVM may still ultimately
@@ -4229,9 +4231,22 @@ filtering. In that mode, ``KVM_MSR_FILTER_DEFAULT_DENY`` is invalid and causes
 an error.
 
 .. warning::
-   MSR accesses as part of nested VM-Enter/VM-Exit are not filtered.
-   This includes both writes to individual VMCS fields and reads/writes
-   through the MSR lists pointed to by the VMCS.
+   MSR accesses that are side effects of instruction execution (emulated or
+   native) are not filtered as hardware does not honor MSR bitmaps outside of
+   RDMSR and WRMSR, and KVM mimics that behavior when emulating instructions
+   to avoid pointless divergence from hardware.  E.g. RDPID reads MSR_TSC_AUX,
+   SYSENTER reads the SYSENTER MSRs, etc.
+
+   MSRs that are loaded/stored via dedicated VMCS fields are not filtered as
+   part of VM-Enter/VM-Exit emulation.
+
+   MSRs that are loaded/store via VMX's load/store lists _are_ filtered as part
+   of VM-Enter/VM-Exit emulation.  If an MSR access is denied on VM-Enter, KVM
+   synthesizes a consistency check VM-Exit(EXIT_REASON_MSR_LOAD_FAIL).  If an
+   MSR access is denied on VM-Exit, KVM synthesizes a VM-Abort.  In short, KVM
+   extends Intel's architectural list of MSRs that cannot be loaded/saved via
+   the VM-Enter/VM-Exit MSR list.  It is platform owner's responsibility to
+   to communicate any such restrictions to their end users.
 
    x2APIC MSR accesses cannot be filtered (KVM silently ignores filters that
    cover any x2APIC MSRs).

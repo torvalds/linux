@@ -1940,19 +1940,21 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-static int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 {
 	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
 		return KVM_MSR_RET_FILTERED;
 	return kvm_get_msr_ignored_check(vcpu, index, data, false);
 }
+EXPORT_SYMBOL_GPL(kvm_get_msr_with_filter);
 
-static int kvm_set_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 data)
+int kvm_set_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 data)
 {
 	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
 		return KVM_MSR_RET_FILTERED;
 	return kvm_set_msr_ignored_check(vcpu, index, data, false);
 }
+EXPORT_SYMBOL_GPL(kvm_set_msr_with_filter);
 
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 {

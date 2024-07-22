@@ -981,7 +981,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 				__func__, i, e.index, e.reserved);
 			goto fail;
 		}
-		if (kvm_set_msr(vcpu, e.index, e.value)) {
+		if (kvm_set_msr_with_filter(vcpu, e.index, e.value)) {
 			pr_debug_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, e.value);
@@ -1017,7 +1017,7 @@ static bool nested_vmx_get_vmexit_msr_value(struct kvm_vcpu *vcpu,
 		}
 	}
 
-	if (kvm_get_msr(vcpu, msr_index, data)) {
+	if (kvm_get_msr_with_filter(vcpu, msr_index, data)) {
 		pr_debug_ratelimited("%s cannot read MSR (0x%x)\n", __func__,
 			msr_index);
 		return false;
@@ -1112,9 +1112,9 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 			/*
 			 * Emulated VMEntry does not fail here.  Instead a less
 			 * accurate value will be returned by
-			 * nested_vmx_get_vmexit_msr_value() using kvm_get_msr()
-			 * instead of reading the value from the vmcs02 VMExit
-			 * MSR-store area.
+			 * nested_vmx_get_vmexit_msr_value() by reading KVM's
+			 * internal MSR state instead of reading the value from
+			 * the vmcs02 VMExit MSR-store area.
 			 */
 			pr_warn_ratelimited(
 				"Not enough msr entries in msr_autostore.  Can't add msr %x\n",
@@ -4806,7 +4806,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 				goto vmabort;
 			}
 
-			if (kvm_set_msr(vcpu, h.index, h.value)) {
+			if (kvm_set_msr_with_filter(vcpu, h.index, h.value)) {
 				pr_debug_ratelimited(
 					"%s WRMSR failed (%u, 0x%x, 0x%llx)\n",
 					__func__, j, h.index, h.value);
