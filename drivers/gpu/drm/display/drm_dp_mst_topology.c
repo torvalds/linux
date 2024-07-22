@@ -2339,7 +2339,7 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
-	int old_ddps = 0, ret;
+	int ret;
 	u8 new_pdt = DP_PEER_DEVICE_NONE;
 	bool new_mcs = 0;
 	bool created = false, send_link_addr = false, changed = false;
@@ -2372,7 +2372,6 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 		 */
 		drm_modeset_lock(&mgr->base.lock, NULL);
 
-		old_ddps = port->ddps;
 		changed = port->ddps != port_msg->ddps ||
 			(port->ddps &&
 			 (port->ldps != port_msg->legacy_device_plug_status ||
@@ -2407,15 +2406,13 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 	 * Reprobe PBN caps on both hotplug, and when re-probing the link
 	 * for our parent mstb
 	 */
-	if (old_ddps != port->ddps || !created) {
-		if (port->ddps && !port->input) {
-			ret = drm_dp_send_enum_path_resources(mgr, mstb,
-							      port);
-			if (ret == 1)
-				changed = true;
-		} else {
-			port->full_pbn = 0;
-		}
+	if (port->ddps && !port->input) {
+		ret = drm_dp_send_enum_path_resources(mgr, mstb,
+						      port);
+		if (ret == 1)
+			changed = true;
+	} else {
+		port->full_pbn = 0;
 	}
 
 	ret = drm_dp_port_set_pdt(port, new_pdt, new_mcs);
