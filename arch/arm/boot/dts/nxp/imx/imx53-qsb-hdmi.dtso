@@ -83,7 +83,3 @@
 &panel_dpi {
 	status = "disabled";
 };
-
-&tve {
-	status = "disabled";
-};
