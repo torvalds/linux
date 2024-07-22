@@ -169,13 +169,14 @@ SYM_FUNC_START(__switch_to_asm)
 	stg	%r15,__THREAD_ksp(%r1,%r2)	# store kernel stack of prev
 	lg	%r15,0(%r4,%r3)			# start of kernel stack of next
 	agr	%r15,%r5			# end of kernel stack of next
-	stg	%r3,__LC_CURRENT		# store task struct of next
-	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
+	GET_LC	%r13
+	stg	%r3,__LC_CURRENT(%r13)		# store task struct of next
+	stg	%r15,__LC_KERNEL_STACK(%r13)	# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
 	aghi	%r3,__TASK_pid
-	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
+	mvc	__LC_CURRENT_PID(4,%r13),0(%r3)	# store pid of next
+	ALTERNATIVE "nop", "lpp _LPP_OFFSET(%r13)", ALT_FACILITY(40)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "nop", "lpp _LPP_OFFSET", ALT_FACILITY(40)
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to_asm)
 
