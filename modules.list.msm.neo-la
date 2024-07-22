@@ -88,3 +88,4 @@ crypto-qti-common.ko
 crypto-qti-hwkm.ko
 hwkm.ko
 tmecom-intf.ko
+qcom-pdc.ko

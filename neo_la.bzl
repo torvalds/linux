@@ -7,6 +7,7 @@ target_name = "neo-la"
 def define_neo_la():
     _neo_in_tree_modules = [
         # keep sorted
+        "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/edac/kryo_arm64_edac.ko",
         "drivers/edac/qcom_edac.ko",
@@ -18,6 +19,7 @@ def define_neo_la():
         "drivers/iommu/qcom_iommu_debug.ko",
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/msm_show_resume_irq.ko",
+        "drivers/irqchip/qcom-pdc.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
@@ -32,9 +34,11 @@ def define_neo_la():
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/memory_dump_v2.ko",
         "drivers/soc/qcom/msm_performance.ko",
+        "drivers/soc/qcom/qcom_cpuss_sleep_stats.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/qcom_soc_wdt.ko",
+        "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/secure_buffer.ko",
