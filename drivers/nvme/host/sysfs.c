@@ -753,9 +753,20 @@ static ssize_t tls_configured_key_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(tls_configured_key);
 
+static ssize_t tls_keyring_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	struct key *keyring = ctrl->opts->keyring;
+
+	return sysfs_emit(buf, "%s\n", keyring->description);
+}
+static DEVICE_ATTR_RO(tls_keyring);
+
 static struct attribute *nvme_tls_attrs[] = {
 	&dev_attr_tls_key.attr,
 	&dev_attr_tls_configured_key.attr,
+	&dev_attr_tls_keyring.attr,
 };
 
 static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
@@ -772,6 +783,9 @@ static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
 		return 0;
 	if (a == &dev_attr_tls_configured_key.attr &&
 	    !ctrl->opts->tls_key)
+		return 0;
+	if (a == &dev_attr_tls_keyring.attr &&
+	    !ctrl->opts->keyring)
 		return 0;
 
 	return a->mode;
