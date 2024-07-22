@@ -53,10 +53,6 @@ static u32 cpg_mode __initdata;
 #define CPG_PLLxCR0_SSFREQ	GENMASK(14, 8)	/* SSCG Modulation Frequency */
 #define CPG_PLLxCR0_SSDEPT	GENMASK(6, 0)	/* SSCG Modulation Depth */
 
-#define SSMODE_FM		BIT(2)	/* Fractional Multiplication */
-#define SSMODE_DITHER		BIT(1)	/* Frequency Dithering */
-#define SSMODE_CENTER		BIT(0)	/* Center (vs. Down) Spread Dithering */
-
 /* PLL Clocks */
 struct cpg_pll_clk {
 	struct clk_hw hw;
