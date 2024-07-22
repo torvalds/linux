@@ -1876,7 +1876,8 @@ union bpf_attr {
  * long bpf_probe_read(void *dst, u32 size, const void *unsafe_ptr)
  * 	Description
  * 		For tracing programs, safely attempt to read *size* bytes from
- * 		kernel space address *unsafe_ptr* and store the data in *dst*.
+ * 		user or kernel space address *unsafe_ptr* and store the
+ * 		data in *dst*.
  *
  * 		Generally, use **bpf_probe_read_user**\ () or
  * 		**bpf_probe_read_kernel**\ () instead.
@@ -2759,9 +2760,8 @@ union bpf_attr {
  *
  * long bpf_probe_read_str(void *dst, u32 size, const void *unsafe_ptr)
  * 	Description
- * 		Copy a NUL terminated string from an unsafe kernel address
- * 		*unsafe_ptr* to *dst*. See **bpf_probe_read_kernel_str**\ () for
- * 		more details.
+ * 		Copy a NUL terminated string from an unsafe user or kernel
+ * 		address *unsafe_ptr* to *dst*.
  *
  * 		Generally, use **bpf_probe_read_user_str**\ () or
  * 		**bpf_probe_read_kernel_str**\ () instead.
