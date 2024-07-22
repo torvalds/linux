@@ -222,49 +222,6 @@ static int qca_send_reset(struct hci_dev *hdev)
 	return 0;
 }
 
-static int qca_read_fw_board_id(struct hci_dev *hdev, u16 *bid)
-{
-	u8 cmd;
-	struct sk_buff *skb;
-	struct edl_event_hdr *edl;
-	int err = 0;
-
-	cmd = EDL_GET_BID_REQ_CMD;
-	skb = __hci_cmd_sync_ev(hdev, EDL_PATCH_CMD_OPCODE, EDL_PATCH_CMD_LEN,
-				&cmd, 0, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		err = PTR_ERR(skb);
-		bt_dev_err(hdev, "Reading QCA board ID failed (%d)", err);
-		return err;
-	}
-
-	edl = skb_pull_data(skb, sizeof(*edl));
-	if (!edl) {
-		bt_dev_err(hdev, "QCA read board ID with no header");
-		err = -EILSEQ;
-		goto out;
-	}
-
-	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
-	    edl->rtype != EDL_GET_BID_REQ_CMD) {
-		bt_dev_err(hdev, "QCA Wrong packet: %d %d", edl->cresp, edl->rtype);
-		err = -EIO;
-		goto out;
-	}
-
-	if (skb->len < 3) {
-		err = -EILSEQ;
-		goto out;
-	}
-
-	*bid = (edl->data[1] << 8) + edl->data[2];
-	bt_dev_dbg(hdev, "%s: bid = %x", __func__, *bid);
-
-out:
-	kfree_skb(skb);
-	return err;
-}
-
 int qca_send_pre_shutdown_cmd(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
@@ -688,7 +645,6 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	int err;
 	u8 rom_ver = 0;
 	u32 soc_ver;
-	u16 boardid = 0;
 
 	bt_dev_dbg(hdev, "QCA setup on UART");
 
@@ -734,9 +690,6 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 
 	/* Give the controller some time to get ready to receive the NVM */
 	msleep(10);
-
-	if (soc_type == QCA_QCA2066)
-		qca_read_fw_board_id(hdev, &boardid);
 
 	/* Download NVM configuration */
 	config.type = TLV_TYPE_NVM;
