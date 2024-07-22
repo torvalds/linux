@@ -14,9 +14,14 @@
 #include <asm/ctlreg.h>
 #include <asm/cpu.h>
 #include <asm/types.h>
+#include <asm/alternative.h>
 
 #define LC_ORDER 1
 #define LC_PAGES 2
+
+#define LOWCORE_ALT_ADDRESS	_AC(0x70000, UL)
+
+#ifndef __ASSEMBLY__
 
 struct pgm_tdb {
 	u64 data[32];
@@ -214,7 +219,14 @@ struct lowcore {
 
 static __always_inline struct lowcore *get_lowcore(void)
 {
-	return NULL;
+	struct lowcore *lc;
+
+	if (__is_defined(__DECOMPRESSOR))
+		return NULL;
+	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_LOWCORE)
+	    : [lc] "=d" (lc)
+	    : [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
+	return lc;
 }
 
 extern struct lowcore *lowcore_ptr[];
@@ -224,4 +236,13 @@ static inline void set_prefix(__u32 address)
 	asm volatile("spx %0" : : "Q" (address) : "memory");
 }
 
+#else /* __ASSEMBLY__ */
+
+.macro GET_LC reg
+	ALTERNATIVE "llilh	\reg,0",					\
+		__stringify(llilh	\reg, LOWCORE_ALT_ADDRESS >> 16),	\
+		ALT_LOWCORE
+.endm
+
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_LOWCORE_H */

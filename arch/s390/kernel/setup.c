@@ -889,6 +889,9 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
 
+	if (have_relocated_lowcore())
+		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
+
 	log_component_list();
 
 	/* Have one command line that is parsed and saved in /proc/cmdline */

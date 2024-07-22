@@ -33,6 +33,7 @@
 
 #define ALT_TYPE_FACILITY	0
 #define ALT_TYPE_SPEC		1
+#define ALT_TYPE_LOWCORE	2
 
 #define ALT_DATA_SHIFT		0
 #define ALT_TYPE_SHIFT		20
@@ -49,6 +50,9 @@
 #define ALT_SPEC(facility)		(ALT_CTX_LATE << ALT_CTX_SHIFT		| \
 					 ALT_TYPE_SPEC << ALT_TYPE_SHIFT	| \
 					 (facility) << ALT_DATA_SHIFT)
+
+#define ALT_LOWCORE			(ALT_CTX_EARLY << ALT_CTX_SHIFT		| \
+					 ALT_TYPE_LOWCORE << ALT_TYPE_SHIFT)
 
 #ifndef __ASSEMBLY__
 

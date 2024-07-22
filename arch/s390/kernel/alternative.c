@@ -2,6 +2,7 @@
 
 #include <linux/uaccess.h>
 #include <asm/nospec-branch.h>
+#include <asm/abs_lowcore.h>
 #include <asm/alternative.h>
 #include <asm/facility.h>
 
@@ -24,6 +25,9 @@ void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsign
 			break;
 		case ALT_TYPE_SPEC:
 			replace = nobp_enabled();
+			break;
+		case ALT_TYPE_LOWCORE:
+			replace = have_relocated_lowcore();
 			break;
 		default:
 			replace = false;

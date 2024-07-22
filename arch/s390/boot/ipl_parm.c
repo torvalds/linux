@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
