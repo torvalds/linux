@@ -121,11 +121,11 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)
-	.macro SIEEXIT sie_control
-	lg	%r9,\sie_control		# get control block pointer
-	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-	lg	%r9,__LC_CURRENT
+	.macro SIEEXIT sie_control,lowcore
+	lg	%r9,\sie_control			# get control block pointer
+	ni	__SIE_PROG0C+3(%r9),0xfe		# no longer in SIE
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE(\lowcore)	# load primary asce
+	lg	%r9,__LC_CURRENT(\lowcore)
 	mvi	__TI_sie(%r9),0
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	.endm
@@ -349,7 +349,7 @@ SYM_CODE_START(pgm_check_handler)
 	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
 	jne	5f
 	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r10)
+	SIEEXIT __SF_SIE_CONTROL(%r10),%r0
 #endif
 5:	stmg	%r8,%r9,__PT_PSW(%r11)
 	# clear user controlled registers to prevent speculative use
@@ -404,7 +404,7 @@ SYM_CODE_START(\name)
 	tm	__TI_sie(%r10),0xff
 	jz	0f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r15)
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r0
 #endif
 0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -491,7 +491,7 @@ SYM_CODE_START(mcck_int_handler)
 	lg	%r10,__LC_PCPU
 	oi	__PCPU_FLAGS+7(%r10), _CIF_MCCK_GUEST
 4:	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r15)
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r0
 #endif
 .Lmcck_user:
 	lg	%r15,__LC_MCCK_STACK
