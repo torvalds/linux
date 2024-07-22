@@ -1795,6 +1795,7 @@ struct bpf_struct_ops_common_value {
 #define BPF_MODULE_OWNER ((void *)((0xeB9FUL << 2) + POISON_POINTER_DELTA))
 bool bpf_struct_ops_get(const void *kdata);
 void bpf_struct_ops_put(const void *kdata);
+int bpf_struct_ops_supported(const struct bpf_struct_ops *st_ops, u32 moff);
 int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 				       void *value);
 int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
@@ -1850,6 +1851,10 @@ static inline bool bpf_try_module_get(const void *data, struct module *owner)
 static inline void bpf_module_put(const void *data, struct module *owner)
 {
 	module_put(owner);
+}
+static inline int bpf_struct_ops_supported(const struct bpf_struct_ops *st_ops, u32 moff)
+{
+	return -ENOTSUPP;
 }
 static inline int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map,
 						     void *key,

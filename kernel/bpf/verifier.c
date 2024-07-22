@@ -21132,6 +21132,7 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 	u32 btf_id, member_idx;
 	struct btf *btf;
 	const char *mname;
+	int err;
 
 	if (!prog->gpl_compatible) {
 		verbose(env, "struct ops programs must have a GPL compatible license\n");
@@ -21179,8 +21180,15 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 		return -EINVAL;
 	}
 
+	err = bpf_struct_ops_supported(st_ops, __btf_member_bit_offset(t, member) / 8);
+	if (err) {
+		verbose(env, "attach to unsupported member %s of struct %s\n",
+			mname, st_ops->name);
+		return err;
+	}
+
 	if (st_ops->check_member) {
-		int err = st_ops->check_member(t, member, prog);
+		err = st_ops->check_member(t, member, prog);
 
 		if (err) {
 			verbose(env, "attach to unsupported member %s of struct %s\n",
