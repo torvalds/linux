@@ -28,6 +28,7 @@
 #include <asm/setup.h>
 #include <asm/nmi.h>
 #include <asm/nospec-insn.h>
+#include <asm/lowcore.h>
 
 _LPP_OFFSET	= __LC_LPP
 
@@ -184,7 +185,8 @@ SYM_FUNC_END(__switch_to_asm)
  */
 SYM_FUNC_START(__sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
-	lg	%r14,__LC_CURRENT
+	GET_LC	%r13
+	lg	%r14,__LC_CURRENT(%r13)
 	stg	%r2,__SF_SIE_CONTROL_PHYS(%r15)	# save sie block physical..
 	stg	%r3,__SF_SIE_CONTROL(%r15)	# ...and virtual addresses
 	stg	%r4,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
@@ -211,8 +213,9 @@ SYM_FUNC_START(__sie64a)
 .Lsie_skip:
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-	lg	%r14,__LC_CURRENT
+	GET_LC	%r14
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r14)	# load primary asce
+	lg	%r14,__LC_CURRENT(%r14)
 	mvi	__TI_sie(%r14),0
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
