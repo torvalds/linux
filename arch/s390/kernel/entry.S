@@ -49,30 +49,30 @@ _LPP_OFFSET	= __LC_LPP
 		ALT_FACILITY(193)
 	.endm
 
-	.macro	CHECK_STACK savearea
+	.macro	CHECK_STACK savearea, lowcore
 #ifdef CONFIG_CHECK_STACK
 	tml	%r15,THREAD_SIZE - CONFIG_STACK_GUARD
-	lghi	%r14,\savearea
+	la	%r14,\savearea(\lowcore)
 	jz	stack_overflow
 #endif
 	.endm
 
-	.macro	CHECK_VMAP_STACK savearea,oklabel
+	.macro	CHECK_VMAP_STACK savearea, lowcore, oklabel
 #ifdef CONFIG_VMAP_STACK
 	lgr	%r14,%r15
 	nill	%r14,0x10000 - THREAD_SIZE
 	oill	%r14,STACK_INIT_OFFSET
-	clg	%r14,__LC_KERNEL_STACK
+	clg	%r14,__LC_KERNEL_STACK(\lowcore)
 	je	\oklabel
-	clg	%r14,__LC_ASYNC_STACK
+	clg	%r14,__LC_ASYNC_STACK(\lowcore)
 	je	\oklabel
-	clg	%r14,__LC_MCCK_STACK
+	clg	%r14,__LC_MCCK_STACK(\lowcore)
 	je	\oklabel
-	clg	%r14,__LC_NODAT_STACK
+	clg	%r14,__LC_NODAT_STACK(\lowcore)
 	je	\oklabel
-	clg	%r14,__LC_RESTART_STACK
+	clg	%r14,__LC_RESTART_STACK(\lowcore)
 	je	\oklabel
-	lghi	%r14,\savearea
+	la	%r14,\savearea(\lowcore)
 	j	stack_overflow
 #else
 	j	\oklabel
@@ -331,10 +331,10 @@ SYM_CODE_START(pgm_check_handler)
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
-2:	CHECK_STACK __LC_SAVE_AREA_SYNC
+2:	CHECK_STACK __LC_SAVE_AREA_SYNC,%r0
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	# CHECK_VMAP_STACK branches to stack_overflow or 4f
-	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,4f
+	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,%r0,4f
 3:	lg	%r15,__LC_KERNEL_STACK
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
@@ -406,7 +406,7 @@ SYM_CODE_START(\name)
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT __SF_SIE_CONTROL(%r15),%r0
 #endif
-0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
+0:	CHECK_STACK __LC_SAVE_AREA_ASYNC,%r0
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
 1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE
