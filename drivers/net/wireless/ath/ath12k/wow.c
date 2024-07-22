@@ -361,7 +361,7 @@ static int ath12k_wow_vif_set_wakeups(struct ath12k_vif *arvif,
 	struct ath12k *ar = arvif->ar;
 	unsigned long wow_mask = 0;
 	int pattern_id = 0;
-	int ret, i;
+	int ret, i, j;
 
 	/* Setup requested WOW features */
 	switch (arvif->vdev_type) {
@@ -431,9 +431,9 @@ static int ath12k_wow_vif_set_wakeups(struct ath12k_vif *arvif,
 			       eth_pattern->pattern_len);
 
 			/* convert bitmask to bytemask */
-			for (i = 0; i < eth_pattern->pattern_len; i++)
-				if (eth_pattern->mask[i / 8] & BIT(i % 8))
-					new_pattern.bytemask[i] = 0xff;
+			for (j = 0; j < eth_pattern->pattern_len; j++)
+				if (eth_pattern->mask[j / 8] & BIT(j % 8))
+					new_pattern.bytemask[j] = 0xff;
 
 			new_pattern.pattern_len = eth_pattern->pattern_len;
 			new_pattern.pkt_offset = eth_pattern->pkt_offset;
