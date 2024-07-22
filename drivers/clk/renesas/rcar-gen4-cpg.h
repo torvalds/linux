@@ -65,16 +65,8 @@ struct rcar_gen4_cpg_pll_config {
 	u8 extal_div;
 	u8 pll1_mult;
 	u8 pll1_div;
-	u8 pll2_mult;
-	u8 pll2_div;
-	u8 pll3_mult;
-	u8 pll3_div;
-	u8 pll4_mult;
-	u8 pll4_div;
 	u8 pll5_mult;
 	u8 pll5_div;
-	u8 pll6_mult;
-	u8 pll6_div;
 	u8 osc_prediv;
 };
 
