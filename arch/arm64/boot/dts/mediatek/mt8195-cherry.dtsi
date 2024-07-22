@@ -1228,10 +1228,6 @@
 		spi-max-frequency = <3000000>;
 		wakeup-source;
 
-		keyboard-backlight {
-			compatible = "google,cros-kbd-led-backlight";
-		};
-
 		i2c_tunnel: i2c-tunnel {
 			compatible = "google,cros-ec-i2c-tunnel";
 			google,remote-bus = <0>;
