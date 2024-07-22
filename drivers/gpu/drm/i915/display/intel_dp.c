@@ -3352,8 +3352,11 @@ void intel_dp_sync_state(struct intel_encoder *encoder,
 
 	intel_dp_tunnel_resume(intel_dp, crtc_state, dpcd_updated);
 
-	if (crtc_state)
+	if (crtc_state) {
 		intel_dp_reset_link_params(intel_dp);
+		intel_dp_set_link_params(intel_dp, crtc_state->port_clock, crtc_state->lane_count);
+		intel_dp->link_trained = true;
+	}
 }
 
 bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
