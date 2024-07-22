@@ -516,6 +516,122 @@ cleanup:
 	uprobe_multi__destroy(skel);
 }
 
+#ifdef __x86_64__
+noinline void uprobe_multi_error_func(void)
+{
+	/*
+	 * If --fcf-protection=branch is enabled the gcc generates endbr as
+	 * first instruction, so marking the exact address of int3 with the
+	 * symbol to be used in the attach_uprobe_fail_trap test below.
+	 */
+	asm volatile (
+		".globl uprobe_multi_error_func_int3;	\n"
+		"uprobe_multi_error_func_int3:		\n"
+		"int3					\n"
+	);
+}
+
+/*
+ * Attaching uprobe on uprobe_multi_error_func results in error
+ * because it already starts with int3 instruction.
+ */
+static void attach_uprobe_fail_trap(struct uprobe_multi *skel)
+{
+	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts);
+	const char *syms[4] = {
+		"uprobe_multi_func_1",
+		"uprobe_multi_func_2",
+		"uprobe_multi_func_3",
+		"uprobe_multi_error_func_int3",
+	};
+
+	opts.syms = syms;
+	opts.cnt = ARRAY_SIZE(syms);
+
+	skel->links.uprobe = bpf_program__attach_uprobe_multi(skel->progs.uprobe, -1,
+							      "/proc/self/exe", NULL, &opts);
+	if (!ASSERT_ERR_PTR(skel->links.uprobe, "bpf_program__attach_uprobe_multi")) {
+		bpf_link__destroy(skel->links.uprobe);
+		skel->links.uprobe = NULL;
+	}
+}
+#else
+static void attach_uprobe_fail_trap(struct uprobe_multi *skel) { }
+#endif
+
+short sema_1 __used, sema_2 __used;
+
+static void attach_uprobe_fail_refctr(struct uprobe_multi *skel)
+{
+	unsigned long *tmp_offsets = NULL, *tmp_ref_ctr_offsets = NULL;
+	unsigned long offsets[3], ref_ctr_offsets[3];
+	LIBBPF_OPTS(bpf_link_create_opts, opts);
+	const char *path = "/proc/self/exe";
+	const char *syms[3] = {
+		"uprobe_multi_func_1",
+		"uprobe_multi_func_2",
+	};
+	const char *sema[3] = {
+		"sema_1",
+		"sema_2",
+	};
+	int prog_fd, link_fd, err;
+
+	prog_fd = bpf_program__fd(skel->progs.uprobe_extra);
+
+	err = elf_resolve_syms_offsets("/proc/self/exe", 2, (const char **) &syms,
+				       &tmp_offsets, STT_FUNC);
+	if (!ASSERT_OK(err, "elf_resolve_syms_offsets_func"))
+		return;
+
+	err = elf_resolve_syms_offsets("/proc/self/exe", 2, (const char **) &sema,
+				       &tmp_ref_ctr_offsets, STT_OBJECT);
+	if (!ASSERT_OK(err, "elf_resolve_syms_offsets_sema"))
+		goto cleanup;
+
+	/*
+	 * We attach to 3 uprobes on 2 functions, so 2 uprobes share single function,
+	 * but with different ref_ctr_offset which is not allowed and results in fail.
+	 */
+	offsets[0] = tmp_offsets[0]; /* uprobe_multi_func_1 */
+	offsets[1] = tmp_offsets[1]; /* uprobe_multi_func_2 */
+	offsets[2] = tmp_offsets[1]; /* uprobe_multi_func_2 */
+
+	ref_ctr_offsets[0] = tmp_ref_ctr_offsets[0]; /* sema_1 */
+	ref_ctr_offsets[1] = tmp_ref_ctr_offsets[1]; /* sema_2 */
+	ref_ctr_offsets[2] = tmp_ref_ctr_offsets[0]; /* sema_1, error */
+
+	opts.uprobe_multi.path = path;
+	opts.uprobe_multi.offsets = (const unsigned long *) &offsets;
+	opts.uprobe_multi.ref_ctr_offsets = (const unsigned long *) &ref_ctr_offsets;
+	opts.uprobe_multi.cnt = 3;
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		close(link_fd);
+
+cleanup:
+	free(tmp_ref_ctr_offsets);
+	free(tmp_offsets);
+}
+
+static void test_attach_uprobe_fails(void)
+{
+	struct uprobe_multi *skel = NULL;
+
+	skel = uprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
+		return;
+
+	/* attach fails due to adding uprobe on trap instruction, x86_64 only */
+	attach_uprobe_fail_trap(skel);
+
+	/* attach fail due to wrong ref_ctr_offs on one of the uprobes */
+	attach_uprobe_fail_refctr(skel);
+
+	uprobe_multi__destroy(skel);
+}
+
 static void __test_link_api(struct child *child)
 {
 	int prog_fd, link1_fd = -1, link2_fd = -1, link3_fd = -1, link4_fd = -1;
@@ -703,4 +819,6 @@ void test_uprobe_multi_test(void)
 		test_bench_attach_usdt();
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
+	if (test__start_subtest("attach_uprobe_fails"))
+		test_attach_uprobe_fails();
 }
