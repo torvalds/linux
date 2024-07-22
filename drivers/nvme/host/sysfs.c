@@ -743,8 +743,19 @@ static ssize_t tls_key_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(tls_key);
 
+static ssize_t tls_configured_key_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	struct key *key = ctrl->opts->tls_key;
+
+	return sysfs_emit(buf, "%08x\n", key_serial(key));
+}
+static DEVICE_ATTR_RO(tls_configured_key);
+
 static struct attribute *nvme_tls_attrs[] = {
 	&dev_attr_tls_key.attr,
+	&dev_attr_tls_configured_key.attr,
 };
 
 static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
@@ -758,6 +769,9 @@ static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_tls_key.attr &&
 	    !ctrl->opts->tls)
+		return 0;
+	if (a == &dev_attr_tls_configured_key.attr &&
+	    !ctrl->opts->tls_key)
 		return 0;
 
 	return a->mode;
