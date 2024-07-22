@@ -43,6 +43,7 @@
 #include "xfs_rtalloc.h"
 #include "xfs_metafile.h"
 #include "xfs_rtrefcount_btree.h"
+#include "xfs_zone_alloc.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -1050,7 +1051,13 @@ xrep_require_rtext_inuse(
 	xfs_rtxnum_t		startrtx;
 	xfs_rtxnum_t		endrtx;
 	bool			is_free = false;
-	int			error;
+	int			error = 0;
+
+	if (xfs_has_zoned(mp)) {
+		if (!xfs_zone_rgbno_is_valid(sc->sr.rtg, rgbno + len - 1))
+			return -EFSCORRUPTED;
+		return 0;
+	}
 
 	startrtx = xfs_rgbno_to_rtx(mp, rgbno);
 	endrtx = xfs_rgbno_to_rtx(mp, rgbno + len - 1);
