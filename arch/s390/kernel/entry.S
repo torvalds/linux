@@ -455,33 +455,34 @@ INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
  */
 SYM_CODE_START(mcck_int_handler)
 	BPOFF
-	lmg	%r8,%r9,__LC_MCK_OLD_PSW
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
+	GET_LC	%r13
+	lmg	%r8,%r9,__LC_MCK_OLD_PSW(%r13)
+	TSTMSK	__LC_MCCK_CODE(%r13),MCCK_CODE_SYSTEM_DAMAGE
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
+	TSTMSK	__LC_MCCK_CODE(%r13),MCCK_CODE_CR_VALID
 	jno	.Lmcck_panic		# control registers invalid -> panic
 	ptlb
-	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
-	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CPU_TIMER_VALID
+	lay	%r14,__LC_CPU_TIMER_SAVE_AREA(%r13)
+	mvc	__LC_MCCK_ENTER_TIMER(8,%r13),0(%r14)
+	TSTMSK	__LC_MCCK_CODE(%r13),MCCK_CODE_CPU_TIMER_VALID
 	jo	3f
-	la	%r14,__LC_SYS_ENTER_TIMER
-	clc	0(8,%r14),__LC_EXIT_TIMER
+	la	%r14,__LC_SYS_ENTER_TIMER(%r13)
+	clc	0(8,%r14),__LC_EXIT_TIMER(%r13)
 	jl	1f
-	la	%r14,__LC_EXIT_TIMER
-1:	clc	0(8,%r14),__LC_LAST_UPDATE_TIMER
+	la	%r14,__LC_EXIT_TIMER(%r13)
+1:	clc	0(8,%r14),__LC_LAST_UPDATE_TIMER(%r13)
 	jl	2f
-	la	%r14,__LC_LAST_UPDATE_TIMER
+	la	%r14,__LC_LAST_UPDATE_TIMER(%r13)
 2:	spt	0(%r14)
-	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
-3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
+	mvc	__LC_MCCK_ENTER_TIMER(8,%r13),0(%r14)
+3:	TSTMSK	__LC_MCCK_CODE(%r13),MCCK_CODE_PSW_MWP_VALID
 	jno	.Lmcck_panic
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	.Lmcck_user
-	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
+	TSTMSK	__LC_MCCK_CODE(%r13),MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
-	lg	%r10,__LC_CURRENT
+	lg	%r10,__LC_CURRENT(%r13)
 	tm	__TI_sie(%r10),0xff
 	jz	.Lmcck_user
 	# Need to compare the address instead of __TI_SIE flag.
@@ -496,15 +497,15 @@ SYM_CODE_START(mcck_int_handler)
 	lg	%r10,__LC_PCPU
 	oi	__PCPU_FLAGS+7(%r10), _CIF_MCCK_GUEST
 4:	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r15),%r0
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
 #endif
 .Lmcck_user:
-	lg	%r15,__LC_MCCK_STACK
+	lg	%r15,__LC_MCCK_STACK(%r13)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stctg	%c1,%c1,__PT_CR1(%r11)
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-	lghi	%r14,__LC_GPREGS_SAVE_AREA
+	lay	%r14,__LC_GPREGS_SAVE_AREA(%r13)
 	mvc	__PT_R0(128,%r11),0(%r14)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
@@ -522,12 +523,13 @@ SYM_CODE_START(mcck_int_handler)
 	brasl	%r14,s390_do_machine_check
 	lctlg	%c1,%c1,__PT_CR1(%r11)
 	lmg	%r0,%r10,__PT_R0(%r11)
-	mvc	__LC_RETURN_MCCK_PSW(16),__PT_PSW(%r11) # move return PSW
-	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
+	mvc	__LC_RETURN_MCCK_PSW(16,%r13),__PT_PSW(%r11) # move return PSW
+	tm	__LC_RETURN_MCCK_PSW+1(%r13),0x01 # returning to user ?
 	jno	0f
 	BPON
-	stpt	__LC_EXIT_TIMER
-0:	ALTERNATIVE "nop", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA), ALT_FACILITY(193)
+	stpt	__LC_EXIT_TIMER(%r13)
+0:	ALTERNATIVE "brcl 0,0", __stringify(lay %r12,__LC_LAST_BREAK_SAVE_AREA(%r13)),\
+		ALT_FACILITY(193)
 	LBEAR	0(%r12)
 	lmg	%r11,%r15,__PT_R11(%r11)
 	LPSWEY	__LC_RETURN_MCCK_PSW,__LC_RETURN_MCCK_LPSWE
