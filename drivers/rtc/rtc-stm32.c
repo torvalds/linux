@@ -7,6 +7,7 @@
 #include <linux/bcd.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/errno.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
@@ -45,6 +46,10 @@
 #define STM32_RTC_CR_FMT		BIT(6)
 #define STM32_RTC_CR_ALRAE		BIT(8)
 #define STM32_RTC_CR_ALRAIE		BIT(12)
+#define STM32_RTC_CR_OSEL		GENMASK(22, 21)
+#define STM32_RTC_CR_COE		BIT(23)
+#define STM32_RTC_CR_TAMPOE		BIT(26)
+#define STM32_RTC_CR_OUT2EN		BIT(31)
 
 /* STM32_RTC_ISR/STM32_RTC_ICSR bit fields */
 #define STM32_RTC_ISR_ALRAWF		BIT(0)
@@ -80,6 +85,12 @@
 
 /* STM32_RTC_SR/_SCR bit fields */
 #define STM32_RTC_SR_ALRA		BIT(0)
+
+/* STM32_RTC_CFGR bit fields */
+#define STM32_RTC_CFGR_OUT2_RMP		BIT(0)
+#define STM32_RTC_CFGR_LSCOEN		GENMASK(2, 1)
+#define STM32_RTC_CFGR_LSCOEN_OUT1	1
+#define STM32_RTC_CFGR_LSCOEN_OUT2_RMP	2
 
 /* STM32_RTC_VERR bit fields */
 #define STM32_RTC_VERR_MINREV_SHIFT	0
@@ -130,6 +141,7 @@ struct stm32_rtc_registers {
 	u16 wpr;
 	u16 sr;
 	u16 scr;
+	u16 cfgr;
 	u16 verr;
 };
 
@@ -145,6 +157,7 @@ struct stm32_rtc_data {
 	bool need_dbp;
 	bool need_accuracy;
 	bool rif_protected;
+	bool has_lsco;
 };
 
 struct stm32_rtc {
@@ -157,6 +170,7 @@ struct stm32_rtc {
 	struct clk *rtc_ck;
 	const struct stm32_rtc_data *data;
 	int irq_alarm;
+	struct clk *clk_lsco;
 };
 
 struct stm32_rtc_rif_resource {
@@ -231,7 +245,68 @@ struct stm32_rtc_pinmux_func {
 	int (*action)(struct pinctrl_dev *pctl_dev, unsigned int pin);
 };
 
+static int stm32_rtc_pinmux_lsco_available(struct pinctrl_dev *pctldev, unsigned int pin)
+{
+	struct stm32_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	unsigned int cr = readl_relaxed(rtc->base + regs.cr);
+	unsigned int cfgr = readl_relaxed(rtc->base + regs.cfgr);
+	unsigned int calib = STM32_RTC_CR_COE;
+	unsigned int tampalrm = STM32_RTC_CR_TAMPOE | STM32_RTC_CR_OSEL;
+
+	switch (pin) {
+	case OUT1:
+		if ((!(cr & STM32_RTC_CR_OUT2EN) &&
+		     ((cr & calib) || cr & tampalrm)) ||
+		     ((cr & calib) && (cr & tampalrm)))
+			return -EBUSY;
+		break;
+	case OUT2_RMP:
+		if ((cr & STM32_RTC_CR_OUT2EN) &&
+		    (cfgr & STM32_RTC_CFGR_OUT2_RMP) &&
+		    ((cr & calib) || (cr & tampalrm)))
+			return -EBUSY;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (clk_get_rate(rtc->rtc_ck) != 32768)
+		return -ERANGE;
+
+	return 0;
+}
+
+static int stm32_rtc_pinmux_action_lsco(struct pinctrl_dev *pctldev, unsigned int pin)
+{
+	struct stm32_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	struct device *dev = rtc->rtc_dev->dev.parent;
+	u8 lscoen;
+	int ret;
+
+	if (!rtc->data->has_lsco)
+		return -EPERM;
+
+	ret = stm32_rtc_pinmux_lsco_available(pctldev, pin);
+	if (ret)
+		return ret;
+
+	lscoen = (pin == OUT1) ? STM32_RTC_CFGR_LSCOEN_OUT1 : STM32_RTC_CFGR_LSCOEN_OUT2_RMP;
+
+	rtc->clk_lsco = clk_register_gate(dev, "rtc_lsco", __clk_get_name(rtc->rtc_ck),
+					  CLK_IGNORE_UNUSED | CLK_IS_CRITICAL,
+					  rtc->base + regs.cfgr, lscoen, 0, NULL);
+	if (IS_ERR(rtc->clk_lsco))
+		return PTR_ERR(rtc->clk_lsco);
+
+	of_clk_add_provider(dev->of_node, of_clk_src_simple_get, rtc->clk_lsco);
+
+	return 0;
+}
+
 static const struct stm32_rtc_pinmux_func stm32_rtc_pinmux_functions[] = {
+	STM32_RTC_PINMUX("lsco", &stm32_rtc_pinmux_action_lsco, "out1", "out2_rmp"),
 };
 
 static int stm32_rtc_pinmux_get_functions_count(struct pinctrl_dev *pctldev)
@@ -687,6 +762,7 @@ static const struct stm32_rtc_data stm32_rtc_data = {
 	.need_dbp = true,
 	.need_accuracy = false,
 	.rif_protected = false,
+	.has_lsco = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -697,6 +773,7 @@ static const struct stm32_rtc_data stm32_rtc_data = {
 		.wpr = 0x24,
 		.sr = 0x0C, /* set to ISR offset to ease alarm management */
 		.scr = UNDEF_REG,
+		.cfgr = UNDEF_REG,
 		.verr = UNDEF_REG,
 	},
 	.events = {
@@ -710,6 +787,7 @@ static const struct stm32_rtc_data stm32h7_rtc_data = {
 	.need_dbp = true,
 	.need_accuracy = false,
 	.rif_protected = false,
+	.has_lsco = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -720,6 +798,7 @@ static const struct stm32_rtc_data stm32h7_rtc_data = {
 		.wpr = 0x24,
 		.sr = 0x0C, /* set to ISR offset to ease alarm management */
 		.scr = UNDEF_REG,
+		.cfgr = UNDEF_REG,
 		.verr = UNDEF_REG,
 	},
 	.events = {
@@ -742,6 +821,7 @@ static const struct stm32_rtc_data stm32mp1_data = {
 	.need_dbp = false,
 	.need_accuracy = true,
 	.rif_protected = false,
+	.has_lsco = true,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -752,6 +832,7 @@ static const struct stm32_rtc_data stm32mp1_data = {
 		.wpr = 0x24,
 		.sr = 0x50,
 		.scr = 0x5C,
+		.cfgr = 0x60,
 		.verr = 0x3F4,
 	},
 	.events = {
@@ -765,6 +846,7 @@ static const struct stm32_rtc_data stm32mp25_data = {
 	.need_dbp = false,
 	.need_accuracy = true,
 	.rif_protected = true,
+	.has_lsco = true,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -775,6 +857,7 @@ static const struct stm32_rtc_data stm32mp25_data = {
 		.wpr = 0x24,
 		.sr = 0x50,
 		.scr = 0x5C,
+		.cfgr = 0x60,
 		.verr = 0x3F4,
 	},
 	.events = {
@@ -791,6 +874,19 @@ static const struct of_device_id stm32_rtc_of_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, stm32_rtc_of_match);
+
+static void stm32_rtc_clean_outs(struct stm32_rtc *rtc)
+{
+	struct stm32_rtc_registers regs = rtc->data->regs;
+
+	if (regs.cfgr != UNDEF_REG) {
+		unsigned int cfgr = readl_relaxed(rtc->base + regs.cfgr);
+
+		cfgr &= ~STM32_RTC_CFGR_LSCOEN;
+		cfgr &= ~STM32_RTC_CFGR_OUT2_RMP;
+		writel_relaxed(cfgr, rtc->base + regs.cfgr);
+	}
+}
 
 static int stm32_rtc_check_rif(struct stm32_rtc *stm32_rtc,
 			       struct stm32_rtc_rif_resource res)
@@ -1024,6 +1120,8 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	stm32_rtc_clean_outs(rtc);
+
 	ret = devm_pinctrl_register_and_init(&pdev->dev, &stm32_rtc_pdesc, rtc, &pctl);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "pinctrl register failed");
@@ -1069,6 +1167,9 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	struct stm32_rtc *rtc = platform_get_drvdata(pdev);
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	unsigned int cr;
+
+	if (!IS_ERR_OR_NULL(rtc->clk_lsco))
+		clk_unregister_gate(rtc->clk_lsco);
 
 	/* Disable interrupts */
 	stm32_rtc_wpr_unlock(rtc);
