@@ -45,13 +45,15 @@ static u32 cpg_mode __initdata;
 #define CPG_PLL6CR1		0x8d8
 
 #define CPG_PLLxCR0_KICK	BIT(31)
-#define CPG_PLLxCR0_NI		GENMASK(27, 20)	/* Integer mult. factor */
 #define CPG_PLLxCR0_SSMODE	GENMASK(18, 16)	/* PLL mode */
 #define CPG_PLLxCR0_SSMODE_FM	BIT(18)	/* Fractional Multiplication */
 #define CPG_PLLxCR0_SSMODE_DITH	BIT(17) /* Frequency Dithering */
 #define CPG_PLLxCR0_SSMODE_CENT	BIT(16)	/* Center (vs. Down) Spread Dithering */
 #define CPG_PLLxCR0_SSFREQ	GENMASK(14, 8)	/* SSCG Modulation Frequency */
 #define CPG_PLLxCR0_SSDEPT	GENMASK(6, 0)	/* SSCG Modulation Depth */
+
+/* Fractional 8.25 PLL */
+#define CPG_PLLxCR0_NI8		GENMASK(27, 20)	/* Integer mult. factor */
 
 /* PLL Clocks */
 struct cpg_pll_clk {
@@ -63,19 +65,19 @@ struct cpg_pll_clk {
 
 #define to_pll_clk(_hw)   container_of(_hw, struct cpg_pll_clk, hw)
 
-static unsigned long cpg_pll_clk_recalc_rate(struct clk_hw *hw,
-					     unsigned long parent_rate)
+static unsigned long cpg_pll_8_25_clk_recalc_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
 {
 	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
 	unsigned int mult;
 
-	mult = FIELD_GET(CPG_PLLxCR0_NI, readl(pll_clk->pllcr0_reg)) + 1;
+	mult = FIELD_GET(CPG_PLLxCR0_NI8, readl(pll_clk->pllcr0_reg)) + 1;
 
 	return parent_rate * mult * 2;
 }
 
-static int cpg_pll_clk_determine_rate(struct clk_hw *hw,
-				      struct clk_rate_request *req)
+static int cpg_pll_8_25_clk_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
 {
 	unsigned int min_mult, max_mult, mult;
 	unsigned long prate;
@@ -93,8 +95,8 @@ static int cpg_pll_clk_determine_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static int cpg_pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate)
+static int cpg_pll_8_25_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long parent_rate)
 {
 	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
 	unsigned int mult;
@@ -106,8 +108,8 @@ static int cpg_pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (readl(pll_clk->pllcr0_reg) & CPG_PLLxCR0_KICK)
 		return -EBUSY;
 
-	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_NI,
-		       FIELD_PREP(CPG_PLLxCR0_NI, mult - 1));
+	cpg_reg_modify(pll_clk->pllcr0_reg, CPG_PLLxCR0_NI8,
+		       FIELD_PREP(CPG_PLLxCR0_NI8, mult - 1));
 
 	/*
 	 * Set KICK bit in PLLxCR0 to update hardware setting and wait for
@@ -128,10 +130,10 @@ static int cpg_pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				  val & pll_clk->pllecr_pllst_mask, 0, 1000);
 }
 
-static const struct clk_ops cpg_pll_clk_ops = {
-	.recalc_rate = cpg_pll_clk_recalc_rate,
-	.determine_rate = cpg_pll_clk_determine_rate,
-	.set_rate = cpg_pll_clk_set_rate,
+static const struct clk_ops cpg_pll_v8_25_clk_ops = {
+	.recalc_rate = cpg_pll_8_25_clk_recalc_rate,
+	.determine_rate = cpg_pll_8_25_clk_determine_rate,
+	.set_rate = cpg_pll_8_25_clk_set_rate,
 };
 
 static struct clk * __init cpg_pll_clk_register(const char *name,
@@ -151,7 +153,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.ops = &cpg_pll_clk_ops;
+	init.ops = &cpg_pll_v8_25_clk_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
