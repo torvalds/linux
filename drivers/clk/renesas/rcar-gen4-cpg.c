@@ -56,6 +56,10 @@ static u32 cpg_mode __initdata;
 #define CPG_PLLxCR0_NI8		GENMASK(27, 20)	/* Integer mult. factor */
 #define CPG_PLLxCR1_NF25	GENMASK(24, 0)	/* Fractional mult. factor */
 
+/* Fractional 9.24 PLL */
+#define CPG_PLLxCR0_NI9		GENMASK(28, 20)	/* Integer mult. factor */
+#define CPG_PLLxCR1_NF24	GENMASK(23, 0)	/* Fractional mult. factor */
+
 #define CPG_PLLxCR_STC		GENMASK(30, 24)	/* R_Car V3U PLLxCR */
 
 #define CPG_RPCCKCR		0x874	/* RPC Clock Freq. Control Register */
@@ -187,6 +191,30 @@ static const struct clk_ops cpg_pll_v8_25_clk_ops = {
 	.recalc_rate = cpg_pll_8_25_clk_recalc_rate,
 	.determine_rate = cpg_pll_8_25_clk_determine_rate,
 	.set_rate = cpg_pll_8_25_clk_set_rate,
+};
+
+static unsigned long cpg_pll_9_24_clk_recalc_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
+{
+	struct cpg_pll_clk *pll_clk = to_pll_clk(hw);
+	u32 cr0 = readl(pll_clk->pllcr0_reg);
+	unsigned int ni, nf;
+	unsigned long rate;
+
+	ni = FIELD_GET(CPG_PLLxCR0_NI9, cr0) + 1;
+	rate = parent_rate * ni;
+	if (cr0 & CPG_PLLxCR0_SSMODE_FM) {
+		nf = FIELD_GET(CPG_PLLxCR1_NF24, readl(pll_clk->pllcr1_reg));
+		rate += mul_u64_u32_shr(parent_rate, nf, 24);
+	} else {
+		rate *= 2;
+	}
+
+	return rate;
+}
+
+static const struct clk_ops cpg_pll_f9_24_clk_ops = {
+	.recalc_rate = cpg_pll_9_24_clk_recalc_rate,
 };
 
 static struct clk * __init cpg_pll_clk_register(const char *name,
@@ -460,6 +488,14 @@ struct clk * __init rcar_gen4_cpg_clk_register(struct device *dev,
 		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
 					    base, core->offset,
 					    &cpg_pll_v8_25_clk_ops);
+
+	case CLK_TYPE_GEN4_PLL_V9_24:
+		/* Variable fractional 9.24 is not yet supported, using fixed */
+		fallthrough;
+	case CLK_TYPE_GEN4_PLL_F9_24:
+		return cpg_pll_clk_register(core->name, __clk_get_name(parent),
+					    base, core->offset,
+					    &cpg_pll_f9_24_clk_ops);
 
 	case CLK_TYPE_GEN4_Z:
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
