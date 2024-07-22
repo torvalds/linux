@@ -11,6 +11,7 @@
 #include "dm-uevent.h"
 #include "dm-ima.h"
 
+#include <linux/bio-integrity.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

@@ -33,11 +33,12 @@
  *	than the level indicated above to trigger output.	
  */
 
+#include <linux/bio-integrity.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bio.h>
+#include <linux/bio-integrity.h>
 #include <linux/hdreg.h>
 #include <linux/errno.h>
 #include <linux/idr.h>

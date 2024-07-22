@@ -3,6 +3,7 @@
 #define _LINUX_BLK_INTEGRITY_H
 
 #include <linux/blk-mq.h>
+#include <linux/bio-integrity.h>
 
 struct request;
 
