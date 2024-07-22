@@ -573,15 +573,17 @@ SYM_CODE_START(restart_int_handler)
 0:	larl	%r15,daton_psw
 	lpswe	0(%r15)				# turn dat on, keep irqs off
 .Ldaton:
-	lg	%r15,__LC_RESTART_STACK
+	GET_LC	%r15
+	lg	%r15,__LC_RESTART_STACK(%r15)
 	xc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r15),STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r14,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
-	mvc	STACK_FRAME_OVERHEAD+__PT_R15(8,%r15),__LC_SAVE_AREA_RESTART
-	mvc	STACK_FRAME_OVERHEAD+__PT_PSW(16,%r15),__LC_RST_OLD_PSW
+	GET_LC	%r13
+	mvc	STACK_FRAME_OVERHEAD+__PT_R15(8,%r15),__LC_SAVE_AREA_RESTART(%r13)
+	mvc	STACK_FRAME_OVERHEAD+__PT_PSW(16,%r15),__LC_RST_OLD_PSW(%r13)
 	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
-	lg	%r1,__LC_RESTART_FN		# load fn, parm & source cpu
-	lg	%r2,__LC_RESTART_DATA
-	lgf	%r3,__LC_RESTART_SOURCE
+	lg	%r1,__LC_RESTART_FN(%r13)	# load fn, parm & source cpu
+	lg	%r2,__LC_RESTART_DATA(%r13)
+	lgf	%r3,__LC_RESTART_SOURCE(%r13)
 	ltgr	%r3,%r3				# test source cpu address
 	jm	1f				# negative -> skip source stop
 0:	sigp	%r4,%r3,SIGP_SENSE		# sigp sense to source cpu
