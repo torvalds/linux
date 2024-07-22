@@ -206,6 +206,7 @@ void bch2_journal_space_available(struct journal *j)
 
 	if (nr_online < metadata_replicas_required(c)) {
 		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
 		prt_printf(&buf, "insufficient writeable journal devices available: have %u, need %u\n"
 			   "rw journal devs:", nr_online, metadata_replicas_required(c));
 
