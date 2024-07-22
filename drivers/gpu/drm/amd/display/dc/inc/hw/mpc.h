@@ -1039,6 +1039,20 @@ struct mpc_funcs {
 	*/
 	void (*program_lut_mode)(struct mpc *mpc, const enum MCM_LUT_ID id, const enum MCM_LUT_XABLE xable,
 			bool lut_bank_a, int mpcc_id);
+	/**
+	* @program_3dlut_size:
+	*
+	* Program 3D LUT size.
+	*
+	* Parameters:
+	* - [in/out] mpc - MPC context.
+	* - [in] is_17x17x17 - is 3dlut 17x17x17
+	* - [in] mpcc_id
+	*
+	* Return:
+	*
+	* void
+	*/
 	void (*program_3dlut_size)(struct mpc *mpc, bool is_17x17x17, int mpcc_id);
 };
 
