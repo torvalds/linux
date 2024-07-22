@@ -232,14 +232,20 @@ static void free_event_data(struct work_struct *work)
 		if (!(IS_ERR_OR_NULL(*ppath))) {
 			struct coresight_device *sink = coresight_get_sink(*ppath);
 
-			coresight_trace_id_put_cpu_id_map(cpu, &sink->perf_sink_id_map);
+			/*
+			 * Mark perf event as done for trace id allocator, but don't call
+			 * coresight_trace_id_put_cpu_id_map() on individual IDs. Perf sessions
+			 * never free trace IDs to ensure that the ID associated with a CPU
+			 * cannot change during their and other's concurrent sessions. Instead,
+			 * a refcount is used so that the last event to call
+			 * coresight_trace_id_perf_stop() frees all IDs.
+			 */
+			coresight_trace_id_perf_stop(&sink->perf_sink_id_map);
+
 			coresight_release_path(*ppath);
 		}
 		*ppath = NULL;
 	}
-
-	/* mark perf event as done for trace id allocator */
-	coresight_trace_id_perf_stop();
 
 	free_percpu(event_data->path);
 	kfree(event_data);
@@ -328,9 +334,6 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		sink = user_sink = coresight_get_sink_by_id(id);
 	}
 
-	/* tell the trace ID allocator that a perf event is starting up */
-	coresight_trace_id_perf_start();
-
 	/* check if user wants a coresight configuration selected */
 	cfg_hash = (u32)((event->attr.config2 & GENMASK_ULL(63, 32)) >> 32);
 	if (cfg_hash) {
@@ -411,6 +414,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 			continue;
 		}
 
+		coresight_trace_id_perf_start(&sink->perf_sink_id_map);
 		*etm_event_cpu_path_ptr(event_data, cpu) = path;
 	}
 
