@@ -1483,7 +1483,8 @@ config ARM_ATAG_DTB_COMPAT
 	  from the ATAG list and store it at run time into the appended DTB.
 
 choice
-	prompt "Kernel command line type" if ARM_ATAG_DTB_COMPAT
+	prompt "Kernel command line type"
+	depends on ARM_ATAG_DTB_COMPAT
 	default ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
 
 config ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
@@ -1512,7 +1513,8 @@ config CMDLINE
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
 choice
-	prompt "Kernel command line type" if CMDLINE != ""
+	prompt "Kernel command line type"
+	depends on CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
 
 config CMDLINE_FROM_BOOTLOADER

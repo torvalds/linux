@@ -2290,7 +2290,8 @@ config CMDLINE
 	  root device (e.g. root=/dev/nfs).
 
 choice
-	prompt "Kernel command line type" if CMDLINE != ""
+	prompt "Kernel command line type"
+	depends on CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
 	help
 	  Choose how the kernel will handle the provided default kernel

@@ -382,10 +382,7 @@ load:
 
 	def_flags = SYMBOL_DEF << def;
 	for_all_symbols(sym) {
-		sym->flags |= SYMBOL_CHANGED;
 		sym->flags &= ~(def_flags|SYMBOL_VALID);
-		if (sym_is_choice(sym))
-			sym->flags |= def_flags;
 		switch (sym->type) {
 		case S_INT:
 		case S_HEX:
@@ -399,6 +396,8 @@ load:
 	}
 
 	while (getline_stripped(&line, &line_asize, in) != -1) {
+		struct menu *choice;
+
 		conf_lineno++;
 
 		if (!line[0]) /* blank line */
@@ -460,25 +459,14 @@ load:
 		if (conf_set_sym_val(sym, def, def_flags, val))
 			continue;
 
-		if (sym && sym_is_choice_value(sym)) {
-			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
-			switch (sym->def[def].tri) {
-			case no:
-				break;
-			case mod:
-				if (cs->def[def].tri == yes) {
-					conf_warning("%s creates inconsistent choice state", sym->name);
-					cs->flags &= ~def_flags;
-				}
-				break;
-			case yes:
-				if (cs->def[def].tri != no)
-					conf_warning("override: %s changes choice state", sym->name);
-				cs->def[def].val = sym;
-				break;
-			}
-			cs->def[def].tri = EXPR_OR(cs->def[def].tri, sym->def[def].tri);
-		}
+		/*
+		 * If this is a choice member, give it the highest priority.
+		 * If conflicting CONFIG options are given from an input file,
+		 * the last one wins.
+		 */
+		choice = sym_get_choice_menu(sym);
+		if (choice)
+			list_move(&sym->choice_link, &choice->choice_members);
 	}
 	free(line);
 	fclose(in);
@@ -489,7 +477,6 @@ load:
 int conf_read(const char *name)
 {
 	struct symbol *sym;
-	int conf_unsaved = 0;
 
 	conf_set_changed(false);
 
@@ -520,23 +507,11 @@ int conf_read(const char *name)
 		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
 			/* no previous value and not saved */
 			continue;
-		conf_unsaved++;
+		conf_set_changed(true);
 		/* maybe print value in verbose mode... */
 	}
 
-	for_all_symbols(sym) {
-		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
-			/* Reset values of generates values, so they'll appear
-			 * as new, if they should become visible, but that
-			 * doesn't quite work if the Kconfig and the saved
-			 * configuration disagree.
-			 */
-			if (sym->visible == no && !conf_unsaved)
-				sym->flags &= ~SYMBOL_DEF_USER;
-		}
-	}
-
-	if (conf_warnings || conf_unsaved)
+	if (conf_warnings)
 		conf_set_changed(true);
 
 	return 0;
@@ -784,35 +759,31 @@ int conf_write_defconfig(const char *filename)
 		struct menu *choice;
 
 		sym = menu->sym;
-		if (sym && !sym_is_choice(sym)) {
-			sym_calc_value(sym);
-			if (!(sym->flags & SYMBOL_WRITE))
-				continue;
-			sym->flags &= ~SYMBOL_WRITE;
-			/* If we cannot change the symbol - skip */
-			if (!sym_is_changeable(sym))
-				continue;
-			/* If symbol equals to default value - skip */
-			if (strcmp(sym_get_string_value(sym), sym_get_string_default(sym)) == 0)
-				continue;
 
-			/*
-			 * If symbol is a choice value and equals to the
-			 * default for a choice - skip.
-			 */
-			choice = sym_get_choice_menu(sym);
-			if (choice) {
-				struct symbol *ds;
+		if (!sym || sym_is_choice(sym))
+			continue;
 
-				ds = sym_choice_default(choice->sym);
-				if (sym == ds) {
-					if ((sym->type == S_BOOLEAN) &&
-					    sym_get_tristate_value(sym) == yes)
-						continue;
-				}
-			}
-			print_symbol_for_dotconfig(out, sym);
+		sym_calc_value(sym);
+		if (!(sym->flags & SYMBOL_WRITE))
+			continue;
+		sym->flags &= ~SYMBOL_WRITE;
+		/* Skip unchangeable symbols */
+		if (!sym_is_changeable(sym))
+			continue;
+		/* Skip symbols that are equal to the default */
+		if (!strcmp(sym_get_string_value(sym), sym_get_string_default(sym)))
+			continue;
+
+		/* Skip choice values that are equal to the default */
+		choice = sym_get_choice_menu(sym);
+		if (choice) {
+			struct symbol *ds;
+
+			ds = sym_choice_default(choice);
+			if (sym == ds && sym_get_tristate_value(sym) == yes)
+				continue;
 		}
+		print_symbol_for_dotconfig(out, sym);
 	}
 	fclose(out);
 	return 0;
@@ -1141,16 +1112,14 @@ int conf_write_autoconf(int overwrite)
 }
 
 static bool conf_changed;
-static void (*conf_changed_callback)(void);
+static void (*conf_changed_callback)(bool);
 
 void conf_set_changed(bool val)
 {
-	bool changed = conf_changed != val;
+	if (conf_changed_callback && conf_changed != val)
+		conf_changed_callback(val);
 
 	conf_changed = val;
-
-	if (conf_changed_callback && changed)
-		conf_changed_callback();
 }
 
 bool conf_get_changed(void)
@@ -1158,27 +1127,7 @@ bool conf_get_changed(void)
 	return conf_changed;
 }
 
-void conf_set_changed_callback(void (*fn)(void))
+void conf_set_changed_callback(void (*fn)(bool))
 {
 	conf_changed_callback = fn;
-}
-
-void set_all_choice_values(struct symbol *csym)
-{
-	struct property *prop;
-	struct symbol *sym;
-	struct expr *e;
-
-	prop = sym_get_choice_prop(csym);
-
-	/*
-	 * Set all non-assinged choice values to no
-	 */
-	expr_list_for_each_sym(prop->expr, e, sym) {
-		if (!sym_has_value(sym))
-			sym->def[S_DEF_USER].tri = no;
-	}
-	csym->flags |= SYMBOL_DEF_USER;
-	/* clear VALID to get value calculated */
-	csym->flags &= ~(SYMBOL_VALID | SYMBOL_NEED_SET_CHOICE_VALUES);
 }

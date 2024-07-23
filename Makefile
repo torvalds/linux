@@ -11,8 +11,8 @@ NAME = Baby Opossum Posse
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
-ifeq ($(filter undefine,$(.FEATURES)),)
-$(error GNU Make >= 3.82 is required. Your Make version is $(MAKE_VERSION))
+ifeq ($(filter output-sync,$(.FEATURES)),)
+$(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
 endif
 
 $(if $(filter __%, $(MAKECMDGOALS)), \
@@ -93,15 +93,7 @@ endif
 
 # If the user is running make -s (silent mode), suppress echoing of
 # commands
-# make-4.0 (and later) keep single letter options in the 1st word of MAKEFLAGS.
-
-ifeq ($(filter 3.%,$(MAKE_VERSION)),)
-short-opts := $(firstword -$(MAKEFLAGS))
-else
-short-opts := $(filter-out --%,$(MAKEFLAGS))
-endif
-
-ifneq ($(findstring s,$(short-opts)),)
+ifneq ($(findstring s,$(firstword -$(MAKEFLAGS))),)
 quiet=silent_
 override KBUILD_VERBOSE :=
 endif
@@ -199,14 +191,6 @@ endif # ifneq ($(KBUILD_OUTPUT),)
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
-endif
-
-ifneq ($(filter 3.%,$(MAKE_VERSION)),)
-# 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
-# We need to invoke sub-make to avoid implicit rules in the top Makefile.
-need-sub-make := 1
-# Cancel implicit rules for this Makefile.
-$(this-makefile): ;
 endif
 
 export sub_make_done := 1
@@ -474,8 +458,10 @@ export rust_common_flags := --edition=2021 \
 			    -Dclippy::no_mangle_with_rust_abi \
 			    -Wclippy::dbg_macro
 
-KBUILD_HOSTCFLAGS   := $(KBUILD_USERHOSTCFLAGS) $(HOST_LFS_CFLAGS) $(HOSTCFLAGS)
-KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS)
+KBUILD_HOSTCFLAGS   := $(KBUILD_USERHOSTCFLAGS) $(HOST_LFS_CFLAGS) \
+		       $(HOSTCFLAGS) -I $(srctree)/scripts/include
+KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS) \
+		       -I $(srctree)/scripts/include
 KBUILD_HOSTRUSTFLAGS := $(rust_common_flags) -O -Cstrip=debuginfo \
 			-Zallow-features= $(HOSTRUSTFLAGS)
 KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) $(HOSTLDFLAGS)
@@ -1344,6 +1330,12 @@ prepare: tools/bpf/resolve_btfids
 endif
 endif
 
+# The tools build system is not a part of Kbuild and tends to introduce
+# its own unique issues. If you need to integrate a new tool into Kbuild,
+# please consider locating that tool outside the tools/ tree and using the
+# standard Kbuild "hostprogs" syntax instead of adding a new tools/* entry
+# here. See Documentation/kbuild/makefiles.rst for details.
+
 PHONY += resolve_btfids_clean
 
 resolve_btfids_O = $(abspath $(objtree))/tools/bpf/resolve_btfids
@@ -1497,7 +1489,7 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
 # Directories & files removed with 'make mrproper'
 MRPROPER_FILES += include/config include/generated          \
 		  arch/$(SRCARCH)/include/generated .objdiff \
-		  debian snap tar-install \
+		  debian snap tar-install PKGBUILD pacman \
 		  .config .config.old .version \
 		  Module.symvers \
 		  certs/signing_key.pem \

@@ -65,9 +65,6 @@ static void display_list(void);
 static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
-static gchar **fill_row(struct menu *menu);
-static void conf_changed(void);
 
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 				GtkStyle *style, gchar *btn_name, gchar **xpm)
@@ -85,6 +82,12 @@ static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 	image = gtk_image_new_from_pixmap(pixmap, mask);
 	gtk_widget_show(image);
 	gtk_tool_button_set_icon_widget(button, image);
+}
+
+static void conf_changed(bool dirty)
+{
+	gtk_widget_set_sensitive(save_btn, dirty);
+	gtk_widget_set_sensitive(save_menu_item, dirty);
 }
 
 /* Main Window Initialization */
@@ -1051,7 +1054,7 @@ static gchar **fill_row(struct menu *menu)
 
 	if (sym_is_choice(sym)) {	// parse childs for getting final value
 		struct menu *child;
-		struct symbol *def_sym = sym_get_choice_value(sym);
+		struct symbol *def_sym = sym_calc_choice(menu);
 		struct menu *def_menu = NULL;
 
 		for (child = menu->list; child; child = child->next) {
@@ -1064,12 +1067,10 @@ static gchar **fill_row(struct menu *menu)
 			row[COL_VALUE] =
 			    g_strdup(menu_get_prompt(def_menu));
 
-		if (sym_get_type(sym) == S_BOOLEAN) {
-			row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
-			return row;
-		}
+		row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
+		return row;
 	}
-	if (sym->flags & SYMBOL_CHOICEVAL)
+	if (sym_is_choice_value(sym))
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);
 
 	stype = sym_get_type(sym);
@@ -1446,11 +1447,4 @@ int main(int ac, char *av[])
 	gtk_main();
 
 	return 0;
-}
-
-static void conf_changed(void)
-{
-	bool changed = conf_get_changed();
-	gtk_widget_set_sensitive(save_btn, changed);
-	gtk_widget_set_sensitive(save_menu_item, changed);
 }

@@ -33,7 +33,7 @@ GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
-GNU make               3.82             make --version
+GNU make               4.0              make --version
 bash                   4.2              bash --version
 binutils               2.25             ld -v
 flex                   2.5.35           flex --version
@@ -112,7 +112,7 @@ It depends on ``libclang``.
 Make
 ----
 
-You will need GNU make 3.82 or later to build the kernel.
+You will need GNU make 4.0 or later to build the kernel.
 
 Bash
 ----
