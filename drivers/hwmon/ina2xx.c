@@ -67,6 +67,7 @@
 
 #define INA226_READ_AVG(reg)		FIELD_GET(INA226_AVG_RD_MASK, reg)
 
+#define INA226_ALERT_LATCH_ENABLE	BIT(0)
 #define INA226_ALERT_POLARITY		BIT(1)
 
 /* bit number of alert functions in Mask/Enable Register */
@@ -640,8 +641,10 @@ static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
 	if (data->chip == ina226) {
 		bool active_high = device_property_read_bool(dev, "ti,alert-polarity-active-high");
 
-		regmap_update_bits(regmap, INA226_MASK_ENABLE, INA226_ALERT_POLARITY,
-				   FIELD_PREP(INA226_ALERT_POLARITY, active_high));
+		regmap_update_bits(regmap, INA226_MASK_ENABLE,
+				   INA226_ALERT_LATCH_ENABLE | INA226_ALERT_POLARITY,
+				   INA226_ALERT_LATCH_ENABLE |
+						FIELD_PREP(INA226_ALERT_POLARITY, active_high));
 	}
 
 	/*
