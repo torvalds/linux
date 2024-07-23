@@ -3457,6 +3457,7 @@ static void rbd_lock_del_request(struct rbd_img_request *img_req)
 	lockdep_assert_held(&rbd_dev->lock_rwsem);
 	spin_lock(&rbd_dev->lock_lists_lock);
 	if (!list_empty(&img_req->lock_item)) {
+		rbd_assert(!list_empty(&rbd_dev->running_list));
 		list_del_init(&img_req->lock_item);
 		need_wakeup = (rbd_dev->lock_state == RBD_LOCK_STATE_QUIESCING &&
 			       list_empty(&rbd_dev->running_list));
@@ -3475,11 +3476,6 @@ static int rbd_img_exclusive_lock(struct rbd_img_request *img_req)
 
 	if (rbd_lock_add_request(img_req))
 		return 1;
-
-	if (rbd_dev->opts->exclusive) {
-		WARN_ON(1); /* lock got released? */
-		return -EROFS;
-	}
 
 	/*
 	 * Note the use of mod_delayed_work() in rbd_acquire_lock()
@@ -4600,6 +4596,10 @@ static void rbd_reacquire_lock(struct rbd_device *rbd_dev)
 		if (ret != -EOPNOTSUPP)
 			rbd_warn(rbd_dev, "failed to update lock cookie: %d",
 				 ret);
+
+		if (rbd_dev->opts->exclusive)
+			rbd_warn(rbd_dev,
+			     "temporarily releasing lock on exclusive mapping");
 
 		/*
 		 * Lock cookie cannot be updated on older OSDs, so do
