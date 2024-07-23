@@ -531,6 +531,11 @@
 	};
 };
 
+&pmu_io_domains {
+	vccio4-supply = <&vcc_1v8>;
+	vccio6-supply = <&vcc_1v8>;
+};
+
 &sata1 {
 	status = "okay";
 };
