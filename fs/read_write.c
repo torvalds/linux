@@ -1113,18 +1113,16 @@ static inline loff_t pos_from_hilo(unsigned long high, unsigned long low)
 static ssize_t do_preadv(unsigned long fd, const struct iovec __user *vec,
 			 unsigned long vlen, loff_t pos, rwf_t flags)
 {
-	struct fd f;
 	ssize_t ret = -EBADF;
 
 	if (pos < 0)
 		return -EINVAL;
 
-	f = fdget(fd);
-	if (fd_file(f)) {
+	CLASS(fd, f)(fd);
+	if (!fd_empty(f)) {
 		ret = -ESPIPE;
 		if (fd_file(f)->f_mode & FMODE_PREAD)
 			ret = vfs_readv(fd_file(f), vec, vlen, &pos, flags);
-		fdput(f);
 	}
 
 	if (ret > 0)
@@ -1136,18 +1134,16 @@ static ssize_t do_preadv(unsigned long fd, const struct iovec __user *vec,
 static ssize_t do_pwritev(unsigned long fd, const struct iovec __user *vec,
 			  unsigned long vlen, loff_t pos, rwf_t flags)
 {
-	struct fd f;
 	ssize_t ret = -EBADF;
 
 	if (pos < 0)
 		return -EINVAL;
 
-	f = fdget(fd);
-	if (fd_file(f)) {
+	CLASS(fd, f)(fd);
+	if (!fd_empty(f)) {
 		ret = -ESPIPE;
 		if (fd_file(f)->f_mode & FMODE_PWRITE)
 			ret = vfs_writev(fd_file(f), vec, vlen, &pos, flags);
-		fdput(f);
 	}
 
 	if (ret > 0)
