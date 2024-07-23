@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/usb/dwc3-msm.h>
 #include <linux/usb/composite.h>
+#include <linux/device.h>
 #include "core.h"
 #include "debug-ipc.h"
 #include "gadget.h"
@@ -32,8 +33,13 @@ static int entry_usb_ep_set_maxpacket_limit(struct kretprobe_instance *ri,
 	dep =  to_dwc3_ep(ep);
 	dwc = dep->dwc;
 
-	data->dwc = dwc;
-	data->xi0 = dep->number;
+	if (dwc && (dwc->dev) &&
+	   (strcmp(dev_driver_string(dwc->dev), "dwc3") == 0)) {
+		data->dwc = dwc;
+		data->xi0 = dep->number;
+	} else {
+		data->dwc = NULL;
+	}
 
 	return 0;
 }
@@ -44,8 +50,14 @@ static int exit_usb_ep_set_maxpacket_limit(struct kretprobe_instance *ri,
 	struct kprobe_data *data = (struct kprobe_data *)ri->data;
 	struct dwc3 *dwc = data->dwc;
 	u8 epnum = data->xi0;
-	struct dwc3_ep *dep = dwc->eps[epnum];
-	struct usb_ep *ep = &dep->endpoint;
+	struct dwc3_ep *dep;
+	struct usb_ep *ep;
+
+	if (!dwc)
+		return 0;
+
+	dep = dwc->eps[epnum];
+	ep = &dep->endpoint;
 
 	if (epnum >= 2) {
 		ep->maxpacket_limit = 1024;
