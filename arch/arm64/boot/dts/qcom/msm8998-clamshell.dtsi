@@ -128,6 +128,12 @@
 	};
 };
 
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+
+	status = "okay";
+};
+
 &qusb2phy {
 	status = "okay";
 
