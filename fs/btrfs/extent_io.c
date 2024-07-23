@@ -406,30 +406,31 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 			       start, end, page_ops);
 }
 
-static bool btrfs_verify_page(struct page *page, u64 start)
+static bool btrfs_verify_folio(struct folio *folio, u64 start, u32 len)
 {
-	if (!fsverity_active(page->mapping->host) ||
-	    PageUptodate(page) ||
-	    start >= i_size_read(page->mapping->host))
+	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
+
+	if (!fsverity_active(folio->mapping->host) ||
+	    btrfs_folio_test_uptodate(fs_info, folio, start, len) ||
+	    start >= i_size_read(folio->mapping->host))
 		return true;
-	return fsverity_verify_page(page);
+	return fsverity_verify_folio(folio);
 }
 
-static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
+static void end_folio_read(struct folio *folio, bool uptodate, u64 start, u32 len)
 {
-	struct btrfs_fs_info *fs_info = page_to_fs_info(page);
-	struct folio *folio = page_folio(page);
+	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
 
-	ASSERT(page_offset(page) <= start &&
-	       start + len <= page_offset(page) + PAGE_SIZE);
+	ASSERT(folio_pos(folio) <= start &&
+	       start + len <= folio_pos(folio) + PAGE_SIZE);
 
-	if (uptodate && btrfs_verify_page(page, start))
+	if (uptodate && btrfs_verify_folio(folio, start, len))
 		btrfs_folio_set_uptodate(fs_info, folio, start, len);
 	else
 		btrfs_folio_clear_uptodate(fs_info, folio, start, len);
 
-	if (!btrfs_is_subpage(fs_info, page->mapping))
-		unlock_page(page);
+	if (!btrfs_is_subpage(fs_info, folio->mapping))
+		folio_unlock(folio);
 	else
 		btrfs_subpage_end_reader(fs_info, folio, start, len);
 }
@@ -642,7 +643,7 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
 		}
 
 		/* Update page status and unlock. */
-		end_page_read(folio_page(folio, 0), uptodate, start, len);
+		end_folio_read(folio, uptodate, start, len);
 		endio_readpage_release_extent(&processed, BTRFS_I(inode),
 					      start, end, uptodate);
 	}
@@ -1048,13 +1049,13 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			iosize = PAGE_SIZE - pg_offset;
 			memzero_page(page, pg_offset, iosize);
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_page_read(page, true, cur, iosize);
+			end_folio_read(page_folio(page), true, cur, iosize);
 			break;
 		}
 		em = __get_extent_map(inode, page, cur, end - cur + 1, em_cached);
 		if (IS_ERR(em)) {
 			unlock_extent(tree, cur, end, NULL);
-			end_page_read(page, false, cur, end + 1 - cur);
+			end_folio_read(page_folio(page), false, cur, end + 1 - cur);
 			return PTR_ERR(em);
 		}
 		extent_offset = cur - em->start;
@@ -1123,7 +1124,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			memzero_page(page, pg_offset, iosize);
 
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_page_read(page, true, cur, iosize);
+			end_folio_read(page_folio(page), true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -1131,7 +1132,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		/* the get_extent function already copied into the page */
 		if (block_start == EXTENT_MAP_INLINE) {
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_page_read(page, true, cur, iosize);
+			end_folio_read(page_folio(page), true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -2551,7 +2552,7 @@ static bool folio_range_has_eb(struct btrfs_fs_info *fs_info, struct folio *foli
 			return true;
 		/*
 		 * Even there is no eb refs here, we may still have
-		 * end_page_read() call relying on page::private.
+		 * end_folio_read() call relying on page::private.
 		 */
 		if (atomic_read(&subpage->readers))
 			return true;
