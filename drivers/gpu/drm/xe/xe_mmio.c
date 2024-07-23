@@ -33,29 +33,56 @@ static void tiles_fini(void *arg)
 		tile->mmio.regs = NULL;
 }
 
-int xe_mmio_probe_tiles(struct xe_device *xe)
+/*
+ * On multi-tile devices, partition the BAR space for MMIO on each tile,
+ * possibly accounting for register override on the number of tiles available.
+ * Resulting memory layout is like below:
+ *
+ * .----------------------. <- tile_count * tile_mmio_size
+ * |         ....         |
+ * |----------------------| <- 2 * tile_mmio_size
+ * |   tile1->mmio.regs   |
+ * |----------------------| <- 1 * tile_mmio_size
+ * |   tile0->mmio.regs   |
+ * '----------------------' <- 0MB
+ */
+static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 {
-	size_t tile_mmio_size = SZ_16M, tile_mmio_ext_size = xe->info.tile_mmio_ext_size;
-	u8 id, tile_count = xe->info.tile_count;
-	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	struct xe_tile *tile;
 	void __iomem *regs;
-	u32 mtcfg;
+	u8 id;
 
-	if (tile_count == 1)
-		goto add_mmio_ext;
+	/*
+	 * Nothing to be done as tile 0 has already been setup earlier with the
+	 * entire BAR mapped - see xe_mmio_init()
+	 */
+	if (xe->info.tile_count == 1)
+		return;
 
+	/* Possibly override number of tile based on configuration register */
 	if (!xe->info.skip_mtcfg) {
+		struct xe_gt *gt = xe_root_mmio_gt(xe);
+		u8 tile_count;
+		u32 mtcfg;
+
+		/*
+		 * Although the per-tile mmio regs are not yet initialized, this
+		 * is fine as it's going to the root gt, that's guaranteed to be
+		 * initialized earlier in xe_mmio_init()
+		 */
 		mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
 		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
+
 		if (tile_count < xe->info.tile_count) {
 			drm_info(&xe->drm, "tile_count: %d, reduced_tile_count %d\n",
 					xe->info.tile_count, tile_count);
 			xe->info.tile_count = tile_count;
 
 			/*
-			 * FIXME: Needs some work for standalone media, but should be impossible
-			 * with multi-tile for now.
+			 * FIXME: Needs some work for standalone media, but
+			 * should be impossible with multi-tile for now:
+			 * multi-tile platform with standalone media doesn't
+			 * exist
 			 */
 			xe->info.gt_count = xe->info.tile_count;
 		}
@@ -67,23 +94,51 @@ int xe_mmio_probe_tiles(struct xe_device *xe)
 		tile->mmio.regs = regs;
 		regs += tile_mmio_size;
 	}
+}
 
-add_mmio_ext:
-	/*
-	 * By design, there's a contiguous multi-tile MMIO space (16MB hard coded per tile).
-	 * When supported, there could be an additional contiguous multi-tile MMIO extension
-	 * space ON TOP of it, and hence the necessity for distinguished MMIO spaces.
-	 */
-	if (xe->info.has_mmio_ext) {
-		regs = xe->mmio.regs + tile_mmio_size * tile_count;
+/*
+ * On top of all the multi-tile MMIO space there can be a platform-dependent
+ * extension for each tile, resulting in a layout like below:
+ *
+ * .----------------------. <- ext_base + tile_count * tile_mmio_ext_size
+ * |         ....         |
+ * |----------------------| <- ext_base + 2 * tile_mmio_ext_size
+ * | tile1->mmio_ext.regs |
+ * |----------------------| <- ext_base + 1 * tile_mmio_ext_size
+ * | tile0->mmio_ext.regs |
+ * |======================| <- ext_base = tile_count * tile_mmio_size
+ * |                      |
+ * |       mmio.regs      |
+ * |                      |
+ * '----------------------' <- 0MB
+ *
+ * Set up the tile[]->mmio_ext pointers/sizes.
+ */
+static void mmio_extension_setup(struct xe_device *xe, size_t tile_mmio_size,
+				 size_t tile_mmio_ext_size)
+{
+	struct xe_tile *tile;
+	void __iomem *regs;
+	u8 id;
 
-		for_each_tile(tile, xe, id) {
-			tile->mmio_ext.size = tile_mmio_ext_size;
-			tile->mmio_ext.regs = regs;
+	if (!xe->info.has_mmio_ext)
+		return;
 
-			regs += tile_mmio_ext_size;
-		}
+	regs = xe->mmio.regs + tile_mmio_size * xe->info.tile_count;
+	for_each_tile(tile, xe, id) {
+		tile->mmio_ext.size = tile_mmio_ext_size;
+		tile->mmio_ext.regs = regs;
+		regs += tile_mmio_ext_size;
 	}
+}
+
+int xe_mmio_probe_tiles(struct xe_device *xe)
+{
+	size_t tile_mmio_size = SZ_16M;
+	size_t tile_mmio_ext_size = xe->info.tile_mmio_ext_size;
+
+	mmio_multi_tile_setup(xe, tile_mmio_size);
+	mmio_extension_setup(xe, tile_mmio_size, tile_mmio_ext_size);
 
 	return devm_add_action_or_reset(xe->drm.dev, tiles_fini, xe);
 }
