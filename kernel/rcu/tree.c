@@ -3539,10 +3539,10 @@ schedule_delayed_monitor_work(struct kfree_rcu_cpu *krcp)
 	if (delayed_work_pending(&krcp->monitor_work)) {
 		delay_left = krcp->monitor_work.timer.expires - jiffies;
 		if (delay < delay_left)
-			mod_delayed_work(system_wq, &krcp->monitor_work, delay);
+			mod_delayed_work(system_unbound_wq, &krcp->monitor_work, delay);
 		return;
 	}
-	queue_delayed_work(system_wq, &krcp->monitor_work, delay);
+	queue_delayed_work(system_unbound_wq, &krcp->monitor_work, delay);
 }
 
 static void
@@ -3634,7 +3634,7 @@ static void kfree_rcu_monitor(struct work_struct *work)
 			// be that the work is in the pending state when
 			// channels have been detached following by each
 			// other.
-			queue_rcu_work(system_wq, &krwp->rcu_work);
+			queue_rcu_work(system_unbound_wq, &krwp->rcu_work);
 		}
 	}
 
@@ -3704,7 +3704,7 @@ run_page_cache_worker(struct kfree_rcu_cpu *krcp)
 	if (rcu_scheduler_active == RCU_SCHEDULER_RUNNING &&
 			!atomic_xchg(&krcp->work_in_progress, 1)) {
 		if (atomic_read(&krcp->backoff_page_cache_fill)) {
-			queue_delayed_work(system_wq,
+			queue_delayed_work(system_unbound_wq,
 				&krcp->page_cache_work,
 					msecs_to_jiffies(rcu_delay_page_cache_fill_msec));
 		} else {
