@@ -76,6 +76,7 @@ dispcc-neo.ko
 secure_buffer.ko
 qcom-cpufreq-hw.ko
 sched-walt-debug.ko
+tcsrcc-neo.ko
 qcom-i2c-pmic.ko
 qcom-spmi-pmic.ko
 qcom-reboot-reason.ko
@@ -93,3 +94,4 @@ qcom_pm8008-regulator.ko
 rpmh-regulator.ko
 debug-regulator.ko
 qcom-pdc.ko
+gdsc-regulator.ko
