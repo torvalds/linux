@@ -246,6 +246,12 @@
 	status = "okay";
 };
 
+&tsadc {
+	rockchip,hw-tshut-mode = <1>;
+	rockchip,hw-tshut-polarity = <0>;
+	status = "okay";
+};
+
 /*
  * Connected to an MCU, that provides access to more LEDs,
  * buzzer, fan control and more.
