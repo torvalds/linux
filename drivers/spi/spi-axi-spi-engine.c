@@ -258,7 +258,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 					clk_div - 1));
 		}
 
-		if (bits_per_word != xfer->bits_per_word) {
+		if (bits_per_word != xfer->bits_per_word && xfer->len) {
 			bits_per_word = xfer->bits_per_word;
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
