@@ -532,6 +532,7 @@ static void load_programs(const struct test_program programs[],
 			  FIXTURE_DATA(hid_bpf) * self,
 			  const FIXTURE_VARIANT(hid_bpf) * variant)
 {
+	struct bpf_map *iter_map;
 	int err = -EINVAL;
 
 	ASSERT_LE(progs_count, ARRAY_SIZE(self->hid_links))
@@ -563,6 +564,13 @@ static void load_programs(const struct test_program programs[],
 
 		*ops_hid_id = self->hid_id;
 	}
+
+	/* we disable the auto-attach feature of all maps because we
+	 * only want the tested one to be manually attached in the next
+	 * call to bpf_map__attach_struct_ops()
+	 */
+	bpf_object__for_each_map(iter_map, *self->skel->skeleton->obj)
+		bpf_map__set_autoattach(iter_map, false);
 
 	err = hid__load(self->skel);
 	ASSERT_OK(err) TH_LOG("hid_skel_load failed: %d", err);
