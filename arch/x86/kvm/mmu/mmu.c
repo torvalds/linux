@@ -4750,7 +4750,9 @@ long kvm_arch_vcpu_pre_fault_memory(struct kvm_vcpu *vcpu,
 	 * reload is efficient when called repeatedly, so we can do it on
 	 * every iteration.
 	 */
-	kvm_mmu_reload(vcpu);
+	r = kvm_mmu_reload(vcpu);
+	if (r)
+		return r;
 
 	if (kvm_arch_has_private_mem(vcpu->kvm) &&
 	    kvm_mem_is_private(vcpu->kvm, gpa_to_gfn(range->gpa)))
