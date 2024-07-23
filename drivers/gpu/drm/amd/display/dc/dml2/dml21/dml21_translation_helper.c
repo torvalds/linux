@@ -827,6 +827,7 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 
 	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
 		plane->tdlut.setup_for_tdlut = true;
+
 		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.layout) {
 		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB:
 		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR:
@@ -836,6 +837,7 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_simple_linear;
 			break;
 		}
+
 		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.size) {
 		case DC_CM2_GPU_MEM_SIZE_171717:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
@@ -844,8 +846,8 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
 			break;
 		}
-	} else
-		plane->tdlut.setup_for_tdlut = false;
+	}
+	plane->tdlut.setup_for_tdlut |= dml_ctx->config.force_tdlut_enable;
 
 	plane->dynamic_meta_data.enable = false;
 	plane->dynamic_meta_data.lines_before_active_required = 0;
