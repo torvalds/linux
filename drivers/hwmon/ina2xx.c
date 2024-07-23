@@ -30,12 +30,10 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/util_macros.h>
-
-#include <linux/platform_data/ina2xx.h>
 
 /* common register definitions */
 #define INA2XX_CONFIG			0x00
@@ -643,14 +641,8 @@ static int ina2xx_probe(struct i2c_client *client)
 	data->config = &ina2xx_config[chip];
 	mutex_init(&data->config_lock);
 
-	if (of_property_read_u32(dev->of_node, "shunt-resistor", &val) < 0) {
-		struct ina2xx_platform_data *pdata = dev_get_platdata(dev);
-
-		if (pdata)
-			val = pdata->shunt_uohms;
-		else
-			val = INA2XX_RSHUNT_DEFAULT;
-	}
+	if (device_property_read_u32(dev, "shunt-resistor", &val) < 0)
+		val = INA2XX_RSHUNT_DEFAULT;
 
 	ina2xx_set_shunt(data, val);
 
@@ -667,7 +659,7 @@ static int ina2xx_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret, "failed to enable vs regulator\n");
 
 	if (chip == ina226) {
-		if (of_property_read_bool(dev->of_node, "ti,alert-polarity-active-high")) {
+		if (device_property_read_bool(dev, "ti,alert-polarity-active-high")) {
 			ret = ina2xx_set_alert_polarity(data,
 							INA226_ALERT_POL_HIGH);
 			if (ret < 0) {
