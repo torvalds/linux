@@ -2337,6 +2337,17 @@ config EFI
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
 
+config COMPRESSED_INSTALL
+	bool "Install compressed image by default"
+	help
+	  This makes the regular "make install" install the compressed
+	  image we built, not the legacy uncompressed one.
+
+	  You can check that a compressed image works for you by doing
+	  "make zinstall" first, and verifying that everything is fine
+	  in your environment before making "make install" do this for
+	  you.
+
 config DMI
 	bool "Enable support for SMBIOS (DMI) tables"
 	depends on EFI
