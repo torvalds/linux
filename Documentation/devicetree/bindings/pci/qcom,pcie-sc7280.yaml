@@ -74,9 +74,6 @@ properties:
     items:
       - const: pci
 
-  vddpe-3v3-supply:
-    description: PCIe endpoint power supply
-
 allOf:
   - $ref: qcom,pcie-common.yaml#
 
