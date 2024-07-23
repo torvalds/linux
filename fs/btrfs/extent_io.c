@@ -1155,17 +1155,16 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 int btrfs_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct btrfs_inode *inode = page_to_inode(page);
-	u64 start = page_offset(page);
-	u64 end = start + PAGE_SIZE - 1;
+	struct btrfs_inode *inode = folio_to_inode(folio);
+	u64 start = folio_pos(folio);
+	u64 end = start + folio_size(folio) - 1;
 	struct btrfs_bio_ctrl bio_ctrl = { .opf = REQ_OP_READ };
 	struct extent_map *em_cached = NULL;
 	int ret;
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = btrfs_do_readpage(page, &em_cached, &bio_ctrl, NULL);
+	ret = btrfs_do_readpage(&folio->page, &em_cached, &bio_ctrl, NULL);
 	free_extent_map(em_cached);
 
 	/*
