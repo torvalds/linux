@@ -1531,7 +1531,7 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
 
-	trace___extent_writepage(page, inode, bio_ctrl->wbc);
+	trace___extent_writepage(folio, inode, bio_ctrl->wbc);
 
 	WARN_ON(!PageLocked(page));
 
