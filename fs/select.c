@@ -462,15 +462,22 @@ get_max:
 			 EPOLLNVAL)
 #define POLLEX_SET (EPOLLPRI | EPOLLNVAL)
 
-static inline void wait_key_set(poll_table *wait, unsigned long in,
+static inline __poll_t select_poll_one(int fd, poll_table *wait, unsigned long in,
 				unsigned long out, unsigned long bit,
 				__poll_t ll_flag)
 {
+	CLASS(fd, f)(fd);
+
+	if (fd_empty(f))
+		return EPOLLNVAL;
+
 	wait->_key = POLLEX_SET | ll_flag;
 	if (in & bit)
 		wait->_key |= POLLIN_SET;
 	if (out & bit)
 		wait->_key |= POLLOUT_SET;
+
+	return vfs_poll(fd_file(f), wait);
 }
 
 static noinline_for_stack int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
@@ -522,20 +529,12 @@ static noinline_for_stack int do_select(int n, fd_set_bits *fds, struct timespec
 			}
 
 			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
-				struct fd f;
 				if (i >= n)
 					break;
 				if (!(bit & all_bits))
 					continue;
-				mask = EPOLLNVAL;
-				f = fdget(i);
-				if (fd_file(f)) {
-					wait_key_set(wait, in, out, bit,
-						     busy_flag);
-					mask = vfs_poll(fd_file(f), wait);
-
-					fdput(f);
-				}
+				mask = select_poll_one(i, wait, in, out, bit,
+						       busy_flag);
 				if ((mask & POLLIN_SET) && (in & bit)) {
 					res_in |= bit;
 					retval++;
