@@ -3,3 +3,6 @@
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-seraph.ko
+qcom_hwspinlock.ko
+smem.ko
+socinfo.ko
