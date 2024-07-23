@@ -725,18 +725,7 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 	const struct scaler_data *scaler_data = get_scaler_data_for_plane(dml_ctx, plane_state, context);
 	struct dc_stream_state *stream = context->streams[stream_index];
 
-	if (stream->cursor_attributes.color_format == CURSOR_MODE_MONO)
-		plane->cursor.cursor_bpp = 2;
-	else if (stream->cursor_attributes.color_format == CURSOR_MODE_COLOR_1BIT_AND
-		|| stream->cursor_attributes.color_format == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA
-		|| stream->cursor_attributes.color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA) {
-		plane->cursor.cursor_bpp = 32;
-	} else if (stream->cursor_attributes.color_format == CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED
-		|| stream->cursor_attributes.color_format == CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED) {
-		plane->cursor.cursor_bpp = 64;
-	} else
-		plane->cursor.cursor_bpp = 32;
-
+	plane->cursor.cursor_bpp = 32;
 	plane->cursor.cursor_width = 256;
 	plane->cursor.num_cursors = 1;
 
