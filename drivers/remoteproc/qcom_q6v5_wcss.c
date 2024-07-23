@@ -148,6 +148,7 @@ struct q6v5_wcss {
 	bool requires_force_stop;
 
 	struct qcom_rproc_glink glink_subdev;
+	struct qcom_rproc_pdm pdm_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
 };
 
@@ -1052,6 +1053,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 		return ret;
 
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev, "q6wcss");
+	qcom_add_pdm_subdev(rproc, &wcss->pdm_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "q6wcss");
 
 	if (desc->ssctl_id)
@@ -1074,6 +1076,7 @@ static void q6v5_wcss_remove(struct platform_device *pdev)
 	struct q6v5_wcss *wcss = rproc->priv;
 
 	qcom_q6v5_deinit(&wcss->q6v5);
+	qcom_remove_pdm_subdev(rproc, &wcss->pdm_subdev);
 	rproc_del(rproc);
 }
 
