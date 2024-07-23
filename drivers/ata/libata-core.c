@@ -2219,12 +2219,12 @@ static int ata_do_link_spd_horkage(struct ata_device *dev)
 	return 0;
 }
 
-static inline u8 ata_dev_knobble(struct ata_device *dev)
+static inline bool ata_dev_knobble(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 
 	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_BRIDGE_OK)
-		return 0;
+		return false;
 
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
