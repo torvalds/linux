@@ -1137,8 +1137,8 @@ static bool dce120_configure_crc(struct timing_generator *tg,
 	return true;
 }
 
-static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
-			   uint32_t *g_y, uint32_t *b_cb)
+static bool dce120_get_crc(struct timing_generator *tg, uint8_t idx,
+			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value, field;
@@ -1151,14 +1151,30 @@ static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
 	if (!field)
 		return false;
 
-	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_RG,
-				  tg110->offsets.crtc);
-	*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_R_CR);
-	*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_G_Y);
+	switch (idx) {
+	case 0:
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_RG,
+					  tg110->offsets.crtc);
+		*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_R_CR);
+		*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_G_Y);
 
-	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_B,
-				  tg110->offsets.crtc);
-	*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_B, CRC0_B_CB);
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_B,
+					  tg110->offsets.crtc);
+		*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_B, CRC0_B_CB);
+		break;
+	case 1:
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC1_DATA_RG,
+					  tg110->offsets.crtc);
+		*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_RG, CRC1_R_CR);
+		*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_RG, CRC1_G_Y);
+
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC1_DATA_B,
+					  tg110->offsets.crtc);
+		*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_B, CRC1_B_CB);
+		break;
+	default:
+		return false;
+	}
 
 	return true;
 }

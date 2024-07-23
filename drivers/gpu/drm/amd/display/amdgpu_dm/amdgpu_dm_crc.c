@@ -709,7 +709,7 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 	}
 
 	if (dm_is_crc_source_crtc(cur_crc_src)) {
-		if (!dc_stream_get_crc(stream_state->ctx->dc, stream_state,
+		if (!dc_stream_get_crc(stream_state->ctx->dc, stream_state, 0,
 				       &crcs[0], &crcs[1], &crcs[2]))
 			return;
 
