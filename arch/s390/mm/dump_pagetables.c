@@ -20,7 +20,8 @@ struct addr_marker {
 };
 
 enum address_markers_idx {
-	LOWCORE_START_NR = 0,
+	KVA_NR = 0,
+	LOWCORE_START_NR,
 	LOWCORE_END_NR,
 	AMODE31_START_NR,
 	AMODE31_END_NR,
@@ -59,6 +60,7 @@ enum address_markers_idx {
 };
 
 static struct addr_marker address_markers[] = {
+	[KVA_NR]		= {0, "Kernel Virtual Address Space"},
 	[LOWCORE_START_NR]	= {0, "Lowcore Start"},
 	[LOWCORE_END_NR]	= {0, "Lowcore End"},
 	[IDENTITY_START_NR]	= {0, "Identity Mapping Start"},
@@ -163,6 +165,19 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
+static void note_page_update_state(struct pg_state *st, unsigned long addr, unsigned int prot, int level)
+{
+	struct seq_file *m = st->seq;
+
+	while (addr >= st->marker[1].start_address) {
+		st->marker++;
+		pt_dump_seq_printf(m, "---[ %s ]---\n", st->marker->name);
+	}
+	st->start_address = addr;
+	st->current_prot = prot;
+	st->level = level;
+}
+
 static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
 {
 	int width = sizeof(unsigned long) * 2;
@@ -186,9 +201,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		addr = max_addr;
 	if (st->level == -1) {
 		pt_dump_seq_printf(m, "---[ %s ]---\n", st->marker->name);
-		st->start_address = addr;
-		st->current_prot = prot;
-		st->level = level;
+		note_page_update_state(st, addr, prot, level);
 	} else if (prot != st->current_prot || level != st->level ||
 		   addr >= st->marker[1].start_address) {
 		note_prot_wx(st, addr);
@@ -202,13 +215,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		}
 		pt_dump_seq_printf(m, "%9lu%c ", delta, *unit);
 		print_prot(m, st->current_prot, st->level);
-		while (addr >= st->marker[1].start_address) {
-			st->marker++;
-			pt_dump_seq_printf(m, "---[ %s ]---\n", st->marker->name);
-		}
-		st->start_address = addr;
-		st->current_prot = prot;
-		st->level = level;
+		note_page_update_state(st, addr, prot, level);
 	}
 }
 
@@ -303,6 +310,8 @@ static int pt_dump_init(void)
 #ifdef CONFIG_KFENCE
 	unsigned long kfence_start = (unsigned long)__kfence_pool;
 #endif
+	unsigned long lowcore = (unsigned long)get_lowcore();
+
 	/*
 	 * Figure out the maximum virtual address being accessible with the
 	 * kernel ASCE. We need this to keep the page table walker functions
@@ -310,8 +319,8 @@ static int pt_dump_init(void)
 	 */
 	max_addr = (get_lowcore()->kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
-	address_markers[LOWCORE_START_NR].start_address = 0;
-	address_markers[LOWCORE_END_NR].start_address = sizeof(struct lowcore);
+	address_markers[LOWCORE_START_NR].start_address = lowcore;
+	address_markers[LOWCORE_END_NR].start_address = lowcore + sizeof(struct lowcore);
 	address_markers[IDENTITY_START_NR].start_address = __identity_base;
 	address_markers[IDENTITY_END_NR].start_address = __identity_base + ident_map_size;
 	address_markers[AMODE31_START_NR].start_address = (unsigned long)__samode31;
