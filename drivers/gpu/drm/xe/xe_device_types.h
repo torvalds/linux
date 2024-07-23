@@ -582,6 +582,18 @@ struct xe_file {
 	/** @client: drm client */
 	struct xe_drm_client *client;
 
+	/**
+	 * @process_name: process name for file handle, used to safely output
+	 * during error situations where xe file can outlive process
+	 */
+	char *process_name;
+
+	/**
+	 * @pid: pid for file handle, used to safely output uring error
+	 * situations where xe file can outlive process
+	 */
+	pid_t pid;
+
 	/** @refcount: ref count of this xe file */
 	struct kref refcount;
 };
