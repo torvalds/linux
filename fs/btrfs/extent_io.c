@@ -736,12 +736,13 @@ static int alloc_eb_folio_array(struct extent_buffer *eb, bool nofail)
 }
 
 static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
-				struct page *page, u64 disk_bytenr,
+				struct folio *folio, u64 disk_bytenr,
 				unsigned int pg_offset)
 {
 	struct bio *bio = &bio_ctrl->bbio->bio;
 	struct bio_vec *bvec = bio_last_bvec_all(bio);
 	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
+	struct folio *bv_folio = page_folio(bvec->bv_page);
 
 	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE) {
 		/*
@@ -754,7 +755,7 @@ static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
 	/*
 	 * The contig check requires the following conditions to be met:
 	 *
-	 * 1) The pages are belonging to the same inode
+	 * 1) The folios are belonging to the same inode
 	 *    This is implied by the call chain.
 	 *
 	 * 2) The range has adjacent logical bytenr
@@ -763,8 +764,8 @@ static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
 	 *    This is required for the usage of btrfs_bio->file_offset.
 	 */
 	return bio_end_sector(bio) == sector &&
-		page_offset(bvec->bv_page) + bvec->bv_offset + bvec->bv_len ==
-		page_offset(page) + pg_offset;
+		folio_pos(bv_folio) + bvec->bv_offset + bvec->bv_len ==
+		folio_pos(folio) + pg_offset;
 }
 
 static void alloc_new_bio(struct btrfs_inode *inode,
@@ -817,17 +818,17 @@ static void alloc_new_bio(struct btrfs_inode *inode,
  * The mirror number for this IO should already be initizlied in
  * @bio_ctrl->mirror_num.
  */
-static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
-			       u64 disk_bytenr, struct page *page,
+static void submit_extent_folio(struct btrfs_bio_ctrl *bio_ctrl,
+			       u64 disk_bytenr, struct folio *folio,
 			       size_t size, unsigned long pg_offset)
 {
-	struct btrfs_inode *inode = page_to_inode(page);
+	struct btrfs_inode *inode = folio_to_inode(folio);
 
 	ASSERT(pg_offset + size <= PAGE_SIZE);
 	ASSERT(bio_ctrl->end_io_func);
 
 	if (bio_ctrl->bbio &&
-	    !btrfs_bio_is_contig(bio_ctrl, page, disk_bytenr, pg_offset))
+	    !btrfs_bio_is_contig(bio_ctrl, folio, disk_bytenr, pg_offset))
 		submit_one_bio(bio_ctrl);
 
 	do {
@@ -836,7 +837,7 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		/* Allocate new bio if needed */
 		if (!bio_ctrl->bbio) {
 			alloc_new_bio(inode, bio_ctrl, disk_bytenr,
-				      page_offset(page) + pg_offset);
+				      folio_pos(folio) + pg_offset);
 		}
 
 		/* Cap to the current ordered extent boundary if there is one. */
@@ -846,21 +847,22 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 			len = bio_ctrl->len_to_oe_boundary;
 		}
 
-		if (bio_add_page(&bio_ctrl->bbio->bio, page, len, pg_offset) != len) {
+		if (!bio_add_folio(&bio_ctrl->bbio->bio, folio, len, pg_offset)) {
 			/* bio full: move on to a new one */
 			submit_one_bio(bio_ctrl);
 			continue;
 		}
 
 		if (bio_ctrl->wbc)
-			wbc_account_cgroup_owner(bio_ctrl->wbc, page, len);
+			wbc_account_cgroup_owner(bio_ctrl->wbc, &folio->page,
+						 len);
 
 		size -= len;
 		pg_offset += len;
 		disk_bytenr += len;
 
 		/*
-		 * len_to_oe_boundary defaults to U32_MAX, which isn't page or
+		 * len_to_oe_boundary defaults to U32_MAX, which isn't folio or
 		 * sector aligned.  alloc_new_bio() then sets it to the end of
 		 * our ordered extent for writes into zoned devices.
 		 *
@@ -870,15 +872,15 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		 * boundary is correct.
 		 *
 		 * When len_to_oe_boundary is U32_MAX, the cap above would
-		 * result in a 4095 byte IO for the last page right before
-		 * we hit the bio limit of UINT_MAX.  bio_add_page() has all
+		 * result in a 4095 byte IO for the last folio right before
+		 * we hit the bio limit of UINT_MAX.  bio_add_folio() has all
 		 * the checks required to make sure we don't overflow the bio,
 		 * and we should just ignore len_to_oe_boundary completely
 		 * unless we're using it to track an ordered extent.
 		 *
 		 * It's pretty hard to make a bio sized U32_MAX, but it can
 		 * happen when the page cache is able to feed us contiguous
-		 * pages for large extents.
+		 * folios for large extents.
 		 */
 		if (bio_ctrl->len_to_oe_boundary != U32_MAX)
 			bio_ctrl->len_to_oe_boundary -= len;
@@ -1143,8 +1145,8 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		if (force_bio_submit)
 			submit_one_bio(bio_ctrl);
-		submit_extent_page(bio_ctrl, disk_bytenr, page, iosize,
-				   pg_offset);
+		submit_extent_folio(bio_ctrl, disk_bytenr, page_folio(page),
+				    iosize, pg_offset);
 		cur = cur + iosize;
 		pg_offset += iosize;
 	}
@@ -1489,8 +1491,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		}
 
 
-		submit_extent_page(bio_ctrl, disk_bytenr, page, iosize,
-				   cur - page_offset(page));
+		submit_extent_folio(bio_ctrl, disk_bytenr, page_folio(page),
+				    iosize, cur - page_offset(page));
 		cur += iosize;
 		nr++;
 	}
@@ -2087,7 +2089,7 @@ retry:
 	 *   extent io tree. Thus we don't want to submit such wild eb
 	 *   if the fs already has error.
 	 *
-	 * We can get ret > 0 from submit_extent_page() indicating how many ebs
+	 * We can get ret > 0 from submit_extent_folio() indicating how many ebs
 	 * were submitted. Reset it to 0 to avoid false alerts for the caller.
 	 */
 	if (ret > 0)
