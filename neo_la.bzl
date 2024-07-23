@@ -7,6 +7,19 @@ target_name = "neo-la"
 def define_neo_la():
     _neo_in_tree_modules = [
         # keep sorted
+        "drivers/clk/qcom/camcc-neo.ko",
+        "drivers/clk/qcom/clk-dummy.ko",
+        "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/clk-rpmh.ko",
+        "drivers/clk/qcom/debugcc-neo.ko",
+        "drivers/clk/qcom/dispcc-neo.ko",
+        "drivers/clk/qcom/gcc-neo.ko",
+        "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/gpucc-neo.ko",
+        "drivers/clk/qcom/tcsrcc-neo.ko",
+        "drivers/clk/qcom/videocc-neo.ko",
+        "drivers/cpufreq/qcom-cpufreq-hw.ko",
+        "drivers/cpufreq/qcom-cpufreq-hw-debug.ko",
         "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/edac/kryo_arm64_edac.ko",
