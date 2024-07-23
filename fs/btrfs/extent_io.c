@@ -551,16 +551,14 @@ update:
 	processed->uptodate = uptodate;
 }
 
-static void begin_page_read(struct btrfs_fs_info *fs_info, struct page *page)
+static void begin_folio_read(struct btrfs_fs_info *fs_info, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-
 	ASSERT(folio_test_locked(folio));
 	if (!btrfs_is_subpage(fs_info, folio->mapping))
 		return;
 
 	ASSERT(folio_test_private(folio));
-	btrfs_subpage_start_reader(fs_info, folio, page_offset(page), PAGE_SIZE);
+	btrfs_subpage_start_reader(fs_info, folio, folio_pos(folio), PAGE_SIZE);
 }
 
 /*
@@ -1038,7 +1036,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		}
 	}
 	bio_ctrl->end_io_func = end_bbio_data_read;
-	begin_page_read(fs_info, page);
+	begin_folio_read(fs_info, page_folio(page));
 	while (cur <= end) {
 		enum btrfs_compression_type compress_type = BTRFS_COMPRESS_NONE;
 		bool force_bio_submit = false;
