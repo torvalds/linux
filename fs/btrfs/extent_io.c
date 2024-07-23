@@ -1004,12 +1004,12 @@ static struct extent_map *__get_extent_map(struct inode *inode, struct page *pag
  * XXX JDM: This needs looking at to ensure proper page locking
  * return 0 on success, otherwise return error
  */
-static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
+static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 		      struct btrfs_bio_ctrl *bio_ctrl, u64 *prev_em_start)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	u64 start = page_offset(page);
+	u64 start = folio_pos(folio);
 	const u64 end = start + PAGE_SIZE - 1;
 	u64 cur = start;
 	u64 extent_offset;
@@ -1022,23 +1022,23 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 	size_t blocksize = fs_info->sectorsize;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
-	ret = set_page_extent_mapped(page);
+	ret = set_folio_extent_mapped(folio);
 	if (ret < 0) {
 		unlock_extent(tree, start, end, NULL);
-		unlock_page(page);
+		folio_unlock(folio);
 		return ret;
 	}
 
-	if (page->index == last_byte >> PAGE_SHIFT) {
-		size_t zero_offset = offset_in_page(last_byte);
+	if (folio->index == last_byte >> folio_shift(folio)) {
+		size_t zero_offset = offset_in_folio(folio, last_byte);
 
 		if (zero_offset) {
-			iosize = PAGE_SIZE - zero_offset;
-			memzero_page(page, zero_offset, iosize);
+			iosize = folio_size(folio) - zero_offset;
+			folio_zero_range(folio, zero_offset, iosize);
 		}
 	}
 	bio_ctrl->end_io_func = end_bbio_data_read;
-	begin_folio_read(fs_info, page_folio(page));
+	begin_folio_read(fs_info, folio);
 	while (cur <= end) {
 		enum btrfs_compression_type compress_type = BTRFS_COMPRESS_NONE;
 		bool force_bio_submit = false;
@@ -1046,16 +1046,17 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		ASSERT(IS_ALIGNED(cur, fs_info->sectorsize));
 		if (cur >= last_byte) {
-			iosize = PAGE_SIZE - pg_offset;
-			memzero_page(page, pg_offset, iosize);
+			iosize = folio_size(folio) - pg_offset;
+			folio_zero_range(folio, pg_offset, iosize);
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_folio_read(page_folio(page), true, cur, iosize);
+			end_folio_read(folio, true, cur, iosize);
 			break;
 		}
-		em = __get_extent_map(inode, page, cur, end - cur + 1, em_cached);
+		em = __get_extent_map(inode, folio_page(folio, 0), cur,
+				      end - cur + 1, em_cached);
 		if (IS_ERR(em)) {
 			unlock_extent(tree, cur, end, NULL);
-			end_folio_read(page_folio(page), false, cur, end + 1 - cur);
+			end_folio_read(folio, false, cur, end + 1 - cur);
 			return PTR_ERR(em);
 		}
 		extent_offset = cur - em->start;
@@ -1080,8 +1081,8 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		 * to the same compressed extent (possibly with a different
 		 * offset and/or length, so it either points to the whole extent
 		 * or only part of it), we must make sure we do not submit a
-		 * single bio to populate the pages for the 2 ranges because
-		 * this makes the compressed extent read zero out the pages
+		 * single bio to populate the folios for the 2 ranges because
+		 * this makes the compressed extent read zero out the folios
 		 * belonging to the 2nd range. Imagine the following scenario:
 		 *
 		 *  File layout
@@ -1094,13 +1095,13 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		 * [extent X, compressed length = 4K uncompressed length = 16K]
 		 *
 		 * If the bio to read the compressed extent covers both ranges,
-		 * it will decompress extent X into the pages belonging to the
+		 * it will decompress extent X into the folios belonging to the
 		 * first range and then it will stop, zeroing out the remaining
-		 * pages that belong to the other range that points to extent X.
+		 * folios that belong to the other range that points to extent X.
 		 * So here we make sure we submit 2 bios, one for the first
 		 * range and another one for the third range. Both will target
 		 * the same physical extent from disk, but we can't currently
-		 * make the compressed bio endio callback populate the pages
+		 * make the compressed bio endio callback populate the folios
 		 * for both ranges because each compressed bio is tightly
 		 * coupled with a single extent map, and each range can have
 		 * an extent map with a different offset value relative to the
@@ -1121,18 +1122,18 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		/* we've found a hole, just zero and go on */
 		if (block_start == EXTENT_MAP_HOLE) {
-			memzero_page(page, pg_offset, iosize);
+			folio_zero_range(folio, pg_offset, iosize);
 
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_folio_read(page_folio(page), true, cur, iosize);
+			end_folio_read(folio, true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
 		}
-		/* the get_extent function already copied into the page */
+		/* the get_extent function already copied into the folio */
 		if (block_start == EXTENT_MAP_INLINE) {
 			unlock_extent(tree, cur, cur + iosize - 1, NULL);
-			end_folio_read(page_folio(page), true, cur, iosize);
+			end_folio_read(folio, true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -1145,8 +1146,8 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		if (force_bio_submit)
 			submit_one_bio(bio_ctrl);
-		submit_extent_folio(bio_ctrl, disk_bytenr, page_folio(page),
-				    iosize, pg_offset);
+		submit_extent_folio(bio_ctrl, disk_bytenr, folio, iosize,
+				    pg_offset);
 		cur = cur + iosize;
 		pg_offset += iosize;
 	}
@@ -1165,7 +1166,7 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = btrfs_do_readpage(&folio->page, &em_cached, &bio_ctrl, NULL);
+	ret = btrfs_do_readpage(folio, &em_cached, &bio_ctrl, NULL);
 	free_extent_map(em_cached);
 
 	/*
@@ -2369,8 +2370,7 @@ void btrfs_readahead(struct readahead_control *rac)
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	while ((folio = readahead_folio(rac)) != NULL)
-		btrfs_do_readpage(&folio->page, &em_cached, &bio_ctrl,
-				  &prev_em_start);
+		btrfs_do_readpage(folio, &em_cached, &bio_ctrl, &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);
