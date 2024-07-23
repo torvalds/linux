@@ -278,6 +278,18 @@ static struct thermal_zone_params tzone_params = {
 
 static bool msi_irq;
 
+static void proc_thermal_free_msi(struct pci_dev *pdev, struct proc_thermal_pci *pci_info)
+{
+	int i;
+
+	for (i = 0; i < MSI_THERMAL_MAX; i++) {
+		if (proc_thermal_msi_map[i])
+			devm_free_irq(&pdev->dev, proc_thermal_msi_map[i], pci_info);
+	}
+
+	pci_free_irq_vectors(pdev);
+}
+
 static int proc_thermal_setup_msi(struct pci_dev *pdev, struct proc_thermal_pci *pci_info)
 {
 	int ret, i, irq;
@@ -310,7 +322,7 @@ static int proc_thermal_setup_msi(struct pci_dev *pdev, struct proc_thermal_pci 
 	return 0;
 
 err_free_msi_vectors:
-	pci_free_irq_vectors(pdev);
+	proc_thermal_free_msi(pdev, pci_info);
 
 	return ret;
 }
@@ -397,7 +409,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 
 err_free_vectors:
 	if (msi_irq)
-		pci_free_irq_vectors(pdev);
+		proc_thermal_free_msi(pdev, pci_info);
 err_ret_tzone:
 	thermal_zone_device_unregister(pci_info->tzone);
 err_del_legacy:
