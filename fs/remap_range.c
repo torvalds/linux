@@ -536,7 +536,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 	}
 
 	for (i = 0, info = same->info; i < count; i++, info++) {
-		struct fd dst_fd = fdget(info->dest_fd);
+		CLASS(fd, dst_fd)(info->dest_fd);
 
 		if (fd_empty(dst_fd)) {
 			info->status = -EBADF;
@@ -545,7 +545,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 
 		if (info->reserved) {
 			info->status = -EINVAL;
-			goto next_fdput;
+			goto next_loop;
 		}
 
 		deduped = vfs_dedupe_file_range_one(file, off, fd_file(dst_fd),
@@ -558,8 +558,6 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		else
 			info->bytes_deduped = len;
 
-next_fdput:
-		fdput(dst_fd);
 next_loop:
 		if (fatal_signal_pending(current))
 			break;
