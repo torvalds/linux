@@ -13,6 +13,12 @@
 	model = "Qnap TS-433-4G NAS System 4-Bay";
 	compatible = "qnap,ts433", "rockchip,rk3568";
 
+	aliases {
+		ethernet0 = &gmac0;
+		mmc0 = &sdhci;
+		rtc0 = &rtc_rv8263;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -120,7 +126,7 @@
 &i2c1 {
 	status = "okay";
 
-	rtc@51 {
+	rtc_rv8263: rtc@51 {
 		compatible = "microcrystal,rv8263";
 		reg = <0x51>;
 		wakeup-source;
