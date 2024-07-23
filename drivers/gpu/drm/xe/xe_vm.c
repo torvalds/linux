@@ -718,7 +718,7 @@ int xe_vm_userptr_check_repin(struct xe_vm *vm)
 		list_empty_careful(&vm->userptr.invalidated)) ? 0 : -EAGAIN;
 }
 
-static int xe_vma_ops_alloc(struct xe_vma_ops *vops)
+static int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
 {
 	int i;
 
@@ -731,7 +731,7 @@ static int xe_vma_ops_alloc(struct xe_vma_ops *vops)
 				      sizeof(*vops->pt_update_ops[i].ops),
 				      GFP_KERNEL);
 		if (!vops->pt_update_ops[i].ops)
-			return -ENOMEM;
+			return array_of_binds ? -ENOBUFS : -ENOMEM;
 	}
 
 	return 0;
@@ -824,7 +824,7 @@ int xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 			goto free_ops;
 	}
 
-	err = xe_vma_ops_alloc(&vops);
+	err = xe_vma_ops_alloc(&vops, false);
 	if (err)
 		goto free_ops;
 
@@ -871,7 +871,7 @@ struct dma_fence *xe_vma_rebind(struct xe_vm *vm, struct xe_vma *vma, u8 tile_ma
 	if (err)
 		return ERR_PTR(err);
 
-	err = xe_vma_ops_alloc(&vops);
+	err = xe_vma_ops_alloc(&vops, false);
 	if (err) {
 		fence = ERR_PTR(err);
 		goto free_ops;
@@ -2761,7 +2761,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 					   sizeof(struct drm_xe_vm_bind_op),
 					   GFP_KERNEL | __GFP_ACCOUNT);
 		if (!*bind_ops)
-			return -ENOMEM;
+			return args->num_binds > 1 ? -ENOBUFS : -ENOMEM;
 
 		err = __copy_from_user(*bind_ops, bind_user,
 				       sizeof(struct drm_xe_vm_bind_op) *
@@ -3100,7 +3100,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto unwind_ops;
 	}
 
-	err = xe_vma_ops_alloc(&vops);
+	err = xe_vma_ops_alloc(&vops, args->num_binds > 1);
 	if (err)
 		goto unwind_ops;
 
