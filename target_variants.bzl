@@ -25,6 +25,7 @@ lxc_variants = [
 
 lxc_targets = [
     # keep sorted
+    "autoghgvm",
     "autogvm",
     "gen4auto",
 ]
