@@ -8,6 +8,9 @@ def define_seraph():
     _seraph_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/firmware/qcom-scm.ko",
+        "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-seraph.ko",
     ]
 
     _seraph_consolidate_in_tree_modules = _seraph_in_tree_modules + [
