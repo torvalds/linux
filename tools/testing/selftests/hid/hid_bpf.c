@@ -695,6 +695,24 @@ TEST_F(hid_bpf, subprog_raw_event)
 }
 
 /*
+ * Attach hid_first_event to the given uhid device,
+ * attempt at re-attaching it, we should not lock and
+ * return an invalid struct bpf_link
+ */
+TEST_F(hid_bpf, multiple_attach)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_first_event" },
+	};
+	struct bpf_link *link;
+
+	LOAD_PROGRAMS(progs);
+
+	link = bpf_map__attach_struct_ops(self->skel->maps.first_event);
+	ASSERT_NULL(link) TH_LOG("unexpected return value when re-attaching the struct_ops");
+}
+
+/*
  * Ensures that we can attach/detach programs
  */
 TEST_F(hid_bpf, test_attach_detach)
