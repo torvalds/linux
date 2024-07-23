@@ -29,9 +29,6 @@
 #include "dc.h"
 #include "dm_pp_smu.h"
 
-#define DCN_MINIMUM_DISPCLK_Khz 100000
-#define DCN_MINIMUM_DPPCLK_Khz 100000
-
 /* Constants */
 #define DDR4_DRAM_WIDTH   64
 #define WM_A 0
