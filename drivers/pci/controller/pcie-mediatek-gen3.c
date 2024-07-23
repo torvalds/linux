@@ -424,12 +424,6 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 	return 0;
 }
 
-static int mtk_pcie_set_affinity(struct irq_data *data,
-				 const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
 static void mtk_pcie_msi_irq_mask(struct irq_data *data)
 {
 	pci_msi_mask_irq(data);
@@ -450,8 +444,9 @@ static struct irq_chip mtk_msi_irq_chip = {
 };
 
 static struct msi_domain_info mtk_msi_domain_info = {
-	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		   MSI_FLAG_PCI_MSIX | MSI_FLAG_MULTI_PCI_MSI),
+	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX |
+		  MSI_FLAG_MULTI_PCI_MSI,
 	.chip	= &mtk_msi_irq_chip,
 };
 
@@ -517,7 +512,6 @@ static struct irq_chip mtk_msi_bottom_irq_chip = {
 	.irq_mask		= mtk_msi_bottom_irq_mask,
 	.irq_unmask		= mtk_msi_bottom_irq_unmask,
 	.irq_compose_msi_msg	= mtk_compose_msi_msg,
-	.irq_set_affinity	= mtk_pcie_set_affinity,
 	.name			= "MSI",
 };
 
@@ -618,7 +612,6 @@ static struct irq_chip mtk_intx_irq_chip = {
 	.irq_mask		= mtk_intx_mask,
 	.irq_unmask		= mtk_intx_unmask,
 	.irq_eoi		= mtk_intx_eoi,
-	.irq_set_affinity	= mtk_pcie_set_affinity,
 	.name			= "INTx",
 };
 
