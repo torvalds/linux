@@ -1435,11 +1435,11 @@ static int ad7173_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad7173_of_match[] = {
-	{ .compatible = "ad4111",	.data = &ad4111_device_info },
-	{ .compatible = "ad4112",	.data = &ad4112_device_info },
-	{ .compatible = "ad4114",	.data = &ad4114_device_info },
-	{ .compatible = "ad4115",	.data = &ad4115_device_info },
-	{ .compatible = "ad4116",	.data = &ad4116_device_info },
+	{ .compatible = "adi,ad4111",	.data = &ad4111_device_info },
+	{ .compatible = "adi,ad4112",	.data = &ad4112_device_info },
+	{ .compatible = "adi,ad4114",	.data = &ad4114_device_info },
+	{ .compatible = "adi,ad4115",	.data = &ad4115_device_info },
+	{ .compatible = "adi,ad4116",	.data = &ad4116_device_info },
 	{ .compatible = "adi,ad7172-2", .data = &ad7172_2_device_info },
 	{ .compatible = "adi,ad7172-4", .data = &ad7172_4_device_info },
 	{ .compatible = "adi,ad7173-8", .data = &ad7173_8_device_info },
