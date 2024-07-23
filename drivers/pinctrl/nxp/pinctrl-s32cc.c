@@ -39,6 +39,11 @@
 #define S32_MSCR_ODE		BIT(20)
 #define S32_MSCR_OBE		BIT(21)
 
+enum s32_write_type {
+	S32_PINCONF_UPDATE_ONLY,
+	S32_PINCONF_OVERWRITE,
+};
+
 static struct regmap_config s32_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -552,10 +557,11 @@ static int s32_parse_pincfg(unsigned long pincfg, unsigned int *mask,
 	return 0;
 }
 
-static int s32_pinconf_mscr_update(struct pinctrl_dev *pctldev,
+static int s32_pinconf_mscr_write(struct pinctrl_dev *pctldev,
 				   unsigned int pin_id,
 				   unsigned long *configs,
-				   unsigned int num_configs)
+				   unsigned int num_configs,
+				   enum s32_write_type write_type)
 {
 	struct s32_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int config = 0, mask = 0;
@@ -574,10 +580,20 @@ static int s32_pinconf_mscr_update(struct pinctrl_dev *pctldev,
 			return ret;
 	}
 
+	/* If the MSCR configuration has to be written,
+	 * the SSS field should not be touched.
+	 */
+	if (write_type == S32_PINCONF_OVERWRITE)
+		mask = (unsigned int)~S32_MSCR_SSS_MASK;
+
 	if (!config && !mask)
 		return 0;
 
-	dev_dbg(ipctl->dev, "update: pin %u cfg 0x%x\n", pin_id, config);
+	if (write_type == S32_PINCONF_OVERWRITE)
+		dev_dbg(ipctl->dev, "set: pin %u cfg 0x%x\n", pin_id, config);
+	else
+		dev_dbg(ipctl->dev, "update: pin %u cfg 0x%x\n", pin_id,
+			config);
 
 	return s32_regmap_update(pctldev, pin_id, mask, config);
 }
@@ -593,8 +609,8 @@ static int s32_pinconf_set(struct pinctrl_dev *pctldev,
 			   unsigned int pin_id, unsigned long *configs,
 			   unsigned int num_configs)
 {
-	return s32_pinconf_mscr_update(pctldev, pin_id, configs,
-				       num_configs);
+	return s32_pinconf_mscr_write(pctldev, pin_id, configs,
+				       num_configs, S32_PINCONF_UPDATE_ONLY);
 }
 
 static int s32_pconf_group_set(struct pinctrl_dev *pctldev, unsigned int selector,
@@ -607,8 +623,8 @@ static int s32_pconf_group_set(struct pinctrl_dev *pctldev, unsigned int selecto
 
 	grp = &info->groups[selector];
 	for (i = 0; i < grp->data.npins; i++) {
-		ret = s32_pinconf_mscr_update(pctldev, grp->data.pins[i],
-					      configs, num_configs);
+		ret = s32_pinconf_mscr_write(pctldev, grp->data.pins[i],
+					      configs, num_configs, S32_PINCONF_OVERWRITE);
 		if (ret)
 			return ret;
 	}
