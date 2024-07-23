@@ -896,7 +896,7 @@ static void dccg35_disable_symclk32_le_new(
 	dccg35_set_symclk32_le_rcg(dccg, inst, true);
 }
 
-static void dccg35_enable_dpp_new(
+static void dccg35_enable_dpp_clk_new(
 	struct dccg *dccg,
 	int inst,
 	enum dppclk_clock_source src)
@@ -915,7 +915,7 @@ static void dccg35_enable_dpp_new(
 			  DPPCLK0_DTO_MODULO, 0xFF);
 }
 
-static void dccg35_disable_dpp_new(
+static void dccg35_disable_dpp_clk_new(
 	struct dccg *dccg,
 	int inst)
 {
@@ -956,27 +956,25 @@ static void dccg35_enable_dtbclk_p_new(struct dccg *dccg,
 }
 
 static void dccg35_disable_dtbclk_p_new(struct dccg *dccg,
-										enum dtbclk_source src,
 										int inst)
 {
 	dccg35_set_dtbclk_p_src_new(dccg, DTBCLK_REFCLK, inst);
 	dccg35_set_dtbclk_p_rcg(dccg, inst, true);
 }
 
-static void dccg35_enable_dpstreamclk_new(struct dccg *dccg,
-										  enum dtbclk_source src,
+static void dccg35_disable_dpstreamclk_new(struct dccg *dccg,
 										  int inst)
 {
 	dccg35_set_dpstreamclk_src_new(dccg, DP_STREAM_REFCLK, inst);
 	dccg35_set_dpstreamclk_rcg(dccg, inst, true);
 }
 
-static void dccg35_disable_dpstreamclk_new(struct dccg *dccg,
-										   enum dtbclk_source src,
+static void dccg35_enable_dpstreamclk_new(struct dccg *dccg,
+										   enum dp_stream_clk_source src,
 										   int inst)
 {
 	dccg35_set_dpstreamclk_rcg(dccg, inst, false);
-	dccg35_set_dtbclk_p_src_new(dccg, src, inst);
+	dccg35_set_dpstreamclk_src_new(dccg, src, inst);
 }
 
 static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
@@ -1935,6 +1933,114 @@ static void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 	}
 }
 
+static void dccg35_set_dpstreamclk_cb(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		int otg_inst,
+		int dp_hpo_inst)
+{
+
+	enum dtbclk_source dtb_clk_src;
+	enum dp_stream_clk_source dp_stream_clk_src;
+
+	ASSERT(otg_inst >= DP_STREAM_DTBCLK_P5);
+
+	switch (src) {
+	case REFCLK:
+		dtb_clk_src = DTBCLK_REFCLK;
+		dp_stream_clk_src = DP_STREAM_REFCLK;
+		break;
+	case DPREFCLK:
+		dtb_clk_src = DTBCLK_DPREFCLK;
+		dp_stream_clk_src = (enum dp_stream_clk_source)otg_inst;
+		break;
+	case DTBCLK0:
+		dtb_clk_src = DTBCLK_DTBCLK0;
+		dp_stream_clk_src = (enum dp_stream_clk_source)otg_inst;
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (dtb_clk_src == DTBCLK_REFCLK &&
+		dp_stream_clk_src == DP_STREAM_REFCLK) {
+		dccg35_disable_dtbclk_p_new(dccg, otg_inst);
+		dccg35_disable_dpstreamclk_new(dccg, dp_hpo_inst);
+	} else {
+		dccg35_enable_dtbclk_p_new(dccg, dtb_clk_src, otg_inst);
+		dccg35_enable_dpstreamclk_new(dccg,
+										dp_stream_clk_src,
+										dp_hpo_inst);
+	}
+}
+
+static void dccg35_set_dpstreamclk_root_clock_gating_cb(
+	struct dccg *dccg,
+	int dp_hpo_inst,
+	bool power_on)
+{
+	/* power_on set indicates we need to ungate
+	 * Currently called from optimize_bandwidth and prepare_bandwidth calls
+	 * Since clock source is not passed restore to refclock on ungate
+	 * Instance 0 is implied here since only one streamclock resource
+	 * Redundant as gating when enabled is acheived through set_dpstreamclk
+	 */
+	if (power_on)
+		dccg35_enable_dpstreamclk_new(dccg,
+										DP_STREAM_REFCLK,
+										dp_hpo_inst);
+	else
+		dccg35_disable_dpstreamclk_new(dccg, dp_hpo_inst);
+}
+
+static void dccg35_update_dpp_dto_cb(struct dccg *dccg, int dpp_inst,
+				  int req_dppclk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->ref_dppclk && req_dppclk) {
+		int ref_dppclk = dccg->ref_dppclk;
+		int modulo, phase;
+
+		// phase / modulo = dpp pipe clk / dpp global clk
+		modulo = 0xff;   // use FF at the end
+		phase = ((modulo * req_dppclk) + ref_dppclk - 1) / ref_dppclk;
+
+		if (phase > 0xff) {
+			ASSERT(false);
+			phase = 0xff;
+		}
+
+		/* Enable DPP CLK DTO output */
+		dccg35_enable_dpp_clk_new(dccg, dpp_inst, DPP_DCCG_DTO);
+
+		/* Program DTO */
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+				DPPCLK0_DTO_PHASE, phase,
+				DPPCLK0_DTO_MODULO, modulo);
+	} else
+		dccg35_disable_dpp_clk_new(dccg, dpp_inst);
+
+	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
+}
+
+static void dccg35_dpp_root_clock_control_cb(
+		struct dccg *dccg,
+		unsigned int dpp_inst,
+		bool power_on)
+{
+	/* power_on set indicates we need to ungate
+	 * Currently called from optimize_bandwidth and prepare_bandwidth calls
+	 * Since clock source is not passed restore to refclock on ungate
+	 * Redundant as gating when enabled is acheived through update_dpp_dto
+	 */
+	if (power_on)
+		dccg35_enable_dpp_clk_new(dccg, dpp_inst, DPP_REFCLK);
+	else
+		dccg35_disable_dpp_clk_new(dccg, dpp_inst);
+}
+
 static const struct dccg_funcs dccg35_funcs = {
 	.update_dpp_dto = dccg35_update_dpp_dto,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control,
@@ -2010,14 +2116,20 @@ struct dccg *dccg35_create(
 	(void)&dccg35_disable_symclk32_se_new;
 	(void)&dccg35_enable_symclk32_le_new;
 	(void)&dccg35_disable_symclk32_le_new;
-	(void)&dccg35_enable_dpp_new;
-	(void)&dccg35_disable_dpp_new;
+	(void)&dccg35_enable_dpp_clk_new;
+	(void)&dccg35_enable_dpp_clk_new;
 	(void)&dccg35_disable_dscclk_new;
 	(void)&dccg35_enable_dscclk_new;
 	(void)&dccg35_enable_dtbclk_p_new;
 	(void)&dccg35_disable_dtbclk_p_new;
 	(void)&dccg35_enable_dpstreamclk_new;
 	(void)&dccg35_disable_dpstreamclk_new;
+	(void)&dccg35_set_dpstreamclk_cb;
+	(void)&dccg35_dpp_root_clock_control_cb;
+	(void)&dccg35_set_dpstreamclk_root_clock_gating_cb;
+	(void)&dccg35_update_dpp_dto_cb;
+	(void)&dccg35_dpp_root_clock_control_cb;
+
 	base = &dccg_dcn->base;
 	base->ctx = ctx;
 	base->funcs = &dccg35_funcs;
