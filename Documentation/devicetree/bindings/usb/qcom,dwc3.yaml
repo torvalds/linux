@@ -428,6 +428,21 @@ allOf:
           contains:
             enum:
               - qcom,ipq5332-dwc3
+    then:
+      properties:
+        interrupts:
+          maxItems: 3
+        interrupt-names:
+          items:
+            - const: pwr_event
+            - const: dp_hs_phy_irq
+            - const: dm_hs_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,x1e80100-dwc3
     then:
       properties:
