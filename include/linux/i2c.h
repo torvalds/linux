@@ -30,7 +30,6 @@ extern const struct device_type i2c_client_type;
 /* --- General options ------------------------------------------------	*/
 
 struct i2c_msg;
-struct i2c_algorithm;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_driver;
@@ -512,16 +511,15 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 #endif /* I2C_BOARDINFO */
 
 /**
- * struct i2c_algorithm - represent I2C transfer method
- * @xfer: Issue a set of i2c transactions to the given I2C adapter
- *   defined by the msgs array, with num messages available to transfer via
- *   the adapter specified by adap.
- * @xfer_atomic: same as @xfer. Yet, only using atomic context
- *   so e.g. PMICs can be accessed very late before shutdown. Optional.
- * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
+ * struct i2c_algorithm - represent I2C transfer methods
+ * @xfer: Transfer a given number of messages defined by the msgs array via
+ *   the specified adapter.
+ * @xfer_atomic: Same as @xfer. Yet, only using atomic context so e.g. PMICs
+ *   can be accessed very late before shutdown. Optional.
+ * @smbus_xfer: Issue SMBus transactions to the given I2C adapter. If this
  *   is not present, then the bus layer will try and convert the SMBus calls
  *   into I2C transfers instead.
- * @smbus_xfer_atomic: same as @smbus_xfer. Yet, only using atomic context
+ * @smbus_xfer_atomic: Same as @smbus_xfer. Yet, only using atomic context
  *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the ``I2C_FUNC_*`` flags.
@@ -533,8 +531,6 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @reg_slave: deprecated, use @reg_target
  * @unreg_slave: deprecated, use @unreg_target
  *
- *
- * The following structs are for those who like to implement new bus drivers:
  * i2c_algorithm is the interface to a class of hardware solutions which can
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
@@ -550,9 +546,6 @@ struct i2c_algorithm {
 	 * to NULL. If an adapter algorithm can do SMBus access, set
 	 * smbus_xfer. If set to NULL, the SMBus protocol is simulated
 	 * using common I2C messages.
-	 *
-	 * xfer should return the number of messages successfully
-	 * processed, or a negative value on error
 	 */
 	union {
 		int (*xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
