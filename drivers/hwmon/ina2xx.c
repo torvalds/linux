@@ -91,10 +91,41 @@
  */
 #define INA226_TOTAL_CONV_TIME_DEFAULT	2200
 
+static bool ina2xx_writeable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case INA2XX_CONFIG:
+	case INA2XX_CALIBRATION:
+	case INA226_MASK_ENABLE:
+	case INA226_ALERT_LIMIT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool ina2xx_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case INA2XX_SHUNT_VOLTAGE:
+	case INA2XX_BUS_VOLTAGE:
+	case INA2XX_POWER:
+	case INA2XX_CURRENT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct regmap_config ina2xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
+	.use_single_write = true,
+	.use_single_read = true,
 	.max_register = INA2XX_MAX_REGISTERS,
+	.cache_type = REGCACHE_MAPLE,
+	.volatile_reg = ina2xx_volatile_reg,
+	.writeable_reg = ina2xx_writeable_reg,
 };
 
 enum ina2xx_ids { ina219, ina226 };
@@ -229,16 +260,16 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 		if (*regval == 0) {
 			unsigned int cal;
 
-			ret = regmap_read(regmap, INA2XX_CALIBRATION, &cal);
+			ret = regmap_read_bypassed(regmap, INA2XX_CALIBRATION, &cal);
 			if (ret < 0)
 				return ret;
 
 			if (cal == 0) {
 				dev_warn(dev, "chip not calibrated, reinitializing\n");
 
-				ret = ina2xx_init(data);
-				if (ret < 0)
-					return ret;
+				regcache_mark_dirty(regmap);
+				regcache_sync(regmap);
+
 				/*
 				 * Let's make sure the power and current
 				 * registers have been updated before trying
@@ -340,7 +371,7 @@ static int ina226_reg_to_alert(struct ina2xx_data *data, u32 mask, u16 regval)
  * Turns alert limit values into register values.
  * Opposite of the formula in ina2xx_get_value().
  */
-static s16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, int val)
+static u16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, int val)
 {
 	switch (mask) {
 	case INA226_SHUNT_OVER_VOLTAGE_MASK:
@@ -439,16 +470,17 @@ static ssize_t ina226_alarm_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina2xx_data *data = dev_get_drvdata(dev);
-	int regval;
+	unsigned int mask;
 	int alarm = 0;
 	int ret;
 
-	ret = regmap_read(data->regmap, INA226_MASK_ENABLE, &regval);
+	ret = regmap_read_bypassed(data->regmap, INA226_MASK_ENABLE, &mask);
 	if (ret)
 		return ret;
 
-	alarm = (regval & attr->index) &&
-		(regval & INA226_ALERT_FUNCTION_FLAG);
+	alarm = (mask & attr->index) &&
+		(mask & INA226_ALERT_FUNCTION_FLAG);
+
 	return sysfs_emit(buf, "%d\n", alarm);
 }
 
