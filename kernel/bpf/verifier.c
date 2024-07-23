@@ -2182,6 +2182,44 @@ static void __reg_deduce_mixed_bounds(struct bpf_reg_state *reg)
 		reg->smin_value = max_t(s64, reg->smin_value, new_smin);
 		reg->smax_value = min_t(s64, reg->smax_value, new_smax);
 	}
+
+	/* Here we would like to handle a special case after sign extending load,
+	 * when upper bits for a 64-bit range are all 1s or all 0s.
+	 *
+	 * Upper bits are all 1s when register is in a range:
+	 *   [0xffff_ffff_0000_0000, 0xffff_ffff_ffff_ffff]
+	 * Upper bits are all 0s when register is in a range:
+	 *   [0x0000_0000_0000_0000, 0x0000_0000_ffff_ffff]
+	 * Together this forms are continuous range:
+	 *   [0xffff_ffff_0000_0000, 0x0000_0000_ffff_ffff]
+	 *
+	 * Now, suppose that register range is in fact tighter:
+	 *   [0xffff_ffff_8000_0000, 0x0000_0000_ffff_ffff] (R)
+	 * Also suppose that it's 32-bit range is positive,
+	 * meaning that lower 32-bits of the full 64-bit register
+	 * are in the range:
+	 *   [0x0000_0000, 0x7fff_ffff] (W)
+	 *
+	 * If this happens, then any value in a range:
+	 *   [0xffff_ffff_0000_0000, 0xffff_ffff_7fff_ffff]
+	 * is smaller than a lowest bound of the range (R):
+	 *   0xffff_ffff_8000_0000
+	 * which means that upper bits of the full 64-bit register
+	 * can't be all 1s, when lower bits are in range (W).
+	 *
+	 * Note that:
+	 *  - 0xffff_ffff_8000_0000 == (s64)S32_MIN
+	 *  - 0x0000_0000_7fff_ffff == (s64)S32_MAX
+	 * These relations are used in the conditions below.
+	 */
+	if (reg->s32_min_value >= 0 && reg->smin_value >= S32_MIN && reg->smax_value <= S32_MAX) {
+		reg->smin_value = reg->s32_min_value;
+		reg->smax_value = reg->s32_max_value;
+		reg->umin_value = reg->s32_min_value;
+		reg->umax_value = reg->s32_max_value;
+		reg->var_off = tnum_intersect(reg->var_off,
+					      tnum_range(reg->smin_value, reg->smax_value));
+	}
 }
 
 static void __reg_deduce_bounds(struct bpf_reg_state *reg)
