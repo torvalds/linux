@@ -99,3 +99,7 @@
 		drive-strength = <2>;
 	};
 };
+
+&wifi {
+	qcom,ath10k-calibration-variant = "Lenovo_Miix630";
+};
