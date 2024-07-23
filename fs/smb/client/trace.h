@@ -206,6 +206,63 @@ DEFINE_SMB3_OTHER_ERR_EVENT(query_dir_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(zero_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(falloc_err);
 
+/*
+ * For logging errors in reflink and copy_range ops e.g. smb2_copychunk_range
+ * and smb2_duplicate_extents
+ */
+DECLARE_EVENT_CLASS(smb3_copy_range_err_class,
+	TP_PROTO(unsigned int xid,
+		__u64	src_fid,
+		__u64   target_fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	src_offset,
+		__u64   target_offset,
+		__u32	len,
+		int	rc),
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, src_fid)
+		__field(__u64, target_fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, src_offset)
+		__field(__u64, target_offset)
+		__field(__u32, len)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->src_fid = src_fid;
+		__entry->target_fid = target_fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->src_offset = src_offset;
+		__entry->target_offset = target_offset;
+		__entry->len = len;
+		__entry->rc = rc;
+	),
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x source fid=0x%llx source offset=0x%llx target fid=0x%llx target offset=0x%llx len=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->target_fid,
+		__entry->src_offset, __entry->target_fid, __entry->target_offset, __entry->len, __entry->rc)
+)
+
+#define DEFINE_SMB3_COPY_RANGE_ERR_EVENT(name)	\
+DEFINE_EVENT(smb3_copy_range_err_class, smb3_##name, \
+	TP_PROTO(unsigned int xid,		\
+		__u64	src_fid,		\
+		__u64   target_fid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	src_offset,		\
+		__u64	target_offset,		\
+		__u32	len,			\
+		int	rc),			\
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len, rc))
+
+DEFINE_SMB3_COPY_RANGE_ERR_EVENT(clone_err);
+/* TODO: Add SMB3_COPY_RANGE_ERR_EVENT(copychunk_err) */
 
 /* For logging successful read or write */
 DECLARE_EVENT_CLASS(smb3_rw_done_class,

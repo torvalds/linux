@@ -2075,6 +2075,11 @@ smb2_duplicate_extents(const unsigned int xid,
 		cifs_dbg(FYI, "Non-zero response length in duplicate extents\n");
 
 duplicate_extents_out:
+	if (rc)
+		trace_smb3_clone_err(xid, srcfile->fid.volatile_fid,
+				     trgtfile->fid.volatile_fid,
+				     tcon->tid, tcon->ses->Suid, src_off,
+				     dest_off, len, rc);
 	return rc;
 }
 
