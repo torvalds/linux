@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
+
+#define pr_fmt(fmt) "%s: " fmt, KBUILD_MODNAME
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -22,6 +24,8 @@
 #define DSPPMSTATS_NUMPD				5
 #define HMX_HVX_PMU_EVENTS_NA			0xFFFF
 
+#define SYSMON_POWER_STATS_MAX_CLK_LEVELS_16 16
+
 struct pd_clients {
 	int pid;
 	u32 num_active;
@@ -34,8 +38,73 @@ struct dsppm_stats {
 	struct pd_clients pd[DSPPMSTATS_NUMPD];
 };
 
+struct sysmon_smem_power_stats_local {
+	u32 version;
+	/**< Version */
+
+	u32 clk_arr[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Core clock frequency(KHz) array */
+
+	u32 active_time[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Active time(seconds) array corresponding to core clock array */
+
+	u32 pc_time;
+	/**< DSP LPM(Low Power Mode) time(seconds) */
+
+	u32 lpi_time;
+	/**< DSP LPI(Low Power Island Mode) time(seconds) */
+
+	u32 island_time[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< DSP LPI(Low Power Island Mode) time(seconds)
+	 * array corresponding to core clock array
+	 */
+
+	u32 current_clk;
+	/**< DSP current clock in KHz*/
+};
+
+struct sysmon_smem_power_stats_ext {
+	u64 active_time_us[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Active time(micro seconds) array corresponding to core clock array */
+
+	u64 pc_time_us;
+	/**< DSP LPM(Low Power Mode) time(micro seconds) */
+
+	u64 check_sum;
+	/**< Checksum */
+
+	u32 clk_arr[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Additional Core clock frequency(KHz) array (if clock levels more than
+	 * SYSMON_POWER_STATS_MAX_CLK_LEVELS_16)
+	 */
+
+	u32 active_time[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Active time(seconds) array corresponding to additional core clock array */
+
+	u32 island_time[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< DSP LPI(Low Power Island Mode) time(seconds)
+	 * array corresponding to additional core clock array
+	 */
+
+	u64 active_time_us2[SYSMON_POWER_STATS_MAX_CLK_LEVELS_16];
+	/**< Active time(micro seconds) array corresponding to
+	 * additional core clock array
+	 */
+
+	u64 island_time_us[SYSMON_POWER_STATS_MAX_CLK_LEVELS];
+	/**< DSP LPI(Low Power Island Mode) time(micor seconds)
+	 * array corresponding to core clock array
+	 */
+
+	u64 lpi_time_us;
+	/**< DSP LPI(Low Power Island Mode) time(micro seconds) */
+
+	u64 check_sum2;
+	/**< Check sum */
+};
+
 struct sysmon_smem_power_stats_extended {
-	struct sysmon_smem_power_stats powerstats;
+	struct sysmon_smem_power_stats_local powerstats;
 	/**< Powerstats data */
 
 	u32 last_update_time_powerstats_lsb;
@@ -43,6 +112,9 @@ struct sysmon_smem_power_stats_extended {
 
 	u32 last_update_time_powerstats_msb;
 	/**< Powerstats updated timestamp (Most significant 32 bits) */
+
+	struct sysmon_smem_power_stats_ext powerstats_ext;
+	/**< Extended powerstats params */
 };
 
 struct sysmon_smem_stats {
@@ -105,16 +177,25 @@ static struct sysmon_smem_stats g_sysmon_stats;
 static int add_delta_time(
 	u8 ver,
 	u64 lpi_acc, u64 lpm_acc,
-	struct sysmon_smem_power_stats_extended *stats
+	struct sysmon_smem_power_stats *stats, enum dsp_id_t dsp_id
 )
 {
 	u64 powerstats_ticks = 0, curr_timestamp = 0, diff_ticks = 0;
 	u64 pc_time = 0, lpi_time = 0, active_time = 0, diff_time = 0;
 	u8 j = 0;
+	struct sysmon_smem_power_stats_extended *ptr = NULL;
+
+	if (dsp_id == ADSP) {
+		ptr = g_sysmon_stats.sysmon_power_stats_adsp;
+	} else if (dsp_id == CDSP) {
+		ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
+	} else if (dsp_id == SLPI) {
+		ptr = g_sysmon_stats.sysmon_power_stats_slpi;
+	}
 
 	if (ver >= 2) {
-		powerstats_ticks = (u64)(((u64)stats->last_update_time_powerstats_msb << 32) |
-							stats->last_update_time_powerstats_lsb);
+		powerstats_ticks = (u64)(((u64)ptr->last_update_time_powerstats_msb << 32) |
+							ptr->last_update_time_powerstats_lsb);
 		curr_timestamp = __arch_counter_get_cntvct();
 
 		if (curr_timestamp < powerstats_ticks)
@@ -128,33 +209,33 @@ static int add_delta_time(
 			pc_time = (lpm_acc / SYS_CLK_TICKS_PER_SEC);
 			lpi_time = (lpi_acc / SYS_CLK_TICKS_PER_SEC);
 
-			if (pc_time >= stats->powerstats.pc_time)
-				pc_time -= stats->powerstats.pc_time;
+			if (pc_time >= stats->pc_time)
+				pc_time -= stats->pc_time;
 
 			if (diff_time >= pc_time)
 				active_time = diff_time - pc_time;
 
-			if ((lpi_time) && (lpi_time >= stats->powerstats.lpi_time))
-				lpi_time -= stats->powerstats.lpi_time;
+			if ((lpi_time) && (lpi_time >= stats->lpi_time))
+				lpi_time -= stats->lpi_time;
 
 			if ((lpi_time) && (pc_time >= lpi_time))
 				pc_time -= lpi_time;
 
 			for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-				if (stats->powerstats.clk_arr[j] == stats->powerstats.current_clk) {
-					stats->powerstats.active_time[j] += active_time;
-					stats->powerstats.island_time[j] += lpi_time;
+				if (stats->clk_arr[j] == stats->current_clk) {
+					stats->active_time[j] += active_time;
+					stats->island_time[j] += lpi_time;
 					break;
 				}
 			}
 
 			if (j >= SYSMON_POWER_STATS_MAX_CLK_LEVELS) {
 				pr_err("%s: Current clock level %u KHz didn't match with any clock level\n",
-					__func__, stats->powerstats.current_clk);
+					__func__, stats->current_clk);
 				return -EINVAL;
 			}
-			stats->powerstats.pc_time += pc_time;
-			stats->powerstats.lpi_time += lpi_time;
+			stats->pc_time += pc_time;
+			stats->lpi_time += lpi_time;
 		}
 	}
 
@@ -627,6 +708,49 @@ int sysmon_stats_query_hvx_utlization(u32 *hvx_util)
 	return ret;
 }
 EXPORT_SYMBOL(sysmon_stats_query_hvx_utlization);
+
+int copy_powerstats(struct sysmon_smem_power_stats *out_ptr, enum dsp_id_t dsp_id)
+{
+	const struct sysmon_smem_power_stats_extended *in_ptr = NULL;
+	int ver = 0;
+	int i = 0, j = 0;
+
+	if (dsp_id == ADSP)
+		in_ptr = g_sysmon_stats.sysmon_power_stats_adsp;
+	else if (dsp_id == CDSP)
+		in_ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
+	else if (dsp_id == SLPI)
+		in_ptr = g_sysmon_stats.sysmon_power_stats_slpi;
+	else {
+		pr_err("%s: Stats not found for dsp(%d)\n", __func__, dsp_id);
+		return 1;
+	}
+	out_ptr->version = in_ptr->powerstats.version & 0xFF;
+	ver = in_ptr->powerstats.version & 0xFF;
+	out_ptr->pc_time = in_ptr->powerstats.pc_time;
+	out_ptr->lpi_time = in_ptr->powerstats.lpi_time;
+	if (ver >= 2)
+		out_ptr->current_clk = in_ptr->powerstats.current_clk;
+
+	for (i = 0; i < SYSMON_POWER_STATS_MAX_CLK_LEVELS_16; i++) {
+		out_ptr->clk_arr[i] = in_ptr->powerstats.clk_arr[i];
+		out_ptr->active_time[i] = in_ptr->powerstats.active_time[i];
+		if ((ver >= 2) && ((dsp_id == ADSP) || (dsp_id == SLPI)))
+			out_ptr->island_time[i] = in_ptr->powerstats.island_time[i];
+	}
+	if (ver >= 4) {
+		for (i = SYSMON_POWER_STATS_MAX_CLK_LEVELS_16;
+			i < SYSMON_POWER_STATS_MAX_CLK_LEVELS; i++) {
+			j = i - SYSMON_POWER_STATS_MAX_CLK_LEVELS_16;
+			out_ptr->clk_arr[i] = in_ptr->powerstats_ext.clk_arr[j];
+			out_ptr->active_time[i] = in_ptr->powerstats_ext.active_time[j];
+			if (dsp_id == ADSP)
+				out_ptr->island_time[i] = in_ptr->powerstats_ext.island_time[j];
+		}
+	}
+	return 0;
+}
+
 /**
  * sysmon_stats_query_power_residency() - * API to query requested
  * DSP subsystem power residency.On success, returns power residency
@@ -638,7 +762,8 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 	int ret = 0, size = 0;
 	u64 lpi_accumulated = 0;
 	u64 lpm_accumulated = 0;
-	struct sysmon_smem_power_stats_extended *ptr = NULL, smem_sysmon_power_stats_l = { 0 };
+	struct sysmon_smem_power_stats_extended *ptr = NULL;
+	struct sysmon_smem_power_stats smem_sysmon_power_stats_l = { 0 };
 
 	if (!sysmon_power_stats) {
 		pr_err("%s: Null pointer received\n", __func__);
@@ -653,11 +778,8 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_adsp)) {
 			ptr = g_sysmon_stats.sysmon_power_stats_adsp;
 			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
-			memcpy(&smem_sysmon_power_stats_l,
-					g_sysmon_stats.sysmon_power_stats_adsp,
-					size <= sizeof(struct sysmon_smem_power_stats_extended) ?
-					size :
-					sizeof(struct sysmon_smem_power_stats_extended));
+			if (copy_powerstats(&smem_sysmon_power_stats_l, dsp_id))
+				return -ENOKEY;
 
 			if (g_sysmon_stats.sleep_stats_adsp) {
 				lpm_accumulated = g_sysmon_stats.sleep_stats_adsp->accumulated;
@@ -684,9 +806,9 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_cdsp)) {
 			ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
 			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
-			memcpy(&smem_sysmon_power_stats_l, g_sysmon_stats.sysmon_power_stats_cdsp,
-				size <= sizeof(struct sysmon_smem_power_stats_extended) ? size :
-				sizeof(struct sysmon_smem_power_stats_extended));
+			if (!copy_powerstats(&smem_sysmon_power_stats_l, dsp_id))
+				return -ENOKEY;
+
 			if (g_sysmon_stats.sleep_stats_cdsp) {
 				lpm_accumulated = g_sysmon_stats.sleep_stats_cdsp->accumulated;
 				if (g_sysmon_stats.sleep_stats_cdsp->last_entered_at >
@@ -704,9 +826,8 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 		if (!IS_ERR_OR_NULL(g_sysmon_stats.sysmon_power_stats_slpi)) {
 			ptr = g_sysmon_stats.sysmon_power_stats_slpi;
 			size = (((ptr->powerstats.version) >> 16) & 0xFFF) + sizeof(u32);
-			memcpy(&smem_sysmon_power_stats_l, g_sysmon_stats.sysmon_power_stats_slpi,
-				size <= sizeof(struct sysmon_smem_power_stats_extended) ? size :
-				sizeof(struct sysmon_smem_power_stats_extended));
+			if (!copy_powerstats(&smem_sysmon_power_stats_l, dsp_id))
+				return -ENOKEY;
 			if (g_sysmon_stats.sleep_stats_slpi) {
 				lpm_accumulated = g_sysmon_stats.sleep_stats_slpi->accumulated;
 				if (g_sysmon_stats.sleep_stats_slpi->last_entered_at >
@@ -732,9 +853,9 @@ int sysmon_stats_query_power_residency(enum dsp_id_t dsp_id,
 
 	if (ret == 0) {
 		ret = add_delta_time((ptr->powerstats.version) & 0xFF, lpi_accumulated,
-				lpm_accumulated, &smem_sysmon_power_stats_l);
+				lpm_accumulated, &smem_sysmon_power_stats_l, dsp_id);
 		if (ret == 0) {
-			memcpy(sysmon_power_stats, &smem_sysmon_power_stats_l.powerstats,
+			memcpy(sysmon_power_stats, &smem_sysmon_power_stats_l,
 				sizeof(struct sysmon_smem_power_stats));
 			sysmon_power_stats->version = (ptr->powerstats.version) & 0xFF;
 		}
@@ -1036,7 +1157,8 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 	u64 lpm_accumulated = 0;
 	u32 q6_load;
 	u8 ver = 0;
-	struct sysmon_smem_power_stats_extended *ptr = NULL, sysmon_power_stats = { 0 };
+	struct sysmon_smem_power_stats_extended *ptr = NULL;
+	struct sysmon_smem_power_stats sysmon_power_stats = { 0 };
 
 	if (!g_sysmon_stats.smem_init_adsp)
 		sysmon_smem_init_adsp();
@@ -1107,42 +1229,42 @@ static int master_adsp_stats_show(struct seq_file *s, void *d)
 	}
 
 	if (g_sysmon_stats.sysmon_power_stats_adsp) {
-		memcpy(&sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_adsp,
-				sizeof(struct sysmon_smem_power_stats_extended));
+		if (copy_powerstats(&sysmon_power_stats, ADSP))
+			return -ENOKEY;
 		ptr = g_sysmon_stats.sysmon_power_stats_adsp;
 		ver = (ptr->powerstats.version) & 0xFF;
 
 		ret = add_delta_time(ver, lpi_accumulated,
-				lpm_accumulated, &sysmon_power_stats);
+				lpm_accumulated, &sysmon_power_stats, ADSP);
 
 		if (ret != 0)
 			seq_puts(s, "\nWarning: Power Stats are might be Invalid\n");
 
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-			if (sysmon_power_stats.powerstats.clk_arr[j]) {
+			if (sysmon_power_stats.clk_arr[j]) {
 				if (ver >= 2) {
 					seq_printf(s, "%u : Core Clock(KHz) : %u \tActive Time(sec) : %u \tLPI time(sec) : %u\n",
 						j,
-						sysmon_power_stats.powerstats.clk_arr[j],
-						sysmon_power_stats.powerstats.active_time[j],
-						sysmon_power_stats.powerstats.island_time[j]);
+						sysmon_power_stats.clk_arr[j],
+						sysmon_power_stats.active_time[j],
+						sysmon_power_stats.island_time[j]);
 				} else {
 					seq_printf(s, "%u : Core Clock(KHz): %u \tActive Time(sec): %u\n",
 						j,
-						sysmon_power_stats.powerstats.clk_arr[j],
-						sysmon_power_stats.powerstats.active_time[j]);
+						sysmon_power_stats.clk_arr[j],
+						sysmon_power_stats.active_time[j]);
 				}
 			}
 		}
 
 		seq_printf(s, "Power collapse time(sec) = %u\n",
-			sysmon_power_stats.powerstats.pc_time);
+			sysmon_power_stats.pc_time);
 		seq_printf(s, "Total LPI time(sec) = %u\n",
-			sysmon_power_stats.powerstats.lpi_time);
+			sysmon_power_stats.lpi_time);
 		if (ver >= 2)
 			seq_printf(s, "Current core clock(KHz) = %u\n",
-				sysmon_power_stats.powerstats.current_clk);
+				sysmon_power_stats.current_clk);
 	}
 
 	if (g_sysmon_stats.q6_avg_load_adsp) {
@@ -1162,7 +1284,8 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 	u32 q6_load;
 	u64 lpm_accumulated = 0;
 	u8 ver = 0;
-	struct sysmon_smem_power_stats_extended *ptr = NULL, sysmon_power_stats = { 0 };
+	struct sysmon_smem_power_stats_extended *ptr = NULL;
+	struct sysmon_smem_power_stats sysmon_power_stats = { 0 };
 
 	if (!g_sysmon_stats.smem_init_cdsp)
 		sysmon_smem_init_cdsp();
@@ -1218,31 +1341,32 @@ static int master_cdsp_stats_show(struct seq_file *s, void *d)
 	}
 
 	if (g_sysmon_stats.sysmon_power_stats_cdsp) {
-		memcpy(&sysmon_power_stats, g_sysmon_stats.sysmon_power_stats_cdsp,
-				sizeof(struct sysmon_smem_power_stats_extended));
+		if (copy_powerstats(&sysmon_power_stats, CDSP))
+			return -ENOKEY;
 		ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
 		ver = (ptr->powerstats.version) & 0xFF;
-		ret = add_delta_time(ver, 0, lpm_accumulated, &sysmon_power_stats);
+		ret = add_delta_time(ver, 0, lpm_accumulated, &sysmon_power_stats, CDSP);
 
 		if (ret)
 			seq_puts(s, "\nWarning: Power Stats might be Invalid\n");
 
 		seq_puts(s, "\nPower Stats:\n\n");
 		for (j = 0; j < SYSMON_POWER_STATS_MAX_CLK_LEVELS; j++) {
-			if (sysmon_power_stats.powerstats.clk_arr[j])
+			if (sysmon_power_stats.clk_arr[j])
 				seq_printf(s, "%u : Core Clock(KHz) : %u \tActive Time(sec) : %u\n",
 					j,
-					sysmon_power_stats.powerstats.clk_arr[j],
-					sysmon_power_stats.powerstats.active_time[j]);
+					sysmon_power_stats.clk_arr[j],
+					sysmon_power_stats.active_time[j]);
 		}
+
 		seq_printf(s, "Power collapse time(sec) = %u\n",
-			sysmon_power_stats.powerstats.pc_time);
+			sysmon_power_stats.pc_time);
 		seq_printf(s, "Total LPI time(sec) = %u\n",
-			sysmon_power_stats.powerstats.lpi_time);
+			sysmon_power_stats.lpi_time);
 
 		if (ver >= 2)
 			seq_printf(s, "Current core clock(KHz) = %u\n",
-				sysmon_power_stats.powerstats.current_clk);
+				sysmon_power_stats.current_clk);
 
 		if (ret)
 			return ret;

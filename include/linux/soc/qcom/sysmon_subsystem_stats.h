@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 /*
  * This header is for sysmon subsystem stats query API's in drivers.
@@ -8,7 +8,7 @@
 #ifndef __QCOM_SYSMON_SUBSYSTEM_STATS_H__
 #define __QCOM_SYSMON_SUBSYSTEM_STATS_H__
 /* Maximum number of clock levels in power stats */
-#define SYSMON_POWER_STATS_MAX_CLK_LEVELS 16
+#define SYSMON_POWER_STATS_MAX_CLK_LEVELS 32
 
 /* Error Codes */
 /* Error code when DSP PMU Counters are unavailable/overridden */
