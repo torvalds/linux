@@ -1304,12 +1304,6 @@ static void advk_msi_irq_compose_msi_msg(struct irq_data *data,
 	msg->data = data->hwirq;
 }
 
-static int advk_msi_set_affinity(struct irq_data *irq_data,
-				 const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
 static void advk_msi_irq_mask(struct irq_data *d)
 {
 	struct advk_pcie *pcie = d->domain->host_data;
@@ -1353,7 +1347,6 @@ static void advk_msi_top_irq_unmask(struct irq_data *d)
 static struct irq_chip advk_msi_bottom_irq_chip = {
 	.name			= "MSI",
 	.irq_compose_msi_msg	= advk_msi_irq_compose_msi_msg,
-	.irq_set_affinity	= advk_msi_set_affinity,
 	.irq_mask		= advk_msi_irq_mask,
 	.irq_unmask		= advk_msi_irq_unmask,
 };
@@ -1451,7 +1444,8 @@ static struct irq_chip advk_msi_irq_chip = {
 
 static struct msi_domain_info advk_msi_domain_info = {
 	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI |
+		  MSI_FLAG_PCI_MSIX,
 	.chip	= &advk_msi_irq_chip,
 };
 
