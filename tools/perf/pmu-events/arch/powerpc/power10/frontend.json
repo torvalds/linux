@@ -75,6 +75,11 @@
     "BriefDescription": "Cycles in which an instruction or group of instructions were cancelled after being issued. This event increments once per occurrence, regardless of how many instructions are included in the issue group."
   },
   {
+    "EventCode": "0x44054",
+    "EventName": "PM_VECTOR_LD_CMPL",
+    "BriefDescription": "Vector load instruction completed."
+  },
+  {
     "EventCode": "0x44056",
     "EventName": "PM_VECTOR_ST_CMPL",
     "BriefDescription": "Vector store instruction completed."

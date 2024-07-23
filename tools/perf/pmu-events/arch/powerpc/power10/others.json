@@ -95,11 +95,6 @@
     "BriefDescription": "Counts all instruction cache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
   },
   {
-    "EventCode": "0x44054",
-    "EventName": "PM_VECTOR_LD_CMPL",
-    "BriefDescription": "Vector load instruction completed."
-  },
-  {
     "EventCode": "0x4D05E",
     "EventName": "PM_BR_CMPL",
     "BriefDescription": "A branch completed. All branches are included."
@@ -108,5 +103,100 @@
     "EventCode": "0x400F0",
     "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
     "BriefDescription": "Load missed L1, counted at finish time."
+  },
+  {
+    "EventCode": "0x00000038BC",
+    "EventName": "PM_ISYNC_CMPL",
+    "BriefDescription": "Isync completion count per thread."
+  },
+  {
+    "EventCode": "0x000000C088",
+    "EventName": "PM_LD0_32B_FIN",
+    "BriefDescription": "256-bit load finished in the LD0 load execution unit."
+  },
+  {
+    "EventCode": "0x000000C888",
+    "EventName": "PM_LD1_32B_FIN",
+    "BriefDescription": "256-bit load finished in the LD1 load execution unit."
+  },
+  {
+    "EventCode": "0x000000C090",
+    "EventName": "PM_LD0_UNALIGNED_FIN",
+    "BriefDescription": "Load instructions in LD0 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline using the load gather buffer. This typically adds about 10 cycles to the latency of the instruction. This includes loads that cross the 128 byte boundary, octword loads that are not aligned, and a special forward progress case of a load that does not hit in the L1 and crosses the 32 byte boundary and is launched NTC. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C890",
+    "EventName": "PM_LD1_UNALIGNED_FIN",
+    "BriefDescription": "Load instructions in LD1 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline using the load gather buffer. This typically adds about 10 cycles to the latency of the instruction. This includes loads that cross the 128 byte boundary, octword loads that are not aligned, and a special forward progress case of a load that does not hit in the L1 and crosses the 32 byte boundary and is launched NTC. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C0A4",
+    "EventName": "PM_ST0_UNALIGNED_FIN",
+    "BriefDescription": "Store instructions in ST0 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline. This typically adds about 10 cycles to the latency of the instruction. This only includes stores that cross the 128 byte boundary. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C8A4",
+    "EventName": "PM_ST1_UNALIGNED_FIN",
+    "BriefDescription": "Store instructions in ST1 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline. This typically adds about 10 cycles to the latency of the instruction. This only includes stores that cross the 128 byte boundary. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C8B8",
+    "EventName": "PM_STCX_SUCCESS_CMPL",
+    "BriefDescription": "STCX instructions that completed successfully. Specifically, counts only when a pass status is returned from the nest."
+  },
+  {
+    "EventCode": "0x000000D0B4",
+    "EventName": "PM_DC_PREF_STRIDED_CONF",
+    "BriefDescription": "A demand load referenced a line in an active strided prefetch stream. The stream could have been allocated through the hardware prefetch mechanism or through software."
+  },
+  {
+    "EventCode": "0x000000F880",
+    "EventName": "PM_SNOOP_TLBIE_CYC",
+    "BriefDescription": "Cycles in which TLBIE snoops are executed in the LSU."
+  },
+  {
+    "EventCode": "0x000000F084",
+    "EventName": "PM_SNOOP_TLBIE_CACHE_WALK_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which the data cache is being walked."
+  },
+  {
+    "EventCode": "0x000000F884",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_ST_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which older stores are still draining."
+  },
+  {
+    "EventCode": "0x000000F088",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_LD_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which older loads are still draining."
+  },
+  {
+    "EventCode": "0x000000F08C",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_MMU_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which the Load-Store unit is waiting for the MMU to finish invalidation."
+  },
+  {
+    "EventCode": "0x0000004884",
+    "EventName": "PM_NO_FETCH_IBUF_FULL_CYC",
+    "BriefDescription": "Cycles in which no instructions are fetched because there is no room in the instruction buffers."
+  },
+  {
+    "EventCode": "0x00000048B4",
+    "EventName": "PM_BR_TKN_UNCOND_FIN",
+    "BriefDescription": "An unconditional branch finished. All unconditional branches are taken."
+  },
+  {
+    "EventCode": "0x0B0000016080",
+    "EventName": "PM_L2_TLBIE_SLBIE_START",
+    "BriefDescription": "NCU Master received a TLBIE/SLBIEG/SLBIAG operation from the core. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
+  },
+  {
+    "EventCode": "0x0B0000016880",
+    "EventName": "PM_L2_TLBIE_SLBIE_DELAY",
+    "BriefDescription": "Cycles when a TLBIE/SLBIEG/SLBIAG command was held in a hottemp condition by the NCU Master. Multiply this count by 1000 to obtain the total number of cycles. This can be divided by PM_L2_TLBIE_SLBIE_SENT to obtain the average time a TLBIE/SLBIEG/SLBIAG command was held. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
+  },
+  {
+    "EventCode": "0x0B0000026880",
+    "EventName": "PM_L2_SNP_TLBIE_SLBIE_DELAY",
+    "BriefDescription": "Cycles when a TLBIE/SLBIEG/SLBIAG that targets this thread's LPAR was in flight while in a hottemp condition. Multiply this count by 1000 to obtain the total number of cycles. This can be divided by PM_L2_SNP_TLBIE_SLBIE_START to obtain the overall efficiency. Note: 'inflight' means SnpTLB has been sent to core(ie doesn't include when SnpTLB is in NCU waiting to be launched serially behind different SnpTLB). The NCU Snooper gets in a 'hottemp' delay window when it detects it is above its TLBIE/SLBIE threshold for process SnpTLBIE/SLBIE with this core. Event count should be multiplied by 2 since the data is coming from a 2:1 clock domain and the data is time sliced across all 4 threads."
   }
 ]
