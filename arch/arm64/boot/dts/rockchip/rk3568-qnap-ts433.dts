@@ -105,6 +105,14 @@
 };
 
 /*
+ * Connected to an MCU, that provides access to more LEDs,
+ * buzzer, fan control and more.
+ */
+&uart0 {
+	status = "okay";
+};
+
+/*
  * Pins available on CN3 connector at TTL voltage level (3V3).
  * ,_  _.
  * |1234|  1=TX 2=VCC
