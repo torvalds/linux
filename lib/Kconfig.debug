@@ -1515,7 +1515,7 @@ config LOCKDEP_BITS
 config LOCKDEP_CHAINS_BITS
 	int "Bitsize for MAX_LOCKDEP_CHAINS"
 	depends on LOCKDEP && !LOCKDEP_SMALL
-	range 10 30
+	range 10 21
 	default 16
 	help
 	  Try increasing this value if you hit "BUG: MAX_LOCKDEP_CHAINS too low!" message.
