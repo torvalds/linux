@@ -3,6 +3,7 @@
 #include <linux/ptdump.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/sort.h>
 #include <linux/mm.h>
 #include <linux/kfence.h>
 #include <linux/kasan.h>
@@ -15,6 +16,7 @@
 static unsigned long max_addr;
 
 struct addr_marker {
+	int is_start;
 	unsigned long start_address;
 	const char *name;
 };
@@ -60,44 +62,44 @@ enum address_markers_idx {
 };
 
 static struct addr_marker address_markers[] = {
-	[KVA_NR]		= {0, "Kernel Virtual Address Space"},
-	[LOWCORE_START_NR]	= {0, "Lowcore Start"},
-	[LOWCORE_END_NR]	= {0, "Lowcore End"},
-	[IDENTITY_START_NR]	= {0, "Identity Mapping Start"},
-	[IDENTITY_END_NR]	= {0, "Identity Mapping End"},
-	[AMODE31_START_NR]	= {0, "Amode31 Area Start"},
-	[AMODE31_END_NR]	= {0, "Amode31 Area End"},
-	[KERNEL_START_NR]	= {(unsigned long)_stext, "Kernel Image Start"},
-	[KERNEL_END_NR]		= {(unsigned long)_end, "Kernel Image End"},
+	[KVA_NR]		= {0, 0, "Kernel Virtual Address Space"},
+	[LOWCORE_START_NR]	= {1, 0, "Lowcore Start"},
+	[LOWCORE_END_NR]	= {0, 0, "Lowcore End"},
+	[IDENTITY_START_NR]	= {1, 0, "Identity Mapping Start"},
+	[IDENTITY_END_NR]	= {0, 0, "Identity Mapping End"},
+	[AMODE31_START_NR]	= {1, 0, "Amode31 Area Start"},
+	[AMODE31_END_NR]	= {0, 0, "Amode31 Area End"},
+	[KERNEL_START_NR]	= {1, (unsigned long)_stext, "Kernel Image Start"},
+	[KERNEL_END_NR]		= {0, (unsigned long)_end, "Kernel Image End"},
 #ifdef CONFIG_KFENCE
-	[KFENCE_START_NR]	= {0, "KFence Pool Start"},
-	[KFENCE_END_NR]		= {0, "KFence Pool End"},
+	[KFENCE_START_NR]	= {1, 0, "KFence Pool Start"},
+	[KFENCE_END_NR]		= {0, 0, "KFence Pool End"},
 #endif
-	[VMEMMAP_NR]		= {0, "vmemmap Area Start"},
-	[VMEMMAP_END_NR]	= {0, "vmemmap Area End"},
-	[VMALLOC_NR]		= {0, "vmalloc Area Start"},
-	[VMALLOC_END_NR]	= {0, "vmalloc Area End"},
+	[VMEMMAP_NR]		= {1, 0, "vmemmap Area Start"},
+	[VMEMMAP_END_NR]	= {0, 0, "vmemmap Area End"},
+	[VMALLOC_NR]		= {1, 0, "vmalloc Area Start"},
+	[VMALLOC_END_NR]	= {0, 0, "vmalloc Area End"},
 #ifdef CONFIG_KMSAN
-	[KMSAN_VMALLOC_SHADOW_START_NR]	= {0, "Kmsan vmalloc Shadow Start"},
-	[KMSAN_VMALLOC_SHADOW_END_NR]	= {0, "Kmsan vmalloc Shadow End"},
-	[KMSAN_VMALLOC_ORIGIN_START_NR]	= {0, "Kmsan vmalloc Origins Start"},
-	[KMSAN_VMALLOC_ORIGIN_END_NR]	= {0, "Kmsan vmalloc Origins End"},
-	[KMSAN_MODULES_SHADOW_START_NR]	= {0, "Kmsan Modules Shadow Start"},
-	[KMSAN_MODULES_SHADOW_END_NR]	= {0, "Kmsan Modules Shadow End"},
-	[KMSAN_MODULES_ORIGIN_START_NR]	= {0, "Kmsan Modules Origins Start"},
-	[KMSAN_MODULES_ORIGIN_END_NR]	= {0, "Kmsan Modules Origins End"},
+	[KMSAN_VMALLOC_SHADOW_START_NR]	= {1, 0, "Kmsan vmalloc Shadow Start"},
+	[KMSAN_VMALLOC_SHADOW_END_NR]	= {0, 0, "Kmsan vmalloc Shadow End"},
+	[KMSAN_VMALLOC_ORIGIN_START_NR]	= {1, 0, "Kmsan vmalloc Origins Start"},
+	[KMSAN_VMALLOC_ORIGIN_END_NR]	= {0, 0, "Kmsan vmalloc Origins End"},
+	[KMSAN_MODULES_SHADOW_START_NR]	= {1, 0, "Kmsan Modules Shadow Start"},
+	[KMSAN_MODULES_SHADOW_END_NR]	= {0, 0, "Kmsan Modules Shadow End"},
+	[KMSAN_MODULES_ORIGIN_START_NR]	= {1, 0, "Kmsan Modules Origins Start"},
+	[KMSAN_MODULES_ORIGIN_END_NR]	= {0, 0, "Kmsan Modules Origins End"},
 #endif
-	[MODULES_NR]		= {0, "Modules Area Start"},
-	[MODULES_END_NR]	= {0, "Modules Area End"},
-	[ABS_LOWCORE_NR]	= {0, "Lowcore Area Start"},
-	[ABS_LOWCORE_END_NR]	= {0, "Lowcore Area End"},
-	[MEMCPY_REAL_NR]	= {0, "Real Memory Copy Area Start"},
-	[MEMCPY_REAL_END_NR]	= {0, "Real Memory Copy Area End"},
+	[MODULES_NR]		= {1, 0, "Modules Area Start"},
+	[MODULES_END_NR]	= {0, 0, "Modules Area End"},
+	[ABS_LOWCORE_NR]	= {1, 0, "Lowcore Area Start"},
+	[ABS_LOWCORE_END_NR]	= {0, 0, "Lowcore Area End"},
+	[MEMCPY_REAL_NR]	= {1, 0, "Real Memory Copy Area Start"},
+	[MEMCPY_REAL_END_NR]	= {0, 0, "Real Memory Copy Area End"},
 #ifdef CONFIG_KASAN
-	[KASAN_SHADOW_START_NR]	= {KASAN_SHADOW_START, "Kasan Shadow Start"},
-	[KASAN_SHADOW_END_NR]	= {KASAN_SHADOW_END, "Kasan Shadow End"},
+	[KASAN_SHADOW_START_NR]	= {1, KASAN_SHADOW_START, "Kasan Shadow Start"},
+	[KASAN_SHADOW_END_NR]	= {0, KASAN_SHADOW_END, "Kasan Shadow End"},
 #endif
-	{ -1, NULL }
+	{1, -1UL, NULL}
 };
 
 struct pg_state {
@@ -287,22 +289,25 @@ static int ptdump_show(struct seq_file *m, void *v)
 DEFINE_SHOW_ATTRIBUTE(ptdump);
 #endif /* CONFIG_PTDUMP_DEBUGFS */
 
-/*
- * Heapsort from lib/sort.c is not a stable sorting algorithm, do a simple
- * insertion sort to preserve the original order of markers with the same
- * start address.
- */
-static void sort_address_markers(void)
+static int ptdump_cmp(const void *a, const void *b)
 {
-	struct addr_marker tmp;
-	int i, j;
+	const struct addr_marker *ama = a;
+	const struct addr_marker *amb = b;
 
-	for (i = 1; i < ARRAY_SIZE(address_markers) - 1; i++) {
-		tmp = address_markers[i];
-		for (j = i - 1; j >= 0 && address_markers[j].start_address > tmp.start_address; j--)
-			address_markers[j + 1] = address_markers[j];
-		address_markers[j + 1] = tmp;
-	}
+	if (ama->start_address > amb->start_address)
+		return 1;
+	if (ama->start_address < amb->start_address)
+		return -1;
+	/*
+	 * If the start addresses of two markers are identical consider the
+	 * marker which defines the start of an area higher than the one which
+	 * defines the end of an area. This keeps pairs of markers sorted.
+	 */
+	if (ama->is_start)
+		return 1;
+	if (amb->is_start)
+		return -1;
+	return 0;
 }
 
 static int pt_dump_init(void)
@@ -349,7 +354,8 @@ static int pt_dump_init(void)
 	address_markers[KMSAN_MODULES_ORIGIN_START_NR].start_address = KMSAN_MODULES_ORIGIN_START;
 	address_markers[KMSAN_MODULES_ORIGIN_END_NR].start_address = KMSAN_MODULES_ORIGIN_END;
 #endif
-	sort_address_markers();
+	sort(address_markers, ARRAY_SIZE(address_markers) - 1,
+	     sizeof(address_markers[0]), ptdump_cmp, NULL);
 #ifdef CONFIG_PTDUMP_DEBUGFS
 	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
 #endif /* CONFIG_PTDUMP_DEBUGFS */
