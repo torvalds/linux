@@ -2614,6 +2614,13 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 			cifs_dbg(VFS, "Server does not support mounting with posix SMB3.11 extensions\n");
 			rc = -EOPNOTSUPP;
 			goto out_fail;
+		} else if (ses->server->vals->protocol_id == SMB10_PROT_ID)
+			if (cap_unix(ses))
+				cifs_dbg(FYI, "Unix Extensions requested on SMB1 mount\n");
+			else {
+				cifs_dbg(VFS, "SMB1 Unix Extensions not supported by server\n");
+				rc = -EOPNOTSUPP;
+				goto out_fail;
 		} else {
 			cifs_dbg(VFS,
 				"Check vers= mount option. SMB3.11 disabled but required for POSIX extensions\n");
