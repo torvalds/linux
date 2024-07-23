@@ -20,8 +20,8 @@ struct addr_marker {
 };
 
 enum address_markers_idx {
-	IDENTITY_BEFORE_NR = 0,
-	IDENTITY_BEFORE_END_NR,
+	LOWCORE_START_NR = 0,
+	LOWCORE_END_NR,
 	AMODE31_START_NR,
 	AMODE31_END_NR,
 	KERNEL_START_NR,
@@ -30,8 +30,8 @@ enum address_markers_idx {
 	KFENCE_START_NR,
 	KFENCE_END_NR,
 #endif
-	IDENTITY_AFTER_NR,
-	IDENTITY_AFTER_END_NR,
+	IDENTITY_START_NR,
+	IDENTITY_END_NR,
 	VMEMMAP_NR,
 	VMEMMAP_END_NR,
 	VMALLOC_NR,
@@ -59,8 +59,10 @@ enum address_markers_idx {
 };
 
 static struct addr_marker address_markers[] = {
-	[IDENTITY_BEFORE_NR]	= {0, "Identity Mapping Start"},
-	[IDENTITY_BEFORE_END_NR] = {(unsigned long)_stext, "Identity Mapping End"},
+	[LOWCORE_START_NR]	= {0, "Lowcore Start"},
+	[LOWCORE_END_NR]	= {0, "Lowcore End"},
+	[IDENTITY_START_NR]	= {0, "Identity Mapping Start"},
+	[IDENTITY_END_NR]	= {0, "Identity Mapping End"},
 	[AMODE31_START_NR]	= {0, "Amode31 Area Start"},
 	[AMODE31_END_NR]	= {0, "Amode31 Area End"},
 	[KERNEL_START_NR]	= {(unsigned long)_stext, "Kernel Image Start"},
@@ -69,8 +71,6 @@ static struct addr_marker address_markers[] = {
 	[KFENCE_START_NR]	= {0, "KFence Pool Start"},
 	[KFENCE_END_NR]		= {0, "KFence Pool End"},
 #endif
-	[IDENTITY_AFTER_NR]	= {(unsigned long)_end, "Identity Mapping Start"},
-	[IDENTITY_AFTER_END_NR]	= {0, "Identity Mapping End"},
 	[VMEMMAP_NR]		= {0, "vmemmap Area Start"},
 	[VMEMMAP_END_NR]	= {0, "vmemmap Area End"},
 	[VMALLOC_NR]		= {0, "vmalloc Area Start"},
@@ -310,7 +310,10 @@ static int pt_dump_init(void)
 	 */
 	max_addr = (get_lowcore()->kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
-	address_markers[IDENTITY_AFTER_END_NR].start_address = ident_map_size;
+	address_markers[LOWCORE_START_NR].start_address = 0;
+	address_markers[LOWCORE_END_NR].start_address = sizeof(struct lowcore);
+	address_markers[IDENTITY_START_NR].start_address = __identity_base;
+	address_markers[IDENTITY_END_NR].start_address = __identity_base + ident_map_size;
 	address_markers[AMODE31_START_NR].start_address = (unsigned long)__samode31;
 	address_markers[AMODE31_END_NR].start_address = (unsigned long)__eamode31;
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
