@@ -1176,26 +1176,6 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 	return ret;
 }
 
-static inline void contiguous_readpages(struct page *pages[], int nr_pages,
-					u64 start, u64 end,
-					struct extent_map **em_cached,
-					struct btrfs_bio_ctrl *bio_ctrl,
-					u64 *prev_em_start)
-{
-	struct btrfs_inode *inode = page_to_inode(pages[0]);
-	int index;
-
-	ASSERT(em_cached);
-
-	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
-
-	for (index = 0; index < nr_pages; index++) {
-		btrfs_do_readpage(pages[index], em_cached, bio_ctrl,
-				  prev_em_start);
-		put_page(pages[index]);
-	}
-}
-
 /*
  * helper for __extent_writepage, doing all of the delayed allocation setup.
  *
@@ -2379,18 +2359,18 @@ int btrfs_writepages(struct address_space *mapping, struct writeback_control *wb
 void btrfs_readahead(struct readahead_control *rac)
 {
 	struct btrfs_bio_ctrl bio_ctrl = { .opf = REQ_OP_READ | REQ_RAHEAD };
-	struct page *pagepool[16];
+	struct btrfs_inode *inode = BTRFS_I(rac->mapping->host);
+	struct folio *folio;
+	u64 start = readahead_pos(rac);
+	u64 end = start + readahead_length(rac) - 1;
 	struct extent_map *em_cached = NULL;
 	u64 prev_em_start = (u64)-1;
-	int nr;
 
-	while ((nr = readahead_page_batch(rac, pagepool))) {
-		u64 contig_start = readahead_pos(rac);
-		u64 contig_end = contig_start + readahead_batch_length(rac) - 1;
+	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-		contiguous_readpages(pagepool, nr, contig_start, contig_end,
-				&em_cached, &bio_ctrl, &prev_em_start);
-	}
+	while ((folio = readahead_folio(rac)) != NULL)
+		btrfs_do_readpage(&folio->page, &em_cached, &bio_ctrl,
+				  &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);
