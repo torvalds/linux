@@ -2695,7 +2695,7 @@ int btrfs_set_extent_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 
 /* see btrfs_writepage_start_hook for details on why this is required */
 struct btrfs_writepage_fixup {
-	struct page *page;
+	struct folio *folio;
 	struct btrfs_inode *inode;
 	struct btrfs_work work;
 };
@@ -2707,8 +2707,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	struct extent_changeset *data_reserved = NULL;
-	struct page *page = fixup->page;
-	struct folio *folio = page_folio(page);
+	struct folio *folio = fixup->folio;
 	struct btrfs_inode *inode = fixup->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 page_start = folio_pos(folio);
@@ -2872,7 +2871,7 @@ int btrfs_writepage_cow_fixup(struct folio *folio)
 	btrfs_folio_set_checked(fs_info, folio, folio_pos(folio), folio_size(folio));
 	folio_get(folio);
 	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL);
-	fixup->page = &folio->page;
+	fixup->folio = folio;
 	fixup->inode = BTRFS_I(inode);
 	btrfs_queue_work(fs_info->fixup_workers, &fixup->work);
 
