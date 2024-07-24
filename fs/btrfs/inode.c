@@ -1653,7 +1653,7 @@ static noinline void submit_compressed_extents(struct btrfs_work *work, bool do_
 }
 
 static bool run_delalloc_compressed(struct btrfs_inode *inode,
-				    struct page *locked_page, u64 start,
+				    struct folio *locked_folio, u64 start,
 				    u64 end, struct writeback_control *wbc)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -1693,15 +1693,16 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 		INIT_LIST_HEAD(&async_chunk[i].extents);
 
 		/*
-		 * The locked_page comes all the way from writepage and its
-		 * the original page we were actually given.  As we spread
+		 * The locked_folio comes all the way from writepage and its
+		 * the original folio we were actually given.  As we spread
 		 * this large delalloc region across multiple async_chunk
-		 * structs, only the first struct needs a pointer to locked_page
+		 * structs, only the first struct needs a pointer to
+		 * locked_folio.
 		 *
 		 * This way we don't need racey decisions about who is supposed
 		 * to unlock it.
 		 */
-		if (locked_page) {
+		if (locked_folio) {
 			/*
 			 * Depending on the compressibility, the pages might or
 			 * might not go through async.  We want all of them to
@@ -1711,10 +1712,10 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 			 * need full accuracy.  Just account the whole thing
 			 * against the first page.
 			 */
-			wbc_account_cgroup_owner(wbc, locked_page,
+			wbc_account_cgroup_owner(wbc, &locked_folio->page,
 						 cur_end - start);
-			async_chunk[i].locked_page = locked_page;
-			locked_page = NULL;
+			async_chunk[i].locked_page = &locked_folio->page;
+			locked_folio = NULL;
 		} else {
 			async_chunk[i].locked_page = NULL;
 		}
@@ -2307,7 +2308,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, start, end) &&
-	    run_delalloc_compressed(inode, locked_page, start, end, wbc))
+	    run_delalloc_compressed(inode, page_folio(locked_page), start, end,
+				    wbc))
 		return 1;
 
 	if (zoned)
