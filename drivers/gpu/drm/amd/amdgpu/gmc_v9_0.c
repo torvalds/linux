@@ -1209,7 +1209,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		if (uncached) {
 			mtype = MTYPE_UC;
 		} else if (ext_coherent) {
-			if (adev->rev_id)
+			if (gc_ip_version == IP_VERSION(9, 5, 0) || adev->rev_id)
 				mtype = is_local ? MTYPE_CC : MTYPE_UC;
 			else
 				mtype = MTYPE_UC;
@@ -1219,10 +1219,10 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 			/* dGPU */
 			if (is_local)
 				mtype = mtype_local;
-			else if (is_vram)
-				mtype = MTYPE_NC;
-			else
+			else if (gc_ip_version < IP_VERSION(9, 5, 0) && !is_vram)
 				mtype = MTYPE_UC;
+			else
+				mtype = MTYPE_NC;
 		}
 
 		break;
