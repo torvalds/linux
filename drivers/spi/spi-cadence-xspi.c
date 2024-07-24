@@ -1118,28 +1118,41 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 
 	cdns_xspi->iobase = devm_platform_ioremap_resource_byname(pdev, "io");
 	if (IS_ERR(cdns_xspi->iobase)) {
-		dev_err(dev, "Failed to remap controller base address\n");
-		return PTR_ERR(cdns_xspi->iobase);
+		cdns_xspi->iobase = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(cdns_xspi->iobase)) {
+			dev_err(dev, "Failed to remap controller base address\n");
+			return PTR_ERR(cdns_xspi->iobase);
+		}
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sdma");
 	cdns_xspi->sdmabase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(cdns_xspi->sdmabase))
-		return PTR_ERR(cdns_xspi->sdmabase);
+	if (IS_ERR(cdns_xspi->sdmabase)) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		cdns_xspi->sdmabase = devm_ioremap_resource(dev, res);
+		if (IS_ERR(cdns_xspi->sdmabase))
+			return PTR_ERR(cdns_xspi->sdmabase);
+	}
 	cdns_xspi->sdmasize = resource_size(res);
 
 	cdns_xspi->auxbase = devm_platform_ioremap_resource_byname(pdev, "aux");
 	if (IS_ERR(cdns_xspi->auxbase)) {
-		dev_err(dev, "Failed to remap AUX address\n");
-		return PTR_ERR(cdns_xspi->auxbase);
+		cdns_xspi->auxbase = devm_platform_ioremap_resource(pdev, 2);
+		if (IS_ERR(cdns_xspi->auxbase)) {
+			dev_err(dev, "Failed to remap AUX address\n");
+			return PTR_ERR(cdns_xspi->auxbase);
+		}
 	}
 
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		cdns_xspi->xferbase = devm_platform_ioremap_resource_byname(pdev, "xfer");
 		if (IS_ERR(cdns_xspi->xferbase)) {
-			dev_info(dev, "XFER register base not found, set it\n");
-			// For compatibility with older firmware
-			cdns_xspi->xferbase = cdns_xspi->iobase + 0x8000;
+			cdns_xspi->xferbase = devm_platform_ioremap_resource(pdev, 3);
+			if (IS_ERR(cdns_xspi->xferbase)) {
+				dev_info(dev, "XFER register base not found, set it\n");
+				// For compatibility with older firmware
+				cdns_xspi->xferbase = cdns_xspi->iobase + 0x8000;
+			}
 		}
 	}
 
