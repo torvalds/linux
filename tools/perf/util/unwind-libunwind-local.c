@@ -413,7 +413,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 							__func__,
 							dso__symsrc_filename(dso),
 							debuglink);
-					zfree(&dso__symsrc_filename(dso));
+					dso__free_symsrc_filename(dso);
 				}
 				dso__set_symsrc_filename(dso, debuglink);
 			} else {
