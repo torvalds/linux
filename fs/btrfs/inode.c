@@ -399,7 +399,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 	unsigned long index = offset >> PAGE_SHIFT;
 	unsigned long end_index = (offset + bytes - 1) >> PAGE_SHIFT;
 	u64 page_start = 0, page_end = 0;
-	struct page *page;
+	struct folio *folio;
 
 	if (locked_page) {
 		page_start = page_offset(locked_page);
@@ -421,9 +421,9 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 			index++;
 			continue;
 		}
-		page = find_get_page(inode->vfs_inode.i_mapping, index);
+		folio = __filemap_get_folio(inode->vfs_inode.i_mapping, index, 0, 0);
 		index++;
-		if (!page)
+		if (IS_ERR(folio))
 			continue;
 
 		/*
@@ -431,9 +431,9 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		 * range, then btrfs_mark_ordered_io_finished() will handle
 		 * the ordered extent accounting for the range.
 		 */
-		btrfs_folio_clamp_clear_ordered(inode->root->fs_info,
-						page_folio(page), offset, bytes);
-		put_page(page);
+		btrfs_folio_clamp_clear_ordered(inode->root->fs_info, folio,
+						offset, bytes);
+		folio_put(folio);
 	}
 
 	if (locked_page) {
