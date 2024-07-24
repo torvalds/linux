@@ -3531,8 +3531,8 @@ static int selinux_inode_copy_up_xattr(struct dentry *dentry, const char *name)
 	 * xattrs up.  Instead, filter out SELinux-related xattrs following
 	 * policy load.
 	 */
-	if (selinux_initialized() && strcmp(name, XATTR_NAME_SELINUX) == 0)
-		return 1; /* Discard */
+	if (selinux_initialized() && !strcmp(name, XATTR_NAME_SELINUX))
+		return -ECANCELED; /* Discard */
 	/*
 	 * Any other attribute apart from SELINUX is not claimed, supported
 	 * by selinux.

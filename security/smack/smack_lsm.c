@@ -4910,10 +4910,10 @@ static int smack_inode_copy_up(struct dentry *dentry, struct cred **new)
 static int smack_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
 	/*
-	 * Return 1 if this is the smack access Smack attribute.
+	 * Return -ECANCELED if this is the smack access Smack attribute.
 	 */
-	if (strcmp(name, XATTR_NAME_SMACK) == 0)
-		return 1;
+	if (!strcmp(name, XATTR_NAME_SMACK))
+		return -ECANCELED;
 
 	return -EOPNOTSUPP;
 }
