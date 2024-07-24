@@ -6271,7 +6271,6 @@ void nfsd4_ssc_init_umount_work(struct nfsd_net *nn)
 	INIT_LIST_HEAD(&nn->nfsd_ssc_mount_list);
 	init_waitqueue_head(&nn->nfsd_ssc_waitq);
 }
-EXPORT_SYMBOL_GPL(nfsd4_ssc_init_umount_work);
 
 /*
  * This is called when nfsd is being shutdown, after all inter_ssc
