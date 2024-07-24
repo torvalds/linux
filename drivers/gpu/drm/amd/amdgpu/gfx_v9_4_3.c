@@ -3054,7 +3054,9 @@ static void gfx_v9_4_3_ring_soft_recovery(struct amdgpu_ring *ring,
 	value = REG_SET_FIELD(value, SQ_CMD, MODE, 0x01);
 	value = REG_SET_FIELD(value, SQ_CMD, CHECK_VMID, 1);
 	value = REG_SET_FIELD(value, SQ_CMD, VM_ID, vmid);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, ring->xcc_id);
 	WREG32_SOC15(GC, GET_INST(GC, ring->xcc_id), regSQ_CMD, value);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, ring->xcc_id);
 }
 
 static void gfx_v9_4_3_xcc_set_compute_eop_interrupt_state(
