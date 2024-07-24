@@ -1295,7 +1295,10 @@ static int nfs_can_extend_write(struct file *file, struct folio *folio,
 	struct file_lock_context *flctx = locks_inode_context(inode);
 	struct file_lock *fl;
 	int ret;
+	unsigned int mntflags = NFS_SERVER(inode)->flags;
 
+	if (mntflags & NFS_MOUNT_NO_ALIGNWRITE)
+		return 0;
 	if (file->f_flags & O_DSYNC)
 		return 0;
 	if (!nfs_folio_write_uptodate(folio, pagelen))
