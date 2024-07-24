@@ -777,6 +777,8 @@ static int adsp_start(struct rproc *rproc)
 			dev_err(adsp->dev, "start timed out\n");
 	}
 
+	adsp->q6v5.seq++;
+
 free_metadata:
 	qcom_mdt_free_metadata(adsp->dev, adsp->pas_id, adsp->mdata,
 					adsp->dma_phys_below_32b, ret);
@@ -1157,6 +1159,7 @@ static int adsp_stop(struct rproc *rproc)
 			dev_err(adsp->dev, "failed to reclaim mpss dsm mem\n");
 	}
 
+	adsp->q6v5.seq++;
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "exit");
 
 	return ret;

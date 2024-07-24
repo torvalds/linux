@@ -48,6 +48,8 @@ struct qcom_q6v5 {
 	bool running;
 
 	void (*handover)(struct qcom_q6v5 *q6v5);
+	unsigned long long seq;
+	unsigned long long crash_seq;
 };
 
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,

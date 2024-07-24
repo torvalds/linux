@@ -336,6 +336,18 @@ config RPROC_SYSMON_NOTIF_TIMEOUT
 	  the start and end of sysmon notifications, before a warning
 	  is emitted.
 
+config RPROC_SYSMON_SHUTDOWN_NOTIF_TIMEOUT
+	int "Sysmon notifications timeout in ms"
+	default 10000
+	help
+	  This is a debug feature where a kernel panic is triggered when
+	  there is no acknowledgment there from the subsystem shutdown
+	  request.
+
+	  The amount of time, in milliseconds, that should elapse between
+	  the start and end of sysmon notifications, before a warning
+	  is emitted.
+
 config RPROC_SSR_NOTIF_TIMEOUT
 	int "SSR notifier timeout in ms"
 	default 10000
