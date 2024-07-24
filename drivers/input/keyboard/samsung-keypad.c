@@ -420,11 +420,14 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 	platform_set_drvdata(pdev, keypad);
-	pm_runtime_enable(&pdev->dev);
+
+	error = devm_pm_runtime_enable(&pdev->dev);
+	if (error)
+		return error;
 
 	error = input_register_device(keypad->input_dev);
 	if (error)
-		goto err_disable_runtime_pm;
+		return error;
 
 	if (pdev->dev.of_node) {
 		devm_kfree(&pdev->dev, (void *)pdata->keymap_data->keymap);
@@ -432,15 +435,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 		devm_kfree(&pdev->dev, (void *)pdata);
 	}
 	return 0;
-
-err_disable_runtime_pm:
-	pm_runtime_disable(&pdev->dev);
-	return error;
-}
-
-static void samsung_keypad_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
 }
 
 static int samsung_keypad_runtime_suspend(struct device *dev)
@@ -575,7 +569,6 @@ MODULE_DEVICE_TABLE(platform, samsung_keypad_driver_ids);
 
 static struct platform_driver samsung_keypad_driver = {
 	.probe		= samsung_keypad_probe,
-	.remove		= samsung_keypad_remove,
 	.driver		= {
 		.name	= "samsung-keypad",
 		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
