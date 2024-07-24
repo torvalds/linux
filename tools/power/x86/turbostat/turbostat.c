@@ -4017,15 +4017,55 @@ static unsigned int read_perf_type(const char *subsys)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned int read_rapl_config(const char *subsys, const char *event_name)
+static unsigned int read_perf_config(const char *subsys, const char *event_name)
 {
 	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s";
-	const char *const format = "event=%x";
+	FILE *fconfig = NULL;
 	char path[128];
+	char config_str[64];
+	unsigned int config;
+	unsigned int umask;
+	bool has_config = false;
+	bool has_umask = false;
+	unsigned int ret = -1;
 
 	snprintf(path, sizeof(path), path_format, subsys, event_name);
 
-	return read_perf_counter_info_n(path, format);
+	fconfig = fopen(path, "r");
+	if (!fconfig)
+		return -1;
+
+	if (fgets(config_str, ARRAY_SIZE(config_str), fconfig) != config_str)
+		goto cleanup_and_exit;
+
+	for (char *pconfig_str = &config_str[0]; pconfig_str;) {
+		if (sscanf(pconfig_str, "event=%x", &config) == 1) {
+			has_config = true;
+			goto next;
+		}
+
+		if (sscanf(pconfig_str, "umask=%x", &umask) == 1) {
+			has_umask = true;
+			goto next;
+		}
+
+	next:
+		pconfig_str = strchr(pconfig_str, ',');
+		if (pconfig_str) {
+			*pconfig_str = '\0';
+			++pconfig_str;
+		}
+	}
+
+	if (!has_umask)
+		umask = 0;
+
+	if (has_config)
+		ret = (umask << 8) | config;
+
+cleanup_and_exit:
+	fclose(fconfig);
+	return ret;
 }
 
 static unsigned int read_perf_rapl_unit(const char *subsys, const char *event_name)
@@ -4044,7 +4084,7 @@ static unsigned int read_perf_rapl_unit(const char *subsys, const char *event_na
 	return RAPL_UNIT_INVALID;
 }
 
-static double read_perf_rapl_scale(const char *subsys, const char *event_name)
+static double read_perf_scale(const char *subsys, const char *event_name)
 {
 	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s.scale";
 	const char *const format = "%lf";
@@ -7425,7 +7465,7 @@ int add_rapl_perf_counter_(int cpu, struct rapl_counter_info_t *rci, const struc
 	if (no_perf)
 		return -1;
 
-	const double scale = read_perf_rapl_scale(cai->perf_subsys, cai->perf_name);
+	const double scale = read_perf_scale(cai->perf_subsys, cai->perf_name);
 
 	if (scale == 0.0)
 		return -1;
@@ -7436,7 +7476,7 @@ int add_rapl_perf_counter_(int cpu, struct rapl_counter_info_t *rci, const struc
 		return -1;
 
 	const unsigned int rapl_type = read_perf_type(cai->perf_subsys);
-	const unsigned int rapl_energy_pkg_config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+	const unsigned int rapl_energy_pkg_config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
 	const int fd_counter =
 	    open_perf_counter(cpu, rapl_type, rapl_energy_pkg_config, rci->fd_perf, PERF_FORMAT_GROUP);
@@ -7598,7 +7638,7 @@ int add_cstate_perf_counter_(int cpu, struct cstate_counter_info_t *cci, const s
 		return -1;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
-	const unsigned int config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+	const unsigned int config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
 	const int fd_counter = open_perf_counter(cpu, type, config, *pfd_group, PERF_FORMAT_GROUP);
 
@@ -7628,7 +7668,7 @@ int add_msr_perf_counter_(int cpu, struct msr_counter_info_t *cci, const struct 
 		return -1;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
-	const unsigned int config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+	const unsigned int config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
 	const int fd_counter = open_perf_counter(cpu, type, config, cci->fd_perf, PERF_FORMAT_GROUP);
 
@@ -8571,7 +8611,7 @@ int added_perf_counters_init_(struct perf_counter_info *pinfo)
 				continue;
 			}
 
-			perf_config = read_rapl_config(pinfo->device, pinfo->event);
+			perf_config = read_perf_config(pinfo->device, pinfo->event);
 			if (perf_config == (unsigned int)-1) {
 				warnx("%s: perf/%s/%s: failed to read %s",
 				      __func__, pinfo->device, pinfo->event, "config");
@@ -8579,7 +8619,7 @@ int added_perf_counters_init_(struct perf_counter_info *pinfo)
 			}
 
 			/* Scale is not required, some counters just don't have it. */
-			perf_scale = read_perf_rapl_scale(pinfo->device, pinfo->event);
+			perf_scale = read_perf_scale(pinfo->device, pinfo->event);
 			if (perf_scale == 0.0)
 				perf_scale = 1.0;
 
