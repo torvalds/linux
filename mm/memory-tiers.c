@@ -6,6 +6,7 @@
 #include <linux/memory.h>
 #include <linux/memory-tiers.h>
 #include <linux/notifier.h>
+#include <linux/sched/sysctl.h>
 
 #include "internal.h"
 
@@ -49,6 +50,24 @@ static const struct bus_type memory_tier_subsys = {
 	.name = "memory_tiering",
 	.dev_name = "memory_tier",
 };
+
+#ifdef CONFIG_NUMA_BALANCING
+/**
+ * folio_use_access_time - check if a folio reuses cpupid for page access time
+ * @folio: folio to check
+ *
+ * folio's _last_cpupid field is repurposed by memory tiering. In memory
+ * tiering mode, cpupid of slow memory folio (not toptier memory) is used to
+ * record page access time.
+ *
+ * Return: the folio _last_cpupid is used to record page access time
+ */
+bool folio_use_access_time(struct folio *folio)
+{
+	return (sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING) &&
+	       !node_is_toptier(folio_nid(folio));
+}
+#endif
 
 #ifdef CONFIG_MIGRATION
 static int top_tier_adistance;
