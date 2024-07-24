@@ -783,7 +783,7 @@ static void rtw89_ra_mask_info_update_iter(void *data, struct ieee80211_sta *sta
 
 	rtwsta->use_cfg_mask = true;
 	rtwsta->mask = *br_data->mask;
-	rtw89_phy_ra_updata_sta(br_data->rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
+	rtw89_phy_ra_update_sta(br_data->rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
 }
 
 static void rtw89_ra_mask_info_update(struct rtw89_dev *rtwdev,
@@ -925,7 +925,7 @@ static void rtw89_ops_sta_rc_update(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 
-	rtw89_phy_ra_updata_sta(rtwdev, sta, changed);
+	rtw89_phy_ra_update_sta(rtwdev, sta, changed);
 }
 
 static int rtw89_ops_add_chanctx(struct ieee80211_hw *hw,
