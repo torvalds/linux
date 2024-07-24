@@ -455,7 +455,7 @@ static int hostfs_read_folio(struct file *file, struct folio *folio)
 	if (bytes_read < 0)
 		ret = bytes_read;
 	else
-		buffer = folio_zero_tail(folio, bytes_read, buffer);
+		buffer = folio_zero_tail(folio, bytes_read, buffer + bytes_read);
 	kunmap_local(buffer);
 
 	folio_end_read(folio, ret == 0);
