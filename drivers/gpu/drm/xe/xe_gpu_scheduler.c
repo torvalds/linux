@@ -90,6 +90,11 @@ void xe_sched_submission_stop(struct xe_gpu_scheduler *sched)
 	cancel_work_sync(&sched->work_process_msg);
 }
 
+void xe_sched_submission_resume_tdr(struct xe_gpu_scheduler *sched)
+{
+	drm_sched_resume_timeout(&sched->base, sched->base.timeout);
+}
+
 void xe_sched_add_msg(struct xe_gpu_scheduler *sched,
 		      struct xe_sched_msg *msg)
 {
