@@ -1393,10 +1393,10 @@ static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
  * < 0 if there were errors (page still locked)
  */
 static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
-				 struct page *page, u64 start, u32 len,
-				 struct btrfs_bio_ctrl *bio_ctrl,
-				 loff_t i_size,
-				 int *nr_ret)
+						    struct folio *folio,
+						    u64 start, u32 len,
+						    struct btrfs_bio_ctrl *bio_ctrl,
+						    loff_t i_size, int *nr_ret)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 cur = start;
@@ -1407,14 +1407,14 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	int ret = 0;
 	int nr = 0;
 
-	ASSERT(start >= page_offset(page) &&
-	       start + len <= page_offset(page) + PAGE_SIZE);
+	ASSERT(start >= folio_pos(folio) &&
+	       start + len <= folio_pos(folio) + folio_size(folio));
 
-	ret = btrfs_writepage_cow_fixup(page);
+	ret = btrfs_writepage_cow_fixup(&folio->page);
 	if (ret) {
 		/* Fixup worker will requeue */
-		redirty_page_for_writepage(bio_ctrl->wbc, page);
-		unlock_page(page);
+		folio_redirty_for_writepage(bio_ctrl->wbc, folio);
+		folio_unlock(folio);
 		return 1;
 	}
 
@@ -1428,21 +1428,21 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		u32 iosize;
 
 		if (cur >= i_size) {
-			btrfs_mark_ordered_io_finished(inode, page, cur, len,
-						       true);
+			btrfs_mark_ordered_io_finished(inode, &folio->page, cur,
+						       len, true);
 			/*
 			 * This range is beyond i_size, thus we don't need to
 			 * bother writing back.
 			 * But we still need to clear the dirty subpage bit, or
-			 * the next time the page gets dirtied, we will try to
+			 * the next time the folio gets dirtied, we will try to
 			 * writeback the sectors with subpage dirty bits,
 			 * causing writeback without ordered extent.
 			 */
-			btrfs_folio_clear_dirty(fs_info, page_folio(page), cur, len);
+			btrfs_folio_clear_dirty(fs_info, folio, cur, len);
 			break;
 		}
 
-		find_next_dirty_byte(fs_info, page, &dirty_range_start,
+		find_next_dirty_byte(fs_info, &folio->page, &dirty_range_start,
 				     &dirty_range_end);
 		if (cur < dirty_range_start) {
 			cur = dirty_range_start;
@@ -1478,33 +1478,32 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		em = NULL;
 
 		/*
-		 * Although the PageDirty bit might be cleared before entering
-		 * this function, subpage dirty bit is not cleared.
+		 * Although the PageDirty bit is cleared before entering this
+		 * function, subpage dirty bit is not cleared.
 		 * So clear subpage dirty bit here so next time we won't submit
-		 * page for range already written to disk.
+		 * folio for range already written to disk.
 		 */
-		btrfs_folio_clear_dirty(fs_info, page_folio(page), cur, iosize);
+		btrfs_folio_clear_dirty(fs_info, folio, cur, iosize);
 		btrfs_set_range_writeback(inode, cur, cur + iosize - 1);
-		if (!PageWriteback(page)) {
+		if (!folio_test_writeback(folio)) {
 			btrfs_err(inode->root->fs_info,
-				   "page %lu not writeback, cur %llu end %llu",
-			       page->index, cur, end);
+				   "folio %lu not writeback, cur %llu end %llu",
+			       folio->index, cur, end);
 		}
 
-
-		submit_extent_folio(bio_ctrl, disk_bytenr, page_folio(page),
-				    iosize, cur - page_offset(page));
+		submit_extent_folio(bio_ctrl, disk_bytenr, folio,
+				    iosize, cur - folio_pos(folio));
 		cur += iosize;
 		nr++;
 	}
 
-	btrfs_folio_assert_not_dirty(fs_info, page_folio(page), start, len);
+	btrfs_folio_assert_not_dirty(fs_info, folio, start, len);
 	*nr_ret = nr;
 	return 0;
 
 out_error:
 	/*
-	 * If we finish without problem, we should not only clear page dirty,
+	 * If we finish without problem, we should not only clear folio dirty,
 	 * but also empty subpage dirty bits
 	 */
 	*nr_ret = nr;
@@ -1556,7 +1555,7 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 	if (ret)
 		goto done;
 
-	ret = __extent_writepage_io(BTRFS_I(inode), page, page_offset(page),
+	ret = __extent_writepage_io(BTRFS_I(inode), folio, folio_pos(folio),
 				    PAGE_SIZE, bio_ctrl, i_size, &nr);
 	if (ret == 1)
 		return 0;
@@ -2308,7 +2307,7 @@ void extent_write_locked_range(struct inode *inode, const struct page *locked_pa
 		if (pages_dirty && page != locked_page)
 			ASSERT(PageDirty(page));
 
-		ret = __extent_writepage_io(BTRFS_I(inode), page, cur, cur_len,
+		ret = __extent_writepage_io(BTRFS_I(inode), page_folio(page), cur, cur_len,
 					    &bio_ctrl, i_size, &nr);
 		if (ret == 1)
 			goto next_page;
