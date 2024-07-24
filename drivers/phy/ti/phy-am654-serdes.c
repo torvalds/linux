@@ -30,7 +30,6 @@
 #define LANE_R058		0x258
 #define LANE_R06c		0x26c
 #define LANE_R070		0x270
-#define LANE_R070		0x270
 #define LANE_R19C		0x39c
 
 #define COMLANE_R004		0xa04

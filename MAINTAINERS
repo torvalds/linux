@@ -702,6 +702,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/net/airoha,en7581-eth.yaml
 F:	drivers/net/ethernet/mediatek/airoha_eth.c
 
+AIROHA PCIE PHY DRIVER
+M:	Lorenzo Bianconi <lorenzo@kernel.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/phy/airoha,en7581-pcie-phy.yaml
+F:	drivers/phy/phy-airoha-pcie-regs.h
+F:	drivers/phy/phy-airoha-pcie.c
+
 AIROHA SPI SNFI DRIVER
 M:	Lorenzo Bianconi <lorenzo@kernel.org>
 M:	Ray Liu <ray.liu@airoha.com>
@@ -21681,6 +21689,13 @@ M:	Changhuang Liang <changhuang.liang@starfivetech.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/phy/starfive,jh7110-dphy-rx.yaml
 F:	drivers/phy/starfive/phy-jh7110-dphy-rx.c
+
+STARFIVE JH7110 DPHY TX DRIVER
+M:	Keith Zhao <keith.zhao@starfivetech.com>
+M:	Shengyang Chen <shengyang.chen@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/phy/starfive,jh7110-dphy-tx.yaml
+F:	drivers/phy/starfive/phy-jh7110-dphy-tx.c
 
 STARFIVE JH7110 MMC/SD/SDIO DRIVER
 M:	William Qiu <william.qiu@starfivetech.com>
