@@ -1763,8 +1763,9 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 	return 1;
 }
 
-static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
-			   const u64 start, const u64 end)
+static int fallback_to_cow(struct btrfs_inode *inode,
+			   struct folio *locked_folio, const u64 start,
+			   const u64 end)
 {
 	const bool is_space_ino = btrfs_is_free_space_inode(inode);
 	const bool is_reloc_ino = btrfs_is_data_reloc_root(inode->root);
@@ -1833,8 +1834,8 @@ static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 	 * is written out and unlocked directly and a normal NOCOW extent
 	 * doesn't work.
 	 */
-	ret = cow_file_range(inode, page_folio(locked_page), start, end, NULL,
-			     false, true);
+	ret = cow_file_range(inode, locked_folio, start, end, NULL, false,
+			     true);
 	ASSERT(ret != 1);
 	return ret;
 }
@@ -2151,7 +2152,7 @@ must_cow:
 		 * NOCOW, following one which needs to be COW'ed
 		 */
 		if (cow_start != (u64)-1) {
-			ret = fallback_to_cow(inode, locked_page,
+			ret = fallback_to_cow(inode, page_folio(locked_page),
 					      cow_start, found_key.offset - 1);
 			cow_start = (u64)-1;
 			if (ret) {
@@ -2230,7 +2231,8 @@ must_cow:
 
 	if (cow_start != (u64)-1) {
 		cur_offset = end;
-		ret = fallback_to_cow(inode, locked_page, cow_start, end);
+		ret = fallback_to_cow(inode, page_folio(locked_page), cow_start,
+				      end);
 		cow_start = (u64)-1;
 		if (ret)
 			goto error;
