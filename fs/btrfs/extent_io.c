@@ -968,8 +968,9 @@ void clear_page_extent_mapped(struct page *page)
 	folio_detach_private(folio);
 }
 
-static struct extent_map *__get_extent_map(struct inode *inode, struct page *page,
-		 u64 start, u64 len, struct extent_map **em_cached)
+static struct extent_map *__get_extent_map(struct inode *inode,
+					   struct folio *folio, u64 start,
+					   u64 len, struct extent_map **em_cached)
 {
 	struct extent_map *em;
 
@@ -987,7 +988,7 @@ static struct extent_map *__get_extent_map(struct inode *inode, struct page *pag
 		*em_cached = NULL;
 	}
 
-	em = btrfs_get_extent(BTRFS_I(inode), page_folio(page), start, len);
+	em = btrfs_get_extent(BTRFS_I(inode), folio, start, len);
 	if (!IS_ERR(em)) {
 		BUG_ON(*em_cached);
 		refcount_inc(&em->refs);
@@ -1050,8 +1051,8 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 			end_folio_read(folio, true, cur, iosize);
 			break;
 		}
-		em = __get_extent_map(inode, folio_page(folio, 0), cur,
-				      end - cur + 1, em_cached);
+		em = __get_extent_map(inode, folio, cur, end - cur + 1,
+				      em_cached);
 		if (IS_ERR(em)) {
 			unlock_extent(tree, cur, end, NULL);
 			end_folio_read(folio, false, cur, end + 1 - cur);
