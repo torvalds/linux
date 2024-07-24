@@ -393,7 +393,7 @@ void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags)
  * extent (btrfs_finish_ordered_io()).
  */
 static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
-						 struct page *locked_page,
+						 struct folio *locked_folio,
 						 u64 offset, u64 bytes)
 {
 	unsigned long index = offset >> PAGE_SHIFT;
@@ -401,9 +401,9 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 	u64 page_start = 0, page_end = 0;
 	struct folio *folio;
 
-	if (locked_page) {
-		page_start = page_offset(locked_page);
-		page_end = page_start + PAGE_SIZE - 1;
+	if (locked_folio) {
+		page_start = folio_pos(locked_folio);
+		page_end = page_start + folio_size(locked_folio) - 1;
 	}
 
 	while (index <= end_index) {
@@ -417,7 +417,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		 * btrfs_mark_ordered_io_finished() would skip the accounting
 		 * for the page range, and the ordered extent will never finish.
 		 */
-		if (locked_page && index == (page_start >> PAGE_SHIFT)) {
+		if (locked_folio && index == (page_start >> PAGE_SHIFT)) {
 			index++;
 			continue;
 		}
@@ -436,9 +436,9 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		folio_put(folio);
 	}
 
-	if (locked_page) {
+	if (locked_folio) {
 		/* The locked page covers the full range, nothing needs to be done */
-		if (bytes + offset <= page_start + PAGE_SIZE)
+		if (bytes + offset <= page_start + folio_size(locked_folio))
 			return;
 		/*
 		 * In case this page belongs to the delalloc range being
@@ -447,8 +447,9 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		 * run_delalloc_range
 		 */
 		if (page_start >= offset && page_end <= (offset + bytes - 1)) {
-			bytes = offset + bytes - page_offset(locked_page) - PAGE_SIZE;
-			offset = page_offset(locked_page) + PAGE_SIZE;
+			bytes = offset + bytes - folio_pos(locked_folio) -
+				folio_size(locked_folio);
+			offset = folio_pos(locked_folio) + folio_size(locked_folio);
 		}
 	}
 
@@ -1138,7 +1139,8 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 			       &wbc, false);
 	wbc_detach_inode(&wbc);
 	if (ret < 0) {
-		btrfs_cleanup_ordered_extents(inode, locked_page, start, end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, page_folio(locked_page),
+					      start, end - start + 1);
 		if (locked_page) {
 			const u64 page_start = page_offset(locked_page);
 
@@ -2317,8 +2319,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 
 out:
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, locked_page, start,
-					      end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, page_folio(locked_page),
+					      start, end - start + 1);
 	return ret;
 }
 
