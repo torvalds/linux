@@ -449,8 +449,8 @@ void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
- * @page:	 The involved page for the operation.
- *		 For uncompressed buffered IO, the page status also needs to be
+ * @folio:	 The involved folio for the operation.
+ *		 For uncompressed buffered IO, the folio status also needs to be
  *		 updated to indicate whether the pending ordered io is finished.
  *		 Can be NULL for direct IO and compressed write.
  *		 For these cases, callers are ensured they won't execute the
@@ -460,7 +460,7 @@ void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
  * extent(s) covering it.
  */
 void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
-				    struct page *page, u64 file_offset,
+				    struct folio *folio, u64 file_offset,
 				    u64 num_bytes, bool uptodate)
 {
 	struct rb_node *node;
@@ -524,8 +524,7 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 		ASSERT(end + 1 - cur < U32_MAX);
 		len = end + 1 - cur;
 
-		if (can_finish_ordered_extent(entry, page_folio(page), cur, len,
-					      uptodate)) {
+		if (can_finish_ordered_extent(entry, folio, cur, len, uptodate)) {
 			spin_unlock_irqrestore(&inode->ordered_tree_lock, flags);
 			btrfs_queue_ordered_fn(entry);
 			spin_lock_irqsave(&inode->ordered_tree_lock, flags);

@@ -1144,7 +1144,8 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 
 			set_page_writeback(locked_page);
 			end_page_writeback(locked_page);
-			btrfs_mark_ordered_io_finished(inode, locked_page,
+			btrfs_mark_ordered_io_finished(inode,
+						       page_folio(locked_page),
 						       page_start, PAGE_SIZE,
 						       !ret);
 			mapping_set_error(locked_page->mapping, ret);
@@ -2802,8 +2803,8 @@ out_page:
 		 * to reflect the errors and clean the page.
 		 */
 		mapping_set_error(page->mapping, ret);
-		btrfs_mark_ordered_io_finished(inode, page, page_start,
-					       PAGE_SIZE, !ret);
+		btrfs_mark_ordered_io_finished(inode, page_folio(page),
+					       page_start, PAGE_SIZE, !ret);
 		clear_page_dirty_for_io(page);
 	}
 	btrfs_folio_clear_checked(fs_info, page_folio(page), page_start, PAGE_SIZE);

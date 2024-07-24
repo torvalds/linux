@@ -1428,8 +1428,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		u32 iosize;
 
 		if (cur >= i_size) {
-			btrfs_mark_ordered_io_finished(inode, &folio->page, cur,
-						       len, true);
+			btrfs_mark_ordered_io_finished(inode, folio, cur, len,
+						       true);
 			/*
 			 * This range is beyond i_size, thus we don't need to
 			 * bother writing back.
@@ -1568,7 +1568,7 @@ done:
 		folio_end_writeback(folio);
 	}
 	if (ret) {
-		btrfs_mark_ordered_io_finished(BTRFS_I(inode), &folio->page,
+		btrfs_mark_ordered_io_finished(BTRFS_I(inode), folio,
 					       page_start, PAGE_SIZE, !ret);
 		mapping_set_error(folio->mapping, ret);
 	}
@@ -2330,7 +2330,7 @@ void extent_write_locked_range(struct inode *inode, const struct page *locked_pa
 			btrfs_folio_clear_writeback(fs_info, folio, cur, cur_len);
 		}
 		if (ret) {
-			btrfs_mark_ordered_io_finished(BTRFS_I(inode), &folio->page,
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), folio,
 						       cur, cur_len, !ret);
 			mapping_set_error(mapping, ret);
 		}
