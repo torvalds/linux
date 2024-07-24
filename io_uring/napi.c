@@ -222,6 +222,8 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 	};
 	struct io_uring_napi napi;
 
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		return -EINVAL;
 	if (copy_from_user(&napi, arg, sizeof(napi)))
 		return -EFAULT;
 	if (napi.pad[0] || napi.pad[1] || napi.pad[2] || napi.resv)
