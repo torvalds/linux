@@ -630,7 +630,7 @@ static void cachefiles_prepare_write_subreq(struct netfs_io_subrequest *subreq)
 
 	_enter("W=%x[%x] %llx", wreq->debug_id, subreq->debug_index, subreq->start);
 
-	subreq->max_len = ULONG_MAX;
+	subreq->max_len = MAX_RW_COUNT;
 	subreq->max_nr_segs = BIO_MAX_VECS;
 
 	if (!cachefiles_cres_file(cres)) {

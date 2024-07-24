@@ -70,7 +70,7 @@ static DEFINE_IDA(mnt_id_ida);
 static DEFINE_IDA(mnt_group_ida);
 
 /* Don't allow confusion with old 32bit mount ID */
-#define MNT_UNIQUE_ID_OFFSET (1ULL << 32)
+#define MNT_UNIQUE_ID_OFFSET (1ULL << 31)
 static atomic64_t mnt_id_ctr = ATOMIC64_INIT(MNT_UNIQUE_ID_OFFSET);
 
 static struct hlist_head *mount_hashtable __ro_after_init;
