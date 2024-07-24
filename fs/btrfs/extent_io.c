@@ -164,11 +164,10 @@ void __cold extent_buffer_free_cachep(void)
 	kmem_cache_destroy(extent_buffer_cache);
 }
 
-static void process_one_page(struct btrfs_fs_info *fs_info,
-			     struct page *page, const struct page *locked_page,
-			     unsigned long page_ops, u64 start, u64 end)
+static void process_one_folio(struct btrfs_fs_info *fs_info,
+			      struct folio *folio, const struct folio *locked_folio,
+			      unsigned long page_ops, u64 start, u64 end)
 {
-	struct folio *folio = page_folio(page);
 	u32 len;
 
 	ASSERT(end + 1 - start != 0 && end + 1 - start < U32_MAX);
@@ -183,7 +182,7 @@ static void process_one_page(struct btrfs_fs_info *fs_info,
 	if (page_ops & PAGE_END_WRITEBACK)
 		btrfs_folio_clamp_clear_writeback(fs_info, folio, start, len);
 
-	if (page != locked_page && (page_ops & PAGE_UNLOCK))
+	if (folio != locked_folio && (page_ops & PAGE_UNLOCK))
 		btrfs_folio_end_writer_lock(fs_info, folio, start, len);
 }
 
@@ -207,9 +206,8 @@ static void __process_folios_contig(struct address_space *mapping,
 		for (i = 0; i < found_folios; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			process_one_page(fs_info, &folio->page,
-					 &locked_folio->page, page_ops, start,
-					 end);
+			process_one_folio(fs_info, folio, locked_folio,
+					  page_ops, start, end);
 		}
 		folio_batch_release(&fbatch);
 		cond_resched();
