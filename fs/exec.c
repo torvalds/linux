@@ -2236,5 +2236,5 @@ fs_initcall(init_fs_exec_sysctls);
 #endif /* CONFIG_SYSCTL */
 
 #ifdef CONFIG_EXEC_KUNIT_TEST
-#include "exec_test.c"
+#include "tests/exec_kunit.c"
 #endif

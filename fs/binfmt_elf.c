@@ -2150,5 +2150,5 @@ core_initcall(init_elf_binfmt);
 module_exit(exit_elf_binfmt);
 
 #ifdef CONFIG_BINFMT_ELF_KUNIT_TEST
-#include "binfmt_elf_test.c"
+#include "tests/binfmt_elf_kunit.c"
 #endif
