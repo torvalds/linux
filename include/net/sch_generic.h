@@ -127,6 +127,7 @@ struct Qdisc {
 
 	struct rcu_head		rcu;
 	netdevice_tracker	dev_tracker;
+	struct lock_class_key	root_lock_key;
 
 	ANDROID_KABI_RESERVE(1);
 
