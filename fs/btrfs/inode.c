@@ -1989,7 +1989,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
  * blocks on disk
  */
 static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
-				       struct page *locked_page,
+				       struct folio *locked_folio,
 				       const u64 start, const u64 end)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -2152,8 +2152,8 @@ must_cow:
 		 * NOCOW, following one which needs to be COW'ed
 		 */
 		if (cow_start != (u64)-1) {
-			ret = fallback_to_cow(inode, page_folio(locked_page),
-					      cow_start, found_key.offset - 1);
+			ret = fallback_to_cow(inode, locked_folio, cow_start,
+					      found_key.offset - 1);
 			cow_start = (u64)-1;
 			if (ret) {
 				btrfs_dec_nocow_writers(nocow_bg);
@@ -2208,8 +2208,7 @@ must_cow:
 		btrfs_put_ordered_extent(ordered);
 
 		extent_clear_unlock_delalloc(inode, cur_offset, nocow_end,
-					     page_folio(locked_page),
-					     &cached_state,
+					     locked_folio, &cached_state,
 					     EXTENT_LOCKED | EXTENT_DELALLOC |
 					     EXTENT_CLEAR_DATA_RESV,
 					     PAGE_UNLOCK | PAGE_SET_ORDERED);
@@ -2231,8 +2230,7 @@ must_cow:
 
 	if (cow_start != (u64)-1) {
 		cur_offset = end;
-		ret = fallback_to_cow(inode, page_folio(locked_page), cow_start,
-				      end);
+		ret = fallback_to_cow(inode, locked_folio, cow_start, end);
 		cow_start = (u64)-1;
 		if (ret)
 			goto error;
@@ -2259,7 +2257,7 @@ error:
 
 		lock_extent(&inode->io_tree, cur_offset, end, &cached);
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
-					     page_folio(locked_page), &cached,
+					     locked_folio, &cached,
 					     EXTENT_LOCKED | EXTENT_DELALLOC |
 					     EXTENT_DEFRAG |
 					     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
@@ -2300,7 +2298,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		 start >= page_offset(locked_page) + PAGE_SIZE));
 
 	if (should_nocow(inode, start, end)) {
-		ret = run_delalloc_nocow(inode, locked_page, start, end);
+		ret = run_delalloc_nocow(inode, page_folio(locked_page), start,
+					 end);
 		goto out;
 	}
 
