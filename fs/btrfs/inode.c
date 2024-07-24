@@ -2828,33 +2828,34 @@ out_page:
 
 /*
  * There are a few paths in the higher layers of the kernel that directly
- * set the page dirty bit without asking the filesystem if it is a
+ * set the folio dirty bit without asking the filesystem if it is a
  * good idea.  This causes problems because we want to make sure COW
  * properly happens and the data=ordered rules are followed.
  *
  * In our case any range that doesn't have the ORDERED bit set
  * hasn't been properly setup for IO.  We kick off an async process
  * to fix it up.  The async helper will wait for ordered extents, set
- * the delalloc bit and make it safe to write the page.
+ * the delalloc bit and make it safe to write the folio.
  */
-int btrfs_writepage_cow_fixup(struct page *page)
+int btrfs_writepage_cow_fixup(struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_writepage_fixup *fixup;
 
-	/* This page has ordered extent covering it already */
-	if (PageOrdered(page))
+	/* This folio has ordered extent covering it already */
+	if (folio_test_ordered(folio))
 		return 0;
 
 	/*
-	 * PageChecked is set below when we create a fixup worker for this page,
-	 * don't try to create another one if we're already PageChecked()
+	 * folio_checked is set below when we create a fixup worker for this
+	 * folio, don't try to create another one if we're already
+	 * folio_test_checked.
 	 *
-	 * The extent_io writepage code will redirty the page if we send back
+	 * The extent_io writepage code will redirty the foio if we send back
 	 * EAGAIN.
 	 */
-	if (PageChecked(page))
+	if (folio_test_checked(folio))
 		return -EAGAIN;
 
 	fixup = kzalloc(sizeof(*fixup), GFP_NOFS);
@@ -2864,14 +2865,14 @@ int btrfs_writepage_cow_fixup(struct page *page)
 	/*
 	 * We are already holding a reference to this inode from
 	 * write_cache_pages.  We need to hold it because the space reservation
-	 * takes place outside of the page lock, and we can't trust
-	 * page->mapping outside of the page lock.
+	 * takes place outside of the folio lock, and we can't trust
+	 * page->mapping outside of the folio lock.
 	 */
 	ihold(inode);
-	btrfs_folio_set_checked(fs_info, page_folio(page), page_offset(page), PAGE_SIZE);
-	get_page(page);
+	btrfs_folio_set_checked(fs_info, folio, folio_pos(folio), folio_size(folio));
+	folio_get(folio);
 	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL);
-	fixup->page = page;
+	fixup->page = &folio->page;
 	fixup->inode = BTRFS_I(inode);
 	btrfs_queue_work(fs_info->fixup_workers, &fixup->work);
 

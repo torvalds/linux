@@ -1410,7 +1410,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	ASSERT(start >= folio_pos(folio) &&
 	       start + len <= folio_pos(folio) + folio_size(folio));
 
-	ret = btrfs_writepage_cow_fixup(&folio->page);
+	ret = btrfs_writepage_cow_fixup(folio);
 	if (ret) {
 		/* Fixup worker will requeue */
 		folio_redirty_for_writepage(bio_ctrl->wbc, folio);
