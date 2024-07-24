@@ -9515,7 +9515,7 @@ static int gfx_v10_0_reset_kcq(struct amdgpu_ring *ring,
 		return r;
 
 	/* make sure dequeue is complete*/
-	gfx_v10_0_set_safe_mode(adev, 0);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 	mutex_lock(&adev->srbm_mutex);
 	nv_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -9527,7 +9527,7 @@ static int gfx_v10_0_reset_kcq(struct amdgpu_ring *ring,
 		r = -ETIMEDOUT;
 	nv_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
-	gfx_v10_0_unset_safe_mode(adev, 0);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	if (r) {
 		dev_err(adev->dev, "fail to wait on hqd deactivate\n");
 		return r;
