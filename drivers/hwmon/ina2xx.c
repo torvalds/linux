@@ -193,9 +193,15 @@ static int ina226_reg_to_interval(u16 config)
  * Return the new, shifted AVG field value of CONFIG register,
  * to use with regmap_update_bits
  */
-static u16 ina226_interval_to_reg(int interval)
+static u16 ina226_interval_to_reg(unsigned long interval)
 {
 	int avg, avg_bits;
+
+	/*
+	 * The maximum supported interval is 1,024 * (2 * 8.244ms) ~= 16.8s.
+	 * Clamp to 32 seconds before calculations to avoid overflows.
+	 */
+	interval = clamp_val(interval, 0, 32000);
 
 	avg = DIV_ROUND_CLOSEST(interval * 1000,
 				INA226_TOTAL_CONV_TIME_DEFAULT);
@@ -371,19 +377,22 @@ static int ina226_reg_to_alert(struct ina2xx_data *data, u32 mask, u16 regval)
  * Turns alert limit values into register values.
  * Opposite of the formula in ina2xx_get_value().
  */
-static u16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, int val)
+static u16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, unsigned long val)
 {
 	switch (mask) {
 	case INA226_SHUNT_OVER_VOLTAGE_MASK:
 	case INA226_SHUNT_UNDER_VOLTAGE_MASK:
+		val = clamp_val(val, 0, SHRT_MAX * data->config->shunt_div);
 		val *= data->config->shunt_div;
-		return clamp_val(val, SHRT_MIN, SHRT_MAX);
+		return clamp_val(val, 0, SHRT_MAX);
 	case INA226_BUS_OVER_VOLTAGE_MASK:
 	case INA226_BUS_UNDER_VOLTAGE_MASK:
+		val = clamp_val(val, 0, 200000);
 		val = (val * 1000) << data->config->bus_voltage_shift;
 		val = DIV_ROUND_CLOSEST(val, data->config->bus_voltage_lsb);
-		return clamp_val(val, 0, SHRT_MAX);
+		return clamp_val(val, 0, USHRT_MAX);
 	case INA226_POWER_OVER_LIMIT_MASK:
+		val = clamp_val(val, 0, UINT_MAX - data->power_lsb_uW);
 		val = DIV_ROUND_CLOSEST(val, data->power_lsb_uW);
 		return clamp_val(val, 0, USHRT_MAX);
 	default:
@@ -490,19 +499,17 @@ static ssize_t ina226_alarm_show(struct device *dev,
  * to shunt_voltage_lsb = 1 / shunt_div multiplied by 10^9 in order
  * to keep the scale.
  */
-static int ina2xx_set_shunt(struct ina2xx_data *data, long val)
+static int ina2xx_set_shunt(struct ina2xx_data *data, unsigned long val)
 {
 	unsigned int dividend = DIV_ROUND_CLOSEST(1000000000,
 						  data->config->shunt_div);
-	if (val <= 0 || val > dividend)
+	if (!val || val > dividend)
 		return -EINVAL;
 
-	mutex_lock(&data->config_lock);
 	data->rshunt = val;
 	data->current_lsb_uA = DIV_ROUND_CLOSEST(dividend, val);
 	data->power_lsb_uW = data->config->power_lsb_factor *
 			     data->current_lsb_uA;
-	mutex_unlock(&data->config_lock);
 
 	return 0;
 }
@@ -527,7 +534,9 @@ static ssize_t ina2xx_shunt_store(struct device *dev,
 	if (status < 0)
 		return status;
 
+	mutex_lock(&data->config_lock);
 	status = ina2xx_set_shunt(data, val);
+	mutex_unlock(&data->config_lock);
 	if (status < 0)
 		return status;
 	return count;
@@ -544,9 +553,6 @@ static ssize_t ina226_interval_store(struct device *dev,
 	status = kstrtoul(buf, 10, &val);
 	if (status < 0)
 		return status;
-
-	if (val > INT_MAX || val == 0)
-		return -EINVAL;
 
 	status = regmap_update_bits(data->regmap, INA2XX_CONFIG,
 				    INA226_AVG_RD_MASK,
@@ -667,7 +673,9 @@ static int ina2xx_probe(struct i2c_client *client)
 	if (device_property_read_u32(dev, "shunt-resistor", &val) < 0)
 		val = INA2XX_RSHUNT_DEFAULT;
 
-	ina2xx_set_shunt(data, val);
+	ret = ina2xx_set_shunt(data, val);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Invalid shunt resistor value\n");
 
 	data->regmap = devm_regmap_init_i2c(client, &ina2xx_regmap_config);
 	if (IS_ERR(data->regmap)) {
