@@ -784,6 +784,15 @@ emit_clear:
 
 			/* Get offset into TMP_REG_1 */
 			EMIT(PPC_RAW_LI(tmp1_reg, off));
+			/*
+			 * Enforce full ordering for operations with BPF_FETCH by emitting a 'sync'
+			 * before and after the operation.
+			 *
+			 * This is a requirement in the Linux Kernel Memory Model.
+			 * See __cmpxchg_u64() in asm/cmpxchg.h as an example.
+			 */
+			if ((imm & BPF_FETCH) && IS_ENABLED(CONFIG_SMP))
+				EMIT(PPC_RAW_SYNC());
 			tmp_idx = ctx->idx * 4;
 			/* load value from memory into TMP_REG_2 */
 			if (size == BPF_DW)
@@ -846,6 +855,9 @@ emit_clear:
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
 
 			if (imm & BPF_FETCH) {
+				/* Emit 'sync' to enforce full ordering */
+				if (IS_ENABLED(CONFIG_SMP))
+					EMIT(PPC_RAW_SYNC());
 				EMIT(PPC_RAW_MR(ret_reg, _R0));
 				/*
 				 * Skip unnecessary zero-extension for 32-bit cmpxchg.
