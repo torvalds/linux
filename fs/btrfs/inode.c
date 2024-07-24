@@ -1122,7 +1122,7 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 
 static void submit_uncompressed_range(struct btrfs_inode *inode,
 				      struct async_extent *async_extent,
-				      struct page *locked_page)
+				      struct folio *locked_folio)
 {
 	u64 start = async_extent->start;
 	u64 end = async_extent->start + async_extent->ram_size - 1;
@@ -1135,23 +1135,22 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 	};
 
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	ret = run_delalloc_cow(inode, page_folio(locked_page), start, end,
+	ret = run_delalloc_cow(inode, locked_folio, start, end,
 			       &wbc, false);
 	wbc_detach_inode(&wbc);
 	if (ret < 0) {
-		btrfs_cleanup_ordered_extents(inode, page_folio(locked_page),
+		btrfs_cleanup_ordered_extents(inode, locked_folio,
 					      start, end - start + 1);
-		if (locked_page) {
-			const u64 page_start = page_offset(locked_page);
+		if (locked_folio) {
+			const u64 page_start = folio_pos(locked_folio);
 
-			set_page_writeback(locked_page);
-			end_page_writeback(locked_page);
-			btrfs_mark_ordered_io_finished(inode,
-						       page_folio(locked_page),
+			folio_start_writeback(locked_folio);
+			folio_end_writeback(locked_folio);
+			btrfs_mark_ordered_io_finished(inode, locked_folio,
 						       page_start, PAGE_SIZE,
 						       !ret);
-			mapping_set_error(locked_page->mapping, ret);
-			unlock_page(locked_page);
+			mapping_set_error(locked_folio->mapping, ret);
+			folio_unlock(locked_folio);
 		}
 	}
 }
@@ -1191,7 +1190,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	}
 
 	if (async_extent->compress_type == BTRFS_COMPRESS_NONE) {
-		submit_uncompressed_range(inode, async_extent, &locked_folio->page);
+		submit_uncompressed_range(inode, async_extent, locked_folio);
 		goto done;
 	}
 
@@ -1206,8 +1205,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		 * non-contiguous space for the uncompressed size instead.  So
 		 * fall back to uncompressed.
 		 */
-		submit_uncompressed_range(inode, async_extent,
-					  &locked_folio->page);
+		submit_uncompressed_range(inode, async_extent, locked_folio);
 		goto done;
 	}
 
