@@ -7405,7 +7405,7 @@ EXPORT_SYMBOL(io_schedule);
 
 void sched_show_task(struct task_struct *p)
 {
-	unsigned long free = 0;
+	unsigned long free;
 	int ppid;
 
 	if (!try_get_task_stack(p))
@@ -7415,9 +7415,7 @@ void sched_show_task(struct task_struct *p)
 
 	if (task_is_running(p))
 		pr_cont("  running task    ");
-#ifdef CONFIG_DEBUG_STACK_USAGE
 	free = stack_not_used(p);
-#endif
 	ppid = 0;
 	rcu_read_lock();
 	if (pid_alive(p))
