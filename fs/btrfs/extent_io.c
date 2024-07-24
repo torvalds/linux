@@ -2299,37 +2299,47 @@ void extent_write_locked_range(struct inode *inode, const struct page *locked_pa
 	while (cur <= end) {
 		u64 cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
 		u32 cur_len = cur_end + 1 - cur;
-		struct page *page;
+		struct folio *folio;
 		int nr = 0;
 
-		page = find_get_page(mapping, cur >> PAGE_SHIFT);
-		ASSERT(PageLocked(page));
-		if (pages_dirty && page != locked_page)
-			ASSERT(PageDirty(page));
+		folio = __filemap_get_folio(mapping, cur >> PAGE_SHIFT, 0, 0);
 
-		ret = __extent_writepage_io(BTRFS_I(inode), page_folio(page), cur, cur_len,
+		/*
+		 * This shouldn't happen, the pages are pinned and locked, this
+		 * code is just in case, but shouldn't actually be run.
+		 */
+		if (IS_ERR(folio)) {
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), NULL,
+						       cur, cur_len, false);
+			mapping_set_error(mapping, PTR_ERR(folio));
+			cur = cur_end + 1;
+			continue;
+		}
+
+		ASSERT(folio_test_locked(folio));
+		if (pages_dirty && &folio->page != locked_page)
+			ASSERT(folio_test_dirty(folio));
+
+		ret = __extent_writepage_io(BTRFS_I(inode), folio, cur, cur_len,
 					    &bio_ctrl, i_size, &nr);
 		if (ret == 1)
 			goto next_page;
 
 		/* Make sure the mapping tag for page dirty gets cleared. */
 		if (nr == 0) {
-			struct folio *folio;
-
-			folio = page_folio(page);
 			btrfs_folio_set_writeback(fs_info, folio, cur, cur_len);
 			btrfs_folio_clear_writeback(fs_info, folio, cur, cur_len);
 		}
 		if (ret) {
-			btrfs_mark_ordered_io_finished(BTRFS_I(inode), page,
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), &folio->page,
 						       cur, cur_len, !ret);
-			mapping_set_error(page->mapping, ret);
+			mapping_set_error(mapping, ret);
 		}
-		btrfs_folio_unlock_writer(fs_info, page_folio(page), cur, cur_len);
+		btrfs_folio_unlock_writer(fs_info, folio, cur, cur_len);
 		if (ret < 0)
 			found_error = true;
 next_page:
-		put_page(page);
+		folio_put(folio);
 		cur = cur_end + 1;
 	}
 
