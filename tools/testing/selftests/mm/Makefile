@@ -76,6 +76,7 @@ TEST_GEN_FILES += mdwe_test
 TEST_GEN_FILES += hugetlb_fault_after_madv
 TEST_GEN_FILES += hugetlb_madv_vs_map
 TEST_GEN_FILES += hugetlb_dio
+TEST_GEN_FILES += droppable
 
 ifneq ($(ARCH),arm64)
 TEST_GEN_FILES += soft-dirty

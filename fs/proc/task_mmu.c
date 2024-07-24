@@ -988,6 +988,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
 		[ilog2(VM_SHADOW_STACK)] = "ss",
 #endif
 #ifdef CONFIG_64BIT
+		[ilog2(VM_DROPPABLE)] = "dp",
 		[ilog2(VM_SEALED)] = "sl",
 #endif
 	};
