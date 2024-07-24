@@ -50,5 +50,18 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 			   struct ieee80211_hdr *hdr,
 			   struct ieee80211_rx_status *rx_status,
 			   u8 *phy_status);
+void rtw_update_rx_freq_from_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				struct ieee80211_rx_status *rx_status,
+				struct rtw_rx_pkt_stat *pkt_stat);
+
+static inline
+void rtw_update_rx_freq_for_invalid(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				    struct ieee80211_rx_status *rx_status,
+				    struct rtw_rx_pkt_stat *pkt_stat)
+{
+	if (pkt_stat->channel_invalid)
+		rtw_update_rx_freq_from_ie(rtwdev, skb, rx_status, pkt_stat);
+}
+
 
 #endif

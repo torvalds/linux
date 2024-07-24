@@ -2576,9 +2576,10 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	rx_power[RF_PATH_B] -= 110;
 
 	channel = GET_PHY_STAT_P0_CHANNEL(phy_status);
-	if (channel == 0)
-		channel = rtwdev->hal.current_channel;
-	rtw_set_rx_freq_band(pkt_stat, channel);
+	if (channel != 0)
+		rtw_set_rx_freq_band(pkt_stat, channel);
+	else
+		pkt_stat->channel_invalid = true;
 
 	pkt_stat->rx_power[RF_PATH_A] = rx_power[RF_PATH_A];
 	pkt_stat->rx_power[RF_PATH_B] = rx_power[RF_PATH_B];
