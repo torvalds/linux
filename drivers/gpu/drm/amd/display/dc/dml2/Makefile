@@ -35,8 +35,6 @@ frame_warn_flag := -Wframe-larger-than=2048
 endif
 endif
 
-# DRIVER_BUILD is mostly used in DML2.1 source
-subdir-ccflags-y += -DDRIVER_BUILD=1
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dml2
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dml2/dml21/src/dml2_core
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dml2/dml21/src/dml2_mcg/
