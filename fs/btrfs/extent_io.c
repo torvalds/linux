@@ -304,8 +304,8 @@ out:
  */
 EXPORT_FOR_TESTS
 noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
-				    struct page *locked_page, u64 *start,
-				    u64 *end)
+						 struct folio *locked_folio,
+						 u64 *start, u64 *end)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
@@ -323,9 +323,9 @@ noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
 	/* Caller should pass a valid @end to indicate the search range end */
 	ASSERT(orig_end > orig_start);
 
-	/* The range should at least cover part of the page */
-	ASSERT(!(orig_start >= page_offset(locked_page) + PAGE_SIZE ||
-		 orig_end <= page_offset(locked_page)));
+	/* The range should at least cover part of the folio */
+	ASSERT(!(orig_start >= folio_pos(locked_folio) + folio_size(locked_folio) ||
+		 orig_end <= folio_pos(locked_folio)));
 again:
 	/* step one, find a bunch of delalloc bytes starting at start */
 	delalloc_start = *start;
@@ -342,25 +342,25 @@ again:
 	}
 
 	/*
-	 * start comes from the offset of locked_page.  We have to lock
-	 * pages in order, so we can't process delalloc bytes before
-	 * locked_page
+	 * start comes from the offset of locked_folio.  We have to lock
+	 * folios in order, so we can't process delalloc bytes before
+	 * locked_folio
 	 */
 	if (delalloc_start < *start)
 		delalloc_start = *start;
 
 	/*
-	 * make sure to limit the number of pages we try to lock down
+	 * make sure to limit the number of folios we try to lock down
 	 */
 	if (delalloc_end + 1 - delalloc_start > max_bytes)
 		delalloc_end = delalloc_start + max_bytes - 1;
 
-	/* step two, lock all the pages after the page that has start */
-	ret = lock_delalloc_pages(inode, locked_page,
+	/* step two, lock all the folioss after the folios that has start */
+	ret = lock_delalloc_pages(inode, &locked_folio->page,
 				  delalloc_start, delalloc_end);
 	ASSERT(!ret || ret == -EAGAIN);
 	if (ret == -EAGAIN) {
-		/* some of the pages are gone, lets avoid looping by
+		/* some of the folios are gone, lets avoid looping by
 		 * shortening the size of the delalloc range we're searching
 		 */
 		free_extent_state(cached_state);
@@ -384,7 +384,7 @@ again:
 
 	unlock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 	if (!ret) {
-		__unlock_for_delalloc(inode, locked_page,
+		__unlock_for_delalloc(inode, &locked_folio->page,
 			      delalloc_start, delalloc_end);
 		cond_resched();
 		goto again;
@@ -1209,7 +1209,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	/* Lock all (subpage) delalloc ranges inside the folio first. */
 	while (delalloc_start < page_end) {
 		delalloc_end = page_end;
-		if (!find_lock_delalloc_range(&inode->vfs_inode, &folio->page,
+		if (!find_lock_delalloc_range(&inode->vfs_inode, folio,
 					      &delalloc_start, &delalloc_end)) {
 			delalloc_start = delalloc_end + 1;
 			continue;

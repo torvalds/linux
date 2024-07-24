@@ -368,7 +368,7 @@ int btrfs_alloc_folio_array(unsigned int nr_folios, struct folio **folio_array);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool find_lock_delalloc_range(struct inode *inode,
-			     struct page *locked_page, u64 *start,
+			      struct folio *locked_folio, u64 *start,
 			     u64 *end);
 #endif
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
