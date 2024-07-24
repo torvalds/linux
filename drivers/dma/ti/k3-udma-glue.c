@@ -1574,4 +1574,5 @@ static int __init k3_udma_glue_class_init(void)
 }
 
 module_init(k3_udma_glue_class_init);
+MODULE_DESCRIPTION("TI K3 NAVSS DMA glue interface");
 MODULE_LICENSE("GPL v2");

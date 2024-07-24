@@ -1172,6 +1172,49 @@ static void request_firmware_work_func(struct work_struct *work)
 	kfree(fw_work);
 }
 
+
+static int _request_firmware_nowait(
+	struct module *module, bool uevent,
+	const char *name, struct device *device, gfp_t gfp, void *context,
+	void (*cont)(const struct firmware *fw, void *context), bool nowarn)
+{
+	struct firmware_work *fw_work;
+
+	fw_work = kzalloc(sizeof(struct firmware_work), gfp);
+	if (!fw_work)
+		return -ENOMEM;
+
+	fw_work->module = module;
+	fw_work->name = kstrdup_const(name, gfp);
+	if (!fw_work->name) {
+		kfree(fw_work);
+		return -ENOMEM;
+	}
+	fw_work->device = device;
+	fw_work->context = context;
+	fw_work->cont = cont;
+	fw_work->opt_flags = FW_OPT_NOWAIT |
+		(uevent ? FW_OPT_UEVENT : FW_OPT_USERHELPER) |
+		(nowarn ? FW_OPT_NO_WARN : 0);
+
+	if (!uevent && fw_cache_is_setup(device, name)) {
+		kfree_const(fw_work->name);
+		kfree(fw_work);
+		return -EOPNOTSUPP;
+	}
+
+	if (!try_module_get(module)) {
+		kfree_const(fw_work->name);
+		kfree(fw_work);
+		return -EFAULT;
+	}
+
+	get_device(fw_work->device);
+	INIT_WORK(&fw_work->work, request_firmware_work_func);
+	schedule_work(&fw_work->work);
+	return 0;
+}
+
 /**
  * request_firmware_nowait() - asynchronous version of request_firmware
  * @module: module requesting the firmware
@@ -1195,48 +1238,41 @@ static void request_firmware_work_func(struct work_struct *work)
  *
  *		- can't sleep at all if @gfp is GFP_ATOMIC.
  **/
-int
-request_firmware_nowait(
+int request_firmware_nowait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))
 {
-	struct firmware_work *fw_work;
+	return _request_firmware_nowait(module, uevent, name, device, gfp,
+					context, cont, false);
 
-	fw_work = kzalloc(sizeof(struct firmware_work), gfp);
-	if (!fw_work)
-		return -ENOMEM;
-
-	fw_work->module = module;
-	fw_work->name = kstrdup_const(name, gfp);
-	if (!fw_work->name) {
-		kfree(fw_work);
-		return -ENOMEM;
-	}
-	fw_work->device = device;
-	fw_work->context = context;
-	fw_work->cont = cont;
-	fw_work->opt_flags = FW_OPT_NOWAIT |
-		(uevent ? FW_OPT_UEVENT : FW_OPT_USERHELPER);
-
-	if (!uevent && fw_cache_is_setup(device, name)) {
-		kfree_const(fw_work->name);
-		kfree(fw_work);
-		return -EOPNOTSUPP;
-	}
-
-	if (!try_module_get(module)) {
-		kfree_const(fw_work->name);
-		kfree(fw_work);
-		return -EFAULT;
-	}
-
-	get_device(fw_work->device);
-	INIT_WORK(&fw_work->work, request_firmware_work_func);
-	schedule_work(&fw_work->work);
-	return 0;
 }
 EXPORT_SYMBOL(request_firmware_nowait);
+
+/**
+ * firmware_request_nowait_nowarn() - async version of request_firmware_nowarn
+ * @module: module requesting the firmware
+ * @name: name of firmware file
+ * @device: device for which firmware is being loaded
+ * @gfp: allocation flags
+ * @context: will be passed over to @cont, and
+ *	@fw may be %NULL if firmware request fails.
+ * @cont: function will be called asynchronously when the firmware
+ *	request is over.
+ *
+ * Similar in function to request_firmware_nowait(), but doesn't print a warning
+ * when the firmware file could not be found and always sends a uevent to copy
+ * the firmware image.
+ */
+int firmware_request_nowait_nowarn(
+	struct module *module, const char *name,
+	struct device *device, gfp_t gfp, void *context,
+	void (*cont)(const struct firmware *fw, void *context))
+{
+	return _request_firmware_nowait(module, FW_ACTION_UEVENT, name, device,
+					gfp, context, cont, true);
+}
+EXPORT_SYMBOL_GPL(firmware_request_nowait_nowarn);
 
 #ifdef CONFIG_FW_CACHE
 static ASYNC_DOMAIN_EXCLUSIVE(fw_cache_domain);
