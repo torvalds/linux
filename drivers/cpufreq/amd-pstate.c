@@ -424,7 +424,7 @@ static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
 	if (state)
 		policy->cpuinfo.max_freq = cpudata->max_freq;
 	else
-		policy->cpuinfo.max_freq = cpudata->nominal_freq * 1000;
+		policy->cpuinfo.max_freq = cpudata->nominal_freq;
 
 	policy->max = policy->cpuinfo.max_freq;
 
