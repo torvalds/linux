@@ -2287,42 +2287,40 @@ static bool should_nocow(struct btrfs_inode *inode, u64 start, u64 end)
  * Function to process delayed allocation (create CoW) for ranges which are
  * being touched for the first time.
  */
-int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page,
+int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_folio,
 			     u64 start, u64 end, struct writeback_control *wbc)
 {
 	const bool zoned = btrfs_is_zoned(inode->root->fs_info);
 	int ret;
 
 	/*
-	 * The range must cover part of the @locked_page, or a return of 1
+	 * The range must cover part of the @locked_folio, or a return of 1
 	 * can confuse the caller.
 	 */
-	ASSERT(!(end <= page_offset(locked_page) ||
-		 start >= page_offset(locked_page) + PAGE_SIZE));
+	ASSERT(!(end <= folio_pos(locked_folio) ||
+		 start >= folio_pos(locked_folio) + folio_size(locked_folio)));
 
 	if (should_nocow(inode, start, end)) {
-		ret = run_delalloc_nocow(inode, page_folio(locked_page), start,
-					 end);
+		ret = run_delalloc_nocow(inode, locked_folio, start, end);
 		goto out;
 	}
 
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, start, end) &&
-	    run_delalloc_compressed(inode, page_folio(locked_page), start, end,
-				    wbc))
+	    run_delalloc_compressed(inode, locked_folio, start, end, wbc))
 		return 1;
 
 	if (zoned)
-		ret = run_delalloc_cow(inode, page_folio(locked_page), start,
-				       end, wbc, true);
+		ret = run_delalloc_cow(inode, locked_folio, start, end, wbc,
+				       true);
 	else
-		ret = cow_file_range(inode, page_folio(locked_page), start, end,
-				     NULL, false, false);
+		ret = cow_file_range(inode, locked_folio, start, end, NULL,
+				     false, false);
 
 out:
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, page_folio(locked_page),
-					      start, end - start + 1);
+		btrfs_cleanup_ordered_extents(inode, locked_folio, start,
+					      end - start + 1);
 	return ret;
 }
 
