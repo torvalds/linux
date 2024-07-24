@@ -1188,13 +1188,13 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
  * This returns < 0 if there were errors (page still locked)
  */
 static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
-		struct page *page, struct writeback_control *wbc)
+						 struct folio *folio,
+						 struct writeback_control *wbc)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(&inode->vfs_inode);
-	struct folio *folio = page_folio(page);
-	const bool is_subpage = btrfs_is_subpage(fs_info, page->mapping);
-	const u64 page_start = page_offset(page);
-	const u64 page_end = page_start + PAGE_SIZE - 1;
+	const bool is_subpage = btrfs_is_subpage(fs_info, folio->mapping);
+	const u64 page_start = folio_pos(folio);
+	const u64 page_end = page_start + folio_size(folio) - 1;
 	/*
 	 * Save the last found delalloc end. As the delalloc end can go beyond
 	 * page boundary, thus we cannot rely on subpage bitmap to locate the
@@ -1206,10 +1206,10 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	u64 delalloc_to_write = 0;
 	int ret = 0;
 
-	/* Lock all (subpage) delalloc ranges inside the page first. */
+	/* Lock all (subpage) delalloc ranges inside the folio first. */
 	while (delalloc_start < page_end) {
 		delalloc_end = page_end;
-		if (!find_lock_delalloc_range(&inode->vfs_inode, page,
+		if (!find_lock_delalloc_range(&inode->vfs_inode, &folio->page,
 					      &delalloc_start, &delalloc_end)) {
 			delalloc_start = delalloc_end + 1;
 			continue;
@@ -1234,7 +1234,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		if (!is_subpage) {
 			/*
 			 * For non-subpage case, the found delalloc range must
-			 * cover this page and there must be only one locked
+			 * cover this folio and there must be only one locked
 			 * delalloc range.
 			 */
 			found_start = page_start;
@@ -1248,7 +1248,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			break;
 		/*
 		 * The subpage range covers the last sector, the delalloc range may
-		 * end beyond the page boundary, use the saved delalloc_end
+		 * end beyond the folio boundary, use the saved delalloc_end
 		 * instead.
 		 */
 		if (found_start + found_len >= page_end)
@@ -1256,7 +1256,8 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 
 		if (ret >= 0) {
 			/* No errors hit so far, run the current delalloc range. */
-			ret = btrfs_run_delalloc_range(inode, page, found_start,
+			ret = btrfs_run_delalloc_range(inode, &folio->page,
+						       found_start,
 						       found_start + found_len - 1,
 						       wbc);
 		} else {
@@ -1266,15 +1267,16 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			 */
 			unlock_extent(&inode->io_tree, found_start,
 				      found_start + found_len - 1, NULL);
-			__unlock_for_delalloc(&inode->vfs_inode, page, found_start,
+			__unlock_for_delalloc(&inode->vfs_inode, &folio->page,
+					      found_start,
 					      found_start + found_len - 1);
 		}
 
 		/*
 		 * We can hit btrfs_run_delalloc_range() with >0 return value.
 		 *
-		 * This happens when either the IO is already done and page
-		 * unlocked (inline) or the IO submission and page unlock would
+		 * This happens when either the IO is already done and folio
+		 * unlocked (inline) or the IO submission and folio unlock would
 		 * be handled as async (compression).
 		 *
 		 * Inline is only possible for regular sectorsize for now.
@@ -1282,14 +1284,14 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		 * Compression is possible for both subpage and regular cases,
 		 * but even for subpage compression only happens for page aligned
 		 * range, thus the found delalloc range must go beyond current
-		 * page.
+		 * folio.
 		 */
 		if (ret > 0)
 			ASSERT(!is_subpage || found_start + found_len >= page_end);
 
 		/*
-		 * Above btrfs_run_delalloc_range() may have unlocked the page,
-		 * thus for the last range, we cannot touch the page anymore.
+		 * Above btrfs_run_delalloc_range() may have unlocked the folio,
+		 * thus for the last range, we cannot touch the folio anymore.
 		 */
 		if (found_start + found_len >= last_delalloc_end + 1)
 			break;
@@ -1312,7 +1314,7 @@ out:
 
 	/*
 	 * If btrfs_run_dealloc_range() already started I/O and unlocked
-	 * the pages, we just need to account for them here.
+	 * the folios, we just need to account for them here.
 	 */
 	if (ret == 1) {
 		wbc->nr_to_write -= delalloc_to_write;
@@ -1548,7 +1550,7 @@ static int __extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ct
 	if (ret < 0)
 		goto done;
 
-	ret = writepage_delalloc(BTRFS_I(inode), &folio->page, bio_ctrl->wbc);
+	ret = writepage_delalloc(BTRFS_I(inode), folio, bio_ctrl->wbc);
 	if (ret == 1)
 		return 0;
 	if (ret)
