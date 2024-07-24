@@ -3788,7 +3788,7 @@ static int rtw89_mac_enable_cpu_ax(struct rtw89_dev *rtwdev, u8 boot_reason,
 
 	rtw89_write32(rtwdev, R_AX_WCPU_FW_CTRL, val);
 
-	if (rtwdev->chip->chip_id == RTL8852B)
+	if (rtw89_is_rtl885xb(rtwdev))
 		rtw89_write32_mask(rtwdev, R_AX_SEC_CTRL,
 				   B_AX_SEC_IDMEM_SIZE_CONFIG_MASK, 0x2);
 
