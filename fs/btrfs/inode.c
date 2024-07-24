@@ -6707,7 +6707,7 @@ static int btrfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 static noinline int uncompress_inline(struct btrfs_path *path,
-				      struct page *page,
+				      struct folio *folio,
 				      struct btrfs_file_extent_item *item)
 {
 	int ret;
@@ -6729,7 +6729,8 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	read_extent_buffer(leaf, tmp, ptr, inline_size);
 
 	max_size = min_t(unsigned long, PAGE_SIZE, max_size);
-	ret = btrfs_decompress(compress_type, tmp, page, 0, inline_size, max_size);
+	ret = btrfs_decompress(compress_type, tmp, &folio->page, 0, inline_size,
+			       max_size);
 
 	/*
 	 * decompression code contains a memset to fill in any space between the end
@@ -6740,7 +6741,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	 */
 
 	if (max_size < PAGE_SIZE)
-		memzero_page(page, max_size, PAGE_SIZE - max_size);
+		folio_zero_range(folio, max_size, PAGE_SIZE - max_size);
 	kfree(tmp);
 	return ret;
 }
@@ -6760,7 +6761,7 @@ static int read_inline_extent(struct btrfs_inode *inode, struct btrfs_path *path
 	fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			    struct btrfs_file_extent_item);
 	if (btrfs_file_extent_compression(path->nodes[0], fi) != BTRFS_COMPRESS_NONE)
-		return uncompress_inline(path, page, fi);
+		return uncompress_inline(path, page_folio(page), fi);
 
 	copy_size = min_t(u64, PAGE_SIZE,
 			  btrfs_file_extent_ram_bytes(path->nodes[0], fi));
