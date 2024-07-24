@@ -6365,7 +6365,7 @@ a single guest_memfd file, but the bound ranges must not overlap).
 See KVM_SET_USER_MEMORY_REGION2 for additional details.
 
 4.143 KVM_PRE_FAULT_MEMORY
-------------------------
+---------------------------
 
 :Capability: KVM_CAP_PRE_FAULT_MEMORY
 :Architectures: none
