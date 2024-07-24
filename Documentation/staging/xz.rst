@@ -95,7 +95,4 @@ xz_dec API
 
 This is available with ``#include <linux/xz.h>``.
 
-``XZ_EXTERN`` is a macro used in the preboot code. Ignore it when
-reading this documentation.
-
 .. kernel-doc:: include/linux/xz.h

@@ -107,7 +107,6 @@
 #ifdef __KERNEL__
 #	include <linux/decompress/mm.h>
 #endif
-#define XZ_EXTERN STATIC
 
 #ifndef XZ_PREBOOT
 #	include <linux/slab.h>
