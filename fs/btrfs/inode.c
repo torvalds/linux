@@ -116,7 +116,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr);
 static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback);
 
 static noinline int run_delalloc_cow(struct btrfs_inode *inode,
-				     struct page *locked_page, u64 start,
+				     struct folio *locked_folio, u64 start,
 				     u64 end, struct writeback_control *wbc,
 				     bool pages_dirty);
 
@@ -1135,7 +1135,8 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 	};
 
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	ret = run_delalloc_cow(inode, locked_page, start, end, &wbc, false);
+	ret = run_delalloc_cow(inode, page_folio(locked_page), start, end,
+			       &wbc, false);
 	wbc_detach_inode(&wbc);
 	if (ret < 0) {
 		btrfs_cleanup_ordered_extents(inode, locked_page, start, end - start + 1);
@@ -1746,7 +1747,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
  * covered by the range.
  */
 static noinline int run_delalloc_cow(struct btrfs_inode *inode,
-				     struct page *locked_page, u64 start,
+				     struct folio *locked_folio, u64 start,
 				     u64 end, struct writeback_control *wbc,
 				     bool pages_dirty)
 {
@@ -1754,13 +1755,12 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 	int ret;
 
 	while (start <= end) {
-		ret = cow_file_range(inode, locked_page, start, end, &done_offset,
-				     true, false);
+		ret = cow_file_range(inode, &locked_folio->page, start, end,
+				     &done_offset, true, false);
 		if (ret)
 			return ret;
-		extent_write_locked_range(&inode->vfs_inode,
-					  page_folio(locked_page), start,
-					  done_offset, wbc, pages_dirty);
+		extent_write_locked_range(&inode->vfs_inode, locked_folio,
+					  start, done_offset, wbc, pages_dirty);
 		start = done_offset + 1;
 	}
 
@@ -2311,8 +2311,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		return 1;
 
 	if (zoned)
-		ret = run_delalloc_cow(inode, locked_page, start, end, wbc,
-				       true);
+		ret = run_delalloc_cow(inode, page_folio(locked_page), start,
+				       end, wbc, true);
 	else
 		ret = cow_file_range(inode, locked_page, start, end, NULL,
 				     false, false);
