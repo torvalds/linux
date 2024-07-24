@@ -420,7 +420,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	u64 cur = cb->orig_bbio->file_offset + orig_bio->bi_iter.bi_size;
 	u64 isize = i_size_read(inode);
 	int ret;
-	struct page *page;
+	struct folio *folio;
 	struct extent_map *em;
 	struct address_space *mapping = inode->i_mapping;
 	struct extent_map_tree *em_tree;
@@ -453,9 +453,13 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		if (pg_index > end_index)
 			break;
 
-		page = xa_load(&mapping->i_pages, pg_index);
-		if (page && !xa_is_value(page)) {
-			sectors_missed += (PAGE_SIZE - offset_in_page(cur)) >>
+		folio = __filemap_get_folio(mapping, pg_index, 0, 0);
+		if (!IS_ERR(folio)) {
+			u64 folio_sz = folio_size(folio);
+			u64 offset = offset_in_folio(folio, cur);
+
+			folio_put(folio);
+			sectors_missed += (folio_sz - offset) >>
 					  fs_info->sectorsize_bits;
 
 			/* Beyond threshold, no need to continue */
@@ -466,35 +470,35 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			 * Jump to next page start as we already have page for
 			 * current offset.
 			 */
-			cur = (pg_index << PAGE_SHIFT) + PAGE_SIZE;
+			cur += (folio_sz - offset);
 			continue;
 		}
 
-		page = __page_cache_alloc(mapping_gfp_constraint(mapping,
-								 ~__GFP_FS));
-		if (!page)
+		folio = filemap_alloc_folio(mapping_gfp_constraint(mapping,
+								   ~__GFP_FS), 0);
+		if (!folio)
 			break;
 
-		if (add_to_page_cache_lru(page, mapping, pg_index, GFP_NOFS)) {
-			put_page(page);
+		if (filemap_add_folio(mapping, folio, pg_index, GFP_NOFS)) {
 			/* There is already a page, skip to page end */
-			cur = (pg_index << PAGE_SHIFT) + PAGE_SIZE;
+			cur += folio_size(folio);
+			folio_put(folio);
 			continue;
 		}
 
-		if (!*memstall && PageWorkingset(page)) {
+		if (!*memstall && folio_test_workingset(folio)) {
 			psi_memstall_enter(pflags);
 			*memstall = 1;
 		}
 
-		ret = set_page_extent_mapped(page);
+		ret = set_folio_extent_mapped(folio);
 		if (ret < 0) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			break;
 		}
 
-		page_end = (pg_index << PAGE_SHIFT) + PAGE_SIZE - 1;
+		page_end = (pg_index << PAGE_SHIFT) + folio_size(folio) - 1;
 		lock_extent(tree, cur, page_end, NULL);
 		read_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, cur, page_end + 1 - cur);
@@ -511,28 +515,28 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		    orig_bio->bi_iter.bi_sector) {
 			free_extent_map(em);
 			unlock_extent(tree, cur, page_end, NULL);
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			break;
 		}
 		add_size = min(em->start + em->len, page_end + 1) - cur;
 		free_extent_map(em);
 
-		if (page->index == end_index) {
-			size_t zero_offset = offset_in_page(isize);
+		if (folio->index == end_index) {
+			size_t zero_offset = offset_in_folio(folio, isize);
 
 			if (zero_offset) {
 				int zeros;
-				zeros = PAGE_SIZE - zero_offset;
-				memzero_page(page, zero_offset, zeros);
+				zeros = folio_size(folio) - zero_offset;
+				folio_zero_range(folio, zero_offset, zeros);
 			}
 		}
 
-		ret = bio_add_page(orig_bio, page, add_size, offset_in_page(cur));
-		if (ret != add_size) {
+		if (!bio_add_folio(orig_bio, folio, add_size,
+				   offset_in_folio(folio, cur))) {
 			unlock_extent(tree, cur, page_end, NULL);
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			break;
 		}
 		/*
@@ -541,9 +545,9 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 * subpage::readers and to unlock the page.
 		 */
 		if (fs_info->sectorsize < PAGE_SIZE)
-			btrfs_subpage_start_reader(fs_info, page_folio(page),
-						   cur, add_size);
-		put_page(page);
+			btrfs_subpage_start_reader(fs_info, folio, cur,
+						   add_size);
+		folio_put(folio);
 		cur += add_size;
 	}
 	return 0;
