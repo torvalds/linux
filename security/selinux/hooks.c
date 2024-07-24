@@ -2202,23 +2202,16 @@ static int selinux_syslog(int type)
 }
 
 /*
- * Check that a process has enough memory to allocate a new virtual
- * mapping. 0 means there is enough memory for the allocation to
- * succeed and -ENOMEM implies there is not.
+ * Check permission for allocating a new virtual mapping. Returns
+ * 0 if permission is granted, negative error code if not.
  *
  * Do not audit the selinux permission check, as this is applied to all
  * processes that allocate mappings.
  */
 static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
-	int rc, cap_sys_admin = 0;
-
-	rc = cred_has_capability(current_cred(), CAP_SYS_ADMIN,
-				 CAP_OPT_NOAUDIT, true);
-	if (rc == 0)
-		cap_sys_admin = 1;
-
-	return cap_sys_admin;
+	return cred_has_capability(current_cred(), CAP_SYS_ADMIN,
+				   CAP_OPT_NOAUDIT, true);
 }
 
 /* binprm security operations */

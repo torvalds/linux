@@ -634,7 +634,7 @@ static inline int security_settime64(const struct timespec64 *ts,
 
 static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
-	return __vm_enough_memory(mm, pages, cap_vm_enough_memory(mm, pages));
+	return __vm_enough_memory(mm, pages, !cap_vm_enough_memory(mm, pages));
 }
 
 static inline int security_bprm_creds_for_exec(struct linux_binprm *bprm)
