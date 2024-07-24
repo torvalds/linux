@@ -3217,6 +3217,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_edcca_track(rtwdev);
 	rtw89_tas_track(rtwdev);
 	rtw89_chanctx_track(rtwdev);
+	rtw89_core_rfkill_poll(rtwdev, false);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
@@ -4499,6 +4500,70 @@ static int rtw89_chip_board_info_setup(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static bool rtw89_chip_has_rfkill(struct rtw89_dev *rtwdev)
+{
+	return !!rtwdev->chip->rfkill_init;
+}
+
+static void rtw89_core_rfkill_init(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_rfkill_regs *regs = rtwdev->chip->rfkill_init;
+
+	rtw89_write16_mask(rtwdev, regs->pinmux.addr,
+			   regs->pinmux.mask, regs->pinmux.data);
+	rtw89_write16_mask(rtwdev, regs->mode.addr,
+			   regs->mode.mask, regs->mode.data);
+}
+
+static bool rtw89_core_rfkill_get(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_reg_def *reg = &rtwdev->chip->rfkill_get;
+
+	return !rtw89_read8_mask(rtwdev, reg->addr, reg->mask);
+}
+
+static void rtw89_rfkill_polling_init(struct rtw89_dev *rtwdev)
+{
+	if (!rtw89_chip_has_rfkill(rtwdev))
+		return;
+
+	rtw89_core_rfkill_init(rtwdev);
+	rtw89_core_rfkill_poll(rtwdev, true);
+	wiphy_rfkill_start_polling(rtwdev->hw->wiphy);
+}
+
+static void rtw89_rfkill_polling_deinit(struct rtw89_dev *rtwdev)
+{
+	if (!rtw89_chip_has_rfkill(rtwdev))
+		return;
+
+	wiphy_rfkill_stop_polling(rtwdev->hw->wiphy);
+}
+
+void rtw89_core_rfkill_poll(struct rtw89_dev *rtwdev, bool force)
+{
+	bool prev, blocked;
+
+	if (!rtw89_chip_has_rfkill(rtwdev))
+		return;
+
+	prev = test_bit(RTW89_FLAG_HW_RFKILL_STATE, rtwdev->flags);
+	blocked = rtw89_core_rfkill_get(rtwdev);
+
+	if (!force && prev == blocked)
+		return;
+
+	rtw89_info(rtwdev, "rfkill hardware state changed to %s\n",
+		   blocked ? "disable" : "enable");
+
+	if (blocked)
+		set_bit(RTW89_FLAG_HW_RFKILL_STATE, rtwdev->flags);
+	else
+		clear_bit(RTW89_FLAG_HW_RFKILL_STATE, rtwdev->flags);
+
+	wiphy_rfkill_set_hw_state(rtwdev->hw->wiphy, blocked);
+}
+
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -4654,6 +4719,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 		goto err_unregister_hw;
 	}
 
+	rtw89_rfkill_polling_init(rtwdev);
+
 	return 0;
 
 err_unregister_hw:
@@ -4668,6 +4735,7 @@ static void rtw89_core_unregister_hw(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 
+	rtw89_rfkill_polling_deinit(rtwdev);
 	ieee80211_unregister_hw(hw);
 	rtw89_core_clr_supported_band(rtwdev);
 }

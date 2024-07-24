@@ -1147,6 +1147,22 @@ static void rtw89_set_rekey_data(struct ieee80211_hw *hw,
 }
 #endif
 
+static void rtw89_ops_rfkill_poll(struct ieee80211_hw *hw)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+
+	/* wl_disable GPIO get floating when entering LPS */
+	if (test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
+		goto out;
+
+	rtw89_core_rfkill_poll(rtwdev, false);
+
+out:
+	mutex_unlock(&rtwdev->mutex);
+}
+
 const struct ieee80211_ops rtw89_ops = {
 	.tx			= rtw89_ops_tx,
 	.wake_tx_queue		= rtw89_ops_wake_tx_queue,
@@ -1193,5 +1209,6 @@ const struct ieee80211_ops rtw89_ops = {
 	.set_wakeup		= rtw89_ops_set_wakeup,
 	.set_rekey_data		= rtw89_set_rekey_data,
 #endif
+	.rfkill_poll		= rtw89_ops_rfkill_poll,
 };
 EXPORT_SYMBOL(rtw89_ops);
