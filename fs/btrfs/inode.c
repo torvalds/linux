@@ -2708,49 +2708,51 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	struct extent_state *cached_state = NULL;
 	struct extent_changeset *data_reserved = NULL;
 	struct page *page = fixup->page;
+	struct folio *folio = page_folio(page);
 	struct btrfs_inode *inode = fixup->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	u64 page_start = page_offset(page);
-	u64 page_end = page_offset(page) + PAGE_SIZE - 1;
+	u64 page_start = folio_pos(folio);
+	u64 page_end = folio_pos(folio) + folio_size(folio) - 1;
 	int ret = 0;
 	bool free_delalloc_space = true;
 
 	/*
 	 * This is similar to page_mkwrite, we need to reserve the space before
-	 * we take the page lock.
+	 * we take the folio lock.
 	 */
 	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, page_start,
-					   PAGE_SIZE);
+					   folio_size(folio));
 again:
-	lock_page(page);
+	folio_lock(folio);
 
 	/*
-	 * Before we queued this fixup, we took a reference on the page.
-	 * page->mapping may go NULL, but it shouldn't be moved to a different
+	 * Before we queued this fixup, we took a reference on the folio.
+	 * folio->mapping may go NULL, but it shouldn't be moved to a different
 	 * address space.
 	 */
-	if (!page->mapping || !PageDirty(page) || !PageChecked(page)) {
+	if (!folio->mapping || !folio_test_dirty(folio) ||
+	    !folio_test_checked(folio)) {
 		/*
 		 * Unfortunately this is a little tricky, either
 		 *
-		 * 1) We got here and our page had already been dealt with and
+		 * 1) We got here and our folio had already been dealt with and
 		 *    we reserved our space, thus ret == 0, so we need to just
 		 *    drop our space reservation and bail.  This can happen the
 		 *    first time we come into the fixup worker, or could happen
 		 *    while waiting for the ordered extent.
-		 * 2) Our page was already dealt with, but we happened to get an
+		 * 2) Our folio was already dealt with, but we happened to get an
 		 *    ENOSPC above from the btrfs_delalloc_reserve_space.  In
 		 *    this case we obviously don't have anything to release, but
-		 *    because the page was already dealt with we don't want to
-		 *    mark the page with an error, so make sure we're resetting
+		 *    because the folio was already dealt with we don't want to
+		 *    mark the folio with an error, so make sure we're resetting
 		 *    ret to 0.  This is why we have this check _before_ the ret
 		 *    check, because we do not want to have a surprise ENOSPC
-		 *    when the page was already properly dealt with.
+		 *    when the folio was already properly dealt with.
 		 */
 		if (!ret) {
-			btrfs_delalloc_release_extents(inode, PAGE_SIZE);
+			btrfs_delalloc_release_extents(inode, folio_size(folio));
 			btrfs_delalloc_release_space(inode, data_reserved,
-						     page_start, PAGE_SIZE,
+						     page_start, folio_size(folio),
 						     true);
 		}
 		ret = 0;
@@ -2758,7 +2760,7 @@ again:
 	}
 
 	/*
-	 * We can't mess with the page state unless it is locked, so now that
+	 * We can't mess with the folio state unless it is locked, so now that
 	 * it is locked bail if we failed to make our space reservation.
 	 */
 	if (ret)
@@ -2767,14 +2769,14 @@ again:
 	lock_extent(&inode->io_tree, page_start, page_end, &cached_state);
 
 	/* already ordered? We're done */
-	if (PageOrdered(page))
+	if (folio_test_ordered(folio))
 		goto out_reserved;
 
 	ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
 	if (ordered) {
 		unlock_extent(&inode->io_tree, page_start, page_end,
 			      &cached_state);
-		unlock_page(page);
+		folio_unlock(folio);
 		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
@@ -2792,7 +2794,7 @@ again:
 	 *
 	 * The page was dirty when we started, nothing should have cleaned it.
 	 */
-	BUG_ON(!PageDirty(page));
+	BUG_ON(!folio_test_dirty(folio));
 	free_delalloc_space = false;
 out_reserved:
 	btrfs_delalloc_release_extents(inode, PAGE_SIZE);
@@ -2806,14 +2808,14 @@ out_page:
 		 * We hit ENOSPC or other errors.  Update the mapping and page
 		 * to reflect the errors and clean the page.
 		 */
-		mapping_set_error(page->mapping, ret);
-		btrfs_mark_ordered_io_finished(inode, page_folio(page),
-					       page_start, PAGE_SIZE, !ret);
-		clear_page_dirty_for_io(page);
+		mapping_set_error(folio->mapping, ret);
+		btrfs_mark_ordered_io_finished(inode, folio, page_start,
+					       folio_size(folio), !ret);
+		folio_clear_dirty_for_io(folio);
 	}
-	btrfs_folio_clear_checked(fs_info, page_folio(page), page_start, PAGE_SIZE);
-	unlock_page(page);
-	put_page(page);
+	btrfs_folio_clear_checked(fs_info, folio, page_start, PAGE_SIZE);
+	folio_unlock(folio);
+	folio_put(folio);
 	kfree(fixup);
 	extent_changeset_free(data_reserved);
 	/*
