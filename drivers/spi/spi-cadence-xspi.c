@@ -310,6 +310,7 @@ struct cdns_xspi_dev {
 	u8 hw_num_banks;
 
 	const struct cdns_xspi_driver_data *driver_data;
+	void (*sdma_handler)(struct cdns_xspi_dev *cdns_xspi);
 };
 
 static void cdns_xspi_reset_dll(struct cdns_xspi_dev *cdns_xspi)
@@ -515,6 +516,78 @@ static void cdns_xspi_sdma_handle(struct cdns_xspi_dev *cdns_xspi)
 	}
 }
 
+static void m_ioreadq(void __iomem  *addr, void *buf, int len)
+{
+	if (IS_ALIGNED((long)buf, 8) && len >= 8) {
+		u64 full_ops = len / 8;
+		u64 *buffer = buf;
+
+		len -= full_ops * 8;
+		buf += full_ops * 8;
+
+		do {
+			u64 b = readq(addr);
+			*buffer++ = b;
+		} while (--full_ops);
+	}
+
+
+	while (len) {
+		u64 tmp_buf;
+
+		tmp_buf = readq(addr);
+		memcpy(buf, &tmp_buf, min(len, 8));
+		len = len > 8 ? len - 8 : 0;
+		buf += 8;
+	}
+}
+
+static void m_iowriteq(void __iomem *addr, const void *buf, int len)
+{
+	if (IS_ALIGNED((long)buf, 8) && len >= 8) {
+		u64 full_ops = len / 8;
+		const u64 *buffer = buf;
+
+		len -= full_ops * 8;
+		buf += full_ops * 8;
+
+		do {
+			writeq(*buffer++, addr);
+		} while (--full_ops);
+	}
+
+	while (len) {
+		u64 tmp_buf;
+
+		memcpy(&tmp_buf, buf, min(len, 8));
+		writeq(tmp_buf, addr);
+		len = len > 8 ? len - 8 : 0;
+		buf += 8;
+	}
+}
+
+static void marvell_xspi_sdma_handle(struct cdns_xspi_dev *cdns_xspi)
+{
+	u32 sdma_size, sdma_trd_info;
+	u8 sdma_dir;
+
+	sdma_size = readl(cdns_xspi->iobase + CDNS_XSPI_SDMA_SIZE_REG);
+	sdma_trd_info = readl(cdns_xspi->iobase + CDNS_XSPI_SDMA_TRD_INFO_REG);
+	sdma_dir = FIELD_GET(CDNS_XSPI_SDMA_DIR, sdma_trd_info);
+
+	switch (sdma_dir) {
+	case CDNS_XSPI_SDMA_DIR_READ:
+		m_ioreadq(cdns_xspi->sdmabase,
+			    cdns_xspi->in_buffer, sdma_size);
+		break;
+
+	case CDNS_XSPI_SDMA_DIR_WRITE:
+		m_iowriteq(cdns_xspi->sdmabase,
+			     cdns_xspi->out_buffer, sdma_size);
+		break;
+	}
+}
+
 static int cdns_xspi_send_stig_command(struct cdns_xspi_dev *cdns_xspi,
 				       const struct spi_mem_op *op,
 				       bool data_phase)
@@ -566,7 +639,7 @@ static int cdns_xspi_send_stig_command(struct cdns_xspi_dev *cdns_xspi,
 			cdns_xspi_set_interrupts(cdns_xspi, false);
 			return -EIO;
 		}
-		cdns_xspi_sdma_handle(cdns_xspi);
+		cdns_xspi->sdma_handler(cdns_xspi);
 	}
 
 	wait_for_completion(&cdns_xspi->cmd_complete);
@@ -736,10 +809,13 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 	if (!cdns_xspi->driver_data)
 		return -ENODEV;
 
-	if (cdns_xspi->driver_data->mrvl_hw_overlay)
+	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		host->mem_ops = &marvell_xspi_mem_ops;
-	else
+		cdns_xspi->sdma_handler = &marvell_xspi_sdma_handle;
+	} else {
 		host->mem_ops = &cadence_xspi_mem_ops;
+		cdns_xspi->sdma_handler = &cdns_xspi_sdma_handle;
+	}
 	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = -1;
 
