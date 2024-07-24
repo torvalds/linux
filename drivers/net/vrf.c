@@ -1886,7 +1886,7 @@ unlock:
 	return res;
 }
 
-static int vrf_shared_table_handler(struct ctl_table *table, int write,
+static int vrf_shared_table_handler(const struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = (struct net *)table->extra1;

@@ -594,7 +594,7 @@ static int __init topology_setup(char *str)
 }
 early_param("topology", topology_setup);
 
-static int topology_ctl_handler(struct ctl_table *ctl, int write,
+static int topology_ctl_handler(const struct ctl_table *ctl, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int enabled = topology_is_enabled();

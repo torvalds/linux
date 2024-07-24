@@ -8735,7 +8735,7 @@ static bool is_permanent_ops_registered(void)
 }
 
 static int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
+ftrace_enable_sysctl(const struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = -ENODEV;

@@ -243,7 +243,7 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-static int cmm_pages_handler(struct ctl_table *ctl, int write,
+static int cmm_pages_handler(const struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	long nr = cmm_get_pages();
@@ -262,7 +262,7 @@ static int cmm_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
+static int cmm_timed_pages_handler(const struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp,
 				   loff_t *ppos)
 {
@@ -282,7 +282,7 @@ static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timeout_handler(struct ctl_table *ctl, int write,
+static int cmm_timeout_handler(const struct ctl_table *ctl, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[64], *p;
