@@ -67,9 +67,7 @@
 
 #define INA226_READ_AVG(reg)		FIELD_GET(INA226_AVG_RD_MASK, reg)
 
-#define INA226_ALERT_POLARITY_MASK	BIT(1)
-#define INA226_ALERT_POL_LOW		0
-#define INA226_ALERT_POL_HIGH		1
+#define INA226_ALERT_POLARITY		BIT(1)
 
 /* bit number of alert functions in Mask/Enable Register */
 #define INA226_SHUNT_OVER_VOLTAGE_MASK	BIT(15)
@@ -141,6 +139,7 @@ struct ina2xx_config {
 
 struct ina2xx_data {
 	const struct ina2xx_config *config;
+	enum ina2xx_ids chip;
 
 	long rshunt;
 	long current_lsb_uA;
@@ -209,39 +208,6 @@ static u16 ina226_interval_to_reg(unsigned long interval)
 				ARRAY_SIZE(ina226_avg_tab));
 
 	return FIELD_PREP(INA226_AVG_RD_MASK, avg_bits);
-}
-
-static int ina2xx_set_alert_polarity(struct ina2xx_data *data,
-				     unsigned long val)
-{
-	return regmap_update_bits(data->regmap, INA226_MASK_ENABLE,
-				 INA226_ALERT_POLARITY_MASK,
-				 FIELD_PREP(INA226_ALERT_POLARITY_MASK, val));
-}
-
-/*
- * Calibration register is set to the best value, which eliminates
- * truncation errors on calculating current register in hardware.
- * According to datasheet (eq. 3) the best values are 2048 for
- * ina226 and 4096 for ina219. They are hardcoded as calibration_value.
- */
-static int ina2xx_calibrate(struct ina2xx_data *data)
-{
-	return regmap_write(data->regmap, INA2XX_CALIBRATION,
-			    data->config->calibration_value);
-}
-
-/*
- * Initialize the configuration and calibration registers.
- */
-static int ina2xx_init(struct ina2xx_data *data)
-{
-	int ret = regmap_write(data->regmap, INA2XX_CONFIG,
-			       data->config->config_default);
-	if (ret < 0)
-		return ret;
-
-	return ina2xx_calibrate(data);
 }
 
 static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
@@ -651,12 +617,48 @@ static const struct attribute_group ina226_group = {
 	.attrs = ina226_attrs,
 };
 
+/*
+ * Initialize chip
+ */
+static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
+{
+	struct regmap *regmap = data->regmap;
+	u32 shunt;
+	int ret;
+
+	if (device_property_read_u32(dev, "shunt-resistor", &shunt) < 0)
+		shunt = INA2XX_RSHUNT_DEFAULT;
+
+	ret = ina2xx_set_shunt(data, shunt);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_write(regmap, INA2XX_CONFIG, data->config->config_default);
+	if (ret < 0)
+		return ret;
+
+	if (data->chip == ina226) {
+		bool active_high = device_property_read_bool(dev, "ti,alert-polarity-active-high");
+
+		regmap_update_bits(regmap, INA226_MASK_ENABLE, INA226_ALERT_POLARITY,
+				   FIELD_PREP(INA226_ALERT_POLARITY, active_high));
+	}
+
+	/*
+	 * Calibration register is set to the best value, which eliminates
+	 * truncation errors on calculating current register in hardware.
+	 * According to datasheet (eq. 3) the best values are 2048 for
+	 * ina226 and 4096 for ina219. They are hardcoded as calibration_value.
+	 */
+	return regmap_write(regmap, INA2XX_CALIBRATION,
+			    data->config->calibration_value);
+}
+
 static int ina2xx_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ina2xx_data *data;
 	struct device *hwmon_dev;
-	u32 val;
 	int ret, group = 0;
 	enum ina2xx_ids chip;
 
@@ -668,14 +670,8 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	/* set the device type */
 	data->config = &ina2xx_config[chip];
+	data->chip = chip;
 	mutex_init(&data->config_lock);
-
-	if (device_property_read_u32(dev, "shunt-resistor", &val) < 0)
-		val = INA2XX_RSHUNT_DEFAULT;
-
-	ret = ina2xx_set_shunt(data, val);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Invalid shunt resistor value\n");
 
 	data->regmap = devm_regmap_init_i2c(client, &ina2xx_regmap_config);
 	if (IS_ERR(data->regmap)) {
@@ -687,30 +683,9 @@ static int ina2xx_probe(struct i2c_client *client)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to enable vs regulator\n");
 
-	if (chip == ina226) {
-		if (device_property_read_bool(dev, "ti,alert-polarity-active-high")) {
-			ret = ina2xx_set_alert_polarity(data,
-							INA226_ALERT_POL_HIGH);
-			if (ret < 0) {
-				return dev_err_probe(dev, ret,
-					"failed to set alert polarity active high\n");
-			}
-		} else {
-			/* Set default value i.e active low */
-			ret = ina2xx_set_alert_polarity(data,
-							INA226_ALERT_POL_LOW);
-			if (ret < 0) {
-				return dev_err_probe(dev, ret,
-					"failed to set alert polarity active low\n");
-			}
-		}
-	}
-
-	ret = ina2xx_init(data);
-	if (ret < 0) {
-		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
-	}
+	ret = ina2xx_init(dev, data);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to configure device\n");
 
 	data->groups[group++] = &ina2xx_group;
 	if (chip == ina226)
