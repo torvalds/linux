@@ -3023,3 +3023,9 @@
 # required by wlan_mt7663_usb.ko
   usb_anchor_empty
   usb_reset_endpoint
+
+# required by dw_hdmi_qp.ko
+  drm_edid_alloc
+  drm_edid_read_ddc
+  drm_edid_raw
+  drm_edid_connector_update
