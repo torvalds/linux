@@ -6747,30 +6747,30 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 }
 
 static int read_inline_extent(struct btrfs_inode *inode, struct btrfs_path *path,
-			      struct page *page)
+			      struct folio *folio)
 {
 	struct btrfs_file_extent_item *fi;
 	void *kaddr;
 	size_t copy_size;
 
-	if (!page || PageUptodate(page))
+	if (!folio || folio_test_uptodate(folio))
 		return 0;
 
-	ASSERT(page_offset(page) == 0);
+	ASSERT(folio_pos(folio) == 0);
 
 	fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			    struct btrfs_file_extent_item);
 	if (btrfs_file_extent_compression(path->nodes[0], fi) != BTRFS_COMPRESS_NONE)
-		return uncompress_inline(path, page_folio(page), fi);
+		return uncompress_inline(path, folio, fi);
 
 	copy_size = min_t(u64, PAGE_SIZE,
 			  btrfs_file_extent_ram_bytes(path->nodes[0], fi));
-	kaddr = kmap_local_page(page);
+	kaddr = kmap_local_folio(folio, 0);
 	read_extent_buffer(path->nodes[0], kaddr,
 			   btrfs_file_extent_inline_start(fi), copy_size);
 	kunmap_local(kaddr);
 	if (copy_size < PAGE_SIZE)
-		memzero_page(page, copy_size, PAGE_SIZE - copy_size);
+		folio_zero_range(folio, copy_size, PAGE_SIZE - copy_size);
 	return 0;
 }
 
@@ -6945,7 +6945,7 @@ next:
 		ASSERT(em->disk_bytenr == EXTENT_MAP_INLINE);
 		ASSERT(em->len == fs_info->sectorsize);
 
-		ret = read_inline_extent(inode, path, page);
+		ret = read_inline_extent(inode, path, page_folio(page));
 		if (ret < 0)
 			goto out;
 		goto insert;
