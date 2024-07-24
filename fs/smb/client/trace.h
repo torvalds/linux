@@ -264,6 +264,59 @@ DEFINE_EVENT(smb3_copy_range_err_class, smb3_##name, \
 DEFINE_SMB3_COPY_RANGE_ERR_EVENT(clone_err);
 /* TODO: Add SMB3_COPY_RANGE_ERR_EVENT(copychunk_err) */
 
+DECLARE_EVENT_CLASS(smb3_copy_range_done_class,
+	TP_PROTO(unsigned int xid,
+		__u64	src_fid,
+		__u64   target_fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	src_offset,
+		__u64   target_offset,
+		__u32	len),
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, src_fid)
+		__field(__u64, target_fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, src_offset)
+		__field(__u64, target_offset)
+		__field(__u32, len)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->src_fid = src_fid;
+		__entry->target_fid = target_fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->src_offset = src_offset;
+		__entry->target_offset = target_offset;
+		__entry->len = len;
+	),
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x source fid=0x%llx source offset=0x%llx target fid=0x%llx target offset=0x%llx len=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->target_fid,
+		__entry->src_offset, __entry->target_fid, __entry->target_offset, __entry->len)
+)
+
+#define DEFINE_SMB3_COPY_RANGE_DONE_EVENT(name)	\
+DEFINE_EVENT(smb3_copy_range_done_class, smb3_##name, \
+	TP_PROTO(unsigned int xid,		\
+		__u64	src_fid,		\
+		__u64   target_fid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	src_offset,		\
+		__u64	target_offset,		\
+		__u32	len),			\
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len))
+
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(copychunk_enter);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(clone_enter);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(copychunk_done);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(clone_done);
+
+
 /* For logging successful read or write */
 DECLARE_EVENT_CLASS(smb3_rw_done_class,
 	TP_PROTO(unsigned int rreq_debug_id,
