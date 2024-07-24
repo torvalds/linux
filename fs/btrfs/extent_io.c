@@ -472,8 +472,8 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 		"incomplete page write with offset %zu and length %zu",
 				   fi.offset, fi.length);
 
-		btrfs_finish_ordered_extent(bbio->ordered,
-				folio_page(folio, 0), start, len, !error);
+		btrfs_finish_ordered_extent(bbio->ordered, folio, start, len,
+					    !error);
 		if (error)
 			mapping_set_error(folio->mapping, error);
 		btrfs_folio_clear_writeback(fs_info, folio, start, len);

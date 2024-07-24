@@ -397,7 +397,7 @@ static void btrfs_queue_ordered_fn(struct btrfs_ordered_extent *ordered)
 }
 
 void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
-				 struct page *page, u64 file_offset, u64 len,
+				 struct folio *folio, u64 file_offset, u64 len,
 				 bool uptodate)
 {
 	struct btrfs_inode *inode = ordered->inode;
@@ -407,8 +407,8 @@ void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 	trace_btrfs_finish_ordered_extent(inode, file_offset, len, uptodate);
 
 	spin_lock_irqsave(&inode->ordered_tree_lock, flags);
-	ret = can_finish_ordered_extent(ordered, page_folio(page), file_offset,
-					len, uptodate);
+	ret = can_finish_ordered_extent(ordered, folio, file_offset, len,
+					uptodate);
 	spin_unlock_irqrestore(&inode->ordered_tree_lock, flags);
 
 	/*
