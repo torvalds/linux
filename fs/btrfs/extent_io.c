@@ -216,18 +216,18 @@ static void __process_pages_contig(struct address_space *mapping,
 }
 
 static noinline void __unlock_for_delalloc(const struct inode *inode,
-					   const struct page *locked_page,
+					   const struct folio *locked_folio,
 					   u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
 
-	ASSERT(locked_page);
-	if (index == locked_page->index && end_index == index)
+	ASSERT(locked_folio);
+	if (index == locked_folio->index && end_index == index)
 		return;
 
-	__process_pages_contig(inode->i_mapping, locked_page, start, end,
-			       PAGE_UNLOCK);
+	__process_pages_contig(inode->i_mapping, &locked_folio->page, start,
+			       end, PAGE_UNLOCK);
 }
 
 static noinline int lock_delalloc_folios(struct inode *inode,
@@ -281,7 +281,7 @@ static noinline int lock_delalloc_folios(struct inode *inode,
 out:
 	folio_batch_release(&fbatch);
 	if (processed_end > start)
-		__unlock_for_delalloc(inode, &locked_folio->page, start,
+		__unlock_for_delalloc(inode, locked_folio, start,
 				      processed_end);
 	return -EAGAIN;
 }
@@ -383,8 +383,8 @@ again:
 
 	unlock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 	if (!ret) {
-		__unlock_for_delalloc(inode, &locked_folio->page,
-			      delalloc_start, delalloc_end);
+		__unlock_for_delalloc(inode, locked_folio, delalloc_start,
+				      delalloc_end);
 		cond_resched();
 		goto again;
 	}
@@ -1266,7 +1266,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			 */
 			unlock_extent(&inode->io_tree, found_start,
 				      found_start + found_len - 1, NULL);
-			__unlock_for_delalloc(&inode->vfs_inode, &folio->page,
+			__unlock_for_delalloc(&inode->vfs_inode, folio,
 					      found_start,
 					      found_start + found_len - 1);
 		}
