@@ -2274,7 +2274,7 @@ retry:
  * already been ran (aka, ordered extent inserted) and all pages are still
  * locked.
  */
-void extent_write_locked_range(struct inode *inode, const struct page *locked_page,
+void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty)
 {
@@ -2316,7 +2316,7 @@ void extent_write_locked_range(struct inode *inode, const struct page *locked_pa
 		}
 
 		ASSERT(folio_test_locked(folio));
-		if (pages_dirty && &folio->page != locked_page)
+		if (pages_dirty && folio != locked_folio)
 			ASSERT(folio_test_dirty(folio));
 
 		ret = __extent_writepage_io(BTRFS_I(inode), folio, cur, cur_len,

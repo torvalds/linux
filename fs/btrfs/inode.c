@@ -1758,7 +1758,8 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 				     true, false);
 		if (ret)
 			return ret;
-		extent_write_locked_range(&inode->vfs_inode, locked_page, start,
+		extent_write_locked_range(&inode->vfs_inode,
+					  page_folio(locked_page), start,
 					  done_offset, wbc, pages_dirty);
 		start = done_offset + 1;
 	}
