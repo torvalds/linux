@@ -394,14 +394,14 @@ out_failed:
 }
 
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
-				  const struct page *locked_page,
+				  const struct folio *locked_folio,
 				  struct extent_state **cached,
 				  u32 clear_bits, unsigned long page_ops)
 {
 	clear_extent_bit(&inode->io_tree, start, end, clear_bits, cached);
 
-	__process_folios_contig(inode->vfs_inode.i_mapping,
-				page_folio(locked_page), start, end, page_ops);
+	__process_folios_contig(inode->vfs_inode.i_mapping, locked_folio, start,
+				end, page_ops);
 }
 
 static bool btrfs_verify_folio(struct folio *folio, u64 start, u32 len)
