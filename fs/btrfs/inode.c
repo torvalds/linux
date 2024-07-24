@@ -762,7 +762,7 @@ struct async_extent {
 
 struct async_chunk {
 	struct btrfs_inode *inode;
-	struct page *locked_page;
+	struct folio *locked_folio;
 	u64 start;
 	u64 end;
 	blk_opf_t write_flags;
@@ -1167,7 +1167,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_file_extent file_extent;
 	struct btrfs_key ins;
-	struct page *locked_page = NULL;
+	struct folio *locked_folio = NULL;
 	struct extent_state *cached = NULL;
 	struct extent_map *em;
 	int ret = 0;
@@ -1178,19 +1178,20 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		kthread_associate_blkcg(async_chunk->blkcg_css);
 
 	/*
-	 * If async_chunk->locked_page is in the async_extent range, we need to
+	 * If async_chunk->locked_folio is in the async_extent range, we need to
 	 * handle it.
 	 */
-	if (async_chunk->locked_page) {
-		u64 locked_page_start = page_offset(async_chunk->locked_page);
-		u64 locked_page_end = locked_page_start + PAGE_SIZE - 1;
+	if (async_chunk->locked_folio) {
+		u64 locked_folio_start = folio_pos(async_chunk->locked_folio);
+		u64 locked_folio_end = locked_folio_start +
+			folio_size(async_chunk->locked_folio) - 1;
 
-		if (!(start >= locked_page_end || end <= locked_page_start))
-			locked_page = async_chunk->locked_page;
+		if (!(start >= locked_folio_end || end <= locked_folio_start))
+			locked_folio = async_chunk->locked_folio;
 	}
 
 	if (async_extent->compress_type == BTRFS_COMPRESS_NONE) {
-		submit_uncompressed_range(inode, async_extent, locked_page);
+		submit_uncompressed_range(inode, async_extent, &locked_folio->page);
 		goto done;
 	}
 
@@ -1205,7 +1206,8 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		 * non-contiguous space for the uncompressed size instead.  So
 		 * fall back to uncompressed.
 		 */
-		submit_uncompressed_range(inode, async_extent, locked_page);
+		submit_uncompressed_range(inode, async_extent,
+					  &locked_folio->page);
 		goto done;
 	}
 
@@ -1714,10 +1716,10 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 			 */
 			wbc_account_cgroup_owner(wbc, &locked_folio->page,
 						 cur_end - start);
-			async_chunk[i].locked_page = &locked_folio->page;
+			async_chunk[i].locked_folio = locked_folio;
 			locked_folio = NULL;
 		} else {
-			async_chunk[i].locked_page = NULL;
+			async_chunk[i].locked_folio = NULL;
 		}
 
 		if (blkcg_css != blkcg_root_css) {
