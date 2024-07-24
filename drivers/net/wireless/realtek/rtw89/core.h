@@ -802,6 +802,8 @@ struct rtw89_rx_phy_ppdu {
 		u8 evm_max;
 		u8 evm_min;
 	} ofdm;
+	bool has_data;
+	bool has_bcn;
 	bool ldpc;
 	bool stbc;
 	bool to_self;
@@ -3306,6 +3308,7 @@ struct rtw89_sta {
 	struct ewma_rssi avg_rssi;
 	struct ewma_rssi rssi[RF_PATH_MAX];
 	struct ewma_snr avg_snr;
+	struct ewma_evm evm_1ss;
 	struct ewma_evm evm_min[RF_PATH_MAX];
 	struct ewma_evm evm_max[RF_PATH_MAX];
 	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];

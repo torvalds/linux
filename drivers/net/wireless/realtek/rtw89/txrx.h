@@ -14,6 +14,7 @@
 #define DATA_RATE_HT_IDX_MASK		GENMASK(4, 0)
 #define DATA_RATE_HT_IDX_MASK_V1	GENMASK(4, 0)
 #define DATA_RATE_MODE_HT		0x1
+#define DATA_RATE_HT_NSS_MASK		GENMASK(4, 3)
 #define DATA_RATE_VHT_HE_NSS_MASK	GENMASK(6, 4)
 #define DATA_RATE_VHT_HE_IDX_MASK	GENMASK(3, 0)
 #define DATA_RATE_NSS_MASK_V1		GENMASK(7, 5)
@@ -49,6 +50,11 @@ static inline u8 rtw89_get_data_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
 		return u16_get_bits(hw_rate, DATA_RATE_MCS_MASK_V1);
 
 	return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_IDX_MASK);
+}
+
+static inline u8 rtw89_get_data_ht_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	return u16_get_bits(hw_rate, DATA_RATE_HT_NSS_MASK);
 }
 
 static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
@@ -408,7 +414,7 @@ struct rtw89_rxinfo_user {
 #define RTW89_RXINFO_USER_DATA BIT(1)
 #define RTW89_RXINFO_USER_CTRL BIT(2)
 #define RTW89_RXINFO_USER_MGMT BIT(3)
-#define RTW89_RXINFO_USER_BCM BIT(4)
+#define RTW89_RXINFO_USER_BCN BIT(4)
 #define RTW89_RXINFO_USER_MACID GENMASK(15, 8)
 
 struct rtw89_rxinfo {

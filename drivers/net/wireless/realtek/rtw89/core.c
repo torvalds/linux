@@ -1449,16 +1449,20 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	/* For WiFi 7 chips, RXWD.mac_id of PPDU status is not set by hardware,
-	 * so update mac_id by rxinfo_user[].mac_id.
-	 */
-	for (i = 0; i < usr_num && chip_gen == RTW89_CHIP_BE; i++) {
+	for (i = 0; i < usr_num; i++) {
 		user = &rxinfo->user[i];
 		if (!le32_get_bits(user->w0, RTW89_RXINFO_USER_MAC_ID_VALID))
 			continue;
-
-		phy_ppdu->mac_id =
-			le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID);
+		/* For WiFi 7 chips, RXWD.mac_id of PPDU status is not set
+		 * by hardware, so update mac_id by rxinfo_user[].mac_id.
+		 */
+		if (chip_gen == RTW89_CHIP_BE)
+			phy_ppdu->mac_id =
+				le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID);
+		phy_ppdu->has_data =
+			le32_get_bits(user->w0, RTW89_RXINFO_USER_DATA);
+		phy_ppdu->has_bcn =
+			le32_get_bits(user->w0, RTW89_RXINFO_USER_BCN);
 		break;
 	}
 
@@ -1478,6 +1482,26 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 	phy_ppdu->len = skb->data + skb->len - phy_sts;
 
 	return 0;
+}
+
+static u8 rtw89_get_data_rate_nss(struct rtw89_dev *rtwdev, u16 data_rate)
+{
+	u8 data_rate_mode;
+
+	data_rate_mode = rtw89_get_data_rate_mode(rtwdev, data_rate);
+	switch (data_rate_mode) {
+	case DATA_RATE_MODE_NON_HT:
+		return 1;
+	case DATA_RATE_MODE_HT:
+		return rtw89_get_data_ht_nss(rtwdev, data_rate) + 1;
+	case DATA_RATE_MODE_VHT:
+	case DATA_RATE_MODE_HE:
+	case DATA_RATE_MODE_EHT:
+		return rtw89_get_data_nss(rtwdev, data_rate) + 1;
+	default:
+		rtw89_warn(rtwdev, "invalid RX rate mode %d\n", data_rate_mode);
+		return 0;
+	}
 }
 
 static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
@@ -1509,10 +1533,14 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 			ewma_rssi_add(&rtwsta->rssi[i], phy_ppdu->rssi[i]);
 	}
 
-	if (phy_ppdu->ofdm.has) {
+	if (phy_ppdu->ofdm.has && (phy_ppdu->has_data || phy_ppdu->has_bcn)) {
 		ewma_snr_add(&rtwsta->avg_snr, phy_ppdu->ofdm.avg_snr);
-		ewma_evm_add(&rtwsta->evm_min[evm_pos], phy_ppdu->ofdm.evm_min);
-		ewma_evm_add(&rtwsta->evm_max[evm_pos], phy_ppdu->ofdm.evm_max);
+		if (rtw89_get_data_rate_nss(rtwdev, phy_ppdu->rate) == 1) {
+			ewma_evm_add(&rtwsta->evm_1ss, phy_ppdu->ofdm.evm_min);
+		} else {
+			ewma_evm_add(&rtwsta->evm_min[evm_pos], phy_ppdu->ofdm.evm_min);
+			ewma_evm_add(&rtwsta->evm_max[evm_pos], phy_ppdu->ofdm.evm_max);
+		}
 	}
 }
 
@@ -3367,6 +3395,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 
 	ewma_rssi_init(&rtwsta->avg_rssi);
 	ewma_snr_init(&rtwsta->avg_snr);
+	ewma_evm_init(&rtwsta->evm_1ss);
 	for (i = 0; i < ant_num; i++) {
 		ewma_rssi_init(&rtwsta->rssi[i]);
 		ewma_evm_init(&rtwsta->evm_min[i]);
