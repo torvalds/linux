@@ -13,20 +13,7 @@
 struct cma;
 struct iommu_ops;
 
-/*
- * Values for struct dma_map_ops.flags:
- *
- * DMA_F_PCI_P2PDMA_SUPPORTED: Indicates the dma_map_ops implementation can
- * handle PCI P2PDMA pages in the map_sg/unmap_sg operation.
- * DMA_F_CAN_SKIP_SYNC: DMA sync operations can be skipped if the device is
- * coherent and it's not an SWIOTLB buffer.
- */
-#define DMA_F_PCI_P2PDMA_SUPPORTED     (1 << 0)
-#define DMA_F_CAN_SKIP_SYNC            (1 << 1)
-
 struct dma_map_ops {
-	unsigned int flags;
-
 	void *(*alloc)(struct device *dev, size_t size,
 			dma_addr_t *dma_handle, gfp_t gfp,
 			unsigned long attrs);

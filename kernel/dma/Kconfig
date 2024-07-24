@@ -8,8 +8,12 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
+config DMA_OPS_HELPERS
+	bool
+
 config DMA_OPS
 	depends on HAS_DMA
+	select DMA_OPS_HELPERS
 	bool
 
 #
