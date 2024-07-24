@@ -263,7 +263,7 @@ static void vmw_ldu_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
-	.fill_modes = vmw_du_connector_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vmw_ldu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
@@ -272,6 +272,8 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 
 static const struct
 drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
+	.get_modes = vmw_connector_get_modes,
+	.mode_valid = vmw_connector_mode_valid
 };
 
 static int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
@@ -408,7 +410,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.pref_active = (unit == 0);
 	ldu->base.pref_width = dev_priv->initial_width;
 	ldu->base.pref_height = dev_priv->initial_height;
-	ldu->base.pref_mode = NULL;
 
 	/*
 	 * Remove this after enabling atomic because property values can

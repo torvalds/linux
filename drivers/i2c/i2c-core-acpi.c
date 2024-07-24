@@ -442,18 +442,12 @@ EXPORT_SYMBOL_GPL(i2c_acpi_find_adapter_by_handle);
 
 static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 {
-	struct device *dev;
-	struct i2c_client *client;
+	return i2c_find_device_by_fwnode(acpi_fwnode_handle(adev));
+}
 
-	dev = bus_find_device_by_acpi_dev(&i2c_bus_type, adev);
-	if (!dev)
-		return NULL;
-
-	client = i2c_verify_client(dev);
-	if (!client)
-		put_device(dev);
-
-	return client;
+static struct i2c_adapter *i2c_acpi_find_adapter_by_adev(struct acpi_device *adev)
+{
+	return i2c_find_adapter_by_fwnode(acpi_fwnode_handle(adev));
 }
 
 static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
@@ -482,11 +476,17 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 			break;
 
 		client = i2c_acpi_find_client_by_adev(adev);
-		if (!client)
-			break;
+		if (client) {
+			i2c_unregister_device(client);
+			put_device(&client->dev);
+		}
 
-		i2c_unregister_device(client);
-		put_device(&client->dev);
+		adapter = i2c_acpi_find_adapter_by_adev(adev);
+		if (adapter) {
+			acpi_unbind_one(&adapter->dev);
+			put_device(&adapter->dev);
+		}
+
 		break;
 	}
 
