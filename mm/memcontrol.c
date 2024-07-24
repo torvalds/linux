@@ -320,24 +320,27 @@ static const unsigned int memcg_stat_items[] = {
 #define NR_MEMCG_NODE_STAT_ITEMS ARRAY_SIZE(memcg_node_stat_items)
 #define MEMCG_VMSTAT_SIZE (NR_MEMCG_NODE_STAT_ITEMS + \
 			   ARRAY_SIZE(memcg_stat_items))
-static int8_t mem_cgroup_stats_index[MEMCG_NR_STAT] __read_mostly;
+#define BAD_STAT_IDX(index) ((u32)(index) >= U8_MAX)
+static u8 mem_cgroup_stats_index[MEMCG_NR_STAT] __read_mostly;
 
 static void init_memcg_stats(void)
 {
-	int8_t i, j = 0;
+	u8 i, j = 0;
 
-	BUILD_BUG_ON(MEMCG_NR_STAT >= S8_MAX);
+	BUILD_BUG_ON(MEMCG_NR_STAT >= U8_MAX);
 
-	for (i = 0; i < NR_MEMCG_NODE_STAT_ITEMS; ++i)
-		mem_cgroup_stats_index[memcg_node_stat_items[i]] = ++j;
+	memset(mem_cgroup_stats_index, U8_MAX, sizeof(mem_cgroup_stats_index));
 
-	for (i = 0; i < ARRAY_SIZE(memcg_stat_items); ++i)
-		mem_cgroup_stats_index[memcg_stat_items[i]] = ++j;
+	for (i = 0; i < NR_MEMCG_NODE_STAT_ITEMS; ++i, ++j)
+		mem_cgroup_stats_index[memcg_node_stat_items[i]] = j;
+
+	for (i = 0; i < ARRAY_SIZE(memcg_stat_items); ++i, ++j)
+		mem_cgroup_stats_index[memcg_stat_items[i]] = j;
 }
 
 static inline int memcg_stats_index(int idx)
 {
-	return mem_cgroup_stats_index[idx] - 1;
+	return mem_cgroup_stats_index[idx];
 }
 
 struct lruvec_stats_percpu {
@@ -369,7 +372,7 @@ unsigned long lruvec_page_state(struct lruvec *lruvec, enum node_stat_item idx)
 		return node_page_state(lruvec_pgdat(lruvec), idx);
 
 	i = memcg_stats_index(idx);
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return 0;
 
 	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
@@ -392,7 +395,7 @@ unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 		return node_page_state(lruvec_pgdat(lruvec), idx);
 
 	i = memcg_stats_index(idx);
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return 0;
 
 	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
@@ -435,21 +438,24 @@ static const unsigned int memcg_vm_event_stat[] = {
 };
 
 #define NR_MEMCG_EVENTS ARRAY_SIZE(memcg_vm_event_stat)
-static int8_t mem_cgroup_events_index[NR_VM_EVENT_ITEMS] __read_mostly;
+static u8 mem_cgroup_events_index[NR_VM_EVENT_ITEMS] __read_mostly;
 
 static void init_memcg_events(void)
 {
-	int8_t i;
+	u8 i;
 
-	BUILD_BUG_ON(NR_VM_EVENT_ITEMS >= S8_MAX);
+	BUILD_BUG_ON(NR_VM_EVENT_ITEMS >= U8_MAX);
+
+	memset(mem_cgroup_events_index, U8_MAX,
+	       sizeof(mem_cgroup_events_index));
 
 	for (i = 0; i < NR_MEMCG_EVENTS; ++i)
-		mem_cgroup_events_index[memcg_vm_event_stat[i]] = i + 1;
+		mem_cgroup_events_index[memcg_vm_event_stat[i]] = i;
 }
 
 static inline int memcg_events_index(enum vm_event_item idx)
 {
-	return mem_cgroup_events_index[idx] - 1;
+	return mem_cgroup_events_index[idx];
 }
 
 struct memcg_vmstats_percpu {
@@ -621,7 +627,7 @@ unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
 	long x;
 	int i = memcg_stats_index(idx);
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return 0;
 
 	x = READ_ONCE(memcg->vmstats->state[i]);
@@ -662,7 +668,7 @@ void __mod_memcg_state(struct mem_cgroup *memcg, enum memcg_stat_item idx,
 	if (mem_cgroup_disabled())
 		return;
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return;
 
 	__this_cpu_add(memcg->vmstats_percpu->state[i], val);
@@ -675,7 +681,7 @@ unsigned long memcg_page_state_local(struct mem_cgroup *memcg, int idx)
 	long x;
 	int i = memcg_stats_index(idx);
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return 0;
 
 	x = READ_ONCE(memcg->vmstats->state_local[i]);
@@ -694,7 +700,7 @@ static void __mod_memcg_lruvec_state(struct lruvec *lruvec,
 	struct mem_cgroup *memcg;
 	int i = memcg_stats_index(idx);
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return;
 
 	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
@@ -810,7 +816,7 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
 	if (mem_cgroup_disabled())
 		return;
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, idx))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, idx))
 		return;
 
 	memcg_stats_lock();
@@ -823,7 +829,7 @@ unsigned long memcg_events(struct mem_cgroup *memcg, int event)
 {
 	int i = memcg_events_index(event);
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, event))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, event))
 		return 0;
 
 	return READ_ONCE(memcg->vmstats->events[i]);
@@ -833,7 +839,7 @@ unsigned long memcg_events_local(struct mem_cgroup *memcg, int event)
 {
 	int i = memcg_events_index(event);
 
-	if (WARN_ONCE(i < 0, "%s: missing stat item %d\n", __func__, event))
+	if (WARN_ONCE(BAD_STAT_IDX(i), "%s: missing stat item %d\n", __func__, event))
 		return 0;
 
 	return READ_ONCE(memcg->vmstats->events_local[i]);
