@@ -364,39 +364,6 @@ error:
 	return NULL;
 }
 
-/*
- * Network link becomes unavailable. Mark all
- * affected QP's accordingly.
- */
-static void siw_netdev_down(struct work_struct *work)
-{
-	struct siw_device *sdev =
-		container_of(work, struct siw_device, netdev_down);
-
-	struct siw_qp_attrs qp_attrs;
-	struct list_head *pos, *tmp;
-
-	memset(&qp_attrs, 0, sizeof(qp_attrs));
-	qp_attrs.state = SIW_QP_STATE_ERROR;
-
-	list_for_each_safe(pos, tmp, &sdev->qp_list) {
-		struct siw_qp *qp = list_entry(pos, struct siw_qp, devq);
-
-		down_write(&qp->state_lock);
-		WARN_ON(siw_qp_modify(qp, &qp_attrs, SIW_QP_ATTR_STATE));
-		up_write(&qp->state_lock);
-	}
-	ib_device_put(&sdev->base_dev);
-}
-
-static void siw_device_goes_down(struct siw_device *sdev)
-{
-	if (ib_device_try_get(&sdev->base_dev)) {
-		INIT_WORK(&sdev->netdev_down, siw_netdev_down);
-		schedule_work(&sdev->netdev_down);
-	}
-}
-
 static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 			    void *arg)
 {
@@ -416,10 +383,6 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	case NETDEV_UP:
 		sdev->state = IB_PORT_ACTIVE;
 		siw_port_event(sdev, 1, IB_EVENT_PORT_ACTIVE);
-		break;
-
-	case NETDEV_GOING_DOWN:
-		siw_device_goes_down(sdev);
 		break;
 
 	case NETDEV_DOWN:
