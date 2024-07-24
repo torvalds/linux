@@ -230,10 +230,9 @@ static noinline void __unlock_for_delalloc(const struct inode *inode,
 			       PAGE_UNLOCK);
 }
 
-static noinline int lock_delalloc_pages(struct inode *inode,
-					const struct page *locked_page,
-					u64 start,
-					u64 end)
+static noinline int lock_delalloc_folios(struct inode *inode,
+					 const struct folio *locked_folio,
+					 u64 start, u64 end)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct address_space *mapping = inode->i_mapping;
@@ -243,7 +242,7 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 	u64 processed_end = start;
 	struct folio_batch fbatch;
 
-	if (index == locked_page->index && index == end_index)
+	if (index == locked_folio->index && index == end_index)
 		return 0;
 
 	folio_batch_init(&fbatch);
@@ -257,23 +256,22 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 
 		for (i = 0; i < found_folios; i++) {
 			struct folio *folio = fbatch.folios[i];
-			struct page *page = folio_page(folio, 0);
 			u32 len = end + 1 - start;
 
-			if (page == locked_page)
+			if (folio == locked_folio)
 				continue;
 
 			if (btrfs_folio_start_writer_lock(fs_info, folio, start,
 							  len))
 				goto out;
 
-			if (!PageDirty(page) || page->mapping != mapping) {
+			if (!folio_test_dirty(folio) || folio->mapping != mapping) {
 				btrfs_folio_end_writer_lock(fs_info, folio, start,
 							    len);
 				goto out;
 			}
 
-			processed_end = page_offset(page) + PAGE_SIZE - 1;
+			processed_end = folio_pos(folio) + folio_size(folio) - 1;
 		}
 		folio_batch_release(&fbatch);
 		cond_resched();
@@ -283,7 +281,8 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 out:
 	folio_batch_release(&fbatch);
 	if (processed_end > start)
-		__unlock_for_delalloc(inode, locked_page, start, processed_end);
+		__unlock_for_delalloc(inode, &locked_folio->page, start,
+				      processed_end);
 	return -EAGAIN;
 }
 
@@ -356,8 +355,8 @@ again:
 		delalloc_end = delalloc_start + max_bytes - 1;
 
 	/* step two, lock all the folioss after the folios that has start */
-	ret = lock_delalloc_pages(inode, &locked_folio->page,
-				  delalloc_start, delalloc_end);
+	ret = lock_delalloc_folios(inode, locked_folio, delalloc_start,
+				   delalloc_end);
 	ASSERT(!ret || ret == -EAGAIN);
 	if (ret == -EAGAIN) {
 		/* some of the folios are gone, lets avoid looping by
