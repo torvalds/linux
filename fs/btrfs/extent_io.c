@@ -1519,11 +1519,10 @@ out_error:
  * Return 0 if everything goes well.
  * Return <0 for error.
  */
-static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl)
+static int __extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
-	const u64 page_start = page_offset(page);
+	struct inode *inode = folio->mapping->host;
+	const u64 page_start = folio_pos(folio);
 	int ret;
 	int nr = 0;
 	size_t pg_offset;
@@ -1532,24 +1531,24 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 
 	trace___extent_writepage(folio, inode, bio_ctrl->wbc);
 
-	WARN_ON(!PageLocked(page));
+	WARN_ON(!folio_test_locked(folio));
 
-	pg_offset = offset_in_page(i_size);
-	if (page->index > end_index ||
-	   (page->index == end_index && !pg_offset)) {
+	pg_offset = offset_in_folio(folio, i_size);
+	if (folio->index > end_index ||
+	   (folio->index == end_index && !pg_offset)) {
 		folio_invalidate(folio, 0, folio_size(folio));
 		folio_unlock(folio);
 		return 0;
 	}
 
-	if (page->index == end_index)
-		memzero_page(page, pg_offset, PAGE_SIZE - pg_offset);
+	if (folio->index == end_index)
+		folio_zero_range(folio, pg_offset, folio_size(folio) - pg_offset);
 
-	ret = set_page_extent_mapped(page);
+	ret = set_folio_extent_mapped(folio);
 	if (ret < 0)
 		goto done;
 
-	ret = writepage_delalloc(BTRFS_I(inode), page, bio_ctrl->wbc);
+	ret = writepage_delalloc(BTRFS_I(inode), &folio->page, bio_ctrl->wbc);
 	if (ret == 1)
 		return 0;
 	if (ret)
@@ -1565,13 +1564,13 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 done:
 	if (nr == 0) {
 		/* make sure the mapping tag for page dirty gets cleared */
-		set_page_writeback(page);
-		end_page_writeback(page);
+		folio_start_writeback(folio);
+		folio_end_writeback(folio);
 	}
 	if (ret) {
-		btrfs_mark_ordered_io_finished(BTRFS_I(inode), page, page_start,
-					       PAGE_SIZE, !ret);
-		mapping_set_error(page->mapping, ret);
+		btrfs_mark_ordered_io_finished(BTRFS_I(inode), &folio->page,
+					       page_start, PAGE_SIZE, !ret);
+		mapping_set_error(folio->mapping, ret);
 	}
 
 	btrfs_folio_end_all_writers(inode_to_fs_info(inode), folio);
@@ -2228,7 +2227,7 @@ retry:
 				continue;
 			}
 
-			ret = __extent_writepage(&folio->page, bio_ctrl);
+			ret = __extent_writepage(folio, bio_ctrl);
 			if (ret < 0) {
 				done = 1;
 				break;
