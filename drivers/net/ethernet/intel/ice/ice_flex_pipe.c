@@ -4146,6 +4146,54 @@ err_ice_add_prof_id_flow:
 }
 
 /**
+ * ice_flow_assoc_fdir_prof - add an FDIR profile for main/ctrl VSI
+ * @hw: pointer to the HW struct
+ * @blk: HW block
+ * @dest_vsi: dest VSI
+ * @fdir_vsi: fdir programming VSI
+ * @hdl: profile handle
+ *
+ * Update the hardware tables to enable the FDIR profile indicated by @hdl for
+ * the VSI specified by @dest_vsi. On success, the flow will be enabled.
+ *
+ * Return: 0 on success or negative errno on failure.
+ */
+int
+ice_flow_assoc_fdir_prof(struct ice_hw *hw, enum ice_block blk,
+			 u16 dest_vsi, u16 fdir_vsi, u64 hdl)
+{
+	u16 vsi_num;
+	int status;
+
+	if (blk != ICE_BLK_FD)
+		return -EINVAL;
+
+	vsi_num = ice_get_hw_vsi_num(hw, dest_vsi);
+	status = ice_add_prof_id_flow(hw, blk, vsi_num, hdl);
+	if (status) {
+		ice_debug(hw, ICE_DBG_FLOW, "Adding HW profile failed for main VSI flow entry: %d\n",
+			  status);
+		return status;
+	}
+
+	vsi_num = ice_get_hw_vsi_num(hw, fdir_vsi);
+	status = ice_add_prof_id_flow(hw, blk, vsi_num, hdl);
+	if (status) {
+		ice_debug(hw, ICE_DBG_FLOW, "Adding HW profile failed for ctrl VSI flow entry: %d\n",
+			  status);
+		goto err;
+	}
+
+	return 0;
+
+err:
+	vsi_num = ice_get_hw_vsi_num(hw, dest_vsi);
+	ice_rem_prof_id_flow(hw, blk, vsi_num, hdl);
+
+	return status;
+}
+
+/**
  * ice_rem_prof_from_list - remove a profile from list
  * @hw: pointer to the HW struct
  * @lst: list to remove the profile from
