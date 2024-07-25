@@ -433,8 +433,7 @@ static const struct mhi_controller_config modem_foxconn_sdx72_config = {
 
 static const struct mhi_pci_dev_info mhi_foxconn_sdx55_info = {
 	.name = "foxconn-sdx55",
-	.fw = "qcom/sdx55m/sbl1.mbn",
-	.edl = "qcom/sdx55m/edl.mbn",
+	.edl = "qcom/sdx55m/foxconn/prog_firehose_sdx55.mbn",
 	.config = &modem_foxconn_sdx55_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
@@ -444,8 +443,7 @@ static const struct mhi_pci_dev_info mhi_foxconn_sdx55_info = {
 
 static const struct mhi_pci_dev_info mhi_foxconn_t99w175_info = {
 	.name = "foxconn-t99w175",
-	.fw = "qcom/sdx55m/sbl1.mbn",
-	.edl = "qcom/sdx55m/edl.mbn",
+	.edl = "qcom/sdx55m/foxconn/prog_firehose_sdx55.mbn",
 	.config = &modem_foxconn_sdx55_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
@@ -455,8 +453,7 @@ static const struct mhi_pci_dev_info mhi_foxconn_t99w175_info = {
 
 static const struct mhi_pci_dev_info mhi_foxconn_dw5930e_info = {
 	.name = "foxconn-dw5930e",
-	.fw = "qcom/sdx55m/sbl1.mbn",
-	.edl = "qcom/sdx55m/edl.mbn",
+	.edl = "qcom/sdx55m/foxconn/prog_firehose_sdx55.mbn",
 	.config = &modem_foxconn_sdx55_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
@@ -502,7 +499,7 @@ static const struct mhi_pci_dev_info mhi_foxconn_dw5932e_info = {
 
 static const struct mhi_pci_dev_info mhi_foxconn_t99w515_info = {
 	.name = "foxconn-t99w515",
-	.edl = "fox/sdx72m/edl.mbn",
+	.edl = "qcom/sdx72m/foxconn/edl.mbn",
 	.edl_trigger = true,
 	.config = &modem_foxconn_sdx72_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
@@ -513,7 +510,7 @@ static const struct mhi_pci_dev_info mhi_foxconn_t99w515_info = {
 
 static const struct mhi_pci_dev_info mhi_foxconn_dw5934e_info = {
 	.name = "foxconn-dw5934e",
-	.edl = "fox/sdx72m/edl.mbn",
+	.edl = "qcom/sdx72m/foxconn/edl.mbn",
 	.edl_trigger = true,
 	.config = &modem_foxconn_sdx72_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
