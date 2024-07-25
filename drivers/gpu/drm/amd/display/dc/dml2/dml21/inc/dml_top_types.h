@@ -74,6 +74,7 @@ struct dml2_pmo_options {
 	bool disable_drr_var;
 	bool disable_drr_clamped;
 	bool disable_drr_var_when_var_active;
+	bool disable_drr_clamped_when_var_active;
 	bool disable_fams2;
 	bool disable_vactive_det_fill_bw_pad; /* dml2_project_dcn4x_stage2_auto_drr_svp and above only */
 	bool disable_dyn_odm;

@@ -511,6 +511,7 @@ enum in_game_fams_config {
 	INGAME_FAMS_SINGLE_DISP_ENABLE, // enable in-game fams
 	INGAME_FAMS_DISABLE, // disable in-game fams
 	INGAME_FAMS_MULTI_DISP_ENABLE, //enable in-game fams for multi-display
+	INGAME_FAMS_MULTI_DISP_CLAMPED_ONLY, //enable in-game fams for multi-display only for clamped RR strategies
 };
 
 /**

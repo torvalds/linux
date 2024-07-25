@@ -1441,8 +1441,11 @@ static bool stream_matches_drr_policy(struct dml2_pmo_instance *pmo,
 		strategy_matches_drr_requirements = false;
 	} else if (is_bit_set_in_bitfield(PMO_DRR_CLAMPED_STRATEGY_MASK, stream_pstate_method) &&
 			(pmo->options->disable_drr_clamped ||
-			!stream_descriptor->timing.drr_config.enabled ||
-			(!stream_descriptor->timing.drr_config.drr_active_fixed && !stream_descriptor->timing.drr_config.drr_active_variable))) {
+			(!stream_descriptor->timing.drr_config.enabled ||
+			(!stream_descriptor->timing.drr_config.drr_active_fixed && !stream_descriptor->timing.drr_config.drr_active_variable)) ||
+			(pmo->options->disable_drr_clamped_when_var_active &&
+			stream_descriptor->timing.drr_config.enabled &&
+			stream_descriptor->timing.drr_config.drr_active_variable))) {
 		/* DRR fixed strategies are disallowed due to settings or policy */
 		strategy_matches_drr_requirements = false;
 	} else if (is_bit_set_in_bitfield(PMO_FW_STRATEGY_MASK, stream_pstate_method) &&
