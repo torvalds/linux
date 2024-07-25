@@ -20,7 +20,7 @@ if NET_VENDOR_META
 config FBNIC
 	tristate "Meta Platforms Host Network Interface"
 	depends on X86_64 || COMPILE_TEST
-	depends on S390=n
+	depends on !S390
 	depends on MAX_SKB_FRAGS < 22
 	depends on PCI_MSI
 	select PHYLINK
