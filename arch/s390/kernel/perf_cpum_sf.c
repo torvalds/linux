@@ -610,23 +610,23 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 #define PMC_FAILURE   2
 static void setup_pmc_cpu(void *flags)
 {
-	struct cpu_hw_sf *cpusf = this_cpu_ptr(&cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 	int err = 0;
 
 	switch (*((int *)flags)) {
 	case PMC_INIT:
-		memset(cpusf, 0, sizeof(*cpusf));
-		err = qsi(&cpusf->qsi);
+		memset(cpuhw, 0, sizeof(*cpuhw));
+		err = qsi(&cpuhw->qsi);
 		if (err)
 			break;
-		cpusf->flags |= PMU_F_RESERVED;
+		cpuhw->flags |= PMU_F_RESERVED;
 		err = sf_disable();
 		break;
 	case PMC_RELEASE:
-		cpusf->flags &= ~PMU_F_RESERVED;
+		cpuhw->flags &= ~PMU_F_RESERVED;
 		err = sf_disable();
 		if (!err)
-			deallocate_buffers(cpusf);
+			deallocate_buffers(cpuhw);
 		break;
 	}
 	if (err) {
