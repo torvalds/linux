@@ -452,7 +452,7 @@ static const struct sysrq_key_op sysrq_unrt_op = {
 
 static void sysrq_handle_replay_logs(u8 key)
 {
-	console_replay_all();
+	console_try_replay_all();
 }
 static struct sysrq_key_op sysrq_replay_logs_op = {
 	.handler        = sysrq_handle_replay_logs,
