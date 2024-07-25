@@ -1921,8 +1921,12 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 	if (rc)
 		goto out;
 
+	/* Populate defaults in the context */
 	bnxt_set_dflt_rss_indir_tbl(bp, ctx);
+	ctx->hfunc = ETH_RSS_HASH_TOP;
 	memcpy(vnic->rss_hash_key, bp->rss_hash_key, HW_HASH_KEY_SIZE);
+	memcpy(ethtool_rxfh_context_key(ctx),
+	       bp->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	rc = bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings);
 	if (rc) {
