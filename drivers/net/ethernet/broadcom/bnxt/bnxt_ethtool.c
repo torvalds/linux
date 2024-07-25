@@ -1863,8 +1863,14 @@ static void bnxt_modify_rss(struct bnxt *bp, struct ethtool_rxfh_context *ctx,
 }
 
 static int bnxt_rxfh_context_check(struct bnxt *bp,
+				   const struct ethtool_rxfh_param *rxfh,
 				   struct netlink_ext_ack *extack)
 {
+	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP) {
+		NL_SET_ERR_MSG_MOD(extack, "RSS hash function not supported");
+		return -EOPNOTSUPP;
+	}
+
 	if (!BNXT_SUPPORTS_MULTI_RSS_CTX(bp)) {
 		NL_SET_ERR_MSG_MOD(extack, "RSS contexts not supported");
 		return -EOPNOTSUPP;
@@ -1888,7 +1894,7 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 	struct bnxt_vnic_info *vnic;
 	int rc;
 
-	rc = bnxt_rxfh_context_check(bp, extack);
+	rc = bnxt_rxfh_context_check(bp, rxfh, extack);
 	if (rc)
 		return rc;
 
@@ -1953,7 +1959,7 @@ static int bnxt_modify_rxfh_context(struct net_device *dev,
 	struct bnxt_rss_ctx *rss_ctx;
 	int rc;
 
-	rc = bnxt_rxfh_context_check(bp, extack);
+	rc = bnxt_rxfh_context_check(bp, rxfh, extack);
 	if (rc)
 		return rc;
 
