@@ -254,6 +254,12 @@ enum msm_gpi_ctrl_cmd {
 	MSM_GPI_DEEP_SLEEP_INIT,
 };
 
+enum Q2SPI_CR_HEADER_CODE {
+	Q2SPI_CR_CODE_SUCCESS = 0x1,
+	Q2SPI_CR_HEADER_LEN_ZERO = 0xB,
+	Q2SPI_CR_HEADER_INCORRECT = 0xC,
+};
+
 enum msm_gpi_cb_event {
 	/* These events are hardware generated events */
 	MSM_GPI_QUP_NOTIFY,

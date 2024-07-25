@@ -50,6 +50,7 @@
  * num_tx_eot: Represents number of TX End of Transfers
  * num_rx_eot: Represents number of RX End of Transfers
  * qup_gsi_err: flag to represent gsi error if any
+ * qup_gsi_global_err: flag to represent gsi global error
  */
 struct q2spi_gsi {
 	struct dma_chan *tx_c;
@@ -74,6 +75,7 @@ struct q2spi_gsi {
 	int num_tx_eot;
 	int num_rx_eot;
 	bool qup_gsi_err;
+	bool qup_gsi_global_err;
 };
 
 #endif /* __SPI_Q2SPI_GPI_H_ */
