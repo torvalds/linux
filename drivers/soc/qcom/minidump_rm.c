@@ -26,7 +26,6 @@
 /* Protect elfheader and smem table from deferred calls contention */
 static DEFINE_RWLOCK(mdt_remove_lock);
 struct workqueue_struct *minidump_rm_wq;
-static bool md_init_done;
 
 static inline int md_elf_entry_number(const struct md_region *entry)
 {
@@ -325,17 +324,16 @@ static int md_rm_add_md_region(const struct md_region *entry)
 	}
 
 	/* Ensure that init completes before register region */
-	if (smp_load_acquire(&md_init_done)) {
-		if (md_elf_entry_number(entry) >= 0) {
-			printk_deferred("Entry name already exist\n");
-			ret = -EEXIST;
-			goto out;
-		}
-		ret = md_rm_add_region(entry);
-		md_add_elf_header(entry);
-		if (ret)
-			goto out;
+	if (md_elf_entry_number(entry) >= 0) {
+		printk_deferred("Entry name already exist\n");
+		ret = -EEXIST;
+		goto out;
 	}
+	ret = md_rm_add_region(entry);
+	md_add_elf_header(entry);
+	if (ret)
+		goto out;
+
 	ret = md_num_regions;
 	md_num_regions++;
 
