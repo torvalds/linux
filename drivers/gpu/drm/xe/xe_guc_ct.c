@@ -516,6 +516,7 @@ static void __g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 	lockdep_assert_held(&ct->fast_lock);
 	xe_gt_assert(ct_to_gt(ct), ct->ctbs.g2h.info.space + g2h_len <=
 		     ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
+	xe_gt_assert(ct_to_gt(ct), ct->g2h_outstanding);
 
 	ct->ctbs.g2h.info.space += g2h_len;
 	if (!--ct->g2h_outstanding)
