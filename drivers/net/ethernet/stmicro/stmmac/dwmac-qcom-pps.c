@@ -32,18 +32,14 @@ static DECLARE_WAIT_QUEUE_HEAD(avb_class_b_msg_wq);
 
 static int strlcmp(const char *s, const char *t, size_t n)
 {
-	int ret;
-
 	while (n-- && *t != '\0') {
 		if (*s != *t) {
-			ret = ((unsigned char)*s - (unsigned char)*t);
-			n = 0;
+			return ((unsigned char)*s - (unsigned char)*t);
 		} else {
 			++s, ++t;
-			ret = (unsigned char)*s;
 		}
 	}
-	return ret;
+	return (unsigned char)*s;
 }
 
 static u32 pps_config_sub_second_increment(void __iomem *ioaddr,
