@@ -827,6 +827,14 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 	u64 start = 0;
 	int i;
 
+	/*
+	 * The chunk mutex must be held so that no new chunks can be created
+	 * while we are updating existing chunks. This guarantees we don't miss
+	 * any new chunk that gets created for a range that falls before the
+	 * range of the last chunk we processed.
+	 */
+	lockdep_assert_held(&fs_info->chunk_mutex);
+
 	write_lock(&fs_info->mapping_tree_lock);
 	do {
 		struct btrfs_chunk_map *map;
@@ -839,6 +847,7 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 				map->stripes[i].dev = tgtdev;
 		start = map->start + map->chunk_len;
 		btrfs_free_chunk_map(map);
+		cond_resched_rwlock_write(&fs_info->mapping_tree_lock);
 	} while (start);
 	write_unlock(&fs_info->mapping_tree_lock);
 }
