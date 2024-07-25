@@ -1348,9 +1348,8 @@ out:
  * If no dirty range is found, @start will be page_offset(page) + PAGE_SIZE.
  */
 static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
-				 struct page *page, u64 *start, u64 *end)
+				 struct folio *folio, u64 *start, u64 *end)
 {
-	struct folio *folio = page_folio(page);
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 	struct btrfs_subpage_info *spi = fs_info->subpage_info;
 	u64 orig_start = *start;
@@ -1363,14 +1362,15 @@ static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
 	 * For regular sector size == page size case, since one page only
 	 * contains one sector, we return the page offset directly.
 	 */
-	if (!btrfs_is_subpage(fs_info, page->mapping)) {
-		*start = page_offset(page);
-		*end = page_offset(page) + PAGE_SIZE;
+	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
+		*start = folio_pos(folio);
+		*end = folio_pos(folio) + folio_size(folio);
 		return;
 	}
 
 	range_start_bit = spi->dirty_offset +
-			  (offset_in_page(orig_start) >> fs_info->sectorsize_bits);
+			  (offset_in_folio(folio, orig_start) >>
+			   fs_info->sectorsize_bits);
 
 	/* We should have the page locked, but just in case */
 	spin_lock_irqsave(&subpage->lock, flags);
@@ -1381,8 +1381,8 @@ static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
 	range_start_bit -= spi->dirty_offset;
 	range_end_bit -= spi->dirty_offset;
 
-	*start = page_offset(page) + range_start_bit * fs_info->sectorsize;
-	*end = page_offset(page) + range_end_bit * fs_info->sectorsize;
+	*start = folio_pos(folio) + range_start_bit * fs_info->sectorsize;
+	*end = folio_pos(folio) + range_end_bit * fs_info->sectorsize;
 }
 
 /*
@@ -1443,7 +1443,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			break;
 		}
 
-		find_next_dirty_byte(fs_info, &folio->page, &dirty_range_start,
+		find_next_dirty_byte(fs_info, folio, &dirty_range_start,
 				     &dirty_range_end);
 		if (cur < dirty_range_start) {
 			cur = dirty_range_start;
