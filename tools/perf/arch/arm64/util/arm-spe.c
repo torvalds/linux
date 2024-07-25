@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <time.h>
 
@@ -177,8 +178,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 {
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
-	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
-	struct evsel *evsel, *arm_spe_evsel = NULL;
+	struct evsel *evsel, *tmp;
 	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
 	bool privileged = perf_event_paranoid_check(-1);
 	struct evsel *tracking_evsel;
@@ -187,12 +187,12 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	sper->evlist = evlist;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->core.attr.type == arm_spe_pmu->type) {
-			if (arm_spe_evsel) {
-				pr_err("There may be only one " ARM_SPE_PMU_NAME "x event\n");
+		if (evsel__is_aux_event(evsel)) {
+			if (!strstarts(evsel->pmu_name, ARM_SPE_PMU_NAME)) {
+				pr_err("Found unexpected auxtrace event: %s\n",
+				       evsel->pmu_name);
 				return -EINVAL;
 			}
-			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
 	}
@@ -257,7 +257,10 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		pr_debug2("%sx snapshot size: %zu\n", ARM_SPE_PMU_NAME,
 			  opts->auxtrace_snapshot_size);
 
-	arm_spe_setup_evsel(arm_spe_evsel, cpus);
+	evlist__for_each_entry_safe(evlist, tmp, evsel) {
+		if (evsel__is_aux_event(evsel))
+			arm_spe_setup_evsel(evsel, cpus);
+	}
 
 	/* Add dummy event to keep tracking */
 	err = parse_event(evlist, "dummy:u");
@@ -307,12 +310,16 @@ static int arm_spe_snapshot_start(struct auxtrace_record *itr)
 	struct arm_spe_recording *ptr =
 			container_of(itr, struct arm_spe_recording, itr);
 	struct evsel *evsel;
+	int ret = -EINVAL;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
-		if (evsel->core.attr.type == ptr->arm_spe_pmu->type)
-			return evsel__disable(evsel);
+		if (evsel__is_aux_event(evsel)) {
+			ret = evsel__disable(evsel);
+			if (ret < 0)
+				return ret;
+		}
 	}
-	return -EINVAL;
+	return ret;
 }
 
 static int arm_spe_snapshot_finish(struct auxtrace_record *itr)
@@ -320,12 +327,16 @@ static int arm_spe_snapshot_finish(struct auxtrace_record *itr)
 	struct arm_spe_recording *ptr =
 			container_of(itr, struct arm_spe_recording, itr);
 	struct evsel *evsel;
+	int ret = -EINVAL;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
-		if (evsel->core.attr.type == ptr->arm_spe_pmu->type)
-			return evsel__enable(evsel);
+		if (evsel__is_aux_event(evsel)) {
+			ret = evsel__enable(evsel);
+			if (ret < 0)
+				return ret;
+		}
 	}
-	return -EINVAL;
+	return ret;
 }
 
 static int arm_spe_alloc_wrapped_array(struct arm_spe_recording *ptr, int idx)
