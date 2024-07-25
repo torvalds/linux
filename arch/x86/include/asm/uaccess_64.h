@@ -59,7 +59,9 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
  * for dense accesses starting at the address.
  */
 #define mask_user_address(x) ((typeof(x))((long)(x)|((long)(x)>>63)))
-#define masked_user_access_begin(x) ({ __uaccess_begin(); mask_user_address(x); })
+#define masked_user_access_begin(x) ({ \
+	__auto_type __masked_ptr = mask_user_address(x); \
+	__uaccess_begin(); __masked_ptr; })
 
 /*
  * User pointers can have tag bits on x86-64.  This scheme tolerates
