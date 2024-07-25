@@ -441,14 +441,15 @@ int l2tp_session_register(struct l2tp_session *session,
 	int err;
 
 	spin_lock_bh(&tunnel->list_lock);
+	spin_lock_bh(&pn->l2tp_session_idr_lock);
+
 	if (!tunnel->acpt_newsess) {
 		err = -ENODEV;
-		goto err_tlock;
+		goto out;
 	}
 
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		session_key = session->session_id;
-		spin_lock_bh(&pn->l2tp_session_idr_lock);
 		err = idr_alloc_u32(&pn->l2tp_v3_session_idr, NULL,
 				    &session_key, session_key, GFP_ATOMIC);
 		/* IP encap expects session IDs to be globally unique, while
@@ -462,42 +463,35 @@ int l2tp_session_register(struct l2tp_session *session,
 			err = l2tp_session_collision_add(pn, session,
 							 other_session);
 		}
-		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 	} else {
 		session_key = l2tp_v2_session_key(tunnel->tunnel_id,
 						  session->session_id);
-		spin_lock_bh(&pn->l2tp_session_idr_lock);
 		err = idr_alloc_u32(&pn->l2tp_v2_session_idr, NULL,
 				    &session_key, session_key, GFP_ATOMIC);
-		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 	}
 
 	if (err) {
 		if (err == -ENOSPC)
 			err = -EEXIST;
-		goto err_tlock;
+		goto out;
 	}
 
 	l2tp_tunnel_inc_refcount(tunnel);
-
 	list_add(&session->list, &tunnel->session_list);
-	spin_unlock_bh(&tunnel->list_lock);
 
-	spin_lock_bh(&pn->l2tp_session_idr_lock);
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		if (!other_session)
 			idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
 	} else {
 		idr_replace(&pn->l2tp_v2_session_idr, session, session_key);
 	}
+
+out:
 	spin_unlock_bh(&pn->l2tp_session_idr_lock);
-
-	trace_register_session(session);
-
-	return 0;
-
-err_tlock:
 	spin_unlock_bh(&tunnel->list_lock);
+
+	if (!err)
+		trace_register_session(session);
 
 	return err;
 }
@@ -1260,13 +1254,13 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 		struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
 		struct l2tp_session *removed = session;
 
-		/* Remove from the per-tunnel list */
 		spin_lock_bh(&tunnel->list_lock);
+		spin_lock_bh(&pn->l2tp_session_idr_lock);
+
+		/* Remove from the per-tunnel list */
 		list_del_init(&session->list);
-		spin_unlock_bh(&tunnel->list_lock);
 
 		/* Remove from per-net IDR */
-		spin_lock_bh(&pn->l2tp_session_idr_lock);
 		if (tunnel->version == L2TP_HDR_VER_3) {
 			if (hash_hashed(&session->hlist))
 				l2tp_session_collision_del(pn, session);
@@ -1280,7 +1274,9 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 					     session_key);
 		}
 		WARN_ON_ONCE(removed && removed != session);
+
 		spin_unlock_bh(&pn->l2tp_session_idr_lock);
+		spin_unlock_bh(&tunnel->list_lock);
 
 		synchronize_rcu();
 	}

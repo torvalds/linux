@@ -3906,11 +3906,10 @@ F:	include/net/bluetooth/
 F:	net/bluetooth/
 
 BONDING DRIVER
-M:	Jay Vosburgh <j.vosburgh@gmail.com>
+M:	Jay Vosburgh <jv@jvosburgh.net>
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
-S:	Supported
-W:	http://sourceforge.net/projects/bonding/
+S:	Maintained
 F:	Documentation/networking/bonding.rst
 F:	drivers/net/bonding/
 F:	include/net/bond*
@@ -3974,8 +3973,10 @@ S:	Odd Fixes
 F:	drivers/net/ethernet/netronome/nfp/bpf/
 
 BPF JIT for POWERPC (32-BIT AND 64-BIT)
-M:	Naveen N. Rao <naveen.n.rao@linux.ibm.com>
 M:	Michael Ellerman <mpe@ellerman.id.au>
+M:	Hari Bathini <hbathini@linux.ibm.com>
+M:	Christophe Leroy <christophe.leroy@csgroup.eu>
+R:	Naveen N Rao <naveen@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/powerpc/net/
@@ -12529,7 +12530,7 @@ F:	mm/kmsan/
 F:	scripts/Makefile.kmsan
 
 KPROBES
-M:	Naveen N. Rao <naveen.n.rao@linux.ibm.com>
+M:	Naveen N Rao <naveen@kernel.org>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
@@ -12906,7 +12907,7 @@ LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Michael Ellerman <mpe@ellerman.id.au>
 R:	Nicholas Piggin <npiggin@gmail.com>
 R:	Christophe Leroy <christophe.leroy@csgroup.eu>
-R:	Naveen N. Rao <naveen.n.rao@linux.ibm.com>
+R:	Naveen N Rao <naveen@kernel.org>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 W:	https://github.com/linuxppc/wiki/wiki
@@ -15761,6 +15762,12 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/hwmon/nuvoton,nct6775.yaml
 F:	drivers/hwmon/nct6775-i2c.c
+
+NETCONSOLE
+M:	Breno Leitao <leitao@debian.org>
+S:	Maintained
+F:	Documentation/networking/netconsole.rst
+F:	drivers/net/netconsole.c
 
 NETDEVSIM
 M:	Jakub Kicinski <kuba@kernel.org>

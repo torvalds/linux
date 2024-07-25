@@ -11,12 +11,16 @@ metadata on the receive side.
 General Design
 ==============
 
-The headroom for the metadata is reserved via ``tx_metadata_len`` in
-``struct xdp_umem_reg``. The metadata length is therefore the same for
-every socket that shares the same umem. The metadata layout is a fixed UAPI,
-refer to ``union xsk_tx_metadata`` in ``include/uapi/linux/if_xdp.h``.
-Thus, generally, the ``tx_metadata_len`` field above should contain
-``sizeof(union xsk_tx_metadata)``.
+The headroom for the metadata is reserved via ``tx_metadata_len`` and
+``XDP_UMEM_TX_METADATA_LEN`` flag in ``struct xdp_umem_reg``. The metadata
+length is therefore the same for every socket that shares the same umem.
+The metadata layout is a fixed UAPI, refer to ``union xsk_tx_metadata`` in
+``include/uapi/linux/if_xdp.h``. Thus, generally, the ``tx_metadata_len``
+field above should contain ``sizeof(union xsk_tx_metadata)``.
+
+Note that in the original implementation the ``XDP_UMEM_TX_METADATA_LEN``
+flag was not required. Applications might attempt to create a umem
+with a flag first and if it fails, do another attempt without a flag.
 
 The headroom and the metadata itself should be located right before
 ``xdp_desc->addr`` in the umem frame. Within a frame, the metadata

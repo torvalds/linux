@@ -6819,9 +6819,6 @@ tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		tcp_fast_path_on(tp);
 		if (sk->sk_shutdown & SEND_SHUTDOWN)
 			tcp_shutdown(sk, SEND_SHUTDOWN);
-
-		if (sk->sk_socket)
-			goto consume;
 		break;
 
 	case TCP_FIN_WAIT1: {
