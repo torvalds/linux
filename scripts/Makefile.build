@@ -288,10 +288,15 @@ rust_common_cmd = \
 # would not match each other.
 
 quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $<
+      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $< $(cmd_objtool)
+
+define rule_rustc_o_rs
+	$(call cmd_and_fixdep,rustc_o_rs)
+	$(call cmd,gen_objtooldep)
+endef
 
 $(obj)/%.o: $(obj)/%.rs FORCE
-	+$(call if_changed_dep,rustc_o_rs)
+	+$(call if_changed_rule,rustc_o_rs)
 
 quiet_cmd_rustc_rsi_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_rsi_rs = \
