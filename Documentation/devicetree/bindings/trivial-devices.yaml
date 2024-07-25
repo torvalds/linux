@@ -412,6 +412,7 @@ properties:
           - ti,tps544b25
           - ti,tps544c20
           - ti,tps544c25
+          - ti,tps546d24
             # I2C Touch-Screen Controller
           - ti,tsc2003
             # Vicor Corporation Digital Supervisor
