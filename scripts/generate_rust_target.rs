@@ -164,7 +164,14 @@ fn main() {
         );
         let mut features = "-mmx,+soft-float".to_string();
         if cfg.has("MITIGATION_RETPOLINE") {
+            // The kernel uses `-mretpoline-external-thunk` (for Clang), which Clang maps to the
+            // target feature of the same name plus the other two target features in
+            // `clang/lib/Driver/ToolChains/Arch/X86.cpp`. These should be eventually enabled via
+            // `-Ctarget-feature` when `rustc` starts recognizing them (or via a new dedicated
+            // flag); see https://github.com/rust-lang/rust/issues/116852.
             features += ",+retpoline-external-thunk";
+            features += ",+retpoline-indirect-branches";
+            features += ",+retpoline-indirect-calls";
         }
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
