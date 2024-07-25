@@ -40,6 +40,15 @@ enum amdgpu_dm_pipe_crc_source {
 };
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+struct phy_id_mapping {
+	bool assigned;
+	bool is_mst;
+	uint8_t enc_hw_inst;
+	u8 lct;
+	u8 port_num;
+	u8 rad[8];
+};
+
 struct crc_window_param {
 	uint16_t x_start;
 	uint16_t y_start;

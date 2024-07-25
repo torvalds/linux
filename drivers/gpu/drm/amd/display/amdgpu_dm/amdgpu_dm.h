@@ -547,6 +547,10 @@ struct amdgpu_display_manager {
 	 * all crtcs.
 	 */
 	struct secure_display_context *secure_display_ctxs;
+
+	bool secure_display_phy_mapping_updated;
+	int phy_id_mapping_cnt;
+	struct phy_id_mapping phy_id_mapping[AMDGPU_DM_MAX_CRTC];
 #endif
 	/**
 	 * @hpd_rx_offload_wq:
