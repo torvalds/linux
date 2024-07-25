@@ -444,6 +444,11 @@ struct iavf_adapter {
 	spinlock_t adv_rss_lock;	/* protect the RSS management list */
 };
 
+/* Must be called with fdir_fltr_lock lock held */
+static inline bool iavf_fdir_max_reached(struct iavf_adapter *adapter)
+{
+	return adapter->fdir_active_fltr >= IAVF_MAX_FDIR_FILTERS;
+}
 
 /* Ethtool Private Flags */
 
