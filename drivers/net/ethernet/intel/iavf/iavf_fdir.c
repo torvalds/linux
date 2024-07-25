@@ -796,6 +796,9 @@ bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 
 	spin_lock_bh(&adapter->fdir_fltr_lock);
 	list_for_each_entry(tmp, &adapter->fdir_list_head, list) {
+		if (iavf_is_raw_fdir(fltr))
+			continue;
+
 		if (tmp->flow_type != fltr->flow_type)
 			continue;
 
@@ -817,18 +820,21 @@ bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 /**
  * iavf_find_fdir_fltr - find FDIR filter
  * @adapter: pointer to the VF adapter structure
- * @loc: location to find.
+ * @is_raw: filter type, is raw (tc u32) or not (ethtool)
+ * @data: data to ID the filter, type dependent
  *
  * Returns: pointer to Flow Director filter if found or NULL. Lock must be held.
  */
 struct iavf_fdir_fltr *iavf_find_fdir_fltr(struct iavf_adapter *adapter,
-					   u32 loc)
+					   bool is_raw, u32 data)
 {
 	struct iavf_fdir_fltr *rule;
 
-	list_for_each_entry(rule, &adapter->fdir_list_head, list)
-		if (rule->loc == loc)
+	list_for_each_entry(rule, &adapter->fdir_list_head, list) {
+		if ((is_raw && rule->cls_u32_handle == data) ||
+		    (!is_raw && rule->loc == data))
 			return rule;
+	}
 
 	return NULL;
 }
@@ -855,6 +861,9 @@ int iavf_fdir_add_fltr(struct iavf_adapter *adapter,
 	}
 
 	list_for_each_entry(rule, &adapter->fdir_list_head, list) {
+		if (iavf_is_raw_fdir(fltr))
+			break;
+
 		if (rule->loc >= fltr->loc)
 			break;
 		parent = rule;
@@ -864,7 +873,8 @@ int iavf_fdir_add_fltr(struct iavf_adapter *adapter,
 		list_add(&fltr->list, &parent->list);
 	else
 		list_add(&fltr->list, &adapter->fdir_list_head);
-	adapter->fdir_active_fltr++;
+
+	iavf_inc_fdir_active_fltr(adapter, fltr);
 
 	if (adapter->link_up)
 		fltr->state = IAVF_FDIR_FLTR_ADD_REQUEST;
@@ -881,25 +891,26 @@ int iavf_fdir_add_fltr(struct iavf_adapter *adapter,
 /**
  * iavf_fdir_del_fltr - delete a flow director filter from the list
  * @adapter: pointer to the VF adapter structure
- * @loc: location to delete.
+ * @is_raw: filter type, is raw (tc u32) or not (ethtool)
+ * @data: data to ID the filter, type dependent
  *
  * Return: 0 on success or negative errno on failure.
  */
-int iavf_fdir_del_fltr(struct iavf_adapter *adapter, u32 loc)
+int iavf_fdir_del_fltr(struct iavf_adapter *adapter, bool is_raw, u32 data)
 {
 	struct iavf_fdir_fltr *fltr = NULL;
 	int err = 0;
 
 	spin_lock_bh(&adapter->fdir_fltr_lock);
-	fltr = iavf_find_fdir_fltr(adapter, loc);
+	fltr = iavf_find_fdir_fltr(adapter, is_raw, data);
 
 	if (fltr) {
 		if (fltr->state == IAVF_FDIR_FLTR_ACTIVE) {
 			fltr->state = IAVF_FDIR_FLTR_DEL_REQUEST;
 		} else if (fltr->state == IAVF_FDIR_FLTR_INACTIVE) {
 			list_del(&fltr->list);
+			iavf_dec_fdir_active_fltr(adapter, fltr);
 			kfree(fltr);
-			adapter->fdir_active_fltr--;
 			fltr = NULL;
 		} else {
 			err = -EBUSY;
