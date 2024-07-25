@@ -877,19 +877,19 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 static int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 {
 	unsigned long end_index = end >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 	int ret = 0;
 
 	for (unsigned long index = start >> PAGE_SHIFT;
 	     index <= end_index; index++) {
-		page = find_get_page(inode->i_mapping, index);
-		if (unlikely(!page)) {
+		folio = __filemap_get_folio(inode->i_mapping, index, 0, 0);
+		if (IS_ERR(folio)) {
 			if (!ret)
-				ret = -ENOENT;
+				ret = PTR_ERR(folio);
 			continue;
 		}
-		clear_page_dirty_for_io(page);
-		put_page(page);
+		folio_clear_dirty_for_io(folio);
+		folio_put(folio);
 	}
 	return ret;
 }
