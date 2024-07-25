@@ -25,9 +25,9 @@
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -35,6 +35,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/util_macros.h>
 
 /* common register definitions */
@@ -80,9 +81,6 @@
 /* bit mask for alert config bits of Mask/Enable Register */
 #define INA226_ALERT_CONFIG_MASK	GENMASK(15, 10)
 #define INA226_ALERT_FUNCTION_FLAG	BIT(4)
-
-/* common attrs, ina226 attrs and NULL */
-#define INA2XX_MAX_ATTRIBUTE_GROUPS	3
 
 /*
  * Both bus voltage and shunt voltage conversion times for ina226 are set
@@ -147,8 +145,6 @@ struct ina2xx_data {
 	long power_lsb_uW;
 	struct mutex config_lock;
 	struct regmap *regmap;
-
-	const struct attribute_group *groups[INA2XX_MAX_ATTRIBUTE_GROUPS];
 };
 
 static const struct ina2xx_config ina2xx_config[] = {
@@ -193,7 +189,7 @@ static int ina226_reg_to_interval(u16 config)
  * Return the new, shifted AVG field value of CONFIG register,
  * to use with regmap_update_bits
  */
-static u16 ina226_interval_to_reg(unsigned long interval)
+static u16 ina226_interval_to_reg(long interval)
 {
 	int avg, avg_bits;
 
@@ -247,14 +243,19 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
 	return val;
 }
 
-static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
+/*
+ * Read and convert register value from chip. If the register value is 0,
+ * check if the chip has been power cycled or reset. If so, re-initialize it.
+ */
+static int ina2xx_read_init(struct device *dev, int reg, long *val)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
+	unsigned int regval;
 	int ret, retry;
 
 	for (retry = 5; retry; retry--) {
-		ret = regmap_read(regmap, reg, regval);
+		ret = regmap_read(regmap, reg, &regval);
 		if (ret < 0)
 			return ret;
 
@@ -266,7 +267,7 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 		 * We do that extra read of the calibration register if there
 		 * is some hint of a chip reset.
 		 */
-		if (*regval == 0) {
+		if (regval == 0) {
 			unsigned int cal;
 
 			ret = regmap_read_bypassed(regmap, INA2XX_CALIBRATION, &cal);
@@ -288,6 +289,7 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 				continue;
 			}
 		}
+		*val = ina2xx_get_value(data, reg, regval);
 		return 0;
 	}
 
@@ -298,46 +300,6 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 	 */
 	dev_err(dev, "unable to reinitialize the chip\n");
 	return -ENODEV;
-}
-
-static ssize_t ina2xx_value_show(struct device *dev,
-				 struct device_attribute *da, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	struct ina2xx_data *data = dev_get_drvdata(dev);
-	unsigned int regval;
-
-	int err = ina2xx_read_reg(dev, attr->index, &regval);
-
-	if (err < 0)
-		return err;
-
-	return sysfs_emit(buf, "%d\n", ina2xx_get_value(data, attr->index, regval));
-}
-
-static int ina226_reg_to_alert(struct ina2xx_data *data, u32 mask, u16 regval)
-{
-	int reg;
-
-	switch (mask) {
-	case INA226_SHUNT_OVER_VOLTAGE_MASK:
-	case INA226_SHUNT_UNDER_VOLTAGE_MASK:
-		reg = INA2XX_SHUNT_VOLTAGE;
-		break;
-	case INA226_BUS_OVER_VOLTAGE_MASK:
-	case INA226_BUS_UNDER_VOLTAGE_MASK:
-		reg = INA2XX_BUS_VOLTAGE;
-		break;
-	case INA226_POWER_OVER_LIMIT_MASK:
-		reg = INA2XX_POWER;
-		break;
-	default:
-		/* programmer goofed */
-		WARN_ON_ONCE(1);
-		return 0;
-	}
-
-	return ina2xx_get_value(data, reg, regval);
 }
 
 /*
@@ -369,14 +331,10 @@ static u16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, unsigned long
 	}
 }
 
-static ssize_t ina226_alert_show(struct device *dev,
-				 struct device_attribute *da, char *buf)
+static int ina226_alert_limit_read(struct ina2xx_data *data, u32 mask, int reg, long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	struct ina2xx_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
 	int regval;
-	int val = 0;
 	int ret;
 
 	mutex_lock(&data->config_lock);
@@ -384,32 +342,26 @@ static ssize_t ina226_alert_show(struct device *dev,
 	if (ret)
 		goto abort;
 
-	if (regval & attr->index) {
+	if (regval & mask) {
 		ret = regmap_read(regmap, INA226_ALERT_LIMIT, &regval);
 		if (ret)
 			goto abort;
-		val = ina226_reg_to_alert(data, attr->index, regval);
+		*val = ina2xx_get_value(data, reg, regval);
+	} else {
+		*val = 0;
 	}
-
-	ret = sysfs_emit(buf, "%d\n", val);
 abort:
 	mutex_unlock(&data->config_lock);
 	return ret;
 }
 
-static ssize_t ina226_alert_store(struct device *dev,
-				  struct device_attribute *da,
-				  const char *buf, size_t count)
+static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, long val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	struct ina2xx_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
-	unsigned long val;
 	int ret;
 
-	ret = kstrtoul(buf, 10, &val);
-	if (ret < 0)
-		return ret;
+	if (val < 0)
+		return -EINVAL;
 
 	/*
 	 * Clear all alerts first to avoid accidentally triggering ALERT pin
@@ -423,42 +375,284 @@ static ssize_t ina226_alert_store(struct device *dev,
 		goto abort;
 
 	ret = regmap_write(regmap, INA226_ALERT_LIMIT,
-			   ina226_alert_to_reg(data, attr->index, val));
+			   ina226_alert_to_reg(data, mask, val));
 	if (ret < 0)
 		goto abort;
 
-	if (val != 0) {
+	if (val)
 		ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
-					 INA226_ALERT_CONFIG_MASK,
-					 attr->index);
-		if (ret < 0)
-			goto abort;
-	}
-
-	ret = count;
+					 INA226_ALERT_CONFIG_MASK, mask);
 abort:
 	mutex_unlock(&data->config_lock);
 	return ret;
 }
 
-static ssize_t ina226_alarm_show(struct device *dev,
-				 struct device_attribute *da, char *buf)
+static int ina2xx_chip_read(struct device *dev, u32 attr, long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina2xx_data *data = dev_get_drvdata(dev);
-	unsigned int mask;
-	int alarm = 0;
+	u32 regval;
 	int ret;
 
-	ret = regmap_read_bypassed(data->regmap, INA226_MASK_ENABLE, &mask);
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		ret = regmap_read(data->regmap, INA2XX_CONFIG, &regval);
+		if (ret)
+			return ret;
+
+		*val = ina226_reg_to_interval(regval);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int ina226_alert_read(struct regmap *regmap, u32 mask, long *val)
+{
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_read_bypassed(regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
 		return ret;
 
-	alarm = (mask & attr->index) &&
-		(mask & INA226_ALERT_FUNCTION_FLAG);
+	*val = (regval & mask) && (regval & INA226_ALERT_FUNCTION_FLAG);
 
-	return sysfs_emit(buf, "%d\n", alarm);
+	return 0;
 }
+
+static int ina2xx_in_read(struct device *dev, u32 attr, int channel, long *val)
+{
+	int voltage_reg = channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE;
+	u32 under_voltage_mask = channel ? INA226_BUS_UNDER_VOLTAGE_MASK
+					 : INA226_SHUNT_UNDER_VOLTAGE_MASK;
+	u32 over_voltage_mask = channel ? INA226_BUS_OVER_VOLTAGE_MASK
+					: INA226_SHUNT_OVER_VOLTAGE_MASK;
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+	unsigned int regval;
+	int ret;
+
+	switch (attr) {
+	case hwmon_in_input:
+		ret = regmap_read(regmap, voltage_reg, &regval);
+		if (ret)
+			return ret;
+		*val = ina2xx_get_value(data, voltage_reg, regval);
+		break;
+	case hwmon_in_lcrit:
+		return ina226_alert_limit_read(data, under_voltage_mask,
+					       voltage_reg, val);
+	case hwmon_in_crit:
+		return ina226_alert_limit_read(data, over_voltage_mask,
+					       voltage_reg, val);
+	case hwmon_in_lcrit_alarm:
+		return ina226_alert_read(regmap, under_voltage_mask, val);
+	case hwmon_in_crit_alarm:
+		return ina226_alert_read(regmap, over_voltage_mask, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int ina2xx_power_read(struct device *dev, u32 attr, long *val)
+{
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_power_input:
+		return ina2xx_read_init(dev, INA2XX_POWER, val);
+	case hwmon_power_crit:
+		return ina226_alert_limit_read(data, INA226_POWER_OVER_LIMIT_MASK,
+					       INA2XX_POWER, val);
+	case hwmon_power_crit_alarm:
+		return ina226_alert_read(data->regmap, INA226_POWER_OVER_LIMIT_MASK, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina2xx_curr_read(struct device *dev, u32 attr, long *val)
+{
+	switch (attr) {
+	case hwmon_curr_input:
+		return ina2xx_read_init(dev, INA2XX_CURRENT, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina2xx_read(struct device *dev, enum hwmon_sensor_types type,
+		       u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_chip:
+		return ina2xx_chip_read(dev, attr, val);
+	case hwmon_in:
+		return ina2xx_in_read(dev, attr, channel, val);
+	case hwmon_power:
+		return ina2xx_power_read(dev, attr, val);
+	case hwmon_curr:
+		return ina2xx_curr_read(dev, attr, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina2xx_chip_write(struct device *dev, u32 attr, long val)
+{
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return regmap_update_bits(data->regmap, INA2XX_CONFIG,
+					  INA226_AVG_RD_MASK,
+					  ina226_interval_to_reg(val));
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina2xx_in_write(struct device *dev, u32 attr, int channel, long val)
+{
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_in_lcrit:
+		return ina226_alert_limit_write(data,
+			channel ? INA226_BUS_UNDER_VOLTAGE_MASK : INA226_SHUNT_UNDER_VOLTAGE_MASK,
+			val);
+	case hwmon_in_crit:
+		return ina226_alert_limit_write(data,
+			channel ? INA226_BUS_OVER_VOLTAGE_MASK : INA226_SHUNT_OVER_VOLTAGE_MASK,
+			val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int ina2xx_power_write(struct device *dev, u32 attr, long val)
+{
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_power_crit:
+		return ina226_alert_limit_write(data, INA226_POWER_OVER_LIMIT_MASK, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int ina2xx_write(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long val)
+{
+	switch (type) {
+	case hwmon_chip:
+		return ina2xx_chip_write(dev, attr, val);
+	case hwmon_in:
+		return ina2xx_in_write(dev, attr, channel, val);
+	case hwmon_power:
+		return ina2xx_power_write(dev, attr, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type,
+				 u32 attr, int channel)
+{
+	const struct ina2xx_data *data = _data;
+	enum ina2xx_ids chip = data->chip;
+
+	switch (type) {
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_input:
+			return 0444;
+		case hwmon_in_lcrit:
+		case hwmon_in_crit:
+			if (chip == ina226)
+				return 0644;
+			break;
+		case hwmon_in_lcrit_alarm:
+		case hwmon_in_crit_alarm:
+			if (chip == ina226)
+				return 0444;
+			break;
+		default:
+			break;
+		}
+		break;
+	case hwmon_curr:
+		switch (attr) {
+		case hwmon_curr_input:
+			return 0444;
+		default:
+			break;
+		}
+		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_input:
+			return 0444;
+		case hwmon_power_crit:
+			if (chip == ina226)
+				return 0644;
+			break;
+		case hwmon_power_crit_alarm:
+			if (chip == ina226)
+				return 0444;
+			break;
+		default:
+			break;
+		}
+		break;
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			if (chip == ina226)
+				return 0644;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static const struct hwmon_channel_info * const ina2xx_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT | HWMON_I_CRIT | HWMON_I_CRIT_ALARM |
+			   HWMON_I_LCRIT | HWMON_I_LCRIT_ALARM,
+			   HWMON_I_INPUT | HWMON_I_CRIT | HWMON_I_CRIT_ALARM |
+			   HWMON_I_LCRIT | HWMON_I_LCRIT_ALARM
+			   ),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT),
+	HWMON_CHANNEL_INFO(power,
+			   HWMON_P_INPUT | HWMON_P_CRIT | HWMON_P_CRIT_ALARM),
+	NULL
+};
+
+static const struct hwmon_ops ina2xx_hwmon_ops = {
+	.is_visible = ina2xx_is_visible,
+	.read = ina2xx_read,
+	.write = ina2xx_write,
+};
+
+static const struct hwmon_chip_info ina2xx_chip_info = {
+	.ops = &ina2xx_hwmon_ops,
+	.info = ina2xx_info,
+};
+
+/* shunt resistance */
 
 /*
  * In order to keep calibration register value fixed, the product
@@ -481,21 +675,21 @@ static int ina2xx_set_shunt(struct ina2xx_data *data, unsigned long val)
 	return 0;
 }
 
-static ssize_t ina2xx_shunt_show(struct device *dev,
-				 struct device_attribute *da, char *buf)
+static ssize_t shunt_resistor_show(struct device *dev,
+				   struct device_attribute *da, char *buf)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
 
 	return sysfs_emit(buf, "%li\n", data->rshunt);
 }
 
-static ssize_t ina2xx_shunt_store(struct device *dev,
-				  struct device_attribute *da,
-				  const char *buf, size_t count)
+static ssize_t shunt_resistor_store(struct device *dev,
+				    struct device_attribute *da,
+				    const char *buf, size_t count)
 {
+	struct ina2xx_data *data = dev_get_drvdata(dev);
 	unsigned long val;
 	int status;
-	struct ina2xx_data *data = dev_get_drvdata(dev);
 
 	status = kstrtoul(buf, 10, &val);
 	if (status < 0)
@@ -509,114 +703,14 @@ static ssize_t ina2xx_shunt_store(struct device *dev,
 	return count;
 }
 
-static ssize_t ina226_interval_store(struct device *dev,
-				     struct device_attribute *da,
-				     const char *buf, size_t count)
-{
-	struct ina2xx_data *data = dev_get_drvdata(dev);
-	unsigned long val;
-	int status;
-
-	status = kstrtoul(buf, 10, &val);
-	if (status < 0)
-		return status;
-
-	status = regmap_update_bits(data->regmap, INA2XX_CONFIG,
-				    INA226_AVG_RD_MASK,
-				    ina226_interval_to_reg(val));
-	if (status < 0)
-		return status;
-
-	return count;
-}
-
-static ssize_t ina226_interval_show(struct device *dev,
-				    struct device_attribute *da, char *buf)
-{
-	struct ina2xx_data *data = dev_get_drvdata(dev);
-	int status;
-	unsigned int regval;
-
-	status = regmap_read(data->regmap, INA2XX_CONFIG, &regval);
-	if (status)
-		return status;
-
-	return sysfs_emit(buf, "%d\n", ina226_reg_to_interval(regval));
-}
-
-/* shunt voltage */
-static SENSOR_DEVICE_ATTR_RO(in0_input, ina2xx_value, INA2XX_SHUNT_VOLTAGE);
-/* shunt voltage over/under voltage alert setting and alarm */
-static SENSOR_DEVICE_ATTR_RW(in0_crit, ina226_alert,
-			     INA226_SHUNT_OVER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RW(in0_lcrit, ina226_alert,
-			     INA226_SHUNT_UNDER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RO(in0_crit_alarm, ina226_alarm,
-			     INA226_SHUNT_OVER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RO(in0_lcrit_alarm, ina226_alarm,
-			     INA226_SHUNT_UNDER_VOLTAGE_MASK);
-
-/* bus voltage */
-static SENSOR_DEVICE_ATTR_RO(in1_input, ina2xx_value, INA2XX_BUS_VOLTAGE);
-/* bus voltage over/under voltage alert setting and alarm */
-static SENSOR_DEVICE_ATTR_RW(in1_crit, ina226_alert,
-			     INA226_BUS_OVER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RW(in1_lcrit, ina226_alert,
-			     INA226_BUS_UNDER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RO(in1_crit_alarm, ina226_alarm,
-			     INA226_BUS_OVER_VOLTAGE_MASK);
-static SENSOR_DEVICE_ATTR_RO(in1_lcrit_alarm, ina226_alarm,
-			     INA226_BUS_UNDER_VOLTAGE_MASK);
-
-/* calculated current */
-static SENSOR_DEVICE_ATTR_RO(curr1_input, ina2xx_value, INA2XX_CURRENT);
-
-/* calculated power */
-static SENSOR_DEVICE_ATTR_RO(power1_input, ina2xx_value, INA2XX_POWER);
-/* over-limit power alert setting and alarm */
-static SENSOR_DEVICE_ATTR_RW(power1_crit, ina226_alert,
-			     INA226_POWER_OVER_LIMIT_MASK);
-static SENSOR_DEVICE_ATTR_RO(power1_crit_alarm, ina226_alarm,
-			     INA226_POWER_OVER_LIMIT_MASK);
-
-/* shunt resistance */
-static SENSOR_DEVICE_ATTR_RW(shunt_resistor, ina2xx_shunt, INA2XX_CALIBRATION);
-
-/* update interval (ina226 only) */
-static SENSOR_DEVICE_ATTR_RW(update_interval, ina226_interval, 0);
+static DEVICE_ATTR_RW(shunt_resistor);
 
 /* pointers to created device attributes */
 static struct attribute *ina2xx_attrs[] = {
-	&sensor_dev_attr_in0_input.dev_attr.attr,
-	&sensor_dev_attr_in1_input.dev_attr.attr,
-	&sensor_dev_attr_curr1_input.dev_attr.attr,
-	&sensor_dev_attr_power1_input.dev_attr.attr,
-	&sensor_dev_attr_shunt_resistor.dev_attr.attr,
+	&dev_attr_shunt_resistor.attr,
 	NULL,
 };
-
-static const struct attribute_group ina2xx_group = {
-	.attrs = ina2xx_attrs,
-};
-
-static struct attribute *ina226_attrs[] = {
-	&sensor_dev_attr_in0_crit.dev_attr.attr,
-	&sensor_dev_attr_in0_lcrit.dev_attr.attr,
-	&sensor_dev_attr_in0_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_in0_lcrit_alarm.dev_attr.attr,
-	&sensor_dev_attr_in1_crit.dev_attr.attr,
-	&sensor_dev_attr_in1_lcrit.dev_attr.attr,
-	&sensor_dev_attr_in1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_in1_lcrit_alarm.dev_attr.attr,
-	&sensor_dev_attr_power1_crit.dev_attr.attr,
-	&sensor_dev_attr_power1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_update_interval.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ina226_group = {
-	.attrs = ina226_attrs,
-};
+ATTRIBUTE_GROUPS(ina2xx);
 
 /*
  * Initialize chip
@@ -662,8 +756,8 @@ static int ina2xx_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct ina2xx_data *data;
 	struct device *hwmon_dev;
-	int ret, group = 0;
 	enum ina2xx_ids chip;
+	int ret;
 
 	chip = (uintptr_t)i2c_get_match_data(client);
 
@@ -690,12 +784,9 @@ static int ina2xx_probe(struct i2c_client *client)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to configure device\n");
 
-	data->groups[group++] = &ina2xx_group;
-	if (chip == ina226)
-		data->groups[group++] = &ina226_group;
-
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
-							   data, data->groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
+							 data, &ina2xx_chip_info,
+							 ina2xx_groups);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
