@@ -41,13 +41,22 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-enum physymclk_fe_source {
-	PHYSYMCLK_FE_SYMCLK_A = 0,	// Select functional clock from backend symclk A
-	PHYSYMCLK_FE_SYMCLK_B,
-	PHYSYMCLK_FE_SYMCLK_C,
-	PHYSYMCLK_FE_SYMCLK_D,
-	PHYSYMCLK_FE_SYMCLK_E,
-	PHYSYMCLK_FE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+enum symclk_fe_source {
+	SYMCLK_FE_SYMCLK_A = 0,	// Select functional clock from backend symclk A
+	SYMCLK_FE_SYMCLK_B,
+	SYMCLK_FE_SYMCLK_C,
+	SYMCLK_FE_SYMCLK_D,
+	SYMCLK_FE_SYMCLK_E,
+	SYMCLK_FE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum symclk_be_source {
+	SYMCLK_BE_PHYCLK = 0,	// Select phy clk when sym_clk_enable = 1
+	SYMCLK_BE_DPIACLK_810 = 4,
+	SYMCLK_BE_DPIACLK_162 = 5,
+	SYMCLK_BE_DPIACLK_540 = 6,
+	SYMCLK_BE_DPIACLK_270 = 7,
+	SYMCLK_BE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
 };
 
 enum physymclk_source {
@@ -252,7 +261,7 @@ static void dccg35_set_physymclk_rcg(
 	}
 }
 
-static void dccg35_set_physymclk_fe_rcg(
+static void dccg35_set_symclk_fe_rcg(
 		struct dccg *dccg,
 		int inst,
 		bool enable)
@@ -282,6 +291,45 @@ static void dccg35_set_physymclk_fe_rcg(
 	case 4:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
 				SYMCLKE_FE_ROOT_GATE_DISABLE, enable ? 0 : 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+static void dccg35_set_symclk_be_rcg(
+	struct dccg *dccg,
+	int inst,
+	bool enable)
+{
+
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* TBD add symclk_be in rcg control bits */
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.physymclk)
+		return;
+
+	switch (inst) {
+	case 0:
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
+				   SYMCLKA_ROOT_GATE_DISABLE, enable ? 0 : 1);
+		break;
+	case 1:
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
+				   SYMCLKB_ROOT_GATE_DISABLE, enable ? 0 : 1);
+		break;
+	case 2:
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
+				   SYMCLKC_ROOT_GATE_DISABLE, enable ? 0 : 1);
+		break;
+	case 3:
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
+				   SYMCLKD_ROOT_GATE_DISABLE, enable ? 0 : 1);
+		break;
+	case 4:
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL5,
+				   SYMCLKE_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -665,6 +713,42 @@ static void dccg35_set_physymclk_src_new(
 	}
 }
 
+static void dccg35_set_symclk_be_src_new(
+	struct dccg *dccg,
+	enum symclk_be_source src,
+	int inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	switch (inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLKA_CLOCK_ENABLE,
+					 SYMCLKA_CLOCK_ENABLE, (src == SYMCLK_BE_REFCLK) ? 0 : 1,
+					 SYMCLKA_SRC_SEL, (src == SYMCLK_BE_REFCLK) ? 0 : src);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLKB_CLOCK_ENABLE,
+					 SYMCLKB_CLOCK_ENABLE, (src == SYMCLK_BE_REFCLK) ? 0 : 1,
+					 SYMCLKB_SRC_SEL, (src == SYMCLK_BE_REFCLK) ? 0 : src);
+		break;
+	case 2:
+		REG_UPDATE_2(SYMCLKC_CLOCK_ENABLE,
+					 SYMCLKC_CLOCK_ENABLE, (src == SYMCLK_BE_REFCLK) ? 0 : 1,
+					 SYMCLKC_SRC_SEL, (src == SYMCLK_BE_REFCLK) ? 0 : src);
+		break;
+	case 3:
+		REG_UPDATE_2(SYMCLKD_CLOCK_ENABLE,
+					 SYMCLKD_CLOCK_ENABLE, (src == SYMCLK_BE_REFCLK) ? 0 : 1,
+					 SYMCLKD_SRC_SEL, (src == SYMCLK_BE_REFCLK) ? 0 : src);
+		break;
+	case 4:
+		REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+					 SYMCLKE_CLOCK_ENABLE, (src == SYMCLK_BE_REFCLK) ? 0 : 1,
+					 SYMCLKE_SRC_SEL, (src == SYMCLK_BE_REFCLK) ? 0 : src);
+		break;
+	}
+}
+
 static int dccg35_is_symclk_fe_src_functional_be(struct dccg *dccg,
 												 int symclk_fe_inst,
 												 int symclk_be_inst)
@@ -699,35 +783,35 @@ static int dccg35_is_symclk_fe_src_functional_be(struct dccg *dccg,
 	return 0;
 }
 
-static void dccg35_set_symclk_fe_src_new(struct dccg *dccg, enum physymclk_fe_source src, int inst)
+static void dccg35_set_symclk_fe_src_new(struct dccg *dccg, enum symclk_fe_source src, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	switch (inst) {
 	case 0:
 		REG_UPDATE_2(SYMCLKA_CLOCK_ENABLE,
-					 SYMCLKA_FE_EN, (src == PHYSYMCLK_FE_REFCLK) ? 0 : 1,
-					 SYMCLKA_FE_SRC_SEL, (src == PHYSYMCLK_FE_REFCLK) ? 0 : src);
+					 SYMCLKA_FE_EN, (src == SYMCLK_FE_REFCLK) ? 0 : 1,
+					 SYMCLKA_FE_SRC_SEL, (src == SYMCLK_FE_REFCLK) ? 0 : src);
 		break;
 	case 1:
 		REG_UPDATE_2(SYMCLKB_CLOCK_ENABLE,
-					 SYMCLKB_FE_EN, (src == PHYSYMCLK_FE_REFCLK) ? 0 : 1,
-					 SYMCLKB_FE_SRC_SEL, (src == PHYSYMCLK_FE_REFCLK) ? 0 : src);
+					 SYMCLKB_FE_EN, (src == SYMCLK_FE_REFCLK) ? 0 : 1,
+					 SYMCLKB_FE_SRC_SEL, (src == SYMCLK_FE_REFCLK) ? 0 : src);
 		break;
 	case 2:
 		REG_UPDATE_2(SYMCLKC_CLOCK_ENABLE,
-					 SYMCLKC_FE_EN, (src == PHYSYMCLK_FE_REFCLK) ? 0 : 1,
-					 SYMCLKC_FE_SRC_SEL, (src == PHYSYMCLK_FE_REFCLK) ? 0 : src);
+					 SYMCLKC_FE_EN, (src == SYMCLK_FE_REFCLK) ? 0 : 1,
+					 SYMCLKC_FE_SRC_SEL, (src == SYMCLK_FE_REFCLK) ? 0 : src);
 		break;
 	case 3:
 		REG_UPDATE_2(SYMCLKD_CLOCK_ENABLE,
-					 SYMCLKD_FE_EN, (src == PHYSYMCLK_FE_REFCLK) ? 0 : 1,
-					 SYMCLKD_FE_SRC_SEL, (src == PHYSYMCLK_FE_REFCLK) ? 0 : src);
+					 SYMCLKD_FE_EN, (src == SYMCLK_FE_REFCLK) ? 0 : 1,
+					 SYMCLKD_FE_SRC_SEL, (src == SYMCLK_FE_REFCLK) ? 0 : src);
 		break;
 	case 4:
 		REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
-					 SYMCLKE_FE_EN, (src == PHYSYMCLK_FE_REFCLK) ? 0 : 1,
-					 SYMCLKE_FE_SRC_SEL, (src == PHYSYMCLK_FE_REFCLK) ? 0 : src);
+					 SYMCLKE_FE_EN, (src == SYMCLK_FE_REFCLK) ? 0 : 1,
+					 SYMCLKE_FE_SRC_SEL, (src == SYMCLK_FE_REFCLK) ? 0 : src);
 		break;
 	}
 }
@@ -804,9 +888,9 @@ static uint32_t dccg35_is_symclk32_se_rcg(struct dccg *dccg, int inst)
 static void dccg35_enable_symclk_fe_new(
 	struct dccg *dccg,
 	int inst,
-	enum physymclk_fe_source src)
+	enum symclk_fe_source src)
 {
-	dccg35_set_physymclk_fe_rcg(dccg, inst, false);
+	dccg35_set_symclk_fe_rcg(dccg, inst, false);
 	dccg35_set_symclk_fe_src_new(dccg, src, inst);
 }
 
@@ -814,17 +898,17 @@ static void dccg35_disable_symclk_fe_new(
 	struct dccg *dccg,
 	int inst)
 {
-	dccg35_set_symclk_fe_src_new(dccg, PHYSYMCLK_FE_REFCLK, inst);
-	dccg35_set_physymclk_fe_rcg(dccg, inst, true);
+	dccg35_set_symclk_fe_src_new(dccg, SYMCLK_FE_REFCLK, inst);
+	dccg35_set_symclk_fe_rcg(dccg, inst, true);
 }
 
 static void dccg35_enable_symclk_be_new(
 	struct dccg *dccg,
 	int inst,
-	enum physymclk_source src)
+	enum symclk_be_source src)
 {
-	dccg35_set_physymclk_rcg(dccg, inst, false);
-	dccg35_set_physymclk_src_new(dccg, inst, src);
+	dccg35_set_symclk_be_rcg(dccg, inst, false);
+	dccg35_set_symclk_be_src_new(dccg, inst, src);
 }
 
 static void dccg35_disable_symclk_be_new(
@@ -834,7 +918,7 @@ static void dccg35_disable_symclk_be_new(
 	int i;
 
 	/* Switch from functional clock to refclock */
-	dccg35_set_physymclk_src_new(dccg, inst, PHYSYMCLK_REFCLK);
+	dccg35_set_symclk_be_src_new(dccg, inst, SYMCLK_BE_REFCLK);
 
 	/* Check if any other SE connected LE and disable them */
 	for (i = 0; i < 4; i++) {
@@ -845,7 +929,7 @@ static void dccg35_disable_symclk_be_new(
 		}
 	}
 	/* Safe to RCG SYMCLK*/
-	dccg35_set_physymclk_rcg(dccg, inst, true);
+	dccg35_set_symclk_be_rcg(dccg, inst, true);
 }
 
 static void dccg35_enable_symclk32_se_new(
@@ -2041,6 +2125,132 @@ static void dccg35_dpp_root_clock_control_cb(
 		dccg35_disable_dpp_clk_new(dccg, dpp_inst);
 }
 
+static void dccg35_enable_symclk32_se_cb(
+	struct dccg *dccg,
+	int inst,
+	enum phyd32clk_clock_source phyd32clk)
+{
+	dccg35_enable_symclk32_se_new(dccg, inst, (enum symclk32_se_clk_source)phyd32clk);
+}
+
+static void dccg35_disable_symclk32_se_cb(struct dccg *dccg, int inst)
+{
+	dccg35_disable_symclk32_se_new(dccg, inst);
+}
+
+static void dccg35_disable_symclk32_le_cb(struct dccg *dccg, int inst)
+{
+	dccg35_disable_symclk32_le_new(dccg, inst);
+}
+
+static void dccg35_set_symclk32_le_root_clock_gating(
+	struct dccg *dccg,
+	int inst,
+	bool power_on)
+{
+	/* power_on set indicates we need to ungate
+	 * Currently called from optimize_bandwidth and prepare_bandwidth calls
+	 * Since clock source is not passed restore to refclock on ungate
+	 * Redundant as gating when enabled is acheived through disable_symclk32_le
+	 */
+	if (power_on)
+		dccg35_enable_symclk32_le_new(dccg, inst, SYMCLK32_LE_REFCLK);
+	else
+		dccg35_disable_symclk32_le_new(dccg, inst);
+}
+
+static void dccg35_set_dtbclk_p_src_cb(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t inst)
+{
+	if (src == DTBCLK0)
+		dccg35_enable_dtbclk_p_new(dccg, DTBCLK_DTBCLK0, inst);
+	else
+		dccg35_disable_dtbclk_p_new(dccg, inst);
+}
+
+static void dccg35_set_dtbclk_dto_cb(
+		struct dccg *dccg,
+		const struct dtbclk_dto_params *params)
+{
+	/* set_dtbclk_p_src typ called earlier to switch to DTBCLK
+	 * if params->ref_dtbclk_khz and req_dtbclk_khz are 0 switch to ref-clock
+	 */
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	/* DTO Output Rate / Pixel Rate = 1/4 */
+	int req_dtbclk_khz = params->pixclk_khz / 4;
+
+	if (params->ref_dtbclk_khz && req_dtbclk_khz) {
+		uint32_t modulo, phase;
+
+		dccg35_enable_dtbclk_p_new(dccg, DTBCLK_DTBCLK0, params->otg_inst);
+
+		// phase / modulo = dtbclk / dtbclk ref
+		modulo = params->ref_dtbclk_khz * 1000;
+		phase = req_dtbclk_khz * 1000;
+
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], modulo);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], phase);
+
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 1);
+
+		REG_WAIT(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLKDTO_ENABLE_STATUS[params->otg_inst], 1,
+				1, 100);
+
+		/* program OTG_PIXEL_RATE_DIV for DIVK1 and DIVK2 fields */
+		dccg35_set_pixel_rate_div(dccg, params->otg_inst, PIXEL_RATE_DIV_BY_1, PIXEL_RATE_DIV_BY_1);
+
+		/* The recommended programming sequence to enable DTBCLK DTO to generate
+		 * valid pixel HPO DPSTREAM ENCODER, specifies that DTO source select should
+		 * be set only after DTO is enabled
+		 */
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				PIPE_DTO_SRC_SEL[params->otg_inst], 2);
+	} else {
+		dccg35_disable_dtbclk_p_new(dccg, params->otg_inst);
+
+		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+					 DTBCLK_DTO_ENABLE[params->otg_inst], 0,
+					 PIPE_DTO_SRC_SEL[params->otg_inst], params->is_hdmi ? 0 : 1);
+
+		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
+		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);
+	}
+}
+
+static void dccg35_disable_dscclk_cb(struct dccg *dccg,
+									 int inst)
+{
+	dccg35_disable_dscclk_new(dccg, inst);
+}
+
+static void dccg35_enable_dscclk_cb(struct dccg *dccg, int inst)
+{
+	dccg35_enable_dscclk_new(dccg, inst, DSC_DTO_TUNED_CK_GPU_DISCLK_3);
+}
+
+static void dccg35_enable_symclk_se_cb(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+{
+	/* Switch to functional clock if already not selected */
+	dccg35_enable_symclk_be_new(dccg, SYMCLK_BE_PHYCLK, link_enc_inst);
+
+	dccg35_enable_symclk_fe_new(dccg, stream_enc_inst, (enum symclk_fe_source) link_enc_inst);
+
+}
+
+static void dccg35_disable_symclk_se_cb(
+			struct dccg *dccg,
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst)
+{
+	dccg35_disable_symclk_fe_new(dccg, stream_enc_inst);
+
+	/* DMU PHY sequence switches SYMCLK_BE (link_enc_inst) to ref clock once PHY is turned off */
+}
+
 static const struct dccg_funcs dccg35_funcs = {
 	.update_dpp_dto = dccg35_update_dpp_dto,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control,
@@ -2070,6 +2280,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,
 	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src,
+
 };
 
 struct dccg *dccg35_create(
@@ -2091,7 +2302,7 @@ struct dccg *dccg35_create(
 	(void)&dccg35_set_symclk32_se_rcg;
 	(void)&dccg35_set_symclk32_le_rcg;
 	(void)&dccg35_set_physymclk_rcg;
-	(void)&dccg35_set_physymclk_fe_rcg;
+	(void)&dccg35_set_symclk_fe_rcg;
 	(void)&dccg35_set_dtbclk_p_rcg;
 	(void)&dccg35_set_dppclk_rcg;
 	(void)&dccg35_set_dpstreamclk_rcg;
@@ -2129,6 +2340,18 @@ struct dccg *dccg35_create(
 	(void)&dccg35_set_dpstreamclk_root_clock_gating_cb;
 	(void)&dccg35_update_dpp_dto_cb;
 	(void)&dccg35_dpp_root_clock_control_cb;
+	(void)&dccg35_disable_symclk_se_cb;
+	(void)&dccg35_enable_symclk_se_cb;
+	(void)&dccg35_enable_dscclk_cb;
+	(void)&dccg35_disable_dscclk_cb;
+	(void)&dccg35_set_dtbclk_dto_cb;
+	(void)&dccg35_set_dtbclk_p_src_cb;
+	(void)&dccg35_set_symclk32_le_root_clock_gating;
+	(void)&dccg35_disable_symclk32_le_cb;
+	(void)&dccg35_set_symclk_be_src_new;
+	(void)&dccg35_set_symclk_be_rcg;
+	(void)&dccg35_enable_symclk32_se_cb;
+	(void)&dccg35_disable_symclk32_se_cb;
 
 	base = &dccg_dcn->base;
 	base->ctx = ctx;
