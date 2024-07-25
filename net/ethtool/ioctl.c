@@ -1382,10 +1382,9 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
-	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
-		indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
+	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
-	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
+	rss_config = kzalloc(indir_bytes + dev_key_size, GFP_USER);
 	if (!rss_config)
 		return -ENOMEM;
 
@@ -1475,16 +1474,21 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
 	if (rxfh.rss_context && ops->create_rxfh_context) {
-		if (create)
+		if (create) {
 			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev,
 						       extack);
-		else if (rxfh_dev.rss_delete)
+			/* Make sure driver populates defaults */
+			WARN_ON_ONCE(!ret && !rxfh_dev.key &&
+				     !memchr_inv(ethtool_rxfh_context_key(ctx),
+						 0, ctx->key_size));
+		} else if (rxfh_dev.rss_delete) {
 			ret = ops->remove_rxfh_context(dev, ctx,
 						       rxfh.rss_context,
 						       extack);
-		else
+		} else {
 			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev,
 						       extack);
+		}
 	} else {
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	}
@@ -1523,6 +1527,22 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			kfree(ctx);
 			goto out;
 		}
+
+		/* Fetch the defaults for the old API, in the new API drivers
+		 * should write defaults into ctx themselves.
+		 */
+		rxfh_dev.indir = (u32 *)rss_config;
+		rxfh_dev.indir_size = dev_indir_size;
+
+		rxfh_dev.key = rss_config + indir_bytes;
+		rxfh_dev.key_size = dev_key_size;
+
+		ret = ops->get_rxfh(dev, &rxfh_dev);
+		if (WARN_ON(ret)) {
+			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
+			kfree(ctx);
+			goto out;
+		}
 	}
 	if (rxfh_dev.rss_delete) {
 		WARN_ON(xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context) != ctx);
@@ -1531,12 +1551,14 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		if (rxfh_dev.indir) {
 			for (i = 0; i < dev_indir_size; i++)
 				ethtool_rxfh_context_indir(ctx)[i] = rxfh_dev.indir[i];
-			ctx->indir_configured = 1;
+			ctx->indir_configured =
+				rxfh.indir_size &&
+				rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE;
 		}
 		if (rxfh_dev.key) {
 			memcpy(ethtool_rxfh_context_key(ctx), rxfh_dev.key,
 			       dev_key_size);
-			ctx->key_configured = 1;
+			ctx->key_configured = !!rxfh.key_size;
 		}
 		if (rxfh_dev.hfunc != ETH_RSS_HASH_NO_CHANGE)
 			ctx->hfunc = rxfh_dev.hfunc;
