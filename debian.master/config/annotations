@@ -231,10 +231,10 @@ CONFIG_EXT3_FS                                  note<'ext4 handling via EXT4_USE
 CONFIG_FA_DUMP                                  policy<{'ppc64el': 'y'}>
 CONFIG_FA_DUMP                                  note<'LP: #1415562'>
 
-CONFIG_FB_EFI                                   policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'riscv64': 'n'}>
+CONFIG_FB_EFI                                   policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'n', 'riscv64': 'n'}>
 CONFIG_FB_EFI                                   note<'LP: #1965303'>
 
-CONFIG_FB_VESA                                  policy<{'amd64': 'n'}>
+CONFIG_FB_VESA                                  policy<{'amd64': 'y'}>
 CONFIG_FB_VESA                                  note<'LP: #1965303'>
 
 CONFIG_FHANDLE                                  policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'ppc64el': 'y', 'riscv64': 'y', 's390x': 'y'}>
