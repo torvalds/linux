@@ -2915,7 +2915,7 @@ static struct ice_pf *
 ice_ptp_aux_dev_to_owner_pf(struct auxiliary_device *aux_dev)
 {
 	struct ice_ptp_port_owner *ports_owner;
-	struct auxiliary_driver *aux_drv;
+	const struct auxiliary_driver *aux_drv;
 	struct ice_ptp *owner_ptp;
 
 	if (!aux_dev->dev.driver)

@@ -149,7 +149,7 @@ struct ffa_driver {
 	struct device_driver driver;
 };
 
-#define to_ffa_driver(d) container_of(d, struct ffa_driver, driver)
+#define to_ffa_driver(d) container_of_const(d, struct ffa_driver, driver)
 
 static inline void ffa_dev_set_drvdata(struct ffa_device *fdev, void *data)
 {

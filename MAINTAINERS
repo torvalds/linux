@@ -6850,6 +6850,7 @@ F:	include/linux/fwnode.h
 F:	include/linux/kobj*
 F:	include/linux/property.h
 F:	lib/kobj*
+F:	rust/kernel/device.rs
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
@@ -8716,10 +8717,12 @@ F:	include/linux/arm_ffa.h
 FIRMWARE LOADER (request_firmware)
 M:	Luis Chamberlain <mcgrof@kernel.org>
 M:	Russ Weight <russ.weight@linux.dev>
+M:	Danilo Krummrich <dakr@redhat.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/firmware_class/
 F:	drivers/base/firmware_loader/
+F:	rust/kernel/firmware.rs
 F:	include/linux/firmware.h
 
 FLEXTIMER FTM-QUADDEC DRIVER

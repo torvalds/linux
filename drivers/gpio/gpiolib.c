@@ -55,7 +55,7 @@ static DEFINE_IDA(gpio_ida);
 static dev_t gpio_devt;
 #define GPIO_DEV_MAX 256 /* 256 GPIO chip devices supported */
 
-static int gpio_bus_match(struct device *dev, struct device_driver *drv)
+static int gpio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 

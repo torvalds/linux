@@ -2082,7 +2082,7 @@ static int cxl_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 			      cxl_device_id(dev));
 }
 
-static int cxl_bus_match(struct device *dev, struct device_driver *drv)
+static int cxl_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return cxl_device_id(dev) == to_cxl_drv(drv)->id;
 }

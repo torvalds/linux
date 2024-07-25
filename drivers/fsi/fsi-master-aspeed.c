@@ -646,14 +646,12 @@ err_free_aspeed:
 	return rc;
 }
 
-static int fsi_master_aspeed_remove(struct platform_device *pdev)
+static void fsi_master_aspeed_remove(struct platform_device *pdev)
 {
 	struct fsi_master_aspeed *aspeed = platform_get_drvdata(pdev);
 
 	fsi_master_unregister(&aspeed->master);
 	clk_disable_unprepare(aspeed->clk);
-
-	return 0;
 }
 
 static const struct of_device_id fsi_master_aspeed_match[] = {
@@ -668,7 +666,7 @@ static struct platform_driver fsi_master_aspeed_driver = {
 		.of_match_table	= fsi_master_aspeed_match,
 	},
 	.probe	= fsi_master_aspeed_probe,
-	.remove = fsi_master_aspeed_remove,
+	.remove_new = fsi_master_aspeed_remove,
 };
 
 module_platform_driver(fsi_master_aspeed_driver);

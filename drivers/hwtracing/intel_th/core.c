@@ -26,9 +26,9 @@ module_param(host_mode, bool, 0444);
 
 static DEFINE_IDA(intel_th_ida);
 
-static int intel_th_match(struct device *dev, struct device_driver *driver)
+static int intel_th_match(struct device *dev, const struct device_driver *driver)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(driver);
+	const struct intel_th_driver *thdrv = to_intel_th_driver(driver);
 	struct intel_th_device *thdev = to_intel_th_device(dev);
 
 	if (thdev->type == INTEL_TH_SWITCH &&

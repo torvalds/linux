@@ -120,7 +120,7 @@ static const struct of_device_id meson_audio_arb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_audio_arb_of_match);
 
-static int meson_audio_arb_remove(struct platform_device *pdev)
+static void meson_audio_arb_remove(struct platform_device *pdev)
 {
 	struct meson_audio_arb_data *arb = platform_get_drvdata(pdev);
 
@@ -128,8 +128,6 @@ static int meson_audio_arb_remove(struct platform_device *pdev)
 	spin_lock(&arb->lock);
 	writel(0, arb->regs);
 	spin_unlock(&arb->lock);
-
-	return 0;
 }
 
 static int meson_audio_arb_probe(struct platform_device *pdev)
@@ -182,7 +180,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 
 static struct platform_driver meson_audio_arb_pdrv = {
 	.probe = meson_audio_arb_probe,
-	.remove = meson_audio_arb_remove,
+	.remove_new = meson_audio_arb_remove,
 	.driver = {
 		.name = "meson-audio-arb-reset",
 		.of_match_table = meson_audio_arb_of_match,

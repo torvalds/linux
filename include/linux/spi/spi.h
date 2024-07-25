@@ -351,10 +351,8 @@ struct spi_driver {
 	struct device_driver	driver;
 };
 
-static inline struct spi_driver *to_spi_driver(struct device_driver *drv)
-{
-	return drv ? container_of(drv, struct spi_driver, driver) : NULL;
-}
+#define to_spi_driver(__drv)   \
+	( __drv ? container_of_const(__drv, struct spi_driver, driver) : NULL )
 
 extern int __spi_register_driver(struct module *owner, struct spi_driver *sdrv);
 

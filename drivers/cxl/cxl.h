@@ -825,10 +825,7 @@ struct cxl_driver {
 	int id;
 };
 
-static inline struct cxl_driver *to_cxl_drv(struct device_driver *drv)
-{
-	return container_of(drv, struct cxl_driver, drv);
-}
+#define to_cxl_drv(__drv)	container_of_const(__drv, struct cxl_driver, drv)
 
 int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
 			  const char *modname);

@@ -130,7 +130,7 @@ struct sunxi_rsb {
 /* bus / slave device related functions */
 static const struct bus_type sunxi_rsb_bus;
 
-static int sunxi_rsb_device_match(struct device *dev, struct device_driver *drv)
+static int sunxi_rsb_device_match(struct device *dev, const struct device_driver *drv)
 {
 	return of_driver_match_device(dev, drv);
 }

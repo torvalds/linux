@@ -9,12 +9,11 @@
 #include <linux/module.h>
 #include <linux/numa.h>
 
-static int e820_pmem_remove(struct platform_device *pdev)
+static void e820_pmem_remove(struct platform_device *pdev)
 {
 	struct nvdimm_bus *nvdimm_bus = platform_get_drvdata(pdev);
 
 	nvdimm_bus_unregister(nvdimm_bus);
-	return 0;
 }
 
 static int e820_register_one(struct resource *res, void *data)
@@ -60,7 +59,7 @@ err:
 
 static struct platform_driver e820_pmem_driver = {
 	.probe = e820_pmem_probe,
-	.remove = e820_pmem_remove,
+	.remove_new = e820_pmem_remove,
 	.driver = {
 		.name = "e820_pmem",
 	},

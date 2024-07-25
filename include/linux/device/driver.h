@@ -146,16 +146,16 @@ struct driver_attribute {
 #define DRIVER_ATTR_WO(_name) \
 	struct driver_attribute driver_attr_##_name = __ATTR_WO(_name)
 
-int __must_check driver_create_file(struct device_driver *driver,
+int __must_check driver_create_file(const struct device_driver *driver,
 				    const struct driver_attribute *attr);
-void driver_remove_file(struct device_driver *driver,
+void driver_remove_file(const struct device_driver *driver,
 			const struct driver_attribute *attr);
 
 int driver_set_override(struct device *dev, const char **override,
 			const char *s, size_t len);
 int __must_check driver_for_each_device(struct device_driver *drv, struct device *start,
 					void *data, int (*fn)(struct device *dev, void *));
-struct device *driver_find_device(struct device_driver *drv,
+struct device *driver_find_device(const struct device_driver *drv,
 				  struct device *start, const void *data,
 				  int (*match)(struct device *dev, const void *data));
 
@@ -165,7 +165,7 @@ struct device *driver_find_device(struct device_driver *drv,
  * @drv: the driver we're iterating
  * @name: name of the device to match
  */
-static inline struct device *driver_find_device_by_name(struct device_driver *drv,
+static inline struct device *driver_find_device_by_name(const struct device_driver *drv,
 							const char *name)
 {
 	return driver_find_device(drv, NULL, name, device_match_name);
@@ -178,7 +178,7 @@ static inline struct device *driver_find_device_by_name(struct device_driver *dr
  * @np: of_node pointer to match.
  */
 static inline struct device *
-driver_find_device_by_of_node(struct device_driver *drv,
+driver_find_device_by_of_node(const struct device_driver *drv,
 			      const struct device_node *np)
 {
 	return driver_find_device(drv, NULL, np, device_match_of_node);
@@ -203,13 +203,13 @@ driver_find_device_by_fwnode(struct device_driver *drv,
  * @drv: the driver we're iterating
  * @devt: devt pointer to match.
  */
-static inline struct device *driver_find_device_by_devt(struct device_driver *drv,
+static inline struct device *driver_find_device_by_devt(const struct device_driver *drv,
 							dev_t devt)
 {
 	return driver_find_device(drv, NULL, &devt, device_match_devt);
 }
 
-static inline struct device *driver_find_next_device(struct device_driver *drv,
+static inline struct device *driver_find_next_device(const struct device_driver *drv,
 						     struct device *start)
 {
 	return driver_find_device(drv, start, NULL, device_match_any);
@@ -223,14 +223,14 @@ static inline struct device *driver_find_next_device(struct device_driver *drv,
  * @adev: ACPI_COMPANION device to match.
  */
 static inline struct device *
-driver_find_device_by_acpi_dev(struct device_driver *drv,
+driver_find_device_by_acpi_dev(const struct device_driver *drv,
 			       const struct acpi_device *adev)
 {
 	return driver_find_device(drv, NULL, adev, device_match_acpi_dev);
 }
 #else
 static inline struct device *
-driver_find_device_by_acpi_dev(struct device_driver *drv, const void *adev)
+driver_find_device_by_acpi_dev(const struct device_driver *drv, const void *adev)
 {
 	return NULL;
 }

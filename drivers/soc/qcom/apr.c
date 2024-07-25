@@ -338,10 +338,10 @@ static void apr_rxwq(struct work_struct *work)
 	}
 }
 
-static int apr_device_match(struct device *dev, struct device_driver *drv)
+static int apr_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct apr_device *adev = to_apr_device(dev);
-	struct apr_driver *adrv = to_apr_driver(drv);
+	const struct apr_driver *adrv = to_apr_driver(drv);
 	const struct apr_device_id *id = adrv->id_table;
 
 	/* Attempt an OF style match first */

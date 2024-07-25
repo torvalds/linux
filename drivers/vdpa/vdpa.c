@@ -65,7 +65,7 @@ static void vdpa_dev_remove(struct device *d)
 		drv->remove(vdev);
 }
 
-static int vdpa_dev_match(struct device *dev, struct device_driver *drv)
+static int vdpa_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(dev);
 

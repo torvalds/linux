@@ -26,7 +26,7 @@
 
 static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
 
-static int cpu_subsys_match(struct device *dev, struct device_driver *drv)
+static int cpu_subsys_match(struct device *dev, const struct device_driver *drv)
 {
 	/* ACPI style match is the only one that may succeed. */
 	if (acpi_driver_match_device(dev, drv))
@@ -316,7 +316,7 @@ static ssize_t crash_hotplug_show(struct device *dev,
 {
 	return sysfs_emit(buf, "%d\n", crash_check_hotplug_support());
 }
-static DEVICE_ATTR_ADMIN_RO(crash_hotplug);
+static DEVICE_ATTR_RO(crash_hotplug);
 #endif
 
 static void cpu_device_release(struct device *dev)

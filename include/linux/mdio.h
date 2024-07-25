@@ -31,7 +31,7 @@ struct mdio_device {
 	struct mii_bus *bus;
 	char modalias[MDIO_NAME_SIZE];
 
-	int (*bus_match)(struct device *dev, struct device_driver *drv);
+	int (*bus_match)(struct device *dev, const struct device_driver *drv);
 	void (*device_free)(struct mdio_device *mdiodev);
 	void (*device_remove)(struct mdio_device *mdiodev);
 
@@ -57,11 +57,8 @@ struct mdio_driver_common {
 };
 #define MDIO_DEVICE_FLAG_PHY		1
 
-static inline struct mdio_driver_common *
-to_mdio_common_driver(const struct device_driver *driver)
-{
-	return container_of(driver, struct mdio_driver_common, driver);
-}
+#define to_mdio_common_driver(__drv_c)	container_of_const(__drv_c, struct mdio_driver_common,	\
+							   driver)
 
 /* struct mdio_driver: Generic MDIO driver */
 struct mdio_driver {
@@ -80,12 +77,8 @@ struct mdio_driver {
 	void (*shutdown)(struct mdio_device *mdiodev);
 };
 
-static inline struct mdio_driver *
-to_mdio_driver(const struct device_driver *driver)
-{
-	return container_of(to_mdio_common_driver(driver), struct mdio_driver,
-			    mdiodrv);
-}
+#define to_mdio_driver(__drv_m)	container_of_const(to_mdio_common_driver(__drv_m),	\
+						   struct mdio_driver, mdiodrv)
 
 /* device driver data */
 static inline void mdiodev_set_drvdata(struct mdio_device *mdio, void *data)
@@ -105,7 +98,7 @@ void mdio_device_remove(struct mdio_device *mdiodev);
 void mdio_device_reset(struct mdio_device *mdiodev, int value);
 int mdio_driver_register(struct mdio_driver *drv);
 void mdio_driver_unregister(struct mdio_driver *drv);
-int mdio_device_bus_match(struct device *dev, struct device_driver *drv);
+int mdio_device_bus_match(struct device *dev, const struct device_driver *drv);
 
 static inline void mdio_device_get(struct mdio_device *mdiodev)
 {

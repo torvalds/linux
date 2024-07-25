@@ -1358,7 +1358,7 @@ error_free:
 	return ret;
 }
 
-static int rtsn_remove(struct platform_device *pdev)
+static void rtsn_remove(struct platform_device *pdev)
 {
 	struct rtsn_private *priv = platform_get_drvdata(pdev);
 
@@ -1372,8 +1372,6 @@ static int rtsn_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	free_netdev(priv->ndev);
-
-	return 0;
 }
 
 static struct platform_driver rtsn_driver = {

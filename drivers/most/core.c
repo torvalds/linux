@@ -491,7 +491,7 @@ static int print_links(struct device *dev, void *data)
 	return 0;
 }
 
-static int most_match(struct device *dev, struct device_driver *drv)
+static int most_match(struct device *dev, const struct device_driver *drv)
 {
 	if (!strcmp(dev_name(dev), "most"))
 		return 0;

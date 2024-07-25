@@ -303,7 +303,7 @@ struct i2c_driver {
 
 	u32 flags;
 };
-#define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
+#define to_i2c_driver(d) container_of_const(d, struct i2c_driver, driver)
 
 /**
  * struct i2c_client - represent an I2C slave device

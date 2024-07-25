@@ -60,7 +60,7 @@ struct eisa_driver {
 	struct device_driver         driver;
 };
 
-#define to_eisa_driver(drv) container_of(drv,struct eisa_driver, driver)
+#define to_eisa_driver(drv) container_of_const(drv,struct eisa_driver, driver)
 
 /* These external functions are only available when EISA support is enabled. */
 #ifdef CONFIG_EISA
