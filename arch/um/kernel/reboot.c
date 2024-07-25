@@ -59,3 +59,18 @@ void machine_halt(void)
 {
 	machine_power_off();
 }
+
+static int sys_power_off_handler(struct sys_off_data *data)
+{
+	machine_power_off();
+	return 0;
+}
+
+static int register_power_off(void)
+{
+	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
+				 SYS_OFF_PRIO_DEFAULT,
+				 sys_power_off_handler, NULL);
+	return 0;
+}
+__initcall(register_power_off);
