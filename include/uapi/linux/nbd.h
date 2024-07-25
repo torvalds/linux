@@ -51,8 +51,9 @@ enum {
 #define NBD_FLAG_READ_ONLY	(1 << 1) /* device is read-only */
 #define NBD_FLAG_SEND_FLUSH	(1 << 2) /* can flush writeback cache */
 #define NBD_FLAG_SEND_FUA	(1 << 3) /* send FUA (forced unit access) */
-/* there is a gap here to match userspace */
+#define NBD_FLAG_ROTATIONAL	(1 << 4) /* device is rotational */
 #define NBD_FLAG_SEND_TRIM	(1 << 5) /* send trim/discard */
+/* there is a gap here to match userspace */
 #define NBD_FLAG_CAN_MULTI_CONN	(1 << 8)	/* Server supports multiple connections per export. */
 
 /* values for cmd flags in the upper 16 bits of request type */

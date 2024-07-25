@@ -350,6 +350,9 @@ static int __nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
 		lim.features |= BLK_FEAT_WRITE_CACHE;
 		lim.features &= ~BLK_FEAT_FUA;
 	}
+	if (nbd->config->flags & NBD_FLAG_ROTATIONAL)
+		lim.features |= BLK_FEAT_ROTATIONAL;
+
 	lim.logical_block_size = blksize;
 	lim.physical_block_size = blksize;
 	error = queue_limits_commit_update(nbd->disk->queue, &lim);
