@@ -517,10 +517,12 @@ static void dcn401_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr
 		if (!use_hpo_encoder)
 			continue;
 
-		otg_master->clock_source->funcs->program_pix_clk(
+		if (otg_master->stream_res.pix_clk_params.controller_id > CONTROLLER_ID_UNDEFINED)
+			otg_master->clock_source->funcs->program_pix_clk(
 				otg_master->clock_source,
 				&otg_master->stream_res.pix_clk_params,
-				dccg->ctx->dc->link_srv->dp_get_encoding_format(&otg_master->link_config.dp_link_settings),
+				dccg->ctx->dc->link_srv->dp_get_encoding_format(
+					&otg_master->link_config.dp_link_settings),
 				&otg_master->pll_settings);
 	}
 }
