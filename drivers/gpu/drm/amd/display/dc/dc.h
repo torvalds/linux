@@ -979,6 +979,7 @@ struct dc_debug_options {
 	bool disable_z10;
 	bool enable_z9_disable_interface;
 	bool psr_skip_crtc_disable;
+	uint32_t ips_skip_crtc_disable_mask;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	uint32_t fixed_vs_aux_delay_config_wa;
