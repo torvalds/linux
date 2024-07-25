@@ -1014,7 +1014,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 			extend_sampling_buffer(&cpuhw->sfb, hwc);
 		}
 		/* Rate may be adjusted with ioctl() */
-		cpuhw->lsctl.interval = SAMPL_RATE(&cpuhw->event->hw);
+		cpuhw->lsctl.interval = SAMPL_RATE(hwc);
 	}
 
 	/* (Re)enable the PMU and sampling facility */
@@ -1291,7 +1291,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	 * AUX buffer is used when in diagnostic sampling mode.
 	 * No perf events/samples are created.
 	 */
-	if (SAMPL_DIAG_MODE(&event->hw))
+	if (SAMPL_DIAG_MODE(hwc))
 		return;
 
 	sdbt = (unsigned long *)TEAR_REG(hwc);
