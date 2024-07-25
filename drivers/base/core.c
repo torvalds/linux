@@ -3171,7 +3171,7 @@ void device_initialize(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_initialize);
 
-struct kobject *virtual_device_parent(struct device *dev)
+struct kobject *virtual_device_parent(void)
 {
 	static struct kobject *virtual_dir = NULL;
 
@@ -3249,7 +3249,7 @@ static struct kobject *get_device_parent(struct device *dev,
 		 * in a "glue" directory to prevent namespace collisions.
 		 */
 		if (parent == NULL)
-			parent_kobj = virtual_device_parent(dev);
+			parent_kobj = virtual_device_parent();
 		else if (parent->class && !dev->class->ns_type) {
 			subsys_put(sp);
 			return &parent->kobj;

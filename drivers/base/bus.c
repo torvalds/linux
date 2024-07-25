@@ -1296,7 +1296,7 @@ int subsys_virtual_register(const struct bus_type *subsys,
 {
 	struct kobject *virtual_dir;
 
-	virtual_dir = virtual_device_parent(NULL);
+	virtual_dir = virtual_device_parent();
 	if (!virtual_dir)
 		return -ENOMEM;
 
