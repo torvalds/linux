@@ -11599,7 +11599,8 @@ F:	drivers/platform/x86/intel/uncore-frequency/
 INTEL VENDOR SPECIFIC EXTENDED CAPABILITIES DRIVER
 M:	David E. Box <david.e.box@linux.intel.com>
 S:	Supported
-F:	drivers/platform/x86/intel/vsec.*
+F:	drivers/platform/x86/intel/vsec.c
+F:	include/linux/intel_vsec.h
 
 INTEL VIRTUAL BUTTON DRIVER
 M:	AceLan Kao <acelan.kao@canonical.com>
