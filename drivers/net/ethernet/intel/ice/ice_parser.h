@@ -363,6 +363,92 @@ struct ice_xlt_kb {
 u16 ice_xlt_kb_flag_get(struct ice_xlt_kb *kb, u64 pkt_flag);
 
 /*** Parser API ***/
+#define ICE_GPR_HV_IDX		64
+#define ICE_GPR_HV_SIZE		32
+#define ICE_GPR_ERR_IDX		84
+#define ICE_GPR_FLG_IDX		104
+#define ICE_GPR_FLG_SIZE	16
+
+#define ICE_GPR_TSR_IDX		108	/* TSR: TCAM Search Register */
+#define ICE_GPR_NN_IDX		109	/* NN: Next Parsing Cycle Node ID */
+#define ICE_GPR_HO_IDX		110	/* HO: Next Parsing Cycle hdr Offset */
+#define ICE_GPR_NP_IDX		111	/* NP: Next Parsing Cycle */
+
+#define ICE_PARSER_MAX_PKT_LEN	504
+#define ICE_PARSER_PKT_REV	32
+#define ICE_PARSER_GPR_NUM	128
+#define ICE_PARSER_FLG_NUM	64
+#define ICE_PARSER_ERR_NUM	16
+#define ICE_BST_KEY_SIZE	10
+#define ICE_MARKER_ID_SIZE	9
+#define ICE_MARKER_MAX_SIZE	\
+		(ICE_MARKER_ID_SIZE * BITS_PER_BYTE - 1)
+#define ICE_MARKER_ID_NUM	8
+#define ICE_PO_PAIR_SIZE	256
+
+struct ice_gpr_pu {
+	/* array of flags to indicate if GRP needs to be updated */
+	bool gpr_val_upd[ICE_PARSER_GPR_NUM];
+	u16 gpr_val[ICE_PARSER_GPR_NUM];
+	u64 flg_msk;
+	u64 flg_val;
+	u16 err_msk;
+	u16 err_val;
+};
+
+enum ice_pg_prio {
+	ICE_PG_P0	= 0,
+	ICE_PG_P1	= 1,
+	ICE_PG_P2	= 2,
+	ICE_PG_P3	= 3,
+};
+
+struct ice_parser_rt {
+	struct ice_parser *psr;
+	u16 gpr[ICE_PARSER_GPR_NUM];
+	u8 pkt_buf[ICE_PARSER_MAX_PKT_LEN + ICE_PARSER_PKT_REV];
+	u16 pkt_len;
+	u16 po;
+	u8 bst_key[ICE_BST_KEY_SIZE];
+	struct ice_pg_cam_key pg_key;
+	struct ice_alu *alu0;
+	struct ice_alu *alu1;
+	struct ice_alu *alu2;
+	struct ice_pg_cam_action *action;
+	u8 pg_prio;
+	struct ice_gpr_pu pu;
+	u8 markers[ICE_MARKER_ID_SIZE];
+	bool protocols[ICE_PO_PAIR_SIZE];
+	u16 offsets[ICE_PO_PAIR_SIZE];
+};
+
+struct ice_parser_proto_off {
+	u8 proto_id;	/* hardware protocol ID */
+	u16 offset;	/* offset from the start of the protocol header */
+};
+
+#define ICE_PARSER_PROTO_OFF_PAIR_SIZE	16
+#define ICE_PARSER_FLAG_PSR_SIZE	8
+
+struct ice_parser_result {
+	u16 ptype;	/* 16 bits hardware PTYPE */
+	/* array of protocol and header offset pairs */
+	struct ice_parser_proto_off po[ICE_PARSER_PROTO_OFF_PAIR_SIZE];
+	int po_num;	/* # of protocol-offset pairs must <= 16 */
+	u64 flags_psr;	/* parser flags */
+	u64 flags_pkt;	/* packet flags */
+	u16 flags_sw;	/* key builder flags for SW */
+	u16 flags_acl;	/* key builder flags for ACL */
+	u16 flags_fd;	/* key builder flags for FD */
+	u16 flags_rss;	/* key builder flags for RSS */
+};
+
+void ice_parser_rt_reset(struct ice_parser_rt *rt);
+void ice_parser_rt_pktbuf_set(struct ice_parser_rt *rt, const u8 *pkt_buf,
+			      int pkt_len);
+int ice_parser_rt_execute(struct ice_parser_rt *rt,
+			  struct ice_parser_result *rslt);
+
 struct ice_parser {
 	struct ice_hw *hw; /* pointer to the hardware structure */
 
@@ -385,8 +471,13 @@ struct ice_parser {
 	struct ice_xlt_kb *xlt_kb_acl;
 	struct ice_xlt_kb *xlt_kb_fd;
 	struct ice_xlt_kb *xlt_kb_rss;
+
+	struct ice_parser_rt rt;
 };
 
 struct ice_parser *ice_parser_create(struct ice_hw *hw);
 void ice_parser_destroy(struct ice_parser *psr);
+int ice_parser_run(struct ice_parser *psr, const u8 *pkt_buf,
+		   int pkt_len, struct ice_parser_result *rslt);
+void ice_parser_result_dump(struct ice_hw *hw, struct ice_parser_result *rslt);
 #endif /* _ICE_PARSER_H_ */
