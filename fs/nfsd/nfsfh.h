@@ -88,6 +88,8 @@ typedef struct svc_fh {
 						 * wcc data is not atomic with
 						 * operation
 						 */
+	bool			fh_use_wgather;	/* NFSv2 wgather option */
+	bool			fh_64bit_cookies;/* readdir cookie size */
 	int			fh_flags;	/* FH flags */
 	bool			fh_post_saved;	/* post-op attrs saved */
 	bool			fh_pre_saved;	/* pre-op attrs saved */
