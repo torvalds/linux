@@ -1110,7 +1110,7 @@ static int adxl380_buffer_postenable(struct iio_dev *indio_dev)
 	}
 
 	st->fifo_set_size = bitmap_weight(indio_dev->active_scan_mask,
-					  indio_dev->masklength);
+					  iio_get_masklength(indio_dev));
 
 	if ((st->watermark * st->fifo_set_size) > ADXL380_FIFO_SAMPLES)
 		st->watermark = (ADXL380_FIFO_SAMPLES  / st->fifo_set_size);
