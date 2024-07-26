@@ -637,7 +637,7 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 	if (ret)
 		goto out;
 
-	for_each_set_bit(chn, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, chn) {
 		src = st->rx_buf + ADS131E08_NUM_STATUS_BYTES + chn * num_bytes;
 		dest = st->tmp_buf.data + i * ADS131E08_NUM_STORAGE_BYTES;
 
