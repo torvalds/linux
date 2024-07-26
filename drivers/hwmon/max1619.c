@@ -260,31 +260,27 @@ static int max1619_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u8 reg_config, reg_convrate, reg_status, man_id, chip_id;
+	int regval;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/* detection */
-	reg_config = i2c_smbus_read_byte_data(client, MAX1619_REG_CONFIG);
-	reg_convrate = i2c_smbus_read_byte_data(client, MAX1619_REG_CONVRATE);
-	reg_status = i2c_smbus_read_byte_data(client, MAX1619_REG_STATUS);
-	if ((reg_config & 0x03) != 0x00
-	 || reg_convrate > 0x07 || (reg_status & 0x61) != 0x00) {
-		dev_dbg(&adapter->dev, "MAX1619 detection failed at 0x%02x\n",
-			client->addr);
+	regval = i2c_smbus_read_byte_data(client, MAX1619_REG_CONFIG);
+	if (regval < 0 || (regval & 0x03))
 		return -ENODEV;
-	}
+	regval = i2c_smbus_read_byte_data(client, MAX1619_REG_CONVRATE);
+	if (regval < 0 || regval > 0x07)
+		return -ENODEV;
+	regval = i2c_smbus_read_byte_data(client, MAX1619_REG_STATUS);
+	if (regval < 0 || (regval & 0x61))
+		return -ENODEV;
 
-	/* identification */
-	man_id = i2c_smbus_read_byte_data(client, MAX1619_REG_MAN_ID);
-	chip_id = i2c_smbus_read_byte_data(client, MAX1619_REG_CHIP_ID);
-	if (man_id != 0x4D || chip_id != 0x04) {
-		dev_info(&adapter->dev,
-			 "Unsupported chip (man_id=0x%02X, chip_id=0x%02X).\n",
-			 man_id, chip_id);
+	regval = i2c_smbus_read_byte_data(client, MAX1619_REG_MAN_ID);
+	if (regval != 0x4d)
 		return -ENODEV;
-	}
+	regval = i2c_smbus_read_byte_data(client, MAX1619_REG_CHIP_ID);
+	if (regval != 0x04)
+		return -ENODEV;
 
 	strscpy(info->type, "max1619", I2C_NAME_SIZE);
 
