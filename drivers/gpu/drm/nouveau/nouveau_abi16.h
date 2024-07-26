@@ -32,7 +32,6 @@ struct nouveau_abi16_chan {
 struct nouveau_abi16 {
 	struct nouveau_cli *cli;
 	struct list_head channels;
-	u64 handles;
 	struct list_head objects;
 };
 
