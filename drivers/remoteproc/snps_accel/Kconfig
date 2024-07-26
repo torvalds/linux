@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SNPS_ACCEL_RPROC
+	tristate "Synopsys VPX/NPX remoteproc support"
+	depends on REMOTEPROC
+	select SNPS_ARCSYNC
+	help
+	  Say y here to support Synopsys VPX/NPX processors via the
+	  remote processor framework.
+
+	  This can be either built-in or a loadable module.
+
