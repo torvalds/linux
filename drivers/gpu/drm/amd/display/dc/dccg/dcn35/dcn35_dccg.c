@@ -980,6 +980,21 @@ static void dccg35_disable_symclk32_le_new(
 	dccg35_set_symclk32_le_rcg(dccg, inst, true);
 }
 
+static void dccg35_enable_physymclk_new(struct dccg *dccg,
+					int inst,
+					enum physymclk_source src)
+{
+	dccg35_set_physymclk_rcg(dccg, inst, false);
+	dccg35_set_physymclk_src_new(dccg, src, inst);
+}
+
+static void dccg35_disable_physymclk_new(struct dccg *dccg,
+										 int inst)
+{
+	dccg35_set_physymclk_src_new(dccg, PHYSYMCLK_REFCLK, inst);
+	dccg35_set_physymclk_rcg(dccg, inst, true);
+}
+
 static void dccg35_enable_dpp_clk_new(
 	struct dccg *dccg,
 	int inst,
@@ -2138,9 +2153,60 @@ static void dccg35_disable_symclk32_se_cb(struct dccg *dccg, int inst)
 	dccg35_disable_symclk32_se_new(dccg, inst);
 }
 
+static void dccg35_enable_symclk32_le_cb(
+			struct dccg *dccg,
+			int inst,
+			enum phyd32clk_clock_source src)
+{
+	dccg35_enable_symclk32_le_new(dccg, inst, (enum symclk32_le_clk_source) src);
+}
+
 static void dccg35_disable_symclk32_le_cb(struct dccg *dccg, int inst)
 {
 	dccg35_disable_symclk32_le_new(dccg, inst);
+}
+
+static void dccg35_set_symclk32_le_root_clock_gating_cb(
+	struct dccg *dccg,
+	int inst,
+	bool power_on)
+{
+	/* power_on set indicates we need to ungate
+	 * Currently called from optimize_bandwidth and prepare_bandwidth calls
+	 * Since clock source is not passed restore to refclock on ungate
+	 * Redundant as gating when enabled is acheived through disable_symclk32_le
+	 */
+	if (power_on)
+		dccg35_enable_symclk32_le_new(dccg, inst, SYMCLK32_LE_REFCLK);
+	else
+		dccg35_disable_symclk32_le_new(dccg, inst);
+}
+
+static void dccg35_set_physymclk_cb(
+	struct dccg *dccg,
+	int inst,
+	enum physymclk_clock_source clk_src,
+	bool force_enable)
+{
+	/* force_enable = 0 indicates we can switch to ref clock */
+	if (force_enable)
+		dccg35_enable_physymclk_new(dccg, inst, (enum physymclk_source)clk_src);
+	else
+		dccg35_disable_physymclk_new(dccg, inst);
+}
+
+static void dccg35_set_physymclk_root_clock_gating_cb(
+	struct dccg *dccg,
+	int inst,
+	bool power_on)
+{
+	/* Redundant RCG already done in disable_physymclk
+	 * power_on = 1 indicates we need to ungate
+	 */
+	if (power_on)
+		dccg35_enable_physymclk_new(dccg, inst, PHYSYMCLK_REFCLK);
+	else
+		dccg35_disable_physymclk_new(dccg, inst);
 }
 
 static void dccg35_set_symclk32_le_root_clock_gating(
@@ -2251,6 +2317,37 @@ static void dccg35_disable_symclk_se_cb(
 	/* DMU PHY sequence switches SYMCLK_BE (link_enc_inst) to ref clock once PHY is turned off */
 }
 
+static const struct dccg_funcs dccg35_funcs_new = {
+	.update_dpp_dto = dccg35_update_dpp_dto_cb,
+	.dpp_root_clock_control = dccg35_dpp_root_clock_control_cb,
+	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
+	.dccg_init = dccg35_init,
+	.set_dpstreamclk = dccg35_set_dpstreamclk_cb,
+	.set_dpstreamclk_root_clock_gating = dccg35_set_dpstreamclk_root_clock_gating_cb,
+	.enable_symclk32_se = dccg35_enable_symclk32_se_cb,
+	.disable_symclk32_se = dccg35_disable_symclk32_se_cb,
+	.enable_symclk32_le = dccg35_enable_symclk32_le_cb,
+	.disable_symclk32_le = dccg35_disable_symclk32_le_cb,
+	.set_symclk32_le_root_clock_gating = dccg35_set_symclk32_le_root_clock_gating_cb,
+	.set_physymclk = dccg35_set_physymclk_cb,
+	.set_physymclk_root_clock_gating = dccg35_set_physymclk_root_clock_gating_cb,
+	.set_dtbclk_dto = dccg35_set_dtbclk_dto_cb,
+	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
+	.otg_add_pixel = dccg31_otg_add_pixel,
+	.otg_drop_pixel = dccg31_otg_drop_pixel,
+	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
+	.disable_dsc = dccg35_disable_dscclk_cb,
+	.enable_dsc = dccg35_enable_dscclk_cb,
+	.set_pixel_rate_div = dccg35_set_pixel_rate_div,
+	.get_pixel_rate_div = dccg35_get_pixel_rate_div,
+	.trigger_dio_fifo_resync = dccg35_trigger_dio_fifo_resync,
+	.set_valid_pixel_rate = dccg35_set_valid_pixel_rate,
+	.enable_symclk_se = dccg35_enable_symclk_se_cb,
+	.disable_symclk_se = dccg35_disable_symclk_se_cb,
+	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src_cb,
+};
+
 static const struct dccg_funcs dccg35_funcs = {
 	.update_dpp_dto = dccg35_update_dpp_dto,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control,
@@ -2296,62 +2393,10 @@ struct dccg *dccg35_create(
 		BREAK_TO_DEBUGGER();
 		return NULL;
 	}
-
-	/* Temporary declaration to handle unused static functions */
-	(void)&dccg35_set_dsc_clk_rcg;
-	(void)&dccg35_set_symclk32_se_rcg;
-	(void)&dccg35_set_symclk32_le_rcg;
-	(void)&dccg35_set_physymclk_rcg;
-	(void)&dccg35_set_symclk_fe_rcg;
-	(void)&dccg35_set_dtbclk_p_rcg;
-	(void)&dccg35_set_dppclk_rcg;
-	(void)&dccg35_set_dpstreamclk_rcg;
-	(void)&dccg35_set_smclk32_se_rcg;
-	(void)&dccg35_set_dsc_clk_src_new;
-	(void)&dccg35_set_symclk32_se_src_new;
-	(void)&dccg35_is_symclk32_se_src_functional_le_new;
-	(void)&dccg35_set_symclk32_le_src_new;
-	(void)&dcn35_set_dppclk_src_new;
-	(void)&dccg35_set_dtbclk_p_src_new;
-	(void)&dccg35_set_dpstreamclk_src_new;
-	(void)&dccg35_set_physymclk_src_new;
-	(void)&dccg35_is_symclk_fe_src_functional_be;
-	(void)&dccg35_set_symclk_fe_src_new;
-	(void)&dccg35_is_fe_rcg;
-	(void)&dccg35_is_symclk32_se_rcg;
-	(void)&dccg35_enable_symclk_fe_new;
-	(void)&dccg35_disable_symclk_fe_new;
-	(void)&dccg35_enable_symclk_be_new;
 	(void)&dccg35_disable_symclk_be_new;
-	(void)&dccg35_enable_symclk32_se_new;
-	(void)&dccg35_disable_symclk32_se_new;
-	(void)&dccg35_enable_symclk32_le_new;
-	(void)&dccg35_disable_symclk32_le_new;
-	(void)&dccg35_enable_dpp_clk_new;
-	(void)&dccg35_enable_dpp_clk_new;
-	(void)&dccg35_disable_dscclk_new;
-	(void)&dccg35_enable_dscclk_new;
-	(void)&dccg35_enable_dtbclk_p_new;
-	(void)&dccg35_disable_dtbclk_p_new;
-	(void)&dccg35_enable_dpstreamclk_new;
-	(void)&dccg35_disable_dpstreamclk_new;
-	(void)&dccg35_set_dpstreamclk_cb;
-	(void)&dccg35_dpp_root_clock_control_cb;
-	(void)&dccg35_set_dpstreamclk_root_clock_gating_cb;
-	(void)&dccg35_update_dpp_dto_cb;
-	(void)&dccg35_dpp_root_clock_control_cb;
-	(void)&dccg35_disable_symclk_se_cb;
-	(void)&dccg35_enable_symclk_se_cb;
-	(void)&dccg35_enable_dscclk_cb;
-	(void)&dccg35_disable_dscclk_cb;
-	(void)&dccg35_set_dtbclk_dto_cb;
-	(void)&dccg35_set_dtbclk_p_src_cb;
 	(void)&dccg35_set_symclk32_le_root_clock_gating;
-	(void)&dccg35_disable_symclk32_le_cb;
-	(void)&dccg35_set_symclk_be_src_new;
-	(void)&dccg35_set_symclk_be_rcg;
-	(void)&dccg35_enable_symclk32_se_cb;
-	(void)&dccg35_disable_symclk32_se_cb;
+	(void)&dccg35_set_smclk32_se_rcg;
+	(void)&dccg35_funcs_new;
 
 	base = &dccg_dcn->base;
 	base->ctx = ctx;
