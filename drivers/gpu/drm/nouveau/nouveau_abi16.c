@@ -46,25 +46,9 @@ nouveau_abi16(struct drm_file *file_priv)
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
-			struct nv_device_v0 args = {
-				.device = ~0ULL,
-			};
-
 			abi16->cli = cli;
 			INIT_LIST_HEAD(&abi16->channels);
 			INIT_LIST_HEAD(&abi16->objects);
-
-			/* allocate device object targeting client's default
-			 * device (ie. the one that belongs to the fd it
-			 * opened)
-			 */
-			if (nvif_device_ctor(&cli->base.object, "abi16Device",
-					     0, NV_DEVICE, &args, sizeof(args),
-					     &abi16->device) == 0)
-				return cli->abi16;
-
-			kfree(cli->abi16);
-			cli->abi16 = NULL;
 		}
 	}
 	return cli->abi16;
@@ -241,9 +225,6 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 		nouveau_abi16_chan_fini(abi16, chan);
 	}
 
-	/* destroy the device object */
-	nvif_device_dtor(&abi16->device);
-
 	kfree(cli->abi16);
 	cli->abi16 = NULL;
 }
@@ -360,7 +341,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
-	struct nvif_device *device;
+	struct nvif_device *device = &cli->device;
 	u64 engine, runm;
 	int ret;
 
@@ -377,7 +358,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 */
 	__nouveau_cli_disable_uvmm_noinit(cli);
 
-	device = &abi16->device;
 	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
 
 	/* hack to allow channel engine type specification on kepler */
@@ -643,13 +623,14 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nvif_device *device = &abi16->device;
+	struct nvif_device *device;
 	struct nvif_client *client;
 	struct nv_dma_v0 args = {};
 	int ret;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
+	device = &abi16->cli->device;
 
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
