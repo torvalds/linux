@@ -491,6 +491,26 @@ static inline void check_insane_mems_config(nodemask_t *nodes)
 }
 
 /*
+ * decrease cs->attach_in_progress.
+ * wake_up cpuset_attach_wq if cs->attach_in_progress==0.
+ */
+static inline void dec_attach_in_progress_locked(struct cpuset *cs)
+{
+	lockdep_assert_held(&cpuset_mutex);
+
+	cs->attach_in_progress--;
+	if (!cs->attach_in_progress)
+		wake_up(&cpuset_attach_wq);
+}
+
+static inline void dec_attach_in_progress(struct cpuset *cs)
+{
+	mutex_lock(&cpuset_mutex);
+	dec_attach_in_progress_locked(cs);
+	mutex_unlock(&cpuset_mutex);
+}
+
+/*
  * Cgroup v2 behavior is used on the "cpus" and "mems" control files when
  * on default hierarchy or when the cpuset_v2_mode flag is set by mounting
  * the v1 cpuset cgroup filesystem with the "cpuset_v2_mode" mount option.
@@ -3422,9 +3442,7 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
 	cs = css_cs(css);
 
 	mutex_lock(&cpuset_mutex);
-	cs->attach_in_progress--;
-	if (!cs->attach_in_progress)
-		wake_up(&cpuset_attach_wq);
+	dec_attach_in_progress_locked(cs);
 
 	if (cs->nr_migrate_dl_tasks) {
 		int cpu = cpumask_any(cs->effective_cpus);
@@ -3539,9 +3557,7 @@ out:
 		reset_migrate_dl_data(cs);
 	}
 
-	cs->attach_in_progress--;
-	if (!cs->attach_in_progress)
-		wake_up(&cpuset_attach_wq);
+	dec_attach_in_progress_locked(cs);
 
 	mutex_unlock(&cpuset_mutex);
 }
@@ -4284,11 +4300,7 @@ static void cpuset_cancel_fork(struct task_struct *task, struct css_set *cset)
 	if (same_cs)
 		return;
 
-	mutex_lock(&cpuset_mutex);
-	cs->attach_in_progress--;
-	if (!cs->attach_in_progress)
-		wake_up(&cpuset_attach_wq);
-	mutex_unlock(&cpuset_mutex);
+	dec_attach_in_progress(cs);
 }
 
 /*
@@ -4320,10 +4332,7 @@ static void cpuset_fork(struct task_struct *task)
 	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
 	cpuset_attach_task(cs, task);
 
-	cs->attach_in_progress--;
-	if (!cs->attach_in_progress)
-		wake_up(&cpuset_attach_wq);
-
+	dec_attach_in_progress_locked(cs);
 	mutex_unlock(&cpuset_mutex);
 }
 
