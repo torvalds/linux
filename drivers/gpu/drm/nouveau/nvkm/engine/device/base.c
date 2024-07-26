@@ -53,20 +53,6 @@ nvkm_device_find(u64 handle)
 	return device;
 }
 
-int
-nvkm_device_list(u64 *name, int size)
-{
-	struct nvkm_device *device;
-	int nr = 0;
-	mutex_lock(&nv_devices_mutex);
-	list_for_each_entry(device, &nv_devices, head) {
-		if (nr++ < size)
-			name[nr - 1] = device->handle;
-	}
-	mutex_unlock(&nv_devices_mutex);
-	return nr;
-}
-
 static const struct nvkm_device_chip
 nv4_chipset = {
 	.name = "NV04",
