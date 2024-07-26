@@ -141,6 +141,14 @@ configuration of fault-injection capabilities.
 	default is 'Y', setting it to 'N' will also inject failures into
 	highmem/user allocations (__GFP_HIGHMEM allocations).
 
+- /sys/kernel/debug/failslab/cache-filter
+	Format: { 'Y' | 'N' }
+
+        default is 'N', setting it to 'Y' will only inject failures when
+        objects are requests from certain caches.
+
+        Select the cache by writing '1' to /sys/kernel/slab/<cache>/failslab:
+
 - /sys/kernel/debug/failslab/ignore-gfp-wait:
 - /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
 
@@ -458,6 +466,18 @@ Application Examples
     rmdir tmpmnt
     losetup -d $DEVICE
     rm testfile.img
+
+------------------------------------------------------------------------------
+
+- Inject only skbuff allocation failures ::
+
+    # mark skbuff_head_cache as faulty
+    echo 1 > /sys/kernel/slab/skbuff_head_cache/failslab
+    # Turn on cache filter (off by default)
+    echo 1 > /sys/kernel/debug/failslab/cache-filter
+    # Turn on fault injection
+    echo 1 > /sys/kernel/debug/failslab/times
+    echo 1 > /sys/kernel/debug/failslab/probability
 
 
 Tool to run command with failslab or fail_page_alloc
