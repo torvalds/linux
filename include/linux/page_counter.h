@@ -52,7 +52,7 @@ static inline void page_counter_init(struct page_counter *counter,
 				     struct page_counter *parent,
 				     bool protection_support)
 {
-	atomic_long_set(&counter->usage, 0);
+	counter->usage = (atomic_long_t)ATOMIC_LONG_INIT(0);
 	counter->max = PAGE_COUNTER_MAX;
 	counter->parent = parent;
 	counter->protection_support = protection_support;
