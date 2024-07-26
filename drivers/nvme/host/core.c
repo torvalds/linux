@@ -1876,12 +1876,18 @@ static void nvme_configure_pi_elbas(struct nvme_ns_head *head,
 		struct nvme_id_ns *id, struct nvme_id_ns_nvm *nvm)
 {
 	u32 elbaf = le32_to_cpu(nvm->elbaf[nvme_lbaf_index(id->flbas)]);
+	u8 guard_type;
 
 	/* no support for storage tag formats right now */
 	if (nvme_elbaf_sts(elbaf))
 		return;
 
-	head->guard_type = nvme_elbaf_guard_type(elbaf);
+	guard_type = nvme_elbaf_guard_type(elbaf);
+	if ((nvm->pic & NVME_ID_NS_NVM_QPIFS) &&
+	     guard_type == NVME_NVM_NS_QTYPE_GUARD)
+		guard_type = nvme_elbaf_qualified_guard_type(elbaf);
+
+	head->guard_type = guard_type;
 	switch (head->guard_type) {
 	case NVME_NVM_NS_64B_GUARD:
 		head->pi_size = sizeof(struct crc64_pi_tuple);
