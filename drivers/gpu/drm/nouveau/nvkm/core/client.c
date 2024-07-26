@@ -90,12 +90,6 @@ nvkm_client_child_get(struct nvkm_object *object, int index,
 	return 0;
 }
 
-static int
-nvkm_client_fini(struct nvkm_object *object, bool suspend)
-{
-	return 0;
-}
-
 static void *
 nvkm_client_dtor(struct nvkm_object *object)
 {
@@ -105,7 +99,6 @@ nvkm_client_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_client = {
 	.dtor = nvkm_client_dtor,
-	.fini = nvkm_client_fini,
 	.sclass = nvkm_client_child_get,
 };
 
