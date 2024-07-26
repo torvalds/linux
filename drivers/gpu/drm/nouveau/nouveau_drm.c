@@ -751,6 +751,8 @@ nouveau_drm_device_new(const struct drm_driver *drm_driver, struct device *paren
 	if (!drm)
 		return ERR_PTR(-ENOMEM);
 
+	drm->nvkm = device;
+
 	drm->dev = drm_dev_alloc(drm_driver, parent);
 	if (IS_ERR(drm->dev)) {
 		ret = PTR_ERR(drm->dev);
@@ -888,13 +890,9 @@ fail_nvkm:
 void
 nouveau_drm_device_remove(struct nouveau_drm *drm)
 {
-	struct nvkm_client *client;
-	struct nvkm_device *device;
+	struct nvkm_device *device = drm->nvkm;
 
 	drm_dev_unplug(drm->dev);
-
-	client = nvxx_client(&drm->client.base);
-	device = nvkm_device_find(client->device);
 
 	nouveau_drm_device_fini(drm);
 	nouveau_drm_device_del(drm);

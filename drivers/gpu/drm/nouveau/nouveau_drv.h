@@ -201,6 +201,7 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 #include <nvif/parent.h>
 
 struct nouveau_drm {
+	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
 	struct nouveau_cli master;
 	struct nouveau_cli client;
@@ -332,18 +333,21 @@ void nouveau_drm_device_remove(struct nouveau_drm *);
 	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 
-#define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
-#define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
-#define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
-#define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+#define NV_PRINTK_(l,drm,f,a...) do {             \
+	dev_##l((drm)->nvkm->dev, "drm: "f, ##a); \
+} while(0)
+#define NV_FATAL(drm,f,a...) NV_PRINTK_(crit, (drm), f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK_(err, (drm), f, ##a)
+#define NV_WARN(drm,f,a...) NV_PRINTK_(warn, (drm), f, ##a)
+#define NV_INFO(drm,f,a...) NV_PRINTK_(info, (drm), f, ##a)
 
 #define NV_DEBUG(drm,f,a...) do {                                              \
 	if (drm_debug_enabled(DRM_UT_DRIVER))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 #define NV_ATOMIC(drm,f,a...) do {                                             \
 	if (drm_debug_enabled(DRM_UT_ATOMIC))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 
 #define NV_PRINTK_ONCE(l,c,f,a...) NV_PRINTK(l##_once,c,f, ##a)
