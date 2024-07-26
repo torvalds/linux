@@ -2329,7 +2329,7 @@ static void vcn_v3_0_print_ip_state(void *handle, struct drm_printer *p)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_3_0);
-	uint32_t inst_off;
+	uint32_t inst_off, is_powered;
 
 	if (!adev->vcn.ip_dump)
 		return;
@@ -2342,11 +2342,17 @@ static void vcn_v3_0_print_ip_state(void *handle, struct drm_printer *p)
 		}
 
 		inst_off = i * reg_count;
-		drm_printf(p, "\nActive Instance:VCN%d\n", i);
+		is_powered = (adev->vcn.ip_dump[inst_off] &
+				UVD_POWER_STATUS__UVD_POWER_STATUS_MASK) != 1;
 
-		for (j = 0; j < reg_count; j++)
-			drm_printf(p, "%-50s \t 0x%08x\n", vcn_reg_list_3_0[j].reg_name,
-				   adev->vcn.ip_dump[inst_off + j]);
+		if (is_powered) {
+			drm_printf(p, "\nActive Instance:VCN%d\n", i);
+			for (j = 0; j < reg_count; j++)
+				drm_printf(p, "%-50s \t 0x%08x\n", vcn_reg_list_3_0[j].reg_name,
+					   adev->vcn.ip_dump[inst_off + j]);
+		} else {
+			drm_printf(p, "\nInactive Instance:VCN%d\n", i);
+		}
 	}
 }
 
@@ -2354,7 +2360,7 @@ static void vcn_v3_0_dump_ip_state(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, j;
-	bool reg_safe;
+	bool is_powered;
 	uint32_t inst_off;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_3_0);
 
@@ -2366,11 +2372,13 @@ static void vcn_v3_0_dump_ip_state(void *handle)
 			continue;
 
 		inst_off = i * reg_count;
-		reg_safe = (RREG32_SOC15(VCN, i, mmUVD_POWER_STATUS) &
-			    UVD_POWER_STATUS__UVD_POWER_STATUS_MASK) != 1;
+		/* mmUVD_POWER_STATUS is always readable and is first element of the array */
+		adev->vcn.ip_dump[inst_off] = RREG32_SOC15(VCN, i, mmUVD_POWER_STATUS);
+		is_powered = (adev->vcn.ip_dump[inst_off] &
+				UVD_POWER_STATUS__UVD_POWER_STATUS_MASK) != 1;
 
-		if (reg_safe)
-			for (j = 0; j < reg_count; j++)
+		if (is_powered)
+			for (j = 1; j < reg_count; j++)
 				adev->vcn.ip_dump[inst_off + j] =
 					RREG32(SOC15_REG_ENTRY_OFFSET_INST(vcn_reg_list_3_0[j], i));
 	}
