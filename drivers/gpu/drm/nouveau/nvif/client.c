@@ -51,11 +51,7 @@ void
 nvif_client_dtor(struct nvif_client *client)
 {
 	nvif_object_dtor(&client->object);
-	if (client->driver) {
-		if (client->driver->fini)
-			client->driver->fini(client->object.priv);
-		client->driver = NULL;
-	}
+	client->driver = NULL;
 }
 
 int
