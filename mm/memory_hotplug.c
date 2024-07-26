@@ -366,7 +366,7 @@ struct page *pfn_to_online_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(pfn_to_online_page);
 
-int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+int __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 		struct mhp_params *params)
 {
 	const unsigned long end_pfn = pfn + nr_pages;
@@ -524,7 +524,7 @@ static void update_pgdat_span(struct pglist_data *pgdat)
 	pgdat->node_spanned_pages = node_end_pfn - node_start_pfn;
 }
 
-void __ref remove_pfn_range_from_zone(struct zone *zone,
+void remove_pfn_range_from_zone(struct zone *zone,
 				      unsigned long start_pfn,
 				      unsigned long nr_pages)
 {
@@ -629,7 +629,7 @@ int restore_online_page_callback(online_page_callback_t callback)
 EXPORT_SYMBOL_GPL(restore_online_page_callback);
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-void __ref generic_online_page(struct page *page, unsigned int order)
+void generic_online_page(struct page *page, unsigned int order)
 {
 	__free_pages_core(page, order, MEMINIT_HOTPLUG);
 }
@@ -741,7 +741,7 @@ static inline void section_taint_zone_device(unsigned long pfn)
  * (usually MIGRATE_MOVABLE). Besides setting the migratetype, no related
  * zone stats (e.g., nr_isolate_pageblock) are touched.
  */
-void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 				  unsigned long nr_pages,
 				  struct vmem_altmap *altmap, int migratetype)
 {
@@ -1143,7 +1143,7 @@ void mhp_deinit_memmap_on_memory(unsigned long pfn, unsigned long nr_pages)
 /*
  * Must be called with mem_hotplug_lock in write mode.
  */
-int __ref online_pages(unsigned long pfn, unsigned long nr_pages,
+int online_pages(unsigned long pfn, unsigned long nr_pages,
 		       struct zone *zone, struct memory_group *group)
 {
 	unsigned long flags;
@@ -1233,7 +1233,7 @@ failed_addition:
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-static pg_data_t __ref *hotadd_init_pgdat(int nid)
+static pg_data_t *hotadd_init_pgdat(int nid)
 {
 	struct pglist_data *pgdat;
 
@@ -1386,7 +1386,7 @@ bool mhp_supports_memmap_on_memory(void)
 }
 EXPORT_SYMBOL_GPL(mhp_supports_memmap_on_memory);
 
-static void __ref remove_memory_blocks_and_altmaps(u64 start, u64 size)
+static void remove_memory_blocks_and_altmaps(u64 start, u64 size)
 {
 	unsigned long memblock_size = memory_block_size_bytes();
 	u64 cur_start;
@@ -1473,7 +1473,7 @@ out:
  *
  * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
  */
-int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
+int add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 {
 	struct mhp_params params = { .pgprot = pgprot_mhp(PAGE_KERNEL) };
 	enum memblock_flags memblock_flags = MEMBLOCK_NONE;
@@ -1580,7 +1580,7 @@ error_mem_hotplug_end:
 }
 
 /* requires device_hotplug_lock, see add_memory_resource() */
-int __ref __add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
+int __add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
 {
 	struct resource *res;
 	int ret;
@@ -1939,7 +1939,7 @@ static int count_system_ram_pages_cb(unsigned long start_pfn,
 /*
  * Must be called with mem_hotplug_lock in write mode.
  */
-int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
+int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 			struct zone *zone, struct memory_group *group)
 {
 	const unsigned long end_pfn = start_pfn + nr_pages;
@@ -2240,7 +2240,7 @@ static int memory_blocks_have_altmaps(u64 start, u64 size)
 	return 1;
 }
 
-static int __ref try_remove_memory(u64 start, u64 size)
+static int try_remove_memory(u64 start, u64 size)
 {
 	int rc, nid = NUMA_NO_NODE;
 
