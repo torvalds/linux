@@ -275,6 +275,7 @@ int page_counter_memparse(const char *buf, const char *max,
 }
 
 
+#ifdef CONFIG_MEMCG
 /*
  * This function calculates an individual page counter's effective
  * protection which is derived from its own memory.min/low, its
@@ -446,3 +447,4 @@ void page_counter_calculate_protection(struct page_counter *root,
 			atomic_long_read(&parent->children_low_usage),
 			recursive_protection));
 }
+#endif /* CONFIG_MEMCG */
