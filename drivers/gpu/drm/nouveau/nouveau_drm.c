@@ -382,7 +382,8 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 		}
 
 		if (ret == 0) {
-			struct nvif_push *push = drm->channel->chan.push;
+			struct nvif_push *push = &drm->channel->chan.push;
+
 			ret = PUSH_WAIT(push, 8);
 			if (ret == 0) {
 				if (device->info.chipset >= 0x11) {

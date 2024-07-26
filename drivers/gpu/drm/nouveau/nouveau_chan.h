@@ -8,8 +8,7 @@ struct nvif_device;
 
 struct nouveau_channel {
 	struct {
-		struct nvif_push _push;
-		struct nvif_push *push;
+		struct nvif_push push;
 	} chan;
 
 	struct nouveau_cli *cli;
