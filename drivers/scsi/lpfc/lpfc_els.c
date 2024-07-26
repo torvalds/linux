@@ -1099,8 +1099,10 @@ stop_rr_fcf_flogi:
 			 sp->cmn.priority_tagging, kref_read(&ndlp->kref));
 
 	/* reinitialize the VMID datastructure before returning */
-	if (lpfc_is_vmid_enabled(phba))
+	if (lpfc_is_vmid_enabled(phba)) {
 		lpfc_reinit_vmid(vport);
+		vport->vmid_flag = 0;
+	}
 	if (sp->cmn.priority_tagging)
 		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
 						  LPFC_VMID_TYPE_PRIO);
