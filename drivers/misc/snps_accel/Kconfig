@@ -5,12 +5,25 @@ config SNPS_ARCSYNC
 	help
 	  This option enables the driver developed for Syncopsys ARCSync
 	  module. ARCSync is used for synchronization and control of
-	  multiple ARC processor assembled in a heterogenous sub-system.
-	  The driver controlls ARCSync and provides a set of functions to
-	  send commands to ARC processoes, issue interrups and register
+	  multiple ARC processor assembled in a heterogeneous sub-system.
+	  The driver controls ARCSync and provides a set of functions to
+	  send commands to ARC processors, issue interrupts and register
 	  handler ARCsync interrupt. The Synopsys VPX/NPX remoteproc and
 	  accelerator drivers depend on this module.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called snps_arcsync.
+
+config SNPS_ACCEL_APP
+	tristate "Synopsys NPX/VPX application helper driver"
+	select SNPS_ARCSYNC
+	select DMA_SHARED_BUFFER
+	help
+	  Enables Synopsys VPX/NPX support to provide interface and API
+	  for user-space driver in MetawareMX NN Runtime.
+
+	  The user-space interface is described in
+	  include/uapi/misc/snps_npu.h
+
+	  If "M" is selected, the module will be called snps_accel.
 
