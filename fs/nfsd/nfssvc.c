@@ -578,9 +578,11 @@ void nfsd_shutdown_threads(struct net *net)
 	mutex_unlock(&nfsd_mutex);
 }
 
-bool i_am_nfsd(void)
+struct svc_rqst *nfsd_current_rqst(void)
 {
-	return kthread_func(current) == nfsd;
+	if (kthread_func(current) == nfsd)
+		return kthread_data(current);
+	return NULL;
 }
 
 int nfsd_create_serv(struct net *net)

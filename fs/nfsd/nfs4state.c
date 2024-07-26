@@ -5277,11 +5277,8 @@ static bool nfsd_breaker_owns_lease(struct file_lease *fl)
 	struct svc_rqst *rqst;
 	struct nfs4_client *clp;
 
-	if (!i_am_nfsd())
-		return false;
-	rqst = kthread_data(current);
-	/* Note rq_prog == NFS_ACL_PROGRAM is also possible: */
-	if (rqst->rq_prog != NFS_PROGRAM || rqst->rq_vers < 4)
+	rqst = nfsd_current_rqst();
+	if (!nfsd_v4client(rqst))
 		return false;
 	clp = *(rqst->rq_lease_breaker);
 	return dl->dl_stid.sc_client == clp;

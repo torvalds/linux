@@ -118,7 +118,7 @@ int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
 void		nfsd_shutdown_threads(struct net *net);
 
-bool		i_am_nfsd(void);
+struct svc_rqst *nfsd_current_rqst(void);
 
 struct nfsdfs_client {
 	struct kref cl_ref;
@@ -159,7 +159,7 @@ extern int nfsd_max_blksize;
 
 static inline int nfsd_v4client(struct svc_rqst *rq)
 {
-	return rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
+	return rq && rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
 }
 static inline struct user_namespace *
 nfsd_user_namespace(const struct svc_rqst *rqstp)
