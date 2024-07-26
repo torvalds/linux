@@ -4,6 +4,7 @@
 #include <asm/abs_lowcore.h>
 
 unsigned long __bootdata_preserved(__abs_lowcore);
+int __bootdata_preserved(relocate_lowcore);
 
 int abs_lowcore_map(int cpu, struct lowcore *lc, bool alloc)
 {

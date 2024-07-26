@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
@@ -310,5 +311,7 @@ void parse_boot_command_line(void)
 				prot_virt_host = 1;
 		}
 #endif
+		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
+			relocate_lowcore = 1;
 	}
 }
