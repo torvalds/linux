@@ -300,3 +300,17 @@ void xe_uc_remove(struct xe_uc *uc)
 {
 	xe_gsc_remove(&uc->gsc);
 }
+
+/**
+ * xe_uc_declare_wedged() - Declare UC wedged
+ * @uc: the UC object
+ *
+ * Wedge the UC which stops all submission, saves desired debug state, and
+ * cleans up anything which could timeout.
+ */
+void xe_uc_declare_wedged(struct xe_uc *uc)
+{
+	xe_gt_assert(uc_to_gt(uc), uc_to_xe(uc)->wedged.mode);
+
+	xe_guc_declare_wedged(&uc->guc);
+}

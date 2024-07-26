@@ -265,7 +265,7 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	struct v3d_dev *v3d;
 	int ret;
 	u32 mmu_debug;
-	u32 ident1;
+	u32 ident1, ident3;
 	u64 mask;
 
 	v3d = devm_drm_dev_alloc(dev, &v3d_drm_driver, struct v3d_dev, drm);
@@ -297,6 +297,9 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 		    V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_REV));
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
 	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
+
+	ident3 = V3D_READ(V3D_HUB_IDENT3);
+	v3d->rev = V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV);
 
 	if (v3d->ver >= 71)
 		v3d->max_counters = V3D_V71_NUM_PERFCOUNTERS;

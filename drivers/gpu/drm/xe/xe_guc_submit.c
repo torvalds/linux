@@ -861,12 +861,39 @@ static void xe_guc_exec_queue_trigger_cleanup(struct xe_exec_queue *q)
 		xe_sched_tdr_queue_imm(&q->guc->sched);
 }
 
-static bool guc_submit_hint_wedged(struct xe_guc *guc)
+/**
+ * xe_guc_submit_wedge() - Wedge GuC submission
+ * @guc: the GuC object
+ *
+ * Save exec queue's registered with GuC state by taking a ref to each queue.
+ * Register a DRMM handler to drop refs upon driver unload.
+ */
+void xe_guc_submit_wedge(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_exec_queue *q;
 	unsigned long index;
 	int err;
+
+	xe_gt_assert(guc_to_gt(guc), guc_to_xe(guc)->wedged.mode);
+
+	err = drmm_add_action_or_reset(&guc_to_xe(guc)->drm,
+				       guc_submit_wedged_fini, guc);
+	if (err) {
+		drm_err(&xe->drm, "Failed to register xe_guc_submit clean-up on wedged.mode=2. Although device is wedged.\n");
+		return;
+	}
+
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		if (xe_exec_queue_get_unless_zero(q))
+			set_exec_queue_wedged(q);
+	mutex_unlock(&guc->submission_state.lock);
+}
+
+static bool guc_submit_hint_wedged(struct xe_guc *guc)
+{
+	struct xe_device *xe = guc_to_xe(guc);
 
 	if (xe->wedged.mode != 2)
 		return false;
@@ -875,22 +902,6 @@ static bool guc_submit_hint_wedged(struct xe_guc *guc)
 		return true;
 
 	xe_device_declare_wedged(xe);
-
-	xe_guc_submit_reset_prepare(guc);
-	xe_guc_ct_stop(&guc->ct);
-
-	err = drmm_add_action_or_reset(&guc_to_xe(guc)->drm,
-				       guc_submit_wedged_fini, guc);
-	if (err) {
-		drm_err(&xe->drm, "Failed to register xe_guc_submit clean-up on wedged.mode=2. Although device is wedged.\n");
-		return true; /* Device is wedged anyway */
-	}
-
-	mutex_lock(&guc->submission_state.lock);
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		if (xe_exec_queue_get_unless_zero(q))
-			set_exec_queue_wedged(q);
-	mutex_unlock(&guc->submission_state.lock);
 
 	return true;
 }
@@ -1677,7 +1688,8 @@ int xe_guc_submit_reset_prepare(struct xe_guc *guc)
 
 void xe_guc_submit_reset_wait(struct xe_guc *guc)
 {
-	wait_event(guc->ct.wq, !guc_read_stopped(guc));
+	wait_event(guc->ct.wq, xe_device_wedged(guc_to_xe(guc)) ||
+		   !guc_read_stopped(guc));
 }
 
 void xe_guc_submit_stop(struct xe_guc *guc)
