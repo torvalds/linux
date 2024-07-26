@@ -262,6 +262,7 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 			pr_debug("queue eop bo size 0x%lx not equal to node eop buf size 0x%x\n",
 				properties->eop_buf_bo->tbo.base.size,
 				topo_dev->node_props.eop_buffer_size);
+			err = -EINVAL;
 			goto out_err_unreserve;
 		}
 		err = kfd_queue_buffer_get(vm, (void *)properties->eop_ring_buffer_address,
@@ -275,6 +276,7 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 		pr_debug("queue ctl stack size 0x%x not equal to node ctl stack size 0x%x\n",
 			properties->ctl_stack_size,
 			topo_dev->node_props.ctl_stack_size);
+		err = -EINVAL;
 		goto out_err_unreserve;
 	}
 
@@ -282,6 +284,7 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 		pr_debug("queue cwsr size 0x%x not equal to node cwsr size 0x%x\n",
 			properties->ctx_save_restore_area_size,
 			topo_dev->node_props.cwsr_size);
+		err = -EINVAL;
 		goto out_err_unreserve;
 	}
 
