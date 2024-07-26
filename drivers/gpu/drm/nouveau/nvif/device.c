@@ -38,6 +38,12 @@ nvif_device_time(struct nvif_device *device)
 	return device->user.func->time(&device->user);
 }
 
+int
+nvif_device_map(struct nvif_device *device)
+{
+	return nvif_object_map(&device->object, NULL, 0);
+}
+
 void
 nvif_device_dtor(struct nvif_device *device)
 {
