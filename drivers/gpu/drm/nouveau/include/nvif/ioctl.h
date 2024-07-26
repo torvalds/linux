@@ -2,11 +2,8 @@
 #ifndef __NVIF_IOCTL_H__
 #define __NVIF_IOCTL_H__
 
-#define NVIF_VERSION_LATEST                               0x0000000000000100ULL
-
 struct nvif_ioctl_v0 {
 	__u8  version;
-#define NVIF_IOCTL_V0_NOP                                                  0x00
 #define NVIF_IOCTL_V0_SCLASS                                               0x01
 #define NVIF_IOCTL_V0_NEW                                                  0x02
 #define NVIF_IOCTL_V0_DEL                                                  0x03
@@ -26,10 +23,6 @@ struct nvif_ioctl_v0 {
 	__u64 token;
 	__u64 object;
 	__u8  data[];		/* ioctl data (below) */
-};
-
-struct nvif_ioctl_nop_v0 {
-	__u64 version;
 };
 
 struct nvif_ioctl_sclass_v0 {

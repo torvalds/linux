@@ -30,12 +30,6 @@
 #include <nvif/if0000.h>
 
 int
-nvif_client_ioctl(struct nvif_client *client, void *data, u32 size)
-{
-	return client->driver->ioctl(client->object.priv, data, size, NULL);
-}
-
-int
 nvif_client_suspend(struct nvif_client *client)
 {
 	return client->driver->suspend(client->object.priv);
@@ -58,10 +52,6 @@ int
 nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_client *client)
 {
 	struct nvif_client_v0 args = {};
-	struct {
-		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_nop_v0 nop;
-	} nop = {};
 	int ret;
 
 	strscpy_pad(args.name, name, sizeof(args.name));
@@ -75,13 +65,5 @@ nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_clien
 	client->object.client = client;
 	client->object.handle = ~0;
 	client->driver = parent->driver;
-
-	if (ret == 0) {
-		ret = nvif_client_ioctl(client, &nop, sizeof(nop));
-		client->version = nop.nop.version;
-	}
-
-	if (ret)
-		nvif_client_dtor(client);
-	return ret;
+	return 0;
 }

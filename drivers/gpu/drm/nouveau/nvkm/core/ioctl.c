@@ -33,18 +33,7 @@ static int
 nvkm_ioctl_nop(struct nvkm_client *client,
 	       struct nvkm_object *object, void *data, u32 size)
 {
-	union {
-		struct nvif_ioctl_nop_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "nop size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "nop vers %lld\n", args->v0.version);
-		args->v0.version = NVIF_VERSION_LATEST;
-	}
-
-	return ret;
+	return -ENOSYS;
 }
 
 #include <nvif/class.h>
