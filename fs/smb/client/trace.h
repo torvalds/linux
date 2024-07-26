@@ -1281,6 +1281,46 @@ DEFINE_EVENT(smb3_connect_err_class, smb3_##name,  \
 
 DEFINE_SMB3_CONNECT_ERR_EVENT(connect_err);
 
+DECLARE_EVENT_CLASS(smb3_sess_setup_err_class,
+	TP_PROTO(char *hostname, char *username, __u64 conn_id,
+		const struct __kernel_sockaddr_storage *dst_addr, int rc),
+	TP_ARGS(hostname, username, conn_id, dst_addr, rc),
+	TP_STRUCT__entry(
+		__string(hostname, hostname)
+		__string(username, username)
+		__field(__u64, conn_id)
+		__array(__u8, dst_addr, sizeof(struct sockaddr_storage))
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		struct sockaddr_storage *pss = NULL;
+
+		__entry->conn_id = conn_id;
+		__entry->rc = rc;
+		pss = (struct sockaddr_storage *)__entry->dst_addr;
+		*pss = *dst_addr;
+		__assign_str(hostname);
+		__assign_str(username);
+	),
+	TP_printk("rc=%d user=%s conn_id=0x%llx server=%s addr=%pISpsfc",
+		__entry->rc,
+		__get_str(username),
+		__entry->conn_id,
+		__get_str(hostname),
+		__entry->dst_addr)
+)
+
+#define DEFINE_SMB3_SES_SETUP_ERR_EVENT(name)        \
+DEFINE_EVENT(smb3_sess_setup_err_class, smb3_##name,  \
+	TP_PROTO(char *hostname,		\
+		char *username,			\
+		__u64 conn_id,			\
+		const struct __kernel_sockaddr_storage *addr,	\
+		int rc),			\
+	TP_ARGS(hostname, username, conn_id, addr, rc))
+
+DEFINE_SMB3_SES_SETUP_ERR_EVENT(key_expired);
+
 DECLARE_EVENT_CLASS(smb3_reconnect_class,
 	TP_PROTO(__u64	currmid,
 		__u64 conn_id,
