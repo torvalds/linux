@@ -35,7 +35,6 @@
 #include <nvif/ioctl.h>
 
 #include "nouveau_drv.h"
-#include "nouveau_usif.h"
 
 static void
 nvkm_client_unmap(void *priv, void __iomem *ptr, u32 size)
