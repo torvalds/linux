@@ -145,7 +145,7 @@ static int ad9739a_buffer_postdisable(struct iio_dev *indio_dev)
 	struct ad9739a_state *st = iio_priv(indio_dev);
 
 	return iio_backend_data_source_set(st->back, 0,
-					   IIO_BACKEND_INTERNAL_CONTINUOS_WAVE);
+					   IIO_BACKEND_INTERNAL_CONTINUOUS_WAVE);
 }
 
 static bool ad9739a_reg_accessible(struct device *dev, unsigned int reg)

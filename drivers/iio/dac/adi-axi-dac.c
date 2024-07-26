@@ -452,7 +452,7 @@ static int axi_dac_data_source_set(struct iio_backend *back, unsigned int chan,
 	struct axi_dac_state *st = iio_backend_get_priv(back);
 
 	switch (data) {
-	case IIO_BACKEND_INTERNAL_CONTINUOS_WAVE:
+	case IIO_BACKEND_INTERNAL_CONTINUOUS_WAVE:
 		return regmap_update_bits(st->regmap,
 					  AXI_DAC_REG_CHAN_CNTRL_7(chan),
 					  AXI_DAC_DATA_SEL,

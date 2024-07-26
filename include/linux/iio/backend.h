@@ -17,7 +17,7 @@ enum iio_backend_data_type {
 };
 
 enum iio_backend_data_source {
-	IIO_BACKEND_INTERNAL_CONTINUOS_WAVE,
+	IIO_BACKEND_INTERNAL_CONTINUOUS_WAVE,
 	IIO_BACKEND_EXTERNAL,
 	IIO_BACKEND_DATA_SOURCE_MAX
 };
