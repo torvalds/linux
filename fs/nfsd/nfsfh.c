@@ -195,7 +195,9 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	data_left -= len;
 	if (data_left < 0)
 		return error;
-	exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
+	exp = rqst_exp_find(&rqstp->rq_chandle, SVC_NET(rqstp),
+			    rqstp->rq_client, rqstp->rq_gssclient,
+			    fh->fh_fsid_type, fh->fh_fsid);
 	fid = (struct fid *)(fh->fh_fsid + len);
 
 	error = nfserr_stale;
