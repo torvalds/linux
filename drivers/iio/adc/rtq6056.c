@@ -643,7 +643,7 @@ static irqreturn_t rtq6056_buffer_trigger_handler(int irq, void *p)
 
 	pm_runtime_get_sync(dev);
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		unsigned int addr = rtq6056_channels[bit].address;
 
 		ret = regmap_read(priv->regmap, addr, &raw);
