@@ -578,6 +578,59 @@ nouveau_parent = {
 	.errorf = nouveau_drm_errorf,
 };
 
+static void
+nouveau_drm_device_fini(struct drm_device *dev)
+{
+	struct nouveau_cli *cli, *temp_cli;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
+	if (nouveau_pmops_runtime()) {
+		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
+	}
+
+	nouveau_led_fini(dev);
+	nouveau_dmem_fini(drm);
+	nouveau_svm_fini(drm);
+	nouveau_hwmon_fini(dev);
+	nouveau_debugfs_fini(drm);
+
+	if (dev->mode_config.num_crtc)
+		nouveau_display_fini(dev, false, false);
+	nouveau_display_destroy(dev);
+
+	nouveau_accel_fini(drm);
+	nouveau_bios_takedown(dev);
+
+	nouveau_ttm_fini(drm);
+	nouveau_vga_fini(drm);
+
+	/*
+	 * There may be existing clients from as-yet unclosed files. For now,
+	 * clean them up here rather than deferring until the file is closed,
+	 * but this likely not correct if we want to support hot-unplugging
+	 * properly.
+	 */
+	mutex_lock(&drm->clients_lock);
+	list_for_each_entry_safe(cli, temp_cli, &drm->clients, head) {
+		list_del(&cli->head);
+		mutex_lock(&cli->mutex);
+		if (cli->abi16)
+			nouveau_abi16_fini(cli->abi16);
+		mutex_unlock(&cli->mutex);
+		nouveau_cli_fini(cli);
+		kfree(cli);
+	}
+	mutex_unlock(&drm->clients_lock);
+
+	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
+	destroy_workqueue(drm->sched_wq);
+	nvif_parent_dtor(&drm->parent);
+	mutex_destroy(&drm->clients_lock);
+	kfree(drm);
+}
+
 static int
 nouveau_drm_device_init(struct drm_device *dev)
 {
@@ -677,59 +730,6 @@ fail_alloc:
 	nvif_parent_dtor(&drm->parent);
 	kfree(drm);
 	return ret;
-}
-
-static void
-nouveau_drm_device_fini(struct drm_device *dev)
-{
-	struct nouveau_cli *cli, *temp_cli;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-
-	if (nouveau_pmops_runtime()) {
-		pm_runtime_get_sync(dev->dev);
-		pm_runtime_forbid(dev->dev);
-	}
-
-	nouveau_led_fini(dev);
-	nouveau_dmem_fini(drm);
-	nouveau_svm_fini(drm);
-	nouveau_hwmon_fini(dev);
-	nouveau_debugfs_fini(drm);
-
-	if (dev->mode_config.num_crtc)
-		nouveau_display_fini(dev, false, false);
-	nouveau_display_destroy(dev);
-
-	nouveau_accel_fini(drm);
-	nouveau_bios_takedown(dev);
-
-	nouveau_ttm_fini(drm);
-	nouveau_vga_fini(drm);
-
-	/*
-	 * There may be existing clients from as-yet unclosed files. For now,
-	 * clean them up here rather than deferring until the file is closed,
-	 * but this likely not correct if we want to support hot-unplugging
-	 * properly.
-	 */
-	mutex_lock(&drm->clients_lock);
-	list_for_each_entry_safe(cli, temp_cli, &drm->clients, head) {
-		list_del(&cli->head);
-		mutex_lock(&cli->mutex);
-		if (cli->abi16)
-			nouveau_abi16_fini(cli->abi16);
-		mutex_unlock(&cli->mutex);
-		nouveau_cli_fini(cli);
-		kfree(cli);
-	}
-	mutex_unlock(&drm->clients_lock);
-
-	nouveau_cli_fini(&drm->client);
-	nouveau_cli_fini(&drm->master);
-	destroy_workqueue(drm->sched_wq);
-	nvif_parent_dtor(&drm->parent);
-	mutex_destroy(&drm->clients_lock);
-	kfree(drm);
 }
 
 /*
