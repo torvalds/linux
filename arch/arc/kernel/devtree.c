@@ -29,6 +29,8 @@ static void __init arc_set_early_base_baud(unsigned long dt_root)
 	else if (of_flat_dt_is_compatible(dt_root, "snps,arc-sdp") ||
 		 of_flat_dt_is_compatible(dt_root, "snps,hsdk"))
 		arc_base_baud = 33333333;	/* Fixed 33MHz clk (AXS10x & HSDK) */
+	else if (of_flat_dt_is_compatible(dt_root, "snps,haps_npp"))
+		arc_base_baud = 4000000;	/* Fixed default 4MHz */
 	else
 		arc_base_baud = 30000000;	/* Fixed default 30MHz */
 }

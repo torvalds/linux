@@ -23,6 +23,7 @@ static const char *simulation_compat[] __initconst = {
 #else
 	"snps,nsimosci_hs",
 	"snps,zebu_hs",
+	"snps,haps_npp",
 #endif
 	NULL,
 };
