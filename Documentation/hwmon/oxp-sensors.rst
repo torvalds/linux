@@ -52,7 +52,7 @@ Sysfs entries
 The following attributes are supported:
 
 fan1_input
-  Read Only. Reads current fan RMP.
+  Read Only. Reads current fan RPM.
 
 pwm1_enable
   Read Write. Enable manual fan control. Write "1" to set to manual, write "0"
