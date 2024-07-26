@@ -71,10 +71,9 @@ wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	struct nvif_disp_chan_v0 args = {
 		.id = wndw->id,
 	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
 	int ret;
 
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
+	ret = nv50_dmac_create(drm,
 			       &oclass, 0, &args, sizeof(args), -1,
 			       &wndw->wimm);
 	if (ret) {

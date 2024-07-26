@@ -307,7 +307,6 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	struct nvif_disp_chan_v0 args = {
 		.id = head,
 	};
-	struct nouveau_display *disp = nouveau_display(drm->dev);
 	struct nv50_disp *disp50 = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
 	int ret;
@@ -318,7 +317,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp.object,
+	ret = nv50_dmac_create(drm,
 			       &oclass, head, &args, sizeof(args),
 			       disp50->sync->offset, &wndw->wndw);
 	if (ret) {
