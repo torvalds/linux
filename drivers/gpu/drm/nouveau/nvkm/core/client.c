@@ -51,8 +51,6 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 
 	client->object.client = oclass->client;
 	client->object.handle = oclass->handle;
-	client->object.route  = oclass->route;
-	client->object.token  = oclass->token;
 	client->object.object = oclass->object;
 	client->debug = oclass->client->debug;
 	*pobject = &client->object;

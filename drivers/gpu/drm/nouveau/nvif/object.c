@@ -40,7 +40,6 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 			args->v0.object = nvif_handle(object);
 		else
 			args->v0.object = 0;
-		args->v0.owner = NVIF_IOCTL_V0_OWNER_ANY;
 	} else
 		return -ENOSYS;
 
@@ -286,8 +285,6 @@ nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle,
 		args->ioctl.version = 0;
 		args->ioctl.type = NVIF_IOCTL_V0_NEW;
 		args->new.version = 0;
-		args->new.route = parent->client->route;
-		args->new.token = nvif_handle(object);
 		args->new.object = nvif_handle(object);
 		args->new.handle = handle;
 		args->new.oclass = oclass;

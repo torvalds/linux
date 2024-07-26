@@ -79,7 +79,6 @@ nvif_client_ctor(struct nvif_client *parent, const char *name, u64 device,
 
 	client->object.client = client;
 	client->object.handle = ~0;
-	client->route = NVIF_IOCTL_V0_ROUTE_NVIF;
 	client->driver = parent->driver;
 
 	if (ret == 0) {

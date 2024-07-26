@@ -15,8 +15,6 @@ struct nvkm_object {
 
 	struct list_head head;
 	struct list_head tree;
-	u8  route;
-	u64 token;
 	u64 object;
 	struct rb_node node;
 };

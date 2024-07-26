@@ -530,7 +530,6 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nvif_client *client;
 	struct nvif_sclass *sclass;
 	s32 oclass = 0;
 	int ret, i;
@@ -540,7 +539,6 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	if (init->handle == ~0)
 		return nouveau_abi16_put(abi16, -EINVAL);
-	client = &abi16->cli->base;
 
 	chan = nouveau_abi16_chan(abi16, init->channel);
 	if (!chan)
@@ -605,10 +603,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	list_add(&ntfy->head, &chan->notifiers);
 
-	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", init->handle,
 			       oclass, NULL, 0, &ntfy->object);
-	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
 		nouveau_abi16_ntfy_fini(chan, ntfy);
@@ -624,7 +620,6 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nvif_device *device;
-	struct nvif_client *client;
 	struct nv_dma_v0 args = {};
 	int ret;
 
@@ -635,7 +630,6 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
 		return nouveau_abi16_put(abi16, -EINVAL);
-	client = &abi16->cli->base;
 
 	chan = nouveau_abi16_chan(abi16, info->channel);
 	if (!chan)
@@ -672,11 +666,9 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		args.limit += chan->ntfy->offset;
 	}
 
-	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16Ntfy", info->handle,
 			       NV_DMA_IN_MEMORY, &args, sizeof(args),
 			       &ntfy->object);
-	client->route = NVDRM_OBJECT_NVIF;
 	if (ret)
 		goto done;
 
