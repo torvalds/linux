@@ -1209,8 +1209,9 @@ struct snd_soc_pcm_runtime {
 
 	bool initialized;
 
+	/* CPU/Codec/Platform */
 	int num_components;
-	struct snd_soc_component *components[]; /* CPU/Codec/Platform */
+	struct snd_soc_component *components[] __counted_by(num_components);
 };
 
 /* see soc_new_pcm_runtime()  */

@@ -326,8 +326,8 @@ static int snd_soc_rtd_add_component(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	/* see for_each_rtd_components */
-	rtd->components[rtd->num_components] = component;
-	rtd->num_components++;
+	rtd->num_components++; // increment flex array count at first
+	rtd->components[rtd->num_components - 1] = component;
 
 	return 0;
 }
@@ -494,7 +494,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_component *component;
 	struct device *dev;
 	int ret;
 	int stream;
@@ -521,10 +520,10 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 * for rtd
 	 */
 	rtd = devm_kzalloc(dev,
-			   sizeof(*rtd) +
-			   sizeof(component) * (dai_link->num_cpus +
-						 dai_link->num_codecs +
-						 dai_link->num_platforms),
+			   struct_size(rtd, components,
+				       dai_link->num_cpus +
+				       dai_link->num_codecs +
+				       dai_link->num_platforms),
 			   GFP_KERNEL);
 	if (!rtd) {
 		device_unregister(dev);
