@@ -59,6 +59,11 @@ static inline void __udelay(unsigned long usecs)
 	 * HZ * 4295 is pre-evaluated by gcc - hence only 2 mpy ops
 	 */
 	loops = ((u64) usecs * 4295 * HZ * loops_per_jiffy) >> 32;
+	/* lp loop termination value is 0x1, 0x0 will cause loop_counter
+	 * overflow
+	 */
+	if (loops == 0)
+		loops = 1;
 
 	__delay(loops);
 }

@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/unaligned.h>
 
@@ -199,14 +200,14 @@ __raw_writesx(32, l)
  */
 #define readb(c)		({ u8  __v = readb_relaxed(c); __iormb(); __v; })
 #define readw(c)		({ u16 __v = readw_relaxed(c); __iormb(); __v; })
-#define readl(c)		({ u32 __v = readl_relaxed(c); __iormb(); __v; })
+#define readl(c) 		({ u32 __v =  arc_read_uncached_32(c); __iormb(); __v; })
 #define readsb(p,d,l)		({ __raw_readsb(p,d,l); __iormb(); })
 #define readsw(p,d,l)		({ __raw_readsw(p,d,l); __iormb(); })
 #define readsl(p,d,l)		({ __raw_readsl(p,d,l); __iormb(); })
 
 #define writeb(v,c)		({ __iowmb(); writeb_relaxed(v,c); })
 #define writew(v,c)		({ __iowmb(); writew_relaxed(v,c); })
-#define writel(v,c)		({ __iowmb(); writel_relaxed(v,c); })
+#define writel(v,c)		({ __iowmb(); arc_write_uncached_32(c,v); })
 #define writesb(p,d,l)		({ __iowmb(); __raw_writesb(p,d,l); })
 #define writesw(p,d,l)		({ __iowmb(); __raw_writesw(p,d,l); })
 #define writesl(p,d,l)		({ __iowmb(); __raw_writesl(p,d,l); })

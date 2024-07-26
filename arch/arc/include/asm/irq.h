@@ -18,7 +18,7 @@
 #ifdef CONFIG_ISA_ARCV2
 #define IPI_IRQ		19
 #define SOFTIRQ_IRQ	21
-#define FIRST_EXT_IRQ	24
+#define FIRST_EXT_IRQ	18
 #endif
 
 #include <linux/interrupt.h>
