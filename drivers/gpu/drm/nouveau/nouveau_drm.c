@@ -579,10 +579,10 @@ nouveau_parent = {
 };
 
 static void
-nouveau_drm_device_fini(struct drm_device *dev)
+nouveau_drm_device_fini(struct nouveau_drm *drm)
 {
+	struct drm_device *dev = drm->dev;
 	struct nouveau_cli *cli, *temp_cli;
-	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (nouveau_pmops_runtime()) {
 		pm_runtime_get_sync(dev->dev);
@@ -707,7 +707,7 @@ nouveau_drm_device_init(struct nouveau_drm *drm)
 
 	ret = drm_dev_register(drm->dev, 0);
 	if (ret) {
-		nouveau_drm_device_fini(drm->dev);
+		nouveau_drm_device_fini(drm);
 		return ret;
 	}
 
@@ -758,7 +758,7 @@ nouveau_drm_device_new(const struct drm_driver *drm_driver, struct device *paren
 	}
 
 	drm->dev->dev_private = drm;
-	dev_set_drvdata(parent, drm->dev);
+	dev_set_drvdata(parent, drm);
 
 done:
 	if (ret) {
@@ -811,8 +811,7 @@ done:
 
 static void quirk_broken_nv_runpm(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	struct pci_dev *bridge = pci_upstream_bridge(pdev);
 
 	if (!bridge || bridge->vendor != PCI_VENDOR_ID_INTEL)
@@ -894,18 +893,17 @@ fail_nvkm:
 }
 
 void
-nouveau_drm_device_remove(struct drm_device *dev)
+nouveau_drm_device_remove(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_client *client;
 	struct nvkm_device *device;
 
-	drm_dev_unplug(dev);
+	drm_dev_unplug(drm->dev);
 
 	client = nvxx_client(&drm->client.base);
 	device = nvkm_device_find(client->device);
 
-	nouveau_drm_device_fini(dev);
+	nouveau_drm_device_fini(drm);
 	nouveau_drm_device_del(drm);
 	nvkm_device_del(&device);
 }
@@ -913,20 +911,19 @@ nouveau_drm_device_remove(struct drm_device *dev)
 static void
 nouveau_drm_remove(struct pci_dev *pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 
 	/* revert our workaround */
 	if (drm->old_pm_cap)
 		pdev->pm_cap = drm->old_pm_cap;
-	nouveau_drm_device_remove(dev);
+	nouveau_drm_device_remove(drm);
 	pci_disable_device(pdev);
 }
 
 static int
-nouveau_do_suspend(struct drm_device *dev, bool runtime)
+nouveau_do_suspend(struct nouveau_drm *drm, bool runtime)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct drm_device *dev = drm->dev;
 	struct ttm_resource_manager *man;
 	int ret;
 
@@ -987,10 +984,10 @@ fail_display:
 }
 
 static int
-nouveau_do_resume(struct drm_device *dev, bool runtime)
+nouveau_do_resume(struct nouveau_drm *drm, bool runtime)
 {
+	struct drm_device *dev = drm->dev;
 	int ret = 0;
-	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
 	ret = nvif_client_resume(&drm->master.base);
@@ -1020,14 +1017,14 @@ int
 nouveau_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (drm->dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    drm->dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	ret = nouveau_do_suspend(drm_dev, false);
+	ret = nouveau_do_suspend(drm, false);
 	if (ret)
 		return ret;
 
@@ -1042,11 +1039,11 @@ int
 nouveau_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (drm->dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
+	    drm->dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
 	pci_set_power_state(pdev, PCI_D0);
@@ -1056,10 +1053,10 @@ nouveau_pmops_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, false);
+	ret = nouveau_do_resume(drm, false);
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	nouveau_display_hpd_resume(drm);
 
 	return ret;
 }
@@ -1067,17 +1064,17 @@ nouveau_pmops_resume(struct device *dev)
 static int
 nouveau_pmops_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_suspend(drm_dev, false);
+	struct nouveau_drm *drm = dev_get_drvdata(dev);
+
+	return nouveau_do_suspend(drm, false);
 }
 
 static int
 nouveau_pmops_thaw(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_resume(drm_dev, false);
+	struct nouveau_drm *drm = dev_get_drvdata(dev);
+
+	return nouveau_do_resume(drm, false);
 }
 
 bool
@@ -1092,7 +1089,7 @@ static int
 nouveau_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
 	int ret;
 
 	if (!nouveau_pmops_runtime()) {
@@ -1101,12 +1098,12 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev, true);
+	ret = nouveau_do_suspend(drm, true);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
+	drm->dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 	return ret;
 }
 
@@ -1114,9 +1111,8 @@ static int
 nouveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
+	struct nouveau_drm *drm = pci_get_drvdata(pdev);
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (!nouveau_pmops_runtime()) {
@@ -1131,7 +1127,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, true);
+	ret = nouveau_do_resume(drm, true);
 	if (ret) {
 		NV_ERROR(drm, "resume failed with: %d\n", ret);
 		return ret;
@@ -1139,10 +1135,10 @@ nouveau_pmops_runtime_resume(struct device *dev)
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
-	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	drm->dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
-	nouveau_display_hpd_resume(drm_dev);
+	nouveau_display_hpd_resume(drm);
 
 	return ret;
 }

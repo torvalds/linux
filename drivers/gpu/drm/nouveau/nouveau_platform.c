@@ -39,8 +39,9 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 
 static void nouveau_platform_remove(struct platform_device *pdev)
 {
-	struct drm_device *dev = platform_get_drvdata(pdev);
-	nouveau_drm_device_remove(dev);
+	struct nouveau_drm *drm = platform_get_drvdata(pdev);
+
+	nouveau_drm_device_remove(drm);
 }
 
 #if IS_ENABLED(CONFIG_OF)

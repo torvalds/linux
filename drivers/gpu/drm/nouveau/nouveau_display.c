@@ -446,10 +446,8 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 } while(0)
 
 void
-nouveau_display_hpd_resume(struct drm_device *dev)
+nouveau_display_hpd_resume(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-
 	spin_lock_irq(&drm->hpd_lock);
 	drm->hpd_pending = ~0;
 	spin_unlock_irq(&drm->hpd_lock);
