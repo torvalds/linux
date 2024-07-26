@@ -2416,12 +2416,14 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 	if (uts) {
 		struct timespec64 ts;
+		ktime_t dt;
 
 		if (get_timespec64(&ts, uts))
 			return -EFAULT;
 
-		iowq.timeout = ktime_add_ns(timespec64_to_ktime(ts), ktime_get_ns());
-		io_napi_adjust_timeout(ctx, &iowq, &ts);
+		dt = timespec64_to_ktime(ts);
+		iowq.timeout = ktime_add(dt, ktime_get());
+		io_napi_adjust_timeout(ctx, &iowq, dt);
 	}
 
 	if (sig) {
