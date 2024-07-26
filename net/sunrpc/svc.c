@@ -945,6 +945,20 @@ void svc_rqst_release_pages(struct svc_rqst *rqstp)
 	}
 }
 
+/**
+ * svc_exit_thread - finalise the termination of a sunrpc server thread
+ * @rqstp: the svc_rqst which represents the thread.
+ *
+ * When a thread started with svc_new_thread() exits it must call
+ * svc_exit_thread() as its last act.  This must be done with the
+ * service mutex held.  Normally this is held by a DIFFERENT thread, the
+ * one that is calling svc_set_num_threads() and which will wait for
+ * SP_VICTIM_REMAINS to be cleared before dropping the mutex.  If the
+ * thread exits for any reason other than svc_thread_should_stop()
+ * returning %true (which indicated that svc_set_num_threads() is
+ * waiting for it to exit), then it must take the service mutex itself,
+ * which can only safely be done using mutex_try_lock().
+ */
 void
 svc_exit_thread(struct svc_rqst *rqstp)
 {
