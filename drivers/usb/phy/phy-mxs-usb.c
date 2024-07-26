@@ -118,6 +118,11 @@
 #define BM_ANADIG_USB2_MISC_RX_VPIN_FS		BIT(29)
 #define BM_ANADIG_USB2_MISC_RX_VMIN_FS		BIT(28)
 
+/* System Integration Module (SIM) Registers */
+#define SIM_GPR1				0x30
+
+#define USB_PHY_VLLS_WAKEUP_EN			BIT(0)
+
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
 /* Do disconnection between PHY and controller without vbus */
@@ -214,6 +219,7 @@ struct mxs_phy {
 	struct clk *clk;
 	const struct mxs_phy_data *data;
 	struct regmap *regmap_anatop;
+	struct regmap *regmap_sim;
 	int port_id;
 	u32 tx_reg_set;
 	u32 tx_reg_mask;
@@ -772,6 +778,17 @@ static int mxs_phy_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Currently, only imx7ulp has SIM module */
+	if (of_get_property(np, "nxp,sim", NULL)) {
+		mxs_phy->regmap_sim = syscon_regmap_lookup_by_phandle
+			(np, "nxp,sim");
+		if (IS_ERR(mxs_phy->regmap_sim)) {
+			dev_dbg(&pdev->dev,
+				"failed to find regmap for sim\n");
+			return PTR_ERR(mxs_phy->regmap_sim);
+		}
+	}
+
 	/* Precompute which bits of the TX register are to be updated, if any */
 	if (!of_property_read_u32(np, "fsl,tx-cal-45-dn-ohms", &val) &&
 	    val >= MXS_PHY_TX_CAL45_MIN && val <= MXS_PHY_TX_CAL45_MAX) {
@@ -849,6 +866,22 @@ static void mxs_phy_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static void mxs_phy_wakeup_enable(struct mxs_phy *mxs_phy, bool on)
+{
+	u32 mask = USB_PHY_VLLS_WAKEUP_EN;
+
+	/* If the SoCs don't have SIM, quit */
+	if (!mxs_phy->regmap_sim)
+		return;
+
+	if (on) {
+		regmap_update_bits(mxs_phy->regmap_sim, SIM_GPR1, mask, mask);
+		udelay(500);
+	} else {
+		regmap_update_bits(mxs_phy->regmap_sim, SIM_GPR1, mask, 0);
+	}
+}
+
 static void mxs_phy_enable_ldo_in_suspend(struct mxs_phy *mxs_phy, bool on)
 {
 	unsigned int reg = on ? ANADIG_ANA_MISC0_SET : ANADIG_ANA_MISC0_CLR;
@@ -869,8 +902,10 @@ static int mxs_phy_system_suspend(struct device *dev)
 {
 	struct mxs_phy *mxs_phy = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev))
+	if (device_may_wakeup(dev)) {
 		mxs_phy_enable_ldo_in_suspend(mxs_phy, true);
+		mxs_phy_wakeup_enable(mxs_phy, true);
+	}
 
 	return 0;
 }
@@ -879,8 +914,10 @@ static int mxs_phy_system_resume(struct device *dev)
 {
 	struct mxs_phy *mxs_phy = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev))
+	if (device_may_wakeup(dev)) {
 		mxs_phy_enable_ldo_in_suspend(mxs_phy, false);
+		mxs_phy_wakeup_enable(mxs_phy, false);
+	}
 
 	return 0;
 }
