@@ -370,7 +370,7 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 
 	mutex_lock(&info->lock);
 
-	for_each_set_bit(i, i_dev->active_scan_mask, i_dev->masklength) {
+	iio_for_each_active_channel(i_dev, i) {
 		const struct iio_chan_spec *chan = &i_dev->channels[i];
 
 		ret = rockchip_saradc_conversion(info, chan);
