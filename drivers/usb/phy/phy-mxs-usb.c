@@ -71,6 +71,9 @@
 #define BM_USBPHY_PLL_EN_USB_CLKS		BIT(6)
 
 /* Anatop Registers */
+#define ANADIG_REG_1P1_SET			0x114
+#define ANADIG_REG_1P1_CLR			0x118
+
 #define ANADIG_ANA_MISC0			0x150
 #define ANADIG_ANA_MISC0_SET			0x154
 #define ANADIG_ANA_MISC0_CLR			0x158
@@ -122,6 +125,9 @@
 #define SIM_GPR1				0x30
 
 #define USB_PHY_VLLS_WAKEUP_EN			BIT(0)
+
+#define BM_ANADIG_REG_1P1_ENABLE_WEAK_LINREG	BIT(18)
+#define BM_ANADIG_REG_1P1_TRACK_VDD_SOC_CAP	BIT(19)
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
@@ -196,7 +202,8 @@ static const struct mxs_phy_data imx6sx_phy_data = {
 };
 
 static const struct mxs_phy_data imx6ul_phy_data = {
-	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
+		MXS_PHY_HARDWARE_CONTROL_PHY2_CLK,
 };
 
 static const struct mxs_phy_data imx7ulp_phy_data = {
@@ -239,6 +246,11 @@ static inline bool is_imx6sl_phy(struct mxs_phy *mxs_phy)
 static inline bool is_imx7ulp_phy(struct mxs_phy *mxs_phy)
 {
 	return mxs_phy->data == &imx7ulp_phy_data;
+}
+
+static inline bool is_imx6ul_phy(struct mxs_phy *mxs_phy)
+{
+	return mxs_phy->data == &imx6ul_phy_data;
 }
 
 /*
@@ -884,18 +896,30 @@ static void mxs_phy_wakeup_enable(struct mxs_phy *mxs_phy, bool on)
 
 static void mxs_phy_enable_ldo_in_suspend(struct mxs_phy *mxs_phy, bool on)
 {
-	unsigned int reg = on ? ANADIG_ANA_MISC0_SET : ANADIG_ANA_MISC0_CLR;
+	unsigned int reg;
+	u32 value;
 
 	/* If the SoCs don't have anatop, quit */
 	if (!mxs_phy->regmap_anatop)
 		return;
 
-	if (is_imx6q_phy(mxs_phy))
+	if (is_imx6q_phy(mxs_phy)) {
+		reg = on ? ANADIG_ANA_MISC0_SET : ANADIG_ANA_MISC0_CLR;
 		regmap_write(mxs_phy->regmap_anatop, reg,
 			BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG);
-	else if (is_imx6sl_phy(mxs_phy))
+	} else if (is_imx6sl_phy(mxs_phy)) {
+		reg = on ? ANADIG_ANA_MISC0_SET : ANADIG_ANA_MISC0_CLR;
 		regmap_write(mxs_phy->regmap_anatop,
 			reg, BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG_SL);
+	} else if (is_imx6ul_phy(mxs_phy)) {
+		reg = on ? ANADIG_REG_1P1_SET : ANADIG_REG_1P1_CLR;
+		value = BM_ANADIG_REG_1P1_ENABLE_WEAK_LINREG |
+			BM_ANADIG_REG_1P1_TRACK_VDD_SOC_CAP;
+		if (mxs_phy_get_vbus_status(mxs_phy) && on)
+			regmap_write(mxs_phy->regmap_anatop, reg, value);
+		else if (!on)
+			regmap_write(mxs_phy->regmap_anatop, reg, value);
+	}
 }
 
 static int mxs_phy_system_suspend(struct device *dev)
