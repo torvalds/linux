@@ -209,9 +209,11 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_dtor(&cli->mmu);
 	nvif_device_dtor(&cli->device);
-	mutex_lock(&cli->drm->master.lock);
-	nvif_client_dtor(&cli->base);
-	mutex_unlock(&cli->drm->master.lock);
+	if (cli != &cli->drm->master) {
+		mutex_lock(&cli->drm->master.lock);
+		nvif_client_dtor(&cli->base);
+		mutex_unlock(&cli->drm->master.lock);
+	}
 }
 
 static int
@@ -253,10 +255,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
-	if (cli == &drm->master) {
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
-				       cli->name, device, &cli->base);
-	} else {
+	if (cli != &drm->master) {
 		mutex_lock(&drm->master.lock);
 		ret = nvif_client_ctor(&drm->master.base, cli->name, device,
 				       &cli->base);
@@ -626,7 +625,6 @@ nouveau_drm_device_fini(struct nouveau_drm *drm)
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	destroy_workqueue(drm->sched_wq);
-	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
 }
 
@@ -636,15 +634,10 @@ nouveau_drm_device_init(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	int ret;
 
-	nvif_parent_ctor(&nouveau_parent, &drm->parent);
-	drm->master.base.object.parent = &drm->parent;
-
 	drm->sched_wq = alloc_workqueue("nouveau_sched_wq_shared", 0,
 					WQ_MAX_ACTIVE);
-	if (!drm->sched_wq) {
-		ret = -ENOMEM;
-		goto fail_alloc;
-	}
+	if (!drm->sched_wq)
+		return -ENOMEM;
 
 	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
 	if (ret)
@@ -726,8 +719,6 @@ fail_master:
 	nouveau_cli_fini(&drm->master);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
-fail_alloc:
-	nvif_parent_dtor(&drm->parent);
 	return ret;
 }
 
@@ -736,6 +727,9 @@ nouveau_drm_device_del(struct nouveau_drm *drm)
 {
 	if (drm->dev)
 		drm_dev_put(drm->dev);
+
+	nvif_client_dtor(&drm->master.base);
+	nvif_parent_dtor(&drm->parent);
 
 	kfree(drm);
 }
@@ -761,6 +755,14 @@ nouveau_drm_device_new(const struct drm_driver *drm_driver, struct device *paren
 
 	drm->dev->dev_private = drm;
 	dev_set_drvdata(parent, drm);
+
+	nvif_parent_ctor(&nouveau_parent, &drm->parent);
+	drm->master.base.object.parent = &drm->parent;
+
+	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug, "drm",
+			       nouveau_name(drm->dev), &drm->master.base);
+	if (ret)
+		goto done;
 
 done:
 	if (ret) {
