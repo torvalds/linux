@@ -18,8 +18,7 @@ struct nvif_device {
 	struct nvif_user user;
 };
 
-int  nvif_device_ctor(struct nvif_object *, const char *name, u32 handle,
-		      s32 oclass, void *, u32, struct nvif_device *);
+int  nvif_device_ctor(struct nvif_client *, const char *name, struct nvif_device *);
 void nvif_device_dtor(struct nvif_device *);
 u64  nvif_device_time(struct nvif_device *);
 
