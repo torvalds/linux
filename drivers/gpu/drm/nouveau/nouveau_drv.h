@@ -204,6 +204,7 @@ struct nouveau_drm {
 	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
 	struct nvif_device device;
+	struct nvif_mmu mmu;
 
 	struct nouveau_cli master;
 	struct nouveau_cli client;
