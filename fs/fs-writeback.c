@@ -1132,6 +1132,7 @@ out_bdi_put:
 
 /**
  * cgroup_writeback_umount - flush inode wb switches for umount
+ * @sb: target super_block
  *
  * This function is called when a super_block is about to be destroyed and
  * flushes in-flight inode wb switches.  An inode wb switch goes through
@@ -1140,8 +1141,12 @@ out_bdi_put:
  * rare occurrences and synchronize_rcu() can take a while, perform
  * flushing iff wb switches are in flight.
  */
-void cgroup_writeback_umount(void)
+void cgroup_writeback_umount(struct super_block *sb)
 {
+
+	if (!(sb->s_bdi->capabilities & BDI_CAP_WRITEBACK))
+		return;
+
 	/*
 	 * SB_ACTIVE should be reliably cleared before checking
 	 * isw_nr_in_flight, see generic_shutdown_super().

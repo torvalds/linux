@@ -621,7 +621,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		cgroup_writeback_umount();
+		cgroup_writeback_umount(sb);
 
 		/* Evict all inodes with zero refcount. */
 		evict_inodes(sb);
