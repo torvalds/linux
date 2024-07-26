@@ -268,7 +268,7 @@ static irqreturn_t mt6360_adc_trigger_handler(int irq, void *p)
 	int i = 0, bit, val, ret;
 
 	memset(&data, 0, sizeof(data));
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		ret = mt6360_adc_read_channel(mad, bit, &val);
 		if (ret < 0) {
 			dev_warn(&indio_dev->dev, "Failed to get channel %d conversion val\n", bit);
