@@ -18,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/iopoll.h>
+#include <linux/regulator/consumer.h>
 
 #define DRIVER_NAME "mxs_phy"
 
@@ -204,6 +205,7 @@ struct mxs_phy {
 	int port_id;
 	u32 tx_reg_set;
 	u32 tx_reg_mask;
+	struct regulator *phy_3p0;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -287,6 +289,16 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	ret = stmp_reset_block(base + HW_USBPHY_CTRL);
 	if (ret)
 		goto disable_pll;
+
+	if (mxs_phy->phy_3p0) {
+		ret = regulator_enable(mxs_phy->phy_3p0);
+		if (ret) {
+			dev_err(mxs_phy->phy.dev,
+				"Failed to enable 3p0 regulator, ret=%d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	/* Power up the PHY */
 	writel(0, base + HW_USBPHY_PWD);
@@ -447,6 +459,9 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 
 	if (is_imx7ulp_phy(mxs_phy))
 		mxs_phy_pll_enable(phy->io_priv, false);
+
+	if (mxs_phy->phy_3p0)
+		regulator_disable(mxs_phy->phy_3p0);
 
 	clk_disable_unprepare(mxs_phy->clk);
 }
@@ -788,6 +803,17 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	mxs_phy->clk = clk;
 	mxs_phy->data = of_device_get_match_data(&pdev->dev);
+
+	mxs_phy->phy_3p0 = devm_regulator_get(&pdev->dev, "phy-3p0");
+	if (PTR_ERR(mxs_phy->phy_3p0) == -ENODEV)
+		/* not exist */
+		mxs_phy->phy_3p0 = NULL;
+	else if (IS_ERR(mxs_phy->phy_3p0))
+		return dev_err_probe(&pdev->dev, PTR_ERR(mxs_phy->phy_3p0),
+				"Getting regulator error\n");
+
+	if (mxs_phy->phy_3p0)
+		regulator_set_voltage(mxs_phy->phy_3p0, 3200000, 3200000);
 
 	platform_set_drvdata(pdev, mxs_phy);
 
