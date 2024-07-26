@@ -3067,10 +3067,13 @@ int __ceph_get_caps(struct inode *inode, struct ceph_file_info *fi, int need,
 				       flags, &_got);
 		WARN_ON_ONCE(ret == -EAGAIN);
 		if (!ret) {
+#ifdef CONFIG_DEBUG_FS
 			struct ceph_mds_client *mdsc = fsc->mdsc;
 			struct cap_wait cw;
+#endif
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
+#ifdef CONFIG_DEBUG_FS
 			cw.ino = ceph_ino(inode);
 			cw.tgid = current->tgid;
 			cw.need = need;
@@ -3079,6 +3082,7 @@ int __ceph_get_caps(struct inode *inode, struct ceph_file_info *fi, int need,
 			spin_lock(&mdsc->caps_list_lock);
 			list_add(&cw.list, &mdsc->cap_wait_list);
 			spin_unlock(&mdsc->caps_list_lock);
+#endif
 
 			/* make sure used fmode not timeout */
 			ceph_get_fmode(ci, flags, FMODE_WAIT_BIAS);
@@ -3097,9 +3101,11 @@ int __ceph_get_caps(struct inode *inode, struct ceph_file_info *fi, int need,
 			remove_wait_queue(&ci->i_cap_wq, &wait);
 			ceph_put_fmode(ci, flags, FMODE_WAIT_BIAS);
 
+#ifdef CONFIG_DEBUG_FS
 			spin_lock(&mdsc->caps_list_lock);
 			list_del(&cw.list);
 			spin_unlock(&mdsc->caps_list_lock);
+#endif
 
 			if (ret == -EAGAIN)
 				continue;
