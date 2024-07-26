@@ -78,19 +78,18 @@ nouveau_mem_map(struct nouveau_mem *mem,
 void
 nouveau_mem_fini(struct nouveau_mem *mem)
 {
-	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
-	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
-	mutex_lock(&mem->cli->drm->master.lock);
+	nvif_vmm_put(&mem->drm->client.vmm.vmm, &mem->vma[1]);
+	nvif_vmm_put(&mem->drm->client.vmm.vmm, &mem->vma[0]);
+	mutex_lock(&mem->drm->master.lock);
 	nvif_mem_dtor(&mem->mem);
-	mutex_unlock(&mem->cli->drm->master.lock);
+	mutex_unlock(&mem->drm->master.lock);
 }
 
 int
 nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct nouveau_drm *drm = mem->drm;
 	struct nvif_mmu *mmu = &drm->mmu;
 	struct nvif_mem_ram_v0 args = {};
 	u8 type;
@@ -126,8 +125,7 @@ int
 nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nouveau_cli *cli = mem->cli;
-	struct nouveau_drm *drm = cli->drm;
+	struct nouveau_drm *drm = mem->drm;
 	struct nvif_mmu *mmu = &drm->mmu;
 	u64 size = ALIGN(reg->size, 1 << page);
 	int ret;
@@ -173,7 +171,7 @@ nouveau_mem_del(struct ttm_resource_manager *man, struct ttm_resource *reg)
 }
 
 int
-nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
+nouveau_mem_new(struct nouveau_drm *drm, u8 kind, u8 comp,
 		struct ttm_resource **res)
 {
 	struct nouveau_mem *mem;
@@ -181,7 +179,7 @@ nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
 		return -ENOMEM;
 
-	mem->cli = cli;
+	mem->drm = drm;
 	mem->kind = kind;
 	mem->comp = comp;
 
