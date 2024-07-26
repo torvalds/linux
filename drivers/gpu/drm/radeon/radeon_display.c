@@ -1658,7 +1658,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		rdev->mode_info.mode_config_initialized = false;
 	}
 
-	kfree(rdev->mode_info.bios_hardcoded_edid);
+	drm_edid_free(rdev->mode_info.bios_hardcoded_edid);
 
 	/* free i2c buses */
 	radeon_i2c_fini(rdev);
