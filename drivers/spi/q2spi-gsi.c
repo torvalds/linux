@@ -450,7 +450,7 @@ int check_gsi_transfer_completion_db_rx(struct q2spi_geni *q2spi)
 		Q2SPI_DEBUG(q2spi, "%s Err QUP GSI Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		dmaengine_terminate_all(q2spi->gsi->tx_c);
+		gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
@@ -492,7 +492,7 @@ err_gsi_geni_transfer:
 		Q2SPI_DEBUG(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		dmaengine_terminate_all(q2spi->gsi->tx_c);
+		gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
@@ -593,7 +593,7 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 	if (dma_submit_error(q2spi->gsi->tx_cookie)) {
 		Q2SPI_DEBUG(q2spi, "%s Err dmaengine_submit failed (%d)\n",
 			    __func__, q2spi->gsi->tx_cookie);
-		dmaengine_terminate_all(q2spi->gsi->tx_c);
+		gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
 		return -EINVAL;
 	}
 
@@ -622,7 +622,7 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 		if (dma_submit_error(q2spi->gsi->rx_cookie)) {
 			Q2SPI_DEBUG(q2spi, "%s Err dmaengine_submit failed (%d)\n",
 				    __func__, q2spi->gsi->rx_cookie);
-			dmaengine_terminate_all(q2spi->gsi->rx_c);
+			gpi_q2spi_terminate_all(q2spi->gsi->rx_c);
 			return -EINVAL;
 		}
 	} else if (cmd == Q2SPI_RX_ONLY) {
@@ -650,7 +650,7 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 		if (dma_submit_error(q2spi->gsi->rx_cookie)) {
 			Q2SPI_DEBUG(q2spi, "%s Err dmaengine_submit failed (%d)\n",
 				    __func__, q2spi->gsi->rx_cookie);
-			dmaengine_terminate_all(q2spi->gsi->rx_c);
+			gpi_q2spi_terminate_all(q2spi->gsi->rx_c);
 			return -EINVAL;
 		}
 	}

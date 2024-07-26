@@ -3108,6 +3108,87 @@ int gpi_terminate_all(struct dma_chan *chan)
 	struct gpii *gpii = gpii_chan->gpii;
 	int schid, echid, i;
 	int ret = 0;
+
+	GPII_INFO(gpii, gpii_chan->chid, "Enter\n");
+	mutex_lock(&gpii->ctrl_lock);
+
+	/*
+	 * treat both channels as a group if its protocol is not UART
+	 * STOP, RESET, or START needs to be in lockstep
+	 */
+	schid = (gpii->protocol == SE_PROTOCOL_UART) ? gpii_chan->chid : 0;
+	echid = (gpii->protocol == SE_PROTOCOL_UART) ? schid + 1 :
+		MAX_CHANNELS_PER_GPII;
+
+	/* stop the channel */
+	for (i = schid; i < echid; i++) {
+		gpii_chan = &gpii->gpii_chan[i];
+
+		/* disable ch state so no more TRE processing */
+		write_lock_irq(&gpii->pm_lock);
+		gpii_chan->pm_state = PREPARE_TERMINATE;
+		write_unlock_irq(&gpii->pm_lock);
+
+		/* send command to Stop the channel */
+		ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_STOP);
+		if (ret)
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error Stopping Chan:%d resetting\n", ret);
+	}
+
+	/* reset the channels (clears any pending tre) */
+	for (i = schid; i < echid; i++) {
+		gpii_chan = &gpii->gpii_chan[i];
+
+		ret = gpi_reset_chan(gpii_chan, GPI_CH_CMD_RESET);
+		if (ret) {
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error resetting channel ret:%d\n", ret);
+			if (!gpii->reg_table_dump) {
+				gpi_dump_debug_reg(gpii);
+				gpii->reg_table_dump = true;
+			}
+			goto terminate_exit;
+		}
+
+		/* reprogram channel CNTXT */
+		ret = gpi_alloc_chan(gpii_chan, false);
+		if (ret) {
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error alloc_channel ret:%d\n", ret);
+			goto terminate_exit;
+		}
+	}
+
+	/* restart the channels */
+	for (i = schid; i < echid; i++) {
+		gpii_chan = &gpii->gpii_chan[i];
+
+		ret = gpi_start_chan(gpii_chan);
+		if (ret) {
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error Starting Channel ret:%d\n", ret);
+			goto terminate_exit;
+		}
+	}
+
+terminate_exit:
+	mutex_unlock(&gpii->ctrl_lock);
+	return ret;
+}
+
+/**
+ * gpi_q2spi_terminate_all() - function to stop and restart the channels
+ * @chan: gsi dma channel handle
+ *
+ * Return: Returns success or failure
+ */
+int gpi_q2spi_terminate_all(struct dma_chan *chan)
+{
+	struct gpii_chan *gpii_chan = to_gpii_chan(chan);
+	struct gpii *gpii = gpii_chan->gpii;
+	int schid, echid, i;
+	int ret = 0;
 	bool stop_cmd_failed = false;
 
 	GPII_INFO(gpii, gpii_chan->chid, "Enter\n");
@@ -3162,9 +3243,6 @@ int gpi_terminate_all(struct dma_chan *chan)
 				goto terminate_exit;
 			}
 		}
-	} else {
-		for (i = schid; i < echid; i++)
-			gpi_noop_tre(gpii_chan);
 	}
 
 	/* restart the channels */
@@ -3183,6 +3261,7 @@ terminate_exit:
 	mutex_unlock(&gpii->ctrl_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gpi_q2spi_terminate_all);
 
 static void gpi_noop_tre(struct gpii_chan *gpii_chan)
 {
