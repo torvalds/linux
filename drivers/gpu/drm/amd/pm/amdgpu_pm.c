@@ -1815,6 +1815,8 @@ static ssize_t amdgpu_set_apu_thermal_cap(struct device *dev,
 
 	ret = amdgpu_dpm_set_apu_thermal_limit(adev, value);
 	if (ret) {
+		pm_runtime_mark_last_busy(ddev->dev);
+		pm_runtime_put_autosuspend(ddev->dev);
 		dev_err(dev, "failed to update thermal limit\n");
 		return ret;
 	}
