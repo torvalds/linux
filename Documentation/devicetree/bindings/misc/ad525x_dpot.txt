@@ -1,0 +1,81 @@
+# Digital Potentiometers  compatible with Analog Devices family
+
+# Required properties:
+- compatible <I2C>: 
+  * "ad5258"
+  * "ad5259"
+  * "ad5251"
+  * "ad5252"
+  * "ad5253"
+  * "ad5254"
+  * "ad5255"
+  * "ad5241"
+  * "ad5242"
+  * "ad5243"
+  * "ad5245"
+  * "ad5246"
+  * "ad5247"
+  * "ad5248"
+  * "ad5280"
+  * "ad5282"
+  * "adn2860"
+  * "ad5273"
+  * "ad5161"
+  * "ad5171"
+  * "ad5170"
+  * "ad5172"
+  * "ad5173"
+  * "ad5272"
+  * "ad5274"
+- compatible <SPI>: 
+  * "ad,ad5160"
+  * "ad,ad5161"
+  * "ad,ad5162"
+  * "ad,ad5165"
+  * "ad,ad5200"
+  * "ad,ad5201"
+  * "ad,ad5203"
+  * "ad,ad5204"
+  * "ad,ad5206"
+  * "ad,ad5207"
+  * "ad,ad5231"
+  * "ad,ad5232"
+  * "ad,ad5233"
+  * "ad,ad5235"
+  * "ad,ad5260"
+  * "ad,ad5262"
+  * "ad,ad5263"
+  * "ad,ad5290"
+  * "ad,ad5291"
+  * "ad,ad5292"
+  * "ad,ad5293"
+  * "ad,ad7376"
+  * "ad,ad8400"
+  * "ad,ad8402"
+  * "ad,ad8403"
+  * "ad,adn2850"
+  * "ad,ad5270"
+  * "ad,ad5271"
+- reg : spi chip select number for the device / I2C address
+- spi-max-frequency : max spi frequency to use
+Example for SPI:
+```
+ad5204@1 {
+address-cells = <1>;
+size-cells = <1>;
+compatible = "ad,ad5204";
+spi-max-frequency = <5000000>;
+reg = <1>;
+};
+```
+Example for I2C:
+```
+ad5242@2c {
+compatible = "ad,ad5242";
+reg = <2c>;
+};
+```
+
+
+
+
