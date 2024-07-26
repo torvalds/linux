@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SNPS_ARCSYNC
+	tristate "Synopsys ARCsync driver"
+	help
+	  This option enables the driver developed for Syncopsys ARCSync
+	  module. ARCSync is used for synchronization and control of
+	  multiple ARC processor assembled in a heterogenous sub-system.
+	  The driver controlls ARCSync and provides a set of functions to
+	  send commands to ARC processoes, issue interrups and register
+	  handler ARCsync interrupt. The Synopsys VPX/NPX remoteproc and
+	  accelerator drivers depend on this module.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called snps_arcsync.
+
