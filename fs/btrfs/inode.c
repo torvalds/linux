@@ -715,7 +715,7 @@ out:
 }
 
 static noinline int cow_file_range_inline(struct btrfs_inode *inode,
-					  struct page *locked_page,
+					  struct folio *locked_folio,
 					  u64 offset, u64 end,
 					  size_t compressed_size,
 					  int compress_type,
@@ -741,10 +741,9 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode,
 	}
 
 	if (ret == 0)
-		locked_page = NULL;
+		locked_folio = NULL;
 
-	extent_clear_unlock_delalloc(inode, offset, end,
-				     page_folio(locked_page), &cached,
+	extent_clear_unlock_delalloc(inode, offset, end, locked_folio, &cached,
 				     clear_flags, PAGE_UNLOCK |
 				     PAGE_START_WRITEBACK | PAGE_END_WRITEBACK);
 	return ret;
@@ -1365,8 +1364,9 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 	if (!no_inline) {
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(inode, locked_page, start, end, 0,
-					    BTRFS_COMPRESS_NONE, NULL, false);
+		ret = cow_file_range_inline(inode, page_folio(locked_page),
+					    start, end, 0, BTRFS_COMPRESS_NONE,
+					    NULL, false);
 		if (ret <= 0) {
 			/*
 			 * We succeeded, return 1 so the caller knows we're done
