@@ -13,6 +13,11 @@
 #include <linux/bug.h>
 #include <asm/page.h>
 
+static bool track_protection(struct page_counter *c)
+{
+	return c->protection_support;
+}
+
 static void propagate_protected_usage(struct page_counter *c,
 				      unsigned long usage)
 {
@@ -57,7 +62,8 @@ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
 		new = 0;
 		atomic_long_set(&counter->usage, new);
 	}
-	propagate_protected_usage(counter, new);
+	if (track_protection(counter))
+		propagate_protected_usage(counter, new);
 }
 
 /**
@@ -70,12 +76,14 @@ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
 void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
 {
 	struct page_counter *c;
+	bool protection = track_protection(counter);
 
 	for (c = counter; c; c = c->parent) {
 		long new;
 
 		new = atomic_long_add_return(nr_pages, &c->usage);
-		propagate_protected_usage(c, new);
+		if (protection)
+			propagate_protected_usage(c, new);
 		/*
 		 * This is indeed racy, but we can live with some
 		 * inaccuracy in the watermark.
@@ -99,6 +107,7 @@ bool page_counter_try_charge(struct page_counter *counter,
 			     struct page_counter **fail)
 {
 	struct page_counter *c;
+	bool protection = track_protection(counter);
 
 	for (c = counter; c; c = c->parent) {
 		long new;
@@ -128,7 +137,9 @@ bool page_counter_try_charge(struct page_counter *counter,
 			*fail = c;
 			goto failed;
 		}
-		propagate_protected_usage(c, new);
+		if (protection)
+			propagate_protected_usage(c, new);
+
 		/*
 		 * Just like with failcnt, we can live with some
 		 * inaccuracy in the watermark.
