@@ -270,7 +270,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	struct charlcd *lcd;
 	struct resource *res;
 
-	lcd = kzalloc(sizeof(struct charlcd), GFP_KERNEL);
+	lcd = kzalloc(sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
