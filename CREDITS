@@ -1872,6 +1872,9 @@ S: K osmidomkum 723
 S: 160 00 Praha 6
 S: Czech Republic
 
+N: Jeremy Kerr
+D: Maintainer of SPU File System
+
 N: Michael Kerrisk
 E: mtk.manpages@gmail.com
 W: https://man7.org/
