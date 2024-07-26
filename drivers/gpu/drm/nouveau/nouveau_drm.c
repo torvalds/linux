@@ -424,8 +424,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * any GPU where it's possible we'll end up using M2MF for BO moves.
 	 */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nvkm_gpuobj_new(nvxx_device(device), 32, 0, false, NULL,
-				      &drm->notify);
+		ret = nvkm_gpuobj_new(nvxx_device(drm), 32, 0, false, NULL, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
 			nouveau_accel_gr_fini(drm);

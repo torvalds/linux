@@ -249,8 +249,8 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
-	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
-	struct nvkm_gr *gr = nvxx_gr(device);
+	struct nvkm_device *nvkm_device = nvxx_device(drm);
+	struct nvkm_gr *gr = nvxx_gr(drm);
 	struct drm_nouveau_getparam *getparam = data;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 

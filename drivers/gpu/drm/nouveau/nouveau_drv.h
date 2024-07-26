@@ -360,4 +360,41 @@ void nouveau_drm_device_remove(struct nouveau_drm *);
 
 extern int nouveau_modeset;
 
+/*XXX: Don't use these in new code.
+ *
+ * These accessors are used in a few places (mostly older code paths)
+ * to get direct access to NVKM structures, where a more well-defined
+ * interface doesn't exist.  Outside of the current use, these should
+ * not be relied on, and instead be implemented as NVIF.
+ *
+ * This is especially important when considering GSP-RM, as a lot the
+ * modules don't exist, or are "stub" implementations that just allow
+ * the GSP-RM paths to be bootstrapped.
+ */
+#include <subdev/bios.h>
+#include <subdev/fb.h>
+#include <subdev/gpio.h>
+#include <subdev/clk.h>
+#include <subdev/i2c.h>
+#include <subdev/timer.h>
+#include <subdev/therm.h>
+
+static inline struct nvkm_device *
+nvxx_device(struct nouveau_drm *drm)
+{
+	return drm->nvkm;
+}
+
+#define nvxx_bios(a) nvxx_device(a)->bios
+#define nvxx_fb(a) nvxx_device(a)->fb
+#define nvxx_gpio(a) nvxx_device(a)->gpio
+#define nvxx_clk(a) nvxx_device(a)->clk
+#define nvxx_i2c(a) nvxx_device(a)->i2c
+#define nvxx_iccsense(a) nvxx_device(a)->iccsense
+#define nvxx_therm(a) nvxx_device(a)->therm
+#define nvxx_volt(a) nvxx_device(a)->volt
+
+#include <engine/gr.h>
+
+#define nvxx_gr(a) nvxx_device(a)->gr
 #endif
