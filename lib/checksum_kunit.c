@@ -468,12 +468,9 @@ static __wsum to_wsum(u32 x)
 
 static void assert_setup_correct(struct kunit *test)
 {
-	CHECK_EQ(sizeof(random_buf) / sizeof(random_buf[0]), MAX_LEN);
-	CHECK_EQ(sizeof(expected_results) / sizeof(expected_results[0]),
-		 MAX_LEN);
-	CHECK_EQ(sizeof(init_sums_no_overflow) /
-			 sizeof(init_sums_no_overflow[0]),
-		 MAX_LEN);
+	CHECK_EQ(ARRAY_SIZE(random_buf), MAX_LEN);
+	CHECK_EQ(ARRAY_SIZE(expected_results), MAX_LEN);
+	CHECK_EQ(ARRAY_SIZE(init_sums_no_overflow), MAX_LEN);
 }
 
 /*
