@@ -609,7 +609,7 @@ struct iio_dev {
 	int				scan_bytes;
 
 	const unsigned long		*available_scan_masks;
-	unsigned			masklength;
+	unsigned			__private masklength;
 	const unsigned long		*active_scan_mask;
 	bool				scan_timestamp;
 	struct iio_trigger		*trig;
@@ -861,7 +861,7 @@ static inline const struct iio_scan_type
  */
 static inline unsigned int iio_get_masklength(const struct iio_dev *indio_dev)
 {
-	return indio_dev->masklength;
+	return ACCESS_PRIVATE(indio_dev, masklength);
 }
 
 /**
