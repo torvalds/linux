@@ -322,8 +322,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	struct nvkm_engine *engine;
 	u64 mask = (1ULL << NVKM_ENGINE_DMAOBJ) |
 		   (1ULL << NVKM_ENGINE_FIFO) |
-		   (1ULL << NVKM_ENGINE_DISP) |
-		   (1ULL << NVKM_ENGINE_PM);
+		   (1ULL << NVKM_ENGINE_DISP);
 	const struct nvkm_device_oclass *sclass = NULL;
 	int i;
 
