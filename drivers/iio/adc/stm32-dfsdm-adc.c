@@ -987,7 +987,7 @@ static int stm32_dfsdm_update_scan_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 
-	adc->nconv = bitmap_weight(scan_mask, indio_dev->masklength);
+	adc->nconv = bitmap_weight(scan_mask, iio_get_masklength(indio_dev));
 	adc->smask = *scan_mask;
 
 	dev_dbg(&indio_dev->dev, "nconv=%d mask=%lx\n", adc->nconv, *scan_mask);
