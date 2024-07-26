@@ -628,19 +628,13 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	destroy_workqueue(drm->sched_wq);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
-	kfree(drm);
 }
 
 static int
-nouveau_drm_device_init(struct drm_device *dev)
+nouveau_drm_device_init(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm;
+	struct drm_device *dev = drm->dev;
 	int ret;
-
-	if (!(drm = kzalloc(sizeof(*drm), GFP_KERNEL)))
-		return -ENOMEM;
-	dev->dev_private = drm;
-	drm->dev = dev;
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
 	drm->master.base.object.parent = &drm->parent;
@@ -711,6 +705,12 @@ nouveau_drm_device_init(struct drm_device *dev)
 		pm_runtime_put(dev->dev);
 	}
 
+	ret = drm_dev_register(drm->dev, 0);
+	if (ret) {
+		nouveau_drm_device_fini(drm->dev);
+		return ret;
+	}
+
 	return 0;
 fail_dispinit:
 	nouveau_display_destroy(dev);
@@ -728,8 +728,45 @@ fail_wq:
 	destroy_workqueue(drm->sched_wq);
 fail_alloc:
 	nvif_parent_dtor(&drm->parent);
-	kfree(drm);
 	return ret;
+}
+
+static void
+nouveau_drm_device_del(struct nouveau_drm *drm)
+{
+	if (drm->dev)
+		drm_dev_put(drm->dev);
+
+	kfree(drm);
+}
+
+static struct nouveau_drm *
+nouveau_drm_device_new(const struct drm_driver *drm_driver, struct device *parent,
+		       struct nvkm_device *device)
+{
+	struct nouveau_drm *drm;
+	int ret;
+
+	drm = kzalloc(sizeof(*drm), GFP_KERNEL);
+	if (!drm)
+		return ERR_PTR(-ENOMEM);
+
+	drm->dev = drm_dev_alloc(drm_driver, parent);
+	if (IS_ERR(drm->dev)) {
+		ret = PTR_ERR(drm->dev);
+		goto done;
+	}
+
+	drm->dev->dev_private = drm;
+	dev_set_drvdata(parent, drm->dev);
+
+done:
+	if (ret) {
+		nouveau_drm_device_del(drm);
+		drm = NULL;
+	}
+
+	return ret ? ERR_PTR(ret) : drm;
 }
 
 /*
@@ -794,7 +831,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *pent)
 {
 	struct nvkm_device *device;
-	struct drm_device *drm_dev;
+	struct nouveau_drm *drm;
 	int ret;
 
 	if (vga_switcheroo_client_probe_defer(pdev))
@@ -825,9 +862,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (nouveau_atomic)
 		driver_pci.driver_features |= DRIVER_ATOMIC;
 
-	drm_dev = drm_dev_alloc(&driver_pci, &pdev->dev);
-	if (IS_ERR(drm_dev)) {
-		ret = PTR_ERR(drm_dev);
+	drm = nouveau_drm_device_new(&driver_pci, &pdev->dev, device);
+	if (IS_ERR(drm)) {
+		ret = PTR_ERR(drm);
 		goto fail_nvkm;
 	}
 
@@ -835,30 +872,22 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm;
 
-	pci_set_drvdata(pdev, drm_dev);
-
-	ret = nouveau_drm_device_init(drm_dev);
+	ret = nouveau_drm_device_init(drm);
 	if (ret)
 		goto fail_pci;
 
-	ret = drm_dev_register(drm_dev, pent->driver_data);
-	if (ret)
-		goto fail_drm_dev_init;
-
-	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
-		drm_fbdev_ttm_setup(drm_dev, 8);
+	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
+		drm_fbdev_ttm_setup(drm->dev, 8);
 	else
-		drm_fbdev_ttm_setup(drm_dev, 32);
+		drm_fbdev_ttm_setup(drm->dev, 32);
 
 	quirk_broken_nv_runpm(pdev);
 	return 0;
 
-fail_drm_dev_init:
-	nouveau_drm_device_fini(drm_dev);
 fail_pci:
 	pci_disable_device(pdev);
 fail_drm:
-	drm_dev_put(drm_dev);
+	nouveau_drm_device_del(drm);
 fail_nvkm:
 	nvkm_device_del(&device);
 	return ret;
@@ -877,7 +906,7 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	device = nvkm_device_find(client->device);
 
 	nouveau_drm_device_fini(dev);
-	drm_dev_put(dev);
+	nouveau_drm_device_del(drm);
 	nvkm_device_del(&device);
 }
 
@@ -1369,7 +1398,7 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 			       struct platform_device *pdev,
 			       struct nvkm_device **pdevice)
 {
-	struct drm_device *drm;
+	struct nouveau_drm *drm;
 	int err;
 
 	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug,
@@ -1377,7 +1406,7 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 	if (err)
 		goto err_free;
 
-	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
+	drm = nouveau_drm_device_new(&driver_platform, &pdev->dev, *pdevice);
 	if (IS_ERR(drm)) {
 		err = PTR_ERR(drm);
 		goto err_free;
@@ -1387,12 +1416,10 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 	if (err)
 		goto err_put;
 
-	platform_set_drvdata(pdev, drm);
-
-	return drm;
+	return drm->dev;
 
 err_put:
-	drm_dev_put(drm);
+	nouveau_drm_device_del(drm);
 err_free:
 	nvkm_device_del(pdevice);
 
