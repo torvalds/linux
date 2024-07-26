@@ -239,8 +239,6 @@ nv50_dmac_create(struct nouveau_drm *drm,
 	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 
-	mutex_init(&dmac->lock);
-
 	/* Pascal added support for 47-bit physical addresses, but some
 	 * parts of EVO still only accept 40-bit PAs.
 	 *
@@ -258,7 +256,6 @@ nv50_dmac_create(struct nouveau_drm *drm,
 	if (ret)
 		return ret;
 
-	dmac->ptr = dmac->_push.mem.object.map.ptr;
 	dmac->_push.wait = nv50_dmac_wait;
 	dmac->_push.kick = nv50_dmac_kick;
 	dmac->push = &dmac->_push;
