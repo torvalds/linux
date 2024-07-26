@@ -585,16 +585,20 @@ config ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 # at the same time (e.g. copy_page_range()).
 # DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
 #
-config SPLIT_PTLOCK_CPUS
-	int
-	default "999999" if !MMU
-	default "999999" if ARM && !CPU_CACHE_VIPT
-	default "999999" if PARISC && !PA20
-	default "999999" if SPARC32
-	default "4"
+config SPLIT_PTE_PTLOCKS
+	def_bool y
+	depends on MMU
+	depends on NR_CPUS >= 4
+	depends on !ARM || CPU_CACHE_VIPT
+	depends on !PARISC || PA20
+	depends on !SPARC32
 
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	bool
+
+config SPLIT_PMD_PTLOCKS
+	def_bool y
+	depends on SPLIT_PTE_PTLOCKS && ARCH_ENABLE_SPLIT_PMD_PTLOCK
 
 #
 # support for memory balloon

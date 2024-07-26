@@ -2891,7 +2891,7 @@ static inline void pagetable_free(struct ptdesc *pt)
 	__free_pages(page, compound_order(page));
 }
 
-#if USE_SPLIT_PTE_PTLOCKS
+#if defined(CONFIG_SPLIT_PTE_PTLOCKS)
 #if ALLOC_SPLIT_PTLOCKS
 void __init ptlock_cache_init(void);
 bool ptlock_alloc(struct ptdesc *ptdesc);
@@ -2949,7 +2949,7 @@ static inline bool ptlock_init(struct ptdesc *ptdesc)
 	return true;
 }
 
-#else	/* !USE_SPLIT_PTE_PTLOCKS */
+#else	/* !defined(CONFIG_SPLIT_PTE_PTLOCKS) */
 /*
  * We use mm->page_table_lock to guard all pagetable pages of the mm.
  */
@@ -2964,7 +2964,7 @@ static inline spinlock_t *ptep_lockptr(struct mm_struct *mm, pte_t *pte)
 static inline void ptlock_cache_init(void) {}
 static inline bool ptlock_init(struct ptdesc *ptdesc) { return true; }
 static inline void ptlock_free(struct ptdesc *ptdesc) {}
-#endif /* USE_SPLIT_PTE_PTLOCKS */
+#endif /* defined(CONFIG_SPLIT_PTE_PTLOCKS) */
 
 static inline bool pagetable_pte_ctor(struct ptdesc *ptdesc)
 {
@@ -3024,7 +3024,7 @@ pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
 	((unlikely(pmd_none(*(pmd))) && __pte_alloc_kernel(pmd))? \
 		NULL: pte_offset_kernel(pmd, address))
 
-#if USE_SPLIT_PMD_PTLOCKS
+#if defined(CONFIG_SPLIT_PMD_PTLOCKS)
 
 static inline struct page *pmd_pgtable_page(pmd_t *pmd)
 {
