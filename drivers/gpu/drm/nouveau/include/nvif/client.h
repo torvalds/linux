@@ -18,9 +18,4 @@ int  nvif_client_suspend(struct nvif_client *);
 int  nvif_client_resume(struct nvif_client *);
 
 /*XXX*/
-#include <core/client.h>
-#define nvxx_client(a) ({                                                      \
-	struct nvif_client *_client = (a);                                     \
-	(struct nvkm_client *)_client->object.priv;                            \
-})
 #endif
