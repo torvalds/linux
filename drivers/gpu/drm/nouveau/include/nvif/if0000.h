@@ -5,7 +5,6 @@
 struct nvif_client_v0 {
 	__u8  version;
 	__u8  pad01[7];
-	__u64 device;
 	char  name[32];
 };
 

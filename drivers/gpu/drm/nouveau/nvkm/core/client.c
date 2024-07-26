@@ -42,7 +42,7 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
 		args->v0.name[sizeof(args->v0.name) - 1] = 0;
-		ret = nvkm_client_new(args->v0.name, args->v0.device, NULL,
+		ret = nvkm_client_new(args->v0.name, oclass->client->device, NULL,
 				      NULL, oclass->client->event, &client);
 		if (ret)
 			return ret;

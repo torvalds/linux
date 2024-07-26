@@ -55,10 +55,9 @@ nvif_client_dtor(struct nvif_client *client)
 }
 
 int
-nvif_client_ctor(struct nvif_client *parent, const char *name, u64 device,
-		 struct nvif_client *client)
+nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_client *client)
 {
-	struct nvif_client_v0 args = { .device = device };
+	struct nvif_client_v0 args = {};
 	struct {
 		struct nvif_ioctl_v0 ioctl;
 		struct nvif_ioctl_nop_v0 nop;
