@@ -12473,8 +12473,6 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				cmdiocb->iocb.ulpClass,
 				LPFC_WQE_CQ_ID_DEFAULT, ia, false);
 
-	abtsiocbp->vport = vport;
-
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocbp->hba_wqidx = cmdiocb->hba_wqidx;
 	if (cmdiocb->cmd_flag & LPFC_IO_FCP)
