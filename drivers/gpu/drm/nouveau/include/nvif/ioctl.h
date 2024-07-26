@@ -8,8 +8,6 @@ struct nvif_ioctl_v0 {
 #define NVIF_IOCTL_V0_NEW                                                  0x02
 #define NVIF_IOCTL_V0_DEL                                                  0x03
 #define NVIF_IOCTL_V0_MTHD                                                 0x04
-#define NVIF_IOCTL_V0_RD                                                   0x05
-#define NVIF_IOCTL_V0_WR                                                   0x06
 #define NVIF_IOCTL_V0_MAP                                                  0x07
 #define NVIF_IOCTL_V0_UNMAP                                                0x08
 	__u8  type;
@@ -58,24 +56,6 @@ struct nvif_ioctl_mthd_v0 {
 	__u8  method;
 	__u8  pad02[6];
 	__u8  data[];		/* method data (class.h) */
-};
-
-struct nvif_ioctl_rd_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  size;
-	__u8  pad02[2];
-	__u32 data;
-	__u64 addr;
-};
-
-struct nvif_ioctl_wr_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  size;
-	__u8  pad02[2];
-	__u32 data;
-	__u64 addr;
 };
 
 struct nvif_ioctl_map_v0 {

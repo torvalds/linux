@@ -56,18 +56,6 @@ nvkm_oproxy_unmap(struct nvkm_object *object)
 }
 
 static int
-nvkm_oproxy_rd32(struct nvkm_object *object, u64 addr, u32 *data)
-{
-	return nvkm_object_rd32(nvkm_oproxy(object)->object, addr, data);
-}
-
-static int
-nvkm_oproxy_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	return nvkm_object_wr32(nvkm_oproxy(object)->object, addr, data);
-}
-
-static int
 nvkm_oproxy_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 		 int align, struct nvkm_gpuobj **pgpuobj)
 {
@@ -173,8 +161,6 @@ nvkm_oproxy_func = {
 	.ntfy = nvkm_oproxy_ntfy,
 	.map = nvkm_oproxy_map,
 	.unmap = nvkm_oproxy_unmap,
-	.rd32 = nvkm_oproxy_rd32,
-	.wr32 = nvkm_oproxy_wr32,
 	.bind = nvkm_oproxy_bind,
 	.sclass = nvkm_oproxy_sclass,
 	.uevent = nvkm_oproxy_uevent,

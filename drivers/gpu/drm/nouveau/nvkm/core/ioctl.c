@@ -191,59 +191,14 @@ static int
 nvkm_ioctl_rd(struct nvkm_client *client,
 	      struct nvkm_object *object, void *data, u32 size)
 {
-	union {
-		struct nvif_ioctl_rd_v0 v0;
-	} *args = data;
-	union {
-		u8  b08;
-		u16 b16;
-		u32 b32;
-	} v;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "rd size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "rd vers %d size %d addr %016llx\n",
-			   args->v0.version, args->v0.size, args->v0.addr);
-		switch (args->v0.size) {
-		case 4:
-			ret = nvkm_object_rd32(object, args->v0.addr, &v.b32);
-			args->v0.data = v.b32;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-	}
-
-	return ret;
+	return -ENOSYS;
 }
 
 static int
 nvkm_ioctl_wr(struct nvkm_client *client,
 	      struct nvkm_object *object, void *data, u32 size)
 {
-	union {
-		struct nvif_ioctl_wr_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "wr size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object,
-			   "wr vers %d size %d addr %016llx data %08x\n",
-			   args->v0.version, args->v0.size, args->v0.addr,
-			   args->v0.data);
-	} else
-		return ret;
-
-	switch (args->v0.size) {
-	case 4: return nvkm_object_wr32(object, args->v0.addr, args->v0.data);
-	default:
-		break;
-	}
-
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 static int

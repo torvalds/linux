@@ -133,22 +133,6 @@ nvkm_object_unmap(struct nvkm_object *object)
 }
 
 int
-nvkm_object_rd32(struct nvkm_object *object, u64 addr, u32 *data)
-{
-	if (likely(object->func->rd32))
-		return object->func->rd32(object, addr, data);
-	return -ENODEV;
-}
-
-int
-nvkm_object_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	if (likely(object->func->wr32))
-		return object->func->wr32(object, addr, data);
-	return -ENODEV;
-}
-
-int
 nvkm_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *gpuobj,
 		 int align, struct nvkm_gpuobj **pgpuobj)
 {
