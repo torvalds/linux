@@ -134,11 +134,4 @@ struct nvif_mclass {
 #define NVIF_MR32(p,A...) DRF_MR(NVIF_RD32_, NVIF_WR32_, u32, (p), 0, ##A)
 #define NVIF_MV32(p,A...) DRF_MV(NVIF_RD32_, NVIF_WR32_, u32, (p), 0, ##A)
 #define NVIF_MD32(p,A...) DRF_MD(NVIF_RD32_, NVIF_WR32_, u32, (p), 0, ##A)
-
-/*XXX*/
-#include <core/object.h>
-#define nvxx_object(a) ({                                                      \
-	struct nvif_object *_object = (a);                                     \
-	(struct nvkm_object *)_object->priv;                                   \
-})
 #endif
