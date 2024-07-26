@@ -67,19 +67,6 @@ nvkm_uclient_sclass = {
 	.ctor = nvkm_uclient_new,
 };
 
-static const struct nvkm_object_func nvkm_client;
-struct nvkm_client *
-nvkm_client_search(struct nvkm_client *client, u64 handle)
-{
-	struct nvkm_object *object;
-
-	object = nvkm_object_search(client, handle, &nvkm_client);
-	if (IS_ERR(object))
-		return (void *)object;
-
-	return nvkm_client(object);
-}
-
 static int
 nvkm_client_mthd_devlist(struct nvkm_client *client, void *data, u32 size)
 {
