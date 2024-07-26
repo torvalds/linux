@@ -456,7 +456,7 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->lock);
 	chan = find_first_bit(indio_dev->active_scan_mask,
-			      indio_dev->masklength);
+			      iio_get_masklength(indio_dev));
 	ret = ads1015_get_adc_result(data, chan, &res);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
