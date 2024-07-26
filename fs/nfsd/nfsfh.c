@@ -116,19 +116,11 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	return nfserrno(nfsd_setuser(&rqstp->rq_cred, exp));
 }
 
-static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
-	struct dentry *dentry, struct svc_export *exp)
+static inline __be32 check_pseudo_root(struct dentry *dentry,
+				       struct svc_export *exp)
 {
 	if (!(exp->ex_flags & NFSEXP_V4ROOT))
 		return nfs_ok;
-	/*
-	 * v2/v3 clients have no need for the V4ROOT export--they use
-	 * the mount protocl instead; also, further V4ROOT checks may be
-	 * in v4-specific code, in which case v2/v3 clients could bypass
-	 * them.
-	 */
-	if (!nfsd_v4client(rqstp))
-		return nfserr_stale;
 	/*
 	 * We're exposing only the directories and symlinks that have to be
 	 * traversed on the way to real exports:
@@ -290,11 +282,15 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
 			fhp->fh_no_wcc = true;
 		fhp->fh_64bit_cookies = true;
+		if (exp->ex_flags & NFSEXP_V4ROOT)
+			goto out;
 		break;
 	case 2:
 		fhp->fh_no_wcc = true;
 		if (EX_WGATHER(exp))
 			fhp->fh_use_wgather = true;
+		if (exp->ex_flags & NFSEXP_V4ROOT)
+			goto out;
 	}
 
 	return 0;
@@ -364,7 +360,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	 *	  (for example, if different id-squashing options are in
 	 *	  effect on the new filesystem).
 	 */
-	error = check_pseudo_root(rqstp, dentry, exp);
+	error = check_pseudo_root(dentry, exp);
 	if (error)
 		goto out;
 
