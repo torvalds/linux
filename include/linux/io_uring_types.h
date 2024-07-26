@@ -404,7 +404,7 @@ struct io_ring_ctx {
 	spinlock_t		napi_lock;	/* napi_list lock */
 
 	/* napi busy poll default timeout */
-	unsigned int		napi_busy_poll_to;
+	ktime_t			napi_busy_poll_dt;
 	bool			napi_prefer_busy_poll;
 	bool			napi_enabled;
 
