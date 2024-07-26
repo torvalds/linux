@@ -279,8 +279,7 @@ static irqreturn_t ads124s_trigger_handler(int irq, void *p)
 	int scan_index, j = 0;
 	int ret;
 
-	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, scan_index) {
 		ret = ads124s_write_reg(indio_dev, ADS124S08_INPUT_MUX,
 					scan_index);
 		if (ret)
