@@ -4372,7 +4372,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 
 	ether_addr_copy(rtwvif->mac_addr, mac_addr);
 	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, chan->band_type);
-	rtw89_chip_rfk_scan(rtwdev, true);
+	rtw89_chip_rfk_scan(rtwdev, rtwvif, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
 	rtw89_phy_config_edcca(rtwdev, true);
 
@@ -4390,7 +4390,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 
-	rtw89_chip_rfk_scan(rtwdev, false);
+	rtw89_chip_rfk_scan(rtwdev, rtwvif, false);
 	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
 	rtw89_phy_config_edcca(rtwdev, false);
 

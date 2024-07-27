@@ -3543,7 +3543,8 @@ struct rtw89_chip_ops {
 	void (*rfk_channel)(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 	void (*rfk_band_changed)(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx);
-	void (*rfk_scan)(struct rtw89_dev *rtwdev, bool start);
+	void (*rfk_scan)(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			 bool start);
 	void (*rfk_track)(struct rtw89_dev *rtwdev);
 	void (*power_trim)(struct rtw89_dev *rtwdev);
 	void (*set_txpwr)(struct rtw89_dev *rtwdev,
@@ -6169,12 +6170,13 @@ static inline void rtw89_chip_rfk_band_changed(struct rtw89_dev *rtwdev,
 		chip->ops->rfk_band_changed(rtwdev, phy_idx);
 }
 
-static inline void rtw89_chip_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static inline void rtw89_chip_rfk_scan(struct rtw89_dev *rtwdev,
+				       struct rtw89_vif *rtwvif, bool start)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (chip->ops->rfk_scan)
-		chip->ops->rfk_scan(rtwdev, start);
+		chip->ops->rfk_scan(rtwdev, rtwvif, start);
 }
 
 static inline void rtw89_chip_rfk_track(struct rtw89_dev *rtwdev)

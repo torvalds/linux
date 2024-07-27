@@ -1989,7 +1989,8 @@ static void rtw8922a_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_SCAN, 6);
 }
 
-static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool start)
 {
 }
 

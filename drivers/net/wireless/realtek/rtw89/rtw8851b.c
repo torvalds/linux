@@ -1606,9 +1606,10 @@ static void rtw8851b_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw8851b_tssi_scan(rtwdev, phy_idx);
 }
 
-static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool start)
 {
-	rtw8851b_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+	rtw8851b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
 }
 
 static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
