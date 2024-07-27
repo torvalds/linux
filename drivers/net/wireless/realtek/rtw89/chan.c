@@ -1934,22 +1934,53 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+struct rtw89_mcc_stop_sel {
+	u8 mac_id;
+	u8 slot_idx;
+};
+
+static void rtw89_mcc_stop_sel_fill(struct rtw89_mcc_stop_sel *sel,
+				    const struct rtw89_mcc_role *mcc_role)
+{
+	sel->mac_id = mcc_role->rtwvif->mac_id;
+	sel->slot_idx = mcc_role->slot_idx;
+}
+
+static int rtw89_mcc_stop_sel_iterator(struct rtw89_dev *rtwdev,
+				       struct rtw89_mcc_role *mcc_role,
+				       unsigned int ordered_idx,
+				       void *data)
+{
+	struct rtw89_mcc_stop_sel *sel = data;
+
+	if (!mcc_role->rtwvif->chanctx_assigned)
+		return 0;
+
+	rtw89_mcc_stop_sel_fill(sel, mcc_role);
+	return 1; /* break iteration */
+}
+
 static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_stop_sel sel;
 	int ret;
 
-	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC stop\n");
+	/* by default, stop at ref */
+	rtw89_mcc_stop_sel_fill(&sel, ref);
+	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_stop_sel_iterator, &sel);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC stop at <macid %d>\n", sel.mac_id);
 
 	if (rtw89_concurrent_via_mrc(rtwdev)) {
-		ret = rtw89_fw_h2c_mrc_del(rtwdev, mcc->group);
+		ret = rtw89_fw_h2c_mrc_del(rtwdev, mcc->group, sel.slot_idx);
 		if (ret)
 			rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 				    "MRC h2c failed to trigger del: %d\n", ret);
 	} else {
 		ret = rtw89_fw_h2c_stop_mcc(rtwdev, mcc->group,
-					    ref->rtwvif->mac_id, true);
+					    sel.mac_id, true);
 		if (ret)
 			rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 				    "MCC h2c failed to trigger stop: %d\n", ret);

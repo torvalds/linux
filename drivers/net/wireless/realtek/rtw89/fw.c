@@ -7345,7 +7345,7 @@ int rtw89_fw_h2c_mrc_start(struct rtw89_dev *rtwdev,
 	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 }
 
-int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx)
+int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx, u8 slot_idx)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
 	struct rtw89_h2c_mrc_del *h2c;
@@ -7362,7 +7362,8 @@ int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_mrc_del *)skb->data;
 
-	h2c->w0 = le32_encode_bits(sch_idx, RTW89_H2C_MRC_DEL_W0_SCH_IDX);
+	h2c->w0 = le32_encode_bits(sch_idx, RTW89_H2C_MRC_DEL_W0_SCH_IDX) |
+		  le32_encode_bits(slot_idx, RTW89_H2C_MRC_DEL_W0_STOP_SLOT_IDX);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,

@@ -4499,7 +4499,7 @@ int rtw89_fw_h2c_mrc_add(struct rtw89_dev *rtwdev,
 			 const struct rtw89_fw_mrc_add_arg *arg);
 int rtw89_fw_h2c_mrc_start(struct rtw89_dev *rtwdev,
 			   const struct rtw89_fw_mrc_start_arg *arg);
-int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx);
+int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx, u8 slot_idx);
 int rtw89_fw_h2c_mrc_req_tsf(struct rtw89_dev *rtwdev,
 			     const struct rtw89_fw_mrc_req_tsf_arg *arg,
 			     struct rtw89_mac_mrc_tsf_rpt *rpt);
