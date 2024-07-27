@@ -221,18 +221,15 @@ EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_ctx_enable_active_tracking);
 
 static void rtp_mark_active(struct xe_device *xe,
 			    struct xe_rtp_process_ctx *ctx,
-			    unsigned int first, unsigned int last)
+			    unsigned int first, unsigned int n_entries)
 {
 	if (!ctx->active_entries)
 		return;
 
-	if (drm_WARN_ON(&xe->drm, last > ctx->n_entries))
+	if (drm_WARN_ON(&xe->drm, first + n_entries > ctx->n_entries))
 		return;
 
-	if (first == last)
-		bitmap_set(ctx->active_entries, first, 1);
-	else
-		bitmap_set(ctx->active_entries, first, last - first + 1);
+	bitmap_set(ctx->active_entries, first, n_entries);
 }
 
 /**
@@ -277,8 +274,7 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 		}
 
 		if (match)
-			rtp_mark_active(xe, ctx, entry - entries,
-					entry - entries);
+			rtp_mark_active(xe, ctx, entry - entries, 1);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
@@ -324,7 +320,7 @@ void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 		entry--;
 
 		rtp_mark_active(xe, ctx, first_entry - entries,
-				entry - entries);
+				entry - first_entry + 1);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
