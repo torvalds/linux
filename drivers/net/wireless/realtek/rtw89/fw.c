@@ -2947,9 +2947,9 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
 	u8 pads[RTW89_PPE_BW_NUM];
@@ -3289,7 +3289,7 @@ EXPORT_SYMBOL(rtw89_fw_h2c_update_beacon);
 int rtw89_fw_h2c_update_beacon_be(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct rtw89_h2c_bcn_upd_be *h2c;
 	struct sk_buff *skb_beacon;
