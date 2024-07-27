@@ -18,9 +18,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/* Fake PMUs created in temp directory. */
-static LIST_HEAD(test_pmus);
-
 /* Cleanup test PMU directory. */
 static int test_pmu_put(const char *dir, struct perf_pmu *pmu)
 {
