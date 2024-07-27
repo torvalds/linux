@@ -1387,8 +1387,13 @@ int __init buses_init(void)
 		return -ENOMEM;
 
 	system_kset = kset_create_and_add("system", NULL, &devices_kset->kobj);
-	if (!system_kset)
+	if (!system_kset) {
+		/* Do error handling here as devices_init() do */
+		kset_unregister(bus_kset);
+		bus_kset = NULL;
+		pr_err("%s: failed to create and add kset 'bus'\n", __func__);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
