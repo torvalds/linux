@@ -327,6 +327,7 @@ void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 				entry - entries);
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
 
 bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe)

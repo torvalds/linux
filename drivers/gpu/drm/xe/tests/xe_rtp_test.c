@@ -42,6 +42,12 @@ struct rtp_to_sr_test_case {
 	const struct xe_rtp_entry_sr *entries;
 };
 
+struct rtp_test_case {
+	const char *name;
+	unsigned long expected_active;
+	const struct xe_rtp_entry *entries;
+};
+
 static bool match_yes(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
 {
 	return true;
@@ -337,12 +343,166 @@ static void xe_rtp_process_to_sr_tests(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, reg_sr->errors, param->expected_sr_errors);
 }
 
+/*
+ * Entries below follow the logic used with xe_wa_oob.rules:
+ * 1) Entries with empty name are OR'ed: all entries marked active since the
+ *    last entry with a name
+ * 2) There are no action associated with rules
+ */
+static const struct rtp_test_case rtp_cases[] = {
+	{
+		.name = "active1",
+		.expected_active = BIT(0),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "active2",
+		.expected_active = BIT(0) | BIT(1),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{ XE_RTP_NAME("r2"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "active-inactive",
+		.expected_active = BIT(0),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{ XE_RTP_NAME("r2"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "inactive-active",
+		.expected_active = BIT(1),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_NAME("r2"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "inactive-1st_or_active-inactive",
+		.expected_active = BIT(1) | BIT(2) | BIT(3),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_NAME("r2_or_conditions"),
+			  XE_RTP_RULES(FUNC(match_yes)),
+			},
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_NAME("r3"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "inactive-2nd_or_active-inactive",
+		.expected_active = BIT(1) | BIT(2) | BIT(3),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_NAME("r2_or_conditions"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_RULES(FUNC(match_yes)) },
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_NAME("r3"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "inactive-last_or_active-inactive",
+		.expected_active = BIT(1) | BIT(2) | BIT(3),
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_NAME("r2_or_conditions"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_RULES(FUNC(match_yes)) },
+			{ XE_RTP_NAME("r3"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{}
+		},
+	},
+	{
+		.name = "inactive-no_or_active-inactive",
+		.expected_active = 0,
+		.entries = (const struct xe_rtp_entry[]) {
+			{ XE_RTP_NAME("r1"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_NAME("r2_or_conditions"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_RULES(FUNC(match_no)) },
+			{ XE_RTP_NAME("r3"),
+			  XE_RTP_RULES(FUNC(match_no)),
+			},
+			{}
+		},
+	},
+};
+
+static void xe_rtp_process_tests(struct kunit *test)
+{
+	const struct rtp_test_case *param = test->param_value;
+	struct xe_device *xe = test->priv;
+	struct xe_gt *gt = xe_device_get_root_tile(xe)->primary_gt;
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
+	unsigned long count_rtp_entries = 0, active = 0;
+
+	while (param->entries[count_rtp_entries].rules)
+		count_rtp_entries++;
+
+	xe_rtp_process_ctx_enable_active_tracking(&ctx, &active, count_rtp_entries);
+	xe_rtp_process(&ctx, param->entries);
+
+	KUNIT_EXPECT_EQ(test, active, param->expected_active);
+}
+
 static void rtp_to_sr_desc(const struct rtp_to_sr_test_case *t, char *desc)
 {
 	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
 }
 
 KUNIT_ARRAY_PARAM(rtp_to_sr, rtp_to_sr_cases, rtp_to_sr_desc);
+
+static void rtp_desc(const struct rtp_test_case *t, char *desc)
+{
+	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(rtp, rtp_cases, rtp_desc);
 
 static int xe_rtp_test_init(struct kunit *test)
 {
@@ -376,6 +536,7 @@ static void xe_rtp_test_exit(struct kunit *test)
 
 static struct kunit_case xe_rtp_tests[] = {
 	KUNIT_CASE_PARAM(xe_rtp_process_to_sr_tests, rtp_to_sr_gen_params),
+	KUNIT_CASE_PARAM(xe_rtp_process_tests, rtp_gen_params),
 	{}
 };
 
