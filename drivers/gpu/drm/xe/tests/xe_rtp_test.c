@@ -31,7 +31,7 @@
 #undef XE_REG_MCR
 #define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
-struct rtp_test_case {
+struct rtp_to_sr_test_case {
 	const char *name;
 	struct xe_reg expected_reg;
 	u32 expected_set_bits;
@@ -52,7 +52,7 @@ static bool match_no(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
 	return false;
 }
 
-static const struct rtp_test_case cases[] = {
+static const struct rtp_to_sr_test_case rtp_to_sr_cases[] = {
 	{
 		.name = "coalesce-same-reg",
 		.expected_reg = REGULAR_REG1,
@@ -298,9 +298,9 @@ static const struct rtp_test_case cases[] = {
 	},
 };
 
-static void xe_rtp_process_tests(struct kunit *test)
+static void xe_rtp_process_to_sr_tests(struct kunit *test)
 {
-	const struct rtp_test_case *param = test->param_value;
+	const struct rtp_to_sr_test_case *param = test->param_value;
 	struct xe_device *xe = test->priv;
 	struct xe_gt *gt = xe_device_get_root_tile(xe)->primary_gt;
 	struct xe_reg_sr *reg_sr = &gt->reg_sr;
@@ -308,7 +308,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 	unsigned long idx, count_sr_entries = 0, count_rtp_entries = 0, active = 0;
 
-	xe_reg_sr_init(reg_sr, "xe_rtp_tests", xe);
+	xe_reg_sr_init(reg_sr, "xe_rtp_to_sr_tests", xe);
 
 	while (param->entries[count_rtp_entries].rules)
 		count_rtp_entries++;
@@ -337,12 +337,12 @@ static void xe_rtp_process_tests(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, reg_sr->errors, param->expected_sr_errors);
 }
 
-static void rtp_desc(const struct rtp_test_case *t, char *desc)
+static void rtp_to_sr_desc(const struct rtp_to_sr_test_case *t, char *desc)
 {
 	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
 }
 
-KUNIT_ARRAY_PARAM(rtp, cases, rtp_desc);
+KUNIT_ARRAY_PARAM(rtp_to_sr, rtp_to_sr_cases, rtp_to_sr_desc);
 
 static int xe_rtp_test_init(struct kunit *test)
 {
@@ -375,7 +375,7 @@ static void xe_rtp_test_exit(struct kunit *test)
 }
 
 static struct kunit_case xe_rtp_tests[] = {
-	KUNIT_CASE_PARAM(xe_rtp_process_tests, rtp_gen_params),
+	KUNIT_CASE_PARAM(xe_rtp_process_to_sr_tests, rtp_to_sr_gen_params),
 	{}
 };
 
