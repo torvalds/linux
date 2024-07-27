@@ -562,9 +562,9 @@ static void rtw8852b_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8852b_rx_dck(rtwdev, RTW89_PHY_0);
 }
 
-static void rtw8852b_rfk_channel(struct rtw89_dev *rtwdev)
+static void rtw8852b_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
 	rtw8852b_rx_dck(rtwdev, phy_idx);
 	rtw8852b_iqk(rtwdev, phy_idx);

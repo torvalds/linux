@@ -3414,7 +3414,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
-		rtw89_chip_rfk_channel(rtwdev);
+		rtw89_chip_rfk_channel(rtwdev, rtwvif);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		rtwsta->mac_id = rtw89_acquire_mac_id(rtwdev);
 		if (rtwsta->mac_id == RTW89_MAX_MAC_ID_NUM)
