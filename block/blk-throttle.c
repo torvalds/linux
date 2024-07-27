@@ -31,14 +31,6 @@ static struct workqueue_struct *kthrotld_workqueue;
 
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
 
-/* We measure latency for request size from <= 4k to >= 1M */
-#define LATENCY_BUCKET_SIZE 9
-
-struct latency_bucket {
-	unsigned long total_latency; /* ns / 1024 */
-	int samples;
-};
-
 struct throtl_data
 {
 	/* service tree for active throtl groups */
@@ -115,9 +107,6 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 
 	return tg->iops[rw];
 }
-
-#define request_bucket_index(sectors) \
-	clamp_t(int, order_base_2(sectors) - 3, 0, LATENCY_BUCKET_SIZE - 1)
 
 /**
  * throtl_log - log debug message via blktrace
