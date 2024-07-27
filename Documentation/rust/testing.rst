@@ -131,9 +131,8 @@ Additionally, there are the ``#[test]`` tests. These can be run using the
 
 	make LLVM=1 rusttest
 
-This requires the kernel ``.config`` and downloads external repositories. It
-runs the ``#[test]`` tests on the host (currently) and thus is fairly limited in
-what these tests can test.
+This requires the kernel ``.config``. It runs the ``#[test]`` tests on the host
+(currently) and thus is fairly limited in what these tests can test.
 
 The Kselftests
 --------------
