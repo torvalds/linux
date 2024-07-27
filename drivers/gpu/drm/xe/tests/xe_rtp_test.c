@@ -36,7 +36,7 @@ struct rtp_test_case {
 	struct xe_reg expected_reg;
 	u32 expected_set_bits;
 	u32 expected_clr_bits;
-	unsigned long expected_count;
+	unsigned long expected_count_sr_entries;
 	unsigned int expected_sr_errors;
 	const struct xe_rtp_entry_sr *entries;
 };
@@ -57,7 +57,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0) | REG_BIT(1),
 		.expected_clr_bits = REG_BIT(0) | REG_BIT(1),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		/* Different bits on the same register: create a single entry */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -76,7 +76,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		/* Don't coalesce second entry since rules don't match */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -95,7 +95,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0) | REG_BIT(1) | REG_BIT(2),
 		.expected_clr_bits = REG_BIT(0) | REG_BIT(1) | REG_BIT(2),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("first"),
 			  XE_RTP_RULES(FUNC(match_yes), OR, FUNC(match_no)),
@@ -121,7 +121,7 @@ static const struct rtp_test_case cases[] = {
 	{
 		.name = "match-or-xfail",
 		.expected_reg = REGULAR_REG1,
-		.expected_count = 0,
+		.expected_count_sr_entries = 0,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("leading-or"),
 			  XE_RTP_RULES(OR, FUNC(match_yes)),
@@ -148,7 +148,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		/* Don't coalesce second entry due to one of the rules */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -167,7 +167,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 2,
+		.expected_count_sr_entries = 2,
 		/* Same bits on different registers are not coalesced */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -186,7 +186,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(1) | REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		/* Check clr vs set actions on different bits */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -207,7 +207,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = TEMP_FIELD,
 		.expected_clr_bits = TEMP_MASK,
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		/* Check FIELD_SET works */
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -225,7 +225,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		.expected_sr_errors = 1,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -245,7 +245,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		.expected_sr_errors = 1,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -265,7 +265,7 @@ static const struct rtp_test_case cases[] = {
 		.expected_reg = REGULAR_REG1,
 		.expected_set_bits = REG_BIT(0),
 		.expected_clr_bits = REG_BIT(0),
-		.expected_count = 1,
+		.expected_count_sr_entries = 1,
 		.expected_sr_errors = 2,
 		.entries = (const struct xe_rtp_entry_sr[]) {
 			{ XE_RTP_NAME("basic-1"),
@@ -295,7 +295,7 @@ static void xe_rtp_process_tests(struct kunit *test)
 	struct xe_reg_sr *reg_sr = &gt->reg_sr;
 	const struct xe_reg_sr_entry *sre, *sr_entry = NULL;
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
-	unsigned long idx, count = 0;
+	unsigned long idx, count_sr_entries = 0;
 
 	xe_reg_sr_init(reg_sr, "xe_rtp_tests", xe);
 	xe_rtp_process_to_sr(&ctx, param->entries, reg_sr);
@@ -304,11 +304,11 @@ static void xe_rtp_process_tests(struct kunit *test)
 		if (idx == param->expected_reg.addr)
 			sr_entry = sre;
 
-		count++;
+		count_sr_entries++;
 	}
 
-	KUNIT_EXPECT_EQ(test, count, param->expected_count);
-	if (count) {
+	KUNIT_EXPECT_EQ(test, count_sr_entries, param->expected_count_sr_entries);
+	if (count_sr_entries) {
 		KUNIT_EXPECT_EQ(test, sr_entry->clr_bits, param->expected_clr_bits);
 		KUNIT_EXPECT_EQ(test, sr_entry->set_bits, param->expected_set_bits);
 		KUNIT_EXPECT_EQ(test, sr_entry->reg.raw, param->expected_reg.raw);
