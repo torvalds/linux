@@ -291,9 +291,10 @@ void rtw89_coex_recognize_ver(struct rtw89_dev *rtwdev);
 
 static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
-				  enum rtw89_rf_path_bit paths)
+				  enum rtw89_rf_path_bit paths,
+				  enum rtw89_chanctx_idx chanctx_idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	u8 phy_map;
 
 	phy_map = FIELD_PREP(BTC_RFK_PATH_MAP, paths) |
@@ -305,9 +306,10 @@ static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 
 static inline u8 rtw89_btc_path_phymap(struct rtw89_dev *rtwdev,
 				       enum rtw89_phy_idx phy_idx,
-				       enum rtw89_rf_path path)
+				       enum rtw89_rf_path path,
+				       enum rtw89_chanctx_idx chanctx_idx)
 {
-	return rtw89_btc_phymap(rtwdev, phy_idx, BIT(path));
+	return rtw89_btc_phymap(rtwdev, phy_idx, BIT(path), chanctx_idx);
 }
 
 /* return bt req len in TU */
