@@ -39,12 +39,6 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (sizeof(unsigned long) == 4) {
-		printf("#define HOST_ELFCLASS ELFCLASS32\n");
-	} else if (sizeof(unsigned long) == 8) {
-		printf("#define HOST_ELFCLASS ELFCLASS64\n");
-	}
-
 	endian_test.s = 0x0102;
 	if (memcmp(endian_test.c, "\x01\x02", 2) == 0)
 		printf("#define HOST_ELFDATA ELFDATA2MSB\n");
