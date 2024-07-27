@@ -248,6 +248,16 @@ static int max6697_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = regmap_read(regmap, MAX6697_REG_STAT_CRIT, &regval);
 		if (ret)
 			return ret;
+		/*
+		 * In the MAX6581 datasheet revision 0 to 3, the local channel
+		 * overtemperature status is reported in bit 6 of register 0x45,
+		 * and the overtemperature status for remote channel 7 is
+		 * reported in bit 7. In Revision 4 and later, the local channel
+		 * overtemperature status is reported in bit 7, and the remote
+		 * channel 7 overtemperature status is reported in bit 6. A real
+		 * chip was found to match the functionality documented in
+		 * Revision 4 and later.
+		 */
 		*val = !!(regval & BIT(channel ? channel - 1 : 7));
 		break;
 	case hwmon_temp_max_alarm:
