@@ -822,12 +822,12 @@ enum rtw89_phy_idx {
 	RTW89_PHY_MAX
 };
 
-enum rtw89_sub_entity_idx {
-	RTW89_SUB_ENTITY_0 = 0,
-	RTW89_SUB_ENTITY_1 = 1,
+enum rtw89_chanctx_idx {
+	RTW89_CHANCTX_0 = 0,
+	RTW89_CHANCTX_1 = 1,
 
-	NUM_OF_RTW89_SUB_ENTITY,
-	RTW89_SUB_ENTITY_IDLE = NUM_OF_RTW89_SUB_ENTITY,
+	NUM_OF_RTW89_CHANCTX,
+	RTW89_CHANCTX_IDLE = NUM_OF_RTW89_CHANCTX,
 };
 
 enum rtw89_rf_path {
@@ -3406,7 +3406,7 @@ struct rtw89_vif {
 	struct rtw89_dev *rtwdev;
 	struct rtw89_roc roc;
 	bool chanctx_assigned; /* only valid when running with chanctx_ops */
-	enum rtw89_sub_entity_idx sub_entity_idx;
+	enum rtw89_chanctx_idx chanctx_idx;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
 	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
 
@@ -4529,7 +4529,7 @@ struct rtw89_tas_info {
 };
 
 struct rtw89_chanctx_cfg {
-	enum rtw89_sub_entity_idx idx;
+	enum rtw89_chanctx_idx idx;
 	int ref_count;
 };
 
@@ -4554,7 +4554,7 @@ enum rtw89_entity_mode {
 	RTW89_ENTITY_MODE_UNHANDLED = -ESRCH,
 };
 
-struct rtw89_sub_entity {
+struct rtw89_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct rtw89_chan chan;
 	struct rtw89_chan_rcd rcd;
@@ -4590,8 +4590,8 @@ struct rtw89_hal {
 	atomic_t roc_entity_idx;
 
 	DECLARE_BITMAP(changes, NUM_OF_RTW89_CHANCTX_CHANGES);
-	DECLARE_BITMAP(entity_map, NUM_OF_RTW89_SUB_ENTITY);
-	struct rtw89_sub_entity sub[NUM_OF_RTW89_SUB_ENTITY];
+	DECLARE_BITMAP(entity_map, NUM_OF_RTW89_CHANCTX);
+	struct rtw89_chanctx chanctx[NUM_OF_RTW89_CHANCTX];
 	struct cfg80211_chan_def roc_chandef;
 
 	bool entity_active;
@@ -6039,33 +6039,33 @@ void rtw89_chip_set_channel_done(struct rtw89_dev *rtwdev,
 
 static inline
 const struct cfg80211_chan_def *rtw89_chandef_get(struct rtw89_dev *rtwdev,
-						  enum rtw89_sub_entity_idx idx)
+						  enum rtw89_chanctx_idx idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
-	enum rtw89_sub_entity_idx roc_idx = atomic_read(&hal->roc_entity_idx);
+	enum rtw89_chanctx_idx roc_idx = atomic_read(&hal->roc_entity_idx);
 
 	if (roc_idx == idx)
 		return &hal->roc_chandef;
 
-	return &hal->sub[idx].chandef;
+	return &hal->chanctx[idx].chandef;
 }
 
 static inline
 const struct rtw89_chan *rtw89_chan_get(struct rtw89_dev *rtwdev,
-					enum rtw89_sub_entity_idx idx)
+					enum rtw89_chanctx_idx idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	return &hal->sub[idx].chan;
+	return &hal->chanctx[idx].chan;
 }
 
 static inline
 const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
-						enum rtw89_sub_entity_idx idx)
+						enum rtw89_chanctx_idx idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	return &hal->sub[idx].rcd;
+	return &hal->chanctx[idx].rcd;
 }
 
 static inline
@@ -6075,9 +6075,9 @@ const struct rtw89_chan *rtw89_scan_chan_get(struct rtw89_dev *rtwdev)
 	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
 
 	if (rtwvif)
-		return rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+		return rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 	else
-		return rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+		return rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 }
 
 static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)

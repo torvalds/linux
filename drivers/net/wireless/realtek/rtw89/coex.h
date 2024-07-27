@@ -293,7 +293,7 @@ static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
 				  enum rtw89_rf_path_bit paths)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	u8 phy_map;
 
 	phy_map = FIELD_PREP(BTC_RFK_PATH_MAP, paths) |

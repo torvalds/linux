@@ -851,7 +851,7 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
-	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
 	rtw89_debug_priv_txpwr_table_get_regd(m, rtwdev, chan);
 

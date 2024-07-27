@@ -346,8 +346,8 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan *chan;
-	enum rtw89_sub_entity_idx sub_entity_idx;
-	enum rtw89_sub_entity_idx roc_idx;
+	enum rtw89_chanctx_idx chanctx_idx;
+	enum rtw89_chanctx_idx roc_idx;
 	enum rtw89_phy_idx phy_idx;
 	enum rtw89_entity_mode mode;
 	bool entity_active;
@@ -360,10 +360,10 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	switch (mode) {
 	case RTW89_ENTITY_MODE_SCC:
 	case RTW89_ENTITY_MODE_MCC:
-		sub_entity_idx = RTW89_SUB_ENTITY_0;
+		chanctx_idx = RTW89_CHANCTX_0;
 		break;
 	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		sub_entity_idx = RTW89_SUB_ENTITY_1;
+		chanctx_idx = RTW89_CHANCTX_1;
 		break;
 	default:
 		WARN(1, "Invalid ent mode: %d\n", mode);
@@ -371,11 +371,11 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	}
 
 	roc_idx = atomic_read(&hal->roc_entity_idx);
-	if (roc_idx != RTW89_SUB_ENTITY_IDLE)
-		sub_entity_idx = roc_idx;
+	if (roc_idx != RTW89_CHANCTX_IDLE)
+		chanctx_idx = roc_idx;
 
 	phy_idx = RTW89_PHY_0;
-	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
+	chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 }
 
@@ -385,8 +385,8 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan_rcd *chan_rcd;
 	const struct rtw89_chan *chan;
-	enum rtw89_sub_entity_idx sub_entity_idx;
-	enum rtw89_sub_entity_idx roc_idx;
+	enum rtw89_chanctx_idx chanctx_idx;
+	enum rtw89_chanctx_idx roc_idx;
 	enum rtw89_mac_idx mac_idx;
 	enum rtw89_phy_idx phy_idx;
 	struct rtw89_channel_help_params bak;
@@ -399,10 +399,10 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	switch (mode) {
 	case RTW89_ENTITY_MODE_SCC:
 	case RTW89_ENTITY_MODE_MCC:
-		sub_entity_idx = RTW89_SUB_ENTITY_0;
+		chanctx_idx = RTW89_CHANCTX_0;
 		break;
 	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		sub_entity_idx = RTW89_SUB_ENTITY_1;
+		chanctx_idx = RTW89_CHANCTX_1;
 		break;
 	default:
 		WARN(1, "Invalid ent mode: %d\n", mode);
@@ -410,14 +410,14 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	}
 
 	roc_idx = atomic_read(&hal->roc_entity_idx);
-	if (roc_idx != RTW89_SUB_ENTITY_IDLE)
-		sub_entity_idx = roc_idx;
+	if (roc_idx != RTW89_CHANCTX_IDLE)
+		chanctx_idx = roc_idx;
 
 	mac_idx = RTW89_MAC_0;
 	phy_idx = RTW89_PHY_0;
 
-	chan = rtw89_chan_get(rtwdev, sub_entity_idx);
-	chan_rcd = rtw89_chan_rcd_get(rtwdev, sub_entity_idx);
+	chan = rtw89_chan_get(rtwdev, chanctx_idx);
+	chan_rcd = rtw89_chan_rcd_get(rtwdev, chanctx_idx);
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak, chan, mac_idx, phy_idx);
 
@@ -441,7 +441,7 @@ void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	const struct cfg80211_chan_def *chandef;
 
-	chandef = rtw89_chandef_get(rtwdev, rtwvif->sub_entity_idx);
+	chandef = rtw89_chandef_get(rtwdev, rtwvif->chanctx_idx);
 	rtw89_get_channel_params(chandef, chan);
 }
 
@@ -610,7 +610,7 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	u8 qsel, ch_dma;
 
 	qsel = desc_info->hiq ? RTW89_TX_QSEL_B0_HI : RTW89_TX_QSEL_B0_MGMT;
@@ -769,7 +769,7 @@ static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
-	enum rtw89_sub_entity_idx idx = rtwvif->sub_entity_idx;
+	enum rtw89_chanctx_idx idx = rtwvif->chanctx_idx;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, idx);
 	u16 lowest_rate;
 
@@ -1987,7 +1987,7 @@ static void rtw89_correct_cck_chan(struct rtw89_dev *rtwdev,
 				   struct ieee80211_rx_status *status)
 {
 	const struct rtw89_chan_rcd *rcd =
-		rtw89_chan_rcd_get(rtwdev, RTW89_SUB_ENTITY_0);
+		rtw89_chan_rcd_get(rtwdev, RTW89_CHANCTX_0);
 	u16 chan = rcd->prev_primary_channel;
 	u8 band = rtw89_hw_to_nl80211_band(rcd->prev_band_type);
 
@@ -2391,7 +2391,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 					struct ieee80211_rx_status *rx_status)
 {
 	const struct cfg80211_chan_def *chandef =
-		rtw89_chandef_get(rtwdev, RTW89_SUB_ENTITY_0);
+		rtw89_chandef_get(rtwdev, RTW89_CHANCTX_0);
 	u16 data_rate;
 	u8 data_rate_mode;
 	bool eht = false;
@@ -2884,7 +2884,7 @@ static void rtw89_core_sta_pending_tx_iter(void *data,
 	struct sk_buff *skb, *tmp;
 	int qsel, ret;
 
-	if (rtwvif->sub_entity_idx != rtwvif_target->sub_entity_idx)
+	if (rtwvif->chanctx_idx != rtwvif_target->chanctx_idx)
 		return;
 
 	if (skb_queue_len(&rtwsta->roc_queue) == 0)
@@ -2978,11 +2978,11 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 			    "roc send null-1 failed: %d\n", ret);
 
 	rtw89_for_each_rtwvif(rtwdev, tmp)
-		if (tmp->sub_entity_idx == rtwvif->sub_entity_idx)
+		if (tmp->chanctx_idx == rtwvif->chanctx_idx)
 			tmp->offchan = true;
 
 	cfg80211_chandef_create(&roc_chan, &roc->chan, NL80211_CHAN_NO_HT);
-	rtw89_config_roc_chandef(rtwdev, rtwvif->sub_entity_idx, &roc_chan);
+	rtw89_config_roc_chandef(rtwdev, rtwvif->chanctx_idx, &roc_chan);
 	rtw89_set_channel(rtwdev);
 	rtw89_write32_clr(rtwdev,
 			  rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_0),
@@ -3015,7 +3015,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 			   rtwdev->hal.rx_fltr);
 
 	roc->state = RTW89_ROC_IDLE;
-	rtw89_config_roc_chandef(rtwdev, rtwvif->sub_entity_idx, NULL);
+	rtw89_config_roc_chandef(rtwdev, rtwvif->chanctx_idx, NULL);
 	rtw89_chanctx_proceed(rtwdev);
 	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif, true, false);
 	if (ret)
@@ -3023,7 +3023,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 			    "roc send null-0 failed: %d\n", ret);
 
 	rtw89_for_each_rtwvif(rtwdev, tmp)
-		if (tmp->sub_entity_idx == rtwvif->sub_entity_idx)
+		if (tmp->chanctx_idx == rtwvif->chanctx_idx)
 			tmp->offchan = false;
 
 	rtw89_core_handle_sta_pending_tx(rtwdev, rtwvif);
@@ -3521,7 +3521,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif, rtwsta);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
@@ -4363,7 +4363,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 
 	rtwdev->scanning = true;
 	rtw89_leave_lps(rtwdev);

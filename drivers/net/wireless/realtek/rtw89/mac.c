@@ -4781,14 +4781,14 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_SCAN_ENTER_OP_NOTIFY:
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
 		if (rtw89_is_op_chan(rtwdev, band, chan)) {
-			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+			rtw89_assign_entity_chan(rtwdev, rtwvif->chanctx_idx,
 						 &rtwdev->scan_info.op_chan);
 			rtw89_mac_enable_beacon_for_ap_vifs(rtwdev, true);
 			ieee80211_wake_queues(rtwdev->hw);
 		} else {
 			rtw89_chan_create(&new, chan, chan, band,
 					  RTW89_CHANNEL_WIDTH_20);
-			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+			rtw89_assign_entity_chan(rtwdev, rtwvif->chanctx_idx,
 						 &new);
 		}
 		break;

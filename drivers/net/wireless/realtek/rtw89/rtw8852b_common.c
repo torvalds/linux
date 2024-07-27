@@ -1447,7 +1447,7 @@ void rtw8852bx_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			      struct rtw8852bx_bb_pmac_info *tx_info,
 			      enum rtw89_phy_idx idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
 	if (!tx_info->en_pmac_tx) {
 		rtw8852bx_stop_pmac_tx(rtwdev, tx_info, idx);
@@ -1625,7 +1625,7 @@ static
 void __rtw8852bx_bb_ctrl_rx_path(struct rtw89_dev *rtwdev,
 				 enum rtw89_rf_path_bit rx_path)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	u32 rst_mask0;
 	u32 rst_mask1;
 

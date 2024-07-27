@@ -90,7 +90,7 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 		rtw89_leave_ips(rtwdev);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		rtw89_config_entity_chandef(rtwdev, RTW89_SUB_ENTITY_0,
+		rtw89_config_entity_chandef(rtwdev, RTW89_CHANCTX_0,
 					    &hw->conf.chandef);
 		rtw89_set_channel(rtwdev);
 	}
@@ -144,7 +144,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->bcn_hit_cond = 0;
 	rtwvif->mac_idx = RTW89_MAC_0;
 	rtwvif->phy_idx = RTW89_PHY_0;
-	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
+	rtwvif->chanctx_idx = RTW89_CHANCTX_0;
 	rtwvif->chanctx_assigned = false;
 	rtwvif->hit_rule = 0;
 	rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
@@ -313,7 +313,7 @@ static u8 rtw89_aifsn_to_aifs(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	u8 slot_time;
 	u8 sifs;
 
@@ -503,7 +503,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 
-	chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 	if (chan->band_type == RTW89_BAND_6G) {
 		mutex_unlock(&rtwdev->mutex);
 		return -EOPNOTSUPP;
