@@ -1661,10 +1661,10 @@ config REGULATOR_UNIPHIER
 
 config REGULATOR_RZG2L_VBCTRL
 	tristate "Renesas RZ/G2L USB VBUS regulator driver"
-	depends on ARCH_RZG2L || COMPILE_TEST
+	depends on RESET_RZG2L_USBPHY_CTRL || COMPILE_TEST
 	depends on OF
 	select REGMAP_MMIO
-	default ARCH_RZG2L
+	default RESET_RZG2L_USBPHY_CTRL
 	help
 	  Support for VBUS regulators implemented on Renesas RZ/G2L SoCs.
 
