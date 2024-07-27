@@ -10655,6 +10655,7 @@ F:	Documentation/ABI/testing/sysfs-bus-i3c
 F:	Documentation/devicetree/bindings/i3c/
 F:	Documentation/driver-api/i3c
 F:	drivers/i3c/
+F:	include/dt-bindings/i3c/
 F:	include/linux/i3c/
 
 IBM Operation Panel Input Driver
