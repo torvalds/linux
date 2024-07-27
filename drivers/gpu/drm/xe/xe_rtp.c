@@ -221,15 +221,15 @@ EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_ctx_enable_active_tracking);
 
 static void rtp_mark_active(struct xe_device *xe,
 			    struct xe_rtp_process_ctx *ctx,
-			    unsigned int first, unsigned int n_entries)
+			    unsigned int idx)
 {
 	if (!ctx->active_entries)
 		return;
 
-	if (drm_WARN_ON(&xe->drm, first + n_entries > ctx->n_entries))
+	if (drm_WARN_ON(&xe->drm, idx >= ctx->n_entries))
 		return;
 
-	bitmap_set(ctx->active_entries, first, n_entries);
+	bitmap_set(ctx->active_entries, idx, 1);
 }
 
 /**
@@ -274,7 +274,7 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 		}
 
 		if (match)
-			rtp_mark_active(xe, ctx, entry - entries, 1);
+			rtp_mark_active(xe, ctx, entry - entries);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
@@ -285,42 +285,26 @@ EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process_to_sr);
  * @entries: Table with RTP definitions
  *
  * Walk the table pointed by @entries (with an empty sentinel), executing the
- * rules. A few differences from xe_rtp_process_to_sr():
- *
- * 1. There is no action associated with each entry since this uses
- *    struct xe_rtp_entry. Its main use is for marking active workarounds via
- *    xe_rtp_process_ctx_enable_active_tracking().
- * 2. There is support for OR operations by having entries with no name.
+ * rules. One difference from xe_rtp_process_to_sr(): there is no action
+ * associated with each entry since this uses struct xe_rtp_entry. Its main use
+ * is for marking active workarounds via
+ * xe_rtp_process_ctx_enable_active_tracking().
  */
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 		    const struct xe_rtp_entry *entries)
 {
-	const struct xe_rtp_entry *entry, *first_entry;
+	const struct xe_rtp_entry *entry;
 	struct xe_hw_engine *hwe;
 	struct xe_gt *gt;
 	struct xe_device *xe;
 
 	rtp_get_context(ctx, &hwe, &gt, &xe);
 
-	first_entry = entries;
-	if (drm_WARN_ON(&xe->drm, !first_entry->name))
-		return;
-
 	for (entry = entries; entry && entry->rules; entry++) {
-		if (entry->name)
-			first_entry = entry;
-
 		if (!rule_matches(xe, gt, hwe, entry->rules, entry->n_rules))
 			continue;
 
-		/* Fast-forward entry, eliminating the OR'ed entries */
-		for (entry++; entry && entry->rules; entry++)
-			if (entry->name)
-				break;
-		entry--;
-
-		rtp_mark_active(xe, ctx, first_entry - entries,
-				entry - first_entry + 1);
+		rtp_mark_active(xe, ctx, entry - entries);
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
