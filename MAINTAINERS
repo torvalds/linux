@@ -8772,7 +8772,6 @@ F:	include/linux/fortify-string.h
 F:	lib/fortify_kunit.c
 F:	lib/memcpy_kunit.c
 F:	lib/test_fortify/*
-F:	scripts/test_fortify.sh
 K:	\b__NO_FORTIFY\b
 
 FPGA DFL DRIVERS

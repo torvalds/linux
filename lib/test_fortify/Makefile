@@ -3,10 +3,10 @@
 ccflags-y := $(call cc-disable-warning,fortify-source)
 
 quiet_cmd_test_fortify = TEST    $@
-      cmd_test_fortify = $(CONFIG_SHELL) $(srctree)/scripts/test_fortify.sh \
+      cmd_test_fortify = $(CONFIG_SHELL) $(src)/test_fortify.sh \
 			$< $@ "$(NM)" $(CC) $(c_flags) -DKBUILD_EXTRA_WARN1
 
-$(obj)/%.log: $(src)/%.c $(srctree)/scripts/test_fortify.sh \
+$(obj)/%.log: $(src)/%.c $(src)/test_fortify.sh \
 	      $(src)/test_fortify.h \
 	      $(srctree)/include/linux/fortify-string.h \
 	      FORCE
