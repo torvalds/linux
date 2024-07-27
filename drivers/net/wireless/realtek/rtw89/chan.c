@@ -2443,9 +2443,10 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	struct rtw89_entity_weight w = {};
 	enum rtw89_sub_entity_idx roll;
 	enum rtw89_entity_mode cur;
+	enum rtw89_entity_mode new;
+	int ret;
 
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	rtwvif->chanctx_assigned = false;
@@ -2469,21 +2470,33 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 	rtw89_swap_sub_entity(rtwdev, cfg->idx, roll);
 
 out:
-	rtw89_entity_calculate_weight(rtwdev, &w);
+	if (!hal->entity_pause) {
+		cur = rtw89_get_entity_mode(rtwdev);
+		switch (cur) {
+		case RTW89_ENTITY_MODE_MCC:
+			rtw89_mcc_stop(rtwdev);
+			break;
+		default:
+			break;
+		}
+	}
 
-	cur = rtw89_get_entity_mode(rtwdev);
-	switch (cur) {
+	ret = rtw89_set_channel(rtwdev);
+	if (ret)
+		return;
+
+	if (hal->entity_pause)
+		return;
+
+	new = rtw89_get_entity_mode(rtwdev);
+	switch (new) {
 	case RTW89_ENTITY_MODE_MCC:
-		/* If still multi-roles, re-plan MCC for chanctx changes.
-		 * Otherwise, just stop MCC.
-		 */
-		rtw89_mcc_stop(rtwdev);
-		if (w.active_roles == NUM_OF_RTW89_MCC_ROLES)
-			rtw89_mcc_start(rtwdev);
+		/* re-plan MCC for chanctx changes. */
+		ret = rtw89_mcc_start(rtwdev);
+		if (ret)
+			rtw89_warn(rtwdev, "failed to start MCC: %d\n", ret);
 		break;
 	default:
 		break;
 	}
-
-	rtw89_set_channel(rtwdev);
 }
