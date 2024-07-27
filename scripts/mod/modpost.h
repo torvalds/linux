@@ -62,15 +62,8 @@
 		    x); \
 })
 
-#if KERNEL_ELFDATA != HOST_ELFDATA
-
-#define TO_NATIVE(x) (bswap(x))
-
-#else /* endianness matches */
-
-#define TO_NATIVE(x) (x)
-
-#endif
+#define TO_NATIVE(x)	\
+	(target_is_big_endian == host_is_big_endian ? x : bswap(x))
 
 #define NOFAIL(ptr)   do_nofail((ptr), #ptr)
 
@@ -187,6 +180,8 @@ void add_moddevtable(struct buffer *buf, struct module *mod);
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
 /* from modpost.c */
+extern bool target_is_big_endian;
+extern bool host_is_big_endian;
 char *read_text_file(const char *filename);
 char *get_line(char **stringp);
 void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
