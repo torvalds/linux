@@ -62,7 +62,6 @@ rpi_firmware_transaction(struct rpi_firmware *fw, u32 chan, u32 data)
 			ret = 0;
 		} else {
 			ret = -ETIMEDOUT;
-			WARN_ONCE(1, "Firmware transaction timeout");
 		}
 	} else {
 		dev_err(fw->cl.dev, "mbox_send_message returned %d\n", ret);
@@ -125,6 +124,8 @@ int rpi_firmware_property_list(struct rpi_firmware *fw,
 		dev_err(fw->cl.dev, "Request 0x%08x returned status 0x%08x\n",
 			buf[2], buf[1]);
 		ret = -EINVAL;
+	} else if (ret == -ETIMEDOUT) {
+		WARN_ONCE(1, "Firmware transaction 0x%08x timeout", buf[2]);
 	}
 
 	dma_free_coherent(fw->chan->mbox->dev, PAGE_ALIGN(size), buf, bus_addr);
