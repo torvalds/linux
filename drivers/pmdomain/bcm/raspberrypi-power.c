@@ -48,33 +48,39 @@ struct rpi_power_domain_packet {
  * Asks the firmware to enable or disable power on a specific power
  * domain.
  */
-static int rpi_firmware_set_power(struct rpi_power_domain *rpi_domain, bool on)
+static int rpi_firmware_set_power(struct generic_pm_domain *domain, bool on)
 {
+	struct rpi_power_domain *rpi_domain =
+		container_of(domain, struct rpi_power_domain, base);
+	bool old_interface = rpi_domain->old_interface;
 	struct rpi_power_domain_packet packet;
+	int ret;
 
 	packet.domain = rpi_domain->domain;
 	packet.state = on;
-	return rpi_firmware_property(rpi_domain->fw,
-				     rpi_domain->old_interface ?
-				     RPI_FIRMWARE_SET_POWER_STATE :
-				     RPI_FIRMWARE_SET_DOMAIN_STATE,
-				     &packet, sizeof(packet));
+
+	ret = rpi_firmware_property(rpi_domain->fw, old_interface ?
+				    RPI_FIRMWARE_SET_POWER_STATE :
+				    RPI_FIRMWARE_SET_DOMAIN_STATE,
+				    &packet, sizeof(packet));
+	if (ret)
+		dev_err(&domain->dev, "Failed to set %s to %u (%d)\n",
+			old_interface ? "power" : "domain", on, ret);
+	else
+		dev_dbg(&domain->dev, "Set %s to %u\n",
+			old_interface ? "power" : "domain", on);
+
+	return ret;
 }
 
 static int rpi_domain_off(struct generic_pm_domain *domain)
 {
-	struct rpi_power_domain *rpi_domain =
-		container_of(domain, struct rpi_power_domain, base);
-
-	return rpi_firmware_set_power(rpi_domain, false);
+	return rpi_firmware_set_power(domain, false);
 }
 
 static int rpi_domain_on(struct generic_pm_domain *domain)
 {
-	struct rpi_power_domain *rpi_domain =
-		container_of(domain, struct rpi_power_domain, base);
-
-	return rpi_firmware_set_power(rpi_domain, true);
+	return rpi_firmware_set_power(domain, true);
 }
 
 static void rpi_common_init_power_domain(struct rpi_power_domains *rpi_domains,
