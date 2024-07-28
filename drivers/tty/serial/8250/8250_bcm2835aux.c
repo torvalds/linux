@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/console.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -213,11 +214,47 @@ static const struct acpi_device_id bcm2835aux_serial_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bcm2835aux_serial_acpi_match);
 
+static int bcm2835aux_suspend(struct device *dev)
+{
+	struct bcm2835aux_data *data = dev_get_drvdata(dev);
+	struct uart_8250_port *up = serial8250_get_port(data->line);
+
+	serial8250_suspend_port(data->line);
+
+	if (device_may_wakeup(dev))
+		return 0;
+
+	if (uart_console(&up->port) && !console_suspend_enabled)
+		return 0;
+
+	clk_disable_unprepare(data->clk);
+	return 0;
+}
+
+static int bcm2835aux_resume(struct device *dev)
+{
+	struct bcm2835aux_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(data->clk);
+	if (ret)
+		return ret;
+
+	serial8250_resume_port(data->line);
+
+	return 0;
+}
+
+static const struct dev_pm_ops bcm2835aux_dev_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(bcm2835aux_suspend, bcm2835aux_resume)
+};
+
 static struct platform_driver bcm2835aux_serial_driver = {
 	.driver = {
 		.name = "bcm2835-aux-uart",
 		.of_match_table = bcm2835aux_serial_match,
 		.acpi_match_table = bcm2835aux_serial_acpi_match,
+		.pm = pm_ptr(&bcm2835aux_dev_pm_ops),
 	},
 	.probe  = bcm2835aux_serial_probe,
 	.remove_new = bcm2835aux_serial_remove,
