@@ -91,6 +91,7 @@ static void rpi_common_init_power_domain(struct rpi_power_domains *rpi_domains,
 	dom->fw = rpi_domains->fw;
 
 	dom->base.name = name;
+	dom->base.flags = GENPD_FLAG_ACTIVE_WAKEUP;
 	dom->base.power_on = rpi_domain_on;
 	dom->base.power_off = rpi_domain_off;
 
