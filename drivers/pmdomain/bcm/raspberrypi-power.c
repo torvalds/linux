@@ -41,7 +41,7 @@ struct rpi_power_domains {
  */
 struct rpi_power_domain_packet {
 	u32 domain;
-	u32 on;
+	u32 state;
 };
 
 /*
@@ -53,7 +53,7 @@ static int rpi_firmware_set_power(struct rpi_power_domain *rpi_domain, bool on)
 	struct rpi_power_domain_packet packet;
 
 	packet.domain = rpi_domain->domain;
-	packet.on = on;
+	packet.state = on;
 	return rpi_firmware_property(rpi_domain->fw,
 				     rpi_domain->old_interface ?
 				     RPI_FIRMWARE_SET_POWER_STATE :
@@ -142,13 +142,13 @@ rpi_has_new_domain_support(struct rpi_power_domains *rpi_domains)
 	int ret;
 
 	packet.domain = RPI_POWER_DOMAIN_ARM;
-	packet.on = ~0;
+	packet.state = ~0;
 
 	ret = rpi_firmware_property(rpi_domains->fw,
 				    RPI_FIRMWARE_GET_DOMAIN_STATE,
 				    &packet, sizeof(packet));
 
-	return ret == 0 && packet.on != ~0;
+	return ret == 0 && packet.state != ~0;
 }
 
 static int rpi_power_probe(struct platform_device *pdev)
