@@ -1514,7 +1514,7 @@ config SENSORS_LM92
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM92
-	  and Maxim MAX6635 sensor chips.
+	  and LM76 as well as Maxim MAX6633/6634/6635 sensor chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm92.
