@@ -112,6 +112,7 @@ static struct max1619_data *max1619_update_device(struct device *dev)
 		config = i2c_smbus_read_byte_data(client, MAX1619_REG_R_CONFIG);
 		if (!(config & 0x20))
 			data->alarms ^= 0x02;
+		data->alarms &= 0x1e;
 
 		data->last_updated = jiffies;
 		data->valid = true;
