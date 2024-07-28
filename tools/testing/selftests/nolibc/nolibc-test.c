@@ -686,9 +686,10 @@ static void constructor1(void)
 }
 
 __attribute__((constructor))
-static void constructor2(void)
+static void constructor2(int argc, char **argv, char **envp)
 {
-	constructor_test_value *= 2;
+	if (argc && argv && envp)
+		constructor_test_value *= 2;
 }
 
 int run_startup(int min, int max)
