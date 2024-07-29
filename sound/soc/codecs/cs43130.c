@@ -1415,7 +1415,7 @@ static const char * const bypass_mux_text[] = {
 static SOC_ENUM_SINGLE_DECL(bypass_enum, SND_SOC_NOPM, 0, bypass_mux_text);
 static const struct snd_kcontrol_new bypass_ctrl = SOC_DAPM_ENUM("Switch", bypass_enum);
 
-static const struct snd_soc_dapm_widget digital_hp_widgets[] = {
+static const struct snd_soc_dapm_widget hp_widgets[] = {
 	SND_SOC_DAPM_MUX("Bypass Switch", SND_SOC_NOPM, 0, 0, &bypass_ctrl),
 	SND_SOC_DAPM_OUTPUT("HPOUTA"),
 	SND_SOC_DAPM_OUTPUT("HPOUTB"),
@@ -1447,19 +1447,16 @@ static const struct snd_soc_dapm_widget digital_hp_widgets[] = {
 			   CS43130_PDN_HP_SHIFT, 1, cs43130_dac_event,
 			   (SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD)),
-};
 
-static const struct snd_soc_dapm_widget analog_hp_widgets[] = {
+/* Some devices have some extra analog widgets */
+#define NUM_ANALOG_WIDGETS	1
+
 	SND_SOC_DAPM_DAC_E("Analog Playback", NULL, CS43130_HP_OUT_CTL_1,
 			   CS43130_HP_IN_EN_SHIFT, 0, cs43130_hpin_event,
 			   (SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD)),
 };
 
-static struct snd_soc_dapm_widget all_hp_widgets[
-			ARRAY_SIZE(digital_hp_widgets) +
-			ARRAY_SIZE(analog_hp_widgets)];
-
-static const struct snd_soc_dapm_route digital_hp_routes[] = {
+static const struct snd_soc_dapm_route hp_routes[] = {
 	{"ASPIN PCM", NULL, "ASP PCM Playback"},
 	{"ASPIN DoP", NULL, "ASP DoP Playback"},
 	{"XSPIN DoP", NULL, "XSP DoP Playback"},
@@ -1472,15 +1469,12 @@ static const struct snd_soc_dapm_route digital_hp_routes[] = {
 	{"Bypass Switch", "Internal", "HiFi DAC"},
 	{"HPOUTA", NULL, "Bypass Switch"},
 	{"HPOUTB", NULL, "Bypass Switch"},
-};
 
-static const struct snd_soc_dapm_route analog_hp_routes[] = {
+/* Some devices have some extra analog routes */
+#define NUM_ANALOG_ROUTES	1
 	{"Bypass Switch", "Alternative", "Analog Playback"},
 };
 
-static struct snd_soc_dapm_route all_hp_routes[
-			ARRAY_SIZE(digital_hp_routes) +
-			ARRAY_SIZE(analog_hp_routes)];
 
 static const unsigned int cs43130_asp_src_rates[] = {
 	32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000
@@ -2398,7 +2392,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static struct snd_soc_component_driver soc_component_dev_cs43130 = {
+static const struct snd_soc_component_driver soc_component_dev_cs43130_digital = {
 	.probe			= cs43130_probe,
 	.controls		= cs43130_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs43130_snd_controls),
@@ -2407,6 +2401,26 @@ static struct snd_soc_component_driver soc_component_dev_cs43130 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
+	/* Don't take into account the ending analog widgets and routes */
+	.dapm_widgets		= hp_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(hp_widgets) - NUM_ANALOG_WIDGETS,
+	.dapm_routes		= hp_routes,
+	.num_dapm_routes	= ARRAY_SIZE(hp_routes) - NUM_ANALOG_ROUTES,
+};
+
+static const struct snd_soc_component_driver soc_component_dev_cs43130_analog = {
+	.probe			= cs43130_probe,
+	.controls		= cs43130_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs43130_snd_controls),
+	.set_sysclk		= cs43130_component_set_sysclk,
+	.set_pll		= cs43130_set_pll,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.dapm_widgets		= hp_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(hp_widgets),
+	.dapm_routes		= hp_routes,
+	.num_dapm_routes	= ARRAY_SIZE(hp_routes),
 };
 
 static const struct regmap_config cs43130_regmap = {
@@ -2479,6 +2493,7 @@ static int cs43130_handle_device_data(struct cs43130_private *cs43130)
 
 static int cs43130_i2c_probe(struct i2c_client *client)
 {
+	const struct snd_soc_component_driver *component_driver;
 	struct cs43130_private *cs43130;
 	int ret;
 	unsigned int reg;
@@ -2596,39 +2611,15 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 	switch (cs43130->dev_id) {
 	case CS43130_CHIP_ID:
 	case CS43131_CHIP_ID:
-		memcpy(all_hp_widgets, digital_hp_widgets,
-		       sizeof(digital_hp_widgets));
-		memcpy(all_hp_widgets + ARRAY_SIZE(digital_hp_widgets),
-		       analog_hp_widgets, sizeof(analog_hp_widgets));
-		memcpy(all_hp_routes, digital_hp_routes,
-		       sizeof(digital_hp_routes));
-		memcpy(all_hp_routes + ARRAY_SIZE(digital_hp_routes),
-		       analog_hp_routes, sizeof(analog_hp_routes));
-
-		soc_component_dev_cs43130.dapm_widgets =
-			all_hp_widgets;
-		soc_component_dev_cs43130.num_dapm_widgets =
-			ARRAY_SIZE(all_hp_widgets);
-		soc_component_dev_cs43130.dapm_routes =
-			all_hp_routes;
-		soc_component_dev_cs43130.num_dapm_routes =
-			ARRAY_SIZE(all_hp_routes);
+		component_driver = &soc_component_dev_cs43130_analog;
 		break;
 	case CS43198_CHIP_ID:
 	case CS4399_CHIP_ID:
-		soc_component_dev_cs43130.dapm_widgets =
-			digital_hp_widgets;
-		soc_component_dev_cs43130.num_dapm_widgets =
-			ARRAY_SIZE(digital_hp_widgets);
-		soc_component_dev_cs43130.dapm_routes =
-			digital_hp_routes;
-		soc_component_dev_cs43130.num_dapm_routes =
-			ARRAY_SIZE(digital_hp_routes);
+		component_driver = &soc_component_dev_cs43130_digital;
 		break;
 	}
 
-	ret = devm_snd_soc_register_component(cs43130->dev,
-				     &soc_component_dev_cs43130,
+	ret = devm_snd_soc_register_component(cs43130->dev, component_driver,
 				     cs43130_dai, ARRAY_SIZE(cs43130_dai));
 	if (ret < 0) {
 		dev_err(cs43130->dev,
