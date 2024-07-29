@@ -1076,7 +1076,7 @@
 		};
 
 		pcie1: pcie@3400000 {
-			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
+			compatible = "fsl,ls2080a-pcie";
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
@@ -1098,7 +1098,7 @@
 		};
 
 		pcie2: pcie@3500000 {
-			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
+			compatible = "fsl,ls2080a-pcie";
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
@@ -1120,7 +1120,7 @@
 		};
 
 		pcie3: pcie@3600000 {
-			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
+			compatible = "fsl,ls2080a-pcie";
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
@@ -1142,7 +1142,7 @@
 		};
 
 		pcie4: pcie@3700000 {
-			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
+			compatible = "fsl,ls2080a-pcie";
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
