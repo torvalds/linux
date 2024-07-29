@@ -50,6 +50,7 @@
 #include "amdgpu_ring_mux.h"
 #include "gfx_v9_4.h"
 #include "gfx_v9_0.h"
+#include "gfx_v9_0_cleaner_shader.h"
 #include "gfx_v9_4_2.h"
 
 #include "asic_reg/pwr/pwr_10_0_offset.h"
@@ -899,6 +900,12 @@ static void gfx_v9_0_unset_safe_mode(struct amdgpu_device *adev, int xcc_id);
 static void gfx_v9_0_kiq_set_resources(struct amdgpu_ring *kiq_ring,
 				uint64_t queue_mask)
 {
+	struct amdgpu_device *adev = kiq_ring->adev;
+	u64 shader_mc_addr;
+
+	/* Cleaner shader MC address */
+	shader_mc_addr = adev->gfx.cleaner_shader_gpu_addr >> 8;
+
 	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_SET_RESOURCES, 6));
 	amdgpu_ring_write(kiq_ring,
 		PACKET3_SET_RESOURCES_VMID_MASK(0) |
@@ -908,8 +915,8 @@ static void gfx_v9_0_kiq_set_resources(struct amdgpu_ring *kiq_ring,
 			lower_32_bits(queue_mask));	/* queue mask lo */
 	amdgpu_ring_write(kiq_ring,
 			upper_32_bits(queue_mask));	/* queue mask hi */
-	amdgpu_ring_write(kiq_ring, 0);	/* gws mask lo */
-	amdgpu_ring_write(kiq_ring, 0);	/* gws mask hi */
+	amdgpu_ring_write(kiq_ring, lower_32_bits(shader_mc_addr)); /* cleaner shader addr lo */
+	amdgpu_ring_write(kiq_ring, upper_32_bits(shader_mc_addr)); /* cleaner shader addr hi */
 	amdgpu_ring_write(kiq_ring, 0);	/* oac mask */
 	amdgpu_ring_write(kiq_ring, 0);	/* gds heap base:0, gds heap size:0 */
 }
@@ -2211,6 +2218,12 @@ static int gfx_v9_0_sw_init(void *handle)
 		break;
 	}
 
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	default:
+		adev->gfx.enable_cleaner_shader = false;
+		break;
+	}
+
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
@@ -2373,6 +2386,10 @@ static int gfx_v9_0_sw_init(void *handle)
 
 	gfx_v9_0_alloc_ip_dump(adev);
 
+	r = amdgpu_gfx_sysfs_isolation_shader_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -2407,6 +2424,8 @@ static int gfx_v9_0_sw_fini(void *handle)
 				(void **)&adev->gfx.rlc.cp_table_ptr);
 	}
 	gfx_v9_0_free_microcode(adev);
+
+	amdgpu_gfx_sysfs_isolation_shader_fini(adev);
 
 	kfree(adev->gfx.ip_dump_core);
 	kfree(adev->gfx.ip_dump_compute_queues);
@@ -3951,6 +3970,9 @@ static int gfx_v9_0_hw_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	amdgpu_gfx_cleaner_shader_init(adev, adev->gfx.cleaner_shader_size,
+				       adev->gfx.cleaner_shader_ptr);
 
 	if (!amdgpu_sriov_vf(adev))
 		gfx_v9_0_init_golden_registers(adev);
@@ -7368,6 +7390,13 @@ static void gfx_v9_ip_dump(void *handle)
 
 }
 
+static void gfx_v9_0_ring_emit_cleaner_shader(struct amdgpu_ring *ring)
+{
+	/* Emit the cleaner shader */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_RUN_CLEANER_SHADER, 0));
+	amdgpu_ring_write(ring, 0);  /* RESERVED field, programmed to zero */
+}
+
 static const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.name = "gfx_v9_0",
 	.early_init = gfx_v9_0_early_init,
@@ -7417,7 +7446,8 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_gfx = {
 		5 + /* HDP_INVL */
 		8 + 8 + /* FENCE x2 */
 		2 + /* SWITCH_BUFFER */
-		7, /* gfx_v9_0_emit_mem_sync */
+		7 + /* gfx_v9_0_emit_mem_sync */
+		2, /* gfx_v9_0_ring_emit_cleaner_shader */
 	.emit_ib_size =	4, /* gfx_v9_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v9_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v9_0_ring_emit_fence,
@@ -7439,6 +7469,7 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_gfx = {
 	.soft_recovery = gfx_v9_0_ring_soft_recovery,
 	.emit_mem_sync = gfx_v9_0_emit_mem_sync,
 	.reset = gfx_v9_0_reset_kgq,
+	.emit_cleaner_shader = gfx_v9_0_ring_emit_cleaner_shader,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_0_sw_ring_funcs_gfx = {
@@ -7471,7 +7502,8 @@ static const struct amdgpu_ring_funcs gfx_v9_0_sw_ring_funcs_gfx = {
 		5 + /* HDP_INVL */
 		8 + 8 + /* FENCE x2 */
 		2 + /* SWITCH_BUFFER */
-		7, /* gfx_v9_0_emit_mem_sync */
+		7 + /* gfx_v9_0_emit_mem_sync */
+		2, /* gfx_v9_0_ring_emit_cleaner_shader */
 	.emit_ib_size =	4, /* gfx_v9_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v9_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v9_0_ring_emit_fence,
@@ -7495,6 +7527,7 @@ static const struct amdgpu_ring_funcs gfx_v9_0_sw_ring_funcs_gfx = {
 	.patch_cntl = gfx_v9_0_ring_patch_cntl,
 	.patch_de = gfx_v9_0_ring_patch_de_meta,
 	.patch_ce = gfx_v9_0_ring_patch_ce_meta,
+	.emit_cleaner_shader = gfx_v9_0_ring_emit_cleaner_shader,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_compute = {
@@ -7515,7 +7548,8 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_compute = {
 		8 + 8 + 8 + /* gfx_v9_0_ring_emit_fence x3 for user fence, vm fence */
 		7 + /* gfx_v9_0_emit_mem_sync */
 		5 + /* gfx_v9_0_emit_wave_limit for updating mmSPI_WCL_PIPE_PERCENT_GFX register */
-		15, /* for updating 3 mmSPI_WCL_PIPE_PERCENT_CS registers */
+		15 + /* for updating 3 mmSPI_WCL_PIPE_PERCENT_CS registers */
+		2, /* gfx_v9_0_ring_emit_cleaner_shader */
 	.emit_ib_size =	7, /* gfx_v9_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v9_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v9_0_ring_emit_fence,
@@ -7534,6 +7568,7 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_compute = {
 	.emit_mem_sync = gfx_v9_0_emit_mem_sync,
 	.emit_wave_limit = gfx_v9_0_emit_wave_limit,
 	.reset = gfx_v9_0_reset_kcq,
+	.emit_cleaner_shader = gfx_v9_0_ring_emit_cleaner_shader,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_kiq = {
