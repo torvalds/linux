@@ -524,8 +524,8 @@ struct iwl_link_config_cmd {
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
  */
-#define IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM 2
-#define IWL_MVM_FW_MAX_LINK_ID 3
+#define IWL_FW_MAX_ACTIVE_LINKS_NUM 2
+#define IWL_FW_MAX_LINK_ID 3
 
 /**
  * enum iwl_fw_sta_type - FW station types

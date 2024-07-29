@@ -4458,7 +4458,7 @@ void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
 		IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
 	}
 
-	for (int i = 0; i < IWL_MVM_FW_MAX_LINK_ID; i++)
+	for (int i = 0; i < IWL_FW_MAX_LINK_ID; i++)
 		total_mpdus += tx ? queue_counter->per_link[i].tx :
 				    queue_counter->per_link[i].rx;
 
