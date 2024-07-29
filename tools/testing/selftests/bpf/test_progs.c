@@ -51,15 +51,15 @@ static void stdio_hijack_init(char **log_buf, size_t *log_cnt)
 
 	stdout = open_memstream(log_buf, log_cnt);
 	if (!stdout) {
-		stdout = env.stdout;
+		stdout = env.stdout_saved;
 		perror("open_memstream");
 		return;
 	}
 
 	if (env.subtest_state)
-		env.subtest_state->stdout = stdout;
+		env.subtest_state->stdout_saved = stdout;
 	else
-		env.test_state->stdout = stdout;
+		env.test_state->stdout_saved = stdout;
 
 	stderr = stdout;
 #endif
@@ -73,8 +73,8 @@ static void stdio_hijack(char **log_buf, size_t *log_cnt)
 		return;
 	}
 
-	env.stdout = stdout;
-	env.stderr = stderr;
+	env.stdout_saved = stdout;
+	env.stderr_saved = stderr;
 
 	stdio_hijack_init(log_buf, log_cnt);
 #endif
@@ -91,13 +91,13 @@ static void stdio_restore_cleanup(void)
 	fflush(stdout);
 
 	if (env.subtest_state) {
-		fclose(env.subtest_state->stdout);
-		env.subtest_state->stdout = NULL;
-		stdout = env.test_state->stdout;
-		stderr = env.test_state->stdout;
+		fclose(env.subtest_state->stdout_saved);
+		env.subtest_state->stdout_saved = NULL;
+		stdout = env.test_state->stdout_saved;
+		stderr = env.test_state->stdout_saved;
 	} else {
-		fclose(env.test_state->stdout);
-		env.test_state->stdout = NULL;
+		fclose(env.test_state->stdout_saved);
+		env.test_state->stdout_saved = NULL;
 	}
 #endif
 }
@@ -110,13 +110,13 @@ static void stdio_restore(void)
 		return;
 	}
 
-	if (stdout == env.stdout)
+	if (stdout == env.stdout_saved)
 		return;
 
 	stdio_restore_cleanup();
 
-	stdout = env.stdout;
-	stderr = env.stderr;
+	stdout = env.stdout_saved;
+	stderr = env.stderr_saved;
 #endif
 }
 
@@ -244,25 +244,25 @@ static void print_test_result(const struct prog_test_def *test, const struct tes
 	int skipped_cnt = test_state->skip_cnt;
 	int subtests_cnt = test_state->subtest_num;
 
-	fprintf(env.stdout, "#%-*d %s:", TEST_NUM_WIDTH, test->test_num, test->test_name);
+	fprintf(env.stdout_saved, "#%-*d %s:", TEST_NUM_WIDTH, test->test_num, test->test_name);
 	if (test_state->error_cnt)
-		fprintf(env.stdout, "FAIL");
+		fprintf(env.stdout_saved, "FAIL");
 	else if (!skipped_cnt)
-		fprintf(env.stdout, "OK");
+		fprintf(env.stdout_saved, "OK");
 	else if (skipped_cnt == subtests_cnt || !subtests_cnt)
-		fprintf(env.stdout, "SKIP");
+		fprintf(env.stdout_saved, "SKIP");
 	else
-		fprintf(env.stdout, "OK (SKIP: %d/%d)", skipped_cnt, subtests_cnt);
+		fprintf(env.stdout_saved, "OK (SKIP: %d/%d)", skipped_cnt, subtests_cnt);
 
-	fprintf(env.stdout, "\n");
+	fprintf(env.stdout_saved, "\n");
 }
 
 static void print_test_log(char *log_buf, size_t log_cnt)
 {
 	log_buf[log_cnt] = '\0';
-	fprintf(env.stdout, "%s", log_buf);
+	fprintf(env.stdout_saved, "%s", log_buf);
 	if (log_buf[log_cnt - 1] != '\n')
-		fprintf(env.stdout, "\n");
+		fprintf(env.stdout_saved, "\n");
 }
 
 static void print_subtest_name(int test_num, int subtest_num,
@@ -273,14 +273,14 @@ static void print_subtest_name(int test_num, int subtest_num,
 
 	snprintf(test_num_str, sizeof(test_num_str), "%d/%d", test_num, subtest_num);
 
-	fprintf(env.stdout, "#%-*s %s/%s",
+	fprintf(env.stdout_saved, "#%-*s %s/%s",
 		TEST_NUM_WIDTH, test_num_str,
 		test_name, subtest_name);
 
 	if (result)
-		fprintf(env.stdout, ":%s", result);
+		fprintf(env.stdout_saved, ":%s", result);
 
-	fprintf(env.stdout, "\n");
+	fprintf(env.stdout_saved, "\n");
 }
 
 static void jsonw_write_log_message(json_writer_t *w, char *log_buf, size_t log_cnt)
@@ -465,7 +465,7 @@ bool test__start_subtest(const char *subtest_name)
 	memset(subtest_state, 0, sub_state_size);
 
 	if (!subtest_name || !subtest_name[0]) {
-		fprintf(env.stderr,
+		fprintf(env.stderr_saved,
 			"Subtest #%d didn't provide sub-test name!\n",
 			state->subtest_num);
 		return false;
@@ -473,7 +473,7 @@ bool test__start_subtest(const char *subtest_name)
 
 	subtest_state->name = strdup(subtest_name);
 	if (!subtest_state->name) {
-		fprintf(env.stderr,
+		fprintf(env.stderr_saved,
 			"Subtest #%d: failed to copy subtest name!\n",
 			state->subtest_num);
 		return false;
@@ -1043,7 +1043,7 @@ void crash_handler(int signum)
 
 	sz = backtrace(bt, ARRAY_SIZE(bt));
 
-	if (env.stdout)
+	if (env.stdout_saved)
 		stdio_restore();
 	if (env.test) {
 		env.test_state->error_cnt++;
@@ -1359,7 +1359,7 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 	if (env->json) {
 		w = jsonw_new(env->json);
 		if (!w)
-			fprintf(env->stderr, "Failed to create new JSON stream.");
+			fprintf(env->stderr_saved, "Failed to create new JSON stream.");
 	}
 
 	if (w) {
@@ -1708,8 +1708,8 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	env.stdout = stdout;
-	env.stderr = stderr;
+	env.stdout_saved = stdout;
+	env.stderr_saved = stderr;
 
 	env.has_testmod = true;
 	if (!env.list_test_names) {
@@ -1717,7 +1717,7 @@ int main(int argc, char **argv)
 		unload_bpf_testmod(verbose());
 
 		if (load_bpf_testmod(verbose())) {
-			fprintf(env.stderr, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
+			fprintf(env.stderr_saved, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
 			env.has_testmod = false;
 		}
 	}
@@ -1795,7 +1795,7 @@ int main(int argc, char **argv)
 		}
 
 		if (env.list_test_names) {
-			fprintf(env.stdout, "%s\n", test->test_name);
+			fprintf(env.stdout_saved, "%s\n", test->test_name);
 			env.succ_cnt++;
 			continue;
 		}

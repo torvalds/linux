@@ -75,7 +75,7 @@ struct subtest_state {
 	bool skipped;
 	bool filtered;
 
-	FILE *stdout;
+	FILE *stdout_saved;
 };
 
 struct test_state {
@@ -92,7 +92,7 @@ struct test_state {
 	size_t log_cnt;
 	char *log_buf;
 
-	FILE *stdout;
+	FILE *stdout_saved;
 };
 
 struct test_env {
@@ -111,8 +111,8 @@ struct test_env {
 	struct test_state *test_state; /* current running test state */
 	struct subtest_state *subtest_state; /* current running subtest state */
 
-	FILE *stdout;
-	FILE *stderr;
+	FILE *stdout_saved;
+	FILE *stderr_saved;
 	int nr_cpus;
 	FILE *json;
 
