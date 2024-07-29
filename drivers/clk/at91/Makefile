@@ -20,6 +20,7 @@ obj-$(CONFIG_SOC_AT91SAM9) += at91sam9260.o at91sam9rl.o at91sam9x5.o dt-compat.
 obj-$(CONFIG_SOC_AT91SAM9) += at91sam9g45.o dt-compat.o
 obj-$(CONFIG_SOC_AT91SAM9) += at91sam9n12.o at91sam9x5.o dt-compat.o
 obj-$(CONFIG_SOC_SAM9X60) += sam9x60.o
+obj-$(CONFIG_SOC_SAM9X7) += sam9x7.o
 obj-$(CONFIG_SOC_SAMA5D3) += sama5d3.o dt-compat.o
 obj-$(CONFIG_SOC_SAMA5D4) += sama5d4.o dt-compat.o
 obj-$(CONFIG_SOC_SAMA5D2) += sama5d2.o dt-compat.o
