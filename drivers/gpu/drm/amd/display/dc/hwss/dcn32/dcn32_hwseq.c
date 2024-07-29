@@ -1719,6 +1719,28 @@ void dcn32_blank_phantom(struct dc *dc,
 		hws->funcs.wait_for_blank_complete(opp);
 }
 
+/* phantom stream id's can change often, but can be identical between contexts.
+*  This function checks for the condition the streams are identical to avoid
+*  redundant pipe transitions.
+*/
+static bool is_subvp_phantom_topology_transition_seamless(
+	const struct dc_state *cur_ctx,
+	const struct dc_state *new_ctx,
+	const struct pipe_ctx *cur_pipe,
+	const struct pipe_ctx *new_pipe)
+{
+	enum mall_stream_type cur_pipe_type = dc_state_get_pipe_subvp_type(cur_ctx, cur_pipe);
+	enum mall_stream_type new_pipe_type = dc_state_get_pipe_subvp_type(new_ctx, new_pipe);
+
+	const struct dc_stream_state *cur_paired_stream = dc_state_get_paired_subvp_stream(cur_ctx, cur_pipe->stream);
+	const struct dc_stream_state *new_paired_stream = dc_state_get_paired_subvp_stream(new_ctx, new_pipe->stream);
+
+	return cur_pipe_type == SUBVP_PHANTOM &&
+			cur_pipe_type == new_pipe_type &&
+			cur_paired_stream && new_paired_stream &&
+			cur_paired_stream->stream_id == new_paired_stream->stream_id;
+}
+
 bool dcn32_is_pipe_topology_transition_seamless(struct dc *dc,
 		const struct dc_state *cur_ctx,
 		const struct dc_state *new_ctx)
@@ -1737,7 +1759,8 @@ bool dcn32_is_pipe_topology_transition_seamless(struct dc *dc,
 			continue;
 		else if (resource_is_pipe_type(cur_pipe, OTG_MASTER)) {
 			if (resource_is_pipe_type(new_pipe, OTG_MASTER))
-				if (cur_pipe->stream->stream_id == new_pipe->stream->stream_id)
+				if (cur_pipe->stream->stream_id == new_pipe->stream->stream_id ||
+						is_subvp_phantom_topology_transition_seamless(cur_ctx, new_ctx, cur_pipe, new_pipe))
 				/* OTG master with the same stream is seamless */
 					continue;
 		} else if (resource_is_pipe_type(cur_pipe, OPP_HEAD)) {
