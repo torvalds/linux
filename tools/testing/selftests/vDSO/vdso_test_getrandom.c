@@ -38,50 +38,43 @@ static struct {
 	pthread_mutex_t lock;
 	void **states;
 	size_t len, cap;
-} grnd_allocator = {
-	.lock = PTHREAD_MUTEX_INITIALIZER
-};
-
-static struct {
 	ssize_t(*fn)(void *, size_t, unsigned long, void *, size_t);
-	pthread_key_t key;
-	pthread_once_t initialized;
 	struct vgetrandom_opaque_params params;
-} grnd_ctx = {
-	.initialized = PTHREAD_ONCE_INIT
+} vgrnd = {
+	.lock = PTHREAD_MUTEX_INITIALIZER
 };
 
 static void *vgetrandom_get_state(void)
 {
 	void *state = NULL;
 
-	pthread_mutex_lock(&grnd_allocator.lock);
-	if (!grnd_allocator.len) {
+	pthread_mutex_lock(&vgrnd.lock);
+	if (!vgrnd.len) {
 		size_t page_size = getpagesize();
 		size_t new_cap;
 		size_t alloc_size, num = sysconf(_SC_NPROCESSORS_ONLN); /* Just a decent heuristic. */
 		void *new_block, *new_states;
 
-		alloc_size = (num * grnd_ctx.params.size_of_opaque_state + page_size - 1) & (~(page_size - 1));
-		num = (page_size / grnd_ctx.params.size_of_opaque_state) * (alloc_size / page_size);
-		new_block = mmap(0, alloc_size, grnd_ctx.params.mmap_prot, grnd_ctx.params.mmap_flags, -1, 0);
+		alloc_size = (num * vgrnd.params.size_of_opaque_state + page_size - 1) & (~(page_size - 1));
+		num = (page_size / vgrnd.params.size_of_opaque_state) * (alloc_size / page_size);
+		new_block = mmap(0, alloc_size, vgrnd.params.mmap_prot, vgrnd.params.mmap_flags, -1, 0);
 		if (new_block == MAP_FAILED)
 			goto out;
 
-		new_cap = grnd_allocator.cap + num;
-		new_states = reallocarray(grnd_allocator.states, new_cap, sizeof(*grnd_allocator.states));
+		new_cap = vgrnd.cap + num;
+		new_states = reallocarray(vgrnd.states, new_cap, sizeof(*vgrnd.states));
 		if (!new_states)
 			goto unmap;
-		grnd_allocator.cap = new_cap;
-		grnd_allocator.states = new_states;
+		vgrnd.cap = new_cap;
+		vgrnd.states = new_states;
 
 		for (size_t i = 0; i < num; ++i) {
-			if (((uintptr_t)new_block & (page_size - 1)) + grnd_ctx.params.size_of_opaque_state > page_size)
+			if (((uintptr_t)new_block & (page_size - 1)) + vgrnd.params.size_of_opaque_state > page_size)
 				new_block = (void *)(((uintptr_t)new_block + page_size - 1) & (~(page_size - 1)));
-			grnd_allocator.states[i] = new_block;
-			new_block += grnd_ctx.params.size_of_opaque_state;
+			vgrnd.states[i] = new_block;
+			new_block += vgrnd.params.size_of_opaque_state;
 		}
-		grnd_allocator.len = num;
+		vgrnd.len = num;
 		goto success;
 
 	unmap:
@@ -89,10 +82,10 @@ static void *vgetrandom_get_state(void)
 		goto out;
 	}
 success:
-	state = grnd_allocator.states[--grnd_allocator.len];
+	state = vgrnd.states[--vgrnd.len];
 
 out:
-	pthread_mutex_unlock(&grnd_allocator.lock);
+	pthread_mutex_unlock(&vgrnd.lock);
 	return state;
 }
 
@@ -100,27 +93,25 @@ static void vgetrandom_put_state(void *state)
 {
 	if (!state)
 		return;
-	pthread_mutex_lock(&grnd_allocator.lock);
-	grnd_allocator.states[grnd_allocator.len++] = state;
-	pthread_mutex_unlock(&grnd_allocator.lock);
+	pthread_mutex_lock(&vgrnd.lock);
+	vgrnd.states[vgrnd.len++] = state;
+	pthread_mutex_unlock(&vgrnd.lock);
 }
 
 static void vgetrandom_init(void)
 {
-	if (pthread_key_create(&grnd_ctx.key, vgetrandom_put_state) != 0)
-		return;
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
 	if (!sysinfo_ehdr) {
 		printf("AT_SYSINFO_EHDR is not present!\n");
 		exit(KSFT_SKIP);
 	}
 	vdso_init_from_sysinfo_ehdr(sysinfo_ehdr);
-	grnd_ctx.fn = (__typeof__(grnd_ctx.fn))vdso_sym("LINUX_2.6", "__vdso_getrandom");
-	if (!grnd_ctx.fn) {
+	vgrnd.fn = (__typeof__(vgrnd.fn))vdso_sym("LINUX_2.6", "__vdso_getrandom");
+	if (!vgrnd.fn) {
 		printf("__vdso_getrandom is missing!\n");
 		exit(KSFT_FAIL);
 	}
-	if (grnd_ctx.fn(NULL, 0, 0, &grnd_ctx.params, ~0UL) != 0) {
+	if (vgrnd.fn(NULL, 0, 0, &vgrnd.params, ~0UL) != 0) {
 		printf("failed to fetch vgetrandom params!\n");
 		exit(KSFT_FAIL);
 	}
@@ -128,22 +119,16 @@ static void vgetrandom_init(void)
 
 static ssize_t vgetrandom(void *buf, size_t len, unsigned long flags)
 {
-	void *state;
+	static __thread void *state;
 
-	pthread_once(&grnd_ctx.initialized, vgetrandom_init);
-	state = pthread_getspecific(grnd_ctx.key);
 	if (!state) {
 		state = vgetrandom_get_state();
-		if (pthread_setspecific(grnd_ctx.key, state) != 0) {
-			vgetrandom_put_state(state);
-			state = NULL;
-		}
 		if (!state) {
 			printf("vgetrandom_get_state failed!\n");
 			exit(KSFT_FAIL);
 		}
 	}
-	return grnd_ctx.fn(buf, len, flags, state, grnd_ctx.params.size_of_opaque_state);
+	return vgrnd.fn(buf, len, flags, state, vgrnd.params.size_of_opaque_state);
 }
 
 enum { TRIALS = 25000000, THREADS = 256 };
@@ -265,6 +250,8 @@ static void usage(const char *argv0)
 
 int main(int argc, char *argv[])
 {
+	vgetrandom_init();
+
 	if (argc == 1) {
 		kselftest();
 		return 0;
