@@ -1090,15 +1090,47 @@ static int parse_func_duration(struct perf_ftrace *ftrace, char *line, size_t le
 	return add_func_duration(ftrace, func, duration);
 }
 
+enum perf_ftrace_profile_sort_key {
+	PFP_SORT_TOTAL = 0,
+	PFP_SORT_AVG,
+	PFP_SORT_MAX,
+	PFP_SORT_COUNT,
+	PFP_SORT_NAME,
+};
+
+static enum perf_ftrace_profile_sort_key profile_sort = PFP_SORT_TOTAL;
+
 static int cmp_profile_data(const void *a, const void *b)
 {
 	const struct hashmap_entry *e1 = *(const struct hashmap_entry **)a;
 	const struct hashmap_entry *e2 = *(const struct hashmap_entry **)b;
 	struct ftrace_profile_data *p1 = e1->pvalue;
 	struct ftrace_profile_data *p2 = e2->pvalue;
+	double v1, v2;
 
-	/* compare by total time */
-	if ((p1->st.n * p1->st.mean) > (p2->st.n * p2->st.mean))
+	switch (profile_sort) {
+	case PFP_SORT_NAME:
+		return strcmp(e1->pkey, e2->pkey);
+	case PFP_SORT_AVG:
+		v1 = p1->st.mean;
+		v2 = p2->st.mean;
+		break;
+	case PFP_SORT_MAX:
+		v1 = p1->st.max;
+		v2 = p2->st.max;
+		break;
+	case PFP_SORT_COUNT:
+		v1 = p1->st.n;
+		v2 = p2->st.n;
+		break;
+	case PFP_SORT_TOTAL:
+	default:
+		v1 = p1->st.n * p1->st.mean;
+		v2 = p2->st.n * p2->st.mean;
+		break;
+	}
+
+	if (v1 > v2)
 		return -1;
 	else
 		return 1;
@@ -1414,6 +1446,30 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	return 0;
 }
 
+static int parse_sort_key(const struct option *opt, const char *str, int unset)
+{
+	enum perf_ftrace_profile_sort_key *key = (void *)opt->value;
+
+	if (unset)
+		return 0;
+
+	if (!strcmp(str, "total"))
+		*key = PFP_SORT_TOTAL;
+	else if (!strcmp(str, "avg"))
+		*key = PFP_SORT_AVG;
+	else if (!strcmp(str, "max"))
+		*key = PFP_SORT_MAX;
+	else if (!strcmp(str, "count"))
+		*key = PFP_SORT_COUNT;
+	else if (!strcmp(str, "name"))
+		*key = PFP_SORT_NAME;
+	else {
+		pr_err("Unknown sort key: %s\n", str);
+		return -1;
+	}
+	return 0;
+}
+
 enum perf_ftrace_subcommand {
 	PERF_FTRACE_NONE,
 	PERF_FTRACE_TRACE,
@@ -1497,6 +1553,9 @@ int cmd_ftrace(int argc, const char **argv)
 		     "Set nograph filter on given functions", parse_filter_func),
 	OPT_CALLBACK('m', "buffer-size", &ftrace.percpu_buffer_size, "size",
 		     "Size of per cpu buffer, needs to use a B, K, M or G suffix.", parse_buffer_size),
+	OPT_CALLBACK('s', "sort", &profile_sort, "key",
+		     "Sort result by key: total (default), avg, max, count, name.",
+		     parse_sort_key),
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;

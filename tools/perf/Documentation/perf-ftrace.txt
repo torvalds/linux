@@ -185,6 +185,11 @@ OPTIONS for 'perf ftrace profile'
 	Set the size of per-cpu tracing buffer, <size> is expected to
 	be a number with appended unit character - B/K/M/G.
 
+-s::
+--sort=::
+	Sort the result by the given field.  Available values are:
+	total, avg, max, count, name.  Default is 'total'.
+
 
 SEE ALSO
 --------
