@@ -164,7 +164,6 @@
 					    QORIQ_CLK_PLL_DIV(1)>;
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
-			big-endian;
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -183,7 +182,6 @@
 					    QORIQ_CLK_PLL_DIV(1)>;
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
-			big-endian;
 			broken-cd;
 			bus-width = <4>;
 			status = "disabled";
