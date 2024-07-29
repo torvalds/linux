@@ -621,13 +621,13 @@ again:
 	avail = dev_buckets_free(ca, *usage, watermark);
 
 	if (usage->d[BCH_DATA_need_discard].buckets > avail)
-		bch2_do_discards(c);
+		bch2_dev_do_discards(ca);
 
 	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
 		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
-		bch2_do_invalidates(c);
+		bch2_dev_do_invalidates(ca);
 
 	if (!avail) {
 		if (cl && !waiting) {

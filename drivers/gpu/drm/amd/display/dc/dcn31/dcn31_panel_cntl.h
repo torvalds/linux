@@ -29,6 +29,9 @@
 #include "panel_cntl.h"
 #include "dce/dce_panel_cntl.h"
 
+#define MIN_DEBUG_FREQ_HZ 200
+#define MAX_DEBUG_FREQ_HZ 6250
+
 struct dcn31_panel_cntl {
 	struct panel_cntl base;
 };

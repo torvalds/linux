@@ -141,7 +141,13 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
 
-	u64 d = bch2_bucket_sectors_dirty(a);
+	/*
+	 * avoid overflowing LRU_TIME_BITS on a corrupted fs, when
+	 * bucket_sectors_dirty is (much) bigger than bucket_size
+	 */
+	u64 d = min(bch2_bucket_sectors_dirty(a),
+		    ca->mi.bucket_size);
+
 	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
 
@@ -269,6 +275,7 @@ int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
 		       enum btree_iter_update_trigger_flags);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
+void bch2_dev_do_discards(struct bch_dev *);
 void bch2_do_discards(struct bch_fs *);
 
 static inline u64 should_invalidate_buckets(struct bch_dev *ca,
@@ -283,6 +290,7 @@ static inline u64 should_invalidate_buckets(struct bch_dev *ca,
 	return clamp_t(s64, want_free - free, 0, u.d[BCH_DATA_cached].buckets);
 }
 
+void bch2_dev_do_invalidates(struct bch_dev *);
 void bch2_do_invalidates(struct bch_fs *);
 
 static inline struct bch_backpointer *alloc_v4_backpointers(struct bch_alloc_v4 *a)
@@ -306,7 +314,9 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *);
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
 
-void bch2_fs_allocator_background_exit(struct bch_fs *);
+void bch2_dev_allocator_background_exit(struct bch_dev *);
+void bch2_dev_allocator_background_init(struct bch_dev *);
+
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

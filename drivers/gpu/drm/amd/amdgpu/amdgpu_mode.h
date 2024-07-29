@@ -300,6 +300,7 @@ struct amdgpu_framebuffer {
 
 	uint64_t tiling_flags;
 	bool tmz_surface;
+	bool gfx12_dcc;
 
 	/* caching for later use */
 	uint64_t address;

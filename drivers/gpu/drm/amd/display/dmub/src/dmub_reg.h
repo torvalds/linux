@@ -108,7 +108,6 @@ struct dmub_srv;
 				FN(reg, f4), v4)
 
 /* Register field getting. */
-
 #define REG_GET(reg_name, field, val) \
 	dmub_reg_get(CTX, REG(reg_name), FN(reg_name, field), val)
 

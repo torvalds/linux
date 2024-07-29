@@ -5,8 +5,8 @@
 
 #include <linux/component.h>
 
-#include <drm/i915_pxp_tee_interface.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_pxp_tee_interface.h>
+#include <drm/intel/i915_component.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "gt/intel_gt_print.h"

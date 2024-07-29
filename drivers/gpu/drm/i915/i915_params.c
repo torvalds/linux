@@ -131,6 +131,11 @@ i915_param_named_unsafe(lmem_size, uint, 0400,
 i915_param_named_unsafe(lmem_bar_size, uint, 0400,
 			"Set the lmem bar size(in MiB).");
 
+#if IS_ENABLED(CONFIG_DRM_I915_REPLAY_GPU_HANGS_API)
+i915_param_named(enable_debug_only_api, bool, 0400,
+		 "Enable support for unstable debug only userspace API. (default:false)");
+#endif
+
 static void _param_print_bool(struct drm_printer *p, const char *name,
 			      bool val)
 {

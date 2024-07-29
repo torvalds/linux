@@ -1401,13 +1401,13 @@ void dml32_CalculateOutputLink(
 			if (Output == dm_dp2p0) {
 				*OutBpp = 0;
 				if ((OutputLinkDPRate == dm_dp_rate_na || OutputLinkDPRate == dm_dp_rate_uhbr10) &&
-						PHYCLKD32PerState >= 10000 / 32) {
+						PHYCLKD32PerState >= 10000.0 / 32) {
 					*OutBpp = dml32_TruncToValidBPP((1 - Downspreading / 100) * 10000,
 							OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd,
 							ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat,
 							DSCInputBitPerComponent, NumberOfDSCSlices, AudioSampleRate,
 							AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
-					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32 && DSCEnable == true &&
+					if (*OutBpp == 0 && PHYCLKD32PerState < 13500.0 / 32 && DSCEnable == true &&
 							ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
@@ -1423,7 +1423,7 @@ void dml32_CalculateOutputLink(
 					*OutputRate = dm_output_rate_dp_rate_uhbr10;
 				}
 				if ((OutputLinkDPRate == dm_dp_rate_na || OutputLinkDPRate == dm_dp_rate_uhbr13p5) &&
-						*OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32) {
+						*OutBpp == 0 && PHYCLKD32PerState >= 13500.0 / 32) {
 					*OutBpp = dml32_TruncToValidBPP((1 - Downspreading / 100) * 13500,
 							OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd,
 							ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat,
@@ -1601,7 +1601,7 @@ double dml32_TruncToValidBPP(
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
-		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
+		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dm_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;

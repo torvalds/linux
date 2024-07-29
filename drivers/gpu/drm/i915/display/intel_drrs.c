@@ -85,7 +85,7 @@ intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 	else
 		bit = TRANSCONF_REFRESH_RATE_ALT_ILK;
 
-	intel_de_rmw(dev_priv, TRANSCONF(cpu_transcoder),
+	intel_de_rmw(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
 		     bit, refresh_rate == DRRS_REFRESH_RATE_LOW ? bit : 0);
 }
 
@@ -135,7 +135,7 @@ static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *c
 	frontbuffer_bits = INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc,
-					 crtc_state->bigjoiner_pipes)
+					 crtc_state->joiner_pipes)
 		frontbuffer_bits |= INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
 	return frontbuffer_bits;
@@ -157,7 +157,7 @@ void intel_drrs_activate(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->hw.active)
 		return;
 
-	if (intel_crtc_is_bigjoiner_slave(crtc_state))
+	if (intel_crtc_is_joiner_secondary(crtc_state))
 		return;
 
 	mutex_lock(&crtc->drrs.mutex);
@@ -189,7 +189,7 @@ void intel_drrs_deactivate(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->hw.active)
 		return;
 
-	if (intel_crtc_is_bigjoiner_slave(old_crtc_state))
+	if (intel_crtc_is_joiner_secondary(old_crtc_state))
 		return;
 
 	mutex_lock(&crtc->drrs.mutex);

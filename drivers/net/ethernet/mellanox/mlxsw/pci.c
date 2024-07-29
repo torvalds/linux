@@ -1594,11 +1594,17 @@ static int mlxsw_pci_sys_ready_wait(struct mlxsw_pci *mlxsw_pci,
 	return -EBUSY;
 }
 
-static int mlxsw_pci_reset_at_pci_disable(struct mlxsw_pci *mlxsw_pci)
+static int mlxsw_pci_reset_at_pci_disable(struct mlxsw_pci *mlxsw_pci,
+					  bool pci_reset_sbr_supported)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	char mrsr_pl[MLXSW_REG_MRSR_LEN];
 	int err;
+
+	if (!pci_reset_sbr_supported) {
+		pci_dbg(pdev, "Performing PCI hot reset instead of \"all reset\"\n");
+		goto sbr;
+	}
 
 	mlxsw_reg_mrsr_pack(mrsr_pl,
 			    MLXSW_REG_MRSR_COMMAND_RESET_AT_PCI_DISABLE);
@@ -1606,6 +1612,7 @@ static int mlxsw_pci_reset_at_pci_disable(struct mlxsw_pci *mlxsw_pci)
 	if (err)
 		return err;
 
+sbr:
 	device_lock_assert(&pdev->dev);
 
 	pci_cfg_access_lock(pdev);
@@ -1633,6 +1640,7 @@ static int
 mlxsw_pci_reset(struct mlxsw_pci *mlxsw_pci, const struct pci_device_id *id)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
+	bool pci_reset_sbr_supported = false;
 	char mcam_pl[MLXSW_REG_MCAM_LEN];
 	bool pci_reset_supported = false;
 	u32 sys_status;
@@ -1652,13 +1660,17 @@ mlxsw_pci_reset(struct mlxsw_pci *mlxsw_pci, const struct pci_device_id *id)
 	mlxsw_reg_mcam_pack(mcam_pl,
 			    MLXSW_REG_MCAM_FEATURE_GROUP_ENHANCED_FEATURES);
 	err = mlxsw_reg_query(mlxsw_pci->core, MLXSW_REG(mcam), mcam_pl);
-	if (!err)
+	if (!err) {
 		mlxsw_reg_mcam_unpack(mcam_pl, MLXSW_REG_MCAM_PCI_RESET,
 				      &pci_reset_supported);
+		mlxsw_reg_mcam_unpack(mcam_pl, MLXSW_REG_MCAM_PCI_RESET_SBR,
+				      &pci_reset_sbr_supported);
+	}
 
 	if (pci_reset_supported) {
 		pci_dbg(pdev, "Starting PCI reset flow\n");
-		err = mlxsw_pci_reset_at_pci_disable(mlxsw_pci);
+		err = mlxsw_pci_reset_at_pci_disable(mlxsw_pci,
+						     pci_reset_sbr_supported);
 	} else {
 		pci_dbg(pdev, "Starting software reset flow\n");
 		err = mlxsw_pci_reset_sw(mlxsw_pci);

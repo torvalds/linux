@@ -78,6 +78,7 @@
 	SRI(DSCC_RATE_CONTROL_BUFFER1_MAX_FULLNESS_LEVEL, DSCC, id),\
 	SRI(DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL, DSCC, id),\
 	SRI(DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL, DSCC, id),\
+	SRI(DSCC_TEST_DEBUG_BUS_ROTATE, DSCC, id),\
 	SRI(DSCCIF_CONFIG0, DSCCIF, id),\
 	SRI(DSCCIF_CONFIG1, DSCCIF, id),\
 	SRI(DSCRM_DSC_FORWARD_CONFIG, DSCRM, id)
@@ -95,6 +96,7 @@
 	DSC_SF(DSC_TOP0_DSC_TOP_CONTROL, DSC_DISPCLK_R_GATE_DIS, mask_sh), \
 	DSC_SF(DSC_TOP0_DSC_TOP_CONTROL, DSC_DSCCLK_R_GATE_DIS, mask_sh), \
 	DSC_SF(DSC_TOP0_DSC_DEBUG_CONTROL, DSC_DBG_EN, mask_sh), \
+	DSC_SF(DSC_TOP0_DSC_DEBUG_CONTROL, DSC_TEST_CLOCK_MUX_SEL, mask_sh), \
 	DSC_SF(DSCC0_DSCC_CONFIG0, ICH_RESET_AT_END_OF_LINE, mask_sh), \
 	DSC_SF(DSCC0_DSCC_CONFIG0, NUMBER_OF_SLICES_PER_LINE, mask_sh), \
 	DSC_SF(DSCC0_DSCC_CONFIG0, ALTERNATE_ICH_ENCODING_EN, mask_sh), \
@@ -247,6 +249,10 @@
 	DSC_SF(DSCC0_DSCC_RATE_CONTROL_BUFFER1_MAX_FULLNESS_LEVEL, DSCC_RATE_CONTROL_BUFFER1_MAX_FULLNESS_LEVEL, mask_sh), \
 	DSC_SF(DSCC0_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL, DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL, mask_sh), \
 	DSC_SF(DSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL, DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL, mask_sh), \
+	DSC_SF(DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE, DSCC_TEST_DEBUG_BUS0_ROTATE, mask_sh), \
+	DSC_SF(DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE, DSCC_TEST_DEBUG_BUS1_ROTATE, mask_sh), \
+	DSC_SF(DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE, DSCC_TEST_DEBUG_BUS2_ROTATE, mask_sh), \
+	DSC_SF(DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE, DSCC_TEST_DEBUG_BUS3_ROTATE, mask_sh), \
 	DSC_SF(DSCCIF0_DSCCIF_CONFIG0, INPUT_INTERFACE_UNDERFLOW_RECOVERY_EN, mask_sh), \
 	DSC_SF(DSCCIF0_DSCCIF_CONFIG0, INPUT_INTERFACE_UNDERFLOW_OCCURRED_INT_EN, mask_sh), \
 	DSC_SF(DSCCIF0_DSCCIF_CONFIG0, INPUT_INTERFACE_UNDERFLOW_OCCURRED_STATUS, mask_sh), \
@@ -421,6 +427,10 @@
 	type DSCC_UPDATE_PENDING_STATUS; \
 	type DSCC_UPDATE_TAKEN_STATUS; \
 	type DSCC_UPDATE_TAKEN_ACK; \
+	type DSCC_TEST_DEBUG_BUS0_ROTATE; \
+	type DSCC_TEST_DEBUG_BUS1_ROTATE; \
+	type DSCC_TEST_DEBUG_BUS2_ROTATE; \
+	type DSCC_TEST_DEBUG_BUS3_ROTATE; \
 	type DSCC_RATE_BUFFER0_FULLNESS_LEVEL; \
 	type DSCC_RATE_BUFFER1_FULLNESS_LEVEL; \
 	type DSCC_RATE_BUFFER2_FULLNESS_LEVEL; \
@@ -443,7 +453,10 @@
 	type DSCCIF_UPDATE_TAKEN_STATUS; \
 	type DSCCIF_UPDATE_TAKEN_ACK; \
 	type DSCRM_DSC_FORWARD_EN; \
-	type DSCRM_DSC_OPP_PIPE_SOURCE
+	type DSCRM_DSC_OPP_PIPE_SOURCE; \
+	type DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING; \
+	type DSCRM_DSC_FORWARD_EN_STATUS
+
 
 struct dcn20_dsc_registers {
 	uint32_t DSC_TOP_CONTROL;
@@ -492,6 +505,7 @@ struct dcn20_dsc_registers {
 	uint32_t DSCC_RATE_CONTROL_BUFFER1_MAX_FULLNESS_LEVEL;
 	uint32_t DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL;
 	uint32_t DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL;
+	uint32_t DSCC_TEST_DEBUG_BUS_ROTATE;
 	uint32_t DSCCIF_CONFIG0;
 	uint32_t DSCCIF_CONFIG1;
 	uint32_t DSCRM_DSC_FORWARD_CONFIG;
@@ -584,6 +598,15 @@ void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps,
 bool dsc2_get_packed_pps(struct display_stream_compressor *dsc,
 		const struct dsc_config *dsc_cfg,
 		uint8_t *dsc_packed_pps);
+
+void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
+bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
+void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+		struct dsc_optc_config *dsc_optc_cfg);
+void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
+void dsc2_disable(struct display_stream_compressor *dsc);
+void dsc2_disconnect(struct display_stream_compressor *dsc);
+void dsc2_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
 
 #endif
 

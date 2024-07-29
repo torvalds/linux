@@ -56,8 +56,8 @@ struct drm_buddy_block {
 	struct list_head tmp_link;
 };
 
-/* Order-zero must be at least PAGE_SIZE */
-#define DRM_BUDDY_MAX_ORDER (63 - PAGE_SHIFT)
+/* Order-zero must be at least SZ_4K */
+#define DRM_BUDDY_MAX_ORDER (63 - 12)
 
 /*
  * Binary Buddy System.
@@ -85,7 +85,7 @@ struct drm_buddy {
 	unsigned int n_roots;
 	unsigned int max_order;
 
-	/* Must be at least PAGE_SIZE */
+	/* Must be at least SZ_4K */
 	u64 chunk_size;
 	u64 size;
 	u64 avail;

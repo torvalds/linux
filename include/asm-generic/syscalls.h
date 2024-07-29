@@ -19,7 +19,7 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 #ifndef sys_mmap
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
-			unsigned long fd, off_t pgoff);
+			unsigned long fd, unsigned long off);
 #endif
 
 #ifndef sys_rt_sigreturn

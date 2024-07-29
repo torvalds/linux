@@ -160,4 +160,5 @@ int qcom_snd_sdw_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_snd_sdw_hw_free);
+MODULE_DESCRIPTION("Qualcomm ASoC SoundWire helper functions");
 MODULE_LICENSE("GPL");

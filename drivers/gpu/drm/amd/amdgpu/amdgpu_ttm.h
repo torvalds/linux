@@ -110,6 +110,19 @@ struct amdgpu_copy_mem {
 };
 
 #define AMDGPU_COPY_FLAGS_TMZ		(1 << 0)
+#define AMDGPU_COPY_FLAGS_READ_DECOMPRESSED	(1 << 1)
+#define AMDGPU_COPY_FLAGS_WRITE_COMPRESSED	(1 << 2)
+#define AMDGPU_COPY_FLAGS_MAX_COMPRESSED_SHIFT		3
+#define AMDGPU_COPY_FLAGS_MAX_COMPRESSED_MASK		0x03
+#define AMDGPU_COPY_FLAGS_NUMBER_TYPE_SHIFT		5
+#define AMDGPU_COPY_FLAGS_NUMBER_TYPE_MASK		0x07
+#define AMDGPU_COPY_FLAGS_DATA_FORMAT_SHIFT		8
+#define AMDGPU_COPY_FLAGS_DATA_FORMAT_MASK		0x3f
+
+#define AMDGPU_COPY_FLAGS_SET(field, value) \
+	(((__u32)(value) & AMDGPU_COPY_FLAGS_##field##_MASK) << AMDGPU_COPY_FLAGS_##field##_SHIFT)
+#define AMDGPU_COPY_FLAGS_GET(value, field) \
+	(((__u32)(value) >> AMDGPU_COPY_FLAGS_##field##_SHIFT) & AMDGPU_COPY_FLAGS_##field##_MASK)
 
 int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size);
 void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev);
@@ -146,7 +159,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev);
 void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev,
 					bool enable);
-
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,

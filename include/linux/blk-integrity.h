@@ -66,12 +66,6 @@ blk_integrity_queue_supports_integrity(struct request_queue *q)
 	return q->integrity.profile;
 }
 
-static inline void blk_queue_max_integrity_segments(struct request_queue *q,
-						    unsigned int segs)
-{
-	q->limits.max_integrity_segments = segs;
-}
-
 static inline unsigned short
 queue_max_integrity_segments(const struct request_queue *q)
 {
@@ -149,10 +143,6 @@ static inline void blk_integrity_register(struct gendisk *d,
 {
 }
 static inline void blk_integrity_unregister(struct gendisk *d)
-{
-}
-static inline void blk_queue_max_integrity_segments(struct request_queue *q,
-						    unsigned int segs)
 {
 }
 static inline unsigned short

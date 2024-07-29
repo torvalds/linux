@@ -1702,26 +1702,22 @@ static int mtk_hdmi_probe(struct platform_device *pdev)
 		return ret;
 
 	hdmi->phy = devm_phy_get(dev, "hdmi");
-	if (IS_ERR(hdmi->phy)) {
-		ret = PTR_ERR(hdmi->phy);
-		dev_err(dev, "Failed to get HDMI PHY: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(hdmi->phy))
+		return dev_err_probe(dev, PTR_ERR(hdmi->phy),
+				     "Failed to get HDMI PHY\n");
 
 	mutex_init(&hdmi->update_plugged_status_lock);
 	platform_set_drvdata(pdev, hdmi);
 
 	ret = mtk_hdmi_output_init(hdmi);
-	if (ret) {
-		dev_err(dev, "Failed to initialize hdmi output\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to initialize hdmi output\n");
 
 	ret = mtk_hdmi_register_audio_driver(dev);
-	if (ret) {
-		dev_err(dev, "Failed to register audio driver: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to register audio driver\n");
 
 	hdmi->bridge.funcs = &mtk_hdmi_bridge_funcs;
 	hdmi->bridge.of_node = pdev->dev.of_node;
@@ -1732,15 +1728,12 @@ static int mtk_hdmi_probe(struct platform_device *pdev)
 
 	ret = mtk_hdmi_clk_enable_audio(hdmi);
 	if (ret) {
-		dev_err(dev, "Failed to enable audio clocks: %d\n", ret);
-		goto err_bridge_remove;
+		drm_bridge_remove(&hdmi->bridge);
+		return dev_err_probe(dev, ret,
+				     "Failed to enable audio clocks\n");
 	}
 
 	return 0;
-
-err_bridge_remove:
-	drm_bridge_remove(&hdmi->bridge);
-	return ret;
 }
 
 static void mtk_hdmi_remove(struct platform_device *pdev)

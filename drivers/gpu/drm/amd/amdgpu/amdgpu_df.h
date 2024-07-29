@@ -33,6 +33,7 @@ struct amdgpu_df_hash_status {
 struct amdgpu_df_funcs {
 	void (*sw_init)(struct amdgpu_device *adev);
 	void (*sw_fini)(struct amdgpu_device *adev);
+	void (*hw_init)(struct amdgpu_device *adev);
 	void (*enable_broadcast_mode)(struct amdgpu_device *adev,
 				      bool enable);
 	u32 (*get_fb_channel_number)(struct amdgpu_device *adev);

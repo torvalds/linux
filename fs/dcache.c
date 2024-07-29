@@ -2360,17 +2360,19 @@ EXPORT_SYMBOL(d_hash_and_lookup);
  * - unhash this dentry and free it.
  *
  * Usually, we want to just turn this into
- * a negative dentry, but certain workloads can
- * generate a large number of negative dentries.
- * Therefore, it would be better to simply
- * unhash it.
+ * a negative dentry, but if anybody else is
+ * currently using the dentry or the inode
+ * we can't do that and we fall back on removing
+ * it from the hash queues and waiting for
+ * it to be deleted later when it has no users
  */
  
 /**
  * d_delete - delete a dentry
  * @dentry: The dentry to delete
  *
- * Remove the dentry from the hash queues so it can be deleted later.
+ * Turn the dentry into a negative dentry if possible, otherwise
+ * remove it from the hash queues so it can be deleted later
  */
  
 void d_delete(struct dentry * dentry)
@@ -2379,8 +2381,6 @@ void d_delete(struct dentry * dentry)
 
 	spin_lock(&inode->i_lock);
 	spin_lock(&dentry->d_lock);
-	__d_drop(dentry);
-
 	/*
 	 * Are we the only user?
 	 */
@@ -2388,6 +2388,7 @@ void d_delete(struct dentry * dentry)
 		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
 		dentry_unlink_inode(dentry);
 	} else {
+		__d_drop(dentry);
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&inode->i_lock);
 	}

@@ -350,6 +350,10 @@ attribute-sets:
           buffer space, host descriptors etc.
         type: uint
       -
+        name: rx-csum-complete
+        doc: Number of packets that were marked as CHECKSUM_COMPLETE.
+        type: uint
+      -
         name: rx-csum-unnecessary
         doc: Number of packets that were marked as CHECKSUM_UNNECESSARY.
         type: uint

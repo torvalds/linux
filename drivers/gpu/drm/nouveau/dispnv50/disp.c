@@ -2676,7 +2676,7 @@ nv50_display_fini(struct drm_device *dev, bool runtime, bool suspend)
 			nv50_mstm_fini(nouveau_encoder(encoder));
 	}
 
-	if (!runtime)
+	if (!runtime && !drm->headless)
 		cancel_work_sync(&drm->hpd_work);
 }
 

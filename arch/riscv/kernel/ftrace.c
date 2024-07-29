@@ -120,9 +120,6 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	out = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
 	mutex_unlock(&text_mutex);
 
-	if (!mod)
-		local_flush_icache_range(rec->ip, rec->ip + MCOUNT_INSN_SIZE);
-
 	return out;
 }
 
@@ -156,9 +153,9 @@ static int __ftrace_modify_code(void *data)
 	} else {
 		while (atomic_read(&param->cpu_count) <= num_online_cpus())
 			cpu_relax();
-	}
 
-	local_flush_icache_all();
+		local_flush_icache_all();
+	}
 
 	return 0;
 }

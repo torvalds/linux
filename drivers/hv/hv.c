@@ -45,8 +45,8 @@ int hv_init(void)
  * This involves a hypercall.
  */
 int hv_post_message(union hv_connection_id connection_id,
-		  enum hv_message_type message_type,
-		  void *payload, size_t payload_size)
+			enum hv_message_type message_type,
+			void *payload, size_t payload_size)
 {
 	struct hv_input_post_message *aligned_msg;
 	unsigned long flags;
@@ -86,7 +86,7 @@ int hv_post_message(union hv_connection_id connection_id,
 			status = HV_STATUS_INVALID_PARAMETER;
 	} else {
 		status = hv_do_hypercall(HVCALL_POST_MESSAGE,
-				aligned_msg, NULL);
+					 aligned_msg, NULL);
 	}
 
 	local_irq_restore(flags);
@@ -111,7 +111,7 @@ int hv_synic_alloc(void)
 
 	hv_context.hv_numa_map = kcalloc(nr_node_ids, sizeof(struct cpumask),
 					 GFP_KERNEL);
-	if (hv_context.hv_numa_map == NULL) {
+	if (!hv_context.hv_numa_map) {
 		pr_err("Unable to allocate NUMA map\n");
 		goto err;
 	}
@@ -120,11 +120,11 @@ int hv_synic_alloc(void)
 		hv_cpu = per_cpu_ptr(hv_context.cpu_context, cpu);
 
 		tasklet_init(&hv_cpu->msg_dpc,
-			     vmbus_on_msg_dpc, (unsigned long) hv_cpu);
+			     vmbus_on_msg_dpc, (unsigned long)hv_cpu);
 
 		if (ms_hyperv.paravisor_present && hv_isolation_type_tdx()) {
 			hv_cpu->post_msg_page = (void *)get_zeroed_page(GFP_ATOMIC);
-			if (hv_cpu->post_msg_page == NULL) {
+			if (!hv_cpu->post_msg_page) {
 				pr_err("Unable to allocate post msg page\n");
 				goto err;
 			}
@@ -147,14 +147,14 @@ int hv_synic_alloc(void)
 		if (!ms_hyperv.paravisor_present && !hv_root_partition) {
 			hv_cpu->synic_message_page =
 				(void *)get_zeroed_page(GFP_ATOMIC);
-			if (hv_cpu->synic_message_page == NULL) {
+			if (!hv_cpu->synic_message_page) {
 				pr_err("Unable to allocate SYNIC message page\n");
 				goto err;
 			}
 
 			hv_cpu->synic_event_page =
 				(void *)get_zeroed_page(GFP_ATOMIC);
-			if (hv_cpu->synic_event_page == NULL) {
+			if (!hv_cpu->synic_event_page) {
 				pr_err("Unable to allocate SYNIC event page\n");
 
 				free_page((unsigned long)hv_cpu->synic_message_page);
@@ -203,14 +203,13 @@ err:
 	return ret;
 }
 
-
 void hv_synic_free(void)
 {
 	int cpu, ret;
 
 	for_each_present_cpu(cpu) {
-		struct hv_per_cpu_context *hv_cpu
-			= per_cpu_ptr(hv_context.cpu_context, cpu);
+		struct hv_per_cpu_context *hv_cpu =
+			per_cpu_ptr(hv_context.cpu_context, cpu);
 
 		/* It's better to leak the page if the encryption fails. */
 		if (ms_hyperv.paravisor_present && hv_isolation_type_tdx()) {
@@ -262,8 +261,8 @@ void hv_synic_free(void)
  */
 void hv_synic_enable_regs(unsigned int cpu)
 {
-	struct hv_per_cpu_context *hv_cpu
-		= per_cpu_ptr(hv_context.cpu_context, cpu);
+	struct hv_per_cpu_context *hv_cpu =
+		per_cpu_ptr(hv_context.cpu_context, cpu);
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_sint shared_sint;
@@ -277,8 +276,8 @@ void hv_synic_enable_regs(unsigned int cpu)
 		/* Mask out vTOM bit. ioremap_cache() maps decrypted */
 		u64 base = (simp.base_simp_gpa << HV_HYP_PAGE_SHIFT) &
 				~ms_hyperv.shared_gpa_boundary;
-		hv_cpu->synic_message_page
-			= (void *)ioremap_cache(base, HV_HYP_PAGE_SIZE);
+		hv_cpu->synic_message_page =
+			(void *)ioremap_cache(base, HV_HYP_PAGE_SIZE);
 		if (!hv_cpu->synic_message_page)
 			pr_err("Fail to map synic message page.\n");
 	} else {
@@ -296,8 +295,8 @@ void hv_synic_enable_regs(unsigned int cpu)
 		/* Mask out vTOM bit. ioremap_cache() maps decrypted */
 		u64 base = (siefp.base_siefp_gpa << HV_HYP_PAGE_SHIFT) &
 				~ms_hyperv.shared_gpa_boundary;
-		hv_cpu->synic_event_page
-			= (void *)ioremap_cache(base, HV_HYP_PAGE_SIZE);
+		hv_cpu->synic_event_page =
+			(void *)ioremap_cache(base, HV_HYP_PAGE_SIZE);
 		if (!hv_cpu->synic_event_page)
 			pr_err("Fail to map synic event page.\n");
 	} else {
@@ -348,8 +347,8 @@ int hv_synic_init(unsigned int cpu)
  */
 void hv_synic_disable_regs(unsigned int cpu)
 {
-	struct hv_per_cpu_context *hv_cpu
-		= per_cpu_ptr(hv_context.cpu_context, cpu);
+	struct hv_per_cpu_context *hv_cpu =
+		per_cpu_ptr(hv_context.cpu_context, cpu);
 	union hv_synic_sint shared_sint;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;

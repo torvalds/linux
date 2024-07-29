@@ -36,6 +36,7 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 		.flowi6_uid = sock_net_uid(net, sk),
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
+		.flowlabel = ip6_flowinfo(iph),
 	};
 	int err;
 

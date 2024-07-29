@@ -8,8 +8,8 @@
 
 struct drm_device;
 struct drm_file;
-struct drm_i915_error_state_buf;
 struct drm_i915_private;
+struct drm_printer;
 struct intel_overlay;
 struct intel_overlay_error_state;
 
@@ -24,7 +24,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 void intel_overlay_reset(struct drm_i915_private *dev_priv);
 struct intel_overlay_error_state *
 intel_overlay_capture_error_state(struct drm_i915_private *dev_priv);
-void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
+void intel_overlay_print_error_state(struct drm_printer *p,
 				     struct intel_overlay_error_state *error);
 #else
 static inline void intel_overlay_setup(struct drm_i915_private *dev_priv)
@@ -55,7 +55,7 @@ intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 {
 	return NULL;
 }
-static inline void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
+static inline void intel_overlay_print_error_state(struct drm_printer *p,
 						   struct intel_overlay_error_state *error)
 {
 }

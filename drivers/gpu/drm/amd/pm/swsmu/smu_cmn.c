@@ -56,7 +56,7 @@ static const char * const __smu_message_names[] = {
 static const char *smu_get_message_name(struct smu_context *smu,
 					enum smu_message_type type)
 {
-	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
+	if (type >= SMU_MSG_MAX_COUNT)
 		return "unknown smu message";
 
 	return __smu_message_names[type];
@@ -315,11 +315,21 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	if (adev->no_hw_access)
 		return 0;
 
-	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (reg == SMU_RESP_NONE ||
-	    res == -EREMOTEIO)
+	if (smu->smc_fw_state == SMU_FW_HANG) {
+		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
+		res = -EREMOTEIO;
 		goto Out;
+	}
+
+	if (smu->smc_fw_state == SMU_FW_INIT) {
+		smu->smc_fw_state = SMU_FW_RUNTIME;
+	} else {
+		reg = __smu_cmn_poll_stat(smu);
+		res = __smu_cmn_reg2errno(smu, reg);
+		if (reg == SMU_RESP_NONE || res == -EREMOTEIO)
+			goto Out;
+	}
+
 	__smu_cmn_send_msg(smu, msg_index, param);
 	res = 0;
 Out:
@@ -349,6 +359,9 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
 
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
+
+	if (res == -EREMOTEIO)
+		smu->smc_fw_state = SMU_FW_HANG;
 
 	if (unlikely(smu->adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
 	    res && (res != -ETIME)) {
@@ -418,6 +431,16 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 			goto Out;
 	}
 
+	if (smu->smc_fw_state == SMU_FW_HANG) {
+		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
+		res = -EREMOTEIO;
+		goto Out;
+	} else if (smu->smc_fw_state == SMU_FW_INIT) {
+		/* Ignore initial smu response register value */
+		poll = false;
+		smu->smc_fw_state = SMU_FW_RUNTIME;
+	}
+
 	if (poll) {
 		reg = __smu_cmn_poll_stat(smu);
 		res = __smu_cmn_reg2errno(smu, reg);
@@ -429,8 +452,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	__smu_cmn_send_msg(smu, (uint16_t) index, param);
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
-	if (res != 0)
+	if (res != 0) {
+		if (res == -EREMOTEIO)
+			smu->smc_fw_state = SMU_FW_HANG;
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
+	}
 	if (read_arg) {
 		smu_cmn_read_arg(smu, read_arg);
 		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x,\
@@ -760,7 +786,7 @@ static const char *__smu_feature_names[] = {
 static const char *smu_get_feature_name(struct smu_context *smu,
 					enum smu_feature_mask feature)
 {
-	if (feature < 0 || feature >= SMU_FEATURE_COUNT)
+	if (feature >= SMU_FEATURE_COUNT)
 		return "unknown smu feature";
 	return __smu_feature_names[feature];
 }
@@ -1131,4 +1157,61 @@ bool smu_cmn_is_audio_func_enabled(struct amdgpu_device *adev)
 	pci_dev_put(p);
 
 	return snd_driver_loaded;
+}
+
+static char *smu_soc_policy_get_desc(struct smu_dpm_policy *policy, int level)
+{
+	if (level < 0 || !(policy->level_mask & BIT(level)))
+		return "Invalid";
+
+	switch (level) {
+	case SOC_PSTATE_DEFAULT:
+		return "soc_pstate_default";
+	case SOC_PSTATE_0:
+		return "soc_pstate_0";
+	case SOC_PSTATE_1:
+		return "soc_pstate_1";
+	case SOC_PSTATE_2:
+		return "soc_pstate_2";
+	}
+
+	return "Invalid";
+}
+
+static struct smu_dpm_policy_desc pstate_policy_desc = {
+	.name = STR_SOC_PSTATE_POLICY,
+	.get_desc = smu_soc_policy_get_desc,
+};
+
+void smu_cmn_generic_soc_policy_desc(struct smu_dpm_policy *policy)
+{
+	policy->desc = &pstate_policy_desc;
+}
+
+static char *smu_xgmi_plpd_policy_get_desc(struct smu_dpm_policy *policy,
+					   int level)
+{
+	if (level < 0 || !(policy->level_mask & BIT(level)))
+		return "Invalid";
+
+	switch (level) {
+	case XGMI_PLPD_DISALLOW:
+		return "plpd_disallow";
+	case XGMI_PLPD_DEFAULT:
+		return "plpd_default";
+	case XGMI_PLPD_OPTIMIZED:
+		return "plpd_optimized";
+	}
+
+	return "Invalid";
+}
+
+static struct smu_dpm_policy_desc xgmi_plpd_policy_desc = {
+	.name = STR_XGMI_PLPD_POLICY,
+	.get_desc = smu_xgmi_plpd_policy_get_desc,
+};
+
+void smu_cmn_generic_plpd_policy_desc(struct smu_dpm_policy *policy)
+{
+	policy->desc = &xgmi_plpd_policy_desc;
 }

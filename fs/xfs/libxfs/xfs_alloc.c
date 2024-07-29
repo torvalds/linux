@@ -1008,13 +1008,12 @@ xfs_alloc_cur_finish(
 	struct xfs_alloc_arg	*args,
 	struct xfs_alloc_cur	*acur)
 {
-	struct xfs_agf __maybe_unused *agf = args->agbp->b_addr;
 	int			error;
 
 	ASSERT(acur->cnt && acur->bnolt);
 	ASSERT(acur->bno >= acur->rec_bno);
 	ASSERT(acur->bno + acur->len <= acur->rec_bno + acur->rec_len);
-	ASSERT(acur->rec_bno + acur->rec_len <= be32_to_cpu(agf->agf_length));
+	ASSERT(xfs_verify_agbext(args->pag, acur->rec_bno, acur->rec_len));
 
 	error = xfs_alloc_fixup_trees(acur->cnt, acur->bnolt, acur->rec_bno,
 				      acur->rec_len, acur->bno, acur->len, 0);
@@ -1217,7 +1216,6 @@ STATIC int			/* error */
 xfs_alloc_ag_vextent_exact(
 	xfs_alloc_arg_t	*args)	/* allocation argument structure */
 {
-	struct xfs_agf __maybe_unused *agf = args->agbp->b_addr;
 	struct xfs_btree_cur *bno_cur;/* by block-number btree cursor */
 	struct xfs_btree_cur *cnt_cur;/* by count btree cursor */
 	int		error;
@@ -1297,7 +1295,7 @@ xfs_alloc_ag_vextent_exact(
 	 */
 	cnt_cur = xfs_cntbt_init_cursor(args->mp, args->tp, args->agbp,
 					args->pag);
-	ASSERT(args->agbno + args->len <= be32_to_cpu(agf->agf_length));
+	ASSERT(xfs_verify_agbext(args->pag, args->agbno, args->len));
 	error = xfs_alloc_fixup_trees(cnt_cur, bno_cur, fbno, flen, args->agbno,
 				      args->len, XFSA_FIXUP_BNO_OK);
 	if (error) {

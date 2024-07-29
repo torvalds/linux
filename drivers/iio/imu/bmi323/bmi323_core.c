@@ -1391,7 +1391,7 @@ static irqreturn_t bmi323_trigger_handler(int irq, void *p)
 				       &data->buffer.channels,
 				       ARRAY_SIZE(data->buffer.channels));
 		if (ret)
-			return IRQ_NONE;
+			goto out;
 	} else {
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
 				 BMI323_CHAN_MAX) {
@@ -1400,13 +1400,14 @@ static irqreturn_t bmi323_trigger_handler(int irq, void *p)
 					      &data->buffer.channels[index++],
 					      BMI323_BYTES_PER_SAMPLE);
 			if (ret)
-				return IRQ_NONE;
+				goto out;
 		}
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
 					   iio_get_time_ns(indio_dev));
 
+out:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;

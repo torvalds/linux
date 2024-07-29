@@ -8,17 +8,17 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- state.xml     (  27198 bytes, from 2022-04-22 10:35:24)
-- common.xml    (  35468 bytes, from 2020-10-28 12:56:03)
-- common_3d.xml (  15058 bytes, from 2020-10-28 12:56:03)
-- state_hi.xml  (  34804 bytes, from 2022-12-02 09:06:28)
-- copyright.xml (   1597 bytes, from 2020-10-28 12:56:03)
-- state_2d.xml  (  51552 bytes, from 2020-10-28 12:56:03)
-- state_3d.xml  (  84445 bytes, from 2022-11-15 15:59:38)
-- state_blt.xml (  14424 bytes, from 2022-11-07 11:18:41)
-- state_vg.xml  (   5975 bytes, from 2020-10-28 12:56:03)
+- state.xml     (  29355 bytes, from 2024-01-19 10:18:54)
+- common.xml    (  35664 bytes, from 2023-12-06 10:55:32)
+- common_3d.xml (  15069 bytes, from 2023-11-22 10:05:24)
+- state_hi.xml  (  35854 bytes, from 2023-12-11 15:50:17)
+- copyright.xml (   1597 bytes, from 2016-11-10 13:58:32)
+- state_2d.xml  (  52271 bytes, from 2023-06-02 12:35:03)
+- state_3d.xml  (  89522 bytes, from 2024-01-19 10:18:54)
+- state_blt.xml (  14592 bytes, from 2023-11-22 10:05:09)
+- state_vg.xml  (   5975 bytes, from 2016-11-10 13:58:32)
 
-Copyright (C) 2012-2022 by the following authors:
+Copyright (C) 2012-2023 by the following authors:
 - Wladimir J. van der Laan <laanwj@gmail.com>
 - Christian Gmeiner <christian.gmeiner@gmail.com>
 - Lucas Stach <l.stach@pengutronix.de>
@@ -275,8 +275,10 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_SE	0x00000020
 #define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA	0x00000040
 #define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX	0x00000080
+#define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_SH_EU	0x00000400
 #define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ	0x00010000
 #define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ	0x00020000
+#define VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_NN	0x00400000
 
 #define VIVS_PM_MODULE_STATUS					0x00000108
 #define VIVS_PM_MODULE_STATUS_MODULE_CLOCK_GATED_FE		0x00000001
@@ -619,6 +621,12 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_MC_MC_AXI_TOTAL_LATENCY				0x00000570
 
 #define VIVS_MC_MC_AXI_SAMPLE_COUNT				0x00000574
+
+#define VIVS_DEC400EX						0x00000000
+
+#define VIVS_DEC400EX_UNK00800					0x00000800
+
+#define VIVS_DEC400EX_UNK00808					0x00000808
 
 
 #endif /* STATE_HI_XML */

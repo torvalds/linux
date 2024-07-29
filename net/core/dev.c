@@ -1226,9 +1226,9 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
-	write_seqlock(&netdev_rename_lock);
+	write_seqlock_bh(&netdev_rename_lock);
 	err = dev_get_valid_name(net, dev, newname);
-	write_sequnlock(&netdev_rename_lock);
+	write_sequnlock_bh(&netdev_rename_lock);
 
 	if (err < 0) {
 		up_write(&devnet_rename_sem);
@@ -1269,9 +1269,9 @@ rollback:
 		if (err >= 0) {
 			err = ret;
 			down_write(&devnet_rename_sem);
-			write_seqlock(&netdev_rename_lock);
+			write_seqlock_bh(&netdev_rename_lock);
 			memcpy(dev->name, oldname, IFNAMSIZ);
-			write_sequnlock(&netdev_rename_lock);
+			write_sequnlock_bh(&netdev_rename_lock);
 			memcpy(oldname, newname, IFNAMSIZ);
 			WRITE_ONCE(dev->name_assign_type, old_assign_type);
 			old_assign_type = NET_NAME_RENAMED;
@@ -4516,12 +4516,13 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	    struct rps_dev_flow *rflow, u16 next_cpu)
 {
 	if (next_cpu < nr_cpu_ids) {
+		u32 head;
 #ifdef CONFIG_RFS_ACCEL
 		struct netdev_rx_queue *rxqueue;
 		struct rps_dev_flow_table *flow_table;
 		struct rps_dev_flow *old_rflow;
-		u32 flow_id, head;
 		u16 rxq_index;
+		u32 flow_id;
 		int rc;
 
 		/* Should we steer this flow to a different hardware queue? */
@@ -11418,9 +11419,9 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 
 	if (new_name[0]) {
 		/* Rename the netdev to prepared name */
-		write_seqlock(&netdev_rename_lock);
+		write_seqlock_bh(&netdev_rename_lock);
 		strscpy(dev->name, new_name, IFNAMSIZ);
-		write_sequnlock(&netdev_rename_lock);
+		write_sequnlock_bh(&netdev_rename_lock);
 	}
 
 	/* Fixup kobjects */

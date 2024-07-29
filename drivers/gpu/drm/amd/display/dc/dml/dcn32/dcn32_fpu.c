@@ -738,9 +738,9 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 		/* Loop to calculate the maximum microschedule time between the two SubVP pipes,
 		 * and also to store the two main SubVP pipe pointers in subvp_pipes[2].
 		 */
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
+		phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
+		if (phantom && pipe->stream && pipe->plane_state && !pipe->top_pipe &&
 			dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
-			phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
 			microschedule_lines = (phantom->timing.v_total - phantom->timing.v_front_porch) +
 					phantom->timing.v_addressable;
 
@@ -845,8 +845,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_found && drr_found) {
-		phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	if (phantom_stream && subvp_found && drr_found) {
 		main_timing = &pipe->stream->timing;
 		phantom_timing = &phantom_stream->timing;
 		drr_timing = &drr_pipe->stream->timing;
@@ -997,7 +997,7 @@ static bool subvp_subvp_admissable(struct dc *dc,
 		if (pipe->plane_state && !pipe->top_pipe &&
 				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
 			refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
-				pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				pipe->stream->timing.v_total * (uint64_t)pipe->stream->timing.h_total - (uint64_t)1);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 
@@ -1177,6 +1177,9 @@ static void init_pipe_slice_table_from_context(
 		stream = context->streams[i];
 		otg_master = resource_get_otg_master_for_stream(
 				&context->res_ctx, stream);
+		if (!otg_master)
+			continue;
+
 		count = resource_get_odm_slice_count(otg_master);
 		update_slice_table_for_stream(table, stream, count);
 
@@ -2154,6 +2157,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 
 	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 
+	for (i = 0; i < context->stream_count; i++)
+		resource_update_pipes_for_stream_with_slice_count(context, dc->current_state, dc->res_pool, context->streams[i], 1);
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
 	if (!pipe_cnt) {
@@ -2309,6 +2314,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	bool need_fclk_lat_as_dummy = false;
 	bool is_subvp_p_drr = false;
 	struct dc_stream_state *fpo_candidate_stream = NULL;
+	struct dc_stream_status *stream_status = NULL;
 
 	dc_assert_fp_enabled();
 
@@ -2343,8 +2349,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
 	for (i = 0; i < context->stream_count; i++) {
+		stream_status = NULL;
 		if (context->streams[i])
-			context->streams[i]->fpo_in_use = false;
+			stream_status = dc_state_get_stream_status(context, context->streams[i]);
+		if (stream_status)
+			stream_status->fpo_in_use = false;
 	}
 
 	if (!pstate_en || (!dc->debug.disable_fpo_optimizations &&
@@ -2352,7 +2361,9 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
 		fpo_candidate_stream = dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 		if (fpo_candidate_stream) {
-			fpo_candidate_stream->fpo_in_use = true;
+			stream_status = dc_state_get_stream_status(context, fpo_candidate_stream);
+			if (stream_status)
+				stream_status->fpo_in_use = true;
 			context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = true;
 		}
 
@@ -2389,8 +2400,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				 */
 				context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
 				for (i = 0; i < context->stream_count; i++) {
+					stream_status = NULL;
 					if (context->streams[i])
-						context->streams[i]->fpo_in_use = false;
+						stream_status = dc_state_get_stream_status(context, context->streams[i]);
+					if (stream_status)
+						stream_status->fpo_in_use = false;
 				}
 				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
 				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
@@ -3232,6 +3246,16 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 				dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
 			}
 
+			/* bw_params->clk_table.entries[MAX_NUM_DPM_LVL].
+			 * MAX_NUM_DPM_LVL is 8.
+			 * dcn3_02_soc.clock_limits[DC__VOLTAGE_STATES].
+			 * DC__VOLTAGE_STATES is 40.
+			 */
+			if (num_states > MAX_NUM_DPM_LVL) {
+				ASSERT(0);
+				return;
+			}
+
 			dcn3_2_soc.num_states = num_states;
 			for (i = 0; i < dcn3_2_soc.num_states; i++) {
 				dcn3_2_soc.clock_limits[i].state = i;
@@ -3521,15 +3545,16 @@ void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *co
  *
  * @dc: current dc state
  * @context: new dc state
+ * @fpo_candidate_stream: candidate stream to be chosen for FPO
  * @vactive_margin_req_us: The vactive marign required for a vactive pipe to be considered "found"
  *
  * Return: True if VACTIVE display is found, false otherwise
  */
-bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint32_t vactive_margin_req_us)
+bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, struct dc_stream_state *fpo_candidate_stream, uint32_t vactive_margin_req_us)
 {
 	unsigned int i, pipe_idx;
 	const struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
-	bool vactive_found = false;
+	bool vactive_found = true;
 	unsigned int blank_us = 0;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
@@ -3538,11 +3563,20 @@ bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint
 		if (!pipe->stream)
 			continue;
 
+		/* Don't need to check for vactive margin on the FPO candidate stream */
+		if (fpo_candidate_stream && pipe->stream == fpo_candidate_stream) {
+			pipe_idx++;
+			continue;
+		}
+
+		/* Every plane (apart from the ones driven by the FPO pipes) needs to have active margin
+		 * in order for us to have found a valid "vactive" config for FPO + Vactive
+		 */
 		blank_us = ((pipe->stream->timing.v_total - pipe->stream->timing.v_addressable) * pipe->stream->timing.h_total /
 				(double)(pipe->stream->timing.pix_clk_100hz * 100)) * 1000000;
-		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] >= vactive_margin_req_us &&
-				!(pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed) && blank_us < dc->debug.fpo_vactive_max_blank_us) {
-			vactive_found = true;
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] < vactive_margin_req_us ||
+				pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed || blank_us >= dc->debug.fpo_vactive_max_blank_us) {
+			vactive_found = false;
 			break;
 		}
 		pipe_idx++;

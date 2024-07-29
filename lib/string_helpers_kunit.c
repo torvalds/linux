@@ -625,4 +625,5 @@ static struct kunit_suite string_helpers_test_suite = {
 
 kunit_test_suites(&string_helpers_test_suite);
 
+MODULE_DESCRIPTION("Test cases for string helpers module");
 MODULE_LICENSE("Dual BSD/GPL");

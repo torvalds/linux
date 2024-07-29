@@ -25,7 +25,9 @@ struct xe_graphics_desc {
 	u8 max_remote_tiles:2;
 
 	u8 has_asid:1;
+	u8 has_atomic_enable_pte_bit:1;
 	u8 has_flat_ccs:1;
+	u8 has_indirect_ring_state:1;
 	u8 has_range_tlb_invalidation:1;
 	u8 has_usm:1;
 };
@@ -36,6 +38,8 @@ struct xe_media_desc {
 	u8 rel;
 
 	u64 hw_engine_mask;	/* hardware engines provided by media IP */
+
+	u8 has_indirect_ring_state:1;
 };
 
 struct gmdid_map {

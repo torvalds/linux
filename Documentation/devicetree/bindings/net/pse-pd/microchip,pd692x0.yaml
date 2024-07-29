@@ -24,6 +24,7 @@ properties:
 
   managers:
     type: object
+    additionalProperties: false
     description:
       List of the PD69208T4/PD69204T4/PD69208M PSE managers. Each manager
       have 4 or 8 physical ports according to the chip version. No need to
@@ -47,8 +48,9 @@ properties:
       - "#size-cells"
 
     patternProperties:
-      "^manager@0[0-9a-b]$":
+      "^manager@[0-9a-b]$":
         type: object
+        additionalProperties: false
         description:
           PD69208T4/PD69204T4/PD69208M PSE manager exposing 4 or 8 physical
           ports.
@@ -69,9 +71,14 @@ properties:
         patternProperties:
           '^port@[0-7]$':
             type: object
+            additionalProperties: false
+
+            properties:
+              reg:
+                maxItems: 1
+
             required:
               - reg
-            additionalProperties: false
 
         required:
           - reg

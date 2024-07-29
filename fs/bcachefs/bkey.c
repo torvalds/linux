@@ -1064,7 +1064,7 @@ void bch2_bkey_swab_key(const struct bkey_format *_f, struct bkey_packed *k)
 {
 	const struct bkey_format *f = bkey_packed(k) ? _f : &bch2_bkey_format_current;
 	u8 *l = k->key_start;
-	u8 *h = (u8 *) (k->_data + f->key_u64s) - 1;
+	u8 *h = (u8 *) ((u64 *) k->_data + f->key_u64s) - 1;
 
 	while (l < h) {
 		swap(*l, *h);

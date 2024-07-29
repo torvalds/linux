@@ -360,26 +360,25 @@ static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 
 static int dp_display_process_hpd_high(struct dp_display_private *dp)
 {
+	struct drm_connector *connector = dp->dp_display.connector;
+	const struct drm_display_info *info = &connector->display_info;
 	int rc = 0;
-	struct edid *edid;
 
-	rc = dp_panel_read_sink_caps(dp->panel, dp->dp_display.connector);
+	rc = dp_panel_read_sink_caps(dp->panel, connector);
 	if (rc)
 		goto end;
 
 	dp_link_process_request(dp->link);
 
 	if (!dp->dp_display.is_edp)
-		drm_dp_set_subconnector_property(dp->dp_display.connector,
+		drm_dp_set_subconnector_property(connector,
 						 connector_status_connected,
 						 dp->panel->dpcd,
 						 dp->panel->downstream_ports);
 
-	edid = dp->panel->edid;
-
 	dp->dp_display.psr_supported = dp->panel->psr_cap.version && psr_enabled;
 
-	dp->audio_supported = drm_detect_monitor_audio(edid);
+	dp->audio_supported = info->has_audio;
 	dp_panel_handle_sink_request(dp->panel);
 
 	/*

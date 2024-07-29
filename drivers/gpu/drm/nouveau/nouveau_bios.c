@@ -43,11 +43,6 @@
 #define BIOSLOG(sip, fmt, arg...) NV_DEBUG(sip->dev, fmt, ##arg)
 #define LOG_OLD_VALUE(x)
 
-struct init_exec {
-	bool execute;
-	bool repeat;
-};
-
 static bool nv_cksum(const uint8_t *data, unsigned int length)
 {
 	/*
