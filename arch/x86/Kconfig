@@ -2705,6 +2705,16 @@ config MITIGATION_RETBLEED
 	  unprivileged attacker can use these flaws to bypass conventional
 	  memory security restrictions to gain read access to privileged memory
 	  that would otherwise be inaccessible.
+
+config MITIGATION_SPECTRE_V1
+	bool "Mitigate SPECTRE V1 hardware bug"
+	default y
+	help
+	  Enable mitigation for Spectre V1 (Bounds Check Bypass). Spectre V1 is a
+	  class of side channel attacks that takes advantage of speculative
+	  execution that bypasses conditional branch instructions used for
+	  memory access bounds check.
+	  See also <file:Documentation/admin-guide/hw-vuln/spectre.rst>
 endif
 
 config ARCH_HAS_ADD_PAGES
