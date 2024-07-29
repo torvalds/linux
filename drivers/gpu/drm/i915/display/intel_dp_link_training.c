@@ -1170,6 +1170,41 @@ static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
 	return true;
 }
 
+static bool reduce_link_params_in_bw_order(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state,
+					   int *new_link_rate, int *new_lane_count)
+{
+	int link_rate;
+	int lane_count;
+	int i;
+
+	i = intel_dp_link_config_index(intel_dp, crtc_state->port_clock, crtc_state->lane_count);
+	for (i--; i >= 0; i--) {
+		intel_dp_link_config_get(intel_dp, i, &link_rate, &lane_count);
+
+		if ((intel_dp->link.force_rate &&
+		     intel_dp->link.force_rate != link_rate) ||
+		    (intel_dp->link.force_lane_count &&
+		     intel_dp->link.force_lane_count != lane_count))
+			continue;
+
+		/* TODO: Make switching from UHBR to non-UHBR rates work. */
+		if (drm_dp_is_uhbr_rate(crtc_state->port_clock) !=
+		    drm_dp_is_uhbr_rate(link_rate))
+			continue;
+
+		break;
+	}
+
+	if (i < 0)
+		return false;
+
+	*new_link_rate = link_rate;
+	*new_lane_count = lane_count;
+
+	return true;
+}
+
 static int reduce_link_rate(struct intel_dp *intel_dp, int current_rate)
 {
 	int rate_index;
@@ -1231,8 +1266,13 @@ static bool reduce_link_params_in_rate_lane_order(struct intel_dp *intel_dp,
 static bool reduce_link_params(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state,
 			       int *new_link_rate, int *new_lane_count)
 {
-	return reduce_link_params_in_rate_lane_order(intel_dp, crtc_state,
-						     new_link_rate, new_lane_count);
+	/* TODO: Use the same fallback logic on SST as on MST. */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
+		return reduce_link_params_in_bw_order(intel_dp, crtc_state,
+						      new_link_rate, new_lane_count);
+	else
+		return reduce_link_params_in_rate_lane_order(intel_dp, crtc_state,
+							     new_link_rate, new_lane_count);
 }
 
 static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
