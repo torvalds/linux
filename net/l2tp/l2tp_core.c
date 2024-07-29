@@ -1756,7 +1756,7 @@ static __net_init int l2tp_init_net(struct net *net)
 	return 0;
 }
 
-static __net_exit void l2tp_exit_net(struct net *net)
+static __net_exit void l2tp_pre_exit_net(struct net *net)
 {
 	struct l2tp_net *pn = l2tp_pernet(net);
 	struct l2tp_tunnel *tunnel = NULL;
@@ -1771,7 +1771,11 @@ static __net_exit void l2tp_exit_net(struct net *net)
 
 	if (l2tp_wq)
 		drain_workqueue(l2tp_wq);
-	rcu_barrier();
+}
+
+static __net_exit void l2tp_exit_net(struct net *net)
+{
+	struct l2tp_net *pn = l2tp_pernet(net);
 
 	idr_destroy(&pn->l2tp_v2_session_idr);
 	idr_destroy(&pn->l2tp_v3_session_idr);
@@ -1781,6 +1785,7 @@ static __net_exit void l2tp_exit_net(struct net *net)
 static struct pernet_operations l2tp_net_ops = {
 	.init = l2tp_init_net,
 	.exit = l2tp_exit_net,
+	.pre_exit = l2tp_pre_exit_net,
 	.id   = &l2tp_net_id,
 	.size = sizeof(struct l2tp_net),
 };
