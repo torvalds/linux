@@ -12,10 +12,6 @@
 	compatible = "brcm,bcm21664";
 	interrupt-parent = <&gic>;
 
-	chosen {
-		bootargs = "console=ttyS0,115200n8";
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
