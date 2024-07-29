@@ -1676,6 +1676,7 @@ static int spi_geni_prepare_transfer_hardware(struct spi_master *spi)
 	 * to usecases. For LE, client takes care of get_sync.
 	 */
 	if (mas->is_le_vm) {
+		mas->spi_ssr.xfer_prepared = true;
 		mutex_unlock(&mas->spi_ssr.ssr_lock);
 		return 0;
 	}
@@ -1738,8 +1739,8 @@ static int spi_geni_prepare_transfer_hardware(struct spi_master *spi)
 					    "resume usage count mismatch:%d", count);
 		}
 	}
-exit_prepare_transfer_hardware:
 	mas->spi_ssr.xfer_prepared = true;
+exit_prepare_transfer_hardware:
 	mutex_unlock(&mas->spi_ssr.ssr_lock);
 	geni_capture_stop_time(&mas->spi_rsc, mas->ipc_log_kpi, __func__,
 			       mas->spi_kpi, start_time, 0, 0);
