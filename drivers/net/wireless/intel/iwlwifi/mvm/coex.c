@@ -266,10 +266,26 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool have_wifi_loss_rate =
 		iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
-					BT_PROFILE_NOTIFICATION, 0) > 4;
+					BT_PROFILE_NOTIFICATION, 0) > 4 ||
+		iwl_fw_lookup_notif_ver(mvm->fw, BT_COEX_GROUP,
+					PROFILE_NOTIF, 0) >= 1;
+	u8 wifi_loss_mid_high_rssi;
+	u8 wifi_loss_low_rssi;
 	u8 wifi_loss_rate;
 
-	if (mvm->last_bt_notif.wifi_loss_low_rssi == BT_OFF)
+	if (iwl_fw_lookup_notif_ver(mvm->fw, BT_COEX_GROUP,
+				    PROFILE_NOTIF, 0) >= 1) {
+		/* For now, we consider 2.4 GHz band / ANT_A only */
+		wifi_loss_mid_high_rssi =
+			mvm->last_bt_wifi_loss.wifi_loss_mid_high_rssi[PHY_BAND_24][0];
+		wifi_loss_low_rssi =
+			mvm->last_bt_wifi_loss.wifi_loss_low_rssi[PHY_BAND_24][0];
+	} else {
+		wifi_loss_mid_high_rssi = mvm->last_bt_notif.wifi_loss_mid_high_rssi;
+		wifi_loss_low_rssi = mvm->last_bt_notif.wifi_loss_low_rssi;
+	}
+
+	if (wifi_loss_low_rssi == BT_OFF)
 		return true;
 
 	if (primary)
@@ -286,20 +302,20 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	 * we will get an update on this and exit eSR.
 	 */
 	if (!link_rssi)
-		wifi_loss_rate = mvm->last_bt_notif.wifi_loss_mid_high_rssi;
+		wifi_loss_rate = wifi_loss_mid_high_rssi;
 
 	else if (mvmvif->esr_active)
 		 /* RSSI needs to get really low to disable eSR... */
 		wifi_loss_rate =
 			link_rssi <= -IWL_MVM_BT_COEX_DISABLE_ESR_THRESH ?
-				mvm->last_bt_notif.wifi_loss_low_rssi :
-				mvm->last_bt_notif.wifi_loss_mid_high_rssi;
+				wifi_loss_low_rssi :
+				wifi_loss_mid_high_rssi;
 	else
 		/* ...And really high before we enable it back */
 		wifi_loss_rate =
 			link_rssi <= -IWL_MVM_BT_COEX_ENABLE_ESR_THRESH ?
-				mvm->last_bt_notif.wifi_loss_low_rssi :
-				mvm->last_bt_notif.wifi_loss_mid_high_rssi;
+				wifi_loss_low_rssi :
+				wifi_loss_mid_high_rssi;
 
 	return wifi_loss_rate <= IWL_MVM_BT_COEX_WIFI_LOSS_THRESH;
 }
@@ -610,6 +626,17 @@ void iwl_mvm_rx_bt_coex_old_notif(struct iwl_mvm *mvm,
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
+}
+
+void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb)
+{
+	const struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	const struct iwl_bt_coex_profile_notif *notif = (const void *)pkt->data;
+
+	mvm->last_bt_wifi_loss = *notif;
+
+	/* TODO: Iterate over vifs / links to take that into account */
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

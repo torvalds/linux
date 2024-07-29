@@ -1200,8 +1200,11 @@ struct iwl_mvm {
 
 	wait_queue_head_t rx_sync_waitq;
 
-	/* BT-Coex */
-	struct iwl_bt_coex_prof_old_notif last_bt_notif;
+	/* BT-Coex - only one of those will be used */
+	union {
+		struct iwl_bt_coex_prof_old_notif last_bt_notif;
+		struct iwl_bt_coex_profile_notif last_bt_wifi_loss;
+	};
 	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
 	u8 bt_tx_prio;
@@ -2324,6 +2327,8 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);
 void iwl_mvm_rx_bt_coex_old_notif(struct iwl_mvm *mvm,
 				  struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event_data);
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm);
