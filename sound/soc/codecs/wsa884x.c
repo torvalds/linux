@@ -703,7 +703,6 @@ struct wsa884x_priv {
 	struct reset_control *sd_reset;
 	bool port_prepared[WSA884X_MAX_SWR_PORTS];
 	bool port_enable[WSA884X_MAX_SWR_PORTS];
-	unsigned int variant;
 	int active_ports;
 	int dev_mode;
 	bool hw_init;
@@ -1465,7 +1464,7 @@ static void wsa884x_init(struct wsa884x_priv *wsa884x)
 	unsigned int variant = 0;
 
 	if (!regmap_read(wsa884x->regmap, WSA884X_OTP_REG_0, &variant))
-		wsa884x->variant = variant & WSA884X_OTP_REG_0_ID_MASK;
+		variant = variant & WSA884X_OTP_REG_0_ID_MASK;
 
 	regmap_multi_reg_write(wsa884x->regmap, wsa884x_reg_init,
 			       ARRAY_SIZE(wsa884x_reg_init));
@@ -1474,7 +1473,7 @@ static void wsa884x_init(struct wsa884x_priv *wsa884x)
 	wo_ctl_0 |= FIELD_PREP(WSA884X_ANA_WO_CTL_0_DAC_CM_CLAMP_EN_MASK,
 			       WSA884X_ANA_WO_CTL_0_DAC_CM_CLAMP_EN_MODE_SPEAKER);
 	/* Assume that compander is enabled by default unless it is haptics sku */
-	if (wsa884x->variant == WSA884X_OTP_ID_WSA8845H)
+	if (variant == WSA884X_OTP_ID_WSA8845H)
 		wo_ctl_0 |= FIELD_PREP(WSA884X_ANA_WO_CTL_0_PA_AUX_GAIN_MASK,
 				       WSA884X_ANA_WO_CTL_0_PA_AUX_18_DB);
 	else
