@@ -933,7 +933,8 @@ static int __maybe_unused param_set_xint(const char *val, const struct kernel_pa
 	mutex_lock(&card_list_lock);
 	list_for_each_entry(hda, &card_list, list) {
 		chip = &hda->chip;
-		if (!hda->probe_continued || chip->disabled)
+		if (!hda->probe_continued || chip->disabled ||
+		    hda->runtime_pm_disabled)
 			continue;
 		snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	}
@@ -2243,6 +2244,7 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 
 static void set_default_power_save(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int val = power_save;
 
 	if (pm_blacklist) {
@@ -2253,6 +2255,7 @@ static void set_default_power_save(struct azx *chip)
 			dev_info(chip->card->dev, "device %04x:%04x is on the power_save denylist, forcing power_save to 0\n",
 				 q->subvendor, q->subdevice);
 			val = 0;
+			hda->runtime_pm_disabled = 1;
 		}
 	}
 	snd_hda_set_power_save(&chip->bus, val * 1000);
