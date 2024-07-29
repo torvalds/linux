@@ -775,6 +775,11 @@ struct cgroup_subsys {
 
 extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
 
+struct cgroup_of_peak {
+	unsigned long		value;
+	struct list_head	list;
+};
+
 /**
  * cgroup_threadgroup_change_begin - threadgroup exclusion for cgroups
  * @tsk: target task

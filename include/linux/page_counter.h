@@ -26,6 +26,8 @@ struct page_counter {
 	atomic_long_t children_low_usage;
 
 	unsigned long watermark;
+	/* Latest cg2 reset watermark */
+	unsigned long local_watermark;
 	unsigned long failcnt;
 
 	/* Keep all the read most fields in a separete cacheline. */
@@ -84,7 +86,14 @@ int page_counter_memparse(const char *buf, const char *max,
 
 static inline void page_counter_reset_watermark(struct page_counter *counter)
 {
-	counter->watermark = page_counter_read(counter);
+	unsigned long usage = page_counter_read(counter);
+
+	/*
+	 * Update local_watermark first, so it's always <= watermark
+	 * (modulo CPU/compiler re-ordering)
+	 */
+	counter->local_watermark = usage;
+	counter->watermark = usage;
 }
 
 #ifdef CONFIG_MEMCG
