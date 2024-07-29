@@ -59,6 +59,22 @@ static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
 	done = true;
 }
 
+static int check_ftrace_capable(void)
+{
+	if (!(perf_cap__capable(CAP_PERFMON) ||
+	      perf_cap__capable(CAP_SYS_ADMIN))) {
+		pr_err("ftrace only works for %s!\n",
+#ifdef HAVE_LIBCAP_SUPPORT
+		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
+#else
+		"root"
+#endif
+		);
+		return -1;
+	}
+	return 0;
+}
+
 static int __write_tracing_file(const char *name, const char *val, bool append)
 {
 	char *file;
@@ -586,18 +602,6 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 		.events = POLLIN,
 	};
 
-	if (!(perf_cap__capable(CAP_PERFMON) ||
-	      perf_cap__capable(CAP_SYS_ADMIN))) {
-		pr_err("ftrace only works for %s!\n",
-#ifdef HAVE_LIBCAP_SUPPORT
-		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
-#else
-		"root"
-#endif
-		);
-		return -1;
-	}
-
 	select_tracer(ftrace);
 
 	if (reset_tracing_files(ftrace) < 0) {
@@ -901,18 +905,6 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		.events = POLLIN,
 	};
 	int buckets[NUM_BUCKET] = { };
-
-	if (!(perf_cap__capable(CAP_PERFMON) ||
-	      perf_cap__capable(CAP_SYS_ADMIN))) {
-		pr_err("ftrace only works for %s!\n",
-#ifdef HAVE_LIBCAP_SUPPORT
-		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
-#else
-		"root"
-#endif
-		);
-		return -1;
-	}
 
 	trace_fd = prepare_func_latency(ftrace);
 	if (trace_fd < 0)
@@ -1219,6 +1211,10 @@ int cmd_ftrace(int argc, const char **argv)
 	signal(SIGUSR1, sig_handler);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGPIPE, sig_handler);
+
+	ret = check_ftrace_capable();
+	if (ret < 0)
+		return -1;
 
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
