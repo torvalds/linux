@@ -1679,6 +1679,60 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	return 0;
 }
 
+/* halt_cpsch:
+ * Unmap queues so the schedule doesn't continue remaining jobs in the queue.
+ * Then set dqm->sched_halt so queues don't map to runlist until unhalt_cpsch
+ * is called.
+ */
+static int halt_cpsch(struct device_queue_manager *dqm)
+{
+	int ret = 0;
+
+	dqm_lock(dqm);
+	if (!dqm->sched_running) {
+		dqm_unlock(dqm);
+		return 0;
+	}
+
+	WARN_ONCE(dqm->sched_halt, "Scheduling is already on halt\n");
+
+	if (!dqm->is_hws_hang) {
+		if (!dqm->dev->kfd->shared_resources.enable_mes)
+			ret = unmap_queues_cpsch(dqm,
+						 KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0,
+				USE_DEFAULT_GRACE_PERIOD, false);
+		else
+			ret = remove_all_queues_mes(dqm);
+	}
+	dqm->sched_halt = true;
+	dqm_unlock(dqm);
+
+	return ret;
+}
+
+/* unhalt_cpsch
+ * Unset dqm->sched_halt and map queues back to runlist
+ */
+static int unhalt_cpsch(struct device_queue_manager *dqm)
+{
+	int ret = 0;
+
+	dqm_lock(dqm);
+	if (!dqm->sched_running || !dqm->sched_halt) {
+		WARN_ONCE(!dqm->sched_halt, "Scheduling is not on halt.\n");
+		dqm_unlock(dqm);
+		return 0;
+	}
+	dqm->sched_halt = false;
+	if (!dqm->dev->kfd->shared_resources.enable_mes)
+		ret = execute_queues_cpsch(dqm,
+					   KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
+			0, USE_DEFAULT_GRACE_PERIOD);
+	dqm_unlock(dqm);
+
+	return ret;
+}
+
 static int start_cpsch(struct device_queue_manager *dqm)
 {
 	struct device *dev = dqm->dev->adev->dev;
@@ -1984,7 +2038,7 @@ static int map_queues_cpsch(struct device_queue_manager *dqm)
 	struct device *dev = dqm->dev->adev->dev;
 	int retval;
 
-	if (!dqm->sched_running)
+	if (!dqm->sched_running || dqm->sched_halt)
 		return 0;
 	if (dqm->active_queue_count <= 0 || dqm->processes_count <= 0)
 		return 0;
@@ -2727,6 +2781,8 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 		dqm->ops.initialize = initialize_cpsch;
 		dqm->ops.start = start_cpsch;
 		dqm->ops.stop = stop_cpsch;
+		dqm->ops.halt = halt_cpsch;
+		dqm->ops.unhalt = unhalt_cpsch;
 		dqm->ops.destroy_queue = destroy_queue_cpsch;
 		dqm->ops.update_queue = update_queue;
 		dqm->ops.register_process = register_process;

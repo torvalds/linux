@@ -1446,6 +1446,45 @@ void kgd2kfd_unlock_kfd(void)
 	mutex_unlock(&kfd_processes_mutex);
 }
 
+int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+	int ret;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+	node = kfd->nodes[node_id];
+
+	ret = node->dqm->ops.unhalt(node->dqm);
+	if (ret)
+		dev_err(kfd_device, "Error in starting scheduler\n");
+
+	return ret;
+}
+
+int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+
+	node = kfd->nodes[node_id];
+	return node->dqm->ops.halt(node->dqm);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS

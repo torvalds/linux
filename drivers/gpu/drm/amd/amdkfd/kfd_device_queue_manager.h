@@ -106,6 +106,12 @@ union GRBM_GFX_INDEX_BITS {
  * @uninitialize: Destroys all the device queue manager resources allocated in
  * initialize routine.
  *
+ * @halt: This routine unmaps queues from runlist and set halt status to true
+ * so no more queues will be mapped to runlist until unhalt.
+ *
+ * @unhalt: This routine unset halt status to flase and maps queues back to
+ * runlist.
+ *
  * @create_kernel_queue: Creates kernel queue. Used for debug queue.
  *
  * @destroy_kernel_queue: Destroys kernel queue. Used for debug queue.
@@ -153,6 +159,8 @@ struct device_queue_manager_ops {
 	int	(*start)(struct device_queue_manager *dqm);
 	int	(*stop)(struct device_queue_manager *dqm);
 	void	(*uninitialize)(struct device_queue_manager *dqm);
+	int     (*halt)(struct device_queue_manager *dqm);
+	int     (*unhalt)(struct device_queue_manager *dqm);
 	int	(*create_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd);
@@ -264,6 +272,7 @@ struct device_queue_manager {
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
+	bool			sched_halt;
 
 	/* used for GFX 9.4.3 only */
 	uint32_t		current_logical_xcc_start;
