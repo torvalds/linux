@@ -1692,14 +1692,6 @@ parse_mipi_config(struct drm_i915_private *i915,
 	/* Initialize this to undefined indicating no generic MIPI support */
 	panel->vbt.dsi.panel_id = MIPI_DSI_UNDEFINED_PANEL_ID;
 
-	/* Block #40 is already parsed and panel_fixed_mode is
-	 * stored in i915->lfp_vbt_mode
-	 * resuse this when needed
-	 */
-
-	/* Parse #52 for panel index used from panel_type already
-	 * parsed
-	 */
 	start = bdb_find_section(i915, BDB_MIPI_CONFIG);
 	if (!start) {
 		drm_dbg_kms(&i915->drm, "No MIPI config BDB found");
