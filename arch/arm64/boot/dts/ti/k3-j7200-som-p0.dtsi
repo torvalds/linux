@@ -84,13 +84,13 @@
 		};
 	};
 
-	mux0: mux-controller {
+	mux0: mux-controller-0 {
 		compatible = "gpio-mux";
 		#mux-state-cells = <1>;
 		mux-gpios = <&exp_som 1 GPIO_ACTIVE_HIGH>;
 	};
 
-	mux1: mux-controller {
+	mux1: mux-controller-1 {
 		compatible = "gpio-mux";
 		#mux-state-cells = <1>;
 		mux-gpios = <&exp_som 2 GPIO_ACTIVE_HIGH>;
