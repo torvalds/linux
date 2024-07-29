@@ -531,20 +531,28 @@ static const char *evts[] = {
 	[0x1e] = "ack_type_error",	[0x1f] = "-reserved-",
 	[0x20] = "pending/cancelled",
 };
-static const char *tcodes[] = {
-	[0x0] = "QW req",		[0x1] = "BW req",
-	[0x2] = "W resp",		[0x3] = "-reserved-",
-	[0x4] = "QR req",		[0x5] = "BR req",
-	[0x6] = "QR resp",		[0x7] = "BR resp",
-	[0x8] = "cycle start",		[0x9] = "Lk req",
-	[0xa] = "async stream packet",	[0xb] = "Lk resp",
-	[0xc] = "-reserved-",		[0xd] = "-reserved-",
-	[0xe] = "link internal",	[0xf] = "-reserved-",
-};
 
 static void log_ar_at_event(struct fw_ohci *ohci,
 			    char dir, int speed, u32 *header, int evt)
 {
+	static const char *const tcodes[] = {
+		[TCODE_WRITE_QUADLET_REQUEST]	= "QW req",
+		[TCODE_WRITE_BLOCK_REQUEST]	= "BW req",
+		[TCODE_WRITE_RESPONSE]		= "W resp",
+		[0x3]				= "-reserved-",
+		[TCODE_READ_QUADLET_REQUEST]	= "QR req",
+		[TCODE_READ_BLOCK_REQUEST]	= "BR req",
+		[TCODE_READ_QUADLET_RESPONSE]	= "QR resp",
+		[TCODE_READ_BLOCK_RESPONSE]	= "BR resp",
+		[TCODE_CYCLE_START]		= "cycle start",
+		[TCODE_LOCK_REQUEST]		= "Lk req",
+		[TCODE_STREAM_DATA]		= "async stream packet",
+		[TCODE_LOCK_RESPONSE]		= "Lk resp",
+		[0xc]				= "-reserved-",
+		[0xd]				= "-reserved-",
+		[TCODE_LINK_INTERNAL]		= "link internal",
+		[0xf]				= "-reserved-",
+	};
 	int tcode = async_header_get_tcode(header);
 	char specific[12];
 
