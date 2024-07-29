@@ -5877,6 +5877,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 
 	ceph_flush_dirty_caps(mdsc);
+	ceph_flush_cap_releases(mdsc);
 	spin_lock(&mdsc->cap_dirty_lock);
 	want_flush = mdsc->last_cap_flush_tid;
 	if (!list_empty(&mdsc->cap_flush_list)) {

@@ -4702,6 +4702,28 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 	ceph_mdsc_iterate_sessions(mdsc, flush_dirty_session_caps, true);
 }
 
+/*
+ * Flush all cap releases to the mds
+ */
+static void flush_cap_releases(struct ceph_mds_session *s)
+{
+	struct ceph_mds_client *mdsc = s->s_mdsc;
+	struct ceph_client *cl = mdsc->fsc->client;
+
+	doutc(cl, "begin\n");
+	spin_lock(&s->s_cap_lock);
+	if (s->s_num_cap_releases)
+		ceph_flush_session_cap_releases(mdsc, s);
+	spin_unlock(&s->s_cap_lock);
+	doutc(cl, "done\n");
+
+}
+
+void ceph_flush_cap_releases(struct ceph_mds_client *mdsc)
+{
+	ceph_mdsc_iterate_sessions(mdsc, flush_cap_releases, true);
+}
+
 void __ceph_touch_fmode(struct ceph_inode_info *ci,
 			struct ceph_mds_client *mdsc, int fmode)
 {
