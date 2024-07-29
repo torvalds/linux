@@ -1757,7 +1757,7 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
+static bool nvme_init_integrity(struct nvme_ns_head *head,
 		struct queue_limits *lim)
 {
 	struct blk_integrity *bi = &lim->integrity;
@@ -2176,7 +2176,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	 * I/O to namespaces with metadata except when the namespace supports
 	 * PI, as it can strip/insert in that case.
 	 */
-	if (!nvme_init_integrity(ns->disk, ns->head, &lim))
+	if (!nvme_init_integrity(ns->head, &lim))
 		capacity = 0;
 
 	ret = queue_limits_commit_update(ns->disk->queue, &lim);
@@ -2280,7 +2280,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		if (unsupported)
 			ns->head->disk->flags |= GENHD_FL_HIDDEN;
 		else
-			nvme_init_integrity(ns->head->disk, ns->head, &lim);
+			nvme_init_integrity(ns->head, &lim);
 		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
 
 		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
