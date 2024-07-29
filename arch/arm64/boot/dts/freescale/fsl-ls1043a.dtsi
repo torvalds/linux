@@ -653,7 +653,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		uqe: uqe@2400000 {
+		uqe: uqe-bus@2400000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,qe", "simple-bus";
@@ -667,7 +667,6 @@
 			qeic: qeic@80 {
 				compatible = "fsl,qe-ic";
 				reg = <0x80 0x80>;
-				#address-cells = <0>;
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
@@ -675,16 +674,12 @@
 			};
 
 			si1: si@700 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				compatible = "fsl,ls1043-qe-si",
 						"fsl,t1040-qe-si";
 				reg = <0x700 0x80>;
 			};
 
 			siram1: siram@1000 {
-				#address-cells = <1>;
-				#size-cells = <1>;
 				compatible = "fsl,ls1043-qe-siram",
 						"fsl,t1040-qe-siram";
 				reg = <0x1000 0x800>;
