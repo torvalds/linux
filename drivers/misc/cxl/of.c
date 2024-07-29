@@ -7,58 +7,11 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include "cxl.h"
-
-
-static const __be32 *read_prop_string(const struct device_node *np,
-				const char *prop_name)
-{
-	const __be32 *prop;
-
-	prop = of_get_property(np, prop_name, NULL);
-	return prop;
-}
-
-static const __be32 *read_prop_dword(const struct device_node *np,
-				const char *prop_name, u32 *val)
-{
-	const __be32 *prop;
-
-	prop = of_get_property(np, prop_name, NULL);
-	if (prop)
-		*val = be32_to_cpu(prop[0]);
-	return prop;
-}
-
-static const __be64 *read_prop64_dword(const struct device_node *np,
-				const char *prop_name, u64 *val)
-{
-	const __be64 *prop;
-
-	prop = of_get_property(np, prop_name, NULL);
-	if (prop)
-		*val = be64_to_cpu(prop[0]);
-	return prop;
-}
-
-
-static int read_handle(struct device_node *np, u64 *handle)
-{
-	const __be32 *prop;
-	u64 size;
-
-	/* Get address and size of the node */
-	prop = of_get_address(np, 0, &size, NULL);
-	if (size)
-		return -EINVAL;
-
-	/* Helper to read a big number; size is in cells (not bytes) */
-	*handle = of_read_number(prop, of_n_addr_cells(np));
-	return 0;
-}
 
 static int read_phys_addr(struct device_node *np, char *prop_name,
 			struct cxl_afu *afu)
@@ -121,17 +74,12 @@ static int read_vpd(struct cxl *adapter, struct cxl_afu *afu)
 
 int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np)
 {
-	if (read_handle(afu_np, &afu->guest->handle))
-		return -EINVAL;
-	pr_devel("AFU handle: 0x%.16llx\n", afu->guest->handle);
-
-	return 0;
+	return of_property_read_reg(afu_np, 0, &afu->guest->handle, NULL);
 }
 
 int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 {
 	int i, rc;
-	const __be32 *prop;
 	u16 device_id, vendor_id;
 	u32 val = 0, class_code;
 
@@ -150,16 +98,15 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	else
 		afu->psa = true;
 
-	read_prop_dword(np, "ibm,#processes", &afu->max_procs_virtualised);
+	of_property_read_u32(np, "ibm,#processes", &afu->max_procs_virtualised);
 
 	if (cxl_verbose)
 		read_vpd(NULL, afu);
 
-	read_prop_dword(np, "ibm,max-ints-per-process", &afu->guest->max_ints);
+	of_property_read_u32(np, "ibm,max-ints-per-process", &afu->guest->max_ints);
 	afu->irqs_max = afu->guest->max_ints;
 
-	prop = read_prop_dword(np, "ibm,min-ints-per-process", &afu->pp_irqs);
-	if (prop) {
+	if (!of_property_read_u32(np, "ibm,min-ints-per-process", &afu->pp_irqs)) {
 		/* One extra interrupt for the PSL interrupt is already
 		 * included. Remove it now to keep only AFU interrupts and
 		 * match the native case.
@@ -167,13 +114,13 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 		afu->pp_irqs--;
 	}
 
-	read_prop64_dword(np, "ibm,error-buffer-size", &afu->eb_len);
+	of_property_read_u64(np, "ibm,error-buffer-size", &afu->eb_len);
 	afu->eb_offset = 0;
 
-	read_prop64_dword(np, "ibm,config-record-size", &afu->crs_len);
+	of_property_read_u64(np, "ibm,config-record-size", &afu->crs_len);
 	afu->crs_offset = 0;
 
-	read_prop_dword(np, "ibm,#config-records", &afu->crs_num);
+	of_property_read_u32(np, "ibm,#config-records", &afu->crs_num);
 
 	if (cxl_verbose) {
 		for (i = 0; i < afu->crs_num; i++) {
@@ -201,14 +148,12 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	 * not supported
 	 */
 	val = 0;
-	prop = read_prop_dword(np, "ibm,process-mmio", &val);
-	if (prop && val == 1)
+	if (!of_property_read_u32(np, "ibm,process-mmio", &val) && val == 1)
 		afu->pp_psa = true;
 	else
 		afu->pp_psa = false;
 
-	prop = read_prop_dword(np, "ibm,function-error-interrupt", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "ibm,function-error-interrupt", &val))
 		afu->serr_hwirq = val;
 
 	pr_devel("AFU handle: %#llx\n", afu->guest->handle);
@@ -279,17 +224,13 @@ err:
 
 int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np)
 {
-	if (read_handle(np, &adapter->guest->handle))
-		return -EINVAL;
-	pr_devel("Adapter handle: 0x%.16llx\n", adapter->guest->handle);
-
-	return 0;
+	return of_property_read_reg(np, 0, &adapter->guest->handle, NULL);
 }
 
 int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 {
 	int rc;
-	const __be32 *prop;
+	const char *p;
 	u32 val = 0;
 
 	/* Properties are read in the same order as listed in PAPR */
@@ -297,37 +238,30 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	if ((rc = read_adapter_irq_config(adapter, np)))
 		return rc;
 
-	prop = read_prop_dword(np, "ibm,caia-version", &val);
-	if (prop) {
+	if (!of_property_read_u32(np, "ibm,caia-version", &val)) {
 		adapter->caia_major = (val & 0xFF00) >> 8;
 		adapter->caia_minor = val & 0xFF;
 	}
 
-	prop = read_prop_dword(np, "ibm,psl-revision", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "ibm,psl-revision", &val))
 		adapter->psl_rev = val;
 
-	prop = read_prop_string(np, "status");
-	if (prop) {
-		adapter->guest->status = kasprintf(GFP_KERNEL, "%s", (char *) prop);
+	if (!of_property_read_string(np, "status", &p)) {
+		adapter->guest->status = kasprintf(GFP_KERNEL, "%s", p);
 		if (adapter->guest->status == NULL)
 			return -ENOMEM;
 	}
 
-	prop = read_prop_dword(np, "vendor-id", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "vendor-id", &val))
 		adapter->guest->vendor = val;
 
-	prop = read_prop_dword(np, "device-id", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "device-id", &val))
 		adapter->guest->device = val;
 
-	prop = read_prop_dword(np, "subsystem-vendor-id", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "subsystem-vendor-id", &val))
 		adapter->guest->subsystem_vendor = val;
 
-	prop = read_prop_dword(np, "subsystem-id", &val);
-	if (prop)
+	if (!of_property_read_u32(np, "subsystem-id", &val))
 		adapter->guest->subsystem = val;
 
 	if (cxl_verbose)
