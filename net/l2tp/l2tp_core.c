@@ -166,7 +166,7 @@ static void l2tp_session_free(struct l2tp_session *session)
 	trace_free_session(session);
 	if (session->tunnel)
 		l2tp_tunnel_dec_refcount(session->tunnel);
-	kfree(session);
+	kfree_rcu(session, rcu);
 }
 
 struct l2tp_tunnel *l2tp_sk_to_tunnel(const struct sock *sk)
@@ -1269,8 +1269,6 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 
 		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 		spin_unlock_bh(&tunnel->list_lock);
-
-		synchronize_rcu();
 	}
 }
 
