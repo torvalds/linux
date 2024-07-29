@@ -217,4 +217,6 @@ static inline u32 iwl_bios_get_ppag_flags(const u32 ppag_modes,
 	return ppag_modes & (ppag_ver < 3 ? IWL_PPAG_ETSI_CHINA_MASK :
 					    IWL_PPAG_REV3_MASK);
 }
+
+bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc);
 #endif /* __fw_regulatory_h__ */
