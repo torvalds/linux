@@ -474,6 +474,7 @@ int l2tp_session_register(struct l2tp_session *session,
 {
 	struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
 	struct l2tp_session *other_session = NULL;
+	void *old = NULL;
 	u32 session_key;
 	int err;
 
@@ -517,13 +518,19 @@ int l2tp_session_register(struct l2tp_session *session,
 	WRITE_ONCE(session->tunnel, tunnel);
 	list_add_rcu(&session->list, &tunnel->session_list);
 
+	/* this makes session available to lockless getters */
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		if (!other_session)
-			idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
+			old = idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
 	} else {
-		idr_replace(&pn->l2tp_v2_session_idr, session, session_key);
+		old = idr_replace(&pn->l2tp_v2_session_idr, session, session_key);
 	}
 
+	/* old should be NULL, unless something removed or modified
+	 * the IDR entry after our idr_alloc_32 above (which shouldn't
+	 * happen).
+	 */
+	WARN_ON_ONCE(old);
 out:
 	spin_unlock_bh(&pn->l2tp_session_idr_lock);
 	spin_unlock_bh(&tunnel->list_lock);
