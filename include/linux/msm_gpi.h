@@ -414,6 +414,14 @@ struct gsi_common {
 void gpi_dump_for_geni(struct dma_chan *chan);
 
 /**
+ * gpi_q2spi_terminate_all() - function to stop and restart the channels
+ * @chan: gsi dma channel handle
+ *
+ * Return: Returns success or failure
+ */
+int gpi_q2spi_terminate_all(struct dma_chan *chan);
+
+/**
  * gpi_update_multi_desc_flag() - update multi descriptor flag and num of msgs for
  *				   multi descriptor mode handling.
  * @chan: Base address of dma channel
