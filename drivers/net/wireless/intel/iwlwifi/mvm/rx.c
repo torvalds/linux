@@ -1009,8 +1009,8 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
 
-	IWL_DEBUG_STATS(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
-			total_tx, total_rx);
+	IWL_DEBUG_INFO(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
+		       total_tx, total_rx);
 
 	/* If we don't have enough MPDUs - exit EMLSR */
 	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
@@ -1019,6 +1019,9 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 				  iwl_mvm_get_primary_link(bss_vif));
 		return;
 	}
+
+	IWL_DEBUG_INFO(mvm, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
+		       sec_link, sec_link_tx, sec_link_rx);
 
 	/* Calculate the percentage of the secondary link TX/RX */
 	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;

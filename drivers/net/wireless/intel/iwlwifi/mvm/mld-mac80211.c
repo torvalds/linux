@@ -223,7 +223,7 @@ static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
 
-	IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
+	IWL_DEBUG_INFO(mvm, "MPDU counters are cleared\n");
 }
 
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
