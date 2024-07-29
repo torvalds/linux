@@ -37,6 +37,8 @@
 #include "core.h"
 #include <trace/events/firewire.h>
 
+#include "packet-header-definitions.h"
+
 /*
  * ABI version history is documented in linux/firewire-cdev.h.
  */
@@ -1635,7 +1637,7 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	e->client		= client;
 	e->p.speed		= SCODE_100;
 	e->p.generation		= a->generation;
-	e->p.header[0]		= TCODE_LINK_INTERNAL << 4;
+	async_header_set_tcode(e->p.header, TCODE_LINK_INTERNAL);
 	e->p.header[1]		= a->data[0];
 	e->p.header[2]		= a->data[1];
 	e->p.header_length	= 12;

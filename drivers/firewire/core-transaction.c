@@ -464,7 +464,6 @@ static void transmit_phy_packet_callback(struct fw_packet *packet,
 
 static struct fw_packet phy_config_packet = {
 	.header_length	= 12,
-	.header[0]	= TCODE_LINK_INTERNAL << 4,
 	.payload_length	= 0,
 	.speed		= SCODE_100,
 	.callback	= transmit_phy_packet_callback,
@@ -497,6 +496,7 @@ void fw_send_phy_config(struct fw_card *card,
 
 	mutex_lock(&phy_config_mutex);
 
+	async_header_set_tcode(phy_config_packet.header, TCODE_LINK_INTERNAL);
 	phy_config_packet.header[1] = data;
 	phy_config_packet.header[2] = ~data;
 	phy_config_packet.generation = generation;
