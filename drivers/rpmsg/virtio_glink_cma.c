@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -79,7 +79,7 @@ struct virtio_glink_bridge_dsp_info {
 
 	struct notifier_block nb;
 	void *notifier_handle;
-	spinlock_t ssr_lock;
+	struct mutex ssr_lock;
 
 	struct list_head node;
 };
@@ -141,7 +141,7 @@ static int virtio_glink_bridge_send_msg(struct virtio_glink_bridge *vgbridge,
 	msg->label = cpu_to_virtio32(vdev, label);
 	sg_init_one(&sg, msg, sizeof(*msg));
 
-	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, msg, GFP_ATOMIC);
+	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, msg, GFP_KERNEL);
 	if (rc) {
 		dev_err(&vdev->dev, "fail to add input buffer\n");
 		return rc;
@@ -167,7 +167,7 @@ static int virtio_glink_bridge_send_msg_ack(struct virtio_glink_bridge *vgbridge
 	ack->status = cpu_to_virtio32(vdev, status);
 	sg_init_one(&sg, ack, sizeof(*ack));
 
-	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, ack, GFP_ATOMIC);
+	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, ack, GFP_KERNEL);
 	if (rc) {
 		dev_err(&vdev->dev, "fail to add input buffer\n");
 		return rc;
@@ -197,7 +197,7 @@ static int virtio_glink_bridge_ssr_cb(struct notifier_block *nb,
 
 	dsp_info = container_of(nb, struct virtio_glink_bridge_dsp_info, nb);
 
-	spin_lock(&dsp_info->ssr_lock);
+	mutex_lock(&dsp_info->ssr_lock);
 	dev = &dsp_info->vgbridge->vdev->dev;
 
 	dev_info(dev, "received cb state %ld for %s\n", state, dsp_info->label);
@@ -212,7 +212,7 @@ static int virtio_glink_bridge_ssr_cb(struct notifier_block *nb,
 	default:
 		break;
 	}
-	spin_unlock(&dsp_info->ssr_lock);
+	mutex_unlock(&dsp_info->ssr_lock);
 
 	return NOTIFY_DONE;
 }
@@ -273,7 +273,7 @@ static void virtio_glink_bridge_rx_work(struct work_struct *work)
 		goto out;
 	}
 
-	spin_lock(&dsp_info->ssr_lock);
+	mutex_lock(&dsp_info->ssr_lock);
 
 	switch (msg_type) {
 	case MSG_SETUP:
@@ -333,7 +333,7 @@ static void virtio_glink_bridge_rx_work(struct work_struct *work)
 	rc = VIRTIO_GLINK_BRIDGE_SUCCESS;
 unlock:
 	virtio_glink_bridge_send_msg_ack(vgbridge, msg_ack_type, label, rc);
-	spin_unlock(&dsp_info->ssr_lock);
+	mutex_unlock(&dsp_info->ssr_lock);
 	return;
 out:
 	virtio_glink_bridge_send_msg_ack(vgbridge, msg_ack_type, label, rc);
@@ -383,7 +383,7 @@ static int virtio_glink_bridge_of_parse(struct virtio_glink_bridge *vgbridge)
 			goto out;
 		}
 
-		spin_lock_init(&dsp_info->ssr_lock);
+		mutex_init(&dsp_info->ssr_lock);
 		dsp_info->np = child_np;
 		list_add_tail(&dsp_info->node, &vgbridge->dsp_infos);
 	}
