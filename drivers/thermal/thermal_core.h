@@ -15,8 +15,20 @@
 #include "thermal_netlink.h"
 #include "thermal_debugfs.h"
 
+struct thermal_attr {
+	struct device_attribute attr;
+	char name[THERMAL_NAME_LENGTH];
+};
+
+struct thermal_trip_attrs {
+	struct thermal_attr type;
+	struct thermal_attr temp;
+	struct thermal_attr hyst;
+};
+
 struct thermal_trip_desc {
 	struct thermal_trip trip;
+	struct thermal_trip_attrs trip_attrs;
 	struct list_head notify_list_node;
 	int notify_temp;
 	int threshold;
@@ -56,9 +68,6 @@ struct thermal_governor {
  * @device:	&struct device for this thermal zone
  * @removal:	removal completion
  * @resume:	resume completion
- * @trip_temp_attrs:	attributes for trip points for sysfs: trip temperature
- * @trip_type_attrs:	attributes for trip points for sysfs: trip type
- * @trip_hyst_attrs:	attributes for trip points for sysfs: trip hysteresis
  * @mode:		current mode of this thermal zone
  * @devdata:	private pointer for device private data
  * @num_trips:	number of trip points the thermal zone supports
@@ -102,9 +111,6 @@ struct thermal_zone_device {
 	struct completion removal;
 	struct completion resume;
 	struct attribute_group trips_attribute_group;
-	struct thermal_attr *trip_temp_attrs;
-	struct thermal_attr *trip_type_attrs;
-	struct thermal_attr *trip_hyst_attrs;
 	enum thermal_device_mode mode;
 	void *devdata;
 	int num_trips;
@@ -187,11 +193,6 @@ int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *thermal_governor);
 
 struct thermal_zone_device *thermal_zone_get_by_id(int id);
-
-struct thermal_attr {
-	struct device_attribute attr;
-	char name[THERMAL_NAME_LENGTH];
-};
 
 static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 {
