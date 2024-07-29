@@ -67,6 +67,7 @@ struct l2tp_session_coll_list {
 struct l2tp_session {
 	int			magic;		/* should be L2TP_SESSION_MAGIC */
 	long			dead;
+	struct rcu_head		rcu;
 
 	struct l2tp_tunnel	*tunnel;	/* back pointer to tunnel context */
 	u32			session_id;
