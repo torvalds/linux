@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/container_of.h>
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -78,38 +79,37 @@ mode_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+#define thermal_trip_of_attr(_ptr_, _attr_)				\
+	({ 								\
+		struct thermal_trip_desc *td;				\
+									\
+		td = container_of(_ptr_, struct thermal_trip_desc,	\
+				  trip_attrs._attr_.attr);		\
+		&td->trip;						\
+	})
+
 static ssize_t
 trip_point_type_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int trip_id;
+	struct thermal_trip *trip = thermal_trip_of_attr(attr, type);
 
-	if (sscanf(attr->attr.name, "trip_point_%d_type", &trip_id) != 1)
-		return -EINVAL;
-
-	return sprintf(buf, "%s\n", thermal_trip_type_name(tz->trips[trip_id].trip.type));
+	return sprintf(buf, "%s\n", thermal_trip_type_name(trip->type));
 }
 
 static ssize_t
 trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
+	struct thermal_trip *trip = thermal_trip_of_attr(attr, temp);
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	struct thermal_trip *trip;
-	int trip_id, ret;
-	int temp;
+	int ret, temp;
 
 	ret = kstrtoint(buf, 10, &temp);
 	if (ret)
 		return -EINVAL;
 
-	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip_id) != 1)
-		return -EINVAL;
-
 	mutex_lock(&tz->lock);
-
-	trip = &tz->trips[trip_id].trip;
 
 	if (temp != trip->temperature) {
 		if (tz->ops.set_trip_temp) {
@@ -133,34 +133,24 @@ static ssize_t
 trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int trip_id;
+	struct thermal_trip *trip = thermal_trip_of_attr(attr, temp);
 
-	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip_id) != 1)
-		return -EINVAL;
-
-	return sprintf(buf, "%d\n", READ_ONCE(tz->trips[trip_id].trip.temperature));
+	return sprintf(buf, "%d\n", READ_ONCE(trip->temperature));
 }
 
 static ssize_t
 trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
+	struct thermal_trip *trip = thermal_trip_of_attr(attr, hyst);
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	struct thermal_trip *trip;
-	int trip_id, ret;
-	int hyst;
+	int ret, hyst;
 
 	ret = kstrtoint(buf, 10, &hyst);
 	if (ret || hyst < 0)
 		return -EINVAL;
 
-	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip_id) != 1)
-		return -EINVAL;
-
 	mutex_lock(&tz->lock);
-
-	trip = &tz->trips[trip_id].trip;
 
 	if (hyst != trip->hysteresis) {
 		WRITE_ONCE(trip->hysteresis, hyst);
@@ -177,13 +167,9 @@ static ssize_t
 trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int trip_id;
+	struct thermal_trip *trip = thermal_trip_of_attr(attr, hyst);
 
-	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip_id) != 1)
-		return -EINVAL;
-
-	return sprintf(buf, "%d\n", READ_ONCE(tz->trips[trip_id].trip.hysteresis));
+	return sprintf(buf, "%d\n", READ_ONCE(trip->hysteresis));
 }
 
 static ssize_t
