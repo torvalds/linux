@@ -129,180 +129,13 @@ int __ref profile_init(void)
 	return -ENOMEM;
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_PROC_FS)
-/*
- * Each cpu has a pair of open-addressed hashtables for pending
- * profile hits. read_profile() IPI's all cpus to request them
- * to flip buffers and flushes their contents to prof_buffer itself.
- * Flip requests are serialized by the profile_flip_mutex. The sole
- * use of having a second hashtable is for avoiding cacheline
- * contention that would otherwise happen during flushes of pending
- * profile hits required for the accuracy of reported profile hits
- * and so resurrect the interrupt livelock issue.
- *
- * The open-addressed hashtables are indexed by profile buffer slot
- * and hold the number of pending hits to that profile buffer slot on
- * a cpu in an entry. When the hashtable overflows, all pending hits
- * are accounted to their corresponding profile buffer slots with
- * atomic_add() and the hashtable emptied. As numerous pending hits
- * may be accounted to a profile buffer slot in a hashtable entry,
- * this amortizes a number of atomic profile buffer increments likely
- * to be far larger than the number of entries in the hashtable,
- * particularly given that the number of distinct profile buffer
- * positions to which hits are accounted during short intervals (e.g.
- * several seconds) is usually very small. Exclusion from buffer
- * flipping is provided by interrupt disablement (note that for
- * SCHED_PROFILING or SLEEP_PROFILING profile_hit() may be called from
- * process context).
- * The hash function is meant to be lightweight as opposed to strong,
- * and was vaguely inspired by ppc64 firmware-supported inverted
- * pagetable hash functions, but uses a full hashtable full of finite
- * collision chains, not just pairs of them.
- *
- * -- nyc
- */
-static void __profile_flip_buffers(void *unused)
-{
-	int cpu = smp_processor_id();
-
-	per_cpu(cpu_profile_flip, cpu) = !per_cpu(cpu_profile_flip, cpu);
-}
-
-static void profile_flip_buffers(void)
-{
-	int i, j, cpu;
-
-	mutex_lock(&profile_flip_mutex);
-	j = per_cpu(cpu_profile_flip, get_cpu());
-	put_cpu();
-	on_each_cpu(__profile_flip_buffers, NULL, 1);
-	for_each_online_cpu(cpu) {
-		struct profile_hit *hits = per_cpu(cpu_profile_hits, cpu)[j];
-		for (i = 0; i < NR_PROFILE_HIT; ++i) {
-			if (!hits[i].hits) {
-				if (hits[i].pc)
-					hits[i].pc = 0;
-				continue;
-			}
-			atomic_add(hits[i].hits, &prof_buffer[hits[i].pc]);
-			hits[i].hits = hits[i].pc = 0;
-		}
-	}
-	mutex_unlock(&profile_flip_mutex);
-}
-
-static void profile_discard_flip_buffers(void)
-{
-	int i, cpu;
-
-	mutex_lock(&profile_flip_mutex);
-	i = per_cpu(cpu_profile_flip, get_cpu());
-	put_cpu();
-	on_each_cpu(__profile_flip_buffers, NULL, 1);
-	for_each_online_cpu(cpu) {
-		struct profile_hit *hits = per_cpu(cpu_profile_hits, cpu)[i];
-		memset(hits, 0, NR_PROFILE_HIT*sizeof(struct profile_hit));
-	}
-	mutex_unlock(&profile_flip_mutex);
-}
-
-static void do_profile_hits(int type, void *__pc, unsigned int nr_hits)
-{
-	unsigned long primary, secondary, flags, pc = (unsigned long)__pc;
-	int i, j, cpu;
-	struct profile_hit *hits;
-
-	pc = min((pc - (unsigned long)_stext) >> prof_shift, prof_len - 1);
-	i = primary = (pc & (NR_PROFILE_GRP - 1)) << PROFILE_GRPSHIFT;
-	secondary = (~(pc << 1) & (NR_PROFILE_GRP - 1)) << PROFILE_GRPSHIFT;
-	cpu = get_cpu();
-	hits = per_cpu(cpu_profile_hits, cpu)[per_cpu(cpu_profile_flip, cpu)];
-	if (!hits) {
-		put_cpu();
-		return;
-	}
-	/*
-	 * We buffer the global profiler buffer into a per-CPU
-	 * queue and thus reduce the number of global (and possibly
-	 * NUMA-alien) accesses. The write-queue is self-coalescing:
-	 */
-	local_irq_save(flags);
-	do {
-		for (j = 0; j < PROFILE_GRPSZ; ++j) {
-			if (hits[i + j].pc == pc) {
-				hits[i + j].hits += nr_hits;
-				goto out;
-			} else if (!hits[i + j].hits) {
-				hits[i + j].pc = pc;
-				hits[i + j].hits = nr_hits;
-				goto out;
-			}
-		}
-		i = (i + secondary) & (NR_PROFILE_HIT - 1);
-	} while (i != primary);
-
-	/*
-	 * Add the current hit(s) and flush the write-queue out
-	 * to the global buffer:
-	 */
-	atomic_add(nr_hits, &prof_buffer[pc]);
-	for (i = 0; i < NR_PROFILE_HIT; ++i) {
-		atomic_add(hits[i].hits, &prof_buffer[hits[i].pc]);
-		hits[i].pc = hits[i].hits = 0;
-	}
-out:
-	local_irq_restore(flags);
-	put_cpu();
-}
-
-static int profile_dead_cpu(unsigned int cpu)
-{
-	struct page *page;
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		if (per_cpu(cpu_profile_hits, cpu)[i]) {
-			page = virt_to_page(per_cpu(cpu_profile_hits, cpu)[i]);
-			per_cpu(cpu_profile_hits, cpu)[i] = NULL;
-			__free_page(page);
-		}
-	}
-	return 0;
-}
-
-static int profile_prepare_cpu(unsigned int cpu)
-{
-	int i, node = cpu_to_mem(cpu);
-	struct page *page;
-
-	per_cpu(cpu_profile_flip, cpu) = 0;
-
-	for (i = 0; i < 2; i++) {
-		if (per_cpu(cpu_profile_hits, cpu)[i])
-			continue;
-
-		page = __alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-		if (!page) {
-			profile_dead_cpu(cpu);
-			return -ENOMEM;
-		}
-		per_cpu(cpu_profile_hits, cpu)[i] = page_address(page);
-
-	}
-	return 0;
-}
-
-#else /* !CONFIG_SMP */
-#define profile_flip_buffers()		do { } while (0)
-#define profile_discard_flip_buffers()	do { } while (0)
-
 static void do_profile_hits(int type, void *__pc, unsigned int nr_hits)
 {
 	unsigned long pc;
 	pc = ((unsigned long)__pc - (unsigned long)_stext) >> prof_shift;
-	atomic_add(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
+	if (pc < prof_len)
+		atomic_add(nr_hits, &prof_buffer[pc]);
 }
-#endif /* !CONFIG_SMP */
 
 void profile_hits(int type, void *__pc, unsigned int nr_hits)
 {
@@ -340,7 +173,6 @@ read_profile(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	char *pnt;
 	unsigned long sample_step = 1UL << prof_shift;
 
-	profile_flip_buffers();
 	if (p >= (prof_len+1)*sizeof(unsigned int))
 		return 0;
 	if (count > (prof_len+1)*sizeof(unsigned int) - p)
@@ -386,7 +218,6 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 			return -EINVAL;
 	}
 #endif
-	profile_discard_flip_buffers();
 	memset(prof_buffer, 0, prof_len * sizeof(atomic_t));
 	return count;
 }
@@ -404,20 +235,10 @@ int __ref create_proc_profile(void)
 
 	if (!prof_on)
 		return 0;
-#ifdef CONFIG_SMP
-	err = cpuhp_setup_state(CPUHP_PROFILE_PREPARE, "PROFILE_PREPARE",
-				profile_prepare_cpu, profile_dead_cpu);
-	if (err)
-		return err;
-#endif
 	entry = proc_create("profile", S_IWUSR | S_IRUGO,
 			    NULL, &profile_proc_ops);
 	if (entry)
 		proc_set_size(entry, (1 + prof_len) * sizeof(atomic_t));
-#ifdef CONFIG_SMP
-	else
-		cpuhp_remove_state(CPUHP_PROFILE_PREPARE);
-#endif
 	return err;
 }
 subsys_initcall(create_proc_profile);
