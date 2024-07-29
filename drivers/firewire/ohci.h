@@ -153,7 +153,6 @@
 #define OHCI1394_evt_unknown		0xe
 #define OHCI1394_evt_flushed		0xf
 
-#define OHCI1394_phy_tcode		0xe
 
 // Self-ID DMA.
 

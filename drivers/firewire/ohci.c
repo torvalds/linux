@@ -264,7 +264,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_REGISTER_SIZE		0x800
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
-#define OHCI_TCODE_PHY_PACKET		0x0e
 #define OHCI_VERSION_1_1		0x010010
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
@@ -586,7 +585,7 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 		ohci_notice(ohci, "A%c %s, %s\n",
 			    dir, evts[evt], tcodes[tcode]);
 		break;
-	case 0xe:
+	case TCODE_LINK_INTERNAL:
 		ohci_notice(ohci, "A%c %s, PHY %08x %08x\n",
 			    dir, evts[evt], header[1], header[2]);
 		break;
@@ -939,7 +938,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 
 	case TCODE_WRITE_RESPONSE:
 	case TCODE_READ_QUADLET_REQUEST:
-	case OHCI_TCODE_PHY_PACKET:
+	case TCODE_LINK_INTERNAL:
 		p.header_length = 12;
 		p.payload_length = 0;
 		break;
@@ -967,7 +966,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 * Several controllers, notably from NEC and VIA, forget to
 	 * write ack_complete status at PHY packet reception.
 	 */
-	if (evt == OHCI1394_evt_no_status && tcode == OHCI1394_phy_tcode)
+	if (evt == OHCI1394_evt_no_status && tcode == TCODE_LINK_INTERNAL)
 		p.ack = ACK_COMPLETE;
 
 	/*
@@ -1435,7 +1434,7 @@ static int at_context_queue_packet(struct context *ctx,
 		break;
 
 	case TCODE_LINK_INTERNAL:
-		header[0] = cpu_to_le32((OHCI1394_phy_tcode << 4) |
+		header[0] = cpu_to_le32((TCODE_LINK_INTERNAL << 4) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32(packet->header[1]);
 		header[2] = cpu_to_le32(packet->header[2]);
