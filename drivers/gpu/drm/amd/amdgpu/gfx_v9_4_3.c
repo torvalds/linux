@@ -1056,6 +1056,7 @@ static int gfx_v9_4_3_sw_init(void *handle)
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		adev->gfx.cleaner_shader_ptr = gfx_9_4_3_cleaner_shader_hex;
 		adev->gfx.cleaner_shader_size = sizeof(gfx_9_4_3_cleaner_shader_hex);
 		if (adev->gfx.mec_fw_version >= 153) {
