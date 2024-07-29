@@ -102,6 +102,7 @@ struct l2tp_session {
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
+	struct work_struct	del_work;
 
 	/* Session receive handler for data packets.
 	 * Each pseudowire implementation should implement this callback in order to

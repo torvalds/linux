@@ -1282,18 +1282,8 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 
 	spin_lock_bh(&tunnel->list_lock);
 	tunnel->acpt_newsess = false;
-	for (;;) {
-		session = list_first_entry_or_null(&tunnel->session_list,
-						   struct l2tp_session, list);
-		if (!session)
-			break;
-		l2tp_session_inc_refcount(session);
-		list_del_init(&session->list);
-		spin_unlock_bh(&tunnel->list_lock);
+	list_for_each_entry(session, &tunnel->session_list, list)
 		l2tp_session_delete(session);
-		spin_lock_bh(&tunnel->list_lock);
-		l2tp_session_dec_refcount(session);
-	}
 	spin_unlock_bh(&tunnel->list_lock);
 }
 
@@ -1631,18 +1621,31 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
 
 void l2tp_session_delete(struct l2tp_session *session)
 {
-	if (test_and_set_bit(0, &session->dead))
-		return;
+	if (!test_and_set_bit(0, &session->dead)) {
+		trace_delete_session(session);
+		l2tp_session_inc_refcount(session);
+		queue_work(l2tp_wq, &session->del_work);
+	}
+}
+EXPORT_SYMBOL_GPL(l2tp_session_delete);
 
-	trace_delete_session(session);
+/* Workqueue session deletion function */
+static void l2tp_session_del_work(struct work_struct *work)
+{
+	struct l2tp_session *session = container_of(work, struct l2tp_session,
+						    del_work);
+
 	l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
 	if (session->session_close)
 		(*session->session_close)(session);
 
+	/* drop initial ref */
+	l2tp_session_dec_refcount(session);
+
+	/* drop workqueue ref */
 	l2tp_session_dec_refcount(session);
 }
-EXPORT_SYMBOL_GPL(l2tp_session_delete);
 
 /* We come here whenever a session's send_seq, cookie_len or
  * l2specific_type parameters are set.
@@ -1694,6 +1697,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		INIT_HLIST_NODE(&session->hlist);
 		INIT_LIST_HEAD(&session->clist);
 		INIT_LIST_HEAD(&session->list);
+		INIT_WORK(&session->del_work, l2tp_session_del_work);
 
 		if (cfg) {
 			session->pwtype = cfg->pw_type;
@@ -1751,7 +1755,7 @@ static __net_exit void l2tp_exit_net(struct net *net)
 	rcu_read_unlock_bh();
 
 	if (l2tp_wq)
-		flush_workqueue(l2tp_wq);
+		drain_workqueue(l2tp_wq);
 	rcu_barrier();
 
 	idr_destroy(&pn->l2tp_v2_session_idr);
