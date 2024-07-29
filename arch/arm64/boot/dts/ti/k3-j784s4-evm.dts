@@ -1262,6 +1262,14 @@
 &serdes0 {
 	status = "okay";
 
+	serdes0_pcie1_link: phy@0 {
+		reg = <0>;
+		cdns,num-lanes = <2>;
+		#phy-cells = <0>;
+		cdns,phy-type = <PHY_TYPE_PCIE>;
+		resets = <&serdes_wiz0 1>, <&serdes_wiz0 2>;
+	};
+
 	serdes0_usb_link: phy@3 {
 		reg = <3>;
 		cdns,num-lanes = <1>;
@@ -1384,23 +1392,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan4_pins_default>;
 	phys = <&transceiver3>;
-};
-
-&serdes0 {
-	status = "okay";
-
-	serdes0_pcie1_link: phy@0 {
-		reg = <0>;
-		cdns,num-lanes = <4>;
-		#phy-cells = <0>;
-		cdns,phy-type = <PHY_TYPE_PCIE>;
-		resets = <&serdes_wiz0 1>, <&serdes_wiz0 2>,
-			 <&serdes_wiz0 3>, <&serdes_wiz0 4>;
-	};
-};
-
-&serdes_wiz0 {
-	status = "okay";
 };
 
 &pcie1_rc {
