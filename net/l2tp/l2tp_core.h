@@ -16,7 +16,6 @@
 #endif
 
 /* Random numbers used for internal consistency checks of tunnel and session structures */
-#define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
 
 struct sk_buff;
@@ -155,8 +154,6 @@ struct l2tp_tunnel_cfg {
  */
 #define L2TP_TUNNEL_NAME_MAX 20
 struct l2tp_tunnel {
-	int			magic;		/* Should be L2TP_TUNNEL_MAGIC */
-
 	unsigned long		dead;
 
 	struct rcu_head rcu;
