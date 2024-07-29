@@ -394,12 +394,12 @@ static int l2tp_session_collision_add(struct l2tp_net *pn,
 
 	/* If existing session isn't already in the session hlist, add it. */
 	if (!hash_hashed(&session2->hlist))
-		hash_add(pn->l2tp_v3_session_htable, &session2->hlist,
-			 session2->hlist_key);
+		hash_add_rcu(pn->l2tp_v3_session_htable, &session2->hlist,
+			     session2->hlist_key);
 
 	/* Add new session to the hlist and collision list */
-	hash_add(pn->l2tp_v3_session_htable, &session1->hlist,
-		 session1->hlist_key);
+	hash_add_rcu(pn->l2tp_v3_session_htable, &session1->hlist,
+		     session1->hlist_key);
 	refcount_inc(&clist->ref_count);
 	l2tp_session_coll_list_add(clist, session1);
 
@@ -415,7 +415,7 @@ static void l2tp_session_collision_del(struct l2tp_net *pn,
 
 	lockdep_assert_held(&pn->l2tp_session_idr_lock);
 
-	hash_del(&session->hlist);
+	hash_del_rcu(&session->hlist);
 
 	if (clist) {
 		/* Remove session from its collision list. If there
@@ -490,7 +490,7 @@ int l2tp_session_register(struct l2tp_session *session,
 
 	l2tp_tunnel_inc_refcount(tunnel);
 	WRITE_ONCE(session->tunnel, tunnel);
-	list_add(&session->list, &tunnel->session_list);
+	list_add_rcu(&session->list, &tunnel->session_list);
 
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		if (!other_session)
