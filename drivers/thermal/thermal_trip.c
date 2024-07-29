@@ -55,12 +55,6 @@ int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL_GPL(thermal_zone_for_each_trip);
 
-int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
-{
-	return tz->num_trips;
-}
-EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
-
 /**
  * thermal_zone_set_trips - Computes the next trip points for the driver
  * @tz: a pointer to a thermal zone device structure
