@@ -2505,8 +2505,7 @@ err_slave:
 err_master:
 	/* resources are stored in link list */
 	list_for_each_safe(pos, n, &tsi148_bridge->master_resources) {
-		master_image = list_entry(pos, struct vme_master_resource,
-			list);
+		master_image = list_entry(pos, struct vme_master_resource, list);
 		list_del(pos);
 		kfree(master_image);
 	}
@@ -2603,8 +2602,7 @@ static void tsi148_remove(struct pci_dev *pdev)
 
 	/* resources are stored in link list */
 	list_for_each_safe(pos, tmplist, &tsi148_bridge->master_resources) {
-		master_image = list_entry(pos, struct vme_master_resource,
-			list);
+		master_image = list_entry(pos, struct vme_master_resource, list);
 		list_del(pos);
 		kfree(master_image);
 	}
