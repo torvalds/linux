@@ -888,7 +888,7 @@ EXPORT_SYMBOL(drm_kms_helper_is_poll_worker);
  * disabled. Polling is re-enabled by calling drm_kms_helper_poll_enable().
  *
  * If however, the polling was never initialized, this call will trigger a
- * warning and return
+ * warning and return.
  *
  * Note that calls to enable and disable polling must be strictly ordered, which
  * is automatically the case when they're only call from suspend/resume
