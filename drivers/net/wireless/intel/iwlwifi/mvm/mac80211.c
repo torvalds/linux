@@ -1484,15 +1484,29 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
 		.common.mac_context_id =
 			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id),
-		.common.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-					   IWL_FW_CMD_VER_UNKNOWN);
+	struct iwl_dev_tx_power_cmd cmd_v9_v10;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 3);
+	u16 u_tx_power = tx_power == IWL_DEFAULT_MAX_TX_POWER ?
+		IWL_DEV_MAX_TX_POWER : 8 * tx_power;
+	void *cmd_data = &cmd;
 
-	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
-		cmd.common.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
+	cmd.common.pwr_restriction = cpu_to_le16(u_tx_power);
 
-	if (cmd_ver == 8)
+	if (cmd_ver > 8) {
+		/* Those fields sit on the same place for v9 and v10 */
+		cmd_v9_v10.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC);
+		cmd_v9_v10.common.mac_context_id =
+			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id);
+		cmd_v9_v10.common.pwr_restriction = cpu_to_le16(u_tx_power);
+		cmd_data = &cmd_v9_v10;
+	}
+
+	if (cmd_ver == 10)
+		len = sizeof(cmd_v9_v10.v10);
+	else if (cmd_ver == 9)
+		len = sizeof(cmd_v9_v10.v9);
+	else if (cmd_ver == 8)
 		len = sizeof(cmd.v8);
 	else if (cmd_ver == 7)
 		len = sizeof(cmd.v7);
@@ -1510,10 +1524,11 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* all structs have the same common part, add its length */
 	len += sizeof(cmd.common);
 
-	/* all structs have the same per_band part, add its length */
-	len += sizeof(cmd.per_band);
+	if (cmd_ver < 9)
+		len += sizeof(cmd.per_band);
 
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, cmd_data);
+
 }
 
 static void iwl_mvm_post_csa_tx(void *data, struct ieee80211_sta *sta)
