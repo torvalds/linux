@@ -328,15 +328,15 @@ EXPORT_SYMBOL_GPL(pwm_adjust_config);
 static int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 		       unsigned long timeout)
 {
-	if (!pwm || !pwm->chip->ops)
-		return -EINVAL;
+	struct pwm_chip *chip = pwm->chip;
+	const struct pwm_ops *ops = chip->ops;
 
-	if (!pwm->chip->ops->capture)
+	if (!ops->capture)
 		return -ENOSYS;
 
 	guard(mutex)(&pwm_lock);
 
-	return pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
+	return ops->capture(chip, pwm, result, timeout);
 }
 
 static struct pwm_chip *pwmchip_find_by_name(const char *name)
