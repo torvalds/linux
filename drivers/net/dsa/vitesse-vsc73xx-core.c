@@ -684,6 +684,67 @@ vsc73xx_update_vlan_table(struct vsc73xx *vsc, int port, u16 vid, bool set)
 	return vsc73xx_write_vlan_table_entry(vsc, vid, portmap);
 }
 
+static int vsc73xx_configure_rgmii_port_delay(struct dsa_switch *ds)
+{
+	/* Keep 2.0 ns delay for backward complatibility */
+	u32 tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_2_0_NS;
+	u32 rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_2_0_NS;
+	struct dsa_port *dp = dsa_to_port(ds, CPU_PORT);
+	struct device_node *port_dn = dp->dn;
+	struct vsc73xx *vsc = ds->priv;
+	u32 delay;
+
+	if (!of_property_read_u32(port_dn, "tx-internal-delay-ps", &delay)) {
+		switch (delay) {
+		case 0:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_NONE;
+			break;
+		case 1400:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_1_4_NS;
+			break;
+		case 1700:
+			tx_delay = VSC73XX_GMIIDELAY_GMII0_GTXDELAY_1_7_NS;
+			break;
+		case 2000:
+			break;
+		default:
+			dev_err(vsc->dev,
+				"Unsupported RGMII Transmit Clock Delay\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_dbg(vsc->dev,
+			"RGMII Transmit Clock Delay isn't configured, set to 2.0 ns\n");
+	}
+
+	if (!of_property_read_u32(port_dn, "rx-internal-delay-ps", &delay)) {
+		switch (delay) {
+		case 0:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_NONE;
+			break;
+		case 1400:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_1_4_NS;
+			break;
+		case 1700:
+			rx_delay = VSC73XX_GMIIDELAY_GMII0_RXDELAY_1_7_NS;
+			break;
+		case 2000:
+			break;
+		default:
+			dev_err(vsc->dev,
+				"Unsupported RGMII Receive Clock Delay value\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_dbg(vsc->dev,
+			"RGMII Receive Clock Delay isn't configured, set to 2.0 ns\n");
+	}
+
+	/* MII delay, set both GTX and RX delay */
+	return vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GMIIDELAY,
+			     tx_delay | rx_delay);
+}
+
 static int vsc73xx_setup(struct dsa_switch *ds)
 {
 	struct vsc73xx *vsc = ds->priv;
@@ -746,10 +807,11 @@ static int vsc73xx_setup(struct dsa_switch *ds)
 			      VSC73XX_MAC_CFG, VSC73XX_MAC_CFG_RESET);
 	}
 
-	/* MII delay, set both GTX and RX delay to 2 ns */
-	vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GMIIDELAY,
-		      VSC73XX_GMIIDELAY_GMII0_GTXDELAY_2_0_NS |
-		      VSC73XX_GMIIDELAY_GMII0_RXDELAY_2_0_NS);
+	/* Configure RGMII delay */
+	ret = vsc73xx_configure_rgmii_port_delay(ds);
+	if (ret)
+		return ret;
+
 	/* Ingess VLAN reception mask (table 145) */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_ANALYZER, 0, VSC73XX_VLANMASK,
 		      0xff);
