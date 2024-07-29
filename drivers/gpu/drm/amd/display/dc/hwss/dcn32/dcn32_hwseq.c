@@ -982,8 +982,19 @@ void dcn32_init_hw(struct dc *dc)
 		dc->caps.dmub_caps.gecc_enable = dc->ctx->dmub_srv->dmub->feature_caps.gecc_enable;
 		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
 
-		if (dc->ctx->dmub_srv->dmub->fw_version <
+		/* for DCN401 testing only */
+		dc->caps.dmub_caps.fams_ver = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
+		if (dc->caps.dmub_caps.fams_ver == 2) {
+			/* FAMS2 is enabled */
+			dc->debug.fams2_config.bits.enable &= true;
+		} else if (dc->ctx->dmub_srv->dmub->fw_version <
 				DMUB_FW_VERSION(7, 0, 35)) {
+			/* FAMS2 is disabled */
+			dc->debug.fams2_config.bits.enable = false;
+			if (dc->debug.using_dml2 && dc->res_pool->funcs->update_bw_bounding_box) {
+				/* update bounding box if FAMS2 disabled */
+				dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
+			}
 			dc->debug.force_disable_subvp = true;
 			dc->debug.disable_fpo_optimizations = true;
 		}
