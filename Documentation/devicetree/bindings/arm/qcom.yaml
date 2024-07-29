@@ -157,11 +157,18 @@ properties:
 
       - items:
           - enum:
+              - wingtech,wt82918hd
+          - const: qcom,msm8929
+
+      - items:
+          - enum:
               - huawei,kiwi
               - longcheer,l9100
               - samsung,a7
               - sony,kanuti-tulip
               - square,apq8039-t2
+              - wingtech,wt82918
+              - wingtech,wt82918hdhw39
           - const: qcom,msm8939
 
       - items:
@@ -234,6 +241,8 @@ properties:
               - samsung,serranove
               - thwc,uf896
               - thwc,ufi001c
+              - wingtech,wt86518
+              - wingtech,wt86528
               - wingtech,wt88047
               - yiming,uz801-v3
           - const: qcom,msm8916
