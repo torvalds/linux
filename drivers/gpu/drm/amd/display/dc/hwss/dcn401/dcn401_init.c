@@ -136,7 +136,7 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.calculate_dccg_k1_k2_values = NULL,
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
 	.reset_back_end_for_pipe = dcn20_reset_back_end_for_pipe,
-	.populate_mcm_luts = dcn401_populate_mcm_luts,
+	.populate_mcm_luts = NULL,
 };
 
 void dcn401_hw_sequencer_init_functions(struct dc *dc)
