@@ -4603,7 +4603,7 @@ flush_cap_releases:
 		__ceph_queue_cap_release(session, cap);
 		spin_unlock(&session->s_cap_lock);
 	}
-	ceph_flush_cap_releases(mdsc, session);
+	ceph_flush_session_cap_releases(mdsc, session);
 	goto done;
 
 bad:
