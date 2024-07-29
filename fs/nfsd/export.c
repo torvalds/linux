@@ -1121,7 +1121,7 @@ ok:
 		return 0;
 
 denied:
-	return rqstp->rq_vers < 4 ? nfserr_acces : nfserr_wrongsec;
+	return nfserr_wrongsec;
 }
 
 /*
