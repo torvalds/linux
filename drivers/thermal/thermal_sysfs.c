@@ -153,9 +153,9 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&tz->lock);
 
 	if (hyst != trip->hysteresis) {
-		WRITE_ONCE(trip->hysteresis, hyst);
+		thermal_zone_set_trip_hyst(tz, trip, hyst);
 
-		thermal_zone_trip_updated(tz, trip);
+		__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 	}
 
 	mutex_unlock(&tz->lock);

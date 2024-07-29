@@ -138,11 +138,11 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 	return trip_to_trip_desc(trip) - tz->trips;
 }
 
-void thermal_zone_trip_updated(struct thermal_zone_device *tz,
-			       const struct thermal_trip *trip)
+void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,
+				struct thermal_trip *trip, int hyst)
 {
+	WRITE_ONCE(trip->hysteresis, hyst);
 	thermal_notify_tz_trip_change(tz, trip);
-	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 }
 
 void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
