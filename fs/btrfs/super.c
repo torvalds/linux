@@ -683,8 +683,11 @@ bool btrfs_check_options(const struct btrfs_fs_info *info,
 		ret = false;
 
 	if (!test_bit(BTRFS_FS_STATE_REMOUNTING, &info->fs_state)) {
-		if (btrfs_raw_test_opt(*mount_opt, SPACE_CACHE))
+		if (btrfs_raw_test_opt(*mount_opt, SPACE_CACHE)) {
 			btrfs_info(info, "disk space caching is enabled");
+			btrfs_warn(info,
+"space cache v1 is being deprecated and will be removed in a future release, please use -o space_cache=v2");
+		}
 		if (btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE))
 			btrfs_info(info, "using free-space-tree");
 	}
