@@ -661,7 +661,6 @@ void __init vmem_map_init(void)
 {
 	__set_memory_rox(_stext, _etext);
 	__set_memory_ro(_etext, __end_rodata);
-	__set_memory_rox(_sinittext, _einittext);
 	__set_memory_rox(__stext_amode31, __etext_amode31);
 	/*
 	 * If the BEAR-enhancement facility is not installed the first
@@ -672,8 +671,6 @@ void __init vmem_map_init(void)
 		set_memory_x(0, 1);
 	if (debug_pagealloc_enabled())
 		__set_memory_4k(__va(0), __va(0) + ident_map_size);
-	if (MACHINE_HAS_NX)
-		system_ctl_set_bit(0, CR0_INSTRUCTION_EXEC_PROTECTION_BIT);
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);
 }
