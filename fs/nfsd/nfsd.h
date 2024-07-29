@@ -330,17 +330,31 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_xattr2big		cpu_to_be32(NFS4ERR_XATTR2BIG)
 #define nfserr_noxattr			cpu_to_be32(NFS4ERR_NOXATTR)
 
-/* error codes for internal use */
+/*
+ * Error codes for internal use.  We use enum to choose numbers that are
+ * not already assigned, then covert to be32 resulting in a number that
+ * cannot conflict with any existing be32 nfserr value.
+ */
+enum {
+	NFSERR_DROPIT = NFS4ERR_FIRST_FREE,
 /* if a request fails due to kmalloc failure, it gets dropped.
  *  Client should resend eventually
  */
-#define	nfserr_dropit		cpu_to_be32(30000)
+#define	nfserr_dropit		cpu_to_be32(NFSERR_DROPIT)
+
 /* end-of-file indicator in readdir */
-#define	nfserr_eof		cpu_to_be32(30001)
+	NFSERR_EOF,
+#define	nfserr_eof		cpu_to_be32(NFSERR_EOF)
+
 /* replay detected */
-#define	nfserr_replay_me	cpu_to_be32(11001)
+	NFSERR_REPLAY_ME,
+#define	nfserr_replay_me	cpu_to_be32(NFSERR_REPLAY_ME)
+
 /* nfs41 replay detected */
-#define	nfserr_replay_cache	cpu_to_be32(11002)
+	NFSERR_REPLAY_CACHE,
+#define	nfserr_replay_cache	cpu_to_be32(NFSERR_REPLAY_CACHE)
+
+};
 
 /* Check for dir entries '.' and '..' */
 #define isdotent(n, l)	(l < 3 && n[0] == '.' && (l == 1 || n[1] == '.'))
