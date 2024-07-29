@@ -649,9 +649,10 @@ reread:
 
 	bytes = vstruct_bytes(sb->sb);
 
-	if (bytes > 512ULL << min(BCH_SB_LAYOUT_SIZE_BITS_MAX, sb->sb->layout.sb_max_size_bits)) {
-		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %lu)",
-		       bytes, 512UL << sb->sb->layout.sb_max_size_bits);
+	u64 sb_size = 512ULL << min(BCH_SB_LAYOUT_SIZE_BITS_MAX, sb->sb->layout.sb_max_size_bits);
+	if (bytes > sb_size) {
+		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %llu)",
+			   bytes, sb_size);
 		return -BCH_ERR_invalid_sb_too_big;
 	}
 
@@ -1132,18 +1133,12 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	 * c->sb will be checked before we write the superblock, so update it as
 	 * well:
 	 */
-	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current) {
+	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
-		c->sb.version_upgrade_complete = bcachefs_metadata_version_current;
-	}
-	if (c->sb.version > bcachefs_metadata_version_current) {
+	if (c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
-		c->sb.version = bcachefs_metadata_version_current;
-	}
-	if (c->sb.version_min > bcachefs_metadata_version_current) {
+	if (c->sb.version_min > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version_min = cpu_to_le16(bcachefs_metadata_version_current);
-		c->sb.version_min = bcachefs_metadata_version_current;
-	}
 	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
 	return ret;
 }
@@ -1316,15 +1311,18 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_printf(out, "Device index:\t%u\n", sb->dev_idx);
 
-	prt_str(out, "Label:\t");
-	prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
+	prt_printf(out, "Label:\t");
+	if (!strlen(sb->label))
+		prt_printf(out, "(none)");
+	else
+		prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	prt_newline(out);
 
-	prt_str(out, "Version:\t");
+	prt_printf(out, "Version:\t");
 	bch2_version_to_text(out, le16_to_cpu(sb->version));
 	prt_newline(out);
 
-	prt_str(out, "Version upgrade complete:\t");
+	prt_printf(out, "Version upgrade complete:\t");
 	bch2_version_to_text(out, BCH_SB_VERSION_UPGRADE_COMPLETE(sb));
 	prt_newline(out);
 

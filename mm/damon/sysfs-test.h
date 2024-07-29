@@ -38,7 +38,7 @@ static int __damon_sysfs_test_get_any_pid(int min, int max)
 	return -1;
 }
 
-static void damon_sysfs_test_set_targets(struct kunit *test)
+static void damon_sysfs_test_add_targets(struct kunit *test)
 {
 	struct damon_sysfs_targets *sysfs_targets;
 	struct damon_sysfs_target *sysfs_target;
@@ -56,13 +56,13 @@ static void damon_sysfs_test_set_targets(struct kunit *test)
 
 	ctx = damon_new_ctx();
 
-	damon_sysfs_set_targets(ctx, sysfs_targets);
+	damon_sysfs_add_targets(ctx, sysfs_targets);
 	KUNIT_EXPECT_EQ(test, 1u, nr_damon_targets(ctx));
 
 	sysfs_target->pid = __damon_sysfs_test_get_any_pid(
 			sysfs_target->pid + 1, 200);
-	damon_sysfs_set_targets(ctx, sysfs_targets);
-	KUNIT_EXPECT_EQ(test, 1u, nr_damon_targets(ctx));
+	damon_sysfs_add_targets(ctx, sysfs_targets);
+	KUNIT_EXPECT_EQ(test, 2u, nr_damon_targets(ctx));
 
 	damon_destroy_ctx(ctx);
 	kfree(sysfs_targets->targets_arr);
@@ -71,7 +71,7 @@ static void damon_sysfs_test_set_targets(struct kunit *test)
 }
 
 static struct kunit_case damon_sysfs_test_cases[] = {
-	KUNIT_CASE(damon_sysfs_test_set_targets),
+	KUNIT_CASE(damon_sysfs_test_add_targets),
 	{},
 };
 

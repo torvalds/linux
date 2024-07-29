@@ -17,6 +17,9 @@ struct data_update_opts {
 	unsigned	write_flags;
 };
 
+void bch2_data_update_opts_to_text(struct printbuf *, struct bch_fs *,
+				   struct bch_io_opts *, struct data_update_opts *);
+
 struct data_update {
 	/* extent being updated: */
 	enum btree_id		btree_id;
@@ -26,6 +29,8 @@ struct data_update {
 	struct bch_move_stats	*stats;
 	struct bch_write_op	op;
 };
+
+void bch2_data_update_to_text(struct printbuf *, struct data_update *);
 
 int bch2_data_update_index_update(struct bch_write_op *);
 

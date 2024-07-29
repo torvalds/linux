@@ -55,13 +55,15 @@ static int dw_spi_bt1_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	    !dwsbt1->dws.mem_ops.supports_op(desc->mem, &desc->info.op_tmpl))
 		return -EOPNOTSUPP;
 
+	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
+		return -EOPNOTSUPP;
+
 	/*
 	 * Make sure the requested region doesn't go out of the physically
-	 * mapped flash memory bounds and the operation is read-only.
+	 * mapped flash memory bounds.
 	 */
-	if (desc->info.offset + desc->info.length > dwsbt1->map_len ||
-	    desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+	if (desc->info.offset + desc->info.length > dwsbt1->map_len)
+		return -EINVAL;
 
 	return 0;
 }

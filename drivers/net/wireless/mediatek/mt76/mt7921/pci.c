@@ -219,7 +219,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt792x_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
@@ -338,6 +338,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	bus_ops->wr = mt7921_wr;
 	bus_ops->rmw = mt7921_rmw;
 	dev->mt76.bus = bus_ops;
+
+	if (!mt7921_disable_aspm && mt76_pci_aspm_supported(pdev))
+		dev->aspm_supported = true;
 
 	ret = mt792xe_mcu_fw_pmctrl(dev);
 	if (ret)

@@ -656,14 +656,16 @@ int bch2_btree_insert_trans(struct btree_trans *trans, enum btree_id id,
  * @disk_res:		must be non-NULL whenever inserting or potentially
  *			splitting data extents
  * @flags:		transaction commit flags
+ * @iter_flags:		btree iter update trigger flags
  *
  * Returns:		0 on success, error code on failure
  */
 int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
-		      struct disk_reservation *disk_res, int flags)
+		      struct disk_reservation *disk_res, int flags,
+		      enum btree_iter_update_trigger_flags iter_flags)
 {
 	return bch2_trans_do(c, disk_res, NULL, flags,
-			     bch2_btree_insert_trans(trans, id, k, 0));
+			     bch2_btree_insert_trans(trans, id, k, iter_flags));
 }
 
 int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,

@@ -591,7 +591,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static void stop_streaming(struct vb2_queue *vq)
 {
 	int ret;
-	unsigned long timeout;
+	unsigned long time_left;
 	struct bcm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
 	struct vchiq_mmal_port *port = dev->capture.port;
 
@@ -636,9 +636,9 @@ static void stop_streaming(struct vb2_queue *vq)
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 			 "%s: Waiting for buffers to be returned - %d outstanding\n",
 			 __func__, atomic_read(&port->buffers_with_vpu));
-		timeout = wait_for_completion_timeout(&dev->capture.frame_cmplt,
-						      HZ);
-		if (timeout == 0) {
+		time_left = wait_for_completion_timeout(&dev->capture.frame_cmplt,
+							HZ);
+		if (time_left == 0) {
 			v4l2_err(&dev->v4l2_dev, "%s: Timeout waiting for buffers to be returned - %d outstanding\n",
 				 __func__,
 				 atomic_read(&port->buffers_with_vpu));

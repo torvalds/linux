@@ -1066,5 +1066,6 @@ static void __exit cxl_pci_driver_exit(void)
 
 module_init(cxl_pci_driver_init);
 module_exit(cxl_pci_driver_exit);
+MODULE_DESCRIPTION("CXL: PCI manageability");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);

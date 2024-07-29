@@ -29,7 +29,6 @@ properties:
           - qcom,pm7325-gpio
           - qcom,pm7550ba-gpio
           - qcom,pm8005-gpio
-          - qcom,pm8008-gpio
           - qcom,pm8018-gpio
           - qcom,pm8019-gpio
           - qcom,pm8038-gpio
@@ -57,6 +56,7 @@ properties:
           - qcom,pma8084-gpio
           - qcom,pmc8180-gpio
           - qcom,pmc8180c-gpio
+          - qcom,pmc8380-gpio
           - qcom,pmd8028-gpio
           - qcom,pmi632-gpio
           - qcom,pmi8950-gpio
@@ -126,7 +126,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pm8008-gpio
               - qcom,pmi8950-gpio
               - qcom,pmr735d-gpio
     then:
@@ -225,6 +224,7 @@ allOf:
               - qcom,pm8150-gpio
               - qcom,pm8350-gpio
               - qcom,pmc8180-gpio
+              - qcom,pmc8380-gpio
               - qcom,pmi8994-gpio
               - qcom,pmm8155au-gpio
     then:
@@ -448,7 +448,6 @@ $defs:
                  - gpio1-gpio10 for pm7325
                  - gpio1-gpio8 for pm7550ba
                  - gpio1-gpio4 for pm8005
-                 - gpio1-gpio2 for pm8008
                  - gpio1-gpio6 for pm8018
                  - gpio1-gpio12 for pm8038
                  - gpio1-gpio40 for pm8058

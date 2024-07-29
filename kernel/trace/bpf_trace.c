@@ -1369,8 +1369,8 @@ __bpf_kfunc void bpf_key_put(struct bpf_key *bkey)
 #ifdef CONFIG_SYSTEM_DATA_VERIFICATION
 /**
  * bpf_verify_pkcs7_signature - verify a PKCS#7 signature
- * @data_ptr: data to verify
- * @sig_ptr: signature of the data
+ * @data_p: data to verify
+ * @sig_p: signature of the data
  * @trusted_keyring: keyring with keys trusted for signature verification
  *
  * Verify the PKCS#7 signature *sig_ptr* against the supplied *data_ptr*
@@ -1378,10 +1378,12 @@ __bpf_kfunc void bpf_key_put(struct bpf_key *bkey)
  *
  * Return: 0 on success, a negative value on error.
  */
-__bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr_kern *data_ptr,
-			       struct bpf_dynptr_kern *sig_ptr,
+__bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
+			       struct bpf_dynptr *sig_p,
 			       struct bpf_key *trusted_keyring)
 {
+	struct bpf_dynptr_kern *data_ptr = (struct bpf_dynptr_kern *)data_p;
+	struct bpf_dynptr_kern *sig_ptr = (struct bpf_dynptr_kern *)sig_p;
 	const void *data, *sig;
 	u32 data_len, sig_len;
 	int ret;
@@ -1444,7 +1446,7 @@ __bpf_kfunc_start_defs();
  * bpf_get_file_xattr - get xattr of a file
  * @file: file to get xattr from
  * @name__str: name of the xattr
- * @value_ptr: output buffer of the xattr value
+ * @value_p: output buffer of the xattr value
  *
  * Get xattr *name__str* of *file* and store the output in *value_ptr*.
  *
@@ -1453,8 +1455,9 @@ __bpf_kfunc_start_defs();
  * Return: 0 on success, a negative value on error.
  */
 __bpf_kfunc int bpf_get_file_xattr(struct file *file, const char *name__str,
-				   struct bpf_dynptr_kern *value_ptr)
+				   struct bpf_dynptr *value_p)
 {
+	struct bpf_dynptr_kern *value_ptr = (struct bpf_dynptr_kern *)value_p;
 	struct dentry *dentry;
 	u32 value_len;
 	void *value;
@@ -3295,7 +3298,7 @@ static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 	struct bpf_run_ctx *old_run_ctx;
 	int err = 0;
 
-	if (link->task && current != link->task)
+	if (link->task && current->mm != link->task->mm)
 		return 0;
 
 	if (sleepable)
@@ -3396,8 +3399,9 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	upath = u64_to_user_ptr(attr->link_create.uprobe_multi.path);
 	uoffsets = u64_to_user_ptr(attr->link_create.uprobe_multi.offsets);
 	cnt = attr->link_create.uprobe_multi.cnt;
+	pid = attr->link_create.uprobe_multi.pid;
 
-	if (!upath || !uoffsets || !cnt)
+	if (!upath || !uoffsets || !cnt || pid < 0)
 		return -EINVAL;
 	if (cnt > MAX_UPROBE_MULTI_CNT)
 		return -E2BIG;
@@ -3421,11 +3425,8 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		goto error_path_put;
 	}
 
-	pid = attr->link_create.uprobe_multi.pid;
 	if (pid) {
-		rcu_read_lock();
-		task = get_pid_task(find_vpid(pid), PIDTYPE_PID);
-		rcu_read_unlock();
+		task = get_pid_task(find_vpid(pid), PIDTYPE_TGID);
 		if (!task) {
 			err = -ESRCH;
 			goto error_path_put;
@@ -3519,7 +3520,6 @@ static u64 bpf_uprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 }
 #endif /* CONFIG_UPROBES */
 
-#ifdef CONFIG_FPROBE
 __bpf_kfunc_start_defs();
 
 __bpf_kfunc bool bpf_session_is_return(void)
@@ -3568,4 +3568,3 @@ static int __init bpf_kprobe_multi_kfuncs_init(void)
 }
 
 late_initcall(bpf_kprobe_multi_kfuncs_init);
-#endif

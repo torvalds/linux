@@ -26,11 +26,13 @@
 #include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
+#include "trace.h"
 
 #include <linux/aio.h>
 #include <linux/backing-dev.h>
 #include <linux/exportfs.h>
 #include <linux/fiemap.h>
+#include <linux/fs_context.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/posix_acl.h>
@@ -56,9 +58,7 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 
 	BUG_ON(bi->bi_inum != inode->v.i_ino);
 
-	bch2_assert_pos_locked(trans, BTREE_ID_inodes,
-			       POS(0, bi->bi_inum),
-			       c->opts.inodes_use_key_cache);
+	bch2_assert_pos_locked(trans, BTREE_ID_inodes, POS(0, bi->bi_inum));
 
 	set_nlink(&inode->v, bch2_inode_nlink_get(bi));
 	i_uid_write(&inode->v, bi->bi_uid);
@@ -188,6 +188,18 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
+		/*
+		 * bcachefs doesn't use I_NEW; we have no use for it since we
+		 * only insert fully created inodes in the inode hash table. But
+		 * discard_new_inode() expects it to be set...
+		 */
+		inode->v.i_flags |= I_NEW;
+		/*
+		 * We don't want bch2_evict_inode() to delete the inode on disk,
+		 * we just raced and had another inode in cache. Normally new
+		 * inodes don't have nlink == 0 - except tmpfiles do...
+		 */
+		set_nlink(&inode->v, 1);
 		discard_new_inode(&inode->v);
 		inode = old;
 	} else {
@@ -195,8 +207,10 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
 		mutex_unlock(&c->vfs_inodes_lock);
 		/*
-		 * we really don't want insert_inode_locked2() to be setting
-		 * I_NEW...
+		 * Again, I_NEW makes no sense for bcachefs. This is only needed
+		 * for clearing I_NEW, but since the inode was already fully
+		 * created and initialized we didn't actually want
+		 * inode_insert5() to set it for us.
 		 */
 		unlock_new_inode(&inode->v);
 	}
@@ -227,8 +241,9 @@ static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
 	mutex_init(&inode->ei_update_lock);
 	two_state_lock_init(&inode->ei_pagecache_lock);
 	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
+	inode->ei_flags = 0;
 	mutex_init(&inode->ei_quota_lock);
-	inode->v.i_state = 0;
+	memset(&inode->ei_devs_need_flush, 0, sizeof(inode->ei_devs_need_flush));
 
 	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
 		kmem_cache_free(bch2_inode_cache, inode);
@@ -501,11 +516,11 @@ static int __bch2_link(struct bch_fs *c,
 		       struct bch_inode_info *dir,
 		       struct dentry *dentry)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_inode_unpacked dir_u, inode_u;
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	ret = commit_do(trans, NULL, NULL, 0,
 			bch2_link_trans(trans,
@@ -552,10 +567,11 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_inode_unpacked dir_u, inode_u;
-	struct btree_trans *trans = bch2_trans_get(c);
 	int ret;
 
 	bch2_lock_inodes(INODE_UPDATE_LOCK, dir, inode);
+
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	ret = commit_do(trans, NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
@@ -579,8 +595,8 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		set_nlink(&inode->v, 0);
 	}
 err:
-	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 	bch2_trans_put(trans);
+	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 
 	return ret;
 }
@@ -665,13 +681,13 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			return ret;
 	}
 
-	trans = bch2_trans_get(c);
-
 	bch2_lock_inodes(INODE_UPDATE_LOCK,
 			 src_dir,
 			 dst_dir,
 			 src_inode,
 			 dst_inode);
+
+	trans = bch2_trans_get(c);
 
 	ret   = bch2_subvol_is_ro_trans(trans, src_dir->ei_subvol) ?:
 		bch2_subvol_is_ro_trans(trans, dst_dir->ei_subvol);
@@ -877,6 +893,16 @@ static int bch2_getattr(struct mnt_idmap *idmap,
 
 	stat->subvol	= inode->ei_subvol;
 	stat->result_mask |= STATX_SUBVOL;
+
+	if ((request_mask & STATX_DIOALIGN) && S_ISREG(inode->v.i_mode)) {
+		stat->result_mask |= STATX_DIOALIGN;
+		/*
+		 * this is incorrect; we should be tracking this in superblock,
+		 * and checking the alignment of open devices
+		 */
+		stat->dio_mem_align = SECTOR_SIZE;
+		stat->dio_offset_align = block_bytes(c);
+	}
 
 	if (request_mask & STATX_BTIME) {
 		stat->result_mask |= STATX_BTIME;
@@ -1155,6 +1181,7 @@ static const struct file_operations bch_file_operations = {
 	.read_iter	= bch2_read_iter,
 	.write_iter	= bch2_write_iter,
 	.mmap		= bch2_mmap,
+	.get_unmapped_area = thp_get_unmapped_area,
 	.fsync		= bch2_fsync,
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
@@ -1486,11 +1513,6 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	bch2_iget5_set(&inode->v, &inum);
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
 
-	if (BCH_SUBVOLUME_SNAP(subvol))
-		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-	else
-		clear_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-
 	inode->v.i_blocks	= bi->bi_sectors;
 	inode->v.i_ino		= bi->bi_inum;
 	inode->v.i_rdev		= bi->bi_dev;
@@ -1501,6 +1523,9 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
 	inode->ei_subvol	= inum.subvol;
+
+	if (BCH_SUBVOLUME_SNAP(subvol))
+		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
@@ -1680,6 +1705,8 @@ static int bch2_sync_fs(struct super_block *sb, int wait)
 	struct bch_fs *c = sb->s_fs_info;
 	int ret;
 
+	trace_bch2_sync_fs(sb, wait);
+
 	if (c->opts.journal_flush_disabled)
 		return 0;
 
@@ -1708,15 +1735,11 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static int bch2_remount(struct super_block *sb, int *flags, char *data)
+static int bch2_remount(struct super_block *sb, int *flags,
+			struct bch_opts opts)
 {
 	struct bch_fs *c = sb->s_fs_info;
-	struct bch_opts opts = bch2_opts_empty();
-	int ret;
-
-	ret = bch2_parse_mount_opts(c, &opts, data);
-	if (ret)
-		goto err;
+	int ret = 0;
 
 	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
 
@@ -1776,7 +1799,8 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
 
-		if (!(opt->flags & OPT_MOUNT))
+		if ((opt->flags & OPT_HIDDEN) ||
+		    !(opt->flags & OPT_MOUNT))
 			continue;
 
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
@@ -1843,7 +1867,6 @@ static const struct super_operations bch_super_operations = {
 	.statfs		= bch2_statfs,
 	.show_devname	= bch2_show_devname,
 	.show_options	= bch2_show_options,
-	.remount_fs	= bch2_remount,
 	.put_super	= bch2_put_super,
 	.freeze_fs	= bch2_freeze,
 	.unfreeze_fs	= bch2_unfreeze,
@@ -1876,77 +1899,63 @@ static int bch2_test_super(struct super_block *s, void *data)
 	return true;
 }
 
-static struct dentry *bch2_mount(struct file_system_type *fs_type,
-				 int flags, const char *dev_name, void *data)
+static int bch2_fs_get_tree(struct fs_context *fc)
 {
 	struct bch_fs *c;
 	struct super_block *sb;
 	struct inode *vinode;
-	struct bch_opts opts = bch2_opts_empty();
+	struct bch2_opts_parse *opts_parse = fc->fs_private;
+	struct bch_opts opts = opts_parse->opts;
+	darray_str devs;
+	darray_fs devs_to_fs = {};
 	int ret;
 
-	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
+	opt_set(opts, read_only, (fc->sb_flags & SB_RDONLY) != 0);
+	opt_set(opts, nostart, true);
 
-	ret = bch2_parse_mount_opts(NULL, &opts, data);
-	if (ret) {
-		ret = bch2_err_class(ret);
-		return ERR_PTR(ret);
-	}
+	if (!fc->source || strlen(fc->source) == 0)
+		return -EINVAL;
 
-	if (!dev_name || strlen(dev_name) == 0)
-		return ERR_PTR(-EINVAL);
-
-	darray_str devs;
-	ret = bch2_split_devs(dev_name, &devs);
+	ret = bch2_split_devs(fc->source, &devs);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	darray_fs devs_to_fs = {};
 	darray_for_each(devs, i) {
 		ret = darray_push(&devs_to_fs, bch2_path_to_fs(*i));
-		if (ret) {
-			sb = ERR_PTR(ret);
-			goto got_sb;
-		}
+		if (ret)
+			goto err;
 	}
 
-	sb = sget(fs_type, bch2_test_super, bch2_noset_super, flags|SB_NOSEC, &devs_to_fs);
+	sb = sget(fc->fs_type, bch2_test_super, bch2_noset_super, fc->sb_flags|SB_NOSEC, &devs_to_fs);
 	if (!IS_ERR(sb))
 		goto got_sb;
 
 	c = bch2_fs_open(devs.data, devs.nr, opts);
-	if (IS_ERR(c)) {
-		sb = ERR_CAST(c);
-		goto got_sb;
-	}
+	ret = PTR_ERR_OR_ZERO(c);
+	if (ret)
+		goto err;
 
 	/* Some options can't be parsed until after the fs is started: */
-	ret = bch2_parse_mount_opts(c, &opts, data);
-	if (ret) {
-		bch2_fs_stop(c);
-		sb = ERR_PTR(ret);
-		goto got_sb;
-	}
+	opts = bch2_opts_empty();
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
+	if (ret)
+		goto err_stop_fs;
 
 	bch2_opts_apply(&c->opts, opts);
 
-	sb = sget(fs_type, NULL, bch2_set_super, flags|SB_NOSEC, c);
-	if (IS_ERR(sb))
-		bch2_fs_stop(c);
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_stop_fs;
+
+	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
+	ret = PTR_ERR_OR_ZERO(sb);
+	if (ret)
+		goto err_stop_fs;
 got_sb:
-	darray_exit(&devs_to_fs);
-	bch2_darray_str_exit(&devs);
-
-	if (IS_ERR(sb)) {
-		ret = PTR_ERR(sb);
-		ret = bch2_err_class(ret);
-		return ERR_PTR(ret);
-	}
-
 	c = sb->s_fs_info;
 
 	if (sb->s_root) {
-		if ((flags ^ sb->s_flags) & SB_RDONLY) {
+		if ((fc->sb_flags ^ sb->s_flags) & SB_RDONLY) {
 			ret = -EBUSY;
 			goto err_put_super;
 		}
@@ -1968,6 +1977,7 @@ got_sb:
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	sb->s_uuid		= c->sb.user_uuid;
+	sb->s_shrink->seeks	= 0;
 	c->vfs_sb		= sb;
 	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
 
@@ -2011,12 +2021,30 @@ got_sb:
 
 	sb->s_flags |= SB_ACTIVE;
 out:
-	return dget(sb->s_root);
+	fc->root = dget(sb->s_root);
+err:
+	darray_exit(&devs_to_fs);
+	bch2_darray_str_exit(&devs);
+	if (ret)
+		pr_err("error: %s", bch2_err_str(ret));
+	/*
+	 * On an inconsistency error in recovery we might see an -EROFS derived
+	 * errorcode (from the journal), but we don't want to return that to
+	 * userspace as that causes util-linux to retry the mount RO - which is
+	 * confusing:
+	 */
+	if (bch2_err_matches(ret, EROFS) && ret != -EROFS)
+		ret = -EIO;
+	return bch2_err_class(ret);
+
+err_stop_fs:
+	bch2_fs_stop(c);
+	goto err;
 
 err_put_super:
 	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
-	return ERR_PTR(bch2_err_class(ret));
+	goto err;
 }
 
 static void bch2_kill_sb(struct super_block *sb)
@@ -2027,12 +2055,76 @@ static void bch2_kill_sb(struct super_block *sb)
 	bch2_fs_free(c);
 }
 
+static void bch2_fs_context_free(struct fs_context *fc)
+{
+	struct bch2_opts_parse *opts = fc->fs_private;
+
+	if (opts) {
+		printbuf_exit(&opts->parse_later);
+		kfree(opts);
+	}
+}
+
+static int bch2_fs_parse_param(struct fs_context *fc,
+			       struct fs_parameter *param)
+{
+	/*
+	 * the "source" param, i.e., the name of the device(s) to mount,
+	 * is handled by the VFS layer.
+	 */
+	if (!strcmp(param->key, "source"))
+		return -ENOPARAM;
+
+	struct bch2_opts_parse *opts = fc->fs_private;
+	struct bch_fs *c = NULL;
+
+	/* for reconfigure, we already have a struct bch_fs */
+	if (fc->root)
+		c = fc->root->d_sb->s_fs_info;
+
+	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
+					   &opts->parse_later, param->key,
+					   param->string);
+
+	return bch2_err_class(ret);
+}
+
+static int bch2_fs_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb = fc->root->d_sb;
+	struct bch2_opts_parse *opts = fc->fs_private;
+
+	return bch2_remount(sb, &fc->sb_flags, opts->opts);
+}
+
+static const struct fs_context_operations bch2_context_ops = {
+	.free        = bch2_fs_context_free,
+	.parse_param = bch2_fs_parse_param,
+	.get_tree    = bch2_fs_get_tree,
+	.reconfigure = bch2_fs_reconfigure,
+};
+
+static int bch2_init_fs_context(struct fs_context *fc)
+{
+	struct bch2_opts_parse *opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+
+	if (!opts)
+		return -ENOMEM;
+
+	opts->parse_later = PRINTBUF;
+
+	fc->ops = &bch2_context_ops;
+	fc->fs_private = opts;
+
+	return 0;
+}
+
 static struct file_system_type bcache_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "bcachefs",
-	.mount		= bch2_mount,
-	.kill_sb	= bch2_kill_sb,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "bcachefs",
+	.init_fs_context	= bch2_init_fs_context,
+	.kill_sb		= bch2_kill_sb,
+	.fs_flags		= FS_REQUIRES_DEV,
 };
 
 MODULE_ALIAS_FS("bcachefs");

@@ -96,7 +96,7 @@ EXPORT_SYMBOL_GPL(get_max_files);
 /*
  * Handle nr_files sysctl
  */
-static int proc_nr_files(struct ctl_table *table, int write, void *buffer,
+static int proc_nr_files(const struct ctl_table *table, int write, void *buffer,
 			 size_t *lenp, loff_t *ppos)
 {
 	files_stat.nr_files = get_nr_files();

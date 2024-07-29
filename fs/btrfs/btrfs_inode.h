@@ -19,7 +19,6 @@
 #include <uapi/linux/btrfs_tree.h>
 #include <trace/events/btrfs.h>
 #include "block-rsv.h"
-#include "btrfs_inode.h"
 #include "extent_map.h"
 #include "extent_io.h"
 #include "extent-io-tree.h"
@@ -89,6 +88,39 @@ enum {
 	BTRFS_INODE_FREE_SPACE_INODE,
 	/* Set when there are no capabilities in XATTs for the inode. */
 	BTRFS_INODE_NO_CAP_XATTR,
+	/*
+	 * Set if an error happened when doing a COW write before submitting a
+	 * bio or during writeback. Used for both buffered writes and direct IO
+	 * writes. This is to signal a fast fsync that it has to wait for
+	 * ordered extents to complete and therefore not log extent maps that
+	 * point to unwritten extents (when an ordered extent completes and it
+	 * has the BTRFS_ORDERED_IOERR flag set, it drops extent maps in its
+	 * range).
+	 */
+	BTRFS_INODE_COW_WRITE_ERROR,
+	/*
+	 * Indicate this is a directory that points to a subvolume for which
+	 * there is no root reference item. That's a case like the following:
+	 *
+	 *   $ btrfs subvolume create /mnt/parent
+	 *   $ btrfs subvolume create /mnt/parent/child
+	 *   $ btrfs subvolume snapshot /mnt/parent /mnt/snap
+	 *
+	 * If subvolume "parent" is root 256, subvolume "child" is root 257 and
+	 * snapshot "snap" is root 258, then there's no root reference item (key
+	 * BTRFS_ROOT_REF_KEY in the root tree) for the subvolume "child"
+	 * associated to root 258 (the snapshot) - there's only for the root
+	 * of the "parent" subvolume (root 256). In the chunk root we have a
+	 * (256 BTRFS_ROOT_REF_KEY 257) key but we don't have a
+	 * (258 BTRFS_ROOT_REF_KEY 257) key - the sames goes for backrefs, we
+	 * have a (257 BTRFS_ROOT_BACKREF_KEY 256) but we don't have a
+	 * (257 BTRFS_ROOT_BACKREF_KEY 258) key.
+	 *
+	 * So when opening the "child" dentry from the snapshot's directory,
+	 * we don't find a root ref item and we create a stub inode. This is
+	 * done at new_simple_dir(), called from btrfs_lookup_dentry().
+	 */
+	BTRFS_INODE_ROOT_STUB,
 };
 
 /* in memory btrfs inode */
@@ -96,10 +128,14 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
-	/* key used to find this inode on disk.  This is used by the code
-	 * to read in roots of subvolumes
+#if BITS_PER_LONG == 32
+	/*
+	 * The objectid of the corresponding BTRFS_INODE_ITEM_KEY.
+	 * On 64 bits platforms we can get it from vfs_inode.i_ino, which is an
+	 * unsigned long and therefore 64 bits on such platforms.
 	 */
-	struct btrfs_key location;
+	u64 objectid;
+#endif
 
 	/* Cached value of inode property 'compression'. */
 	u8 prop_compress;
@@ -154,9 +190,6 @@ struct btrfs_inode {
 	 * to walk them all.
 	 */
 	struct list_head delalloc_inodes;
-
-	/* node for the red-black tree that links inodes in subvolume root */
-	struct rb_node rb_node;
 
 	unsigned long runtime_flags;
 
@@ -218,11 +251,20 @@ struct btrfs_inode {
 		u64 last_dir_index_offset;
 	};
 
-	/*
-	 * Total number of bytes pending defrag, used by stat to check whether
-	 * it needs COW. Protected by 'lock'.
-	 */
-	u64 defrag_bytes;
+	union {
+		/*
+		 * Total number of bytes pending defrag, used by stat to check whether
+		 * it needs COW. Protected by 'lock'.
+		 * Used by inodes other than the data relocation inode.
+		 */
+		u64 defrag_bytes;
+
+		/*
+		 * Logical address of the block group being relocated.
+		 * Used only by the data relocation inode.
+		 */
+		u64 reloc_block_group_start;
+	};
 
 	/*
 	 * The size of the file stored in the metadata on disk.  data=ordered
@@ -231,12 +273,21 @@ struct btrfs_inode {
 	 */
 	u64 disk_i_size;
 
-	/*
-	 * If this is a directory then index_cnt is the counter for the index
-	 * number for new files that are created. For an empty directory, this
-	 * must be initialized to BTRFS_DIR_START_INDEX.
-	 */
-	u64 index_cnt;
+	union {
+		/*
+		 * If this is a directory then index_cnt is the counter for the
+		 * index number for new files that are created. For an empty
+		 * directory, this must be initialized to BTRFS_DIR_START_INDEX.
+		 */
+		u64 index_cnt;
+
+		/*
+		 * If this is not a directory, this is the number of bytes
+		 * outstanding that are going to need csums. This is used in
+		 * ENOSPC accounting. Protected by 'lock'.
+		 */
+		u64 csum_bytes;
+	};
 
 	/* Cache the directory index number to speed the dir/file remove */
 	u64 dir_index;
@@ -248,22 +299,25 @@ struct btrfs_inode {
 	 */
 	u64 last_unlink_trans;
 
-	/*
-	 * The id/generation of the last transaction where this inode was
-	 * either the source or the destination of a clone/dedupe operation.
-	 * Used when logging an inode to know if there are shared extents that
-	 * need special care when logging checksum items, to avoid duplicate
-	 * checksum items in a log (which can lead to a corruption where we end
-	 * up with missing checksum ranges after log replay).
-	 * Protected by the vfs inode lock.
-	 */
-	u64 last_reflink_trans;
+	union {
+		/*
+		 * The id/generation of the last transaction where this inode
+		 * was either the source or the destination of a clone/dedupe
+		 * operation. Used when logging an inode to know if there are
+		 * shared extents that need special care when logging checksum
+		 * items, to avoid duplicate checksum items in a log (which can
+		 * lead to a corruption where we end up with missing checksum
+		 * ranges after log replay). Protected by the VFS inode lock.
+		 * Used for regular files only.
+		 */
+		u64 last_reflink_trans;
 
-	/*
-	 * Number of bytes outstanding that are going to need csums.  This is
-	 * used in ENOSPC accounting. Protected by 'lock'.
-	 */
-	u64 csum_bytes;
+		/*
+		 * In case this a root stub inode (BTRFS_INODE_ROOT_STUB flag set),
+		 * the ID of that root.
+		 */
+		u64 ref_root_id;
+	};
 
 	/* Backwards incompatible flags, lower half of inode_item::flags  */
 	u32 flags;
@@ -321,10 +375,9 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
  */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
-	u64 ino = inode->location.objectid;
+	u64 ino = inode->objectid;
 
-	/* type == BTRFS_ROOT_ITEM_KEY: subvol dir */
-	if (inode->location.type == BTRFS_ROOT_ITEM_KEY)
+	if (test_bit(BTRFS_INODE_ROOT_STUB, &inode->runtime_flags))
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
@@ -338,20 +391,36 @@ static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 
 #endif
 
+static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
+				       struct btrfs_key *key)
+{
+	key->objectid = btrfs_ino(inode);
+	key->type = BTRFS_INODE_ITEM_KEY;
+	key->offset = 0;
+}
+
+static inline void btrfs_set_inode_number(struct btrfs_inode *inode, u64 ino)
+{
+#if BITS_PER_LONG == 32
+	inode->objectid = ino;
+#endif
+	inode->vfs_inode.i_ino = ino;
+}
+
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
 	i_size_write(&inode->vfs_inode, size);
 	inode->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
+static inline bool btrfs_is_free_space_inode(const struct btrfs_inode *inode)
 {
 	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
-static inline bool is_data_inode(struct inode *inode)
+static inline bool is_data_inode(const struct btrfs_inode *inode)
 {
-	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
+	return btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID;
 }
 
 static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
@@ -445,8 +514,8 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 			u32 bio_offset, struct bio_vec *bv);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
-			      u64 *orig_start, u64 *orig_block_len,
-			      u64 *ram_bytes, bool nowait, bool strict);
+			      struct btrfs_file_extent *file_extent,
+			      bool nowait, bool strict);
 
 void btrfs_del_delalloc_inode(struct btrfs_inode *inode);
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
@@ -505,9 +574,9 @@ void btrfs_free_inode(struct inode *inode);
 int btrfs_drop_inode(struct inode *inode);
 int __init btrfs_init_cachep(void);
 void __cold btrfs_destroy_cachep(void);
-struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
-			      struct btrfs_root *root, struct btrfs_path *path);
-struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root);
+struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
+			      struct btrfs_path *path);
+struct inode *btrfs_iget(u64 ino, struct btrfs_root *root);
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 				    struct page *page, u64 start, u64 len);
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
@@ -541,10 +610,6 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			       const struct btrfs_ioctl_encoded_io_args *encoded);
 
-ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter,
-		       size_t done_before);
-struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
-				  size_t done_before);
 struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino);
 
 extern const struct dentry_operations btrfs_dentry_operations;
@@ -561,5 +626,10 @@ void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags);
 void btrfs_update_inode_bytes(struct btrfs_inode *inode, const u64 add_bytes,
 			      const u64 del_bytes);
 void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 end);
+u64 btrfs_get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
+				     u64 num_bytes);
+struct extent_map *btrfs_create_io_em(struct btrfs_inode *inode, u64 start,
+				      const struct btrfs_file_extent *file_extent,
+				      int type);
 
 #endif

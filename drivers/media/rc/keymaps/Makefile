@@ -84,6 +84,7 @@ obj-$(CONFIG_RC_MAP) += \
 			rc-msi-digivox-ii.o \
 			rc-msi-tvanywhere.o \
 			rc-msi-tvanywhere-plus.o \
+			rc-mygica-utv3.o \
 			rc-nebula.o \
 			rc-nec-terratec-cinergy-xs.o \
 			rc-norwood.o \

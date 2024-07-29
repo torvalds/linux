@@ -324,6 +324,17 @@ enum {
 	 * claim to support it.
 	 */
 	HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE,
+
+	/*
+	 * When this quirk is set, the reserved bits of Primary/Secondary_PHY
+	 * inside the LE Extended Advertising Report events are discarded.
+	 * This is required for some Apple/Broadcom controllers which
+	 * abuse these reserved bits for unrelated flags.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_FIXUP_LE_EXT_ADV_REPORT_PHY,
 };
 
 /* HCI device flags */

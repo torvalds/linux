@@ -29,6 +29,9 @@ void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync)
 	if (is_inode_flag_set(inode, FI_NEW_INODE))
 		return;
 
+	if (f2fs_readonly(F2FS_I_SB(inode)->sb))
+		return;
+
 	if (f2fs_inode_dirtied(inode, sync))
 		return;
 
@@ -310,10 +313,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 			if (!sanity_check_compress_inode(inode, ri))
 				return false;
 		}
-	} else if (f2fs_sb_has_flexible_inline_xattr(sbi)) {
-		f2fs_warn(sbi, "%s: corrupted inode ino=%lx, run fsck to fix.",
-			  __func__, inode->i_ino);
-		return false;
 	}
 
 	if (!f2fs_sb_has_extra_attr(sbi)) {
@@ -344,7 +343,7 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		}
 	}
 
-	if (f2fs_sanity_check_inline_data(inode)) {
+	if (f2fs_sanity_check_inline_data(inode, node_page)) {
 		f2fs_warn(sbi, "%s: inode (ino=%lx, mode=%u) should not have inline_data, run fsck to fix",
 			  __func__, inode->i_ino, inode->i_mode);
 		return false;
@@ -508,15 +507,15 @@ static int do_read_inode(struct inode *inode)
 
 	init_idisk_time(inode);
 
-	/* Need all the flag bits */
-	f2fs_init_read_extent_tree(inode, node_page);
-	f2fs_init_age_extent_tree(inode);
-
-	if (!sanity_check_extent_cache(inode)) {
+	if (!sanity_check_extent_cache(inode, node_page)) {
 		f2fs_put_page(node_page, 1);
 		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
 		return -EFSCORRUPTED;
 	}
+
+	/* Need all the flag bits */
+	f2fs_init_read_extent_tree(inode, node_page);
+	f2fs_init_age_extent_tree(inode);
 
 	f2fs_put_page(node_page, 1);
 
@@ -610,14 +609,6 @@ make_now:
 	}
 	f2fs_set_inode_flags(inode);
 
-	if (file_should_truncate(inode) &&
-			!is_sbi_flag_set(sbi, SBI_POR_DOING)) {
-		ret = f2fs_truncate(inode);
-		if (ret)
-			goto bad_inode;
-		file_dont_truncate(inode);
-	}
-
 	unlock_new_inode(inode);
 	trace_f2fs_iget(inode);
 	return inode;
@@ -645,8 +636,9 @@ retry:
 
 void f2fs_update_inode(struct inode *inode, struct page *node_page)
 {
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_inode *ri;
-	struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
+	struct extent_tree *et = fi->extent_tree[EX_READ];
 
 	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 	set_page_dirty(node_page);
@@ -656,7 +648,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	ri = F2FS_INODE(node_page);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
-	ri->i_advise = F2FS_I(inode)->i_advise;
+	ri->i_advise = fi->i_advise;
 	ri->i_uid = cpu_to_le32(i_uid_read(inode));
 	ri->i_gid = cpu_to_le32(i_gid_read(inode));
 	ri->i_links = cpu_to_le32(inode->i_nlink);
@@ -682,58 +674,49 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	ri->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
 	ri->i_mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	if (S_ISDIR(inode->i_mode))
-		ri->i_current_depth =
-			cpu_to_le32(F2FS_I(inode)->i_current_depth);
+		ri->i_current_depth = cpu_to_le32(fi->i_current_depth);
 	else if (S_ISREG(inode->i_mode))
-		ri->i_gc_failures = cpu_to_le16(F2FS_I(inode)->i_gc_failures);
-	ri->i_xattr_nid = cpu_to_le32(F2FS_I(inode)->i_xattr_nid);
-	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
-	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
+		ri->i_gc_failures = cpu_to_le16(fi->i_gc_failures);
+	ri->i_xattr_nid = cpu_to_le32(fi->i_xattr_nid);
+	ri->i_flags = cpu_to_le32(fi->i_flags);
+	ri->i_pino = cpu_to_le32(fi->i_pino);
 	ri->i_generation = cpu_to_le32(inode->i_generation);
-	ri->i_dir_level = F2FS_I(inode)->i_dir_level;
+	ri->i_dir_level = fi->i_dir_level;
 
 	if (f2fs_has_extra_attr(inode)) {
-		ri->i_extra_isize = cpu_to_le16(F2FS_I(inode)->i_extra_isize);
+		ri->i_extra_isize = cpu_to_le16(fi->i_extra_isize);
 
 		if (f2fs_sb_has_flexible_inline_xattr(F2FS_I_SB(inode)))
 			ri->i_inline_xattr_size =
-				cpu_to_le16(F2FS_I(inode)->i_inline_xattr_size);
+				cpu_to_le16(fi->i_inline_xattr_size);
 
 		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)) &&
-			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
-								i_projid)) {
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_projid)) {
 			projid_t i_projid;
 
-			i_projid = from_kprojid(&init_user_ns,
-						F2FS_I(inode)->i_projid);
+			i_projid = from_kprojid(&init_user_ns, fi->i_projid);
 			ri->i_projid = cpu_to_le32(i_projid);
 		}
 
 		if (f2fs_sb_has_inode_crtime(F2FS_I_SB(inode)) &&
-			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
-								i_crtime)) {
-			ri->i_crtime =
-				cpu_to_le64(F2FS_I(inode)->i_crtime.tv_sec);
-			ri->i_crtime_nsec =
-				cpu_to_le32(F2FS_I(inode)->i_crtime.tv_nsec);
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_crtime)) {
+			ri->i_crtime = cpu_to_le64(fi->i_crtime.tv_sec);
+			ri->i_crtime_nsec = cpu_to_le32(fi->i_crtime.tv_nsec);
 		}
 
 		if (f2fs_sb_has_compression(F2FS_I_SB(inode)) &&
-			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize,
 							i_compress_flag)) {
 			unsigned short compress_flag;
 
-			ri->i_compr_blocks =
-				cpu_to_le64(atomic_read(
-					&F2FS_I(inode)->i_compr_blocks));
-			ri->i_compress_algorithm =
-				F2FS_I(inode)->i_compress_algorithm;
-			compress_flag = F2FS_I(inode)->i_compress_flag |
-				F2FS_I(inode)->i_compress_level <<
+			ri->i_compr_blocks = cpu_to_le64(
+					atomic_read(&fi->i_compr_blocks));
+			ri->i_compress_algorithm = fi->i_compress_algorithm;
+			compress_flag = fi->i_compress_flag |
+						fi->i_compress_level <<
 						COMPRESS_LEVEL_OFFSET;
 			ri->i_compress_flag = cpu_to_le16(compress_flag);
-			ri->i_log_cluster_size =
-				F2FS_I(inode)->i_log_cluster_size;
+			ri->i_log_cluster_size = fi->i_log_cluster_size;
 		}
 	}
 
@@ -813,8 +796,9 @@ void f2fs_evict_inode(struct inode *inode)
 
 	f2fs_abort_atomic_write(inode, true);
 
-	if (fi->cow_inode) {
+	if (fi->cow_inode && f2fs_is_cow_file(fi->cow_inode)) {
 		clear_inode_flag(fi->cow_inode, FI_COW_FILE);
+		F2FS_I(fi->cow_inode)->atomic_inode = NULL;
 		iput(fi->cow_inode);
 		fi->cow_inode = NULL;
 	}

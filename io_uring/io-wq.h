@@ -56,7 +56,7 @@ bool io_wq_worker_stopped(void);
 
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
-	return work->flags & IO_WQ_WORK_HASHED;
+	return atomic_read(&work->flags) & IO_WQ_WORK_HASHED;
 }
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);

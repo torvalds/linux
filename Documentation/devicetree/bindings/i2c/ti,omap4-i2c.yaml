@@ -37,15 +37,7 @@ properties:
   clock-names:
     const: fck
 
-  clock-frequency: true
-
   power-domains: true
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 0
 
   ti,hwmods:
     description:
@@ -55,38 +47,34 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     deprecated: true
 
-# subnode's properties
-patternProperties:
-  "@[0-9a-f]+$":
-    type: object
-    description:
-      Flash device uses the below defined properties in the subnode.
-
 required:
   - compatible
   - reg
   - interrupts
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
 
-if:
-  properties:
-    compatible:
-      enum:
-        - ti,omap2420-i2c
-        - ti,omap2430-i2c
-        - ti,omap3-i2c
-        - ti,omap4-i2c
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,omap2420-i2c
+            - ti,omap2430-i2c
+            - ti,omap3-i2c
+            - ti,omap4-i2c
 
-then:
-  properties:
-    ti,hwmods:
-      items:
-        - pattern: "^i2c([1-9])$"
+    then:
+      properties:
+        ti,hwmods:
+          items:
+            - pattern: "^i2c([1-9])$"
 
-else:
-  properties:
-    ti,hwmods: false
+    else:
+      properties:
+        ti,hwmods: false
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -94,9 +82,9 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     main_i2c0: i2c@2000000 {
-            compatible = "ti,j721e-i2c", "ti,omap4-i2c";
-            reg = <0x2000000 0x100>;
-            interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
-            #address-cells = <1>;
-            #size-cells = <0>;
-         };
+        compatible = "ti,j721e-i2c", "ti,omap4-i2c";
+        reg = <0x2000000 0x100>;
+        interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

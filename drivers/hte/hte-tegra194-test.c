@@ -235,4 +235,5 @@ static struct platform_driver tegra_hte_test_driver = {
 module_platform_driver(tegra_hte_test_driver);
 
 MODULE_AUTHOR("Dipen Patel <dipenp@nvidia.com>");
+MODULE_DESCRIPTION("NVIDIA Tegra HTE (Hardware Timestamping Engine) test driver");
 MODULE_LICENSE("GPL");

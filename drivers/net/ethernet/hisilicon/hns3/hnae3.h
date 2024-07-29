@@ -786,7 +786,7 @@ struct hnae3_ae_ops {
 	void (*get_rx_hwts)(struct hnae3_handle *handle, struct sk_buff *skb,
 			    u32 nsec, u32 sec);
 	int (*get_ts_info)(struct hnae3_handle *handle,
-			   struct ethtool_ts_info *info);
+			   struct kernel_ethtool_ts_info *info);
 	int (*get_link_diagnosis_info)(struct hnae3_handle *handle,
 				       u32 *status_code);
 	void (*clean_vf_config)(struct hnae3_ae_dev *ae_dev, int num_vfs);

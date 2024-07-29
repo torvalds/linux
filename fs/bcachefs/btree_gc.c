@@ -20,6 +20,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "debug.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
@@ -43,6 +44,22 @@
 #define DROP_THIS_NODE		10
 #define DROP_PREV_NODE		11
 #define DID_FILL_FROM_SCAN	12
+
+static const char * const bch2_gc_phase_strs[] = {
+#define x(n)	#n,
+	GC_PHASES()
+#undef x
+	NULL
+};
+
+void bch2_gc_pos_to_text(struct printbuf *out, struct gc_pos *p)
+{
+	prt_str(out, bch2_gc_phase_strs[p->phase]);
+	prt_char(out, ' ');
+	bch2_btree_id_to_text(out, p->btree);
+	prt_printf(out, " l=%u ", p->level);
+	bch2_bpos_to_text(out, p->pos);
+}
 
 static struct bkey_s unsafe_bkey_s_c_to_s(struct bkey_s_c k)
 {
@@ -174,10 +191,11 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 	return 0;
 }
 
-static int btree_check_node_boundaries(struct bch_fs *c, struct btree *b,
+static int btree_check_node_boundaries(struct btree_trans *trans, struct btree *b,
 				       struct btree *prev, struct btree *cur,
 				       struct bpos *pulled_from_scan)
 {
+	struct bch_fs *c = trans->c;
 	struct bpos expected_start = !prev
 		? b->data->min_key
 		: bpos_successor(prev->key.k.p);
@@ -215,29 +233,29 @@ static int btree_check_node_boundaries(struct bch_fs *c, struct btree *b,
 			*pulled_from_scan = cur->data->min_key;
 			ret = DID_FILL_FROM_SCAN;
 		} else {
-			if (mustfix_fsck_err(c, btree_node_topology_bad_min_key,
+			if (mustfix_fsck_err(trans, btree_node_topology_bad_min_key,
 					     "btree node with incorrect min_key%s", buf.buf))
 				ret = set_node_min(c, cur, expected_start);
 		}
 	} else {									/* overlap */
 		if (prev && BTREE_NODE_SEQ(cur->data) > BTREE_NODE_SEQ(prev->data)) {	/* cur overwrites prev */
 			if (bpos_ge(prev->data->min_key, cur->data->min_key)) {		/* fully? */
-				if (mustfix_fsck_err(c, btree_node_topology_overwritten_by_next_node,
+				if (mustfix_fsck_err(trans, btree_node_topology_overwritten_by_next_node,
 						     "btree node overwritten by next node%s", buf.buf))
 					ret = DROP_PREV_NODE;
 			} else {
-				if (mustfix_fsck_err(c, btree_node_topology_bad_max_key,
+				if (mustfix_fsck_err(trans, btree_node_topology_bad_max_key,
 						     "btree node with incorrect max_key%s", buf.buf))
 					ret = set_node_max(c, prev,
 							   bpos_predecessor(cur->data->min_key));
 			}
 		} else {
 			if (bpos_ge(expected_start, cur->data->max_key)) {		/* fully? */
-				if (mustfix_fsck_err(c, btree_node_topology_overwritten_by_prev_node,
+				if (mustfix_fsck_err(trans, btree_node_topology_overwritten_by_prev_node,
 						     "btree node overwritten by prev node%s", buf.buf))
 					ret = DROP_THIS_NODE;
 			} else {
-				if (mustfix_fsck_err(c, btree_node_topology_bad_min_key,
+				if (mustfix_fsck_err(trans, btree_node_topology_bad_min_key,
 						     "btree node with incorrect min_key%s", buf.buf))
 					ret = set_node_min(c, cur, expected_start);
 			}
@@ -249,9 +267,10 @@ fsck_err:
 	return ret;
 }
 
-static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
+static int btree_repair_node_end(struct btree_trans *trans, struct btree *b,
 				 struct btree *child, struct bpos *pulled_from_scan)
 {
+	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
@@ -265,7 +284,7 @@ static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
 	prt_str(&buf, "\n  child: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&child->key));
 
-	if (mustfix_fsck_err(c, btree_node_topology_bad_max_key,
+	if (mustfix_fsck_err(trans, btree_node_topology_bad_max_key,
 			     "btree node with incorrect max_key%s", buf.buf)) {
 		if (b->c.level == 1 &&
 		    bpos_lt(*pulled_from_scan, b->key.k.p)) {
@@ -324,8 +343,8 @@ again:
 		printbuf_reset(&buf);
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
-		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO), c,
-				btree_node_unreadable,
+		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
+				trans, btree_node_unreadable,
 				"Topology repair: unreadable btree node at btree %s level %u:\n"
 				"  %s",
 				bch2_btree_id_str(b->c.btree_id),
@@ -362,7 +381,7 @@ again:
 			continue;
 		}
 
-		ret = btree_check_node_boundaries(c, b, prev, cur, pulled_from_scan);
+		ret = btree_check_node_boundaries(trans, b, prev, cur, pulled_from_scan);
 		if (ret == DID_FILL_FROM_SCAN) {
 			new_pass = true;
 			ret = 0;
@@ -403,7 +422,7 @@ again:
 
 	if (!ret && !IS_ERR_OR_NULL(prev)) {
 		BUG_ON(cur);
-		ret = btree_repair_node_end(c, b, prev, pulled_from_scan);
+		ret = btree_repair_node_end(trans, b, prev, pulled_from_scan);
 		if (ret == DID_FILL_FROM_SCAN) {
 			new_pass = true;
 			ret = 0;
@@ -461,8 +480,8 @@ again:
 	printbuf_reset(&buf);
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-	if (mustfix_fsck_err_on(!have_child, c,
-			btree_node_topology_interior_node_empty,
+	if (mustfix_fsck_err_on(!have_child,
+			trans, btree_node_topology_interior_node_empty,
 			"empty interior btree node at btree %s level %u\n"
 			"  %s",
 			bch2_btree_id_str(b->c.btree_id),
@@ -509,7 +528,7 @@ reconstruct_root:
 			r->error = 0;
 
 			if (!bch2_btree_has_scanned_nodes(c, i)) {
-				mustfix_fsck_err(c, btree_root_unreadable_and_scan_found_nothing,
+				mustfix_fsck_err(trans, btree_root_unreadable_and_scan_found_nothing,
 						 "no nodes found for btree %s, continue?", bch2_btree_id_str(i));
 				bch2_btree_root_alloc_fake_trans(trans, i, 0);
 			} else {
@@ -583,18 +602,20 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k.k->version.lo > atomic64_read(&c->journal.seq));
 
-		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
-				bkey_version_in_future,
-				"key version number higher than recorded: %llu > %llu",
-				k.k->version.lo,
-				atomic64_read(&c->key_version)))
+		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
+				k.k->version.lo > atomic64_read(&c->key_version),
+				trans, bkey_version_in_future,
+				"key version number higher than recorded %llu\n  %s",
+				atomic64_read(&c->key_version),
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			atomic64_set(&c->key_version, k.k->version.lo);
 	}
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
-				c, btree_bitmap_not_marked,
+				trans, btree_bitmap_not_marked,
 				"btree ptr not marked in member info btree allocated bitmap\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k),
 				 buf.buf))) {
 		mutex_lock(&c->sb_lock);
 		bch2_dev_btree_bitmap_mark(c, k);
@@ -621,7 +642,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(k),
-			       BTREE_TRIGGER_gc|flags);
+			       BTREE_TRIGGER_gc|BTREE_TRIGGER_insert|flags);
 out:
 fsck_err:
 	printbuf_exit(&buf);
@@ -632,29 +653,14 @@ fsck_err:
 static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool initial)
 {
 	struct bch_fs *c = trans->c;
-	int level = 0, target_depth = btree_node_type_needs_gc(__btree_node_type(0, btree)) ? 0 : 1;
+	unsigned target_depth = btree_node_type_has_triggers(__btree_node_type(0, btree)) ? 0 : 1;
 	int ret = 0;
 
 	/* We need to make sure every leaf node is readable before going RW */
 	if (initial)
 		target_depth = 0;
 
-	/* root */
-	mutex_lock(&c->btree_root_lock);
-	struct btree *b = bch2_btree_id_root(c, btree)->b;
-	if (!btree_node_fake(b)) {
-		gc_pos_set(c, gc_pos_btree(btree, b->c.level + 1, SPOS_MAX));
-		ret = lockrestart_do(trans,
-			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
-					 NULL, NULL, bkey_i_to_s_c(&b->key), initial));
-		level = b->c.level;
-	}
-	mutex_unlock(&c->btree_root_lock);
-
-	if (ret)
-		return ret;
-
-	for (; level >= target_depth; --level) {
+	for (unsigned level = target_depth; level < BTREE_MAX_DEPTH; level++) {
 		struct btree *prev = NULL;
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN, 0, level,
@@ -665,16 +671,41 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool in
 			bch2_gc_mark_key(trans, btree, level, &prev, &iter, k, initial);
 		}));
 		if (ret)
-			break;
+			goto err;
 	}
 
+	/* root */
+	do {
+retry_root:
+		bch2_trans_begin(trans);
+
+		struct btree_iter iter;
+		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN,
+					  0, bch2_btree_id_root(c, btree)->b->c.level, 0);
+		struct btree *b = bch2_btree_iter_peek_node(&iter);
+		ret = PTR_ERR_OR_ZERO(b);
+		if (ret)
+			goto err_root;
+
+		if (b != btree_node_root(c, b)) {
+			bch2_trans_iter_exit(trans, &iter);
+			goto retry_root;
+		}
+
+		gc_pos_set(c, gc_pos_btree(btree, b->c.level + 1, SPOS_MAX));
+		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
+		ret = bch2_gc_mark_key(trans, btree, b->c.level + 1, NULL, NULL, k, initial);
+err_root:
+		bch2_trans_iter_exit(trans, &iter);
+	} while (bch2_err_matches(ret, BCH_ERR_transaction_restart));
+err:
+	bch_err_fn(c, ret);
 	return ret;
 }
 
 static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 {
-	return  (int) btree_id_to_gc_phase(l) -
-		(int) btree_id_to_gc_phase(r);
+	return cmp_int(gc_btree_order(l), gc_btree_order(r));
 }
 
 static int bch2_gc_btrees(struct bch_fs *c)
@@ -697,7 +728,7 @@ static int bch2_gc_btrees(struct bch_fs *c)
 		ret = bch2_gc_btree(trans, btree, true);
 
 		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-					c, btree_node_read_error,
+					trans, btree_node_read_error,
 			       "btree node read error for %s",
 			       bch2_btree_id_str(btree)))
 			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
@@ -711,7 +742,7 @@ fsck_err:
 static int bch2_mark_superblocks(struct bch_fs *c)
 {
 	mutex_lock(&c->sb_lock);
-	gc_pos_set(c, gc_phase(GC_PHASE_SB));
+	gc_pos_set(c, gc_phase(GC_PHASE_sb));
 
 	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_gc);
 	mutex_unlock(&c->sb_lock);
@@ -720,131 +751,25 @@ static int bch2_mark_superblocks(struct bch_fs *c)
 
 static void bch2_gc_free(struct bch_fs *c)
 {
+	bch2_accounting_gc_free(c);
+
 	genradix_free(&c->reflink_gc_table);
 	genradix_free(&c->gc_stripes);
 
 	for_each_member_device(c, ca) {
 		kvfree(rcu_dereference_protected(ca->buckets_gc, 1));
 		ca->buckets_gc = NULL;
-
-		free_percpu(ca->usage_gc);
-		ca->usage_gc = NULL;
 	}
-
-	free_percpu(c->usage_gc);
-	c->usage_gc = NULL;
-}
-
-static int bch2_gc_done(struct bch_fs *c)
-{
-	struct bch_dev *ca = NULL;
-	struct printbuf buf = PRINTBUF;
-	unsigned i;
-	int ret = 0;
-
-	percpu_down_write(&c->mark_lock);
-
-#define copy_field(_err, _f, _msg, ...)						\
-	if (fsck_err_on(dst->_f != src->_f, c, _err,				\
-			_msg ": got %llu, should be %llu" , ##__VA_ARGS__,	\
-			dst->_f, src->_f))					\
-		dst->_f = src->_f
-#define copy_dev_field(_err, _f, _msg, ...)					\
-	copy_field(_err, _f, "dev %u has wrong " _msg, ca->dev_idx, ##__VA_ARGS__)
-#define copy_fs_field(_err, _f, _msg, ...)					\
-	copy_field(_err, _f, "fs has wrong " _msg, ##__VA_ARGS__)
-
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		bch2_fs_usage_acc_to_base(c, i);
-
-	__for_each_member_device(c, ca) {
-		struct bch_dev_usage *dst = ca->usage_base;
-		struct bch_dev_usage *src = (void *)
-			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
-					     dev_usage_u64s());
-
-		for (i = 0; i < BCH_DATA_NR; i++) {
-			copy_dev_field(dev_usage_buckets_wrong,
-				       d[i].buckets,	"%s buckets", bch2_data_type_str(i));
-			copy_dev_field(dev_usage_sectors_wrong,
-				       d[i].sectors,	"%s sectors", bch2_data_type_str(i));
-			copy_dev_field(dev_usage_fragmented_wrong,
-				       d[i].fragmented,	"%s fragmented", bch2_data_type_str(i));
-		}
-	}
-
-	{
-		unsigned nr = fs_usage_u64s(c);
-		struct bch_fs_usage *dst = c->usage_base;
-		struct bch_fs_usage *src = (void *)
-			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
-
-		copy_fs_field(fs_usage_hidden_wrong,
-			      b.hidden,		"hidden");
-		copy_fs_field(fs_usage_btree_wrong,
-			      b.btree,		"btree");
-
-		copy_fs_field(fs_usage_data_wrong,
-			      b.data,	"data");
-		copy_fs_field(fs_usage_cached_wrong,
-			      b.cached,	"cached");
-		copy_fs_field(fs_usage_reserved_wrong,
-			      b.reserved,	"reserved");
-		copy_fs_field(fs_usage_nr_inodes_wrong,
-			      b.nr_inodes,"nr_inodes");
-
-		for (i = 0; i < BCH_REPLICAS_MAX; i++)
-			copy_fs_field(fs_usage_persistent_reserved_wrong,
-				      persistent_reserved[i],
-				      "persistent_reserved[%i]", i);
-
-		for (i = 0; i < c->replicas.nr; i++) {
-			struct bch_replicas_entry_v1 *e =
-				cpu_replicas_entry(&c->replicas, i);
-
-			printbuf_reset(&buf);
-			bch2_replicas_entry_to_text(&buf, e);
-
-			copy_fs_field(fs_usage_replicas_wrong,
-				      replicas[i], "%s", buf.buf);
-		}
-	}
-
-#undef copy_fs_field
-#undef copy_dev_field
-#undef copy_stripe_field
-#undef copy_field
-fsck_err:
-	bch2_dev_put(ca);
-	bch_err_fn(c, ret);
-	percpu_up_write(&c->mark_lock);
-	printbuf_exit(&buf);
-	return ret;
 }
 
 static int bch2_gc_start(struct bch_fs *c)
 {
-	BUG_ON(c->usage_gc);
-
-	c->usage_gc = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
-					 sizeof(u64), GFP_KERNEL);
-	if (!c->usage_gc) {
-		bch_err(c, "error allocating c->usage_gc");
-		return -BCH_ERR_ENOMEM_gc_start;
-	}
-
 	for_each_member_device(c, ca) {
-		BUG_ON(ca->usage_gc);
-
-		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
-		if (!ca->usage_gc) {
-			bch_err(c, "error allocating ca->usage_gc");
+		int ret = bch2_dev_usage_init(ca, true);
+		if (ret) {
 			bch2_dev_put(ca);
-			return -BCH_ERR_ENOMEM_gc_start;
+			return ret;
 		}
-
-		this_cpu_write(ca->usage_gc->d[BCH_DATA_free].buckets,
-			       ca->mi.nbuckets - ca->mi.first_bucket);
 	}
 
 	return 0;
@@ -858,6 +783,7 @@ static inline bool bch2_alloc_v4_cmp(struct bch_alloc_v4 l,
 		l.oldest_gen != r.oldest_gen		||
 		l.data_type != r.data_type		||
 		l.dirty_sectors	!= r.dirty_sectors	||
+		l.stripe_sectors != r.stripe_sectors	||
 		l.cached_sectors != r.cached_sectors	 ||
 		l.stripe_redundancy != r.stripe_redundancy ||
 		l.stripe != r.stripe;
@@ -874,6 +800,9 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	const struct bch_alloc_v4 *old;
 	int ret;
 
+	if (!bucket_valid(ca, k.k->p.offset))
+		return 0;
+
 	old = bch2_alloc_to_v4(k, &old_convert);
 	gc = new = *old;
 
@@ -888,6 +817,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		gc.data_type = old->data_type;
 		gc.dirty_sectors = old->dirty_sectors;
 	}
+	percpu_up_read(&c->mark_lock);
 
 	/*
 	 * gc.data_type doesn't yet include need_discard & need_gc_gen states -
@@ -896,12 +826,16 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	alloc_data_type_set(&gc, gc.data_type);
 
 	if (gc.data_type != old_gc.data_type ||
-	    gc.dirty_sectors != old_gc.dirty_sectors)
-		bch2_dev_usage_update(c, ca, &old_gc, &gc, 0, true);
-	percpu_up_read(&c->mark_lock);
+	    gc.dirty_sectors != old_gc.dirty_sectors) {
+		ret = bch2_alloc_key_to_dev_counters(trans, ca, &old_gc, &gc, BTREE_TRIGGER_gc);
+		if (ret)
+			return ret;
+	}
 
-	if (fsck_err_on(new.data_type != gc.data_type, c,
-			alloc_key_data_type_wrong,
+	gc.fragmentation_lru = alloc_lru_idx_fragmentation(gc, ca);
+
+	if (fsck_err_on(new.data_type != gc.data_type,
+			trans, alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
 			": got %s, should be %s",
 			iter->pos.inode, iter->pos.offset,
@@ -911,25 +845,23 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		new.data_type = gc.data_type;
 
 #define copy_bucket_field(_errtype, _f)					\
-	if (fsck_err_on(new._f != gc._f, c, _errtype,			\
+	if (fsck_err_on(new._f != gc._f,				\
+			trans, _errtype,				\
 			"bucket %llu:%llu gen %u data type %s has wrong " #_f	\
-			": got %u, should be %u",			\
+			": got %llu, should be %llu",			\
 			iter->pos.inode, iter->pos.offset,		\
 			gc.gen,						\
 			bch2_data_type_str(gc.data_type),		\
-			new._f, gc._f))					\
+			(u64) new._f, (u64) gc._f))				\
 		new._f = gc._f;						\
 
-	copy_bucket_field(alloc_key_gen_wrong,
-			  gen);
-	copy_bucket_field(alloc_key_dirty_sectors_wrong,
-			  dirty_sectors);
-	copy_bucket_field(alloc_key_cached_sectors_wrong,
-			  cached_sectors);
-	copy_bucket_field(alloc_key_stripe_wrong,
-			  stripe);
-	copy_bucket_field(alloc_key_stripe_redundancy_wrong,
-			  stripe_redundancy);
+	copy_bucket_field(alloc_key_gen_wrong,			gen);
+	copy_bucket_field(alloc_key_dirty_sectors_wrong,	dirty_sectors);
+	copy_bucket_field(alloc_key_stripe_sectors_wrong,	stripe_sectors);
+	copy_bucket_field(alloc_key_cached_sectors_wrong,	cached_sectors);
+	copy_bucket_field(alloc_key_stripe_wrong,		stripe);
+	copy_bucket_field(alloc_key_stripe_redundancy_wrong,	stripe_redundancy);
+	copy_bucket_field(alloc_key_fragmentation_lru_wrong,	fragmentation_lru);
 #undef copy_bucket_field
 
 	if (!bch2_alloc_v4_cmp(*old, new))
@@ -943,7 +875,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	a->v = new;
 
 	/*
-	 * The trigger normally makes sure this is set, but we're not running
+	 * The trigger normally makes sure these are set, but we're not running
 	 * triggers:
 	 */
 	if (a->v.data_type == BCH_DATA_cached && !a->v.io_time[READ])
@@ -978,40 +910,25 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 
 static int bch2_gc_alloc_start(struct bch_fs *c)
 {
+	int ret = 0;
+
 	for_each_member_device(c, ca) {
 		struct bucket_array *buckets = kvmalloc(sizeof(struct bucket_array) +
 				ca->mi.nbuckets * sizeof(struct bucket),
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {
 			bch2_dev_put(ca);
-			bch_err(c, "error allocating ca->buckets[gc]");
-			return -BCH_ERR_ENOMEM_gc_alloc_start;
+			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
+			break;
 		}
 
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
+		buckets->nbuckets_minus_first =
+			buckets->nbuckets - buckets->first_bucket;
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	struct bch_dev *ca = NULL;
-	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-					 BTREE_ITER_prefetch, k, ({
-			ca = bch2_dev_iterate(c, ca, k.k->p.inode);
-			if (!ca) {
-				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
-				continue;
-			}
-
-			struct bch_alloc_v4 a_convert;
-			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
-
-			struct bucket *g = gc_bucket(ca, k.k->p.offset);
-			g->gen_valid	= 1;
-			g->gen		= a->gen;
-			0;
-		})));
-	bch2_dev_put(ca);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1041,8 +958,8 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 		return -EINVAL;
 	}
 
-	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount), c,
-			reflink_v_refcount_wrong,
+	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount),
+			trans, reflink_v_refcount_wrong,
 			"reflink key has wrong refcount:\n"
 			"  %s\n"
 			"  should be %u",
@@ -1140,7 +1057,8 @@ static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 	if (bad)
 		bch2_bkey_val_to_text(&buf, c, k);
 
-	if (fsck_err_on(bad, c, stripe_sector_count_wrong,
+	if (fsck_err_on(bad,
+			trans, stripe_sector_count_wrong,
 			"%s", buf.buf)) {
 		struct bkey_i_stripe *new;
 
@@ -1203,16 +1121,19 @@ int bch2_check_allocations(struct bch_fs *c)
 
 	bch2_btree_interior_updates_flush(c);
 
-	ret   = bch2_gc_start(c) ?:
+	ret   = bch2_gc_accounting_start(c) ?:
+		bch2_gc_start(c) ?:
 		bch2_gc_alloc_start(c) ?:
 		bch2_gc_reflink_start(c);
 	if (ret)
 		goto out;
 
-	gc_pos_set(c, gc_phase(GC_PHASE_START));
+	gc_pos_set(c, gc_phase(GC_PHASE_start));
 
 	ret = bch2_mark_superblocks(c);
-	BUG_ON(ret);
+	bch_err_msg(c, ret, "marking superblocks");
+	if (ret)
+		goto out;
 
 	ret = bch2_gc_btrees(c);
 	if (ret)
@@ -1220,18 +1141,14 @@ int bch2_check_allocations(struct bch_fs *c)
 
 	c->gc_count++;
 
-	bch2_journal_block(&c->journal);
-out:
 	ret   = bch2_gc_alloc_done(c) ?:
-		bch2_gc_done(c) ?:
+		bch2_gc_accounting_done(c) ?:
 		bch2_gc_stripes_done(c) ?:
 		bch2_gc_reflink_done(c);
-
-	bch2_journal_unblock(&c->journal);
-
+out:
 	percpu_down_write(&c->mark_lock);
 	/* Indicates that gc is no longer in progress: */
-	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
+	__gc_pos_set(c, gc_phase(GC_PHASE_not_running));
 
 	bch2_gc_free(c);
 	percpu_up_write(&c->mark_lock);
@@ -1323,7 +1240,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	int ret;
 
 	/*
-	 * Ideally we would be using state_lock and not gc_lock here, but that
+	 * Ideally we would be using state_lock and not gc_gens_lock here, but that
 	 * introduces a deadlock in the RO path - we currently take the state
 	 * lock at the start of going RO, thus the gc thread may get stuck:
 	 */
@@ -1331,7 +1248,8 @@ int bch2_gc_gens(struct bch_fs *c)
 		return 0;
 
 	trace_and_count(c, gc_gens_start, c);
-	down_read(&c->gc_lock);
+
+	down_read(&c->state_lock);
 
 	for_each_member_device(c, ca) {
 		struct bucket_gens *gens = bucket_gens(ca);
@@ -1400,7 +1318,7 @@ err:
 		ca->oldest_gen = NULL;
 	}
 
-	up_read(&c->gc_lock);
+	up_read(&c->state_lock);
 	mutex_unlock(&c->gc_gens_lock);
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);

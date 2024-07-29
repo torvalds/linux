@@ -736,6 +736,17 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
 
+	/*
+	 * Never allow s_user_ns != &init_user_ns when FS_USERNS_MOUNT is
+	 * not set, as the filesystem is likely unprepared to handle it.
+	 * This can happen when fsconfig() is called from init_user_ns with
+	 * an fs_fd opened in another user namespace.
+	 */
+	if (user_ns != &init_user_ns && !(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
+		errorfc(fc, "VFS: Mounting from non-initial user namespace is not allowed");
+		return ERR_PTR(-EPERM);
+	}
+
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -1502,8 +1513,17 @@ static int fs_bdev_thaw(struct block_device *bdev)
 
 	lockdep_assert_held(&bdev->bd_fsfreeze_mutex);
 
+	/*
+	 * The block device may have been frozen before it was claimed by a
+	 * filesystem. Concurrently another process might try to mount that
+	 * frozen block device and has temporarily claimed the block device for
+	 * that purpose causing a concurrent fs_bdev_thaw() to end up here. The
+	 * mounter is already about to abort mounting because they still saw an
+	 * elevanted bdev->bd_fsfreeze_count so get_bdev_super() will return
+	 * NULL in that case.
+	 */
 	sb = get_bdev_super(bdev);
-	if (WARN_ON_ONCE(!sb))
+	if (!sb)
 		return -EINVAL;
 
 	if (sb->s_op->thaw_super)

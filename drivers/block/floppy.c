@@ -4516,7 +4516,8 @@ static bool floppy_available(int drive)
 static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct queue_limits lim = {
-		.max_hw_sectors = 64,
+		.max_hw_sectors		= 64,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	struct gendisk *disk;
 
@@ -5016,6 +5017,7 @@ module_param(floppy, charp, 0);
 module_param(FLOPPY_IRQ, int, 0);
 module_param(FLOPPY_DMA, int, 0);
 MODULE_AUTHOR("Alain L. Knaff");
+MODULE_DESCRIPTION("Normal floppy disk support");
 MODULE_LICENSE("GPL");
 
 /* This doesn't actually get used other than for module information */

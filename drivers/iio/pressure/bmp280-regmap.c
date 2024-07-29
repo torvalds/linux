@@ -45,7 +45,7 @@ static bool bmp280_is_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case BMP280_REG_CONFIG:
-	case BMP280_REG_CTRL_HUMIDITY:
+	case BME280_REG_CTRL_HUMIDITY:
 	case BMP280_REG_CTRL_MEAS:
 	case BMP280_REG_RESET:
 		return true;
@@ -57,8 +57,8 @@ static bool bmp280_is_writeable_reg(struct device *dev, unsigned int reg)
 static bool bmp280_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case BMP280_REG_HUMIDITY_LSB:
-	case BMP280_REG_HUMIDITY_MSB:
+	case BME280_REG_HUMIDITY_LSB:
+	case BME280_REG_HUMIDITY_MSB:
 	case BMP280_REG_TEMP_XLSB:
 	case BMP280_REG_TEMP_LSB:
 	case BMP280_REG_TEMP_MSB:
@@ -167,7 +167,7 @@ const struct regmap_config bmp280_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
-	.max_register = BMP280_REG_HUMIDITY_LSB,
+	.max_register = BME280_REG_HUMIDITY_LSB,
 	.cache_type = REGCACHE_RBTREE,
 
 	.writeable_reg = bmp280_is_writeable_reg,

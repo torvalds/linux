@@ -258,7 +258,7 @@ bool dmub_abm_set_pipe(struct abm *abm,
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
-	uint32_t ramping_boundary = 0xFFFF;
+	uint8_t ramping_boundary = 0xFF;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
@@ -297,3 +297,21 @@ bool dmub_abm_set_backlight_level(struct abm *abm,
 	return true;
 }
 
+bool dmub_abm_set_event(struct abm *abm, unsigned int scaling_enable, unsigned int scaling_strength_map,
+		unsigned int panel_inst)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = abm->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.abm_set_event.header.type = DMUB_CMD__ABM;
+	cmd.abm_set_event.header.sub_type = DMUB_CMD__ABM_SET_EVENT;
+	cmd.abm_set_event.abm_set_event_data.vb_scaling_enable = scaling_enable;
+	cmd.abm_set_event.abm_set_event_data.vb_scaling_strength_mapping = scaling_strength_map;
+	cmd.abm_set_event.abm_set_event_data.panel_mask = (1<<panel_inst);
+	cmd.abm_set_event.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_event_data);
+
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return true;
+}

@@ -8,21 +8,29 @@
 #ifndef __ARCH_S390_ATOMIC_OPS__
 #define __ARCH_S390_ATOMIC_OPS__
 
+#include <linux/limits.h>
+
 static __always_inline int __atomic_read(const atomic_t *v)
 {
 	int c;
 
 	asm volatile(
-		"	l	%0,%1\n"
-		: "=d" (c) : "R" (v->counter));
+		"	l	%[c],%[counter]\n"
+		: [c] "=d" (c) : [counter] "R" (v->counter));
 	return c;
 }
 
 static __always_inline void __atomic_set(atomic_t *v, int i)
 {
-	asm volatile(
-		"	st	%1,%0\n"
-		: "=R" (v->counter) : "d" (i));
+	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+		asm volatile(
+			"	mvhi	%[counter], %[i]\n"
+			: [counter] "=Q" (v->counter) : [i] "K" (i));
+	} else {
+		asm volatile(
+			"	st	%[i],%[counter]\n"
+			: [counter] "=R" (v->counter) : [i] "d" (i));
+	}
 }
 
 static __always_inline s64 __atomic64_read(const atomic64_t *v)
@@ -30,16 +38,22 @@ static __always_inline s64 __atomic64_read(const atomic64_t *v)
 	s64 c;
 
 	asm volatile(
-		"	lg	%0,%1\n"
-		: "=d" (c) : "RT" (v->counter));
+		"	lg	%[c],%[counter]\n"
+		: [c] "=d" (c) : [counter] "RT" (v->counter));
 	return c;
 }
 
 static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
 {
-	asm volatile(
-		"	stg	%1,%0\n"
-		: "=RT" (v->counter) : "d" (i));
+	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+		asm volatile(
+			"	mvghi	%[counter], %[i]\n"
+			: [counter] "=Q" (v->counter) : [i] "K" (i));
+	} else {
+		asm volatile(
+			"	stg	%[i],%[counter]\n"
+			: [counter] "=RT" (v->counter) : [i] "d" (i));
+	}
 }
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -164,6 +178,45 @@ static __always_inline int __atomic_cmpxchg(int *ptr, int old, int new)
 	return old;
 }
 
+static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
+{
+	asm volatile(
+		"	csg	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+QS" (*ptr)
+		: [new] "d" (new)
+		: "cc", "memory");
+	return old;
+}
+
+/* GCC versions before 14.2.0 may die with an ICE in some configurations. */
+#if defined(__GCC_ASM_FLAG_OUTPUTS__) && !(IS_ENABLED(CONFIG_CC_IS_GCC) && (GCC_VERSION < 140200))
+
+static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
+{
+	int cc;
+
+	asm volatile(
+		"	cs	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+Q" (*ptr), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
+{
+	int cc;
+
+	asm volatile(
+		"	csg	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+QS" (*ptr), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+#else /* __GCC_ASM_FLAG_OUTPUTS__ */
+
 static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
 {
 	int old_expected = old;
@@ -174,16 +227,6 @@ static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
 		: [new] "d" (new)
 		: "cc", "memory");
 	return old == old_expected;
-}
-
-static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
-{
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old;
 }
 
 static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
@@ -197,5 +240,7 @@ static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long ne
 		: "cc", "memory");
 	return old == old_expected;
 }
+
+#endif /* __GCC_ASM_FLAG_OUTPUTS__ */
 
 #endif /* __ARCH_S390_ATOMIC_OPS__  */

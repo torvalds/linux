@@ -601,11 +601,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 	/*
 	 * Warn when writing beyond destination field size.
 	 *
-	 * We must ignore p_size_field == 0 for existing 0-element
-	 * fake flexible arrays, until they are all converted to
-	 * proper flexible arrays.
-	 *
-	 * The implementation of __builtin_*object_size() behaves
+	 * Note the implementation of __builtin_*object_size() behaves
 	 * like sizeof() when not directly referencing a flexible
 	 * array member, which means there will be many bounds checks
 	 * that will appear at run-time, without a way for them to be
@@ -613,7 +609,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 	 * is specifically the flexible array member).
 	 * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=101832
 	 */
-	if (p_size_field != 0 && p_size_field != SIZE_MAX &&
+	if (p_size_field != SIZE_MAX &&
 	    p_size != p_size_field && p_size_field < size)
 		return true;
 

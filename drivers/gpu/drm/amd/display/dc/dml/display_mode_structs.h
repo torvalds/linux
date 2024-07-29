@@ -632,6 +632,7 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int ref_freq_to_pix_freq;
 	unsigned int vratio_prefetch;
 	unsigned int vratio_prefetch_c;
+	unsigned int refcyc_per_tdlut_group;
 	unsigned int refcyc_per_pte_group_vblank_l;
 	unsigned int refcyc_per_pte_group_vblank_c;
 	unsigned int refcyc_per_meta_chunk_vblank_l;

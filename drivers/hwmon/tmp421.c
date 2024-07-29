@@ -446,11 +446,7 @@ static int tmp421_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&data->update_lock);
-	if (client->dev.of_node)
-		data->channels = (unsigned long)
-			of_device_get_match_data(&client->dev);
-	else
-		data->channels = i2c_match_id(tmp421_id, client)->driver_data;
+	data->channels = (unsigned long)i2c_get_match_data(client);
 	data->client = client;
 
 	for (i = 0; i < data->channels; i++) {

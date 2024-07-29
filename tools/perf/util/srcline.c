@@ -39,7 +39,7 @@ static const char *srcline_dso_name(struct dso *dso)
 	if (dso_name[0] == '[')
 		return NULL;
 
-	if (!strncmp(dso_name, "/tmp/perf-", 10))
+	if (is_perf_pid_map_name(dso_name))
 		return NULL;
 
 	return dso_name;
@@ -288,7 +288,7 @@ static int inline_list__append_dso_a2l(struct dso *dso,
 				       struct inline_node *node,
 				       struct symbol *sym)
 {
-	struct a2l_data *a2l = dso->a2l;
+	struct a2l_data *a2l = dso__a2l(dso);
 	struct symbol *inline_sym = new_inline_sym(dso, sym, a2l->funcname);
 	char *srcline = NULL;
 
@@ -304,11 +304,11 @@ static int addr2line(const char *dso_name, u64 addr,
 		     struct symbol *sym)
 {
 	int ret = 0;
-	struct a2l_data *a2l = dso->a2l;
+	struct a2l_data *a2l = dso__a2l(dso);
 
 	if (!a2l) {
-		dso->a2l = addr2line_init(dso_name);
-		a2l = dso->a2l;
+		a2l = addr2line_init(dso_name);
+		dso__set_a2l(dso, a2l);
 	}
 
 	if (a2l == NULL) {
@@ -360,14 +360,14 @@ static int addr2line(const char *dso_name, u64 addr,
 
 void dso__free_a2l(struct dso *dso)
 {
-	struct a2l_data *a2l = dso->a2l;
+	struct a2l_data *a2l = dso__a2l(dso);
 
 	if (!a2l)
 		return;
 
 	addr2line_cleanup(a2l);
 
-	dso->a2l = NULL;
+	dso__set_a2l(dso, NULL);
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */

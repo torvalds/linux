@@ -342,7 +342,7 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 	else
 		gt->steering[OADDRM].group_target = 1;
 
-	gt->steering[DSS].instance_target = 0;		/* unused */
+	gt->steering[OADDRM].instance_target = 0;	/* unused */
 }
 
 static void init_steering_sqidi_psmi(struct xe_gt *gt)
@@ -357,8 +357,8 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 
 static void init_steering_inst0(struct xe_gt *gt)
 {
-	gt->steering[DSS].group_target = 0;		/* unused */
-	gt->steering[DSS].instance_target = 0;		/* unused */
+	gt->steering[INSTANCE0].group_target = 0;	/* unused */
+	gt->steering[INSTANCE0].instance_target = 0;	/* unused */
 }
 
 static const struct {
@@ -375,17 +375,34 @@ static const struct {
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
 
+/**
+ * xe_gt_mcr_init_early - Early initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform early software only initialization of the MCR lock to allow
+ * the synchronization on accessing the STEER_SEMAPHORE register and
+ * use the xe_gt_mcr_multicast_write() function.
+ */
+void xe_gt_mcr_init_early(struct xe_gt *gt)
+{
+	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
+	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
+
+	spin_lock_init(&gt->mcr_lock);
+}
+
+/**
+ * xe_gt_mcr_init - Normal initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform normal initialization of the MCR for all usages.
+ */
 void xe_gt_mcr_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
-	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
-	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
-
 	if (IS_SRIOV_VF(xe))
 		return;
-
-	spin_lock_init(&gt->mcr_lock);
 
 	if (gt->info.type == XE_GT_TYPE_MEDIA) {
 		drm_WARN_ON(&xe->drm, MEDIA_VER(xe) < 13);

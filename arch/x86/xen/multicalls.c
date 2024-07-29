@@ -23,15 +23,14 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/debugfs.h>
+#include <linux/jump_label.h>
+#include <linux/printk.h>
 
 #include <asm/xen/hypercall.h>
 
-#include "multicalls.h"
-#include "debugfs.h"
+#include "xen-ops.h"
 
 #define MC_BATCH	32
-
-#define MC_DEBUG	0
 
 #define MC_ARGS		(MC_BATCH * 16)
 
@@ -39,10 +38,6 @@
 struct mc_buffer {
 	unsigned mcidx, argidx, cbidx;
 	struct multicall_entry entries[MC_BATCH];
-#if MC_DEBUG
-	struct multicall_entry debug[MC_BATCH];
-	void *caller[MC_BATCH];
-#endif
 	unsigned char args[MC_ARGS];
 	struct callback {
 		void (*fn)(void *);
@@ -50,13 +45,103 @@ struct mc_buffer {
 	} callbacks[MC_BATCH];
 };
 
+struct mc_debug_data {
+	struct multicall_entry entries[MC_BATCH];
+	void *caller[MC_BATCH];
+	size_t argsz[MC_BATCH];
+	unsigned long *args[MC_BATCH];
+};
+
 static DEFINE_PER_CPU(struct mc_buffer, mc_buffer);
+static struct mc_debug_data mc_debug_data_early __initdata;
+static DEFINE_PER_CPU(struct mc_debug_data *, mc_debug_data) =
+	&mc_debug_data_early;
+static struct mc_debug_data __percpu *mc_debug_data_ptr;
 DEFINE_PER_CPU(unsigned long, xen_mc_irq_flags);
+
+static struct static_key mc_debug __ro_after_init;
+static bool mc_debug_enabled __initdata;
+
+static int __init xen_parse_mc_debug(char *arg)
+{
+	mc_debug_enabled = true;
+	static_key_slow_inc(&mc_debug);
+
+	return 0;
+}
+early_param("xen_mc_debug", xen_parse_mc_debug);
+
+void mc_percpu_init(unsigned int cpu)
+{
+	per_cpu(mc_debug_data, cpu) = per_cpu_ptr(mc_debug_data_ptr, cpu);
+}
+
+static int __init mc_debug_enable(void)
+{
+	unsigned long flags;
+
+	if (!mc_debug_enabled)
+		return 0;
+
+	mc_debug_data_ptr = alloc_percpu(struct mc_debug_data);
+	if (!mc_debug_data_ptr) {
+		pr_err("xen_mc_debug inactive\n");
+		static_key_slow_dec(&mc_debug);
+		return -ENOMEM;
+	}
+
+	/* Be careful when switching to percpu debug data. */
+	local_irq_save(flags);
+	xen_mc_flush();
+	mc_percpu_init(0);
+	local_irq_restore(flags);
+
+	pr_info("xen_mc_debug active\n");
+
+	return 0;
+}
+early_initcall(mc_debug_enable);
+
+/* Number of parameters of hypercalls used via multicalls. */
+static const uint8_t hpcpars[] = {
+	[__HYPERVISOR_mmu_update] = 4,
+	[__HYPERVISOR_stack_switch] = 2,
+	[__HYPERVISOR_fpu_taskswitch] = 1,
+	[__HYPERVISOR_update_descriptor] = 2,
+	[__HYPERVISOR_update_va_mapping] = 3,
+	[__HYPERVISOR_mmuext_op] = 4,
+};
+
+static void print_debug_data(struct mc_buffer *b, struct mc_debug_data *mcdb,
+			     int idx)
+{
+	unsigned int arg;
+	unsigned int opidx = mcdb->entries[idx].op & 0xff;
+	unsigned int pars = 0;
+
+	pr_err("  call %2d: op=%lu result=%ld caller=%pS ", idx + 1,
+	       mcdb->entries[idx].op, b->entries[idx].result,
+	       mcdb->caller[idx]);
+	if (opidx < ARRAY_SIZE(hpcpars))
+		pars = hpcpars[opidx];
+	if (pars) {
+		pr_cont("pars=");
+		for (arg = 0; arg < pars; arg++)
+			pr_cont("%lx ", mcdb->entries[idx].args[arg]);
+	}
+	if (mcdb->argsz[idx]) {
+		pr_cont("args=");
+		for (arg = 0; arg < mcdb->argsz[idx] / 8; arg++)
+			pr_cont("%lx ", mcdb->args[idx][arg]);
+	}
+	pr_cont("\n");
+}
 
 void xen_mc_flush(void)
 {
 	struct mc_buffer *b = this_cpu_ptr(&mc_buffer);
 	struct multicall_entry *mc;
+	struct mc_debug_data *mcdb = NULL;
 	int ret = 0;
 	unsigned long flags;
 	int i;
@@ -69,10 +154,11 @@ void xen_mc_flush(void)
 
 	trace_xen_mc_flush(b->mcidx, b->argidx, b->cbidx);
 
-#if MC_DEBUG
-	memcpy(b->debug, b->entries,
-	       b->mcidx * sizeof(struct multicall_entry));
-#endif
+	if (static_key_false(&mc_debug)) {
+		mcdb = __this_cpu_read(mc_debug_data);
+		memcpy(mcdb->entries, b->entries,
+		       b->mcidx * sizeof(struct multicall_entry));
+	}
 
 	switch (b->mcidx) {
 	case 0:
@@ -103,21 +189,14 @@ void xen_mc_flush(void)
 		pr_err("%d of %d multicall(s) failed: cpu %d\n",
 		       ret, b->mcidx, smp_processor_id());
 		for (i = 0; i < b->mcidx; i++) {
-			if (b->entries[i].result < 0) {
-#if MC_DEBUG
-				pr_err("  call %2d: op=%lu arg=[%lx] result=%ld\t%pS\n",
-				       i + 1,
-				       b->debug[i].op,
-				       b->debug[i].args[0],
-				       b->entries[i].result,
-				       b->caller[i]);
-#else
+			if (static_key_false(&mc_debug)) {
+				print_debug_data(b, mcdb, i);
+			} else if (b->entries[i].result < 0) {
 				pr_err("  call %2d: op=%lu arg=[%lx] result=%ld\n",
 				       i + 1,
 				       b->entries[i].op,
 				       b->entries[i].args[0],
 				       b->entries[i].result);
-#endif
 			}
 		}
 	}
@@ -155,9 +234,13 @@ struct multicall_space __xen_mc_entry(size_t args)
 	}
 
 	ret.mc = &b->entries[b->mcidx];
-#if MC_DEBUG
-	b->caller[b->mcidx] = __builtin_return_address(0);
-#endif
+	if (static_key_false(&mc_debug)) {
+		struct mc_debug_data *mcdb = __this_cpu_read(mc_debug_data);
+
+		mcdb->caller[b->mcidx] = __builtin_return_address(0);
+		mcdb->argsz[b->mcidx] = args;
+		mcdb->args[b->mcidx] = (unsigned long *)(&b->args[argidx]);
+	}
 	b->mcidx++;
 	ret.args = &b->args[argidx];
 	b->argidx = argidx + args;

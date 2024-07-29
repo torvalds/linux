@@ -809,13 +809,14 @@ static int incr_user_locked_vm(struct iopt_pages *pages, unsigned long npages)
 
 	lock_limit = task_rlimit(pages->source_task, RLIMIT_MEMLOCK) >>
 		     PAGE_SHIFT;
+
+	cur_pages = atomic_long_read(&pages->source_user->locked_vm);
 	do {
-		cur_pages = atomic_long_read(&pages->source_user->locked_vm);
 		new_pages = cur_pages + npages;
 		if (new_pages > lock_limit)
 			return -ENOMEM;
-	} while (atomic_long_cmpxchg(&pages->source_user->locked_vm, cur_pages,
-				     new_pages) != cur_pages);
+	} while (!atomic_long_try_cmpxchg(&pages->source_user->locked_vm,
+					  &cur_pages, new_pages));
 	return 0;
 }
 

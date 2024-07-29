@@ -727,20 +727,25 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 }
 EXPORT_SYMBOL_GPL(iio_format_value);
 
+ssize_t do_iio_read_channel_label(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *c,
+				  char *buf)
+{
+	if (indio_dev->info->read_label)
+		return indio_dev->info->read_label(indio_dev, c, buf);
+
+	if (c->extend_name)
+		return sysfs_emit(buf, "%s\n", c->extend_name);
+
+	return -EINVAL;
+}
+
 static ssize_t iio_read_channel_label(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-
-	if (indio_dev->info->read_label)
-		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
-
-	if (this_attr->c->extend_name)
-		return sysfs_emit(buf, "%s\n", this_attr->c->extend_name);
-
-	return -EINVAL;
+	return do_iio_read_channel_label(dev_to_iio_dev(dev),
+					 to_iio_dev_attr(attr)->c, buf);
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,
@@ -758,9 +763,11 @@ static ssize_t iio_read_channel_info(struct device *dev,
 							INDIO_MAX_RAW_ELEMENTS,
 							vals, &val_len,
 							this_attr->address);
-	else
+	else if (indio_dev->info->read_raw)
 		ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
 				    &vals[0], &vals[1], this_attr->address);
+	else
+		return -EINVAL;
 
 	if (ret < 0)
 		return ret;
@@ -841,6 +848,9 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
 	int ret;
 	int length;
 	int type;
+
+	if (!indio_dev->info->read_avail)
+		return -EINVAL;
 
 	ret = indio_dev->info->read_avail(indio_dev, this_attr->c,
 					  &vals, &type, &length,

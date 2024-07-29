@@ -826,4 +826,5 @@ static struct platform_driver altera_pcie_driver = {
 
 MODULE_DEVICE_TABLE(of, altera_pcie_of_match);
 module_platform_driver(altera_pcie_driver);
+MODULE_DESCRIPTION("Altera PCIe host controller driver");
 MODULE_LICENSE("GPL v2");

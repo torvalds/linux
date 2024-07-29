@@ -122,6 +122,7 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 	wreq->io_streams[1].transferred		= LONG_MAX;
 	if (fscache_resources_valid(&wreq->cache_resources)) {
 		wreq->io_streams[1].avail	= true;
+		wreq->io_streams[1].active	= true;
 		wreq->io_streams[1].prepare_write = wreq->cache_resources.ops->prepare_write_subreq;
 		wreq->io_streams[1].issue_write = wreq->cache_resources.ops->issue_write;
 	}
@@ -254,7 +255,7 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
 	stream->construct = NULL;
 
 	if (subreq->start + subreq->len > wreq->start + wreq->submitted)
-		wreq->len = wreq->submitted = subreq->start + subreq->len - wreq->start;
+		WRITE_ONCE(wreq->submitted, subreq->start + subreq->len - wreq->start);
 	netfs_do_issue_write(stream, subreq);
 }
 
@@ -483,7 +484,7 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 	if (!debug)
 		kdebug("R=%x: No submit", wreq->debug_id);
 
-	if (flen < fsize)
+	if (foff + flen < fsize)
 		for (int s = 0; s < NR_IO_STREAMS; s++)
 			netfs_issue_write(wreq, &wreq->io_streams[s]);
 
@@ -636,7 +637,12 @@ int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_contr
 
 	mutex_unlock(&ictx->wb_lock);
 
-	ret = wreq->error;
+	if (wreq->iocb) {
+		ret = -EIOCBQUEUED;
+	} else {
+		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS, TASK_UNINTERRUPTIBLE);
+		ret = wreq->error;
+	}
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 	return ret;
 }

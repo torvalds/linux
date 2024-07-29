@@ -33,7 +33,7 @@ int drv_start(struct ieee80211_local *local)
 	return ret;
 }
 
-void drv_stop(struct ieee80211_local *local)
+void drv_stop(struct ieee80211_local *local, bool suspend)
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -41,8 +41,8 @@ void drv_stop(struct ieee80211_local *local)
 	if (WARN_ON(!local->started))
 		return;
 
-	trace_drv_stop(local);
-	local->ops->stop(&local->hw);
+	trace_drv_stop(local, suspend);
+	local->ops->stop(&local->hw, suspend);
 	trace_drv_return_void(local);
 
 	/* sync away all work on the tasklet before clearing started */
@@ -311,6 +311,18 @@ int drv_assign_vif_chanctx(struct ieee80211_local *local,
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	/*
+	 * We should perhaps push emulate chanctx down and only
+	 * make it call ->config() when the chanctx is actually
+	 * assigned here (and unassigned below), but that's yet
+	 * another change to all drivers to add assign/unassign
+	 * emulation callbacks. Maybe later.
+	 */
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+	    local->emulate_chanctx &&
+	    !ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
+		return 0;
+
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
@@ -337,6 +349,11 @@ void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+	    local->emulate_chanctx &&
+	    !ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
+		return;
 
 	if (!check_sdata_in_driver(sdata))
 		return;

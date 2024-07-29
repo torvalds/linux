@@ -82,7 +82,7 @@ static void mt8195_dsp_handle_request(struct mtk_adsp_ipc *ipc)
 	}
 }
 
-static struct mtk_adsp_ipc_ops dsp_ops = {
+static const struct mtk_adsp_ipc_ops dsp_ops = {
 	.handle_reply		= mt8195_dsp_handle_reply,
 	.handle_request		= mt8195_dsp_handle_request,
 };
@@ -619,6 +619,7 @@ static struct platform_driver snd_sof_of_mt8195_driver = {
 };
 module_platform_driver(snd_sof_of_mt8195_driver);
 
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for MTL 8195 platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_SOC_SOF_MTK_COMMON);
-MODULE_LICENSE("Dual BSD/GPL");

@@ -1567,4 +1567,5 @@ static void __exit test_firmware_exit(void)
 module_exit(test_firmware_exit);
 
 MODULE_AUTHOR("Kees Cook <keescook@chromium.org>");
+MODULE_DESCRIPTION("interface to trigger and test firmware loading");
 MODULE_LICENSE("GPL");

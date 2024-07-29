@@ -12,6 +12,7 @@
 #include <linux/bpf_trace.h>
 #include <net/xdp_sock_drv.h>
 #include <linux/pci.h>
+#include <linux/mdio.h>
 
 #include <net/ipv6.h>
 
@@ -31,7 +32,6 @@
 
 static int debug = -1;
 
-MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
 module_param(debug, int, 0);
@@ -7028,6 +7028,8 @@ static int igc_probe(struct pci_dev *pdev,
 	device_set_wakeup_enable(&adapter->pdev->dev,
 				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
 
+	igc_ptp_init(adapter);
+
 	igc_tsn_clear_schedule(adapter);
 
 	/* reset the hardware with the new settings */
@@ -7048,9 +7050,6 @@ static int igc_probe(struct pci_dev *pdev,
 
 	/* Check if Media Autosense is enabled */
 	adapter->ei = *ei;
-
-	/* do hw tstamp init after resetting */
-	igc_ptp_init(adapter);
 
 	/* print pcie link status and MAC address */
 	pcie_print_link_status(pdev);

@@ -201,7 +201,7 @@ static int sd3078_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sd3078_id[] = {
-	{"sd3078", 0},
+	{ "sd3078" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sd3078_id);

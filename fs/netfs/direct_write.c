@@ -12,7 +12,7 @@
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
 	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->len;
+	unsigned long long end = wreq->start + wreq->transferred;
 
 	if (!wreq->error &&
 	    i_size_read(inode) < end) {
@@ -92,8 +92,9 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
 	if (async)
 		wreq->iocb = iocb;
+	wreq->len = iov_iter_count(&wreq->io_iter);
 	wreq->cleanup = netfs_cleanup_dio_write;
-	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), iov_iter_count(&wreq->io_iter));
+	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), wreq->len);
 	if (ret < 0) {
 		_debug("begin = %zd", ret);
 		goto out;

@@ -378,7 +378,7 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/*
 	 * Unfortunately, FIU only supports a 16 MiB direct mapping window (per
@@ -387,11 +387,11 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	 * flashes that are bigger than 16 MiB.
 	 */
 	if (desc->info.offset + desc->info.length > MAX_MEMORY_SIZE_PER_CS)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	/* Don't read past the memory window */
 	if (cs * MAX_MEMORY_SIZE_PER_CS + desc->info.offset + desc->info.length > fiu->memory_size)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	return 0;
 }

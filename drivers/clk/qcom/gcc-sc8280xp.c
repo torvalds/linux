@@ -7558,7 +7558,7 @@ static int gcc_sc8280xp_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_rpm;
 
-	ret = qcom_cc_really_probe(pdev, &gcc_sc8280xp_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &gcc_sc8280xp_desc, regmap);
 	if (ret)
 		goto err_put_rpm;
 

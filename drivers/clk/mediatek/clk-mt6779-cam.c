@@ -61,6 +61,7 @@ static struct platform_driver clk_mt6779_cam_drv = {
 		.of_match_table = of_match_clk_mt6779_cam,
 	},
 };
-
 module_platform_driver(clk_mt6779_cam_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6779 Camera clocks driver");
 MODULE_LICENSE("GPL");

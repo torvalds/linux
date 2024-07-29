@@ -97,18 +97,13 @@ static bool find_slave(struct sdw_bus *bus,
 		       struct acpi_device *adev,
 		       struct sdw_slave_id *id)
 {
-	u64 addr;
 	unsigned int link_id;
-	acpi_status status;
+	u64 addr;
+	int ret;
 
-	status = acpi_evaluate_integer(adev->handle,
-				       METHOD_NAME__ADR, NULL, &addr);
-
-	if (ACPI_FAILURE(status)) {
-		dev_err(bus->dev, "_ADR resolution failed: %x\n",
-			status);
+	ret = acpi_get_local_u64_address(adev->handle, &addr);
+	if (ret < 0)
 		return false;
-	}
 
 	if (bus->ops->override_adr)
 		addr = bus->ops->override_adr(bus, addr);

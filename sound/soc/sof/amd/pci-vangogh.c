@@ -34,7 +34,6 @@ static const struct sof_amd_acp_desc vangogh_chip_info = {
 	.dsp_intr_base	= ACP5X_DSP_SW_INTR_BASE,
 	.sram_pte_offset = ACP5X_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP5X_AXI2DAGB_SEM_0,
-	.acp_clkmux_sel = ACP5X_CLKMUX_SEL,
 	.probe_reg_offset = ACP5X_FUTURE_REG_ACLK_0,
 };
 
@@ -101,5 +100,6 @@ static struct pci_driver snd_sof_pci_amd_vgh_driver = {
 module_pci_driver(snd_sof_pci_amd_vgh_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("VANGOGH SOF Driver");
 MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);

@@ -33,7 +33,7 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 EXPORT_SYMBOL(wake_bit_function);
 
 /*
- * To allow interruptible waiting and asynchronous (i.e. nonblocking)
+ * To allow interruptible waiting and asynchronous (i.e. non-blocking)
  * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
  * permitted return codes. Nonzero return codes halt waiting and return.
  */
@@ -133,7 +133,7 @@ EXPORT_SYMBOL(__wake_up_bit);
  * @bit: the bit of the word being waited on
  *
  * There is a standard hashed waitqueue table for generic use. This
- * is the part of the hashtable's accessor API that wakes up waiters
+ * is the part of the hash-table's accessor API that wakes up waiters
  * on a bit. For instance, if one were to have waiters on a bitflag,
  * one would call wake_up_bit() after clearing the bit.
  *

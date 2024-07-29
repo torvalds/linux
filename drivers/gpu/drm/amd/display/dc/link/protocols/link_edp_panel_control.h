@@ -51,7 +51,7 @@ bool edp_setup_psr(struct dc_link *link,
 		struct psr_context *psr_context);
 bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link,
        uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
-void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum psr_residency_mode mode);
 bool edp_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
 	bool wait, bool force_static, const unsigned int *power_opts);
 bool edp_setup_replay(struct dc_link *link,

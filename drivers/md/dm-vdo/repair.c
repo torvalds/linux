@@ -51,6 +51,8 @@ struct recovery_point {
 	bool increment_applied;
 };
 
+DEFINE_MIN_HEAP(struct numbered_block_mapping, replay_heap);
+
 struct repair_completion {
 	/* The completion header */
 	struct vdo_completion completion;
@@ -97,7 +99,7 @@ struct repair_completion {
 	 * order, then original journal order. This permits efficient iteration over the journal
 	 * entries in order.
 	 */
-	struct min_heap replay_heap;
+	struct replay_heap replay_heap;
 	/* Fields tracking progress through the journal entries. */
 	struct numbered_block_mapping *current_entry;
 	struct numbered_block_mapping *current_unfetched_entry;
@@ -135,7 +137,7 @@ struct repair_completion {
  * to sort by slot while still ensuring we replay all entries with the same slot in the exact order
  * as they appeared in the journal.
  */
-static bool mapping_is_less_than(const void *item1, const void *item2)
+static bool mapping_is_less_than(const void *item1, const void *item2, void __always_unused *args)
 {
 	const struct numbered_block_mapping *mapping1 =
 		(const struct numbered_block_mapping *) item1;
@@ -154,7 +156,7 @@ static bool mapping_is_less_than(const void *item1, const void *item2)
 	return 0;
 }
 
-static void swap_mappings(void *item1, void *item2)
+static void swap_mappings(void *item1, void *item2, void __always_unused *args)
 {
 	struct numbered_block_mapping *mapping1 = item1;
 	struct numbered_block_mapping *mapping2 = item2;
@@ -163,14 +165,13 @@ static void swap_mappings(void *item1, void *item2)
 }
 
 static const struct min_heap_callbacks repair_min_heap = {
-	.elem_size = sizeof(struct numbered_block_mapping),
 	.less = mapping_is_less_than,
 	.swp = swap_mappings,
 };
 
 static struct numbered_block_mapping *sort_next_heap_element(struct repair_completion *repair)
 {
-	struct min_heap *heap = &repair->replay_heap;
+	struct replay_heap *heap = &repair->replay_heap;
 	struct numbered_block_mapping *last;
 
 	if (heap->nr == 0)
@@ -181,8 +182,8 @@ static struct numbered_block_mapping *sort_next_heap_element(struct repair_compl
 	 * restore the heap invariant, and return a pointer to the popped element.
 	 */
 	last = &repair->entries[--heap->nr];
-	swap_mappings(heap->data, last);
-	min_heapify(heap, 0, &repair_min_heap);
+	swap_mappings(heap->data, last, NULL);
+	min_heap_sift_down(heap, 0, &repair_min_heap, NULL);
 	return last;
 }
 
@@ -318,6 +319,7 @@ static bool __must_check abort_on_error(int result, struct repair_completion *re
 /**
  * drain_slab_depot() - Flush out all dirty refcounts blocks now that they have been rebuilt or
  *                      recovered.
+ * @completion: The repair completion.
  */
 static void drain_slab_depot(struct vdo_completion *completion)
 {
@@ -653,9 +655,6 @@ static void rebuild_reference_counts(struct vdo_completion *completion)
 	vdo_traverse_forest(vdo->block_map, process_entry, completion);
 }
 
-/**
- * increment_recovery_point() - Move the given recovery point forward by one entry.
- */
 static void increment_recovery_point(struct recovery_point *point)
 {
 	if (++point->entry_count < RECOVERY_JOURNAL_ENTRIES_PER_SECTOR)
@@ -952,6 +951,7 @@ static void abort_block_map_recovery(struct repair_completion *repair, int resul
 /**
  * find_entry_starting_next_page() - Find the first journal entry after a given entry which is not
  *                                   on the same block map page.
+ * @repair: The repair completion.
  * @current_entry: The entry to search from.
  * @needs_sort: Whether sorting is needed to proceed.
  *
@@ -1117,12 +1117,12 @@ static void recover_block_map(struct vdo_completion *completion)
 	 * Organize the journal entries into a binary heap so we can iterate over them in sorted
 	 * order incrementally, avoiding an expensive sort call.
 	 */
-	repair->replay_heap = (struct min_heap) {
+	repair->replay_heap = (struct replay_heap) {
 		.data = repair->entries,
 		.nr = repair->block_map_entry_count,
 		.size = repair->block_map_entry_count,
 	};
-	min_heapify_all(&repair->replay_heap, &repair_min_heap);
+	min_heapify_all(&repair->replay_heap, &repair_min_heap, NULL);
 
 	vdo_log_info("Replaying %zu recovery entries into block map",
 		     repair->block_map_entry_count);
@@ -1218,6 +1218,7 @@ static bool __must_check is_exact_recovery_journal_block(const struct recovery_j
 
 /**
  * find_recovery_journal_head_and_tail() - Find the tail and head of the journal.
+ * @repair: The repair completion.
  *
  * Return: True if there were valid journal blocks.
  */
@@ -1446,6 +1447,7 @@ static int validate_heads(struct repair_completion *repair)
 
 /**
  * extract_new_mappings() - Find all valid new mappings to be applied to the block map.
+ * @repair: The repair completion.
  *
  * The mappings are extracted from the journal and stored in a sortable array so that all of the
  * mappings to be applied to a given block map page can be done in a single page fetch.
@@ -1500,6 +1502,7 @@ static int extract_new_mappings(struct repair_completion *repair)
 /**
  * compute_usages() - Compute the lbns in use and block map data blocks counts from the tail of
  *                    the journal.
+ * @repair: The repair completion.
  */
 static noinline int compute_usages(struct repair_completion *repair)
 {

@@ -334,12 +334,12 @@ static struct midcomms_node *nodeid2node(int nodeid)
 	return __find_node(nodeid, nodeid_hash(nodeid));
 }
 
-int dlm_midcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
+int dlm_midcomms_addr(int nodeid, struct sockaddr_storage *addr)
 {
 	int ret, idx, r = nodeid_hash(nodeid);
 	struct midcomms_node *node;
 
-	ret = dlm_lowcomms_addr(nodeid, addr, len);
+	ret = dlm_lowcomms_addr(nodeid, addr);
 	if (ret)
 		return ret;
 

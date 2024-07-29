@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "hashtable.h"
+#include <hashtable.h>
 #include "lkc.h"
 
 unsigned int strhash(const char *s)
@@ -98,7 +98,7 @@ void str_printf(struct gstr *gs, const char *fmt, ...)
 }
 
 /* Retrieve value of growable string */
-char *str_get(struct gstr *gs)
+char *str_get(const struct gstr *gs)
 {
 	return gs->s;
 }

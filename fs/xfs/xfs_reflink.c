@@ -603,7 +603,7 @@ xfs_reflink_cancel_cow_blocks(
 
 			error = xfs_free_extent_later(*tpp, del.br_startblock,
 					del.br_blockcount, NULL,
-					XFS_AG_RESV_NONE, false);
+					XFS_AG_RESV_NONE, 0);
 			if (error)
 				break;
 
@@ -1387,6 +1387,7 @@ xfs_reflink_remap_blocks(
 		destoff += imap.br_blockcount;
 		len -= imap.br_blockcount;
 		remapped_len += imap.br_blockcount;
+		cond_resched();
 	}
 
 	if (error)

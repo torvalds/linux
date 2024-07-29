@@ -35,7 +35,6 @@
 #define BCN_QUEUE_INX		4
 #define MGT_QUEUE_INX		5
 #define HIGH_QUEUE_INX		6
-#define TXCMD_QUEUE_INX	7
 
 #define HW_QUEUE_ENTRY	8
 
@@ -192,16 +191,7 @@ struct pkt_attrib {
 
 #define NULL_FRAMETAG		(0x0)
 #define DATA_FRAMETAG		0x01
-#define L2_FRAMETAG		0x02
 #define MGNT_FRAMETAG		0x03
-#define AMSDU_FRAMETAG	0x04
-
-#define EII_FRAMETAG		0x05
-#define IEEE8023_FRAMETAG  0x06
-
-#define MP_FRAMETAG		0x07
-
-#define TXAGG_FRAMETAG	0x08
 
 enum {
 	XMITBUF_DATA = 0,

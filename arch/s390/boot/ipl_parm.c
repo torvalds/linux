@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
@@ -51,11 +52,11 @@ static inline int __diag308(unsigned long subcode, void *addr)
 		: [r1] "+&d" (r1.pair),
 		  [reg1] "=&d" (reg1),
 		  [reg2] "=&a" (reg2),
-		  "+Q" (S390_lowcore.program_new_psw),
+		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [subcode] "d" (subcode),
 		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
 		: "cc", "memory");
 	return r1.odd;
 }
@@ -310,5 +311,7 @@ void parse_boot_command_line(void)
 				prot_virt_host = 1;
 		}
 #endif
+		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
+			relocate_lowcore = 1;
 	}
 }

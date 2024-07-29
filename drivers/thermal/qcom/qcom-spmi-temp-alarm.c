@@ -261,17 +261,13 @@ skip:
 	return qpnp_tm_write(chip, QPNP_TM_REG_SHUTDOWN_CTRL1, reg);
 }
 
-static int qpnp_tm_set_trip_temp(struct thermal_zone_device *tz, int trip_id, int temp)
+static int qpnp_tm_set_trip_temp(struct thermal_zone_device *tz,
+				 const struct thermal_trip *trip, int temp)
 {
 	struct qpnp_tm_chip *chip = thermal_zone_device_priv(tz);
-	struct thermal_trip trip;
 	int ret;
 
-	ret = __thermal_zone_get_trip(chip->tz_dev, trip_id, &trip);
-	if (ret)
-		return ret;
-
-	if (trip.type != THERMAL_TRIP_CRITICAL)
+	if (trip->type != THERMAL_TRIP_CRITICAL)
 		return 0;
 
 	mutex_lock(&chip->lock);

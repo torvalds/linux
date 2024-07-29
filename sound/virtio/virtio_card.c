@@ -110,25 +110,22 @@ static void virtsnd_event_notify_cb(struct virtqueue *vqueue)
 static int virtsnd_find_vqs(struct virtio_snd *snd)
 {
 	struct virtio_device *vdev = snd->vdev;
-	static vq_callback_t *callbacks[VIRTIO_SND_VQ_MAX] = {
-		[VIRTIO_SND_VQ_CONTROL] = virtsnd_ctl_notify_cb,
-		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_notify_cb,
-		[VIRTIO_SND_VQ_TX] = virtsnd_pcm_tx_notify_cb,
-		[VIRTIO_SND_VQ_RX] = virtsnd_pcm_rx_notify_cb
-	};
-	static const char *names[VIRTIO_SND_VQ_MAX] = {
-		[VIRTIO_SND_VQ_CONTROL] = "virtsnd-ctl",
-		[VIRTIO_SND_VQ_EVENT] = "virtsnd-event",
-		[VIRTIO_SND_VQ_TX] = "virtsnd-tx",
-		[VIRTIO_SND_VQ_RX] = "virtsnd-rx"
+	struct virtqueue_info vqs_info[VIRTIO_SND_VQ_MAX] = {
+		[VIRTIO_SND_VQ_CONTROL] = { "virtsnd-ctl",
+					    virtsnd_ctl_notify_cb },
+		[VIRTIO_SND_VQ_EVENT] = { "virtsnd-event",
+					  virtsnd_event_notify_cb },
+		[VIRTIO_SND_VQ_TX] = { "virtsnd-tx",
+				       virtsnd_pcm_tx_notify_cb },
+		[VIRTIO_SND_VQ_RX] = { "virtsnd-rx",
+				       virtsnd_pcm_rx_notify_cb },
 	};
 	struct virtqueue *vqs[VIRTIO_SND_VQ_MAX] = { 0 };
 	unsigned int i;
 	unsigned int n;
 	int rc;
 
-	rc = virtio_find_vqs(vdev, VIRTIO_SND_VQ_MAX, vqs, callbacks, names,
-			     NULL);
+	rc = virtio_find_vqs(vdev, VIRTIO_SND_VQ_MAX, vqs, vqs_info, NULL);
 	if (rc) {
 		dev_err(&vdev->dev, "failed to initialize virtqueues\n");
 		return rc;

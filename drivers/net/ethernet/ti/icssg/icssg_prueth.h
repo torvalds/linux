@@ -186,6 +186,9 @@ struct prueth_emac {
 
 	struct pruss_mem_region dram;
 
+	bool offload_fwd_mark;
+	int port_vlan;
+
 	struct delayed_work stats_work;
 	u64 stats[ICSSG_NUM_STATS];
 
@@ -198,10 +201,12 @@ struct prueth_emac {
  * struct prueth_pdata - PRUeth platform data
  * @fdqring_mode: Free desc queue mode
  * @quirk_10m_link_issue: 10M link detect errata
+ * @switch_mode: switch firmware support
  */
 struct prueth_pdata {
 	enum k3_ring_mode fdqring_mode;
 	u32	quirk_10m_link_issue:1;
+	u32	switch_mode:1;
 };
 
 struct icssg_firmwares {
@@ -232,6 +237,16 @@ struct icssg_firmwares {
  * @emacs_initialized: num of EMACs/ext ports that are up/running
  * @iep0: pointer to IEP0 device
  * @iep1: pointer to IEP1 device
+ * @vlan_tbl: VLAN-FID table pointer
+ * @hw_bridge_dev: pointer to HW bridge net device
+ * @br_members: bitmask of bridge member ports
+ * @prueth_netdevice_nb: netdevice notifier block
+ * @prueth_switchdev_nb: switchdev notifier block
+ * @prueth_switchdev_bl_nb: switchdev blocking notifier block
+ * @is_switch_mode: flag to indicate if device is in Switch mode
+ * @is_switchmode_supported: indicates platform support for switch mode
+ * @switch_id: ID for mapping switch ports to bridge
+ * @default_vlan: Default VLAN for host
  */
 struct prueth {
 	struct device *dev;
@@ -256,6 +271,17 @@ struct prueth {
 	int emacs_initialized;
 	struct icss_iep *iep0;
 	struct icss_iep *iep1;
+	struct prueth_vlan_tbl *vlan_tbl;
+
+	struct net_device *hw_bridge_dev;
+	u8 br_members;
+	struct notifier_block prueth_netdevice_nb;
+	struct notifier_block prueth_switchdev_nb;
+	struct notifier_block prueth_switchdev_bl_nb;
+	bool is_switch_mode;
+	bool is_switchmode_supported;
+	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
+	int default_vlan;
 };
 
 struct emac_tx_ts_response {
@@ -303,8 +329,8 @@ void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr);
 void icssg_config_ipg(struct prueth_emac *emac);
 int icssg_config(struct prueth *prueth, struct prueth_emac *emac,
 		 int slice);
-int emac_set_port_state(struct prueth_emac *emac,
-			enum icssg_port_state_cmd state);
+int icssg_set_port_state(struct prueth_emac *emac,
+			 enum icssg_port_state_cmd state);
 void icssg_config_set_speed(struct prueth_emac *emac);
 void icssg_config_half_duplex(struct prueth_emac *emac);
 
@@ -313,10 +339,20 @@ int icssg_queue_pop(struct prueth *prueth, u8 queue);
 void icssg_queue_push(struct prueth *prueth, int queue, u16 addr);
 u32 icssg_queue_level(struct prueth *prueth, int queue);
 
+int icssg_send_fdb_msg(struct prueth_emac *emac, struct mgmt_cmd *cmd,
+		       struct mgmt_cmd_rsp *rsp);
+int icssg_fdb_add_del(struct prueth_emac *emac,  const unsigned char *addr,
+		      u8 vid, u8 fid_c2, bool add);
+int icssg_fdb_lookup(struct prueth_emac *emac, const unsigned char *addr,
+		     u8 vid);
+void icssg_vtbl_modify(struct prueth_emac *emac, u8 vid, u8 port_mask,
+		       u8 untag_mask, bool add);
+u16 icssg_get_pvid(struct prueth_emac *emac);
+void icssg_set_pvid(struct prueth *prueth, u8 vid, u8 port);
 #define prueth_napi_to_tx_chn(pnapi) \
 	container_of(pnapi, struct prueth_tx_chn, napi_tx)
 
-void emac_stats_work_handler(struct work_struct *work);
+void icssg_stats_work_handler(struct work_struct *work);
 void emac_update_hardware_stats(struct prueth_emac *emac);
 int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name);
 
@@ -341,11 +377,11 @@ int prueth_dma_rx_push(struct prueth_emac *emac,
 		       struct prueth_rx_chn *rx_chn);
 void emac_rx_timestamp(struct prueth_emac *emac,
 		       struct sk_buff *skb, u32 *psdata);
-enum netdev_tx emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+enum netdev_tx icssg_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 irqreturn_t prueth_rx_irq(int irq, void *dev_id);
 void prueth_emac_stop(struct prueth_emac *emac);
 void prueth_cleanup_tx_ts(struct prueth_emac *emac);
-int emac_napi_rx_poll(struct napi_struct *napi_rx, int budget);
+int icssg_napi_rx_poll(struct napi_struct *napi_rx, int budget);
 int prueth_prepare_rx_chan(struct prueth_emac *emac,
 			   struct prueth_rx_chn *chn,
 			   int buf_size);
@@ -353,12 +389,12 @@ void prueth_reset_tx_chan(struct prueth_emac *emac, int ch_num,
 			  bool free_skb);
 void prueth_reset_rx_chan(struct prueth_rx_chn *chn,
 			  int num_flows, bool disable);
-void emac_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue);
-int emac_ndo_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
-void emac_ndo_get_stats64(struct net_device *ndev,
-			  struct rtnl_link_stats64 *stats);
-int emac_ndo_get_phys_port_name(struct net_device *ndev, char *name,
-				size_t len);
+void icssg_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue);
+int icssg_ndo_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
+void icssg_ndo_get_stats64(struct net_device *ndev,
+			   struct rtnl_link_stats64 *stats);
+int icssg_ndo_get_phys_port_name(struct net_device *ndev, char *name,
+				 size_t len);
 int prueth_node_port(struct device_node *eth_node);
 int prueth_node_mac(struct device_node *eth_node);
 void prueth_netdev_exit(struct prueth *prueth,

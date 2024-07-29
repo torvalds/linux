@@ -17,6 +17,10 @@
 	compatible = "renesas,gray-hawk-single", "renesas,r8a779h0";
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
 		serial0 = &hscif0;
 		serial1 = &hscif2;
 		ethernet0 = &avb0;

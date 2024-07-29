@@ -208,7 +208,7 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 
 	curr_mvmvif = iwl_mvm_vif_from_mac80211(data->current_vif);
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
+	if (ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_P2P_GO &&
 	    mvmvif->deflink.phy_ctxt && curr_mvmvif->deflink.phy_ctxt &&
 	    mvmvif->deflink.phy_ctxt->id != curr_mvmvif->deflink.phy_ctxt->id)
 		data->is_dcm_with_p2p_go = true;
@@ -1313,7 +1313,7 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		if (IWL_MVM_ADWELL_MAX_BUDGET)
 			cmd->v7.adwell_max_budget =
 				cpu_to_le16(IWL_MVM_ADWELL_MAX_BUDGET);
-		else if (params->ssids && params->ssids[0].ssid_len)
+		else if (params->n_ssids && params->ssids[0].ssid_len)
 			cmd->v7.adwell_max_budget =
 				cpu_to_le16(IWL_SCAN_ADWELL_MAX_BUDGET_DIRECTED_SCAN);
 		else
@@ -1418,7 +1418,7 @@ iwl_mvm_scan_umac_dwell_v11(struct iwl_mvm *mvm,
 	if (IWL_MVM_ADWELL_MAX_BUDGET)
 		general_params->adwell_max_budget =
 			cpu_to_le16(IWL_MVM_ADWELL_MAX_BUDGET);
-	else if (params->ssids && params->ssids[0].ssid_len)
+	else if (params->n_ssids && params->ssids[0].ssid_len)
 		general_params->adwell_max_budget =
 			cpu_to_le16(IWL_SCAN_ADWELL_MAX_BUDGET_DIRECTED_SCAN);
 	else
@@ -1730,7 +1730,10 @@ iwl_mvm_umac_scan_fill_6g_chan_list(struct iwl_mvm *mvm,
 				break;
 		}
 
-		if (k == idex_b && idex_b < SCAN_BSSID_MAX_SIZE) {
+		if (k == idex_b && idex_b < SCAN_BSSID_MAX_SIZE &&
+		    !WARN_ONCE(!is_valid_ether_addr(scan_6ghz_params[j].bssid),
+			       "scan: invalid BSSID at index %u, index_b=%u\n",
+			       j, idex_b)) {
 			memcpy(&pp->bssid_array[idex_b++],
 			       scan_6ghz_params[j].bssid, ETH_ALEN);
 		}
@@ -1827,7 +1830,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		 */
 		if (!iwl_mvm_is_scan_fragmented(params->type)) {
 			if (!cfg80211_channel_is_psc(params->channels[i]) ||
-			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN) {
+			    psc_no_listen) {
 				if (unsolicited_probe_on_chan) {
 					max_s_ssids = 2;
 					max_bssids = 6;
@@ -2875,7 +2878,7 @@ static void iwl_mvm_scan_respect_p2p_go_iter(void *_data, u8 *mac,
 	if (vif == data->current_vif)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p) {
+	if (ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_P2P_GO) {
 		u32 link_id;
 
 		for (link_id = 0;
@@ -3319,10 +3322,11 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_ABORT_UMAC),
-				   0, sizeof(cmd), &cmd);
+				   CMD_SEND_IN_RFKILL, sizeof(cmd), &cmd);
 	if (!ret)
 		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;
 
+	IWL_DEBUG_SCAN(mvm, "Scan abort: ret=%d\n", ret);
 	return ret;
 }
 

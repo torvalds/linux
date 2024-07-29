@@ -19,6 +19,6 @@
 
 &mmc1_pins_uhs {
 	pins-clk {
-		drive-strength = <MTK_DRIVE_6mA>;
+		drive-strength = <6>;
 	};
 };

@@ -1022,6 +1022,13 @@ static void clear_incompat_bg_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	}
 }
 
+static struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info)
+{
+	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE))
+		return fs_info->block_group_root;
+	return btrfs_extent_root(fs_info, 0);
+}
+
 static int remove_block_group_item(struct btrfs_trans_handle *trans,
 				   struct btrfs_path *path,
 				   struct btrfs_block_group *block_group)
@@ -1757,24 +1764,21 @@ static inline bool btrfs_should_reclaim(struct btrfs_fs_info *fs_info)
 
 static bool should_reclaim_block_group(struct btrfs_block_group *bg, u64 bytes_freed)
 {
-	const struct btrfs_space_info *space_info = bg->space_info;
-	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
+	const int thresh_pct = btrfs_calc_reclaim_threshold(bg->space_info);
+	u64 thresh_bytes = mult_perc(bg->length, thresh_pct);
 	const u64 new_val = bg->used;
 	const u64 old_val = new_val + bytes_freed;
-	u64 thresh;
 
-	if (reclaim_thresh == 0)
+	if (thresh_bytes == 0)
 		return false;
-
-	thresh = mult_perc(bg->length, reclaim_thresh);
 
 	/*
 	 * If we were below the threshold before don't reclaim, we are likely a
 	 * brand new block group and we don't want to relocate new block groups.
 	 */
-	if (old_val < thresh)
+	if (old_val < thresh_bytes)
 		return false;
-	if (new_val >= thresh)
+	if (new_val >= thresh_bytes)
 		return false;
 	return true;
 }
@@ -1785,6 +1789,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
+	LIST_HEAD(retry_list);
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
 		return;
@@ -1821,6 +1826,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	list_sort(NULL, &fs_info->reclaim_bgs, reclaim_bgs_cmp);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
 		u64 zone_unusable;
+		u64 reclaimed;
 		int ret = 0;
 
 		bg = list_first_entry(&fs_info->reclaim_bgs,
@@ -1834,6 +1840,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		/* Don't race with allocators so take the groups_sem */
 		down_write(&space_info->groups_sem);
 
+		spin_lock(&space_info->lock);
 		spin_lock(&bg->lock);
 		if (bg->reserved || bg->pinned || bg->ro) {
 			/*
@@ -1843,6 +1850,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			 * this block group.
 			 */
 			spin_unlock(&bg->lock);
+			spin_unlock(&space_info->lock);
 			up_write(&space_info->groups_sem);
 			goto next;
 		}
@@ -1861,6 +1869,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
 				btrfs_mark_bg_unused(bg);
 			spin_unlock(&bg->lock);
+			spin_unlock(&space_info->lock);
 			up_write(&space_info->groups_sem);
 			goto next;
 
@@ -1877,10 +1886,12 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		 */
 		if (!should_reclaim_block_group(bg, bg->length)) {
 			spin_unlock(&bg->lock);
+			spin_unlock(&space_info->lock);
 			up_write(&space_info->groups_sem);
 			goto next;
 		}
 		spin_unlock(&bg->lock);
+		spin_unlock(&space_info->lock);
 
 		/*
 		 * Get out fast, in case we're read-only or unmounting the
@@ -1913,16 +1924,39 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 				div64_u64(bg->used * 100, bg->length),
 				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
+		reclaimed = bg->used;
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
 		if (ret) {
 			btrfs_dec_block_group_ro(bg);
 			btrfs_err(fs_info, "error relocating chunk %llu",
 				  bg->start);
+			reclaimed = 0;
+			spin_lock(&space_info->lock);
+			space_info->reclaim_errors++;
+			if (READ_ONCE(space_info->periodic_reclaim))
+				space_info->periodic_reclaim_ready = false;
+			spin_unlock(&space_info->lock);
 		}
+		spin_lock(&space_info->lock);
+		space_info->reclaim_count++;
+		space_info->reclaim_bytes += reclaimed;
+		spin_unlock(&space_info->lock);
 
 next:
-		if (ret)
-			btrfs_mark_bg_to_reclaim(bg);
+		if (ret && !READ_ONCE(space_info->periodic_reclaim)) {
+			/* Refcount held by the reclaim_bgs list after splice. */
+			spin_lock(&fs_info->unused_bgs_lock);
+			/*
+			 * This block group might be added to the unused list
+			 * during the above process. Move it back to the
+			 * reclaim list otherwise.
+			 */
+			if (list_empty(&bg->bg_list)) {
+				btrfs_get_block_group(bg);
+				list_add_tail(&bg->bg_list, &retry_list);
+			}
+			spin_unlock(&fs_info->unused_bgs_lock);
+		}
 		btrfs_put_block_group(bg);
 
 		mutex_unlock(&fs_info->reclaim_bgs_lock);
@@ -1942,12 +1976,16 @@ next:
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
 end:
+	spin_lock(&fs_info->unused_bgs_lock);
+	list_splice_tail(&retry_list, &fs_info->reclaim_bgs);
+	spin_unlock(&fs_info->unused_bgs_lock);
 	btrfs_exclop_finish(fs_info);
 	sb_end_write(fs_info->sb);
 }
 
 void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
 {
+	btrfs_reclaim_sweep(fs_info);
 	spin_lock(&fs_info->unused_bgs_lock);
 	if (!list_empty(&fs_info->reclaim_bgs))
 		queue_work(system_unbound_wq, &fs_info->reclaim_bgs_work);
@@ -3646,9 +3684,12 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		old_val += num_bytes;
 		cache->used = old_val;
 		cache->reserved -= num_bytes;
+		cache->reclaim_mark = 0;
 		space_info->bytes_reserved -= num_bytes;
 		space_info->bytes_used += num_bytes;
 		space_info->disk_used += num_bytes * factor;
+		if (READ_ONCE(space_info->periodic_reclaim))
+			btrfs_space_info_update_reclaimable(space_info, -num_bytes);
 		spin_unlock(&cache->lock);
 		spin_unlock(&space_info->lock);
 	} else {
@@ -3658,8 +3699,10 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		btrfs_space_info_update_bytes_pinned(info, space_info, num_bytes);
 		space_info->bytes_used -= num_bytes;
 		space_info->disk_used -= num_bytes * factor;
-
-		reclaim = should_reclaim_block_group(cache, num_bytes);
+		if (READ_ONCE(space_info->periodic_reclaim))
+			btrfs_space_info_update_reclaimable(space_info, num_bytes);
+		else
+			reclaim = should_reclaim_block_group(cache, num_bytes);
 
 		spin_unlock(&cache->lock);
 		spin_unlock(&space_info->lock);
@@ -4313,13 +4356,13 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 		spin_lock(&block_group->lock);
 		if (test_and_clear_bit(BLOCK_GROUP_FLAG_IREF,
 				       &block_group->runtime_flags)) {
-			struct inode *inode = block_group->inode;
+			struct btrfs_inode *inode = block_group->inode;
 
 			block_group->inode = NULL;
 			spin_unlock(&block_group->lock);
 
 			ASSERT(block_group->io_ctl.inode == NULL);
-			iput(inode);
+			iput(&inode->vfs_inode);
 		} else {
 			spin_unlock(&block_group->lock);
 		}

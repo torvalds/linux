@@ -131,7 +131,7 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 
 		ctlr = spi_dev->controller;
 
-		strscpy(spi_dev->modalias, inst_array[i].type, sizeof(spi_dev->modalias));
+		strscpy(spi_dev->modalias, inst_array[i].type);
 
 		ret = smi_get_irq(pdev, adev, &inst_array[i]);
 		if (ret < 0) {
@@ -205,7 +205,7 @@ static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 
 	for (i = 0; i < count && inst_array[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
-		strscpy(board_info.type, inst_array[i].type, I2C_NAME_SIZE);
+		strscpy(board_info.type, inst_array[i].type);
 		snprintf(name, sizeof(name), "%s-%s.%d", dev_name(dev), inst_array[i].type, i);
 		board_info.dev_name = name;
 

@@ -282,4 +282,5 @@ static void __exit exit_nls_iso8859_13(void)
 module_init(init_nls_iso8859_13)
 module_exit(exit_nls_iso8859_13)
 
+MODULE_DESCRIPTION("NLS ISO 8859-13 (Latin 7; Baltic)");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -1676,7 +1676,6 @@ static int adt7475_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 	int i, ret = 0, revision, group_num = 0;
 	u8 config3;
-	const struct i2c_device_id *id = i2c_match_id(adt7475_id, client);
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
@@ -1686,10 +1685,7 @@ static int adt7475_probe(struct i2c_client *client)
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
-	if (client->dev.of_node)
-		chip = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		chip = id->driver_data;
+	chip = (uintptr_t)i2c_get_match_data(client);
 
 	/* Initialize device-specific values */
 	switch (chip) {
@@ -1717,7 +1713,7 @@ static int adt7475_probe(struct i2c_client *client)
 	if (!(config3 & CONFIG3_SMBALERT))
 		data->has_pwm2 = 1;
 	/* Meaning of this bit is inverted for the ADT7473-1 */
-	if (id->driver_data == adt7473 && revision >= 1)
+	if (chip == adt7473 && revision >= 1)
 		data->has_pwm2 = !data->has_pwm2;
 
 	data->config4 = adt7475_read(REG_CONFIG4);
@@ -1730,12 +1726,12 @@ static int adt7475_probe(struct i2c_client *client)
 	 * because 2 different pins (TACH4 and +2.5 Vin) can be used for
 	 * this function
 	 */
-	if (id->driver_data == adt7490) {
+	if (chip == adt7490) {
 		if ((data->config4 & CONFIG4_PINFUNC) == 0x1 &&
 		    !(config3 & CONFIG3_THERM))
 			data->has_fan4 = 1;
 	}
-	if (id->driver_data == adt7476 || id->driver_data == adt7490) {
+	if (chip == adt7476 || chip == adt7490) {
 		if (!(config3 & CONFIG3_THERM) ||
 		    (data->config4 & CONFIG4_PINFUNC) == 0x1)
 			data->has_voltage |= (1 << 0);		/* in0 */
@@ -1745,7 +1741,7 @@ static int adt7475_probe(struct i2c_client *client)
 	 * On the ADT7476, the +12V input pin may instead be used as VID5,
 	 * and VID pins may alternatively be used as GPIO
 	 */
-	if (id->driver_data == adt7476) {
+	if (chip == adt7476) {
 		u8 vid = adt7475_read(REG_VID);
 		if (!(vid & VID_VIDSEL))
 			data->has_voltage |= (1 << 4);		/* in4 */
@@ -1829,7 +1825,7 @@ static int adt7475_probe(struct i2c_client *client)
 	}
 
 	dev_info(&client->dev, "%s device, revision %d\n",
-		 names[id->driver_data], revision);
+		 names[chip], revision);
 	if ((data->has_voltage & 0x11) || data->has_fan4 || data->has_pwm2)
 		dev_info(&client->dev, "Optional features:%s%s%s%s%s\n",
 			 (data->has_voltage & (1 << 0)) ? " in0" : "",
@@ -1900,7 +1896,7 @@ static void adt7475_read_pwm(struct i2c_client *client, int index)
 		data->pwm[CONTROL][index] &= ~0xE0;
 		data->pwm[CONTROL][index] |= (7 << 5);
 
-		i2c_smbus_write_byte_data(client, PWM_CONFIG_REG(index),
+		i2c_smbus_write_byte_data(client, PWM_REG(index),
 					  data->pwm[INPUT][index]);
 
 		i2c_smbus_write_byte_data(client, PWM_CONFIG_REG(index),

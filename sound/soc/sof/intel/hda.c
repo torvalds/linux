@@ -783,8 +783,8 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 				pci->class);
 			return -ENODEV;
 		}
-		dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n",
-			 pci->class);
+		dev_info_once(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n",
+			      pci->class);
 	}
 
 	chip = get_chip_info(sdev->pdata);
@@ -1307,9 +1307,10 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_soc_acpi_mach *mach = NULL;
-	enum snd_soc_acpi_intel_codec codec_type;
+	enum snd_soc_acpi_intel_codec codec_type, amp_type;
 	const char *tplg_filename;
 	const char *tplg_suffix;
+	bool amp_name_valid;
 
 	/* Try I2S or DMIC if it is supported */
 	if (interface_mask & (BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC)))
@@ -1413,15 +1414,16 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 			}
 		}
 
-		codec_type = snd_soc_acpi_intel_detect_amp_type(sdev->dev);
+		amp_type = snd_soc_acpi_intel_detect_amp_type(sdev->dev);
+		codec_type = snd_soc_acpi_intel_detect_codec_type(sdev->dev);
+		amp_name_valid = amp_type != CODEC_NONE && amp_type != codec_type;
 
-		if (tplg_fixup &&
-		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_AMP_NAME &&
-		    codec_type != CODEC_NONE) {
-			tplg_suffix = snd_soc_acpi_intel_get_amp_tplg_suffix(codec_type);
+		if (tplg_fixup && amp_name_valid &&
+		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_AMP_NAME) {
+			tplg_suffix = snd_soc_acpi_intel_get_amp_tplg_suffix(amp_type);
 			if (!tplg_suffix) {
 				dev_err(sdev->dev, "no tplg suffix found, amp %d\n",
-					codec_type);
+					amp_type);
 				return NULL;
 			}
 
@@ -1436,7 +1438,6 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 			add_extension = true;
 		}
 
-		codec_type = snd_soc_acpi_intel_detect_codec_type(sdev->dev);
 
 		if (tplg_fixup &&
 		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME &&
@@ -1522,6 +1523,7 @@ void hda_unregister_clients(struct snd_sof_dev *sdev)
 }
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for HDaudio platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);
 MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC);
 MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC_I915);

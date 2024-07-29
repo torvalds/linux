@@ -280,4 +280,5 @@ static void __exit test_sysctl_exit(void)
 module_exit(test_sysctl_exit);
 
 MODULE_AUTHOR("Luis R. Rodriguez <mcgrof@kernel.org>");
+MODULE_DESCRIPTION("proc sysctl test driver");
 MODULE_LICENSE("GPL");

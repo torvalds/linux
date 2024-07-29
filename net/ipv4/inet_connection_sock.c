@@ -911,6 +911,64 @@ int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
 }
 EXPORT_SYMBOL(inet_rtx_syn_ack);
 
+static struct request_sock *
+reqsk_alloc_noprof(const struct request_sock_ops *ops, struct sock *sk_listener,
+		   bool attach_listener)
+{
+	struct request_sock *req;
+
+	req = kmem_cache_alloc_noprof(ops->slab, GFP_ATOMIC | __GFP_NOWARN);
+	if (!req)
+		return NULL;
+	req->rsk_listener = NULL;
+	if (attach_listener) {
+		if (unlikely(!refcount_inc_not_zero(&sk_listener->sk_refcnt))) {
+			kmem_cache_free(ops->slab, req);
+			return NULL;
+		}
+		req->rsk_listener = sk_listener;
+	}
+	req->rsk_ops = ops;
+	req_to_sk(req)->sk_prot = sk_listener->sk_prot;
+	sk_node_init(&req_to_sk(req)->sk_node);
+	sk_tx_queue_clear(req_to_sk(req));
+	req->saved_syn = NULL;
+	req->syncookie = 0;
+	req->timeout = 0;
+	req->num_timeout = 0;
+	req->num_retrans = 0;
+	req->sk = NULL;
+	refcount_set(&req->rsk_refcnt, 0);
+
+	return req;
+}
+#define reqsk_alloc(...)	alloc_hooks(reqsk_alloc_noprof(__VA_ARGS__))
+
+struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
+				      struct sock *sk_listener,
+				      bool attach_listener)
+{
+	struct request_sock *req = reqsk_alloc(ops, sk_listener,
+					       attach_listener);
+
+	if (req) {
+		struct inet_request_sock *ireq = inet_rsk(req);
+
+		ireq->ireq_opt = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+		ireq->pktopts = NULL;
+#endif
+		atomic64_set(&ireq->ir_cookie, 0);
+		ireq->ireq_state = TCP_NEW_SYN_RECV;
+		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
+		ireq->ireq_family = sk_listener->sk_family;
+		req->timeout = TCP_TIMEOUT_INIT;
+	}
+
+	return req;
+}
+EXPORT_SYMBOL(inet_reqsk_alloc);
+
 static struct request_sock *inet_reqsk_clone(struct request_sock *req,
 					     struct sock *sk)
 {
@@ -1122,25 +1180,34 @@ drop:
 	inet_csk_reqsk_queue_drop_and_put(oreq->rsk_listener, oreq);
 }
 
-static void reqsk_queue_hash_req(struct request_sock *req,
+static bool reqsk_queue_hash_req(struct request_sock *req,
 				 unsigned long timeout)
 {
+	bool found_dup_sk = false;
+
+	if (!inet_ehash_insert(req_to_sk(req), NULL, &found_dup_sk))
+		return false;
+
+	/* The timer needs to be setup after a successful insertion. */
 	timer_setup(&req->rsk_timer, reqsk_timer_handler, TIMER_PINNED);
 	mod_timer(&req->rsk_timer, jiffies + timeout);
 
-	inet_ehash_insert(req_to_sk(req), NULL, NULL);
 	/* before letting lookups find us, make sure all req fields
 	 * are committed to memory and refcnt initialized.
 	 */
 	smp_wmb();
 	refcount_set(&req->rsk_refcnt, 2 + 1);
+	return true;
 }
 
-void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
+bool inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				   unsigned long timeout)
 {
-	reqsk_queue_hash_req(req, timeout);
+	if (!reqsk_queue_hash_req(req, timeout))
+		return false;
+
 	inet_csk_reqsk_queue_added(sk);
+	return true;
 }
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 

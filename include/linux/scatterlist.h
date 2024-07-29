@@ -332,7 +332,7 @@ static inline void sg_dma_unmark_bus_address(struct scatterlist *sg)
  * Description:
  *   Returns true if the scatterlist was marked for SWIOTLB bouncing. Not all
  *   elements may have been bounced, so the caller would have to check
- *   individual SG entries with is_swiotlb_buffer().
+ *   individual SG entries with swiotlb_find_pool().
  */
 static inline bool sg_dma_is_swiotlb(struct scatterlist *sg)
 {

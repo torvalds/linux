@@ -66,7 +66,7 @@ change_conf(struct TCP_Server_Info *server)
 
 static void
 smb2_add_credits(struct TCP_Server_Info *server,
-		 const struct cifs_credits *credits, const int optype)
+		 struct cifs_credits *credits, const int optype)
 {
 	int *val, rc = -1;
 	int scredits, in_flight;
@@ -94,7 +94,21 @@ smb2_add_credits(struct TCP_Server_Info *server,
 					    server->conn_id, server->hostname, *val,
 					    add, server->in_flight);
 	}
-	WARN_ON_ONCE(server->in_flight == 0);
+	if (credits->in_flight_check > 1) {
+		pr_warn_once("rreq R=%08x[%x] Credits not in flight\n",
+			     credits->rreq_debug_id, credits->rreq_debug_index);
+	} else {
+		credits->in_flight_check = 2;
+	}
+	if (WARN_ON_ONCE(server->in_flight == 0)) {
+		pr_warn_once("rreq R=%08x[%x] Zero in_flight\n",
+			     credits->rreq_debug_id, credits->rreq_debug_index);
+		trace_smb3_rw_credits(credits->rreq_debug_id,
+				      credits->rreq_debug_index,
+				      credits->value,
+				      server->credits, server->in_flight, 0,
+				      cifs_trace_rw_credits_zero_in_flight);
+	}
 	server->in_flight--;
 	if (server->in_flight == 0 &&
 	   ((optype & CIFS_OP_MASK) != CIFS_NEG_OP) &&
@@ -283,16 +297,23 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, size_t size,
 
 static int
 smb2_adjust_credits(struct TCP_Server_Info *server,
-		    struct cifs_credits *credits,
-		    const unsigned int payload_size)
+		    struct cifs_io_subrequest *subreq,
+		    unsigned int /*enum smb3_rw_credits_trace*/ trace)
 {
-	int new_val = DIV_ROUND_UP(payload_size, SMB2_MAX_BUFFER_SIZE);
+	struct cifs_credits *credits = &subreq->credits;
+	int new_val = DIV_ROUND_UP(subreq->subreq.len, SMB2_MAX_BUFFER_SIZE);
 	int scredits, in_flight;
 
 	if (!credits->value || credits->value == new_val)
 		return 0;
 
 	if (credits->value < new_val) {
+		trace_smb3_rw_credits(subreq->rreq->debug_id,
+				      subreq->subreq.debug_index,
+				      credits->value,
+				      server->credits, server->in_flight,
+				      new_val - credits->value,
+				      cifs_trace_rw_credits_no_adjust_up);
 		trace_smb3_too_many_credits(server->CurrentMid,
 				server->conn_id, server->hostname, 0, credits->value - new_val, 0);
 		cifs_server_dbg(VFS, "request has less credits (%d) than required (%d)",
@@ -308,6 +329,12 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		in_flight = server->in_flight;
 		spin_unlock(&server->req_lock);
 
+		trace_smb3_rw_credits(subreq->rreq->debug_id,
+				      subreq->subreq.debug_index,
+				      credits->value,
+				      server->credits, server->in_flight,
+				      new_val - credits->value,
+				      cifs_trace_rw_credits_old_session);
 		trace_smb3_reconnect_detected(server->CurrentMid,
 			server->conn_id, server->hostname, scredits,
 			credits->value - new_val, in_flight);
@@ -316,6 +343,11 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		return -EAGAIN;
 	}
 
+	trace_smb3_rw_credits(subreq->rreq->debug_id,
+			      subreq->subreq.debug_index,
+			      credits->value,
+			      server->credits, server->in_flight,
+			      new_val - credits->value, trace);
 	server->credits += credits->value - new_val;
 	scredits = server->credits;
 	in_flight = server->in_flight;
@@ -1780,6 +1812,10 @@ smb2_copychunk_range(const unsigned int xid,
 
 	tcon = tlink_tcon(trgtfile->tlink);
 
+	trace_smb3_copychunk_enter(xid, srcfile->fid.volatile_fid,
+				   trgtfile->fid.volatile_fid, tcon->tid,
+				   tcon->ses->Suid, src_off, dest_off, len);
+
 	while (len > 0) {
 		pcchunk->SourceOffset = cpu_to_le64(src_off);
 		pcchunk->TargetOffset = cpu_to_le64(dest_off);
@@ -1831,6 +1867,9 @@ smb2_copychunk_range(const unsigned int xid,
 				le32_to_cpu(retbuf->ChunksWritten),
 				le32_to_cpu(retbuf->ChunkBytesWritten),
 				bytes_written);
+			trace_smb3_copychunk_done(xid, srcfile->fid.volatile_fid,
+				trgtfile->fid.volatile_fid, tcon->tid,
+				tcon->ses->Suid, src_off, dest_off, len);
 		} else if (rc == -EINVAL) {
 			if (ret_data_len != sizeof(struct copychunk_ioctl_rsp))
 				goto cchunk_out;
@@ -2014,7 +2053,9 @@ smb2_duplicate_extents(const unsigned int xid,
 	dup_ext_buf.ByteCount = cpu_to_le64(len);
 	cifs_dbg(FYI, "Duplicate extents: src off %lld dst off %lld len %lld\n",
 		src_off, dest_off, len);
-
+	trace_smb3_clone_enter(xid, srcfile->fid.volatile_fid,
+			       trgtfile->fid.volatile_fid, tcon->tid,
+			       tcon->ses->Suid, src_off, dest_off, len);
 	inode = d_inode(trgtfile->dentry);
 	if (inode->i_size < dest_off + len) {
 		rc = smb2_set_file_size(xid, tcon, trgtfile, dest_off + len, false);
@@ -2043,6 +2084,15 @@ smb2_duplicate_extents(const unsigned int xid,
 		cifs_dbg(FYI, "Non-zero response length in duplicate extents\n");
 
 duplicate_extents_out:
+	if (rc)
+		trace_smb3_clone_err(xid, srcfile->fid.volatile_fid,
+				     trgtfile->fid.volatile_fid,
+				     tcon->tid, tcon->ses->Suid, src_off,
+				     dest_off, len, rc);
+	else
+		trace_smb3_clone_done(xid, srcfile->fid.volatile_fid,
+				      trgtfile->fid.volatile_fid, tcon->tid,
+				      tcon->ses->Suid, src_off, dest_off, len);
 	return rc;
 }
 
@@ -4996,6 +5046,9 @@ static int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		strscpy(pdev.type, "IntxBLK");
 		pdev.major = cpu_to_le64(MAJOR(dev));
 		pdev.minor = cpu_to_le64(MINOR(dev));
+		break;
+	case S_IFSOCK:
+		strscpy(pdev.type, "LnxSOCK");
 		break;
 	case S_IFIFO:
 		strscpy(pdev.type, "LnxFIFO");

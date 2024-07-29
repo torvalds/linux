@@ -1550,7 +1550,7 @@ out_free_fw:
 	return ret;
 }
 
-static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
+static int get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *ts_info)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct  adapter *adapter = pi->adapter;

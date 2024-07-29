@@ -41,6 +41,7 @@ properties:
     description:
       Three entries specifying the outgoing ipc bit used for signaling the
       remote end of the smp2p edge.
+    deprecated: true
 
   qcom,local-pid:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -128,7 +129,7 @@ examples:
         compatible = "qcom,smp2p";
         qcom,smem = <431>, <451>;
         interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
-        qcom,ipc = <&apcs 8 18>;
+        mboxes = <&apcs 18>;
         qcom,local-pid = <0>;
         qcom,remote-pid = <4>;
 

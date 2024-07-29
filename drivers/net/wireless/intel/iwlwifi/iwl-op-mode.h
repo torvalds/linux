@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -185,7 +185,8 @@ static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
 static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
-	op_mode->ops->nic_config(op_mode);
+	if (op_mode->ops->nic_config)
+		op_mode->ops->nic_config(op_mode);
 }
 
 static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)

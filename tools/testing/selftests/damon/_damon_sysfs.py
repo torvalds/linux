@@ -175,16 +175,24 @@ class DamosStats:
         self.sz_applied = sz_applied
         self.qt_exceeds = qt_exceeds
 
+class DamosTriedRegion:
+    def __init__(self, start, end, nr_accesses, age):
+        self.start = start
+        self.end = end
+        self.nr_accesses = nr_accesses
+        self.age = age
+
 class Damos:
     action = None
     access_pattern = None
     quota = None
     apply_interval_us = None
-    # todo: Support watermarks, stats, tried_regions
+    # todo: Support watermarks, stats
     idx = None
     context = None
     tried_bytes = None
     stats = None
+    tried_regions = None
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
                  quota=DamosQuota(), apply_interval_us=0):
@@ -398,6 +406,35 @@ class Kdamond:
         err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'on')
         return err
 
+    def stop(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'off')
+        return err
+
+    def update_schemes_tried_regions(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'),
+                         'update_schemes_tried_regions')
+        if err is not None:
+            return err
+        for context in self.contexts:
+            for scheme in context.schemes:
+                tried_regions = []
+                tried_regions_dir = os.path.join(
+                        scheme.sysfs_dir(), 'tried_regions')
+                for filename in os.listdir(
+                        os.path.join(scheme.sysfs_dir(), 'tried_regions')):
+                    tried_region_dir = os.path.join(tried_regions_dir, filename)
+                    if not os.path.isdir(tried_region_dir):
+                        continue
+                    region_values = []
+                    for f in ['start', 'end', 'nr_accesses', 'age']:
+                        content, err = read_file(
+                                os.path.join(tried_region_dir, f))
+                        if err is not None:
+                            return err
+                        region_values.append(int(content))
+                    tried_regions.append(DamosTriedRegion(*region_values))
+                scheme.tried_regions = tried_regions
+
     def update_schemes_tried_bytes(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'state'),
                 'update_schemes_tried_bytes')
@@ -444,6 +481,25 @@ class Kdamond:
                     goal.effective_bytes = int(content)
         return None
 
+    def commit(self):
+        nr_contexts_file = os.path.join(self.sysfs_dir(),
+                'contexts', 'nr_contexts')
+        content, err = read_file(nr_contexts_file)
+        if err is not None:
+            return err
+        if int(content) != len(self.contexts):
+            err = write_file(nr_contexts_file, '%d' % len(self.contexts))
+            if err is not None:
+                return err
+
+        for context in self.contexts:
+            err = context.stage()
+            if err is not None:
+                return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'commit')
+        return err
+
+
     def commit_schemes_quota_goals(self):
         for context in self.contexts:
             for scheme in context.schemes:
@@ -475,6 +531,13 @@ class Kdamonds:
             return err
         for kdamond in self.kdamonds:
             err = kdamond.start()
+            if err is not None:
+                return err
+        return None
+
+    def stop(self):
+        for kdamond in self.kdamonds:
+            err = kdamond.stop()
             if err is not None:
                 return err
         return None

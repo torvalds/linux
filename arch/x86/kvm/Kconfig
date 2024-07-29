@@ -44,6 +44,8 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_PM_NOTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
+	select KVM_GENERIC_PRE_FAULT_MEMORY
+	select KVM_WERROR if WERROR
 	help
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -66,7 +68,7 @@ config KVM_WERROR
 	# FRAME_WARN, i.e. KVM_WERROR=y with KASAN=y requires special tuning.
 	# Building KVM with -Werror and KASAN is still doable via enabling
 	# the kernel-wide WERROR=y.
-	depends on KVM && EXPERT && !KASAN
+	depends on KVM && ((EXPERT && !KASAN) || WERROR)
 	help
 	  Add -Werror to the build flags for KVM.
 
@@ -97,14 +99,16 @@ config KVM_INTEL
 
 config KVM_INTEL_PROVE_VE
         bool "Check that guests do not receive #VE exceptions"
-        default KVM_PROVE_MMU || DEBUG_KERNEL
-        depends on KVM_INTEL
+        depends on KVM_INTEL && EXPERT
         help
-
           Checks that KVM's page table management code will not incorrectly
           let guests receive a virtualization exception.  Virtualization
           exceptions will be trapped by the hypervisor rather than injected
           in the guest.
+
+          Note: some CPUs appear to generate spurious EPT Violations #VEs
+          that trigger KVM's WARN, in particular with eptad=0 and/or nested
+          virtualization.
 
           If unsure, say N.
 
@@ -136,6 +140,9 @@ config KVM_AMD_SEV
 	depends on KVM_AMD && X86_64
 	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
 	select ARCH_HAS_CC_PLATFORM
+	select KVM_GENERIC_PRIVATE_MEM
+	select HAVE_KVM_GMEM_PREPARE
+	select HAVE_KVM_GMEM_INVALIDATE
 	help
 	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
 	  with Encrypted State (SEV-ES) on AMD processors.

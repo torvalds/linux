@@ -35,12 +35,16 @@ properties:
 
   reg:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
 
   "#clock-cells":
     description:
       The first cell indicates the clock number, see [1] for available
       clocks.
+    const: 1
+
+  '#reset-cells':
+    description: ID of the controller reset line
     const: 1
 
 required:
@@ -60,6 +64,8 @@ allOf:
             - description: scu base address
             - description: misc scu base address
 
+        '#reset-cells': false
+
   - if:
       properties:
         compatible:
@@ -70,6 +76,7 @@ allOf:
           items:
             - description: scu base address
             - description: misc scu base address
+            - description: reset base address
             - description: pb scu base address
 
 additionalProperties: false
@@ -82,4 +89,20 @@ examples:
       reg = <0x1fa20000 0x400>,
             <0x1fb00000 0x1000>;
       #clock-cells = <1>;
+    };
+
+  - |
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      scuclk: clock-controller@1fa20000 {
+        compatible = "airoha,en7581-scu";
+        reg = <0x0 0x1fa20000 0x0 0x400>,
+              <0x0 0x1fb00000 0x0 0x90>,
+              <0x0 0x1fb00830 0x0 0x8>,
+              <0x0 0x1fbe3400 0x0 0xfc>;
+              #clock-cells = <1>;
+              #reset-cells = <1>;
+      };
     };

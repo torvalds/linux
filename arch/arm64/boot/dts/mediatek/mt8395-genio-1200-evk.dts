@@ -475,7 +475,7 @@
 				 <PINMUX_GPIO86__FUNC_GBE_RXC>,
 				 <PINMUX_GPIO87__FUNC_GBE_RXDV>,
 				 <PINMUX_GPIO88__FUNC_GBE_TXEN>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 
 		pins-mdio {
@@ -502,7 +502,7 @@
 				 <PINMUX_GPIO78__FUNC_GBE_TXD2>,
 				 <PINMUX_GPIO79__FUNC_GBE_TXD1>,
 				 <PINMUX_GPIO80__FUNC_GBE_TXD0>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 	};
 
@@ -567,7 +567,7 @@
 			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
 				 <PINMUX_GPIO13__FUNC_SCL2>;
 			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 		};
 	};
 
@@ -582,7 +582,7 @@
 	mmc0_default_pins: mmc0-default-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -597,13 +597,13 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins-rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -611,7 +611,7 @@
 	mmc0_uhs_pins: mmc0-uhs-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -626,19 +626,19 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins-ds {
 			pinmux = <PINMUX_GPIO127__FUNC_MSDC0_DSL>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
 		pins-rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -646,7 +646,7 @@
 	mmc1_default_pins: mmc1-default-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO111__FUNC_MSDC1_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -657,7 +657,7 @@
 				 <PINMUX_GPIO114__FUNC_MSDC1_DAT2>,
 				 <PINMUX_GPIO115__FUNC_MSDC1_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -665,7 +665,7 @@
 	mmc1_uhs_pins: mmc1-uhs-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO111__FUNC_MSDC1_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -676,7 +676,7 @@
 				 <PINMUX_GPIO114__FUNC_MSDC1_DAT2>,
 				 <PINMUX_GPIO115__FUNC_MSDC1_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -854,6 +854,10 @@
 
 &u3phy1 {
 	status = "okay";
+
+	u3port1: usb-phy@700 {
+		mediatek,force-mode;
+	};
 };
 
 &u3phy2 {
@@ -900,6 +904,8 @@
 };
 
 &xhci1 {
+	phys = <&u2port1 PHY_TYPE_USB2>,
+	       <&u3port1 PHY_TYPE_USB3>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };

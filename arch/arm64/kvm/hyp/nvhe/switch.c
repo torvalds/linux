@@ -48,15 +48,14 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 	val |= has_hvhe() ? CPACR_EL1_TTA : CPTR_EL2_TTA;
 	if (cpus_have_final_cap(ARM64_SME)) {
 		if (has_hvhe())
-			val &= ~(CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN);
+			val &= ~CPACR_ELx_SMEN;
 		else
 			val |= CPTR_EL2_TSM;
 	}
 
 	if (!guest_owns_fp_regs()) {
 		if (has_hvhe())
-			val &= ~(CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
-				 CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN);
+			val &= ~(CPACR_ELx_FPEN | CPACR_ELx_ZEN);
 		else
 			val |= CPTR_EL2_TFP | CPTR_EL2_TZ;
 
@@ -180,6 +179,25 @@ static bool kvm_handle_pvm_sys64(struct kvm_vcpu *vcpu, u64 *exit_code)
 	 */
 	return (kvm_hyp_handle_sysreg(vcpu, exit_code) ||
 		kvm_handle_pvm_sysreg(vcpu, exit_code));
+}
+
+static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Non-protected kvm relies on the host restoring its sve state.
+	 * Protected kvm restores the host's sve state as not to reveal that
+	 * fpsimd was used by a guest nor leak upper sve bits.
+	 */
+	if (unlikely(is_protected_kvm_enabled() && system_supports_sve())) {
+		__hyp_sve_save_host();
+
+		/* Re-enable SVE traps if not supported for the guest vcpu. */
+		if (!vcpu_has_sve(vcpu))
+			cpacr_clear_set(CPACR_ELx_ZEN, 0);
+
+	} else {
+		__fpsimd_save_state(*host_data_ptr(fpsimd_state));
+	}
 }
 
 static const exit_handler_fn hyp_exit_handlers[] = {

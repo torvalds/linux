@@ -34,9 +34,10 @@ static void stat64_to_hostfs(const struct stat64 *buf, struct hostfs_stat *p)
 	p->mtime.tv_nsec = 0;
 	p->blksize = buf->st_blksize;
 	p->blocks = buf->st_blocks;
-	p->maj = os_major(buf->st_rdev);
-	p->min = os_minor(buf->st_rdev);
-	p->dev = buf->st_dev;
+	p->rdev.maj = os_major(buf->st_rdev);
+	p->rdev.min = os_minor(buf->st_rdev);
+	p->dev.maj = os_major(buf->st_dev);
+	p->dev.min = os_minor(buf->st_dev);
 }
 
 int stat_file(const char *path, struct hostfs_stat *p, int fd)

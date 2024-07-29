@@ -7,6 +7,7 @@
  * Author: Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -19,7 +20,6 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5562_PROGRAM_LENGTH		32
 #define LP5562_MAX_LEDS			4
 
 /* ENABLE Register 00h */
@@ -38,21 +38,6 @@
 
 /* OPMODE Register 01h */
 #define LP5562_REG_OP_MODE		0x01
-#define LP5562_MODE_ENG1_M		0x30
-#define LP5562_MODE_ENG2_M		0x0C
-#define LP5562_MODE_ENG3_M		0x03
-#define LP5562_LOAD_ENG1		0x10
-#define LP5562_LOAD_ENG2		0x04
-#define LP5562_LOAD_ENG3		0x01
-#define LP5562_RUN_ENG1			0x20
-#define LP5562_RUN_ENG2			0x08
-#define LP5562_RUN_ENG3			0x02
-#define LP5562_ENG1_IS_LOADING(mode)	\
-	((mode & LP5562_MODE_ENG1_M) == LP5562_LOAD_ENG1)
-#define LP5562_ENG2_IS_LOADING(mode)	\
-	((mode & LP5562_MODE_ENG2_M) == LP5562_LOAD_ENG2)
-#define LP5562_ENG3_IS_LOADING(mode)	\
-	((mode & LP5562_MODE_ENG3_M) == LP5562_LOAD_ENG3)
 
 /* BRIGHTNESS Registers */
 #define LP5562_REG_R_PWM		0x04
@@ -124,160 +109,24 @@ static void lp5562_set_led_current(struct lp55xx_led *led, u8 led_current)
 	lp55xx_write(led->chip, addr[led->chan_nr], led_current);
 }
 
-static void lp5562_load_engine(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 mask[] = {
-		[LP55XX_ENGINE_1] = LP5562_MODE_ENG1_M,
-		[LP55XX_ENGINE_2] = LP5562_MODE_ENG2_M,
-		[LP55XX_ENGINE_3] = LP5562_MODE_ENG3_M,
-	};
-
-	static const u8 val[] = {
-		[LP55XX_ENGINE_1] = LP5562_LOAD_ENG1,
-		[LP55XX_ENGINE_2] = LP5562_LOAD_ENG2,
-		[LP55XX_ENGINE_3] = LP5562_LOAD_ENG3,
-	};
-
-	lp55xx_update_bits(chip, LP5562_REG_OP_MODE, mask[idx], val[idx]);
-
-	lp5562_wait_opmode_done();
-}
-
-static void lp5562_stop_engine(struct lp55xx_chip *chip)
-{
-	lp55xx_write(chip, LP5562_REG_OP_MODE, LP5562_CMD_DISABLE);
-	lp5562_wait_opmode_done();
-}
-
 static void lp5562_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	int ret;
-	u8 mode;
-	u8 exec;
 
 	/* stop engine */
 	if (!start) {
 		lp55xx_write(chip, LP5562_REG_ENABLE, LP5562_ENABLE_DEFAULT);
 		lp5562_wait_enable_done();
-		lp5562_stop_engine(chip);
+		lp55xx_stop_all_engine(chip);
 		lp55xx_write(chip, LP5562_REG_ENG_SEL, LP5562_ENG_SEL_PWM);
 		lp55xx_write(chip, LP5562_REG_OP_MODE, LP5562_CMD_DIRECT);
 		lp5562_wait_opmode_done();
 		return;
 	}
 
-	/*
-	 * To run the engine,
-	 * operation mode and enable register should updated at the same time
-	 */
-
-	ret = lp55xx_read(chip, LP5562_REG_OP_MODE, &mode);
-	if (ret)
-		return;
-
-	ret = lp55xx_read(chip, LP5562_REG_ENABLE, &exec);
-	if (ret)
-		return;
-
-	/* change operation mode to RUN only when each engine is loading */
-	if (LP5562_ENG1_IS_LOADING(mode)) {
-		mode = (mode & ~LP5562_MODE_ENG1_M) | LP5562_RUN_ENG1;
-		exec = (exec & ~LP5562_EXEC_ENG1_M) | LP5562_RUN_ENG1;
-	}
-
-	if (LP5562_ENG2_IS_LOADING(mode)) {
-		mode = (mode & ~LP5562_MODE_ENG2_M) | LP5562_RUN_ENG2;
-		exec = (exec & ~LP5562_EXEC_ENG2_M) | LP5562_RUN_ENG2;
-	}
-
-	if (LP5562_ENG3_IS_LOADING(mode)) {
-		mode = (mode & ~LP5562_MODE_ENG3_M) | LP5562_RUN_ENG3;
-		exec = (exec & ~LP5562_EXEC_ENG3_M) | LP5562_RUN_ENG3;
-	}
-
-	lp55xx_write(chip, LP5562_REG_OP_MODE, mode);
-	lp5562_wait_opmode_done();
-
-	lp55xx_update_bits(chip, LP5562_REG_ENABLE, LP5562_EXEC_M, exec);
-	lp5562_wait_enable_done();
-}
-
-static int lp5562_update_firmware(struct lp55xx_chip *chip,
-					const u8 *data, size_t size)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 pattern[LP5562_PROGRAM_LENGTH] = {0};
-	static const u8 addr[] = {
-		[LP55XX_ENGINE_1] = LP5562_REG_PROG_MEM_ENG1,
-		[LP55XX_ENGINE_2] = LP5562_REG_PROG_MEM_ENG2,
-		[LP55XX_ENGINE_3] = LP5562_REG_PROG_MEM_ENG3,
-	};
-	unsigned cmd;
-	char c[3];
-	int program_size;
-	int nrchars;
-	int offset = 0;
-	int ret;
-	int i;
-
-	/* clear program memory before updating */
-	for (i = 0; i < LP5562_PROGRAM_LENGTH; i++)
-		lp55xx_write(chip, addr[idx] + i, 0);
-
-	i = 0;
-	while ((offset < size - 1) && (i < LP5562_PROGRAM_LENGTH)) {
-		/* separate sscanfs because length is working only for %s */
-		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
-		if (ret != 1)
-			goto err;
-
-		ret = sscanf(c, "%2x", &cmd);
-		if (ret != 1)
-			goto err;
-
-		pattern[i] = (u8)cmd;
-		offset += nrchars;
-		i++;
-	}
-
-	/* Each instruction is 16bit long. Check that length is even */
-	if (i % 2)
-		goto err;
-
-	program_size = i;
-	for (i = 0; i < program_size; i++)
-		lp55xx_write(chip, addr[idx] + i, pattern[i]);
-
-	return 0;
-
-err:
-	dev_err(&chip->cl->dev, "wrong pattern format\n");
-	return -EINVAL;
-}
-
-static void lp5562_firmware_loaded(struct lp55xx_chip *chip)
-{
-	const struct firmware *fw = chip->fw;
-
-	/*
-	 * the firmware is encoded in ascii hex character, with 2 chars
-	 * per byte
-	 */
-	if (fw->size > (LP5562_PROGRAM_LENGTH * 2)) {
-		dev_err(&chip->cl->dev, "firmware data size overflow: %zu\n",
-			fw->size);
-		return;
-	}
-
-	/*
-	 * Program memory sequence
-	 *  1) set engine mode to "LOAD"
-	 *  2) write firmware data into program memory
-	 */
-
-	lp5562_load_engine(chip);
-	lp5562_update_firmware(chip, fw->data, fw->size);
+	ret = lp55xx_run_engine_common(chip);
+	if (!ret)
+		lp5562_wait_enable_done();
 }
 
 static int lp5562_post_init_device(struct lp55xx_chip *chip)
@@ -323,9 +172,9 @@ static int lp5562_led_brightness(struct lp55xx_led *led)
 	};
 	int ret;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp55xx_write(chip, addr[led->chan_nr], led->brightness);
-	mutex_unlock(&chip->lock);
 
 	return ret;
 }
@@ -348,9 +197,9 @@ static void lp5562_write_program_memory(struct lp55xx_chip *chip,
 /* check the size of program count */
 static inline bool _is_pc_overflow(struct lp55xx_predef_pattern *ptn)
 {
-	return ptn->size_r >= LP5562_PROGRAM_LENGTH ||
-	       ptn->size_g >= LP5562_PROGRAM_LENGTH ||
-	       ptn->size_b >= LP5562_PROGRAM_LENGTH;
+	return ptn->size_r >= LP55xx_BYTES_PER_PAGE ||
+	       ptn->size_g >= LP55xx_BYTES_PER_PAGE ||
+	       ptn->size_b >= LP55xx_BYTES_PER_PAGE;
 }
 
 static int lp5562_run_predef_led_pattern(struct lp55xx_chip *chip, int mode)
@@ -369,7 +218,7 @@ static int lp5562_run_predef_led_pattern(struct lp55xx_chip *chip, int mode)
 		return -EINVAL;
 	}
 
-	lp5562_stop_engine(chip);
+	lp55xx_stop_all_engine(chip);
 
 	/* Set LED map as RGB */
 	lp55xx_write(chip, LP5562_REG_ENG_SEL, LP5562_ENG_SEL_RGB);
@@ -377,7 +226,7 @@ static int lp5562_run_predef_led_pattern(struct lp55xx_chip *chip, int mode)
 	/* Load engines */
 	for (i = LP55XX_ENGINE_1; i <= LP55XX_ENGINE_3; i++) {
 		chip->engine_idx = i;
-		lp5562_load_engine(chip);
+		lp55xx_load_engine(chip);
 	}
 
 	/* Clear program registers */
@@ -420,9 +269,9 @@ static ssize_t lp5562_store_pattern(struct device *dev,
 	if (mode > num_patterns || !ptn)
 		return -EINVAL;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp5562_run_predef_led_pattern(chip, mode);
-	mutex_unlock(&chip->lock);
 
 	if (ret)
 		return ret;
@@ -472,9 +321,9 @@ static ssize_t lp5562_store_engine_mux(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	lp55xx_update_bits(chip, LP5562_REG_ENG_SEL, mask, val);
-	mutex_unlock(&chip->lock);
 
 	return len;
 }
@@ -495,6 +344,12 @@ static const struct attribute_group lp5562_group = {
 /* Chip specific configurations */
 static struct lp55xx_device_config lp5562_cfg = {
 	.max_channel  = LP5562_MAX_LEDS,
+	.reg_op_mode = {
+		.addr = LP5562_REG_OP_MODE,
+	},
+	.reg_exec = {
+		.addr = LP5562_REG_ENABLE,
+	},
 	.reset = {
 		.addr = LP5562_REG_RESET,
 		.val  = LP5562_RESET,
@@ -503,94 +358,25 @@ static struct lp55xx_device_config lp5562_cfg = {
 		.addr = LP5562_REG_ENABLE,
 		.val  = LP5562_ENABLE_DEFAULT,
 	},
+	.prog_mem_base = {
+		.addr = LP5562_REG_PROG_MEM_ENG1,
+	},
 	.post_init_device   = lp5562_post_init_device,
 	.set_led_current    = lp5562_set_led_current,
 	.brightness_fn      = lp5562_led_brightness,
 	.run_engine         = lp5562_run_engine,
-	.firmware_cb        = lp5562_firmware_loaded,
+	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.dev_attr_group     = &lp5562_group,
 };
 
-static int lp5562_probe(struct i2c_client *client)
-{
-	int ret;
-	struct lp55xx_chip *chip;
-	struct lp55xx_led *led;
-	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = dev_of_node(&client->dev);
-
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
-
-	chip->cfg = &lp5562_cfg;
-
-	if (!pdata) {
-		if (np) {
-			pdata = lp55xx_of_populate_pdata(&client->dev, np,
-							 chip);
-			if (IS_ERR(pdata))
-				return PTR_ERR(pdata);
-		} else {
-			dev_err(&client->dev, "no platform data\n");
-			return -EINVAL;
-		}
-	}
-
-
-	led = devm_kcalloc(&client->dev,
-			pdata->num_channels, sizeof(*led), GFP_KERNEL);
-	if (!led)
-		return -ENOMEM;
-
-	chip->cl = client;
-	chip->pdata = pdata;
-
-	mutex_init(&chip->lock);
-
-	i2c_set_clientdata(client, led);
-
-	ret = lp55xx_init_device(chip);
-	if (ret)
-		goto err_init;
-
-	ret = lp55xx_register_leds(led, chip);
-	if (ret)
-		goto err_out;
-
-	ret = lp55xx_register_sysfs(chip);
-	if (ret) {
-		dev_err(&client->dev, "registering sysfs failed\n");
-		goto err_out;
-	}
-
-	return 0;
-
-err_out:
-	lp55xx_deinit_device(chip);
-err_init:
-	return ret;
-}
-
-static void lp5562_remove(struct i2c_client *client)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(client);
-	struct lp55xx_chip *chip = led->chip;
-
-	lp5562_stop_engine(chip);
-
-	lp55xx_unregister_sysfs(chip);
-	lp55xx_deinit_device(chip);
-}
-
 static const struct i2c_device_id lp5562_id[] = {
-	{ "lp5562", 0 },
+	{ "lp5562", .driver_data = (kernel_ulong_t)&lp5562_cfg, },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp5562_id);
 
 static const struct of_device_id of_lp5562_leds_match[] = {
-	{ .compatible = "ti,lp5562", },
+	{ .compatible = "ti,lp5562", .data = &lp5562_cfg, },
 	{},
 };
 
@@ -601,8 +387,8 @@ static struct i2c_driver lp5562_driver = {
 		.name	= "lp5562",
 		.of_match_table = of_lp5562_leds_match,
 	},
-	.probe		= lp5562_probe,
-	.remove		= lp5562_remove,
+	.probe		= lp55xx_probe,
+	.remove		= lp55xx_remove,
 	.id_table	= lp5562_id,
 };
 

@@ -408,7 +408,7 @@ static __init void hmat_update_target(unsigned int tgt_pxm, unsigned int init_px
 	if (target && target->processor_pxm == init_pxm) {
 		hmat_update_target_access(target, type, value,
 					  ACCESS_COORDINATE_LOCAL);
-		/* If the node has a CPU, update access 1 */
+		/* If the node has a CPU, update access ACCESS_COORDINATE_CPU */
 		if (node_state(pxm_to_node(init_pxm), N_CPU))
 			hmat_update_target_access(target, type, value,
 						  ACCESS_COORDINATE_CPU);
@@ -933,22 +933,19 @@ static int hmat_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static int hmat_set_default_dram_perf(void)
+static int __init hmat_set_default_dram_perf(void)
 {
 	int rc;
 	int nid, pxm;
 	struct memory_target *target;
 	struct access_coordinate *attrs;
 
-	if (!default_dram_type)
-		return -EIO;
-
-	for_each_node_mask(nid, default_dram_type->nodes) {
+	for_each_node_mask(nid, default_dram_nodes) {
 		pxm = node_to_pxm(nid);
 		target = find_mem_target(pxm);
 		if (!target)
 			continue;
-		attrs = &target->coord[1];
+		attrs = &target->coord[ACCESS_COORDINATE_CPU];
 		rc = mt_set_default_dram_perf(nid, attrs, "ACPI HMAT");
 		if (rc)
 			return rc;
@@ -975,7 +972,7 @@ static int hmat_calculate_adistance(struct notifier_block *self,
 	hmat_update_target_attrs(target, p_nodes, ACCESS_COORDINATE_CPU);
 	mutex_unlock(&target_lock);
 
-	perf = &target->coord[1];
+	perf = &target->coord[ACCESS_COORDINATE_CPU];
 
 	if (mt_perf_to_adistance(perf, adist))
 		return NOTIFY_OK;

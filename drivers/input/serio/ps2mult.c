@@ -127,7 +127,7 @@ static int ps2mult_create_port(struct ps2mult *psm, int i)
 	struct serio *mx_serio = psm->mx_serio;
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!serio)
 		return -ENOMEM;
 

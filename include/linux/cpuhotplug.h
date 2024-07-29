@@ -27,7 +27,7 @@
  * startup callbacks sequentially from CPUHP_OFFLINE + 1 to CPUHP_ONLINE
  * during a CPU online operation. During a CPU offline operation the
  * installed teardown callbacks are invoked in the reverse order from
- * CPU_ONLINE - 1 down to CPUHP_OFFLINE.
+ * CPUHP_ONLINE - 1 down to CPUHP_OFFLINE.
  *
  * The state space has three sections: PREPARE, STARTING and ONLINE.
  *
@@ -122,6 +122,7 @@ enum cpuhp_state {
 	CPUHP_KVM_PPC_BOOK3S_PREPARE,
 	CPUHP_ZCOMP_PREPARE,
 	CPUHP_TIMERS_PREPARE,
+	CPUHP_TMIGR_PREPARE,
 	CPUHP_MIPS_SOC_PREPARE,
 	CPUHP_BP_PREPARE_DYN,
 	CPUHP_BP_PREPARE_DYN_END		= CPUHP_BP_PREPARE_DYN + 20,
@@ -171,6 +172,7 @@ enum cpuhp_state {
 	CPUHP_AP_ARMADA_TIMER_STARTING,
 	CPUHP_AP_MIPS_GIC_TIMER_STARTING,
 	CPUHP_AP_ARC_TIMER_STARTING,
+	CPUHP_AP_REALTEK_TIMER_STARTING,
 	CPUHP_AP_RISCV_TIMER_STARTING,
 	CPUHP_AP_CLINT_TIMER_STARTING,
 	CPUHP_AP_CSKY_TIMER_STARTING,

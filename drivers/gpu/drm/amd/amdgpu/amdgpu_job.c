@@ -41,7 +41,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	int r;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx)) {
-		DRM_INFO("%s - device unplugged skipping recovery on scheduler:%s",
+		dev_info(adev->dev, "%s - device unplugged skipping recovery on scheduler:%s",
 			 __func__, s_job->sched->name);
 
 		/* Effectively the job is aborted as the device is gone */
@@ -53,19 +53,20 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 
 	if (amdgpu_gpu_recovery &&
 	    amdgpu_ring_soft_recovery(ring, job->vmid, s_job->s_fence->parent)) {
-		DRM_ERROR("ring %s timeout, but soft recovered\n",
-			  s_job->sched->name);
+		dev_err(adev->dev, "ring %s timeout, but soft recovered\n",
+			s_job->sched->name);
 		goto exit;
 	}
 
-	DRM_ERROR("ring %s timeout, signaled seq=%u, emitted seq=%u\n",
-		   job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
-		   ring->fence_drv.sync_seq);
+	dev_err(adev->dev, "ring %s timeout, signaled seq=%u, emitted seq=%u\n",
+		job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
+		ring->fence_drv.sync_seq);
 
 	ti = amdgpu_vm_get_task_info_pasid(ring->adev, job->pasid);
 	if (ti) {
-		DRM_ERROR("Process information: process %s pid %d thread %s pid %d\n",
-			  ti->process_name, ti->tgid, ti->task_name, ti->pid);
+		dev_err(adev->dev,
+			"Process information: process %s pid %d thread %s pid %d\n",
+			ti->process_name, ti->tgid, ti->task_name, ti->pid);
 		amdgpu_vm_put_task_info(ti);
 	}
 
@@ -77,11 +78,12 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
+		reset_context.src = AMDGPU_RESET_SRC_JOB;
 		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
 		r = amdgpu_device_gpu_recover(ring->adev, job, &reset_context);
 		if (r)
-			DRM_ERROR("GPU Recovery Failed: %d\n", r);
+			dev_err(adev->dev, "GPU Recovery Failed: %d\n", r);
 	} else {
 		drm_sched_suspend_timeout(&ring->sched);
 		if (amdgpu_sriov_vf(adev))
@@ -273,7 +275,7 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	while (!fence && job->vm && !job->vmid) {
 		r = amdgpu_vmid_grab(job->vm, ring, job, &fence);
 		if (r) {
-			DRM_ERROR("Error getting VM ID (%d)\n", r);
+			dev_err(ring->adev->dev, "Error getting VM ID (%d)\n", r);
 			goto error;
 		}
 	}

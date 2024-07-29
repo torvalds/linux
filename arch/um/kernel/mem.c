@@ -73,7 +73,6 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
-	max_low_pfn = totalram_pages();
 	max_pfn = max_low_pfn;
 	kmalloc_ok = 1;
 }

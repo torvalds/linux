@@ -38,6 +38,7 @@ struct access_coordinate;
 #ifdef CONFIG_NUMA
 extern bool numa_demotion_enabled;
 extern struct memory_dev_type *default_dram_type;
+extern nodemask_t default_dram_nodes;
 struct memory_dev_type *alloc_memory_type(int adistance);
 void put_memory_type(struct memory_dev_type *memtype);
 void init_node_memory_type(int node, struct memory_dev_type *default_type);
@@ -76,6 +77,7 @@ static inline bool node_is_toptier(int node)
 
 #define numa_demotion_enabled	false
 #define default_dram_type	NULL
+#define default_dram_nodes	NODE_MASK_NONE
 /*
  * CONFIG_NUMA implementation returns non NULL error.
  */

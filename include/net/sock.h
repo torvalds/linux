@@ -544,6 +544,11 @@ struct sock {
 	netns_tracker		ns_tracker;
 };
 
+struct sock_bh_locked {
+	struct sock *sock;
+	local_lock_t bh_lock;
+};
+
 enum sk_pacing {
 	SK_PACING_NONE		= 0,
 	SK_PACING_NEEDED	= 1,
@@ -2063,17 +2068,10 @@ sk_dst_get(const struct sock *sk)
 
 static inline void __dst_negative_advice(struct sock *sk)
 {
-	struct dst_entry *ndst, *dst = __sk_dst_get(sk);
+	struct dst_entry *dst = __sk_dst_get(sk);
 
-	if (dst && dst->ops->negative_advice) {
-		ndst = dst->ops->negative_advice(dst);
-
-		if (ndst != dst) {
-			rcu_assign_pointer(sk->sk_dst_cache, ndst);
-			sk_tx_queue_clear(sk);
-			WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
-		}
-	}
+	if (dst && dst->ops->negative_advice)
+		dst->ops->negative_advice(sk, dst);
 }
 
 static inline void dst_negative_advice(struct sock *sk)
@@ -2102,7 +2100,7 @@ sk_dst_set(struct sock *sk, struct dst_entry *dst)
 
 	sk_tx_queue_clear(sk);
 	WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
-	old_dst = xchg((__force struct dst_entry **)&sk->sk_dst_cache, dst);
+	old_dst = unrcu_pointer(xchg(&sk->sk_dst_cache, RCU_INITIALIZER(dst)));
 	dst_release(old_dst);
 }
 

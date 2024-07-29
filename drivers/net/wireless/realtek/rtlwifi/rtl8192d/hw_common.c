@@ -14,7 +14,7 @@
 #include "hw_common.h"
 #include "phy_common.h"
 
-void rtl92de_stop_tx_beacon(struct ieee80211_hw *hw)
+void rtl92d_stop_tx_beacon(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 tmp1byte;
@@ -27,9 +27,9 @@ void rtl92de_stop_tx_beacon(struct ieee80211_hw *hw)
 	tmp1byte &= ~(BIT(0));
 	rtl_write_byte(rtlpriv, REG_TBTT_PROHIBIT + 2, tmp1byte);
 }
-EXPORT_SYMBOL_GPL(rtl92de_stop_tx_beacon);
+EXPORT_SYMBOL_GPL(rtl92d_stop_tx_beacon);
 
-void rtl92de_resume_tx_beacon(struct ieee80211_hw *hw)
+void rtl92d_resume_tx_beacon(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 tmp1byte;
@@ -42,7 +42,7 @@ void rtl92de_resume_tx_beacon(struct ieee80211_hw *hw)
 	tmp1byte |= BIT(0);
 	rtl_write_byte(rtlpriv, REG_TBTT_PROHIBIT + 2, tmp1byte);
 }
-EXPORT_SYMBOL_GPL(rtl92de_resume_tx_beacon);
+EXPORT_SYMBOL_GPL(rtl92d_resume_tx_beacon);
 
 void rtl92d_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 {
@@ -285,7 +285,7 @@ void rtl92d_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 }
 EXPORT_SYMBOL_GPL(rtl92d_set_hw_reg);
 
-bool rtl92de_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
+bool rtl92d_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	bool status = true;
@@ -307,9 +307,9 @@ bool rtl92de_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 	} while (++count);
 	return status;
 }
-EXPORT_SYMBOL_GPL(rtl92de_llt_write);
+EXPORT_SYMBOL_GPL(rtl92d_llt_write);
 
-void rtl92de_enable_hw_security_config(struct ieee80211_hw *hw)
+void rtl92d_enable_hw_security_config(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 sec_reg_value;
@@ -334,16 +334,16 @@ void rtl92de_enable_hw_security_config(struct ieee80211_hw *hw)
 		"The SECR-value %x\n", sec_reg_value);
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_WPA_CONFIG, &sec_reg_value);
 }
-EXPORT_SYMBOL_GPL(rtl92de_enable_hw_security_config);
+EXPORT_SYMBOL_GPL(rtl92d_enable_hw_security_config);
 
 /* don't set REG_EDCA_BE_PARAM here because
  * mac80211 will send pkt when scan
  */
-void rtl92de_set_qos(struct ieee80211_hw *hw, int aci)
+void rtl92d_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	rtl92d_dm_init_edca_turbo(hw);
 }
-EXPORT_SYMBOL_GPL(rtl92de_set_qos);
+EXPORT_SYMBOL_GPL(rtl92d_set_qos);
 
 static enum version_8192d _rtl92d_read_chip_version(struct ieee80211_hw *hw)
 {
@@ -362,8 +362,8 @@ static enum version_8192d _rtl92d_read_chip_version(struct ieee80211_hw *hw)
 	return version;
 }
 
-static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
-					     u8 *efuse, bool autoloadfail)
+static void _rtl92d_readpowervalue_fromprom(struct txpower_info *pwrinfo,
+					    u8 *efuse, bool autoloadfail)
 {
 	u32 rfpath, eeaddr, group, offset, offset1, offset2;
 	u8 i, val8;
@@ -500,8 +500,8 @@ static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
 	}
 }
 
-static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
-				       bool autoload_fail, u8 *hwinfo)
+static void _rtl92d_read_txpower_info(struct ieee80211_hw *hw,
+				      bool autoload_fail, u8 *hwinfo)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
@@ -509,7 +509,7 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 	u8 tempval[2], i, pwr, diff;
 	u32 ch, rfpath, group;
 
-	_rtl92de_readpowervalue_fromprom(&pwrinfo, hwinfo, autoload_fail);
+	_rtl92d_readpowervalue_fromprom(&pwrinfo, hwinfo, autoload_fail);
 	if (!autoload_fail) {
 		/* bit0~2 */
 		rtlefuse->eeprom_regulatory = (hwinfo[EEPROM_RF_OPT1] & 0x7);
@@ -613,8 +613,8 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 	}
 }
 
-static void _rtl92de_read_macphymode_from_prom(struct ieee80211_hw *hw,
-					       u8 *content)
+static void _rtl92d_read_macphymode_from_prom(struct ieee80211_hw *hw,
+					      u8 *content)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -636,15 +636,15 @@ static void _rtl92de_read_macphymode_from_prom(struct ieee80211_hw *hw,
 	}
 }
 
-static void _rtl92de_read_macphymode_and_bandtype(struct ieee80211_hw *hw,
-						  u8 *content)
+static void _rtl92d_read_macphymode_and_bandtype(struct ieee80211_hw *hw,
+						 u8 *content)
 {
-	_rtl92de_read_macphymode_from_prom(hw, content);
+	_rtl92d_read_macphymode_from_prom(hw, content);
 	rtl92d_phy_config_macphymode(hw);
 	rtl92d_phy_config_macphymode_info(hw);
 }
 
-static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
+static void _rtl92d_efuse_update_chip_version(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	enum version_8192d chipver = rtlpriv->rtlhal.version;
@@ -676,7 +676,7 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.version = chipver;
 }
 
-static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
+static void _rtl92d_read_adapter_info(struct ieee80211_hw *hw)
 {
 	static const int params_pci[] = {
 		RTL8190_EEPROM_ID, EEPROM_VID, EEPROM_DID,
@@ -706,8 +706,8 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 	if (rtl_get_hwinfo(hw, rtlpriv, HWSET_MAX_SIZE, hwinfo, params))
 		goto exit;
 
-	_rtl92de_efuse_update_chip_version(hw);
-	_rtl92de_read_macphymode_and_bandtype(hw, hwinfo);
+	_rtl92d_efuse_update_chip_version(hw);
+	_rtl92d_read_macphymode_and_bandtype(hw, hwinfo);
 
 	/* Read Permanent MAC address for 2nd interface */
 	if (rtlhal->interfaceindex != 0)
@@ -717,7 +717,7 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR,
 				      rtlefuse->dev_addr);
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "%pM\n", rtlefuse->dev_addr);
-	_rtl92de_read_txpower_info(hw, rtlefuse->autoload_failflag, hwinfo);
+	_rtl92d_read_txpower_info(hw, rtlefuse->autoload_failflag, hwinfo);
 
 	/* Read Channel Plan */
 	switch (rtlhal->bandset) {
@@ -739,7 +739,7 @@ exit:
 	kfree(hwinfo);
 }
 
-void rtl92de_read_eeprom_info(struct ieee80211_hw *hw)
+void rtl92d_read_eeprom_info(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
@@ -760,15 +760,15 @@ void rtl92de_read_eeprom_info(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
 
 		rtlefuse->autoload_failflag = false;
-		_rtl92de_read_adapter_info(hw);
+		_rtl92d_read_adapter_info(hw);
 	} else {
 		pr_err("Autoload ERR!!\n");
 	}
 }
-EXPORT_SYMBOL_GPL(rtl92de_read_eeprom_info);
+EXPORT_SYMBOL_GPL(rtl92d_read_eeprom_info);
 
-static void rtl92de_update_hal_rate_table(struct ieee80211_hw *hw,
-					  struct ieee80211_sta *sta)
+static void rtl92d_update_hal_rate_table(struct ieee80211_hw *hw,
+					 struct ieee80211_sta *sta)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -851,9 +851,9 @@ static void rtl92de_update_hal_rate_table(struct ieee80211_hw *hw,
 		rtl_read_dword(rtlpriv, REG_ARFR0));
 }
 
-static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
-					 struct ieee80211_sta *sta,
-					 u8 rssi_level, bool update_bw)
+static void rtl92d_update_hal_rate_mask(struct ieee80211_hw *hw,
+					struct ieee80211_sta *sta,
+					u8 rssi_level, bool update_bw)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -1009,20 +1009,20 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 		sta_entry->ratr_index = ratr_index;
 }
 
-void rtl92de_update_hal_rate_tbl(struct ieee80211_hw *hw,
-				 struct ieee80211_sta *sta,
-				 u8 rssi_level, bool update_bw)
+void rtl92d_update_hal_rate_tbl(struct ieee80211_hw *hw,
+				struct ieee80211_sta *sta,
+				u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->dm.useramask)
-		rtl92de_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
+		rtl92d_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 	else
-		rtl92de_update_hal_rate_table(hw, sta);
+		rtl92d_update_hal_rate_table(hw, sta);
 }
-EXPORT_SYMBOL_GPL(rtl92de_update_hal_rate_tbl);
+EXPORT_SYMBOL_GPL(rtl92d_update_hal_rate_tbl);
 
-void rtl92de_update_channel_access_setting(struct ieee80211_hw *hw)
+void rtl92d_update_channel_access_setting(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -1036,9 +1036,9 @@ void rtl92de_update_channel_access_setting(struct ieee80211_hw *hw)
 		sifs_timer = 0x1010;
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SIFS, (u8 *)&sifs_timer);
 }
-EXPORT_SYMBOL_GPL(rtl92de_update_channel_access_setting);
+EXPORT_SYMBOL_GPL(rtl92d_update_channel_access_setting);
 
-bool rtl92de_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
+bool rtl92d_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -1093,11 +1093,11 @@ bool rtl92de_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	*valid = 1;
 	return !ppsc->hwradiooff;
 }
-EXPORT_SYMBOL_GPL(rtl92de_gpio_radio_on_off_checking);
+EXPORT_SYMBOL_GPL(rtl92d_gpio_radio_on_off_checking);
 
-void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
-		     u8 *p_macaddr, bool is_group, u8 enc_algo,
-		     bool is_wepkey, bool clear_all)
+void rtl92d_set_key(struct ieee80211_hw *hw, u32 key_index,
+		    u8 *p_macaddr, bool is_group, u8 enc_algo,
+		    bool is_wepkey, bool clear_all)
 {
 	static const u8 cam_const_addr[4][6] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
@@ -1222,4 +1222,4 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(rtl92de_set_key);
+EXPORT_SYMBOL_GPL(rtl92d_set_key);

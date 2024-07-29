@@ -172,8 +172,8 @@ by the PCI endpoint function driver.
 	 * bind: ops to perform when a EPC device has been bound to EPF device
 	 * unbind: ops to perform when a binding has been lost between a EPC
 	   device and EPF device
-	 * linkup: ops to perform when the EPC device has established a
-	   connection with a host system
+	 * add_cfs: optional ops to create function specific configfs
+	   attributes
 
   The PCI Function driver can then register the PCI EPF driver by using
   pci_epf_register_driver().

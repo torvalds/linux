@@ -200,12 +200,11 @@ void free_all_swap_pages(int swap)
 
 	while ((node = swsusp_extents.rb_node)) {
 		struct swsusp_extent *ext;
-		unsigned long offset;
 
 		ext = rb_entry(node, struct swsusp_extent, node);
 		rb_erase(node, &swsusp_extents);
-		for (offset = ext->start; offset <= ext->end; offset++)
-			swap_free(swp_entry(swap, offset));
+		swap_free_nr(swp_entry(swap, ext->start),
+			     ext->end - ext->start + 1);
 
 		kfree(ext);
 	}
@@ -1595,7 +1594,7 @@ int swsusp_check(bool exclusive)
 
 put:
 		if (error)
-			fput(hib_resume_bdev_file);
+			bdev_fput(hib_resume_bdev_file);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {

@@ -62,7 +62,7 @@
 #define IUCV_IPNORPY	0x10
 #define IUCV_IPALL	0x80
 
-static int iucv_bus_match(struct device *dev, struct device_driver *drv)
+static int iucv_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return 0;
 }

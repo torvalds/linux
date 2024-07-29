@@ -567,7 +567,7 @@ static int nct3018y_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id nct3018y_id[] = {
-	{ "nct3018y", 0 },
+	{ "nct3018y" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct3018y_id);

@@ -51,6 +51,10 @@ properties:
 
   gpio-controller: true
 
+  gpio-line-names:
+    minItems: 1
+    maxItems: 32
+
   clocks:
     items:
       - description: SoC GPIO clock

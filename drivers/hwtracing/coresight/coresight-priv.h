@@ -13,7 +13,7 @@
 #include <linux/pm_runtime.h>
 
 extern struct mutex coresight_mutex;
-extern struct device_type coresight_dev_type[];
+extern const struct device_type coresight_dev_type[];
 
 /*
  * Coresight management registers (0xf00-0xfcc)

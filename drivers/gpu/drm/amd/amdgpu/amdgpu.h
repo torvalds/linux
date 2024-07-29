@@ -112,6 +112,9 @@
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
+#if defined(CONFIG_DRM_AMD_ISP)
+#include "amdgpu_isp.h"
+#endif
 
 #define MAX_GPU_INSTANCE		64
 
@@ -220,6 +223,7 @@ extern int amdgpu_discovery;
 extern int amdgpu_mes;
 extern int amdgpu_mes_log_enable;
 extern int amdgpu_mes_kiq;
+extern int amdgpu_uni_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
@@ -253,10 +257,12 @@ extern int amdgpu_cik_support;
 extern int amdgpu_num_kcq;
 
 #define AMDGPU_VCNFW_LOG_SIZE (32 * 1024)
+#define AMDGPU_UMSCHFW_LOG_SIZE (32 * 1024)
 extern int amdgpu_vcnfw_log;
 extern int amdgpu_sg_display;
 extern int amdgpu_umsch_mm;
 extern int amdgpu_seamless;
+extern int amdgpu_umsch_mm_fwlog;
 
 extern int amdgpu_user_partt_mode;
 extern int amdgpu_agp;
@@ -341,9 +347,9 @@ enum amdgpu_kiq_irq {
 	AMDGPU_CP_KIQ_IRQ_DRIVER0 = 0,
 	AMDGPU_CP_KIQ_IRQ_LAST
 };
-#define SRIOV_USEC_TIMEOUT  1200000 /* wait 12 * 100ms for SRIOV */
-#define MAX_KIQ_REG_WAIT       5000 /* in usecs, 5ms */
-#define MAX_KIQ_REG_BAILOUT_INTERVAL   5 /* in msecs, 5ms */
+#define SRIOV_USEC_TIMEOUT 1200000 /* wait 12 * 100ms for SRIOV */
+#define MAX_KIQ_REG_WAIT (amdgpu_sriov_vf(adev) ? 50000 : 5000) /* in usecs, extend for VF */
+#define MAX_KIQ_REG_BAILOUT_INTERVAL 5 /* in msecs, 5ms */
 #define MAX_KIQ_REG_TRY 1000
 
 int amdgpu_device_ip_set_clockgating_state(void *dev,
@@ -717,6 +723,7 @@ enum amd_hw_ip_block_type {
 	XGMI_HWIP,
 	DCI_HWIP,
 	PCIE_HWIP,
+	ISP_HWIP,
 	MAX_HWIP
 };
 
@@ -1043,9 +1050,15 @@ struct amdgpu_device {
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
+#if defined(CONFIG_DRM_AMD_ISP)
+	/* isp */
+	struct amdgpu_isp		isp;
+#endif
+
 	/* mes */
 	bool                            enable_mes;
 	bool                            enable_mes_kiq;
+	bool                            enable_uni_mes;
 	struct amdgpu_mes               mes;
 	struct amdgpu_mqd               mqds[AMDGPU_HW_IP_NUM];
 
@@ -1161,6 +1174,7 @@ struct amdgpu_device {
 	bool                            debug_largebar;
 	bool                            debug_disable_soft_recovery;
 	bool                            debug_use_vram_fw_buf;
+	bool                            debug_enable_ras_aca;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
@@ -1434,6 +1448,7 @@ u32 amdgpu_device_pcie_port_rreg(struct amdgpu_device *adev,
 				u32 reg);
 void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
 				u32 reg, u32 v);
+struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
 bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
@@ -1560,6 +1575,7 @@ static inline int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 						  u8 dev_state, bool drv_state) { return 0; }
 static inline int amdgpu_acpi_smart_shift_update(struct drm_device *dev,
 						 enum amdgpu_ss ss_state) { return 0; }
+static inline void amdgpu_acpi_get_backlight_caps(struct amdgpu_dm_backlight_caps *caps) { }
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_SUSPEND)

@@ -38,6 +38,7 @@
 #include "dmub_dcn32.h"
 #include "dmub_dcn35.h"
 #include "dmub_dcn351.h"
+#include "dmub_dcn401.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -360,6 +361,52 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->should_detect = dmub_dcn35_should_detect;
 			break;
 
+	case DMUB_ASIC_DCN401:
+		dmub->regs_dcn401 = &dmub_srv_dcn401_regs;
+		funcs->configure_dmub_in_system_memory = dmub_dcn401_configure_dmub_in_system_memory;
+		funcs->send_inbox0_cmd = dmub_dcn401_send_inbox0_cmd;
+		funcs->clear_inbox0_ack_register = dmub_dcn401_clear_inbox0_ack_register;
+		funcs->read_inbox0_ack_register = dmub_dcn401_read_inbox0_ack_register;
+		funcs->reset = dmub_dcn401_reset;
+		funcs->reset_release = dmub_dcn401_reset_release;
+		funcs->backdoor_load = dmub_dcn401_backdoor_load;
+		funcs->backdoor_load_zfb_mode = dmub_dcn401_backdoor_load_zfb_mode;
+		funcs->setup_windows = dmub_dcn401_setup_windows;
+		funcs->setup_mailbox = dmub_dcn401_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn401_get_inbox1_wptr;
+		funcs->get_inbox1_rptr = dmub_dcn401_get_inbox1_rptr;
+		funcs->set_inbox1_wptr = dmub_dcn401_set_inbox1_wptr;
+		funcs->setup_out_mailbox = dmub_dcn401_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn401_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn401_set_outbox1_rptr;
+		funcs->is_supported = dmub_dcn401_is_supported;
+		funcs->is_hw_init = dmub_dcn401_is_hw_init;
+		funcs->set_gpint = dmub_dcn401_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn401_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn401_get_gpint_response;
+		funcs->get_gpint_dataout = dmub_dcn401_get_gpint_dataout;
+		funcs->get_fw_status = dmub_dcn401_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn401_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn401_skip_dmub_panel_power_sequence;
+		//outbox0 call stacks
+		funcs->setup_outbox0 = dmub_dcn401_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn401_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn401_set_outbox0_rptr;
+
+		funcs->get_current_time = dmub_dcn401_get_current_time;
+		funcs->get_diagnostic_data = dmub_dcn401_get_diagnostic_data;
+		funcs->send_reg_inbox0_cmd_msg = dmub_dcn401_send_reg_inbox0_cmd_msg;
+		funcs->read_reg_inbox0_rsp_int_status = dmub_dcn401_read_reg_inbox0_rsp_int_status;
+		funcs->read_reg_inbox0_cmd_rsp = dmub_dcn401_read_reg_inbox0_cmd_rsp;
+		funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn401_write_reg_inbox0_rsp_int_ack;
+		funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn401_write_reg_outbox0_rdy_int_ack;
+		funcs->read_reg_outbox0_msg = dmub_dcn401_read_reg_outbox0_msg;
+		funcs->write_reg_outbox0_rsp = dmub_dcn401_write_reg_outbox0_rsp;
+		funcs->read_reg_outbox0_rdy_int_status = dmub_dcn401_read_reg_outbox0_rdy_int_status;
+		funcs->read_reg_outbox0_rsp_int_status = dmub_dcn401_read_reg_outbox0_rsp_int_status;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn401_enable_reg_inbox0_rsp_int;
+		funcs->enable_reg_outbox0_rdy_int = dmub_dcn401_enable_reg_outbox0_rdy_int;
+		break;
 	default:
 		return false;
 	}
@@ -463,6 +510,8 @@ enum dmub_status
 	fw_info = dmub_get_fw_meta_info(params);
 
 	if (fw_info) {
+		memcpy(&dmub->meta_info, fw_info, sizeof(*fw_info));
+
 		fw_state_size = fw_info->fw_region_size;
 		trace_buffer_size = fw_info->trace_buffer_size;
 
@@ -677,6 +726,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
 	if (dmub->hw_funcs.setup_out_mailbox)
 		dmub->hw_funcs.setup_out_mailbox(dmub, &outbox1);
+	if (dmub->hw_funcs.enable_reg_inbox0_rsp_int)
+		dmub->hw_funcs.enable_reg_inbox0_rsp_int(dmub, true);
+	if (dmub->hw_funcs.enable_reg_outbox0_rdy_int)
+		dmub->hw_funcs.enable_reg_outbox0_rdy_int(dmub, true);
 
 	dmub_memset(&rb_params, 0, sizeof(rb_params));
 	rb_params.ctx = dmub;
@@ -1103,6 +1156,42 @@ void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_
 				addr,
 				subvp_index);
 	}
+}
+
+enum dmub_status dmub_srv_send_reg_inbox0_cmd(
+		struct dmub_srv *dmub,
+		union dmub_rb_cmd *cmd,
+		bool with_reply, uint32_t timeout_us)
+{
+	uint32_t rsp_ready = 0;
+	uint32_t i;
+
+	dmub->hw_funcs.send_reg_inbox0_cmd_msg(dmub, cmd);
+
+	for (i = 0; i < timeout_us; i++) {
+		rsp_ready = dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
+		if (rsp_ready)
+			break;
+		udelay(1);
+	}
+	if (rsp_ready == 0)
+		return DMUB_STATUS_TIMEOUT;
+
+	if (with_reply)
+		dmub->hw_funcs.read_reg_inbox0_cmd_rsp(dmub, cmd);
+
+	dmub->hw_funcs.write_reg_inbox0_rsp_int_ack(dmub);
+
+	/* wait for rsp int status is cleared to initial state before exit */
+	for (; i <= timeout_us; i++) {
+		rsp_ready = dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
+		if (rsp_ready == 0)
+			break;
+		udelay(1);
+	}
+	ASSERT(rsp_ready == 0);
+
+	return DMUB_STATUS_OK;
 }
 
 void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state)

@@ -140,14 +140,14 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 
 	do {
 		/*
-		 * Open coded to handle VDSO_CLOCKMODE_TIMENS. Time namespace
-		 * enabled tasks have a special VVAR page installed which
-		 * has vd->seq set to 1 and vd->clock_mode set to
-		 * VDSO_CLOCKMODE_TIMENS. For non time namespace affected tasks
-		 * this does not affect performance because if vd->seq is
-		 * odd, i.e. a concurrent update is in progress the extra
-		 * check for vd->clock_mode is just a few extra
-		 * instructions while spin waiting for vd->seq to become
+		 * Open coded function vdso_read_begin() to handle
+		 * VDSO_CLOCKMODE_TIMENS. Time namespace enabled tasks have a
+		 * special VVAR page installed which has vd->seq set to 1 and
+		 * vd->clock_mode set to VDSO_CLOCKMODE_TIMENS. For non time
+		 * namespace affected tasks this does not affect performance
+		 * because if vd->seq is odd, i.e. a concurrent update is in
+		 * progress the extra check for vd->clock_mode is just a few
+		 * extra instructions while spin waiting for vd->seq to become
 		 * even again.
 		 */
 		while (unlikely((seq = READ_ONCE(vd->seq)) & 1)) {
@@ -223,8 +223,8 @@ static __always_inline int do_coarse(const struct vdso_data *vd, clockid_t clk,
 
 	do {
 		/*
-		 * Open coded to handle VDSO_CLOCK_TIMENS. See comment in
-		 * do_hres().
+		 * Open coded function vdso_read_begin() to handle
+		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
 		 */
 		while ((seq = READ_ONCE(vd->seq)) & 1) {
 			if (IS_ENABLED(CONFIG_TIME_NS) &&

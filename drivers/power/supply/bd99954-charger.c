@@ -70,13 +70,6 @@
 
 #include "bd99954-charger.h"
 
-struct battery_data {
-	u16 precharge_current;	/* Trickle-charge Current */
-	u16 fc_reg_voltage;	/* Fast Charging Regulation Voltage */
-	u16 voltage_min;
-	u16 voltage_max;
-};
-
 /* Initial field values, converted to initial register values */
 struct bd9995x_init_data {
 	u16 vsysreg_set;	/* VSYS Regulation Setting */

@@ -22,20 +22,25 @@ config USB4_DEBUGFS_WRITE
 	bool "Enable write by debugfs to configuration spaces (DANGEROUS)"
 	help
 	  Enables writing to device configuration registers through
-	  debugfs interface.
+	  debugfs interface. You can use tools such as Thunderbolt/USB4
+	  debugging tools to access these registers. For more
+	  information see:
+
+	    https://github.com/intel/tbtools
 
 	  Only enable this if you know what you are doing! Never enable
 	  this for production systems or distro kernels.
 
 config USB4_DEBUGFS_MARGINING
-	bool "Expose receiver lane margining operations under USB4 ports (DANGEROUS)"
+	bool "Expose receiver lane margining operations under USB4 ports and retimers (DANGEROUS)"
 	depends on DEBUG_FS
 	depends on USB4_DEBUGFS_WRITE
 	help
-	  Enables hardware and software based receiver lane margining support
-	  under each USB4 port. Used for electrical quality and robustness
-	  validation during manufacturing. Should not be enabled by distro
-	  kernels.
+	  Enables hardware and software based receiver lane margining
+	  support under each USB4 port and retimer, including retimers
+	  on the other side of the cable. Used for electrical quality
+	  and robustness validation during manufacturing. Should not be
+	  enabled by distro kernels.
 
 config USB4_KUNIT_TEST
 	bool "KUnit tests" if !KUNIT_ALL_TESTS

@@ -34,6 +34,11 @@ extern long __la_abs_end;
 extern long __rela_dyn_begin;
 extern long __rela_dyn_end;
 
+#ifdef CONFIG_RELR
+extern long __relr_dyn_begin;
+extern long __relr_dyn_end;
+#endif
+
 extern unsigned long __init relocate_kernel(void);
 
 #endif

@@ -55,6 +55,7 @@ struct thermal_governor {
  * @type:	the thermal zone device type
  * @device:	&struct device for this thermal zone
  * @removal:	removal completion
+ * @resume:	resume completion
  * @trip_temp_attrs:	attributes for trip points for sysfs: trip temperature
  * @trip_type_attrs:	attributes for trip points for sysfs: trip type
  * @trip_hyst_attrs:	attributes for trip points for sysfs: trip hysteresis
@@ -66,6 +67,8 @@ struct thermal_governor {
  * @polling_delay_jiffies: number of jiffies to wait between polls when
  *			checking whether trip points have been crossed (0 for
  *			interrupt driven systems)
+ * @recheck_delay_jiffies: delay after a failed attempt to determine the zone
+ * 			temperature before trying again
  * @temperature:	current temperature.  This is only for core code,
  *			drivers should use thermal_zone_get_temp() to get the
  *			current temperature
@@ -89,6 +92,7 @@ struct thermal_governor {
  * @poll_queue:	delayed work for polling
  * @notify_event: Last notification event
  * @suspended: thermal zone suspend indicator
+ * @resuming:	indicates whether or not thermal zone resume is in progress
  * @trips:	array of struct thermal_trip objects
  */
 struct thermal_zone_device {
@@ -96,6 +100,7 @@ struct thermal_zone_device {
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
 	struct completion removal;
+	struct completion resume;
 	struct attribute_group trips_attribute_group;
 	struct thermal_attr *trip_temp_attrs;
 	struct thermal_attr *trip_type_attrs;
@@ -105,6 +110,7 @@ struct thermal_zone_device {
 	int num_trips;
 	unsigned long passive_delay_jiffies;
 	unsigned long polling_delay_jiffies;
+	unsigned long recheck_delay_jiffies;
 	int temperature;
 	int last_temperature;
 	int emul_temperature;
@@ -123,11 +129,22 @@ struct thermal_zone_device {
 	struct delayed_work poll_queue;
 	enum thermal_notify_event notify_event;
 	bool suspended;
+	bool resuming;
 #ifdef CONFIG_THERMAL_DEBUGFS
 	struct thermal_debugfs *debugfs;
 #endif
 	struct thermal_trip_desc trips[] __counted_by(num_trips);
 };
+
+/* Initial thermal zone temperature. */
+#define THERMAL_TEMP_INIT	INT_MIN
+
+/*
+ * Default and maximum delay after a failed thermal zone temperature check
+ * before attempting to check it again (in jiffies).
+ */
+#define THERMAL_RECHECK_DELAY		msecs_to_jiffies(250)
+#define THERMAL_MAX_RECHECK_DELAY	(120 * HZ)
 
 /* Default Thermal Governor */
 #if defined(CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE)
@@ -240,12 +257,16 @@ void thermal_governor_update_tz(struct thermal_zone_device *tz,
 #define trip_to_trip_desc(__trip)	\
 	container_of(__trip, struct thermal_trip_desc, trip)
 
-void __thermal_zone_set_trips(struct thermal_zone_device *tz);
+const char *thermal_trip_type_name(enum thermal_trip_type trip_type);
+
+void thermal_zone_set_trips(struct thermal_zone_device *tz);
 int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip);
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 			       const struct thermal_trip *trip);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
+void thermal_zone_trip_down(struct thermal_zone_device *tz,
+			    const struct thermal_trip *trip);
 
 /* sysfs I/F */
 int thermal_zone_create_device_groups(struct thermal_zone_device *tz);

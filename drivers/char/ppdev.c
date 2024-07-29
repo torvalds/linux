@@ -839,7 +839,6 @@ static struct parport_driver pp_driver = {
 	.probe		= pp_probe,
 	.match_port	= pp_attach,
 	.detach		= pp_detach,
-	.devmodel	= true,
 };
 
 static int __init ppdev_init(void)
@@ -882,5 +881,6 @@ static void __exit ppdev_cleanup(void)
 module_init(ppdev_init);
 module_exit(ppdev_cleanup);
 
+MODULE_DESCRIPTION("Support for user-space parallel port device drivers");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(PP_MAJOR);

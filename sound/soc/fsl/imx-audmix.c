@@ -140,6 +140,13 @@ static const struct snd_soc_ops imx_audmix_be_ops = {
 	.hw_params = imx_audmix_be_hw_params,
 };
 
+static const char *name[][3] = {
+	{"HiFi-AUDMIX-FE-0", "HiFi-AUDMIX-FE-1", "HiFi-AUDMIX-FE-2"},
+	{"sai-tx", "sai-tx", "sai-rx"},
+	{"AUDMIX-Playback-0", "AUDMIX-Playback-1", "CPU-Capture"},
+	{"CPU-Playback", "CPU-Playback", "AUDMIX-Capture-0"},
+};
+
 static int imx_audmix_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -150,7 +157,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 	struct imx_audmix *priv;
 	int i, num_dai, ret;
 	const char *fe_name_pref = "HiFi-AUDMIX-FE-";
-	char *be_name, *be_pb, *be_cp, *dai_name, *capture_dai_name;
+	char *be_name, *dai_name;
 
 	if (pdev->dev.parent) {
 		audmix_np = pdev->dev.parent->of_node;
@@ -183,6 +190,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	num_dai += 1;
 	priv->num_dai = 2 * num_dai;
 	priv->dai = devm_kcalloc(&pdev->dev, priv->num_dai,
 				 sizeof(struct snd_soc_dai_link), GFP_KERNEL);
@@ -196,7 +204,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 	if (!priv->dai_conf)
 		return -ENOMEM;
 
-	priv->num_dapm_routes = 3 * num_dai;
+	priv->num_dapm_routes = num_dai;
 	priv->dapm_routes = devm_kcalloc(&pdev->dev, priv->num_dapm_routes,
 					 sizeof(struct snd_soc_dapm_route),
 					 GFP_KERNEL);
@@ -211,8 +219,12 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		if (!dlc)
 			return -ENOMEM;
 
-		ret = of_parse_phandle_with_args(audmix_np, "dais", NULL, i,
-						 &args);
+		if (i == num_dai - 1)
+			ret = of_parse_phandle_with_args(audmix_np, "dais", NULL, 0,
+							 &args);
+		else
+			ret = of_parse_phandle_with_args(audmix_np, "dais", NULL, i,
+							 &args);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "of_parse_phandle_with_args failed\n");
 			return ret;
@@ -226,20 +238,14 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		put_device(&cpu_pdev->dev);
 
 		dai_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s%s",
-					  fe_name_pref, args.np->full_name + 1);
+					  fe_name_pref, args.np->full_name);
 		if (!dai_name)
 			return -ENOMEM;
 
 		dev_info(pdev->dev.parent, "DAI FE name:%s\n", dai_name);
 
-		if (i == 0) {
+		if (i == num_dai - 1)
 			out_cpu_np = args.np;
-			capture_dai_name =
-				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s %s",
-					       dai_name, "CPU-Capture");
-			if (!capture_dai_name)
-				return -ENOMEM;
-		}
 
 		/*
 		 * CPU == Platform
@@ -252,27 +258,23 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[i].num_cpus = 1;
 		priv->dai[i].num_codecs = 1;
 		priv->dai[i].num_platforms = 1;
-
-		priv->dai[i].name = dai_name;
+		priv->dai[i].name = name[0][i];
 		priv->dai[i].stream_name = "HiFi-AUDMIX-FE";
 		priv->dai[i].cpus->of_node = args.np;
-		priv->dai[i].cpus->dai_name = dev_name(&cpu_pdev->dev);
+		priv->dai[i].cpus->dai_name = name[1][i];
+
 		priv->dai[i].dynamic = 1;
 		priv->dai[i].dpcm_playback = 1;
-		priv->dai[i].dpcm_capture = (i == 0 ? 1 : 0);
+		if (i == num_dai - 1) {
+			priv->dai[i].dpcm_capture = 1;
+			priv->dai[i].dpcm_playback = 0;
+		}
 		priv->dai[i].ignore_pmdown_time = 1;
 		priv->dai[i].ops = &imx_audmix_fe_ops;
 
 		/* Add AUDMIX Backend */
 		be_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					 "audmix-%d", i);
-		be_pb = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-				       "AUDMIX-Playback-%d", i);
-		be_cp = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-				       "AUDMIX-Capture-%d", i);
-		if (!be_name || !be_pb || !be_cp)
-			return -ENOMEM;
-
 		priv->dai[num_dai + i].cpus	= &dlc[1];
 		priv->dai[num_dai + i].codecs	= &snd_soc_dummy_dlc;
 
@@ -284,24 +286,33 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[num_dai + i].cpus->dai_name = be_name;
 		priv->dai[num_dai + i].no_pcm = 1;
 		priv->dai[num_dai + i].dpcm_playback = 1;
-		priv->dai[num_dai + i].dpcm_capture  = 1;
+		if (i == num_dai - 1) {
+			priv->dai[num_dai + i].dpcm_capture  = 1;
+			priv->dai[num_dai + i].dpcm_playback  = 0;
+		}
 		priv->dai[num_dai + i].ignore_pmdown_time = 1;
 		priv->dai[num_dai + i].ops = &imx_audmix_be_ops;
 
 		priv->dai_conf[i].dlc.of_node = args.np;
 		priv->dai_conf[i].name_prefix = dai_name;
 
-		priv->dapm_routes[i].source =
-			devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s %s",
-				       dai_name, "CPU-Playback");
-		if (!priv->dapm_routes[i].source)
-			return -ENOMEM;
+		if (i == num_dai - 1) {
+			priv->dapm_routes[i].sink =
+				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s %s",
+					       dai_name, name[2][i]);
+			if (!priv->dapm_routes[i].sink)
+				return -ENOMEM;
 
-		priv->dapm_routes[i].sink = be_pb;
-		priv->dapm_routes[num_dai + i].source   = be_pb;
-		priv->dapm_routes[num_dai + i].sink     = be_cp;
-		priv->dapm_routes[2 * num_dai + i].source = be_cp;
-		priv->dapm_routes[2 * num_dai + i].sink   = capture_dai_name;
+			priv->dapm_routes[i].source = name[3][i];
+		} else {
+			priv->dapm_routes[i].source =
+				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s %s",
+					       dai_name, name[3][i]);
+			if (!priv->dapm_routes[i].source)
+				return -ENOMEM;
+
+			priv->dapm_routes[i].sink = name[2][i];
+		}
 	}
 
 	cpu_pdev = of_find_device_by_node(out_cpu_np);

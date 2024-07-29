@@ -16,6 +16,7 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/icmp.h>
+#include <trace/events/tcp.h>
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(tcp_ao_needed, HZ);
 
@@ -884,17 +885,16 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 		   const struct tcp_ao_hdr *aoh, struct tcp_ao_key *key,
 		   u8 *traffic_key, u8 *phash, u32 sne, int l3index)
 {
-	u8 maclen = aoh->length - sizeof(struct tcp_ao_hdr);
 	const struct tcphdr *th = tcp_hdr(skb);
+	u8 maclen = tcp_ao_hdr_maclen(aoh);
 	void *hash_buf = NULL;
 
 	if (maclen != tcp_ao_maclen(key)) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOBAD);
 		atomic64_inc(&info->counters.pkt_bad);
 		atomic64_inc(&key->pkt_bad);
-		tcp_hash_fail("AO hash wrong length", family, skb,
-			      "%u != %d L3index: %d", maclen,
-			      tcp_ao_maclen(key), l3index);
+		trace_tcp_ao_wrong_maclen(sk, skb, aoh->keyid,
+					  aoh->rnext_keyid, maclen);
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
 
@@ -909,8 +909,8 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOBAD);
 		atomic64_inc(&info->counters.pkt_bad);
 		atomic64_inc(&key->pkt_bad);
-		tcp_hash_fail("AO hash mismatch", family, skb,
-			      "L3index: %d", l3index);
+		trace_tcp_ao_mismatch(sk, skb, aoh->keyid,
+				      aoh->rnext_keyid, maclen);
 		kfree(hash_buf);
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
@@ -927,19 +927,21 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		    int l3index, const struct tcp_ao_hdr *aoh)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
+	u8 maclen = tcp_ao_hdr_maclen(aoh);
 	u8 *phash = (u8 *)(aoh + 1); /* hash goes just after the header */
 	struct tcp_ao_info *info;
 	enum skb_drop_reason ret;
 	struct tcp_ao_key *key;
 	__be32 sisn, disn;
 	u8 *traffic_key;
+	int state;
 	u32 sne = 0;
 
 	info = rcu_dereference(tcp_sk(sk)->ao_info);
 	if (!info) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYNOTFOUND);
-		tcp_hash_fail("AO key not found", family, skb,
-			      "keyid: %u L3index: %d", aoh->keyid, l3index);
+		trace_tcp_ao_key_not_found(sk, skb, aoh->keyid,
+					   aoh->rnext_keyid, maclen);
 		return SKB_DROP_REASON_TCP_AOUNEXPECTED;
 	}
 
@@ -948,8 +950,9 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		disn = 0;
 	}
 
+	state = READ_ONCE(sk->sk_state);
 	/* Fast-path */
-	if (likely((1 << sk->sk_state) & TCP_AO_ESTABLISHED)) {
+	if (likely((1 << state) & TCP_AO_ESTABLISHED)) {
 		enum skb_drop_reason err;
 		struct tcp_ao_key *current_key;
 
@@ -979,6 +982,9 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		current_key = READ_ONCE(info->current_key);
 		/* Key rotation: the peer asks us to use new key (RNext) */
 		if (unlikely(aoh->rnext_keyid != current_key->sndid)) {
+			trace_tcp_ao_rnext_request(sk, skb, current_key->sndid,
+						   aoh->rnext_keyid,
+						   tcp_ao_hdr_maclen(aoh));
 			/* If the key is not found we do nothing. */
 			key = tcp_ao_established_key(info, aoh->rnext_keyid, -1);
 			if (key)
@@ -987,6 +993,9 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		}
 		return SKB_NOT_DROPPED_YET;
 	}
+
+	if (unlikely(state == TCP_CLOSE))
+		return SKB_DROP_REASON_TCP_CLOSE;
 
 	/* Lookup key based on peer address and keyid.
 	 * current_key and rnext_key must not be used on tcp listen
@@ -1001,7 +1010,7 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 	if (th->syn && !th->ack)
 		goto verify_hash;
 
-	if ((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV)) {
+	if ((1 << state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV)) {
 		/* Make the initial syn the likely case here */
 		if (unlikely(req)) {
 			sne = tcp_ao_compute_sne(0, tcp_rsk(req)->rcv_isn,
@@ -1018,14 +1027,14 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 			/* no way to figure out initial sisn/disn - drop */
 			return SKB_DROP_REASON_TCP_FLAGS;
 		}
-	} else if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+	} else if ((1 << state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		disn = info->lisn;
 		if (th->syn || th->rst)
 			sisn = th->seq;
 		else
 			sisn = info->risn;
 	} else {
-		WARN_ONCE(1, "TCP-AO: Unexpected sk_state %d", sk->sk_state);
+		WARN_ONCE(1, "TCP-AO: Unexpected sk_state %d", state);
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
 verify_hash:
@@ -1041,8 +1050,8 @@ verify_hash:
 key_not_found:
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYNOTFOUND);
 	atomic64_inc(&info->counters.key_not_found);
-	tcp_hash_fail("Requested by the peer AO key id not found",
-		      family, skb, "L3index: %d", l3index);
+	trace_tcp_ao_key_not_found(sk, skb, aoh->keyid,
+				   aoh->rnext_keyid, maclen);
 	return SKB_DROP_REASON_TCP_AOKEYNOTFOUND;
 }
 
@@ -1963,8 +1972,10 @@ static int tcp_ao_info_cmd(struct sock *sk, unsigned short int family,
 		first = true;
 	}
 
-	if (cmd.ao_required && tcp_ao_required_verify(sk))
-		return -EKEYREJECTED;
+	if (cmd.ao_required && tcp_ao_required_verify(sk)) {
+		err = -EKEYREJECTED;
+		goto out;
+	}
 
 	/* For sockets in TCP_CLOSED it's possible set keys that aren't
 	 * matching the future peer (address/port/VRF/etc),

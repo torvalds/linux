@@ -30,7 +30,7 @@ config MIPS
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
-	select CPU_PM if CPU_IDLE
+	select CPU_PM if CPU_IDLE || SUSPEND
 	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
@@ -478,6 +478,7 @@ config MACH_LOONGSON64
 	select BOARD_SCACHE
 	select CSRC_R4K
 	select CEVT_R4K
+	select SYNC_R4K
 	select FORCE_PCI
 	select ISA
 	select I8259
@@ -575,8 +576,8 @@ config MACH_PIC32
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
 
-config MACH_EYEQ5
-	bool "Mobileye EyeQ5 SoC"
+config EYEQ
+	bool "Mobileye EyeQ SoC"
 	select MACH_GENERIC_CORE
 	select ARM_AMBA
 	select PHYSICAL_START_BOOL
@@ -615,7 +616,7 @@ config MACH_EYEQ5
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
 	help
-	  Select this to build a kernel supporting EyeQ5 SoC from Mobileye.
+	  Select this to build a kernel supporting EyeQ SoC from Mobileye.
 
 	bool
 
@@ -667,6 +668,7 @@ config MACH_REALTEK_RTL
 	select BOOT_RAW
 	select PINCTRL
 	select USE_OF
+	select REALTEK_OTTO_TIMER
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
@@ -1021,6 +1023,7 @@ source "arch/mips/generic/Kconfig"
 source "arch/mips/ingenic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lantiq/Kconfig"
+source "arch/mips/mobileye/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
@@ -1083,6 +1086,7 @@ config CSRC_IOASIC
 
 config CSRC_R4K
 	select CLOCKSOURCE_WATCHDOG if CPU_FREQ
+	select HAVE_UNSTABLE_SCHED_CLOCK if SMP && 64BIT
 	bool
 
 config CSRC_SB1250
@@ -2924,7 +2928,8 @@ config BUILTIN_DTB
 	bool
 
 choice
-	prompt "Kernel appended dtb support" if USE_OF
+	prompt "Kernel appended dtb support"
+	depends on USE_OF
 	default MIPS_NO_APPENDED_DTB
 
 	config MIPS_NO_APPENDED_DTB
@@ -2965,7 +2970,8 @@ choice
 endchoice
 
 choice
-	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
+	prompt "Kernel command line type"
+	depends on !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
 					 !MACH_LOONGSON64 && !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC

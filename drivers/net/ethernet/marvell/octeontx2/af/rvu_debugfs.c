@@ -1603,6 +1603,367 @@ static void print_nix_cn10k_sq_ctx(struct seq_file *m,
 		   (u64)sq_ctx->dropped_pkts);
 }
 
+static void print_tm_tree(struct seq_file *m,
+			  struct nix_aq_enq_rsp *rsp, u64 sq)
+{
+	struct nix_sq_ctx_s *sq_ctx = &rsp->sq;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	u16 p1, p2, p3, p4, schq;
+	int blkaddr;
+	u64 cfg;
+
+	blkaddr = nix_hw->blkaddr;
+	schq = sq_ctx->smq;
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_MDQX_PARENT(schq));
+	p1 = FIELD_GET(NIX_AF_MDQ_PARENT_MASK, cfg);
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_TL4X_PARENT(p1));
+	p2 = FIELD_GET(NIX_AF_TL4_PARENT_MASK, cfg);
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_TL3X_PARENT(p2));
+	p3 = FIELD_GET(NIX_AF_TL3_PARENT_MASK, cfg);
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_TL2X_PARENT(p3));
+	p4 = FIELD_GET(NIX_AF_TL2_PARENT_MASK, cfg);
+	seq_printf(m,
+		   "SQ(%llu) -> SMQ(%u) -> TL4(%u) -> TL3(%u) -> TL2(%u) -> TL1(%u)\n",
+		   sq, schq, p1, p2, p3, p4);
+}
+
+/*dumps given tm_tree registers*/
+static int rvu_dbg_nix_tm_tree_display(struct seq_file *m, void *unused)
+{
+	int qidx, nixlf, rc, id, max_id = 0;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	struct nix_aq_enq_req aq_req;
+	struct nix_aq_enq_rsp rsp;
+	struct rvu_pfvf *pfvf;
+	u16 pcifunc;
+
+	nixlf = rvu->rvu_dbg.nix_tm_ctx.lf;
+	id = rvu->rvu_dbg.nix_tm_ctx.id;
+
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
+		return -EINVAL;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	max_id = pfvf->sq_ctx->qsize;
+
+	memset(&aq_req, 0, sizeof(struct nix_aq_enq_req));
+	aq_req.hdr.pcifunc = pcifunc;
+	aq_req.ctype = NIX_AQ_CTYPE_SQ;
+	aq_req.op = NIX_AQ_INSTOP_READ;
+	seq_printf(m, "pcifunc is 0x%x\n", pcifunc);
+	for (qidx = id; qidx < max_id; qidx++) {
+		aq_req.qidx = qidx;
+
+		/* Skip SQ's if not initialized */
+		if (!test_bit(qidx, pfvf->sq_bmap))
+			continue;
+
+		rc = rvu_mbox_handler_nix_aq_enq(rvu, &aq_req, &rsp);
+
+		if (rc) {
+			seq_printf(m, "Failed to read SQ(%d) context\n",
+				   aq_req.qidx);
+			continue;
+		}
+		print_tm_tree(m, &rsp, aq_req.qidx);
+	}
+	return 0;
+}
+
+static ssize_t rvu_dbg_nix_tm_tree_write(struct file *filp,
+					 const char __user *buffer,
+					 size_t count, loff_t *ppos)
+{
+	struct seq_file *m = filp->private_data;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	struct rvu_pfvf *pfvf;
+	u16 pcifunc;
+	u64 nixlf;
+	int ret;
+
+	ret = kstrtoull_from_user(buffer, count, 10, &nixlf);
+	if (ret)
+		return ret;
+
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
+		return -EINVAL;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	if (!pfvf->sq_ctx) {
+		dev_warn(rvu->dev, "SQ context is not initialized\n");
+		return -EINVAL;
+	}
+
+	rvu->rvu_dbg.nix_tm_ctx.lf = nixlf;
+	return count;
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_tm_tree, nix_tm_tree_display, nix_tm_tree_write);
+
+static void print_tm_topo(struct seq_file *m, u64 schq, u32 lvl)
+{
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	int blkaddr, link, link_level;
+	struct rvu_hwinfo *hw;
+
+	hw = rvu->hw;
+	blkaddr = nix_hw->blkaddr;
+	if (lvl == NIX_TXSCH_LVL_MDQ) {
+		seq_printf(m, "NIX_AF_SMQ[%llu]_CFG =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq)));
+		seq_printf(m, "NIX_AF_SMQ[%llu]_STATUS =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_SMQX_STATUS(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_OUT_MD_COUNT =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_MDQX_OUT_MD_COUNT(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_SCHEDULE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_MDQX_SCHEDULE(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_SHAPE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_MDQX_SHAPE(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_CIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_MDQX_CIR(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_PIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_MDQX_PIR(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_SW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_MDQX_SW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_MDQ[%llu]_PARENT =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_MDQX_PARENT(schq)));
+		seq_puts(m, "\n");
+	}
+
+	if (lvl == NIX_TXSCH_LVL_TL4) {
+		seq_printf(m, "NIX_AF_TL4[%llu]_SDP_LINK_CFG =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL4X_SDP_LINK_CFG(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_SCHEDULE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL4X_SCHEDULE(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_SHAPE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL4X_SHAPE(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_CIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL4X_CIR(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_PIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL4X_PIR(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_SW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL4X_SW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_TOPOLOGY =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL4X_TOPOLOGY(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_PARENT =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL4X_PARENT(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_MD_DEBUG0 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL4X_MD_DEBUG0(schq)));
+		seq_printf(m, "NIX_AF_TL4[%llu]_MD_DEBUG1 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL4X_MD_DEBUG1(schq)));
+		seq_puts(m, "\n");
+	}
+
+	if (lvl == NIX_TXSCH_LVL_TL3) {
+		seq_printf(m, "NIX_AF_TL3[%llu]_SCHEDULE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL3X_SCHEDULE(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_SHAPE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL3X_SHAPE(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_CIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL3X_CIR(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_PIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL3X_PIR(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_SW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL3X_SW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_TOPOLOGY =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL3X_TOPOLOGY(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_PARENT =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL3X_PARENT(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_MD_DEBUG0 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL3X_MD_DEBUG0(schq)));
+		seq_printf(m, "NIX_AF_TL3[%llu]_MD_DEBUG1 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL3X_MD_DEBUG1(schq)));
+
+		link_level = rvu_read64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL)
+				& 0x01 ? NIX_TXSCH_LVL_TL3 : NIX_TXSCH_LVL_TL2;
+		if (lvl == link_level) {
+			seq_printf(m,
+				   "NIX_AF_TL3_TL2[%llu]_BP_STATUS =0x%llx\n",
+				   schq, rvu_read64(rvu, blkaddr,
+				   NIX_AF_TL3_TL2X_BP_STATUS(schq)));
+			for (link = 0; link < hw->cgx_links; link++)
+				seq_printf(m,
+					   "NIX_AF_TL3_TL2[%llu]_LINK[%d]_CFG =0x%llx\n",
+					   schq, link,
+					   rvu_read64(rvu, blkaddr,
+						      NIX_AF_TL3_TL2X_LINKX_CFG(schq, link)));
+		}
+		seq_puts(m, "\n");
+	}
+
+	if (lvl == NIX_TXSCH_LVL_TL2) {
+		seq_printf(m, "NIX_AF_TL2[%llu]_SHAPE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL2X_SHAPE(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_CIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL2X_CIR(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_PIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL2X_PIR(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_SW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL2X_SW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_TOPOLOGY =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL2X_TOPOLOGY(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_PARENT =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL2X_PARENT(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_MD_DEBUG0 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL2X_MD_DEBUG0(schq)));
+		seq_printf(m, "NIX_AF_TL2[%llu]_MD_DEBUG1 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL2X_MD_DEBUG1(schq)));
+
+		link_level = rvu_read64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL)
+				& 0x01 ? NIX_TXSCH_LVL_TL3 : NIX_TXSCH_LVL_TL2;
+		if (lvl == link_level) {
+			seq_printf(m,
+				   "NIX_AF_TL3_TL2[%llu]_BP_STATUS =0x%llx\n",
+				   schq, rvu_read64(rvu, blkaddr,
+				   NIX_AF_TL3_TL2X_BP_STATUS(schq)));
+			for (link = 0; link < hw->cgx_links; link++)
+				seq_printf(m,
+					   "NIX_AF_TL3_TL2[%llu]_LINK[%d]_CFG =0x%llx\n",
+					   schq, link, rvu_read64(rvu, blkaddr,
+					   NIX_AF_TL3_TL2X_LINKX_CFG(schq, link)));
+		}
+		seq_puts(m, "\n");
+	}
+
+	if (lvl == NIX_TXSCH_LVL_TL1) {
+		seq_printf(m, "NIX_AF_TX_LINK[%llu]_NORM_CREDIT =0x%llx\n",
+			   schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TX_LINKX_NORM_CREDIT(schq)));
+		seq_printf(m, "NIX_AF_TX_LINK[%llu]_HW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TX_LINKX_HW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_SCHEDULE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_SCHEDULE(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_SHAPE =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL1X_SHAPE(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_CIR =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL1X_CIR(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_SW_XOFF =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr, NIX_AF_TL1X_SW_XOFF(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_TOPOLOGY =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_TOPOLOGY(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_MD_DEBUG0 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_MD_DEBUG0(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_MD_DEBUG1 =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_MD_DEBUG1(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_DROPPED_PACKETS =0x%llx\n",
+			   schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_DROPPED_PACKETS(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_DROPPED_BYTES =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_DROPPED_BYTES(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_RED_PACKETS =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_RED_PACKETS(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_RED_BYTES =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_RED_BYTES(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_YELLOW_PACKETS =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_YELLOW_PACKETS(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_YELLOW_BYTES =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_YELLOW_BYTES(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_GREEN_PACKETS =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_GREEN_PACKETS(schq)));
+		seq_printf(m, "NIX_AF_TL1[%llu]_GREEN_BYTES =0x%llx\n", schq,
+			   rvu_read64(rvu, blkaddr,
+				      NIX_AF_TL1X_GREEN_BYTES(schq)));
+		seq_puts(m, "\n");
+	}
+}
+
+/*dumps given tm_topo registers*/
+static int rvu_dbg_nix_tm_topo_display(struct seq_file *m, void *unused)
+{
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	struct nix_aq_enq_req aq_req;
+	struct nix_txsch *txsch;
+	int nixlf, lvl, schq;
+	u16 pcifunc;
+
+	nixlf = rvu->rvu_dbg.nix_tm_ctx.lf;
+
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
+		return -EINVAL;
+
+	memset(&aq_req, 0, sizeof(struct nix_aq_enq_req));
+	aq_req.hdr.pcifunc = pcifunc;
+	aq_req.ctype = NIX_AQ_CTYPE_SQ;
+	aq_req.op = NIX_AQ_INSTOP_READ;
+	seq_printf(m, "pcifunc is 0x%x\n", pcifunc);
+
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		txsch = &nix_hw->txsch[lvl];
+		for (schq = 0; schq < txsch->schq.max; schq++) {
+			if (TXSCH_MAP_FUNC(txsch->pfvf_map[schq]) == pcifunc)
+				print_tm_topo(m, schq, lvl);
+		}
+	}
+	return 0;
+}
+
+static ssize_t rvu_dbg_nix_tm_topo_write(struct file *filp,
+					 const char __user *buffer,
+					 size_t count, loff_t *ppos)
+{
+	struct seq_file *m = filp->private_data;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+	struct rvu_pfvf *pfvf;
+	u16 pcifunc;
+	u64 nixlf;
+	int ret;
+
+	ret = kstrtoull_from_user(buffer, count, 10, &nixlf);
+	if (ret)
+		return ret;
+
+	if (!rvu_dbg_is_valid_lf(rvu, nix_hw->blkaddr, nixlf, &pcifunc))
+		return -EINVAL;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	if (!pfvf->sq_ctx) {
+		dev_warn(rvu->dev, "SQ context is not initialized\n");
+		return -EINVAL;
+	}
+
+	rvu->rvu_dbg.nix_tm_ctx.lf = nixlf;
+	return count;
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_tm_topo, nix_tm_topo_display, nix_tm_topo_write);
+
 /* Dumps given nix_sq's context */
 static void print_nix_sq_ctx(struct seq_file *m, struct nix_aq_enq_rsp *rsp)
 {
@@ -2349,6 +2710,10 @@ static void rvu_dbg_nix_init(struct rvu *rvu, int blkaddr)
 		nix_hw = &rvu->hw->nix[1];
 	}
 
+	debugfs_create_file("tm_tree", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_tm_tree_fops);
+	debugfs_create_file("tm_topo", 0600, rvu->rvu_dbg.nix, nix_hw,
+			    &rvu_dbg_nix_tm_topo_fops);
 	debugfs_create_file("sq_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,
 			    &rvu_dbg_nix_sq_ctx_fops);
 	debugfs_create_file("rq_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,

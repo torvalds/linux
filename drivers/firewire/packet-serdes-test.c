@@ -10,6 +10,7 @@
 #include <linux/firewire-constants.h>
 
 #include "packet-header-definitions.h"
+#include "phy-packet-definitions.h"
 
 static void serialize_async_header_common(u32 header[ASYNC_HEADER_QUADLET_COUNT],
 					  unsigned int dst_id, unsigned int tlabel,
@@ -185,6 +186,89 @@ static void deserialize_isoc_header(u32 header, unsigned int *data_length, unsig
 	*channel = isoc_header_get_channel(header);
 	*tcode = isoc_header_get_tcode(header);
 	*sy = isoc_header_get_sy(header);
+}
+
+static void serialize_phy_packet_self_id_zero(u32 *quadlet, unsigned int packet_identifier,
+					      unsigned int phy_id, bool extended,
+					      bool link_is_active, unsigned int gap_count,
+					      unsigned int scode, bool is_contender,
+					      unsigned int power_class, bool is_initiated_reset,
+					      bool has_more_packets)
+{
+	phy_packet_set_packet_identifier(quadlet, packet_identifier);
+	phy_packet_self_id_set_phy_id(quadlet, phy_id);
+	phy_packet_self_id_set_extended(quadlet, extended);
+	phy_packet_self_id_zero_set_link_active(quadlet, link_is_active);
+	phy_packet_self_id_zero_set_gap_count(quadlet, gap_count);
+	phy_packet_self_id_zero_set_scode(quadlet, scode);
+	phy_packet_self_id_zero_set_contender(quadlet, is_contender);
+	phy_packet_self_id_zero_set_power_class(quadlet, power_class);
+	phy_packet_self_id_zero_set_initiated_reset(quadlet, is_initiated_reset);
+	phy_packet_self_id_set_more_packets(quadlet, has_more_packets);
+}
+
+static void deserialize_phy_packet_self_id_zero(u32 quadlet, unsigned int *packet_identifier,
+						unsigned int *phy_id, bool *extended,
+						bool *link_is_active, unsigned int *gap_count,
+						unsigned int *scode, bool *is_contender,
+						unsigned int *power_class,
+						bool *is_initiated_reset, bool *has_more_packets)
+{
+	*packet_identifier = phy_packet_get_packet_identifier(quadlet);
+	*phy_id = phy_packet_self_id_get_phy_id(quadlet);
+	*extended = phy_packet_self_id_get_extended(quadlet);
+	*link_is_active = phy_packet_self_id_zero_get_link_active(quadlet);
+	*gap_count = phy_packet_self_id_zero_get_gap_count(quadlet);
+	*scode = phy_packet_self_id_zero_get_scode(quadlet);
+	*is_contender = phy_packet_self_id_zero_get_contender(quadlet);
+	*power_class = phy_packet_self_id_zero_get_power_class(quadlet);
+	*is_initiated_reset = phy_packet_self_id_zero_get_initiated_reset(quadlet);
+	*has_more_packets = phy_packet_self_id_get_more_packets(quadlet);
+}
+
+static void serialize_phy_packet_self_id_extended(u32 *quadlet, unsigned int packet_identifier,
+						  unsigned int phy_id, bool extended,
+						  unsigned int sequence, bool has_more_packets)
+{
+	phy_packet_set_packet_identifier(quadlet, packet_identifier);
+	phy_packet_self_id_set_phy_id(quadlet, phy_id);
+	phy_packet_self_id_set_extended(quadlet, extended);
+	phy_packet_self_id_extended_set_sequence(quadlet, sequence);
+	phy_packet_self_id_set_more_packets(quadlet, has_more_packets);
+}
+
+static void deserialize_phy_packet_self_id_extended(u32 quadlet, unsigned int *packet_identifier,
+						    unsigned int *phy_id, bool *extended,
+						    unsigned int *sequence, bool *has_more_packets)
+{
+	*packet_identifier = phy_packet_get_packet_identifier(quadlet);
+	*phy_id = phy_packet_self_id_get_phy_id(quadlet);
+	*extended = phy_packet_self_id_get_extended(quadlet);
+	*sequence = phy_packet_self_id_extended_get_sequence(quadlet);
+	*has_more_packets = phy_packet_self_id_get_more_packets(quadlet);
+}
+
+static void serialize_phy_packet_phy_config(u32 *quadlet, unsigned int packet_identifier,
+					    unsigned int root_id, bool has_force_root_node,
+					    bool has_gap_count_optimization, unsigned int gap_count)
+{
+	phy_packet_set_packet_identifier(quadlet, packet_identifier);
+	phy_packet_phy_config_set_root_id(quadlet, root_id);
+	phy_packet_phy_config_set_force_root_node(quadlet, has_force_root_node);
+	phy_packet_phy_config_set_gap_count_optimization(quadlet, has_gap_count_optimization);
+	phy_packet_phy_config_set_gap_count(quadlet, gap_count);
+}
+
+static void deserialize_phy_packet_phy_config(u32 quadlet, unsigned int *packet_identifier,
+					      unsigned int *root_id, bool *has_force_root_node,
+					      bool *has_gap_count_optimization,
+					      unsigned int *gap_count)
+{
+	*packet_identifier = phy_packet_get_packet_identifier(quadlet);
+	*root_id = phy_packet_phy_config_get_root_id(quadlet);
+	*has_force_root_node = phy_packet_phy_config_get_force_root_node(quadlet);
+	*has_gap_count_optimization = phy_packet_phy_config_get_gap_count_optimization(quadlet);
+	*gap_count = phy_packet_phy_config_get_gap_count(quadlet);
 }
 
 static void test_async_header_write_quadlet_request(struct kunit *test)
@@ -559,6 +643,251 @@ static void test_isoc_header(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, header, expected);
 }
 
+static void test_phy_packet_self_id_zero_case0(struct kunit *test)
+{
+	// TSB41AB1/2 with 1 port.
+	const u32 expected[] = {0x80458c80};
+	u32 quadlets[] = {0};
+
+	unsigned int packet_identifier;
+	unsigned int phy_id;
+	bool extended;
+	bool link_is_active;
+	unsigned int gap_count;
+	unsigned int scode;
+	bool is_contender;
+	unsigned int power_class;
+	enum phy_packet_self_id_port_status port_status[3];
+	bool is_initiated_reset;
+	bool has_more_packets;
+	unsigned int port_index;
+
+	deserialize_phy_packet_self_id_zero(expected[0], &packet_identifier, &phy_id, &extended,
+					    &link_is_active, &gap_count, &scode, &is_contender,
+					    &power_class, &is_initiated_reset, &has_more_packets);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_SELF_ID, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0, phy_id);
+	KUNIT_EXPECT_FALSE(test, extended);
+	KUNIT_EXPECT_TRUE(test, link_is_active);
+	KUNIT_EXPECT_EQ(test, 0x05, gap_count);
+	KUNIT_EXPECT_EQ(test, SCODE_400, scode);
+	KUNIT_EXPECT_TRUE(test, is_contender);
+	KUNIT_EXPECT_EQ(test, 0x4, power_class);
+	KUNIT_EXPECT_FALSE(test, is_initiated_reset);
+	KUNIT_EXPECT_FALSE(test, has_more_packets);
+
+	serialize_phy_packet_self_id_zero(quadlets, packet_identifier, phy_id, extended,
+					  link_is_active, gap_count, scode, is_contender,
+					  power_class, is_initiated_reset, has_more_packets);
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		port_status[port_index] =
+			self_id_sequence_get_port_status(expected, ARRAY_SIZE(expected), port_index);
+	}
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_PARENT, port_status[0]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[1]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[2]);
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		self_id_sequence_set_port_status(quadlets, ARRAY_SIZE(quadlets), port_index,
+						 port_status[port_index]);
+	}
+
+	KUNIT_EXPECT_MEMEQ(test, quadlets, expected, sizeof(expected));
+}
+
+static void test_phy_packet_self_id_zero_case1(struct kunit *test)
+{
+	// XIO2213 and TSB81BA3E with 3 ports.
+	const u32 expected[] = {0x817fcc5e};
+	u32 quadlets[] = {0};
+
+	unsigned int packet_identifier;
+	unsigned int phy_id;
+	bool extended;
+	bool link_is_active;
+	unsigned int gap_count;
+	unsigned int scode;
+	bool is_contender;
+	unsigned int power_class;
+	enum phy_packet_self_id_port_status port_status[3];
+	bool is_initiated_reset;
+	bool has_more_packets;
+	unsigned int port_index;
+
+	deserialize_phy_packet_self_id_zero(expected[0], &packet_identifier, &phy_id, &extended,
+					    &link_is_active, &gap_count, &scode, &is_contender,
+					    &power_class, &is_initiated_reset, &has_more_packets);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_SELF_ID, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 1, phy_id);
+	KUNIT_EXPECT_FALSE(test, extended);
+	KUNIT_EXPECT_TRUE(test, link_is_active);
+	KUNIT_EXPECT_EQ(test, 0x3f, gap_count);
+	KUNIT_EXPECT_EQ(test, SCODE_800, scode);
+	KUNIT_EXPECT_TRUE(test, is_contender);
+	KUNIT_EXPECT_EQ(test, 0x4, power_class);
+	KUNIT_EXPECT_TRUE(test, is_initiated_reset);
+	KUNIT_EXPECT_FALSE(test, has_more_packets);
+
+	serialize_phy_packet_self_id_zero(quadlets, packet_identifier, phy_id, extended,
+					  link_is_active, gap_count, scode, is_contender,
+					  power_class, is_initiated_reset, has_more_packets);
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		port_status[port_index] =
+			self_id_sequence_get_port_status(expected, ARRAY_SIZE(expected), port_index);
+	}
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[0]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[1]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_CHILD, port_status[2]);
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		self_id_sequence_set_port_status(quadlets, ARRAY_SIZE(quadlets), port_index,
+						 port_status[port_index]);
+	}
+
+	KUNIT_EXPECT_MEMEQ(test, quadlets, expected, sizeof(expected));
+}
+
+static void test_phy_packet_self_id_zero_and_one(struct kunit *test)
+{
+	// TSB41LV06A with 6 ports.
+	const u32 expected[] = {
+		0x803f8459,
+		0x80815000,
+	};
+	u32 quadlets[] = {0, 0};
+
+	unsigned int packet_identifier;
+	unsigned int phy_id;
+	bool extended;
+	bool link_is_active;
+	unsigned int gap_count;
+	unsigned int scode;
+	bool is_contender;
+	unsigned int power_class;
+	enum phy_packet_self_id_port_status port_status[11];
+	bool is_initiated_reset;
+	bool has_more_packets;
+
+	unsigned int sequence;
+	unsigned int port_index;
+
+	deserialize_phy_packet_self_id_zero(expected[0], &packet_identifier, &phy_id, &extended,
+					    &link_is_active, &gap_count, &scode, &is_contender,
+					    &power_class, &is_initiated_reset, &has_more_packets);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_SELF_ID, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0, phy_id);
+	KUNIT_EXPECT_FALSE(test, extended);
+	KUNIT_EXPECT_FALSE(test, link_is_active);
+	KUNIT_EXPECT_EQ(test, 0x3f, gap_count);
+	KUNIT_EXPECT_EQ(test, SCODE_400, scode);
+	KUNIT_EXPECT_FALSE(test, is_contender);
+	KUNIT_EXPECT_EQ(test, 0x4, power_class);
+	KUNIT_EXPECT_FALSE(test, is_initiated_reset);
+	KUNIT_EXPECT_TRUE(test, has_more_packets);
+
+	serialize_phy_packet_self_id_zero(quadlets, packet_identifier, phy_id, extended,
+					  link_is_active, gap_count, scode, is_contender,
+					  power_class, is_initiated_reset, has_more_packets);
+
+	deserialize_phy_packet_self_id_extended(expected[1], &packet_identifier, &phy_id, &extended,
+						&sequence, &has_more_packets);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_SELF_ID, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0, phy_id);
+	KUNIT_EXPECT_TRUE(test, extended);
+	KUNIT_EXPECT_EQ(test, 0, sequence);
+	KUNIT_EXPECT_FALSE(test, has_more_packets);
+
+	serialize_phy_packet_self_id_extended(&quadlets[1], packet_identifier, phy_id, extended,
+					      sequence, has_more_packets);
+
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		port_status[port_index] =
+			self_id_sequence_get_port_status(expected, ARRAY_SIZE(expected), port_index);
+	}
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[0]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[1]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_PARENT, port_status[2]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[3]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[4]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NCONN, port_status[5]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[6]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[7]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[8]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[9]);
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_SELF_ID_PORT_STATUS_NONE, port_status[10]);
+
+	for (port_index = 0; port_index < ARRAY_SIZE(port_status); ++port_index) {
+		self_id_sequence_set_port_status(quadlets, ARRAY_SIZE(quadlets), port_index,
+						 port_status[port_index]);
+	}
+
+	KUNIT_EXPECT_MEMEQ(test, quadlets, expected, sizeof(expected));
+}
+
+static void test_phy_packet_phy_config_force_root_node(struct kunit *test)
+{
+	const u32 expected = 0x02800000;
+	u32 quadlet = 0;
+
+	unsigned int packet_identifier;
+	unsigned int root_id;
+	bool has_force_root_node;
+	bool has_gap_count_optimization;
+	unsigned int gap_count;
+
+	deserialize_phy_packet_phy_config(expected, &packet_identifier, &root_id,
+					  &has_force_root_node, &has_gap_count_optimization,
+					  &gap_count);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0x02, root_id);
+	KUNIT_EXPECT_TRUE(test, has_force_root_node);
+	KUNIT_EXPECT_FALSE(test, has_gap_count_optimization);
+	KUNIT_EXPECT_EQ(test, 0, gap_count);
+
+	serialize_phy_packet_phy_config(&quadlet, packet_identifier, root_id, has_force_root_node,
+					has_gap_count_optimization, gap_count);
+
+	KUNIT_EXPECT_EQ(test, quadlet, expected);
+}
+
+static void test_phy_packet_phy_config_gap_count_optimization(struct kunit *test)
+{
+	const u32 expected = 0x034f0000;
+	u32 quadlet = 0;
+
+	unsigned int packet_identifier;
+	unsigned int root_id;
+	bool has_force_root_node;
+	bool has_gap_count_optimization;
+	unsigned int gap_count;
+
+	deserialize_phy_packet_phy_config(expected, &packet_identifier, &root_id,
+					  &has_force_root_node, &has_gap_count_optimization,
+					  &gap_count);
+
+	KUNIT_EXPECT_EQ(test, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG, packet_identifier);
+	KUNIT_EXPECT_EQ(test, 0x03, root_id);
+	KUNIT_EXPECT_FALSE(test, has_force_root_node);
+	KUNIT_EXPECT_TRUE(test, has_gap_count_optimization);
+	KUNIT_EXPECT_EQ(test, 0x0f, gap_count);
+
+	serialize_phy_packet_phy_config(&quadlet, packet_identifier, root_id, has_force_root_node,
+					has_gap_count_optimization, gap_count);
+
+	KUNIT_EXPECT_EQ(test, quadlet, expected);
+}
+
 static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_async_header_write_quadlet_request),
 	KUNIT_CASE(test_async_header_write_block_request),
@@ -570,6 +899,11 @@ static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_async_header_lock_request),
 	KUNIT_CASE(test_async_header_lock_response),
 	KUNIT_CASE(test_isoc_header),
+	KUNIT_CASE(test_phy_packet_self_id_zero_case0),
+	KUNIT_CASE(test_phy_packet_self_id_zero_case1),
+	KUNIT_CASE(test_phy_packet_self_id_zero_and_one),
+	KUNIT_CASE(test_phy_packet_phy_config_force_root_node),
+	KUNIT_CASE(test_phy_packet_phy_config_gap_count_optimization),
 	{}
 };
 
@@ -579,4 +913,5 @@ static struct kunit_suite packet_serdes_test_suite = {
 };
 kunit_test_suite(packet_serdes_test_suite);
 
+MODULE_DESCRIPTION("FireWire packet serialization/deserialization unit test suite");
 MODULE_LICENSE("GPL");

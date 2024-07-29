@@ -14,6 +14,7 @@
  * Author: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -36,8 +37,13 @@ static enum cpuhp_state uncore_hp_state __read_mostly;
 #define MSR_UNCORE_PERF_STATUS	0x621
 #define UNCORE_FREQ_KHZ_MULTIPLIER	100000
 
-static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
-				    unsigned int *max)
+#define UNCORE_MAX_RATIO_MASK	GENMASK_ULL(6, 0)
+#define UNCORE_MIN_RATIO_MASK	GENMASK_ULL(14, 8)
+
+#define UNCORE_CURRENT_RATIO_MASK	GENMASK_ULL(6, 0)
+
+static int uncore_read_control_freq(struct uncore_data *data, unsigned int *value,
+				    enum uncore_index index)
 {
 	u64 cap;
 	int ret;
@@ -49,20 +55,22 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *min,
 	if (ret)
 		return ret;
 
-	*max = (cap & 0x7F) * UNCORE_FREQ_KHZ_MULTIPLIER;
-	*min = ((cap & GENMASK(14, 8)) >> 8) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	if (index == UNCORE_INDEX_MAX_FREQ)
+		*value = FIELD_GET(UNCORE_MAX_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	else
+		*value = FIELD_GET(UNCORE_MIN_RATIO_MASK, cap) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
 }
 
 static int uncore_write_control_freq(struct uncore_data *data, unsigned int input,
-				     unsigned int min_max)
+				     enum uncore_index index)
 {
 	int ret;
 	u64 cap;
 
 	input /= UNCORE_FREQ_KHZ_MULTIPLIER;
-	if (!input || input > 0x7F)
+	if (!input || input > FIELD_MAX(UNCORE_MAX_RATIO_MASK))
 		return -EINVAL;
 
 	if (data->control_cpu < 0)
@@ -72,12 +80,12 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	if (ret)
 		return ret;
 
-	if (min_max) {
-		cap &= ~0x7F;
-		cap |= input;
+	if (index == UNCORE_INDEX_MAX_FREQ) {
+		cap &= ~UNCORE_MAX_RATIO_MASK;
+		cap |= FIELD_PREP(UNCORE_MAX_RATIO_MASK, input);
 	} else  {
-		cap &= ~GENMASK(14, 8);
-		cap |= (input << 8);
+		cap &= ~UNCORE_MIN_RATIO_MASK;
+		cap |= FIELD_PREP(UNCORE_MIN_RATIO_MASK, input);
 	}
 
 	ret = wrmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, cap);
@@ -101,9 +109,26 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	if (ret)
 		return ret;
 
-	*freq = (ratio & 0x7F) * UNCORE_FREQ_KHZ_MULTIPLIER;
+	*freq = FIELD_GET(UNCORE_CURRENT_RATIO_MASK, ratio) * UNCORE_FREQ_KHZ_MULTIPLIER;
 
 	return 0;
+}
+
+static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncore_index index)
+{
+	switch (index) {
+	case UNCORE_INDEX_MIN_FREQ:
+	case UNCORE_INDEX_MAX_FREQ:
+		return uncore_read_control_freq(data, value, index);
+
+	case UNCORE_INDEX_CURRENT_FREQ:
+		return uncore_read_freq(data, value);
+
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 /* Caller provides protection */
@@ -197,34 +222,34 @@ static struct notifier_block uncore_pm_nb = {
 };
 
 static const struct x86_cpu_id intel_uncore_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_G,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(EMERALDRAPIDS_X, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ARROWLAKE, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ARROWLAKE_H, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(LUNARLAKE_M, NULL),
+	X86_MATCH_VFM(INTEL_BROADWELL_G,	NULL),
+	X86_MATCH_VFM(INTEL_BROADWELL_X,	NULL),
+	X86_MATCH_VFM(INTEL_BROADWELL_D,	NULL),
+	X86_MATCH_VFM(INTEL_SKYLAKE_X,	NULL),
+	X86_MATCH_VFM(INTEL_ICELAKE_X,	NULL),
+	X86_MATCH_VFM(INTEL_ICELAKE_D,	NULL),
+	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X, NULL),
+	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X, NULL),
+	X86_MATCH_VFM(INTEL_KABYLAKE, NULL),
+	X86_MATCH_VFM(INTEL_KABYLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_COMETLAKE, NULL),
+	X86_MATCH_VFM(INTEL_COMETLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_CANNONLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_ICELAKE, NULL),
+	X86_MATCH_VFM(INTEL_ICELAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_ROCKETLAKE, NULL),
+	X86_MATCH_VFM(INTEL_TIGERLAKE, NULL),
+	X86_MATCH_VFM(INTEL_TIGERLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_ALDERLAKE, NULL),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE, NULL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P, NULL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_S, NULL),
+	X86_MATCH_VFM(INTEL_METEORLAKE, NULL),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_ARROWLAKE, NULL),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_H, NULL),
+	X86_MATCH_VFM(INTEL_LUNARLAKE_M, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_uncore_cpu_ids);
@@ -248,8 +273,7 @@ static int __init intel_uncore_init(void)
 	if (!uncore_instances)
 		return -ENOMEM;
 
-	ret = uncore_freq_common_init(uncore_read_control_freq, uncore_write_control_freq,
-				      uncore_read_freq);
+	ret = uncore_freq_common_init(uncore_read, uncore_write_control_freq);
 	if (ret)
 		goto err_free;
 

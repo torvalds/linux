@@ -132,7 +132,7 @@ static int rt5660_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops rt5660_ops = {
+static const struct snd_soc_ops rt5660_ops = {
 	.hw_params = rt5660_hw_params,
 };
 

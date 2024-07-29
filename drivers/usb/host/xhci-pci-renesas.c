@@ -627,4 +627,5 @@ exit:
 }
 EXPORT_SYMBOL_GPL(renesas_xhci_check_request_fw);
 
+MODULE_DESCRIPTION("Support for Renesas xHCI controller with firmware");
 MODULE_LICENSE("GPL v2");

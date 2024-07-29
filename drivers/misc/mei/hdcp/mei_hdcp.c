@@ -23,8 +23,8 @@
 #include <linux/mei_cl_bus.h>
 #include <linux/component.h>
 #include <drm/drm_connector.h>
-#include <drm/i915_component.h>
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_component.h>
+#include <drm/intel/i915_hdcp_interface.h>
 
 #include "mei_hdcp.h"
 

@@ -179,7 +179,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct address_space *mapping = file->f_mapping;
 	size_t count = iov_iter_count(iter);
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	if (!count)
 		return 0; /* skip atime */
@@ -205,7 +205,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			iocb->ki_pos += ret;
 	} else {
 		bch2_pagecache_add_get(inode);
-		ret = generic_file_read_iter(iocb, iter);
+		ret = filemap_read(iocb, iter, ret);
 		bch2_pagecache_add_put(inode);
 	}
 out:
@@ -609,8 +609,10 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely(ret))
 		goto err_put_write_ref;
 
-	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
+	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1))) {
+		ret = -EINVAL;
 		goto err_put_write_ref;
+	}
 
 	inode_dio_begin(&inode->v);
 	bch2_pagecache_block_get(inode);

@@ -866,6 +866,17 @@ static int ksz8061_config_init(struct phy_device *phydev)
 {
 	int ret;
 
+	/* Chip can be powered down by the bootstrap code. */
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	if (ret & BMCR_PDOWN) {
+		ret = phy_write(phydev, MII_BMCR, ret & ~BMCR_PDOWN);
+		if (ret < 0)
+			return ret;
+		usleep_range(1000, 2000);
+	}
+
 	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_DEVID1, 0xB61A);
 	if (ret)
 		return ret;
@@ -1939,7 +1950,7 @@ static const struct ksz9477_errata_write ksz9477_errata_writes[] = {
 	{0x1c, 0x20, 0xeeee},
 };
 
-static int ksz9477_config_init(struct phy_device *phydev)
+static int ksz9477_phy_errata(struct phy_device *phydev)
 {
 	int err;
 	int i;
@@ -1967,15 +1978,29 @@ static int ksz9477_config_init(struct phy_device *phydev)
 			return err;
 	}
 
+	err = genphy_restart_aneg(phydev);
+	if (err)
+		return err;
+
+	return err;
+}
+
+static int ksz9477_config_init(struct phy_device *phydev)
+{
+	int err;
+
+	/* Only KSZ9897 family of switches needs this fix. */
+	if ((phydev->phy_id & 0xf) == 1) {
+		err = ksz9477_phy_errata(phydev);
+		if (err)
+			return err;
+	}
+
 	/* According to KSZ9477 Errata DS80000754C (Module 4) all EEE modes
 	 * in this switch shall be regarded as broken.
 	 */
 	if (phydev->dev_flags & MICREL_NO_EEE)
 		phydev->eee_broken_modes = -1;
-
-	err = genphy_restart_aneg(phydev);
-	if (err)
-		return err;
 
 	return kszphy_config_init(phydev);
 }
@@ -2072,6 +2097,71 @@ static int kszphy_resume(struct phy_device *phydev)
 	usleep_range(1000, 2000);
 
 	ret = kszphy_config_reset(phydev);
+	if (ret)
+		return ret;
+
+	/* Enable PHY Interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_ENABLED;
+		if (phydev->drv->config_intr)
+			phydev->drv->config_intr(phydev);
+	}
+
+	return 0;
+}
+
+static int ksz9477_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* No need to initialize registers if not powered down. */
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	if (!(ret & BMCR_PDOWN))
+		return 0;
+
+	genphy_resume(phydev);
+
+	/* After switching from power-down to normal mode, an internal global
+	 * reset is automatically generated. Wait a minimum of 1 ms before
+	 * read/write access to the PHY registers.
+	 */
+	usleep_range(1000, 2000);
+
+	/* Only KSZ9897 family of switches needs this fix. */
+	if ((phydev->phy_id & 0xf) == 1) {
+		ret = ksz9477_phy_errata(phydev);
+		if (ret)
+			return ret;
+	}
+
+	/* Enable PHY Interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_ENABLED;
+		if (phydev->drv->config_intr)
+			phydev->drv->config_intr(phydev);
+	}
+
+	return 0;
+}
+
+static int ksz8061_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* This function can be called twice when the Ethernet device is on. */
+	ret = phy_read(phydev, MII_BMCR);
+	if (ret < 0)
+		return ret;
+	if (!(ret & BMCR_PDOWN))
+		return 0;
+
+	genphy_resume(phydev);
+	usleep_range(1000, 2000);
+
+	/* Re-program the value after chip is reset. */
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_DEVID1, 0xB61A);
 	if (ret)
 		return ret;
 
@@ -2462,7 +2552,7 @@ static void lan8814_ptp_tx_ts_get(struct phy_device *phydev,
 	*seq_id = lanphy_read_page_reg(phydev, 5, PTP_TX_MSG_HEADER2);
 }
 
-static int lan8814_ts_info(struct mii_timestamper *mii_ts, struct ethtool_ts_info *info)
+static int lan8814_ts_info(struct mii_timestamper *mii_ts, struct kernel_ethtool_ts_info *info)
 {
 	struct kszphy_ptp_priv *ptp_priv = container_of(mii_ts, struct kszphy_ptp_priv, mii_ts);
 	struct phy_device *phydev = ptp_priv->phydev;
@@ -3691,6 +3781,9 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 	ptp_priv->mii_ts.ts_info  = lan8814_ts_info;
 
 	phydev->mii_ts = &ptp_priv->mii_ts;
+
+	/* Timestamp selected by default to keep legacy API */
+	phydev->default_timestamp = true;
 }
 
 static int lan8814_ptp_probe_once(struct phy_device *phydev)
@@ -4029,7 +4122,7 @@ static int lan8841_config_intr(struct phy_device *phydev)
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
 		err = phy_read(phydev, LAN8814_INTS);
-		if (err)
+		if (err < 0)
 			return err;
 
 		/* Enable / disable interrupts. It is OK to enable PTP interrupt
@@ -4045,6 +4138,14 @@ static int lan8841_config_intr(struct phy_device *phydev)
 			return err;
 
 		err = phy_read(phydev, LAN8814_INTS);
+		if (err < 0)
+			return err;
+
+		/* Getting a positive value doesn't mean that is an error, it
+		 * just indicates what was the status. Therefore make sure to
+		 * clear the value and say that there is no error.
+		 */
+		err = 0;
 	}
 
 	return err;
@@ -4216,7 +4317,7 @@ static irqreturn_t lan8841_handle_interrupt(struct phy_device *phydev)
 }
 
 static int lan8841_ts_info(struct mii_timestamper *mii_ts,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	struct kszphy_ptp_priv *ptp_priv;
 
@@ -5181,6 +5282,9 @@ static int lan8841_probe(struct phy_device *phydev)
 
 	phydev->mii_ts = &ptp_priv->mii_ts;
 
+	/* Timestamp selected by default to keep legacy API */
+	phydev->default_timestamp = true;
+
 	return 0;
 }
 
@@ -5327,10 +5431,11 @@ static struct phy_driver ksphy_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.probe		= kszphy_probe,
 	.config_init	= ksz8061_config_init,
+	.soft_reset	= genphy_soft_reset,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= kszphy_suspend,
-	.resume		= kszphy_resume,
+	.resume		= ksz8061_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ9021,
 	.phy_id_mask	= 0x000ffffe,
@@ -5484,7 +5589,7 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.resume		= ksz9477_resume,
 	.get_features	= ksz9477_get_features,
 } };
 
@@ -5508,6 +5613,7 @@ static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ8081, MICREL_PHY_ID_MASK },
 	{ PHY_ID_KSZ8873MLL, MICREL_PHY_ID_MASK },
 	{ PHY_ID_KSZ886X, MICREL_PHY_ID_MASK },
+	{ PHY_ID_KSZ9477, MICREL_PHY_ID_MASK },
 	{ PHY_ID_LAN8814, MICREL_PHY_ID_MASK },
 	{ PHY_ID_LAN8804, MICREL_PHY_ID_MASK },
 	{ PHY_ID_LAN8841, MICREL_PHY_ID_MASK },

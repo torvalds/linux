@@ -971,7 +971,7 @@ static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	v4l2_ctrl_handler_init(hdl, 5);
+	v4l2_ctrl_handler_init(hdl, 11);
 
 	hdl->lock = &sensor->lock;
 

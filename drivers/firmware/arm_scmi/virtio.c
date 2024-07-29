@@ -354,11 +354,9 @@ static void scmi_vio_deferred_tx_worker(struct work_struct *work)
 	scmi_vio_channel_release(vioch);
 }
 
-static const char *const scmi_vio_vqueue_names[] = { "tx", "rx" };
-
-static vq_callback_t *scmi_vio_complete_callbacks[] = {
-	scmi_vio_complete_cb,
-	scmi_vio_complete_cb
+static struct virtqueue_info scmi_vio_vqs_info[] = {
+	{ "tx", scmi_vio_complete_cb },
+	{ "rx", scmi_vio_complete_cb },
 };
 
 static unsigned int virtio_get_max_msg(struct scmi_chan_info *base_cinfo)
@@ -831,8 +829,7 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	if (have_vq_rx)
 		channels[VIRTIO_SCMI_VQ_RX].is_rx = true;
 
-	ret = virtio_find_vqs(vdev, vq_cnt, vqs, scmi_vio_complete_callbacks,
-			      scmi_vio_vqueue_names, NULL);
+	ret = virtio_find_vqs(vdev, vq_cnt, vqs, scmi_vio_vqs_info, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to get %d virtqueue(s)\n", vq_cnt);
 		return ret;

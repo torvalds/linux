@@ -33,6 +33,8 @@ properties:
       - description: UNIPHY RX clock source
       - description: UNIPHY TX clk source
 
+  '#power-domain-cells': false
+
 required:
   - compatible
   - clocks
@@ -58,6 +60,5 @@ examples:
                <&uniphy_tx_clk>;
       #clock-cells = <1>;
       #reset-cells = <1>;
-      #power-domain-cells = <1>;
     };
 ...

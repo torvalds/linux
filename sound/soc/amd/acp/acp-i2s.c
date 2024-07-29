@@ -369,12 +369,12 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 		}
 		writel(period_bytes, adata->acp_base + water_val);
 		writel(buf_size, adata->acp_base + buf_reg);
+		if (rsrc->soc_mclk)
+			acp_set_i2s_clk(adata, dai->driver->id);
 		val = readl(adata->acp_base + reg_val);
 		val = val | BIT(0);
 		writel(val, adata->acp_base + reg_val);
 		writel(1, adata->acp_base + ier_val);
-		if (rsrc->soc_mclk)
-			acp_set_i2s_clk(adata, dai->driver->id);
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -584,29 +584,7 @@ static int acp_i2s_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 	return 0;
 }
 
-static int acp_i2s_probe(struct snd_soc_dai *dai)
-{
-	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_resource *rsrc = adata->rsrc;
-	unsigned int val;
-
-	if (!adata->acp_base) {
-		dev_err(dev, "I2S base is NULL\n");
-		return -EINVAL;
-	}
-
-	val = readl(adata->acp_base + rsrc->i2s_pin_cfg_offset);
-	if (val != rsrc->i2s_mode) {
-		dev_err(dev, "I2S Mode not supported val %x\n", val);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops = {
-	.probe		= acp_i2s_probe,
 	.startup	= acp_i2s_startup,
 	.hw_params	= acp_i2s_hwparams,
 	.prepare	= acp_i2s_prepare,
@@ -616,5 +594,6 @@ const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(asoc_acp_cpu_dai_ops, SND_SOC_ACP_COMMON);
 
+MODULE_DESCRIPTION("AMD ACP Audio I2S controller");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS(DRV_NAME);

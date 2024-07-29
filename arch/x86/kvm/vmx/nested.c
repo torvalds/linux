@@ -12,6 +12,7 @@
 #include "mmu.h"
 #include "nested.h"
 #include "pmu.h"
+#include "posted_intr.h"
 #include "sgx.h"
 #include "trace.h"
 #include "vmx.h"
@@ -2242,6 +2243,9 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 		vmcs_write64(EPT_POINTER,
 			     construct_eptp(&vmx->vcpu, 0, PT64_ROOT_4LEVEL));
 
+	if (vmx->ve_info)
+		vmcs_write64(VE_INFORMATION_ADDRESS, __pa(vmx->ve_info));
+
 	/* All VMFUNCs are currently emulated through L0 vmexits.  */
 	if (cpu_has_vmx_vmfunc())
 		vmcs_write64(VM_FUNCTION_CONTROL, 0);
@@ -2422,7 +2426,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct loaded_vmcs *vmcs0
 	if (cpu_has_load_ia32_efer()) {
 		if (guest_efer & EFER_LMA)
 			exec_control |= VM_ENTRY_IA32E_MODE;
-		if (guest_efer != host_efer)
+		if (guest_efer != kvm_host.efer)
 			exec_control |= VM_ENTRY_LOAD_IA32_EFER;
 	}
 	vm_entry_controls_set(vmx, exec_control);
@@ -2435,7 +2439,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct loaded_vmcs *vmcs0
 	 * bits may be modified by vmx_set_efer() in prepare_vmcs02().
 	 */
 	exec_control = __vm_exit_controls_get(vmcs01);
-	if (cpu_has_load_ia32_efer() && guest_efer != host_efer)
+	if (cpu_has_load_ia32_efer() && guest_efer != kvm_host.efer)
 		exec_control |= VM_EXIT_LOAD_IA32_EFER;
 	else
 		exec_control &= ~VM_EXIT_LOAD_IA32_EFER;
@@ -3896,8 +3900,8 @@ static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	if (!pi_test_and_clear_on(vmx->nested.pi_desc))
 		return 0;
 
-	max_irr = find_last_bit((unsigned long *)vmx->nested.pi_desc->pir, 256);
-	if (max_irr != 256) {
+	max_irr = pi_find_highest_vector(vmx->nested.pi_desc);
+	if (max_irr > 0) {
 		vapic_page = vmx->nested.virtual_apic_map.hva;
 		if (!vapic_page)
 			goto mmio_needed;
@@ -4028,10 +4032,46 @@ static bool nested_vmx_preemption_timer_pending(struct kvm_vcpu *vcpu)
 	       to_vmx(vcpu)->nested.preemption_timer_expired;
 }
 
-static bool vmx_has_nested_events(struct kvm_vcpu *vcpu)
+static bool vmx_has_nested_events(struct kvm_vcpu *vcpu, bool for_injection)
 {
-	return nested_vmx_preemption_timer_pending(vcpu) ||
-	       to_vmx(vcpu)->nested.mtf_pending;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	void *vapic = vmx->nested.virtual_apic_map.hva;
+	int max_irr, vppr;
+
+	if (nested_vmx_preemption_timer_pending(vcpu) ||
+	    vmx->nested.mtf_pending)
+		return true;
+
+	/*
+	 * Virtual Interrupt Delivery doesn't require manual injection.  Either
+	 * the interrupt is already in GUEST_RVI and will be recognized by CPU
+	 * at VM-Entry, or there is a KVM_REQ_EVENT pending and KVM will move
+	 * the interrupt from the PIR to RVI prior to entering the guest.
+	 */
+	if (for_injection)
+		return false;
+
+	if (!nested_cpu_has_vid(get_vmcs12(vcpu)) ||
+	    __vmx_interrupt_blocked(vcpu))
+		return false;
+
+	if (!vapic)
+		return false;
+
+	vppr = *((u32 *)(vapic + APIC_PROCPRI));
+
+	max_irr = vmx_get_rvi();
+	if ((max_irr & 0xf0) > (vppr & 0xf0))
+		return true;
+
+	if (vmx->nested.pi_pending && vmx->nested.pi_desc &&
+	    pi_test_on(vmx->nested.pi_desc)) {
+		max_irr = pi_find_highest_vector(vmx->nested.pi_desc);
+		if (max_irr > 0 && (max_irr & 0xf0) > (vppr & 0xf0))
+			return true;
+	}
+
+	return false;
 }
 
 /*
@@ -4662,7 +4702,7 @@ static inline u64 nested_vmx_get_vmcs01_guest_efer(struct vcpu_vmx *vmx)
 		return vmcs_read64(GUEST_IA32_EFER);
 
 	if (cpu_has_load_ia32_efer())
-		return host_efer;
+		return kvm_host.efer;
 
 	for (i = 0; i < vmx->msr_autoload.guest.nr; ++i) {
 		if (vmx->msr_autoload.guest.val[i].index == MSR_EFER)
@@ -4673,7 +4713,7 @@ static inline u64 nested_vmx_get_vmcs01_guest_efer(struct vcpu_vmx *vmx)
 	if (efer_msr)
 		return efer_msr->data;
 
-	return host_efer;
+	return kvm_host.efer;
 }
 
 static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
@@ -6229,6 +6269,8 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu,
 			return true;
 		else if (is_alignment_check(intr_info) &&
 			 !vmx_guest_inject_ac(vcpu))
+			return true;
+		else if (is_ve_fault(intr_info))
 			return true;
 		return false;
 	case EXIT_REASON_EXTERNAL_INTERRUPT:

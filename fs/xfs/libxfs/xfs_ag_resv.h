@@ -33,23 +33,4 @@ xfs_perag_resv(
 	}
 }
 
-/*
- * RMAPBT reservation accounting wrappers. Since rmapbt blocks are sourced from
- * the AGFL, they are allocated one at a time and the reservation updates don't
- * require a transaction.
- */
-static inline void
-xfs_ag_resv_rmapbt_alloc(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	struct xfs_alloc_arg	args = { NULL };
-	struct xfs_perag	*pag;
-
-	args.len = 1;
-	pag = xfs_perag_get(mp, agno);
-	xfs_ag_resv_alloc_extent(pag, XFS_AG_RESV_RMAPBT, &args);
-	xfs_perag_put(pag);
-}
-
 #endif	/* __XFS_AG_RESV_H__ */

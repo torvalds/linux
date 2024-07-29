@@ -751,7 +751,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	u64 logsize, mapsize, datasize;
 	u64 available = size;
 
-	arena = kzalloc(sizeof(struct arena_info), GFP_KERNEL);
+	arena = kzalloc(sizeof(*arena), GFP_KERNEL);
 	if (!arena)
 		return NULL;
 	arena->nd_btt = btt->nd_btt;
@@ -978,7 +978,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	if (ret)
 		return ret;
 
-	super = kzalloc(sizeof(struct btt_sb), GFP_NOIO);
+	super = kzalloc(sizeof(*super), GFP_NOIO);
 	if (!super)
 		return -ENOMEM;
 
@@ -1501,8 +1501,14 @@ static int btt_blk_init(struct btt *btt)
 		.logical_block_size	= btt->sector_size,
 		.max_hw_sectors		= UINT_MAX,
 		.max_integrity_segments	= 1,
+		.features		= BLK_FEAT_SYNCHRONOUS,
 	};
 	int rc;
+
+	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
+		lim.integrity.tuple_size = btt_meta_size(btt);
+		lim.integrity.tag_size = btt_meta_size(btt);
+	}
 
 	btt->btt_disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
 	if (IS_ERR(btt->btt_disk))
@@ -1512,17 +1518,6 @@ static int btt_blk_init(struct btt *btt)
 	btt->btt_disk->first_minor = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, btt->btt_disk->queue);
-
-	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
-		struct blk_integrity bi = {
-			.tuple_size	= btt_meta_size(btt),
-			.tag_size	= btt_meta_size(btt),
-		};
-		blk_integrity_register(btt->btt_disk, &bi);
-	}
 
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
 	rc = device_add_disk(&btt->nd_btt->dev, btt->btt_disk, NULL);
@@ -1721,6 +1716,7 @@ static void __exit nd_btt_exit(void)
 
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_BTT);
 MODULE_AUTHOR("Vishal Verma <vishal.l.verma@linux.intel.com>");
+MODULE_DESCRIPTION("NVDIMM Block Translation Table");
 MODULE_LICENSE("GPL v2");
 module_init(nd_btt_init);
 module_exit(nd_btt_exit);

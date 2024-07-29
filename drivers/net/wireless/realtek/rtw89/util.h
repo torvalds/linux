@@ -6,6 +6,8 @@
 
 #include "core.h"
 
+#define RTW89_LINEAR_FRAC_BITS 3
+
 #define rtw89_iterate_vifs_bh(rtwdev, iterator, data)                          \
 	ieee80211_iterate_active_interfaces_atomic((rtwdev)->hw,               \
 			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
@@ -54,5 +56,8 @@ static inline void ether_addr_copy_mask(u8 *dst, const u8 *src, u8 mask)
 			dst[i] = src[i];
 	}
 }
+
+u32 rtw89_linear_2_db(u64 linear);
+u64 rtw89_db_2_linear(u32 db);
 
 #endif

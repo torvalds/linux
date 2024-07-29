@@ -1532,7 +1532,7 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 	}
 
 	NAPI_GRO_CB(skb)->flush |= flush;
-	NAPI_GRO_CB(skb)->inner_network_offset = off;
+	NAPI_GRO_CB(skb)->network_offsets[NAPI_GRO_CB(skb)->encap_mark] = off;
 
 	/* Note : No need to call skb_gro_postpull_rcsum() here,
 	 * as we already checked checksum over ipv4 header was 0

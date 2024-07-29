@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __UAPI_IVPU_DRM_H__
@@ -21,6 +21,10 @@ extern "C" {
 #define DRM_IVPU_BO_INFO		  0x03
 #define DRM_IVPU_SUBMIT			  0x05
 #define DRM_IVPU_BO_WAIT		  0x06
+#define DRM_IVPU_METRIC_STREAMER_START	  0x07
+#define DRM_IVPU_METRIC_STREAMER_STOP	  0x08
+#define DRM_IVPU_METRIC_STREAMER_GET_DATA 0x09
+#define DRM_IVPU_METRIC_STREAMER_GET_INFO 0x0a
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
@@ -39,6 +43,22 @@ extern "C" {
 
 #define DRM_IOCTL_IVPU_BO_WAIT                                                 \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_WAIT, struct drm_ivpu_bo_wait)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_START                                   \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_START,            \
+		 struct drm_ivpu_metric_streamer_start)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_STOP                                    \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_STOP,              \
+		struct drm_ivpu_metric_streamer_stop)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_GET_DATA                                \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_GET_DATA,         \
+		 struct drm_ivpu_metric_streamer_get_data)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_GET_INFO                                \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_GET_INFO,         \
+		 struct drm_ivpu_metric_streamer_get_data)
 
 /**
  * DOC: contexts
@@ -334,6 +354,53 @@ struct drm_ivpu_bo_wait {
 
 	/** @pad: Padding - must be zero */
 	__u32 pad;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_start - Start collecting metric data
+ */
+struct drm_ivpu_metric_streamer_start {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
+	/** @sampling_period_ns: Sampling period in nanoseconds */
+	__u64 sampling_period_ns;
+	/**
+	 * @read_period_samples:
+	 *
+	 * Number of samples after which user space will try to read the data.
+	 * Reading the data after significantly longer period may cause data loss.
+	 */
+	__u32 read_period_samples;
+	/** @sample_size: Returned size of a single sample in bytes */
+	__u32 sample_size;
+	/** @max_data_size: Returned max @data_size from %DRM_IOCTL_IVPU_METRIC_STREAMER_GET_DATA */
+	__u32 max_data_size;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_get_data - Copy collected metric data
+ */
+struct drm_ivpu_metric_streamer_get_data {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
+	/** @buffer_ptr: A pointer to a destination for the copied data */
+	__u64 buffer_ptr;
+	/** @buffer_size: Size of the destination buffer */
+	__u64 buffer_size;
+	/**
+	 * @data_size: Returned size of copied metric data
+	 *
+	 * If the @buffer_size is zero, returns the amount of data ready to be copied.
+	 */
+	__u64 data_size;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_stop - Stop collecting metric data
+ */
+struct drm_ivpu_metric_streamer_stop {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
 };
 
 #if defined(__cplusplus)

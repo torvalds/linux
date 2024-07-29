@@ -40,7 +40,7 @@ static unsigned long mmu_node_last(struct mmu_rb_node *node)
 }
 
 int hfi1_mmu_rb_register(void *ops_arg,
-			 struct mmu_rb_ops *ops,
+			 const struct mmu_rb_ops *ops,
 			 struct workqueue_struct *wq,
 			 struct mmu_rb_handler **handler)
 {

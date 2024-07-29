@@ -274,10 +274,8 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		gossip_err("orangefs error: asked for %d pages, only got %d.\n",
 				bufmap->page_count, ret);
 
-		for (i = 0; i < ret; i++) {
-			SetPageError(bufmap->page_array[i]);
+		for (i = 0; i < ret; i++)
 			unpin_user_page(bufmap->page_array[i]);
-		}
 		return -ENOMEM;
 	}
 

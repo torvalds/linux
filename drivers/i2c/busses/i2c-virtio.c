@@ -183,7 +183,7 @@ static u32 virtio_i2c_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm virtio_algorithm = {
-	.master_xfer = virtio_i2c_xfer,
+	.xfer = virtio_i2c_xfer,
 	.functionality = virtio_i2c_func,
 };
 

@@ -53,9 +53,6 @@ static const struct hw_sequencer_funcs dcn301_funcs = {
 	.enable_stream = dcn20_enable_stream,
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dcn20_unblank_stream,
-#ifdef FREESYNC_POWER_OPTIMIZE
-	.are_streams_coarse_grain_aligned = dcn20_are_streams_coarse_grain_aligned,
-#endif
 	.blank_stream = dce110_blank_stream,
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
@@ -72,6 +69,7 @@ static const struct hw_sequencer_funcs dcn301_funcs = {
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dcn30_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
+	.log_color_state = dcn30_log_color_state,
 	.get_hw_state = dcn10_get_hw_state,
 	.clear_status_bits = dcn10_clear_status_bits,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,

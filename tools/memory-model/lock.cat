@@ -54,6 +54,12 @@ flag ~empty LKR \ domain(lk-rmw) as unpaired-LKR
  *)
 empty ([LKW] ; po-loc ; [LKR]) \ (po-loc ; [UL] ; po-loc) as lock-nest
 
+(*
+ * In the same way, spin_is_locked() inside a critical section must always
+ * return True (no RU events can be in a critical section for the same lock).
+ *)
+empty ([LKW] ; po-loc ; [RU]) \ (po-loc ; [UL] ; po-loc) as nested-is-locked
+
 (* The final value of a spinlock should not be tested *)
 flag ~empty [FW] ; loc ; [ALL-LOCKS] as lock-final
 
@@ -79,42 +85,50 @@ empty ([UNMATCHED-LKW] ; loc ; [UNMATCHED-LKW]) \ id as unmatched-locks
 (* rfi for LF events: link each LKW to the LF events in its critical section *)
 let rfi-lf = ([LKW] ; po-loc ; [LF]) \ ([LKW] ; po-loc ; [UL] ; po-loc)
 
-(* rfe for LF events *)
+(* Utility macro to convert a single pair to a single-edge relation *)
+let pair-to-relation p = p ++ 0
+
+(*
+ * If a given LF event e is outside a critical section, it cannot read
+ * internally but it may read from an LKW event in another thread.
+ * Compute the relation containing these possible edges.
+ *)
+let possible-rfe-noncrit-lf e = (LKW * {e}) & loc & ext
+
+(* Compute set of sets of possible rfe edges for LF events *)
 let all-possible-rfe-lf =
 	(*
-	 * Given an LF event r, compute the possible rfe edges for that event
-	 * (all those starting from LKW events in other threads),
-	 * and then convert that relation to a set of single-edge relations.
+	 * Convert the possible-rfe-noncrit-lf relation for e
+	 * to a set of single edges
 	 *)
-	let possible-rfe-lf r =
-		let pair-to-relation p = p ++ 0
-		in map pair-to-relation ((LKW * {r}) & loc & ext)
-	(* Do this for each LF event r that isn't in rfi-lf *)
-	in map possible-rfe-lf (LF \ range(rfi-lf))
+	let set-of-singleton-rfe-lf e =
+			map pair-to-relation (possible-rfe-noncrit-lf e)
+	(* Do this for each LF event e that isn't in rfi-lf *)
+	in map set-of-singleton-rfe-lf (LF \ range(rfi-lf))
 
 (* Generate all rf relations for LF events *)
 with rfe-lf from cross(all-possible-rfe-lf)
 let rf-lf = rfe-lf | rfi-lf
 
 (*
- * RU, i.e., spin_is_locked() returning False, is slightly different.
- * We rely on the memory model to rule out cases where spin_is_locked()
- * within one of the lock's critical sections returns False.
+ * A given RU event e may read internally from the last po-previous UL,
+ * or it may read from a UL event in another thread or the initial write.
+ * Compute the relation containing these possible edges.
  *)
+let possible-rf-ru e = (((UL * {e}) & po-loc) \
+			([UL] ; po-loc ; [UL] ; po-loc)) |
+		(((UL | IW) * {e}) & loc & ext)
 
-(* rfi for RU events: an RU may read from the last po-previous UL *)
-let rfi-ru = ([UL] ; po-loc ; [RU]) \ ([UL] ; po-loc ; [LKW] ; po-loc)
-
-(* rfe for RU events: an RU may read from an external UL or the initial write *)
-let all-possible-rfe-ru =
-	let possible-rfe-ru r =
-		let pair-to-relation p = p ++ 0
-		in map pair-to-relation (((UL | IW) * {r}) & loc & ext)
-	in map possible-rfe-ru RU
+(* Compute set of sets of possible rf edges for RU events *)
+let all-possible-rf-ru =
+	(* Convert the possible-rf-ru relation for e to a set of single edges *)
+	let set-of-singleton-rf-ru e =
+		map pair-to-relation (possible-rf-ru e)
+	(* Do this for each RU event e *)
+	in map set-of-singleton-rf-ru RU
 
 (* Generate all rf relations for RU events *)
-with rfe-ru from cross(all-possible-rfe-ru)
-let rf-ru = rfe-ru | rfi-ru
+with rf-ru from cross(all-possible-rf-ru)
 
 (* Final rf relation *)
 let rf = rf | rf-lf | rf-ru

@@ -1697,11 +1697,6 @@ static int cdns_mhdp_connector_init(struct cdns_mhdp_device *mhdp)
 	struct drm_bridge *bridge = &mhdp->bridge;
 	int ret;
 
-	if (!bridge->encoder) {
-		dev_err(mhdp->dev, "Parent encoder object not found");
-		return -ENODEV;
-	}
-
 	conn->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(bridge->dev, conn, &cdns_mhdp_conn_funcs,

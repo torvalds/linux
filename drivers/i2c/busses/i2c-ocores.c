@@ -431,8 +431,8 @@ static int ocores_init(struct device *dev, struct ocores_i2c *i2c)
 	oc_setreg(i2c, OCI2C_PREHIGH, prescale >> 8);
 
 	/* Init the device */
-	oc_setreg(i2c, OCI2C_CMD, OCI2C_CMD_IACK);
 	oc_setreg(i2c, OCI2C_CONTROL, ctrl | OCI2C_CTRL_EN);
+	oc_setreg(i2c, OCI2C_CMD, OCI2C_CMD_IACK);
 
 	return 0;
 }
@@ -444,8 +444,8 @@ static u32 ocores_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm ocores_algorithm = {
-	.master_xfer = ocores_xfer,
-	.master_xfer_atomic = ocores_xfer_polling,
+	.xfer = ocores_xfer,
+	.xfer_atomic = ocores_xfer_polling,
 	.functionality = ocores_func,
 };
 
@@ -682,13 +682,13 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (irq == -ENXIO) {
-		ocores_algorithm.master_xfer = ocores_xfer_polling;
+		ocores_algorithm.xfer = ocores_xfer_polling;
 	} else {
 		if (irq < 0)
 			return irq;
 	}
 
-	if (ocores_algorithm.master_xfer != ocores_xfer_polling) {
+	if (ocores_algorithm.xfer != ocores_xfer_polling) {
 		ret = devm_request_any_context_irq(&pdev->dev, irq,
 						   ocores_isr, 0,
 						   pdev->name, i2c);

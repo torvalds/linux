@@ -289,7 +289,7 @@ static void timers_update_migration(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static int timer_migration_handler(struct ctl_table *table, int write,
+static int timer_migration_handler(const struct ctl_table *table, int write,
 			    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;

@@ -13,6 +13,7 @@
 #include "xe_gt_topology.h"
 #include "xe_macros.h"
 #include "xe_reg_sr.h"
+#include "xe_sriov.h"
 
 /**
  * DOC: Register Table Processing
@@ -35,11 +36,18 @@ static bool rule_matches(const struct xe_device *xe,
 			 unsigned int n_rules)
 {
 	const struct xe_rtp_rule *r;
-	unsigned int i;
+	unsigned int i, rcount = 0;
 	bool match;
 
 	for (r = rules, i = 0; i < n_rules; r = &rules[++i]) {
 		switch (r->match_type) {
+		case XE_RTP_MATCH_OR:
+			/*
+			 * This is only reached if a complete set of
+			 * rules passed or none were evaluated. For both cases,
+			 * shortcut the other rules and return the proper value.
+			 */
+			goto done;
 		case XE_RTP_MATCH_PLATFORM:
 			match = xe->info.platform == r->platform;
 			break;
@@ -55,6 +63,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.graphics_verx100 >= r->ver_start &&
 				xe->info.graphics_verx100 <= r->ver_end &&
 				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
+			break;
+		case XE_RTP_MATCH_GRAPHICS_VERSION_ANY_GT:
+			match = xe->info.graphics_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_STEP:
 			match = xe->info.step.graphics >= r->step_start &&
@@ -74,6 +85,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = xe->info.step.media >= r->step_start &&
 				xe->info.step.media < r->step_end &&
 				(!has_samedia(xe) || xe_gt_is_media_type(gt));
+			break;
+		case XE_RTP_MATCH_MEDIA_VERSION_ANY_GT:
+			match = xe->info.media_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_INTEGRATED:
 			match = !xe->info.is_dgfx;
@@ -102,9 +116,26 @@ static bool rule_matches(const struct xe_device *xe,
 			match = false;
 		}
 
-		if (!match)
-			return false;
+		if (!match) {
+			/*
+			 * Advance rules until we find XE_RTP_MATCH_OR to check
+			 * if there's another set of conditions to check
+			 */
+			while (++i < n_rules && rules[i].match_type != XE_RTP_MATCH_OR)
+				;
+
+			if (i >= n_rules)
+				return false;
+
+			rcount = 0;
+		} else {
+			rcount++;
+		}
 	}
+
+done:
+	if (drm_WARN_ON(&xe->drm, !rcount))
+		return false;
 
 	return true;
 }
@@ -227,6 +258,9 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 
 	rtp_get_context(ctx, &hwe, &gt, &xe);
 
+	if (IS_SRIOV_VF(xe))
+		return;
+
 	for (entry = entries; entry && entry->name; entry++) {
 		bool match = false;
 
@@ -323,3 +357,4 @@ bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 
 	return dss >= dss_per_gslice;
 }
+

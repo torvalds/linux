@@ -404,7 +404,7 @@ struct sa1111_driver {
 	void (*remove)(struct sa1111_dev *);
 };
 
-#define SA1111_DRV(_d)	container_of((_d), struct sa1111_driver, drv)
+#define SA1111_DRV(_d)	container_of_const((_d), struct sa1111_driver, drv)
 
 #define SA1111_DRIVER_NAME(_sadev) ((_sadev)->dev.driver->name)
 

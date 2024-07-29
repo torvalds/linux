@@ -53,4 +53,5 @@ static struct kunit_suite rational_test_suite = {
 
 kunit_test_suites(&rational_test_suite);
 
+MODULE_DESCRIPTION("Rational fractions unit test");
 MODULE_LICENSE("GPL v2");

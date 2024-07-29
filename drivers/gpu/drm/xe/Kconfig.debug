@@ -61,16 +61,6 @@ config DRM_XE_DEBUG_MEM
 
 	  If in doubt, say "N".
 
-config DRM_XE_SIMPLE_ERROR_CAPTURE
-	bool "Enable simple error capture to dmesg on job timeout"
-	default n
-	help
-	  Choose this option when debugging an unexpected job timeout
-
-	  Recommended for driver developers only.
-
-	  If in doubt, say "N".
-
 config DRM_XE_KUNIT_TEST
         tristate "KUnit tests for the drm xe driver" if !KUNIT_ALL_TESTS
 	depends on DRM_XE && KUNIT && DEBUG_FS

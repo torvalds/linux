@@ -795,10 +795,12 @@ static struct link_encoder *dcn201_link_encoder_create(
 {
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_ATOMIC);
-	struct dcn10_link_encoder *enc10 = &enc20->enc10;
+	struct dcn10_link_encoder *enc10;
 
 	if (!enc20)
 		return NULL;
+
+	enc10 = &enc20->enc10;
 
 	dcn201_link_encoder_construct(enc20,
 			enc_init_data,

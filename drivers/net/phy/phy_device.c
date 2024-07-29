@@ -296,7 +296,7 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!netdev)
 		goto out;
 
-	if (netdev->wol_enabled)
+	if (netdev->ethtool->wol_enabled)
 		return false;
 
 	/* As long as not all affected network drivers support the
@@ -533,10 +533,10 @@ static int phy_scan_fixups(struct phy_device *phydev)
 	return 0;
 }
 
-static int phy_bus_match(struct device *dev, struct device_driver *drv)
+static int phy_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct phy_device *phydev = to_phy_device(dev);
-	struct phy_driver *phydrv = to_phy_driver(drv);
+	const struct phy_driver *phydrv = to_phy_driver(drv);
 	const int num_ids = ARRAY_SIZE(phydev->c45_ids.device_ids);
 	int i;
 
@@ -1980,16 +1980,17 @@ int phy_suspend(struct phy_device *phydev)
 	const struct phy_driver *phydrv = phydev->drv;
 	int ret;
 
-	if (phydev->suspended)
+	if (phydev->suspended || !phydrv)
 		return 0;
 
 	phy_ethtool_get_wol(phydev, &wol);
-	phydev->wol_enabled = wol.wolopts || (netdev && netdev->wol_enabled);
+	phydev->wol_enabled = wol.wolopts ||
+			      (netdev && netdev->ethtool->wol_enabled);
 	/* If the device has WOL enabled, we cannot suspend the PHY */
 	if (phydev->wol_enabled && !(phydrv->flags & PHY_ALWAYS_CALL_SUSPEND))
 		return -EBUSY;
 
-	if (!phydrv || !phydrv->suspend)
+	if (!phydrv->suspend)
 		return 0;
 
 	ret = phydrv->suspend(phydev);

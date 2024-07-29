@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "buckets.h"
+#include "disk_accounting.h"
 #include "journal.h"
 #include "replicas.h"
 #include "super-io.h"
@@ -243,145 +244,25 @@ static bool __replicas_has_entry(struct bch_replicas_cpu *r,
 	return __replicas_entry_idx(r, search) >= 0;
 }
 
+bool bch2_replicas_marked_locked(struct bch_fs *c,
+			  struct bch_replicas_entry_v1 *search)
+{
+	verify_replicas_entry(search);
+
+	return !search->nr_devs ||
+		(__replicas_has_entry(&c->replicas, search) &&
+		 (likely((!c->replicas_gc.entries)) ||
+		  __replicas_has_entry(&c->replicas_gc, search)));
+}
+
 bool bch2_replicas_marked(struct bch_fs *c,
 			  struct bch_replicas_entry_v1 *search)
 {
-	bool marked;
-
-	if (!search->nr_devs)
-		return true;
-
-	verify_replicas_entry(search);
-
 	percpu_down_read(&c->mark_lock);
-	marked = __replicas_has_entry(&c->replicas, search) &&
-		(likely((!c->replicas_gc.entries)) ||
-		 __replicas_has_entry(&c->replicas_gc, search));
+	bool ret = bch2_replicas_marked_locked(c, search);
 	percpu_up_read(&c->mark_lock);
 
-	return marked;
-}
-
-static void __replicas_table_update(struct bch_fs_usage *dst,
-				    struct bch_replicas_cpu *dst_r,
-				    struct bch_fs_usage *src,
-				    struct bch_replicas_cpu *src_r)
-{
-	int src_idx, dst_idx;
-
-	*dst = *src;
-
-	for (src_idx = 0; src_idx < src_r->nr; src_idx++) {
-		if (!src->replicas[src_idx])
-			continue;
-
-		dst_idx = __replicas_entry_idx(dst_r,
-				cpu_replicas_entry(src_r, src_idx));
-		BUG_ON(dst_idx < 0);
-
-		dst->replicas[dst_idx] = src->replicas[src_idx];
-	}
-}
-
-static void __replicas_table_update_pcpu(struct bch_fs_usage __percpu *dst_p,
-				    struct bch_replicas_cpu *dst_r,
-				    struct bch_fs_usage __percpu *src_p,
-				    struct bch_replicas_cpu *src_r)
-{
-	unsigned src_nr = sizeof(struct bch_fs_usage) / sizeof(u64) + src_r->nr;
-	struct bch_fs_usage *dst, *src = (void *)
-		bch2_acc_percpu_u64s((u64 __percpu *) src_p, src_nr);
-
-	preempt_disable();
-	dst = this_cpu_ptr(dst_p);
-	preempt_enable();
-
-	__replicas_table_update(dst, dst_r, src, src_r);
-}
-
-/*
- * Resize filesystem accounting:
- */
-static int replicas_table_update(struct bch_fs *c,
-				 struct bch_replicas_cpu *new_r)
-{
-	struct bch_fs_usage __percpu *new_usage[JOURNAL_BUF_NR];
-	struct bch_fs_usage_online *new_scratch = NULL;
-	struct bch_fs_usage __percpu *new_gc = NULL;
-	struct bch_fs_usage *new_base = NULL;
-	unsigned i, bytes = sizeof(struct bch_fs_usage) +
-		sizeof(u64) * new_r->nr;
-	unsigned scratch_bytes = sizeof(struct bch_fs_usage_online) +
-		sizeof(u64) * new_r->nr;
-	int ret = 0;
-
-	memset(new_usage, 0, sizeof(new_usage));
-
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
-					sizeof(u64), GFP_KERNEL)))
-			goto err;
-
-	if (!(new_base = kzalloc(bytes, GFP_KERNEL)) ||
-	    !(new_scratch  = kmalloc(scratch_bytes, GFP_KERNEL)) ||
-	    (c->usage_gc &&
-	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_KERNEL))))
-		goto err;
-
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		if (c->usage[i])
-			__replicas_table_update_pcpu(new_usage[i], new_r,
-						     c->usage[i], &c->replicas);
-	if (c->usage_base)
-		__replicas_table_update(new_base,		new_r,
-					c->usage_base,		&c->replicas);
-	if (c->usage_gc)
-		__replicas_table_update_pcpu(new_gc,		new_r,
-					     c->usage_gc,	&c->replicas);
-
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		swap(c->usage[i],	new_usage[i]);
-	swap(c->usage_base,	new_base);
-	swap(c->usage_scratch,	new_scratch);
-	swap(c->usage_gc,	new_gc);
-	swap(c->replicas,	*new_r);
-out:
-	free_percpu(new_gc);
-	kfree(new_scratch);
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		free_percpu(new_usage[i]);
-	kfree(new_base);
 	return ret;
-err:
-	bch_err(c, "error updating replicas table: memory allocation failure");
-	ret = -BCH_ERR_ENOMEM_replicas_table;
-	goto out;
-}
-
-static unsigned reserve_journal_replicas(struct bch_fs *c,
-				     struct bch_replicas_cpu *r)
-{
-	struct bch_replicas_entry_v1 *e;
-	unsigned journal_res_u64s = 0;
-
-	/* nr_inodes: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
-
-	/* key_version: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
-
-	/* persistent_reserved: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64)) *
-		BCH_REPLICAS_MAX;
-
-	for_each_cpu_replicas_entry(r, e)
-		journal_res_u64s +=
-			DIV_ROUND_UP(sizeof(struct jset_entry_data_usage) +
-				     e->nr_devs, sizeof(u64));
-	return journal_res_u64s;
 }
 
 noinline
@@ -417,10 +298,6 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 		ret = bch2_cpu_replicas_to_sb_replicas(c, &new_r);
 		if (ret)
 			goto err;
-
-		bch2_journal_entry_res_resize(&c->journal,
-				&c->replicas_journal_res,
-				reserve_journal_replicas(c, &new_r));
 	}
 
 	if (!new_r.entries &&
@@ -435,7 +312,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	/* don't update in memory replicas until changes are persistent */
 	percpu_down_write(&c->mark_lock);
 	if (new_r.entries)
-		ret = replicas_table_update(c, &new_r);
+		swap(c->replicas, new_r);
 	if (new_gc.entries)
 		swap(new_gc, c->replicas_gc);
 	percpu_up_write(&c->mark_lock);
@@ -457,20 +334,6 @@ int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry_v1 *r)
 		? 0 : bch2_mark_replicas_slowpath(c, r);
 }
 
-/* replicas delta list: */
-
-int bch2_replicas_delta_list_mark(struct bch_fs *c,
-				  struct replicas_delta_list *r)
-{
-	struct replicas_delta *d = r->d;
-	struct replicas_delta *top = (void *) r->d + r->used;
-	int ret = 0;
-
-	for (d = r->d; !ret && d != top; d = replicas_delta_next(d))
-		ret = bch2_mark_replicas(c, &d->r);
-	return ret;
-}
-
 /*
  * Old replicas_gc mechanism: only used for journal replicas entries now, should
  * die at some point:
@@ -484,8 +347,9 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 	percpu_down_write(&c->mark_lock);
 
 	ret =   ret ?:
-		bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc) ?:
-		replicas_table_update(c, &c->replicas_gc);
+		bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc);
+	if (!ret)
+		swap(c->replicas, c->replicas_gc);
 
 	kfree(c->replicas_gc.entries);
 	c->replicas_gc.entries = NULL;
@@ -556,10 +420,10 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 int bch2_replicas_gc2(struct bch_fs *c)
 {
 	struct bch_replicas_cpu new = { 0 };
-	unsigned i, nr;
+	unsigned nr;
 	int ret = 0;
 
-	bch2_journal_meta(&c->journal);
+	bch2_accounting_mem_gc(c);
 retry:
 	nr		= READ_ONCE(c->replicas.nr);
 	new.entry_size	= READ_ONCE(c->replicas.entry_size);
@@ -580,24 +444,33 @@ retry:
 		goto retry;
 	}
 
-	for (i = 0; i < c->replicas.nr; i++) {
+	for (unsigned i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		if (e->data_type == BCH_DATA_journal ||
-		    c->usage_base->replicas[i] ||
-		    percpu_u64_get(&c->usage[0]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[1]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[2]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[3]->replicas[i]))
+		struct disk_accounting_pos k = {
+			.type = BCH_DISK_ACCOUNTING_replicas,
+		};
+
+		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+
+		struct bpos p = disk_accounting_pos_to_bpos(&k);
+
+		struct bch_accounting_mem *acc = &c->accounting;
+		bool kill = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+					    accounting_pos_cmp, &p) >= acc->k.nr;
+
+		if (e->data_type == BCH_DATA_journal || !kill)
 			memcpy(cpu_replicas_entry(&new, new.nr++),
 			       e, new.entry_size);
 	}
 
 	bch2_cpu_replicas_sort(&new);
 
-	ret =   bch2_cpu_replicas_to_sb_replicas(c, &new) ?:
-		replicas_table_update(c, &new);
+	ret = bch2_cpu_replicas_to_sb_replicas(c, &new);
+
+	if (!ret)
+		swap(c->replicas, new);
 
 	kfree(new.entries);
 
@@ -609,34 +482,6 @@ retry:
 	mutex_unlock(&c->sb_lock);
 
 	return ret;
-}
-
-int bch2_replicas_set_usage(struct bch_fs *c,
-			    struct bch_replicas_entry_v1 *r,
-			    u64 sectors)
-{
-	int ret, idx = bch2_replicas_entry_idx(c, r);
-
-	if (idx < 0) {
-		struct bch_replicas_cpu n;
-
-		n = cpu_replicas_add_entry(c, &c->replicas, r);
-		if (!n.entries)
-			return -BCH_ERR_ENOMEM_cpu_replicas;
-
-		ret = replicas_table_update(c, &n);
-		if (ret)
-			return ret;
-
-		kfree(n.entries);
-
-		idx = bch2_replicas_entry_idx(c, r);
-		BUG_ON(ret < 0);
-	}
-
-	c->usage_base->replicas[idx] = sectors;
-
-	return 0;
 }
 
 /* Replicas tracking - superblock: */
@@ -724,8 +569,7 @@ int bch2_sb_replicas_to_cpu_replicas(struct bch_fs *c)
 	bch2_cpu_replicas_sort(&new_r);
 
 	percpu_down_write(&c->mark_lock);
-
-	ret = replicas_table_update(c, &new_r);
+	swap(c->replicas, new_r);
 	percpu_up_write(&c->mark_lock);
 
 	kfree(new_r.entries);
@@ -1027,10 +871,8 @@ unsigned bch2_sb_dev_has_data(struct bch_sb *sb, unsigned dev)
 
 unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned ret;
-
 	mutex_lock(&c->sb_lock);
-	ret = bch2_sb_dev_has_data(c->disk_sb.sb, ca->dev_idx);
+	unsigned ret = bch2_sb_dev_has_data(c->disk_sb.sb, ca->dev_idx);
 	mutex_unlock(&c->sb_lock);
 
 	return ret;
@@ -1038,25 +880,6 @@ unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 
 void bch2_fs_replicas_exit(struct bch_fs *c)
 {
-	unsigned i;
-
-	kfree(c->usage_scratch);
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		free_percpu(c->usage[i]);
-	kfree(c->usage_base);
 	kfree(c->replicas.entries);
 	kfree(c->replicas_gc.entries);
-
-	mempool_exit(&c->replicas_delta_pool);
-}
-
-int bch2_fs_replicas_init(struct bch_fs *c)
-{
-	bch2_journal_entry_res_resize(&c->journal,
-			&c->replicas_journal_res,
-			reserve_journal_replicas(c, &c->replicas));
-
-	return mempool_init_kmalloc_pool(&c->replicas_delta_pool, 1,
-					 REPLICAS_DELTA_LIST_MAX) ?:
-		replicas_table_update(c, &c->replicas);
 }

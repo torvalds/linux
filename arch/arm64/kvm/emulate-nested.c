@@ -79,6 +79,12 @@ enum cgt_group_id {
 	CGT_MDCR_E2TB,
 	CGT_MDCR_TDCC,
 
+	CGT_CPACR_E0POE,
+	CGT_CPTR_TAM,
+	CGT_CPTR_TCPAC,
+
+	CGT_HCRX_TCR2En,
+
 	/*
 	 * Anything after this point is a combination of coarse trap
 	 * controls, which must all be evaluated to decide what to do.
@@ -89,6 +95,7 @@ enum cgt_group_id {
 	CGT_HCR_TTLB_TTLBIS,
 	CGT_HCR_TTLB_TTLBOS,
 	CGT_HCR_TVM_TRVM,
+	CGT_HCR_TVM_TRVM_HCRX_TCR2En,
 	CGT_HCR_TPU_TICAB,
 	CGT_HCR_TPU_TOCU,
 	CGT_HCR_NV1_nNV2_ENSCXT,
@@ -105,6 +112,8 @@ enum cgt_group_id {
 	__COMPLEX_CONDITIONS__,
 	CGT_CNTHCTL_EL1PCTEN = __COMPLEX_CONDITIONS__,
 	CGT_CNTHCTL_EL1PTEN,
+
+	CGT_CPTR_TTA,
 
 	/* Must be last */
 	__NR_CGT_GROUP_IDS__
@@ -345,6 +354,30 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.mask		= MDCR_EL2_TDCC,
 		.behaviour	= BEHAVE_FORWARD_ANY,
 	},
+	[CGT_CPACR_E0POE] = {
+		.index		= CPTR_EL2,
+		.value		= CPACR_ELx_E0POE,
+		.mask		= CPACR_ELx_E0POE,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_CPTR_TAM] = {
+		.index		= CPTR_EL2,
+		.value		= CPTR_EL2_TAM,
+		.mask		= CPTR_EL2_TAM,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_CPTR_TCPAC] = {
+		.index		= CPTR_EL2,
+		.value		= CPTR_EL2_TCPAC,
+		.mask		= CPTR_EL2_TCPAC,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_HCRX_TCR2En] = {
+		.index		= HCRX_EL2,
+		.value 		= 0,
+		.mask		= HCRX_EL2_TCR2En,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
 };
 
 #define MCB(id, ...)						\
@@ -359,6 +392,8 @@ static const enum cgt_group_id *coarse_control_combo[] = {
 	MCB(CGT_HCR_TTLB_TTLBIS,	CGT_HCR_TTLB, CGT_HCR_TTLBIS),
 	MCB(CGT_HCR_TTLB_TTLBOS,	CGT_HCR_TTLB, CGT_HCR_TTLBOS),
 	MCB(CGT_HCR_TVM_TRVM,		CGT_HCR_TVM, CGT_HCR_TRVM),
+	MCB(CGT_HCR_TVM_TRVM_HCRX_TCR2En,
+					CGT_HCR_TVM, CGT_HCR_TRVM, CGT_HCRX_TCR2En),
 	MCB(CGT_HCR_TPU_TICAB,		CGT_HCR_TPU, CGT_HCR_TICAB),
 	MCB(CGT_HCR_TPU_TOCU,		CGT_HCR_TPU, CGT_HCR_TOCU),
 	MCB(CGT_HCR_NV1_nNV2_ENSCXT,	CGT_HCR_NV1_nNV2, CGT_HCR_ENSCXT),
@@ -410,12 +445,26 @@ static enum trap_behaviour check_cnthctl_el1pten(struct kvm_vcpu *vcpu)
 	return BEHAVE_FORWARD_ANY;
 }
 
+static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
+{
+	u64 val = __vcpu_sys_reg(vcpu, CPTR_EL2);
+
+	if (!vcpu_el2_e2h_is_set(vcpu))
+		val = translate_cptr_el2_to_cpacr_el1(val);
+
+	if (val & CPACR_ELx_TTA)
+		return BEHAVE_FORWARD_ANY;
+
+	return BEHAVE_HANDLE_LOCALLY;
+}
+
 #define CCC(id, fn)				\
 	[id - __COMPLEX_CONDITIONS__] = fn
 
 static const complex_condition_check ccc[] = {
 	CCC(CGT_CNTHCTL_EL1PCTEN, check_cnthctl_el1pcten),
 	CCC(CGT_CNTHCTL_EL1PTEN, check_cnthctl_el1pten),
+	CCC(CGT_CPTR_TTA, check_cptr_tta),
 };
 
 /*
@@ -622,6 +671,7 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_MAIR_EL1,		CGT_HCR_TVM_TRVM),
 	SR_TRAP(SYS_AMAIR_EL1,		CGT_HCR_TVM_TRVM),
 	SR_TRAP(SYS_CONTEXTIDR_EL1,	CGT_HCR_TVM_TRVM),
+	SR_TRAP(SYS_TCR2_EL1,		CGT_HCR_TVM_TRVM_HCRX_TCR2En),
 	SR_TRAP(SYS_DC_ZVA,		CGT_HCR_TDZ),
 	SR_TRAP(SYS_DC_GVA,		CGT_HCR_TDZ),
 	SR_TRAP(SYS_DC_GZVA,		CGT_HCR_TDZ),
@@ -1000,6 +1050,59 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_TRBPTR_EL1, 	CGT_MDCR_E2TB),
 	SR_TRAP(SYS_TRBSR_EL1, 		CGT_MDCR_E2TB),
 	SR_TRAP(SYS_TRBTRG_EL1,		CGT_MDCR_E2TB),
+	SR_TRAP(SYS_CPACR_EL1,		CGT_CPTR_TCPAC),
+	SR_TRAP(SYS_AMUSERENR_EL0,	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCFGR_EL0,		CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCGCR_EL0,		CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCNTENCLR0_EL0,	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCNTENCLR1_EL0,	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCNTENSET0_EL0,	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCNTENSET1_EL0,	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMCR_EL0,		CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR0_EL0(0),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR0_EL0(1),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR0_EL0(2),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR0_EL0(3),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(0),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(1),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(2),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(3),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(4),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(5),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(6),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(7),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(8),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(9),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(10),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(11),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(12),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(13),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(14),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVCNTR1_EL0(15),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER0_EL0(0),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER0_EL0(1),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER0_EL0(2),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER0_EL0(3),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(0),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(1),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(2),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(3),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(4),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(5),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(6),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(7),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(8),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(9),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(10),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(11),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(12),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(13),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(14),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_AMEVTYPER1_EL0(15),	CGT_CPTR_TAM),
+	SR_TRAP(SYS_POR_EL0,		CGT_CPACR_E0POE),
+	/* op0=2, op1=1, and CRn<0b1000 */
+	SR_RANGE_TRAP(sys_reg(2, 1, 0, 0, 0),
+		      sys_reg(2, 1, 7, 15, 7), CGT_CPTR_TTA),
 	SR_TRAP(SYS_CNTP_TVAL_EL0,	CGT_CNTHCTL_EL1PTEN),
 	SR_TRAP(SYS_CNTP_CVAL_EL0,	CGT_CNTHCTL_EL1PTEN),
 	SR_TRAP(SYS_CNTP_CTL_EL0,	CGT_CNTHCTL_EL1PTEN),
@@ -1071,6 +1174,7 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_TPIDRRO_EL0,		HFGxTR, TPIDRRO_EL0, 1),
 	SR_FGT(SYS_TPIDR_EL1,		HFGxTR, TPIDR_EL1, 1),
 	SR_FGT(SYS_TCR_EL1,		HFGxTR, TCR_EL1, 1),
+	SR_FGT(SYS_TCR2_EL1,		HFGxTR, TCR_EL1, 1),
 	SR_FGT(SYS_SCXTNUM_EL0,		HFGxTR, SCXTNUM_EL0, 1),
 	SR_FGT(SYS_SCXTNUM_EL1, 	HFGxTR, SCXTNUM_EL1, 1),
 	SR_FGT(SYS_SCTLR_EL1, 		HFGxTR, SCTLR_EL1, 1),
@@ -2181,16 +2285,23 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	if (forward_traps(vcpu, HCR_NV))
 		return;
 
+	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);
+	spsr = kvm_check_illegal_exception_return(vcpu, spsr);
+
 	/* Check for an ERETAx */
 	esr = kvm_vcpu_get_esr(vcpu);
 	if (esr_iss_is_eretax(esr) && !kvm_auth_eretax(vcpu, &elr)) {
 		/*
-		 * Oh no, ERETAx failed to authenticate.  If we have
-		 * FPACCOMBINE, deliver an exception right away.  If we
-		 * don't, then let the mangled ELR value trickle down the
+		 * Oh no, ERETAx failed to authenticate.
+		 *
+		 * If we have FPACCOMBINE and we don't have a pending
+		 * Illegal Execution State exception (which has priority
+		 * over FPAC), deliver an exception right away.
+		 *
+		 * Otherwise, let the mangled ELR value trickle down the
 		 * ERET handling, and the guest will have a little surprise.
 		 */
-		if (kvm_has_pauth(vcpu->kvm, FPACCOMBINE)) {
+		if (kvm_has_pauth(vcpu->kvm, FPACCOMBINE) && !(spsr & PSR_IL_BIT)) {
 			esr &= ESR_ELx_ERET_ISS_ERETA;
 			esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_FPAC);
 			kvm_inject_nested_sync(vcpu, esr);
@@ -2201,17 +2312,11 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	preempt_disable();
 	kvm_arch_vcpu_put(vcpu);
 
-	spsr = __vcpu_sys_reg(vcpu, SPSR_EL2);
-	spsr = kvm_check_illegal_exception_return(vcpu, spsr);
 	if (!esr_iss_is_eretax(esr))
 		elr = __vcpu_sys_reg(vcpu, ELR_EL2);
 
 	trace_kvm_nested_eret(vcpu, elr, spsr);
 
-	/*
-	 * Note that the current exception level is always the virtual EL2,
-	 * since we set HCR_EL2.NV bit only when entering the virtual EL2.
-	 */
 	*vcpu_pc(vcpu) = elr;
 	*vcpu_cpsr(vcpu) = spsr;
 

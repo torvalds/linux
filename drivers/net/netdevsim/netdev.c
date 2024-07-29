@@ -324,7 +324,8 @@ static int nsim_get_iflink(const struct net_device *dev)
 
 	rcu_read_lock();
 	peer = rcu_dereference(nsim->peer);
-	iflink = peer ? READ_ONCE(peer->netdev->ifindex) : 0;
+	iflink = peer ? READ_ONCE(peer->netdev->ifindex) :
+			READ_ONCE(dev->ifindex);
 	rcu_read_unlock();
 
 	return iflink;

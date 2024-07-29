@@ -6,6 +6,8 @@
  * Copyright (C) 2011-2012 Avionic Design GmbH
  */
 
+#define DEFAULT_SYMBOL_NAMESPACE PWM
+
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/idr.h>
@@ -135,6 +137,25 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	}
 }
 
+static bool pwm_state_valid(const struct pwm_state *state)
+{
+	/*
+	 * For a disabled state all other state description is irrelevant and
+	 * and supposed to be ignored. So also ignore any strange values and
+	 * consider the state ok.
+	 */
+	if (state->enabled)
+		return true;
+
+	if (!state->period)
+		return false;
+
+	if (state->duty_cycle > state->period)
+		return false;
+
+	return true;
+}
+
 /**
  * __pwm_apply() - atomically apply a new state to a PWM device
  * @pwm: PWM device
@@ -145,9 +166,25 @@ static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
 	struct pwm_chip *chip;
 	int err;
 
-	if (!pwm || !state || !state->period ||
-	    state->duty_cycle > state->period)
+	if (!pwm || !state)
 		return -EINVAL;
+
+	if (!pwm_state_valid(state)) {
+		/*
+		 * Allow to transition from one invalid state to another.
+		 * This ensures that you can e.g. change the polarity while
+		 * the period is zero. (This happens on stm32 when the hardware
+		 * is in its poweron default state.) This greatly simplifies
+		 * working with the sysfs API where you can only change one
+		 * parameter at a time.
+		 */
+		if (!pwm_state_valid(&pwm->state)) {
+			pwm->state = *state;
+			return 0;
+		}
+
+		return -EINVAL;
+	}
 
 	chip = pwm->chip;
 
@@ -291,19 +328,15 @@ EXPORT_SYMBOL_GPL(pwm_adjust_config);
 int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 		unsigned long timeout)
 {
-	int err;
-
 	if (!pwm || !pwm->chip->ops)
 		return -EINVAL;
 
 	if (!pwm->chip->ops->capture)
 		return -ENOSYS;
 
-	mutex_lock(&pwm_lock);
-	err = pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
-	mutex_unlock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
 
-	return err;
+	return pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
 }
 EXPORT_SYMBOL_GPL(pwm_capture);
 
@@ -315,18 +348,14 @@ static struct pwm_chip *pwmchip_find_by_name(const char *name)
 	if (!name)
 		return NULL;
 
-	mutex_lock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
 
 	idr_for_each_entry_ul(&pwm_chips, chip, tmp, id) {
 		const char *chip_name = dev_name(pwmchip_parent(chip));
 
-		if (chip_name && strcmp(chip_name, name) == 0) {
-			mutex_unlock(&pwm_lock);
+		if (chip_name && strcmp(chip_name, name) == 0)
 			return chip;
-		}
 	}
-
-	mutex_unlock(&pwm_lock);
 
 	return NULL;
 }
@@ -394,9 +423,9 @@ err_get_device:
  * chip. A negative error code is returned if the index is not valid for the
  * specified PWM chip or if the PWM device cannot be requested.
  */
-struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-					 unsigned int index,
-					 const char *label)
+static struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
+						unsigned int index,
+						const char *label)
 {
 	struct pwm_device *pwm;
 	int err;
@@ -404,18 +433,16 @@ struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 	if (!chip || index >= chip->npwm)
 		return ERR_PTR(-EINVAL);
 
-	mutex_lock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
+
 	pwm = &chip->pwms[index];
 
 	err = pwm_device_request(pwm, label);
 	if (err < 0)
-		pwm = ERR_PTR(err);
+		return ERR_PTR(err);
 
-	mutex_unlock(&pwm_lock);
 	return pwm;
 }
-EXPORT_SYMBOL_GPL(pwm_request_from_chip);
-
 
 struct pwm_device *
 of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *args)
@@ -511,11 +538,11 @@ static ssize_t period_store(struct device *pwm_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&export->lock);
+	guard(mutex)(&export->lock);
+
 	pwm_get_state(pwm, &state);
 	state.period = val;
 	ret = pwm_apply_might_sleep(pwm, &state);
-	mutex_unlock(&export->lock);
 
 	return ret ? : size;
 }
@@ -546,11 +573,11 @@ static ssize_t duty_cycle_store(struct device *pwm_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&export->lock);
+	guard(mutex)(&export->lock);
+
 	pwm_get_state(pwm, &state);
 	state.duty_cycle = val;
 	ret = pwm_apply_might_sleep(pwm, &state);
-	mutex_unlock(&export->lock);
 
 	return ret ? : size;
 }
@@ -580,7 +607,7 @@ static ssize_t enable_store(struct device *pwm_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&export->lock);
+	guard(mutex)(&export->lock);
 
 	pwm_get_state(pwm, &state);
 
@@ -592,14 +619,11 @@ static ssize_t enable_store(struct device *pwm_dev,
 		state.enabled = true;
 		break;
 	default:
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	ret = pwm_apply_might_sleep(pwm, &state);
 
-unlock:
-	mutex_unlock(&export->lock);
 	return ret ? : size;
 }
 
@@ -643,11 +667,11 @@ static ssize_t polarity_store(struct device *pwm_dev,
 	else
 		return -EINVAL;
 
-	mutex_lock(&export->lock);
+	guard(mutex)(&export->lock);
+
 	pwm_get_state(pwm, &state);
 	state.polarity = polarity;
 	ret = pwm_apply_might_sleep(pwm, &state);
-	mutex_unlock(&export->lock);
 
 	return ret ? : size;
 }
@@ -1102,11 +1126,11 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 
 	chip->owner = owner;
 
-	mutex_lock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
 
 	ret = idr_alloc(&pwm_chips, chip, 0, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto err_idr_alloc;
+		return ret;
 
 	chip->id = ret;
 
@@ -1119,8 +1143,6 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 	if (ret)
 		goto err_device_add;
 
-	mutex_unlock(&pwm_lock);
-
 	return 0;
 
 err_device_add:
@@ -1128,9 +1150,6 @@ err_device_add:
 		of_pwmchip_remove(chip);
 
 	idr_remove(&pwm_chips, chip->id);
-err_idr_alloc:
-
-	mutex_unlock(&pwm_lock);
 
 	return ret;
 }
@@ -1149,11 +1168,8 @@ void pwmchip_remove(struct pwm_chip *chip)
 	if (IS_ENABLED(CONFIG_OF))
 		of_pwmchip_remove(chip);
 
-	mutex_lock(&pwm_lock);
-
-	idr_remove(&pwm_chips, chip->id);
-
-	mutex_unlock(&pwm_lock);
+	scoped_guard(mutex, &pwm_lock)
+		idr_remove(&pwm_chips, chip->id);
 
 	device_del(&chip->dev);
 }
@@ -1209,15 +1225,11 @@ static struct pwm_chip *fwnode_to_pwmchip(struct fwnode_handle *fwnode)
 	struct pwm_chip *chip;
 	unsigned long id, tmp;
 
-	mutex_lock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
 
 	idr_for_each_entry_ul(&pwm_chips, chip, tmp, id)
-		if (pwmchip_parent(chip) && device_match_fwnode(pwmchip_parent(chip), fwnode)) {
-			mutex_unlock(&pwm_lock);
+		if (pwmchip_parent(chip) && device_match_fwnode(pwmchip_parent(chip), fwnode))
 			return chip;
-		}
-
-	mutex_unlock(&pwm_lock);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
@@ -1366,14 +1378,12 @@ static LIST_HEAD(pwm_lookup_list);
  */
 void pwm_add_table(struct pwm_lookup *table, size_t num)
 {
-	mutex_lock(&pwm_lookup_lock);
+	guard(mutex)(&pwm_lookup_lock);
 
 	while (num--) {
 		list_add_tail(&table->list, &pwm_lookup_list);
 		table++;
 	}
-
-	mutex_unlock(&pwm_lookup_lock);
 }
 
 /**
@@ -1383,14 +1393,12 @@ void pwm_add_table(struct pwm_lookup *table, size_t num)
  */
 void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
-	mutex_lock(&pwm_lookup_lock);
+	guard(mutex)(&pwm_lookup_lock);
 
 	while (num--) {
 		list_del(&table->list);
 		table++;
 	}
-
-	mutex_unlock(&pwm_lookup_lock);
 }
 
 /**
@@ -1451,36 +1459,33 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	 * Then we take the most specific entry - with the following order
 	 * of precedence: dev+con > dev only > con only.
 	 */
-	mutex_lock(&pwm_lookup_lock);
+	scoped_guard(mutex, &pwm_lookup_lock)
+		list_for_each_entry(p, &pwm_lookup_list, list) {
+			match = 0;
 
-	list_for_each_entry(p, &pwm_lookup_list, list) {
-		match = 0;
+			if (p->dev_id) {
+				if (!dev_id || strcmp(p->dev_id, dev_id))
+					continue;
 
-		if (p->dev_id) {
-			if (!dev_id || strcmp(p->dev_id, dev_id))
-				continue;
+				match += 2;
+			}
 
-			match += 2;
+			if (p->con_id) {
+				if (!con_id || strcmp(p->con_id, con_id))
+					continue;
+
+				match += 1;
+			}
+
+			if (match > best) {
+				chosen = p;
+
+				if (match != 3)
+					best = match;
+				else
+					break;
+			}
 		}
-
-		if (p->con_id) {
-			if (!con_id || strcmp(p->con_id, con_id))
-				continue;
-
-			match += 1;
-		}
-
-		if (match > best) {
-			chosen = p;
-
-			if (match != 3)
-				best = match;
-			else
-				break;
-		}
-	}
-
-	mutex_unlock(&pwm_lookup_lock);
 
 	if (!chosen)
 		return ERR_PTR(-ENODEV);
@@ -1532,11 +1537,11 @@ void pwm_put(struct pwm_device *pwm)
 
 	chip = pwm->chip;
 
-	mutex_lock(&pwm_lock);
+	guard(mutex)(&pwm_lock);
 
 	if (!test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
 		pr_warn("PWM device already freed\n");
-		goto out;
+		return;
 	}
 
 	if (chip->ops->free)
@@ -1547,8 +1552,6 @@ void pwm_put(struct pwm_device *pwm)
 	put_device(&chip->dev);
 
 	module_put(chip->owner);
-out:
-	mutex_unlock(&pwm_lock);
 }
 EXPORT_SYMBOL_GPL(pwm_put);
 
@@ -1705,9 +1708,17 @@ DEFINE_SEQ_ATTRIBUTE(pwm_debugfs);
 
 static int __init pwm_init(void)
 {
+	int ret;
+
+	ret = class_register(&pwm_class);
+	if (ret) {
+		pr_err("Failed to initialize PWM class (%pe)\n", ERR_PTR(ret));
+		return ret;
+	}
+
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		debugfs_create_file("pwm", 0444, NULL, NULL, &pwm_debugfs_fops);
 
-	return class_register(&pwm_class);
+	return 0;
 }
 subsys_initcall(pwm_init);

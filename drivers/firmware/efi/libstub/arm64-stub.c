@@ -21,7 +21,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 efi_loaded_image_t *image,
 				 efi_handle_t image_handle)
 {
-	efi_status_t status;
 	unsigned long kernel_size, kernel_codesize, kernel_memsize;
 
 	if (image->image_base != _text) {
@@ -39,15 +38,9 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	*reserve_size = kernel_memsize;
 	*image_addr = (unsigned long)_text;
 
-	status = efi_kaslr_relocate_kernel(image_addr,
-					   reserve_addr, reserve_size,
-					   kernel_size, kernel_codesize,
-					   kernel_memsize,
-					   efi_kaslr_get_phys_seed(image_handle));
-	if (status != EFI_SUCCESS)
-		return status;
-
-	return EFI_SUCCESS;
+	return efi_kaslr_relocate_kernel(image_addr, reserve_addr, reserve_size,
+					 kernel_size, kernel_codesize, kernel_memsize,
+					 efi_kaslr_get_phys_seed(image_handle));
 }
 
 asmlinkage void primary_entry(void);

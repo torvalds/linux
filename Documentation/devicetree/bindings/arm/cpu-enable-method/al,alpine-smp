@@ -27,16 +27,6 @@ Properties:
 - reg : Offset and length of the register set for the device
 
 
-* Alpine System-Fabric Service Registers
-
-The System-Fabric Service Registers allow various operation on CPU and
-system fabric, like powering CPUs off.
-
-Properties:
-- compatible : Should contain "al,alpine-sysfabric-service" and "syscon".
-- reg : Offset and length of the register set for the device
-
-
 Example:
 
 cpus {

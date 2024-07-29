@@ -816,7 +816,7 @@ static int pata_macio_device_configure(struct scsi_device *sdev,
 	/* OHare has issues with non cache aligned DMA on some chipsets */
 	if (priv->kind == controller_ohare) {
 		lim->dma_alignment = 31;
-		blk_queue_update_dma_pad(sdev->request_queue, 31);
+		lim->dma_pad_mask = 31;
 
 		/* Tell the world about it */
 		ata_dev_info(dev, "OHare alignment limits applied\n");
@@ -831,7 +831,7 @@ static int pata_macio_device_configure(struct scsi_device *sdev,
 	if (priv->kind == controller_sh_ata6 || priv->kind == controller_k2_ata6) {
 		/* Allright these are bad, apply restrictions */
 		lim->dma_alignment = 15;
-		blk_queue_update_dma_pad(sdev->request_queue, 15);
+		lim->dma_pad_mask = 15;
 
 		/* We enable MWI and hack cache line size directly here, this
 		 * is specific to this chipset and not normal values, we happen
@@ -915,10 +915,13 @@ static const struct scsi_host_template pata_macio_sht = {
 	.sg_tablesize		= MAX_DCMDS,
 	/* We may not need that strict one */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
-	/* Not sure what the real max is but we know it's less than 64K, let's
-	 * use 64K minus 256
+	/*
+	 * The SCSI core requires the segment size to cover at least a page, so
+	 * for 64K page size kernels this must be at least 64K. However the
+	 * hardware can't handle 64K, so pata_macio_qc_prep() will split large
+	 * requests.
 	 */
-	.max_segment_size	= MAX_DBDMA_SEG,
+	.max_segment_size	= SZ_64K,
 	.device_configure	= pata_macio_device_configure,
 	.sdev_groups		= ata_common_sdev_groups,
 	.can_queue		= ATA_DEF_QUEUE,

@@ -1244,7 +1244,6 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 static int at91_pinctrl_parse_functions(struct device_node *np,
 					struct at91_pinctrl *info, u32 index)
 {
-	struct device_node *child;
 	struct at91_pmx_func *func;
 	struct at91_pin_group *grp;
 	int ret;
@@ -1267,14 +1266,12 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	if (!func->groups)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[grp_index++];
 		ret = at91_pinctrl_parse_groups(child, grp, info, i++);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -1296,7 +1293,6 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 	int i, j, ngpio_chips_enabled = 0;
 	uint32_t *tmp;
 	struct device_node *np = dev->of_node;
-	struct device_node *child;
 
 	if (!np)
 		return -ENODEV;
@@ -1349,14 +1345,12 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 
 	i = 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (of_device_is_compatible(child, gpio_compat))
 			continue;
 		ret = at91_pinctrl_parse_functions(child, info, i++);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return dev_err_probe(dev, ret, "failed to parse function\n");
-		}
 	}
 
 	return 0;

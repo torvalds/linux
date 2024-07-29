@@ -10,6 +10,7 @@
 #include <linux/xxhash.h>
 #include <linux/key.h>
 #include <linux/random.h>
+#include <linux/ratelimit.h>
 #include <linux/scatterlist.h>
 #include <crypto/algapi.h>
 #include <crypto/chacha.h>
@@ -436,7 +437,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 	if (bch2_crc_cmp(merged, crc_old.csum) && !c->opts.no_data_io) {
 		struct printbuf buf = PRINTBUF;
 		prt_printf(&buf, "checksum error in %s() (memory corruption or bug?)\n"
-			   "expected %0llx:%0llx got %0llx:%0llx (old type ",
+			   "  expected %0llx:%0llx got %0llx:%0llx (old type ",
 			   __func__,
 			   crc_old.csum.hi,
 			   crc_old.csum.lo,
@@ -446,7 +447,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		prt_str(&buf, " new type ");
 		bch2_prt_csum_type(&buf, new_csum_type);
 		prt_str(&buf, ")");
-		bch_err(c, "%s", buf.buf);
+		WARN_RATELIMIT(1, "%s", buf.buf);
 		printbuf_exit(&buf);
 		return -EIO;
 	}

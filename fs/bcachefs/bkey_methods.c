@@ -7,6 +7,7 @@
 #include "btree_types.h"
 #include "alloc_background.h"
 #include "dirent.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
@@ -398,8 +399,12 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 	for (i = 0; i < nr_compat; i++)
 	switch (!write ? i : nr_compat - 1 - i) {
 	case 0:
-		if (big_endian != CPU_BIG_ENDIAN)
+		if (big_endian != CPU_BIG_ENDIAN) {
 			bch2_bkey_swab_key(f, k);
+		} else if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+			bch2_bkey_swab_key(f, k);
+			bch2_bkey_swab_key(f, k);
+		}
 		break;
 	case 1:
 		if (version < bcachefs_metadata_version_bkey_renumber)

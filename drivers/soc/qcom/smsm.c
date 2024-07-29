@@ -5,6 +5,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/mailbox_client.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
@@ -71,6 +72,7 @@ struct smsm_host;
  * @lock:	spinlock for read-modify-write of the outgoing state
  * @entries:	context for each of the entries
  * @hosts:	context for each of the hosts
+ * @mbox_client: mailbox client handle
  */
 struct qcom_smsm {
 	struct device *dev;
@@ -88,6 +90,8 @@ struct qcom_smsm {
 
 	struct smsm_entry *entries;
 	struct smsm_host *hosts;
+
+	struct mbox_client mbox_client;
 };
 
 /**
@@ -120,11 +124,14 @@ struct smsm_entry {
  * @ipc_regmap:	regmap for outgoing interrupt
  * @ipc_offset:	offset in @ipc_regmap for outgoing interrupt
  * @ipc_bit:	bit in @ipc_regmap + @ipc_offset for outgoing interrupt
+ * @mbox_chan:	apcs ipc mailbox channel handle
  */
 struct smsm_host {
 	struct regmap *ipc_regmap;
 	int ipc_offset;
 	int ipc_bit;
+
+	struct mbox_chan *mbox_chan;
 };
 
 /**
@@ -172,7 +179,13 @@ static int smsm_update_bits(void *data, u32 mask, u32 value)
 		hostp = &smsm->hosts[host];
 
 		val = readl(smsm->subscription + host);
-		if (val & changes && hostp->ipc_regmap) {
+		if (!(val & changes))
+			continue;
+
+		if (hostp->mbox_chan) {
+			mbox_send_message(hostp->mbox_chan, NULL);
+			mbox_client_txdone(hostp->mbox_chan, 0);
+		} else if (hostp->ipc_regmap) {
 			regmap_write(hostp->ipc_regmap,
 				     hostp->ipc_offset,
 				     BIT(hostp->ipc_bit));
@@ -353,6 +366,28 @@ static const struct irq_domain_ops smsm_irq_ops = {
 };
 
 /**
+ * smsm_parse_mbox() - requests an mbox channel
+ * @smsm:	smsm driver context
+ * @host_id:	index of the remote host to be resolved
+ *
+ * Requests the desired channel using the mbox interface which is needed for
+ * sending the outgoing interrupts to a remove hosts - identified by @host_id.
+ */
+static int smsm_parse_mbox(struct qcom_smsm *smsm, unsigned int host_id)
+{
+	struct smsm_host *host = &smsm->hosts[host_id];
+	int ret = 0;
+
+	host->mbox_chan = mbox_request_channel(&smsm->mbox_client, host_id);
+	if (IS_ERR(host->mbox_chan)) {
+		ret = PTR_ERR(host->mbox_chan);
+		host->mbox_chan = NULL;
+	}
+
+	return ret;
+}
+
+/**
  * smsm_parse_ipc() - parses a qcom,ipc-%d device tree property
  * @smsm:	smsm driver context
  * @host_id:	index of the remote host to be resolved
@@ -521,8 +556,16 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 			     "qcom,local-host",
 			     &smsm->local_host);
 
+	smsm->mbox_client.dev = &pdev->dev;
+	smsm->mbox_client.knows_txdone = true;
+
 	/* Parse the host properties */
 	for (id = 0; id < smsm->num_hosts; id++) {
+		/* Try using mbox interface first, otherwise fall back to syscon */
+		ret = smsm_parse_mbox(smsm, id);
+		if (!ret)
+			continue;
+
 		ret = smsm_parse_ipc(smsm, id);
 		if (ret < 0)
 			goto out_put;
@@ -609,6 +652,9 @@ unwind_interfaces:
 
 	qcom_smem_state_unregister(smsm->state);
 out_put:
+	for (id = 0; id < smsm->num_hosts; id++)
+		mbox_free_channel(smsm->hosts[id].mbox_chan);
+
 	of_node_put(local_node);
 	return ret;
 }
@@ -621,6 +667,9 @@ static void qcom_smsm_remove(struct platform_device *pdev)
 	for (id = 0; id < smsm->num_entries; id++)
 		if (smsm->entries[id].domain)
 			irq_domain_remove(smsm->entries[id].domain);
+
+	for (id = 0; id < smsm->num_hosts; id++)
+		mbox_free_channel(smsm->hosts[id].mbox_chan);
 
 	qcom_smem_state_unregister(smsm->state);
 }

@@ -37,21 +37,19 @@ static inline unsigned long get_max_dump_pfn(void)
 #endif
 }
 
-/* /proc/kpagecount - an array exposing page counts
+/* /proc/kpagecount - an array exposing page mapcounts
  *
  * Each entry is a u64 representing the corresponding
- * physical page count.
+ * physical page mapcount.
  */
 static ssize_t kpagecount_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
 	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
-	struct page *ppage;
 	unsigned long src = *ppos;
 	unsigned long pfn;
 	ssize_t ret = 0;
-	u64 pcount;
 
 	pfn = src / KPMSIZE;
 	if (src & KPMMASK || count & KPMMASK)
@@ -61,18 +59,19 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
+		struct page *page;
+		u64 mapcount = 0;
+
 		/*
 		 * TODO: ZONE_DEVICE support requires to identify
 		 * memmaps that were actually initialized.
 		 */
-		ppage = pfn_to_online_page(pfn);
+		page = pfn_to_online_page(pfn);
+		if (page)
+			mapcount = folio_precise_page_mapcount(page_folio(page),
+							       page);
 
-		if (!ppage)
-			pcount = 0;
-		else
-			pcount = page_mapcount(ppage);
-
-		if (put_user(pcount, out)) {
+		if (put_user(mapcount, out)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -148,19 +147,16 @@ u64 stable_page_flags(const struct page *page)
 		u |= 1 << KPF_COMPOUND_TAIL;
 	if (folio_test_hugetlb(folio))
 		u |= 1 << KPF_HUGE;
-	/*
-	 * We need to check PageLRU/PageAnon
-	 * to make sure a given page is a thp, not a non-huge compound page.
-	 */
-	else if (folio_test_large(folio)) {
-		if ((k & (1 << PG_lru)) || is_anon)
-			u |= 1 << KPF_THP;
-		else if (is_huge_zero_folio(folio)) {
-			u |= 1 << KPF_ZERO_PAGE;
-			u |= 1 << KPF_THP;
-		}
-	} else if (is_zero_pfn(page_to_pfn(page)))
+	else if (folio_test_large(folio) &&
+	         folio_test_large_rmappable(folio)) {
+		/* Note: we indicate any THPs here, not just PMD-sized ones */
+		u |= 1 << KPF_THP;
+	} else if (is_huge_zero_folio(folio)) {
 		u |= 1 << KPF_ZERO_PAGE;
+		u |= 1 << KPF_THP;
+	} else if (is_zero_folio(folio)) {
+		u |= 1 << KPF_ZERO_PAGE;
+	}
 
 	/*
 	 * Caveats on high order pages: PG_buddy and PG_slab will only be set

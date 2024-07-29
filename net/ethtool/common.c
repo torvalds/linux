@@ -211,6 +211,7 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(10, T1S, Full),
 	__DEFINE_LINK_MODE_NAME(10, T1S, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1S_P2MP, Half),
+	__DEFINE_LINK_MODE_NAME(10, T1BRR, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -251,6 +252,7 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_T1S_P2MP	1
 #define __LINK_MODE_LANES_VR8		8
 #define __LINK_MODE_LANES_DR8_2		8
+#define __LINK_MODE_LANES_T1BRR		1
 
 #define __DEFINE_LINK_MODE_PARAMS(_speed, _type, _duplex)	\
 	[ETHTOOL_LINK_MODE(_speed, _type, _duplex)] = {		\
@@ -374,6 +376,7 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Full),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S_P2MP, Half),
+	__DEFINE_LINK_MODE_PARAMS(10, T1BRR, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -587,35 +590,64 @@ err_free_info:
 	return err;
 }
 
-int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
+static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
+{
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
+	u32 max_ring = 0;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
+		u32 i, *tbl;
+
+		tbl = ethtool_rxfh_context_indir(ctx);
+		for (i = 0; i < ctx->indir_size; i++)
+			max_ring = max(max_ring, tbl[i]);
+	}
+	mutex_unlock(&dev->ethtool->rss_lock);
+
+	return max_ring;
+}
+
+u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_param rxfh = {};
-	u32 dev_size, current_max = 0;
+	u32 dev_size, current_max;
 	int ret;
+
+	/* While we do track whether RSS context has an indirection
+	 * table explicitly set by the user, no driver looks at that bit.
+	 * Assume drivers won't auto-regenerate the additional tables,
+	 * to be safe.
+	 */
+	current_max = ethtool_get_max_rss_ctx_channel(dev);
+
+	if (!netif_is_rxfh_configured(dev))
+		return current_max;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return current_max;
 	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (dev_size == 0)
-		return -EOPNOTSUPP;
+		return current_max;
 
 	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
-		return -ENOMEM;
+		return U32_MAX;
 
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
-	if (ret)
-		goto out;
+	if (ret) {
+		current_max = U32_MAX;
+		goto out_free;
+	}
 
 	while (dev_size--)
 		current_max = max(current_max, rxfh.indir[dev_size]);
 
-	*max = current_max;
-
-out:
+out_free:
 	kfree(rxfh.indir);
-	return ret;
+	return current_max;
 }
 
 int ethtool_check_ops(const struct ethtool_ops *ops)
@@ -629,7 +661,7 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	return 0;
 }
 
-int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
@@ -637,7 +669,7 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 	memset(info, 0, sizeof(*info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 
-	if (phy_has_tsinfo(phydev))
+	if (phy_is_default_hwtstamp(phydev) && phy_has_tsinfo(phydev))
 		return phy_ts_info(phydev, info);
 	if (ops->get_ts_info)
 		return ops->get_ts_info(dev, info);
@@ -651,7 +683,7 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 {
-	struct ethtool_ts_info info = { };
+	struct kernel_ethtool_ts_info info = { };
 	int num = 0;
 
 	if (!__ethtool_get_ts_info(dev, &info))
@@ -661,7 +693,7 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 }
 EXPORT_SYMBOL(ethtool_get_phc_vclocks);
 
-int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info)
+int ethtool_get_ts_info_by_layer(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	return __ethtool_get_ts_info(dev, info);
 }
@@ -712,3 +744,17 @@ ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size)
 	}
 }
 EXPORT_SYMBOL_GPL(ethtool_forced_speed_maps_init);
+
+void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id)
+{
+	struct ethtool_rxfh_context *ctx;
+
+	WARN_ONCE(!rtnl_is_locked() &&
+		  !lockdep_is_held_type(&dev->ethtool->rss_lock, -1),
+		  "RSS context lock assertion failed\n");
+
+	netdev_err(dev, "device error, RSS context %d lost\n", context_id);
+	ctx = xa_erase(&dev->ethtool->rss_ctx, context_id);
+	kfree(ctx);
+}
+EXPORT_SYMBOL(ethtool_rxfh_context_lost);

@@ -561,4 +561,5 @@ static struct hid_driver samsung_driver = {
 };
 module_hid_driver(samsung_driver);
 
+MODULE_DESCRIPTION("HID driver for some samsung \"special\" devices");
 MODULE_LICENSE("GPL");

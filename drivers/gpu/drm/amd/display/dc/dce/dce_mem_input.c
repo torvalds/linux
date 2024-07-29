@@ -642,8 +642,7 @@ static void dce_mi_program_surface_config(
 	program_tiling(dce_mi, tiling_info);
 	program_size_and_rotation(dce_mi, rotation, plane_size);
 
-	if (format >= SURFACE_PIXEL_FORMAT_GRPH_BEGIN &&
-		format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+	if (format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		program_grph_pixel_format(dce_mi, format);
 }
 
@@ -663,8 +662,7 @@ static void dce60_mi_program_surface_config(
 	program_tiling(dce_mi, tiling_info);
 	dce60_program_size(dce_mi, rotation, plane_size);
 
-	if (format >= SURFACE_PIXEL_FORMAT_GRPH_BEGIN &&
-		format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+	if (format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		program_grph_pixel_format(dce_mi, format);
 }
 #endif

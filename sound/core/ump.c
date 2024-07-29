@@ -685,8 +685,15 @@ static void seq_notify_protocol(struct snd_ump_endpoint *ump)
  */
 int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol)
 {
+	unsigned int type;
+
 	protocol &= ump->info.protocol_caps;
 	if (protocol == ump->info.protocol)
+		return 0;
+
+	type = protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK;
+	if (type != SNDRV_UMP_EP_INFO_PROTO_MIDI1 &&
+	    type != SNDRV_UMP_EP_INFO_PROTO_MIDI2)
 		return 0;
 
 	ump->info.protocol = protocol;
@@ -726,6 +733,12 @@ static void fill_fb_info(struct snd_ump_endpoint *ump,
 		info->block_id, info->direction, info->active,
 		info->first_group, info->num_groups, info->midi_ci_version,
 		info->sysex8_streams, info->flags);
+
+	if ((info->flags & SNDRV_UMP_BLOCK_IS_MIDI1) && info->num_groups != 1) {
+		info->num_groups = 1;
+		ump_dbg(ump, "FB %d: corrected groups to 1 for MIDI1\n",
+			info->block_id);
+	}
 }
 
 /* check whether the FB info gets updated by the current message */
@@ -798,6 +811,13 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 	fb = snd_ump_get_block(ump, blk);
 	if (!fb)
 		return -ENODEV;
+
+	if (ump->parsed &&
+	    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS)) {
+		ump_dbg(ump, "Skipping static FB name update (blk#%d)\n",
+			fb->info.block_id);
+		return 0;
+	}
 
 	ret = ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
 				buf->raw, 3);
@@ -959,6 +979,14 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 			  UMP_STREAM_MSG_STATUS_STREAM_CFG);
 	if (err < 0)
 		ump_dbg(ump, "Unable to get UMP EP stream config\n");
+
+	/* If no protocol is set by some reason, assume the valid one */
+	if (!(ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)) {
+		if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
+			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
+		else if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI1)
+			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
+	}
 
 	/* Query and create blocks from Function Blocks */
 	for (blk = 0; blk < ump->info.num_blocks; blk++) {

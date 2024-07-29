@@ -1145,4 +1145,5 @@ static void __exit uio_exit(void)
 
 module_init(uio_init)
 module_exit(uio_exit)
+MODULE_DESCRIPTION("Userspace IO core module");
 MODULE_LICENSE("GPL v2");

@@ -19,6 +19,12 @@ struct mmio_reg {
 	u16 shift;
 };
 
+struct mapping_table {
+	const char *attr_name;
+	const u32 value;
+	const char *mapped_str;
+};
+
 /* These will represent sysfs attribute names */
 static const char * const fivr_strings[] = {
 	"vco_ref_code_lo",
@@ -62,6 +68,78 @@ static const struct mmio_reg dlvr_mmio_regs[] = {
 	{ 1, 0x15A10, 1, 0x1, 16}, /* dlvr_pll_busy */
 };
 
+static const struct mmio_reg lnl_dlvr_mmio_regs[] = {
+	{ 0, 0x5A08, 5, 0x1F, 0}, /* dlvr_spread_spectrum_pct */
+	{ 0, 0x5A08, 1, 0x1, 5}, /* dlvr_control_mode */
+	{ 0, 0x5A08, 1, 0x1, 6}, /* dlvr_control_lock */
+	{ 0, 0x5A08, 1, 0x1, 7}, /* dlvr_rfim_enable */
+	{ 0, 0x5A08, 2, 0x3, 8}, /* dlvr_freq_select */
+	{ 1, 0x5A10, 2, 0x3, 30}, /* dlvr_hardware_rev */
+	{ 1, 0x5A10, 2, 0x3, 0}, /* dlvr_freq_mhz */
+	{ 1, 0x5A10, 1, 0x1, 23}, /* dlvr_pll_busy */
+};
+
+static const struct mapping_table lnl_dlvr_mapping[] = {
+	{"dlvr_freq_select", 0, "2227.2"},
+	{"dlvr_freq_select", 1, "2140"},
+	{"dlvr_freq_mhz", 0, "2227.2"},
+	{"dlvr_freq_mhz", 1, "2140"},
+	{NULL, 0, NULL},
+};
+
+static int match_mapping_table(const struct mapping_table *table, const char *attr_name,
+			       bool match_int_value, const u32 value, const char *value_str,
+			       char **result_str, u32 *result_int)
+{
+	bool attr_matched = false;
+	int i = 0;
+
+	if (!table)
+		return -EOPNOTSUPP;
+
+	while (table[i].attr_name) {
+		if (strncmp(table[i].attr_name, attr_name, strlen(attr_name)))
+			goto match_next;
+
+		attr_matched = true;
+
+		if (match_int_value) {
+			if (table[i].value != value)
+				goto match_next;
+
+			*result_str = (char *)table[i].mapped_str;
+			return 0;
+		}
+
+		if (strncmp(table[i].mapped_str, value_str, strlen(table[i].mapped_str)))
+			goto match_next;
+
+		*result_int = table[i].value;
+
+		return 0;
+match_next:
+		i++;
+	}
+
+	/* If attribute name is matched, then the user space value is invalid */
+	if (attr_matched)
+		return -EINVAL;
+
+	return -EOPNOTSUPP;
+}
+
+static int get_mapped_string(const struct mapping_table *table, const char *attr_name,
+			     u32 value, char **result)
+{
+	return match_mapping_table(table, attr_name, true, value, NULL, result, NULL);
+}
+
+static int get_mapped_value(const struct mapping_table *table, const char *attr_name,
+			    const char *value, unsigned int *result)
+{
+	return match_mapping_table(table, attr_name, false, 0, value, NULL, result);
+}
+
 /* These will represent sysfs attribute names */
 static const char * const dvfs_strings[] = {
 	"rfi_restriction_run_busy",
@@ -93,12 +171,14 @@ static ssize_t suffix##_show(struct device *dev,\
 			      struct device_attribute *attr,\
 			      char *buf)\
 {\
+	const struct mapping_table *mapping = NULL;\
 	struct proc_thermal_device *proc_priv;\
 	struct pci_dev *pdev = to_pci_dev(dev);\
 	const struct mmio_reg *mmio_regs;\
 	const char **match_strs;\
+	int ret, err;\
 	u32 reg_val;\
-	int ret;\
+	char *str;\
 \
 	proc_priv = pci_get_drvdata(pdev);\
 	if (table == 1) {\
@@ -106,7 +186,12 @@ static ssize_t suffix##_show(struct device *dev,\
 		mmio_regs = adl_dvfs_mmio_regs;\
 	} else if (table == 2) { \
 		match_strs = (const char **)dlvr_strings;\
-		mmio_regs = dlvr_mmio_regs;\
+		if (pdev->device == PCI_DEVICE_ID_INTEL_LNLM_THERMAL) {\
+			mmio_regs = lnl_dlvr_mmio_regs;\
+			mapping = lnl_dlvr_mapping;\
+		} else {\
+			mmio_regs = dlvr_mmio_regs;\
+		} \
 	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
@@ -116,7 +201,12 @@ static ssize_t suffix##_show(struct device *dev,\
 		return ret;\
 	reg_val = readl((void __iomem *) (proc_priv->mmio_base + mmio_regs[ret].offset));\
 	ret = (reg_val >> mmio_regs[ret].shift) & mmio_regs[ret].mask;\
-	return sprintf(buf, "%u\n", ret);\
+	err = get_mapped_string(mapping, attr->attr.name, ret, &str);\
+	if (!err)\
+		return sprintf(buf, "%s\n", str);\
+	if (err == -EOPNOTSUPP)\
+		return sprintf(buf, "%u\n", ret);\
+	return err;\
 }
 
 #define RFIM_STORE(suffix, table)\
@@ -124,6 +214,7 @@ static ssize_t suffix##_store(struct device *dev,\
 			       struct device_attribute *attr,\
 			       const char *buf, size_t count)\
 {\
+	const struct mapping_table *mapping = NULL;\
 	struct proc_thermal_device *proc_priv;\
 	struct pci_dev *pdev = to_pci_dev(dev);\
 	unsigned int input;\
@@ -139,7 +230,12 @@ static ssize_t suffix##_store(struct device *dev,\
 		mmio_regs = adl_dvfs_mmio_regs;\
 	} else if (table == 2) { \
 		match_strs = (const char **)dlvr_strings;\
-		mmio_regs = dlvr_mmio_regs;\
+		if (pdev->device == PCI_DEVICE_ID_INTEL_LNLM_THERMAL) {\
+			mmio_regs = lnl_dlvr_mmio_regs;\
+			mapping = lnl_dlvr_mapping;\
+		} else {\
+			mmio_regs = dlvr_mmio_regs;\
+		} \
 	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
@@ -150,9 +246,14 @@ static ssize_t suffix##_store(struct device *dev,\
 		return ret;\
 	if (mmio_regs[ret].read_only)\
 		return -EPERM;\
-	err = kstrtouint(buf, 10, &input);\
-	if (err)\
+	err = get_mapped_value(mapping, attr->attr.name, buf, &input);\
+	if (err == -EINVAL)\
 		return err;\
+	if (err == -EOPNOTSUPP) {\
+		err = kstrtouint(buf, 10, &input);\
+		if (err)\
+			return err;\
+	} \
 	mask = GENMASK(mmio_regs[ret].shift + mmio_regs[ret].bits - 1, mmio_regs[ret].shift);\
 	reg_val = readl((void __iomem *) (proc_priv->mmio_base + mmio_regs[ret].offset));\
 	reg_val &= ~mask;\

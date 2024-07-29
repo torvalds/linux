@@ -237,3 +237,27 @@ out:
 
 	return r;
 }
+
+/*
+ * Allocate empty IRQ routing by default so that additional setup isn't needed
+ * when userspace-driven IRQ routing is activated, and so that kvm->irq_routing
+ * is guaranteed to be non-NULL.
+ */
+int kvm_init_irq_routing(struct kvm *kvm)
+{
+	struct kvm_irq_routing_table *new;
+	int chip_size;
+
+	new = kzalloc(struct_size(new, map, 1), GFP_KERNEL_ACCOUNT);
+	if (!new)
+		return -ENOMEM;
+
+	new->nr_rt_entries = 1;
+
+	chip_size = sizeof(int) * KVM_NR_IRQCHIPS * KVM_IRQCHIP_NUM_PINS;
+	memset(new->chip, -1, chip_size);
+
+	RCU_INIT_POINTER(kvm->irq_routing, new);
+
+	return 0;
+}

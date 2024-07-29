@@ -19,13 +19,13 @@ struct linux_binprm {
 #ifdef CONFIG_MMU
 	struct vm_area_struct *vma;
 	unsigned long vma_pages;
+	unsigned long argmin; /* rlimit marker for copy_strings() */
 #else
 # define MAX_ARG_PAGES	32
 	struct page *page[MAX_ARG_PAGES];
 #endif
 	struct mm_struct *mm;
 	unsigned long p; /* current top of mem */
-	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
 		/* Should an execfd be passed to userspace? */
 		have_execfd:1,

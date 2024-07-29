@@ -14,9 +14,11 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt7622-pciesys
-      - mediatek,mt7629-pciesys
+    oneOf:
+      - items:
+          - const: mediatek,mt7622-pciesys
+          - const: syscon
+      - const: mediatek,mt7629-pciesys
 
   reg:
     maxItems: 1
@@ -38,7 +40,7 @@ additionalProperties: false
 examples:
   - |
     clock-controller@1a100800 {
-        compatible = "mediatek,mt7622-pciesys";
+        compatible = "mediatek,mt7622-pciesys", "syscon";
         reg = <0x1a100800 0x1000>;
         #clock-cells = <1>;
         #reset-cells = <1>;

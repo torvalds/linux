@@ -382,11 +382,9 @@ static void usb251xb_get_ports_field(struct usb251xb *hub,
 				    bool ds_only, u8 *fld)
 {
 	struct device *dev = hub->dev;
-	struct property *prop;
-	const __be32 *p;
 	u32 port;
 
-	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+	of_property_for_each_u32(dev->of_node, prop_name, port) {
 		if ((port >= ds_only ? 1 : 0) && (port <= port_cnt))
 			*fld |= BIT(port);
 		else
@@ -726,15 +724,15 @@ static int __maybe_unused usb251xb_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(usb251xb_pm_ops, usb251xb_suspend, usb251xb_resume);
 
 static const struct i2c_device_id usb251xb_id[] = {
-	{ "usb2422", 0 },
-	{ "usb2512b", 0 },
-	{ "usb2512bi", 0 },
-	{ "usb2513b", 0 },
-	{ "usb2513bi", 0 },
-	{ "usb2514b", 0 },
-	{ "usb2514bi", 0 },
-	{ "usb2517", 0 },
-	{ "usb2517i", 0 },
+	{ "usb2422" },
+	{ "usb2512b" },
+	{ "usb2512bi" },
+	{ "usb2513b" },
+	{ "usb2513bi" },
+	{ "usb2514b" },
+	{ "usb2514bi" },
+	{ "usb2517" },
+	{ "usb2517i" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, usb251xb_id);

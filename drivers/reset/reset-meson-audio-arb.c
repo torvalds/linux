@@ -120,7 +120,7 @@ static const struct of_device_id meson_audio_arb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_audio_arb_of_match);
 
-static int meson_audio_arb_remove(struct platform_device *pdev)
+static void meson_audio_arb_remove(struct platform_device *pdev)
 {
 	struct meson_audio_arb_data *arb = platform_get_drvdata(pdev);
 
@@ -128,10 +128,6 @@ static int meson_audio_arb_remove(struct platform_device *pdev)
 	spin_lock(&arb->lock);
 	writel(0, arb->regs);
 	spin_unlock(&arb->lock);
-
-	clk_disable_unprepare(arb->clk);
-
-	return 0;
 }
 
 static int meson_audio_arb_probe(struct platform_device *pdev)
@@ -150,7 +146,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, arb);
 
-	arb->clk = devm_clk_get(dev, NULL);
+	arb->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(arb->clk))
 		return dev_err_probe(dev, PTR_ERR(arb->clk), "failed to get clock\n");
 
@@ -170,11 +166,6 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	 * In the initial state, all memory interfaces are disabled
 	 * and the general bit is on
 	 */
-	ret = clk_prepare_enable(arb->clk);
-	if (ret) {
-		dev_err(dev, "failed to enable arb clock\n");
-		return ret;
-	}
 	writel(BIT(ARB_GENERAL_BIT), arb->regs);
 
 	/* Register reset controller */
@@ -189,7 +180,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 
 static struct platform_driver meson_audio_arb_pdrv = {
 	.probe = meson_audio_arb_probe,
-	.remove = meson_audio_arb_remove,
+	.remove_new = meson_audio_arb_remove,
 	.driver = {
 		.name = "meson-audio-arb-reset",
 		.of_match_table = meson_audio_arb_of_match,

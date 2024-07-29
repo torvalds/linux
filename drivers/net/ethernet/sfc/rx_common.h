@@ -84,11 +84,9 @@ void
 efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 		  unsigned int n_frags, u8 *eh, __wsum csum);
 
-struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
-struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
-void efx_free_rss_context_entry(struct efx_rss_context *ctx);
-void efx_set_default_rx_indir_table(struct efx_nic *efx,
-				    struct efx_rss_context *ctx);
+struct efx_rss_context_priv *efx_find_rss_context_entry(struct efx_nic *efx,
+							u32 id);
+void efx_set_default_rx_indir_table(struct efx_nic *efx, u32 *indir);
 
 bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
 bool efx_filter_spec_equal(const struct efx_filter_spec *left,

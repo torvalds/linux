@@ -371,7 +371,7 @@ const void *spi_get_device_match_data(const struct spi_device *sdev)
 }
 EXPORT_SYMBOL_GPL(spi_get_device_match_data);
 
-static int spi_match_device(struct device *dev, struct device_driver *drv)
+static int spi_match_device(struct device *dev, const struct device_driver *drv)
 {
 	const struct spi_device	*spi = to_spi_device(dev);
 	const struct spi_driver	*sdrv = to_spi_driver(drv);
@@ -689,10 +689,12 @@ static int __spi_add_device(struct spi_device *spi)
 	 * Make sure that multiple logical CS doesn't map to the same physical CS.
 	 * For example, spi->chip_select[0] != spi->chip_select[1] and so on.
 	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-		status = spi_dev_check_cs(dev, spi, idx, spi, idx + 1);
-		if (status)
-			return status;
+	if (!spi_controller_is_target(ctlr)) {
+		for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+			status = spi_dev_check_cs(dev, spi, idx, spi, idx + 1);
+			if (status)
+				return status;
+		}
 	}
 
 	/* Set the bus ID string */
@@ -1243,6 +1245,7 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 	else
 		rx_dev = ctlr->dev.parent;
 
+	ret = -ENOMSG;
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* The sync is done before each transfer. */
 		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
@@ -1257,6 +1260,8 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 						attrs);
 			if (ret != 0)
 				return ret;
+
+			xfer->tx_sg_mapped = true;
 		}
 
 		if (xfer->rx_buf != NULL) {
@@ -1270,12 +1275,16 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 				return ret;
 			}
+
+			xfer->rx_sg_mapped = true;
 		}
 	}
+	/* No transfer has been mapped, bail out with success */
+	if (ret)
+		return 0;
 
 	ctlr->cur_rx_dma_dev = rx_dev;
 	ctlr->cur_tx_dma_dev = tx_dev;
-	ctlr->cur_msg_mapped = true;
 
 	return 0;
 }
@@ -1286,23 +1295,20 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
 	struct spi_transfer *xfer;
 
-	if (!ctlr->cur_msg_mapped || !ctlr->can_dma)
-		return 0;
-
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* The sync has already been done after each transfer. */
 		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
 
-		if (!ctlr->can_dma(ctlr, msg->spi, xfer))
-			continue;
+		if (xfer->rx_sg_mapped)
+			spi_unmap_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
+					    DMA_FROM_DEVICE, attrs);
+		xfer->rx_sg_mapped = false;
 
-		spi_unmap_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
-				    DMA_FROM_DEVICE, attrs);
-		spi_unmap_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
-				    DMA_TO_DEVICE, attrs);
+		if (xfer->tx_sg_mapped)
+			spi_unmap_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
+					    DMA_TO_DEVICE, attrs);
+		xfer->tx_sg_mapped = false;
 	}
-
-	ctlr->cur_msg_mapped = false;
 
 	return 0;
 }
@@ -1313,11 +1319,10 @@ static void spi_dma_sync_for_device(struct spi_controller *ctlr,
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
 
-	if (!ctlr->cur_msg_mapped)
-		return;
-
-	dma_sync_sgtable_for_device(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
-	dma_sync_sgtable_for_device(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
+	if (xfer->tx_sg_mapped)
+		dma_sync_sgtable_for_device(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
+	if (xfer->rx_sg_mapped)
+		dma_sync_sgtable_for_device(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
 }
 
 static void spi_dma_sync_for_cpu(struct spi_controller *ctlr,
@@ -1326,11 +1331,10 @@ static void spi_dma_sync_for_cpu(struct spi_controller *ctlr,
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
 
-	if (!ctlr->cur_msg_mapped)
-		return;
-
-	dma_sync_sgtable_for_cpu(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
-	dma_sync_sgtable_for_cpu(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
+	if (xfer->rx_sg_mapped)
+		dma_sync_sgtable_for_cpu(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
+	if (xfer->tx_sg_mapped)
+		dma_sync_sgtable_for_cpu(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
 }
 #else /* !CONFIG_HAS_DMA */
 static inline int __spi_map_msg(struct spi_controller *ctlr,
@@ -1627,8 +1631,8 @@ fallback_pio:
 			if (ret < 0) {
 				spi_dma_sync_for_cpu(ctlr, xfer);
 
-				if (ctlr->cur_msg_mapped &&
-				   (xfer->error & SPI_TRANS_FAIL_NO_START)) {
+				if ((xfer->tx_sg_mapped || xfer->rx_sg_mapped) &&
+				    (xfer->error & SPI_TRANS_FAIL_NO_START)) {
 					__spi_unmap_msg(ctlr, msg);
 					ctlr->fallback = true;
 					xfer->error &= ~SPI_TRANS_FAIL_NO_START;
@@ -2128,7 +2132,8 @@ static void __spi_unoptimize_message(struct spi_message *msg)
  */
 static void spi_maybe_unoptimize_message(struct spi_message *msg)
 {
-	if (!msg->pre_optimized && msg->optimized)
+	if (!msg->pre_optimized && msg->optimized &&
+	    !msg->spi->controller->defer_optimize_message)
 		__spi_unoptimize_message(msg);
 }
 
@@ -2207,11 +2212,8 @@ static int spi_start_queue(struct spi_controller *ctlr)
 
 static int spi_stop_queue(struct spi_controller *ctlr)
 {
+	unsigned int limit = 500;
 	unsigned long flags;
-	unsigned limit = 500;
-	int ret = 0;
-
-	spin_lock_irqsave(&ctlr->queue_lock, flags);
 
 	/*
 	 * This is a bit lame, but is optimized for the common execution path.
@@ -2219,20 +2221,18 @@ static int spi_stop_queue(struct spi_controller *ctlr)
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead.
 	 */
-	while ((!list_empty(&ctlr->queue) || ctlr->busy) && limit--) {
+	do {
+		spin_lock_irqsave(&ctlr->queue_lock, flags);
+		if (list_empty(&ctlr->queue) && !ctlr->busy) {
+			ctlr->running = false;
+			spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+			return 0;
+		}
 		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 		usleep_range(10000, 11000);
-		spin_lock_irqsave(&ctlr->queue_lock, flags);
-	}
+	} while (--limit);
 
-	if (!list_empty(&ctlr->queue) || ctlr->busy)
-		ret = -EBUSY;
-	else
-		ctlr->running = false;
-
-	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
-
-	return ret;
+	return -EBUSY;
 }
 
 static int spi_destroy_queue(struct spi_controller *ctlr)
@@ -2571,7 +2571,7 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct spi_device *ancillary;
-	int rc = 0;
+	int rc;
 
 	/* Alloc an spi_device */
 	ancillary = spi_alloc_device(ctlr);
@@ -2717,7 +2717,7 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 				return -ENODEV;
 
 			if (ctlr) {
-				if (ACPI_HANDLE(ctlr->dev.parent) != parent_handle)
+				if (!device_match_acpi_handle(ctlr->dev.parent, parent_handle))
 					return -ENODEV;
 			} else {
 				struct acpi_device *adev;
@@ -2816,7 +2816,7 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 
 	if (!lookup.max_speed_hz &&
 	    ACPI_SUCCESS(acpi_get_parent(adev->handle, &parent_handle)) &&
-	    ACPI_HANDLE(lookup.ctlr->dev.parent) == parent_handle) {
+	    device_match_acpi_handle(lookup.ctlr->dev.parent, parent_handle)) {
 		/* Apple does not use _CRS but nested devices for SPI slaves */
 		acpi_spi_parse_apple_properties(adev, &lookup);
 	}
@@ -3902,7 +3902,7 @@ static int spi_set_cs_timing(struct spi_device *spi)
 int spi_setup(struct spi_device *spi)
 {
 	unsigned	bad_bits, ugly_bits;
-	int		status = 0;
+	int		status;
 
 	/*
 	 * Check mode to prevent that any two of DUAL, QUAD and NO_MOSI/MISO
@@ -4135,7 +4135,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
 				xfer->tx_nbits != SPI_NBITS_DUAL &&
-				xfer->tx_nbits != SPI_NBITS_QUAD)
+				xfer->tx_nbits != SPI_NBITS_QUAD &&
+				xfer->tx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
 				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
@@ -4150,7 +4151,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
 				xfer->rx_nbits != SPI_NBITS_DUAL &&
-				xfer->rx_nbits != SPI_NBITS_QUAD)
+				xfer->rx_nbits != SPI_NBITS_QUAD &&
+				xfer->rx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
 				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
@@ -4269,6 +4271,11 @@ static int __spi_optimize_message(struct spi_device *spi,
 static int spi_maybe_optimize_message(struct spi_device *spi,
 				      struct spi_message *msg)
 {
+	if (spi->controller->defer_optimize_message) {
+		msg->spi = spi;
+		return 0;
+	}
+
 	if (msg->pre_optimized)
 		return 0;
 
@@ -4299,6 +4306,13 @@ int spi_optimize_message(struct spi_device *spi, struct spi_message *msg)
 {
 	int ret;
 
+	/*
+	 * Pre-optimization is not supported and optimization is deferred e.g.
+	 * when using spi-mux.
+	 */
+	if (spi->controller->defer_optimize_message)
+		return 0;
+
 	ret = __spi_optimize_message(spi, msg);
 	if (ret)
 		return ret;
@@ -4325,6 +4339,9 @@ EXPORT_SYMBOL_GPL(spi_optimize_message);
  */
 void spi_unoptimize_message(struct spi_message *msg)
 {
+	if (msg->spi->controller->defer_optimize_message)
+		return;
+
 	__spi_unoptimize_message(msg);
 	msg->pre_optimized = false;
 }
@@ -4356,6 +4373,34 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 
 	return ctlr->transfer(spi, message);
 }
+
+static void devm_spi_unoptimize_message(void *msg)
+{
+	spi_unoptimize_message(msg);
+}
+
+/**
+ * devm_spi_optimize_message - managed version of spi_optimize_message()
+ * @dev: the device that manages @msg (usually @spi->dev)
+ * @spi: the device that will be used for the message
+ * @msg: the message to optimize
+ * Return: zero on success, else a negative error code
+ *
+ * spi_unoptimize_message() will automatically be called when the device is
+ * removed.
+ */
+int devm_spi_optimize_message(struct device *dev, struct spi_device *spi,
+			      struct spi_message *msg)
+{
+	int ret;
+
+	ret = spi_optimize_message(spi, msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_spi_unoptimize_message, msg);
+}
+EXPORT_SYMBOL_GPL(devm_spi_optimize_message);
 
 /**
  * spi_async - asynchronous SPI transfer
@@ -4406,8 +4451,6 @@ int spi_async(struct spi_device *spi, struct spi_message *message)
 		ret = __spi_async(spi, message);
 
 	spin_unlock_irqrestore(&ctlr->bus_lock_spinlock, flags);
-
-	spi_maybe_unoptimize_message(message);
 
 	return ret;
 }

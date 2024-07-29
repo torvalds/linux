@@ -182,5 +182,6 @@ static void __exit manager_exit(void)
 module_init(manager_init);
 module_exit(manager_exit);
 
+MODULE_DESCRIPTION("Greybus audio operations manager");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Svetlin Ankov <ankov_svetlin@projectara.com>");

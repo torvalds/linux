@@ -1,0 +1,77 @@
+[
+    {
+        "Unit": "core",
+        "CountersNumFixed": "4",
+        "CountersNumGeneric": "8"
+    },
+    {
+        "Unit": "B2CMI",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "CHA",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "IMC",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "B2HOT",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    },
+    {
+        "Unit": "IIO",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "IRP",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "UPI",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "B2UPI",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    },
+    {
+        "Unit": "B2CXL",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    },
+    {
+        "Unit": "PCU",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    },
+    {
+        "Unit": "CHACMS",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    },
+    {
+        "Unit": "MDF",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "4"
+    },
+    {
+        "Unit": "CXLCM",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 8
+    },
+    {
+        "Unit": "CXLDP",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": 4
+    }
+]

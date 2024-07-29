@@ -378,8 +378,7 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
  *		with the new rule.
  * @rule_type: Identify the structure type pointed to by @rule_attr:
  *             %LANDLOCK_RULE_PATH_BENEATH or %LANDLOCK_RULE_NET_PORT.
- * @rule_attr: Pointer to a rule (only of type &struct
- *             landlock_path_beneath_attr for now).
+ * @rule_attr: Pointer to a rule (matching the @rule_type).
  * @flags: Must be 0.
  *
  * This system call enables to define a new rule and add it to an existing
@@ -390,18 +389,20 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
  * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
  * - %EAFNOSUPPORT: @rule_type is %LANDLOCK_RULE_NET_PORT but TCP/IP is not
  *   supported by the running kernel;
- * - %EINVAL: @flags is not 0, or inconsistent access in the rule (i.e.
+ * - %EINVAL: @flags is not 0;
+ * - %EINVAL: The rule accesses are inconsistent (i.e.
  *   &landlock_path_beneath_attr.allowed_access or
- *   &landlock_net_port_attr.allowed_access is not a subset of the
- *   ruleset handled accesses), or &landlock_net_port_attr.port is
- *   greater than 65535;
- * - %ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
+ *   &landlock_net_port_attr.allowed_access is not a subset of the ruleset
+ *   handled accesses)
+ * - %EINVAL: &landlock_net_port_attr.port is greater than 65535;
+ * - %ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access is
+ *   0);
  * - %EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
  *   member of @rule_attr is not a file descriptor as expected;
  * - %EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
  *   @rule_attr is not the expected file descriptor type;
  * - %EPERM: @ruleset_fd has no write access to the underlying ruleset;
- * - %EFAULT: @rule_attr inconsistency.
+ * - %EFAULT: @rule_attr was not a valid address.
  */
 SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		const enum landlock_rule_type, rule_type,

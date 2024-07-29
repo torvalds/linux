@@ -31,9 +31,6 @@
 
 #define MAX_NAME_LEN 100
 
-#ifdef PARSER_DEBUG
-extern int parse_events_debug;
-#endif
 static int get_config_terms(const struct parse_events_terms *head_config,
 			    struct list_head *head_terms);
 static int parse_events_terms__copy(const struct parse_events_terms *src,
@@ -308,11 +305,16 @@ static int add_event_tool(struct list_head *list, int *idx,
 		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_DUMMY,
 	};
+	const char *cpu_list = NULL;
 
+	if (tool_event == PERF_TOOL_DURATION_TIME) {
+		/* Duration time is gathered globally, pretend it is only on CPU0. */
+		cpu_list = "0";
+	}
 	evsel = __add_event(list, idx, &attr, /*init_attr=*/true, /*name=*/NULL,
 			    /*metric_id=*/NULL, /*pmu=*/NULL,
 			    /*config_terms=*/NULL, /*auto_merge_stats=*/false,
-			    /*cpu_list=*/"0");
+			    cpu_list);
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;

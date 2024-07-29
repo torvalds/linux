@@ -116,24 +116,6 @@ const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 EXPORT_SYMBOL_GPL(blk_zone_cond_str);
 
 /**
- * bdev_nr_zones - Get number of zones
- * @bdev:	Target device
- *
- * Return the total number of zones of a zoned block device.  For a block
- * device without zone capabilities, the number of zones is always 0.
- */
-unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	sector_t zone_sectors = bdev_zone_sectors(bdev);
-
-	if (!bdev_is_zoned(bdev))
-		return 0;
-	return (bdev_nr_sectors(bdev) + zone_sectors - 1) >>
-		ilog2(zone_sectors);
-}
-EXPORT_SYMBOL_GPL(bdev_nr_zones);
-
-/**
  * blkdev_report_zones - Get zones information
  * @bdev:	Target block device
  * @sector:	Sector from which to report zones
@@ -168,77 +150,6 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
-static inline unsigned long *blk_alloc_zone_bitmap(int node,
-						   unsigned int nr_zones)
-{
-	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
-			    GFP_NOIO, node);
-}
-
-static int blk_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,
-				  void *data)
-{
-	/*
-	 * For an all-zones reset, ignore conventional, empty, read-only
-	 * and offline zones.
-	 */
-	switch (zone->cond) {
-	case BLK_ZONE_COND_NOT_WP:
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_READONLY:
-	case BLK_ZONE_COND_OFFLINE:
-		return 0;
-	default:
-		set_bit(idx, (unsigned long *)data);
-		return 0;
-	}
-}
-
-static int blkdev_zone_reset_all_emulated(struct block_device *bdev)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	sector_t capacity = bdev_nr_sectors(bdev);
-	sector_t zone_sectors = bdev_zone_sectors(bdev);
-	unsigned long *need_reset;
-	struct bio *bio = NULL;
-	sector_t sector = 0;
-	int ret;
-
-	need_reset = blk_alloc_zone_bitmap(disk->queue->node, disk->nr_zones);
-	if (!need_reset)
-		return -ENOMEM;
-
-	ret = disk->fops->report_zones(disk, 0, disk->nr_zones,
-				       blk_zone_need_reset_cb, need_reset);
-	if (ret < 0)
-		goto out_free_need_reset;
-
-	ret = 0;
-	while (sector < capacity) {
-		if (!test_bit(disk_zone_no(disk, sector), need_reset)) {
-			sector += zone_sectors;
-			continue;
-		}
-
-		bio = blk_next_bio(bio, bdev, 0, REQ_OP_ZONE_RESET | REQ_SYNC,
-				   GFP_KERNEL);
-		bio->bi_iter.bi_sector = sector;
-		sector += zone_sectors;
-
-		/* This may take a while, so be nice to others */
-		cond_resched();
-	}
-
-	if (bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-
-out_free_need_reset:
-	kfree(need_reset);
-	return ret;
-}
-
 static int blkdev_zone_reset_all(struct block_device *bdev)
 {
 	struct bio bio;
@@ -265,7 +176,6 @@ static int blkdev_zone_reset_all(struct block_device *bdev)
 int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		     sector_t sector, sector_t nr_sectors)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	sector_t capacity = bdev_nr_sectors(bdev);
 	sector_t end_sector = sector + nr_sectors;
@@ -293,16 +203,11 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		return -EINVAL;
 
 	/*
-	 * In the case of a zone reset operation over all zones,
-	 * REQ_OP_ZONE_RESET_ALL can be used with devices supporting this
-	 * command. For other devices, we emulate this command behavior by
-	 * identifying the zones needing a reset.
+	 * In the case of a zone reset operation over all zones, use
+	 * REQ_OP_ZONE_RESET_ALL.
 	 */
-	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity) {
-		if (!blk_queue_zone_resetall(q))
-			return blkdev_zone_reset_all_emulated(bdev);
+	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity)
 		return blkdev_zone_reset_all(bdev);
-	}
 
 	while (sector < end_sector) {
 		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, GFP_KERNEL);
@@ -450,6 +355,25 @@ static inline bool disk_zone_is_conv(struct gendisk *disk, sector_t sector)
 	return test_bit(disk_zone_no(disk, sector), disk->conv_zones_bitmap);
 }
 
+static bool disk_zone_is_last(struct gendisk *disk, struct blk_zone *zone)
+{
+	return zone->start + zone->len >= get_capacity(disk);
+}
+
+static bool disk_zone_is_full(struct gendisk *disk,
+			      unsigned int zno, unsigned int offset_in_zone)
+{
+	if (zno < disk->nr_zones - 1)
+		return offset_in_zone >= disk->zone_capacity;
+	return offset_in_zone >= disk->last_zone_capacity;
+}
+
+static bool disk_zone_wplug_is_full(struct gendisk *disk,
+				    struct blk_zone_wplug *zwplug)
+{
+	return disk_zone_is_full(disk, zwplug->zone_no, zwplug->wp_offset);
+}
+
 static bool disk_insert_zone_wplug(struct gendisk *disk,
 				   struct blk_zone_wplug *zwplug)
 {
@@ -543,7 +467,7 @@ static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 		return false;
 
 	/* We can remove zone write plugs for zones that are empty or full. */
-	return !zwplug->wp_offset || zwplug->wp_offset >= disk->zone_capacity;
+	return !zwplug->wp_offset || disk_zone_wplug_is_full(disk, zwplug);
 }
 
 static void disk_remove_zone_wplug(struct gendisk *disk,
@@ -664,13 +588,12 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 static void disk_zone_wplug_abort_unaligned(struct gendisk *disk,
 					    struct blk_zone_wplug *zwplug)
 {
-	unsigned int zone_capacity = disk->zone_capacity;
 	unsigned int wp_offset = zwplug->wp_offset;
 	struct bio_list bl = BIO_EMPTY_LIST;
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(&zwplug->bio_list))) {
-		if (wp_offset >= zone_capacity ||
+		if (disk_zone_is_full(disk, zwplug->zone_no, wp_offset) ||
 		    (bio_op(bio) != REQ_OP_ZONE_APPEND &&
 		     bio_offset_from_zone_start(bio) != wp_offset)) {
 			blk_zone_wplug_bio_io_error(zwplug, bio);
@@ -909,7 +832,6 @@ void blk_zone_write_plug_init_request(struct request *req)
 	sector_t req_back_sector = blk_rq_pos(req) + blk_rq_sectors(req);
 	struct request_queue *q = req->q;
 	struct gendisk *disk = q->disk;
-	unsigned int zone_capacity = disk->zone_capacity;
 	struct blk_zone_wplug *zwplug =
 		disk_get_zone_wplug(disk, blk_rq_pos(req));
 	unsigned long flags;
@@ -933,7 +855,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 	 * into the back of the request.
 	 */
 	spin_lock_irqsave(&zwplug->lock, flags);
-	while (zwplug->wp_offset < zone_capacity) {
+	while (!disk_zone_wplug_is_full(disk, zwplug)) {
 		bio = bio_list_peek(&zwplug->bio_list);
 		if (!bio)
 			break;
@@ -979,7 +901,7 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 	 * We know such BIO will fail, and that would potentially overflow our
 	 * write pointer offset beyond the end of the zone.
 	 */
-	if (zwplug->wp_offset >= disk->zone_capacity)
+	if (disk_zone_wplug_is_full(disk, zwplug))
 		goto err;
 
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
@@ -1535,6 +1457,9 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 
 void disk_free_zone_resources(struct gendisk *disk)
 {
+	if (!disk->zone_wplugs_pool)
+		return;
+
 	cancel_work_sync(&disk->zone_wplugs_work);
 
 	if (disk->zone_wplugs_wq) {
@@ -1553,9 +1478,10 @@ void disk_free_zone_resources(struct gendisk *disk)
 	mempool_destroy(disk->zone_wplugs_pool);
 	disk->zone_wplugs_pool = NULL;
 
-	kfree(disk->conv_zones_bitmap);
+	bitmap_free(disk->conv_zones_bitmap);
 	disk->conv_zones_bitmap = NULL;
 	disk->zone_capacity = 0;
+	disk->last_zone_capacity = 0;
 	disk->nr_zones = 0;
 }
 
@@ -1600,6 +1526,7 @@ struct blk_revalidate_zone_args {
 	unsigned long	*conv_zones_bitmap;
 	unsigned int	nr_zones;
 	unsigned int	zone_capacity;
+	unsigned int	last_zone_capacity;
 	sector_t	sector;
 };
 
@@ -1617,6 +1544,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 
 	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
+	disk->last_zone_capacity = args->last_zone_capacity;
 	swap(disk->conv_zones_bitmap, args->conv_zones_bitmap);
 	if (disk->conv_zones_bitmap)
 		nr_conv_zones = bitmap_weight(disk->conv_zones_bitmap,
@@ -1627,8 +1555,22 @@ static int disk_update_zone_resources(struct gendisk *disk,
 		return -ENODEV;
 	}
 
+	lim = queue_limits_start_update(q);
+
+	/*
+	 * Some devices can advertize zone resource limits that are larger than
+	 * the number of sequential zones of the zoned block device, e.g. a
+	 * small ZNS namespace. For such case, assume that the zoned device has
+	 * no zone resource limits.
+	 */
+	nr_seq_zones = disk->nr_zones - nr_conv_zones;
+	if (lim.max_open_zones >= nr_seq_zones)
+		lim.max_open_zones = 0;
+	if (lim.max_active_zones >= nr_seq_zones)
+		lim.max_active_zones = 0;
+
 	if (!disk->zone_wplugs_pool)
-		return 0;
+		goto commit;
 
 	/*
 	 * If the device has no limit on the maximum number of open and active
@@ -1637,9 +1579,6 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	 * dynamic zone write plug allocation when simultaneously writing to
 	 * more zones than the size of the mempool.
 	 */
-	lim = queue_limits_start_update(q);
-
-	nr_seq_zones = disk->nr_zones - nr_conv_zones;
 	pool_size = max(lim.max_open_zones, lim.max_active_zones);
 	if (!pool_size)
 		pool_size = min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, nr_seq_zones);
@@ -1653,6 +1592,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 			lim.max_open_zones = 0;
 	}
 
+commit:
 	return queue_limits_commit_update(q, &lim);
 }
 
@@ -1660,7 +1600,6 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 				    struct blk_revalidate_zone_args *args)
 {
 	struct gendisk *disk = args->disk;
-	struct request_queue *q = disk->queue;
 
 	if (zone->capacity != zone->len) {
 		pr_warn("%s: Invalid conventional zone capacity\n",
@@ -1668,12 +1607,15 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
+	if (disk_zone_is_last(disk, zone))
+		args->last_zone_capacity = zone->capacity;
+
 	if (!disk_need_zone_resources(disk))
 		return 0;
 
 	if (!args->conv_zones_bitmap) {
 		args->conv_zones_bitmap =
-			blk_alloc_zone_bitmap(q->node, args->nr_zones);
+			bitmap_zalloc(args->nr_zones, GFP_NOIO);
 		if (!args->conv_zones_bitmap)
 			return -ENOMEM;
 	}
@@ -1693,11 +1635,14 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 
 	/*
 	 * Remember the capacity of the first sequential zone and check
-	 * if it is constant for all zones.
+	 * if it is constant for all zones, ignoring the last zone as it can be
+	 * smaller.
 	 */
 	if (!args->zone_capacity)
 		args->zone_capacity = zone->capacity;
-	if (zone->capacity != args->zone_capacity) {
+	if (disk_zone_is_last(disk, zone)) {
+		args->last_zone_capacity = zone->capacity;
+	} else if (zone->capacity != args->zone_capacity) {
 		pr_warn("%s: Invalid variable zone capacity\n",
 			disk->disk_name);
 		return -ENODEV;
@@ -1732,7 +1677,6 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 {
 	struct blk_revalidate_zone_args *args = data;
 	struct gendisk *disk = args->disk;
-	sector_t capacity = get_capacity(disk);
 	sector_t zone_sectors = disk->queue->limits.chunk_sectors;
 	int ret;
 
@@ -1743,7 +1687,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
-	if (zone->start >= capacity || !zone->len) {
+	if (zone->start >= get_capacity(disk) || !zone->len) {
 		pr_warn("%s: Invalid zone start %llu, length %llu\n",
 			disk->disk_name, zone->start, zone->len);
 		return -ENODEV;
@@ -1753,7 +1697,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	 * All zones must have the same size, with the exception on an eventual
 	 * smaller last zone.
 	 */
-	if (zone->start + zone->len < capacity) {
+	if (!disk_zone_is_last(disk, zone)) {
 		if (zone->len != zone_sectors) {
 			pr_warn("%s: Invalid zoned device with non constant zone size\n",
 				disk->disk_name);

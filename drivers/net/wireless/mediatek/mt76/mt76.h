@@ -349,6 +349,8 @@ struct mt76_wcid {
 	u8 sta:1;
 	u8 amsdu:1;
 	u8 phy_idx:2;
+	u8 link_id:4;
+	bool link_valid;
 
 	u8 rx_check_pn;
 	u8 rx_key_pn[IEEE80211_NUM_TIDS + 1][6];
@@ -366,6 +368,8 @@ struct mt76_wcid {
 	struct mt76_sta_stats stats;
 
 	struct list_head poll_list;
+
+	struct mt76_wcid *def_wcid;
 };
 
 struct mt76_txq {
@@ -831,8 +835,8 @@ struct mt76_dev {
 
 	struct mt76_mcu mcu;
 
-	struct net_device napi_dev;
-	struct net_device tx_napi_dev;
+	struct net_device *napi_dev;
+	struct net_device *tx_napi_dev;
 	spinlock_t rx_lock;
 	struct napi_struct napi[__MT_RXQ_MAX];
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];
@@ -1081,6 +1085,7 @@ bool ____mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs);
 void mt76_pci_disable_aspm(struct pci_dev *pdev);
+bool mt76_pci_aspm_supported(struct pci_dev *pdev);
 
 static inline u16 mt76_chip(struct mt76_dev *dev)
 {
@@ -1255,6 +1260,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
 
 	if (!wcid || !wcid->sta)
 		return NULL;
+
+	if (wcid->def_wcid)
+		ptr = wcid->def_wcid;
 
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }

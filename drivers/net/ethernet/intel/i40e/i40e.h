@@ -735,7 +735,7 @@ __i40e_pf_next_veb(struct i40e_pf *pf, int *idx)
 	     _i++, _veb = __i40e_pf_next_veb(_pf, &_i))
 
 /**
- * i40e_mac_to_hkey - Convert a 6-byte MAC Address to a u64 hash key
+ * i40e_addr_to_hkey - Convert a 6-byte MAC Address to a u64 hash key
  * @macaddr: the MAC Address as the base key
  *
  * Simply copies the address and returns it as a u64 for hashing

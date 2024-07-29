@@ -85,31 +85,6 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
-static int io_copy_iov(struct io_ring_ctx *ctx, struct iovec *dst,
-		       void __user *arg, unsigned index)
-{
-	struct iovec __user *src;
-
-#ifdef CONFIG_COMPAT
-	if (ctx->compat) {
-		struct compat_iovec __user *ciovs;
-		struct compat_iovec ciov;
-
-		ciovs = (struct compat_iovec __user *) arg;
-		if (copy_from_user(&ciov, &ciovs[index], sizeof(ciov)))
-			return -EFAULT;
-
-		dst->iov_base = u64_to_user_ptr((u64)ciov.iov_base);
-		dst->iov_len = ciov.iov_len;
-		return 0;
-	}
-#endif
-	src = (struct iovec __user *) arg;
-	if (copy_from_user(dst, &src[index], sizeof(*dst)))
-		return -EFAULT;
-	return 0;
-}
-
 static int io_buffer_validate(struct iovec *iov)
 {
 	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
@@ -249,6 +224,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
+			finish_wait(&ctx->rsrc_quiesce_wq, &we);
 			mutex_lock(&ctx->uring_lock);
 			if (list_empty(&ctx->rsrc_ref_list))
 				ret = 0;
@@ -256,7 +232,6 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		}
 
 		schedule();
-		__set_current_state(TASK_RUNNING);
 		mutex_lock(&ctx->uring_lock);
 		ret = 0;
 	} while (!list_empty(&ctx->rsrc_ref_list));
@@ -419,8 +394,9 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 				   struct io_uring_rsrc_update2 *up,
 				   unsigned int nr_args)
 {
+	struct iovec __user *uvec = u64_to_user_ptr(up->data);
 	u64 __user *tags = u64_to_user_ptr(up->tags);
-	struct iovec iov, __user *iovs = u64_to_user_ptr(up->data);
+	struct iovec fast_iov, *iov;
 	struct page *last_hpage = NULL;
 	__u32 done;
 	int i, err;
@@ -434,21 +410,23 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		struct io_mapped_ubuf *imu;
 		u64 tag = 0;
 
-		err = io_copy_iov(ctx, &iov, iovs, done);
-		if (err)
+		iov = iovec_from_user(&uvec[done], 1, 1, &fast_iov, ctx->compat);
+		if (IS_ERR(iov)) {
+			err = PTR_ERR(iov);
 			break;
+		}
 		if (tags && copy_from_user(&tag, &tags[done], sizeof(tag))) {
 			err = -EFAULT;
 			break;
 		}
-		err = io_buffer_validate(&iov);
+		err = io_buffer_validate(iov);
 		if (err)
 			break;
-		if (!iov.iov_base && tag) {
+		if (!iov->iov_base && tag) {
 			err = -EINVAL;
 			break;
 		}
-		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
+		err = io_sqe_buffer_register(ctx, iov, &imu, &last_hpage);
 		if (err)
 			break;
 
@@ -970,8 +948,9 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 {
 	struct page *last_hpage = NULL;
 	struct io_rsrc_data *data;
+	struct iovec fast_iov, *iov = &fast_iov;
+	const struct iovec __user *uvec = (struct iovec * __user) arg;
 	int i, ret;
-	struct iovec iov;
 
 	BUILD_BUG_ON(IORING_MAX_REG_BUFFERS >= (1u << 16));
 
@@ -988,24 +967,27 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return ret;
 	}
 
+	if (!arg)
+		memset(iov, 0, sizeof(*iov));
+
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
 		if (arg) {
-			ret = io_copy_iov(ctx, &iov, arg, i);
+			iov = iovec_from_user(&uvec[i], 1, 1, &fast_iov, ctx->compat);
+			if (IS_ERR(iov)) {
+				ret = PTR_ERR(iov);
+				break;
+			}
+			ret = io_buffer_validate(iov);
 			if (ret)
 				break;
-			ret = io_buffer_validate(&iov);
-			if (ret)
-				break;
-		} else {
-			memset(&iov, 0, sizeof(iov));
 		}
 
-		if (!iov.iov_base && *io_get_tag_slot(data, i)) {
+		if (!iov->iov_base && *io_get_tag_slot(data, i)) {
 			ret = -EINVAL;
 			break;
 		}
 
-		ret = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
+		ret = io_sqe_buffer_register(ctx, iov, &ctx->user_bufs[i],
 					     &last_hpage);
 		if (ret)
 			break;
@@ -1067,7 +1049,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 			 * branch doesn't expect non PAGE_SIZE'd chunks.
 			 */
 			iter->bvec = bvec;
-			iter->nr_segs = bvec->bv_len;
 			iter->count -= offset;
 			iter->iov_offset = offset;
 		} else {

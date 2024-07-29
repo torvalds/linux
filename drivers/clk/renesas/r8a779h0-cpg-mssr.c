@@ -176,6 +176,8 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("avb0:rgmii0",	211,	R8A779H0_CLK_S0D8_HSC),
 	DEF_MOD("avb1:rgmii1",	212,	R8A779H0_CLK_S0D8_HSC),
 	DEF_MOD("avb2:rgmii2",	213,	R8A779H0_CLK_S0D8_HSC),
+	DEF_MOD("csi40",	331,	R8A779H0_CLK_CSI),
+	DEF_MOD("csi41",	400,	R8A779H0_CLK_CSI),
 	DEF_MOD("hscif0",	514,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif1",	515,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif2",	516,	R8A779H0_CLK_SASYNCPERD1),
@@ -185,6 +187,8 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("i2c2",		520,	R8A779H0_CLK_S0D6_PER),
 	DEF_MOD("i2c3",		521,	R8A779H0_CLK_S0D6_PER),
 	DEF_MOD("irqc",		611,	R8A779H0_CLK_CL16M),
+	DEF_MOD("ispcs0",	612,	R8A779H0_CLK_S0D2_VIO),
+	DEF_MOD("ispcs1",	613,	R8A779H0_CLK_S0D2_VIO),
 	DEF_MOD("msi0",		618,	R8A779H0_CLK_MSO),
 	DEF_MOD("msi1",		619,	R8A779H0_CLK_MSO),
 	DEF_MOD("msi2",		620,	R8A779H0_CLK_MSO),
@@ -204,6 +208,22 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("tmu2",		715,	R8A779H0_CLK_SASYNCPERD2),
 	DEF_MOD("tmu3",		716,	R8A779H0_CLK_SASYNCPERD2),
 	DEF_MOD("tmu4",		717,	R8A779H0_CLK_SASYNCPERD2),
+	DEF_MOD("vin00",	730,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin01",	731,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin02",	800,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin03",	801,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin04",	802,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin05",	803,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin06",	804,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin07",	805,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin10",	806,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin11",	807,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin12",	808,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin13",	809,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin14",	810,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin15",	811,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin16",	812,	R8A779H0_CLK_S0D4_VIO),
+	DEF_MOD("vin17",	813,	R8A779H0_CLK_S0D4_VIO),
 	DEF_MOD("wdt1:wdt0",	907,	R8A779H0_CLK_R),
 	DEF_MOD("cmt0",		910,	R8A779H0_CLK_R),
 	DEF_MOD("cmt1",		911,	R8A779H0_CLK_R),
@@ -213,6 +233,8 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("pfc1",		916,	R8A779H0_CLK_CP),
 	DEF_MOD("pfc2",		917,	R8A779H0_CLK_CP),
 	DEF_MOD("tsc2:tsc1",	919,	R8A779H0_CLK_CL16M),
+	DEF_MOD("ssiu",		2926,	R8A779H0_CLK_S0D6_PER),
+	DEF_MOD("ssi",		2927,	R8A779H0_CLK_S0D6_PER),
 };
 
 /*
@@ -222,10 +244,10 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
  *   MD	 EXTAL		PLL1	PLL2	PLL3	PLL4	PLL5	PLL6	OSC
  * 14 13 (MHz)
  * ------------------------------------------------------------------------
- * 0  0	 16.66 / 1	x192	x204	x192	x144	x192	x168	/16
- * 0  1	 20    / 1	x160	x170	x160	x120	x160	x140	/19
+ * 0  0	 16.66 / 1	x192	x240	x192	x240	x192	x168	/16
+ * 0  1	 20    / 1	x160	x200	x160	x200	x160	x140	/19
  * 1  0	 Prohibited setting
- * 1  1	 33.33 / 2	x192	x204	x192	x144	x192	x168	/32
+ * 1  1	 33.33 / 2	x192	x240	x192	x240	x192	x168	/32
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))

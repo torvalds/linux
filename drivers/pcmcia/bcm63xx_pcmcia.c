@@ -456,7 +456,6 @@ struct platform_driver bcm63xx_pcmcia_driver = {
 	.remove_new = bcm63xx_drv_pcmcia_remove,
 	.driver	= {
 		.name	= "bcm63xx_pcmcia",
-		.owner  = THIS_MODULE,
 	},
 };
 

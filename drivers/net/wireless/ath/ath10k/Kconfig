@@ -45,6 +45,7 @@ config ATH10K_SNOC
 	depends on ATH10K
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on QCOM_SMEM
+	depends on QCOM_RPROC_COMMON || QCOM_RPROC_COMMON=n
 	select QCOM_SCM
 	select QCOM_QMI_HELPERS
 	help
@@ -66,6 +67,12 @@ config ATH10K_DEBUGFS
 	  Enabled debugfs support
 
 	  If unsure, say Y to make it easier to debug problems.
+
+config ATH10K_LEDS
+	bool
+	depends on ATH10K
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	default y
 
 config ATH10K_SPECTRAL
 	bool "Atheros ath10k spectral scan support"

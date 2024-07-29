@@ -13,11 +13,11 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -113,9 +113,9 @@ static inline void dra7xx_pcie_writel(struct dra7xx_pcie *pcie, u32 offset,
 	writel(value, pcie->base + offset);
 }
 
-static u64 dra7xx_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
+static u64 dra7xx_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 cpu_addr)
 {
-	return pci_addr & DRA7XX_CPU_TO_BUS_ADDR;
+	return cpu_addr & DRA7XX_CPU_TO_BUS_ADDR;
 }
 
 static int dra7xx_pcie_link_up(struct dw_pcie *pci)
@@ -474,7 +474,7 @@ static int dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 		return ret;
 	}
 
-	dw_pcie_ep_init_notify(ep);
+	pci_epc_init_notify(ep->epc);
 
 	return 0;
 }

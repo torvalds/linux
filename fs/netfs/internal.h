@@ -63,15 +63,6 @@ static inline void netfs_proc_del_rreq(struct netfs_io_request *rreq) {}
 /*
  * misc.c
  */
-#define NETFS_FLAG_PUT_MARK		BIT(0)
-#define NETFS_FLAG_PAGECACHE_MARK	BIT(1)
-int netfs_xa_store_and_mark(struct xarray *xa, unsigned long index,
-			    struct folio *folio, unsigned int flags,
-			    gfp_t gfp_mask);
-int netfs_add_folios_to_buffer(struct xarray *buffer,
-			       struct address_space *mapping,
-			       pgoff_t index, pgoff_t to, gfp_t gfp_mask);
-void netfs_clear_buffer(struct xarray *buffer);
 
 /*
  * objects.c
@@ -353,8 +344,6 @@ extern const struct seq_operations fscache_volumes_seq_ops;
 
 struct fscache_volume *fscache_get_volume(struct fscache_volume *volume,
 					  enum fscache_volume_trace where);
-void fscache_put_volume(struct fscache_volume *volume,
-			enum fscache_volume_trace where);
 bool fscache_begin_volume_access(struct fscache_volume *volume,
 				 struct fscache_cookie *cookie,
 				 enum fscache_access_trace why);

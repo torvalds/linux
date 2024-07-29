@@ -41,13 +41,11 @@
 	optc1->tg_shift->field_name, optc1->tg_mask->field_name
 
 static void optc31_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing)
+		int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
-			/ opp_cnt;
 	uint32_t memory_mask = 0;
-	int mem_count_per_opp = (mpcc_hactive + 2559) / 2560;
+	int mem_count_per_opp = (segment_width + 2559) / 2560;
 
 	/* Assume less than 6 pipes */
 	if (opp_cnt == 4) {
@@ -85,7 +83,7 @@ static void optc31_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 	}
 
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
-			OPTC_SEGMENT_WIDTH, mpcc_hactive);
+			OPTC_SEGMENT_WIDTH, segment_width);
 
 	REG_SET(OTG_H_TIMING_CNTL, 0, OTG_H_TIMING_DIV_MODE, opp_cnt - 1);
 	optc1->opp_count = opp_cnt;
@@ -123,6 +121,17 @@ static bool optc31_enable_crtc(struct timing_generator *optc)
 static bool optc31_disable_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE_5(OPTC_DATA_SOURCE_SELECT,
+			OPTC_SEG0_SRC_SEL, 0xf,
+			OPTC_SEG1_SRC_SEL, 0xf,
+			OPTC_SEG2_SRC_SEL, 0xf,
+			OPTC_SEG3_SRC_SEL, 0xf,
+			OPTC_NUM_OF_INPUT_SEGMENT, 0);
+
+	REG_UPDATE(OPTC_MEMORY_CONFIG,
+			OPTC_MEM_SEL, 0);
+
 	/* disable otg request until end of the first line
 	 * in the vertical blank region
 	 */
@@ -292,6 +301,7 @@ static struct timing_generator_funcs dcn31_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn31_timing_generator_init(struct optc *optc1)

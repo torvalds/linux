@@ -114,4 +114,6 @@ static struct platform_driver clk_mt7981_eth_drv = {
 	},
 };
 module_platform_driver(clk_mt7981_eth_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7981 Ethernet clocks driver");
 MODULE_LICENSE("GPL");

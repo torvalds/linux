@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -55,12 +56,6 @@ static const char *const pcmdev_ctrl_name[] = {
 	"%s i2c%d Dev%d Ch%d Ana Volume",
 	"%s i2c%d Dev%d Ch%d Digi Volume",
 	"%s i2c%d Dev%d Ch%d Fine Volume",
-};
-
-static const char *const pcmdev_ctrl_name_with_prefix[] = {
-	"%s Dev%d Ch%d Ana Volume",
-	"%s Dev%d Ch%d Digi Volume",
-	"%s Dev%d Ch%d Fine Volume",
 };
 
 static const struct pcmdevice_mixer_control adc5120_analog_gain_ctl[] = {
@@ -1365,10 +1360,7 @@ static int pcmdev_gain_ctrl_add(struct pcmdevice_priv *pcm_dev,
 
 	name_id = pcmdev_gain_ctl_info[id][ctl_id].pcmdev_ctrl_name_id;
 
-	if (comp->name_prefix)
-		ctrl_name = pcmdev_ctrl_name_with_prefix[name_id];
-	else
-		ctrl_name = pcmdev_ctrl_name[name_id];
+	ctrl_name = pcmdev_ctrl_name[name_id];
 
 	for (chn = 1; chn <= nr_chn; chn++) {
 		name = devm_kzalloc(pcm_dev->dev,
@@ -1377,13 +1369,9 @@ static int pcmdev_gain_ctrl_add(struct pcmdevice_priv *pcm_dev,
 			ret = -ENOMEM;
 			goto out;
 		}
-		if (comp->name_prefix)
-			scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				ctrl_name, comp->name_prefix, dev_no, chn);
-		else
-			scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				ctrl_name, pcm_dev->upper_dev_name, adap->nr,
-				dev_no, chn);
+		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+			ctrl_name, pcm_dev->upper_dev_name, adap->nr,
+			dev_no, chn);
 		pcmdev_controls[mix_index].tlv.p =
 			pcmdev_gain_ctl_info[id][ctl_id].gain;
 		pcmdev_ctrl = devm_kmemdup(pcm_dev->dev,
@@ -1437,13 +1425,8 @@ static int pcmdev_profile_ctrl_add(struct pcmdevice_priv *pcm_dev)
 	if (!name)
 		return -ENOMEM;
 
-	if (comp->name_prefix)
-		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-			"%s Profile id", comp->name_prefix);
-	else
-		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-			"%s i2c%d Profile id", pcm_dev->upper_dev_name,
-			adap->nr);
+	scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+		"%s i2c%d Profile id", pcm_dev->upper_dev_name, adap->nr);
 	pcmdev_ctrl->name = name;
 	pcmdev_ctrl->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	pcmdev_ctrl->info = pcmdevice_info_profile;
@@ -2081,16 +2064,10 @@ static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 	struct device_node *np;
 	unsigned int dev_addrs[PCMDEVICE_MAX_I2C_DEVICES];
 	int ret = 0, i = 0, ndev = 0;
-#ifdef CONFIG_OF
-	const __be32 *reg, *reg_end;
-	int len, sw, aw;
-#endif
 
 	pcm_dev = devm_kzalloc(&i2c->dev, sizeof(*pcm_dev), GFP_KERNEL);
-	if (!pcm_dev) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!pcm_dev)
+		return -ENOMEM;
 
 	pcm_dev->chip_id = (id != NULL) ? id->driver_data : 0;
 
@@ -2120,27 +2097,19 @@ static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, pcm_dev);
 	mutex_init(&pcm_dev->codec_lock);
 	np = pcm_dev->dev->of_node;
-#ifdef CONFIG_OF
-	aw = of_n_addr_cells(np);
-	sw = of_n_size_cells(np);
-	if (sw == 0) {
-		reg = (const __be32 *)of_get_property(np,
-			"reg", &len);
-		reg_end = reg + len/sizeof(*reg);
-		ndev = 0;
-		do {
-			dev_addrs[ndev] = of_read_number(reg, aw);
-			reg += aw;
-			ndev++;
-		} while (reg < reg_end);
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		u64 addr;
+
+		for (i = 0; i < PCMDEVICE_MAX_I2C_DEVICES; i++) {
+			if (of_property_read_reg(np, i, &addr, NULL))
+				break;
+			dev_addrs[ndev++] = addr;
+		}
 	} else {
 		ndev = 1;
 		dev_addrs[0] = i2c->addr;
 	}
-#else
-	ndev = 1;
-	dev_addrs[0] = i2c->addr;
-#endif
 	pcm_dev->irq_info.gpio = of_irq_get(np, 0);
 
 	for (i = 0; i < ndev; i++)

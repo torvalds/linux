@@ -5,6 +5,8 @@
 
 #include "xe_huc.h"
 
+#include <linux/delay.h>
+
 #include <drm/drm_managed.h>
 
 #include "abi/gsc_pxp_commands_abi.h"
@@ -16,9 +18,11 @@
 #include "xe_force_wake.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_guc.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 #include "xe_uc_fw.h"
 
 static struct xe_gt *
@@ -90,6 +94,9 @@ int xe_huc_init(struct xe_huc *huc)
 	if (!xe_uc_fw_is_enabled(&huc->fw))
 		return 0;
 
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
 	if (huc->fw.has_gsc_headers) {
 		ret = huc_alloc_gsc_pkt(huc);
 		if (ret)
@@ -101,7 +108,7 @@ int xe_huc_init(struct xe_huc *huc)
 	return 0;
 
 out:
-	drm_err(&xe->drm, "HuC init failed with %d", ret);
+	xe_gt_err(gt, "HuC: initialization failed: %pe\n", ERR_PTR(ret));
 	return ret;
 }
 
@@ -189,14 +196,14 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 	} while (--retry && err == -EBUSY);
 
 	if (err) {
-		drm_err(&xe->drm, "failed to submit GSC request to auth: %d\n", err);
+		xe_gt_err(gt, "HuC: failed to submit GSC request to auth: %pe\n", ERR_PTR(err));
 		return err;
 	}
 
 	err = xe_gsc_read_out_header(xe, &pkt->vmap, PXP43_HUC_AUTH_INOUT_SIZE,
 				     sizeof(struct pxp43_huc_auth_out), &rd_offset);
 	if (err) {
-		drm_err(&xe->drm, "HuC: invalid GSC reply for auth (err=%d)\n", err);
+		xe_gt_err(gt, "HuC: invalid GSC reply for auth: %pe\n", ERR_PTR(err));
 		return err;
 	}
 
@@ -207,7 +214,7 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 	 */
 	out_status = huc_auth_msg_rd(xe, &pkt->vmap, rd_offset, header.status);
 	if (out_status != PXP_STATUS_SUCCESS && out_status != PXP_STATUS_OP_NOT_PERMITTED) {
-		drm_err(&xe->drm, "auth failed with GSC error = 0x%x\n", out_status);
+		xe_gt_err(gt, "HuC: authentication failed with GSC error = %#x\n", out_status);
 		return -EIO;
 	}
 
@@ -236,7 +243,6 @@ bool xe_huc_is_authenticated(struct xe_huc *huc, enum xe_huc_auth_types type)
 
 int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 {
-	struct xe_device *xe = huc_to_xe(huc);
 	struct xe_gt *gt = huc_to_gt(huc);
 	struct xe_guc *guc = huc_to_guc(huc);
 	int ret;
@@ -266,26 +272,26 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 		return -EINVAL;
 	}
 	if (ret) {
-		drm_err(&xe->drm, "Failed to trigger HuC auth via %s: %d\n",
-			huc_auth_modes[type].name, ret);
+		xe_gt_err(gt, "HuC: failed to trigger auth via %s: %pe\n",
+			  huc_auth_modes[type].name, ERR_PTR(ret));
 		goto fail;
 	}
 
 	ret = xe_mmio_wait32(gt, huc_auth_modes[type].reg, huc_auth_modes[type].val,
 			     huc_auth_modes[type].val, 100000, NULL, false);
 	if (ret) {
-		drm_err(&xe->drm, "HuC: Firmware not verified %d\n", ret);
+		xe_gt_err(gt, "HuC: firmware not verified: %pe\n", ERR_PTR(ret));
 		goto fail;
 	}
 
 	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
-	drm_dbg(&xe->drm, "HuC authenticated via %s\n", huc_auth_modes[type].name);
+	xe_gt_dbg(gt, "HuC: authenticated via %s\n", huc_auth_modes[type].name);
 
 	return 0;
 
 fail:
-	drm_err(&xe->drm, "HuC: Auth via %s failed: %d\n",
-		huc_auth_modes[type].name, ret);
+	xe_gt_err(gt, "HuC: authentication via %s failed: %pe\n",
+		  huc_auth_modes[type].name, ERR_PTR(ret));
 	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_LOAD_FAIL);
 
 	return ret;
@@ -293,9 +299,7 @@ fail:
 
 void xe_huc_sanitize(struct xe_huc *huc)
 {
-	if (!xe_uc_fw_is_loadable(&huc->fw))
-		return;
-	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_LOADABLE);
+	xe_uc_fw_sanitize(&huc->fw);
 }
 
 void xe_huc_print_info(struct xe_huc *huc, struct drm_printer *p)

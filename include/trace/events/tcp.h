@@ -411,6 +411,323 @@ TRACE_EVENT(tcp_cong_state_set,
 		  __entry->cong_state)
 );
 
+DECLARE_EVENT_CLASS(tcp_hash_event,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+
+	TP_ARGS(sk, skb),
+
+	TP_STRUCT__entry(
+		__field(__u64, net_cookie)
+		__field(const void *, skbaddr)
+		__field(const void *, skaddr)
+		__field(int, state)
+
+		/* sockaddr_in6 is always bigger than sockaddr_in */
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+		__field(int, l3index)
+
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u16, family)
+
+		__field(bool, fin)
+		__field(bool, syn)
+		__field(bool, rst)
+		__field(bool, psh)
+		__field(bool, ack)
+	),
+
+	TP_fast_assign(
+		const struct tcphdr *th = (const struct tcphdr *)skb->data;
+
+		__entry->net_cookie = sock_net(sk)->net_cookie;
+		__entry->skbaddr = skb;
+		__entry->skaddr = sk;
+		__entry->state = sk->sk_state;
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+		TP_STORE_ADDR_PORTS_SKB(skb, th, __entry->saddr, __entry->daddr);
+		__entry->l3index = inet_sdif(skb) ? inet_iif(skb) : 0;
+
+		/* For filtering use */
+		__entry->sport = ntohs(th->source);
+		__entry->dport = ntohs(th->dest);
+		__entry->family = sk->sk_family;
+
+		__entry->fin = th->fin;
+		__entry->syn = th->syn;
+		__entry->rst = th->rst;
+		__entry->psh = th->psh;
+		__entry->ack = th->ack;
+	),
+
+	TP_printk("net=%llu state=%s family=%s src=%pISpc dest=%pISpc L3index=%d [%c%c%c%c%c]",
+		  __entry->net_cookie,
+		  show_tcp_state_name(__entry->state),
+		  show_family_name(__entry->family),
+		  __entry->saddr, __entry->daddr,
+		  __entry->l3index,
+		  __entry->fin ? 'F' : ' ',
+		  __entry->syn ? 'S' : ' ',
+		  __entry->rst ? 'R' : ' ',
+		  __entry->psh ? 'P' : ' ',
+		  __entry->ack ? '.' : ' ')
+);
+
+DEFINE_EVENT(tcp_hash_event, tcp_hash_bad_header,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_ARGS(sk, skb)
+);
+
+DEFINE_EVENT(tcp_hash_event, tcp_hash_md5_required,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_ARGS(sk, skb)
+);
+
+DEFINE_EVENT(tcp_hash_event, tcp_hash_md5_unexpected,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_ARGS(sk, skb)
+);
+
+DEFINE_EVENT(tcp_hash_event, tcp_hash_md5_mismatch,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_ARGS(sk, skb)
+);
+
+DEFINE_EVENT(tcp_hash_event, tcp_hash_ao_required,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_ARGS(sk, skb)
+);
+
+DECLARE_EVENT_CLASS(tcp_ao_event,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+
+	TP_ARGS(sk, skb, keyid, rnext, maclen),
+
+	TP_STRUCT__entry(
+		__field(__u64, net_cookie)
+		__field(const void *, skbaddr)
+		__field(const void *, skaddr)
+		__field(int, state)
+
+		/* sockaddr_in6 is always bigger than sockaddr_in */
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+		__field(int, l3index)
+
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u16, family)
+
+		__field(bool, fin)
+		__field(bool, syn)
+		__field(bool, rst)
+		__field(bool, psh)
+		__field(bool, ack)
+
+		__field(__u8, keyid)
+		__field(__u8, rnext)
+		__field(__u8, maclen)
+	),
+
+	TP_fast_assign(
+		const struct tcphdr *th = (const struct tcphdr *)skb->data;
+
+		__entry->net_cookie = sock_net(sk)->net_cookie;
+		__entry->skbaddr = skb;
+		__entry->skaddr = sk;
+		__entry->state = sk->sk_state;
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+		TP_STORE_ADDR_PORTS_SKB(skb, th, __entry->saddr, __entry->daddr);
+		__entry->l3index = inet_sdif(skb) ? inet_iif(skb) : 0;
+
+		/* For filtering use */
+		__entry->sport = ntohs(th->source);
+		__entry->dport = ntohs(th->dest);
+		__entry->family = sk->sk_family;
+
+		__entry->fin = th->fin;
+		__entry->syn = th->syn;
+		__entry->rst = th->rst;
+		__entry->psh = th->psh;
+		__entry->ack = th->ack;
+
+		__entry->keyid = keyid;
+		__entry->rnext = rnext;
+		__entry->maclen = maclen;
+	),
+
+	TP_printk("net=%llu state=%s family=%s src=%pISpc dest=%pISpc L3index=%d [%c%c%c%c%c] keyid=%u rnext=%u maclen=%u",
+		  __entry->net_cookie,
+		  show_tcp_state_name(__entry->state),
+		  show_family_name(__entry->family),
+		  __entry->saddr, __entry->daddr,
+		  __entry->l3index,
+		  __entry->fin ? 'F' : ' ',
+		  __entry->syn ? 'S' : ' ',
+		  __entry->rst ? 'R' : ' ',
+		  __entry->psh ? 'P' : ' ',
+		  __entry->ack ? '.' : ' ',
+		  __entry->keyid, __entry->rnext, __entry->maclen)
+);
+
+DEFINE_EVENT(tcp_ao_event, tcp_ao_handshake_failure,
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+	TP_ARGS(sk, skb, keyid, rnext, maclen)
+);
+
+DEFINE_EVENT(tcp_ao_event, tcp_ao_wrong_maclen,
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+	TP_ARGS(sk, skb, keyid, rnext, maclen)
+);
+
+DEFINE_EVENT(tcp_ao_event, tcp_ao_mismatch,
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+	TP_ARGS(sk, skb, keyid, rnext, maclen)
+);
+
+DEFINE_EVENT(tcp_ao_event, tcp_ao_key_not_found,
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+	TP_ARGS(sk, skb, keyid, rnext, maclen)
+);
+
+DEFINE_EVENT(tcp_ao_event, tcp_ao_rnext_request,
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
+		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
+	TP_ARGS(sk, skb, keyid, rnext, maclen)
+);
+
+DECLARE_EVENT_CLASS(tcp_ao_event_sk,
+
+	TP_PROTO(const struct sock *sk, const __u8 keyid, const __u8 rnext),
+
+	TP_ARGS(sk, keyid, rnext),
+
+	TP_STRUCT__entry(
+		__field(__u64, net_cookie)
+		__field(const void *, skaddr)
+		__field(int, state)
+
+		/* sockaddr_in6 is always bigger than sockaddr_in */
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u16, family)
+
+		__field(__u8, keyid)
+		__field(__u8, rnext)
+	),
+
+	TP_fast_assign(
+		const struct inet_sock *inet = inet_sk(sk);
+
+		__entry->net_cookie = sock_net(sk)->net_cookie;
+		__entry->skaddr = sk;
+		__entry->state = sk->sk_state;
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+		TP_STORE_ADDR_PORTS(__entry, inet, sk);
+
+		/* For filtering use */
+		__entry->sport = ntohs(inet->inet_sport);
+		__entry->dport = ntohs(inet->inet_dport);
+		__entry->family = sk->sk_family;
+
+		__entry->keyid = keyid;
+		__entry->rnext = rnext;
+	),
+
+	TP_printk("net=%llu state=%s family=%s src=%pISpc dest=%pISpc keyid=%u rnext=%u",
+		  __entry->net_cookie,
+		  show_tcp_state_name(__entry->state),
+		  show_family_name(__entry->family),
+		  __entry->saddr, __entry->daddr,
+		  __entry->keyid, __entry->rnext)
+);
+
+DEFINE_EVENT(tcp_ao_event_sk, tcp_ao_synack_no_key,
+	TP_PROTO(const struct sock *sk, const __u8 keyid, const __u8 rnext),
+	TP_ARGS(sk, keyid, rnext)
+);
+
+DECLARE_EVENT_CLASS(tcp_ao_event_sne,
+
+	TP_PROTO(const struct sock *sk, __u32 new_sne),
+
+	TP_ARGS(sk, new_sne),
+
+	TP_STRUCT__entry(
+		__field(__u64, net_cookie)
+		__field(const void *, skaddr)
+		__field(int, state)
+
+		/* sockaddr_in6 is always bigger than sockaddr_in */
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u16, family)
+
+		__field(__u32, new_sne)
+	),
+
+	TP_fast_assign(
+		const struct inet_sock *inet = inet_sk(sk);
+
+		__entry->net_cookie = sock_net(sk)->net_cookie;
+		__entry->skaddr = sk;
+		__entry->state = sk->sk_state;
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+		TP_STORE_ADDR_PORTS(__entry, inet, sk);
+
+		/* For filtering use */
+		__entry->sport = ntohs(inet->inet_sport);
+		__entry->dport = ntohs(inet->inet_dport);
+		__entry->family = sk->sk_family;
+
+		__entry->new_sne = new_sne;
+	),
+
+	TP_printk("net=%llu state=%s family=%s src=%pISpc dest=%pISpc sne=%u",
+		  __entry->net_cookie,
+		  show_tcp_state_name(__entry->state),
+		  show_family_name(__entry->family),
+		  __entry->saddr, __entry->daddr,
+		  __entry->new_sne)
+);
+
+DEFINE_EVENT(tcp_ao_event_sne, tcp_ao_snd_sne_update,
+	TP_PROTO(const struct sock *sk, __u32 new_sne),
+	TP_ARGS(sk, new_sne)
+);
+
+DEFINE_EVENT(tcp_ao_event_sne, tcp_ao_rcv_sne_update,
+	TP_PROTO(const struct sock *sk, __u32 new_sne),
+	TP_ARGS(sk, new_sne)
+);
+
 #endif /* _TRACE_TCP_H */
 
 /* This part must be outside protection */

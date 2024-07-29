@@ -26,7 +26,7 @@ static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode, void *arg2,
 			 bool *stop);
 static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode);
 
-static struct mmu_rb_ops sdma_rb_ops = {
+static const struct mmu_rb_ops sdma_rb_ops = {
 	.filter = sdma_rb_filter,
 	.evict = sdma_rb_evict,
 	.remove = sdma_rb_remove,

@@ -79,4 +79,6 @@ static struct platform_driver clk_mt6765_mm_drv = {
 	},
 };
 module_platform_driver(clk_mt6765_mm_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6765 MultiMedia clocks driver");
 MODULE_LICENSE("GPL");

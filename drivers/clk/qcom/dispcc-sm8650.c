@@ -69,7 +69,7 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco lucid_ole_vco[] = {
+static const struct pll_vco lucid_ole_vco[] = {
 	{ 249600000, 2100000000, 0 },
 };
 
@@ -1768,7 +1768,7 @@ static int disp_cc_sm8650_probe(struct platform_device *pdev)
 	/* Keep some clocks always-on */
 	qcom_branch_set_clk_en(regmap, 0xe054); /* DISP_CC_XO_CLK */
 
-	ret = qcom_cc_really_probe(pdev, &disp_cc_sm8650_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &disp_cc_sm8650_desc, regmap);
 	if (ret)
 		goto err_put_rpm;
 

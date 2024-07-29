@@ -77,7 +77,6 @@ enum amdgpu_device_attr_id {
 	device_attr_id__smartshift_apu_power,
 	device_attr_id__smartshift_dgpu_power,
 	device_attr_id__smartshift_bias,
-	device_attr_id__xgmi_plpd_policy,
 	device_attr_id__pm_metrics,
 	device_attr_id__count,
 };

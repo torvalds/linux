@@ -657,8 +657,10 @@ static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
 	ring_size = reg->ring_entries * sizeof(struct io_uring_buf_ring);
 
 	bl->buf_ring = io_pages_map(&bl->buf_pages, &bl->buf_nr_pages, ring_size);
-	if (!bl->buf_ring)
+	if (IS_ERR(bl->buf_ring)) {
+		bl->buf_ring = NULL;
 		return -ENOMEM;
+	}
 
 	bl->is_buf_ring = 1;
 	bl->is_mmap = 1;

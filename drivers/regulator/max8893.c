@@ -162,8 +162,8 @@ MODULE_DEVICE_TABLE(of, max8893_dt_match);
 #endif
 
 static const struct i2c_device_id max8893_ids[] = {
-	{ "max8893", 0 },
-	{ },
+	{ "max8893" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8893_ids);
 

@@ -8,6 +8,9 @@
  *
  */
 
+#include <asm/unaligned.h>
+#include <crypto/aes.h>
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -25,12 +28,13 @@
 
 #include "ufs-exynos.h"
 
+#define DATA_UNIT_SIZE		4096
+
 /*
  * Exynos's Vendor specific registers for UFSHCI
  */
 #define HCI_TXPRDT_ENTRY_SIZE	0x00
 #define PRDT_PREFECT_EN		BIT(31)
-#define PRDT_SET_SIZE(x)	((x) & 0x1F)
 #define HCI_RXPRDT_ENTRY_SIZE	0x04
 #define HCI_1US_TO_CNT_VAL	0x0C
 #define CNT_VAL_1US_MASK	0x3FF
@@ -1043,8 +1047,8 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 	exynos_ufs_fit_aggr_timeout(ufs);
 
 	hci_writel(ufs, 0xa, HCI_DATA_REORDER);
-	hci_writel(ufs, PRDT_SET_SIZE(12), HCI_TXPRDT_ENTRY_SIZE);
-	hci_writel(ufs, PRDT_SET_SIZE(12), HCI_RXPRDT_ENTRY_SIZE);
+	hci_writel(ufs, ilog2(DATA_UNIT_SIZE), HCI_TXPRDT_ENTRY_SIZE);
+	hci_writel(ufs, ilog2(DATA_UNIT_SIZE), HCI_RXPRDT_ENTRY_SIZE);
 	hci_writel(ufs, (1 << hba->nutrs) - 1, HCI_UTRL_NEXUS_TYPE);
 	hci_writel(ufs, (1 << hba->nutmrs) - 1, HCI_UTMRL_NEXUS_TYPE);
 	hci_writel(ufs, 0xf, HCI_AXIDMA_RWDATA_BURST_LEN);
@@ -1151,6 +1155,227 @@ static inline void exynos_ufs_priv_init(struct ufs_hba *hba,
 	hba->quirks = ufs->drv_data->quirks;
 }
 
+#ifdef CONFIG_SCSI_UFS_CRYPTO
+
+/*
+ * Support for Flash Memory Protector (FMP), which is the inline encryption
+ * hardware on Exynos and Exynos-based SoCs.  The interface to this hardware is
+ * not compatible with the standard UFS crypto.  It requires that encryption be
+ * configured in the PRDT using a nonstandard extension.
+ */
+
+enum fmp_crypto_algo_mode {
+	FMP_BYPASS_MODE = 0,
+	FMP_ALGO_MODE_AES_CBC = 1,
+	FMP_ALGO_MODE_AES_XTS = 2,
+};
+enum fmp_crypto_key_length {
+	FMP_KEYLEN_256BIT = 1,
+};
+
+/**
+ * struct fmp_sg_entry - nonstandard format of PRDT entries when FMP is enabled
+ *
+ * @base: The standard PRDT entry, but with nonstandard bitfields in the high
+ *	bits of the 'size' field, i.e. the last 32-bit word.  When these
+ *	nonstandard bitfields are zero, the data segment won't be encrypted or
+ *	decrypted.  Otherwise they specify the algorithm and key length with
+ *	which the data segment will be encrypted or decrypted.
+ * @file_iv: The initialization vector (IV) with all bytes reversed
+ * @file_enckey: The first half of the AES-XTS key with all bytes reserved
+ * @file_twkey: The second half of the AES-XTS key with all bytes reserved
+ * @disk_iv: Unused
+ * @reserved: Unused
+ */
+struct fmp_sg_entry {
+	struct ufshcd_sg_entry base;
+	__be64 file_iv[2];
+	__be64 file_enckey[4];
+	__be64 file_twkey[4];
+	__be64 disk_iv[2];
+	__be64 reserved[2];
+};
+
+#define SMC_CMD_FMP_SECURITY	\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
+			   ARM_SMCCC_OWNER_SIP, 0x1810)
+#define SMC_CMD_SMU		\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
+			   ARM_SMCCC_OWNER_SIP, 0x1850)
+#define SMC_CMD_FMP_SMU_RESUME	\
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
+			   ARM_SMCCC_OWNER_SIP, 0x1860)
+#define SMU_EMBEDDED			0
+#define SMU_INIT			0
+#define CFG_DESCTYPE_3			3
+
+static void exynos_ufs_fmp_init(struct ufs_hba *hba, struct exynos_ufs *ufs)
+{
+	struct blk_crypto_profile *profile = &hba->crypto_profile;
+	struct arm_smccc_res res;
+	int err;
+
+	/*
+	 * Check for the standard crypto support bit, since it's available even
+	 * though the rest of the interface to FMP is nonstandard.
+	 *
+	 * This check should have the effect of preventing the driver from
+	 * trying to use FMP on old Exynos SoCs that don't have FMP.
+	 */
+	if (!(ufshcd_readl(hba, REG_CONTROLLER_CAPABILITIES) &
+	      MASK_CRYPTO_SUPPORT))
+		return;
+
+	/*
+	 * The below sequence of SMC calls to enable FMP can be found in the
+	 * downstream driver source for gs101 and other Exynos-based SoCs.  It
+	 * is the only way to enable FMP that works on SoCs such as gs101 that
+	 * don't make the FMP registers accessible to Linux.  It probably works
+	 * on other Exynos-based SoCs too, and might even still be the only way
+	 * that works.  But this hasn't been properly tested, and this code is
+	 * mutually exclusive with exynos_ufs_config_smu().  So for now only
+	 * enable FMP support on SoCs with EXYNOS_UFS_OPT_UFSPR_SECURE.
+	 */
+	if (!(ufs->opts & EXYNOS_UFS_OPT_UFSPR_SECURE))
+		return;
+
+	/*
+	 * This call (which sets DESCTYPE to 0x3 in the FMPSECURITY0 register)
+	 * is needed to make the hardware use the larger PRDT entry size.
+	 */
+	BUILD_BUG_ON(sizeof(struct fmp_sg_entry) != 128);
+	arm_smccc_smc(SMC_CMD_FMP_SECURITY, 0, SMU_EMBEDDED, CFG_DESCTYPE_3,
+		      0, 0, 0, 0, &res);
+	if (res.a0) {
+		dev_warn(hba->dev,
+			 "SMC_CMD_FMP_SECURITY failed on init: %ld.  Disabling FMP support.\n",
+			 res.a0);
+		return;
+	}
+	ufshcd_set_sg_entry_size(hba, sizeof(struct fmp_sg_entry));
+
+	/*
+	 * This is needed to initialize FMP.  Without it, errors occur when
+	 * inline encryption is used.
+	 */
+	arm_smccc_smc(SMC_CMD_SMU, SMU_INIT, SMU_EMBEDDED, 0, 0, 0, 0, 0, &res);
+	if (res.a0) {
+		dev_err(hba->dev,
+			"SMC_CMD_SMU(SMU_INIT) failed: %ld.  Disabling FMP support.\n",
+			res.a0);
+		return;
+	}
+
+	/* Advertise crypto capabilities to the block layer. */
+	err = devm_blk_crypto_profile_init(hba->dev, profile, 0);
+	if (err) {
+		/* Only ENOMEM should be possible here. */
+		dev_err(hba->dev, "Failed to initialize crypto profile: %d\n",
+			err);
+		return;
+	}
+	profile->max_dun_bytes_supported = AES_BLOCK_SIZE;
+	profile->dev = hba->dev;
+	profile->modes_supported[BLK_ENCRYPTION_MODE_AES_256_XTS] =
+		DATA_UNIT_SIZE;
+
+	/* Advertise crypto support to ufshcd-core. */
+	hba->caps |= UFSHCD_CAP_CRYPTO;
+
+	/* Advertise crypto quirks to ufshcd-core. */
+	hba->quirks |= UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE |
+		       UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE |
+		       UFSHCD_QUIRK_KEYS_IN_PRDT;
+
+}
+
+static void exynos_ufs_fmp_resume(struct ufs_hba *hba)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_FMP_SECURITY, 0, SMU_EMBEDDED, CFG_DESCTYPE_3,
+		      0, 0, 0, 0, &res);
+	if (res.a0)
+		dev_err(hba->dev,
+			"SMC_CMD_FMP_SECURITY failed on resume: %ld\n", res.a0);
+
+	arm_smccc_smc(SMC_CMD_FMP_SMU_RESUME, 0, SMU_EMBEDDED, 0, 0, 0, 0, 0,
+		      &res);
+	if (res.a0)
+		dev_err(hba->dev,
+			"SMC_CMD_FMP_SMU_RESUME failed: %ld\n", res.a0);
+}
+
+static inline __be64 fmp_key_word(const u8 *key, int j)
+{
+	return cpu_to_be64(get_unaligned_le64(
+			key + AES_KEYSIZE_256 - (j + 1) * sizeof(u64)));
+}
+
+/* Fill the PRDT for a request according to the given encryption context. */
+static int exynos_ufs_fmp_fill_prdt(struct ufs_hba *hba,
+				    const struct bio_crypt_ctx *crypt_ctx,
+				    void *prdt, unsigned int num_segments)
+{
+	struct fmp_sg_entry *fmp_prdt = prdt;
+	const u8 *enckey = crypt_ctx->bc_key->raw;
+	const u8 *twkey = enckey + AES_KEYSIZE_256;
+	u64 dun_lo = crypt_ctx->bc_dun[0];
+	u64 dun_hi = crypt_ctx->bc_dun[1];
+	unsigned int i;
+
+	/* If FMP wasn't enabled, we shouldn't get any encrypted requests. */
+	if (WARN_ON_ONCE(!(hba->caps & UFSHCD_CAP_CRYPTO)))
+		return -EIO;
+
+	/* Configure FMP on each segment of the request. */
+	for (i = 0; i < num_segments; i++) {
+		struct fmp_sg_entry *prd = &fmp_prdt[i];
+		int j;
+
+		/* Each segment must be exactly one data unit. */
+		if (prd->base.size != cpu_to_le32(DATA_UNIT_SIZE - 1)) {
+			dev_err(hba->dev,
+				"data segment is misaligned for FMP\n");
+			return -EIO;
+		}
+
+		/* Set the algorithm and key length. */
+		prd->base.size |= cpu_to_le32((FMP_ALGO_MODE_AES_XTS << 28) |
+					      (FMP_KEYLEN_256BIT << 26));
+
+		/* Set the IV. */
+		prd->file_iv[0] = cpu_to_be64(dun_hi);
+		prd->file_iv[1] = cpu_to_be64(dun_lo);
+
+		/* Set the key. */
+		for (j = 0; j < AES_KEYSIZE_256 / sizeof(u64); j++) {
+			prd->file_enckey[j] = fmp_key_word(enckey, j);
+			prd->file_twkey[j] = fmp_key_word(twkey, j);
+		}
+
+		/* Increment the data unit number. */
+		dun_lo++;
+		if (dun_lo == 0)
+			dun_hi++;
+	}
+	return 0;
+}
+
+#else /* CONFIG_SCSI_UFS_CRYPTO */
+
+static void exynos_ufs_fmp_init(struct ufs_hba *hba, struct exynos_ufs *ufs)
+{
+}
+
+static void exynos_ufs_fmp_resume(struct ufs_hba *hba)
+{
+}
+
+#define exynos_ufs_fmp_fill_prdt NULL
+
+#endif /* !CONFIG_SCSI_UFS_CRYPTO */
+
 static int exynos_ufs_init(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
@@ -1198,6 +1423,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 
 	exynos_ufs_priv_init(hba, ufs);
 
+	exynos_ufs_fmp_init(hba, ufs);
+
 	if (ufs->drv_data->drv_init) {
 		ret = ufs->drv_data->drv_init(dev, ufs);
 		if (ret) {
@@ -1213,7 +1440,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	if (!(ufs->opts & EXYNOS_UFS_OPT_UFSPR_SECURE))
 		exynos_ufs_config_smu(ufs);
 
-	hba->host->dma_alignment = SZ_4K - 1;
+	hba->host->dma_alignment = DATA_UNIT_SIZE - 1;
 	return 0;
 
 out:
@@ -1332,7 +1559,7 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 		 * (ufshcd_async_scan()). Note: this callback may also be called
 		 * from other functions than ufshcd_init().
 		 */
-		hba->host->max_segment_size = SZ_4K;
+		hba->host->max_segment_size = DATA_UNIT_SIZE;
 
 		if (ufs->drv_data->pre_hce_enable) {
 			ret = ufs->drv_data->pre_hce_enable(ufs);
@@ -1432,7 +1659,7 @@ static int exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		phy_power_on(ufs->phy);
 
 	exynos_ufs_config_smu(ufs);
-
+	exynos_ufs_fmp_resume(hba);
 	return 0;
 }
 
@@ -1698,6 +1925,7 @@ static const struct ufs_hba_variant_ops ufs_hba_exynos_ops = {
 	.hibern8_notify			= exynos_ufs_hibern8_notify,
 	.suspend			= exynos_ufs_suspend,
 	.resume				= exynos_ufs_resume,
+	.fill_crypto_prdt		= exynos_ufs_fmp_fill_prdt,
 };
 
 static struct ufs_hba_variant_ops ufs_hba_exynosauto_vh_ops = {

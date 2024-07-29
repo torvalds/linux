@@ -195,9 +195,10 @@ static void sof_ipc4_dbg_audio_format(struct device *dev, struct sof_ipc4_pin_fo
 	for (i = 0; i < num_formats; i++) {
 		struct sof_ipc4_audio_format *fmt = &pin_fmt[i].audio_fmt;
 		dev_dbg(dev,
-			"Pin index #%d: %uHz, %ubit (ch_map %#x ch_cfg %u interleaving_style %u fmt_cfg %#x) buffer size %d\n",
-			pin_fmt[i].pin_index, fmt->sampling_frequency, fmt->bit_depth, fmt->ch_map,
-			fmt->ch_cfg, fmt->interleaving_style, fmt->fmt_cfg,
+			"Pin index #%d: %uHz, %ubit, %luch (ch_map %#x ch_cfg %u interleaving_style %u fmt_cfg %#x) buffer size %d\n",
+			pin_fmt[i].pin_index, fmt->sampling_frequency, fmt->bit_depth,
+			SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg),
+			fmt->ch_map, fmt->ch_cfg, fmt->interleaving_style, fmt->fmt_cfg,
 			pin_fmt[i].buffer_size);
 	}
 }
@@ -217,6 +218,14 @@ sof_ipc4_get_input_pin_audio_fmt(struct snd_sof_widget *swidget, int pin_index)
 	}
 
 	process = swidget->private;
+
+	/*
+	 * For process modules without base config extension, base module config
+	 * format is used for all input pins
+	 */
+	if (process->init_config != SOF_IPC4_MODULE_INIT_CONFIG_TYPE_BASE_CFG_WITH_EXT)
+		return &process->base_config.audio_fmt;
+
 	base_cfg_ext = process->base_config_ext;
 
 	/*
@@ -1349,7 +1358,13 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 		ipc4_copier = dai->private;
 
 		if (pipeline->use_chain_dma) {
-			pipeline->msg.primary = 0;
+			/*
+			 * Preserve the DMA Link ID and clear other bits since
+			 * the DMA Link ID is only configured once during
+			 * dai_config, other fields are expected to be 0 for
+			 * re-configuration
+			 */
+			pipeline->msg.primary &= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
 			pipeline->msg.extension = 0;
 		}
 
@@ -1422,7 +1437,7 @@ static int snd_sof_get_hw_config_params(struct snd_sof_dev *sdev, struct snd_sof
 
 static int
 snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
-			       bool single_format,
+			       bool single_bitdepth,
 			       struct snd_pcm_hw_params *params, u32 dai_index,
 			       u32 linktype, u8 dir, u32 **dst, u32 *len)
 {
@@ -1445,7 +1460,7 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		 * Look for 32-bit blob first instead of 16-bit if copier
 		 * supports multiple formats
 		 */
-		if (bit_depth == 16 && !single_format) {
+		if (bit_depth == 16 && !single_bitdepth) {
 			dev_dbg(sdev->dev, "Looking for 32-bit blob first for DMIC\n");
 			format_change = true;
 			bit_depth = 32;
@@ -1483,6 +1498,8 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 					   dir, dev_type);
 
 	if (!cfg) {
+		bool get_new_blob = false;
+
 		if (format_change) {
 			/*
 			 * The 32-bit blob was not found in NHLT table, try to
@@ -1490,7 +1507,20 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 			 */
 			bit_depth = params_width(params);
 			format_change = false;
+			get_new_blob = true;
+		} else if (linktype == SOF_DAI_INTEL_DMIC && !single_bitdepth) {
+			/*
+			 * The requested 32-bit blob (no format change for the
+			 * blob request) was not found in NHLT table, try to
+			 * look for 16-bit blob if the copier supports multiple
+			 * formats
+			 */
+			bit_depth = 16;
+			format_change = true;
+			get_new_blob = true;
+		}
 
+		if (get_new_blob) {
 			cfg = intel_nhlt_get_endpoint_blob(sdev->dev, ipc4_data->nhlt,
 							   dai_index, nhlt_type,
 							   bit_depth, bit_depth,
@@ -1513,8 +1543,8 @@ out:
 
 	if (format_change) {
 		/*
-		 * Update the params to reflect that we have loaded 32-bit blob
-		 * instead of the 16-bit.
+		 * Update the params to reflect that different blob was loaded
+		 * instead of the requested bit depth (16 -> 32 or 32 -> 16).
 		 * This information is going to be used by the caller to find
 		 * matching copier format on the dai side.
 		 */
@@ -1522,7 +1552,11 @@ out:
 
 		m = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		snd_mask_none(m);
-		snd_mask_set_format(m, SNDRV_PCM_FORMAT_S32_LE);
+		if (bit_depth == 16)
+			snd_mask_set_format(m, SNDRV_PCM_FORMAT_S16_LE);
+		else
+			snd_mask_set_format(m, SNDRV_PCM_FORMAT_S32_LE);
+
 	}
 
 	return 0;
@@ -1530,7 +1564,7 @@ out:
 #else
 static int
 snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
-			       bool single_format,
+			       bool single_bitdepth,
 			       struct snd_pcm_hw_params *params, u32 dai_index,
 			       u32 linktype, u8 dir, u32 **dst, u32 *len)
 {
@@ -1538,9 +1572,9 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 }
 #endif
 
-bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
-				      struct sof_ipc4_pin_format *pin_fmts,
-				      u32 pin_fmts_size)
+bool sof_ipc4_copier_is_single_bitdepth(struct snd_sof_dev *sdev,
+					struct sof_ipc4_pin_format *pin_fmts,
+					u32 pin_fmts_size)
 {
 	struct sof_ipc4_audio_format *fmt;
 	u32 valid_bits;
@@ -1564,14 +1598,65 @@ bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
 }
 
 static int
+sof_ipc4_adjust_params_to_dai_format(struct snd_sof_dev *sdev,
+				     struct snd_pcm_hw_params *params,
+				     struct sof_ipc4_pin_format *pin_fmts,
+				     u32 pin_fmts_size)
+{
+	u32 params_mask = BIT(SNDRV_PCM_HW_PARAM_RATE) |
+			  BIT(SNDRV_PCM_HW_PARAM_CHANNELS) |
+			  BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+	struct sof_ipc4_audio_format *fmt;
+	u32 rate, channels, valid_bits;
+	int i;
+
+	fmt = &pin_fmts[0].audio_fmt;
+	rate = fmt->sampling_frequency;
+	channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+	valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+	/* check if parameters in topology defined formats are the same */
+	for (i = 1; i < pin_fmts_size; i++) {
+		u32 val;
+
+		fmt = &pin_fmts[i].audio_fmt;
+
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_RATE)) {
+			val = fmt->sampling_frequency;
+			if (val != rate)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_RATE);
+		}
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_CHANNELS)) {
+			val = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+			if (val != channels)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_CHANNELS);
+		}
+		if (params_mask & BIT(SNDRV_PCM_HW_PARAM_FORMAT)) {
+			val = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+			if (val != valid_bits)
+				params_mask &= ~BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+		}
+	}
+
+	if (params_mask)
+		return sof_ipc4_update_hw_params(sdev, params,
+						 &pin_fmts[0].audio_fmt,
+						 params_mask);
+
+	return 0;
+}
+
+static int
 sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 			    struct snd_pcm_hw_params *params, int dir)
 {
 	struct sof_ipc4_available_audio_format *available_fmt;
 	struct snd_pcm_hw_params dai_params = *params;
 	struct sof_ipc4_copier_data *copier_data;
+	struct sof_ipc4_pin_format *pin_fmts;
 	struct sof_ipc4_copier *ipc4_copier;
-	bool single_format;
+	bool single_bitdepth;
+	u32 num_pin_fmts;
 	int ret;
 
 	ipc4_copier = dai->private;
@@ -1579,40 +1664,26 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 	available_fmt = &ipc4_copier->available_fmt;
 
 	/*
-	 * If the copier on the DAI side supports only single bit depth then
-	 * this depth (format) should be used to look for the NHLT blob (if
-	 * needed) and in case of capture this should be used for the input
-	 * format lookup
+	 * Fixup the params based on the format parameters of the DAI. If any
+	 * of the RATE, CHANNELS, bit depth is static among the formats then
+	 * narrow the params to only allow that specific parameter value.
 	 */
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-		single_format = sof_ipc4_copier_is_single_format(sdev,
-						available_fmt->output_pin_fmts,
-						available_fmt->num_output_formats);
-
-		/* Update the dai_params with the only supported format */
-		if (single_format) {
-			ret = sof_ipc4_update_hw_params(sdev, &dai_params,
-					&available_fmt->output_pin_fmts[0].audio_fmt,
-					BIT(SNDRV_PCM_HW_PARAM_FORMAT));
-			if (ret)
-				return ret;
-		}
+		pin_fmts = available_fmt->output_pin_fmts;
+		num_pin_fmts = available_fmt->num_output_formats;
 	} else {
-		single_format = sof_ipc4_copier_is_single_format(sdev,
-						available_fmt->input_pin_fmts,
-						available_fmt->num_input_formats);
-
-		/* Update the dai_params with the only supported format */
-		if (single_format) {
-			ret = sof_ipc4_update_hw_params(sdev, &dai_params,
-					&available_fmt->input_pin_fmts[0].audio_fmt,
-					BIT(SNDRV_PCM_HW_PARAM_FORMAT));
-			if (ret)
-				return ret;
-		}
+		pin_fmts = available_fmt->input_pin_fmts;
+		num_pin_fmts = available_fmt->num_input_formats;
 	}
 
-	ret = snd_sof_get_nhlt_endpoint_data(sdev, dai, single_format,
+	ret = sof_ipc4_adjust_params_to_dai_format(sdev, &dai_params, pin_fmts,
+						   num_pin_fmts);
+	if (ret)
+		return ret;
+
+	single_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev, pin_fmts,
+							     num_pin_fmts);
+	ret = snd_sof_get_nhlt_endpoint_data(sdev, dai, single_bitdepth,
 					     &dai_params,
 					     ipc4_copier->dai_index,
 					     ipc4_copier->dai_type, dir,
@@ -1647,7 +1718,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	u32 out_ref_rate, out_ref_channels;
 	u32 deep_buffer_dma_ms = 0;
 	int output_fmt_index;
-	bool single_output_format;
+	bool single_output_bitdepth;
 	int i;
 
 	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
@@ -1784,9 +1855,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		return ret;
 
 	/* set the reference params for output format selection */
-	single_output_format = sof_ipc4_copier_is_single_format(sdev,
-								available_fmt->output_pin_fmts,
-								available_fmt->num_output_formats);
+	single_output_bitdepth = sof_ipc4_copier_is_single_bitdepth(sdev,
+					available_fmt->output_pin_fmts,
+					available_fmt->num_output_formats);
 	switch (swidget->id) {
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_dai_out:
@@ -1798,7 +1869,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		out_ref_rate = in_fmt->sampling_frequency;
 		out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
 
-		if (!single_output_format)
+		if (!single_output_bitdepth)
 			out_ref_valid_bits =
 				SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
 		break;
@@ -1807,7 +1878,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	case snd_soc_dapm_dai_in:
 		out_ref_rate = params_rate(fe_params);
 		out_ref_channels = params_channels(fe_params);
-		if (!single_output_format) {
+		if (!single_output_bitdepth) {
 			out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
 			if (out_ref_valid_bits < 0)
 				return out_ref_valid_bits;
@@ -1825,7 +1896,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	 * if the output format is the same across all available output formats, choose
 	 * that as the reference.
 	 */
-	if (single_output_format) {
+	if (single_output_bitdepth) {
 		struct sof_ipc4_audio_format *out_fmt;
 
 		out_fmt = &available_fmt->output_pin_fmts[0].audio_fmt;
@@ -2804,7 +2875,7 @@ static void sof_ipc4_put_queue_id(struct snd_sof_widget *swidget, int queue_id,
 static int sof_ipc4_set_copier_sink_format(struct snd_sof_dev *sdev,
 					   struct snd_sof_widget *src_widget,
 					   struct snd_sof_widget *sink_widget,
-					   int sink_id)
+					   struct snd_sof_route *sroute)
 {
 	struct sof_ipc4_copier_config_set_sink_format format;
 	const struct sof_ipc_ops *iops = sdev->ipc->ops;
@@ -2812,9 +2883,6 @@ static int sof_ipc4_set_copier_sink_format(struct snd_sof_dev *sdev,
 	const struct sof_ipc4_audio_format *pin_fmt;
 	struct sof_ipc4_fw_module *fw_module;
 	struct sof_ipc4_msg msg = {{ 0 }};
-
-	dev_dbg(sdev->dev, "%s set copier sink %d format\n",
-		src_widget->widget->name, sink_id);
 
 	if (WIDGET_IS_DAI(src_widget->id)) {
 		struct snd_sof_dai *dai = src_widget->private;
@@ -2826,13 +2894,15 @@ static int sof_ipc4_set_copier_sink_format(struct snd_sof_dev *sdev,
 
 	fw_module = src_widget->module_info;
 
-	format.sink_id = sink_id;
+	format.sink_id = sroute->src_queue_id;
 	memcpy(&format.source_fmt, &src_config->audio_fmt, sizeof(format.source_fmt));
 
-	pin_fmt = sof_ipc4_get_input_pin_audio_fmt(sink_widget, sink_id);
+	pin_fmt = sof_ipc4_get_input_pin_audio_fmt(sink_widget, sroute->dst_queue_id);
 	if (!pin_fmt) {
-		dev_err(sdev->dev, "Unable to get pin %d format for %s",
-			sink_id, sink_widget->widget->name);
+		dev_err(sdev->dev,
+			"Failed to get input audio format of %s:%d for output of %s:%d\n",
+			sink_widget->widget->name, sroute->dst_queue_id,
+			src_widget->widget->name, sroute->src_queue_id);
 		return -EINVAL;
 	}
 
@@ -2890,7 +2960,8 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	sroute->src_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
 						     SOF_PIN_TYPE_OUTPUT);
 	if (sroute->src_queue_id < 0) {
-		dev_err(sdev->dev, "failed to get queue ID for source widget: %s\n",
+		dev_err(sdev->dev,
+			"failed to get src_queue_id ID from source widget %s\n",
 			src_widget->widget->name);
 		return sroute->src_queue_id;
 	}
@@ -2898,7 +2969,8 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	sroute->dst_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
 						     SOF_PIN_TYPE_INPUT);
 	if (sroute->dst_queue_id < 0) {
-		dev_err(sdev->dev, "failed to get queue ID for sink widget: %s\n",
+		dev_err(sdev->dev,
+			"failed to get dst_queue_id ID from sink widget %s\n",
 			sink_widget->widget->name);
 		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
 				      SOF_PIN_TYPE_OUTPUT);
@@ -2907,10 +2979,11 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 
 	/* Pin 0 format is already set during copier module init */
 	if (sroute->src_queue_id > 0 && WIDGET_IS_COPIER(src_widget->id)) {
-		ret = sof_ipc4_set_copier_sink_format(sdev, src_widget, sink_widget,
-						      sroute->src_queue_id);
+		ret = sof_ipc4_set_copier_sink_format(sdev, src_widget,
+						      sink_widget, sroute);
 		if (ret < 0) {
-			dev_err(sdev->dev, "failed to set sink format for %s source queue ID %d\n",
+			dev_err(sdev->dev,
+				"failed to set sink format for source %s:%d\n",
 				src_widget->widget->name, sroute->src_queue_id);
 			goto out;
 		}
@@ -3028,8 +3101,14 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 		return 0;
 
 	if (pipeline->use_chain_dma) {
-		pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
-		pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+		/*
+		 * Only configure the DMA Link ID for ChainDMA when this op is
+		 * invoked with SOF_DAI_CONFIG_FLAGS_HW_PARAMS
+		 */
+		if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) {
+			pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
+			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+		}
 		return 0;
 	}
 
@@ -3130,7 +3209,7 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
-static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type)
+static int sof_ipc4_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int param_type)
 {
 	struct sof_ipc4_copier *ipc4_copier = dai->private;
 	struct snd_soc_tplg_hw_config *hw_config;
@@ -3169,13 +3248,15 @@ static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_SSP:
-		switch (clk_type) {
-		case SOF_DAI_CLK_INTEL_SSP_MCLK:
+		switch (param_type) {
+		case SOF_DAI_PARAM_INTEL_SSP_MCLK:
 			return le32_to_cpu(hw_config->mclk_rate);
-		case SOF_DAI_CLK_INTEL_SSP_BCLK:
+		case SOF_DAI_PARAM_INTEL_SSP_BCLK:
 			return le32_to_cpu(hw_config->bclk_rate);
+		case SOF_DAI_PARAM_INTEL_SSP_TDM_SLOTS:
+			return le32_to_cpu(hw_config->tdm_slots);
 		default:
-			dev_err(sdev->dev, "Invalid clk type for SSP %d\n", clk_type);
+			dev_err(sdev->dev, "invalid SSP param %d\n", param_type);
 			break;
 		}
 		break;
@@ -3238,29 +3319,22 @@ static int sof_ipc4_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link
 	return 0;
 }
 
-static enum sof_tokens common_copier_token_list[] = {
+/* Tokens needed for different copier variants (aif, dai and buffer) */
+static enum sof_tokens copier_token_list[] = {
 	SOF_COMP_TOKENS,
+	SOF_COPIER_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
 	SOF_IN_AUDIO_FORMAT_TOKENS,
 	SOF_OUT_AUDIO_FORMAT_TOKENS,
-	SOF_COPIER_DEEP_BUFFER_TOKENS,
-	SOF_COPIER_TOKENS,
 	SOF_COMP_EXT_TOKENS,
+
+	SOF_COPIER_DEEP_BUFFER_TOKENS,	/* for AIF copier */
+	SOF_DAI_TOKENS,			/* for DAI copier */
 };
 
 static enum sof_tokens pipeline_token_list[] = {
 	SOF_SCHED_TOKENS,
 	SOF_PIPELINE_TOKENS,
-};
-
-static enum sof_tokens dai_token_list[] = {
-	SOF_COMP_TOKENS,
-	SOF_AUDIO_FMT_NUM_TOKENS,
-	SOF_IN_AUDIO_FORMAT_TOKENS,
-	SOF_OUT_AUDIO_FORMAT_TOKENS,
-	SOF_COPIER_TOKENS,
-	SOF_DAI_TOKENS,
-	SOF_COMP_EXT_TOKENS,
 };
 
 static enum sof_tokens pga_token_list[] = {
@@ -3299,23 +3373,23 @@ static enum sof_tokens process_token_list[] = {
 
 static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TYPE_COUNT] = {
 	[snd_soc_dapm_aif_in] =  {sof_ipc4_widget_setup_pcm, sof_ipc4_widget_free_comp_pcm,
-				  common_copier_token_list, ARRAY_SIZE(common_copier_token_list),
+				  copier_token_list, ARRAY_SIZE(copier_token_list),
 				  NULL, sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
 	[snd_soc_dapm_aif_out] = {sof_ipc4_widget_setup_pcm, sof_ipc4_widget_free_comp_pcm,
-				  common_copier_token_list, ARRAY_SIZE(common_copier_token_list),
+				  copier_token_list, ARRAY_SIZE(copier_token_list),
 				  NULL, sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
 	[snd_soc_dapm_dai_in] = {sof_ipc4_widget_setup_comp_dai, sof_ipc4_widget_free_comp_dai,
-				 dai_token_list, ARRAY_SIZE(dai_token_list), NULL,
+				 copier_token_list, ARRAY_SIZE(copier_token_list), NULL,
 				 sof_ipc4_prepare_copier_module,
 				 sof_ipc4_unprepare_copier_module},
 	[snd_soc_dapm_dai_out] = {sof_ipc4_widget_setup_comp_dai, sof_ipc4_widget_free_comp_dai,
-				  dai_token_list, ARRAY_SIZE(dai_token_list), NULL,
+				  copier_token_list, ARRAY_SIZE(copier_token_list), NULL,
 				  sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
 	[snd_soc_dapm_buffer] = {sof_ipc4_widget_setup_pcm, sof_ipc4_widget_free_comp_pcm,
-				 common_copier_token_list, ARRAY_SIZE(common_copier_token_list),
+				 copier_token_list, ARRAY_SIZE(copier_token_list),
 				 NULL, sof_ipc4_prepare_copier_module,
 				 sof_ipc4_unprepare_copier_module},
 	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline,
@@ -3352,7 +3426,7 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.route_free = sof_ipc4_route_free,
 	.dai_config = sof_ipc4_dai_config,
 	.parse_manifest = sof_ipc4_parse_manifest,
-	.dai_get_clk = sof_ipc4_dai_get_clk,
+	.dai_get_param = sof_ipc4_dai_get_param,
 	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
 	.link_setup = sof_ipc4_link_setup,
 };

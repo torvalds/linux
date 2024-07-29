@@ -31,7 +31,7 @@ static void mdev_remove(struct device *dev)
 		drv->remove(to_mdev_device(dev));
 }
 
-static int mdev_match(struct device *dev, struct device_driver *drv)
+static int mdev_match(struct device *dev, const struct device_driver *drv)
 {
 	/*
 	 * No drivers automatically match. Drivers are only bound by explicit

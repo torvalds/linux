@@ -1354,4 +1354,6 @@ static struct platform_driver clk_mt8188_topck_drv = {
 	},
 };
 module_platform_driver(clk_mt8188_topck_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 top clock generators driver");
 MODULE_LICENSE("GPL");

@@ -329,8 +329,9 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id)
 
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	ring->no_scheduler = true;
-	snprintf(ring->name, sizeof(ring->name), "kiq_%d.%d.%d.%d",
-		 xcc_id, ring->me, ring->pipe, ring->queue);
+	snprintf(ring->name, sizeof(ring->name), "kiq_%hhu.%hhu.%hhu.%hhu",
+		 (unsigned char)xcc_id, (unsigned char)ring->me,
+		 (unsigned char)ring->pipe, (unsigned char)ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
@@ -505,9 +506,6 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
-	struct amdgpu_hive_info *hive;
-	struct amdgpu_ras *ras;
-	int hive_ras_recovery = 0;
 	int i, r = 0;
 	int j;
 
@@ -532,15 +530,9 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	 * This is workaround: only skip kiq_ring test
 	 * during ras recovery in suspend stage for gfx9.4.3
 	 */
-	hive = amdgpu_get_xgmi_hive(adev);
-	if (hive) {
-		hive_ras_recovery = atomic_read(&hive->ras_recovery);
-		amdgpu_put_xgmi_hive(hive);
-	}
-
-	ras = amdgpu_ras_get_context(adev);
-	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) &&
-		ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery)) {
+	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
+	    amdgpu_ras_in_recovery(adev)) {
 		spin_unlock(&kiq->ring_lock);
 		return 0;
 	}
@@ -598,12 +590,53 @@ int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 	return set_resource_bit;
 }
 
+static int amdgpu_gfx_mes_enable_kcq(struct amdgpu_device *adev, int xcc_id)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+	struct amdgpu_ring *kiq_ring = &kiq->ring;
+	uint64_t queue_mask = ~0ULL;
+	int r, i, j;
+
+	amdgpu_device_flush_hdp(adev, NULL);
+
+	if (!adev->enable_uni_mes) {
+		spin_lock(&kiq->ring_lock);
+		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->set_resources_size);
+		if (r) {
+			dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
+			spin_unlock(&kiq->ring_lock);
+			return r;
+		}
+
+		kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
+		r = amdgpu_ring_test_helper(kiq_ring);
+		spin_unlock(&kiq->ring_lock);
+		if (r)
+			dev_err(adev->dev, "KIQ failed to set resources\n");
+	}
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		j = i + xcc_id * adev->gfx.num_compute_rings;
+		r = amdgpu_mes_map_legacy_queue(adev,
+						&adev->gfx.compute_ring[j]);
+		if (r) {
+			dev_err(adev->dev, "failed to map compute queue\n");
+			return r;
+		}
+	}
+
+	return 0;
+}
+
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	uint64_t queue_mask = 0;
 	int r, i, j;
+
+	if (adev->enable_mes)
+		return amdgpu_gfx_mes_enable_kcq(adev, xcc_id);
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
 		return -EINVAL;
@@ -623,9 +656,10 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		queue_mask |= (1ull << amdgpu_queue_mask_bit_to_set_resource_bit(adev, i));
 	}
 
-	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
-							kiq_ring->queue);
 	amdgpu_device_flush_hdp(adev, NULL);
+
+	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
+		 kiq_ring->queue);
 
 	spin_lock(&kiq->ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
@@ -636,9 +670,6 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		spin_unlock(&kiq->ring_lock);
 		return r;
 	}
-
-	if (adev->enable_mes)
-		queue_mask = ~0ULL;
 
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
@@ -665,6 +696,20 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		return -EINVAL;
 
 	amdgpu_device_flush_hdp(adev, NULL);
+
+	if (adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_gfx_rings;
+			r = amdgpu_mes_map_legacy_queue(adev,
+							&adev->gfx.gfx_ring[j]);
+			if (r) {
+				DRM_ERROR("failed to map gfx queue\n");
+				return r;
+			}
+		}
+
+		return 0;
+	}
 
 	spin_lock(&kiq->ring_lock);
 	/* No need to map kcq on the slave */

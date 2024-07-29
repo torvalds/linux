@@ -1548,6 +1548,8 @@ static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
 	p->timer = DEVFREQ_TIMER_DELAYED;
 	d->upthreshold = 70;
 	d->downdifferential = 5;
+
+	hba->clk_scaling.suspend_on_no_request = true;
 }
 #else
 static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
@@ -1883,4 +1885,5 @@ static struct platform_driver ufs_qcom_pltform = {
 };
 module_platform_driver(ufs_qcom_pltform);
 
+MODULE_DESCRIPTION("Qualcomm UFS host controller driver");
 MODULE_LICENSE("GPL v2");

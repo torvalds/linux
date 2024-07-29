@@ -1551,7 +1551,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->dev.parent = &dd->pcidev->dev;
 
 	snprintf(ibdev->node_desc, sizeof(ibdev->node_desc),
-		 "Intel Infiniband HCA %s", init_utsname()->nodename);
+		 "Intel Infiniband HCA %.42s", init_utsname()->nodename);
 
 	/*
 	 * Fill in rvt info object.

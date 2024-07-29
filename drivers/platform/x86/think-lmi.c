@@ -1508,7 +1508,7 @@ static struct tlmi_pwd_setting *tlmi_create_auth(const char *pwd_type,
 	if (!new_pwd)
 		return NULL;
 
-	strscpy(new_pwd->kbdlang, "us", TLMI_LANG_MAXLEN);
+	strscpy(new_pwd->kbdlang, "us");
 	new_pwd->encoding = TLMI_ENCODING_ASCII;
 	new_pwd->pwd_type = pwd_type;
 	new_pwd->role = pwd_role;
@@ -1582,7 +1582,7 @@ static int tlmi_analyze(void)
 			goto fail_clear_attr;
 		}
 		setting->index = i;
-		strscpy(setting->display_name, item, TLMI_SETTINGS_MAXLEN);
+		strscpy(setting->display_name, item);
 		/* If BIOS selections supported, load those */
 		if (tlmi_priv.can_get_bios_selections) {
 			ret = tlmi_get_bios_selections(setting->display_name,

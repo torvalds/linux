@@ -301,10 +301,10 @@ static int ipu6_isys_stream_start(struct ipu6_isys_video *av,
 out_requeue:
 	if (bl && bl->nbufs)
 		ipu6_isys_buffer_list_queue(bl,
-					    (IPU6_ISYS_BUFFER_LIST_FL_INCOMING |
-					     error) ?
+					    IPU6_ISYS_BUFFER_LIST_FL_INCOMING |
+					    (error ?
 					    IPU6_ISYS_BUFFER_LIST_FL_SET_STATE :
-					    0, error ? VB2_BUF_STATE_ERROR :
+					     0), error ? VB2_BUF_STATE_ERROR :
 					    VB2_BUF_STATE_QUEUED);
 	flush_firmware_streamon_fail(stream);
 
@@ -551,7 +551,6 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		stream->nr_queues);
 
 	list_add(&aq->node, &stream->queues);
-	ipu6_isys_set_csi2_streams_status(av, true);
 	ipu6_isys_configure_stream_watermark(av, true);
 	ipu6_isys_update_stream_watermark(av, true);
 
@@ -597,8 +596,6 @@ static void stop_streaming(struct vb2_queue *q)
 	struct ipu6_isys_queue *aq = vb2_queue_to_isys_queue(q);
 	struct ipu6_isys_video *av = ipu6_isys_queue_to_video(aq);
 	struct ipu6_isys_stream *stream = av->stream;
-
-	ipu6_isys_set_csi2_streams_status(av, false);
 
 	mutex_lock(&stream->mutex);
 

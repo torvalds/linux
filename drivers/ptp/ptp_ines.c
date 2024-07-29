@@ -556,7 +556,7 @@ static bool ines_timestamp_expired(struct ines_timestamp *ts)
 }
 
 static int ines_ts_info(struct mii_timestamper *mii_ts,
-			struct ethtool_ts_info *info)
+			struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |

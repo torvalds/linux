@@ -50,4 +50,6 @@ static struct platform_driver clk_mt8365_venc_drv = {
 	},
 };
 module_platform_driver(clk_mt8365_venc_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8365 Video Encoders clocks driver");
 MODULE_LICENSE("GPL");

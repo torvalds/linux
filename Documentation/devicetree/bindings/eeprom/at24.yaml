@@ -18,7 +18,9 @@ select:
   properties:
     compatible:
       contains:
-        pattern: "^atmel,(24(c|cs|mac)[0-9]+|spd)$"
+        anyOf:
+          - pattern: "^atmel,(24(c|cs|mac)[0-9]+|spd)$"
+          - enum: ["microchip,24aa025e48", "microchip,24aa025e64"]
   required:
     - compatible
 
@@ -103,9 +105,6 @@ properties:
       # These are special cases that don't conform to the above pattern.
       # Each requires a standard at24 model as fallback.
       - items:
-          - const: belling,bl24c16a
-          - const: atmel,24c16
-      - items:
           - enum:
               - rohm,br24g01
               - rohm,br24t01
@@ -122,16 +121,25 @@ properties:
               - rohm,br24g04
           - const: atmel,24c04
       - items:
-          - const: renesas,r1ex24016
+          - enum:
+              - belling,bl24c16a
+              - renesas,r1ex24016
           - const: atmel,24c16
       - items:
           - const: giantec,gt24c32a
           - const: atmel,24c32
       - items:
+          - const: onnn,n24s64b
+          - const: atmel,24c64
+      - items:
           - enum:
               - renesas,r1ex24128
               - samsung,s524ad0xd1
           - const: atmel,24c128
+      - items:
+          - const: microchip,24aa025e48
+      - items:
+          - const: microchip,24aa025e64
       - pattern: '^atmel,24c(32|64)d-wl$' # Actual vendor is st
 
   label:

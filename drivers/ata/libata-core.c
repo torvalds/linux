@@ -86,7 +86,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
-atomic_t ata_print_id = ATOMIC_INIT(0);
+static DEFINE_IDA(ata_ida);
 
 #ifdef CONFIG_ATA_FORCE
 struct ata_force_param {
@@ -4136,8 +4136,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "PIONEER BD-RW   BDR-207M",	NULL,	ATA_HORKAGE_NOLPM },
 	{ "PIONEER BD-RW   BDR-205",	NULL,	ATA_HORKAGE_NOLPM },
 
-	/* Crucial BX100 SSD 500GB has broken LPM support */
-	{ "CT500BX100SSD1",		NULL,	ATA_HORKAGE_NOLPM },
+	/* Crucial devices with broken LPM support */
+	{ "CT*0BX*00SSD1",		NULL,	ATA_HORKAGE_NOLPM },
 
 	/* 512GB MX100 with MU01 firmware has both queued TRIM and LPM issues */
 	{ "Crucial_CT512MX100*",	"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
@@ -4154,6 +4154,12 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Crucial_CT960M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
 						ATA_HORKAGE_ZERO_AFTER_TRIM |
 						ATA_HORKAGE_NOLPM },
+
+	/* AMD Radeon devices with broken LPM support */
+	{ "R3SL240G",			NULL,	ATA_HORKAGE_NOLPM },
+
+	/* Apacer models with LPM issues */
+	{ "Apacer AS340*",		NULL,	ATA_HORKAGE_NOLPM },
 
 	/* These specific Samsung models/firmware-revs do not handle LPM well */
 	{ "SAMSUNG MZMPC128HBFU-000MV", "CXM14M1Q", ATA_HORKAGE_NOLPM },
@@ -4794,8 +4800,16 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
+	/*
+	 * rtf may already be filled (e.g. for successful NCQ commands).
+	 * If that is the case, we have nothing to do.
+	 */
+	if (qc->flags & ATA_QCFLAG_RTF_FILLED)
+		return;
+
 	qc->result_tf.flags = qc->tf.flags;
 	ap->ops->qc_fill_rtf(qc);
+	qc->flags |= ATA_QCFLAG_RTF_FILLED;
 }
 
 static void ata_verify_xfer(struct ata_queued_cmd *qc)
@@ -5449,6 +5463,7 @@ int sata_link_init_spd(struct ata_link *link)
 struct ata_port *ata_port_alloc(struct ata_host *host)
 {
 	struct ata_port *ap;
+	int id;
 
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	if (!ap)
@@ -5456,8 +5471,12 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	ap->pflags |= ATA_PFLAG_INITIALIZING | ATA_PFLAG_FROZEN;
 	ap->lock = &host->lock;
-	ap->print_id = -1;
-	ap->local_port_no = -1;
+	id = ida_alloc_min(&ata_ida, 1, GFP_KERNEL);
+	if (id < 0) {
+		kfree(ap);
+		return NULL;
+	}
+	ap->print_id = id;
 	ap->host = host;
 	ap->dev = host->dev;
 
@@ -5482,6 +5501,20 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	return ap;
 }
+EXPORT_SYMBOL_GPL(ata_port_alloc);
+
+void ata_port_free(struct ata_port *ap)
+{
+	if (!ap)
+		return;
+
+	kfree(ap->pmp_link);
+	kfree(ap->slave_link);
+	kfree(ap->ncq_sense_buf);
+	ida_free(&ata_ida, ap->print_id);
+	kfree(ap);
+}
+EXPORT_SYMBOL_GPL(ata_port_free);
 
 static void ata_devres_release(struct device *gendev, void *res)
 {
@@ -5509,12 +5542,7 @@ static void ata_host_release(struct kref *kref)
 	int i;
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		kfree(ap->pmp_link);
-		kfree(ap->slave_link);
-		kfree(ap->ncq_sense_buf);
-		kfree(ap);
+		ata_port_free(host->ports[i]);
 		host->ports[i] = NULL;
 	}
 	kfree(host);
@@ -5534,16 +5562,11 @@ EXPORT_SYMBOL_GPL(ata_host_put);
 /**
  *	ata_host_alloc - allocate and init basic ATA host resources
  *	@dev: generic device this host is associated with
- *	@max_ports: maximum number of ATA ports associated with this host
+ *	@n_ports: the number of ATA ports associated with this host
  *
  *	Allocate and initialize basic ATA host resources.  LLD calls
  *	this function to allocate a host, initializes it fully and
  *	attaches it using ata_host_register().
- *
- *	@max_ports ports are allocated and host->n_ports is
- *	initialized to @max_ports.  The caller is allowed to decrease
- *	host->n_ports before calling ata_host_register().  The unused
- *	ports will be automatically freed on registration.
  *
  *	RETURNS:
  *	Allocate ATA host on success, NULL on failure.
@@ -5551,7 +5574,7 @@ EXPORT_SYMBOL_GPL(ata_host_put);
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  */
-struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
+struct ata_host *ata_host_alloc(struct device *dev, int n_ports)
 {
 	struct ata_host *host;
 	size_t sz;
@@ -5559,13 +5582,15 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	void *dr;
 
 	/* alloc a container for our list of ATA ports (buses) */
-	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
+	sz = sizeof(struct ata_host) + n_ports * sizeof(void *);
 	host = kzalloc(sz, GFP_KERNEL);
 	if (!host)
 		return NULL;
 
-	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		goto err_free;
+	if (!devres_open_group(dev, NULL, GFP_KERNEL)) {
+		kfree(host);
+		return NULL;
+	}
 
 	dr = devres_alloc(ata_devres_release, 0, GFP_KERNEL);
 	if (!dr)
@@ -5577,11 +5602,11 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	spin_lock_init(&host->lock);
 	mutex_init(&host->eh_mutex);
 	host->dev = dev;
-	host->n_ports = max_ports;
+	host->n_ports = n_ports;
 	kref_init(&host->kref);
 
 	/* allocate ports bound to this host */
-	for (i = 0; i < max_ports; i++) {
+	for (i = 0; i < n_ports; i++) {
 		struct ata_port *ap;
 
 		ap = ata_port_alloc(host);
@@ -5597,8 +5622,6 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 
  err_out:
 	devres_release_group(dev, NULL);
- err_free:
-	kfree(host);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(ata_host_alloc);
@@ -5890,19 +5913,6 @@ int ata_host_register(struct ata_host *host, const struct scsi_host_template *sh
 		dev_err(host->dev, "BUG: trying to register unstarted host\n");
 		WARN_ON(1);
 		return -EINVAL;
-	}
-
-	/* Blow away unused ports.  This happens when LLD can't
-	 * determine the exact number of ports to allocate at
-	 * allocation time.
-	 */
-	for (i = host->n_ports; host->ports[i]; i++)
-		kfree(host->ports[i]);
-
-	/* give ports names and add SCSI hosts */
-	for (i = 0; i < host->n_ports; i++) {
-		host->ports[i]->print_id = atomic_inc_return(&ata_print_id);
-		host->ports[i]->local_port_no = i + 1;
 	}
 
 	/* Create associated sysfs transport objects  */

@@ -353,9 +353,10 @@ static int set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
 }
 
 int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
-		       struct ib_udata *udata)
+		       struct uverbs_attr_bundle *attrs)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct hns_roce_ib_create_cq_resp resp = {};
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
 	struct ib_device *ibdev = &hr_dev->ib_dev;

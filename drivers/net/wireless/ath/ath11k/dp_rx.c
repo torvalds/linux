@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/ieee80211.h>
@@ -311,7 +311,7 @@ static void ath11k_dp_service_mon_ring(struct timer_list *t)
 	struct ath11k_base *ab = from_timer(ab, t, mon_reap_timer);
 	int i;
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++)
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++)
 		ath11k_dp_rx_process_mon_rings(ab, i, NULL, DP_MON_SERVICE_BUDGET);
 
 	mod_timer(&ab->mon_reap_timer, jiffies +
@@ -324,7 +324,7 @@ static int ath11k_dp_purge_mon_ring(struct ath11k_base *ab)
 	unsigned long timeout = jiffies + msecs_to_jiffies(DP_MON_PURGE_TIMEOUT_MS);
 
 	do {
-		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++)
+		for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++)
 			reaped += ath11k_dp_rx_process_mon_rings(ab, i,
 								 NULL,
 								 DP_MON_SERVICE_BUDGET);
@@ -468,7 +468,7 @@ static int ath11k_dp_rxdma_pdev_buf_free(struct ath11k *ar)
 	rx_ring = &dp->rxdma_mon_buf_ring;
 	ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		rx_ring = &dp->rx_mon_status_refill_ring[i];
 		ath11k_dp_rxdma_buf_ring_free(ar, rx_ring);
 	}
@@ -506,7 +506,7 @@ static int ath11k_dp_rxdma_pdev_buf_setup(struct ath11k *ar)
 		ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_BUF);
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		rx_ring = &dp->rx_mon_status_refill_ring[i];
 		ath11k_dp_rxdma_ring_buf_setup(ar, rx_ring, HAL_RXDMA_MONITOR_STATUS);
 	}
@@ -522,7 +522,7 @@ static void ath11k_dp_rx_pdev_srng_free(struct ath11k *ar)
 
 	ath11k_dp_srng_cleanup(ab, &dp->rx_refill_buf_ring.refill_buf_ring);
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		if (ab->hw_params.rx_mac_buf_ring)
 			ath11k_dp_srng_cleanup(ab, &dp->rx_mac_buf_ring[i]);
 
@@ -585,7 +585,7 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 	}
 
 	if (ar->ab->hw_params.rx_mac_buf_ring) {
-		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 			ret = ath11k_dp_srng_setup(ar->ab,
 						   &dp->rx_mac_buf_ring[i],
 						   HAL_RXDMA_BUF, 1,
@@ -598,7 +598,7 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 		}
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ret = ath11k_dp_srng_setup(ar->ab, &dp->rxdma_err_dst_ring[i],
 					   HAL_RXDMA_DST, 0, dp->mac_id + i,
 					   DP_RXDMA_ERR_DST_RING_SIZE);
@@ -608,7 +608,7 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 		}
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		srng = &dp->rx_mon_status_refill_ring[i].refill_buf_ring;
 		ret = ath11k_dp_srng_setup(ar->ab,
 					   srng,
@@ -1877,8 +1877,7 @@ static void ath11k_dp_rx_h_csum_offload(struct ath11k *ar, struct sk_buff *msdu)
 			  CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
 }
 
-static int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar,
-				       enum hal_encrypt_type enctype)
+int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar, enum hal_encrypt_type enctype)
 {
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
@@ -2990,11 +2989,52 @@ ath11k_dp_rx_mon_update_status_buf_state(struct ath11k_mon_data *pmon,
 	}
 }
 
+static enum dp_mon_status_buf_state
+ath11k_dp_rx_mon_buf_done(struct ath11k_base *ab, struct hal_srng *srng,
+			  struct dp_rxdma_ring *rx_ring)
+{
+	struct ath11k_skb_rxcb *rxcb;
+	struct hal_tlv_hdr *tlv;
+	struct sk_buff *skb;
+	void *status_desc;
+	dma_addr_t paddr;
+	u32 cookie;
+	int buf_id;
+	u8 rbm;
+
+	status_desc = ath11k_hal_srng_src_next_peek(ab, srng);
+	if (!status_desc)
+		return DP_MON_STATUS_NO_DMA;
+
+	ath11k_hal_rx_buf_addr_info_get(status_desc, &paddr, &cookie, &rbm);
+
+	buf_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_BUF_ID, cookie);
+
+	spin_lock_bh(&rx_ring->idr_lock);
+	skb = idr_find(&rx_ring->bufs_idr, buf_id);
+	spin_unlock_bh(&rx_ring->idr_lock);
+
+	if (!skb)
+		return DP_MON_STATUS_NO_DMA;
+
+	rxcb = ATH11K_SKB_RXCB(skb);
+	dma_sync_single_for_cpu(ab->dev, rxcb->paddr,
+				skb->len + skb_tailroom(skb),
+				DMA_FROM_DEVICE);
+
+	tlv = (struct hal_tlv_hdr *)skb->data;
+	if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) != HAL_RX_STATUS_BUFFER_DONE)
+		return DP_MON_STATUS_NO_DMA;
+
+	return DP_MON_STATUS_REPLINISH;
+}
+
 static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 					     int *budget, struct sk_buff_head *skb_list)
 {
 	struct ath11k *ar;
 	const struct ath11k_hw_hal_params *hal_params;
+	enum dp_mon_status_buf_state reap_status;
 	struct ath11k_pdev_dp *dp;
 	struct dp_rxdma_ring *rx_ring;
 	struct ath11k_mon_data *pmon;
@@ -3057,15 +3097,38 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 				ath11k_warn(ab, "mon status DONE not set %lx, buf_id %d\n",
 					    FIELD_GET(HAL_TLV_HDR_TAG,
 						      tlv->tl), buf_id);
-				/* If done status is missing, hold onto status
-				 * ring until status is done for this status
-				 * ring buffer.
-				 * Keep HP in mon_status_ring unchanged,
-				 * and break from here.
-				 * Check status for same buffer for next time
+				/* RxDMA status done bit might not be set even
+				 * though tp is moved by HW.
 				 */
-				pmon->buf_state = DP_MON_STATUS_NO_DMA;
-				break;
+
+				/* If done status is missing:
+				 * 1. As per MAC team's suggestion,
+				 *    when HP + 1 entry is peeked and if DMA
+				 *    is not done and if HP + 2 entry's DMA done
+				 *    is set. skip HP + 1 entry and
+				 *    start processing in next interrupt.
+				 * 2. If HP + 2 entry's DMA done is not set,
+				 *    poll onto HP + 1 entry DMA done to be set.
+				 *    Check status for same buffer for next time
+				 *    dp_rx_mon_status_srng_process
+				 */
+
+				reap_status = ath11k_dp_rx_mon_buf_done(ab, srng,
+									rx_ring);
+				if (reap_status == DP_MON_STATUS_NO_DMA)
+					continue;
+
+				spin_lock_bh(&rx_ring->idr_lock);
+				idr_remove(&rx_ring->bufs_idr, buf_id);
+				spin_unlock_bh(&rx_ring->idr_lock);
+
+				dma_unmap_single(ab->dev, rxcb->paddr,
+						 skb->len + skb_tailroom(skb),
+						 DMA_FROM_DEVICE);
+
+				dev_kfree_skb_any(skb);
+				pmon->buf_state = DP_MON_STATUS_REPLINISH;
+				goto move_next;
 			}
 
 			spin_lock_bh(&rx_ring->idr_lock);
@@ -4391,7 +4454,7 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 	}
 
 	if (ab->hw_params.rx_mac_buf_ring) {
-		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 			ring_id = dp->rx_mac_buf_ring[i].ring_id;
 			ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id,
 							  mac_id + i, HAL_RXDMA_BUF);
@@ -4403,7 +4466,7 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 		}
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = dp->rxdma_err_dst_ring[i].ring_id;
 		ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id,
 						  mac_id + i, HAL_RXDMA_DST);
@@ -4443,7 +4506,7 @@ int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
 	}
 
 config_refill_ring:
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_srng_setup(ab, ring_id, mac_id + i,
 						  HAL_RXDMA_MONITOR_STATUS);

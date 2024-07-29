@@ -25,7 +25,7 @@
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
 #include "xe_res_cursor.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 
@@ -93,6 +93,20 @@ bool xe_bo_is_vram(struct xe_bo *bo)
 bool xe_bo_is_stolen(struct xe_bo *bo)
 {
 	return bo->ttm.resource->mem_type == XE_PL_STOLEN;
+}
+
+/**
+ * xe_bo_has_single_placement - check if BO is placed only in one memory location
+ * @bo: The BO
+ *
+ * This function checks whether a given BO is placed in only one memory location.
+ *
+ * Returns: true if the BO is placed in a single memory location, false otherwise.
+ *
+ */
+bool xe_bo_has_single_placement(struct xe_bo *bo)
+{
+	return bo->placement.num_placement == 1;
 }
 
 /**
@@ -302,6 +316,18 @@ static int xe_tt_map_sg(struct ttm_tt *tt)
 	return 0;
 }
 
+static void xe_tt_unmap_sg(struct ttm_tt *tt)
+{
+	struct xe_ttm_tt *xe_tt = container_of(tt, struct xe_ttm_tt, ttm);
+
+	if (xe_tt->sg) {
+		dma_unmap_sgtable(xe_tt->dev, xe_tt->sg,
+				  DMA_BIDIRECTIONAL, 0);
+		sg_free_table(xe_tt->sg);
+		xe_tt->sg = NULL;
+	}
+}
+
 struct sg_table *xe_bo_sg(struct xe_bo *bo)
 {
 	struct ttm_tt *tt = bo->ttm.ttm;
@@ -317,7 +343,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_ttm_tt *tt;
 	unsigned long extra_pages;
-	enum ttm_caching caching;
+	enum ttm_caching caching = ttm_cached;
 	int err;
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
@@ -331,26 +357,44 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 		extra_pages = DIV_ROUND_UP(xe_device_ccs_bytes(xe, bo->size),
 					   PAGE_SIZE);
 
-	switch (bo->cpu_caching) {
-	case DRM_XE_GEM_CPU_CACHING_WC:
-		caching = ttm_write_combined;
-		break;
-	default:
-		caching = ttm_cached;
-		break;
+	/*
+	 * DGFX system memory is always WB / ttm_cached, since
+	 * other caching modes are only supported on x86. DGFX
+	 * GPU system memory accesses are always coherent with the
+	 * CPU.
+	 */
+	if (!IS_DGFX(xe)) {
+		switch (bo->cpu_caching) {
+		case DRM_XE_GEM_CPU_CACHING_WC:
+			caching = ttm_write_combined;
+			break;
+		default:
+			caching = ttm_cached;
+			break;
+		}
+
+		WARN_ON((bo->flags & XE_BO_FLAG_USER) && !bo->cpu_caching);
+
+		/*
+		 * Display scanout is always non-coherent with the CPU cache.
+		 *
+		 * For Xe_LPG and beyond, PPGTT PTE lookups are also
+		 * non-coherent and require a CPU:WC mapping.
+		 */
+		if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_SCANOUT) ||
+		    (xe->info.graphics_verx100 >= 1270 &&
+		     bo->flags & XE_BO_FLAG_PAGETABLE))
+			caching = ttm_write_combined;
 	}
 
-	WARN_ON((bo->flags & XE_BO_FLAG_USER) && !bo->cpu_caching);
-
-	/*
-	 * Display scanout is always non-coherent with the CPU cache.
-	 *
-	 * For Xe_LPG and beyond, PPGTT PTE lookups are also non-coherent and
-	 * require a CPU:WC mapping.
-	 */
-	if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_SCANOUT) ||
-	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_FLAG_PAGETABLE))
-		caching = ttm_write_combined;
+	if (bo->flags & XE_BO_FLAG_NEEDS_UC) {
+		/*
+		 * Valid only for internally-created buffers only, for
+		 * which cpu_caching is never initialized.
+		 */
+		xe_assert(xe, bo->cpu_caching == 0);
+		caching = ttm_uncached;
+	}
 
 	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags, caching, extra_pages);
 	if (err) {
@@ -377,27 +421,15 @@ static int xe_ttm_tt_populate(struct ttm_device *ttm_dev, struct ttm_tt *tt,
 	if (err)
 		return err;
 
-	/* A follow up may move this xe_bo_move when BO is moved to XE_PL_TT */
-	err = xe_tt_map_sg(tt);
-	if (err)
-		ttm_pool_free(&ttm_dev->pool, tt);
-
 	return err;
 }
 
 static void xe_ttm_tt_unpopulate(struct ttm_device *ttm_dev, struct ttm_tt *tt)
 {
-	struct xe_ttm_tt *xe_tt = container_of(tt, struct xe_ttm_tt, ttm);
-
 	if (tt->page_flags & TTM_TT_FLAG_EXTERNAL)
 		return;
 
-	if (xe_tt->sg) {
-		dma_unmap_sgtable(xe_tt->dev, xe_tt->sg,
-				  DMA_BIDIRECTIONAL, 0);
-		sg_free_table(xe_tt->sg);
-		xe_tt->sg = NULL;
-	}
+	xe_tt_unmap_sg(tt);
 
 	return ttm_pool_free(&ttm_dev->pool, tt);
 }
@@ -628,17 +660,21 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool handle_system_ccs = (!IS_DGFX(xe) && xe_bo_needs_ccs_pages(bo) &&
 				  ttm && ttm_tt_is_populated(ttm)) ? true : false;
 	int ret = 0;
+
 	/* Bo creation path, moving to system or TT. */
 	if ((!old_mem && ttm) && !handle_system_ccs) {
-		ttm_bo_move_null(ttm_bo, new_mem);
-		return 0;
+		if (new_mem->mem_type == XE_PL_TT)
+			ret = xe_tt_map_sg(ttm);
+		if (!ret)
+			ttm_bo_move_null(ttm_bo, new_mem);
+		goto out;
 	}
 
 	if (ttm_bo->type == ttm_bo_type_sg) {
 		ret = xe_bo_move_notify(bo, ctx);
 		if (!ret)
 			ret = xe_bo_move_dmabuf(ttm_bo, new_mem);
-		goto out;
+		return ret;
 	}
 
 	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
@@ -649,6 +685,12 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
 		(!ttm && ttm_bo->type == ttm_bo_type_device);
+
+	if (new_mem->mem_type == XE_PL_TT) {
+		ret = xe_tt_map_sg(ttm);
+		if (ret)
+			goto out;
+	}
 
 	if ((move_lacks_source && !needs_clear)) {
 		ttm_bo_move_null(ttm_bo, new_mem);
@@ -786,8 +828,11 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	xe_pm_runtime_put(xe);
 
 out:
-	return ret;
+	if ((!ttm_bo->resource || ttm_bo->resource->mem_type == XE_PL_SYSTEM) &&
+	    ttm_bo->ttm)
+		xe_tt_unmap_sg(ttm_bo->ttm);
 
+	return ret;
 }
 
 /**
@@ -1731,11 +1776,10 @@ void xe_bo_unpin_external(struct xe_bo *bo)
 	xe_assert(xe, xe_bo_is_pinned(bo));
 	xe_assert(xe, xe_bo_is_user(bo));
 
-	if (bo->ttm.pin_count == 1 && !list_empty(&bo->pinned_link)) {
-		spin_lock(&xe->pinned.lock);
+	spin_lock(&xe->pinned.lock);
+	if (bo->ttm.pin_count == 1 && !list_empty(&bo->pinned_link))
 		list_del_init(&bo->pinned_link);
-		spin_unlock(&xe->pinned.lock);
-	}
+	spin_unlock(&xe->pinned.lock);
 
 	ttm_bo_unpin(&bo->ttm);
 
@@ -1758,9 +1802,8 @@ void xe_bo_unpin(struct xe_bo *bo)
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
-			xe_assert(xe, !list_empty(&bo->pinned_link));
-
 			spin_lock(&xe->pinned.lock);
+			xe_assert(xe, !list_empty(&bo->pinned_link));
 			list_del_init(&bo->pinned_link);
 			spin_unlock(&xe->pinned.lock);
 		}

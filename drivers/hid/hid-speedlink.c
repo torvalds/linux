@@ -75,4 +75,5 @@ static struct hid_driver speedlink_driver = {
 };
 module_hid_driver(speedlink_driver);
 
+MODULE_DESCRIPTION("HID driver for Speedlink Vicious and Divine Cezanne (USB mouse)");
 MODULE_LICENSE("GPL");

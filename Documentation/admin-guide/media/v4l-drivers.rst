@@ -23,6 +23,7 @@ Video4Linux (V4L) driver-specific documentation
 	omap4_camera
 	philips
 	qcom_camss
+	raspberrypi-pisp-be
 	rcar-fdp1
 	rkisp1
 	saa7134

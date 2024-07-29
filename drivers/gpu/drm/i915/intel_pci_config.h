@@ -31,7 +31,7 @@ static inline int intel_mmio_bar(int graphics_ver)
 	}
 }
 
-/* BSM in include/drm/i915_drm.h */
+/* BSM in include/drm/intel/i915_drm.h */
 
 #define MCHBAR_I915				0x44
 #define MCHBAR_I965				0x48

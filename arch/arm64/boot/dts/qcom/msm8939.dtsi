@@ -248,7 +248,7 @@
 
 		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs1_mbox 8 0>;
+			mboxes = <&apcs1_mbox 0>;
 			qcom,smd-edge = <15>;
 
 			rpm_requests: rpm-requests {
@@ -443,8 +443,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		qcom,ipc-1 = <&apcs1_mbox 8 13>;
-		qcom,ipc-3 = <&apcs1_mbox 8 19>;
+		mboxes = <0>, <&apcs1_mbox 13>, <0>, <&apcs1_mbox 19>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;
@@ -2067,7 +2066,7 @@
 
 			smd-edge {
 				interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
-				qcom,ipc = <&apcs1_mbox 8 17>;
+				mboxes = <&apcs1_mbox 17>;
 				qcom,smd-edge = <6>;
 				qcom,remote-pid = <4>;
 
@@ -2299,7 +2298,6 @@
 	thermal_zones: thermal-zones {
 		cpu0-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 5>;
 
@@ -2330,7 +2328,6 @@
 
 		cpu1-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 6>;
 
@@ -2361,7 +2358,6 @@
 
 		cpu2-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 7>;
 
@@ -2392,7 +2388,6 @@
 
 		cpu3-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 8>;
 
@@ -2423,7 +2418,6 @@
 
 		cpu4567-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 9>;
 
@@ -2454,7 +2448,6 @@
 
 		gpu-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 3>;
 
@@ -2482,7 +2475,6 @@
 
 		modem1-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 0>;
 
@@ -2497,7 +2489,6 @@
 
 		modem2-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 2>;
 
@@ -2512,7 +2503,6 @@
 
 		camera-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 1>;
 

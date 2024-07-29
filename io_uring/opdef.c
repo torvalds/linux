@@ -495,6 +495,26 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_ftruncate_prep,
 		.issue			= io_ftruncate,
 	},
+	[IORING_OP_BIND] = {
+#if defined(CONFIG_NET)
+		.needs_file		= 1,
+		.prep			= io_bind_prep,
+		.issue			= io_bind,
+		.async_size		= sizeof(struct io_async_msghdr),
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
+	[IORING_OP_LISTEN] = {
+#if defined(CONFIG_NET)
+		.needs_file		= 1,
+		.prep			= io_listen_prep,
+		.issue			= io_listen,
+		.async_size		= sizeof(struct io_async_msghdr),
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -516,10 +536,12 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ_FIXED] = {
 		.name			= "READ_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.name			= "WRITE_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -582,10 +604,12 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ] = {
 		.name			= "READ",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE] = {
 		.name			= "WRITE",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FADVISE] = {
@@ -692,6 +716,7 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ_MULTISHOT] = {
 		.name			= "READ_MULTISHOT",
+		.cleanup		= io_readv_writev_cleanup,
 	},
 	[IORING_OP_WAITID] = {
 		.name			= "WAITID",
@@ -711,6 +736,12 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_FTRUNCATE] = {
 		.name			= "FTRUNCATE",
 	},
+	[IORING_OP_BIND] = {
+		.name			= "BIND",
+	},
+	[IORING_OP_LISTEN] = {
+		.name			= "LISTEN",
+	},
 };
 
 const char *io_uring_get_opcode(u8 opcode)
@@ -718,6 +749,14 @@ const char *io_uring_get_opcode(u8 opcode)
 	if (opcode < IORING_OP_LAST)
 		return io_cold_defs[opcode].name;
 	return "INVALID";
+}
+
+bool io_uring_op_supported(u8 opcode)
+{
+	if (opcode < IORING_OP_LAST &&
+	    io_issue_defs[opcode].prep != io_eopnotsupp_prep)
+		return true;
+	return false;
 }
 
 void __init io_uring_optable_init(void)

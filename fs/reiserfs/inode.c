@@ -2699,7 +2699,6 @@ fail:
 		}
 		bh = bh->b_this_page;
 	} while (bh != head);
-	folio_set_error(folio);
 	BUG_ON(folio_test_writeback(folio));
 	folio_start_writeback(folio);
 	folio_unlock(folio);

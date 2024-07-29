@@ -35,9 +35,10 @@ struct buckets_in_flight {
 };
 
 static const struct rhashtable_params bch_move_bucket_params = {
-	.head_offset	= offsetof(struct move_bucket_in_flight, hash),
-	.key_offset	= offsetof(struct move_bucket_in_flight, bucket.k),
-	.key_len	= sizeof(struct move_bucket_key),
+	.head_offset		= offsetof(struct move_bucket_in_flight, hash),
+	.key_offset		= offsetof(struct move_bucket_in_flight, bucket.k),
+	.key_len		= sizeof(struct move_bucket_key),
+	.automatic_shrinking	= true,
 };
 
 static struct move_bucket_in_flight *
@@ -289,18 +290,23 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	prt_printf(out, "Currently waiting for:     ");
+	printbuf_tabstop_push(out, 32);
+	prt_printf(out, "running:\t%u\n",		c->copygc_running);
+	prt_printf(out, "copygc_wait:\t%llu\n",		c->copygc_wait);
+	prt_printf(out, "copygc_wait_at:\t%llu\n",	c->copygc_wait_at);
+
+	prt_printf(out, "Currently waiting for:\t");
 	prt_human_readable_u64(out, max(0LL, c->copygc_wait -
 					atomic64_read(&c->io_clock[WRITE].now)) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently waiting since:   ");
+	prt_printf(out, "Currently waiting since:\t");
 	prt_human_readable_u64(out, max(0LL,
 					atomic64_read(&c->io_clock[WRITE].now) -
 					c->copygc_wait_at) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently calculated wait: ");
+	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
 }

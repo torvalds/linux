@@ -92,6 +92,30 @@ static const struct ce_variant ce_h6_variant = {
 	.trng = CE_ALG_TRNG_V2,
 };
 
+static const struct ce_variant ce_h616_variant = {
+	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
+	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ALG_SHA384, CE_ALG_SHA512
+	},
+	.op_mode = { CE_OP_ECB, CE_OP_CBC
+	},
+	.cipher_t_dlen_in_bytes = true,
+	.hash_t_dlen_in_bits = true,
+	.prng_t_dlen_in_bytes = true,
+	.trng_t_dlen_in_bytes = true,
+	.needs_word_addresses = true,
+	.ce_clks = {
+		{ "bus", 0, 200000000 },
+		{ "mod", 300000000, 0 },
+		{ "ram", 0, 400000000 },
+		{ "trng", 0, 0 },
+		},
+	.esr = ESR_H6,
+	.prng = CE_ALG_PRNG_V2,
+	.trng = CE_ALG_TRNG_V2,
+};
+
 static const struct ce_variant ce_a64_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
@@ -172,7 +196,7 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 	writel(v, ce->base + CE_ICR);
 
 	reinit_completion(&ce->chanlist[flow].complete);
-	writel(ce->chanlist[flow].t_phy, ce->base + CE_TDQ);
+	writel(desc_addr_val(ce, ce->chanlist[flow].t_phy), ce->base + CE_TDQ);
 
 	ce->chanlist[flow].status = 0;
 	/* Be sure all data is written before enabling the task */
@@ -1097,6 +1121,8 @@ static const struct of_device_id sun8i_ce_crypto_of_match_table[] = {
 	  .data = &ce_h5_variant },
 	{ .compatible = "allwinner,sun50i-h6-crypto",
 	  .data = &ce_h6_variant },
+	{ .compatible = "allwinner,sun50i-h616-crypto",
+	  .data = &ce_h616_variant },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sun8i_ce_crypto_of_match_table);

@@ -83,6 +83,13 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
 				      (xfrm_address_t *)&ipv6_hdr(skb)->daddr,
 				      spi, IPPROTO_ESP, AF_INET6);
+
+		if (unlikely(x && x->dir && x->dir != XFRM_SA_DIR_IN)) {
+			/* non-offload path will record the error and audit log */
+			xfrm_state_put(x);
+			x = NULL;
+		}
+
 		if (!x)
 			goto out_reset;
 

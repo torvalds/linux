@@ -2040,13 +2040,13 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 		do_div(grow, msk->rcvq_space.space);
 		rcvwin += (grow << 1);
 
-		rcvbuf = min_t(u64, __tcp_space_from_win(scaling_ratio, rcvwin),
+		rcvbuf = min_t(u64, mptcp_space_from_win(sk, rcvwin),
 			       READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_rmem[2]));
 
 		if (rcvbuf > sk->sk_rcvbuf) {
 			u32 window_clamp;
 
-			window_clamp = __tcp_win_from_space(scaling_ratio, rcvbuf);
+			window_clamp = mptcp_win_from_space(sk, rcvbuf);
 			WRITE_ONCE(sk->sk_rcvbuf, rcvbuf);
 
 			/* Make subflows follow along.  If we do not do this, we
@@ -2202,7 +2202,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		if (skb_queue_empty(&msk->receive_queue) && __mptcp_move_skbs(msk))
 			continue;
 
-		/* only the master socket status is relevant here. The exit
+		/* only the MPTCP socket status is relevant here. The exit
 		 * conditions mirror closely tcp_recvmsg()
 		 */
 		if (copied >= target)
@@ -2916,9 +2916,14 @@ void mptcp_set_state(struct sock *sk, int state)
 		if (oldstate != TCP_ESTABLISHED)
 			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_CURRESTAB);
 		break;
-
+	case TCP_CLOSE_WAIT:
+		/* Unlike TCP, MPTCP sk would not have the TCP_SYN_RECV state:
+		 * MPTCP "accepted" sockets will be created later on. So no
+		 * transition from TCP_SYN_RECV to TCP_CLOSE_WAIT.
+		 */
+		break;
 	default:
-		if (oldstate == TCP_ESTABLISHED)
+		if (oldstate == TCP_ESTABLISHED || oldstate == TCP_CLOSE_WAIT)
 			MPTCP_DEC_STATS(sock_net(sk), MPTCP_MIB_CURRESTAB);
 	}
 
@@ -3521,7 +3526,7 @@ void mptcp_subflow_process_delegated(struct sock *ssk, long status)
 static int mptcp_hash(struct sock *sk)
 {
 	/* should never be called,
-	 * we hash the TCP subflows not the master socket
+	 * we hash the TCP subflows not the MPTCP socket
 	 */
 	WARN_ON_ONCE(1);
 	return 0;
@@ -3735,6 +3740,7 @@ static int mptcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	WRITE_ONCE(msk->write_seq, subflow->idsn);
 	WRITE_ONCE(msk->snd_nxt, subflow->idsn);
+	WRITE_ONCE(msk->snd_una, subflow->idsn);
 	if (likely(!__mptcp_check_fallback(msk)))
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEACTIVE);
 

@@ -1065,6 +1065,28 @@ static inline bool pgtable_l5_enabled(void) { return false; }
 
 #define p4d_offset_kimg(dir,addr)	((p4d_t *)dir)
 
+static inline
+p4d_t *p4d_offset_lockless_folded(pgd_t *pgdp, pgd_t pgd, unsigned long addr)
+{
+	/*
+	 * With runtime folding of the pud, pud_offset_lockless() passes
+	 * the 'pgd_t *' we return here to p4d_to_folded_pud(), which
+	 * will offset the pointer assuming that it points into
+	 * a page-table page. However, the fast GUP path passes us a
+	 * pgd_t allocated on the stack and so we must use the original
+	 * pointer in 'pgdp' to construct the p4d pointer instead of
+	 * using the generic p4d_offset_lockless() implementation.
+	 *
+	 * Note: reusing the original pointer means that we may
+	 * dereference the same (live) page-table entry multiple times.
+	 * This is safe because it is still only loaded once in the
+	 * context of each level and the CPU guarantees same-address
+	 * read-after-read ordering.
+	 */
+	return p4d_offset(pgdp, addr);
+}
+#define p4d_offset_lockless p4d_offset_lockless_folded
+
 #endif  /* CONFIG_PGTABLE_LEVELS > 4 */
 
 #define pgd_ERROR(e)	\

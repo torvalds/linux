@@ -77,7 +77,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 {
 	struct userio_device *userio;
 
-	userio = kzalloc(sizeof(struct userio_device), GFP_KERNEL);
+	userio = kzalloc(sizeof(*userio), GFP_KERNEL);
 	if (!userio)
 		return -ENOMEM;
 
@@ -85,7 +85,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	spin_lock_init(&userio->buf_lock);
 	init_waitqueue_head(&userio->waitq);
 
-	userio->serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	userio->serio = kzalloc(sizeof(*userio->serio), GFP_KERNEL);
 	if (!userio->serio) {
 		kfree(userio);
 		return -ENOMEM;

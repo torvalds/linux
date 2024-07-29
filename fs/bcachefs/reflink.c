@@ -171,7 +171,7 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 not_found:
 	BUG_ON(!(flags & BTREE_TRIGGER_check_repair));
 
-	if (fsck_err(c, reflink_p_to_missing_reflink_v,
+	if (fsck_err(trans, reflink_p_to_missing_reflink_v,
 		     "pointer to missing indirect extent\n"
 		     "  %s\n"
 		     "  missing range %llu-%llu",

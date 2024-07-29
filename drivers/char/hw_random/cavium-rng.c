@@ -88,4 +88,5 @@ static struct pci_driver cavium_rng_pf_driver = {
 
 module_pci_driver(cavium_rng_pf_driver);
 MODULE_AUTHOR("Omer Khaliq <okhaliq@caviumnetworks.com>");
+MODULE_DESCRIPTION("Cavium ThunderX Random Number Generator support");
 MODULE_LICENSE("GPL v2");

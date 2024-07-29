@@ -14,6 +14,30 @@
 
 #define V4L2_JPEG_MAX_COMPONENTS	4
 #define V4L2_JPEG_MAX_TABLES		4
+/*
+ * Prefixes used to generate huffman table class and destination identifiers as
+ * described below:
+ *
+ * V4L2_JPEG_LUM_HT | V4L2_JPEG_DC_HT : Prefix for Luma DC coefficients
+ *					huffman table
+ * V4L2_JPEG_LUM_HT | V4L2_JPEG_AC_HT : Prefix for Luma AC coefficients
+ *					huffman table
+ * V4L2_JPEG_CHR_HT | V4L2_JPEG_DC_HT : Prefix for Chroma DC coefficients
+ *					huffman table
+ * V4L2_JPEG_CHR_HT | V4L2_JPEG_AC_HT : Prefix for Chroma AC coefficients
+ *					huffman table
+ */
+#define V4L2_JPEG_LUM_HT		0x00
+#define V4L2_JPEG_CHR_HT		0x01
+#define V4L2_JPEG_DC_HT			0x00
+#define V4L2_JPEG_AC_HT			0x10
+
+/* Length of reference huffman tables as provided in Table K.3 of ITU-T.81 */
+#define V4L2_JPEG_REF_HT_AC_LEN		178
+#define V4L2_JPEG_REF_HT_DC_LEN		28
+
+/* Array size for 8x8 block of samples or DCT coefficient */
+#define V4L2_JPEG_PIXELS_IN_BLOCK	64
 
 /**
  * struct v4l2_jpeg_reference - reference into the JPEG buffer
@@ -153,5 +177,13 @@ int v4l2_jpeg_parse_quantization_tables(void *buf, size_t len, u8 precision,
 					struct v4l2_jpeg_reference *q_tables);
 int v4l2_jpeg_parse_huffman_tables(void *buf, size_t len,
 				   struct v4l2_jpeg_reference *huffman_tables);
+
+extern const u8 v4l2_jpeg_zigzag_scan_index[V4L2_JPEG_PIXELS_IN_BLOCK];
+extern const u8 v4l2_jpeg_ref_table_luma_qt[V4L2_JPEG_PIXELS_IN_BLOCK];
+extern const u8 v4l2_jpeg_ref_table_chroma_qt[V4L2_JPEG_PIXELS_IN_BLOCK];
+extern const u8 v4l2_jpeg_ref_table_luma_dc_ht[V4L2_JPEG_REF_HT_DC_LEN];
+extern const u8 v4l2_jpeg_ref_table_luma_ac_ht[V4L2_JPEG_REF_HT_AC_LEN];
+extern const u8 v4l2_jpeg_ref_table_chroma_dc_ht[V4L2_JPEG_REF_HT_DC_LEN];
+extern const u8 v4l2_jpeg_ref_table_chroma_ac_ht[V4L2_JPEG_REF_HT_AC_LEN];
 
 #endif

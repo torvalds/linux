@@ -36,31 +36,6 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
-					  struct bch_io_opts *io_opts,
-					  struct data_update_opts *data_opts)
-{
-	printbuf_tabstop_push(out, 20);
-	prt_str(out, "rewrite ptrs:\t");
-	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
-	prt_newline(out);
-
-	prt_str(out, "kill ptrs:\t");
-	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
-	prt_newline(out);
-
-	prt_str(out, "target:\t");
-	bch2_target_to_text(out, c, data_opts->target);
-	prt_newline(out);
-
-	prt_str(out, "compression:\t");
-	bch2_compression_opt_to_text(out, background_compression(*io_opts));
-	prt_newline(out);
-
-	prt_str(out, "extra replicas:\t");
-	prt_u64(out, data_opts->extra_replicas);
-}
-
 static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k,
 			       struct bch_io_opts *io_opts,
 			       struct data_update_opts *data_opts)
@@ -547,6 +522,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		ctxt->stats->pos	= BBPOS(btree_id, start);
 	}
 
+	bch2_trans_begin(trans);
 	bch2_trans_iter_init(trans, &iter, btree_id, start,
 			     BTREE_ITER_prefetch|
 			     BTREE_ITER_all_snapshots);
@@ -804,7 +780,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!b)
 				goto next;
 
-			unsigned sectors = btree_ptr_sectors_written(&b->key);
+			unsigned sectors = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 
 			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
 			bch2_trans_iter_exit(trans, &iter);
@@ -920,7 +896,20 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 		? c->opts.metadata_replicas
 		: io_opts->data_replicas;
 
-	if (!nr_good || nr_good >= replicas)
+	rcu_read_lock();
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	unsigned i = 0;
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+		if (!ptr->cached &&
+		    (!ca || !ca->mi.durability))
+			data_opts->kill_ptrs |= BIT(i);
+		i++;
+	}
+	rcu_read_unlock();
+
+	if (!data_opts->kill_ptrs &&
+	    (!nr_good || nr_good >= replicas))
 		return false;
 
 	data_opts->target		= 0;

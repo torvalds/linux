@@ -5,7 +5,7 @@
 #include <linux/pid_namespace.h>
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
-static int pid_mfd_noexec_dointvec_minmax(struct ctl_table *table,
+static int pid_mfd_noexec_dointvec_minmax(const struct ctl_table *table,
 	int write, void *buf, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *ns = task_active_pid_ns(current);

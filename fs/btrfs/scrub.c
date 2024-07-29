@@ -261,7 +261,7 @@ static int init_scrub_stripe(struct btrfs_fs_info *fs_info,
 	atomic_set(&stripe->pending_io, 0);
 	spin_lock_init(&stripe->write_error_lock);
 
-	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages, 0);
+	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages, false);
 	if (ret < 0)
 		goto error;
 
@@ -1688,20 +1688,24 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 					    (i << fs_info->sectorsize_bits);
 			int err;
 
+			io_stripe.is_scrub = true;
+			stripe_len = (nr_sectors - i) << fs_info->sectorsize_bits;
+			/*
+			 * For RST cases, we need to manually split the bbio to
+			 * follow the RST boundary.
+			 */
+			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+					      &stripe_len, &bioc, &io_stripe, &mirror);
+			btrfs_put_bioc(bioc);
+			if (err < 0) {
+				set_bit(i, &stripe->io_error_bitmap);
+				set_bit(i, &stripe->error_bitmap);
+				continue;
+			}
+
 			bbio = btrfs_bio_alloc(stripe->nr_sectors, REQ_OP_READ,
 					       fs_info, scrub_read_endio, stripe);
 			bbio->bio.bi_iter.bi_sector = logical >> SECTOR_SHIFT;
-
-			io_stripe.is_scrub = true;
-			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
-					      &stripe_len, &bioc, &io_stripe,
-					      &mirror);
-			btrfs_put_bioc(bioc);
-			if (err) {
-				btrfs_bio_end_io(bbio,
-						 errno_to_blk_status(err));
-				return;
-			}
 		}
 
 		__bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
@@ -2437,19 +2441,15 @@ static int finish_extent_writes_for_zoned(struct btrfs_root *root,
 					  struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
-	struct btrfs_trans_handle *trans;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
 
 	btrfs_wait_block_group_reservations(cache);
 	btrfs_wait_nocow_writers(cache);
-	btrfs_wait_ordered_roots(fs_info, U64_MAX, cache->start, cache->length);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, cache);
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-	return btrfs_commit_transaction(trans);
+	return btrfs_commit_current_transaction(root);
 }
 
 static noinline_for_stack
@@ -2680,8 +2680,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		if (sctx->is_dev_replace) {
 			btrfs_wait_nocow_writers(cache);
-			btrfs_wait_ordered_roots(fs_info, U64_MAX, cache->start,
-					cache->length);
+			btrfs_wait_ordered_roots(fs_info, U64_MAX, cache);
 		}
 
 		scrub_pause_off(fs_info);

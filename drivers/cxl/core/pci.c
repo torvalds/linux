@@ -338,10 +338,6 @@ int cxl_dvsec_rr_decode(struct device *dev, int d,
 	if (rc)
 		return rc;
 
-	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CTRL_OFFSET, &ctrl);
-	if (rc)
-		return rc;
-
 	if (!(cap & CXL_DVSEC_MEM_CAPABLE)) {
 		dev_dbg(dev, "Not MEM Capable\n");
 		return -ENXIO;
@@ -368,6 +364,10 @@ int cxl_dvsec_rr_decode(struct device *dev, int d,
 	 * disabled, and they will remain moot after the HDM Decoder
 	 * capability is enabled.
 	 */
+	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CTRL_OFFSET, &ctrl);
+	if (rc)
+		return rc;
+
 	info->mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
 	if (!info->mem_enabled)
 		return 0;

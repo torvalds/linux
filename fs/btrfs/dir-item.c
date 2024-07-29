@@ -22,7 +22,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   *trans,
 						   struct btrfs_root *root,
 						   struct btrfs_path *path,
-						   struct btrfs_key *cpu_key,
+						   const struct btrfs_key *cpu_key,
 						   u32 data_size,
 						   const char *name,
 						   int name_len)
@@ -108,7 +108,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  const struct fscrypt_str *name, struct btrfs_inode *dir,
-			  struct btrfs_key *location, u8 type, u64 index)
+			  const struct btrfs_key *location, u8 type, u64 index)
 {
 	int ret = 0;
 	int ret2 = 0;
@@ -379,7 +379,7 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
  * for a specific name.
  */
 struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
-						 struct btrfs_path *path,
+						 const struct btrfs_path *path,
 						 const char *name, int name_len)
 {
 	struct btrfs_dir_item *dir_item;
@@ -417,7 +417,7 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
 int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct btrfs_path *path,
-			      struct btrfs_dir_item *di)
+			      const struct btrfs_dir_item *di)
 {
 
 	struct extent_buffer *leaf;

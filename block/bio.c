@@ -4,7 +4,7 @@
  */
 #include <linux/mm.h>
 #include <linux/swap.h>
-#include <linux/bio.h>
+#include <linux/bio-integrity.h>
 #include <linux/blkdev.h>
 #include <linux/uio.h>
 #include <linux/iocontext.h>
@@ -953,7 +953,7 @@ bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
 		bool *same_page)
 {
 	unsigned long mask = queue_segment_boundary(q);
-	phys_addr_t addr1 = page_to_phys(bv->bv_page) + bv->bv_offset;
+	phys_addr_t addr1 = bvec_phys(bv);
 	phys_addr_t addr2 = page_to_phys(page) + offset + len - 1;
 
 	if ((addr1 | mask) != (addr2 | mask))
@@ -1630,8 +1630,18 @@ again:
 		goto again;
 	}
 
-	/* release cgroup info */
-	bio_uninit(bio);
+#ifdef CONFIG_BLK_CGROUP
+	/*
+	 * Release cgroup info.  We shouldn't have to do this here, but quite
+	 * a few callers of bio_init fail to call bio_uninit, so we cover up
+	 * for that here at least for now.
+	 */
+	if (bio->bi_blkg) {
+		blkg_put(bio->bi_blkg);
+		bio->bi_blkg = NULL;
+	}
+#endif
+
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }

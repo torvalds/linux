@@ -408,7 +408,7 @@ void plfxlc_usb_init(struct plfxlc_usb *usb, struct ieee80211_hw *hw,
 
 void plfxlc_usb_release(struct plfxlc_usb *usb)
 {
-	plfxlc_op_stop(plfxlc_usb_to_hw(usb));
+	plfxlc_op_stop(plfxlc_usb_to_hw(usb), false);
 	plfxlc_usb_disable_tx(usb);
 	plfxlc_usb_disable_rx(usb);
 	usb_set_intfdata(usb->intf, NULL);
@@ -761,7 +761,7 @@ static void plfxlc_usb_resume(struct plfxlc_usb *usb)
 
 static void plfxlc_usb_stop(struct plfxlc_usb *usb)
 {
-	plfxlc_op_stop(plfxlc_usb_to_hw(usb));
+	plfxlc_op_stop(plfxlc_usb_to_hw(usb), false);
 	plfxlc_usb_disable_tx(usb);
 	plfxlc_usb_disable_rx(usb);
 

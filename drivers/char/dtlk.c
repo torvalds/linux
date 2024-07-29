@@ -660,4 +660,5 @@ static char dtlk_write_tts(char ch)
 	return 0;
 }
 
+MODULE_DESCRIPTION("RC Systems DoubleTalk PC speech card driver");
 MODULE_LICENSE("GPL");

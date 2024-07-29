@@ -982,16 +982,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			minor = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
-			if (major >= 35)
-				snprintf(drv->fw.fw_version,
-					 sizeof(drv->fw.fw_version),
-					"%u.%08x.%u %s", major, minor,
-					local_comp, iwl_reduced_fw_name(drv));
-			else
-				snprintf(drv->fw.fw_version,
-					 sizeof(drv->fw.fw_version),
-					"%u.%u.%u %s", major, minor,
-					local_comp, iwl_reduced_fw_name(drv));
+			snprintf(drv->fw.fw_version,
+				 sizeof(drv->fw.fw_version),
+				 "%u.%08x.%u %s", major, minor,
+				 local_comp, iwl_reduced_fw_name(drv));
 			break;
 			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
@@ -1815,8 +1809,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 err_fw:
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	debugfs_remove_recursive(drv->dbgfs_drv);
-	iwl_dbg_tlv_free(drv->trans);
 #endif
+	iwl_dbg_tlv_free(drv->trans);
 	kfree(drv);
 err:
 	return ERR_PTR(ret);
@@ -1842,7 +1836,7 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	drv->trans->ops->debugfs_cleanup(drv->trans);
+	iwl_trans_debugfs_cleanup(drv->trans);
 
 	debugfs_remove_recursive(drv->dbgfs_drv);
 #endif

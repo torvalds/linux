@@ -332,7 +332,7 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 		struct intel_memory_region *mem = ERR_PTR(-ENODEV);
 		u16 type, instance;
 
-		if (!HAS_REGION(i915, BIT(i)))
+		if (!HAS_REGION(i915, i))
 			continue;
 
 		type = intel_region_map[i].class;
@@ -368,8 +368,10 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 			goto out_cleanup;
 		}
 
-		mem->id = i;
-		i915->mm.regions[i] = mem;
+		if (mem) { /* Skip on non-fatal errors */
+			mem->id = i;
+			i915->mm.regions[i] = mem;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(i915->mm.regions); i++) {

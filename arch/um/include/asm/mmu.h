@@ -7,15 +7,13 @@
 #define __ARCH_UM_MMU_H
 
 #include <mm_id.h>
-#include <asm/mm_context.h>
 
 typedef struct mm_context {
 	struct mm_id id;
-	struct uml_arch_mm_context arch;
-} mm_context_t;
 
-/* Avoid tangled inclusion with asm/ldt.h */
-extern long init_new_ldt(struct mm_context *to_mm, struct mm_context *from_mm);
-extern void free_ldt(struct mm_context *mm);
+	/* Address range in need of a TLB sync */
+	unsigned long sync_tlb_range_from;
+	unsigned long sync_tlb_range_to;
+} mm_context_t;
 
 #endif
