@@ -555,6 +555,7 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 config HW_RANDOM_CN10K
        tristate "Marvell CN10K Random Number Generator support"
        depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
+       default HW_RANDOM if ARCH_THUNDER
        help
 	 This driver provides support for the True Random Number
 	 generator available in Marvell CN10K SoCs.
