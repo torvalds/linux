@@ -137,9 +137,28 @@ static inline struct l2tp_net *l2tp_pernet(const struct net *net)
 
 static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 {
+	struct sock *sk = tunnel->sock;
+
 	trace_free_tunnel(tunnel);
-	sock_put(tunnel->sock);
-	/* the tunnel is freed in the socket destructor */
+
+	if (sk) {
+		/* Disable udp encapsulation */
+		switch (tunnel->encap) {
+		case L2TP_ENCAPTYPE_UDP:
+			/* No longer an encapsulation socket. See net/ipv4/udp.c */
+			WRITE_ONCE(udp_sk(sk)->encap_type, 0);
+			udp_sk(sk)->encap_rcv = NULL;
+			udp_sk(sk)->encap_destroy = NULL;
+			break;
+		case L2TP_ENCAPTYPE_IP:
+			break;
+		}
+
+		tunnel->sock = NULL;
+		sock_put(sk);
+	}
+
+	kfree_rcu(tunnel, rcu);
 }
 
 static void l2tp_session_free(struct l2tp_session *session)
@@ -148,23 +167,6 @@ static void l2tp_session_free(struct l2tp_session *session)
 	if (session->tunnel)
 		l2tp_tunnel_dec_refcount(session->tunnel);
 	kfree(session);
-}
-
-static struct l2tp_tunnel *__l2tp_sk_to_tunnel(const struct sock *sk)
-{
-	const struct net *net = sock_net(sk);
-	unsigned long tunnel_id, tmp;
-	struct l2tp_tunnel *tunnel;
-	struct l2tp_net *pn;
-
-	WARN_ON_ONCE(!rcu_read_lock_bh_held());
-	pn = l2tp_pernet(net);
-	idr_for_each_entry_ul(&pn->l2tp_tunnel_idr, tunnel, tmp, tunnel_id) {
-		if (tunnel && tunnel->sock == sk)
-			return tunnel;
-	}
-
-	return NULL;
 }
 
 struct l2tp_tunnel *l2tp_sk_to_tunnel(const struct sock *sk)
@@ -1235,46 +1237,6 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
  * Tinnel and session create/destroy.
  *****************************************************************************/
 
-/* Tunnel socket destruct hook.
- * The tunnel context is deleted only when all session sockets have been
- * closed.
- */
-static void l2tp_tunnel_destruct(struct sock *sk)
-{
-	struct l2tp_tunnel *tunnel;
-
-	rcu_read_lock_bh();
-	tunnel = __l2tp_sk_to_tunnel(sk);
-	if (!tunnel)
-		goto end;
-
-	/* Disable udp encapsulation */
-	switch (tunnel->encap) {
-	case L2TP_ENCAPTYPE_UDP:
-		/* No longer an encapsulation socket. See net/ipv4/udp.c */
-		WRITE_ONCE(udp_sk(sk)->encap_type, 0);
-		udp_sk(sk)->encap_rcv = NULL;
-		udp_sk(sk)->encap_destroy = NULL;
-		break;
-	case L2TP_ENCAPTYPE_IP:
-		break;
-	}
-
-	/* Remove hooks into tunnel socket */
-	write_lock_bh(&sk->sk_callback_lock);
-	sk->sk_destruct = tunnel->old_sk_destruct;
-	write_unlock_bh(&sk->sk_callback_lock);
-
-	/* Call the original destructor */
-	if (sk->sk_destruct)
-		(*sk->sk_destruct)(sk);
-
-	kfree_rcu(tunnel, rcu);
-end:
-	rcu_read_unlock_bh();
-	return;
-}
-
 /* Remove an l2tp session from l2tp_core's lists. */
 static void l2tp_session_unhash(struct l2tp_session *session)
 {
@@ -1623,8 +1585,6 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 		setup_udp_tunnel_sock(net, sock, &udp_cfg);
 	}
 
-	tunnel->old_sk_destruct = sk->sk_destruct;
-	sk->sk_destruct = &l2tp_tunnel_destruct;
 	sk->sk_allocation = GFP_ATOMIC;
 	release_sock(sk);
 
