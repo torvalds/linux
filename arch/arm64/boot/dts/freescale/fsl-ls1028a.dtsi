@@ -112,13 +112,6 @@
 		};
 	};
 
-	reboot {
-		compatible = "syscon-reboot";
-		regmap = <&rst>;
-		offset = <0>;
-		mask = <0x02>;
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
@@ -235,10 +228,16 @@
 			};
 		};
 
-		rst: syscon@1e60000 {
-			compatible = "syscon";
+		syscon@1e60000 {
+			compatible = "fsl,ls1028a-reset", "syscon", "simple-mfd";
 			reg = <0x0 0x1e60000 0x0 0x10000>;
 			little-endian;
+
+			reboot {
+				compatible = "syscon-reboot";
+				offset = <0>;
+				mask = <0x02>;
+			};
 		};
 
 		sfp: efuse@1e80000 {
