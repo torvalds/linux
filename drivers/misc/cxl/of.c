@@ -19,8 +19,6 @@ static const __be32 *read_prop_string(const struct device_node *np,
 	const __be32 *prop;
 
 	prop = of_get_property(np, prop_name, NULL);
-	if (cxl_verbose && prop)
-		pr_info("%s: %s\n", prop_name, (char *) prop);
 	return prop;
 }
 
@@ -32,8 +30,6 @@ static const __be32 *read_prop_dword(const struct device_node *np,
 	prop = of_get_property(np, prop_name, NULL);
 	if (prop)
 		*val = be32_to_cpu(prop[0]);
-	if (cxl_verbose && prop)
-		pr_info("%s: %#x (%u)\n", prop_name, *val, *val);
 	return prop;
 }
 
@@ -45,8 +41,6 @@ static const __be64 *read_prop64_dword(const struct device_node *np,
 	prop = of_get_property(np, prop_name, NULL);
 	if (prop)
 		*val = be64_to_cpu(prop[0]);
-	if (cxl_verbose && prop)
-		pr_info("%s: %#llx (%llu)\n", prop_name, *val, *val);
 	return prop;
 }
 
@@ -100,9 +94,6 @@ static int read_phys_addr(struct device_node *np, char *prop_name,
 					type, prop_name);
 				return -EINVAL;
 			}
-			if (cxl_verbose)
-				pr_info("%s: %#x %#llx (size %#llx)\n",
-					prop_name, type, addr, size);
 		}
 	}
 	return 0;
@@ -139,26 +130,12 @@ int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np)
 
 int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 {
-	int i, len, rc;
-	char *p;
+	int i, rc;
 	const __be32 *prop;
 	u16 device_id, vendor_id;
 	u32 val = 0, class_code;
 
 	/* Properties are read in the same order as listed in PAPR */
-
-	if (cxl_verbose) {
-		pr_info("Dump of the 'ibm,coherent-platform-function' node properties:\n");
-
-		prop = of_get_property(np, "compatible", &len);
-		i = 0;
-		while (i < len) {
-			p = (char *) prop + i;
-			pr_info("compatible: %s\n", p);
-			i += strlen(p) + 1;
-		}
-		read_prop_string(np, "name");
-	}
 
 	rc = read_phys_addr(np, "reg", afu);
 	if (rc)
@@ -173,19 +150,10 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 	else
 		afu->psa = true;
 
-	if (cxl_verbose) {
-		read_prop_string(np, "ibm,loc-code");
-		read_prop_string(np, "device_type");
-	}
-
 	read_prop_dword(np, "ibm,#processes", &afu->max_procs_virtualised);
 
-	if (cxl_verbose) {
-		read_prop_dword(np, "ibm,scratchpad-size", &val);
-		read_prop_dword(np, "ibm,programmable", &val);
-		read_prop_string(np, "ibm,phandle");
+	if (cxl_verbose)
 		read_vpd(NULL, afu);
-	}
 
 	read_prop_dword(np, "ibm,max-ints-per-process", &afu->guest->max_ints);
 	afu->irqs_max = afu->guest->max_ints;
@@ -199,16 +167,8 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 		afu->pp_irqs--;
 	}
 
-	if (cxl_verbose) {
-		read_prop_dword(np, "ibm,max-ints", &val);
-		read_prop_dword(np, "ibm,vpd-size", &val);
-	}
-
 	read_prop64_dword(np, "ibm,error-buffer-size", &afu->eb_len);
 	afu->eb_offset = 0;
-
-	if (cxl_verbose)
-		read_prop_dword(np, "ibm,config-record-type", &val);
 
 	read_prop64_dword(np, "ibm,config-record-size", &afu->crs_len);
 	afu->crs_offset = 0;
@@ -235,15 +195,6 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 					i, class_code);
 			}
 		}
-
-		read_prop_dword(np, "ibm,function-number", &val);
-		read_prop_dword(np, "ibm,privileged-function", &val);
-		read_prop_dword(np, "vendor-id", &val);
-		read_prop_dword(np, "device-id", &val);
-		read_prop_dword(np, "revision-id", &val);
-		read_prop_dword(np, "class-code", &val);
-		read_prop_dword(np, "subsystem-vendor-id", &val);
-		read_prop_dword(np, "subsystem-id", &val);
 	}
 	/*
 	 * if "ibm,process-mmio" doesn't exist then per-process mmio is
@@ -255,12 +206,6 @@ int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *np)
 		afu->pp_psa = true;
 	else
 		afu->pp_psa = false;
-
-	if (cxl_verbose) {
-		read_prop_dword(np, "ibm,supports-aur", &val);
-		read_prop_dword(np, "ibm,supports-csrp", &val);
-		read_prop_dword(np, "ibm,supports-prr", &val);
-	}
 
 	prop = read_prop_dword(np, "ibm,function-error-interrupt", &val);
 	if (prop)
@@ -343,48 +288,14 @@ int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np)
 
 int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 {
-	int rc, len, naddr, i;
-	char *p;
+	int rc;
 	const __be32 *prop;
 	u32 val = 0;
 
 	/* Properties are read in the same order as listed in PAPR */
 
-	naddr = of_n_addr_cells(np);
-
-	if (cxl_verbose) {
-		pr_info("Dump of the 'ibm,coherent-platform-facility' node properties:\n");
-
-		read_prop_dword(np, "#address-cells", &val);
-		read_prop_dword(np, "#size-cells", &val);
-
-		prop = of_get_property(np, "compatible", &len);
-		i = 0;
-		while (i < len) {
-			p = (char *) prop + i;
-			pr_info("compatible: %s\n", p);
-			i += strlen(p) + 1;
-		}
-		read_prop_string(np, "name");
-		read_prop_string(np, "model");
-
-		prop = of_get_property(np, "reg", NULL);
-		if (prop) {
-			pr_info("reg: addr:%#llx size:%#x\n",
-				of_read_number(prop, naddr),
-				be32_to_cpu(prop[naddr]));
-		}
-
-		read_prop_string(np, "ibm,loc-code");
-	}
-
 	if ((rc = read_adapter_irq_config(adapter, np)))
 		return rc;
-
-	if (cxl_verbose) {
-		read_prop_string(np, "device_type");
-		read_prop_string(np, "ibm,phandle");
-	}
 
 	prop = read_prop_dword(np, "ibm,caia-version", &val);
 	if (prop) {
@@ -410,12 +321,6 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	prop = read_prop_dword(np, "device-id", &val);
 	if (prop)
 		adapter->guest->device = val;
-
-	if (cxl_verbose) {
-		read_prop_dword(np, "ibm,privileged-facility", &val);
-		read_prop_dword(np, "revision-id", &val);
-		read_prop_dword(np, "class-code", &val);
-	}
 
 	prop = read_prop_dword(np, "subsystem-vendor-id", &val);
 	if (prop)
