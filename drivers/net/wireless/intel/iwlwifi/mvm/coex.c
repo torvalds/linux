@@ -525,6 +525,35 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		iwl_mvm_bt_notif_per_link(mvm, vif, data, link_id);
 }
 
+/* must be called under rcu_read_lock */
+static void iwl_mvm_bt_coex_notif_iterator(void *_data, u8 *mac,
+					   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = _data;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	for (int link_id = 0;
+	     link_id < IEEE80211_MLD_MAX_NUM_LINKS;
+	     link_id++) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference_check(vif->link_conf[link_id],
+					      lockdep_is_held(&mvm->mutex));
+		struct ieee80211_chanctx_conf *chanctx_conf =
+			rcu_dereference_check(link_conf->chanctx_conf,
+					      lockdep_is_held(&mvm->mutex));
+
+		if ((!chanctx_conf ||
+		     chanctx_conf->def.chan->band != NL80211_BAND_2GHZ))
+			continue;
+
+		iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
+	}
+}
+
 static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_iterator_data data = {
@@ -634,9 +663,14 @@ void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	const struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	const struct iwl_bt_coex_profile_notif *notif = (const void *)pkt->data;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	mvm->last_bt_wifi_loss = *notif;
 
-	/* TODO: Iterate over vifs / links to take that into account */
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_bt_coex_notif_iterator,
+					    mvm);
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
