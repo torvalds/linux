@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cache.h>
@@ -1153,7 +1153,7 @@ static int md_panic_handler(struct notifier_block *this,
 
 static struct notifier_block md_panic_blk = {
 	.notifier_call = md_panic_handler,
-	.priority = INT_MAX - 2, /* < msm watchdog panic notifier */
+	.priority = INT_MAX - 3, /* < msm watchdog panic notifier */
 };
 
 static int md_register_minidump_entry(char *name, u64 virt_addr,

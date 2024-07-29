@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022,2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "va-minidump: %s: " fmt, __func__
@@ -690,12 +690,12 @@ out:
 
 static struct notifier_block qcom_va_md_panic_blk = {
 	.notifier_call = qcom_va_md_panic_handler,
-	.priority = INT_MAX - 3,
+	.priority = INT_MAX - 4,
 };
 
 static struct notifier_block qcom_va_md_elf_panic_blk = {
 	.notifier_call = qcom_va_md_elf_panic_handler,
-	.priority = INT_MAX - 4,
+	.priority = INT_MAX - 5,
 };
 
 static int qcom_va_md_reserve_mem(struct device *dev)
