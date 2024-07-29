@@ -1162,6 +1162,8 @@ struct amdgpu_device {
 	bool                            debug_disable_soft_recovery;
 	bool                            debug_use_vram_fw_buf;
 	bool                            debug_enable_ras_aca;
+
+	bool				enforce_isolation[MAX_XCP];
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
