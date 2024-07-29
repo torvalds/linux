@@ -59,14 +59,6 @@ SECTIONS
 	} :text = 0x0700
 
 	RO_DATA(PAGE_SIZE)
-	.data.rel.ro : {
-		*(.data.rel.ro .data.rel.ro.*)
-	}
-	.got : {
-		__got_start = .;
-		*(.got)
-		__got_end = .;
-	}
 
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;		/* Start of data section */
@@ -79,6 +71,15 @@ SECTIONS
 	} :data
 	. = ALIGN(PAGE_SIZE);
 	__end_ro_after_init = .;
+
+	.data.rel.ro : {
+		*(.data.rel.ro .data.rel.ro.*)
+	}
+	.got : {
+		__got_start = .;
+		*(.got)
+		__got_end = .;
+	}
 
 	RW_DATA(0x100, PAGE_SIZE, THREAD_SIZE)
 	.data.rel : {
