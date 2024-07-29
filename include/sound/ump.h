@@ -13,6 +13,14 @@ struct snd_ump_ops;
 struct ump_cvt_to_ump;
 struct snd_seq_ump_ops;
 
+struct snd_ump_group {
+	int group;			/* group index (0-based) */
+	unsigned int dir_bits;		/* directions */
+	bool active;			/* activeness */
+	bool valid;			/* valid group (referred by blocks) */
+	char name[64];			/* group name */
+};
+
 struct snd_ump_endpoint {
 	struct snd_rawmidi core;	/* raw UMP access */
 
@@ -40,6 +48,8 @@ struct snd_ump_endpoint {
 	int input_pending;
 
 	struct mutex open_mutex;
+
+	struct snd_ump_group groups[SNDRV_UMP_MAX_GROUPS]; /* table of groups */
 
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	spinlock_t legacy_locks[2];
