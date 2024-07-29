@@ -1917,6 +1917,12 @@ static int geni_i2c_gsi_tx_tre_optimization(struct geni_i2c_dev *gi2c, u32 num, 
 			}
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 				    "%s: maxirq_cnt:%d i:%d\n", __func__, max_irq_cnt, i);
+			/* GSI HW creates an error during callback, so error check handling here */
+			if (gi2c->gsi_err) {
+				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+					    "%s: gsi error\n", __func__);
+				return -EIO;
+			}
 			gi2c_gsi_tre_process(gi2c, num);
 			if (num > gi2c->gsi_tx.msg_cnt)
 				return timeout;
@@ -1931,6 +1937,12 @@ static int geni_i2c_gsi_tx_tre_optimization(struct geni_i2c_dev *gi2c, u32 num, 
 		reinit_completion(&gi2c->xfer);
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s: msg_idx:%d wr_idx:%d\n", __func__, msg_idx, wr_idx);
+		 /* GSI HW creates an error during callback, so error check handling here */
+		if (gi2c->gsi_err) {
+			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+				    "%s: gsi error\n", __func__);
+			return -EIO;
+		}
 		/* if tre processed without errors doing unmap here */
 		if (timeout && !gi2c->err)
 			gi2c_gsi_tx_unmap(gi2c, msg_idx, wr_idx);
