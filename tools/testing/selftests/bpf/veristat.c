@@ -784,13 +784,13 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 static int parse_stats(const char *stats_str, struct stat_specs *specs)
 {
 	char *input, *state = NULL, *next;
-	int err;
+	int err, cnt = 0;
 
 	input = strdup(stats_str);
 	if (!input)
 		return -ENOMEM;
 
-	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
+	while ((next = strtok_r(cnt++ ? NULL : input, ",", &state))) {
 		err = parse_stat(next, specs);
 		if (err) {
 			free(input);
@@ -1493,7 +1493,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 	while (fgets(line, sizeof(line), f)) {
 		char *input = line, *state = NULL, *next;
 		struct verif_stats *st = NULL;
-		int col = 0;
+		int col = 0, cnt = 0;
 
 		if (!header) {
 			void *tmp;
@@ -1511,7 +1511,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 			*stat_cntp += 1;
 		}
 
-		while ((next = strtok_r(state ? NULL : input, ",\n", &state))) {
+		while ((next = strtok_r(cnt++ ? NULL : input, ",\n", &state))) {
 			if (header) {
 				/* for the first line, set up spec stats */
 				err = parse_stat(next, specs);
