@@ -9,7 +9,7 @@ qcom_edac.ko
 icc-test.ko
 icc-debug.ko
 qnoc-neo.ko
-qcom_ipcc.ko
+qcom-ipcc.ko
 dcvs_fp.ko
 qcom-dcvs.ko
 debug_symbol.ko
