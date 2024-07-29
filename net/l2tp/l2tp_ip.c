@@ -235,14 +235,17 @@ static void l2tp_ip_close(struct sock *sk, long timeout)
 
 static void l2tp_ip_destroy_sock(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
+	struct l2tp_tunnel *tunnel;
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue_tail(&sk->sk_write_queue)) != NULL)
 		kfree_skb(skb);
 
-	if (tunnel)
+	tunnel = l2tp_sk_to_tunnel(sk);
+	if (tunnel) {
 		l2tp_tunnel_delete(tunnel);
+		l2tp_tunnel_dec_refcount(tunnel);
+	}
 }
 
 static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)

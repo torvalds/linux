@@ -150,15 +150,43 @@ static void l2tp_session_free(struct l2tp_session *session)
 	kfree(session);
 }
 
-struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk)
+static struct l2tp_tunnel *__l2tp_sk_to_tunnel(const struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = sk->sk_user_data;
+	const struct net *net = sock_net(sk);
+	unsigned long tunnel_id, tmp;
+	struct l2tp_tunnel *tunnel;
+	struct l2tp_net *pn;
 
-	if (tunnel)
-		if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-			return NULL;
+	WARN_ON_ONCE(!rcu_read_lock_bh_held());
+	pn = l2tp_pernet(net);
+	idr_for_each_entry_ul(&pn->l2tp_tunnel_idr, tunnel, tmp, tunnel_id) {
+		if (tunnel && tunnel->sock == sk)
+			return tunnel;
+	}
 
-	return tunnel;
+	return NULL;
+}
+
+struct l2tp_tunnel *l2tp_sk_to_tunnel(const struct sock *sk)
+{
+	const struct net *net = sock_net(sk);
+	unsigned long tunnel_id, tmp;
+	struct l2tp_tunnel *tunnel;
+	struct l2tp_net *pn;
+
+	rcu_read_lock_bh();
+	pn = l2tp_pernet(net);
+	idr_for_each_entry_ul(&pn->l2tp_tunnel_idr, tunnel, tmp, tunnel_id) {
+		if (tunnel &&
+		    tunnel->sock == sk &&
+		    refcount_inc_not_zero(&tunnel->ref_count)) {
+			rcu_read_unlock_bh();
+			return tunnel;
+		}
+	}
+	rcu_read_unlock_bh();
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
@@ -1213,8 +1241,10 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
  */
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
+	struct l2tp_tunnel *tunnel;
 
+	rcu_read_lock_bh();
+	tunnel = __l2tp_sk_to_tunnel(sk);
 	if (!tunnel)
 		goto end;
 
@@ -1242,6 +1272,7 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 
 	kfree_rcu(tunnel, rcu);
 end:
+	rcu_read_unlock_bh();
 	return;
 }
 
@@ -1308,10 +1339,13 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_sk_to_tunnel(sk);
+	struct l2tp_tunnel *tunnel;
 
-	if (tunnel)
+	tunnel = l2tp_sk_to_tunnel(sk);
+	if (tunnel) {
 		l2tp_tunnel_delete(tunnel);
+		l2tp_tunnel_dec_refcount(tunnel);
+	}
 }
 
 static void l2tp_tunnel_remove(struct net *net, struct l2tp_tunnel *tunnel)
