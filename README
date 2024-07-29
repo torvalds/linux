@@ -1,18 +1,20 @@
-Linux kernel
-============
+## Linux Kernel Documentation Guide
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+The Linux kernel comes with comprehensive guides for both developers and users, available in various formats such as HTML and PDF. To get started, make sure to read the introductory document at `Documentation/admin-guide/README.rst`.
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+### Building the Documentation
 
-    https://www.kernel.org/doc/html/latest/
+To build the documentation in your preferred format, use the following commands:
+- For HTML: `make htmldocs`
+- For PDF: `make pdfdocs`
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
+Alternatively, you can access the formatted documentation online at [kernel.org](https://www.kernel.org/doc/html/latest/).
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+### Documentation Directory
+
+The `Documentation/` subdirectory contains numerous text files, many of which use reStructuredText (reST) markup. Key documents include:
+
+- **README.rst**: Introductory guide for kernel developers and users.
+- **process/changes.rst**: Essential information on the requirements for building and running the kernel, as well as potential issues that may arise during kernel upgrades.
+
+Make sure to read these files to understand the necessary steps and precautions when working with the Linux kernel.
