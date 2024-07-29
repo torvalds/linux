@@ -25,6 +25,7 @@ struct perf_ftrace {
 	int			graph_noirqs;
 	int			graph_verbose;
 	int			graph_thresh;
+	int			graph_tail;
 };
 
 struct filter_entry {

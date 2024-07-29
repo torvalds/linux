@@ -228,6 +228,7 @@ static void reset_tracing_options(struct perf_ftrace *ftrace __maybe_unused)
 	write_tracing_option_file("funcgraph-irqs", "1");
 	write_tracing_option_file("funcgraph-proc", "0");
 	write_tracing_option_file("funcgraph-abstime", "0");
+	write_tracing_option_file("funcgraph-tail", "0");
 	write_tracing_option_file("latency-format", "0");
 	write_tracing_option_file("irq-info", "0");
 }
@@ -464,6 +465,17 @@ static int set_tracing_funcgraph_verbose(struct perf_ftrace *ftrace)
 	return 0;
 }
 
+static int set_tracing_funcgraph_tail(struct perf_ftrace *ftrace)
+{
+	if (!ftrace->graph_tail)
+		return 0;
+
+	if (write_tracing_option_file("funcgraph-tail", "1") < 0)
+		return -1;
+
+	return 0;
+}
+
 static int set_tracing_thresh(struct perf_ftrace *ftrace)
 {
 	int ret;
@@ -537,6 +549,11 @@ static int set_tracing_options(struct perf_ftrace *ftrace)
 
 	if (set_tracing_thresh(ftrace) < 0) {
 		pr_err("failed to set tracing thresh\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_tail(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-tail\n");
 		return -1;
 	}
 
@@ -1099,6 +1116,7 @@ static int parse_graph_tracer_opts(const struct option *opt,
 		{ .name = "verbose",		.value_ptr = &ftrace->graph_verbose },
 		{ .name = "thresh",		.value_ptr = &ftrace->graph_thresh },
 		{ .name = "depth",		.value_ptr = &ftrace->graph_depth },
+		{ .name = "tail",		.value_ptr = &ftrace->graph_tail },
 		{ .name = NULL, }
 	};
 

@@ -125,6 +125,7 @@ OPTIONS for 'perf ftrace trace'
 	  - verbose      - Show process names, PIDs, timestamps, etc.
 	  - thresh=<n>   - Setup trace duration threshold in microseconds.
 	  - depth=<n>    - Set max depth for function graph tracer to follow.
+	  - tail         - Print function name at the end.
 
 
 OPTIONS for 'perf ftrace latency'
