@@ -26,7 +26,6 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	const struct nvkm_device_tegra_func *func;
 	struct nvkm_device *device = NULL;
 	struct drm_device *drm;
-	int ret;
 
 	func = of_device_get_match_data(&pdev->dev);
 
