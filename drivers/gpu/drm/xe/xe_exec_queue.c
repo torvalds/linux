@@ -418,34 +418,6 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 	return 0;
 }
 
-static const enum xe_engine_class user_to_xe_engine_class[] = {
-	[DRM_XE_ENGINE_CLASS_RENDER] = XE_ENGINE_CLASS_RENDER,
-	[DRM_XE_ENGINE_CLASS_COPY] = XE_ENGINE_CLASS_COPY,
-	[DRM_XE_ENGINE_CLASS_VIDEO_DECODE] = XE_ENGINE_CLASS_VIDEO_DECODE,
-	[DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE] = XE_ENGINE_CLASS_VIDEO_ENHANCE,
-	[DRM_XE_ENGINE_CLASS_COMPUTE] = XE_ENGINE_CLASS_COMPUTE,
-};
-
-static struct xe_hw_engine *
-find_hw_engine(struct xe_device *xe,
-	       struct drm_xe_engine_class_instance eci)
-{
-	u32 idx;
-
-	if (eci.engine_class >= ARRAY_SIZE(user_to_xe_engine_class))
-		return NULL;
-
-	if (eci.gt_id >= xe->info.gt_count)
-		return NULL;
-
-	idx = array_index_nospec(eci.engine_class,
-				 ARRAY_SIZE(user_to_xe_engine_class));
-
-	return xe_gt_hw_engine(xe_device_get_gt(xe, eci.gt_id),
-			       user_to_xe_engine_class[idx],
-			       eci.engine_instance, true);
-}
-
 static u32 bind_exec_queue_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 					struct drm_xe_engine_class_instance *eci,
 					u16 width, u16 num_placements)
@@ -467,8 +439,7 @@ static u32 bind_exec_queue_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 		if (xe_hw_engine_is_reserved(hwe))
 			continue;
 
-		if (hwe->class ==
-		    user_to_xe_engine_class[DRM_XE_ENGINE_CLASS_COPY])
+		if (hwe->class == XE_ENGINE_CLASS_COPY)
 			logical_mask |= BIT(hwe->logical_instance);
 	}
 
@@ -497,7 +468,7 @@ static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 
 			n = j * width + i;
 
-			hwe = find_hw_engine(xe, eci[n]);
+			hwe = xe_hw_engine_lookup(xe, eci[n]);
 			if (XE_IOCTL_DBG(xe, !hwe))
 				return 0;
 
@@ -576,7 +547,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			if (XE_IOCTL_DBG(xe, !logical_mask))
 				return -EINVAL;
 
-			hwe = find_hw_engine(xe, eci[0]);
+			hwe = xe_hw_engine_lookup(xe, eci[0]);
 			if (XE_IOCTL_DBG(xe, !hwe))
 				return -EINVAL;
 
@@ -613,7 +584,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		if (XE_IOCTL_DBG(xe, !logical_mask))
 			return -EINVAL;
 
-		hwe = find_hw_engine(xe, eci[0]);
+		hwe = xe_hw_engine_lookup(xe, eci[0]);
 		if (XE_IOCTL_DBG(xe, !hwe))
 			return -EINVAL;
 
