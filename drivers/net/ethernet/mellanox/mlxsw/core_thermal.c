@@ -446,8 +446,7 @@ static void mlxsw_thermal_module_tz_fini(struct thermal_zone_device *tzdev)
 }
 
 static void
-mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
-			  struct mlxsw_thermal *thermal,
+mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 			  struct mlxsw_thermal_area *area, u8 module)
 {
 	struct mlxsw_thermal_module *module_tz;
@@ -501,7 +500,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 		return -ENOMEM;
 
 	for (i = 0; i < area->tz_module_num; i++) {
-		mlxsw_thermal_module_init(dev, core, thermal, area, i);
+		mlxsw_thermal_module_init(thermal, area, i);
 		module_tz = &area->tz_module_arr[i];
 		err = mlxsw_thermal_module_tz_init(module_tz);
 		if (err)
