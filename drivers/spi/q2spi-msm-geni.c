@@ -3867,6 +3867,11 @@ void q2spi_find_pkt_by_flow_id(struct q2spi_geni *q2spi, struct q2spi_cr_packet 
 	if (q2spi_pkt) {
 		Q2SPI_DEBUG(q2spi, "%s Found q2spi_pkt %p with flow_id %d\n",
 			    __func__, q2spi_pkt, flow_id);
+		if (!atomic_read(&q2spi->sma_wr_pending)) {
+			atomic_set(&q2spi->sma_wr_pending, 1);
+			Q2SPI_DEBUG(q2spi, "%s sma_wr_pending set for prev DB\n", __func__);
+		}
+
 		/* wakeup HRF flow which is waiting for this CR doorbell */
 		complete_all(&q2spi_pkt->wait_for_db);
 		return;
