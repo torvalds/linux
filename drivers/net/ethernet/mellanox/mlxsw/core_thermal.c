@@ -509,7 +509,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	return 0;
 
 err_thermal_module_init:
-	for (i = area->tz_module_num - 1; i >= 0; i--)
+	for (i--; i >= 0; i--)
 		mlxsw_thermal_module_fini(&area->tz_module_arr[i]);
 	kfree(area->tz_module_arr);
 	return err;
