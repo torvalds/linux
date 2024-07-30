@@ -24,6 +24,12 @@ properties:
   '#io-channel-cells':
     const: 0
 
+  vref-supply:
+    description: Phandle to the vref input analog reference voltage.
+
+dependencies:
+  vref-supply: [ '#io-backend-cells' ]
+
 required:
   - compatible
 
@@ -38,6 +44,7 @@ examples:
     // Backend binding example. SD modulator configured as an IIO backend device
     ads1201_0: adc {
       compatible = "sd-modulator";
+      vref-supply = <&vdd_adc>;
       #io-backend-cells = <0>;
     };
 
