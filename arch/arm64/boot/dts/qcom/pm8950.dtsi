@@ -18,7 +18,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pon@800 {
+		pm8950_pon: pon@800 {
 			compatible = "qcom,pm8916-pon";
 			reg = <0x0800>;
 			mode-bootloader = <0x2>;
@@ -30,6 +30,14 @@
 				debounce = <15625>;
 				bias-pull-up;
 				linux,code = <KEY_POWER>;
+			};
+
+			pm8950_resin: resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				status = "disabled";
 			};
 		};
 
