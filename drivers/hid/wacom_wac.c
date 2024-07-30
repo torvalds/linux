@@ -1904,8 +1904,8 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 		if ((code == ABS_X || code == ABS_Y) && !resolution) {
 			resolution = WACOM_INTUOS_RES;
 			hid_warn(input,
-				 "Wacom usage (%d) missing resolution \n",
-				 code);
+				 "Using default resolution for axis type 0x%x code 0x%x\n",
+				 type, code);
 		}
 		input_abs_set_res(input, code, resolution);
 		break;
