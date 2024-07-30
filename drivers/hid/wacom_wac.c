@@ -2047,10 +2047,21 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		break;
 	case WACOM_HID_WD_TOUCHRING:
 		if (field->flags & HID_MAIN_ITEM_RELATIVE) {
-			wacom_map_usage(input, usage, field, EV_REL, REL_WHEEL_HI_RES, 0);
-			set_bit(REL_WHEEL, input->relbit);
+			wacom_wac->relring_count++;
+			if (wacom_wac->relring_count == 1) {
+				wacom_map_usage(input, usage, field, EV_REL, REL_WHEEL_HI_RES, 0);
+				set_bit(REL_WHEEL, input->relbit);
+			}
+			else if (wacom_wac->relring_count == 2) {
+				wacom_map_usage(input, usage, field, EV_REL, REL_HWHEEL_HI_RES, 0);
+				set_bit(REL_HWHEEL, input->relbit);
+			}
 		} else {
-			wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+			wacom_wac->absring_count++;
+			if (wacom_wac->absring_count == 1)
+				wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+			else if (wacom_wac->absring_count == 2)
+				wacom_map_usage(input, usage, field, EV_ABS, ABS_THROTTLE, 0);
 		}
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
@@ -2173,14 +2184,37 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 				value = wacom_offset_rotation(input, usage, value, 1, 2);
 		}
 		else if (field->flags & HID_MAIN_ITEM_RELATIVE) {
-			/* We must invert the sign for vertical
-			 * relative scrolling. Clockwise rotation
-			 * produces positive values from HW, but
-			 * userspace treats positive REL_WHEEL as a
-			 * scroll *up*!
-			 */
-			int hires_value = -value * 120 / usage->resolution_multiplier;
-			int *ring_value = &wacom_wac->hid_data.ring_value;
+			int hires_value = value * 120 / usage->resolution_multiplier;
+			int *ring_value;
+			int lowres_code;
+
+			if (usage->code == REL_WHEEL_HI_RES) {
+				/* We must invert the sign for vertical
+				 * relative scrolling. Clockwise
+				 * rotation produces positive values
+				 * from HW, but userspace treats
+				 * positive REL_WHEEL as a scroll *up*!
+				 */
+				hires_value = -hires_value;
+				ring_value = &wacom_wac->hid_data.ring_value;
+				lowres_code = REL_WHEEL;
+			}
+			else if (usage->code == REL_HWHEEL_HI_RES) {
+				/* No need to invert the sign for
+				 * horizontal relative scrolling.
+				 * Clockwise rotation produces positive
+				 * values from HW and userspace treats
+				 * positive REL_HWHEEL as a scroll
+				 * right.
+				 */
+				ring_value = &wacom_wac->hid_data.ring2_value;
+				lowres_code = REL_HWHEEL;
+			}
+			else {
+				hid_err(wacom->hdev, "unrecognized relative wheel with code %d\n",
+					usage->code);
+				break;
+			}
 
 			value = hires_value;
 			*ring_value += hires_value;
@@ -2191,7 +2225,7 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			if (*ring_value >= 120 || *ring_value <= -120) {
 				int clicks = *ring_value / 120;
 
-				input_event(input, usage->type, REL_WHEEL, clicks);
+				input_event(input, usage->type, lowres_code, clicks);
 				*ring_value -= clicks * 120;
 			}
 		}
