@@ -1309,8 +1309,10 @@ bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		/* MALL SS messaging is not supported with PSR at this time */
 		if (dc->current_state->streams[i] != NULL &&
-				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
+			DC_LOG_MALL("MALL SS not supported with PSR at this time\n");
 			return false;
+		}
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -1320,8 +1322,9 @@ bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	if (enable) {
 		if (dcn401_check_no_memory_request_for_cab(dc)) {
 			/* 1. Check no memory request case for CAB.
-			 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
+			 * If no memory request case, send CAB_ACTION NO_DCN_REQ DMUB message
 			 */
+			DC_LOG_MALL("sending CAB action NO_DCN_REQ\n");
 			cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
 		} else {
 			/* 2. Check if all surfaces can fit in CAB.
@@ -1349,13 +1352,16 @@ bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
 				cmd.cab.cab_alloc_ways = ways;
+				DC_LOG_MALL("cab allocation: %d ways. CAB action: DCN_SS_FIT_IN_CAB\n", ways);
 			} else {
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_NOT_FIT_IN_CAB;
+				DC_LOG_MALL("frame does not fit in CAB: %d ways required. CAB action: DCN_SS_NOT_FIT_IN_CAB\n", ways);
 			}
 		}
 	} else {
 		/* Disable CAB */
 		cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION;
+		DC_LOG_MALL("idle optimization disabled\n");
 	}
 
 	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
