@@ -18,6 +18,7 @@
 #include <linux/hdlc.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -37,7 +38,7 @@ struct qmc_hdlc {
 	struct qmc_chan *qmc_chan;
 	struct net_device *netdev;
 	struct framer *framer;
-	spinlock_t carrier_lock; /* Protect carrier detection */
+	struct mutex carrier_lock; /* Protect carrier detection */
 	struct notifier_block nb;
 	bool is_crc32;
 	spinlock_t tx_lock; /* Protect tx descriptors */
@@ -60,7 +61,7 @@ static int qmc_hdlc_framer_set_carrier(struct qmc_hdlc *qmc_hdlc)
 	if (!qmc_hdlc->framer)
 		return 0;
 
-	guard(spinlock_irqsave)(&qmc_hdlc->carrier_lock);
+	guard(mutex)(&qmc_hdlc->carrier_lock);
 
 	ret = framer_get_status(qmc_hdlc->framer, &framer_status);
 	if (ret) {
@@ -706,7 +707,7 @@ static int qmc_hdlc_probe(struct platform_device *pdev)
 
 	qmc_hdlc->dev = dev;
 	spin_lock_init(&qmc_hdlc->tx_lock);
-	spin_lock_init(&qmc_hdlc->carrier_lock);
+	mutex_init(&qmc_hdlc->carrier_lock);
 
 	qmc_hdlc->qmc_chan = devm_qmc_chan_get_bychild(dev, dev->of_node);
 	if (IS_ERR(qmc_hdlc->qmc_chan))
