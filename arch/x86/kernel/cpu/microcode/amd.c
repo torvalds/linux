@@ -703,7 +703,7 @@ static struct ucode_patch *find_patch(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	u32 rev, dummy __always_unused;
-	u16 equiv_id;
+	u16 equiv_id = 0;
 
 	/* fetch rev if not populated yet: */
 	if (!uci->cpu_sig.rev) {
