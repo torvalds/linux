@@ -576,7 +576,6 @@ int rsnd_rdai_ssi_lane_ctrl(struct rsnd_dai *rdai,
 #define rsnd_rdai_width_get(rdai) \
 	rsnd_rdai_width_ctrl(rdai, 0)
 int rsnd_rdai_width_ctrl(struct rsnd_dai *rdai, int width);
-void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
