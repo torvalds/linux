@@ -42,6 +42,7 @@ struct kfd_smi_client {
 	struct rcu_head rcu;
 	pid_t pid;
 	bool suser;
+	u32 drop_count;
 };
 
 #define KFD_MAX_KFIFO_SIZE	8192
@@ -103,11 +104,27 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 	}
 	to_copy = min(size, to_copy);
 	ret = kfifo_out(&client->fifo, buf, to_copy);
-	spin_unlock(&client->lock);
 	if (ret <= 0) {
+		spin_unlock(&client->lock);
 		ret = -EAGAIN;
 		goto ret_err;
 	}
+
+	if (client->drop_count) {
+		char msg[KFD_SMI_EVENT_MSG_SIZE];
+		int len;
+
+		len = snprintf(msg, sizeof(msg), "%x ", KFD_SMI_EVENT_DROPPED_EVENT);
+		len += snprintf(msg + len, sizeof(msg) - len,
+				KFD_EVENT_FMT_DROPPED_EVENT(ktime_get_boottime_ns(),
+				client->pid, client->drop_count));
+		if (kfifo_avail(&client->fifo) >= len) {
+			kfifo_in(&client->fifo, msg, len);
+			client->drop_count = 0;
+		}
+	}
+
+	spin_unlock(&client->lock);
 
 	ret = copy_to_user(user, buf, to_copy);
 	if (ret) {
@@ -182,13 +199,15 @@ static void add_event_to_kfifo(pid_t pid, struct kfd_node *dev,
 	list_for_each_entry_rcu(client, &dev->smi_clients, list) {
 		if (!kfd_smi_ev_enabled(pid, client, smi_event))
 			continue;
+
 		spin_lock(&client->lock);
-		if (kfifo_avail(&client->fifo) >= len) {
+		if (!client->drop_count && kfifo_avail(&client->fifo) >= len) {
 			kfifo_in(&client->fifo, event_msg, len);
 			wake_up_all(&client->wait_queue);
 		} else {
-			pr_debug("smi_event(EventID: %u): no space left\n",
-					smi_event);
+			client->drop_count++;
+			pr_debug("smi_event(EventID: %u): no space left drop_count %d\n",
+				 smi_event, client->drop_count);
 		}
 		spin_unlock(&client->lock);
 	}
