@@ -28,6 +28,7 @@
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/kfifo.h>
+#include <linux/serial.h>
 
 #include "u_serial.h"
 
@@ -126,6 +127,7 @@ struct gs_port {
 	wait_queue_head_t	close_wait;
 	bool			suspended;	/* port suspended */
 	bool			start_delayed;	/* delay start when suspended */
+	struct async_icount	icount;
 
 	/* REVISIT this state ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
@@ -257,6 +259,7 @@ __acquires(&port->port_lock)
 			break;
 		}
 		do_tty_wake = true;
+		port->icount.tx += len;
 
 		req->length = len;
 		list_del(&req->list);
@@ -408,6 +411,7 @@ static void gs_rx_push(struct work_struct *work)
 				size -= n;
 			}
 
+			port->icount.rx += size;
 			count = tty_insert_flip_string(&port->port, packet,
 					size);
 			if (count)
@@ -851,6 +855,23 @@ static int gs_break_ctl(struct tty_struct *tty, int duration)
 	return status;
 }
 
+static int gs_get_icount(struct tty_struct *tty,
+			 struct serial_icounter_struct *icount)
+{
+	struct gs_port *port = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->port_lock, flags);
+	cnow = port->icount;
+	spin_unlock_irqrestore(&port->port_lock, flags);
+
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+
+	return 0;
+}
+
 static const struct tty_operations gs_tty_ops = {
 	.open =			gs_open,
 	.close =		gs_close,
@@ -861,6 +882,7 @@ static const struct tty_operations gs_tty_ops = {
 	.chars_in_buffer =	gs_chars_in_buffer,
 	.unthrottle =		gs_unthrottle,
 	.break_ctl =		gs_break_ctl,
+	.get_icount =		gs_get_icount,
 };
 
 /*-------------------------------------------------------------------------*/
