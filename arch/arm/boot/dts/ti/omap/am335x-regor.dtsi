@@ -5,6 +5,9 @@
  *
  */
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
 / {
 	model = "Phytec AM335x phyBOARD-REGOR";
 	compatible = "phytec,am335x-regor", "phytec,am335x-phycore-som", "ti,am33xx";
@@ -188,7 +191,7 @@
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLUP, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 };
@@ -198,4 +201,9 @@
 	pinctrl-0 = <&uart1_rs485_pins>;
 	status = "okay";
 	linux,rs485-enabled-at-boot-time;
+	/*
+	 * un-intuitively, yet with the default (active-high),
+	 * am335x RTS is high on idle and gets low on active !
+	 */
+	rs485-rts-active-low;
 };
