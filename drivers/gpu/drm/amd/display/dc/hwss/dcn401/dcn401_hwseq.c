@@ -1663,3 +1663,94 @@ void dcn401_hardware_release(struct dc *dc)
 	}
 }
 
+void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master)
+{
+	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct pipe_ctx *dpp_pipes[MAX_PIPES];
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int dpp_count = 0;
+
+	if (!otg_master->stream)
+		return;
+
+	int slice_count = resource_get_opp_heads_for_otg_master(otg_master,
+			&context->res_ctx, opp_heads);
+
+	for (int slice_idx = 0; slice_idx < slice_count; slice_idx++) {
+		if (opp_heads[slice_idx]->plane_state) {
+			dpp_count = resource_get_dpp_pipes_for_opp_head(
+					opp_heads[slice_idx],
+					&context->res_ctx,
+					dpp_pipes);
+			for (int dpp_idx = 0; dpp_idx < dpp_count; dpp_idx++) {
+				struct pipe_ctx *dpp_pipe = dpp_pipes[dpp_idx];
+					if (dpp_pipe && hubbub &&
+						dpp_pipe->plane_res.hubp &&
+						hubbub->funcs->wait_for_det_update)
+						hubbub->funcs->wait_for_det_update(hubbub, dpp_pipe->plane_res.hubp->inst);
+			}
+		}
+	}
+}
+
+void dcn401_interdependent_update_lock(struct dc *dc,
+		struct dc_state *context, bool lock)
+{
+	unsigned int i = 0;
+	struct pipe_ctx *pipe = NULL;
+	struct timing_generator *tg = NULL;
+	bool pipe_unlocked[MAX_PIPES] = {0};
+
+	if (lock) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+			tg = pipe->stream_res.tg;
+
+			if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+					!tg->funcs->is_tg_enabled(tg) ||
+					dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM)
+				continue;
+			dc->hwss.pipe_control_lock(dc, pipe, true);
+		}
+	} else {
+		/* Unlock pipes based on the change in DET allocation instead of pipe index
+		 * Prevents over allocation of DET during unlock process
+		 * e.g. 2 pipe config with different streams with a max of 20 DET segments
+		 *	Before:								After:
+		 *		- Pipe0: 10 DET segments			- Pipe0: 12 DET segments
+		 *		- Pipe1: 10 DET segments			- Pipe1: 8 DET segments
+		 * If Pipe0 gets updated first, 22 DET segments will be allocated
+		 */
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+			tg = pipe->stream_res.tg;
+			int current_pipe_idx = i;
+
+			if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+					!tg->funcs->is_tg_enabled(tg) ||
+					dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
+				pipe_unlocked[i] = true;
+				continue;
+			}
+
+			// If the same stream exists in old context, ensure the OTG_MASTER pipes for the same stream get compared
+			struct pipe_ctx *old_otg_master = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, pipe->stream);
+
+			if (old_otg_master)
+				current_pipe_idx = old_otg_master->pipe_idx;
+			if (resource_calculate_det_for_stream(context, pipe) <
+					resource_calculate_det_for_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[current_pipe_idx])) {
+				dc->hwss.pipe_control_lock(dc, pipe, false);
+				pipe_unlocked[i] = true;
+				dcn401_wait_for_det_buffer_update(dc, context, pipe);
+			}
+		}
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (pipe_unlocked[i])
+				continue;
+			pipe = &context->res_ctx.pipe_ctx[i];
+			dc->hwss.pipe_control_lock(dc, pipe, false);
+		}
+	}
+}
