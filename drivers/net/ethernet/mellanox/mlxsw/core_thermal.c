@@ -445,7 +445,7 @@ static void mlxsw_thermal_module_tz_fini(struct thermal_zone_device *tzdev)
 	thermal_zone_device_unregister(tzdev);
 }
 
-static void
+static int
 mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 			  struct mlxsw_thermal_area *area, u8 module)
 {
@@ -461,6 +461,8 @@ mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 	       sizeof(thermal->trips));
 	memcpy(module_tz->cooling_states, default_cooling_states,
 	       sizeof(thermal->cooling_states));
+
+	return mlxsw_thermal_module_tz_init(module_tz);
 }
 
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
@@ -477,7 +479,6 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 			   struct mlxsw_thermal *thermal,
 			   struct mlxsw_thermal_area *area)
 {
-	struct mlxsw_thermal_module *module_tz;
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	int i, err;
 
@@ -500,16 +501,14 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 		return -ENOMEM;
 
 	for (i = 0; i < area->tz_module_num; i++) {
-		mlxsw_thermal_module_init(thermal, area, i);
-		module_tz = &area->tz_module_arr[i];
-		err = mlxsw_thermal_module_tz_init(module_tz);
+		err = mlxsw_thermal_module_init(thermal, area, i);
 		if (err)
-			goto err_thermal_module_tz_init;
+			goto err_thermal_module_init;
 	}
 
 	return 0;
 
-err_thermal_module_tz_init:
+err_thermal_module_init:
 	for (i = area->tz_module_num - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&area->tz_module_arr[i]);
 	kfree(area->tz_module_arr);
