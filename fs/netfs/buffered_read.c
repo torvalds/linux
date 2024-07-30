@@ -466,7 +466,7 @@ retry:
 	if (!netfs_is_cache_enabled(ctx) &&
 	    netfs_skip_folio_read(folio, pos, len, false)) {
 		netfs_stat(&netfs_n_rh_write_zskip);
-		goto have_folio;
+		goto have_folio_no_wait;
 	}
 
 	rreq = netfs_alloc_request(mapping, file,
@@ -507,6 +507,12 @@ retry:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
 
 have_folio:
+	if (test_bit(NETFS_ICTX_USE_PGPRIV2, &ctx->flags)) {
+		ret = folio_wait_private_2_killable(folio);
+		if (ret < 0)
+			goto error;
+	}
+have_folio_no_wait:
 	*_folio = folio;
 	_leave(" = 0");
 	return 0;
