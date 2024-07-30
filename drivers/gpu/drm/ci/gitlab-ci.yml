@@ -121,8 +121,8 @@ stages:
   - mediatek
   - meson
   - msm
+  - panfrost
   - rockchip
-  - virtio-gpu
   - software-driver
 
 # YAML anchors for rule conditions
