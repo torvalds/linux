@@ -1523,10 +1523,6 @@ static int __smc_connect(struct smc_sock *smc)
 		ini->smcd_version &= ~SMC_V1;
 		ini->smcr_version = 0;
 		ini->smc_type_v1 = SMC_TYPE_N;
-		if (!ini->smcd_version) {
-			rc = SMC_CLC_DECL_GETVLANERR;
-			goto fallback;
-		}
 	}
 
 	rc = smc_find_proposal_devices(smc, ini);
