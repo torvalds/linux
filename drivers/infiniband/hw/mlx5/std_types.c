@@ -111,6 +111,23 @@ out:
 	return err;
 }
 
+static int fill_multiport_info(struct mlx5_ib_dev *dev, u32 port_num,
+			       struct mlx5_ib_uapi_query_port *info)
+{
+	struct mlx5_core_dev *mdev;
+
+	mdev = mlx5_ib_get_native_port_mdev(dev, port_num, NULL);
+	if (!mdev)
+		return -EINVAL;
+
+	info->vport_vhca_id = MLX5_CAP_GEN(mdev, vhca_id);
+	info->flags |= MLX5_IB_UAPI_QUERY_PORT_VPORT_VHCA_ID;
+
+	mlx5_ib_put_native_port_mdev(dev, port_num);
+
+	return 0;
+}
+
 static int fill_switchdev_info(struct mlx5_ib_dev *dev, u32 port_num,
 			       struct mlx5_ib_uapi_query_port *info)
 {
@@ -175,6 +192,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_QUERY_PORT)(
 
 	if (mlx5_eswitch_mode(dev->mdev) == MLX5_ESWITCH_OFFLOADS) {
 		ret = fill_switchdev_info(dev, port_num, &info);
+		if (ret)
+			return ret;
+	} else if (mlx5_core_mp_enabled(dev->mdev)) {
+		ret = fill_multiport_info(dev, port_num, &info);
 		if (ret)
 			return ret;
 	}
