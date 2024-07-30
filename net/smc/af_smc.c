@@ -1466,10 +1466,6 @@ connect_abort:
 static int smc_connect_check_aclc(struct smc_init_info *ini,
 				  struct smc_clc_msg_accept_confirm *aclc)
 {
-	if (aclc->hdr.typev1 != SMC_TYPE_R &&
-	    aclc->hdr.typev1 != SMC_TYPE_D)
-		return SMC_CLC_DECL_MODEUNSUPP;
-
 	if (aclc->hdr.version >= SMC_V2) {
 		if ((aclc->hdr.typev1 == SMC_TYPE_R &&
 		     !smcr_indicated(ini->smc_type_v2)) ||
