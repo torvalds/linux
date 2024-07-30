@@ -630,29 +630,45 @@ void gic_irq_handler_entry_notifer(void *ignore, int irq,
 
 static int gic_intr_routing_probe(struct platform_device *pdev)
 {
-
-	int i, cpus_len;
+	struct device_node *dev_phandle;
+	int i, cpus_len, cpu;
 	int rc = 0;
-	u32 class0_cpus[NUM_CLASS_CPUS] = {0};
-	u32 class1_cpus[NUM_CLASS_CPUS] = {0};
 
-	cpus_len = of_property_read_variable_u32_array(
-					pdev->dev.of_node,
-					"qcom,gic-class0-cpus",
-					class0_cpus, 0, NUM_CLASS_CPUS);
-	for (i = 0; i < cpus_len; i++)
-		if (class0_cpus[i] < num_possible_cpus())
-			cpumask_set_cpu(class0_cpus[i],
-			&gic_routing_data.gic_routing_class0_cpus);
+	cpus_len = of_count_phandle_with_args(pdev->dev.of_node, "qcom,gic-class0-cpus", NULL);
+	if (cpus_len <= 0) {
+		pr_err("%s: Failed to get qcom,gic-class0-cpus DT property\n",
+				__func__);
+		return -EINVAL;
+	}
 
-	cpus_len = of_property_read_variable_u32_array(
-					pdev->dev.of_node,
-					"qcom,gic-class1-cpus",
-					class1_cpus, 0, NUM_CLASS_CPUS);
-	for (i = 0; i < cpus_len; i++)
-		if (class1_cpus[i] < num_possible_cpus())
-			cpumask_set_cpu(class1_cpus[i],
-			&gic_routing_data.gic_routing_class1_cpus);
+	for (i = 0; i < cpus_len; i++) {
+		dev_phandle = of_parse_phandle(pdev->dev.of_node, "qcom,gic-class0-cpus", i);
+		if (dev_phandle) {
+			cpu = of_cpu_node_to_id(dev_phandle);
+			if (cpu >= 0)
+				cpumask_set_cpu(cpu,
+						&gic_routing_data.gic_routing_class0_cpus);
+		}
+		of_node_put(dev_phandle);
+	}
+
+	cpus_len = of_count_phandle_with_args(pdev->dev.of_node, "qcom,gic-class1-cpus", NULL);
+	if (cpus_len <= 0) {
+		pr_err("%s: Failed to get qcom,gic-class1-cpus DT property\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cpus_len; i++) {
+		dev_phandle = of_parse_phandle(pdev->dev.of_node, "qcom,gic-class1-cpus", i);
+		if (dev_phandle) {
+			cpu = of_cpu_node_to_id(dev_phandle);
+			if (cpu >= 0)
+				cpumask_set_cpu(cpu,
+						&gic_routing_data.gic_routing_class1_cpus);
+		}
+		of_node_put(dev_phandle);
+	}
 
 	register_trace_android_rvh_gic_v3_set_affinity(
 		trace_gic_v3_set_affinity, NULL);
