@@ -453,9 +453,6 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	struct mlxsw_thermal_module *module_tz;
 
 	module_tz = &area->tz_module_arr[module];
-	/* Skip if parent is already set (case of port split). */
-	if (module_tz->parent)
-		return;
 	module_tz->module = module;
 	module_tz->slot_index = area->slot_index;
 	module_tz->parent = thermal;
