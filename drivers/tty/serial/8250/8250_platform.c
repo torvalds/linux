@@ -6,7 +6,9 @@
  *	      PNP 8250/16550 ports
  *	      "serial8250" platform devices
  */
+#include <linux/acpi.h>
 #include <linux/array_size.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/once.h>
@@ -101,6 +103,65 @@ void __init serial8250_isa_init_ports(void)
 }
 
 /*
+ * Generic 16550A platform devices
+ */
+static int serial8250_platform_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct uart_8250_port uart = { 0 };
+	struct resource *regs;
+	unsigned char iotype;
+	int ret, line;
+
+	regs = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (regs) {
+		uart.port.iobase = regs->start;
+		iotype = UPIO_PORT;
+	} else {
+		regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!regs) {
+			dev_err(dev, "no registers defined\n");
+			return -EINVAL;
+		}
+
+		uart.port.mapbase = regs->start;
+		uart.port.mapsize = resource_size(regs);
+		uart.port.flags = UPF_IOREMAP;
+		iotype = UPIO_MEM;
+	}
+
+	/* Default clock frequency*/
+	uart.port.uartclk = 1843200;
+	uart.port.type = PORT_16550A;
+	uart.port.dev = &pdev->dev;
+	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
+	ret = uart_read_and_validate_port_properties(&uart.port);
+	/* no interrupt -> fall back to polling */
+	if (ret == -ENXIO)
+		ret = 0;
+	if (ret)
+		return ret;
+
+	if (uart.port.mapbase) {
+		uart.port.membase = devm_ioremap(dev, uart.port.mapbase, uart.port.mapsize);
+		if (!uart.port.membase)
+			return -ENOMEM;
+	}
+
+	/*
+	 * The previous call may not set iotype correctly when reg-io-width
+	 * property is absent and it doesn't support IO port resource.
+	 */
+	uart.port.iotype = iotype;
+
+	line = serial8250_register_8250_port(&uart);
+	if (line < 0)
+		return -ENODEV;
+
+	return 0;
+}
+
+/*
  * Register a set of serial devices attached to a platform device.  The
  * list is terminated with a zero flags entry, which means we expect
  * all entries to have at least UPF_BOOT_AUTOCONF set.
@@ -110,6 +171,15 @@ static int serial8250_probe(struct platform_device *dev)
 	struct plat_serial8250_port *p = dev_get_platdata(&dev->dev);
 	struct uart_8250_port uart;
 	int ret, i, irqflag = 0;
+	struct fwnode_handle *fwnode = dev_fwnode(&dev->dev);
+
+	/*
+	 * Probe platform UART devices defined using standard hardware
+	 * discovery mechanism like ACPI or DT. Support only ACPI based
+	 * serial device for now.
+	 */
+	if (!p && is_acpi_node(fwnode))
+		return serial8250_platform_probe(dev);
 
 	memset(&uart, 0, sizeof(uart));
 
@@ -198,6 +268,12 @@ static int serial8250_resume(struct platform_device *dev)
 	return 0;
 }
 
+static const struct acpi_device_id acpi_platform_serial_table[] = {
+	{ "RSCV0003", 0 }, // RISC-V Generic 16550A UART
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, acpi_platform_serial_table);
+
 static struct platform_driver serial8250_isa_driver = {
 	.probe		= serial8250_probe,
 	.remove_new	= serial8250_remove,
@@ -205,6 +281,7 @@ static struct platform_driver serial8250_isa_driver = {
 	.resume		= serial8250_resume,
 	.driver		= {
 		.name	= "serial8250",
+		.acpi_match_table = ACPI_PTR(acpi_platform_serial_table),
 	},
 };
 
