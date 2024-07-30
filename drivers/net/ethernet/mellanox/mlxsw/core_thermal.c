@@ -411,7 +411,7 @@ static const struct thermal_cooling_device_ops mlxsw_cooling_ops = {
 static int
 mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 {
-	char tz_name[THERMAL_NAME_LENGTH];
+	char tz_name[40];
 	int err;
 
 	if (module_tz->slot_index)
