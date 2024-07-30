@@ -2396,11 +2396,11 @@ struct dccg *dccg35_create(
 	(void)&dccg35_disable_symclk_be_new;
 	(void)&dccg35_set_symclk32_le_root_clock_gating;
 	(void)&dccg35_set_smclk32_se_rcg;
-	(void)&dccg35_funcs_new;
+	(void)&dccg35_funcs;
 
 	base = &dccg_dcn->base;
 	base->ctx = ctx;
-	base->funcs = &dccg35_funcs;
+	base->funcs = &dccg35_funcs_new;
 
 	dccg_dcn->regs = regs;
 	dccg_dcn->dccg_shift = dccg_shift;
