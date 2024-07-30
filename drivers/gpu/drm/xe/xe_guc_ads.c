@@ -9,13 +9,16 @@
 
 #include <generated/xe_wa_oob.h>
 
+#include "abi/guc_actions_abi.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
 #include "xe_gt.h"
 #include "xe_gt_ccs_mode.h"
+#include "xe_gt_printk.h"
 #include "xe_guc.h"
+#include "xe_guc_ct.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
@@ -265,7 +268,6 @@ static u32 engine_enable_mask(struct xe_gt *gt, enum xe_engine_class class)
 
 static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 {
-	struct xe_device *xe = ads_to_xe(ads);
 	struct xe_gt *gt = ads_to_gt(ads);
 	size_t total_size = 0, alloc_size, real_size;
 	int class;
@@ -274,7 +276,7 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 		if (!engine_enable_mask(gt, class))
 			continue;
 
-		real_size = xe_lrc_size(xe, class);
+		real_size = xe_gt_lrc_size(gt, class);
 		alloc_size = PAGE_ALIGN(real_size);
 		total_size += alloc_size;
 	}
@@ -440,11 +442,18 @@ int xe_guc_ads_init_post_hwconfig(struct xe_guc_ads *ads)
 
 static void guc_policies_init(struct xe_guc_ads *ads)
 {
+	struct xe_device *xe = ads_to_xe(ads);
+	u32 global_flags = 0;
+
 	ads_blob_write(ads, policies.dpc_promote_time,
 		       GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US);
 	ads_blob_write(ads, policies.max_num_work_items,
 		       GLOBAL_POLICY_MAX_NUM_WI);
-	ads_blob_write(ads, policies.global_flags, 0);
+
+	if (xe->wedged.mode == 2)
+		global_flags |= GLOBAL_POLICY_DISABLE_ENGINE_RESET;
+
+	ads_blob_write(ads, policies.global_flags, global_flags);
 	ads_blob_write(ads, policies.is_valid, 1);
 }
 
@@ -765,7 +774,7 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 
 		xe_gt_assert(gt, gt->default_lrc[class]);
 
-		real_size = xe_lrc_size(xe, class);
+		real_size = xe_gt_lrc_size(gt, class);
 		alloc_size = PAGE_ALIGN(real_size);
 		total_size += alloc_size;
 
@@ -798,4 +807,58 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 void xe_guc_ads_populate_post_load(struct xe_guc_ads *ads)
 {
 	guc_populate_golden_lrc(ads);
+}
+
+static int guc_ads_action_update_policies(struct xe_guc_ads *ads, u32 policy_offset)
+{
+	struct  xe_guc_ct *ct = &ads_to_guc(ads)->ct;
+	u32 action[] = {
+		XE_GUC_ACTION_GLOBAL_SCHED_POLICY_CHANGE,
+		policy_offset
+	};
+
+	return xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
+}
+
+/**
+ * xe_guc_ads_scheduler_policy_toggle_reset - Toggle reset policy
+ * @ads: Additional data structures object
+ *
+ * This function update the GuC's engine reset policy based on wedged.mode.
+ *
+ * Return: 0 on success, and negative error code otherwise.
+ */
+int xe_guc_ads_scheduler_policy_toggle_reset(struct xe_guc_ads *ads)
+{
+	struct xe_device *xe = ads_to_xe(ads);
+	struct xe_gt *gt = ads_to_gt(ads);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct guc_policies *policies;
+	struct xe_bo *bo;
+	int ret = 0;
+
+	policies = kmalloc(sizeof(*policies), GFP_KERNEL);
+	if (!policies)
+		return -ENOMEM;
+
+	policies->dpc_promote_time = ads_blob_read(ads, policies.dpc_promote_time);
+	policies->max_num_work_items = ads_blob_read(ads, policies.max_num_work_items);
+	policies->is_valid = 1;
+	if (xe->wedged.mode == 2)
+		policies->global_flags |= GLOBAL_POLICY_DISABLE_ENGINE_RESET;
+	else
+		policies->global_flags &= ~GLOBAL_POLICY_DISABLE_ENGINE_RESET;
+
+	bo = xe_managed_bo_create_from_data(xe, tile, policies, sizeof(struct guc_policies),
+					    XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+					    XE_BO_FLAG_GGTT);
+	if (IS_ERR(bo)) {
+		ret = PTR_ERR(bo);
+		goto out;
+	}
+
+	ret = guc_ads_action_update_policies(ads, xe_bo_ggtt_addr(bo));
+out:
+	kfree(policies);
+	return ret;
 }

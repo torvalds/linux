@@ -57,4 +57,6 @@ static struct platform_driver clk_mt2701_hif_drv = {
 	},
 };
 module_platform_driver(clk_mt2701_hif_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2701 HIFSYS clocks driver");
 MODULE_LICENSE("GPL");

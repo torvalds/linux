@@ -247,6 +247,7 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
 	long ret;
+	loff_t sum;
 
 	if (offset < 0 || len <= 0)
 		return -EINVAL;
@@ -319,8 +320,11 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
 		return -ENODEV;
 
-	/* Check for wrap through zero too */
-	if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
+	/* Check for wraparound */
+	if (check_add_overflow(offset, len, &sum))
+		return -EFBIG;
+
+	if (sum > inode->i_sb->s_maxbytes)
 		return -EFBIG;
 
 	if (!file->f_op->fallocate)
@@ -982,12 +986,11 @@ static int do_dentry_open(struct file *f,
 	 */
 	if (f->f_mode & FMODE_WRITE) {
 		/*
-		 * Paired with smp_mb() in collapse_file() to ensure nr_thps
-		 * is up to date and the update to i_writecount by
-		 * get_write_access() is visible. Ensures subsequent insertion
-		 * of THPs into the page cache will fail.
+		 * Depends on full fence from get_write_access() to synchronize
+		 * against collapse_file() regarding i_writecount and nr_thps
+		 * updates. Ensures subsequent insertion of THPs into the page
+		 * cache will fail.
 		 */
-		smp_mb();
 		if (filemap_nr_thps(inode->i_mapping)) {
 			struct address_space *mapping = inode->i_mapping;
 

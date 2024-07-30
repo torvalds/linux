@@ -115,14 +115,6 @@ struct wm0010_priv {
 	struct completion boot_completion;
 };
 
-struct wm0010_spi_msg {
-	struct spi_message m;
-	struct spi_transfer t;
-	u8 *tx_buf;
-	u8 *rx_buf;
-	size_t len;
-};
-
 static const struct snd_soc_dapm_widget wm0010_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("CLKIN",  SND_SOC_NOPM, 0, 0, NULL, 0),
 };

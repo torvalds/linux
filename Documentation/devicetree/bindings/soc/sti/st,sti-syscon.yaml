@@ -30,6 +30,15 @@ properties:
   reg:
     maxItems: 1
 
+  sti-sasg-codec:
+    description: STi internal audio codec
+    type: object
+    additionalProperties: true
+
+    properties:
+      compatible:
+        const: st,stih407-sas-codec
+
 required:
   - compatible
   - reg

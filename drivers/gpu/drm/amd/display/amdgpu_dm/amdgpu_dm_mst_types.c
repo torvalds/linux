@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/vmalloc.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic.h>
@@ -182,6 +183,8 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 		dc_sink_release(dc_sink);
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
+		aconnector->dsc_aux = NULL;
+		port->passthrough_aux = NULL;
 	}
 
 	aconnector->mst_status = MST_STATUS_DEFAULT;
@@ -210,6 +213,7 @@ bool needs_dsc_aux_workaround(struct dc_link *link)
 	return false;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 static bool is_synaptics_cascaded_panamera(struct dc_link *link, struct drm_dp_mst_port *port)
 {
 	u8 branch_vendor_data[4] = { 0 }; // Vendor data 0x50C ~ 0x50F
@@ -269,6 +273,7 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 
 	return true;
 }
+#endif
 
 static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
 {
@@ -402,9 +407,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			amdgpu_dm_update_freesync_caps(
 					connector, aconnector->edid);
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 			if (!validate_dsc_caps_on_connector(aconnector))
 				memset(&aconnector->dc_sink->dsc_caps,
 				       0, sizeof(aconnector->dc_sink->dsc_caps));
+#endif
 
 			if (!retrieve_downstream_port_device(aconnector))
 				memset(&aconnector->mst_downstream_port_present,
@@ -494,6 +501,8 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
+		aconnector->dsc_aux = NULL;
+		port->passthrough_aux = NULL;
 
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			MST_REMOTE_EDID | MST_ALLOCATE_NEW_PAYLOAD | MST_CLEAR_ALLOCATED_PAYLOAD,
@@ -794,6 +803,7 @@ struct dsc_mst_fairness_params {
 	struct amdgpu_dm_connector *aconnector;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 static int kbps_to_peak_pbn(int kbps)
 {
 	u64 peak_kbps = kbps;
@@ -1233,14 +1243,6 @@ static bool is_dsc_need_re_compute(
 		if (!aconnector || !aconnector->dsc_aux)
 			continue;
 
-		/*
-		 *	check if cached virtual MST DSC caps are available and DSC is supported
-		 *	as per specifications in their Virtual DPCD registers.
-		*/
-		if (!(aconnector->dc_sink->dsc_caps.dsc_dec_caps.is_dsc_supported ||
-			aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_PASSTHROUGH_SUPPORT))
-			continue;
-
 		stream_on_link[new_stream_on_link_num] = aconnector;
 		new_stream_on_link_num++;
 
@@ -1490,9 +1492,10 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 	 * from dm_state->context.
 	 */
 
-	local_dc_state = kmemdup(dm_state->context, sizeof(struct dc_state), GFP_KERNEL);
+	local_dc_state = vmalloc(sizeof(struct dc_state));
 	if (!local_dc_state)
 		return -ENOMEM;
+	memcpy(local_dc_state, dm_state->context, sizeof(struct dc_state));
 
 	for (i = 0; i < local_dc_state->stream_count; i++) {
 		struct dc_stream_state *stream = dm_state->context->streams[i];
@@ -1562,7 +1565,7 @@ clean_exit:
 			dc_stream_release(local_dc_state->streams[i]);
 	}
 
-	kfree(local_dc_state);
+	vfree(local_dc_state);
 
 	return ret;
 }
@@ -1594,110 +1597,173 @@ static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
 
 	return bw_range->max_target_bpp_x16 && bw_range->min_target_bpp_x16;
 }
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_FP)
+static bool dp_get_link_current_set_bw(struct drm_dp_aux *aux, uint32_t *cur_link_bw)
+{
+	uint32_t total_data_bw_efficiency_x10000 = 0;
+	uint32_t link_rate_per_lane_kbps = 0;
+	enum dc_link_rate link_rate;
+	union lane_count_set lane_count;
+	u8 dp_link_encoding;
+	u8 link_bw_set = 0;
+
+	*cur_link_bw = 0;
+
+	if (drm_dp_dpcd_read(aux, DP_MAIN_LINK_CHANNEL_CODING_SET, &dp_link_encoding, 1) != 1 ||
+		drm_dp_dpcd_read(aux, DP_LANE_COUNT_SET, &lane_count.raw, 1) != 1 ||
+		drm_dp_dpcd_read(aux, DP_LINK_BW_SET, &link_bw_set, 1) != 1)
+		return false;
+
+	switch (dp_link_encoding) {
+	case DP_8b_10b_ENCODING:
+		link_rate = link_bw_set;
+		link_rate_per_lane_kbps = link_rate * LINK_RATE_REF_FREQ_IN_KHZ * BITS_PER_DP_BYTE;
+		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_8b_10b_x10000;
+		total_data_bw_efficiency_x10000 /= 100;
+		total_data_bw_efficiency_x10000 *= DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100;
+		break;
+	case DP_128b_132b_ENCODING:
+		switch (link_bw_set) {
+		case DP_LINK_BW_10:
+			link_rate = LINK_RATE_UHBR10;
+			break;
+		case DP_LINK_BW_13_5:
+			link_rate = LINK_RATE_UHBR13_5;
+			break;
+		case DP_LINK_BW_20:
+			link_rate = LINK_RATE_UHBR20;
+			break;
+		default:
+			return false;
+		}
+
+		link_rate_per_lane_kbps = link_rate * 10000;
+		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_128b_132b_x10000;
+		break;
+	default:
+		return false;
+	}
+
+	*cur_link_bw = link_rate_per_lane_kbps * lane_count.bits.LANE_COUNT_SET / 10000 * total_data_bw_efficiency_x10000;
+	return true;
+}
+#endif
 
 enum dc_status dm_dp_mst_is_port_support_mode(
 	struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream)
 {
-	int pbn, branch_max_throughput_mps = 0;
+#if defined(CONFIG_DRM_AMD_DC_FP)
+	int branch_max_throughput_mps = 0;
 	struct dc_link_settings cur_link_settings;
-	unsigned int end_to_end_bw_in_kbps = 0;
-	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
+	uint32_t end_to_end_bw_in_kbps = 0;
+	uint32_t root_link_bw_in_kbps = 0;
+	uint32_t virtual_channel_bw_in_kbps = 0;
 	struct dc_dsc_bw_range bw_range = {0};
 	struct dc_dsc_config_options dsc_options = {0};
+	uint32_t stream_kbps;
 
-	/*
-	 * Consider the case with the depth of the mst topology tree is equal or less than 2
-	 * A. When dsc bitstream can be transmitted along the entire path
-	 *    1. dsc is possible between source and branch/leaf device (common dsc params is possible), AND
-	 *    2. dsc passthrough supported at MST branch, or
-	 *    3. dsc decoding supported at leaf MST device
-	 *    Use maximum dsc compression as bw constraint
-	 * B. When dsc bitstream cannot be transmitted along the entire path
-	 *    Use native bw as bw constraint
+	/* DSC unnecessary case
+	 * Check if timing could be supported within end-to-end BW
 	 */
-	if (is_dsc_common_config_possible(stream, &bw_range) &&
-	   (aconnector->mst_output_port->passthrough_aux ||
-	    aconnector->dsc_aux == &aconnector->mst_output_port->aux)) {
-		cur_link_settings = stream->link->verified_link_cap;
-		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link, &cur_link_settings);
-		down_link_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
+	stream_kbps =
+		dc_bandwidth_in_kbps_from_timing(&stream->timing,
+			dc_link_get_highest_encoding_format(stream->link));
+	cur_link_settings = stream->link->verified_link_cap;
+	root_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link, &cur_link_settings);
+	virtual_channel_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
 
-		/* pick the end to end bw bottleneck */
-		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps, down_link_bw_in_kbps);
+	/* pick the end to end bw bottleneck */
+	end_to_end_bw_in_kbps = min(root_link_bw_in_kbps, virtual_channel_bw_in_kbps);
 
-		if (end_to_end_bw_in_kbps < bw_range.min_kbps) {
-			DRM_DEBUG_DRIVER("maximum dsc compression cannot fit into end-to-end bandwidth\n");
-			return DC_FAIL_BANDWIDTH_VALIDATE;
-		}
-
-		if (end_to_end_bw_in_kbps < bw_range.stream_kbps) {
-			dc_dsc_get_default_config_option(stream->link->dc, &dsc_options);
-			dsc_options.max_target_bpp_limit_override_x16 = aconnector->base.display_info.max_dsc_bpp * 16;
-			if (dc_dsc_compute_config(stream->sink->ctx->dc->res_pool->dscs[0],
-					&stream->sink->dsc_caps.dsc_dec_caps,
-					&dsc_options,
-					end_to_end_bw_in_kbps,
-					&stream->timing,
-					dc_link_get_highest_encoding_format(stream->link),
-					&stream->timing.dsc_cfg)) {
-				stream->timing.flags.DSC = 1;
-				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc and dsc config found\n");
-			} else {
-				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc but dsc config not found\n");
-				return DC_FAIL_BANDWIDTH_VALIDATE;
-			}
-		}
-	} else {
-		/* Check if mode could be supported within max slot
-		 * number of current mst link and full_pbn of mst links.
-		 */
-		int pbn_div, slot_num, max_slot_num;
-		enum dc_link_encoding_format link_encoding;
-		uint32_t stream_kbps =
-			dc_bandwidth_in_kbps_from_timing(&stream->timing,
-				dc_link_get_highest_encoding_format(stream->link));
-
-		pbn = kbps_to_peak_pbn(stream_kbps);
-		pbn_div = dm_mst_get_pbn_divider(stream->link);
-		slot_num = DIV_ROUND_UP(pbn, pbn_div);
-
-		link_encoding = dc_link_get_highest_encoding_format(stream->link);
-		if (link_encoding == DC_LINK_ENCODING_DP_8b_10b)
-			max_slot_num = 63;
-		else if (link_encoding == DC_LINK_ENCODING_DP_128b_132b)
-			max_slot_num = 64;
-		else {
-			DRM_DEBUG_DRIVER("Invalid link encoding format\n");
-			return DC_FAIL_BANDWIDTH_VALIDATE;
-		}
-
-		if (slot_num > max_slot_num ||
-			pbn > aconnector->mst_output_port->full_pbn) {
-			DRM_DEBUG_DRIVER("Mode can not be supported within mst links!");
-			return DC_FAIL_BANDWIDTH_VALIDATE;
-		}
+	if (stream_kbps <= end_to_end_bw_in_kbps) {
+		DRM_DEBUG_DRIVER("No DSC needed. End-to-end bw sufficient.");
+		return DC_OK;
 	}
 
-	/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
-	switch (stream->timing.pixel_encoding) {
-	case PIXEL_ENCODING_RGB:
-	case PIXEL_ENCODING_YCBCR444:
-		branch_max_throughput_mps =
-			aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_0_mps;
-		break;
-	case PIXEL_ENCODING_YCBCR422:
-	case PIXEL_ENCODING_YCBCR420:
-		branch_max_throughput_mps =
-			aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_1_mps;
-		break;
-	default:
-		break;
-	}
-
-	if (branch_max_throughput_mps != 0 &&
-		((stream->timing.pix_clk_100hz / 10) >  branch_max_throughput_mps * 1000))
+	/*DSC necessary case*/
+	if (!aconnector->dsc_aux)
 		return DC_FAIL_BANDWIDTH_VALIDATE;
 
+	if (is_dsc_common_config_possible(stream, &bw_range)) {
+
+		/*capable of dsc passthough. dsc bitstream along the entire path*/
+		if (aconnector->mst_output_port->passthrough_aux) {
+			if (bw_range.min_kbps > end_to_end_bw_in_kbps) {
+				DRM_DEBUG_DRIVER("DSC passthrough. Max dsc compression can't fit into end-to-end bw\n");
+				return DC_FAIL_BANDWIDTH_VALIDATE;
+			}
+		} else {
+			/*dsc bitstream decoded at the dp last link*/
+			struct drm_dp_mst_port *immediate_upstream_port = NULL;
+			uint32_t end_link_bw = 0;
+
+			/*Get last DP link BW capability*/
+			if (dp_get_link_current_set_bw(&aconnector->mst_output_port->aux, &end_link_bw)) {
+				if (stream_kbps > end_link_bw) {
+					DRM_DEBUG_DRIVER("DSC decode at last link. Mode required bw can't fit into available bw\n");
+					return DC_FAIL_BANDWIDTH_VALIDATE;
+				}
+			}
+
+			/*Get virtual channel bandwidth between source and the link before the last link*/
+			if (aconnector->mst_output_port->parent->port_parent)
+				immediate_upstream_port = aconnector->mst_output_port->parent->port_parent;
+
+			if (immediate_upstream_port) {
+				virtual_channel_bw_in_kbps = kbps_from_pbn(immediate_upstream_port->full_pbn);
+				virtual_channel_bw_in_kbps = min(root_link_bw_in_kbps, virtual_channel_bw_in_kbps);
+				if (bw_range.min_kbps > virtual_channel_bw_in_kbps) {
+					DRM_DEBUG_DRIVER("DSC decode at last link. Max dsc compression can't fit into MST available bw\n");
+					return DC_FAIL_BANDWIDTH_VALIDATE;
+				}
+			}
+		}
+
+		/*Confirm if we can obtain dsc config*/
+		dc_dsc_get_default_config_option(stream->link->dc, &dsc_options);
+		dsc_options.max_target_bpp_limit_override_x16 = aconnector->base.display_info.max_dsc_bpp * 16;
+		if (dc_dsc_compute_config(stream->sink->ctx->dc->res_pool->dscs[0],
+				&stream->sink->dsc_caps.dsc_dec_caps,
+				&dsc_options,
+				end_to_end_bw_in_kbps,
+				&stream->timing,
+				dc_link_get_highest_encoding_format(stream->link),
+				&stream->timing.dsc_cfg)) {
+			stream->timing.flags.DSC = 1;
+			DRM_DEBUG_DRIVER("Require dsc and dsc config found\n");
+		} else {
+			DRM_DEBUG_DRIVER("Require dsc but can't find appropriate dsc config\n");
+			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+
+		/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
+		switch (stream->timing.pixel_encoding) {
+		case PIXEL_ENCODING_RGB:
+		case PIXEL_ENCODING_YCBCR444:
+			branch_max_throughput_mps =
+				aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_0_mps;
+			break;
+		case PIXEL_ENCODING_YCBCR422:
+		case PIXEL_ENCODING_YCBCR420:
+			branch_max_throughput_mps =
+				aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_1_mps;
+			break;
+		default:
+			break;
+		}
+
+		if (branch_max_throughput_mps != 0 &&
+			((stream->timing.pix_clk_100hz / 10) >  branch_max_throughput_mps * 1000)) {
+			DRM_DEBUG_DRIVER("DSC is required but max throughput mps fails");
+			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+	} else {
+		DRM_DEBUG_DRIVER("DSC is required but can't find common dsc config.");
+		return DC_FAIL_BANDWIDTH_VALIDATE;
+	}
+#endif
 	return DC_OK;
 }

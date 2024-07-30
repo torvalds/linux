@@ -82,11 +82,10 @@
 		compatible = "lg,lg4573";
 		spi-max-frequency = <10000000>;
 		reg = <0>;
-		power-on-delay = <10>;
 
 		display-timings {
-			480x800p57 {
-				native-mode;
+			native-mode = <&timing0>;
+			timing0: timing-480x800p57 {
 				clock-frequency = <27000027>;
 				hactive = <480>;
 				vactive = <800>;

@@ -29,6 +29,7 @@
  * @lnum: logical eraseblock number of the node
  * @offs: node offset
  * @len: node length
+ * @hash: node hash
  * @deletion: non-zero if this entry corresponds to a node deletion
  * @sqnum: node sequence number
  * @list: links the replay list

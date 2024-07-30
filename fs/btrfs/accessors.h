@@ -34,7 +34,7 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
 
 static inline u8 get_unaligned_le8(const void *p)
 {
-       return *(u8 *)p;
+       return *(const u8 *)p;
 }
 
 static inline void put_unaligned_le8(u8 val, void *p)
@@ -48,8 +48,8 @@ static inline void put_unaligned_le8(u8 val, void *p)
 			    offsetof(type, member),			\
 			    sizeof_field(type, member)))
 
-#define write_eb_member(eb, ptr, type, member, result) (\
-	write_extent_buffer(eb, (char *)(result),			\
+#define write_eb_member(eb, ptr, type, member, source) (		\
+	write_extent_buffer(eb, (const char *)(source),			\
 			   ((unsigned long)(ptr)) +			\
 			    offsetof(type, member),			\
 			    sizeof_field(type, member)))
@@ -315,11 +315,8 @@ BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_timespec, nsec, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_timespec_sec, struct btrfs_timespec, sec, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_timespec_nsec, struct btrfs_timespec, nsec, 32);
 
-BTRFS_SETGET_FUNCS(stripe_extent_encoding, struct btrfs_stripe_extent, encoding, 8);
 BTRFS_SETGET_FUNCS(raid_stride_devid, struct btrfs_raid_stride, devid, 64);
 BTRFS_SETGET_FUNCS(raid_stride_physical, struct btrfs_raid_stride, physical, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_stripe_extent_encoding,
-			 struct btrfs_stripe_extent, encoding, 8);
 BTRFS_SETGET_STACK_FUNCS(stack_raid_stride_devid, struct btrfs_raid_stride, devid, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_raid_stride_physical, struct btrfs_raid_stride, physical, 64);
 
@@ -353,7 +350,7 @@ static inline void btrfs_tree_block_key(const struct extent_buffer *eb,
 
 static inline void btrfs_set_tree_block_key(const struct extent_buffer *eb,
 					    struct btrfs_tree_block_info *item,
-					    struct btrfs_disk_key *key)
+					    const struct btrfs_disk_key *key)
 {
 	write_eb_member(eb, item, struct btrfs_tree_block_info, key, key);
 }
@@ -446,7 +443,7 @@ void btrfs_node_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr);
 
 static inline void btrfs_set_node_key(const struct extent_buffer *eb,
-				      struct btrfs_disk_key *disk_key, int nr)
+				      const struct btrfs_disk_key *disk_key, int nr)
 {
 	unsigned long ptr;
 
@@ -512,7 +509,7 @@ static inline void btrfs_item_key(const struct extent_buffer *eb,
 }
 
 static inline void btrfs_set_item_key(struct extent_buffer *eb,
-				      struct btrfs_disk_key *disk_key, int nr)
+				      const struct btrfs_disk_key *disk_key, int nr)
 {
 	struct btrfs_item *item = btrfs_item_nr(eb, nr);
 

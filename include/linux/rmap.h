@@ -200,6 +200,9 @@ static inline void __folio_rmap_sanity_checks(struct folio *folio,
 	/* hugetlb folios are handled separately. */
 	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
 
+	/* When (un)mapping zeropages, we should never touch ref+mapcount. */
+	VM_WARN_ON_FOLIO(is_zero_folio(folio), folio);
+
 	/*
 	 * TODO: we get driver-allocated folios that have nothing to do with
 	 * the rmap using vm_insert_page(); therefore, we cannot assume that
@@ -241,7 +244,7 @@ void folio_add_anon_rmap_ptes(struct folio *, struct page *, int nr_pages,
 void folio_add_anon_rmap_pmd(struct folio *, struct page *,
 		struct vm_area_struct *, unsigned long address, rmap_t flags);
 void folio_add_new_anon_rmap(struct folio *, struct vm_area_struct *,
-		unsigned long address);
+		unsigned long address, rmap_t flags);
 void folio_add_file_rmap_ptes(struct folio *, struct page *, int nr_pages,
 		struct vm_area_struct *);
 #define folio_add_file_rmap_pte(folio, page, vma) \
@@ -681,16 +684,6 @@ struct page_vma_mapped_walk {
 	unsigned int flags;
 };
 
-#define DEFINE_PAGE_VMA_WALK(name, _page, _vma, _address, _flags)	\
-	struct page_vma_mapped_walk name = {				\
-		.pfn = page_to_pfn(_page),				\
-		.nr_pages = compound_nr(_page),				\
-		.pgoff = page_to_pgoff(_page),				\
-		.vma = _vma,						\
-		.address = _address,					\
-		.flags = _flags,					\
-	}
-
 #define DEFINE_FOLIO_VMA_WALK(name, _folio, _vma, _address, _flags)	\
 	struct page_vma_mapped_walk name = {				\
 		.pfn = folio_pfn(_folio),				\
@@ -708,6 +701,30 @@ static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 		pte_unmap(pvmw->pte);
 	if (pvmw->ptl)
 		spin_unlock(pvmw->ptl);
+}
+
+/**
+ * page_vma_mapped_walk_restart - Restart the page table walk.
+ * @pvmw: Pointer to struct page_vma_mapped_walk.
+ *
+ * It restarts the page table walk when changes occur in the page
+ * table, such as splitting a PMD. Ensures that the PTL held during
+ * the previous walk is released and resets the state to allow for
+ * a new walk starting at the current address stored in pvmw->address.
+ */
+static inline void
+page_vma_mapped_walk_restart(struct page_vma_mapped_walk *pvmw)
+{
+	WARN_ON_ONCE(!pvmw->pmd && !pvmw->pte);
+
+	if (likely(pvmw->ptl))
+		spin_unlock(pvmw->ptl);
+	else
+		WARN_ON_ONCE(1);
+
+	pvmw->ptl = NULL;
+	pvmw->pmd = NULL;
+	pvmw->pte = NULL;
 }
 
 bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw);
@@ -729,8 +746,6 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 		      struct vm_area_struct *vma);
 
 void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked);
-
-unsigned long page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
 /*
  * rmap_walk_control: To control rmap traversing for specific needs
@@ -787,8 +802,4 @@ static inline int folio_mkclean(struct folio *folio)
 }
 #endif	/* CONFIG_MMU */
 
-static inline int page_mkclean(struct page *page)
-{
-	return folio_mkclean(page_folio(page));
-}
 #endif	/* _LINUX_RMAP_H */

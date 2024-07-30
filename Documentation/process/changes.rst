@@ -33,7 +33,7 @@ GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
-GNU make               3.82             make --version
+GNU make               4.0              make --version
 bash                   4.2              bash --version
 binutils               2.25             ld -v
 flex                   2.5.35           flex --version
@@ -63,6 +63,7 @@ cpio                   any              cpio --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
+Python (optional)      3.5.x            python3 --version
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
@@ -88,14 +89,7 @@ docs on :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 Rust (optional)
 ---------------
 
-A particular version of the Rust toolchain is required. Newer versions may or
-may not work because the kernel depends on some unstable Rust features, for
-the moment.
-
-Each Rust toolchain comes with several "components", some of which are required
-(like ``rustc``) and some that are optional. The ``rust-src`` component (which
-is optional) needs to be installed to build the kernel. Other components are
-useful for developing.
+A recent version of the Rust compiler is required.
 
 Please see Documentation/rust/quick-start.rst for instructions on how to
 satisfy the build requirements of Rust support. In particular, the ``Makefile``
@@ -111,7 +105,7 @@ It depends on ``libclang``.
 Make
 ----
 
-You will need GNU make 3.82 or later to build the kernel.
+You will need GNU make 4.0 or later to build the kernel.
 
 Bash
 ----

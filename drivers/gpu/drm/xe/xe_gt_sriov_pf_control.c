@@ -130,6 +130,27 @@ int xe_gt_sriov_pf_control_stop_vf(struct xe_gt *gt, unsigned int vfid)
 }
 
 /**
+ * xe_gt_sriov_pf_control_trigger_flr - Start a VF FLR sequence.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_control_trigger_flr(struct xe_gt *gt, unsigned int vfid)
+{
+	int err;
+
+	/* XXX pf_send_vf_flr_start() expects ct->lock */
+	mutex_lock(&gt->uc.guc.ct.lock);
+	err = pf_send_vf_flr_start(gt, vfid);
+	mutex_unlock(&gt->uc.guc.ct.lock);
+
+	return err;
+}
+
+/**
  * DOC: The VF FLR Flow with GuC
  *
  *          PF                        GUC             PCI

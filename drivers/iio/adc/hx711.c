@@ -80,7 +80,6 @@ struct hx711_data {
 	struct device		*dev;
 	struct gpio_desc	*gpiod_pd_sck;
 	struct gpio_desc	*gpiod_dout;
-	struct regulator	*reg_avdd;
 	int			gain_set;	/* gain set on device */
 	int			gain_chan_a;	/* gain for channel A */
 	struct mutex		lock;
@@ -465,10 +464,8 @@ static int hx711_probe(struct platform_device *pdev)
 	int i;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct hx711_data));
-	if (!indio_dev) {
-		dev_err(dev, "failed to allocate IIO device\n");
-		return -ENOMEM;
-	}
+	if (!indio_dev)
+		return dev_err_probe(dev, -ENOMEM, "failed to allocate IIO device\n");
 
 	hx711_data = iio_priv(indio_dev);
 	hx711_data->dev = dev;
@@ -480,28 +477,20 @@ static int hx711_probe(struct platform_device *pdev)
 	 * in the driver it is an output
 	 */
 	hx711_data->gpiod_pd_sck = devm_gpiod_get(dev, "sck", GPIOD_OUT_LOW);
-	if (IS_ERR(hx711_data->gpiod_pd_sck)) {
-		dev_err(dev, "failed to get sck-gpiod: err=%ld\n",
-					PTR_ERR(hx711_data->gpiod_pd_sck));
-		return PTR_ERR(hx711_data->gpiod_pd_sck);
-	}
+	if (IS_ERR(hx711_data->gpiod_pd_sck))
+		return dev_err_probe(dev, PTR_ERR(hx711_data->gpiod_pd_sck),
+				     "failed to get sck-gpiod\n");
 
 	/*
 	 * DOUT stands for serial data output of HX711
 	 * for the driver it is an input
 	 */
 	hx711_data->gpiod_dout = devm_gpiod_get(dev, "dout", GPIOD_IN);
-	if (IS_ERR(hx711_data->gpiod_dout)) {
-		dev_err(dev, "failed to get dout-gpiod: err=%ld\n",
-					PTR_ERR(hx711_data->gpiod_dout));
-		return PTR_ERR(hx711_data->gpiod_dout);
-	}
+	if (IS_ERR(hx711_data->gpiod_dout))
+		return dev_err_probe(dev, PTR_ERR(hx711_data->gpiod_dout),
+				     "failed to get dout-gpiod\n");
 
-	hx711_data->reg_avdd = devm_regulator_get(dev, "avdd");
-	if (IS_ERR(hx711_data->reg_avdd))
-		return PTR_ERR(hx711_data->reg_avdd);
-
-	ret = regulator_enable(hx711_data->reg_avdd);
+	ret = devm_regulator_get_enable_read_voltage(dev, "avdd");
 	if (ret < 0)
 		return ret;
 
@@ -517,9 +506,6 @@ static int hx711_probe(struct platform_device *pdev)
 	 * approximately to fit into a 32 bit number:
 	 * 1 LSB = (AVDD * 100) / GAIN / 1678 [10^-9 mV]
 	 */
-	ret = regulator_get_voltage(hx711_data->reg_avdd);
-	if (ret < 0)
-		goto error_regulator;
 
 	/* we need 10^-9 mV */
 	ret *= 100;
@@ -547,51 +533,24 @@ static int hx711_probe(struct platform_device *pdev)
 	hx711_data->data_ready_delay_ns =
 				1000000000 / hx711_data->clock_frequency;
 
-	platform_set_drvdata(pdev, indio_dev);
-
 	indio_dev->name = "hx711";
 	indio_dev->info = &hx711_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = hx711_chan_spec;
 	indio_dev->num_channels = ARRAY_SIZE(hx711_chan_spec);
 
-	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
-							hx711_trigger, NULL);
-	if (ret < 0) {
-		dev_err(dev, "setup of iio triggered buffer failed\n");
-		goto error_regulator;
-	}
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      hx711_trigger, NULL);
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "setup of iio triggered buffer failed\n");
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(dev, "Couldn't register the device\n");
-		goto error_buffer;
-	}
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Couldn't register the device\n");
 
 	return 0;
-
-error_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-error_regulator:
-	regulator_disable(hx711_data->reg_avdd);
-
-	return ret;
-}
-
-static void hx711_remove(struct platform_device *pdev)
-{
-	struct hx711_data *hx711_data;
-	struct iio_dev *indio_dev;
-
-	indio_dev = platform_get_drvdata(pdev);
-	hx711_data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	regulator_disable(hx711_data->reg_avdd);
 }
 
 static const struct of_device_id of_hx711_match[] = {
@@ -603,7 +562,6 @@ MODULE_DEVICE_TABLE(of, of_hx711_match);
 
 static struct platform_driver hx711_driver = {
 	.probe		= hx711_probe,
-	.remove_new	= hx711_remove,
 	.driver		= {
 		.name		= "hx711-gpio",
 		.of_match_table	= of_hx711_match,

@@ -75,11 +75,11 @@ properties:
     description: Optional list of pin base, nr pins & gpio function
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - items:
-          - description: phandle of a gpio-range node
-          - description: pin base
-          - description: number of pins
-          - description: gpio function
+      items:
+        - description: phandle of a gpio-range node
+        - description: pin base
+        - description: number of pins
+        - description: gpio function
 
   '#gpio-range-cells':
     description: No longer needed, may exist in older files for gpio-ranges
@@ -144,6 +144,13 @@ patternProperties:
           - description: drive strength mask
 
       pinctrl-single,input-schmitt:
+        description: Optional schmitt strength configuration
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          - description: schmitt strength current
+          - description: schmitt strength mask
+
+      pinctrl-single,input-schmitt-enable:
         description: Optional input schmitt configuration
         $ref: /schemas/types.yaml#/definitions/uint32-array
         items:

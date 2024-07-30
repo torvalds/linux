@@ -168,15 +168,7 @@ static inline __printf(1, 2) void ksft_print_msg(const char *msg, ...)
 
 static inline void ksft_perror(const char *msg)
 {
-#ifndef NOLIBC
 	ksft_print_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
-#else
-	/*
-	 * nolibc doesn't provide strerror() and it seems
-	 * inappropriate to add one, just print the errno.
-	 */
-	ksft_print_msg("%s: %d)\n", msg, errno);
-#endif
 }
 
 static inline __printf(1, 2) void ksft_test_result_pass(const char *msg, ...)

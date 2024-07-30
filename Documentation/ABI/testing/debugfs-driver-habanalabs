@@ -217,7 +217,7 @@ Description:    Displays the hop values and physical address for a given ASID
                 and virtual address. The user should write the ASID and VA into
                 the file and then read the file to get the result.
                 e.g. to display info about VA 0x1000 for ASID 1 you need to do:
-                echo "1 0x1000" > /sys/kernel/debug/accel/0/mmu
+                echo "1 0x1000" > /sys/kernel/debug/accel/<parent_device>/mmu
 
 What:           /sys/kernel/debug/accel/<parent_device>/mmu_error
 Date:           Mar 2021
@@ -226,8 +226,8 @@ Contact:        fkassabri@habana.ai
 Description:    Check and display page fault or access violation mmu errors for
                 all MMUs specified in mmu_cap_mask.
                 e.g. to display error info for MMU hw cap bit 9, you need to do:
-                echo "0x200" > /sys/kernel/debug/accel/0/mmu_error
-                cat /sys/kernel/debug/accel/0/mmu_error
+                echo "0x200" > /sys/kernel/debug/accel/<parent_device>/mmu_error
+                cat /sys/kernel/debug/accel/<parent_device>/mmu_error
 
 What:           /sys/kernel/debug/accel/<parent_device>/monitor_dump
 Date:           Mar 2022
@@ -252,6 +252,12 @@ Description:    Triggers dump of monitor data. The value to trigger the operatio
                 current registers values of all monitors.
                 When the write is finished, the user can read the "monitor_dump"
                 blob
+
+What:           /sys/kernel/debug/accel/<parent_device>/server_type
+Date:           Feb 2024
+KernelVersion:  6.11
+Contact:        trisin@habana.ai
+Description:    Exposes the device's server type, maps to enum hl_server_type.
 
 What:           /sys/kernel/debug/accel/<parent_device>/set_power_state
 Date:           Jan 2019

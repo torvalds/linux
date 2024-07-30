@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2022 Google LLC
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/spmi/spmi.h>
+
+#include "mt8186-corsola-steelix.dtsi"
+
+/ {
+	chassis-type = "laptop";
+
+	max98360a: max98360a {
+		compatible = "maxim,max98360a";
+		sdmode-gpios = <&pio 150 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&cpu6 {
+	proc-supply = <&mt6319_buck1>;
+};
+
+&cpu7 {
+	proc-supply = <&mt6319_buck1>;
+};
+
+&gpio_keys {
+	status = "disabled";
+};
+
+&keyboard_controller {
+	linux,keymap = <
+		MATRIX_KEY(0x00, 0x02, KEY_BACK)
+		MATRIX_KEY(0x03, 0x02, KEY_REFRESH)
+		MATRIX_KEY(0x02, 0x02, KEY_ZOOM)
+		MATRIX_KEY(0x01, 0x02, KEY_SCALE)
+		MATRIX_KEY(0x03, 0x04, KEY_SYSRQ)
+		MATRIX_KEY(0x02, 0x04, KEY_BRIGHTNESSDOWN)
+		MATRIX_KEY(0x01, 0x04, KEY_BRIGHTNESSUP)
+		MATRIX_KEY(0x02, 0x09, KEY_MUTE)
+		MATRIX_KEY(0x01, 0x09, KEY_VOLUMEDOWN)
+		MATRIX_KEY(0x00, 0x04, KEY_VOLUMEUP)
+		CROS_STD_MAIN_KEYMAP
+	>;
+};
+
+&mt6366_vproc11_reg {
+	status = "disabled";
+};
+
+&cluster1_opp_14 {
+	opp-hz = /bits/ 64 <2050000000>;
+	opp-microvolt = <1118750>;
+};
+
+&cluster1_opp_15 {
+	opp-hz = /bits/ 64 <2200000000>;
+};
+
+&rt1019p{
+	status = "disabled";
+};
+
+&sound {
+	compatible = "mediatek,mt8186-mt6366-rt5682s-max98360-sound";
+	status = "okay";
+
+	spk-hdmi-playback-dai-link {
+		codec {
+			sound-dai = <&it6505dptx>, <&max98360a>;
+		};
+	};
+};
+
+&spmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spmi_pins>;
+	#address-cells = <2>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pmic@6 {
+		compatible = "mediatek,mt6319-regulator", "mediatek,mt6315-regulator";
+		reg = <0x6 SPMI_USID>;
+
+		regulators {
+			mt6319_buck1: vbuck1 {
+					regulator-name = "ppvar_dvdd_proc_bc_mt6319";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <1193750>;
+					regulator-enable-ramp-delay = <256>;
+					regulator-allowed-modes = <0 1 2>;
+					regulator-always-on;
+			};
+		};
+	};
+};
+
+&touchscreen {
+	status = "disabled";
+};

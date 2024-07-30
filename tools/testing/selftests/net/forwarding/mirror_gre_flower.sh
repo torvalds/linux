@@ -64,12 +64,19 @@ cleanup()
 
 test_span_gre_dir_acl()
 {
-	test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
+	local tundev=$1; shift
+	local forward_type=$1; shift
+	local backward_type=$1; shift
+
+	test_span_gre_dir_ips "$tundev" "$forward_type" \
+			      "$backward_type" 192.0.2.3 192.0.2.4
 }
 
 fail_test_span_gre_dir_acl()
 {
-	fail_test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
+	local tundev=$1; shift
+
+	fail_test_span_gre_dir_ips "$tundev" 192.0.2.3 192.0.2.4
 }
 
 full_test_span_gre_dir_acl()
@@ -84,16 +91,15 @@ full_test_span_gre_dir_acl()
 	RET=0
 
 	mirror_install $swp1 $direction $tundev \
-		       "protocol ip flower $tcflags dst_ip $match_dip"
-	fail_test_span_gre_dir $tundev $direction
-	test_span_gre_dir_acl "$tundev" "$direction" \
-			  "$forward_type" "$backward_type"
+		       "protocol ip flower dst_ip $match_dip"
+	fail_test_span_gre_dir $tundev
+	test_span_gre_dir_acl "$tundev" "$forward_type" "$backward_type"
 	mirror_uninstall $swp1 $direction
 
 	# Test lack of mirroring after ACL mirror is uninstalled.
-	fail_test_span_gre_dir_acl "$tundev" "$direction"
+	fail_test_span_gre_dir_acl "$tundev"
 
-	log_test "$direction $what ($tcflags)"
+	log_test "$direction $what"
 }
 
 test_gretap()
@@ -108,30 +114,11 @@ test_ip6gretap()
 	full_test_span_gre_dir_acl gt6 egress 0 8 192.0.2.3 "ACL mirror to ip6gretap"
 }
 
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

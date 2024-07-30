@@ -112,6 +112,8 @@ struct type##_fract {					\
 	__##type numerator;				\
 	__##type denominator;				\
 };
+__STRUCT_FRACT(s8)
+__STRUCT_FRACT(u8)
 __STRUCT_FRACT(s16)
 __STRUCT_FRACT(u16)
 __STRUCT_FRACT(s32)

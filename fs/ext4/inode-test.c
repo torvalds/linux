@@ -279,4 +279,5 @@ static struct kunit_suite ext4_inode_test_suite = {
 
 kunit_test_suites(&ext4_inode_test_suite);
 
+MODULE_DESCRIPTION("KUnit test of ext4 inode timestamp decoding");
 MODULE_LICENSE("GPL v2");

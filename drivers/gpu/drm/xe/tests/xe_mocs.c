@@ -31,9 +31,9 @@ static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 
 	kunit_info(test, "gt %d", gt->info.id);
 	kunit_info(test, "gt type %d", gt->info.type);
-	kunit_info(test, "table size %d", arg->table.size);
+	kunit_info(test, "table size %d", arg->table.table_size);
 	kunit_info(test, "table uc_index %d", arg->table.uc_index);
-	kunit_info(test, "table n_entries %d", arg->table.n_entries);
+	kunit_info(test, "table num_mocs_regs %d", arg->table.num_mocs_regs);
 
 	return flags;
 }
@@ -50,7 +50,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
 
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		if (!(i & 1)) {
 			if (regs_are_mcr(gt))
 				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i >> 1));
@@ -90,7 +90,7 @@ static void read_mocs_table(struct xe_gt *gt,
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
 
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else

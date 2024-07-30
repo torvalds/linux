@@ -17,7 +17,12 @@ properties:
       The content of the cell is the master ID.
 
   compatible:
-    const: allwinner,sun50i-h6-iommu
+    oneOf:
+      - const: allwinner,sun50i-h6-iommu
+      - const: allwinner,sun50i-h616-iommu
+      - items:
+          - const: allwinner,sun55i-a523-iommu
+          - const: allwinner,sun50i-h616-iommu
 
   reg:
     maxItems: 1

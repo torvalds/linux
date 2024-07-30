@@ -38,6 +38,7 @@ struct drm_connector_helper_funcs;
 struct drm_modeset_acquire_ctx;
 struct drm_device;
 struct drm_crtc;
+struct drm_display_mode;
 struct drm_encoder;
 struct drm_panel;
 struct drm_property;
@@ -199,6 +200,13 @@ enum drm_connector_tv_mode {
 	 * SECAM color system.
 	 */
 	DRM_MODE_TV_MODE_SECAM,
+
+	/**
+	 * @DRM_MODE_TV_MODE_MONOCHROME: Use timings appropriate to
+	 * the DRM mode, including equalizing pulses for a 525-line
+	 * or 625-line mode, with no pedestal or color encoding.
+	 */
+	DRM_MODE_TV_MODE_MONOCHROME,
 
 	/**
 	 * @DRM_MODE_TV_MODE_MAX: Number of analog TV output modes.
@@ -367,6 +375,32 @@ enum drm_panel_orientation {
 	DRM_MODE_PANEL_ORIENTATION_LEFT_UP,
 	DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,
 };
+
+/**
+ * enum drm_hdmi_broadcast_rgb - Broadcast RGB Selection for an HDMI @drm_connector
+ */
+enum drm_hdmi_broadcast_rgb {
+	/**
+	 * @DRM_HDMI_BROADCAST_RGB_AUTO: The RGB range is selected
+	 * automatically based on the mode.
+	 */
+	DRM_HDMI_BROADCAST_RGB_AUTO,
+
+	/**
+	 * @DRM_HDMI_BROADCAST_RGB_FULL: Full range RGB is forced.
+	 */
+	DRM_HDMI_BROADCAST_RGB_FULL,
+
+	/**
+	 * @DRM_HDMI_BROADCAST_RGB_LIMITED: Limited range RGB is forced.
+	 */
+	DRM_HDMI_BROADCAST_RGB_LIMITED,
+};
+
+const char *
+drm_hdmi_connector_get_broadcast_rgb_name(enum drm_hdmi_broadcast_rgb broadcast_rgb);
+const char *
+drm_hdmi_connector_get_output_format_name(enum hdmi_colorspace fmt);
 
 /**
  * struct drm_monitor_range_info - Panel's Monitor range in EDID for
@@ -888,6 +922,82 @@ struct drm_tv_connector_state {
 };
 
 /**
+ * struct drm_connector_hdmi_infoframe - HDMI Infoframe container
+ */
+struct drm_connector_hdmi_infoframe {
+	/**
+	 * @data: HDMI Infoframe structure
+	 */
+	union hdmi_infoframe data;
+
+	/**
+	 * @set: Is the content of @data valid?
+	 */
+	bool set;
+};
+
+/*
+ * struct drm_connector_hdmi_state - HDMI state container
+ */
+struct drm_connector_hdmi_state {
+	/**
+	 * @broadcast_rgb: Connector property to pass the
+	 * Broadcast RGB selection value.
+	 */
+	enum drm_hdmi_broadcast_rgb broadcast_rgb;
+
+	/**
+	 * @infoframes: HDMI Infoframes matching that state
+	 */
+	struct {
+		/**
+		 * @avi: AVI Infoframes structure matching our
+		 * state.
+		 */
+		struct drm_connector_hdmi_infoframe avi;
+
+		/**
+		 * @hdr_drm: DRM (Dynamic Range and Mastering)
+		 * Infoframes structure matching our state.
+		 */
+		struct drm_connector_hdmi_infoframe hdr_drm;
+
+		/**
+		 * @spd: SPD Infoframes structure matching our
+		 * state.
+		 */
+		struct drm_connector_hdmi_infoframe spd;
+
+		/**
+		 * @vendor: HDMI Vendor Infoframes structure
+		 * matching our state.
+		 */
+		struct drm_connector_hdmi_infoframe hdmi;
+	} infoframes;
+
+	/**
+	 * @is_limited_range: Is the output supposed to use a limited
+	 * RGB Quantization Range or not?
+	 */
+	bool is_limited_range;
+
+	/**
+	 * @output_bpc: Bits per color channel to output.
+	 */
+	unsigned int output_bpc;
+
+	/**
+	 * @output_format: Pixel format to output in.
+	 */
+	enum hdmi_colorspace output_format;
+
+	/**
+	 * @tmds_char_rate: TMDS Character Rate, in Hz.
+	 */
+	unsigned long long tmds_char_rate;
+};
+
+/**
  * struct drm_connector_state - mutable connector state
  */
 struct drm_connector_state {
@@ -1031,6 +1141,71 @@ struct drm_connector_state {
 	 * DRM blob property for HDR output metadata
 	 */
 	struct drm_property_blob *hdr_output_metadata;
+
+	/**
+	 * @hdmi: HDMI-related variable and properties. Filled by
+	 * @drm_atomic_helper_connector_hdmi_check().
+	 */
+	struct drm_connector_hdmi_state hdmi;
+};
+
+/**
+ * struct drm_connector_hdmi_funcs - drm_hdmi_connector control functions
+ */
+struct drm_connector_hdmi_funcs {
+	/**
+	 * @tmds_char_rate_valid:
+	 *
+	 * This callback is invoked at atomic_check time to figure out
+	 * whether a particular TMDS character rate is supported by the
+	 * driver.
+	 *
+	 * The @tmds_char_rate_valid callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * Either &drm_mode_status.MODE_OK or one of the failure reasons
+	 * in &enum drm_mode_status.
+	 */
+	enum drm_mode_status
+	(*tmds_char_rate_valid)(const struct drm_connector *connector,
+				const struct drm_display_mode *mode,
+				unsigned long long tmds_rate);
+
+	/**
+	 * @clear_infoframe:
+	 *
+	 * This callback is invoked through
+	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
+	 * commit to clear the infoframes into the hardware. It will be
+	 * called multiple times, once for every disabled infoframe
+	 * type.
+	 *
+	 * The @clear_infoframe callback is optional.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*clear_infoframe)(struct drm_connector *connector,
+			       enum hdmi_infoframe_type type);
+
+	/**
+	 * @write_infoframe:
+	 *
+	 * This callback is invoked through
+	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
+	 * commit to program the infoframes into the hardware. It will
+	 * be called multiple times, once for every updated infoframe
+	 * type.
+	 *
+	 * The @write_infoframe callback is mandatory.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*write_infoframe)(struct drm_connector *connector,
+			       enum hdmi_infoframe_type type,
+			       const u8 *buffer, size_t len);
 };
 
 /**
@@ -1493,6 +1668,51 @@ struct drm_cmdline_mode {
 	bool tv_mode_specified;
 };
 
+/*
+ * struct drm_connector_hdmi - DRM Connector HDMI-related structure
+ */
+struct drm_connector_hdmi {
+#define DRM_CONNECTOR_HDMI_VENDOR_LEN	8
+	/**
+	 * @vendor: HDMI Controller Vendor Name
+	 */
+	unsigned char vendor[DRM_CONNECTOR_HDMI_VENDOR_LEN] __nonstring;
+
+#define DRM_CONNECTOR_HDMI_PRODUCT_LEN	16
+	/**
+	 * @product: HDMI Controller Product Name
+	 */
+	unsigned char product[DRM_CONNECTOR_HDMI_PRODUCT_LEN] __nonstring;
+
+	/**
+	 * @supported_formats: Bitmask of @hdmi_colorspace
+	 * supported by the controller.
+	 */
+	unsigned long supported_formats;
+
+	/**
+	 * @funcs: HDMI connector Control Functions
+	 */
+	const struct drm_connector_hdmi_funcs *funcs;
+
+	/**
+	 * @infoframes: Current Infoframes output by the connector
+	 */
+	struct {
+		/**
+		 * @lock: Mutex protecting against concurrent access to
+		 * the infoframes, most notably between KMS and ALSA.
+		 */
+		struct mutex lock;
+
+		/**
+		 * @audio: Current Audio Infoframes structure. Protected
+		 * by @lock.
+		 */
+		struct drm_connector_hdmi_infoframe audio;
+	} infoframes;
+};
+
 /**
  * struct drm_connector - central DRM connector control structure
  *
@@ -1636,8 +1856,12 @@ struct drm_connector {
 
 	/**
 	 * @edid_blob_ptr: DRM property containing EDID if present. Protected by
-	 * &drm_mode_config.mutex. This should be updated only by calling
+	 * &drm_mode_config.mutex.
+	 *
+	 * This must be updated only by calling drm_edid_connector_update() or
 	 * drm_connector_update_edid_property().
+	 *
+	 * This must not be used by drivers directly.
 	 */
 	struct drm_property_blob *edid_blob_ptr;
 
@@ -1676,6 +1900,11 @@ struct drm_connector {
 	struct drm_property_blob *path_blob_ptr;
 
 	/**
+	 * @max_bpc: Maximum bits per color channel the connector supports.
+	 */
+	unsigned int max_bpc;
+
+	/**
 	 * @max_bpc_property: Default connector property for the max bpc to be
 	 * driven out of the connector.
 	 */
@@ -1698,6 +1927,12 @@ struct drm_connector {
 	 * connector to report the actual integrated privacy screen state.
 	 */
 	struct drm_property *privacy_screen_hw_state_property;
+
+	/**
+	 * @broadcast_rgb_property: Connector property to set the
+	 * Broadcast RGB selection to output with.
+	 */
+	struct drm_property *broadcast_rgb_property;
 
 #define DRM_CONNECTOR_POLL_HPD (1 << 0)
 #define DRM_CONNECTOR_POLL_CONNECT (1 << 1)
@@ -1886,6 +2121,11 @@ struct drm_connector {
 
 	/** @hdr_sink_metadata: HDR Metadata Information read from sink */
 	struct hdr_sink_metadata hdr_sink_metadata;
+
+	/**
+	 * @hdmi: HDMI-related variable and properties.
+	 */
+	struct drm_connector_hdmi hdmi;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
@@ -1904,6 +2144,15 @@ int drmm_connector_init(struct drm_device *dev,
 			const struct drm_connector_funcs *funcs,
 			int connector_type,
 			struct i2c_adapter *ddc);
+int drmm_connector_hdmi_init(struct drm_device *dev,
+			     struct drm_connector *connector,
+			     const char *vendor, const char *product,
+			     const struct drm_connector_funcs *funcs,
+			     const struct drm_connector_hdmi_funcs *hdmi_funcs,
+			     int connector_type,
+			     struct i2c_adapter *ddc,
+			     unsigned long supported_formats,
+			     unsigned int max_bpc);
 void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
@@ -2014,6 +2263,7 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 					       u32 scaling_mode_mask);
 int drm_connector_attach_vrr_capable_property(
 		struct drm_connector *connector);
+int drm_connector_attach_broadcast_rgb_property(struct drm_connector *connector);
 int drm_connector_attach_colorspace_property(struct drm_connector *connector);
 int drm_connector_attach_hdr_output_metadata_property(struct drm_connector *connector);
 bool drm_connector_atomic_hdr_metadata_equal(struct drm_connector_state *old_state,

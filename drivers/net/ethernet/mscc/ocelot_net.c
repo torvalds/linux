@@ -980,7 +980,7 @@ static int ocelot_port_get_sset_count(struct net_device *dev, int sset)
 }
 
 static int ocelot_port_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
+				   struct kernel_ethtool_ts_info *info)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot *ocelot = priv->port.ocelot;

@@ -112,7 +112,7 @@ struct device_private {
 	struct klist_node knode_bus;
 	struct klist_node knode_class;
 	struct list_head deferred_probe;
-	struct device_driver *async_driver;
+	const struct device_driver *async_driver;
 	char *deferred_probe_reason;
 	struct device *device;
 	u8 dead:1;
@@ -155,13 +155,13 @@ bool bus_is_registered(const struct bus_type *bus);
 
 int bus_add_driver(struct device_driver *drv);
 void bus_remove_driver(struct device_driver *drv);
-void device_release_driver_internal(struct device *dev, struct device_driver *drv,
+void device_release_driver_internal(struct device *dev, const struct device_driver *drv,
 				    struct device *parent);
 
-void driver_detach(struct device_driver *drv);
+void driver_detach(const struct device_driver *drv);
 void driver_deferred_probe_del(struct device *dev);
 void device_set_deferred_probe_reason(const struct device *dev, struct va_format *vaf);
-static inline int driver_match_device(struct device_driver *drv,
+static inline int driver_match_device(const struct device_driver *drv,
 				      struct device *dev)
 {
 	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
@@ -175,8 +175,8 @@ static inline void dev_sync_state(struct device *dev)
 		dev->driver->sync_state(dev);
 }
 
-int driver_add_groups(struct device_driver *drv, const struct attribute_group **groups);
-void driver_remove_groups(struct device_driver *drv, const struct attribute_group **groups);
+int driver_add_groups(const struct device_driver *drv, const struct attribute_group **groups);
+void driver_remove_groups(const struct device_driver *drv, const struct attribute_group **groups);
 void device_driver_detach(struct device *dev);
 
 int devres_release_all(struct device *dev);
@@ -192,8 +192,8 @@ extern struct kset *devices_kset;
 void devices_kset_move_last(struct device *dev);
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
-int module_add_driver(struct module *mod, struct device_driver *drv);
-void module_remove_driver(struct device_driver *drv);
+int module_add_driver(struct module *mod, const struct device_driver *drv);
+void module_remove_driver(const struct device_driver *drv);
 #else
 static inline int module_add_driver(struct module *mod,
 				    struct device_driver *drv)

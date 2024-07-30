@@ -669,6 +669,29 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 
+TRACE_EVENT(xprtrdma_device_removal,
+	TP_PROTO(
+		const struct rdma_cm_id *id
+	),
+
+	TP_ARGS(id),
+
+	TP_STRUCT__entry(
+		__string(name, id->device->name)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		memcpy(__entry->addr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
+	),
+
+	TP_printk("device %s to be removed, disconnecting %pISpc\n",
+		__get_str(name), __entry->addr
+	)
+);
+
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
 
 TRACE_EVENT(xprtrdma_op_connect,
@@ -2219,6 +2242,40 @@ TRACE_EVENT(svcrdma_sq_post_err,
 		__entry->avail, __entry->depth, __entry->status
 	)
 );
+
+DECLARE_EVENT_CLASS(rpcrdma_client_device_class,
+	TP_PROTO(
+		const struct ib_device *device
+	),
+
+	TP_ARGS(device),
+
+	TP_STRUCT__entry(
+		__string(name, device->name)
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+	),
+
+	TP_printk("device=%s",
+		__get_str(name)
+	)
+);
+
+#define DEFINE_CLIENT_DEVICE_EVENT(name)				\
+	DEFINE_EVENT(rpcrdma_client_device_class, name,			\
+		TP_PROTO(						\
+			const struct ib_device *device			\
+		),							\
+		TP_ARGS(device)						\
+	)
+
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_completion);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_add_one);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_wait_on);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one_done);
 
 #endif /* _TRACE_RPCRDMA_H */
 

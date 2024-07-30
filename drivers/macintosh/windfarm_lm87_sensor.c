@@ -156,7 +156,7 @@ static void wf_lm87_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wf_lm87_id[] = {
-	{ "MAC,lm87cimt", 0 },
+	{ "MAC,lm87cimt" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wf_lm87_id);

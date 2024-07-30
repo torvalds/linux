@@ -1275,8 +1275,8 @@ static struct parport_driver imm_driver = {
 	.name		= "imm",
 	.match_port	= imm_attach,
 	.detach		= imm_detach,
-	.devmodel	= true,
 };
 module_parport_driver(imm_driver);
 
+MODULE_DESCRIPTION("IOMEGA MatchMaker parallel port SCSI host adapter driver");
 MODULE_LICENSE("GPL");

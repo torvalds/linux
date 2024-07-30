@@ -2891,15 +2891,11 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		pmc->aotag = base;
 		pmc->scratch = base;
 	} else {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"wake");
-		pmc->wake = devm_ioremap_resource(&pdev->dev, res);
+		pmc->wake = devm_platform_ioremap_resource_byname(pdev, "wake");
 		if (IS_ERR(pmc->wake))
 			return PTR_ERR(pmc->wake);
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"aotag");
-		pmc->aotag = devm_ioremap_resource(&pdev->dev, res);
+		pmc->aotag = devm_platform_ioremap_resource_byname(pdev, "aotag");
 		if (IS_ERR(pmc->aotag))
 			return PTR_ERR(pmc->aotag);
 

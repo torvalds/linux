@@ -71,6 +71,8 @@ struct dlm_lksb {
 /* DLM_LSFL_TIMEWARN is deprecated and reserved. DO NOT USE! */
 #define DLM_LSFL_TIMEWARN	0x00000002
 #define DLM_LSFL_NEWEXCL     	0x00000008
+/* currently reserved due in-kernel use */
+#define __DLM_LSFL_RESERVED0	0x00000010
 
 
 #endif /* _UAPI__DLM_DOT_H__ */

@@ -115,7 +115,7 @@ static inline void writeccr(struct mpc_i2c *i2c, u32 x)
 	writeb(x, i2c->base + MPC_I2C_CR);
 }
 
-/* Sometimes 9th clock pulse isn't generated, and slave doesn't release
+/* Sometimes 9th clock pulse isn't generated, and target doesn't release
  * the bus, because it wants to send ACK.
  * Following sequence of enabling/disabling and sending start/stop generates
  * the 9 pulses, each with a START then ending with STOP, so it's all OK.
@@ -759,7 +759,7 @@ static int fsl_i2c_bus_recovery(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm mpc_algo = {
-	.master_xfer = mpc_xfer,
+	.xfer = mpc_xfer,
 	.functionality = mpc_functionality,
 };
 

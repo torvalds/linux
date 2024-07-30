@@ -165,6 +165,7 @@ out:
 
 static __exit void xor_exit(void) { }
 
+MODULE_DESCRIPTION("RAID-5 checksumming functions");
 MODULE_LICENSE("GPL");
 
 #ifndef MODULE

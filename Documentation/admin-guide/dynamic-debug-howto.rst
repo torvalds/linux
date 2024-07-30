@@ -26,6 +26,11 @@ Dynamic debug provides:
    - format string
    - class name (as known/declared by each module)
 
+NOTE: To actually get the debug-print output on the console, you may
+need to adjust the kernel ``loglevel=``, or use ``ignore_loglevel``.
+Read about these kernel parameters in
+Documentation/admin-guide/kernel-parameters.rst.
+
 Viewing Dynamic Debug Behaviour
 ===============================
 

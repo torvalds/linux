@@ -29,6 +29,7 @@
 #include <linux/cma.h>
 #include <linux/crash_dump.h>
 #include <linux/execmem.h>
+#include <linux/vmstat.h>
 #include "internal.h"
 #include "slab.h"
 #include "shuffle.h"
@@ -53,7 +54,6 @@ void __init mminit_verify_zonelist(void)
 		struct zonelist *zonelist;
 		int i, listid, zoneid;
 
-		BUILD_BUG_ON(MAX_ZONELISTS > 2);
 		for (i = 0; i < MAX_ZONELISTS * MAX_NR_ZONES; i++) {
 
 			/* Identify the zone and nodelist */
@@ -363,7 +363,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 
 			nid = memblock_get_region_node(r);
 
-			usable_startpfn = PFN_DOWN(r->base);
+			usable_startpfn = memblock_region_memory_base_pfn(r);
 			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
 				min(usable_startpfn, zone_movable_pfn[nid]) :
 				usable_startpfn;
@@ -568,7 +568,7 @@ void __meminit __init_single_page(struct page *page, unsigned long pfn,
 	mm_zero_struct_page(page);
 	set_page_links(page, zone, nid, pfn);
 	init_page_count(page);
-	page_mapcount_reset(page);
+	atomic_set(&page->_mapcount, -1);
 	page_cpupid_reset_last(page);
 	page_kasan_tag_reset(page);
 
@@ -676,6 +676,14 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 
 	if (early_page_ext_enabled())
 		return false;
+
+	/* Always populate low zones for address-constrained allocations */
+	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
+		return false;
+
+	if (NODE_DATA(nid)->first_deferred_pfn != ULONG_MAX)
+		return true;
+
 	/*
 	 * prev_end_pfn static that contains the end of previous zone
 	 * No need to protect because called very early in boot before smp_init.
@@ -685,12 +693,6 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 		nr_initialised = 0;
 	}
 
-	/* Always populate low zones for address-constrained allocations */
-	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
-		return false;
-
-	if (NODE_DATA(nid)->first_deferred_pfn != ULONG_MAX)
-		return true;
 	/*
 	 * We start only with one section of pages, more pages are added as
 	 * needed until the rest of deferred pages are initialized.
@@ -757,9 +759,6 @@ void __meminit reserve_bootmem_region(phys_addr_t start,
 			struct page *page = pfn_to_page(start_pfn);
 
 			init_reserved_page(start_pfn, nid);
-
-			/* Avoid false-positive PageTail() */
-			INIT_LIST_HEAD(&page->lru);
 
 			/*
 			 * no need for atomic set_bit because the struct
@@ -892,8 +891,14 @@ void __meminit memmap_init_range(unsigned long size, int nid, unsigned long zone
 
 		page = pfn_to_page(pfn);
 		__init_single_page(page, pfn, zone, nid);
-		if (context == MEMINIT_HOTPLUG)
-			__SetPageReserved(page);
+		if (context == MEMINIT_HOTPLUG) {
+#ifdef CONFIG_ZONE_DEVICE
+			if (zone == ZONE_DEVICE)
+				__SetPageReserved(page);
+			else
+#endif
+				__SetPageOffline(page);
+		}
 
 		/*
 		 * Usually, we want to mark the pageblock MIGRATE_MOVABLE,
@@ -1618,6 +1623,8 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 		panic("Failed to allocate %ld bytes for node %d memory map\n",
 		      size, pgdat->node_id);
 	pgdat->node_mem_map = map + offset;
+	mod_node_early_perpage_metadata(pgdat->node_id,
+					DIV_ROUND_UP(size, PAGE_SIZE));
 	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
 		 __func__, pgdat->node_id, (unsigned long)pgdat,
 		 (unsigned long)pgdat->node_mem_map);
@@ -1913,8 +1920,8 @@ unsigned long __init node_map_pfn_alignment(void)
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-static void __init deferred_free_range(unsigned long pfn,
-				       unsigned long nr_pages)
+static void __init deferred_free_pages(unsigned long pfn,
+		unsigned long nr_pages)
 {
 	struct page *page;
 	unsigned long i;
@@ -1928,7 +1935,7 @@ static void __init deferred_free_range(unsigned long pfn,
 	if (nr_pages == MAX_ORDER_NR_PAGES && IS_MAX_ORDER_ALIGNED(pfn)) {
 		for (i = 0; i < nr_pages; i += pageblock_nr_pages)
 			set_pageblock_migratetype(page + i, MIGRATE_MOVABLE);
-		__free_pages_core(page, MAX_PAGE_ORDER);
+		__free_pages_core(page, MAX_PAGE_ORDER, MEMINIT_EARLY);
 		return;
 	}
 
@@ -1938,7 +1945,7 @@ static void __init deferred_free_range(unsigned long pfn,
 	for (i = 0; i < nr_pages; i++, page++, pfn++) {
 		if (pageblock_aligned(pfn))
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-		__free_pages_core(page, 0);
+		__free_pages_core(page, 0, MEMINIT_EARLY);
 	}
 }
 
@@ -1953,90 +1960,47 @@ static inline void __init pgdat_init_report_one_done(void)
 }
 
 /*
- * Returns true if page needs to be initialized or freed to buddy allocator.
- *
- * We check if a current MAX_PAGE_ORDER block is valid by only checking the
- * validity of the head pfn.
- */
-static inline bool __init deferred_pfn_valid(unsigned long pfn)
-{
-	if (IS_MAX_ORDER_ALIGNED(pfn) && !pfn_valid(pfn))
-		return false;
-	return true;
-}
-
-/*
- * Free pages to buddy allocator. Try to free aligned pages in
- * MAX_ORDER_NR_PAGES sizes.
- */
-static void __init deferred_free_pages(unsigned long pfn,
-				       unsigned long end_pfn)
-{
-	unsigned long nr_free = 0;
-
-	for (; pfn < end_pfn; pfn++) {
-		if (!deferred_pfn_valid(pfn)) {
-			deferred_free_range(pfn - nr_free, nr_free);
-			nr_free = 0;
-		} else if (IS_MAX_ORDER_ALIGNED(pfn)) {
-			deferred_free_range(pfn - nr_free, nr_free);
-			nr_free = 1;
-		} else {
-			nr_free++;
-		}
-	}
-	/* Free the last block of pages to allocator */
-	deferred_free_range(pfn - nr_free, nr_free);
-}
-
-/*
  * Initialize struct pages.  We minimize pfn page lookups and scheduler checks
  * by performing it only once every MAX_ORDER_NR_PAGES.
  * Return number of pages initialized.
  */
-static unsigned long  __init deferred_init_pages(struct zone *zone,
-						 unsigned long pfn,
-						 unsigned long end_pfn)
+static unsigned long __init deferred_init_pages(struct zone *zone,
+		unsigned long pfn, unsigned long end_pfn)
 {
 	int nid = zone_to_nid(zone);
-	unsigned long nr_pages = 0;
+	unsigned long nr_pages = end_pfn - pfn;
 	int zid = zone_idx(zone);
-	struct page *page = NULL;
+	struct page *page = pfn_to_page(pfn);
 
-	for (; pfn < end_pfn; pfn++) {
-		if (!deferred_pfn_valid(pfn)) {
-			page = NULL;
-			continue;
-		} else if (!page || IS_MAX_ORDER_ALIGNED(pfn)) {
-			page = pfn_to_page(pfn);
-		} else {
-			page++;
-		}
+	for (; pfn < end_pfn; pfn++, page++)
 		__init_single_page(page, pfn, zid, nid);
-		nr_pages++;
-	}
 	return nr_pages;
 }
 
 /*
- * This function is meant to pre-load the iterator for the zone init.
- * Specifically it walks through the ranges until we are caught up to the
- * first_init_pfn value and exits there. If we never encounter the value we
- * return false indicating there are no valid ranges left.
+ * This function is meant to pre-load the iterator for the zone init from
+ * a given point.
+ * Specifically it walks through the ranges starting with initial index
+ * passed to it until we are caught up to the first_init_pfn value and
+ * exits there. If we never encounter the value we return false indicating
+ * there are no valid ranges left.
  */
 static bool __init
 deferred_init_mem_pfn_range_in_zone(u64 *i, struct zone *zone,
 				    unsigned long *spfn, unsigned long *epfn,
 				    unsigned long first_init_pfn)
 {
-	u64 j;
+	u64 j = *i;
+
+	if (j == 0)
+		__next_mem_pfn_range_in_zone(&j, zone, spfn, epfn);
 
 	/*
 	 * Start out by walking through the ranges in this zone that have
 	 * already been initialized. We don't need to do anything with them
 	 * so we just need to flush them out of the system.
 	 */
-	for_each_free_mem_pfn_range_in_zone(j, zone, spfn, epfn) {
+	for_each_free_mem_pfn_range_in_zone_from(j, zone, spfn, epfn) {
 		if (*epfn <= first_init_pfn)
 			continue;
 		if (*spfn < first_init_pfn)
@@ -2093,7 +2057,7 @@ deferred_init_maxorder(u64 *i, struct zone *zone, unsigned long *start_pfn,
 			break;
 
 		t = min(mo_pfn, epfn);
-		deferred_free_pages(spfn, t);
+		deferred_free_pages(spfn, t - spfn);
 
 		if (mo_pfn <= epfn)
 			break;
@@ -2108,7 +2072,7 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 {
 	unsigned long spfn, epfn;
 	struct zone *zone = arg;
-	u64 i;
+	u64 i = 0;
 
 	deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn, start_pfn);
 
@@ -2122,11 +2086,10 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 	}
 }
 
-/* An arch may override for more concurrency. */
-__weak int __init
+static unsigned int __init
 deferred_page_init_max_threads(const struct cpumask *node_cpumask)
 {
-	return 1;
+	return max(cpumask_weight(node_cpumask), 1U);
 }
 
 /* Initialise remaining memory on a node */
@@ -2138,8 +2101,8 @@ static int __init deferred_init_memmap(void *data)
 	unsigned long first_init_pfn, flags;
 	unsigned long start = jiffies;
 	struct zone *zone;
-	int zid, max_threads;
-	u64 i;
+	int max_threads;
+	u64 i = 0;
 
 	/* Bind memory initialisation thread to a local node if possible */
 	if (!cpumask_empty(cpumask))
@@ -2165,27 +2128,18 @@ static int __init deferred_init_memmap(void *data)
 	 */
 	pgdat_resize_unlock(pgdat, &flags);
 
-	/* Only the highest zone is deferred so find it */
-	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-		zone = pgdat->node_zones + zid;
-		if (first_init_pfn < zone_end_pfn(zone))
-			break;
-	}
-
-	/* If the zone is empty somebody else may have cleared out the zone */
-	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
-						 first_init_pfn))
-		goto zone_empty;
+	/* Only the highest zone is deferred */
+	zone = pgdat->node_zones + pgdat->nr_zones - 1;
 
 	max_threads = deferred_page_init_max_threads(cpumask);
 
-	while (spfn < epfn) {
-		unsigned long epfn_align = ALIGN(epfn, PAGES_PER_SECTION);
+	while (deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn, first_init_pfn)) {
+		first_init_pfn = ALIGN(epfn, PAGES_PER_SECTION);
 		struct padata_mt_job job = {
 			.thread_fn   = deferred_init_memmap_chunk,
 			.fn_arg      = zone,
 			.start       = spfn,
-			.size        = epfn_align - spfn,
+			.size        = first_init_pfn - spfn,
 			.align       = PAGES_PER_SECTION,
 			.min_chunk   = PAGES_PER_SECTION,
 			.max_threads = max_threads,
@@ -2193,12 +2147,10 @@ static int __init deferred_init_memmap(void *data)
 		};
 
 		padata_do_multithreaded(&job);
-		deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
-						    epfn_align);
 	}
-zone_empty:
+
 	/* Sanity check that the next zone really is unpopulated */
-	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+	WARN_ON(pgdat->nr_zones < MAX_NR_ZONES && populated_zone(++zone));
 
 	pr_info("node %d deferred pages initialised in %ums\n",
 		pgdat->node_id, jiffies_to_msecs(jiffies - start));
@@ -2225,7 +2177,7 @@ bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 	unsigned long first_deferred_pfn = pgdat->first_deferred_pfn;
 	unsigned long spfn, epfn, flags;
 	unsigned long nr_pages = 0;
-	u64 i;
+	u64 i = 0;
 
 	/* Only the last zone may have deferred pages */
 	if (zone_end_pfn(zone) != pgdat_end_pfn(pgdat))
@@ -2322,6 +2274,7 @@ void set_zone_contiguous(struct zone *zone)
 	zone->contiguous = true;
 }
 
+static void __init mem_init_print_info(void);
 void __init page_alloc_init_late(void)
 {
 	struct zone *zone;
@@ -2348,6 +2301,8 @@ void __init page_alloc_init_late(void)
 	files_maxfiles_init();
 #endif
 
+	/* Accounting of total+free memory is stable at this point. */
+	mem_init_print_info();
 	buffer_init();
 
 	/* Discard memblock private memory */
@@ -2514,7 +2469,7 @@ void __init memblock_free_pages(struct page *page, unsigned long pfn,
 		}
 	}
 
-	__free_pages_core(page, order);
+	__free_pages_core(page, order, MEMINIT_EARLY);
 }
 
 DEFINE_STATIC_KEY_MAYBE(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, init_on_alloc);
@@ -2694,6 +2649,7 @@ static void __init mem_init_print_info(void)
 void __init mm_core_init(void)
 {
 	/* Initializations relying on SMP setup */
+	BUILD_BUG_ON(MAX_ZONELISTS > 2);
 	build_all_zonelists(NULL);
 	page_alloc_init_cpuhp();
 
@@ -2708,7 +2664,6 @@ void __init mm_core_init(void)
 	kmsan_init_shadow();
 	stack_depot_early_init();
 	mem_init();
-	mem_init_print_info();
 	kmem_cache_init();
 	/*
 	 * page_owner must be initialized after buddy is ready, and also after

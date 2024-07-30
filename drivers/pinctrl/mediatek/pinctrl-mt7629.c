@@ -385,16 +385,16 @@ static const char *mt7629_wifi_groups[] = { "wf0_5g", "wf0_2g", };
 static const char *mt7629_flash_groups[] = { "snfi", "spi_nor" };
 
 static const struct function_desc mt7629_functions[] = {
-	{"eth",	mt7629_ethernet_groups, ARRAY_SIZE(mt7629_ethernet_groups)},
-	{"i2c", mt7629_i2c_groups, ARRAY_SIZE(mt7629_i2c_groups)},
-	{"led",	mt7629_led_groups, ARRAY_SIZE(mt7629_led_groups)},
-	{"pcie", mt7629_pcie_groups, ARRAY_SIZE(mt7629_pcie_groups)},
-	{"pwm",	mt7629_pwm_groups, ARRAY_SIZE(mt7629_pwm_groups)},
-	{"spi",	mt7629_spi_groups, ARRAY_SIZE(mt7629_spi_groups)},
-	{"uart", mt7629_uart_groups, ARRAY_SIZE(mt7629_uart_groups)},
-	{"watchdog", mt7629_wdt_groups, ARRAY_SIZE(mt7629_wdt_groups)},
-	{"wifi", mt7629_wifi_groups, ARRAY_SIZE(mt7629_wifi_groups)},
-	{"flash", mt7629_flash_groups, ARRAY_SIZE(mt7629_flash_groups)},
+	PINCTRL_PIN_FUNCTION("eth", mt7629_ethernet),
+	PINCTRL_PIN_FUNCTION("i2c", mt7629_i2c),
+	PINCTRL_PIN_FUNCTION("led", mt7629_led),
+	PINCTRL_PIN_FUNCTION("pcie", mt7629_pcie),
+	PINCTRL_PIN_FUNCTION("pwm", mt7629_pwm),
+	PINCTRL_PIN_FUNCTION("spi", mt7629_spi),
+	PINCTRL_PIN_FUNCTION("uart", mt7629_uart),
+	PINCTRL_PIN_FUNCTION("watchdog", mt7629_wdt),
+	PINCTRL_PIN_FUNCTION("wifi", mt7629_wifi),
+	PINCTRL_PIN_FUNCTION("flash", mt7629_flash),
 };
 
 static const struct mtk_eint_hw mt7629_eint_hw = {

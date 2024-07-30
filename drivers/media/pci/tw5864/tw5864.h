@@ -12,6 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -85,7 +86,7 @@ struct tw5864_input {
 	int nr; /* input number */
 	struct tw5864_dev *root;
 	struct mutex lock; /* used for vidq and vdev */
-	spinlock_t slock; /* used for sync between ISR, tasklet & V4L2 API */
+	spinlock_t slock; /* used for sync between ISR, bh_work & V4L2 API */
 	struct video_device vdev;
 	struct v4l2_ctrl_handler hdl;
 	struct vb2_queue vidq;
@@ -142,7 +143,7 @@ struct tw5864_h264_frame {
 
 /* global device status */
 struct tw5864_dev {
-	spinlock_t slock; /* used for sync between ISR, tasklet & V4L2 API */
+	spinlock_t slock; /* used for sync between ISR, bh_work & V4L2 API */
 	struct v4l2_device v4l2_dev;
 	struct tw5864_input inputs[TW5864_INPUTS];
 #define H264_BUF_CNT 4
@@ -150,7 +151,7 @@ struct tw5864_dev {
 	int h264_buf_r_index;
 	int h264_buf_w_index;
 
-	struct tasklet_struct tasklet;
+	struct work_struct bh_work;
 
 	int encoder_busy;
 	/* Input number to check next for ready raw picture (in RR fashion) */

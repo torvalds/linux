@@ -15,6 +15,7 @@
 /* dedicate the last GPR_R15 to assign the register address to be poll */
 #define CMDQ_POLL_ADDR_GPR	(15)
 #define CMDQ_EOC_IRQ_EN		BIT(0)
+#define CMDQ_IMMEDIATE_VALUE	0
 #define CMDQ_REG_TYPE		1
 #define CMDQ_JUMP_RELATIVE	0
 #define CMDQ_JUMP_ABSOLUTE	1
@@ -44,6 +45,16 @@ struct cmdq_instruction {
 	};
 	u8 op;
 };
+
+static inline u8 cmdq_operand_get_type(struct cmdq_operand *op)
+{
+	return op->reg ? CMDQ_REG_TYPE : CMDQ_IMMEDIATE_VALUE;
+}
+
+static inline u16 cmdq_operand_get_idx_value(struct cmdq_operand *op)
+{
+	return op->reg ? op->idx : op->value;
+}
 
 int cmdq_dev_get_client_reg(struct device *dev,
 			    struct cmdq_client_reg *client_reg, int idx)
@@ -461,6 +472,29 @@ int cmdq_pkt_poll_addr(struct cmdq_pkt *pkt, dma_addr_t addr, u32 value, u32 mas
 }
 EXPORT_SYMBOL(cmdq_pkt_poll_addr);
 
+int cmdq_pkt_logic_command(struct cmdq_pkt *pkt, u16 result_reg_idx,
+			   struct cmdq_operand *left_operand,
+			   enum cmdq_logic_op s_op,
+			   struct cmdq_operand *right_operand)
+{
+	struct cmdq_instruction inst = { {0} };
+
+	if (!left_operand || !right_operand || s_op >= CMDQ_LOGIC_MAX)
+		return -EINVAL;
+
+	inst.op = CMDQ_CODE_LOGIC;
+	inst.dst_t = CMDQ_REG_TYPE;
+	inst.src_t = cmdq_operand_get_type(left_operand);
+	inst.arg_c_t = cmdq_operand_get_type(right_operand);
+	inst.sop = s_op;
+	inst.reg_dst = result_reg_idx;
+	inst.src_reg = cmdq_operand_get_idx_value(left_operand);
+	inst.arg_c = cmdq_operand_get_idx_value(right_operand);
+
+	return cmdq_pkt_append_command(pkt, inst);
+}
+EXPORT_SYMBOL(cmdq_pkt_logic_command);
+
 int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value)
 {
 	struct cmdq_instruction inst = {};
@@ -526,4 +560,5 @@ int cmdq_pkt_finalize(struct cmdq_pkt *pkt)
 }
 EXPORT_SYMBOL(cmdq_pkt_finalize);
 
+MODULE_DESCRIPTION("MediaTek Command Queue (CMDQ) driver");
 MODULE_LICENSE("GPL v2");

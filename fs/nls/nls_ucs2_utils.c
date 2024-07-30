@@ -16,6 +16,7 @@
 #include <asm/unaligned.h>
 #include "nls_ucs2_utils.h"
 
+MODULE_DESCRIPTION("NLS UCS-2");
 MODULE_LICENSE("GPL");
 
 /*

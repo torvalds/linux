@@ -41,7 +41,7 @@ void mlx5_port_query_eth_autoneg(struct mlx5_core_dev *dev, u8 *an_status,
 	*an_disable_cap = 0;
 	*an_disable_admin = 0;
 
-	if (mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, 1))
+	if (mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, 1, 0))
 		return;
 
 	*an_status = MLX5_GET(ptys_reg, out, an_status);

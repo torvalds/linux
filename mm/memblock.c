@@ -114,12 +114,10 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
 
 struct memblock memblock __initdata_memblock = {
 	.memory.regions		= memblock_memory_init_regions,
-	.memory.cnt		= 1,	/* empty dummy entry */
 	.memory.max		= INIT_MEMBLOCK_MEMORY_REGIONS,
 	.memory.name		= "memory",
 
 	.reserved.regions	= memblock_reserved_init_regions,
-	.reserved.cnt		= 1,	/* empty dummy entry */
 	.reserved.max		= INIT_MEMBLOCK_RESERVED_REGIONS,
 	.reserved.name		= "reserved",
 
@@ -130,7 +128,6 @@ struct memblock memblock __initdata_memblock = {
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
 struct memblock_type physmem = {
 	.regions		= memblock_physmem_init_regions,
-	.cnt			= 1,	/* empty dummy entry */
 	.max			= INIT_PHYSMEM_REGIONS,
 	.name			= "physmem",
 };
@@ -197,8 +194,8 @@ bool __init_memblock memblock_overlaps_region(struct memblock_type *type,
 	for (i = 0; i < type->cnt; i++)
 		if (memblock_addrs_overlap(base, size, type->regions[i].base,
 					   type->regions[i].size))
-			break;
-	return i < type->cnt;
+			return true;
+	return false;
 }
 
 /**
@@ -356,7 +353,6 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
 	/* Special case for empty arrays */
 	if (type->cnt == 0) {
 		WARN_ON(type->total_size != 0);
-		type->cnt = 1;
 		type->regions[0].base = 0;
 		type->regions[0].size = 0;
 		type->regions[0].flags = 0;
@@ -600,12 +596,13 @@ static int __init_memblock memblock_add_range(struct memblock_type *type,
 
 	/* special case for empty array */
 	if (type->regions[0].size == 0) {
-		WARN_ON(type->cnt != 1 || type->total_size);
+		WARN_ON(type->cnt != 0 || type->total_size);
 		type->regions[0].base = base;
 		type->regions[0].size = size;
 		type->regions[0].flags = flags;
 		memblock_set_region_node(&type->regions[0], nid);
 		type->total_size = size;
+		type->cnt = 1;
 		return 0;
 	}
 
@@ -780,7 +777,8 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
  * Walk @type and ensure that regions don't cross the boundaries defined by
  * [@base, @base + @size).  Crossing regions are split at the boundaries,
  * which may create at most two more regions.  The index of the first
- * region inside the range is returned in *@start_rgn and end in *@end_rgn.
+ * region inside the range is returned in *@start_rgn and the index of the
+ * first region after the range is returned in *@end_rgn.
  *
  * Return:
  * 0 on success, -errno on failure.
@@ -1441,6 +1439,17 @@ phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 	enum memblock_flags flags = choose_memblock_flags();
 	phys_addr_t found;
 
+	/*
+	 * Detect any accidental use of these APIs after slab is ready, as at
+	 * this moment memblock may be deinitialized already and its
+	 * internal data may be destroyed (after execution of memblock_free_all)
+	 */
+	if (WARN_ON_ONCE(slab_is_available())) {
+		void *vaddr = kzalloc_node(size, GFP_NOWAIT, nid);
+
+		return vaddr ? virt_to_phys(vaddr) : 0;
+	}
+
 	if (!align) {
 		/* Can't use WARNs this early in boot on powerpc */
 		dump_stack();
@@ -1566,13 +1575,6 @@ static void * __init memblock_alloc_internal(
 {
 	phys_addr_t alloc;
 
-	/*
-	 * Detect any accidental use of these APIs after slab is ready, as at
-	 * this moment memblock may be deinitialized already and its
-	 * internal data may be destroyed (after execution of memblock_free_all)
-	 */
-	if (WARN_ON_ONCE(slab_is_available()))
-		return kzalloc_node(size, GFP_NOWAIT, nid);
 
 	if (max_addr > memblock.current_limit)
 		max_addr = memblock.current_limit;
@@ -2031,7 +2033,7 @@ static void __init free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * downwards.
 	 */
 	pg = PAGE_ALIGN(__pa(start_pg));
-	pgend = __pa(end_pg) & PAGE_MASK;
+	pgend = PAGE_ALIGN_DOWN(__pa(end_pg));
 
 	/*
 	 * If there are free pages between these, free the section of the
@@ -2233,6 +2235,123 @@ void __init memblock_free_all(void)
 	pages = free_low_memory_core_early();
 	totalram_pages_add(pages);
 }
+
+/* Keep a table to reserve named memory */
+#define RESERVE_MEM_MAX_ENTRIES		8
+#define RESERVE_MEM_NAME_SIZE		16
+struct reserve_mem_table {
+	char			name[RESERVE_MEM_NAME_SIZE];
+	phys_addr_t		start;
+	phys_addr_t		size;
+};
+static struct reserve_mem_table reserved_mem_table[RESERVE_MEM_MAX_ENTRIES];
+static int reserved_mem_count;
+
+/* Add wildcard region with a lookup name */
+static void __init reserved_mem_add(phys_addr_t start, phys_addr_t size,
+				   const char *name)
+{
+	struct reserve_mem_table *map;
+
+	map = &reserved_mem_table[reserved_mem_count++];
+	map->start = start;
+	map->size = size;
+	strscpy(map->name, name);
+}
+
+/**
+ * reserve_mem_find_by_name - Find reserved memory region with a given name
+ * @name: The name that is attached to a reserved memory region
+ * @start: If found, holds the start address
+ * @size: If found, holds the size of the address.
+ *
+ * @start and @size are only updated if @name is found.
+ *
+ * Returns: 1 if found or 0 if not found.
+ */
+int reserve_mem_find_by_name(const char *name, phys_addr_t *start, phys_addr_t *size)
+{
+	struct reserve_mem_table *map;
+	int i;
+
+	for (i = 0; i < reserved_mem_count; i++) {
+		map = &reserved_mem_table[i];
+		if (!map->size)
+			continue;
+		if (strcmp(name, map->name) == 0) {
+			*start = map->start;
+			*size = map->size;
+			return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(reserve_mem_find_by_name);
+
+/*
+ * Parse reserve_mem=nn:align:name
+ */
+static int __init reserve_mem(char *p)
+{
+	phys_addr_t start, size, align, tmp;
+	char *name;
+	char *oldp;
+	int len;
+
+	if (!p)
+		return -EINVAL;
+
+	/* Check if there's room for more reserved memory */
+	if (reserved_mem_count >= RESERVE_MEM_MAX_ENTRIES)
+		return -EBUSY;
+
+	oldp = p;
+	size = memparse(p, &p);
+	if (!size || p == oldp)
+		return -EINVAL;
+
+	if (*p != ':')
+		return -EINVAL;
+
+	align = memparse(p+1, &p);
+	if (*p != ':')
+		return -EINVAL;
+
+	/*
+	 * memblock_phys_alloc() doesn't like a zero size align,
+	 * but it is OK for this command to have it.
+	 */
+	if (align < SMP_CACHE_BYTES)
+		align = SMP_CACHE_BYTES;
+
+	name = p + 1;
+	len = strlen(name);
+
+	/* name needs to have length but not too big */
+	if (!len || len >= RESERVE_MEM_NAME_SIZE)
+		return -EINVAL;
+
+	/* Make sure that name has text */
+	for (p = name; *p; p++) {
+		if (!isspace(*p))
+			break;
+	}
+	if (!*p)
+		return -EINVAL;
+
+	/* Make sure the name is not already used */
+	if (reserve_mem_find_by_name(name, &start, &tmp))
+		return -EBUSY;
+
+	start = memblock_phys_alloc(size, align);
+	if (!start)
+		return -ENOMEM;
+
+	reserved_mem_add(start, size, name);
+
+	return 1;
+}
+__setup("reserve_mem=", reserve_mem);
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_ARCH_KEEP_MEMBLOCK)
 static const char * const flagname[] = {

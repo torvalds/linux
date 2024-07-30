@@ -160,6 +160,7 @@ struct ice_ptp_tx {
 #define INDEX_PER_QUAD			64
 #define INDEX_PER_PORT_E82X		16
 #define INDEX_PER_PORT_E810		64
+#define INDEX_PER_PORT_ETH56G		64
 
 /**
  * struct ice_ptp_port - data used to initialize an external port for PTP

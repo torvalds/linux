@@ -118,11 +118,9 @@ struct tmag5273_data {
 	unsigned int version;
 	char name[16];
 	unsigned int conv_avg;
-	unsigned int scale;
 	enum tmag5273_scale_index scale_index;
 	unsigned int angle_measurement;
 	struct regmap *map;
-	struct regulator *vcc;
 
 	/*
 	 * Locks the sensor for exclusive use during a measurement (which

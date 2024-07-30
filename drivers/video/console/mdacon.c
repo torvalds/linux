@@ -561,5 +561,6 @@ static void __exit mda_console_exit(void)
 module_init(mda_console_init);
 module_exit(mda_console_exit);
 
+MODULE_DESCRIPTION("MDA based console driver");
 MODULE_LICENSE("GPL");
 

@@ -137,23 +137,26 @@ bool vfio_pci_core_range_intersect_range(loff_t buf_start, size_t buf_cnt,
 					 loff_t *buf_offset,
 					 size_t *intersect_count,
 					 size_t *register_offset);
-#define VFIO_IOWRITE_DECLATION(size) \
+#define VFIO_IOWRITE_DECLARATION(size) \
 int vfio_pci_core_iowrite##size(struct vfio_pci_core_device *vdev,	\
 			bool test_mem, u##size val, void __iomem *io);
 
-VFIO_IOWRITE_DECLATION(8)
-VFIO_IOWRITE_DECLATION(16)
-VFIO_IOWRITE_DECLATION(32)
+VFIO_IOWRITE_DECLARATION(8)
+VFIO_IOWRITE_DECLARATION(16)
+VFIO_IOWRITE_DECLARATION(32)
 #ifdef iowrite64
-VFIO_IOWRITE_DECLATION(64)
+VFIO_IOWRITE_DECLARATION(64)
 #endif
 
-#define VFIO_IOREAD_DECLATION(size) \
+#define VFIO_IOREAD_DECLARATION(size) \
 int vfio_pci_core_ioread##size(struct vfio_pci_core_device *vdev,	\
 			bool test_mem, u##size *val, void __iomem *io);
 
-VFIO_IOREAD_DECLATION(8)
-VFIO_IOREAD_DECLATION(16)
-VFIO_IOREAD_DECLATION(32)
+VFIO_IOREAD_DECLARATION(8)
+VFIO_IOREAD_DECLARATION(16)
+VFIO_IOREAD_DECLARATION(32)
+#ifdef ioread64
+VFIO_IOREAD_DECLARATION(64)
+#endif
 
 #endif /* VFIO_PCI_CORE_H */

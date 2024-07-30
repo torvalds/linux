@@ -8,7 +8,7 @@
 #include <linux/mutex.h>
 
 #include <drm/drm_mm.h>
-#include <drm/i915_drm.h>
+#include <drm/intel/i915_drm.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
@@ -936,8 +936,12 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	} else {
 		/* Use DSM base address instead for stolen memory */
 		dsm_base = intel_uncore_read64(uncore, GEN6_DSMBASE) & GEN11_BDSM_MASK;
-		if (WARN_ON(lmem_size < dsm_base))
-			return ERR_PTR(-ENODEV);
+		if (lmem_size < dsm_base) {
+			drm_dbg(&i915->drm,
+				"Disabling stolen memory support due to OOB placement: lmem_size = %pa vs dsm_base = %pa\n",
+				&lmem_size, &dsm_base);
+			return NULL;
+		}
 		dsm_size = ALIGN_DOWN(lmem_size - dsm_base, SZ_1M);
 	}
 

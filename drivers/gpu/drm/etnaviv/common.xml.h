@@ -8,12 +8,12 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- texdesc_3d.xml (   3183 bytes, from 2017-12-18 16:51:59)
-- copyright.xml  (   1597 bytes, from 2016-12-08 16:37:56)
-- common.xml     (  35468 bytes, from 2018-01-22 13:48:54)
-- common_3d.xml  (  14615 bytes, from 2017-12-18 16:51:59)
+- texdesc_3d.xml (   3183 bytes, from 2022-11-18 09:38:25)
+- copyright.xml  (   1597 bytes, from 2016-11-10 13:58:32)
+- common.xml     (  35664 bytes, from 2023-12-06 10:55:32)
+- common_3d.xml  (  15069 bytes, from 2023-11-22 10:05:24)
 
-Copyright (C) 2012-2018 by the following authors:
+Copyright (C) 2012-2023 by the following authors:
 - Wladimir J. van der Laan <laanwj@gmail.com>
 - Christian Gmeiner <christian.gmeiner@gmail.com>
 - Lucas Stach <l.stach@pengutronix.de>
@@ -65,6 +65,7 @@ DEALINGS IN THE SOFTWARE.
 #define chipModel_GC520						0x00000520
 #define chipModel_GC530						0x00000530
 #define chipModel_GC600						0x00000600
+#define chipModel_GC620						0x00000620
 #define chipModel_GC700						0x00000700
 #define chipModel_GC800						0x00000800
 #define chipModel_GC860						0x00000860
@@ -481,5 +482,6 @@ DEALINGS IN THE SOFTWARE.
 #define chipMinorFeatures11_NN_INTERLEVE8			0x00000008
 #define chipMinorFeatures11_TP_REORDER				0x00000010
 #define chipMinorFeatures11_PE_DEPTH_ONLY_OQFIX			0x00000020
+#define chipMinorFeatures12_G2D_DEC400EX			0x00000020
 
 #endif /* COMMON_XML */

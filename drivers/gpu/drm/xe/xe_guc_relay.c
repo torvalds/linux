@@ -19,6 +19,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_sriov_printk.h"
+#include "xe_gt_sriov_pf_service.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_hxg_helpers.h"
@@ -664,6 +665,7 @@ static int relay_testloop_action_handler(struct xe_guc_relay *relay, u32 origin,
 static int relay_action_handler(struct xe_guc_relay *relay, u32 origin,
 				const u32 *msg, u32 len, u32 *response, u32 size)
 {
+	struct xe_gt *gt = relay_to_gt(relay);
 	u32 type;
 	int ret;
 
@@ -674,8 +676,10 @@ static int relay_action_handler(struct xe_guc_relay *relay, u32 origin,
 
 	type = FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[0]);
 
-	/* XXX: PF services will be added later */
-	ret = -EOPNOTSUPP;
+	if (IS_SRIOV_PF(relay_to_xe(relay)))
+		ret = xe_gt_sriov_pf_service_process_request(gt, origin, msg, len, response, size);
+	else
+		ret = -EOPNOTSUPP;
 
 	if (type == GUC_HXG_TYPE_EVENT)
 		relay_assert(relay, ret <= 0);
@@ -757,7 +761,14 @@ static void relay_process_incoming_action(struct xe_guc_relay *relay)
 
 static bool relay_needs_worker(struct xe_guc_relay *relay)
 {
-	return !list_empty(&relay->incoming_actions);
+	bool is_empty;
+
+	spin_lock(&relay->lock);
+	is_empty = list_empty(&relay->incoming_actions);
+	spin_unlock(&relay->lock);
+
+	return !is_empty;
+
 }
 
 static void relay_kick_worker(struct xe_guc_relay *relay)

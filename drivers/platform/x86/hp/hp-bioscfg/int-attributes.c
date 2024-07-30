@@ -192,8 +192,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 			integer_data->current_value = int_value;
 			break;
 		case PATH:
-			strscpy(integer_data->common.path, str_value,
-				sizeof(integer_data->common.path));
+			strscpy(integer_data->common.path, str_value);
 			break;
 		case IS_READONLY:
 			integer_data->common.is_readonly = int_value;
@@ -240,9 +239,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 				if (ret)
 					continue;
 
-				strscpy(integer_data->common.prerequisites[reqs],
-					str_value,
-					sizeof(integer_data->common.prerequisites[reqs]));
+				strscpy(integer_data->common.prerequisites[reqs], str_value);
 				kfree(str_value);
 				str_value = NULL;
 			}

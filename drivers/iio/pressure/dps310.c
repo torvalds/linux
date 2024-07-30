@@ -887,7 +887,7 @@ static int dps310_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id dps310_id[] = {
-	{ DPS310_DEV_NAME, 0 },
+	{ DPS310_DEV_NAME },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, dps310_id);

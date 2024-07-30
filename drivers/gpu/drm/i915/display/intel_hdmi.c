@@ -38,7 +38,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include <drm/intel_lpe_audio.h>
+#include <drm/intel/intel_lpe_audio.h>
 
 #include "g4x_hdmi.h"
 #include "i915_drv.h"
@@ -83,7 +83,7 @@ assert_hdmi_transcoder_func_disabled(struct drm_i915_private *dev_priv,
 				     enum transcoder cpu_transcoder)
 {
 	drm_WARN(&dev_priv->drm,
-		 intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) &
+		 intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) &
 		 TRANS_DDI_FUNC_ENABLE,
 		 "HDMI transcoder function enabled, expecting disabled\n");
 }
@@ -165,21 +165,21 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 {
 	switch (type) {
 	case HDMI_PACKET_TYPE_GAMUT_METADATA:
-		return HSW_TVIDEO_DIP_GMP_DATA(cpu_transcoder, i);
+		return HSW_TVIDEO_DIP_GMP_DATA(dev_priv, cpu_transcoder, i);
 	case DP_SDP_VSC:
-		return HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder, i);
+		return HSW_TVIDEO_DIP_VSC_DATA(dev_priv, cpu_transcoder, i);
 	case DP_SDP_ADAPTIVE_SYNC:
-		return ADL_TVIDEO_DIP_AS_SDP_DATA(cpu_transcoder, i);
+		return ADL_TVIDEO_DIP_AS_SDP_DATA(dev_priv, cpu_transcoder, i);
 	case DP_SDP_PPS:
-		return ICL_VIDEO_DIP_PPS_DATA(cpu_transcoder, i);
+		return ICL_VIDEO_DIP_PPS_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_AVI:
-		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder, i);
+		return HSW_TVIDEO_DIP_AVI_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_SPD:
-		return HSW_TVIDEO_DIP_SPD_DATA(cpu_transcoder, i);
+		return HSW_TVIDEO_DIP_SPD_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_VENDOR:
-		return HSW_TVIDEO_DIP_VS_DATA(cpu_transcoder, i);
+		return HSW_TVIDEO_DIP_VS_DATA(dev_priv, cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_DRM:
-		return GLK_TVIDEO_DIP_DRM_DATA(cpu_transcoder, i);
+		return GLK_TVIDEO_DIP_DRM_DATA(dev_priv, cpu_transcoder, i);
 	default:
 		MISSING_CASE(type);
 		return INVALID_MMIO_REG;
@@ -507,7 +507,7 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 	const u32 *data = frame;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
+	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(dev_priv, cpu_transcoder);
 	int data_size;
 	int i;
 	u32 val = intel_de_read(dev_priv, ctl_reg);
@@ -532,7 +532,8 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 			       0);
 
 	/* Wa_14013475917 */
-	if (!(IS_DISPLAY_VER(dev_priv, 13, 14) && crtc_state->has_psr && type == DP_SDP_VSC))
+	if (!(IS_DISPLAY_VER(dev_priv, 13, 14) && crtc_state->has_psr &&
+	      !crtc_state->has_panel_replay && type == DP_SDP_VSC))
 		val |= hsw_infoframe_enable(type);
 
 	if (type == DP_SDP_VSC)
@@ -561,7 +562,7 @@ static u32 hsw_infoframes_enabled(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val = intel_de_read(dev_priv,
-				HSW_TVIDEO_DIP_CTL(pipe_config->cpu_transcoder));
+				HSW_TVIDEO_DIP_CTL(dev_priv, pipe_config->cpu_transcoder));
 	u32 mask;
 
 	mask = (VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_AVI_HSW |
@@ -985,7 +986,7 @@ static bool intel_hdmi_set_gcp_infoframe(struct intel_encoder *encoder,
 		return false;
 
 	if (HAS_DDI(dev_priv))
-		reg = HSW_TVIDEO_DIP_GCP(crtc_state->cpu_transcoder);
+		reg = HSW_TVIDEO_DIP_GCP(dev_priv, crtc_state->cpu_transcoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
 	else if (HAS_PCH_SPLIT(dev_priv))
@@ -1010,7 +1011,7 @@ void intel_hdmi_read_gcp_infoframe(struct intel_encoder *encoder,
 		return;
 
 	if (HAS_DDI(dev_priv))
-		reg = HSW_TVIDEO_DIP_GCP(crtc_state->cpu_transcoder);
+		reg = HSW_TVIDEO_DIP_GCP(dev_priv, crtc_state->cpu_transcoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
 	else if (HAS_PCH_SPLIT(dev_priv))
@@ -1215,7 +1216,8 @@ static void hsw_set_infoframes(struct intel_encoder *encoder,
 			       const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(crtc_state->cpu_transcoder);
+	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(dev_priv,
+					    crtc_state->cpu_transcoder);
 	u32 val = intel_de_read(dev_priv, reg);
 
 	assert_hdmi_transcoder_func_disabled(dev_priv,
@@ -1474,7 +1476,8 @@ static int kbl_repositioning_enc_en_signal(struct intel_connector *connector,
 	int ret;
 
 	for (;;) {
-		scanline = intel_de_read(dev_priv, PIPEDSL(crtc->pipe));
+		scanline = intel_de_read(dev_priv,
+					 PIPEDSL(dev_priv, crtc->pipe));
 		if (scanline > 100 && scanline < 200)
 			break;
 		usleep_range(25, 50);
@@ -1783,7 +1786,9 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int max_tmds_clock, vbt_max_tmds_clock;
 
-	if (DISPLAY_VER(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 13 || IS_ALDERLAKE_S(dev_priv))
+		max_tmds_clock = 600000;
+	else if (DISPLAY_VER(dev_priv) >= 10)
 		max_tmds_clock = 594000;
 	else if (DISPLAY_VER(dev_priv) >= 8 || IS_HASWELL(dev_priv))
 		max_tmds_clock = 300000;

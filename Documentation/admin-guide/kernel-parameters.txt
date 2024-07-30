@@ -12,7 +12,7 @@
 	acpi=		[HW,ACPI,X86,ARM64,RISCV64,EARLY]
 			Advanced Configuration and Power Interface
 			Format: { force | on | off | strict | noirq | rsdt |
-				  copy_dsdt }
+				  copy_dsdt | nospcr }
 			force -- enable ACPI if default was off
 			on -- enable ACPI but allow fallback to DT [arm64,riscv64]
 			off -- disable ACPI if default was on
@@ -21,8 +21,12 @@
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
-			For ARM64 and RISCV64, ONLY "acpi=off", "acpi=on" or
-			"acpi=force" are available
+			nospcr -- disable console in ACPI SPCR table as
+				default _serial_ console on ARM64
+			For ARM64, ONLY "acpi=off", "acpi=on", "acpi=force" or
+			"acpi=nospcr" are available
+			For RISCV64, ONLY "acpi=off", "acpi=on" or "acpi=force"
+			are available
 
 			See also Documentation/power/runtime_pm.rst, pci=noacpi
 
@@ -788,6 +792,25 @@
 			Documentation/networking/netconsole.rst for an
 			alternative.
 
+		<DEVNAME>:<n>.<n>[,options]
+			Use the specified serial port on the serial core bus.
+			The addressing uses DEVNAME of the physical serial port
+			device, followed by the serial core controller instance,
+			and the serial port instance. The options are the same
+			as documented for the ttyS addressing above.
+
+			The mapping of the serial ports to the tty instances
+			can be viewed with:
+
+			$ ls -d /sys/bus/serial-base/devices/*:*.*/tty/*
+			/sys/bus/serial-base/devices/00:04:0.0/tty/ttyS0
+
+			In the above example, the console can be addressed with
+			console=00:04:0.0. Note that a console addressed this
+			way will only get added when the related device driver
+			is ready. The use of an earlycon parameter in addition to
+			the console may be desired for console output early on.
+
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio16,<addr>[,options]
@@ -1431,27 +1454,6 @@
 			you are really sure that your UEFI does sane gc and
 			fulfills the spec otherwise your board may brick.
 
-	efi_fake_mem=	nn[KMG]@ss[KMG]:aa[,nn[KMG]@ss[KMG]:aa,..] [EFI,X86,EARLY]
-			Add arbitrary attribute to specific memory range by
-			updating original EFI memory map.
-			Region of memory which aa attribute is added to is
-			from ss to ss+nn.
-
-			If efi_fake_mem=2G@4G:0x10000,2G@0x10a0000000:0x10000
-			is specified, EFI_MEMORY_MORE_RELIABLE(0x10000)
-			attribute is added to range 0x100000000-0x180000000 and
-			0x10a0000000-0x1120000000.
-
-			If efi_fake_mem=8G@9G:0x40000 is specified, the
-			EFI_MEMORY_SP(0x40000) attribute is added to
-			range 0x240000000-0x43fffffff.
-
-			Using this parameter you can do debugging of EFI memmap
-			related features. For example, you can do debugging of
-			Address Range Mirroring feature even if your box
-			doesn't support it, or mark specific memory as
-			"soft reserved".
-
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
 			that is to be dynamically loaded by Linux. If there are
 			multiple variables with the same name but with different
@@ -1759,8 +1761,6 @@
 			for 64-bit NUMA, off otherwise.
 			Format: 0 | 1 (for off | on)
 
-	hcl=		[IA-64] SGI's Hardware Graph compatibility layer
-
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
 
@@ -2003,7 +2003,7 @@
 			for the device. By default it is set to false (0).
 
 	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
-			Format: { strict | legacy | 2008 | relaxed }
+			Format: { strict | legacy | 2008 | relaxed | emulated }
 			Default: strict
 
 			Choose which programs will be accepted for execution
@@ -2023,6 +2023,8 @@
 				by the FPU
 			relaxed	accept any binaries regardless of whether
 				supported by the FPU
+			emulated accept any binaries but enable FPU emulator
+				if binary mode is unsupported by the FPU.
 
 			The FPU emulator is always able to support both NaN
 			encodings, so if no FPU hardware is present or it has
@@ -2519,7 +2521,7 @@
 
 	keepinitrd	[HW,ARM] See retain_initrd.
 
-	kernelcore=	[KNL,X86,IA-64,PPC,EARLY]
+	kernelcore=	[KNL,X86,PPC,EARLY]
 			Format: nn[KMGTPE] | nn% | "mirror"
 			This parameter specifies the amount of memory usable by
 			the kernel for non-movable allocations.  The requested
@@ -2719,6 +2721,24 @@
 	kvm-arm.vgic_v4_enable=
 			[KVM,ARM,EARLY] Allow use of GICv4 for direct
 			injection of LPIs.
+
+	kvm-arm.wfe_trap_policy=
+			[KVM,ARM] Control when to set WFE instruction trap for
+			KVM VMs. Traps are allowed but not guaranteed by the
+			CPU architecture.
+
+			trap: set WFE instruction trap
+
+			notrap: clear WFE instruction trap
+
+	kvm-arm.wfi_trap_policy=
+			[KVM,ARM] Control when to set WFI instruction trap for
+			KVM VMs. Traps are allowed but not guaranteed by the
+			CPU architecture.
+
+			trap: set WFI instruction trap
+
+			notrap: clear WFI instruction trap
 
 	kvm_cma_resv_ratio=n [PPC,EARLY]
 			Reserves given percentage from system memory area for
@@ -3159,25 +3179,15 @@
 			unlikely, in the extreme case this might damage your
 			hardware.
 
-	ltpc=		[NET]
-			Format: <io>,<irq>,<dma>
-
 	lsm.debug	[SECURITY] Enable LSM initialization debugging output.
 
 	lsm=lsm1,...,lsmN
 			[SECURITY] Choose order of LSM initialization. This
 			overrides CONFIG_LSM, and the "security=" parameter.
 
-	machvec=	[IA-64] Force the use of a particular machine-vector
-			(machvec) in a generic kernel.
-			Example: machvec=hpzx1
-
 	machtype=	[Loongson] Share the same kernel image file between
 			different yeeloong laptops.
 			Example: machtype=lemote-yeeloong-2f-7inch
-
-	max_addr=nn[KMG]	[KNL,BOOT,IA-64] All physical memory greater
-			than or equal to this physical address is ignored.
 
 	maxcpus=	[SMP,EARLY] Maximum number of processors that an SMP kernel
 			will bring up during bootup.  maxcpus=n : n >= 0 limits
@@ -3404,10 +3414,6 @@
 			deep    - Suspend-To-RAM or equivalent (if supported)
 			See Documentation/admin-guide/pm/sleep-states.rst.
 
-	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
-			Multi-Function General Purpose Timers on AMD Geode
-			platforms.
-
 	mfgptfix	[X86-32] Fix MFGPT timers on AMD Geode platforms when
 			the BIOS has incorrectly applied a workaround. TinyBIOS
 			version 0.98 is known to be affected, 0.99 fixes the
@@ -3419,9 +3425,6 @@
 			Format: <bool>
 			Enable or disable the microcode minimal revision
 			enforcement for the runtime microcode loader.
-
-	min_addr=nn[KMG]	[KNL,BOOT,IA-64] All physical memory below this
-			physical address is ignored.
 
 	mini2440=	[ARM,HW,KNL]
 			Format:[0..2][b][c][t]
@@ -3587,7 +3590,7 @@
 	mousedev.yres=	[MOUSE] Vertical screen resolution, used for devices
 			reporting absolute coordinates, such as tablets
 
-	movablecore=	[KNL,X86,IA-64,PPC,EARLY]
+	movablecore=	[KNL,X86,PPC,EARLY]
 			Format: nn[KMGTPE] | nn%
 			This parameter is the complement to kernelcore=, it
 			specifies the amount of memory used for migratable
@@ -3612,11 +3615,6 @@
 
 	mtdparts=	[MTD]
 			See drivers/mtd/parsers/cmdlinepart.c
-
-	mtdset=		[ARM]
-			ARM/S3C2412 JIVE boot control
-
-			See arch/arm/mach-s3c/mach-jive.c
 
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
@@ -3832,9 +3830,6 @@
 
 	noalign		[KNL,ARM]
 
-	noaltinstr	[S390,EARLY] Disables alternative instructions
-			patching (CPU alternatives feature).
-
 	noapic		[SMP,APIC,EARLY] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
@@ -3866,8 +3861,6 @@
 
 	no_entry_flush  [PPC,EARLY] Don't flush the L1-D cache when entering the kernel.
 
-	noexec		[IA-64]
-
 	noexec32	[X86-64]
 			This affects only 32-bit executables.
 			noexec32=on: enable non-executable mappings (default)
@@ -3887,13 +3880,6 @@
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
-	nohalt		[IA-64] Tells the kernel not to use the power saving
-			function PAL_HALT_LIGHT when idle. This increases
-			power-consumption. On the positive side, it reduces
-			interrupt wake-up latency, which may improve performance
-			in certain environments such as networked servers or
-			real-time systems.
-
 	no_hash_pointers
 			[KNL,EARLY]
 			Force pointers printed to the console or buffers to be
@@ -3911,7 +3897,7 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
-	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,PPC,SH] Forces the kernel to
+	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,PPC,RISCV,SH] Forces the kernel to
 			busy wait in do_idle() and not use the arch_cpu_idle()
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
@@ -3948,8 +3934,6 @@
 			remapping.
 			[Deprecated - use intremap=off]
 
-	nointroute	[IA-64]
-
 	noinvpcid	[X86,EARLY] Disable the INVPCID cpu feature.
 
 	noiotrap	[SH] Disables trapped I/O port accesses.
@@ -3958,8 +3942,6 @@
 			disable unhandled interrupt sources.
 
 	noisapnp	[ISAPNP] Disables ISA PnP code.
-
-	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
 	nokaslr		[KNL,EARLY]
 			When CONFIG_RANDOMIZE_BASE is set, this disables
@@ -3974,8 +3956,6 @@
 	nolapic		[X86-32,APIC,EARLY] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC,EARLY] Do not use the local APIC timer.
-
-	nomca		[IA-64] Disable machine check abort handling
 
 	nomce		[X86-32] Disable Machine Check Exception
 
@@ -4028,8 +4008,6 @@
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
 
-	nosbagart	[IA-64]
-
 	no-scroll	[VGA] Disables scrollback.
 			This is required for the Braillex ib80-piezo Braille
 			reader made by F.H. Papenmeier (Germany).
@@ -4073,9 +4051,9 @@
 			prediction) vulnerability. System may allow data
 			leaks with this option.
 
-	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES,RISCV,EARLY] Disable
-			paravirtualized steal time accounting. steal time is
-			computed, but won't influence scheduler behaviour
+	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES,RISCV,LOONGARCH,EARLY]
+			Disable paravirtualized steal time accounting. steal time
+			is computed, but won't influence scheduler behaviour
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -4129,19 +4107,6 @@
 			in standard form of xsave area. By using this
 			parameter, xsave area per process might occupy more
 			memory on xsaves enabled systems.
-
-	nps_mtm_hs_ctr=	[KNL,ARC]
-			This parameter sets the maximum duration, in
-			cycles, each HW thread of the CTOP can run
-			without interruptions, before HW switches it.
-			The actual maximum duration is 16 times this
-			parameter's value.
-			Format: integer between 1 and 255
-			Default: 255
-
-	nptcg=		[IA-64] Override max number of concurrent global TLB
-			purges which is reported from either PAL_VM_SUMMARY or
-			SAL PALO.
 
 	nr_cpus=	[SMP,EARLY] Maximum number of processors that an SMP kernel
 			could support.  nr_cpus=n : n >= 1 limits the kernel to
@@ -4616,6 +4581,38 @@
 				bridges without forcing it upstream. Note:
 				this removes isolation between devices and
 				may put more devices in an IOMMU group.
+		config_acs=
+				Format:
+				<ACS flags>@<pci_dev>[; ...]
+				Specify one or more PCI devices (in the format
+				specified above) optionally prepended with flags
+				and separated by semicolons. The respective
+				capabilities will be enabled, disabled or
+				unchanged based on what is specified in
+				flags.
+
+				ACS Flags is defined as follows:
+				  bit-0 : ACS Source Validation
+				  bit-1 : ACS Translation Blocking
+				  bit-2 : ACS P2P Request Redirect
+				  bit-3 : ACS P2P Completion Redirect
+				  bit-4 : ACS Upstream Forwarding
+				  bit-5 : ACS P2P Egress Control
+				  bit-6 : ACS Direct Translated P2P
+				Each bit can be marked as:
+				  '0' – force disabled
+				  '1' – force enabled
+				  'x' – unchanged
+				For example,
+				  pci=config_acs=10x
+				would configure all devices that support
+				ACS to enable P2P Request Redirect, disable
+				Translation Blocking, and leave Source
+				Validation unchanged from whatever power-up
+				or firmware set it to.
+
+				Note: this may remove isolation between devices
+				and may put more devices in an IOMMU group.
 		force_floating	[S390] Force usage of floating interrupts.
 		nomio		[S390] Do not use MIO instructions.
 		norid		[S390] ignore the RID field and force use of
@@ -4749,7 +4746,9 @@
 			none - Limited to cond_resched() calls
 			voluntary - Limited to cond_resched() and might_sleep() calls
 			full - Any section that isn't explicitly preempt disabled
-			       can be preempted anytime.
+			       can be preempted anytime.  Tasks will also yield
+			       contended spinlocks (if the critical section isn't
+			       explicitly preempt disabled beyond the lock itself).
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -5014,6 +5013,14 @@
 			a single jiffy, RCU pre-queues the callbacks into
 			the ->nocb_bypass queue.  The definition of "too
 			many" is supplied by this kernel boot parameter.
+
+	rcutree.nohz_full_patience_delay= [KNL]
+			On callback-offloaded (rcu_nocbs) CPUs, avoid
+			disturbing RCU unless the grace period has
+			reached the specified age in milliseconds.
+			Defaults to zero.  Large values will be capped
+			at five seconds.  All values will be rounded down
+			to the nearest value representable by jiffies.
 
 	rcutree.qhimark= [KNL]
 			Set threshold of queued RCU callbacks beyond which
@@ -5685,6 +5692,28 @@
 			them.  If <base> is less than 0x10000, the region
 			is assumed to be I/O ports; otherwise it is memory.
 
+	reserve_mem=	[RAM]
+			Format: nn[KNG]:<align>:<label>
+			Reserve physical memory and label it with a name that
+			other subsystems can use to access it. This is typically
+			used for systems that do not wipe the RAM, and this command
+			line will try to reserve the same physical memory on
+			soft reboots. Note, it is not guaranteed to be the same
+			location. For example, if anything about the system changes
+			or if booting a different kernel. It can also fail if KASLR
+			places the kernel at the location of where the RAM reservation
+			was from a previous boot, the new reservation will be at a
+			different location.
+			Any subsystem using this feature must add a way to verify
+			that the contents of the physical memory is from a previous
+			boot, as there may be cases where the memory will not be
+			located at the same location.
+
+			The format is size:align:label for example, to request
+			12 megabytes of 4096 alignment for ramoops:
+
+			reserve_mem=12M:4096:oops ramoops.mem_name=oops
+
 	reservetop=	[X86-32,EARLY]
 			Format: nn[KMG]
 			Reserves a hole at the top of the kernel virtual
@@ -5762,9 +5791,6 @@
 			blocked and the previous configuration.
 		2	The "airplane mode" button toggles between everything
 			blocked and everything unblocked.
-
-	rhash_entries=	[KNL,NET]
-			Set number of hash buckets for route cache
 
 	ring3mwait=disable
 			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
@@ -5999,9 +6025,6 @@
 			apic=verbose is specified.
 			Example: apic=debug show_lapic=all
 
-	simeth=		[IA-64]
-	simscsi=
-
 	slab_debug[=options[,slabs][;[options[,slabs]]...]	[MM]
 			Enabling slab_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling
@@ -6117,9 +6140,15 @@
 			deployment of the HW BHI control and the SW BHB
 			clearing sequence.
 
-			on   - (default) Enable the HW or SW mitigation
-			       as needed.
-			off  - Disable the mitigation.
+			on     - (default) Enable the HW or SW mitigation as
+				 needed.  This protects the kernel from
+				 both syscalls and VMs.
+			vmexit - On systems which don't have the HW mitigation
+				 available, enable the SW mitigation on vmexit
+				 ONLY.  On such systems, the host kernel is
+				 protected from VM-originated BHI attacks, but
+				 may still be vulnerable to syscall attacks.
+			off    - Disable the mitigation.
 
 	spectre_v2=	[X86,EARLY] Control mitigation of Spectre variant 2
 			(indirect branch speculation) vulnerability.
@@ -6262,11 +6291,6 @@
 
 			Not specifying this option is equivalent to
 			spec_store_bypass_disable=auto.
-
-	spia_io_base=	[HW,MTD]
-	spia_fio_base=
-	spia_pedr=
-	spia_peddr=
 
 	split_lock_detect=
 			[X86] Enable split lock detection or bus lock detection
@@ -6523,7 +6547,7 @@
 			This parameter controls use of the Protected
 			Execution Facility on pSeries.
 
-	swiotlb=	[ARM,IA-64,PPC,MIPS,X86,EARLY]
+	swiotlb=	[ARM,PPC,MIPS,X86,S390,EARLY]
 			Format: { <int> [,<int>] | force | noforce }
 			<int> -- Number of I/O TLB slabs
 			<int> -- Second integer after comma. Number of swiotlb
@@ -6604,12 +6628,6 @@
 			e.g. base its process migration decisions on it.
 			Default is on.
 
-	topology_updates= [KNL, PPC, NUMA]
-			Format: {off}
-			Specify if the kernel should ignore (off)
-			topology updates sent by the hypervisor to this
-			LPAR.
-
 	torture.disable_onoff_at_boot= [KNL]
 			Prevent the CPU-hotplug component of torturing
 			until after init has spawned.
@@ -6628,8 +6646,6 @@
 
 	torture.verbose_sleep_duration= [KNL]
 			Duration of each verbose-printk() sleep in jiffies.
-
-	tp720=		[HW,PS2]
 
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
@@ -7074,6 +7090,9 @@
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
 			scanned for Logical Units (default 1).
+			Optionally the delay in milliseconds if the value has
+			suffix with "ms".
+			Example: delay_use=2567ms
 
 	usb-storage.quirks=
 			[UMS] A list of quirks entries to supplement or
@@ -7167,9 +7186,6 @@
 			Try vdso32=0 if you encounter an error that says:
 			dl_main: Assertion `(void *) ph->p_vaddr == _rtld_local._dl_sysinfo_dso' failed!
 
-	vector=		[IA-64,SMP]
-			vector=percpu: enable percpu vector domain
-
 	video=		[FB,EARLY] Frame buffer configuration
 			See Documentation/fb/modedb.rst.
 
@@ -7220,9 +7236,12 @@
 
 	vmalloc=nn[KMG]	[KNL,BOOT,EARLY] Forces the vmalloc area to have an
 			exact size of <nn>. This can be used to increase
-			the minimum size (128MB on x86). It can also be
-			used to decrease the size and leave more room
-			for directly mapped kernel RAM.
+			the minimum size (128MB on x86, arm32 platforms).
+			It can also be used to decrease the size and leave more room
+			for directly mapped kernel RAM. Note that this parameter does
+			not exist on many other platforms (including arm64, alpha,
+			loongarch, arc, csky, hexagon, microblaze, mips, nios2, openrisc,
+			parisc, m64k, powerpc, riscv, sh, um, xtensa, s390, sparc).
 
 	vmcp_cma=nn[MG]	[KNL,S390,EARLY]
 			Sets the memory size reserved for contiguous memory
@@ -7427,16 +7446,17 @@
 			Crash from Xen panic notifier, without executing late
 			panic() code such as dumping handler.
 
+	xen_mc_debug	[X86,XEN,EARLY]
+			Enable multicall debugging when running as a Xen PV guest.
+			Enabling this feature will reduce performance a little
+			bit, so it should only be enabled for obtaining extended
+			debug data in case of multicall errors.
+
 	xen_msr_safe=	[X86,XEN,EARLY]
 			Format: <bool>
 			Select whether to always use non-faulting (safe) MSR
 			access functions when running as Xen PV guest. The
 			default value is controlled by CONFIG_XEN_PV_MSR_SAFE.
-
-	xen_nopvspin	[X86,XEN,EARLY]
-			Disables the qspinlock slowpath using Xen PV optimizations.
-			This parameter is obsoleted by "nopvspin" parameter, which
-			has equivalent effect for XEN platform.
 
 	xen_nopv	[X86]
 			Disables the PV optimizations forcing the HVM guest to

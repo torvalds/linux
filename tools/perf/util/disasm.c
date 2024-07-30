@@ -1199,7 +1199,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	int ret;
 	FILE *s;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__BPF_PROG_INFO)
+	if (dso__binary_type(dso) != DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE;
 
 	pr_debug("%s: handling sym %s addr %" PRIx64 " len %" PRIx64 "\n", __func__,
@@ -1226,14 +1226,14 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	info.arch = bfd_get_arch(bfdf);
 	info.mach = bfd_get_mach(bfdf);
 
-	info_node = perf_env__find_bpf_prog_info(dso->bpf_prog.env,
-						 dso->bpf_prog.id);
+	info_node = perf_env__find_bpf_prog_info(dso__bpf_prog(dso)->env,
+						 dso__bpf_prog(dso)->id);
 	if (!info_node) {
 		ret = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
 		goto out;
 	}
 	info_linear = info_node->info_linear;
-	sub_id = dso->bpf_prog.sub_id;
+	sub_id = dso__bpf_prog(dso)->sub_id;
 
 	info.buffer = (void *)(uintptr_t)(info_linear->info.jited_prog_insns);
 	info.buffer_length = info_linear->info.jited_prog_len;
@@ -1244,7 +1244,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	if (info_linear->info.btf_id) {
 		struct btf_node *node;
 
-		node = perf_env__find_btf(dso->bpf_prog.env,
+		node = perf_env__find_btf(dso__bpf_prog(dso)->env,
 					  info_linear->info.btf_id);
 		if (node)
 			btf = btf__new((__u8 *)(node->data),

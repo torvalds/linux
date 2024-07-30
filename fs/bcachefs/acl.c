@@ -346,7 +346,6 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter inode_iter = { NULL };
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl;
@@ -354,6 +353,7 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
+	struct btree_trans *trans = bch2_trans_get(c);
 retry:
 	bch2_trans_begin(trans);
 	acl = _acl;
@@ -394,8 +394,8 @@ btree_err:
 
 	set_cached_acl(&inode->v, type, acl);
 err:
-	mutex_unlock(&inode->ei_update_lock);
 	bch2_trans_put(trans);
+	mutex_unlock(&inode->ei_update_lock);
 
 	return ret;
 }

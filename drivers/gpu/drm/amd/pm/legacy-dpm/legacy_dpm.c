@@ -831,15 +831,6 @@ restart_search:
 					return ps;
 			}
 			break;
-		case POWER_STATE_TYPE_BALANCED:
-			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_BALANCED) {
-				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
-					if (single_display)
-						return ps;
-				} else
-					return ps;
-			}
-			break;
 		case POWER_STATE_TYPE_PERFORMANCE:
 			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
 				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {

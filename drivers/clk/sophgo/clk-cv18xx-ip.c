@@ -613,7 +613,7 @@ static u8 mmux_get_parent_id(struct cv1800_clk_mmux *mmux)
 			return i;
 	}
 
-	unreachable();
+	BUG();
 }
 
 static int mmux_enable(struct clk_hw *hw)

@@ -364,4 +364,5 @@ static void __exit configfs_example_exit(void)
 
 module_init(configfs_example_init);
 module_exit(configfs_example_exit);
+MODULE_DESCRIPTION("Sample configfs module");
 MODULE_LICENSE("GPL");

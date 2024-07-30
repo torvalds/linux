@@ -62,4 +62,5 @@ static struct hid_driver sp_driver = {
 };
 module_hid_driver(sp_driver);
 
+MODULE_DESCRIPTION("HID driver for some sunplus \"special\" devices");
 MODULE_LICENSE("GPL");

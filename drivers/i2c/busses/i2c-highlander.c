@@ -331,7 +331,7 @@ static int highlander_i2c_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	/* Ensure we're in a sane state */
 	highlander_i2c_done(dev);
 
-	/* Set slave address */
+	/* Set target address */
 	iowrite16((addr << 1) | read_write, dev->base + SMSMADR);
 
 	highlander_i2c_command(dev, command, dev->buf_len);

@@ -20,7 +20,7 @@
  * sysdeps/unix/sysv/linux/hppa/sysdep.h
  */
 
-#ifdef PIC
+#ifndef DONT_USE_PIC
 /* WARNING: CANNOT BE USED IN A NOP! */
 # define K_STW_ASM_PIC	"       copy %%r19, %%r4\n"
 # define K_LDW_ASM_PIC	"       copy %%r4, %%r19\n"
@@ -43,7 +43,7 @@
    across the syscall. */
 
 #define K_CALL_CLOB_REGS "%r1", "%r2", K_USING_GR4 \
-	        	 "%r20", "%r29", "%r31"
+			 "%r20", "%r29", "%r31"
 
 #undef K_INLINE_SYSCALL
 #define K_INLINE_SYSCALL(name, nr, args...)	({			\
@@ -58,7 +58,7 @@
 			"	ldi %1, %%r20\n"			\
 			K_LDW_ASM_PIC					\
 			: "=r" (__res)					\
-			: "i" (SYS_ify(name)) K_ASM_ARGS_##nr   	\
+			: "i" (name) K_ASM_ARGS_##nr			\
 			: "memory", K_CALL_CLOB_REGS K_CLOB_ARGS_##nr	\
 		);							\
 		__sys_res = (long)__res;				\
@@ -104,42 +104,18 @@
 #define K_CLOB_ARGS_1 K_CLOB_ARGS_2, "%r25"
 #define K_CLOB_ARGS_0 K_CLOB_ARGS_1, "%r26"
 
-#define _syscall0(type,name)						\
-type name(void)								\
-{									\
-    return K_INLINE_SYSCALL(name, 0);	                                \
-}
-
-#define _syscall1(type,name,type1,arg1)					\
-type name(type1 arg1)							\
-{									\
-    return K_INLINE_SYSCALL(name, 1, arg1);	                        \
-}
-
-#define _syscall2(type,name,type1,arg1,type2,arg2)			\
-type name(type1 arg1, type2 arg2)					\
-{									\
-    return K_INLINE_SYSCALL(name, 2, arg1, arg2);	                \
-}
-
-#define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)		\
-type name(type1 arg1, type2 arg2, type3 arg3)				\
-{									\
-    return K_INLINE_SYSCALL(name, 3, arg1, arg2, arg3);	                \
-}
-
-#define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4) \
-type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4)		\
-{									\
-    return K_INLINE_SYSCALL(name, 4, arg1, arg2, arg3, arg4);	        \
-}
-
-/* select takes 5 arguments */
-#define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5) \
-type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
-{									\
-    return K_INLINE_SYSCALL(name, 5, arg1, arg2, arg3, arg4, arg5);	\
-}
+#define syscall0(name)						\
+	K_INLINE_SYSCALL(name, 0)
+#define syscall1(name, arg1)					\
+	K_INLINE_SYSCALL(name, 1, arg1)
+#define syscall2(name, arg1, arg2)				\
+	K_INLINE_SYSCALL(name, 2, arg1, arg2)
+#define syscall3(name, arg1, arg2, arg3)			\
+	K_INLINE_SYSCALL(name, 3, arg1, arg2, arg3)
+#define syscall4(name, arg1, arg2, arg3, arg4)			\
+	K_INLINE_SYSCALL(name, 4, arg1, arg2, arg3, arg4)
+#define syscall5(name, arg1, arg2, arg3, arg4, arg5)		\
+	K_INLINE_SYSCALL(name, 5, arg1, arg2, arg3, arg4, arg5)
 
 #define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_STAT64
@@ -160,7 +136,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5)	\
 #define __ARCH_WANT_SYS_FORK
 #define __ARCH_WANT_SYS_VFORK
 #define __ARCH_WANT_SYS_CLONE
-#define __ARCH_WANT_SYS_CLONE3
 #define __ARCH_WANT_COMPAT_SYS_SENDFILE
 #define __ARCH_WANT_COMPAT_STAT
 

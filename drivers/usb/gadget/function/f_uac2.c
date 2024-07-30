@@ -2063,7 +2063,10 @@ static ssize_t f_uac2_opts_##name##_store(struct config_item *item,	\
 		goto end;						\
 	}								\
 									\
-	ret = scnprintf(opts->name, min(sizeof(opts->name), len),	\
+	if (len && page[len - 1] == '\n')				\
+		len--;							\
+									\
+	ret = scnprintf(opts->name, min(sizeof(opts->name), len + 1),	\
 			"%s", page);					\
 									\
 end:									\
@@ -2251,6 +2254,7 @@ static struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(uac2, afunc_alloc_inst, afunc_alloc);
+MODULE_DESCRIPTION("USB Audio Class 2.0 Function");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yadwinder Singh");
 MODULE_AUTHOR("Jaswinder Singh");

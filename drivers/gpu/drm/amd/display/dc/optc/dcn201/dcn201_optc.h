@@ -68,7 +68,4 @@
 	SF(DWB_SOURCE_SELECT, OPTC_DWB1_SOURCE_SELECT, mask_sh)
 
 void dcn201_timing_generator_init(struct optc *optc);
-
-bool optc201_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
-
 #endif

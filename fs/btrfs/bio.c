@@ -29,7 +29,7 @@ struct btrfs_failed_bio {
 /* Is this a data path I/O that needs storage layer checksum and repair? */
 static inline bool is_data_bbio(struct btrfs_bio *bbio)
 {
-	return bbio->inode && is_data_inode(&bbio->inode->vfs_inode);
+	return bbio->inode && is_data_inode(bbio->inode);
 }
 
 static bool bbio_has_ordered_extent(struct btrfs_bio *bbio)
@@ -732,7 +732,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		 * point, so they are handled as part of the no-checksum case.
 		 */
 		if (inode && !(inode->flags & BTRFS_INODE_NODATASUM) &&
-		    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
+		    !test_bit(BTRFS_FS_STATE_NO_DATA_CSUMS, &fs_info->fs_state) &&
 		    !btrfs_is_data_reloc_root(inode->root)) {
 			if (should_async_write(bbio) &&
 			    btrfs_wq_submit_bio(bbio, bioc, &smap, mirror_num))

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2020, 2022-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -340,11 +340,13 @@ struct iwl_hs20_roc_res {
  * @ROC_ACTIVITY_HOTSPOT: ROC for hs20 activity
  * @ROC_ACTIVITY_P2P_DISC: ROC for p2p discoverability activity
  * @ROC_ACTIVITY_P2P_TXRX: ROC for p2p action frames activity
+ * @ROC_ACTIVITY_P2P_NEG: ROC for p2p negotiation (used also for TX)
  */
 enum iwl_roc_activity {
 	ROC_ACTIVITY_HOTSPOT,
 	ROC_ACTIVITY_P2P_DISC,
 	ROC_ACTIVITY_P2P_TXRX,
+	ROC_ACTIVITY_P2P_NEG,
 	ROC_NUM_ACTIVITIES
 }; /* ROC_ACTIVITY_API_E_VER_1 */
 

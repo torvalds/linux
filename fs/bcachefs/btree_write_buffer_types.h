@@ -52,6 +52,8 @@ struct btree_write_buffer {
 	struct btree_write_buffer_keys	inc;
 	struct btree_write_buffer_keys	flushing;
 	struct work_struct		flush_work;
+
+	DARRAY(struct btree_write_buffered_key) accounting;
 };
 
 #endif /* _BCACHEFS_BTREE_WRITE_BUFFER_TYPES_H */

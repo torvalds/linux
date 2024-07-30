@@ -329,7 +329,7 @@ static int video_cc_sdm845_probe(struct platform_device *pdev)
 
 	clk_fabia_pll_configure(&video_pll0, regmap, &video_pll0_config);
 
-	return qcom_cc_really_probe(pdev, &video_cc_sdm845_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &video_cc_sdm845_desc, regmap);
 }
 
 static struct platform_driver video_cc_sdm845_driver = {
@@ -343,3 +343,4 @@ static struct platform_driver video_cc_sdm845_driver = {
 module_platform_driver(video_cc_sdm845_driver);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI SDM845 VIDEOCC Driver");

@@ -225,8 +225,8 @@ static const struct constant_table exfat_param_enums[] = {
 };
 
 static const struct fs_parameter_spec exfat_parameters[] = {
-	fsparam_u32("uid",			Opt_uid),
-	fsparam_u32("gid",			Opt_gid),
+	fsparam_uid("uid",			Opt_uid),
+	fsparam_gid("gid",			Opt_gid),
 	fsparam_u32oct("umask",			Opt_umask),
 	fsparam_u32oct("dmask",			Opt_dmask),
 	fsparam_u32oct("fmask",			Opt_fmask),
@@ -262,10 +262,10 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	switch (opt) {
 	case Opt_uid:
-		opts->fs_uid = make_kuid(current_user_ns(), result.uint_32);
+		opts->fs_uid = result.uid;
 		break;
 	case Opt_gid:
-		opts->fs_gid = make_kgid(current_user_ns(), result.uint_32);
+		opts->fs_gid = result.gid;
 		break;
 	case Opt_umask:
 		opts->fs_fmask = result.uint_32;
@@ -788,7 +788,7 @@ static struct file_system_type exfat_fs_type = {
 	.init_fs_context	= exfat_init_fs_context,
 	.parameters		= exfat_parameters,
 	.kill_sb		= exfat_kill_sb,
-	.fs_flags		= FS_REQUIRES_DEV,
+	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 };
 
 static void exfat_inode_init_once(void *foo)

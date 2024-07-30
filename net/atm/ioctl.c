@@ -68,7 +68,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 			goto done;
 		}
 		error = put_user(sk->sk_sndbuf - sk_wmem_alloc_get(sk),
-				 (int __user *)argp) ? -EFAULT : 0;
+				 (int __user *)argp);
 		goto done;
 	case SIOCINQ:
 	{
@@ -83,7 +83,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		skb = skb_peek(&sk->sk_receive_queue);
 		amount = skb ? skb->len : 0;
 		spin_unlock_irq(&sk->sk_receive_queue.lock);
-		error = put_user(amount, (int __user *)argp) ? -EFAULT : 0;
+		error = put_user(amount, (int __user *)argp);
 		goto done;
 	}
 	case ATM_SETSC:

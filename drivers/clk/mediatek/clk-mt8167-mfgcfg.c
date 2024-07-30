@@ -51,4 +51,6 @@ static struct platform_driver clk_mt8167_mfgcfg_drv = {
 	},
 };
 module_platform_driver(clk_mt8167_mfgcfg_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8167 GPU mfg clocks driver");
 MODULE_LICENSE("GPL");

@@ -284,6 +284,32 @@ static int pciehp_suspend(struct pcie_device *dev)
 	return 0;
 }
 
+static bool pciehp_device_replaced(struct controller *ctrl)
+{
+	struct pci_dev *pdev __free(pci_dev_put);
+	u32 reg;
+
+	pdev = pci_get_slot(ctrl->pcie->port->subordinate, PCI_DEVFN(0, 0));
+	if (!pdev)
+		return true;
+
+	if (pci_read_config_dword(pdev, PCI_VENDOR_ID, &reg) ||
+	    reg != (pdev->vendor | (pdev->device << 16)) ||
+	    pci_read_config_dword(pdev, PCI_CLASS_REVISION, &reg) ||
+	    reg != (pdev->revision | (pdev->class << 8)))
+		return true;
+
+	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
+	    (pci_read_config_dword(pdev, PCI_SUBSYSTEM_VENDOR_ID, &reg) ||
+	     reg != (pdev->subsystem_vendor | (pdev->subsystem_device << 16))))
+		return true;
+
+	if (pci_get_dsn(pdev) != ctrl->dsn)
+		return true;
+
+	return false;
+}
+
 static int pciehp_resume_noirq(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
@@ -293,8 +319,22 @@ static int pciehp_resume_noirq(struct pcie_device *dev)
 	ctrl->cmd_busy = true;
 
 	/* clear spurious events from rediscovery of inserted card */
-	if (ctrl->state == ON_STATE || ctrl->state == BLINKINGOFF_STATE)
+	if (ctrl->state == ON_STATE || ctrl->state == BLINKINGOFF_STATE) {
 		pcie_clear_hotplug_events(ctrl);
+
+		/*
+		 * If hotplugged device was replaced with a different one
+		 * during system sleep, mark the old device disconnected
+		 * (to prevent its driver from accessing the new device)
+		 * and synthesize a Presence Detect Changed event.
+		 */
+		if (pciehp_device_replaced(ctrl)) {
+			ctrl_dbg(ctrl, "device replaced during system sleep\n");
+			pci_walk_bus(ctrl->pcie->port->subordinate,
+				     pci_dev_set_disconnected, NULL);
+			pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
+		}
+	}
 
 	return 0;
 }

@@ -48,5 +48,6 @@ static struct hid_driver keytouch_driver = {
 };
 module_hid_driver(keytouch_driver);
 
+MODULE_DESCRIPTION("HID driver for Keytouch devices not fully compliant with HID standard");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jiri Kosina");

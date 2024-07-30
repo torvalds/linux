@@ -223,7 +223,7 @@ int dbc_dev_init(struct psp_device *psp)
 	dbc_dev->dev = dev;
 	dbc_dev->psp = psp;
 
-	if (PSP_CAPABILITY(psp, DBC_THRU_EXT)) {
+	if (psp->capability.dbc_thru_ext) {
 		dbc_dev->use_ext = true;
 		dbc_dev->payload_size = &dbc_dev->mbox->ext_req.header.payload_size;
 		dbc_dev->result = &dbc_dev->mbox->ext_req.header.status;

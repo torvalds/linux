@@ -270,7 +270,7 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
-	strscpy(board_info.type, "max17047", I2C_NAME_SIZE);
+	strscpy(board_info.type, "max17047");
 	board_info.dev_name = "max17047";
 	board_info.fwnode = fwnode;
 	data->battery_fg = i2c_acpi_new_device(dev, 1, &board_info);
@@ -361,7 +361,7 @@ static int cht_int33fe_typec_probe(struct platform_device *pdev)
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
-	strscpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
+	strscpy(board_info.type, "typec_fusb302");
 	board_info.dev_name = "fusb302";
 	board_info.fwnode = fwnode;
 	board_info.irq = fusb302_irq;
@@ -381,7 +381,7 @@ static int cht_int33fe_typec_probe(struct platform_device *pdev)
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
 	board_info.fwnode = fwnode;
-	strscpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
+	strscpy(board_info.type, "pi3usb30532");
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
 	if (IS_ERR(data->pi3usb30532)) {

@@ -46,9 +46,9 @@
  * /proc entries (sysctl)
  */
 static const char appldata_proc_name[APPLDATA_PROC_NAME_LENGTH] = "appldata";
-static int appldata_timer_handler(struct ctl_table *ctl, int write,
+static int appldata_timer_handler(const struct ctl_table *ctl, int write,
 				  void *buffer, size_t *lenp, loff_t *ppos);
-static int appldata_interval_handler(struct ctl_table *ctl, int write,
+static int appldata_interval_handler(const struct ctl_table *ctl, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos);
 
 static struct ctl_table_header *appldata_sysctl_header;
@@ -199,7 +199,7 @@ static void __appldata_vtimer_setup(int cmd)
  * Start/Stop timer, show status of timer (0 = not active, 1 = active)
  */
 static int
-appldata_timer_handler(struct ctl_table *ctl, int write,
+appldata_timer_handler(const struct ctl_table *ctl, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int timer_active = appldata_timer_active;
@@ -232,7 +232,7 @@ appldata_timer_handler(struct ctl_table *ctl, int write,
  * current timer interval.
  */
 static int
-appldata_interval_handler(struct ctl_table *ctl, int write,
+appldata_interval_handler(const struct ctl_table *ctl, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int interval = appldata_interval;
@@ -262,7 +262,7 @@ appldata_interval_handler(struct ctl_table *ctl, int write,
  * monitoring (0 = not in process, 1 = in process)
  */
 static int
-appldata_generic_handler(struct ctl_table *ctl, int write,
+appldata_generic_handler(const struct ctl_table *ctl, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;

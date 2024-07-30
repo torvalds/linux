@@ -36,6 +36,16 @@ enum address_markers_idx {
 	VMEMMAP_END_NR,
 	VMALLOC_NR,
 	VMALLOC_END_NR,
+#ifdef CONFIG_KMSAN
+	KMSAN_VMALLOC_SHADOW_START_NR,
+	KMSAN_VMALLOC_SHADOW_END_NR,
+	KMSAN_VMALLOC_ORIGIN_START_NR,
+	KMSAN_VMALLOC_ORIGIN_END_NR,
+	KMSAN_MODULES_SHADOW_START_NR,
+	KMSAN_MODULES_SHADOW_END_NR,
+	KMSAN_MODULES_ORIGIN_START_NR,
+	KMSAN_MODULES_ORIGIN_END_NR,
+#endif
 	MODULES_NR,
 	MODULES_END_NR,
 	ABS_LOWCORE_NR,
@@ -65,6 +75,16 @@ static struct addr_marker address_markers[] = {
 	[VMEMMAP_END_NR]	= {0, "vmemmap Area End"},
 	[VMALLOC_NR]		= {0, "vmalloc Area Start"},
 	[VMALLOC_END_NR]	= {0, "vmalloc Area End"},
+#ifdef CONFIG_KMSAN
+	[KMSAN_VMALLOC_SHADOW_START_NR]	= {0, "Kmsan vmalloc Shadow Start"},
+	[KMSAN_VMALLOC_SHADOW_END_NR]	= {0, "Kmsan vmalloc Shadow End"},
+	[KMSAN_VMALLOC_ORIGIN_START_NR]	= {0, "Kmsan vmalloc Origins Start"},
+	[KMSAN_VMALLOC_ORIGIN_END_NR]	= {0, "Kmsan vmalloc Origins End"},
+	[KMSAN_MODULES_SHADOW_START_NR]	= {0, "Kmsan Modules Shadow Start"},
+	[KMSAN_MODULES_SHADOW_END_NR]	= {0, "Kmsan Modules Shadow End"},
+	[KMSAN_MODULES_ORIGIN_START_NR]	= {0, "Kmsan Modules Origins Start"},
+	[KMSAN_MODULES_ORIGIN_END_NR]	= {0, "Kmsan Modules Origins End"},
+#endif
 	[MODULES_NR]		= {0, "Modules Area Start"},
 	[MODULES_END_NR]	= {0, "Modules Area End"},
 	[ABS_LOWCORE_NR]	= {0, "Lowcore Area Start"},
@@ -288,7 +308,7 @@ static int pt_dump_init(void)
 	 * kernel ASCE. We need this to keep the page table walker functions
 	 * from accessing non-existent entries.
 	 */
-	max_addr = (S390_lowcore.kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
+	max_addr = (get_lowcore()->kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
 	address_markers[IDENTITY_AFTER_END_NR].start_address = ident_map_size;
 	address_markers[AMODE31_START_NR].start_address = (unsigned long)__samode31;
@@ -306,6 +326,16 @@ static int pt_dump_init(void)
 #ifdef CONFIG_KFENCE
 	address_markers[KFENCE_START_NR].start_address = kfence_start;
 	address_markers[KFENCE_END_NR].start_address = kfence_start + KFENCE_POOL_SIZE;
+#endif
+#ifdef CONFIG_KMSAN
+	address_markers[KMSAN_VMALLOC_SHADOW_START_NR].start_address = KMSAN_VMALLOC_SHADOW_START;
+	address_markers[KMSAN_VMALLOC_SHADOW_END_NR].start_address = KMSAN_VMALLOC_SHADOW_END;
+	address_markers[KMSAN_VMALLOC_ORIGIN_START_NR].start_address = KMSAN_VMALLOC_ORIGIN_START;
+	address_markers[KMSAN_VMALLOC_ORIGIN_END_NR].start_address = KMSAN_VMALLOC_ORIGIN_END;
+	address_markers[KMSAN_MODULES_SHADOW_START_NR].start_address = KMSAN_MODULES_SHADOW_START;
+	address_markers[KMSAN_MODULES_SHADOW_END_NR].start_address = KMSAN_MODULES_SHADOW_END;
+	address_markers[KMSAN_MODULES_ORIGIN_START_NR].start_address = KMSAN_MODULES_ORIGIN_START;
+	address_markers[KMSAN_MODULES_ORIGIN_END_NR].start_address = KMSAN_MODULES_ORIGIN_END;
 #endif
 	sort_address_markers();
 #ifdef CONFIG_PTDUMP_DEBUGFS

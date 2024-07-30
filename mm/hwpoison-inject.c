@@ -110,4 +110,5 @@ static int __init pfn_inject_init(void)
 
 module_init(pfn_inject_init);
 module_exit(pfn_inject_exit);
+MODULE_DESCRIPTION("HWPoison pages injector");
 MODULE_LICENSE("GPL");

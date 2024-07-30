@@ -45,3 +45,22 @@ config PINCTRL_NPCM8XX
 	  Say Y or M here to enable pin controller and GPIO support for
 	  the Nuvoton NPCM8XX SoC. This is strongly recommended when
 	  building a kernel that will run on this chip.
+
+config PINCTRL_MA35
+	bool
+	depends on (ARCH_MA35 || COMPILE_TEST) && OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
+
+config PINCTRL_MA35D1
+	bool "Pinctrl and GPIO driver for Nuvoton MA35D1"
+	depends on (ARCH_MA35 || COMPILE_TEST) && OF
+	select PINCTRL_MA35
+	help
+	  Say Y here to enable pin controller and GPIO support
+	  for Nuvoton MA35D1 SoC.

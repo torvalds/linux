@@ -159,6 +159,7 @@ struct closure {
 #ifdef CONFIG_DEBUG_CLOSURES
 #define CLOSURE_MAGIC_DEAD	0xc054dead
 #define CLOSURE_MAGIC_ALIVE	0xc054a11e
+#define CLOSURE_MAGIC_STACK	0xc05451cc
 
 	unsigned int		magic;
 	struct list_head	all;
@@ -323,12 +324,18 @@ static inline void closure_init_stack(struct closure *cl)
 {
 	memset(cl, 0, sizeof(struct closure));
 	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
+#ifdef CONFIG_DEBUG_CLOSURES
+	cl->magic = CLOSURE_MAGIC_STACK;
+#endif
 }
 
 static inline void closure_init_stack_release(struct closure *cl)
 {
 	memset(cl, 0, sizeof(struct closure));
 	atomic_set_release(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
+#ifdef CONFIG_DEBUG_CLOSURES
+	cl->magic = CLOSURE_MAGIC_STACK;
+#endif
 }
 
 /**

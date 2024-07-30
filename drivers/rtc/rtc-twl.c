@@ -685,4 +685,5 @@ static struct platform_driver twl4030rtc_driver = {
 module_platform_driver(twl4030rtc_driver);
 
 MODULE_AUTHOR("Texas Instruments, MontaVista Software");
+MODULE_DESCRIPTION("TI TWL4030/TWL5030/TWL6030/TPS659x0 RTC driver");
 MODULE_LICENSE("GPL");

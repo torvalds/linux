@@ -117,6 +117,7 @@ static __always_inline char *u64_to_hex(char *dest, u64 val)
 
 static notrace void s390_handle_damage(void)
 {
+	struct lowcore *lc = get_lowcore();
 	union ctlreg0 cr0, cr0_new;
 	char message[100];
 	psw_t psw_save;
@@ -125,7 +126,7 @@ static notrace void s390_handle_damage(void)
 	smp_emergency_stop();
 	diag_amode31_ops.diag308_reset();
 	ptr = nmi_puts(message, "System stopped due to unrecoverable machine check, code: 0x");
-	u64_to_hex(ptr, S390_lowcore.mcck_interruption_code);
+	u64_to_hex(ptr, lc->mcck_interruption_code);
 
 	/*
 	 * Disable low address protection and make machine check new PSW a
@@ -135,17 +136,17 @@ static notrace void s390_handle_damage(void)
 	cr0_new = cr0;
 	cr0_new.lap = 0;
 	local_ctl_load(0, &cr0_new.reg);
-	psw_save = S390_lowcore.mcck_new_psw;
-	psw_bits(S390_lowcore.mcck_new_psw).io = 0;
-	psw_bits(S390_lowcore.mcck_new_psw).ext = 0;
-	psw_bits(S390_lowcore.mcck_new_psw).wait = 1;
+	psw_save = lc->mcck_new_psw;
+	psw_bits(lc->mcck_new_psw).io = 0;
+	psw_bits(lc->mcck_new_psw).ext = 0;
+	psw_bits(lc->mcck_new_psw).wait = 1;
 	sclp_emergency_printk(message);
 
 	/*
 	 * Restore machine check new PSW and control register 0 to original
 	 * values. This makes possible system dump analysis easier.
 	 */
-	S390_lowcore.mcck_new_psw = psw_save;
+	lc->mcck_new_psw = psw_save;
 	local_ctl_load(0, &cr0.reg);
 	disabled_wait();
 	while (1);
@@ -226,7 +227,7 @@ static bool notrace nmi_registers_valid(union mci mci)
 	/*
 	 * Set the clock comparator register to the next expected value.
 	 */
-	set_clock_comparator(S390_lowcore.clock_comparator);
+	set_clock_comparator(get_lowcore()->clock_comparator);
 	if (!mci.gr || !mci.fp || !mci.fc)
 		return false;
 	/*
@@ -252,7 +253,7 @@ static bool notrace nmi_registers_valid(union mci mci)
 	 * check handling must take care of this. The host values are saved by
 	 * KVM and are not affected.
 	 */
-	cr2.reg = S390_lowcore.cregs_save_area[2];
+	cr2.reg = get_lowcore()->cregs_save_area[2];
 	if (cr2.gse && !mci.gs && !test_cpu_flag(CIF_MCCK_GUEST))
 		return false;
 	if (!mci.ms || !mci.pm || !mci.ia)
@@ -278,11 +279,10 @@ static void notrace s390_backup_mcck_info(struct pt_regs *regs)
 
 	sie_page = container_of(sie_block, struct sie_page, sie_block);
 	mcck_backup = &sie_page->mcck_info;
-	mcck_backup->mcic = S390_lowcore.mcck_interruption_code &
+	mcck_backup->mcic = get_lowcore()->mcck_interruption_code &
 				~(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE);
-	mcck_backup->ext_damage_code = S390_lowcore.external_damage_code;
-	mcck_backup->failing_storage_address
-			= S390_lowcore.failing_storage_address;
+	mcck_backup->ext_damage_code = get_lowcore()->external_damage_code;
+	mcck_backup->failing_storage_address = get_lowcore()->failing_storage_address;
 }
 NOKPROBE_SYMBOL(s390_backup_mcck_info);
 
@@ -302,6 +302,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
 	static unsigned long long last_ipd;
+	struct lowcore *lc = get_lowcore();
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	irqentry_state_t irq_state;
@@ -314,7 +315,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (user_mode(regs))
 		update_timer_mcck();
 	inc_irq_stat(NMI_NMI);
-	mci.val = S390_lowcore.mcck_interruption_code;
+	mci.val = lc->mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
 
 	/*
@@ -382,9 +383,9 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	if (mci.ed && mci.ec) {
 		/* External damage */
-		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
+		if (lc->external_damage_code & (1U << ED_STP_SYNC))
 			mcck->stp_queue |= stp_sync_check();
-		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
+		if (lc->external_damage_code & (1U << ED_STP_ISLAND))
 			mcck->stp_queue |= stp_island_check();
 		mcck_pending = 1;
 	}

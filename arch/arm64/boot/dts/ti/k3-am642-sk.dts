@@ -430,6 +430,18 @@
 		#gpio-cells = <2>;
 		gpio-line-names = "LED1","LED2","LED3","LED4","LED5","LED6","LED7","LED8";
 	};
+
+	/* SoC power supply temperature */
+	tmp100@48 {
+		compatible = "ti,tmp100";
+		reg = <0x48>;
+	};
+
+	/* DDR power supply temperature */
+	tmp100@49 {
+		compatible = "ti,tmp100";
+		reg = <0x49>;
+	};
 };
 
 /* mcu_gpio0 and mcu_gpio_intr are reserved for mcu firmware usage */

@@ -82,7 +82,8 @@ static int rt712_sdca_calibration(struct rt712_sdca_priv *rt712)
 	dev = regmap_get_device(regmap);
 
 	/* Set HP-JD source from JD1 */
-	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CC_DET1, 0x043a);
+	if (rt712->version_id == RT712_VA)
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CC_DET1, 0x043a);
 
 	/* FSM switch to calibration manual mode */
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_FSM_CTL, 0x4100);
@@ -198,11 +199,17 @@ static unsigned int rt712_sdca_button_detect(struct rt712_sdca_priv *rt712)
 
 _end_btn_det_:
 	/* Host is owner, so set back to device */
-	if (owner == 0)
+	if (owner == 0) {
 		/* set owner to device */
-		regmap_write(rt712->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_HID, RT712_SDCA_ENT_HID01,
-				RT712_SDCA_CTL_HIDTX_SET_OWNER_TO_DEVICE, 0), 0x01);
+		if (rt712->version_id == RT712_VA)
+			regmap_write(rt712->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_HID, RT712_SDCA_ENT_HID01,
+					RT712_SDCA_CTL_HIDTX_SET_OWNER_TO_DEVICE, 0), 0x01);
+		else
+			regmap_write(rt712->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_HID, RT712_SDCA_ENT_HID01,
+					RT712_SDCA_CTL_HIDTX_CURRENT_OWNER, 0), 0x01);
+	}
 
 	return btn_type;
 }
@@ -415,8 +422,9 @@ static void rt712_sdca_jack_init(struct rt712_sdca_priv *rt712)
 
 		switch (rt712->jd_src) {
 		case RT712_JD1:
-			/* Set HP-JD source from JD1 */
-			rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CC_DET1, 0x043a);
+			/* Set HP-JD source from JD1, VB uses JD1 in default */
+			if (rt712->version_id == RT712_VA)
+				rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CC_DET1, 0x043a);
 			break;
 		default:
 			dev_warn(rt712->component->dev, "Wrong JD source\n");
@@ -592,20 +600,20 @@ static int rt712_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 static int rt712_sdca_set_fu0f_capture_ctl(struct rt712_sdca_priv *rt712)
 {
 	int err;
-	unsigned int ch_l, ch_r;
+	unsigned int ch_01, ch_02;
 
-	ch_l = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_l_mute) ? 0x01 : 0x00;
-	ch_r = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_r_mute) ? 0x01 : 0x00;
+	ch_01 = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_l_mute) ? 0x01 : 0x00;
+	ch_02 = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_r_mute) ? 0x01 : 0x00;
 
 	err = regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F,
-			RT712_SDCA_CTL_FU_MUTE, CH_L), ch_l);
+			RT712_SDCA_CTL_FU_MUTE, CH_01), ch_01);
 	if (err < 0)
 		return err;
 
 	err = regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F,
-			RT712_SDCA_CTL_FU_MUTE, CH_R), ch_r);
+			RT712_SDCA_CTL_FU_MUTE, CH_02), ch_02);
 	if (err < 0)
 		return err;
 
@@ -649,28 +657,28 @@ static const DECLARE_TLV_DB_SCALE(boost_vol_tlv, 0, 1000, 0);
 
 static const struct snd_kcontrol_new rt712_sdca_controls[] = {
 	SOC_DOUBLE_R_EXT_TLV("FU05 Playback Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x57, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, out_vol_tlv),
 	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
 		rt712_sdca_fu0f_capture_get, rt712_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU0F Capture Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x3f, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("FU44 Boost Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_02),
 		8, 3, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, boost_vol_tlv),
 };
 
 static const struct snd_kcontrol_new rt712_sdca_spk_controls[] = {
 	SOC_DOUBLE_R_EXT_TLV("FU06 Playback Volume",
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x57, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, out_vol_tlv),
 };
@@ -763,21 +771,21 @@ static int rt712_sdca_fu05_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_L),
+				RT712_SDCA_CTL_FU_MUTE, CH_01),
 				unmute);
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_R),
+				RT712_SDCA_CTL_FU_MUTE, CH_02),
 				unmute);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_L),
+				RT712_SDCA_CTL_FU_MUTE, CH_01),
 				mute);
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_R),
+				RT712_SDCA_CTL_FU_MUTE, CH_02),
 				mute);
 		break;
 	}
@@ -854,7 +862,7 @@ static int rt712_sdca_pde12_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rt712_sdca_classd_event(struct snd_soc_dapm_widget *w,
+static int rt712_sdca_pde23_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component =
@@ -883,10 +891,13 @@ static int rt712_sdca_classd_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const struct snd_kcontrol_new rt712_spk_sto_dac =
-	SOC_DAPM_DOUBLE_R("Switch",
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_R),
+static const struct snd_kcontrol_new rt712_spk_l_dac =
+	SOC_DAPM_SINGLE_AUTODISABLE("Switch",
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_01),
+		0, 1, 1);
+static const struct snd_kcontrol_new rt712_spk_r_dac =
+	SOC_DAPM_SINGLE_AUTODISABLE("Switch",
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_02),
 		0, 1, 1);
 
 static const struct snd_soc_dapm_widget rt712_sdca_dapm_widgets[] = {
@@ -931,20 +942,26 @@ static const struct snd_soc_dapm_widget rt712_sdca_spk_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_SWITCH("FU06", SND_SOC_NOPM, 0, 0, &rt712_spk_sto_dac),
+	SND_SOC_DAPM_PGA("FU06", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_SUPPLY("PDE 23", SND_SOC_NOPM, 0, 0,
+		rt712_sdca_pde23_event,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* Output */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
-		rt712_sdca_classd_event, SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_SWITCH("OT23 L", SND_SOC_NOPM, 0, 0, &rt712_spk_l_dac),
+	SND_SOC_DAPM_SWITCH("OT23 R", SND_SOC_NOPM, 0, 0, &rt712_spk_r_dac),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
 	SND_SOC_DAPM_OUTPUT("SPOR"),
 };
 
 static const struct snd_soc_dapm_route rt712_sdca_spk_dapm_routes[] = {
-	{ "FU06", "Switch", "DP3RX" },
-	{ "CLASS D", NULL, "FU06" },
-	{ "SPOL", NULL, "CLASS D" },
-	{ "SPOR", NULL, "CLASS D" },
+	{ "FU06", NULL, "DP3RX" },
+	{ "FU06", NULL, "PDE 23" },
+	{ "OT23 L", "Switch", "FU06" },
+	{ "OT23 R", "Switch", "FU06" },
+	{ "SPOL", NULL, "OT23 L" },
+	{ "SPOR", NULL, "OT23 R" },
 };
 
 static int rt712_sdca_parse_dt(struct rt712_sdca_priv *rt712, struct device *dev)
@@ -983,6 +1000,376 @@ static int rt712_sdca_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static int rt712_sdca_dmic_set_gain_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	struct rt712_dmic_kctrl_priv *p =
+		(struct rt712_dmic_kctrl_priv *)kcontrol->private_value;
+	unsigned int regvalue, ctl, i;
+	unsigned int adc_vol_flag = 0;
+	const unsigned int interval_offset = 0xc0;
+
+	if (strstr(ucontrol->id.name, "FU1E Capture Volume"))
+		adc_vol_flag = 1;
+
+	/* check all channels */
+	for (i = 0; i < p->count; i++) {
+		regmap_read(rt712->mbq_regmap, p->reg_base + i, &regvalue);
+
+		if (!adc_vol_flag) /* boost gain */
+			ctl = regvalue / 0x0a00;
+		else { /* ADC gain */
+			if (adc_vol_flag)
+				ctl = p->max - (((0x1e00 - regvalue) & 0xffff) / interval_offset);
+			else
+				ctl = p->max - (((0 - regvalue) & 0xffff) / interval_offset);
+		}
+
+		ucontrol->value.integer.value[i] = ctl;
+	}
+
+	return 0;
+}
+
+static int rt712_sdca_dmic_set_gain_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt712_dmic_kctrl_priv *p =
+		(struct rt712_dmic_kctrl_priv *)kcontrol->private_value;
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	unsigned int gain_val[4];
+	unsigned int i, adc_vol_flag = 0, changed = 0;
+	unsigned int regvalue[4];
+	const unsigned int interval_offset = 0xc0;
+	int err;
+
+	if (strstr(ucontrol->id.name, "FU1E Capture Volume"))
+		adc_vol_flag = 1;
+
+	/* check all channels */
+	for (i = 0; i < p->count; i++) {
+		regmap_read(rt712->mbq_regmap, p->reg_base + i, &regvalue[i]);
+
+		gain_val[i] = ucontrol->value.integer.value[i];
+		if (gain_val[i] > p->max)
+			gain_val[i] = p->max;
+
+		if (!adc_vol_flag) /* boost gain */
+			gain_val[i] = gain_val[i] * 0x0a00;
+		else { /* ADC gain */
+			gain_val[i] = 0x1e00 - ((p->max - gain_val[i]) * interval_offset);
+			gain_val[i] &= 0xffff;
+		}
+
+		if (regvalue[i] != gain_val[i])
+			changed = 1;
+	}
+
+	if (!changed)
+		return 0;
+
+	for (i = 0; i < p->count; i++) {
+		err = regmap_write(rt712->mbq_regmap, p->reg_base + i, gain_val[i]);
+		if (err < 0)
+			dev_err(&rt712->slave->dev, "0x%08x can't be set\n", p->reg_base + i);
+	}
+
+	return changed;
+}
+
+static int rt712_sdca_set_fu1e_capture_ctl(struct rt712_sdca_priv *rt712)
+{
+	int err, i;
+	unsigned int ch_mute;
+
+	for (i = 0; i < ARRAY_SIZE(rt712->fu1e_mixer_mute); i++) {
+		ch_mute = (rt712->fu1e_dapm_mute || rt712->fu1e_mixer_mute[i]) ? 0x01 : 0x00;
+		err = regmap_write(rt712->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_USER_FU1E,
+				RT712_SDCA_CTL_FU_MUTE, CH_01) + i, ch_mute);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rt712_sdca_dmic_fu1e_capture_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	struct rt712_dmic_kctrl_priv *p =
+		(struct rt712_dmic_kctrl_priv *)kcontrol->private_value;
+	unsigned int i;
+
+	for (i = 0; i < p->count; i++)
+		ucontrol->value.integer.value[i] = !rt712->fu1e_mixer_mute[i];
+
+	return 0;
+}
+
+static int rt712_sdca_dmic_fu1e_capture_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	struct rt712_dmic_kctrl_priv *p =
+		(struct rt712_dmic_kctrl_priv *)kcontrol->private_value;
+	int err, changed = 0, i;
+
+	for (i = 0; i < p->count; i++) {
+		if (rt712->fu1e_mixer_mute[i] != !ucontrol->value.integer.value[i])
+			changed = 1;
+		rt712->fu1e_mixer_mute[i] = !ucontrol->value.integer.value[i];
+	}
+
+	err = rt712_sdca_set_fu1e_capture_ctl(rt712);
+	if (err < 0)
+		return err;
+
+	return changed;
+}
+
+static int rt712_sdca_fu_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	struct rt712_dmic_kctrl_priv *p =
+		(struct rt712_dmic_kctrl_priv *)kcontrol->private_value;
+
+	if (p->max == 1)
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	else
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = p->count;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = p->max;
+	return 0;
+}
+
+#define RT712_SDCA_PR_VALUE(xreg_base, xcount, xmax, xinvert) \
+	((unsigned long)&(struct rt712_dmic_kctrl_priv) \
+		{.reg_base = xreg_base, .count = xcount, .max = xmax, \
+		.invert = xinvert})
+
+#define RT712_SDCA_FU_CTRL(xname, reg_base, xmax, xinvert, xcount) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.info = rt712_sdca_fu_info, \
+	.get = rt712_sdca_dmic_fu1e_capture_get, \
+	.put = rt712_sdca_dmic_fu1e_capture_put, \
+	.private_value = RT712_SDCA_PR_VALUE(reg_base, xcount, xmax, xinvert)}
+
+#define RT712_SDCA_EXT_TLV(xname, reg_base, xhandler_get,\
+	 xhandler_put, xcount, xmax, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.tlv.p = (tlv_array), \
+	.info = rt712_sdca_fu_info, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = RT712_SDCA_PR_VALUE(reg_base, xcount, xmax, 0) }
+
+static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
+static const DECLARE_TLV_DB_SCALE(dmic_vol_tlv, 0, 1000, 0);
+
+static const struct snd_kcontrol_new rt712_sdca_dmic_snd_controls[] = {
+	RT712_SDCA_FU_CTRL("FU1E Capture Switch",
+		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_USER_FU1E, RT712_SDCA_CTL_FU_MUTE, CH_01),
+		1, 1, 4),
+	RT712_SDCA_EXT_TLV("FU1E Capture Volume",
+		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_USER_FU1E, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		rt712_sdca_dmic_set_gain_get, rt712_sdca_dmic_set_gain_put, 4, 0x3f, in_vol_tlv),
+	RT712_SDCA_EXT_TLV("FU15 Boost Volume",
+		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_PLATFORM_FU15, RT712_SDCA_CTL_FU_CH_GAIN, CH_01),
+		rt712_sdca_dmic_set_gain_get, rt712_sdca_dmic_set_gain_put, 4, 3, dmic_vol_tlv),
+};
+
+static int rt712_sdca_dmic_mux_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_kcontrol_component(kcontrol);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	unsigned int val = 0, mask_sft;
+
+	if (strstr(ucontrol->id.name, "ADC 0A Mux"))
+		mask_sft = 0;
+	else if (strstr(ucontrol->id.name, "ADC 0B Mux"))
+		mask_sft = 4;
+	else
+		return -EINVAL;
+
+	rt712_sdca_index_read(rt712, RT712_VENDOR_HDA_CTL,
+		RT712_HDA_LEGACY_MUX_CTL0, &val);
+
+	ucontrol->value.enumerated.item[0] = (((val >> mask_sft) & 0xf) == 0x4) ? 0 : 1;
+
+	return 0;
+}
+
+static int rt712_sdca_dmic_mux_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int *item = ucontrol->value.enumerated.item;
+	unsigned int val, val2 = 0, change, mask_sft;
+
+	if (item[0] >= e->items)
+		return -EINVAL;
+
+	if (strstr(ucontrol->id.name, "ADC 0A Mux"))
+		mask_sft = 0;
+	else if (strstr(ucontrol->id.name, "ADC 0B Mux"))
+		mask_sft = 4;
+	else
+		return -EINVAL;
+
+	val = snd_soc_enum_item_to_val(e, item[0]) << e->shift_l;
+
+	rt712_sdca_index_read(rt712, RT712_VENDOR_HDA_CTL,
+		RT712_HDA_LEGACY_MUX_CTL0, &val2);
+	val2 = ((0xf << mask_sft) & val2) >> mask_sft;
+
+	if (val == 0)
+		val = 0x4;
+	else if (val >= 1)
+		val = 0xe;
+
+	if (val == val2)
+		change = 0;
+	else
+		change = 1;
+
+	if (change)
+		rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL,
+			RT712_HDA_LEGACY_MUX_CTL0, 0xf << mask_sft,
+			val << mask_sft);
+
+	snd_soc_dapm_mux_update_power(dapm, kcontrol, item[0], e, NULL);
+
+	return change;
+}
+
+static const char * const adc_dmic_mux_text[] = {
+	"DMIC1",
+	"DMIC2",
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt712_adc0a_enum, SND_SOC_NOPM, 0, adc_dmic_mux_text);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt712_adc0b_enum, SND_SOC_NOPM, 0, adc_dmic_mux_text);
+
+static const struct snd_kcontrol_new rt712_sdca_dmic_adc0a_mux =
+	SOC_DAPM_ENUM_EXT("ADC 0A Mux", rt712_adc0a_enum,
+			rt712_sdca_dmic_mux_get, rt712_sdca_dmic_mux_put);
+
+static const struct snd_kcontrol_new rt712_sdca_dmic_adc0b_mux =
+	SOC_DAPM_ENUM_EXT("ADC 0B Mux", rt712_adc0b_enum,
+			rt712_sdca_dmic_mux_get, rt712_sdca_dmic_mux_put);
+
+static int rt712_sdca_dmic_fu1e_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		rt712->fu1e_dapm_mute = false;
+		rt712_sdca_set_fu1e_capture_ctl(rt712);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		rt712->fu1e_dapm_mute = true;
+		rt712_sdca_set_fu1e_capture_ctl(rt712);
+		break;
+	}
+	return 0;
+}
+
+static int rt712_sdca_dmic_pde11_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	unsigned char ps0 = 0x0, ps3 = 0x3;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_PDE11,
+				RT712_SDCA_CTL_REQ_POWER_STATE, 0),
+				ps0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_PDE11,
+				RT712_SDCA_CTL_REQ_POWER_STATE, 0),
+				ps3);
+		break;
+	}
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget rt712_sdca_dmic_dapm_widgets[] = {
+	SND_SOC_DAPM_INPUT("DMIC1"),
+	SND_SOC_DAPM_INPUT("DMIC2"),
+
+	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_NOPM, 0, 0,
+		rt712_sdca_dmic_pde11_event,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_ADC_E("FU 1E", NULL, SND_SOC_NOPM, 0, 0,
+		rt712_sdca_dmic_fu1e_event,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_MUX("ADC 0A Mux", SND_SOC_NOPM, 0, 0,
+		&rt712_sdca_dmic_adc0a_mux),
+	SND_SOC_DAPM_MUX("ADC 0B Mux", SND_SOC_NOPM, 0, 0,
+		&rt712_sdca_dmic_adc0b_mux),
+
+	SND_SOC_DAPM_AIF_OUT("DP8TX", "DP8 Capture", 0, SND_SOC_NOPM, 0, 0),
+};
+
+static const struct snd_soc_dapm_route rt712_sdca_dmic_audio_map[] = {
+	{"DP8TX", NULL, "FU 1E"},
+
+	{"FU 1E", NULL, "PDE 11"},
+	{"FU 1E", NULL, "ADC 0A Mux"},
+	{"FU 1E", NULL, "ADC 0B Mux"},
+	{"ADC 0A Mux", "DMIC1", "DMIC1"},
+	{"ADC 0A Mux", "DMIC2", "DMIC2"},
+	{"ADC 0B Mux", "DMIC1", "DMIC1"},
+	{"ADC 0B Mux", "DMIC2", "DMIC2"},
+};
+
+static int rt712_sdca_dmic_probe(struct snd_soc_component *component)
+{
+	struct rt712_sdca_priv *rt712 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	rt712->dmic_component = component;
+
+	if (!rt712->first_hw_init)
+		return 0;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_sdca_dev_rt712 = {
 	.probe = rt712_sdca_probe,
 	.controls = rt712_sdca_controls,
@@ -993,6 +1380,20 @@ static const struct snd_soc_component_driver soc_sdca_dev_rt712 = {
 	.num_dapm_routes = ARRAY_SIZE(rt712_sdca_audio_map),
 	.set_jack = rt712_sdca_set_jack_detect,
 	.endianness = 1,
+};
+
+static const struct snd_soc_component_driver soc_sdca_dev_rt712_dmic = {
+	.probe = rt712_sdca_dmic_probe,
+	.controls = rt712_sdca_dmic_snd_controls,
+	.num_controls = ARRAY_SIZE(rt712_sdca_dmic_snd_controls),
+	.dapm_widgets = rt712_sdca_dmic_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rt712_sdca_dmic_dapm_widgets),
+	.dapm_routes = rt712_sdca_dmic_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(rt712_sdca_dmic_audio_map),
+	.endianness = 1,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_prefix = "dmic",
+#endif
 };
 
 static int rt712_sdca_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
@@ -1022,13 +1423,17 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 	int retval, port, num_channels;
 	unsigned int sampling_rate;
 
-	dev_dbg(dai->dev, "%s %s", __func__, dai->name);
+	dev_dbg(dai->dev, "%s %s id %d", __func__, dai->name, dai->id);
 	sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 
 	if (!sdw_stream)
 		return -EINVAL;
 
 	if (!rt712->slave)
+		return -EINVAL;
+
+	/* VA doesn't support AIF3 */
+	if (dai->id == RT712_AIF3 && rt712->version_id == RT712_VA)
 		return -EINVAL;
 
 	/* SoundWire specific configuration */
@@ -1044,6 +1449,8 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		direction = SDW_DATA_DIR_TX;
 		if (dai->id == RT712_AIF1)
 			port = 4;
+		else if (dai->id == RT712_AIF3)
+			port = 8;
 		else
 			return -EINVAL;
 	}
@@ -1103,6 +1510,14 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 	case RT712_AIF2:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_CS31, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
+			sampling_rate);
+		break;
+	case RT712_AIF3:
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_CS1F, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
+			sampling_rate);
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_CS1C, RT712_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
 			sampling_rate);
 		break;
 	default:
@@ -1174,6 +1589,21 @@ static struct snd_soc_dai_driver rt712_sdca_dai[] = {
 	}
 };
 
+static struct snd_soc_dai_driver rt712_sdca_dmic_dai[] = {
+	{
+		.name = "rt712-sdca-aif3",
+		.id = RT712_AIF3,
+		.capture = {
+			.stream_name = "DP8 Capture",
+			.channels_min = 1,
+			.channels_max = 4,
+			.rates = RT712_STEREO_RATES,
+			.formats = RT712_FORMATS,
+		},
+		.ops = &rt712_sdca_ops,
+	}
+};
+
 int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 			struct regmap *mbq_regmap, struct sdw_slave *slave)
 {
@@ -1206,6 +1636,9 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	rt712->first_hw_init = false;
 	rt712->fu0f_dapm_mute = true;
 	rt712->fu0f_mixer_l_mute = rt712->fu0f_mixer_r_mute = true;
+	rt712->fu1e_dapm_mute = true;
+	rt712->fu1e_mixer_mute[0] = rt712->fu1e_mixer_mute[1] =
+		rt712->fu1e_mixer_mute[2] = rt712->fu1e_mixer_mute[3] = true;
 
 	/* JD source uses JD1 in default */
 	rt712->jd_src = RT712_JD1;
@@ -1239,35 +1672,11 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	return 0;
 }
 
-int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
+static void rt712_sdca_va_io_init(struct rt712_sdca_priv *rt712)
 {
-	struct rt712_sdca_priv *rt712 = dev_get_drvdata(dev);
 	int ret = 0;
-	unsigned int val, hibernation_flag;
-
-	rt712->disable_irq = false;
-
-	if (rt712->hw_init)
-		return 0;
-
-	regcache_cache_only(rt712->regmap, false);
-	regcache_cache_only(rt712->mbq_regmap, false);
-	if (rt712->first_hw_init) {
-		regcache_cache_bypass(rt712->regmap, true);
-		regcache_cache_bypass(rt712->mbq_regmap, true);
-	} else {
-		/*
-		 *  PM runtime status is marked as 'active' only when a Slave reports as Attached
-		 */
-
-		/* update count of parent 'active' children */
-		pm_runtime_set_active(&slave->dev);
-	}
-
-	pm_runtime_get_noresume(&slave->dev);
-
-	rt712_sdca_index_read(rt712, RT712_VENDOR_REG, RT712_JD_PRODUCT_NUM, &val);
-	rt712->hw_id = (val & 0xf000) >> 12;
+	unsigned int hibernation_flag;
+	struct device *dev = &rt712->slave->dev;
 
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_ANALOG_BIAS_CTL3, 0xaa81);
 	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_LDO2_3_CTL1, 0xa1e0);
@@ -1307,6 +1716,131 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_OT23, RT712_SDCA_CTL_VENDOR_DEF, 0), 0x04);
 	}
+}
+
+static void rt712_sdca_vb_io_init(struct rt712_sdca_priv *rt712)
+{
+	int ret = 0;
+	unsigned int jack_func_status, mic_func_status, amp_func_status;
+	struct device *dev = &rt712->slave->dev;
+
+	regmap_read(rt712->regmap,
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0), &jack_func_status);
+	regmap_read(rt712->regmap,
+		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0), &mic_func_status);
+	regmap_read(rt712->regmap,
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0), &amp_func_status);
+	dev_dbg(dev, "%s jack/mic/amp func_status=0x%x, 0x%x, 0x%x\n",
+		__func__, jack_func_status, mic_func_status, amp_func_status);
+
+	/* DMIC */
+	if ((mic_func_status & FUNCTION_NEEDS_INITIALIZATION) || (!rt712->first_hw_init)) {
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_DMIC2_FU_IT_FLOAT_CTL, 0x1526);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_DMIC2_FU_CH12_FLOAT_CTL, 0x0304);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_ADC0A_CS_ADC0B_FU_FLOAT_CTL, 0x1f1e);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_ADC0B_FU_CH12_FLOAT_CTL, 0x0304);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_HDA_LEGACY_CONFIG_CTL0, 0x8010);
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT_IT11, RT712_SDCA_CTL_VENDOR_DEF, 0), 0x01);
+		rt712_sdca_index_write(rt712, RT712_ULTRA_SOUND_DET, RT712_ULTRA_SOUND_DETECTOR6, 0x3200);
+		regmap_write(rt712->regmap, RT712_RC_CAL, 0x23);
+
+		/* clear flag */
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0),
+				FUNCTION_NEEDS_INITIALIZATION);
+	}
+
+	/* Jack */
+	if ((jack_func_status & FUNCTION_NEEDS_INITIALIZATION) || (!rt712->first_hw_init)) {
+		rt712_sdca_index_write(rt712, RT712_VENDOR_IMS_DRE, RT712_SEL_VEE2_HP_CTL1, 0x042a);
+		rt712_sdca_index_write(rt712, RT712_CHARGE_PUMP, RT712_HP_DET_CTL3, 0x1fff);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_IO_CTL, 0xec67);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_ANALOG_BIAS_CTL3, 0xaa81);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_LDO2_3_CTL1, 0xa1e0);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_IMS_DRE, RT712_HP_DETECT_RLDET_CTL1, 0x0000);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_IMS_DRE, RT712_HP_DETECT_RLDET_CTL2, 0x0000);
+		regmap_write(rt712->regmap, RT712_RC_CAL, 0x23);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_JD_CTL1, 0x2802);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CLASSD_AMP_CTL6, 0xf215);
+
+		/* calibration */
+		ret = rt712_sdca_calibration(rt712);
+		if (ret < 0)
+			dev_err(dev, "%s, calibration failed!\n", __func__);
+
+		rt712_sdca_index_update_bits(rt712, RT712_VENDOR_HDA_CTL, RT712_MIXER_CTL1, 0x3000, 0x0000);
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_IT09, RT712_SDCA_CTL_VENDOR_DEF, 0), 0x01);
+		rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_MISC_CTL_FOR_UAJ, 0x0003);
+
+		/* clear flag */
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0),
+				FUNCTION_NEEDS_INITIALIZATION);
+	}
+
+	/* SPK */
+	if ((amp_func_status & FUNCTION_NEEDS_INITIALIZATION) || (!rt712->first_hw_init)) {
+		if (rt712->hw_id != RT712_DEV_ID_713) {
+			rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_IO_CTL, 0xec63);
+			rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_CLASSD_AMP_CTL1, 0xfff5);
+			rt712_sdca_index_write(rt712, RT712_VENDOR_HDA_CTL, RT712_EAPD_CTL, 0x0002);
+			regmap_write(rt712->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_OT23, RT712_SDCA_CTL_VENDOR_DEF, 0), 0x04);
+		}
+		/* clear flag */
+		regmap_write(rt712->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT0, RT712_SDCA_CTL_FUNC_STATUS, 0),
+				FUNCTION_NEEDS_INITIALIZATION);
+	}
+}
+
+int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
+{
+	struct rt712_sdca_priv *rt712 = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned int val;
+	struct sdw_slave_prop *prop = &slave->prop;
+
+	rt712->disable_irq = false;
+
+	if (rt712->hw_init)
+		return 0;
+
+	regcache_cache_only(rt712->regmap, false);
+	regcache_cache_only(rt712->mbq_regmap, false);
+	if (rt712->first_hw_init) {
+		regcache_cache_bypass(rt712->regmap, true);
+		regcache_cache_bypass(rt712->mbq_regmap, true);
+	} else {
+		/*
+		 *  PM runtime status is marked as 'active' only when a Slave reports as Attached
+		 */
+
+		/* update count of parent 'active' children */
+		pm_runtime_set_active(&slave->dev);
+	}
+
+	pm_runtime_get_noresume(&slave->dev);
+
+	rt712_sdca_index_read(rt712, RT712_VENDOR_REG, RT712_JD_PRODUCT_NUM, &val);
+	rt712->hw_id = (val & 0xf000) >> 12;
+	rt712->version_id = (val & 0x0f00) >> 8;
+	dev_dbg(&slave->dev, "%s hw_id=0x%x, version_id=0x%x\n", __func__, rt712->hw_id, rt712->version_id);
+
+	if (rt712->version_id == RT712_VA)
+		rt712_sdca_va_io_init(rt712);
+	else {
+		/* multilanes and DMIC are supported by rt712vb */
+		ret =  devm_snd_soc_register_component(dev,
+			&soc_sdca_dev_rt712_dmic, rt712_sdca_dmic_dai, ARRAY_SIZE(rt712_sdca_dmic_dai));
+		if (ret < 0)
+			return ret;
+
+		prop->lane_control_support = true;
+		rt712_sdca_vb_io_init(rt712);
+	}
 
 	/*
 	 * if set_jack callback occurred early than io_init,
@@ -1315,8 +1849,7 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt712->hs_jack)
 		rt712_sdca_jack_init(rt712);
 
-	if (!hibernation_flag)
-		rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_SW_CONFIG1, 0x0001);
+	rt712_sdca_index_write(rt712, RT712_VENDOR_REG, RT712_SW_CONFIG1, 0x0001);
 
 	if (rt712->first_hw_init) {
 		regcache_cache_bypass(rt712->regmap, false);

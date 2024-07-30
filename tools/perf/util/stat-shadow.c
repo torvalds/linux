@@ -176,6 +176,13 @@ static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type 
 		if (type != evsel__stat_type(cur))
 			continue;
 
+		/*
+		 * Except the SW CLOCK events,
+		 * ignore if not the PMU we're looking for.
+		 */
+		if ((type != STAT_NSECS) && (evsel->pmu != cur->pmu))
+			continue;
+
 		aggr = &cur->stats->aggr[aggr_idx];
 		if (type == STAT_NSECS)
 			return aggr->counts.val;

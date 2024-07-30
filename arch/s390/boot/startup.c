@@ -30,6 +30,7 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata_preserved(max_mappable);
+int __bootdata_preserved(relocate_lowcore);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
@@ -78,10 +79,10 @@ static int cmma_test_essa(void)
 		  [reg2] "=&a" (reg2),
 		  [rc] "+&d" (rc),
 		  [tmp] "=&d" (tmp),
-		  "+Q" (S390_lowcore.program_new_psw),
+		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw),
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
 		  [cmd] "i" (ESSA_GET_STATE)
 		: "cc", "memory");
 	return rc;
@@ -101,10 +102,10 @@ static void cmma_init(void)
 
 static void setup_lpp(void)
 {
-	S390_lowcore.current_pid = 0;
-	S390_lowcore.lpp = LPP_MAGIC;
+	get_lowcore()->current_pid = 0;
+	get_lowcore()->lpp = LPP_MAGIC;
 	if (test_facility(40))
-		lpp(&S390_lowcore.lpp);
+		lpp(&get_lowcore()->lpp);
 }
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
@@ -304,11 +305,18 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	MODULES_END = round_down(kernel_start, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
+	if (IS_ENABLED(CONFIG_KMSAN))
+		VMALLOC_END -= MODULES_LEN * 2;
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
 	vsize = (VMALLOC_END - FIXMAP_SIZE) / 2;
 	vsize = round_down(vsize, _SEGMENT_SIZE);
 	vmalloc_size = min(vmalloc_size, vsize);
+	if (IS_ENABLED(CONFIG_KMSAN)) {
+		/* take 2/3 of vmalloc area for KMSAN shadow and origins */
+		vmalloc_size = round_down(vmalloc_size / 3, _SEGMENT_SIZE);
+		VMALLOC_END -= vmalloc_size * 2;
+	}
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
 	__memcpy_real_area = round_down(VMALLOC_START - MEMCPY_REAL_SIZE, PAGE_SIZE);
@@ -369,6 +377,8 @@ static void kaslr_adjust_vmlinux_info(long offset)
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
+	vmlinux.alt_instructions += offset;
+	vmlinux.alt_instructions_end += offset;
 #ifdef CONFIG_KASAN
 	vmlinux.kasan_early_shadow_page_off += offset;
 	vmlinux.kasan_early_shadow_pte_off += offset;
@@ -471,8 +481,12 @@ void startup_kernel(void)
 	 * before the kernel started. Therefore, in case the two sections
 	 * overlap there is no risk of corrupting any data.
 	 */
-	if (kaslr_enabled())
-		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G);
+	if (kaslr_enabled()) {
+		unsigned long amode31_min;
+
+		amode31_min = (unsigned long)_decompressor_end;
+		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, amode31_min, SZ_2G);
+	}
 	if (!amode31_lma)
 		amode31_lma = __kaslr_offset_phys - vmlinux.amode31_size;
 	physmem_reserve(RR_AMODE31, amode31_lma, vmlinux.amode31_size);
@@ -496,12 +510,15 @@ void startup_kernel(void)
 	kaslr_adjust_got(__kaslr_offset);
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
+	__apply_alternatives((struct alt_instr *)_vmlinux_info.alt_instructions,
+			     (struct alt_instr *)_vmlinux_info.alt_instructions_end,
+			     ALT_CTX_EARLY);
 
 	/*
 	 * Save KASLR offset for early dumps, before vmcore_info is set.
 	 * Mark as uneven to distinguish from real vmcore_info pointer.
 	 */
-	S390_lowcore.vmcore_info = __kaslr_offset_phys ? __kaslr_offset_phys | 0x1UL : 0;
+	get_lowcore()->vmcore_info = __kaslr_offset_phys ? __kaslr_offset_phys | 0x1UL : 0;
 
 	/*
 	 * Jump to the decompressed kernel entry point and switch DAT mode on.

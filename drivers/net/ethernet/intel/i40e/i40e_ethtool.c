@@ -2546,7 +2546,7 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static int i40e_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 

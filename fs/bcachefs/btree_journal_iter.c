@@ -16,21 +16,6 @@
  * operations for the regular btree iter code to use:
  */
 
-static int __journal_key_cmp(enum btree_id	l_btree_id,
-			     unsigned		l_level,
-			     struct bpos	l_pos,
-			     const struct journal_key *r)
-{
-	return (cmp_int(l_btree_id,	r->btree_id) ?:
-		cmp_int(l_level,	r->level) ?:
-		bpos_cmp(l_pos,	r->k->k.p));
-}
-
-static int journal_key_cmp(const struct journal_key *l, const struct journal_key *r)
-{
-	return __journal_key_cmp(l->btree_id, l->level, l->k->k.p, r);
-}
-
 static inline size_t idx_to_pos(struct journal_keys *keys, size_t idx)
 {
 	size_t gap_size = keys->size - keys->nr;
@@ -548,7 +533,13 @@ static void __journal_keys_sort(struct journal_keys *keys)
 	struct journal_key *dst = keys->data;
 
 	darray_for_each(*keys, src) {
-		if (src + 1 < &darray_top(*keys) &&
+		/*
+		 * We don't accumulate accounting keys here because we have to
+		 * compare each individual accounting key against the version in
+		 * the btree during replay:
+		 */
+		if (src->k->k.type != KEY_TYPE_accounting &&
+		    src + 1 < &darray_top(*keys) &&
 		    !journal_key_cmp(src, src + 1))
 			continue;
 

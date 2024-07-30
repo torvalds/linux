@@ -62,7 +62,7 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
 {
 	struct tc_cookie *old;
 
-	old = xchg((__force struct tc_cookie **)old_cookie, new_cookie);
+	old = unrcu_pointer(xchg(old_cookie, RCU_INITIALIZER(new_cookie)));
 	if (old)
 		call_rcu(&old->rcu, tcf_free_cookie_rcu);
 }

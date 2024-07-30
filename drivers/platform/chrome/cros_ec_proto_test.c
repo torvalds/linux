@@ -2060,17 +2060,17 @@ static void cros_ec_proto_test_get_next_event_no_mkbp_event(struct kunit *test)
 
 	/* For get_keyboard_state_event(). */
 	{
-		union ec_response_get_next_data_v1 *data;
+		union ec_response_get_next_data_v3 *data;
 
 		mock = cros_kunit_ec_xfer_mock_add(test, sizeof(*data));
 		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
 
-		data = (union ec_response_get_next_data_v1 *)mock->o_data;
+		data = (union ec_response_get_next_data_v3 *)mock->o_data;
 		data->host_event = 0xbeef;
 	}
 
 	ret = cros_ec_get_next_event(ec_dev, &wake_event, &more_events);
-	KUNIT_EXPECT_EQ(test, ret, sizeof(union ec_response_get_next_data_v1));
+	KUNIT_EXPECT_EQ(test, ret, sizeof(union ec_response_get_next_data_v3));
 
 	KUNIT_EXPECT_EQ(test, ec_dev->event_data.event_type, EC_MKBP_EVENT_KEY_MATRIX);
 	KUNIT_EXPECT_EQ(test, ec_dev->event_data.data.host_event, 0xbeef);
@@ -2085,7 +2085,7 @@ static void cros_ec_proto_test_get_next_event_no_mkbp_event(struct kunit *test)
 
 		KUNIT_EXPECT_EQ(test, mock->msg.version, 0);
 		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_MKBP_STATE);
-		KUNIT_EXPECT_EQ(test, mock->msg.insize, sizeof(union ec_response_get_next_data_v1));
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, sizeof(union ec_response_get_next_data_v3));
 		KUNIT_EXPECT_EQ(test, mock->msg.outsize, 0);
 	}
 }
@@ -2740,4 +2740,5 @@ static struct kunit_suite cros_ec_proto_test_suite = {
 
 kunit_test_suite(cros_ec_proto_test_suite);
 
+MODULE_DESCRIPTION("Kunit tests for ChromeOS Embedded Controller protocol");
 MODULE_LICENSE("GPL");

@@ -347,8 +347,6 @@ struct vchiq_state {
 
 	struct mutex sync_mutex;
 
-	struct mutex bulk_transfer_mutex;
-
 	spinlock_t msg_queue_spinlock;
 
 	spinlock_t bulk_waiter_spinlock;
@@ -392,8 +390,6 @@ struct vchiq_state {
 
 	/* Signalled when a free slot becomes available. */
 	struct completion slot_available_event;
-
-	struct completion slot_remove_event;
 
 	/* Signalled when a free data slot becomes available. */
 	struct completion data_quota_event;
@@ -547,8 +543,6 @@ void vchiq_on_remote_release(struct vchiq_state *state);
 int vchiq_platform_init_state(struct vchiq_state *state);
 
 int vchiq_check_service(struct vchiq_service *service);
-
-void vchiq_on_remote_use_active(struct vchiq_state *state);
 
 int vchiq_send_remote_use(struct vchiq_state *state);
 

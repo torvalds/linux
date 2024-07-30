@@ -104,6 +104,9 @@ struct dml2_dc_callbacks {
 		struct dc_state *state,
 		const struct dc_stream_state *stream);
 	struct dc_stream_state *(*get_stream_from_id)(const struct dc_state *state, unsigned int id);
+	unsigned int (*get_max_flickerless_instant_vtotal_increase)(
+			struct dc_stream_state *stream,
+			bool is_gaming);
 };
 
 struct dml2_dc_svp_callbacks {
@@ -192,6 +195,14 @@ struct dml2_soc_bbox_overrides {
 	struct dml2_clks_limit_table clks_table;
 };
 
+enum dml2_force_pstate_methods {
+	dml2_force_pstate_method_auto = 0,
+	dml2_force_pstate_method_vactive,
+	dml2_force_pstate_method_vblank,
+	dml2_force_pstate_method_drr,
+	dml2_force_pstate_method_subvp,
+};
+
 struct dml2_configuration_options {
 	int dcn_pipe_count;
 	bool use_native_pstate_optimization;
@@ -215,9 +226,17 @@ struct dml2_configuration_options {
 	struct dml2_soc_bbox_overrides bbox_overrides;
 	unsigned int max_segments_per_hubp;
 	unsigned int det_segment_size;
+	/* Only for debugging purposes when initializing SOCBB params via tool for DML21. */
+	struct socbb_ip_params_external *external_socbb_ip_params;
+	struct {
+		bool force_pstate_method_enable;
+		enum dml2_force_pstate_methods force_pstate_method_values[MAX_PIPES];
+	} pmo;
 	bool map_dc_pipes_with_callbacks;
 
 	bool use_clock_dc_limits;
+	bool gpuvm_enable;
+	struct dml2_soc_bb *bb_from_dmub;
 };
 
 /*
@@ -282,5 +301,5 @@ bool dml2_validate(const struct dc *in_dc,
  */
 void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 	unsigned int *fclk_change_support, unsigned int *dram_clk_change_support);
-
+void dml2_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2);
 #endif //_DML2_WRAPPER_H_

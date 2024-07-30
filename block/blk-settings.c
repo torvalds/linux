@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/bio.h>
-#include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/pagemap.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/gcd.h>
@@ -55,7 +55,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
 
-static void blk_apply_bdi_limits(struct backing_dev_info *bdi,
+void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 		struct queue_limits *lim)
 {
 	/*
@@ -68,7 +68,7 @@ static void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 
 static int blk_validate_zoned_limits(struct queue_limits *lim)
 {
-	if (!lim->zoned) {
+	if (!(lim->features & BLK_FEAT_ZONED)) {
 		if (WARN_ON_ONCE(lim->max_open_zones) ||
 		    WARN_ON_ONCE(lim->max_active_zones) ||
 		    WARN_ON_ONCE(lim->zone_write_granularity) ||
@@ -78,6 +78,14 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	}
 
 	if (WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED)))
+		return -EINVAL;
+
+	/*
+	 * Given that active zones include open zones, the maximum number of
+	 * open zones cannot be larger than the maximum number of active zones.
+	 */
+	if (lim->max_active_zones &&
+	    lim->max_open_zones > lim->max_active_zones)
 		return -EINVAL;
 
 	if (lim->zone_write_granularity < lim->logical_block_size)
@@ -97,6 +105,120 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	return 0;
 }
 
+static int blk_validate_integrity_limits(struct queue_limits *lim)
+{
+	struct blk_integrity *bi = &lim->integrity;
+
+	if (!bi->tuple_size) {
+		if (bi->csum_type != BLK_INTEGRITY_CSUM_NONE ||
+		    bi->tag_size || ((bi->flags & BLK_INTEGRITY_REF_TAG))) {
+			pr_warn("invalid PI settings.\n");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
+		pr_warn("integrity support disabled.\n");
+		return -EINVAL;
+	}
+
+	if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE &&
+	    (bi->flags & BLK_INTEGRITY_REF_TAG)) {
+		pr_warn("ref tag not support without checksum.\n");
+		return -EINVAL;
+	}
+
+	if (!bi->interval_exp)
+		bi->interval_exp = ilog2(lim->logical_block_size);
+
+	return 0;
+}
+
+/*
+ * Returns max guaranteed bytes which we can fit in a bio.
+ *
+ * We request that an atomic_write is ITER_UBUF iov_iter (so a single vector),
+ * so we assume that we can fit in at least PAGE_SIZE in a segment, apart from
+ * the first and last segments.
+ */
+static unsigned int blk_queue_max_guaranteed_bio(struct queue_limits *lim)
+{
+	unsigned int max_segments = min(BIO_MAX_VECS, lim->max_segments);
+	unsigned int length;
+
+	length = min(max_segments, 2) * lim->logical_block_size;
+	if (max_segments > 2)
+		length += (max_segments - 2) * PAGE_SIZE;
+
+	return length;
+}
+
+static void blk_atomic_writes_update_limits(struct queue_limits *lim)
+{
+	unsigned int unit_limit = min(lim->max_hw_sectors << SECTOR_SHIFT,
+					blk_queue_max_guaranteed_bio(lim));
+
+	unit_limit = rounddown_pow_of_two(unit_limit);
+
+	lim->atomic_write_max_sectors =
+		min(lim->atomic_write_hw_max >> SECTOR_SHIFT,
+			lim->max_hw_sectors);
+	lim->atomic_write_unit_min =
+		min(lim->atomic_write_hw_unit_min, unit_limit);
+	lim->atomic_write_unit_max =
+		min(lim->atomic_write_hw_unit_max, unit_limit);
+	lim->atomic_write_boundary_sectors =
+		lim->atomic_write_hw_boundary >> SECTOR_SHIFT;
+}
+
+static void blk_validate_atomic_write_limits(struct queue_limits *lim)
+{
+	unsigned int boundary_sectors;
+
+	if (!lim->atomic_write_hw_max)
+		goto unsupported;
+
+	boundary_sectors = lim->atomic_write_hw_boundary >> SECTOR_SHIFT;
+
+	if (boundary_sectors) {
+		/*
+		 * A feature of boundary support is that it disallows bios to
+		 * be merged which would result in a merged request which
+		 * crosses either a chunk sector or atomic write HW boundary,
+		 * even though chunk sectors may be just set for performance.
+		 * For simplicity, disallow atomic writes for a chunk sector
+		 * which is non-zero and smaller than atomic write HW boundary.
+		 * Furthermore, chunk sectors must be a multiple of atomic
+		 * write HW boundary. Otherwise boundary support becomes
+		 * complicated.
+		 * Devices which do not conform to these rules can be dealt
+		 * with if and when they show up.
+		 */
+		if (WARN_ON_ONCE(lim->chunk_sectors % boundary_sectors))
+			goto unsupported;
+
+		/*
+		 * The boundary size just needs to be a multiple of unit_max
+		 * (and not necessarily a power-of-2), so this following check
+		 * could be relaxed in future.
+		 * Furthermore, if needed, unit_max could even be reduced so
+		 * that it is compliant with a !power-of-2 boundary.
+		 */
+		if (!is_power_of_2(boundary_sectors))
+			goto unsupported;
+	}
+
+	blk_atomic_writes_update_limits(lim);
+	return;
+
+unsupported:
+	lim->atomic_write_max_sectors = 0;
+	lim->atomic_write_boundary_sectors = 0;
+	lim->atomic_write_unit_min = 0;
+	lim->atomic_write_unit_max = 0;
+}
+
 /*
  * Check that the limits in lim are valid, initialize defaults for unset
  * values, and cap values based on others where needed.
@@ -105,6 +227,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 {
 	unsigned int max_hw_sectors;
 	unsigned int logical_block_sectors;
+	int err;
 
 	/*
 	 * Unless otherwise specified, default to 512 byte logical blocks and a
@@ -112,6 +235,10 @@ static int blk_validate_limits(struct queue_limits *lim)
 	 */
 	if (!lim->logical_block_size)
 		lim->logical_block_size = SECTOR_SIZE;
+	else if (blk_validate_block_size(lim->logical_block_size)) {
+		pr_warn("Invalid logical block size (%d)\n", lim->logical_block_size);
+		return -EINVAL;
+	}
 	if (lim->physical_block_size < lim->logical_block_size)
 		lim->physical_block_size = lim->logical_block_size;
 
@@ -153,6 +280,12 @@ static int blk_validate_limits(struct queue_limits *lim)
 		if (lim->max_user_sectors < PAGE_SIZE / SECTOR_SIZE)
 			return -EINVAL;
 		lim->max_sectors = min(max_hw_sectors, lim->max_user_sectors);
+	} else if (lim->io_opt > (BLK_DEF_MAX_SECTORS_CAP << SECTOR_SHIFT)) {
+		lim->max_sectors =
+			min(max_hw_sectors, lim->io_opt >> SECTOR_SHIFT);
+	} else if (lim->io_min > (BLK_DEF_MAX_SECTORS_CAP << SECTOR_SHIFT)) {
+		lim->max_sectors =
+			min(max_hw_sectors, lim->io_min >> SECTOR_SHIFT);
 	} else {
 		lim->max_sectors = min(max_hw_sectors, BLK_DEF_MAX_SECTORS_CAP);
 	}
@@ -220,9 +353,17 @@ static int blk_validate_limits(struct queue_limits *lim)
 
 	if (lim->alignment_offset) {
 		lim->alignment_offset &= (lim->physical_block_size - 1);
-		lim->misaligned = 0;
+		lim->flags &= ~BLK_FLAG_MISALIGNED;
 	}
 
+	if (!(lim->features & BLK_FEAT_WRITE_CACHE))
+		lim->features &= ~BLK_FEAT_FUA;
+
+	blk_validate_atomic_write_limits(lim);
+
+	err = blk_validate_integrity_limits(lim);
+	if (err)
+		return err;
 	return blk_validate_zoned_limits(lim);
 }
 
@@ -254,15 +395,25 @@ int blk_set_default_limits(struct queue_limits *lim)
  */
 int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim)
-	__releases(q->limits_lock)
 {
-	int error = blk_validate_limits(lim);
+	int error;
 
-	if (!error) {
-		q->limits = *lim;
-		if (q->disk)
-			blk_apply_bdi_limits(q->disk->bdi, lim);
+	error = blk_validate_limits(lim);
+	if (error)
+		goto out_unlock;
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	if (q->crypto_profile && lim->integrity.tag_size) {
+		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together.\n");
+		error = -EINVAL;
+		goto out_unlock;
 	}
+#endif
+
+	q->limits = *lim;
+	if (q->disk)
+		blk_apply_bdi_limits(q->disk->bdi, lim);
+out_unlock:
 	mutex_unlock(&q->limits_lock);
 	return error;
 }
@@ -287,204 +438,6 @@ int queue_limits_set(struct request_queue *q, struct queue_limits *lim)
 EXPORT_SYMBOL_GPL(queue_limits_set);
 
 /**
- * blk_queue_chunk_sectors - set size of the chunk for this queue
- * @q:  the request queue for the device
- * @chunk_sectors:  chunk sectors in the usual 512b unit
- *
- * Description:
- *    If a driver doesn't want IOs to cross a given chunk size, it can set
- *    this limit and prevent merging across chunks. Note that the block layer
- *    must accept a page worth of data at any offset. So if the crossing of
- *    chunks is a hard limitation in the driver, it must still be prepared
- *    to split single page bios.
- **/
-void blk_queue_chunk_sectors(struct request_queue *q, unsigned int chunk_sectors)
-{
-	q->limits.chunk_sectors = chunk_sectors;
-}
-EXPORT_SYMBOL(blk_queue_chunk_sectors);
-
-/**
- * blk_queue_max_discard_sectors - set max sectors for a single discard
- * @q:  the request queue for the device
- * @max_discard_sectors: maximum number of sectors to discard
- **/
-void blk_queue_max_discard_sectors(struct request_queue *q,
-		unsigned int max_discard_sectors)
-{
-	struct queue_limits *lim = &q->limits;
-
-	lim->max_hw_discard_sectors = max_discard_sectors;
-	lim->max_discard_sectors =
-		min(max_discard_sectors, lim->max_user_discard_sectors);
-}
-EXPORT_SYMBOL(blk_queue_max_discard_sectors);
-
-/**
- * blk_queue_max_secure_erase_sectors - set max sectors for a secure erase
- * @q:  the request queue for the device
- * @max_sectors: maximum number of sectors to secure_erase
- **/
-void blk_queue_max_secure_erase_sectors(struct request_queue *q,
-		unsigned int max_sectors)
-{
-	q->limits.max_secure_erase_sectors = max_sectors;
-}
-EXPORT_SYMBOL(blk_queue_max_secure_erase_sectors);
-
-/**
- * blk_queue_max_write_zeroes_sectors - set max sectors for a single
- *                                      write zeroes
- * @q:  the request queue for the device
- * @max_write_zeroes_sectors: maximum number of sectors to write per command
- **/
-void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
-		unsigned int max_write_zeroes_sectors)
-{
-	q->limits.max_write_zeroes_sectors = max_write_zeroes_sectors;
-}
-EXPORT_SYMBOL(blk_queue_max_write_zeroes_sectors);
-
-/**
- * blk_queue_max_zone_append_sectors - set max sectors for a single zone append
- * @q:  the request queue for the device
- * @max_zone_append_sectors: maximum number of sectors to write per command
- *
- * Sets the maximum number of sectors allowed for zone append commands. If
- * Specifying 0 for @max_zone_append_sectors indicates that the queue does
- * not natively support zone append operations and that the block layer must
- * emulate these operations using regular writes.
- **/
-void blk_queue_max_zone_append_sectors(struct request_queue *q,
-		unsigned int max_zone_append_sectors)
-{
-	unsigned int max_sectors = 0;
-
-	if (WARN_ON(!blk_queue_is_zoned(q)))
-		return;
-
-	if (max_zone_append_sectors) {
-		max_sectors = min(q->limits.max_hw_sectors,
-				  max_zone_append_sectors);
-		max_sectors = min(q->limits.chunk_sectors, max_sectors);
-
-		/*
-		 * Signal eventual driver bugs resulting in the max_zone_append
-		 * sectors limit being 0 due to the chunk_sectors limit (zone
-		 * size) not set or the max_hw_sectors limit not set.
-		 */
-		WARN_ON_ONCE(!max_sectors);
-	}
-
-	q->limits.max_zone_append_sectors = max_sectors;
-}
-EXPORT_SYMBOL_GPL(blk_queue_max_zone_append_sectors);
-
-/**
- * blk_queue_logical_block_size - set logical block size for the queue
- * @q:  the request queue for the device
- * @size:  the logical block size, in bytes
- *
- * Description:
- *   This should be set to the lowest possible block size that the
- *   storage device can address.  The default of 512 covers most
- *   hardware.
- **/
-void blk_queue_logical_block_size(struct request_queue *q, unsigned int size)
-{
-	struct queue_limits *limits = &q->limits;
-
-	limits->logical_block_size = size;
-
-	if (limits->discard_granularity < limits->logical_block_size)
-		limits->discard_granularity = limits->logical_block_size;
-
-	if (limits->physical_block_size < size)
-		limits->physical_block_size = size;
-
-	if (limits->io_min < limits->physical_block_size)
-		limits->io_min = limits->physical_block_size;
-
-	limits->max_hw_sectors =
-		round_down(limits->max_hw_sectors, size >> SECTOR_SHIFT);
-	limits->max_sectors =
-		round_down(limits->max_sectors, size >> SECTOR_SHIFT);
-}
-EXPORT_SYMBOL(blk_queue_logical_block_size);
-
-/**
- * blk_queue_physical_block_size - set physical block size for the queue
- * @q:  the request queue for the device
- * @size:  the physical block size, in bytes
- *
- * Description:
- *   This should be set to the lowest possible sector size that the
- *   hardware can operate on without reverting to read-modify-write
- *   operations.
- */
-void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
-{
-	q->limits.physical_block_size = size;
-
-	if (q->limits.physical_block_size < q->limits.logical_block_size)
-		q->limits.physical_block_size = q->limits.logical_block_size;
-
-	if (q->limits.discard_granularity < q->limits.physical_block_size)
-		q->limits.discard_granularity = q->limits.physical_block_size;
-
-	if (q->limits.io_min < q->limits.physical_block_size)
-		q->limits.io_min = q->limits.physical_block_size;
-}
-EXPORT_SYMBOL(blk_queue_physical_block_size);
-
-/**
- * blk_queue_zone_write_granularity - set zone write granularity for the queue
- * @q:  the request queue for the zoned device
- * @size:  the zone write granularity size, in bytes
- *
- * Description:
- *   This should be set to the lowest possible size allowing to write in
- *   sequential zones of a zoned block device.
- */
-void blk_queue_zone_write_granularity(struct request_queue *q,
-				      unsigned int size)
-{
-	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
-		return;
-
-	q->limits.zone_write_granularity = size;
-
-	if (q->limits.zone_write_granularity < q->limits.logical_block_size)
-		q->limits.zone_write_granularity = q->limits.logical_block_size;
-}
-EXPORT_SYMBOL_GPL(blk_queue_zone_write_granularity);
-
-/**
- * blk_queue_alignment_offset - set physical block alignment offset
- * @q:	the request queue for the device
- * @offset: alignment offset in bytes
- *
- * Description:
- *   Some devices are naturally misaligned to compensate for things like
- *   the legacy DOS partition table 63-sector offset.  Low-level drivers
- *   should call this function for devices whose first sector is not
- *   naturally aligned.
- */
-void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
-{
-	q->limits.alignment_offset =
-		offset & (q->limits.physical_block_size - 1);
-	q->limits.misaligned = 0;
-}
-EXPORT_SYMBOL(blk_queue_alignment_offset);
-
-void disk_update_readahead(struct gendisk *disk)
-{
-	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
-}
-EXPORT_SYMBOL_GPL(disk_update_readahead);
-
-/**
  * blk_limits_io_min - set minimum request size for a device
  * @limits: the queue limits
  * @min:  smallest I/O size in bytes
@@ -506,26 +459,6 @@ void blk_limits_io_min(struct queue_limits *limits, unsigned int min)
 		limits->io_min = limits->physical_block_size;
 }
 EXPORT_SYMBOL(blk_limits_io_min);
-
-/**
- * blk_queue_io_min - set minimum request size for the queue
- * @q:	the request queue for the device
- * @min:  smallest I/O size in bytes
- *
- * Description:
- *   Storage devices may report a granularity or preferred minimum I/O
- *   size which is the smallest request the device can perform without
- *   incurring a performance penalty.  For disk drives this is often the
- *   physical block size.  For RAID arrays it is often the stripe chunk
- *   size.  A properly aligned multiple of minimum_io_size is the
- *   preferred request size for workloads where a high number of I/O
- *   operations is desired.
- */
-void blk_queue_io_min(struct request_queue *q, unsigned int min)
-{
-	blk_limits_io_min(&q->limits, min);
-}
-EXPORT_SYMBOL(blk_queue_io_min);
 
 /**
  * blk_limits_io_opt - set optimal request size for a device
@@ -614,6 +547,21 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 {
 	unsigned int top, bottom, alignment, ret = 0;
 
+	t->features |= (b->features & BLK_FEAT_INHERIT_MASK);
+
+	/*
+	 * BLK_FEAT_NOWAIT and BLK_FEAT_POLL need to be supported both by the
+	 * stacking driver and all underlying devices.  The stacking driver sets
+	 * the flags before stacking the limits, and this will clear the flags
+	 * if any of the underlying devices does not support it.
+	 */
+	if (!(b->features & BLK_FEAT_NOWAIT))
+		t->features &= ~BLK_FEAT_NOWAIT;
+	if (!(b->features & BLK_FEAT_POLL))
+		t->features &= ~BLK_FEAT_POLL;
+
+	t->flags |= (b->flags & BLK_FLAG_MISALIGNED);
+
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_user_sectors = min_not_zero(t->max_user_sectors,
 			b->max_user_sectors);
@@ -623,7 +571,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					b->max_write_zeroes_sectors);
 	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
 					 queue_limits_max_zone_append_sectors(b));
-	t->bounce = max(t->bounce, b->bounce);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
@@ -639,8 +586,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);
 
-	t->misaligned |= b->misaligned;
-
 	alignment = queue_limit_alignment_offset(b, start);
 
 	/* Bottom device has different alignment.  Check that it is
@@ -654,7 +599,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 		/* Verify that top and bottom intervals line up */
 		if (max(top, bottom) % min(top, bottom)) {
-			t->misaligned = 1;
+			t->flags |= BLK_FLAG_MISALIGNED;
 			ret = -1;
 		}
 	}
@@ -676,34 +621,30 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	/* Physical block size a multiple of the logical block size? */
 	if (t->physical_block_size & (t->logical_block_size - 1)) {
 		t->physical_block_size = t->logical_block_size;
-		t->misaligned = 1;
+		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
 	}
 
 	/* Minimum I/O a multiple of the physical block size? */
 	if (t->io_min & (t->physical_block_size - 1)) {
 		t->io_min = t->physical_block_size;
-		t->misaligned = 1;
+		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
 	}
 
 	/* Optimal I/O a multiple of the physical block size? */
 	if (t->io_opt & (t->physical_block_size - 1)) {
 		t->io_opt = 0;
-		t->misaligned = 1;
+		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
 	}
 
 	/* chunk_sectors a multiple of the physical block size? */
 	if ((t->chunk_sectors << 9) & (t->physical_block_size - 1)) {
 		t->chunk_sectors = 0;
-		t->misaligned = 1;
+		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
 	}
-
-	t->raid_partial_stripes_expensive =
-		max(t->raid_partial_stripes_expensive,
-		    b->raid_partial_stripes_expensive);
 
 	/* Find lowest common alignment_offset */
 	t->alignment_offset = lcm_not_zero(t->alignment_offset, alignment)
@@ -711,7 +652,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	/* Verify that new alignment_offset is on a logical block boundary */
 	if (t->alignment_offset & (t->logical_block_size - 1)) {
-		t->misaligned = 1;
+		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
 	}
 
@@ -722,16 +663,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	/* Discard alignment and granularity */
 	if (b->discard_granularity) {
 		alignment = queue_limit_discard_alignment(b, start);
-
-		if (t->discard_granularity != 0 &&
-		    t->discard_alignment != alignment) {
-			top = t->discard_granularity + t->discard_alignment;
-			bottom = b->discard_granularity + alignment;
-
-			/* Verify that top and bottom intervals line up */
-			if ((max(top, bottom) % min(top, bottom)) != 0)
-				t->discard_misaligned = 1;
-		}
 
 		t->max_discard_sectors = min_not_zero(t->max_discard_sectors,
 						      b->max_discard_sectors);
@@ -746,8 +677,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 						   b->max_secure_erase_sectors);
 	t->zone_write_granularity = max(t->zone_write_granularity,
 					b->zone_write_granularity);
-	t->zoned = max(t->zoned, b->zoned);
-	if (!t->zoned) {
+	if (!(t->features & BLK_FEAT_ZONED)) {
 		t->zone_write_granularity = 0;
 		t->max_zone_append_sectors = 0;
 	}
@@ -781,21 +711,65 @@ void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
 EXPORT_SYMBOL_GPL(queue_limits_stack_bdev);
 
 /**
- * blk_queue_update_dma_pad - update pad mask
- * @q:     the request queue for the device
- * @mask:  pad mask
+ * queue_limits_stack_integrity - stack integrity profile
+ * @t: target queue limits
+ * @b: base queue limits
  *
- * Update dma pad mask.
+ * Check if the integrity profile in the @b can be stacked into the
+ * target @t.  Stacking is possible if either:
  *
- * Appending pad buffer to a request modifies the last entry of a
- * scatter list such that it includes the pad buffer.
- **/
-void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
+ *   a) does not have any integrity information stacked into it yet
+ *   b) the integrity profile in @b is identical to the one in @t
+ *
+ * If @b can be stacked into @t, return %true.  Else return %false and clear the
+ * integrity information in @t.
+ */
+bool queue_limits_stack_integrity(struct queue_limits *t,
+		struct queue_limits *b)
 {
-	if (mask > q->dma_pad_mask)
-		q->dma_pad_mask = mask;
+	struct blk_integrity *ti = &t->integrity;
+	struct blk_integrity *bi = &b->integrity;
+
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
+		return true;
+
+	if (!ti->tuple_size) {
+		/* inherit the settings from the first underlying device */
+		if (!(ti->flags & BLK_INTEGRITY_STACKED)) {
+			ti->flags = BLK_INTEGRITY_DEVICE_CAPABLE |
+				(bi->flags & BLK_INTEGRITY_REF_TAG);
+			ti->csum_type = bi->csum_type;
+			ti->tuple_size = bi->tuple_size;
+			ti->pi_offset = bi->pi_offset;
+			ti->interval_exp = bi->interval_exp;
+			ti->tag_size = bi->tag_size;
+			goto done;
+		}
+		if (!bi->tuple_size)
+			goto done;
+	}
+
+	if (ti->tuple_size != bi->tuple_size)
+		goto incompatible;
+	if (ti->interval_exp != bi->interval_exp)
+		goto incompatible;
+	if (ti->tag_size != bi->tag_size)
+		goto incompatible;
+	if (ti->csum_type != bi->csum_type)
+		goto incompatible;
+	if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
+	    (bi->flags & BLK_INTEGRITY_REF_TAG))
+		goto incompatible;
+
+done:
+	ti->flags |= BLK_INTEGRITY_STACKED;
+	return true;
+
+incompatible:
+	memset(ti, 0, sizeof(*ti));
+	return false;
 }
-EXPORT_SYMBOL(blk_queue_update_dma_pad);
+EXPORT_SYMBOL_GPL(queue_limits_stack_integrity);
 
 /**
  * blk_set_queue_depth - tell the block layer about the device queue depth
@@ -810,54 +784,11 @@ void blk_set_queue_depth(struct request_queue *q, unsigned int depth)
 }
 EXPORT_SYMBOL(blk_set_queue_depth);
 
-/**
- * blk_queue_write_cache - configure queue's write cache
- * @q:		the request queue for the device
- * @wc:		write back cache on or off
- * @fua:	device supports FUA writes, if true
- *
- * Tell the block layer about the write cache of @q.
- */
-void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
-{
-	if (wc) {
-		blk_queue_flag_set(QUEUE_FLAG_HW_WC, q);
-		blk_queue_flag_set(QUEUE_FLAG_WC, q);
-	} else {
-		blk_queue_flag_clear(QUEUE_FLAG_HW_WC, q);
-		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
-	}
-	if (fua)
-		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
-	else
-		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
-}
-EXPORT_SYMBOL_GPL(blk_queue_write_cache);
-
-/**
- * disk_set_zoned - inidicate a zoned device
- * @disk:	gendisk to configure
- */
-void disk_set_zoned(struct gendisk *disk)
-{
-	struct request_queue *q = disk->queue;
-
-	WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED));
-
-	/*
-	 * Set the zone write granularity to the device logical block
-	 * size by default. The driver can change this value if needed.
-	 */
-	q->limits.zoned = true;
-	blk_queue_zone_write_granularity(q, queue_logical_block_size(q));
-}
-EXPORT_SYMBOL_GPL(disk_set_zoned);
-
 int bdev_alignment_offset(struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	if (q->limits.misaligned)
+	if (q->limits.flags & BLK_FLAG_MISALIGNED)
 		return -1;
 	if (bdev_is_partition(bdev))
 		return queue_limit_alignment_offset(&q->limits,

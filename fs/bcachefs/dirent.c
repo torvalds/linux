@@ -534,6 +534,14 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subvol_inum target)
 {
 	struct qstr name = bch2_dirent_get_name(d);
+	/*
+	 * Although not required by the kernel code, updating ctx->pos is needed
+	 * for the bcachefs FUSE driver. Without this update, the FUSE
+	 * implementation will be stuck in an infinite loop when reading
+	 * directories (via the bcachefs_fuse_readdir callback).
+	 * In kernel space, ctx->pos is updated by the VFS code.
+	 */
+	ctx->pos = d.k->p.offset;
 	bool ret = dir_emit(ctx, name.name,
 		      name.len,
 		      target.inum,

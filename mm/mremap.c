@@ -198,7 +198,7 @@ static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		 * PTE.
 		 *
 		 * NOTE! Both old and new PTL matter: the old one
-		 * for racing with page_mkclean(), the new one to
+		 * for racing with folio_mkclean(), the new one to
 		 * make sure the physical page stays valid until
 		 * the TLB entry for the old mapping has been
 		 * flushed.

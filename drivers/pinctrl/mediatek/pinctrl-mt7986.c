@@ -879,18 +879,18 @@ static const char *mt7986_wdt_groups[] = { "watchdog", };
 static const char *mt7986_wf_groups[] = { "wf_2g", "wf_5g", "wf_dbdc", };
 
 static const struct function_desc mt7986_functions[] = {
-	{"audio", mt7986_audio_groups, ARRAY_SIZE(mt7986_audio_groups)},
-	{"emmc", mt7986_emmc_groups, ARRAY_SIZE(mt7986_emmc_groups)},
-	{"eth", mt7986_ethernet_groups, ARRAY_SIZE(mt7986_ethernet_groups)},
-	{"i2c", mt7986_i2c_groups, ARRAY_SIZE(mt7986_i2c_groups)},
-	{"led", mt7986_led_groups, ARRAY_SIZE(mt7986_led_groups)},
-	{"flash", mt7986_flash_groups, ARRAY_SIZE(mt7986_flash_groups)},
-	{"pcie", mt7986_pcie_groups, ARRAY_SIZE(mt7986_pcie_groups)},
-	{"pwm", mt7986_pwm_groups, ARRAY_SIZE(mt7986_pwm_groups)},
-	{"spi", mt7986_spi_groups, ARRAY_SIZE(mt7986_spi_groups)},
-	{"uart", mt7986_uart_groups, ARRAY_SIZE(mt7986_uart_groups)},
-	{"watchdog", mt7986_wdt_groups, ARRAY_SIZE(mt7986_wdt_groups)},
-	{"wifi", mt7986_wf_groups, ARRAY_SIZE(mt7986_wf_groups)},
+	PINCTRL_PIN_FUNCTION("audio", mt7986_audio),
+	PINCTRL_PIN_FUNCTION("emmc", mt7986_emmc),
+	PINCTRL_PIN_FUNCTION("eth", mt7986_ethernet),
+	PINCTRL_PIN_FUNCTION("i2c", mt7986_i2c),
+	PINCTRL_PIN_FUNCTION("led", mt7986_led),
+	PINCTRL_PIN_FUNCTION("flash", mt7986_flash),
+	PINCTRL_PIN_FUNCTION("pcie", mt7986_pcie),
+	PINCTRL_PIN_FUNCTION("pwm", mt7986_pwm),
+	PINCTRL_PIN_FUNCTION("spi", mt7986_spi),
+	PINCTRL_PIN_FUNCTION("uart", mt7986_uart),
+	PINCTRL_PIN_FUNCTION("watchdog", mt7986_wdt),
+	PINCTRL_PIN_FUNCTION("wifi", mt7986_wf),
 };
 
 static const struct mtk_eint_hw mt7986a_eint_hw = {

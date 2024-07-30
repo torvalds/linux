@@ -1245,5 +1245,6 @@ void gether_disconnect(struct gether *link)
 }
 EXPORT_SYMBOL_GPL(gether_disconnect);
 
+MODULE_DESCRIPTION("Ethernet-over-USB link layer utilities for Gadget stack");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

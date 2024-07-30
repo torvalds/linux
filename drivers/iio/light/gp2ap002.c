@@ -692,8 +692,8 @@ static DEFINE_RUNTIME_DEV_PM_OPS(gp2ap002_dev_pm_ops, gp2ap002_runtime_suspend,
 				 gp2ap002_runtime_resume, NULL);
 
 static const struct i2c_device_id gp2ap002_id_table[] = {
-	{ "gp2ap002", 0 },
-	{ },
+	{ "gp2ap002" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, gp2ap002_id_table);
 

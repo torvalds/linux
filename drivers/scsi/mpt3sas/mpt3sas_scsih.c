@@ -2680,12 +2680,6 @@ scsih_device_configure(struct scsi_device *sdev, struct queue_limits *lim)
 		pcie_device_put(pcie_device);
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 		mpt3sas_scsih_change_queue_depth(sdev, qdepth);
-		/* Enable QUEUE_FLAG_NOMERGES flag, so that IOs won't be
-		 ** merged and can eliminate holes created during merging
-		 ** operation.
-		 **/
-		blk_queue_flag_set(QUEUE_FLAG_NOMERGES,
-				sdev->request_queue);
 		lim->virt_boundary_mask = ioc->page_size - 1;
 		return 0;
 	}

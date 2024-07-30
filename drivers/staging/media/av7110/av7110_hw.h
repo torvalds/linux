@@ -11,19 +11,17 @@
 #define DEBISWAP   0x002e0000
 
 #define ARM_WAIT_FREE  (HZ)
-#define ARM_WAIT_SHAKE (HZ/5)
+#define ARM_WAIT_SHAKE (HZ / 5)
 #define ARM_WAIT_OSD (HZ)
 
-
-enum av7110_bootstate
-{
+enum av7110_bootstate {
 	BOOTSTATE_BUFFER_EMPTY	= 0,
 	BOOTSTATE_BUFFER_FULL	= 1,
 	BOOTSTATE_AV7110_BOOT_COMPLETE	= 2
 };
 
-enum av7110_type_rec_play_format
-{	RP_None,
+enum av7110_type_rec_play_format {
+	RP_None,
 	AudioPES,
 	AudioMp2,
 	AudioPCM,
@@ -31,8 +29,7 @@ enum av7110_type_rec_play_format
 	AV_PES
 };
 
-enum av7110_osd_palette_type
-{
+enum av7110_osd_palette_type {
 	NoPalet =  0,	   /* No palette */
 	Pal1Bit =  2,	   /* 2 colors for 1 Bit Palette    */
 	Pal2Bit =  4,	   /* 4 colors for 2 bit palette    */
@@ -51,8 +48,7 @@ enum av7110_osd_palette_type
 #define FB_ON	SAA7146_GPIO_OUTHI  /* FastBlank on  (RGB-Mode) */
 #define FB_LOOP	SAA7146_GPIO_INPUT  /* FastBlank loop-through (PC graphics ???) */
 
-enum av7110_video_output_mode
-{
+enum av7110_video_output_mode {
 	NO_OUT	     = 0,		/* disable analog output */
 	CVBS_RGB_OUT = 1,
 	CVBS_YC_OUT  = 2,
@@ -89,7 +85,6 @@ enum av7110_video_output_mode
 #define	PBUFSIZE_8K   0x0600
 #define PBUFSIZE_16K  0x0700
 #define PBUFSIZE_32K  0x0800
-
 
 /* firmware command codes */
 enum av7110_osd_command {
@@ -255,7 +250,8 @@ enum av7110_command_type {
 #define DATA_TS_PLAY		 0x13
 
 /* ancient CI command codes, only two are actually still used
- * by the link level CI firmware */
+ * by the link level CI firmware
+ */
 #define CI_CMD_ERROR		 0x00
 #define CI_CMD_ACK		 0x01
 #define CI_CMD_SYSTEM_READY	 0x02
@@ -289,10 +285,10 @@ enum av7110_command_type {
 #define CI_MSG_CA_PMT		 0xe0
 #define CI_MSG_ERROR		 0xf0
 
-
 /* base address of the dual ported RAM which serves as communication
  * area between PCI bus and av7110,
- * as seen by the DEBI bus of the saa7146 */
+ * as seen by the DEBI bus of the saa7146
+ */
 #define	DPRAM_BASE 0x4000
 
 /* boot protocol area */
@@ -317,18 +313,17 @@ enum av7110_command_type {
 #define DATA_BUFF0_BASE	(DPRAM_BASE + 0x200)
 #define DATA_BUFF0_SIZE	0x0800
 
-#define DATA_BUFF1_BASE	(DATA_BUFF0_BASE+DATA_BUFF0_SIZE)
+#define DATA_BUFF1_BASE	(DATA_BUFF0_BASE + DATA_BUFF0_SIZE)
 #define DATA_BUFF1_SIZE	0x0800
 
-#define DATA_BUFF2_BASE	(DATA_BUFF1_BASE+DATA_BUFF1_SIZE)
+#define DATA_BUFF2_BASE	(DATA_BUFF1_BASE + DATA_BUFF1_SIZE)
 #define DATA_BUFF2_SIZE	0x0800
 
-#define DATA_BUFF3_BASE (DATA_BUFF2_BASE+DATA_BUFF2_SIZE)
+#define DATA_BUFF3_BASE (DATA_BUFF2_BASE + DATA_BUFF2_SIZE)
 #define DATA_BUFF3_SIZE 0x0400
 
 #define Reserved	(DPRAM_BASE + 0x1E00)
 #define Reserved_SIZE	0x1C0
-
 
 /* firmware status area */
 #define STATUS_BASE	(DPRAM_BASE + 0x1FC0)
@@ -362,26 +357,22 @@ enum av7110_command_type {
 #define DEBI_DONE_LINE		1
 #define ARM_IRQ_LINE		0
 
-
-
-extern int av7110_bootarm(struct av7110 *av7110);
-extern int av7110_firmversion(struct av7110 *av7110);
+int av7110_bootarm(struct av7110 *av7110);
+int av7110_firmversion(struct av7110 *av7110);
 #define FW_CI_LL_SUPPORT(arm_app) ((arm_app) & 0x80000000)
 #define FW_4M_SDRAM(arm_app)      ((arm_app) & 0x40000000)
 #define FW_VERSION(arm_app)	  ((arm_app) & 0x0000FFFF)
 
-extern int av7110_wait_msgstate(struct av7110 *av7110, u16 flags);
-extern int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...);
-extern int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
-			     int request_buf_len, u16 *reply_buf, int reply_buf_len);
-
+int av7110_wait_msgstate(struct av7110 *av7110, u16 flags);
+int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...);
+int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
+		      int request_buf_len, u16 *reply_buf, int reply_buf_len);
 
 /* DEBI (saa7146 data extension bus interface) access */
-extern int av7110_debiwrite(struct av7110 *av7110, u32 config,
-			    int addr, u32 val, unsigned int count);
-extern u32 av7110_debiread(struct av7110 *av7110, u32 config,
-			   int addr, unsigned int count);
-
+int av7110_debiwrite(struct av7110 *av7110, u32 config,
+		     int addr, u32 val, unsigned int count);
+u32 av7110_debiread(struct av7110 *av7110, u32 config,
+		    int addr, unsigned int count);
 
 /* DEBI during interrupt */
 /* single word writes */
@@ -402,9 +393,9 @@ static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, u
 {
 	u32 res;
 
-	res=av7110_debiread(av7110, config, addr, count);
-	if (count<=4)
-		memcpy(av7110->debi_virt, (char *) &res, count);
+	res = av7110_debiread(av7110, config, addr, count);
+	if (count <= 4)
+		memcpy(av7110->debi_virt, (char *)&res, count);
 	return res;
 }
 
@@ -424,7 +415,7 @@ static inline u32 rdebi(struct av7110 *av7110, u32 config, int addr, u32 val, un
 	u32 res;
 
 	spin_lock_irqsave(&av7110->debilock, flags);
-	res=av7110_debiread(av7110, config, addr, count);
+	res = av7110_debiread(av7110, config, addr, count);
 	spin_unlock_irqrestore(&av7110->debilock, flags);
 	return res;
 }
@@ -467,14 +458,14 @@ static inline int av7710_set_video_mode(struct av7110 *av7110, int mode)
 static inline int vidcom(struct av7110 *av7110, u32 com, u32 arg)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_VIDEO_COMMAND, 4,
-			     (com>>16), (com&0xffff),
-			     (arg>>16), (arg&0xffff));
+			     (com >> 16), (com & 0xffff),
+			     (arg >> 16), (arg & 0xffff));
 }
 
 static inline int audcom(struct av7110 *av7110, u32 com)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_AUDIO_COMMAND, 2,
-			     (com>>16), (com&0xffff));
+			     (com >> 16), (com & 0xffff));
 }
 
 static inline int Set22K(struct av7110 *av7110, int state)
@@ -482,15 +473,11 @@ static inline int Set22K(struct av7110 *av7110, int state)
 	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
 }
 
-
-extern int av7110_diseqc_send(struct av7110 *av7110, int len, u8 *msg, unsigned long burst);
-
+int av7110_diseqc_send(struct av7110 *av7110, int len, u8 *msg, unsigned long burst);
 
 #ifdef CONFIG_DVB_AV7110_OSD
-extern int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc);
-extern int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap);
+int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc);
+int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap);
 #endif /* CONFIG_DVB_AV7110_OSD */
-
-
 
 #endif /* _AV7110_HW_H_ */

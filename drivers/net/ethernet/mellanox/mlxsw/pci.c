@@ -13,6 +13,7 @@
 #include <linux/if_vlan.h>
 #include <linux/log2.h>
 #include <linux/string.h>
+#include <net/page_pool/helpers.h>
 
 #include "pci_hw.h"
 #include "pci.h"
@@ -61,15 +62,11 @@ struct mlxsw_pci_mem_item {
 };
 
 struct mlxsw_pci_queue_elem_info {
+	struct page *pages[MLXSW_PCI_WQE_SG_ENTRIES];
 	char *elem; /* pointer to actual dma mapped element mem chunk */
-	union {
-		struct {
-			struct sk_buff *skb;
-		} sdq;
-		struct {
-			struct sk_buff *skb;
-		} rdq;
-	} u;
+	struct {
+		struct sk_buff *skb;
+	} sdq;
 };
 
 struct mlxsw_pci_queue {
@@ -88,10 +85,14 @@ struct mlxsw_pci_queue {
 			enum mlxsw_pci_cqe_v v;
 			struct mlxsw_pci_queue *dq;
 			struct napi_struct napi;
+			struct page_pool *page_pool;
 		} cq;
 		struct {
 			struct tasklet_struct tasklet;
 		} eq;
+		struct {
+			struct mlxsw_pci_queue *cq;
+		} rdq;
 	} u;
 };
 
@@ -110,6 +111,7 @@ struct mlxsw_pci {
 	bool cff_support;
 	enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode;
 	enum mlxsw_cmd_mbox_config_profile_flood_mode flood_mode;
+	u8 num_sg_entries; /* Number of scatter/gather entries for packets. */
 	struct mlxsw_pci_queue_type_group queues[MLXSW_PCI_QUEUE_TYPE_COUNT];
 	u32 doorbell_offset;
 	struct mlxsw_core *core;
@@ -335,6 +337,29 @@ static void mlxsw_pci_sdq_fini(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_cmd_hw2sw_sdq(mlxsw_pci->core, q->num);
 }
 
+#define MLXSW_PCI_SKB_HEADROOM (NET_SKB_PAD + NET_IP_ALIGN)
+
+#define MLXSW_PCI_RX_BUF_SW_OVERHEAD		\
+		(MLXSW_PCI_SKB_HEADROOM +	\
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
+static void
+mlxsw_pci_wqe_rx_frag_set(struct mlxsw_pci *mlxsw_pci, struct page *page,
+			  char *wqe, int index, size_t frag_len)
+{
+	dma_addr_t mapaddr;
+
+	mapaddr = page_pool_get_dma_addr(page);
+
+	if (index == 0) {
+		mapaddr += MLXSW_PCI_SKB_HEADROOM;
+		frag_len = frag_len - MLXSW_PCI_RX_BUF_SW_OVERHEAD;
+	}
+
+	mlxsw_pci_wqe_address_set(wqe, index, mapaddr);
+	mlxsw_pci_wqe_byte_count_set(wqe, index, frag_len);
+}
+
 static int mlxsw_pci_wqe_frag_map(struct mlxsw_pci *mlxsw_pci, char *wqe,
 				  int index, char *frag_data, size_t frag_len,
 				  int direction)
@@ -364,43 +389,140 @@ static void mlxsw_pci_wqe_frag_unmap(struct mlxsw_pci *mlxsw_pci, char *wqe,
 	dma_unmap_single(&pdev->dev, mapaddr, frag_len, direction);
 }
 
-static int mlxsw_pci_rdq_skb_alloc(struct mlxsw_pci *mlxsw_pci,
-				   struct mlxsw_pci_queue_elem_info *elem_info,
-				   gfp_t gfp)
+static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
+					       u16 byte_count)
 {
-	size_t buf_len = MLXSW_PORT_MAX_MTU;
-	char *wqe = elem_info->elem;
+	unsigned int linear_data_size;
 	struct sk_buff *skb;
-	int err;
+	int page_index = 0;
+	bool linear_only;
+	void *data;
 
-	skb = __netdev_alloc_skb_ip_align(NULL, buf_len, gfp);
-	if (!skb)
+	data = page_address(pages[page_index]);
+	net_prefetch(data);
+
+	skb = napi_build_skb(data, PAGE_SIZE);
+	if (unlikely(!skb))
+		return ERR_PTR(-ENOMEM);
+
+	linear_only = byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD <= PAGE_SIZE;
+	linear_data_size = linear_only ? byte_count :
+					 PAGE_SIZE -
+					 MLXSW_PCI_RX_BUF_SW_OVERHEAD;
+
+	skb_reserve(skb, MLXSW_PCI_SKB_HEADROOM);
+	skb_put(skb, linear_data_size);
+
+	if (linear_only)
+		return skb;
+
+	byte_count -= linear_data_size;
+	page_index++;
+
+	while (byte_count > 0) {
+		unsigned int frag_size;
+		struct page *page;
+
+		page = pages[page_index];
+		frag_size = min(byte_count, PAGE_SIZE);
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+				page, 0, frag_size, PAGE_SIZE);
+		byte_count -= frag_size;
+		page_index++;
+	}
+
+	return skb;
+}
+
+static int mlxsw_pci_rdq_page_alloc(struct mlxsw_pci_queue *q,
+				    struct mlxsw_pci_queue_elem_info *elem_info,
+				    int index)
+{
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
+	char *wqe = elem_info->elem;
+	struct page *page;
+
+	page = page_pool_dev_alloc_pages(cq->u.cq.page_pool);
+	if (unlikely(!page))
 		return -ENOMEM;
 
-	err = mlxsw_pci_wqe_frag_map(mlxsw_pci, wqe, 0, skb->data,
-				     buf_len, DMA_FROM_DEVICE);
-	if (err)
-		goto err_frag_map;
+	mlxsw_pci_wqe_rx_frag_set(q->pci, page, wqe, index, PAGE_SIZE);
+	elem_info->pages[index] = page;
+	return 0;
+}
 
-	elem_info->u.rdq.skb = skb;
+static void mlxsw_pci_rdq_page_free(struct mlxsw_pci_queue *q,
+				    struct mlxsw_pci_queue_elem_info *elem_info,
+				    int index)
+{
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
+
+	page_pool_put_page(cq->u.cq.page_pool, elem_info->pages[index], -1,
+			   false);
+}
+
+static u8 mlxsw_pci_num_sg_entries_get(u16 byte_count)
+{
+	return DIV_ROUND_UP(byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD,
+			    PAGE_SIZE);
+}
+
+static int
+mlxsw_pci_elem_info_pages_ref_store(const struct mlxsw_pci_queue *q,
+				    const struct mlxsw_pci_queue_elem_info *el,
+				    u16 byte_count, struct page *pages[],
+				    u8 *p_num_sg_entries)
+{
+	u8 num_sg_entries;
+	int i;
+
+	num_sg_entries = mlxsw_pci_num_sg_entries_get(byte_count);
+	if (WARN_ON_ONCE(num_sg_entries > q->pci->num_sg_entries))
+		return -EINVAL;
+
+	for (i = 0; i < num_sg_entries; i++)
+		pages[i] = el->pages[i];
+
+	*p_num_sg_entries = num_sg_entries;
+	return 0;
+}
+
+static int
+mlxsw_pci_rdq_pages_alloc(struct mlxsw_pci_queue *q,
+			  struct mlxsw_pci_queue_elem_info *elem_info,
+			  u8 num_sg_entries)
+{
+	struct page *old_pages[MLXSW_PCI_WQE_SG_ENTRIES];
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
+	int i, err;
+
+	for (i = 0; i < num_sg_entries; i++) {
+		old_pages[i] = elem_info->pages[i];
+		err = mlxsw_pci_rdq_page_alloc(q, elem_info, i);
+		if (err) {
+			dev_err_ratelimited(&q->pci->pdev->dev, "Failed to alloc page\n");
+			goto err_page_alloc;
+		}
+	}
+
 	return 0;
 
-err_frag_map:
-	dev_kfree_skb_any(skb);
+err_page_alloc:
+	for (i--; i >= 0; i--)
+		page_pool_recycle_direct(cq->u.cq.page_pool, old_pages[i]);
+
 	return err;
 }
 
-static void mlxsw_pci_rdq_skb_free(struct mlxsw_pci *mlxsw_pci,
-				   struct mlxsw_pci_queue_elem_info *elem_info)
+static void
+mlxsw_pci_rdq_pages_recycle(struct mlxsw_pci_queue *q, struct page *pages[],
+			    u8 num_sg_entries)
 {
-	struct sk_buff *skb;
-	char *wqe;
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
+	int i;
 
-	skb = elem_info->u.rdq.skb;
-	wqe = elem_info->elem;
-
-	mlxsw_pci_wqe_frag_unmap(mlxsw_pci, wqe, 0, DMA_FROM_DEVICE);
-	dev_kfree_skb_any(skb);
+	for (i = 0; i < num_sg_entries; i++)
+		page_pool_recycle_direct(cq->u.cq.page_pool, pages[i]);
 }
 
 static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
@@ -410,7 +532,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	u8 sdq_count = mlxsw_pci->num_sdqs;
 	struct mlxsw_pci_queue *cq;
 	u8 cq_num;
-	int i;
+	int i, j;
 	int err;
 
 	q->producer_counter = 0;
@@ -434,15 +556,19 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	cq = mlxsw_pci_cq_get(mlxsw_pci, cq_num);
 	cq->u.cq.dq = q;
+	q->u.rdq.cq = cq;
 
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 
 	for (i = 0; i < q->count; i++) {
 		elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
 		BUG_ON(!elem_info);
-		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_KERNEL);
-		if (err)
-			goto rollback;
+
+		for (j = 0; j < mlxsw_pci->num_sg_entries; j++) {
+			err = mlxsw_pci_rdq_page_alloc(q, elem_info, j);
+			if (err)
+				goto rollback;
+		}
 		/* Everything is set up, ring doorbell to pass elem to HW */
 		q->producer_counter++;
 		mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
@@ -453,8 +579,11 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 rollback:
 	for (i--; i >= 0; i--) {
 		elem_info = mlxsw_pci_queue_elem_info_get(q, i);
-		mlxsw_pci_rdq_skb_free(mlxsw_pci, elem_info);
+		for (j--; j >= 0; j--)
+			mlxsw_pci_rdq_page_free(q, elem_info, j);
+		j = mlxsw_pci->num_sg_entries;
 	}
+	q->u.rdq.cq = NULL;
 	cq->u.cq.dq = NULL;
 	mlxsw_cmd_hw2sw_rdq(mlxsw_pci->core, q->num);
 
@@ -465,12 +594,13 @@ static void mlxsw_pci_rdq_fini(struct mlxsw_pci *mlxsw_pci,
 			       struct mlxsw_pci_queue *q)
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
-	int i;
+	int i, j;
 
 	mlxsw_cmd_hw2sw_rdq(mlxsw_pci->core, q->num);
 	for (i = 0; i < q->count; i++) {
 		elem_info = mlxsw_pci_queue_elem_info_get(q, i);
-		mlxsw_pci_rdq_skb_free(mlxsw_pci, elem_info);
+		for (j = 0; j < mlxsw_pci->num_sg_entries; j++)
+			mlxsw_pci_rdq_page_free(q, elem_info, j);
 	}
 }
 
@@ -515,7 +645,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
 				     enum mlxsw_pci_cqe_v cqe_v,
-				     char *cqe)
+				     char *cqe, int budget)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	struct mlxsw_pci_queue_elem_info *elem_info;
@@ -526,8 +656,8 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	spin_lock(&q->lock);
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
-	tx_info = mlxsw_skb_cb(elem_info->u.sdq.skb)->tx_info;
-	skb = elem_info->u.sdq.skb;
+	tx_info = mlxsw_skb_cb(elem_info->sdq.skb)->tx_info;
+	skb = elem_info->sdq.skb;
 	wqe = elem_info->elem;
 	for (i = 0; i < MLXSW_PCI_WQE_SG_ENTRIES; i++)
 		mlxsw_pci_wqe_frag_unmap(mlxsw_pci, wqe, i, DMA_TO_DEVICE);
@@ -541,8 +671,8 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 	}
 
 	if (skb)
-		dev_kfree_skb_any(skb);
-	elem_info->u.sdq.skb = NULL;
+		napi_consume_skb(skb, budget);
+	elem_info->sdq.skb = NULL;
 
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in SDQ\n");
@@ -604,27 +734,40 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     enum mlxsw_pci_cqe_v cqe_v, char *cqe)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
+	struct page *pages[MLXSW_PCI_WQE_SG_ENTRIES];
 	struct mlxsw_pci_queue_elem_info *elem_info;
 	struct mlxsw_rx_info rx_info = {};
-	char wqe[MLXSW_PCI_WQE_SIZE];
 	struct sk_buff *skb;
+	u8 num_sg_entries;
 	u16 byte_count;
 	int err;
 
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
-	skb = elem_info->u.rdq.skb;
-	memcpy(wqe, elem_info->elem, MLXSW_PCI_WQE_SIZE);
 
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_ATOMIC);
-	if (err) {
-		dev_err_ratelimited(&pdev->dev, "Failed to alloc skb for RDQ\n");
+	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
+	if (mlxsw_pci_cqe_crc_get(cqe_v, cqe))
+		byte_count -= ETH_FCS_LEN;
+
+	err = mlxsw_pci_elem_info_pages_ref_store(q, elem_info, byte_count,
+						  pages, &num_sg_entries);
+	if (err)
+		goto out;
+
+	err = mlxsw_pci_rdq_pages_alloc(q, elem_info, num_sg_entries);
+	if (err)
+		goto out;
+
+	skb = mlxsw_pci_rdq_build_skb(pages, byte_count);
+	if (IS_ERR(skb)) {
+		dev_err_ratelimited(&pdev->dev, "Failed to build skb for RDQ\n");
+		mlxsw_pci_rdq_pages_recycle(q, pages, num_sg_entries);
 		goto out;
 	}
 
-	mlxsw_pci_wqe_frag_unmap(mlxsw_pci, wqe, 0, DMA_FROM_DEVICE);
+	skb_mark_for_recycle(skb);
 
 	if (mlxsw_pci_cqe_lag_get(cqe_v, cqe)) {
 		rx_info.is_lag = true;
@@ -657,10 +800,6 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
 
-	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
-	if (mlxsw_pci_cqe_crc_get(cqe_v, cqe))
-		byte_count -= ETH_FCS_LEN;
-	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
 out:
@@ -785,7 +924,7 @@ static int mlxsw_pci_napi_poll_cq_tx(struct napi_struct *napi, int budget)
 		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 
 		mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-					 wqe_counter, q->u.cq.v, ncqe);
+					 wqe_counter, q->u.cq.v, ncqe, budget);
 
 		work_done++;
 	}
@@ -832,19 +971,51 @@ static void mlxsw_pci_cq_napi_setup(struct mlxsw_pci_queue *q,
 			       mlxsw_pci_napi_poll_cq_rx);
 		break;
 	}
-
-	napi_enable(&q->u.cq.napi);
 }
 
 static void mlxsw_pci_cq_napi_teardown(struct mlxsw_pci_queue *q)
 {
-	napi_disable(&q->u.cq.napi);
 	netif_napi_del(&q->u.cq.napi);
+}
+
+static int mlxsw_pci_cq_page_pool_init(struct mlxsw_pci_queue *q,
+				       enum mlxsw_pci_cq_type cq_type)
+{
+	struct page_pool_params pp_params = {};
+	struct mlxsw_pci *mlxsw_pci = q->pci;
+	struct page_pool *page_pool;
+
+	if (cq_type != MLXSW_PCI_CQ_RDQ)
+		return 0;
+
+	pp_params.flags = PP_FLAG_DMA_MAP;
+	pp_params.pool_size = MLXSW_PCI_WQE_COUNT * mlxsw_pci->num_sg_entries;
+	pp_params.nid = dev_to_node(&mlxsw_pci->pdev->dev);
+	pp_params.dev = &mlxsw_pci->pdev->dev;
+	pp_params.napi = &q->u.cq.napi;
+	pp_params.dma_dir = DMA_FROM_DEVICE;
+
+	page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(page_pool))
+		return PTR_ERR(page_pool);
+
+	q->u.cq.page_pool = page_pool;
+	return 0;
+}
+
+static void mlxsw_pci_cq_page_pool_fini(struct mlxsw_pci_queue *q,
+					enum mlxsw_pci_cq_type cq_type)
+{
+	if (cq_type != MLXSW_PCI_CQ_RDQ)
+		return;
+
+	page_pool_destroy(q->u.cq.page_pool);
 }
 
 static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			     struct mlxsw_pci_queue *q)
 {
+	enum mlxsw_pci_cq_type cq_type = mlxsw_pci_cq_type(mlxsw_pci, q);
 	int i;
 	int err;
 
@@ -874,15 +1045,29 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	err = mlxsw_cmd_sw2hw_cq(mlxsw_pci->core, mbox, q->num);
 	if (err)
 		return err;
-	mlxsw_pci_cq_napi_setup(q, mlxsw_pci_cq_type(mlxsw_pci, q));
+	mlxsw_pci_cq_napi_setup(q, cq_type);
+
+	err = mlxsw_pci_cq_page_pool_init(q, cq_type);
+	if (err)
+		goto err_page_pool_init;
+
+	napi_enable(&q->u.cq.napi);
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 	return 0;
+
+err_page_pool_init:
+	mlxsw_pci_cq_napi_teardown(q);
+	return err;
 }
 
 static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 			      struct mlxsw_pci_queue *q)
 {
+	enum mlxsw_pci_cq_type cq_type = mlxsw_pci_cq_type(mlxsw_pci, q);
+
+	napi_disable(&q->u.cq.napi);
+	mlxsw_pci_cq_page_pool_fini(q, cq_type);
 	mlxsw_pci_cq_napi_teardown(q);
 	mlxsw_cmd_hw2sw_cq(mlxsw_pci->core, q->num);
 }
@@ -1599,6 +1784,7 @@ static int mlxsw_pci_reset_at_pci_disable(struct mlxsw_pci *mlxsw_pci,
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	char mrsr_pl[MLXSW_REG_MRSR_LEN];
+	struct pci_dev *bridge;
 	int err;
 
 	if (!pci_reset_sbr_supported) {
@@ -1615,6 +1801,9 @@ static int mlxsw_pci_reset_at_pci_disable(struct mlxsw_pci *mlxsw_pci,
 sbr:
 	device_lock_assert(&pdev->dev);
 
+	bridge = pci_upstream_bridge(pdev);
+	if (bridge)
+		pci_cfg_access_lock(bridge);
 	pci_cfg_access_lock(pdev);
 	pci_save_state(pdev);
 
@@ -1624,6 +1813,8 @@ sbr:
 
 	pci_restore_state(pdev);
 	pci_cfg_access_unlock(pdev);
+	if (bridge)
+		pci_cfg_access_unlock(bridge);
 
 	return err;
 }
@@ -1701,6 +1892,17 @@ static int mlxsw_pci_alloc_irq_vectors(struct mlxsw_pci *mlxsw_pci)
 static void mlxsw_pci_free_irq_vectors(struct mlxsw_pci *mlxsw_pci)
 {
 	pci_free_irq_vectors(mlxsw_pci->pdev);
+}
+
+static void mlxsw_pci_num_sg_entries_set(struct mlxsw_pci *mlxsw_pci)
+{
+	u8 num_sg_entries;
+
+	num_sg_entries = mlxsw_pci_num_sg_entries_get(MLXSW_PORT_MAX_MTU);
+	mlxsw_pci->num_sg_entries = min(num_sg_entries,
+					MLXSW_PCI_WQE_SG_ENTRIES);
+
+	WARN_ON(num_sg_entries > MLXSW_PCI_WQE_SG_ENTRIES);
 }
 
 static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
@@ -1825,6 +2027,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_requery_resources;
 
+	mlxsw_pci_num_sg_entries_set(mlxsw_pci);
+
 	err = mlxsw_pci_napi_devs_init(mlxsw_pci);
 	if (err)
 		goto err_napi_devs_init;
@@ -1931,7 +2135,7 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 		goto unlock;
 	}
 	mlxsw_skb_cb(skb)->tx_info = *tx_info;
-	elem_info->u.sdq.skb = skb;
+	elem_info->sdq.skb = skb;
 
 	wqe = elem_info->elem;
 	mlxsw_pci_wqe_c_set(wqe, 1); /* always report completion */

@@ -65,7 +65,7 @@ static void vdpa_dev_remove(struct device *d)
 		drv->remove(vdev);
 }
 
-static int vdpa_dev_match(struct device *dev, struct device_driver *drv)
+static int vdpa_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(dev);
 
@@ -1538,4 +1538,5 @@ core_initcall(vdpa_init);
 module_exit(vdpa_exit);
 
 MODULE_AUTHOR("Jason Wang <jasowang@redhat.com>");
+MODULE_DESCRIPTION("vDPA bus");
 MODULE_LICENSE("GPL v2");

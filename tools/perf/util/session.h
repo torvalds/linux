@@ -130,8 +130,7 @@ size_t perf_session__fprintf_dsos(struct perf_session *session, FILE *fp);
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp,
 					  bool (fn)(struct dso *dso, int parm), int parm);
 
-size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
-				       bool skip_empty);
+size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
 void perf_session__dump_kmaps(struct perf_session *session);
 

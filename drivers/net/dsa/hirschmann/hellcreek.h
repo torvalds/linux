@@ -12,14 +12,16 @@
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
+#include <linux/container_of.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/mutex.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
+#include <linux/mutex.h>
 #include <linux/platform_data/hirschmann-hellcreek.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #include <net/dsa.h>
 #include <net/pkt_sched.h>
 

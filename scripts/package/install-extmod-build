@@ -1,12 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
-set -e
+set -eu
 
 destdir=${1}
-
-test -n "${srctree}"
-test -n "${SRCARCH}"
 
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf

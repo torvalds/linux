@@ -2497,7 +2497,7 @@ ret_intrmod:
 }
 
 static int lio_get_ts_info(struct net_device *netdev,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	struct lio *lio = GET_LIO(netdev);
 

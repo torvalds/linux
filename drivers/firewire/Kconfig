@@ -66,6 +66,21 @@ config FIREWIRE_KUNIT_PACKET_SERDES_TEST
 	  For more information on KUnit and unit tests in general, refer
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
+config FIREWIRE_KUNIT_SELF_ID_SEQUENCE_HELPER_TEST
+	tristate "KUnit tests for helpers of self ID sequence" if !KUNIT_ALL_TESTS
+	depends on FIREWIRE && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit tests for helpers of self ID sequence.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
 	depends on PCI && FIREWIRE && MMU
@@ -76,6 +91,22 @@ config FIREWIRE_OHCI
 
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-ohci.
+
+config FIREWIRE_KUNIT_OHCI_SERDES_TEST
+	tristate "KUnit tests for serialization/deserialization of data in buffers/registers" if !KUNIT_ALL_TESTS
+	depends on FIREWIRE && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit tests to check serialization and deserialization
+	  of data in buffers and registers defined in 1394 OHCI specification.
+
+	  KUnit tests run during boot and output the results to the debug
+	  log in TAP format (https://testanything.org/). Only useful for
+	  kernel devs running KUnit test harness and are not for inclusion
+	  into a production build.
+
+	  For more information on KUnit and unit tests in general, refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 config FIREWIRE_SBP2
 	tristate "Storage devices (SBP-2 protocol)"

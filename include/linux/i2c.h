@@ -30,7 +30,6 @@ extern const struct device_type i2c_client_type;
 /* --- General options ------------------------------------------------	*/
 
 struct i2c_msg;
-struct i2c_algorithm;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_driver;
@@ -304,7 +303,7 @@ struct i2c_driver {
 
 	u32 flags;
 };
-#define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
+#define to_i2c_driver(d) container_of_const(d, struct i2c_driver, driver)
 
 /**
  * struct i2c_client - represent an I2C slave device
@@ -512,46 +511,54 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 #endif /* I2C_BOARDINFO */
 
 /**
- * struct i2c_algorithm - represent I2C transfer method
- * @master_xfer: Issue a set of i2c transactions to the given I2C adapter
- *   defined by the msgs array, with num messages available to transfer via
- *   the adapter specified by adap.
- * @master_xfer_atomic: same as @master_xfer. Yet, only using atomic context
- *   so e.g. PMICs can be accessed very late before shutdown. Optional.
- * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
+ * struct i2c_algorithm - represent I2C transfer methods
+ * @xfer: Transfer a given number of messages defined by the msgs array via
+ *   the specified adapter.
+ * @xfer_atomic: Same as @xfer. Yet, only using atomic context so e.g. PMICs
+ *   can be accessed very late before shutdown. Optional.
+ * @smbus_xfer: Issue SMBus transactions to the given I2C adapter. If this
  *   is not present, then the bus layer will try and convert the SMBus calls
  *   into I2C transfers instead.
- * @smbus_xfer_atomic: same as @smbus_xfer. Yet, only using atomic context
+ * @smbus_xfer_atomic: Same as @smbus_xfer. Yet, only using atomic context
  *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the ``I2C_FUNC_*`` flags.
- * @reg_slave: Register given client to I2C slave mode of this adapter
- * @unreg_slave: Unregister given client from I2C slave mode of this adapter
+ * @reg_target: Register given client to local target mode of this adapter
+ * @unreg_target: Unregister given client from local target mode of this adapter
  *
- * The following structs are for those who like to implement new bus drivers:
+ * @master_xfer: deprecated, use @xfer
+ * @master_xfer_atomic: deprecated, use @xfer_atomic
+ * @reg_slave: deprecated, use @reg_target
+ * @unreg_slave: deprecated, use @unreg_target
+ *
  * i2c_algorithm is the interface to a class of hardware solutions which can
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
  *
- * The return codes from the ``master_xfer{_atomic}`` fields should indicate the
+ * The return codes from the ``xfer{_atomic}`` fields should indicate the
  * type of error code that occurred during the transfer, as documented in the
  * Kernel Documentation file Documentation/i2c/fault-codes.rst. Otherwise, the
  * number of messages executed should be returned.
  */
 struct i2c_algorithm {
 	/*
-	 * If an adapter algorithm can't do I2C-level access, set master_xfer
+	 * If an adapter algorithm can't do I2C-level access, set xfer
 	 * to NULL. If an adapter algorithm can do SMBus access, set
 	 * smbus_xfer. If set to NULL, the SMBus protocol is simulated
 	 * using common I2C messages.
-	 *
-	 * master_xfer should return the number of messages successfully
-	 * processed, or a negative value on error
 	 */
-	int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
-			   int num);
-	int (*master_xfer_atomic)(struct i2c_adapter *adap,
+	union {
+		int (*xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			    int num);
+		int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
+				   int num);
+	};
+	union {
+		int (*xfer_atomic)(struct i2c_adapter *adap,
 				   struct i2c_msg *msgs, int num);
+		int (*master_xfer_atomic)(struct i2c_adapter *adap,
+					   struct i2c_msg *msgs, int num);
+	};
 	int (*smbus_xfer)(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data);
@@ -563,8 +570,14 @@ struct i2c_algorithm {
 	u32 (*functionality)(struct i2c_adapter *adap);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	int (*reg_slave)(struct i2c_client *client);
-	int (*unreg_slave)(struct i2c_client *client);
+	union {
+		int (*reg_target)(struct i2c_client *client);
+		int (*reg_slave)(struct i2c_client *client);
+	};
+	union {
+		int (*unreg_target)(struct i2c_client *client);
+		int (*unreg_slave)(struct i2c_client *client);
+	};
 #endif
 };
 

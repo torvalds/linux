@@ -492,7 +492,7 @@ static const struct attribute * const files[] = {
 	NULL
 };
 
-static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
+static void kobj_xe_hw_engine_class_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 
@@ -517,7 +517,7 @@ kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char
 	}
 	keclass->xe = xe;
 
-	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_class_fini,
+	err = devm_add_action_or_reset(xe->drm.dev, kobj_xe_hw_engine_class_fini,
 				       &keclass->base);
 	if (err)
 		return NULL;
@@ -525,7 +525,7 @@ kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char
 	return keclass;
 }
 
-static void hw_engine_class_defaults_fini(struct drm_device *drm, void *arg)
+static void hw_engine_class_defaults_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 
@@ -552,7 +552,7 @@ static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
 	if (err)
 		goto err_object;
 
-	return drmm_add_action_or_reset(&xe->drm, hw_engine_class_defaults_fini, kobj);
+	return devm_add_action_or_reset(xe->drm.dev, hw_engine_class_defaults_fini, kobj);
 
 err_object:
 	kobject_put(kobj);
@@ -611,29 +611,11 @@ static const struct kobj_type xe_hw_engine_sysfs_kobj_type = {
 	.sysfs_ops = &xe_hw_engine_class_sysfs_ops,
 };
 
-static void hw_engine_class_sysfs_fini(struct drm_device *drm, void *arg)
+static void hw_engine_class_sysfs_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 
 	kobject_put(kobj);
-}
-
-static const char *xe_hw_engine_class_to_str(enum xe_engine_class class)
-{
-	switch (class) {
-	case XE_ENGINE_CLASS_RENDER:
-		return "rcs";
-	case XE_ENGINE_CLASS_VIDEO_DECODE:
-		return "vcs";
-	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		return "vecs";
-	case XE_ENGINE_CLASS_COPY:
-		return "bcs";
-	case XE_ENGINE_CLASS_COMPUTE:
-		return "ccs";
-	default:
-		return NULL;
-	}
 }
 
 /**
@@ -698,7 +680,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 			goto err_object;
 	}
 
-	return drmm_add_action_or_reset(&xe->drm, hw_engine_class_sysfs_fini, kobj);
+	return devm_add_action_or_reset(xe->drm.dev, hw_engine_class_sysfs_fini, kobj);
 
 err_object:
 	kobject_put(kobj);

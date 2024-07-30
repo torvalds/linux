@@ -29,7 +29,7 @@ efi_status_t allocate_unaccepted_bitmap(__u32 nr_desc,
 		efi_memory_desc_t *d;
 		unsigned long m = (unsigned long)map->map;
 
-		d = efi_early_memdesc_ptr(m, map->desc_size, i);
+		d = efi_memdesc_ptr(m, map->desc_size, i);
 		if (d->type != EFI_UNACCEPTED_MEMORY)
 			continue;
 

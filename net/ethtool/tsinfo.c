@@ -12,7 +12,7 @@ struct tsinfo_req_info {
 
 struct tsinfo_reply_data {
 	struct ethnl_reply_data		base;
-	struct ethtool_ts_info		ts_info;
+	struct kernel_ethtool_ts_info	ts_info;
 	struct ethtool_ts_stats		stats;
 };
 
@@ -55,7 +55,7 @@ static int tsinfo_reply_size(const struct ethnl_req_info *req_base,
 {
 	const struct tsinfo_reply_data *data = TSINFO_REPDATA(reply_base);
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
-	const struct ethtool_ts_info *ts_info = &data->ts_info;
+	const struct kernel_ethtool_ts_info *ts_info = &data->ts_info;
 	int len = 0;
 	int ret;
 
@@ -136,7 +136,7 @@ static int tsinfo_fill_reply(struct sk_buff *skb,
 {
 	const struct tsinfo_reply_data *data = TSINFO_REPDATA(reply_base);
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
-	const struct ethtool_ts_info *ts_info = &data->ts_info;
+	const struct kernel_ethtool_ts_info *ts_info = &data->ts_info;
 	int ret;
 
 	if (ts_info->so_timestamping) {

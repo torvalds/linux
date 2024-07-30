@@ -12,9 +12,9 @@
  *
  * 1) The main xfer routine kicks off a transmission by putting the start bit
  * (or repeated start) on the bus and enabling the transmit interrupt (TIE)
- * since we need to send the slave address + RW bit in every case.
+ * since we need to send the target address + RW bit in every case.
  *
- * 2) TIE sends slave address + RW bit and selects how to continue.
+ * 2) TIE sends target address + RW bit and selects how to continue.
  *
  * 3a) Write case: We keep utilizing TIE as long as we have data to send. If we
  * are done, we switch over to the transmission done interrupt (TEIE) and mark
@@ -294,8 +294,8 @@ static u32 riic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm riic_algo = {
-	.master_xfer	= riic_xfer,
-	.functionality	= riic_func,
+	.xfer = riic_xfer,
+	.functionality = riic_func,
 };
 
 static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)

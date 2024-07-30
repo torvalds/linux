@@ -28,6 +28,9 @@ properties:
     description: phandle to the secure-monitor node
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - clocks

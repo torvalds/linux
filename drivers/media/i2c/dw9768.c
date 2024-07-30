@@ -115,11 +115,6 @@ static inline struct dw9768 *sd_to_dw9768(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct dw9768, sd);
 }
 
-struct regval_list {
-	u8 reg_num;
-	u8 value;
-};
-
 struct dw9768_aac_mode_ot_multi {
 	u32 aac_mode_enum;
 	u32 ot_multi_base100;

@@ -16,7 +16,6 @@
 #define _LINUX_NODE_H_
 
 #include <linux/device.h>
-#include <linux/cpumask.h>
 #include <linux/list.h>
 
 /**

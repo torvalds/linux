@@ -1720,11 +1720,6 @@ static void iso_sock_ready(struct sock *sk)
 	release_sock(sk);
 }
 
-struct iso_list_data {
-	struct hci_conn *hcon;
-	int count;
-};
-
 static bool iso_match_big(struct sock *sk, void *data)
 {
 	struct hci_evt_le_big_sync_estabilished *ev = data;

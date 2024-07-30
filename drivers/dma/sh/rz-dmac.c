@@ -540,8 +540,8 @@ static int rz_dmac_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&channel->vc.lock, flags);
 	list_splice_tail_init(&channel->ld_active, &channel->ld_free);
 	list_splice_tail_init(&channel->ld_queue, &channel->ld_free);
-	spin_unlock_irqrestore(&channel->vc.lock, flags);
 	vchan_get_all_descriptors(&channel->vc, &head);
+	spin_unlock_irqrestore(&channel->vc.lock, flags);
 	vchan_dma_desc_free_list(&channel->vc, &head);
 
 	return 0;

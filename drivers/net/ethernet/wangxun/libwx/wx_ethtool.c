@@ -43,6 +43,11 @@ static const struct wx_stats wx_gstrings_stats[] = {
 	WX_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
 };
 
+static const struct wx_stats wx_gstrings_fdir_stats[] = {
+	WX_STAT("fdir_match", stats.fdirmatch),
+	WX_STAT("fdir_miss", stats.fdirmiss),
+};
+
 /* drivers allocates num_tx_queues and num_rx_queues symmetrically so
  * we set the num_rx_queues to evaluate to num_tx_queues. This is
  * used because we do not have a good way to get the max number of
@@ -55,13 +60,17 @@ static const struct wx_stats wx_gstrings_stats[] = {
 		(WX_NUM_TX_QUEUES + WX_NUM_RX_QUEUES) * \
 		(sizeof(struct wx_queue_stats) / sizeof(u64)))
 #define WX_GLOBAL_STATS_LEN  ARRAY_SIZE(wx_gstrings_stats)
+#define WX_FDIR_STATS_LEN  ARRAY_SIZE(wx_gstrings_fdir_stats)
 #define WX_STATS_LEN (WX_GLOBAL_STATS_LEN + WX_QUEUE_STATS_LEN)
 
 int wx_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct wx *wx = netdev_priv(netdev);
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return WX_STATS_LEN;
+		return (wx->mac.type == wx_mac_sp) ?
+			WX_STATS_LEN + WX_FDIR_STATS_LEN : WX_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -70,6 +79,7 @@ EXPORT_SYMBOL(wx_get_sset_count);
 
 void wx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
+	struct wx *wx = netdev_priv(netdev);
 	u8 *p = data;
 	int i;
 
@@ -77,6 +87,10 @@ void wx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	case ETH_SS_STATS:
 		for (i = 0; i < WX_GLOBAL_STATS_LEN; i++)
 			ethtool_puts(&p, wx_gstrings_stats[i].stat_string);
+		if (wx->mac.type == wx_mac_sp) {
+			for (i = 0; i < WX_FDIR_STATS_LEN; i++)
+				ethtool_puts(&p, wx_gstrings_fdir_stats[i].stat_string);
+		}
 		for (i = 0; i < netdev->num_tx_queues; i++) {
 			ethtool_sprintf(&p, "tx_queue_%u_packets", i);
 			ethtool_sprintf(&p, "tx_queue_%u_bytes", i);
@@ -96,7 +110,7 @@ void wx_get_ethtool_stats(struct net_device *netdev,
 	struct wx *wx = netdev_priv(netdev);
 	struct wx_ring *ring;
 	unsigned int start;
-	int i, j;
+	int i, j, k;
 	char *p;
 
 	wx_update_stats(wx);
@@ -105,6 +119,13 @@ void wx_get_ethtool_stats(struct net_device *netdev,
 		p = (char *)wx + wx_gstrings_stats[i].stat_offset;
 		data[i] = (wx_gstrings_stats[i].sizeof_stat ==
 			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+
+	if (wx->mac.type == wx_mac_sp) {
+		for (k = 0; k < WX_FDIR_STATS_LEN; k++) {
+			p = (char *)wx + wx_gstrings_fdir_stats[k].stat_offset;
+			data[i++] = *(u64 *)p;
+		}
 	}
 
 	for (j = 0; j < netdev->num_tx_queues; j++) {
@@ -172,17 +193,21 @@ EXPORT_SYMBOL(wx_get_pause_stats);
 
 void wx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *info)
 {
+	unsigned int stats_len = WX_STATS_LEN;
 	struct wx *wx = netdev_priv(netdev);
+
+	if (wx->mac.type == wx_mac_sp)
+		stats_len += WX_FDIR_STATS_LEN;
 
 	strscpy(info->driver, wx->driver_name, sizeof(info->driver));
 	strscpy(info->fw_version, wx->eeprom_id, sizeof(info->fw_version));
 	strscpy(info->bus_info, pci_name(wx->pdev), sizeof(info->bus_info));
 	if (wx->num_tx_queues <= WX_NUM_TX_QUEUES) {
-		info->n_stats = WX_STATS_LEN -
+		info->n_stats = stats_len -
 				   (WX_NUM_TX_QUEUES - wx->num_tx_queues) *
 				   (sizeof(struct wx_queue_stats) / sizeof(u64)) * 2;
 	} else {
-		info->n_stats = WX_STATS_LEN;
+		info->n_stats = stats_len;
 	}
 }
 EXPORT_SYMBOL(wx_get_drvinfo);
@@ -383,6 +408,9 @@ void wx_get_channels(struct net_device *dev,
 
 	/* record RSS queues */
 	ch->combined_count = wx->ring_feature[RING_F_RSS].indices;
+
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags))
+		ch->combined_count = wx->ring_feature[RING_F_FDIR].indices;
 }
 EXPORT_SYMBOL(wx_get_channels);
 
@@ -399,6 +427,9 @@ int wx_set_channels(struct net_device *dev,
 	/* verify the number of channels does not exceed hardware limits */
 	if (count > wx_max_channels(wx))
 		return -EINVAL;
+
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags))
+		wx->ring_feature[RING_F_FDIR].limit = count;
 
 	wx->ring_feature[RING_F_RSS].limit = count;
 

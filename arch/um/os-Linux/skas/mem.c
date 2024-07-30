@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (C) 2021 Benjamin Berg <benjamin@sipsolutions.net>
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
@@ -19,7 +20,30 @@
 #include <sysdep/stub.h>
 #include "../internal.h"
 
-extern char batch_syscall_stub[], __syscall_stub_start[];
+extern char __syscall_stub_start[];
+
+void syscall_stub_dump_error(struct mm_id *mm_idp)
+{
+	struct stub_data *proc_data = (void *)mm_idp->stack;
+	struct stub_syscall *sc;
+
+	if (proc_data->syscall_data_len < 0 ||
+	    proc_data->syscall_data_len >= ARRAY_SIZE(proc_data->syscall_data))
+		panic("Syscall data was corrupted by stub (len is: %d, expected maximum: %d)!",
+			proc_data->syscall_data_len,
+			mm_idp->syscall_data_len);
+
+	sc = &proc_data->syscall_data[proc_data->syscall_data_len];
+
+	printk(UM_KERN_ERR "%s : length = %d, last offset = %d",
+		__func__, mm_idp->syscall_data_len,
+		proc_data->syscall_data_len);
+	printk(UM_KERN_ERR "%s : stub syscall type %d failed, return value = 0x%lx\n",
+		__func__, sc->syscall, proc_data->err);
+
+	print_hex_dump(UM_KERN_ERR, "    syscall data: ", 0,
+		       16, 4, sc, sizeof(*sc), 0);
+}
 
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)
@@ -36,22 +60,24 @@ static unsigned long syscall_regs[MAX_REG_NR];
 static int __init init_syscall_regs(void)
 {
 	get_safe_registers(syscall_regs, NULL);
+
 	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
-		((unsigned long) batch_syscall_stub -
+		((unsigned long) stub_syscall_handler -
 		 (unsigned long) __syscall_stub_start);
-	syscall_regs[REGS_SP_INDEX] = STUB_DATA;
+	syscall_regs[REGS_SP_INDEX] = STUB_DATA +
+		offsetof(struct stub_data, sigstack) +
+		sizeof(((struct stub_data *) 0)->sigstack) -
+		sizeof(void *);
 
 	return 0;
 }
 
 __initcall(init_syscall_regs);
 
-static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
+static inline long do_syscall_stub(struct mm_id *mm_idp)
 {
+	struct stub_data *proc_data = (void *)mm_idp->stack;
 	int n, i;
-	long ret, offset;
-	unsigned long * data;
-	unsigned long * syscall;
 	int err, pid = mm_idp->u.pid;
 
 	n = ptrace_setregs(pid, syscall_regs);
@@ -63,6 +89,9 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 		      __func__, -n);
 	}
 
+	/* Inform process how much we have filled in. */
+	proc_data->syscall_data_len = mm_idp->syscall_data_len;
+
 	err = ptrace(PTRACE_CONT, pid, 0, 0);
 	if (err)
 		panic("Failed to continue stub, pid = %d, errno = %d\n", pid,
@@ -71,135 +100,141 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	wait_stub_done(pid);
 
 	/*
-	 * When the stub stops, we find the following values on the
-	 * beginning of the stack:
-	 * (long )return_value
-	 * (long )offset to failed sycall-data (0, if no error)
+	 * proc_data->err will be non-zero if there was an (unexpected) error.
+	 * In that case, syscall_data_len points to the last executed syscall,
+	 * otherwise it will be zero (but we do not need to rely on that).
 	 */
-	ret = *((unsigned long *) mm_idp->stack);
-	offset = *((unsigned long *) mm_idp->stack + 1);
-	if (offset) {
-		data = (unsigned long *)(mm_idp->stack + offset - STUB_DATA);
-		printk(UM_KERN_ERR "%s : ret = %ld, offset = %ld, data = %p\n",
-		       __func__, ret, offset, data);
-		syscall = (unsigned long *)((unsigned long)data + data[0]);
-		printk(UM_KERN_ERR "%s: syscall %ld failed, return value = 0x%lx, expected return value = 0x%lx\n",
-		       __func__, syscall[0], ret, syscall[7]);
-		printk(UM_KERN_ERR "    syscall parameters: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
-		       syscall[1], syscall[2], syscall[3],
-		       syscall[4], syscall[5], syscall[6]);
-		for (n = 1; n < data[0]/sizeof(long); n++) {
-			if (n == 1)
-				printk(UM_KERN_ERR "    additional syscall data:");
-			if (n % 4 == 1)
-				printk("\n" UM_KERN_ERR "      ");
-			printk("  0x%lx", data[n]);
-		}
-		if (n > 1)
-			printk("\n");
+	if (proc_data->err < 0) {
+		syscall_stub_dump_error(mm_idp);
+
+		/* Store error code in case someone tries to add more syscalls */
+		mm_idp->syscall_data_len = proc_data->err;
+	} else {
+		mm_idp->syscall_data_len = 0;
 	}
-	else ret = 0;
 
-	*addr = check_init_stack(mm_idp, NULL);
-
-	return ret;
+	return mm_idp->syscall_data_len;
 }
 
-long run_syscall_stub(struct mm_id * mm_idp, int syscall,
-		      unsigned long *args, long expected, void **addr,
-		      int done)
+int syscall_stub_flush(struct mm_id *mm_idp)
 {
-	unsigned long *stack = check_init_stack(mm_idp, *addr);
+	int res;
 
-	*stack += sizeof(long);
-	stack += *stack / sizeof(long);
+	if (mm_idp->syscall_data_len == 0)
+		return 0;
 
-	*stack++ = syscall;
-	*stack++ = args[0];
-	*stack++ = args[1];
-	*stack++ = args[2];
-	*stack++ = args[3];
-	*stack++ = args[4];
-	*stack++ = args[5];
-	*stack++ = expected;
-	*stack = 0;
+	/* If an error happened already, report it and reset the state. */
+	if (mm_idp->syscall_data_len < 0) {
+		res = mm_idp->syscall_data_len;
+		mm_idp->syscall_data_len = 0;
+		return res;
+	}
 
-	if (!done && ((((unsigned long) stack) & ~UM_KERN_PAGE_MASK) <
-		     UM_KERN_PAGE_SIZE - 10 * sizeof(long))) {
-		*addr = stack;
+	res = do_syscall_stub(mm_idp);
+	mm_idp->syscall_data_len = 0;
+
+	return res;
+}
+
+struct stub_syscall *syscall_stub_alloc(struct mm_id *mm_idp)
+{
+	struct stub_syscall *sc;
+	struct stub_data *proc_data = (struct stub_data *) mm_idp->stack;
+
+	if (mm_idp->syscall_data_len > 0 &&
+	    mm_idp->syscall_data_len == ARRAY_SIZE(proc_data->syscall_data))
+		do_syscall_stub(mm_idp);
+
+	if (mm_idp->syscall_data_len < 0) {
+		/* Return dummy to retain error state. */
+		sc = &proc_data->syscall_data[0];
+	} else {
+		sc = &proc_data->syscall_data[mm_idp->syscall_data_len];
+		mm_idp->syscall_data_len += 1;
+	}
+	memset(sc, 0, sizeof(*sc));
+
+	return sc;
+}
+
+static struct stub_syscall *syscall_stub_get_previous(struct mm_id *mm_idp,
+						      int syscall_type,
+						      unsigned long virt)
+{
+	if (mm_idp->syscall_data_len > 0) {
+		struct stub_data *proc_data = (void *) mm_idp->stack;
+		struct stub_syscall *sc;
+
+		sc = &proc_data->syscall_data[mm_idp->syscall_data_len - 1];
+
+		if (sc->syscall == syscall_type &&
+		    sc->mem.addr + sc->mem.length == virt)
+			return sc;
+	}
+
+	return NULL;
+}
+
+int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+	int phys_fd, unsigned long long offset)
+{
+	struct stub_syscall *sc;
+
+	/* Compress with previous syscall if that is possible */
+	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MMAP, virt);
+	if (sc && sc->mem.prot == prot && sc->mem.fd == phys_fd &&
+	    sc->mem.offset == MMAP_OFFSET(offset - sc->mem.length)) {
+		sc->mem.length += len;
 		return 0;
 	}
 
-	return do_syscall_stub(mm_idp, addr);
-}
-
-long syscall_stub_data(struct mm_id * mm_idp,
-		       unsigned long *data, int data_count,
-		       void **addr, void **stub_addr)
-{
-	unsigned long *stack;
-	int ret = 0;
-
-	/*
-	 * If *addr still is uninitialized, it *must* contain NULL.
-	 * Thus in this case do_syscall_stub correctly won't be called.
-	 */
-	if ((((unsigned long) *addr) & ~UM_KERN_PAGE_MASK) >=
-	   UM_KERN_PAGE_SIZE - (10 + data_count) * sizeof(long)) {
-		ret = do_syscall_stub(mm_idp, addr);
-		/* in case of error, don't overwrite data on stack */
-		if (ret)
-			return ret;
-	}
-
-	stack = check_init_stack(mm_idp, *addr);
-	*addr = stack;
-
-	*stack = data_count * sizeof(long);
-
-	memcpy(stack + 1, data, data_count * sizeof(long));
-
-	*stub_addr = (void *)(((unsigned long)(stack + 1) &
-			       ~UM_KERN_PAGE_MASK) + STUB_DATA);
+	sc = syscall_stub_alloc(mm_idp);
+	sc->syscall = STUB_SYSCALL_MMAP;
+	sc->mem.addr = virt;
+	sc->mem.length = len;
+	sc->mem.prot = prot;
+	sc->mem.fd = phys_fd;
+	sc->mem.offset = MMAP_OFFSET(offset);
 
 	return 0;
 }
 
-int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len, int prot,
-	int phys_fd, unsigned long long offset, int done, void **data)
+int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
 {
-	int ret;
-	unsigned long args[] = { virt, len, prot,
-				 MAP_SHARED | MAP_FIXED, phys_fd,
-				 MMAP_OFFSET(offset) };
+	struct stub_syscall *sc;
 
-	ret = run_syscall_stub(mm_idp, STUB_MMAP_NR, args, virt,
-			       data, done);
+	/* Compress with previous syscall if that is possible */
+	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MUNMAP, addr);
+	if (sc) {
+		sc->mem.length += len;
+		return 0;
+	}
 
-	return ret;
+	sc = syscall_stub_alloc(mm_idp);
+	sc->syscall = STUB_SYSCALL_MUNMAP;
+	sc->mem.addr = addr;
+	sc->mem.length = len;
+
+	return 0;
 }
 
-int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
-	  int done, void **data)
+int protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
+	    unsigned int prot)
 {
-	int ret;
-	unsigned long args[] = { (unsigned long) addr, len, 0, 0, 0,
-				 0 };
+	struct stub_syscall *sc;
 
-	ret = run_syscall_stub(mm_idp, __NR_munmap, args, 0,
-			       data, done);
+	/* Compress with previous syscall if that is possible */
+	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MPROTECT, addr);
+	if (sc && sc->mem.prot == prot) {
+		sc->mem.length += len;
+		return 0;
+	}
 
-	return ret;
-}
+	sc = syscall_stub_alloc(mm_idp);
+	sc->syscall = STUB_SYSCALL_MPROTECT;
+	sc->mem.addr = addr;
+	sc->mem.length = len;
+	sc->mem.prot = prot;
 
-int protect(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
-	    unsigned int prot, int done, void **data)
-{
-	int ret;
-	unsigned long args[] = { addr, len, prot, 0, 0, 0 };
-
-	ret = run_syscall_stub(mm_idp, __NR_mprotect, args, 0,
-			       data, done);
-
-	return ret;
+	return 0;
 }

@@ -8,21 +8,26 @@
 #include <linux/delay.h>
 
 #include <drm/drm_managed.h>
+#include <generated/xe_wa_oob.h>
 
-#include "abi/guc_actions_abi.h"
 #include "abi/guc_actions_slpc_abi.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
-#include "xe_gt_sysfs.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
+#include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_pcode.h"
+#include "xe_pm.h"
+#include "xe_sriov.h"
+#include "xe_wa.h"
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
@@ -39,6 +44,9 @@
 
 #define GT_FREQUENCY_MULTIPLIER	50
 #define GT_FREQUENCY_SCALER	3
+
+#define LNL_MERT_FREQ_CAP	800
+#define BMG_MERT_FREQ_CAP	2133
 
 /**
  * DOC: GuC Power Conservation (PC)
@@ -66,29 +74,27 @@
  *
  */
 
-static struct xe_guc *
-pc_to_guc(struct xe_guc_pc *pc)
+static struct xe_guc *pc_to_guc(struct xe_guc_pc *pc)
 {
 	return container_of(pc, struct xe_guc, pc);
 }
 
-static struct xe_device *
-pc_to_xe(struct xe_guc_pc *pc)
+static struct xe_guc_ct *pc_to_ct(struct xe_guc_pc *pc)
 {
-	struct xe_guc *guc = pc_to_guc(pc);
-	struct xe_gt *gt = container_of(guc, struct xe_gt, uc.guc);
-
-	return gt_to_xe(gt);
+	return &pc_to_guc(pc)->ct;
 }
 
-static struct xe_gt *
-pc_to_gt(struct xe_guc_pc *pc)
+static struct xe_gt *pc_to_gt(struct xe_guc_pc *pc)
 {
-	return container_of(pc, struct xe_gt, uc.guc.pc);
+	return guc_to_gt(pc_to_guc(pc));
 }
 
-static struct iosys_map *
-pc_to_maps(struct xe_guc_pc *pc)
+static struct xe_device *pc_to_xe(struct xe_guc_pc *pc)
+{
+	return guc_to_xe(pc_to_guc(pc));
+}
+
+static struct iosys_map *pc_to_maps(struct xe_guc_pc *pc)
 {
 	return &pc->bo->vmap;
 }
@@ -129,32 +135,33 @@ static int wait_for_pc_state(struct xe_guc_pc *pc,
 
 static int pc_action_reset(struct xe_guc_pc *pc)
 {
-	struct  xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_RESET, 2),
 		xe_bo_ggtt_addr(pc->bo),
 		0,
 	};
+	int ret;
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC reset: %pe", ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC reset failed: %pe\n",
+			  ERR_PTR(ret));
 
 	return ret;
 }
 
 static int pc_action_query_task_state(struct xe_guc_pc *pc)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_QUERY_TASK_STATE, 2),
 		xe_bo_ggtt_addr(pc->bo),
 		0,
 	};
+	int ret;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
@@ -162,47 +169,68 @@ static int pc_action_query_task_state(struct xe_guc_pc *pc)
 	/* Blocking here to ensure the results are ready before reading them */
 	ret = xe_guc_ct_send_block(ct, action, ARRAY_SIZE(action));
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm,
-			"GuC PC query task state failed: %pe", ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC query task state failed: %pe\n",
+			  ERR_PTR(ret));
 
 	return ret;
 }
 
 static int pc_action_set_param(struct xe_guc_pc *pc, u8 id, u32 value)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
 		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
 		SLPC_EVENT(SLPC_EVENT_PARAMETER_SET, 2),
 		id,
 		value,
 	};
+	int ret;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
 		return -EAGAIN;
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC set param failed: %pe",
-			ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC PC set param[%u]=%u failed: %pe\n",
+			  id, value, ERR_PTR(ret));
+
+	return ret;
+}
+
+static int pc_action_unset_param(struct xe_guc_pc *pc, u8 id)
+{
+	u32 action[] = {
+		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
+		SLPC_EVENT(SLPC_EVENT_PARAMETER_UNSET, 1),
+		id,
+	};
+	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
+	int ret;
+
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING))
+		return -EAGAIN;
+
+	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
+	if (ret)
+		xe_gt_err(pc_to_gt(pc), "GuC PC unset param failed: %pe",
+			  ERR_PTR(ret));
 
 	return ret;
 }
 
 static int pc_action_setup_gucrc(struct xe_guc_pc *pc, u32 mode)
 {
-	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
+	struct xe_guc_ct *ct = pc_to_ct(pc);
 	u32 action[] = {
-		XE_GUC_ACTION_SETUP_PC_GUCRC,
+		GUC_ACTION_HOST2GUC_SETUP_PC_GUCRC,
 		mode,
 	};
 	int ret;
 
 	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC RC enable failed: %pe",
-			ERR_PTR(ret));
+		xe_gt_err(pc_to_gt(pc), "GuC RC enable mode=%u failed: %pe\n",
+			  mode, ERR_PTR(ret));
 	return ret;
 }
 
@@ -673,9 +701,35 @@ static void pc_init_fused_rp_values(struct xe_guc_pc *pc)
 		tgl_init_fused_rp_values(pc);
 }
 
+static u32 pc_max_freq_cap(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+
+	if (XE_WA(gt, 22019338487)) {
+		if (xe_gt_is_media_type(gt))
+			return min(LNL_MERT_FREQ_CAP, pc->rp0_freq);
+		else
+			return min(BMG_MERT_FREQ_CAP, pc->rp0_freq);
+	} else {
+		return pc->rp0_freq;
+	}
+}
+
 /**
- * xe_guc_pc_init_early - Initialize RPx values and request a higher GT
+ * xe_guc_pc_raise_unslice - Initialize RPx values and request a higher GT
  * frequency to allow faster GuC load times
+ * @pc: Xe_GuC_PC instance
+ */
+void xe_guc_pc_raise_unslice(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+	pc_set_cur_freq(pc, pc_max_freq_cap(pc));
+}
+
+/**
+ * xe_guc_pc_init_early - Initialize RPx values
  * @pc: Xe_GuC_PC instance
  */
 void xe_guc_pc_init_early(struct xe_guc_pc *pc)
@@ -684,7 +738,6 @@ void xe_guc_pc_init_early(struct xe_guc_pc *pc)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 	pc_init_fused_rp_values(pc);
-	pc_set_cur_freq(pc, pc->rp0_freq);
 }
 
 static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
@@ -740,6 +793,56 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
 	return ret;
 }
 
+static int pc_set_mert_freq_cap(struct xe_guc_pc *pc)
+{
+	int ret = 0;
+
+	if (XE_WA(pc_to_gt(pc), 22019338487)) {
+		/*
+		 * Get updated min/max and stash them.
+		 */
+		ret = xe_guc_pc_get_min_freq(pc, &pc->stashed_min_freq);
+		if (!ret)
+			ret = xe_guc_pc_get_max_freq(pc, &pc->stashed_max_freq);
+		if (ret)
+			return ret;
+
+		/*
+		 * Ensure min and max are bound by MERT_FREQ_CAP until driver loads.
+		 */
+		mutex_lock(&pc->freq_lock);
+		ret = pc_set_min_freq(pc, min(pc->rpe_freq, pc_max_freq_cap(pc)));
+		if (!ret)
+			ret = pc_set_max_freq(pc, min(pc->rp0_freq, pc_max_freq_cap(pc)));
+		mutex_unlock(&pc->freq_lock);
+	}
+
+	return ret;
+}
+
+/**
+ * xe_guc_pc_restore_stashed_freq - Set min/max back to stashed values
+ * @pc: The GuC PC
+ *
+ * Returns: 0 on success,
+ *          error code on failure
+ */
+int xe_guc_pc_restore_stashed_freq(struct xe_guc_pc *pc)
+{
+	int ret = 0;
+
+	if (IS_SRIOV_VF(pc_to_xe(pc)) || pc_to_xe(pc)->info.skip_guc_pc)
+		return 0;
+
+	mutex_lock(&pc->freq_lock);
+	ret = pc_set_max_freq(pc, pc->stashed_max_freq);
+	if (!ret)
+		ret = pc_set_min_freq(pc, pc->stashed_min_freq);
+	mutex_unlock(&pc->freq_lock);
+
+	return ret;
+}
+
 /**
  * xe_guc_pc_gucrc_disable - Disable GuC RC
  * @pc: Xe_GuC_PC instance
@@ -757,7 +860,7 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (xe->info.skip_guc_pc)
 		return 0;
 
-	ret = pc_action_setup_gucrc(pc, XE_GUCRC_HOST_CONTROL);
+	ret = pc_action_setup_gucrc(pc, GUCRC_HOST_CONTROL);
 	if (ret)
 		return ret;
 
@@ -770,6 +873,41 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 
 	return 0;
+}
+
+/**
+ * xe_guc_pc_override_gucrc_mode - override GUCRC mode
+ * @pc: Xe_GuC_PC instance
+ * @mode: new value of the mode.
+ *
+ * Return: 0 on success, negative error code on error
+ */
+int xe_guc_pc_override_gucrc_mode(struct xe_guc_pc *pc, enum slpc_gucrc_mode mode)
+{
+	int ret;
+
+	xe_pm_runtime_get(pc_to_xe(pc));
+	ret = pc_action_set_param(pc, SLPC_PARAM_PWRGATE_RC_MODE, mode);
+	xe_pm_runtime_put(pc_to_xe(pc));
+
+	return ret;
+}
+
+/**
+ * xe_guc_pc_unset_gucrc_mode - unset GUCRC mode override
+ * @pc: Xe_GuC_PC instance
+ *
+ * Return: 0 on success, negative error code on error
+ */
+int xe_guc_pc_unset_gucrc_mode(struct xe_guc_pc *pc)
+{
+	int ret;
+
+	xe_pm_runtime_get(pc_to_xe(pc));
+	ret = pc_action_unset_param(pc, SLPC_PARAM_PWRGATE_RC_MODE);
+	xe_pm_runtime_put(pc_to_xe(pc));
+
+	return ret;
 }
 
 static void pc_init_pcode_freq(struct xe_guc_pc *pc)
@@ -845,12 +983,16 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		goto out;
 
 	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_RUNNING)) {
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC Start failed\n");
+		xe_gt_err(gt, "GuC PC Start failed\n");
 		ret = -EIO;
 		goto out;
 	}
 
 	ret = pc_init_freqs(pc);
+	if (ret)
+		goto out;
+
+	ret = pc_set_mert_freq_cap(pc);
 	if (ret)
 		goto out;
 
@@ -860,7 +1002,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		goto out;
 	}
 
-	ret = pc_action_setup_gucrc(pc, XE_GUCRC_FIRMWARE_CONTROL);
+	ret = pc_action_setup_gucrc(pc, GUCRC_FIRMWARE_CONTROL);
 
 out:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
@@ -888,17 +1030,24 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 }
 
 /**
- * xe_guc_pc_fini - Finalize GuC's Power Conservation component
- * @drm: DRM device
+ * xe_guc_pc_fini_hw - Finalize GuC's Power Conservation component
  * @arg: opaque pointer that should point to Xe_GuC_PC instance
  */
-static void xe_guc_pc_fini(struct drm_device *drm, void *arg)
+static void xe_guc_pc_fini_hw(void *arg)
 {
 	struct xe_guc_pc *pc = arg;
+	struct xe_device *xe = pc_to_xe(pc);
+
+	if (xe_device_wedged(xe))
+		return;
 
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL));
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
+
+	/* Bind requested freq to mert_freq_cap before unload */
+	pc_set_cur_freq(pc, min(pc_max_freq_cap(pc), pc->rpe_freq));
+
 	xe_force_wake_put(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL);
 }
 
@@ -931,5 +1080,5 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 
 	pc->bo = bo;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_guc_pc_fini, pc);
+	return devm_add_action_or_reset(xe->drm.dev, xe_guc_pc_fini_hw, pc);
 }

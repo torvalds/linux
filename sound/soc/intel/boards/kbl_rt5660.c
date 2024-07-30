@@ -277,7 +277,7 @@ static int kabylake_rt5660_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops kabylake_rt5660_ops = {
+static const struct snd_soc_ops kabylake_rt5660_ops = {
 	.hw_params = kabylake_rt5660_hw_params,
 };
 

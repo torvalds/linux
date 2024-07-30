@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Portions
- * Copyright (C) 2022-2023 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <linux/export.h>
@@ -126,6 +126,9 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 	if (!rdev->ops->join_mesh)
 		return -EOPNOTSUPP;
+
+	if (wdev->cac_started)
+		return -EBUSY;
 
 	if (!setup->chandef.chan) {
 		/* if no channel explicitly given, use preset channel */

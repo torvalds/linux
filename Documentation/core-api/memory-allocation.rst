@@ -144,8 +144,10 @@ configuration, but it is a good practice to use `kmalloc` for objects
 smaller than page size.
 
 The address of a chunk allocated with `kmalloc` is aligned to at least
-ARCH_KMALLOC_MINALIGN bytes.  For sizes which are a power of two, the
-alignment is also guaranteed to be at least the respective size.
+ARCH_KMALLOC_MINALIGN bytes. For sizes which are a power of two, the
+alignment is also guaranteed to be at least the respective size. For other
+sizes, the alignment is guaranteed to be at least the largest power-of-two
+divisor of the size.
 
 Chunks allocated with kmalloc() can be resized with krealloc(). Similarly
 to kmalloc_array(): a helper for resizing arrays is provided in the form of

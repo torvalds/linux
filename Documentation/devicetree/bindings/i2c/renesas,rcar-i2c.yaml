@@ -153,14 +153,14 @@ examples:
     #include <dt-bindings/power/r8a7791-sysc.h>
 
     i2c0: i2c@e6508000 {
-            #address-cells = <1>;
-            #size-cells = <0>;
-            compatible = "renesas,i2c-r8a7791", "renesas,rcar-gen2-i2c";
-            reg = <0xe6508000 0x40>;
-            interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
-            clock-frequency = <400000>;
-            clocks = <&cpg CPG_MOD 931>;
-            power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
-            resets = <&cpg 931>;
-            i2c-scl-internal-delay-ns = <6>;
+        compatible = "renesas,i2c-r8a7791", "renesas,rcar-gen2-i2c";
+        reg = <0xe6508000 0x40>;
+        interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
+        clock-frequency = <400000>;
+        clocks = <&cpg CPG_MOD 931>;
+        power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+        resets = <&cpg 931>;
+        i2c-scl-internal-delay-ns = <6>;
+        #address-cells = <1>;
+        #size-cells = <0>;
     };

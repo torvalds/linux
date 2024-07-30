@@ -40,11 +40,6 @@
 #include "intel_dp.h"
 #include "intel_dp_aux_backlight.h"
 
-/* TODO:
- * Implement HDR, right now we just implement the bare minimum to bring us back into SDR mode so we
- * can make people's backlights work in the mean time
- */
-
 /*
  * DP AUX registers for Intel's proprietary HDR backlight interface. We define
  * them here since we'll likely be the only driver to ever use these.
@@ -69,14 +64,14 @@
 #define INTEL_EDP_HDR_GETSET_CTRL_PARAMS                               0x344
 # define INTEL_EDP_HDR_TCON_2084_DECODE_ENABLE                        BIT(0)
 # define INTEL_EDP_HDR_TCON_2020_GAMUT_ENABLE                         BIT(1)
-# define INTEL_EDP_HDR_TCON_TONE_MAPPING_ENABLE                       BIT(2) /* Pre-TGL+ */
+# define INTEL_EDP_HDR_TCON_TONE_MAPPING_ENABLE                       BIT(2)
 # define INTEL_EDP_HDR_TCON_SEGMENTED_BACKLIGHT_ENABLE                BIT(3)
 # define INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE                     BIT(4)
 # define INTEL_EDP_HDR_TCON_SRGB_TO_PANEL_GAMUT_ENABLE                BIT(5)
 /* Bit 6 is reserved */
-# define INTEL_EDP_HDR_TCON_SDP_COLORIMETRY_ENABLE                    BIT(7)
+# define INTEL_EDP_HDR_TCON_SDP_OVERRIDE_AUX			      BIT(7)
 
-#define INTEL_EDP_HDR_CONTENT_LUMINANCE                                0x346 /* Pre-TGL+ */
+#define INTEL_EDP_HDR_CONTENT_LUMINANCE                                0x346
 #define INTEL_EDP_HDR_PANEL_LUMINANCE_OVERRIDE                         0x34A
 #define INTEL_EDP_SDR_LUMINANCE_LEVEL                                  0x352
 #define INTEL_EDP_BRIGHTNESS_NITS_LSB                                  0x354
@@ -127,14 +122,14 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 	if (ret != sizeof(tcon_cap))
 		return false;
 
-	if (!(tcon_cap[1] & INTEL_EDP_HDR_TCON_BRIGHTNESS_NITS_CAP))
-		return false;
-
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Detected %s HDR backlight interface version %d\n",
 		    connector->base.base.id, connector->base.name,
 		    is_intel_tcon_cap(tcon_cap) ? "Intel" : "unsupported", tcon_cap[0]);
 
 	if (!is_intel_tcon_cap(tcon_cap))
+		return false;
+
+	if (!(tcon_cap[1] & INTEL_EDP_HDR_TCON_BRIGHTNESS_NITS_CAP))
 		return false;
 
 	/*
@@ -156,8 +151,18 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 		return false;
 	}
 
-	panel->backlight.edp.intel.sdr_uses_aux =
+	panel->backlight.edp.intel_cap.sdr_uses_aux =
 		tcon_cap[2] & INTEL_EDP_SDR_TCON_BRIGHTNESS_AUX_CAP;
+	panel->backlight.edp.intel_cap.supports_2084_decode =
+		tcon_cap[1] & INTEL_EDP_HDR_TCON_2084_DECODE_CAP;
+	panel->backlight.edp.intel_cap.supports_2020_gamut =
+		tcon_cap[1] & INTEL_EDP_HDR_TCON_2020_GAMUT_CAP;
+	panel->backlight.edp.intel_cap.supports_segmented_backlight =
+		tcon_cap[1] & INTEL_EDP_HDR_TCON_SEGMENTED_BACKLIGHT_CAP;
+	panel->backlight.edp.intel_cap.supports_sdp_colorimetry =
+		tcon_cap[1] & INTEL_EDP_HDR_TCON_SDP_COLORIMETRY_CAP;
+	panel->backlight.edp.intel_cap.supports_tone_mapping =
+		tcon_cap[1] & INTEL_EDP_HDR_TCON_TONE_MAPPING_CAP;
 
 	return true;
 }
@@ -178,7 +183,7 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 	}
 
 	if (!(tmp & INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE)) {
-		if (!panel->backlight.edp.intel.sdr_uses_aux) {
+		if (!panel->backlight.edp.intel_cap.sdr_uses_aux) {
 			u32 pwm_level = panel->backlight.pwm_funcs->get(connector, pipe);
 
 			return intel_backlight_level_from_pwm(connector, pwm_level);
@@ -215,19 +220,91 @@ intel_dp_aux_hdr_set_aux_backlight(const struct drm_connector_state *conn_state,
 			connector->base.base.id, connector->base.name);
 }
 
+static bool
+intel_dp_in_hdr_mode(const struct drm_connector_state *conn_state)
+{
+	struct hdr_output_metadata *hdr_metadata;
+
+	if (!conn_state->hdr_output_metadata)
+		return false;
+
+	hdr_metadata = conn_state->hdr_output_metadata->data;
+
+	return hdr_metadata->hdmi_metadata_type1.eotf == HDMI_EOTF_SMPTE_ST2084;
+}
+
 static void
 intel_dp_aux_hdr_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 
-	if (panel->backlight.edp.intel.sdr_uses_aux) {
+	if (intel_dp_in_hdr_mode(conn_state) ||
+	    panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
 		const u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
 
 		intel_backlight_set_pwm_level(conn_state, pwm_level);
 	}
+}
+
+static void
+intel_dp_aux_write_content_luminance(struct intel_connector *connector,
+				     struct hdr_output_metadata *hdr_metadata)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	int ret;
+	u8 buf[4];
+
+	if (!intel_dp_has_gamut_metadata_dip(connector->encoder))
+		return;
+
+	buf[0] = hdr_metadata->hdmi_metadata_type1.max_cll & 0xFF;
+	buf[1] = (hdr_metadata->hdmi_metadata_type1.max_cll & 0xFF00) >> 8;
+	buf[2] = hdr_metadata->hdmi_metadata_type1.max_fall & 0xFF;
+	buf[3] = (hdr_metadata->hdmi_metadata_type1.max_fall & 0xFF00) >> 8;
+
+	ret = drm_dp_dpcd_write(&intel_dp->aux,
+				INTEL_EDP_HDR_CONTENT_LUMINANCE,
+				buf, sizeof(buf));
+	if (ret < 0)
+		drm_dbg_kms(&i915->drm,
+			    "Content Luminance DPCD reg write failed, err:-%d\n",
+			    ret);
+}
+
+static void
+intel_dp_aux_fill_hdr_tcon_params(const struct drm_connector_state *conn_state, u8 *ctrl)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct intel_panel *panel = &connector->panel;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	/*
+	 * According to spec segmented backlight needs to be set whenever panel is in
+	 * HDR mode.
+	 */
+	if (intel_dp_in_hdr_mode(conn_state)) {
+		*ctrl |= INTEL_EDP_HDR_TCON_SEGMENTED_BACKLIGHT_ENABLE;
+		*ctrl |= INTEL_EDP_HDR_TCON_2084_DECODE_ENABLE;
+	}
+
+	if (DISPLAY_VER(i915) < 11)
+		*ctrl &= ~INTEL_EDP_HDR_TCON_TONE_MAPPING_ENABLE;
+
+	if (panel->backlight.edp.intel_cap.supports_2020_gamut &&
+	    (conn_state->colorspace == DRM_MODE_COLORIMETRY_BT2020_RGB ||
+	     conn_state->colorspace == DRM_MODE_COLORIMETRY_BT2020_YCC ||
+	     conn_state->colorspace == DRM_MODE_COLORIMETRY_BT2020_CYCC))
+		*ctrl |= INTEL_EDP_HDR_TCON_2020_GAMUT_ENABLE;
+
+	if (panel->backlight.edp.intel_cap.supports_sdp_colorimetry &&
+	    intel_dp_has_gamut_metadata_dip(connector->encoder))
+		*ctrl |= INTEL_EDP_HDR_TCON_SDP_OVERRIDE_AUX;
+	else
+		*ctrl &= ~INTEL_EDP_HDR_TCON_SDP_OVERRIDE_AUX;
 }
 
 static void
@@ -238,6 +315,7 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 	struct intel_panel *panel = &connector->panel;
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct hdr_output_metadata *hdr_metadata;
 	int ret;
 	u8 old_ctrl, ctrl;
 
@@ -251,8 +329,10 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 	}
 
 	ctrl = old_ctrl;
-	if (panel->backlight.edp.intel.sdr_uses_aux) {
+	if (intel_dp_in_hdr_mode(conn_state) ||
+	    panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		ctrl |= INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE;
+
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
 		u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
@@ -262,10 +342,17 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 		ctrl &= ~INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE;
 	}
 
+	intel_dp_aux_fill_hdr_tcon_params(conn_state, &ctrl);
+
 	if (ctrl != old_ctrl &&
 	    drm_dp_dpcd_writeb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, ctrl) != 1)
 		drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to configure DPCD brightness controls\n",
 			connector->base.base.id, connector->base.name);
+
+	if (intel_dp_in_hdr_mode(conn_state)) {
+		hdr_metadata = conn_state->hdr_output_metadata->data;
+		intel_dp_aux_write_content_luminance(connector, hdr_metadata);
+	}
 }
 
 static void
@@ -275,7 +362,7 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 	struct intel_panel *panel = &connector->panel;
 
 	/* Nothing to do for AUX based backlight controls */
-	if (panel->backlight.edp.intel.sdr_uses_aux)
+	if (panel->backlight.edp.intel_cap.sdr_uses_aux)
 		return;
 
 	/* Note we want the actual pwm_level to be 0, regardless of pwm_min */
@@ -285,6 +372,29 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 static const char *dpcd_vs_pwm_str(bool aux)
 {
 	return aux ? "DPCD" : "PWM";
+}
+
+static void
+intel_dp_aux_write_panel_luminance_override(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	int ret;
+	u8 buf[4] = {};
+
+	buf[0] = panel->backlight.min & 0xFF;
+	buf[1] = (panel->backlight.min & 0xFF00) >> 8;
+	buf[2] = panel->backlight.max & 0xFF;
+	buf[3] = (panel->backlight.max & 0xFF00) >> 8;
+
+	ret = drm_dp_dpcd_write(&intel_dp->aux,
+				INTEL_EDP_HDR_PANEL_LUMINANCE_OVERRIDE,
+				buf, sizeof(buf));
+	if (ret < 0)
+		drm_dbg_kms(&i915->drm,
+			    "Panel Luminance DPCD reg write failed, err:-%d\n",
+			    ret);
 }
 
 static int
@@ -298,9 +408,9 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] SDR backlight is controlled through %s\n",
 		    connector->base.base.id, connector->base.name,
-		    dpcd_vs_pwm_str(panel->backlight.edp.intel.sdr_uses_aux));
+		    dpcd_vs_pwm_str(panel->backlight.edp.intel_cap.sdr_uses_aux));
 
-	if (!panel->backlight.edp.intel.sdr_uses_aux) {
+	if (!panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		ret = panel->backlight.pwm_funcs->setup(connector, pipe);
 		if (ret < 0) {
 			drm_err(&i915->drm,
@@ -318,10 +428,11 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 		panel->backlight.min = 0;
 	}
 
+	intel_dp_aux_write_panel_luminance_override(connector);
+
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Using AUX HDR interface for backlight control (range %d..%d)\n",
 		    connector->base.base.id, connector->base.name,
 		    panel->backlight.min, panel->backlight.max);
-
 
 	panel->backlight.level = intel_dp_aux_hdr_get_backlight(connector, pipe);
 	panel->backlight.enabled = panel->backlight.level != 0;

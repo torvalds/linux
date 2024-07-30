@@ -195,7 +195,8 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	amdgpu_umc_handle_bad_pages(adev, ras_error_status);
 
-	if (err_data->ue_count && reset) {
+	if ((err_data->ue_count || err_data->de_count) &&
+	    (reset || (con && con->is_rma))) {
 		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
@@ -211,6 +212,7 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 		.block = AMDGPU_RAS_BLOCK__UMC,
 	};
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	uint32_t timeout = timeout_ms;
 
 	memset(&err_data, 0, sizeof(err_data));
@@ -243,9 +245,7 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 
-	if (reset) {
-		struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-
+	if (reset || (err_data.err_addr_cnt && con && con->is_rma)) {
 		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
@@ -293,14 +293,15 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 
 			amdgpu_ras_error_data_fini(&err_data);
 		} else {
-				struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+			struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+			int ret;
 
-				amdgpu_ras_put_poison_req(adev,
-					block, pasid, pasid_fn, data, reset);
-
+			ret = amdgpu_ras_put_poison_req(adev,
+				block, pasid, pasid_fn, data, reset);
+			if (!ret) {
 				atomic_inc(&con->page_retirement_req_cnt);
-
 				wake_up(&con->page_retirement_wq);
+			}
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)

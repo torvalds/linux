@@ -70,6 +70,7 @@ static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
 	struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
 	union dmub_rb_cmd cmd;
+	uint32_t freq_to_set = panel_cntl->ctx->dc->debug.pwm_freq;
 
 	if (!dc_dmub_srv)
 		return 0;
@@ -96,6 +97,19 @@ static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2 =
 		cmd.panel_cntl.data.bl_pwm_ref_div2;
 
+	if (freq_to_set >= MIN_DEBUG_FREQ_HZ && freq_to_set <= MAX_DEBUG_FREQ_HZ) {
+		uint32_t xtal = panel_cntl->ctx->dc->res_pool->ref_clocks.dccg_ref_clock_inKhz;
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.panel_cntl.header.type = DMUB_CMD__PANEL_CNTL;
+		cmd.panel_cntl.header.sub_type = DMUB_CMD__PANEL_DEBUG_PWM_FREQ;
+		cmd.panel_cntl.header.payload_bytes = sizeof(cmd.panel_cntl.data);
+		cmd.panel_cntl.data.pwrseq_inst = dcn31_panel_cntl->base.pwrseq_inst;
+		cmd.panel_cntl.data.bl_pwm_cntl = xtal;
+		cmd.panel_cntl.data.bl_pwm_period_cntl = freq_to_set;
+		if (!dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			return 0;
+	}
 	return cmd.panel_cntl.data.current_backlight;
 }
 

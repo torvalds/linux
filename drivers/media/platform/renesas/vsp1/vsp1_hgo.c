@@ -130,6 +130,7 @@ static const struct v4l2_ctrl_config hgo_num_bins_control = {
  */
 
 static void hgo_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -140,11 +141,8 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	crop = vsp1_entity_get_pad_selection(entity, entity->state,
-					     HISTO_PAD_SINK, V4L2_SEL_TGT_CROP);
-	compose = vsp1_entity_get_pad_selection(entity, entity->state,
-						HISTO_PAD_SINK,
-						V4L2_SEL_TGT_COMPOSE);
+	crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
+	compose = v4l2_subdev_state_get_compose(state, HISTO_PAD_SINK);
 
 	vsp1_hgo_write(hgo, dlb, VI6_HGO_REGRST, VI6_HGO_REGRST_RCLEA);
 
@@ -194,6 +192,16 @@ struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1)
 	if (hgo == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	/* Initialize the video device and queue for statistics data. */
+	ret = vsp1_histogram_init(vsp1, &hgo->histo, VSP1_ENTITY_HGO, "hgo",
+				  &hgo_entity_ops, hgo_mbus_formats,
+				  ARRAY_SIZE(hgo_mbus_formats),
+				  HGO_DATA_SIZE, V4L2_META_FMT_VSP1_HGO);
+	if (ret < 0) {
+		vsp1_entity_destroy(&hgo->histo.entity);
+		return ERR_PTR(ret);
+	}
+
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&hgo->ctrls.handler,
 			       vsp1->info->gen >= 3 ? 2 : 1);
@@ -208,16 +216,6 @@ struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1)
 	hgo->num_bins = 64;
 
 	hgo->histo.entity.subdev.ctrl_handler = &hgo->ctrls.handler;
-
-	/* Initialize the video device and queue for statistics data. */
-	ret = vsp1_histogram_init(vsp1, &hgo->histo, VSP1_ENTITY_HGO, "hgo",
-				  &hgo_entity_ops, hgo_mbus_formats,
-				  ARRAY_SIZE(hgo_mbus_formats),
-				  HGO_DATA_SIZE, V4L2_META_FMT_VSP1_HGO);
-	if (ret < 0) {
-		vsp1_entity_destroy(&hgo->histo.entity);
-		return ERR_PTR(ret);
-	}
 
 	return hgo;
 }

@@ -46,5 +46,7 @@ int ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *
 			     u64 vpu_addr, struct sg_table *sgt, bool llc_coherent);
 void ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 				u64 vpu_addr, struct sg_table *sgt);
+int ivpu_mmu_context_set_pages_ro(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
+				  u64 vpu_addr, size_t size);
 
 #endif /* __IVPU_MMU_CONTEXT_H__ */

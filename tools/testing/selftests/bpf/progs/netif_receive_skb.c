@@ -5,6 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include "bpf_misc.h"
 
 #include <errno.h>
 
@@ -21,10 +22,6 @@ bool skip = false;
 #define BADPTR			((void *)0xFFFFFFFFFFFFF000ULL)
 #else
 #define BADPTR			0
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 #endif
 
 struct {

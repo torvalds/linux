@@ -1550,4 +1550,5 @@ static void __exit hmm_dmirror_exit(void)
 
 module_init(hmm_dmirror_init);
 module_exit(hmm_dmirror_exit);
+MODULE_DESCRIPTION("HMM (Heterogeneous Memory Management) test module");
 MODULE_LICENSE("GPL");

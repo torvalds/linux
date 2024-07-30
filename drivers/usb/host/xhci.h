@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
@@ -805,12 +806,18 @@ struct xhci_transfer_event {
 	__le32	flags;
 };
 
-/* Transfer event TRB length bit mask */
-/* bits 0:23 */
-#define	EVENT_TRB_LEN(p)		((p) & 0xffffff)
+/* Transfer event flags bitfield, also for select command completion events */
+#define TRB_TO_SLOT_ID(p)	(((p) >> 24) & 0xff)
+#define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
-/** Transfer Event bit fields **/
-#define	TRB_TO_EP_ID(p)	(((p) >> 16) & 0x1f)
+#define TRB_TO_EP_ID(p)		(((p) >> 16) & 0x1f) /* Endpoint ID 1 - 31 */
+#define EP_ID_FOR_TRB(p)	(((p) & 0x1f) << 16)
+
+#define TRB_TO_EP_INDEX(p)	(TRB_TO_EP_ID(p) - 1) /* Endpoint index 0 - 30 */
+#define EP_INDEX_FOR_TRB(p)	((((p) + 1) & 0x1f) << 16)
+
+/* Transfer event TRB length bit mask */
+#define	EVENT_TRB_LEN(p)		((p) & 0xffffff)
 
 /* Completion Code - only applicable for some types of TRBs */
 #define	COMP_CODE_MASK		(0xff << 24)
@@ -950,8 +957,6 @@ struct xhci_event_cmd {
 	__le32 flags;
 };
 
-/* flags bitmasks */
-
 /* Address device - disable SetAddress */
 #define TRB_BSR		(1<<9)
 
@@ -987,13 +992,8 @@ enum xhci_setup_dev {
 
 /* bits 16:23 are the virtual function ID */
 /* bits 24:31 are the slot ID */
-#define TRB_TO_SLOT_ID(p)	(((p) & (0xff<<24)) >> 24)
-#define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
 /* Stop Endpoint TRB - ep_index to endpoint ID for this TRB */
-#define TRB_TO_EP_INDEX(p)		((((p) & (0x1f << 16)) >> 16) - 1)
-#define	EP_ID_FOR_TRB(p)		((((p) + 1) & 0x1f) << 16)
-
 #define SUSPEND_PORT_FOR_TRB(p)		(((p) & 1) << 23)
 #define TRB_TO_SUSPEND_PORT(p)		(((p) & (1 << 23)) >> 23)
 #define LAST_EP_INDEX			30
@@ -1294,7 +1294,6 @@ struct xhci_td {
 	/* actual_length of the URB has already been set */
 	bool			urb_length_set;
 	bool			error_mid_td;
-	unsigned int		num_trbs;
 };
 
 /*
@@ -1628,6 +1627,7 @@ struct xhci_hcd {
 #define XHCI_RESET_TO_DEFAULT	BIT_ULL(44)
 #define XHCI_ZHAOXIN_TRB_FETCH	BIT_ULL(45)
 #define XHCI_ZHAOXIN_HOST	BIT_ULL(46)
+#define XHCI_WRITE_64_HI_LO	BIT_ULL(47)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -1749,9 +1749,12 @@ static inline void xhci_write_64(struct xhci_hcd *xhci,
 	lo_hi_writeq(val, regs);
 }
 
-static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
+
+/* Link TRB chain should always be set on 0.95 hosts, and AMD 0.96 ISOC rings */
+static inline bool xhci_link_chain_quirk(struct xhci_hcd *xhci, enum xhci_ring_type type)
 {
-	return xhci->quirks & XHCI_LINK_TRB_QUIRK;
+	return (xhci->quirks & XHCI_LINK_TRB_QUIRK) ||
+	       (type == TYPE_ISOC && (xhci->quirks & XHCI_AMD_0x96_HOST));
 }
 
 /* xHCI debugging */
@@ -2021,8 +2024,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field1, field0,
 			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
 			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			xhci_trb_type_string(type),
 			field3 & EVENT_DATA ? 'E' : 'e',
 			field3 & TRB_CYCLE ? 'C' : 'c');
@@ -2137,8 +2139,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			xhci_trb_type_string(type),
 			field1, field0,
 			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_TSP ? 'T' : 't',
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
@@ -2148,8 +2149,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			xhci_trb_type_string(type),
 			TRB_TO_SLOT_ID(field3),
 			TRB_TO_SUSPEND_PORT(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_SET_DEQ:
@@ -2159,8 +2159,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field1, field0,
 			TRB_TO_STREAM_ID(field2),
 			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_RESET_DEV:

@@ -252,8 +252,8 @@ static int xps2_of_probe(struct platform_device *ofdev)
 		return -ENODEV;
 	}
 
-	drvdata = kzalloc(sizeof(struct xps2data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto failed1;

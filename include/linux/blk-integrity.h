@@ -3,67 +3,49 @@
 #define _LINUX_BLK_INTEGRITY_H
 
 #include <linux/blk-mq.h>
+#include <linux/bio-integrity.h>
 
 struct request;
 
 enum blk_integrity_flags {
-	BLK_INTEGRITY_VERIFY		= 1 << 0,
-	BLK_INTEGRITY_GENERATE		= 1 << 1,
+	BLK_INTEGRITY_NOVERIFY		= 1 << 0,
+	BLK_INTEGRITY_NOGENERATE	= 1 << 1,
 	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
-	BLK_INTEGRITY_IP_CHECKSUM	= 1 << 3,
+	BLK_INTEGRITY_REF_TAG		= 1 << 3,
+	BLK_INTEGRITY_STACKED		= 1 << 4,
 };
 
-struct blk_integrity_iter {
-	void			*prot_buf;
-	void			*data_buf;
-	sector_t		seed;
-	unsigned int		data_size;
-	unsigned short		interval;
-	unsigned char		tuple_size;
-	unsigned char		pi_offset;
-	const char		*disk_name;
-};
-
-typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
-typedef void (integrity_prepare_fn) (struct request *);
-typedef void (integrity_complete_fn) (struct request *, unsigned int);
-
-struct blk_integrity_profile {
-	integrity_processing_fn		*generate_fn;
-	integrity_processing_fn		*verify_fn;
-	integrity_prepare_fn		*prepare_fn;
-	integrity_complete_fn		*complete_fn;
-	const char			*name;
-};
+const char *blk_integrity_profile_name(struct blk_integrity *bi);
+bool queue_limits_stack_integrity(struct queue_limits *t,
+		struct queue_limits *b);
+static inline bool queue_limits_stack_integrity_bdev(struct queue_limits *t,
+		struct block_device *bdev)
+{
+	return queue_limits_stack_integrity(t, &bdev->bd_disk->queue->limits);
+}
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-void blk_integrity_register(struct gendisk *, struct blk_integrity *);
-void blk_integrity_unregister(struct gendisk *);
-int blk_integrity_compare(struct gendisk *, struct gendisk *);
 int blk_rq_map_integrity_sg(struct request_queue *, struct bio *,
 				   struct scatterlist *);
 int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
 
+static inline bool
+blk_integrity_queue_supports_integrity(struct request_queue *q)
+{
+	return q->limits.integrity.tuple_size;
+}
+
 static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
 {
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	if (!bi->profile)
+	if (!blk_integrity_queue_supports_integrity(disk->queue))
 		return NULL;
-
-	return bi;
+	return &disk->queue->limits.integrity;
 }
 
 static inline struct blk_integrity *
 bdev_get_integrity(struct block_device *bdev)
 {
 	return blk_get_integrity(bdev->bd_disk);
-}
-
-static inline bool
-blk_integrity_queue_supports_integrity(struct request_queue *q)
-{
-	return q->integrity.profile;
 }
 
 static inline unsigned short
@@ -100,14 +82,13 @@ static inline bool blk_integrity_rq(struct request *rq)
 }
 
 /*
- * Return the first bvec that contains integrity data.  Only drivers that are
- * limited to a single integrity segment should use this helper.
+ * Return the current bvec that contains the integrity data. bip_iter may be
+ * advanced to iterate over the integrity data.
  */
-static inline struct bio_vec *rq_integrity_vec(struct request *rq)
+static inline struct bio_vec rq_integrity_vec(struct request *rq)
 {
-	if (WARN_ON_ONCE(queue_max_integrity_segments(rq->q) > 1))
-		return NULL;
-	return rq->bio->bi_integrity->bip_vec;
+	return mp_bvec_iter_bvec(rq->bio->bi_integrity->bip_vec,
+				 rq->bio->bi_integrity->bip_iter);
 }
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 static inline int blk_rq_count_integrity_sg(struct request_queue *q,
@@ -134,17 +115,6 @@ blk_integrity_queue_supports_integrity(struct request_queue *q)
 {
 	return false;
 }
-static inline int blk_integrity_compare(struct gendisk *a, struct gendisk *b)
-{
-	return 0;
-}
-static inline void blk_integrity_register(struct gendisk *d,
-					 struct blk_integrity *b)
-{
-}
-static inline void blk_integrity_unregister(struct gendisk *d)
-{
-}
 static inline unsigned short
 queue_max_integrity_segments(const struct request_queue *q)
 {
@@ -167,9 +137,11 @@ static inline int blk_integrity_rq(struct request *rq)
 	return 0;
 }
 
-static inline struct bio_vec *rq_integrity_vec(struct request *rq)
+static inline struct bio_vec rq_integrity_vec(struct request *rq)
 {
-	return NULL;
+	/* the optimizer will remove all calls to this function */
+	return (struct bio_vec){ };
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
+
 #endif /* _LINUX_BLK_INTEGRITY_H */

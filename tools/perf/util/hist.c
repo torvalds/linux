@@ -2706,8 +2706,7 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 	}
 }
 
-size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp,
-				 bool skip_empty)
+size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp)
 {
 	struct evsel *pos;
 	size_t ret = 0;
@@ -2715,7 +2714,8 @@ size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp,
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
-		if (skip_empty && !hists->stats.nr_samples && !hists->stats.nr_lost_samples)
+		if (symbol_conf.skip_empty && !hists->stats.nr_samples &&
+		    !hists->stats.nr_lost_samples)
 			continue;
 
 		ret += fprintf(fp, "%s stats:\n", evsel__name(pos));

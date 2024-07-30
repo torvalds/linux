@@ -35,6 +35,8 @@
 #include "dc_stream_priv.h"
 
 #define DC_LOGGER dc->ctx->logger
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(x, y) ((x > y) ? x : y)
 
 /*******************************************************************************
  * Private functions
@@ -217,10 +219,9 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
-static void program_cursor_attributes(
+void program_cursor_attributes(
 	struct dc *dc,
-	struct dc_stream_state *stream,
-	const struct dc_cursor_attributes *attributes)
+	struct dc_stream_state *stream)
 {
 	int i;
 	struct resource_context *res_ctx;
@@ -266,7 +267,6 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	struct dc  *dc;
-	bool reset_idle_optimizations = false;
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -297,26 +297,41 @@ bool dc_stream_set_cursor_attributes(
 
 	stream->cursor_attributes = *attributes;
 
-	dc_z10_restore(dc);
-	/* disable idle optimizations while updating cursor */
-	if (dc->idle_optimizations_allowed) {
-		dc_allow_idle_optimizations(dc, false);
-		reset_idle_optimizations = true;
-	}
-
-	program_cursor_attributes(dc, stream, attributes);
-
-	/* re-enable idle optimizations if necessary */
-	if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
-		dc_allow_idle_optimizations(dc, true);
-
 	return true;
 }
 
-static void program_cursor_position(
-	struct dc *dc,
+bool dc_stream_program_cursor_attributes(
 	struct dc_stream_state *stream,
-	const struct dc_cursor_position *position)
+	const struct dc_cursor_attributes *attributes)
+{
+	struct dc  *dc;
+	bool reset_idle_optimizations = false;
+
+	dc = stream ? stream->ctx->dc : NULL;
+
+	if (dc_stream_set_cursor_attributes(stream, attributes)) {
+		dc_z10_restore(dc);
+		/* disable idle optimizations while updating cursor */
+		if (dc->idle_optimizations_allowed) {
+			dc_allow_idle_optimizations(dc, false);
+			reset_idle_optimizations = true;
+		}
+
+		program_cursor_attributes(dc, stream);
+
+		/* re-enable idle optimizations if necessary */
+		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
+			dc_allow_idle_optimizations(dc, true);
+
+		return true;
+	}
+
+	return false;
+}
+
+void program_cursor_position(
+	struct dc *dc,
+	struct dc_stream_state *stream)
 {
 	int i;
 	struct resource_context *res_ctx;
@@ -355,9 +370,6 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc *dc;
-	bool reset_idle_optimizations = false;
-
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
 		return false;
@@ -368,24 +380,75 @@ bool dc_stream_set_cursor_position(
 		return false;
 	}
 
-	dc = stream->ctx->dc;
-	dc_z10_restore(dc);
-
-	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
-			&& position->enable) {
-		dc_allow_idle_optimizations(dc, false);
-		reset_idle_optimizations = true;
-	}
-
 	stream->cursor_position = *position;
 
-	program_cursor_position(dc, stream, position);
-	/* re-enable idle optimizations if necessary */
-	if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
-		dc_allow_idle_optimizations(dc, true);
 
 	return true;
+}
+
+bool dc_stream_program_cursor_position(
+	struct dc_stream_state *stream,
+	const struct dc_cursor_position *position)
+{
+	struct dc *dc;
+	bool reset_idle_optimizations = false;
+	const struct dc_cursor_position *old_position;
+
+	if (!stream)
+		return false;
+
+	old_position = &stream->cursor_position;
+	dc = stream->ctx->dc;
+
+	if (dc_stream_set_cursor_position(stream, position)) {
+		dc_z10_restore(dc);
+
+		/* disable idle optimizations if enabling cursor */
+		if (dc->idle_optimizations_allowed &&
+		    (!old_position->enable || dc->debug.exit_idle_opt_for_cursor_updates) &&
+		    position->enable) {
+			dc_allow_idle_optimizations(dc, false);
+			reset_idle_optimizations = true;
+		}
+
+		program_cursor_position(dc, stream);
+		/* re-enable idle optimizations if necessary */
+		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
+			dc_allow_idle_optimizations(dc, true);
+
+		/* apply/update visual confirm */
+		if (dc->debug.visual_confirm == VISUAL_CONFIRM_HW_CURSOR) {
+			/* update software state */
+			uint32_t color_value = MAX_TG_COLOR_VALUE;
+			int i;
+
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+				/* adjust visual confirm color for all pipes with current stream */
+				if (stream == pipe_ctx->stream) {
+					if (stream->cursor_position.enable) {
+						pipe_ctx->visual_confirm_color.color_r_cr = color_value;
+						pipe_ctx->visual_confirm_color.color_g_y = 0;
+						pipe_ctx->visual_confirm_color.color_b_cb = 0;
+					} else {
+						pipe_ctx->visual_confirm_color.color_r_cr = 0;
+						pipe_ctx->visual_confirm_color.color_g_y = 0;
+						pipe_ctx->visual_confirm_color.color_b_cb = color_value;
+					}
+
+					/* programming hardware */
+					if (pipe_ctx->plane_state)
+						dc->hwss.update_visual_confirm_color(dc, pipe_ctx,
+								pipe_ctx->plane_res.hubp->mpcc_id);
+				}
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 bool dc_stream_add_writeback(struct dc *dc,
@@ -781,3 +844,281 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 	}
 }
 
+/*
+ * Finds the greatest index in refresh_rate_hz that contains a value <= refresh
+ */
+static int dc_stream_get_nearest_smallest_index(struct dc_stream_state *stream, int refresh)
+{
+	for (int i = 0; i < (LUMINANCE_DATA_TABLE_SIZE - 1); ++i) {
+		if ((stream->lumin_data.refresh_rate_hz[i] <= refresh) && (refresh < stream->lumin_data.refresh_rate_hz[i + 1])) {
+			return i;
+		}
+	}
+	return 9;
+}
+
+/*
+ * Finds a corresponding brightness for a given refresh rate between 2 given indices, where index1 < index2
+ */
+static int dc_stream_get_brightness_millinits_linear_interpolation (struct dc_stream_state *stream,
+								     int index1,
+								     int index2,
+								     int refresh_hz)
+{
+	long long slope = 0;
+	if (stream->lumin_data.refresh_rate_hz[index2] != stream->lumin_data.refresh_rate_hz[index1]) {
+		slope = (stream->lumin_data.luminance_millinits[index2] - stream->lumin_data.luminance_millinits[index1]) /
+			    (stream->lumin_data.refresh_rate_hz[index2] - stream->lumin_data.refresh_rate_hz[index1]);
+	}
+
+	int y_intercept = stream->lumin_data.luminance_millinits[index2] - slope * stream->lumin_data.refresh_rate_hz[index2];
+
+	return (y_intercept + refresh_hz * slope);
+}
+
+/*
+ * Finds a corresponding refresh rate for a given brightness between 2 given indices, where index1 < index2
+ */
+static int dc_stream_get_refresh_hz_linear_interpolation (struct dc_stream_state *stream,
+							   int index1,
+							   int index2,
+							   int brightness_millinits)
+{
+	long long slope = 1;
+	if (stream->lumin_data.refresh_rate_hz[index2] != stream->lumin_data.refresh_rate_hz[index1]) {
+		slope = (stream->lumin_data.luminance_millinits[index2] - stream->lumin_data.luminance_millinits[index1]) /
+				(stream->lumin_data.refresh_rate_hz[index2] - stream->lumin_data.refresh_rate_hz[index1]);
+	}
+
+	int y_intercept = stream->lumin_data.luminance_millinits[index2] - slope * stream->lumin_data.refresh_rate_hz[index2];
+
+	return ((int)div64_s64((brightness_millinits - y_intercept), slope));
+}
+
+/*
+ * Finds the current brightness in millinits given a refresh rate
+ */
+static int dc_stream_get_brightness_millinits_from_refresh (struct dc_stream_state *stream, int refresh_hz)
+{
+	int nearest_smallest_index = dc_stream_get_nearest_smallest_index(stream, refresh_hz);
+	int nearest_smallest_value = stream->lumin_data.refresh_rate_hz[nearest_smallest_index];
+
+	if (nearest_smallest_value == refresh_hz)
+		return stream->lumin_data.luminance_millinits[nearest_smallest_index];
+
+	if (nearest_smallest_index >= 9)
+		return dc_stream_get_brightness_millinits_linear_interpolation(stream, nearest_smallest_index - 1, nearest_smallest_index, refresh_hz);
+
+	if (nearest_smallest_value == stream->lumin_data.refresh_rate_hz[nearest_smallest_index + 1])
+		return stream->lumin_data.luminance_millinits[nearest_smallest_index];
+
+	return dc_stream_get_brightness_millinits_linear_interpolation(stream, nearest_smallest_index, nearest_smallest_index + 1, refresh_hz);
+}
+
+/*
+ * Finds the lowest/highest refresh rate (depending on search_for_max_increase)
+ * that can be achieved from starting_refresh_hz while staying
+ * within flicker criteria
+ */
+static int dc_stream_calculate_flickerless_refresh_rate(struct dc_stream_state *stream,
+							 int current_brightness,
+							 int starting_refresh_hz,
+							 bool is_gaming,
+							 bool search_for_max_increase)
+{
+	int nearest_smallest_index = dc_stream_get_nearest_smallest_index(stream, starting_refresh_hz);
+
+	int flicker_criteria_millinits = is_gaming ?
+					 stream->lumin_data.flicker_criteria_milli_nits_GAMING :
+					 stream->lumin_data.flicker_criteria_milli_nits_STATIC;
+
+	int safe_upper_bound = current_brightness + flicker_criteria_millinits;
+	int safe_lower_bound = current_brightness - flicker_criteria_millinits;
+	int lumin_millinits_temp = 0;
+
+	int offset = -1;
+	if (search_for_max_increase) {
+		offset = 1;
+	}
+
+	/*
+	 * Increments up or down by 1 depending on search_for_max_increase
+	 */
+	for (int i = nearest_smallest_index; (i > 0 && !search_for_max_increase) || (i < (LUMINANCE_DATA_TABLE_SIZE - 1) && search_for_max_increase); i += offset) {
+
+		lumin_millinits_temp = stream->lumin_data.luminance_millinits[i + offset];
+
+		if ((lumin_millinits_temp >= safe_upper_bound) || (lumin_millinits_temp <= safe_lower_bound)) {
+
+			if (stream->lumin_data.refresh_rate_hz[i + offset] == stream->lumin_data.refresh_rate_hz[i])
+				return stream->lumin_data.refresh_rate_hz[i];
+
+			int target_brightness = (stream->lumin_data.luminance_millinits[i + offset] >= (current_brightness + flicker_criteria_millinits)) ?
+											current_brightness + flicker_criteria_millinits :
+											current_brightness - flicker_criteria_millinits;
+
+			int refresh = 0;
+
+			/*
+			 * Need the second input to be < third input for dc_stream_get_refresh_hz_linear_interpolation
+			 */
+			if (search_for_max_increase)
+				refresh = dc_stream_get_refresh_hz_linear_interpolation(stream, i, i + offset, target_brightness);
+			else
+				refresh = dc_stream_get_refresh_hz_linear_interpolation(stream, i + offset, i, target_brightness);
+
+			if (refresh == stream->lumin_data.refresh_rate_hz[i + offset])
+				return stream->lumin_data.refresh_rate_hz[i + offset];
+
+			return refresh;
+		}
+	}
+
+	if (search_for_max_increase)
+		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
+	else
+		return stream->lumin_data.refresh_rate_hz[0];
+}
+
+/*
+ * Gets the max delta luminance within a specified refresh range
+ */
+static int dc_stream_get_max_delta_lumin_millinits(struct dc_stream_state *stream, int hz1, int hz2, bool isGaming)
+{
+	int lower_refresh_brightness = dc_stream_get_brightness_millinits_from_refresh (stream, hz1);
+	int higher_refresh_brightness = dc_stream_get_brightness_millinits_from_refresh (stream, hz2);
+
+	int min = lower_refresh_brightness;
+	int max = higher_refresh_brightness;
+
+	/*
+	 * Static screen, therefore no need to scan through array
+	 */
+	if (!isGaming) {
+		if (lower_refresh_brightness >= higher_refresh_brightness) {
+			return lower_refresh_brightness - higher_refresh_brightness;
+		}
+		return higher_refresh_brightness - lower_refresh_brightness;
+	}
+
+	min = MIN(lower_refresh_brightness, higher_refresh_brightness);
+	max = MAX(lower_refresh_brightness, higher_refresh_brightness);
+
+	int nearest_smallest_index = dc_stream_get_nearest_smallest_index(stream, hz1);
+
+	for (; nearest_smallest_index < (LUMINANCE_DATA_TABLE_SIZE - 1) &&
+			stream->lumin_data.refresh_rate_hz[nearest_smallest_index + 1] <= hz2 ; nearest_smallest_index++) {
+		min = MIN(min, stream->lumin_data.luminance_millinits[nearest_smallest_index + 1]);
+		max = MAX(max, stream->lumin_data.luminance_millinits[nearest_smallest_index + 1]);
+	}
+
+	return (max - min);
+}
+
+/*
+ * Determines the max flickerless instant vtotal delta for a stream.
+ * Determines vtotal increase/decrease based on the bool "increase"
+ */
+static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc_stream_state *stream, bool is_gaming, bool increase)
+{
+	if (stream->timing.v_total * stream->timing.h_total == 0)
+		return 0;
+
+	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
+
+	int safe_refresh_hz = dc_stream_calculate_flickerless_refresh_rate(stream,
+							 dc_stream_get_brightness_millinits_from_refresh(stream, current_refresh_hz),
+							 current_refresh_hz,
+							 is_gaming,
+							 increase);
+
+	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*(long long)stream->timing.h_total);
+
+	if (increase)
+		return (((int) stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
+
+	return ((safe_refresh_v_total - (int) stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
+}
+
+/*
+ * Finds the highest refresh rate that can be achieved
+ * from starting_refresh_hz while staying within flicker criteria
+ */
+int dc_stream_calculate_max_flickerless_refresh_rate(struct dc_stream_state *stream, int starting_refresh_hz, bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+		return 0;
+
+	int current_brightness = dc_stream_get_brightness_millinits_from_refresh(stream, starting_refresh_hz);
+
+	return dc_stream_calculate_flickerless_refresh_rate(stream,
+							    current_brightness,
+							    starting_refresh_hz,
+							    is_gaming,
+							    true);
+}
+
+/*
+ * Finds the lowest refresh rate that can be achieved
+ * from starting_refresh_hz while staying within flicker criteria
+ */
+int dc_stream_calculate_min_flickerless_refresh_rate(struct dc_stream_state *stream, int starting_refresh_hz, bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+			return 0;
+
+	int current_brightness = dc_stream_get_brightness_millinits_from_refresh(stream, starting_refresh_hz);
+
+	return dc_stream_calculate_flickerless_refresh_rate(stream,
+							    current_brightness,
+							    starting_refresh_hz,
+							    is_gaming,
+							    false);
+}
+
+/*
+ * Determines if there will be a flicker when moving between 2 refresh rates
+ */
+bool dc_stream_is_refresh_rate_range_flickerless(struct dc_stream_state *stream, int hz1, int hz2, bool is_gaming)
+{
+
+	/*
+	 * Assume that we wont flicker if there is invalid data
+	 */
+	if (!stream->lumin_data.is_valid)
+		return false;
+
+	int dl = dc_stream_get_max_delta_lumin_millinits(stream, hz1, hz2, is_gaming);
+
+	int flicker_criteria_millinits = (is_gaming) ?
+					  stream->lumin_data.flicker_criteria_milli_nits_GAMING :
+					  stream->lumin_data.flicker_criteria_milli_nits_STATIC;
+
+	return (dl <= flicker_criteria_millinits);
+}
+
+/*
+ * Determines the max instant vtotal delta increase that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_decrease(struct dc_stream_state *stream,
+									  bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+		return 0;
+
+	return dc_stream_get_max_flickerless_instant_vtotal_delta(stream, is_gaming, true);
+}
+
+/*
+ * Determines the max instant vtotal delta decrease that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_increase(struct dc_stream_state *stream,
+									  bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+		return 0;
+
+	return dc_stream_get_max_flickerless_instant_vtotal_delta(stream, is_gaming, false);
+}

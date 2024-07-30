@@ -2,6 +2,7 @@
 #include <linux/dma-direct.h>
 #include <linux/init.h>
 #include <linux/swiotlb.h>
+#include <asm/bootinfo.h>
 #include <boot_param.h>
 
 dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)

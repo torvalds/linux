@@ -704,6 +704,9 @@ static unsigned long tg_within_iops_limit(struct throtl_grp *tg, struct bio *bio
 
 	/* Calc approx time to dispatch */
 	jiffy_wait = jiffy_elapsed_rnd - jiffy_elapsed;
+
+	/* make sure at least one io can be dispatched after waiting */
+	jiffy_wait = max(jiffy_wait, HZ / iops_limit + 1);
 	return jiffy_wait;
 }
 

@@ -88,6 +88,7 @@ xfs_rmapbt_alloc_block(
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_perag	*pag = cur->bc_ag.pag;
+	struct xfs_alloc_arg    args = { .len = 1 };
 	int			error;
 	xfs_agblock_t		bno;
 
@@ -107,7 +108,11 @@ xfs_rmapbt_alloc_block(
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 
-	xfs_ag_resv_rmapbt_alloc(cur->bc_mp, pag->pag_agno);
+	/*
+	 * Since rmapbt blocks are sourced from the AGFL, they are allocated one
+	 * at a time and the reservation updates don't require a transaction.
+	 */
+	xfs_ag_resv_alloc_extent(pag, XFS_AG_RESV_RMAPBT, &args);
 
 	*stat = 1;
 	return 0;

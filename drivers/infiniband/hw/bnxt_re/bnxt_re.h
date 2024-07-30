@@ -129,9 +129,15 @@ struct bnxt_re_pacing {
 #define BNXT_RE_PACING_ALARM_TH_MULTIPLE 2 /* Multiple of pacing algo threshold */
 /* Default do_pacing value when there is no congestion */
 #define BNXT_RE_DBR_DO_PACING_NO_CONGESTION 0x7F /* 1 in 512 probability */
-#define BNXT_RE_DB_FIFO_ROOM_MASK 0x1FFF8000
-#define BNXT_RE_MAX_FIFO_DEPTH 0x2c00
-#define BNXT_RE_DB_FIFO_ROOM_SHIFT 15
+
+#define BNXT_RE_MAX_FIFO_DEPTH_P5       0x2c00
+#define BNXT_RE_MAX_FIFO_DEPTH_P7       0x8000
+
+#define BNXT_RE_MAX_FIFO_DEPTH(ctx)	\
+	(bnxt_qplib_is_chip_gen_p7((ctx)) ? \
+	 BNXT_RE_MAX_FIFO_DEPTH_P7 :\
+	 BNXT_RE_MAX_FIFO_DEPTH_P5)
+
 #define BNXT_RE_GRC_FIFO_REG_BASE 0x2000
 
 #define MAX_CQ_HASH_BITS		(16)

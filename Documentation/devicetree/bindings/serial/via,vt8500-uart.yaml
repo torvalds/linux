@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/via,vt8500-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: VIA VT8500 and WonderMedia WM8xxx UART Controller
+
+maintainers:
+  - Alexey Charkov <alchark@gmail.com>
+
+allOf:
+  - $ref: serial.yaml
+
+properties:
+  compatible:
+    enum:
+      - via,vt8500-uart # up to WM8850/WM8950
+      - wm,wm8880-uart  # for WM8880 and later
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - interrupts
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    serial@d8200000 {
+        compatible = "via,vt8500-uart";
+        reg = <0xd8200000 0x1040>;
+        interrupts = <32>;
+        clocks = <&clkuart0>;
+    };

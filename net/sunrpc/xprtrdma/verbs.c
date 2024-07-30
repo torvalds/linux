@@ -49,14 +49,14 @@
  *  o buffer memory
  */
 
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/svc_rdma.h>
 #include <linux/log2.h>
 
-#include <asm-generic/barrier.h>
-#include <asm/bitops.h>
+#include <asm/barrier.h>
 
 #include <rdma/ib_cm.h>
 
@@ -69,12 +69,14 @@ static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
 				       struct rpcrdma_sendctx *sc);
 static int rpcrdma_reqs_setup(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
-static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep);
 static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_ep_get(struct rpcrdma_ep *ep);
 static int rpcrdma_ep_put(struct rpcrdma_ep *ep);
+static struct rpcrdma_regbuf *
+rpcrdma_regbuf_alloc_node(size_t size, enum dma_data_direction direction,
+			  int node);
 static struct rpcrdma_regbuf *
 rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction);
 static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb);
@@ -222,7 +224,6 @@ static void rpcrdma_update_cm_private(struct rpcrdma_ep *ep,
 static int
 rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&id->route.addr.dst_addr;
 	struct rpcrdma_ep *ep = id->context;
 
 	might_sleep();
@@ -240,14 +241,6 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 		ep->re_async_rc = -ENETUNREACH;
 		complete(&ep->re_done);
-		return 0;
-	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		pr_info("rpcrdma: removing device %s for %pISpc\n",
-			ep->re_id->device->name, sap);
-		switch (xchg(&ep->re_connect_status, -ENODEV)) {
-		case 0: goto wake_connect_worker;
-		case 1: goto disconnected;
-		}
 		return 0;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 		ep->re_connect_status = -ENODEV;
@@ -282,6 +275,14 @@ disconnected:
 	}
 
 	return 0;
+}
+
+static void rpcrdma_ep_removal_done(struct rpcrdma_notification *rn)
+{
+	struct rpcrdma_ep *ep = container_of(rn, struct rpcrdma_ep, re_rn);
+
+	trace_xprtrdma_device_removal(ep->re_id);
+	xprt_force_disconnect(ep->re_xprt);
 }
 
 static struct rdma_cm_id *rpcrdma_create_id(struct rpcrdma_xprt *r_xprt,
@@ -323,6 +324,10 @@ static struct rdma_cm_id *rpcrdma_create_id(struct rpcrdma_xprt *r_xprt,
 	if (rc)
 		goto out;
 
+	rc = rpcrdma_rn_register(id->device, &ep->re_rn, rpcrdma_ep_removal_done);
+	if (rc)
+		goto out;
+
 	return id;
 
 out:
@@ -349,6 +354,8 @@ static void rpcrdma_ep_destroy(struct kref *kref)
 	if (ep->re_pd)
 		ib_dealloc_pd(ep->re_pd);
 	ep->re_pd = NULL;
+
+	rpcrdma_rn_unregister(ep->re_id->device, &ep->re_rn);
 
 	kfree(ep);
 	module_put(THIS_MODULE);
@@ -505,7 +512,7 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 	 * outstanding Receives.
 	 */
 	rpcrdma_ep_get(ep);
-	rpcrdma_post_recvs(r_xprt, 1, true);
+	rpcrdma_post_recvs(r_xprt, 1);
 
 	rc = rdma_connect(ep->re_id, &ep->re_remote_cma);
 	if (rc)
@@ -897,6 +904,8 @@ static int rpcrdma_reqs_setup(struct rpcrdma_xprt *r_xprt)
 
 static void rpcrdma_req_reset(struct rpcrdma_req *req)
 {
+	struct rpcrdma_mr *mr;
+
 	/* Credits are valid for only one connection */
 	req->rl_slot.rq_cong = 0;
 
@@ -906,7 +915,19 @@ static void rpcrdma_req_reset(struct rpcrdma_req *req)
 	rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
 	rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
 
-	frwr_reset(req);
+	/* The verbs consumer can't know the state of an MR on the
+	 * req->rl_registered list unless a successful completion
+	 * has occurred, so they cannot be re-used.
+	 */
+	while ((mr = rpcrdma_mr_pop(&req->rl_registered))) {
+		struct rpcrdma_buffer *buf = &mr->mr_xprt->rx_buf;
+
+		spin_lock(&buf->rb_lock);
+		list_del(&mr->mr_all);
+		spin_unlock(&buf->rb_lock);
+
+		frwr_mr_release(mr);
+	}
 }
 
 /* ASSUMPTION: the rb_allreqs list is stable for the duration,
@@ -924,18 +945,20 @@ static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt)
 }
 
 static noinline
-struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
-				       bool temp)
+struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+	struct ib_device *device = ep->re_id->device;
 	struct rpcrdma_rep *rep;
 
 	rep = kzalloc(sizeof(*rep), XPRTRDMA_GFP_FLAGS);
 	if (rep == NULL)
 		goto out;
 
-	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(r_xprt->rx_ep->re_inline_recv,
-					       DMA_FROM_DEVICE);
+	rep->rr_rdmabuf = rpcrdma_regbuf_alloc_node(ep->re_inline_recv,
+						    DMA_FROM_DEVICE,
+						    ibdev_to_node(device));
 	if (!rep->rr_rdmabuf)
 		goto out_free;
 
@@ -950,7 +973,6 @@ struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	rep->rr_recv_wr.wr_cqe = &rep->rr_cqe;
 	rep->rr_recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	rep->rr_recv_wr.num_sge = 1;
-	rep->rr_temp = temp;
 
 	spin_lock(&buf->rb_lock);
 	list_add(&rep->rr_all, &buf->rb_all_reps);
@@ -967,17 +989,6 @@ static void rpcrdma_rep_free(struct rpcrdma_rep *rep)
 {
 	rpcrdma_regbuf_free(rep->rr_rdmabuf);
 	kfree(rep);
-}
-
-static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
-{
-	struct rpcrdma_buffer *buf = &rep->rr_rxprt->rx_buf;
-
-	spin_lock(&buf->rb_lock);
-	list_del(&rep->rr_all);
-	spin_unlock(&buf->rb_lock);
-
-	rpcrdma_rep_free(rep);
 }
 
 static struct rpcrdma_rep *rpcrdma_rep_get_locked(struct rpcrdma_buffer *buf)
@@ -1011,10 +1022,8 @@ static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_rep *rep;
 
-	list_for_each_entry(rep, &buf->rb_all_reps, rr_all) {
+	list_for_each_entry(rep, &buf->rb_all_reps, rr_all)
 		rpcrdma_regbuf_dma_unmap(rep->rr_rdmabuf);
-		rep->rr_temp = true;	/* Mark this rep for destruction */
-	}
 }
 
 static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf)
@@ -1231,14 +1240,15 @@ void rpcrdma_buffer_put(struct rpcrdma_buffer *buffers, struct rpcrdma_req *req)
  * or Replies they may be registered externally via frwr_map.
  */
 static struct rpcrdma_regbuf *
-rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction)
+rpcrdma_regbuf_alloc_node(size_t size, enum dma_data_direction direction,
+			  int node)
 {
 	struct rpcrdma_regbuf *rb;
 
-	rb = kmalloc(sizeof(*rb), XPRTRDMA_GFP_FLAGS);
+	rb = kmalloc_node(sizeof(*rb), XPRTRDMA_GFP_FLAGS, node);
 	if (!rb)
 		return NULL;
-	rb->rg_data = kmalloc(size, XPRTRDMA_GFP_FLAGS);
+	rb->rg_data = kmalloc_node(size, XPRTRDMA_GFP_FLAGS, node);
 	if (!rb->rg_data) {
 		kfree(rb);
 		return NULL;
@@ -1248,6 +1258,12 @@ rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction)
 	rb->rg_direction = direction;
 	rb->rg_iov.length = size;
 	return rb;
+}
+
+static struct rpcrdma_regbuf *
+rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction)
+{
+	return rpcrdma_regbuf_alloc_node(size, direction, NUMA_NO_NODE);
 }
 
 /**
@@ -1327,10 +1343,9 @@ static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb)
  * rpcrdma_post_recvs - Refill the Receive Queue
  * @r_xprt: controlling transport instance
  * @needed: current credit grant
- * @temp: mark Receive buffers to be deleted after one use
  *
  */
-void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
+void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
@@ -1344,8 +1359,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
 	if (likely(ep->re_receive_count > needed))
 		goto out;
 	needed -= ep->re_receive_count;
-	if (!temp)
-		needed += RPCRDMA_MAX_RECV_BATCH;
+	needed += RPCRDMA_MAX_RECV_BATCH;
 
 	if (atomic_inc_return(&ep->re_receiving) > 1)
 		goto out;
@@ -1354,12 +1368,8 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, int needed, bool temp)
 	wr = NULL;
 	while (needed) {
 		rep = rpcrdma_rep_get_locked(buf);
-		if (rep && rep->rr_temp) {
-			rpcrdma_rep_destroy(rep);
-			continue;
-		}
 		if (!rep)
-			rep = rpcrdma_rep_create(r_xprt, temp);
+			rep = rpcrdma_rep_create(r_xprt);
 		if (!rep)
 			break;
 		if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf)) {

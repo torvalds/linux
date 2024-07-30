@@ -727,7 +727,7 @@ static int adp5061_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adp5061_id[] = {
-	{ "adp5061", 0},
+	{ "adp5061" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp5061_id);

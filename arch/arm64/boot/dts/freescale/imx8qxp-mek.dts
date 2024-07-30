@@ -63,6 +63,7 @@
 };
 
 &dsp {
+	memory-region = <&dsp_reserved>;
 	status = "okay";
 };
 

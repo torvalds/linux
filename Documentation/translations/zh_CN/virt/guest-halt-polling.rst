@@ -76,7 +76,7 @@ guest_halt_poll_ns将保持高位）。
 
 默认值: Y
 
-模块参数可以从Debugfs文件中设置，在::
+模块参数可以从sysfs文件中设置，在::
 
 	/sys/module/haltpoll/parameters/
 

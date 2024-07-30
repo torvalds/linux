@@ -5,16 +5,17 @@
  * Peter Korsgaard <peter.korsgaard@barco.com>
  */
 
+#include <linux/bits.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/platform_data/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/bits.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
@@ -36,6 +37,9 @@ static int i2c_mux_gpio_select(struct i2c_mux_core *muxc, u32 chan)
 	struct gpiomux *mux = i2c_mux_priv(muxc);
 
 	i2c_mux_gpio_set(mux, chan);
+
+	if (mux->data.settle_time)
+		fsleep(mux->data.settle_time);
 
 	return 0;
 }
@@ -115,6 +119,8 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 
 	if (device_property_read_u32(dev, "idle-state", &mux->data.idle))
 		mux->data.idle = I2C_MUX_GPIO_NO_IDLE;
+
+	device_property_read_u32(dev, "settle-time-us", &mux->data.settle_time);
 
 	return 0;
 }

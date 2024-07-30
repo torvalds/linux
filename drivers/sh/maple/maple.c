@@ -747,9 +747,9 @@ static int maple_get_dma_buffer(void)
 }
 
 static int maple_match_bus_driver(struct device *devptr,
-				  struct device_driver *drvptr)
+				  const struct device_driver *drvptr)
 {
-	struct maple_driver *maple_drv = to_maple_driver(drvptr);
+	const struct maple_driver *maple_drv = to_maple_driver(drvptr);
 	struct maple_device *maple_dev = to_maple_dev(devptr);
 
 	/* Trap empty port case */

@@ -222,10 +222,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		   transcoder_name(pipe_config->master_transcoder),
 		   pipe_config->sync_mode_slaves_mask);
 
-	drm_printf(&p, "bigjoiner: %s, pipes: 0x%x\n",
-		   intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
-		   intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
-		   pipe_config->bigjoiner_pipes);
+	drm_printf(&p, "joiner: %s, pipes: 0x%x\n",
+		   intel_crtc_is_joiner_secondary(pipe_config) ? "secondary" :
+		   intel_crtc_is_joiner_primary(pipe_config) ? "primary" : "no",
+		   pipe_config->joiner_pipes);
 
 	drm_printf(&p, "splitter: %s, link count %d, overlap %d\n",
 		   str_enabled_disabled(pipe_config->splitter.enable),
@@ -251,9 +251,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_printf(&p, "sdp split: %s\n",
 			   str_enabled_disabled(pipe_config->sdp_split_enable));
 
-		drm_printf(&p, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
-			   str_enabled_disabled(pipe_config->has_psr),
-			   str_enabled_disabled(pipe_config->has_psr2),
+		drm_printf(&p, "psr: %s, selective update: %s, panel replay: %s, selective fetch: %s\n",
+			   str_enabled_disabled(pipe_config->has_psr &&
+						!pipe_config->has_panel_replay),
+			   str_enabled_disabled(pipe_config->has_sel_update),
 			   str_enabled_disabled(pipe_config->has_panel_replay),
 			   str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}

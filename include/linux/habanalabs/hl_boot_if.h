@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2018-2020 HabanaLabs, Ltd.
+ * Copyright 2018-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -49,7 +49,6 @@ enum cpu_boot_err {
 #define CPU_BOOT_ERR_FATAL_MASK					\
 		((1 << CPU_BOOT_ERR_DRAM_INIT_FAIL) |		\
 		 (1 << CPU_BOOT_ERR_PLL_FAIL) |			\
-		 (1 << CPU_BOOT_ERR_DEVICE_UNUSABLE_FAIL) |	\
 		 (1 << CPU_BOOT_ERR_BINNING_FAIL) |		\
 		 (1 << CPU_BOOT_ERR_DRAM_SKIPPED) |		\
 		 (1 << CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL) |	\
@@ -194,6 +193,8 @@ enum cpu_boot_dev_sts {
 	CPU_BOOT_DEV_STS_FW_NIC_STAT_EXT_EN = 24,
 	CPU_BOOT_DEV_STS_IS_IDLE_CHECK_EN = 25,
 	CPU_BOOT_DEV_STS_MAP_HWMON_EN = 26,
+	CPU_BOOT_DEV_STS_NIC_MEM_CLEAR_EN = 27,
+	CPU_BOOT_DEV_STS_MMU_PGTBL_DRAM_EN = 28,
 	CPU_BOOT_DEV_STS_ENABLED = 31,
 	CPU_BOOT_DEV_STS_SCND_EN = 63,
 	CPU_BOOT_DEV_STS_LAST = 64 /* we have 2 registers of 32 bits */
@@ -331,6 +332,17 @@ enum cpu_boot_dev_sts {
  *					HWMON enum mapping to cpucp enums.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_NIC_MEM_CLEAR_EN
+ *					If set, means f/w supports nic hbm memory clear and
+ *					tmr,txs hbm memory init.
+ *					Initialized in: zephyr-mgmt
+ *
+ * CPU_BOOT_DEV_STS_MMU_PGTBL_DRAM_EN
+ *					MMU page tables are located in DRAM.
+ *					F/W initializes security settings for MMU
+ *					page tables to reside in DRAM.
+ *					Initialized in: zephyr-mgmt
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -367,6 +379,8 @@ enum cpu_boot_dev_sts {
 #define CPU_BOOT_DEV_STS0_FW_NIC_STAT_EXT_EN	(1 << CPU_BOOT_DEV_STS_FW_NIC_STAT_EXT_EN)
 #define CPU_BOOT_DEV_STS0_IS_IDLE_CHECK_EN	(1 << CPU_BOOT_DEV_STS_IS_IDLE_CHECK_EN)
 #define CPU_BOOT_DEV_STS0_MAP_HWMON_EN		(1 << CPU_BOOT_DEV_STS_MAP_HWMON_EN)
+#define CPU_BOOT_DEV_STS0_NIC_MEM_CLEAR_EN	(1 << CPU_BOOT_DEV_STS_NIC_MEM_CLEAR_EN)
+#define CPU_BOOT_DEV_STS0_MMU_PGTBL_DRAM_EN	(1 << CPU_BOOT_DEV_STS_MMU_PGTBL_DRAM_EN)
 #define CPU_BOOT_DEV_STS0_ENABLED		(1 << CPU_BOOT_DEV_STS_ENABLED)
 #define CPU_BOOT_DEV_STS1_ENABLED		(1 << CPU_BOOT_DEV_STS_ENABLED)
 
@@ -450,11 +464,11 @@ struct cpu_dyn_regs {
 	__le32 gic_dma_core_irq_ctrl;
 	__le32 gic_host_halt_irq;
 	__le32 gic_host_ints_irq;
-	__le32 gic_host_soft_rst_irq;
+	__le32 reserved0;
 	__le32 gic_rot_qm_irq_ctrl;
-	__le32 cpu_rst_status;
+	__le32 reserved1;
 	__le32 eng_arc_irq_ctrl;
-	__le32 reserved1[20];		/* reserve for future use */
+	__le32 reserved2[20];		/* reserve for future use */
 };
 
 /* TODO: remove the desc magic after the code is updated to use message */
@@ -551,8 +565,9 @@ enum lkd_fw_ascii_msg_lvls {
 	LKD_FW_ASCII_MSG_DBG = 3,
 };
 
-#define LKD_FW_ASCII_MSG_MAX_LEN	128
-#define LKD_FW_ASCII_MSG_MAX		4	/* consider ABI when changing */
+#define LKD_FW_ASCII_MSG_MAX_LEN		128
+#define LKD_FW_ASCII_MSG_MAX			4	/* consider ABI when changing */
+#define LKD_FW_ASCII_MSG_MIN_DESC_VERSION	3
 
 struct lkd_fw_ascii_msg {
 	__u8 valid;

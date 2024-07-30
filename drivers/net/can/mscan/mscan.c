@@ -34,12 +34,6 @@ static const struct can_bittiming_const mscan_bittiming_const = {
 	.brp_inc = 1,
 };
 
-struct mscan_state {
-	u8 mode;
-	u8 canrier;
-	u8 cantier;
-};
-
 static enum can_state state_map[] = {
 	CAN_STATE_ERROR_ACTIVE,
 	CAN_STATE_ERROR_WARNING,

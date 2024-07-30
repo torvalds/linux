@@ -17,6 +17,7 @@
 #include "xe_gt_types.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
+#include "xe_oa.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
@@ -196,6 +197,9 @@ struct xe_tile {
 		struct {
 			/** @sriov.vf.memirq: Memory Based Interrupts. */
 			struct xe_memirq memirq;
+
+			/** @sriov.vf.ggtt_balloon: GGTT regions excluded from use. */
+			struct drm_mm_node ggtt_balloon[2];
 		} vf;
 	} sriov;
 
@@ -218,6 +222,8 @@ struct xe_device {
 
 	/** @info: device info */
 	struct intel_device_info {
+		/** @info.platform_name: platform name */
+		const char *platform_name;
 		/** @info.graphics_name: graphics IP name */
 		const char *graphics_name;
 		/** @info.media_name: media IP name */
@@ -281,6 +287,10 @@ struct xe_device {
 		u8 has_heci_gscfi:1;
 		/** @info.skip_guc_pc: Skip GuC based PM feature init */
 		u8 skip_guc_pc:1;
+		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
+		u8 has_atomic_enable_pte_bit:1;
+		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
+		u8 has_device_atomics_on_smem:1;
 
 #if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
 		struct {
@@ -427,9 +437,6 @@ struct xe_device {
 		/** @d3cold.allowed: Indicates if d3cold is a valid device state */
 		bool allowed;
 
-		/** @d3cold.power_lost: Indicates if card has really lost power. */
-		bool power_lost;
-
 		/**
 		 * @d3cold.vram_threshold:
 		 *
@@ -456,8 +463,19 @@ struct xe_device {
 	/** @heci_gsc: graphics security controller */
 	struct xe_heci_gsc heci_gsc;
 
+	/** @oa: oa observation subsystem */
+	struct xe_oa oa;
+
 	/** @needs_flr_on_fini: requests function-reset on fini */
 	bool needs_flr_on_fini;
+
+	/** @wedged: Struct to control Wedged States and mode */
+	struct {
+		/** @wedged.flag: Xe device faced a critical error and is now blocked. */
+		atomic_t flag;
+		/** @wedged.mode: Mode controlled by kernel parameter and debugfs */
+		int mode;
+	} wedged;
 
 	/* private: */
 
@@ -484,6 +502,7 @@ struct xe_device {
 			INTEL_DRAM_LPDDR4,
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
+			INTEL_DRAM_GDDR,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;
@@ -498,13 +517,8 @@ struct xe_device {
 	/* To shut up runtime pm macros.. */
 	struct xe_runtime_pm {} runtime_pm;
 
-	/* For pcode */
-	struct mutex sb_lock;
-
 	/* only to allow build, not used functionally */
 	u32 irq_mask;
-
-	u32 enabled_irq_mask;
 
 	struct intel_uncore {
 		spinlock_t lock;
@@ -546,6 +560,9 @@ struct xe_file {
 		/** @exec_queue.lock: protects file engine state */
 		struct mutex lock;
 	} exec_queue;
+
+	/** @run_ticks: hw engine class run time in ticks for this drm client */
+	u64 run_ticks[XE_ENGINE_CLASS_MAX];
 
 	/** @client: drm client */
 	struct xe_drm_client *client;

@@ -96,7 +96,7 @@
 #define DTSC_PTAT_AVG		(0x00a10650)
 
 
-/**
+/*
  * Tx Scheduler
  *
  * The Tx Scheduler selects the next frame to be transmitted, choosing TFDs
@@ -169,7 +169,7 @@
  */
 #define SCD_MEM_LOWER_BOUND		(0x0000)
 
-/**
+/*
  * Max Tx window size is the max number of contiguous TFDs that the scheduler
  * can keep track of at one time when creating block-ack chains of frames.
  * Note that "64" matches the number of ack bits in a block-ack packet.

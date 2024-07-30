@@ -53,14 +53,13 @@ struct btrfs_zoned_device_info {
 void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered);
 
 #ifdef CONFIG_BLK_DEV_ZONED
-int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
-		       struct blk_zone *zone);
 int btrfs_get_dev_zone_info_all_devices(struct btrfs_fs_info *fs_info);
 int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache);
 void btrfs_destroy_dev_zone_info(struct btrfs_device *device);
 struct btrfs_zoned_device_info *btrfs_clone_dev_zone_info(struct btrfs_device *orig_dev);
 int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info);
-int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info, unsigned long *mount_opt);
+int btrfs_check_mountopts_zoned(const struct btrfs_fs_info *info,
+				unsigned long long *mount_opt);
 int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 			       u64 *bytenr_ret);
 int btrfs_sb_log_location(struct btrfs_device *device, int mirror, int rw,
@@ -98,11 +97,6 @@ int btrfs_zoned_activate_one_bg(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info, bool do_finish);
 void btrfs_check_active_zone_reservation(struct btrfs_fs_info *fs_info);
 #else /* CONFIG_BLK_DEV_ZONED */
-static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
-				     struct blk_zone *zone)
-{
-	return 0;
-}
 
 static inline int btrfs_get_dev_zone_info_all_devices(struct btrfs_fs_info *fs_info)
 {
@@ -136,8 +130,8 @@ static inline int btrfs_check_zoned_mode(const struct btrfs_fs_info *fs_info)
 	return -EOPNOTSUPP;
 }
 
-static inline int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info,
-					      unsigned long *mount_opt)
+static inline int btrfs_check_mountopts_zoned(const struct btrfs_fs_info *info,
+					      unsigned long long *mount_opt)
 {
 	return 0;
 }

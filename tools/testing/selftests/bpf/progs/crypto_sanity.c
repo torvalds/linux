@@ -89,7 +89,7 @@ int decrypt_sanity(struct __sk_buff *skb)
 {
 	struct __crypto_ctx_value *v;
 	struct bpf_crypto_ctx *ctx;
-	struct bpf_dynptr psrc, pdst, iv;
+	struct bpf_dynptr psrc, pdst;
 	int err;
 
 	err = skb_dynptr_validate(skb, &psrc);
@@ -114,12 +114,8 @@ int decrypt_sanity(struct __sk_buff *skb)
 	 * production code, a percpu map should be used to store the result.
 	 */
 	bpf_dynptr_from_mem(dst, sizeof(dst), 0, &pdst);
-	/* iv dynptr has to be initialized with 0 size, but proper memory region
-	 * has to be provided anyway
-	 */
-	bpf_dynptr_from_mem(dst, 0, 0, &iv);
 
-	status = bpf_crypto_decrypt(ctx, &psrc, &pdst, &iv);
+	status = bpf_crypto_decrypt(ctx, &psrc, &pdst, NULL);
 
 	return TC_ACT_SHOT;
 }
@@ -129,7 +125,7 @@ int encrypt_sanity(struct __sk_buff *skb)
 {
 	struct __crypto_ctx_value *v;
 	struct bpf_crypto_ctx *ctx;
-	struct bpf_dynptr psrc, pdst, iv;
+	struct bpf_dynptr psrc, pdst;
 	int err;
 
 	status = 0;
@@ -156,12 +152,8 @@ int encrypt_sanity(struct __sk_buff *skb)
 	 * production code, a percpu map should be used to store the result.
 	 */
 	bpf_dynptr_from_mem(dst, sizeof(dst), 0, &pdst);
-	/* iv dynptr has to be initialized with 0 size, but proper memory region
-	 * has to be provided anyway
-	 */
-	bpf_dynptr_from_mem(dst, 0, 0, &iv);
 
-	status = bpf_crypto_encrypt(ctx, &psrc, &pdst, &iv);
+	status = bpf_crypto_encrypt(ctx, &psrc, &pdst, NULL);
 
 	return TC_ACT_SHOT;
 }

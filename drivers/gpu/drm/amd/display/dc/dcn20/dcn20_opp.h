@@ -167,6 +167,8 @@ void opp2_dpg_set_blank_color(
 
 void opp2_program_left_edge_extra_pixel (
 		struct output_pixel_processor *opp,
-		bool count);
+		enum dc_pixel_encoding pixel_encoding, bool is_primary);
 
+uint32_t opp2_get_left_edge_extra_pixel_count(struct output_pixel_processor *opp,
+		enum dc_pixel_encoding pixel_encoding, bool is_primary);
 #endif

@@ -30,6 +30,8 @@ VERSION {
 #ifdef CONFIG_X86_SGX
 		__vdso_sgx_enter_enclave;
 #endif
+		getrandom;
+		__vdso_getrandom;
 	local: *;
 	};
 }

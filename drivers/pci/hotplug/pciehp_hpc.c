@@ -1055,6 +1055,11 @@ struct controller *pcie_init(struct pcie_device *dev)
 		}
 	}
 
+	pdev = pci_get_slot(subordinate, PCI_DEVFN(0, 0));
+	if (pdev)
+		ctrl->dsn = pci_get_dsn(pdev);
+	pci_dev_put(pdev);
+
 	return ctrl;
 }
 

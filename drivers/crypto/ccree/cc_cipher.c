@@ -261,12 +261,6 @@ static void cc_cipher_exit(struct crypto_tfm *tfm)
 	kfree_sensitive(ctx_p->user.key);
 }
 
-struct tdes_keys {
-	u8	key1[DES_KEY_SIZE];
-	u8	key2[DES_KEY_SIZE];
-	u8	key3[DES_KEY_SIZE];
-};
-
 static enum cc_hw_crypto_key cc_slot_to_hw_key(u8 slot_num)
 {
 	switch (slot_num) {

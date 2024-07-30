@@ -4,6 +4,7 @@
  */
 
 #include <linux/dim.h>
+#include <linux/rtnetlink.h>
 
 /*
  * Net DIM profiles:
@@ -11,12 +12,6 @@
  *        There are different set of profiles for RX/TX CQs.
  *        Each profile size must be of NET_DIM_PARAMS_NUM_PROFILES
  */
-#define NET_DIM_PARAMS_NUM_PROFILES 5
-#define NET_DIM_DEFAULT_RX_CQ_PKTS_FROM_EQE 256
-#define NET_DIM_DEFAULT_TX_CQ_PKTS_FROM_EQE 128
-#define NET_DIM_DEF_PROFILE_CQE 1
-#define NET_DIM_DEF_PROFILE_EQE 1
-
 #define NET_DIM_RX_EQE_PROFILES { \
 	{.usec = 1,   .pkts = NET_DIM_DEFAULT_RX_CQ_PKTS_FROM_EQE,}, \
 	{.usec = 8,   .pkts = NET_DIM_DEFAULT_RX_CQ_PKTS_FROM_EQE,}, \
@@ -100,6 +95,143 @@ net_dim_get_def_tx_moderation(u8 cq_period_mode)
 	return net_dim_get_tx_moderation(cq_period_mode, profile_ix);
 }
 EXPORT_SYMBOL(net_dim_get_def_tx_moderation);
+
+int net_dim_init_irq_moder(struct net_device *dev, u8 profile_flags,
+			   u8 coal_flags, u8 rx_mode, u8 tx_mode,
+			   void (*rx_dim_work)(struct work_struct *work),
+			   void (*tx_dim_work)(struct work_struct *work))
+{
+	struct dim_cq_moder *rxp = NULL, *txp;
+	struct dim_irq_moder *moder;
+	int len;
+
+	dev->irq_moder = kzalloc(sizeof(*dev->irq_moder), GFP_KERNEL);
+	if (!dev->irq_moder)
+		return -ENOMEM;
+
+	moder = dev->irq_moder;
+	len = NET_DIM_PARAMS_NUM_PROFILES * sizeof(*moder->rx_profile);
+
+	moder->coal_flags = coal_flags;
+	moder->profile_flags = profile_flags;
+
+	if (profile_flags & DIM_PROFILE_RX) {
+		moder->rx_dim_work = rx_dim_work;
+		moder->dim_rx_mode = rx_mode;
+		rxp = kmemdup(rx_profile[rx_mode], len, GFP_KERNEL);
+		if (!rxp)
+			goto free_moder;
+
+		rcu_assign_pointer(moder->rx_profile, rxp);
+	}
+
+	if (profile_flags & DIM_PROFILE_TX) {
+		moder->tx_dim_work = tx_dim_work;
+		moder->dim_tx_mode = tx_mode;
+		txp = kmemdup(tx_profile[tx_mode], len, GFP_KERNEL);
+		if (!txp)
+			goto free_rxp;
+
+		rcu_assign_pointer(moder->tx_profile, txp);
+	}
+
+	return 0;
+
+free_rxp:
+	kfree(rxp);
+free_moder:
+	kfree(moder);
+	return -ENOMEM;
+}
+EXPORT_SYMBOL(net_dim_init_irq_moder);
+
+/* RTNL lock is held. */
+void net_dim_free_irq_moder(struct net_device *dev)
+{
+	struct dim_cq_moder *rxp, *txp;
+
+	if (!dev->irq_moder)
+		return;
+
+	rxp = rtnl_dereference(dev->irq_moder->rx_profile);
+	txp = rtnl_dereference(dev->irq_moder->tx_profile);
+
+	rcu_assign_pointer(dev->irq_moder->rx_profile, NULL);
+	rcu_assign_pointer(dev->irq_moder->tx_profile, NULL);
+
+	kfree_rcu(rxp, rcu);
+	kfree_rcu(txp, rcu);
+	kfree(dev->irq_moder);
+}
+EXPORT_SYMBOL(net_dim_free_irq_moder);
+
+void net_dim_setting(struct net_device *dev, struct dim *dim, bool is_tx)
+{
+	struct dim_irq_moder *irq_moder = dev->irq_moder;
+
+	if (!irq_moder)
+		return;
+
+	if (is_tx) {
+		INIT_WORK(&dim->work, irq_moder->tx_dim_work);
+		dim->mode = READ_ONCE(irq_moder->dim_tx_mode);
+		return;
+	}
+
+	INIT_WORK(&dim->work, irq_moder->rx_dim_work);
+	dim->mode = READ_ONCE(irq_moder->dim_rx_mode);
+}
+EXPORT_SYMBOL(net_dim_setting);
+
+void net_dim_work_cancel(struct dim *dim)
+{
+	cancel_work_sync(&dim->work);
+}
+EXPORT_SYMBOL(net_dim_work_cancel);
+
+struct dim_cq_moder net_dim_get_rx_irq_moder(struct net_device *dev,
+					     struct dim *dim)
+{
+	struct dim_cq_moder res, *profile;
+
+	rcu_read_lock();
+	profile = rcu_dereference(dev->irq_moder->rx_profile);
+	res = profile[dim->profile_ix];
+	rcu_read_unlock();
+
+	res.cq_period_mode = dim->mode;
+
+	return res;
+}
+EXPORT_SYMBOL(net_dim_get_rx_irq_moder);
+
+struct dim_cq_moder net_dim_get_tx_irq_moder(struct net_device *dev,
+					     struct dim *dim)
+{
+	struct dim_cq_moder res, *profile;
+
+	rcu_read_lock();
+	profile = rcu_dereference(dev->irq_moder->tx_profile);
+	res = profile[dim->profile_ix];
+	rcu_read_unlock();
+
+	res.cq_period_mode = dim->mode;
+
+	return res;
+}
+EXPORT_SYMBOL(net_dim_get_tx_irq_moder);
+
+void net_dim_set_rx_mode(struct net_device *dev, u8 rx_mode)
+{
+	WRITE_ONCE(dev->irq_moder->dim_rx_mode, rx_mode);
+}
+EXPORT_SYMBOL(net_dim_set_rx_mode);
+
+void net_dim_set_tx_mode(struct net_device *dev, u8 tx_mode)
+{
+	WRITE_ONCE(dev->irq_moder->dim_tx_mode, tx_mode);
+}
+EXPORT_SYMBOL(net_dim_set_tx_mode);
 
 static int net_dim_step(struct dim *dim)
 {

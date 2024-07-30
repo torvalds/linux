@@ -37,8 +37,8 @@ static void bch2_extent_crc_pack(union bch_extent_crc *,
 				 struct bch_extent_crc_unpacked,
 				 enum bch_extent_entry_type);
 
-static struct bch_dev_io_failures *dev_io_failures(struct bch_io_failures *f,
-						   unsigned dev)
+struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *f,
+						 unsigned dev)
 {
 	struct bch_dev_io_failures *i;
 
@@ -52,7 +52,7 @@ static struct bch_dev_io_failures *dev_io_failures(struct bch_io_failures *f,
 void bch2_mark_io_failure(struct bch_io_failures *failed,
 			  struct extent_ptr_decoded *p)
 {
-	struct bch_dev_io_failures *f = dev_io_failures(failed, p->ptr.dev);
+	struct bch_dev_io_failures *f = bch2_dev_io_failures(failed, p->ptr.dev);
 
 	if (!f) {
 		BUG_ON(failed->nr >= ARRAY_SIZE(failed->devs));
@@ -140,7 +140,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		if (p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr)))
 			continue;
 
-		f = failed ? dev_io_failures(failed, p.ptr.dev) : NULL;
+		f = failed ? bch2_dev_io_failures(failed, p.ptr.dev) : NULL;
 		if (f)
 			p.idx = f->nr_failed < f->nr_retries
 				? f->idx
@@ -1034,6 +1034,18 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 	--out->atomic;
 }
 
+void bch2_extent_crc_unpacked_to_text(struct printbuf *out, struct bch_extent_crc_unpacked *crc)
+{
+	prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum ",
+		   crc->compressed_size,
+		   crc->uncompressed_size,
+		   crc->offset, crc->nonce);
+	bch2_prt_csum_type(out, crc->csum_type);
+	prt_printf(out, " %0llx:%0llx ", crc->csum.hi, crc->csum.lo);
+	prt_str(out, " compress ");
+	bch2_prt_compression_type(out, crc->compression_type);
+}
+
 void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
@@ -1059,13 +1071,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum ",
-			       crc.compressed_size,
-			       crc.uncompressed_size,
-			       crc.offset, crc.nonce);
-			bch2_prt_csum_type(out, crc.csum_type);
-			prt_str(out, " compress ");
-			bch2_prt_compression_type(out, crc.compression_type);
+			bch2_extent_crc_unpacked_to_text(out, &crc);
 			break;
 		}
 		case BCH_EXTENT_ENTRY_stripe_ptr: {
@@ -1095,6 +1101,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		first = false;
 	}
 }
+
 
 static int extent_ptr_invalid(struct bch_fs *c,
 			      struct bkey_s_c k,

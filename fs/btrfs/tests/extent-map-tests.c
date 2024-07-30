@@ -19,8 +19,8 @@ static int free_extent_map_tree(struct btrfs_inode *inode)
 	int ret = 0;
 
 	write_lock(&em_tree->lock);
-	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
-		node = rb_first_cached(&em_tree->map);
+	while (!RB_EMPTY_ROOT(&em_tree->root)) {
+		node = rb_first(&em_tree->root);
 		em = rb_entry(node, struct extent_map, rb_node);
 		remove_extent_mapping(inode, em);
 
@@ -28,9 +28,10 @@ static int free_extent_map_tree(struct btrfs_inode *inode)
 		if (refcount_read(&em->refs) != 1) {
 			ret = -EINVAL;
 			test_err(
-"em leak: em (start %llu len %llu block_start %llu block_len %llu) refs %d",
-				 em->start, em->len, em->block_start,
-				 em->block_len, refcount_read(&em->refs));
+"em leak: em (start %llu len %llu disk_bytenr %llu disk_num_bytes %llu offset %llu) refs %d",
+				 em->start, em->len, em->disk_bytenr,
+				 em->disk_num_bytes, em->offset,
+				 refcount_read(&em->refs));
 
 			refcount_set(&em->refs, 1);
 		}
@@ -76,8 +77,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* Add [0, 16K) */
 	em->start = 0;
 	em->len = SZ_16K;
-	em->block_start = 0;
-	em->block_len = SZ_16K;
+	em->disk_bytenr = 0;
+	em->disk_num_bytes = SZ_16K;
+	em->ram_bytes = SZ_16K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -97,8 +99,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 
 	em->start = SZ_16K;
 	em->len = SZ_4K;
-	em->block_start = SZ_32K; /* avoid merging */
-	em->block_len = SZ_4K;
+	em->disk_bytenr = SZ_32K; /* avoid merging */
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_4K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -118,8 +121,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* Add [0, 8K), should return [0, 16K) instead. */
 	em->start = start;
 	em->len = len;
-	em->block_start = start;
-	em->block_len = len;
+	em->disk_bytenr = start;
+	em->disk_num_bytes = len;
+	em->ram_bytes = len;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -134,11 +138,11 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		goto out;
 	}
 	if (em->start != 0 || extent_map_end(em) != SZ_16K ||
-	    em->block_start != 0 || em->block_len != SZ_16K) {
+	    em->disk_bytenr != 0 || em->disk_num_bytes != SZ_16K) {
 		test_err(
-"case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
+"case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu disk_bytenr %llu disk_num_bytes %llu",
 			 start, start + len, ret, em->start, em->len,
-			 em->block_start, em->block_len);
+			 em->disk_bytenr, em->disk_num_bytes);
 		ret = -EINVAL;
 	}
 	free_extent_map(em);
@@ -172,8 +176,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* Add [0, 1K) */
 	em->start = 0;
 	em->len = SZ_1K;
-	em->block_start = EXTENT_MAP_INLINE;
-	em->block_len = (u64)-1;
+	em->disk_bytenr = EXTENT_MAP_INLINE;
+	em->disk_num_bytes = 0;
+	em->ram_bytes = SZ_1K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -193,8 +198,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 
 	em->start = SZ_4K;
 	em->len = SZ_4K;
-	em->block_start = SZ_4K;
-	em->block_len = SZ_4K;
+	em->disk_bytenr = SZ_4K;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_4K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -214,8 +220,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* Add [0, 1K) */
 	em->start = 0;
 	em->len = SZ_1K;
-	em->block_start = EXTENT_MAP_INLINE;
-	em->block_len = (u64)-1;
+	em->disk_bytenr = EXTENT_MAP_INLINE;
+	em->disk_num_bytes = 0;
+	em->ram_bytes = SZ_1K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -229,11 +236,10 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		goto out;
 	}
 	if (em->start != 0 || extent_map_end(em) != SZ_1K ||
-	    em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1) {
+	    em->disk_bytenr != EXTENT_MAP_INLINE) {
 		test_err(
-"case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
-			 ret, em->start, em->len, em->block_start,
-			 em->block_len);
+"case2 [0 1K]: ret %d return a wrong em (start %llu len %llu disk_bytenr %llu",
+			 ret, em->start, em->len, em->disk_bytenr);
 		ret = -EINVAL;
 	}
 	free_extent_map(em);
@@ -263,8 +269,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	/* Add [4K, 8K) */
 	em->start = SZ_4K;
 	em->len = SZ_4K;
-	em->block_start = SZ_4K;
-	em->block_len = SZ_4K;
+	em->disk_bytenr = SZ_4K;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_4K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -284,8 +291,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	/* Add [0, 16K) */
 	em->start = 0;
 	em->len = SZ_16K;
-	em->block_start = 0;
-	em->block_len = SZ_16K;
+	em->disk_bytenr = 0;
+	em->disk_num_bytes = SZ_16K;
+	em->ram_bytes = SZ_16K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, start, len);
 	write_unlock(&em_tree->lock);
@@ -305,11 +313,11 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	 * em->start.
 	 */
 	if (start < em->start || start + len > extent_map_end(em) ||
-	    em->start != em->block_start || em->len != em->block_len) {
+	    em->start != extent_map_block_start(em)) {
 		test_err(
-"case3 [%llu %llu): ret %d em (start %llu len %llu block_start %llu block_len %llu)",
+"case3 [%llu %llu): ret %d em (start %llu len %llu disk_bytenr %llu block_len %llu)",
 			 start, start + len, ret, em->start, em->len,
-			 em->block_start, em->block_len);
+			 em->disk_bytenr, em->disk_num_bytes);
 		ret = -EINVAL;
 	}
 	free_extent_map(em);
@@ -370,8 +378,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	/* Add [0K, 8K) */
 	em->start = 0;
 	em->len = SZ_8K;
-	em->block_start = 0;
-	em->block_len = SZ_8K;
+	em->disk_bytenr = 0;
+	em->disk_num_bytes = SZ_8K;
+	em->ram_bytes = SZ_8K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -391,8 +400,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	/* Add [8K, 32K) */
 	em->start = SZ_8K;
 	em->len = 24 * SZ_1K;
-	em->block_start = SZ_16K; /* avoid merging */
-	em->block_len = 24 * SZ_1K;
+	em->disk_bytenr = SZ_16K; /* avoid merging */
+	em->disk_num_bytes = 24 * SZ_1K;
+	em->ram_bytes = 24 * SZ_1K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -411,8 +421,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	/* Add [0K, 32K) */
 	em->start = 0;
 	em->len = SZ_32K;
-	em->block_start = 0;
-	em->block_len = SZ_32K;
+	em->disk_bytenr = 0;
+	em->disk_num_bytes = SZ_32K;
+	em->ram_bytes = SZ_32K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, start, len);
 	write_unlock(&em_tree->lock);
@@ -429,9 +440,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	}
 	if (start < em->start || start + len > extent_map_end(em)) {
 		test_err(
-"case4 [%llu %llu): ret %d, added wrong em (start %llu len %llu block_start %llu block_len %llu)",
-			 start, start + len, ret, em->start, em->len, em->block_start,
-			 em->block_len);
+"case4 [%llu %llu): ret %d, added wrong em (start %llu len %llu disk_bytenr %llu disk_num_bytes %llu)",
+			 start, start + len, ret, em->start, em->len,
+			 em->disk_bytenr, em->disk_num_bytes);
 		ret = -EINVAL;
 	}
 	free_extent_map(em);
@@ -495,8 +506,9 @@ static int add_compressed_extent(struct btrfs_inode *inode,
 
 	em->start = start;
 	em->len = len;
-	em->block_start = block_start;
-	em->block_len = SZ_4K;
+	em->disk_bytenr = block_start;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = len;
 	em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
@@ -551,7 +563,7 @@ static int validate_range(struct extent_map_tree *em_tree, int index)
 	struct rb_node *n;
 	int i;
 
-	for (i = 0, n = rb_first_cached(&em_tree->map);
+	for (i = 0, n = rb_first(&em_tree->root);
 	     valid_ranges[index][i].len && n;
 	     i++, n = rb_next(n)) {
 		struct extent_map *entry = rb_entry(n, struct extent_map, rb_node);
@@ -716,8 +728,9 @@ static int test_case_6(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 
 	em->start = SZ_4K;
 	em->len = SZ_4K;
-	em->block_start = SZ_16K;
-	em->block_len = SZ_16K;
+	em->disk_bytenr = SZ_16K;
+	em->disk_num_bytes = SZ_16K;
+	em->ram_bytes = SZ_16K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, 0, SZ_8K);
 	write_unlock(&em_tree->lock);
@@ -769,9 +782,10 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* [0, 16K), pinned */
 	em->start = 0;
 	em->len = SZ_16K;
-	em->block_start = 0;
-	em->block_len = SZ_4K;
-	em->flags |= EXTENT_FLAG_PINNED;
+	em->disk_bytenr = 0;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_16K;
+	em->flags |= (EXTENT_FLAG_PINNED | EXTENT_FLAG_COMPRESS_ZLIB);
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -791,8 +805,9 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* [32K, 48K), not pinned */
 	em->start = SZ_32K;
 	em->len = SZ_16K;
-	em->block_start = SZ_32K;
-	em->block_len = SZ_16K;
+	em->disk_bytenr = SZ_32K;
+	em->disk_num_bytes = SZ_16K;
+	em->ram_bytes = SZ_16K;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -855,8 +870,9 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		goto out;
 	}
 
-	if (em->block_start != SZ_32K + SZ_4K) {
-		test_err("em->block_start is %llu, expected 36K", em->block_start);
+	if (extent_map_block_start(em) != SZ_32K + SZ_4K) {
+		test_err("em->block_start is %llu, expected 36K",
+				extent_map_block_start(em));
 		goto out;
 	}
 

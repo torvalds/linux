@@ -503,6 +503,7 @@ static void ib_device_release(struct device *device)
 			  rcu_head);
 	}
 
+	mutex_destroy(&dev->subdev_lock);
 	mutex_destroy(&dev->unregistration_lock);
 	mutex_destroy(&dev->compat_devs_mutex);
 
@@ -641,6 +642,11 @@ struct ib_device *_ib_alloc_device(size_t size)
 		BIT_ULL(IB_USER_VERBS_CMD_REG_MR) |
 		BIT_ULL(IB_USER_VERBS_CMD_REREG_MR) |
 		BIT_ULL(IB_USER_VERBS_CMD_RESIZE_CQ);
+
+	mutex_init(&device->subdev_lock);
+	INIT_LIST_HEAD(&device->subdev_list_head);
+	INIT_LIST_HEAD(&device->subdev_list);
+
 	return device;
 }
 EXPORT_SYMBOL(_ib_alloc_device);
@@ -1461,6 +1467,18 @@ EXPORT_SYMBOL(ib_register_device);
 /* Callers must hold a get on the device. */
 static void __ib_unregister_device(struct ib_device *ib_dev)
 {
+	struct ib_device *sub, *tmp;
+
+	mutex_lock(&ib_dev->subdev_lock);
+	list_for_each_entry_safe_reverse(sub, tmp,
+					 &ib_dev->subdev_list_head,
+					 subdev_list) {
+		list_del(&sub->subdev_list);
+		ib_dev->ops.del_sub_dev(sub);
+		ib_device_put(ib_dev);
+	}
+	mutex_unlock(&ib_dev->subdev_lock);
+
 	/*
 	 * We have a registration lock so that all the calls to unregister are
 	 * fully fenced, once any unregister returns the device is truely
@@ -2146,6 +2164,9 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
+	if (!rdma_is_port_valid(ib_dev, port))
+		return -EINVAL;
+
 	/*
 	 * Drivers wish to call this before ib_register_driver, so we have to
 	 * setup the port data early.
@@ -2153,9 +2174,6 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 	ret = alloc_port_data(ib_dev);
 	if (ret)
 		return ret;
-
-	if (!rdma_is_port_valid(ib_dev, port))
-		return -EINVAL;
 
 	pdata = &ib_dev->port_data[port];
 	spin_lock_irqsave(&pdata->netdev_lock, flags);
@@ -2166,16 +2184,12 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 		return 0;
 	}
 
-	if (old_ndev)
-		netdev_tracker_free(ndev, &pdata->netdev_tracker);
-	if (ndev)
-		netdev_hold(ndev, &pdata->netdev_tracker, GFP_ATOMIC);
 	rcu_assign_pointer(pdata->netdev, ndev);
+	netdev_put(old_ndev, &pdata->netdev_tracker);
+	netdev_hold(ndev, &pdata->netdev_tracker, GFP_ATOMIC);
 	spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 
 	add_ndev_hash(pdata);
-	__dev_put(old_ndev);
-
 	return 0;
 }
 EXPORT_SYMBOL(ib_device_set_netdev);
@@ -2597,6 +2611,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 		ops->uverbs_no_driver_id_binding;
 
 	SET_DEVICE_OP(dev_ops, add_gid);
+	SET_DEVICE_OP(dev_ops, add_sub_dev);
 	SET_DEVICE_OP(dev_ops, advise_mr);
 	SET_DEVICE_OP(dev_ops, alloc_dm);
 	SET_DEVICE_OP(dev_ops, alloc_hw_device_stats);
@@ -2631,6 +2646,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, dealloc_ucontext);
 	SET_DEVICE_OP(dev_ops, dealloc_xrcd);
 	SET_DEVICE_OP(dev_ops, del_gid);
+	SET_DEVICE_OP(dev_ops, del_sub_dev);
 	SET_DEVICE_OP(dev_ops, dereg_mr);
 	SET_DEVICE_OP(dev_ops, destroy_ah);
 	SET_DEVICE_OP(dev_ops, destroy_counters);
@@ -2726,6 +2742,55 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_OBJ_SIZE(dev_ops, ib_xrcd);
 }
 EXPORT_SYMBOL(ib_set_device_ops);
+
+int ib_add_sub_device(struct ib_device *parent,
+		      enum rdma_nl_dev_type type,
+		      const char *name)
+{
+	struct ib_device *sub;
+	int ret = 0;
+
+	if (!parent->ops.add_sub_dev || !parent->ops.del_sub_dev)
+		return -EOPNOTSUPP;
+
+	if (!ib_device_try_get(parent))
+		return -EINVAL;
+
+	sub = parent->ops.add_sub_dev(parent, type, name);
+	if (IS_ERR(sub)) {
+		ib_device_put(parent);
+		return PTR_ERR(sub);
+	}
+
+	sub->type = type;
+	sub->parent = parent;
+
+	mutex_lock(&parent->subdev_lock);
+	list_add_tail(&parent->subdev_list_head, &sub->subdev_list);
+	mutex_unlock(&parent->subdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_add_sub_device);
+
+int ib_del_sub_device_and_put(struct ib_device *sub)
+{
+	struct ib_device *parent = sub->parent;
+
+	if (!parent)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&parent->subdev_lock);
+	list_del(&sub->subdev_list);
+	mutex_unlock(&parent->subdev_lock);
+
+	ib_device_put(sub);
+	parent->ops.del_sub_dev(sub);
+	ib_device_put(parent);
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_del_sub_device_and_put);
 
 #ifdef CONFIG_INFINIBAND_VIRT_DMA
 int ib_dma_virt_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents)

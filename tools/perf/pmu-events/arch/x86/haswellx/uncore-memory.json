@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "read requests to memory controller. Derived from unc_m_cas_count.rd",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "LLC_MISSES.MEM_READ",
         "PerPkg": "1",
@@ -11,6 +12,7 @@
     },
     {
         "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "LLC_MISSES.MEM_WRITE",
         "PerPkg": "1",
@@ -21,6 +23,7 @@
     },
     {
         "BriefDescription": "DRAM Activate Count; Activate due to Write",
+        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_M_ACT_COUNT.BYP",
         "PerPkg": "1",
@@ -30,6 +33,7 @@
     },
     {
         "BriefDescription": "DRAM Activate Count; Activate due to Read",
+        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_M_ACT_COUNT.RD",
         "PerPkg": "1",
@@ -39,6 +43,7 @@
     },
     {
         "BriefDescription": "DRAM Activate Count; Activate due to Write",
+        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_M_ACT_COUNT.WR",
         "PerPkg": "1",
@@ -48,6 +53,7 @@
     },
     {
         "BriefDescription": "ACT command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_M_BYP_CMDS.ACT",
         "PerPkg": "1",
@@ -56,6 +62,7 @@
     },
     {
         "BriefDescription": "CAS command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_M_BYP_CMDS.CAS",
         "PerPkg": "1",
@@ -64,6 +71,7 @@
     },
     {
         "BriefDescription": "PRE command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_M_BYP_CMDS.PRE",
         "PerPkg": "1",
@@ -72,6 +80,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; All DRAM WR_CAS (w/ and w/out auto-pre)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
@@ -81,6 +90,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; All DRAM Reads (RD_CAS + Underfills)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD",
         "PerPkg": "1",
@@ -90,6 +100,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; All DRAM RD_CAS (w/ and w/out auto-pre)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_REG",
         "PerPkg": "1",
@@ -99,6 +110,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; Read CAS issued in RMM",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_RMM",
         "PerPkg": "1",
@@ -107,6 +119,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; Underfill Read Issued",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
         "PerPkg": "1",
@@ -116,6 +129,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; Read CAS issued in WMM",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_WMM",
         "PerPkg": "1",
@@ -124,6 +138,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; All DRAM WR_CAS (both Modes)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.WR",
         "PerPkg": "1",
@@ -133,6 +148,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; DRAM WR_CAS (w/ and w/out auto-pre) in Read Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.WR_RMM",
         "PerPkg": "1",
@@ -142,6 +158,7 @@
     },
     {
         "BriefDescription": "DRAM RD_CAS and WR_CAS Commands.; DRAM WR_CAS (w/ and w/out auto-pre) in Write Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.WR_WMM",
         "PerPkg": "1",
@@ -151,18 +168,21 @@
     },
     {
         "BriefDescription": "DRAM Clockticks",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_M_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "DRAM Clockticks",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_M_DCLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC"
     },
     {
         "BriefDescription": "DRAM Precharge All Commands",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_M_DRAM_PRE_ALL",
         "PerPkg": "1",
@@ -171,6 +191,7 @@
     },
     {
         "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5",
         "EventName": "UNC_M_DRAM_REFRESH.HIGH",
         "PerPkg": "1",
@@ -180,6 +201,7 @@
     },
     {
         "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5",
         "EventName": "UNC_M_DRAM_REFRESH.PANIC",
         "PerPkg": "1",
@@ -189,6 +211,7 @@
     },
     {
         "BriefDescription": "ECC Correctable Errors",
+        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_M_ECC_CORRECTABLE_ERRORS",
         "PerPkg": "1",
@@ -197,6 +220,7 @@
     },
     {
         "BriefDescription": "Cycles in a Major Mode; Isoch Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.ISOCH",
         "PerPkg": "1",
@@ -206,6 +230,7 @@
     },
     {
         "BriefDescription": "Cycles in a Major Mode; Partial Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.PARTIAL",
         "PerPkg": "1",
@@ -215,6 +240,7 @@
     },
     {
         "BriefDescription": "Cycles in a Major Mode; Read Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.READ",
         "PerPkg": "1",
@@ -224,6 +250,7 @@
     },
     {
         "BriefDescription": "Cycles in a Major Mode; Write Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.WRITE",
         "PerPkg": "1",
@@ -233,6 +260,7 @@
     },
     {
         "BriefDescription": "Channel DLLOFF Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_M_POWER_CHANNEL_DLLOFF",
         "PerPkg": "1",
@@ -241,6 +269,7 @@
     },
     {
         "BriefDescription": "Channel PPD Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x85",
         "EventName": "UNC_M_POWER_CHANNEL_PPD",
         "PerPkg": "1",
@@ -249,6 +278,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK0",
         "PerPkg": "1",
@@ -258,6 +288,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK1",
         "PerPkg": "1",
@@ -267,6 +298,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK2",
         "PerPkg": "1",
@@ -276,6 +308,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK3",
         "PerPkg": "1",
@@ -285,6 +318,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK4",
         "PerPkg": "1",
@@ -294,6 +328,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK5",
         "PerPkg": "1",
@@ -303,6 +338,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK6",
         "PerPkg": "1",
@@ -312,6 +348,7 @@
     },
     {
         "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK7",
         "PerPkg": "1",
@@ -321,6 +358,7 @@
     },
     {
         "BriefDescription": "Critical Throttle Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_M_POWER_CRITICAL_THROTTLE_CYCLES",
         "PerPkg": "1",
@@ -329,6 +367,7 @@
     },
     {
         "BriefDescription": "UNC_M_POWER_PCU_THROTTLING",
+        "Counter": "0,1,2,3",
         "EventCode": "0x42",
         "EventName": "UNC_M_POWER_PCU_THROTTLING",
         "PerPkg": "1",
@@ -336,6 +375,7 @@
     },
     {
         "BriefDescription": "Clock-Enabled Self-Refresh",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_M_POWER_SELF_REFRESH",
         "PerPkg": "1",
@@ -344,6 +384,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK0",
         "PerPkg": "1",
@@ -353,6 +394,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK1",
         "PerPkg": "1",
@@ -362,6 +404,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK2",
         "PerPkg": "1",
@@ -371,6 +414,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK3",
         "PerPkg": "1",
@@ -380,6 +424,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK4",
         "PerPkg": "1",
@@ -389,6 +434,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK5",
         "PerPkg": "1",
@@ -398,6 +444,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK6",
         "PerPkg": "1",
@@ -407,6 +454,7 @@
     },
     {
         "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK7",
         "PerPkg": "1",
@@ -416,6 +464,7 @@
     },
     {
         "BriefDescription": "Read Preemption Count; Read over Read Preemption",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_RD",
         "PerPkg": "1",
@@ -425,6 +474,7 @@
     },
     {
         "BriefDescription": "Read Preemption Count; Read over Write Preemption",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_WR",
         "PerPkg": "1",
@@ -434,6 +484,7 @@
     },
     {
         "BriefDescription": "DRAM Precharge commands.; Precharge due to bypass",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.BYP",
         "PerPkg": "1",
@@ -443,6 +494,7 @@
     },
     {
         "BriefDescription": "DRAM Precharge commands.; Precharge due to timer expiration",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.PAGE_CLOSE",
         "PerPkg": "1",
@@ -452,6 +504,7 @@
     },
     {
         "BriefDescription": "DRAM Precharge commands.; Precharges due to page miss",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
         "PerPkg": "1",
@@ -461,6 +514,7 @@
     },
     {
         "BriefDescription": "DRAM Precharge commands.; Precharge due to read",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.RD",
         "PerPkg": "1",
@@ -470,6 +524,7 @@
     },
     {
         "BriefDescription": "DRAM Precharge commands.; Precharge due to write",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.WR",
         "PerPkg": "1",
@@ -479,6 +534,7 @@
     },
     {
         "BriefDescription": "Read CAS issued with HIGH priority",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_M_RD_CAS_PRIO.HIGH",
         "PerPkg": "1",
@@ -487,6 +543,7 @@
     },
     {
         "BriefDescription": "Read CAS issued with LOW priority",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_M_RD_CAS_PRIO.LOW",
         "PerPkg": "1",
@@ -495,6 +552,7 @@
     },
     {
         "BriefDescription": "Read CAS issued with MEDIUM priority",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_M_RD_CAS_PRIO.MED",
         "PerPkg": "1",
@@ -503,6 +561,7 @@
     },
     {
         "BriefDescription": "Read CAS issued with PANIC NON ISOCH priority (starved)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_M_RD_CAS_PRIO.PANIC",
         "PerPkg": "1",
@@ -511,6 +570,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.ALLBANKS",
         "PerPkg": "1",
@@ -520,6 +580,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK0",
         "PerPkg": "1",
@@ -528,6 +589,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK1",
         "PerPkg": "1",
@@ -537,6 +599,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK10",
         "PerPkg": "1",
@@ -546,6 +609,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK11",
         "PerPkg": "1",
@@ -555,6 +619,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK12",
         "PerPkg": "1",
@@ -564,6 +629,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK13",
         "PerPkg": "1",
@@ -573,6 +639,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK14",
         "PerPkg": "1",
@@ -582,6 +649,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK15",
         "PerPkg": "1",
@@ -591,6 +659,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK2",
         "PerPkg": "1",
@@ -600,6 +669,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK3",
         "PerPkg": "1",
@@ -609,6 +679,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK4",
         "PerPkg": "1",
@@ -618,6 +689,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK5",
         "PerPkg": "1",
@@ -627,6 +699,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK6",
         "PerPkg": "1",
@@ -636,6 +709,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK7",
         "PerPkg": "1",
@@ -645,6 +719,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK8",
         "PerPkg": "1",
@@ -654,6 +729,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANK9",
         "PerPkg": "1",
@@ -663,6 +739,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANKG0",
         "PerPkg": "1",
@@ -672,6 +749,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANKG1",
         "PerPkg": "1",
@@ -681,6 +759,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANKG2",
         "PerPkg": "1",
@@ -690,6 +769,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_M_RD_CAS_RANK0.BANKG3",
         "PerPkg": "1",
@@ -699,6 +779,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.ALLBANKS",
         "PerPkg": "1",
@@ -708,6 +789,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK0",
         "PerPkg": "1",
@@ -716,6 +798,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK1",
         "PerPkg": "1",
@@ -725,6 +808,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK10",
         "PerPkg": "1",
@@ -734,6 +818,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK11",
         "PerPkg": "1",
@@ -743,6 +828,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK12",
         "PerPkg": "1",
@@ -752,6 +838,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK13",
         "PerPkg": "1",
@@ -761,6 +848,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK14",
         "PerPkg": "1",
@@ -770,6 +858,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK15",
         "PerPkg": "1",
@@ -779,6 +868,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK2",
         "PerPkg": "1",
@@ -788,6 +878,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK3",
         "PerPkg": "1",
@@ -797,6 +888,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK4",
         "PerPkg": "1",
@@ -806,6 +898,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK5",
         "PerPkg": "1",
@@ -815,6 +908,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK6",
         "PerPkg": "1",
@@ -824,6 +918,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK7",
         "PerPkg": "1",
@@ -833,6 +928,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK8",
         "PerPkg": "1",
@@ -842,6 +938,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANK9",
         "PerPkg": "1",
@@ -851,6 +948,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANKG0",
         "PerPkg": "1",
@@ -860,6 +958,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANKG1",
         "PerPkg": "1",
@@ -869,6 +968,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANKG2",
         "PerPkg": "1",
@@ -878,6 +978,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_M_RD_CAS_RANK1.BANKG3",
         "PerPkg": "1",
@@ -887,6 +988,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 2; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_M_RD_CAS_RANK2.BANK0",
         "PerPkg": "1",
@@ -895,6 +997,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.ALLBANKS",
         "PerPkg": "1",
@@ -904,6 +1007,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK0",
         "PerPkg": "1",
@@ -912,6 +1016,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK1",
         "PerPkg": "1",
@@ -921,6 +1026,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK10",
         "PerPkg": "1",
@@ -930,6 +1036,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK11",
         "PerPkg": "1",
@@ -939,6 +1046,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK12",
         "PerPkg": "1",
@@ -948,6 +1056,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK13",
         "PerPkg": "1",
@@ -957,6 +1066,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK14",
         "PerPkg": "1",
@@ -966,6 +1076,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK15",
         "PerPkg": "1",
@@ -975,6 +1086,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK2",
         "PerPkg": "1",
@@ -984,6 +1096,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK3",
         "PerPkg": "1",
@@ -993,6 +1106,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK4",
         "PerPkg": "1",
@@ -1002,6 +1116,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK5",
         "PerPkg": "1",
@@ -1011,6 +1126,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK6",
         "PerPkg": "1",
@@ -1020,6 +1136,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK7",
         "PerPkg": "1",
@@ -1029,6 +1146,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK8",
         "PerPkg": "1",
@@ -1038,6 +1156,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANK9",
         "PerPkg": "1",
@@ -1047,6 +1166,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANKG0",
         "PerPkg": "1",
@@ -1056,6 +1176,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANKG1",
         "PerPkg": "1",
@@ -1065,6 +1186,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANKG2",
         "PerPkg": "1",
@@ -1074,6 +1196,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_M_RD_CAS_RANK4.BANKG3",
         "PerPkg": "1",
@@ -1083,6 +1206,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.ALLBANKS",
         "PerPkg": "1",
@@ -1092,6 +1216,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK0",
         "PerPkg": "1",
@@ -1100,6 +1225,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK1",
         "PerPkg": "1",
@@ -1109,6 +1235,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK10",
         "PerPkg": "1",
@@ -1118,6 +1245,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK11",
         "PerPkg": "1",
@@ -1127,6 +1255,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK12",
         "PerPkg": "1",
@@ -1136,6 +1265,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK13",
         "PerPkg": "1",
@@ -1145,6 +1275,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK14",
         "PerPkg": "1",
@@ -1154,6 +1285,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK15",
         "PerPkg": "1",
@@ -1163,6 +1295,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK2",
         "PerPkg": "1",
@@ -1172,6 +1305,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK3",
         "PerPkg": "1",
@@ -1181,6 +1315,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK4",
         "PerPkg": "1",
@@ -1190,6 +1325,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK5",
         "PerPkg": "1",
@@ -1199,6 +1335,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK6",
         "PerPkg": "1",
@@ -1208,6 +1345,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK7",
         "PerPkg": "1",
@@ -1217,6 +1355,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK8",
         "PerPkg": "1",
@@ -1226,6 +1365,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANK9",
         "PerPkg": "1",
@@ -1235,6 +1375,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANKG0",
         "PerPkg": "1",
@@ -1244,6 +1385,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANKG1",
         "PerPkg": "1",
@@ -1253,6 +1395,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANKG2",
         "PerPkg": "1",
@@ -1262,6 +1405,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB5",
         "EventName": "UNC_M_RD_CAS_RANK5.BANKG3",
         "PerPkg": "1",
@@ -1271,6 +1415,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.ALLBANKS",
         "PerPkg": "1",
@@ -1280,6 +1425,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK0",
         "PerPkg": "1",
@@ -1288,6 +1434,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK1",
         "PerPkg": "1",
@@ -1297,6 +1444,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK10",
         "PerPkg": "1",
@@ -1306,6 +1454,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK11",
         "PerPkg": "1",
@@ -1315,6 +1464,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK12",
         "PerPkg": "1",
@@ -1324,6 +1474,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK13",
         "PerPkg": "1",
@@ -1333,6 +1484,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK14",
         "PerPkg": "1",
@@ -1342,6 +1494,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK15",
         "PerPkg": "1",
@@ -1351,6 +1504,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK2",
         "PerPkg": "1",
@@ -1360,6 +1514,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK3",
         "PerPkg": "1",
@@ -1369,6 +1524,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK4",
         "PerPkg": "1",
@@ -1378,6 +1534,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK5",
         "PerPkg": "1",
@@ -1387,6 +1544,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK6",
         "PerPkg": "1",
@@ -1396,6 +1554,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK7",
         "PerPkg": "1",
@@ -1405,6 +1564,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK8",
         "PerPkg": "1",
@@ -1414,6 +1574,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANK9",
         "PerPkg": "1",
@@ -1423,6 +1584,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANKG0",
         "PerPkg": "1",
@@ -1432,6 +1594,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANKG1",
         "PerPkg": "1",
@@ -1441,6 +1604,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANKG2",
         "PerPkg": "1",
@@ -1450,6 +1614,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB6",
         "EventName": "UNC_M_RD_CAS_RANK6.BANKG3",
         "PerPkg": "1",
@@ -1459,6 +1624,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.ALLBANKS",
         "PerPkg": "1",
@@ -1468,6 +1634,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK0",
         "PerPkg": "1",
@@ -1476,6 +1643,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK1",
         "PerPkg": "1",
@@ -1485,6 +1653,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK10",
         "PerPkg": "1",
@@ -1494,6 +1663,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK11",
         "PerPkg": "1",
@@ -1503,6 +1673,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK12",
         "PerPkg": "1",
@@ -1512,6 +1683,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK13",
         "PerPkg": "1",
@@ -1521,6 +1693,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK14",
         "PerPkg": "1",
@@ -1530,6 +1703,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK15",
         "PerPkg": "1",
@@ -1539,6 +1713,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK2",
         "PerPkg": "1",
@@ -1548,6 +1723,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK3",
         "PerPkg": "1",
@@ -1557,6 +1733,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK4",
         "PerPkg": "1",
@@ -1566,6 +1743,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK5",
         "PerPkg": "1",
@@ -1575,6 +1753,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK6",
         "PerPkg": "1",
@@ -1584,6 +1763,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK7",
         "PerPkg": "1",
@@ -1593,6 +1773,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK8",
         "PerPkg": "1",
@@ -1602,6 +1783,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANK9",
         "PerPkg": "1",
@@ -1611,6 +1793,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANKG0",
         "PerPkg": "1",
@@ -1620,6 +1803,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANKG1",
         "PerPkg": "1",
@@ -1629,6 +1813,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANKG2",
         "PerPkg": "1",
@@ -1638,6 +1823,7 @@
     },
     {
         "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7",
         "EventName": "UNC_M_RD_CAS_RANK7.BANKG3",
         "PerPkg": "1",
@@ -1647,6 +1833,7 @@
     },
     {
         "BriefDescription": "Read Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
         "EventCode": "0x11",
         "EventName": "UNC_M_RPQ_CYCLES_NE",
         "PerPkg": "1",
@@ -1655,6 +1842,7 @@
     },
     {
         "BriefDescription": "Read Pending Queue Allocations",
+        "Counter": "0,1,2,3",
         "EventCode": "0x10",
         "EventName": "UNC_M_RPQ_INSERTS",
         "PerPkg": "1",
@@ -1663,6 +1851,7 @@
     },
     {
         "BriefDescription": "VMSE MXB write buffer occupancy",
+        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_M_VMSE_MXB_WR_OCCUPANCY",
         "PerPkg": "1",
@@ -1670,6 +1859,7 @@
     },
     {
         "BriefDescription": "VMSE WR PUSH issued; VMSE write PUSH issued in RMM",
+        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_M_VMSE_WR_PUSH.RMM",
         "PerPkg": "1",
@@ -1678,6 +1868,7 @@
     },
     {
         "BriefDescription": "VMSE WR PUSH issued; VMSE write PUSH issued in WMM",
+        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_M_VMSE_WR_PUSH.WMM",
         "PerPkg": "1",
@@ -1686,6 +1877,7 @@
     },
     {
         "BriefDescription": "Transition from WMM to RMM because of low threshold; Transition from WMM to RMM because of starve counter",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_M_WMM_TO_RMM.LOW_THRESH",
         "PerPkg": "1",
@@ -1694,6 +1886,7 @@
     },
     {
         "BriefDescription": "Transition from WMM to RMM because of low threshold",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_M_WMM_TO_RMM.STARVE",
         "PerPkg": "1",
@@ -1702,6 +1895,7 @@
     },
     {
         "BriefDescription": "Transition from WMM to RMM because of low threshold",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_M_WMM_TO_RMM.VMSE_RETRY",
         "PerPkg": "1",
@@ -1710,6 +1904,7 @@
     },
     {
         "BriefDescription": "Write Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_M_WPQ_CYCLES_FULL",
         "PerPkg": "1",
@@ -1718,6 +1913,7 @@
     },
     {
         "BriefDescription": "Write Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_M_WPQ_CYCLES_NE",
         "PerPkg": "1",
@@ -1726,6 +1922,7 @@
     },
     {
         "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_M_WPQ_READ_HIT",
         "PerPkg": "1",
@@ -1734,6 +1931,7 @@
     },
     {
         "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M_WPQ_WRITE_HIT",
         "PerPkg": "1",
@@ -1742,6 +1940,7 @@
     },
     {
         "BriefDescription": "Not getting the requested Major Mode",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_M_WRONG_MM",
         "PerPkg": "1",
@@ -1749,6 +1948,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.ALLBANKS",
         "PerPkg": "1",
@@ -1758,6 +1958,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK0",
         "PerPkg": "1",
@@ -1766,6 +1967,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK1",
         "PerPkg": "1",
@@ -1775,6 +1977,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK10",
         "PerPkg": "1",
@@ -1784,6 +1987,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK11",
         "PerPkg": "1",
@@ -1793,6 +1997,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK12",
         "PerPkg": "1",
@@ -1802,6 +2007,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK13",
         "PerPkg": "1",
@@ -1811,6 +2017,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK14",
         "PerPkg": "1",
@@ -1820,6 +2027,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK15",
         "PerPkg": "1",
@@ -1829,6 +2037,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK2",
         "PerPkg": "1",
@@ -1838,6 +2047,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK3",
         "PerPkg": "1",
@@ -1847,6 +2057,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK4",
         "PerPkg": "1",
@@ -1856,6 +2067,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK5",
         "PerPkg": "1",
@@ -1865,6 +2077,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK6",
         "PerPkg": "1",
@@ -1874,6 +2087,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK7",
         "PerPkg": "1",
@@ -1883,6 +2097,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK8",
         "PerPkg": "1",
@@ -1892,6 +2107,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANK9",
         "PerPkg": "1",
@@ -1901,6 +2117,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANKG0",
         "PerPkg": "1",
@@ -1910,6 +2127,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANKG1",
         "PerPkg": "1",
@@ -1919,6 +2137,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANKG2",
         "PerPkg": "1",
@@ -1928,6 +2147,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB8",
         "EventName": "UNC_M_WR_CAS_RANK0.BANKG3",
         "PerPkg": "1",
@@ -1937,6 +2157,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.ALLBANKS",
         "PerPkg": "1",
@@ -1946,6 +2167,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK0",
         "PerPkg": "1",
@@ -1954,6 +2176,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK1",
         "PerPkg": "1",
@@ -1963,6 +2186,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK10",
         "PerPkg": "1",
@@ -1972,6 +2196,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK11",
         "PerPkg": "1",
@@ -1981,6 +2206,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK12",
         "PerPkg": "1",
@@ -1990,6 +2216,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK13",
         "PerPkg": "1",
@@ -1999,6 +2226,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK14",
         "PerPkg": "1",
@@ -2008,6 +2236,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK15",
         "PerPkg": "1",
@@ -2017,6 +2246,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK2",
         "PerPkg": "1",
@@ -2026,6 +2256,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK3",
         "PerPkg": "1",
@@ -2035,6 +2266,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK4",
         "PerPkg": "1",
@@ -2044,6 +2276,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK5",
         "PerPkg": "1",
@@ -2053,6 +2286,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK6",
         "PerPkg": "1",
@@ -2062,6 +2296,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK7",
         "PerPkg": "1",
@@ -2071,6 +2306,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK8",
         "PerPkg": "1",
@@ -2080,6 +2316,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANK9",
         "PerPkg": "1",
@@ -2089,6 +2326,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANKG0",
         "PerPkg": "1",
@@ -2098,6 +2336,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANKG1",
         "PerPkg": "1",
@@ -2107,6 +2346,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANKG2",
         "PerPkg": "1",
@@ -2116,6 +2356,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB9",
         "EventName": "UNC_M_WR_CAS_RANK1.BANKG3",
         "PerPkg": "1",
@@ -2125,6 +2366,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.ALLBANKS",
         "PerPkg": "1",
@@ -2134,6 +2376,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK0",
         "PerPkg": "1",
@@ -2142,6 +2385,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK1",
         "PerPkg": "1",
@@ -2151,6 +2395,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK10",
         "PerPkg": "1",
@@ -2160,6 +2405,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK11",
         "PerPkg": "1",
@@ -2169,6 +2415,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK12",
         "PerPkg": "1",
@@ -2178,6 +2425,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK13",
         "PerPkg": "1",
@@ -2187,6 +2435,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK14",
         "PerPkg": "1",
@@ -2196,6 +2445,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK15",
         "PerPkg": "1",
@@ -2205,6 +2455,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK2",
         "PerPkg": "1",
@@ -2214,6 +2465,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK3",
         "PerPkg": "1",
@@ -2223,6 +2475,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK4",
         "PerPkg": "1",
@@ -2232,6 +2485,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK5",
         "PerPkg": "1",
@@ -2241,6 +2495,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK6",
         "PerPkg": "1",
@@ -2250,6 +2505,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK7",
         "PerPkg": "1",
@@ -2259,6 +2515,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK8",
         "PerPkg": "1",
@@ -2268,6 +2525,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANK9",
         "PerPkg": "1",
@@ -2277,6 +2535,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANKG0",
         "PerPkg": "1",
@@ -2286,6 +2545,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANKG1",
         "PerPkg": "1",
@@ -2295,6 +2555,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANKG2",
         "PerPkg": "1",
@@ -2304,6 +2565,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBC",
         "EventName": "UNC_M_WR_CAS_RANK4.BANKG3",
         "PerPkg": "1",
@@ -2313,6 +2575,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.ALLBANKS",
         "PerPkg": "1",
@@ -2322,6 +2585,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK0",
         "PerPkg": "1",
@@ -2330,6 +2594,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK1",
         "PerPkg": "1",
@@ -2339,6 +2604,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK10",
         "PerPkg": "1",
@@ -2348,6 +2614,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK11",
         "PerPkg": "1",
@@ -2357,6 +2624,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK12",
         "PerPkg": "1",
@@ -2366,6 +2634,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK13",
         "PerPkg": "1",
@@ -2375,6 +2644,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK14",
         "PerPkg": "1",
@@ -2384,6 +2654,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK15",
         "PerPkg": "1",
@@ -2393,6 +2664,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK2",
         "PerPkg": "1",
@@ -2402,6 +2674,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK3",
         "PerPkg": "1",
@@ -2411,6 +2684,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK4",
         "PerPkg": "1",
@@ -2420,6 +2694,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK5",
         "PerPkg": "1",
@@ -2429,6 +2704,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK6",
         "PerPkg": "1",
@@ -2438,6 +2714,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK7",
         "PerPkg": "1",
@@ -2447,6 +2724,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK8",
         "PerPkg": "1",
@@ -2456,6 +2734,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANK9",
         "PerPkg": "1",
@@ -2465,6 +2744,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANKG0",
         "PerPkg": "1",
@@ -2474,6 +2754,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANKG1",
         "PerPkg": "1",
@@ -2483,6 +2764,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANKG2",
         "PerPkg": "1",
@@ -2492,6 +2774,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBD",
         "EventName": "UNC_M_WR_CAS_RANK5.BANKG3",
         "PerPkg": "1",
@@ -2501,6 +2784,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.ALLBANKS",
         "PerPkg": "1",
@@ -2510,6 +2794,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK0",
         "PerPkg": "1",
@@ -2518,6 +2803,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK1",
         "PerPkg": "1",
@@ -2527,6 +2813,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK10",
         "PerPkg": "1",
@@ -2536,6 +2823,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK11",
         "PerPkg": "1",
@@ -2545,6 +2833,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK12",
         "PerPkg": "1",
@@ -2554,6 +2843,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK13",
         "PerPkg": "1",
@@ -2563,6 +2853,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK14",
         "PerPkg": "1",
@@ -2572,6 +2863,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK15",
         "PerPkg": "1",
@@ -2581,6 +2873,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK2",
         "PerPkg": "1",
@@ -2590,6 +2883,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK3",
         "PerPkg": "1",
@@ -2599,6 +2893,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK4",
         "PerPkg": "1",
@@ -2608,6 +2903,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK5",
         "PerPkg": "1",
@@ -2617,6 +2913,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK6",
         "PerPkg": "1",
@@ -2626,6 +2923,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK7",
         "PerPkg": "1",
@@ -2635,6 +2933,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK8",
         "PerPkg": "1",
@@ -2644,6 +2943,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANK9",
         "PerPkg": "1",
@@ -2653,6 +2953,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANKG0",
         "PerPkg": "1",
@@ -2662,6 +2963,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANKG1",
         "PerPkg": "1",
@@ -2671,6 +2973,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANKG2",
         "PerPkg": "1",
@@ -2680,6 +2983,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBE",
         "EventName": "UNC_M_WR_CAS_RANK6.BANKG3",
         "PerPkg": "1",
@@ -2689,6 +2993,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; All Banks",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.ALLBANKS",
         "PerPkg": "1",
@@ -2698,6 +3003,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK0",
         "PerPkg": "1",
@@ -2706,6 +3012,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK1",
         "PerPkg": "1",
@@ -2715,6 +3022,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 10",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK10",
         "PerPkg": "1",
@@ -2724,6 +3032,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 11",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK11",
         "PerPkg": "1",
@@ -2733,6 +3042,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 12",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK12",
         "PerPkg": "1",
@@ -2742,6 +3052,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 13",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK13",
         "PerPkg": "1",
@@ -2751,6 +3062,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 14",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK14",
         "PerPkg": "1",
@@ -2760,6 +3072,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 15",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK15",
         "PerPkg": "1",
@@ -2769,6 +3082,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK2",
         "PerPkg": "1",
@@ -2778,6 +3092,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK3",
         "PerPkg": "1",
@@ -2787,6 +3102,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK4",
         "PerPkg": "1",
@@ -2796,6 +3112,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK5",
         "PerPkg": "1",
@@ -2805,6 +3122,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 6",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK6",
         "PerPkg": "1",
@@ -2814,6 +3132,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 7",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK7",
         "PerPkg": "1",
@@ -2823,6 +3142,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 8",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK8",
         "PerPkg": "1",
@@ -2832,6 +3152,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank 9",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANK9",
         "PerPkg": "1",
@@ -2841,6 +3162,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANKG0",
         "PerPkg": "1",
@@ -2850,6 +3172,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANKG1",
         "PerPkg": "1",
@@ -2859,6 +3182,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANKG2",
         "PerPkg": "1",
@@ -2868,6 +3192,7 @@
     },
     {
         "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xBF",
         "EventName": "UNC_M_WR_CAS_RANK7.BANKG3",
         "PerPkg": "1",

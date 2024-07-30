@@ -179,7 +179,7 @@ struct virtio_gpu_output {
 	struct drm_encoder enc;
 	struct virtio_gpu_display_one info;
 	struct virtio_gpu_update_cursor cursor;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int cur_x;
 	int cur_y;
 	bool needs_modeset;

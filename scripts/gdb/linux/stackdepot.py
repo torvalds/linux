@@ -27,14 +27,18 @@ def stack_depot_fetch(handle):
     offset = parts['offset'] << DEPOT_STACK_ALIGN
     pools_num = gdb.parse_and_eval('pools_num')
 
-    if parts['pool_index'] > pools_num:
+    if handle == 0:
+        raise gdb.GdbError("handle is 0\n")
+
+    pool_index = parts['pool_index_plus_1'] - 1
+    if pool_index >= pools_num:
         gdb.write("pool index %d out of bounds (%d) for stack id 0x%08x\n" % (parts['pool_index'], pools_num, handle))
         return gdb.Value(0), 0
 
     stack_pools = gdb.parse_and_eval('stack_pools')
 
     try:
-        pool = stack_pools[parts['pool_index']]
+        pool = stack_pools[pool_index]
         stack = (pool + gdb.Value(offset).cast(utils.get_size_t_type())).cast(stack_record_type.get_type().pointer())
         size = int(stack['size'].cast(utils.get_ulong_type()))
         return stack['entries'], size

@@ -91,11 +91,9 @@
 #define WCD939X_ANA_MBHC_BTN7				   (0x3021)
 #define WCD939X_MBHC_BTN7_VTH	GENMASK(7, 2)
 #define WCD939X_ANA_MICB1				   (0x3022)
-#define WCD939X_MICB1_ENABLE	GENMASK(7, 6)
-#define WCD939X_MICB1_VOUT_CTL	GENMASK(5, 0)
+#define WCD939X_MICB_ENABLE	GENMASK(7, 6)
+#define WCD939X_MICB_VOUT_CTL	GENMASK(5, 0)
 #define WCD939X_ANA_MICB2				   (0x3023)
-#define WCD939X_MICB2_ENABLE	GENMASK(7, 6)
-#define WCD939X_MICB2_VOUT_CTL	GENMASK(5, 0)
 #define WCD939X_ANA_MICB2_RAMP				   (0x3024)
 #define WCD939X_MICB2_RAMP_RAMP_ENABLE	BIT(7)
 #define WCD939X_MICB2_RAMP_MB2_IN2P_SHORT_ENABLE	BIT(6)
@@ -103,11 +101,7 @@
 #define WCD939X_MICB2_RAMP_SHIFT_CTL	GENMASK(4, 2)
 #define WCD939X_MICB2_RAMP_USB_MGDET_MICB2_RAMP	GENMASK(1, 0)
 #define WCD939X_ANA_MICB3				   (0x3025)
-#define WCD939X_MICB3_ENABLE	GENMASK(7, 6)
-#define WCD939X_MICB3_VOUT_CTL	GENMASK(5, 0)
 #define WCD939X_ANA_MICB4				   (0x3026)
-#define WCD939X_MICB4_ENABLE	GENMASK(7, 6)
-#define WCD939X_MICB4_VOUT_CTL	GENMASK(5, 0)
 #define WCD939X_BIAS_CTL				   (0x3028)
 #define WCD939X_BIAS_VBG_FINE_ADJ			   (0x3029)
 #define WCD939X_LDOL_VDDCX_ADJUST			   (0x3040)
@@ -909,21 +903,15 @@ enum wcd939x_rx_sdw_channels {
 	WCD939X_HIFI_PCM_R,
 };
 
-enum {
-	WCD939X_SDW_DIR_RX,
-	WCD939X_SDW_DIR_TX,
-};
-
 struct wcd939x_priv;
 struct wcd939x_sdw_priv {
 	struct sdw_slave *sdev;
 	struct sdw_stream_config sconfig;
 	struct sdw_stream_runtime *sruntime;
 	struct sdw_port_config port_config[WCD939X_MAX_SWR_PORTS];
-	struct wcd939x_sdw_ch_info *ch_info;
+	const struct wcd939x_sdw_ch_info *ch_info;
 	bool port_enable[WCD939X_MAX_SWR_CH_IDS];
 	int active_ports;
-	int num_ports;
 	bool is_tx;
 	struct wcd939x_priv *wcd939x;
 	struct irq_domain *slave_irq;

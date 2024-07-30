@@ -287,6 +287,10 @@
 	status = "okay";
 };
 
+&smbb {
+	status = "okay";
+};
+
 &usb {
 	extcon = <&smbb>;
 	dr_mode = "peripheral";

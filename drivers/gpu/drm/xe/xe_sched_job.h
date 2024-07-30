@@ -70,7 +70,12 @@ to_xe_sched_job(struct drm_sched_job *drm)
 
 static inline u32 xe_sched_job_seqno(struct xe_sched_job *job)
 {
-	return job->fence->seqno;
+	return job->fence ? job->fence->seqno : 0;
+}
+
+static inline u32 xe_sched_job_lrc_seqno(struct xe_sched_job *job)
+{
+	return job->lrc_seqno;
 }
 
 static inline void
@@ -84,5 +89,8 @@ bool xe_sched_job_is_migration(struct xe_exec_queue *q);
 struct xe_sched_job_snapshot *xe_sched_job_snapshot_capture(struct xe_sched_job *job);
 void xe_sched_job_snapshot_free(struct xe_sched_job_snapshot *snapshot);
 void xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot, struct drm_printer *p);
+
+int xe_sched_job_add_deps(struct xe_sched_job *job, struct dma_resv *resv,
+			  enum dma_resv_usage usage);
 
 #endif

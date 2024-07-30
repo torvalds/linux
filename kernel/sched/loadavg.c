@@ -45,7 +45,7 @@
  *    again, being late doesn't loose the delta, just wrecks the sample.
  *
  *  - cpu_rq()->nr_uninterruptible isn't accurately tracked per-CPU because
- *    this would add another cross-CPU cacheline miss and atomic operation
+ *    this would add another cross-CPU cache-line miss and atomic operation
  *    to the wakeup path. Instead we increment on whatever CPU the task ran
  *    when it went into uninterruptible state and decrement on whatever CPU
  *    did the wakeup. This means that only the sum of nr_uninterruptible over
@@ -62,7 +62,7 @@ EXPORT_SYMBOL(avenrun); /* should be removed */
 
 /**
  * get_avenrun - get the load average array
- * @loads:	pointer to dest load array
+ * @loads:	pointer to destination load array
  * @offset:	offset to add
  * @shift:	shift count to shift the result left
  *

@@ -121,7 +121,8 @@ static void dpt_cleanup(struct i915_address_space *vm)
 	i915_gem_object_put(dpt->obj);
 }
 
-struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
+struct i915_vma *intel_dpt_pin_to_ggtt(struct i915_address_space *vm,
+				       unsigned int alignment)
 {
 	struct drm_i915_private *i915 = vm->i915;
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
@@ -143,8 +144,8 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 		if (err)
 			continue;
 
-		vma = i915_gem_object_ggtt_pin_ww(dpt->obj, &ww, NULL, 0, 4096,
-						  pin_flags);
+		vma = i915_gem_object_ggtt_pin_ww(dpt->obj, &ww, NULL, 0,
+						  alignment, pin_flags);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			continue;
@@ -172,7 +173,7 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 	return err ? ERR_PTR(err) : vma;
 }
 
-void intel_dpt_unpin(struct i915_address_space *vm)
+void intel_dpt_unpin_from_ggtt(struct i915_address_space *vm)
 {
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
 

@@ -128,6 +128,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_10GKR: 10GBASE-KR - with Clause 73 AN
  * @PHY_INTERFACE_MODE_QUSGMII: Quad Universal SGMII
  * @PHY_INTERFACE_MODE_1000BASEKX: 1000Base-KX - with Clause 73 AN
+ * @PHY_INTERFACE_MODE_10G_QXGMII: 10G-QXGMII - 4 ports over 10G USXGMII
  * @PHY_INTERFACE_MODE_MAX: Book keeping
  *
  * Describes the interface between the MAC and PHY.
@@ -168,6 +169,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_10GKR,
 	PHY_INTERFACE_MODE_QUSGMII,
 	PHY_INTERFACE_MODE_1000BASEKX,
+	PHY_INTERFACE_MODE_10G_QXGMII,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -289,6 +291,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "100base-x";
 	case PHY_INTERFACE_MODE_QUSGMII:
 		return "qusgmii";
+	case PHY_INTERFACE_MODE_10G_QXGMII:
+		return "10g-qxgmii";
 	default:
 		return "unknown";
 	}
@@ -612,6 +616,8 @@ struct macsec_ops;
  *                 handling shall be postponed until PHY has resumed
  * @irq_rerun: Flag indicating interrupts occurred while PHY was suspended,
  *             requiring a rerun of the interrupt handler after resume
+ * @default_timestamp: Flag indicating whether we are using the phy
+ *		       timestamp as the default one
  * @interface: enum phy_interface_t value
  * @possible_interfaces: bitmap if interface modes that the attached PHY
  *			 will switch between depending on media speed.
@@ -676,6 +682,8 @@ struct phy_device {
 	unsigned interrupts:1;
 	unsigned irq_suspended:1;
 	unsigned irq_rerun:1;
+
+	unsigned default_timestamp:1;
 
 	int rate_matching;
 
@@ -1179,7 +1187,7 @@ struct phy_driver {
 	int (*led_polarity_set)(struct phy_device *dev, int index,
 				unsigned long modes);
 };
-#define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
+#define to_phy_driver(d) container_of_const(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
 
 #define PHY_ANY_ID "MATCH ANY PHY"
@@ -1610,7 +1618,7 @@ static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
 }
 
 static inline int phy_ts_info(struct phy_device *phydev,
-			      struct ethtool_ts_info *tsinfo)
+			      struct kernel_ethtool_ts_info *tsinfo)
 {
 	return phydev->mii_ts->ts_info(phydev->mii_ts, tsinfo);
 }
@@ -1619,6 +1627,21 @@ static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
 				int type)
 {
 	phydev->mii_ts->txtstamp(phydev->mii_ts, skb, type);
+}
+
+/**
+ * phy_is_default_hwtstamp - Is the PHY hwtstamp the default timestamp
+ * @phydev: Pointer to phy_device
+ *
+ * This is used to get default timestamping device taking into account
+ * the new API choice, which is selecting the timestamping from MAC by
+ * default if the phydev does not have default_timestamp flag enabled.
+ *
+ * Return: True if phy is the default hw timestamp, false otherwise.
+ */
+static inline bool phy_is_default_hwtstamp(struct phy_device *phydev)
+{
+	return phy_has_hwtstamp(phydev) && phydev->default_timestamp;
 }
 
 /**
