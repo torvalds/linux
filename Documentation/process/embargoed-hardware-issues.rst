@@ -219,6 +219,37 @@ List participants may not communicate about the issue outside of the
 private mailing list. List participants may not use any shared resources
 (e.g. employer build farms, CI systems, etc) when working on patches.
 
+Early access
+""""""""""""
+
+The patches discussed and developed on the list can neither be distributed
+to any individual who is not a member of the response team nor to any other
+organization.
+
+To allow the affected silicon vendors to work with their internal teams and
+industry partners on testing, validation, and logistics, the following
+exception is provided:
+
+	Designated representatives of the affected silicon vendors are
+	allowed to hand over the patches at any time to the silicon
+	vendor’s response team. The representative must notify the kernel
+	response team about the handover. The affected silicon vendor must
+	have and maintain their own documented security process for any
+	patches shared with their response team that is consistent with
+	this policy.
+
+	The silicon vendor’s response team can distribute these patches to
+	their industry partners and to their internal teams under the
+	silicon vendor’s documented security process. Feedback from the
+	industry partners goes back to the silicon vendor and is
+	communicated by the silicon vendor to the kernel response team.
+
+	The handover to the silicon vendor’s response team removes any
+	responsibility or liability from the kernel response team regarding
+	premature disclosure, which happens due to the involvement of the
+	silicon vendor’s internal teams or industry partners. The silicon
+	vendor guarantees this release of liability by agreeing to this
+	process.
 
 Coordinated release
 """""""""""""""""""
