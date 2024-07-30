@@ -969,6 +969,9 @@ struct perf_event_context {
 	 * The count of events for which using the switch-out fast path
 	 * should be avoided.
 	 *
+	 * Sum (event->pending_work + events with
+	 *    (attr->inherit && (attr->sample_type & PERF_SAMPLE_READ)))
+	 *
 	 * The SIGTRAP is targeted at ctx->task, as such it won't do changing
 	 * that until the signal is delivered.
 	 */
