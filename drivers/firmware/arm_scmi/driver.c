@@ -3029,6 +3029,7 @@ static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
 static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 {
 	struct scmi_transport *trans;
+	int ret;
 
 	trans = dev_get_platdata(dev);
 	if (!trans || !trans->desc || !trans->supplier || !trans->core_ops)
@@ -3044,6 +3045,14 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 	*trans->core_ops = &scmi_trans_core_ops;
 
 	dev_info(dev, "Using %s\n", dev_driver_string(trans->supplier));
+
+	ret = of_property_read_u32(dev->of_node, "max-rx-timeout-ms",
+				   &trans->desc->max_rx_timeout_ms);
+	if (ret && ret != -EINVAL)
+		dev_err(dev, "Malformed max-rx-timeout-ms DT property.\n");
+
+	dev_info(dev, "SCMI max-rx-timeout: %dms\n",
+		 trans->desc->max_rx_timeout_ms);
 
 	return trans->desc;
 }
