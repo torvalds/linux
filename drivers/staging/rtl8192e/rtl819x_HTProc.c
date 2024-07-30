@@ -188,7 +188,7 @@ static void ht_iot_peer_determine(struct rtllib_device *ieee)
 }
 
 static u8 ht_iot_act_is_mgnt_use_cck_6m(struct rtllib_device *ieee,
-				 struct rtllib_network *network)
+					struct rtllib_network *network)
 {
 	u8	retValue = 0;
 
