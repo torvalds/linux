@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/kbuild/index
+:Original: Documentation/kbuild/index.rst
 :Translator: 慕冬亮 Dongliang Mu <dzm91@hust.edu.cn>
 
 ============
