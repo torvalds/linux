@@ -49,20 +49,8 @@ static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 	return ret;
 }
 
-static inline void snd_soc_dpcm_stream_lock_irq(struct snd_soc_pcm_runtime *rtd,
-						int stream)
-{
-	snd_pcm_stream_lock_irq(snd_soc_dpcm_get_substream(rtd, stream));
-}
-
 #define snd_soc_dpcm_stream_lock_irqsave_nested(rtd, stream, flags) \
 	snd_pcm_stream_lock_irqsave_nested(snd_soc_dpcm_get_substream(rtd, stream), flags)
-
-static inline void snd_soc_dpcm_stream_unlock_irq(struct snd_soc_pcm_runtime *rtd,
-						  int stream)
-{
-	snd_pcm_stream_unlock_irq(snd_soc_dpcm_get_substream(rtd, stream));
-}
 
 #define snd_soc_dpcm_stream_unlock_irqrestore(rtd, stream, flags) \
 	snd_pcm_stream_unlock_irqrestore(snd_soc_dpcm_get_substream(rtd, stream), flags)
@@ -260,14 +248,14 @@ static void dpcm_set_fe_update_state(struct snd_soc_pcm_runtime *fe,
 	struct snd_pcm_substream *substream =
 		snd_soc_dpcm_get_substream(fe, stream);
 
-	snd_soc_dpcm_stream_lock_irq(fe, stream);
+	snd_pcm_stream_lock_irq(substream);
 	if (state == SND_SOC_DPCM_UPDATE_NO && fe->dpcm[stream].trigger_pending) {
 		dpcm_fe_dai_do_trigger(substream,
 				       fe->dpcm[stream].trigger_pending - 1);
 		fe->dpcm[stream].trigger_pending = 0;
 	}
 	fe->dpcm[stream].runtime_update = state;
-	snd_soc_dpcm_stream_unlock_irq(fe, stream);
+	snd_pcm_stream_unlock_irq(substream);
 }
 
 static void dpcm_set_be_update_state(struct snd_soc_pcm_runtime *be,
@@ -1272,10 +1260,10 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	dpcm->be = be;
 	dpcm->fe = fe;
 	dpcm->state = SND_SOC_DPCM_LINK_STATE_NEW;
-	snd_soc_dpcm_stream_lock_irq(fe, stream);
+	snd_pcm_stream_lock_irq(fe_substream);
 	list_add(&dpcm->list_be, &fe->dpcm[stream].be_clients);
 	list_add(&dpcm->list_fe, &be->dpcm[stream].fe_clients);
-	snd_soc_dpcm_stream_unlock_irq(fe, stream);
+	snd_pcm_stream_unlock_irq(fe_substream);
 
 	dev_dbg(fe->dev, "connected new DPCM %s path %s %s %s\n",
 			snd_pcm_direction_name(stream),  fe->dai_link->name,
@@ -1320,11 +1308,12 @@ static void dpcm_be_reparent(struct snd_soc_pcm_runtime *fe,
 void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm, *d;
+	struct snd_pcm_substream *substream = snd_soc_dpcm_get_substream(fe, stream);
 	LIST_HEAD(deleted_dpcms);
 
 	snd_soc_dpcm_mutex_assert_held(fe);
 
-	snd_soc_dpcm_stream_lock_irq(fe, stream);
+	snd_pcm_stream_lock_irq(substream);
 	for_each_dpcm_be_safe(fe, stream, dpcm, d) {
 		dev_dbg(fe->dev, "ASoC: BE %s disconnect check for %s\n",
 				snd_pcm_direction_name(stream),
@@ -1343,7 +1332,7 @@ void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 		list_del(&dpcm->list_be);
 		list_move(&dpcm->list_fe, &deleted_dpcms);
 	}
-	snd_soc_dpcm_stream_unlock_irq(fe, stream);
+	snd_pcm_stream_unlock_irq(substream);
 
 	while (!list_empty(&deleted_dpcms)) {
 		dpcm = list_first_entry(&deleted_dpcms, struct snd_soc_dpcm,
