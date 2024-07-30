@@ -1,6 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
+set -eu
+
 diff_patch=$1
 
 mkdir -p "$(dirname "${diff_patch}")"

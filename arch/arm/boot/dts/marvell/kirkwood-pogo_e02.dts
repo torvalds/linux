@@ -33,12 +33,12 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		health {
+		led-health {
 			label = "pogo_e02:green:health";
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
-		fault {
+		led-fault {
 			label = "pogo_e02:orange:fault";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};

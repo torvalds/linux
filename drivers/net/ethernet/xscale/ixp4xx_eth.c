@@ -1015,7 +1015,7 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 }
 
 static int ixp4xx_get_ts_info(struct net_device *dev,
-			      struct ethtool_ts_info *info)
+			      struct kernel_ethtool_ts_info *info)
 {
 	struct port *port = netdev_priv(dev);
 

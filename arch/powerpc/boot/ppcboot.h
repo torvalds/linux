@@ -63,7 +63,7 @@ typedef struct bd_info {
 #if defined(TARGET_HYMOD)
 	hymod_conf_t	bi_hymod_conf;	/* hymod configuration information */
 #endif
-#if defined(TARGET_EVB64260) || defined(TARGET_405EP) || defined(TARGET_44x) || \
+#if defined(TARGET_EVB64260) || defined(TARGET_44x) || \
 	defined(TARGET_85xx) ||	defined(TARGET_83xx) || defined(TARGET_HAS_ETH1)
 	/* second onboard ethernet port */
 	unsigned char	bi_enet1addr[6];

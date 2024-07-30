@@ -46,6 +46,9 @@ acpi_status acpi_os_terminate(void);
  * Interrupts are off during resume, just like they are for boot.
  * However, boot has  (system_state != SYSTEM_RUNNING)
  * to quiet __might_sleep() in kmalloc() and resume does not.
+ *
+ * These specialized allocators have to be macros for their allocations to be
+ * accounted separately (to have separate alloc_tag).
  */
 #define acpi_os_allocate(_size)	\
 		kmalloc(_size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
@@ -53,13 +56,13 @@ acpi_status acpi_os_terminate(void);
 #define acpi_os_allocate_zeroed(_size)	\
 		kzalloc(_size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
 
+#define acpi_os_acquire_object(_cache)	\
+		kmem_cache_zalloc(_cache, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
+
 static inline void acpi_os_free(void *memory)
 {
 	kfree(memory);
 }
-
-#define acpi_os_acquire_object(_cache)	\
-		kmem_cache_zalloc(_cache, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL)
 
 static inline acpi_thread_id acpi_os_get_thread_id(void)
 {

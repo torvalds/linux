@@ -85,10 +85,6 @@
 #endif
 
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
-#include "multicalls.h"
-#include "pmu.h"
 
 #include "../kernel/cpu/cpu.h" /* get_cpu_cap() */
 

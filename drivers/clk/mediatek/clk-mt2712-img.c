@@ -54,4 +54,6 @@ static struct platform_driver clk_mt2712_img_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_img_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 imgsys clocks driver");
 MODULE_LICENSE("GPL");

@@ -258,7 +258,7 @@ static int serio_queue_event(void *object, struct module *owner,
 		}
 	}
 
-	event = kmalloc(sizeof(struct serio_event), GFP_ATOMIC);
+	event = kmalloc(sizeof(*event), GFP_ATOMIC);
 	if (!event) {
 		pr_err("Not enough memory to queue event %d\n", event_type);
 		retval = -ENOMEM;
@@ -877,10 +877,10 @@ static void serio_set_drv(struct serio *serio, struct serio_driver *drv)
 	serio_continue_rx(serio);
 }
 
-static int serio_bus_match(struct device *dev, struct device_driver *drv)
+static int serio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct serio *serio = to_serio_port(dev);
-	struct serio_driver *serio_drv = to_serio_driver(drv);
+	const struct serio_driver *serio_drv = to_serio_driver(drv);
 
 	if (serio->manual_bind || serio_drv->manual_bind)
 		return 0;

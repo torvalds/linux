@@ -290,6 +290,7 @@ struct mhi_controller_config {
 
 /**
  * struct mhi_controller - Master MHI controller structure
+ * @name: Device name of the MHI controller
  * @cntrl_dev: Pointer to the struct device of physical bus acting as the MHI
  *            controller (required)
  * @mhi_dev: MHI device instance for the controller
@@ -367,6 +368,7 @@ struct mhi_controller_config {
  * they can be populated depending on the usecase.
  */
 struct mhi_controller {
+	const char *name;
 	struct device *cntrl_dev;
 	struct mhi_device *mhi_dev;
 	struct dentry *debugfs_dentry;
@@ -526,7 +528,7 @@ struct mhi_driver {
 	struct device_driver driver;
 };
 
-#define to_mhi_driver(drv) container_of(drv, struct mhi_driver, driver)
+#define to_mhi_driver(drv) container_of_const(drv, struct mhi_driver, driver)
 #define to_mhi_device(dev) container_of(dev, struct mhi_device, dev)
 
 /**

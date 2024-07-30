@@ -688,12 +688,11 @@ static void get_surf_rq_param(struct display_mode_lib *mode_lib,
 		const display_pipe_source_params_st *pipe_src_param,
 		bool is_chroma)
 {
-	bool mode_422 = false;
 	unsigned int vp_width = 0;
 	unsigned int vp_height = 0;
 	unsigned int data_pitch = 0;
 	unsigned int meta_pitch = 0;
-	unsigned int ppe = mode_422 ? 2 : 1;
+	unsigned int ppe = 1;
 
 	// TODO check if ppe apply for both luma and chroma in 422 case
 	if (is_chroma) {
@@ -825,7 +824,6 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	double min_dst_y_ttu_vblank;
 	unsigned int dlg_vblank_start;
 	bool dual_plane;
-	bool mode_422;
 	unsigned int access_dir;
 	unsigned int vp_height_l;
 	unsigned int vp_width_l;
@@ -971,7 +969,6 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	// Source
 //             dcc_en              = src.dcc;
 	dual_plane = is_dual_plane((enum source_format_class)(src->source_format));
-	mode_422 = false; // TODO
 	access_dir = (src->source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
 //      bytes_per_element_l = get_bytes_per_element(source_format_class(src.source_format), 0);
 //      bytes_per_element_c = get_bytes_per_element(source_format_class(src.source_format), 1);
@@ -1148,18 +1145,8 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	dpte_row_height_l = rq_dlg_param->rq_l.dpte_row_height;
 	dpte_row_height_c = rq_dlg_param->rq_c.dpte_row_height;
 
-	if (mode_422) {
-		swath_width_pixels_ub_l = swath_width_ub_l * 2;  // *2 for 2 pixel per element
-		swath_width_pixels_ub_c = swath_width_ub_c * 2;
-	} else {
-		swath_width_pixels_ub_l = swath_width_ub_l * 1;
-		swath_width_pixels_ub_c = swath_width_ub_c * 1;
-	}
-
-	hscale_pixel_rate_l = 0.;
-	hscale_pixel_rate_c = 0.;
-	min_hratio_fact_l = 1.0;
-	min_hratio_fact_c = 1.0;
+	swath_width_pixels_ub_l = swath_width_ub_l;
+	swath_width_pixels_ub_c = swath_width_ub_c;
 
 	if (htaps_l <= 1)
 		min_hratio_fact_l = 2.0;

@@ -144,19 +144,6 @@ int aa_audit_file(const struct cred *subj_cred,
 	return aa_audit(type, profile, &ad, file_audit_cb);
 }
 
-/**
- * is_deleted - test if a file has been completely unlinked
- * @dentry: dentry of file to test for deletion  (NOT NULL)
- *
- * Returns: true if deleted else false
- */
-static inline bool is_deleted(struct dentry *dentry)
-{
-	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
-		return true;
-	return false;
-}
-
 static int path_name(const char *op, const struct cred *subj_cred,
 		     struct aa_label *label,
 		     const struct path *path, int flags, char *buffer,

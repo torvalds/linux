@@ -80,6 +80,8 @@ struct xsk_umem_info {
 	void *buffer;
 	u32 frame_size;
 	u32 base_addr;
+	u32 fill_size;
+	u32 comp_size;
 	bool unaligned_mode;
 };
 

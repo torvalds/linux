@@ -24,6 +24,11 @@
 #include <net/checksum.h>
 #include <net/dsfield.h>
 #include <net/mpls.h>
+
+#if IS_ENABLED(CONFIG_PSAMPLE)
+#include <net/psample.h>
+#endif
+
 #include <net/sctp/checksum.h>
 
 #include "datapath.h"
@@ -1043,12 +1048,15 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	struct nlattr *sample_arg;
 	int rem = nla_len(attr);
 	const struct sample_arg *arg;
+	u32 init_probability;
 	bool clone_flow_key;
+	int err;
 
 	/* The first action is always 'OVS_SAMPLE_ATTR_ARG'. */
 	sample_arg = nla_data(attr);
 	arg = nla_data(sample_arg);
 	actions = nla_next(sample_arg, &rem);
+	init_probability = OVS_CB(skb)->probability;
 
 	if ((arg->probability != U32_MAX) &&
 	    (!arg->probability || get_random_u32() > arg->probability)) {
@@ -1057,9 +1065,16 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 		return 0;
 	}
 
+	OVS_CB(skb)->probability = arg->probability;
+
 	clone_flow_key = !arg->exec;
-	return clone_execute(dp, skb, key, 0, actions, rem, last,
-			     clone_flow_key);
+	err = clone_execute(dp, skb, key, 0, actions, rem, last,
+			    clone_flow_key);
+
+	if (!last)
+		OVS_CB(skb)->probability = init_probability;
+
+	return err;
 }
 
 /* When 'last' is true, clone() should always consume the 'skb'.
@@ -1299,6 +1314,44 @@ static int execute_dec_ttl(struct sk_buff *skb, struct sw_flow_key *key)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_PSAMPLE)
+static void execute_psample(struct datapath *dp, struct sk_buff *skb,
+			    const struct nlattr *attr)
+{
+	struct psample_group psample_group = {};
+	struct psample_metadata md = {};
+	const struct nlattr *a;
+	u32 rate;
+	int rem;
+
+	nla_for_each_attr(a, nla_data(attr), nla_len(attr), rem) {
+		switch (nla_type(a)) {
+		case OVS_PSAMPLE_ATTR_GROUP:
+			psample_group.group_num = nla_get_u32(a);
+			break;
+
+		case OVS_PSAMPLE_ATTR_COOKIE:
+			md.user_cookie = nla_data(a);
+			md.user_cookie_len = nla_len(a);
+			break;
+		}
+	}
+
+	psample_group.net = ovs_dp_get_net(dp);
+	md.in_ifindex = OVS_CB(skb)->input_vport->dev->ifindex;
+	md.trunc_size = skb->len - OVS_CB(skb)->cutlen;
+	md.rate_as_probability = 1;
+
+	rate = OVS_CB(skb)->probability ? OVS_CB(skb)->probability : U32_MAX;
+
+	psample_sample_packet(&psample_group, skb, rate, &md);
+}
+#else
+static void execute_psample(struct datapath *dp, struct sk_buff *skb,
+			    const struct nlattr *attr)
+{}
+#endif
+
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -1502,6 +1555,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			ovs_kfree_skb_reason(skb, reason);
 			return 0;
 		}
+
+		case OVS_ACTION_ATTR_PSAMPLE:
+			execute_psample(dp, skb, a);
+			OVS_CB(skb)->cutlen = 0;
+			if (nla_is_last(a, rem)) {
+				consume_skb(skb);
+				return 0;
+			}
+			break;
 		}
 
 		if (unlikely(err)) {

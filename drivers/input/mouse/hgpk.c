@@ -981,7 +981,7 @@ int hgpk_init(struct psmouse *psmouse)
 	struct hgpk_data *priv;
 	int err;
 
-	priv = kzalloc(sizeof(struct hgpk_data), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		err = -ENOMEM;
 		goto alloc_fail;

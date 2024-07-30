@@ -695,7 +695,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		return;
 
 	qdio_deliver_irq(irq_ptr);
-	irq_ptr->last_data_irq_time = S390_lowcore.int_clock;
+	irq_ptr->last_data_irq_time = get_lowcore()->int_clock;
 }
 
 static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,

@@ -843,11 +843,8 @@ where
         let val = unsafe { &mut *slot };
         // SAFETY: `slot` is considered pinned.
         let val = unsafe { Pin::new_unchecked(val) };
-        (self.1)(val).map_err(|e| {
-            // SAFETY: `slot` was initialized above.
-            unsafe { core::ptr::drop_in_place(slot) };
-            e
-        })
+        // SAFETY: `slot` was initialized above.
+        (self.1)(val).inspect_err(|_| unsafe { core::ptr::drop_in_place(slot) })
     }
 }
 
@@ -941,11 +938,9 @@ where
         // SAFETY: All requirements fulfilled since this function is `__init`.
         unsafe { self.0.__pinned_init(slot)? };
         // SAFETY: The above call initialized `slot` and we still have unique access.
-        (self.1)(unsafe { &mut *slot }).map_err(|e| {
+        (self.1)(unsafe { &mut *slot }).inspect_err(|_|
             // SAFETY: `slot` was initialized above.
-            unsafe { core::ptr::drop_in_place(slot) };
-            e
-        })
+            unsafe { core::ptr::drop_in_place(slot) })
     }
 }
 

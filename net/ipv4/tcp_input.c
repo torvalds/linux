@@ -2129,8 +2129,16 @@ void tcp_clear_retrans(struct tcp_sock *tp)
 static inline void tcp_init_undo(struct tcp_sock *tp)
 {
 	tp->undo_marker = tp->snd_una;
+
 	/* Retransmission still in flight may cause DSACKs later. */
-	tp->undo_retrans = tp->retrans_out ? : -1;
+	/* First, account for regular retransmits in flight: */
+	tp->undo_retrans = tp->retrans_out;
+	/* Next, account for TLP retransmits in flight: */
+	if (tp->tlp_high_seq && tp->tlp_retrans)
+		tp->undo_retrans++;
+	/* Finally, avoid 0, because undo_retrans==0 means "can undo now": */
+	if (!tp->undo_retrans)
+		tp->undo_retrans = -1;
 }
 
 static bool tcp_is_rack(const struct sock *sk)
@@ -2209,6 +2217,7 @@ void tcp_enter_loss(struct sock *sk)
 
 	tcp_set_ca_state(sk, TCP_CA_Loss);
 	tp->high_seq = tp->snd_nxt;
+	tp->tlp_high_seq = 0;
 	tcp_ecn_queue_cwr(tp);
 
 	/* F-RTO RFC5682 sec 3.1 step 1: retransmit SND.UNA if no previous
@@ -2782,13 +2791,37 @@ static void tcp_mtup_probe_success(struct sock *sk)
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMTUPSUCCESS);
 }
 
+/* Sometimes we deduce that packets have been dropped due to reasons other than
+ * congestion, like path MTU reductions or failed client TFO attempts. In these
+ * cases we call this function to retransmit as many packets as cwnd allows,
+ * without reducing cwnd. Given that retransmits will set retrans_stamp to a
+ * non-zero value (and may do so in a later calling context due to TSQ), we
+ * also enter CA_Loss so that we track when all retransmitted packets are ACKed
+ * and clear retrans_stamp when that happens (to ensure later recurring RTOs
+ * are using the correct retrans_stamp and don't declare ETIMEDOUT
+ * prematurely).
+ */
+static void tcp_non_congestion_loss_retransmit(struct sock *sk)
+{
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (icsk->icsk_ca_state != TCP_CA_Loss) {
+		tp->high_seq = tp->snd_nxt;
+		tp->snd_ssthresh = tcp_current_ssthresh(sk);
+		tp->prior_ssthresh = 0;
+		tp->undo_marker = 0;
+		tcp_set_ca_state(sk, TCP_CA_Loss);
+	}
+	tcp_xmit_retransmit_queue(sk);
+}
+
 /* Do a simple retransmit without using the backoff mechanisms in
  * tcp_timer. This is used for path mtu discovery.
  * The socket is already locked here.
  */
 void tcp_simple_retransmit(struct sock *sk)
 {
-	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int mss;
@@ -2828,14 +2861,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	 * in network, but units changed and effective
 	 * cwnd/ssthresh really reduced now.
 	 */
-	if (icsk->icsk_ca_state != TCP_CA_Loss) {
-		tp->high_seq = tp->snd_nxt;
-		tp->snd_ssthresh = tcp_current_ssthresh(sk);
-		tp->prior_ssthresh = 0;
-		tp->undo_marker = 0;
-		tcp_set_ca_state(sk, TCP_CA_Loss);
-	}
-	tcp_xmit_retransmit_queue(sk);
+	tcp_non_congestion_loss_retransmit(sk);
 }
 EXPORT_SYMBOL(tcp_simple_retransmit);
 
@@ -3060,7 +3086,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 			return;
 
 		if (tcp_try_undo_dsack(sk))
-			tcp_try_keep_open(sk);
+			tcp_try_to_open(sk, flag);
 
 		tcp_identify_packet_loss(sk, ack_flag);
 		if (icsk->icsk_ca_state != TCP_CA_Recovery) {
@@ -3578,8 +3604,10 @@ static void tcp_snd_sne_update(struct tcp_sock *tp, u32 ack)
 
 	ao = rcu_dereference_protected(tp->ao_info,
 				       lockdep_sock_is_held((struct sock *)tp));
-	if (ao && ack < tp->snd_una)
+	if (ao && ack < tp->snd_una) {
 		ao->snd_sne++;
+		trace_tcp_ao_snd_sne_update((struct sock *)tp, ao->snd_sne);
+	}
 #endif
 }
 
@@ -3604,8 +3632,10 @@ static void tcp_rcv_sne_update(struct tcp_sock *tp, u32 seq)
 
 	ao = rcu_dereference_protected(tp->ao_info,
 				       lockdep_sock_is_held((struct sock *)tp));
-	if (ao && seq < tp->rcv_nxt)
+	if (ao && seq < tp->rcv_nxt) {
 		ao->rcv_sne++;
+		trace_tcp_ao_rcv_sne_update((struct sock *)tp, ao->rcv_sne);
+	}
 #endif
 }
 
@@ -4207,6 +4237,13 @@ void tcp_parse_options(const struct net *net,
 				 */
 				break;
 #endif
+#ifdef CONFIG_TCP_AO
+			case TCPOPT_AO:
+				/* TCP AO has already been checked
+				 * (see tcp_inbound_ao_hash()).
+				 */
+				break;
+#endif
 			case TCPOPT_FASTOPEN:
 				tcp_parse_fastopen_option(
 					opsize - TCPOLEN_FASTOPEN_BASE,
@@ -4436,9 +4473,26 @@ static enum skb_drop_reason tcp_sequence(const struct tcp_sock *tp,
 	return SKB_NOT_DROPPED_YET;
 }
 
+
+void tcp_done_with_error(struct sock *sk, int err)
+{
+	/* This barrier is coupled with smp_rmb() in tcp_poll() */
+	WRITE_ONCE(sk->sk_err, err);
+	smp_wmb();
+
+	tcp_write_queue_purge(sk);
+	tcp_done(sk);
+
+	if (!sock_flag(sk, SOCK_DEAD))
+		sk_error_report(sk);
+}
+EXPORT_SYMBOL(tcp_done_with_error);
+
 /* When we get a reset we do this. */
 void tcp_reset(struct sock *sk, struct sk_buff *skb)
 {
+	int err;
+
 	trace_tcp_receive_reset(sk);
 
 	/* mptcp can't tell us to ignore reset pkts,
@@ -4450,24 +4504,17 @@ void tcp_reset(struct sock *sk, struct sk_buff *skb)
 	/* We want the right error as BSD sees it (and indeed as we do). */
 	switch (sk->sk_state) {
 	case TCP_SYN_SENT:
-		WRITE_ONCE(sk->sk_err, ECONNREFUSED);
+		err = ECONNREFUSED;
 		break;
 	case TCP_CLOSE_WAIT:
-		WRITE_ONCE(sk->sk_err, EPIPE);
+		err = EPIPE;
 		break;
 	case TCP_CLOSE:
 		return;
 	default:
-		WRITE_ONCE(sk->sk_err, ECONNRESET);
+		err = ECONNRESET;
 	}
-	/* This barrier is coupled with smp_rmb() in tcp_poll() */
-	smp_wmb();
-
-	tcp_write_queue_purge(sk);
-	tcp_done(sk);
-
-	if (!sock_flag(sk, SOCK_DEAD))
-		sk_error_report(sk);
+	tcp_done_with_error(sk, err);
 }
 
 /*
@@ -4803,10 +4850,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 	if (TCP_SKB_CB(from)->seq != TCP_SKB_CB(to)->end_seq)
 		return false;
 
-	if (!mptcp_skb_can_collapse(to, from))
-		return false;
-
-	if (skb_cmp_decrypted(from, to))
+	if (!tcp_skb_can_collapse_rx(to, from))
 		return false;
 
 	if (!skb_try_coalesce(to, from, fragstolen, &delta))
@@ -4849,7 +4893,7 @@ static void tcp_drop_reason(struct sock *sk, struct sk_buff *skb,
 			    enum skb_drop_reason reason)
 {
 	sk_drops_add(sk, skb);
-	kfree_skb_reason(skb, reason);
+	sk_skb_reason_drop(sk, skb, reason);
 }
 
 /* This one checks to see if we can put data from the
@@ -5362,7 +5406,7 @@ restart:
 			break;
 		}
 
-		if (n && n != tail && mptcp_skb_can_collapse(skb, n) &&
+		if (n && n != tail && tcp_skb_can_collapse_rx(skb, n) &&
 		    TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(n)->seq) {
 			end_of_skbs = false;
 			break;
@@ -5413,10 +5457,8 @@ restart:
 				skb = tcp_collapse_one(sk, skb, list, root);
 				if (!skb ||
 				    skb == tail ||
-				    !mptcp_skb_can_collapse(nskb, skb) ||
+				    !tcp_skb_can_collapse_rx(nskb, skb) ||
 				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
-					goto end;
-				if (skb_cmp_decrypted(skb, nskb))
 					goto end;
 			}
 		}
@@ -5956,6 +5998,11 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 	 * RFC 5961 4.2 : Send a challenge ack
 	 */
 	if (th->syn) {
+		if (sk->sk_state == TCP_SYN_RECV && sk->sk_socket && th->ack &&
+		    TCP_SKB_CB(skb)->seq + 1 == TCP_SKB_CB(skb)->end_seq &&
+		    TCP_SKB_CB(skb)->seq + 1 == tp->rcv_nxt &&
+		    TCP_SKB_CB(skb)->ack_seq == tp->snd_nxt)
+			goto pass;
 syn_challenge:
 		if (syn_inerr)
 			TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
@@ -5965,6 +6012,7 @@ syn_challenge:
 		goto discard;
 	}
 
+pass:
 	bpf_skops_parse_hdr(sk, skb);
 
 	return true;
@@ -6295,7 +6343,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 			tp->fastopen_client_fail = TFO_DATA_NOT_ACKED;
 		skb_rbtree_walk_from(data)
 			 tcp_mark_skb_lost(sk, data);
-		tcp_xmit_retransmit_queue(sk);
+		tcp_non_congestion_loss_retransmit(sk);
 		NET_INC_STATS(sock_net(sk),
 				LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		return true;
@@ -6981,31 +7029,6 @@ static void tcp_openreq_init(struct request_sock *req,
 #endif
 }
 
-struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
-				      struct sock *sk_listener,
-				      bool attach_listener)
-{
-	struct request_sock *req = reqsk_alloc(ops, sk_listener,
-					       attach_listener);
-
-	if (req) {
-		struct inet_request_sock *ireq = inet_rsk(req);
-
-		ireq->ireq_opt = NULL;
-#if IS_ENABLED(CONFIG_IPV6)
-		ireq->pktopts = NULL;
-#endif
-		atomic64_set(&ireq->ir_cookie, 0);
-		ireq->ireq_state = TCP_NEW_SYN_RECV;
-		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
-		ireq->ireq_family = sk_listener->sk_family;
-		req->timeout = TCP_TIMEOUT_INIT;
-	}
-
-	return req;
-}
-EXPORT_SYMBOL(inet_reqsk_alloc);
-
 /*
  * Return true if a syncookie should be sent
  */
@@ -7256,7 +7279,12 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		tcp_rsk(req)->tfo_listener = false;
 		if (!want_cookie) {
 			req->timeout = tcp_timeout_init((struct sock *)req);
-			inet_csk_reqsk_queue_hash_add(sk, req, req->timeout);
+			if (unlikely(!inet_csk_reqsk_queue_hash_add(sk, req,
+								    req->timeout))) {
+				reqsk_free(req);
+				return 0;
+			}
+
 		}
 		af_ops->send_synack(sk, dst, &fl, req, &foc,
 				    !want_cookie ? TCP_SYNACK_NORMAL :

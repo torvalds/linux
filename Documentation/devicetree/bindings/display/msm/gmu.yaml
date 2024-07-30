@@ -23,6 +23,9 @@ properties:
       - items:
           - pattern: '^qcom,adreno-gmu-[67][0-9][0-9]\.[0-9]$'
           - const: qcom,adreno-gmu
+      - items:
+          - pattern: '^qcom,adreno-gmu-x[1-9][0-9][0-9]\.[0-9]$'
+          - const: qcom,adreno-gmu
       - const: qcom,adreno-gmu-wrapper
 
   reg:
@@ -225,6 +228,7 @@ allOf:
               - qcom,adreno-gmu-730.1
               - qcom,adreno-gmu-740.1
               - qcom,adreno-gmu-750.1
+              - qcom,adreno-gmu-x185.1
     then:
       properties:
         reg:

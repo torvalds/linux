@@ -130,7 +130,7 @@ struct sunxi_rsb {
 /* bus / slave device related functions */
 static const struct bus_type sunxi_rsb_bus;
 
-static int sunxi_rsb_device_match(struct device *dev, struct device_driver *drv)
+static int sunxi_rsb_device_match(struct device *dev, const struct device_driver *drv)
 {
 	return of_driver_match_device(dev, drv);
 }
@@ -457,7 +457,7 @@ static void regmap_sunxi_rsb_free_ctx(void *context)
 	kfree(ctx);
 }
 
-static struct regmap_bus regmap_sunxi_rsb = {
+static const struct regmap_bus regmap_sunxi_rsb = {
 	.reg_write = regmap_sunxi_rsb_reg_write,
 	.reg_read = regmap_sunxi_rsb_reg_read,
 	.free_context = regmap_sunxi_rsb_free_ctx,

@@ -811,4 +811,5 @@ module_exit(kyrofb_exit);
 #endif
 
 MODULE_AUTHOR("STMicroelectronics; Paul Mundt <lethal@linux-sh.org>");
+MODULE_DESCRIPTION("STG4000/Kyro/PowerVR 3 driver");
 MODULE_LICENSE("GPL");

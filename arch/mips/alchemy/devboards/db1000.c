@@ -10,15 +10,16 @@
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
-#include <linux/spi/ads7846.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
@@ -374,22 +375,20 @@ static struct platform_device db1100_mmc1_dev = {
 
 /******************************************************************************/
 
-static struct ads7846_platform_data db1100_touch_pd = {
-	.model		= 7846,
-	.vref_mv	= 3300,
+static const struct software_node db1100_alchemy2_gpiochip = {
+	.name	= "alchemy-gpio2",
 };
 
-static struct spi_gpio_platform_data db1100_spictl_pd = {
-	.num_chipselect = 1,
+static const struct property_entry db1100_ads7846_properties[] = {
+	PROPERTY_ENTRY_U16("ti,vref_min", 3300),
+	PROPERTY_ENTRY_GPIO("pendown-gpios",
+			    &db1100_alchemy2_gpiochip, 21, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table db1100_touch_gpio_table = {
-	.dev_id = "spi0.0",
-	.table = {
-		GPIO_LOOKUP("alchemy-gpio2", 21,
-			    "pendown", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct software_node db1100_ads7846_swnode = {
+	.name		= "ads7846",
+	.properties	= db1100_ads7846_properties,
 };
 
 static struct spi_board_info db1100_spi_info[] __initdata = {
@@ -400,37 +399,37 @@ static struct spi_board_info db1100_spi_info[] __initdata = {
 		.chip_select	 = 0,
 		.mode		 = 0,
 		.irq		 = AU1100_GPIO21_INT,
-		.platform_data	 = &db1100_touch_pd,
+		.swnode		 = &db1100_ads7846_swnode,
 	},
 };
 
-static struct platform_device db1100_spi_dev = {
-	.name		= "spi_gpio",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &db1100_spictl_pd,
-		.dma_mask		= &au1xxx_all_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
+static const struct spi_gpio_platform_data db1100_spictl_pd __initconst = {
+	.num_chipselect = 1,
 };
 
 /*
  * Alchemy GPIO 2 has its base at 200 so the GPIO lines
  * 207 thru 210 are GPIOs at offset 7 thru 10 at this chip.
  */
-static struct gpiod_lookup_table db1100_spi_gpiod_table = {
-	.dev_id         = "spi_gpio",
-	.table          = {
-		GPIO_LOOKUP("alchemy-gpio2", 9,
-			    "sck", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("alchemy-gpio2", 8,
-			    "mosi", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("alchemy-gpio2", 7,
-			    "miso", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("alchemy-gpio2", 10,
-			    "cs", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry db1100_spi_dev_properties[] __initconst = {
+	PROPERTY_ENTRY_GPIO("miso-gpios",
+			    &db1100_alchemy2_gpiochip, 7, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mosi-gpios",
+			    &db1100_alchemy2_gpiochip, 8, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("sck-gpios",
+			    &db1100_alchemy2_gpiochip, 9, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("cs-gpios",
+			    &db1100_alchemy2_gpiochip, 10, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct platform_device_info db1100_spi_dev_info __initconst = {
+	.name		= "spi_gpio",
+	.id		= 0,
+	.data		= &db1100_spictl_pd,
+	.size_data	= sizeof(db1100_spictl_pd),
+        .dma_mask	= DMA_BIT_MASK(32),
+	.properties	= db1100_spi_dev_properties,
 };
 
 static struct platform_device *db1x00_devs[] = {
@@ -452,8 +451,10 @@ int __init db1000_dev_setup(void)
 {
 	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	int c0, c1, d0, d1, s0, s1, flashsize = 32,  twosocks = 1;
+	int err;
 	unsigned long pfc;
 	struct clk *c, *p;
+	struct platform_device *spi_dev;
 
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
@@ -480,7 +481,7 @@ int __init db1000_dev_setup(void)
 		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
 		alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
-		gpiod_add_lookup_table(&db1100_touch_gpio_table);
+		software_node_register(&db1100_alchemy2_gpiochip);
 		spi_register_board_info(db1100_spi_info,
 					ARRAY_SIZE(db1100_spi_info));
 
@@ -497,8 +498,11 @@ int __init db1000_dev_setup(void)
 			clk_put(p);
 
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
-		gpiod_add_lookup_table(&db1100_spi_gpiod_table);
-		platform_device_register(&db1100_spi_dev);
+
+		spi_dev = platform_device_register_full(&db1100_spi_dev_info);
+		err = PTR_ERR_OR_ZERO(spi_dev);
+		if (err)
+			pr_err("failed to register SPI controller: %d\n", err);
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
 		c1 = AU1000_GPIO5_INT;

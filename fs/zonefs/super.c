@@ -662,6 +662,7 @@ static struct inode *zonefs_get_file_inode(struct inode *dir,
 	inode->i_op = &zonefs_file_inode_operations;
 	inode->i_fop = &zonefs_file_operations;
 	inode->i_mapping->a_ops = &zonefs_file_aops;
+	mapping_set_large_folios(inode->i_mapping);
 
 	/* Update the inode access rights depending on the zone condition */
 	zonefs_inode_update_mode(inode);

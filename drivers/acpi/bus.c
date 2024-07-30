@@ -329,6 +329,8 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_THERMAL))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
+	if (IS_ENABLED(CONFIG_ACPI_BATTERY))
+		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_BATTERY_CHARGE_LIMITING_SUPPORT;
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
@@ -1045,10 +1047,10 @@ EXPORT_SYMBOL(acpi_bus_unregister_driver);
                               ACPI Bus operations
    -------------------------------------------------------------------------- */
 
-static int acpi_bus_match(struct device *dev, struct device_driver *drv)
+static int acpi_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
+	const struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
 	return acpi_dev->flags.match_driver
 		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);

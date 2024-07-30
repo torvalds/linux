@@ -275,7 +275,8 @@ struct input_handle;
  *	it may not sleep
  * @events: event sequence handler. This method is being called by
  *	input core with interrupts disabled and dev->event_lock
- *	spinlock held and so it may not sleep
+ *	spinlock held and so it may not sleep. The method must return
+ *	number of events passed to it.
  * @filter: similar to @event; separates normal event handlers from
  *	"filters".
  * @match: called after comparing device's id with handler's id_table
@@ -312,8 +313,8 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	void (*events)(struct input_handle *handle,
-		       const struct input_value *vals, unsigned int count);
+	unsigned int (*events)(struct input_handle *handle,
+			       struct input_value *vals, unsigned int count);
 	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);

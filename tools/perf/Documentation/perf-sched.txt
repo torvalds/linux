@@ -64,8 +64,8 @@ There are several variants of 'perf sched':
     
    By default it shows the individual schedule events, including the wait
    time (time between sched-out and next sched-in events for the task), the
-   task scheduling delay (time between wakeup and actually running) and run
-   time for the task:
+   task scheduling delay (time between runnable and actually running) and
+   run time for the task:
     
                 time    cpu  task name             wait time  sch delay   run time
                              [tid/pid]                (msec)     (msec)     (msec)
@@ -129,6 +129,16 @@ OPTIONS for 'perf sched map'
 
 --color-pids::
 	Highlight the given pids.
+
+--task-name <task>::
+	Map output only for the given task name(s). Separate the
+	task names with a comma (without whitespace). The sched-out
+	time is printed and is represented by '*-' for the given
+	task name(s).
+	('-' indicates other tasks while '.' is idle).
+
+--fuzzy-name::
+	Given task name(s) can be partially matched (fuzzy matching).
 
 OPTIONS for 'perf sched timehist'
 ---------------------------------
@@ -201,6 +211,13 @@ OPTIONS for 'perf sched timehist'
 
 --state::
 	Show task state when it switched out.
+
+OPTIONS for 'perf sched replay'
+------------------------------
+
+-r::
+--repeat <n>::
+	repeat the workload n times (0: infinite). Default is 10.
 
 SEE ALSO
 --------

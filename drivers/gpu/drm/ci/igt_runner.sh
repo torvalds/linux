@@ -30,10 +30,10 @@ case "$DRIVER_NAME" in
             export IGT_FORCE_DRIVER="panfrost"
         fi
         ;;
-    amdgpu)
+    amdgpu|vkms)
         # Cannot use HWCI_KERNEL_MODULES as at that point we don't have the module in /lib
-        mv /install/modules/lib/modules/* /lib/modules/.
-        modprobe amdgpu
+        mv /install/modules/lib/modules/* /lib/modules/. || true
+        modprobe --first-time $DRIVER_NAME
         ;;
 esac
 
@@ -59,25 +59,26 @@ fi
 
 curl -L --retry 4 -f --retry-all-errors --retry-delay 60 -s ${FDO_HTTP_CACHE_URI:-}$PIPELINE_ARTIFACTS_BASE/$ARCH/igt.tar.gz | tar --zstd -v -x -C /
 
+TESTLIST="/igt/libexec/igt-gpu-tools/ci-testlist.txt"
 
 # If the job is parallel at the gitab job level, take the corresponding fraction
 # of the caselist.
 if [ -n "$CI_NODE_INDEX" ]; then
-    sed -ni $CI_NODE_INDEX~$CI_NODE_TOTAL"p" /install/testlist.txt
+    sed -ni $CI_NODE_INDEX~$CI_NODE_TOTAL"p" $TESTLIST
 fi
 
 # core_getversion checks if the driver is loaded and probed correctly
 # so run it in all shards
-if ! grep -q "core_getversion" /install/testlist.txt; then
+if ! grep -q "core_getversion" $TESTLIST; then
     # Add the line to the file
-    echo "core_getversion" >> /install/testlist.txt
+    echo "core_getversion" >> $TESTLIST
 fi
 
 set +e
 igt-runner \
     run \
     --igt-folder /igt/libexec/igt-gpu-tools \
-    --caselist /install/testlist.txt \
+    --caselist $TESTLIST \
     --output /results \
     $IGT_SKIPS \
     $IGT_FLAKES \

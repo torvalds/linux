@@ -894,7 +894,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ret = __media_pipeline_start(&asd->video_out.vdev.entity.pads[0], &asd->video_out.pipe);
 	mutex_unlock(&isp->media_dev.graph_mutex);
 	if (ret) {
-		dev_err(isp->dev, "Error starting mc pipline: %d\n", ret);
+		dev_err(isp->dev, "Error starting mc pipeline: %d\n", ret);
 		goto out_unlock;
 	}
 

@@ -1163,8 +1163,6 @@ struct net_device *gether_connect(struct gether *link)
 		if (netif_running(dev->net))
 			eth_start(dev, GFP_ATOMIC);
 
-		netif_device_attach(dev->net);
-
 	/* on error, disable any endpoints  */
 	} else {
 		(void) usb_ep_disable(link->out_ep);
@@ -1202,7 +1200,7 @@ void gether_disconnect(struct gether *link)
 
 	DBG(dev, "%s\n", __func__);
 
-	netif_device_detach(dev->net);
+	netif_stop_queue(dev->net);
 	netif_carrier_off(dev->net);
 
 	/* disable endpoints, forcing (synchronous) completion
@@ -1247,5 +1245,6 @@ void gether_disconnect(struct gether *link)
 }
 EXPORT_SYMBOL_GPL(gether_disconnect);
 
+MODULE_DESCRIPTION("Ethernet-over-USB link layer utilities for Gadget stack");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

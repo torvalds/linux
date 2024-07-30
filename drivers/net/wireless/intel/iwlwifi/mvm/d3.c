@@ -2493,6 +2493,9 @@ static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
 		return;
 	}
 
+	if (mvm->fast_resume)
+		return;
+
 	iwl_mvm_convert_key_counters_v5(status, &data->gtk[0].sc);
 	iwl_mvm_convert_gtk_v3(status, data->gtk);
 	iwl_mvm_convert_igtk(status, &data->igtk[0]);
@@ -3049,7 +3052,7 @@ static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 	if (iwl_mvm_rt_status(mvm->trans,
 			      mvm->trans->dbg.lmac_error_event_table[0],
 			      &err_id)) {
-		if (err_id == RF_KILL_INDICATOR_FOR_WOWLAN) {
+		if (err_id == RF_KILL_INDICATOR_FOR_WOWLAN && vif) {
 			struct cfg80211_wowlan_wakeup wakeup = {
 				.rfkill_release = true,
 			};
@@ -3366,7 +3369,7 @@ static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm, bool test)
 	return ret;
 }
 
-#define IWL_MVM_D3_NOTIF_TIMEOUT (HZ / 5)
+#define IWL_MVM_D3_NOTIF_TIMEOUT (HZ / 3)
 
 static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 				 struct iwl_d3_data *d3_data)
@@ -3377,12 +3380,22 @@ static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 		WIDE_ID(SCAN_GROUP, OFFLOAD_MATCH_INFO_NOTIF),
 		WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION)
 	};
+	static const u16 d3_fast_resume_notif[] = {
+		WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION)
+	};
 	struct iwl_notification_wait wait_d3_notif;
 	int ret;
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3_notif,
-				   d3_resume_notif, ARRAY_SIZE(d3_resume_notif),
-				   iwl_mvm_wait_d3_notif, d3_data);
+	if (mvm->fast_resume)
+		iwl_init_notification_wait(&mvm->notif_wait, &wait_d3_notif,
+					   d3_fast_resume_notif,
+					   ARRAY_SIZE(d3_fast_resume_notif),
+					   iwl_mvm_wait_d3_notif, d3_data);
+	else
+		iwl_init_notification_wait(&mvm->notif_wait, &wait_d3_notif,
+					   d3_resume_notif,
+					   ARRAY_SIZE(d3_resume_notif),
+					   iwl_mvm_wait_d3_notif, d3_data);
 
 	ret = iwl_mvm_resume_firmware(mvm, d3_data->test);
 	if (ret) {
@@ -3565,6 +3578,68 @@ void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	device_set_wakeup_enable(mvm->trans->dev, enabled);
+}
+
+void iwl_mvm_fast_suspend(struct iwl_mvm *mvm)
+{
+	struct iwl_d3_manager_config d3_cfg_cmd_data = {};
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	IWL_DEBUG_WOWLAN(mvm, "Starting fast suspend flow\n");
+
+	mvm->fast_resume = true;
+	set_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
+
+	WARN_ON(iwl_mvm_power_update_device(mvm));
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
+	ret = iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD, CMD_SEND_IN_D3,
+				   sizeof(d3_cfg_cmd_data), &d3_cfg_cmd_data);
+	if (ret)
+		IWL_ERR(mvm,
+			"fast suspend: couldn't send D3_CONFIG_CMD %d\n", ret);
+
+	WARN_ON(iwl_mvm_power_update_mac(mvm));
+
+	ret = iwl_trans_d3_suspend(mvm->trans, false, false);
+	if (ret)
+		IWL_ERR(mvm, "fast suspend: trans_d3_suspend failed %d\n", ret);
+}
+
+int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
+{
+	struct iwl_d3_data d3_data = {
+		.notif_expected =
+			IWL_D3_NOTIF_D3_END_NOTIF,
+	};
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	IWL_DEBUG_WOWLAN(mvm, "Starting the fast resume flow\n");
+
+	mvm->last_reset_or_resume_time_jiffies = jiffies;
+	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
+
+	if (iwl_mvm_check_rt_status(mvm, NULL)) {
+		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
+		iwl_mvm_dump_nic_error_log(mvm);
+		iwl_dbg_tlv_time_point(&mvm->fwrt,
+				       IWL_FW_INI_TIME_POINT_FW_ASSERT, NULL);
+		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
+					false, 0);
+		return -ENODEV;
+	}
+	ret = iwl_mvm_d3_notif_wait(mvm, &d3_data);
+	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
+	mvm->fast_resume = false;
+
+	if (ret)
+		IWL_ERR(mvm, "Couldn't get the d3 notif %d\n", ret);
+
+	return ret;
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS

@@ -17,13 +17,13 @@
 #define     UNIPHIER_I2C_DTRM_NACK	BIT(8)	/* do not return ACK */
 #define     UNIPHIER_I2C_DTRM_RD	BIT(0)	/* read transaction */
 #define UNIPHIER_I2C_DREC	0x04	/* RX register */
-#define     UNIPHIER_I2C_DREC_MST	BIT(14)	/* 1 = master, 0 = slave */
+#define     UNIPHIER_I2C_DREC_MST	BIT(14)	/* 1 = controller, 0 = target */
 #define     UNIPHIER_I2C_DREC_TX	BIT(13)	/* 1 = transmit, 0 = receive */
 #define     UNIPHIER_I2C_DREC_STS	BIT(12)	/* stop condition detected */
 #define     UNIPHIER_I2C_DREC_LRB	BIT(11)	/* no ACK */
 #define     UNIPHIER_I2C_DREC_LAB	BIT(9)	/* arbitration lost */
 #define     UNIPHIER_I2C_DREC_BBN	BIT(8)	/* bus not busy */
-#define UNIPHIER_I2C_MYAD	0x08	/* slave address */
+#define UNIPHIER_I2C_MYAD	0x08	/* local target address */
 #define UNIPHIER_I2C_CLK	0x0c	/* clock frequency control */
 #define UNIPHIER_I2C_BRST	0x10	/* bus reset */
 #define     UNIPHIER_I2C_BRST_FOEN	BIT(1)	/* normal operation */
@@ -152,8 +152,8 @@ static int uniphier_i2c_stop(struct i2c_adapter *adap)
 				      UNIPHIER_I2C_DTRM_NACK);
 }
 
-static int uniphier_i2c_master_xfer_one(struct i2c_adapter *adap,
-					struct i2c_msg *msg, bool stop)
+static int uniphier_i2c_xfer_one(struct i2c_adapter *adap,
+				 struct i2c_msg *msg, bool stop)
 {
 	bool is_read = msg->flags & I2C_M_RD;
 	bool recovery = false;
@@ -211,8 +211,7 @@ static int uniphier_i2c_check_bus_busy(struct i2c_adapter *adap)
 	return 0;
 }
 
-static int uniphier_i2c_master_xfer(struct i2c_adapter *adap,
-				    struct i2c_msg *msgs, int num)
+static int uniphier_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct i2c_msg *msg, *emsg = msgs + num;
 	int ret;
@@ -225,7 +224,7 @@ static int uniphier_i2c_master_xfer(struct i2c_adapter *adap,
 		/* Emit STOP if it is the last message or I2C_M_STOP is set. */
 		bool stop = (msg + 1 == emsg) || (msg->flags & I2C_M_STOP);
 
-		ret = uniphier_i2c_master_xfer_one(adap, msg, stop);
+		ret = uniphier_i2c_xfer_one(adap, msg, stop);
 		if (ret)
 			return ret;
 	}
@@ -239,7 +238,7 @@ static u32 uniphier_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm uniphier_i2c_algo = {
-	.master_xfer = uniphier_i2c_master_xfer,
+	.xfer = uniphier_i2c_xfer,
 	.functionality = uniphier_i2c_functionality,
 };
 

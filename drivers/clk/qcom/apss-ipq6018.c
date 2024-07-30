@@ -123,7 +123,7 @@ static int apss_ipq6018_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -ENODEV;
 
-	ret = qcom_cc_really_probe(pdev, &apss_ipq6018_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &apss_ipq6018_desc, regmap);
 	if (ret)
 		return ret;
 

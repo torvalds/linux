@@ -56,7 +56,6 @@ static int orangefs_writepage_locked(struct page *page,
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
 	    len, wr, NULL, NULL);
 	if (ret < 0) {
-		SetPageError(page);
 		mapping_set_error(page->mapping, ret);
 	} else {
 		ret = 0;
@@ -119,7 +118,6 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	    0, &wr, NULL, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
-			SetPageError(ow->pages[i]);
 			mapping_set_error(ow->pages[i]->mapping, ret);
 			if (PagePrivate(ow->pages[i])) {
 				wrp = (struct orangefs_write_range *)
@@ -303,15 +301,10 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_folio(folio);
-	if (ret < 0) {
-		folio_set_error(folio);
-	} else {
-		folio_mark_uptodate(folio);
+	if (ret > 0)
 		ret = 0;
-	}
-	/* unlock the folio after the ->read_folio() routine completes */
-	folio_unlock(folio);
-        return ret;
+	folio_end_read(folio, ret == 0);
+	return ret;
 }
 
 static int orangefs_write_begin(struct file *file,

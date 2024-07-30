@@ -2092,4 +2092,5 @@ subsys_initcall(rc_core_init);
 module_exit(rc_core_exit);
 
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Remote Controller core module");
 MODULE_LICENSE("GPL v2");

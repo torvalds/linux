@@ -48,4 +48,6 @@ static struct platform_driver clk_mt8186_mfg_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_mfg_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8186 GPU mfg clocks driver");
 MODULE_LICENSE("GPL");

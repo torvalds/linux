@@ -559,9 +559,7 @@ bool __init xive_native_init(void)
 	struct device_node *np;
 	struct resource r;
 	void __iomem *tima;
-	struct property *prop;
 	u8 max_prio = 7;
-	const __be32 *p;
 	u32 val, cpu;
 	s64 rc;
 
@@ -592,7 +590,7 @@ bool __init xive_native_init(void)
 		max_prio = val - 1;
 
 	/* Iterate the EQ sizes and pick one */
-	of_property_for_each_u32(np, "ibm,xive-eq-sizes", prop, p, val) {
+	of_property_for_each_u32(np, "ibm,xive-eq-sizes", val) {
 		xive_queue_shift = val;
 		if (val == PAGE_SHIFT)
 			break;

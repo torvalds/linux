@@ -213,9 +213,9 @@
 
 	pmu-3 {
 		compatible = "arm,dsu-pmu";
-		interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH 0>;
 		cpus = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>,
 		       <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+		interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
 	psci {
@@ -288,6 +288,8 @@
 			compatible = "google,gs101-mct",
 				     "samsung,exynos4210-mct";
 			reg = <0x10050000 0x800>;
+			clocks = <&ext_24_5m>, <&cmu_misc CLK_GOUT_MISC_MCT_PCLK>;
+			clock-names = "fin_pll", "mct";
 			interrupts = <GIC_SPI 753 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 754 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 755 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -300,17 +302,15 @@
 				     <GIC_SPI 762 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 763 IRQ_TYPE_LEVEL_HIGH 0>,
 				     <GIC_SPI 764 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&ext_24_5m>, <&cmu_misc CLK_GOUT_MISC_MCT_PCLK>;
-			clock-names = "fin_pll", "mct";
 		};
 
 		watchdog_cl0: watchdog@10060000 {
 			compatible = "google,gs101-wdt";
 			reg = <0x10060000 0x100>;
-			interrupts = <GIC_SPI 765 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&cmu_misc CLK_GOUT_MISC_WDT_CLUSTER0_PCLK>,
 				 <&ext_24_5m>;
 			clock-names = "watchdog", "watchdog_src";
+			interrupts = <GIC_SPI 765 IRQ_TYPE_LEVEL_HIGH 0>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			samsung,cluster-index = <0>;
 			status = "disabled";
@@ -319,10 +319,10 @@
 		watchdog_cl1: watchdog@10070000 {
 			compatible = "google,gs101-wdt";
 			reg = <0x10070000 0x100>;
-			interrupts = <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&cmu_misc CLK_GOUT_MISC_WDT_CLUSTER1_PCLK>,
 				 <&ext_24_5m>;
 			clock-names = "watchdog", "watchdog_src";
+			interrupts = <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH 0>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			samsung,cluster-index = <1>;
 			status = "disabled";
@@ -776,12 +776,12 @@
 				compatible = "google,gs101-hsi2c",
 					     "samsung,exynosautov9-hsi2c";
 				reg = <0x10970000 0xc0>;
-				interrupts = <GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PERIC0_TOP0_IPCLK_7>,
 					 <&cmu_peric0 CLK_GOUT_PERIC0_PERIC0_TOP0_PCLK_7>;
 				clock-names = "hsi2c", "hsi2c_pclk";
+				interrupts = <GIC_SPI 642 IRQ_TYPE_LEVEL_HIGH 0>;
 				pinctrl-0 = <&hsi2c8_bus>;
 				pinctrl-names = "default";
 				status = "disabled";
@@ -831,10 +831,10 @@
 			serial_0: serial@10a00000 {
 				compatible = "google,gs101-uart";
 				reg = <0x10a00000 0xc0>;
-				interrupts = <GIC_SPI 634 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PERIC0_TOP1_PCLK_0>,
 					 <&cmu_peric0 CLK_GOUT_PERIC0_PERIC0_TOP1_IPCLK_0>;
 				clock-names = "uart", "clk_uart_baud0";
+				interrupts = <GIC_SPI 634 IRQ_TYPE_LEVEL_HIGH 0>;
 				pinctrl-0 = <&uart0_bus>;
 				pinctrl-names = "default";
 				samsung,uart-fifosize = <256>;
@@ -1157,12 +1157,12 @@
 				compatible = "google,gs101-hsi2c",
 					     "samsung,exynosautov9-hsi2c";
 				reg = <0x10d50000 0xc0>;
-				interrupts = <GIC_SPI 655 IRQ_TYPE_LEVEL_HIGH 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_PERIC1_TOP0_IPCLK_5>,
 					 <&cmu_peric1 CLK_GOUT_PERIC1_PERIC1_TOP0_PCLK_5>;
 				clock-names = "hsi2c", "hsi2c_pclk";
+				interrupts = <GIC_SPI 655 IRQ_TYPE_LEVEL_HIGH 0>;
 				pinctrl-0 = <&hsi2c12_bus>;
 				pinctrl-names = "default";
 				status = "disabled";
@@ -1277,13 +1277,14 @@
 				 <&cmu_hsi0 CLK_GOUT_HSI0_UASC_HSI0_CTRL_PCLK>,
 				 <&cmu_hsi0 CLK_GOUT_HSI0_USB31DRD_I_USBDPPHY_SCL_APB_PCLK>;
 			clock-names = "phy", "ref", "ctrl_aclk", "ctrl_pclk", "scl_pclk";
-			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <1>;
+			samsung,pmu-syscon = <&pmu_system_controller>;
 			status = "disabled";
 		};
 
 		usbdrd31: usb@11110000 {
 			compatible = "google,gs101-dwusb3";
+			ranges = <0x0 0x11110000 0x10000>;
 			clocks = <&cmu_hsi0 CLK_GOUT_HSI0_USB31DRD_BUS_CLK_EARLY>,
 				<&cmu_hsi0 CLK_GOUT_HSI0_USB31DRD_I_USB31DRD_SUSPEND_CLK_26>,
 				<&cmu_hsi0 CLK_GOUT_HSI0_UASC_HSI0_LINK_ACLK>,
@@ -1291,14 +1292,13 @@
 			clock-names = "bus_early", "susp_clk", "link_aclk", "link_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x11110000 0x10000>;
 			status = "disabled";
 
 			usbdrd31_dwc3: usb@0 {
 				compatible = "snps,dwc3";
+				reg = <0x0 0x10000>;
 				clocks = <&cmu_hsi0 CLK_GOUT_HSI0_USB31DRD_I_USB31DRD_REF_CLK_40>;
 				clock-names = "ref";
-				reg = <0x0 0x10000>;
 				interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH 0>;
 				phys = <&usbdrd31_phy 0>, <&usbdrd31_phy 1>;
 				phy-names = "usb2-phy", "usb3-phy";

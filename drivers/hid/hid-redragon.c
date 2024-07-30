@@ -59,4 +59,5 @@ static struct hid_driver redragon_driver = {
 
 module_hid_driver(redragon_driver);
 
+MODULE_DESCRIPTION("HID driver for Redragon keyboards");
 MODULE_LICENSE("GPL");

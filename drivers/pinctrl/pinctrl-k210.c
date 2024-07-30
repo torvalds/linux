@@ -763,8 +763,6 @@ static int k210_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 					  unsigned int *reserved_maps,
 					  unsigned int *num_maps)
 {
-	struct property *prop;
-	const __be32 *p;
 	int ret, pinmux_groups;
 	u32 pinmux_group;
 	unsigned long *configs = NULL;
@@ -797,7 +795,7 @@ static int k210_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0)
 		goto exit;
 
-	of_property_for_each_u32(np, "pinmux", prop, p, pinmux_group) {
+	of_property_for_each_u32(np, "pinmux", pinmux_group) {
 		const char *group_name, *func_name;
 		u32 pin = FIELD_GET(K210_PG_PIN, pinmux_group);
 		u32 func = FIELD_GET(K210_PG_FUNC, pinmux_group);
@@ -849,7 +847,6 @@ static int k210_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				       unsigned int *num_maps)
 {
 	unsigned int reserved_maps;
-	struct device_node *np;
 	int ret;
 
 	reserved_maps = 0;
@@ -861,13 +858,11 @@ static int k210_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0)
 		goto err;
 
-	for_each_available_child_of_node(np_config, np) {
+	for_each_available_child_of_node_scoped(np_config, np) {
 		ret = k210_pinctrl_dt_subnode_to_map(pctldev, np, map,
 						     &reserved_maps, num_maps);
-		if (ret < 0) {
-			of_node_put(np);
+		if (ret < 0)
 			goto err;
-		}
 	}
 	return 0;
 

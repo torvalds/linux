@@ -38,3 +38,7 @@
 	 */
 	compatible = "qcom,sa8155p-rpmhpd";
 };
+
+&videocc {
+	power-domains = <&rpmhpd SA8155P_CX>;
+};

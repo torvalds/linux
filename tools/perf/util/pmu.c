@@ -848,6 +848,23 @@ __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 }
 
 /**
+ * Return the length of the PMU name not including the suffix for uncore PMUs.
+ *
+ * We want to deduplicate many similar uncore PMUs by stripping their suffixes,
+ * but there are never going to be too many core PMUs and the suffixes might be
+ * interesting. "arm_cortex_a53" vs "arm_cortex_a57" or "cpum_cf" for example.
+ *
+ * @skip_duplicate_pmus: False in verbose mode so all uncore PMUs are visible
+ */
+static size_t pmu_deduped_name_len(const struct perf_pmu *pmu, const char *name,
+				   bool skip_duplicate_pmus)
+{
+	return skip_duplicate_pmus && !pmu->is_core
+		? pmu_name_len_no_suffix(name)
+		: strlen(name);
+}
+
+/**
  * perf_pmu__match_ignoring_suffix - Does the pmu_name match tok ignoring any
  *                                   trailing suffix? The Suffix must be in form
  *                                   tok_{digits}, or tok{digits}.
@@ -856,25 +873,33 @@ __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
  */
 static bool perf_pmu__match_ignoring_suffix(const char *pmu_name, const char *tok)
 {
-	const char *p;
+	const char *p, *suffix;
+	bool has_hex = false;
 
 	if (strncmp(pmu_name, tok, strlen(tok)))
 		return false;
 
-	p = pmu_name + strlen(tok);
+	suffix = p = pmu_name + strlen(tok);
 	if (*p == 0)
 		return true;
 
-	if (*p == '_')
+	if (*p == '_') {
 		++p;
+		++suffix;
+	}
 
 	/* Ensure we end in a number */
 	while (1) {
-		if (!isdigit(*p))
+		if (!isxdigit(*p))
 			return false;
+		if (!has_hex)
+			has_hex = !isdigit(*p);
 		if (*(++p) == 0)
 			break;
 	}
+
+	if (has_hex)
+		return (p - suffix) > 2;
 
 	return true;
 }
@@ -1765,7 +1790,7 @@ size_t perf_pmu__num_events(struct perf_pmu *pmu)
 	size_t nr;
 
 	pmu_aliases_parse(pmu);
-	nr = pmu->sysfs_aliases + pmu->sys_json_aliases;;
+	nr = pmu->sysfs_aliases + pmu->sys_json_aliases;
 
 	if (pmu->cpu_aliases_added)
 		 nr += pmu->cpu_json_aliases;
@@ -1788,10 +1813,9 @@ static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
 			  const struct perf_pmu_alias *alias, bool skip_duplicate_pmus)
 {
 	struct parse_events_term *term;
-	int pmu_name_len = skip_duplicate_pmus
-		? pmu_name_len_no_suffix(pmu->name, /*num=*/NULL)
-		: (int)strlen(pmu->name);
-	int used = snprintf(buf, len, "%.*s/%s", pmu_name_len, pmu->name, alias->name);
+	size_t pmu_name_len = pmu_deduped_name_len(pmu, pmu->name,
+						   skip_duplicate_pmus);
+	int used = snprintf(buf, len, "%.*s/%s", (int)pmu_name_len, pmu->name, alias->name);
 
 	list_for_each_entry(term, &alias->terms.terms, list) {
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
@@ -1828,13 +1852,11 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 	pmu_aliases_parse(pmu);
 	pmu_add_cpu_aliases(pmu);
 	list_for_each_entry(event, &pmu->aliases, list) {
-		size_t buf_used;
-		int pmu_name_len;
+		size_t buf_used, pmu_name_len;
 
 		info.pmu_name = event->pmu_name ?: pmu->name;
-		pmu_name_len = skip_duplicate_pmus
-			? pmu_name_len_no_suffix(info.pmu_name, /*num=*/NULL)
-			: (int)strlen(info.pmu_name);
+		pmu_name_len = pmu_deduped_name_len(pmu, info.pmu_name,
+						    skip_duplicate_pmus);
 		info.alias = NULL;
 		if (event->desc) {
 			info.name = event->name;
@@ -1859,7 +1881,7 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 		info.encoding_desc = buf + buf_used;
 		parse_events_terms__to_strbuf(&event->terms, &sb);
 		buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
-				"%.*s/%s/", pmu_name_len, info.pmu_name, sb.buf) + 1;
+				"%.*s/%s/", (int)pmu_name_len, info.pmu_name, sb.buf) + 1;
 		info.topic = event->topic;
 		info.str = sb.buf;
 		info.deprecated = event->deprecated;
@@ -2143,7 +2165,7 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok)
 {
 	const char *name = pmu->name;
-	bool need_fnmatch = strchr(tok, '*') != NULL;
+	bool need_fnmatch = strisglob(tok);
 
 	if (!strncmp(tok, "uncore_", 7))
 		tok += 7;

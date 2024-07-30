@@ -85,12 +85,15 @@ properties:
           - const: mediatek,mt7629
       - items:
           - enum:
+              - cudy,wr3000-v1
+              - openwrt,one
               - xiaomi,ax3000t
           - const: mediatek,mt7981b
       - items:
           - enum:
               - acelink,ew-7886cax
               - bananapi,bpi-r3
+              - bananapi,bpi-r3mini
               - mediatek,mt7986a-rfb
           - const: mediatek,mt7986a
       - items:
@@ -293,6 +296,13 @@ properties:
           - const: google,tentacruel-sku327683
           - const: google,tentacruel
           - const: mediatek,mt8186
+      - description: Google Voltorb (Acer Chromebook 311 C723/C732T)
+        items:
+          - enum:
+              - google,voltorb-sku589824
+              - google,voltorb-sku589825
+          - const: google,voltorb
+          - const: mediatek,mt8186
       - items:
           - enum:
               - mediatek,mt8186-evb
@@ -342,6 +352,14 @@ properties:
           - const: google,tomato-rev3
           - const: google,tomato
           - const: mediatek,mt8195
+      - description: HP Dojo sku1, 3, 5, 7 (HP Chromebook x360 13b-ca0002sa)
+        items:
+          - const: google,dojo-sku7
+          - const: google,dojo-sku5
+          - const: google,dojo-sku3
+          - const: google,dojo-sku1
+          - const: google,dojo
+          - const: mediatek,mt8195
       - items:
           - enum:
               - mediatek,mt8195-demo
@@ -353,6 +371,12 @@ properties:
           - const: mediatek,mt8365
       - items:
           - enum:
+              - mediatek,mt8390-evk
+          - const: mediatek,mt8390
+          - const: mediatek,mt8188
+      - items:
+          - enum:
+              - kontron,3-5-sbc-i1200
               - mediatek,mt8395-evk
               - radxa,nio-12l
           - const: mediatek,mt8395

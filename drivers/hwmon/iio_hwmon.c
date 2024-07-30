@@ -33,6 +33,17 @@ struct iio_hwmon_state {
 	struct attribute **attrs;
 };
 
+static ssize_t iio_hwmon_read_label(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	struct iio_hwmon_state *state = dev_get_drvdata(dev);
+	struct iio_channel *chan = &state->channels[sattr->index];
+
+	return iio_read_channel_label(chan, buf);
+}
+
 /*
  * Assumes that IIO and hwmon operate in the same base units.
  * This is supposed to be true, but needs verification for
@@ -49,16 +60,17 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 	struct iio_channel *chan = &state->channels[sattr->index];
 	enum iio_chan_type type;
 
-	ret = iio_read_channel_processed(chan, &result);
-	if (ret < 0)
-		return ret;
-
 	ret = iio_get_channel_type(chan, &type);
 	if (ret < 0)
 		return ret;
 
 	if (type == IIO_POWER)
-		result *= 1000; /* mili-Watts to micro-Watts conversion */
+		/* mili-Watts to micro-Watts conversion */
+		ret = iio_read_channel_processed_scale(chan, &result, 1000);
+	else
+		ret = iio_read_channel_processed(chan, &result);
+	if (ret < 0)
+		return ret;
 
 	return sprintf(buf, "%d\n", result);
 }
@@ -68,12 +80,13 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct iio_hwmon_state *st;
 	struct sensor_device_attribute *a;
-	int ret, i;
+	int ret, i, attr = 0;
 	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1, power_i = 1;
 	enum iio_chan_type type;
 	struct iio_channel *channels;
 	struct device *hwmon_dev;
 	char *sname;
+	void *buf;
 
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
@@ -85,17 +98,18 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	}
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
-	if (st == NULL)
+	buf = (void *)devm_get_free_pages(dev, GFP_KERNEL, 0);
+	if (!st || !buf)
 		return -ENOMEM;
 
 	st->channels = channels;
 
-	/* count how many attributes we have */
+	/* count how many channels we have */
 	while (st->channels[st->num_channels].indio_dev)
 		st->num_channels++;
 
 	st->attrs = devm_kcalloc(dev,
-				 st->num_channels + 1, sizeof(*st->attrs),
+				 2 * st->num_channels + 1, sizeof(*st->attrs),
 				 GFP_KERNEL);
 	if (st->attrs == NULL)
 		return -ENOMEM;
@@ -147,8 +161,30 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		a->dev_attr.show = iio_hwmon_read_val;
 		a->dev_attr.attr.mode = 0444;
 		a->index = i;
-		st->attrs[i] = &a->dev_attr.attr;
+		st->attrs[attr++] = &a->dev_attr.attr;
+
+		/* Let's see if we have a label... */
+		if (iio_read_channel_label(&st->channels[i], buf) < 0)
+			continue;
+
+		a = devm_kzalloc(dev, sizeof(*a), GFP_KERNEL);
+		if (a == NULL)
+			return -ENOMEM;
+
+		sysfs_attr_init(&a->dev_attr.attr);
+		a->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+						       "%s%d_label",
+						       prefix, n);
+		if (!a->dev_attr.attr.name)
+			return -ENOMEM;
+
+		a->dev_attr.show = iio_hwmon_read_label;
+		a->dev_attr.attr.mode = 0444;
+		a->index = i;
+		st->attrs[attr++] = &a->dev_attr.attr;
 	}
+
+	devm_free_pages(dev, (unsigned long)buf);
 
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;

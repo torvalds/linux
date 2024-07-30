@@ -9,7 +9,6 @@
 
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
-#include "smp.h"
 
 static DEFINE_PER_CPU(struct xen_common_irq, xen_resched_irq) = { .irq = -1 };
 static DEFINE_PER_CPU(struct xen_common_irq, xen_callfunc_irq) = { .irq = -1 };

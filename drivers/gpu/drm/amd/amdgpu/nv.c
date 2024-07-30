@@ -59,7 +59,6 @@
 #include "vcn_v3_0.h"
 #include "jpeg_v3_0.h"
 #include "amdgpu_vkms.h"
-#include "mes_v10_1.h"
 #include "mxgpu_nv.h"
 #include "smuio_v11_0.h"
 #include "smuio_v11_0_6.h"
@@ -637,13 +636,9 @@ static const struct amdgpu_asic_funcs nv_asic_funcs = {
 
 static int nv_common_early_init(void *handle)
 {
-#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
-		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
-	}
+	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &amdgpu_device_indirect_rreg;

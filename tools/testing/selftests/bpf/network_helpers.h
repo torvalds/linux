@@ -21,16 +21,22 @@ typedef __u16 __sum16;
 #define VIP_NUM 5
 #define MAGIC_BYTES 123
 
-struct post_socket_opts {};
-
 struct network_helper_opts {
-	const char *cc;
 	int timeout_ms;
 	bool must_fail;
-	bool noconnect;
-	int type;
 	int proto;
-	int (*post_socket_cb)(int fd, const struct post_socket_opts *opts);
+	/* +ve: Passed to listen() as-is.
+	 *   0: Default when the test does not set
+	 *      a particular value during the struct init.
+	 *      It is changed to 1 before passing to listen().
+	 *      Most tests only have one on-going connection.
+	 * -ve: It is changed to 0 before passing to listen().
+	 *      It is useful to force syncookie without
+	 *	changing the "tcp_syncookies" sysctl from 1 to 2.
+	 */
+	int backlog;
+	int (*post_socket_cb)(int fd, void *opts);
+	void *cb_opts;
 };
 
 /* ipv4 test vector */
@@ -50,6 +56,8 @@ struct ipv6_packet {
 extern struct ipv6_packet pkt_v6;
 
 int settimeo(int fd, int timeout_ms);
+int start_server_str(int family, int type, const char *addr_str, __u16 port,
+		     const struct network_helper_opts *opts);
 int start_server(int family, int type, const char *addr, __u16 port,
 		 int timeout_ms);
 int *start_reuseport_server(int family, int type, const char *addr_str,
@@ -58,10 +66,12 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 int start_server_addr(int type, const struct sockaddr_storage *addr, socklen_t len,
 		      const struct network_helper_opts *opts);
 void free_fds(int *fds, unsigned int nr_close_fds);
+int client_socket(int family, int type,
+		  const struct network_helper_opts *opts);
 int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t len,
 		    const struct network_helper_opts *opts);
 int connect_to_fd(int server_fd, int timeout_ms);
-int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts);
+int connect_to_fd_opts(int server_fd, int type, const struct network_helper_opts *opts);
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms);
 int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
 		     int timeout_ms);

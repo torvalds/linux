@@ -27,10 +27,10 @@ static inline void clear_btree_node_dirty_acct(struct bch_fs *c, struct btree *b
 		atomic_dec(&c->btree_cache.dirty);
 }
 
-static inline unsigned btree_ptr_sectors_written(struct bkey_i *k)
+static inline unsigned btree_ptr_sectors_written(struct bkey_s_c k)
 {
-	return k->k.type == KEY_TYPE_btree_ptr_v2
-		? le16_to_cpu(bkey_i_to_btree_ptr_v2(k)->v.sectors_written)
+	return k.k->type == KEY_TYPE_btree_ptr_v2
+		? le16_to_cpu(bkey_s_c_to_btree_ptr_v2(k).v->sectors_written)
 		: 0;
 }
 

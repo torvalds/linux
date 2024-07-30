@@ -96,7 +96,7 @@ int io_getxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
 
-	ix->filename = getname_flags(path, LOOKUP_FOLLOW, NULL);
+	ix->filename = getname_flags(path, LOOKUP_FOLLOW);
 	if (IS_ERR(ix->filename)) {
 		ret = PTR_ERR(ix->filename);
 		ix->filename = NULL;
@@ -189,7 +189,7 @@ int io_setxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
 
-	ix->filename = getname_flags(path, LOOKUP_FOLLOW, NULL);
+	ix->filename = getname_flags(path, LOOKUP_FOLLOW);
 	if (IS_ERR(ix->filename)) {
 		ret = PTR_ERR(ix->filename);
 		ix->filename = NULL;

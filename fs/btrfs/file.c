@@ -17,8 +17,8 @@
 #include <linux/uio.h>
 #include <linux/iversion.h>
 #include <linux/fsverity.h>
-#include <linux/iomap.h>
 #include "ctree.h"
+#include "direct-io.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -1104,7 +1104,7 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 						   &cached_state);
 	}
 	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
-			NULL, NULL, NULL, nowait, false);
+			       NULL, nowait, false);
 	if (ret <= 0)
 		btrfs_drew_write_unlock(&root->snapshot_lock);
 	else
@@ -1140,8 +1140,7 @@ static void update_time_for_write(struct inode *inode)
 		inode_inc_iversion(inode);
 }
 
-static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
-			     size_t count)
+int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from, size_t count)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -1187,8 +1186,7 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 	return 0;
 }
 
-static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
-					       struct iov_iter *i)
+ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
@@ -1451,194 +1449,6 @@ out:
 	return num_written ? num_written : ret;
 }
 
-static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
-			       const struct iov_iter *iter, loff_t offset)
-{
-	const u32 blocksize_mask = fs_info->sectorsize - 1;
-
-	if (offset & blocksize_mask)
-		return -EINVAL;
-
-	if (iov_iter_alignment(iter) & blocksize_mask)
-		return -EINVAL;
-
-	return 0;
-}
-
-static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	loff_t pos;
-	ssize_t written = 0;
-	ssize_t written_buffered;
-	size_t prev_left = 0;
-	loff_t endbyte;
-	ssize_t ret;
-	unsigned int ilock_flags = 0;
-	struct iomap_dio *dio;
-
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		ilock_flags |= BTRFS_ILOCK_TRY;
-
-	/*
-	 * If the write DIO is within EOF, use a shared lock and also only if
-	 * security bits will likely not be dropped by file_remove_privs() called
-	 * from btrfs_write_check(). Either will need to be rechecked after the
-	 * lock was acquired.
-	 */
-	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) && IS_NOSEC(inode))
-		ilock_flags |= BTRFS_ILOCK_SHARED;
-
-relock:
-	ret = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
-	if (ret < 0)
-		return ret;
-
-	/* Shared lock cannot be used with security bits set. */
-	if ((ilock_flags & BTRFS_ILOCK_SHARED) && !IS_NOSEC(inode)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		ilock_flags &= ~BTRFS_ILOCK_SHARED;
-		goto relock;
-	}
-
-	ret = generic_write_checks(iocb, from);
-	if (ret <= 0) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		return ret;
-	}
-
-	ret = btrfs_write_check(iocb, from, ret);
-	if (ret < 0) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		goto out;
-	}
-
-	pos = iocb->ki_pos;
-	/*
-	 * Re-check since file size may have changed just before taking the
-	 * lock or pos may have changed because of O_APPEND in generic_write_check()
-	 */
-	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
-	    pos + iov_iter_count(from) > i_size_read(inode)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		ilock_flags &= ~BTRFS_ILOCK_SHARED;
-		goto relock;
-	}
-
-	if (check_direct_IO(fs_info, from, pos)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		goto buffered;
-	}
-
-	/*
-	 * The iov_iter can be mapped to the same file range we are writing to.
-	 * If that's the case, then we will deadlock in the iomap code, because
-	 * it first calls our callback btrfs_dio_iomap_begin(), which will create
-	 * an ordered extent, and after that it will fault in the pages that the
-	 * iov_iter refers to. During the fault in we end up in the readahead
-	 * pages code (starting at btrfs_readahead()), which will lock the range,
-	 * find that ordered extent and then wait for it to complete (at
-	 * btrfs_lock_and_flush_ordered_range()), resulting in a deadlock since
-	 * obviously the ordered extent can never complete as we didn't submit
-	 * yet the respective bio(s). This always happens when the buffer is
-	 * memory mapped to the same file range, since the iomap DIO code always
-	 * invalidates pages in the target file range (after starting and waiting
-	 * for any writeback).
-	 *
-	 * So here we disable page faults in the iov_iter and then retry if we
-	 * got -EFAULT, faulting in the pages before the retry.
-	 */
-	from->nofault = true;
-	dio = btrfs_dio_write(iocb, from, written);
-	from->nofault = false;
-
-	/*
-	 * iomap_dio_complete() will call btrfs_sync_file() if we have a dsync
-	 * iocb, and that needs to lock the inode. So unlock it before calling
-	 * iomap_dio_complete() to avoid a deadlock.
-	 */
-	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-
-	if (IS_ERR_OR_NULL(dio))
-		ret = PTR_ERR_OR_ZERO(dio);
-	else
-		ret = iomap_dio_complete(dio);
-
-	/* No increment (+=) because iomap returns a cumulative value. */
-	if (ret > 0)
-		written = ret;
-
-	if (iov_iter_count(from) > 0 && (ret == -EFAULT || ret > 0)) {
-		const size_t left = iov_iter_count(from);
-		/*
-		 * We have more data left to write. Try to fault in as many as
-		 * possible of the remainder pages and retry. We do this without
-		 * releasing and locking again the inode, to prevent races with
-		 * truncate.
-		 *
-		 * Also, in case the iov refers to pages in the file range of the
-		 * file we want to write to (due to a mmap), we could enter an
-		 * infinite loop if we retry after faulting the pages in, since
-		 * iomap will invalidate any pages in the range early on, before
-		 * it tries to fault in the pages of the iov. So we keep track of
-		 * how much was left of iov in the previous EFAULT and fallback
-		 * to buffered IO in case we haven't made any progress.
-		 */
-		if (left == prev_left) {
-			ret = -ENOTBLK;
-		} else {
-			fault_in_iov_iter_readable(from, left);
-			prev_left = left;
-			goto relock;
-		}
-	}
-
-	/*
-	 * If 'ret' is -ENOTBLK or we have not written all data, then it means
-	 * we must fallback to buffered IO.
-	 */
-	if ((ret < 0 && ret != -ENOTBLK) || !iov_iter_count(from))
-		goto out;
-
-buffered:
-	/*
-	 * If we are in a NOWAIT context, then return -EAGAIN to signal the caller
-	 * it must retry the operation in a context where blocking is acceptable,
-	 * because even if we end up not blocking during the buffered IO attempt
-	 * below, we will block when flushing and waiting for the IO.
-	 */
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		ret = -EAGAIN;
-		goto out;
-	}
-
-	pos = iocb->ki_pos;
-	written_buffered = btrfs_buffered_write(iocb, from);
-	if (written_buffered < 0) {
-		ret = written_buffered;
-		goto out;
-	}
-	/*
-	 * Ensure all data is persisted. We want the next direct IO read to be
-	 * able to read what was just written.
-	 */
-	endbyte = pos + written_buffered - 1;
-	ret = btrfs_fdatawrite_range(inode, pos, endbyte);
-	if (ret)
-		goto out;
-	ret = filemap_fdatawait_range(inode->i_mapping, pos, endbyte);
-	if (ret)
-		goto out;
-	written += written_buffered;
-	iocb->ki_pos = pos + written_buffered;
-	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_SHIFT,
-				 endbyte >> PAGE_SHIFT);
-out:
-	return ret < 0 ? ret : written;
-}
-
 static ssize_t btrfs_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			const struct btrfs_ioctl_encoded_io_args *encoded)
 {
@@ -1738,7 +1548,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
+static int start_ordered_ops(struct btrfs_inode *inode, loff_t start, loff_t end)
 {
 	int ret;
 	struct blk_plug plug;
@@ -1758,7 +1568,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 
 static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
 {
-	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
+	struct btrfs_inode *inode = ctx->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	if (btrfs_inode_in_log(inode, btrfs_get_fs_generation(fs_info)) &&
@@ -1794,9 +1604,9 @@ static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file_dentry(file);
-	struct inode *inode = d_inode(dentry);
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_log_ctx ctx;
 	int ret = 0, err;
@@ -1829,7 +1639,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		goto out;
 
-	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
+	btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
 
 	atomic_inc(&root->log_batch);
 
@@ -1853,7 +1663,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	ret = start_ordered_ops(inode, start, end);
 	if (ret) {
-		btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 		goto out;
 	}
 
@@ -1865,8 +1675,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * running delalloc the full sync flag may be set if we need to drop
 	 * extra extent map ranges due to temporary memory allocation failures.
 	 */
-	full_sync = test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-			     &BTRFS_I(inode)->runtime_flags);
+	full_sync = test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
 
 	/*
 	 * We have to do this here to avoid the priority inversion of waiting on
@@ -1885,16 +1694,15 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	if (full_sync || btrfs_is_zoned(fs_info)) {
 		ret = btrfs_wait_ordered_range(inode, start, len);
-		clear_bit(BTRFS_INODE_COW_WRITE_ERROR, &BTRFS_I(inode)->runtime_flags);
+		clear_bit(BTRFS_INODE_COW_WRITE_ERROR, &inode->runtime_flags);
 	} else {
 		/*
 		 * Get our ordered extents as soon as possible to avoid doing
 		 * checksum lookups in the csum tree, and use instead the
 		 * checksums attached to the ordered extents.
 		 */
-		btrfs_get_ordered_extents_for_logging(BTRFS_I(inode),
-						      &ctx.ordered_extents);
-		ret = filemap_fdatawait_range(inode->i_mapping, start, end);
+		btrfs_get_ordered_extents_for_logging(inode, &ctx.ordered_extents);
+		ret = filemap_fdatawait_range(inode->vfs_inode.i_mapping, start, end);
 		if (ret)
 			goto out_release_extents;
 
@@ -1907,8 +1715,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * extents to complete so that any extent maps that point to
 		 * unwritten locations are dropped and we don't log them.
 		 */
-		if (test_and_clear_bit(BTRFS_INODE_COW_WRITE_ERROR,
-				       &BTRFS_I(inode)->runtime_flags))
+		if (test_and_clear_bit(BTRFS_INODE_COW_WRITE_ERROR, &inode->runtime_flags))
 			ret = btrfs_wait_ordered_range(inode, start, len);
 	}
 
@@ -1923,8 +1730,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * modified so clear this flag in case it was set for whatever
 		 * reason, it's no longer relevant.
 		 */
-		clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-			  &BTRFS_I(inode)->runtime_flags);
+		clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
 		/*
 		 * An ordered extent might have started before and completed
 		 * already with io errors, in which case the inode was not
@@ -1932,7 +1738,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * for any errors that might have happened since we last
 		 * checked called fsync.
 		 */
-		ret = filemap_check_wb_err(inode->i_mapping, file->f_wb_err);
+		ret = filemap_check_wb_err(inode->vfs_inode.i_mapping, file->f_wb_err);
 		goto out_release_extents;
 	}
 
@@ -1982,7 +1788,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 
 	if (ret == BTRFS_NO_LOG_SYNC) {
 		ret = btrfs_end_transaction(trans);
@@ -2051,7 +1857,7 @@ out:
 
 out_release_extents:
 	btrfs_release_log_ctx_extents(&ctx);
-	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 	goto out;
 }
 
@@ -2350,11 +2156,9 @@ out:
 		hole_em->start = offset;
 		hole_em->len = end - offset;
 		hole_em->ram_bytes = hole_em->len;
-		hole_em->orig_start = offset;
 
-		hole_em->block_start = EXTENT_MAP_HOLE;
-		hole_em->block_len = 0;
-		hole_em->orig_block_len = 0;
+		hole_em->disk_bytenr = EXTENT_MAP_HOLE;
+		hole_em->disk_num_bytes = 0;
 		hole_em->generation = trans->transid;
 
 		ret = btrfs_replace_extent_map_range(inode, hole_em, true);
@@ -2385,7 +2189,7 @@ static int find_first_non_hole(struct btrfs_inode *inode, u64 *start, u64 *len)
 		return PTR_ERR(em);
 
 	/* Hole or vacuum extent(only exists in no-hole mode) */
-	if (em->block_start == EXTENT_MAP_HOLE) {
+	if (em->disk_bytenr == EXTENT_MAP_HOLE) {
 		ret = 1;
 		*len = em->start + em->len > *start + *len ?
 		       0 : *start + *len - em->start - em->len;
@@ -2814,7 +2618,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 
-	ret = btrfs_wait_ordered_range(inode, offset, len);
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), offset, len);
 	if (ret)
 		goto out_only_mutex;
 
@@ -3042,7 +2846,7 @@ static int btrfs_zero_range_check_range_boundary(struct btrfs_inode *inode,
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 
-	if (em->block_start == EXTENT_MAP_HOLE)
+	if (em->disk_bytenr == EXTENT_MAP_HOLE)
 		ret = RANGE_BOUNDARY_HOLE;
 	else if (em->flags & EXTENT_FLAG_PREALLOC)
 		ret = RANGE_BOUNDARY_PREALLOC_EXTENT;
@@ -3106,7 +2910,7 @@ static int btrfs_zero_range(struct inode *inode,
 		ASSERT(IS_ALIGNED(alloc_start, sectorsize));
 		len = offset + len - alloc_start;
 		offset = alloc_start;
-		alloc_hint = em->block_start + em->len;
+		alloc_hint = extent_map_block_start(em) + em->len;
 	}
 	free_extent_map(em);
 
@@ -3124,7 +2928,7 @@ static int btrfs_zero_range(struct inode *inode,
 							   mode);
 			goto out;
 		}
-		if (len < sectorsize && em->block_start != EXTENT_MAP_HOLE) {
+		if (len < sectorsize && em->disk_bytenr != EXTENT_MAP_HOLE) {
 			free_extent_map(em);
 			ret = btrfs_truncate_block(BTRFS_I(inode), offset, len,
 						   0);
@@ -3309,7 +3113,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 * the file range and, due to the previous locking we did, we know there
 	 * can't be more delalloc or ordered extents in the range.
 	 */
-	ret = btrfs_wait_ordered_range(inode, alloc_start,
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), alloc_start,
 				       alloc_end - alloc_start);
 	if (ret)
 		goto out;
@@ -3337,7 +3141,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		last_byte = min(extent_map_end(em), alloc_end);
 		actual_end = min_t(u64, extent_map_end(em), offset + len);
 		last_byte = ALIGN(last_byte, blocksize);
-		if (em->block_start == EXTENT_MAP_HOLE ||
+		if (em->disk_bytenr == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !(em->flags & EXTENT_FLAG_PREALLOC))) {
 			const u64 range_len = last_byte - cur_offset;
@@ -3920,97 +3724,6 @@ static int btrfs_file_open(struct inode *inode, struct file *filp)
 	return generic_file_open(inode, filp);
 }
 
-static int check_direct_read(struct btrfs_fs_info *fs_info,
-			     const struct iov_iter *iter, loff_t offset)
-{
-	int ret;
-	int i, seg;
-
-	ret = check_direct_IO(fs_info, iter, offset);
-	if (ret < 0)
-		return ret;
-
-	if (!iter_is_iovec(iter))
-		return 0;
-
-	for (seg = 0; seg < iter->nr_segs; seg++) {
-		for (i = seg + 1; i < iter->nr_segs; i++) {
-			const struct iovec *iov1 = iter_iov(iter) + seg;
-			const struct iovec *iov2 = iter_iov(iter) + i;
-
-			if (iov1->iov_base == iov2->iov_base)
-				return -EINVAL;
-		}
-	}
-	return 0;
-}
-
-static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
-{
-	struct inode *inode = file_inode(iocb->ki_filp);
-	size_t prev_left = 0;
-	ssize_t read = 0;
-	ssize_t ret;
-
-	if (fsverity_active(inode))
-		return 0;
-
-	if (check_direct_read(inode_to_fs_info(inode), to, iocb->ki_pos))
-		return 0;
-
-	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-again:
-	/*
-	 * This is similar to what we do for direct IO writes, see the comment
-	 * at btrfs_direct_write(), but we also disable page faults in addition
-	 * to disabling them only at the iov_iter level. This is because when
-	 * reading from a hole or prealloc extent, iomap calls iov_iter_zero(),
-	 * which can still trigger page fault ins despite having set ->nofault
-	 * to true of our 'to' iov_iter.
-	 *
-	 * The difference to direct IO writes is that we deadlock when trying
-	 * to lock the extent range in the inode's tree during he page reads
-	 * triggered by the fault in (while for writes it is due to waiting for
-	 * our own ordered extent). This is because for direct IO reads,
-	 * btrfs_dio_iomap_begin() returns with the extent range locked, which
-	 * is only unlocked in the endio callback (end_bio_extent_readpage()).
-	 */
-	pagefault_disable();
-	to->nofault = true;
-	ret = btrfs_dio_read(iocb, to, read);
-	to->nofault = false;
-	pagefault_enable();
-
-	/* No increment (+=) because iomap returns a cumulative value. */
-	if (ret > 0)
-		read = ret;
-
-	if (iov_iter_count(to) > 0 && (ret == -EFAULT || ret > 0)) {
-		const size_t left = iov_iter_count(to);
-
-		if (left == prev_left) {
-			/*
-			 * We didn't make any progress since the last attempt,
-			 * fallback to a buffered read for the remainder of the
-			 * range. This is just to avoid any possibility of looping
-			 * for too long.
-			 */
-			ret = read;
-		} else {
-			/*
-			 * We made some progress since the last retry or this is
-			 * the first time we are retrying. Fault in as many pages
-			 * as possible and retry.
-			 */
-			fault_in_iov_iter_writeable(to, left);
-			prev_left = left;
-			goto again;
-		}
-	}
-	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-	return ret < 0 ? ret : read;
-}
-
 static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	ssize_t ret = 0;
@@ -4045,8 +3758,9 @@ const struct file_operations btrfs_file_operations = {
 	.fop_flags	= FOP_BUFFER_RASYNC | FOP_BUFFER_WASYNC,
 };
 
-int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end)
+int btrfs_fdatawrite_range(struct btrfs_inode *inode, loff_t start, loff_t end)
 {
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	int ret;
 
 	/*
@@ -4063,10 +3777,9 @@ int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end)
 	 * know better and pull this out at some point in the future, it is
 	 * right and you are wrong.
 	 */
-	ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
-	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-			     &BTRFS_I(inode)->runtime_flags))
-		ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+	ret = filemap_fdatawrite_range(mapping, start, end);
+	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT, &inode->runtime_flags))
+		ret = filemap_fdatawrite_range(mapping, start, end);
 
 	return ret;
 }

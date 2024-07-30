@@ -1353,6 +1353,7 @@ ice_parse_tunnel_attr(struct net_device *dev, struct flow_rule *rule,
 		      struct ice_tc_flower_fltr *fltr)
 {
 	struct ice_tc_flower_lyr_2_4_hdrs *headers = &fltr->outer_headers;
+	struct netlink_ext_ack *extack = fltr->extack;
 	struct flow_match_control enc_control;
 
 	fltr->tunnel_type = ice_tc_tun_get_type(dev);
@@ -1372,6 +1373,9 @@ ice_parse_tunnel_attr(struct net_device *dev, struct flow_rule *rule,
 	}
 
 	flow_rule_match_enc_control(rule, &enc_control);
+
+	if (flow_rule_has_enc_control_flags(enc_control.mask->flags, extack))
+		return -EOPNOTSUPP;
 
 	if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 		struct flow_match_ipv4_addrs match;

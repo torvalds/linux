@@ -190,7 +190,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 		err = -EFAULT;
 		goto theend;
 	}
-	cet->t_key = cpu_to_le32(rctx->addr_key);
+	cet->t_key = desc_addr_val_le32(ce, rctx->addr_key);
 
 	ivsize = crypto_skcipher_ivsize(tfm);
 	if (areq->iv && crypto_skcipher_ivsize(tfm) > 0) {
@@ -208,7 +208,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 			err = -ENOMEM;
 			goto theend_iv;
 		}
-		cet->t_iv = cpu_to_le32(rctx->addr_iv);
+		cet->t_iv = desc_addr_val_le32(ce, rctx->addr_iv);
 	}
 
 	if (areq->src == areq->dst) {
@@ -236,7 +236,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 
 	len = areq->cryptlen;
 	for_each_sg(areq->src, sg, nr_sgs, i) {
-		cet->t_src[i].addr = cpu_to_le32(sg_dma_address(sg));
+		cet->t_src[i].addr = desc_addr_val_le32(ce, sg_dma_address(sg));
 		todo = min(len, sg_dma_len(sg));
 		cet->t_src[i].len = cpu_to_le32(todo / 4);
 		dev_dbg(ce->dev, "%s total=%u SG(%d %u off=%d) todo=%u\n", __func__,
@@ -251,7 +251,7 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 
 	len = areq->cryptlen;
 	for_each_sg(areq->dst, sg, nr_sgd, i) {
-		cet->t_dst[i].addr = cpu_to_le32(sg_dma_address(sg));
+		cet->t_dst[i].addr = desc_addr_val_le32(ce, sg_dma_address(sg));
 		todo = min(len, sg_dma_len(sg));
 		cet->t_dst[i].len = cpu_to_le32(todo / 4);
 		dev_dbg(ce->dev, "%s total=%u SG(%d %u off=%d) todo=%u\n", __func__,

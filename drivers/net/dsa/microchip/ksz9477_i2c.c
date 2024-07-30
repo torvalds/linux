@@ -72,8 +72,8 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ksz9477_i2c_id[] = {
-	{ "ksz9477-switch", 0 },
-	{},
+	{ "ksz9477-switch" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, ksz9477_i2c_id);

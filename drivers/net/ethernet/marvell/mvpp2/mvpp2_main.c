@@ -4014,7 +4014,10 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			}
 		}
 
-		skb = build_skb(data, frag_size);
+		if (frag_size)
+			skb = build_skb(data, frag_size);
+		else
+			skb = slab_build_skb(data);
 		if (!skb) {
 			netdev_warn(port->dev, "skb build failed\n");
 			goto err_drop_frame;
@@ -5256,7 +5259,7 @@ static int mvpp2_get_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
 }
 
 static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
-				     struct ethtool_ts_info *info)
+				     struct kernel_ethtool_ts_info *info)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
@@ -6904,6 +6907,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	/* 9704 == 9728 - 20 and rounding to 8 */
 	dev->max_mtu = MVPP2_BM_JUMBO_PKT_SIZE;
 	device_set_node(&dev->dev, port_fwnode);
+	dev->dev_port = port->id;
 
 	port->pcs_gmac.ops = &mvpp2_phylink_gmac_pcs_ops;
 	port->pcs_gmac.neg_mode = true;

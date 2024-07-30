@@ -254,13 +254,9 @@ static void virtbt_rx_done(struct virtqueue *vq)
 
 static int virtbt_probe(struct virtio_device *vdev)
 {
-	vq_callback_t *callbacks[VIRTBT_NUM_VQS] = {
-		[VIRTBT_VQ_TX] = virtbt_tx_done,
-		[VIRTBT_VQ_RX] = virtbt_rx_done,
-	};
-	const char *names[VIRTBT_NUM_VQS] = {
-		[VIRTBT_VQ_TX] = "tx",
-		[VIRTBT_VQ_RX] = "rx",
+	struct virtqueue_info vqs_info[VIRTBT_NUM_VQS] = {
+		[VIRTBT_VQ_TX] = { "tx", virtbt_tx_done },
+		[VIRTBT_VQ_RX] = { "rx", virtbt_rx_done },
 	};
 	struct virtio_bluetooth *vbt;
 	struct hci_dev *hdev;
@@ -288,8 +284,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 
 	INIT_WORK(&vbt->rx, virtbt_rx_work);
 
-	err = virtio_find_vqs(vdev, VIRTBT_NUM_VQS, vbt->vqs, callbacks,
-			      names, NULL);
+	err = virtio_find_vqs(vdev, VIRTBT_NUM_VQS, vbt->vqs, vqs_info, NULL);
 	if (err)
 		return err;
 

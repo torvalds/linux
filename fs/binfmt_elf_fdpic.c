@@ -394,7 +394,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 			goto error;
 		}
 
-		allow_write_access(interpreter);
 		fput(interpreter);
 		interpreter = NULL;
 	}
@@ -466,10 +465,8 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	retval = 0;
 
 error:
-	if (interpreter) {
-		allow_write_access(interpreter);
+	if (interpreter)
 		fput(interpreter);
-	}
 	kfree(interpreter_name);
 	kfree(exec_params.phdrs);
 	kfree(exec_params.loadmap);

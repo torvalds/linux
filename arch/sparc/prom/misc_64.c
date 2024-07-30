@@ -162,7 +162,7 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 	return 0xff;
 }
 
-int prom_get_mmu_ihandle(void)
+static int prom_get_mmu_ihandle(void)
 {
 	phandle node;
 	int ret;

@@ -249,6 +249,10 @@ struct dce_i2c_mask {
 	I2C_COMMON_MASK_SH_LIST_DCN30(mask_sh),\
 	I2C_SF(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN, mask_sh)
 
+#define I2C_COMMON_MASK_SH_LIST_DCN401(mask_sh)\
+	I2C_COMMON_MASK_SH_LIST_DCN30(mask_sh),\
+	I2C_SF(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN, mask_sh)
+
 struct dce_i2c_registers {
 	uint32_t SETUP;
 	uint32_t SPEED;

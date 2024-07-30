@@ -540,6 +540,16 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING
 
 	  If unsure, say N.
 
+config DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING
+	bool "Verity data device root hash signature verification with platform keyring"
+	default DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING
+	depends on DM_VERITY_VERIFY_ROOTHASH_SIG
+	depends on INTEGRITY_PLATFORM_KEYRING
+	help
+	  Rely also on the platform keyring to verify dm-verity signatures.
+
+	  If unsure, say N.
+
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY

@@ -7,6 +7,7 @@
 #include <linux/clkdev.h>
 #include <linux/dma-map-ops.h>
 #include <linux/init.h>
+#include <linux/platform_data/tmio.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -14,7 +15,6 @@
 #include <linux/memblock.h>
 #include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mfd/tmio.h>
 #include <linux/mtd/platnand.h>
 #include <linux/i2c.h>
 #include <linux/regulator/fixed.h>

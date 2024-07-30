@@ -1,4 +1,4 @@
-perf-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
+perf-util-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
 
 inat_tables_script = $(srctree)/tools/arch/x86/tools/gen-insn-attr-x86.awk
 inat_tables_maps = $(srctree)/tools/arch/x86/lib/x86-opcode-map.txt

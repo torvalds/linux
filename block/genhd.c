@@ -524,7 +524,7 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->part0->bd_dev = MKDEV(disk->major, disk->first_minor);
 	}
 
-	disk_update_readahead(disk);
+	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
 	disk_add_events(disk);
 	set_bit(GD_ADDED, &disk->state);
 	return 0;
@@ -663,12 +663,12 @@ void del_gendisk(struct gendisk *disk)
 	 */
 	if (!test_bit(GD_DEAD, &disk->state))
 		blk_report_disk_dead(disk, false);
-	__blk_mark_disk_dead(disk);
 
 	/*
 	 * Drop all partitions now that the disk is marked dead.
 	 */
 	mutex_lock(&disk->open_mutex);
+	__blk_mark_disk_dead(disk);
 	xa_for_each_start(&disk->part_tbl, idx, part, 1)
 		drop_partition(part);
 	mutex_unlock(&disk->open_mutex);

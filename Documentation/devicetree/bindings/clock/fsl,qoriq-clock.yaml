@@ -1,0 +1,207 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fsl,qoriq-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock Block on Freescale QorIQ Platforms
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description: |
+  Freescale QorIQ chips take primary clocking input from the external
+  SYSCLK signal. The SYSCLK input (frequency) is multiplied using
+  multiple phase locked loops (PLL) to create a variety of frequencies
+  which can then be passed to a variety of internal logic, including
+  cores and peripheral IP blocks.
+  Please refer to the Reference Manual for details.
+
+  All references to "1.0" and "2.0" refer to the QorIQ chassis version to
+  which the chip complies.
+
+  Chassis Version    Example Chips
+  ---------------    -------------
+       1.0          p4080, p5020, p5040
+       2.0          t4240
+
+  Clock Provider
+
+  The clockgen node should act as a clock provider, though in older device
+  trees the children of the clockgen node are the clock providers.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,p2041-clockgen
+              - fsl,p3041-clockgen
+              - fsl,p4080-clockgen
+              - fsl,p5020-clockgen
+              - fsl,p5040-clockgen
+          - const: fsl,qoriq-clockgen-1.0
+      - items:
+          - enum:
+              - fsl,t1023-clockgen
+              - fsl,t1024-clockgen
+              - fsl,t1040-clockgen
+              - fsl,t1042-clockgen
+              - fsl,t2080-clockgen
+              - fsl,t2081-clockgen
+              - fsl,t4240-clockgen
+          - const: fsl,qoriq-clockgen-2.0
+      - items:
+          - enum:
+              - fsl,b4420-clockgen
+              - fsl,b4860-clockgen
+          - const: fsl,b4-clockgen
+      - items:
+          - enum:
+              - fsl,ls1012a-clockgen
+              - fsl,ls1021a-clockgen
+              - fsl,ls1028a-clockgen
+              - fsl,ls1043a-clockgen
+              - fsl,ls1046a-clockgen
+              - fsl,ls1088a-clockgen
+              - fsl,ls2080a-clockgen
+              - fsl,lx2160a-clockgen
+
+  reg:
+    maxItems: 1
+
+  ranges: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  '#clock-cells':
+    const: 2
+    description: |
+      The first cell of the clock specifier is the clock type, and the
+      second cell is the clock index for the specified type.
+
+        Type#  Name       Index Cell
+        0  sysclk          must be 0
+        1  cmux            index (n in CLKCnCSR)
+        2  hwaccel         index (n in CLKCGnHWACSR)
+        3  fman            0 for fm1, 1 for fm2
+        4  platform pll    n=pll/(n+1). For example, when n=1,
+                          that means output_freq=PLL_freq/2.
+        5  coreclk         must be 0
+
+  clock-frequency:
+    description: Input system clock frequency (SYSCLK)
+
+  clocks:
+    items:
+      - description:
+          sysclk may be provided as an input clock.  Either clock-frequency
+          or clocks must be provided.
+      - description:
+          A second input clock, called "coreclk", may be provided if
+          core PLLs are based on a different input clock from the
+          platform PLL.
+    minItems: 1
+
+  clock-names:
+    items:
+      - const: sysclk
+      - const: coreclk
+
+patternProperties:
+  '^mux[0-9]@[a-f0-9]+$':
+    deprecated: true
+    $ref: fsl,qoriq-clock-legacy.yaml
+
+  '^sysclk(-[a-z0-9]+)?$':
+    deprecated: true
+    $ref: fsl,qoriq-clock-legacy.yaml
+
+  '^pll[0-9]@[a-f0-9]+$':
+    deprecated: true
+    $ref: fsl,qoriq-clock-legacy.yaml
+
+  '^platform\-pll@[a-f0-9]+$':
+    deprecated: true
+    $ref: fsl,qoriq-clock-legacy.yaml
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    /* clock provider example */
+    global-utilities@e1000 {
+        compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
+        reg = <0xe1000 0x1000>;
+        clock-frequency = <133333333>;
+        #clock-cells = <2>;
+    };
+
+  - |
+    /* Legacy example */
+    global-utilities@e1000 {
+        compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
+        reg = <0xe1000 0x1000>;
+        ranges = <0x0 0xe1000 0x1000>;
+        clock-frequency = <133333333>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        #clock-cells = <2>;
+
+        sysclk: sysclk {
+            compatible = "fsl,qoriq-sysclk-1.0";
+            clock-output-names = "sysclk";
+            #clock-cells = <0>;
+        };
+
+        pll0: pll0@800 {
+            compatible = "fsl,qoriq-core-pll-1.0";
+            reg = <0x800 0x4>;
+            #clock-cells = <1>;
+            clocks = <&sysclk>;
+            clock-output-names = "pll0", "pll0-div2";
+        };
+
+        pll1: pll1@820 {
+            compatible = "fsl,qoriq-core-pll-1.0";
+            reg = <0x820 0x4>;
+            #clock-cells = <1>;
+            clocks = <&sysclk>;
+            clock-output-names = "pll1", "pll1-div2";
+        };
+
+        mux0: mux0@0 {
+            compatible = "fsl,qoriq-core-mux-1.0";
+            reg = <0x0 0x4>;
+            #clock-cells = <0>;
+            clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+            clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+            clock-output-names = "cmux0";
+        };
+
+        mux1: mux1@20 {
+            compatible = "fsl,qoriq-core-mux-1.0";
+            reg = <0x20 0x4>;
+            #clock-cells = <0>;
+            clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+            clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+            clock-output-names = "cmux1";
+        };
+
+        platform-pll@c00 {
+            #clock-cells = <1>;
+            reg = <0xc00 0x4>;
+            compatible = "fsl,qoriq-platform-pll-1.0";
+            clocks = <&sysclk>;
+            clock-output-names = "platform-pll", "platform-pll-div2";
+        };
+    };

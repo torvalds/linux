@@ -987,5 +987,6 @@ static __exit void ndtest_exit(void)
 
 module_init(ndtest_init);
 module_exit(ndtest_exit);
+MODULE_DESCRIPTION("Test non-NFIT devices");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

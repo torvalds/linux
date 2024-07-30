@@ -77,6 +77,12 @@ struct test {
 	bool reuseport_has_conns; /* Add a connected socket to reuseport group */
 };
 
+struct cb_opts {
+	int family;
+	int sotype;
+	bool reuseport;
+};
+
 static __u32 duration;		/* for CHECK macro */
 
 static bool is_ipv6(const char *ip)
@@ -142,19 +148,14 @@ static int make_socket(int sotype, const char *ip, int port,
 	return fd;
 }
 
-static int make_server(int sotype, const char *ip, int port,
-		       struct bpf_program *reuseport_prog)
+static int setsockopts(int fd, void *opts)
 {
-	struct sockaddr_storage addr = {0};
+	struct cb_opts *co = (struct cb_opts *)opts;
 	const int one = 1;
-	int err, fd = -1;
-
-	fd = make_socket(sotype, ip, port, &addr);
-	if (fd < 0)
-		return -1;
+	int err = 0;
 
 	/* Enabled for UDPv6 sockets for IPv4-mapped IPv6 to work. */
-	if (sotype == SOCK_DGRAM) {
+	if (co->sotype == SOCK_DGRAM) {
 		err = setsockopt(fd, SOL_IP, IP_RECVORIGDSTADDR, &one,
 				 sizeof(one));
 		if (CHECK(err, "setsockopt(IP_RECVORIGDSTADDR)", "failed\n")) {
@@ -163,7 +164,7 @@ static int make_server(int sotype, const char *ip, int port,
 		}
 	}
 
-	if (sotype == SOCK_DGRAM && addr.ss_family == AF_INET6) {
+	if (co->sotype == SOCK_DGRAM && co->family == AF_INET6) {
 		err = setsockopt(fd, SOL_IPV6, IPV6_RECVORIGDSTADDR, &one,
 				 sizeof(one));
 		if (CHECK(err, "setsockopt(IPV6_RECVORIGDSTADDR)", "failed\n")) {
@@ -172,7 +173,7 @@ static int make_server(int sotype, const char *ip, int port,
 		}
 	}
 
-	if (sotype == SOCK_STREAM) {
+	if (co->sotype == SOCK_STREAM) {
 		err = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one,
 				 sizeof(one));
 		if (CHECK(err, "setsockopt(SO_REUSEADDR)", "failed\n")) {
@@ -181,7 +182,7 @@ static int make_server(int sotype, const char *ip, int port,
 		}
 	}
 
-	if (reuseport_prog) {
+	if (co->reuseport) {
 		err = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one,
 				 sizeof(one));
 		if (CHECK(err, "setsockopt(SO_REUSEPORT)", "failed\n")) {
@@ -190,19 +191,28 @@ static int make_server(int sotype, const char *ip, int port,
 		}
 	}
 
-	err = bind(fd, (void *)&addr, inetaddr_len(&addr));
-	if (CHECK(err, "bind", "failed\n")) {
-		log_err("failed to bind listen socket");
-		goto fail;
-	}
+fail:
+	return err;
+}
 
-	if (sotype == SOCK_STREAM) {
-		err = listen(fd, SOMAXCONN);
-		if (CHECK(err, "make_server", "listen")) {
-			log_err("failed to listen on port %d", port);
-			goto fail;
-		}
-	}
+static int make_server(int sotype, const char *ip, int port,
+		       struct bpf_program *reuseport_prog)
+{
+	struct cb_opts cb_opts = {
+		.family = is_ipv6(ip) ? AF_INET6 : AF_INET,
+		.sotype = sotype,
+		.reuseport = reuseport_prog,
+	};
+	struct network_helper_opts opts = {
+		.backlog	= SOMAXCONN,
+		.post_socket_cb = setsockopts,
+		.cb_opts	= &cb_opts,
+	};
+	int err, fd;
+
+	fd = start_server_str(cb_opts.family, sotype, ip, port, &opts);
+	if (!ASSERT_OK_FD(fd, "start_server_str"))
+		return -1;
 
 	/* Late attach reuseport prog so we can have one init path */
 	if (reuseport_prog) {
@@ -406,16 +416,10 @@ static int udp_recv_send(int server_fd)
 	}
 
 	/* Reply from original destination address. */
-	fd = socket(dst_addr->ss_family, SOCK_DGRAM, 0);
-	if (CHECK(fd < 0, "socket", "failed\n")) {
+	fd = start_server_addr(SOCK_DGRAM, dst_addr, sizeof(*dst_addr), NULL);
+	if (!ASSERT_OK_FD(fd, "start_server_addr")) {
 		log_err("failed to create tx socket");
 		return -1;
-	}
-
-	ret = bind(fd, (struct sockaddr *)dst_addr, sizeof(*dst_addr));
-	if (CHECK(ret, "bind", "failed\n")) {
-		log_err("failed to bind tx socket");
-		goto out;
 	}
 
 	msg.msg_control = NULL;
@@ -629,9 +633,6 @@ static void run_lookup_prog(const struct test *t)
 	 * BPF socket lookup.
 	 */
 	if (t->reuseport_has_conns) {
-		struct sockaddr_storage addr = {};
-		socklen_t len = sizeof(addr);
-
 		/* Add an extra socket to reuseport group */
 		reuse_conn_fd = make_server(t->sotype, t->listen_at.ip,
 					    t->listen_at.port,
@@ -639,12 +640,9 @@ static void run_lookup_prog(const struct test *t)
 		if (reuse_conn_fd < 0)
 			goto close;
 
-		/* Connect the extra socket to itself */
-		err = getsockname(reuse_conn_fd, (void *)&addr, &len);
-		if (CHECK(err, "getsockname", "errno %d\n", errno))
-			goto close;
-		err = connect(reuse_conn_fd, (void *)&addr, len);
-		if (CHECK(err, "connect", "errno %d\n", errno))
+		 /* Connect the extra socket to itself */
+		err = connect_fd_to_fd(reuse_conn_fd, reuse_conn_fd, 0);
+		if (!ASSERT_OK(err, "connect_fd_to_fd"))
 			goto close;
 	}
 
@@ -994,7 +992,7 @@ static void drop_on_reuseport(const struct test *t)
 
 	err = update_lookup_map(t->sock_map, SERVER_A, server1);
 	if (err)
-		goto detach;
+		goto close_srv1;
 
 	/* second server on destination address we should never reach */
 	server2 = make_server(t->sotype, t->connect_to.ip, t->connect_to.port,

@@ -822,6 +822,7 @@ static void __exit spufs_exit(void)
 }
 module_exit(spufs_exit);
 
+MODULE_DESCRIPTION("SPU file system");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
 

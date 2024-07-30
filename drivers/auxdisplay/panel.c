@@ -1706,7 +1706,6 @@ static struct parport_driver panel_driver = {
 	.name = "panel",
 	.match_port = panel_attach,
 	.detach = panel_detach,
-	.devmodel = true,
 };
 module_parport_driver(panel_driver);
 

@@ -26,9 +26,9 @@ static __always_inline unsigned int __arch_hweight32(unsigned int w)
 
 	asm (".option push\n"
 	     ".option arch,+zbb\n"
-	     CPOPW "%0, %0\n"
+	     CPOPW "%0, %1\n"
 	     ".option pop\n"
-	     : "+r" (w) : :);
+	     : "=r" (w) : "r" (w) :);
 
 	return w;
 
@@ -57,9 +57,9 @@ static __always_inline unsigned long __arch_hweight64(__u64 w)
 
 	asm (".option push\n"
 	     ".option arch,+zbb\n"
-	     "cpop %0, %0\n"
+	     "cpop %0, %1\n"
 	     ".option pop\n"
-	     : "+r" (w) : :);
+	     : "=r" (w) : "r" (w) :);
 
 	return w;
 

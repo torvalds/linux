@@ -176,9 +176,10 @@ allOf:
             Documentation/devicetree/bindings/phy/rockchip-pcie-phy.txt
 
       patternProperties:
-        "phy@[0-9a-f]+$":
-          description:
-            Documentation/devicetree/bindings/phy/rockchip-emmc-phy.txt
+        "^phy@[0-9a-f]+$":
+          type: object
+          $ref: /schemas/phy/rockchip,rk3399-emmc-phy.yaml#
+          unevaluatedProperties: false
 
   - if:
       properties:
@@ -289,6 +290,15 @@ examples:
                  <&cru PCLK_VIO_GRF>;
         clock-names = "dphy-ref", "dphy-cfg", "grf";
         power-domains = <&power RK3399_PD_VIO>;
+        #phy-cells = <0>;
+      };
+
+      phy@f780 {
+        compatible = "rockchip,rk3399-emmc-phy";
+        reg = <0xf780 0x20>;
+        clocks = <&sdhci>;
+        clock-names = "emmcclk";
+        drive-impedance-ohm = <50>;
         #phy-cells = <0>;
       };
 

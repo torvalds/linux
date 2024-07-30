@@ -64,7 +64,7 @@ struct greybus_driver {
 
 	struct device_driver driver;
 };
-#define to_greybus_driver(d) container_of(d, struct greybus_driver, driver)
+#define to_greybus_driver(d) container_of_const(d, struct greybus_driver, driver)
 
 static inline void greybus_set_drvdata(struct gb_bundle *bundle, void *data)
 {

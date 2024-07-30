@@ -72,15 +72,6 @@ struct xe_guc {
 		atomic_t stopped;
 		/** @submission_state.lock: protects submission state */
 		struct mutex lock;
-		/** @submission_state.suspend: suspend fence state */
-		struct {
-			/** @submission_state.suspend.lock: suspend fences lock */
-			spinlock_t lock;
-			/** @submission_state.suspend.context: suspend fences context */
-			u64 context;
-			/** @submission_state.suspend.seqno: suspend fences seqno */
-			u32 seqno;
-		} suspend;
 #ifdef CONFIG_PROVE_LOCKING
 #define NUM_SUBMIT_WQ	256
 		/** @submission_state.submit_wq_pool: submission ordered workqueues pool */

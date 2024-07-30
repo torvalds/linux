@@ -165,7 +165,7 @@ struct pt_alloc_ops {
 #endif
 };
 
-extern struct pt_alloc_ops pt_ops __initdata;
+extern struct pt_alloc_ops pt_ops __meminitdata;
 
 #ifdef CONFIG_MMU
 /* Number of PGD entries that a user-mode program can use */
@@ -350,6 +350,19 @@ static inline int pte_present(pte_t pte)
 	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
+#define pte_accessible pte_accessible
+static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
+{
+	if (pte_val(a) & _PAGE_PRESENT)
+		return true;
+
+	if ((pte_val(a) & _PAGE_PROT_NONE) &&
+	    atomic_read(&mm->tlb_flush_pending))
+		return true;
+
+	return false;
+}
+
 static inline int pte_none(pte_t pte)
 {
 	return (pte_val(pte) == 0);
@@ -390,6 +403,13 @@ static inline int pte_special(pte_t pte)
 	return pte_val(pte) & _PAGE_SPECIAL;
 }
 
+#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
+static inline int pte_devmap(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_DEVMAP;
+}
+#endif
+
 /* static inline pte_t pte_rdprotect(pte_t pte) */
 
 static inline pte_t pte_wrprotect(pte_t pte)
@@ -429,6 +449,11 @@ static inline pte_t pte_mkold(pte_t pte)
 static inline pte_t pte_mkspecial(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SPECIAL);
+}
+
+static inline pte_t pte_mkdevmap(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_DEVMAP);
 }
 
 static inline pte_t pte_mkhuge(pte_t pte)
@@ -489,8 +514,8 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 #define update_mmu_cache(vma, addr, ptep) \
 	update_mmu_cache_range(NULL, vma, addr, ptep, 1)
 
-#define __HAVE_ARCH_UPDATE_MMU_TLB
-#define update_mmu_tlb update_mmu_cache
+#define update_mmu_tlb_range(vma, addr, ptep, nr) \
+	update_mmu_cache_range(NULL, vma, addr, ptep, nr)
 
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 		unsigned long address, pmd_t *pmdp)
@@ -719,6 +744,11 @@ static inline pmd_t pmd_mkclean(pmd_t pmd)
 static inline pmd_t pmd_mkdirty(pmd_t pmd)
 {
 	return pte_pmd(pte_mkdirty(pmd_pte(pmd)));
+}
+
+static inline pmd_t pmd_mkdevmap(pmd_t pmd)
+{
+	return pte_pmd(pte_mkdevmap(pmd_pte(pmd)));
 }
 
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,

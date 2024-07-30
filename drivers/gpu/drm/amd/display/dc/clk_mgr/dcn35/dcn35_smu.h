@@ -198,4 +198,6 @@ int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr);
+void dcn35_smu_notify_host_router_bw(struct clk_mgr_internal *clk_mgr, uint32_t hr_id, uint32_t bw_kbps);
+
 #endif /* DAL_DC_35_SMU_H_ */

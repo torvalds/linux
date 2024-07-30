@@ -227,6 +227,7 @@ struct page_ext_operations page_alloc_tagging_ops = {
 };
 EXPORT_SYMBOL(page_alloc_tagging_ops);
 
+#ifdef CONFIG_SYSCTL
 static struct ctl_table memory_allocation_profiling_sysctls[] = {
 	{
 		.procname	= "mem_profiling",
@@ -238,8 +239,18 @@ static struct ctl_table memory_allocation_profiling_sysctls[] = {
 #endif
 		.proc_handler	= proc_do_static_key,
 	},
-	{ }
 };
+
+static void __init sysctl_init(void)
+{
+	if (!mem_profiling_support)
+		memory_allocation_profiling_sysctls[0].mode = 0444;
+
+	register_sysctl_init("vm", memory_allocation_profiling_sysctls);
+}
+#else /* CONFIG_SYSCTL */
+static inline void sysctl_init(void) {}
+#endif /* CONFIG_SYSCTL */
 
 static int __init alloc_tag_init(void)
 {
@@ -253,9 +264,7 @@ static int __init alloc_tag_init(void)
 	if (IS_ERR(alloc_tag_cttype))
 		return PTR_ERR(alloc_tag_cttype);
 
-	if (!mem_profiling_support)
-		memory_allocation_profiling_sysctls[0].mode = 0444;
-	register_sysctl_init("vm", memory_allocation_profiling_sysctls);
+	sysctl_init();
 	procfs_init();
 
 	return 0;

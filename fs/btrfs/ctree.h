@@ -221,9 +221,11 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t inode_lock;
-	/* red-black tree that keeps track of in-memory inodes */
-	struct rb_root inode_tree;
+	/*
+	 * Xarray that keeps track of in-memory inodes, protected by the lock
+	 * @inode_lock.
+	 */
+	struct xarray inodes;
 
 	/*
 	 * Xarray that keeps track of delayed nodes of every inode, protected
@@ -352,6 +354,16 @@ static inline int btrfs_get_root_last_log_commit(const struct btrfs_root *root)
 static inline void btrfs_set_root_last_log_commit(struct btrfs_root *root, int commit_id)
 {
 	WRITE_ONCE(root->last_log_commit, commit_id);
+}
+
+static inline u64 btrfs_get_root_last_trans(const struct btrfs_root *root)
+{
+	return READ_ONCE(root->last_trans);
+}
+
+static inline void btrfs_set_root_last_trans(struct btrfs_root *root, u64 transid)
+{
+	WRITE_ONCE(root->last_trans, transid);
 }
 
 /*

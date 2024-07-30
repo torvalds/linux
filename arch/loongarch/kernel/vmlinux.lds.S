@@ -113,6 +113,14 @@ SECTIONS
 		__rela_dyn_end = .;
 	}
 
+#ifdef CONFIG_RELR
+	.relr.dyn : ALIGN(8) {
+		__relr_dyn_begin = .;
+		 *(.relr.dyn)
+		__relr_dyn_end = .;
+	}
+#endif
+
 	.data.rel : { *(.data.rel*) }
 
 #ifdef CONFIG_RELOCATABLE

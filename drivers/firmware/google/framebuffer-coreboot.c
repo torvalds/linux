@@ -97,4 +97,5 @@ static struct coreboot_driver framebuffer_driver = {
 module_coreboot_driver(framebuffer_driver);
 
 MODULE_AUTHOR("Samuel Holland <samuel@sholland.org>");
+MODULE_DESCRIPTION("Memory based framebuffer accessed through coreboot table");
 MODULE_LICENSE("GPL");

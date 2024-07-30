@@ -297,6 +297,7 @@ void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac)
 		     mac[2] << 16 | mac[3] << 24));
 	regmap_write(miig_rt, offs[slice].mac1, (u32)(mac[4] | mac[5] << 8));
 }
+EXPORT_SYMBOL_GPL(icssg_class_set_mac_addr);
 
 static void icssg_class_ft1_add_mcast(struct regmap *miig_rt, int slice,
 				      int slot, const u8 *addr, const u8 *mask)
@@ -360,6 +361,7 @@ void icssg_class_disable(struct regmap *miig_rt, int slice)
 	/* clear CFG2 */
 	regmap_write(miig_rt, offs[slice].rx_class_cfg2, 0);
 }
+EXPORT_SYMBOL_GPL(icssg_class_disable);
 
 void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti,
 			 bool is_sr1)
@@ -390,6 +392,7 @@ void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti,
 	/* clear CFG2 */
 	regmap_write(miig_rt, offs[slice].rx_class_cfg2, 0);
 }
+EXPORT_SYMBOL_GPL(icssg_class_default);
 
 void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice)
 {
@@ -408,6 +411,7 @@ void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice)
 		regmap_write(miig_rt, offset, data);
 	}
 }
+EXPORT_SYMBOL_GPL(icssg_class_promiscuous_sr1);
 
 void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
 			       struct net_device *ndev)
@@ -449,6 +453,7 @@ void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
 		slot++;
 	}
 }
+EXPORT_SYMBOL_GPL(icssg_class_add_mcast_sr1);
 
 /* required for SAV check */
 void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr)
@@ -460,3 +465,4 @@ void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr)
 	rx_class_ft1_set_da_mask(miig_rt, slice, 0, mask_addr);
 	rx_class_ft1_cfg_set_type(miig_rt, slice, 0, FT1_CFG_TYPE_EQ);
 }
+EXPORT_SYMBOL_GPL(icssg_ft1_set_mac_addr);

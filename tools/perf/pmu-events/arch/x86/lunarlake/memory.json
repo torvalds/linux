@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 1024 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_1024",
@@ -14,6 +15,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 128 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_128",
@@ -27,6 +29,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 16 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_16",
@@ -40,6 +43,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 2048 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_2048",
@@ -53,6 +57,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 256 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_256",
@@ -66,6 +71,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 32 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_32",
@@ -79,6 +85,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 4 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4",
@@ -92,6 +99,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 512 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_512",
@@ -105,6 +113,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 64 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_64",
@@ -118,6 +127,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 8 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_8",
@@ -131,6 +141,7 @@
     },
     {
         "BriefDescription": "Retired memory store access operations. A PDist event for PEBS Store Latency Facility.",
+        "Counter": "0,1",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.STORE_SAMPLE",
@@ -142,6 +153,7 @@
     },
     {
         "BriefDescription": "Counts cacheable demand data reads were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -152,6 +164,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -162,6 +175,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership, including SWPREFETCHW which is an RFO were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -172,6 +186,7 @@
     },
     {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",

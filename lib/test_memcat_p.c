@@ -112,4 +112,5 @@ static void __exit test_memcat_p_exit(void)
 module_init(test_memcat_p_init);
 module_exit(test_memcat_p_exit);
 
+MODULE_DESCRIPTION("Test cases for memcat_p() in lib/memcat_p.c");
 MODULE_LICENSE("GPL");

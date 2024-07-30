@@ -95,7 +95,7 @@ static struct cpumask *rps_default_mask_cow_alloc(struct net *net)
 	return rps_default_mask;
 }
 
-static int rps_default_mask_sysctl(struct ctl_table *table, int write,
+static int rps_default_mask_sysctl(const struct ctl_table *table, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = (struct net *)table->data;
@@ -126,7 +126,7 @@ done:
 	return err;
 }
 
-static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
+static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int orig_size, size;
@@ -198,7 +198,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 #ifdef CONFIG_NET_FLOW_LIMIT
 static DEFINE_MUTEX(flow_limit_update_mutex);
 
-static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
+static int flow_limit_cpu_sysctl(const struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct sd_flow_limit *cur;
@@ -255,7 +255,7 @@ done:
 	return ret;
 }
 
-static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
+static int flow_limit_table_len_sysctl(const struct ctl_table *table, int write,
 				       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old, *ptr;
@@ -277,7 +277,7 @@ static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
 #endif /* CONFIG_NET_FLOW_LIMIT */
 
 #ifdef CONFIG_NET_SCHED
-static int set_default_qdisc(struct ctl_table *table, int write,
+static int set_default_qdisc(const struct ctl_table *table, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char id[IFNAMSIZ];
@@ -296,7 +296,7 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 }
 #endif
 
-static int proc_do_dev_weight(struct ctl_table *table, int write,
+static int proc_do_dev_weight(const struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	static DEFINE_MUTEX(dev_weight_mutex);
@@ -314,7 +314,7 @@ static int proc_do_dev_weight(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_do_rss_key(struct ctl_table *table, int write,
+static int proc_do_rss_key(const struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
@@ -327,7 +327,7 @@ static int proc_do_rss_key(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_BPF_JIT
-static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
+static int proc_dointvec_minmax_bpf_enable(const struct ctl_table *table, int write,
 					   void *buffer, size_t *lenp,
 					   loff_t *ppos)
 {
@@ -360,7 +360,7 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 
 # ifdef CONFIG_HAVE_EBPF_JIT
 static int
-proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+proc_dointvec_minmax_bpf_restricted(const struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
@@ -371,7 +371,7 @@ proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
 # endif /* CONFIG_HAVE_EBPF_JIT */
 
 static int
-proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+proc_dolongvec_minmax_bpf_restricted(const struct ctl_table *table, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
@@ -382,38 +382,6 @@ proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
 #endif
 
 static struct ctl_table net_core_table[] = {
-	{
-		.procname	= "wmem_max",
-		.data		= &sysctl_wmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
-	},
-	{
-		.procname	= "rmem_max",
-		.data		= &sysctl_rmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
-	},
-	{
-		.procname	= "wmem_default",
-		.data		= &sysctl_wmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
-	},
-	{
-		.procname	= "rmem_default",
-		.data		= &sysctl_rmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
-	},
 	{
 		.procname	= "mem_pcpu_rsv",
 		.data		= &net_hotdata.sysctl_mem_pcpu_rsv,
@@ -697,6 +665,41 @@ static struct ctl_table netns_core_table[] = {
 		.extra2		= SYSCTL_ONE,
 		.proc_handler	= proc_dou8vec_minmax,
 	},
+	/* sysctl_core_net_init() will set the values after this
+	 * to readonly in network namespaces
+	 */
+	{
+		.procname	= "wmem_max",
+		.data		= &sysctl_wmem_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_sndbuf,
+	},
+	{
+		.procname	= "rmem_max",
+		.data		= &sysctl_rmem_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_rcvbuf,
+	},
+	{
+		.procname	= "wmem_default",
+		.data		= &sysctl_wmem_default,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_sndbuf,
+	},
+	{
+		.procname	= "rmem_default",
+		.data		= &sysctl_rmem_default,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_rcvbuf,
+	},
 };
 
 static int __init fb_tunnels_only_for_init_net_sysctl_setup(char *str)
@@ -724,8 +727,14 @@ static __net_init int sysctl_core_net_init(struct net *net)
 		if (tbl == NULL)
 			goto err_dup;
 
-		for (i = 0; i < table_size; ++i)
+		for (i = 0; i < table_size; ++i) {
+			if (tbl[i].data == &sysctl_wmem_max)
+				break;
+
 			tbl[i].data += (char *)net - (char *)&init_net;
+		}
+		for (; i < table_size; ++i)
+			tbl[i].mode &= ~0222;
 	}
 
 	net->core.sysctl_hdr = register_net_sysctl_sz(net, "net/core", tbl, table_size);

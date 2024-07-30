@@ -142,7 +142,7 @@ static bool dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst,
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
-	uint32_t ramping_boundary = 0xFFFF;
+	uint8_t ramping_boundary = 0xFF;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
@@ -182,6 +182,12 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 	uint32_t otg_inst = pipe_ctx->stream_res.tg->inst;
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
+
+	// make a short term w/a for an issue that backlight ramping unexpectedly paused in the middle,
+	// will decouple backlight from ABM and redefine DMUB interface, then this w/a could be removed
+	if (pipe_ctx->stream->abm_level == 0 || pipe_ctx->stream->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
+		return;
+	}
 
 	if (dmcu) {
 		dce110_set_abm_immediate_disable(pipe_ctx);

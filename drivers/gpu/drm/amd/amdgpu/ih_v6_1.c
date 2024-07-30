@@ -535,6 +535,12 @@ static void ih_v6_1_set_self_irq_funcs(struct amdgpu_device *adev)
 static int ih_v6_1_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret;
+
+	ret = amdgpu_irq_add_domain(adev);
+	if (ret) {
+		return ret;
+	}
 
 	ih_v6_1_set_interrupt_funcs(adev);
 	ih_v6_1_set_self_irq_funcs(adev);

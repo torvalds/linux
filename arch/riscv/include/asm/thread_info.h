@@ -10,6 +10,7 @@
 
 #include <asm/page.h>
 #include <linux/const.h>
+#include <linux/sizes.h>
 
 /* thread information allocation */
 #define THREAD_SIZE_ORDER	CONFIG_THREAD_SIZE_ORDER

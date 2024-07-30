@@ -333,7 +333,7 @@ static void wf_sat_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wf_sat_id[] = {
-	{ "MAC,smu-sat", 0 },
+	{ "MAC,smu-sat" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wf_sat_id);

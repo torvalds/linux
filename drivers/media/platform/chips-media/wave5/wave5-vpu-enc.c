@@ -1247,7 +1247,7 @@ static int initialize_sequence(struct vpu_instance *inst)
 		__func__, initial_info.min_frame_buffer_count,
 		initial_info.min_src_frame_count);
 	inst->min_src_buf_count = initial_info.min_src_frame_count +
-				  COMMAND_QUEUE_DEPTH;
+				  WAVE521_COMMAND_QUEUE_DEPTH;
 
 	ctrl = v4l2_ctrl_find(&inst->v4l2_ctrl_hdl,
 			      V4L2_CID_MIN_BUFFERS_FOR_OUTPUT);

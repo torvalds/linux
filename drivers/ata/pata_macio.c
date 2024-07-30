@@ -816,7 +816,7 @@ static int pata_macio_device_configure(struct scsi_device *sdev,
 	/* OHare has issues with non cache aligned DMA on some chipsets */
 	if (priv->kind == controller_ohare) {
 		lim->dma_alignment = 31;
-		blk_queue_update_dma_pad(sdev->request_queue, 31);
+		lim->dma_pad_mask = 31;
 
 		/* Tell the world about it */
 		ata_dev_info(dev, "OHare alignment limits applied\n");
@@ -831,7 +831,7 @@ static int pata_macio_device_configure(struct scsi_device *sdev,
 	if (priv->kind == controller_sh_ata6 || priv->kind == controller_k2_ata6) {
 		/* Allright these are bad, apply restrictions */
 		lim->dma_alignment = 15;
-		blk_queue_update_dma_pad(sdev->request_queue, 15);
+		lim->dma_pad_mask = 15;
 
 		/* We enable MWI and hack cache line size directly here, this
 		 * is specific to this chipset and not normal values, we happen

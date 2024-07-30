@@ -686,7 +686,7 @@ int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
 	struct erofs_inode *const vi = EROFS_I(inode);
 	int err = 0;
 
-	trace_z_erofs_map_blocks_iter_enter(inode, map, flags);
+	trace_erofs_map_blocks_enter(inode, map, flags);
 
 	/* when trying to read beyond EOF, leave it unmapped */
 	if (map->m_la >= inode->i_size) {
@@ -711,7 +711,9 @@ int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
 
 	err = z_erofs_do_map_blocks(inode, map, flags);
 out:
-	trace_z_erofs_map_blocks_iter_exit(inode, map, flags, err);
+	if (err)
+		map->m_llen = 0;
+	trace_erofs_map_blocks_exit(inode, map, flags, err);
 	return err;
 }
 

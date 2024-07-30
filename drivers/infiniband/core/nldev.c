@@ -167,6 +167,9 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_STAT_HWCOUNTER_DYNAMIC] = { .type = NLA_U8 },
 	[RDMA_NLDEV_SYS_ATTR_PRIVILEGED_QKEY_MODE] = { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DRIVER_DETAILS]	= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_DEV_TYPE]		= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_PARENT_NAME]		= { .type = NLA_NUL_STRING },
+	[RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE]	= { .type = NLA_U8 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -299,6 +302,19 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->node_type))
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_DIM, device->use_cq_dim))
+		return -EMSGSIZE;
+
+	if (device->type &&
+	    nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_TYPE, device->type))
+		return -EMSGSIZE;
+
+	if (device->parent &&
+	    nla_put_string(msg, RDMA_NLDEV_ATTR_PARENT_NAME,
+			   dev_name(&device->parent->dev)))
+		return -EMSGSIZE;
+
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE,
+		       device->name_assign_type))
 		return -EMSGSIZE;
 
 	/*
@@ -2548,6 +2564,56 @@ err:
 	return ret;
 }
 
+static int nldev_newdev(struct sk_buff *skb, struct nlmsghdr *nlh,
+			struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	enum rdma_nl_dev_type type;
+	struct ib_device *parent;
+	char name[IFNAMSIZ] = {};
+	u32 parentid;
+	int ret;
+
+	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (ret || !tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
+		!tb[RDMA_NLDEV_ATTR_DEV_NAME] || !tb[RDMA_NLDEV_ATTR_DEV_TYPE])
+		return -EINVAL;
+
+	nla_strscpy(name, tb[RDMA_NLDEV_ATTR_DEV_NAME], sizeof(name));
+	type = nla_get_u8(tb[RDMA_NLDEV_ATTR_DEV_TYPE]);
+	parentid = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	parent = ib_device_get_by_index(sock_net(skb->sk), parentid);
+	if (!parent)
+		return -EINVAL;
+
+	ret = ib_add_sub_device(parent, type, name);
+	ib_device_put(parent);
+
+	return ret;
+}
+
+static int nldev_deldev(struct sk_buff *skb, struct nlmsghdr *nlh,
+			struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	struct ib_device *device;
+	u32 devid;
+	int ret;
+
+	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (ret || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
+		return -EINVAL;
+
+	devid = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(sock_net(skb->sk), devid);
+	if (!device)
+		return -EINVAL;
+
+	return ib_del_sub_device_and_put(device);
+}
+
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
@@ -2645,6 +2711,14 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	},
 	[RDMA_NLDEV_CMD_STAT_GET_STATUS] = {
 		.doit = nldev_stat_get_counter_status_doit,
+	},
+	[RDMA_NLDEV_CMD_NEWDEV] = {
+		.doit = nldev_newdev,
+		.flags = RDMA_NL_ADMIN_PERM,
+	},
+	[RDMA_NLDEV_CMD_DELDEV] = {
+		.doit = nldev_deldev,
+		.flags = RDMA_NL_ADMIN_PERM,
 	},
 };
 

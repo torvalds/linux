@@ -22,7 +22,7 @@ static const struct kobj_type xe_tile_sysfs_kobj_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static void tile_sysfs_fini(struct drm_device *drm, void *arg)
+static void tile_sysfs_fini(void *arg)
 {
 	struct xe_tile *tile = arg;
 
@@ -55,5 +55,5 @@ int xe_tile_sysfs_init(struct xe_tile *tile)
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, tile_sysfs_fini, tile);
+	return devm_add_action_or_reset(xe->drm.dev, tile_sysfs_fini, tile);
 }

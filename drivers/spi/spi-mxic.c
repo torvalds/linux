@@ -496,7 +496,7 @@ static int mxic_spi_mem_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct mxic_spi *mxic = spi_controller_get_devdata(desc->mem->spi->controller);
 
 	if (!mxic->linear.map)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (desc->info.offset + desc->info.length > U32_MAX)
 		return -EINVAL;

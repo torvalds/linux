@@ -165,7 +165,7 @@ static struct serio *parkbd_allocate_serio(void)
 {
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (serio) {
 		serio->id.type = parkbd_mode;
 		serio->write = parkbd_write;
@@ -218,6 +218,5 @@ static struct parport_driver parkbd_parport_driver = {
 	.name = "parkbd",
 	.match_port = parkbd_attach,
 	.detach = parkbd_detach,
-	.devmodel = true,
 };
 module_parport_driver(parkbd_parport_driver);

@@ -1002,7 +1002,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 
 	if (stream->ctx->dc->caps.max_v_total != 0 && stream->timing.h_total != 0) {
 		min_hardware_refresh_in_uhz = div64_u64((stream->timing.pix_clk_100hz * 100000000ULL),
-			(stream->timing.h_total * stream->ctx->dc->caps.max_v_total));
+			(stream->timing.h_total * (long long)stream->ctx->dc->caps.max_v_total));
 	}
 	/* Limit minimum refresh rate to what can be supported by hardware */
 	min_refresh_in_uhz = min_hardware_refresh_in_uhz > in_config->min_refresh_in_uhz ?

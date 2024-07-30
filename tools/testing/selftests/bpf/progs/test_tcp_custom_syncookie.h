@@ -7,8 +7,6 @@
 #define __packed __attribute__((__packed__))
 #define __force
 
-#define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
-
 #define swap(a, b)				\
 	do {					\
 		typeof(a) __tmp = (a);		\

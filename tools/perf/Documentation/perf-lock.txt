@@ -111,11 +111,11 @@ INFO OPTIONS
 
 -t::
 --threads::
-	dump thread list in perf.data
+	dump only the thread list in perf.data
 
 -m::
 --map::
-	dump map of lock instances (address:name table)
+	dump only the map of lock instances (address:name table)
 
 
 CONTENTION OPTIONS

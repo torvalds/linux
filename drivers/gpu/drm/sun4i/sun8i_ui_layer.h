@@ -47,21 +47,9 @@
 #define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_ALPHA_MODE_COMBINED	((2) << 1)
 
 struct sun8i_mixer;
+struct sun8i_layer;
 
-struct sun8i_ui_layer {
-	struct drm_plane	plane;
-	struct sun8i_mixer	*mixer;
-	int			channel;
-	int			overlay;
-};
-
-static inline struct sun8i_ui_layer *
-plane_to_sun8i_ui_layer(struct drm_plane *plane)
-{
-	return container_of(plane, struct sun8i_ui_layer, plane);
-}
-
-struct sun8i_ui_layer *sun8i_ui_layer_init_one(struct drm_device *drm,
-					       struct sun8i_mixer *mixer,
-					       int index);
+struct sun8i_layer *sun8i_ui_layer_init_one(struct drm_device *drm,
+					    struct sun8i_mixer *mixer,
+					    int index);
 #endif /* _SUN8I_UI_LAYER_H_ */

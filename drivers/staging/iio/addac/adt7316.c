@@ -209,15 +209,6 @@ struct adt7316_chip_info {
 #define ADT7316_TEMP_AIN_INT_MASK	\
 	(ADT7316_TEMP_INT_MASK)
 
-/*
- * struct adt7316_chip_info - chip specific information
- */
-
-struct adt7316_limit_regs {
-	u16	data_high;
-	u16	data_low;
-};
-
 static ssize_t adt7316_show_enabled(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)

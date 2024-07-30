@@ -43,6 +43,7 @@
 
 #define SCFTORTOUT_ERRSTRING(s, x...) pr_alert(SCFTORT_FLAG "!!! " s "\n", ## x)
 
+MODULE_DESCRIPTION("Torture tests on the smp_call_function() family of primitives");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@kernel.org>");
 
@@ -67,7 +68,7 @@ torture_param(int, weight_many_wait, -1, "Testing weight for multi-CPU operation
 torture_param(int, weight_all, -1, "Testing weight for all-CPU no-wait operations.");
 torture_param(int, weight_all_wait, -1, "Testing weight for all-CPU operations.");
 
-char *torture_type = "";
+static char *torture_type = "";
 
 #ifdef MODULE
 # define SCFTORT_SHUTDOWN 0

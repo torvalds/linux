@@ -726,4 +726,5 @@ MODULE_PARM_DESC(aperture,
 		 "\t\tDefault: " DEFAULT_APERTURE_STRING "M");
 
 MODULE_AUTHOR("Ben Herrenschmidt & Paul Mackerras");
+MODULE_DESCRIPTION("Apple UniNorth & U3 AGP support");
 MODULE_LICENSE("GPL");

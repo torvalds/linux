@@ -57,20 +57,20 @@ static struct clk_fixed_factor gpll0_div = {
 	},
 };
 
-static struct pll_vco mmpll_p_vco[] = {
+static const struct pll_vco mmpll_p_vco[] = {
 	{ 250000000, 500000000, 3 },
 	{ 500000000, 1000000000, 2 },
 	{ 1000000000, 1500000000, 1 },
 	{ 1500000000, 2000000000, 0 },
 };
 
-static struct pll_vco mmpll_gfx_vco[] = {
+static const struct pll_vco mmpll_gfx_vco[] = {
 	{ 400000000, 1000000000, 2 },
 	{ 1000000000, 1500000000, 1 },
 	{ 1500000000, 2000000000, 0 },
 };
 
-static struct pll_vco mmpll_t_vco[] = {
+static const struct pll_vco mmpll_t_vco[] = {
 	{ 500000000, 1500000000, 0 },
 };
 
@@ -3626,7 +3626,7 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	/* Disable the NoC FSM for mmss_mmagic_cfg_ahb_clk */
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
 
-	return qcom_cc_really_probe(pdev, &mmcc_msm8996_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &mmcc_msm8996_desc, regmap);
 }
 
 static struct platform_driver mmcc_msm8996_driver = {

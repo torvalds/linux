@@ -1151,8 +1151,8 @@ static struct parport_driver ppa_driver = {
 	.name		= "ppa",
 	.match_port	= ppa_attach,
 	.detach		= ppa_detach,
-	.devmodel	= true,
 };
 module_parport_driver(ppa_driver);
 
+MODULE_DESCRIPTION("IOMEGA PPA3 parallel port SCSI host adapter driver");
 MODULE_LICENSE("GPL");

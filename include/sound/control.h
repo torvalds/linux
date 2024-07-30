@@ -81,7 +81,7 @@ struct snd_kcontrol {
 	unsigned long private_value;
 	void *private_data;
 	void (*private_free)(struct snd_kcontrol *kcontrol);
-	struct snd_kcontrol_volatile vd[];	/* volatile data */
+	struct snd_kcontrol_volatile vd[] __counted_by(count);	/* volatile data */
 };
 
 #define snd_kcontrol(n) list_entry(n, struct snd_kcontrol, list)

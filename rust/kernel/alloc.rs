@@ -20,6 +20,13 @@ pub struct AllocError;
 #[derive(Clone, Copy)]
 pub struct Flags(u32);
 
+impl Flags {
+    /// Get the raw representation of this flag.
+    pub(crate) fn as_raw(self) -> u32 {
+        self.0
+    }
+}
+
 impl core::ops::BitOr for Flags {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -52,6 +59,14 @@ pub mod flags {
     /// This is normally or'd with other flags.
     pub const __GFP_ZERO: Flags = Flags(bindings::__GFP_ZERO);
 
+    /// Allow the allocation to be in high memory.
+    ///
+    /// Allocations in high memory may not be mapped into the kernel's address space, so this can't
+    /// be used with `kmalloc` and other similar methods.
+    ///
+    /// This is normally or'd with other flags.
+    pub const __GFP_HIGHMEM: Flags = Flags(bindings::__GFP_HIGHMEM);
+
     /// Users can not sleep and need the allocation to succeed.
     ///
     /// A lower watermark is applied to allow access to "atomic reserves". The current
@@ -66,7 +81,7 @@ pub mod flags {
     /// The same as [`GFP_KERNEL`], except the allocation is accounted to kmemcg.
     pub const GFP_KERNEL_ACCOUNT: Flags = Flags(bindings::GFP_KERNEL_ACCOUNT);
 
-    /// Ror kernel allocations that should not stall for direct reclaim, start physical IO or
+    /// For kernel allocations that should not stall for direct reclaim, start physical IO or
     /// use any filesystem callback.  It is very likely to fail to allocate memory, even for very
     /// small allocations.
     pub const GFP_NOWAIT: Flags = Flags(bindings::GFP_NOWAIT);

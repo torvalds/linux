@@ -750,6 +750,8 @@ static void enable_phantom_plane(struct dml2_context *ctx,
 					ctx->config.svp_pstate.callbacks.dc,
 					state,
 					curr_pipe->plane_state);
+			if (!phantom_plane)
+				return;
 		}
 
 		memcpy(&phantom_plane->address, &curr_pipe->plane_state->address, sizeof(phantom_plane->address));

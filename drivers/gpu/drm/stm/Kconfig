@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_STM
 	tristate "DRM Support for STMicroelectronics SoC Series"
-	depends on DRM && ARCH_STM32
+	depends on DRM && (ARCH_STM32 || COMPILE_TEST)
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_PANEL_BRIDGE
@@ -20,3 +20,14 @@ config DRM_STM_DSI
 	select DRM_DW_MIPI_DSI
 	help
 	  Choose this option for MIPI DSI support on STMicroelectronics SoC.
+
+config DRM_STM_LVDS
+	tristate "STMicroelectronics LVDS Display Interface Transmitter DRM driver"
+	depends on DRM_STM
+	help
+	  Enable support for LVDS encoders on STMicroelectronics SoC.
+	  The STM LVDS is a bridge which serialize pixel stream onto
+	  a LVDS protocol.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called lvds.

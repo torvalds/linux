@@ -730,8 +730,8 @@ static u32 jz4780_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm jz4780_i2c_algorithm = {
-	.master_xfer	= jz4780_i2c_xfer,
-	.functionality	= jz4780_i2c_functionality,
+	.xfer = jz4780_i2c_xfer,
+	.functionality = jz4780_i2c_functionality,
 };
 
 static const struct ingenic_i2c_config jz4780_i2c_config = {

@@ -101,4 +101,5 @@ const struct pinmux_ops meson8_pmx_ops = {
 	.gpio_request_enable = meson8_pmx_request_gpio,
 };
 EXPORT_SYMBOL_GPL(meson8_pmx_ops);
+MODULE_DESCRIPTION("Amlogic Meson SoCs first generation pinmux driver");
 MODULE_LICENSE("GPL v2");

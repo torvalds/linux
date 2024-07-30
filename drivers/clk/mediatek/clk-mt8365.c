@@ -812,4 +812,6 @@ static struct platform_driver clk_mt8365_drv = {
 	.remove_new = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt8365_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8365 main clocks driver");
 MODULE_LICENSE("GPL");

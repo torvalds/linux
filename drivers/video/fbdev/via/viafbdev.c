@@ -2144,5 +2144,6 @@ MODULE_PARM_DESC(viafb_lcd_port, "Specify LCD output port.");
 module_param(viafb_dvi_port, charp, S_IRUSR);
 MODULE_PARM_DESC(viafb_dvi_port, "Specify DVI output port.");
 
+MODULE_DESCRIPTION("VIA UniChrome (Pro) and Chrome9 display driver");
 MODULE_LICENSE("GPL");
 #endif

@@ -229,18 +229,18 @@ struct usb_ep {
 
 	const char		*name;
 	const struct usb_ep_ops	*ops;
+	const struct usb_endpoint_descriptor	*desc;
+	const struct usb_ss_ep_comp_descriptor	*comp_desc;
 	struct list_head	ep_list;
 	struct usb_ep_caps	caps;
 	bool			claimed;
 	bool			enabled;
-	unsigned		maxpacket:16;
-	unsigned		maxpacket_limit:16;
-	unsigned		max_streams:16;
 	unsigned		mult:2;
 	unsigned		maxburst:5;
 	u8			address;
-	const struct usb_endpoint_descriptor	*desc;
-	const struct usb_ss_ep_comp_descriptor	*comp_desc;
+	u16			maxpacket;
+	u16			maxpacket_limit;
+	u16			max_streams;
 };
 
 /*-------------------------------------------------------------------------*/

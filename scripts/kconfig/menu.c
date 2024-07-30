@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <list.h>
 #include "lkc.h"
 #include "internal.h"
-#include "list.h"
 
 static const char nohelp_text[] = "There is no help available for this option.";
 
@@ -38,7 +38,7 @@ struct menu *menu_next(struct menu *menu, struct menu *root)
 	return menu->next;
 }
 
-void menu_warn(struct menu *menu, const char *fmt, ...)
+void menu_warn(const struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -48,7 +48,7 @@ void menu_warn(struct menu *menu, const char *fmt, ...)
 	va_end(ap);
 }
 
-static void prop_warn(struct property *prop, const char *fmt, ...)
+static void prop_warn(const struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -175,7 +175,7 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	return prop;
 }
 
-struct property *menu_add_prompt(enum prop_type type, char *prompt,
+struct property *menu_add_prompt(enum prop_type type, const char *prompt,
 				 struct expr *dep)
 {
 	struct property *prop = menu_add_prop(type, NULL, dep);
@@ -306,7 +306,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
 	struct property *prop;
-	struct expr *parentdep, *basedep, *dep, *dep2, **ep;
+	struct expr *basedep, *dep, *dep2;
 
 	sym = parent->sym;
 	if (parent->list) {
@@ -314,35 +314,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		 * This menu node has children. We (recursively) process them
 		 * and propagate parent dependencies before moving on.
 		 */
-
-		bool is_choice = false;
-
-		if (sym && sym_is_choice(sym))
-			is_choice = true;
-
-		if (is_choice) {
-			if (sym->type == S_UNKNOWN) {
-				/* find the first choice value to find out choice type */
-				current_entry = parent;
-				for (menu = parent->list; menu; menu = menu->next) {
-					if (menu->sym && menu->sym->type != S_UNKNOWN) {
-						menu_set_type(menu->sym->type);
-						break;
-					}
-				}
-			}
-
-			/*
-			 * Use the choice itself as the parent dependency of
-			 * the contained items. This turns the mode of the
-			 * choice into an upper bound on the visibility of the
-			 * choice value symbols.
-			 */
-			parentdep = expr_alloc_symbol(sym);
-		} else {
-			/* Menu node for 'menu', 'if' */
-			parentdep = parent->dep;
-		}
 
 		/* For each child menu node... */
 		for (menu = parent->list; menu; menu = menu->next) {
@@ -352,7 +323,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			 */
 			basedep = rewrite_m(menu->dep);
 			basedep = expr_transform(basedep);
-			basedep = expr_alloc_and(expr_copy(parentdep), basedep);
+			basedep = expr_alloc_and(expr_copy(parent->dep), basedep);
 			basedep = expr_eliminate_dups(basedep);
 			menu->dep = basedep;
 
@@ -416,15 +387,12 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			}
 		}
 
-		if (is_choice)
-			expr_free(parentdep);
-
 		/*
 		 * Recursively process children in the same fashion before
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			_menu_finalize(menu, is_choice);
+			_menu_finalize(menu, sym && sym_is_choice(sym));
 	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
@@ -499,34 +467,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		sym->dir_dep.expr = expr_alloc_or(sym->dir_dep.expr, parent->dep);
 	}
 	for (menu = parent->list; menu; menu = menu->next) {
-		if (sym && sym_is_choice(sym) &&
-		    menu->sym && !sym_is_choice_value(menu->sym)) {
-			current_entry = menu;
-			menu->sym->flags |= SYMBOL_CHOICEVAL;
-			/* Non-tristate choice values of tristate choices must
-			 * depend on the choice being set to Y. The choice
-			 * values' dependencies were propagated to their
-			 * properties above, so the change here must be re-
-			 * propagated.
-			 */
-			if (sym->type == S_TRISTATE && menu->sym->type != S_TRISTATE) {
-				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
-				menu->dep = expr_alloc_and(basedep, menu->dep);
-				for (prop = menu->sym->prop; prop; prop = prop->next) {
-					if (prop->menu != menu)
-						continue;
-					prop->visible.expr = expr_alloc_and(expr_copy(basedep),
-									    prop->visible.expr);
-				}
-			}
-			menu_add_symbol(P_CHOICE, sym, NULL);
-			prop = sym_get_choice_prop(sym);
-			for (ep = &prop->expr; *ep; ep = &(*ep)->left.expr)
-				;
-			*ep = expr_alloc_one(E_LIST, NULL);
-			(*ep)->right.sym = menu->sym;
-		}
-
 		/*
 		 * This code serves two purposes:
 		 *
@@ -575,17 +515,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		sym_check_prop(sym);
 		sym->flags |= SYMBOL_WARNED;
 	}
-
-	/*
-	 * For choices, add a reverse dependency (corresponding to a select) of
-	 * '<visibility> && m'. This prevents the user from setting the choice
-	 * mode to 'n' when the choice is visible.
-	 */
-	if (sym && sym_is_choice(sym) && parent->prompt) {
-		sym->rev_dep.expr = expr_alloc_or(sym->rev_dep.expr,
-				expr_alloc_and(parent->prompt->visible.expr,
-					expr_alloc_symbol(&symbol_mod)));
-	}
 }
 
 void menu_finalize(void)
@@ -593,7 +522,7 @@ void menu_finalize(void)
 	_menu_finalize(&rootmenu, false);
 }
 
-bool menu_has_prompt(struct menu *menu)
+bool menu_has_prompt(const struct menu *menu)
 {
 	if (!menu->prompt)
 		return false;
@@ -618,7 +547,6 @@ bool menu_is_empty(struct menu *menu)
 
 bool menu_is_visible(struct menu *menu)
 {
-	struct menu *child;
 	struct symbol *sym;
 	tristate visible;
 
@@ -637,24 +565,10 @@ bool menu_is_visible(struct menu *menu)
 	} else
 		visible = menu->prompt->visible.tri = expr_calc_value(menu->prompt->visible.expr);
 
-	if (visible != no)
-		return true;
-
-	if (!sym || sym_get_tristate_value(menu->sym) == no)
-		return false;
-
-	for (child = menu->list; child; child = child->next) {
-		if (menu_is_visible(child)) {
-			if (sym)
-				sym->flags |= SYMBOL_DEF_USER;
-			return true;
-		}
-	}
-
-	return false;
+	return visible != no;
 }
 
-const char *menu_get_prompt(struct menu *menu)
+const char *menu_get_prompt(const struct menu *menu)
 {
 	if (menu->prompt)
 		return menu->prompt->text;
@@ -675,13 +589,14 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 	return menu;
 }
 
-static void get_def_str(struct gstr *r, struct menu *menu)
+static void get_def_str(struct gstr *r, const struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
 		   menu->filename, menu->lineno);
 }
 
-static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)
+static void get_dep_str(struct gstr *r, const struct expr *expr,
+			const char *prefix)
 {
 	if (!expr_is_yes(expr)) {
 		str_append(r, prefix);

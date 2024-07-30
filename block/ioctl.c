@@ -224,7 +224,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, blk_mode_t mode,
 		goto fail;
 
 	err = blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
-				   BLKDEV_ZERO_NOUNMAP);
+				   BLKDEV_ZERO_NOUNMAP | BLKDEV_ZERO_KILLABLE);
 
 fail:
 	filemap_invalidate_unlock(bdev->bd_mapping);

@@ -44,13 +44,6 @@
 		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
 	};
 
-	fan0: pwm-fan {
-		compatible = "pwm-fan";
-		#cooling-cells = <2>;
-		cooling-levels = <0 120 170 220>;
-		pwms = <&pwm_cd 1 40000 0>;
-	};
-
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -372,13 +365,6 @@
 	pinctrl-names = "default";
 	clocks = <&xtal>;
 	clock-names = "clkin0";
-};
-
-&pwm_cd {
-	status = "okay";
-	pinctrl-0 = <&pwm_d_x6_pins>;
-	pinctrl-names = "default";
-	pwm-gpios = <&gpio GPIOAO_10 GPIO_ACTIVE_HIGH>;
 };
 
 &pwm_ef {

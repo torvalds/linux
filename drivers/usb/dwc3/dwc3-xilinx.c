@@ -246,6 +246,31 @@ static const struct of_device_id dwc3_xlnx_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dwc3_xlnx_of_match);
 
+static int dwc3_set_swnode(struct device *dev)
+{
+	struct device_node *np = dev->of_node, *dwc3_np;
+	struct property_entry props[2];
+	int prop_idx = 0, ret = 0;
+
+	dwc3_np = of_get_compatible_child(np, "snps,dwc3");
+	if (!dwc3_np) {
+		ret = -ENODEV;
+		dev_err(dev, "failed to find dwc3 core child\n");
+		return ret;
+	}
+
+	memset(props, 0, sizeof(struct property_entry) * ARRAY_SIZE(props));
+	if (of_dma_is_coherent(dwc3_np))
+		props[prop_idx++] = PROPERTY_ENTRY_U16("snps,gsbuscfg0-reqinfo",
+						       0xffff);
+	of_node_put(dwc3_np);
+
+	if (prop_idx)
+		ret = device_create_managed_software_node(dev, props, NULL);
+
+	return ret;
+}
+
 static int dwc3_xlnx_probe(struct platform_device *pdev)
 {
 	struct dwc3_xlnx		*priv_data;
@@ -285,6 +310,10 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = priv_data->pltfm_init(priv_data);
+	if (ret)
+		goto err_clk_put;
+
+	ret = dwc3_set_swnode(dev);
 	if (ret)
 		goto err_clk_put;
 

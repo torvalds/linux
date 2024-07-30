@@ -30,11 +30,16 @@
 #define KVM_PRIVATE_MEM_SLOTS		0
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
+#define KVM_REQ_TLB_FLUSH_GPA		KVM_ARCH_REQ(0)
+#define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(1)
 
 #define KVM_GUESTDBG_SW_BP_MASK		\
 	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
 #define KVM_GUESTDBG_VALID_MASK		\
 	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP | KVM_GUESTDBG_SINGLESTEP)
+
+#define KVM_DIRTY_LOG_MANUAL_CAPS	\
+	(KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE | KVM_DIRTY_LOG_INITIALLY_SET)
 
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
@@ -190,6 +195,7 @@ struct kvm_vcpu_arch {
 
 	/* vcpu's vpid */
 	u64 vpid;
+	gpa_t flush_gpa;
 
 	/* Frequency of stable timer in Hz */
 	u64 timer_mhz;
@@ -201,6 +207,13 @@ struct kvm_vcpu_arch {
 	struct kvm_mp_state mp_state;
 	/* cpucfg */
 	u32 cpucfg[KVM_MAX_CPUCFG_REGS];
+
+	/* paravirt steal time */
+	struct {
+		u64 guest_addr;
+		u64 last_steal;
+		struct gfn_to_hva_cache cache;
+	} st;
 };
 
 static inline unsigned long readl_sw_gcsr(struct loongarch_csrs *csr, int reg)
@@ -261,7 +274,6 @@ static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *arch)
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen) {}
-static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}

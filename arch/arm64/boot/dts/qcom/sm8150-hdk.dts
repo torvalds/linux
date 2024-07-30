@@ -470,7 +470,6 @@
 
 &mdss_dp_out {
 	data-lanes = <0 1>;
-	remote-endpoint = <&usb_1_qmpphy_dp_in>;
 };
 
 &mdss_dsi0 {
@@ -556,7 +555,7 @@
 
 			port@0 {
 				reg = <0>;
-				pm8150b_role_switch_in: endpoint {
+				pm8150b_hs_in: endpoint {
 					remote-endpoint = <&usb_1_dwc3_hs>;
 				};
 			};
@@ -676,16 +675,8 @@
 	orientation-switch;
 };
 
-&usb_1_qmpphy_dp_in {
-	remote-endpoint = <&mdss_dp_out>;
-};
-
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pm8150b_typec_mux_in>;
-};
-
-&usb_1_qmpphy_usb_ss_in {
-	remote-endpoint = <&usb_1_dwc3_ss>;
 };
 
 &usb_2_qmpphy {
@@ -708,11 +699,7 @@
 };
 
 &usb_1_dwc3_hs {
-	remote-endpoint = <&pm8150b_role_switch_in>;
-};
-
-&usb_1_dwc3_ss {
-	remote-endpoint = <&usb_1_qmpphy_usb_ss_in>;
+	remote-endpoint = <&pm8150b_hs_in>;
 };
 
 &usb_2_dwc3 {

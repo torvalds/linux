@@ -382,4 +382,5 @@ int sun6i_rtc_ccu_probe(struct device *dev, void __iomem *reg)
 }
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner H616/R329 RTC CCU");
 MODULE_LICENSE("GPL");

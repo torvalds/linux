@@ -9,7 +9,7 @@
 
 #include <linux/bits.h>
 #include <linux/serial_8250.h>
-#include <linux/serial_reg.h>
+#include <linux/serial_core.h>
 #include <linux/dmaengine.h>
 
 #include "../serial_mctrl_gpio.h"
@@ -93,12 +93,19 @@ struct serial8250_config {
 #define UART_BUG_THRE	BIT(3)	/* UART has buggy THRE reassertion */
 #define UART_BUG_TXRACE	BIT(5)	/* UART Tx fails to set remote DR */
 
+/* Module parameters */
+#define UART_NR	CONFIG_SERIAL_8250_NR_UARTS
+
+extern unsigned int nr_uarts;
 
 #ifdef CONFIG_SERIAL_8250_SHARE_IRQ
 #define SERIAL8250_SHARE_IRQS 1
 #else
 #define SERIAL8250_SHARE_IRQS 0
 #endif
+
+extern unsigned int share_irqs;
+extern unsigned int skip_txen_test;
 
 #define SERIAL8250_PORT_FLAGS(_base, _irq, _flags)		\
 	{							\
@@ -111,6 +118,19 @@ struct serial8250_config {
 
 #define SERIAL8250_PORT(_base, _irq) SERIAL8250_PORT_FLAGS(_base, _irq, 0)
 
+extern struct uart_driver serial8250_reg;
+void serial8250_register_ports(struct uart_driver *drv, struct device *dev);
+
+/* Legacy ISA bus related APIs */
+typedef void (*serial8250_isa_config_fn)(int, struct uart_port *, u32 *);
+extern serial8250_isa_config_fn serial8250_isa_config;
+
+void serial8250_isa_init_ports(void);
+
+extern struct platform_device *serial8250_isa_devs;
+
+extern const struct uart_ops *univ8250_port_base_ops;
+extern struct uart_ops univ8250_port_ops;
 
 static inline int serial_in(struct uart_8250_port *up, int offset)
 {
@@ -200,6 +220,7 @@ static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
 	return true;
 }
 
+struct uart_8250_port *serial8250_setup_port(int index);
 struct uart_8250_port *serial8250_get_port(int line);
 
 void serial8250_rpm_get(struct uart_8250_port *p);
@@ -299,6 +320,12 @@ void serial8250_pnp_exit(void);
 #else
 static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
+#endif
+
+#ifdef CONFIG_SERIAL_8250_RSA
+void univ8250_rsa_support(struct uart_ops *ops);
+#else
+static inline void univ8250_rsa_support(struct uart_ops *ops) { }
 #endif
 
 #ifdef CONFIG_SERIAL_8250_FINTEK

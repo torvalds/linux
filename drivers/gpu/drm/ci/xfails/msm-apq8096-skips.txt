@@ -1,2 +1,26 @@
 # Whole machine hangs
 kms_cursor_legacy@all-pipes-torture-move
+
+# Skip driver specific tests
+^amdgpu.*
+nouveau_.*
+panfrost_.*
+^v3d.*
+^vc4.*
+^vmwgfx*
+
+# Skip intel specific tests
+gem_.*
+i915_.*
+
+# Currently fails and causes coverage loss for other tests
+# since core_getversion also fails.
+core_hotunplug.*
+
+# gpu fault
+# [IGT] msm_mapping: executing
+# [IGT] msm_mapping: starting subtest shadow
+# *** gpu fault: ttbr0=00000001030ea000 iova=0000000001074000 dir=WRITE type=PERMISSION source=1f030000 (0,0,0,0)
+# msm_mdp 901000.display-controller: RBBM | ME master split | status=0x701000B0
+# watchdog: BUG: soft lockup - CPU#0 stuck for 26s! [kworker/u16:3:46]
+msm_mapping@shadow

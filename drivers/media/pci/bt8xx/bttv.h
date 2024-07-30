@@ -341,7 +341,7 @@ struct bttv_sub_driver {
 	int                    (*probe)(struct bttv_sub_device *sub);
 	void                   (*remove)(struct bttv_sub_device *sub);
 };
-#define to_bttv_sub_drv(x) container_of((x), struct bttv_sub_driver, drv)
+#define to_bttv_sub_drv(x) container_of_const((x), struct bttv_sub_driver, drv)
 
 int bttv_sub_register(struct bttv_sub_driver *drv, char *wanted);
 int bttv_sub_unregister(struct bttv_sub_driver *drv);

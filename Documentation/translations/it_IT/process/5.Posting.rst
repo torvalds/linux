@@ -223,8 +223,9 @@ Un'etichetta ci può dire quale commit ha introdotto il problema che viene corre
        Fixes: 1f2e3d4c5b6a ("The first line of the commit specified by the first 12 characters of its SHA-1 ID")
 
 Un'altra etichetta viene usata per fornire collegamenti a pagine web contenenti
-maggiori informazioni, per esempio un rapporto circa il baco risolto dalla
-patch, oppure un documento con le specifiche implementate dalla patch::
+maggiori informazioni, per esempio una discussione avvenuta precedentemente
+circa il baco risolto dalla patch, oppure un documento con le specifiche
+implementate dalla patch::
 
        Link: https://example.com/somewhere.html  optional-other-stuff
 
@@ -233,7 +234,19 @@ alla più recente discussione pubblica. A volte questo è fatto automaticamente 
 alcuni strumenti come b4 or un *hook* git come quello descritto qui
 'Documentation/translations/it_IT/maintainer/configure-git.rst'
 
-Un terzo tipo di etichetta viene usato per indicare chi ha contribuito allo
+
+Se il collegamento indirizza verso un rapporto su un baco risolto dalla patch,
+allora usate l'etichetta "Closes:"::
+
+       Closes: https://example.com/issues/1234  optional-other-stuff
+
+Alcune piattaforme di tracciamento di bachi hanno la capacità di chiudere
+automaticamente il problema se l'etichetta è presente nel messaggio. Alcuni
+automatismi che monitorano la liste di discussione possono anche tracciare
+queste etichette e intraprendere azioni. Piattaforme private e URL invalidi sono
+proibiti.
+
+Un altro tipo di etichetta viene usato per indicare chi ha contribuito allo
 sviluppo della patch. Tutte queste etichette seguono il formato::
 
 	tag: Full Name <email address>  optional-other-stuff
@@ -267,7 +280,13 @@ Le etichette in uso più comuni sono:
  - Reported-by: menziona l'utente che ha riportato il problema corretto da
    questa patch; quest'etichetta viene usata per dare credito alle persone che
    hanno verificato il codice e ci hanno fatto sapere quando le cose non
-   funzionavano correttamente. Se esiste un rapporto disponibile sul web, allora
+   funzionavano correttamente. Questa etichetta dovrebbe essere seguita da
+   quella Closes: con un indirizzo al rapporto, a meno che questo non sia
+   disponibile sul web. L'etichetta Link: può essere usata in alternativa a
+   Closes: se la patch corregge solo in parte il problema riportato nel
+   rapporto.
+
+   Se esiste un rapporto disponibile sul web, allora
    L'etichetta dovrebbe essere seguita da un collegamento al suddetto rapporto.
 
  - Cc: la persona menzionata ha ricevuto una copia della patch ed ha avuto

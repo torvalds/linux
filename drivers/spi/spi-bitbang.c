@@ -38,33 +38,24 @@
  * working quickly, or testing for differences that aren't speed related.
  */
 
+typedef unsigned int (*spi_bb_txrx_bufs_fn)(struct spi_device *, spi_bb_txrx_word_fn,
+					    unsigned int, struct spi_transfer *,
+					    unsigned int);
+
 struct spi_bitbang_cs {
-	unsigned	nsecs;	/* (clock cycle time)/2 */
-	u32		(*txrx_word)(struct spi_device *spi, unsigned nsecs,
-					u32 word, u8 bits, unsigned flags);
-	unsigned	(*txrx_bufs)(struct spi_device *,
-					u32 (*txrx_word)(
-						struct spi_device *spi,
-						unsigned nsecs,
-						u32 word, u8 bits,
-						unsigned flags),
-					unsigned, struct spi_transfer *,
-					unsigned);
+	unsigned int nsecs;	/* (clock cycle time) / 2 */
+	spi_bb_txrx_word_fn txrx_word;
+	spi_bb_txrx_bufs_fn txrx_bufs;
 };
 
-static unsigned bitbang_txrx_8(
-	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
-	unsigned		ns,
+static unsigned int bitbang_txrx_8(struct spi_device *spi,
+	spi_bb_txrx_word_fn txrx_word,
+	unsigned int ns,
 	struct spi_transfer	*t,
-	unsigned flags
-)
+	unsigned int flags)
 {
-	unsigned		bits = t->bits_per_word;
-	unsigned		count = t->len;
+	unsigned int		bits = t->bits_per_word;
+	unsigned int		count = t->len;
 	const u8		*tx = t->tx_buf;
 	u8			*rx = t->rx_buf;
 
@@ -81,19 +72,14 @@ static unsigned bitbang_txrx_8(
 	return t->len - count;
 }
 
-static unsigned bitbang_txrx_16(
-	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
-	unsigned		ns,
+static unsigned int bitbang_txrx_16(struct spi_device *spi,
+	spi_bb_txrx_word_fn txrx_word,
+	unsigned int ns,
 	struct spi_transfer	*t,
-	unsigned flags
-)
+	unsigned int flags)
 {
-	unsigned		bits = t->bits_per_word;
-	unsigned		count = t->len;
+	unsigned int		bits = t->bits_per_word;
+	unsigned int		count = t->len;
 	const u16		*tx = t->tx_buf;
 	u16			*rx = t->rx_buf;
 
@@ -110,19 +96,14 @@ static unsigned bitbang_txrx_16(
 	return t->len - count;
 }
 
-static unsigned bitbang_txrx_32(
-	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
-	unsigned		ns,
+static unsigned int bitbang_txrx_32(struct spi_device *spi,
+	spi_bb_txrx_word_fn txrx_word,
+	unsigned int ns,
 	struct spi_transfer	*t,
-	unsigned flags
-)
+	unsigned int flags)
 {
-	unsigned		bits = t->bits_per_word;
-	unsigned		count = t->len;
+	unsigned int		bits = t->bits_per_word;
+	unsigned int		count = t->len;
 	const u32		*tx = t->tx_buf;
 	u32			*rx = t->rx_buf;
 
@@ -234,7 +215,7 @@ EXPORT_SYMBOL_GPL(spi_bitbang_cleanup);
 static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct spi_bitbang_cs	*cs = spi->controller_state;
-	unsigned		nsecs = cs->nsecs;
+	unsigned int		nsecs = cs->nsecs;
 	struct spi_bitbang	*bitbang;
 
 	bitbang = spi_controller_get_devdata(spi->controller);
@@ -247,7 +228,7 @@ static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	if (spi->mode & SPI_3WIRE) {
-		unsigned flags;
+		unsigned int flags;
 
 		flags = t->tx_buf ? SPI_CONTROLLER_NO_RX : SPI_CONTROLLER_NO_TX;
 		return cs->txrx_bufs(spi, cs->txrx_word, nsecs, t, flags);

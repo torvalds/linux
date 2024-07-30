@@ -27,7 +27,7 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add reload"
+BUGS="flush_remove_add reload net_port_proto_match"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
@@ -371,6 +371,22 @@ race_repeat	0
 perf_duration	0
 "
 
+TYPE_net_port_proto_match="
+display		net,port,proto
+type_spec	ipv4_addr . inet_service . inet_proto
+chain_spec	ip daddr . udp dport . meta l4proto
+dst		addr4 port proto
+src
+start		1
+count		9
+src_delta	9
+tools		sendip bash
+proto		udp
+
+race_repeat	0
+
+perf_duration	0
+"
 # Set template for all tests, types and rules are filled in depending on test
 set_template='
 flush ruleset
@@ -1550,6 +1566,64 @@ test_bug_reload() {
 
 		range_size=$((range_size + 1))
 		start=$((end + range_size))
+	done
+
+	nft flush ruleset
+}
+
+# - add ranged element, check that packets match it
+# - delete element again, check it is gone
+test_bug_net_port_proto_match() {
+	setup veth send_"${proto}" set || return ${ksft_skip}
+	rstart=${start}
+
+	range_size=1
+	for i in $(seq 1 10); do
+		for j in $(seq 1 20) ; do
+			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+
+			nft "add element inet filter test { $elem }" || return 1
+			nft "get element inet filter test { $elem }" | grep -q "$elem"
+			if [ $? -ne 0 ];then
+				local got=$(nft "get element inet filter test { $elem }")
+				err "post-add: should have returned $elem but got $got"
+				return 1
+			fi
+		done
+	done
+
+	# recheck after set was filled
+	for i in $(seq 1 10); do
+		for j in $(seq 1 20) ; do
+			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+
+			nft "get element inet filter test { $elem }" | grep -q "$elem"
+			if [ $? -ne 0 ];then
+				local got=$(nft "get element inet filter test { $elem }")
+				err "post-fill: should have returned $elem but got $got"
+				return 1
+			fi
+		done
+	done
+
+	# random del and re-fetch
+	for i in $(seq 1 10); do
+		for j in $(seq 1 20) ; do
+			local rnd=$((RANDOM%10))
+			local got=""
+
+			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+			if [ $rnd -gt 0 ];then
+				continue
+			fi
+
+			nft "delete element inet filter test { $elem }"
+			got=$(nft "get element inet filter test { $elem }" 2>/dev/null)
+			if [ $? -eq 0 ];then
+				err "post-delete: query for $elem returned $got instead of error."
+				return 1
+			fi
+		done
 	done
 
 	nft flush ruleset

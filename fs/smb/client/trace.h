@@ -20,6 +20,22 @@
 /*
  * Specify enums for tracing information.
  */
+#define smb3_rw_credits_traces \
+	EM(cifs_trace_rw_credits_call_readv_adjust,	"rd-call-adj") \
+	EM(cifs_trace_rw_credits_call_writev_adjust,	"wr-call-adj") \
+	EM(cifs_trace_rw_credits_free_subreq,		"free-subreq") \
+	EM(cifs_trace_rw_credits_issue_read_adjust,	"rd-issu-adj") \
+	EM(cifs_trace_rw_credits_issue_write_adjust,	"wr-issu-adj") \
+	EM(cifs_trace_rw_credits_no_adjust_up,		"no-adj-up  ") \
+	EM(cifs_trace_rw_credits_old_session,		"old-session") \
+	EM(cifs_trace_rw_credits_read_response_add,	"rd-resp-add") \
+	EM(cifs_trace_rw_credits_read_response_clear,	"rd-resp-clr") \
+	EM(cifs_trace_rw_credits_read_submit,		"rd-submit  ") \
+	EM(cifs_trace_rw_credits_write_prepare,		"wr-prepare ") \
+	EM(cifs_trace_rw_credits_write_response_add,	"wr-resp-add") \
+	EM(cifs_trace_rw_credits_write_response_clear,	"wr-resp-clr") \
+	E_(cifs_trace_rw_credits_zero_in_flight,	"ZERO-IN-FLT")
+
 #define smb3_tcon_ref_traces					      \
 	EM(netfs_trace_tcon_ref_dec_dfs_refer,		"DEC DfsRef") \
 	EM(netfs_trace_tcon_ref_free,			"FRE       ") \
@@ -59,7 +75,8 @@
 #define EM(a, b) a,
 #define E_(a, b) a
 
-enum smb3_tcon_ref_trace { smb3_tcon_ref_traces } __mode(byte);
+enum smb3_rw_credits_trace	{ smb3_rw_credits_traces } __mode(byte);
+enum smb3_tcon_ref_trace	{ smb3_tcon_ref_traces } __mode(byte);
 
 #undef EM
 #undef E_
@@ -71,6 +88,7 @@ enum smb3_tcon_ref_trace { smb3_tcon_ref_traces } __mode(byte);
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+smb3_rw_credits_traces;
 smb3_tcon_ref_traces;
 
 #undef EM
@@ -187,6 +205,116 @@ DEFINE_SMB3_OTHER_ERR_EVENT(write_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(query_dir_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(zero_err);
 DEFINE_SMB3_OTHER_ERR_EVENT(falloc_err);
+
+/*
+ * For logging errors in reflink and copy_range ops e.g. smb2_copychunk_range
+ * and smb2_duplicate_extents
+ */
+DECLARE_EVENT_CLASS(smb3_copy_range_err_class,
+	TP_PROTO(unsigned int xid,
+		__u64	src_fid,
+		__u64   target_fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	src_offset,
+		__u64   target_offset,
+		__u32	len,
+		int	rc),
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, src_fid)
+		__field(__u64, target_fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, src_offset)
+		__field(__u64, target_offset)
+		__field(__u32, len)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->src_fid = src_fid;
+		__entry->target_fid = target_fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->src_offset = src_offset;
+		__entry->target_offset = target_offset;
+		__entry->len = len;
+		__entry->rc = rc;
+	),
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x source fid=0x%llx source offset=0x%llx target fid=0x%llx target offset=0x%llx len=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->target_fid,
+		__entry->src_offset, __entry->target_fid, __entry->target_offset, __entry->len, __entry->rc)
+)
+
+#define DEFINE_SMB3_COPY_RANGE_ERR_EVENT(name)	\
+DEFINE_EVENT(smb3_copy_range_err_class, smb3_##name, \
+	TP_PROTO(unsigned int xid,		\
+		__u64	src_fid,		\
+		__u64   target_fid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	src_offset,		\
+		__u64	target_offset,		\
+		__u32	len,			\
+		int	rc),			\
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len, rc))
+
+DEFINE_SMB3_COPY_RANGE_ERR_EVENT(clone_err);
+/* TODO: Add SMB3_COPY_RANGE_ERR_EVENT(copychunk_err) */
+
+DECLARE_EVENT_CLASS(smb3_copy_range_done_class,
+	TP_PROTO(unsigned int xid,
+		__u64	src_fid,
+		__u64   target_fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	src_offset,
+		__u64   target_offset,
+		__u32	len),
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, src_fid)
+		__field(__u64, target_fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, src_offset)
+		__field(__u64, target_offset)
+		__field(__u32, len)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->src_fid = src_fid;
+		__entry->target_fid = target_fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->src_offset = src_offset;
+		__entry->target_offset = target_offset;
+		__entry->len = len;
+	),
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x source fid=0x%llx source offset=0x%llx target fid=0x%llx target offset=0x%llx len=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->target_fid,
+		__entry->src_offset, __entry->target_fid, __entry->target_offset, __entry->len)
+)
+
+#define DEFINE_SMB3_COPY_RANGE_DONE_EVENT(name)	\
+DEFINE_EVENT(smb3_copy_range_done_class, smb3_##name, \
+	TP_PROTO(unsigned int xid,		\
+		__u64	src_fid,		\
+		__u64   target_fid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	src_offset,		\
+		__u64	target_offset,		\
+		__u32	len),			\
+	TP_ARGS(xid, src_fid, target_fid, tid, sesid, src_offset, target_offset, len))
+
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(copychunk_enter);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(clone_enter);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(copychunk_done);
+DEFINE_SMB3_COPY_RANGE_DONE_EVENT(clone_done);
 
 
 /* For logging successful read or write */
@@ -1153,6 +1281,46 @@ DEFINE_EVENT(smb3_connect_err_class, smb3_##name,  \
 
 DEFINE_SMB3_CONNECT_ERR_EVENT(connect_err);
 
+DECLARE_EVENT_CLASS(smb3_sess_setup_err_class,
+	TP_PROTO(char *hostname, char *username, __u64 conn_id,
+		const struct __kernel_sockaddr_storage *dst_addr, int rc),
+	TP_ARGS(hostname, username, conn_id, dst_addr, rc),
+	TP_STRUCT__entry(
+		__string(hostname, hostname)
+		__string(username, username)
+		__field(__u64, conn_id)
+		__array(__u8, dst_addr, sizeof(struct sockaddr_storage))
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		struct sockaddr_storage *pss = NULL;
+
+		__entry->conn_id = conn_id;
+		__entry->rc = rc;
+		pss = (struct sockaddr_storage *)__entry->dst_addr;
+		*pss = *dst_addr;
+		__assign_str(hostname);
+		__assign_str(username);
+	),
+	TP_printk("rc=%d user=%s conn_id=0x%llx server=%s addr=%pISpsfc",
+		__entry->rc,
+		__get_str(username),
+		__entry->conn_id,
+		__get_str(hostname),
+		__entry->dst_addr)
+)
+
+#define DEFINE_SMB3_SES_SETUP_ERR_EVENT(name)        \
+DEFINE_EVENT(smb3_sess_setup_err_class, smb3_##name,  \
+	TP_PROTO(char *hostname,		\
+		char *username,			\
+		__u64 conn_id,			\
+		const struct __kernel_sockaddr_storage *addr,	\
+		int rc),			\
+	TP_ARGS(hostname, username, conn_id, addr, rc))
+
+DEFINE_SMB3_SES_SETUP_ERR_EVENT(key_expired);
+
 DECLARE_EVENT_CLASS(smb3_reconnect_class,
 	TP_PROTO(__u64	currmid,
 		__u64 conn_id,
@@ -1314,6 +1482,41 @@ TRACE_EVENT(smb3_tcon_ref,
 		      __entry->tcon,
 		      __print_symbolic(__entry->trace, smb3_tcon_ref_traces),
 		      __entry->ref)
+	    );
+
+TRACE_EVENT(smb3_rw_credits,
+	    TP_PROTO(unsigned int rreq_debug_id,
+		     unsigned int subreq_debug_index,
+		     unsigned int subreq_credits,
+		     unsigned int server_credits,
+		     int server_in_flight,
+		     int credit_change,
+		     enum smb3_rw_credits_trace trace),
+	    TP_ARGS(rreq_debug_id, subreq_debug_index, subreq_credits,
+		    server_credits, server_in_flight, credit_change, trace),
+	    TP_STRUCT__entry(
+		    __field(unsigned int, rreq_debug_id)
+		    __field(unsigned int, subreq_debug_index)
+		    __field(unsigned int, subreq_credits)
+		    __field(unsigned int, server_credits)
+		    __field(int,	  in_flight)
+		    __field(int,	  credit_change)
+		    __field(enum smb3_rw_credits_trace, trace)
+			     ),
+	    TP_fast_assign(
+		    __entry->rreq_debug_id	= rreq_debug_id;
+		    __entry->subreq_debug_index	= subreq_debug_index;
+		    __entry->subreq_credits	= subreq_credits;
+		    __entry->server_credits	= server_credits;
+		    __entry->in_flight		= server_in_flight;
+		    __entry->credit_change	= credit_change;
+		    __entry->trace		= trace;
+			   ),
+	    TP_printk("R=%08x[%x] %s cred=%u chg=%d pool=%u ifl=%d",
+		      __entry->rreq_debug_id, __entry->subreq_debug_index,
+		      __print_symbolic(__entry->trace, smb3_rw_credits_traces),
+		      __entry->subreq_credits, __entry->credit_change,
+		      __entry->server_credits, __entry->in_flight)
 	    );
 
 

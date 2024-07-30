@@ -228,26 +228,19 @@ const struct inode_operations vboxsf_reg_iops = {
 
 static int vboxsf_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
 	struct vboxsf_handle *sf_handle = file->private_data;
-	loff_t off = page_offset(page);
+	loff_t off = folio_pos(folio);
 	u32 nread = PAGE_SIZE;
 	u8 *buf;
 	int err;
 
-	buf = kmap(page);
+	buf = kmap_local_folio(folio, 0);
 
 	err = vboxsf_read(sf_handle->root, sf_handle->handle, off, &nread, buf);
-	if (err == 0) {
-		memset(&buf[nread], 0, PAGE_SIZE - nread);
-		flush_dcache_page(page);
-		SetPageUptodate(page);
-	} else {
-		SetPageError(page);
-	}
+	buf = folio_zero_tail(folio, nread, buf + nread);
 
-	kunmap(page);
-	unlock_page(page);
+	kunmap_local(buf);
+	folio_end_read(folio, err == 0);
 	return err;
 }
 
@@ -295,7 +288,6 @@ static int vboxsf_writepage(struct page *page, struct writeback_control *wbc)
 	kref_put(&sf_handle->refcount, vboxsf_handle_release);
 
 	if (err == 0) {
-		ClearPageError(page);
 		/* mtime changed */
 		sf_i->force_restat = 1;
 	} else {

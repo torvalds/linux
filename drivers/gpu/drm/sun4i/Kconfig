@@ -18,6 +18,9 @@ if DRM_SUN4I
 config DRM_SUN4I_HDMI
 	tristate "Allwinner A10/A10s/A20/A31 HDMI Controller Support"
 	depends on ARM || COMPILE_TEST
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
+	select DRM_DISPLAY_HELPER
 	default DRM_SUN4I
 	help
 	  Choose this option if you have an Allwinner A10/A10s/A20/A31

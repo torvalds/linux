@@ -6,8 +6,9 @@
 #include "mana_ib.h"
 
 int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		      struct ib_udata *udata)
+		      struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct mana_ib_cq *cq = container_of(ibcq, struct mana_ib_cq, ibcq);
 	struct mana_ib_create_cq_resp resp = {};
 	struct mana_ib_ucontext *mana_ucontext;

@@ -664,7 +664,7 @@ out_unlock:
  *
  * Returns the phy driver, after getting a refcount to it; or
  * -ENODEV if there is no such phy. The caller is responsible for
- * calling phy_put() to release that count.
+ * calling of_phy_put() to release that count.
  */
 struct phy *of_phy_get(struct device_node *np, const char *con_id)
 {

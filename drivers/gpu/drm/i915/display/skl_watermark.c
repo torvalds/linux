@@ -13,6 +13,7 @@
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
+#include "intel_cursor_regs.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power.h"
@@ -21,6 +22,7 @@
 #include "intel_fixed.h"
 #include "intel_pcode.h"
 #include "intel_wm.h"
+#include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
 
@@ -1394,7 +1396,7 @@ skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 	return data_rate;
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id,
 		   int level)
@@ -1407,7 +1409,7 @@ skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 	return &wm->wm[level];
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id)
 {
@@ -2363,101 +2365,6 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 	return skl_wm_check_vblank(crtc_state);
 }
 
-static void skl_ddb_entry_write(struct drm_i915_private *i915,
-				i915_reg_t reg,
-				const struct skl_ddb_entry *entry)
-{
-	if (entry->end)
-		intel_de_write_fw(i915, reg,
-				  PLANE_BUF_END(entry->end - 1) |
-				  PLANE_BUF_START(entry->start));
-	else
-		intel_de_write_fw(i915, reg, 0);
-}
-
-static void skl_write_wm_level(struct drm_i915_private *i915,
-			       i915_reg_t reg,
-			       const struct skl_wm_level *level)
-{
-	u32 val = 0;
-
-	if (level->enable)
-		val |= PLANE_WM_EN;
-	if (level->ignore_lines)
-		val |= PLANE_WM_IGNORE_LINES;
-	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
-	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
-
-	intel_de_write_fw(i915, reg, val);
-}
-
-void skl_write_plane_wm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	const struct skl_ddb_entry *ddb_y =
-		&crtc_state->wm.skl.plane_ddb_y[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, PLANE_WM(pipe, plane_id, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
-
-	skl_write_wm_level(i915, PLANE_WM_TRANS(pipe, plane_id),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		skl_write_wm_level(i915, PLANE_WM_SAGV(pipe, plane_id),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
-				   &wm->sagv.trans_wm);
-	}
-
-	skl_ddb_entry_write(i915,
-			    PLANE_BUF_CFG(pipe, plane_id), ddb);
-
-	if (DISPLAY_VER(i915) < 11)
-		skl_ddb_entry_write(i915,
-				    PLANE_NV12_BUF_CFG(pipe, plane_id), ddb_y);
-}
-
-void skl_write_cursor_wm(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, CUR_WM(pipe, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
-
-	skl_write_wm_level(i915, CUR_WM_TRANS(pipe),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		skl_write_wm_level(i915, CUR_WM_SAGV(pipe),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, CUR_WM_SAGV_TRANS(pipe),
-				   &wm->sagv.trans_wm);
-	}
-
-	skl_ddb_entry_write(i915, CUR_BUF_CFG(pipe), ddb);
-}
-
 static bool skl_wm_level_equals(const struct skl_wm_level *l1,
 				const struct skl_wm_level *l2)
 {
@@ -2522,12 +2429,14 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 }
 
 static int
-skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
-			    struct intel_crtc_state *new_crtc_state)
+skl_ddb_add_affected_planes(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(new_crtc_state->uapi.state);
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane *plane;
 
 	for_each_intel_plane_on_crtc(&i915->drm, crtc, plane) {
@@ -2539,6 +2448,12 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 		    skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb_y[plane_id],
 					&new_crtc_state->wm.skl.plane_ddb_y[plane_id]))
 			continue;
+
+		if (new_crtc_state->do_async_flip) {
+			drm_dbg_kms(&i915->drm, "[PLANE:%d:%s] Can't change DDB during async flip\n",
+				    plane->base.base.id, plane->base.name);
+			return -EINVAL;
+		}
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state))
@@ -2576,7 +2491,6 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_dbuf_state *old_dbuf_state;
 	struct intel_dbuf_state *new_dbuf_state = NULL;
-	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
@@ -2664,14 +2578,12 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		ret = skl_crtc_allocate_plane_ddb(state, crtc);
 		if (ret)
 			return ret;
 
-		ret = skl_ddb_add_affected_planes(old_crtc_state,
-						  new_crtc_state);
+		ret = skl_ddb_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 	}
@@ -2898,6 +2810,12 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 						 &old_crtc_state->wm.skl.optimal,
 						 &new_crtc_state->wm.skl.optimal))
 			continue;
+
+		if (new_crtc_state->do_async_flip) {
+			drm_dbg_kms(&i915->drm, "[PLANE:%d:%s] Can't change watermarks during async flip\n",
+				    plane->base.base.id, plane->base.name);
+			return -EINVAL;
+		}
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state))
@@ -3604,7 +3522,7 @@ static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes) {
 		u32 pipe_val = val;
 
-		if (DISPLAY_VER(i915) >= 14) {
+		if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
 			if (xelpdp_is_only_pipe_per_dbuf_bank(crtc->pipe,
 							      new_dbuf_state->active_pipes))
 				pipe_val |= MBUS_DBOX_BW_8CREDITS_MTL;

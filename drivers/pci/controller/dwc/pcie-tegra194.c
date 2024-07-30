@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
@@ -21,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -307,10 +305,6 @@ static inline u32 appl_readl(struct tegra_pcie_dw *pcie, const u32 reg)
 {
 	return readl_relaxed(pcie->appl_base + reg);
 }
-
-struct tegra_pcie_soc {
-	enum dw_pcie_device_mode mode;
-};
 
 static void tegra_pcie_icc_set(struct tegra_pcie_dw *pcie)
 {
@@ -1715,6 +1709,7 @@ static void pex_ep_event_pex_rst_assert(struct tegra_pcie_dw *pcie)
 	if (ret)
 		dev_err(pcie->dev, "Failed to go Detect state: %d\n", ret);
 
+	pci_epc_deinit_notify(pcie->pci.ep.epc);
 	dw_pcie_ep_cleanup(&pcie->pci.ep);
 
 	reset_control_assert(pcie->core_rst);
@@ -1903,7 +1898,7 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 		goto fail_init_complete;
 	}
 
-	dw_pcie_ep_init_notify(ep);
+	pci_epc_init_notify(ep->epc);
 
 	/* Program the private control to allow sending LTR upstream */
 	if (pcie->of_data->has_ltr_req_fix) {
@@ -2015,6 +2010,7 @@ static const struct pci_epc_features tegra_pcie_epc_features = {
 	.bar[BAR_3] = { .type = BAR_RESERVED, },
 	.bar[BAR_4] = { .type = BAR_RESERVED, },
 	.bar[BAR_5] = { .type = BAR_RESERVED, },
+	.align = SZ_64K,
 };
 
 static const struct pci_epc_features*

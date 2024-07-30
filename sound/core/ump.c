@@ -524,6 +524,58 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+/* update dir_bits and active flag for all groups in the client */
+static void update_group_attrs(struct snd_ump_endpoint *ump)
+{
+	struct snd_ump_block *fb;
+	struct snd_ump_group *group;
+	int i;
+
+	for (i = 0; i < SNDRV_UMP_MAX_GROUPS; i++) {
+		group = &ump->groups[i];
+		*group->name = 0;
+		group->dir_bits = 0;
+		group->active = 0;
+		group->group = i;
+		group->valid = false;
+	}
+
+	list_for_each_entry(fb, &ump->block_list, list) {
+		if (fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
+			break;
+		group = &ump->groups[fb->info.first_group];
+		for (i = 0; i < fb->info.num_groups; i++, group++) {
+			group->valid = true;
+			if (fb->info.active)
+				group->active = 1;
+			switch (fb->info.direction) {
+			case SNDRV_UMP_DIR_INPUT:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_INPUT);
+				break;
+			case SNDRV_UMP_DIR_OUTPUT:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_OUTPUT);
+				break;
+			case SNDRV_UMP_DIR_BIDIRECTION:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_INPUT) |
+					(1 << SNDRV_RAWMIDI_STREAM_OUTPUT);
+				break;
+			}
+			if (!*fb->info.name)
+				continue;
+			if (!*group->name) {
+				/* store the first matching name */
+				strscpy(group->name, fb->info.name,
+					sizeof(group->name));
+			} else {
+				/* when overlapping, concat names */
+				strlcat(group->name, ", ", sizeof(group->name));
+				strlcat(group->name, fb->info.name,
+					sizeof(group->name));
+			}
+		}
+	}
+}
+
 /*
  * UMP endpoint and function block handling
  */
@@ -792,8 +844,10 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 
 	if (fb) {
 		fill_fb_info(ump, &fb->info, buf);
-		if (ump->parsed)
+		if (ump->parsed) {
+			update_group_attrs(ump);
 			seq_notify_fb_change(ump, fb);
+		}
 	}
 
 	return 1; /* finished */
@@ -822,8 +876,10 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 	ret = ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
 				buf->raw, 3);
 	/* notify the FB name update to sequencer, too */
-	if (ret > 0 && ump->parsed)
+	if (ret > 0 && ump->parsed) {
+		update_group_attrs(ump);
 		seq_notify_fb_change(ump, fb);
+	}
 	return ret;
 }
 
@@ -994,6 +1050,9 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 		if (err < 0)
 			continue;
 	}
+
+	/* initialize group attributions */
+	update_group_attrs(ump);
 
  error:
 	ump->parsed = true;
@@ -1172,10 +1231,17 @@ static void fill_substream_names(struct snd_ump_endpoint *ump,
 				 struct snd_rawmidi *rmidi, int dir)
 {
 	struct snd_rawmidi_substream *s;
+	const char *name;
+	int idx;
 
-	list_for_each_entry(s, &rmidi->streams[dir].substreams, list)
+	list_for_each_entry(s, &rmidi->streams[dir].substreams, list) {
+		idx = ump->legacy_mapping[s->number];
+		name = ump->groups[idx].name;
+		if (!*name)
+			name = ump->info.name;
 		snprintf(s->name, sizeof(s->name), "Group %d (%.16s)",
-			 ump->legacy_mapping[s->number] + 1, ump->info.name);
+			 idx + 1, name);
+	}
 }
 
 int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,

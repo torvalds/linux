@@ -812,7 +812,7 @@ static void copy_inline_data_to_wqe(struct rxe_send_wqe *wqe,
 	int i;
 
 	for (i = 0; i < ibwr->num_sge; i++, sge++) {
-		memcpy(p, ib_virt_dma_to_page(sge->addr), sge->length);
+		memcpy(p, ib_virt_dma_to_ptr(sge->addr), sge->length);
 		p += sge->length;
 	}
 }
@@ -1053,8 +1053,9 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 /* cq */
 static int rxe_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-			 struct ib_udata *udata)
+			 struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *dev = ibcq->device;
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_cq *cq = to_rcq(ibcq);

@@ -5,16 +5,92 @@ Quick Start
 
 This document describes how to get started with kernel development in Rust.
 
+There are a few ways to install a Rust toolchain needed for kernel development.
+A simple way is to use the packages from your Linux distribution if they are
+suitable -- the first section below explains this approach. An advantage of this
+approach is that, typically, the distribution will match the LLVM used by Rust
+and Clang.
+
+Another way is using the prebuilt stable versions of LLVM+Rust provided on
+`kernel.org <https://kernel.org/pub/tools/llvm/rust/>`_. These are the same slim
+and fast LLVM toolchains from :ref:`Getting LLVM <getting_llvm>` with versions
+of Rust added to them that Rust for Linux supports. Two sets are provided: the
+"latest LLVM" and "matching LLVM" (please see the link for more information).
+
+Alternatively, the next two "Requirements" sections explain each component and
+how to install them through ``rustup``, the standalone installers from Rust
+and/or building them.
+
+The rest of the document explains other aspects on how to get started.
+
+
+Distributions
+-------------
+
+Arch Linux
+**********
+
+Arch Linux provides recent Rust releases and thus it should generally work out
+of the box, e.g.::
+
+	pacman -S rust rust-src rust-bindgen
+
+
+Debian
+******
+
+Debian Unstable (Sid), outside of the freeze period, provides recent Rust
+releases and thus it should generally work out of the box, e.g.::
+
+	apt install rustc rust-src bindgen rustfmt rust-clippy
+
+
+Fedora Linux
+************
+
+Fedora Linux provides recent Rust releases and thus it should generally work out
+of the box, e.g.::
+
+	dnf install rust rust-src bindgen-cli rustfmt clippy
+
+
+Gentoo Linux
+************
+
+Gentoo Linux (and especially the testing branch) provides recent Rust releases
+and thus it should generally work out of the box, e.g.::
+
+	USE='rust-src rustfmt clippy' emerge dev-lang/rust dev-util/bindgen
+
+``LIBCLANG_PATH`` may need to be set.
+
+
+Nix
+***
+
+Nix (unstable channel) provides recent Rust releases and thus it should
+generally work out of the box, e.g.::
+
+	{ pkgs ? import <nixpkgs> {} }:
+	pkgs.mkShell {
+	  nativeBuildInputs = with pkgs; [ rustc rust-bindgen rustfmt clippy ];
+	  RUST_LIB_SRC = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+	}
+
+
+openSUSE
+********
+
+openSUSE Slowroll and openSUSE Tumbleweed provide recent Rust releases and thus
+they should generally work out of the box, e.g.::
+
+	zypper install rust rust1.79-src rust-bindgen clang
+
 
 Requirements: Building
 ----------------------
 
 This section explains how to fetch the tools needed for building.
-
-Some of these requirements might be available from Linux distributions
-under names like ``rustc``, ``rust-src``, ``rust-bindgen``, etc. However,
-at the time of writing, they are likely not to be recent enough unless
-the distribution tracks the latest releases.
 
 To easily check whether the requirements are met, the following target
 can be used::
@@ -29,16 +105,15 @@ if that is the case.
 rustc
 *****
 
-A particular version of the Rust compiler is required. Newer versions may or
-may not work because, for the moment, the kernel depends on some unstable
-Rust features.
+A recent version of the Rust compiler is required.
 
 If ``rustup`` is being used, enter the kernel build directory (or use
-``--path=<build-dir>`` argument to the ``set`` sub-command) and run::
+``--path=<build-dir>`` argument to the ``set`` sub-command) and run,
+for instance::
 
-	rustup override set $(scripts/min-tool-version.sh rustc)
+	rustup override set stable
 
-This will configure your working directory to use the correct version of
+This will configure your working directory to use the given version of
 ``rustc`` without affecting your default toolchain.
 
 Note that the override applies to the current working directory (and its
@@ -65,9 +140,9 @@ version later on requires re-adding the component.
 Otherwise, if a standalone installer is used, the Rust source tree may be
 downloaded into the toolchain's installation folder::
 
-	curl -L "https://static.rust-lang.org/dist/rust-src-$(scripts/min-tool-version.sh rustc).tar.gz" |
+	curl -L "https://static.rust-lang.org/dist/rust-src-$(rustc --version | cut -d' ' -f2).tar.gz" |
 		tar -xzf - -C "$(rustc --print sysroot)/lib" \
-		"rust-src-$(scripts/min-tool-version.sh rustc)/rust-src/lib/" \
+		"rust-src-$(rustc --version | cut -d' ' -f2)/rust-src/lib/" \
 		--strip-components=3
 
 In this case, upgrading the Rust compiler version later on requires manually
@@ -101,26 +176,22 @@ bindgen
 *******
 
 The bindings to the C side of the kernel are generated at build time using
-the ``bindgen`` tool. A particular version is required.
+the ``bindgen`` tool.
 
-Install it via (note that this will download and build the tool from source)::
+Install it, for instance, via (note that this will download and build the tool
+from source)::
 
-	cargo install --locked --version $(scripts/min-tool-version.sh bindgen) bindgen-cli
+	cargo install --locked bindgen-cli
 
-``bindgen`` needs to find a suitable ``libclang`` in order to work. If it is
-not found (or a different ``libclang`` than the one found should be used),
-the process can be tweaked using the environment variables understood by
-``clang-sys`` (the Rust bindings crate that ``bindgen`` uses to access
-``libclang``):
+``bindgen`` uses the ``clang-sys`` crate to find a suitable ``libclang`` (which
+may be linked statically, dynamically or loaded at runtime). By default, the
+``cargo`` command above will produce a ``bindgen`` binary that will load
+``libclang`` at runtime. If it is not found (or a different ``libclang`` than
+the one found should be used), the process can be tweaked, e.g. by using the
+``LIBCLANG_PATH`` environment variable. For details, please see ``clang-sys``'s
+documentation at:
 
-* ``LLVM_CONFIG_PATH`` can be pointed to an ``llvm-config`` executable.
-
-* Or ``LIBCLANG_PATH`` can be pointed to a ``libclang`` shared library
-  or to the directory containing it.
-
-* Or ``CLANG_PATH`` can be pointed to a ``clang`` executable.
-
-For details, please see ``clang-sys``'s documentation at:
+	https://github.com/KyleMayes/clang-sys#linking
 
 	https://github.com/KyleMayes/clang-sys#environment-variables
 
@@ -162,20 +233,6 @@ can be installed manually::
 	rustup component add clippy
 
 The standalone installers also come with ``clippy``.
-
-
-cargo
-*****
-
-``cargo`` is the Rust native build system. It is currently required to run
-the tests since it is used to build a custom standard library that contains
-the facilities provided by the custom ``alloc`` in the kernel. The tests can
-be run using the ``rusttest`` Make target.
-
-If ``rustup`` is being used, all the profiles already install the tool,
-thus nothing needs to be done.
-
-The standalone installers also come with ``cargo``.
 
 
 rustdoc

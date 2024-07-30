@@ -121,6 +121,7 @@
 #define NPA_AF_LF_RST                   (0x0020)
 #define NPA_AF_GEN_CFG                  (0x0030)
 #define NPA_AF_NDC_CFG                  (0x0040)
+#define NPA_AF_NDC_SYNC                 (0x0050)
 #define NPA_AF_INP_CTL                  (0x00D0)
 #define NPA_AF_ACTIVE_CYCLES_PC         (0x00F0)
 #define NPA_AF_AVG_DELAY                (0x0100)
@@ -239,6 +240,7 @@
 #define NIX_AF_RX_CPTX_INST_ADDR	(0x0310)
 #define NIX_AF_RX_CPTX_INST_QSEL(a)	(0x0320ull | (uint64_t)(a) << 3)
 #define NIX_AF_RX_CPTX_CREDIT(a)	(0x0360ull | (uint64_t)(a) << 3)
+#define NIX_AF_NDC_RX_SYNC		(0x03E0)
 #define NIX_AF_NDC_TX_SYNC		(0x03F0)
 #define NIX_AF_AQ_CFG			(0x0400)
 #define NIX_AF_AQ_BASE			(0x0410)
@@ -429,6 +431,8 @@
 #define NIX_AF_RX_ACTIVE_CYCLES_PCX(a)	(0x4800 | (a) << 16)
 #define NIX_AF_LINKX_CFG(a)		(0x4010 | (a) << 17)
 #define NIX_AF_MDQX_IN_MD_COUNT(a)	(0x14e0 | (a) << 16)
+#define NIX_AF_SMQX_STATUS(a)		(0x730 | (a) << 16)
+#define NIX_AF_MDQX_OUT_MD_COUNT(a)	(0xdb0 | (a) << 16)
 
 #define NIX_PRIV_AF_INT_CFG		(0x8000000)
 #define NIX_PRIV_LFX_CFG		(0x8000010)
@@ -441,6 +445,11 @@
 
 #define NIX_CONST_MAX_BPIDS		GENMASK_ULL(23, 12)
 #define NIX_CONST_SDP_CHANS		GENMASK_ULL(11, 0)
+
+#define NIX_AF_MDQ_PARENT_MASK         GENMASK_ULL(24, 16)
+#define NIX_AF_TL4_PARENT_MASK         GENMASK_ULL(23, 16)
+#define NIX_AF_TL3_PARENT_MASK         GENMASK_ULL(23, 16)
+#define NIX_AF_TL2_PARENT_MASK         GENMASK_ULL(20, 16)
 
 /* SSO */
 #define SSO_AF_CONST			(0x1000)

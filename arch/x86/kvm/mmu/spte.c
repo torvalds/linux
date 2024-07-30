@@ -43,7 +43,25 @@ u64 __read_mostly shadow_acc_track_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
-u8 __read_mostly shadow_phys_bits;
+static u8 __init kvm_get_host_maxphyaddr(void)
+{
+	/*
+	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
+	 * in CPU detection code, but the processor treats those reduced bits as
+	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
+	 * the physical address bits reported by CPUID, i.e. the raw MAXPHYADDR,
+	 * when reasoning about CPU behavior with respect to MAXPHYADDR.
+	 */
+	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
+		return cpuid_eax(0x80000008) & 0xff;
+
+	/*
+	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
+	 * custom CPUID.  Proceed with whatever the kernel found since these features
+	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
+	 */
+	return boot_cpu_data.x86_phys_bits;
+}
 
 void __init kvm_mmu_spte_module_init(void)
 {
@@ -55,6 +73,8 @@ void __init kvm_mmu_spte_module_init(void)
 	 * will change when the vendor module is (re)loaded.
 	 */
 	allow_mmio_caching = enable_mmio_caching;
+
+	kvm_host.maxphyaddr = kvm_get_host_maxphyaddr();
 }
 
 static u64 generation_mmio_spte_mask(u64 gen)
@@ -190,8 +210,8 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		spte |= PT_PAGE_SIZE_MASK;
 
 	if (shadow_memtype_mask)
-		spte |= static_call(kvm_x86_get_mt_mask)(vcpu, gfn,
-							 kvm_is_mmio_pfn(pfn));
+		spte |= kvm_x86_call(get_mt_mask)(vcpu, gfn,
+						  kvm_is_mmio_pfn(pfn));
 	if (host_writable)
 		spte |= shadow_host_writable_mask;
 	else
@@ -271,18 +291,12 @@ static u64 make_spte_executable(u64 spte)
  * This is used during huge page splitting to build the SPTEs that make up the
  * new page table.
  */
-u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte, union kvm_mmu_page_role role,
-			      int index)
+u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
+			      union kvm_mmu_page_role role, int index)
 {
-	u64 child_spte;
+	u64 child_spte = huge_spte;
 
-	if (WARN_ON_ONCE(!is_shadow_present_pte(huge_spte)))
-		return 0;
-
-	if (WARN_ON_ONCE(!is_large_pte(huge_spte)))
-		return 0;
-
-	child_spte = huge_spte;
+	KVM_BUG_ON(!is_shadow_present_pte(huge_spte) || !is_large_pte(huge_spte), kvm);
 
 	/*
 	 * The child_spte already has the base address of the huge page being
@@ -383,7 +397,7 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 	 * not set any RWX bits.
 	 */
 	if (WARN_ON((mmio_value & mmio_mask) != mmio_value) ||
-	    WARN_ON(mmio_value && (REMOVED_SPTE & mmio_mask) == mmio_value))
+	    WARN_ON(mmio_value && (FROZEN_SPTE & mmio_mask) == mmio_value))
 		mmio_value = 0;
 
 	if (!mmio_value)
@@ -441,8 +455,6 @@ void kvm_mmu_reset_all_pte_masks(void)
 	u8 low_phys_bits;
 	u64 mask;
 
-	shadow_phys_bits = kvm_get_shadow_phys_bits();
-
 	/*
 	 * If the CPU has 46 or less physical address bits, then set an
 	 * appropriate mask to guard against L1TF attacks. Otherwise, it is
@@ -494,7 +506,7 @@ void kvm_mmu_reset_all_pte_masks(void)
 	 * 52-bit physical addresses then there are no reserved PA bits in the
 	 * PTEs and so the reserved PA approach must be disabled.
 	 */
-	if (shadow_phys_bits < 52)
+	if (kvm_host.maxphyaddr < 52)
 		mask = BIT_ULL(51) | PT_PRESENT_MASK;
 	else
 		mask = 0;

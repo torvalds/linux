@@ -774,4 +774,5 @@ static struct kunit_suite drm_buddy_test_suite = {
 kunit_test_suite(drm_buddy_test_suite);
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Kunit test for drm_buddy functions");
 MODULE_LICENSE("GPL");

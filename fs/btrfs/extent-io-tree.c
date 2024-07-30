@@ -4,6 +4,7 @@
 #include <trace/events/btrfs.h>
 #include "messages.h"
 #include "ctree.h"
+#include "extent_io.h"
 #include "extent-io-tree.h"
 #include "btrfs_inode.h"
 
@@ -1084,6 +1085,9 @@ again:
 		 */
 		prealloc = alloc_extent_state(mask);
 	}
+	/* Optimistically preallocate the extent changeset ulist node. */
+	if (changeset)
+		extent_changeset_prealloc(changeset, mask);
 
 	spin_lock(&tree->lock);
 	if (cached_state && *cached_state) {

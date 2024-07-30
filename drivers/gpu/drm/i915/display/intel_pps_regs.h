@@ -6,6 +6,7 @@
 #ifndef __INTEL_PPS_REGS_H__
 #define __INTEL_PPS_REGS_H__
 
+#include "intel_display_conversion.h"
 #include "intel_display_reg_defs.h"
 
 /* Panel power sequencing */
@@ -13,12 +14,11 @@
 #define VLV_PPS_BASE			(VLV_DISPLAY_BASE + PPS_BASE)
 #define PCH_PPS_BASE			0xC7200
 
-#define _MMIO_PPS(pps_idx, reg)		_MMIO(dev_priv->display.pps.mmio_base -	\
-					      PPS_BASE + (reg) +	\
-					      (pps_idx) * 0x100)
+#define _MMIO_PPS(dev_priv, pps_idx, reg) \
+	_MMIO(__to_intel_display(dev_priv)->pps.mmio_base - PPS_BASE + (reg) + (pps_idx) * 0x100)
 
 #define _PP_STATUS			0x61200
-#define PP_STATUS(pps_idx)		_MMIO_PPS(pps_idx, _PP_STATUS)
+#define PP_STATUS(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_STATUS)
 #define   PP_ON				REG_BIT(31)
 /*
  * Indicates that all dependencies of the panel are on:
@@ -45,7 +45,7 @@
 #define   PP_SEQUENCE_STATE_RESET	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0xf)
 
 #define _PP_CONTROL			0x61204
-#define PP_CONTROL(pps_idx)		_MMIO_PPS(pps_idx, _PP_CONTROL)
+#define PP_CONTROL(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_CONTROL)
 #define  PANEL_UNLOCK_MASK		REG_GENMASK(31, 16)
 #define  PANEL_UNLOCK_REGS		REG_FIELD_PREP(PANEL_UNLOCK_MASK, 0xabcd)
 #define  BXT_POWER_CYCLE_DELAY_MASK	REG_GENMASK(8, 4)
@@ -55,7 +55,7 @@
 #define  PANEL_POWER_ON			REG_BIT(0)
 
 #define _PP_ON_DELAYS			0x61208
-#define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
+#define PP_ON_DELAYS(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_ON_DELAYS)
 #define  PANEL_PORT_SELECT_MASK		REG_GENMASK(31, 30)
 #define  PANEL_PORT_SELECT_LVDS		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 0)
 #define  PANEL_PORT_SELECT_DPA		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 1)
@@ -66,12 +66,12 @@
 #define  PANEL_LIGHT_ON_DELAY_MASK	REG_GENMASK(12, 0)
 
 #define _PP_OFF_DELAYS			0x6120C
-#define PP_OFF_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_OFF_DELAYS)
+#define PP_OFF_DELAYS(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_OFF_DELAYS)
 #define  PANEL_POWER_DOWN_DELAY_MASK	REG_GENMASK(28, 16)
 #define  PANEL_LIGHT_OFF_DELAY_MASK	REG_GENMASK(12, 0)
 
 #define _PP_DIVISOR			0x61210
-#define PP_DIVISOR(pps_idx)		_MMIO_PPS(pps_idx, _PP_DIVISOR)
+#define PP_DIVISOR(dev_priv, pps_idx)	_MMIO_PPS(dev_priv, pps_idx, _PP_DIVISOR)
 #define  PP_REFERENCE_DIVIDER_MASK	REG_GENMASK(31, 8)
 #define  PANEL_POWER_CYCLE_DELAY_MASK	REG_GENMASK(4, 0)
 

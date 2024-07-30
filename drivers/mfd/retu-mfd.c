@@ -300,8 +300,8 @@ static void retu_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id retu_id[] = {
-	{ "retu", 0 },
-	{ "tahvo", 0 },
+	{ "retu" },
+	{ "tahvo" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, retu_id);

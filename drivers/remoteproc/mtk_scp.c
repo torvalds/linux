@@ -117,8 +117,8 @@ static void scp_ipi_handler(struct mtk_scp *scp)
 		return;
 	}
 
-	memset(scp->share_buf, 0, scp_sizes->ipi_share_buffer_size);
 	memcpy_fromio(scp->share_buf, &rcv_obj->share_buf, len);
+	memset(&scp->share_buf[len], 0, scp_sizes->ipi_share_buffer_size - len);
 	handler(scp->share_buf, len, ipi_desc[id].priv);
 	scp_ipi_unlock(scp, id);
 
@@ -1344,14 +1344,12 @@ static int scp_probe(struct platform_device *pdev)
 
 	/* l1tcm is an optional memory region */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "l1tcm");
-	scp_cluster->l1tcm_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(scp_cluster->l1tcm_base)) {
-		ret = PTR_ERR(scp_cluster->l1tcm_base);
-		if (ret != -EINVAL)
-			return dev_err_probe(dev, ret, "Failed to map l1tcm memory\n");
+	if (res) {
+		scp_cluster->l1tcm_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(scp_cluster->l1tcm_base))
+			return dev_err_probe(dev, PTR_ERR(scp_cluster->l1tcm_base),
+					     "Failed to map l1tcm memory\n");
 
-		scp_cluster->l1tcm_base = NULL;
-	} else {
 		scp_cluster->l1tcm_size = resource_size(res);
 		scp_cluster->l1tcm_phys = res->start;
 	}
@@ -1390,13 +1388,18 @@ static const struct mtk_scp_sizes_data default_scp_sizes = {
 };
 
 static const struct mtk_scp_sizes_data mt8188_scp_sizes = {
-	.max_dram_size = 0x500000,
+	.max_dram_size = 0x800000,
 	.ipi_share_buffer_size = 600,
 };
 
 static const struct mtk_scp_sizes_data mt8188_scp_c1_sizes = {
 	.max_dram_size = 0xA00000,
 	.ipi_share_buffer_size = 600,
+};
+
+static const struct mtk_scp_sizes_data mt8195_scp_sizes = {
+	.max_dram_size = 0x800000,
+	.ipi_share_buffer_size = 288,
 };
 
 static const struct mtk_scp_of_data mt8183_of_data = {
@@ -1476,7 +1479,7 @@ static const struct mtk_scp_of_data mt8195_of_data = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8192_HOST_IPC_INT_BIT,
-	.scp_sizes = &default_scp_sizes,
+	.scp_sizes = &mt8195_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8195_of_data_c1 = {

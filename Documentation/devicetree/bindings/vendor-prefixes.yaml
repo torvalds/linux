@@ -246,6 +246,8 @@ patternProperties:
     description: CALAO Systems SAS
   "^calxeda,.*":
     description: Calxeda
+  "^cameo,.*":
+    description: Cameo Communications, Inc
   "^canaan,.*":
     description: Canaan, Inc.
   "^caninos,.*":
@@ -338,6 +340,8 @@ patternProperties:
     description: Czech Technical University in Prague
   "^cubietech,.*":
     description: Cubietech, Ltd.
+  "^cudy,.*":
+    description: Shenzhen Cudy Technology Co., Ltd.
   "^cui,.*":
     description: CUI Devices
   "^cypress,.*":
@@ -394,6 +398,8 @@ patternProperties:
     description: DPTechnics
   "^dragino,.*":
     description: Dragino Technology Co., Limited
+  "^dream,.*":
+    description: Dream Property GmbH
   "^ds,.*":
     description: DaSheng, Inc.
   "^dserve,.*":
@@ -820,6 +826,8 @@ patternProperties:
     description: Lichee Pi
   "^linaro,.*":
     description: Linaro Limited
+  "^lincolntech,.*":
+    description: Lincoln Technology Solutions
   "^lineartechnology,.*":
     description: Linear Technology
   "^linksprite,.*":
@@ -924,6 +932,8 @@ patternProperties:
     description: Microsoft Corporation
   "^microsys,.*":
     description: MicroSys Electronics GmbH
+  "^microtips,.*":
+    description: Microtips Technology USA
   "^mikroe,.*":
     description: MikroElektronika d.o.o.
   "^mikrotik,.*":
@@ -995,6 +1005,8 @@ patternProperties:
     description: MYIR Tech Limited
   "^national,.*":
     description: National Semiconductor
+  "^neardi,.*":
+    description: Shanghai Neardi Technology Co., Ltd.
   "^nec,.*":
     description: NEC LCD Technologies, Ltd.
   "^neonode,.*":
@@ -1082,6 +1094,8 @@ patternProperties:
     description: OpenPandora GmbH
   "^openrisc,.*":
     description: OpenRISC.io
+  "^openwrt,.*":
+    description: OpenWrt
   "^option,.*":
     description: Option NV
   "^oranth,.*":
@@ -1160,6 +1174,8 @@ patternProperties:
     description: PowerVR (deprecated, use img)
   "^powkiddy,.*":
     description: Powkiddy
+  "^primeview,.*":
+    description: Prime View International (PVI)
   "^primux,.*":
     description: Primux Trading, S.L.
   "^probox2,.*":
@@ -1254,6 +1270,10 @@ patternProperties:
     description: Smart Battery System
   "^schindler,.*":
     description: Schindler
+  "^schneider,.*":
+    description: Schneider Electric
+  "^sciosense,.*":
+    description: ScioSense B.V.
   "^seagate,.*":
     description: Seagate Technology PLC
   "^seeed,.*":

@@ -1534,4 +1534,5 @@ static struct platform_driver cv1800_clk_driver = {
 	},
 };
 module_platform_driver(cv1800_clk_driver);
+MODULE_DESCRIPTION("Sophgo CV1800 series SoCs clock controller");
 MODULE_LICENSE("GPL");

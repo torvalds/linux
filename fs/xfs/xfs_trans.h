@@ -58,13 +58,15 @@ struct xfs_log_item {
 #define	XFS_LI_FAILED	2
 #define	XFS_LI_DIRTY	3
 #define	XFS_LI_WHITEOUT	4
+#define	XFS_LI_FLUSHING	5
 
 #define XFS_LI_FLAGS \
 	{ (1u << XFS_LI_IN_AIL),	"IN_AIL" }, \
 	{ (1u << XFS_LI_ABORTED),	"ABORTED" }, \
 	{ (1u << XFS_LI_FAILED),	"FAILED" }, \
 	{ (1u << XFS_LI_DIRTY),		"DIRTY" }, \
-	{ (1u << XFS_LI_WHITEOUT),	"WHITEOUT" }
+	{ (1u << XFS_LI_WHITEOUT),	"WHITEOUT" }, \
+	{ (1u << XFS_LI_FLUSHING),	"FLUSHING" }
 
 struct xfs_item_ops {
 	unsigned flags;
@@ -224,7 +226,6 @@ void		xfs_trans_stale_inode_buf(xfs_trans_t *, struct xfs_buf *);
 bool		xfs_trans_ordered_buf(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_dquot_buf(xfs_trans_t *, struct xfs_buf *, uint);
 void		xfs_trans_inode_alloc_buf(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_inode *, int);
 void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *, uint);
 void		xfs_trans_log_buf(struct xfs_trans *, struct xfs_buf *, uint,
 				  uint);

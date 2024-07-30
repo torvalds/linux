@@ -22,12 +22,12 @@
 #include "coreboot_table.h"
 
 #define CB_DEV(d) container_of(d, struct coreboot_device, dev)
-#define CB_DRV(d) container_of(d, struct coreboot_driver, drv)
+#define CB_DRV(d) container_of_const(d, struct coreboot_driver, drv)
 
-static int coreboot_bus_match(struct device *dev, struct device_driver *drv)
+static int coreboot_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct coreboot_device *device = CB_DEV(dev);
-	struct coreboot_driver *driver = CB_DRV(drv);
+	const struct coreboot_driver *driver = CB_DRV(drv);
 	const struct coreboot_device_id *id;
 
 	if (!driver->id_table)
@@ -255,4 +255,5 @@ module_init(coreboot_table_driver_init);
 module_exit(coreboot_table_driver_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Module providing coreboot table access");
 MODULE_LICENSE("GPL");

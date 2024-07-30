@@ -39,7 +39,7 @@ struct dp_panel {
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 
 	struct dp_link_info link_info;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	struct drm_connector *connector;
 	struct dp_display_mode dp_mode;
 	struct dp_panel_psr psr_cap;

@@ -29,8 +29,8 @@ struct llc_sap_state_trans {
 };
 
 struct llc_sap_state {
-	u8			   curr_state;
-	struct llc_sap_state_trans **transitions;
+	u8				 curr_state;
+	const struct llc_sap_state_trans **transitions;
 };
 
 /* only access to SAP state table */

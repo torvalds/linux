@@ -28,7 +28,7 @@ BTF COMMANDS
 | **bpftool** **btf help**
 |
 | *BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
-| *FORMAT* := { **raw** | **c** }
+| *FORMAT* := { **raw** | **c** [**unsorted**] }
 | *MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
 | *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 
@@ -63,7 +63,9 @@ bpftool btf dump *BTF_SRC*
     pahole.
 
     **format** option can be used to override default (raw) output format. Raw
-    (**raw**) or C-syntax (**c**) output formats are supported.
+    (**raw**) or C-syntax (**c**) output formats are supported. With C-style
+    formatting, the output is sorted by default. Use the **unsorted** option
+    to avoid sorting the output.
 
 bpftool btf help
     Print short help message.

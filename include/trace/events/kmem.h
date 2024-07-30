@@ -36,7 +36,7 @@ TRACE_EVENT(kmem_cache_alloc,
 		__entry->bytes_alloc	= s->size;
 		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 		__entry->node		= node;
-		__entry->accounted	= IS_ENABLED(CONFIG_MEMCG_KMEM) ?
+		__entry->accounted	= IS_ENABLED(CONFIG_MEMCG) ?
 					  ((gfp_flags & __GFP_ACCOUNT) ||
 					  (s->flags & SLAB_ACCOUNT)) : false;
 	),
@@ -87,7 +87,7 @@ TRACE_EVENT(kmalloc,
 		__entry->bytes_alloc,
 		show_gfp_flags(__entry->gfp_flags),
 		__entry->node,
-		(IS_ENABLED(CONFIG_MEMCG_KMEM) &&
+		(IS_ENABLED(CONFIG_MEMCG) &&
 		 (__entry->gfp_flags & (__force unsigned long)__GFP_ACCOUNT)) ? "true" : "false")
 );
 

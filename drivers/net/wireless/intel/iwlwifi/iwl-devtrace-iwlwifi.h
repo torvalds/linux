@@ -4,7 +4,7 @@
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018, 2023  Intel Corporation
+ * Copyright(c) 2018, 2023-2024  Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_IWLWIFI) || defined(TRACE_HEADER_MULTI_READ)
@@ -88,8 +88,8 @@ TRACE_EVENT(iwlwifi_dev_tx,
 		 * for the possible padding).
 		 */
 		__dynamic_array(u8, buf0, buf0_len)
-		__dynamic_array(u8, buf1, hdr_len > 0 && iwl_trace_data(skb) ?
-						0 : skb->len - hdr_len)
+		__dynamic_array(u8, buf1, hdr_len > 0 && !iwl_trace_data(skb) ?
+						skb->len - hdr_len : 0)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
@@ -99,7 +99,7 @@ TRACE_EVENT(iwlwifi_dev_tx,
 			__entry->framelen += skb->len - hdr_len;
 		memcpy(__get_dynamic_array(tfd), tfd, tfdlen);
 		memcpy(__get_dynamic_array(buf0), buf0, buf0_len);
-		if (hdr_len > 0 && !iwl_trace_data(skb))
+		if (__get_dynamic_array_len(buf1))
 			skb_copy_bits(skb, hdr_len,
 				      __get_dynamic_array(buf1),
 				      skb->len - hdr_len);

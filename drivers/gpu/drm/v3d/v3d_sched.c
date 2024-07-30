@@ -331,7 +331,8 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
 	struct v3d_bo *indirect = to_v3d_bo(indirect_csd->indirect);
 	struct drm_v3d_submit_csd *args = &indirect_csd->job->args;
-	u32 *wg_counts;
+	struct v3d_dev *v3d = job->base.v3d;
+	u32 num_batches, *wg_counts;
 
 	v3d_get_bo_vaddr(bo);
 	v3d_get_bo_vaddr(indirect);
@@ -344,8 +345,17 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	args->cfg[0] = wg_counts[0] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[1] = wg_counts[1] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[2] = wg_counts[2] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
-	args->cfg[4] = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
-		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
+
+	num_batches = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
+		      (wg_counts[0] * wg_counts[1] * wg_counts[2]);
+
+	/* V3D 7.1.6 and later don't subtract 1 from the number of batches */
+	if (v3d->ver < 71 || (v3d->ver == 71 && v3d->rev < 6))
+		args->cfg[4] = num_batches - 1;
+	else
+		args->cfg[4] = num_batches;
+
+	WARN_ON(args->cfg[4] == ~0);
 
 	for (int i = 0; i < 3; i++) {
 		/* 0xffffffff indicates that the uniform rewrite is not needed */
@@ -490,7 +500,7 @@ v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 quer
 	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
 	struct v3d_dev *v3d = job->base.v3d;
 	struct v3d_perfmon *perfmon;
-	u64 counter_values[V3D_PERFCNT_NUM];
+	u64 counter_values[V3D_MAX_COUNTERS];
 
 	for (int i = 0; i < performance_query->nperfmons; i++) {
 		perfmon = v3d_perfmon_find(v3d_priv,

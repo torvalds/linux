@@ -5,6 +5,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -239,13 +240,12 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_check_result);
 
-/*
+/**
  * cros_ec_get_host_event_wake_mask
  *
  * Get the mask of host events that cause wake from suspend.
  *
  * @ec_dev: EC device to call
- * @msg: message structure to use
  * @mask: result when function returns 0.
  *
  * LOCKING:
@@ -427,13 +427,12 @@ exit:
 	return ret;
 }
 
-/*
+/**
  * cros_ec_get_host_command_version_mask
  *
  * Get the version mask of a given command.
  *
  * @ec_dev: EC device to call
- * @msg: message structure to use
  * @cmd: command to get the version of.
  * @mask: result when function returns 0.
  *
@@ -686,7 +685,7 @@ EXPORT_SYMBOL(cros_ec_cmd_xfer_status);
 
 static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 			       struct cros_ec_command *msg,
-			       struct ec_response_get_next_event_v1 *event,
+			       struct ec_response_get_next_event_v3 *event,
 			       int version, uint32_t size)
 {
 	int ret;
@@ -709,11 +708,12 @@ static int get_next_event(struct cros_ec_device *ec_dev)
 {
 	struct {
 		struct cros_ec_command msg;
-		struct ec_response_get_next_event_v1 event;
+		struct ec_response_get_next_event_v3 event;
 	} __packed buf;
 	struct cros_ec_command *msg = &buf.msg;
-	struct ec_response_get_next_event_v1 *event = &buf.event;
-	const int cmd_version = ec_dev->mkbp_event_supported - 1;
+	struct ec_response_get_next_event_v3 *event = &buf.event;
+	int cmd_version = ec_dev->mkbp_event_supported - 1;
+	u32 size;
 
 	memset(msg, 0, sizeof(*msg));
 	if (ec_dev->suspended) {
@@ -721,12 +721,20 @@ static int get_next_event(struct cros_ec_device *ec_dev)
 		return -EHOSTDOWN;
 	}
 
-	if (cmd_version == 0)
-		return get_next_event_xfer(ec_dev, msg, event, 0,
-				  sizeof(struct ec_response_get_next_event));
+	if (cmd_version == 0) {
+		size = sizeof(struct ec_response_get_next_event);
+	} else if (cmd_version < 3) {
+		size = sizeof(struct ec_response_get_next_event_v1);
+	} else {
+		/*
+		 * The max version we support is v3. So, we speak v3 even if the
+		 * EC says it supports v4+.
+		 */
+		cmd_version = 3;
+		size = sizeof(struct ec_response_get_next_event_v3);
+	}
 
-	return get_next_event_xfer(ec_dev, msg, event, cmd_version,
-				sizeof(struct ec_response_get_next_event_v1));
+	return get_next_event_xfer(ec_dev, msg, event, cmd_version, size);
 }
 
 static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
@@ -1035,3 +1043,64 @@ error:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cros_ec_cmd);
+
+/**
+ * cros_ec_cmd_readmem - Read from EC memory.
+ *
+ * @ec_dev: EC device
+ * @offset: Is within EC_LPC_ADDR_MEMMAP region.
+ * @size: Number of bytes to read.
+ * @dest: EC command output data
+ *
+ * Return: >= 0 on success, negative error number on failure.
+ */
+int cros_ec_cmd_readmem(struct cros_ec_device *ec_dev, u8 offset, u8 size, void *dest)
+{
+	struct ec_params_read_memmap params = {};
+
+	if (!size)
+		return -EINVAL;
+
+	if (ec_dev->cmd_readmem)
+		return ec_dev->cmd_readmem(ec_dev, offset, size, dest);
+
+	params.offset = offset;
+	params.size = size;
+	return cros_ec_cmd(ec_dev, 0, EC_CMD_READ_MEMMAP,
+			   &params, sizeof(params), dest, size);
+}
+EXPORT_SYMBOL_GPL(cros_ec_cmd_readmem);
+
+/**
+ * cros_ec_get_cmd_versions - Get supported version mask.
+ *
+ * @ec_dev: EC device
+ * @cmd: Command to test
+ *
+ * Return: version mask on success, negative error number on failure.
+ */
+int cros_ec_get_cmd_versions(struct cros_ec_device *ec_dev, u16 cmd)
+{
+	struct ec_params_get_cmd_versions req_v0;
+	struct ec_params_get_cmd_versions_v1 req_v1;
+	struct ec_response_get_cmd_versions resp;
+	int ret;
+
+	if (cmd <= U8_MAX) {
+		req_v0.cmd = cmd;
+		ret = cros_ec_cmd(ec_dev, 0, EC_CMD_GET_CMD_VERSIONS,
+				  &req_v0, sizeof(req_v0), &resp, sizeof(resp));
+	} else {
+		req_v1.cmd = cmd;
+		ret = cros_ec_cmd(ec_dev, 1, EC_CMD_GET_CMD_VERSIONS,
+				  &req_v1, sizeof(req_v1), &resp, sizeof(resp));
+	}
+
+	if (ret == -EINVAL)
+		return 0; /* Command not implemented */
+	else if (ret < 0)
+		return ret;
+	else
+		return resp.version_mask;
+}
+EXPORT_SYMBOL_GPL(cros_ec_get_cmd_versions);

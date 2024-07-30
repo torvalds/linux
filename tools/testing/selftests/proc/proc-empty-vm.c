@@ -381,9 +381,6 @@ static int test_proc_pid_statm(pid_t pid)
 
 	assert(rv >= 0);
 	assert(rv <= sizeof(buf));
-	if (0) {
-		write(1, buf, rv);
-	}
 
 	const char *p = buf;
 	const char *const end = p + rv;

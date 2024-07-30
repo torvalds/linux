@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2022, 2024 Intel Corporation
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
 #include <linux/delay.h>
@@ -460,7 +460,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 	 */
 	if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+			    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ |
 			    CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
 		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_STATUS;
 	} else {

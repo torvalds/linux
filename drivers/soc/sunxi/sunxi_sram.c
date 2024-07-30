@@ -33,7 +33,6 @@ struct sunxi_sram_data {
 	u8			offset;
 	u8			width;
 	struct sunxi_sram_func	*func;
-	struct list_head	list;
 };
 
 struct sunxi_sram_desc {
@@ -103,7 +102,6 @@ static const struct of_device_id sunxi_sram_dt_ids[] = {
 };
 
 static struct device *sram_dev;
-static LIST_HEAD(claimed_sram);
 static DEFINE_SPINLOCK(sram_lock);
 static void __iomem *base;
 
@@ -346,7 +344,7 @@ static void sunxi_sram_unlock(void *_lock)
 	spin_unlock(lock);
 }
 
-static struct regmap_config sunxi_sram_regmap_config = {
+static const struct regmap_config sunxi_sram_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,

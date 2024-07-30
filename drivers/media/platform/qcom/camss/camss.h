@@ -22,6 +22,7 @@
 #include "camss-csiphy.h"
 #include "camss-ispif.h"
 #include "camss-vfe.h"
+#include "camss-format.h"
 
 #define to_camss(ptr_module)	\
 	container_of(ptr_module, struct camss, ptr_module)
@@ -48,11 +49,11 @@ struct camss_subdev_resources {
 	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
 	char *interrupt[CAMSS_RES_MAX];
-	char *pd_name;
-	u8 line_num;
-	bool has_pd;
-	bool is_lite;
-	const void *ops;
+	union {
+		struct csiphy_subdev_resources csiphy;
+		struct csid_subdev_resources csid;
+		struct vfe_subdev_resources vfe;
+	};
 };
 
 struct icc_bw_tbl {
@@ -97,6 +98,7 @@ struct camss_resources {
 	const unsigned int csiphy_num;
 	const unsigned int csid_num;
 	const unsigned int vfe_num;
+	int (*link_entities)(struct camss *camss);
 };
 
 struct camss {
@@ -133,6 +135,12 @@ struct camss_clock {
 	u32 nfreqs;
 };
 
+struct parent_dev_ops {
+	int (*get)(struct camss *camss, int id);
+	int (*put)(struct camss *camss, int id);
+	void __iomem *(*get_base_address)(struct camss *camss, int id);
+};
+
 void camss_add_clock_margin(u64 *rate);
 int camss_enable_clocks(int nclocks, struct camss_clock *clock,
 			struct device *dev);
@@ -143,6 +151,8 @@ s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
 int camss_get_pixel_clock(struct media_entity *entity, u64 *pixel_clock);
 int camss_pm_domain_on(struct camss *camss, int id);
 void camss_pm_domain_off(struct camss *camss, int id);
+int camss_vfe_get(struct camss *camss, int id);
+void camss_vfe_put(struct camss *camss, int id);
 void camss_delete(struct camss *camss);
 
 #endif /* QC_MSM_CAMSS_H */

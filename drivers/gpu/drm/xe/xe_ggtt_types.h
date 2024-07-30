@@ -13,10 +13,6 @@
 struct xe_bo;
 struct xe_gt;
 
-struct xe_ggtt_pt_ops {
-	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset, u16 pat_index);
-};
-
 struct xe_ggtt {
 	struct xe_tile *tile;
 
@@ -34,6 +30,14 @@ struct xe_ggtt {
 	const struct xe_ggtt_pt_ops *pt_ops;
 
 	struct drm_mm mm;
+
+	/** @access_count: counts GGTT writes */
+	unsigned int access_count;
+};
+
+struct xe_ggtt_pt_ops {
+	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset, u16 pat_index);
+	void (*ggtt_set_pte)(struct xe_ggtt *ggtt, u64 addr, u64 pte);
 };
 
 #endif

@@ -3382,5 +3382,6 @@ static __exit void nfit_test_exit(void)
 
 module_init(nfit_test_init);
 module_exit(nfit_test_exit);
+MODULE_DESCRIPTION("Test ACPI NFIT devices");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");

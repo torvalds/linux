@@ -5,4 +5,6 @@ stm-drm-y := \
 
 obj-$(CONFIG_DRM_STM_DSI) += dw_mipi_dsi-stm.o
 
+obj-$(CONFIG_DRM_STM_LVDS) += lvds.o
+
 obj-$(CONFIG_DRM_STM) += stm-drm.o

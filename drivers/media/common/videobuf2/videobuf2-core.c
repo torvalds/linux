@@ -199,7 +199,6 @@ module_param(debug, int, 0644);
 })
 
 static void __vb2_queue_cancel(struct vb2_queue *q);
-static void __enqueue_in_driver(struct vb2_buffer *vb);
 
 static const char *vb2_state_name(enum vb2_buffer_state s)
 {

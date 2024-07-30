@@ -896,7 +896,7 @@ static int am65_cpsw_nuss_ndo_slave_open(struct net_device *ndev)
 	/* mac_sl should be configured via phy-link interface */
 	am65_cpsw_sl_ctl_reset(port);
 
-	ret = phylink_of_phy_connect(port->slave.phylink, port->slave.phy_node, 0);
+	ret = phylink_of_phy_connect(port->slave.phylink, port->slave.port_np, 0);
 	if (ret)
 		goto error_cleanup;
 
@@ -2424,10 +2424,10 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 
 		rx_chn->irq = k3_udma_glue_rx_get_irq(rx_chn->rx_chn, i);
 
-		if (rx_chn->irq <= 0) {
+		if (rx_chn->irq < 0) {
 			dev_err(dev, "Failed to get rx dma irq %d\n",
 				rx_chn->irq);
-			ret = -ENXIO;
+			ret = rx_chn->irq;
 			goto err;
 		}
 	}
@@ -2611,7 +2611,7 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 				of_property_read_bool(port_np, "ti,mac-only");
 
 		/* get phy/link info */
-		port->slave.phy_node = port_np;
+		port->slave.port_np = port_np;
 		ret = of_get_phy_mode(port_np, &port->slave.phy_if);
 		if (ret) {
 			dev_err(dev, "%pOF read phy-mode err %d\n",
@@ -2703,6 +2703,7 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 	mutex_init(&ndev_priv->mm_lock);
 	port->qos.link_speed = SPEED_UNKNOWN;
 	SET_NETDEV_DEV(port->ndev, dev);
+	port->ndev->dev.of_node = port->slave.port_np;
 
 	eth_hw_addr_set(port->ndev, port->slave.mac_addr);
 
@@ -2760,7 +2761,7 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 	}
 
 	phylink = phylink_create(&port->slave.phylink_config,
-				 of_node_to_fwnode(port->slave.phy_node),
+				 of_node_to_fwnode(port->slave.port_np),
 				 port->slave.phy_if,
 				 &am65_cpsw_phylink_mac_ops);
 	if (IS_ERR(phylink))

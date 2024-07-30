@@ -219,6 +219,14 @@ compilation and skeleton generation. Using Libbpf-rs will make building user
 space part of the BPF application easier. Note that the BPF program themselves
 must still be written in plain C.
 
+libbpf logging
+==============
+
+By default, libbpf logs informational and warning messages to stderr. The
+verbosity of these messages can be controlled by setting the environment
+variable LIBBPF_LOG_LEVEL to either warn, info, or debug. A custom log
+callback can be set using ``libbpf_set_print()``.
+
 Additional Documentation
 ========================
 

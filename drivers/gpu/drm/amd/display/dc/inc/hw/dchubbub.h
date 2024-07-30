@@ -33,11 +33,17 @@
  * blocks for the Data Fabric Interface that are not clock/power gated.
  */
 
+#include "dc/dc_hw_types.h"
+
 enum dcc_control {
 	dcc_control__256_256_xxx,
 	dcc_control__128_128_xxx,
 	dcc_control__256_64_64,
 	dcc_control__256_128_128,
+	dcc_control__256_256,
+	dcc_control__256_128,
+	dcc_control__256_64,
+
 };
 
 enum segment_order {
@@ -72,8 +78,15 @@ enum dcn_hubbub_page_table_depth {
 
 enum dcn_hubbub_page_table_block_size {
 	DCN_PAGE_TABLE_BLOCK_SIZE_4KB = 0,
+	DCN_PAGE_TABLE_BLOCK_SIZE_8KB = 1,
+	DCN_PAGE_TABLE_BLOCK_SIZE_16KB = 2,
+	DCN_PAGE_TABLE_BLOCK_SIZE_32KB = 3,
 	DCN_PAGE_TABLE_BLOCK_SIZE_64KB = 4,
-	DCN_PAGE_TABLE_BLOCK_SIZE_32KB = 3
+	DCN_PAGE_TABLE_BLOCK_SIZE_128KB = 5,
+	DCN_PAGE_TABLE_BLOCK_SIZE_256KB = 6,
+	DCN_PAGE_TABLE_BLOCK_SIZE_512KB = 7,
+	DCN_PAGE_TABLE_BLOCK_SIZE_1024KB = 8,
+	DCN_PAGE_TABLE_BLOCK_SIZE_2048KB = 9
 };
 
 struct dcn_hubbub_phys_addr_config {
@@ -147,6 +160,17 @@ struct hubbub_funcs {
 			enum segment_order *segment_order_horz,
 			enum segment_order *segment_order_vert);
 
+	bool (*dcc_support_swizzle_addr3)(
+			enum swizzle_mode_addr3_values swizzle,
+			unsigned int plane_pitch,
+			unsigned int bytes_per_element,
+			enum segment_order *segment_order_horz,
+			enum segment_order *segment_order_vert);
+
+	bool (*dcc_support_pixel_format_plane0_plane1)(
+			enum surface_pixel_format format,
+			unsigned int *plane0_bpe,
+			unsigned int *plane1_bpe);
 	bool (*dcc_support_pixel_format)(
 			enum surface_pixel_format format,
 			unsigned int *bytes_per_element);
@@ -201,6 +225,8 @@ struct hubbub_funcs {
 	void (*set_request_limit)(struct hubbub *hubbub, int memory_channel_count, int words_per_channel);
 	void (*dchubbub_init)(struct hubbub *hubbub);
 	void (*get_mall_en)(struct hubbub *hubbub, unsigned int *mall_in_use);
+	void (*program_det_segments)(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_seg);
+	void (*program_compbuf_segments)(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase);
 };
 
 struct hubbub {

@@ -305,7 +305,7 @@ static void tsnep_ethtool_get_channels(struct net_device *netdev,
 }
 
 static int tsnep_ethtool_get_ts_info(struct net_device *netdev,
-				     struct ethtool_ts_info *info)
+				     struct kernel_ethtool_ts_info *info)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
 

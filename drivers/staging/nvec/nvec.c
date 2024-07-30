@@ -300,7 +300,7 @@ int nvec_write_sync(struct nvec_chip *nvec,
 {
 	mutex_lock(&nvec->sync_write_mutex);
 
-	if (msg != NULL)
+	if (msg)
 		*msg = NULL;
 
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
@@ -322,7 +322,7 @@ int nvec_write_sync(struct nvec_chip *nvec,
 
 	dev_dbg(nvec->dev, "nvec_sync_write: pong!\n");
 
-	if (msg != NULL)
+	if (msg)
 		*msg = nvec->last_sync_msg;
 	else
 		nvec_msg_free(nvec, nvec->last_sync_msg);
@@ -571,6 +571,22 @@ static void nvec_tx_set(struct nvec_chip *nvec)
 }
 
 /**
+ * tegra_i2c_writel - safely write to an I2C client controller register
+ * @val: value to be written
+ * @reg: register to write to
+ *
+ * A write to an I2C controller register needs to be read back to make sure
+ * that the value has arrived.
+ */
+static void tegra_i2c_writel(u32 val, void *reg)
+{
+	writel_relaxed(val, reg);
+
+	/* read back register to make sure that register writes completed */
+	readl_relaxed(reg);
+}
+
+/**
  * nvec_interrupt - Interrupt handler
  * @irq: The IRQ
  * @dev: The nvec device
@@ -604,7 +620,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 	if ((status & RNW) == 0) {
 		received = readl(nvec->base + I2C_SL_RCVD);
 		if (status & RCVD)
-			writel(0, nvec->base + I2C_SL_RCVD);
+			tegra_i2c_writel(0, nvec->base + I2C_SL_RCVD);
 	}
 
 	if (status == (I2C_SL_IRQ | RCVD))
@@ -696,7 +712,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 
 	/* Send data if requested, but not on end of transmission */
 	if ((status & (RNW | END_TRANS)) == RNW)
-		writel(to_send, nvec->base + I2C_SL_RCVD);
+		tegra_i2c_writel(to_send, nvec->base + I2C_SL_RCVD);
 
 	/* If we have send the first byte */
 	if (status == (I2C_SL_IRQ | RNW | RCVD))
@@ -713,15 +729,6 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		status & RCVD ? " RCVD" : "",
 		status & RNW ? " RNW" : "");
 
-	/*
-	 * TODO: replace the udelay with a read back after each writel above
-	 * in order to work around a hardware issue, see i2c-tegra.c
-	 *
-	 * Unfortunately, this change causes an initialisation issue with the
-	 * touchpad, which needs to be fixed first.
-	 */
-	udelay(100);
-
 	return IRQ_HANDLED;
 }
 
@@ -737,15 +744,15 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
-	writel(val, nvec->base + I2C_CNFG);
+	tegra_i2c_writel(val, nvec->base + I2C_CNFG);
 
 	clk_set_rate(nvec->i2c_clk, 8 * 80000);
 
-	writel(I2C_SL_NEWSL, nvec->base + I2C_SL_CNFG);
-	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
+	tegra_i2c_writel(I2C_SL_NEWSL, nvec->base + I2C_SL_CNFG);
+	tegra_i2c_writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
 
-	writel(nvec->i2c_addr >> 1, nvec->base + I2C_SL_ADDR1);
-	writel(0, nvec->base + I2C_SL_ADDR2);
+	tegra_i2c_writel(nvec->i2c_addr >> 1, nvec->base + I2C_SL_ADDR1);
+	tegra_i2c_writel(0, nvec->base + I2C_SL_ADDR2);
 
 	enable_irq(nvec->irq);
 }
@@ -754,7 +761,7 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 {
 	disable_irq(nvec->irq);
-	writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
+	tegra_i2c_writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
 	clk_disable_unprepare(nvec->i2c_clk);
 }
 #endif

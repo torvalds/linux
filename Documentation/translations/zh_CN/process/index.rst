@@ -64,6 +64,7 @@ TODOLIST:
    management-style
    stable-kernel-rules
    submit-checklist
+   researcher-guidelines
 
 TODOLIST:
 
@@ -71,7 +72,6 @@ TODOLIST:
 * kernel-docs
 * deprecated
 * maintainers
-* researcher-guidelines
 * contribution-maturity-model
 
 

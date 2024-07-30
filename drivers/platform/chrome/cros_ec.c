@@ -388,8 +388,8 @@ EXPORT_SYMBOL(cros_ec_suspend_late);
  */
 int cros_ec_suspend(struct cros_ec_device *ec_dev)
 {
-	cros_ec_send_suspend_event(ec_dev);
-	cros_ec_disable_irq(ec_dev);
+	cros_ec_suspend_prepare(ec_dev);
+	cros_ec_suspend_late(ec_dev);
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_suspend);

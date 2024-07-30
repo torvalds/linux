@@ -29,12 +29,10 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-0 = <&pmx_button_eject>;
 		pinctrl-names = "default";
 
-		eject {
+		button-eject {
 			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
@@ -48,12 +46,12 @@
 		pinctrl-0 = <&pmx_led_green &pmx_led_red>;
 		pinctrl-names = "default";
 
-		health {
+		led-health {
 			label = "pogoplugv4:green:health";
 			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
-		fault {
+		led-fault {
 			label = "pogoplugv4:red:fault";
 			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
 		};

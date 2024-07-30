@@ -4,7 +4,6 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/cpumask.h>
 #include <linux/cache.h>
 
 #include <asm/errno.h>

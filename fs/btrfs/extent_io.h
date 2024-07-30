@@ -215,6 +215,11 @@ static inline struct extent_changeset *extent_changeset_alloc(void)
 	return ret;
 }
 
+static inline void extent_changeset_prealloc(struct extent_changeset *changeset, gfp_t gfp_mask)
+{
+	ulist_prealloc(&changeset->range_changed, gfp_mask);
+}
+
 static inline void extent_changeset_release(struct extent_changeset *changeset)
 {
 	if (!changeset)
@@ -235,15 +240,13 @@ bool try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
-void extent_write_locked_range(struct inode *inode, struct page *locked_page,
+void extent_write_locked_range(struct inode *inode, const struct page *locked_page,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty);
 int btrfs_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int btree_write_cache_pages(struct address_space *mapping,
 			    struct writeback_control *wbc);
 void btrfs_readahead(struct readahead_control *rac);
-int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
-		  u64 start, u64 len);
 int set_folio_extent_mapped(struct folio *folio);
 int set_page_extent_mapped(struct page *page);
 void clear_page_extent_mapped(struct page *page);
@@ -263,7 +266,7 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_COMPLETE	1
 #define WAIT_PAGE_LOCK	2
 int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
-			     struct btrfs_tree_parent_check *parent_check);
+			     const struct btrfs_tree_parent_check *parent_check);
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
 void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level);
@@ -350,9 +353,8 @@ void extent_buffer_bitmap_clear(const struct extent_buffer *eb,
 void set_extent_buffer_dirty(struct extent_buffer *eb);
 void set_extent_buffer_uptodate(struct extent_buffer *eb);
 void clear_extent_buffer_uptodate(struct extent_buffer *eb);
-void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
-				  struct page *locked_page,
+				  const struct page *locked_page,
 				  struct extent_state **cached,
 				  u32 bits_to_clear, unsigned long page_ops);
 int extent_invalidate_folio(struct extent_io_tree *tree,
@@ -361,9 +363,8 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *buf);
 
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array,
-			   gfp_t extra_gfp);
-int btrfs_alloc_folio_array(unsigned int nr_folios, struct folio **folio_array,
-			    gfp_t extra_gfp);
+			   bool nofail);
+int btrfs_alloc_folio_array(unsigned int nr_folios, struct folio **folio_array);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool find_lock_delalloc_range(struct inode *inode,

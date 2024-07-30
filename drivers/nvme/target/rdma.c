@@ -852,12 +852,12 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 	if (!nvme_is_write(rsp->req.cmd)) {
 		rsp->req.error_loc =
 			offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	if (off + len > rsp->queue->dev->inline_data_size) {
 		pr_err("invalid inline data offset!\n");
-		return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_OFFSET | NVME_STATUS_DNR;
 	}
 
 	/* no data command? */
@@ -919,7 +919,7 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	case NVME_KEY_SGL_FMT_DATA_DESC:
 		switch (sgl->type & 0xf) {
@@ -931,12 +931,12 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
 			rsp->req.error_loc =
 				offsetof(struct nvme_common_command, dptr);
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		}
 	default:
 		pr_err("invalid SGL type: %#x\n", sgl->type);
 		rsp->req.error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_TYPE | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_TYPE | NVME_STATUS_DNR;
 	}
 }
 
@@ -2000,6 +2000,17 @@ static void nvmet_rdma_disc_port_addr(struct nvmet_req *req,
 	}
 }
 
+static ssize_t nvmet_rdma_host_port_addr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_len)
+{
+	struct nvmet_sq *nvme_sq = ctrl->sqs[0];
+	struct nvmet_rdma_queue *queue =
+		container_of(nvme_sq, struct nvmet_rdma_queue, nvme_sq);
+
+	return snprintf(traddr, traddr_len, "%pISc",
+			(struct sockaddr *)&queue->cm_id->route.addr.dst_addr);
+}
+
 static u8 nvmet_rdma_get_mdts(const struct nvmet_ctrl *ctrl)
 {
 	if (ctrl->pi_support)
@@ -2024,6 +2035,7 @@ static const struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.queue_response		= nvmet_rdma_queue_response,
 	.delete_ctrl		= nvmet_rdma_delete_ctrl,
 	.disc_traddr		= nvmet_rdma_disc_port_addr,
+	.host_traddr		= nvmet_rdma_host_port_addr,
 	.get_mdts		= nvmet_rdma_get_mdts,
 	.get_max_queue_size	= nvmet_rdma_get_max_queue_size,
 };

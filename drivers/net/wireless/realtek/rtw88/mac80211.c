@@ -62,7 +62,7 @@ static int rtw_ops_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void rtw_ops_stop(struct ieee80211_hw *hw)
+static void rtw_ops_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 

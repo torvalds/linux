@@ -64,7 +64,17 @@ platform_suspend_ops
 proc_ops
 proto_ops
 pwm_ops
+reg_default
+reg_field
+reg_sequence
 regmap_access_table
+regmap_bus
+regmap_config
+regmap_irq
+regmap_irq_chip
+regmap_irq_sub_irq_map
+regmap_range
+regmap_range_cfg
 regulator_ops
 reset_control_ops
 rpc_pipe_ops

@@ -27,64 +27,10 @@
 #include "cancel.h"
 #include "kbuf.h"
 #include "napi.h"
+#include "eventfd.h"
 
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
-
-static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
-			       unsigned int eventfd_async)
-{
-	struct io_ev_fd *ev_fd;
-	__s32 __user *fds = arg;
-	int fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd)
-		return -EBUSY;
-
-	if (copy_from_user(&fd, fds, sizeof(*fds)))
-		return -EFAULT;
-
-	ev_fd = kmalloc(sizeof(*ev_fd), GFP_KERNEL);
-	if (!ev_fd)
-		return -ENOMEM;
-
-	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
-	if (IS_ERR(ev_fd->cq_ev_fd)) {
-		int ret = PTR_ERR(ev_fd->cq_ev_fd);
-		kfree(ev_fd);
-		return ret;
-	}
-
-	spin_lock(&ctx->completion_lock);
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
-	spin_unlock(&ctx->completion_lock);
-
-	ev_fd->eventfd_async = eventfd_async;
-	ctx->has_evfd = true;
-	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
-	atomic_set(&ev_fd->refs, 1);
-	atomic_set(&ev_fd->ops, 0);
-	return 0;
-}
-
-int io_eventfd_unregister(struct io_ring_ctx *ctx)
-{
-	struct io_ev_fd *ev_fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd) {
-		ctx->has_evfd = false;
-		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_FREE_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
-		return 0;
-	}
-
-	return -ENXIO;
-}
 
 static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 			   unsigned nr_args)
@@ -93,9 +39,10 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 	size_t size;
 	int i, ret;
 
+	if (nr_args > IORING_OP_LAST)
+		nr_args = IORING_OP_LAST;
+
 	size = struct_size(p, ops, nr_args);
-	if (size == SIZE_MAX)
-		return -EOVERFLOW;
 	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -108,12 +55,10 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		goto out;
 
 	p->last_op = IORING_OP_LAST - 1;
-	if (nr_args > IORING_OP_LAST)
-		nr_args = IORING_OP_LAST;
 
 	for (i = 0; i < nr_args; i++) {
 		p->ops[i].op = i;
-		if (!io_issue_defs[i].not_supported)
+		if (io_uring_op_supported(i))
 			p->ops[i].flags = IO_URING_OP_SUPPORTED;
 	}
 	p->ops_len = i;

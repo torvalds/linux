@@ -313,24 +313,6 @@ config CRYPTO_ECRDSA
 	  One of the Russian cryptographic standard algorithms (called GOST
 	  algorithms). Only signature verification is implemented.
 
-config CRYPTO_SM2
-	tristate "SM2 (ShangMi 2)"
-	select CRYPTO_SM3
-	select CRYPTO_AKCIPHER
-	select CRYPTO_MANAGER
-	select MPILIB
-	select ASN1
-	help
-	  SM2 (ShangMi 2) public key algorithm
-
-	  Published by State Encryption Management Bureau, China,
-	  as specified by OSCCA GM/T 0003.1-2012 -- 0003.5-2012.
-
-	  References:
-	  https://datatracker.ietf.org/doc/draft-shen-sm2-ecdsa/
-	  http://www.oscca.gov.cn/sca/xxgk/2010-12/17/content_1002386.shtml
-	  http://www.gmbz.org.cn/main/bzlb.html
-
 config CRYPTO_CURVE25519
 	tristate "Curve25519"
 	select CRYPTO_KPP

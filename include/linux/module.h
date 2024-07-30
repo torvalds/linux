@@ -174,6 +174,12 @@ extern void cleanup_module(void);
 #define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
 
 /*
+ * Weak module dependencies. See man modprobe.d for details.
+ * Example: MODULE_WEAKDEP("module-foo")
+ */
+#define MODULE_WEAKDEP(_weakdep) MODULE_INFO(weakdep, _weakdep)
+
+/*
  * MODULE_FILE is used for generating modules.builtin
  * So, make it no-op when this is being built as a module
  */
@@ -509,7 +515,9 @@ struct module {
 #endif
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	unsigned int btf_data_size;
+	unsigned int btf_base_data_size;
 	void *btf_data;
+	void *btf_base_data;
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
@@ -931,11 +939,11 @@ int module_kallsyms_on_each_symbol(const char *modname,
  * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
  * found, otherwise NULL.
  */
-const char *module_address_lookup(unsigned long addr,
-				  unsigned long *symbolsize,
-				  unsigned long *offset,
-				  char **modname, const unsigned char **modbuildid,
-				  char *namebuf);
+int module_address_lookup(unsigned long addr,
+			  unsigned long *symbolsize,
+			  unsigned long *offset,
+			  char **modname, const unsigned char **modbuildid,
+			  char *namebuf);
 int lookup_module_symbol_name(unsigned long addr, char *symname);
 int lookup_module_symbol_attrs(unsigned long addr,
 			       unsigned long *size,
@@ -964,14 +972,14 @@ static inline int module_kallsyms_on_each_symbol(const char *modname,
 }
 
 /* For kallsyms to ask for address resolution.  NULL means not found. */
-static inline const char *module_address_lookup(unsigned long addr,
+static inline int module_address_lookup(unsigned long addr,
 						unsigned long *symbolsize,
 						unsigned long *offset,
 						char **modname,
 						const unsigned char **modbuildid,
 						char *namebuf)
 {
-	return NULL;
+	return 0;
 }
 
 static inline int lookup_module_symbol_name(unsigned long addr, char *symname)

@@ -257,10 +257,6 @@ int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 	case OID_gost2012Signature512:
 		ctx->cert->sig->hash_algo = "streebog512";
 		goto ecrdsa;
-
-	case OID_SM2_with_SM3:
-		ctx->cert->sig->hash_algo = "sm3";
-		goto sm2;
 	}
 
 rsa_pkcs1:
@@ -270,11 +266,6 @@ rsa_pkcs1:
 	return 0;
 ecrdsa:
 	ctx->cert->sig->pkey_algo = "ecrdsa";
-	ctx->cert->sig->encoding = "raw";
-	ctx->sig_algo = ctx->last_oid;
-	return 0;
-sm2:
-	ctx->cert->sig->pkey_algo = "sm2";
 	ctx->cert->sig->encoding = "raw";
 	ctx->sig_algo = ctx->last_oid;
 	return 0;
@@ -309,7 +300,6 @@ int x509_note_signature(void *context, size_t hdrlen,
 
 	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0 ||
 	    strcmp(ctx->cert->sig->pkey_algo, "ecrdsa") == 0 ||
-	    strcmp(ctx->cert->sig->pkey_algo, "sm2") == 0 ||
 	    strcmp(ctx->cert->sig->pkey_algo, "ecdsa") == 0) {
 		/* Discard the BIT STRING metadata */
 		if (vlen < 1 || *(const u8 *)value != 0)
@@ -514,17 +504,11 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 	case OID_gost2012PKey512:
 		ctx->cert->pub->pkey_algo = "ecrdsa";
 		break;
-	case OID_sm2:
-		ctx->cert->pub->pkey_algo = "sm2";
-		break;
 	case OID_id_ecPublicKey:
 		if (parse_OID(ctx->params, ctx->params_size, &oid) != 0)
 			return -EBADMSG;
 
 		switch (oid) {
-		case OID_sm2:
-			ctx->cert->pub->pkey_algo = "sm2";
-			break;
 		case OID_id_prime192v1:
 			ctx->cert->pub->pkey_algo = "ecdsa-nist-p192";
 			break;

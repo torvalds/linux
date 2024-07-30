@@ -204,4 +204,5 @@ static struct hid_driver saitek_driver = {
 };
 module_hid_driver(saitek_driver);
 
+MODULE_DESCRIPTION("HID driver for Saitek devices.");
 MODULE_LICENSE("GPL");

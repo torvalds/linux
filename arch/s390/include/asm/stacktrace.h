@@ -65,6 +65,7 @@ struct stack_frame {
 			unsigned long sie_reason;
 			unsigned long sie_flags;
 			unsigned long sie_control_block_phys;
+			unsigned long sie_guest_asce;
 		};
 	};
 	unsigned long gprs[10];

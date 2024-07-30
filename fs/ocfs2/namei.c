@@ -2189,8 +2189,10 @@ static int __ocfs2_prepare_orphan_dir(struct inode *orphan_dir_inode,
  * @osb: ocfs2 file system
  * @ret_orphan_dir: Orphan dir inode - returned locked!
  * @blkno: Actual block number of the inode to be inserted into orphan dir.
+ * @name: Buffer to store the name of the orphan.
  * @lookup: dir lookup result, to be passed back into functions like
  *          ocfs2_orphan_add
+ * @dio: Flag indicating if direct IO is being used or not.
  *
  * Returns zero on success and the ret_orphan_dir, name and lookup
  * fields will be populated.

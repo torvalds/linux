@@ -130,7 +130,38 @@ static void drm_test_modes_analog_tv_pal_576i_inlined(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected, mode));
 }
 
+static void drm_test_modes_analog_tv_mono_576i(struct kunit *test)
+{
+	struct drm_test_modes_priv *priv = test->priv;
+	struct drm_display_mode *mode;
+
+	mode = drm_analog_tv_mode(priv->drm,
+				  DRM_MODE_TV_MODE_MONOCHROME,
+				  13500 * HZ_PER_KHZ, 720, 576,
+				  true);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	KUNIT_EXPECT_EQ(test, drm_mode_vrefresh(mode), 50);
+	KUNIT_EXPECT_EQ(test, mode->hdisplay, 720);
+
+	/* BT.601 defines hsync_start at 732 for 576i */
+	KUNIT_EXPECT_EQ(test, mode->hsync_start, 732);
+
+	/*
+	 * The PAL standard expects a line to take 64us. With a pixel
+	 * clock of 13.5 MHz, a pixel takes around 74ns, so we need to
+	 * have 64000ns / 74ns = 864.
+	 *
+	 * This is also mandated by BT.601.
+	 */
+	KUNIT_EXPECT_EQ(test, mode->htotal, 864);
+
+	KUNIT_EXPECT_EQ(test, mode->vdisplay, 576);
+	KUNIT_EXPECT_EQ(test, mode->vtotal, 625);
+}
+
 static struct kunit_case drm_modes_analog_tv_tests[] = {
+	KUNIT_CASE(drm_test_modes_analog_tv_mono_576i),
 	KUNIT_CASE(drm_test_modes_analog_tv_ntsc_480i),
 	KUNIT_CASE(drm_test_modes_analog_tv_ntsc_480i_inlined),
 	KUNIT_CASE(drm_test_modes_analog_tv_pal_576i),
@@ -147,4 +178,5 @@ static struct kunit_suite drm_modes_analog_tv_test_suite = {
 kunit_test_suite(drm_modes_analog_tv_test_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("Kunit test for drm_modes functions");
 MODULE_LICENSE("GPL");

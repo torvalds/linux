@@ -378,8 +378,10 @@ struct kvm_vcpu {
 		bool dy_eligible;
 	} spin_loop;
 #endif
+	bool wants_to_run;
 	bool preempted;
 	bool ready;
+	bool scheduled_out;
 	struct kvm_vcpu_arch arch;
 	struct kvm_vcpu_stat stat;
 	char stats_id[KVM_STATS_NAME_SIZE];
@@ -1494,8 +1496,6 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg);
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu);
 
-void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu);
-
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id);
@@ -1955,8 +1955,6 @@ struct _kvm_stats_desc {
 			HALT_POLL_HIST_COUNT),				       \
 	STATS_DESC_IBOOLEAN(VCPU_GENERIC, blocking)
 
-extern struct dentry *kvm_debugfs_dir;
-
 ssize_t kvm_stats_read(char *id, const struct kvm_stats_header *header,
 		       const struct _kvm_stats_desc *desc,
 		       void *stats, size_t size_stats,
@@ -2096,6 +2094,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *entries,
 			unsigned nr,
 			unsigned flags);
+int kvm_init_irq_routing(struct kvm *kvm);
 int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue);
@@ -2104,6 +2103,11 @@ void kvm_free_irq_routing(struct kvm *kvm);
 #else
 
 static inline void kvm_free_irq_routing(struct kvm *kvm) {}
+
+static inline int kvm_init_irq_routing(struct kvm *kvm)
+{
+	return 0;
+}
 
 #endif
 
@@ -2440,5 +2444,46 @@ static inline int kvm_gmem_get_pfn(struct kvm *kvm,
 	return -EIO;
 }
 #endif /* CONFIG_KVM_PRIVATE_MEM */
+
+#ifdef CONFIG_HAVE_KVM_GMEM_PREPARE
+int kvm_arch_gmem_prepare(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn, int max_order);
+bool kvm_arch_gmem_prepare_needed(struct kvm *kvm);
+#endif
+
+/**
+ * kvm_gmem_populate() - Populate/prepare a GPA range with guest data
+ *
+ * @kvm: KVM instance
+ * @gfn: starting GFN to be populated
+ * @src: userspace-provided buffer containing data to copy into GFN range
+ *       (passed to @post_populate, and incremented on each iteration
+ *       if not NULL)
+ * @npages: number of pages to copy from userspace-buffer
+ * @post_populate: callback to issue for each gmem page that backs the GPA
+ *                 range
+ * @opaque: opaque data to pass to @post_populate callback
+ *
+ * This is primarily intended for cases where a gmem-backed GPA range needs
+ * to be initialized with userspace-provided data prior to being mapped into
+ * the guest as a private page. This should be called with the slots->lock
+ * held so that caller-enforced invariants regarding the expected memory
+ * attributes of the GPA range do not race with KVM_SET_MEMORY_ATTRIBUTES.
+ *
+ * Returns the number of pages that were populated.
+ */
+typedef int (*kvm_gmem_populate_cb)(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+				    void __user *src, int order, void *opaque);
+
+long kvm_gmem_populate(struct kvm *kvm, gfn_t gfn, void __user *src, long npages,
+		       kvm_gmem_populate_cb post_populate, void *opaque);
+
+#ifdef CONFIG_HAVE_KVM_GMEM_INVALIDATE
+void kvm_arch_gmem_invalidate(kvm_pfn_t start, kvm_pfn_t end);
+#endif
+
+#ifdef CONFIG_KVM_GENERIC_PRE_FAULT_MEMORY
+long kvm_arch_vcpu_pre_fault_memory(struct kvm_vcpu *vcpu,
+				    struct kvm_pre_fault_memory *range);
+#endif
 
 #endif

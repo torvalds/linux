@@ -48,3 +48,21 @@ have the same physical APIC ID, KVM will deliver events targeting that APIC ID
 only to the vCPU with the lowest vCPU ID.  If KVM_X2APIC_API_USE_32BIT_IDS is
 not enabled, KVM follows x86 architecture when processing interrupts (all vCPUs
 matching the target APIC ID receive the interrupt).
+
+MTRRs
+-----
+KVM does not virtualize guest MTRR memory types.  KVM emulates accesses to MTRR
+MSRs, i.e. {RD,WR}MSR in the guest will behave as expected, but KVM does not
+honor guest MTRRs when determining the effective memory type, and instead
+treats all of guest memory as having Writeback (WB) MTRRs.
+
+CR0.CD
+------
+KVM does not virtualize CR0.CD on Intel CPUs.  Similar to MTRR MSRs, KVM
+emulates CR0.CD accesses so that loads and stores from/to CR0 behave as
+expected, but setting CR0.CD=1 has no impact on the cachaeability of guest
+memory.
+
+Note, this erratum does not affect AMD CPUs, which fully virtualize CR0.CD in
+hardware, i.e. put the CPU caches into "no fill" mode when CR0.CD=1, even when
+running in the guest.

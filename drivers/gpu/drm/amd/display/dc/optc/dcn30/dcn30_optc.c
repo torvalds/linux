@@ -206,7 +206,7 @@ void optc3_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG3_SRC_SEL, 0xf
 			);
 
-	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div = optc->funcs->is_two_pixels_per_container(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_MODE, h_div);
 
@@ -216,11 +216,9 @@ void optc3_set_odm_bypass(struct timing_generator *optc,
 }
 
 void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing)
+		int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
-			/ opp_cnt;
 	uint32_t memory_mask = 0;
 
 	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
@@ -267,7 +265,7 @@ void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 	}
 
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
-			OPTC_SEGMENT_WIDTH, mpcc_hactive);
+			OPTC_SEGMENT_WIDTH, segment_width);
 
 	REG_SET(OTG_H_TIMING_CNTL, 0, OTG_H_TIMING_DIV_MODE, opp_cnt - 1);
 	optc1->opp_count = opp_cnt;
@@ -376,6 +374,7 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.wait_drr_doublebuffer_pending_clear = optc3_wait_drr_doublebuffer_pending_clear,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn30_timing_generator_init(struct optc *optc1)
