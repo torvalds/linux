@@ -932,6 +932,7 @@ err_rule:
 	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
+	*attr = *old_attr;
 	kfree(old_attr);
 err_attr:
 	kvfree(spec);
