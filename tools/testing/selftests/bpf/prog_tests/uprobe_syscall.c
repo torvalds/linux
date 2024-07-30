@@ -216,7 +216,7 @@ static void test_uretprobe_regs_change(void)
 }
 
 #ifndef __NR_uretprobe
-#define __NR_uretprobe 467
+#define __NR_uretprobe 335
 #endif
 
 __naked unsigned long uretprobe_syscall_call_1(void)
