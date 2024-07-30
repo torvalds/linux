@@ -884,8 +884,6 @@ static const struct scsi_host_template ep93xx_pata_sht = {
 static struct ata_port_operations ep93xx_pata_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 
-	.qc_prep		= ata_noop_qc_prep,
-
 	.softreset		= ep93xx_pata_softreset,
 	.hardreset		= ATA_OP_NULL,
 

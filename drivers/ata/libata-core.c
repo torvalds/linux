@@ -4696,12 +4696,6 @@ int ata_std_qc_defer(struct ata_queued_cmd *qc)
 }
 EXPORT_SYMBOL_GPL(ata_std_qc_defer);
 
-enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc)
-{
-	return AC_ERR_OK;
-}
-EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
-
 /**
  *	ata_sg_init - Associate command with scatter-gather table.
  *	@qc: Command to be associated
@@ -5088,10 +5082,13 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		return;
 	}
 
-	trace_ata_qc_prep(qc);
-	qc->err_mask |= ap->ops->qc_prep(qc);
-	if (unlikely(qc->err_mask))
-		goto err;
+	if (ap->ops->qc_prep) {
+		trace_ata_qc_prep(qc);
+		qc->err_mask |= ap->ops->qc_prep(qc);
+		if (unlikely(qc->err_mask))
+			goto err;
+	}
+
 	trace_ata_qc_issue(qc);
 	qc->err_mask |= ap->ops->qc_issue(qc);
 	if (unlikely(qc->err_mask))
@@ -6724,7 +6721,6 @@ static void ata_dummy_error_handler(struct ata_port *ap)
 }
 
 struct ata_port_operations ata_dummy_port_ops = {
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_dummy_qc_issue,
 	.error_handler		= ata_dummy_error_handler,
 	.sched_eh		= ata_std_sched_eh,

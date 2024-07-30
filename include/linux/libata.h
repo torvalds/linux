@@ -1168,7 +1168,6 @@ extern int ata_xfer_mode2shift(u8 xfer_mode);
 extern const char *ata_mode_string(unsigned int xfer_mask);
 extern unsigned int ata_id_xfermask(const u16 *id);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
-extern enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);

@@ -564,7 +564,6 @@ static struct ata_port_operations sas_sata_ops = {
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
 	.set_dmamode		= sas_ata_set_dmamode,

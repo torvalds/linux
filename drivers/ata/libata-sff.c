@@ -26,7 +26,6 @@ static struct workqueue_struct *ata_sff_wq;
 const struct ata_port_operations ata_sff_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
 	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
