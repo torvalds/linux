@@ -823,17 +823,6 @@ struct amdgpu_mqd {
 struct amdgpu_reset_domain;
 struct amdgpu_fru_info;
 
-struct amdgpu_reset_info {
-	/* reset dump register */
-	u32 *reset_dump_reg_list;
-	u32 *reset_dump_reg_value;
-	int num_regs;
-
-#ifdef CONFIG_DEV_COREDUMP
-	struct amdgpu_coredump_info *coredump_info;
-#endif
-};
-
 /*
  * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
  */
@@ -1156,8 +1145,6 @@ struct amdgpu_device {
 	struct amdgpu_reset_domain	*reset_domain;
 
 	struct mutex			benchmark_mutex;
-
-	struct amdgpu_reset_info	reset_info;
 
 	bool                            scpm_enabled;
 	uint32_t                        scpm_status;
