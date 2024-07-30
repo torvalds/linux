@@ -164,6 +164,7 @@ allOf:
           contains:
             enum:
               - qcom,ipq4019-dwc3
+              - qcom,ipq5332-dwc3
     then:
       properties:
         clocks:
@@ -267,7 +268,6 @@ allOf:
           contains:
             enum:
               - qcom,ipq5018-dwc3
-              - qcom,ipq5332-dwc3
               - qcom,msm8994-dwc3
               - qcom,qcs404-dwc3
     then:
