@@ -17,6 +17,7 @@ config DRM_AMDGPU
 	select HWMON
 	select I2C
 	select I2C_ALGOBIT
+	select CRC16
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
 	select DRM_BUDDY
@@ -69,6 +70,17 @@ config DRM_AMDGPU_USERPTR
 	help
 	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
 	  isn't already selected to enabled full userptr support.
+
+config DRM_AMD_ISP
+	bool "Enable AMD Image Signal Processor IP support"
+	depends on DRM_AMDGPU
+	select MFD_CORE
+	select PM_GENERIC_DOMAINS if PM
+	help
+	Choose this option to enable ISP IP support for AMD SOCs.
+	This adds the ISP (Image Signal Processor) IP driver and wires
+	it up into the amdgpu driver.  It is required for cameras
+	on APUs which utilize mipi cameras.
 
 config DRM_AMDGPU_WERROR
 	bool "Force the compiler to throw an error instead of a warning when compiling"

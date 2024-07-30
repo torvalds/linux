@@ -350,7 +350,7 @@ extern unsigned int dirty_expire_interval;
 extern unsigned int dirtytime_expire_interval;
 extern int laptop_mode;
 
-int dirtytime_interval_handler(struct ctl_table *table, int write,
+int dirtytime_interval_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos);
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);

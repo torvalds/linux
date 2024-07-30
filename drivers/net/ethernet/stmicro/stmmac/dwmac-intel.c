@@ -390,10 +390,11 @@ static int intel_crosststamp(ktime_t *device,
 		*device = ns_to_ktime(ptp_time);
 		read_unlock_irqrestore(&priv->ptp_lock, flags);
 		get_arttime(priv->mii, intel_priv->mdio_adhoc_addr, &art_time);
-		*system = convert_art_to_tsc(art_time);
+		system->cycles = art_time;
 	}
 
 	system->cycles *= intel_priv->crossts_adj;
+	system->cs_id = CSID_X86_ART;
 	priv->plat->flags &= ~STMMAC_FLAG_INT_SNAPSHOT_EN;
 
 	return 0;
@@ -441,6 +442,16 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 
 	/* Disable RX queues routing by default */
 	plat->rx_queues_cfg[0].pkt_route = 0x0;
+}
+
+static struct phylink_pcs *intel_mgbe_select_pcs(struct stmmac_priv *priv,
+						 phy_interface_t interface)
+{
+	/* plat->mdio_bus_data->has_xpcs has been set true, so there
+	 * should always be an XPCS. The original code would always
+	 * return this if present.
+	 */
+	return &priv->hw->xpcs->pcs;
 }
 
 static int intel_mgbe_common_data(struct pci_dev *pdev,
@@ -585,8 +596,9 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	/* Intel mgbe SGMII interface uses pcs-xcps */
 	if (plat->phy_interface == PHY_INTERFACE_MODE_SGMII ||
 	    plat->phy_interface == PHY_INTERFACE_MODE_1000BASEX) {
-		plat->mdio_bus_data->has_xpcs = true;
+		plat->mdio_bus_data->pcs_mask = BIT(INTEL_MGBE_XPCS_ADDR);
 		plat->mdio_bus_data->default_an_inband = true;
+		plat->select_pcs = intel_mgbe_select_pcs;
 	}
 
 	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */

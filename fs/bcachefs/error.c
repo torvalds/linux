@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "btree_iter.h"
 #include "error.h"
 #include "journal.h"
 #include "recovery_passes.h"
@@ -15,6 +16,7 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	switch (c->opts.errors) {
 	case BCH_ON_ERROR_continue:
 		return false;
+	case BCH_ON_ERROR_fix_safe:
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
 			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
@@ -97,7 +99,7 @@ static enum ask_yn parse_yn_response(char *buf)
 }
 
 #ifdef __KERNEL__
-static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c, struct btree_trans *trans)
 {
 	struct stdio_redirect *stdio = c->stdio;
 
@@ -107,25 +109,44 @@ static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
 	if (!stdio)
 		return YN_NO;
 
-	char buf[100];
+	if (trans)
+		bch2_trans_unlock(trans);
+
+	unsigned long unlock_long_at = trans ? jiffies + HZ * 2 : 0;
+	darray_char line = {};
 	int ret;
 
 	do {
+		unsigned long t;
 		bch2_print(c, " (y,n, or Y,N for all errors of this type) ");
+rewait:
+		t = unlock_long_at
+			? max_t(long, unlock_long_at - jiffies, 0)
+			: MAX_SCHEDULE_TIMEOUT;
 
-		int r = bch2_stdio_redirect_readline(stdio, buf, sizeof(buf) - 1);
-		if (r < 0)
-			return YN_NO;
-		buf[r] = '\0';
-	} while ((ret = parse_yn_response(buf)) < 0);
+		int r = bch2_stdio_redirect_readline_timeout(stdio, &line, t);
+		if (r == -ETIME) {
+			bch2_trans_unlock_long(trans);
+			unlock_long_at = 0;
+			goto rewait;
+		}
 
+		if (r < 0) {
+			ret = YN_NO;
+			break;
+		}
+
+		darray_last(line) = '\0';
+	} while ((ret = parse_yn_response(line.data)) < 0);
+
+	darray_exit(&line);
 	return ret;
 }
 #else
 
 #include "tools-util.h"
 
-static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c, struct btree_trans *trans)
 {
 	char *buf = NULL;
 	size_t buflen = 0;
@@ -191,7 +212,14 @@ static void prt_actioning(struct printbuf *out, const char *action)
 	prt_str(out, "ing");
 }
 
-int bch2_fsck_err(struct bch_fs *c,
+static const u8 fsck_flags_extra[] = {
+#define x(t, n, flags)		[BCH_FSCK_ERR_##t] = flags,
+	BCH_SB_ERRS()
+#undef x
+};
+
+int __bch2_fsck_err(struct bch_fs *c,
+		  struct btree_trans *trans,
 		  enum bch_fsck_flags flags,
 		  enum bch_sb_error_id err,
 		  const char *fmt, ...)
@@ -202,6 +230,16 @@ int bch2_fsck_err(struct bch_fs *c,
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 	const char *action_orig = "fix?", *action = action_orig;
+
+	might_sleep();
+
+	if (!WARN_ON(err >= ARRAY_SIZE(fsck_flags_extra)))
+		flags |= fsck_flags_extra[err];
+
+	if (!c)
+		c = trans->c;
+
+	WARN_ON(!trans && bch2_current_has_btree_trans(c));
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))
@@ -265,7 +303,14 @@ int bch2_fsck_err(struct bch_fs *c,
 		prt_printf(out, bch2_log_msg(c, ""));
 #endif
 
-	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
+	if ((flags & FSCK_CAN_FIX) &&
+	    (flags & FSCK_AUTOFIX) &&
+	    (c->opts.errors == BCH_ON_ERROR_continue ||
+	     c->opts.errors == BCH_ON_ERROR_fix_safe)) {
+		prt_str(out, ", ");
+		prt_actioning(out, action);
+		ret = -BCH_ERR_fsck_fix;
+	} else if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
@@ -297,7 +342,15 @@ int bch2_fsck_err(struct bch_fs *c,
 				bch2_print_string_as_lines(KERN_ERR, out->buf);
 			print = false;
 
-			int ask = bch2_fsck_ask_yn(c);
+			int ask = bch2_fsck_ask_yn(c, trans);
+
+			if (trans) {
+				ret = bch2_trans_relock(trans);
+				if (ret) {
+					mutex_unlock(&c->fsck_error_msgs_lock);
+					goto err;
+				}
+			}
 
 			if (ask >= YN_ALLNO && s)
 				s->fix = ask == YN_ALLNO

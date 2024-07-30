@@ -3531,5 +3531,6 @@ static __exit void nfit_exit(void)
 
 module_init(nfit_init);
 module_exit(nfit_exit);
+MODULE_DESCRIPTION("ACPI NVDIMM Firmware Interface Table (NFIT) driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");

@@ -581,5 +581,6 @@ static struct platform_driver bxtwc_driver = {
 
 module_platform_driver(bxtwc_driver);
 
+MODULE_DESCRIPTION("Intel Broxton Whiskey Cove PMIC MFD core driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Qipeng Zha <qipeng.zha@intel.com>");

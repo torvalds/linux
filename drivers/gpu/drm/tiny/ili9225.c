@@ -20,7 +20,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_dma_helper.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -426,7 +426,7 @@ static int ili9225_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, drm);
 
-	drm_fbdev_generic_setup(drm, 0);
+	drm_fbdev_dma_setup(drm, 0);
 
 	return 0;
 }
@@ -447,7 +447,6 @@ static void ili9225_shutdown(struct spi_device *spi)
 static struct spi_driver ili9225_spi_driver = {
 	.driver = {
 		.name = "ili9225",
-		.owner = THIS_MODULE,
 		.of_match_table = ili9225_of_match,
 	},
 	.id_table = ili9225_id,

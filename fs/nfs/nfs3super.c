@@ -27,6 +27,7 @@ static void __exit exit_nfs_v3(void)
 	unregister_nfs_version(&nfs_v3);
 }
 
+MODULE_DESCRIPTION("NFSv3 client support");
 MODULE_LICENSE("GPL");
 
 module_init(init_nfs_v3);

@@ -657,10 +657,10 @@ static struct kmemleak_object *__alloc_object(gfp_t gfp)
 	/* task information */
 	if (in_hardirq()) {
 		object->pid = 0;
-		strncpy(object->comm, "hardirq", sizeof(object->comm));
+		strscpy(object->comm, "hardirq");
 	} else if (in_serving_softirq()) {
 		object->pid = 0;
-		strncpy(object->comm, "softirq", sizeof(object->comm));
+		strscpy(object->comm, "softirq");
 	} else {
 		object->pid = current->pid;
 		/*
@@ -669,7 +669,7 @@ static struct kmemleak_object *__alloc_object(gfp_t gfp)
 		 * dependency issues with current->alloc_lock. In the worst
 		 * case, the command line is not correct.
 		 */
-		strncpy(object->comm, current->comm, sizeof(object->comm));
+		strscpy(object->comm, current->comm);
 	}
 
 	/* kernel backtrace */

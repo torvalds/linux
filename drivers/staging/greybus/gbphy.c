@@ -117,7 +117,7 @@ gbphy_dev_match_id(struct gbphy_device *gbphy_dev,
 	return NULL;
 }
 
-static int gbphy_dev_match(struct device *dev, struct device_driver *drv)
+static int gbphy_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	struct gbphy_driver *gbphy_drv = to_gbphy_driver(drv);
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
@@ -354,4 +354,5 @@ static void __exit gbphy_exit(void)
 }
 module_exit(gbphy_exit);
 
+MODULE_DESCRIPTION("Greybus Bridged-Phy Bus driver");
 MODULE_LICENSE("GPL v2");

@@ -143,7 +143,8 @@ TRACE_EVENT(erofs_readpages,
 		__entry->raw)
 );
 
-DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
+TRACE_EVENT(erofs_map_blocks_enter,
+
 	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
 		 unsigned int flags),
 
@@ -171,21 +172,8 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
 		  __entry->flags ? show_map_flags(__entry->flags) : "NULL")
 );
 
-DEFINE_EVENT(erofs__map_blocks_enter, erofs_map_blocks_enter,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
-		 unsigned flags),
+TRACE_EVENT(erofs_map_blocks_exit,
 
-	TP_ARGS(inode, map, flags)
-);
-
-DEFINE_EVENT(erofs__map_blocks_enter, z_erofs_map_blocks_iter_enter,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
-		 unsigned int flags),
-
-	TP_ARGS(inode, map, flags)
-);
-
-DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
 		 unsigned int flags, int ret),
 
@@ -221,20 +209,6 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 		  __entry->flags ? show_map_flags(__entry->flags) : "NULL",
 		  __entry->la, __entry->pa, __entry->llen, __entry->plen,
 		  show_mflags(__entry->mflags), __entry->ret)
-);
-
-DEFINE_EVENT(erofs__map_blocks_exit, erofs_map_blocks_exit,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
-		 unsigned flags, int ret),
-
-	TP_ARGS(inode, map, flags, ret)
-);
-
-DEFINE_EVENT(erofs__map_blocks_exit, z_erofs_map_blocks_iter_exit,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
-		 unsigned int flags, int ret),
-
-	TP_ARGS(inode, map, flags, ret)
 );
 
 TRACE_EVENT(erofs_destroy_inode,

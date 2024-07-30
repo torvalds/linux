@@ -119,4 +119,5 @@ static struct kunit_suite list_sort_suite = {
 
 kunit_test_suites(&list_sort_suite);
 
+MODULE_DESCRIPTION("list_sort() KUnit test suite");
 MODULE_LICENSE("GPL");

@@ -169,7 +169,7 @@ TRACE_EVENT(s390_cio_tpi,
 		else if (addr)
 			__entry->tpi_info = *addr;
 		else
-			__entry->tpi_info = S390_lowcore.tpi_info;
+			__entry->tpi_info = get_lowcore()->tpi_info;
 		__entry->cssid = __entry->tpi_info.schid.cssid;
 		__entry->ssid = __entry->tpi_info.schid.ssid;
 		__entry->schno = __entry->tpi_info.schid.sch_no;

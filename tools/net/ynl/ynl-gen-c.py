@@ -59,9 +59,9 @@ class Type(SpecAttr):
         if 'nested-attributes' in attr:
             self.nested_attrs = attr['nested-attributes']
             if self.nested_attrs == family.name:
-                self.nested_render_name = c_lower(f"{family.name}")
+                self.nested_render_name = c_lower(f"{family.ident_name}")
             else:
-                self.nested_render_name = c_lower(f"{family.name}_{self.nested_attrs}")
+                self.nested_render_name = c_lower(f"{family.ident_name}_{self.nested_attrs}")
 
             if self.nested_attrs in self.family.consts:
                 self.nested_struct_type = 'struct ' + self.nested_render_name + '_'
@@ -693,9 +693,9 @@ class Struct:
 
         self.nested = type_list is None
         if family.name == c_lower(space_name):
-            self.render_name = c_lower(family.name)
+            self.render_name = c_lower(family.ident_name)
         else:
-            self.render_name = c_lower(family.name + '-' + space_name)
+            self.render_name = c_lower(family.ident_name + '-' + space_name)
         self.struct_name = 'struct ' + self.render_name
         if self.nested and space_name in family.consts:
             self.struct_name += '_'
@@ -761,7 +761,7 @@ class EnumEntry(SpecEnumEntry):
 
 class EnumSet(SpecEnumSet):
     def __init__(self, family, yaml):
-        self.render_name = c_lower(family.name + '-' + yaml['name'])
+        self.render_name = c_lower(family.ident_name + '-' + yaml['name'])
 
         if 'enum-name' in yaml:
             if yaml['enum-name']:
@@ -777,7 +777,7 @@ class EnumSet(SpecEnumSet):
         else:
             self.user_type = 'int'
 
-        self.value_pfx = yaml.get('name-prefix', f"{family.name}-{yaml['name']}-")
+        self.value_pfx = yaml.get('name-prefix', f"{family.ident_name}-{yaml['name']}-")
 
         super().__init__(family, yaml)
 
@@ -802,9 +802,9 @@ class AttrSet(SpecAttrSet):
             if 'name-prefix' in yaml:
                 pfx = yaml['name-prefix']
             elif self.name == family.name:
-                pfx = family.name + '-a-'
+                pfx = family.ident_name + '-a-'
             else:
-                pfx = f"{family.name}-a-{self.name}-"
+                pfx = f"{family.ident_name}-a-{self.name}-"
             self.name_prefix = c_upper(pfx)
             self.max_name = c_upper(self.yaml.get('attr-max-name', f"{self.name_prefix}max"))
             self.cnt_name = c_upper(self.yaml.get('attr-cnt-name', f"__{self.name_prefix}max"))
@@ -861,7 +861,7 @@ class Operation(SpecOperation):
     def __init__(self, family, yaml, req_value, rsp_value):
         super().__init__(family, yaml, req_value, rsp_value)
 
-        self.render_name = c_lower(family.name + '_' + self.name)
+        self.render_name = c_lower(family.ident_name + '_' + self.name)
 
         self.dual_policy = ('do' in yaml and 'request' in yaml['do']) and \
                          ('dump' in yaml and 'request' in yaml['dump'])
@@ -911,11 +911,11 @@ class Family(SpecFamily):
         if 'uapi-header' in self.yaml:
             self.uapi_header = self.yaml['uapi-header']
         else:
-            self.uapi_header = f"linux/{self.name}.h"
+            self.uapi_header = f"linux/{self.ident_name}.h"
         if self.uapi_header.startswith("linux/") and self.uapi_header.endswith('.h'):
             self.uapi_header_name = self.uapi_header[6:-2]
         else:
-            self.uapi_header_name = self.name
+            self.uapi_header_name = self.ident_name
 
     def resolve(self):
         self.resolve_up(super())
@@ -923,7 +923,7 @@ class Family(SpecFamily):
         if self.yaml.get('protocol', 'genetlink') not in {'genetlink', 'genetlink-c', 'genetlink-legacy'}:
             raise Exception("Codegen only supported for genetlink")
 
-        self.c_name = c_lower(self.name)
+        self.c_name = c_lower(self.ident_name)
         if 'name-prefix' in self.yaml['operations']:
             self.op_prefix = c_upper(self.yaml['operations']['name-prefix'])
         else:
@@ -2173,7 +2173,7 @@ def print_kernel_op_table_fwd(family, cw, terminate):
     exported = not kernel_can_gen_family_struct(family)
 
     if not terminate or exported:
-        cw.p(f"/* Ops table for {family.name} */")
+        cw.p(f"/* Ops table for {family.ident_name} */")
 
         pol_to_struct = {'global': 'genl_small_ops',
                          'per-op': 'genl_ops',
@@ -2225,12 +2225,12 @@ def print_kernel_op_table_fwd(family, cw, terminate):
             continue
 
         if 'do' in op:
-            name = c_lower(f"{family.name}-nl-{op_name}-doit")
+            name = c_lower(f"{family.ident_name}-nl-{op_name}-doit")
             cw.write_func_prot('int', name,
                                ['struct sk_buff *skb', 'struct genl_info *info'], suffix=';')
 
         if 'dump' in op:
-            name = c_lower(f"{family.name}-nl-{op_name}-dumpit")
+            name = c_lower(f"{family.ident_name}-nl-{op_name}-dumpit")
             cw.write_func_prot('int', name,
                                ['struct sk_buff *skb', 'struct netlink_callback *cb'], suffix=';')
     cw.nl()
@@ -2256,13 +2256,13 @@ def print_kernel_op_table(family, cw):
                                             for x in op['dont-validate']])), )
             for op_mode in ['do', 'dump']:
                 if op_mode in op:
-                    name = c_lower(f"{family.name}-nl-{op_name}-{op_mode}it")
+                    name = c_lower(f"{family.ident_name}-nl-{op_name}-{op_mode}it")
                     members.append((op_mode + 'it', name))
             if family.kernel_policy == 'per-op':
                 struct = Struct(family, op['attribute-set'],
                                 type_list=op['do']['request']['attributes'])
 
-                name = c_lower(f"{family.name}-{op_name}-nl-policy")
+                name = c_lower(f"{family.ident_name}-{op_name}-nl-policy")
                 members.append(('policy', name))
                 members.append(('maxattr', struct.attr_max_val.enum_name))
             if 'flags' in op:
@@ -2294,7 +2294,7 @@ def print_kernel_op_table(family, cw):
                         members.append(('validate',
                                         ' | '.join([c_upper('genl-dont-validate-' + x)
                                                     for x in dont_validate])), )
-                name = c_lower(f"{family.name}-nl-{op_name}-{op_mode}it")
+                name = c_lower(f"{family.ident_name}-nl-{op_name}-{op_mode}it")
                 if 'pre' in op[op_mode]:
                     members.append((cb_names[op_mode]['pre'], c_lower(op[op_mode]['pre'])))
                 members.append((op_mode + 'it', name))
@@ -2305,9 +2305,9 @@ def print_kernel_op_table(family, cw):
                                     type_list=op[op_mode]['request']['attributes'])
 
                     if op.dual_policy:
-                        name = c_lower(f"{family.name}-{op_name}-{op_mode}-nl-policy")
+                        name = c_lower(f"{family.ident_name}-{op_name}-{op_mode}-nl-policy")
                     else:
-                        name = c_lower(f"{family.name}-{op_name}-nl-policy")
+                        name = c_lower(f"{family.ident_name}-{op_name}-nl-policy")
                     members.append(('policy', name))
                     members.append(('maxattr', struct.attr_max_val.enum_name))
                 flags = (op['flags'] if 'flags' in op else []) + ['cmd-cap-' + op_mode]
@@ -2326,7 +2326,7 @@ def print_kernel_mcgrp_hdr(family, cw):
 
     cw.block_start('enum')
     for grp in family.mcgrps['list']:
-        grp_id = c_upper(f"{family.name}-nlgrp-{grp['name']},")
+        grp_id = c_upper(f"{family.ident_name}-nlgrp-{grp['name']},")
         cw.p(grp_id)
     cw.block_end(';')
     cw.nl()
@@ -2339,7 +2339,7 @@ def print_kernel_mcgrp_src(family, cw):
     cw.block_start('static const struct genl_multicast_group ' + family.c_name + '_nl_mcgrps[] =')
     for grp in family.mcgrps['list']:
         name = grp['name']
-        grp_id = c_upper(f"{family.name}-nlgrp-{name}")
+        grp_id = c_upper(f"{family.ident_name}-nlgrp-{name}")
         cw.p('[' + grp_id + '] = { "' + name + '", },')
     cw.block_end(';')
     cw.nl()
@@ -2361,7 +2361,7 @@ def print_kernel_family_struct_src(family, cw):
     if not kernel_can_gen_family_struct(family):
         return
 
-    cw.block_start(f"struct genl_family {family.name}_nl_family __ro_after_init =")
+    cw.block_start(f"struct genl_family {family.ident_name}_nl_family __ro_after_init =")
     cw.p('.name\t\t= ' + family.fam_key + ',')
     cw.p('.version\t= ' + family.ver_key + ',')
     cw.p('.netnsok\t= true,')
@@ -2429,7 +2429,7 @@ def render_uapi(family, cw):
                 cw.p(' */')
 
             uapi_enum_start(family, cw, const, 'name')
-            name_pfx = const.get('name-prefix', f"{family.name}-{const['name']}-")
+            name_pfx = const.get('name-prefix', f"{family.ident_name}-{const['name']}-")
             for entry in enum.entries.values():
                 suffix = ','
                 if entry.value_change:
@@ -2451,7 +2451,7 @@ def render_uapi(family, cw):
             cw.nl()
         elif const['type'] == 'const':
             defines.append([c_upper(family.get('c-define-name',
-                                               f"{family.name}-{const['name']}")),
+                                               f"{family.ident_name}-{const['name']}")),
                             const['value']])
 
     if defines:
@@ -2529,7 +2529,7 @@ def render_uapi(family, cw):
     defines = []
     for grp in family.mcgrps['list']:
         name = grp['name']
-        defines.append([c_upper(grp.get('c-define-name', f"{family.name}-mcgrp-{name}")),
+        defines.append([c_upper(grp.get('c-define-name', f"{family.ident_name}-mcgrp-{name}")),
                         f'{name}'])
     cw.nl()
     if defines:

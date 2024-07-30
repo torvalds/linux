@@ -72,7 +72,7 @@ static struct vimc_ent_device *vimc_lens_add(struct vimc_device *vimc,
 
 	ret = vimc_ent_sd_register(&vlens->ved, &vlens->sd, v4l2_dev,
 				   vcfg_name, MEDIA_ENT_F_LENS, 0,
-				   NULL, &vimc_lens_ops);
+				   NULL, NULL, &vimc_lens_ops);
 	if (ret)
 		goto err_free_hdl;
 
@@ -92,11 +92,12 @@ static void vimc_lens_release(struct vimc_ent_device *ved)
 		container_of(ved, struct vimc_lens_device, ved);
 
 	v4l2_ctrl_handler_free(&vlens->hdl);
+	v4l2_subdev_cleanup(&vlens->sd);
 	media_entity_cleanup(vlens->ved.ent);
 	kfree(vlens);
 }
 
-struct vimc_ent_type vimc_lens_type = {
+const struct vimc_ent_type vimc_lens_type = {
 	.add = vimc_lens_add,
 	.release = vimc_lens_release
 };

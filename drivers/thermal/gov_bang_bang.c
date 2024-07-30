@@ -57,24 +57,16 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 		if (instance->trip != trip)
 			continue;
 
-		if (instance->target == THERMAL_NO_TARGET)
-			instance->target = 0;
-
-		if (instance->target != 0 && instance->target != 1) {
+		if (instance->target != 0 && instance->target != 1 &&
+		    instance->target != THERMAL_NO_TARGET)
 			pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
 				 instance->target, instance->name);
-
-			instance->target = 1;
-		}
 
 		/*
 		 * Enable the fan when the trip is crossed on the way up and
 		 * disable it when the trip is crossed on the way down.
 		 */
-		if (instance->target == 0 && crossed_up)
-			instance->target = 1;
-		else if (instance->target == 1 && !crossed_up)
-			instance->target = 0;
+		instance->target = crossed_up;
 
 		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 

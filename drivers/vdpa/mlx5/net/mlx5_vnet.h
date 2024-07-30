@@ -56,6 +56,7 @@ struct mlx5_vdpa_net {
 	struct dentry *rx_dent;
 	struct dentry *rx_table_dent;
 	bool setup;
+	bool needs_teardown;
 	u32 cur_num_vqs;
 	u32 rqt_size;
 	bool nb_registered;

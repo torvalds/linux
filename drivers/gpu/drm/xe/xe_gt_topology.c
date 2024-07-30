@@ -108,7 +108,9 @@ gen_l3_mask_from_pattern(struct xe_device *xe, xe_l3_bank_mask_t dst,
 {
 	unsigned long bit;
 
-	xe_assert(xe, fls(mask) <= patternbits);
+	xe_assert(xe, find_last_bit(pattern, XE_MAX_L3_BANK_MASK_BITS) < patternbits ||
+		  bitmap_empty(pattern, XE_MAX_L3_BANK_MASK_BITS));
+	xe_assert(xe, !mask || patternbits * (__fls(mask) + 1) <= XE_MAX_L3_BANK_MASK_BITS);
 	for_each_set_bit(bit, &mask, 32) {
 		xe_l3_bank_mask_t shifted_pattern = {};
 
@@ -277,4 +279,14 @@ bool xe_gt_topology_has_dss_in_quadrant(struct xe_gt *gt, int quad)
 	quad_first = xe_dss_mask_group_ffs(all_dss, dss_per_quad, quad);
 
 	return quad_first < (quad + 1) * dss_per_quad;
+}
+
+bool xe_gt_has_geometry_dss(struct xe_gt *gt, unsigned int dss)
+{
+	return test_bit(dss, gt->fuse_topo.g_dss_mask);
+}
+
+bool xe_gt_has_compute_dss(struct xe_gt *gt, unsigned int dss)
+{
+	return test_bit(dss, gt->fuse_topo.c_dss_mask);
 }

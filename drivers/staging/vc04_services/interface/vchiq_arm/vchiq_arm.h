@@ -110,9 +110,6 @@ extern int
 vchiq_check_service(struct vchiq_service *service);
 
 extern void
-vchiq_dump_platform_use_state(struct vchiq_state *state);
-
-extern void
 vchiq_dump_service_use_state(struct vchiq_state *state);
 
 extern int

@@ -345,7 +345,7 @@ void *dm_block_data(struct dm_block *b)
 EXPORT_SYMBOL_GPL(dm_block_data);
 
 struct buffer_aux {
-	struct dm_block_validator *validator;
+	const struct dm_block_validator *validator;
 	int write_locked;
 
 #ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
@@ -441,7 +441,7 @@ dm_block_t dm_bm_nr_blocks(struct dm_block_manager *bm)
 static int dm_bm_validate_buffer(struct dm_block_manager *bm,
 				 struct dm_buffer *buf,
 				 struct buffer_aux *aux,
-				 struct dm_block_validator *v)
+				 const struct dm_block_validator *v)
 {
 	if (unlikely(!aux->validator)) {
 		int r;
@@ -467,7 +467,7 @@ static int dm_bm_validate_buffer(struct dm_block_manager *bm,
 	return 0;
 }
 int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **result)
 {
 	struct buffer_aux *aux;
@@ -500,7 +500,7 @@ int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
 EXPORT_SYMBOL_GPL(dm_bm_read_lock);
 
 int dm_bm_write_lock(struct dm_block_manager *bm,
-		     dm_block_t b, struct dm_block_validator *v,
+		     dm_block_t b, const struct dm_block_validator *v,
 		     struct dm_block **result)
 {
 	struct buffer_aux *aux;
@@ -536,7 +536,7 @@ int dm_bm_write_lock(struct dm_block_manager *bm,
 EXPORT_SYMBOL_GPL(dm_bm_write_lock);
 
 int dm_bm_read_try_lock(struct dm_block_manager *bm,
-			dm_block_t b, struct dm_block_validator *v,
+			dm_block_t b, const struct dm_block_validator *v,
 			struct dm_block **result)
 {
 	struct buffer_aux *aux;
@@ -569,7 +569,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm,
 }
 
 int dm_bm_write_lock_zero(struct dm_block_manager *bm,
-			  dm_block_t b, struct dm_block_validator *v,
+			  dm_block_t b, const struct dm_block_validator *v,
 			  struct dm_block **result)
 {
 	int r;

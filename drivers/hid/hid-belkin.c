@@ -85,4 +85,5 @@ static struct hid_driver belkin_driver = {
 };
 module_hid_driver(belkin_driver);
 
+MODULE_DESCRIPTION("HID driver for some belkin \"special\" devices");
 MODULE_LICENSE("GPL");

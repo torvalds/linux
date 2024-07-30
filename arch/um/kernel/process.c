@@ -122,8 +122,6 @@ void new_thread_handler(void)
 /* Called magically, see new_thread_handler above */
 static void fork_handler(void)
 {
-	force_flush_all();
-
 	schedule_tail(current->thread.prev_sched);
 
 	/*
@@ -236,73 +234,6 @@ int copy_from_user_proc(void *to, void __user *from, int size)
 {
 	return copy_from_user(to, from, size);
 }
-
-static atomic_t using_sysemu = ATOMIC_INIT(0);
-int sysemu_supported;
-
-static void set_using_sysemu(int value)
-{
-	if (value > sysemu_supported)
-		return;
-	atomic_set(&using_sysemu, value);
-}
-
-static int get_using_sysemu(void)
-{
-	return atomic_read(&using_sysemu);
-}
-
-static int sysemu_proc_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%d\n", get_using_sysemu());
-	return 0;
-}
-
-static int sysemu_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sysemu_proc_show, NULL);
-}
-
-static ssize_t sysemu_proc_write(struct file *file, const char __user *buf,
-				 size_t count, loff_t *pos)
-{
-	char tmp[2];
-
-	if (copy_from_user(tmp, buf, 1))
-		return -EFAULT;
-
-	if (tmp[0] >= '0' && tmp[0] <= '2')
-		set_using_sysemu(tmp[0] - '0');
-	/* We use the first char, but pretend to write everything */
-	return count;
-}
-
-static const struct proc_ops sysemu_proc_ops = {
-	.proc_open	= sysemu_proc_open,
-	.proc_read	= seq_read,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= single_release,
-	.proc_write	= sysemu_proc_write,
-};
-
-static int __init make_proc_sysemu(void)
-{
-	struct proc_dir_entry *ent;
-	if (!sysemu_supported)
-		return 0;
-
-	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_ops);
-
-	if (ent == NULL)
-	{
-		printk(KERN_WARNING "Failed to register /proc/sysemu\n");
-		return 0;
-	}
-
-	return 0;
-}
-
-late_initcall(make_proc_sysemu);
 
 int singlestepping(void)
 {

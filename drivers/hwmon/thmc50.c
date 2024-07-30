@@ -377,8 +377,6 @@ static void thmc50_init_client(struct thmc50_data *data)
 	i2c_smbus_write_byte_data(client, THMC50_REG_CONF, config);
 }
 
-static const struct i2c_device_id thmc50_id[];
-
 static int thmc50_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -391,7 +389,7 @@ static int thmc50_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = i2c_match_id(thmc50_id, client)->driver_data;
+	data->type = (uintptr_t)i2c_get_match_data(client);
 	mutex_init(&data->update_lock);
 
 	thmc50_init_client(data);

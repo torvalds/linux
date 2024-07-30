@@ -1234,7 +1234,7 @@ static int felix_get_sset_count(struct dsa_switch *ds, int port, int sset)
 }
 
 static int felix_get_ts_info(struct dsa_switch *ds, int port,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct ocelot *ocelot = ds->priv;
 

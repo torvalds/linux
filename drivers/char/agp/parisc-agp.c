@@ -432,4 +432,5 @@ out:
 module_init(parisc_agp_init);
 
 MODULE_AUTHOR("Kyle McMartin <kyle@parisc-linux.org>");
+MODULE_DESCRIPTION("HP Quicksilver AGP GART routines");
 MODULE_LICENSE("GPL");

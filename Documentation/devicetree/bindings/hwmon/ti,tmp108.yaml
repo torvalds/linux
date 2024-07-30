@@ -9,6 +9,14 @@ title: TMP108 temperature sensor
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
+description: |
+  The TMP108 is a digital-output temperature sensor with a
+  dynamically-programmable limit window, and under- and overtemperature
+  alert functions.
+
+  Datasheets:
+    https://www.ti.com/product/TMP108
+
 properties:
   compatible:
     enum:
@@ -23,6 +31,9 @@ properties:
 
   "#thermal-sensor-cells":
     const: 0
+
+  vcc-supply:
+    description: phandle to the regulator that provides the V+ supply
 
 required:
   - compatible
@@ -45,6 +56,7 @@ examples:
             interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
             pinctrl-names = "default";
             pinctrl-0 = <&tmp_alrt>;
+            vcc-supply = <&supply>;
             #thermal-sensor-cells = <0>;
         };
     };

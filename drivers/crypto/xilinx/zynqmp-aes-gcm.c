@@ -446,4 +446,5 @@ static struct platform_driver zynqmp_aes_driver = {
 };
 
 module_platform_driver(zynqmp_aes_driver);
+MODULE_DESCRIPTION("Xilinx ZynqMP AES Driver");
 MODULE_LICENSE("GPL");

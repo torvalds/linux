@@ -11,6 +11,8 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/gpu_scheduler.h>
 
+#include "v3d_performance_counters.h"
+
 #include "uapi/drm/v3d_drm.h"
 
 struct clk;
@@ -96,11 +98,18 @@ struct v3d_perfmon {
 struct v3d_dev {
 	struct drm_device drm;
 
-	/* Short representation (e.g. 33, 41) of the V3D tech version
-	 * and revision.
-	 */
+	/* Short representation (e.g. 33, 41) of the V3D tech version */
 	int ver;
+
+	/* Short representation (e.g. 5, 6) of the V3D tech revision */
+	int rev;
+
 	bool single_irq_line;
+
+	/* Different revisions of V3D have different total number of performance
+	 * counters
+	 */
+	unsigned int max_counters;
 
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];
@@ -345,7 +354,7 @@ struct v3d_timestamp_query {
 };
 
 /* Number of perfmons required to handle all supported performance counters */
-#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_PERFCNT_NUM, \
+#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_MAX_COUNTERS, \
 				      DRM_V3D_MAX_PERF_COUNTERS)
 
 struct v3d_performance_query {
@@ -575,6 +584,8 @@ int v3d_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
+int v3d_perfmon_get_counter_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv);
 
 /* v3d_sysfs.c */
 int v3d_sysfs_init(struct device *dev);

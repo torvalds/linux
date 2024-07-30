@@ -26,7 +26,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_component.h>
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
@@ -182,6 +182,15 @@ static const struct hdmi_aud_ncts hdmi_aud_ncts_36bpp[] = {
 	{ 192000, TMDS_445M, 23296, 421875 },
 	{ 192000, TMDS_445_5M, 20480, 371250 },
 };
+
+/*
+ * WA_14020863754: Implement Audio Workaround
+ * Corner case with Min Hblank Fix can cause audio hang
+ */
+static bool needs_wa_14020863754(struct drm_i915_private *i915)
+{
+	return (DISPLAY_VER(i915) == 20 || IS_BATTLEMAGE(i915));
+}
 
 /* get AUD_CONFIG_PIXEL_CLOCK_HDMI_* value for mode */
 static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_state)
@@ -415,6 +424,9 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
 		     AUDIO_OUTPUT_ENABLE(cpu_transcoder), 0);
 
+	if (needs_wa_14020863754(i915))
+		intel_de_rmw(i915, AUD_CHICKENBIT_REG3, DACBE_DISABLE_MIN_HBLANK_FIX, 0);
+
 	mutex_unlock(&i915->display.audio.mutex);
 }
 
@@ -539,6 +551,9 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	/* Enable Audio WA for 4k DSC usecases */
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP))
 		enable_audio_dsc_wa(encoder, crtc_state);
+
+	if (needs_wa_14020863754(i915))
+		intel_de_rmw(i915, AUD_CHICKENBIT_REG3, 0, DACBE_DISABLE_MIN_HBLANK_FIX);
 
 	/* Enable audio presence detect */
 	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,

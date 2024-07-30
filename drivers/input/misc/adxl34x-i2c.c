@@ -98,13 +98,6 @@ static int adxl34x_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static void adxl34x_i2c_remove(struct i2c_client *client)
-{
-	struct adxl34x *ac = i2c_get_clientdata(client);
-
-	adxl34x_remove(ac);
-}
-
 static const struct i2c_device_id adxl34x_id[] = {
 	{ "adxl34x" },
 	{ }
@@ -132,11 +125,11 @@ MODULE_DEVICE_TABLE(of, adxl34x_of_id);
 static struct i2c_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
+		.dev_groups = adxl34x_groups,
 		.pm = pm_sleep_ptr(&adxl34x_pm),
 		.of_match_table = adxl34x_of_id,
 	},
 	.probe    = adxl34x_i2c_probe,
-	.remove   = adxl34x_i2c_remove,
 	.id_table = adxl34x_id,
 };
 

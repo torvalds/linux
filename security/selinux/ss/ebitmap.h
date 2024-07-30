@@ -29,7 +29,7 @@
 	 sizeof(unsigned long))
 #define EBITMAP_UNIT_SIZE BITS_PER_LONG
 #define EBITMAP_SIZE	  (EBITMAP_UNIT_NUMS * EBITMAP_UNIT_SIZE)
-#define EBITMAP_BIT	  1ULL
+#define EBITMAP_BIT	  1UL
 #define EBITMAP_SHIFT_UNIT_SIZE(x) \
 	(((x) >> EBITMAP_UNIT_SIZE / 2) >> EBITMAP_UNIT_SIZE / 2)
 

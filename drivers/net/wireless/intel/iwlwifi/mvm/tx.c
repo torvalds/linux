@@ -802,10 +802,30 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	if (info.control.vif) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info.control.vif);
+		bool p2p_aux = iwl_mvm_has_p2p_over_aux(mvm);
 
-		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-		    info.control.vif->type == NL80211_IFTYPE_AP ||
-		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
+		if ((info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE &&
+		     p2p_aux) ||
+		    (info.control.vif->type == NL80211_IFTYPE_STATION &&
+		     offchannel)) {
+			/*
+			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
+			 * that can be used in 2 different types of vifs, P2P
+			 * Device and STATION.
+			 * P2P Device uses the offchannel queue.
+			 * STATION (HS2.0) uses the auxiliary context of the FW,
+			 * and hence needs to be sent on the aux queue.
+			 * If P2P_DEV_OVER_AUX is supported (p2p_aux = true)
+			 * also P2P Device uses the aux queue.
+			 */
+			sta_id = mvm->aux_sta.sta_id;
+			queue = mvm->aux_queue;
+			if (WARN_ON(queue == IWL_MVM_INVALID_QUEUE))
+				return -1;
+		} else if (info.control.vif->type ==
+			   NL80211_IFTYPE_P2P_DEVICE ||
+			   info.control.vif->type == NL80211_IFTYPE_AP ||
+			   info.control.vif->type == NL80211_IFTYPE_ADHOC) {
 			u32 link_id = u32_get_bits(info.control.flags,
 						   IEEE80211_TX_CTRL_MLO_LINK);
 			struct iwl_mvm_vif_link_info *link;
@@ -831,18 +851,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
-		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			   offchannel) {
-			/*
-			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
-			 * that can be used in 2 different types of vifs, P2P &
-			 * STATION.
-			 * P2P uses the offchannel queue.
-			 * STATION (HS2.0) uses the auxiliary context of the FW,
-			 * and hence needs to be sent on the aux queue.
-			 */
-			sta_id = mvm->aux_sta.sta_id;
-			queue = mvm->aux_queue;
 		}
 	}
 

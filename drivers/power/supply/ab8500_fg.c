@@ -149,11 +149,6 @@ struct ab8500_fg_flags {
 	bool batt_id_received;
 };
 
-struct inst_curr_result_list {
-	struct list_head list;
-	int *result;
-};
-
 /**
  * struct ab8500_fg - ab8500 FG device information
  * @dev:		Pointer to the structure device

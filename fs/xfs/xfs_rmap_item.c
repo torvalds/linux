@@ -21,6 +21,8 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 #include "xfs_ag.h"
+#include "xfs_btree.h"
+#include "xfs_trace.h"
 
 struct kmem_cache	*xfs_rui_cache;
 struct kmem_cache	*xfs_rud_cache;
@@ -226,20 +228,53 @@ static const struct xfs_item_ops xfs_rud_item_ops = {
 	.iop_intent	= xfs_rud_item_intent,
 };
 
-/* Set the map extent flags for this reverse mapping. */
-static void
-xfs_trans_set_rmap_flags(
-	struct xfs_map_extent		*map,
-	enum xfs_rmap_intent_type	type,
-	int				whichfork,
-	xfs_exntst_t			state)
+static inline struct xfs_rmap_intent *ri_entry(const struct list_head *e)
 {
+	return list_entry(e, struct xfs_rmap_intent, ri_list);
+}
+
+/* Sort rmap intents by AG. */
+static int
+xfs_rmap_update_diff_items(
+	void				*priv,
+	const struct list_head		*a,
+	const struct list_head		*b)
+{
+	struct xfs_rmap_intent		*ra = ri_entry(a);
+	struct xfs_rmap_intent		*rb = ri_entry(b);
+
+	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+}
+
+/* Log rmap updates in the intent item. */
+STATIC void
+xfs_rmap_update_log_item(
+	struct xfs_trans		*tp,
+	struct xfs_rui_log_item		*ruip,
+	struct xfs_rmap_intent		*ri)
+{
+	uint				next_extent;
+	struct xfs_map_extent		*map;
+
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&ruip->rui_next_extent) - 1;
+	ASSERT(next_extent < ruip->rui_format.rui_nextents);
+	map = &ruip->rui_format.rui_extents[next_extent];
+	map->me_owner = ri->ri_owner;
+	map->me_startblock = ri->ri_bmap.br_startblock;
+	map->me_startoff = ri->ri_bmap.br_startoff;
+	map->me_len = ri->ri_bmap.br_blockcount;
+
 	map->me_flags = 0;
-	if (state == XFS_EXT_UNWRITTEN)
+	if (ri->ri_bmap.br_state == XFS_EXT_UNWRITTEN)
 		map->me_flags |= XFS_RMAP_EXTENT_UNWRITTEN;
-	if (whichfork == XFS_ATTR_FORK)
+	if (ri->ri_whichfork == XFS_ATTR_FORK)
 		map->me_flags |= XFS_RMAP_EXTENT_ATTR_FORK;
-	switch (type) {
+	switch (ri->ri_type) {
 	case XFS_RMAP_MAP:
 		map->me_flags |= XFS_RMAP_EXTENT_MAP;
 		break;
@@ -267,48 +302,6 @@ xfs_trans_set_rmap_flags(
 	default:
 		ASSERT(0);
 	}
-}
-
-/* Sort rmap intents by AG. */
-static int
-xfs_rmap_update_diff_items(
-	void				*priv,
-	const struct list_head		*a,
-	const struct list_head		*b)
-{
-	struct xfs_rmap_intent		*ra;
-	struct xfs_rmap_intent		*rb;
-
-	ra = container_of(a, struct xfs_rmap_intent, ri_list);
-	rb = container_of(b, struct xfs_rmap_intent, ri_list);
-
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
-}
-
-/* Log rmap updates in the intent item. */
-STATIC void
-xfs_rmap_update_log_item(
-	struct xfs_trans		*tp,
-	struct xfs_rui_log_item		*ruip,
-	struct xfs_rmap_intent		*ri)
-{
-	uint				next_extent;
-	struct xfs_map_extent		*map;
-
-	/*
-	 * atomic_inc_return gives us the value after the increment;
-	 * we want to use it as an array index so we need to subtract 1 from
-	 * it.
-	 */
-	next_extent = atomic_inc_return(&ruip->rui_next_extent) - 1;
-	ASSERT(next_extent < ruip->rui_format.rui_nextents);
-	map = &ruip->rui_format.rui_extents[next_extent];
-	map->me_owner = ri->ri_owner;
-	map->me_startblock = ri->ri_bmap.br_startblock;
-	map->me_startoff = ri->ri_bmap.br_startoff;
-	map->me_len = ri->ri_bmap.br_blockcount;
-	xfs_trans_set_rmap_flags(map, ri->ri_type, ri->ri_whichfork,
-			ri->ri_bmap.br_state);
 }
 
 static struct xfs_log_item *
@@ -350,24 +343,29 @@ xfs_rmap_update_create_done(
 	return &rudp->rud_item;
 }
 
-/* Take a passive ref to the AG containing the space we're rmapping. */
+/* Add this deferred RUI to the transaction. */
 void
-xfs_rmap_update_get_group(
-	struct xfs_mount	*mp,
+xfs_rmap_defer_add(
+	struct xfs_trans	*tp,
 	struct xfs_rmap_intent	*ri)
 {
-	xfs_agnumber_t		agno;
+	struct xfs_mount	*mp = tp->t_mountp;
 
-	agno = XFS_FSB_TO_AGNO(mp, ri->ri_bmap.br_startblock);
-	ri->ri_pag = xfs_perag_intent_get(mp, agno);
+	trace_xfs_rmap_defer(mp, ri);
+
+	ri->ri_pag = xfs_perag_intent_get(mp, ri->ri_bmap.br_startblock);
+	xfs_defer_add(tp, &ri->ri_list, &xfs_rmap_update_defer_type);
 }
 
-/* Release a passive AG ref after finishing rmapping work. */
-static inline void
-xfs_rmap_update_put_group(
-	struct xfs_rmap_intent	*ri)
+/* Cancel a deferred rmap update. */
+STATIC void
+xfs_rmap_update_cancel_item(
+	struct list_head		*item)
 {
+	struct xfs_rmap_intent		*ri = ri_entry(item);
+
 	xfs_perag_intent_put(ri->ri_pag);
+	kmem_cache_free(xfs_rmap_intent_cache, ri);
 }
 
 /* Process a deferred rmap update. */
@@ -378,16 +376,30 @@ xfs_rmap_update_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
-	struct xfs_rmap_intent		*ri;
+	struct xfs_rmap_intent		*ri = ri_entry(item);
 	int				error;
-
-	ri = container_of(item, struct xfs_rmap_intent, ri_list);
 
 	error = xfs_rmap_finish_one(tp, ri, state);
 
-	xfs_rmap_update_put_group(ri);
-	kmem_cache_free(xfs_rmap_intent_cache, ri);
+	xfs_rmap_update_cancel_item(item);
 	return error;
+}
+
+/* Clean up after calling xfs_rmap_finish_one. */
+STATIC void
+xfs_rmap_finish_one_cleanup(
+	struct xfs_trans	*tp,
+	struct xfs_btree_cur	*rcur,
+	int			error)
+{
+	struct xfs_buf		*agbp = NULL;
+
+	if (rcur == NULL)
+		return;
+	agbp = rcur->bc_ag.agbp;
+	xfs_btree_del_cursor(rcur, error);
+	if (error && agbp)
+		xfs_trans_brelse(tp, agbp);
 }
 
 /* Abort all pending RUIs. */
@@ -396,19 +408,6 @@ xfs_rmap_update_abort_intent(
 	struct xfs_log_item	*intent)
 {
 	xfs_rui_release(RUI_ITEM(intent));
-}
-
-/* Cancel a deferred rmap update. */
-STATIC void
-xfs_rmap_update_cancel_item(
-	struct list_head		*item)
-{
-	struct xfs_rmap_intent		*ri;
-
-	ri = container_of(item, struct xfs_rmap_intent, ri_list);
-
-	xfs_rmap_update_put_group(ri);
-	kmem_cache_free(xfs_rmap_intent_cache, ri);
 }
 
 /* Is this recovered RUI ok? */
@@ -495,7 +494,7 @@ xfs_rui_recover_work(
 	ri->ri_bmap.br_blockcount = map->me_len;
 	ri->ri_bmap.br_state = (map->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
-	xfs_rmap_update_get_group(mp, ri);
+	ri->ri_pag = xfs_perag_intent_get(mp, map->me_startblock);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }

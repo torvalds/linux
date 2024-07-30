@@ -119,10 +119,10 @@ web, point to it.
 
 When linking to mailing list archives, preferably use the lore.kernel.org
 message archiver service. To create the link URL, use the contents of the
-``Message-Id`` header of the message without the surrounding angle brackets.
+``Message-ID`` header of the message without the surrounding angle brackets.
 For example::
 
-    Link: https://lore.kernel.org/r/30th.anniversary.repost@klaava.Helsinki.FI/
+    Link: https://lore.kernel.org/30th.anniversary.repost@klaava.Helsinki.FI
 
 Please check the link to make sure that it is actually working and points
 to the relevant message.
@@ -243,11 +243,9 @@ linux-kernel@vger.kernel.org should be used by default for all patches, but the
 volume on that list has caused a number of developers to tune it out.  Please
 do not spam unrelated lists and unrelated people, though.
 
-Many kernel-related lists are hosted on vger.kernel.org; you can find a
-list of them at http://vger.kernel.org/vger-lists.html.  There are
-kernel-related lists hosted elsewhere as well, though.
-
-Do not send more than 15 patches at once to the vger mailing lists!!!
+Many kernel-related lists are hosted at kernel.org; you can find a list
+of them at https://subspace.kernel.org.  There are kernel-related lists
+hosted elsewhere as well, though.
 
 Linus Torvalds is the final arbiter of all changes accepted into the
 Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>.
@@ -865,9 +863,6 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/linux/maintainer-05.html>
 
   <http://www.kroah.com/log/linux/maintainer-06.html>
-
-NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
-  <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 Kernel Documentation/process/coding-style.rst
 

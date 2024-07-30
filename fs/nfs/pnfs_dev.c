@@ -110,9 +110,6 @@ nfs4_get_device_info(struct nfs_server *server,
 	 * GETDEVICEINFO's maxcount
 	 */
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	if (server->pnfs_curr_ld->max_deviceinfo_size &&
-	    server->pnfs_curr_ld->max_deviceinfo_size < max_resp_sz)
-		max_resp_sz = server->pnfs_curr_ld->max_deviceinfo_size;
 	max_pages = nfs_page_array_len(0, max_resp_sz);
 	dprintk("%s: server %p max_resp_sz %u max_pages %d\n",
 		__func__, server, max_resp_sz, max_pages);

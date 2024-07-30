@@ -531,6 +531,13 @@ S: Kopmansg 2
 S: 411 13  Goteborg
 S: Sweden
 
+N: Daniel Bristot de Oliveira
+D: Scheduler contributions, notably: SCHED_DEADLINE
+D: Real-time Linux Analysis
+D: Runtime Verification
+D: OS Noise and Latency Tracers
+S: Brazil and Italy
+
 N: Paul Bristow
 E: paul@paulbristow.net
 W: https://paulbristow.net/linux/idefloppy.html
@@ -795,6 +802,11 @@ N: Luis Correia
 E: luisfcorreia@gmail.com
 D: Ralink rt2x00 WLAN driver
 S: Belas, Portugal
+
+N: Benoît Cousson
+E: bcousson@baylibre.com
+D: TI OMAP Devicetree platforms
+D: TI OMAP HWMOD boards
 
 N: Alan Cox
 W: http://www.linux.org.uk/diary/
@@ -1213,6 +1225,10 @@ W: http://www.csc.calpoly.edu/~bfennema
 D: UDF filesystem
 S: (ask for current address)
 S: USA
+
+N: Larry Finger
+E: Larry.Finger@lwfinger.net
+D: Maintainer of wireless drivers, too many to list here
 
 N: Jürgen Fischer
 E: fischer@norbit.de
@@ -3146,9 +3162,11 @@ S: Triftstra=DFe 55
 S: 13353 Berlin
 S: Germany
 
-N: Gustavo Pimental
+N: Gustavo Pimentel
 E: gustavo.pimentel@synopsys.com
 D: PCI driver for Synopsys DesignWare
+D: Synopsys DesignWare eDMA driver
+D: Synopsys DesignWare xData traffic generator
 
 N: Emanuel Pirker
 E: epirker@edu.uni-klu.ac.at
@@ -4361,6 +4379,10 @@ D: IP virtual server (IPVS).
 N: Haojian Zhuang
 E: haojian.zhuang@gmail.com
 D: MMP support
+
+N: Tsahee Zidenberg
+E: tsahee@annapurnalabs.com
+D: Annapurna Labs Alpine Architecture
 
 N: Richard Zidlicky
 E: rz@linux-m68k.org, rdzidlic@geocities.com

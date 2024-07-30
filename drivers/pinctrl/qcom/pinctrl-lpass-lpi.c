@@ -20,7 +20,7 @@
 
 #include "pinctrl-lpass-lpi.h"
 
-#define MAX_NR_GPIO		23
+#define MAX_NR_GPIO		32
 #define GPIO_FUNC		0
 #define MAX_LPI_NUM_CLKS	2
 

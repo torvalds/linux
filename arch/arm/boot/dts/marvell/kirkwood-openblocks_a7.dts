@@ -136,8 +136,6 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&pmx_gpio_init>;
 		pinctrl-names = "default";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		button {
 			label = "Init Button";

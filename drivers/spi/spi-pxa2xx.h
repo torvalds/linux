@@ -14,6 +14,7 @@
 
 #include <linux/pxa2xx_ssp.h>
 
+struct device;
 struct gpio_desc;
 
 /*
@@ -130,5 +131,10 @@ extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
+
+int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp);
+void pxa2xx_spi_remove(struct device *dev);
+
+extern const struct dev_pm_ops pxa2xx_spi_pm_ops;
 
 #endif /* SPI_PXA2XX_H */

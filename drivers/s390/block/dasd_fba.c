@@ -32,6 +32,7 @@
 #define DASD_FBA_CCW_LOCATE 0x43
 #define DASD_FBA_CCW_DEFINE_EXTENT 0x63
 
+MODULE_DESCRIPTION("S/390 DASD FBA Disks device driver");
 MODULE_LICENSE("GPL");
 
 static struct dasd_discipline dasd_fba_discipline;
@@ -585,7 +586,7 @@ dasd_fba_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 				ccw++;
 			if (dst) {
 				if (ccw->flags & CCW_FLAG_IDA)
-					cda = *((char **)dma32_to_virt(ccw->cda));
+					cda = dma64_to_virt(*((dma64_t *)dma32_to_virt(ccw->cda)));
 				else
 					cda = dma32_to_virt(ccw->cda);
 				if (dst != cda) {

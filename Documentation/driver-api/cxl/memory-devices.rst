@@ -328,6 +328,12 @@ CXL Memory Device
 .. kernel-doc:: drivers/cxl/mem.c
    :doc: cxl mem
 
+.. kernel-doc:: drivers/cxl/cxlmem.h
+   :internal:
+
+.. kernel-doc:: drivers/cxl/core/memdev.c
+   :identifiers:
+
 CXL Port
 --------
 .. kernel-doc:: drivers/cxl/port.c
@@ -340,6 +346,15 @@ CXL Core
 
 .. kernel-doc:: drivers/cxl/cxl.h
    :internal:
+
+.. kernel-doc:: drivers/cxl/core/hdm.c
+   :doc: cxl core hdm
+
+.. kernel-doc:: drivers/cxl/core/hdm.c
+   :identifiers:
+
+.. kernel-doc:: drivers/cxl/core/cdat.c
+   :identifiers:
 
 .. kernel-doc:: drivers/cxl/core/port.c
    :doc: cxl core

@@ -112,7 +112,7 @@ void __flush_dcache_pages(struct page *page, unsigned int nr)
 	}
 
 	/*
-	 * We could delay the flush for the !page_mapping case too.  But that
+	 * We could delay the flush for the !folio_mapping case too.  But that
 	 * case is for exec env/arg pages and those are %99 certainly going to
 	 * get faulted into the tlb (and thus flushed) anyways.
 	 */

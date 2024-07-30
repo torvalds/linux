@@ -163,8 +163,8 @@ int ipu6_buttress_ipc_reset(struct ipu6_device *isp,
 			writel(ENTRY, isp->base + ipc->csr_out);
 			break;
 		default:
-			dev_warn_ratelimited(&isp->pdev->dev,
-					     "Unexpected CSR 0x%x\n", val);
+			dev_dbg_ratelimited(&isp->pdev->dev,
+					    "Unexpected CSR 0x%x\n", val);
 			break;
 		}
 	} while (retries--);

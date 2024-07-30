@@ -32,10 +32,6 @@
 struct opera1_state {
 	u32 last_key_pressed;
 };
-struct rc_map_opera_table {
-	u32 keycode;
-	u32 event;
-};
 
 static int dvb_usb_opera1_debug;
 module_param_named(debug, dvb_usb_opera1_debug, int, 0644);

@@ -1936,7 +1936,6 @@ static void test_selftests_ktls(int cg_fd, struct sockmap_options *opt)
 
 static int test_selftest(int cg_fd, struct sockmap_options *opt)
 {
-
 	test_selftests_sockmap(cg_fd, opt);
 	test_selftests_sockhash(cg_fd, opt);
 	test_selftests_ktls(cg_fd, opt);

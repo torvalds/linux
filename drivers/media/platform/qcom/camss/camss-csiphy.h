@@ -42,6 +42,16 @@ struct csiphy_config {
 	struct csiphy_csi2_cfg *csi2;
 };
 
+struct csiphy_format_info {
+	u32 code;
+	u8 bpp;
+};
+
+struct csiphy_formats {
+	unsigned int nformats;
+	const struct csiphy_format_info *formats;
+};
+
 struct csiphy_device;
 
 struct csiphy_hw_ops {
@@ -63,6 +73,11 @@ struct csiphy_hw_ops {
 	irqreturn_t (*isr)(int irq, void *dev);
 };
 
+struct csiphy_subdev_resources {
+	const struct csiphy_hw_ops *hw_ops;
+	const struct csiphy_formats *formats;
+};
+
 struct csiphy_device {
 	struct camss *camss;
 	u8 id;
@@ -78,9 +93,7 @@ struct csiphy_device {
 	u32 timer_clk_rate;
 	struct csiphy_config cfg;
 	struct v4l2_mbus_framefmt fmt[MSM_CSIPHY_PADS_NUM];
-	const struct csiphy_hw_ops *ops;
-	const struct csiphy_format *formats;
-	unsigned int nformats;
+	const struct csiphy_subdev_resources *res;
 };
 
 struct camss_subdev_resources;
@@ -93,6 +106,10 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 			       struct v4l2_device *v4l2_dev);
 
 void msm_csiphy_unregister_entity(struct csiphy_device *csiphy);
+
+extern const struct csiphy_formats csiphy_formats_8x16;
+extern const struct csiphy_formats csiphy_formats_8x96;
+extern const struct csiphy_formats csiphy_formats_sdm845;
 
 extern const struct csiphy_hw_ops csiphy_ops_2ph_1_0;
 extern const struct csiphy_hw_ops csiphy_ops_3ph_1_0;

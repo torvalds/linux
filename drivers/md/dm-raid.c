@@ -1626,6 +1626,23 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 	return 0;
 }
 
+/* Get reshape sectors from data_offsets or raid set */
+static sector_t _get_reshape_sectors(struct raid_set *rs)
+{
+	struct md_rdev *rdev;
+	sector_t reshape_sectors = 0;
+
+	rdev_for_each(rdev, &rs->md)
+		if (!test_bit(Journal, &rdev->flags)) {
+			reshape_sectors = (rdev->data_offset > rdev->new_data_offset) ?
+					rdev->data_offset - rdev->new_data_offset :
+					rdev->new_data_offset - rdev->data_offset;
+			break;
+		}
+
+	return max(reshape_sectors, (sector_t) rs->data_offset);
+}
+
 /* Calculate the sectors per device and per array used for @rs */
 static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, bool use_mddev)
 {
@@ -1656,7 +1673,7 @@ static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, b
 		if (sector_div(dev_sectors, data_stripes))
 			goto bad;
 
-		array_sectors = (data_stripes + delta_disks) * dev_sectors;
+		array_sectors = (data_stripes + delta_disks) * (dev_sectors - _get_reshape_sectors(rs));
 		if (sector_div(array_sectors, rs->raid10_copies))
 			goto bad;
 
@@ -1665,7 +1682,7 @@ static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, b
 
 	else
 		/* Striped layouts */
-		array_sectors = (data_stripes + delta_disks) * dev_sectors;
+		array_sectors = (data_stripes + delta_disks) * (dev_sectors - _get_reshape_sectors(rs));
 
 	mddev->array_sectors = array_sectors;
 	mddev->dev_sectors = dev_sectors;
@@ -1704,11 +1721,20 @@ static void do_table_event(struct work_struct *ws)
 	struct raid_set *rs = container_of(ws, struct raid_set, md.event_work);
 
 	smp_rmb(); /* Make sure we access most actual mddev properties */
-	if (!rs_is_reshaping(rs)) {
+
+	/* Only grow size resulting from added stripe(s) after reshape ended. */
+	if (!rs_is_reshaping(rs) &&
+	    rs->array_sectors > rs->md.array_sectors &&
+	    !rs->md.delta_disks &&
+	    rs->md.raid_disks == rs->raid_disks) {
+		/* The raid10 personality doesn't provide proper device sizes -> correct. */
 		if (rs_is_raid10(rs))
 			rs_set_rdev_sectors(rs);
+
+		rs->md.array_sectors = rs->array_sectors;
 		rs_set_capacity(rs);
 	}
+
 	dm_table_event(rs->ti->table);
 }
 
@@ -2811,23 +2837,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 	return 0;
 }
 
-/* Get reshape sectors from data_offsets or raid set */
-static sector_t _get_reshape_sectors(struct raid_set *rs)
-{
-	struct md_rdev *rdev;
-	sector_t reshape_sectors = 0;
-
-	rdev_for_each(rdev, &rs->md)
-		if (!test_bit(Journal, &rdev->flags)) {
-			reshape_sectors = (rdev->data_offset > rdev->new_data_offset) ?
-					rdev->data_offset - rdev->new_data_offset :
-					rdev->new_data_offset - rdev->data_offset;
-			break;
-		}
-
-	return max(reshape_sectors, (sector_t) rs->data_offset);
-}
-
 /*
  * Reshape:
  * - change raid layout
@@ -3542,7 +3551,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		recovery = rs->md.recovery;
 		state = decipher_sync_action(mddev, recovery);
 		progress = rs_get_progress(rs, recovery, state, resync_max_sectors);
-		resync_mismatches = (mddev->last_sync_action && !strcasecmp(mddev->last_sync_action, "check")) ?
+		resync_mismatches = mddev->last_sync_action == ACTION_CHECK ?
 				    atomic64_read(&mddev->resync_mismatches) : 0;
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */
@@ -3802,8 +3811,8 @@ static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	struct raid_set *rs = ti->private;
 	unsigned int chunk_size_bytes = to_bytes(rs->md.chunk_sectors);
 
-	blk_limits_io_min(limits, chunk_size_bytes);
-	blk_limits_io_opt(limits, chunk_size_bytes * mddev_data_stripes(rs));
+	limits->io_min = chunk_size_bytes;
+	limits->io_opt = chunk_size_bytes * mddev_data_stripes(rs);
 }
 
 static void raid_presuspend(struct dm_target *ti)
@@ -4023,6 +4032,11 @@ static int raid_preresume(struct dm_target *ti)
 	if (test_and_set_bit(RT_FLAG_RS_PRERESUMED, &rs->runtime_flags))
 		return 0;
 
+	/* If different and no explicit grow request, expose MD array size as of superblock. */
+	if (!test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags) &&
+	    rs->array_sectors != mddev->array_sectors)
+		rs_set_capacity(rs);
+
 	/*
 	 * The superblocks need to be updated on disk if the
 	 * array is new or new devices got added (thus zeroed
@@ -4101,10 +4115,11 @@ static void raid_resume(struct dm_target *ti)
 		if (mddev->delta_disks < 0)
 			rs_set_capacity(rs);
 
-		WARN_ON_ONCE(!test_bit(MD_RECOVERY_FROZEN, &mddev->recovery));
-		WARN_ON_ONCE(test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
-		clear_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags);
 		mddev_lock_nointr(mddev);
+		WARN_ON_ONCE(!test_bit(MD_RECOVERY_FROZEN, &mddev->recovery));
+		WARN_ON_ONCE(rcu_dereference_protected(mddev->sync_thread,
+						       lockdep_is_held(&mddev->reconfig_mutex)));
+		clear_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags);
 		mddev->ro = 0;
 		mddev->in_sync = 0;
 		md_unfrozen_sync_thread(mddev);

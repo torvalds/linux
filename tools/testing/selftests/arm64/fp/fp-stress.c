@@ -319,6 +319,19 @@ static void start_fpsimd(struct child_data *child, int cpu, int copy)
 	ksft_print_msg("Started %s\n", child->name);
 }
 
+static void start_kernel(struct child_data *child, int cpu, int copy)
+{
+	int ret;
+
+	ret = asprintf(&child->name, "KERNEL-%d-%d", cpu, copy);
+	if (ret == -1)
+		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./kernel-test");
+
+	ksft_print_msg("Started %s\n", child->name);
+}
+
 static void start_sve(struct child_data *child, int vl, int cpu)
 {
 	int ret;
@@ -438,7 +451,7 @@ int main(int argc, char **argv)
 	int ret;
 	int timeout = 10;
 	int cpus, i, j, c;
-	int sve_vl_count, sme_vl_count, fpsimd_per_cpu;
+	int sve_vl_count, sme_vl_count;
 	bool all_children_started = false;
 	int seen_children;
 	int sve_vls[MAX_VLS], sme_vls[MAX_VLS];
@@ -482,12 +495,7 @@ int main(int argc, char **argv)
 		have_sme2 = false;
 	}
 
-	/* Force context switching if we only have FPSIMD */
-	if (!sve_vl_count && !sme_vl_count)
-		fpsimd_per_cpu = 2;
-	else
-		fpsimd_per_cpu = 1;
-	tests += cpus * fpsimd_per_cpu;
+	tests += cpus * 2;
 
 	ksft_print_header();
 	ksft_set_plan(tests);
@@ -542,8 +550,8 @@ int main(int argc, char **argv)
 				   tests);
 
 	for (i = 0; i < cpus; i++) {
-		for (j = 0; j < fpsimd_per_cpu; j++)
-			start_fpsimd(&children[num_children++], i, j);
+		start_fpsimd(&children[num_children++], i, 0);
+		start_kernel(&children[num_children++], i, 0);
 
 		for (j = 0; j < sve_vl_count; j++)
 			start_sve(&children[num_children++], sve_vls[j], i);

@@ -528,4 +528,5 @@ static void __exit exit_nls_maccenteuro(void)
 module_init(init_nls_maccenteuro)
 module_exit(exit_nls_maccenteuro)
 
+MODULE_DESCRIPTION("NLS Codepage maccenteuro");
 MODULE_LICENSE("Dual BSD/GPL");

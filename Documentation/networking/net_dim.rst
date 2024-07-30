@@ -169,6 +169,48 @@ usage is not complete but it should make the outline of the usage clear.
 	...
   }
 
+
+Tuning DIM
+==========
+
+Net DIM serves a range of network devices and delivers excellent acceleration
+benefits. Yet, it has been observed that some preset configurations of DIM may
+not align seamlessly with the varying specifications of network devices, and
+this discrepancy has been identified as a factor to the suboptimal performance
+outcomes of DIM-enabled network devices, related to a mismatch in profiles.
+
+To address this issue, Net DIM introduces a per-device control to modify and
+access a device's ``rx-profile`` and ``tx-profile`` parameters:
+Assume that the target network device is named ethx, and ethx only declares
+support for RX profile setting and supports modification of ``usec`` field
+and ``pkts`` field (See the data structure:
+:c:type:`struct dim_cq_moder <dim_cq_moder>`).
+
+You can use ethtool to modify the current RX DIM profile where all
+values are 64::
+
+    $ ethtool -C ethx rx-profile 1,1,n_2,2,n_3,n,n_n,4,n_n,n,n
+
+``n`` means do not modify this field, and ``_`` separates structure
+elements of the profile array.
+
+Querying the current profiles using::
+
+    $ ethtool -c ethx
+    ...
+    rx-profile:
+    {.usec =   1, .pkts =   1, .comps = n/a,},
+    {.usec =   2, .pkts =   2, .comps = n/a,},
+    {.usec =   3, .pkts =  64, .comps = n/a,},
+    {.usec =  64, .pkts =   4, .comps = n/a,},
+    {.usec =  64, .pkts =  64, .comps = n/a,}
+    tx-profile:   n/a
+
+If the network device does not support specific fields of DIM profiles,
+the corresponding ``n/a`` will display. If the ``n/a`` field is being
+modified, error messages will be reported.
+
+
 Dynamic Interrupt Moderation (DIM) library API
 ==============================================
 

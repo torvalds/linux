@@ -63,6 +63,7 @@ enum opt_flags {
 	OPT_MUST_BE_POW_2 = (1 << 7),	/* Must be power of 2 */
 	OPT_SB_FIELD_SECTORS = (1 << 8),/* Superblock field is >> 9 of actual value */
 	OPT_SB_FIELD_ILOG2 = (1 << 9),	/* Superblock field is ilog2 of actual value */
+	OPT_HIDDEN	= (1 << 10),
 };
 
 enum opt_type {
@@ -137,7 +138,7 @@ enum fsck_err_opts {
 	x(errors,			u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_error_actions),					\
-	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_ro,		\
+	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_fix_safe,		\
 	  NULL,		"Action to take on filesystem error")		\
 	x(metadata_replicas,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
@@ -406,7 +407,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS|OPT_MOUNT|OPT_HIDDEN,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
@@ -488,6 +489,13 @@ struct bch_opts {
 #undef x
 };
 
+struct bch2_opts_parse {
+	struct bch_opts opts;
+
+	/* to save opts that can't be parsed before the FS is opened: */
+	struct printbuf parse_later;
+};
+
 static const __maybe_unused struct bch_opts bch2_opts_default = {
 #define x(_name, _bits, _mode, _type, _sb_opt, _default, ...)		\
 	._name##_defined = true,					\
@@ -566,7 +574,10 @@ void bch2_opt_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *,
 
 int bch2_opt_check_may_set(struct bch_fs *, int, u64);
 int bch2_opts_check_may_set(struct bch_fs *);
-int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, char *);
+int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
+			     struct printbuf *, const char *, const char *);
+int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, struct printbuf *,
+			  char *);
 
 /* inode opts: */
 

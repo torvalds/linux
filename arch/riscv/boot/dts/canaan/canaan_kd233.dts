@@ -15,6 +15,10 @@
 	model = "Kendryte KD233";
 	compatible = "canaan,kendryte-kd233", "canaan,kendryte-k210";
 
+	aliases {
+		serial0 = &uarths0;
+	};
+
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
 		stdout-path = "serial0:115200n8";
@@ -46,7 +50,6 @@
 &fpioa {
 	pinctrl-0 = <&jtag_pinctrl>;
 	pinctrl-names = "default";
-	status = "okay";
 
 	jtag_pinctrl: jtag-pinmux {
 		pinmux = <K210_FPIOA(0, K210_PCF_JTAG_TCLK)>,
@@ -118,6 +121,7 @@
 	#sound-dai-cells = <1>;
 	pinctrl-0 = <&i2s0_pinctrl>;
 	pinctrl-names = "default";
+	status = "okay";
 };
 
 &spi0 {
@@ -125,6 +129,7 @@
 	pinctrl-names = "default";
 	num-cs = <1>;
 	cs-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 
 	panel@0 {
 		compatible = "canaan,kd233-tft", "ilitek,ili9341";

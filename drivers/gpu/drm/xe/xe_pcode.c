@@ -10,6 +10,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
@@ -124,6 +125,8 @@ static int pcode_try_request(struct xe_gt *gt, u32 mbox,
 {
 	int slept, wait = 10;
 
+	xe_gt_assert(gt, timeout_us > 0);
+
 	for (slept = 0; slept < timeout_us; slept += wait) {
 		if (locked)
 			*status = pcode_mailbox_rw(gt, mbox, &request, NULL, 1, true,
@@ -169,6 +172,8 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 	u32 status;
 	int ret;
 
+	xe_gt_assert(gt, timeout_base_ms <= 3);
+
 	mutex_lock(&gt->pcode.lock);
 
 	ret = pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
@@ -188,7 +193,6 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 	 */
 	drm_err(&gt_to_xe(gt)->drm,
 		"PCODE timeout, retrying with preemption disabled\n");
-	drm_WARN_ON_ONCE(&gt_to_xe(gt)->drm, timeout_base_ms > 1);
 	preempt_disable();
 	ret = pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
 				true, 50 * 1000, true);

@@ -379,7 +379,7 @@ static int non_hda_dai_hw_params_data(struct snd_pcm_substream *substream,
 
 	sdev = widget_to_sdev(w);
 	if (sdev->dspless_mode_selected)
-		goto skip_tlv;
+		return 0;
 
 	/* get stream_id */
 	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
@@ -423,7 +423,6 @@ static int non_hda_dai_hw_params_data(struct snd_pcm_substream *substream,
 	dma_config->dma_stream_channel_map.device_count = 1;
 	dma_config->dma_priv_config_size = 0;
 
-skip_tlv:
 	return 0;
 }
 
@@ -525,6 +524,9 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (sdev->dspless_mode_selected)
+		return 0;
+
 	ipc4_copier = widget_to_copier(w);
 	dma_config_tlv = &ipc4_copier->dma_config_tlv[cpu_dai_id];
 	dma_config = &dma_config_tlv->dma_config;
@@ -615,12 +617,6 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			sdai = swidget->private;
 			ops = sdai->platform_private;
 
-			ret = hda_link_dma_cleanup(hext_stream->link_substream,
-						   hext_stream,
-						   cpu_dai);
-			if (ret < 0)
-				return ret;
-
 			/* for consistency with TRIGGER_SUSPEND  */
 			if (ops->post_trigger) {
 				ret = ops->post_trigger(sdev, cpu_dai,
@@ -629,6 +625,12 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 				if (ret < 0)
 					return ret;
 			}
+
+			ret = hda_link_dma_cleanup(hext_stream->link_substream,
+						   hext_stream,
+						   cpu_dai);
+			if (ret < 0)
+				return ret;
 		}
 	}
 

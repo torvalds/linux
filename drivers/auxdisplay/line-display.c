@@ -8,7 +8,9 @@
  * Copyright (C) 2021 Glider bv
  */
 
+#ifndef CONFIG_PANEL_BOOT_MESSAGE
 #include <generated/utsrelease.h>
+#endif
 
 #include <linux/container_of.h>
 #include <linux/device.h>
@@ -312,6 +314,12 @@ static int linedisp_init_map(struct linedisp *linedisp)
 	return 0;
 }
 
+#ifdef CONFIG_PANEL_BOOT_MESSAGE
+#define LINEDISP_INIT_TEXT CONFIG_PANEL_BOOT_MESSAGE
+#else
+#define LINEDISP_INIT_TEXT "Linux " UTS_RELEASE "       "
+#endif
+
 /**
  * linedisp_register - register a character line display
  * @linedisp: pointer to character line display structure
@@ -359,7 +367,7 @@ int linedisp_register(struct linedisp *linedisp, struct device *parent,
 		goto out_del_timer;
 
 	/* display a default message */
-	err = linedisp_display(linedisp, "Linux " UTS_RELEASE "       ", -1);
+	err = linedisp_display(linedisp, LINEDISP_INIT_TEXT, -1);
 	if (err)
 		goto out_del_dev;
 
@@ -388,4 +396,5 @@ void linedisp_unregister(struct linedisp *linedisp)
 }
 EXPORT_SYMBOL_NS_GPL(linedisp_unregister, LINEDISP);
 
+MODULE_DESCRIPTION("Character line display core support");
 MODULE_LICENSE("GPL");

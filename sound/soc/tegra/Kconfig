@@ -78,6 +78,7 @@ config SND_SOC_TEGRA210_DMIC
 
 config SND_SOC_TEGRA210_I2S
 	tristate "Tegra210 I2S module"
+	select SND_SIMPLE_CARD_UTILS
 	help
 	  Config to enable the Inter-IC Sound (I2S) Controller which
 	  implements full-duplex and bidirectional and single direction

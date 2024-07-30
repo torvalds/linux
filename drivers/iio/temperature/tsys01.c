@@ -206,7 +206,7 @@ static int tsys01_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsys01_id[] = {
-	{"tsys01", 0},
+	{ "tsys01" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tsys01_id);

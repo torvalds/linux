@@ -576,8 +576,10 @@ static void __init prefill_possible_map(void)
 
 	for (i = 0; i < possible; i++)
 		set_cpu_possible(i, true);
-	for (; i < NR_CPUS; i++)
+	for (; i < NR_CPUS; i++) {
+		set_cpu_present(i, false);
 		set_cpu_possible(i, false);
+	}
 
 	set_nr_cpu_ids(possible);
 }

@@ -9,7 +9,7 @@
  * s390 uses its own implementation for per cpu data, the offset of
  * the cpu local data area is cached in the cpu's lowcore memory.
  */
-#define __my_cpu_offset S390_lowcore.percpu_offset
+#define __my_cpu_offset get_lowcore()->percpu_offset
 
 /*
  * For 64 bit module code, the module may be more than 4G above the

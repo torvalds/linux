@@ -304,10 +304,12 @@ struct sbiret {
 };
 
 void sbi_init(void);
-struct sbiret sbi_ecall(int ext, int fid, unsigned long arg0,
-			unsigned long arg1, unsigned long arg2,
-			unsigned long arg3, unsigned long arg4,
-			unsigned long arg5);
+struct sbiret __sbi_ecall(unsigned long arg0, unsigned long arg1,
+			  unsigned long arg2, unsigned long arg3,
+			  unsigned long arg4, unsigned long arg5,
+			  int fid, int ext);
+#define sbi_ecall(e, f, a0, a1, a2, a3, a4, a5)	\
+		__sbi_ecall(a0, a1, a2, a3, a4, a5, f, e)
 
 #ifdef CONFIG_RISCV_SBI_V01
 void sbi_console_putchar(int ch);

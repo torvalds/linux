@@ -249,10 +249,10 @@ static void emac_adjust_link(struct net_device *ndev)
 			icssg_config_ipg(emac);
 			spin_unlock_irqrestore(&emac->lock, flags);
 			icssg_config_set_speed(emac);
-			emac_set_port_state(emac, ICSSG_EMAC_PORT_FORWARD);
+			icssg_set_port_state(emac, ICSSG_EMAC_PORT_FORWARD);
 
 		} else {
-			emac_set_port_state(emac, ICSSG_EMAC_PORT_DISABLE);
+			icssg_set_port_state(emac, ICSSG_EMAC_PORT_DISABLE);
 		}
 	}
 
@@ -694,17 +694,17 @@ static void emac_ndo_set_rx_mode_work(struct work_struct *work)
 
 	promisc = ndev->flags & IFF_PROMISC;
 	allmulti = ndev->flags & IFF_ALLMULTI;
-	emac_set_port_state(emac, ICSSG_EMAC_PORT_UC_FLOODING_DISABLE);
-	emac_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_DISABLE);
+	icssg_set_port_state(emac, ICSSG_EMAC_PORT_UC_FLOODING_DISABLE);
+	icssg_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_DISABLE);
 
 	if (promisc) {
-		emac_set_port_state(emac, ICSSG_EMAC_PORT_UC_FLOODING_ENABLE);
-		emac_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_ENABLE);
+		icssg_set_port_state(emac, ICSSG_EMAC_PORT_UC_FLOODING_ENABLE);
+		icssg_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_ENABLE);
 		return;
 	}
 
 	if (allmulti) {
-		emac_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_ENABLE);
+		icssg_set_port_state(emac, ICSSG_EMAC_PORT_MC_FLOODING_ENABLE);
 		return;
 	}
 
@@ -728,14 +728,14 @@ static void emac_ndo_set_rx_mode(struct net_device *ndev)
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
-	.ndo_start_xmit = emac_ndo_start_xmit,
+	.ndo_start_xmit = icssg_ndo_start_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_tx_timeout = emac_ndo_tx_timeout,
+	.ndo_tx_timeout = icssg_ndo_tx_timeout,
 	.ndo_set_rx_mode = emac_ndo_set_rx_mode,
-	.ndo_eth_ioctl = emac_ndo_ioctl,
-	.ndo_get_stats64 = emac_ndo_get_stats64,
-	.ndo_get_phys_port_name = emac_ndo_get_phys_port_name,
+	.ndo_eth_ioctl = icssg_ndo_ioctl,
+	.ndo_get_stats64 = icssg_ndo_get_stats64,
+	.ndo_get_phys_port_name = icssg_ndo_get_phys_port_name,
 };
 
 static int prueth_netdev_init(struct prueth *prueth,
@@ -771,7 +771,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	}
 	INIT_WORK(&emac->rx_mode_work, emac_ndo_set_rx_mode_work);
 
-	INIT_DELAYED_WORK(&emac->stats_work, emac_stats_work_handler);
+	INIT_DELAYED_WORK(&emac->stats_work, icssg_stats_work_handler);
 
 	ret = pruss_request_mem_region(prueth->pruss,
 				       port == PRUETH_PORT_MII0 ?
@@ -864,7 +864,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	ndev->hw_features = NETIF_F_SG;
 	ndev->features = ndev->hw_features;
 
-	netif_napi_add(ndev, &emac->napi_rx, emac_napi_rx_poll);
+	netif_napi_add(ndev, &emac->napi_rx, icssg_napi_rx_poll);
 	hrtimer_init(&emac->rx_hrtimer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL_PINNED);
 	emac->rx_hrtimer.function = &emac_rx_timer_callback;
@@ -927,8 +927,8 @@ static void prueth_emac_restart(struct prueth *prueth)
 		netif_device_detach(emac1->ndev);
 
 	/* Disable both PRUeth ports */
-	emac_set_port_state(emac0, ICSSG_EMAC_PORT_DISABLE);
-	emac_set_port_state(emac1, ICSSG_EMAC_PORT_DISABLE);
+	icssg_set_port_state(emac0, ICSSG_EMAC_PORT_DISABLE);
+	icssg_set_port_state(emac1, ICSSG_EMAC_PORT_DISABLE);
 
 	/* Stop both pru cores for both PRUeth ports*/
 	prueth_emac_stop(emac0);
@@ -943,8 +943,8 @@ static void prueth_emac_restart(struct prueth *prueth)
 	prueth->emacs_initialized++;
 
 	/* Enable forwarding for both PRUeth ports */
-	emac_set_port_state(emac0, ICSSG_EMAC_PORT_FORWARD);
-	emac_set_port_state(emac1, ICSSG_EMAC_PORT_FORWARD);
+	icssg_set_port_state(emac0, ICSSG_EMAC_PORT_FORWARD);
+	icssg_set_port_state(emac1, ICSSG_EMAC_PORT_FORWARD);
 
 	/* Attache net_device for both PRUeth ports */
 	netif_device_attach(emac0->ndev);
@@ -972,7 +972,7 @@ static void icssg_enable_switch_mode(struct prueth *prueth)
 					  BIT(emac->port_id) | DEFAULT_UNTAG_MASK,
 					  true);
 			icssg_set_pvid(prueth, emac->port_vlan, emac->port_id);
-			emac_set_port_state(emac, ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE);
+			icssg_set_port_state(emac, ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE);
 		}
 	}
 }

@@ -18,7 +18,7 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg);
 void __io_napi_add(struct io_ring_ctx *ctx, struct socket *sock);
 
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx,
-		struct io_wait_queue *iowq, struct timespec64 *ts);
+		struct io_wait_queue *iowq, ktime_t to_wait);
 void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq);
 int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx);
 
@@ -29,11 +29,11 @@ static inline bool io_napi(struct io_ring_ctx *ctx)
 
 static inline void io_napi_adjust_timeout(struct io_ring_ctx *ctx,
 					  struct io_wait_queue *iowq,
-					  struct timespec64 *ts)
+					  ktime_t to_wait)
 {
 	if (!io_napi(ctx))
 		return;
-	__io_napi_adjust_timeout(ctx, iowq, ts);
+	__io_napi_adjust_timeout(ctx, iowq, to_wait);
 }
 
 static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,
@@ -55,7 +55,7 @@ static inline void io_napi_add(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct socket *sock;
 
-	if (!READ_ONCE(ctx->napi_busy_poll_to))
+	if (!READ_ONCE(ctx->napi_busy_poll_dt))
 		return;
 
 	sock = sock_from_file(req->file);
@@ -88,7 +88,7 @@ static inline void io_napi_add(struct io_kiocb *req)
 }
 static inline void io_napi_adjust_timeout(struct io_ring_ctx *ctx,
 					  struct io_wait_queue *iowq,
-					  struct timespec64 *ts)
+					  ktime_t to_wait)
 {
 }
 static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,

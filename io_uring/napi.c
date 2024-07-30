@@ -33,6 +33,12 @@ static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 	return NULL;
 }
 
+static inline ktime_t net_to_ktime(unsigned long t)
+{
+	/* napi approximating usecs, reverse busy_loop_current_time */
+	return ns_to_ktime(t << 10);
+}
+
 void __io_napi_add(struct io_ring_ctx *ctx, struct socket *sock)
 {
 	struct hlist_head *hash_list;
@@ -102,14 +108,14 @@ static inline void io_napi_remove_stale(struct io_ring_ctx *ctx, bool is_stale)
 		__io_napi_remove_stale(ctx);
 }
 
-static inline bool io_napi_busy_loop_timeout(unsigned long start_time,
-					     unsigned long bp_usec)
+static inline bool io_napi_busy_loop_timeout(ktime_t start_time,
+					     ktime_t bp)
 {
-	if (bp_usec) {
-		unsigned long end_time = start_time + bp_usec;
-		unsigned long now = busy_loop_current_time();
+	if (bp) {
+		ktime_t end_time = ktime_add(start_time, bp);
+		ktime_t now = net_to_ktime(busy_loop_current_time());
 
-		return time_after(now, end_time);
+		return ktime_after(now, end_time);
 	}
 
 	return true;
@@ -124,7 +130,8 @@ static bool io_napi_busy_loop_should_end(void *data,
 		return true;
 	if (io_should_wake(iowq) || io_has_work(iowq->ctx))
 		return true;
-	if (io_napi_busy_loop_timeout(start_time, iowq->napi_busy_poll_to))
+	if (io_napi_busy_loop_timeout(net_to_ktime(start_time),
+				      iowq->napi_busy_poll_dt))
 		return true;
 
 	return false;
@@ -181,10 +188,12 @@ static void io_napi_blocking_busy_loop(struct io_ring_ctx *ctx,
  */
 void io_napi_init(struct io_ring_ctx *ctx)
 {
+	u64 sys_dt = READ_ONCE(sysctl_net_busy_poll) * NSEC_PER_USEC;
+
 	INIT_LIST_HEAD(&ctx->napi_list);
 	spin_lock_init(&ctx->napi_lock);
 	ctx->napi_prefer_busy_poll = false;
-	ctx->napi_busy_poll_to = READ_ONCE(sysctl_net_busy_poll);
+	ctx->napi_busy_poll_dt = ns_to_ktime(sys_dt);
 }
 
 /*
@@ -217,11 +226,13 @@ void io_napi_free(struct io_ring_ctx *ctx)
 int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 {
 	const struct io_uring_napi curr = {
-		.busy_poll_to 	  = ctx->napi_busy_poll_to,
+		.busy_poll_to 	  = ktime_to_us(ctx->napi_busy_poll_dt),
 		.prefer_busy_poll = ctx->napi_prefer_busy_poll
 	};
 	struct io_uring_napi napi;
 
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		return -EINVAL;
 	if (copy_from_user(&napi, arg, sizeof(napi)))
 		return -EFAULT;
 	if (napi.pad[0] || napi.pad[1] || napi.pad[2] || napi.resv)
@@ -230,7 +241,7 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 	if (copy_to_user(arg, &curr, sizeof(curr)))
 		return -EFAULT;
 
-	WRITE_ONCE(ctx->napi_busy_poll_to, napi.busy_poll_to);
+	WRITE_ONCE(ctx->napi_busy_poll_dt, napi.busy_poll_to * NSEC_PER_USEC);
 	WRITE_ONCE(ctx->napi_prefer_busy_poll, !!napi.prefer_busy_poll);
 	WRITE_ONCE(ctx->napi_enabled, true);
 	return 0;
@@ -247,47 +258,38 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 {
 	const struct io_uring_napi curr = {
-		.busy_poll_to 	  = ctx->napi_busy_poll_to,
+		.busy_poll_to 	  = ktime_to_us(ctx->napi_busy_poll_dt),
 		.prefer_busy_poll = ctx->napi_prefer_busy_poll
 	};
 
 	if (arg && copy_to_user(arg, &curr, sizeof(curr)))
 		return -EFAULT;
 
-	WRITE_ONCE(ctx->napi_busy_poll_to, 0);
+	WRITE_ONCE(ctx->napi_busy_poll_dt, 0);
 	WRITE_ONCE(ctx->napi_prefer_busy_poll, false);
 	WRITE_ONCE(ctx->napi_enabled, false);
 	return 0;
 }
 
 /*
- * __io_napi_adjust_timeout() - Add napi id to the busy poll list
+ * __io_napi_adjust_timeout() - adjust busy loop timeout
  * @ctx: pointer to io-uring context structure
  * @iowq: pointer to io wait queue
  * @ts: pointer to timespec or NULL
  *
  * Adjust the busy loop timeout according to timespec and busy poll timeout.
+ * If the specified NAPI timeout is bigger than the wait timeout, then adjust
+ * the NAPI timeout accordingly.
  */
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iowq,
-			      struct timespec64 *ts)
+			      ktime_t to_wait)
 {
-	unsigned int poll_to = READ_ONCE(ctx->napi_busy_poll_to);
+	ktime_t poll_dt = READ_ONCE(ctx->napi_busy_poll_dt);
 
-	if (ts) {
-		struct timespec64 poll_to_ts = ns_to_timespec64(1000 * (s64)poll_to);
+	if (to_wait)
+		poll_dt = min(poll_dt, to_wait);
 
-		if (timespec64_compare(ts, &poll_to_ts) > 0) {
-			*ts = timespec64_sub(*ts, poll_to_ts);
-		} else {
-			u64 to = timespec64_to_ns(ts);
-
-			do_div(to, 1000);
-			ts->tv_sec = 0;
-			ts->tv_nsec = 0;
-		}
-	}
-
-	iowq->napi_busy_poll_to = poll_to;
+	iowq->napi_busy_poll_dt = poll_dt;
 }
 
 /*
@@ -316,7 +318,7 @@ int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx)
 	LIST_HEAD(napi_list);
 	bool is_stale = false;
 
-	if (!READ_ONCE(ctx->napi_busy_poll_to))
+	if (!READ_ONCE(ctx->napi_busy_poll_dt))
 		return 0;
 	if (list_empty_careful(&ctx->napi_list))
 		return 0;

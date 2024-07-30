@@ -446,7 +446,7 @@ struct iwl_tof_responder_config_cmd {
 #define IWL_LCI_CIVIC_IE_MAX_SIZE	400
 
 /**
- * struct iwl_tof_responder_dyn_config_cmd - Dynamic responder settings
+ * struct iwl_tof_responder_dyn_config_cmd_v2 - Dynamic responder settings
  * @lci_len: The length of the 1st (LCI) part in the @lci_civic buffer
  * @civic_len: The length of the 2nd (CIVIC) part in the @lci_civic buffer
  * @lci_civic: The LCI/CIVIC buffer. LCI data (if exists) comes first, then, if

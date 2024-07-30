@@ -36,6 +36,6 @@ config AS_VPCLMULQDQ
 	  Supported by binutils >= 2.30 and LLVM integrated assembler
 
 config AS_WRUSS
-	def_bool $(as-instr,wrussq %rax$(comma)(%rbx))
+	def_bool $(as-instr64,wrussq %rax$(comma)(%rbx))
 	help
 	  Supported by binutils >= 2.31 and LLVM integrated assembler

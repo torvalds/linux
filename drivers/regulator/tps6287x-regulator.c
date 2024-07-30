@@ -165,11 +165,11 @@ static const struct of_device_id tps6287x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tps6287x_dt_ids);
 
 static const struct i2c_device_id tps6287x_i2c_id[] = {
-	{ "tps62870", 0 },
-	{ "tps62871", 0 },
-	{ "tps62872", 0 },
-	{ "tps62873", 0 },
-	{},
+	{ "tps62870" },
+	{ "tps62871" },
+	{ "tps62872" },
+	{ "tps62873" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tps6287x_i2c_id);

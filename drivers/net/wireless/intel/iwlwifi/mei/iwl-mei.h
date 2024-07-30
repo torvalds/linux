@@ -456,8 +456,11 @@ void iwl_mei_device_state(bool up);
 /**
  * iwl_mei_pldr_req() - must be called before loading the fw
  *
- * Return: 0 if the PLDR flow was successful and the fw can be loaded, negative
- *	value otherwise.
+ * Requests from the ME that it releases its potential bus access to
+ * the WiFi NIC so that the device can safely undergo product reset.
+ *
+ * Return: 0 if the request was successful and the device can be
+ *	reset, a negative error value otherwise
  */
 int iwl_mei_pldr_req(void);
 

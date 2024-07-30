@@ -1182,9 +1182,8 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 		check = csum_partial(tcp, tcp->doff * 4,
 				     csum_unfold((__force __sum16)cqe->check_sum));
 		/* Almost done, don't forget the pseudo header */
-		tcp->check = csum_tcpudp_magic(ipv4->saddr, ipv4->daddr,
-					       tot_len - sizeof(struct iphdr),
-					       IPPROTO_TCP, check);
+		tcp->check = tcp_v4_check(tot_len - sizeof(struct iphdr),
+					  ipv4->saddr, ipv4->daddr, check);
 	} else {
 		u16 payload_len = tot_len - sizeof(struct ipv6hdr);
 		struct ipv6hdr *ipv6 = ip_p;
@@ -1199,8 +1198,8 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 		check = csum_partial(tcp, tcp->doff * 4,
 				     csum_unfold((__force __sum16)cqe->check_sum));
 		/* Almost done, don't forget the pseudo header */
-		tcp->check = csum_ipv6_magic(&ipv6->saddr, &ipv6->daddr, payload_len,
-					     IPPROTO_TCP, check);
+		tcp->check = tcp_v6_check(payload_len, &ipv6->saddr,
+					  &ipv6->daddr, check);
 	}
 }
 

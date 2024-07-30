@@ -288,27 +288,18 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 {
 	unsigned int dc_pipe_ctx_index, dml_pipe_idx, plane_id;
 	enum mall_stream_type pipe_mall_type;
-	bool unbounded_req_enabled = false;
 	struct dml2_calculate_rq_and_dlg_params_scratch *s = &in_ctx->v20.scratch.calculate_rq_and_dlg_params_scratch;
 
 	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = (unsigned int)in_ctx->v20.dml_core_ctx.mp.DCFCLKDeepSleep * 1000;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
-	if (in_ctx->v20.dml_core_ctx.ms.support.FCLKChangeSupport[in_ctx->v20.scratch.mode_support_params.out_lowest_state_idx] == dml_fclock_change_unsupported)
+	if (in_ctx->v20.dml_core_ctx.ms.support.FCLKChangeSupport[0] == dml_fclock_change_unsupported)
 		context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = false;
 	else
 		context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = true;
 
 	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
 		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
-
-	unbounded_req_enabled = in_ctx->v20.dml_core_ctx.ms.UnboundedRequestEnabledThisState;
-
-	if (unbounded_req_enabled && pipe_cnt > 1) {
-		// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
-		//ASSERT(false);
-		unbounded_req_enabled = false;
-	}
 
 	context->bw_ctx.bw.dcn.compbuf_size_kb = in_ctx->v20.dml_core_ctx.ip.config_return_buffer_size_in_kbytes;
 
@@ -344,7 +335,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = false;
 		} else {
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb = dml_get_det_buffer_size_kbytes(&context->bw_ctx.dml2->v20.dml_core_ctx, dml_pipe_idx);
-			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = unbounded_req_enabled;
+			// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
+			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = in_ctx->v20.dml_core_ctx.ms.UnboundedRequestEnabledThisState;
 		}
 
 		context->bw_ctx.bw.dcn.compbuf_size_kb -= context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb;

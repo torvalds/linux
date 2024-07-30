@@ -2,6 +2,17 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (powerpc)"
 
+config CRYPTO_CURVE25519_PPC64
+	tristate "Public key crypto: Curve25519 (PowerPC64)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	help
+	  Curve25519 algorithm
+
+	  Architecture: PowerPC64
+	  - Little-endian
+
 config CRYPTO_CRC32C_VPMSUM
 	tristate "CRC32c"
 	depends on PPC64 && ALTIVEC

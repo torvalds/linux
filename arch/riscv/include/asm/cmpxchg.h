@@ -8,7 +8,10 @@
 
 #include <linux/bug.h>
 
+#include <asm/alternative-macros.h>
 #include <asm/fence.h>
+#include <asm/hwcap.h>
+#include <asm/insn-def.h>
 
 #define __arch_xchg_masked(sc_sfx, prepend, append, r, p, n)		\
 ({									\
@@ -222,5 +225,60 @@
 	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
 	arch_cmpxchg_release((ptr), (o), (n));				\
 })
+
+#ifdef CONFIG_RISCV_ISA_ZAWRS
+/*
+ * Despite wrs.nto being "WRS-with-no-timeout", in the absence of changes to
+ * @val we expect it to still terminate within a "reasonable" amount of time
+ * for an implementation-specific other reason, a pending, locally-enabled
+ * interrupt, or because it has been configured to raise an illegal
+ * instruction exception.
+ */
+static __always_inline void __cmpwait(volatile void *ptr,
+				      unsigned long val,
+				      int size)
+{
+	unsigned long tmp;
+
+	asm goto(ALTERNATIVE("j %l[no_zawrs]", "nop",
+			     0, RISCV_ISA_EXT_ZAWRS, 1)
+		 : : : : no_zawrs);
+
+	switch (size) {
+	case 4:
+		asm volatile(
+		"	lr.w	%0, %1\n"
+		"	xor	%0, %0, %2\n"
+		"	bnez	%0, 1f\n"
+			ZAWRS_WRS_NTO "\n"
+		"1:"
+		: "=&r" (tmp), "+A" (*(u32 *)ptr)
+		: "r" (val));
+		break;
+#if __riscv_xlen == 64
+	case 8:
+		asm volatile(
+		"	lr.d	%0, %1\n"
+		"	xor	%0, %0, %2\n"
+		"	bnez	%0, 1f\n"
+			ZAWRS_WRS_NTO "\n"
+		"1:"
+		: "=&r" (tmp), "+A" (*(u64 *)ptr)
+		: "r" (val));
+		break;
+#endif
+	default:
+		BUILD_BUG();
+	}
+
+	return;
+
+no_zawrs:
+	asm volatile(RISCV_PAUSE : : : "memory");
+}
+
+#define __cmpwait_relaxed(ptr, val) \
+	__cmpwait((ptr), (unsigned long)(val), sizeof(*(ptr)))
+#endif
 
 #endif /* _ASM_RISCV_CMPXCHG_H */

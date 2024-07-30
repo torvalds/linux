@@ -536,7 +536,7 @@ static int ad7291_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ad7291_id[] = {
-	{ "ad7291", 0 },
+	{ "ad7291" },
 	{}
 };
 

@@ -465,7 +465,7 @@ struct rio_driver {
 	struct device_driver driver;
 };
 
-#define	to_rio_driver(drv) container_of(drv,struct rio_driver, driver)
+#define	to_rio_driver(drv) container_of_const(drv,struct rio_driver, driver)
 
 union rio_pw_msg {
 	struct {

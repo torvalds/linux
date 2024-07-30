@@ -639,4 +639,5 @@ static struct kunit_suite checksum_test_suite = {
 kunit_test_suites(&checksum_test_suite);
 
 MODULE_AUTHOR("Noah Goldstein <goldstein.w.n@gmail.com>");
+MODULE_DESCRIPTION("Test cases csum_* APIs");
 MODULE_LICENSE("GPL");

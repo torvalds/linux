@@ -103,6 +103,7 @@ properties:
       - rc-msi-digivox-iii
       - rc-msi-tvanywhere
       - rc-msi-tvanywhere-plus
+      - rc-mygica-utv3
       - rc-nebula
       - rc-nec-terratec-cinergy-xs
       - rc-norwood

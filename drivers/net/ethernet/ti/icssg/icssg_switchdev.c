@@ -44,7 +44,7 @@ static int prueth_switchdev_stp_state_set(struct prueth_emac *emac,
 		return -EOPNOTSUPP;
 	}
 
-	emac_set_port_state(emac, emac_state);
+	icssg_set_port_state(emac, emac_state);
 	netdev_dbg(emac->ndev, "STP state: %u\n", emac_state);
 
 	return ret;
@@ -64,7 +64,7 @@ static int prueth_switchdev_attr_br_flags_set(struct prueth_emac *emac,
 	netdev_dbg(emac->ndev, "BR_MCAST_FLOOD: %d port %u\n",
 		   emac_state, emac->port_id);
 
-	emac_set_port_state(emac, emac_state);
+	icssg_set_port_state(emac, emac_state);
 
 	return 0;
 }

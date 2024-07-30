@@ -205,6 +205,18 @@ void bch2_journal_space_available(struct journal *j)
 	j->can_discard = can_discard;
 
 	if (nr_online < metadata_replicas_required(c)) {
+		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
+		prt_printf(&buf, "insufficient writeable journal devices available: have %u, need %u\n"
+			   "rw journal devs:", nr_online, metadata_replicas_required(c));
+
+		rcu_read_lock();
+		for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal])
+			prt_printf(&buf, " %s", ca->name);
+		rcu_read_unlock();
+
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		ret = JOURNAL_ERR_insufficient_devices;
 		goto out;
 	}

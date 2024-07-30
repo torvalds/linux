@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "L1D data line replacements",
+        "Counter": "0,1,2,3",
         "EventCode": "0x51",
         "EventName": "L1D.REPLACEMENT",
         "PublicDescription": "Counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace.",
@@ -9,6 +10,7 @@
     },
     {
         "BriefDescription": "Number of times a request needed a FB entry but there was no entry available for it. That is the FB unavailability was dominant reason for blocking the request. A request includes cacheable/uncacheable demands that is load, store or SW prefetch.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
         "PublicDescription": "Number of times a request needed a FB (Fill Buffer) entry but there was no entry available for it. A request includes cacheable/uncacheable demands that are load, store or SW prefetch instructions.",
@@ -17,6 +19,7 @@
     },
     {
         "BriefDescription": "L1D miss outstandings duration in cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
         "PublicDescription": "Counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch.Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
@@ -25,6 +28,7 @@
     },
     {
         "BriefDescription": "Cycles with L1D load Misses outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING_CYCLES",
@@ -35,6 +39,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
@@ -43,6 +48,7 @@
     },
     {
         "BriefDescription": "L2 cache lines filling L2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.ALL",
         "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
@@ -51,6 +57,7 @@
     },
     {
         "BriefDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines are in Modified state. Modified lines are written back to L3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.NON_SILENT",
         "SampleAfterValue": "200003",
@@ -58,6 +65,7 @@
     },
     {
         "BriefDescription": "Counts the number of lines that are silently dropped by L2 cache when triggered by an L2 cache fill. These lines are typically in Shared or Exclusive state. A non-threaded event.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.SILENT",
         "SampleAfterValue": "200003",
@@ -65,6 +73,7 @@
     },
     {
         "BriefDescription": "Counts the number of lines that have been hardware prefetched but not used and now evicted by L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.USELESS_HWPF",
         "SampleAfterValue": "200003",
@@ -72,6 +81,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event L2_LINES_OUT.USELESS_HWPF",
+        "Counter": "0,1,2,3",
         "Deprecated": "1",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.USELESS_PREF",
@@ -80,6 +90,7 @@
     },
     {
         "BriefDescription": "L2 code requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_CODE_RD",
         "PublicDescription": "Counts the total number of L2 code requests.",
@@ -88,6 +99,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
         "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
@@ -96,6 +108,7 @@
     },
     {
         "BriefDescription": "Demand requests that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
         "PublicDescription": "Demand requests that miss L2 cache.",
@@ -104,6 +117,7 @@
     },
     {
         "BriefDescription": "Demand requests to L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
         "PublicDescription": "Demand requests to L2 cache.",
@@ -112,6 +126,7 @@
     },
     {
         "BriefDescription": "Requests from the L1/L2/L3 hardware prefetchers or Load software prefetches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_PF",
         "PublicDescription": "Counts the total number of requests from the L2 hardware prefetchers.",
@@ -120,6 +135,7 @@
     },
     {
         "BriefDescription": "RFO requests to L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_RFO",
         "PublicDescription": "Counts the total number of RFO (read for ownership) requests to L2 cache. L2 RFO requests include both L1D demand RFO misses as well as L1D RFO prefetches.",
@@ -128,6 +144,7 @@
     },
     {
         "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_HIT",
         "PublicDescription": "Counts L2 cache hits when fetching instructions, code reads.",
@@ -136,6 +153,7 @@
     },
     {
         "BriefDescription": "L2 cache misses when fetching instructions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_MISS",
         "PublicDescription": "Counts L2 cache misses when fetching instructions.",
@@ -144,6 +162,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
         "PublicDescription": "Counts the number of demand Data Read requests, initiated by load instructions, that hit L2 cache",
@@ -152,6 +171,7 @@
     },
     {
         "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
@@ -160,6 +180,7 @@
     },
     {
         "BriefDescription": "All requests that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
         "PublicDescription": "All requests that miss L2 cache.",
@@ -168,6 +189,7 @@
     },
     {
         "BriefDescription": "Requests from the L1/L2/L3 hardware prefetchers or Load software prefetches that hit L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.PF_HIT",
         "PublicDescription": "Counts requests from the L1/L2/L3 hardware prefetchers or Load software prefetches that hit L2 cache.",
@@ -176,6 +198,7 @@
     },
     {
         "BriefDescription": "Requests from the L1/L2/L3 hardware prefetchers or Load software prefetches that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.PF_MISS",
         "PublicDescription": "Counts requests from the L1/L2/L3 hardware prefetchers or Load software prefetches that miss L2 cache.",
@@ -184,6 +207,7 @@
     },
     {
         "BriefDescription": "All L2 requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
         "PublicDescription": "All L2 requests.",
@@ -192,6 +216,7 @@
     },
     {
         "BriefDescription": "RFO requests that hit L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_HIT",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache.",
@@ -200,6 +225,7 @@
     },
     {
         "BriefDescription": "RFO requests that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_MISS",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that miss L2 cache.",
@@ -208,6 +234,7 @@
     },
     {
         "BriefDescription": "L2 writebacks that access L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF0",
         "EventName": "L2_TRANS.L2_WB",
         "PublicDescription": "Counts L2 writebacks that access L2 cache.",
@@ -216,6 +243,7 @@
     },
     {
         "BriefDescription": "Core-originated cacheable demand requests missed L3",
+        "Counter": "0,1,2,3",
         "Errata": "SKL057",
         "EventCode": "0x2E",
         "EventName": "LONGEST_LAT_CACHE.MISS",
@@ -225,6 +253,7 @@
     },
     {
         "BriefDescription": "Core-originated cacheable demand requests that refer to L3",
+        "Counter": "0,1,2,3",
         "Errata": "SKL057",
         "EventCode": "0x2E",
         "EventName": "LONGEST_LAT_CACHE.REFERENCE",
@@ -234,6 +263,7 @@
     },
     {
         "BriefDescription": "Retired load instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
@@ -244,6 +274,7 @@
     },
     {
         "BriefDescription": "Retired store instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
@@ -254,6 +285,7 @@
     },
     {
         "BriefDescription": "All retired memory instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ANY",
@@ -264,6 +296,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with locked access.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.LOCK_LOADS",
@@ -273,6 +306,7 @@
     },
     {
         "BriefDescription": "Retired load instructions that split across a cacheline boundary.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.SPLIT_LOADS",
@@ -283,6 +317,7 @@
     },
     {
         "BriefDescription": "Retired store instructions that split across a cacheline boundary.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.SPLIT_STORES",
@@ -293,6 +328,7 @@
     },
     {
         "BriefDescription": "Retired load instructions that miss the STLB.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
@@ -303,6 +339,7 @@
     },
     {
         "BriefDescription": "Retired store instructions that miss the STLB.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_STORES",
@@ -313,6 +350,7 @@
     },
     {
         "BriefDescription": "Retired load instructions which data sources were L3 and cross-core snoop hits in on-pkg core cache",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HIT",
@@ -323,6 +361,7 @@
     },
     {
         "BriefDescription": "Retired load instructions which data sources were HitM responses from shared L3",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM",
@@ -333,6 +372,7 @@
     },
     {
         "BriefDescription": "Retired load instructions which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
@@ -342,6 +382,7 @@
     },
     {
         "BriefDescription": "Retired load instructions which data sources were hits in L3 without snoops required",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NONE",
@@ -352,6 +393,7 @@
     },
     {
         "BriefDescription": "Retired instructions with at least 1 uncacheable load or lock.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD4",
         "EventName": "MEM_LOAD_MISC_RETIRED.UC",
@@ -361,6 +403,7 @@
     },
     {
         "BriefDescription": "Retired load instructions which data sources were load missed L1 but hit FB due to preceding miss to the same cache line with data not ready",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
@@ -371,6 +414,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L1 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT",
@@ -381,6 +425,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L1 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L1_MISS",
@@ -391,6 +436,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L2 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L2_HIT",
@@ -401,6 +447,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L2 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L2_MISS",
@@ -411,6 +458,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L3 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L3_HIT",
@@ -421,6 +469,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L3 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.L3_MISS",
@@ -431,6 +480,7 @@
     },
     {
         "BriefDescription": "Demand and prefetch data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.ALL_DATA_RD",
         "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
@@ -439,6 +489,7 @@
     },
     {
         "BriefDescription": "Any memory transaction that reached the SQ.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "PublicDescription": "Counts memory transactions reached the super queue including requests initiated by the core, all L3 prefetches, page walks, etc..",
@@ -447,6 +498,7 @@
     },
     {
         "BriefDescription": "Cacheable and non-cacheable code read requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "PublicDescription": "Counts both cacheable and non-cacheable code read requests.",
@@ -455,6 +507,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests sent to uncore",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_DATA_RD",
         "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFCORE_REQUESTS_OUTSTANDING to determine average latency in the uncore.",
@@ -463,6 +516,7 @@
     },
     {
         "BriefDescription": "Demand RFO requests including regular RFOs, locks, ItoM",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_RFO",
         "PublicDescription": "Counts the demand RFO (read for ownership) requests including regular RFOs, locks, ItoM.",
@@ -471,6 +525,7 @@
     },
     {
         "BriefDescription": "Offcore requests buffer cannot take more entries for this thread core.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
         "PublicDescription": "Counts the number of cases when the offcore requests buffer cannot take more entries for the core. This can happen when the superqueue does not contain eligible entries, or when L1D writeback pending FIFO requests is full.Note: Writeback pending FIFO has six entries.",
@@ -479,6 +534,7 @@
     },
     {
         "BriefDescription": "Offcore outstanding cacheable Core Data Read transactions in SuperQueue (SQ), queue to uncore",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "PublicDescription": "Counts the number of offcore outstanding cacheable Core Data Read transactions in the super queue every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
@@ -487,6 +543,7 @@
     },
     {
         "BriefDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
@@ -496,6 +553,7 @@
     },
     {
         "BriefDescription": "Cycles with offcore outstanding Code Reads transactions in the SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_CODE_RD",
@@ -505,6 +563,7 @@
     },
     {
         "BriefDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
@@ -514,6 +573,7 @@
     },
     {
         "BriefDescription": "Cycles with offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
@@ -523,6 +583,7 @@
     },
     {
         "BriefDescription": "Offcore outstanding Code Reads transactions in the SuperQueue (SQ), queue to uncore, every cycle.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
         "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
@@ -531,6 +592,7 @@
     },
     {
         "BriefDescription": "Offcore outstanding Demand Data Read transactions in uncore queue.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
         "PublicDescription": "Counts the number of offcore outstanding Demand Data Read transactions in the super queue (SQ) every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor. See the corresponding Umask under OFFCORE_REQUESTS.Note: A prefetch promoted to Demand is counted from the promotion point.",
@@ -539,6 +601,7 @@
     },
     {
         "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
+        "Counter": "0,1,2,3",
         "CounterMask": "6",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
@@ -547,6 +610,7 @@
     },
     {
         "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO",
         "PublicDescription": "Counts the number of offcore outstanding RFO (store) transactions in the super queue (SQ) every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
@@ -555,6 +619,7 @@
     },
     {
         "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE",
         "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
@@ -563,6 +628,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads have any response type.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -572,6 +638,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -581,6 +648,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -590,6 +658,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -599,6 +668,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -608,6 +678,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -617,6 +688,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -626,6 +698,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -635,6 +708,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -644,6 +718,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -653,6 +728,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -662,6 +738,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -671,6 +748,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -680,6 +758,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -689,6 +768,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -698,6 +778,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -707,6 +788,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -716,6 +798,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -725,6 +808,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -734,6 +818,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -743,6 +828,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -752,6 +838,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -761,6 +848,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -770,6 +858,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -779,6 +868,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -788,6 +878,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -797,6 +888,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -806,6 +898,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -815,6 +908,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -824,6 +918,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -833,6 +928,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -842,6 +938,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -851,6 +948,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -860,6 +958,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -869,6 +968,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -878,6 +978,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -887,6 +988,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -896,6 +998,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -905,6 +1008,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -914,6 +1018,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -923,6 +1028,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -932,6 +1038,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -941,6 +1048,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -950,6 +1058,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads have any response type.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -959,6 +1068,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -968,6 +1078,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -977,6 +1088,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -986,6 +1098,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -995,6 +1108,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1004,6 +1118,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1013,6 +1128,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1022,6 +1138,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1031,6 +1148,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1040,6 +1158,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1049,6 +1168,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1058,6 +1178,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1067,6 +1188,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1076,6 +1198,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1085,6 +1208,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1094,6 +1218,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1103,6 +1228,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1112,6 +1238,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1121,6 +1248,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1130,6 +1258,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1139,6 +1268,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1148,6 +1278,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1157,6 +1288,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1166,6 +1298,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1175,6 +1308,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1184,6 +1318,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1193,6 +1328,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1202,6 +1338,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1211,6 +1348,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1220,6 +1358,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1229,6 +1368,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1238,6 +1378,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1247,6 +1388,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1256,6 +1398,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1265,6 +1408,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1274,6 +1418,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1283,6 +1428,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1292,6 +1438,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1301,6 +1448,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1310,6 +1458,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1319,6 +1468,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1328,6 +1478,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1337,6 +1488,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs) have any response type.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1346,6 +1498,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1355,6 +1508,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1364,6 +1518,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1373,6 +1528,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1382,6 +1538,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1391,6 +1548,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1400,6 +1558,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1409,6 +1568,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1418,6 +1578,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1427,6 +1588,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1436,6 +1598,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1445,6 +1608,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1454,6 +1618,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1463,6 +1628,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1472,6 +1638,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1481,6 +1648,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1490,6 +1658,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1499,6 +1668,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1508,6 +1678,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1517,6 +1688,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1526,6 +1698,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1535,6 +1708,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1544,6 +1718,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1553,6 +1728,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1562,6 +1738,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1571,6 +1748,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1580,6 +1758,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1589,6 +1768,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1598,6 +1778,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1607,6 +1788,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1616,6 +1798,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1625,6 +1808,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1634,6 +1818,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1643,6 +1828,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1652,6 +1838,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1661,6 +1848,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1670,6 +1858,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1679,6 +1868,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1688,6 +1878,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1697,6 +1888,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1706,6 +1898,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1715,6 +1908,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1724,6 +1918,7 @@
     },
     {
         "BriefDescription": "Counts any other requests have any response type.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1733,6 +1928,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1742,6 +1938,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1751,6 +1948,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1760,6 +1958,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1769,6 +1968,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1778,6 +1978,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1787,6 +1988,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1796,6 +1998,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1805,6 +2008,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1814,6 +2018,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1823,6 +2028,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1832,6 +2038,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1841,6 +2048,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1850,6 +2058,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1859,6 +2068,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1868,6 +2078,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1877,6 +2088,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1886,6 +2098,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1895,6 +2108,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1904,6 +2118,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1913,6 +2128,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1922,6 +2138,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1931,6 +2148,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1940,6 +2158,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1949,6 +2168,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1958,6 +2178,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1967,6 +2188,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1976,6 +2198,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1985,6 +2208,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1994,6 +2218,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2003,6 +2228,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2012,6 +2238,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2021,6 +2248,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2030,6 +2258,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2039,6 +2268,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2048,6 +2278,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2057,6 +2288,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2066,6 +2298,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2075,6 +2308,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2084,6 +2318,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2093,6 +2328,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2102,6 +2338,7 @@
     },
     {
         "BriefDescription": "Counts any other requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SPL_HIT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -2111,6 +2348,7 @@
     },
     {
         "BriefDescription": "Number of cache line split locks sent to uncore.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF4",
         "EventName": "SQ_MISC.SPLIT_LOCK",
         "PublicDescription": "Counts the number of cache line split locks sent to the uncore.",
@@ -2118,7 +2356,16 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Counts the number of PREFETCHNTA, PREFETCHW, PREFETCHT0, PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "SW_PREFETCH_ACCESS.ANY",
+        "SampleAfterValue": "2000003",
+        "UMask": "0xf"
+    },
+    {
         "BriefDescription": "Number of PREFETCHNTA instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.NTA",
         "SampleAfterValue": "2000003",
@@ -2126,6 +2373,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHW instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
         "SampleAfterValue": "2000003",
@@ -2133,6 +2381,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHT0 instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.T0",
         "SampleAfterValue": "2000003",
@@ -2140,6 +2389,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.T1_T2",
         "SampleAfterValue": "2000003",

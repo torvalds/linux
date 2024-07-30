@@ -17,8 +17,6 @@ struct io_issue_def {
 	unsigned		poll_exclusive : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
-	/* opcode is not supported by this kernel */
-	unsigned		not_supported : 1;
 	/* skip auditing */
 	unsigned		audit_skip : 1;
 	/* supports ioprio */
@@ -46,6 +44,8 @@ struct io_cold_def {
 
 extern const struct io_issue_def io_issue_defs[];
 extern const struct io_cold_def io_cold_defs[];
+
+bool io_uring_op_supported(u8 opcode);
 
 void io_uring_optable_init(void);
 #endif

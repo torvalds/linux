@@ -532,6 +532,9 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 
 DEF_EMIT_REG0I15_FORMAT(break, break_op)
 
+/* like emit_break(imm) but returns a constant expression */
+#define __emit_break(imm)	((u32)((imm) | (break_op << 15)))
+
 #define DEF_EMIT_REG0I26_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\
 			       int offset)				\

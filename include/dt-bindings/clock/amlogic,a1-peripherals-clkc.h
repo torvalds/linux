@@ -164,5 +164,6 @@
 #define CLKID_DMC_SEL		151
 #define CLKID_DMC_DIV		152
 #define CLKID_DMC_SEL2		153
+#define CLKID_SYS_PLL_DIV16	154
 
 #endif /* __A1_PERIPHERALS_CLKC_H */

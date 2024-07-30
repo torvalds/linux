@@ -111,7 +111,7 @@ int plfxlc_op_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void plfxlc_op_stop(struct ieee80211_hw *hw)
+void plfxlc_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct plfxlc_mac *mac = plfxlc_hw_mac(hw);
 

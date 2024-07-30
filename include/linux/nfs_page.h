@@ -152,11 +152,8 @@ extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
 extern size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *prev,
 				struct nfs_page *req);
-extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 extern	void nfs_unlock_and_release_request(struct nfs_page *);
-extern	struct nfs_page *nfs_page_group_lock_head(struct nfs_page *req);
-extern	int nfs_page_group_lock_subrequests(struct nfs_page *head);
 extern void nfs_join_page_group(struct nfs_page *head,
 				struct nfs_commit_info *cinfo,
 				struct inode *inode);
@@ -208,8 +205,8 @@ static inline struct inode *nfs_page_to_inode(const struct nfs_page *req)
 	struct folio *folio = nfs_page_to_folio(req);
 
 	if (folio == NULL)
-		return page_file_mapping(req->wb_page)->host;
-	return folio_file_mapping(folio)->host;
+		return req->wb_page->mapping->host;
+	return folio->mapping->host;
 }
 
 /**

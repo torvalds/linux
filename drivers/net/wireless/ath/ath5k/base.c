@@ -2847,7 +2847,7 @@ static void ath5k_stop_tasklets(struct ath5k_hw *ah)
  * if another thread does a system call and the thread doing the
  * stop is preempted).
  */
-void ath5k_stop(struct ieee80211_hw *hw)
+void ath5k_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath5k_hw *ah = hw->priv;
 	int ret;

@@ -7,7 +7,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 
-#include "hci_request.h"
 #include "mgmt_util.h"
 #include "msft.h"
 

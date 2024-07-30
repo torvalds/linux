@@ -417,4 +417,5 @@ static void __exit nvidia_cspmu_exit(void)
 module_init(nvidia_cspmu_init);
 module_exit(nvidia_cspmu_exit);
 
+MODULE_DESCRIPTION("NVIDIA Coresight Architecture Performance Monitor Driver");
 MODULE_LICENSE("GPL v2");

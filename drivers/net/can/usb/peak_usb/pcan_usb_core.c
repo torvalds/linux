@@ -897,7 +897,7 @@ int peak_usb_set_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-int pcan_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int pcan_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |

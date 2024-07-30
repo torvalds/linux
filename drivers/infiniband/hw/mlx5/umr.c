@@ -135,22 +135,28 @@ static int mlx5r_umr_qp_rst2rts(struct mlx5_ib_dev *dev, struct ib_qp *qp)
 int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev)
 {
 	struct ib_qp_init_attr init_attr = {};
-	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
-	int ret;
+	int ret = 0;
 
-	pd = ib_alloc_pd(&dev->ib_dev, 0);
-	if (IS_ERR(pd)) {
-		mlx5_ib_dbg(dev, "Couldn't create PD for sync UMR QP\n");
-		return PTR_ERR(pd);
-	}
+
+	/*
+	 * UMR qp is set once, never changed until device unload.
+	 * Avoid taking the mutex if initialization is already done.
+	 */
+	if (dev->umrc.qp)
+		return 0;
+
+	mutex_lock(&dev->umrc.init_lock);
+	/* First user allocates the UMR resources. Skip if already allocated. */
+	if (dev->umrc.qp)
+		goto unlock;
 
 	cq = ib_alloc_cq(&dev->ib_dev, NULL, 128, 0, IB_POLL_SOFTIRQ);
 	if (IS_ERR(cq)) {
 		mlx5_ib_dbg(dev, "Couldn't create CQ for sync UMR QP\n");
 		ret = PTR_ERR(cq);
-		goto destroy_pd;
+		goto unlock;
 	}
 
 	init_attr.send_cq = cq;
@@ -160,7 +166,7 @@ int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev)
 	init_attr.cap.max_send_sge = 1;
 	init_attr.qp_type = MLX5_IB_QPT_REG_UMR;
 	init_attr.port_num = 1;
-	qp = ib_create_qp(pd, &init_attr);
+	qp = ib_create_qp(dev->umrc.pd, &init_attr);
 	if (IS_ERR(qp)) {
 		mlx5_ib_dbg(dev, "Couldn't create sync UMR QP\n");
 		ret = PTR_ERR(qp);
@@ -171,22 +177,22 @@ int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev)
 	if (ret)
 		goto destroy_qp;
 
-	dev->umrc.qp = qp;
 	dev->umrc.cq = cq;
-	dev->umrc.pd = pd;
 
 	sema_init(&dev->umrc.sem, MAX_UMR_WR);
 	mutex_init(&dev->umrc.lock);
 	dev->umrc.state = MLX5_UMR_STATE_ACTIVE;
+	dev->umrc.qp = qp;
 
+	mutex_unlock(&dev->umrc.init_lock);
 	return 0;
 
 destroy_qp:
 	ib_destroy_qp(qp);
 destroy_cq:
 	ib_free_cq(cq);
-destroy_pd:
-	ib_dealloc_pd(pd);
+unlock:
+	mutex_unlock(&dev->umrc.init_lock);
 	return ret;
 }
 
@@ -194,8 +200,31 @@ void mlx5r_umr_resource_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (dev->umrc.state == MLX5_UMR_STATE_UNINIT)
 		return;
+	mutex_destroy(&dev->umrc.lock);
+	/* After device init, UMR cp/qp are not unset during the lifetime. */
 	ib_destroy_qp(dev->umrc.qp);
 	ib_free_cq(dev->umrc.cq);
+}
+
+int mlx5r_umr_init(struct mlx5_ib_dev *dev)
+{
+	struct ib_pd *pd;
+
+	pd = ib_alloc_pd(&dev->ib_dev, 0);
+	if (IS_ERR(pd)) {
+		mlx5_ib_dbg(dev, "Couldn't create PD for sync UMR QP\n");
+		return PTR_ERR(pd);
+	}
+	dev->umrc.pd = pd;
+
+	mutex_init(&dev->umrc.init_lock);
+
+	return 0;
+}
+
+void mlx5r_umr_cleanup(struct mlx5_ib_dev *dev)
+{
+	mutex_destroy(&dev->umrc.init_lock);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 

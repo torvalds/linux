@@ -4,10 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include "bpf_experimental.h"
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
-#endif
+#include "bpf_misc.h"
 
 #include "linked_list.h"
 

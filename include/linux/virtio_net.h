@@ -56,6 +56,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 	unsigned int thlen = 0;
 	unsigned int p_off = 0;
 	unsigned int ip_proto;
+	u64 ret, remainder, gso_size;
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
@@ -97,6 +98,16 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 		u32 start = __virtio16_to_cpu(little_endian, hdr->csum_start);
 		u32 off = __virtio16_to_cpu(little_endian, hdr->csum_offset);
 		u32 needed = start + max_t(u32, thlen, off + sizeof(__sum16));
+
+		if (hdr->gso_size) {
+			gso_size = __virtio16_to_cpu(little_endian, hdr->gso_size);
+			ret = div64_u64_rem(skb->len, gso_size, &remainder);
+			if (!(ret && (hdr->gso_size > needed) &&
+						((remainder > needed) || (remainder == 0)))) {
+				return -EINVAL;
+			}
+			skb_shinfo(skb)->tx_flags |= SKBFL_SHARED_FRAG;
+		}
 
 		if (!pskb_may_pull(skb, needed))
 			return -EINVAL;

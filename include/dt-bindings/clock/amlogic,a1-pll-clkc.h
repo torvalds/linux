@@ -21,5 +21,6 @@
 #define CLKID_FCLK_DIV5		8
 #define CLKID_FCLK_DIV7		9
 #define CLKID_HIFI_PLL		10
+#define CLKID_SYS_PLL		11
 
 #endif /* __A1_PLL_CLKC_H */

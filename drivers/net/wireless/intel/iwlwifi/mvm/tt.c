@@ -299,7 +299,7 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	ret = iwl_mvm_get_temp(mvm, &temp);
 
-	__iwl_mvm_mac_stop(mvm);
+	__iwl_mvm_mac_stop(mvm, false);
 
 	if (ret)
 		goto reschedule;
@@ -621,8 +621,14 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 	guard(mvm)(mvm);
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
-		return -ENODATA;
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
+		/*
+		 * Tell the core that there is no valid temperature value to
+		 * return, but it need not worry about this.
+		 */
+		*temperature = THERMAL_TEMP_INVALID;
+		return 0;
+	}
 
 	ret = iwl_mvm_get_temp(mvm, &temp);
 	if (ret)
@@ -633,7 +639,7 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 }
 
 static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
-				       int trip, int temp)
+				       const struct thermal_trip *trip, int temp)
 {
 	struct iwl_mvm *mvm = thermal_zone_device_priv(device);
 

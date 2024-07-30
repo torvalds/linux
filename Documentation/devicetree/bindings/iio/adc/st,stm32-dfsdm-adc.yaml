@@ -246,6 +246,10 @@ patternProperties:
                     From common IIO binding. Used to pipe external sigma delta
                     modulator or internal ADC output to DFSDM channel.
 
+                port:
+                  $ref: /schemas/sound/audio-graph-port.yaml#
+                  unevaluatedProperties: false
+
               required:
                 - compatible
                 - "#sound-dai-cells"

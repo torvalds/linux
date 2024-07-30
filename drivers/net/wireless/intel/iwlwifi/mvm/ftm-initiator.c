@@ -732,10 +732,7 @@ static void iter(struct ieee80211_hw *hw,
 
 	WARN_ON(!sta->mfp);
 
-	if (WARN_ON(key->keylen > sizeof(target->tk)))
-		return;
-
-	memcpy(target->tk, key->key, key->keylen);
+	target->tk = key->key;
 	*target->cipher = iwl_mvm_cipher_to_location_cipher(key->cipher);
 	WARN_ON(*target->cipher == IWL_LOCATION_CIPHER_INVALID);
 }
@@ -774,9 +771,7 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		    !memcmp(vif->bss_conf.bssid, bssid, ETH_ALEN)) {
 			struct iwl_mvm_ftm_iter_data target;
 
-			target.cipher = cipher;
 			target.bssid = bssid;
-			target.tk = tk;
 			ieee80211_iter_keys(mvm->hw, vif, iter, &target);
 		} else {
 			memcpy(tk, entry->tk, sizeof(entry->tk));

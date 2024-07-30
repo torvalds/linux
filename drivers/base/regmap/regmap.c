@@ -2347,7 +2347,7 @@ out:
 	} else {
 		void *wval;
 
-		wval = kmemdup(val, val_count * val_bytes, map->alloc_flags);
+		wval = kmemdup_array(val, val_count, val_bytes, map->alloc_flags);
 		if (!wval)
 			return -ENOMEM;
 
@@ -3101,8 +3101,53 @@ int regmap_fields_read(struct regmap_field *field, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(regmap_fields_read);
 
+static int _regmap_bulk_read(struct regmap *map, unsigned int reg,
+			     unsigned int *regs, void *val, size_t val_count)
+{
+	u32 *u32 = val;
+	u16 *u16 = val;
+	u8 *u8 = val;
+	int ret, i;
+
+	map->lock(map->lock_arg);
+
+	for (i = 0; i < val_count; i++) {
+		unsigned int ival;
+
+		if (regs) {
+			if (!IS_ALIGNED(regs[i], map->reg_stride)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			ret = _regmap_read(map, regs[i], &ival);
+		} else {
+			ret = _regmap_read(map, reg + regmap_get_offset(map, i), &ival);
+		}
+		if (ret != 0)
+			goto out;
+
+		switch (map->format.val_bytes) {
+		case 4:
+			u32[i] = ival;
+			break;
+		case 2:
+			u16[i] = ival;
+			break;
+		case 1:
+			u8[i] = ival;
+			break;
+		default:
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+out:
+	map->unlock(map->lock_arg);
+	return ret;
+}
+
 /**
- * regmap_bulk_read() - Read multiple registers from the device
+ * regmap_bulk_read() - Read multiple sequential registers from the device
  *
  * @map: Register map to read from
  * @reg: First register to be read from
@@ -3132,46 +3177,34 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		for (i = 0; i < val_count * val_bytes; i += val_bytes)
 			map->format.parse_inplace(val + i);
 	} else {
-		u32 *u32 = val;
-		u16 *u16 = val;
-		u8 *u8 = val;
-
-		map->lock(map->lock_arg);
-
-		for (i = 0; i < val_count; i++) {
-			unsigned int ival;
-
-			ret = _regmap_read(map, reg + regmap_get_offset(map, i),
-					   &ival);
-			if (ret != 0)
-				goto out;
-
-			switch (map->format.val_bytes) {
-			case 4:
-				u32[i] = ival;
-				break;
-			case 2:
-				u16[i] = ival;
-				break;
-			case 1:
-				u8[i] = ival;
-				break;
-			default:
-				ret = -EINVAL;
-				goto out;
-			}
-		}
-
-out:
-		map->unlock(map->lock_arg);
+		ret = _regmap_bulk_read(map, reg, NULL, val, val_count);
 	}
-
 	if (!ret)
 		trace_regmap_bulk_read(map, reg, val, val_bytes * val_count);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_read);
+
+/**
+ * regmap_multi_reg_read() - Read multiple non-sequential registers from the device
+ *
+ * @map: Register map to read from
+ * @regs: Array of registers to read from
+ * @val: Pointer to store read value, in native register size for device
+ * @val_count: Number of registers to read
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_multi_reg_read(struct regmap *map, unsigned int *regs, void *val,
+			  size_t val_count)
+{
+	if (val_count == 0)
+		return -EINVAL;
+
+	return _regmap_bulk_read(map, 0, regs, val, val_count);
+}
+EXPORT_SYMBOL_GPL(regmap_multi_reg_read);
 
 static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 			       unsigned int mask, unsigned int val,

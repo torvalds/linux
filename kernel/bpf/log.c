@@ -91,7 +91,7 @@ void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 			goto fail;
 	} else {
 		u64 new_end, new_start;
-		u32 buf_start, buf_end, new_n;
+		u32 buf_start, buf_end;
 
 		new_end = log->end_pos + n;
 		if (new_end - log->start_pos >= log->len_total)

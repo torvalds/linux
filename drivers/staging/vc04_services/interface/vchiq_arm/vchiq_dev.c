@@ -1170,6 +1170,11 @@ static int vchiq_open(struct inode *inode, struct file *file)
 
 	dev_dbg(state->dev, "arm: vchiq open\n");
 
+	if (!vchiq_remote_initialised(state)) {
+		dev_dbg(state->dev, "arm: vchiq has no connection to VideoCore\n");
+		return -ENOTCONN;
+	}
+
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
 		return -ENOMEM;
@@ -1200,7 +1205,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 
 	dev_dbg(state->dev, "arm: instance=%p\n", instance);
 
-	if (!state) {
+	if (!vchiq_remote_initialised(state)) {
 		ret = -EPERM;
 		goto out;
 	}
@@ -1319,7 +1324,7 @@ static struct miscdevice vchiq_miscdev = {
  *	vchiq_register_chrdev - Register the char driver for vchiq
  *				and create the necessary class and
  *				device files in userspace.
- *	@parent		The parent of the char device.
+ *	@parent:	The parent of the char device.
  *
  *	Returns 0 on success else returns the error code.
  */

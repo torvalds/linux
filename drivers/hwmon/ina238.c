@@ -96,7 +96,7 @@
 #define INA238_BUS_VOLTAGE_LSB		3125 /* 3.125 mV/lsb */
 #define INA238_DIE_TEMP_LSB		125 /* 125 mC/lsb */
 
-static struct regmap_config ina238_regmap_config = {
+static const struct regmap_config ina238_regmap_config = {
 	.max_register = INA238_REGISTERS,
 	.reg_bits = 8,
 	.val_bits = 16,

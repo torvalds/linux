@@ -83,7 +83,6 @@ CLK_MGR_DCN10 = rv1_clk_mgr.o rv1_clk_mgr_vbios_smu.o rv2_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN10 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn10/,$(CLK_MGR_DCN10))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN10)
-
 ###############################################################################
 # DCN20
 ###############################################################################
@@ -180,4 +179,13 @@ CLK_MGR_DCN35 = dcn35_smu.o dcn35_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN35 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn35/,$(CLK_MGR_DCN35))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN35)
+
+###############################################################################
+# DCN401
+###############################################################################
+CLK_MGR_DCN401 = dcn401_clk_mgr.o dcn401_clk_mgr_smu_msg.o
+
+AMD_DAL_CLK_MGR_DCN401 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn401/,$(CLK_MGR_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN401)
 endif

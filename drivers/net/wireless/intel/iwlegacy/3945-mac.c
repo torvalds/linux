@@ -2813,7 +2813,7 @@ out_release_irq:
 }
 
 static void
-il3945_mac_stop(struct ieee80211_hw *hw)
+il3945_mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct il_priv *il = hw->priv;
 

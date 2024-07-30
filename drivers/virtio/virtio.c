@@ -82,7 +82,7 @@ static inline int virtio_id_match(const struct virtio_device *dev,
 
 /* This looks through all the IDs a driver claims to support.  If any of them
  * match, we return 1 and the kernel will call virtio_dev_probe(). */
-static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
+static int virtio_dev_match(struct device *_dv, const struct device_driver *_dr)
 {
 	unsigned int i;
 	struct virtio_device *dev = dev_to_virtio(_dv);
@@ -609,4 +609,5 @@ static void __exit virtio_exit(void)
 core_initcall(virtio_init);
 module_exit(virtio_exit);
 
+MODULE_DESCRIPTION("Virtio core interface");
 MODULE_LICENSE("GPL");

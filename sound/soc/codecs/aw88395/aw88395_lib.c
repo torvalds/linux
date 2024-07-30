@@ -7,6 +7,7 @@
 // Author: Bruce zhao <zhaolei@awinic.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/crc8.h>
 #include <linux/i2c.h>
 #include "aw88395_lib.h"
@@ -361,11 +362,11 @@ static int aw_dev_parse_raw_dsp_fw(unsigned char *data,	unsigned int data_len,
 static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *data,
 				unsigned int data_len, struct aw_prof_desc *prof_desc)
 {
-	struct aw_bin *aw_bin;
 	int ret;
 	int i;
 
-	aw_bin = devm_kzalloc(aw_dev->dev, data_len + sizeof(struct aw_bin), GFP_KERNEL);
+	struct aw_bin *aw_bin __free(kfree) = kzalloc(data_len + sizeof(struct aw_bin),
+						     GFP_KERNEL);
 	if (!aw_bin)
 		return -ENOMEM;
 
@@ -375,7 +376,7 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 	ret = aw_parsing_bin_file(aw_dev, aw_bin);
 	if (ret < 0) {
 		dev_err(aw_dev->dev, "parse bin failed");
-		goto parse_bin_failed;
+		return ret;
 	}
 
 	for (i = 0; i < aw_bin->all_bin_parse_num; i++) {
@@ -387,10 +388,8 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 					data + aw_bin->header_info[i].valid_data_addr;
 			break;
 		case DATA_TYPE_DSP_REG:
-			if (aw_bin->header_info[i].valid_data_len & 0x01) {
-				ret = -EINVAL;
-				goto parse_bin_failed;
-			}
+			if (aw_bin->header_info[i].valid_data_len & 0x01)
+				return -EINVAL;
 
 			swab16_array((u16 *)(data + aw_bin->header_info[i].valid_data_addr),
 					aw_bin->header_info[i].valid_data_len >> 1);
@@ -402,10 +401,8 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 			break;
 		case DATA_TYPE_DSP_FW:
 		case DATA_TYPE_SOC_APP:
-			if (aw_bin->header_info[i].valid_data_len & 0x01) {
-				ret = -EINVAL;
-				goto parse_bin_failed;
-			}
+			if (aw_bin->header_info[i].valid_data_len & 0x01)
+				return -EINVAL;
 
 			swab16_array((u16 *)(data + aw_bin->header_info[i].valid_data_addr),
 					aw_bin->header_info[i].valid_data_len >> 1);
@@ -422,20 +419,17 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 		}
 	}
 	prof_desc->prof_st = AW88395_PROFILE_OK;
-	ret =  0;
 
-parse_bin_failed:
-	devm_kfree(aw_dev->dev, aw_bin);
-	return ret;
+	return 0;
 }
 
 static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 			uint8_t *data, uint32_t data_len, struct aw_prof_desc *prof_desc)
 {
-	struct aw_bin *aw_bin;
 	int ret;
 
-	aw_bin = devm_kzalloc(aw_dev->dev, data_len + sizeof(*aw_bin), GFP_KERNEL);
+	struct aw_bin *aw_bin __free(kfree) = kzalloc(data_len + sizeof(*aw_bin),
+						      GFP_KERNEL);
 	if (!aw_bin)
 		return -ENOMEM;
 
@@ -445,14 +439,13 @@ static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 	ret = aw_parsing_bin_file(aw_dev, aw_bin);
 	if (ret < 0) {
 		dev_err(aw_dev->dev, "parse bin failed");
-		goto parse_bin_failed;
+		return ret;
 	}
 
 	if ((aw_bin->all_bin_parse_num != 1) ||
 		(aw_bin->header_info[0].bin_data_type != DATA_TYPE_REGISTER)) {
 		dev_err(aw_dev->dev, "bin num or type error");
-		ret = -EINVAL;
-		goto parse_bin_failed;
+		return -EINVAL;
 	}
 
 	prof_desc->sec_desc[AW88395_DATA_TYPE_REG].data =
@@ -461,15 +454,7 @@ static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 				aw_bin->header_info[0].valid_data_len;
 	prof_desc->prof_st = AW88395_PROFILE_OK;
 
-	devm_kfree(aw_dev->dev, aw_bin);
-	aw_bin = NULL;
-
 	return 0;
-
-parse_bin_failed:
-	devm_kfree(aw_dev->dev, aw_bin);
-	aw_bin = NULL;
-	return ret;
 }
 
 static int aw_dev_parse_data_by_sec_type(struct aw_device *aw_dev, struct aw_cfg_hdr *cfg_hdr,
@@ -678,21 +663,21 @@ static int aw_dev_cfg_get_multiple_valid_prof(struct aw_device *aw_dev,
 static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 		struct aw_cfg_hdr *prof_hdr)
 {
-	struct aw_all_prof_info *all_prof_info;
 	int ret;
 
-	all_prof_info = devm_kzalloc(aw_dev->dev, sizeof(struct aw_all_prof_info), GFP_KERNEL);
+	struct aw_all_prof_info *all_prof_info __free(kfree) = kzalloc(sizeof(*all_prof_info),
+								       GFP_KERNEL);
 	if (!all_prof_info)
 		return -ENOMEM;
 
 	ret = aw_dev_parse_dev_type(aw_dev, prof_hdr, all_prof_info);
 	if (ret < 0) {
-		goto exit;
+		return ret;
 	} else if (ret == AW88395_DEV_TYPE_NONE) {
 		dev_dbg(aw_dev->dev, "get dev type num is 0, parse default dev");
 		ret = aw_dev_parse_dev_default_type(aw_dev, prof_hdr, all_prof_info);
 		if (ret < 0)
-			goto exit;
+			return ret;
 	}
 
 	switch (aw_dev->prof_data_type) {
@@ -710,8 +695,6 @@ static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 	if (!ret)
 		aw_dev->prof_info.prof_name_list = profile_name;
 
-exit:
-	devm_kfree(aw_dev->dev, all_prof_info);
 	return ret;
 }
 

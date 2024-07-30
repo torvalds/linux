@@ -580,7 +580,7 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 EXPORT_SYMBOL(ocelot_hwstamp_set);
 
 int ocelot_get_ts_info(struct ocelot *ocelot, int port,
-		       struct ethtool_ts_info *info)
+		       struct kernel_ethtool_ts_info *info)
 {
 	info->phc_index = ocelot->ptp_clock ?
 			  ptp_clock_index(ocelot->ptp_clock) : -1;

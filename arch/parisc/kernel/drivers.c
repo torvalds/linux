@@ -97,7 +97,7 @@ static int for_each_padev(int (*fn)(struct device *, void *), void * data)
  * @driver: the PA-RISC driver to try
  * @dev: the PA-RISC device to try
  */
-static int match_device(struct parisc_driver *driver, struct parisc_device *dev)
+static int match_device(const struct parisc_driver *driver, struct parisc_device *dev)
 {
 	const struct parisc_device_id *ids;
 
@@ -548,7 +548,7 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 	return dev;
 }
 
-static int parisc_generic_match(struct device *dev, struct device_driver *drv)
+static int parisc_generic_match(struct device *dev, const struct device_driver *drv)
 {
 	return match_device(to_parisc_driver(drv), to_parisc_device(dev));
 }

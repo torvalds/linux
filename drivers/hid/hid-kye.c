@@ -671,4 +671,5 @@ static struct hid_driver kye_driver = {
 };
 module_hid_driver(kye_driver);
 
+MODULE_DESCRIPTION("HID driver for Kye/Genius devices not fully compliant with HID standard");
 MODULE_LICENSE("GPL");

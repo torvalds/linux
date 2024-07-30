@@ -1339,7 +1339,7 @@ err_free_rings:
 	return ret;
 }
 
-static void vnt_stop(struct ieee80211_hw *hw)
+static void vnt_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct vnt_private *priv = hw->priv;
 

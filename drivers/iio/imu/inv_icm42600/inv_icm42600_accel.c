@@ -55,8 +55,108 @@ enum inv_icm42600_accel_scan {
 	INV_ICM42600_ACCEL_SCAN_TIMESTAMP,
 };
 
+static const char * const inv_icm42600_accel_power_mode_items[] = {
+	"low-noise",
+	"low-power",
+};
+static const int inv_icm42600_accel_power_mode_values[] = {
+	INV_ICM42600_SENSOR_MODE_LOW_NOISE,
+	INV_ICM42600_SENSOR_MODE_LOW_POWER,
+};
+static const int inv_icm42600_accel_filter_values[] = {
+	INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	INV_ICM42600_FILTER_AVG_16X,
+};
+
+static int inv_icm42600_accel_power_mode_set(struct iio_dev *indio_dev,
+					     const struct iio_chan_spec *chan,
+					     unsigned int idx)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	int power_mode, filter;
+
+	if (chan->type != IIO_ACCEL)
+		return -EINVAL;
+
+	if (idx >= ARRAY_SIZE(inv_icm42600_accel_power_mode_values))
+		return -EINVAL;
+
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
+
+	power_mode = inv_icm42600_accel_power_mode_values[idx];
+	filter = inv_icm42600_accel_filter_values[idx];
+
+	guard(mutex)(&st->lock);
+
+	/* prevent change if power mode is not supported by the ODR */
+	switch (power_mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		if (st->conf.accel.odr >= INV_ICM42600_ODR_6_25HZ_LP &&
+		    st->conf.accel.odr <= INV_ICM42600_ODR_1_5625HZ_LP)
+			return -EPERM;
+		break;
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	default:
+		if (st->conf.accel.odr <= INV_ICM42600_ODR_1KHZ_LN)
+			return -EPERM;
+		break;
+	}
+
+	accel_st->power_mode = power_mode;
+	accel_st->filter = filter;
+
+	return 0;
+}
+
+static int inv_icm42600_accel_power_mode_get(struct iio_dev *indio_dev,
+					     const struct iio_chan_spec *chan)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	unsigned int idx;
+	int power_mode;
+
+	if (chan->type != IIO_ACCEL)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	/* if sensor is on, returns actual power mode and not configured one */
+	switch (st->conf.accel.mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		power_mode = st->conf.accel.mode;
+		break;
+	default:
+		power_mode = accel_st->power_mode;
+		break;
+	}
+
+	for (idx = 0; idx < ARRAY_SIZE(inv_icm42600_accel_power_mode_values); ++idx) {
+		if (power_mode == inv_icm42600_accel_power_mode_values[idx])
+			break;
+	}
+	if (idx >= ARRAY_SIZE(inv_icm42600_accel_power_mode_values))
+		return -EINVAL;
+
+	return idx;
+}
+
+static const struct iio_enum inv_icm42600_accel_power_mode_enum = {
+	.items = inv_icm42600_accel_power_mode_items,
+	.num_items = ARRAY_SIZE(inv_icm42600_accel_power_mode_items),
+	.set = inv_icm42600_accel_power_mode_set,
+	.get = inv_icm42600_accel_power_mode_get,
+};
+
 static const struct iio_chan_spec_ext_info inv_icm42600_accel_ext_infos[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, inv_icm42600_get_mount_matrix),
+	IIO_ENUM_AVAILABLE("power_mode", IIO_SHARED_BY_TYPE,
+			   &inv_icm42600_accel_power_mode_enum),
+	IIO_ENUM("power_mode", IIO_SHARED_BY_TYPE,
+		 &inv_icm42600_accel_power_mode_enum),
 	{},
 };
 
@@ -120,7 +220,8 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 
 	if (*scan_mask & INV_ICM42600_SCAN_MASK_ACCEL_3AXIS) {
 		/* enable accel sensor */
-		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+		conf.mode = accel_st->power_mode;
+		conf.filter = accel_st->filter;
 		ret = inv_icm42600_set_accel_conf(st, &conf, &sleep_accel);
 		if (ret)
 			goto out_unlock;
@@ -130,10 +231,6 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 	/* update data FIFO write */
 	inv_sensors_timestamp_apply_odr(ts, 0, 0, 0);
 	ret = inv_icm42600_buffer_set_fifo_en(st, fifo_en | st->fifo.en);
-	if (ret)
-		goto out_unlock;
-
-	ret = inv_icm42600_buffer_update_watermark(st);
 
 out_unlock:
 	mutex_unlock(&st->lock);
@@ -144,10 +241,12 @@ out_unlock:
 	return ret;
 }
 
-static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_read_sensor(struct iio_dev *indio_dev,
 					  struct iio_chan_spec const *chan,
 					  int16_t *val)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->map);
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	unsigned int reg;
@@ -175,7 +274,8 @@ static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
 	mutex_lock(&st->lock);
 
 	/* enable accel sensor */
-	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+	conf.mode = accel_st->power_mode;
+	conf.filter = accel_st->filter;
 	ret = inv_icm42600_set_accel_conf(st, &conf, NULL);
 	if (ret)
 		goto exit;
@@ -277,6 +377,12 @@ static int inv_icm42600_accel_write_scale(struct iio_dev *indio_dev,
 
 /* IIO format int + micro */
 static const int inv_icm42600_accel_odr[] = {
+	/* 1.5625Hz */
+	1, 562500,
+	/* 3.125Hz */
+	3, 125000,
+	/* 6.25Hz */
+	6, 250000,
 	/* 12.5Hz */
 	12, 500000,
 	/* 25Hz */
@@ -296,6 +402,9 @@ static const int inv_icm42600_accel_odr[] = {
 };
 
 static const int inv_icm42600_accel_odr_conv[] = {
+	INV_ICM42600_ODR_1_5625HZ_LP,
+	INV_ICM42600_ODR_3_125HZ_LP,
+	INV_ICM42600_ODR_6_25HZ_LP,
 	INV_ICM42600_ODR_12_5HZ,
 	INV_ICM42600_ODR_25HZ,
 	INV_ICM42600_ODR_50HZ,
@@ -581,7 +690,7 @@ static int inv_icm42600_accel_read_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
-		ret = inv_icm42600_accel_read_sensor(st, chan, &data);
+		ret = inv_icm42600_accel_read_sensor(indio_dev, chan, &data);
 		iio_device_release_direct_mode(indio_dev);
 		if (ret)
 			return ret;
@@ -754,6 +863,9 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 		accel_st->scales_len = ARRAY_SIZE(inv_icm42600_accel_scale);
 		break;
 	}
+	/* low-power by default at init */
+	accel_st->power_mode = INV_ICM42600_SENSOR_MODE_LOW_POWER;
+	accel_st->filter = INV_ICM42600_FILTER_AVG_16X;
 
 	/*
 	 * clock period is 32kHz (31250ns)

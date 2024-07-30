@@ -650,24 +650,48 @@ static void setup(struct super_block *sb)
 	sb->s_flags |= SB_NOATIME;
 }
 
-static int msdos_fill_super(struct super_block *sb, void *data, int silent)
+static int msdos_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	return fat_fill_super(sb, data, silent, 0, setup);
+	return fat_fill_super(sb, fc, setup);
 }
 
-static struct dentry *msdos_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data)
+static int msdos_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, msdos_fill_super);
+	return get_tree_bdev(fc, msdos_fill_super);
+}
+
+static int msdos_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	return fat_parse_param(fc, param, false);
+}
+
+static const struct fs_context_operations msdos_context_ops = {
+	.parse_param	= msdos_parse_param,
+	.get_tree	= msdos_get_tree,
+	.reconfigure	= fat_reconfigure,
+	.free		= fat_free_fc,
+};
+
+static int msdos_init_fs_context(struct fs_context *fc)
+{
+	int err;
+
+	/* Initialize with is_vfat == false */
+	err = fat_init_fs_context(fc, false);
+	if (err)
+		return err;
+
+	fc->ops = &msdos_context_ops;
+	return 0;
 }
 
 static struct file_system_type msdos_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "msdos",
-	.mount		= msdos_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
+	.init_fs_context = msdos_init_fs_context,
+	.parameters	= fat_param_spec,
 };
 MODULE_ALIAS_FS("msdos");
 

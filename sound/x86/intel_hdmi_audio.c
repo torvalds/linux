@@ -31,7 +31,7 @@
 #include <sound/jack.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
-#include <drm/intel_lpe_audio.h>
+#include <drm/intel/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
 
 #define INTEL_HDMI_AUDIO_SUSPEND_DELAY_MS  5000

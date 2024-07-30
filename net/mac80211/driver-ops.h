@@ -88,7 +88,7 @@ static inline int drv_get_et_sset_count(struct ieee80211_sub_if_data *sdata,
 }
 
 int drv_start(struct ieee80211_local *local);
-void drv_stop(struct ieee80211_local *local);
+void drv_stop(struct ieee80211_local *local, bool suspend);
 
 #ifdef CONFIG_PM
 static inline int drv_suspend(struct ieee80211_local *local,

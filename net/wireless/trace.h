@@ -3389,23 +3389,26 @@ TRACE_EVENT(cfg80211_cqm_rssi_notify,
 
 TRACE_EVENT(cfg80211_reg_can_beacon,
 	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef,
-		 enum nl80211_iftype iftype, bool check_no_ir),
-	TP_ARGS(wiphy, chandef, iftype, check_no_ir),
+		 enum nl80211_iftype iftype, u32 prohibited_flags,
+		 u32 permitting_flags),
+	TP_ARGS(wiphy, chandef, iftype, prohibited_flags, permitting_flags),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		CHAN_DEF_ENTRY
 		__field(enum nl80211_iftype, iftype)
-		__field(bool, check_no_ir)
+		__field(u32, prohibited_flags)
+		__field(u32, permitting_flags)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
 		__entry->iftype = iftype;
-		__entry->check_no_ir = check_no_ir;
+		__entry->prohibited_flags = prohibited_flags;
+		__entry->permitting_flags = permitting_flags;
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT ", iftype=%d check_no_ir=%s",
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT ", iftype=%d prohibited_flags=0x%x permitting_flags=0x%x",
 		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG, __entry->iftype,
-		  BOOL_TO_STR(__entry->check_no_ir))
+		  __entry->prohibited_flags, __entry->permitting_flags)
 );
 
 TRACE_EVENT(cfg80211_chandef_dfs_required,

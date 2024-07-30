@@ -754,7 +754,7 @@ código automáticamente, y revisar archivos completos para detectar errores
 de estilo del código, errores tipográficos y posibles mejoras. También es
 útil para ordenar ``#includes``, para alinear variables/macros, para
 redistribuir texto y otras tareas similares. Vea el archivo
-:ref:`Documentation/process/clang-format.rst <clangformat>` para más
+:ref:`Documentation/dev-tools/clang-format.rst <clangformat>` para más
 detalles.
 
 10) Archivos de configuración de Kconfig

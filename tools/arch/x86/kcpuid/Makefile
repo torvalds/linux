@@ -19,6 +19,6 @@ clean :
 	@rm -f kcpuid
 
 install : kcpuid
-	install -d  $(DESTDIR)$(BINDIR)
+	install -d  $(DESTDIR)$(BINDIR) $(DESTDIR)$(HWDATADIR)
 	install -m 755 -p kcpuid $(DESTDIR)$(BINDIR)/kcpuid
-	install -m 444 -p cpuid.csv $(HWDATADIR)/cpuid.csv
+	install -m 444 -p cpuid.csv $(DESTDIR)$(HWDATADIR)/cpuid.csv

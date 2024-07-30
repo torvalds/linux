@@ -648,4 +648,5 @@ static struct platform_driver meson_ee_pwrc_driver = {
 	},
 };
 module_platform_driver(meson_ee_pwrc_driver);
+MODULE_DESCRIPTION("Amlogic Meson Everything-Else Power Domains driver");
 MODULE_LICENSE("GPL v2");

@@ -49,7 +49,11 @@ static inline unsigned long pud_val(pud_t x)
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
+#if defined(CONFIG_PPC_E500) && defined(CONFIG_PTE_64BIT)
+typedef struct { unsigned long long pgd; } pgd_t;
+#else
 typedef struct { unsigned long pgd; } pgd_t;
+#endif
 #define __pgd(x)	((pgd_t) { (x) })
 static inline unsigned long pgd_val(pgd_t x)
 {
@@ -80,15 +84,6 @@ static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
 
 	/* See comment in switch_mm_irqs_off() */
 	return pte_val(old) == __cmpxchg_u64(p, pte_val(old), pte_val(new));
-}
-#endif
-
-#ifdef CONFIG_ARCH_HAS_HUGEPD
-typedef struct { unsigned long pd; } hugepd_t;
-#define __hugepd(x) ((hugepd_t) { (x) })
-static inline unsigned long hpd_val(hugepd_t x)
-{
-	return x.pd;
 }
 #endif
 

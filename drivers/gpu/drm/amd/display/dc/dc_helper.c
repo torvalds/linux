@@ -91,11 +91,6 @@ struct dc_reg_value_masks {
 	uint32_t mask;
 };
 
-struct dc_reg_sequence {
-	uint32_t addr;
-	struct dc_reg_value_masks value_masks;
-};
-
 static inline void set_reg_field_value_masks(
 	struct dc_reg_value_masks *field_value_mask,
 	uint32_t value,
@@ -265,7 +260,6 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 			field_value1, ap);
 
 	va_end(ap);
-
 
 	/* mmio write directly */
 	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
@@ -747,6 +741,8 @@ char *dce_version_to_string(const int version)
 		return "DCN 3.5";
 	case DCN_VERSION_3_51:
 		return "DCN 3.5.1";
+	case DCN_VERSION_4_01:
+		return "DCN 4.0.1";
 	default:
 		return "Unknown";
 	}

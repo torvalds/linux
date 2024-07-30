@@ -46,7 +46,7 @@ static int stm32_rcc_clock_init(struct device *dev,
 		struct clk_hw *hw = ERR_PTR(-ENOENT);
 
 		if (data->check_security &&
-		    data->check_security(base, cfg_clock))
+		    data->check_security(dev->of_node, base, cfg_clock))
 			continue;
 
 		if (cfg_clock->func)

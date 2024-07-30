@@ -531,11 +531,6 @@ struct cdns_nand_chip {
 	u8 cs[] __counted_by(nsels);
 };
 
-struct ecc_info {
-	int (*calc_ecc_bytes)(int step_size, int strength);
-	int max_step_size;
-};
-
 static inline struct
 cdns_nand_chip *to_cdns_nand_chip(struct nand_chip *chip)
 {

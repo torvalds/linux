@@ -126,6 +126,7 @@ static const struct v4l2_ctrl_config hgt_hue_areas = {
  */
 
 static void hgt_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -139,11 +140,8 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 	u8 upper;
 	unsigned int i;
 
-	crop = vsp1_entity_get_pad_selection(entity, entity->state,
-					     HISTO_PAD_SINK, V4L2_SEL_TGT_CROP);
-	compose = vsp1_entity_get_pad_selection(entity, entity->state,
-						HISTO_PAD_SINK,
-						V4L2_SEL_TGT_COMPOSE);
+	crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
+	compose = v4l2_subdev_state_get_compose(state, HISTO_PAD_SINK);
 
 	vsp1_hgt_write(hgt, dlb, VI6_HGT_REGRST, VI6_HGT_REGRST_RCLEA);
 
@@ -193,12 +191,6 @@ struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1)
 	if (hgt == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(&hgt->ctrls, 1);
-	v4l2_ctrl_new_custom(&hgt->ctrls, &hgt_hue_areas, NULL);
-
-	hgt->histo.entity.subdev.ctrl_handler = &hgt->ctrls;
-
 	/* Initialize the video device and queue for statistics data. */
 	ret = vsp1_histogram_init(vsp1, &hgt->histo, VSP1_ENTITY_HGT, "hgt",
 				  &hgt_entity_ops, hgt_mbus_formats,
@@ -208,6 +200,12 @@ struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1)
 		vsp1_entity_destroy(&hgt->histo.entity);
 		return ERR_PTR(ret);
 	}
+
+	/* Initialize the control handler. */
+	v4l2_ctrl_handler_init(&hgt->ctrls, 1);
+	v4l2_ctrl_new_custom(&hgt->ctrls, &hgt_hue_areas, NULL);
+
+	hgt->histo.entity.subdev.ctrl_handler = &hgt->ctrls;
 
 	v4l2_ctrl_handler_setup(&hgt->ctrls);
 

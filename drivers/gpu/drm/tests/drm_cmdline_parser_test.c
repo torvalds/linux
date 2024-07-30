@@ -992,6 +992,17 @@ static const struct drm_cmdline_tv_option_test drm_cmdline_tv_option_tests[] = {
 	TV_OPT_TEST(PAL_M, "720x480i,tv_mode=PAL-M", drm_mode_analog_ntsc_480i),
 	TV_OPT_TEST(PAL_N, "720x576i,tv_mode=PAL-N", drm_mode_analog_pal_576i),
 	TV_OPT_TEST(SECAM, "720x576i,tv_mode=SECAM", drm_mode_analog_pal_576i),
+	{
+		.name = "MONO_525",
+		.cmdline = "720x480i,tv_mode=Mono",
+		.mode_fn = drm_mode_analog_ntsc_480i,
+		.tv_mode = DRM_MODE_TV_MODE_MONOCHROME,
+	}, {
+		.name = "MONO_625",
+		.cmdline = "720x576i,tv_mode=Mono",
+		.mode_fn = drm_mode_analog_pal_576i,
+		.tv_mode = DRM_MODE_TV_MODE_MONOCHROME,
+	},
 };
 
 static void drm_cmdline_tv_option_desc(const struct drm_cmdline_tv_option_test *t,
@@ -1056,4 +1067,5 @@ static struct kunit_suite drm_cmdline_parser_test_suite = {
 kunit_test_suite(drm_cmdline_parser_test_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@bootlin.com>");
+MODULE_DESCRIPTION("Kunit test for drm_cmdline_parser functions");
 MODULE_LICENSE("GPL");

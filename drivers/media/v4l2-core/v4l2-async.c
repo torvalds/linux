@@ -323,6 +323,13 @@ static int v4l2_async_create_ancillary_links(struct v4l2_async_notifier *n,
 	    sd->entity.function != MEDIA_ENT_F_FLASH)
 		return 0;
 
+	if (!n->sd) {
+		dev_warn(notifier_dev(n),
+			 "not a sub-device notifier, not creating an ancillary link for %s!\n",
+			 dev_name(sd->dev));
+		return 0;
+	}
+
 	link = media_create_ancillary_link(&n->sd->entity, &sd->entity);
 
 	return IS_ERR(link) ? PTR_ERR(link) : 0;
@@ -965,4 +972,5 @@ module_exit(v4l2_async_exit);
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");
 MODULE_AUTHOR("Ezequiel Garcia <ezequiel@collabora.com>");
+MODULE_DESCRIPTION("V4L2 asynchronous subdevice registration API");
 MODULE_LICENSE("GPL");

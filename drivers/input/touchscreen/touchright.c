@@ -102,7 +102,7 @@ static int tr_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	tr = kzalloc(sizeof(struct tr), GFP_KERNEL);
+	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!tr || !input_dev) {
 		err = -ENOMEM;

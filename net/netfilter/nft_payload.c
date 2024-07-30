@@ -650,6 +650,10 @@ static int nft_payload_inner_init(const struct nft_ctx *ctx,
 	struct nft_payload *priv = nft_expr_priv(expr);
 	u32 base;
 
+	if (!tb[NFTA_PAYLOAD_BASE] || !tb[NFTA_PAYLOAD_OFFSET] ||
+	    !tb[NFTA_PAYLOAD_LEN] || !tb[NFTA_PAYLOAD_DREG])
+		return -EINVAL;
+
 	base   = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_BASE]));
 	switch (base) {
 	case NFT_PAYLOAD_TUN_HEADER:

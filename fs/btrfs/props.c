@@ -27,7 +27,7 @@ struct prop_handler {
 	int (*validate)(const struct btrfs_inode *inode, const char *value,
 			size_t len);
 	int (*apply)(struct inode *inode, const char *value, size_t len);
-	const char *(*extract)(struct inode *inode);
+	const char *(*extract)(const struct inode *inode);
 	bool (*ignore)(const struct btrfs_inode *inode);
 	int inheritable;
 };
@@ -104,7 +104,7 @@ bool btrfs_ignore_prop(const struct btrfs_inode *inode, const char *name)
 	return handler->ignore(inode);
 }
 
-int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+int btrfs_set_prop(struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
 		   const char *name, const char *value, size_t value_len,
 		   int flags)
 {
@@ -116,29 +116,29 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name,
 				     NULL, 0, flags);
 		if (ret)
 			return ret;
 
-		ret = handler->apply(inode, NULL, 0);
+		ret = handler->apply(&inode->vfs_inode, NULL, 0);
 		ASSERT(ret == 0);
 
 		return ret;
 	}
 
-	ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
+	ret = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, value,
 			     value_len, flags);
 	if (ret)
 		return ret;
-	ret = handler->apply(inode, value, value_len);
+	ret = handler->apply(&inode->vfs_inode, value, value_len);
 	if (ret) {
-		btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
+		btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, NULL,
 			       0, flags);
 		return ret;
 	}
 
-	set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
+	set_bit(BTRFS_INODE_HAS_PROPS, &inode->runtime_flags);
 
 	return 0;
 }
@@ -359,7 +359,7 @@ static bool prop_compression_ignore(const struct btrfs_inode *inode)
 	return false;
 }
 
-static const char *prop_compression_extract(struct inode *inode)
+static const char *prop_compression_extract(const struct inode *inode)
 {
 	switch (BTRFS_I(inode)->prop_compress) {
 	case BTRFS_COMPRESS_ZLIB:
@@ -385,7 +385,7 @@ static struct prop_handler prop_handlers[] = {
 };
 
 int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode, struct inode *parent)
+			      struct inode *inode, const struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;

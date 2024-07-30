@@ -80,6 +80,11 @@ struct sendmsg_args {
 	int msglen;
 };
 
+struct bpf_testmod_ctx {
+	struct callback_head	rcu;
+	refcount_t		usage;
+};
+
 struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr) __ksym;
 void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
@@ -135,4 +140,8 @@ int bpf_kfunc_call_kernel_getsockname(struct addr_args *args) __ksym;
 int bpf_kfunc_call_kernel_getpeername(struct addr_args *args) __ksym;
 
 void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr, struct bpf_dynptr *ptr__nullable) __ksym;
+
+struct bpf_testmod_ctx *bpf_testmod_ctx_create(int *err) __ksym;
+void bpf_testmod_ctx_release(struct bpf_testmod_ctx *ctx) __ksym;
+
 #endif /* _BPF_TESTMOD_KFUNC_H */

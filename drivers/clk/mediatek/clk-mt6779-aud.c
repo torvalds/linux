@@ -110,6 +110,7 @@ static struct platform_driver clk_mt6779_aud_drv = {
 		.of_match_table = of_match_clk_mt6779_aud,
 	},
 };
-
 module_platform_driver(clk_mt6779_aud_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6779 audio clocks driver");
 MODULE_LICENSE("GPL");

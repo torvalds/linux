@@ -1224,14 +1224,6 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	int count, idx;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
-	/*
-	 * FF-A v1.1 provides UUID for each partition as part of the discovery
-	 * API, the discovered UUID must be populated in the device's UUID and
-	 * there is no need to copy the same from the driver table.
-	 */
-	if (drv_info->version > FFA_VERSION_1_0)
-		return;
-
 	count = ffa_partition_probe(uuid, &pbuf);
 	if (count <= 0)
 		return;
@@ -1242,6 +1234,35 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	kfree(pbuf);
 }
 
+static int
+ffa_bus_notifier(struct notifier_block *nb, unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct ffa_device *fdev = to_ffa_dev(dev);
+
+	if (action == BUS_NOTIFY_BIND_DRIVER) {
+		struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
+		const struct ffa_device_id *id_table= ffa_drv->id_table;
+
+		/*
+		 * FF-A v1.1 provides UUID for each partition as part of the
+		 * discovery API, the discovered UUID must be populated in the
+		 * device's UUID and there is no need to workaround by copying
+		 * the same from the driver table.
+		 */
+		if (uuid_is_null(&fdev->uuid))
+			ffa_device_match_uuid(fdev, &id_table->uuid);
+
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ffa_bus_nb = {
+	.notifier_call = ffa_bus_notifier,
+};
+
 static int ffa_setup_partitions(void)
 {
 	int count, idx, ret;
@@ -1249,6 +1270,12 @@ static int ffa_setup_partitions(void)
 	struct ffa_device *ffa_dev;
 	struct ffa_dev_part_info *info;
 	struct ffa_partition_info *pbuf, *tpbuf;
+
+	if (drv_info->version == FFA_VERSION_1_0) {
+		ret = bus_register_notifier(&ffa_bus_type, &ffa_bus_nb);
+		if (ret)
+			pr_err("Failed to register FF-A bus notifiers\n");
+	}
 
 	count = ffa_partition_probe(&uuid_null, &pbuf);
 	if (count <= 0) {
@@ -1261,7 +1288,7 @@ static int ffa_setup_partitions(void)
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
 		/* Note that if the UUID will be uuid_null, that will require
-		 * ffa_device_match() to find the UUID of this partition id
+		 * ffa_bus_notifier() to find the UUID of this partition id
 		 * with help of ffa_device_match_uuid(). FF-A v1.1 and above
 		 * provides UUID here for each partition as part of the
 		 * discovery API and the same is passed.
@@ -1581,14 +1608,9 @@ static int __init ffa_init(void)
 	if (ret)
 		return ret;
 
-	ret = arm_ffa_bus_init();
-	if (ret)
-		return ret;
-
 	drv_info = kzalloc(sizeof(*drv_info), GFP_KERNEL);
 	if (!drv_info) {
-		ret = -ENOMEM;
-		goto ffa_bus_exit;
+		return -ENOMEM;
 	}
 
 	ret = ffa_version_check(&drv_info->version);
@@ -1649,11 +1671,9 @@ free_pages:
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
 free_drv_info:
 	kfree(drv_info);
-ffa_bus_exit:
-	arm_ffa_bus_exit();
 	return ret;
 }
-subsys_initcall(ffa_init);
+module_init(ffa_init);
 
 static void __exit ffa_exit(void)
 {
@@ -1663,7 +1683,6 @@ static void __exit ffa_exit(void)
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
 	kfree(drv_info);
-	arm_ffa_bus_exit();
 }
 module_exit(ffa_exit);
 

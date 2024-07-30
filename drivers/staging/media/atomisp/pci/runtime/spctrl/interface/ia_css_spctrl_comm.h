@@ -16,6 +16,8 @@
 #ifndef __IA_CSS_SPCTRL_COMM_H__
 #define __IA_CSS_SPCTRL_COMM_H__
 
+#include <linux/build_bug.h>
+
 #include <type_support.h>
 
 /* state of SP */
@@ -42,5 +44,7 @@ struct ia_css_sp_init_dmem_cfg {
 	(1 * SIZE_OF_IA_CSS_PTR) +		\
 	(4 * sizeof(uint32_t)) +		\
 	(1 * sizeof(sp_ID_t))
+
+static_assert(sizeof(struct ia_css_sp_init_dmem_cfg) == SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT);
 
 #endif /* __IA_CSS_SPCTRL_COMM_H__ */

@@ -438,4 +438,5 @@ static struct pci_driver ali1563_pci_driver = {
 
 module_pci_driver(ali1563_pci_driver);
 
+MODULE_DESCRIPTION("i2c driver for the ALi 1563 Southbridge");
 MODULE_LICENSE("GPL");

@@ -169,6 +169,23 @@ fn main() {
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
         ts.push("target-pointer-width", "64");
+    } else if cfg.has("X86_32") {
+        // This only works on UML, as i386 otherwise needs regparm support in rustc
+        if !cfg.has("UML") {
+            panic!("32-bit x86 only works under UML");
+        }
+        ts.push("arch", "x86");
+        ts.push(
+            "data-layout",
+            "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+        );
+        let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
+        if cfg.has("MITIGATION_RETPOLINE") {
+            features += ",+retpoline-external-thunk";
+        }
+        ts.push("features", features);
+        ts.push("llvm-target", "i386-unknown-linux-gnu");
+        ts.push("target-pointer-width", "32");
     } else if cfg.has("LOONGARCH") {
         panic!("loongarch uses the builtin rustc loongarch64-unknown-none-softfloat target");
     } else {

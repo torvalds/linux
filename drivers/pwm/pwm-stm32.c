@@ -321,22 +321,30 @@ static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 	 * First we need to find the minimal value for prescaler such that
 	 *
 	 *        period_ns * clkrate
-	 *   ------------------------------
+	 *   ------------------------------ < max_arr + 1
 	 *   NSEC_PER_SEC * (prescaler + 1)
 	 *
-	 * isn't bigger than max_arr.
+	 * This equation is equivalent to
+	 *
+	 *        period_ns * clkrate
+	 *   ---------------------------- < prescaler + 1
+	 *   NSEC_PER_SEC * (max_arr + 1)
+	 *
+	 * Using integer division and knowing that the right hand side is
+	 * integer, this is further equivalent to
+	 *
+	 *   (period_ns * clkrate) // (NSEC_PER_SEC * (max_arr + 1)) ≤ prescaler
 	 */
 
 	prescaler = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
-					(u64)NSEC_PER_SEC * priv->max_arr);
-	if (prescaler > 0)
-		prescaler -= 1;
-
+					(u64)NSEC_PER_SEC * ((u64)priv->max_arr + 1));
 	if (prescaler > MAX_TIM_PSC)
 		return -EINVAL;
 
 	prd = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
 				  (u64)NSEC_PER_SEC * (prescaler + 1));
+	if (!prd)
+		return -EINVAL;
 
 	/*
 	 * All channels share the same prescaler and counter so when two
@@ -360,7 +368,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 	dty = mul_u64_u64_div_u64(duty_ns, clk_get_rate(priv->clk),
 				  (u64)NSEC_PER_SEC * (prescaler + 1));
 
-	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
+	regmap_write(priv->regmap, TIM_CCRx(ch + 1), dty);
 
 	/* Configure output mode */
 	shift = (ch & 0x1) * CCMR_CHANNEL_SHIFT;
@@ -382,9 +390,9 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
 {
 	u32 mask;
 
-	mask = TIM_CCER_CC1P << (ch * 4);
+	mask = TIM_CCER_CCxP(ch + 1);
 	if (priv->have_complementary_output)
-		mask |= TIM_CCER_CC1NP << (ch * 4);
+		mask |= TIM_CCER_CCxNP(ch + 1);
 
 	regmap_update_bits(priv->regmap, TIM_CCER, mask,
 			   polarity == PWM_POLARITY_NORMAL ? 0 : mask);
@@ -402,9 +410,9 @@ static int stm32_pwm_enable(struct stm32_pwm *priv, unsigned int ch)
 		return ret;
 
 	/* Enable channel */
-	mask = TIM_CCER_CC1E << (ch * 4);
+	mask = TIM_CCER_CCxE(ch + 1);
 	if (priv->have_complementary_output)
-		mask |= TIM_CCER_CC1NE << (ch * 4);
+		mask |= TIM_CCER_CCxNE(ch);
 
 	regmap_set_bits(priv->regmap, TIM_CCER, mask);
 
@@ -422,9 +430,9 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, unsigned int ch)
 	u32 mask;
 
 	/* Disable channel */
-	mask = TIM_CCER_CC1E << (ch * 4);
+	mask = TIM_CCER_CCxE(ch + 1);
 	if (priv->have_complementary_output)
-		mask |= TIM_CCER_CC1NE << (ch * 4);
+		mask |= TIM_CCER_CCxNE(ch + 1);
 
 	regmap_clear_bits(priv->regmap, TIM_CCER, mask);
 
@@ -444,8 +452,9 @@ static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	enabled = pwm->state.enabled;
 
-	if (enabled && !state->enabled) {
-		stm32_pwm_disable(priv, pwm->hwpwm);
+	if (!state->enabled) {
+		if (enabled)
+			stm32_pwm_disable(priv, pwm->hwpwm);
 		return 0;
 	}
 
@@ -493,8 +502,8 @@ static int stm32_pwm_get_state(struct pwm_chip *chip,
 	if (ret)
 		goto out;
 
-	state->enabled = ccer & (TIM_CCER_CC1E << (ch * 4));
-	state->polarity = (ccer & (TIM_CCER_CC1P << (ch * 4))) ?
+	state->enabled = ccer & TIM_CCER_CCxE(ch + 1);
+	state->polarity = (ccer & TIM_CCER_CCxP(ch + 1)) ?
 			  PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
 	ret = regmap_read(priv->regmap, TIM_PSC, &psc);
 	if (ret)
@@ -502,7 +511,7 @@ static int stm32_pwm_get_state(struct pwm_chip *chip,
 	ret = regmap_read(priv->regmap, TIM_ARR, &arr);
 	if (ret)
 		goto out;
-	ret = regmap_read(priv->regmap, TIM_CCR1 + 4 * ch, &ccr);
+	ret = regmap_read(priv->regmap, TIM_CCRx(ch + 1), &ccr);
 	if (ret)
 		goto out;
 
@@ -673,7 +682,8 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	 * .apply() won't overflow.
 	 */
 	if (clk_get_rate(priv->clk) > 1000000000)
-		return dev_err_probe(dev, -EINVAL, "Failed to lock clock\n");
+		return dev_err_probe(dev, -EINVAL, "Clock freq too high (%lu)\n",
+				     clk_get_rate(priv->clk));
 
 	chip->ops = &stm32pwm_ops;
 
@@ -702,7 +712,7 @@ static int stm32_pwm_suspend(struct device *dev)
 	ccer = active_channels(priv);
 
 	for (i = 0; i < chip->npwm; i++) {
-		mask = TIM_CCER_CC1E << (i * 4);
+		mask = TIM_CCER_CCxE(i + 1);
 		if (ccer & mask) {
 			dev_err(dev, "PWM %u still in use by consumer %s\n",
 				i, chip->pwms[i].label);

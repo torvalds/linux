@@ -31,8 +31,9 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_HEALTH:
-		ret = iio_read_channel_processed(bat->channel, &val->intval);
-		val->intval *= 1000;
+		ret = iio_read_channel_processed_scale(bat->channel,
+						       &val->intval,
+						       1000);
 		if (val->intval < info->voltage_min_design_uv)
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		else if (val->intval > info->voltage_max_design_uv)
@@ -41,8 +42,9 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		return ret;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = iio_read_channel_processed(bat->channel, &val->intval);
-		val->intval *= 1000;
+		ret = iio_read_channel_processed_scale(bat->channel,
+						       &val->intval,
+						       1000);
 		return ret;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		val->intval = info->voltage_min_design_uv;

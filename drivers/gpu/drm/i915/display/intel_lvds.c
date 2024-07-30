@@ -148,7 +148,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 
 	/* gen2/3 store dither state in pfit control, needs to match */
 	if (DISPLAY_VER(dev_priv) < 4) {
-		tmp = intel_de_read(dev_priv, PFIT_CONTROL);
+		tmp = intel_de_read(dev_priv, PFIT_CONTROL(dev_priv));
 
 		crtc_state->gmch_pfit.control |= tmp & PFIT_PANEL_8TO6_DITHER_ENABLE;
 	}
@@ -161,18 +161,19 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	pps->powerdown_on_reset = intel_de_read(dev_priv, PP_CONTROL(0)) & PANEL_POWER_RESET;
+	pps->powerdown_on_reset = intel_de_read(dev_priv,
+						PP_CONTROL(dev_priv, 0)) & PANEL_POWER_RESET;
 
-	val = intel_de_read(dev_priv, PP_ON_DELAYS(0));
+	val = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0));
 	pps->port = REG_FIELD_GET(PANEL_PORT_SELECT_MASK, val);
 	pps->t1_t2 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, val);
 	pps->t5 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, val);
 
-	val = intel_de_read(dev_priv, PP_OFF_DELAYS(0));
+	val = intel_de_read(dev_priv, PP_OFF_DELAYS(dev_priv, 0));
 	pps->t3 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, val);
 	pps->tx = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, val);
 
-	val = intel_de_read(dev_priv, PP_DIVISOR(0));
+	val = intel_de_read(dev_priv, PP_DIVISOR(dev_priv, 0));
 	pps->divider = REG_FIELD_GET(PP_REFERENCE_DIVIDER_MASK, val);
 	val = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, val);
 	/*
@@ -209,23 +210,23 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	val = intel_de_read(dev_priv, PP_CONTROL(0));
+	val = intel_de_read(dev_priv, PP_CONTROL(dev_priv, 0));
 	drm_WARN_ON(&dev_priv->drm,
 		    (val & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS);
 	if (pps->powerdown_on_reset)
 		val |= PANEL_POWER_RESET;
-	intel_de_write(dev_priv, PP_CONTROL(0), val);
+	intel_de_write(dev_priv, PP_CONTROL(dev_priv, 0), val);
 
-	intel_de_write(dev_priv, PP_ON_DELAYS(0),
+	intel_de_write(dev_priv, PP_ON_DELAYS(dev_priv, 0),
 		       REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, pps->port) |
 		       REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, pps->t1_t2) |
 		       REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, pps->t5));
 
-	intel_de_write(dev_priv, PP_OFF_DELAYS(0),
+	intel_de_write(dev_priv, PP_OFF_DELAYS(dev_priv, 0),
 		       REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, pps->t3) |
 		       REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, pps->tx));
 
-	intel_de_write(dev_priv, PP_DIVISOR(0),
+	intel_de_write(dev_priv, PP_DIVISOR(dev_priv, 0),
 		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) |
 		       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
 }
@@ -321,10 +322,10 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 
 	intel_de_rmw(dev_priv, lvds_encoder->reg, 0, LVDS_PORT_EN);
 
-	intel_de_rmw(dev_priv, PP_CONTROL(0), 0, PANEL_POWER_ON);
+	intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, 0), 0, PANEL_POWER_ON);
 	intel_de_posting_read(dev_priv, lvds_encoder->reg);
 
-	if (intel_de_wait_for_set(dev_priv, PP_STATUS(0), PP_ON, 5000))
+	if (intel_de_wait_for_set(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 5000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power on\n");
 
@@ -339,8 +340,8 @@ static void intel_disable_lvds(struct intel_atomic_state *state,
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	intel_de_rmw(dev_priv, PP_CONTROL(0), PANEL_POWER_ON, 0);
-	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(0), PP_ON, 1000))
+	intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, 0), PANEL_POWER_ON, 0);
+	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(dev_priv, 0), PP_ON, 1000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel to power off\n");
 
@@ -379,7 +380,7 @@ static void intel_lvds_shutdown(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(0), PP_CYCLE_DELAY_ACTIVE, 5000))
+	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(dev_priv, 0), PP_CYCLE_DELAY_ACTIVE, 5000))
 		drm_err(&dev_priv->drm,
 			"timed out waiting for panel power cycle delay\n");
 }

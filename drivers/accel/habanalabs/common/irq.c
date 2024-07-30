@@ -652,14 +652,16 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
  */
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
+	u32 size = hdev->asic_prop.fw_event_queue_size ? : HL_EQ_SIZE_IN_BYTES;
 	void *p;
 
-	p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_EQ_SIZE_IN_BYTES, &q->bus_address);
+	p = hl_cpu_accessible_dma_pool_alloc(hdev, size, &q->bus_address);
 	if (!p)
 		return -ENOMEM;
 
 	q->hdev = hdev;
 	q->kernel_address = p;
+	q->size = size;
 	q->ci = 0;
 	q->prev_eqe_index = 0;
 
@@ -678,7 +680,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 {
 	flush_workqueue(hdev->eq_wq);
 
-	hl_cpu_accessible_dma_pool_free(hdev, HL_EQ_SIZE_IN_BYTES, q->kernel_address);
+	hl_cpu_accessible_dma_pool_free(hdev, q->size, q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
@@ -693,5 +695,30 @@ void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 	 * when the device is operational again
 	 */
 
-	memset(q->kernel_address, 0, HL_EQ_SIZE_IN_BYTES);
+	memset(q->kernel_address, 0, q->size);
+}
+
+void hl_eq_dump(struct hl_device *hdev, struct hl_eq *q)
+{
+	u32 eq_length, eqe_size, ctl, ready, mode, type, index;
+	struct hl_eq_header *hdr;
+	u8 *ptr;
+	int i;
+
+	eq_length = HL_EQ_LENGTH;
+	eqe_size = q->size / HL_EQ_LENGTH;
+
+	dev_info(hdev->dev, "Contents of EQ entries headers:\n");
+
+	for (i = 0, ptr = q->kernel_address ; i < eq_length ; ++i, ptr += eqe_size) {
+		hdr = (struct hl_eq_header *) ptr;
+		ctl = le32_to_cpu(hdr->ctl);
+		ready = FIELD_GET(EQ_CTL_READY_MASK, ctl);
+		mode = FIELD_GET(EQ_CTL_EVENT_MODE_MASK, ctl);
+		type = FIELD_GET(EQ_CTL_EVENT_TYPE_MASK, ctl);
+		index = FIELD_GET(EQ_CTL_INDEX_MASK, ctl);
+
+		dev_info(hdev->dev, "%02u: %#010x [ready: %u, mode %u, type %04u, index %05u]\n",
+				i, ctl, ready, mode, type, index);
+	}
 }

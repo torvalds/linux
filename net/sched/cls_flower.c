@@ -41,11 +41,15 @@
 #define TCA_FLOWER_KEY_CT_FLAGS_MASK \
 		(TCA_FLOWER_KEY_CT_FLAGS_MAX - 1)
 
-#define TUNNEL_FLAGS_PRESENT (\
-	_BITUL(IP_TUNNEL_CSUM_BIT) |		\
-	_BITUL(IP_TUNNEL_DONT_FRAGMENT_BIT) |	\
-	_BITUL(IP_TUNNEL_OAM_BIT) |		\
-	_BITUL(IP_TUNNEL_CRIT_OPT_BIT))
+#define TCA_FLOWER_KEY_FLAGS_POLICY_MASK \
+		(TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT | \
+		TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST)
+
+#define TCA_FLOWER_KEY_ENC_FLAGS_POLICY_MASK \
+		(TCA_FLOWER_KEY_FLAGS_TUNNEL_CSUM | \
+		TCA_FLOWER_KEY_FLAGS_TUNNEL_DONT_FRAGMENT | \
+		TCA_FLOWER_KEY_FLAGS_TUNNEL_OAM | \
+		TCA_FLOWER_KEY_FLAGS_TUNNEL_CRIT_OPT)
 
 struct fl_flow_key {
 	struct flow_dissector_key_meta meta;
@@ -81,7 +85,6 @@ struct fl_flow_key {
 	struct flow_dissector_key_l2tpv3 l2tpv3;
 	struct flow_dissector_key_ipsec ipsec;
 	struct flow_dissector_key_cfm cfm;
-	struct flow_dissector_key_enc_flags enc_flags;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
 struct fl_flow_mask_range {
@@ -676,8 +679,10 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_UDP_SRC_PORT_MASK]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK]	= { .type = NLA_U16 },
-	[TCA_FLOWER_KEY_FLAGS]		= { .type = NLA_U32 },
-	[TCA_FLOWER_KEY_FLAGS_MASK]	= { .type = NLA_U32 },
+	[TCA_FLOWER_KEY_FLAGS]		= NLA_POLICY_MASK(NLA_BE32,
+							  TCA_FLOWER_KEY_FLAGS_POLICY_MASK),
+	[TCA_FLOWER_KEY_FLAGS_MASK]	= NLA_POLICY_MASK(NLA_BE32,
+							  TCA_FLOWER_KEY_FLAGS_POLICY_MASK),
 	[TCA_FLOWER_KEY_ICMPV4_TYPE]	= { .type = NLA_U8 },
 	[TCA_FLOWER_KEY_ICMPV4_TYPE_MASK] = { .type = NLA_U8 },
 	[TCA_FLOWER_KEY_ICMPV4_CODE]	= { .type = NLA_U8 },
@@ -739,10 +744,10 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_SPI_MASK]	= { .type = NLA_U32 },
 	[TCA_FLOWER_L2_MISS]		= NLA_POLICY_MAX(NLA_U8, 1),
 	[TCA_FLOWER_KEY_CFM]		= { .type = NLA_NESTED },
-	[TCA_FLOWER_KEY_ENC_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
-							  TUNNEL_FLAGS_PRESENT),
-	[TCA_FLOWER_KEY_ENC_FLAGS_MASK]	= NLA_POLICY_MASK(NLA_U32,
-							  TUNNEL_FLAGS_PRESENT),
+	[TCA_FLOWER_KEY_ENC_FLAGS]	= NLA_POLICY_MASK(NLA_BE32,
+							  TCA_FLOWER_KEY_ENC_FLAGS_POLICY_MASK),
+	[TCA_FLOWER_KEY_ENC_FLAGS_MASK]	= NLA_POLICY_MASK(NLA_BE32,
+							  TCA_FLOWER_KEY_ENC_FLAGS_POLICY_MASK),
 };
 
 static const struct nla_policy
@@ -1166,19 +1171,29 @@ static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
 	}
 }
 
-static int fl_set_key_flags(struct nlattr **tb, u32 *flags_key,
-			    u32 *flags_mask, struct netlink_ext_ack *extack)
+static int fl_set_key_flags(struct nlattr *tca_opts, struct nlattr **tb,
+			    bool encap, u32 *flags_key, u32 *flags_mask,
+			    struct netlink_ext_ack *extack)
 {
+	int fl_key, fl_mask;
 	u32 key, mask;
 
+	if (encap) {
+		fl_key = TCA_FLOWER_KEY_ENC_FLAGS;
+		fl_mask = TCA_FLOWER_KEY_ENC_FLAGS_MASK;
+	} else {
+		fl_key = TCA_FLOWER_KEY_FLAGS;
+		fl_mask = TCA_FLOWER_KEY_FLAGS_MASK;
+	}
+
 	/* mask is mandatory for flags */
-	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK]) {
+	if (NL_REQ_ATTR_CHECK(extack, tca_opts, tb, fl_mask)) {
 		NL_SET_ERR_MSG(extack, "Missing flags mask");
 		return -EINVAL;
 	}
 
-	key = be32_to_cpu(nla_get_be32(tb[TCA_FLOWER_KEY_FLAGS]));
-	mask = be32_to_cpu(nla_get_be32(tb[TCA_FLOWER_KEY_FLAGS_MASK]));
+	key = be32_to_cpu(nla_get_be32(tb[fl_key]));
+	mask = be32_to_cpu(nla_get_be32(tb[fl_mask]));
 
 	*flags_key  = 0;
 	*flags_mask = 0;
@@ -1188,6 +1203,21 @@ static int fl_set_key_flags(struct nlattr **tb, u32 *flags_key,
 	fl_set_key_flag(key, mask, flags_key, flags_mask,
 			TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST,
 			FLOW_DIS_FIRST_FRAG);
+
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_CSUM,
+			FLOW_DIS_F_TUNNEL_CSUM);
+
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_DONT_FRAGMENT,
+			FLOW_DIS_F_TUNNEL_DONT_FRAGMENT);
+
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_OAM, FLOW_DIS_F_TUNNEL_OAM);
+
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_CRIT_OPT,
+			FLOW_DIS_F_TUNNEL_CRIT_OPT);
 
 	return 0;
 }
@@ -1836,24 +1866,9 @@ static int fl_set_key_cfm(struct nlattr **tb,
 	return 0;
 }
 
-static int fl_set_key_enc_flags(struct nlattr **tb, u32 *flags_key,
-				u32 *flags_mask, struct netlink_ext_ack *extack)
-{
-	/* mask is mandatory for flags */
-	if (NL_REQ_ATTR_CHECK(extack, NULL, tb, TCA_FLOWER_KEY_ENC_FLAGS_MASK)) {
-		NL_SET_ERR_MSG(extack, "missing enc_flags mask");
-		return -EINVAL;
-	}
-
-	*flags_key = nla_get_u32(tb[TCA_FLOWER_KEY_ENC_FLAGS]);
-	*flags_mask = nla_get_u32(tb[TCA_FLOWER_KEY_ENC_FLAGS_MASK]);
-
-	return 0;
-}
-
-static int fl_set_key(struct net *net, struct nlattr **tb,
-		      struct fl_flow_key *key, struct fl_flow_key *mask,
-		      struct netlink_ext_ack *extack)
+static int fl_set_key(struct net *net, struct nlattr *tca_opts,
+		      struct nlattr **tb, struct fl_flow_key *key,
+		      struct fl_flow_key *mask, struct netlink_ext_ack *extack)
 {
 	__be16 ethertype;
 	int ret = 0;
@@ -2086,15 +2101,17 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		return ret;
 
 	if (tb[TCA_FLOWER_KEY_FLAGS]) {
-		ret = fl_set_key_flags(tb, &key->control.flags,
+		ret = fl_set_key_flags(tca_opts, tb, false,
+				       &key->control.flags,
 				       &mask->control.flags, extack);
 		if (ret)
 			return ret;
 	}
 
 	if (tb[TCA_FLOWER_KEY_ENC_FLAGS])
-		ret = fl_set_key_enc_flags(tb, &key->enc_flags.flags,
-					   &mask->enc_flags.flags, extack);
+		ret = fl_set_key_flags(tca_opts, tb, true,
+				       &key->enc_control.flags,
+				       &mask->enc_control.flags, extack);
 
 	return ret;
 }
@@ -2185,7 +2202,8 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS, enc_ipv6);
 	if (FL_KEY_IS_MASKED(mask, enc_ipv4) ||
-	    FL_KEY_IS_MASKED(mask, enc_ipv6))
+	    FL_KEY_IS_MASKED(mask, enc_ipv6) ||
+	    FL_KEY_IS_MASKED(mask, enc_control))
 		FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_ENC_CONTROL,
 			   enc_control);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
@@ -2208,8 +2226,6 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 			     FLOW_DISSECTOR_KEY_IPSEC, ipsec);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_CFM, cfm);
-	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
-			     FLOW_DISSECTOR_KEY_ENC_FLAGS, enc_flags);
 
 	skb_flow_dissector_init(dissector, keys, cnt);
 }
@@ -2345,6 +2361,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 {
 	struct cls_fl_head *head = fl_head_dereference(tp);
 	bool rtnl_held = !(flags & TCA_ACT_FLAGS_NO_RTNL);
+	struct nlattr *tca_opts = tca[TCA_OPTIONS];
 	struct cls_fl_filter *fold = *arg;
 	bool bound_to_filter = false;
 	struct cls_fl_filter *fnew;
@@ -2353,7 +2370,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	bool in_ht;
 	int err;
 
-	if (!tca[TCA_OPTIONS]) {
+	if (!tca_opts) {
 		err = -EINVAL;
 		goto errout_fold;
 	}
@@ -2371,7 +2388,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
-					  tca[TCA_OPTIONS], fl_policy, NULL);
+					  tca_opts, fl_policy, NULL);
 	if (err < 0)
 		goto errout_tb;
 
@@ -2447,7 +2464,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		bound_to_filter = true;
 	}
 
-	err = fl_set_key(net, tb, &fnew->key, &mask->key, extack);
+	err = fl_set_key(net, tca_opts, tb, &fnew->key, &mask->key, extack);
 	if (err)
 		goto unbind_filter;
 
@@ -2787,18 +2804,19 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 			     struct nlattr **tca,
 			     struct netlink_ext_ack *extack)
 {
+	struct nlattr *tca_opts = tca[TCA_OPTIONS];
 	struct fl_flow_tmplt *tmplt;
 	struct nlattr **tb;
 	int err;
 
-	if (!tca[TCA_OPTIONS])
+	if (!tca_opts)
 		return ERR_PTR(-EINVAL);
 
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb)
 		return ERR_PTR(-ENOBUFS);
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
-					  tca[TCA_OPTIONS], fl_policy, NULL);
+					  tca_opts, fl_policy, NULL);
 	if (err)
 		goto errout_tb;
 
@@ -2808,7 +2826,8 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 		goto errout_tb;
 	}
 	tmplt->chain = chain;
-	err = fl_set_key(net, tb, &tmplt->dummy_key, &tmplt->mask, extack);
+	err = fl_set_key(net, tca_opts, tb, &tmplt->dummy_key,
+			 &tmplt->mask, extack);
 	if (err)
 		goto errout_tmplt;
 
@@ -3084,11 +3103,21 @@ static void fl_get_key_flag(u32 dissector_key, u32 dissector_mask,
 	}
 }
 
-static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
+static int fl_dump_key_flags(struct sk_buff *skb, bool encap,
+			     u32 flags_key, u32 flags_mask)
 {
-	u32 key, mask;
+	int fl_key, fl_mask;
 	__be32 _key, _mask;
+	u32 key, mask;
 	int err;
+
+	if (encap) {
+		fl_key = TCA_FLOWER_KEY_ENC_FLAGS;
+		fl_mask = TCA_FLOWER_KEY_ENC_FLAGS_MASK;
+	} else {
+		fl_key = TCA_FLOWER_KEY_FLAGS;
+		fl_mask = TCA_FLOWER_KEY_FLAGS_MASK;
+	}
 
 	if (!memchr_inv(&flags_mask, 0, sizeof(flags_mask)))
 		return 0;
@@ -3102,14 +3131,29 @@ static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
 			TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST,
 			FLOW_DIS_FIRST_FRAG);
 
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_CSUM,
+			FLOW_DIS_F_TUNNEL_CSUM);
+
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_DONT_FRAGMENT,
+			FLOW_DIS_F_TUNNEL_DONT_FRAGMENT);
+
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_OAM, FLOW_DIS_F_TUNNEL_OAM);
+
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_TUNNEL_CRIT_OPT,
+			FLOW_DIS_F_TUNNEL_CRIT_OPT);
+
 	_key = cpu_to_be32(key);
 	_mask = cpu_to_be32(mask);
 
-	err = nla_put(skb, TCA_FLOWER_KEY_FLAGS, 4, &_key);
+	err = nla_put(skb, fl_key, 4, &_key);
 	if (err)
 		return err;
 
-	return nla_put(skb, TCA_FLOWER_KEY_FLAGS_MASK, 4, &_mask);
+	return nla_put(skb, fl_mask, 4, &_mask);
 }
 
 static int fl_dump_key_geneve_opt(struct sk_buff *skb,
@@ -3324,22 +3368,6 @@ static int fl_dump_key_cfm(struct sk_buff *skb,
 err_cfm_opts:
 	nla_nest_cancel(skb, opts);
 	return err;
-}
-
-static int fl_dump_key_enc_flags(struct sk_buff *skb,
-				 struct flow_dissector_key_enc_flags *key,
-				 struct flow_dissector_key_enc_flags *mask)
-{
-	if (!memchr_inv(mask, 0, sizeof(*mask)))
-		return 0;
-
-	if (nla_put_u32(skb, TCA_FLOWER_KEY_ENC_FLAGS, key->flags))
-		return -EMSGSIZE;
-
-	if (nla_put_u32(skb, TCA_FLOWER_KEY_ENC_FLAGS_MASK, mask->flags))
-		return -EMSGSIZE;
-
-	return 0;
 }
 
 static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
@@ -3632,7 +3660,8 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 	if (fl_dump_key_ct(skb, &key->ct, &mask->ct))
 		goto nla_put_failure;
 
-	if (fl_dump_key_flags(skb, key->control.flags, mask->control.flags))
+	if (fl_dump_key_flags(skb, false, key->control.flags,
+			      mask->control.flags))
 		goto nla_put_failure;
 
 	if (fl_dump_key_val(skb, &key->hash.hash, TCA_FLOWER_KEY_HASH,
@@ -3643,7 +3672,8 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 	if (fl_dump_key_cfm(skb, &key->cfm, &mask->cfm))
 		goto nla_put_failure;
 
-	if (fl_dump_key_enc_flags(skb, &key->enc_flags, &mask->enc_flags))
+	if (fl_dump_key_flags(skb, true, key->enc_control.flags,
+			      mask->enc_control.flags))
 		goto nla_put_failure;
 
 	return 0;

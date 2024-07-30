@@ -10,12 +10,6 @@
 
 #define GBAUDIO_INVALID_ID	0xFF
 
-/* mixer control */
-struct gb_mixer_control {
-	int min, max;
-	unsigned int reg, rreg, shift, rshift, invert;
-};
-
 struct gbaudio_ctl_pvt {
 	unsigned int ctl_id;
 	unsigned int data_cport;

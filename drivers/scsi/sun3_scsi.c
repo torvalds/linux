@@ -666,4 +666,5 @@ static struct platform_driver sun3_scsi_driver = {
 module_platform_driver_probe(sun3_scsi_driver, sun3_scsi_probe);
 
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);
+MODULE_DESCRIPTION("Sun3 NCR5380 SCSI controller driver");
 MODULE_LICENSE("GPL");

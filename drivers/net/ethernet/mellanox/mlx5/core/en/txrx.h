@@ -6,6 +6,8 @@
 
 #include "en.h"
 #include <linux/indirect_call_wrapper.h>
+#include <net/ip6_checksum.h>
+#include <net/tcp.h>
 
 #define MLX5E_TX_WQE_EMPTY_DS_COUNT (sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 
@@ -476,6 +478,41 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 	case IPPROTO_TCP:
 		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
 		break;
+	}
+}
+
+static inline void
+mlx5e_swp_encap_csum_partial(struct mlx5_core_dev *mdev, struct sk_buff *skb, bool tunnel)
+{
+	const struct iphdr *ip = tunnel ? inner_ip_hdr(skb) : ip_hdr(skb);
+	const struct ipv6hdr *ip6;
+	struct tcphdr *th;
+	struct udphdr *uh;
+	int len;
+
+	if (!MLX5_CAP_ETH(mdev, swp_csum_l4_partial) || !skb_is_gso(skb))
+		return;
+
+	if (skb_is_gso_tcp(skb)) {
+		th = inner_tcp_hdr(skb);
+		len = skb_shinfo(skb)->gso_size + inner_tcp_hdrlen(skb);
+
+		if (ip->version == 4) {
+			th->check = ~tcp_v4_check(len, ip->saddr, ip->daddr, 0);
+		} else {
+			ip6 = tunnel ? inner_ipv6_hdr(skb) : ipv6_hdr(skb);
+			th->check = ~tcp_v6_check(len, &ip6->saddr, &ip6->daddr, 0);
+		}
+	} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		uh = (struct udphdr *)skb_inner_transport_header(skb);
+		len = skb_shinfo(skb)->gso_size + sizeof(struct udphdr);
+
+		if (ip->version == 4) {
+			uh->check = ~udp_v4_check(len, ip->saddr, ip->daddr, 0);
+		} else {
+			ip6 = tunnel ? inner_ipv6_hdr(skb) : ipv6_hdr(skb);
+			uh->check = ~udp_v6_check(len, &ip6->saddr, &ip6->daddr, 0);
+		}
 	}
 }
 

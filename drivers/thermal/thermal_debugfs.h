@@ -7,6 +7,7 @@ void thermal_debug_cdev_remove(struct thermal_cooling_device *cdev);
 void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev, int state);
 void thermal_debug_tz_add(struct thermal_zone_device *tz);
 void thermal_debug_tz_remove(struct thermal_zone_device *tz);
+void thermal_debug_tz_resume(struct thermal_zone_device *tz);
 void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip);
 void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
@@ -20,6 +21,7 @@ static inline void thermal_debug_cdev_state_update(const struct thermal_cooling_
 						   int state) {}
 static inline void thermal_debug_tz_add(struct thermal_zone_device *tz) {}
 static inline void thermal_debug_tz_remove(struct thermal_zone_device *tz) {}
+static inline void thermal_debug_tz_resume(struct thermal_zone_device *tz) {}
 static inline void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 					    const struct thermal_trip *trip) {};
 static inline void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,

@@ -237,13 +237,13 @@ struct muxval_remap {
 	u8 remap;
 };
 
-struct muxval_remap tps65224_muxval_remap[] = {
+static struct muxval_remap tps65224_muxval_remap[] = {
 	{5, TPS6594_PINCTRL_DISABLE_WDOG_FUNCTION, TPS65224_PINCTRL_WKUP_FUNCTION_GPIO5},
 	{5, TPS65224_PINCTRL_SYNCCLKIN_FUNCTION, TPS65224_PINCTRL_SYNCCLKIN_FUNCTION_GPIO5},
 	{5, TPS65224_PINCTRL_NSLEEP2_FUNCTION, TPS65224_PINCTRL_NSLEEP2_FUNCTION_GPIO5},
 };
 
-struct muxval_remap tps6594_muxval_remap[] = {
+static struct muxval_remap tps6594_muxval_remap[] = {
 	{8, TPS6594_PINCTRL_DISABLE_WDOG_FUNCTION, TPS6594_PINCTRL_DISABLE_WDOG_FUNCTION_GPIO8},
 	{8, TPS6594_PINCTRL_SYNCCLKOUT_FUNCTION, TPS6594_PINCTRL_SYNCCLKOUT_FUNCTION_GPIO8},
 	{9, TPS6594_PINCTRL_CLK32KOUT_FUNCTION, TPS6594_PINCTRL_CLK32KOUT_FUNCTION_GPIO9},
@@ -486,6 +486,7 @@ static int tps6594_pinctrl_probe(struct platform_device *pdev)
 		break;
 	case TPS6593:
 	case TPS6594:
+	case LP8764:
 		pctrl_desc->pins = tps6594_pins;
 		pctrl_desc->npins = ARRAY_SIZE(tps6594_pins);
 

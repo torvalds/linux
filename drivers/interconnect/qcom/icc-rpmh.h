@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __DRIVERS_INTERCONNECT_QCOM_ICC_RPMH_H__
 #define __DRIVERS_INTERCONNECT_QCOM_ICC_RPMH_H__
 
 #include <dt-bindings/interconnect/qcom,icc.h>
+#include <linux/regmap.h>
 
 #define to_qcom_provider(_provider) \
 	container_of(_provider, struct qcom_icc_provider, provider)
@@ -18,6 +20,11 @@
  * @bcms: list of bcms that maps to the provider
  * @num_bcms: number of @bcms
  * @voter: bcm voter targeted by this provider
+ * @nodes: list of icc nodes that maps to the provider
+ * @num_nodes: number of @nodes
+ * @regmap: used for QoS, register access
+ * @clks : clks required for register access
+ * @num_clks: number of @clks
  */
 struct qcom_icc_provider {
 	struct icc_provider provider;
@@ -25,6 +32,11 @@ struct qcom_icc_provider {
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
 	struct bcm_voter *voter;
+	struct qcom_icc_node * const *nodes;
+	size_t num_nodes;
+	struct regmap *regmap;
+	struct clk_bulk_data *clks;
+	int num_clks;
 };
 
 /**
@@ -39,6 +51,26 @@ struct bcm_db {
 	__le16 width;
 	u8 vcd;
 	u8 reserved;
+};
+
+#define MAX_PORTS		2
+
+/**
+ * struct qcom_icc_qosbox - Qualcomm specific QoS config
+ * @prio: priority value assigned to requests on the node
+ * @urg_fwd: whether to forward the urgency promotion issued by master
+ * (endpoint), or discard
+ * @prio_fwd_disable: whether to forward the priority driven by master, or
+ * override by @prio
+ * @num_ports: number of @ports
+ * @port_offsets: qos register offsets
+ */
+struct qcom_icc_qosbox {
+	const u32 prio;
+	const bool urg_fwd;
+	const bool prio_fwd_disable;
+	const u32 num_ports;
+	const u32 port_offsets[MAX_PORTS];
 };
 
 #define MAX_LINKS		128
@@ -58,6 +90,7 @@ struct bcm_db {
  * @max_peak: current max aggregate value of all peak bw requests
  * @bcms: list of bcms associated with this logical node
  * @num_bcms: num of @bcms
+ * @qosbox: QoS config data associated with node
  */
 struct qcom_icc_node {
 	const char *name;
@@ -70,6 +103,7 @@ struct qcom_icc_node {
 	u64 max_peak[QCOM_ICC_NUM_BUCKETS];
 	struct qcom_icc_bcm *bcms[MAX_BCM_PER_NODE];
 	size_t num_bcms;
+	const struct qcom_icc_qosbox *qosbox;
 };
 
 /**
@@ -114,10 +148,12 @@ struct qcom_icc_fabric {
 };
 
 struct qcom_icc_desc {
+	const struct regmap_config *config;
 	struct qcom_icc_node * const *nodes;
 	size_t num_nodes;
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
+	bool qos_clks_required;
 };
 
 int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,

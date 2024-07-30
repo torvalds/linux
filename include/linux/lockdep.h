@@ -178,8 +178,26 @@ static inline void lockdep_init_map(struct lockdep_map *lock, const char *name,
 			      (lock)->dep_map.wait_type_outer,		\
 			      (lock)->dep_map.lock_type)
 
+/**
+ * lockdep_set_novalidate_class: disable checking of lock ordering on a given
+ * lock
+ * @lock: Lock to mark
+ *
+ * Lockdep will still record that this lock has been taken, and print held
+ * instances when dumping locks
+ */
 #define lockdep_set_novalidate_class(lock) \
 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
+
+/**
+ * lockdep_set_notrack_class: disable lockdep tracking of a given lock entirely
+ * @lock: Lock to mark
+ *
+ * Bigger hammer than lockdep_set_novalidate_class: so far just for bcachefs,
+ * which takes more locks than lockdep is able to track (48).
+ */
+#define lockdep_set_notrack_class(lock) \
+	lockdep_set_class_and_name(lock, &__lockdep_no_track__, #lock)
 
 /*
  * Compare locking classes
@@ -297,9 +315,6 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 		.wait_type_inner = _wait_type,		\
 		.lock_type = LD_LOCK_WAIT_OVERRIDE, }
 
-#define lock_map_assert_held(l)		\
-	lockdep_assert(lock_is_held(l) != LOCK_STATE_NOT_HELD)
-
 #else /* !CONFIG_LOCKDEP */
 
 static inline void lockdep_init_task(struct task_struct *task)
@@ -341,6 +356,7 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 #define lockdep_set_subclass(lock, sub)		do { } while (0)
 
 #define lockdep_set_novalidate_class(lock) do { } while (0)
+#define lockdep_set_notrack_class(lock) do { } while (0)
 
 /*
  * We don't define lockdep_match_class() and lockdep_match_key() for !LOCKDEP
@@ -390,8 +406,6 @@ extern int lockdep_is_held(const void *);
 
 #define DEFINE_WAIT_OVERRIDE_MAP(_name, _wait_type)	\
 	struct lockdep_map __maybe_unused _name = {}
-
-#define lock_map_assert_held(l)			do { (void)(l); } while (0)
 
 #endif /* !LOCKDEP */
 
@@ -605,6 +619,8 @@ do {									\
 		     (!in_softirq() || in_irq() || in_nmi()));		\
 } while (0)
 
+extern void lockdep_assert_in_softirq_func(void);
+
 #else
 # define might_lock(lock) do { } while (0)
 # define might_lock_read(lock) do { } while (0)
@@ -618,6 +634,7 @@ do {									\
 # define lockdep_assert_preemption_enabled() do { } while (0)
 # define lockdep_assert_preemption_disabled() do { } while (0)
 # define lockdep_assert_in_softirq() do { } while (0)
+# define lockdep_assert_in_softirq_func() do { } while (0)
 #endif
 
 #ifdef CONFIG_PROVE_RAW_LOCK_NESTING

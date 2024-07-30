@@ -727,10 +727,7 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-static inline struct wmi_driver *drv_to_wdrv(struct device_driver *drv)
-{
-	return container_of(drv, struct wmi_driver, driver);
-}
+#define drv_to_wdrv(__drv)	container_of_const(__drv, struct wmi_driver, driver)
 
 /*
  * sysfs interface
@@ -772,11 +769,39 @@ static ssize_t expensive_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(expensive);
 
+static ssize_t driver_override_show(struct device *dev, struct device_attribute *attr,
+				    char *buf)
+{
+	struct wmi_device *wdev = to_wmi_device(dev);
+	ssize_t ret;
+
+	device_lock(dev);
+	ret = sysfs_emit(buf, "%s\n", wdev->driver_override);
+	device_unlock(dev);
+
+	return ret;
+}
+
+static ssize_t driver_override_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct wmi_device *wdev = to_wmi_device(dev);
+	int ret;
+
+	ret = driver_set_override(dev, &wdev->driver_override, buf, count);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(driver_override);
+
 static struct attribute *wmi_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_guid.attr,
 	&dev_attr_instance_count.attr,
 	&dev_attr_expensive.attr,
+	&dev_attr_driver_override.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(wmi);
@@ -845,14 +870,19 @@ static void wmi_dev_release(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
+	kfree(wblock->dev.driver_override);
 	kfree(wblock);
 }
 
-static int wmi_dev_match(struct device *dev, struct device_driver *driver)
+static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 {
-	struct wmi_driver *wmi_driver = drv_to_wdrv(driver);
+	const struct wmi_driver *wmi_driver = drv_to_wdrv(driver);
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const struct wmi_device_id *id = wmi_driver->id_table;
+
+	/* When driver_override is set, only bind to the matching driver */
+	if (wblock->dev.driver_override)
+		return !strcmp(wblock->dev.driver_override, driver->name);
 
 	if (id == NULL)
 		return 0;

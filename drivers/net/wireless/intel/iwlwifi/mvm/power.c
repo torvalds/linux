@@ -282,62 +282,64 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	return data.allow_uapsd;
 }
 
-static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
+static bool iwl_mvm_power_is_radar(struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_bss_conf *link_conf;
-	bool radar_detect = false;
-	unsigned int link_id;
 
-	rcu_read_lock();
-	for_each_vif_active_link(vif, link_conf, link_id) {
-		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
-		/* this happens on link switching, just ignore inactive ones */
-		if (!chanctx_conf)
-			continue;
+	chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
 
-		radar_detect = !!(chanctx_conf->def.chan->flags &
-				  IEEE80211_CHAN_RADAR);
-		if (radar_detect)
-			goto out;
-	}
+	/* this happens on link switching, just ignore inactive ones */
+	if (!chanctx_conf)
+		return false;
 
-out:
-	rcu_read_unlock();
-	return radar_detect;
+	return chanctx_conf->def.chan->flags & IEEE80211_CHAN_RADAR;
 }
 
 static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
 					   struct iwl_mac_power_cmd *cmd)
 {
-	int dtimper = vif->bss_conf.dtim_period ?: 1;
-	int skip;
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int min_link_skip = ~0;
+	unsigned int link_id;
 
 	/* disable, in case we're supposed to override */
 	cmd->skip_dtim_periods = 0;
 	cmd->flags &= ~cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 
-	if (iwl_mvm_power_is_radar(vif))
-		return;
-
-	if (dtimper >= 10)
-		return;
-
 	if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status)) {
 		if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_LP)
 			return;
-		skip = 2;
-	} else {
-		int dtimper_tu = dtimper * vif->bss_conf.beacon_int;
-
-		if (WARN_ON(!dtimper_tu))
-			return;
-		/* configure skip over dtim up to 900 TU DTIM interval */
-		skip = max_t(u8, 1, 900 / dtimper_tu);
+		cmd->skip_dtim_periods = 2;
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		return;
 	}
 
-	cmd->skip_dtim_periods = skip;
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		unsigned int dtimper = link_conf->dtim_period ?: 1;
+		unsigned int dtimper_tu = dtimper * link_conf->beacon_int;
+		unsigned int skip;
+
+		if (dtimper >= 10 || iwl_mvm_power_is_radar(link_conf)) {
+			rcu_read_unlock();
+			return;
+		}
+
+		if (WARN_ON(!dtimper_tu))
+			continue;
+
+		/* configure skip over dtim up to 900 TU DTIM interval */
+		skip = max_t(int, 1, 900 / dtimper_tu);
+		min_link_skip = min(min_link_skip, skip);
+	}
+	rcu_read_unlock();
+
+	/* no WARN_ON, can only happen with WARN_ON above */
+	if (min_link_skip == ~0)
+		return;
+
+	cmd->skip_dtim_periods = min_link_skip;
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 

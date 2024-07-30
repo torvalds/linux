@@ -4659,4 +4659,10 @@ const struct rtw89_rfe_parms *
 rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 			    const struct rtw89_rfe_parms *init);
 
+enum rtw89_wow_wakeup_ver {
+	RTW89_WOW_REASON_V0,
+	RTW89_WOW_REASON_V1,
+	RTW89_WOW_REASON_NUM,
+};
+
 #endif

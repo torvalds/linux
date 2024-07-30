@@ -3,16 +3,16 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include <drm/ttm/ttm_bo.h>
+
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
+#include "xe_bo.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_pm.h"
-
-#include <drm/ttm/ttm_bo.h>
 
 static void
 write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_ofs,
@@ -77,7 +77,7 @@ write_dpt_remapped(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
 	*dpt_ofs = ALIGN(*dpt_ofs, 4096);
 }
 
-static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
+static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
 			       const struct i915_gtt_view *view,
 			       struct i915_vma *vma)
 {
@@ -171,7 +171,7 @@ write_ggtt_rotated(struct xe_bo *bo, struct xe_ggtt *ggtt, u32 *ggtt_ofs, u32 bo
 			u64 pte = ggtt->pt_ops->pte_encode_bo(bo, src_idx * XE_PAGE_SIZE,
 							      xe->pat.idx[XE_CACHE_NONE]);
 
-			xe_ggtt_set_pte(ggtt, *ggtt_ofs, pte);
+			ggtt->pt_ops->ggtt_set_pte(ggtt, *ggtt_ofs, pte);
 			*ggtt_ofs += XE_PAGE_SIZE;
 			src_idx -= src_stride;
 		}
@@ -181,7 +181,7 @@ write_ggtt_rotated(struct xe_bo *bo, struct xe_ggtt *ggtt, u32 *ggtt_ofs, u32 bo
 	}
 }
 
-static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
+static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 				const struct i915_gtt_view *view,
 				struct i915_vma *vma)
 {
@@ -217,7 +217,7 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 			u64 pte = ggtt->pt_ops->pte_encode_bo(bo, x,
 							      xe->pat.idx[XE_CACHE_NONE]);
 
-			xe_ggtt_set_pte(ggtt, vma->node.start + x, pte);
+			ggtt->pt_ops->ggtt_set_pte(ggtt, vma->node.start + x, pte);
 		}
 	} else {
 		u32 i, ggtt_ofs;
@@ -249,7 +249,7 @@ out:
 	return ret;
 }
 
-static struct i915_vma *__xe_pin_fb_vma(struct intel_framebuffer *fb,
+static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 					const struct i915_gtt_view *view)
 {
 	struct drm_device *dev = fb->base.dev;
@@ -333,18 +333,19 @@ static void __xe_unpin_fb_vma(struct i915_vma *vma)
 }
 
 struct i915_vma *
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   bool phys_cursor,
-			   const struct i915_gtt_view *view,
-			   bool uses_fence,
-			   unsigned long *out_flags)
+intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
+		     const struct i915_gtt_view *view,
+		     unsigned int alignment,
+		     unsigned int phys_alignment,
+		     bool uses_fence,
+		     unsigned long *out_flags)
 {
 	*out_flags = 0;
 
 	return __xe_pin_fb_vma(to_intel_framebuffer(fb), view);
 }
 
-void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
+void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 {
 	__xe_unpin_fb_vma(vma);
 }

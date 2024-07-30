@@ -369,9 +369,8 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 
 	if (nrates > 0) {
 		cpuclk->rate_count = nrates;
-		cpuclk->rate_table = kmemdup(rates,
-					     sizeof(*rates) * nrates,
-					     GFP_KERNEL);
+		cpuclk->rate_table = kmemdup_array(rates, nrates, sizeof(*rates),
+						   GFP_KERNEL);
 		if (!cpuclk->rate_table) {
 			ret = -ENOMEM;
 			goto unregister_notifier;

@@ -129,8 +129,7 @@ struct eeprom_table_record {
 	unsigned char mcumc_id;
 } __packed;
 
-int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
-			   bool *exceed_err_limit);
+int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control);
 
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control);
 

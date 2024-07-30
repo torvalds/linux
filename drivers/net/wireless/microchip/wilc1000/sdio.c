@@ -249,33 +249,6 @@ static bool wilc_sdio_is_init(struct wilc *wilc)
 	return sdio_priv->isinit;
 }
 
-static int wilc_sdio_suspend(struct device *dev)
-{
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct wilc *wilc = sdio_get_drvdata(func);
-	int ret;
-
-	dev_info(dev, "sdio suspend\n");
-	chip_wakeup(wilc);
-
-	if (!IS_ERR(wilc->rtc_clk))
-		clk_disable_unprepare(wilc->rtc_clk);
-
-	if (wilc->suspend_event) {
-		host_sleep_notify(wilc);
-		chip_allow_sleep(wilc);
-	}
-
-	ret = wilc_sdio_reset(wilc);
-	if (ret) {
-		dev_err(&func->dev, "Fail reset sdio\n");
-		return ret;
-	}
-	sdio_claim_host(func);
-
-	return 0;
-}
-
 static int wilc_sdio_enable_interrupt(struct wilc *dev)
 {
 	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
@@ -907,24 +880,9 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
-	u32 reg;
 
 	if (nint > MAX_NUM_INT) {
 		dev_err(&func->dev, "Too many interrupts (%d)...\n", nint);
-		return -EINVAL;
-	}
-
-	/**
-	 *      Disable power sequencer
-	 **/
-	if (wilc_sdio_read_reg(wilc, WILC_MISC, &reg)) {
-		dev_err(&func->dev, "Failed read misc reg...\n");
-		return -EINVAL;
-	}
-
-	reg &= ~BIT(8);
-	if (wilc_sdio_write_reg(wilc, WILC_MISC, reg)) {
-		dev_err(&func->dev, "Failed write misc reg...\n");
 		return -EINVAL;
 	}
 
@@ -1011,20 +969,40 @@ static const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_is_init = wilc_sdio_is_init,
 };
 
+static int wilc_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wilc *wilc = sdio_get_drvdata(func);
+	int ret;
+
+	dev_info(dev, "sdio suspend\n");
+
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
+
+	host_sleep_notify(wilc);
+
+	wilc_sdio_disable_interrupt(wilc);
+
+	ret = wilc_sdio_reset(wilc);
+	if (ret) {
+		dev_err(&func->dev, "Fail reset sdio\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int wilc_sdio_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct wilc *wilc = sdio_get_drvdata(func);
 
 	dev_info(dev, "sdio resume\n");
-	sdio_release_host(func);
-	chip_wakeup(wilc);
 	wilc_sdio_init(wilc, true);
+	wilc_sdio_enable_interrupt(wilc);
 
-	if (wilc->suspend_event)
-		host_wakeup_notify(wilc);
-
-	chip_allow_sleep(wilc);
+	host_wakeup_notify(wilc);
 
 	return 0;
 }

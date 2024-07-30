@@ -190,6 +190,9 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(0x100)
 
+	RUNTIME_CONST(shift, d_hash_shift)
+	RUNTIME_CONST(ptr, dentry_hashtable)
+
 	PERCPU_SECTION(0x100)
 
 	. = ALIGN(PAGE_SIZE);
@@ -219,6 +222,8 @@ SECTIONS
 		QUAD(init_mm)
 		QUAD(swapper_pg_dir)
 		QUAD(invalid_pg_dir)
+		QUAD(__alt_instructions)
+		QUAD(__alt_instructions_end)
 #ifdef CONFIG_KASAN
 		QUAD(kasan_early_shadow_page)
 		QUAD(kasan_early_shadow_pte)

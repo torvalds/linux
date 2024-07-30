@@ -899,4 +899,5 @@ void des3_ede_decrypt(const struct des3_ede_ctx *dctx, u8 *dst, const u8 *src)
 }
 EXPORT_SYMBOL_GPL(des3_ede_decrypt);
 
+MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");
 MODULE_LICENSE("GPL");

@@ -219,8 +219,13 @@ static int sdr_cap_queue_setup(struct vb2_queue *vq,
 		       unsigned sizes[], struct device *alloc_devs[])
 {
 	/* 2 = max 16-bit sample returned */
-	sizes[0] = SDR_CAP_SAMPLES_PER_BUF * 2;
+	u32 size = SDR_CAP_SAMPLES_PER_BUF * 2;
+
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
+
 	*nplanes = 1;
+	sizes[0] = size;
 	return 0;
 }
 

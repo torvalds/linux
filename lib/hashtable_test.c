@@ -314,4 +314,5 @@ static struct kunit_suite hashtable_test_module = {
 
 kunit_test_suites(&hashtable_test_module);
 
+MODULE_DESCRIPTION("KUnit test for the Kernel Hashtable structures");
 MODULE_LICENSE("GPL");

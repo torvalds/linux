@@ -37,8 +37,14 @@
 # |    \                                              /                       |
 # |     \____________________________________________/                        |
 # |                           |                                               |
-# |                           + lag2 (team)                                   |
-# |                             192.0.2.130/28                                |
+# |                           + lag2 (team)  ------>   + gt4-dst (gretap)     |
+# |                             192.0.2.130/28           loc=192.0.2.130      |
+# |                                                      rem=192.0.2.129      |
+# |                                                      ttl=100              |
+# |                                                      tos=inherit          |
+# |                                                                           |
+# |                                                                           |
+# |                                                                           |
 # |                                                                           |
 # +---------------------------------------------------------------------------+
 
@@ -50,9 +56,6 @@ ALL_TESTS="
 NUM_NETIFS=6
 source lib.sh
 source mirror_lib.sh
-source mirror_gre_lib.sh
-
-require_command $ARPING
 
 vlan_host_create()
 {
@@ -122,16 +125,21 @@ h3_create()
 {
 	vrf_create vrf-h3
 	ip link set dev vrf-h3 up
-	tc qdisc add dev $h3 clsact
-	tc qdisc add dev $h4 clsact
 	h3_create_team
+
+	tunnel_create gt4-dst gretap 192.0.2.130 192.0.2.129 \
+		      ttl 100 tos inherit
+	ip link set dev gt4-dst master vrf-h3
+	tc qdisc add dev gt4-dst clsact
 }
 
 h3_destroy()
 {
+	tc qdisc del dev gt4-dst clsact
+	ip link set dev gt4-dst nomaster
+	tunnel_destroy gt4-dst
+
 	h3_destroy_team
-	tc qdisc del dev $h4 clsact
-	tc qdisc del dev $h3 clsact
 	ip link set dev vrf-h3 down
 	vrf_destroy vrf-h3
 }
@@ -188,17 +196,11 @@ setup_prepare()
 	h2_create
 	h3_create
 	switch_create
-
-	trap_install $h3 ingress
-	trap_install $h4 ingress
 }
 
 cleanup()
 {
 	pre_cleanup
-
-	trap_uninstall $h4 ingress
-	trap_uninstall $h3 ingress
 
 	switch_destroy
 	h3_destroy
@@ -218,7 +220,8 @@ test_lag_slave()
 	RET=0
 
 	mirror_install $swp1 ingress gt4 \
-		       "proto 802.1q flower vlan_id 333 $tcflags"
+		       "proto 802.1q flower vlan_id 333"
+	vlan_capture_install gt4-dst "vlan_ethtype ipv4 ip_proto icmp type 8"
 
 	# Move $down_dev away from the team. That will prompt change in
 	# txability of the connected device, without changing its upness. The
@@ -226,13 +229,14 @@ test_lag_slave()
 	# other slave.
 	ip link set dev $down_dev nomaster
 	sleep 2
-	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $up_dev 1 10
+	mirror_test vrf-h1 192.0.2.1 192.0.2.18 gt4-dst 100 10
 
 	# Test lack of connectivity when neither slave is txable.
 	ip link set dev $up_dev nomaster
 	sleep 2
-	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $h3 1 0
-	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $h4 1 0
+	mirror_test vrf-h1 192.0.2.1 192.0.2.18 gt4-dst 100 0
+
+	vlan_capture_uninstall gt4-dst
 	mirror_uninstall $swp1 ingress
 
 	# Recreate H3's team device, because mlxsw, which this test is
@@ -243,7 +247,7 @@ test_lag_slave()
 	# Wait for ${h,swp}{3,4}.
 	setup_wait
 
-	log_test "$what ($tcflags)"
+	log_test "$what"
 }
 
 test_mirror_gretap_first()
@@ -256,30 +260,11 @@ test_mirror_gretap_second()
 	test_lag_slave $h4 $h3 "mirror to gretap: LAG second slave"
 }
 
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

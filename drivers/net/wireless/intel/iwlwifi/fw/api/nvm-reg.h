@@ -120,7 +120,7 @@ struct iwl_nvm_access_cmd {
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
+ * struct iwl_nvm_access_resp - response to NVM_ACCESS_CMD
  * @offset: offset in bytes into the section
  * @length: in bytes, either how much was written or read
  * @type: NVM_SECTION_TYPE_*
@@ -212,7 +212,7 @@ struct iwl_nvm_get_info_phy {
 #define IWL_NUM_CHANNELS	110
 
 /**
- * struct iwl_nvm_get_info_regulatory - regulatory information
+ * struct iwl_nvm_get_info_regulatory_v1 - regulatory information
  * @lar_enabled: is LAR enabled
  * @channel_profile: regulatory data of this channel
  * @reserved: reserved
@@ -704,6 +704,8 @@ struct iwl_lari_config_change_cmd_v10 {
  *	Each bit represents a country or region, and a band to activate
  *	according to the BIOS definitions.
  *	For LARI cmd version 11 - bits 0:4 are supported.
+ *	For LARI cmd version 12 - bits 0:6 are supported and bits 7:31 are
+ *	reserved. No need to mask out the reserved bits.
  * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
  *	Each bit represents a set of channels in a specific band that should be
  *	disabled
@@ -731,9 +733,11 @@ struct iwl_lari_config_change_cmd {
 	__le32 oem_11be_allow_bitmap;
 } __packed;
 /* LARI_CHANGE_CONF_CMD_S_VER_11 */
+/* LARI_CHANGE_CONF_CMD_S_VER_12 */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
-#define ACTIVATE_5G2_IN_WW_MASK	BIT(4)
+#define ACTIVATE_5G2_IN_WW_MASK			BIT(4)
+#define CHAN_STATE_ACTIVE_BITMAP_CMD_V11	0x1F
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

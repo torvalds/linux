@@ -57,7 +57,6 @@ struct dm_verity_fec_io {
 	u8 *bufs[DM_VERITY_FEC_BUF_MAX];	/* bufs for deinterleaving */
 	unsigned int nbufs;		/* number of buffers allocated */
 	u8 *output;		/* buffer for corrected output */
-	size_t output_pos;
 	unsigned int level;		/* recursion level */
 };
 
@@ -70,7 +69,7 @@ extern bool verity_fec_is_enabled(struct dm_verity *v);
 
 extern int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 			     enum verity_block_type type, sector_t block,
-			     u8 *dest, struct bvec_iter *iter);
+			     u8 *dest);
 
 extern unsigned int verity_fec_status_table(struct dm_verity *v, unsigned int sz,
 					char *result, unsigned int maxlen);
@@ -100,8 +99,7 @@ static inline bool verity_fec_is_enabled(struct dm_verity *v)
 static inline int verity_fec_decode(struct dm_verity *v,
 				    struct dm_verity_io *io,
 				    enum verity_block_type type,
-				    sector_t block, u8 *dest,
-				    struct bvec_iter *iter)
+				    sector_t block, u8 *dest)
 {
 	return -EOPNOTSUPP;
 }

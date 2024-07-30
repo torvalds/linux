@@ -25,6 +25,7 @@ vm_vaddr_t exception_handlers;
 bool host_cpu_is_amd;
 bool host_cpu_is_intel;
 bool is_forced_emulation_enabled;
+uint64_t guest_tsc_khz;
 
 static void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent)
 {
@@ -616,6 +617,11 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vm_post_create(struct kvm_vm *vm)
 {
+	int r;
+
+	TEST_ASSERT(kvm_has_cap(KVM_CAP_GET_TSC_KHZ),
+		    "Require KVM_GET_TSC_KHZ to provide udelay() to guest.");
+
 	vm_create_irqchip(vm);
 	vm_init_descriptor_tables(vm);
 
@@ -628,6 +634,11 @@ void kvm_arch_vm_post_create(struct kvm_vm *vm)
 
 		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
+
+	r = __vm_ioctl(vm, KVM_GET_TSC_KHZ, NULL);
+	TEST_ASSERT(r > 0, "KVM_GET_TSC_KHZ did not provide a valid TSC frequency.");
+	guest_tsc_khz = r;
+	sync_global_to_guest(vm, guest_tsc_khz);
 }
 
 void vcpu_arch_set_entry_point(struct kvm_vcpu *vcpu, void *guest_code)
@@ -1247,9 +1258,20 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
 	unsigned long ht_gfn, max_gfn, max_pfn;
-	uint8_t maxphyaddr;
+	uint8_t maxphyaddr, guest_maxphyaddr;
 
-	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
+	/*
+	 * Use "guest MAXPHYADDR" from KVM if it's available.  Guest MAXPHYADDR
+	 * enumerates the max _mappable_ GPA, which can be less than the raw
+	 * MAXPHYADDR, e.g. if MAXPHYADDR=52, KVM is using TDP, and the CPU
+	 * doesn't support 5-level TDP.
+	 */
+	guest_maxphyaddr = kvm_cpu_property(X86_PROPERTY_GUEST_MAX_PHY_ADDR);
+	guest_maxphyaddr = guest_maxphyaddr ?: vm->pa_bits;
+	TEST_ASSERT(guest_maxphyaddr <= vm->pa_bits,
+		    "Guest MAXPHYADDR should never be greater than raw MAXPHYADDR");
+
+	max_gfn = (1ULL << (guest_maxphyaddr - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
 	if (!host_cpu_is_amd)

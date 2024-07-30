@@ -74,7 +74,8 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define INIT_OPS_HASH(opsname)	\
 	.func_hash		= &opsname.local_hash,			\
-	.local_hash.regex_lock	= __MUTEX_INITIALIZER(opsname.local_hash.regex_lock),
+	.local_hash.regex_lock	= __MUTEX_INITIALIZER(opsname.local_hash.regex_lock), \
+	.subop_list		= LIST_HEAD_INIT(opsname.subop_list),
 #else
 #define INIT_OPS_HASH(opsname)
 #endif
@@ -99,7 +100,7 @@ struct ftrace_ops *function_trace_op __read_mostly = &ftrace_list_end;
 /* What to set function_trace_op to */
 static struct ftrace_ops *set_function_trace_op;
 
-static bool ftrace_pids_enabled(struct ftrace_ops *ops)
+bool ftrace_pids_enabled(struct ftrace_ops *ops)
 {
 	struct trace_array *tr;
 
@@ -121,7 +122,7 @@ static int ftrace_disabled __read_mostly;
 
 DEFINE_MUTEX(ftrace_lock);
 
-struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = &ftrace_list_end;
+struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = (struct ftrace_ops __rcu *)&ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 struct ftrace_ops global_ops;
 
@@ -161,12 +162,14 @@ static inline void ftrace_ops_init(struct ftrace_ops *ops)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	if (!(ops->flags & FTRACE_OPS_FL_INITIALIZED)) {
 		mutex_init(&ops->local_hash.regex_lock);
+		INIT_LIST_HEAD(&ops->subop_list);
 		ops->func_hash = &ops->local_hash;
 		ops->flags |= FTRACE_OPS_FL_INITIALIZED;
 	}
 #endif
 }
 
+/* Call this function for when a callback filters on set_ftrace_pid */
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
 			    struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
@@ -234,8 +237,6 @@ static void update_ftrace_function(void)
 		set_function_trace_op = &ftrace_list_end;
 		func = ftrace_ops_list_func;
 	}
-
-	update_function_graph_func();
 
 	/* If there's no change, then do nothing more here */
 	if (ftrace_trace_function == func)
@@ -310,7 +311,7 @@ static int remove_ftrace_ops(struct ftrace_ops __rcu **list,
 			lockdep_is_held(&ftrace_lock)) == ops &&
 	    rcu_dereference_protected(ops->next,
 			lockdep_is_held(&ftrace_lock)) == &ftrace_list_end) {
-		*list = &ftrace_list_end;
+		rcu_assign_pointer(*list, &ftrace_list_end);
 		return 0;
 	}
 
@@ -405,6 +406,8 @@ static void ftrace_update_pid_func(void)
 			ftrace_update_trampoline(op);
 		}
 	} while_for_each_ftrace_op(op);
+
+	fgraph_update_pid_func();
 
 	update_ftrace_function();
 }
@@ -817,7 +820,8 @@ void ftrace_graph_graph_time_control(bool enable)
 	fgraph_graph_time = enable;
 }
 
-static int profile_graph_entry(struct ftrace_graph_ent *trace)
+static int profile_graph_entry(struct ftrace_graph_ent *trace,
+			       struct fgraph_ops *gops)
 {
 	struct ftrace_ret_stack *ret_stack;
 
@@ -834,7 +838,8 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace)
 	return 1;
 }
 
-static void profile_graph_return(struct ftrace_graph_ret *trace)
+static void profile_graph_return(struct ftrace_graph_ret *trace,
+				 struct fgraph_ops *gops)
 {
 	struct ftrace_ret_stack *ret_stack;
 	struct ftrace_profile_stat *stat;
@@ -1314,7 +1319,7 @@ static struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 	return hash;
 }
 
-
+/* Used to save filters on functions for modules not loaded yet */
 static int ftrace_add_mod(struct trace_array *tr,
 			  const char *func, const char *module,
 			  int enable)
@@ -1380,15 +1385,17 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	return NULL;
 }
 
-static void
-ftrace_hash_rec_disable_modify(struct ftrace_ops *ops, int filter_hash);
-static void
-ftrace_hash_rec_enable_modify(struct ftrace_ops *ops, int filter_hash);
+static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops);
+static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops);
 
 static int ftrace_hash_ipmodify_update(struct ftrace_ops *ops,
 				       struct ftrace_hash *new_hash);
 
-static struct ftrace_hash *dup_hash(struct ftrace_hash *src, int size)
+/*
+ * Allocate a new hash and remove entries from @src and move them to the new hash.
+ * On success, the @src hash will be empty and should be freed.
+ */
+static struct ftrace_hash *__move_hash(struct ftrace_hash *src, int size)
 {
 	struct ftrace_func_entry *entry;
 	struct ftrace_hash *new_hash;
@@ -1424,6 +1431,7 @@ static struct ftrace_hash *dup_hash(struct ftrace_hash *src, int size)
 	return new_hash;
 }
 
+/* Move the @src entries to a newly allocated hash */
 static struct ftrace_hash *
 __ftrace_hash_move(struct ftrace_hash *src)
 {
@@ -1435,9 +1443,29 @@ __ftrace_hash_move(struct ftrace_hash *src)
 	if (ftrace_hash_empty(src))
 		return EMPTY_HASH;
 
-	return dup_hash(src, size);
+	return __move_hash(src, size);
 }
 
+/**
+ * ftrace_hash_move - move a new hash to a filter and do updates
+ * @ops: The ops with the hash that @dst points to
+ * @enable: True if for the filter hash, false for the notrace hash
+ * @dst: Points to the @ops hash that should be updated
+ * @src: The hash to update @dst with
+ *
+ * This is called when an ftrace_ops hash is being updated and the
+ * the kernel needs to reflect this. Note, this only updates the kernel
+ * function callbacks if the @ops is enabled (not to be confused with
+ * @enable above). If the @ops is enabled, its hash determines what
+ * callbacks get called. This function gets called when the @ops hash
+ * is updated and it requires new callbacks.
+ *
+ * On success the elements of @src is moved to @dst, and @dst is updated
+ * properly, as well as the functions determined by the @ops hashes
+ * are now calling the @ops callback function.
+ *
+ * Regardless of return type, @src should be freed with free_ftrace_hash().
+ */
 static int
 ftrace_hash_move(struct ftrace_ops *ops, int enable,
 		 struct ftrace_hash **dst, struct ftrace_hash *src)
@@ -1467,11 +1495,11 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	 * Remove the current set, update the hash and add
 	 * them back.
 	 */
-	ftrace_hash_rec_disable_modify(ops, enable);
+	ftrace_hash_rec_disable_modify(ops);
 
 	rcu_assign_pointer(*dst, new_hash);
 
-	ftrace_hash_rec_enable_modify(ops, enable);
+	ftrace_hash_rec_enable_modify(ops);
 
 	return 0;
 }
@@ -1694,12 +1722,21 @@ static bool skip_record(struct dyn_ftrace *rec)
 		!(rec->flags & FTRACE_FL_ENABLED);
 }
 
+/*
+ * This is the main engine to the ftrace updates to the dyn_ftrace records.
+ *
+ * It will iterate through all the available ftrace functions
+ * (the ones that ftrace can have callbacks to) and set the flags
+ * in the associated dyn_ftrace records.
+ *
+ * @inc: If true, the functions associated to @ops are added to
+ *       the dyn_ftrace records, otherwise they are removed.
+ */
 static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
-				     int filter_hash,
 				     bool inc)
 {
 	struct ftrace_hash *hash;
-	struct ftrace_hash *other_hash;
+	struct ftrace_hash *notrace_hash;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	bool update = false;
@@ -1711,35 +1748,16 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		return false;
 
 	/*
-	 * In the filter_hash case:
 	 *   If the count is zero, we update all records.
 	 *   Otherwise we just update the items in the hash.
-	 *
-	 * In the notrace_hash case:
-	 *   We enable the update in the hash.
-	 *   As disabling notrace means enabling the tracing,
-	 *   and enabling notrace means disabling, the inc variable
-	 *   gets inversed.
 	 */
-	if (filter_hash) {
-		hash = ops->func_hash->filter_hash;
-		other_hash = ops->func_hash->notrace_hash;
-		if (ftrace_hash_empty(hash))
-			all = true;
-	} else {
-		inc = !inc;
-		hash = ops->func_hash->notrace_hash;
-		other_hash = ops->func_hash->filter_hash;
-		/*
-		 * If the notrace hash has no items,
-		 * then there's nothing to do.
-		 */
-		if (ftrace_hash_empty(hash))
-			return false;
-	}
+	hash = ops->func_hash->filter_hash;
+	notrace_hash = ops->func_hash->notrace_hash;
+	if (ftrace_hash_empty(hash))
+		all = true;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		int in_other_hash = 0;
+		int in_notrace_hash = 0;
 		int in_hash = 0;
 		int match = 0;
 
@@ -1751,26 +1769,17 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 * Only the filter_hash affects all records.
 			 * Update if the record is not in the notrace hash.
 			 */
-			if (!other_hash || !ftrace_lookup_ip(other_hash, rec->ip))
+			if (!notrace_hash || !ftrace_lookup_ip(notrace_hash, rec->ip))
 				match = 1;
 		} else {
 			in_hash = !!ftrace_lookup_ip(hash, rec->ip);
-			in_other_hash = !!ftrace_lookup_ip(other_hash, rec->ip);
+			in_notrace_hash = !!ftrace_lookup_ip(notrace_hash, rec->ip);
 
 			/*
-			 * If filter_hash is set, we want to match all functions
-			 * that are in the hash but not in the other hash.
-			 *
-			 * If filter_hash is not set, then we are decrementing.
-			 * That means we match anything that is in the hash
-			 * and also in the other_hash. That is, we need to turn
-			 * off functions in the other hash because they are disabled
-			 * by this hash.
+			 * We want to match all functions that are in the hash but
+			 * not in the other hash.
 			 */
-			if (filter_hash && in_hash && !in_other_hash)
-				match = 1;
-			else if (!filter_hash && in_hash &&
-				 (in_other_hash || ftrace_hash_empty(other_hash)))
+			if (in_hash && !in_notrace_hash)
 				match = 1;
 		}
 		if (!match)
@@ -1876,24 +1885,48 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 	return update;
 }
 
-static bool ftrace_hash_rec_disable(struct ftrace_ops *ops,
-				    int filter_hash)
+/*
+ * This is called when an ops is removed from tracing. It will decrement
+ * the counters of the dyn_ftrace records for all the functions that
+ * the @ops attached to.
+ */
+static bool ftrace_hash_rec_disable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, filter_hash, 0);
+	return __ftrace_hash_rec_update(ops, false);
 }
 
-static bool ftrace_hash_rec_enable(struct ftrace_ops *ops,
-				   int filter_hash)
+/*
+ * This is called when an ops is added to tracing. It will increment
+ * the counters of the dyn_ftrace records for all the functions that
+ * the @ops attached to.
+ */
+static bool ftrace_hash_rec_enable(struct ftrace_ops *ops)
 {
-	return __ftrace_hash_rec_update(ops, filter_hash, 1);
+	return __ftrace_hash_rec_update(ops, true);
 }
 
-static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
-					  int filter_hash, int inc)
+/*
+ * This function will update what functions @ops traces when its filter
+ * changes.
+ *
+ * The @inc states if the @ops callbacks are going to be added or removed.
+ * When one of the @ops hashes are updated to a "new_hash" the dyn_ftrace
+ * records are update via:
+ *
+ * ftrace_hash_rec_disable_modify(ops);
+ * ops->hash = new_hash
+ * ftrace_hash_rec_enable_modify(ops);
+ *
+ * Where the @ops is removed from all the records it is tracing using
+ * its old hash. The @ops hash is updated to the new hash, and then
+ * the @ops is added back to the records so that it is tracing all
+ * the new functions.
+ */
+static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops, bool inc)
 {
 	struct ftrace_ops *op;
 
-	__ftrace_hash_rec_update(ops, filter_hash, inc);
+	__ftrace_hash_rec_update(ops, inc);
 
 	if (ops->func_hash != &global_ops.local_hash)
 		return;
@@ -1907,20 +1940,18 @@ static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
 		if (op == ops)
 			continue;
 		if (op->func_hash == &global_ops.local_hash)
-			__ftrace_hash_rec_update(op, filter_hash, inc);
+			__ftrace_hash_rec_update(op, inc);
 	} while_for_each_ftrace_op(op);
 }
 
-static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops,
-					   int filter_hash)
+static void ftrace_hash_rec_disable_modify(struct ftrace_ops *ops)
 {
-	ftrace_hash_rec_update_modify(ops, filter_hash, 0);
+	ftrace_hash_rec_update_modify(ops, false);
 }
 
-static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops,
-					  int filter_hash)
+static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops)
 {
-	ftrace_hash_rec_update_modify(ops, filter_hash, 1);
+	ftrace_hash_rec_update_modify(ops, true);
 }
 
 /*
@@ -3043,7 +3074,7 @@ int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 	}
 
-	if (ftrace_hash_rec_enable(ops, 1))
+	if (ftrace_hash_rec_enable(ops))
 		command |= FTRACE_UPDATE_CALLS;
 
 	ftrace_startup_enable(command);
@@ -3085,7 +3116,7 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	/* Disabling ipmodify never fails */
 	ftrace_hash_ipmodify_disable(ops);
 
-	if (ftrace_hash_rec_disable(ops, 1))
+	if (ftrace_hash_rec_disable(ops))
 		command |= FTRACE_UPDATE_CALLS;
 
 	ops->flags &= ~FTRACE_OPS_FL_ENABLED;
@@ -3163,6 +3194,474 @@ out:
 
 	return 0;
 }
+
+/* Simply make a copy of @src and return it */
+static struct ftrace_hash *copy_hash(struct ftrace_hash *src)
+{
+	if (ftrace_hash_empty(src))
+		return EMPTY_HASH;
+
+	return alloc_and_copy_ftrace_hash(src->size_bits, src);
+}
+
+/*
+ * Append @new_hash entries to @hash:
+ *
+ *  If @hash is the EMPTY_HASH then it traces all functions and nothing
+ *  needs to be done.
+ *
+ *  If @new_hash is the EMPTY_HASH, then make *hash the EMPTY_HASH so
+ *  that it traces everything.
+ *
+ *  Otherwise, go through all of @new_hash and add anything that @hash
+ *  doesn't already have, to @hash.
+ *
+ *  The filter_hash updates uses just the append_hash() function
+ *  and the notrace_hash does not.
+ */
+static int append_hash(struct ftrace_hash **hash, struct ftrace_hash *new_hash)
+{
+	struct ftrace_func_entry *entry;
+	int size;
+	int i;
+
+	/* An empty hash does everything */
+	if (ftrace_hash_empty(*hash))
+		return 0;
+
+	/* If new_hash has everything make hash have everything */
+	if (ftrace_hash_empty(new_hash)) {
+		free_ftrace_hash(*hash);
+		*hash = EMPTY_HASH;
+		return 0;
+	}
+
+	size = 1 << new_hash->size_bits;
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry(entry, &new_hash->buckets[i], hlist) {
+			/* Only add if not already in hash */
+			if (!__ftrace_lookup_ip(*hash, entry->ip) &&
+			    add_hash_entry(*hash, entry->ip) == NULL)
+				return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Add to @hash only those that are in both @new_hash1 and @new_hash2
+ *
+ * The notrace_hash updates uses just the intersect_hash() function
+ * and the filter_hash does not.
+ */
+static int intersect_hash(struct ftrace_hash **hash, struct ftrace_hash *new_hash1,
+			  struct ftrace_hash *new_hash2)
+{
+	struct ftrace_func_entry *entry;
+	int size;
+	int i;
+
+	/*
+	 * If new_hash1 or new_hash2 is the EMPTY_HASH then make the hash
+	 * empty as well as empty for notrace means none are notraced.
+	 */
+	if (ftrace_hash_empty(new_hash1) || ftrace_hash_empty(new_hash2)) {
+		free_ftrace_hash(*hash);
+		*hash = EMPTY_HASH;
+		return 0;
+	}
+
+	size = 1 << new_hash1->size_bits;
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry(entry, &new_hash1->buckets[i], hlist) {
+			/* Only add if in both @new_hash1 and @new_hash2 */
+			if (__ftrace_lookup_ip(new_hash2, entry->ip) &&
+			    add_hash_entry(*hash, entry->ip) == NULL)
+				return -ENOMEM;
+		}
+	}
+	/* If nothing intersects, make it the empty set */
+	if (ftrace_hash_empty(*hash)) {
+		free_ftrace_hash(*hash);
+		*hash = EMPTY_HASH;
+	}
+	return 0;
+}
+
+/* Return a new hash that has a union of all @ops->filter_hash entries */
+static struct ftrace_hash *append_hashes(struct ftrace_ops *ops)
+{
+	struct ftrace_hash *new_hash;
+	struct ftrace_ops *subops;
+	int ret;
+
+	new_hash = alloc_ftrace_hash(ops->func_hash->filter_hash->size_bits);
+	if (!new_hash)
+		return NULL;
+
+	list_for_each_entry(subops, &ops->subop_list, list) {
+		ret = append_hash(&new_hash, subops->func_hash->filter_hash);
+		if (ret < 0) {
+			free_ftrace_hash(new_hash);
+			return NULL;
+		}
+		/* Nothing more to do if new_hash is empty */
+		if (ftrace_hash_empty(new_hash))
+			break;
+	}
+	return new_hash;
+}
+
+/* Make @ops trace evenything except what all its subops do not trace */
+static struct ftrace_hash *intersect_hashes(struct ftrace_ops *ops)
+{
+	struct ftrace_hash *new_hash = NULL;
+	struct ftrace_ops *subops;
+	int size_bits;
+	int ret;
+
+	list_for_each_entry(subops, &ops->subop_list, list) {
+		struct ftrace_hash *next_hash;
+
+		if (!new_hash) {
+			size_bits = subops->func_hash->notrace_hash->size_bits;
+			new_hash = alloc_and_copy_ftrace_hash(size_bits, ops->func_hash->notrace_hash);
+			if (!new_hash)
+				return NULL;
+			continue;
+		}
+		size_bits = new_hash->size_bits;
+		next_hash = new_hash;
+		new_hash = alloc_ftrace_hash(size_bits);
+		ret = intersect_hash(&new_hash, next_hash, subops->func_hash->notrace_hash);
+		free_ftrace_hash(next_hash);
+		if (ret < 0) {
+			free_ftrace_hash(new_hash);
+			return NULL;
+		}
+		/* Nothing more to do if new_hash is empty */
+		if (ftrace_hash_empty(new_hash))
+			break;
+	}
+	return new_hash;
+}
+
+static bool ops_equal(struct ftrace_hash *A, struct ftrace_hash *B)
+{
+	struct ftrace_func_entry *entry;
+	int size;
+	int i;
+
+	if (ftrace_hash_empty(A))
+		return ftrace_hash_empty(B);
+
+	if (ftrace_hash_empty(B))
+		return ftrace_hash_empty(A);
+
+	if (A->count != B->count)
+		return false;
+
+	size = 1 << A->size_bits;
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry(entry, &A->buckets[i], hlist) {
+			if (!__ftrace_lookup_ip(B, entry->ip))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+static void ftrace_ops_update_code(struct ftrace_ops *ops,
+				   struct ftrace_ops_hash *old_hash);
+
+static int __ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
+					     struct ftrace_hash **orig_hash,
+					     struct ftrace_hash *hash,
+					     int enable)
+{
+	struct ftrace_ops_hash old_hash_ops;
+	struct ftrace_hash *old_hash;
+	int ret;
+
+	old_hash = *orig_hash;
+	old_hash_ops.filter_hash = ops->func_hash->filter_hash;
+	old_hash_ops.notrace_hash = ops->func_hash->notrace_hash;
+	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
+	if (!ret) {
+		ftrace_ops_update_code(ops, &old_hash_ops);
+		free_ftrace_hash_rcu(old_hash);
+	}
+	return ret;
+}
+
+static int ftrace_update_ops(struct ftrace_ops *ops, struct ftrace_hash *filter_hash,
+			     struct ftrace_hash *notrace_hash)
+{
+	int ret;
+
+	if (!ops_equal(filter_hash, ops->func_hash->filter_hash)) {
+		ret = __ftrace_hash_move_and_update_ops(ops, &ops->func_hash->filter_hash,
+							filter_hash, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!ops_equal(notrace_hash, ops->func_hash->notrace_hash)) {
+		ret = __ftrace_hash_move_and_update_ops(ops, &ops->func_hash->notrace_hash,
+							notrace_hash, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * ftrace_startup_subops - enable tracing for subops of an ops
+ * @ops: Manager ops (used to pick all the functions of its subops)
+ * @subops: A new ops to add to @ops
+ * @command: Extra commands to use to enable tracing
+ *
+ * The @ops is a manager @ops that has the filter that includes all the functions
+ * that its list of subops are tracing. Adding a new @subops will add the
+ * functions of @subops to @ops.
+ */
+int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int command)
+{
+	struct ftrace_hash *filter_hash;
+	struct ftrace_hash *notrace_hash;
+	struct ftrace_hash *save_filter_hash;
+	struct ftrace_hash *save_notrace_hash;
+	int size_bits;
+	int ret;
+
+	if (unlikely(ftrace_disabled))
+		return -ENODEV;
+
+	ftrace_ops_init(ops);
+	ftrace_ops_init(subops);
+
+	if (WARN_ON_ONCE(subops->flags & FTRACE_OPS_FL_ENABLED))
+		return -EBUSY;
+
+	/* Make everything canonical (Just in case!) */
+	if (!ops->func_hash->filter_hash)
+		ops->func_hash->filter_hash = EMPTY_HASH;
+	if (!ops->func_hash->notrace_hash)
+		ops->func_hash->notrace_hash = EMPTY_HASH;
+	if (!subops->func_hash->filter_hash)
+		subops->func_hash->filter_hash = EMPTY_HASH;
+	if (!subops->func_hash->notrace_hash)
+		subops->func_hash->notrace_hash = EMPTY_HASH;
+
+	/* For the first subops to ops just enable it normally */
+	if (list_empty(&ops->subop_list)) {
+		/* Just use the subops hashes */
+		filter_hash = copy_hash(subops->func_hash->filter_hash);
+		notrace_hash = copy_hash(subops->func_hash->notrace_hash);
+		if (!filter_hash || !notrace_hash) {
+			free_ftrace_hash(filter_hash);
+			free_ftrace_hash(notrace_hash);
+			return -ENOMEM;
+		}
+
+		save_filter_hash = ops->func_hash->filter_hash;
+		save_notrace_hash = ops->func_hash->notrace_hash;
+
+		ops->func_hash->filter_hash = filter_hash;
+		ops->func_hash->notrace_hash = notrace_hash;
+		list_add(&subops->list, &ops->subop_list);
+		ret = ftrace_startup(ops, command);
+		if (ret < 0) {
+			list_del(&subops->list);
+			ops->func_hash->filter_hash = save_filter_hash;
+			ops->func_hash->notrace_hash = save_notrace_hash;
+			free_ftrace_hash(filter_hash);
+			free_ftrace_hash(notrace_hash);
+		} else {
+			free_ftrace_hash(save_filter_hash);
+			free_ftrace_hash(save_notrace_hash);
+			subops->flags |= FTRACE_OPS_FL_ENABLED | FTRACE_OPS_FL_SUBOP;
+			subops->managed = ops;
+		}
+		return ret;
+	}
+
+	/*
+	 * Here there's already something attached. Here are the rules:
+	 *   o If either filter_hash is empty then the final stays empty
+	 *      o Otherwise, the final is a superset of both hashes
+	 *   o If either notrace_hash is empty then the final stays empty
+	 *      o Otherwise, the final is an intersection between the hashes
+	 */
+	if (ftrace_hash_empty(ops->func_hash->filter_hash) ||
+	    ftrace_hash_empty(subops->func_hash->filter_hash)) {
+		filter_hash = EMPTY_HASH;
+	} else {
+		size_bits = max(ops->func_hash->filter_hash->size_bits,
+				subops->func_hash->filter_hash->size_bits);
+		filter_hash = alloc_and_copy_ftrace_hash(size_bits, ops->func_hash->filter_hash);
+		if (!filter_hash)
+			return -ENOMEM;
+		ret = append_hash(&filter_hash, subops->func_hash->filter_hash);
+		if (ret < 0) {
+			free_ftrace_hash(filter_hash);
+			return ret;
+		}
+	}
+
+	if (ftrace_hash_empty(ops->func_hash->notrace_hash) ||
+	    ftrace_hash_empty(subops->func_hash->notrace_hash)) {
+		notrace_hash = EMPTY_HASH;
+	} else {
+		size_bits = max(ops->func_hash->filter_hash->size_bits,
+				subops->func_hash->filter_hash->size_bits);
+		notrace_hash = alloc_ftrace_hash(size_bits);
+		if (!notrace_hash) {
+			free_ftrace_hash(filter_hash);
+			return -ENOMEM;
+		}
+
+		ret = intersect_hash(&notrace_hash, ops->func_hash->filter_hash,
+				     subops->func_hash->filter_hash);
+		if (ret < 0) {
+			free_ftrace_hash(filter_hash);
+			free_ftrace_hash(notrace_hash);
+			return ret;
+		}
+	}
+
+	list_add(&subops->list, &ops->subop_list);
+
+	ret = ftrace_update_ops(ops, filter_hash, notrace_hash);
+	free_ftrace_hash(filter_hash);
+	free_ftrace_hash(notrace_hash);
+	if (ret < 0) {
+		list_del(&subops->list);
+	} else {
+		subops->flags |= FTRACE_OPS_FL_ENABLED | FTRACE_OPS_FL_SUBOP;
+		subops->managed = ops;
+	}
+	return ret;
+}
+
+/**
+ * ftrace_shutdown_subops - Remove a subops from a manager ops
+ * @ops: A manager ops to remove @subops from
+ * @subops: The subops to remove from @ops
+ * @command: Any extra command flags to add to modifying the text
+ *
+ * Removes the functions being traced by the @subops from @ops. Note, it
+ * will not affect functions that are being traced by other subops that
+ * still exist in @ops.
+ *
+ * If the last subops is removed from @ops, then @ops is shutdown normally.
+ */
+int ftrace_shutdown_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int command)
+{
+	struct ftrace_hash *filter_hash;
+	struct ftrace_hash *notrace_hash;
+	int ret;
+
+	if (unlikely(ftrace_disabled))
+		return -ENODEV;
+
+	if (WARN_ON_ONCE(!(subops->flags & FTRACE_OPS_FL_ENABLED)))
+		return -EINVAL;
+
+	list_del(&subops->list);
+
+	if (list_empty(&ops->subop_list)) {
+		/* Last one, just disable the current ops */
+
+		ret = ftrace_shutdown(ops, command);
+		if (ret < 0) {
+			list_add(&subops->list, &ops->subop_list);
+			return ret;
+		}
+
+		subops->flags &= ~FTRACE_OPS_FL_ENABLED;
+
+		free_ftrace_hash(ops->func_hash->filter_hash);
+		free_ftrace_hash(ops->func_hash->notrace_hash);
+		ops->func_hash->filter_hash = EMPTY_HASH;
+		ops->func_hash->notrace_hash = EMPTY_HASH;
+		subops->flags &= ~(FTRACE_OPS_FL_ENABLED | FTRACE_OPS_FL_SUBOP);
+		subops->managed = NULL;
+
+		return 0;
+	}
+
+	/* Rebuild the hashes without subops */
+	filter_hash = append_hashes(ops);
+	notrace_hash = intersect_hashes(ops);
+	if (!filter_hash || !notrace_hash) {
+		free_ftrace_hash(filter_hash);
+		free_ftrace_hash(notrace_hash);
+		list_add(&subops->list, &ops->subop_list);
+		return -ENOMEM;
+	}
+
+	ret = ftrace_update_ops(ops, filter_hash, notrace_hash);
+	if (ret < 0) {
+		list_add(&subops->list, &ops->subop_list);
+	} else {
+		subops->flags &= ~(FTRACE_OPS_FL_ENABLED | FTRACE_OPS_FL_SUBOP);
+		subops->managed = NULL;
+	}
+	free_ftrace_hash(filter_hash);
+	free_ftrace_hash(notrace_hash);
+	return ret;
+}
+
+static int ftrace_hash_move_and_update_subops(struct ftrace_ops *subops,
+					      struct ftrace_hash **orig_subhash,
+					      struct ftrace_hash *hash,
+					      int enable)
+{
+	struct ftrace_ops *ops = subops->managed;
+	struct ftrace_hash **orig_hash;
+	struct ftrace_hash *save_hash;
+	struct ftrace_hash *new_hash;
+	int ret;
+
+	/* Manager ops can not be subops (yet) */
+	if (WARN_ON_ONCE(!ops || ops->flags & FTRACE_OPS_FL_SUBOP))
+		return -EINVAL;
+
+	/* Move the new hash over to the subops hash */
+	save_hash = *orig_subhash;
+	*orig_subhash = __ftrace_hash_move(hash);
+	if (!*orig_subhash) {
+		*orig_subhash = save_hash;
+		return -ENOMEM;
+	}
+
+	/* Create a new_hash to hold the ops new functions */
+	if (enable) {
+		orig_hash = &ops->func_hash->filter_hash;
+		new_hash = append_hashes(ops);
+	} else {
+		orig_hash = &ops->func_hash->notrace_hash;
+		new_hash = intersect_hashes(ops);
+	}
+
+	/* Move the hash over to the new hash */
+	ret = __ftrace_hash_move_and_update_ops(ops, orig_hash, new_hash, enable);
+
+	free_ftrace_hash(new_hash);
+
+	if (ret) {
+		/* Put back the original hash */
+		free_ftrace_hash_rcu(*orig_subhash);
+		*orig_subhash = save_hash;
+	} else {
+		free_ftrace_hash_rcu(save_hash);
+	}
+	return ret;
+}
+
 
 static u64		ftrace_update_time;
 unsigned long		ftrace_update_tot_cnt;
@@ -4380,19 +4879,33 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
 					   struct ftrace_hash *hash,
 					   int enable)
 {
-	struct ftrace_ops_hash old_hash_ops;
-	struct ftrace_hash *old_hash;
-	int ret;
+	if (ops->flags & FTRACE_OPS_FL_SUBOP)
+		return ftrace_hash_move_and_update_subops(ops, orig_hash, hash, enable);
 
-	old_hash = *orig_hash;
-	old_hash_ops.filter_hash = ops->func_hash->filter_hash;
-	old_hash_ops.notrace_hash = ops->func_hash->notrace_hash;
-	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
-	if (!ret) {
-		ftrace_ops_update_code(ops, &old_hash_ops);
-		free_ftrace_hash_rcu(old_hash);
+	/*
+	 * If this ops is not enabled, it could be sharing its filters
+	 * with a subop. If that's the case, update the subop instead of
+	 * this ops. Shared filters are only allowed to have one ops set
+	 * at a time, and if we update the ops that is not enabled,
+	 * it will not affect subops that share it.
+	 */
+	if (!(ops->flags & FTRACE_OPS_FL_ENABLED)) {
+		struct ftrace_ops *op;
+
+		/* Check if any other manager subops maps to this hash */
+		do_for_each_ftrace_op(op, ftrace_ops_list) {
+			struct ftrace_ops *subops;
+
+			list_for_each_entry(subops, &op->subop_list, list) {
+				if ((subops->flags & FTRACE_OPS_FL_ENABLED) &&
+				     subops->func_hash == ops->func_hash) {
+					return ftrace_hash_move_and_update_subops(subops, orig_hash, hash, enable);
+				}
+			}
+		} while_for_each_ftrace_op(op);
 	}
-	return ret;
+
+	return __ftrace_hash_move_and_update_ops(ops, orig_hash, hash, enable);
 }
 
 static bool module_exists(const char *module)
@@ -5475,6 +5988,8 @@ EXPORT_SYMBOL_GPL(register_ftrace_direct);
  * unregister_ftrace_direct - Remove calls to custom trampoline
  * previously registered by register_ftrace_direct for @ops object.
  * @ops: The address of the struct ftrace_ops object
+ * @addr: The address of the direct function that is called by the @ops functions
+ * @free_filters: Set to true to remove all filters for the ftrace_ops, false otherwise
  *
  * This is used to remove a direct calls to @addr from the nop locations
  * of the functions registered in @ops (with by ftrace_set_filter_ip
@@ -6969,7 +7484,7 @@ allocate_ftrace_mod_map(struct module *mod,
 	return mod_map;
 }
 
-static const char *
+static int
 ftrace_func_address_lookup(struct ftrace_mod_map *mod_map,
 			   unsigned long addr, unsigned long *size,
 			   unsigned long *off, char *sym)
@@ -6990,21 +7505,18 @@ ftrace_func_address_lookup(struct ftrace_mod_map *mod_map,
 			*size = found_func->size;
 		if (off)
 			*off = addr - found_func->ip;
-		if (sym)
-			strscpy(sym, found_func->name, KSYM_NAME_LEN);
-
-		return found_func->name;
+		return strscpy(sym, found_func->name, KSYM_NAME_LEN);
 	}
 
-	return NULL;
+	return 0;
 }
 
-const char *
+int
 ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 		   unsigned long *off, char **modname, char *sym)
 {
 	struct ftrace_mod_map *mod_map;
-	const char *ret = NULL;
+	int ret = 0;
 
 	/* mod_map is freed via call_rcu() */
 	preempt_disable();
@@ -7327,6 +7839,7 @@ __init void ftrace_init_global_array_ops(struct trace_array *tr)
 	tr->ops = &global_ops;
 	tr->ops->private = tr;
 	ftrace_init_trace_array(tr);
+	init_array_fgraph_ops(tr, tr->ops);
 }
 
 void ftrace_init_array_ops(struct trace_array *tr, ftrace_func_t func)
@@ -7407,6 +7920,7 @@ out:
 void arch_ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
+	kmsan_unpoison_memory(fregs, sizeof(*fregs));
 	__ftrace_ops_list_func(ip, parent_ip, NULL, fregs);
 }
 #else
@@ -8221,7 +8735,7 @@ static bool is_permanent_ops_registered(void)
 }
 
 static int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
+ftrace_enable_sysctl(const struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = -ENODEV;

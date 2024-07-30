@@ -508,6 +508,7 @@ config FAILOVER
 
 config ETHTOOL_NETLINK
 	bool "Netlink interface for ethtool"
+	select DIMLIB
 	default y
 	help
 	  An alternative userspace interface for ethtool based on generic

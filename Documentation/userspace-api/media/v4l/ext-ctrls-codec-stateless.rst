@@ -971,8 +971,8 @@ FWHT Flags
       - ``horizontal_scale``
       - Horizontal scaling factor.
     * - __u8
-      - ``vertical_scaling factor``
-      - Vertical scale.
+      - ``vertical_scale``
+      - Vertical scaling factor.
     * - __u8
       - ``version``
       - Bitstream version.

@@ -170,8 +170,7 @@ static enum gpio_result set_config(
 
 		return GPIO_RESULT_OK;
 	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_CONNECT:
-		if ((hw_gpio->base.en >= GPIO_DDC_LINE_DDC1) &&
-			(hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA)) {
+		if (hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA) {
 			REG_UPDATE_3(ddc_setup,
 				DC_I2C_DDC1_ENABLE, 1,
 				DC_I2C_DDC1_EDID_DETECT_ENABLE, 1,
@@ -180,8 +179,7 @@ static enum gpio_result set_config(
 		}
 	break;
 	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_DISCONNECT:
-		if ((hw_gpio->base.en >= GPIO_DDC_LINE_DDC1) &&
-			(hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA)) {
+		if (hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA) {
 			REG_UPDATE_3(ddc_setup,
 				DC_I2C_DDC1_ENABLE, 1,
 				DC_I2C_DDC1_EDID_DETECT_ENABLE, 1,
@@ -190,8 +188,7 @@ static enum gpio_result set_config(
 		}
 	break;
 	case GPIO_DDC_CONFIG_TYPE_DISABLE_POLLING:
-		if ((hw_gpio->base.en >= GPIO_DDC_LINE_DDC1) &&
-			(hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA)) {
+		if (hw_gpio->base.en <= GPIO_DDC_LINE_DDC_VGA) {
 			REG_UPDATE_2(ddc_setup,
 				DC_I2C_DDC1_ENABLE, 0,
 				DC_I2C_DDC1_EDID_DETECT_ENABLE, 0);
@@ -231,7 +228,7 @@ void dal_hw_ddc_init(
 	enum gpio_id id,
 	uint32_t en)
 {
-	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
+	if (en > GPIO_DDC_LINE_MAX) {
 		ASSERT_CRITICAL(false);
 		*hw_ddc = NULL;
 	}

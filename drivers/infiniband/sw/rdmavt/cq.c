@@ -5,6 +5,7 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <rdma/uverbs_ioctl.h>
 #include "cq.h"
 #include "vt.h"
 #include "trace.h"
@@ -149,15 +150,16 @@ static void send_complete(struct work_struct *work)
  * rvt_create_cq - create a completion queue
  * @ibcq: Allocated CQ
  * @attr: creation attributes
- * @udata: user data for libibverbs.so
+ * @attrs: uverbs bundle
  *
  * Called by ib_create_cq() in the generic verbs code.
  *
  * Return: 0 on success
  */
 int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		  struct ib_udata *udata)
+		  struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *ibdev = ibcq->device;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);

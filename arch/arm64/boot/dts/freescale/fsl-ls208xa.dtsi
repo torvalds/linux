@@ -58,7 +58,7 @@
 		#size-cells = <2>;
 		ranges;
 		interrupt-controller;
-		interrupts = <1 9 0x4>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
 		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
@@ -80,7 +80,7 @@
 	};
 
 	thermal-zones {
-		ddr-controller1 {
+		ddr-ctrl1-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -94,7 +94,7 @@
 			};
 		};
 
-		ddr-controller2 {
+		ddr-ctrl2-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 2>;
@@ -108,7 +108,7 @@
 			};
 		};
 
-		ddr-controller3 {
+		ddr-ctrl3-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -122,7 +122,7 @@
 			};
 		};
 
-		core-cluster1 {
+		core-cluster1-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 4>;
@@ -151,7 +151,7 @@
 			};
 		};
 
-		core-cluster2 {
+		core-cluster2-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 5>;
@@ -180,7 +180,7 @@
 			};
 		};
 
-		core-cluster3 {
+		core-cluster3-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 6>;
@@ -209,7 +209,7 @@
 			};
 		};
 
-		core-cluster4 {
+		core-cluster4-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 7>;
@@ -241,10 +241,10 @@
 
 	timer: timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 4>, /* Physical Secure PPI, active-low */
-			     <1 14 4>, /* Physical Non-Secure PPI, active-low */
-			     <1 11 4>, /* Virtual PPI, active-low */
-			     <1 10 4>; /* Hypervisor PPI, active-low */
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>, /* Physical Secure PPI */
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>, /* Physical Non-Secure PPI */
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>, /* Virtual PPI */
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>; /* Hypervisor PPI */
 	};
 
 	psci {
@@ -314,7 +314,7 @@
 		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
-			interrupts = <0 23 0x4>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x30062>;
 			fsl,tmu-calibration =
 					<0x00000000 0x00000026>,
@@ -362,7 +362,7 @@
 			reg = <0x0 0x21c0500 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 32 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial1: serial@21c0600 {
@@ -370,7 +370,7 @@
 			reg = <0x0 0x21c0600 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 32 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial2: serial@21d0500 {
@@ -378,7 +378,7 @@
 			reg = <0x0 0x21d0500 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 33 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial3: serial@21d0600 {
@@ -386,10 +386,10 @@
 			reg = <0x0 0x21d0600 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 33 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		cluster1_core0_watchdog: wdt@c000000 {
+		cluster1_core0_watchdog: watchdog@c000000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc000000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -399,7 +399,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster1_core1_watchdog: wdt@c010000 {
+		cluster1_core1_watchdog: watchdog@c010000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc010000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -409,7 +409,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core0_watchdog: wdt@c100000 {
+		cluster2_core0_watchdog: watchdog@c100000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc100000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -419,7 +419,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core1_watchdog: wdt@c110000 {
+		cluster2_core1_watchdog: watchdog@c110000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc110000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -429,7 +429,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster3_core0_watchdog: wdt@c200000 {
+		cluster3_core0_watchdog: watchdog@c200000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc200000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -439,7 +439,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster3_core1_watchdog: wdt@c210000 {
+		cluster3_core1_watchdog: watchdog@c210000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc210000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -449,7 +449,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster4_core0_watchdog: wdt@c300000 {
+		cluster4_core0_watchdog: watchdog@c300000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc300000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -459,7 +459,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster4_core1_watchdog: wdt@c310000 {
+		cluster4_core1_watchdog: watchdog@c310000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc310000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -883,48 +883,48 @@
 			#iommu-cells = <1>;
 			stream-match-mask = <0x7C00>;
 			dma-coherent;
-			interrupts = <0 13 4>, /* global secure fault */
-				     <0 14 4>, /* combined secure interrupt */
-				     <0 15 4>, /* global non-secure fault */
-				     <0 16 4>, /* combined non-secure interrupt */
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>, /* global secure fault */
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>, /* combined secure interrupt */
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>, /* global non-secure fault */
+				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>, /* combined non-secure interrupt */
 				/* performance counter interrupts 0-7 */
-				     <0 211 4>, <0 212 4>,
-				     <0 213 4>, <0 214 4>,
-				     <0 215 4>, <0 216 4>,
-				     <0 217 4>, <0 218 4>,
+				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>,
 				/* per context interrupt, 64 interrupts */
-				     <0 146 4>, <0 147 4>,
-				     <0 148 4>, <0 149 4>,
-				     <0 150 4>, <0 151 4>,
-				     <0 152 4>, <0 153 4>,
-				     <0 154 4>, <0 155 4>,
-				     <0 156 4>, <0 157 4>,
-				     <0 158 4>, <0 159 4>,
-				     <0 160 4>, <0 161 4>,
-				     <0 162 4>, <0 163 4>,
-				     <0 164 4>, <0 165 4>,
-				     <0 166 4>, <0 167 4>,
-				     <0 168 4>, <0 169 4>,
-				     <0 170 4>, <0 171 4>,
-				     <0 172 4>, <0 173 4>,
-				     <0 174 4>, <0 175 4>,
-				     <0 176 4>, <0 177 4>,
-				     <0 178 4>, <0 179 4>,
-				     <0 180 4>, <0 181 4>,
-				     <0 182 4>, <0 183 4>,
-				     <0 184 4>, <0 185 4>,
-				     <0 186 4>, <0 187 4>,
-				     <0 188 4>, <0 189 4>,
-				     <0 190 4>, <0 191 4>,
-				     <0 192 4>, <0 193 4>,
-				     <0 194 4>, <0 195 4>,
-				     <0 196 4>, <0 197 4>,
-				     <0 198 4>, <0 199 4>,
-				     <0 200 4>, <0 201 4>,
-				     <0 202 4>, <0 203 4>,
-				     <0 204 4>, <0 205 4>,
-				     <0 206 4>, <0 207 4>,
-				     <0 208 4>, <0 209 4>;
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		dspi: spi@2100000 {
@@ -933,18 +933,18 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2100000 0x0 0x10000>;
-			interrupts = <0 26 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 			clock-names = "dspi";
 			spi-num-chipselects = <5>;
 		};
 
-		esdhc: esdhc@2140000 {
+		esdhc: mmc@2140000 {
 			status = "disabled";
 			compatible = "fsl,ls2080a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;
-			interrupts = <0 28 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			voltage-ranges = <1800 1800 3300 3300>;
@@ -956,7 +956,7 @@
 		gpio0: gpio@2300000 {
 			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2300000 0x0 0x10000>;
-			interrupts = <0 36 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			little-endian;
 			#gpio-cells = <2>;
@@ -967,7 +967,7 @@
 		gpio1: gpio@2310000 {
 			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2310000 0x0 0x10000>;
-			interrupts = <0 36 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			little-endian;
 			#gpio-cells = <2>;
@@ -978,7 +978,7 @@
 		gpio2: gpio@2320000 {
 			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2320000 0x0 0x10000>;
-			interrupts = <0 37 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			little-endian;
 			#gpio-cells = <2>;
@@ -989,7 +989,7 @@
 		gpio3: gpio@2330000 {
 			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2330000 0x0 0x10000>;
-			interrupts = <0 37 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			little-endian;
 			#gpio-cells = <2>;
@@ -1003,8 +1003,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2000000 0x0 0x10000>;
-			interrupts = <0 34 0x4>; /* Level high type */
-			clock-names = "i2c";
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 		};
@@ -1015,8 +1015,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2010000 0x0 0x10000>;
-			interrupts = <0 34 0x4>; /* Level high type */
-			clock-names = "i2c";
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 		};
@@ -1027,8 +1027,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2020000 0x0 0x10000>;
-			interrupts = <0 35 0x4>; /* Level high type */
-			clock-names = "i2c";
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 		};
@@ -1039,8 +1039,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2030000 0x0 0x10000>;
-			interrupts = <0 35 0x4>; /* Level high type */
-			clock-names = "i2c";
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 		};
@@ -1048,7 +1048,7 @@
 		ifc: memory-controller@2240000 {
 			compatible = "fsl,ifc";
 			reg = <0x0 0x2240000 0x0 0x20000>;
-			interrupts = <0 21 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			#address-cells = <2>;
 			#size-cells = <1>;
@@ -1077,7 +1077,7 @@
 		pcie1: pcie@3400000 {
 			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
 			reg-names = "regs", "config";
-			interrupts = <0 108 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -1099,7 +1099,7 @@
 		pcie2: pcie@3500000 {
 			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
 			reg-names = "regs", "config";
-			interrupts = <0 113 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -1121,7 +1121,7 @@
 		pcie3: pcie@3600000 {
 			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
 			reg-names = "regs", "config";
-			interrupts = <0 118 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -1143,7 +1143,7 @@
 		pcie4: pcie@3700000 {
 			compatible = "fsl,ls2080a-pcie", "fsl,ls2085a-pcie";
 			reg-names = "regs", "config";
-			interrupts = <0 123 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "intr";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -1166,7 +1166,7 @@
 			status = "disabled";
 			compatible = "fsl,ls2080a-ahci";
 			reg = <0x0 0x3200000 0x0 0x10000>;
-			interrupts = <0 133 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 			dma-coherent;
@@ -1176,7 +1176,7 @@
 			status = "disabled";
 			compatible = "fsl,ls2080a-ahci";
 			reg = <0x0 0x3210000 0x0 0x10000>;
-			interrupts = <0 136 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 			dma-coherent;
@@ -1192,7 +1192,7 @@
 			usb0: usb@3100000 {
 				compatible = "snps,dwc3";
 				reg = <0x0 0x3100000 0x0 0x10000>;
-				interrupts = <0 80 0x4>; /* Level high type */
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 				dr_mode = "host";
 				snps,quirk-frame-length-adjustment = <0x20>;
 				snps,dis_rxdet_inp3_quirk;
@@ -1203,7 +1203,7 @@
 			usb1: usb@3110000 {
 				compatible = "snps,dwc3";
 				reg = <0x0 0x3110000 0x0 0x10000>;
-				interrupts = <0 81 0x4>; /* Level high type */
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 				dr_mode = "host";
 				snps,quirk-frame-length-adjustment = <0x20>;
 				snps,dis_rxdet_inp3_quirk;
@@ -1215,7 +1215,7 @@
 		ccn@4000000 {
 			compatible = "arm,ccn-504";
 			reg = <0x0 0x04000000 0x0 0x01000000>;
-			interrupts = <0 12 4>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		rcpm: power-controller@1e34040 {
@@ -1225,7 +1225,7 @@
 			little-endian;
 		};
 
-		ftm_alarm0: timer@2800000 {
+		ftm_alarm0: rtc@2800000 {
 			compatible = "fsl,ls208xa-ftm-alarm";
 			reg = <0x0 0x2800000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0>;
@@ -1236,14 +1236,14 @@
 	ddr1: memory-controller@1080000 {
 		compatible = "fsl,qoriq-memory-controller";
 		reg = <0x0 0x1080000 0x0 0x1000>;
-		interrupts = <0 17 0x4>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		little-endian;
 	};
 
 	ddr2: memory-controller@1090000 {
 		compatible = "fsl,qoriq-memory-controller";
 		reg = <0x0 0x1090000 0x0 0x1000>;
-		interrupts = <0 18 0x4>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 		little-endian;
 	};
 

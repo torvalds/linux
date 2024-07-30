@@ -622,7 +622,7 @@ static ssize_t uart_write(struct tty_struct *tty, const u8 *buf, size_t count)
 		return -EL3HLT;
 
 	port = uart_port_lock(state, flags);
-	if (WARN_ON_ONCE(!state->port.xmit_buf)) {
+	if (!state->port.xmit_buf) {
 		uart_port_unlock(port, flags);
 		return 0;
 	}
@@ -3422,7 +3422,7 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	if (ret)
 		goto err_unregister_ctrl_dev;
 
-	ret = serial_base_add_preferred_console(drv, port);
+	ret = serial_base_match_and_update_preferred_console(drv, port);
 	if (ret)
 		goto err_unregister_port_dev;
 

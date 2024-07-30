@@ -221,14 +221,14 @@ static int octeon_i2c_check_status(struct octeon_i2c *i2c, int final_read)
 	case STAT_LOST_ARB_B0:
 		return -EAGAIN;
 
-	/* Being addressed as slave, should back off & listen */
+	/* Being addressed as local target, should back off & listen */
 	case STAT_SLAVE_60:
 	case STAT_SLAVE_70:
 	case STAT_GENDATA_ACK:
 	case STAT_GENDATA_NAK:
 		return -EOPNOTSUPP;
 
-	/* Core busy as slave */
+	/* Core busy as local target */
 	case STAT_SLAVE_80:
 	case STAT_SLAVE_88:
 	case STAT_SLAVE_A0:
@@ -608,7 +608,7 @@ err:
 }
 
 /**
- * octeon_i2c_xfer - The driver's master_xfer function
+ * octeon_i2c_xfer - The driver's xfer function
  * @adap: Pointer to the i2c_adapter structure
  * @msgs: Pointer to the messages to be processed
  * @num: Length of the MSGS array

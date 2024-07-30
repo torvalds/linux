@@ -272,7 +272,6 @@ struct wilc {
 	const struct firmware *firmware;
 
 	struct device *dev;
-	bool suspend_event;
 
 	struct workqueue_struct *hif_workqueue;
 	struct wilc_cfg cfg;

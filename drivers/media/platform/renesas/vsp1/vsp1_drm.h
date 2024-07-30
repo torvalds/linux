@@ -20,6 +20,7 @@
 /**
  * struct vsp1_drm_pipeline - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
+ * @partition: the pre-calculated partition used by the pipeline
  * @width: output display width
  * @height: output display height
  * @force_brx_release: when set, release the BRx during the next reconfiguration
@@ -31,6 +32,7 @@
  */
 struct vsp1_drm_pipeline {
 	struct vsp1_pipeline pipe;
+	struct vsp1_partition partition;
 
 	unsigned int width;
 	unsigned int height;

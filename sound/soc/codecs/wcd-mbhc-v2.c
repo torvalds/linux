@@ -50,7 +50,7 @@ struct wcd_mbhc {
 	struct wcd_mbhc_config *cfg;
 	const struct wcd_mbhc_cb *mbhc_cb;
 	const struct wcd_mbhc_intr *intr_ids;
-	struct wcd_mbhc_field *fields;
+	const struct wcd_mbhc_field *fields;
 	/* Delayed work to report long button press */
 	struct delayed_work mbhc_btn_dwork;
 	/* Work to handle plug report */
@@ -1505,7 +1505,7 @@ EXPORT_SYMBOL(wcd_dt_parse_mbhc_data);
 struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 			       const struct wcd_mbhc_cb *mbhc_cb,
 			       const struct wcd_mbhc_intr *intr_ids,
-			       struct wcd_mbhc_field *fields,
+			       const struct wcd_mbhc_field *fields,
 			       bool impedance_det_en)
 {
 	struct device *dev = component->dev;

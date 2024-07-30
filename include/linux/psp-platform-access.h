@@ -6,8 +6,9 @@
 #include <linux/psp.h>
 
 enum psp_platform_access_msg {
-	PSP_CMD_NONE = 0x0,
-	PSP_I2C_REQ_BUS_CMD = 0x64,
+	PSP_CMD_NONE			= 0x0,
+	PSP_CMD_HSTI_QUERY		= 0x14,
+	PSP_I2C_REQ_BUS_CMD		= 0x64,
 	PSP_DYNAMIC_BOOST_GET_NONCE,
 	PSP_DYNAMIC_BOOST_SET_UID,
 	PSP_DYNAMIC_BOOST_GET_PARAMETER,

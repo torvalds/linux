@@ -391,4 +391,6 @@ void ath12k_acpi_stop(struct ath12k_base *ab)
 	acpi_remove_notify_handler(ACPI_HANDLE(ab->dev),
 				   ACPI_DEVICE_NOTIFY,
 				   ath12k_acpi_dsm_notify);
+
+	memset(&ab->acpi, 0, sizeof(ab->acpi));
 }

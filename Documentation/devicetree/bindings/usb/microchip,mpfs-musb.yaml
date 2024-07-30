@@ -34,6 +34,13 @@ properties:
   clocks:
     maxItems: 1
 
+  microchip,ext-vbus-drv:
+    description:
+      Some ULPI USB PHYs do not support an internal VBUS supply and driving
+      the CPEN pin requires the configuration of the UPLI_USE__EXTVBUS
+      bit in ULPI_BUSCONTROL.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 required:
   - compatible
   - reg

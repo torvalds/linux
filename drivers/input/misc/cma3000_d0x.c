@@ -292,7 +292,7 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 		goto err_out;
 	}
 
-	data = kzalloc(sizeof(struct cma3000_accl_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!data || !input_dev) {
 		error = -ENOMEM;

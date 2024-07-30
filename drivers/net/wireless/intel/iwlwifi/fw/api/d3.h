@@ -42,7 +42,7 @@ struct iwl_d3_manager_config {
 /* TODO: OFFLOADS_QUERY_API_S_VER_1 */
 
 /**
- * enum iwl_d3_proto_offloads - enabled protocol offloads
+ * enum iwl_proto_offloads - enabled protocol offloads
  * @IWL_D3_PROTO_OFFLOAD_ARP: ARP data is enabled
  * @IWL_D3_PROTO_OFFLOAD_NS: NS (Neighbor Solicitation) is enabled
  * @IWL_D3_PROTO_IPV4_VALID: IPv4 data is valid
@@ -195,7 +195,7 @@ struct iwl_wowlan_pattern_v1 {
 #define IWL_WOWLAN_MAX_PATTERNS	20
 
 /**
- * struct iwl_wowlan_patterns_cmd - WoWLAN wakeup patterns
+ * struct iwl_wowlan_patterns_cmd_v1 - WoWLAN wakeup patterns
  */
 struct iwl_wowlan_patterns_cmd_v1 {
 	/**

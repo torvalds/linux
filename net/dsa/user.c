@@ -1729,7 +1729,7 @@ static int dsa_user_set_rxnfc(struct net_device *dev,
 }
 
 static int dsa_user_get_ts_info(struct net_device *dev,
-				struct ethtool_ts_info *ts)
+				struct kernel_ethtool_ts_info *ts)
 {
 	struct dsa_user_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;

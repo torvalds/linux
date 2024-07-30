@@ -18,6 +18,8 @@ struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_plane;
+struct skl_pipe_wm;
+struct skl_wm_level;
 
 u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *i915);
 
@@ -29,11 +31,6 @@ bool intel_has_sagv(struct drm_i915_private *i915);
 
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *i915,
 			    const struct skl_ddb_entry *entry);
-
-void skl_write_plane_wm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state);
-void skl_write_cursor_wm(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state);
 
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
@@ -50,6 +47,12 @@ void skl_watermark_debugfs_register(struct drm_i915_private *i915);
 unsigned int skl_watermark_max_latency(struct drm_i915_private *i915,
 				       int initial_wm_level);
 void skl_wm_init(struct drm_i915_private *i915);
+
+const struct skl_wm_level *skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id,
+					      int level);
+const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id);
 
 struct intel_dbuf_state {
 	struct intel_global_state base;

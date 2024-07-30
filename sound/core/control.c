@@ -604,6 +604,7 @@ static inline int snd_ctl_remove_locked(struct snd_card *card,
  *
  * Removes the control from the card and then releases the instance.
  * You don't need to call snd_ctl_free_one().
+ * Passing NULL to @kcontrol argument is allowed as noop.
  *
  * Return: 0 if successful, or a negative error code on failure.
  *
@@ -611,6 +612,8 @@ static inline int snd_ctl_remove_locked(struct snd_card *card,
  */
 int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
+	if (!kcontrol)
+		return 0;
 	guard(rwsem_write)(&card->controls_rwsem);
 	return snd_ctl_remove_locked(card, kcontrol);
 }
@@ -1480,11 +1483,15 @@ static int snd_ctl_elem_user_get(struct snd_kcontrol *kcontrol,
 static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	int change;
+	int err, change;
 	struct user_element *ue = kcontrol->private_data;
 	unsigned int size = ue->elem_data_size;
 	char *dst = ue->elem_data +
 			snd_ctl_get_ioff(kcontrol, &ucontrol->id) * size;
+
+	err = sanity_check_input_values(ue->card, ucontrol, &ue->info, false);
+	if (err < 0)
+		return err;
 
 	change = memcmp(&ucontrol->value, dst, size) != 0;
 	if (change)

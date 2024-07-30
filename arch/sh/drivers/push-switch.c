@@ -131,4 +131,5 @@ module_exit(switch_exit);
 
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt");
+MODULE_DESCRIPTION("Generic push-switch framework");
 MODULE_LICENSE("GPL v2");
