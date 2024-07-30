@@ -821,10 +821,7 @@ err_linecards_event_ops_register:
 err_thermal_gearboxes_init:
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
 err_thermal_modules_init:
-	if (thermal->tzdev) {
-		thermal_zone_device_unregister(thermal->tzdev);
-		thermal->tzdev = NULL;
-	}
+	thermal_zone_device_unregister(thermal->tzdev);
 err_thermal_zone_device_register:
 err_thermal_cooling_device_register:
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
@@ -845,10 +842,7 @@ void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 					     thermal);
 	mlxsw_thermal_gearboxes_fini(thermal, &thermal->line_cards[0]);
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
-	if (thermal->tzdev) {
-		thermal_zone_device_unregister(thermal->tzdev);
-		thermal->tzdev = NULL;
-	}
+	thermal_zone_device_unregister(thermal->tzdev);
 
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
 		thermal_cooling_device_unregister(thermal->cdevs[i].cdev);
