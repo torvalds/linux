@@ -9,6 +9,7 @@ nouveau_.*
 # Skip intel specific tests
 gem_.*
 i915_.*
+tools_test.*
 
 # Panfrost is not a KMS driver, so skip the KMS tests
 kms_.*

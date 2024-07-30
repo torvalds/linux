@@ -218,3 +218,4 @@ nouveau_.*
 gem_.*
 i915_.*
 xe_.*
+tools_test.*

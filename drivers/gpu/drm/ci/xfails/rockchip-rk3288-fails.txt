@@ -5,4 +5,3 @@ dumb_buffer@map-invalid-size,Crash
 dumb_buffer@map-uaf,Crash
 dumb_buffer@map-valid,Crash
 panfrost/panfrost_prime@gem-prime-import,Crash
-tools_test@tools_test,Crash
