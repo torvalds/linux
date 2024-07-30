@@ -15934,6 +15934,7 @@ F:	include/linux/in.h
 F:	include/linux/indirect_call_wrapper.h
 F:	include/linux/net.h
 F:	include/linux/netdevice.h
+F:	include/linux/skbuff.h
 F:	include/net/
 F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
