@@ -312,6 +312,7 @@ struct hid_data {
 	int width;
 	int height;
 	int id;
+	int ring_value;
 	int cc_report;
 	int cc_index;
 	int cc_value_index;

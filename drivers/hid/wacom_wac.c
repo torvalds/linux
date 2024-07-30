@@ -2046,10 +2046,12 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRING:
-		if (field->flags & HID_MAIN_ITEM_RELATIVE)
-			wacom_map_usage(input, usage, field, EV_REL, REL_WHEEL, 0);
-		else
+		if (field->flags & HID_MAIN_ITEM_RELATIVE) {
+			wacom_map_usage(input, usage, field, EV_REL, REL_WHEEL_HI_RES, 0);
+			set_bit(REL_WHEEL, input->relbit);
+		} else {
 			wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		}
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
@@ -2177,7 +2179,21 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			 * userspace treats positive REL_WHEEL as a
 			 * scroll *up*!
 			 */
-			value = -value;
+			int hires_value = -value * 120 / usage->resolution_multiplier;
+			int *ring_value = &wacom_wac->hid_data.ring_value;
+
+			value = hires_value;
+			*ring_value += hires_value;
+
+			/* Emulate a legacy wheel click for every 120
+			 * units of hi-res travel.
+			 */
+			if (*ring_value >= 120 || *ring_value <= -120) {
+				int clicks = *ring_value / 120;
+
+				input_event(input, usage->type, REL_WHEEL, clicks);
+				*ring_value -= clicks * 120;
+			}
 		}
 		else {
 			value = wacom_offset_rotation(input, usage, value, 1, 4);
