@@ -1173,12 +1173,30 @@ unlock_out:
 	return queue_addr;
 }
 
+/* assume queue acquired  */
+static int kgd_gfx_v9_hqd_dequeue_wait(struct amdgpu_device *adev, uint32_t inst,
+				       unsigned int utimeout)
+{
+	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
+
+	while (true) {
+		uint32_t temp = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
+
+		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
+			return 0;
+
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+
+		usleep_range(500, 1000);
+	}
+}
+
 uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
 			      uint32_t pipe_id, uint32_t queue_id,
 			      uint32_t inst, unsigned int utimeout)
 {
-	uint32_t low, high, temp;
-	unsigned long end_jiffies;
+	uint32_t low, high, pipe_reset_data = 0;
 	uint64_t queue_addr = 0;
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
@@ -1202,25 +1220,23 @@ uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
 	/* assume previous dequeue request issued will take affect after reset */
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSPI_COMPUTE_QUEUE_RESET, 0x1);
 
-	end_jiffies = (utimeout * HZ / 1000) + jiffies;
-	while (true) {
-		temp = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
+	if (!kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		goto unlock_out;
 
-		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
-			break;
+	pr_debug("Attempting pipe reset on XCC %i pipe id %i\n", inst, pipe_id);
 
-		if (time_after(jiffies, end_jiffies)) {
-			queue_addr = 0;
-			break;
-		}
+	pipe_reset_data = REG_SET_FIELD(pipe_reset_data, CP_MEC_CNTL, MEC_ME1_PIPE0_RESET, 1);
+	pipe_reset_data = pipe_reset_data << pipe_id;
 
-		usleep_range(500, 1000);
-	}
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, pipe_reset_data);
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, 0);
 
-	pr_debug("queue reset on XCC %i pipe id %i queue id %i %s\n",
-		 inst, pipe_id, queue_id, !!queue_addr ? "succeeded!" : "failed!");
+	if (kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		queue_addr = 0;
 
 unlock_out:
+	pr_debug("queue reset on XCC %i pipe id %i queue id %i %s\n",
+		 inst, pipe_id, queue_id, !!queue_addr ? "succeeded!" : "failed!");
 	amdgpu_gfx_rlc_exit_safe_mode(adev, inst);
 	kgd_gfx_v9_release_queue(adev, inst);
 
