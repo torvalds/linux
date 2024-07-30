@@ -906,7 +906,7 @@ static int pmu_events_table__find_event_pmu(const struct pmu_events_table *table
   do_call:
                 return fn ? fn(&pe, table, data) : 0;
         }
-        return -1000;
+        return PMU_EVENTS__NOT_FOUND;
 }
 
 int pmu_events_table__for_each_event(const struct pmu_events_table *table,
@@ -944,10 +944,10 @@ int pmu_events_table__find_event(const struct pmu_events_table *table,
                         continue;
 
                 ret = pmu_events_table__find_event_pmu(table, table_pmu, name, fn, data);
-                if (ret != -1000)
+                if (ret != PMU_EVENTS__NOT_FOUND)
                         return ret;
         }
-        return -1000;
+        return PMU_EVENTS__NOT_FOUND;
 }
 
 size_t pmu_events_table__num_events(const struct pmu_events_table *table,
