@@ -2250,7 +2250,7 @@ int smcr_buf_reg_lgr(struct smc_link *lnk)
 }
 
 static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
-						bool is_rmb, int bufsize)
+						int bufsize)
 {
 	struct smc_buf_desc *buf_desc;
 
@@ -2398,7 +2398,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		if (is_smcd)
 			buf_desc = smcd_new_buf_create(lgr, is_rmb, bufsize);
 		else
-			buf_desc = smcr_new_buf_create(lgr, is_rmb, bufsize);
+			buf_desc = smcr_new_buf_create(lgr, bufsize);
 
 		if (PTR_ERR(buf_desc) == -ENOMEM)
 			break;
