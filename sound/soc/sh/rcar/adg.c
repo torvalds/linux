@@ -262,7 +262,7 @@ int rsnd_adg_set_src_timesel_gen2(struct rsnd_mod *src_mod,
 	int id = rsnd_mod_id(src_mod);
 	int shift = (id % 2) ? 16 : 0;
 
-	rsnd_mod_confirm_src(src_mod);
+	rsnd_mod_make_sure(src_mod, RSND_MOD_SRC);
 
 	rsnd_adg_get_timesel_ratio(priv, io,
 				   in_rate, out_rate,
@@ -291,7 +291,7 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 	int shift = (id % 4) * 8;
 	u32 mask = 0xFF << shift;
 
-	rsnd_mod_confirm_ssi(ssi_mod);
+	rsnd_mod_make_sure(ssi_mod, RSND_MOD_SSI);
 
 	val = val << shift;
 
