@@ -468,8 +468,6 @@ mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
 {
 	mlxsw_thermal_module_tz_fini(module_tz->tzdev);
-	module_tz->tzdev = NULL;
-	module_tz->parent = NULL;
 }
 
 static int
