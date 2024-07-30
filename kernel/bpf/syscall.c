@@ -4901,33 +4901,25 @@ static int bpf_link_get_info_by_fd(struct file *file,
 static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
 				  union bpf_attr __user *uattr)
 {
-	int ufd = attr->info.bpf_fd;
-	struct fd f;
-	int err;
-
 	if (CHECK_ATTR(BPF_OBJ_GET_INFO_BY_FD))
 		return -EINVAL;
 
-	f = fdget(ufd);
-	if (!fd_file(f))
+	CLASS(fd, f)(attr->info.bpf_fd);
+	if (fd_empty(f))
 		return -EBADFD;
 
 	if (fd_file(f)->f_op == &bpf_prog_fops)
-		err = bpf_prog_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
+		return bpf_prog_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
 					      uattr);
 	else if (fd_file(f)->f_op == &bpf_map_fops)
-		err = bpf_map_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
+		return bpf_map_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
 					     uattr);
 	else if (fd_file(f)->f_op == &btf_fops)
-		err = bpf_btf_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr, uattr);
+		return bpf_btf_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr, uattr);
 	else if (fd_file(f)->f_op == &bpf_link_fops || fd_file(f)->f_op == &bpf_link_fops_poll)
-		err = bpf_link_get_info_by_fd(fd_file(f), fd_file(f)->private_data,
+		return bpf_link_get_info_by_fd(fd_file(f), fd_file(f)->private_data,
 					      attr, uattr);
-	else
-		err = -EINVAL;
-
-	fdput(f);
-	return err;
+	return -EINVAL;
 }
 
 #define BPF_BTF_LOAD_LAST_FIELD btf_token_fd
