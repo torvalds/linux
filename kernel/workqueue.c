@@ -897,7 +897,7 @@ static struct worker_pool *get_work_pool(struct work_struct *work)
 
 static unsigned long shift_and_mask(unsigned long v, u32 shift, u32 bits)
 {
-	return (v >> shift) & ((1 << bits) - 1);
+	return (v >> shift) & ((1U << bits) - 1);
 }
 
 static void work_offqd_unpack(struct work_offq_data *offqd, unsigned long data)
