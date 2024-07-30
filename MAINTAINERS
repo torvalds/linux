@@ -8541,6 +8541,7 @@ M:	Akinobu Mita <akinobu.mita@gmail.com>
 S:	Supported
 F:	Documentation/fault-injection/
 F:	lib/fault-inject.c
+F:	tools/testing/fault-injection/
 
 FBTFT Framebuffer drivers
 L:	dri-devel@lists.freedesktop.org
