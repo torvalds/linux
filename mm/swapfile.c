@@ -3363,7 +3363,7 @@ void si_swapinfo(struct sysinfo *val)
 }
 
 /*
- * Verify that a swap entry is valid and increment its swap map count.
+ * Verify that nr swap entries are valid and increment their swap map counts.
  *
  * Returns error code in following case.
  * - success -> 0
@@ -3373,60 +3373,73 @@ void si_swapinfo(struct sysinfo *val)
  * - swap-cache reference is requested but the entry is not used. -> ENOENT
  * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
  */
-static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+static int __swap_duplicate(swp_entry_t entry, unsigned char usage, int nr)
 {
 	struct swap_info_struct *p;
 	struct swap_cluster_info *ci;
 	unsigned long offset;
 	unsigned char count;
 	unsigned char has_cache;
-	int err;
+	int err, i;
 
 	p = swp_swap_info(entry);
 
 	offset = swp_offset(entry);
+	VM_WARN_ON(nr > SWAPFILE_CLUSTER - offset % SWAPFILE_CLUSTER);
+	VM_WARN_ON(usage == 1 && nr > 1);
 	ci = lock_cluster_or_swap_info(p, offset);
 
-	count = p->swap_map[offset];
+	err = 0;
+	for (i = 0; i < nr; i++) {
+		count = p->swap_map[offset + i];
 
-	/*
-	 * swapin_readahead() doesn't check if a swap entry is valid, so the
-	 * swap entry could be SWAP_MAP_BAD. Check here with lock held.
-	 */
-	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
-		err = -ENOENT;
-		goto unlock_out;
+		/*
+		 * swapin_readahead() doesn't check if a swap entry is valid, so the
+		 * swap entry could be SWAP_MAP_BAD. Check here with lock held.
+		 */
+		if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
+			err = -ENOENT;
+			goto unlock_out;
+		}
+
+		has_cache = count & SWAP_HAS_CACHE;
+		count &= ~SWAP_HAS_CACHE;
+
+		if (!count && !has_cache) {
+			err = -ENOENT;
+		} else if (usage == SWAP_HAS_CACHE) {
+			if (has_cache)
+				err = -EEXIST;
+		} else if ((count & ~COUNT_CONTINUED) > SWAP_MAP_MAX) {
+			err = -EINVAL;
+		}
+
+		if (err)
+			goto unlock_out;
 	}
 
-	has_cache = count & SWAP_HAS_CACHE;
-	count &= ~SWAP_HAS_CACHE;
-	err = 0;
+	for (i = 0; i < nr; i++) {
+		count = p->swap_map[offset + i];
+		has_cache = count & SWAP_HAS_CACHE;
+		count &= ~SWAP_HAS_CACHE;
 
-	if (usage == SWAP_HAS_CACHE) {
-
-		/* set SWAP_HAS_CACHE if there is no cache and entry is used */
-		if (!has_cache && count)
+		if (usage == SWAP_HAS_CACHE)
 			has_cache = SWAP_HAS_CACHE;
-		else if (has_cache)		/* someone else added cache */
-			err = -EEXIST;
-		else				/* no users remaining */
-			err = -ENOENT;
-
-	} else if (count || has_cache) {
-
-		if ((count & ~COUNT_CONTINUED) < SWAP_MAP_MAX)
+		else if ((count & ~COUNT_CONTINUED) < SWAP_MAP_MAX)
 			count += usage;
-		else if ((count & ~COUNT_CONTINUED) > SWAP_MAP_MAX)
-			err = -EINVAL;
-		else if (swap_count_continued(p, offset, count))
+		else if (swap_count_continued(p, offset + i, count))
 			count = COUNT_CONTINUED;
-		else
+		else {
+			/*
+			 * Don't need to rollback changes, because if
+			 * usage == 1, there must be nr == 1.
+			 */
 			err = -ENOMEM;
-	} else
-		err = -ENOENT;			/* unused swap entry */
+			goto unlock_out;
+		}
 
-	if (!err)
-		WRITE_ONCE(p->swap_map[offset], count | has_cache);
+		WRITE_ONCE(p->swap_map[offset + i], count | has_cache);
+	}
 
 unlock_out:
 	unlock_cluster_or_swap_info(p, ci);
@@ -3439,7 +3452,7 @@ unlock_out:
  */
 void swap_shmem_alloc(swp_entry_t entry)
 {
-	__swap_duplicate(entry, SWAP_MAP_SHMEM);
+	__swap_duplicate(entry, SWAP_MAP_SHMEM, 1);
 }
 
 /*
@@ -3453,29 +3466,29 @@ int swap_duplicate(swp_entry_t entry)
 {
 	int err = 0;
 
-	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+	while (!err && __swap_duplicate(entry, 1, 1) == -ENOMEM)
 		err = add_swap_count_continuation(entry, GFP_ATOMIC);
 	return err;
 }
 
 /*
- * @entry: swap entry for which we allocate swap cache.
+ * @entry: first swap entry from which we allocate nr swap cache.
  *
- * Called when allocating swap cache for existing swap entry,
+ * Called when allocating swap cache for existing swap entries,
  * This can return error codes. Returns 0 at success.
  * -EEXIST means there is a swap cache.
  * Note: return code is different from swap_duplicate().
  */
-int swapcache_prepare(swp_entry_t entry)
+int swapcache_prepare(swp_entry_t entry, int nr)
 {
-	return __swap_duplicate(entry, SWAP_HAS_CACHE);
+	return __swap_duplicate(entry, SWAP_HAS_CACHE, nr);
 }
 
-void swapcache_clear(struct swap_info_struct *si, swp_entry_t entry)
+void swapcache_clear(struct swap_info_struct *si, swp_entry_t entry, int nr)
 {
 	unsigned long offset = swp_offset(entry);
 
-	cluster_swap_free_nr(si, offset, 1, SWAP_HAS_CACHE);
+	cluster_swap_free_nr(si, offset, nr, SWAP_HAS_CACHE);
 }
 
 struct swap_info_struct *swp_swap_info(swp_entry_t entry)
