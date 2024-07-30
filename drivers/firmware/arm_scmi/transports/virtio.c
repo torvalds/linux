@@ -790,7 +790,7 @@ static const struct scmi_transport_ops scmi_virtio_ops = {
 	.poll_done = virtio_poll_done,
 };
 
-static const struct scmi_desc scmi_virtio_desc = {
+static struct scmi_desc scmi_virtio_desc = {
 	.ops = &scmi_virtio_ops,
 	/* for non-realtime virtio devices */
 	.max_rx_timeout_ms = VIRTIO_MAX_RX_TIMEOUT_MS,

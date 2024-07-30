@@ -405,7 +405,7 @@ struct scmi_transport_core_operations {
  */
 struct scmi_transport {
 	struct device *supplier;
-	const struct scmi_desc *desc;
+	struct scmi_desc *desc;
 	struct scmi_transport_core_operations **core_ops;
 };
 

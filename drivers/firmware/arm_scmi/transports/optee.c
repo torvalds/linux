@@ -510,7 +510,7 @@ static int scmi_optee_ctx_match(struct tee_ioctl_version_data *ver, const void *
 	return ver->impl_id == TEE_IMPL_ID_OPTEE;
 }
 
-static const struct scmi_desc scmi_optee_desc = {
+static struct scmi_desc scmi_optee_desc = {
 	.ops = &scmi_optee_ops,
 	.max_rx_timeout_ms = 30,
 	.max_msg = 20,
