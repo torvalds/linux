@@ -27,7 +27,10 @@ pub trait ForeignOwnable: Sized {
 
     /// Converts a Rust-owned object to a foreign-owned one.
     ///
-    /// The foreign representation is a pointer to void.
+    /// The foreign representation is a pointer to void. There are no guarantees for this pointer.
+    /// For example, it might be invalid, dangling or pointing to uninitialized memory. Using it in
+    /// any way except for [`ForeignOwnable::from_foreign`], [`ForeignOwnable::borrow`],
+    /// [`ForeignOwnable::try_from_foreign`] can result in undefined behavior.
     fn into_foreign(self) -> *const core::ffi::c_void;
 
     /// Borrows a foreign-owned object.
