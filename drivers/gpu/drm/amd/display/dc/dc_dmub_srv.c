@@ -1285,7 +1285,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		union dmub_shared_state_ips_driver_signals new_signals;
 
 		DC_LOG_IPS(
-			"%s wait idle (ips1_commit=%d ips2_commit=%d)",
+			"%s wait idle (ips1_commit=%u ips2_commit=%u)",
 			__func__,
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit);
@@ -1331,7 +1331,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	}
 
 	DC_LOG_IPS(
-		"%s send allow_idle=%d (ips1_commit=%d ips2_commit=%d)",
+		"%s send allow_idle=%d (ips1_commit=%u ips2_commit=%u)",
 		__func__,
 		allow_idle,
 		ips_fw->signals.bits.ips1_commit,
@@ -1374,7 +1374,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 
 		DC_LOG_IPS(
-			"%s (allow ips1=%d ips2=%d) (commit ips1=%d ips2=%d) (count rcg=%d ips1=%d ips2=%d)",
+			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u) (count rcg=%u ips1=%u ips2=%u)",
 			__func__,
 			ips_driver->signals.bits.allow_ips1,
 			ips_driver->signals.bits.allow_ips2,
@@ -1393,7 +1393,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		    (!dc->debug.optimize_ips_handshake ||
 		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
 			DC_LOG_IPS(
-				"wait IPS2 eval (ips1_commit=%d ips2_commit=%d)",
+				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1402,7 +1402,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 			if (ips_fw->signals.bits.ips2_commit) {
 				DC_LOG_IPS(
-					"exit IPS2 #1 (ips1_commit=%d ips2_commit=%d)",
+					"exit IPS2 #1 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1410,7 +1410,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
 				DC_LOG_IPS(
-					"wait IPS2 entry delay (ips1_commit=%d ips2_commit=%d)",
+					"wait IPS2 entry delay (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1418,14 +1418,14 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				udelay(dc->debug.ips2_entry_delay_us);
 
 				DC_LOG_IPS(
-					"exit IPS2 #2 (ips1_commit=%d ips2_commit=%d)",
+					"exit IPS2 #2 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
 				DC_LOG_IPS(
-					"wait IPS2 commit clear (ips1_commit=%d ips2_commit=%d)",
+					"wait IPS2 commit clear (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1433,7 +1433,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					udelay(1);
 
 				DC_LOG_IPS(
-					"wait hw_pwr_up (ips1_commit=%d ips2_commit=%d)",
+					"wait hw_pwr_up (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1441,7 +1441,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					ASSERT(0);
 
 				DC_LOG_IPS(
-					"resync inbox1 (ips1_commit=%d ips2_commit=%d)",
+					"resync inbox1 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1452,7 +1452,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv_notify_idle(dc, false);
 		if (prev_driver_signals.bits.allow_ips1) {
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear (ips1_commit=%d ips2_commit=%d)",
+				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1460,7 +1460,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				udelay(1);
 
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear done (ips1_commit=%d ips2_commit=%d)",
+				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 		}
@@ -1469,7 +1469,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
 
-	DC_LOG_IPS("%s exit (count rcg=%d ips1=%d ips2=%d)",
+	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u)",
 		__func__,
 		rcg_exit_count,
 		ips1_exit_count,
