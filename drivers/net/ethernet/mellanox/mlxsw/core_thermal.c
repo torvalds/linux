@@ -505,8 +505,6 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 
 	for (i = 0; i < area->tz_module_num; i++) {
 		module_tz = &area->tz_module_arr[i];
-		if (!module_tz->parent)
-			continue;
 		err = mlxsw_thermal_module_tz_init(module_tz);
 		if (err)
 			goto err_thermal_module_tz_init;
