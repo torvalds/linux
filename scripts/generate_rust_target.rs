@@ -20,12 +20,28 @@ enum Value {
     Boolean(bool),
     Number(i32),
     String(String),
+    Array(Vec<Value>),
     Object(Object),
 }
 
 type Object = Vec<(String, Value)>;
 
-/// Minimal "almost JSON" generator (e.g. no `null`s, no arrays, no escaping),
+fn comma_sep<T>(
+    seq: &[T],
+    formatter: &mut Formatter<'_>,
+    f: impl Fn(&mut Formatter<'_>, &T) -> Result,
+) -> Result {
+    if let [ref rest @ .., ref last] = seq[..] {
+        for v in rest {
+            f(formatter, v)?;
+            formatter.write_str(",")?;
+        }
+        f(formatter, last)?;
+    }
+    Ok(())
+}
+
+/// Minimal "almost JSON" generator (e.g. no `null`s, no escaping),
 /// enough for this purpose.
 impl Display for Value {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
@@ -33,17 +49,55 @@ impl Display for Value {
             Value::Boolean(boolean) => write!(formatter, "{}", boolean),
             Value::Number(number) => write!(formatter, "{}", number),
             Value::String(string) => write!(formatter, "\"{}\"", string),
+            Value::Array(values) => {
+                formatter.write_str("[")?;
+                comma_sep(&values[..], formatter, |formatter, v| v.fmt(formatter))?;
+                formatter.write_str("]")
+            }
             Value::Object(object) => {
                 formatter.write_str("{")?;
-                if let [ref rest @ .., ref last] = object[..] {
-                    for (key, value) in rest {
-                        write!(formatter, "\"{}\": {},", key, value)?;
-                    }
-                    write!(formatter, "\"{}\": {}", last.0, last.1)?;
-                }
+                comma_sep(&object[..], formatter, |formatter, v| {
+                    write!(formatter, "\"{}\": {}", v.0, v.1)
+                })?;
                 formatter.write_str("}")
             }
         }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(value: i32) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<Object> for Value {
+    fn from(object: Object) -> Self {
+        Self::Object(object)
+    }
+}
+
+impl<T: Into<Value>, const N: usize> From<[T; N]> for Value {
+    fn from(i: [T; N]) -> Self {
+        Self::Array(i.into_iter().map(|v| v.into()).collect())
     }
 }
 
@@ -53,39 +107,9 @@ impl TargetSpec {
     fn new() -> TargetSpec {
         TargetSpec(Vec::new())
     }
-}
 
-trait Push<T> {
-    fn push(&mut self, key: &str, value: T);
-}
-
-impl Push<bool> for TargetSpec {
-    fn push(&mut self, key: &str, value: bool) {
-        self.0.push((key.to_string(), Value::Boolean(value)));
-    }
-}
-
-impl Push<i32> for TargetSpec {
-    fn push(&mut self, key: &str, value: i32) {
-        self.0.push((key.to_string(), Value::Number(value)));
-    }
-}
-
-impl Push<String> for TargetSpec {
-    fn push(&mut self, key: &str, value: String) {
-        self.0.push((key.to_string(), Value::String(value)));
-    }
-}
-
-impl Push<&str> for TargetSpec {
-    fn push(&mut self, key: &str, value: &str) {
-        self.push(key, value.to_string());
-    }
-}
-
-impl Push<Object> for TargetSpec {
-    fn push(&mut self, key: &str, value: Object) {
-        self.0.push((key.to_string(), Value::Object(value)));
+    fn push(&mut self, key: &str, value: impl Into<Value>) {
+        self.0.push((key.to_string(), value.into()));
     }
 }
 
