@@ -1068,7 +1068,7 @@ EXPORT_SYMBOL(i2c_find_device_by_fwnode);
 static const struct i2c_device_id dummy_id[] = {
 	{ "dummy", },
 	{ "smbus_host_notify", },
-	{ },
+	{ }
 };
 
 static int dummy_probe(struct i2c_client *client)
