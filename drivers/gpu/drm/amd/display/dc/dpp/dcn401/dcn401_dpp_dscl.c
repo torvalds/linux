@@ -971,7 +971,6 @@ static void dpp401_dscl_set_isharp_filter(
  *
  * @dpp_base: High level DPP struct
  * @scl_data: scalaer_data info
- * @bs_coeffs_updated: coeffs update flag
  *
  * This is the primary function to program isharp
  *
