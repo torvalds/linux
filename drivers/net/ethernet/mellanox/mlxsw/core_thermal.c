@@ -500,10 +500,8 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	if (!area->tz_module_arr)
 		return -ENOMEM;
 
-	for (i = 0; i < area->tz_module_num; i++)
-		mlxsw_thermal_module_init(dev, core, thermal, area, i);
-
 	for (i = 0; i < area->tz_module_num; i++) {
+		mlxsw_thermal_module_init(dev, core, thermal, area, i);
 		module_tz = &area->tz_module_arr[i];
 		err = mlxsw_thermal_module_tz_init(module_tz);
 		if (err)
