@@ -18872,7 +18872,7 @@ static bool bpf_map_is_cgroup_storage(struct bpf_map *map)
  */
 static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd, bool *reused)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct bpf_map *map;
 	int i;
 
@@ -18886,7 +18886,6 @@ static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd, bool *reus
 	for (i = 0; i < env->used_map_cnt; i++) {
 		if (env->used_maps[i] == map) {
 			*reused = true;
-			fdput(f);
 			return i;
 		}
 	}
@@ -18894,7 +18893,6 @@ static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd, bool *reus
 	if (env->used_map_cnt >= MAX_USED_MAPS) {
 		verbose(env, "The total number of maps per program has reached the limit of %u\n",
 			MAX_USED_MAPS);
-		fdput(f);
 		return -E2BIG;
 	}
 
@@ -18911,10 +18909,7 @@ static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd, bool *reus
 	*reused = false;
 	env->used_maps[env->used_map_cnt++] = map;
 
-	fdput(f);
-
 	return env->used_map_cnt - 1;
-
 }
 
 /* find and rewrite pseudo imm in ld_imm64 instructions:
