@@ -1265,7 +1265,7 @@ EXPORT_SYMBOL(vme_unregister_error_handler);
 
 void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 {
-	void (*call)(int, int, void *);
+	void (*call)(int level, int statid, void *priv_data);
 	void *priv_data;
 
 	call = bridge->irq[level - 1].callback[statid].func;
