@@ -2280,7 +2280,7 @@ static int f2fs_ioc_abort_atomic_write(struct file *filp)
 }
 
 int f2fs_do_shutdown(struct f2fs_sb_info *sbi, unsigned int flag,
-							bool readonly)
+						bool readonly, bool need_lock)
 {
 	struct super_block *sb = sbi->sb;
 	int ret = 0;
@@ -2327,11 +2327,18 @@ int f2fs_do_shutdown(struct f2fs_sb_info *sbi, unsigned int flag,
 	if (readonly)
 		goto out;
 
+	/* grab sb->s_umount to avoid racing w/ remount() */
+	if (need_lock)
+		down_read(&sbi->sb->s_umount);
+
 	f2fs_stop_gc_thread(sbi);
 	f2fs_stop_discard_thread(sbi);
 
 	f2fs_drop_discard_cmd(sbi);
 	clear_opt(sbi, DISCARD);
+
+	if (need_lock)
+		up_read(&sbi->sb->s_umount);
 
 	f2fs_update_time(sbi, REQ_TIME);
 out:
@@ -2369,7 +2376,7 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		}
 	}
 
-	ret = f2fs_do_shutdown(sbi, in, readonly);
+	ret = f2fs_do_shutdown(sbi, in, readonly, true);
 
 	if (need_drop)
 		mnt_drop_write_file(filp);
