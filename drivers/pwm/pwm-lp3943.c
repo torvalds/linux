@@ -218,7 +218,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	struct lp3943_platform_data *pdata;
 	struct lp3943_pwm_map *pwm_map;
 	enum lp3943_pwm_output *output;
-	int i, err, proplen, count = 0;
+	int i, err, count = 0;
 	u32 num_outputs;
 
 	if (!node)
@@ -234,11 +234,8 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	 */
 
 	for (i = 0; i < LP3943_NUM_PWMS; i++) {
-		if (!of_get_property(node, name[i], &proplen))
-			continue;
-
-		num_outputs = proplen / sizeof(u32);
-		if (num_outputs == 0)
+		num_outputs = of_property_count_u32_elems(node, name[i]);
+		if (num_outputs <= 0)
 			continue;
 
 		output = devm_kcalloc(dev, num_outputs, sizeof(*output),
