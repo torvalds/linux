@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/dmi.h>
-#include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
@@ -1685,7 +1684,7 @@ static int acer_backlight_init(struct device *dev)
 
 	acer_backlight_device = bd;
 
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	bd->props.brightness = read_brightness(bd);
 	backlight_update_status(bd);
 	return 0;
