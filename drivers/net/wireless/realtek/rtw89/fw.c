@@ -683,6 +683,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 30, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 11, 0, MACID_PAUSE_SLEEP),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 35, 0, SCAN_OFFLOAD),
+	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 21, 0, SCAN_OFFLOAD_BE_V0),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 12, 0, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 22, 0, WOW_REASON_V1),
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 31, 0, RFK_PRE_NOTIFY_V0),
@@ -4907,6 +4908,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	u8 macc_role_size = sizeof(*macc_role) * option->num_macc_role;
 	u8 opch_size = sizeof(*opch) * option->num_opch;
 	u8 probe_id[NUM_NL80211_BANDS];
+	u8 cfg_len = sizeof(*h2c);
 	unsigned int cond;
 	void *ptr;
 	int ret;
@@ -4915,7 +4917,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 
 	rtw89_scan_get_6g_disabled_chan(rtwdev, option);
 
-	len = sizeof(*h2c) + macc_role_size + opch_size;
+	len = cfg_len + macc_role_size + opch_size;
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan offload\n");
@@ -4980,10 +4982,24 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 			  le32_encode_bits(RTW89_HW_RATE_OFDM6,
 					   RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_6GHZ);
 	}
-	ptr += sizeof(*h2c);
+
+	if (RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V0, &rtwdev->fw)) {
+		cfg_len = offsetofend(typeof(*h2c), w8);
+		goto flex_member;
+	}
+
+	h2c->w9 = le32_encode_bits(sizeof(*h2c) / sizeof(h2c->w0),
+				   RTW89_H2C_SCANOFLD_BE_W9_SIZE_CFG) |
+		  le32_encode_bits(sizeof(*macc_role) / sizeof(macc_role->w0),
+				   RTW89_H2C_SCANOFLD_BE_W9_SIZE_MACC) |
+		  le32_encode_bits(sizeof(*opch) / sizeof(opch->w0),
+				   RTW89_H2C_SCANOFLD_BE_W9_SIZE_OP);
+
+flex_member:
+	ptr += cfg_len;
 
 	for (i = 0; i < option->num_macc_role; i++) {
-		macc_role = (struct rtw89_h2c_scanofld_be_macc_role *)&h2c->role[i];
+		macc_role = ptr;
 		macc_role->w0 =
 			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_BAND) |
 			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_PORT) |

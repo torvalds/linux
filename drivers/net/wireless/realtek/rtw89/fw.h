@@ -2711,7 +2711,9 @@ struct rtw89_h2c_scanofld_be {
 	__le32 w6;
 	__le32 w7;
 	__le32 w8;
-	struct rtw89_h2c_scanofld_be_macc_role role[];
+	__le32 w9; /* Added after SCAN_OFFLOAD_BE_V1 */
+	/* struct rtw89_h2c_scanofld_be_macc_role (flexible number) */
+	/* struct rtw89_h2c_scanofld_be_opch (flexible number) */
 } __packed;
 
 #define RTW89_H2C_SCANOFLD_BE_W0_OP GENMASK(1, 0)
@@ -2742,6 +2744,9 @@ struct rtw89_h2c_scanofld_be {
 #define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_2GHZ GENMASK(7, 0)
 #define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_5GHZ GENMASK(15, 8)
 #define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_6GHZ GENMASK(23, 16)
+#define RTW89_H2C_SCANOFLD_BE_W9_SIZE_CFG GENMASK(7, 0)
+#define RTW89_H2C_SCANOFLD_BE_W9_SIZE_MACC GENMASK(15, 8)
+#define RTW89_H2C_SCANOFLD_BE_W9_SIZE_OP GENMASK(23, 16)
 
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {

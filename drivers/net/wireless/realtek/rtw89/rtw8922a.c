@@ -13,10 +13,10 @@
 #include "rtw8922a_rfk.h"
 #include "util.h"
 
-#define RTW8922A_FW_FORMAT_MAX 0
+#define RTW8922A_FW_FORMAT_MAX 1
 #define RTW8922A_FW_BASENAME "rtw89/rtw8922a_fw"
 #define RTW8922A_MODULE_FIRMWARE \
-	RTW8922A_FW_BASENAME ".bin"
+	RTW8922A_FW_BASENAME "-" __stringify(RTW8922A_FW_FORMAT_MAX) ".bin"
 
 #define HE_N_USER_MAX_8922A 4
 
