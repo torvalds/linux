@@ -2153,6 +2153,11 @@ Field	4	P
 Field	3:0	ALIGN
 EndSysreg
 
+Sysreg	PMSELR_EL0	3	3	9	12	5
+Res0	63:5
+Field	4:0	SEL
+EndSysreg
+
 SysregFields	CONTEXTIDR_ELx
 Res0	63:32
 Field	31:0	PROCID
