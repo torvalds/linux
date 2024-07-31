@@ -416,14 +416,12 @@ static struct iommu_group *fsl_pamu_device_group(struct device *dev)
 
 static struct iommu_device *fsl_pamu_probe_device(struct device *dev)
 {
-	int len;
-
 	/*
 	 * uboot must fill the fsl,liodn for platform devices to be supported by
 	 * the iommu.
 	 */
 	if (!dev_is_pci(dev) &&
-	    !of_get_property(dev->of_node, "fsl,liodn", &len))
+	    !of_property_present(dev->of_node, "fsl,liodn"))
 		return ERR_PTR(-ENODEV);
 
 	return &pamu_iommu;
