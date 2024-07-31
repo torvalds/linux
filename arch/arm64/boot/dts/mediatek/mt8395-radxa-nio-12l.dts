@@ -894,6 +894,7 @@
 };
 
 &xhci1 {
+	phys = <&u2port1 PHY_TYPE_USB2>;
 	/* MT7921's USB Bluetooth has issues with USB2 LPM */
 	usb2-lpm-disable;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
