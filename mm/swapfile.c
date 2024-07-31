@@ -438,20 +438,6 @@ static void swap_users_ref_free(struct percpu_ref *ref)
 	complete(&si->comp);
 }
 
-static struct swap_cluster_info *alloc_cluster(struct swap_info_struct *si, unsigned long idx)
-{
-	struct swap_cluster_info *ci = list_first_entry(&si->free_clusters,
-							struct swap_cluster_info, list);
-
-	lockdep_assert_held(&si->lock);
-	lockdep_assert_held(&ci->lock);
-	VM_BUG_ON(cluster_index(si, ci) != idx);
-	VM_BUG_ON(ci->count);
-	list_del(&ci->list);
-	ci->flags = 0;
-	return ci;
-}
-
 static void free_cluster(struct swap_info_struct *si, struct swap_cluster_info *ci)
 {
 	VM_BUG_ON(ci->count != 0);
@@ -472,34 +458,24 @@ static void free_cluster(struct swap_info_struct *si, struct swap_cluster_info *
 }
 
 /*
- * The cluster corresponding to page_nr will be used. The cluster will be
- * removed from free cluster list and its usage counter will be increased by
- * count.
- */
-static void add_cluster_info_page(struct swap_info_struct *p,
-	struct swap_cluster_info *cluster_info, unsigned long page_nr,
-	unsigned long count)
-{
-	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
-	struct swap_cluster_info *ci = cluster_info + idx;
-
-	if (!cluster_info)
-		return;
-	if (cluster_is_free(ci))
-		alloc_cluster(p, idx);
-
-	VM_BUG_ON(ci->count + count > SWAPFILE_CLUSTER);
-	ci->count += count;
-}
-
-/*
- * The cluster corresponding to page_nr will be used. The cluster will be
- * removed from free cluster list and its usage counter will be increased by 1.
+ * The cluster corresponding to page_nr will be used. The cluster will not be
+ * added to free cluster list and its usage counter will be increased by 1.
+ * Only used for initialization.
  */
 static void inc_cluster_info_page(struct swap_info_struct *p,
 	struct swap_cluster_info *cluster_info, unsigned long page_nr)
 {
-	add_cluster_info_page(p, cluster_info, page_nr, 1);
+	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
+	struct swap_cluster_info *ci;
+
+	if (!cluster_info)
+		return;
+
+	ci = cluster_info + idx;
+	ci->count++;
+
+	VM_BUG_ON(ci->count > SWAPFILE_CLUSTER);
+	VM_BUG_ON(ci->flags);
 }
 
 /*
