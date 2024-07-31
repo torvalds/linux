@@ -325,7 +325,6 @@ tc3589x_keypad_of_probe(struct device *dev)
 	struct tc3589x_keypad_platform_data *plat;
 	u32 cols, rows;
 	u32 debounce_ms;
-	int proplen;
 
 	if (!np)
 		return ERR_PTR(-ENODEV);
@@ -346,7 +345,7 @@ tc3589x_keypad_of_probe(struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!of_get_property(np, "linux,keymap", &proplen)) {
+	if (!of_property_present(np, "linux,keymap")) {
 		dev_err(dev, "property linux,keymap not found\n");
 		return ERR_PTR(-ENOENT);
 	}
