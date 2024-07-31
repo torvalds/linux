@@ -309,6 +309,16 @@ struct net *get_net_ns_by_id(const struct net *net, int id)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_id);
 
+static __net_init void preinit_net_sysctl(struct net *net)
+{
+	net->core.sysctl_somaxconn = SOMAXCONN;
+	/* Limits per socket sk_omem_alloc usage.
+	 * TCP zerocopy regular usage needs 128 KB.
+	 */
+	net->core.sysctl_optmem_max = 128 * 1024;
+	net->core.sysctl_txrehash = SOCK_TXREHASH_ENABLED;
+}
+
 /* init code that must occur even if setup_net() is not called. */
 static __net_init void preinit_net(struct net *net, struct user_namespace *user_ns)
 {
@@ -324,6 +334,7 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 	idr_init(&net->netns_ids);
 	spin_lock_init(&net->nsid_lock);
 	mutex_init(&net->ipv4.ra_mutex);
+	preinit_net_sysctl(net);
 }
 
 /*
@@ -383,32 +394,6 @@ out_undo:
 	rcu_barrier();
 	goto out;
 }
-
-static int __net_init net_defaults_init_net(struct net *net)
-{
-	net->core.sysctl_somaxconn = SOMAXCONN;
-	/* Limits per socket sk_omem_alloc usage.
-	 * TCP zerocopy regular usage needs 128 KB.
-	 */
-	net->core.sysctl_optmem_max = 128 * 1024;
-	net->core.sysctl_txrehash = SOCK_TXREHASH_ENABLED;
-
-	return 0;
-}
-
-static struct pernet_operations net_defaults_ops = {
-	.init = net_defaults_init_net,
-};
-
-static __init int net_defaults_init(void)
-{
-	if (register_pernet_subsys(&net_defaults_ops))
-		panic("Cannot initialize net default settings");
-
-	return 0;
-}
-
-core_initcall(net_defaults_init);
 
 #ifdef CONFIG_NET_NS
 static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
