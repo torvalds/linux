@@ -183,12 +183,15 @@ void __do_early_pgm_check(struct pt_regs *regs)
 
 static noinline __init void setup_lowcore_early(void)
 {
+	struct lowcore *lc = get_lowcore();
 	psw_t psw;
 
 	psw.addr = (unsigned long)early_pgm_check_handler;
 	psw.mask = PSW_KERNEL_BITS;
-	get_lowcore()->program_new_psw = psw;
-	get_lowcore()->preempt_count = INIT_PREEMPT_COUNT;
+	lc->program_new_psw = psw;
+	lc->preempt_count = INIT_PREEMPT_COUNT;
+	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
+	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 }
 
 static __init void detect_diag9c(void)
