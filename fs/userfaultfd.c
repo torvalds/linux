@@ -371,15 +371,8 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	unsigned int blocking_state;
 
 	/*
-	 * We don't do userfault handling for the final child pid update.
-	 *
-	 * We also don't do userfault handling during
-	 * coredumping. hugetlbfs has the special
-	 * hugetlb_follow_page_mask() to skip missing pages in the
-	 * FOLL_DUMP case, anon memory also checks for FOLL_DUMP with
-	 * the no_page_table() helper in follow_page_mask(), but the
-	 * shmem_vm_ops->fault method is invoked even during
-	 * coredumping and it ends up here.
+	 * We don't do userfault handling for the final child pid update
+	 * and when coredumping (faults triggered by get_dump_page()).
 	 */
 	if (current->flags & (PF_EXITING|PF_DUMPCORE))
 		goto out;
