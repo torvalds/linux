@@ -4106,7 +4106,7 @@ struct rtw89_fw_h2c_rf_get_mccch {
 #define NUM_OF_RTW89_FW_RFK_PATH 2
 #define NUM_OF_RTW89_FW_RFK_TBL 3
 
-struct rtw89_fw_h2c_rfk_pre_info {
+struct rtw89_fw_h2c_rfk_pre_info_common {
 	struct {
 		__le32 ch[NUM_OF_RTW89_FW_RFK_PATH][NUM_OF_RTW89_FW_RFK_TBL];
 		__le32 band[NUM_OF_RTW89_FW_RFK_PATH][NUM_OF_RTW89_FW_RFK_TBL];
@@ -4119,6 +4119,11 @@ struct rtw89_fw_h2c_rfk_pre_info {
 	} __packed tbl;
 
 	__le32 phy_idx;
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info_v0 {
+	struct rtw89_fw_h2c_rfk_pre_info_common common;
+
 	__le32 cur_band;
 	__le32 cur_bw;
 	__le32 cur_center_ch;
@@ -4136,6 +4141,11 @@ struct rtw89_fw_h2c_rfk_pre_info {
 		__le32 ch[NUM_OF_RTW89_FW_RFK_PATH];
 		__le32 band[NUM_OF_RTW89_FW_RFK_PATH];
 	} __packed mlo;
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info {
+	struct rtw89_fw_h2c_rfk_pre_info_common common;
+	__le32 mlo_1_1;
 } __packed;
 
 struct rtw89_h2c_rf_tssi {
