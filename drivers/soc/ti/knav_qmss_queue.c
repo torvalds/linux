@@ -1104,11 +1104,6 @@ static int knav_queue_setup_regions(struct knav_device *kdev,
 			continue;
 		}
 
-		if (!of_get_property(child, "link-index", NULL)) {
-			dev_err(dev, "No link info for %s\n", region->name);
-			devm_kfree(dev, region);
-			continue;
-		}
 		ret = of_property_read_u32(child, "link-index",
 					   &region->link_index);
 		if (ret) {
