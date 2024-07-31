@@ -435,6 +435,8 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 {
 	struct swap_info_struct *si;
 	struct folio *folio;
+	struct folio *new_folio = NULL;
+	struct folio *result = NULL;
 	void *shadow = NULL;
 
 	*new_page_allocated = false;
@@ -463,16 +465,19 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * else swap_off will be aborted if we return NULL.
 		 */
 		if (!swap_swapcount(si, entry) && swap_slot_cache_enabled)
-			goto fail_put_swap;
+			goto put_and_return;
 
 		/*
-		 * Get a new folio to read into from swap.  Allocate it now,
-		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
-		 * cause any racers to loop around until we add it to cache.
+		 * Get a new folio to read into from swap.  Allocate it now if
+		 * new_folio not exist, before marking swap_map SWAP_HAS_CACHE,
+		 * when -EEXIST will cause any racers to loop around until we
+		 * add it to cache.
 		 */
-		folio = folio_alloc_mpol(gfp_mask, 0, mpol, ilx, numa_node_id());
-		if (!folio)
-                        goto fail_put_swap;
+		if (!new_folio) {
+			new_folio = folio_alloc_mpol(gfp_mask, 0, mpol, ilx, numa_node_id());
+			if (!new_folio)
+				goto put_and_return;
+		}
 
 		/*
 		 * Swap entry may have been freed since our caller observed it.
@@ -480,10 +485,8 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		err = swapcache_prepare(entry, 1);
 		if (!err)
 			break;
-
-		folio_put(folio);
-		if (err != -EEXIST)
-			goto fail_put_swap;
+		else if (err != -EEXIST)
+			goto put_and_return;
 
 		/*
 		 * Protect against a recursive call to __read_swap_cache_async()
@@ -494,7 +497,7 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * __read_swap_cache_async() in the writeback path.
 		 */
 		if (skip_if_exists)
-			goto fail_put_swap;
+			goto put_and_return;
 
 		/*
 		 * We might race against __delete_from_swap_cache(), and
@@ -509,36 +512,37 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	/*
 	 * The swap entry is ours to swap in. Prepare the new folio.
 	 */
+	__folio_set_locked(new_folio);
+	__folio_set_swapbacked(new_folio);
 
-	__folio_set_locked(folio);
-	__folio_set_swapbacked(folio);
-
-	if (mem_cgroup_swapin_charge_folio(folio, NULL, gfp_mask, entry))
+	if (mem_cgroup_swapin_charge_folio(new_folio, NULL, gfp_mask, entry))
 		goto fail_unlock;
 
 	/* May fail (-ENOMEM) if XArray node allocation failed. */
-	if (add_to_swap_cache(folio, entry, gfp_mask & GFP_RECLAIM_MASK, &shadow))
+	if (add_to_swap_cache(new_folio, entry, gfp_mask & GFP_RECLAIM_MASK, &shadow))
 		goto fail_unlock;
 
 	mem_cgroup_swapin_uncharge_swap(entry);
 
 	if (shadow)
-		workingset_refault(folio, shadow);
+		workingset_refault(new_folio, shadow);
 
-	/* Caller will initiate read into locked folio */
-	folio_add_lru(folio);
+	/* Caller will initiate read into locked new_folio */
+	folio_add_lru(new_folio);
 	*new_page_allocated = true;
+	folio = new_folio;
 got_folio:
-	put_swap_device(si);
-	return folio;
+	result = folio;
+	goto put_and_return;
 
 fail_unlock:
-	put_swap_folio(folio, entry);
-	folio_unlock(folio);
-	folio_put(folio);
-fail_put_swap:
+	put_swap_folio(new_folio, entry);
+	folio_unlock(new_folio);
+put_and_return:
 	put_swap_device(si);
-	return NULL;
+	if (!(*new_page_allocated) && new_folio)
+		folio_put(new_folio);
+	return result;
 }
 
 /*
