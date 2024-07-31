@@ -823,16 +823,16 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 		struct device_node *func_np;
 
 		if (!of_get_child_count(cfg_np)) {
-			if (!of_find_property(cfg_np,
-			    "samsung,pin-function", NULL))
+			if (!of_property_present(cfg_np,
+			    "samsung,pin-function"))
 				continue;
 			++func_cnt;
 			continue;
 		}
 
 		for_each_child_of_node(cfg_np, func_np) {
-			if (!of_find_property(func_np,
-			    "samsung,pin-function", NULL))
+			if (!of_property_present(func_np,
+			    "samsung,pin-function"))
 				continue;
 			++func_cnt;
 		}
