@@ -184,7 +184,7 @@ static int psc_i2s_of_probe(struct platform_device *op)
 
 	/* Check for the codec handle.  If it is not present then we
 	 * are done */
-	if (!of_get_property(op->dev.of_node, "codec-handle", NULL))
+	if (!of_property_present(op->dev.of_node, "codec-handle"))
 		return 0;
 
 	/* Due to errata in the dma mode; need to line up enabling
