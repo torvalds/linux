@@ -513,6 +513,10 @@ static void free_cluster(struct swap_info_struct *si, struct swap_cluster_info *
 	VM_BUG_ON(ci->count != 0);
 	lockdep_assert_held(&si->lock);
 	lockdep_assert_held(&ci->lock);
+
+	if (ci->flags & CLUSTER_FLAG_FRAG)
+		si->frag_cluster_nr[ci->order]--;
+
 	/*
 	 * If the swap is discardable, prepare discard the cluster
 	 * instead of free it immediately. The cluster will be freed
@@ -572,31 +576,84 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 
 	if (!(ci->flags & CLUSTER_FLAG_NONFULL)) {
 		VM_BUG_ON(ci->flags & CLUSTER_FLAG_FREE);
-		if (ci->flags & CLUSTER_FLAG_FRAG)
+		if (ci->flags & CLUSTER_FLAG_FRAG) {
+			p->frag_cluster_nr[ci->order]--;
 			list_move_tail(&ci->list, &p->nonfull_clusters[ci->order]);
-		else
+		} else {
 			list_add_tail(&ci->list, &p->nonfull_clusters[ci->order]);
+		}
 		ci->flags = CLUSTER_FLAG_NONFULL;
 	}
 }
 
-static inline bool cluster_scan_range(struct swap_info_struct *si, unsigned int start,
-				      unsigned int nr_pages)
+static bool cluster_reclaim_range(struct swap_info_struct *si,
+				  struct swap_cluster_info *ci,
+				  unsigned long start, unsigned long end)
 {
-	unsigned char *p = si->swap_map + start;
-	unsigned char *end = p + nr_pages;
+	unsigned char *map = si->swap_map;
+	unsigned long offset;
 
-	while (p < end)
-		if (*p++)
+	spin_unlock(&ci->lock);
+	spin_unlock(&si->lock);
+
+	for (offset = start; offset < end; offset++) {
+		switch (READ_ONCE(map[offset])) {
+		case 0:
+			continue;
+		case SWAP_HAS_CACHE:
+			if (__try_to_reclaim_swap(si, offset, TTRS_ANYWAY | TTRS_DIRECT) > 0)
+				continue;
+			goto out;
+		default:
+			goto out;
+		}
+	}
+out:
+	spin_lock(&si->lock);
+	spin_lock(&ci->lock);
+
+	/*
+	 * Recheck the range no matter reclaim succeeded or not, the slot
+	 * could have been be freed while we are not holding the lock.
+	 */
+	for (offset = start; offset < end; offset++)
+		if (READ_ONCE(map[offset]))
 			return false;
 
 	return true;
 }
 
+static bool cluster_scan_range(struct swap_info_struct *si,
+			       struct swap_cluster_info *ci,
+			       unsigned long start, unsigned int nr_pages)
+{
+	unsigned long offset, end = start + nr_pages;
+	unsigned char *map = si->swap_map;
+	bool need_reclaim = false;
 
-static inline void cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster_info *ci,
-						unsigned int start, unsigned char usage,
-						unsigned int order)
+	for (offset = start; offset < end; offset++) {
+		switch (READ_ONCE(map[offset])) {
+		case 0:
+			continue;
+		case SWAP_HAS_CACHE:
+			if (!vm_swap_full())
+				return false;
+			need_reclaim = true;
+			continue;
+		default:
+			return false;
+		}
+	}
+
+	if (need_reclaim)
+		return cluster_reclaim_range(si, ci, start, end);
+
+	return true;
+}
+
+static void cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster_info *ci,
+				unsigned int start, unsigned char usage,
+				unsigned int order)
 {
 	unsigned int nr_pages = 1 << order;
 
@@ -615,6 +672,8 @@ static inline void cluster_alloc_range(struct swap_info_struct *si, struct swap_
 	if (ci->count == SWAPFILE_CLUSTER) {
 		VM_BUG_ON(!(ci->flags &
 			  (CLUSTER_FLAG_FREE | CLUSTER_FLAG_NONFULL | CLUSTER_FLAG_FRAG)));
+		if (ci->flags & CLUSTER_FLAG_FRAG)
+			si->frag_cluster_nr[ci->order]--;
 		list_del(&ci->list);
 		ci->flags = 0;
 	}
@@ -640,7 +699,7 @@ static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si, unsigne
 	}
 
 	while (offset <= end) {
-		if (cluster_scan_range(si, offset, nr_pages)) {
+		if (cluster_scan_range(si, ci, offset, nr_pages)) {
 			cluster_alloc_range(si, ci, offset, usage, order);
 			*foundp = offset;
 			if (ci->count == SWAPFILE_CLUSTER) {
@@ -668,9 +727,8 @@ static unsigned long cluster_alloc_swap_entry(struct swap_info_struct *si, int o
 					      unsigned char usage)
 {
 	struct percpu_cluster *cluster;
-	struct swap_cluster_info *ci, *n;
+	struct swap_cluster_info *ci;
 	unsigned int offset, found = 0;
-	LIST_HEAD(fraged);
 
 new_cluster:
 	lockdep_assert_held(&si->lock);
@@ -690,25 +748,42 @@ new_cluster:
 	}
 
 	if (order < PMD_ORDER) {
-		list_for_each_entry_safe(ci, n, &si->nonfull_clusters[order], list) {
-			list_move_tail(&ci->list, &fraged);
+		unsigned int frags = 0;
+
+		while (!list_empty(&si->nonfull_clusters[order])) {
+			ci = list_first_entry(&si->nonfull_clusters[order],
+					      struct swap_cluster_info, list);
+			list_move_tail(&ci->list, &si->frag_clusters[order]);
 			ci->flags = CLUSTER_FLAG_FRAG;
+			si->frag_cluster_nr[order]++;
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 							 &found, order, usage);
+			frags++;
 			if (found)
 				break;
 		}
 
 		if (!found) {
-			list_for_each_entry_safe(ci, n, &si->frag_clusters[order], list) {
+			/*
+			 * Nonfull clusters are moved to frag tail if we reached
+			 * here, count them too, don't over scan the frag list.
+			 */
+			while (frags < si->frag_cluster_nr[order]) {
+				ci = list_first_entry(&si->frag_clusters[order],
+						      struct swap_cluster_info, list);
+				/*
+				 * Rotate the frag list to iterate, they were all failing
+				 * high order allocation or moved here due to per-CPU usage,
+				 * this help keeping usable cluster ahead.
+				 */
+				list_move_tail(&ci->list, &si->frag_clusters[order]);
 				offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 								 &found, order, usage);
+				frags++;
 				if (found)
 					break;
 			}
 		}
-
-		list_splice_tail(&fraged, &si->frag_clusters[order]);
 	}
 
 	if (found)
@@ -729,25 +804,28 @@ new_cluster:
 
 	/* Order 0 stealing from higher order */
 	for (int o = 1; o < SWAP_NR_ORDERS; o++) {
-		if (!list_empty(&si->frag_clusters[o])) {
+		/*
+		 * Clusters here have at least one usable slots and can't fail order 0
+		 * allocation, but reclaim may drop si->lock and race with another user.
+		 */
+		while (!list_empty(&si->frag_clusters[o])) {
 			ci = list_first_entry(&si->frag_clusters[o],
 					      struct swap_cluster_info, list);
-			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci), &found,
-							 0, usage);
-			VM_BUG_ON(!found);
-			goto done;
-		}
-
-		if (!list_empty(&si->nonfull_clusters[o])) {
-			ci = list_first_entry(&si->nonfull_clusters[o], struct swap_cluster_info,
-					      list);
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 							 &found, 0, usage);
-			VM_BUG_ON(!found);
-			goto done;
+			if (found)
+				goto done;
+		}
+
+		while (!list_empty(&si->nonfull_clusters[o])) {
+			ci = list_first_entry(&si->nonfull_clusters[o],
+					      struct swap_cluster_info, list);
+			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
+							 &found, 0, usage);
+			if (found)
+				goto done;
 		}
 	}
-
 done:
 	cluster->next[order] = offset;
 	return found;
@@ -3042,6 +3120,7 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 	for (i = 0; i < SWAP_NR_ORDERS; i++) {
 		INIT_LIST_HEAD(&p->nonfull_clusters[i]);
 		INIT_LIST_HEAD(&p->frag_clusters[i]);
+		p->frag_cluster_nr[i] = 0;
 	}
 
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
@@ -3084,7 +3163,6 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 
 	if (!cluster_info)
 		return nr_extents;
-
 
 	/*
 	 * Reduce false cache line sharing between cluster_info and
