@@ -440,10 +440,7 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
 			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
 
 	VM_BUG_ON(ci->flags & CLUSTER_FLAG_FREE);
-	if (ci->flags & CLUSTER_FLAG_NONFULL)
-		list_move_tail(&ci->list, &si->discard_clusters);
-	else
-		list_add_tail(&ci->list, &si->discard_clusters);
+	list_move_tail(&ci->list, &si->discard_clusters);
 	ci->flags = 0;
 	schedule_work(&si->discard_work);
 }
@@ -453,7 +450,7 @@ static void __free_cluster(struct swap_info_struct *si, struct swap_cluster_info
 	lockdep_assert_held(&si->lock);
 	lockdep_assert_held(&ci->lock);
 
-	if (ci->flags & CLUSTER_FLAG_NONFULL)
+	if (ci->flags)
 		list_move_tail(&ci->list, &si->free_clusters);
 	else
 		list_add_tail(&ci->list, &si->free_clusters);
@@ -480,7 +477,6 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
 				SWAPFILE_CLUSTER);
 
 		spin_lock(&si->lock);
-
 		spin_lock(&ci->lock);
 		__free_cluster(si, ci);
 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
@@ -576,12 +572,9 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 
 	if (!(ci->flags & CLUSTER_FLAG_NONFULL)) {
 		VM_BUG_ON(ci->flags & CLUSTER_FLAG_FREE);
-		if (ci->flags & CLUSTER_FLAG_FRAG) {
+		if (ci->flags & CLUSTER_FLAG_FRAG)
 			p->frag_cluster_nr[ci->order]--;
-			list_move_tail(&ci->list, &p->nonfull_clusters[ci->order]);
-		} else {
-			list_add_tail(&ci->list, &p->nonfull_clusters[ci->order]);
-		}
+		list_move_tail(&ci->list, &p->nonfull_clusters[ci->order]);
 		ci->flags = CLUSTER_FLAG_NONFULL;
 	}
 }
@@ -674,8 +667,8 @@ static void cluster_alloc_range(struct swap_info_struct *si, struct swap_cluster
 			  (CLUSTER_FLAG_FREE | CLUSTER_FLAG_NONFULL | CLUSTER_FLAG_FRAG)));
 		if (ci->flags & CLUSTER_FLAG_FRAG)
 			si->frag_cluster_nr[ci->order]--;
-		list_del(&ci->list);
-		ci->flags = 0;
+		list_move_tail(&ci->list, &si->full_clusters);
+		ci->flags = CLUSTER_FLAG_FULL;
 	}
 }
 
@@ -716,6 +709,46 @@ static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si, unsigne
 done:
 	unlock_cluster(ci);
 	return offset;
+}
+
+static void swap_reclaim_full_clusters(struct swap_info_struct *si)
+{
+	long to_scan = 1;
+	unsigned long offset, end;
+	struct swap_cluster_info *ci;
+	unsigned char *map = si->swap_map;
+	int nr_reclaim, total_reclaimed = 0;
+
+	if (atomic_long_read(&nr_swap_pages) <= SWAPFILE_CLUSTER)
+		to_scan = si->inuse_pages / SWAPFILE_CLUSTER;
+
+	while (!list_empty(&si->full_clusters)) {
+		ci = list_first_entry(&si->full_clusters, struct swap_cluster_info, list);
+		list_move_tail(&ci->list, &si->full_clusters);
+		offset = cluster_offset(si, ci);
+		end = min(si->max, offset + SWAPFILE_CLUSTER);
+		to_scan--;
+
+		while (offset < end) {
+			if (READ_ONCE(map[offset]) == SWAP_HAS_CACHE) {
+				spin_unlock(&si->lock);
+				nr_reclaim = __try_to_reclaim_swap(si, offset,
+								   TTRS_ANYWAY | TTRS_DIRECT);
+				spin_lock(&si->lock);
+				if (nr_reclaim > 0) {
+					offset += nr_reclaim;
+					total_reclaimed += nr_reclaim;
+					continue;
+				} else if (nr_reclaim < 0) {
+					offset += -nr_reclaim;
+					continue;
+				}
+			}
+			offset++;
+		}
+		if (to_scan <= 0 || total_reclaimed)
+			break;
+	}
 }
 
 /*
@@ -826,7 +859,15 @@ new_cluster:
 				goto done;
 		}
 	}
+
 done:
+	/* Try reclaim from full clusters if device is nearfull */
+	if (vm_swap_full() && (!found || (si->pages - si->inuse_pages) < SWAPFILE_CLUSTER)) {
+		swap_reclaim_full_clusters(si);
+		if (!found && !order && si->pages != si->inuse_pages)
+			goto new_cluster;
+	}
+
 	cluster->next[order] = offset;
 	return found;
 }
@@ -3115,6 +3156,7 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 	nr_good_pages = maxpages - 1;	/* omit header page */
 
 	INIT_LIST_HEAD(&p->free_clusters);
+	INIT_LIST_HEAD(&p->full_clusters);
 	INIT_LIST_HEAD(&p->discard_clusters);
 
 	for (i = 0; i < SWAP_NR_ORDERS; i++) {
