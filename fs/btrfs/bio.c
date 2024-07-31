@@ -678,7 +678,10 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	blk_status_t ret;
 	int error;
 
-	smap.rst_search_commit_root = !bbio->inode;
+	if (!bbio->inode || btrfs_is_data_reloc_root(inode->root))
+		smap.rst_search_commit_root = true;
+	else
+		smap.rst_search_commit_root = false;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
 	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
