@@ -39,7 +39,7 @@ static void __lpc3xxx_find_clkdiv(u32 *clkx, u32 *clky, int freq, int xbytes, u3
 {
 	u32 i2srate;
 	u32 idxx, idyy;
-	u32 savedbitclkrate, diff, trate, baseclk;
+	u32 diff, trate, baseclk;
 
 	/* Adjust rate for sample size (bits) and 2 channels and offset for
 	 * divider in clock output
@@ -53,14 +53,12 @@ static void __lpc3xxx_find_clkdiv(u32 *clkx, u32 *clky, int freq, int xbytes, u3
 
 	/* Find the best divider */
 	*clkx = *clky = 0;
-	savedbitclkrate = 0;
 	diff = ~0;
 	for (idxx = 1; idxx < 0xFF; idxx++) {
 		for (idyy = 1; idyy < 0xFF; idyy++) {
 			trate = (baseclk * idxx) / idyy;
 			if (abs(trate - i2srate) < diff) {
 				diff = abs(trate - i2srate);
-				savedbitclkrate = trate;
 				*clkx = idxx;
 				*clky = idyy;
 			}
