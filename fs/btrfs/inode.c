@@ -744,6 +744,20 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode,
 		return ret;
 	}
 
+	/*
+	 * In the successful case (ret == 0 here), cow_file_range will return 1.
+	 *
+	 * Quite a bit further up the callstack in __extent_writepage, ret == 1
+	 * is treated as a short circuited success and does not unlock the folio,
+	 * so we must do it here.
+	 *
+	 * In the failure case, the locked_folio does get unlocked by
+	 * btrfs_folio_end_all_writers, which asserts that it is still locked
+	 * at that point, so we must *not* unlock it here.
+	 *
+	 * The other two callsites in compress_file_range do not have a
+	 * locked_folio, so they are not relevant to this logic.
+	 */
 	if (ret == 0)
 		locked_folio = NULL;
 
