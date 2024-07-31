@@ -97,13 +97,13 @@ static const struct iio_scan_type ad7380_scan_type_14[] = {
 		.sign = 's',
 		.realbits = 14,
 		.storagebits = 16,
-		.endianness = IIO_CPU
+		.endianness = IIO_CPU,
 	},
 	[AD7380_SCAN_TYPE_RESOLUTION_BOOST] = {
 		.sign = 's',
 		.realbits = 16,
 		.storagebits = 16,
-		.endianness = IIO_CPU
+		.endianness = IIO_CPU,
 	},
 };
 
@@ -113,13 +113,13 @@ static const struct iio_scan_type ad7380_scan_type_16[] = {
 		.sign = 's',
 		.realbits = 16,
 		.storagebits = 16,
-		.endianness = IIO_CPU
+		.endianness = IIO_CPU,
 	},
 	[AD7380_SCAN_TYPE_RESOLUTION_BOOST] = {
 		.sign = 's',
 		.realbits = 18,
 		.storagebits = 32,
-		.endianness = IIO_CPU
+		.endianness = IIO_CPU,
 	},
 };
 
