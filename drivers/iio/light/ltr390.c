@@ -23,20 +23,28 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
+#include <linux/bitfield.h>
 
 #include <linux/iio/iio.h>
 
 #include <asm/unaligned.h>
 
-#define LTR390_MAIN_CTRL      0x00
-#define LTR390_PART_ID	      0x06
-#define LTR390_UVS_DATA	      0x10
+#define LTR390_MAIN_CTRL		0x00
+#define LTR390_ALS_UVS_MEAS_RATE	0x04
+#define LTR390_ALS_UVS_GAIN		0x05
+#define LTR390_PART_ID			0x06
+#define LTR390_ALS_DATA			0x0D
+#define LTR390_UVS_DATA			0x10
+#define LTR390_INT_CFG			0x19
+
+#define LTR390_PART_NUMBER_ID		0xb
+#define LTR390_ALS_UVS_GAIN_MASK	0x07
+#define LTR390_ALS_UVS_INT_TIME_MASK	0x70
+#define LTR390_ALS_UVS_INT_TIME(x)	FIELD_PREP(LTR390_ALS_UVS_INT_TIME_MASK, (x))
 
 #define LTR390_SW_RESET	      BIT(4)
 #define LTR390_UVS_MODE	      BIT(3)
 #define LTR390_SENSOR_ENABLE  BIT(1)
-
-#define LTR390_PART_NUMBER_ID 0xb
 
 /*
  * At 20-bit resolution (integration time: 400ms) and 18x gain, 2300 counts of
@@ -60,6 +68,8 @@ struct ltr390_data {
 	struct i2c_client *client;
 	/* Protects device from simulataneous reads */
 	struct mutex lock;
+	int gain;
+	int int_time_us;
 };
 
 static const struct regmap_config ltr390_regmap_config = {
@@ -74,8 +84,6 @@ static int ltr390_register_read(struct ltr390_data *data, u8 register_address)
 	struct device *dev = &data->client->dev;
 	int ret;
 	u8 recieve_buffer[3];
-
-	guard(mutex)(&data->lock);
 
 	ret = regmap_bulk_read(data->regmap, register_address, recieve_buffer,
 			       sizeof(recieve_buffer));
@@ -94,6 +102,7 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 	int ret;
 	struct ltr390_data *data = iio_priv(iio_device);
 
+	guard(mutex)(&data->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = ltr390_register_read(data, LTR390_UVS_DATA);
@@ -105,6 +114,109 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 		*val = LTR390_WINDOW_FACTOR;
 		*val2 = LTR390_COUNTS_PER_UVI;
 		return IIO_VAL_FRACTIONAL;
+
+	case IIO_CHAN_INFO_INT_TIME:
+		*val = data->int_time_us;
+		return IIO_VAL_INT;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+/* integration time in us */
+static const int ltr390_int_time_map_us[] = { 400000, 200000, 100000, 50000, 25000, 12500 };
+static const int ltr390_gain_map[] = { 1, 3, 6, 9, 18 };
+
+static const struct iio_chan_spec ltr390_channel = {
+	.type = IIO_UVINDEX,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),
+	.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) | BIT(IIO_CHAN_INFO_SCALE)
+};
+
+static int ltr390_set_gain(struct ltr390_data *data, int val)
+{
+	int ret, idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(ltr390_gain_map); idx++) {
+		if (ltr390_gain_map[idx] != val)
+			continue;
+
+		guard(mutex)(&data->lock);
+		ret = regmap_update_bits(data->regmap,
+					LTR390_ALS_UVS_GAIN,
+					LTR390_ALS_UVS_GAIN_MASK, idx);
+		if (ret)
+			return ret;
+
+		data->gain = ltr390_gain_map[idx];
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int ltr390_set_int_time(struct ltr390_data *data, int val)
+{
+	int ret, idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(ltr390_int_time_map_us); idx++) {
+		if (ltr390_int_time_map_us[idx] != val)
+			continue;
+
+		guard(mutex)(&data->lock);
+		ret = regmap_update_bits(data->regmap,
+					LTR390_ALS_UVS_MEAS_RATE,
+					LTR390_ALS_UVS_INT_TIME_MASK,
+					LTR390_ALS_UVS_INT_TIME(idx));
+		if (ret)
+			return ret;
+
+		data->int_time_us = ltr390_int_time_map_us[idx];
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int ltr390_read_avail(struct iio_dev *indio_dev, struct iio_chan_spec const *chan,
+				const int **vals, int *type, int *length, long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*length = ARRAY_SIZE(ltr390_gain_map);
+		*type = IIO_VAL_INT;
+		*vals = ltr390_gain_map;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_INT_TIME:
+		*length = ARRAY_SIZE(ltr390_int_time_map_us);
+		*type = IIO_VAL_INT;
+		*vals = ltr390_int_time_map_us;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ltr390_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec const *chan,
+				int val, int val2, long mask)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ltr390_set_gain(data, val);
+
+	case IIO_CHAN_INFO_INT_TIME:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ltr390_set_int_time(data, val);
+
 	default:
 		return -EINVAL;
 	}
@@ -112,11 +224,8 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 
 static const struct iio_info ltr390_info = {
 	.read_raw = ltr390_read_raw,
-};
-
-static const struct iio_chan_spec ltr390_channel = {
-	.type = IIO_UVINDEX,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE)
+	.write_raw = ltr390_write_raw,
+	.read_avail = ltr390_read_avail,
 };
 
 static int ltr390_probe(struct i2c_client *client)
@@ -139,6 +248,11 @@ static int ltr390_probe(struct i2c_client *client)
 				     "regmap initialization failed\n");
 
 	data->client = client;
+	/* default value of integration time from pg: 15 of the datasheet */
+	data->int_time_us = 100000;
+	/* default value of gain from pg: 16 of the datasheet */
+	data->gain = 3;
+
 	mutex_init(&data->lock);
 
 	indio_dev->info = &ltr390_info;
