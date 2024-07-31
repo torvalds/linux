@@ -476,6 +476,12 @@ static int hist_entry__init(struct hist_entry *he,
 		he->branch_info->to.ms.map = map__get(he->branch_info->to.ms.map);
 	}
 
+	if (he->mem_info) {
+		he->mem_info = mem_info__clone(template->mem_info);
+		if (he->mem_info == NULL)
+			goto err_infos;
+	}
+
 	if (hist_entry__has_callchains(he) && symbol_conf.use_callchain)
 		callchain_init(he->callchain);
 
@@ -620,12 +626,6 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 			if (symbol_conf.cumulate_callchain)
 				he_stat__add_period(he->stat_acc, period);
 
-			/*
-			 * This mem info was allocated from sample__resolve_mem
-			 * and will not be used anymore.
-			 */
-			mem_info__zput(entry->mem_info);
-
 			block_info__delete(entry->block_info);
 
 			kvm_info__zput(entry->kvm_info);
@@ -739,7 +739,7 @@ __hists__add_entry(struct hists *hists,
 		.filtered = symbol__parent_filter(sym_parent) | al->filtered,
 		.hists	= hists,
 		.branch_info = bi,
-		.mem_info = mem_info__get(mi),
+		.mem_info = mi,
 		.kvm_info = ki,
 		.block_info = block_info,
 		.transaction = sample->transaction,
