@@ -8,6 +8,7 @@
 #include "sm6115.dtsi"
 #include "pm6125.dtsi"
 #include <dt-bindings/arm/qcom,ids.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "F(x)tec Pro1X (QX1050)";
@@ -61,6 +62,19 @@
 			debounce-interval = <15>;
 			linux,can-disable;
 			wakeup-source;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		capslock-led {
+			label = "green:capslock";
+			function = LED_FUNCTION_CAPSLOCK;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pca9534 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "kbd-capslock";
+			default-state = "off";
 		};
 	};
 
