@@ -9,7 +9,7 @@ execveat.ephemeral
 execveat.denatured
 non-regular
 null-argv
-/load_address_*
+/load_address.*
 /recursion-depth
 xxxxxxxx*
 pipe

@@ -54,3 +54,4 @@ udpgso
 udpgso_bench_rx
 udpgso_bench_tx
 unix_connect
+ns-*
