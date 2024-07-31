@@ -455,7 +455,7 @@ void intel_backlight_disable(const struct drm_connector_state *old_conn_state)
 	mutex_lock(&i915->display.backlight.lock);
 
 	if (panel->backlight.device)
-		panel->backlight.device->props.power = FB_BLANK_POWERDOWN;
+		panel->backlight.device->props.power = BACKLIGHT_POWER_OFF;
 	panel->backlight.enabled = false;
 	panel->backlight.funcs->disable(old_conn_state, 0);
 
@@ -773,7 +773,7 @@ static void __intel_backlight_enable(const struct intel_crtc_state *crtc_state,
 	panel->backlight.funcs->enable(crtc_state, conn_state, panel->backlight.level);
 	panel->backlight.enabled = true;
 	if (panel->backlight.device)
-		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
+		panel->backlight.device->props.power = BACKLIGHT_POWER_ON;
 }
 
 void intel_backlight_enable(const struct intel_crtc_state *crtc_state,
@@ -870,12 +870,12 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 	 */
 	if (panel->backlight.enabled) {
 		if (panel->backlight.power) {
-			bool enable = bd->props.power == FB_BLANK_UNBLANK &&
+			bool enable = bd->props.power == BACKLIGHT_POWER_ON &&
 				bd->props.brightness != 0;
 			panel->backlight.power(connector, enable);
 		}
 	} else {
-		bd->props.power = FB_BLANK_POWERDOWN;
+		bd->props.power = BACKLIGHT_POWER_OFF;
 	}
 
 	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
@@ -945,9 +945,9 @@ int intel_backlight_device_register(struct intel_connector *connector)
 					    props.max_brightness);
 
 	if (panel->backlight.enabled)
-		props.power = FB_BLANK_UNBLANK;
+		props.power = BACKLIGHT_POWER_ON;
 	else
-		props.power = FB_BLANK_POWERDOWN;
+		props.power = BACKLIGHT_POWER_OFF;
 
 	name = kstrdup_const("intel_backlight", GFP_KERNEL);
 	if (!name)
