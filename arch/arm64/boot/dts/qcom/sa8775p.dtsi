@@ -42,6 +42,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			next-level-cache = <&L2_0>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -62,6 +64,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			next-level-cache = <&L2_1>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -77,6 +81,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			next-level-cache = <&L2_2>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_2: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -92,6 +98,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			next-level-cache = <&L2_3>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_3: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -107,6 +115,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			next-level-cache = <&L2_4>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_4: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -128,6 +138,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			next-level-cache = <&L2_5>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_5: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -143,6 +155,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			next-level-cache = <&L2_6>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_6: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
@@ -158,6 +172,8 @@
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			next-level-cache = <&L2_7>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			L2_7: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
