@@ -355,7 +355,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		goto err_platdata;
 	}
 
-	if (!of_get_property(timer, "ti,timer-pwm", NULL)) {
+	if (!of_property_read_bool(timer, "ti,timer-pwm")) {
 		dev_err(&pdev->dev, "Missing ti,timer-pwm capability\n");
 		ret = -ENODEV;
 		goto err_timer_property;
