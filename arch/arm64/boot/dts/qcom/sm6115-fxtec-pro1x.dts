@@ -457,7 +457,6 @@
 
 &usb_dwc3 {
 	/delete-property/ usb-role-switch;
-	maximum-speed = "high-speed";
 	dr_mode = "peripheral";
 };
 
@@ -465,6 +464,12 @@
 	vdd-supply = <&pm6125_l4a>;
 	vdda-pll-supply = <&pm6125_l12a>;
 	vdda-phy-dpdm-supply = <&pm6125_l15a>;
+	status = "okay";
+};
+
+&usb_qmpphy {
+	vdda-phy-supply = <&pm6125_l4a>;
+	vdda-pll-supply = <&pm6125_l12a>;
 	status = "okay";
 };
 
