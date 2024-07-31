@@ -35,7 +35,7 @@ struct kvm_pmu_events *kvm_get_pmu_events(void)
  * Add events to track that we may want to switch at guest entry/exit
  * time.
  */
-void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr)
+void kvm_set_pmu_events(u64 set, struct perf_event_attr *attr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
@@ -51,7 +51,7 @@ void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr)
 /*
  * Stop tracking events
  */
-void kvm_clr_pmu_events(u32 clr)
+void kvm_clr_pmu_events(u64 clr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
@@ -176,7 +176,7 @@ static void kvm_vcpu_pmu_disable_el0(unsigned long events)
 void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_events *pmu;
-	u32 events_guest, events_host;
+	u64 events_guest, events_host;
 
 	if (!kvm_arm_support_pmu_v3() || !has_vhe())
 		return;
@@ -197,7 +197,7 @@ void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu)
 void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_events *pmu;
-	u32 events_guest, events_host;
+	u64 events_guest, events_host;
 
 	if (!kvm_arm_support_pmu_v3() || !has_vhe())
 		return;
