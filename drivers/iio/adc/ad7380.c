@@ -33,7 +33,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define MAX_NUM_CHANNELS		4
+#define MAX_NUM_CHANNELS		8
 /* 2.5V internal reference voltage */
 #define AD7380_INTERNAL_REF_MV		2500
 
@@ -52,6 +52,7 @@
 #define AD7380_REG_ADDR_ALERT_HIGH_TH	0x5
 
 #define AD7380_CONFIG1_CH		BIT(11)
+#define AD7380_CONFIG1_SEQ		BIT(10)
 #define AD7380_CONFIG1_OS_MODE		BIT(9)
 #define AD7380_CONFIG1_OSR		GENMASK(8, 6)
 #define AD7380_CONFIG1_CRC_W		BIT(5)
@@ -290,16 +291,28 @@ static const unsigned long ad7380_4_channel_scan_masks[] = {
  *
  * Since this is simultaneous sampling for AinX0 OR AinX1 we have two separate
  * scan masks.
+ * When sequencer mode is enabled, chip automatically cycles through
+ * AinX0 and AinX1 channels. From an IIO point of view, we ca enable all
+ * channels, at the cost of an extra read, thus dividing the maximum rate by
+ * two.
  */
+enum {
+	AD7380_SCAN_MASK_CH_0,
+	AD7380_SCAN_MASK_CH_1,
+	AD7380_SCAN_MASK_SEQ,
+};
+
 static const unsigned long ad7380_2x2_channel_scan_masks[] = {
-	GENMASK(1, 0),
-	GENMASK(3, 2),
+	[AD7380_SCAN_MASK_CH_0] = GENMASK(1, 0),
+	[AD7380_SCAN_MASK_CH_1] = GENMASK(3, 2),
+	[AD7380_SCAN_MASK_SEQ] = GENMASK(3, 0),
 	0
 };
 
 static const unsigned long ad7380_2x4_channel_scan_masks[] = {
-	GENMASK(3, 0),
-	GENMASK(7, 4),
+	[AD7380_SCAN_MASK_CH_0] = GENMASK(3, 0),
+	[AD7380_SCAN_MASK_CH_1] = GENMASK(7, 4),
+	[AD7380_SCAN_MASK_SEQ] = GENMASK(7, 0),
 	0
 };
 
@@ -467,11 +480,14 @@ struct ad7380_state {
 	unsigned int oversampling_ratio;
 	bool resolution_boost_enabled;
 	unsigned int ch;
+	bool seq;
 	unsigned int vref_mv;
 	unsigned int vcm_mv[MAX_NUM_CHANNELS];
 	/* xfers, message an buffer for reading sample data */
-	struct spi_transfer xfer[2];
-	struct spi_message msg;
+	struct spi_transfer normal_xfer[2];
+	struct spi_message normal_msg;
+	struct spi_transfer seq_xfer[4];
+	struct spi_message seq_msg;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -609,33 +625,47 @@ static int ad7380_set_ch(struct ad7380_state *st, unsigned int ch)
 static void ad7380_update_xfers(struct ad7380_state *st,
 				const struct iio_scan_type *scan_type)
 {
+	struct spi_transfer *xfer = st->seq ? st->seq_xfer : st->normal_xfer;
+	unsigned int t_convert = T_CONVERT_NS;
+
 	/*
-	 * First xfer only triggers conversion and has to be long enough for
-	 * all conversions to complete, which can be multiple conversion in the
-	 * case of oversampling. Technically T_CONVERT_X_NS is lower for some
-	 * chips, but we use the maximum value for simplicity for now.
+	 * In the case of oversampling, conversion time is higher than in normal
+	 * mode. Technically T_CONVERT_X_NS is lower for some chips, but we use
+	 * the maximum value for simplicity for now.
 	 */
 	if (st->oversampling_ratio > 1)
-		st->xfer[0].delay.value = T_CONVERT_0_NS + T_CONVERT_X_NS *
-						(st->oversampling_ratio - 1);
-	else
-		st->xfer[0].delay.value = T_CONVERT_NS;
+		t_convert = T_CONVERT_0_NS + T_CONVERT_X_NS *
+			(st->oversampling_ratio - 1);
 
-	st->xfer[0].delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	/*
-	 * Second xfer reads all channels. Data size depends on if resolution
-	 * boost is enabled or not.
-	 */
-	st->xfer[1].bits_per_word = scan_type->realbits;
-	st->xfer[1].len = BITS_TO_BYTES(scan_type->storagebits) *
-			  st->chip_info->num_simult_channels;
+	if (st->seq) {
+		xfer[0].delay.value = xfer[1].delay.value = t_convert;
+		xfer[0].delay.unit = xfer[1].delay.unit = SPI_DELAY_UNIT_NSECS;
+		xfer[2].bits_per_word = xfer[3].bits_per_word =
+			scan_type->realbits;
+		xfer[2].len = xfer[3].len =
+			BITS_TO_BYTES(scan_type->storagebits) *
+			st->chip_info->num_simult_channels;
+		xfer[3].rx_buf = xfer[2].rx_buf + xfer[2].len;
+		/* Additional delay required here when oversampling is enabled */
+		if (st->oversampling_ratio > 1)
+			xfer[2].delay.value = t_convert;
+		else
+			xfer[2].delay.value = 0;
+		xfer[2].delay.unit = SPI_DELAY_UNIT_NSECS;
+	} else {
+		xfer[0].delay.value = t_convert;
+		xfer[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+		xfer[1].bits_per_word = scan_type->realbits;
+		xfer[1].len = BITS_TO_BYTES(scan_type->storagebits) *
+			st->chip_info->num_simult_channels;
+	}
 }
 
 static int ad7380_triggered_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7380_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
+	struct spi_message *msg = &st->normal_msg;
 
 	/*
 	 * Currently, we always read all channels at the same time. The scan_type
@@ -651,28 +681,57 @@ static int ad7380_triggered_buffer_preenable(struct iio_dev *indio_dev)
 
 		/*
 		 * Depending on the requested scan_mask and current state,
-		 * we need to change CH bit to sample correct data.
+		 * we need to either change CH bit, or enable sequencer mode
+		 * to sample correct data.
+		 * Sequencer mode is enabled if active mask corresponds to all
+		 * IIO channels enabled. Otherwise, CH bit is set.
 		 */
 		ret = iio_active_scan_mask_index(indio_dev);
 		if (ret < 0)
 			return ret;
 
 		index = ret;
-		ret = ad7380_set_ch(st, index);
-		if (ret)
-			return ret;
+		if (index == AD7380_SCAN_MASK_SEQ) {
+			ret = regmap_update_bits(st->regmap,
+						 AD7380_REG_ADDR_CONFIG1,
+						 AD7380_CONFIG1_SEQ,
+						 FIELD_PREP(AD7380_CONFIG1_SEQ, 1));
+			if (ret)
+				return ret;
+			msg = &st->seq_msg;
+			st->seq = true;
+		} else {
+			ret = ad7380_set_ch(st, index);
+			if (ret)
+				return ret;
+		}
+
 	}
 
 	ad7380_update_xfers(st, scan_type);
 
-	return spi_optimize_message(st->spi, &st->msg);
+	return spi_optimize_message(st->spi, msg);
 }
 
 static int ad7380_triggered_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	struct ad7380_state *st = iio_priv(indio_dev);
+	struct spi_message *msg = &st->normal_msg;
+	int ret;
 
-	spi_unoptimize_message(&st->msg);
+	if (st->seq) {
+		ret = regmap_update_bits(st->regmap,
+					 AD7380_REG_ADDR_CONFIG1,
+					 AD7380_CONFIG1_SEQ,
+					 FIELD_PREP(AD7380_CONFIG1_SEQ, 0));
+		if (ret)
+			return ret;
+
+		msg = &st->seq_msg;
+		st->seq = false;
+	}
+
+	spi_unoptimize_message(msg);
 
 	return 0;
 }
@@ -687,9 +746,10 @@ static irqreturn_t ad7380_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7380_state *st = iio_priv(indio_dev);
+	struct spi_message *msg = st->seq ? &st->seq_msg : &st->normal_msg;
 	int ret;
 
-	ret = spi_sync(st->spi, &st->msg);
+	ret = spi_sync(st->spi, msg);
 	if (ret)
 		goto out;
 
@@ -723,7 +783,7 @@ static int ad7380_read_direct(struct ad7380_state *st, unsigned int scan_index,
 
 	ad7380_update_xfers(st, scan_type);
 
-	ret = spi_sync(st->spi, &st->msg);
+	ret = spi_sync(st->spi, &st->normal_msg);
 	if (ret < 0)
 		return ret;
 
@@ -919,6 +979,7 @@ static int ad7380_init(struct ad7380_state *st, struct regulator *vref)
 	/* This is the default value after reset. */
 	st->oversampling_ratio = 1;
 	st->ch = 0;
+	st->seq = false;
 
 	/* SPI 1-wire mode */
 	return regmap_update_bits(st->regmap, AD7380_REG_ADDR_CONFIG2,
@@ -1020,21 +1081,45 @@ static int ad7380_probe(struct spi_device *spi)
 				     "failed to allocate register map\n");
 
 	/*
-	 * Setting up a low latency read for getting sample data. Used for both
-	 * direct read an triggered buffer. Additional fields will be set up in
-	 * ad7380_update_xfers() based on the current state of the driver at the
-	 * time of the read.
+	 * Setting up xfer structures for both normal and sequence mode. These
+	 * struct are used for both direct read and triggered buffer. Additional
+	 * fields will be set up in ad7380_update_xfers() based on the current
+	 * state of the driver at the time of the read.
 	 */
 
-	/* toggle CS (no data xfer) to trigger a conversion */
-	st->xfer[0].cs_change = 1;
-	st->xfer[0].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
-	st->xfer[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	/*
+	 * In normal mode a read is composed of two steps:
+	 *   - first, toggle CS (no data xfer) to trigger a conversion
+	 *   - then, read data
+	 */
+	st->normal_xfer[0].cs_change = 1;
+	st->normal_xfer[0].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
+	st->normal_xfer[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	st->normal_xfer[1].rx_buf = st->scan_data;
 
-	/* then do a second xfer to read the data */
-	st->xfer[1].rx_buf = st->scan_data;
+	spi_message_init_with_transfers(&st->normal_msg, st->normal_xfer,
+					ARRAY_SIZE(st->normal_xfer));
+	/*
+	 * In sequencer mode a read is composed of four steps:
+	 *   - CS toggle (no data xfer) to get the right point in the sequence
+	 *   - CS toggle (no data xfer) to trigger a conversion of AinX0 and
+	 *   acquisition of AinX1
+	 *   - 2 data reads, to read AinX0 and AinX1
+	 */
+	st->seq_xfer[0].cs_change = 1;
+	st->seq_xfer[0].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
+	st->seq_xfer[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	st->seq_xfer[1].cs_change = 1;
+	st->seq_xfer[1].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
+	st->seq_xfer[1].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 
-	spi_message_init_with_transfers(&st->msg, st->xfer, ARRAY_SIZE(st->xfer));
+	st->seq_xfer[2].rx_buf = st->scan_data;
+	st->seq_xfer[2].cs_change = 1;
+	st->seq_xfer[2].cs_change_delay.value = st->chip_info->timing_specs->t_csh_ns;
+	st->seq_xfer[2].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	spi_message_init_with_transfers(&st->seq_msg, st->seq_xfer,
+					ARRAY_SIZE(st->seq_xfer));
 
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
