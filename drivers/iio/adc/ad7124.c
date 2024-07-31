@@ -896,6 +896,9 @@ static int ad7124_setup(struct ad7124_state *st)
 	st->adc_control &= ~AD7124_ADC_CTRL_PWR_MSK;
 	st->adc_control |= AD7124_ADC_CTRL_PWR(power_mode);
 
+	st->adc_control &= ~AD7124_ADC_CTRL_MODE_MSK;
+	st->adc_control |= AD7124_ADC_CTRL_MODE(AD_SD_MODE_IDLE);
+
 	mutex_init(&st->cfgs_lock);
 	INIT_KFIFO(st->live_cfgs_fifo);
 	for (i = 0; i < st->num_channels; i++) {
