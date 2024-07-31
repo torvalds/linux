@@ -33,6 +33,14 @@ static inline void write_pmevtypern(int n, unsigned long val)
 	PMEVN_SWITCH(n, WRITE_PMEVTYPERN);
 }
 
+#define RETURN_READ_PMEVTYPERN(n) \
+	return read_sysreg(pmevtyper##n##_el0)
+static inline unsigned long read_pmevtypern(int n)
+{
+	PMEVN_SWITCH(n, RETURN_READ_PMEVTYPERN);
+	return 0;
+}
+
 static inline unsigned long read_pmmir(void)
 {
 	return read_cpuid(PMMIR_EL1);
@@ -94,6 +102,11 @@ static inline void write_pmintenclr(u64 val)
 static inline void write_pmccfiltr(u64 val)
 {
 	write_sysreg(val, pmccfiltr_el0);
+}
+
+static inline u64 read_pmccfiltr(void)
+{
+	return read_sysreg(pmccfiltr_el0);
 }
 
 static inline void write_pmovsclr(u64 val)
