@@ -104,4 +104,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 module_usb_serial_driver(serial_drivers, id_table_combined);
+MODULE_DESCRIPTION("USB Debug cable driver");
 MODULE_LICENSE("GPL v2");

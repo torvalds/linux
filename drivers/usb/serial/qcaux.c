@@ -84,4 +84,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 module_usb_serial_driver(serial_drivers, id_table);
+MODULE_DESCRIPTION("Qualcomm USB Auxiliary Serial Port driver");
 MODULE_LICENSE("GPL v2");

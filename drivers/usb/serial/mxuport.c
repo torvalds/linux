@@ -1315,4 +1315,5 @@ module_usb_serial_driver(serial_drivers, mxuport_idtable);
 
 MODULE_AUTHOR("Andrew Lunn <andrew@lunn.ch>");
 MODULE_AUTHOR("<support@moxa.com>");
+MODULE_DESCRIPTION("Moxa UPORT USB Serial driver");
 MODULE_LICENSE("GPL");
