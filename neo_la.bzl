@@ -63,6 +63,7 @@ def define_neo_la():
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/debug_symbol.ko",
+        "drivers/soc/qcom/eud.ko",
         "drivers/soc/qcom/llcc-qcom.ko",
         "drivers/soc/qcom/llcc_perfmon.ko",
         "drivers/soc/qcom/mem-hooks.ko",
