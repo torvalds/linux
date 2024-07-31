@@ -1201,12 +1201,9 @@ void __init setup_arch(char **cmdline_p)
 		mdesc->init_early();
 }
 
-int arch_register_cpu(int num)
+bool arch_cpu_is_hotpluggable(int num)
 {
-	struct cpu *cpu = &per_cpu(cpu_devices, num);
-
-	cpu->hotpluggable = platform_can_hotplug_cpu(num);
-	return register_cpu(cpu, num);
+	return platform_can_hotplug_cpu(num);
 }
 
 #ifdef CONFIG_HAVE_PROC_CPU
