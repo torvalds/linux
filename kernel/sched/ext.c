@@ -1029,16 +1029,12 @@ static __always_inline bool scx_kf_allowed(u32 mask)
 		return false;
 	}
 
-	if (unlikely((mask & SCX_KF_SLEEPABLE) && in_interrupt())) {
-		scx_ops_error("sleepable kfunc called from non-sleepable context");
-		return false;
-	}
-
 	/*
 	 * Enforce nesting boundaries. e.g. A kfunc which can be called from
 	 * DISPATCH must not be called if we're running DEQUEUE which is nested
-	 * inside ops.dispatch(). We don't need to check the SCX_KF_SLEEPABLE
-	 * boundary thanks to the above in_interrupt() check.
+	 * inside ops.dispatch(). We don't need to check boundaries for any
+	 * blocking kfuncs as the verifier ensures they're only called from
+	 * sleepable progs.
 	 */
 	if (unlikely(highest_bit(mask) == SCX_KF_CPU_RELEASE &&
 		     (current->scx.kf_mask & higher_bits(SCX_KF_CPU_RELEASE)))) {
@@ -3224,9 +3220,9 @@ static void handle_hotplug(struct rq *rq, bool online)
 	atomic_long_inc(&scx_hotplug_seq);
 
 	if (online && SCX_HAS_OP(cpu_online))
-		SCX_CALL_OP(SCX_KF_SLEEPABLE, cpu_online, cpu);
+		SCX_CALL_OP(SCX_KF_UNLOCKED, cpu_online, cpu);
 	else if (!online && SCX_HAS_OP(cpu_offline))
-		SCX_CALL_OP(SCX_KF_SLEEPABLE, cpu_offline, cpu);
+		SCX_CALL_OP(SCX_KF_UNLOCKED, cpu_offline, cpu);
 	else
 		scx_ops_exit(SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
 			     "cpu %d going %s, exiting scheduler", cpu,
@@ -3390,7 +3386,7 @@ static int scx_ops_init_task(struct task_struct *p, struct task_group *tg, bool 
 			.fork = fork,
 		};
 
-		ret = SCX_CALL_OP_RET(SCX_KF_SLEEPABLE, init_task, p, &args);
+		ret = SCX_CALL_OP_RET(SCX_KF_UNLOCKED, init_task, p, &args);
 		if (unlikely(ret)) {
 			ret = ops_sanitize_err("init_task", ret);
 			return ret;
@@ -4648,7 +4644,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	cpus_read_lock();
 
 	if (scx_ops.init) {
-		ret = SCX_CALL_OP_RET(SCX_KF_SLEEPABLE, init);
+		ret = SCX_CALL_OP_RET(SCX_KF_UNLOCKED, init);
 		if (ret) {
 			ret = ops_sanitize_err("init", ret);
 			goto err_disable_unlock_cpus;
@@ -5424,14 +5420,11 @@ __bpf_kfunc_start_defs();
  * @dsq_id: DSQ to create
  * @node: NUMA node to allocate from
  *
- * Create a custom DSQ identified by @dsq_id. Can be called from ops.init() and
- * ops.init_task().
+ * Create a custom DSQ identified by @dsq_id. Can be called from any sleepable
+ * scx callback, and any BPF_PROG_TYPE_SYSCALL prog.
  */
 __bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
 {
-	if (!scx_kf_allowed(SCX_KF_SLEEPABLE))
-		return -EINVAL;
-
 	if (unlikely(node >= (int)nr_node_ids ||
 		     (node < 0 && node != NUMA_NO_NODE)))
 		return -EINVAL;
@@ -6489,6 +6482,8 @@ static int __init scx_init(void)
 	 * check using scx_kf_allowed().
 	 */
 	if ((ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
+					     &scx_kfunc_set_sleepable)) ||
+	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL,
 					     &scx_kfunc_set_sleepable)) ||
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_select_cpu)) ||

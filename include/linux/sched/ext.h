@@ -106,16 +106,14 @@ enum scx_ent_dsq_flags {
  * mechanism. See scx_kf_allow().
  */
 enum scx_kf_mask {
-	SCX_KF_UNLOCKED		= 0,	  /* not sleepable, not rq locked */
-	/* all non-sleepables may be nested inside SLEEPABLE */
-	SCX_KF_SLEEPABLE	= 1 << 0, /* sleepable init operations */
+	SCX_KF_UNLOCKED		= 0,	  /* sleepable and not rq locked */
 	/* ENQUEUE and DISPATCH may be nested inside CPU_RELEASE */
-	SCX_KF_CPU_RELEASE	= 1 << 1, /* ops.cpu_release() */
+	SCX_KF_CPU_RELEASE	= 1 << 0, /* ops.cpu_release() */
 	/* ops.dequeue (in REST) may be nested inside DISPATCH */
-	SCX_KF_DISPATCH		= 1 << 2, /* ops.dispatch() */
-	SCX_KF_ENQUEUE		= 1 << 3, /* ops.enqueue() and ops.select_cpu() */
-	SCX_KF_SELECT_CPU	= 1 << 4, /* ops.select_cpu() */
-	SCX_KF_REST		= 1 << 5, /* other rq-locked operations */
+	SCX_KF_DISPATCH		= 1 << 1, /* ops.dispatch() */
+	SCX_KF_ENQUEUE		= 1 << 2, /* ops.enqueue() and ops.select_cpu() */
+	SCX_KF_SELECT_CPU	= 1 << 3, /* ops.select_cpu() */
+	SCX_KF_REST		= 1 << 4, /* other rq-locked operations */
 
 	__SCX_KF_RQ_LOCKED	= SCX_KF_CPU_RELEASE | SCX_KF_DISPATCH |
 				  SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
