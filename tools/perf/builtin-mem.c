@@ -34,6 +34,8 @@ struct perf_mem {
 	bool			force;
 	bool			phys_addr;
 	bool			data_page_size;
+	bool			all_kernel;
+	bool			all_user;
 	int			operation;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -62,33 +64,19 @@ static int parse_record_events(const struct option *opt,
 	return 0;
 }
 
-static const char * const __usage[] = {
-	"perf mem record [<options>] [<command>]",
-	"perf mem record [<options>] -- <command> [<options>]",
-	NULL
-};
-
-static const char * const *record_mem_usage = __usage;
-
-static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
+static int __cmd_record(int argc, const char **argv, struct perf_mem *mem,
+			const struct option *options)
 {
 	int rec_argc, i = 0, j;
 	int start, end;
 	const char **rec_argv;
 	int ret;
-	bool all_user = false, all_kernel = false;
 	struct perf_mem_event *e;
 	struct perf_pmu *pmu;
-	struct option options[] = {
-	OPT_CALLBACK('e', "event", &mem, "event",
-		     "event selector. use 'perf mem record -e list' to list available events",
-		     parse_record_events),
-	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
-	OPT_BOOLEAN('U', "all-user", &all_user, "collect only user level data"),
-	OPT_BOOLEAN('K', "all-kernel", &all_kernel, "collect only kernel level data"),
-	OPT_END()
+	const char * const record_usage[] = {
+		"perf mem record [<options>] [<command>]",
+		"perf mem record [<options>] -- <command> [<options>]",
+		NULL
 	};
 
 	pmu = perf_mem_events_find_pmu();
@@ -102,7 +90,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		return -1;
 	}
 
-	argc = parse_options(argc, argv, options, record_mem_usage,
+	argc = parse_options(argc, argv, options, record_usage,
 			     PARSE_OPT_KEEP_UNKNOWN);
 
 	/* Max number of arguments multiplied by number of PMUs that can support them. */
@@ -158,10 +146,10 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		goto out;
 	end = i;
 
-	if (all_user)
+	if (mem->all_user)
 		rec_argv[i++] = "--all-user";
 
-	if (all_kernel)
+	if (mem->all_kernel)
 		rec_argv[i++] = "--all-kernel";
 
 	if (mem->cpu_list) {
@@ -319,6 +307,7 @@ out_delete:
 	perf_session__delete(session);
 	return ret;
 }
+
 static char *get_sort_order(struct perf_mem *mem)
 {
 	bool has_extra_options = (mem->phys_addr | mem->data_page_size) ? true : false;
@@ -346,11 +335,19 @@ static char *get_sort_order(struct perf_mem *mem)
 	return strdup(sort);
 }
 
-static int report_events(int argc, const char **argv, struct perf_mem *mem)
+static int __cmd_report(int argc, const char **argv, struct perf_mem *mem,
+			const struct option *options)
 {
 	const char **rep_argv;
 	int ret, i = 0, j, rep_argc;
 	char *new_sort_order;
+	const char * const report_usage[] = {
+		"perf mem report [<options>]",
+		NULL
+	};
+
+	argc = parse_options(argc, argv, options, report_usage,
+			     PARSE_OPT_KEEP_UNKNOWN);
 
 	if (mem->dump_raw)
 		return report_raw_events(mem);
@@ -368,7 +365,7 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 	if (new_sort_order)
 		rep_argv[i++] = new_sort_order;
 
-	for (j = 1; j < argc; j++, i++)
+	for (j = 0; j < argc; j++, i++)
 		rep_argv[i] = argv[j];
 
 	ret = cmd_report(i, rep_argv);
@@ -475,22 +472,36 @@ int cmd_mem(int argc, const char **argv)
 	OPT_CALLBACK('t', "type", &mem.operation,
 		   "type", "memory operations(load,store) Default load,store",
 		    parse_mem_ops),
+	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
+	OPT_INCR('v', "verbose", &verbose,
+		 "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
+	OPT_BOOLEAN(0, "data-page-size", &mem.data_page_size, "Record/Report sample data address page size"),
+	OPT_END()
+	};
+	const struct option record_options[] = {
+	OPT_CALLBACK('e', "event", &mem, "event",
+		     "event selector. use 'perf mem record -e list' to list available events",
+		     parse_record_events),
+	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
+	OPT_BOOLEAN('U', "all-user", &mem.all_user, "collect only user level data"),
+	OPT_BOOLEAN('K', "all-kernel", &mem.all_kernel, "collect only kernel level data"),
+	OPT_PARENT(mem_options)
+	};
+	const struct option report_options[] = {
 	OPT_BOOLEAN('D', "dump-raw-samples", &mem.dump_raw,
 		    "dump raw samples in ASCII"),
 	OPT_BOOLEAN('U', "hide-unresolved", &mem.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "input file name"),
-	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
-		   "list of cpus to profile"),
 	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep,
 		   "separator",
 		   "separator for columns, no spaces will be added"
 		   " between columns '.' is reserved."),
-	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
-	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
-	OPT_BOOLEAN(0, "data-page-size", &mem.data_page_size, "Record/Report sample data address page size"),
-	OPT_END()
+	OPT_PARENT(mem_options)
 	};
 	const char *const mem_subcommands[] = { "record", "report", NULL };
 	const char *mem_usage[] = {
@@ -499,7 +510,7 @@ int cmd_mem(int argc, const char **argv)
 	};
 
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
-					mem_usage, PARSE_OPT_KEEP_UNKNOWN);
+					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (!argc || !(strncmp(argv[0], "rec", 3) || mem.operation))
 		usage_with_options(mem_usage, mem_options);
@@ -512,9 +523,9 @@ int cmd_mem(int argc, const char **argv)
 	}
 
 	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
-		return __cmd_record(argc, argv, &mem);
+		return __cmd_record(argc, argv, &mem, record_options);
 	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
-		return report_events(argc, argv, &mem);
+		return __cmd_report(argc, argv, &mem, report_options);
 	else
 		usage_with_options(mem_usage, mem_options);
 
