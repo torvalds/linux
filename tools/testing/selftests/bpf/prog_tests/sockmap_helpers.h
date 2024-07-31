@@ -3,6 +3,9 @@
 
 #include <linux/vm_sockets.h>
 
+/* include/linux/net.h */
+#define SOCK_TYPE_MASK 0xf
+
 #define IO_TIMEOUT_SEC 30
 #define MAX_STRERR_LEN 256
 #define MAX_TEST_NAME 80
@@ -312,54 +315,6 @@ static inline int add_to_sockmap(int sock_mapfd, int fd1, int fd2)
 	return xbpf_map_update_elem(sock_mapfd, &key, &value, BPF_NOEXIST);
 }
 
-static inline int create_pair(int s, int family, int sotype, int *c, int *p)
-{
-	struct sockaddr_storage addr;
-	socklen_t len;
-	int err = 0;
-
-	len = sizeof(addr);
-	err = xgetsockname(s, sockaddr(&addr), &len);
-	if (err)
-		return err;
-
-	*c = xsocket(family, sotype, 0);
-	if (*c < 0)
-		return errno;
-	err = xconnect(*c, sockaddr(&addr), len);
-	if (err) {
-		err = errno;
-		goto close_cli0;
-	}
-
-	*p = xaccept_nonblock(s, NULL, NULL);
-	if (*p < 0) {
-		err = errno;
-		goto close_cli0;
-	}
-	return err;
-close_cli0:
-	close(*c);
-	return err;
-}
-
-static inline int create_socket_pairs(int s, int family, int sotype,
-				      int *c0, int *c1, int *p0, int *p1)
-{
-	int err;
-
-	err = create_pair(s, family, sotype, c0, p0);
-	if (err)
-		return err;
-
-	err = create_pair(s, family, sotype, c1, p1);
-	if (err) {
-		close(*c0);
-		close(*p0);
-	}
-	return err;
-}
-
 static inline int enable_reuseport(int s, int progfd)
 {
 	int err, one = 1;
@@ -412,5 +367,92 @@ static inline int socket_loopback(int family, int sotype)
 	return socket_loopback_reuseport(family, sotype, -1);
 }
 
+static inline int create_pair(int family, int sotype, int *p0, int *p1)
+{
+	struct sockaddr_storage addr;
+	socklen_t len = sizeof(addr);
+	int s, c, p, err;
+
+	s = socket_loopback(family, sotype);
+	if (s < 0)
+		return s;
+
+	err = xgetsockname(s, sockaddr(&addr), &len);
+	if (err)
+		goto close_s;
+
+	c = xsocket(family, sotype, 0);
+	if (c < 0) {
+		err = c;
+		goto close_s;
+	}
+
+	err = connect(c, sockaddr(&addr), len);
+	if (err) {
+		if (errno != EINPROGRESS) {
+			FAIL_ERRNO("connect");
+			goto close_c;
+		}
+
+		err = poll_connect(c, IO_TIMEOUT_SEC);
+		if (err) {
+			FAIL_ERRNO("poll_connect");
+			goto close_c;
+		}
+	}
+
+	switch (sotype & SOCK_TYPE_MASK) {
+	case SOCK_DGRAM:
+		err = xgetsockname(c, sockaddr(&addr), &len);
+		if (err)
+			goto close_c;
+
+		err = xconnect(s, sockaddr(&addr), len);
+		if (!err) {
+			*p0 = s;
+			*p1 = c;
+			return err;
+		}
+		break;
+	case SOCK_STREAM:
+	case SOCK_SEQPACKET:
+		p = xaccept_nonblock(s, NULL, NULL);
+		if (p >= 0) {
+			*p0 = p;
+			*p1 = c;
+			goto close_s;
+		}
+
+		err = p;
+		break;
+	default:
+		FAIL("Unsupported socket type %#x", sotype);
+		err = -EOPNOTSUPP;
+	}
+
+close_c:
+	close(c);
+close_s:
+	close(s);
+	return err;
+}
+
+static inline int create_socket_pairs(int s, int family, int sotype,
+				      int *c0, int *c1, int *p0, int *p1)
+{
+	int err;
+
+	err = create_pair(family, sotype, c0, p0);
+	if (err)
+		return err;
+
+	err = create_pair(family, sotype, c1, p1);
+	if (err) {
+		close(*c0);
+		close(*p0);
+	}
+
+	return err;
+}
 
 #endif // __SOCKMAP_HELPERS__
