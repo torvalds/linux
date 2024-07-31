@@ -571,6 +571,8 @@ static u64 armv8pmu_read_counter(struct perf_event *event)
 
 	if (idx == ARMV8_PMU_CYCLE_IDX)
 		value = read_pmccntr();
+	else if (idx == ARMV8_PMU_INSTR_IDX)
+		value = read_pmicntr();
 	else
 		value = armv8pmu_read_hw_counter(event);
 
@@ -604,6 +606,8 @@ static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 
 	if (idx == ARMV8_PMU_CYCLE_IDX)
 		write_pmccntr(value);
+	else if (idx == ARMV8_PMU_INSTR_IDX)
+		write_pmicntr(value);
 	else
 		armv8pmu_write_hw_counter(event, value);
 }
@@ -641,6 +645,8 @@ static void armv8pmu_write_event_type(struct perf_event *event)
 	} else {
 		if (idx == ARMV8_PMU_CYCLE_IDX)
 			write_pmccfiltr(hwc->config_base);
+		else if (idx == ARMV8_PMU_INSTR_IDX)
+			write_pmicfiltr(hwc->config_base);
 		else
 			armv8pmu_write_evtype(idx, hwc->config_base);
 	}
@@ -769,6 +775,8 @@ static void armv8pmu_enable_user_access(struct arm_pmu *cpu_pmu)
 			    ARMPMU_MAX_HWEVENTS) {
 		if (i == ARMV8_PMU_CYCLE_IDX)
 			write_pmccntr(0);
+		else if (i == ARMV8_PMU_INSTR_IDX)
+			write_pmicntr(0);
 		else
 			armv8pmu_write_evcntr(i, 0);
 	}
@@ -934,6 +942,19 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 			   armv8pmu_event_want_user_access(event) &&
 			   !armv8pmu_has_long_event(cpu_pmu))
 				return -EAGAIN;
+	}
+
+	/*
+	 * Always prefer to place a instruction counter into the instruction counter,
+	 * but don't expose the instruction counter to userspace access as userspace
+	 * may not know how to handle it.
+	 */
+	if ((evtype == ARMV8_PMUV3_PERFCTR_INST_RETIRED) &&
+	    !armv8pmu_event_get_threshold(&event->attr) &&
+	    test_bit(ARMV8_PMU_INSTR_IDX, cpu_pmu->cntr_mask) &&
+	    !armv8pmu_event_want_user_access(event)) {
+		if (!test_and_set_bit(ARMV8_PMU_INSTR_IDX, cpuc->used_mask))
+			return ARMV8_PMU_INSTR_IDX;
 	}
 
 	/*
@@ -1192,6 +1213,10 @@ static void __armv8pmu_probe_pmu(void *info)
 
 	/* Add the CPU cycles counter */
 	set_bit(ARMV8_PMU_CYCLE_IDX, cpu_pmu->cntr_mask);
+
+	/* Add the CPU instructions counter */
+	if (pmuv3_has_icntr())
+		set_bit(ARMV8_PMU_INSTR_IDX, cpu_pmu->cntr_mask);
 
 	pmceid[0] = pmceid_raw[0] = read_pmceid0();
 	pmceid[1] = pmceid_raw[1] = read_pmceid1();

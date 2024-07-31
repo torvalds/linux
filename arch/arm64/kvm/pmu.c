@@ -66,24 +66,28 @@ void kvm_clr_pmu_events(u64 clr)
 
 /*
  * Read a value direct from PMEVTYPER<idx> where idx is 0-30
- * or PMCCFILTR_EL0 where idx is ARMV8_PMU_CYCLE_IDX (31).
+ * or PMxCFILTR_EL0 where idx is 31-32.
  */
 static u64 kvm_vcpu_pmu_read_evtype_direct(int idx)
 {
 	if (idx == ARMV8_PMU_CYCLE_IDX)
 		return read_pmccfiltr();
+	else if (idx == ARMV8_PMU_INSTR_IDX)
+		return read_pmicfiltr();
 
 	return read_pmevtypern(idx);
 }
 
 /*
  * Write a value direct to PMEVTYPER<idx> where idx is 0-30
- * or PMCCFILTR_EL0 where idx is ARMV8_PMU_CYCLE_IDX (31).
+ * or PMxCFILTR_EL0 where idx is 31-32.
  */
 static void kvm_vcpu_pmu_write_evtype_direct(int idx, u32 val)
 {
 	if (idx == ARMV8_PMU_CYCLE_IDX)
 		write_pmccfiltr(val);
+	else if (idx == ARMV8_PMU_INSTR_IDX)
+		write_pmicfiltr(val);
 	else
 		write_pmevtypern(idx, val);
 }

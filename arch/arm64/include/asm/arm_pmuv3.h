@@ -54,6 +54,14 @@ static inline u32 read_pmuver(void)
 			ID_AA64DFR0_EL1_PMUVer_SHIFT);
 }
 
+static inline bool pmuv3_has_icntr(void)
+{
+	u64 dfr1 = read_sysreg(id_aa64dfr1_el1);
+
+	return !!cpuid_feature_extract_unsigned_field(dfr1,
+			ID_AA64DFR1_EL1_PMICNTR_SHIFT);
+}
+
 static inline void write_pmcr(u64 val)
 {
 	write_sysreg(val, pmcr_el0);
@@ -77,6 +85,16 @@ static inline void write_pmccntr(u64 val)
 static inline u64 read_pmccntr(void)
 {
 	return read_sysreg(pmccntr_el0);
+}
+
+static inline void write_pmicntr(u64 val)
+{
+	write_sysreg_s(val, SYS_PMICNTR_EL0);
+}
+
+static inline u64 read_pmicntr(void)
+{
+	return read_sysreg_s(SYS_PMICNTR_EL0);
 }
 
 static inline void write_pmcntenset(u64 val)
@@ -107,6 +125,16 @@ static inline void write_pmccfiltr(u64 val)
 static inline u64 read_pmccfiltr(void)
 {
 	return read_sysreg(pmccfiltr_el0);
+}
+
+static inline void write_pmicfiltr(u64 val)
+{
+	write_sysreg_s(val, SYS_PMICFILTR_EL0);
+}
+
+static inline u64 read_pmicfiltr(void)
+{
+	return read_sysreg_s(SYS_PMICFILTR_EL0);
 }
 
 static inline void write_pmovsclr(u64 val)

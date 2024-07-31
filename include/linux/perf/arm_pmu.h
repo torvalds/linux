@@ -17,10 +17,14 @@
 #ifdef CONFIG_ARM_PMU
 
 /*
- * The ARMv7 CPU PMU supports up to 32 event counters.
+ * The Armv7 and Armv8.8 or less CPU PMU supports up to 32 event counters.
+ * The Armv8.9/9.4 CPU PMU supports up to 33 event counters.
  */
+#ifdef CONFIG_ARM
 #define ARMPMU_MAX_HWEVENTS		32
-
+#else
+#define ARMPMU_MAX_HWEVENTS		33
+#endif
 /*
  * ARM PMU hw_event flags
  */
