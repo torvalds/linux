@@ -209,4 +209,43 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		struct dc_stream_state *stream,
 		struct dc_surface_update *srf_updates,
 		int surface_count);
+
+/**
+ * struct ips_residency_info - struct containing info from dmub_ips_residency_stats
+ *
+ * @ips_mode: The mode of IPS that the follow stats appertain to
+ * @residency_percent: The percentage of time spent in given IPS mode in millipercent
+ * @entry_counter: The number of entries made in to this IPS state
+ * @total_active_time_us: uint32_t array of length 2 representing time in the given IPS mode
+ *                        in microseconds. Index 0 is lower 32 bits, index 1 is upper 32 bits.
+ * @total_inactive_time_us: uint32_t array of length 2 representing time outside the given IPS mode
+ *                          in microseconds. Index 0 is lower 32 bits, index 1 is upper 32 bits.
+ * @histogram: Histogram of given IPS state durations - bucket definitions in dmub_ips.c
+ */
+struct ips_residency_info {
+	enum dmub_ips_mode ips_mode;
+	unsigned int residency_percent;
+	unsigned int entry_counter;
+	unsigned int total_active_time_us[2];
+	unsigned int total_inactive_time_us[2];
+	unsigned int histogram[16];
+};
+
+/**
+ * bool dc_dmub_srv_ips_residency_cntl() - Controls IPS residency measurement status
+ *
+ * @dc_dmub_srv: The DC DMUB service pointer
+ * @start_measurement: Describes whether to start or stop measurement
+ *
+ * Return: true if GPINT was sent successfully, false otherwise
+ */
+bool dc_dmub_srv_ips_residency_cntl(struct dc_dmub_srv *dc_dmub_srv, bool start_measurement);
+
+/**
+ * bool dc_dmub_srv_ips_query_residency_info() - Queries DMCUB for residency info
+ *
+ * @dc_dmub_srv: The DC DMUB service pointer
+ * @output: Output struct to copy the the residency info to
+ */
+void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struct ips_residency_info *output);
 #endif /* _DMUB_DC_SRV_H_ */
