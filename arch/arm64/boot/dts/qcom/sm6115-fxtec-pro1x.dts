@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (c) 2023, Dang Huynh <danct12@riseup.net>
+ * Copyright (c) 2023 - 2024, Dang Huynh <danct12@riseup.net>
  */
 
 /dts-v1/;
@@ -35,8 +35,24 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		pinctrl-0 = <&vol_up_n>;
+		pinctrl-0 = <&hall_sensor_n>, <&key_camera_n>, <&vol_up_n>;
 		pinctrl-names = "default";
+
+		hall-switch {
+			label = "Hall Switch";
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <90>;
+			wakeup-source;
+		};
+
+		key-camera {
+			label = "Camera Button";
+			linux,code = <KEY_CAMERA>;
+			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+		};
 
 		key-volume-up {
 			label = "Volume Up";
@@ -212,6 +228,20 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <14 4>;
+
+	key_camera_n: key-camera-n-state {
+		pins = "gpio18";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	hall_sensor_n: hall-sensor-n-state {
+		pins = "gpio96";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
 
 &ufs_mem_hc {
