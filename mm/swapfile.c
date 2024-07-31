@@ -572,7 +572,10 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 
 	if (!(ci->flags & CLUSTER_FLAG_NONFULL)) {
 		VM_BUG_ON(ci->flags & CLUSTER_FLAG_FREE);
-		list_add_tail(&ci->list, &p->nonfull_clusters[ci->order]);
+		if (ci->flags & CLUSTER_FLAG_FRAG)
+			list_move_tail(&ci->list, &p->nonfull_clusters[ci->order]);
+		else
+			list_add_tail(&ci->list, &p->nonfull_clusters[ci->order]);
 		ci->flags = CLUSTER_FLAG_NONFULL;
 	}
 }
@@ -610,7 +613,8 @@ static inline void cluster_alloc_range(struct swap_info_struct *si, struct swap_
 	ci->count += nr_pages;
 
 	if (ci->count == SWAPFILE_CLUSTER) {
-		VM_BUG_ON(!(ci->flags & (CLUSTER_FLAG_FREE | CLUSTER_FLAG_NONFULL)));
+		VM_BUG_ON(!(ci->flags &
+			  (CLUSTER_FLAG_FREE | CLUSTER_FLAG_NONFULL | CLUSTER_FLAG_FRAG)));
 		list_del(&ci->list);
 		ci->flags = 0;
 	}
@@ -666,6 +670,7 @@ static unsigned long cluster_alloc_swap_entry(struct swap_info_struct *si, int o
 	struct percpu_cluster *cluster;
 	struct swap_cluster_info *ci, *n;
 	unsigned int offset, found = 0;
+	LIST_HEAD(fraged);
 
 new_cluster:
 	lockdep_assert_held(&si->lock);
@@ -686,12 +691,28 @@ new_cluster:
 
 	if (order < PMD_ORDER) {
 		list_for_each_entry_safe(ci, n, &si->nonfull_clusters[order], list) {
+			list_move_tail(&ci->list, &fraged);
+			ci->flags = CLUSTER_FLAG_FRAG;
 			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
 							 &found, order, usage);
 			if (found)
-				goto done;
+				break;
 		}
+
+		if (!found) {
+			list_for_each_entry_safe(ci, n, &si->frag_clusters[order], list) {
+				offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci),
+								 &found, order, usage);
+				if (found)
+					break;
+			}
+		}
+
+		list_splice_tail(&fraged, &si->frag_clusters[order]);
 	}
+
+	if (found)
+		goto done;
 
 	if (!list_empty(&si->discard_clusters)) {
 		/*
@@ -706,7 +727,17 @@ new_cluster:
 	if (order)
 		goto done;
 
+	/* Order 0 stealing from higher order */
 	for (int o = 1; o < SWAP_NR_ORDERS; o++) {
+		if (!list_empty(&si->frag_clusters[o])) {
+			ci = list_first_entry(&si->frag_clusters[o],
+					      struct swap_cluster_info, list);
+			offset = alloc_swap_scan_cluster(si, cluster_offset(si, ci), &found,
+							 0, usage);
+			VM_BUG_ON(!found);
+			goto done;
+		}
+
 		if (!list_empty(&si->nonfull_clusters[o])) {
 			ci = list_first_entry(&si->nonfull_clusters[o], struct swap_cluster_info,
 					      list);
@@ -3008,8 +3039,10 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 	INIT_LIST_HEAD(&p->free_clusters);
 	INIT_LIST_HEAD(&p->discard_clusters);
 
-	for (i = 0; i < SWAP_NR_ORDERS; i++)
+	for (i = 0; i < SWAP_NR_ORDERS; i++) {
 		INIT_LIST_HEAD(&p->nonfull_clusters[i]);
+		INIT_LIST_HEAD(&p->frag_clusters[i]);
+	}
 
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 		unsigned int page_nr = swap_header->info.badpages[i];
