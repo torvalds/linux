@@ -1490,49 +1490,7 @@ static void test_unix_redir(struct test_sockmap_listen *skel, struct bpf_map *ma
 /* Returns two connected loopback vsock sockets */
 static int vsock_socketpair_connectible(int sotype, int *v0, int *v1)
 {
-	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
-	int s, p, c;
-
-	s = socket_loopback(AF_VSOCK, sotype);
-	if (s < 0)
-		return -1;
-
-	c = xsocket(AF_VSOCK, sotype | SOCK_NONBLOCK, 0);
-	if (c == -1)
-		goto close_srv;
-
-	if (getsockname(s, sockaddr(&addr), &len) < 0)
-		goto close_cli;
-
-	if (connect(c, sockaddr(&addr), len) < 0 && errno != EINPROGRESS) {
-		FAIL_ERRNO("connect");
-		goto close_cli;
-	}
-
-	len = sizeof(addr);
-	p = accept_timeout(s, sockaddr(&addr), &len, IO_TIMEOUT_SEC);
-	if (p < 0)
-		goto close_cli;
-
-	if (poll_connect(c, IO_TIMEOUT_SEC) < 0) {
-		FAIL_ERRNO("poll_connect");
-		goto close_acc;
-	}
-
-	*v0 = p;
-	*v1 = c;
-
-	return 0;
-
-close_acc:
-	close(p);
-close_cli:
-	close(c);
-close_srv:
-	close(s);
-
-	return -1;
+	return create_pair(AF_VSOCK, sotype | SOCK_NONBLOCK, v0, v1);
 }
 
 static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
@@ -1681,44 +1639,7 @@ static void test_reuseport(struct test_sockmap_listen *skel,
 
 static int inet_socketpair(int family, int type, int *s, int *c)
 {
-	struct sockaddr_storage addr;
-	socklen_t len;
-	int p0, c0;
-	int err;
-
-	p0 = socket_loopback(family, type | SOCK_NONBLOCK);
-	if (p0 < 0)
-		return p0;
-
-	len = sizeof(addr);
-	err = xgetsockname(p0, sockaddr(&addr), &len);
-	if (err)
-		goto close_peer0;
-
-	c0 = xsocket(family, type | SOCK_NONBLOCK, 0);
-	if (c0 < 0) {
-		err = c0;
-		goto close_peer0;
-	}
-	err = xconnect(c0, sockaddr(&addr), len);
-	if (err)
-		goto close_cli0;
-	err = xgetsockname(c0, sockaddr(&addr), &len);
-	if (err)
-		goto close_cli0;
-	err = xconnect(p0, sockaddr(&addr), len);
-	if (err)
-		goto close_cli0;
-
-	*s = p0;
-	*c = c0;
-	return 0;
-
-close_cli0:
-	xclose(c0);
-close_peer0:
-	xclose(p0);
-	return err;
+	return create_pair(family, type | SOCK_NONBLOCK, s, c);
 }
 
 static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
