@@ -38,6 +38,7 @@ struct perf_mem {
 	bool			data_page_size;
 	bool			all_kernel;
 	bool			all_user;
+	bool			data_type;
 	int			operation;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -317,6 +318,8 @@ static char *get_sort_order(struct perf_mem *mem)
 
 	if (mem->sort_key)
 		scnprintf(sort, sizeof(sort), "--sort=%s", mem->sort_key);
+	else if (mem->data_type)
+		strcpy(sort, "--sort=mem,snoop,tlb,type");
 	/*
 	 * there is no weight (cost) associated with stores, so don't print
 	 * the column
@@ -335,6 +338,10 @@ static char *get_sort_order(struct perf_mem *mem)
 
 	if (mem->data_page_size)
 		strcat(sort, ",data_page_size");
+
+	/* make sure it has 'type' sort key even -s option is used */
+	if (mem->data_type && !strstr(sort, "type"))
+		strcat(sort, ",type");
 
 	return strdup(sort);
 }
@@ -508,6 +515,8 @@ int cmd_mem(int argc, const char **argv)
 		   " between columns '.' is reserved."),
 	OPT_STRING('s', "sort", &mem.sort_key, "key[,key2...]",
 		   sort_order_help),
+	OPT_BOOLEAN('T', "type-profile", &mem.data_type,
+		    "Show data-type profile result"),
 	OPT_PARENT(mem_options)
 	};
 	const char *const mem_subcommands[] = { "record", "report", NULL };
