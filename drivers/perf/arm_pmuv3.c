@@ -454,9 +454,7 @@ static const struct attribute_group armv8_pmuv3_caps_attr_group = {
 /*
  * Perf Events' indices
  */
-#define	ARMV8_IDX_CYCLE_COUNTER	0
-#define	ARMV8_IDX_COUNTER0	1
-#define	ARMV8_IDX_CYCLE_COUNTER_USER	32
+#define	ARMV8_IDX_CYCLE_COUNTER	31
 
 /*
  * We unconditionally enable ARMv8.5-PMU long event counter support
@@ -489,19 +487,12 @@ static bool armv8pmu_event_is_chained(struct perf_event *event)
 	return !armv8pmu_event_has_user_read(event) &&
 	       armv8pmu_event_is_64bit(event) &&
 	       !armv8pmu_has_long_event(cpu_pmu) &&
-	       (idx != ARMV8_IDX_CYCLE_COUNTER);
+	       (idx < ARMV8_PMU_MAX_GENERAL_COUNTERS);
 }
 
 /*
  * ARMv8 low level PMU access
  */
-
-/*
- * Perf Event to low level counters mapping
- */
-#define	ARMV8_IDX_TO_COUNTER(x)	\
-	(((x) - ARMV8_IDX_COUNTER0) & ARMV8_PMU_COUNTER_MASK)
-
 static u64 armv8pmu_pmcr_read(void)
 {
 	return read_pmcr();
@@ -521,14 +512,12 @@ static int armv8pmu_has_overflowed(u32 pmovsr)
 
 static int armv8pmu_counter_has_overflowed(u32 pmnc, int idx)
 {
-	return pmnc & BIT(ARMV8_IDX_TO_COUNTER(idx));
+	return pmnc & BIT(idx);
 }
 
 static u64 armv8pmu_read_evcntr(int idx)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-
-	return read_pmevcntrn(counter);
+	return read_pmevcntrn(idx);
 }
 
 static u64 armv8pmu_read_hw_counter(struct perf_event *event)
@@ -557,7 +546,7 @@ static bool armv8pmu_event_needs_bias(struct perf_event *event)
 		return false;
 
 	if (armv8pmu_has_long_event(cpu_pmu) ||
-	    idx == ARMV8_IDX_CYCLE_COUNTER)
+	    idx >= ARMV8_PMU_MAX_GENERAL_COUNTERS)
 		return true;
 
 	return false;
@@ -595,9 +584,7 @@ static u64 armv8pmu_read_counter(struct perf_event *event)
 
 static void armv8pmu_write_evcntr(int idx, u64 value)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
-
-	write_pmevcntrn(counter, value);
+	write_pmevcntrn(idx, value);
 }
 
 static void armv8pmu_write_hw_counter(struct perf_event *event,
@@ -628,7 +615,6 @@ static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 
 static void armv8pmu_write_evtype(int idx, unsigned long val)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
 	unsigned long mask = ARMV8_PMU_EVTYPE_EVENT |
 			     ARMV8_PMU_INCLUDE_EL2 |
 			     ARMV8_PMU_EXCLUDE_EL0 |
@@ -638,7 +624,7 @@ static void armv8pmu_write_evtype(int idx, unsigned long val)
 		mask |= ARMV8_PMU_EVTYPE_TC | ARMV8_PMU_EVTYPE_TH;
 
 	val &= mask;
-	write_pmevtypern(counter, val);
+	write_pmevtypern(idx, val);
 }
 
 static void armv8pmu_write_event_type(struct perf_event *event)
@@ -667,7 +653,7 @@ static void armv8pmu_write_event_type(struct perf_event *event)
 
 static u32 armv8pmu_event_cnten_mask(struct perf_event *event)
 {
-	int counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
+	int counter = event->hw.idx;
 	u32 mask = BIT(counter);
 
 	if (armv8pmu_event_is_chained(event))
@@ -726,8 +712,7 @@ static void armv8pmu_enable_intens(u32 mask)
 
 static void armv8pmu_enable_event_irq(struct perf_event *event)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
-	armv8pmu_enable_intens(BIT(counter));
+	armv8pmu_enable_intens(BIT(event->hw.idx));
 }
 
 static void armv8pmu_disable_intens(u32 mask)
@@ -741,8 +726,7 @@ static void armv8pmu_disable_intens(u32 mask)
 
 static void armv8pmu_disable_event_irq(struct perf_event *event)
 {
-	u32 counter = ARMV8_IDX_TO_COUNTER(event->hw.idx);
-	armv8pmu_disable_intens(BIT(counter));
+	armv8pmu_disable_intens(BIT(event->hw.idx));
 }
 
 static u32 armv8pmu_getreset_flags(void)
@@ -786,7 +770,8 @@ static void armv8pmu_enable_user_access(struct arm_pmu *cpu_pmu)
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 
 	/* Clear any unused counters to avoid leaking their contents */
-	for_each_clear_bit(i, cpuc->used_mask, cpu_pmu->num_events) {
+	for_each_andnot_bit(i, cpu_pmu->cntr_mask, cpuc->used_mask,
+			    ARMPMU_MAX_HWEVENTS) {
 		if (i == ARMV8_IDX_CYCLE_COUNTER)
 			write_pmccntr(0);
 		else
@@ -869,7 +854,7 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	 * to prevent skews in group events.
 	 */
 	armv8pmu_stop(cpu_pmu);
-	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
+	for_each_set_bit(idx, cpu_pmu->cntr_mask, ARMPMU_MAX_HWEVENTS) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
@@ -908,7 +893,7 @@ static int armv8pmu_get_single_idx(struct pmu_hw_events *cpuc,
 {
 	int idx;
 
-	for (idx = ARMV8_IDX_COUNTER0; idx < cpu_pmu->num_events; idx++) {
+	for_each_set_bit(idx, cpu_pmu->cntr_mask, ARMV8_PMU_MAX_GENERAL_COUNTERS) {
 		if (!test_and_set_bit(idx, cpuc->used_mask))
 			return idx;
 	}
@@ -924,7 +909,9 @@ static int armv8pmu_get_chain_idx(struct pmu_hw_events *cpuc,
 	 * Chaining requires two consecutive event counters, where
 	 * the lower idx must be even.
 	 */
-	for (idx = ARMV8_IDX_COUNTER0 + 1; idx < cpu_pmu->num_events; idx += 2) {
+	for_each_set_bit(idx, cpu_pmu->cntr_mask, ARMV8_PMU_MAX_GENERAL_COUNTERS) {
+		if (!(idx & 0x1))
+			continue;
 		if (!test_and_set_bit(idx, cpuc->used_mask)) {
 			/* Check if the preceding even counter is available */
 			if (!test_and_set_bit(idx - 1, cpuc->used_mask))
@@ -978,15 +965,7 @@ static int armv8pmu_user_event_idx(struct perf_event *event)
 	if (!sysctl_perf_user_access || !armv8pmu_event_has_user_read(event))
 		return 0;
 
-	/*
-	 * We remap the cycle counter index to 32 to
-	 * match the offset applied to the rest of
-	 * the counter indices.
-	 */
-	if (event->hw.idx == ARMV8_IDX_CYCLE_COUNTER)
-		return ARMV8_IDX_CYCLE_COUNTER_USER;
-
-	return event->hw.idx;
+	return event->hw.idx + 1;
 }
 
 /*
@@ -1211,10 +1190,11 @@ static void __armv8pmu_probe_pmu(void *info)
 	probe->present = true;
 
 	/* Read the nb of CNTx counters supported from PMNC */
-	cpu_pmu->num_events = FIELD_GET(ARMV8_PMU_PMCR_N, armv8pmu_pmcr_read());
+	bitmap_set(cpu_pmu->cntr_mask,
+		   0, FIELD_GET(ARMV8_PMU_PMCR_N, armv8pmu_pmcr_read()));
 
 	/* Add the CPU cycles counter */
-	cpu_pmu->num_events += 1;
+	set_bit(ARMV8_IDX_CYCLE_COUNTER, cpu_pmu->cntr_mask);
 
 	pmceid[0] = pmceid_raw[0] = read_pmceid0();
 	pmceid[1] = pmceid_raw[1] = read_pmceid1();
