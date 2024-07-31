@@ -3667,11 +3667,11 @@ static void qmp_pcie_init_port_b(struct qmp_pcie *qmp, const struct qmp_phy_cfg_
 	tx4 = qmp->port_b + offs->tx2;
 	rx4 = qmp->port_b + offs->rx2;
 
-	qmp_configure_lane(tx3, tbls->tx, tbls->tx_num, 1);
-	qmp_configure_lane(rx3, tbls->rx, tbls->rx_num, 1);
+	qmp_configure_lane(qmp->dev, tx3, tbls->tx, tbls->tx_num, 1);
+	qmp_configure_lane(qmp->dev, rx3, tbls->rx, tbls->rx_num, 1);
 
-	qmp_configure_lane(tx4, tbls->tx, tbls->tx_num, 2);
-	qmp_configure_lane(rx4, tbls->rx, tbls->rx_num, 2);
+	qmp_configure_lane(qmp->dev, tx4, tbls->tx, tbls->tx_num, 2);
+	qmp_configure_lane(qmp->dev, rx4, tbls->rx, tbls->rx_num, 2);
 }
 
 static void qmp_pcie_init_registers(struct qmp_pcie *qmp, const struct qmp_phy_cfg_tbls *tbls)
@@ -3689,25 +3689,26 @@ static void qmp_pcie_init_registers(struct qmp_pcie *qmp, const struct qmp_phy_c
 	if (!tbls)
 		return;
 
-	qmp_configure(serdes, tbls->serdes, tbls->serdes_num);
+	qmp_configure(qmp->dev, serdes, tbls->serdes, tbls->serdes_num);
 
-	qmp_configure_lane(tx, tbls->tx, tbls->tx_num, 1);
-	qmp_configure_lane(rx, tbls->rx, tbls->rx_num, 1);
+	qmp_configure_lane(qmp->dev, tx, tbls->tx, tbls->tx_num, 1);
+	qmp_configure_lane(qmp->dev, rx, tbls->rx, tbls->rx_num, 1);
 
 	if (cfg->lanes >= 2) {
-		qmp_configure_lane(tx2, tbls->tx, tbls->tx_num, 2);
-		qmp_configure_lane(rx2, tbls->rx, tbls->rx_num, 2);
+		qmp_configure_lane(qmp->dev, tx2, tbls->tx, tbls->tx_num, 2);
+		qmp_configure_lane(qmp->dev, rx2, tbls->rx, tbls->rx_num, 2);
 	}
 
-	qmp_configure(pcs, tbls->pcs, tbls->pcs_num);
-	qmp_configure(pcs_misc, tbls->pcs_misc, tbls->pcs_misc_num);
+	qmp_configure(qmp->dev, pcs, tbls->pcs, tbls->pcs_num);
+	qmp_configure(qmp->dev, pcs_misc, tbls->pcs_misc, tbls->pcs_misc_num);
 
 	if (cfg->lanes >= 4 && qmp->tcsr_4ln_config) {
-		qmp_configure(serdes, cfg->serdes_4ln_tbl, cfg->serdes_4ln_num);
+		qmp_configure(qmp->dev, serdes, cfg->serdes_4ln_tbl,
+			      cfg->serdes_4ln_num);
 		qmp_pcie_init_port_b(qmp, tbls);
 	}
 
-	qmp_configure(ln_shrd, tbls->ln_shrd, tbls->ln_shrd_num);
+	qmp_configure(qmp->dev, ln_shrd, tbls->ln_shrd, tbls->ln_shrd_num);
 }
 
 static int qmp_pcie_init(struct phy *phy)
