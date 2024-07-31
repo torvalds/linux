@@ -1044,11 +1044,8 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev)
 
 	hw->nbase = hw->soc->nbase_names;
 
-	if (of_find_property(hw->dev->of_node,
-			     "mediatek,rsel-resistance-in-si-unit", NULL))
-		hw->rsel_si_unit = true;
-	else
-		hw->rsel_si_unit = false;
+	hw->rsel_si_unit = of_property_read_bool(hw->dev->of_node,
+						 "mediatek,rsel-resistance-in-si-unit");
 
 	spin_lock_init(&hw->lock);
 
