@@ -118,7 +118,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->mem = mem;
 	sc->irq = irq;
 
-	ret = request_irq(irq, ath_isr, IRQF_SHARED, "ath9k", sc);
+	ret = devm_request_irq(&pdev->dev, irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto err_free_hw;
@@ -127,7 +127,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	ret = ath9k_init_device(id->driver_data, sc, &ath_ahb_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
-		goto err_irq;
+		goto err_free_hw;
 	}
 
 	ah = sc->sc_ah;
@@ -137,8 +137,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_irq:
-	free_irq(irq, sc);
  err_free_hw:
 	ieee80211_free_hw(hw);
 	return ret;
@@ -152,7 +150,6 @@ static void ath_ahb_remove(struct platform_device *pdev)
 		struct ath_softc *sc = hw->priv;
 
 		ath9k_deinit_device(sc);
-		free_irq(sc->irq, sc);
 		ieee80211_free_hw(sc->hw);
 	}
 }

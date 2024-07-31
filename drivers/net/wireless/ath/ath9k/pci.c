@@ -965,9 +965,9 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	if (!msi_enabled)
-		ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
+		ret = devm_request_irq(&pdev->dev, pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	else
-		ret = request_irq(pdev->irq, ath_isr, 0, "ath9k", sc);
+		ret = devm_request_irq(&pdev->dev, pdev->irq, ath_isr, 0, "ath9k", sc);
 
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
@@ -979,7 +979,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = ath9k_init_device(id->device, sc, &ath_pci_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize device\n");
-		goto err_init;
+		goto err_irq;
 	}
 
 	sc->sc_ah->msi_enabled = msi_enabled;
@@ -991,8 +991,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-err_init:
-	free_irq(sc->irq, sc);
 err_irq:
 	ieee80211_free_hw(hw);
 	return ret;
@@ -1006,7 +1004,6 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	if (!is_ath9k_unloaded)
 		sc->sc_ah->ah_flags |= AH_UNPLUGGED;
 	ath9k_deinit_device(sc);
-	free_irq(sc->irq, sc);
 	ieee80211_free_hw(sc->hw);
 }
 
