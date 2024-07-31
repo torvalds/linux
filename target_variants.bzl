@@ -8,6 +8,7 @@ la_targets = [
     "pineapple",
     "pitti",
     "sdmsteppeauto",
+    "seraph",
 ]
 
 la_variants = [

@@ -3,6 +3,7 @@ build.config.msm.autoghgvm
 build.config.msm.pineapple
 build.config.msm.anorak
 build.config.msm.niobe
+build.config.msm.seraph
 build.config.msm.kalama
 build.config.msm.pineapple.vm
 build.config.msm.kalama.vm
