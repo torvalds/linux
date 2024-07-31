@@ -33,6 +33,26 @@
 		};
 	};
 
+	disp_elvdd_supply: disp-elvdd-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_elvdd_supply";
+	};
+
+	disp_elvss_supply: disp-elvss-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_elvss_supply";
+	};
+
+	disp_vcc_supply: disp-vcc-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vcc_supply";
+	};
+
+	disp_vci_supply: disp-vci-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vci_supply";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -93,13 +113,16 @@
 	};
 };
 
-&dispcc {
-	/* HACK: disable until a panel driver is ready to retain simplefb */
-	status = "disabled";
-};
-
 &gpi_dma0 {
 	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+
+	zap-shader {
+		firmware-name = "qcom/sm6115/Fxtec/QX1050/a610_zap.mbn";
+	};
 };
 
 &i2c1 {
@@ -134,6 +157,46 @@
 		pinctrl-0 = <&ts_int_n>, <&ts_rst_n>;
 		pinctrl-names = "default";
 	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm6125_l18a>;
+	status = "okay";
+
+	panel: panel@0 {
+		compatible = "boe,bf060y8m-aj0";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
+
+		elvdd-supply = <&disp_elvdd_supply>;
+		elvss-supply = <&disp_elvss_supply>;
+		vcc-supply = <&disp_vcc_supply>;
+		vci-supply = <&disp_vci_supply>;
+		vddio-supply = <&pm6125_l9a>;
+
+		pinctrl-0 = <&mdss_dsi_n &panel_en_n>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
 };
 
 &pm6125_gpios {
@@ -338,6 +401,12 @@
 		bias-pull-up;
 	};
 
+	panel_en_n: panel-en-n-state {
+		pins = "gpio65";
+		function = "gpio";
+		bias-disable;
+	};
+
 	ts_rst_n: ts-rst-n-state {
 		pins = "gpio71";
 		function = "gpio";
@@ -350,6 +419,13 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
+	};
+
+	mdss_dsi_n: mdss-dsi-n-state {
+		pins = "gpio82";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
 	};
 
 	hall_sensor_n: hall-sensor-n-state {
