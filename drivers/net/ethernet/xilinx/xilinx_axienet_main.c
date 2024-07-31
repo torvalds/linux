@@ -2396,7 +2396,7 @@ static int axienet_probe(struct platform_device *pdev)
 		goto cleanup_clk;
 	}
 
-	if (!of_find_property(pdev->dev.of_node, "dmas", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "dmas")) {
 		/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
 		np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);
 
