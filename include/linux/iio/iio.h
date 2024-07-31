@@ -864,6 +864,8 @@ static inline unsigned int iio_get_masklength(const struct iio_dev *indio_dev)
 	return ACCESS_PRIVATE(indio_dev, masklength);
 }
 
+int iio_active_scan_mask_index(struct iio_dev *indio_dev);
+
 /**
  * iio_for_each_active_channel - Iterated over active channels
  * @indio_dev: the IIO device
