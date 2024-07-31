@@ -17,7 +17,6 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
-#include <linux/fb.h>
 #include <linux/i8042.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -1256,7 +1255,7 @@ static int ideapad_backlight_update_status(struct backlight_device *blightdev)
 		return err;
 
 	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_BL_POWER,
-			   blightdev->props.power != FB_BLANK_POWERDOWN);
+			   blightdev->props.power != BACKLIGHT_POWER_OFF);
 	if (err)
 		return err;
 
@@ -1306,7 +1305,7 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 
 	priv->blightdev = blightdev;
 	blightdev->props.brightness = now;
-	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	blightdev->props.power = power ? BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 
 	backlight_update_status(blightdev);
 
@@ -1330,7 +1329,7 @@ static void ideapad_backlight_notify_power(struct ideapad_private *priv)
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &power))
 		return;
 
-	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	blightdev->props.power = power ? BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 }
 
 static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
