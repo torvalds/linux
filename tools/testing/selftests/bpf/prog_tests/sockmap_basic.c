@@ -503,8 +503,8 @@ out:
 
 static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 {
+	int err, map, verdict, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
 	int expected, zero = 0, sent, recvd, avail;
-	int err, map, verdict, s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
 	struct test_sockmap_pass_prog *pass = NULL;
 	struct test_sockmap_drop_prog *drop = NULL;
 	char buf[256] = "0123456789";
@@ -531,11 +531,8 @@ static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 	if (!ASSERT_OK(err, "bpf_prog_attach"))
 		goto out;
 
-	s = socket_loopback(AF_INET, SOCK_STREAM);
-	if (!ASSERT_GT(s, -1, "socket_loopback(s)"))
-		goto out;
-	err = create_socket_pairs(s, AF_INET, SOCK_STREAM, &c0, &c1, &p0, &p1);
-	if (!ASSERT_OK(err, "create_socket_pairs(s)"))
+	err = create_socket_pairs(AF_INET, SOCK_STREAM, &c0, &c1, &p0, &p1);
+	if (!ASSERT_OK(err, "create_socket_pairs()"))
 		goto out;
 
 	err = bpf_map_update_elem(map, &zero, &c1, BPF_NOEXIST);

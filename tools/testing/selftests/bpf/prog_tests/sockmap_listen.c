@@ -677,7 +677,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 			       int verd_mapfd, enum redir_mode mode)
 {
 	const char *log_prefix = redir_mode_str(mode);
-	int s, c0, c1, p0, p1;
+	int c0, c1, p0, p1;
 	unsigned int pass;
 	int err, n;
 	u32 key;
@@ -685,13 +685,10 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 
 	zero_verdict_count(verd_mapfd);
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
-	if (s < 0)
-		return;
-
-	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	err = create_socket_pairs(family, sotype | SOCK_NONBLOCK, &c0, &c1,
+				  &p0, &p1);
 	if (err)
-		goto close_srv;
+		return;
 
 	err = add_to_sockmap(sock_mapfd, p0, p1);
 	if (err)
@@ -722,8 +719,6 @@ close:
 	xclose(c1);
 	xclose(p0);
 	xclose(c0);
-close_srv:
-	xclose(s);
 }
 
 static void test_skb_redir_to_connected(struct test_sockmap_listen *skel,
@@ -909,7 +904,7 @@ static void test_msg_redir_to_listening_with_link(struct test_sockmap_listen *sk
 
 static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 {
-	int s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
+	int c0 = -1, c1 = -1, p0 = -1, p1 = -1;
 	int err, n, key, value;
 	char buf[] = "abc";
 
@@ -919,13 +914,10 @@ static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 	if (err)
 		return;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
-	if (s < 0)
-		goto clean_parser_map;
-
-	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	err = create_socket_pairs(family, sotype | SOCK_NONBLOCK, &c0, &c1,
+				  &p0, &p1);
 	if (err)
-		goto close_srv;
+		goto clean_parser_map;
 
 	err = add_to_sockmap(sock_map, p0, p1);
 	if (err)
@@ -944,8 +936,6 @@ close:
 	xclose(p0);
 	xclose(c1);
 	xclose(p1);
-close_srv:
-	xclose(s);
 
 clean_parser_map:
 	key = 0;

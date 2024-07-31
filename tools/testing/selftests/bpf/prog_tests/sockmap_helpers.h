@@ -437,8 +437,8 @@ close_s:
 	return err;
 }
 
-static inline int create_socket_pairs(int s, int family, int sotype,
-				      int *c0, int *c1, int *p0, int *p1)
+static inline int create_socket_pairs(int family, int sotype, int *c0, int *c1,
+				      int *p0, int *p1)
 {
 	int err;
 
