@@ -10,7 +10,6 @@
 #include <linux/perf_event.h>
 #include <linux/perf/arm_pmuv3.h>
 
-#define ARMV8_PMU_CYCLE_IDX		(ARMV8_PMU_MAX_COUNTERS - 1)
 
 #if IS_ENABLED(CONFIG_HW_PERF_EVENTS) && IS_ENABLED(CONFIG_KVM)
 struct kvm_pmc {

@@ -9,6 +9,9 @@
 #define ARMV8_PMU_MAX_GENERAL_COUNTERS	31
 #define ARMV8_PMU_MAX_COUNTERS	32
 
+#define ARMV8_PMU_CYCLE_IDX		31
+
+
 /*
  * Common architectural and microarchitectural event numbers.
  */
