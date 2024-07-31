@@ -114,6 +114,10 @@ void test_cgroup_dev(void)
 	if (test__start_subtest("deny-write"))
 		test_write("/dev/zero", buf, TEST_BUFFER_SIZE, -1, EPERM);
 
+	if (test__start_subtest("deny-mknod-wrong-type"))
+		test_mknod("/dev/test_dev_cgroup_block", S_IFBLK, 1, 3, -1,
+			   EPERM);
+
 cleanup_progs:
 	dev_cgroup__destroy(skel);
 cleanup_cgroup:
