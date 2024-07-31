@@ -4330,7 +4330,7 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
 	static unsigned long bt[SCX_EXIT_BT_LEN];
 	char dsq_id_buf[19] = "(n/a)";
 	unsigned long ops_state = atomic_long_read(&p->scx.ops_state);
-	unsigned int bt_len;
+	unsigned int bt_len = 0;
 
 	if (p->scx.dsq)
 		scnprintf(dsq_id_buf, sizeof(dsq_id_buf), "0x%llx",
@@ -4355,7 +4355,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
 		ops_dump_exit();
 	}
 
+#ifdef CONFIG_STACKTRACE
 	bt_len = stack_trace_save_tsk(p, bt, SCX_EXIT_BT_LEN, 1);
+#endif
 	if (bt_len) {
 		dump_newline(s);
 		dump_stack_trace(s, "    ", bt, bt_len);
