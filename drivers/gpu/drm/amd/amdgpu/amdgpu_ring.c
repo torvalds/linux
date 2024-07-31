@@ -144,7 +144,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	/* We pad to match fetch size */
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
-	count %= ring->funcs->align_mask + 1;
+	count &= ring->funcs->align_mask;
 
 	if (count != 0)
 		ring->funcs->insert_nop(ring, count);
