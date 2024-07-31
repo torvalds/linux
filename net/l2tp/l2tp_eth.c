@@ -322,7 +322,7 @@ err_sess_dev:
 	l2tp_session_dec_refcount(session);
 	free_netdev(dev);
 err_sess:
-	kfree(session);
+	l2tp_session_dec_refcount(session);
 err:
 	return rc;
 }
