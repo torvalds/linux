@@ -34,7 +34,6 @@
 #include <linux/lockref.h>
 #include <linux/rhashtable.h>
 #include <linux/pid_namespace.h>
-#include <linux/fdtable.h>
 #include <linux/file.h>
 
 #include "gfs2.h"
@@ -2768,25 +2767,18 @@ static struct file *gfs2_glockfd_next_file(struct gfs2_glockfd_iter *i)
 		i->file = NULL;
 	}
 
-	rcu_read_lock();
 	for(;; i->fd++) {
-		struct inode *inode;
-
-		i->file = task_lookup_next_fdget_rcu(i->task, &i->fd);
+		i->file = fget_task_next(i->task, &i->fd);
 		if (!i->file) {
 			i->fd = 0;
 			break;
 		}
 
-		inode = file_inode(i->file);
-		if (inode->i_sb == i->sb)
+		if (file_inode(i->file)->i_sb == i->sb)
 			break;
 
-		rcu_read_unlock();
 		fput(i->file);
-		rcu_read_lock();
 	}
-	rcu_read_unlock();
 	return i->file;
 }
 

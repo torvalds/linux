@@ -1037,29 +1037,7 @@ struct file *fget_task(struct task_struct *task, unsigned int fd)
 	return file;
 }
 
-struct file *lookup_fdget_rcu(unsigned int fd)
-{
-	return __fget_files_rcu(current->files, fd, 0);
-
-}
-EXPORT_SYMBOL_GPL(lookup_fdget_rcu);
-
-struct file *task_lookup_fdget_rcu(struct task_struct *task, unsigned int fd)
-{
-	/* Must be called with rcu_read_lock held */
-	struct files_struct *files;
-	struct file *file = NULL;
-
-	task_lock(task);
-	files = task->files;
-	if (files)
-		file = __fget_files_rcu(files, fd, 0);
-	task_unlock(task);
-
-	return file;
-}
-
-struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *ret_fd)
+struct file *fget_task_next(struct task_struct *task, unsigned int *ret_fd)
 {
 	/* Must be called with rcu_read_lock held */
 	struct files_struct *files;
@@ -1069,17 +1047,19 @@ struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *
 	task_lock(task);
 	files = task->files;
 	if (files) {
+		rcu_read_lock();
 		for (; fd < files_fdtable(files)->max_fds; fd++) {
 			file = __fget_files_rcu(files, fd, 0);
 			if (file)
 				break;
 		}
+		rcu_read_unlock();
 	}
 	task_unlock(task);
 	*ret_fd = fd;
 	return file;
 }
-EXPORT_SYMBOL(task_lookup_next_fdget_rcu);
+EXPORT_SYMBOL(fget_task_next);
 
 /*
  * Lightweight file lookup - no refcnt increment if fd table isn't shared.
