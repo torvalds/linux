@@ -209,6 +209,8 @@ static void mgag200_g200er_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	if (mdev->info->sync_bmc)
 		mgag200_bmc_start_scanout(mdev);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static const struct drm_crtc_helper_funcs mgag200_g200er_crtc_helper_funcs = {
@@ -216,7 +218,8 @@ static const struct drm_crtc_helper_funcs mgag200_g200er_crtc_helper_funcs = {
 	.atomic_check = mgag200_crtc_helper_atomic_check,
 	.atomic_flush = mgag200_crtc_helper_atomic_flush,
 	.atomic_enable = mgag200_g200er_crtc_helper_atomic_enable,
-	.atomic_disable = mgag200_crtc_helper_atomic_disable
+	.atomic_disable = mgag200_crtc_helper_atomic_disable,
+	.get_scanout_position = mgag200_crtc_helper_get_scanout_position,
 };
 
 static const struct drm_crtc_funcs mgag200_g200er_crtc_funcs = {
