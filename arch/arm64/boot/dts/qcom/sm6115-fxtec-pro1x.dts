@@ -63,6 +63,20 @@
 			wakeup-source;
 		};
 	};
+
+	ts_vdd_supply: ts-vdd-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "ts_vdd_supply";
+		gpio = <&pca9534 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	ts_vddio_supply: ts-vddio-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "ts_vddio_supply";
+		gpio = <&pca9534 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &dispcc {
@@ -84,6 +98,27 @@
 		reg = <0x21>;
 		gpio-controller;
 		#gpio-cells = <2>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	clock-frequency = <100000>;
+
+	touchscreen@14 {
+		compatible = "goodix,gt9286";
+		reg = <0x14>;
+
+		interrupts-extended = <&tlmm 80 IRQ_TYPE_LEVEL_LOW>;
+
+		irq-gpios = <&tlmm 80 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 71 GPIO_ACTIVE_HIGH>;
+		AVDD28-supply = <&ts_vdd_supply>;
+		VDDIO-supply = <&ts_vddio_supply>;
+
+		pinctrl-0 = <&ts_int_n>, <&ts_rst_n>;
+		pinctrl-names = "default";
 	};
 };
 
@@ -254,6 +289,20 @@
 		pins = "gpio18";
 		function = "gpio";
 		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	ts_rst_n: ts-rst-n-state {
+		pins = "gpio71";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_int_n: ts-int-n-state {
+		pins = "gpio80";
+		function = "gpio";
+		drive-strength = <8>;
 		bias-pull-up;
 	};
 
