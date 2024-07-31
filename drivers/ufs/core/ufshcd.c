@@ -6489,6 +6489,8 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 				goto out;
 			}
 			hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
+			if (!hwq)
+				return 0;
 			spin_lock_irqsave(&hwq->cq_lock, flags);
 			if (ufshcd_cmd_inflight(lrbp->cmd))
 				ufshcd_release_scsi_cmd(hba, lrbp);
