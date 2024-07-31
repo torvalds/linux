@@ -1301,8 +1301,8 @@ int cmd_report(int argc, const char **argv)
 		.socket_filter		 = -1,
 		.skip_empty		 = true,
 	};
-	char *sort_order_help = sort_help("sort by key(s):");
-	char *field_order_help = sort_help("output field(s): overhead period sample ");
+	char *sort_order_help = sort_help("sort by key(s):", SORT_MODE__NORMAL);
+	char *field_order_help = sort_help("output field(s):", SORT_MODE__NORMAL);
 	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",

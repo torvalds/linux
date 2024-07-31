@@ -3960,7 +3960,7 @@ static void add_hpp_sort_string(struct strbuf *sb, struct hpp_dimension *s, int 
 		add_key(sb, s[i].name, llen);
 }
 
-char *sort_help(const char *prefix)
+char *sort_help(const char *prefix, enum sort_mode mode)
 {
 	struct strbuf sb;
 	char *s;
@@ -3972,10 +3972,12 @@ char *sort_help(const char *prefix)
 			    ARRAY_SIZE(hpp_sort_dimensions), &len);
 	add_sort_string(&sb, common_sort_dimensions,
 			    ARRAY_SIZE(common_sort_dimensions), &len);
-	add_sort_string(&sb, bstack_sort_dimensions,
-			    ARRAY_SIZE(bstack_sort_dimensions), &len);
-	add_sort_string(&sb, memory_sort_dimensions,
-			    ARRAY_SIZE(memory_sort_dimensions), &len);
+	if (mode == SORT_MODE__NORMAL || mode == SORT_MODE__BRANCH)
+		add_sort_string(&sb, bstack_sort_dimensions,
+				ARRAY_SIZE(bstack_sort_dimensions), &len);
+	if (mode == SORT_MODE__NORMAL || mode == SORT_MODE__MEMORY)
+		add_sort_string(&sb, memory_sort_dimensions,
+				ARRAY_SIZE(memory_sort_dimensions), &len);
 	s = strbuf_detach(&sb, NULL);
 	strbuf_release(&sb);
 	return s;
