@@ -1681,6 +1681,7 @@ static unsigned long shmem_suitable_orders(struct inode *inode, struct vm_fault 
 					   unsigned long orders)
 {
 	struct vm_area_struct *vma = vmf->vma;
+	pgoff_t aligned_index;
 	unsigned long pages;
 	int order;
 
@@ -1692,9 +1693,9 @@ static unsigned long shmem_suitable_orders(struct inode *inode, struct vm_fault 
 	order = highest_order(orders);
 	while (orders) {
 		pages = 1UL << order;
-		index = round_down(index, pages);
-		if (!xa_find(&mapping->i_pages, &index,
-			     index + pages - 1, XA_PRESENT))
+		aligned_index = round_down(index, pages);
+		if (!xa_find(&mapping->i_pages, &aligned_index,
+			     aligned_index + pages - 1, XA_PRESENT))
 			break;
 		order = next_order(&orders, order);
 	}
