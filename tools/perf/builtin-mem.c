@@ -19,6 +19,7 @@
 #include "util/symbol.h"
 #include "util/pmus.h"
 #include "util/sample.h"
+#include "util/sort.h"
 #include "util/string2.h"
 #include "util/util.h"
 #include <linux/err.h>
@@ -28,7 +29,8 @@
 
 struct perf_mem {
 	struct perf_tool	tool;
-	char const		*input_name;
+	const char		*input_name;
+	const char		*sort_key;
 	bool			hide_unresolved;
 	bool			dump_raw;
 	bool			force;
@@ -313,11 +315,13 @@ static char *get_sort_order(struct perf_mem *mem)
 	bool has_extra_options = (mem->phys_addr | mem->data_page_size) ? true : false;
 	char sort[128];
 
+	if (mem->sort_key)
+		scnprintf(sort, sizeof(sort), "--sort=%s", mem->sort_key);
 	/*
 	 * there is no weight (cost) associated with stores, so don't print
 	 * the column
 	 */
-	if (!(mem->operation & MEM_OPERATION_LOAD)) {
+	else if (!(mem->operation & MEM_OPERATION_LOAD)) {
 		strcpy(sort, "--sort=mem,sym,dso,symbol_daddr,"
 			     "dso_daddr,tlb,locked");
 	} else if (has_extra_options) {
@@ -468,6 +472,7 @@ int cmd_mem(int argc, const char **argv)
 		 */
 		.operation		 = MEM_OPERATION_LOAD | MEM_OPERATION_STORE,
 	};
+	char *sort_order_help = sort_help("sort by key(s):", SORT_MODE__MEMORY);
 	const struct option mem_options[] = {
 	OPT_CALLBACK('t', "type", &mem.operation,
 		   "type", "memory operations(load,store) Default load,store",
@@ -501,6 +506,8 @@ int cmd_mem(int argc, const char **argv)
 		   "separator",
 		   "separator for columns, no spaces will be added"
 		   " between columns '.' is reserved."),
+	OPT_STRING('s', "sort", &mem.sort_key, "key[,key2...]",
+		   sort_order_help),
 	OPT_PARENT(mem_options)
 	};
 	const char *const mem_subcommands[] = { "record", "report", NULL };
