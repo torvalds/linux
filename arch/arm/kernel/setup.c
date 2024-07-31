@@ -1201,20 +1201,13 @@ void __init setup_arch(char **cmdline_p)
 		mdesc->init_early();
 }
 
-
-static int __init topology_init(void)
+int arch_register_cpu(int num)
 {
-	int cpu;
+	struct cpu *cpu = &per_cpu(cpu_devices, num);
 
-	for_each_possible_cpu(cpu) {
-		struct cpuinfo_arm *cpuinfo = &per_cpu(cpu_data, cpu);
-		cpuinfo->cpu.hotpluggable = platform_can_hotplug_cpu(cpu);
-		register_cpu(&cpuinfo->cpu, cpu);
-	}
-
-	return 0;
+	cpu->hotpluggable = platform_can_hotplug_cpu(num);
+	return register_cpu(cpu, num);
 }
-subsys_initcall(topology_init);
 
 #ifdef CONFIG_HAVE_PROC_CPU
 static int __init proc_cpu_init(void)
