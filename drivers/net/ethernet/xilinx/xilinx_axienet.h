@@ -29,26 +29,26 @@
 /* Configuration options */
 
 /* Accept all incoming packets. Default: disabled (cleared) */
-#define XAE_OPTION_PROMISC			(1 << 0)
+#define XAE_OPTION_PROMISC			BIT(0)
 
 /* Jumbo frame support for Tx & Rx. Default: disabled (cleared) */
-#define XAE_OPTION_JUMBO			(1 << 1)
+#define XAE_OPTION_JUMBO			BIT(1)
 
 /* VLAN Rx & Tx frame support. Default: disabled (cleared) */
-#define XAE_OPTION_VLAN				(1 << 2)
+#define XAE_OPTION_VLAN				BIT(2)
 
 /* Enable recognition of flow control frames on Rx. Default: enabled (set) */
-#define XAE_OPTION_FLOW_CONTROL			(1 << 4)
+#define XAE_OPTION_FLOW_CONTROL			BIT(4)
 
 /* Strip FCS and PAD from incoming frames. Note: PAD from VLAN frames is not
  * stripped. Default: disabled (set)
  */
-#define XAE_OPTION_FCS_STRIP			(1 << 5)
+#define XAE_OPTION_FCS_STRIP			BIT(5)
 
 /* Generate FCS field and add PAD automatically for outgoing frames.
  * Default: enabled (set)
  */
-#define XAE_OPTION_FCS_INSERT			(1 << 6)
+#define XAE_OPTION_FCS_INSERT			BIT(6)
 
 /* Enable Length/Type error checking for incoming frames. When this option is
  * set, the MAC will filter frames that have a mismatched type/length field
@@ -56,13 +56,13 @@
  * types of frames are encountered. When this option is cleared, the MAC will
  * allow these types of frames to be received. Default: enabled (set)
  */
-#define XAE_OPTION_LENTYPE_ERR			(1 << 7)
+#define XAE_OPTION_LENTYPE_ERR			BIT(7)
 
 /* Enable the transmitter. Default: enabled (set) */
-#define XAE_OPTION_TXEN				(1 << 11)
+#define XAE_OPTION_TXEN				BIT(11)
 
 /*  Enable the receiver. Default: enabled (set) */
-#define XAE_OPTION_RXEN				(1 << 12)
+#define XAE_OPTION_RXEN				BIT(12)
 
 /*  Default options set when device is initialized or reset */
 #define XAE_OPTION_DEFAULTS				   \
@@ -326,11 +326,11 @@
 #define XAE_MULTICAST_CAM_TABLE_NUM	4
 
 /* Axi Ethernet Synthesis features */
-#define XAE_FEATURE_PARTIAL_RX_CSUM	(1 << 0)
-#define XAE_FEATURE_PARTIAL_TX_CSUM	(1 << 1)
-#define XAE_FEATURE_FULL_RX_CSUM	(1 << 2)
-#define XAE_FEATURE_FULL_TX_CSUM	(1 << 3)
-#define XAE_FEATURE_DMA_64BIT		(1 << 4)
+#define XAE_FEATURE_PARTIAL_RX_CSUM	BIT(0)
+#define XAE_FEATURE_PARTIAL_TX_CSUM	BIT(1)
+#define XAE_FEATURE_FULL_RX_CSUM	BIT(2)
+#define XAE_FEATURE_FULL_TX_CSUM	BIT(3)
+#define XAE_FEATURE_DMA_64BIT		BIT(4)
 
 #define XAE_NO_CSUM_OFFLOAD		0
 
