@@ -1058,13 +1058,13 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	int index = 0, ret, trim;
 	const char *name;
 	static const char group_names_propname[] = "gpio-ranges-group-names";
-	struct property *group_names;
+	bool has_group_names;
 
 	np = dev_of_node(&chip->gpiodev->dev);
 	if (!np)
 		return 0;
 
-	group_names = of_find_property(np, group_names_propname, NULL);
+	has_group_names = of_property_present(np, group_names_propname);
 
 	for (;; index++) {
 		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
@@ -1085,7 +1085,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 
 		if (pinspec.args[2]) {
 			/* npins != 0: linear range */
-			if (group_names) {
+			if (has_group_names) {
 				of_property_read_string_index(np,
 						group_names_propname,
 						index, &name);
@@ -1123,7 +1123,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 				break;
 			}
 
-			if (!group_names) {
+			if (!has_group_names) {
 				pr_err("%pOF: GPIO group range requested but no %s property.\n",
 					np, group_names_propname);
 				break;
