@@ -1515,8 +1515,6 @@ static int axienet_open(struct net_device *ndev)
 	int ret;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	dev_dbg(&ndev->dev, "%s\n", __func__);
-
 	/* When we do an Axi Ethernet reset, it resets the complete core
 	 * including the MDIO. MDIO must be disabled before resetting.
 	 * Hold MDIO bus lock to avoid MDIO accesses during the reset.
@@ -1576,8 +1574,6 @@ static int axienet_stop(struct net_device *ndev)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
 	int i;
-
-	dev_dbg(&ndev->dev, "axienet_close()\n");
 
 	if (!lp->use_dmaengine) {
 		napi_disable(&lp->napi_tx);
