@@ -145,7 +145,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
 	count %= ring->funcs->align_mask + 1;
-	ring->funcs->insert_nop(ring, count);
+
+	if (count != 0)
+		ring->funcs->insert_nop(ring, count);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
