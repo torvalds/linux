@@ -2032,10 +2032,15 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow)
 
 void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 msk32 = B_AX_UC_MGNT_DEC | B_AX_BMC_MGNT_DEC;
 
 	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
 		return;
+
+	/* 8852C enable B_AX_UC_MGNT_DEC by default */
+	if (chip->chip_id == RTL8852C)
+		msk32 = B_AX_BMC_MGNT_DEC;
 
 	if (enable)
 		rtw89_write32_set(rtwdev, R_AX_SEC_ENG_CTRL, msk32);
@@ -2261,6 +2266,8 @@ static int sec_eng_init_ax(struct rtw89_dev *rtwdev)
 	/* init TX encryption */
 	val |= (B_AX_SEC_TX_ENC | B_AX_SEC_RX_DEC);
 	val |= (B_AX_MC_DEC | B_AX_BC_DEC);
+	if (chip->chip_id == RTL8852C)
+		val |= B_AX_UC_MGNT_DEC;
 	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
 	    chip->chip_id == RTL8851B)
 		val &= ~B_AX_TX_PARTIAL_MODE;
