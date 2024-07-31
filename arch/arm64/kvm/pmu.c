@@ -5,6 +5,7 @@
  */
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
+#include <linux/perf/arm_pmu.h>
 #include <linux/perf/arm_pmuv3.h>
 
 static DEFINE_PER_CPU(struct kvm_pmu_events, kvm_pmu_events);
@@ -95,7 +96,7 @@ static void kvm_vcpu_pmu_enable_el0(unsigned long events)
 	u64 typer;
 	u32 counter;
 
-	for_each_set_bit(counter, &events, 32) {
+	for_each_set_bit(counter, &events, ARMPMU_MAX_HWEVENTS) {
 		typer = kvm_vcpu_pmu_read_evtype_direct(counter);
 		typer &= ~ARMV8_PMU_EXCLUDE_EL0;
 		kvm_vcpu_pmu_write_evtype_direct(counter, typer);
@@ -110,7 +111,7 @@ static void kvm_vcpu_pmu_disable_el0(unsigned long events)
 	u64 typer;
 	u32 counter;
 
-	for_each_set_bit(counter, &events, 32) {
+	for_each_set_bit(counter, &events, ARMPMU_MAX_HWEVENTS) {
 		typer = kvm_vcpu_pmu_read_evtype_direct(counter);
 		typer |= ARMV8_PMU_EXCLUDE_EL0;
 		kvm_vcpu_pmu_write_evtype_direct(counter, typer);
