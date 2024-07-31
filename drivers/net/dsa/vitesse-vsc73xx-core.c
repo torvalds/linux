@@ -40,6 +40,9 @@
 #define VSC73XX_BLOCK_ARBITER	0x5 /* Only subblock 0 */
 #define VSC73XX_BLOCK_SYSTEM	0x7 /* Only subblock 0 */
 
+/* MII Block subblock */
+#define VSC73XX_BLOCK_MII_INTERNAL     0x0 /* Internal MDIO subblock */
+
 #define CPU_PORT	6 /* CPU port */
 
 /* MAC Block registers */
@@ -224,6 +227,11 @@
 #define VSC73XX_MII_STAT	0x0
 #define VSC73XX_MII_CMD		0x1
 #define VSC73XX_MII_DATA	0x2
+#define VSC73XX_MII_MPRES	0x3
+
+#define VSC73XX_MII_MPRES_NOPREAMBLE	BIT(6)
+#define VSC73XX_MII_MPRES_PRESCALEVAL	GENMASK(5, 0)
+#define VSC73XX_MII_PRESCALEVAL_MIN	3 /* min allowed mdio clock prescaler */
 
 /* Arbiter block 5 registers */
 #define VSC73XX_ARBEMPTY		0x0c
@@ -748,7 +756,7 @@ static int vsc73xx_configure_rgmii_port_delay(struct dsa_switch *ds)
 static int vsc73xx_setup(struct dsa_switch *ds)
 {
 	struct vsc73xx *vsc = ds->priv;
-	int i, ret;
+	int i, ret, val;
 
 	dev_info(vsc->dev, "set up the switch\n");
 
@@ -820,6 +828,15 @@ static int vsc73xx_setup(struct dsa_switch *ds)
 		      0xff);
 
 	mdelay(50);
+
+	/* Disable preamble and use maximum allowed clock for the internal
+	 * mdio bus, used for communication with internal PHYs only.
+	 */
+	val = VSC73XX_MII_MPRES_NOPREAMBLE |
+	      FIELD_PREP(VSC73XX_MII_MPRES_PRESCALEVAL,
+			 VSC73XX_MII_PRESCALEVAL_MIN);
+	vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+		      VSC73XX_MII_MPRES, val);
 
 	/* Release reset from the internal PHYs */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_SYSTEM, 0, VSC73XX_GLORESET,
