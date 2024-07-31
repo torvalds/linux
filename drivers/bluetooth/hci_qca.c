@@ -2187,10 +2187,6 @@ static void qca_power_shutdown(struct hci_uart *hu)
 		}
 		break;
 
-	case QCA_QCA6390:
-		pwrseq_power_off(qcadev->bt_power->pwrseq);
-		break;
-
 	default:
 		gpiod_set_value_cansleep(qcadev->bt_en, 0);
 	}
