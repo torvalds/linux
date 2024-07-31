@@ -50,6 +50,8 @@
 #define RENESAS_RETRY	10000
 #define RENESAS_DELAY	10
 
+#define RENESAS_FW_NAME	"renesas_usb_fw.mem"
+
 static int renesas_fw_download_image(struct pci_dev *dev,
 				     const u32 *fw, size_t step, bool rom)
 {
@@ -573,12 +575,10 @@ exit:
 	return err;
 }
 
-int renesas_xhci_check_request_fw(struct pci_dev *pdev,
-				  const struct pci_device_id *id)
+static int renesas_xhci_check_request_fw(struct pci_dev *pdev,
+					 const struct pci_device_id *id)
 {
-	struct xhci_driver_data *driver_data =
-			(struct xhci_driver_data *)id->driver_data;
-	const char *fw_name = driver_data->firmware;
+	const char fw_name[] = RENESAS_FW_NAME;
 	const struct firmware *fw;
 	bool has_rom;
 	int err;
@@ -625,7 +625,41 @@ exit:
 	release_firmware(fw);
 	return err;
 }
-EXPORT_SYMBOL_GPL(renesas_xhci_check_request_fw);
 
-MODULE_DESCRIPTION("Support for Renesas xHCI controller with firmware");
+static int
+xhci_pci_renesas_probe(struct pci_dev *dev, const struct pci_device_id *id)
+{
+	int retval;
+
+	retval = renesas_xhci_check_request_fw(dev, id);
+	if (retval)
+		return retval;
+
+	return xhci_pci_common_probe(dev, id);
+}
+
+static const struct pci_device_id pci_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0014) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0015) },
+	{ /* end: all zeroes */ }
+};
+MODULE_DEVICE_TABLE(pci, pci_ids);
+
+static struct pci_driver xhci_renesas_pci_driver = {
+	.name =		"xhci-pci-renesas",
+	.id_table =	pci_ids,
+
+	.probe =	xhci_pci_renesas_probe,
+	.remove =	xhci_pci_remove,
+
+	.shutdown = 	usb_hcd_pci_shutdown,
+	.driver = {
+		.pm = pm_ptr(&usb_hcd_pci_pm_ops),
+	},
+};
+module_pci_driver(xhci_renesas_pci_driver);
+
+MODULE_DESCRIPTION("Renesas xHCI PCI Host Controller Driver");
+MODULE_FIRMWARE(RENESAS_FW_NAME);
+MODULE_IMPORT_NS(xhci);
 MODULE_LICENSE("GPL v2");
