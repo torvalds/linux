@@ -1207,7 +1207,7 @@ static int acpi_battery_update_retry(struct acpi_battery *battery)
 static int acpi_battery_add(struct acpi_device *device)
 {
 	int result = 0;
-	struct acpi_battery *battery = NULL;
+	struct acpi_battery *battery;
 
 	if (!device)
 		return -EINVAL;
@@ -1260,7 +1260,7 @@ fail:
 
 static void acpi_battery_remove(struct acpi_device *device)
 {
-	struct acpi_battery *battery = NULL;
+	struct acpi_battery *battery;
 
 	if (!device || !acpi_driver_data(device))
 		return;
