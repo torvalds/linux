@@ -210,7 +210,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	if (!path)
 		return -ENOMEM;
 
-	if (stripe->is_scrub) {
+	if (stripe->rst_search_commit_root) {
 		path->skip_locking = 1;
 		path->search_commit_root = 1;
 	}
@@ -283,7 +283,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 out:
 	if (ret > 0)
 		ret = -ENOENT;
-	if (ret && ret != -EIO && !stripe->is_scrub) {
+	if (ret && ret != -EIO && !stripe->rst_search_commit_root) {
 		btrfs_err(fs_info,
 		"cannot find raid-stripe for logical [%llu, %llu] devid %llu, profile %s",
 			  logical, logical + *length, stripe->dev->devid,
