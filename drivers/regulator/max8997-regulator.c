@@ -941,9 +941,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 			}
 		}
 
-		if (of_get_property(pmic_np,
-			"max8997,pmic-ignore-gpiodvs-side-effect", NULL))
-			pdata->ignore_gpiodvs_side_effect = true;
+		pdata->ignore_gpiodvs_side_effect = of_property_read_bool(pmic_np,
+			"max8997,pmic-ignore-gpiodvs-side-effect");
 
 		dvs_voltage_nr = 8;
 	}
