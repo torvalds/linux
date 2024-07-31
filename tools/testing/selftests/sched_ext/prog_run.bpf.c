@@ -16,6 +16,7 @@ char _license[] SEC("license") = "GPL";
 SEC("syscall")
 int BPF_PROG(prog_run_syscall)
 {
+	scx_bpf_create_dsq(0, -1);
 	scx_bpf_exit(0xdeadbeef, "Exited from PROG_RUN");
 	return 0;
 }
