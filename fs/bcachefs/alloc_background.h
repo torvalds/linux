@@ -82,6 +82,14 @@ static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
 		bucket_data_type(bucket) != bucket_data_type(ptr);
 }
 
+/*
+ * It is my general preference to use unsigned types for unsigned quantities -
+ * however, these helpers are used in disk accounting calculations run by
+ * triggers where the output will be negated and added to an s64. unsigned is
+ * right out even though all these quantities will fit in 32 bits, since it
+ * won't be sign extended correctly; u64 will negate "correctly", but s64 is the
+ * simpler option here.
+ */
 static inline s64 bch2_bucket_sectors_total(struct bch_alloc_v4 a)
 {
 	return a.stripe_sectors + a.dirty_sectors + a.cached_sectors;
