@@ -2412,11 +2412,14 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		break;
 
 	case QCA_QCA6390:
-		qcadev->bt_power->pwrseq = devm_pwrseq_get(&serdev->dev,
-							   "bluetooth");
-		if (IS_ERR(qcadev->bt_power->pwrseq))
-			return PTR_ERR(qcadev->bt_power->pwrseq);
-		break;
+		if (dev_of_node(&serdev->dev)) {
+			qcadev->bt_power->pwrseq = devm_pwrseq_get(&serdev->dev,
+								   "bluetooth");
+			if (IS_ERR(qcadev->bt_power->pwrseq))
+				return PTR_ERR(qcadev->bt_power->pwrseq);
+			break;
+		}
+		fallthrough;
 
 	default:
 		qcadev->bt_en = devm_gpiod_get_optional(&serdev->dev, "enable",
