@@ -1706,11 +1706,11 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	int sfd[2];
 	int err;
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, type | SOCK_NONBLOCK, 0, sfd))
 		return;
 	c0 = sfd[0], p0 = sfd[1];
 
-	err = inet_socketpair(family, SOCK_DGRAM, &p1, &c1);
+	err = inet_socketpair(family, type, &p1, &c1);
 	if (err)
 		goto close;
 
@@ -1758,7 +1758,7 @@ static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
 	int sfd[2];
 	int err;
 
-	err = inet_socketpair(family, SOCK_DGRAM, &p0, &c0);
+	err = inet_socketpair(family, type, &p0, &c0);
 	if (err)
 		return;
 
