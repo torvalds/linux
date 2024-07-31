@@ -1928,14 +1928,9 @@ static void dcn20_program_pipe(
 	    pipe_ctx->stream->update_flags.raw)
 		dcn20_update_dchubp_dpp(dc, pipe_ctx, context);
 
-	if (pipe_ctx->update_flags.bits.enable ||
-	    (pipe_ctx->plane_state && pipe_ctx->plane_state->update_flags.bits.hdr_mult))
+	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.bits.enable ||
+	    pipe_ctx->plane_state->update_flags.bits.hdr_mult))
 		hws->funcs.set_hdr_multiplier(pipe_ctx);
-
-	if ((pipe_ctx->plane_state && pipe_ctx->plane_state->update_flags.bits.hdr_mult) ||
-	    pipe_ctx->update_flags.bits.enable)
-		hws->funcs.set_hdr_multiplier(pipe_ctx);
-
 
 	if (hws->funcs.populate_mcm_luts) {
 		if (pipe_ctx->plane_state) {
@@ -1944,13 +1939,12 @@ static void dcn20_program_pipe(
 			pipe_ctx->plane_state->lut_bank_a = !pipe_ctx->plane_state->lut_bank_a;
 		}
 	}
-	if ((pipe_ctx->plane_state &&
-	     pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change) ||
-	    (pipe_ctx->plane_state &&
-	     pipe_ctx->plane_state->update_flags.bits.gamma_change) ||
-	    (pipe_ctx->plane_state &&
-	     pipe_ctx->plane_state->update_flags.bits.lut_3d) ||
-	     pipe_ctx->update_flags.bits.enable)
+
+	if (pipe_ctx->plane_state &&
+	    (pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
+	    pipe_ctx->plane_state->update_flags.bits.gamma_change ||
+	    pipe_ctx->plane_state->update_flags.bits.lut_3d ||
+	    pipe_ctx->update_flags.bits.enable))
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
