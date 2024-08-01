@@ -599,6 +599,7 @@ SYM_CODE_START(restart_int_handler)
 3:	j	3b
 SYM_CODE_END(restart_int_handler)
 
+	__INIT
 SYM_CODE_START(early_pgm_check_handler)
 	STMG_LC %r8,%r15,__LC_SAVE_AREA_SYNC
 	GET_LC	%r13
@@ -614,6 +615,7 @@ SYM_CODE_START(early_pgm_check_handler)
 	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
 	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
 SYM_CODE_END(early_pgm_check_handler)
+	__FINIT
 
 	.section .kprobes.text, "ax"
 
