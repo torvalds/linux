@@ -1617,7 +1617,7 @@ static void sdma_v7_0_emit_fill_buffer(struct amdgpu_ib *ib,
 
 static const struct amdgpu_buffer_funcs sdma_v7_0_buffer_funcs = {
 	.copy_max_bytes = 0x400000,
-	.copy_num_dw = 7,
+	.copy_num_dw = 8,
 	.emit_copy_buffer = sdma_v7_0_emit_copy_buffer,
 	.fill_max_bytes = 0x400000,
 	.fill_num_dw = 5,
