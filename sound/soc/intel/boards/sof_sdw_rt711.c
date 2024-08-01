@@ -59,7 +59,7 @@ static struct snd_soc_jack_pin rt711_jack_pins[] = {
 	},
 };
 
-int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
+int asoc_sdw_rt711_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -111,7 +111,7 @@ int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 	return ret;
 }
 
-int sof_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
+int asoc_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 
@@ -124,10 +124,10 @@ int sof_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_l
 	return 0;
 }
 
-int sof_sdw_rt711_init(struct snd_soc_card *card,
-		       struct snd_soc_dai_link *dai_links,
-		       struct asoc_sdw_codec_info *info,
-		       bool playback)
+int asoc_sdw_rt711_init(struct snd_soc_card *card,
+			struct snd_soc_dai_link *dai_links,
+			struct asoc_sdw_codec_info *info,
+			bool playback)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct device *sdw_dev;

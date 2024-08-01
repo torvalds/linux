@@ -21,7 +21,7 @@ static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	{ "Right Spk", NULL, "Right BE_OUT" },
 };
 
-int maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
+int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -75,7 +75,7 @@ static int mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enabl
 	return 0;
 }
 
-static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
+static int asoc_sdw_mx8373_prepare(struct snd_pcm_substream *substream)
 {
 	int ret;
 
@@ -87,7 +87,7 @@ static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
 	return mx8373_enable_spk_pin(substream, true);
 }
 
-static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
+static int asoc_sdw_mx8373_hw_free(struct snd_pcm_substream *substream)
 {
 	int ret;
 
@@ -101,14 +101,14 @@ static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
 
 static const struct snd_soc_ops max_98373_sdw_ops = {
 	.startup = asoc_sdw_startup,
-	.prepare = mx8373_sdw_prepare,
+	.prepare = asoc_sdw_mx8373_prepare,
 	.trigger = asoc_sdw_trigger,
 	.hw_params = asoc_sdw_hw_params,
-	.hw_free = mx8373_sdw_hw_free,
+	.hw_free = asoc_sdw_mx8373_hw_free,
 	.shutdown = asoc_sdw_shutdown,
 };
 
-static int mx8373_sdw_late_probe(struct snd_soc_card *card)
+static int asoc_sdw_mx8373_sdw_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 
@@ -118,10 +118,10 @@ static int mx8373_sdw_late_probe(struct snd_soc_card *card)
 	return snd_soc_dapm_sync(dapm);
 }
 
-int sof_sdw_maxim_init(struct snd_soc_card *card,
-		       struct snd_soc_dai_link *dai_links,
-		       struct asoc_sdw_codec_info *info,
-		       bool playback)
+int asoc_sdw_maxim_init(struct snd_soc_card *card,
+			struct snd_soc_dai_link *dai_links,
+			struct asoc_sdw_codec_info *info,
+			bool playback)
 {
 	info->amp_num++;
 
@@ -133,7 +133,7 @@ int sof_sdw_maxim_init(struct snd_soc_card *card,
 		 */
 		break;
 	case SOF_SDW_PART_ID_MAX98373:
-		info->codec_card_late_probe = mx8373_sdw_late_probe;
+		info->codec_card_late_probe = asoc_sdw_mx8373_sdw_late_probe;
 		dai_links->ops = &max_98373_sdw_ops;
 		break;
 	default:

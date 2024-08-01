@@ -19,7 +19,7 @@ static const struct snd_soc_dapm_route dmic_map[] = {
 	{"DMic", NULL, "SoC DMIC"},
 };
 
-int sof_sdw_dmic_init(struct snd_soc_pcm_runtime *rtd)
+int asoc_sdw_dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
