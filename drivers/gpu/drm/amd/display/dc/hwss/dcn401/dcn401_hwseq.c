@@ -1401,8 +1401,8 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 	bool p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 	unsigned int compbuf_size_kb = 0;
 
-	/* Any transition into or out of a FAMS config should disable MCLK switching first to avoid hangs */
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
+	/* Any transition into P-State support should disable MCLK switching first to avoid hangs */
+	if (p_state_change_support) {
 		dc->optimized_required = true;
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
 	}
@@ -1441,7 +1441,7 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 		dcn401_fams2_global_control_lock(dc, context, false);
 	}
 
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || dc->clk_mgr->clks.fw_based_mclk_switching) {
+	if (p_state_change_support != context->bw_ctx.bw.dcn.clk.p_state_change_support) {
 		/* After disabling P-State, restore the original value to ensure we get the correct P-State
 		 * on the next optimize. */
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = p_state_change_support;
