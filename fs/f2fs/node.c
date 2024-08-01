@@ -3166,7 +3166,7 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 
 	nm_i->nat_bits_blocks = F2FS_BLK_ALIGN((nat_bits_bytes << 1) + 8);
 	nm_i->nat_bits = f2fs_kvzalloc(sbi,
-			nm_i->nat_bits_blocks << F2FS_BLKSIZE_BITS, GFP_KERNEL);
+			F2FS_BLK_TO_BYTES(nm_i->nat_bits_blocks), GFP_KERNEL);
 	if (!nm_i->nat_bits)
 		return -ENOMEM;
 
@@ -3185,7 +3185,7 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		memcpy(nm_i->nat_bits + (i << F2FS_BLKSIZE_BITS),
+		memcpy(nm_i->nat_bits + F2FS_BLK_TO_BYTES(i),
 					page_address(page), F2FS_BLKSIZE);
 		f2fs_put_page(page, 1);
 	}
