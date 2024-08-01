@@ -151,6 +151,19 @@ static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio
 	return pinctrl_gpio_direction_output(chip, gpio);
 }
 
+static int vf610_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct vf610_gpio_port *port = gpiochip_get_data(gc);
+	u32 mask = BIT(gpio);
+
+	mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
+
+	if (mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
+}
+
 static void vf610_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct vf610_gpio_port *port =
@@ -362,6 +375,12 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	gc->get = vf610_gpio_get;
 	gc->direction_output = vf610_gpio_direction_output;
 	gc->set = vf610_gpio_set;
+	/*
+	 * only IP has Port Data Direction Register(PDDR) can
+	 * support get direction
+	 */
+	if (port->sdata->have_paddr)
+		gc->get_direction = vf610_gpio_get_direction;
 
 	/* Mask all GPIO interrupts */
 	for (i = 0; i < gc->ngpio; i++)
