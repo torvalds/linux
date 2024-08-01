@@ -16,12 +16,6 @@
 #include "sof_hdmi_common.h"
 
 #define MAX_HDMI_NUM 4
-#define SOC_SDW_UNUSED_DAI_ID -1
-#define SOC_SDW_JACK_OUT_DAI_ID 0
-#define SOC_SDW_JACK_IN_DAI_ID 1
-#define SOC_SDW_AMP_OUT_DAI_ID 2
-#define SOC_SDW_AMP_IN_DAI_ID 3
-#define SOC_SDW_DMIC_DAI_ID 4
 #define SOC_SDW_MAX_CPU_DAIS 16
 #define SOC_SDW_INTEL_BIDIR_PDI_BASE 2
 

@@ -29,6 +29,13 @@
  */
 #define SOC_SDW_SIDECAR_AMPS		BIT(16)
 
+#define SOC_SDW_UNUSED_DAI_ID		-1
+#define SOC_SDW_JACK_OUT_DAI_ID		0
+#define SOC_SDW_JACK_IN_DAI_ID		1
+#define SOC_SDW_AMP_OUT_DAI_ID		2
+#define SOC_SDW_AMP_IN_DAI_ID		3
+#define SOC_SDW_DMIC_DAI_ID		4
+
 struct asoc_sdw_codec_info;
 
 struct asoc_sdw_dai_info {
