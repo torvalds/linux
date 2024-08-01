@@ -1131,6 +1131,9 @@ struct mlx5_macsec {
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
+	struct mlx5_data_direct_dev	*data_direct_dev;
+	/* protect accessing data_direct_dev */
+	struct mutex			data_direct_lock;
 	struct notifier_block		mdev_events;
 	int				num_ports;
 	/* serialize update of capability mask
@@ -1425,6 +1428,9 @@ int mlx5_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 				struct ib_dm_mr_attr *attr,
 				struct uverbs_attr_bundle *attrs);
+void mlx5_ib_data_direct_bind(struct mlx5_ib_dev *ibdev,
+			      struct mlx5_data_direct_dev *dev);
+void mlx5_ib_data_direct_unbind(struct mlx5_ib_dev *ibdev);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
