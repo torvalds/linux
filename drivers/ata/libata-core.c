@@ -160,7 +160,7 @@ MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-static inline bool ata_dev_print_info(struct ata_device *dev)
+static inline bool ata_dev_print_info(const struct ata_device *dev)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 
@@ -4025,9 +4025,15 @@ static void ata_dev_print_quirks(const struct ata_device *dev,
 				 const char *model, const char *rev,
 				 unsigned int quirks)
 {
+	struct ata_eh_context *ehc = &dev->link->eh_context;
 	int n = 0, i;
 	size_t sz;
 	char *str;
+
+	if (!ata_dev_print_info(dev) || ehc->i.flags & ATA_EHI_DID_PRINT_QUIRKS)
+		return;
+
+	ehc->i.flags |= ATA_EHI_DID_PRINT_QUIRKS;
 
 	if (!quirks)
 		return;

@@ -378,6 +378,7 @@ enum {
 	ATA_EHI_PRINTINFO	= (1 << 18), /* print configuration info */
 	ATA_EHI_SETMODE		= (1 << 19), /* configure transfer mode */
 	ATA_EHI_POST_SETMODE	= (1 << 20), /* revalidating after setmode */
+	ATA_EHI_DID_PRINT_QUIRKS = (1 << 21), /* already printed quirks info */
 
 	ATA_EHI_DID_RESET	= ATA_EHI_DID_SOFTRESET | ATA_EHI_DID_HARDRESET,
 
