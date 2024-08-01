@@ -50,10 +50,6 @@
 #define INA226_ALERT_LIMIT		0x07
 #define INA226_DIE_ID			0xFF
 
-/* register count */
-#define INA219_REGISTERS		6
-#define INA226_REGISTERS		8
-
 #define INA2XX_MAX_REGISTERS		8
 
 /* settings - depend on use case */
@@ -95,9 +91,10 @@
  */
 #define INA226_TOTAL_CONV_TIME_DEFAULT	2200
 
-static struct regmap_config ina2xx_regmap_config = {
+static const struct regmap_config ina2xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
+	.max_register = INA2XX_MAX_REGISTERS,
 };
 
 enum ina2xx_ids { ina219, ina226 };
@@ -105,7 +102,6 @@ enum ina2xx_ids { ina219, ina226 };
 struct ina2xx_config {
 	u16 config_default;
 	int calibration_value;
-	int registers;
 	int shunt_div;
 	int bus_voltage_shift;
 	int bus_voltage_lsb;	/* uV */
@@ -128,7 +124,6 @@ static const struct ina2xx_config ina2xx_config[] = {
 	[ina219] = {
 		.config_default = INA219_CONFIG_DEFAULT,
 		.calibration_value = 4096,
-		.registers = INA219_REGISTERS,
 		.shunt_div = 100,
 		.bus_voltage_shift = 3,
 		.bus_voltage_lsb = 4000,
@@ -137,7 +132,6 @@ static const struct ina2xx_config ina2xx_config[] = {
 	[ina226] = {
 		.config_default = INA226_CONFIG_DEFAULT,
 		.calibration_value = 2048,
-		.registers = INA226_REGISTERS,
 		.shunt_div = 400,
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
@@ -645,8 +639,6 @@ static int ina2xx_probe(struct i2c_client *client)
 		val = INA2XX_RSHUNT_DEFAULT;
 
 	ina2xx_set_shunt(data, val);
-
-	ina2xx_regmap_config.max_register = data->config->registers;
 
 	data->regmap = devm_regmap_init_i2c(client, &ina2xx_regmap_config);
 	if (IS_ERR(data->regmap)) {
