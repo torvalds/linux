@@ -1317,7 +1317,6 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	int max_sectors;
 	int rdisk;
 	bool r1bio_existed = !!r1_bio;
-	char b[BDEVNAME_SIZE];
 
 	/*
 	 * If r1_bio is set, we are blocking the raid1d thread
@@ -1325,16 +1324,6 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	 * emergency memory if needed.
 	 */
 	gfp_t gfp = r1_bio ? (GFP_NOIO | __GFP_HIGH) : GFP_NOIO;
-
-	if (r1bio_existed) {
-		/* Need to get the block device name carefully */
-		struct md_rdev *rdev = conf->mirrors[r1_bio->read_disk].rdev;
-
-		if (rdev)
-			snprintf(b, sizeof(b), "%pg", rdev->bdev);
-		else
-			strcpy(b, "???");
-	}
 
 	/*
 	 * Still need barrier for READ in case that whole
@@ -1357,15 +1346,13 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	 * used and no empty request is available.
 	 */
 	rdisk = read_balance(conf, r1_bio, &max_sectors);
-
 	if (rdisk < 0) {
 		/* couldn't find anywhere to read from */
-		if (r1bio_existed) {
-			pr_crit_ratelimited("md/raid1:%s: %s: unrecoverable I/O read error for block %llu\n",
+		if (r1bio_existed)
+			pr_crit_ratelimited("md/raid1:%s: %pg: unrecoverable I/O read error for block %llu\n",
 					    mdname(mddev),
-					    b,
-					    (unsigned long long)r1_bio->sector);
-		}
+					    conf->mirrors[r1_bio->read_disk].rdev->bdev,
+					    r1_bio->sector);
 		raid_end_bio_io(r1_bio);
 		return;
 	}
