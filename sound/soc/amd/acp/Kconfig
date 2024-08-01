@@ -13,6 +13,10 @@ config SND_SOC_AMD_ACP_COMMON
 	  This option enables common modules for Audio-Coprocessor i.e. ACP
 	  IP block on AMD platforms.
 
+config SND_SOC_ACPI_AMD_MATCH
+	tristate
+	select SND_SOC_ACPI if ACPI
+
 if SND_SOC_AMD_ACP_COMMON
 
 config SND_SOC_AMD_ACP_PDM
