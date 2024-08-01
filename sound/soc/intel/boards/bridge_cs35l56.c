@@ -98,7 +98,7 @@ static const struct snd_soc_dai_link bridge_dai_template = {
 int bridge_cs35l56_count_sidecar(struct snd_soc_card *card,
 				 int *num_dais, int *num_devs)
 {
-	if (sof_sdw_quirk & SOF_SIDECAR_AMPS) {
+	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS) {
 		(*num_dais)++;
 		(*num_devs) += ARRAY_SIZE(bridge_cs35l56_name_prefixes);
 	}
@@ -110,7 +110,7 @@ int bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 			       struct snd_soc_dai_link **dai_links,
 			       struct snd_soc_codec_conf **codec_conf)
 {
-	if (sof_sdw_quirk & SOF_SIDECAR_AMPS) {
+	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS) {
 		**dai_links = bridge_dai_template;
 
 		for (int i = 0; i < ARRAY_SIZE(bridge_cs35l56_name_prefixes); i++) {
@@ -130,7 +130,7 @@ int bridge_cs35l56_spk_init(struct snd_soc_card *card,
 			    struct asoc_sdw_codec_info *info,
 			    bool playback)
 {
-	if (sof_sdw_quirk & SOF_SIDECAR_AMPS)
+	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)
 		info->amp_num += ARRAY_SIZE(bridge_cs35l56_name_prefixes);
 
 	return 0;

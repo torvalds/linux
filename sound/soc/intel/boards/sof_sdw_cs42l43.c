@@ -104,7 +104,7 @@ int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *da
 	struct snd_soc_card *card = rtd->card;
 	int ret;
 
-	if (!(sof_sdw_quirk & SOF_SIDECAR_AMPS)) {
+	if (!(sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)) {
 		/* Will be set by the bridge code in this case */
 		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 						  "%s spk:cs42l43-spk",

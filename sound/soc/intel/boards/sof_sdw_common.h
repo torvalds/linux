@@ -14,16 +14,16 @@
 #include <sound/soc.h>
 #include "sof_hdmi_common.h"
 
-#define MAX_NO_PROPS 2
+#define SOC_SDW_MAX_NO_PROPS 2
 #define MAX_HDMI_NUM 4
-#define SDW_UNUSED_DAI_ID -1
-#define SDW_JACK_OUT_DAI_ID 0
-#define SDW_JACK_IN_DAI_ID 1
-#define SDW_AMP_OUT_DAI_ID 2
-#define SDW_AMP_IN_DAI_ID 3
-#define SDW_DMIC_DAI_ID 4
-#define SDW_MAX_CPU_DAIS 16
-#define SDW_INTEL_BIDIR_PDI_BASE 2
+#define SOC_SDW_UNUSED_DAI_ID -1
+#define SOC_SDW_JACK_OUT_DAI_ID 0
+#define SOC_SDW_JACK_IN_DAI_ID 1
+#define SOC_SDW_AMP_OUT_DAI_ID 2
+#define SOC_SDW_AMP_IN_DAI_ID 3
+#define SOC_SDW_DMIC_DAI_ID 4
+#define SOC_SDW_MAX_CPU_DAIS 16
+#define SOC_SDW_INTEL_BIDIR_PDI_BASE 2
 
 #define SDW_MAX_LINKS		4
 
@@ -44,27 +44,27 @@ enum {
 	SOF_I2S_SSP5 = BIT(5),
 };
 
-#define SOF_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
+#define SOC_SDW_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 /* Deprecated and no longer supported by the code */
-#define SOF_SDW_FOUR_SPK		BIT(4)
+#define SOC_SDW_FOUR_SPK		BIT(4)
 #define SOF_SDW_TGL_HDMI		BIT(5)
-#define SOF_SDW_PCH_DMIC		BIT(6)
+#define SOC_SDW_PCH_DMIC		BIT(6)
 #define SOF_SSP_PORT(x)		(((x) & GENMASK(5, 0)) << 7)
 #define SOF_SSP_GET_PORT(quirk)	(((quirk) >> 7) & GENMASK(5, 0))
 /* Deprecated and no longer supported by the code */
-#define SOF_SDW_NO_AGGREGATION		BIT(14)
+#define SOC_SDW_NO_AGGREGATION		BIT(14)
 /* If a CODEC has an optional speaker output, this quirk will enable it */
-#define SOF_CODEC_SPKR			BIT(15)
+#define SOC_SDW_CODEC_SPKR		BIT(15)
 /*
  * If the CODEC has additional devices attached directly to it.
  *
  * For the cs42l43:
  *   - 0 - No speaker output
- *   - SOF_CODEC_SPKR - CODEC internal speaker
- *   - SOF_SIDECAR_AMPS - 2x Sidecar amplifiers + CODEC internal speaker
- *   - SOF_CODEC_SPKR | SOF_SIDECAR_AMPS - Not currently supported
+ *   - SOC_SDW_CODEC_SPKR - CODEC internal speaker
+ *   - SOC_SDW_SIDECAR_AMPS - 2x Sidecar amplifiers + CODEC internal speaker
+ *   - SOC_SDW_CODEC_SPKR | SOC_SDW_SIDECAR_AMPS - Not currently supported
  */
-#define SOF_SIDECAR_AMPS		BIT(16)
+#define SOC_SDW_SIDECAR_AMPS		BIT(16)
 
 /* BT audio offload: reserve 3 bits for future */
 #define SOF_BT_OFFLOAD_SSP_SHIFT	15
@@ -73,11 +73,11 @@ enum {
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
-#define SOF_SDW_DAI_TYPE_JACK		0
-#define SOF_SDW_DAI_TYPE_AMP		1
-#define SOF_SDW_DAI_TYPE_MIC		2
+#define SOC_SDW_DAI_TYPE_JACK		0
+#define SOC_SDW_DAI_TYPE_AMP		1
+#define SOC_SDW_DAI_TYPE_MIC		2
 
-#define SOF_SDW_MAX_DAI_NUM		8
+#define SOC_SDW_MAX_DAI_NUM		8
 
 struct asoc_sdw_codec_info;
 
@@ -108,7 +108,7 @@ struct asoc_sdw_codec_info {
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool ignore_pch_dmic;
 	const struct snd_soc_ops *ops;
-	struct asoc_sdw_dai_info dais[SOF_SDW_MAX_DAI_NUM];
+	struct asoc_sdw_dai_info dais[SOC_SDW_MAX_DAI_NUM];
 	const int dai_num;
 
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
