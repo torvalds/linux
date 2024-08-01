@@ -175,7 +175,7 @@ static __init void setup_topology(void)
 	topology_max_mnest = max_mnest;
 }
 
-void __do_early_pgm_check(struct pt_regs *regs)
+void __init __do_early_pgm_check(struct pt_regs *regs)
 {
 	struct lowcore *lc = get_lowcore();
 	unsigned long ip;
