@@ -63,10 +63,6 @@ struct sti_spdif_audio {
 struct sti_sas_dev_data {
 	const struct regmap_config *regmap;
 	const struct snd_soc_dai_ops *dac_ops;  /* DAC function callbacks */
-	const struct snd_soc_dapm_widget *dapm_widgets; /* dapms declaration */
-	const int num_dapm_widgets; /* dapms declaration */
-	const struct snd_soc_dapm_route *dapm_routes; /* route declaration */
-	const int num_dapm_routes; /* route declaration */
 };
 
 /* driver data structure */
@@ -324,10 +320,6 @@ static const struct regmap_config stih407_sas_regmap = {
 static const struct sti_sas_dev_data stih407_data = {
 	.regmap = &stih407_sas_regmap,
 	.dac_ops = &stih407_dac_ops,
-	.dapm_widgets = stih407_sas_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(stih407_sas_dapm_widgets),
-	.dapm_routes =	stih407_sas_route,
-	.num_dapm_routes = ARRAY_SIZE(stih407_sas_route),
 };
 
 static struct snd_soc_dai_driver sti_sas_dai[] = {
@@ -386,12 +378,16 @@ static int sti_sas_component_probe(struct snd_soc_component *component)
 	return sti_sas_init_sas_registers(component, drvdata);
 }
 
-static struct snd_soc_component_driver sti_sas_driver = {
+static const struct snd_soc_component_driver sti_sas_driver = {
 	.probe			= sti_sas_component_probe,
 	.resume			= sti_sas_resume,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
+	.dapm_widgets		= stih407_sas_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(stih407_sas_dapm_widgets),
+	.dapm_routes		= stih407_sas_route,
+	.num_dapm_routes	= ARRAY_SIZE(stih407_sas_route),
 };
 
 static const struct of_device_id sti_sas_dev_match[] = {
@@ -445,13 +441,6 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	drvdata->spdif.regmap = drvdata->dac.regmap;
 
 	sti_sas_dai[STI_SAS_DAI_ANALOG_OUT].ops = drvdata->dev_data->dac_ops;
-
-	/* Set dapms*/
-	sti_sas_driver.dapm_widgets = drvdata->dev_data->dapm_widgets;
-	sti_sas_driver.num_dapm_widgets = drvdata->dev_data->num_dapm_widgets;
-
-	sti_sas_driver.dapm_routes = drvdata->dev_data->dapm_routes;
-	sti_sas_driver.num_dapm_routes = drvdata->dev_data->num_dapm_routes;
 
 	/* Store context */
 	dev_set_drvdata(&pdev->dev, drvdata);
