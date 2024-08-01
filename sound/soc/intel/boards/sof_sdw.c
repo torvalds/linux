@@ -594,12 +594,12 @@ static const struct snd_kcontrol_new rt700_controls[] = {
 };
 
 /* these wrappers are only needed to avoid typecast compilation errors */
-int sdw_startup(struct snd_pcm_substream *substream)
+int asoc_sdw_startup(struct snd_pcm_substream *substream)
 {
 	return sdw_startup_stream(substream);
 }
 
-int sdw_prepare(struct snd_pcm_substream *substream)
+int asoc_sdw_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
@@ -617,7 +617,7 @@ int sdw_prepare(struct snd_pcm_substream *substream)
 	return sdw_prepare_stream(sdw_stream);
 }
 
-int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
+int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
@@ -656,8 +656,8 @@ int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-int sdw_hw_params(struct snd_pcm_substream *substream,
-		  struct snd_pcm_hw_params *params)
+int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
+		       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai_link_ch_map *ch_maps;
@@ -699,7 +699,7 @@ int sdw_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int sdw_hw_free(struct snd_pcm_substream *substream)
+int asoc_sdw_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
@@ -717,18 +717,18 @@ int sdw_hw_free(struct snd_pcm_substream *substream)
 	return sdw_deprepare_stream(sdw_stream);
 }
 
-void sdw_shutdown(struct snd_pcm_substream *substream)
+void asoc_sdw_shutdown(struct snd_pcm_substream *substream)
 {
 	sdw_shutdown_stream(substream);
 }
 
 static const struct snd_soc_ops sdw_ops = {
-	.startup = sdw_startup,
-	.prepare = sdw_prepare,
-	.trigger = sdw_trigger,
-	.hw_params = sdw_hw_params,
-	.hw_free = sdw_hw_free,
-	.shutdown = sdw_shutdown,
+	.startup = asoc_sdw_startup,
+	.prepare = asoc_sdw_prepare,
+	.trigger = asoc_sdw_trigger,
+	.hw_params = asoc_sdw_hw_params,
+	.hw_free = asoc_sdw_hw_free,
+	.shutdown = asoc_sdw_shutdown,
 };
 
 static struct asoc_sdw_codec_info codec_info_list[] = {

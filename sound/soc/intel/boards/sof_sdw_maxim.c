@@ -80,7 +80,7 @@ static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* according to soc_pcm_prepare dai link prepare is called first */
-	ret = sdw_prepare(substream);
+	ret = asoc_sdw_prepare(substream);
 	if (ret < 0)
 		return ret;
 
@@ -92,7 +92,7 @@ static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* according to soc_pcm_hw_free dai link free is called first */
-	ret = sdw_hw_free(substream);
+	ret = asoc_sdw_hw_free(substream);
 	if (ret < 0)
 		return ret;
 
@@ -100,12 +100,12 @@ static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
 }
 
 static const struct snd_soc_ops max_98373_sdw_ops = {
-	.startup = sdw_startup,
+	.startup = asoc_sdw_startup,
 	.prepare = mx8373_sdw_prepare,
-	.trigger = sdw_trigger,
-	.hw_params = sdw_hw_params,
+	.trigger = asoc_sdw_trigger,
+	.hw_params = asoc_sdw_hw_params,
 	.hw_free = mx8373_sdw_hw_free,
-	.shutdown = sdw_shutdown,
+	.shutdown = asoc_sdw_shutdown,
 };
 
 static int mx8373_sdw_late_probe(struct snd_soc_card *card)

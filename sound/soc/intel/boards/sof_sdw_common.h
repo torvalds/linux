@@ -134,13 +134,13 @@ struct mc_private {
 
 extern unsigned long sof_sdw_quirk;
 
-int sdw_startup(struct snd_pcm_substream *substream);
-int sdw_prepare(struct snd_pcm_substream *substream);
-int sdw_trigger(struct snd_pcm_substream *substream, int cmd);
-int sdw_hw_params(struct snd_pcm_substream *substream,
-		  struct snd_pcm_hw_params *params);
-int sdw_hw_free(struct snd_pcm_substream *substream);
-void sdw_shutdown(struct snd_pcm_substream *substream);
+int asoc_sdw_startup(struct snd_pcm_substream *substream);
+int asoc_sdw_prepare(struct snd_pcm_substream *substream);
+int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd);
+int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
+		       struct snd_pcm_hw_params *params);
+int asoc_sdw_hw_free(struct snd_pcm_substream *substream);
+void asoc_sdw_shutdown(struct snd_pcm_substream *substream);
 
 /* generic HDMI support */
 int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd);
