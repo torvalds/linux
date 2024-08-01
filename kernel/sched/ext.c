@@ -3396,24 +3396,29 @@ static int scx_ops_init_task(struct task_struct *p, struct task_group *tg, bool 
 	scx_set_task_state(p, SCX_TASK_INIT);
 
 	if (p->scx.disallow) {
-		struct rq *rq;
-		struct rq_flags rf;
+		if (!fork) {
+			struct rq *rq;
+			struct rq_flags rf;
 
-		rq = task_rq_lock(p, &rf);
+			rq = task_rq_lock(p, &rf);
 
-		/*
-		 * We're either in fork or load path and @p->policy will be
-		 * applied right after. Reverting @p->policy here and rejecting
-		 * %SCHED_EXT transitions from scx_check_setscheduler()
-		 * guarantees that if ops.init_task() sets @p->disallow, @p can
-		 * never be in SCX.
-		 */
-		if (p->policy == SCHED_EXT) {
-			p->policy = SCHED_NORMAL;
-			atomic_long_inc(&scx_nr_rejected);
+			/*
+			 * We're in the load path and @p->policy will be applied
+			 * right after. Reverting @p->policy here and rejecting
+			 * %SCHED_EXT transitions from scx_check_setscheduler()
+			 * guarantees that if ops.init_task() sets @p->disallow,
+			 * @p can never be in SCX.
+			 */
+			if (p->policy == SCHED_EXT) {
+				p->policy = SCHED_NORMAL;
+				atomic_long_inc(&scx_nr_rejected);
+			}
+
+			task_rq_unlock(rq, p, &rf);
+		} else if (p->policy == SCHED_EXT) {
+			scx_ops_error("ops.init_task() set task->scx.disallow for %s[%d] during fork",
+				      p->comm, p->pid);
 		}
-
-		task_rq_unlock(rq, p, &rf);
 	}
 
 	p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
