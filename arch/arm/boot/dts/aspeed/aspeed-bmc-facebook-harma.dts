@@ -221,6 +221,11 @@
 		reg = <0x45>;
 		shunt-resistor = <1000>;
 	};
+
+	temperature-sensor@4b {
+		compatible = "ti,tmp75";
+		reg = <0x4b>;
+	};
 };
 
 &i2c1 {
@@ -270,6 +275,11 @@
 		compatible = "ti,ina238";
 		reg = <0x45>;
 		shunt-resistor = <1000>;
+	};
+
+	temperature-sensor@4b {
+		compatible = "ti,tmp75";
+		reg = <0x4b>;
 	};
 };
 
