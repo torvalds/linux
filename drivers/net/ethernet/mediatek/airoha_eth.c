@@ -1973,8 +1973,7 @@ static int airoha_qdma_hw_init(struct airoha_qdma *qdma)
 
 static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 {
-	struct airoha_eth *eth = dev_instance;
-	struct airoha_qdma *qdma = &eth->qdma[0];
+	struct airoha_qdma *qdma = dev_instance;
 	u32 intr[ARRAY_SIZE(qdma->irqmask)];
 	int i;
 
@@ -1984,7 +1983,7 @@ static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 		airoha_qdma_wr(qdma, REG_INT_STATUS(i), intr[i]);
 	}
 
-	if (!test_bit(DEV_STATE_INITIALIZED, &eth->state))
+	if (!test_bit(DEV_STATE_INITIALIZED, &qdma->eth->state))
 		return IRQ_NONE;
 
 	if (intr[1] & RX_DONE_INT_MASK) {
@@ -2037,7 +2036,7 @@ static int airoha_qdma_init(struct platform_device *pdev,
 		return qdma->irq;
 
 	err = devm_request_irq(eth->dev, qdma->irq, airoha_irq_handler,
-			       IRQF_SHARED, KBUILD_MODNAME, eth);
+			       IRQF_SHARED, KBUILD_MODNAME, qdma);
 	if (err)
 		return err;
 
