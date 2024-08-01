@@ -1238,56 +1238,6 @@ static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 	return ret;
 }
 
-/* helper to get the link that the codec DAI is used */
-static struct snd_soc_dai_link *mc_find_codec_dai_used(struct snd_soc_card *card,
-						       const char *dai_name)
-{
-	struct snd_soc_dai_link *dai_link;
-	int i;
-	int j;
-
-	for_each_card_prelinks(card, i, dai_link) {
-		for (j = 0; j < dai_link->num_codecs; j++) {
-			/* Check each codec in a link */
-			if (!strcmp(dai_link->codecs[j].dai_name, dai_name))
-				return dai_link;
-		}
-	}
-	return NULL;
-}
-
-static void mc_dailink_exit_loop(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *dai_link;
-	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
-	int ret;
-	int i, j;
-
-	for (i = 0; i < ctx->codec_info_list_count; i++) {
-		for (j = 0; j < codec_info_list[i].dai_num; j++) {
-			codec_info_list[i].dais[j].rtd_init_done = false;
-			/* Check each dai in codec_info_lis to see if it is used in the link */
-			if (!codec_info_list[i].dais[j].exit)
-				continue;
-			/*
-			 * We don't need to call .exit function if there is no matched
-			 * dai link found.
-			 */
-			dai_link = mc_find_codec_dai_used(card,
-							  codec_info_list[i].dais[j].dai_name);
-			if (dai_link) {
-				/* Do the .exit function if the codec dai is used in the link */
-				ret = codec_info_list[i].dais[j].exit(card, dai_link);
-				if (ret)
-					dev_warn(card->dev,
-						 "codec exit failed %d\n",
-						 ret);
-				break;
-			}
-		}
-	}
-}
-
 static int mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
@@ -1368,7 +1318,7 @@ static int mc_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_card(card->dev, card);
 	if (ret) {
 		dev_err_probe(card->dev, ret, "snd_soc_register_card failed %d\n", ret);
-		mc_dailink_exit_loop(card);
+		asoc_sdw_mc_dailink_exit_loop(card);
 		return ret;
 	}
 
@@ -1381,7 +1331,7 @@ static void mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	mc_dailink_exit_loop(card);
+	asoc_sdw_mc_dailink_exit_loop(card);
 }
 
 static const struct platform_device_id mc_id_table[] = {
