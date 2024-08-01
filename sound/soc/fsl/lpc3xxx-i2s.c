@@ -188,8 +188,7 @@ static int lpc3xxx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	__lpc3xxx_find_clkdiv(&clkx, &clky, i2s_info_p->freq, xfersize, i2s_info_p->clkrate);
 
-	dev_dbg(dev, "Stream                : %s\n",
-		substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
+	dev_dbg(dev, "Stream                : %s\n", snd_pcm_direction_name(substream->stream));
 	dev_dbg(dev, "Desired clock rate    : %d\n", i2s_info_p->freq);
 	dev_dbg(dev, "Base clock rate       : %d\n", i2s_info_p->clkrate);
 	dev_dbg(dev, "Transfer size (bytes) : %d\n", xfersize);

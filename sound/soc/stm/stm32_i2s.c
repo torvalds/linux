@@ -823,7 +823,7 @@ static int stm32_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/* Enable i2s */
 		dev_dbg(cpu_dai->dev, "start I2S %s\n",
-			playback_flg ? "playback" : "capture");
+			snd_pcm_direction_name(substream->stream));
 
 		cfg1_mask = I2S_CFG1_RXDMAEN | I2S_CFG1_TXDMAEN;
 		regmap_update_bits(i2s->regmap, STM32_I2S_CFG1_REG,
@@ -869,7 +869,7 @@ static int stm32_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dev_dbg(cpu_dai->dev, "stop I2S %s\n",
-			playback_flg ? "playback" : "capture");
+			snd_pcm_direction_name(substream->stream));
 
 		if (playback_flg)
 			regmap_update_bits(i2s->regmap, STM32_I2S_IER_REG,
