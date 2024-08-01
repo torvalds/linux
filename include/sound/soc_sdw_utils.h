@@ -10,6 +10,7 @@
 #define SOC_SDW_UTILS_H
 
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 
 #define SOC_SDW_MAX_DAI_NUM             8
 
@@ -63,4 +64,8 @@ int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 int asoc_sdw_hw_free(struct snd_pcm_substream *substream);
 void asoc_sdw_shutdown(struct snd_pcm_substream *substream);
 
+const char *asoc_sdw_get_codec_name(struct device *dev,
+				    const struct asoc_sdw_codec_info *codec_info,
+				    const struct snd_soc_acpi_link_adr *adr_link,
+				    int adr_index);
 #endif

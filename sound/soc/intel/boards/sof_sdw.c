@@ -1190,66 +1190,6 @@ static int init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai
 	return 0;
 }
 
-static bool asoc_sdw_is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
-				      unsigned int sdw_version,
-				      unsigned int mfg_id,
-				      unsigned int part_id,
-				      unsigned int class_id,
-				      int index_in_link)
-{
-	int i;
-
-	for (i = 0; i < adr_link->num_adr; i++) {
-		unsigned int sdw1_version, mfg1_id, part1_id, class1_id;
-		u64 adr;
-
-		/* skip itself */
-		if (i == index_in_link)
-			continue;
-
-		adr = adr_link->adr_d[i].adr;
-
-		sdw1_version = SDW_VERSION(adr);
-		mfg1_id = SDW_MFG_ID(adr);
-		part1_id = SDW_PART_ID(adr);
-		class1_id = SDW_CLASS_ID(adr);
-
-		if (sdw_version == sdw1_version &&
-		    mfg_id == mfg1_id &&
-		    part_id == part1_id &&
-		    class_id == class1_id)
-			return false;
-	}
-
-	return true;
-}
-
-static const char *asoc_sdw_get_codec_name(struct device *dev,
-					   const struct asoc_sdw_codec_info *codec_info,
-					   const struct snd_soc_acpi_link_adr *adr_link,
-					   int adr_index)
-{
-	u64 adr = adr_link->adr_d[adr_index].adr;
-	unsigned int sdw_version = SDW_VERSION(adr);
-	unsigned int link_id = SDW_DISCO_LINK_ID(adr);
-	unsigned int unique_id = SDW_UNIQUE_ID(adr);
-	unsigned int mfg_id = SDW_MFG_ID(adr);
-	unsigned int part_id = SDW_PART_ID(adr);
-	unsigned int class_id = SDW_CLASS_ID(adr);
-
-	if (codec_info->codec_name)
-		return devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
-	else if (asoc_sdw_is_unique_device(adr_link, sdw_version, mfg_id, part_id,
-					   class_id, adr_index))
-		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x",
-				      link_id, mfg_id, part_id, class_id);
-	else
-		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x:%01x",
-				      link_id, mfg_id, part_id, class_id, unique_id);
-
-	return NULL;
-}
-
 static int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
