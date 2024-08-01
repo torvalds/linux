@@ -308,11 +308,21 @@ struct trip_temps {
 	int crit_trip;
 };
 
+static int tegra_tsensor_get_trips_cb(struct thermal_trip *trip, void *arg)
+{
+	struct trip_temps *temps = arg;
+
+	if (trip->type == THERMAL_TRIP_HOT)
+		temps->hot_trip = trip->temperature;
+	else if (trip->type == THERMAL_TRIP_CRITICAL)
+		temps->crit_trip = trip->temperature;
+
+	return 0;
+}
+
 static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
 					       struct trip_temps *temps)
 {
-	unsigned int i;
-
 	/*
 	 * 90C is the maximal critical temperature of all Tegra30 SoC variants,
 	 * use it for the default trip if unspecified in a device-tree.
@@ -320,18 +330,7 @@ static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
 	temps->hot_trip  = 85000;
 	temps->crit_trip = 90000;
 
-	for (i = 0; i < thermal_zone_get_num_trips(tzd); i++) {
-
-		struct thermal_trip trip;
-
-		thermal_zone_get_trip(tzd, i, &trip);
-
-		if (trip.type == THERMAL_TRIP_HOT)
-			temps->hot_trip = trip.temperature;
-
-		if (trip.type == THERMAL_TRIP_CRITICAL)
-			temps->crit_trip = trip.temperature;
-	}
+	thermal_zone_for_each_trip(tzd, tegra_tsensor_get_trips_cb, temps);
 
 	/* clamp hardware trips to the calibration limits */
 	temps->hot_trip = clamp(temps->hot_trip, 25000, 90000);
