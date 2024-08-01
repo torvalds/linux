@@ -37,8 +37,9 @@ static inline bool linkmode_empty(const unsigned long *src)
 	return bitmap_empty(src, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static inline int linkmode_andnot(unsigned long *dst, const unsigned long *src1,
-				  const unsigned long *src2)
+static inline bool linkmode_andnot(unsigned long *dst,
+				   const unsigned long *src1,
+				   const unsigned long *src2)
 {
 	return bitmap_andnot(dst, src1, src2,  __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
