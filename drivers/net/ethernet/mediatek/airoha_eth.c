@@ -2023,15 +2023,25 @@ static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 }
 
 static int airoha_qdma_init(struct platform_device *pdev,
-			    struct airoha_eth *eth)
+			    struct airoha_eth *eth,
+			    struct airoha_qdma *qdma)
 {
-	struct airoha_qdma *qdma = &eth->qdma[0];
-	int err;
+	int err, id = qdma - &eth->qdma[0];
+	const char *res;
 
 	spin_lock_init(&qdma->irq_lock);
 	qdma->eth = eth;
 
-	qdma->irq = platform_get_irq(pdev, 0);
+	res = devm_kasprintf(eth->dev, GFP_KERNEL, "qdma%d", id);
+	if (!res)
+		return -ENOMEM;
+
+	qdma->regs = devm_platform_ioremap_resource_byname(pdev, res);
+	if (IS_ERR(qdma->regs))
+		return dev_err_probe(eth->dev, PTR_ERR(qdma->regs),
+				     "failed to iomap qdma%d regs\n", id);
+
+	qdma->irq = platform_get_irq(pdev, 4 * id);
 	if (qdma->irq < 0)
 		return qdma->irq;
 
@@ -2052,19 +2062,13 @@ static int airoha_qdma_init(struct platform_device *pdev,
 	if (err)
 		return err;
 
-	err = airoha_qdma_hw_init(qdma);
-	if (err)
-		return err;
-
-	set_bit(DEV_STATE_INITIALIZED, &eth->state);
-
-	return 0;
+	return airoha_qdma_hw_init(qdma);
 }
 
 static int airoha_hw_init(struct platform_device *pdev,
 			  struct airoha_eth *eth)
 {
-	int err;
+	int err, i;
 
 	/* disable xsi */
 	reset_control_bulk_assert(ARRAY_SIZE(eth->xsi_rsts), eth->xsi_rsts);
@@ -2078,12 +2082,19 @@ static int airoha_hw_init(struct platform_device *pdev,
 	if (err)
 		return err;
 
-	return airoha_qdma_init(pdev, eth);
+	for (i = 0; i < ARRAY_SIZE(eth->qdma); i++) {
+		err = airoha_qdma_init(pdev, eth, &eth->qdma[i]);
+		if (err)
+			return err;
+	}
+
+	set_bit(DEV_STATE_INITIALIZED, &eth->state);
+
+	return 0;
 }
 
-static void airoha_hw_cleanup(struct airoha_eth *eth)
+static void airoha_hw_cleanup(struct airoha_qdma *qdma)
 {
-	struct airoha_qdma *qdma = &eth->qdma[0];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(qdma->q_rx); i++) {
@@ -2644,13 +2655,6 @@ static int airoha_probe(struct platform_device *pdev)
 		return dev_err_probe(eth->dev, PTR_ERR(eth->fe_regs),
 				     "failed to iomap fe regs\n");
 
-	eth->qdma[0].regs = devm_platform_ioremap_resource_byname(pdev,
-								  "qdma0");
-	if (IS_ERR(eth->qdma[0].regs))
-		return dev_err_probe(eth->dev,
-				     PTR_ERR(eth->qdma[0].regs),
-				     "failed to iomap qdma regs\n");
-
 	eth->rsts[0].id = "fe";
 	eth->rsts[1].id = "pdma";
 	eth->rsts[2].id = "qdma";
@@ -2706,7 +2710,9 @@ static int airoha_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	airoha_hw_cleanup(eth);
+	for (i = 0; i < ARRAY_SIZE(eth->qdma); i++)
+		airoha_hw_cleanup(&eth->qdma[i]);
+
 	for (i = 0; i < ARRAY_SIZE(eth->ports); i++) {
 		struct airoha_gdm_port *port = eth->ports[i];
 
@@ -2724,7 +2730,9 @@ static void airoha_remove(struct platform_device *pdev)
 	struct airoha_eth *eth = platform_get_drvdata(pdev);
 	int i;
 
-	airoha_hw_cleanup(eth);
+	for (i = 0; i < ARRAY_SIZE(eth->qdma); i++)
+		airoha_hw_cleanup(&eth->qdma[i]);
+
 	for (i = 0; i < ARRAY_SIZE(eth->ports); i++) {
 		struct airoha_gdm_port *port = eth->ports[i];
 
