@@ -22,11 +22,6 @@
 /* force a value to a lower even value */
 #define EVEN_FLOOR(x)        ((x) & ~1)
 
-/* for preprocessor and array sizing use MIN and MAX
-   otherwise use min and max */
-#define MAX(a, b)            (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)            (((a) < (b)) ? (a) : (b))
-
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
 #define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))

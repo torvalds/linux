@@ -89,14 +89,7 @@ docs on :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 Rust (optional)
 ---------------
 
-A particular version of the Rust toolchain is required. Newer versions may or
-may not work because the kernel depends on some unstable Rust features, for
-the moment.
-
-Each Rust toolchain comes with several "components", some of which are required
-(like ``rustc``) and some that are optional. The ``rust-src`` component (which
-is optional) needs to be installed to build the kernel. Other components are
-useful for developing.
+A recent version of the Rust compiler is required.
 
 Please see Documentation/rust/quick-start.rst for instructions on how to
 satisfy the build requirements of Rust support. In particular, the ``Makefile``

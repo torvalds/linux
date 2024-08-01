@@ -19,11 +19,13 @@ struct dw_i3c_master_caps {
 
 struct dw_i3c_dat_entry {
 	u8 addr;
+	bool is_i2c_addr;
 	struct i3c_dev_desc *ibi_dev;
 };
 
 struct dw_i3c_master {
 	struct i3c_master_controller base;
+	struct device *dev;
 	u16 maxdevs;
 	u16 datstartaddr;
 	u32 free_pos;
@@ -36,10 +38,18 @@ struct dw_i3c_master {
 	void __iomem *regs;
 	struct reset_control *core_rst;
 	struct clk *core_clk;
+	struct clk *pclk;
 	char version[5];
 	char type[5];
-	bool ibi_capable;
-
+	u32 sir_rej_mask;
+	bool i2c_slv_prsnt;
+	u32 dev_addr;
+	u32 i3c_pp_timing;
+	u32 i3c_od_timing;
+	u32 ext_lcnt_timing;
+	u32 bus_free_timing;
+	u32 i2c_fm_timing;
+	u32 i2c_fmp_timing;
 	/*
 	 * Per-device hardware data, used to manage the device address table
 	 * (DAT)

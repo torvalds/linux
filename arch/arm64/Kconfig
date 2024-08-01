@@ -168,9 +168,9 @@ config ARM64
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN
-	select HAVE_ARCH_KASAN_VMALLOC if HAVE_ARCH_KASAN
-	select HAVE_ARCH_KASAN_SW_TAGS if HAVE_ARCH_KASAN
-	select HAVE_ARCH_KASAN_HW_TAGS if (HAVE_ARCH_KASAN && ARM64_MTE)
+	select HAVE_ARCH_KASAN_VMALLOC
+	select HAVE_ARCH_KASAN_SW_TAGS
+	select HAVE_ARCH_KASAN_HW_TAGS if ARM64_MTE
 	# Some instrumentation may be unsound, hence EXPERT
 	select HAVE_ARCH_KCSAN if EXPERT
 	select HAVE_ARCH_KFENCE
@@ -211,8 +211,8 @@ config ARM64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_ERROR_INJECTION
-	select HAVE_FUNCTION_GRAPH_RETVAL if HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_GRAPH_RETVAL
 	select HAVE_GCC_PLUGINS
 	select HAVE_HARDLOCKUP_DETECTOR_PERF if PERF_EVENTS && \
 		HW_PERF_EVENTS && HAVE_PERF_EVENTS_NMI
@@ -1471,7 +1471,6 @@ config HOTPLUG_CPU
 config NUMA
 	bool "NUMA Memory Allocation and Scheduler Support"
 	select GENERIC_ARCH_NUMA
-	select ACPI_NUMA if ACPI
 	select OF_NUMA
 	select HAVE_SETUP_PER_CPU_AREA
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
@@ -2336,6 +2335,17 @@ config EFI
 	  clock, and platform reset). A UEFI stub is also provided to
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
+
+config COMPRESSED_INSTALL
+	bool "Install compressed image by default"
+	help
+	  This makes the regular "make install" install the compressed
+	  image we built, not the legacy uncompressed one.
+
+	  You can check that a compressed image works for you by doing
+	  "make zinstall" first, and verifying that everything is fine
+	  in your environment before making "make install" do this for
+	  you.
 
 config DMI
 	bool "Enable support for SMBIOS (DMI) tables"

@@ -692,78 +692,28 @@ static bool wacom_is_art_pen(int tool_id)
 
 static int wacom_intuos_get_tool_type(int tool_id)
 {
-	int tool_type = BTN_TOOL_PEN;
-
-	if (wacom_is_art_pen(tool_id))
-		return tool_type;
-
 	switch (tool_id) {
 	case 0x812: /* Inking pen */
 	case 0x801: /* Intuos3 Inking pen */
 	case 0x12802: /* Intuos4/5 Inking Pen */
 	case 0x012:
-		tool_type = BTN_TOOL_PENCIL;
-		break;
-
-	case 0x822: /* Pen */
-	case 0x842:
-	case 0x852:
-	case 0x823: /* Intuos3 Grip Pen */
-	case 0x813: /* Intuos3 Classic Pen */
-	case 0x802: /* Intuos4/5 13HD/24HD General Pen */
-	case 0x8e2: /* IntuosHT2 pen */
-	case 0x022:
-	case 0x200: /* Pro Pen 3 */
-	case 0x04200: /* Pro Pen 3 */
-	case 0x10842: /* MobileStudio Pro Pro Pen slim */
-	case 0x14802: /* Intuos4/5 13HD/24HD Classic Pen */
-	case 0x16802: /* Cintiq 13HD Pro Pen */
-	case 0x18802: /* DTH2242 Pen */
-	case 0x10802: /* Intuos4/5 13HD/24HD General Pen */
-	case 0x80842: /* Intuos Pro and Cintiq Pro 3D Pen */
-		tool_type = BTN_TOOL_PEN;
-		break;
+		return BTN_TOOL_PENCIL;
 
 	case 0x832: /* Stroke pen */
 	case 0x032:
-		tool_type = BTN_TOOL_BRUSH;
-		break;
+		return BTN_TOOL_BRUSH;
 
 	case 0x007: /* Mouse 4D and 2D */
 	case 0x09c:
 	case 0x094:
 	case 0x017: /* Intuos3 2D Mouse */
 	case 0x806: /* Intuos4 Mouse */
-		tool_type = BTN_TOOL_MOUSE;
-		break;
+		return BTN_TOOL_MOUSE;
 
 	case 0x096: /* Lens cursor */
 	case 0x097: /* Intuos3 Lens cursor */
 	case 0x006: /* Intuos4 Lens cursor */
-		tool_type = BTN_TOOL_LENS;
-		break;
-
-	case 0x82a: /* Eraser */
-	case 0x84a:
-	case 0x85a:
-	case 0x91a:
-	case 0xd1a:
-	case 0x0fa:
-	case 0x82b: /* Intuos3 Grip Pen Eraser */
-	case 0x81b: /* Intuos3 Classic Pen Eraser */
-	case 0x91b: /* Intuos3 Airbrush Eraser */
-	case 0x80c: /* Intuos4/5 13HD/24HD Marker Pen Eraser */
-	case 0x80a: /* Intuos4/5 13HD/24HD General Pen Eraser */
-	case 0x90a: /* Intuos4/5 13HD/24HD Airbrush Eraser */
-	case 0x1480a: /* Intuos4/5 13HD/24HD Classic Pen Eraser */
-	case 0x1090a: /* Intuos4/5 13HD/24HD Airbrush Eraser */
-	case 0x1080c: /* Intuos4/5 13HD/24HD Art Pen Eraser */
-	case 0x1084a: /* MobileStudio Pro Pro Pen slim Eraser */
-	case 0x1680a: /* Cintiq 13HD Pro Pen Eraser */
-	case 0x1880a: /* DTH2242 Eraser */
-	case 0x1080a: /* Intuos4/5 13HD/24HD General Pen Eraser */
-		tool_type = BTN_TOOL_RUBBER;
-		break;
+		return BTN_TOOL_LENS;
 
 	case 0xd12:
 	case 0x912:
@@ -771,10 +721,13 @@ static int wacom_intuos_get_tool_type(int tool_id)
 	case 0x913: /* Intuos3 Airbrush */
 	case 0x902: /* Intuos4/5 13HD/24HD Airbrush */
 	case 0x10902: /* Intuos4/5 13HD/24HD Airbrush */
-		tool_type = BTN_TOOL_AIRBRUSH;
-		break;
+		return BTN_TOOL_AIRBRUSH;
+
+	default:
+		if (tool_id & 0x0008)
+			return BTN_TOOL_RUBBER;
+		return BTN_TOOL_PEN;
 	}
-	return tool_type;
 }
 
 static void wacom_exit_report(struct wacom_wac *wacom)

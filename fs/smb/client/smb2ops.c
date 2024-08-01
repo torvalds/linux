@@ -1812,6 +1812,10 @@ smb2_copychunk_range(const unsigned int xid,
 
 	tcon = tlink_tcon(trgtfile->tlink);
 
+	trace_smb3_copychunk_enter(xid, srcfile->fid.volatile_fid,
+				   trgtfile->fid.volatile_fid, tcon->tid,
+				   tcon->ses->Suid, src_off, dest_off, len);
+
 	while (len > 0) {
 		pcchunk->SourceOffset = cpu_to_le64(src_off);
 		pcchunk->TargetOffset = cpu_to_le64(dest_off);
@@ -1863,6 +1867,9 @@ smb2_copychunk_range(const unsigned int xid,
 				le32_to_cpu(retbuf->ChunksWritten),
 				le32_to_cpu(retbuf->ChunkBytesWritten),
 				bytes_written);
+			trace_smb3_copychunk_done(xid, srcfile->fid.volatile_fid,
+				trgtfile->fid.volatile_fid, tcon->tid,
+				tcon->ses->Suid, src_off, dest_off, len);
 		} else if (rc == -EINVAL) {
 			if (ret_data_len != sizeof(struct copychunk_ioctl_rsp))
 				goto cchunk_out;
@@ -2046,7 +2053,9 @@ smb2_duplicate_extents(const unsigned int xid,
 	dup_ext_buf.ByteCount = cpu_to_le64(len);
 	cifs_dbg(FYI, "Duplicate extents: src off %lld dst off %lld len %lld\n",
 		src_off, dest_off, len);
-
+	trace_smb3_clone_enter(xid, srcfile->fid.volatile_fid,
+			       trgtfile->fid.volatile_fid, tcon->tid,
+			       tcon->ses->Suid, src_off, dest_off, len);
 	inode = d_inode(trgtfile->dentry);
 	if (inode->i_size < dest_off + len) {
 		rc = smb2_set_file_size(xid, tcon, trgtfile, dest_off + len, false);
@@ -2075,6 +2084,15 @@ smb2_duplicate_extents(const unsigned int xid,
 		cifs_dbg(FYI, "Non-zero response length in duplicate extents\n");
 
 duplicate_extents_out:
+	if (rc)
+		trace_smb3_clone_err(xid, srcfile->fid.volatile_fid,
+				     trgtfile->fid.volatile_fid,
+				     tcon->tid, tcon->ses->Suid, src_off,
+				     dest_off, len, rc);
+	else
+		trace_smb3_clone_done(xid, srcfile->fid.volatile_fid,
+				      trgtfile->fid.volatile_fid, tcon->tid,
+				      tcon->ses->Suid, src_off, dest_off, len);
 	return rc;
 }
 

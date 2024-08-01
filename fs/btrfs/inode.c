@@ -714,8 +714,9 @@ out:
 	return ret;
 }
 
-static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
-					  u64 end,
+static noinline int cow_file_range_inline(struct btrfs_inode *inode,
+					  struct page *locked_page,
+					  u64 offset, u64 end,
 					  size_t compressed_size,
 					  int compress_type,
 					  struct folio *compressed_folio,
@@ -739,7 +740,10 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
 		return ret;
 	}
 
-	extent_clear_unlock_delalloc(inode, offset, end, NULL, &cached,
+	if (ret == 0)
+		locked_page = NULL;
+
+	extent_clear_unlock_delalloc(inode, offset, end, locked_page, &cached,
 				     clear_flags,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
@@ -1043,10 +1047,10 @@ again:
 	 * extent for the subpage case.
 	 */
 	if (total_in < actual_end)
-		ret = cow_file_range_inline(inode, start, end, 0,
+		ret = cow_file_range_inline(inode, NULL, start, end, 0,
 					    BTRFS_COMPRESS_NONE, NULL, false);
 	else
-		ret = cow_file_range_inline(inode, start, end, total_compressed,
+		ret = cow_file_range_inline(inode, NULL, start, end, total_compressed,
 					    compress_type, folios[0], false);
 	if (ret <= 0) {
 		if (ret < 0)
@@ -1359,7 +1363,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 	if (!no_inline) {
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(inode, start, end, 0,
+		ret = cow_file_range_inline(inode, locked_page, start, end, 0,
 					    BTRFS_COMPRESS_NONE, NULL, false);
 		if (ret <= 0) {
 			/*
@@ -5660,7 +5664,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	struct inode *inode;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *sub_root = root;
-	struct btrfs_key location;
+	struct btrfs_key location = { 0 };
 	u8 di_type = 0;
 	int ret = 0;
 

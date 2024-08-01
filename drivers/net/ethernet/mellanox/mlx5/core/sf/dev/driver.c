@@ -112,6 +112,7 @@ static void mlx5_sf_dev_shutdown(struct auxiliary_device *adev)
 	struct mlx5_core_dev *mdev = sf_dev->mdev;
 
 	set_bit(MLX5_BREAK_FW_WAIT, &mdev->intf_state);
+	mlx5_drain_health_wq(mdev);
 	mlx5_unload_one(mdev, false);
 }
 

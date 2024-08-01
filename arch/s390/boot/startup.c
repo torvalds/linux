@@ -30,6 +30,7 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata_preserved(max_mappable);
+int __bootdata_preserved(relocate_lowcore);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
@@ -376,6 +377,8 @@ static void kaslr_adjust_vmlinux_info(long offset)
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
+	vmlinux.alt_instructions += offset;
+	vmlinux.alt_instructions_end += offset;
 #ifdef CONFIG_KASAN
 	vmlinux.kasan_early_shadow_page_off += offset;
 	vmlinux.kasan_early_shadow_pte_off += offset;
@@ -478,8 +481,12 @@ void startup_kernel(void)
 	 * before the kernel started. Therefore, in case the two sections
 	 * overlap there is no risk of corrupting any data.
 	 */
-	if (kaslr_enabled())
-		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G);
+	if (kaslr_enabled()) {
+		unsigned long amode31_min;
+
+		amode31_min = (unsigned long)_decompressor_end;
+		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, amode31_min, SZ_2G);
+	}
 	if (!amode31_lma)
 		amode31_lma = __kaslr_offset_phys - vmlinux.amode31_size;
 	physmem_reserve(RR_AMODE31, amode31_lma, vmlinux.amode31_size);
@@ -503,6 +510,9 @@ void startup_kernel(void)
 	kaslr_adjust_got(__kaslr_offset);
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
+	__apply_alternatives((struct alt_instr *)_vmlinux_info.alt_instructions,
+			     (struct alt_instr *)_vmlinux_info.alt_instructions_end,
+			     ALT_CTX_EARLY);
 
 	/*
 	 * Save KASLR offset for early dumps, before vmcore_info is set.

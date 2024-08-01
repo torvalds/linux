@@ -5150,6 +5150,7 @@ int do_xdp_generic(struct bpf_prog *xdp_prog, struct sk_buff **pskb)
 			bpf_net_ctx_clear(bpf_net_ctx);
 			return XDP_DROP;
 		}
+		bpf_net_ctx_clear(bpf_net_ctx);
 	}
 	return XDP_PASS;
 out_redir:

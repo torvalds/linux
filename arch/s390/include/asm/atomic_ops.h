@@ -188,7 +188,8 @@ static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
 	return old;
 }
 
-#ifdef __GCC_ASM_FLAG_OUTPUTS__
+/* GCC versions before 14.2.0 may die with an ICE in some configurations. */
+#if defined(__GCC_ASM_FLAG_OUTPUTS__) && !(IS_ENABLED(CONFIG_CC_IS_GCC) && (GCC_VERSION < 140200))
 
 static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
 {
