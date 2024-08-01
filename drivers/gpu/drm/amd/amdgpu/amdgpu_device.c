@@ -5498,7 +5498,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 				 * bad_page_threshold value to fix this once
 				 * probing driver again.
 				 */
-				if (!amdgpu_ras_eeprom_check_err_threshold(tmp_adev)) {
+				if (!amdgpu_ras_is_rma(tmp_adev)) {
 					/* must succeed. */
 					amdgpu_ras_resume(tmp_adev);
 				} else {
