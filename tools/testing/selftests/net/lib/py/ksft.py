@@ -34,8 +34,18 @@ def _fail(*args):
     global KSFT_RESULT
     KSFT_RESULT = False
 
-    frame = inspect.stack()[2]
-    ksft_pr("At " + frame.filename + " line " + str(frame.lineno) + ":")
+    stack = inspect.stack()
+    started = False
+    for frame in reversed(stack[2:]):
+        # Start printing from the test case function
+        if not started:
+            if frame.function == 'ksft_run':
+                started = True
+            continue
+
+        ksft_pr("Check| At " + frame.filename + ", line " + str(frame.lineno) +
+                ", in " + frame.function + ":")
+        ksft_pr("Check|     " + frame.code_context[0].strip())
     ksft_pr(*args)
 
 
