@@ -26,10 +26,6 @@
 
 static const struct snd_malloc_ops *snd_dma_get_ops(struct snd_dma_buffer *dmab);
 
-#ifdef CONFIG_SND_DMA_SGBUF
-static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size);
-#endif
-
 static void *__snd_dma_alloc_pages(struct snd_dma_buffer *dmab, size_t size)
 {
 	const struct snd_malloc_ops *ops = snd_dma_get_ops(dmab);
@@ -540,16 +536,8 @@ static void *snd_dma_noncontig_alloc(struct snd_dma_buffer *dmab, size_t size)
 	struct sg_table *sgt;
 	void *p;
 
-#ifdef CONFIG_SND_DMA_SGBUF
-	if (cpu_feature_enabled(X86_FEATURE_XENPV))
-		return snd_dma_sg_fallback_alloc(dmab, size);
-#endif
 	sgt = dma_alloc_noncontiguous(dmab->dev.dev, size, dmab->dev.dir,
 				      DEFAULT_GFP, 0);
-#ifdef CONFIG_SND_DMA_SGBUF
-	if (!sgt && x86_fallback(dmab))
-		return snd_dma_sg_fallback_alloc(dmab, size);
-#endif
 	if (!sgt)
 		return NULL;
 
@@ -666,53 +654,7 @@ static const struct snd_malloc_ops snd_dma_noncontig_ops = {
 	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
 };
 
-/* x86-specific SG-buffer with WC pages */
 #ifdef CONFIG_SND_DMA_SGBUF
-#define sg_wc_address(it) ((unsigned long)page_address(sg_page_iter_page(it)))
-
-static void *snd_dma_sg_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
-{
-	void *p = snd_dma_noncontig_alloc(dmab, size);
-	struct sg_table *sgt = dmab->private_data;
-	struct sg_page_iter iter;
-
-	if (!p)
-		return NULL;
-	if (dmab->dev.type != SNDRV_DMA_TYPE_DEV_WC_SG)
-		return p;
-	for_each_sgtable_page(sgt, &iter, 0)
-		set_memory_wc(sg_wc_address(&iter), 1);
-	return p;
-}
-
-static void snd_dma_sg_wc_free(struct snd_dma_buffer *dmab)
-{
-	struct sg_table *sgt = dmab->private_data;
-	struct sg_page_iter iter;
-
-	for_each_sgtable_page(sgt, &iter, 0)
-		set_memory_wb(sg_wc_address(&iter), 1);
-	snd_dma_noncontig_free(dmab);
-}
-
-static int snd_dma_sg_wc_mmap(struct snd_dma_buffer *dmab,
-			      struct vm_area_struct *area)
-{
-	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
-	return dma_mmap_noncontiguous(dmab->dev.dev, area,
-				      dmab->bytes, dmab->private_data);
-}
-
-static const struct snd_malloc_ops snd_dma_sg_wc_ops = {
-	.alloc = snd_dma_sg_wc_alloc,
-	.free = snd_dma_sg_wc_free,
-	.mmap = snd_dma_sg_wc_mmap,
-	.sync = snd_dma_noncontig_sync,
-	.get_addr = snd_dma_noncontig_get_addr,
-	.get_page = snd_dma_noncontig_get_page,
-	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
-};
-
 /* Fallback SG-buffer allocations for x86 */
 struct snd_dma_sg_fallback {
 	bool use_dma_alloc_coherent;
@@ -750,6 +692,7 @@ static void __snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab,
 	kfree(sgbuf);
 }
 
+/* fallback manual S/G buffer allocations */
 static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
 	struct snd_dma_sg_fallback *sgbuf;
@@ -758,12 +701,6 @@ static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
 	dma_addr_t *addrp;
 	dma_addr_t addr;
 	void *p;
-
-	/* correct the type */
-	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_SG)
-		dmab->dev.type = SNDRV_DMA_TYPE_DEV_SG_FALLBACK;
-	else if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
-		dmab->dev.type = SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK;
 
 	sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
 	if (!sgbuf)
@@ -809,7 +746,7 @@ static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
 	if (!p)
 		goto error;
 
-	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
 		set_pages_array_wc(sgbuf->pages, sgbuf->count);
 
 	dmab->private_data = sgbuf;
@@ -826,7 +763,7 @@ static void snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab)
 {
 	struct snd_dma_sg_fallback *sgbuf = dmab->private_data;
 
-	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
 		set_pages_array_wb(sgbuf->pages, sgbuf->count);
 	vunmap(dmab->area);
 	__snd_dma_sg_fallback_free(dmab, dmab->private_data);
@@ -846,13 +783,38 @@ static int snd_dma_sg_fallback_mmap(struct snd_dma_buffer *dmab,
 {
 	struct snd_dma_sg_fallback *sgbuf = dmab->private_data;
 
-	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
 		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
 	return vm_map_pages(area, sgbuf->pages, sgbuf->count);
 }
 
-static const struct snd_malloc_ops snd_dma_sg_fallback_ops = {
-	.alloc = snd_dma_sg_fallback_alloc,
+static void *snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
+{
+	int type = dmab->dev.type;
+	void *p;
+
+	if (cpu_feature_enabled(X86_FEATURE_XENPV))
+		return snd_dma_sg_fallback_alloc(dmab, size);
+
+	/* try the standard DMA API allocation at first */
+	if (type == SNDRV_DMA_TYPE_DEV_WC_SG)
+		dmab->dev.type = SNDRV_DMA_TYPE_DEV_WC;
+	else
+		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
+	p = __snd_dma_alloc_pages(dmab, size);
+	if (p)
+		return p;
+
+	dmab->dev.type = type; /* restore the type */
+	/* if IOMMU is present but failed, give up */
+	if (!x86_fallback(dmab))
+		return NULL;
+	/* try fallback */
+	return snd_dma_sg_fallback_alloc(dmab, size);
+}
+
+static const struct snd_malloc_ops snd_dma_sg_ops = {
+	.alloc = snd_dma_sg_alloc,
 	.free = snd_dma_sg_fallback_free,
 	.mmap = snd_dma_sg_fallback_mmap,
 	.get_addr = snd_dma_sg_fallback_get_addr,
@@ -926,15 +888,12 @@ static const struct snd_malloc_ops *snd_dma_ops[] = {
 	[SNDRV_DMA_TYPE_NONCONTIG] = &snd_dma_noncontig_ops,
 	[SNDRV_DMA_TYPE_NONCOHERENT] = &snd_dma_noncoherent_ops,
 #ifdef CONFIG_SND_DMA_SGBUF
-	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_wc_ops,
+	[SNDRV_DMA_TYPE_DEV_SG] = &snd_dma_sg_ops,
+	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_ops,
 #endif
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
-#ifdef CONFIG_SND_DMA_SGBUF
-	[SNDRV_DMA_TYPE_DEV_SG_FALLBACK] = &snd_dma_sg_fallback_ops,
-	[SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK] = &snd_dma_sg_fallback_ops,
-#endif
 #endif /* CONFIG_HAS_DMA */
 };
 
