@@ -211,6 +211,42 @@ static u16 ina226_interval_to_reg(unsigned long interval)
 	return FIELD_PREP(INA226_AVG_RD_MASK, avg_bits);
 }
 
+static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
+			    unsigned int regval)
+{
+	int val;
+
+	switch (reg) {
+	case INA2XX_SHUNT_VOLTAGE:
+		/* signed register */
+		val = DIV_ROUND_CLOSEST((s16)regval, data->config->shunt_div);
+		break;
+	case INA2XX_BUS_VOLTAGE:
+		val = (regval >> data->config->bus_voltage_shift) *
+		  data->config->bus_voltage_lsb;
+		val = DIV_ROUND_CLOSEST(val, 1000);
+		break;
+	case INA2XX_POWER:
+		val = regval * data->power_lsb_uW;
+		break;
+	case INA2XX_CURRENT:
+		/* signed register, result in mA */
+		val = (s16)regval * data->current_lsb_uA;
+		val = DIV_ROUND_CLOSEST(val, 1000);
+		break;
+	case INA2XX_CALIBRATION:
+		val = regval;
+		break;
+	default:
+		/* programmer goofed */
+		WARN_ON_ONCE(1);
+		val = 0;
+		break;
+	}
+
+	return val;
+}
+
 static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
@@ -262,42 +298,6 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 	 */
 	dev_err(dev, "unable to reinitialize the chip\n");
 	return -ENODEV;
-}
-
-static int ina2xx_get_value(struct ina2xx_data *data, u8 reg,
-			    unsigned int regval)
-{
-	int val;
-
-	switch (reg) {
-	case INA2XX_SHUNT_VOLTAGE:
-		/* signed register */
-		val = DIV_ROUND_CLOSEST((s16)regval, data->config->shunt_div);
-		break;
-	case INA2XX_BUS_VOLTAGE:
-		val = (regval >> data->config->bus_voltage_shift)
-		  * data->config->bus_voltage_lsb;
-		val = DIV_ROUND_CLOSEST(val, 1000);
-		break;
-	case INA2XX_POWER:
-		val = regval * data->power_lsb_uW;
-		break;
-	case INA2XX_CURRENT:
-		/* signed register, result in mA */
-		val = (s16)regval * data->current_lsb_uA;
-		val = DIV_ROUND_CLOSEST(val, 1000);
-		break;
-	case INA2XX_CALIBRATION:
-		val = regval;
-		break;
-	default:
-		/* programmer goofed */
-		WARN_ON_ONCE(1);
-		val = 0;
-		break;
-	}
-
-	return val;
 }
 
 static ssize_t ina2xx_value_show(struct device *dev,
