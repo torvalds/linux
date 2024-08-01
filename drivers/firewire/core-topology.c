@@ -39,7 +39,7 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 	node->initiated_reset = phy_packet_self_id_zero_get_initiated_reset(sid);
 	node->port_count = port_count;
 
-	refcount_set(&node->ref_count, 1);
+	kref_init(&node->kref);
 	INIT_LIST_HEAD(&node->link);
 
 	return node;
