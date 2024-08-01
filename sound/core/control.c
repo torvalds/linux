@@ -1168,7 +1168,6 @@ static int __snd_ctl_elem_info(struct snd_card *card,
 	info->access = 0;
 #endif
 	result = kctl->info(kctl, info);
-	snd_power_unref(card);
 	if (result >= 0) {
 		snd_BUG_ON(info->access);
 		index_offset = snd_ctl_get_ioff(kctl, &info->id);
