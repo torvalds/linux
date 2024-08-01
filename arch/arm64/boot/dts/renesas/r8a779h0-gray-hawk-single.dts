@@ -47,6 +47,13 @@
 		ethernet0 = &avb0;
 	};
 
+	can_transceiver0: can-phy0 {
+		compatible = "nxp,tjr1443";
+		#phy-cells = <0>;
+		enable-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		max-bitrate = <5000000>;
+	};
+
 	chosen {
 		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:921600n8";
@@ -171,6 +178,25 @@
 		interrupt-parent = <&gpio7>;
 		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&can_clk {
+	clock-frequency = <40000000>;
+};
+
+&canfd {
+	pinctrl-0 = <&canfd0_pins>, <&canfd1_pins>, <&can_clk_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+		phys = <&can_transceiver0>;
+	};
+
+	channel1 {
+		status = "okay";
 	};
 };
 
@@ -303,6 +329,21 @@
 			groups = "avb0_rgmii";
 			drive-strength = <21>;
 		};
+	};
+
+	can_clk_pins: can-clk {
+		groups = "can_clk";
+		function = "can_clk";
+	};
+
+	canfd0_pins: canfd0 {
+		groups = "canfd0_data";
+		function = "canfd0";
+	};
+
+	canfd1_pins: canfd1 {
+		groups = "canfd1_data";
+		function = "canfd1";
 	};
 
 	hscif0_pins: hscif0 {
