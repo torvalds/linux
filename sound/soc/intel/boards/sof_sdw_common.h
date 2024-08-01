@@ -54,10 +54,6 @@ enum {
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
-#define SOC_SDW_DAI_TYPE_JACK		0
-#define SOC_SDW_DAI_TYPE_AMP		1
-#define SOC_SDW_DAI_TYPE_MIC		2
-
 struct intel_mc_ctx {
 	struct sof_hdmi_private hdmi;
 	/* To store SDW Pin index for each SoundWire link */

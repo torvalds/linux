@@ -36,6 +36,10 @@
 #define SOC_SDW_AMP_IN_DAI_ID		3
 #define SOC_SDW_DMIC_DAI_ID		4
 
+#define SOC_SDW_DAI_TYPE_JACK		0
+#define SOC_SDW_DAI_TYPE_AMP		1
+#define SOC_SDW_DAI_TYPE_MIC		2
+
 struct asoc_sdw_codec_info;
 
 struct asoc_sdw_dai_info {
