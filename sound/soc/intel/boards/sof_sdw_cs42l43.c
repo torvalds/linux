@@ -51,7 +51,7 @@ static struct snd_soc_jack_pin sof_jack_pins[] = {
 int asoc_sdw_cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
-	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_jack *jack = &ctx->sdw_headset;
 	struct snd_soc_card *card = rtd->card;
 	int ret;

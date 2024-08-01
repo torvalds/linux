@@ -78,16 +78,10 @@ enum {
 #define SOC_SDW_DAI_TYPE_AMP		1
 #define SOC_SDW_DAI_TYPE_MIC		2
 
-struct mc_private {
-	struct snd_soc_card card;
-	struct snd_soc_jack sdw_headset;
+struct intel_mc_ctx {
 	struct sof_hdmi_private hdmi;
-	struct device *headset_codec_dev; /* only one headset per card */
-	struct device *amp_dev1, *amp_dev2;
 	/* To store SDW Pin index for each SoundWire link */
 	unsigned int sdw_pin_index[SDW_MAX_LINKS];
-	bool append_dai_type;
-	bool ignore_internal_dmic;
 };
 
 extern unsigned long sof_sdw_quirk;

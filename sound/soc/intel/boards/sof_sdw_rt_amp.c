@@ -239,7 +239,7 @@ const struct snd_soc_ops soc_sdw_rt1308_i2s_ops = {
 
 int asoc_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
-	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
 
 	if (ctx->amp_dev1) {
 		device_remove_software_node(ctx->amp_dev1);
@@ -259,7 +259,7 @@ int asoc_sdw_rt_amp_init(struct snd_soc_card *card,
 			 struct asoc_sdw_codec_info *info,
 			 bool playback)
 {
-	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct device *sdw_dev1, *sdw_dev2;
 	int ret;
 
