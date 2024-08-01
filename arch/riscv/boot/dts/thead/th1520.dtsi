@@ -216,12 +216,6 @@
 		#clock-cells = <0>;
 	};
 
-	spi_clk: spi-clock {
-		compatible = "fixed-clock";
-		clock-output-names = "spi_clk";
-		#clock-cells = <0>;
-	};
-
 	soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&plic>;
@@ -256,7 +250,7 @@
 			compatible = "thead,th1520-spi", "snps,dw-apb-ssi";
 			reg = <0xff 0xe700c000 0x0 0x1000>;
 			interrupts = <54 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&spi_clk>;
+			clocks = <&clk CLK_SPI>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";

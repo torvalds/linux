@@ -45,10 +45,6 @@
 	clock-frequency = <32768>;
 };
 
-&spi_clk {
-	clock-frequency = <396000000>;
-};
-
 &dmac0 {
 	status = "okay";
 };
