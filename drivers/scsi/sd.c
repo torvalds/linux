@@ -3753,7 +3753,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
 			sd_read_block_limits_ext(sdkp);
 			sd_read_block_characteristics(sdkp, &lim);
 			sd_zbc_read_zones(sdkp, &lim, buffer);
-			sd_read_cpr(sdkp);
 		}
 
 		sd_print_capacity(sdkp, old_capacity);
@@ -3807,6 +3806,14 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	blk_mq_unfreeze_queue(sdkp->disk->queue);
 	if (err)
 		return err;
+
+	/*
+	 * Query concurrent positioning ranges after
+	 * queue_limits_commit_update() unlocked q->limits_lock to avoid
+	 * deadlock with q->sysfs_dir_lock and q->sysfs_lock.
+	 */
+	if (sdkp->media_present && scsi_device_supports_vpd(sdp))
+		sd_read_cpr(sdkp);
 
 	/*
 	 * For a zoned drive, revalidating the zones can be done only once
