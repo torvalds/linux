@@ -682,6 +682,8 @@ struct mlx5_ib_mr {
 	struct mlx5_ib_mkey mmkey;
 
 	struct ib_umem *umem;
+	/* The mr is data direct related */
+	u8 data_direct :1;
 
 	union {
 		/* Used only by kernel MRs (umem == NULL) */
@@ -719,6 +721,10 @@ struct mlx5_ib_mr {
 			} odp_destroy;
 			struct ib_odp_counters odp_stats;
 			bool is_odp_implicit;
+			/* The affilated data direct crossed mr */
+			struct mlx5_ib_mr *dd_crossed_mr;
+			struct list_head dd_node;
+			u8 revoked :1;
 		};
 	};
 };
@@ -1169,6 +1175,7 @@ struct mlx5_ib_dev {
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head	qp_list;
+	struct list_head data_direct_mr_list;
 	/* Array with num_ports elements */
 	struct mlx5_ib_port	*port;
 	struct mlx5_sq_bfreg	bfreg;
@@ -1437,6 +1444,7 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 void mlx5_ib_data_direct_bind(struct mlx5_ib_dev *ibdev,
 			      struct mlx5_data_direct_dev *dev);
 void mlx5_ib_data_direct_unbind(struct mlx5_ib_dev *ibdev);
+void mlx5_ib_revoke_data_direct_mrs(struct mlx5_ib_dev *dev);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);

@@ -710,7 +710,10 @@ static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
 		ib_umem_dmabuf_unmap_pages(umem_dmabuf);
 		err = -EINVAL;
 	} else {
-		err = mlx5r_umr_update_mr_pas(mr, xlt_flags);
+		if (mr->data_direct)
+			err = mlx5r_umr_update_data_direct_ksm_pas(mr, xlt_flags);
+		else
+			err = mlx5r_umr_update_mr_pas(mr, xlt_flags);
 	}
 	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
 
