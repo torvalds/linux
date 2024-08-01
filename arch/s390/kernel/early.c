@@ -7,6 +7,7 @@
 #define KMSG_COMPONENT "setup"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/sched/debug.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -191,6 +192,15 @@ void __init __do_early_pgm_check(struct pt_regs *regs)
 	}
 	if (fixup_exception(regs))
 		return;
+	/*
+	 * Unhandled exception - system cannot continue but try to get some
+	 * helpful messages to the console. Use early_printk() to print
+	 * some basic information in case it is too early for printk().
+	 */
+	register_early_console();
+	early_printk("PANIC: early exception %04x PSW: %016lx %016lx\n",
+		     regs->int_code & 0xffff, regs->psw.mask, regs->psw.addr);
+	show_regs(regs);
 	disabled_wait();
 }
 

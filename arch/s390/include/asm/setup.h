@@ -115,6 +115,8 @@ extern unsigned int console_irq;
 #define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
 #define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
 
+void register_early_console(void);
+
 #ifdef CONFIG_VMCP
 void vmcp_cma_reserve(void);
 #else
