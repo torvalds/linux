@@ -215,14 +215,14 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	const struct sdma_firmware_header_v3_0 *sdma_hv3;
 	uint16_t version_major;
 	char ucode_prefix[30];
-	char fw_name[52];
 
 	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (instance == 0)
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   "amdgpu/%s.bin", ucode_prefix);
 	else
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s%d.bin", ucode_prefix, instance);
-	err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw, fw_name);
+		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   "amdgpu/%s%d.bin", ucode_prefix, instance);
 	if (err)
 		goto out;
 

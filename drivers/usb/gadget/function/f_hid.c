@@ -1322,6 +1322,7 @@ err_unlock:
 }
 
 DECLARE_USB_FUNCTION_INIT(hid, hidg_alloc_inst, hidg_alloc);
+MODULE_DESCRIPTION("USB HID function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Fabien Chouteau");
 

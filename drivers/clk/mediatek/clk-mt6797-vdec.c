@@ -61,4 +61,6 @@ static struct platform_driver clk_mt6797_vdec_drv = {
 	},
 };
 module_platform_driver(clk_mt6797_vdec_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6797 Video Decoders clocks driver");
 MODULE_LICENSE("GPL");

@@ -743,8 +743,8 @@ static void as3645a_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id as3645a_id_table[] = {
-	{ AS_NAME, 0 },
-	{ },
+	{ AS_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, as3645a_id_table);
 

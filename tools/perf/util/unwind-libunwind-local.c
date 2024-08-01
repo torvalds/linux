@@ -363,7 +363,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
 	int fd;
-	u64 ofs = dso->data.debug_frame_offset;
+	u64 ofs = dso__data(dso)->debug_frame_offset;
 
 	/* debug_frame can reside in:
 	 *  - dso
@@ -379,7 +379,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 		}
 
 		if (ofs <= 0) {
-			fd = open(dso->symsrc_filename, O_RDONLY);
+			fd = open(dso__symsrc_filename(dso), O_RDONLY);
 			if (fd >= 0) {
 				ofs = elf_section_offset(fd, ".debug_frame");
 				close(fd);
@@ -389,6 +389,11 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 		if (ofs <= 0) {
 			char *debuglink = malloc(PATH_MAX);
 			int ret = 0;
+
+			if (debuglink == NULL) {
+				pr_err("unwind: Can't read unwind spec debug frame.\n");
+				return -ENOMEM;
+			}
 
 			ret = dso__read_binary_type_filename(
 				dso, DSO_BINARY_TYPE__DEBUGLINK,
@@ -402,21 +407,21 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 				}
 			}
 			if (ofs > 0) {
-				if (dso->symsrc_filename != NULL) {
+				if (dso__symsrc_filename(dso) != NULL) {
 					pr_warning(
 						"%s: overwrite symsrc(%s,%s)\n",
 							__func__,
-							dso->symsrc_filename,
+							dso__symsrc_filename(dso),
 							debuglink);
-					zfree(&dso->symsrc_filename);
+					dso__free_symsrc_filename(dso);
 				}
-				dso->symsrc_filename = debuglink;
+				dso__set_symsrc_filename(dso, debuglink);
 			} else {
 				free(debuglink);
 			}
 		}
 
-		dso->data.debug_frame_offset = ofs;
+		dso__data(dso)->debug_frame_offset = ofs;
 	}
 
 	*offset = ofs;
@@ -481,7 +486,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	if (ret < 0 &&
 	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
 		int fd = dso__data_get_fd(dso, ui->machine);
-		int is_exec = elf_is_exec(fd, dso->name);
+		int is_exec = elf_is_exec(fd, dso__name(dso));
 		u64 start = map__start(map);
 		unw_word_t base = is_exec ? 0 : start;
 		const char *symfile;
@@ -489,7 +494,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		if (fd >= 0)
 			dso__data_put_fd(dso);
 
-		symfile = dso->symsrc_filename ?: dso->name;
+		symfile = dso__symsrc_filename(dso) ?: dso__name(dso);
 
 		memset(&di, 0, sizeof(di));
 		if (dwarf_find_debug_frame(0, &di, ip, base, symfile, start, map__end(map)))

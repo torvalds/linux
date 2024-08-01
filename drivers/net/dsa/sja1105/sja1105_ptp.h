@@ -101,7 +101,7 @@ void sja1105pqrs_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
 				 enum packing_op op);
 
 int sja1105_get_ts_info(struct dsa_switch *ds, int port,
-			struct ethtool_ts_info *ts);
+			struct kernel_ethtool_ts_info *ts);
 
 void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 			      struct sk_buff *clone);

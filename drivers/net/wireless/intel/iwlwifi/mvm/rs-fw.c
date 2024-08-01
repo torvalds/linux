@@ -514,6 +514,8 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 				link_sta->agg.max_tid_amsdu_len[i] = 1;
 		}
 
+		ieee80211_sta_recalc_aggregates(sta);
+
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
 			       le32_to_cpu(notif->amsdu_size), size,
@@ -609,6 +611,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 				cpu_to_le16(max_amsdu_len) : 0,
 	};
 	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
 	int cmd_ver;
 	int ret;
 
@@ -652,7 +655,10 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	 * since TLC offload works with one mode we can assume
 	 * that only vht/ht is used and also set it as station max amsdu
 	 */
-	sta->deflink.agg.max_amsdu_len = max_amsdu_len;
+	link_sta->agg.max_amsdu_len = max_amsdu_len;
+	ieee80211_sta_recalc_aggregates(sta);
+
+	cfg_cmd.max_tx_op = cpu_to_le16(mvmvif->max_tx_op);
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 0);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, sta_id=%d, max_ch_width=%d, mode=%d\n",

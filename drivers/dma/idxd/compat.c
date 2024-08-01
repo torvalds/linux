@@ -7,7 +7,6 @@
 #include <linux/device/bus.h>
 #include "idxd.h"
 
-extern int device_driver_attach(struct device_driver *drv, struct device *dev);
 extern void device_driver_detach(struct device *dev);
 
 #define DRIVER_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)	\

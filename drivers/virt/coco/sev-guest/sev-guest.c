@@ -2,7 +2,7 @@
 /*
  * AMD Secure Encrypted Virtualization (SEV) guest driver interface
  *
- * Copyright (C) 2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2021-2024 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  */
@@ -23,13 +23,12 @@
 #include <linux/sockptr.h>
 #include <linux/cleanup.h>
 #include <linux/uuid.h>
+#include <linux/configfs.h>
 #include <uapi/linux/sev-guest.h>
 #include <uapi/linux/psp-sev.h>
 
 #include <asm/svm.h>
 #include <asm/sev.h>
-
-#include "sev-guest.h"
 
 #define DEVICE_NAME	"sev-guest"
 #define AAD_LEN		48
@@ -37,6 +36,8 @@
 
 #define SNP_REQ_MAX_RETRY_DURATION	(60*HZ)
 #define SNP_REQ_RETRY_DELAY		(2*HZ)
+
+#define SVSM_MAX_RETRIES		3
 
 struct snp_guest_crypto {
 	struct crypto_aead *tfm;
@@ -70,8 +71,15 @@ struct snp_guest_dev {
 	u8 *vmpck;
 };
 
-static u32 vmpck_id;
-module_param(vmpck_id, uint, 0444);
+/*
+ * The VMPCK ID represents the key used by the SNP guest to communicate with the
+ * SEV firmware in the AMD Secure Processor (ASP, aka PSP). By default, the key
+ * used will be the key associated with the VMPL at which the guest is running.
+ * Should the default key be wiped (see snp_disable_vmpck()), this parameter
+ * allows for using one of the remaining VMPCKs.
+ */
+static int vmpck_id = -1;
+module_param(vmpck_id, int, 0444);
 MODULE_PARM_DESC(vmpck_id, "The VMPCK ID to use when communicating with the PSP.");
 
 /* Mutex to serialize the shared buffer access and command handling. */
@@ -783,6 +791,143 @@ struct snp_msg_cert_entry {
 	u32 length;
 };
 
+static int sev_svsm_report_new(struct tsm_report *report, void *data)
+{
+	unsigned int rep_len, man_len, certs_len;
+	struct tsm_desc *desc = &report->desc;
+	struct svsm_attest_call ac = {};
+	unsigned int retry_count;
+	void *rep, *man, *certs;
+	struct svsm_call call;
+	unsigned int size;
+	bool try_again;
+	void *buffer;
+	u64 call_id;
+	int ret;
+
+	/*
+	 * Allocate pages for the request:
+	 * - Report blob (4K)
+	 * - Manifest blob (4K)
+	 * - Certificate blob (16K)
+	 *
+	 * Above addresses must be 4K aligned
+	 */
+	rep_len = SZ_4K;
+	man_len = SZ_4K;
+	certs_len = SEV_FW_BLOB_MAX_SIZE;
+
+	guard(mutex)(&snp_cmd_mutex);
+
+	if (guid_is_null(&desc->service_guid)) {
+		call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SERVICES);
+	} else {
+		export_guid(ac.service_guid, &desc->service_guid);
+		ac.service_manifest_ver = desc->service_manifest_version;
+
+		call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE);
+	}
+
+	retry_count = 0;
+
+retry:
+	memset(&call, 0, sizeof(call));
+
+	size = rep_len + man_len + certs_len;
+	buffer = alloc_pages_exact(size, __GFP_ZERO);
+	if (!buffer)
+		return -ENOMEM;
+
+	rep = buffer;
+	ac.report_buf.pa = __pa(rep);
+	ac.report_buf.len = rep_len;
+
+	man = rep + rep_len;
+	ac.manifest_buf.pa = __pa(man);
+	ac.manifest_buf.len = man_len;
+
+	certs = man + man_len;
+	ac.certificates_buf.pa = __pa(certs);
+	ac.certificates_buf.len = certs_len;
+
+	ac.nonce.pa = __pa(desc->inblob);
+	ac.nonce.len = desc->inblob_len;
+
+	ret = snp_issue_svsm_attest_req(call_id, &call, &ac);
+	if (ret) {
+		free_pages_exact(buffer, size);
+
+		switch (call.rax_out) {
+		case SVSM_ERR_INVALID_PARAMETER:
+			try_again = false;
+
+			if (ac.report_buf.len > rep_len) {
+				rep_len = PAGE_ALIGN(ac.report_buf.len);
+				try_again = true;
+			}
+
+			if (ac.manifest_buf.len > man_len) {
+				man_len = PAGE_ALIGN(ac.manifest_buf.len);
+				try_again = true;
+			}
+
+			if (ac.certificates_buf.len > certs_len) {
+				certs_len = PAGE_ALIGN(ac.certificates_buf.len);
+				try_again = true;
+			}
+
+			/* If one of the buffers wasn't large enough, retry the request */
+			if (try_again && retry_count < SVSM_MAX_RETRIES) {
+				retry_count++;
+				goto retry;
+			}
+
+			return -EINVAL;
+		default:
+			pr_err_ratelimited("SVSM attestation request failed (%d / 0x%llx)\n",
+					   ret, call.rax_out);
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Allocate all the blob memory buffers at once so that the cleanup is
+	 * done for errors that occur after the first allocation (i.e. before
+	 * using no_free_ptr()).
+	 */
+	rep_len = ac.report_buf.len;
+	void *rbuf __free(kvfree) = kvzalloc(rep_len, GFP_KERNEL);
+
+	man_len = ac.manifest_buf.len;
+	void *mbuf __free(kvfree) = kvzalloc(man_len, GFP_KERNEL);
+
+	certs_len = ac.certificates_buf.len;
+	void *cbuf __free(kvfree) = certs_len ? kvzalloc(certs_len, GFP_KERNEL) : NULL;
+
+	if (!rbuf || !mbuf || (certs_len && !cbuf)) {
+		free_pages_exact(buffer, size);
+		return -ENOMEM;
+	}
+
+	memcpy(rbuf, rep, rep_len);
+	report->outblob = no_free_ptr(rbuf);
+	report->outblob_len = rep_len;
+
+	memcpy(mbuf, man, man_len);
+	report->manifestblob = no_free_ptr(mbuf);
+	report->manifestblob_len = man_len;
+
+	if (certs_len) {
+		memcpy(cbuf, certs, certs_len);
+		report->auxblob = no_free_ptr(cbuf);
+		report->auxblob_len = certs_len;
+	}
+
+	free_pages_exact(buffer, size);
+
+	return 0;
+}
+
 static int sev_report_new(struct tsm_report *report, void *data)
 {
 	struct snp_msg_cert_entry *cert_table;
@@ -796,6 +941,13 @@ static int sev_report_new(struct tsm_report *report, void *data)
 
 	if (desc->inblob_len != SNP_REPORT_USER_DATA_SIZE)
 		return -EINVAL;
+
+	if (desc->service_provider) {
+		if (strcmp(desc->service_provider, "svsm"))
+			return -EINVAL;
+
+		return sev_svsm_report_new(report, data);
+	}
 
 	void *buf __free(kvfree) = kvzalloc(size, GFP_KERNEL);
 	if (!buf)
@@ -885,9 +1037,42 @@ static int sev_report_new(struct tsm_report *report, void *data)
 	return 0;
 }
 
-static const struct tsm_ops sev_tsm_ops = {
+static bool sev_report_attr_visible(int n)
+{
+	switch (n) {
+	case TSM_REPORT_GENERATION:
+	case TSM_REPORT_PROVIDER:
+	case TSM_REPORT_PRIVLEVEL:
+	case TSM_REPORT_PRIVLEVEL_FLOOR:
+		return true;
+	case TSM_REPORT_SERVICE_PROVIDER:
+	case TSM_REPORT_SERVICE_GUID:
+	case TSM_REPORT_SERVICE_MANIFEST_VER:
+		return snp_vmpl;
+	}
+
+	return false;
+}
+
+static bool sev_report_bin_attr_visible(int n)
+{
+	switch (n) {
+	case TSM_REPORT_INBLOB:
+	case TSM_REPORT_OUTBLOB:
+	case TSM_REPORT_AUXBLOB:
+		return true;
+	case TSM_REPORT_MANIFESTBLOB:
+		return snp_vmpl;
+	}
+
+	return false;
+}
+
+static struct tsm_ops sev_tsm_ops = {
 	.name = KBUILD_MODNAME,
 	.report_new = sev_report_new,
+	.report_attr_visible = sev_report_attr_visible,
+	.report_bin_attr_visible = sev_report_bin_attr_visible,
 };
 
 static void unregister_sev_tsm(void *data)
@@ -922,6 +1107,10 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	snp_dev = devm_kzalloc(&pdev->dev, sizeof(struct snp_guest_dev), GFP_KERNEL);
 	if (!snp_dev)
 		goto e_unmap;
+
+	/* Adjust the default VMPCK key based on the executing VMPL level */
+	if (vmpck_id == -1)
+		vmpck_id = snp_vmpl;
 
 	ret = -EINVAL;
 	snp_dev->vmpck = get_vmpck(vmpck_id, secrets, &snp_dev->os_area_msg_seqno);
@@ -968,7 +1157,10 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	snp_dev->input.resp_gpa = __pa(snp_dev->response);
 	snp_dev->input.data_gpa = __pa(snp_dev->certs_data);
 
-	ret = tsm_register(&sev_tsm_ops, snp_dev, &tsm_report_extra_type);
+	/* Set the privlevel_floor attribute based on the vmpck_id */
+	sev_tsm_ops.privlevel_floor = vmpck_id;
+
+	ret = tsm_register(&sev_tsm_ops, snp_dev);
 	if (ret)
 		goto e_free_cert_data;
 
@@ -1009,8 +1201,13 @@ static void __exit sev_guest_remove(struct platform_device *pdev)
  * This driver is meant to be a common SEV guest interface driver and to
  * support any SEV guest API. As such, even though it has been introduced
  * with the SEV-SNP support, it is named "sev-guest".
+ *
+ * sev_guest_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound
+ * at runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
  */
-static struct platform_driver sev_guest_driver = {
+static struct platform_driver sev_guest_driver __refdata = {
 	.remove_new	= __exit_p(sev_guest_remove),
 	.driver		= {
 		.name = "sev-guest",

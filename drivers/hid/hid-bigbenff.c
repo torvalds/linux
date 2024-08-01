@@ -490,4 +490,5 @@ static struct hid_driver bigben_driver = {
 };
 module_hid_driver(bigben_driver);
 
+MODULE_DESCRIPTION("LED & force feedback support for BigBen Interactive");
 MODULE_LICENSE("GPL");

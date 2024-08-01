@@ -141,6 +141,11 @@ struct subvp_save_surf_addr {
 	uint8_t subvp_index;
 };
 
+struct wait_for_dcc_meta_propagation_params {
+	const struct dc *dc;
+	const struct pipe_ctx *top_pipe_to_program;
+};
+
 struct fams2_global_control_lock_fast_params {
 	struct dc *dc;
 	bool is_required;
@@ -165,6 +170,7 @@ union block_sequence_params {
 	struct set_output_csc_params set_output_csc_params;
 	struct set_ocsc_default_params set_ocsc_default_params;
 	struct subvp_save_surf_addr subvp_save_surf_addr;
+	struct wait_for_dcc_meta_propagation_params wait_for_dcc_meta_propagation_params;
 	struct fams2_global_control_lock_fast_params fams2_global_control_lock_fast_params;
 };
 
@@ -186,6 +192,7 @@ enum block_sequence_func {
 	MPC_SET_OUTPUT_CSC,
 	MPC_SET_OCSC_DEFAULT,
 	DMUB_SUBVP_SAVE_SURF_ADDR,
+	HUBP_WAIT_FOR_DCC_META_PROP,
 	DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST,
 
 };
@@ -443,6 +450,8 @@ struct hw_sequencer_funcs {
 	bool (*is_pipe_topology_transition_seamless)(struct dc *dc,
 			const struct dc_state *cur_ctx,
 			const struct dc_state *new_ctx);
+	void (*wait_for_dcc_meta_propagation)(const struct dc *dc,
+		const struct pipe_ctx *top_pipe_to_program);
 	void (*fams2_global_control_lock)(struct dc *dc,
 			struct dc_state *context,
 			bool lock);

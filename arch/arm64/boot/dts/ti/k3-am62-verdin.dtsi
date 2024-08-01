@@ -1364,8 +1364,6 @@
 	       0 0 0 0
 	>;
 	tdm-slots = <2>;
-	rx-num-evt = <32>;
-	tx-num-evt = <32>;
 	#sound-dai-cells = <0>;
 	status = "disabled";
 };
@@ -1382,8 +1380,6 @@
 	       0 0 0 0
 	>;
 	tdm-slots = <2>;
-	rx-num-evt = <32>;
-	tx-num-evt = <32>;
 	#sound-dai-cells = <0>;
 	status = "disabled";
 };

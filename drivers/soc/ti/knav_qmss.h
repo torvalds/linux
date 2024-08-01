@@ -333,7 +333,7 @@ struct knav_range_info {
 	void				*queue_base_inst;
 	unsigned			flags;
 	struct list_head		list;
-	struct knav_range_ops		*ops;
+	const struct knav_range_ops	*ops;
 	struct knav_acc_info		acc_info;
 	struct knav_acc_channel	*acc;
 	unsigned			num_irqs;

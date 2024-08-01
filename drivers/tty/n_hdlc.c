@@ -822,6 +822,7 @@ static void __exit n_hdlc_exit(void)
 module_init(n_hdlc_init);
 module_exit(n_hdlc_exit);
 
+MODULE_DESCRIPTION("HDLC line discipline support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul Fulghum paulkf@microgate.com");
 module_param(maxframe, int, 0);

@@ -22,6 +22,8 @@
 
 #include "core.h"
 
+#include <trace/events/firewire.h>
+
 /*
  * Isochronous DMA context management
  */
@@ -148,12 +150,20 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 	ctx->callback.sc = callback;
 	ctx->callback_data = callback_data;
 
+	trace_isoc_outbound_allocate(ctx, channel, speed);
+	trace_isoc_inbound_single_allocate(ctx, channel, header_size);
+	trace_isoc_inbound_multiple_allocate(ctx);
+
 	return ctx;
 }
 EXPORT_SYMBOL(fw_iso_context_create);
 
 void fw_iso_context_destroy(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_destroy(ctx);
+	trace_isoc_inbound_single_destroy(ctx);
+	trace_isoc_inbound_multiple_destroy(ctx);
+
 	ctx->card->driver->free_iso_context(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_destroy);
@@ -161,12 +171,18 @@ EXPORT_SYMBOL(fw_iso_context_destroy);
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags)
 {
+	trace_isoc_outbound_start(ctx, cycle);
+	trace_isoc_inbound_single_start(ctx, cycle, sync, tags);
+	trace_isoc_inbound_multiple_start(ctx, cycle, sync, tags);
+
 	return ctx->card->driver->start_iso(ctx, cycle, sync, tags);
 }
 EXPORT_SYMBOL(fw_iso_context_start);
 
 int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels)
 {
+	trace_isoc_inbound_multiple_channels(ctx, *channels);
+
 	return ctx->card->driver->set_iso_channels(ctx, channels);
 }
 
@@ -175,24 +191,40 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload)
 {
+	trace_isoc_outbound_queue(ctx, payload, packet);
+	trace_isoc_inbound_single_queue(ctx, payload, packet);
+	trace_isoc_inbound_multiple_queue(ctx, payload, packet);
+
 	return ctx->card->driver->queue_iso(ctx, packet, buffer, payload);
 }
 EXPORT_SYMBOL(fw_iso_context_queue);
 
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_flush(ctx);
+	trace_isoc_inbound_single_flush(ctx);
+	trace_isoc_inbound_multiple_flush(ctx);
+
 	ctx->card->driver->flush_queue_iso(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_queue_flush);
 
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_flush_completions(ctx);
+	trace_isoc_inbound_single_flush_completions(ctx);
+	trace_isoc_inbound_multiple_flush_completions(ctx);
+
 	return ctx->card->driver->flush_iso_completions(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_flush_completions);
 
 int fw_iso_context_stop(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_stop(ctx);
+	trace_isoc_inbound_single_stop(ctx);
+	trace_isoc_inbound_multiple_stop(ctx);
+
 	return ctx->card->driver->stop_iso(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_stop);

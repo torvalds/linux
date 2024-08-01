@@ -208,6 +208,7 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 	struct syscon_gpio_priv *priv;
 	struct device_node *np = dev->of_node;
 	int ret;
+	bool use_parent_regmap = false;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -216,24 +217,28 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 	priv->data = of_device_get_match_data(dev);
 
 	priv->syscon = syscon_regmap_lookup_by_phandle(np, "gpio,syscon-dev");
-	if (IS_ERR(priv->syscon) && np->parent)
+	if (IS_ERR(priv->syscon) && np->parent) {
 		priv->syscon = syscon_node_to_regmap(np->parent);
+		use_parent_regmap = true;
+	}
 	if (IS_ERR(priv->syscon))
 		return PTR_ERR(priv->syscon);
 
-	ret = of_property_read_u32_index(np, "gpio,syscon-dev", 1,
-					 &priv->dreg_offset);
-	if (ret)
-		dev_err(dev, "can't read the data register offset!\n");
+	if (!use_parent_regmap) {
+		ret = of_property_read_u32_index(np, "gpio,syscon-dev", 1,
+						 &priv->dreg_offset);
+		if (ret)
+			dev_err(dev, "can't read the data register offset!\n");
 
-	priv->dreg_offset <<= 3;
+		priv->dreg_offset <<= 3;
 
-	ret = of_property_read_u32_index(np, "gpio,syscon-dev", 2,
-					 &priv->dir_reg_offset);
-	if (ret)
-		dev_dbg(dev, "can't read the dir register offset!\n");
+		ret = of_property_read_u32_index(np, "gpio,syscon-dev", 2,
+						 &priv->dir_reg_offset);
+		if (ret)
+			dev_dbg(dev, "can't read the dir register offset!\n");
 
-	priv->dir_reg_offset <<= 3;
+		priv->dir_reg_offset <<= 3;
+	}
 
 	priv->chip.parent = dev;
 	priv->chip.owner = THIS_MODULE;

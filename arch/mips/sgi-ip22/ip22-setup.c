@@ -26,8 +26,6 @@
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
 
-extern void ip22_be_init(void) __init;
-
 void __init plat_mem_setup(void)
 {
 	char *ctype;

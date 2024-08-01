@@ -235,7 +235,6 @@ static void create_phantom_stream_from_main_stream(struct dml2_stream_parameters
 	phantom->timing.v_active = meta->v_active;
 	phantom->timing.v_front_porch = meta->v_front_porch;
 	phantom->timing.vblank_nom = phantom->timing.v_total - phantom->timing.v_active;
-	phantom->timing.dsc.enable = dml2_dsc_disable;
 	phantom->timing.drr_config.enabled = false;
 }
 

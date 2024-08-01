@@ -16,11 +16,13 @@
 #define PCI_DEV_ID_EFA0_VF 0xefa0
 #define PCI_DEV_ID_EFA1_VF 0xefa1
 #define PCI_DEV_ID_EFA2_VF 0xefa2
+#define PCI_DEV_ID_EFA3_VF 0xefa3
 
 static const struct pci_device_id efa_pci_tbl[] = {
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA0_VF) },
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA1_VF) },
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA2_VF) },
+	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA3_VF) },
 	{ }
 };
 
@@ -190,15 +192,23 @@ static int efa_request_doorbell_bar(struct efa_dev *dev)
 {
 	u8 db_bar_idx = dev->dev_attr.db_bar;
 	struct pci_dev *pdev = dev->pdev;
-	int bars;
+	int pci_mem_bars;
+	int db_bar;
 	int err;
 
-	if (!(BIT(db_bar_idx) & EFA_BASE_BAR_MASK)) {
-		bars = pci_select_bars(pdev, IORESOURCE_MEM) & BIT(db_bar_idx);
+	db_bar = BIT(db_bar_idx);
+	if (!(db_bar & EFA_BASE_BAR_MASK)) {
+		pci_mem_bars = pci_select_bars(pdev, IORESOURCE_MEM);
+		if (db_bar & ~pci_mem_bars) {
+			dev_err(&pdev->dev,
+				"Doorbells BAR unavailable. Requested %#x, available %#x\n",
+				db_bar, pci_mem_bars);
+			return -ENODEV;
+		}
 
-		err = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
+		err = pci_request_selected_regions(pdev, db_bar, DRV_MODULE_NAME);
 		if (err) {
-			dev_err(&dev->pdev->dev,
+			dev_err(&pdev->dev,
 				"pci_request_selected_regions for bar %d failed %d\n",
 				db_bar_idx, err);
 			return err;
@@ -531,7 +541,7 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 {
 	struct efa_com_dev *edev;
 	struct efa_dev *dev;
-	int bars;
+	int pci_mem_bars;
 	int err;
 
 	err = pci_enable_device_mem(pdev);
@@ -556,8 +566,14 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 	dev->pdev = pdev;
 	xa_init(&dev->cqs_xa);
 
-	bars = pci_select_bars(pdev, IORESOURCE_MEM) & EFA_BASE_BAR_MASK;
-	err = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
+	pci_mem_bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	if (EFA_BASE_BAR_MASK & ~pci_mem_bars) {
+		dev_err(&pdev->dev, "BARs unavailable. Requested %#x, available %#x\n",
+			(int)EFA_BASE_BAR_MASK, pci_mem_bars);
+		err = -ENODEV;
+		goto err_ibdev_destroy;
+	}
+	err = pci_request_selected_regions(pdev, EFA_BASE_BAR_MASK, DRV_MODULE_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "pci_request_selected_regions failed %d\n",
 			err);

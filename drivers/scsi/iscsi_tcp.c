@@ -1057,15 +1057,15 @@ static umode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 	return 0;
 }
 
-static int iscsi_sw_tcp_slave_configure(struct scsi_device *sdev)
+static int iscsi_sw_tcp_device_configure(struct scsi_device *sdev,
+		struct queue_limits *lim)
 {
 	struct iscsi_sw_tcp_host *tcp_sw_host = iscsi_host_priv(sdev->host);
 	struct iscsi_session *session = tcp_sw_host->session;
 	struct iscsi_conn *conn = session->leadconn;
 
 	if (conn->datadgst_en)
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES,
-				   sdev->request_queue);
+		lim->features |= BLK_FEAT_STABLE_WRITES;
 	return 0;
 }
 
@@ -1083,7 +1083,7 @@ static const struct scsi_host_template iscsi_sw_tcp_sht = {
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.slave_configure        = iscsi_sw_tcp_slave_configure,
+	.device_configure	= iscsi_sw_tcp_device_configure,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
 	.track_queue_depth	= 1,

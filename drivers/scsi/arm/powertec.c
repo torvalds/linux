@@ -184,7 +184,7 @@ powertecscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
  * Params   : host - driver host structure to return info for.
  * Returns  : pointer to a static buffer containing null terminated string.
  */
-const char *powertecscsi_info(struct Scsi_Host *host)
+static const char *powertecscsi_info(struct Scsi_Host *host)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
 	static char string[150];

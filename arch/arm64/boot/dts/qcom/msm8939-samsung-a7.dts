@@ -33,6 +33,15 @@
 		};
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		charge-term-current-microamp = <150000>;
+		constant-charge-current-max-microamp = <1500000>;
+		constant-charge-voltage-max-microvolt = <4300000>;
+		precharge-current-microamp = <450000>;
+		precharge-upper-limit-microvolt = <3500000>;
+	};
+
 	gpio-hall-sensor {
 		compatible = "gpio-keys";
 
@@ -82,7 +91,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		battery@35 {
+		fuel-gauge@35 {
 			compatible = "richtek,rt5033-battery";
 			reg = <0x35>;
 
@@ -91,6 +100,8 @@
 
 			pinctrl-0 = <&fg_alert_default>;
 			pinctrl-names = "default";
+
+			power-supplies = <&charger>;
 		};
 	};
 
@@ -325,6 +336,42 @@
 	};
 };
 
+&blsp_i2c6 {
+	status = "okay";
+
+	pmic@34 {
+		compatible = "richtek,rt5033";
+		reg = <0x34>;
+
+		interrupts-extended = <&tlmm 62 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&pmic_int_default>;
+		pinctrl-names = "default";
+
+		regulators {
+			rt5033_reg_safe_ldo: SAFE_LDO {
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <4900000>;
+				regulator-always-on;
+			};
+
+			/*
+			 * Needed for camera, but not used yet.
+			 * Define empty nodes to allow disabling the unused
+			 * regulators.
+			 */
+			LDO {};
+			BUCK {};
+		};
+
+		charger: charger {
+			compatible = "richtek,rt5033-charger";
+			monitored-battery = <&battery>;
+			richtek,usb-connector = <&usb_con>;
+		};
+	};
+};
+
 &blsp_uart2 {
 	status = "okay";
 };
@@ -505,6 +552,13 @@
 
 	nfc_i2c_default: nfc-i2c-default-state {
 		pins = "gpio0", "gpio1";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pmic_int_default: pmic-int-default-state {
+		pins = "gpio62";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

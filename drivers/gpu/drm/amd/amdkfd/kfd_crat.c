@@ -1678,6 +1678,7 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 0, 4):
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 5, 1):
+		case IP_VERSION(11, 5, 2):
 		case IP_VERSION(12, 0, 0):
 		case IP_VERSION(12, 0, 1):
 			num_of_cache_types =

@@ -21,7 +21,7 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 config GENERIC_HWEIGHT
-	def_bool y
+	def_bool !HAVE_MARCH_Z196_FEATURES
 
 config GENERIC_BUG
 	def_bool y if BUG
@@ -142,6 +142,7 @@ config S390
 	select FUNCTION_ALIGNMENT_8B if CC_IS_GCC
 	select FUNCTION_ALIGNMENT_16B if !CC_IS_GCC
 	select GENERIC_ALLOCATOR
+	select GENERIC_CPU_DEVICES
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_ENTRY
@@ -158,6 +159,7 @@ config S390
 	select HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_VMALLOC
 	select HAVE_ARCH_KCSAN
+	select HAVE_ARCH_KMSAN
 	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -796,17 +798,6 @@ config HAVE_PNETID
 	default (SMC || CCWGROUP)
 
 menu "Virtualization"
-
-config PROTECTED_VIRTUALIZATION_GUEST
-	def_bool n
-	prompt "Protected virtualization guest support"
-	help
-	  Select this option, if you want to be able to run this
-	  kernel as a protected virtualization KVM guest.
-	  Protected virtualization capable machines have a mini hypervisor
-	  located at machine level (an ultravisor). With help of the
-	  Ultravisor, KVM will be able to run "protected" VMs, special
-	  VMs whose memory and management data are unavailable to KVM.
 
 config PFAULT
 	def_bool y

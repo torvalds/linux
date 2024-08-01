@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/uuid.h>
 #include <linux/time.h>
+#include <linux/leds.h>
 
 #include "htt.h"
 #include "htc.h"
@@ -1257,6 +1258,13 @@ struct ath10k {
 		/* protected by data_lock */
 		bool utf_monitor;
 	} testmode;
+
+	struct {
+		struct gpio_led wifi_led;
+		struct led_classdev cdev;
+		char label[48];
+		u32 gpio_state_pin;
+	} leds;
 
 	struct {
 		/* protected by data_lock */

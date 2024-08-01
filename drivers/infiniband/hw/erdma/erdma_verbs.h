@@ -329,7 +329,7 @@ int erdma_query_device(struct ib_device *dev, struct ib_device_attr *attr,
 int erdma_get_port_immutable(struct ib_device *dev, u32 port,
 			     struct ib_port_immutable *ib_port_immutable);
 int erdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		    struct ib_udata *data);
+		    struct uverbs_attr_bundle *attrs);
 int erdma_query_port(struct ib_device *dev, u32 port,
 		     struct ib_port_attr *attr);
 int erdma_query_gid(struct ib_device *dev, u32 port, int idx,

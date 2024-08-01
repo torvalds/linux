@@ -128,6 +128,7 @@ struct amdgpu_mem_stats;
 	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_GFX12_MASK)) |	\
 	  AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype))
 
+#define AMDGPU_PTE_DCC			(1ULL << 58)
 #define AMDGPU_PTE_IS_PTE		(1ULL << 63)
 
 /* PDE Block Fragment Size for gfx v12 */

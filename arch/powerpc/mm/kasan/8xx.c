@@ -6,28 +6,33 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 
+#include <asm/pgalloc.h>
+
 static int __init
 kasan_init_shadow_8M(unsigned long k_start, unsigned long k_end, void *block)
 {
 	pmd_t *pmd = pmd_off_k(k_start);
 	unsigned long k_cur, k_next;
 
-	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd += 2, block += SZ_8M) {
-		pte_basic_t *new;
+	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd++, block += SZ_4M) {
+		pte_t *ptep;
+		int i;
 
 		k_next = pgd_addr_end(k_cur, k_end);
-		k_next = pgd_addr_end(k_next, k_end);
 		if ((void *)pmd_page_vaddr(*pmd) != kasan_early_shadow_pte)
 			continue;
 
-		new = memblock_alloc(sizeof(pte_basic_t), SZ_4K);
-		if (!new)
+		ptep = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
+		if (!ptep)
 			return -ENOMEM;
 
-		*new = pte_val(pte_mkhuge(pfn_pte(PHYS_PFN(__pa(block)), PAGE_KERNEL)));
+		for (i = 0; i < PTRS_PER_PTE; i++) {
+			pte_t pte = pte_mkhuge(pfn_pte(PHYS_PFN(__pa(block + i * PAGE_SIZE)), PAGE_KERNEL));
 
-		hugepd_populate_kernel((hugepd_t *)pmd, (pte_t *)new, PAGE_SHIFT_8M);
-		hugepd_populate_kernel((hugepd_t *)pmd + 1, (pte_t *)new, PAGE_SHIFT_8M);
+			__set_pte_at(&init_mm, k_cur, ptep + i, pte, 1);
+		}
+		pmd_populate_kernel(&init_mm, pmd, ptep);
+		*pmd = __pmd(pmd_val(*pmd) | _PMD_PAGE_8M);
 	}
 	return 0;
 }

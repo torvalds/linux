@@ -13,7 +13,7 @@ static inline int is_sdw_slave(const struct device *dev)
 	return dev->type == &sdw_slave_type;
 }
 
-#define drv_to_sdw_driver(_drv) container_of(_drv, struct sdw_driver, driver)
+#define drv_to_sdw_driver(_drv) container_of_const(_drv, struct sdw_driver, driver)
 
 #define sdw_register_driver(drv) \
 	__sdw_register_driver(drv, THIS_MODULE)

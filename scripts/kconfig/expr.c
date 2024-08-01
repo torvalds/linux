@@ -90,7 +90,6 @@ struct expr *expr_copy(const struct expr *org)
 		break;
 	case E_AND:
 	case E_OR:
-	case E_LIST:
 		e->left.expr = expr_copy(org->left.expr);
 		e->right.expr = expr_copy(org->right.expr);
 		break;
@@ -136,9 +135,6 @@ void expr_free(struct expr *e)
 
 static int trans_count;
 
-#define e1 (*ep1)
-#define e2 (*ep2)
-
 /*
  * expr_eliminate_eq() helper.
  *
@@ -151,38 +147,38 @@ static void __expr_eliminate_eq(enum expr_type type, struct expr **ep1, struct e
 {
 	/* Recurse down to leaves */
 
-	if (e1->type == type) {
-		__expr_eliminate_eq(type, &e1->left.expr, &e2);
-		__expr_eliminate_eq(type, &e1->right.expr, &e2);
+	if ((*ep1)->type == type) {
+		__expr_eliminate_eq(type, &(*ep1)->left.expr, ep2);
+		__expr_eliminate_eq(type, &(*ep1)->right.expr, ep2);
 		return;
 	}
-	if (e2->type == type) {
-		__expr_eliminate_eq(type, &e1, &e2->left.expr);
-		__expr_eliminate_eq(type, &e1, &e2->right.expr);
+	if ((*ep2)->type == type) {
+		__expr_eliminate_eq(type, ep1, &(*ep2)->left.expr);
+		__expr_eliminate_eq(type, ep1, &(*ep2)->right.expr);
 		return;
 	}
 
-	/* e1 and e2 are leaves. Compare them. */
+	/* *ep1 and *ep2 are leaves. Compare them. */
 
-	if (e1->type == E_SYMBOL && e2->type == E_SYMBOL &&
-	    e1->left.sym == e2->left.sym &&
-	    (e1->left.sym == &symbol_yes || e1->left.sym == &symbol_no))
+	if ((*ep1)->type == E_SYMBOL && (*ep2)->type == E_SYMBOL &&
+	    (*ep1)->left.sym == (*ep2)->left.sym &&
+	    ((*ep1)->left.sym == &symbol_yes || (*ep1)->left.sym == &symbol_no))
 		return;
-	if (!expr_eq(e1, e2))
+	if (!expr_eq(*ep1, *ep2))
 		return;
 
-	/* e1 and e2 are equal leaves. Prepare them for elimination. */
+	/* *ep1 and *ep2 are equal leaves. Prepare them for elimination. */
 
 	trans_count++;
-	expr_free(e1); expr_free(e2);
+	expr_free(*ep1); expr_free(*ep2);
 	switch (type) {
 	case E_OR:
-		e1 = expr_alloc_symbol(&symbol_no);
-		e2 = expr_alloc_symbol(&symbol_no);
+		*ep1 = expr_alloc_symbol(&symbol_no);
+		*ep2 = expr_alloc_symbol(&symbol_no);
 		break;
 	case E_AND:
-		e1 = expr_alloc_symbol(&symbol_yes);
-		e2 = expr_alloc_symbol(&symbol_yes);
+		*ep1 = expr_alloc_symbol(&symbol_yes);
+		*ep2 = expr_alloc_symbol(&symbol_yes);
 		break;
 	default:
 		;
@@ -220,28 +216,25 @@ static void __expr_eliminate_eq(enum expr_type type, struct expr **ep1, struct e
  */
 void expr_eliminate_eq(struct expr **ep1, struct expr **ep2)
 {
-	if (!e1 || !e2)
+	if (!*ep1 || !*ep2)
 		return;
-	switch (e1->type) {
+	switch ((*ep1)->type) {
 	case E_OR:
 	case E_AND:
-		__expr_eliminate_eq(e1->type, ep1, ep2);
+		__expr_eliminate_eq((*ep1)->type, ep1, ep2);
 	default:
 		;
 	}
-	if (e1->type != e2->type) switch (e2->type) {
+	if ((*ep1)->type != (*ep2)->type) switch ((*ep2)->type) {
 	case E_OR:
 	case E_AND:
-		__expr_eliminate_eq(e2->type, ep1, ep2);
+		__expr_eliminate_eq((*ep2)->type, ep1, ep2);
 	default:
 		;
 	}
-	e1 = expr_eliminate_yn(e1);
-	e2 = expr_eliminate_yn(e2);
+	*ep1 = expr_eliminate_yn(*ep1);
+	*ep2 = expr_eliminate_yn(*ep2);
 }
-
-#undef e1
-#undef e2
 
 /*
  * Returns true if 'e1' and 'e2' are equal, after minor simplification. Two
@@ -286,7 +279,6 @@ int expr_eq(struct expr *e1, struct expr *e2)
 		expr_free(e2);
 		trans_count = old_count;
 		return res;
-	case E_LIST:
 	case E_RANGE:
 	case E_NONE:
 		/* panic */;
@@ -566,59 +558,55 @@ static struct expr *expr_join_and(struct expr *e1, struct expr *e2)
  */
 static void expr_eliminate_dups1(enum expr_type type, struct expr **ep1, struct expr **ep2)
 {
-#define e1 (*ep1)
-#define e2 (*ep2)
 	struct expr *tmp;
 
 	/* Recurse down to leaves */
 
-	if (e1->type == type) {
-		expr_eliminate_dups1(type, &e1->left.expr, &e2);
-		expr_eliminate_dups1(type, &e1->right.expr, &e2);
+	if ((*ep1)->type == type) {
+		expr_eliminate_dups1(type, &(*ep1)->left.expr, ep2);
+		expr_eliminate_dups1(type, &(*ep1)->right.expr, ep2);
 		return;
 	}
-	if (e2->type == type) {
-		expr_eliminate_dups1(type, &e1, &e2->left.expr);
-		expr_eliminate_dups1(type, &e1, &e2->right.expr);
+	if ((*ep2)->type == type) {
+		expr_eliminate_dups1(type, ep1, &(*ep2)->left.expr);
+		expr_eliminate_dups1(type, ep1, &(*ep2)->right.expr);
 		return;
 	}
 
-	/* e1 and e2 are leaves. Compare and process them. */
+	/* *ep1 and *ep2 are leaves. Compare and process them. */
 
-	if (e1 == e2)
+	if (*ep1 == *ep2)
 		return;
 
-	switch (e1->type) {
+	switch ((*ep1)->type) {
 	case E_OR: case E_AND:
-		expr_eliminate_dups1(e1->type, &e1, &e1);
+		expr_eliminate_dups1((*ep1)->type, ep1, ep1);
 	default:
 		;
 	}
 
 	switch (type) {
 	case E_OR:
-		tmp = expr_join_or(e1, e2);
+		tmp = expr_join_or(*ep1, *ep2);
 		if (tmp) {
-			expr_free(e1); expr_free(e2);
-			e1 = expr_alloc_symbol(&symbol_no);
-			e2 = tmp;
+			expr_free(*ep1); expr_free(*ep2);
+			*ep1 = expr_alloc_symbol(&symbol_no);
+			*ep2 = tmp;
 			trans_count++;
 		}
 		break;
 	case E_AND:
-		tmp = expr_join_and(e1, e2);
+		tmp = expr_join_and(*ep1, *ep2);
 		if (tmp) {
-			expr_free(e1); expr_free(e2);
-			e1 = expr_alloc_symbol(&symbol_yes);
-			e2 = tmp;
+			expr_free(*ep1); expr_free(*ep2);
+			*ep1 = expr_alloc_symbol(&symbol_yes);
+			*ep2 = tmp;
 			trans_count++;
 		}
 		break;
 	default:
 		;
 	}
-#undef e1
-#undef e2
 }
 
 /*
@@ -639,7 +627,7 @@ struct expr *expr_eliminate_dups(struct expr *e)
 		return e;
 
 	oldcount = trans_count;
-	while (1) {
+	do {
 		trans_count = 0;
 		switch (e->type) {
 		case E_OR: case E_AND:
@@ -647,11 +635,8 @@ struct expr *expr_eliminate_dups(struct expr *e)
 		default:
 			;
 		}
-		if (!trans_count)
-			/* No simplifications done in this pass. We're done */
-			break;
 		e = expr_eliminate_yn(e);
-	}
+	} while (trans_count); /* repeat until we get no more simplifications */
 	trans_count = oldcount;
 	return e;
 }
@@ -676,7 +661,6 @@ struct expr *expr_transform(struct expr *e)
 	case E_LTH:
 	case E_UNEQUAL:
 	case E_SYMBOL:
-	case E_LIST:
 		break;
 	default:
 		e->left.expr = expr_transform(e->left.expr);
@@ -947,7 +931,6 @@ struct expr *expr_trans_compare(struct expr *e, enum expr_type type, struct symb
 		break;
 	case E_SYMBOL:
 		return expr_alloc_comp(type, e->left.sym, sym);
-	case E_LIST:
 	case E_RANGE:
 	case E_NONE:
 		/* panic */;
@@ -1083,29 +1066,27 @@ static int expr_compare_type(enum expr_type t1, enum expr_type t2)
 	case E_GTH:
 		if (t2 == E_EQUAL || t2 == E_UNEQUAL)
 			return 1;
+		/* fallthrough */
 	case E_EQUAL:
 	case E_UNEQUAL:
 		if (t2 == E_NOT)
 			return 1;
+		/* fallthrough */
 	case E_NOT:
 		if (t2 == E_AND)
 			return 1;
+		/* fallthrough */
 	case E_AND:
 		if (t2 == E_OR)
 			return 1;
-	case E_OR:
-		if (t2 == E_LIST)
-			return 1;
-	case E_LIST:
-		if (t2 == 0)
-			return 1;
+		/* fallthrough */
 	default:
-		return -1;
+		break;
 	}
 	return 0;
 }
 
-void expr_print(struct expr *e,
+void expr_print(const struct expr *e,
 		void (*fn)(void *, struct symbol *, const char *),
 		void *data, int prevtoken)
 {
@@ -1171,13 +1152,6 @@ void expr_print(struct expr *e,
 		fn(data, NULL, " && ");
 		expr_print(e->right.expr, fn, data, E_AND);
 		break;
-	case E_LIST:
-		fn(data, e->right.sym, e->right.sym->name);
-		if (e->left.expr) {
-			fn(data, NULL, " ^ ");
-			expr_print(e->left.expr, fn, data, E_LIST);
-		}
-		break;
 	case E_RANGE:
 		fn(data, NULL, "[");
 		fn(data, e->left.sym, e->left.sym->name);
@@ -1237,7 +1211,7 @@ static void expr_print_gstr_helper(void *data, struct symbol *sym, const char *s
 		str_printf(gs, " [=%s]", sym_str);
 }
 
-void expr_gstr_print(struct expr *e, struct gstr *gs)
+void expr_gstr_print(const struct expr *e, struct gstr *gs)
 {
 	expr_print(e, expr_print_gstr_helper, gs, E_NONE);
 }

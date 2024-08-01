@@ -117,27 +117,27 @@ static int mtk_i2c_check_ack(struct mtk_i2c *i2c, u32 expected)
 	return ((ack & ack_expected) == ack_expected) ? 0 : -ENXIO;
 }
 
-static int mtk_i2c_master_start(struct mtk_i2c *i2c)
+static int mtk_i2c_start(struct mtk_i2c *i2c)
 {
 	iowrite32(SM0CTL1_START | SM0CTL1_TRI, i2c->base + REG_SM0CTL1_REG);
 	return mtk_i2c_wait_idle(i2c);
 }
 
-static int mtk_i2c_master_stop(struct mtk_i2c *i2c)
+static int mtk_i2c_stop(struct mtk_i2c *i2c)
 {
 	iowrite32(SM0CTL1_STOP | SM0CTL1_TRI, i2c->base + REG_SM0CTL1_REG);
 	return mtk_i2c_wait_idle(i2c);
 }
 
-static int mtk_i2c_master_cmd(struct mtk_i2c *i2c, u32 cmd, int page_len)
+static int mtk_i2c_cmd(struct mtk_i2c *i2c, u32 cmd, int page_len)
 {
 	iowrite32(cmd | SM0CTL1_TRI | SM0CTL1_PGLEN(page_len),
 		  i2c->base + REG_SM0CTL1_REG);
 	return mtk_i2c_wait_idle(i2c);
 }
 
-static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-			       int num)
+static int mtk_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			int num)
 {
 	struct mtk_i2c *i2c;
 	struct i2c_msg *pmsg;
@@ -157,7 +157,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			goto err_timeout;
 
 		/* start sequence */
-		ret = mtk_i2c_master_start(i2c);
+		ret = mtk_i2c_start(i2c);
 		if (ret)
 			goto err_timeout;
 
@@ -169,14 +169,14 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			if (pmsg->flags & I2C_M_RD)
 				addr |= 1;
 			iowrite32(addr, i2c->base + REG_SM0D0_REG);
-			ret = mtk_i2c_master_cmd(i2c, SM0CTL1_WRITE, 2);
+			ret = mtk_i2c_cmd(i2c, SM0CTL1_WRITE, 2);
 			if (ret)
 				goto err_timeout;
 		} else {
 			/* 7 bits address */
 			addr = i2c_8bit_addr_from_msg(pmsg);
 			iowrite32(addr, i2c->base + REG_SM0D0_REG);
-			ret = mtk_i2c_master_cmd(i2c, SM0CTL1_WRITE, 1);
+			ret = mtk_i2c_cmd(i2c, SM0CTL1_WRITE, 1);
 			if (ret)
 				goto err_timeout;
 		}
@@ -202,7 +202,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 				cmd = SM0CTL1_WRITE;
 			}
 
-			ret = mtk_i2c_master_cmd(i2c, cmd, page_len);
+			ret = mtk_i2c_cmd(i2c, cmd, page_len);
 			if (ret)
 				goto err_timeout;
 
@@ -222,7 +222,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		}
 	}
 
-	ret = mtk_i2c_master_stop(i2c);
+	ret = mtk_i2c_stop(i2c);
 	if (ret)
 		goto err_timeout;
 
@@ -230,7 +230,7 @@ static int mtk_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	return i;
 
 err_ack:
-	ret = mtk_i2c_master_stop(i2c);
+	ret = mtk_i2c_stop(i2c);
 	if (ret)
 		goto err_timeout;
 	return -ENXIO;
@@ -247,8 +247,8 @@ static u32 mtk_i2c_func(struct i2c_adapter *a)
 }
 
 static const struct i2c_algorithm mtk_i2c_algo = {
-	.master_xfer	= mtk_i2c_master_xfer,
-	.functionality	= mtk_i2c_func,
+	.xfer = mtk_i2c_xfer,
+	.functionality = mtk_i2c_func,
 };
 
 static const struct of_device_id i2c_mtk_dt_ids[] = {

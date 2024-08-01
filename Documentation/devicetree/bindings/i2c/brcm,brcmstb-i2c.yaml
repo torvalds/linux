@@ -76,21 +76,21 @@ else:
 
 examples:
   - |
-      bsca: i2c@f0406200 {
-          clock-frequency = <390000>;
-          compatible = "brcm,brcmstb-i2c";
-          interrupt-parent = <&irq0_intc>;
-          reg = <0xf0406200 0x58>;
-          interrupts = <0x18>;
-          interrupt-names = "upg_bsca";
-      };
+    bsca: i2c@f0406200 {
+        compatible = "brcm,brcmstb-i2c";
+        reg = <0xf0406200 0x58>;
+        clock-frequency = <390000>;
+        interrupt-parent = <&irq0_intc>;
+        interrupts = <0x18>;
+        interrupt-names = "upg_bsca";
+    };
 
   - |
-      ddc0: i2c@7ef04500 {
-          compatible = "brcm,bcm2711-hdmi-i2c";
-          reg = <0x7ef04500 0x100>, <0x7ef00b00 0x300>;
-          reg-names = "bsc", "auto-i2c";
-          clock-frequency = <390000>;
-      };
+    ddc0: i2c@7ef04500 {
+        compatible = "brcm,bcm2711-hdmi-i2c";
+        reg = <0x7ef04500 0x100>, <0x7ef00b00 0x300>;
+        reg-names = "bsc", "auto-i2c";
+        clock-frequency = <390000>;
+    };
 
 ...

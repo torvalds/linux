@@ -545,7 +545,8 @@ static int axi_dac_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
+				     "failed to get clock\n");
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -555,7 +556,8 @@ static int axi_dac_probe(struct platform_device *pdev)
 	st->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					   &axi_dac_regmap_config);
 	if (IS_ERR(st->regmap))
-		return PTR_ERR(st->regmap);
+		return dev_err_probe(&pdev->dev, PTR_ERR(st->regmap),
+				     "failed to init register map\n");
 
 	/*
 	 * Force disable the core. Up to the frontend to enable us. And we can
@@ -601,7 +603,8 @@ static int axi_dac_probe(struct platform_device *pdev)
 	mutex_init(&st->lock);
 	ret = devm_iio_backend_register(&pdev->dev, &axi_dac_generic, st);
 	if (ret)
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to register iio backend\n");
 
 	dev_info(&pdev->dev, "AXI DAC IP core (%d.%.2d.%c) probed\n",
 		 ADI_AXI_PCORE_VER_MAJOR(ver),

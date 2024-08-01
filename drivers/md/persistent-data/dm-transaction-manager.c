@@ -237,7 +237,7 @@ int dm_tm_commit(struct dm_transaction_manager *tm, struct dm_block *root)
 EXPORT_SYMBOL_GPL(dm_tm_commit);
 
 int dm_tm_new_block(struct dm_transaction_manager *tm,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **result)
 {
 	int r;
@@ -266,7 +266,7 @@ int dm_tm_new_block(struct dm_transaction_manager *tm,
 }
 
 static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
-			  struct dm_block_validator *v,
+			  const struct dm_block_validator *v,
 			  struct dm_block **result)
 {
 	int r;
@@ -306,7 +306,7 @@ static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 }
 
 int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
-		       struct dm_block_validator *v, struct dm_block **result,
+		       const struct dm_block_validator *v, struct dm_block **result,
 		       int *inc_children)
 {
 	int r;
@@ -331,7 +331,7 @@ int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 EXPORT_SYMBOL_GPL(dm_tm_shadow_block);
 
 int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **blk)
 {
 	if (tm->is_clone) {

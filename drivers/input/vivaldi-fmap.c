@@ -36,4 +36,5 @@ ssize_t vivaldi_function_row_physmap_show(const struct vivaldi_data *data,
 }
 EXPORT_SYMBOL_GPL(vivaldi_function_row_physmap_show);
 
+MODULE_DESCRIPTION("Helpers for ChromeOS Vivaldi keyboard function row mapping");
 MODULE_LICENSE("GPL");

@@ -77,7 +77,7 @@ static int sun8i_ce_trng_read(struct hwrng *rng, void *data, size_t max, bool wa
 	cet->t_sym_ctl = 0;
 	cet->t_asym_ctl = 0;
 
-	cet->t_dst[0].addr = cpu_to_le32(dma_dst);
+	cet->t_dst[0].addr = desc_addr_val_le32(ce, dma_dst);
 	cet->t_dst[0].len = cpu_to_le32(todo / 4);
 	ce->chanlist[flow].timeout = todo;
 

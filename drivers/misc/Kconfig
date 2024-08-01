@@ -585,6 +585,21 @@ config NSM
 	  To compile this driver as a module, choose M here.
 	  The module will be called nsm.
 
+config MARVELL_CN10K_DPI
+	tristate "Octeon CN10K DPI driver"
+	depends on PCI
+	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
+	help
+	  Enables Octeon CN10K DMA packet interface (DPI) driver which
+	  intializes DPI hardware's physical function (PF) device's
+	  global configuration and its virtual function (VFs) resource
+	  configuration to enable DMA transfers. DPI PF device does not
+	  have any data movement functionality, it only serves VF's
+	  resource configuration requests.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mrvl_cn10k_dpi.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -602,4 +617,5 @@ source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/uacce/Kconfig"
 source "drivers/misc/pvpanic/Kconfig"
 source "drivers/misc/mchp_pci1xxxx/Kconfig"
+source "drivers/misc/keba/Kconfig"
 endmenu

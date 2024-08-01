@@ -50,9 +50,94 @@
 #define JIFFIES_PER_DAY (3600U * 24U * HZ)
 #define JIFFIES_RESYNC (JIFFIES_PER_DAY * (0xf0000000U / JIFFIES_PER_DAY))
 
+/*
+ * Maximum number of HDMI inputs allowed by vivid, due to limitations
+ * of the Physical Address in the EDID and used by CEC we stop at 15
+ * inputs and outputs.
+ */
+#define MAX_HDMI_INPUTS 15
+#define MAX_HDMI_OUTPUTS 15
+
+/* Maximum number of S-Video inputs allowed by vivid */
+#define MAX_SVID_INPUTS 16
+
+/* The maximum number of items in a menu control */
+#define MAX_MENU_ITEMS BITS_PER_LONG_LONG
+
+/* Number of fixed menu items in the 'Connected To' menu controls */
+#define FIXED_MENU_ITEMS 2
+
+/* The maximum number of vivid devices */
+#define VIVID_MAX_DEVS CONFIG_VIDEO_VIVID_MAX_DEVS
+
 extern const struct v4l2_rect vivid_min_rect;
 extern const struct v4l2_rect vivid_max_rect;
 extern unsigned vivid_debug;
+
+/*
+ * NULL-terminated string array for the HDMI 'Connected To' menu controls
+ * with the list of possible HDMI outputs.
+ *
+ * The first two items are fixed ("TPG" and "None").
+ */
+extern char *vivid_ctrl_hdmi_to_output_strings[1 + MAX_MENU_ITEMS];
+/* Menu control skip mask of all HDMI outputs that are in use */
+extern u64 hdmi_to_output_menu_skip_mask;
+/*
+ * Bitmask of which vivid instances need to update any connected
+ * HDMI outputs.
+ */
+extern u64 hdmi_input_update_outputs_mask;
+/*
+ * Spinlock for access to hdmi_to_output_menu_skip_mask and
+ * hdmi_input_update_outputs_mask.
+ */
+extern spinlock_t hdmi_output_skip_mask_lock;
+/*
+ * Workqueue that updates the menu controls whenever the HDMI menu skip mask
+ * changes.
+ */
+extern struct workqueue_struct *update_hdmi_ctrls_workqueue;
+
+/*
+ * The HDMI menu control value (index in the menu list) maps to an HDMI
+ * output that is part of the given vivid_dev instance and has the given
+ * output index (as returned by VIDIOC_G_OUTPUT).
+ *
+ * NULL/0 if not available.
+ */
+extern struct vivid_dev *vivid_ctrl_hdmi_to_output_instance[MAX_MENU_ITEMS];
+extern unsigned int vivid_ctrl_hdmi_to_output_index[MAX_MENU_ITEMS];
+
+/*
+ * NULL-terminated string array for the S-Video 'Connected To' menu controls
+ * with the list of possible S-Video outputs.
+ *
+ * The first two items are fixed ("TPG" and "None").
+ */
+extern char *vivid_ctrl_svid_to_output_strings[1 + MAX_MENU_ITEMS];
+/* Menu control skip mask of all S-Video outputs that are in use */
+extern u64 svid_to_output_menu_skip_mask;
+/* Spinlock for access to svid_to_output_menu_skip_mask */
+extern spinlock_t svid_output_skip_mask_lock;
+/*
+ * Workqueue that updates the menu controls whenever the S-Video menu skip mask
+ * changes.
+ */
+extern struct workqueue_struct *update_svid_ctrls_workqueue;
+
+/*
+ * The S-Video menu control value (index in the menu list) maps to an S-Video
+ * output that is part of the given vivid_dev instance and has the given
+ * output index (as returned by VIDIOC_G_OUTPUT).
+ *
+ * NULL/0 if not available.
+ */
+extern struct vivid_dev *vivid_ctrl_svid_to_output_instance[MAX_MENU_ITEMS];
+extern unsigned int vivid_ctrl_svid_to_output_index[MAX_MENU_ITEMS];
+
+extern struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
+extern unsigned int n_devs;
 
 struct vivid_fmt {
 	u32	fourcc;          /* v4l2 format id */
@@ -118,7 +203,7 @@ struct vivid_cec_xfer {
 };
 
 struct vivid_dev {
-	unsigned			inst;
+	u8				inst;
 	struct v4l2_device		v4l2_dev;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device		mdev;
@@ -161,6 +246,8 @@ struct vivid_dev {
 
 	spinlock_t			slock;
 	struct mutex			mutex;
+	struct work_struct		update_hdmi_ctrl_work;
+	struct work_struct		update_svid_ctrl_work;
 
 	/* capabilities */
 	u32				vid_cap_caps;
@@ -176,12 +263,13 @@ struct vivid_dev {
 
 	/* supported features */
 	bool				multiplanar;
-	unsigned			num_inputs;
-	unsigned int			num_hdmi_inputs;
+	u8				num_inputs;
+	u8				num_hdmi_inputs;
+	u8				num_svid_inputs;
 	u8				input_type[MAX_INPUTS];
 	u8				input_name_counter[MAX_INPUTS];
-	unsigned			num_outputs;
-	unsigned int			num_hdmi_outputs;
+	u8				num_outputs;
+	u8				num_hdmi_outputs;
 	u8				output_type[MAX_OUTPUTS];
 	u8				output_name_counter[MAX_OUTPUTS];
 	bool				has_audio_inputs;
@@ -203,7 +291,20 @@ struct vivid_dev {
 	bool				has_tv_tuner;
 	bool				has_touch_cap;
 
-	bool				can_loop_video;
+	/* Output index (0-MAX_OUTPUTS) to vivid instance of connected input */
+	struct vivid_dev		*output_to_input_instance[MAX_OUTPUTS];
+	/* Output index (0-MAX_OUTPUTS) to input index (0-MAX_INPUTS) of connected input */
+	u8				output_to_input_index[MAX_OUTPUTS];
+	/* Output index (0-MAX_OUTPUTS) to HDMI or S-Video output index (0-MAX_HDMI/SVID_OUTPUTS) */
+	u8				output_to_iface_index[MAX_OUTPUTS];
+	/* ctrl_hdmi_to_output or ctrl_svid_to_output control value for each input */
+	s32                             input_is_connected_to_output[MAX_INPUTS];
+	/* HDMI index (0-MAX_HDMI_OUTPUTS) to output index (0-MAX_OUTPUTS) */
+	u8				hdmi_index_to_output_index[MAX_HDMI_OUTPUTS];
+	/* HDMI index (0-MAX_HDMI_INPUTS) to input index (0-MAX_INPUTS) */
+	u8				hdmi_index_to_input_index[MAX_HDMI_INPUTS];
+	/* S-Video index (0-MAX_SVID_INPUTS) to input index (0-MAX_INPUTS) */
+	u8				svid_index_to_input_index[MAX_SVID_INPUTS];
 
 	/* controls */
 	struct v4l2_ctrl		*brightness;
@@ -242,7 +343,6 @@ struct vivid_dev {
 		struct v4l2_ctrl	*ctrl_dv_timings_signal_mode;
 		struct v4l2_ctrl	*ctrl_dv_timings;
 	};
-	struct v4l2_ctrl		*ctrl_display_present;
 	struct v4l2_ctrl		*ctrl_has_crop_cap;
 	struct v4l2_ctrl		*ctrl_has_compose_cap;
 	struct v4l2_ctrl		*ctrl_has_scaler_cap;
@@ -275,6 +375,11 @@ struct vivid_dev {
 	struct v4l2_ctrl		*radio_rx_rds_ms;
 	struct v4l2_ctrl		*radio_rx_rds_psname;
 	struct v4l2_ctrl		*radio_rx_rds_radiotext;
+
+	struct v4l2_ctrl                *ctrl_hdmi_to_output[MAX_HDMI_INPUTS];
+	char				ctrl_hdmi_to_output_names[MAX_HDMI_INPUTS][32];
+	struct v4l2_ctrl		*ctrl_svid_to_output[MAX_SVID_INPUTS];
+	char				ctrl_svid_to_output_names[MAX_SVID_INPUTS][32];
 
 	unsigned			input_brightness[MAX_INPUTS];
 	unsigned			osd_mode;
@@ -364,7 +469,6 @@ struct vivid_dev {
 	u8				*scaled_line;
 	u8				*blended_line;
 	unsigned			cur_scaled_line;
-	bool				display_present[MAX_OUTPUTS];
 
 	/* Output Overlay */
 	void				*fb_vbase_out;
@@ -544,11 +648,10 @@ struct vivid_dev {
 
 	/* CEC */
 	struct cec_adapter		*cec_rx_adap;
-	struct cec_adapter		*cec_tx_adap[MAX_OUTPUTS];
-	u8				cec_output2bus_map[MAX_OUTPUTS];
+	struct cec_adapter		*cec_tx_adap[MAX_HDMI_OUTPUTS];
 	struct task_struct		*kthread_cec;
 	wait_queue_head_t		kthread_waitq_cec;
-	struct vivid_cec_xfer	xfers[MAX_OUTPUTS];
+	struct vivid_cec_xfer		xfers[MAX_OUTPUTS];
 	spinlock_t			cec_xfers_slock; /* read and write cec messages */
 	u32				cec_sft; /* bus signal free time, in bit periods */
 	u8				last_initiator;

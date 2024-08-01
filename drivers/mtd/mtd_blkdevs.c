@@ -336,6 +336,8 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	lim.logical_block_size = tr->blksize;
 	if (tr->discard)
 		lim.max_hw_discard_sectors = UINT_MAX;
+	if (tr->flush)
+		lim.features |= BLK_FEAT_WRITE_CACHE;
 
 	/* Create gendisk */
 	gd = blk_mq_alloc_disk(new->tag_set, &lim, new);
@@ -372,13 +374,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	/* Create the request queue */
 	spin_lock_init(&new->queue_lock);
 	INIT_LIST_HEAD(&new->rq_list);
-
-	if (tr->flush)
-		blk_queue_write_cache(new->rq, true, false);
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, new->rq);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
-
 	gd->queue = new->rq;
 
 	if (new->readonly)

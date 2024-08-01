@@ -293,7 +293,6 @@ static struct parport_driver walkera0701_parport_driver = {
 	.name = "walkera0701",
 	.match_port = walkera0701_attach,
 	.detach = walkera0701_detach,
-	.devmodel = true,
 };
 
 module_parport_driver(walkera0701_parport_driver);

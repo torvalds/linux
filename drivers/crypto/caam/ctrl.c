@@ -80,6 +80,7 @@ static void build_deinstantiation_desc(u32 *desc, int handle)
 	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id imx8m_machine_match[] = {
 	{ .compatible = "fsl,imx8mm", },
 	{ .compatible = "fsl,imx8mn", },
@@ -88,6 +89,7 @@ static const struct of_device_id imx8m_machine_match[] = {
 	{ .compatible = "fsl,imx8ulp", },
 	{ }
 };
+#endif
 
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of

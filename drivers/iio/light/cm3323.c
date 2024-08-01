@@ -250,7 +250,7 @@ static int cm3323_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cm3323_id[] = {
-	{"cm3323", 0},
+	{ "cm3323" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cm3323_id);

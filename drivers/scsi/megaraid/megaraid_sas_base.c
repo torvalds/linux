@@ -1981,8 +1981,6 @@ megasas_set_nvme_device_properties(struct scsi_device *sdev,
 
 	lim->max_hw_sectors = max_io_size / 512;
 	lim->virt_boundary_mask = mr_nvme_pg_size - 1;
-
-	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, sdev->request_queue);
 }
 
 /*

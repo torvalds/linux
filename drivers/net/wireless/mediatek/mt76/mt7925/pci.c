@@ -254,7 +254,7 @@ static int mt7925_dma_init(struct mt792x_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt792x_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
@@ -372,6 +372,9 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	bus_ops->wr = mt7925_wr;
 	bus_ops->rmw = mt7925_rmw;
 	dev->mt76.bus = bus_ops;
+
+	if (!mt7925_disable_aspm && mt76_pci_aspm_supported(pdev))
+		dev->aspm_supported = true;
 
 	ret = __mt792x_mcu_fw_pmctrl(dev);
 	if (ret)

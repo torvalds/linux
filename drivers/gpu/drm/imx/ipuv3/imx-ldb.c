@@ -72,7 +72,7 @@ struct imx_ldb_channel {
 	struct device_node *child;
 	struct i2c_adapter *ddc;
 	int chno;
-	void *edid;
+	const struct drm_edid *drm_edid;
 	struct drm_display_mode mode;
 	int mode_valid;
 	u32 bus_format;
@@ -142,14 +142,14 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 	if (num_modes > 0)
 		return num_modes;
 
-	if (!imx_ldb_ch->edid && imx_ldb_ch->ddc)
-		imx_ldb_ch->edid = drm_get_edid(connector, imx_ldb_ch->ddc);
-
-	if (imx_ldb_ch->edid) {
-		drm_connector_update_edid_property(connector,
-							imx_ldb_ch->edid);
-		num_modes = drm_add_edid_modes(connector, imx_ldb_ch->edid);
+	if (!imx_ldb_ch->drm_edid && imx_ldb_ch->ddc) {
+		imx_ldb_ch->drm_edid = drm_edid_read_ddc(connector,
+							 imx_ldb_ch->ddc);
+		drm_edid_connector_update(connector, imx_ldb_ch->drm_edid);
 	}
+
+	if (imx_ldb_ch->drm_edid)
+		num_modes = drm_edid_connector_add_modes(connector);
 
 	if (imx_ldb_ch->mode_valid) {
 		struct drm_display_mode *mode;
@@ -553,7 +553,6 @@ static int imx_ldb_panel_ddc(struct device *dev,
 		struct imx_ldb_channel *channel, struct device_node *child)
 {
 	struct device_node *ddc_node;
-	const u8 *edidp;
 	int ret;
 
 	ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
@@ -567,6 +566,7 @@ static int imx_ldb_panel_ddc(struct device *dev,
 	}
 
 	if (!channel->ddc) {
+		const void *edidp;
 		int edid_len;
 
 		/* if no DDC available, fallback to hardcoded EDID */
@@ -574,8 +574,8 @@ static int imx_ldb_panel_ddc(struct device *dev,
 
 		edidp = of_get_property(child, "edid", &edid_len);
 		if (edidp) {
-			channel->edid = kmemdup(edidp, edid_len, GFP_KERNEL);
-			if (!channel->edid)
+			channel->drm_edid = drm_edid_alloc(edidp, edid_len);
+			if (!channel->drm_edid)
 				return -ENOMEM;
 		} else if (!channel->panel) {
 			/* fallback to display-timings node */
@@ -744,7 +744,7 @@ static void imx_ldb_remove(struct platform_device *pdev)
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
-		kfree(channel->edid);
+		drm_edid_free(channel->drm_edid);
 		i2c_put_adapter(channel->ddc);
 	}
 

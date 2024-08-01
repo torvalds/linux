@@ -71,6 +71,7 @@ config X86_AMD_PSTATE_DEFAULT_MODE
 config X86_AMD_PSTATE_UT
 	tristate "selftest for AMD Processor P-State driver"
 	depends on X86 && ACPI_PROCESSOR
+	depends on X86_AMD_PSTATE
 	default n
 	help
 	  This kernel module is used for testing. It's safe to say M here.

@@ -28,7 +28,7 @@ properties:
       Add this property to disable the watchdog during suspend.
       Only use this option if you can't use the watchdog automatic suspend
       function during a suspend (see register CONTROL_B).
-  
+
   dlg,wdt-sd:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]

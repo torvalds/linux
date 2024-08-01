@@ -295,7 +295,7 @@ static int ebu_dma_start(struct ebu_nand_controller *ebu_host, u32 dir,
 	unsigned long flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	dma_addr_t buf_dma;
 	int ret;
-	u32 timeout;
+	unsigned long time_left;
 
 	if (dir == DMA_DEV_TO_MEM) {
 		chan = ebu_host->dma_rx;
@@ -335,8 +335,8 @@ static int ebu_dma_start(struct ebu_nand_controller *ebu_host, u32 dir,
 	dma_async_issue_pending(chan);
 
 	/* Wait DMA to finish the data transfer.*/
-	timeout = wait_for_completion_timeout(dma_completion, msecs_to_jiffies(1000));
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(dma_completion, msecs_to_jiffies(1000));
+	if (!time_left) {
 		dev_err(ebu_host->dev, "I/O Error in DMA RX (status %d)\n",
 			dmaengine_tx_status(chan, cookie, NULL));
 		dmaengine_terminate_sync(chan);

@@ -137,6 +137,7 @@ enum dmub_notification_type {
 	DMUB_NOTIFICATION_HPD_IRQ,
 	DMUB_NOTIFICATION_SET_CONFIG_REPLY,
 	DMUB_NOTIFICATION_DPIA_NOTIFICATION,
+	DMUB_NOTIFICATION_HPD_SENSE_NOTIFY,
 	DMUB_NOTIFICATION_MAX
 };
 
@@ -298,6 +299,7 @@ struct dmub_srv_hw_params {
 	enum dmub_memory_access_type mem_access_type;
 	enum dmub_ips_disable_type disable_ips;
 	bool disallow_phy_access;
+	bool disable_sldo_opt;
 };
 
 /**
@@ -560,6 +562,7 @@ struct dmub_notification {
 		 * DPIA notification command.
 		 */
 		struct dmub_rb_cmd_dpia_notification dpia_notification;
+		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
 	};
 };
 

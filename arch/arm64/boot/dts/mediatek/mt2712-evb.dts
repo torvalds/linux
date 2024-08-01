@@ -137,7 +137,7 @@
 				 <MT2712_PIN_74_GBE_TXD0__FUNC_GBE_TXD0>,
 				 <MT2712_PIN_75_GBE_TXC__FUNC_GBE_TXC>,
 				 <MT2712_PIN_76_GBE_TXEN__FUNC_GBE_TXEN>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 		rx_pins {
 			pinmux = <MT2712_PIN_78_GBE_RXD3__FUNC_GBE_RXD3>,
@@ -151,7 +151,7 @@
 		mdio_pins {
 			pinmux = <MT2712_PIN_85_GBE_MDC__FUNC_GBE_MDC>,
 				 <MT2712_PIN_86_GBE_MDIO__FUNC_GBE_MDIO>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			input-enable;
 		};
 	};

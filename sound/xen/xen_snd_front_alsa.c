@@ -69,11 +69,6 @@ struct alsa_sndif_sample_format {
 	snd_pcm_format_t alsa;
 };
 
-struct alsa_sndif_hw_param {
-	u8 sndif;
-	snd_pcm_hw_param_t alsa;
-};
-
 static const struct alsa_sndif_sample_format ALSA_SNDIF_FORMATS[] = {
 	{
 		.sndif = XENSND_PCM_FORMAT_U8,

@@ -154,6 +154,19 @@ static struct bio *bio_split_write_zeroes(struct bio *bio,
 	return bio_split(bio, lim->max_write_zeroes_sectors, GFP_NOIO, bs);
 }
 
+static inline unsigned int blk_boundary_sectors(const struct queue_limits *lim,
+						bool is_atomic)
+{
+	/*
+	 * chunk_sectors must be a multiple of atomic_write_boundary_sectors if
+	 * both non-zero.
+	 */
+	if (is_atomic && lim->atomic_write_boundary_sectors)
+		return lim->atomic_write_boundary_sectors;
+
+	return lim->chunk_sectors;
+}
+
 /*
  * Return the maximum number of sectors from the start of a bio that may be
  * submitted as a single request to a block device. If enough sectors remain,
@@ -167,12 +180,23 @@ static inline unsigned get_max_io_size(struct bio *bio,
 {
 	unsigned pbs = lim->physical_block_size >> SECTOR_SHIFT;
 	unsigned lbs = lim->logical_block_size >> SECTOR_SHIFT;
-	unsigned max_sectors = lim->max_sectors, start, end;
+	bool is_atomic = bio->bi_opf & REQ_ATOMIC;
+	unsigned boundary_sectors = blk_boundary_sectors(lim, is_atomic);
+	unsigned max_sectors, start, end;
 
-	if (lim->chunk_sectors) {
+	/*
+	 * We ignore lim->max_sectors for atomic writes because it may less
+	 * than the actual bio size, which we cannot tolerate.
+	 */
+	if (is_atomic)
+		max_sectors = lim->atomic_write_max_sectors;
+	else
+		max_sectors = lim->max_sectors;
+
+	if (boundary_sectors) {
 		max_sectors = min(max_sectors,
-			blk_chunk_sectors_left(bio->bi_iter.bi_sector,
-					       lim->chunk_sectors));
+			blk_boundary_sectors_left(bio->bi_iter.bi_sector,
+					      boundary_sectors));
 	}
 
 	start = bio->bi_iter.bi_sector & (pbs - 1);
@@ -185,23 +209,22 @@ static inline unsigned get_max_io_size(struct bio *bio,
 /**
  * get_max_segment_size() - maximum number of bytes to add as a single segment
  * @lim: Request queue limits.
- * @start_page: See below.
- * @offset: Offset from @start_page where to add a segment.
+ * @paddr: address of the range to add
+ * @len: maximum length available to add at @paddr
  *
- * Returns the maximum number of bytes that can be added as a single segment.
+ * Returns the maximum number of bytes of the range starting at @paddr that can
+ * be added to a single segment.
  */
 static inline unsigned get_max_segment_size(const struct queue_limits *lim,
-		struct page *start_page, unsigned long offset)
+		phys_addr_t paddr, unsigned int len)
 {
-	unsigned long mask = lim->seg_boundary_mask;
-
-	offset = mask & (page_to_phys(start_page) + offset);
-
 	/*
 	 * Prevent an overflow if mask = ULONG_MAX and offset = 0 by adding 1
 	 * after having calculated the minimum.
 	 */
-	return min(mask - offset, (unsigned long)lim->max_segment_size - 1) + 1;
+	return min_t(unsigned long, len,
+		min(lim->seg_boundary_mask - (lim->seg_boundary_mask & paddr),
+		    (unsigned long)lim->max_segment_size - 1) + 1);
 }
 
 /**
@@ -234,9 +257,7 @@ static bool bvec_split_segs(const struct queue_limits *lim,
 	unsigned seg_size = 0;
 
 	while (len && *nsegs < max_segs) {
-		seg_size = get_max_segment_size(lim, bv->bv_page,
-						bv->bv_offset + total_len);
-		seg_size = min(seg_size, len);
+		seg_size = get_max_segment_size(lim, bvec_phys(bv) + total_len, len);
 
 		(*nsegs)++;
 		total_len += seg_size;
@@ -305,6 +326,11 @@ struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
 	*segs = nsegs;
 	return NULL;
 split:
+	if (bio->bi_opf & REQ_ATOMIC) {
+		bio->bi_status = BLK_STS_INVAL;
+		bio_endio(bio);
+		return ERR_PTR(-EINVAL);
+	}
 	/*
 	 * We can't sanely support splitting for a REQ_NOWAIT bio. End it
 	 * with EAGAIN if splitting is required and return an error pointer.
@@ -465,8 +491,8 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 
 	while (nbytes > 0) {
 		unsigned offset = bvec->bv_offset + total;
-		unsigned len = min(get_max_segment_size(&q->limits,
-				   bvec->bv_page, offset), nbytes);
+		unsigned len = get_max_segment_size(&q->limits,
+				bvec_phys(bvec) + total, nbytes);
 		struct page *page = bvec->bv_page;
 
 		/*
@@ -588,18 +614,22 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 						  sector_t offset)
 {
 	struct request_queue *q = rq->q;
-	unsigned int max_sectors;
+	struct queue_limits *lim = &q->limits;
+	unsigned int max_sectors, boundary_sectors;
+	bool is_atomic = rq->cmd_flags & REQ_ATOMIC;
 
 	if (blk_rq_is_passthrough(rq))
 		return q->limits.max_hw_sectors;
 
-	max_sectors = blk_queue_get_max_sectors(q, req_op(rq));
-	if (!q->limits.chunk_sectors ||
+	boundary_sectors = blk_boundary_sectors(lim, is_atomic);
+	max_sectors = blk_queue_get_max_sectors(rq);
+
+	if (!boundary_sectors ||
 	    req_op(rq) == REQ_OP_DISCARD ||
 	    req_op(rq) == REQ_OP_SECURE_ERASE)
 		return max_sectors;
 	return min(max_sectors,
-		   blk_chunk_sectors_left(offset, q->limits.chunk_sectors));
+		   blk_boundary_sectors_left(offset, boundary_sectors));
 }
 
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
@@ -797,6 +827,18 @@ static enum elv_merge blk_try_req_merge(struct request *req,
 	return ELEVATOR_NO_MERGE;
 }
 
+static bool blk_atomic_write_mergeable_rq_bio(struct request *rq,
+					      struct bio *bio)
+{
+	return (rq->cmd_flags & REQ_ATOMIC) == (bio->bi_opf & REQ_ATOMIC);
+}
+
+static bool blk_atomic_write_mergeable_rqs(struct request *rq,
+					   struct request *next)
+{
+	return (rq->cmd_flags & REQ_ATOMIC) == (next->cmd_flags & REQ_ATOMIC);
+}
+
 /*
  * For non-mq, this has to be called with the request spinlock acquired.
  * For mq with scheduling, the appropriate queue wide lock should be held.
@@ -818,6 +860,9 @@ static struct request *attempt_merge(struct request_queue *q,
 		return NULL;
 
 	if (req->ioprio != next->ioprio)
+		return NULL;
+
+	if (!blk_atomic_write_mergeable_rqs(req, next))
 		return NULL;
 
 	/*
@@ -949,6 +994,9 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	if (rq->ioprio != bio_prio(bio))
+		return false;
+
+	if (blk_atomic_write_mergeable_rq_bio(rq, bio) == false)
 		return false;
 
 	return true;

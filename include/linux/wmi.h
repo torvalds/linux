@@ -16,12 +16,16 @@
  * struct wmi_device - WMI device structure
  * @dev: Device associated with this WMI device
  * @setable: True for devices implementing the Set Control Method
+ * @driver_override: Driver name to force a match; do not set directly,
+ *		     because core frees it; use driver_set_override() to
+ *		     set or clear it.
  *
  * This represents WMI devices discovered by the WMI driver core.
  */
 struct wmi_device {
 	struct device dev;
 	bool setable;
+	const char *driver_override;
 };
 
 /**

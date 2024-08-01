@@ -27,56 +27,18 @@ void txgbe_irq_enable(struct wx *wx, bool queues)
 }
 
 /**
- * txgbe_intr - msi/legacy mode Interrupt Handler
- * @irq: interrupt number
- * @data: pointer to a network interface device structure
- **/
-static irqreturn_t txgbe_intr(int __always_unused irq, void *data)
-{
-	struct wx_q_vector *q_vector;
-	struct wx *wx  = data;
-	struct pci_dev *pdev;
-	u32 eicr;
-
-	q_vector = wx->q_vector[0];
-	pdev = wx->pdev;
-
-	eicr = wx_misc_isb(wx, WX_ISB_VEC0);
-	if (!eicr) {
-		/* shared interrupt alert!
-		 * the interrupt that we masked before the ICR read.
-		 */
-		if (netif_running(wx->netdev))
-			txgbe_irq_enable(wx, true);
-		return IRQ_NONE;        /* Not our interrupt */
-	}
-	wx->isb_mem[WX_ISB_VEC0] = 0;
-	if (!(pdev->msi_enabled))
-		wr32(wx, WX_PX_INTA, 1);
-
-	wx->isb_mem[WX_ISB_MISC] = 0;
-	/* would disable interrupts here but it is auto disabled */
-	napi_schedule_irqoff(&q_vector->napi);
-
-	/* re-enable link(maybe) and non-queue interrupts, no flush.
-	 * txgbe_poll will re-enable the queue interrupts
-	 */
-	if (netif_running(wx->netdev))
-		txgbe_irq_enable(wx, false);
-
-	return IRQ_HANDLED;
-}
-
-/**
- * txgbe_request_msix_irqs - Initialize MSI-X interrupts
+ * txgbe_request_queue_irqs - Initialize MSI-X queue interrupts
  * @wx: board private structure
  *
- * Allocate MSI-X vectors and request interrupts from the kernel.
+ * Allocate MSI-X queue vectors and request interrupts from the kernel.
  **/
-static int txgbe_request_msix_irqs(struct wx *wx)
+int txgbe_request_queue_irqs(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
 	int vector, err;
+
+	if (!wx->pdev->msix_enabled)
+		return 0;
 
 	for (vector = 0; vector < wx->num_q_vectors; vector++) {
 		struct wx_q_vector *q_vector = wx->q_vector[vector];
@@ -107,34 +69,6 @@ free_queue_irqs:
 			 wx->q_vector[vector]);
 	}
 	wx_reset_interrupt_capability(wx);
-	return err;
-}
-
-/**
- * txgbe_request_irq - initialize interrupts
- * @wx: board private structure
- *
- * Attempt to configure interrupts using the best available
- * capabilities of the hardware and kernel.
- **/
-int txgbe_request_irq(struct wx *wx)
-{
-	struct net_device *netdev = wx->netdev;
-	struct pci_dev *pdev = wx->pdev;
-	int err;
-
-	if (pdev->msix_enabled)
-		err = txgbe_request_msix_irqs(wx);
-	else if (pdev->msi_enabled)
-		err = request_irq(wx->pdev->irq, &txgbe_intr, 0,
-				  netdev->name, wx);
-	else
-		err = request_irq(wx->pdev->irq, &txgbe_intr, IRQF_SHARED,
-				  netdev->name, wx);
-
-	if (err)
-		wx_err(wx, "request_irq failed, Error %d\n", err);
-
 	return err;
 }
 
@@ -177,6 +111,36 @@ static const struct irq_domain_ops txgbe_misc_irq_domain_ops = {
 };
 
 static irqreturn_t txgbe_misc_irq_handle(int irq, void *data)
+{
+	struct wx_q_vector *q_vector;
+	struct txgbe *txgbe = data;
+	struct wx *wx = txgbe->wx;
+	u32 eicr;
+
+	if (wx->pdev->msix_enabled)
+		return IRQ_WAKE_THREAD;
+
+	eicr = wx_misc_isb(wx, WX_ISB_VEC0);
+	if (!eicr) {
+		/* shared interrupt alert!
+		 * the interrupt that we masked before the ICR read.
+		 */
+		if (netif_running(wx->netdev))
+			txgbe_irq_enable(wx, true);
+		return IRQ_NONE;        /* Not our interrupt */
+	}
+	wx->isb_mem[WX_ISB_VEC0] = 0;
+	if (!(wx->pdev->msi_enabled))
+		wr32(wx, WX_PX_INTA, 1);
+
+	/* would disable interrupts here but it is auto disabled */
+	q_vector = wx->q_vector[0];
+	napi_schedule_irqoff(&q_vector->napi);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t txgbe_misc_irq_thread_fn(int irq, void *data)
 {
 	struct txgbe *txgbe = data;
 	struct wx *wx = txgbe->wx;
@@ -223,6 +187,7 @@ void txgbe_free_misc_irq(struct txgbe *txgbe)
 
 int txgbe_setup_misc_irq(struct txgbe *txgbe)
 {
+	unsigned long flags = IRQF_ONESHOT;
 	struct wx *wx = txgbe->wx;
 	int hwirq, err;
 
@@ -236,14 +201,17 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 		irq_create_mapping(txgbe->misc.domain, hwirq);
 
 	txgbe->misc.chip = txgbe_irq_chip;
-	if (wx->pdev->msix_enabled)
+	if (wx->pdev->msix_enabled) {
 		txgbe->misc.irq = wx->msix_entry->vector;
-	else
+	} else {
 		txgbe->misc.irq = wx->pdev->irq;
+		if (!wx->pdev->msi_enabled)
+			flags |= IRQF_SHARED;
+	}
 
-	err = request_threaded_irq(txgbe->misc.irq, NULL,
-				   txgbe_misc_irq_handle,
-				   IRQF_ONESHOT,
+	err = request_threaded_irq(txgbe->misc.irq, txgbe_misc_irq_handle,
+				   txgbe_misc_irq_thread_fn,
+				   flags,
 				   wx->netdev->name, txgbe);
 	if (err)
 		goto del_misc_irq;
@@ -255,6 +223,8 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	err = txgbe_request_link_irq(txgbe);
 	if (err)
 		goto free_gpio_irq;
+
+	wx->misc_irq_domain = true;
 
 	return 0;
 

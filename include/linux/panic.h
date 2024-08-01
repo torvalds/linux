@@ -77,9 +77,10 @@ static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 #define TAINT_FLAGS_MAX			((1UL << TAINT_FLAGS_COUNT) - 1)
 
 struct taint_flag {
-	char c_true;	/* character printed when tainted */
-	char c_false;	/* character printed when not tainted */
-	bool module;	/* also show as a per-module taint flag */
+	char c_true;		/* character printed when tainted */
+	char c_false;		/* character printed when not tainted */
+	bool module;		/* also show as a per-module taint flag */
+	const char *desc;	/* verbose description of the set taint flag */
 };
 
 extern const struct taint_flag taint_flags[TAINT_FLAGS_COUNT];
@@ -90,6 +91,7 @@ enum lockdep_ok {
 };
 
 extern const char *print_tainted(void);
+extern const char *print_tainted_verbose(void);
 extern void add_taint(unsigned flag, enum lockdep_ok);
 extern int test_taint(unsigned flag);
 extern unsigned long get_taint(void);

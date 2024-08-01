@@ -149,13 +149,12 @@ unsigned long __bootdata_preserved(max_mappable);
 struct physmem_info __bootdata(physmem_info);
 
 struct vm_layout __bootdata_preserved(vm_layout);
-EXPORT_SYMBOL_GPL(vm_layout);
+EXPORT_SYMBOL(vm_layout);
 int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
-u64 alt_stfle_fac_list[16];
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
 unsigned long VMALLOC_START;
@@ -406,6 +405,7 @@ static void __init setup_lowcore(void)
 		panic("%s: Failed to allocate %zu bytes align=%zx\n",
 		      __func__, sizeof(*lc), sizeof(*lc));
 
+	lc->pcpu = (unsigned long)per_cpu_ptr(&pcpu_devices, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
 	lc->external_new_psw.mask = PSW_KERNEL_BITS;
@@ -421,16 +421,16 @@ static void __init setup_lowcore(void)
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
-	lc->machine_flags = S390_lowcore.machine_flags;
-	lc->preempt_count = S390_lowcore.preempt_count;
+	lc->machine_flags = get_lowcore()->machine_flags;
+	lc->preempt_count = get_lowcore()->preempt_count;
 	nmi_alloc_mcesa_early(&lc->mcesad);
-	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
-	lc->exit_timer = S390_lowcore.exit_timer;
-	lc->user_timer = S390_lowcore.user_timer;
-	lc->system_timer = S390_lowcore.system_timer;
-	lc->steal_timer = S390_lowcore.steal_timer;
-	lc->last_update_timer = S390_lowcore.last_update_timer;
-	lc->last_update_clock = S390_lowcore.last_update_clock;
+	lc->sys_enter_timer = get_lowcore()->sys_enter_timer;
+	lc->exit_timer = get_lowcore()->exit_timer;
+	lc->user_timer = get_lowcore()->user_timer;
+	lc->system_timer = get_lowcore()->system_timer;
+	lc->steal_timer = get_lowcore()->steal_timer;
+	lc->last_update_timer = get_lowcore()->last_update_timer;
+	lc->last_update_clock = get_lowcore()->last_update_clock;
 	/*
 	 * Allocate the global restart stack which is the same for
 	 * all CPUs in case *one* of them does a PSW restart.
@@ -439,7 +439,7 @@ static void __init setup_lowcore(void)
 	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->async_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
-	lc->kernel_stack = S390_lowcore.kernel_stack;
+	lc->kernel_stack = get_lowcore()->kernel_stack;
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
 	 * restart data to the absolute zero lowcore. This is necessary if
@@ -455,8 +455,8 @@ static void __init setup_lowcore(void)
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
-	lc->kernel_asce = S390_lowcore.kernel_asce;
-	lc->user_asce = S390_lowcore.user_asce;
+	lc->kernel_asce = get_lowcore()->kernel_asce;
+	lc->user_asce = get_lowcore()->user_asce;
 
 	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();
@@ -888,6 +888,9 @@ void __init setup_arch(char **cmdline_p)
 		pr_info("Linux is running natively in 64-bit mode\n");
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
+
+	if (have_relocated_lowcore())
+		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
 
 	log_component_list();
 

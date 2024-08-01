@@ -232,13 +232,11 @@ int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe)
 {
 	struct amdgpu_device *adev = vpe->ring.adev;
 	const struct vpe_firmware_header_v1_0 *vpe_hdr;
-	char fw_prefix[32], fw_name[64];
+	char fw_prefix[32];
 	int ret;
 
 	amdgpu_ucode_ip_version_decode(adev, VPE_HWIP, fw_prefix, sizeof(fw_prefix));
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", fw_prefix);
-
-	ret = amdgpu_ucode_request(adev, &adev->vpe.fw, fw_name);
+	ret = amdgpu_ucode_request(adev, &adev->vpe.fw, "amdgpu/%s.bin", fw_prefix);
 	if (ret)
 		goto out;
 
@@ -304,6 +302,7 @@ static int vpe_early_init(void *handle)
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
 	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 3):
 		vpe_v6_1_set_funcs(vpe);
 		break;
 	case IP_VERSION(6, 1, 1):

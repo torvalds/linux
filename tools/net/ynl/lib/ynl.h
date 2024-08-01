@@ -76,7 +76,7 @@ struct ynl_sock {
 	struct ynl_ntf_base_type **ntf_last_next;
 
 	struct nlmsghdr *nlh;
-	struct ynl_policy_nest *req_policy;
+	const struct ynl_policy_nest *req_policy;
 	unsigned char *tx_buf;
 	unsigned char *rx_buf;
 	unsigned char raw_buf[];

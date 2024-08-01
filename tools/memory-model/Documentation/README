@@ -47,6 +47,10 @@ DESCRIPTION OF FILES
 README
 	This file.
 
+access-marking.txt
+	Guidelines for marking intentionally concurrent accesses to
+	shared memory.
+
 cheatsheet.txt
 	Quick-reference guide to the Linux-kernel memory model.
 

@@ -39,7 +39,6 @@ MODULE_FIRMWARE("amdgpu/gc_12_0_1_imu.bin");
 
 static int imu_v12_0_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[40];
 	char ucode_prefix[15];
 	int err;
 	const struct imu_firmware_header_v1_0 *imu_hdr;
@@ -48,11 +47,10 @@ static int imu_v12_0_init_microcode(struct amdgpu_device *adev)
 	DRM_DEBUG("\n");
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix, sizeof(ucode_prefix));
-
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_imu.bin", ucode_prefix);
-	err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, fw_name);
+	err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, "amdgpu/%s_imu.bin", ucode_prefix);
 	if (err)
 		goto out;
+
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)adev->gfx.imu_fw->data;
 	adev->gfx.imu_fw_version = le32_to_cpu(imu_hdr->header.ucode_version);
 
@@ -72,8 +70,8 @@ static int imu_v12_0_init_microcode(struct amdgpu_device *adev)
 out:
 	if (err) {
 		dev_err(adev->dev,
-			"gfx12: Failed to load firmware \"%s\"\n",
-			fw_name);
+			"gfx12: Failed to load firmware \"%s_imu.bin\"\n",
+			ucode_prefix);
 		amdgpu_ucode_release(&adev->gfx.imu_fw);
 	}
 
@@ -119,7 +117,8 @@ static int imu_v12_0_load_microcode(struct amdgpu_device *adev)
 
 static int imu_v12_0_wait_for_reset_status(struct amdgpu_device *adev)
 {
-	int i, imu_reg_val = 0;
+	u32 imu_reg_val = 0;
+	int i;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_GFX_RESET_CTRL);
@@ -138,7 +137,7 @@ static int imu_v12_0_wait_for_reset_status(struct amdgpu_device *adev)
 
 static void imu_v12_0_setup(struct amdgpu_device *adev)
 {
-	int imu_reg_val;
+	u32 imu_reg_val;
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL0, 0xffffff);
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL1, 0xffff);
@@ -157,7 +156,7 @@ static void imu_v12_0_setup(struct amdgpu_device *adev)
 
 static int imu_v12_0_start(struct amdgpu_device *adev)
 {
-	int imu_reg_val;
+	u32 imu_reg_val;
 
 	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL);
 	imu_reg_val &= 0xfffffffe;

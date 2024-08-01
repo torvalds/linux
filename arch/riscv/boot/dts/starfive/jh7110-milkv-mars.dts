@@ -17,6 +17,13 @@
 	assigned-clock-parents = <&aoncrg JH7110_AONCLK_GMAC0_RMII_RTX>;
 };
 
+&pcie0 {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
 
 &phy0 {
 	motorcomm,tx-clk-adj-enabled;

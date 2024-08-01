@@ -207,11 +207,6 @@ struct vpu_malone_dbglog_desc {
 	u32 reserved;
 };
 
-struct vpu_malone_frame_buffer {
-	u32 addr;
-	u32 size;
-};
-
 struct vpu_malone_udata {
 	u32 base;
 	u32 total_size;

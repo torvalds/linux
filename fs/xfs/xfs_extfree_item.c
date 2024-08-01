@@ -303,6 +303,11 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_intent	= xfs_efd_item_intent,
 };
 
+static inline struct xfs_extent_free_item *xefi_entry(const struct list_head *e)
+{
+	return list_entry(e, struct xfs_extent_free_item, xefi_list);
+}
+
 /*
  * Fill the EFD with all extents from the EFI when we need to roll the
  * transaction and continue with a new EFI.
@@ -331,6 +336,22 @@ xfs_efd_from_efi(
 	efdp->efd_next_extent = efip->efi_format.efi_nextents;
 }
 
+static void
+xfs_efd_add_extent(
+	struct xfs_efd_log_item		*efdp,
+	struct xfs_extent_free_item	*xefi)
+{
+	struct xfs_extent		*extp;
+
+	ASSERT(efdp->efd_next_extent < efdp->efd_format.efd_nextents);
+
+	extp = &efdp->efd_format.efd_extents[efdp->efd_next_extent];
+	extp->ext_start = xefi->xefi_startblock;
+	extp->ext_len = xefi->xefi_blockcount;
+
+	efdp->efd_next_extent++;
+}
+
 /* Sort bmap items by AG. */
 static int
 xfs_extent_free_diff_items(
@@ -338,11 +359,8 @@ xfs_extent_free_diff_items(
 	const struct list_head		*a,
 	const struct list_head		*b)
 {
-	struct xfs_extent_free_item	*ra;
-	struct xfs_extent_free_item	*rb;
-
-	ra = container_of(a, struct xfs_extent_free_item, xefi_list);
-	rb = container_of(b, struct xfs_extent_free_item, xefi_list);
+	struct xfs_extent_free_item	*ra = xefi_entry(a);
+	struct xfs_extent_free_item	*rb = xefi_entry(b);
 
 	return ra->xefi_pag->pag_agno - rb->xefi_pag->pag_agno;
 }
@@ -418,24 +436,35 @@ xfs_extent_free_create_done(
 	return &efdp->efd_item;
 }
 
-/* Take a passive ref to the AG containing the space we're freeing. */
+/* Add this deferred EFI to the transaction. */
 void
-xfs_extent_free_get_group(
-	struct xfs_mount		*mp,
-	struct xfs_extent_free_item	*xefi)
+xfs_extent_free_defer_add(
+	struct xfs_trans		*tp,
+	struct xfs_extent_free_item	*xefi,
+	struct xfs_defer_pending	**dfpp)
 {
-	xfs_agnumber_t			agno;
+	struct xfs_mount		*mp = tp->t_mountp;
 
-	agno = XFS_FSB_TO_AGNO(mp, xefi->xefi_startblock);
-	xefi->xefi_pag = xfs_perag_intent_get(mp, agno);
+	trace_xfs_extent_free_defer(mp, xefi);
+
+	xefi->xefi_pag = xfs_perag_intent_get(mp, xefi->xefi_startblock);
+	if (xefi->xefi_agresv == XFS_AG_RESV_AGFL)
+		*dfpp = xfs_defer_add(tp, &xefi->xefi_list,
+				&xfs_agfl_free_defer_type);
+	else
+		*dfpp = xfs_defer_add(tp, &xefi->xefi_list,
+				&xfs_extent_free_defer_type);
 }
 
-/* Release a passive AG ref after some freeing work. */
-static inline void
-xfs_extent_free_put_group(
-	struct xfs_extent_free_item	*xefi)
+/* Cancel a free extent. */
+STATIC void
+xfs_extent_free_cancel_item(
+	struct list_head		*item)
 {
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
+
 	xfs_perag_intent_put(xefi->xefi_pag);
+	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
 /* Process a free extent. */
@@ -447,15 +476,12 @@ xfs_extent_free_finish_item(
 	struct xfs_btree_cur		**state)
 {
 	struct xfs_owner_info		oinfo = { };
-	struct xfs_extent_free_item	*xefi;
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
 	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_extent		*extp;
-	uint				next_extent;
 	xfs_agblock_t			agbno;
 	int				error = 0;
 
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 
 	oinfo.oi_owner = xefi->xefi_owner;
@@ -464,8 +490,7 @@ xfs_extent_free_finish_item(
 	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
 		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
 
-	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
-			agbno, xefi->xefi_blockcount);
+	trace_xfs_extent_free_deferred(mp, xefi);
 
 	/*
 	 * If we need a new transaction to make progress, the caller will log a
@@ -482,16 +507,8 @@ xfs_extent_free_finish_item(
 		return error;
 	}
 
-	/* Add the work we finished to the EFD, even though nobody uses that */
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
+	xfs_efd_add_extent(efdp, xefi);
+	xfs_extent_free_cancel_item(item);
 	return error;
 }
 
@@ -501,19 +518,6 @@ xfs_extent_free_abort_intent(
 	struct xfs_log_item		*intent)
 {
 	xfs_efi_release(EFI_ITEM(intent));
-}
-
-/* Cancel a free extent. */
-STATIC void
-xfs_extent_free_cancel_item(
-	struct list_head		*item)
-{
-	struct xfs_extent_free_item	*xefi;
-
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
-
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
 /*
@@ -530,35 +534,24 @@ xfs_agfl_free_finish_item(
 	struct xfs_owner_info		oinfo = { };
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
-	struct xfs_extent_free_item	*xefi;
-	struct xfs_extent		*extp;
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
 	struct xfs_buf			*agbp;
 	int				error;
 	xfs_agblock_t			agbno;
-	uint				next_extent;
 
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(xefi->xefi_blockcount == 1);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 	oinfo.oi_owner = xefi->xefi_owner;
 
-	trace_xfs_agfl_free_deferred(mp, xefi->xefi_pag->pag_agno, 0, agbno,
-			xefi->xefi_blockcount);
+	trace_xfs_agfl_free_deferred(mp, xefi);
 
 	error = xfs_alloc_read_agf(xefi->xefi_pag, tp, 0, &agbp);
 	if (!error)
-		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_agno,
-				agbno, agbp, &oinfo);
+		error = xfs_free_ag_extent(tp, agbp, xefi->xefi_pag->pag_agno,
+				agbno, 1, &oinfo, XFS_AG_RESV_AGFL);
 
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
+	xfs_efd_add_extent(efdp, xefi);
+	xfs_extent_free_cancel_item(&xefi->xefi_list);
 	return error;
 }
 
@@ -585,7 +578,7 @@ xfs_efi_recover_work(
 	xefi->xefi_blockcount = extp->ext_len;
 	xefi->xefi_agresv = XFS_AG_RESV_NONE;
 	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
-	xfs_extent_free_get_group(mp, xefi);
+	xefi->xefi_pag = xfs_perag_intent_get(mp, extp->ext_start);
 
 	xfs_defer_add_item(dfp, &xefi->xefi_list);
 }

@@ -100,44 +100,12 @@ static void input_stop_autorepeat(struct input_dev *dev)
 }
 
 /*
- * Pass event first through all filters and then, if event has not been
- * filtered out, through all open handles. This function is called with
- * dev->event_lock held and interrupts disabled.
- */
-static unsigned int input_to_handler(struct input_handle *handle,
-			struct input_value *vals, unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *end = vals;
-	struct input_value *v;
-
-	if (handler->filter) {
-		for (v = vals; v != vals + count; v++) {
-			if (handler->filter(handle, v->type, v->code, v->value))
-				continue;
-			if (end != v)
-				*end = *v;
-			end++;
-		}
-		count = end - vals;
-	}
-
-	if (!count)
-		return 0;
-
-	if (handler->events)
-		handler->events(handle, vals, count);
-	else if (handler->event)
-		for (v = vals; v != vals + count; v++)
-			handler->event(handle, v->type, v->code, v->value);
-
-	return count;
-}
-
-/*
  * Pass values first through all filters and then, if event has not been
- * filtered out, through all open handles. This function is called with
- * dev->event_lock held and interrupts disabled.
+ * filtered out, through all open handles. This order is achieved by placing
+ * filters at the head of the list of handles attached to the device, and
+ * placing regular handles at the tail of the list.
+ *
+ * This function is called with dev->event_lock held and interrupts disabled.
  */
 static void input_pass_values(struct input_dev *dev,
 			      struct input_value *vals, unsigned int count)
@@ -147,18 +115,16 @@ static void input_pass_values(struct input_dev *dev,
 
 	lockdep_assert_held(&dev->event_lock);
 
-	if (!count)
-		return;
-
 	rcu_read_lock();
 
 	handle = rcu_dereference(dev->grab);
 	if (handle) {
-		count = input_to_handler(handle, vals, count);
+		count = handle->handler->events(handle, vals, count);
 	} else {
 		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
 			if (handle->open) {
-				count = input_to_handler(handle, vals, count);
+				count = handle->handler->events(handle, vals,
+								count);
 				if (!count)
 					break;
 			}
@@ -353,9 +319,6 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
 {
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
 		dev->event(dev, type, code, value);
-
-	if (!dev->vals)
-		return;
 
 	if (disposition & INPUT_PASS_TO_HANDLERS) {
 		struct input_value *v;
@@ -2013,21 +1976,40 @@ struct input_dev *input_allocate_device(void)
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev) {
-		dev->dev.type = &input_dev_type;
-		dev->dev.class = &input_class;
-		device_initialize(&dev->dev);
-		mutex_init(&dev->mutex);
-		spin_lock_init(&dev->event_lock);
-		timer_setup(&dev->timer, NULL, 0);
-		INIT_LIST_HEAD(&dev->h_list);
-		INIT_LIST_HEAD(&dev->node);
+	if (!dev)
+		return NULL;
 
-		dev_set_name(&dev->dev, "input%lu",
-			     (unsigned long)atomic_inc_return(&input_no));
-
-		__module_get(THIS_MODULE);
+	/*
+	 * Start with space for SYN_REPORT + 7 EV_KEY/EV_MSC events + 2 spare,
+	 * see input_estimate_events_per_packet(). We will tune the number
+	 * when we register the device.
+	 */
+	dev->max_vals = 10;
+	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
+	if (!dev->vals) {
+		kfree(dev);
+		return NULL;
 	}
+
+	mutex_init(&dev->mutex);
+	spin_lock_init(&dev->event_lock);
+	timer_setup(&dev->timer, NULL, 0);
+	INIT_LIST_HEAD(&dev->h_list);
+	INIT_LIST_HEAD(&dev->node);
+
+	dev->dev.type = &input_dev_type;
+	dev->dev.class = &input_class;
+	device_initialize(&dev->dev);
+	/*
+	 * From this point on we can no longer simply "kfree(dev)", we need
+	 * to use input_free_device() so that device core properly frees its
+	 * resources associated with the input device.
+	 */
+
+	dev_set_name(&dev->dev, "input%lu",
+		     (unsigned long)atomic_inc_return(&input_no));
+
+	__module_get(THIS_MODULE);
 
 	return dev;
 }
@@ -2368,6 +2350,35 @@ bool input_device_enabled(struct input_dev *dev)
 }
 EXPORT_SYMBOL_GPL(input_device_enabled);
 
+static int input_device_tune_vals(struct input_dev *dev)
+{
+	struct input_value *vals;
+	unsigned int packet_size;
+	unsigned int max_vals;
+
+	packet_size = input_estimate_events_per_packet(dev);
+	if (dev->hint_events_per_packet < packet_size)
+		dev->hint_events_per_packet = packet_size;
+
+	max_vals = dev->hint_events_per_packet + 2;
+	if (dev->max_vals >= max_vals)
+		return 0;
+
+	vals = kcalloc(max_vals, sizeof(*vals), GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
+
+	spin_lock_irq(&dev->event_lock);
+	dev->max_vals = max_vals;
+	swap(dev->vals, vals);
+	spin_unlock_irq(&dev->event_lock);
+
+	/* Because of swap() above, this frees the old vals memory */
+	kfree(vals);
+
+	return 0;
+}
+
 /**
  * input_register_device - register device with input core
  * @dev: device to be registered
@@ -2395,7 +2406,6 @@ int input_register_device(struct input_dev *dev)
 {
 	struct input_devres *devres = NULL;
 	struct input_handler *handler;
-	unsigned int packet_size;
 	const char *path;
 	int error;
 
@@ -2423,16 +2433,9 @@ int input_register_device(struct input_dev *dev)
 	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
 	input_cleanse_bitmasks(dev);
 
-	packet_size = input_estimate_events_per_packet(dev);
-	if (dev->hint_events_per_packet < packet_size)
-		dev->hint_events_per_packet = packet_size;
-
-	dev->max_vals = dev->hint_events_per_packet + 2;
-	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
-	if (!dev->vals) {
-		error = -ENOMEM;
+	error = input_device_tune_vals(dev);
+	if (error)
 		goto err_devres_free;
-	}
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
@@ -2452,7 +2455,7 @@ int input_register_device(struct input_dev *dev)
 
 	error = device_add(&dev->dev);
 	if (error)
-		goto err_free_vals;
+		goto err_devres_free;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	pr_info("%s as %s\n",
@@ -2482,9 +2485,6 @@ int input_register_device(struct input_dev *dev)
 
 err_device_del:
 	device_del(&dev->dev);
-err_free_vals:
-	kfree(dev->vals);
-	dev->vals = NULL;
 err_devres_free:
 	devres_free(devres);
 	return error;
@@ -2517,6 +2517,77 @@ void input_unregister_device(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_unregister_device);
 
+static int input_handler_check_methods(const struct input_handler *handler)
+{
+	int count = 0;
+
+	if (handler->filter)
+		count++;
+	if (handler->events)
+		count++;
+	if (handler->event)
+		count++;
+
+	if (count > 1) {
+		pr_err("%s: only one event processing method can be defined (%s)\n",
+		       __func__, handler->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * An implementation of input_handler's events() method that simply
+ * invokes handler->event() method for each event one by one.
+ */
+static unsigned int input_handler_events_default(struct input_handle *handle,
+						 struct input_value *vals,
+						 unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++)
+		handler->event(handle, v->type, v->code, v->value);
+
+	return count;
+}
+
+/*
+ * An implementation of input_handler's events() method that invokes
+ * handler->filter() method for each event one by one and removes events
+ * that were filtered out from the "vals" array.
+ */
+static unsigned int input_handler_events_filter(struct input_handle *handle,
+						struct input_value *vals,
+						unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *end = vals;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++) {
+		if (handler->filter(handle, v->type, v->code, v->value))
+			continue;
+		if (end != v)
+			*end = *v;
+		end++;
+	}
+
+	return end - vals;
+}
+
+/*
+ * An implementation of input_handler's events() method that does nothing.
+ */
+static unsigned int input_handler_events_null(struct input_handle *handle,
+					      struct input_value *vals,
+					      unsigned int count)
+{
+	return count;
+}
+
 /**
  * input_register_handler - register a new input handler
  * @handler: handler to be registered
@@ -2530,11 +2601,22 @@ int input_register_handler(struct input_handler *handler)
 	struct input_dev *dev;
 	int error;
 
-	error = mutex_lock_interruptible(&input_mutex);
+	error = input_handler_check_methods(handler);
 	if (error)
 		return error;
 
 	INIT_LIST_HEAD(&handler->h_list);
+
+	if (handler->filter)
+		handler->events = input_handler_events_filter;
+	else if (handler->event)
+		handler->events = input_handler_events_default;
+	else if (!handler->events)
+		handler->events = input_handler_events_null;
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error)
+		return error;
 
 	list_add_tail(&handler->node, &input_handler_list);
 

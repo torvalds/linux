@@ -30,6 +30,8 @@ properties:
       - description: input fixed pll div7
       - description: input hifi pll
       - description: input oscillator (usually at 24MHz)
+      - description: input sys pll
+    minItems: 6 # sys_pll is optional
 
   clock-names:
     items:
@@ -39,6 +41,8 @@ properties:
       - const: fclk_div7
       - const: hifi_pll
       - const: xtal
+      - const: sys_pll
+    minItems: 6 # sys_pll is optional
 
 required:
   - compatible
@@ -65,9 +69,10 @@ examples:
                      <&clkc_pll CLKID_FCLK_DIV5>,
                      <&clkc_pll CLKID_FCLK_DIV7>,
                      <&clkc_pll CLKID_HIFI_PLL>,
-                     <&xtal>;
+                     <&xtal>,
+                     <&clkc_pll CLKID_SYS_PLL>;
             clock-names = "fclk_div2", "fclk_div3",
                           "fclk_div5", "fclk_div7",
-                          "hifi_pll", "xtal";
+                          "hifi_pll", "xtal", "sys_pll";
         };
     };

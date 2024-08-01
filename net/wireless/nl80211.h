@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions of this file
- * Copyright (C) 2018, 2020-2022 Intel Corporation
+ * Copyright (C) 2018, 2020-2024 Intel Corporation
  */
 #ifndef __NET_WIRELESS_NL80211_H
 #define __NET_WIRELESS_NL80211_H
@@ -119,7 +119,7 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 
 void nl80211_send_ap_stopped(struct wireless_dev *wdev, unsigned int link_id);
 
-void cfg80211_rdev_free_coalesce(struct cfg80211_registered_device *rdev);
+void cfg80211_free_coalesce(struct cfg80211_coalesce *coalesce);
 
 /* peer measurement */
 int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info);

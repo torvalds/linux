@@ -70,13 +70,6 @@ static bool CheckPositive(
 	return false;
 }
 
-static bool CheckNegative(
-	struct dm_odm_t *pDM_Odm, const u32  Condition1, const u32 Condition2
-)
-{
-	return true;
-}
-
 /******************************************************************************
 *                           AGC_TAB.TXT
 ******************************************************************************/
@@ -244,10 +237,7 @@ void ODM_ReadAndConfig_MP_8723B_AGC_TAB(struct dm_odm_t *pDM_Odm)
 				READ_NEXT_PAIR(v1, v2, i);
 			} else {
 				READ_NEXT_PAIR(v1, v2, i);
-				if (!CheckNegative(pDM_Odm, v1, v2))
-					bMatched = false;
-				else
-					bMatched = true;
+				bMatched = true;
 				READ_NEXT_PAIR(v1, v2, i);
 			}
 
@@ -506,10 +496,7 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 				READ_NEXT_PAIR(v1, v2, i);
 			} else {
 				READ_NEXT_PAIR(v1, v2, i);
-				if (!CheckNegative(pDM_Odm, v1, v2))
-					bMatched = false;
-				else
-					bMatched = true;
+				bMatched = true;
 				READ_NEXT_PAIR(v1, v2, i);
 			}
 

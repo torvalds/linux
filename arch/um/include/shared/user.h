@@ -42,10 +42,18 @@ extern void panic(const char *fmt, ...)
 #define printk(...) _printk(__VA_ARGS__)
 extern int _printk(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
+extern void print_hex_dump(const char *level, const char *prefix_str,
+			   int prefix_type, int rowsize, int groupsize,
+			   const void *buf, size_t len, _Bool ascii);
 #else
 static inline int printk(const char *fmt, ...)
 {
 	return 0;
+}
+static inline void print_hex_dump(const char *level, const char *prefix_str,
+				  int prefix_type, int rowsize, int groupsize,
+				  const void *buf, size_t len, _Bool ascii)
+{
 }
 #endif
 

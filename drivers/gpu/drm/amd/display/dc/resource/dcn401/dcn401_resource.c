@@ -731,8 +731,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.force_cositing = CHROMA_COSITING_TOPLEFT + 1,
-	.disable_idle_power_optimizations = true,
-	.edp_oled_no_backlight_enable = true,
 };
 
 static struct dce_aux *dcn401_aux_engine_create(
@@ -1582,11 +1580,9 @@ static struct dc_cap_funcs cap_funcs = {
 
 static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
-	struct dml2_configuration_options *dml2_opt;
+	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
 
-	dml2_opt = kmemdup(&dc->dml2_options, sizeof(*dml2_opt), GFP_KERNEL);
-	if (!dml2_opt)
-		return;
+	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
 
 	DC_FP_START();
 
@@ -1601,8 +1597,6 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 		dml2_reinit(dc, dml2_opt, &dc->current_state->bw_ctx.dml2_dc_power_source);
 
 	DC_FP_END();
-
-	kfree(dml2_opt);
 }
 
 enum dc_status dcn401_patch_unknown_plane_state(struct dc_plane_state *plane_state)
@@ -1621,6 +1615,14 @@ bool dcn401_validate_bandwidth(struct dc *dc,
 				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
 				fast_validate);
 	return out;
+}
+
+void dcn401_prepare_mcache_programming(struct dc *dc,
+		struct dc_state *context)
+{
+	if (dc->debug.using_dml21)
+		dml2_prepare_mcache_programming(dc, context,
+				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
 }
 
 static void dcn401_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
@@ -1705,6 +1707,7 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn401_patch_unknown_plane_state,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
+	.prepare_mcache_programming = dcn401_prepare_mcache_programming,
 	.build_pipe_pix_clk_params = dcn401_build_pipe_pix_clk_params,
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 };
@@ -1818,6 +1821,9 @@ static bool dcn401_resource_construct(
 	dc->caps.edp_dsc_support = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
+
+	if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev))
+		dc->caps.dcc_plane_width_limit = 7680;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;

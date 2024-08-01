@@ -10,7 +10,7 @@
 #include <linux/export.h>
 #include <linux/swap.h>
 #include <linux/gfp.h>
-#include <linux/bio.h>
+#include <linux/bio-integrity.h>
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>

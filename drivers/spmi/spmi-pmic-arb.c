@@ -1891,5 +1891,6 @@ static struct platform_driver spmi_pmic_arb_driver = {
 };
 module_platform_driver(spmi_pmic_arb_driver);
 
+MODULE_DESCRIPTION("Qualcomm MSM SPMI Controller (PMIC Arbiter) driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spmi_pmic_arb");

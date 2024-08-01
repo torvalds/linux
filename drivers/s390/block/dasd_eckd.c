@@ -44,6 +44,7 @@
 /* 64k are 128 x 512 byte sectors  */
 #define DASD_RAW_SECTORS_PER_TRACK 128
 
+MODULE_DESCRIPTION("S/390 DASD ECKD Disks device driver");
 MODULE_LICENSE("GPL");
 
 static struct dasd_discipline dasd_eckd_discipline;
@@ -4906,7 +4907,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 				ccw++;
 			if (dst) {
 				if (ccw->flags & CCW_FLAG_IDA)
-					cda = *((char **)dma32_to_virt(ccw->cda));
+					cda = dma64_to_virt(*((dma64_t *)dma32_to_virt(ccw->cda)));
 				else
 					cda = dma32_to_virt(ccw->cda);
 				if (dst != cda) {
@@ -5525,7 +5526,7 @@ dasd_eckd_dump_ccw_range(struct dasd_device *device, struct ccw1 *from,
 
 		/* get pointer to data (consider IDALs) */
 		if (from->flags & CCW_FLAG_IDA)
-			datap = (char *)*((addr_t *)dma32_to_virt(from->cda));
+			datap = dma64_to_virt(*((dma64_t *)dma32_to_virt(from->cda)));
 		else
 			datap = dma32_to_virt(from->cda);
 

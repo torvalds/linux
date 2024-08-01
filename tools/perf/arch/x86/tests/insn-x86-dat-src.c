@@ -2628,6 +2628,512 @@ int main(void)
 	asm volatile("vucomish 0x12345678(%rax,%rcx,8), %xmm1");
 	asm volatile("vucomish 0x12345678(%eax,%ecx,8), %xmm1");
 
+	/* Key Locker */
+
+	asm volatile("loadiwkey %xmm1, %xmm2");
+	asm volatile("encodekey128 %eax, %edx");
+	asm volatile("encodekey256 %eax, %edx");
+	asm volatile("aesenc128kl 0x77(%rdx), %xmm3");
+	asm volatile("aesenc256kl 0x77(%rdx), %xmm3");
+	asm volatile("aesdec128kl 0x77(%rdx), %xmm3");
+	asm volatile("aesdec256kl 0x77(%rdx), %xmm3");
+	asm volatile("aesencwide128kl	0x77(%rdx)");
+	asm volatile("aesencwide256kl	0x77(%rdx)");
+	asm volatile("aesdecwide128kl	0x77(%rdx)");
+	asm volatile("aesdecwide256kl	0x77(%rdx)");
+
+	/* Remote Atomic Operations */
+
+	asm volatile("aadd %ecx,(%rax)");
+	asm volatile("aadd %edx,(%r8)");
+	asm volatile("aadd %edx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aadd %edx,0x12345678(%r8,%rcx,8)");
+	asm volatile("aadd %rcx,(%rax)");
+	asm volatile("aadd %rdx,(%r8)");
+	asm volatile("aadd %rdx,(0x12345678)");
+	asm volatile("aadd %rdx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aadd %rdx,0x12345678(%r8,%rcx,8)");
+
+	asm volatile("aand %ecx,(%rax)");
+	asm volatile("aand %edx,(%r8)");
+	asm volatile("aand %edx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aand %edx,0x12345678(%r8,%rcx,8)");
+	asm volatile("aand %rcx,(%rax)");
+	asm volatile("aand %rdx,(%r8)");
+	asm volatile("aand %rdx,(0x12345678)");
+	asm volatile("aand %rdx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aand %rdx,0x12345678(%r8,%rcx,8)");
+
+	asm volatile("aor %ecx,(%rax)");
+	asm volatile("aor %edx,(%r8)");
+	asm volatile("aor %edx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aor %edx,0x12345678(%r8,%rcx,8)");
+	asm volatile("aor %rcx,(%rax)");
+	asm volatile("aor %rdx,(%r8)");
+	asm volatile("aor %rdx,(0x12345678)");
+	asm volatile("aor %rdx,0x12345678(%rax,%rcx,8)");
+	asm volatile("aor %rdx,0x12345678(%r8,%rcx,8)");
+
+	asm volatile("axor %ecx,(%rax)");
+	asm volatile("axor %edx,(%r8)");
+	asm volatile("axor %edx,0x12345678(%rax,%rcx,8)");
+	asm volatile("axor %edx,0x12345678(%r8,%rcx,8)");
+	asm volatile("axor %rcx,(%rax)");
+	asm volatile("axor %rdx,(%r8)");
+	asm volatile("axor %rdx,(0x12345678)");
+	asm volatile("axor %rdx,0x12345678(%rax,%rcx,8)");
+	asm volatile("axor %rdx,0x12345678(%r8,%rcx,8)");
+
+	/* VEX CMPxxXADD */
+
+	asm volatile("cmpbexadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpbxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmplexadd %ebx,%ecx,(%r9)");
+	asm volatile("cmplxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnbexadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnbxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnlexadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnlxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnoxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnpxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnsxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpnzxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpoxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmppxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpsxadd %ebx,%ecx,(%r9)");
+	asm volatile("cmpzxadd %ebx,%ecx,(%r9)");
+
+	/* Pre-fetch */
+
+	asm volatile("prefetch (%rax)");
+	asm volatile("prefetcht0 (%rax)");
+	asm volatile("prefetcht1 (%rax)");
+	asm volatile("prefetcht2 (%rax)");
+	asm volatile("prefetchnta (%rax)");
+	asm volatile("prefetchit0 0x12345678(%rip)");
+	asm volatile("prefetchit1 0x12345678(%rip)");
+
+	/* MSR List */
+
+	asm volatile("rdmsrlist");
+	asm volatile("wrmsrlist");
+
+	/* User Read/Write MSR */
+
+	asm volatile("urdmsr %rdx,%rax");
+	asm volatile("urdmsr %rdx,%r22");
+	asm volatile("urdmsr $0x7f,%r12");
+	asm volatile("uwrmsr %rax,%rdx");
+	asm volatile("uwrmsr %r22,%rdx");
+	asm volatile("uwrmsr %r12,$0x7f");
+
+	/* AVX NE Convert */
+
+	asm volatile("vbcstnebf162ps (%rcx),%xmm6");
+	asm volatile("vbcstnesh2ps (%rcx),%xmm6");
+	asm volatile("vcvtneebf162ps (%rcx),%xmm6");
+	asm volatile("vcvtneeph2ps (%rcx),%xmm6");
+	asm volatile("vcvtneobf162ps (%rcx),%xmm6");
+	asm volatile("vcvtneoph2ps (%rcx),%xmm6");
+	asm volatile("vcvtneps2bf16 %xmm1,%xmm6");
+
+	/* FRED */
+
+	asm volatile("erets");	/* Expecting: erets indirect 0 */
+	asm volatile("eretu");	/* Expecting: eretu indirect 0 */
+
+	/* AMX Complex */
+
+	asm volatile("tcmmimfp16ps %tmm1,%tmm2,%tmm3");
+	asm volatile("tcmmrlfp16ps %tmm1,%tmm2,%tmm3");
+
+	/* AMX FP16 */
+
+	asm volatile("tdpfp16ps %tmm1,%tmm2,%tmm3");
+
+	/* REX2 */
+
+	asm volatile("test $0x5, %r18b");
+	asm volatile("test $0x5, %r18d");
+	asm volatile("test $0x5, %r18");
+	asm volatile("test $0x5, %r18w");
+	asm volatile("imull %eax, %r14d");
+	asm volatile("imull %eax, %r17d");
+	asm volatile("punpckldq (%r18), %mm2");
+	asm volatile("leal (%rax), %r16d");
+	asm volatile("leal (%rax), %r31d");
+	asm volatile("leal (,%r16), %eax");
+	asm volatile("leal (,%r31), %eax");
+	asm volatile("leal (%r16), %eax");
+	asm volatile("leal (%r31), %eax");
+	asm volatile("leaq (%rax), %r15");
+	asm volatile("leaq (%rax), %r16");
+	asm volatile("leaq (%r15), %rax");
+	asm volatile("leaq (%r16), %rax");
+	asm volatile("leaq (,%r15), %rax");
+	asm volatile("leaq (,%r16), %rax");
+	asm volatile("add (%r16), %r8");
+	asm volatile("add (%r16), %r15");
+	asm volatile("mov (,%r9), %r16");
+	asm volatile("mov (,%r14), %r16");
+	asm volatile("sub (%r10), %r31");
+	asm volatile("sub (%r13), %r31");
+	asm volatile("leal 1(%r16, %r21), %eax");
+	asm volatile("leal 1(%r16, %r26), %r31d");
+	asm volatile("leal 129(%r21, %r9), %eax");
+	asm volatile("leal 129(%r26, %r9), %r31d");
+	/*
+	 * Have to use .byte for jmpabs because gas does not support the
+	 * mnemonic for some reason, but then it also gets the source line wrong
+	 * with .byte, so the following is a workaround.
+	 */
+	asm volatile(""); /* Expecting: jmp indirect 0 */
+	asm volatile(".byte 0xd5, 0x00, 0xa1, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12");
+	asm volatile("pushp %rbx");
+	asm volatile("pushp %r16");
+	asm volatile("pushp %r31");
+	asm volatile("popp %r31");
+	asm volatile("popp %r16");
+	asm volatile("popp %rbx");
+
+	/* APX */
+
+	asm volatile("bextr %r25d,%edx,%r10d");
+	asm volatile("bextr %r25d,0x123(%r31,%rax,4),%edx");
+	asm volatile("bextr %r31,%r15,%r11");
+	asm volatile("bextr %r31,0x123(%r31,%rax,4),%r15");
+	asm volatile("blsi %r25d,%edx");
+	asm volatile("blsi %r31,%r15");
+	asm volatile("blsi 0x123(%r31,%rax,4),%r25d");
+	asm volatile("blsi 0x123(%r31,%rax,4),%r31");
+	asm volatile("blsmsk %r25d,%edx");
+	asm volatile("blsmsk %r31,%r15");
+	asm volatile("blsmsk 0x123(%r31,%rax,4),%r25d");
+	asm volatile("blsmsk 0x123(%r31,%rax,4),%r31");
+	asm volatile("blsr %r25d,%edx");
+	asm volatile("blsr %r31,%r15");
+	asm volatile("blsr 0x123(%r31,%rax,4),%r25d");
+	asm volatile("blsr 0x123(%r31,%rax,4),%r31");
+	asm volatile("bzhi %r25d,%edx,%r10d");
+	asm volatile("bzhi %r25d,0x123(%r31,%rax,4),%edx");
+	asm volatile("bzhi %r31,%r15,%r11");
+	asm volatile("bzhi %r31,0x123(%r31,%rax,4),%r15");
+	asm volatile("cmpbexadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpbexadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpbxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpbxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmplxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmplxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnbexadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnbexadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnbxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnbxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnlexadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnlexadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnlxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnlxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnoxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnoxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnpxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnpxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnsxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnsxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpnzxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpnzxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpoxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpoxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmppxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmppxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpsxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpsxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("cmpzxadd %r25d,%edx,0x123(%r31,%rax,4)");
+	asm volatile("cmpzxadd %r31,%r15,0x123(%r31,%rax,4)");
+	asm volatile("crc32q %r31, %r22");
+	asm volatile("crc32q (%r31), %r22");
+	asm volatile("crc32b %r19b, %r17");
+	asm volatile("crc32b %r19b, %r21d");
+	asm volatile("crc32b (%r19),%ebx");
+	asm volatile("crc32l %r31d, %r23d");
+	asm volatile("crc32l (%r31), %r23d");
+	asm volatile("crc32w %r31w, %r21d");
+	asm volatile("crc32w (%r31),%r21d");
+	asm volatile("crc32 %rax, %r18");
+	asm volatile("enqcmd 0x123(%r31d,%eax,4),%r25d");
+	asm volatile("enqcmd 0x123(%r31,%rax,4),%r31");
+	asm volatile("enqcmds 0x123(%r31d,%eax,4),%r25d");
+	asm volatile("enqcmds 0x123(%r31,%rax,4),%r31");
+	asm volatile("invept 0x123(%r31,%rax,4),%r31");
+	asm volatile("invpcid 0x123(%r31,%rax,4),%r31");
+	asm volatile("invvpid 0x123(%r31,%rax,4),%r31");
+	asm volatile("kmovb %k5,%r25d");
+	asm volatile("kmovb %k5,0x123(%r31,%rax,4)");
+	asm volatile("kmovb %r25d,%k5");
+	asm volatile("kmovb 0x123(%r31,%rax,4),%k5");
+	asm volatile("kmovd %k5,%r25d");
+	asm volatile("kmovd %k5,0x123(%r31,%rax,4)");
+	asm volatile("kmovd %r25d,%k5");
+	asm volatile("kmovd 0x123(%r31,%rax,4),%k5");
+	asm volatile("kmovq %k5,%r31");
+	asm volatile("kmovq %k5,0x123(%r31,%rax,4)");
+	asm volatile("kmovq %r31,%k5");
+	asm volatile("kmovq 0x123(%r31,%rax,4),%k5");
+	asm volatile("kmovw %k5,%r25d");
+	asm volatile("kmovw %k5,0x123(%r31,%rax,4)");
+	asm volatile("kmovw %r25d,%k5");
+	asm volatile("kmovw 0x123(%r31,%rax,4),%k5");
+	asm volatile("ldtilecfg 0x123(%r31,%rax,4)");
+	asm volatile("movbe %r18w,%ax");
+	asm volatile("movbe %r15w,%ax");
+	asm volatile("movbe %r18w,0x123(%r16,%rax,4)");
+	asm volatile("movbe %r18w,0x123(%r31,%rax,4)");
+	asm volatile("movbe %r25d,%edx");
+	asm volatile("movbe %r15d,%edx");
+	asm volatile("movbe %r25d,0x123(%r16,%rax,4)");
+	asm volatile("movbe %r31,%r15");
+	asm volatile("movbe %r8,%r15");
+	asm volatile("movbe %r31,0x123(%r16,%rax,4)");
+	asm volatile("movbe %r31,0x123(%r31,%rax,4)");
+	asm volatile("movbe 0x123(%r16,%rax,4),%r31");
+	asm volatile("movbe 0x123(%r31,%rax,4),%r18w");
+	asm volatile("movbe 0x123(%r31,%rax,4),%r25d");
+	asm volatile("movdir64b 0x123(%r31d,%eax,4),%r25d");
+	asm volatile("movdir64b 0x123(%r31,%rax,4),%r31");
+	asm volatile("movdiri %r25d,0x123(%r31,%rax,4)");
+	asm volatile("movdiri %r31,0x123(%r31,%rax,4)");
+	asm volatile("pdep %r25d,%edx,%r10d");
+	asm volatile("pdep %r31,%r15,%r11");
+	asm volatile("pdep 0x123(%r31,%rax,4),%r25d,%edx");
+	asm volatile("pdep 0x123(%r31,%rax,4),%r31,%r15");
+	asm volatile("pext %r25d,%edx,%r10d");
+	asm volatile("pext %r31,%r15,%r11");
+	asm volatile("pext 0x123(%r31,%rax,4),%r25d,%edx");
+	asm volatile("pext 0x123(%r31,%rax,4),%r31,%r15");
+	asm volatile("shlx %r25d,%edx,%r10d");
+	asm volatile("shlx %r25d,0x123(%r31,%rax,4),%edx");
+	asm volatile("shlx %r31,%r15,%r11");
+	asm volatile("shlx %r31,0x123(%r31,%rax,4),%r15");
+	asm volatile("shrx %r25d,%edx,%r10d");
+	asm volatile("shrx %r25d,0x123(%r31,%rax,4),%edx");
+	asm volatile("shrx %r31,%r15,%r11");
+	asm volatile("shrx %r31,0x123(%r31,%rax,4),%r15");
+	asm volatile("sttilecfg 0x123(%r31,%rax,4)");
+	asm volatile("tileloadd 0x123(%r31,%rax,4),%tmm6");
+	asm volatile("tileloaddt1 0x123(%r31,%rax,4),%tmm6");
+	asm volatile("tilestored %tmm6,0x123(%r31,%rax,4)");
+	asm volatile("vbroadcastf128 (%r16),%ymm3");
+	asm volatile("vbroadcasti128 (%r16),%ymm3");
+	asm volatile("vextractf128 $1,%ymm3,(%r16)");
+	asm volatile("vextracti128 $1,%ymm3,(%r16)");
+	asm volatile("vinsertf128 $1,(%r16),%ymm3,%ymm8");
+	asm volatile("vinserti128 $1,(%r16),%ymm3,%ymm8");
+	asm volatile("vroundpd $1,(%r24),%xmm6");
+	asm volatile("vroundps $2,(%r24),%xmm6");
+	asm volatile("vroundsd $3,(%r24),%xmm6,%xmm3");
+	asm volatile("vroundss $4,(%r24),%xmm6,%xmm3");
+	asm volatile("wrssd %r25d,0x123(%r31,%rax,4)");
+	asm volatile("wrssq %r31,0x123(%r31,%rax,4)");
+	asm volatile("wrussd %r25d,0x123(%r31,%rax,4)");
+	asm volatile("wrussq %r31,0x123(%r31,%rax,4)");
+
+	/* APX new data destination */
+
+	asm volatile("adc $0x1234,%ax,%r30w");
+	asm volatile("adc %r15b,%r17b,%r18b");
+	asm volatile("adc %r15d,(%r8),%r18d");
+	asm volatile("adc (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("adc (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("adcl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("adcx %r15d,%r8d,%r18d");
+	asm volatile("adcx (%r15,%r31,1),%r8");
+	asm volatile("adcx (%r15,%r31,1),%r8d,%r18d");
+	asm volatile("add $0x1234,%ax,%r30w");
+	asm volatile("add $0x12344433,%r15,%r16");
+	asm volatile("add $0x34,%r13b,%r17b");
+	asm volatile("add $0xfffffffff4332211,%rax,%r8");
+	asm volatile("add %r31,%r8,%r16");
+	asm volatile("add %r31,(%r8),%r16");
+	asm volatile("add %r31,(%r8,%r16,8),%r16");
+	asm volatile("add %r31b,%r8b,%r16b");
+	asm volatile("add %r31d,%r8d,%r16d");
+	asm volatile("add %r31w,%r8w,%r16w");
+	asm volatile("add (%r31),%r8,%r16");
+	asm volatile("add 0x9090(%r31,%r16,1),%r8,%r16");
+	asm volatile("addb %r31b,%r8b,%r16b");
+	asm volatile("addl %r31d,%r8d,%r16d");
+	asm volatile("addl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("addq %r31,%r8,%r16");
+	asm volatile("addq $0x12344433,(%r15,%rcx,4),%r16");
+	asm volatile("addw %r31w,%r8w,%r16w");
+	asm volatile("adox %r15d,%r8d,%r18d");
+	asm volatile("{load} add %r31,%r8,%r16");
+	asm volatile("{store} add %r31,%r8,%r16");
+	asm volatile("adox (%r15,%r31,1),%r8");
+	asm volatile("adox (%r15,%r31,1),%r8d,%r18d");
+	asm volatile("and $0x1234,%ax,%r30w");
+	asm volatile("and %r15b,%r17b,%r18b");
+	asm volatile("and %r15d,(%r8),%r18d");
+	asm volatile("and (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("and (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("andl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("cmova 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovae 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovb 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovbe 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmove 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovg 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovge 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovl 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovle 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovne 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovno 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovnp 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovns 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovo 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovp 0x90909090(%eax),%edx,%r8d");
+	asm volatile("cmovs 0x90909090(%eax),%edx,%r8d");
+	asm volatile("dec %rax,%r17");
+	asm volatile("decb (%r31,%r12,1),%r8b");
+	asm volatile("imul 0x909(%rax,%r31,8),%rdx,%r25");
+	asm volatile("imul 0x90909(%eax),%edx,%r8d");
+	asm volatile("inc %r31,%r16");
+	asm volatile("inc %r31,%r8");
+	asm volatile("inc %rax,%rbx");
+	asm volatile("neg %rax,%r17");
+	asm volatile("negb (%r31,%r12,1),%r8b");
+	asm volatile("not %rax,%r17");
+	asm volatile("notb (%r31,%r12,1),%r8b");
+	asm volatile("or $0x1234,%ax,%r30w");
+	asm volatile("or %r15b,%r17b,%r18b");
+	asm volatile("or %r15d,(%r8),%r18d");
+	asm volatile("or (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("or (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("orl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("rcl $0x2,%r12b,%r31b");
+	asm volatile("rcl %cl,%r16b,%r8b");
+	asm volatile("rclb $0x1,(%rax),%r31b");
+	asm volatile("rcll $0x2,(%rax),%r31d");
+	asm volatile("rclw $0x1,(%rax),%r31w");
+	asm volatile("rclw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("rcr $0x2,%r12b,%r31b");
+	asm volatile("rcr %cl,%r16b,%r8b");
+	asm volatile("rcrb $0x1,(%rax),%r31b");
+	asm volatile("rcrl $0x2,(%rax),%r31d");
+	asm volatile("rcrw $0x1,(%rax),%r31w");
+	asm volatile("rcrw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("rol $0x2,%r12b,%r31b");
+	asm volatile("rol %cl,%r16b,%r8b");
+	asm volatile("rolb $0x1,(%rax),%r31b");
+	asm volatile("roll $0x2,(%rax),%r31d");
+	asm volatile("rolw $0x1,(%rax),%r31w");
+	asm volatile("rolw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("ror $0x2,%r12b,%r31b");
+	asm volatile("ror %cl,%r16b,%r8b");
+	asm volatile("rorb $0x1,(%rax),%r31b");
+	asm volatile("rorl $0x2,(%rax),%r31d");
+	asm volatile("rorw $0x1,(%rax),%r31w");
+	asm volatile("rorw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("sar $0x2,%r12b,%r31b");
+	asm volatile("sar %cl,%r16b,%r8b");
+	asm volatile("sarb $0x1,(%rax),%r31b");
+	asm volatile("sarl $0x2,(%rax),%r31d");
+	asm volatile("sarw $0x1,(%rax),%r31w");
+	asm volatile("sarw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("sbb $0x1234,%ax,%r30w");
+	asm volatile("sbb %r15b,%r17b,%r18b");
+	asm volatile("sbb %r15d,(%r8),%r18d");
+	asm volatile("sbb (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("sbb (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("sbbl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("shl $0x2,%r12b,%r31b");
+	asm volatile("shl $0x2,%r12b,%r31b");
+	asm volatile("shl %cl,%r16b,%r8b");
+	asm volatile("shl %cl,%r16b,%r8b");
+	asm volatile("shlb $0x1,(%rax),%r31b");
+	asm volatile("shlb $0x1,(%rax),%r31b");
+	asm volatile("shld $0x1,%r12,(%rax),%r31");
+	asm volatile("shld $0x2,%r15d,(%rax),%r31d");
+	asm volatile("shld $0x2,%r8w,%r12w,%r31w");
+	asm volatile("shld %cl,%r12,%r16,%r8");
+	asm volatile("shld %cl,%r13w,(%r19,%rax,4),%r31w");
+	asm volatile("shld %cl,%r9w,(%rax),%r31w");
+	asm volatile("shll $0x2,(%rax),%r31d");
+	asm volatile("shll $0x2,(%rax),%r31d");
+	asm volatile("shlw $0x1,(%rax),%r31w");
+	asm volatile("shlw $0x1,(%rax),%r31w");
+	asm volatile("shlw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("shlw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("shr $0x2,%r12b,%r31b");
+	asm volatile("shr %cl,%r16b,%r8b");
+	asm volatile("shrb $0x1,(%rax),%r31b");
+	asm volatile("shrd $0x1,%r12,(%rax),%r31");
+	asm volatile("shrd $0x2,%r15d,(%rax),%r31d");
+	asm volatile("shrd $0x2,%r8w,%r12w,%r31w");
+	asm volatile("shrd %cl,%r12,%r16,%r8");
+	asm volatile("shrd %cl,%r13w,(%r19,%rax,4),%r31w");
+	asm volatile("shrd %cl,%r9w,(%rax),%r31w");
+	asm volatile("shrl $0x2,(%rax),%r31d");
+	asm volatile("shrw $0x1,(%rax),%r31w");
+	asm volatile("shrw %cl,(%r19,%rax,4),%r31w");
+	asm volatile("sub $0x1234,%ax,%r30w");
+	asm volatile("sub %r15b,%r17b,%r18b");
+	asm volatile("sub %r15d,(%r8),%r18d");
+	asm volatile("sub (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("sub (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("subl $0x11,(%r19,%rax,4),%r20d");
+	asm volatile("xor $0x1234,%ax,%r30w");
+	asm volatile("xor %r15b,%r17b,%r18b");
+	asm volatile("xor %r15d,(%r8),%r18d");
+	asm volatile("xor (%r15,%rax,1),%r16b,%r8b");
+	asm volatile("xor (%r15,%rax,1),%r16w,%r8w");
+	asm volatile("xorl $0x11,(%r19,%rax,4),%r20d");
+
+	/* APX suppress status flags */
+
+	asm volatile("{nf} add %bl,%dl,%r8b");
+	asm volatile("{nf} add %dx,%ax,%r9w");
+	asm volatile("{nf} add 0x123(%r8,%rax,4),%bl,%dl");
+	asm volatile("{nf} add 0x123(%r8,%rax,4),%dx,%ax");
+	asm volatile("{nf} or %bl,%dl,%r8b");
+	asm volatile("{nf} or %dx,%ax,%r9w");
+	asm volatile("{nf} or 0x123(%r8,%rax,4),%bl,%dl");
+	asm volatile("{nf} or 0x123(%r8,%rax,4),%dx,%ax");
+	asm volatile("{nf} and %bl,%dl,%r8b");
+	asm volatile("{nf} and %dx,%ax,%r9w");
+	asm volatile("{nf} and 0x123(%r8,%rax,4),%bl,%dl");
+	asm volatile("{nf} and 0x123(%r8,%rax,4),%dx,%ax");
+	asm volatile("{nf} shld $0x7b,%dx,%ax,%r9w");
+	asm volatile("{nf} sub %bl,%dl,%r8b");
+	asm volatile("{nf} sub %dx,%ax,%r9w");
+	asm volatile("{nf} sub 0x123(%r8,%rax,4),%bl,%dl");
+	asm volatile("{nf} sub 0x123(%r8,%rax,4),%dx,%ax");
+	asm volatile("{nf} shrd $0x7b,%dx,%ax,%r9w");
+	asm volatile("{nf} xor %bl,%dl,%r8b");
+	asm volatile("{nf} xor %r31,%r31");
+	asm volatile("{nf} xor 0x123(%r8,%rax,4),%bl,%dl");
+	asm volatile("{nf} xor 0x123(%r8,%rax,4),%dx,%ax");
+	asm volatile("{nf} imul $0xff90,%r9,%r15");
+	asm volatile("{nf} imul $0x7b,%r9,%r15");
+	asm volatile("{nf} xor $0x7b,%bl,%dl");
+	asm volatile("{nf} xor $0x7b,%dx,%ax");
+	asm volatile("{nf} popcnt %r9,%r31");
+	asm volatile("{nf} shld %cl,%dx,%ax,%r9w");
+	asm volatile("{nf} shrd %cl,%dx,%ax,%r9w");
+	asm volatile("{nf} imul %r9,%r31,%r11");
+	asm volatile("{nf} sar $0x7b,%bl,%dl");
+	asm volatile("{nf} sar $0x7b,%dx,%ax");
+	asm volatile("{nf} sar $1,%bl,%dl");
+	asm volatile("{nf} sar $1,%dx,%ax");
+	asm volatile("{nf} sar %cl,%bl,%dl");
+	asm volatile("{nf} sar %cl,%dx,%ax");
+	asm volatile("{nf} andn %r9,%r31,%r11");
+	asm volatile("{nf} blsi %r9,%r31");
+	asm volatile("{nf} tzcnt %r9,%r31");
+	asm volatile("{nf} lzcnt %r9,%r31");
+	asm volatile("{nf} idiv %bl");
+	asm volatile("{nf} idiv %dx");
+	asm volatile("{nf} dec %bl,%dl");
+	asm volatile("{nf} dec %dx,%ax");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bound r32, mem (same op code as EVEX prefix) */
@@ -4847,6 +5353,97 @@ int main(void)
 	asm volatile("vucomish 0x12345678(%eax,%ecx,8), %xmm1");
 
 #endif /* #ifndef __x86_64__ */
+
+	/* Key Locker */
+
+	asm volatile("	loadiwkey %xmm1, %xmm2");
+	asm volatile("	encodekey128 %eax, %edx");
+	asm volatile("	encodekey256 %eax, %edx");
+	asm volatile("	aesenc128kl 0x77(%edx), %xmm3");
+	asm volatile("	aesenc256kl 0x77(%edx), %xmm3");
+	asm volatile("	aesdec128kl 0x77(%edx), %xmm3");
+	asm volatile("	aesdec256kl 0x77(%edx), %xmm3");
+	asm volatile("	aesencwide128kl	0x77(%edx)");
+	asm volatile("	aesencwide256kl	0x77(%edx)");
+	asm volatile("	aesdecwide128kl	0x77(%edx)");
+	asm volatile("	aesdecwide256kl	0x77(%edx)");
+
+	/* Remote Atomic Operations */
+
+	asm volatile("aadd %ecx,(%eax)");
+	asm volatile("aadd %edx,(0x12345678)");
+	asm volatile("aadd %edx,0x12345678(%eax,%ecx,8)");
+
+	asm volatile("aand %ecx,(%eax)");
+	asm volatile("aand %edx,(0x12345678)");
+	asm volatile("aand %edx,0x12345678(%eax,%ecx,8)");
+
+	asm volatile("aor %ecx,(%eax)");
+	asm volatile("aor %edx,(0x12345678)");
+	asm volatile("aor %edx,0x12345678(%eax,%ecx,8)");
+
+	asm volatile("axor %ecx,(%eax)");
+	asm volatile("axor %edx,(0x12345678)");
+	asm volatile("axor %edx,0x12345678(%eax,%ecx,8)");
+
+	/* AVX NE Convert */
+
+	asm volatile("vbcstnebf162ps (%ecx),%xmm6");
+	asm volatile("vbcstnesh2ps (%ecx),%xmm6");
+	asm volatile("vcvtneebf162ps (%ecx),%xmm6");
+	asm volatile("vcvtneeph2ps (%ecx),%xmm6");
+	asm volatile("vcvtneobf162ps (%ecx),%xmm6");
+	asm volatile("vcvtneoph2ps (%ecx),%xmm6");
+	asm volatile("vcvtneps2bf16 %xmm1,%xmm6");
+
+	/* AVX VNNI INT16 */
+
+	asm volatile("vpdpbssd %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpbssds %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpbsud %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpbsuds %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpbuud %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpbuuds %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwsud %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwsuds %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwusd %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwusds %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwuud %xmm1,%xmm2,%xmm3");
+	asm volatile("vpdpwuuds %xmm1,%xmm2,%xmm3");
+
+	/* AVX IFMA */
+
+	asm volatile("vpmadd52huq %xmm1,%xmm2,%xmm3");
+	asm volatile("vpmadd52luq %xmm1,%xmm2,%xmm3");
+
+	/* AVX SHA512 */
+
+	asm volatile("vsha512msg1 %xmm1,%ymm2");
+	asm volatile("vsha512msg2 %ymm1,%ymm2");
+	asm volatile("vsha512rnds2 %xmm1,%ymm2,%ymm3");
+
+	/* AVX SM3 */
+
+	asm volatile("vsm3msg1 %xmm1,%xmm2,%xmm3");
+	asm volatile("vsm3msg2 %xmm1,%xmm2,%xmm3");
+	asm volatile("vsm3rnds2 $0xa1,%xmm1,%xmm2,%xmm3");
+
+	/* AVX SM4 */
+
+	asm volatile("vsm4key4 %xmm1,%xmm2,%xmm3");
+	asm volatile("vsm4rnds4 %xmm1,%xmm2,%xmm3");
+
+	/* Pre-fetch */
+
+	asm volatile("prefetch (%eax)");
+	asm volatile("prefetcht0 (%eax)");
+	asm volatile("prefetcht1 (%eax)");
+	asm volatile("prefetcht2 (%eax)");
+	asm volatile("prefetchnta (%eax)");
+
+	/* Non-serializing write MSR */
+
+	asm volatile("wrmsrns");
 
 	/* Prediction history reset */
 

@@ -237,7 +237,6 @@ static int smu_dpm_set_vcn_enable(struct smu_context *smu,
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
 	/*
@@ -253,7 +252,7 @@ static int smu_dpm_set_vcn_enable(struct smu_context *smu,
 		return 0;
 
 	ret = smu->ppt_funcs->dpm_set_vcn_enable(smu, enable);
-	if (!ret && !adev->enable_jpeg_test)
+	if (!ret)
 		atomic_set(&power_gate->vcn_gated, !enable);
 
 	return ret;
@@ -321,6 +320,18 @@ static int smu_dpm_set_umsch_mm_enable(struct smu_context *smu,
 	ret = smu->ppt_funcs->dpm_set_umsch_mm_enable(smu, enable);
 	if (!ret)
 		atomic_set(&power_gate->umsch_mm_gated, !enable);
+
+	return ret;
+}
+
+static int smu_set_mall_enable(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (!smu->ppt_funcs->set_mall_enable)
+		return 0;
+
+	ret = smu->ppt_funcs->set_mall_enable(smu);
 
 	return ret;
 }
@@ -716,6 +727,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 4):
 		smu_v14_0_0_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(14, 0, 2):
@@ -1743,6 +1755,8 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
+	smu->smc_fw_state = SMU_FW_INIT;
+
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		if (amdgpu_ip_version(adev, MP1_HWIP, 0) < IP_VERSION(11, 0, 0)) {
 			if (smu->ppt_funcs->load_microcode) {
@@ -1804,6 +1818,7 @@ static int smu_hw_init(void *handle)
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_dpm_set_vpe_enable(smu, true);
 		smu_dpm_set_umsch_mm_enable(smu, true);
+		smu_set_mall_enable(smu);
 		smu_set_gfx_cgpg(smu, true);
 	}
 
@@ -1909,20 +1924,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 	}
 
 	/*
-	 * For SMU 13.0.4/11 and 14.0.0, PMFW will handle the features disablement properly
+	 * For GFX11 and subsequent APUs, PMFW will handle the features disablement properly
 	 * for gpu reset and S0i3 cases. Driver involvement is unnecessary.
 	 */
-	if (amdgpu_in_reset(adev) || adev->in_s0ix) {
-		switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-		case IP_VERSION(13, 0, 4):
-		case IP_VERSION(13, 0, 11):
-		case IP_VERSION(14, 0, 0):
-		case IP_VERSION(14, 0, 1):
-			return 0;
-		default:
-			break;
-		}
-	}
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, GC_HWIP, 0)) >= 11 &&
+	    smu->is_apu && (amdgpu_in_reset(adev) || adev->in_s0ix))
+		return 0;
 
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,

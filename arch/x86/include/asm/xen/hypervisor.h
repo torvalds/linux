@@ -62,11 +62,6 @@ void xen_arch_unregister_cpu(int num);
 #ifdef CONFIG_PVH
 void __init xen_pvh_init(struct boot_params *boot_params);
 void __init mem_map_via_hcall(struct boot_params *boot_params_p);
-#ifdef CONFIG_XEN_PVH
-void __init xen_reserve_extra_memory(struct boot_params *bootp);
-#else
-static inline void xen_reserve_extra_memory(struct boot_params *bootp) { }
-#endif
 #endif
 
 /* Lazy mode for batching updates / context switch */

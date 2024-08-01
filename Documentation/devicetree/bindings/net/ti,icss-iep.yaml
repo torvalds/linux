@@ -28,6 +28,15 @@ properties:
     maxItems: 1
     description: phandle to the IEP source clock
 
+  interrupts:
+    maxItems: 1
+    description:
+      Interrupt specifier for capture/compare IRQ.
+
+  interrupt-names:
+    items:
+      - const: iep_cap_cmp
+
 required:
   - compatible
   - reg

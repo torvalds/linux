@@ -320,6 +320,12 @@ static inline bool mlx5_core_is_sf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_SF;
 }
 
+static inline struct auxiliary_device *
+mlx5_sf_coredev_to_adev(struct mlx5_core_dev *mdev)
+{
+	return container_of(mdev->device, struct auxiliary_device, dev);
+}
+
 int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx);
 void mlx5_mdev_uninit(struct mlx5_core_dev *dev);
 int mlx5_init_one(struct mlx5_core_dev *dev);
@@ -383,4 +389,14 @@ static inline int mlx5_vport_to_func_id(const struct mlx5_core_dev *dev, u16 vpo
 			  : vport;
 }
 
+static inline int mlx5_max_eq_cap_get(const struct mlx5_core_dev *dev)
+{
+	if (MLX5_CAP_GEN_2(dev, max_num_eqs_24b))
+		return MLX5_CAP_GEN_2(dev, max_num_eqs_24b);
+
+	if (MLX5_CAP_GEN(dev, max_num_eqs))
+		return MLX5_CAP_GEN(dev, max_num_eqs);
+
+	return 1 << MLX5_CAP_GEN(dev, log_max_eq);
+}
 #endif /* __MLX5_CORE_H__ */

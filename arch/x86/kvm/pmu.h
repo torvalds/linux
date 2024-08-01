@@ -14,7 +14,8 @@
 					  MSR_IA32_MISC_ENABLE_BTS_UNAVAIL)
 
 /* retrieve the 4 bits for EN and PMI out of IA32_FIXED_CTR_CTRL */
-#define fixed_ctrl_field(ctrl_reg, idx) (((ctrl_reg) >> ((idx)*4)) & 0xf)
+#define fixed_ctrl_field(ctrl_reg, idx) \
+	(((ctrl_reg) >> ((idx) * INTEL_FIXED_BITS_STRIDE)) & INTEL_FIXED_BITS_MASK)
 
 #define VMWARE_BACKDOOR_PMC_HOST_TSC		0x10000
 #define VMWARE_BACKDOOR_PMC_REAL_TIME		0x10001
@@ -129,7 +130,7 @@ static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 						 u64 data)
 {
-	return !(pmu->global_ctrl_mask & data);
+	return !(pmu->global_ctrl_rsvd & data);
 }
 
 /* returns general purpose PMC with the specified MSR. Note that it can be
@@ -170,7 +171,8 @@ static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)
 
 	if (pmc_is_fixed(pmc))
 		return fixed_ctrl_field(pmu->fixed_ctr_ctrl,
-					pmc->idx - KVM_FIXED_PMC_BASE_IDX) & 0x3;
+					pmc->idx - KVM_FIXED_PMC_BASE_IDX) &
+					(INTEL_FIXED_0_KERNEL | INTEL_FIXED_0_USER);
 
 	return pmc->eventsel & ARCH_PERFMON_EVENTSEL_ENABLE;
 }
@@ -217,7 +219,7 @@ static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
 	kvm_pmu_cap.num_counters_gp = min(kvm_pmu_cap.num_counters_gp,
 					  pmu_ops->MAX_NR_GP_COUNTERS);
 	kvm_pmu_cap.num_counters_fixed = min(kvm_pmu_cap.num_counters_fixed,
-					     KVM_PMC_MAX_FIXED);
+					     KVM_MAX_NR_FIXED_COUNTERS);
 
 	kvm_pmu_eventsel.INSTRUCTIONS_RETIRED =
 		perf_get_hw_event_config(PERF_COUNT_HW_INSTRUCTIONS);

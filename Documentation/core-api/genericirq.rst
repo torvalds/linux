@@ -210,7 +210,7 @@ implemented (simplified excerpt)::
         }
     }
 
-    noop(struct irq_data *data))
+    noop(struct irq_data *data)
     {
     }
 
@@ -409,6 +409,8 @@ which are used in the generic IRQ layer.
 
 .. kernel-doc:: include/linux/interrupt.h
    :internal:
+
+.. kernel-doc:: include/linux/irqdomain.h
 
 Public Functions Provided
 =========================

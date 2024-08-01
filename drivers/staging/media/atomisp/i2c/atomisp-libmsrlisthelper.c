@@ -207,4 +207,5 @@ module_init(init_msrlisthelper);
 module_exit(exit_msrlisthelper);
 
 MODULE_AUTHOR("Jukka Kaartinen <jukka.o.kaartinen@intel.com>");
+MODULE_DESCRIPTION("Helper library to load, parse and apply large register lists");
 MODULE_LICENSE("GPL");

@@ -90,7 +90,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 
 	GEM_BUG_ON(!max_segment);
 
-	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
+	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL | __GFP_NOWARN);
 	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -104,7 +104,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 	}
 
 	if (sg_alloc_table(st, DIV_ROUND_UP_ULL(node->size, segment_pages),
-			   GFP_KERNEL)) {
+			   GFP_KERNEL | __GFP_NOWARN)) {
 		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -178,7 +178,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 	GEM_BUG_ON(list_empty(blocks));
 	GEM_BUG_ON(!max_segment);
 
-	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
+	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL | __GFP_NOWARN);
 	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -190,7 +190,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 		return ERR_PTR(-E2BIG);
 	}
 
-	if (sg_alloc_table(st, PFN_UP(res->size), GFP_KERNEL)) {
+	if (sg_alloc_table(st, PFN_UP(res->size), GFP_KERNEL | __GFP_NOWARN)) {
 		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-ENOMEM);
 	}

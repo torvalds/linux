@@ -232,6 +232,7 @@ static DEFINE_MUTEX(amiflop_mutex);
 static unsigned long int fd_def_df0 = FD_DD_3;     /* default for df0 if it doesn't identify */
 
 module_param(fd_def_df0, ulong, 0);
+MODULE_DESCRIPTION("Amiga floppy driver");
 MODULE_LICENSE("GPL");
 
 /*
@@ -1776,10 +1777,13 @@ static const struct blk_mq_ops amiflop_mq_ops = {
 
 static int fd_alloc_disk(int drive, int system)
 {
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	struct gendisk *disk;
 	int err;
 
-	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL, NULL);
+	disk = blk_mq_alloc_disk(&unit[drive].tag_set, &lim, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 

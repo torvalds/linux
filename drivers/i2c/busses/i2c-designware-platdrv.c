@@ -101,7 +101,7 @@ static int bt1_i2c_write(void *context, unsigned int reg, unsigned int val)
 		BT1_I2C_CTL_GO | BT1_I2C_CTL_WR | (reg & BT1_I2C_CTL_ADDR_MASK));
 }
 
-static struct regmap_config bt1_i2c_cfg = {
+static const struct regmap_config bt1_i2c_cfg = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

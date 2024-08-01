@@ -53,7 +53,7 @@ typedef void (bh_end_io_t)(struct buffer_head *bh, int uptodate);
  * filesystem and block layers.  Nowadays the basic I/O unit
  * is the bio, and buffer_heads are used for extracting block
  * mappings (via a get_block_t call), for tracking state within
- * a page (via a page_mapping) and for wrapping bio submission
+ * a folio (via a folio_mapping) and for wrapping bio submission
  * for backward compatibility reasons (e.g. submit_bh).
  */
 struct buffer_head {

@@ -583,8 +583,8 @@ static int apds9306_intg_time_set(struct apds9306_data *data, int val2)
 		return ret;
 
 	intg_old = iio_gts_find_int_time_by_sel(&data->gts, intg_time_idx);
-	if (ret < 0)
-		return ret;
+	if (intg_old < 0)
+		return intg_old;
 
 	if (intg_old == val2)
 		return 0;

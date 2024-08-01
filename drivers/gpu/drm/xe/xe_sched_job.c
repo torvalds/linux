@@ -363,3 +363,9 @@ xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot,
 	for (i = 0; i < snapshot->batch_addr_len; i++)
 		drm_printf(p, "batch_addr[%u]: 0x%016llx\n", i, snapshot->batch_addr[i]);
 }
+
+int xe_sched_job_add_deps(struct xe_sched_job *job, struct dma_resv *resv,
+			  enum dma_resv_usage usage)
+{
+	return drm_sched_job_add_resv_dependencies(&job->drm, resv, usage);
+}

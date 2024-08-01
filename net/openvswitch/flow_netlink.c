@@ -64,6 +64,7 @@ static bool actions_may_change_flow(const struct nlattr *actions)
 		case OVS_ACTION_ATTR_TRUNC:
 		case OVS_ACTION_ATTR_USERSPACE:
 		case OVS_ACTION_ATTR_DROP:
+		case OVS_ACTION_ATTR_PSAMPLE:
 			break;
 
 		case OVS_ACTION_ATTR_CT:
@@ -2409,7 +2410,7 @@ static void ovs_nla_free_nested_actions(const struct nlattr *actions, int len)
 	/* Whenever new actions are added, the need to update this
 	 * function should be considered.
 	 */
-	BUILD_BUG_ON(OVS_ACTION_ATTR_MAX != 24);
+	BUILD_BUG_ON(OVS_ACTION_ATTR_MAX != 25);
 
 	if (!actions)
 		return;
@@ -3157,6 +3158,28 @@ static int validate_and_copy_check_pkt_len(struct net *net,
 	return 0;
 }
 
+static int validate_psample(const struct nlattr *attr)
+{
+	static const struct nla_policy policy[OVS_PSAMPLE_ATTR_MAX + 1] = {
+		[OVS_PSAMPLE_ATTR_GROUP] = { .type = NLA_U32 },
+		[OVS_PSAMPLE_ATTR_COOKIE] = {
+			.type = NLA_BINARY,
+			.len = OVS_PSAMPLE_COOKIE_MAX_SIZE,
+		},
+	};
+	struct nlattr *a[OVS_PSAMPLE_ATTR_MAX + 1];
+	int err;
+
+	if (!IS_ENABLED(CONFIG_PSAMPLE))
+		return -EOPNOTSUPP;
+
+	err = nla_parse_nested(a, OVS_PSAMPLE_ATTR_MAX, attr, policy, NULL);
+	if (err)
+		return err;
+
+	return a[OVS_PSAMPLE_ATTR_GROUP] ? 0 : -EINVAL;
+}
+
 static int copy_action(const struct nlattr *from,
 		       struct sw_flow_actions **sfa, bool log)
 {
@@ -3212,6 +3235,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_ADD_MPLS] = sizeof(struct ovs_action_add_mpls),
 			[OVS_ACTION_ATTR_DEC_TTL] = (u32)-1,
 			[OVS_ACTION_ATTR_DROP] = sizeof(u32),
+			[OVS_ACTION_ATTR_PSAMPLE] = (u32)-1,
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -3488,6 +3512,12 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 		case OVS_ACTION_ATTR_DROP:
 			if (!nla_is_last(a, rem))
 				return -EINVAL;
+			break;
+
+		case OVS_ACTION_ATTR_PSAMPLE:
+			err = validate_psample(a);
+			if (err)
+				return err;
 			break;
 
 		default:

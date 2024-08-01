@@ -47,9 +47,9 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x0>;
+		reg = <0x80000000 0>;
 	};
 
 	cpu-pmu {
@@ -129,7 +129,6 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-msm8960";
 			#clock-cells = <1>;
-			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 			clocks = <&cxo_board>,

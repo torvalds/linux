@@ -74,7 +74,7 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 			return USER_FAULT;
 		if (!IS_ENABLED(CONFIG_PGSTE))
 			return KERNEL_FAULT;
-		gmap = (struct gmap *)S390_lowcore.gmap;
+		gmap = (struct gmap *)get_lowcore()->gmap;
 		if (gmap && gmap->asce == regs->cr1)
 			return GMAP_FAULT;
 		return KERNEL_FAULT;
@@ -182,15 +182,15 @@ static void dump_fault_info(struct pt_regs *regs)
 	pr_cont("mode while using ");
 	switch (get_fault_type(regs)) {
 	case USER_FAULT:
-		asce = S390_lowcore.user_asce.val;
+		asce = get_lowcore()->user_asce.val;
 		pr_cont("user ");
 		break;
 	case GMAP_FAULT:
-		asce = ((struct gmap *)S390_lowcore.gmap)->asce;
+		asce = ((struct gmap *)get_lowcore()->gmap)->asce;
 		pr_cont("gmap ");
 		break;
 	case KERNEL_FAULT:
-		asce = S390_lowcore.kernel_asce.val;
+		asce = get_lowcore()->kernel_asce.val;
 		pr_cont("kernel ");
 		break;
 	default:
@@ -351,7 +351,7 @@ lock_mmap:
 	mmap_read_lock(mm);
 	gmap = NULL;
 	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
-		gmap = (struct gmap *)S390_lowcore.gmap;
+		gmap = (struct gmap *)get_lowcore()->gmap;
 		current->thread.gmap_addr = address;
 		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
@@ -433,12 +433,13 @@ error:
 			handle_fault_error_nolock(regs, 0);
 		else
 			do_sigsegv(regs, SEGV_MAPERR);
-	} else if (fault & VM_FAULT_SIGBUS) {
+	} else if (fault & (VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)) {
 		if (!user_mode(regs))
 			handle_fault_error_nolock(regs, 0);
 		else
 			do_sigbus(regs);
 	} else {
+		pr_emerg("Unexpected fault flags: %08x\n", fault);
 		BUG();
 	}
 }
@@ -492,6 +493,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 	unsigned long addr = get_fault_address(regs);
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
+	struct folio *folio;
 	struct page *page;
 	struct gmap *gmap;
 	int rc;
@@ -521,7 +523,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 	switch (get_fault_type(regs)) {
 	case GMAP_FAULT:
 		mm = current->mm;
-		gmap = (struct gmap *)S390_lowcore.gmap;
+		gmap = (struct gmap *)get_lowcore()->gmap;
 		mmap_read_lock(mm);
 		addr = __gmap_translate(gmap, addr);
 		mmap_read_unlock(mm);
@@ -539,17 +541,18 @@ void do_secure_storage_access(struct pt_regs *regs)
 			mmap_read_unlock(mm);
 			break;
 		}
-		if (arch_make_page_accessible(page))
+		folio = page_folio(page);
+		if (arch_make_folio_accessible(folio))
 			send_sig(SIGSEGV, current, 0);
-		put_page(page);
+		folio_put(folio);
 		mmap_read_unlock(mm);
 		break;
 	case KERNEL_FAULT:
-		page = phys_to_page(addr);
-		if (unlikely(!try_get_page(page)))
+		folio = phys_to_folio(addr);
+		if (unlikely(!folio_try_get(folio)))
 			break;
-		rc = arch_make_page_accessible(page);
-		put_page(page);
+		rc = arch_make_folio_accessible(folio);
+		folio_put(folio);
 		if (rc)
 			BUG();
 		break;
@@ -561,7 +564,7 @@ NOKPROBE_SYMBOL(do_secure_storage_access);
 
 void do_non_secure_storage_access(struct pt_regs *regs)
 {
-	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
 	unsigned long gaddr = get_fault_address(regs);
 
 	if (WARN_ON_ONCE(get_fault_type(regs) != GMAP_FAULT))
@@ -573,7 +576,7 @@ NOKPROBE_SYMBOL(do_non_secure_storage_access);
 
 void do_secure_storage_violation(struct pt_regs *regs)
 {
-	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
 	unsigned long gaddr = get_fault_address(regs);
 
 	/*

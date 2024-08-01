@@ -2308,4 +2308,5 @@ static void __exit sony_exit(void)
 module_init(sony_init);
 module_exit(sony_exit);
 
+MODULE_DESCRIPTION("HID driver for Sony / PS2 / PS3 / PS4 BD devices");
 MODULE_LICENSE("GPL");

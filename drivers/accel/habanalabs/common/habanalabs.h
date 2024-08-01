@@ -71,7 +71,7 @@ struct hl_fpriv;
 
 #define HL_DEVICE_TIMEOUT_USEC		1000000 /* 1 s */
 
-#define HL_HEARTBEAT_PER_USEC		5000000 /* 5 s */
+#define HL_HEARTBEAT_PER_USEC		10000000 /* 10 s */
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
@@ -651,6 +651,8 @@ struct hl_hints_range {
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
  * @reserved_fw_mem_size: size of dram memory reserved for FW.
+ * @fw_event_queue_size: queue size for events from CPU-CP.
+ *                       A value of 0 means using the default HL_EQ_SIZE_IN_BYTES value.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -782,6 +784,7 @@ struct asic_fixed_properties {
 	u32				glbl_err_max_cause_num;
 	u32				hbw_flush_reg;
 	u32				reserved_fw_mem_size;
+	u32				fw_event_queue_size;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -899,6 +902,18 @@ struct hl_mem_mgr {
 	struct device *dev;
 	spinlock_t lock;
 	struct idr handles;
+};
+
+/**
+ * struct hl_mem_mgr_fini_stats - describes statistics returned during memory manager teardown.
+ * @n_busy_cb: the amount of CB handles that could not be removed
+ * @n_busy_ts: the amount of TS handles that could not be removed
+ * @n_busy_other: the amount of any other type of handles that could not be removed
+ */
+struct hl_mem_mgr_fini_stats {
+	u32 n_busy_cb;
+	u32 n_busy_ts;
+	u32 n_busy_other;
 };
 
 /**
@@ -1229,6 +1244,7 @@ struct hl_user_pending_interrupt {
  * @hdev: pointer to the device structure
  * @kernel_address: holds the queue's kernel virtual address
  * @bus_address: holds the queue's DMA address
+ * @size: the event queue size
  * @ci: ci inside the queue
  * @prev_eqe_index: the index of the previous event queue entry. The index of
  *                  the current entry's index must be +1 of the previous one.
@@ -1240,6 +1256,7 @@ struct hl_eq {
 	struct hl_device	*hdev;
 	void			*kernel_address;
 	dma_addr_t		bus_address;
+	u32			size;
 	u32			ci;
 	u32			prev_eqe_index;
 	bool			check_eqe_index;
@@ -1268,15 +1285,18 @@ struct hl_dec {
  * @ASIC_GAUDI2: Gaudi2 device.
  * @ASIC_GAUDI2B: Gaudi2B device.
  * @ASIC_GAUDI2C: Gaudi2C device.
+ * @ASIC_GAUDI2D: Gaudi2D device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
+
 	ASIC_GOYA,
 	ASIC_GAUDI,
 	ASIC_GAUDI_SEC,
 	ASIC_GAUDI2,
 	ASIC_GAUDI2B,
 	ASIC_GAUDI2C,
+	ASIC_GAUDI2D,
 };
 
 struct hl_cs_parser;
@@ -2709,11 +2729,16 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * updated directly by the device. If false, the host memory being polled will
  * be updated by host CPU. Required so host knows whether or not the memory
  * might need to be byte-swapped before returning value to caller.
+ *
+ * On the first 4 polling iterations the macro goes to sleep for short period of
+ * time that gradually increases and reaches sleep_us on the fifth iteration.
  */
 #define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
 				mem_written_by_device) \
 ({ \
+	u64 __sleep_step_us; \
 	ktime_t __timeout; \
+	u8 __step = 8; \
 	\
 	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
@@ -2731,8 +2756,10 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				(val) = le32_to_cpu(*(__le32 *) &(val)); \
 			break; \
 		} \
-		if (sleep_us) \
-			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+		__sleep_step_us = sleep_us >> __step; \
+		if (__sleep_step_us) \
+			usleep_range((__sleep_step_us >> 2) + 1, __sleep_step_us); \
+		__step >>= 1; \
 	} \
 	(cond) ? 0 : -ETIMEDOUT; \
 })
@@ -3175,6 +3202,21 @@ struct hl_reset_info {
 };
 
 /**
+ * struct eq_heartbeat_debug_info - stores debug info to be used upon heartbeat failure.
+ * @last_pq_heartbeat_ts: timestamp of the last test packet that was sent to FW.
+ *                        This packet is the trigger in FW to send the EQ heartbeat event.
+ * @last_eq_heartbeat_ts: timestamp of the last EQ heartbeat event that was received from FW.
+ * @heartbeat_event_counter: number of heartbeat events received.
+ * @cpu_queue_id: used to read the queue pi/ci
+ */
+struct eq_heartbeat_debug_info {
+	time64_t last_pq_heartbeat_ts;
+	time64_t last_eq_heartbeat_ts;
+	u32 heartbeat_event_counter;
+	u32 cpu_queue_id;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -3262,6 +3304,7 @@ struct hl_reset_info {
  * @clk_throttling: holds information about current/previous clock throttling events
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
+ * @heartbeat_debug_info: counters used to debug heartbeat failures.
  * @irq_affinity_mask: mask of available CPU cores for user and decoder interrupt handling.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
@@ -3452,6 +3495,8 @@ struct hl_device {
 
 	struct hl_reset_info		reset_info;
 
+	struct eq_heartbeat_debug_info	heartbeat_debug_info;
+
 	cpumask_t			irq_affinity_mask;
 
 	u32				*stream_master_qid_arr;
@@ -3596,25 +3641,6 @@ struct hl_ioctl_desc {
 	hl_ioctl_t *func;
 };
 
-static inline bool hl_is_fw_sw_ver_below(struct hl_device *hdev, u32 fw_sw_major, u32 fw_sw_minor)
-{
-	if (hdev->fw_sw_major_ver < fw_sw_major)
-		return true;
-	if (hdev->fw_sw_major_ver > fw_sw_major)
-		return false;
-	if (hdev->fw_sw_minor_ver < fw_sw_minor)
-		return true;
-	return false;
-}
-
-static inline bool hl_is_fw_sw_ver_equal_or_greater(struct hl_device *hdev, u32 fw_sw_major,
-							u32 fw_sw_minor)
-{
-	return (hdev->fw_sw_major_ver > fw_sw_major ||
-			(hdev->fw_sw_major_ver == fw_sw_major &&
-					hdev->fw_sw_minor_ver >= fw_sw_minor));
-}
-
 /*
  * Kernel module functions that can be accessed by entire module
  */
@@ -3740,6 +3766,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q);
 void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q);
 void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q);
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q);
+void hl_eq_dump(struct hl_device *hdev, struct hl_eq *q);
 irqreturn_t hl_irq_handler_cq(int irq, void *arg);
 irqreturn_t hl_irq_handler_eq(int irq, void *arg);
 irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg);
@@ -3919,6 +3946,7 @@ void hl_mmu_dr_flush(struct hl_ctx *ctx);
 int hl_mmu_dr_init(struct hl_device *hdev);
 void hl_mmu_dr_fini(struct hl_device *hdev);
 
+int hl_fw_version_cmp(struct hl_device *hdev, u32 major, u32 minor, u32 subminor);
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);
 int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode, u64 value);
@@ -4033,7 +4061,7 @@ char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
 const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
 
 void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg);
-void hl_mem_mgr_fini(struct hl_mem_mgr *mmg);
+void hl_mem_mgr_fini(struct hl_mem_mgr *mmg, struct hl_mem_mgr_fini_stats *stats);
 void hl_mem_mgr_idr_destroy(struct hl_mem_mgr *mmg);
 int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 		    void *args);
@@ -4059,6 +4087,8 @@ void hl_capture_engine_err(struct hl_device *hdev, u16 engine_id, u16 error_coun
 void hl_enable_err_info_capture(struct hl_error_info *captured_err_info);
 void hl_init_cpu_for_irq(struct hl_device *hdev);
 void hl_set_irq_affinity(struct hl_device *hdev, int irq);
+void hl_eq_heartbeat_event_handle(struct hl_device *hdev);
+void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *event_mask);
 
 #ifdef CONFIG_DEBUG_FS
 

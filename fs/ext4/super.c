@@ -1327,6 +1327,9 @@ static void ext4_put_super(struct super_block *sb)
 
 	ext4_group_desc_free(sbi);
 	ext4_flex_groups_free(sbi);
+
+	WARN_ON_ONCE(!(sbi->s_mount_state & EXT4_ERROR_FS) &&
+		     percpu_counter_sum(&sbi->s_dirtyclusters_counter));
 	ext4_percpu_param_destroy(sbi);
 #ifdef CONFIG_QUOTA
 	for (int i = 0; i < EXT4_MAXQUOTAS; i++)
@@ -1457,7 +1460,8 @@ static void ext4_destroy_inode(struct inode *inode)
 		dump_stack();
 	}
 
-	if (EXT4_I(inode)->i_reserved_data_blocks)
+	if (!(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ERROR_FS) &&
+	    WARN_ON_ONCE(EXT4_I(inode)->i_reserved_data_blocks))
 		ext4_msg(inode->i_sb, KERN_ERR,
 			 "Inode %lu (%p): i_reserved_data_blocks (%u) not cleared!",
 			 inode->i_ino, EXT4_I(inode),
@@ -1721,8 +1725,8 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 	fsparam_flag	("bsdgroups",		Opt_grpid),
 	fsparam_flag	("nogrpid",		Opt_nogrpid),
 	fsparam_flag	("sysvgroups",		Opt_nogrpid),
-	fsparam_u32	("resgid",		Opt_resgid),
-	fsparam_u32	("resuid",		Opt_resuid),
+	fsparam_gid	("resgid",		Opt_resgid),
+	fsparam_uid	("resuid",		Opt_resuid),
 	fsparam_u32	("sb",			Opt_sb),
 	fsparam_enum	("errors",		Opt_errors, ext4_param_errors),
 	fsparam_flag	("nouid32",		Opt_nouid32),
@@ -2127,8 +2131,6 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	const struct mount_opts *m;
 	int is_remount;
-	kuid_t uid;
-	kgid_t gid;
 	int token;
 
 	token = fs_parse(fc, ext4_param_specs, param, &result);
@@ -2270,23 +2272,11 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx->spec |= EXT4_SPEC_s_stripe;
 		return 0;
 	case Opt_resuid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid)) {
-			ext4_msg(NULL, KERN_ERR, "Invalid uid value %d",
-				 result.uint_32);
-			return -EINVAL;
-		}
-		ctx->s_resuid = uid;
+		ctx->s_resuid = result.uid;
 		ctx->spec |= EXT4_SPEC_s_resuid;
 		return 0;
 	case Opt_resgid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid)) {
-			ext4_msg(NULL, KERN_ERR, "Invalid gid value %d",
-				 result.uint_32);
-			return -EINVAL;
-		}
-		ctx->s_resgid = gid;
+		ctx->s_resgid = result.gid;
 		ctx->spec |= EXT4_SPEC_s_resgid;
 		return 0;
 	case Opt_journal_dev:
@@ -3586,14 +3576,12 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
 		return 0;
 	}
 
-#if !IS_ENABLED(CONFIG_UNICODE)
-	if (ext4_has_feature_casefold(sb)) {
+	if (!IS_ENABLED(CONFIG_UNICODE) && ext4_has_feature_casefold(sb)) {
 		ext4_msg(sb, KERN_ERR,
 			 "Filesystem with casefold feature cannot be "
 			 "mounted without CONFIG_UNICODE");
 		return 0;
 	}
-#endif
 
 	if (readonly)
 		return 1;

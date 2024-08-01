@@ -102,7 +102,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);
 
-	if (!tcb_desc->bHwSec) {
+	if (!tcb_desc->hw_sec) {
 		/* Append little-endian CRC32 and encrypt it to produce ICV */
 		crc = ~crc32_le(~0, pos, len);
 		icv = skb_put(skb, 4);
@@ -155,7 +155,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* Apply RC4 to data and compute CRC32 over decrypted data */
 	plen = skb->len - hdr_len - 8;
 
-	if (!tcb_desc->bHwSec) {
+	if (!tcb_desc->hw_sec) {
 		arc4_setkey(&wep->rx_ctx_arc4, key, klen);
 		arc4_crypt(&wep->rx_ctx_arc4, pos, pos, plen + 4);
 
@@ -238,4 +238,5 @@ static void __exit rtllib_crypto_wep_exit(void)
 module_init(rtllib_crypto_wep_init);
 module_exit(rtllib_crypto_wep_exit);
 
+MODULE_DESCRIPTION("Support module for rtllib WEP crypto");
 MODULE_LICENSE("GPL");

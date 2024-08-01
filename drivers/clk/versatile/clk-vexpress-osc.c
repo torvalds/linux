@@ -119,4 +119,5 @@ static struct platform_driver vexpress_osc_driver = {
 	.probe = vexpress_osc_probe,
 };
 module_platform_driver(vexpress_osc_driver);
+MODULE_DESCRIPTION("Clock driver for Versatile Express OSC clock generators");
 MODULE_LICENSE("GPL v2");

@@ -20,6 +20,7 @@ enum ucsi_psy_online_states {
 };
 
 static enum power_supply_property ucsi_psy_props[] = {
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
@@ -194,6 +195,35 @@ static int ucsi_psy_get_usb_type(struct ucsi_connector *con,
 	return 0;
 }
 
+static int ucsi_psy_get_charge_type(struct ucsi_connector *con, union power_supply_propval *val)
+{
+	if (!(con->status.flags & UCSI_CONSTAT_CONNECTED)) {
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		return 0;
+	}
+
+	/* The Battery Charging Cabability Status field is only valid in sink role. */
+	if ((con->status.flags & UCSI_CONSTAT_PWR_DIR) != TYPEC_SINK) {
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		return 0;
+	}
+
+	switch (UCSI_CONSTAT_BC_STATUS(con->status.pwr_status)) {
+	case UCSI_CONSTAT_BC_NOMINAL_CHARGING:
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+		break;
+	case UCSI_CONSTAT_BC_SLOW_CHARGING:
+	case UCSI_CONSTAT_BC_TRICKLE_CHARGING:
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		break;
+	default:
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
+	}
+
+	return 0;
+}
+
 static int ucsi_psy_get_prop(struct power_supply *psy,
 			     enum power_supply_property psp,
 			     union power_supply_propval *val)
@@ -201,6 +231,8 @@ static int ucsi_psy_get_prop(struct power_supply *psy,
 	struct ucsi_connector *con = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		return ucsi_psy_get_charge_type(con, val);
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		return ucsi_psy_get_usb_type(con, val);
 	case POWER_SUPPLY_PROP_ONLINE:

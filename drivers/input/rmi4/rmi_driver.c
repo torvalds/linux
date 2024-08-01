@@ -1258,7 +1258,7 @@ static struct rmi_driver rmi_physical_driver = {
 	.set_input_params = rmi_driver_set_input_params,
 };
 
-bool rmi_is_physical_driver(struct device_driver *drv)
+bool rmi_is_physical_driver(const struct device_driver *drv)
 {
 	return drv == &rmi_physical_driver.driver;
 }

@@ -12,6 +12,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sysfs.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 
 static void __xe_gt_apply_ccs_mode(struct xe_gt *gt, u32 num_engines)
 {
@@ -75,7 +76,7 @@ static void __xe_gt_apply_ccs_mode(struct xe_gt *gt, u32 num_engines)
 
 void xe_gt_apply_ccs_mode(struct xe_gt *gt)
 {
-	if (!gt->ccs_mode)
+	if (!gt->ccs_mode || IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
 	__xe_gt_apply_ccs_mode(gt, gt->ccs_mode);
@@ -109,6 +110,12 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 num_engines, num_slices;
 	int ret;
+
+	if (IS_SRIOV(xe)) {
+		xe_gt_dbg(gt, "Can't change compute mode when running as %s\n",
+			  xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
+		return -EOPNOTSUPP;
+	}
 
 	ret = kstrtou32(buff, 0, &num_engines);
 	if (ret)

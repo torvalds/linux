@@ -242,7 +242,6 @@ static const struct serial_rs485 dw8250_rs485_supported = {
 void dw8250_setup_port(struct uart_port *p)
 {
 	struct dw8250_port_data *pd = p->private_data;
-	struct dw8250_data *data = to_dw8250_data(pd);
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32 reg, old_dlf;
 
@@ -278,7 +277,7 @@ void dw8250_setup_port(struct uart_port *p)
 
 	reg = dw8250_readl_ext(p, DW_UART_CPR);
 	if (!reg) {
-		reg = data->pdata->cpr_val;
+		reg = pd->cpr_value;
 		dev_dbg(p->dev, "CPR is not available, using 0x%08x instead\n", reg);
 	}
 	if (!reg)

@@ -34,18 +34,56 @@ detail) of DAMON, you should ensure :doc:`sysfs </filesystems/sysfs>` is
 mounted.
 
 
+Snapshot Data Access Patterns
+=============================
+
+The commands below show the memory access pattern of a program at the moment of
+the execution. ::
+
+    $ git clone https://github.com/sjp38/masim; cd masim; make
+    $ sudo damo start "./masim ./configs/stairs.cfg --quiet"
+    $ sudo ./damo show
+    0   addr [85.541 TiB  , 85.541 TiB ) (57.707 MiB ) access 0 %   age 10.400 s
+    1   addr [85.541 TiB  , 85.542 TiB ) (413.285 MiB) access 0 %   age 11.400 s
+    2   addr [127.649 TiB , 127.649 TiB) (57.500 MiB ) access 0 %   age 1.600 s
+    3   addr [127.649 TiB , 127.649 TiB) (32.500 MiB ) access 0 %   age 500 ms
+    4   addr [127.649 TiB , 127.649 TiB) (9.535 MiB  ) access 100 % age 300 ms
+    5   addr [127.649 TiB , 127.649 TiB) (8.000 KiB  ) access 60 %  age 0 ns
+    6   addr [127.649 TiB , 127.649 TiB) (6.926 MiB  ) access 0 %   age 1 s
+    7   addr [127.998 TiB , 127.998 TiB) (120.000 KiB) access 0 %   age 11.100 s
+    8   addr [127.998 TiB , 127.998 TiB) (8.000 KiB  ) access 40 %  age 100 ms
+    9   addr [127.998 TiB , 127.998 TiB) (4.000 KiB  ) access 0 %   age 11 s
+    total size: 577.590 MiB
+    $ sudo ./damo stop
+
+The first command of the above example downloads and builds an artificial
+memory access generator program called ``masim``.  The second command asks DAMO
+to execute the artificial generator process start via the given command and
+make DAMON monitors the generator process.  The third command retrieves the
+current snapshot of the monitored access pattern of the process from DAMON and
+shows the pattern in a human readable format.
+
+Each line of the output shows which virtual address range (``addr [XX, XX)``)
+of the process is how frequently (``access XX %``) accessed for how long time
+(``age XX``).  For example, the fifth region of ~9 MiB size is being most
+frequently accessed for last 300 milliseconds.  Finally, the fourth command
+stops DAMON.
+
+Note that DAMON can monitor not only virtual address spaces but multiple types
+of address spaces including the physical address space.
+
+
 Recording Data Access Patterns
 ==============================
 
 The commands below record the memory access patterns of a program and save the
 monitoring results to a file. ::
 
-    $ git clone https://github.com/sjp38/masim
-    $ cd masim; make; ./masim ./configs/zigzag.cfg &
+    $ ./masim ./configs/zigzag.cfg &
     $ sudo damo record -o damon.data $(pidof masim)
 
-The first two lines of the commands download an artificial memory access
-generator program and run it in the background.  The generator will repeatedly
+The line of the commands run the artificial memory access
+generator program again.  The generator will repeatedly
 access two 100 MiB sized memory regions one by one.  You can substitute this
 with your real workload.  The last line asks ``damo`` to record the access
 pattern in the ``damon.data`` file.

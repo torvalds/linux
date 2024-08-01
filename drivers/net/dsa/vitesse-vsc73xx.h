@@ -15,6 +15,22 @@
 #define VSC73XX_MAX_NUM_PORTS	8
 
 /**
+ * struct vsc73xx_portinfo - port data structure: contains storage data
+ * @pvid_vlan_filtering: pvid vlan number used in vlan filtering mode
+ * @pvid_tag_8021q: pvid vlan number used in tag_8021q mode
+ * @pvid_vlan_filtering_configured: informs if port has configured pvid in vlan
+ *	filtering mode
+ * @pvid_tag_8021q_configured: imforms if port have configured pvid in tag_8021q
+ *	mode
+ */
+struct vsc73xx_portinfo {
+	u16		pvid_vlan_filtering;
+	u16		pvid_tag_8021q;
+	bool		pvid_vlan_filtering_configured;
+	bool		pvid_tag_8021q_configured;
+};
+
+/**
  * struct vsc73xx - VSC73xx state container: main data structure
  * @dev: The device pointer
  * @reset: The descriptor for the GPIO line tied to the reset pin
@@ -25,6 +41,10 @@
  * @addr: MAC address used in flow control frames
  * @ops: Structure with hardware-dependent operations
  * @priv: Pointer to the configuration interface structure
+ * @portinfo: Storage table portinfo structructures
+ * @vlans: List of configured vlans. Contains port mask and untagged status of
+ *	every vlan configured in port vlan operation. It doesn't cover tag_8021q
+ *	vlans.
  */
 struct vsc73xx {
 	struct device			*dev;
@@ -35,6 +55,8 @@ struct vsc73xx {
 	u8				addr[ETH_ALEN];
 	const struct vsc73xx_ops	*ops;
 	void				*priv;
+	struct vsc73xx_portinfo		portinfo[VSC73XX_MAX_NUM_PORTS];
+	struct list_head		vlans;
 };
 
 /**
@@ -47,6 +69,21 @@ struct vsc73xx_ops {
 		    u32 *val);
 	int (*write)(struct vsc73xx *vsc, u8 block, u8 subblock, u8 reg,
 		     u32 val);
+};
+
+/**
+ * struct vsc73xx_bridge_vlan - VSC73xx driver structure which keeps vlan
+ *	database copy
+ * @vid: VLAN number
+ * @portmask: each bit represents one port
+ * @untagged: each bit represents one port configured with @vid untagged
+ * @list: list structure
+ */
+struct vsc73xx_bridge_vlan {
+	u16 vid;
+	u8 portmask;
+	u8 untagged;
+	struct list_head list;
 };
 
 int vsc73xx_is_addr_valid(u8 block, u8 subblock);

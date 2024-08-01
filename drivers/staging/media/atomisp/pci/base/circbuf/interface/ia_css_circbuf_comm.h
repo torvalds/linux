@@ -16,6 +16,8 @@
 #ifndef _IA_CSS_CIRCBUF_COMM_H
 #define _IA_CSS_CIRCBUF_COMM_H
 
+#include <linux/build_bug.h>
+
 #include <type_support.h>  /* uint8_t, uint32_t */
 
 #define IA_CSS_CIRCBUF_PADDING 1 /* The circular buffer is implemented in lock-less manner, wherein
@@ -45,6 +47,8 @@ struct ia_css_circbuf_desc_s {
 #define SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT				\
 	(4 * sizeof(uint8_t))
 
+static_assert(sizeof(struct ia_css_circbuf_desc_s) == SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT);
+
 /**
  * @brief Data structure for the circular buffer element.
  */
@@ -55,5 +59,7 @@ struct ia_css_circbuf_elem_s {
 
 #define SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT				\
 	(sizeof(uint32_t))
+
+static_assert(sizeof(struct ia_css_circbuf_elem_s) == SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT);
 
 #endif /*_IA_CSS_CIRCBUF_COMM_H*/

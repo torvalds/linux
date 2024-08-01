@@ -504,7 +504,7 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 		if (result == 0)
 			result = count;
 	} else {
-		dev_info(dev, "Device %02x-%012llx doesn't exists\n", rn.family,
+		dev_info(dev, "Device %02x-%012llx doesn't exist\n", rn.family,
 			(unsigned long long)rn.id);
 		result = -EINVAL;
 	}

@@ -14,6 +14,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -28,6 +29,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
+#include <linux/property.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 
@@ -128,6 +130,19 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO1_GPIO | WAKEUP_ON_EDGE_FALL,	/* SPITZ_GPIO_RESET */
 };
 
+static const struct software_node spitz_scoop_1_gpiochip_node = {
+	.name = "sharp-scoop.0",
+};
+
+/* Only on Spitz */
+static const struct software_node spitz_scoop_2_gpiochip_node = {
+	.name = "sharp-scoop.1",
+};
+
+/* Only on Akita */
+static const struct software_node akita_max7310_gpiochip_node = {
+	.name = "i2c-max7310",
+};
 
 /******************************************************************************
  * Scoop GPIO expander
@@ -452,35 +467,64 @@ static inline void spitz_keys_init(void) {}
  * LEDs
  ******************************************************************************/
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
-static struct gpio_led spitz_gpio_leds[] = {
-	{
-		.name			= "spitz:amber:charge",
-		.default_trigger	= "sharpsl-charge",
-		.gpio			= SPITZ_GPIO_LED_ORANGE,
-	},
-	{
-		.name			= "spitz:green:hddactivity",
-		.default_trigger	= "disk-activity",
-		.gpio			= SPITZ_GPIO_LED_GREEN,
-	},
+static const struct software_node spitz_gpio_leds_node = {
+	.name = "spitz-leds",
 };
 
-static struct gpio_led_platform_data spitz_gpio_leds_info = {
-	.leds		= spitz_gpio_leds,
-	.num_leds	= ARRAY_SIZE(spitz_gpio_leds),
+static const struct property_entry spitz_orange_led_props[] = {
+	PROPERTY_ENTRY_STRING("linux,default-trigger", "sharpsl-charge"),
+	PROPERTY_ENTRY_GPIO("gpios",
+			    &spitz_scoop_1_gpiochip_node, 6, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct platform_device spitz_led_device = {
-	.name		= "leds-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &spitz_gpio_leds_info,
-	},
+static const struct software_node spitz_orange_led_node = {
+	.name = "spitz:amber:charge",
+	.parent = &spitz_gpio_leds_node,
+	.properties = spitz_orange_led_props,
+};
+
+static const struct property_entry spitz_green_led_props[] = {
+	PROPERTY_ENTRY_STRING("linux,default-trigger", "disk-activity"),
+	PROPERTY_ENTRY_GPIO("gpios",
+			    &spitz_scoop_1_gpiochip_node, 0, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node spitz_green_led_node = {
+	.name = "spitz:green:hddactivity",
+	.parent = &spitz_gpio_leds_node,
+	.properties = spitz_green_led_props,
+};
+
+static const struct software_node *spitz_gpio_leds_swnodes[] = {
+	&spitz_gpio_leds_node,
+	&spitz_orange_led_node,
+	&spitz_green_led_node,
+	NULL
 };
 
 static void __init spitz_leds_init(void)
 {
-	platform_device_register(&spitz_led_device);
+	struct platform_device_info led_info = {
+		.name	= "leds-gpio",
+		.id	= PLATFORM_DEVID_NONE,
+	};
+	struct platform_device *led_dev;
+	int err;
+
+	err = software_node_register_node_group(spitz_gpio_leds_swnodes);
+	if (err) {
+		pr_err("failed to register LED software nodes: %d\n", err);
+		return;
+	}
+
+	led_info.fwnode = software_node_fwnode(&spitz_gpio_leds_node);
+
+	led_dev = platform_device_register_full(&led_info);
+	err = PTR_ERR_OR_ZERO(led_dev);
+	if (err)
+		pr_err("failed to create LED device: %d\n", err);
 }
 #else
 static inline void spitz_leds_init(void) {}
@@ -490,53 +534,43 @@ static inline void spitz_leds_init(void) {}
  * SSP Devices
  ******************************************************************************/
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static void spitz_ads7846_wait_for_hsync(void)
-{
-	while (gpio_get_value(SPITZ_GPIO_HSYNC))
-		cpu_relax();
 
-	while (!gpio_get_value(SPITZ_GPIO_HSYNC))
-		cpu_relax();
-}
-
-static struct ads7846_platform_data spitz_ads7846_info = {
-	.model			= 7846,
-	.vref_delay_usecs	= 100,
-	.x_plate_ohms		= 419,
-	.y_plate_ohms		= 486,
-	.pressure_max		= 1024,
-	.wait_for_sync		= spitz_ads7846_wait_for_hsync,
+static const struct property_entry spitz_ads7846_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "ti,ads7846"),
+	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 1024),
+	PROPERTY_ENTRY_U16("ti,x-plate-ohms", 419),
+	PROPERTY_ENTRY_U16("ti,y-plate-ohms", 486),
+	PROPERTY_ENTRY_U16("ti,vref-delay-usecs", 100),
+	PROPERTY_ENTRY_GPIO("pendown-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_TP_INT, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("ti,hsync-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_HSYNC, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table spitz_ads7846_gpio_table = {
-	.dev_id = "spi2.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_TP_INT,
-			    "pendown", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct software_node spitz_ads7846_swnode = {
+	.name = "ads7846",
+	.properties = spitz_ads7846_props,
 };
 
-static struct gpiod_lookup_table spitz_lcdcon_gpio_table = {
-	.dev_id = "spi2.1",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_CONT,
-			    "BL_CONT", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_BACKLIGHT_ON,
-			    "BL_ON", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry spitz_lcdcon_props[] = {
+	PROPERTY_ENTRY_GPIO("BL_CONT-gpios",
+			    &spitz_scoop_2_gpiochip_node, 6, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("BL_ON-gpios",
+			    &spitz_scoop_2_gpiochip_node, 7, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct gpiod_lookup_table akita_lcdcon_gpio_table = {
-	.dev_id = "spi2.1",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_CONT,
-			    "BL_CONT", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", AKITA_GPIO_BACKLIGHT_ON,
-			    "BL_ON", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry akita_lcdcon_props[] = {
+	PROPERTY_ENTRY_GPIO("BL_ON-gpios",
+			    &akita_max7310_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("BL_CONT-gpios",
+			    &akita_max7310_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static struct software_node spitz_lcdcon_node = {
+	.name = "spitz-lcdcon",
 };
 
 static struct corgi_lcd_platform_data spitz_lcdcon_info = {
@@ -553,7 +587,7 @@ static struct spi_board_info spitz_spi_devices[] = {
 		.max_speed_hz		= 1200000,
 		.bus_num		= 2,
 		.chip_select		= 0,
-		.platform_data		= &spitz_ads7846_info,
+		.swnode			= &spitz_ads7846_swnode,
 		.irq			= PXA_GPIO_TO_IRQ(SPITZ_GPIO_TP_INT),
 	}, {
 		.modalias		= "corgi-lcd",
@@ -561,6 +595,7 @@ static struct spi_board_info spitz_spi_devices[] = {
 		.bus_num		= 2,
 		.chip_select		= 1,
 		.platform_data		= &spitz_lcdcon_info,
+		.swnode			= &spitz_lcdcon_node,
 	}, {
 		.modalias		= "max1111",
 		.max_speed_hz		= 450000,
@@ -569,53 +604,40 @@ static struct spi_board_info spitz_spi_devices[] = {
 	},
 };
 
-static struct gpiod_lookup_table spitz_spi_gpio_table = {
-	.dev_id = "spi2",
-	.table = {
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_ADS7846_CS, "cs", 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_LCDCON_CS, "cs", 1, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_MAX1111_CS, "cs", 2, GPIO_ACTIVE_LOW),
-		{ },
-	},
+static const struct software_node_ref_args spitz_spi_gpio_refs[] = {
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_ADS7846_CS,
+				GPIO_ACTIVE_LOW),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_LCDCON_CS,
+				GPIO_ACTIVE_LOW),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_MAX1111_CS,
+				GPIO_ACTIVE_LOW),
 };
 
 static const struct property_entry spitz_spi_properties[] = {
-	PROPERTY_ENTRY_U32("num-cs", 3),
+	PROPERTY_ENTRY_REF_ARRAY("gpios", spitz_spi_gpio_refs),
 	{ }
 };
 
-static const struct software_node spitz_spi_node = {
+static const struct platform_device_info spitz_spi_device_info = {
+	.name = "pxa2xx-spi",
+	/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1 */
+	.id = 2,
 	.properties = spitz_spi_properties,
 };
 
 static void __init spitz_spi_init(void)
 {
 	struct platform_device *pd;
-	int id = 2;
 	int err;
 
-	if (machine_is_akita())
-		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
-	else
-		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
+	pd = platform_device_register_full(&spitz_spi_device_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("pxa2xx-spi: failed to instantiate SPI controller: %d\n",
+		       err);
 
-	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
-	gpiod_add_lookup_table(&spitz_spi_gpio_table);
-
-	/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1 */
-	pd = platform_device_alloc("pxa2xx-spi", id);
-	if (pd == NULL) {
-		pr_err("pxa2xx-spi: failed to allocate device id %d\n", id);
-	} else {
-		err = device_add_software_node(&pd->dev, &spitz_spi_node);
-		if (err) {
-			platform_device_put(pd);
-			pr_err("pxa2xx-spi: failed to add software node\n");
-		} else {
-			platform_device_add(pd);
-		}
-	}
-
+	spitz_lcdcon_node.properties = machine_is_akita() ?
+					akita_lcdcon_props : spitz_lcdcon_props;
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 }
 #else
@@ -648,21 +670,17 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.setpower		= spitz_mci_setpower,
 };
 
-static struct gpiod_lookup_table spitz_mci_gpio_table = {
-	.dev_id = "pxa2xx-mci.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_DETECT,
-			    "cd", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_WP,
-			    "wp", GPIO_ACTIVE_LOW),
-		{ },
-	},
+static const struct property_entry spitz_mci_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("cd-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_nSD_DETECT, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("wp-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_nSD_WP, GPIO_ACTIVE_LOW),
+	{ }
 };
 
 static void __init spitz_mmc_init(void)
 {
-	gpiod_add_lookup_table(&spitz_mci_gpio_table);
-	pxa_set_mci_info(&spitz_mci_platform_data);
+	pxa_set_mci_info(&spitz_mci_platform_data, spitz_mci_props);
 }
 #else
 static inline void spitz_mmc_init(void) {}
@@ -961,30 +979,24 @@ static void __init spitz_i2c_init(void)
 static inline void spitz_i2c_init(void) {}
 #endif
 
-static struct gpiod_lookup_table spitz_audio_gpio_table = {
-	.dev_id = "spitz-audio",
-	.table = {
-		GPIO_LOOKUP("sharp-scoop.0", SPITZ_GPIO_MUTE_L - SPITZ_SCP_GPIO_BASE,
-			    "mute-l", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.0", SPITZ_GPIO_MUTE_R - SPITZ_SCP_GPIO_BASE,
-			    "mute-r", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.1", SPITZ_GPIO_MIC_BIAS - SPITZ_SCP2_GPIO_BASE,
-			    "mic", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry spitz_audio_props[] = {
+	PROPERTY_ENTRY_GPIO("mute-l-gpios", &spitz_scoop_1_gpiochip_node, 3,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mute-r-gpios", &spitz_scoop_1_gpiochip_node, 4,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mic-gpios", &spitz_scoop_2_gpiochip_node, 8,
+			    GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct gpiod_lookup_table akita_audio_gpio_table = {
-	.dev_id = "spitz-audio",
-	.table = {
-		GPIO_LOOKUP("sharp-scoop.0", SPITZ_GPIO_MUTE_L - SPITZ_SCP_GPIO_BASE,
-			    "mute-l", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.0", SPITZ_GPIO_MUTE_R - SPITZ_SCP_GPIO_BASE,
-			    "mute-r", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("i2c-max7310", AKITA_GPIO_MIC_BIAS - AKITA_IOEXP_GPIO_BASE,
-			    "mic", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry akita_audio_props[] = {
+	PROPERTY_ENTRY_GPIO("mute-l-gpios", &spitz_scoop_1_gpiochip_node, 3,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mute-r-gpios", &spitz_scoop_1_gpiochip_node, 4,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mic-gpios", &akita_max7310_gpiochip_node, 2,
+			    GPIO_ACTIVE_HIGH),
+	{ }
 };
 
 /******************************************************************************
@@ -992,12 +1004,14 @@ static struct gpiod_lookup_table akita_audio_gpio_table = {
  ******************************************************************************/
 static inline void spitz_audio_init(void)
 {
-	if (machine_is_akita())
-		gpiod_add_lookup_table(&akita_audio_gpio_table);
-	else
-		gpiod_add_lookup_table(&spitz_audio_gpio_table);
+	struct platform_device_info audio_info = {
+		.name = "spitz-audio",
+		.id = PLATFORM_DEVID_NONE,
+		.properties = machine_is_akita() ?
+				akita_audio_props : spitz_audio_props,
+	};
 
-	platform_device_register_simple("spitz-audio", -1, NULL, 0);
+	platform_device_register_full(&audio_info);
 }
 
 /******************************************************************************
@@ -1020,6 +1034,12 @@ static void spitz_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init spitz_init(void)
 {
+	software_node_register(&spitz_scoop_1_gpiochip_node);
+	if (machine_is_akita())
+		software_node_register(&akita_max7310_gpiochip_node);
+	else
+		software_node_register(&spitz_scoop_2_gpiochip_node);
+
 	init_gpio_reset(SPITZ_GPIO_ON_RESET, 1, 0);
 	pm_power_off = spitz_poweroff;
 

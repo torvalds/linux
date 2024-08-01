@@ -144,7 +144,7 @@ static int rtl_op_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void rtl_op_stop(struct ieee80211_hw *hw)
+static void rtl_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -547,7 +547,7 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	rtlhal->enter_pnp_sleep = true;
 
 	rtl_lps_leave(hw, true);
-	rtl_op_stop(hw);
+	rtl_op_stop(hw, false);
 	device_set_wakeup_enable(wiphy_dev(hw->wiphy), true);
 	return 0;
 }

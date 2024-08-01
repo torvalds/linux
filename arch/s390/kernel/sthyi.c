@@ -300,33 +300,56 @@ static struct diag204_x_part_block *lpar_cpu_inf(struct lpar_cpu_inf *part_inf,
 	return (struct diag204_x_part_block *)&block->cpus[i];
 }
 
-static void fill_diag(struct sthyi_sctns *sctns)
+static void *diag204_get_data(bool diag204_allow_busy)
 {
-	int i, r, pages;
-	bool this_lpar;
+	unsigned long subcode;
 	void *diag204_buf;
+	int pages, rc;
+
+	subcode = DIAG204_SUBC_RSI;
+	subcode |= DIAG204_INFO_EXT;
+	pages = diag204(subcode, 0, NULL);
+	if (pages < 0)
+		return ERR_PTR(pages);
+	if (pages == 0)
+		return ERR_PTR(-ENODATA);
+	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+	if (!diag204_buf)
+		return ERR_PTR(-ENOMEM);
+	subcode = DIAG204_SUBC_STIB7;
+	subcode |= DIAG204_INFO_EXT;
+	if (diag204_has_bif() && diag204_allow_busy)
+		subcode |= DIAG204_BIF_BIT;
+	rc = diag204(subcode, pages, diag204_buf);
+	if (rc < 0) {
+		vfree(diag204_buf);
+		return ERR_PTR(rc);
+	}
+	return diag204_buf;
+}
+
+static bool is_diag204_cached(struct sthyi_sctns *sctns)
+{
+	/*
+	 * Check if validity bits are set when diag204 data
+	 * is gathered.
+	 */
+	if (sctns->par.infpval1)
+		return true;
+	return false;
+}
+
+static void fill_diag(struct sthyi_sctns *sctns, void *diag204_buf)
+{
+	int i;
+	bool this_lpar;
 	void *diag224_buf = NULL;
 	struct diag204_x_info_blk_hdr *ti_hdr;
 	struct diag204_x_part_block *part_block;
 	struct diag204_x_phys_block *phys_block;
 	struct lpar_cpu_inf lpar_inf = {};
-
-	/* Errors are handled through the validity bits in the response. */
-	pages = diag204((unsigned long)DIAG204_SUBC_RSI |
-			(unsigned long)DIAG204_INFO_EXT, 0, NULL);
-	if (pages <= 0)
-		return;
-
-	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
-				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
-				     __builtin_return_address(0));
-	if (!diag204_buf)
-		return;
-
-	r = diag204((unsigned long)DIAG204_SUBC_STIB7 |
-		    (unsigned long)DIAG204_INFO_EXT, pages, diag204_buf);
-	if (r < 0)
-		goto out;
 
 	diag224_buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!diag224_buf || diag224(diag224_buf))
@@ -392,7 +415,6 @@ static void fill_diag(struct sthyi_sctns *sctns)
 
 out:
 	free_page((unsigned long)diag224_buf);
-	vfree(diag204_buf);
 }
 
 static int sthyi(u64 vaddr, u64 *rc)
@@ -414,19 +436,31 @@ static int sthyi(u64 vaddr, u64 *rc)
 
 static int fill_dst(void *dst, u64 *rc)
 {
+	void *diag204_buf;
+
 	struct sthyi_sctns *sctns = (struct sthyi_sctns *)dst;
 
 	/*
 	 * If the facility is on, we don't want to emulate the instruction.
 	 * We ask the hypervisor to provide the data.
 	 */
-	if (test_facility(74))
+	if (test_facility(74)) {
+		memset(dst, 0, PAGE_SIZE);
 		return sthyi((u64)dst, rc);
-
+	}
+	/*
+	 * When emulating, if diag204 returns BUSY don't reset dst buffer
+	 * and use cached data.
+	 */
+	*rc = 0;
+	diag204_buf = diag204_get_data(is_diag204_cached(sctns));
+	if (IS_ERR(diag204_buf))
+		return PTR_ERR(diag204_buf);
+	memset(dst, 0, PAGE_SIZE);
 	fill_hdr(sctns);
 	fill_stsi(sctns);
-	fill_diag(sctns);
-	*rc = 0;
+	fill_diag(sctns, diag204_buf);
+	vfree(diag204_buf);
 	return 0;
 }
 
@@ -445,11 +479,14 @@ static int sthyi_update_cache(u64 *rc)
 {
 	int r;
 
-	memset(sthyi_cache.info, 0, PAGE_SIZE);
 	r = fill_dst(sthyi_cache.info, rc);
-	if (r)
-		return r;
-	sthyi_cache.end = jiffies + CACHE_VALID_JIFFIES;
+	if (r == 0) {
+		sthyi_cache.end = jiffies + CACHE_VALID_JIFFIES;
+	} else if (r == -EBUSY) {
+		/* mark as expired and return 0 to keep using cached data */
+		sthyi_cache.end = jiffies - 1;
+		r = 0;
+	}
 	return r;
 }
 

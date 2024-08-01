@@ -140,7 +140,7 @@ static const struct reg_default is31fl3190_reg_defaults[] = {
 	{ IS31FL3190_PWM(2), 0x00 },
 };
 
-static struct regmap_config is31fl3190_regmap_config = {
+static const struct regmap_config is31fl3190_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = IS31FL3190_RESET,
@@ -178,7 +178,7 @@ static const struct reg_default is31fl3196_reg_defaults[] = {
 	{ IS31FL3196_PWM(8), 0x00 },
 };
 
-static struct regmap_config is31fl3196_regmap_config = {
+static const struct regmap_config is31fl3196_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = IS31FL3196_REG_CNT,

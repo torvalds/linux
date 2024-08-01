@@ -297,9 +297,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 				 *   / \           / \
 				 *  N   S    -->  N   sl
 				 *     / \             \
-				 *    sl  Sr            S
+				 *    sl  sr            S
 				 *                       \
-				 *                        Sr
+				 *                        sr
 				 *
 				 * Note: p might be red, and then both
 				 * p and sl are red after rotation(which
@@ -312,9 +312,9 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 				 *   / \            /  \
 				 *  N   sl   -->   P    S
 				 *       \        /      \
-				 *        S      N        Sr
+				 *        S      N        sr
 				 *         \
-				 *          Sr
+				 *          sr
 				 */
 				tmp1 = tmp2->rb_right;
 				WRITE_ONCE(sibling->rb_left, tmp1);

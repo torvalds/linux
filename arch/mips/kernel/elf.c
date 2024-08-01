@@ -318,6 +318,10 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 	t->thread.fpu.fcr31 = c->fpu_csr31;
 	switch (state->nan_2008) {
 	case 0:
+		if (!(c->fpu_msk31 & FPU_CSR_NAN2008))
+			t->thread.fpu.fcr31 &= ~FPU_CSR_NAN2008;
+		if (!(c->fpu_msk31 & FPU_CSR_ABS2008))
+			t->thread.fpu.fcr31 &= ~FPU_CSR_ABS2008;
 		break;
 	case 1:
 		if (!(c->fpu_msk31 & FPU_CSR_NAN2008))

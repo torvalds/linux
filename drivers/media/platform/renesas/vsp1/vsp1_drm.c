@@ -317,7 +317,10 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 			list_add_tail(&released_brx->list_pipe,
 				      &pipe->entities);
 
-		/* Add the BRx to the pipeline. */
+		/*
+		 * Add the BRx to the pipeline, inserting it just before the
+		 * WPF.
+		 */
 		dev_dbg(vsp1->dev, "%s: pipe %u: acquired %s\n",
 			__func__, pipe->lif->index, BRX_NAME(brx));
 
@@ -326,7 +329,8 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 		pipe->brx->sink = &pipe->output->entity;
 		pipe->brx->sink_pad = 0;
 
-		list_add_tail(&pipe->brx->list_pipe, &pipe->entities);
+		list_add_tail(&pipe->brx->list_pipe,
+			      &pipe->output->entity.list_pipe);
 	}
 
 	/*
@@ -420,7 +424,7 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 
 		if (!rpf->entity.pipe) {
 			rpf->entity.pipe = pipe;
-			list_add_tail(&rpf->entity.list_pipe, &pipe->entities);
+			list_add(&rpf->entity.list_pipe, &pipe->entities);
 		}
 
 		brx->inputs[i].rpf = rpf;
@@ -546,6 +550,9 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	struct vsp1_dl_body *dlb;
 	unsigned int dl_flags = 0;
 
+	vsp1_pipeline_calculate_partition(pipe, &pipe->part_table[0],
+					  drm_pipe->width, 0);
+
 	if (drm_pipe->force_brx_release)
 		dl_flags |= VSP1_DL_FRAME_END_INTERNAL;
 	if (pipe->output->writeback)
@@ -567,9 +574,11 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		}
 
 		vsp1_entity_route_setup(entity, pipe, dlb);
-		vsp1_entity_configure_stream(entity, pipe, dl, dlb);
+		vsp1_entity_configure_stream(entity, entity->state, pipe,
+					     dl, dlb);
 		vsp1_entity_configure_frame(entity, pipe, dl, dlb);
-		vsp1_entity_configure_partition(entity, pipe, dl, dlb);
+		vsp1_entity_configure_partition(entity, pipe,
+						&pipe->part_table[0], dl, dlb);
 	}
 
 	vsp1_dl_list_commit(dl, dl_flags);
@@ -732,6 +741,8 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	ret = vsp1_du_pipeline_setup_output(vsp1, pipe);
 	if (ret < 0)
 		goto unlock;
+
+	vsp1_pipeline_dump(pipe, "LIF setup");
 
 	/* Enable the VSP1. */
 	ret = vsp1_device_get(vsp1);
@@ -906,6 +917,9 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 	}
 
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
+
+	vsp1_pipeline_dump(pipe, "atomic update");
+
 	vsp1_du_pipeline_configure(pipe);
 
 done:
@@ -958,6 +972,9 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 		init_waitqueue_head(&drm_pipe->wait_queue);
 
 		vsp1_pipeline_init(pipe);
+
+		pipe->partitions = 1;
+		pipe->part_table = &drm_pipe->partition;
 
 		pipe->frame_end = vsp1_du_pipeline_frame_end;
 

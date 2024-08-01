@@ -78,7 +78,7 @@ struct pca9541 {
 };
 
 static const struct i2c_device_id pca9541_id[] = {
-	{"pca9541", 0},
+	{ "pca9541" },
 	{}
 };
 

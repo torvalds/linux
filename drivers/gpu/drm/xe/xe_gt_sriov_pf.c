@@ -8,6 +8,7 @@
 #include "regs/xe_sriov_regs.h"
 
 #include "xe_gt_sriov_pf.h"
+#include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_mmio.h"
@@ -81,4 +82,15 @@ void xe_gt_sriov_pf_init_hw(struct xe_gt *gt)
 		pf_enable_ggtt_guest_update(gt);
 
 	xe_gt_sriov_pf_service_update(gt);
+}
+
+/**
+ * xe_gt_sriov_pf_restart - Restart SR-IOV support after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_restart(struct xe_gt *gt)
+{
+	xe_gt_sriov_pf_config_restart(gt);
 }

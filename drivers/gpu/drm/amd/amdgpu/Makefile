@@ -106,7 +106,8 @@ amdgpu-y += \
 	df_v1_7.o \
 	df_v3_6.o \
 	df_v4_3.o \
-	df_v4_6_2.o
+	df_v4_6_2.o \
+	df_v4_15.o
 
 # add GMC block
 amdgpu-y += \
@@ -321,6 +322,14 @@ include $(FULL_AMD_DISPLAY_PATH)/Makefile
 
 amdgpu-y += $(AMD_DISPLAY_FILES)
 
+endif
+
+# add isp block
+ifneq ($(CONFIG_DRM_AMD_ISP),)
+amdgpu-y += \
+	amdgpu_isp.o \
+	isp_v4_1_0.o \
+	isp_v4_1_1.o
 endif
 
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o

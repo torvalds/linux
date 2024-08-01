@@ -70,6 +70,26 @@ config VIDEO_GC0308
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc0308.
 
+config VIDEO_GC05A2
+	tristate "GalaxyCore gc05a2 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the GalaxyCore gc05a2
+	  camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc05a2.
+
+config VIDEO_GC08A3
+	tristate "GalaxyCore gc08a3 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the GalaxyCore gc08a3
+	  camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc08a3.
+
 config VIDEO_GC2145
 	select V4L2_CCI_I2C
 	tristate "GalaxyCore GC2145 sensor support"
@@ -139,6 +159,7 @@ config VIDEO_IMX219
 
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX258 camera.
@@ -152,6 +173,16 @@ config VIDEO_IMX274
 	help
 	  This is a V4L2 sensor driver for the Sony IMX274
 	  CMOS image sensor.
+
+config VIDEO_IMX283
+	tristate "Sony IMX283 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Sony IMX283
+	  CMOS image sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx283.
 
 config VIDEO_IMX290
 	tristate "Sony IMX290 sensor support"
@@ -659,7 +690,7 @@ config VIDEO_S5K6A3
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
 
-config VIDEO_ST_VGXY61
+config VIDEO_VGXY61
 	tristate "ST VGXY61 sensor support"
 	select V4L2_CCI_I2C
 	depends on OF && GPIOLIB
@@ -679,6 +710,7 @@ config VIDEO_THP7312
 	tristate "THine THP7312 support"
 	depends on I2C
 	select FW_LOADER
+	select FW_UPLOAD
 	select MEDIA_CONTROLLER
 	select V4L2_CCI_I2C
 	select V4L2_FWNODE
@@ -1574,6 +1606,40 @@ config VIDEO_DS90UB960
 	help
 	  Device driver for the Texas Instruments DS90UB960
 	  FPD-Link III Deserializer and DS90UB9702 FPD-Link IV Deserializer.
+
+config VIDEO_MAX96714
+	tristate "Maxim MAX96714 GMSL2 deserializer"
+	depends on OF && I2C && VIDEO_DEV
+	select I2C_MUX
+	select MEDIA_CONTROLLER
+	select GPIOLIB
+	select V4L2_CCI_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Device driver for the Maxim MAX96714 GMSL2 Deserializer.
+	  MAX96714 deserializers convert a GMSL2 input to MIPI CSI-2
+	  output.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96714.
+
+config VIDEO_MAX96717
+	tristate "Maxim MAX96717 GMSL2 Serializer support"
+	depends on OF && I2C && VIDEO_DEV && COMMON_CLK
+	select I2C_MUX
+	select MEDIA_CONTROLLER
+	select GPIOLIB
+	select V4L2_CCI_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Device driver for the Maxim MAX96717 GMSL2 Serializer.
+	  MAX96717 serializers convert video on a MIPI CSI-2
+	  input to a GMSL2 output.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96717.
 
 endmenu
 

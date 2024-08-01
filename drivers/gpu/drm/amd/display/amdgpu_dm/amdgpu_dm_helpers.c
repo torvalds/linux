@@ -575,10 +575,8 @@ bool dm_helpers_dp_write_dpcd(
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
-	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+	if (!aconnector)
 		return false;
-	}
 
 	return drm_dp_dpcd_write(&aconnector->dm_dp_aux.aux,
 			address, (uint8_t *)data, size) > 0;
@@ -806,9 +804,6 @@ bool dm_helpers_dp_write_dsc_enable(
 	uint8_t enable_dsc = enable ? DSC_DECODING : DSC_DISABLE;
 	uint8_t enable_passthrough = enable ? DSC_PASSTHROUGH : DSC_DISABLE;
 	uint8_t ret = 0;
-
-	if (!stream)
-		return false;
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		if (!aconnector->dsc_aux)
@@ -1242,8 +1237,11 @@ void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
 
-	if (adev->dm.idle_workqueue)
+	if (adev->dm.idle_workqueue) {
 		adev->dm.idle_workqueue->enable = enable;
+		if (enable && !adev->dm.idle_workqueue->running && amdgpu_dm_is_headless(adev))
+			schedule_work(&adev->dm.idle_workqueue->work);
+	}
 }
 
 void dm_helpers_dp_mst_update_branch_bandwidth(

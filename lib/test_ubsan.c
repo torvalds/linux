@@ -156,4 +156,5 @@ static void __exit test_ubsan_exit(void)
 module_exit(test_ubsan_exit);
 
 MODULE_AUTHOR("Jinbum Park <jinb.park7@gmail.com>");
+MODULE_DESCRIPTION("UBSAN unit test");
 MODULE_LICENSE("GPL v2");

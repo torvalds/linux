@@ -229,4 +229,5 @@ static struct platform_driver rt4831_bl_driver = {
 module_platform_driver(rt4831_bl_driver);
 
 MODULE_AUTHOR("ChiYuan Huang <cy_huang@richtek.com>");
+MODULE_DESCRIPTION("Richtek RT4831 Backlight Driver");
 MODULE_LICENSE("GPL v2");

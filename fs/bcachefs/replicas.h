@@ -25,17 +25,12 @@ int bch2_replicas_entry_idx(struct bch_fs *,
 void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *,
 			      enum bch_data_type,
 			      struct bch_devs_list);
+
+bool bch2_replicas_marked_locked(struct bch_fs *,
+			  struct bch_replicas_entry_v1 *);
 bool bch2_replicas_marked(struct bch_fs *, struct bch_replicas_entry_v1 *);
 int bch2_mark_replicas(struct bch_fs *,
 		       struct bch_replicas_entry_v1 *);
-
-static inline struct replicas_delta *
-replicas_delta_next(struct replicas_delta *d)
-{
-	return (void *) d + replicas_entry_bytes(&d->r) + 8;
-}
-
-int bch2_replicas_delta_list_mark(struct bch_fs *, struct replicas_delta_list *);
 
 void bch2_bkey_to_replicas(struct bch_replicas_entry_v1 *, struct bkey_s_c);
 
@@ -57,10 +52,6 @@ unsigned bch2_dev_has_data(struct bch_fs *, struct bch_dev *);
 int bch2_replicas_gc_end(struct bch_fs *, int);
 int bch2_replicas_gc_start(struct bch_fs *, unsigned);
 int bch2_replicas_gc2(struct bch_fs *);
-
-int bch2_replicas_set_usage(struct bch_fs *,
-			    struct bch_replicas_entry_v1 *,
-			    u64);
 
 #define for_each_cpu_replicas_entry(_r, _i)				\
 	for (_i = (_r)->entries;					\
@@ -88,6 +79,5 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_replicas;
 extern const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0;
 
 void bch2_fs_replicas_exit(struct bch_fs *);
-int bch2_fs_replicas_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_REPLICAS_H */

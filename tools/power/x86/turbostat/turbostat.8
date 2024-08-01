@@ -28,10 +28,13 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--add attributes\fP add column with counter having specified 'attributes'.  The 'location' attribute is required, all others are optional.
 .nf
-	location: {\fBmsrDDD\fP | \fBmsr0xXXX\fP | \fB/sys/path...\fP}
+	location: {\fBmsrDDD\fP | \fBmsr0xXXX\fP | \fB/sys/path...\fP | \fBperf/<device>/<event>\fP}
 		msrDDD is a decimal offset, eg. msr16
 		msr0xXXX is a hex offset, eg. msr0x10
 		/sys/path... is an absolute path to a sysfs attribute
+		<device> is a perf device from /sys/bus/event_source/devices/<device> eg. cstate_core
+		<event> is a perf event for given device from /sys/bus/event_source/devices/<device>/events/<event> eg. c1-residency
+			perf/cstate_core/c1-residency would then use /sys/bus/event_source/devices/cstate_core/events/c1-residency
 
 	scope: {\fBcpu\fP | \fBcore\fP | \fBpackage\fP}
 		sample and print the counter for every cpu, core, or package.
@@ -52,6 +55,39 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		as the column header.
 .fi
 .PP
+\fB--add pmt,[attr_name=attr_value, ...]\fP add column with a PMT (Intel Platform Monitoring Technology) counter in a similar way to --add option above, but require PMT metadata to be supplied to correctly read and display the counter. The metadata can be found in the Intel PMT XML files, hosted at https://github.com/intel/Intel-PMT. For a complete example see "ADD PMT COUNTER EXAMPLE".
+.nf
+	name="name_string"
+		For column header.
+
+	type={\fBraw\fP}
+		'raw' shows the counter contents in hex.
+		default: raw
+
+	format={\fBraw\fP | \fBdelta\fP}
+		'raw' shows the counter contents in hex.
+		'delta' shows the difference in values during the measurement interval.
+		default: raw
+
+	domain={\fBcpu%u\fP | \fBcore%u\fP | \fBpackage%u\fP}
+		'cpu' per cpu/thread counter.
+		'core' per core counter.
+		'package' per package counter.
+		'%u' denotes id of the domain that the counter is associated with. For example core4 would mean that the counter is associated with core number 4.
+
+	offset=\fB%u\fP
+		'%u' offset within the PMT MMIO region.
+
+	lsb=\fB%u\fP
+		'%u' least significant bit within the 64 bit value read from 'offset'. Together with 'msb', used to form a read mask.
+
+	msb=\fB%u\fP
+		'%u' most significant bit within the 64 bit value read from 'offset'. Together with 'lsb', used to form a read mask.
+
+	guid=\fB%x\fP
+		'%x' hex identifier of the PMT MMIO region.
+.fi
+.PP
 \fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
 .PP
 \fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
@@ -67,10 +103,10 @@ The column name "all" can be used to enable all disabled-by-default built-in cou
 .PP
 \fB--quiet\fP Do not decode and print the system configuration header information.
 .PP
-+\fB--no-msr\fP Disable all the uses of the MSR driver.
-+.PP
-+\fB--no-perf\fP Disable all the uses of the perf API.
-+.PP
+\fB--no-msr\fP Disable all the uses of the MSR driver.
+.PP
+\fB--no-perf\fP Disable all the uses of the perf API.
+.PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
 \fB--num_iterations num\fP number of the measurement iterations.
@@ -320,7 +356,7 @@ available on all processors.
 Here we limit turbostat to showing just the CPU number for cpu0 - cpu3.
 We add a counter showing the 32-bit raw value of MSR 0x199 (MSR_IA32_PERF_CTL),
 labeling it with the column header, "PRF_CTRL", and display it only once,
-afte the conclusion of a 0.1 second sleep.
+after the conclusion of a 0.1 second sleep.
 .nf
 sudo ./turbostat --quiet --cpu 0-3 --show CPU --add msr0x199,u32,raw,PRF_CTRL sleep .1
 0.101604 sec
@@ -331,6 +367,56 @@ CPU	  PRF_CTRL
 2	0x00000a00
 3	0x00000800
 
+.fi
+
+.SH ADD PERF COUNTER EXAMPLE
+Here we limit turbostat to showing just the CPU number for cpu0 - cpu3.
+We add a counter showing time spent in C1 core cstate,
+labeling it with the column header, "pCPU%c1", and display it only once,
+after the conclusion of 0.1 second sleep.
+We also show CPU%c1 built-in counter that should show similar values.
+.nf
+sudo ./turbostat --quiet --cpu 0-3 --show CPU,CPU%c1 --add perf/cstate_core/c1-residency,cpu,delta,percent,pCPU%c1 sleep .1
+0.102448 sec
+CPU     pCPU%c1 CPU%c1
+-       34.89   34.89
+0       45.99   45.99
+1       45.94   45.94
+2       23.83   23.83
+3       23.84   23.84
+
+.fi
+
+.SH ADD PMT COUNTER EXAMPLE
+Here we limit turbostat to showing just the CPU number 0.
+We add two counters, showing crystal clock count and the DC6 residency.
+All the parameters passed are based on the metadata found in the PMT XML files.
+
+For the crystal clock count, we
+label it with the column header, "XTAL",
+we set the type to 'raw', to read the number of clock ticks in hex,
+we set the format to 'delta', to display the difference in ticks during the measurement interval,
+we set the domain to 'package0', to collect it and associate it with the whole package number 0,
+we set the offset to '0', which is a offset of the counter within the PMT MMIO region,
+we set the lsb and msb to cover all 64 bits of the read 64 bit value,
+and finally we set the guid to '0x1a067102', that identifies the PMT MMIO region to which the 'offset' is applied to read the counter value.
+
+For the DC6 residency counter, we
+label it with the column header, "Die%c6",
+we set the type to 'txtal_time', to obtain the percent residency value
+we set the format to 'delta', to display the difference in ticks during the measurement interval,
+we set the domain to 'package0', to collect it and associate it with the whole package number 0,
+we set the offset to '0', which is a offset of the counter within the PMT MMIO region,
+we set the lsb and msb to cover all 64 bits of the read 64 bit value,
+and finally we set the guid to '0x1a067102', that identifies the PMT MMIO region to which the 'offset' is applied to read the counter value.
+
+.nf
+sudo ./turbostat --quiet --cpu 0 --show CPU --add pmt,name=XTAL,type=raw,format=delta,domain=package0,offset=0,lsb=0,msb=63,guid=0x1a067102 --add pmt,name=Die%c6,type=txtal_time,format=delta,domain=package0,offset=120,lsb=0,msb=63,guid=0x1a067102
+0.104352 sec
+CPU                   XTAL      Die%c6
+-       0x0000006d4d957ca7      0.00
+0       0x0000006d4d957ca7      0.00
+0.102448 sec
 .fi
 
 .SH INPUT

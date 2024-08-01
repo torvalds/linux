@@ -954,7 +954,7 @@ static u32 otx2_get_link(struct net_device *netdev)
 }
 
 static int otx2_get_ts_info(struct net_device *netdev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
 

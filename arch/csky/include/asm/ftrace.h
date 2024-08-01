@@ -7,8 +7,6 @@
 
 #define HAVE_FUNCTION_GRAPH_FP_TEST
 
-#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
-
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 
 #define MCOUNT_ADDR	((unsigned long)_mcount)

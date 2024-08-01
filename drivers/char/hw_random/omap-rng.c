@@ -564,4 +564,5 @@ static struct platform_driver omap_rng_driver = {
 module_platform_driver(omap_rng_driver);
 MODULE_ALIAS("platform:omap_rng");
 MODULE_AUTHOR("Deepak Saxena (and others)");
+MODULE_DESCRIPTION("RNG driver for TI OMAP CPU family");
 MODULE_LICENSE("GPL");

@@ -139,7 +139,7 @@ driver data structure.
 
   static struct pcie_port_service_driver root_aerdrv = {
     .name		= (char *)device_name,
-    .id_table	= &service_id[0],
+    .id_table	= service_id,
 
     .probe		= aerdrv_load,
     .remove		= aerdrv_unload,

@@ -166,7 +166,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN316)
 
 ###############################################################################
 
-RESOURCE_DCN32 = dcn32_resource.o
+RESOURCE_DCN32 = dcn32_resource.o dcn32_resource_helpers.o
 
 AMD_DAL_RESOURCE_DCN32 = $(addprefix $(AMDDALPATH)/dc/resource/dcn32/,$(RESOURCE_DCN32))
 

@@ -841,7 +841,7 @@ static int enetc_set_coalesce(struct net_device *ndev,
 }
 
 static int enetc_get_ts_info(struct net_device *ndev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	int *phc_idx;
 

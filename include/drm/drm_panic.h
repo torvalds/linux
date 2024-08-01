@@ -50,6 +50,15 @@ struct drm_scanout_buffer {
 	 * @pitch: Length in bytes between the start of two consecutive lines.
 	 */
 	unsigned int pitch[DRM_FORMAT_MAX_PLANES];
+
+	/**
+	 * @set_pixel: Optional function, to set a pixel color on the
+	 * framebuffer. It allows to handle special tiling format inside the
+	 * driver.
+	 */
+	void (*set_pixel)(struct drm_scanout_buffer *sb, unsigned int x,
+			  unsigned int y, u32 color);
+
 };
 
 /**

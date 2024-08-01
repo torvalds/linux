@@ -164,16 +164,14 @@ void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain)
 void amdgpu_reset_get_desc(struct amdgpu_reset_context *rst_ctxt, char *buf,
 			   size_t len)
 {
-	struct amdgpu_ring *ring;
-
 	if (!buf || !len)
 		return;
 
 	switch (rst_ctxt->src) {
 	case AMDGPU_RESET_SRC_JOB:
 		if (rst_ctxt->job) {
-			ring = amdgpu_job_ring(rst_ctxt->job);
-			snprintf(buf, len, "job hang on ring:%s", ring->name);
+			snprintf(buf, len, "job hang on ring:%s",
+				 rst_ctxt->job->base.sched->name);
 		} else {
 			strscpy(buf, "job hang", len);
 		}

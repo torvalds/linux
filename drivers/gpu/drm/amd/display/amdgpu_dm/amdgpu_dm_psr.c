@@ -158,7 +158,7 @@ void amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 	DRM_DEBUG_DRIVER("Enabling psr...\n");
 
 	vsync_rate_hz = div64_u64(div64_u64((
-			stream->timing.pix_clk_100hz * 100),
+			stream->timing.pix_clk_100hz * (uint64_t)100),
 			stream->timing.v_total),
 			stream->timing.h_total);
 

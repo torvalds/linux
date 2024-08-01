@@ -174,6 +174,10 @@ AT24_CHIP_DATA(at24_data_24mac402, 48 / 8,
 	AT24_FLAG_MAC | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24mac602, 64 / 8,
 	AT24_FLAG_MAC | AT24_FLAG_READONLY);
+AT24_CHIP_DATA(at24_data_24aa025e48, 48 / 8,
+	AT24_FLAG_READONLY);
+AT24_CHIP_DATA(at24_data_24aa025e64, 64 / 8,
+	AT24_FLAG_READONLY);
 /* spd is a 24c02 in memory DIMMs */
 AT24_CHIP_DATA(at24_data_spd, 2048 / 8,
 	AT24_FLAG_READONLY | AT24_FLAG_IRUGO);
@@ -218,6 +222,8 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24cs02",	(kernel_ulong_t)&at24_data_24cs02 },
 	{ "24mac402",	(kernel_ulong_t)&at24_data_24mac402 },
 	{ "24mac602",	(kernel_ulong_t)&at24_data_24mac602 },
+	{ "24aa025e48",	(kernel_ulong_t)&at24_data_24aa025e48 },
+	{ "24aa025e64",	(kernel_ulong_t)&at24_data_24aa025e64 },
 	{ "spd",	(kernel_ulong_t)&at24_data_spd },
 	{ "24c02-vaio",	(kernel_ulong_t)&at24_data_24c02_vaio },
 	{ "24c04",	(kernel_ulong_t)&at24_data_24c04 },
@@ -270,6 +276,8 @@ static const struct of_device_id __maybe_unused at24_of_match[] = {
 	{ .compatible = "atmel,24c1024",	.data = &at24_data_24c1024 },
 	{ .compatible = "atmel,24c1025",	.data = &at24_data_24c1025 },
 	{ .compatible = "atmel,24c2048",	.data = &at24_data_24c2048 },
+	{ .compatible = "microchip,24aa025e48",	.data = &at24_data_24aa025e48 },
+	{ .compatible = "microchip,24aa025e64",	.data = &at24_data_24aa025e64 },
 	{ /* END OF LIST */ },
 };
 MODULE_DEVICE_TABLE(of, at24_of_match);

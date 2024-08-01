@@ -257,6 +257,7 @@ struct hubp_funcs {
 			unsigned int min_dst_y_next_start_optimized);
 
 	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
+	void (*hubp_program_mcache_id_and_split_coordinate)(struct hubp *hubp, struct dml2_hubp_pipe_mcache_regs *mcache_regs);
 	void (*hubp_update_3dlut_fl_bias_scale)(struct hubp *hubp, uint16_t bias, uint16_t scale);
 	void (*hubp_program_3dlut_fl_mode)(struct hubp *hubp,
 			enum hubp_3dlut_fl_mode mode);

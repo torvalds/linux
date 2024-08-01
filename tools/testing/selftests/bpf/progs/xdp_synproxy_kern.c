@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
 /* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
 
+#define BPF_NO_KFUNC_PROTOTYPES
 #include "vmlinux.h"
 
 #include <bpf/bpf_helpers.h>

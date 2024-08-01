@@ -196,8 +196,8 @@ static int se10_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&priv->wdd, priv);
 
 	priv->wdd.parent = dev;
-	priv->wdd.info = &wdt_info,
-	priv->wdd.ops = &se10_wdt_ops,
+	priv->wdd.info = &wdt_info;
+	priv->wdd.ops = &se10_wdt_ops;
 	priv->wdd.timeout = WATCHDOG_TIMEOUT; /* Set default timeout */
 	priv->wdd.min_timeout = MIN_TIMEOUT;
 	priv->wdd.max_timeout = MAX_TIMEOUT;

@@ -1461,4 +1461,5 @@ void intel_gmch_remove(void)
 EXPORT_SYMBOL(intel_gmch_remove);
 
 MODULE_AUTHOR("Dave Jones, Various @Intel");
+MODULE_DESCRIPTION("Intel GTT (Graphics Translation Table) routines");
 MODULE_LICENSE("GPL and additional rights");

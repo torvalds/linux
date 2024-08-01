@@ -144,7 +144,7 @@ struct iwl_missed_vap_notif {
 } __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_start_notif - Channel switch start notification
+ * struct iwl_channel_switch_start_notif_v1 - Channel switch start notification
  *
  * @id_and_color: ID and color of the MAC
  */

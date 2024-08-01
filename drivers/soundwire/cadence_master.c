@@ -6,6 +6,7 @@
  * Used by Master driver
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
@@ -323,12 +324,11 @@ static ssize_t cdns_sprintf(struct sdw_cdns *cdns,
 static int cdns_reg_show(struct seq_file *s, void *data)
 {
 	struct sdw_cdns *cdns = s->private;
-	char *buf;
 	ssize_t ret;
 	int num_ports;
 	int i, j;
 
-	buf = kzalloc(RD_BUF, GFP_KERNEL);
+	char *buf __free(kfree) = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -389,7 +389,6 @@ static int cdns_reg_show(struct seq_file *s, void *data)
 		ret += cdns_sprintf(cdns, buf, ret, CDNS_PDI_CONFIG(i));
 
 	seq_printf(s, "%s", buf);
-	kfree(buf);
 
 	return 0;
 }

@@ -109,7 +109,7 @@ static void print_extent_item(const struct extent_buffer *eb, int slot, int type
 		btrfs_err(eb->fs_info,
 			  "unexpected extent item size, has %u expect >= %zu",
 			  item_size, sizeof(*ei));
-		btrfs_handle_fs_error(eb->fs_info, -EUCLEAN, NULL);
+		return;
 	}
 
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
@@ -208,11 +208,6 @@ static void print_raid_stripe_key(const struct extent_buffer *eb, u32 item_size,
 				  struct btrfs_stripe_extent *stripe)
 {
 	const int num_stripes = btrfs_num_raid_stripes(item_size);
-	const u8 encoding = btrfs_stripe_extent_encoding(eb, stripe);
-
-	pr_info("\t\t\tencoding: %s\n",
-		(encoding && encoding < BTRFS_NR_RAID_TYPES) ?
-		btrfs_raid_array[encoding].raid_name : "unknown");
 
 	for (int i = 0; i < num_stripes; i++)
 		pr_info("\t\t\tstride %d devid %llu physical %llu\n",
@@ -310,6 +305,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_EXTENT_DATA_KEY:
 			fi = btrfs_item_ptr(l, i,
 					    struct btrfs_file_extent_item);
+			pr_info("\t\tgeneration %llu type %hhu\n",
+				btrfs_file_extent_generation(l, fi),
+				btrfs_file_extent_type(l, fi));
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
 				pr_info("\t\tinline extent data size %llu\n",

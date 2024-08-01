@@ -403,21 +403,22 @@ static int alvium_get_bcrm_vers(struct alvium_dev *alvium)
 static int alvium_get_fw_version(struct alvium_dev *alvium)
 {
 	struct device *dev = &alvium->i2c_client->dev;
-	u64 spec, maj, min, pat;
-	int ret = 0;
+	u64 val;
+	int ret;
 
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_SPEC_VERSION_R,
-			  &spec, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MAJOR_VERSION_R,
-			  &maj, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_MINOR_VERSION_R,
-			  &min, &ret);
-	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW_PATCH_VERSION_R,
-			  &pat, &ret);
+	ret = alvium_read(alvium, REG_BCRM_DEVICE_FW, &val, NULL);
 	if (ret)
 		return ret;
 
-	dev_info(dev, "fw version: %llu.%llu.%llu.%llu\n", spec, maj, min, pat);
+	dev_info(dev, "fw version: %02u.%02u.%04u.%08x\n",
+		 (u8)((val & BCRM_DEVICE_FW_SPEC_MASK) >>
+		       BCRM_DEVICE_FW_SPEC_SHIFT),
+		 (u8)((val & BCRM_DEVICE_FW_MAJOR_MASK) >>
+		       BCRM_DEVICE_FW_MAJOR_SHIFT),
+		 (u16)((val & BCRM_DEVICE_FW_MINOR_MASK) >>
+			BCRM_DEVICE_FW_MINOR_SHIFT),
+		 (u32)((val & BCRM_DEVICE_FW_PATCH_MASK) >>
+			BCRM_DEVICE_FW_PATCH_SHIFT));
 
 	return 0;
 }
@@ -1188,6 +1189,20 @@ static int alvium_set_frame_rate(struct alvium_dev *alvium, u64 fr)
 	struct device *dev = &alvium->i2c_client->dev;
 	int ret;
 
+	ret = alvium_write_hshake(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_EN_RW,
+				  1);
+	if (ret) {
+		dev_err(dev, "Fail to set acquisition frame rate enable reg\n");
+		return ret;
+	}
+
+	ret = alvium_write_hshake(alvium, REG_BCRM_FRAME_START_TRIGGER_MODE_RW,
+				  0);
+	if (ret) {
+		dev_err(dev, "Fail to set frame start trigger mode reg\n");
+		return ret;
+	}
+
 	ret = alvium_write_hshake(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_RW,
 				  fr);
 	if (ret) {
@@ -1707,6 +1722,27 @@ alvium_code_to_pixfmt(struct alvium_dev *alvium, u32 code)
 	return &alvium->alvium_csi2_fmt[0];
 }
 
+static int alvium_enum_frame_size(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct alvium_dev *alvium = sd_to_alvium(sd);
+	const struct alvium_pixfmt *alvium_csi2_fmt;
+
+	if (fse->index)
+		return -EINVAL;
+
+	alvium_csi2_fmt = alvium_code_to_pixfmt(alvium, fse->code);
+	if (fse->code != alvium_csi2_fmt->code)
+		return -EINVAL;
+
+	fse->min_width = alvium->img_min_width;
+	fse->max_width = alvium->img_max_width;
+	fse->min_height = alvium->img_min_height;
+	fse->max_height = alvium->img_max_height;
+	return 0;
+}
+
 static int alvium_set_mode(struct alvium_dev *alvium,
 			   struct v4l2_subdev_state *state)
 {
@@ -1962,7 +1998,7 @@ static int alvium_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	int val;
 
 	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
+	case V4L2_CID_ANALOGUE_GAIN:
 		val = alvium_get_gain(alvium);
 		if (val < 0)
 			return val;
@@ -1994,7 +2030,7 @@ static int alvium_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
+	case V4L2_CID_ANALOGUE_GAIN:
 		ret = alvium_set_ctrl_gain(alvium, ctrl->val);
 		break;
 	case V4L2_CID_AUTOGAIN:
@@ -2123,7 +2159,7 @@ static int alvium_ctrl_init(struct alvium_dev *alvium)
 
 	if (alvium->avail_ft.gain) {
 		ctrls->gain = v4l2_ctrl_new_std(hdl, ops,
-						V4L2_CID_GAIN,
+						V4L2_CID_ANALOGUE_GAIN,
 						alvium->min_gain,
 						alvium->max_gain,
 						alvium->inc_gain,
@@ -2214,6 +2250,7 @@ static const struct v4l2_subdev_video_ops alvium_video_ops = {
 
 static const struct v4l2_subdev_pad_ops alvium_pad_ops = {
 	.enum_mbus_code = alvium_enum_mbus_code,
+	.enum_frame_size = alvium_enum_frame_size,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = alvium_set_fmt,
 	.get_selection = alvium_get_selection,

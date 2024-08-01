@@ -110,4 +110,6 @@ static struct platform_driver clk_mt8195_apusys_pll_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_apusys_pll_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 AI Processing Unit PLL clocks driver");
 MODULE_LICENSE("GPL");

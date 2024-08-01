@@ -464,10 +464,6 @@ static uint64_t gmc_v12_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_NC);
-	case AMDGPU_VM_MTYPE_WC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_WC);
-	case AMDGPU_VM_MTYPE_CC:
-		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
 		return AMDGPU_PTE_MTYPE_GFX12(0ULL, MTYPE_UC);
 	default:
@@ -531,6 +527,9 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 	coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
 	is_system = (bo->tbo.resource->mem_type == TTM_PL_TT) ||
 		(bo->tbo.resource->mem_type == AMDGPU_PL_PREEMPT);
+
+	if (bo && bo->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+		*flags |= AMDGPU_PTE_DCC;
 
 	/* WA for HW bug */
 	if (is_system || ((bo_adev != adev) && coherent))

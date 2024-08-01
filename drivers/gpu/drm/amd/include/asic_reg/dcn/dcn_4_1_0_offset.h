@@ -1777,6 +1777,8 @@
 #define regDCHUBBUB_SDPIF_MEM_PWR_CTRL_BASE_IDX                                                         2
 #define regDCHUBBUB_SDPIF_MEM_PWR_STATUS                                                                0x0487
 #define regDCHUBBUB_SDPIF_MEM_PWR_STATUS_BASE_IDX                                                       2
+#define regDCHUBBUB_SDPIF_MCACHE_INVALIDATION_CTL                                                       0x0488
+#define regDCHUBBUB_SDPIF_MCACHE_INVALIDATION_CTL_BASE_IDX                                              2
 
 
 // addressBlock: dcn_dcec_dchubbubl_hubbub_ret_path_dispdec
@@ -2089,6 +2091,8 @@
 #define regHUBP0_DCSURF_TILING_CONFIG_BASE_IDX                                                          2
 #define regHUBP0_DCSURF_PRI_VIEWPORT_START                                                              0x05e9
 #define regHUBP0_DCSURF_PRI_VIEWPORT_START_BASE_IDX                                                     2
+#define regHUBP0_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE                                                0x05ea
+#define regHUBP0_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE_BASE_IDX                                       2
 #define regHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x05eb
 #define regHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
 #define regHUBP0_DCSURF_PRI_VIEWPORT_START_C                                                            0x05ec
@@ -2121,6 +2125,8 @@
 #define regHUBP0_DCHUBP_MALL_SUB_VP1_BASE_IDX                                                           2
 #define regHUBP0_DCHUBP_MALL_SUB_VP2                                                                    0x05fa
 #define regHUBP0_DCHUBP_MALL_SUB_VP2_BASE_IDX                                                           2
+#define regHUBP0_DCHUBP_MCACHEID_CONFIG                                                                 0x05fb
+#define regHUBP0_DCHUBP_MCACHEID_CONFIG_BASE_IDX                                                        2
 #define regHUBP0_HUBPREQ_DEBUG_DB                                                                       0x05fc
 #define regHUBP0_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
 #define regHUBP0_HUBPREQ_DEBUG                                                                          0x05fd
@@ -2378,6 +2384,8 @@
 #define regHUBP1_DCSURF_TILING_CONFIG_BASE_IDX                                                          2
 #define regHUBP1_DCSURF_PRI_VIEWPORT_START                                                              0x06c5
 #define regHUBP1_DCSURF_PRI_VIEWPORT_START_BASE_IDX                                                     2
+#define regHUBP1_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE                                                0x06c6
+#define regHUBP1_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE_BASE_IDX                                       2
 #define regHUBP1_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x06c7
 #define regHUBP1_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
 #define regHUBP1_DCSURF_PRI_VIEWPORT_START_C                                                            0x06c8
@@ -2410,6 +2418,8 @@
 #define regHUBP1_DCHUBP_MALL_SUB_VP1_BASE_IDX                                                           2
 #define regHUBP1_DCHUBP_MALL_SUB_VP2                                                                    0x06d6
 #define regHUBP1_DCHUBP_MALL_SUB_VP2_BASE_IDX                                                           2
+#define regHUBP1_DCHUBP_MCACHEID_CONFIG                                                                 0x06d7
+#define regHUBP1_DCHUBP_MCACHEID_CONFIG_BASE_IDX                                                        2
 #define regHUBP1_HUBPREQ_DEBUG_DB                                                                       0x06d8
 #define regHUBP1_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
 #define regHUBP1_HUBPREQ_DEBUG                                                                          0x06d9
@@ -2667,6 +2677,8 @@
 #define regHUBP2_DCSURF_TILING_CONFIG_BASE_IDX                                                          2
 #define regHUBP2_DCSURF_PRI_VIEWPORT_START                                                              0x07a1
 #define regHUBP2_DCSURF_PRI_VIEWPORT_START_BASE_IDX                                                     2
+#define regHUBP2_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE                                                0x07a2
+#define regHUBP2_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE_BASE_IDX                                       2
 #define regHUBP2_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x07a3
 #define regHUBP2_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
 #define regHUBP2_DCSURF_PRI_VIEWPORT_START_C                                                            0x07a4
@@ -2699,6 +2711,8 @@
 #define regHUBP2_DCHUBP_MALL_SUB_VP1_BASE_IDX                                                           2
 #define regHUBP2_DCHUBP_MALL_SUB_VP2                                                                    0x07b2
 #define regHUBP2_DCHUBP_MALL_SUB_VP2_BASE_IDX                                                           2
+#define regHUBP2_DCHUBP_MCACHEID_CONFIG                                                                 0x07b3
+#define regHUBP2_DCHUBP_MCACHEID_CONFIG_BASE_IDX                                                        2
 #define regHUBP2_HUBPREQ_DEBUG_DB                                                                       0x07b4
 #define regHUBP2_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
 #define regHUBP2_HUBPREQ_DEBUG                                                                          0x07b5
@@ -2957,6 +2971,8 @@
 #define regHUBP3_DCSURF_TILING_CONFIG_BASE_IDX                                                          2
 #define regHUBP3_DCSURF_PRI_VIEWPORT_START                                                              0x087d
 #define regHUBP3_DCSURF_PRI_VIEWPORT_START_BASE_IDX                                                     2
+#define regHUBP3_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE                                                0x087e
+#define regHUBP3_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE_BASE_IDX                                       2
 #define regHUBP3_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x087f
 #define regHUBP3_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
 #define regHUBP3_DCSURF_PRI_VIEWPORT_START_C                                                            0x0880
@@ -2989,6 +3005,8 @@
 #define regHUBP3_DCHUBP_MALL_SUB_VP1_BASE_IDX                                                           2
 #define regHUBP3_DCHUBP_MALL_SUB_VP2                                                                    0x088e
 #define regHUBP3_DCHUBP_MALL_SUB_VP2_BASE_IDX                                                           2
+#define regHUBP3_DCHUBP_MCACHEID_CONFIG                                                                 0x088f
+#define regHUBP3_DCHUBP_MCACHEID_CONFIG_BASE_IDX                                                        2
 #define regHUBP3_HUBPREQ_DEBUG_DB                                                                       0x0890
 #define regHUBP3_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
 #define regHUBP3_HUBPREQ_DEBUG                                                                          0x0891

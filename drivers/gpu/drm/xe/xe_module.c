@@ -11,6 +11,7 @@
 #include "xe_drv.h"
 #include "xe_hw_fence.h"
 #include "xe_pci.h"
+#include "xe_observation.h"
 #include "xe_sched_job.h"
 
 struct xe_modparam xe_modparam = {
@@ -77,6 +78,10 @@ static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_register_pci_driver,
 		.exit = xe_unregister_pci_driver,
+	},
+	{
+		.init = xe_observation_sysctl_register,
+		.exit = xe_observation_sysctl_unregister,
 	},
 };
 

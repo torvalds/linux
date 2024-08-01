@@ -1290,6 +1290,9 @@ static void pf_reset_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	struct xe_tile *tile;
 	unsigned int tid;
 
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
 	for_each_tile(tile, xe, tid) {
 		lmtt = &tile->sriov.pf.lmtt;
 		xe_lmtt_drop_pages(lmtt, vfid);
@@ -1307,6 +1310,9 @@ static int pf_update_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	unsigned int gtid;
 	unsigned int tid;
 	int err;
+
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, IS_SRIOV_PF(xe));
 
 	total = 0;
 	for_each_tile(tile, xe, tid)
@@ -1353,6 +1359,7 @@ fail:
 
 static void pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_config *config)
 {
+	xe_gt_assert(gt, IS_DGFX(gt_to_xe(gt)));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
@@ -1371,6 +1378,7 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 	int err;
 
 	xe_gt_assert(gt, vfid);
+	xe_gt_assert(gt, IS_DGFX(xe));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
 
 	size = round_up(size, pf_get_lmem_alignment(gt));
@@ -1535,6 +1543,7 @@ static u64 pf_estimate_fair_lmem(struct xe_gt *gt, unsigned int num_vfs)
 	u64 fair;
 
 	fair = div_u64(available, num_vfs);
+	fair = rounddown_pow_of_two(fair);	/* XXX: ttm_vram_mgr & drm_buddy limitation */
 	fair = ALIGN_DOWN(fair, alignment);
 #ifdef MAX_FAIR_LMEM
 	fair = min_t(u64, MAX_FAIR_LMEM, fair);
@@ -1838,11 +1847,14 @@ u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	struct xe_device *xe = gt_to_xe(gt);
 
 	if (!xe_gt_is_media_type(gt)) {
 		pf_release_vf_config_ggtt(gt, config);
-		pf_release_vf_config_lmem(gt, config);
-		pf_update_vf_lmtt(gt_to_xe(gt), vfid);
+		if (IS_DGFX(xe)) {
+			pf_release_vf_config_lmem(gt, config);
+			pf_update_vf_lmtt(xe, vfid);
+		}
 	}
 	pf_release_config_ctxs(gt, config);
 	pf_release_config_dbs(gt, config);
@@ -1909,6 +1921,84 @@ int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh
 	}
 
 	return err;
+}
+
+static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	bool valid_ggtt, valid_ctxs, valid_dbs;
+	bool valid_any, valid_all;
+
+	valid_ggtt = pf_get_vf_config_ggtt(primary_gt, vfid);
+	valid_ctxs = pf_get_vf_config_ctxs(gt, vfid);
+	valid_dbs = pf_get_vf_config_dbs(gt, vfid);
+
+	/* note that GuC doorbells are optional */
+	valid_any = valid_ggtt || valid_ctxs || valid_dbs;
+	valid_all = valid_ggtt && valid_ctxs;
+
+	if (IS_DGFX(xe)) {
+		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+
+		valid_any = valid_any || valid_lmem;
+		valid_all = valid_all && valid_lmem;
+	}
+
+	return valid_all ? 1 : valid_any ? -ENOKEY : -ENODATA;
+}
+
+/**
+ * xe_gt_sriov_pf_config_is_empty - Check VF's configuration.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if VF mandatory configuration (GGTT, LMEM, ...) is empty.
+ */
+bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
+{
+	bool empty;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	empty = pf_validate_vf_config(gt, vfid) == -ENODATA;
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return empty;
+}
+
+/**
+ * xe_gt_sriov_pf_config_restart - Restart SR-IOV configurations after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * Any prior configurations pushed to GuC are lost when the GT is reset.
+ * Push again all non-empty VF configurations to the GuC.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	unsigned int fail = 0, skip = 0;
+
+	for (n = 1; n <= total_vfs; n++) {
+		if (xe_gt_sriov_pf_config_is_empty(gt, n))
+			skip++;
+		else if (xe_gt_sriov_pf_config_push(gt, n, false))
+			fail++;
+	}
+
+	if (fail)
+		xe_gt_sriov_notice(gt, "Failed to push %u of %u VF%s configurations\n",
+				   fail, total_vfs - skip, str_plural(total_vfs));
+
+	if (fail != total_vfs)
+		xe_gt_sriov_dbg(gt, "pushed %u skip %u of %u VF%s configurations\n",
+				total_vfs - skip - fail, skip, total_vfs, str_plural(total_vfs));
 }
 
 /**

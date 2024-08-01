@@ -2722,6 +2722,7 @@ struct rtw89_h2c_scanofld_be {
 #define RTW89_H2C_SCANOFLD_BE_W0_MACID GENMASK(23, 8)
 #define RTW89_H2C_SCANOFLD_BE_W0_PORT GENMASK(26, 24)
 #define RTW89_H2C_SCANOFLD_BE_W0_BAND GENMASK(28, 27)
+#define RTW89_H2C_SCANOFLD_BE_W0_PROBE_WITH_RATE BIT(29)
 #define RTW89_H2C_SCANOFLD_BE_W1_NUM_MACC_ROLE GENMASK(7, 0)
 #define RTW89_H2C_SCANOFLD_BE_W1_NUM_OP GENMASK(15, 8)
 #define RTW89_H2C_SCANOFLD_BE_W1_NORM_PD GENMASK(31, 16)
@@ -2738,6 +2739,9 @@ struct rtw89_h2c_scanofld_be {
 #define RTW89_H2C_SCANOFLD_BE_W5_MLO_MODE GENMASK(31, 0)
 #define RTW89_H2C_SCANOFLD_BE_W6_CHAN_PROHIB_LOW GENMASK(31, 0)
 #define RTW89_H2C_SCANOFLD_BE_W7_CHAN_PROHIB_HIGH GENMASK(31, 0)
+#define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_2GHZ GENMASK(7, 0)
+#define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_5GHZ GENMASK(15, 8)
+#define RTW89_H2C_SCANOFLD_BE_W8_PROBE_RATE_6GHZ GENMASK(23, 16)
 
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {
@@ -4654,5 +4658,11 @@ struct rtw89_fw_tx_shape_lmt_ru_entry {
 const struct rtw89_rfe_parms *
 rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 			    const struct rtw89_rfe_parms *init);
+
+enum rtw89_wow_wakeup_ver {
+	RTW89_WOW_REASON_V0,
+	RTW89_WOW_REASON_V1,
+	RTW89_WOW_REASON_NUM,
+};
 
 #endif

@@ -40,6 +40,10 @@ enum dcc_control {
 	dcc_control__128_128_xxx,
 	dcc_control__256_64_64,
 	dcc_control__256_128_128,
+	dcc_control__256_256,
+	dcc_control__256_128,
+	dcc_control__256_64,
+
 };
 
 enum segment_order {

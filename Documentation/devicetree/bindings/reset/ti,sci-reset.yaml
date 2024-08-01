@@ -37,7 +37,7 @@ properties:
       The second cell should contain the reset mask corresponding to the device
       used by system controller.
 
-      Please see  http://processors.wiki.ti.com/index.php/TISCI for
+      Please see https://software-dl.ti.com/tisci/esd/latest/index.html for
       protocol documentation for the values to be used for different devices.
 
 

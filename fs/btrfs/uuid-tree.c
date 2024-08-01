@@ -13,7 +13,7 @@
 #include "accessors.h"
 #include "uuid-tree.h"
 
-static void btrfs_uuid_to_key(u8 *uuid, u8 type, struct btrfs_key *key)
+static void btrfs_uuid_to_key(const u8 *uuid, u8 type, struct btrfs_key *key)
 {
 	key->type = type;
 	key->objectid = get_unaligned_le64(uuid);
@@ -21,7 +21,7 @@ static void btrfs_uuid_to_key(u8 *uuid, u8 type, struct btrfs_key *key)
 }
 
 /* return -ENOENT for !found, < 0 for errors, or 0 if an item was found */
-static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
+static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, const u8 *uuid,
 				  u8 type, u64 subid)
 {
 	int ret;
@@ -81,7 +81,7 @@ out:
 	return ret;
 }
 
-int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
+int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, const u8 *uuid, u8 type,
 			u64 subid_cpu)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -145,7 +145,7 @@ out:
 	return ret;
 }
 
-int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
+int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, const u8 *uuid, u8 type,
 			u64 subid)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -256,7 +256,7 @@ out:
  * < 0	if an error occurred
  */
 static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
-				       u8 *uuid, u8 type, u64 subvolid)
+				       const u8 *uuid, u8 type, u64 subvolid)
 {
 	int ret = 0;
 	struct btrfs_root *subvol_root;

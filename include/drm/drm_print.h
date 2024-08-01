@@ -175,6 +175,7 @@ struct drm_printer {
 	void (*printfn)(struct drm_printer *p, struct va_format *vaf);
 	void (*puts)(struct drm_printer *p, const char *str);
 	void *arg;
+	const void *origin;
 	const char *prefix;
 	enum drm_debug_category category;
 };
@@ -332,6 +333,7 @@ static inline struct drm_printer drm_dbg_printer(struct drm_device *drm,
 	struct drm_printer p = {
 		.printfn = __drm_printfn_dbg,
 		.arg = drm,
+		.origin = (const void *)_THIS_IP_, /* it's fine as we will be inlined */
 		.prefix = prefix,
 		.category = category,
 	};
@@ -527,17 +529,15 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
  * Prefer drm_device based logging over device or prink based logging.
  */
 
-__printf(3, 4)
-void ___drm_dbg(struct _ddebug *desc, enum drm_debug_category category, const char *format, ...);
 __printf(1, 2)
 void __drm_err(const char *format, ...);
 
 #if !defined(CONFIG_DRM_USE_DYNAMIC_DEBUG)
-#define __drm_dbg(cat, fmt, ...)		___drm_dbg(NULL, cat, fmt, ##__VA_ARGS__)
+#define __drm_dbg(cat, fmt, ...)	__drm_dev_dbg(NULL, NULL, cat, fmt, ##__VA_ARGS__)
 #else
 #define __drm_dbg(cat, fmt, ...)					\
-	_dynamic_func_call_cls(cat, fmt, ___drm_dbg,			\
-			       cat, fmt, ##__VA_ARGS__)
+	_dynamic_func_call_cls(cat, fmt, __drm_dev_dbg,			\
+			       NULL, cat, fmt, ##__VA_ARGS__)
 #endif
 
 /* Macros to make printk easier */
@@ -632,12 +632,12 @@ void __drm_err(const char *format, ...);
 
 /* Helper for struct drm_device based WARNs */
 #define drm_WARN(drm, condition, format, arg...)			\
-	WARN(condition, "%s %s: " format,				\
+	WARN(condition, "%s %s: [drm] " format,				\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 
 #define drm_WARN_ONCE(drm, condition, format, arg...)			\
-	WARN_ONCE(condition, "%s %s: " format,				\
+	WARN_ONCE(condition, "%s %s: [drm] " format,			\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 

@@ -315,11 +315,21 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	if (adev->no_hw_access)
 		return 0;
 
-	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (reg == SMU_RESP_NONE ||
-	    res == -EREMOTEIO)
+	if (smu->smc_fw_state == SMU_FW_HANG) {
+		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
+		res = -EREMOTEIO;
 		goto Out;
+	}
+
+	if (smu->smc_fw_state == SMU_FW_INIT) {
+		smu->smc_fw_state = SMU_FW_RUNTIME;
+	} else {
+		reg = __smu_cmn_poll_stat(smu);
+		res = __smu_cmn_reg2errno(smu, reg);
+		if (reg == SMU_RESP_NONE || res == -EREMOTEIO)
+			goto Out;
+	}
+
 	__smu_cmn_send_msg(smu, msg_index, param);
 	res = 0;
 Out:
@@ -349,6 +359,9 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
 
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
+
+	if (res == -EREMOTEIO)
+		smu->smc_fw_state = SMU_FW_HANG;
 
 	if (unlikely(smu->adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
 	    res && (res != -ETIME)) {
@@ -418,6 +431,16 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 			goto Out;
 	}
 
+	if (smu->smc_fw_state == SMU_FW_HANG) {
+		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
+		res = -EREMOTEIO;
+		goto Out;
+	} else if (smu->smc_fw_state == SMU_FW_INIT) {
+		/* Ignore initial smu response register value */
+		poll = false;
+		smu->smc_fw_state = SMU_FW_RUNTIME;
+	}
+
 	if (poll) {
 		reg = __smu_cmn_poll_stat(smu);
 		res = __smu_cmn_reg2errno(smu, reg);
@@ -429,8 +452,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	__smu_cmn_send_msg(smu, (uint16_t) index, param);
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
-	if (res != 0)
+	if (res != 0) {
+		if (res == -EREMOTEIO)
+			smu->smc_fw_state = SMU_FW_HANG;
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
+	}
 	if (read_arg) {
 		smu_cmn_read_arg(smu, read_arg);
 		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x,\

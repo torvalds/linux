@@ -44,16 +44,6 @@ config MEMSTICK_R592
 	  To compile this driver as a module, choose M here: the module will
 	  be called r592.
 
-config MEMSTICK_REALTEK_PCI
-	tristate "Realtek PCI-E Memstick Card Interface Driver"
-	depends on MISC_RTSX_PCI
-	help
-	  Say Y here to include driver code to support Memstick card interface
-	  of Realtek PCI-E card reader
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called rtsx_pci_ms.
-
 config MEMSTICK_REALTEK_USB
 	tristate "Realtek USB Memstick Card Interface Driver"
 	depends on MISC_RTSX_USB
