@@ -23,7 +23,6 @@ struct cs35l56_hda {
 	struct cs35l56_base base;
 	struct hda_codec *codec;
 	struct work_struct dsp_work;
-	struct work_struct control_work;
 
 	int index;
 	const char *system_name;
