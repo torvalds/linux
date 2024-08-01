@@ -97,7 +97,7 @@ static int gfx_v11_0_3_poison_consumption_handler(struct amdgpu_device *adev,
 			ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		}
 
-		if (con && !con->is_rma)
+		if (con && !amdgpu_ras_is_rma(adev))
 			amdgpu_ras_reset_gpu(adev);
 	}
 

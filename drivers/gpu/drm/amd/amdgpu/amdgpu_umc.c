@@ -196,7 +196,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	amdgpu_umc_handle_bad_pages(adev, ras_error_status);
 
 	if ((err_data->ue_count || err_data->de_count) &&
-	    (reset || (con && con->is_rma))) {
+	    (reset || amdgpu_ras_is_rma(adev))) {
 		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}

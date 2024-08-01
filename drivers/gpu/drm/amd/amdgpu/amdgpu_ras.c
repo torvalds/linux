@@ -2153,7 +2153,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	/* gpu reset is fallback for failed and default cases.
 	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
 	 */
-	if (poison_stat && !con->is_rma) {
+	if (poison_stat && !amdgpu_ras_is_rma(adev)) {
 		event_id = amdgpu_ras_acquire_event_id(adev, type);
 		RAS_EVENT_LOG(adev, event_id,
 			      "GPU reset for %s RAS poison consumption is issued!\n",
@@ -2945,7 +2945,7 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 
 	amdgpu_ras_error_data_fini(&err_data);
 
-	if (err_cnt && con->is_rma)
+	if (err_cnt && amdgpu_ras_is_rma(adev))
 		amdgpu_ras_reset_gpu(adev);
 
 	amdgpu_ras_schedule_retirement_dwork(con,
@@ -3046,7 +3046,7 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 	}
 
 	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
-	if (reset_flags && !con->is_rma) {
+	if (reset_flags && !amdgpu_ras_is_rma(adev)) {
 		if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE1_RESET)
 			reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 		else if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE2_RESET)
@@ -3192,7 +3192,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	 * This calling fails when is_rma is true or
 	 * ret != 0.
 	 */
-	if (con->is_rma || ret)
+	if (amdgpu_ras_is_rma(adev) || ret)
 		goto free;
 
 	if (con->eeprom_control.ras_num_recs) {
@@ -3241,7 +3241,7 @@ out:
 	 * Except error threshold exceeding case, other failure cases in this
 	 * function would not fail amdgpu driver init.
 	 */
-	if (!con->is_rma)
+	if (!amdgpu_ras_is_rma(adev))
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -4284,7 +4284,7 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	/* mode1 is the only selection for RMA status */
-	if (ras->is_rma) {
+	if (amdgpu_ras_is_rma(adev)) {
 		ras->gpu_reset_flags = 0;
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 	}
@@ -4823,4 +4823,14 @@ void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
 		dev_printk(KERN_INFO, adev->dev, "%pV", &vaf);
 
 	va_end(args);
+}
+
+bool amdgpu_ras_is_rma(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con)
+		return false;
+
+	return con->is_rma;
 }

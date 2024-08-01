@@ -974,4 +974,5 @@ __printf(3, 4)
 void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
 				const char *fmt, ...);
 
+bool amdgpu_ras_is_rma(struct amdgpu_device *adev);
 #endif
