@@ -106,7 +106,7 @@ struct asoc_sdw_codec_info {
 	const char *codec_name;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
-	const bool ignore_pch_dmic;
+	const bool ignore_internal_dmic;
 	const struct snd_soc_ops *ops;
 	struct asoc_sdw_dai_info dais[SOC_SDW_MAX_DAI_NUM];
 	const int dai_num;
@@ -129,7 +129,7 @@ struct mc_private {
 	/* To store SDW Pin index for each SoundWire link */
 	unsigned int sdw_pin_index[SDW_MAX_LINKS];
 	bool append_dai_type;
-	bool ignore_pch_dmic;
+	bool ignore_internal_dmic;
 };
 
 extern unsigned long sof_sdw_quirk;

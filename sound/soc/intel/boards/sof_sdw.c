@@ -932,7 +932,7 @@ static struct asoc_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x714,
 		.version_id = 3,
-		.ignore_pch_dmic = true,
+		.ignore_internal_dmic = true,
 		.dais = {
 			{
 				.direction = {false, true},
@@ -947,7 +947,7 @@ static struct asoc_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x715,
 		.version_id = 3,
-		.ignore_pch_dmic = true,
+		.ignore_internal_dmic = true,
 		.dais = {
 			{
 				.direction = {false, true},
@@ -962,7 +962,7 @@ static struct asoc_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x714,
 		.version_id = 2,
-		.ignore_pch_dmic = true,
+		.ignore_internal_dmic = true,
 		.dais = {
 			{
 				.direction = {false, true},
@@ -977,7 +977,7 @@ static struct asoc_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x715,
 		.version_id = 2,
-		.ignore_pch_dmic = true,
+		.ignore_internal_dmic = true,
 		.dais = {
 			{
 				.direction = {false, true},
@@ -1542,7 +1542,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 			if (!codec_info)
 				return -EINVAL;
 
-			ctx->ignore_pch_dmic |= codec_info->ignore_pch_dmic;
+			ctx->ignore_internal_dmic |= codec_info->ignore_internal_dmic;
 
 			codec_name = asoc_sdw_get_codec_name(dev, codec_info, adr_link, i);
 			if (!codec_name)
@@ -2018,7 +2018,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 
 	/* dmic */
 	if (dmic_num > 0) {
-		if (ctx->ignore_pch_dmic) {
+		if (ctx->ignore_internal_dmic) {
 			dev_warn(dev, "Ignoring PCH DMIC\n");
 		} else {
 			ret = create_dmic_dailinks(card, &dai_links, &be_id);
