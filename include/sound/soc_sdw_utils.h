@@ -124,6 +124,22 @@ void asoc_sdw_mc_dailink_exit_loop(struct snd_soc_card *card);
 
 int asoc_sdw_card_late_probe(struct snd_soc_card *card);
 
+void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
+			    int *be_id, char *name, int playback, int capture,
+			    struct snd_soc_dai_link_component *cpus, int cpus_num,
+			    struct snd_soc_dai_link_component *platform_component,
+			    int num_platforms, struct snd_soc_dai_link_component *codecs,
+			    int codecs_num, int (*init)(struct snd_soc_pcm_runtime *rtd),
+			    const struct snd_soc_ops *ops);
+
+int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
+				  int *be_id, char *name, int playback, int capture,
+				  const char *cpu_dai_name, const char *platform_comp_name,
+				  int num_platforms, const char *codec_name,
+				  const char *codec_dai_name,
+				  int (*init)(struct snd_soc_pcm_runtime *rtd),
+				  const struct snd_soc_ops *ops);
+
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd);
 
 /* DMIC support */

@@ -557,54 +557,6 @@ static const struct snd_soc_ops sdw_ops = {
 	.shutdown = asoc_sdw_shutdown,
 };
 
-static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
-			  int *be_id, char *name, int playback, int capture,
-			  struct snd_soc_dai_link_component *cpus, int cpus_num,
-			  struct snd_soc_dai_link_component *codecs, int codecs_num,
-			  int (*init)(struct snd_soc_pcm_runtime *rtd),
-			  const struct snd_soc_ops *ops)
-{
-	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
-	dai_links->id = (*be_id)++;
-	dai_links->name = name;
-	dai_links->platforms = platform_component;
-	dai_links->num_platforms = ARRAY_SIZE(platform_component);
-	dai_links->no_pcm = 1;
-	dai_links->cpus = cpus;
-	dai_links->num_cpus = cpus_num;
-	dai_links->codecs = codecs;
-	dai_links->num_codecs = codecs_num;
-	dai_links->dpcm_playback = playback;
-	dai_links->dpcm_capture = capture;
-	dai_links->init = init;
-	dai_links->ops = ops;
-}
-
-static int init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
-				int *be_id, char *name, int playback, int capture,
-				const char *cpu_dai_name,
-				const char *codec_name, const char *codec_dai_name,
-				int (*init)(struct snd_soc_pcm_runtime *rtd),
-				const struct snd_soc_ops *ops)
-{
-	struct snd_soc_dai_link_component *dlc;
-
-	/* Allocate two DLCs one for the CPU, one for the CODEC */
-	dlc = devm_kcalloc(dev, 2, sizeof(*dlc), GFP_KERNEL);
-	if (!dlc || !name || !cpu_dai_name || !codec_name || !codec_dai_name)
-		return -ENOMEM;
-
-	dlc[0].dai_name = cpu_dai_name;
-
-	dlc[1].name = codec_name;
-	dlc[1].dai_name = codec_dai_name;
-
-	init_dai_link(dev, dai_links, be_id, name, playback, capture,
-		      &dlc[0], 1, &dlc[1], 1, init, ops);
-
-	return 0;
-}
-
 struct sof_sdw_endpoint {
 	struct list_head list;
 
@@ -897,9 +849,10 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		playback = (stream == SNDRV_PCM_STREAM_PLAYBACK);
 		capture = (stream == SNDRV_PCM_STREAM_CAPTURE);
 
-		init_dai_link(dev, *dai_links, be_id, name, playback, capture,
-			      cpus, num_cpus, codecs, num_codecs,
-			      asoc_sdw_rtd_init, &sdw_ops);
+		asoc_sdw_init_dai_link(dev, *dai_links, be_id, name, playback, capture,
+				       cpus, num_cpus, platform_component,
+				       ARRAY_SIZE(platform_component), codecs, num_codecs,
+				       asoc_sdw_rtd_init, &sdw_ops);
 
 		/*
 		 * SoundWire DAILINKs use 'stream' functions and Bank Switch operations
@@ -969,10 +922,12 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 		int playback = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
 		int capture = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
 
-		ret = init_simple_dai_link(dev, *dai_links, be_id, name,
-					   playback, capture, cpu_dai_name,
-					   codec_name, ssp_info->dais[0].dai_name,
-					   NULL, ssp_info->ops);
+		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
+						    playback, capture, cpu_dai_name,
+						    platform_component->name,
+						    ARRAY_SIZE(platform_component), codec_name,
+						    ssp_info->dais[0].dai_name, NULL,
+						    ssp_info->ops);
 		if (ret)
 			return ret;
 
@@ -992,20 +947,24 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	struct device *dev = card->dev;
 	int ret;
 
-	ret = init_simple_dai_link(dev, *dai_links, be_id, "dmic01",
-				   0, 1, // DMIC only supports capture
-				   "DMIC01 Pin", "dmic-codec", "dmic-hifi",
-				   asoc_sdw_dmic_init, NULL);
+	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic01",
+					    0, 1, // DMIC only supports capture
+					    "DMIC01 Pin", platform_component->name,
+					    ARRAY_SIZE(platform_component),
+					    "dmic-codec", "dmic-hifi",
+					    asoc_sdw_dmic_init, NULL);
 	if (ret)
 		return ret;
 
 	(*dai_links)++;
 
-	ret = init_simple_dai_link(dev, *dai_links, be_id, "dmic16k",
-				   0, 1, // DMIC only supports capture
-				   "DMIC16k Pin", "dmic-codec", "dmic-hifi",
-				   /* don't call asoc_sdw_dmic_init() twice */
-				   NULL, NULL);
+	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic16k",
+					    0, 1, // DMIC only supports capture
+					    "DMIC16k Pin", platform_component->name,
+					    ARRAY_SIZE(platform_component),
+					    "dmic-codec", "dmic-hifi",
+					    /* don't call asoc_sdw_dmic_init() twice */
+					    NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -1037,10 +996,12 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 			codec_dai_name = "snd-soc-dummy-dai";
 		}
 
-		ret = init_simple_dai_link(dev, *dai_links, be_id, name,
-					   1, 0, // HDMI only supports playback
-					   cpu_dai_name, codec_name, codec_dai_name,
-					   i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
+		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
+						    1, 0, // HDMI only supports playback
+						    cpu_dai_name, platform_component->name,
+						    ARRAY_SIZE(platform_component),
+						    codec_name, codec_dai_name,
+						    i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
 		if (ret)
 			return ret;
 
@@ -1060,9 +1021,11 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 	char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
 	int ret;
 
-	ret = init_simple_dai_link(dev, *dai_links, be_id, name,
-				   1, 1, cpu_dai_name, snd_soc_dummy_dlc.name,
-				   snd_soc_dummy_dlc.dai_name, NULL, NULL);
+	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
+					    1, 1, cpu_dai_name, platform_component->name,
+					    ARRAY_SIZE(platform_component),
+					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
+					    NULL, NULL);
 	if (ret)
 		return ret;
 

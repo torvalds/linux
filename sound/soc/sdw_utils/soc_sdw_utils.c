@@ -932,5 +932,59 @@ int asoc_sdw_card_late_probe(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_NS(asoc_sdw_card_late_probe, SND_SOC_SDW_UTILS);
 
+void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
+			    int *be_id, char *name, int playback, int capture,
+			    struct snd_soc_dai_link_component *cpus, int cpus_num,
+			    struct snd_soc_dai_link_component *platform_component,
+			    int num_platforms, struct snd_soc_dai_link_component *codecs,
+			    int codecs_num, int (*init)(struct snd_soc_pcm_runtime *rtd),
+			    const struct snd_soc_ops *ops)
+{
+	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
+	dai_links->id = (*be_id)++;
+	dai_links->name = name;
+	dai_links->platforms = platform_component;
+	dai_links->num_platforms = num_platforms;
+	dai_links->no_pcm = 1;
+	dai_links->cpus = cpus;
+	dai_links->num_cpus = cpus_num;
+	dai_links->codecs = codecs;
+	dai_links->num_codecs = codecs_num;
+	dai_links->dpcm_playback = playback;
+	dai_links->dpcm_capture = capture;
+	dai_links->init = init;
+	dai_links->ops = ops;
+}
+EXPORT_SYMBOL_NS(asoc_sdw_init_dai_link, SND_SOC_SDW_UTILS);
+
+int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
+				  int *be_id, char *name, int playback, int capture,
+				  const char *cpu_dai_name, const char *platform_comp_name,
+				  int num_platforms, const char *codec_name,
+				  const char *codec_dai_name,
+				  int (*init)(struct snd_soc_pcm_runtime *rtd),
+				  const struct snd_soc_ops *ops)
+{
+	struct snd_soc_dai_link_component *dlc;
+
+	/* Allocate three DLCs one for the CPU, one for platform and one for the CODEC */
+	dlc = devm_kcalloc(dev, 3, sizeof(*dlc), GFP_KERNEL);
+	if (!dlc || !name || !cpu_dai_name || !platform_comp_name || !codec_name || !codec_dai_name)
+		return -ENOMEM;
+
+	dlc[0].dai_name = cpu_dai_name;
+	dlc[1].name = platform_comp_name;
+
+	dlc[2].name = codec_name;
+	dlc[2].dai_name = codec_dai_name;
+
+	asoc_sdw_init_dai_link(dev, dai_links, be_id, name, playback, capture,
+			       &dlc[0], 1, &dlc[1], num_platforms,
+			       &dlc[2], 1, init, ops);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, SND_SOC_SDW_UTILS);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SoundWire ASoC helpers");
