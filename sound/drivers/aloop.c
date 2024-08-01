@@ -900,8 +900,7 @@ static void loopback_snd_timer_dpcm_info(struct loopback_pcm *dpcm,
 		    cable->snd_timer.id.device,
 		    cable->snd_timer.id.subdevice);
 	snd_iprintf(buffer, "    timer open:\t\t%s\n",
-		    (cable->snd_timer.stream == SNDRV_PCM_STREAM_CAPTURE) ?
-			    "capture" : "playback");
+		    snd_pcm_direction_name(cable->snd_timer.stream));
 }
 
 static snd_pcm_uframes_t loopback_pointer(struct snd_pcm_substream *substream)
