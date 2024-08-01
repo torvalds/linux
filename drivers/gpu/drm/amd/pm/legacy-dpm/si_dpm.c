@@ -4755,13 +4755,15 @@ static int si_populate_memory_timing_parameters(struct amdgpu_device *adev,
 	u32 dram_timing;
 	u32 dram_timing2;
 	u32 burst_time;
+	int ret;
 
 	arb_regs->mc_arb_rfsh_rate =
 		(u8)si_calculate_memory_refresh_rate(adev, pl->sclk);
 
-	amdgpu_atombios_set_engine_dram_timings(adev,
-					    pl->sclk,
-		                            pl->mclk);
+	ret = amdgpu_atombios_set_engine_dram_timings(adev, pl->sclk,
+						      pl->mclk);
+	if (ret)
+		return ret;
 
 	dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 	dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);

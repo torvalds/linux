@@ -1145,8 +1145,8 @@ int amdgpu_atombios_get_memory_pll_dividers(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
-					     u32 eng_clock, u32 mem_clock)
+int amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
+					    u32 eng_clock, u32 mem_clock)
 {
 	SET_ENGINE_CLOCK_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings);
@@ -1161,8 +1161,8 @@ void amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
 	if (mem_clock)
 		args.sReserved.ulClock = cpu_to_le32(mem_clock & SET_CLOCK_FREQ_MASK);
 
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args,
-		sizeof(args));
+	return amdgpu_atom_execute_table(adev->mode_info.atom_context, index,
+					 (uint32_t *)&args, sizeof(args));
 }
 
 void amdgpu_atombios_get_default_voltages(struct amdgpu_device *adev,
