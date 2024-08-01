@@ -25,10 +25,6 @@
 	clock-frequency = <32768>;
 };
 
-&apb_clk {
-	clock-frequency = <62500000>;
-};
-
 &spi_clk {
 	clock-frequency = <396000000>;
 };
