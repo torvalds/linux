@@ -837,17 +837,12 @@ int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out)
 
 	*bh_out = NULL;
 
-	if (journal->j_fc_off + journal->j_fc_first < journal->j_fc_last) {
-		fc_off = journal->j_fc_off;
-		blocknr = journal->j_fc_first + fc_off;
-		journal->j_fc_off++;
-	} else {
-		ret = -EINVAL;
-	}
+	if (journal->j_fc_off + journal->j_fc_first >= journal->j_fc_last)
+		return -EINVAL;
 
-	if (ret)
-		return ret;
-
+	fc_off = journal->j_fc_off;
+	blocknr = journal->j_fc_first + fc_off;
+	journal->j_fc_off++;
 	ret = jbd2_journal_bmap(journal, blocknr, &pblock);
 	if (ret)
 		return ret;
@@ -855,7 +850,6 @@ int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out)
 	bh = __getblk(journal->j_dev, pblock, journal->j_blocksize);
 	if (!bh)
 		return -ENOMEM;
-
 
 	journal->j_fc_wbuf[fc_off] = bh;
 
