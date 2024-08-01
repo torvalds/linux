@@ -544,13 +544,10 @@ static int ad7768_set_channel_label(struct iio_dev *indio_dev,
 {
 	struct ad7768_state *st = iio_priv(indio_dev);
 	struct device *device = indio_dev->dev.parent;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *child;
 	const char *label;
 	int crt_ch = 0;
 
-	fwnode = dev_fwnode(device);
-	fwnode_for_each_child_node(fwnode, child) {
+	device_for_each_child_node_scoped(device, child) {
 		if (fwnode_property_read_u32(child, "reg", &crt_ch))
 			continue;
 
