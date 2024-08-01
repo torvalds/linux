@@ -731,7 +731,7 @@ static const struct snd_soc_ops sdw_ops = {
 	.shutdown = sdw_shutdown,
 };
 
-static struct sof_sdw_codec_info codec_info_list[] = {
+static struct asoc_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x700,
 		.dais = {
@@ -1220,7 +1220,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 	},
 };
 
-static struct sof_sdw_codec_info *find_codec_info_part(const u64 adr)
+static struct asoc_sdw_codec_info *find_codec_info_part(const u64 adr)
 {
 	unsigned int part_id, sdw_version;
 	int i;
@@ -1241,7 +1241,7 @@ static struct sof_sdw_codec_info *find_codec_info_part(const u64 adr)
 
 }
 
-static struct sof_sdw_codec_info *find_codec_info_acpi(const u8 *acpi_id)
+static struct asoc_sdw_codec_info *find_codec_info_acpi(const u8 *acpi_id)
 {
 	int i;
 
@@ -1255,8 +1255,8 @@ static struct sof_sdw_codec_info *find_codec_info_acpi(const u8 *acpi_id)
 	return NULL;
 }
 
-static struct sof_sdw_codec_info *find_codec_info_dai(const char *dai_name,
-						      int *dai_index)
+static struct asoc_sdw_codec_info *find_codec_info_dai(const char *dai_name,
+						       int *dai_index)
 {
 	int i, j;
 
@@ -1355,7 +1355,7 @@ static bool is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 }
 
 static const char *get_codec_name(struct device *dev,
-				  const struct sof_sdw_codec_info *codec_info,
+				  const struct asoc_sdw_codec_info *codec_info,
 				  const struct snd_soc_acpi_link_adr *adr_link,
 				  int adr_index)
 {
@@ -1383,7 +1383,7 @@ static const char *get_codec_name(struct device *dev,
 static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct sof_sdw_codec_info *codec_info;
+	struct asoc_sdw_codec_info *codec_info;
 	struct snd_soc_dai *dai;
 	int dai_index;
 	int ret;
@@ -1451,8 +1451,8 @@ struct sof_sdw_endpoint {
 	const char *name_prefix;
 	bool include_sidecar;
 
-	struct sof_sdw_codec_info *codec_info;
-	const struct sof_sdw_dai_info *dai_info;
+	struct asoc_sdw_codec_info *codec_info;
+	const struct asoc_sdw_dai_info *dai_info;
 };
 
 struct sof_sdw_dailink {
@@ -1529,7 +1529,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 
 		for (i = 0; i < adr_link->num_adr; i++) {
 			const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[i];
-			struct sof_sdw_codec_info *codec_info;
+			struct asoc_sdw_codec_info *codec_info;
 			const char *codec_name;
 
 			if (!adr_dev->name_prefix) {
@@ -1563,7 +1563,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 
 			for (j = 0; j < adr_dev->num_endpoints; j++) {
 				const struct snd_soc_acpi_endpoint *adr_end;
-				const struct sof_sdw_dai_info *dai_info;
+				const struct asoc_sdw_dai_info *dai_info;
 				struct sof_sdw_dailink *sof_dai;
 				int stream;
 
@@ -1790,7 +1790,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 
 static int create_ssp_dailinks(struct snd_soc_card *card,
 			       struct snd_soc_dai_link **dai_links, int *be_id,
-			       struct sof_sdw_codec_info *ssp_info,
+			       struct asoc_sdw_codec_info *ssp_info,
 			       unsigned long ssp_mask)
 {
 	struct device *dev = card->dev;
@@ -1914,7 +1914,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
 	struct snd_soc_codec_conf *codec_conf;
-	struct sof_sdw_codec_info *ssp_info;
+	struct asoc_sdw_codec_info *ssp_info;
 	struct sof_sdw_endpoint *sof_ends;
 	struct sof_sdw_dailink *sof_dais;
 	int num_devs = 0;

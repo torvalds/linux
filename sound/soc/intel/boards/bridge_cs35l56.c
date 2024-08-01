@@ -127,7 +127,7 @@ int bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 
 int bridge_cs35l56_spk_init(struct snd_soc_card *card,
 			    struct snd_soc_dai_link *dai_links,
-			    struct sof_sdw_codec_info *info,
+			    struct asoc_sdw_codec_info *info,
 			    bool playback)
 {
 	if (sof_sdw_quirk & SOF_SIDECAR_AMPS)

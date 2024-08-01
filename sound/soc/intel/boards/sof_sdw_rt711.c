@@ -126,7 +126,7 @@ int sof_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_l
 
 int sof_sdw_rt711_init(struct snd_soc_card *card,
 		       struct snd_soc_dai_link *dai_links,
-		       struct sof_sdw_codec_info *info,
+		       struct asoc_sdw_codec_info *info,
 		       bool playback)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
