@@ -10,6 +10,7 @@
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
+#include "data_direct.h"
 
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
@@ -204,6 +205,50 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_QUERY_PORT)(
 					     sizeof(info));
 }
 
+static int UVERBS_HANDLER(MLX5_IB_METHOD_GET_DATA_DIRECT_SYSFS_PATH)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_data_direct_dev *data_direct_dev;
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
+	int out_len = uverbs_attr_get_len(attrs,
+			MLX5_IB_ATTR_GET_DATA_DIRECT_SYSFS_PATH);
+	u32 dev_path_len;
+	char *dev_path;
+	int ret;
+
+	c = to_mucontext(ib_uverbs_get_ucontext(attrs));
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
+	mutex_lock(&dev->data_direct_lock);
+	data_direct_dev = dev->data_direct_dev;
+	if (!data_direct_dev) {
+		ret = -ENODEV;
+		goto end;
+	}
+
+	dev_path = kobject_get_path(&data_direct_dev->device->kobj, GFP_KERNEL);
+	if (!dev_path) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	dev_path_len = strlen(dev_path) + 1;
+	if (dev_path_len > out_len) {
+		ret = -ENOSPC;
+		goto end;
+	}
+
+	ret = uverbs_copy_to(attrs, MLX5_IB_ATTR_GET_DATA_DIRECT_SYSFS_PATH, dev_path,
+			     dev_path_len);
+	kfree(dev_path);
+
+end:
+	mutex_unlock(&dev->data_direct_lock);
+	return ret;
+}
+
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_QUERY_PORT,
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_QUERY_PORT_PORT_NUM,
@@ -214,9 +259,17 @@ DECLARE_UVERBS_NAMED_METHOD(
 				   reg_c0),
 		UA_MANDATORY));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_GET_DATA_DIRECT_SYSFS_PATH,
+	UVERBS_ATTR_PTR_OUT(
+		MLX5_IB_ATTR_GET_DATA_DIRECT_SYSFS_PATH,
+		UVERBS_ATTR_MIN_SIZE(0),
+		UA_MANDATORY));
+
 ADD_UVERBS_METHODS(mlx5_ib_device,
 		   UVERBS_OBJECT_DEVICE,
-		   &UVERBS_METHOD(MLX5_IB_METHOD_QUERY_PORT));
+		   &UVERBS_METHOD(MLX5_IB_METHOD_QUERY_PORT),
+		   &UVERBS_METHOD(MLX5_IB_METHOD_GET_DATA_DIRECT_SYSFS_PATH));
 
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_PD_QUERY,
