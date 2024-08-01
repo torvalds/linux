@@ -210,17 +210,13 @@ static int ina2xx_init(struct ina2xx_data *data)
 static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
 	int ret, retry;
 
-	dev_dbg(dev, "Starting register %d read\n", reg);
-
 	for (retry = 5; retry; retry--) {
-
-		ret = regmap_read(data->regmap, reg, regval);
+		ret = regmap_read(regmap, reg, regval);
 		if (ret < 0)
 			return ret;
-
-		dev_dbg(dev, "read %d, val = 0x%04x\n", reg, *regval);
 
 		/*
 		 * If the current value in the calibration register is 0, the
@@ -233,8 +229,7 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 		if (*regval == 0) {
 			unsigned int cal;
 
-			ret = regmap_read(data->regmap, INA2XX_CALIBRATION,
-					  &cal);
+			ret = regmap_read(regmap, INA2XX_CALIBRATION, &cal);
 			if (ret < 0)
 				return ret;
 
@@ -372,17 +367,18 @@ static ssize_t ina226_alert_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
 	int regval;
 	int val = 0;
 	int ret;
 
 	mutex_lock(&data->config_lock);
-	ret = regmap_read(data->regmap, INA226_MASK_ENABLE, &regval);
+	ret = regmap_read(regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
 		goto abort;
 
 	if (regval & attr->index) {
-		ret = regmap_read(data->regmap, INA226_ALERT_LIMIT, &regval);
+		ret = regmap_read(regmap, INA226_ALERT_LIMIT, &regval);
 		if (ret)
 			goto abort;
 		val = ina226_reg_to_alert(data, attr->index, regval);
@@ -400,6 +396,7 @@ static ssize_t ina226_alert_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
 	unsigned long val;
 	int ret;
 
@@ -413,18 +410,18 @@ static ssize_t ina226_alert_store(struct device *dev,
 	 * if the value is non-zero.
 	 */
 	mutex_lock(&data->config_lock);
-	ret = regmap_update_bits(data->regmap, INA226_MASK_ENABLE,
+	ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
 				 INA226_ALERT_CONFIG_MASK, 0);
 	if (ret < 0)
 		goto abort;
 
-	ret = regmap_write(data->regmap, INA226_ALERT_LIMIT,
+	ret = regmap_write(regmap, INA226_ALERT_LIMIT,
 			   ina226_alert_to_reg(data, attr->index, val));
 	if (ret < 0)
 		goto abort;
 
 	if (val != 0) {
-		ret = regmap_update_bits(data->regmap, INA226_MASK_ENABLE,
+		ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
 					 INA226_ALERT_CONFIG_MASK,
 					 attr->index);
 		if (ret < 0)
