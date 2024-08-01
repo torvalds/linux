@@ -15,7 +15,6 @@
 #include <sound/soc_sdw_utils.h>
 #include "sof_hdmi_common.h"
 
-#define SOC_SDW_MAX_NO_PROPS 2
 #define MAX_HDMI_NUM 4
 #define SOC_SDW_UNUSED_DAI_ID -1
 #define SOC_SDW_JACK_OUT_DAI_ID 0
@@ -45,7 +44,6 @@ enum {
 	SOF_I2S_SSP5 = BIT(5),
 };
 
-#define SOC_SDW_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 /* Deprecated and no longer supported by the code */
 #define SOC_SDW_FOUR_SPK		BIT(4)
 #define SOF_SDW_TGL_HDMI		BIT(5)
@@ -98,13 +96,6 @@ int asoc_sdw_rt711_init(struct snd_soc_card *card,
 			bool playback);
 int asoc_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
-/* RT711-SDCA support */
-int asoc_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
-			       struct snd_soc_dai_link *dai_links,
-			       struct asoc_sdw_codec_info *info,
-			       bool playback);
-int asoc_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
-
 /* RT1308 I2S support */
 extern const struct snd_soc_ops soc_sdw_rt1308_i2s_ops;
 
@@ -154,6 +145,5 @@ int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_
 int asoc_sdw_rt700_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_rt711_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
-int asoc_sdw_rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 
 #endif

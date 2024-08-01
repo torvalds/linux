@@ -1973,6 +1973,7 @@ static int mc_probe(struct platform_device *pdev)
 
 	log_quirks(card->dev);
 
+	ctx->mc_quirk = sof_sdw_quirk;
 	/* reset amp_num to ensure amp_num++ starts from 0 in each probe */
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
 		codec_info_list[i].amp_num = 0;

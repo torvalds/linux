@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 
 /*
- *  sof_sdw_rt711_sdca - Helpers to handle RT711-SDCA from generic machine driver
+ *  soc_sdw_rt711_sdca - Helpers to handle RT711-SDCA from generic machine driver
  */
 
 #include <linux/device.h>
@@ -15,22 +17,22 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 /*
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int rt_sdca_jack_add_codec_device_props(struct device *sdw_dev)
+static int rt_sdca_jack_add_codec_device_props(struct device *sdw_dev, unsigned long quirk)
 {
 	struct property_entry props[SOC_SDW_MAX_NO_PROPS] = {};
 	struct fwnode_handle *fwnode;
 	int ret;
 
-	if (!SOC_SDW_JACK_JDSRC(sof_sdw_quirk))
+	if (!SOC_SDW_JACK_JDSRC(quirk))
 		return 0;
 
-	props[0] = PROPERTY_ENTRY_U32("realtek,jd-src", SOC_SDW_JACK_JDSRC(sof_sdw_quirk));
+	props[0] = PROPERTY_ENTRY_U32("realtek,jd-src", SOC_SDW_JACK_JDSRC(quirk));
 
 	fwnode = fwnode_create_software_node(props, NULL);
 	if (IS_ERR(fwnode))
@@ -160,6 +162,7 @@ int asoc_sdw_rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_s
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_rt_sdca_jack_rtd_init, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
@@ -168,7 +171,7 @@ int asoc_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_lin
 	if (!ctx->headset_codec_dev)
 		return 0;
 
-	if (!SOC_SDW_JACK_JDSRC(sof_sdw_quirk))
+	if (!SOC_SDW_JACK_JDSRC(ctx->mc_quirk))
 		return 0;
 
 	device_remove_software_node(ctx->headset_codec_dev);
@@ -177,6 +180,7 @@ int asoc_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_lin
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_rt_sdca_jack_exit, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 			       struct snd_soc_dai_link *dai_links,
@@ -198,7 +202,7 @@ int asoc_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 	if (!sdw_dev)
 		return -EPROBE_DEFER;
 
-	ret = rt_sdca_jack_add_codec_device_props(sdw_dev);
+	ret = rt_sdca_jack_add_codec_device_props(sdw_dev, ctx->mc_quirk);
 	if (ret < 0) {
 		put_device(sdw_dev);
 		return ret;
@@ -207,4 +211,4 @@ int asoc_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 
 	return 0;
 }
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
+EXPORT_SYMBOL_NS(asoc_sdw_rt_sdca_jack_init, SND_SOC_SDW_UTILS);
