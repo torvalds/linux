@@ -1846,3 +1846,13 @@ void dcn32_interdependent_update_lock(struct dc *dc,
 			dc->hwss.pipe_control_lock(dc, pipe, false);
 	}
 }
+
+void dcn32_program_outstanding_updates(struct dc *dc,
+		struct dc_state *context)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	/* update compbuf if required */
+	if (hubbub->funcs->program_compbuf_size)
+		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, true);
+}

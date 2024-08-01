@@ -1399,7 +1399,7 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	bool p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
-	unsigned int compbuf_size_kb = 0;
+	unsigned int compbuf_size = 0;
 
 	/* Any transition into P-State support should disable MCLK switching first to avoid hangs */
 	if (p_state_change_support) {
@@ -1429,10 +1429,10 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 
 	/* decrease compbuf size */
 	if (hubbub->funcs->program_compbuf_segments) {
-		compbuf_size_kb = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
-		dc->wm_optimized_required |= (compbuf_size_kb != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
+		compbuf_size = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
+		dc->wm_optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
 
-		hubbub->funcs->program_compbuf_segments(hubbub, compbuf_size_kb, false);
+		hubbub->funcs->program_compbuf_segments(hubbub, compbuf_size, false);
 	}
 
 	if (dc->debug.fams2_config.bits.enable) {
@@ -1759,4 +1759,14 @@ void dcn401_interdependent_update_lock(struct dc *dc,
 			dc->hwss.pipe_control_lock(dc, pipe, false);
 		}
 	}
+}
+
+void dcn401_program_outstanding_updates(struct dc *dc,
+		struct dc_state *context)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	/* update compbuf if required */
+	if (hubbub->funcs->program_compbuf_segments)
+		hubbub->funcs->program_compbuf_segments(hubbub, context->bw_ctx.bw.dcn.arb_regs.compbuf_size, true);
 }

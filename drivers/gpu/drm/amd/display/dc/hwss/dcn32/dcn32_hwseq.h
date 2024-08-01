@@ -133,4 +133,8 @@ void dcn32_prepare_bandwidth(struct dc *dc,
 
 void dcn32_interdependent_update_lock(struct dc *dc,
 		struct dc_state *context, bool lock);
+
+void dcn32_program_outstanding_updates(struct dc *dc,
+		struct dc_state *context);
+
 #endif /* __DC_HWSS_DCN32_H__ */
