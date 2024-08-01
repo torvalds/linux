@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 //
-// sof_sdw_maxim - Helpers to handle maxim codecs
+// soc_sdw_maxim - Helpers to handle maxim codecs
 // codec devices from generic machine driver
 
 #include <linux/device.h>
@@ -10,7 +12,7 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 static int maxim_part_id;
 #define SOC_SDW_PART_ID_MAX98363 0x8363
@@ -41,8 +43,9 @@ int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_spk_rtd_init, SND_SOC_SDW_UTILS);
 
-static int mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enable)
+static int asoc_sdw_mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enable)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
@@ -84,7 +87,7 @@ static int asoc_sdw_mx8373_prepare(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	return mx8373_enable_spk_pin(substream, true);
+	return asoc_sdw_mx8373_enable_spk_pin(substream, true);
 }
 
 static int asoc_sdw_mx8373_hw_free(struct snd_pcm_substream *substream)
@@ -96,7 +99,7 @@ static int asoc_sdw_mx8373_hw_free(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	return mx8373_enable_spk_pin(substream, false);
+	return asoc_sdw_mx8373_enable_spk_pin(substream, false);
 }
 
 static const struct snd_soc_ops max_98373_sdw_ops = {
@@ -142,3 +145,4 @@ int asoc_sdw_maxim_init(struct snd_soc_card *card,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_init, SND_SOC_SDW_UTILS);
