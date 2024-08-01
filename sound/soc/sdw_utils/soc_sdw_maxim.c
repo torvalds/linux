@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 //
-// sof_sdw_maxim - Helpers to handle maxim codecs
+// soc_sdw_maxim - Helpers to handle maxim codecs
 // codec devices from generic machine driver
 
 #include <linux/device.h>
@@ -10,18 +12,18 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 static int maxim_part_id;
-#define SOF_SDW_PART_ID_MAX98363 0x8363
-#define SOF_SDW_PART_ID_MAX98373 0x8373
+#define SOC_SDW_PART_ID_MAX98363 0x8363
+#define SOC_SDW_PART_ID_MAX98373 0x8373
 
 static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
 };
 
-int maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
+int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -41,8 +43,9 @@ int maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_spk_rtd_init, SND_SOC_SDW_UTILS);
 
-static int mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enable)
+static int asoc_sdw_mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enable)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
@@ -75,40 +78,40 @@ static int mx8373_enable_spk_pin(struct snd_pcm_substream *substream, bool enabl
 	return 0;
 }
 
-static int mx8373_sdw_prepare(struct snd_pcm_substream *substream)
+static int asoc_sdw_mx8373_prepare(struct snd_pcm_substream *substream)
 {
 	int ret;
 
 	/* according to soc_pcm_prepare dai link prepare is called first */
-	ret = sdw_prepare(substream);
+	ret = asoc_sdw_prepare(substream);
 	if (ret < 0)
 		return ret;
 
-	return mx8373_enable_spk_pin(substream, true);
+	return asoc_sdw_mx8373_enable_spk_pin(substream, true);
 }
 
-static int mx8373_sdw_hw_free(struct snd_pcm_substream *substream)
+static int asoc_sdw_mx8373_hw_free(struct snd_pcm_substream *substream)
 {
 	int ret;
 
 	/* according to soc_pcm_hw_free dai link free is called first */
-	ret = sdw_hw_free(substream);
+	ret = asoc_sdw_hw_free(substream);
 	if (ret < 0)
 		return ret;
 
-	return mx8373_enable_spk_pin(substream, false);
+	return asoc_sdw_mx8373_enable_spk_pin(substream, false);
 }
 
 static const struct snd_soc_ops max_98373_sdw_ops = {
-	.startup = sdw_startup,
-	.prepare = mx8373_sdw_prepare,
-	.trigger = sdw_trigger,
-	.hw_params = sdw_hw_params,
-	.hw_free = mx8373_sdw_hw_free,
-	.shutdown = sdw_shutdown,
+	.startup = asoc_sdw_startup,
+	.prepare = asoc_sdw_mx8373_prepare,
+	.trigger = asoc_sdw_trigger,
+	.hw_params = asoc_sdw_hw_params,
+	.hw_free = asoc_sdw_mx8373_hw_free,
+	.shutdown = asoc_sdw_shutdown,
 };
 
-static int mx8373_sdw_late_probe(struct snd_soc_card *card)
+static int asoc_sdw_mx8373_sdw_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 
@@ -118,22 +121,22 @@ static int mx8373_sdw_late_probe(struct snd_soc_card *card)
 	return snd_soc_dapm_sync(dapm);
 }
 
-int sof_sdw_maxim_init(struct snd_soc_card *card,
-		       struct snd_soc_dai_link *dai_links,
-		       struct sof_sdw_codec_info *info,
-		       bool playback)
+int asoc_sdw_maxim_init(struct snd_soc_card *card,
+			struct snd_soc_dai_link *dai_links,
+			struct asoc_sdw_codec_info *info,
+			bool playback)
 {
 	info->amp_num++;
 
 	maxim_part_id = info->part_id;
 	switch (maxim_part_id) {
-	case SOF_SDW_PART_ID_MAX98363:
+	case SOC_SDW_PART_ID_MAX98363:
 		/* Default ops are set in function init_dai_link.
 		 * called as part of function create_sdw_dailink
 		 */
 		break;
-	case SOF_SDW_PART_ID_MAX98373:
-		info->codec_card_late_probe = mx8373_sdw_late_probe;
+	case SOC_SDW_PART_ID_MAX98373:
+		info->codec_card_late_probe = asoc_sdw_mx8373_sdw_late_probe;
 		dai_links->ops = &max_98373_sdw_ops;
 		break;
 	default:
@@ -142,3 +145,4 @@ int sof_sdw_maxim_init(struct snd_soc_card *card,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_maxim_init, SND_SOC_SDW_UTILS);

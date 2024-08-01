@@ -2,11 +2,11 @@
  */
 
 /*
- *  sof_sdw_amp_coeff_tables.h - related coefficients for amplifier parameters
+ *  soc_sdw_rt_amp_coeff_tables.h - related coefficients for RTK amplifier parameters
  */
 
-#ifndef SND_SOC_SOF_SDW_AMP_COEFF_H
-#define SND_SOC_SOF_SDW_AMP_COEFF_H
+#ifndef SND_SOC_SDW_RT_SDW_AMP_COEFF_H
+#define SND_SOC_SDW_RT_SDW_AMP_COEFF_H
 
 #define RT1308_MAX_BQ_REG 480
 #define RT1316_MAX_BQ_REG 580

@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2024 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 
 /*
- * sof_sdw_rt_dmic - Helpers to handle Realtek SDW DMIC from generic machine driver
+ * soc_sdw_rt_dmic - Helpers to handle Realtek SDW DMIC from generic machine driver
  */
 
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include "sof_board_helpers.h"
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
-int rt_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
+int asoc_sdw_rt_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_component *component;
@@ -39,4 +40,4 @@ int rt_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 
 	return 0;
 }
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
+EXPORT_SYMBOL_NS(asoc_sdw_rt_dmic_rtd_init, SND_SOC_SDW_UTILS);
