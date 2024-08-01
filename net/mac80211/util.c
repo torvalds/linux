@@ -776,7 +776,7 @@ static void __iterate_interfaces(struct ieee80211_local *local,
 	sdata = rcu_dereference_check(local->monitor_sdata,
 				      lockdep_is_held(&local->iflist_mtx) ||
 				      lockdep_is_held(&local->hw.wiphy->mtx));
-	if (sdata &&
+	if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF) &&
 	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL || !active_only ||
 	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
