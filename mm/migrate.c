@@ -2526,7 +2526,7 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
 		if (!zone_watermark_ok(zone, 0,
 				       high_wmark_pages(zone) +
 				       nr_migrate_pages,
-				       ZONE_MOVABLE, 0))
+				       ZONE_MOVABLE, ALLOC_CMA))
 			continue;
 		return true;
 	}
