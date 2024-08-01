@@ -4748,6 +4748,16 @@ static void amdgpu_ras_boot_time_error_reporting(struct amdgpu_device *adev,
 		dev_info(adev->dev,
 			 "socket: %d, aid: %d, hbm: %d, fw_status: 0x%x, hbm bist test failed\n",
 			 socket_id, aid_id, hbm_id, fw_status);
+
+	if (AMDGPU_RAS_GPU_ERR_DATA_ABORT(boot_error))
+		dev_info(adev->dev,
+			 "socket: %d, aid: %d, fw_status: 0x%x, data abort exception\n",
+			 socket_id, aid_id, fw_status);
+
+	if (AMDGPU_RAS_GPU_ERR_UNKNOWN(boot_error))
+		dev_info(adev->dev,
+			 "socket: %d, aid: %d, fw_status: 0x%x, unknown boot time errors\n",
+			 socket_id, aid_id, fw_status);
 }
 
 static bool amdgpu_ras_boot_error_detected(struct amdgpu_device *adev,
