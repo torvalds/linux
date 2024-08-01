@@ -811,7 +811,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	c->copy_gc_enabled		= 1;
 	c->rebalance.enabled		= 1;
-	c->promote_whole_extents	= true;
 
 	c->journal.flush_write_time	= &c->times[BCH_TIME_journal_flush_write];
 	c->journal.noflush_write_time	= &c->times[BCH_TIME_journal_noflush_write];

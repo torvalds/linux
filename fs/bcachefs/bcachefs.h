@@ -1086,7 +1086,6 @@ struct bch_fs {
 	u64 __percpu		*counters;
 
 	unsigned		copy_gc_enabled:1;
-	bool			promote_whole_extents;
 
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 

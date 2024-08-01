@@ -286,7 +286,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	 */
 	bool promote_full = (failed ||
 			     *read_full ||
-			     READ_ONCE(c->promote_whole_extents));
+			     READ_ONCE(c->opts.promote_whole_extents));
 	/* data might have to be decompressed in the write path: */
 	unsigned sectors = promote_full
 		? max(pick->crc.compressed_size, pick->crc.live_size)

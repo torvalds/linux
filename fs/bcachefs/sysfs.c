@@ -219,7 +219,6 @@ read_attribute(copy_gc_wait);
 rw_attribute(rebalance_enabled);
 sysfs_pd_controller_attribute(rebalance);
 read_attribute(rebalance_status);
-rw_attribute(promote_whole_extents);
 
 read_attribute(new_stripes);
 
@@ -347,8 +346,6 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_rebalance_status)
 		bch2_rebalance_status_to_text(out, c);
 
-	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
-
 	/* Debugging: */
 
 	if (attr == &sysfs_journal_debug)
@@ -436,8 +433,6 @@ STORE(bch2_fs)
 
 	sysfs_pd_controller_store(rebalance,	&c->rebalance.pd);
 
-	sysfs_strtoul(promote_whole_extents,	c->promote_whole_extents);
-
 	/* Debugging: */
 
 	if (!test_bit(BCH_FS_started, &c->flags))
@@ -514,7 +509,6 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_btree_cache_size,
 	&sysfs_btree_write_stats,
 
-	&sysfs_promote_whole_extents,
 	&sysfs_rebalance_status,
 
 	&sysfs_compression_stats,

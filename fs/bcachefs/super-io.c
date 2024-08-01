@@ -418,6 +418,9 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2 &&
 		    !BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb))
 			SET_BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb, 30);
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2)
+			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
 	}
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
