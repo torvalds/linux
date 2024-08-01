@@ -1337,6 +1337,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 	unsigned long lpar_rc;
 	u16 mss = 0;
 
+restart_poll:
 	while (frames_processed < budget) {
 		if (!ibmveth_rxq_pending_buffer(adapter))
 			break;
@@ -1420,24 +1421,25 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 
 	ibmveth_replenish_task(adapter);
 
-	if (frames_processed < budget) {
-		napi_complete_done(napi, frames_processed);
+	if (frames_processed == budget)
+		goto out;
 
-		/* We think we are done - reenable interrupts,
-		 * then check once more to make sure we are done.
-		 */
+	if (!napi_complete_done(napi, frames_processed))
+		goto out;
+
+	/* We think we are done - reenable interrupts,
+	 * then check once more to make sure we are done.
+	 */
+	lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_ENABLE);
+	BUG_ON(lpar_rc != H_SUCCESS);
+
+	if (ibmveth_rxq_pending_buffer(adapter) && napi_schedule(napi)) {
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
-				       VIO_IRQ_ENABLE);
-
-		BUG_ON(lpar_rc != H_SUCCESS);
-
-		if (ibmveth_rxq_pending_buffer(adapter) &&
-		    napi_schedule(napi)) {
-			lpar_rc = h_vio_signal(adapter->vdev->unit_address,
-					       VIO_IRQ_DISABLE);
-		}
+				       VIO_IRQ_DISABLE);
+		goto restart_poll;
 	}
 
+out:
 	return frames_processed;
 }
 
