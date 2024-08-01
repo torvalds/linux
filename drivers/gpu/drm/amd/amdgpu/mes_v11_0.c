@@ -1163,6 +1163,8 @@ static int mes_v11_0_sw_init(void *handle)
 	adev->mes.kiq_hw_init = &mes_v11_0_kiq_hw_init;
 	adev->mes.kiq_hw_fini = &mes_v11_0_kiq_hw_fini;
 
+	adev->mes.event_log_size = AMDGPU_MES_LOG_BUFFER_SIZE;
+
 	r = amdgpu_mes_init(adev);
 	if (r)
 		return r;
