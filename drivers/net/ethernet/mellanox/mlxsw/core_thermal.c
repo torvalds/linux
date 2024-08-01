@@ -411,7 +411,7 @@ static const struct thermal_cooling_device_ops mlxsw_cooling_ops = {
 static int
 mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 {
-	char tz_name[THERMAL_NAME_LENGTH];
+	char tz_name[40];
 	int err;
 
 	if (module_tz->slot_index)
@@ -445,17 +445,13 @@ static void mlxsw_thermal_module_tz_fini(struct thermal_zone_device *tzdev)
 	thermal_zone_device_unregister(tzdev);
 }
 
-static void
-mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
-			  struct mlxsw_thermal *thermal,
+static int
+mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 			  struct mlxsw_thermal_area *area, u8 module)
 {
 	struct mlxsw_thermal_module *module_tz;
 
 	module_tz = &area->tz_module_arr[module];
-	/* Skip if parent is already set (case of port split). */
-	if (module_tz->parent)
-		return;
 	module_tz->module = module;
 	module_tz->slot_index = area->slot_index;
 	module_tz->parent = thermal;
@@ -465,15 +461,13 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	       sizeof(thermal->trips));
 	memcpy(module_tz->cooling_states, default_cooling_states,
 	       sizeof(thermal->cooling_states));
+
+	return mlxsw_thermal_module_tz_init(module_tz);
 }
 
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
 {
-	if (module_tz && module_tz->tzdev) {
-		mlxsw_thermal_module_tz_fini(module_tz->tzdev);
-		module_tz->tzdev = NULL;
-		module_tz->parent = NULL;
-	}
+	mlxsw_thermal_module_tz_fini(module_tz->tzdev);
 }
 
 static int
@@ -481,7 +475,6 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 			   struct mlxsw_thermal *thermal,
 			   struct mlxsw_thermal_area *area)
 {
-	struct mlxsw_thermal_module *module_tz;
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	int i, err;
 
@@ -503,22 +496,16 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	if (!area->tz_module_arr)
 		return -ENOMEM;
 
-	for (i = 0; i < area->tz_module_num; i++)
-		mlxsw_thermal_module_init(dev, core, thermal, area, i);
-
 	for (i = 0; i < area->tz_module_num; i++) {
-		module_tz = &area->tz_module_arr[i];
-		if (!module_tz->parent)
-			continue;
-		err = mlxsw_thermal_module_tz_init(module_tz);
+		err = mlxsw_thermal_module_init(thermal, area, i);
 		if (err)
-			goto err_thermal_module_tz_init;
+			goto err_thermal_module_init;
 	}
 
 	return 0;
 
-err_thermal_module_tz_init:
-	for (i = area->tz_module_num - 1; i >= 0; i--)
+err_thermal_module_init:
+	for (i--; i >= 0; i--)
 		mlxsw_thermal_module_fini(&area->tz_module_arr[i]);
 	kfree(area->tz_module_arr);
 	return err;
@@ -821,10 +808,7 @@ err_linecards_event_ops_register:
 err_thermal_gearboxes_init:
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
 err_thermal_modules_init:
-	if (thermal->tzdev) {
-		thermal_zone_device_unregister(thermal->tzdev);
-		thermal->tzdev = NULL;
-	}
+	thermal_zone_device_unregister(thermal->tzdev);
 err_thermal_zone_device_register:
 err_thermal_cooling_device_register:
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
@@ -845,10 +829,7 @@ void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 					     thermal);
 	mlxsw_thermal_gearboxes_fini(thermal, &thermal->line_cards[0]);
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
-	if (thermal->tzdev) {
-		thermal_zone_device_unregister(thermal->tzdev);
-		thermal->tzdev = NULL;
-	}
+	thermal_zone_device_unregister(thermal->tzdev);
 
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
 		thermal_cooling_device_unregister(thermal->cdevs[i].cdev);
