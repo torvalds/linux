@@ -515,6 +515,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_btree_write_stats,
 
 	&sysfs_promote_whole_extents,
+	&sysfs_rebalance_status,
 
 	&sysfs_compression_stats,
 
@@ -614,7 +615,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_copy_gc_wait,
 
 	&sysfs_rebalance_enabled,
-	&sysfs_rebalance_status,
 	sysfs_pd_controller_files(rebalance),
 
 	&sysfs_moving_ctxts,
