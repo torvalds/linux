@@ -2121,9 +2121,8 @@ static void airoha_hw_cleanup(struct airoha_qdma *qdma)
 	}
 }
 
-static void airoha_qdma_start_napi(struct airoha_eth *eth)
+static void airoha_qdma_start_napi(struct airoha_qdma *qdma)
 {
-	struct airoha_qdma *qdma = &eth->qdma[0];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(qdma->q_tx_irq); i++)
@@ -2692,7 +2691,9 @@ static int airoha_probe(struct platform_device *pdev)
 	if (err)
 		goto error;
 
-	airoha_qdma_start_napi(eth);
+	for (i = 0; i < ARRAY_SIZE(eth->qdma); i++)
+		airoha_qdma_start_napi(&eth->qdma[i]);
+
 	for_each_child_of_node(pdev->dev.of_node, np) {
 		if (!of_device_is_compatible(np, "airoha,eth-mac"))
 			continue;
