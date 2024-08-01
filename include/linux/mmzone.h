@@ -666,12 +666,6 @@ enum zone_watermarks {
 #define NR_LOWORDER_PCP_LISTS (MIGRATE_PCPTYPES * (PAGE_ALLOC_COSTLY_ORDER + 1))
 #define NR_PCP_LISTS (NR_LOWORDER_PCP_LISTS + NR_PCP_THP)
 
-#define min_wmark_pages(z) (z->_watermark[WMARK_MIN] + z->watermark_boost)
-#define low_wmark_pages(z) (z->_watermark[WMARK_LOW] + z->watermark_boost)
-#define high_wmark_pages(z) (z->_watermark[WMARK_HIGH] + z->watermark_boost)
-#define promo_wmark_pages(z) (z->_watermark[WMARK_PROMO] + z->watermark_boost)
-#define wmark_pages(z, i) (z->_watermark[i] + z->watermark_boost)
-
 /*
  * Flags used in pcp->flags field.
  *
@@ -1016,6 +1010,32 @@ enum zone_flags {
 	ZONE_RECLAIM_ACTIVE,		/* kswapd may be scanning the zone. */
 	ZONE_BELOW_HIGH,		/* zone is below high watermark. */
 };
+
+static inline unsigned long wmark_pages(const struct zone *z,
+					enum zone_watermarks w)
+{
+	return z->_watermark[w] + z->watermark_boost;
+}
+
+static inline unsigned long min_wmark_pages(const struct zone *z)
+{
+	return wmark_pages(z, WMARK_MIN);
+}
+
+static inline unsigned long low_wmark_pages(const struct zone *z)
+{
+	return wmark_pages(z, WMARK_LOW);
+}
+
+static inline unsigned long high_wmark_pages(const struct zone *z)
+{
+	return wmark_pages(z, WMARK_HIGH);
+}
+
+static inline unsigned long promo_wmark_pages(const struct zone *z)
+{
+	return wmark_pages(z, WMARK_PROMO);
+}
 
 static inline unsigned long zone_managed_pages(struct zone *zone)
 {
