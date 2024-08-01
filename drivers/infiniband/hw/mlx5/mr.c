@@ -1513,7 +1513,7 @@ static struct dma_buf_attach_ops mlx5_ib_dmabuf_attach_ops = {
 struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 					 u64 length, u64 virt_addr,
 					 int fd, int access_flags,
-					 struct ib_udata *udata)
+					 struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_mr *mr = NULL;

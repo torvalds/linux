@@ -3085,7 +3085,7 @@ error:
 static struct ib_mr *irdma_reg_user_mr_dmabuf(struct ib_pd *pd, u64 start,
 					      u64 len, u64 virt,
 					      int fd, int access,
-					      struct ib_udata *udata)
+					      struct uverbs_attr_bundle *attrs)
 {
 	struct irdma_device *iwdev = to_iwdev(pd->device);
 	struct ib_umem_dmabuf *umem_dmabuf;

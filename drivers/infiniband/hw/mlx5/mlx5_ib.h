@@ -1354,7 +1354,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 start,
 					 u64 length, u64 virt_addr,
 					 int fd, int access_flags,
-					 struct ib_udata *udata);
+					 struct uverbs_attr_bundle *attrs);
 int mlx5_ib_advise_mr(struct ib_pd *pd,
 		      enum ib_uverbs_advise_mr_advice advice,
 		      u32 flags,
