@@ -13,8 +13,8 @@
 #include "sof_sdw_common.h"
 
 static int maxim_part_id;
-#define SOF_SDW_PART_ID_MAX98363 0x8363
-#define SOF_SDW_PART_ID_MAX98373 0x8373
+#define SOC_SDW_PART_ID_MAX98363 0x8363
+#define SOC_SDW_PART_ID_MAX98373 0x8373
 
 static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	{ "Left Spk", NULL, "Left BE_OUT" },
@@ -127,12 +127,12 @@ int asoc_sdw_maxim_init(struct snd_soc_card *card,
 
 	maxim_part_id = info->part_id;
 	switch (maxim_part_id) {
-	case SOF_SDW_PART_ID_MAX98363:
+	case SOC_SDW_PART_ID_MAX98363:
 		/* Default ops are set in function init_dai_link.
 		 * called as part of function create_sdw_dailink
 		 */
 		break;
-	case SOF_SDW_PART_ID_MAX98373:
+	case SOC_SDW_PART_ID_MAX98373:
 		info->codec_card_late_probe = asoc_sdw_mx8373_sdw_late_probe;
 		dai_links->ops = &max_98373_sdw_ops;
 		break;
