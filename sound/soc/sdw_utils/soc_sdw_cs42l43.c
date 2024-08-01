@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Based on sof_sdw_rt5682.c
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 
 /*
- *  sof_sdw_cs42l43 - Helpers to handle CS42L43 from generic machine driver
+ *  soc_sdw_cs42l43 - Helpers to handle CS42L43 from generic machine driver
  */
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -16,7 +18,7 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 static const struct snd_soc_dapm_route cs42l43_hs_map[] = {
 	{ "Headphone", NULL, "cs42l43 AMP3_OUT" },
@@ -37,7 +39,7 @@ static const struct snd_soc_dapm_route cs42l43_dmic_map[] = {
 	{ "cs42l43 PDM2_DIN", NULL, "DMIC" },
 };
 
-static struct snd_soc_jack_pin sof_jack_pins[] = {
+static struct snd_soc_jack_pin soc_jack_pins[] = {
 	{
 		.pin    = "Headphone",
 		.mask   = SND_JACK_HEADPHONE,
@@ -73,8 +75,8 @@ int asoc_sdw_cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc
 					 SND_JACK_HEADSET | SND_JACK_LINEOUT |
 					 SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 					 SND_JACK_BTN_2 | SND_JACK_BTN_3,
-					 jack, sof_jack_pins,
-					 ARRAY_SIZE(sof_jack_pins));
+					 jack, soc_jack_pins,
+					 ARRAY_SIZE(soc_jack_pins));
 	if (ret) {
 		dev_err(card->dev, "Failed to create jack: %d\n", ret);
 		return ret;
@@ -98,13 +100,15 @@ int asoc_sdw_cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_cs42l43_hs_rtd_init, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	if (!(sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)) {
+	if (!(ctx->mc_quirk & SOC_SDW_SIDECAR_AMPS)) {
 		/* Will be set by the bridge code in this case */
 		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 						  "%s spk:cs42l43-spk",
@@ -120,6 +124,7 @@ int asoc_sdw_cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_so
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_cs42l43_spk_rtd_init, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_cs42l43_spk_init(struct snd_soc_card *card,
 			      struct snd_soc_dai_link *dai_links,
@@ -134,6 +139,7 @@ int asoc_sdw_cs42l43_spk_init(struct snd_soc_card *card,
 
 	return asoc_sdw_bridge_cs35l56_spk_init(card, dai_links, info, playback);
 }
+EXPORT_SYMBOL_NS(asoc_sdw_cs42l43_spk_init, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
@@ -152,4 +158,4 @@ int asoc_sdw_cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_s
 
 	return ret;
 }
-
+EXPORT_SYMBOL_NS(asoc_sdw_cs42l43_dmic_rtd_init, SND_SOC_SDW_UTILS);

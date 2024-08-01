@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
-//
-// Intel SOF Machine Driver with Cirrus Logic CS35L56 Smart Amp
+// This file incorporates work covered by the following copyright notice:
+// Copyright (c) 2024 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
+
+/*
+ * soc_sdw_bridge_cs35l56 - codec helper functions for handling CS35L56 Smart AMP
+ */
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -9,7 +14,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 static const struct snd_soc_dapm_widget bridge_widgets[] = {
 	SND_SOC_DAPM_SPK("Bridge Speaker", NULL),
@@ -25,7 +30,7 @@ static const char * const bridge_cs35l56_name_prefixes[] = {
 	"AMPR",
 };
 
-static int bridge_cs35l56_asp_init(struct snd_soc_pcm_runtime *rtd)
+static int asoc_sdw_bridge_cs35l56_asp_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int i, ret;
@@ -73,7 +78,7 @@ static int bridge_cs35l56_asp_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static const struct snd_soc_pcm_stream bridge_params = {
+static const struct snd_soc_pcm_stream asoc_sdw_bridge_params = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rate_min = 48000,
 	.rate_max = 48000,
@@ -81,7 +86,7 @@ static const struct snd_soc_pcm_stream bridge_params = {
 	.channels_max = 2,
 };
 
-SND_SOC_DAILINK_DEFS(bridge_dai,
+SND_SOC_DAILINK_DEFS(asoc_sdw_bridge_dai,
 		     DAILINK_COMP_ARRAY(COMP_CODEC("cs42l43-codec", "cs42l43-asp")),
 		     DAILINK_COMP_ARRAY(COMP_CODEC("spi-cs35l56-left", "cs35l56-asp1"),
 					COMP_CODEC("spi-cs35l56-right", "cs35l56-asp1")),
@@ -89,28 +94,33 @@ SND_SOC_DAILINK_DEFS(bridge_dai,
 
 static const struct snd_soc_dai_link bridge_dai_template = {
 	.name = "cs42l43-cs35l56",
-	.init = bridge_cs35l56_asp_init,
-	.c2c_params = &bridge_params,
+	.init = asoc_sdw_bridge_cs35l56_asp_init,
+	.c2c_params = &asoc_sdw_bridge_params,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBC_CFC,
-	SND_SOC_DAILINK_REG(bridge_dai),
+	SND_SOC_DAILINK_REG(asoc_sdw_bridge_dai),
 };
 
 int asoc_sdw_bridge_cs35l56_count_sidecar(struct snd_soc_card *card,
 					  int *num_dais, int *num_devs)
 {
-	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS) {
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
+
+	if (ctx->mc_quirk & SOC_SDW_SIDECAR_AMPS) {
 		(*num_dais)++;
 		(*num_devs) += ARRAY_SIZE(bridge_cs35l56_name_prefixes);
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_count_sidecar, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 					struct snd_soc_dai_link **dai_links,
 					struct snd_soc_codec_conf **codec_conf)
 {
-	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS) {
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
+
+	if (ctx->mc_quirk & SOC_SDW_SIDECAR_AMPS) {
 		**dai_links = bridge_dai_template;
 
 		for (int i = 0; i < ARRAY_SIZE(bridge_cs35l56_name_prefixes); i++) {
@@ -124,14 +134,18 @@ int asoc_sdw_bridge_cs35l56_add_sidecar(struct snd_soc_card *card,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_add_sidecar, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_bridge_cs35l56_spk_init(struct snd_soc_card *card,
 				     struct snd_soc_dai_link *dai_links,
 				     struct asoc_sdw_codec_info *info,
 				     bool playback)
 {
-	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
+
+	if (ctx->mc_quirk & SOC_SDW_SIDECAR_AMPS)
 		info->amp_num += ARRAY_SIZE(bridge_cs35l56_name_prefixes);
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_bridge_cs35l56_spk_init, SND_SOC_SDW_UTILS);

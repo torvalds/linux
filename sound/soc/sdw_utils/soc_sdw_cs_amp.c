@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// This file incorporates work covered by the following copyright notice:
 // Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2024 Advanced Micro Devices, Inc.
 
 /*
- *  sof_sdw_cs_amp - Helpers to handle CS35L56 from generic machine driver
+ *  soc_sdw_cs_amp - Helpers to handle CS35L56 from generic machine driver
  */
 
 #include <linux/device.h>
@@ -10,7 +12,7 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dai.h>
-#include "sof_sdw_common.h"
+#include <sound/soc_sdw_utils.h>
 
 #define CODEC_NAME_SIZE	8
 
@@ -44,6 +46,7 @@ int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_cs_spk_rtd_init, SND_SOC_SDW_UTILS);
 
 int asoc_sdw_cs_amp_init(struct snd_soc_card *card,
 			 struct snd_soc_dai_link *dai_links,
@@ -58,3 +61,4 @@ int asoc_sdw_cs_amp_init(struct snd_soc_card *card,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(asoc_sdw_cs_amp_init, SND_SOC_SDW_UTILS);
