@@ -1088,7 +1088,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser,
 	int r;
 
 	job->vm = NULL;
-	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
 	if (ib->length_dw % 16) {
 		DRM_ERROR("UVD IB length (%d) not 16 dwords aligned!\n",

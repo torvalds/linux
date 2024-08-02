@@ -749,7 +749,6 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 	int i, r = 0;
 
 	job->vm = NULL;
-	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
 	for (idx = 0; idx < ib->length_dw;) {
 		uint32_t len = amdgpu_ib_get_value(ib, idx);
@@ -1044,7 +1043,6 @@ out:
 	if (!r) {
 		/* No error, free all destroyed handle slots */
 		tmp = destroyed;
-		amdgpu_ib_free(p->adev, ib, NULL);
 	} else {
 		/* Error during parsing, free all allocated handle slots */
 		tmp = allocated;
