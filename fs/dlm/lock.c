@@ -600,7 +600,7 @@ static int get_rsb_struct(struct dlm_ls *ls, const void *name, int len,
 {
 	struct dlm_rsb *r;
 
-	r = dlm_allocate_rsb(ls);
+	r = dlm_allocate_rsb();
 	if (!r)
 		return -ENOMEM;
 
@@ -1497,7 +1497,7 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 	limit.max = end;
 	limit.min = start;
 
-	lkb = dlm_allocate_lkb(ls);
+	lkb = dlm_allocate_lkb();
 	if (!lkb)
 		return -ENOMEM;
 
