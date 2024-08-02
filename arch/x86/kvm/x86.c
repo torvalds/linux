@@ -476,12 +476,17 @@ static bool kvm_is_immutable_feature_msr(u32 msr)
 	return false;
 }
 
-static bool kvm_is_msr_to_save(u32 msr_index)
+static bool kvm_is_advertised_msr(u32 msr_index)
 {
 	unsigned int i;
 
 	for (i = 0; i < num_msrs_to_save; i++) {
 		if (msrs_to_save[i] == msr_index)
+			return true;
+	}
+
+	for (i = 0; i < num_emulated_msrs; i++) {
+		if (emulated_msrs[i] == msr_index)
 			return true;
 	}
 
@@ -514,11 +519,11 @@ static __always_inline int kvm_do_msr_access(struct kvm_vcpu *vcpu, u32 msr,
 
 	/*
 	 * Userspace is allowed to read MSRs, and write '0' to MSRs, that KVM
-	 * reports as to-be-saved, even if an MSR isn't fully supported.
+	 * advertises to userspace, even if an MSR isn't fully supported.
 	 * Simply check that @data is '0', which covers both the write '0' case
 	 * and all reads (in which case @data is zeroed on failure; see above).
 	 */
-	if (host_initiated && !*data && kvm_is_msr_to_save(msr))
+	if (host_initiated && !*data && kvm_is_advertised_msr(msr))
 		return 0;
 
 	if (!ignore_msrs) {
