@@ -64,6 +64,16 @@ setfx:
 }
 
 /*
+ * Update the value of PKRU register that was already pushed onto the signal frame.
+ */
+static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u32 pkru)
+{
+	if (unlikely(!cpu_feature_enabled(X86_FEATURE_OSPKE)))
+		return 0;
+	return __put_user(pkru, (unsigned int __user *)get_xsave_addr_user(buf, XFEATURE_PKRU));
+}
+
+/*
  * Signal frame handlers.
  */
 static inline bool save_fsave_header(struct task_struct *tsk, void __user *buf)
