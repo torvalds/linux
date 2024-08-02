@@ -298,6 +298,11 @@ static void tasks_scale_read_unlock(int idx)
 {
 }
 
+static void rcu_tasks_scale_stats(void)
+{
+	rcu_tasks_torture_stats_print(scale_type, SCALE_FLAG);
+}
+
 static struct rcu_scale_ops tasks_ops = {
 	.ptype		= RCU_TASKS_FLAVOR,
 	.init		= rcu_sync_scale_init,
@@ -310,6 +315,7 @@ static struct rcu_scale_ops tasks_ops = {
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
 	.rso_gp_kthread	= get_rcu_tasks_gp_kthread,
+	.stats		= IS_ENABLED(CONFIG_TINY_RCU) ? NULL : rcu_tasks_scale_stats,
 	.name		= "tasks"
 };
 
@@ -336,6 +342,11 @@ static void tasks_rude_scale_read_unlock(int idx)
 {
 }
 
+static void rcu_tasks_rude_scale_stats(void)
+{
+	rcu_tasks_rude_torture_stats_print(scale_type, SCALE_FLAG);
+}
+
 static struct rcu_scale_ops tasks_rude_ops = {
 	.ptype		= RCU_TASKS_RUDE_FLAVOR,
 	.init		= rcu_sync_scale_init,
@@ -346,6 +357,7 @@ static struct rcu_scale_ops tasks_rude_ops = {
 	.sync		= synchronize_rcu_tasks_rude,
 	.exp_sync	= synchronize_rcu_tasks_rude,
 	.rso_gp_kthread	= get_rcu_tasks_rude_gp_kthread,
+	.stats		= IS_ENABLED(CONFIG_TINY_RCU) ? NULL : rcu_tasks_rude_scale_stats,
 	.name		= "tasks-rude"
 };
 
@@ -374,6 +386,11 @@ static void tasks_trace_scale_read_unlock(int idx)
 	rcu_read_unlock_trace();
 }
 
+static void rcu_tasks_trace_scale_stats(void)
+{
+	rcu_tasks_trace_torture_stats_print(scale_type, SCALE_FLAG);
+}
+
 static struct rcu_scale_ops tasks_tracing_ops = {
 	.ptype		= RCU_TASKS_FLAVOR,
 	.init		= rcu_sync_scale_init,
@@ -386,6 +403,7 @@ static struct rcu_scale_ops tasks_tracing_ops = {
 	.sync		= synchronize_rcu_tasks_trace,
 	.exp_sync	= synchronize_rcu_tasks_trace,
 	.rso_gp_kthread	= get_rcu_tasks_trace_gp_kthread,
+	.stats		= IS_ENABLED(CONFIG_TINY_RCU) ? NULL : rcu_tasks_trace_scale_stats,
 	.name		= "tasks-tracing"
 };
 
