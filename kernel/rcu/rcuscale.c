@@ -114,6 +114,7 @@ struct writer_mblock {
 
 struct writer_freelist {
 	struct llist_head ws_lhg;
+	atomic_t ws_inflight;
 	struct llist_head ____cacheline_internodealigned_in_smp ws_lhp;
 	struct writer_mblock *ws_mblocks;
 };
@@ -136,7 +137,6 @@ static u64 t_rcu_scale_writer_started;
 static u64 t_rcu_scale_writer_finished;
 static unsigned long b_rcu_gp_test_started;
 static unsigned long b_rcu_gp_test_finished;
-static DEFINE_PER_CPU(atomic_t, n_async_inflight);
 
 #define MAX_MEAS 10000
 #define MIN_MEAS 100
@@ -520,8 +520,9 @@ static void rcu_scale_free(struct writer_mblock *wmbp)
 static void rcu_scale_async_cb(struct rcu_head *rhp)
 {
 	struct writer_mblock *wmbp = container_of(rhp, struct writer_mblock, wmb_rh);
+	struct writer_freelist *wflp = wmbp->wmb_wfl;
 
-	atomic_dec(this_cpu_ptr(&n_async_inflight));
+	atomic_dec(&wflp->ws_inflight);
 	rcu_scale_free(wmbp);
 }
 
@@ -541,6 +542,7 @@ rcu_scale_writer(void *arg)
 	DEFINE_TORTURE_RANDOM(tr);
 	u64 *wdp;
 	u64 *wdpp = writer_durations[me];
+	struct writer_freelist *wflp = &writer_freelists[me];
 	struct writer_mblock *wmbp = NULL;
 
 	VERBOSE_SCALEOUT_STRING("rcu_scale_writer task started");
@@ -584,8 +586,8 @@ rcu_scale_writer(void *arg)
 		if (gp_async && !WARN_ON_ONCE(!cur_ops->async)) {
 			if (!wmbp)
 				wmbp = rcu_scale_alloc(me);
-			if (wmbp && atomic_read(this_cpu_ptr(&n_async_inflight)) < gp_async_max) {
-				atomic_inc(this_cpu_ptr(&n_async_inflight));
+			if (wmbp && atomic_read(&wflp->ws_inflight) < gp_async_max) {
+				atomic_inc(&wflp->ws_inflight);
 				cur_ops->async(&wmbp->wmb_rh, rcu_scale_async_cb);
 				wmbp = NULL;
 				gp_succeeded = true;
