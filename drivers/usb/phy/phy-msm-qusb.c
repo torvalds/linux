@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -164,7 +164,8 @@ struct qusb_phy {
 	int			tune2_efuse_bit_pos;
 	int			tune2_efuse_num_of_bits;
 	int			tune2_efuse_correction;
-
+	bool			power_enabled;
+	bool			clk_enabled;
 	bool			cable_connected;
 	bool			suspended;
 	bool			ulpi_mode;
@@ -210,6 +211,10 @@ static void qusb_phy_update_tcsr_level_shifter(struct qusb_phy *qphy,
 static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
 {
 	dev_dbg(qphy->phy.dev, "%s(): on:%d\n", __func__, on);
+	if (qphy->clk_enabled == on) {
+		dev_dbg(qphy->phy.dev, "%s(): clock is already %d\n", __func__, on);
+		return;
+	}
 
 	if (on) {
 		clk_prepare_enable(qphy->ref_clk_src);
@@ -228,6 +233,7 @@ static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
 		clk_disable_unprepare(qphy->ref_clk);
 		clk_disable_unprepare(qphy->ref_clk_src);
 	}
+	qphy->clk_enabled = on;
 
 }
 
@@ -280,6 +286,10 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 
 	dev_dbg(qphy->phy.dev, "%s turn %s regulators\n",
 			__func__, on ? "on" : "off");
+	if (qphy->power_enabled == on) {
+		dev_dbg(qphy->phy.dev, "qphy->power_enabled is already %d\n", on);
+		return ret;
+	}
 
 	if (!on)
 		goto disable_vdda33;
@@ -338,6 +348,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on)
 	}
 
 	pr_debug("%s(): QUSB PHY's regulators are turned ON.\n", __func__);
+	qphy->power_enabled = true;
 	return ret;
 
 disable_vdda33:
@@ -385,7 +396,7 @@ unconfig_vdd:
 								ret);
 err_vdd:
 	dev_dbg(qphy->phy.dev, "QUSB PHY's regulators are turned OFF.\n");
-
+	qphy->power_enabled = false;
 	return ret;
 }
 
@@ -495,6 +506,9 @@ static int qusb_phy_init(struct usb_phy *phy)
 	ret = reset_control_deassert(qphy->phy_reset);
 	if (ret)
 		dev_err(phy->dev, "%s: phy_reset deassert failed\n", __func__);
+
+	qusb_phy_enable_power(qphy, true);
+	qusb_phy_enable_clocks(qphy, true);
 
 	/* Disable the PHY */
 	if (qphy->major_rev < 2)
