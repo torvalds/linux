@@ -22,6 +22,7 @@
 	FN(TCP_ABORT_ON_MEMORY)		\
 	FN(TCP_STATE)			\
 	FN(TCP_KEEPALIVE_TIMEOUT)	\
+	FN(TCP_DISCONNECT_WITH_DATA)	\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -115,6 +116,13 @@ enum sk_rst_reason {
 	 * keepalive timeout, we have to reset the connection
 	 */
 	SK_RST_REASON_TCP_KEEPALIVE_TIMEOUT,
+	/**
+	 * @SK_RST_REASON_TCP_DISCONNECT_WITH_DATA: disconnect when write
+	 * queue is not empty
+	 * It means user has written data into the write queue when doing
+	 * disconnecting, so we have to send an RST.
+	 */
+	SK_RST_REASON_TCP_DISCONNECT_WITH_DATA,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
