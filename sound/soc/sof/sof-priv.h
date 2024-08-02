@@ -425,11 +425,12 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 	int reply_error;
 
-	/* notification, firmware initiated messages */
-	void *rx_data;
+	bool ipc_complete;
 
 	wait_queue_head_t waitq;
-	bool ipc_complete;
+
+	/* notification, firmware initiated messages */
+	void *rx_data;
 };
 
 /**
