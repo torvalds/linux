@@ -20,6 +20,7 @@ qcom-scm.ko
 arm_smmu.ko
 iommu-logger.ko
 qcom_iommu_util.ko
+qcom_iommu_debug.ko
 qcom_llcc_pmu.ko
 qcom-pmu-lib.ko
 llcc-qcom.ko
@@ -31,6 +32,7 @@ smem.ko
 qcom_sync_file.ko
 gh_msgq.ko
 gh_rm_drv.ko
+gunyah.ko
 socinfo.ko
 qcom-dload-mode.ko
 minidump.ko
@@ -50,6 +52,7 @@ msm_geni_serial.ko
 msm_rtb.ko
 mem_buf.ko
 mem_buf_dev.ko
+mem_buf_msgq.ko
 pinctrl-msm.ko
 pinctrl-neo.ko
 phy-generic.ko
