@@ -283,6 +283,7 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 			INIT_LIST_HEAD(&rtpcp->rtp_blkd_tasks);
 		if (!rtpcp->rtp_exit_list.next)
 			INIT_LIST_HEAD(&rtpcp->rtp_exit_list);
+		rtpcp->barrier_q_head.next = &rtpcp->barrier_q_head;
 		maxcpu = cpu;
 	}
 
@@ -407,6 +408,7 @@ static void rcu_barrier_tasks_generic_cb(struct rcu_head *rhp)
 	struct rcu_tasks *rtp;
 	struct rcu_tasks_percpu *rtpcp;
 
+	rhp->next = rhp; // Mark the callback as having been invoked.
 	rtpcp = container_of(rhp, struct rcu_tasks_percpu, barrier_q_head);
 	rtp = rtpcp->rtpp;
 	if (atomic_dec_and_test(&rtp->barrier_q_count))
