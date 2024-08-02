@@ -549,7 +549,8 @@ static void kprobe_emulate_call_indirect(struct kprobe *p, struct pt_regs *regs)
 {
 	unsigned long offs = addrmode_regoffs[p->ainsn.indirect.reg];
 
-	int3_emulate_call(regs, regs_get_register(regs, offs));
+	int3_emulate_push(regs, regs->ip - INT3_INSN_SIZE + p->ainsn.size);
+	int3_emulate_jmp(regs, regs_get_register(regs, offs));
 }
 NOKPROBE_SYMBOL(kprobe_emulate_call_indirect);
 

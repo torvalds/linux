@@ -7,6 +7,7 @@ virtio_snd-objs := \
 	virtio_chmap.o \
 	virtio_ctl_msg.o \
 	virtio_jack.o \
+	virtio_kctl.o \
 	virtio_pcm.o \
 	virtio_pcm_msg.o \
 	virtio_pcm_ops.o

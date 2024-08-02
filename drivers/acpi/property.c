@@ -851,6 +851,7 @@ static int acpi_get_ref_args(struct fwnode_reference_args *args,
  * @index: Index of the reference to return
  * @num_args: Maximum number of arguments after each reference
  * @args: Location to store the returned reference with optional arguments
+ *	  (may be NULL)
  *
  * Find property with @name, verifify that it is a package containing at least
  * one object reference and if so, store the ACPI device object pointer to the
@@ -906,6 +907,9 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		device = acpi_fetch_acpi_dev(obj->reference.handle);
 		if (!device)
 			return -EINVAL;
+
+		if (!args)
+			return 0;
 
 		args->fwnode = acpi_fwnode_handle(device);
 		args->nargs = 0;

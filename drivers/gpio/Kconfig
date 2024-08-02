@@ -633,7 +633,6 @@ config GPIO_TB10X
 
 config GPIO_TEGRA
 	tristate "NVIDIA Tegra GPIO support"
-	default ARCH_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP

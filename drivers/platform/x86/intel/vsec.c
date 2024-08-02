@@ -124,36 +124,60 @@ static void intel_vsec_remove_aux(void *data)
 	auxiliary_device_uninit(data);
 }
 
+static DEFINE_MUTEX(vsec_ida_lock);
+
 static void intel_vsec_dev_release(struct device *dev)
 {
 	struct intel_vsec_device *intel_vsec_dev = dev_to_ivdev(dev);
 
+	xa_erase(&auxdev_array, intel_vsec_dev->id);
+
+	mutex_lock(&vsec_ida_lock);
 	ida_free(intel_vsec_dev->ida, intel_vsec_dev->auxdev.id);
+	mutex_unlock(&vsec_ida_lock);
+
 	kfree(intel_vsec_dev->resource);
 	kfree(intel_vsec_dev);
 }
 
-static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *intel_vsec_dev,
-			      const char *name)
+int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
+		       struct intel_vsec_device *intel_vsec_dev,
+		       const char *name)
 {
 	struct auxiliary_device *auxdev = &intel_vsec_dev->auxdev;
 	int ret, id;
 
-	ret = ida_alloc(intel_vsec_dev->ida, GFP_KERNEL);
+	ret = xa_alloc(&auxdev_array, &intel_vsec_dev->id, intel_vsec_dev,
+		       PMT_XA_LIMIT, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(intel_vsec_dev->resource);
 		kfree(intel_vsec_dev);
 		return ret;
 	}
 
-	auxdev->id = ret;
+	mutex_lock(&vsec_ida_lock);
+	id = ida_alloc(intel_vsec_dev->ida, GFP_KERNEL);
+	mutex_unlock(&vsec_ida_lock);
+	if (id < 0) {
+		xa_erase(&auxdev_array, intel_vsec_dev->id);
+		kfree(intel_vsec_dev->resource);
+		kfree(intel_vsec_dev);
+		return id;
+	}
+
+	if (!parent)
+		parent = &pdev->dev;
+
+	auxdev->id = id;
 	auxdev->name = name;
-	auxdev->dev.parent = &pdev->dev;
+	auxdev->dev.parent = parent;
 	auxdev->dev.release = intel_vsec_dev_release;
 
 	ret = auxiliary_device_init(auxdev);
 	if (ret < 0) {
+		mutex_lock(&vsec_ida_lock);
 		ida_free(intel_vsec_dev->ida, auxdev->id);
+		mutex_unlock(&vsec_ida_lock);
 		kfree(intel_vsec_dev->resource);
 		kfree(intel_vsec_dev);
 		return ret;
@@ -165,19 +189,14 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(&pdev->dev, intel_vsec_remove_aux,
+	ret = devm_add_action_or_reset(parent, intel_vsec_remove_aux,
 				       auxdev);
 	if (ret < 0)
 		return ret;
 
-	/* Add auxdev to list */
-	ret = xa_alloc(&auxdev_array, &id, intel_vsec_dev, PMT_XA_LIMIT,
-		       GFP_KERNEL);
-	if (ret)
-		return ret;
-
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, INTEL_VSEC);
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
 			      struct intel_vsec_platform_info *info)
@@ -235,7 +254,8 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	else
 		intel_vsec_dev->ida = &intel_vsec_ida;
 
-	return intel_vsec_add_aux(pdev, intel_vsec_dev, intel_vsec_name(header->id));
+	return intel_vsec_add_aux(pdev, NULL, intel_vsec_dev,
+				  intel_vsec_name(header->id));
 }
 
 static bool intel_vsec_walk_header(struct pci_dev *pdev,

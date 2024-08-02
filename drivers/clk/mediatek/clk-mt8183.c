@@ -1360,10 +1360,5 @@ static struct platform_driver clk_mt8183_drv = {
 		.of_match_table = of_match_clk_mt8183,
 	},
 };
-
-static int __init clk_mt8183_init(void)
-{
-	return platform_driver_register(&clk_mt8183_drv);
-}
-
-arch_initcall(clk_mt8183_init);
+module_platform_driver(clk_mt8183_drv)
+MODULE_LICENSE("GPL");

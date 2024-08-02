@@ -11,7 +11,6 @@
   alloc_workqueue
   alt_cb_patch_nops
   android_rvh_probe_register
-  anon_inode_getfile
   __arch_copy_from_user
   __arch_copy_to_user
   argv_free
@@ -26,6 +25,7 @@
   __bitmap_and
   __bitmap_andnot
   __bitmap_clear
+  __bitmap_complement
   __bitmap_equal
   bitmap_free
   __bitmap_intersects
@@ -86,7 +86,9 @@
   completion_done
   config_ep_by_speed
   config_group_init_type_name
+  console_printk
   console_suspend_enabled
+  console_unlock
   __const_udelay
   consume_skb
   __copy_overflow
@@ -99,11 +101,14 @@
   cpufreq_quick_get
   cpufreq_register_notifier
   cpufreq_unregister_notifier
+  __cpuhp_remove_state
   __cpuhp_setup_state
   cpu_hwcaps
   cpu_number
   __cpu_online_mask
   __cpu_possible_mask
+  cpus_read_lock
+  cpus_read_unlock
   cpu_subsys
   crc32_le
   crypto_alloc_shash
@@ -127,6 +132,7 @@
   devfreq_add_device
   devfreq_add_governor
   devfreq_get_devfreq_by_phandle
+  devfreq_monitor_stop
   devfreq_recommended_opp
   devfreq_remove_device
   device_create
@@ -221,7 +227,6 @@
   dma_fence_release
   dma_fence_remove_callback
   dma_fence_signal
-  dma_fence_signal_locked
   dma_fence_wait_timeout
   dma_free_attrs
   dma_heap_buffer_alloc
@@ -324,13 +329,13 @@
   enable_irq
   eth_type_trans
   fd_install
-  fget
   _find_first_bit
   _find_first_zero_bit
   _find_last_bit
   _find_next_and_bit
   _find_next_bit
   _find_next_zero_bit
+  find_task_by_vpid
   find_vpid
   finish_wait
   firmware_request_nowarn
@@ -362,6 +367,7 @@
   get_cpu_device
   get_device
   __get_free_pages
+  get_pid_task
   get_random_bytes
   get_task_mm
   get_thermal_instance
@@ -451,6 +457,7 @@
   kasan_flag_enabled
   kasprintf
   kernel_kobj
+  kernfs_path_from_node
   __kfifo_alloc
   __kfifo_free
   __kfifo_in
@@ -557,6 +564,7 @@
   netif_tx_wake_queue
   nla_memcpy
   nla_put
+  nla_put_64bit
   nla_reserve
   noop_llseek
   nr_cpu_ids
@@ -575,7 +583,6 @@
   of_find_device_by_node
   of_find_matching_node_and_match
   of_find_node_by_name
-  of_find_node_by_type
   of_find_node_opts_by_path
   of_find_property
   of_fwnode_ops
@@ -636,8 +643,13 @@
   pci_store_saved_state
   pci_write_config_dword
   __per_cpu_offset
+  perf_event_create_kernel_counter
+  perf_event_enable
+  perf_event_read_local
+  perf_event_release_kernel
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
+  pfn_is_map_memory
   phy_power_off
   phy_power_on
   phy_set_mode_ext
@@ -664,8 +676,6 @@
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
-  pm_runtime_force_resume
-  pm_runtime_force_suspend
   __pm_runtime_idle
   pm_runtime_no_callbacks
   __pm_runtime_resume
@@ -912,19 +922,29 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_rvh_sched_fork_init
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_is_fpsimd_save
+  __traceiter_android_vh_meminfo_proc_show
+  __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_show_mem
+  __traceiter_clock_set_rate
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
   __traceiter_suspend_resume
+  __tracepoint_android_rvh_sched_fork_init
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_meminfo_proc_show
+  __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_show_mem
+  __tracepoint_clock_set_rate
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
   tracepoint_probe_register
@@ -1024,6 +1044,7 @@
   wakeup_source_register
   wakeup_source_unregister
   __warn_printk
+  work_busy
   ww_mutex_lock
   ww_mutex_unlock
 
@@ -1055,7 +1076,6 @@
   net_ns_type_operations
   nla_find
   __nla_parse
-  nla_put_64bit
   __nla_validate
   __pskb_pull_tail
   __put_net
@@ -1133,12 +1153,14 @@
   input_register_handle
   input_register_handler
   input_unregister_handle
+  is_console_locked
   kstat
   nr_irqs
   register_console
   return_address
   stack_trace_save_tsk
   touch_softlockup_watchdog
+  __traceiter_android_rvh_arm64_serror_panic
   __traceiter_android_vh_ipi_stop
   __traceiter_hrtimer_expire_entry
   __traceiter_hrtimer_expire_exit
@@ -1150,6 +1172,7 @@
   __traceiter_sched_switch
   __traceiter_workqueue_execute_end
   __traceiter_workqueue_execute_start
+  __tracepoint_android_rvh_arm64_serror_panic
   __tracepoint_android_vh_ipi_stop
   __tracepoint_hrtimer_expire_entry
   __tracepoint_hrtimer_expire_exit
@@ -1162,28 +1185,6 @@
   __tracepoint_workqueue_execute_end
   __tracepoint_workqueue_execute_start
 
-# required by dw_mmc-exynos.ko
-  mmc_wait_for_req
-
-# required by dw_mmc.ko
-  debugfs_create_x64
-  device_property_read_string_array
-  dma_map_sg_attrs
-  mmc_add_host
-  mmc_alloc_host
-  mmc_can_gpio_cd
-  mmc_detect_change
-  mmc_free_host
-  mmc_gpio_get_cd
-  mmc_gpio_get_ro
-  mmc_of_parse
-  mmc_regulator_get_supply
-  mmc_regulator_set_ocr
-  mmc_regulator_set_vqmmc
-  mmc_remove_host
-  mmc_request_done
-  sdio_signal_irq
-
 # required by dwc3-exynos-usb.ko
   device_create_managed_software_node
   platform_device_add
@@ -1192,6 +1193,7 @@
   platform_device_del
   platform_device_put
   pm_runtime_allow
+  usb_ep_set_halt
   usb_gadget_set_state
   usb_otg_state_string
   usb_role_switch_set_role
@@ -1203,7 +1205,6 @@
   activate_task
   available_idle_cpu
   balance_push_callback
-  __bitmap_complement
   bpf_trace_run11
   check_preempt_curr
   cpufreq_add_update_util_hook
@@ -1221,7 +1222,7 @@
   cpu_topology
   deactivate_task
   double_rq_lock
-  get_pid_task
+  get_task_cred
   housekeeping_cpumask
   __hrtimer_get_remaining
   irq_work_queue
@@ -1229,15 +1230,15 @@
   match_string
   memory_read_from_buffer
   migrate_swap
-  perf_event_create_kernel_counter
-  perf_event_enable
-  perf_event_read_local
+  ns_capable
   pick_highest_pushable_task
+  __put_cred
   raw_spin_rq_lock_nested
   raw_spin_rq_unlock
   _raw_write_trylock
   reciprocal_value
   resched_curr
+  root_task_group
   sched_feat_keys
   sched_feat_names
   sched_uclamp_used
@@ -1261,7 +1262,6 @@
   __traceiter_android_rvh_flush_task
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_replace_next_task_fair
-  __traceiter_android_rvh_sched_fork_init
   __traceiter_android_rvh_sched_newidle_balance
   __traceiter_android_rvh_sched_nohz_balancer_kick
   __traceiter_android_rvh_sched_rebalance_domains
@@ -1269,17 +1269,18 @@
   __traceiter_android_rvh_select_fallback_rq
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
-  __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_try_to_wake_up
+  __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_update_cpu_capacity
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_wake_up_new_task
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
-  __traceiter_android_vh_jiffies_update
-  __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_binder_transaction_received
+  __traceiter_cpu_frequency_limits
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_cgroup_attach
@@ -1292,7 +1293,6 @@
   __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_replace_next_task_fair
-  __tracepoint_android_rvh_sched_fork_init
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_rebalance_domains
@@ -1300,17 +1300,18 @@
   __tracepoint_android_rvh_select_fallback_rq
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
-  __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_try_to_wake_up
+  __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
-  __tracepoint_android_vh_jiffies_update
-  __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_binder_transaction_received
+  __tracepoint_cpu_frequency_limits
   uclamp_eff_value
   update_rq_clock
   wake_up_if_idle
@@ -1346,6 +1347,7 @@
 # required by exynos-cpupm.ko
   cpuidle_get_cpu_driver
   cpuidle_get_driver
+  of_find_node_by_type
   __traceiter_ipi_entry
   __traceiter_ipi_exit
   __traceiter_ipi_raise
@@ -1363,7 +1365,6 @@
   component_match_add_release
   component_unbind_all
   console_trylock
-  console_unlock
   devm_drm_panel_bridge_add_typed
   __do_once_done
   __do_once_start
@@ -1413,6 +1414,7 @@
   drm_bridge_add
   drm_bridge_attach
   drm_bridge_chain_mode_set
+  drm_bridge_chain_post_disable
   drm_connector_atomic_hdr_metadata_equal
   drm_connector_attach_hdr_output_metadata_property
   drm_crtc_enable_color_mgmt
@@ -1516,6 +1518,8 @@
 # required by exynos-usb-audio-offloading.ko
   snd_ctl_add
   snd_ctl_new1
+  snd_usb_autoresume
+  snd_usb_autosuspend
   snd_vendor_set_ops
   __traceiter_android_rvh_audio_usb_offload_disconnect
   __traceiter_android_vh_audio_usb_offload_connect
@@ -1562,12 +1566,11 @@
   devfreq_unregister_opp_notifier
   dev_pm_opp_disable
   dev_pm_opp_get_freq
-  __traceiter_clock_set_rate
-  __tracepoint_clock_set_rate
+  perf_event_read_value
+  __srcu_read_lock
+  __srcu_read_unlock
+  synchronize_srcu
   update_devfreq
-
-# required by exynos_esca.ko
-  debugfs_lookup
 
 # required by exynos_mct_v3.ko
   clockevents_config_and_register
@@ -1586,12 +1589,10 @@
   d_alloc_name
   d_make_root
   dput
-  find_task_by_vpid
   fs_kobj
   get_next_ino
   get_tree_single
   init_user_ns
-  kernfs_path_from_node
   kill_litter_super
   new_inode
   register_filesystem
@@ -1602,14 +1603,11 @@
   sysfs_remove_mount_point
   __traceiter_android_rvh_sched_fork
   __traceiter_android_vh_cgroup_attach
-  __traceiter_android_vh_is_fpsimd_save
   __tracepoint_android_rvh_sched_fork
   __tracepoint_android_vh_cgroup_attach
-  __tracepoint_android_vh_is_fpsimd_save
   unregister_filesystem
 
 # required by exynos_thermal_v2.ko
-  dev_pm_opp_find_freq_exact
   dev_pm_opp_get_opp_count
   kthread_flush_work
   of_get_cpu_node
@@ -1689,8 +1687,6 @@
   xa_store
 
 # required by hardlockup-watchdog.ko
-  cpus_read_lock
-  cpus_read_unlock
   free_percpu
   smp_call_on_cpu
 
@@ -1703,6 +1699,11 @@
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_set_wake_flags
   __wake_up_sync_key
+
+# required by hts.ko
+  kernel_cpustat
+  __traceiter_android_vh_free_task
+  __tracepoint_android_vh_free_task
 
 # required by hwmon.ko
   device_property_read_string
@@ -1758,10 +1759,6 @@
 # required by irq-gic-v3-vh.ko
   __traceiter_android_rvh_gic_v3_set_affinity
   __tracepoint_android_rvh_gic_v3_set_affinity
-
-# required by irq-gic-vh.ko
-  __traceiter_android_vh_gic_set_affinity
-  __tracepoint_android_vh_gic_set_affinity
 
 # required by is-actuator-ak737x.ko
   v4l2_i2c_subdev_init
@@ -1819,11 +1816,8 @@
   __wake_up_sync
 
 # required by npu.ko
-  console_printk
-  cpuidle_pause_and_lock
   cpuidle_resume_and_unlock
   dev_pm_opp_find_freq_floor
-  dma_fence_free
   vsprintf
 
 # required by pablo-icpu.ko
@@ -1976,6 +1970,7 @@
   gen_pool_first_fit_align
 
 # required by samsung_dma_heap.ko
+  anon_inode_getfile
   deferred_free
   dma_buf_get_flags
   dmabuf_page_pool_alloc
@@ -1988,7 +1983,6 @@
   dma_heap_get_drvdata
   dma_heap_get_name
   is_dma_buf_file
-  iterate_fd
 
 # required by samsung_iommu_v9.ko
   device_link_add
@@ -1997,7 +1991,6 @@
   iommu_device_register
   iommu_device_sysfs_add
   iommu_device_sysfs_remove
-  iommu_device_unlink
   iommu_fwspec_add_ids
   iommu_fwspec_free
   iommu_group_for_each_dev
@@ -2006,6 +1999,13 @@
   iommu_group_set_iommudata
   iommu_report_device_fault
   of_find_node_with_property
+  rb_prev
+  __traceiter_android_rvh_iommu_alloc_insert_iova
+  __traceiter_android_rvh_iommu_iovad_init_alloc_algo
+  __traceiter_android_rvh_iommu_limit_align_shift
+  __tracepoint_android_rvh_iommu_alloc_insert_iova
+  __tracepoint_android_rvh_iommu_iovad_init_alloc_algo
+  __tracepoint_android_rvh_iommu_limit_align_shift
 
 # required by scaler.ko
   dma_fence_default_wait
@@ -2013,7 +2013,6 @@
   sync_file_get_fence
   v4l2_ctrl_handler_setup
   v4l2_m2m_try_schedule
-  work_busy
 
 # required by scsc_bt.ko
   crc_ccitt
@@ -2035,12 +2034,14 @@
   vprintk_emit
 
 # required by scsc_mx.ko
+  __kfifo_from_user
   kobject_uevent
 
 # required by scsc_platform_mif.ko
   irq_get_irqchip_state
   of_property_read_variable_u16_array
   pci_enable_wake
+  pci_load_and_free_saved_state
   pcim_enable_device
   pcim_iomap_regions
   pcim_iomap_table
@@ -2054,18 +2055,18 @@
 
 # required by scsc_wlan.ko
   arp_tbl
-  __cpuhp_remove_state
   __cpuhp_state_add_instance
   __cpuhp_state_remove_instance
   dev_addr_mod
   dev_alloc_name
+  dev_change_flags
   __dev_queue_xmit
+  dev_set_threaded
   down_trylock
   dql_completed
   dql_reset
   dst_release
   ether_setup
-  __find_nth_bit
   for_each_kernel_tracepoint
   in4_pton
   in6_pton
@@ -2100,7 +2101,10 @@
   unregister_kretprobe
 
 # required by scsi_srpmb.ko
-  pfn_is_map_memory
+  blk_execute_rq
+  blk_mq_alloc_request
+  blk_mq_free_request
+  blk_rq_map_kern
   scsi_block_when_processing_errors
   __scsi_device_lookup_by_target
   scsi_execute_cmd
@@ -2118,6 +2122,7 @@
   input_set_abs_params
 
 # required by sgpu.ko
+  __arch_clear_user
   backlight_device_register
   backlight_device_unregister
   __bitmap_xor
@@ -2125,7 +2130,6 @@
   copy_highpage
   devfreq_monitor_resume
   devfreq_monitor_start
-  devfreq_monitor_stop
   devfreq_monitor_suspend
   devfreq_remove_governor
   devfreq_resume_device
@@ -2142,6 +2146,7 @@
   dma_fence_chain_walk
   dma_fence_get_status
   dma_fence_get_stub
+  dma_fence_signal_locked
   dma_fence_wait_any_timeout
   dma_get_required_mask
   dma_resv_add_fence
@@ -2266,9 +2271,7 @@
   shmem_read_mapping_page_gfp
   si_meminfo
   sysfs_remove_files
-  __traceiter_android_vh_meminfo_proc_show
   __traceiter_gpu_mem_total
-  __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_gpu_mem_total
   ttm_bo_init_reserved
   ttm_bo_kmap
@@ -2443,17 +2446,18 @@
 
 # required by ufs-exynos-core.ko
   blk_crypto_reprogram_all_keys
+  blk_mq_unique_tag
   devm_blk_crypto_profile_init
   of_cpu_node_to_id
-  scsi_dma_unmap
-  scsi_done
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_mcq_abort
+  __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_use_mcq_hooks
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_mcq_abort
+  __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_use_mcq_hooks
   trace_print_symbols_seq
   ufshcd_auto_hibern8_update
@@ -2502,7 +2506,6 @@
   xhci_ring_alloc
   xhci_segment_free
   xhci_trb_virt_to_dma
-  xhci_vendor_get_ops
 
 # required by xhci-exynos.ko
   device_property_read_u32_array
@@ -2533,6 +2536,7 @@
   __alloc_percpu_gfp
   arc4_crypt
   arc4_setkey
+  cpuidle_pause_and_lock
   __cpu_present_mask
   crc32_be
   crypto_aead_decrypt
@@ -2548,23 +2552,49 @@
   crypto_skcipher_encrypt
   crypto_skcipher_setkey
   __crypto_xor
+  debugfs_create_x64
+  debugfs_lookup
   dev_fetch_sw_netstats
+  device_property_read_string_array
+  dev_pm_opp_find_freq_exact
+  dma_fence_free
+  dma_map_sg_attrs
   drm_dev_has_vblank
   eth_mac_addr
   ethtool_op_get_link
+  fget
+  __find_nth_bit
   get_random_u16
   __hw_addr_init
   __hw_addr_sync
   __hw_addr_unsync
+  iommu_device_unlink
+  iterate_fd
   kernel_param_lock
   kernel_param_unlock
   kfree_skb_list_reason
   ktime_get_seconds
   memmove
+  mmc_add_host
+  mmc_alloc_host
+  mmc_can_gpio_cd
+  mmc_detect_change
+  mmc_free_host
+  mmc_gpio_get_cd
+  mmc_gpio_get_ro
+  mmc_of_parse
+  mmc_regulator_get_supply
+  mmc_regulator_set_ocr
+  mmc_regulator_set_vqmmc
+  mmc_remove_host
+  mmc_request_done
+  mmc_wait_for_req
   netdev_info
   netdev_set_default_ethtool_ops
   netif_receive_skb_list
   net_ratelimit
+  pm_runtime_force_resume
+  pm_runtime_force_suspend
   pskb_expand_head
   ___pskb_trim
   rhashtable_free_and_destroy
@@ -2576,6 +2606,9 @@
   round_jiffies
   round_jiffies_relative
   round_jiffies_up
+  scsi_dma_unmap
+  scsi_done
+  sdio_signal_irq
   sg_init_one
   skb_checksum_help
   skb_clone_sk
@@ -2584,6 +2617,13 @@
   __skb_get_hash
   __skb_gso_segment
   tasklet_unlock_wait
+  __traceiter_android_rvh_set_task_cpu
+  __traceiter_android_vh_gic_set_affinity
+  __traceiter_android_vh_jiffies_update
+  __tracepoint_android_rvh_set_task_cpu
+  __tracepoint_android_vh_gic_set_affinity
+  __tracepoint_android_vh_jiffies_update
   ttm_bo_eviction_valuable
   ufshcd_mcq_poll_cqe_nolock
   unregister_netdevice_many
+  xhci_vendor_get_ops

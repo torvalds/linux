@@ -11,6 +11,8 @@
 
 # commonly required by ledtrig-*.ko modules
   led_blink_set_oneshot
+  led_get_default_pattern
+  led_set_brightness
   led_set_brightness_nosleep
   led_stop_software_blink
 
@@ -23,12 +25,16 @@
   skb_flow_dissect_meta
   skb_flow_dissect_tunnel_info
   skb_flow_dissector_init
+  tc_cleanup_offload_action
   tc_setup_cb_call
   tc_setup_cb_destroy
   tc_setup_cb_reoffload
   tc_setup_cb_add
+  tc_setup_offload_action
+  tcf_action_update_hw_stats
   tcf_exts_num_actions
   tcf_exts_terse_dump
+  tcf_exts_validate_ex
 
 # required by act_vlan.ko module
   jiffies_to_clock_t
@@ -69,8 +75,14 @@
   xt_compat_unlock
   xt_data_to_user
   xt_find_match
+  xt_register_target
   xt_request_find_match
   xt_request_find_target
+  xt_unregister_target
+
+# commonly required by ebt_*.ko modules
+  xt_register_match
+  xt_unregister_match
 
 # required by ebt_arpreply.ko module
   arp_send
@@ -89,3 +101,8 @@
   nf_log_unset
   nf_logger_find_get
   nf_logger_put
+  xt_register_targets
+  xt_unregister_targets
+
+# required by audio related modules
+  snd_pcm_suspend_all

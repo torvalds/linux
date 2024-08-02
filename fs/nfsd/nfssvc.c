@@ -1138,11 +1138,12 @@ int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 
 int nfsd_pool_stats_release(struct inode *inode, struct file *file)
 {
+	struct seq_file *seq = file->private_data;
+	struct svc_serv *serv = seq->private;
 	int ret = seq_release(inode, file);
-	struct net *net = inode->i_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
-	nfsd_put(net);
+	svc_put(serv);
 	mutex_unlock(&nfsd_mutex);
 	return ret;
 }

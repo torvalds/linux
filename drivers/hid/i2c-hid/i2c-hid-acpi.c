@@ -39,8 +39,13 @@ static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	 * The CHPN0001 ACPI device, which is used to describe the Chipone
 	 * ICN8505 controller, has a _CID of PNP0C50 but is not HID compatible.
 	 */
-	{"CHPN0001", 0 },
-	{ },
+	{ "CHPN0001" },
+	/*
+	 * The IDEA5002 ACPI device causes high interrupt usage and spurious
+	 * wakeups from suspend.
+	 */
+	{ "IDEA5002" },
+	{ }
 };
 
 /* HID I²C Device: 3cdff6f7-4267-4555-ad05-b30a3d8938de */
@@ -115,9 +120,9 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 }
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
-	{"ACPI0C50", 0 },
-	{"PNP0C50", 0 },
-	{ },
+	{ "ACPI0C50" },
+	{ "PNP0C50" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_hid_acpi_match);
 

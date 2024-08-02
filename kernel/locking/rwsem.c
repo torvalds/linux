@@ -1025,6 +1025,8 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 	struct rwsem_waiter waiter;
 	DEFINE_WAKE_Q(wake_q);
 	bool already_on_list = false;
+	bool steal = true;
+	bool rspin = false;
 
 	/*
 	 * To prevent a constant stream of readers from starving a sleeping
@@ -1038,7 +1040,8 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 	/*
 	 * Reader optimistic lock stealing.
 	 */
-	if (!(count & (RWSEM_WRITER_LOCKED | RWSEM_FLAG_HANDOFF))) {
+	trace_android_vh_rwsem_direct_rsteal(sem, &steal);
+	if (steal && !(count & (RWSEM_WRITER_LOCKED | RWSEM_FLAG_HANDOFF))) {
 		rwsem_set_reader_owned(sem);
 		lockevent_inc(rwsem_rlock_steal);
 
@@ -1046,7 +1049,8 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 		 * Wake up other readers in the wait queue if it is
 		 * the first reader.
 		 */
-		if ((rcnt == 1) && (count & RWSEM_FLAG_WAITERS)) {
+wake_readers:
+		if ((rcnt == 1 || rspin) && (count & RWSEM_FLAG_WAITERS)) {
 			raw_spin_lock_irq(&sem->wait_lock);
 			if (!list_empty(&sem->wait_list))
 				rwsem_mark_wake(sem, RWSEM_WAKE_READ_OWNED,
@@ -1057,6 +1061,12 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 		trace_android_vh_record_rwsem_lock_starttime(current, jiffies);
 		return sem;
 	}
+	/*
+	 * Reader optimistic spinning and stealing.
+	 */
+	trace_android_vh_rwsem_optimistic_rspin(sem, &adjustment, &rspin);
+	if (rspin)
+		goto wake_readers;
 
 queue:
 	waiter.task = current;

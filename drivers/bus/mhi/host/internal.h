@@ -313,7 +313,8 @@ static inline void mhi_trigger_resume(struct mhi_controller *mhi_cntrl)
 static inline bool is_valid_ring_ptr(struct mhi_ring *ring, dma_addr_t addr)
 {
 	return ((addr >= ring->iommu_base &&
-		addr < ring->iommu_base + ring->len) && (addr % 16 == 0));
+		addr < ring->iommu_base + ring->len) &&
+		!(addr & (sizeof(struct mhi_ring_element) - 1)));
 }
 
 /* Register access methods */
