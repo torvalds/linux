@@ -3,6 +3,8 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/hugetlb.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 
 /*
  * We want to know the real level where a entry is located ignoring any
@@ -653,4 +655,204 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 	}
 
 	return err;
+}
+
+/**
+ * folio_walk_start - walk the page tables to a folio
+ * @fw: filled with information on success.
+ * @vma: the VMA.
+ * @addr: the virtual address to use for the page table walk.
+ * @flags: flags modifying which folios to walk to.
+ *
+ * Walk the page tables using @addr in a given @vma to a mapped folio and
+ * return the folio, making sure that the page table entry referenced by
+ * @addr cannot change until folio_walk_end() was called.
+ *
+ * As default, this function returns only folios that are not special (e.g., not
+ * the zeropage) and never returns folios that are supposed to be ignored by the
+ * VM as documented by vm_normal_page(). If requested, zeropages will be
+ * returned as well.
+ *
+ * As default, this function only considers present page table entries.
+ * If requested, it will also consider migration entries.
+ *
+ * If this function returns NULL it might either indicate "there is nothing" or
+ * "there is nothing suitable".
+ *
+ * On success, @fw is filled and the function returns the folio while the PTL
+ * is still held and folio_walk_end() must be called to clean up,
+ * releasing any held locks. The returned folio must *not* be used after the
+ * call to folio_walk_end(), unless a short-term folio reference is taken before
+ * that call.
+ *
+ * @fw->page will correspond to the page that is effectively referenced by
+ * @addr. However, for migration entries and shared zeropages @fw->page is
+ * set to NULL. Note that large folios might be mapped by multiple page table
+ * entries, and this function will always only lookup a single entry as
+ * specified by @addr, which might or might not cover more than a single page of
+ * the returned folio.
+ *
+ * This function must *not* be used as a naive replacement for
+ * get_user_pages() / pin_user_pages(), especially not to perform DMA or
+ * to carelessly modify page content. This function may *only* be used to grab
+ * short-term folio references, never to grab long-term folio references.
+ *
+ * Using the page table entry pointers in @fw for reading or modifying the
+ * entry should be avoided where possible: however, there might be valid
+ * use cases.
+ *
+ * WARNING: Modifying page table entries in hugetlb VMAs requires a lot of care.
+ * For example, PMD page table sharing might require prior unsharing. Also,
+ * logical hugetlb entries might span multiple physical page table entries,
+ * which *must* be modified in a single operation (set_huge_pte_at(),
+ * huge_ptep_set_*, ...). Note that the page table entry stored in @fw might
+ * not correspond to the first physical entry of a logical hugetlb entry.
+ *
+ * The mmap lock must be held in read mode.
+ *
+ * Return: folio pointer on success, otherwise NULL.
+ */
+struct folio *folio_walk_start(struct folio_walk *fw,
+		struct vm_area_struct *vma, unsigned long addr,
+		folio_walk_flags_t flags)
+{
+	unsigned long entry_size;
+	bool expose_page = true;
+	struct page *page;
+	pud_t *pudp, pud;
+	pmd_t *pmdp, pmd;
+	pte_t *ptep, pte;
+	spinlock_t *ptl;
+	pgd_t *pgdp;
+	p4d_t *p4dp;
+
+	mmap_assert_locked(vma->vm_mm);
+	vma_pgtable_walk_begin(vma);
+
+	if (WARN_ON_ONCE(addr < vma->vm_start || addr >= vma->vm_end))
+		goto not_found;
+
+	pgdp = pgd_offset(vma->vm_mm, addr);
+	if (pgd_none_or_clear_bad(pgdp))
+		goto not_found;
+
+	p4dp = p4d_offset(pgdp, addr);
+	if (p4d_none_or_clear_bad(p4dp))
+		goto not_found;
+
+	pudp = pud_offset(p4dp, addr);
+	pud = pudp_get(pudp);
+	if (pud_none(pud))
+		goto not_found;
+	if (IS_ENABLED(CONFIG_PGTABLE_HAS_HUGE_LEAVES) && pud_leaf(pud)) {
+		ptl = pud_lock(vma->vm_mm, pudp);
+		pud = pudp_get(pudp);
+
+		entry_size = PUD_SIZE;
+		fw->level = FW_LEVEL_PUD;
+		fw->pudp = pudp;
+		fw->pud = pud;
+
+		if (!pud_present(pud) || pud_devmap(pud)) {
+			spin_unlock(ptl);
+			goto not_found;
+		} else if (!pud_leaf(pud)) {
+			spin_unlock(ptl);
+			goto pmd_table;
+		}
+		/*
+		 * TODO: vm_normal_page_pud() will be handy once we want to
+		 * support PUD mappings in VM_PFNMAP|VM_MIXEDMAP VMAs.
+		 */
+		page = pud_page(pud);
+		goto found;
+	}
+
+pmd_table:
+	VM_WARN_ON_ONCE(pud_leaf(*pudp));
+	pmdp = pmd_offset(pudp, addr);
+	pmd = pmdp_get_lockless(pmdp);
+	if (pmd_none(pmd))
+		goto not_found;
+	if (IS_ENABLED(CONFIG_PGTABLE_HAS_HUGE_LEAVES) && pmd_leaf(pmd)) {
+		ptl = pmd_lock(vma->vm_mm, pmdp);
+		pmd = pmdp_get(pmdp);
+
+		entry_size = PMD_SIZE;
+		fw->level = FW_LEVEL_PMD;
+		fw->pmdp = pmdp;
+		fw->pmd = pmd;
+
+		if (pmd_none(pmd)) {
+			spin_unlock(ptl);
+			goto not_found;
+		} else if (!pmd_leaf(pmd)) {
+			spin_unlock(ptl);
+			goto pte_table;
+		} else if (pmd_present(pmd)) {
+			page = vm_normal_page_pmd(vma, addr, pmd);
+			if (page) {
+				goto found;
+			} else if ((flags & FW_ZEROPAGE) &&
+				    is_huge_zero_pmd(pmd)) {
+				page = pfn_to_page(pmd_pfn(pmd));
+				expose_page = false;
+				goto found;
+			}
+		} else if ((flags & FW_MIGRATION) &&
+			   is_pmd_migration_entry(pmd)) {
+			swp_entry_t entry = pmd_to_swp_entry(pmd);
+
+			page = pfn_swap_entry_to_page(entry);
+			expose_page = false;
+			goto found;
+		}
+		spin_unlock(ptl);
+		goto not_found;
+	}
+
+pte_table:
+	VM_WARN_ON_ONCE(pmd_leaf(pmdp_get_lockless(pmdp)));
+	ptep = pte_offset_map_lock(vma->vm_mm, pmdp, addr, &ptl);
+	if (!ptep)
+		goto not_found;
+	pte = ptep_get(ptep);
+
+	entry_size = PAGE_SIZE;
+	fw->level = FW_LEVEL_PTE;
+	fw->ptep = ptep;
+	fw->pte = pte;
+
+	if (pte_present(pte)) {
+		page = vm_normal_page(vma, addr, pte);
+		if (page)
+			goto found;
+		if ((flags & FW_ZEROPAGE) &&
+		    is_zero_pfn(pte_pfn(pte))) {
+			page = pfn_to_page(pte_pfn(pte));
+			expose_page = false;
+			goto found;
+		}
+	} else if (!pte_none(pte)) {
+		swp_entry_t entry = pte_to_swp_entry(pte);
+
+		if ((flags & FW_MIGRATION) &&
+		    is_migration_entry(entry)) {
+			page = pfn_swap_entry_to_page(entry);
+			expose_page = false;
+			goto found;
+		}
+	}
+	pte_unmap_unlock(ptep, ptl);
+not_found:
+	vma_pgtable_walk_end(vma);
+	return NULL;
+found:
+	if (expose_page)
+		/* Note: Offset from the mapped page, not the folio start. */
+		fw->page = nth_page(page, (addr & (entry_size - 1)) >> PAGE_SHIFT);
+	else
+		fw->page = NULL;
+	fw->ptl = ptl;
+	return page_folio(page);
 }
