@@ -370,28 +370,6 @@ static void __remove_pin_from_irq(struct mp_chip_data *data, int apic, int pin)
 		}
 }
 
-/*
- * Reroute an IRQ to a different pin.
- */
-static void __init replace_pin_at_irq_node(struct mp_chip_data *data, int node,
-					   int oldapic, int oldpin,
-					   int newapic, int newpin)
-{
-	struct irq_pin_list *entry;
-
-	for_each_irq_pin(entry, data->irq_2_pin) {
-		if (entry->apic == oldapic && entry->pin == oldpin) {
-			entry->apic = newapic;
-			entry->pin = newpin;
-			/* every one is different, right? */
-			return;
-		}
-	}
-
-	/* old apic/pin didn't exist, so just add new ones */
-	add_pin_to_irq_node(data, node, newapic, newpin);
-}
-
 static void io_apic_modify_irq(struct mp_chip_data *data, bool masked,
 			       void (*final)(struct irq_pin_list *entry))
 {
@@ -2065,6 +2043,24 @@ static int __init mp_alloc_timer_irq(int ioapic, int pin)
 	}
 
 	return irq;
+}
+
+static void __init replace_pin_at_irq_node(struct mp_chip_data *data, int node,
+					   int oldapic, int oldpin,
+					   int newapic, int newpin)
+{
+	struct irq_pin_list *entry;
+
+	for_each_irq_pin(entry, data->irq_2_pin) {
+		if (entry->apic == oldapic && entry->pin == oldpin) {
+			entry->apic = newapic;
+			entry->pin = newpin;
+			return;
+		}
+	}
+
+	/* Old apic/pin didn't exist, so just add a new one */
+	add_pin_to_irq_node(data, node, newapic, newpin);
 }
 
 /*
