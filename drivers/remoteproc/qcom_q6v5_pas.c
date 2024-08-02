@@ -2350,6 +2350,21 @@ static const struct adsp_data neo_adsp_resource = {
 	.ssctl_id = 0x14,
 };
 
+static const struct adsp_data neo_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.pas_id = 18,
+	.minidump_id = 7,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.hyp_assign_mem = true,
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.qmp_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
 static const struct adsp_data khaje_cdsp_resource = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -2907,6 +2922,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,anorak-adsp-pas", .data = &anorak_adsp_resource},
 	{ .compatible = "qcom,anorak-cdsp-pas", .data = &anorak_cdsp_resource},
 	{ .compatible = "qcom,neo-adsp-pas", .data = &neo_adsp_resource},
+	{ .compatible = "qcom,neo-cdsp-pas", .data = &neo_cdsp_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
