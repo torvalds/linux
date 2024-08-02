@@ -38,7 +38,7 @@
 #include <linux/etherdevice.h>
 #include <linux/utsname.h>
 
-MODULE_AUTHOR("Maintainer: Matt Mackall <mpm@selenic.com>");
+MODULE_AUTHOR("Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
 
