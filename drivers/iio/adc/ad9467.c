@@ -494,11 +494,49 @@ static int ad9467_testmode_set(struct ad9467_state *st, unsigned int chan,
 				AN877_ADC_TRANSFER_SYNC);
 }
 
-static int ad9647_calibrate_prepare(struct ad9467_state *st)
+static int ad9467_backend_testmode_on(struct ad9467_state *st,
+				      unsigned int chan,
+				      enum iio_backend_test_pattern pattern)
 {
 	struct iio_backend_data_fmt data = {
 		.enable = false,
 	};
+	int ret;
+
+	ret = iio_backend_data_format_set(st->back, chan, &data);
+	if (ret)
+		return ret;
+
+	ret = iio_backend_test_pattern_set(st->back, chan, pattern);
+	if (ret)
+		return ret;
+
+	return iio_backend_chan_enable(st->back, chan);
+}
+
+static int ad9467_backend_testmode_off(struct ad9467_state *st,
+				       unsigned int chan)
+{
+	struct iio_backend_data_fmt data = {
+		.enable = true,
+		.sign_extend = true,
+	};
+	int ret;
+
+	ret = iio_backend_chan_disable(st->back, chan);
+	if (ret)
+		return ret;
+
+	ret = iio_backend_test_pattern_set(st->back, chan,
+					   IIO_BACKEND_NO_TEST_PATTERN);
+	if (ret)
+		return ret;
+
+	return iio_backend_data_format_set(st->back, chan, &data);
+}
+
+static int ad9647_calibrate_prepare(struct ad9467_state *st)
+{
 	unsigned int c;
 	int ret;
 
@@ -511,16 +549,8 @@ static int ad9647_calibrate_prepare(struct ad9467_state *st)
 		if (ret)
 			return ret;
 
-		ret = iio_backend_data_format_set(st->back, c, &data);
-		if (ret)
-			return ret;
-
-		ret = iio_backend_test_pattern_set(st->back, c,
-						   IIO_BACKEND_ADI_PRBS_9A);
-		if (ret)
-			return ret;
-
-		ret = iio_backend_chan_enable(st->back, c);
+		ret = ad9467_backend_testmode_on(st, c,
+						 IIO_BACKEND_ADI_PRBS_9A);
 		if (ret)
 			return ret;
 	}
@@ -601,24 +631,11 @@ static int ad9467_calibrate_apply(struct ad9467_state *st, unsigned int val)
 
 static int ad9647_calibrate_stop(struct ad9467_state *st)
 {
-	struct iio_backend_data_fmt data = {
-		.sign_extend = true,
-		.enable = true,
-	};
 	unsigned int c, mode;
 	int ret;
 
 	for (c = 0; c < st->info->num_channels; c++) {
-		ret = iio_backend_chan_disable(st->back, c);
-		if (ret)
-			return ret;
-
-		ret = iio_backend_test_pattern_set(st->back, c,
-						   IIO_BACKEND_NO_TEST_PATTERN);
-		if (ret)
-			return ret;
-
-		ret = iio_backend_data_format_set(st->back, c, &data);
+		ret = ad9467_backend_testmode_off(st, c);
 		if (ret)
 			return ret;
 
