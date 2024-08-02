@@ -334,7 +334,8 @@ struct kvm_vcpu {
 #ifndef __KVM_HAVE_ARCH_WQP
 	struct rcuwait wait;
 #endif
-	struct pid __rcu *pid;
+	struct pid *pid;
+	rwlock_t pid_lock;
 	int sigset_active;
 	sigset_t sigset;
 	unsigned int halt_poll_ns;
