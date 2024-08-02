@@ -16,9 +16,11 @@ of disjoint sets. The primary operations supported by union-find are:
 
 	Initialization: Resetting each element as an individual set, with
 		each set's initial parent node pointing to itself.
+
 	Find: Determine which set a particular element belongs to, usually by
 		returning a “representative element” of that set. This operation
 		is used to check if two elements are in the same set.
+
 	Union: Merge two sets into one.
 
 As a data structure used to maintain sets (groups), union-find is commonly
@@ -63,7 +65,7 @@ operation, the tree with the smaller rank is attached under the tree with the
 larger rank to maintain balance.
 
 Initializing union-find
---------------------
+-----------------------
 
 You can complete the initialization using either static or initialization
 interface. Initialize the parent pointer to point to itself and set the rank
@@ -71,7 +73,9 @@ to 0.
 Example::
 
 	struct uf_node my_node = UF_INIT_NODE(my_node);
+
 or
+
 	uf_node_init(&my_node);
 
 Find the Root Node of union-find
