@@ -139,7 +139,7 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
-		cvic: copro-interrupt-controller@1e6c2000 {
+		cvic: interrupt-controller@1e6c2000 {
 			compatible = "aspeed,ast2500-cvic", "aspeed-cvic";
 			valid-sources = <0xffffffff>;
 			copro-sw-interrupts = <1>;
