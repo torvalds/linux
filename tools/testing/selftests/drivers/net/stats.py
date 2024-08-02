@@ -20,7 +20,7 @@ def check_pause(cfg) -> None:
     try:
         ethnl.pause_get({"header": {"dev-index": cfg.ifindex}})
     except NlError as e:
-        if e.error == 95:
+        if e.error == errno.EOPNOTSUPP:
             raise KsftXfailEx("pause not supported by the device")
         raise
 
@@ -35,7 +35,7 @@ def check_fec(cfg) -> None:
     try:
         ethnl.fec_get({"header": {"dev-index": cfg.ifindex}})
     except NlError as e:
-        if e.error == 95:
+        if e.error == errno.EOPNOTSUPP:
             raise KsftXfailEx("FEC not supported by the device")
         raise
 
@@ -120,7 +120,7 @@ def qstat_by_ifindex(cfg) -> None:
     # loopback has no stats
     with ksft_raises(NlError) as cm:
         netfam.qstats_get({"ifindex": 1}, dump=True)
-    ksft_eq(cm.exception.nl_msg.error, -95)
+    ksft_eq(cm.exception.nl_msg.error, -errno.EOPNOTSUPP)
     ksft_eq(cm.exception.nl_msg.extack['bad-attr'], '.ifindex')
 
     # Try to get stats for lowest unused ifindex but not 0
