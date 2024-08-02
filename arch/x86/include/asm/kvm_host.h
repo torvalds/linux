@@ -211,6 +211,7 @@ enum exit_fastpath_completion {
 	EXIT_FASTPATH_NONE,
 	EXIT_FASTPATH_REENTER_GUEST,
 	EXIT_FASTPATH_EXIT_HANDLED,
+	EXIT_FASTPATH_EXIT_USERSPACE,
 };
 typedef enum exit_fastpath_completion fastpath_t;
 
