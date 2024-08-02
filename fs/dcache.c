@@ -2163,9 +2163,6 @@ seqretry:
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
  *
- * A refcount may be taken on the found dentry with the d_rcu_to_refcount
- * function.
- *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of
  * the returned dentry, so long as its parent's seqlock is checked after the
  * child is looked up. Thus, an interlocking stepping of sequence lock checks
