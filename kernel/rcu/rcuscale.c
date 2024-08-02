@@ -1015,13 +1015,9 @@ rcu_scale_init(void)
 	}
 	while (atomic_read(&n_rcu_scale_reader_started) < nrealreaders)
 		schedule_timeout_uninterruptible(1);
-	writer_tasks = kcalloc(nrealwriters, sizeof(reader_tasks[0]),
-			       GFP_KERNEL);
-	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations),
-				   GFP_KERNEL);
-	writer_n_durations =
-		kcalloc(nrealwriters, sizeof(*writer_n_durations),
-			GFP_KERNEL);
+	writer_tasks = kcalloc(nrealwriters, sizeof(reader_tasks[0]), GFP_KERNEL);
+	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations), GFP_KERNEL);
+	writer_n_durations = kcalloc(nrealwriters, sizeof(*writer_n_durations), GFP_KERNEL);
 	if (!writer_tasks || !writer_durations || !writer_n_durations) {
 		SCALEOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
