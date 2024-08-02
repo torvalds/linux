@@ -4556,16 +4556,24 @@ struct perf_read_data {
 	int ret;
 };
 
+static inline const struct cpumask *perf_scope_cpu_topology_cpumask(unsigned int scope, int cpu);
+
 static int __perf_event_read_cpu(struct perf_event *event, int event_cpu)
 {
+	int local_cpu = smp_processor_id();
 	u16 local_pkg, event_pkg;
 
 	if ((unsigned)event_cpu >= nr_cpu_ids)
 		return event_cpu;
 
-	if (event->group_caps & PERF_EV_CAP_READ_ACTIVE_PKG) {
-		int local_cpu = smp_processor_id();
+	if (event->group_caps & PERF_EV_CAP_READ_SCOPE) {
+		const struct cpumask *cpumask = perf_scope_cpu_topology_cpumask(event->pmu->scope, event_cpu);
 
+		if (cpumask && cpumask_test_cpu(local_cpu, cpumask))
+			return local_cpu;
+	}
+
+	if (event->group_caps & PERF_EV_CAP_READ_ACTIVE_PKG) {
 		event_pkg = topology_physical_package_id(event_cpu);
 		local_pkg = topology_physical_package_id(local_cpu);
 
@@ -11905,7 +11913,7 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 				if (cpu >= nr_cpu_ids)
 					ret = -ENODEV;
 				else
-					event->cpu = cpu;
+					event->event_caps |= PERF_EV_CAP_READ_SCOPE;
 			} else {
 				ret = -ENODEV;
 			}
