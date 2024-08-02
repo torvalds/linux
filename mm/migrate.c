@@ -2112,76 +2112,66 @@ static int do_move_pages_to_node(struct list_head *pagelist, int node)
 	return err;
 }
 
-/*
- * Resolves the given address to a struct page, isolates it from the LRU and
- * puts it to the given pagelist.
- * Returns:
- *     errno - if the page cannot be found/isolated
- *     0 - when it doesn't have to be migrated because it is already on the
- *         target node
- *     1 - when it has been queued
- */
-static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
-		int node, struct list_head *pagelist, bool migrate_all)
+static int __add_folio_for_migration(struct folio *folio, int node,
+		struct list_head *pagelist, bool migrate_all)
 {
-	struct vm_area_struct *vma;
-	unsigned long addr;
-	struct page *page;
-	struct folio *folio;
-	int err;
+	if (is_zero_folio(folio) || is_huge_zero_folio(folio))
+		return -EFAULT;
 
-	mmap_read_lock(mm);
-	addr = (unsigned long)untagged_addr_remote(mm, p);
-
-	err = -EFAULT;
-	vma = vma_lookup(mm, addr);
-	if (!vma || !vma_migratable(vma))
-		goto out;
-
-	/* FOLL_DUMP to ignore special (like zero) pages */
-	page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
-
-	err = PTR_ERR(page);
-	if (IS_ERR(page))
-		goto out;
-
-	err = -ENOENT;
-	if (!page)
-		goto out;
-
-	folio = page_folio(page);
 	if (folio_is_zone_device(folio))
-		goto out_putfolio;
+		return -ENOENT;
 
-	err = 0;
 	if (folio_nid(folio) == node)
-		goto out_putfolio;
+		return 0;
 
-	err = -EACCES;
 	if (folio_likely_mapped_shared(folio) && !migrate_all)
-		goto out_putfolio;
+		return -EACCES;
 
-	err = -EBUSY;
 	if (folio_test_hugetlb(folio)) {
 		if (isolate_hugetlb(folio, pagelist))
-			err = 1;
-	} else {
-		if (!folio_isolate_lru(folio))
-			goto out_putfolio;
-
-		err = 1;
+			return 1;
+	} else if (folio_isolate_lru(folio)) {
 		list_add_tail(&folio->lru, pagelist);
 		node_stat_mod_folio(folio,
 			NR_ISOLATED_ANON + folio_is_file_lru(folio),
 			folio_nr_pages(folio));
+		return 1;
 	}
-out_putfolio:
-	/*
-	 * Either remove the duplicate refcount from folio_isolate_lru()
-	 * or drop the folio ref if it was not isolated.
-	 */
-	folio_put(folio);
-out:
+	return -EBUSY;
+}
+
+/*
+ * Resolves the given address to a struct folio, isolates it from the LRU and
+ * puts it to the given pagelist.
+ * Returns:
+ *     errno - if the folio cannot be found/isolated
+ *     0 - when it doesn't have to be migrated because it is already on the
+ *         target node
+ *     1 - when it has been queued
+ */
+static int add_folio_for_migration(struct mm_struct *mm, const void __user *p,
+		int node, struct list_head *pagelist, bool migrate_all)
+{
+	struct vm_area_struct *vma;
+	struct folio_walk fw;
+	struct folio *folio;
+	unsigned long addr;
+	int err = -EFAULT;
+
+	mmap_read_lock(mm);
+	addr = (unsigned long)untagged_addr_remote(mm, p);
+
+	vma = vma_lookup(mm, addr);
+	if (vma && vma_migratable(vma)) {
+		folio = folio_walk_start(&fw, vma, addr, FW_ZEROPAGE);
+		if (folio) {
+			err = __add_folio_for_migration(folio, node, pagelist,
+							migrate_all);
+			folio_walk_end(&fw, vma);
+		} else {
+			err = -ENOENT;
+		}
+	}
 	mmap_read_unlock(mm);
 	return err;
 }
@@ -2275,8 +2265,8 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		 * Errors in the page lookup or isolation are not fatal and we simply
 		 * report them via status
 		 */
-		err = add_page_for_migration(mm, p, current_node, &pagelist,
-					     flags & MPOL_MF_MOVE_ALL);
+		err = add_folio_for_migration(mm, p, current_node, &pagelist,
+					      flags & MPOL_MF_MOVE_ALL);
 
 		if (err > 0) {
 			/* The page is successfully queued for migration */
