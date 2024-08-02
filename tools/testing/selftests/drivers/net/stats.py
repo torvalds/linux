@@ -4,6 +4,7 @@
 import errno
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import ksft_ge, ksft_eq, ksft_in, ksft_true, ksft_raises, KsftSkipEx, KsftXfailEx
+from lib.py import ksft_disruptive
 from lib.py import EthtoolFamily, NetdevFamily, RtnlFamily, NlError
 from lib.py import NetDrvEnv
 from lib.py import ip, defer
@@ -135,6 +136,7 @@ def qstat_by_ifindex(cfg) -> None:
     ksft_eq(cm.exception.nl_msg.extack['bad-attr'], '.ifindex')
 
 
+@ksft_disruptive
 def check_down(cfg) -> None:
     try:
         qstat = netfam.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
