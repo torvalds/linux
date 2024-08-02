@@ -1124,8 +1124,7 @@ static void svm_hardware_unsetup(void)
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
 
-	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT),
-	get_order(IOPM_SIZE));
+	__free_pages(__sme_pa_to_page(iopm_base), get_order(IOPM_SIZE));
 	iopm_base = 0;
 }
 
@@ -1301,7 +1300,7 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	if (!kvm_hlt_in_guest(vcpu->kvm))
 		svm_set_intercept(svm, INTERCEPT_HLT);
 
-	control->iopm_base_pa = __sme_set(iopm_base);
+	control->iopm_base_pa = iopm_base;
 	control->msrpm_base_pa = __sme_set(__pa(svm->msrpm));
 	control->int_ctl = V_INTR_MASKING_MASK;
 
@@ -1503,7 +1502,7 @@ static void svm_vcpu_free(struct kvm_vcpu *vcpu)
 
 	sev_free_vcpu(vcpu);
 
-	__free_page(pfn_to_page(__sme_clr(svm->vmcb01.pa) >> PAGE_SHIFT));
+	__free_page(__sme_pa_to_page(svm->vmcb01.pa));
 	__free_pages(virt_to_page(svm->msrpm), get_order(MSRPM_SIZE));
 }
 
@@ -5251,7 +5250,7 @@ static __init int svm_hardware_setup(void)
 
 	iopm_va = page_address(iopm_pages);
 	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
-	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
+	iopm_base = __sme_page_pa(iopm_pages);
 
 	init_msrpm_offsets();
 
