@@ -332,8 +332,27 @@ void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_adjust_bus_speed);
 
-u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
+static u32 i2c_dw_read_scl_reg(struct dw_i2c_dev *dev, u32 reg)
 {
+	u32 val;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return 0;
+
+	ret = regmap_read(dev->map, reg, &val);
+	i2c_dw_release_lock(dev);
+
+	return ret ? 0 : val;
+}
+
+u32 i2c_dw_scl_hcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
+		    u32 tSYMBOL, u32 tf, int cond, int offset)
+{
+	if (!ic_clk)
+		return i2c_dw_read_scl_reg(dev, reg);
+
 	/*
 	 * DesignWare I2C core doesn't seem to have solid strategy to meet
 	 * the tHD;STA timing spec.  Configuring _HCNT based on tHIGH spec
@@ -372,8 +391,12 @@ u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 		       3 + offset;
 }
 
-u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
+u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
+		    u32 tLOW, u32 tf, int offset)
 {
+	if (!ic_clk)
+		return i2c_dw_read_scl_reg(dev, reg);
+
 	/*
 	 * Conditional expression:
 	 *
