@@ -174,12 +174,6 @@ static ssize_t dlm_attr_store(struct kobject *kobj, struct attribute *attr,
 	return a->store ? a->store(ls, buf, len) : len;
 }
 
-static void lockspace_kobj_release(struct kobject *k)
-{
-	struct dlm_ls *ls  = container_of(k, struct dlm_ls, ls_kobj);
-	kfree(ls);
-}
-
 static const struct sysfs_ops dlm_attr_ops = {
 	.show  = dlm_attr_show,
 	.store = dlm_attr_store,
@@ -188,7 +182,6 @@ static const struct sysfs_ops dlm_attr_ops = {
 static struct kobj_type dlm_ktype = {
 	.default_groups = dlm_groups,
 	.sysfs_ops     = &dlm_attr_ops,
-	.release       = lockspace_kobj_release,
 };
 
 static struct kset *dlm_kset;
@@ -328,7 +321,6 @@ static int new_lockspace(const char *name, const char *cluster,
 			 int *ops_result, dlm_lockspace_t **lockspace)
 {
 	struct dlm_ls *ls;
-	int do_unreg = 0;
 	int namelen = strlen(name);
 	int error;
 
@@ -530,9 +522,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	wait_event(ls->ls_recover_lock_wait,
 		   test_bit(LSFL_RECOVER_LOCK, &ls->ls_flags));
 
-	/* let kobject handle freeing of ls if there's an error */
-	do_unreg = 1;
-
 	ls->ls_kobj.kset = dlm_kset;
 	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,
 				     "%s", ls->ls_name);
@@ -580,10 +569,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	xa_destroy(&ls->ls_lkbxa);
 	rhashtable_destroy(&ls->ls_rsbtbl);
  out_lsfree:
-	if (do_unreg)
-		kobject_put(&ls->ls_kobj);
-	else
-		kfree(ls);
+	kobject_put(&ls->ls_kobj);
+	kfree(ls);
  out:
 	module_put(THIS_MODULE);
 	return error;
@@ -743,6 +730,8 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_delete_debug_file(ls);
 
+	kobject_put(&ls->ls_kobj);
+
 	xa_destroy(&ls->ls_recover_xa);
 	kfree(ls->ls_recover_buf);
 
@@ -769,8 +758,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
 	log_rinfo(ls, "release_lockspace final free");
-	kobject_put(&ls->ls_kobj);
-	/* The ls structure will be freed when the kobject is done with */
+	kfree(ls);
 
 	module_put(THIS_MODULE);
 	return 0;
