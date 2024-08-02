@@ -384,8 +384,8 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	if (!fw_name)
 		return -ENOMEM;
 
-	rproc = rproc_alloc(dev, dev_name(dev), &keystone_rproc_ops, fw_name,
-			    sizeof(*ksproc));
+	rproc = devm_rproc_alloc(dev, dev_name(dev), &keystone_rproc_ops,
+				 fw_name, sizeof(*ksproc));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -396,13 +396,11 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 
 	ret = keystone_rproc_of_get_dev_syscon(pdev, ksproc);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ksproc->reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(ksproc->reset)) {
-		ret = PTR_ERR(ksproc->reset);
-		goto free_rproc;
-	}
+	if (IS_ERR(ksproc->reset))
+		return PTR_ERR(ksproc->reset);
 
 	/* enable clock for accessing DSP internal memories */
 	pm_runtime_enable(dev);
@@ -467,8 +465,6 @@ disable_clk:
 	pm_runtime_put_sync(dev);
 disable_rpm:
 	pm_runtime_disable(dev);
-free_rproc:
-	rproc_free(rproc);
 	return ret;
 }
 
@@ -480,7 +476,6 @@ static void keystone_rproc_remove(struct platform_device *pdev)
 	gpiod_put(ksproc->kick_gpio);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	rproc_free(ksproc->rproc);
 	of_reserved_mem_device_release(&pdev->dev);
 }
 
