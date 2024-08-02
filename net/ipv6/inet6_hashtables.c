@@ -89,7 +89,7 @@ found:
 }
 EXPORT_SYMBOL(__inet6_lookup_established);
 
-static inline int compute_score(struct sock *sk, struct net *net,
+static inline int compute_score(struct sock *sk, const struct net *net,
 				const unsigned short hnum,
 				const struct in6_addr *daddr,
 				const int dif, const int sdif)
