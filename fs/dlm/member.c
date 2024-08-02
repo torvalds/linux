@@ -366,6 +366,8 @@ int dlm_is_member(struct dlm_ls *ls, int nodeid)
 
 int dlm_is_removed(struct dlm_ls *ls, int nodeid)
 {
+	WARN_ON_ONCE(!nodeid || nodeid == -1);
+
 	if (find_memb(&ls->ls_nodes_gone, nodeid))
 		return 1;
 	return 0;

@@ -1151,7 +1151,7 @@ static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_no
 		r->res_dir_nodeid = our_nodeid;
 	}
 
-	if (fix_master && dlm_is_removed(ls, r->res_master_nodeid)) {
+	if (fix_master && r->res_master_nodeid && dlm_is_removed(ls, r->res_master_nodeid)) {
 		/* Recovery uses this function to set a new master when
 		 * the previous master failed.  Setting NEW_MASTER will
 		 * force dlm_recover_masters to call recover_master on this
@@ -5283,7 +5283,7 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 			case DLM_MSG_LOOKUP:
 			case DLM_MSG_REQUEST:
 				_request_lock(r, lkb);
-				if (is_master(r))
+				if (r->res_nodeid != -1 && is_master(r))
 					confirm_master(r, 0);
 				break;
 			case DLM_MSG_CONVERT:
@@ -5396,7 +5396,7 @@ void dlm_recover_purge(struct dlm_ls *ls, const struct list_head *root_list)
 
 	list_for_each_entry(r, root_list, res_root_list) {
 		lock_rsb(r);
-		if (is_master(r)) {
+		if (r->res_nodeid != -1 && is_master(r)) {
 			purge_dead_list(ls, r, &r->res_grantqueue,
 					nodeid_gone, &lkb_count);
 			purge_dead_list(ls, r, &r->res_convertqueue,
