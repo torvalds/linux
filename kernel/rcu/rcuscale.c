@@ -39,6 +39,7 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 #include <linux/rcupdate_trace.h>
+#include <linux/sched/debug.h>
 
 #include "rcu.h"
 
@@ -111,6 +112,7 @@ static struct task_struct **reader_tasks;
 static struct task_struct *shutdown_task;
 
 static u64 **writer_durations;
+static bool *writer_done;
 static int *writer_n_durations;
 static atomic_t n_rcu_scale_reader_started;
 static atomic_t n_rcu_scale_writer_started;
@@ -524,6 +526,7 @@ retry:
 			started = true;
 		if (!done && i >= MIN_MEAS && time_after(jiffies, jdone)) {
 			done = true;
+			WRITE_ONCE(writer_done[me], true);
 			sched_set_normal(current, 0);
 			pr_alert("%s%s rcu_scale_writer %ld has %d measurements\n",
 				 scale_type, SCALE_FLAG, me, MIN_MEAS);
@@ -549,6 +552,19 @@ retry:
 		if (done && !alldone &&
 		    atomic_read(&n_rcu_scale_writer_finished) >= nrealwriters)
 			alldone = true;
+		if (done && !alldone && time_after(jiffies, jdone + HZ * 60)) {
+			static atomic_t dumped;
+			int i;
+
+			if (!atomic_xchg(&dumped, 1)) {
+				for (i = 0; i < nrealwriters; i++) {
+					if (writer_done[i])
+						continue;
+					pr_info("%s: Task %ld flags writer %d:\n", __func__, me, i);
+					sched_show_task(writer_tasks[i]);
+				}
+			}
+		}
 		if (started && !alldone && i < MAX_MEAS - 1)
 			i++;
 		rcu_scale_wait_shutdown();
@@ -921,6 +937,8 @@ rcu_scale_cleanup(void)
 		kfree(writer_tasks);
 		kfree(writer_durations);
 		kfree(writer_n_durations);
+		kfree(writer_done);
+		writer_done = NULL;
 	}
 
 	/* Do torture-type-specific cleanup operations.  */
@@ -1015,10 +1033,11 @@ rcu_scale_init(void)
 	}
 	while (atomic_read(&n_rcu_scale_reader_started) < nrealreaders)
 		schedule_timeout_uninterruptible(1);
-	writer_tasks = kcalloc(nrealwriters, sizeof(reader_tasks[0]), GFP_KERNEL);
+	writer_tasks = kcalloc(nrealwriters, sizeof(writer_tasks[0]), GFP_KERNEL);
 	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations), GFP_KERNEL);
 	writer_n_durations = kcalloc(nrealwriters, sizeof(*writer_n_durations), GFP_KERNEL);
-	if (!writer_tasks || !writer_durations || !writer_n_durations) {
+	writer_done = kcalloc(nrealwriters, sizeof(writer_done[0]), GFP_KERNEL);
+	if (!writer_tasks || !writer_durations || !writer_n_durations || !writer_done) {
 		SCALEOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
 		goto unwind;
