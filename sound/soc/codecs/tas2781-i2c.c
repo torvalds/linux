@@ -30,6 +30,7 @@
 #include <sound/soc.h>
 #include <sound/tas2781.h>
 #include <sound/tlv.h>
+#include <sound/tas2563-tlv.h>
 #include <sound/tas2781-tlv.h>
 #include <asm/unaligned.h>
 
