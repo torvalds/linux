@@ -366,8 +366,6 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	int dsp_id;
 	char *fw_name = NULL;
-	char *template = "keystone-dsp%d-fw";
-	int name_len = 0;
 	int ret = 0;
 
 	if (!np) {
@@ -382,11 +380,9 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	}
 
 	/* construct a custom default fw name - subject to change in future */
-	name_len = strlen(template); /* assuming a single digit alias */
-	fw_name = devm_kzalloc(dev, name_len, GFP_KERNEL);
+	fw_name = devm_kasprintf(dev, GFP_KERNEL, "keystone-dsp%d-fw", dsp_id);
 	if (!fw_name)
 		return -ENOMEM;
-	snprintf(fw_name, name_len, template, dsp_id);
 
 	rproc = rproc_alloc(dev, dev_name(dev), &keystone_rproc_ops, fw_name,
 			    sizeof(*ksproc));
