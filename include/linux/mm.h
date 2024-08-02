@@ -3527,9 +3527,6 @@ static inline vm_fault_t vmf_fs_error(int err)
 	return VM_FAULT_SIGBUS;
 }
 
-struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-			 unsigned int foll_flags);
-
 static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
 {
 	if (vm_fault & VM_FAULT_OOM)

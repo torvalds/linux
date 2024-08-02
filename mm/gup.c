@@ -1072,28 +1072,6 @@ static struct page *follow_page_mask(struct vm_area_struct *vma,
 	return page;
 }
 
-struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-			 unsigned int foll_flags)
-{
-	struct follow_page_context ctx = { NULL };
-	struct page *page;
-
-	if (vma_is_secretmem(vma))
-		return NULL;
-
-	if (WARN_ON_ONCE(foll_flags & FOLL_PIN))
-		return NULL;
-
-	/*
-	 * We never set FOLL_HONOR_NUMA_FAULT because callers don't expect
-	 * to fail on PROT_NONE-mapped pages.
-	 */
-	page = follow_page_mask(vma, address, foll_flags, &ctx);
-	if (ctx.pgmap)
-		put_dev_pagemap(ctx.pgmap);
-	return page;
-}
-
 static int get_gate_page(struct mm_struct *mm, unsigned long address,
 		unsigned int gup_flags, struct vm_area_struct **vma,
 		struct page **page)
@@ -2519,7 +2497,7 @@ static bool is_valid_gup_args(struct page **pages, int *locked,
 	 * These flags not allowed to be specified externally to the gup
 	 * interfaces:
 	 * - FOLL_TOUCH/FOLL_PIN/FOLL_TRIED/FOLL_FAST_ONLY are internal only
-	 * - FOLL_REMOTE is internal only and used on follow_page()
+	 * - FOLL_REMOTE is internal only, set in (get|pin)_user_pages_remote()
 	 * - FOLL_UNLOCKABLE is internal only and used if locked is !NULL
 	 */
 	if (WARN_ON_ONCE(gup_flags & INTERNAL_GUP_FLAGS))
