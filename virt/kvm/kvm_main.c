@@ -3869,59 +3869,71 @@ bool __weak kvm_arch_dy_has_pending_interrupt(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
+	int nr_vcpus, start, i, idx, yielded;
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
-	int last_boosted_vcpu;
-	unsigned long i;
-	int yielded = 0;
 	int try = 3;
-	int pass;
 
-	last_boosted_vcpu = READ_ONCE(kvm->last_boosted_vcpu);
+	nr_vcpus = atomic_read(&kvm->online_vcpus);
+	if (nr_vcpus < 2)
+		return;
+
+	/* Pairs with the smp_wmb() in kvm_vm_ioctl_create_vcpu(). */
+	smp_rmb();
+
 	kvm_vcpu_set_in_spin_loop(me, true);
+
 	/*
-	 * We boost the priority of a VCPU that is runnable but not
-	 * currently running, because it got preempted by something
-	 * else and called schedule in __vcpu_run.  Hopefully that
-	 * VCPU is holding the lock that we need and will release it.
-	 * We approximate round-robin by starting at the last boosted VCPU.
+	 * The current vCPU ("me") is spinning in kernel mode, i.e. is likely
+	 * waiting for a resource to become available.  Attempt to yield to a
+	 * vCPU that is runnable, but not currently running, e.g. because the
+	 * vCPU was preempted by a higher priority task.  With luck, the vCPU
+	 * that was preempted is holding a lock or some other resource that the
+	 * current vCPU is waiting to acquire, and yielding to the other vCPU
+	 * will allow it to make forward progress and release the lock (or kick
+	 * the spinning vCPU, etc).
+	 *
+	 * Since KVM has no insight into what exactly the guest is doing,
+	 * approximate a round-robin selection by iterating over all vCPUs,
+	 * starting at the last boosted vCPU.  I.e. if N=kvm->last_boosted_vcpu,
+	 * iterate over vCPU[N+1]..vCPU[N-1], wrapping as needed.
+	 *
+	 * Note, this is inherently racy, e.g. if multiple vCPUs are spinning,
+	 * they may all try to yield to the same vCPU(s).  But as above, this
+	 * is all best effort due to KVM's lack of visibility into the guest.
 	 */
-	for (pass = 0; pass < 2 && !yielded && try; pass++) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (!pass && i <= last_boosted_vcpu) {
-				i = last_boosted_vcpu;
-				continue;
-			} else if (pass && i > last_boosted_vcpu)
-				break;
-			if (!READ_ONCE(vcpu->ready))
-				continue;
-			if (vcpu == me)
-				continue;
-			if (kvm_vcpu_is_blocking(vcpu) && !vcpu_dy_runnable(vcpu))
-				continue;
+	start = READ_ONCE(kvm->last_boosted_vcpu) + 1;
+	for (i = 0; i < nr_vcpus; i++) {
+		idx = (start + i) % nr_vcpus;
+		if (idx == me->vcpu_idx)
+			continue;
 
-			/*
-			 * Treat the target vCPU as being in-kernel if it has a
-			 * pending interrupt, as the vCPU trying to yield may
-			 * be spinning waiting on IPI delivery, i.e. the target
-			 * vCPU is in-kernel for the purposes of directed yield.
-			 */
-			if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
-			    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
-			    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
-				continue;
-			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
-				continue;
+		vcpu = xa_load(&kvm->vcpu_array, idx);
+		if (!READ_ONCE(vcpu->ready))
+			continue;
+		if (kvm_vcpu_is_blocking(vcpu) && !vcpu_dy_runnable(vcpu))
+			continue;
 
-			yielded = kvm_vcpu_yield_to(vcpu);
-			if (yielded > 0) {
-				WRITE_ONCE(kvm->last_boosted_vcpu, i);
-				break;
-			} else if (yielded < 0) {
-				try--;
-				if (!try)
-					break;
-			}
+		/*
+		 * Treat the target vCPU as being in-kernel if it has a pending
+		 * interrupt, as the vCPU trying to yield may be spinning
+		 * waiting on IPI delivery, i.e. the target vCPU is in-kernel
+		 * for the purposes of directed yield.
+		 */
+		if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
+		    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
+		    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
+			continue;
+
+		if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
+			continue;
+
+		yielded = kvm_vcpu_yield_to(vcpu);
+		if (yielded > 0) {
+			WRITE_ONCE(kvm->last_boosted_vcpu, i);
+			break;
+		} else if (yielded < 0 && !--try) {
+			break;
 		}
 	}
 	kvm_vcpu_set_in_spin_loop(me, false);
