@@ -295,6 +295,7 @@ struct dlm_lkb {
 		void			*lkb_astparam;	/* caller's ast arg */
 		struct dlm_user_args	*lkb_ua;
 	};
+	struct rcu_head		rcu;
 };
 
 /*

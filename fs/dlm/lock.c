@@ -1527,11 +1527,21 @@ static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
 
-	read_lock_bh(&ls->ls_lkbxa_lock);
+	rcu_read_lock();
 	lkb = xa_load(&ls->ls_lkbxa, lkid);
-	if (lkb)
-		kref_get(&lkb->lkb_ref);
-	read_unlock_bh(&ls->ls_lkbxa_lock);
+	if (lkb) {
+		/* check if lkb is still part of lkbxa under lkbxa_lock as
+		 * the lkb_ref is tight to the lkbxa data structure, see
+		 * __put_lkb().
+		 */
+		read_lock_bh(&ls->ls_lkbxa_lock);
+		if (kref_read(&lkb->lkb_ref))
+			kref_get(&lkb->lkb_ref);
+		else
+			lkb = NULL;
+		read_unlock_bh(&ls->ls_lkbxa_lock);
+	}
+	rcu_read_unlock();
 
 	*lkb_ret = lkb;
 	return lkb ? 0 : -ENOENT;
