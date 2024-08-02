@@ -12314,9 +12314,11 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	kvm_async_pf_hash_reset(vcpu);
 
-	vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
-	vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
-	vcpu->arch.perf_capabilities = kvm_caps.supported_perf_cap;
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS)) {
+		vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
+		vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
+		vcpu->arch.perf_capabilities = kvm_caps.supported_perf_cap;
+	}
 	kvm_pmu_init(vcpu);
 
 	vcpu->arch.pending_external_vector = -1;

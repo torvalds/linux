@@ -1390,7 +1390,9 @@ static void __svm_vcpu_reset(struct kvm_vcpu *vcpu)
 	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 
 	svm_init_osvw(vcpu);
-	vcpu->arch.microcode_version = 0x01000065;
+
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS))
+		vcpu->arch.microcode_version = 0x01000065;
 	svm->tsc_ratio_msr = kvm_caps.default_tsc_scaling_ratio;
 
 	svm->nmi_masked = false;

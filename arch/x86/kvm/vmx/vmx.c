@@ -4572,7 +4572,8 @@ vmx_adjust_secondary_exec_control(struct vcpu_vmx *vmx, u32 *exec_control,
 	 * Update the nested MSR settings so that a nested VMM can/can't set
 	 * controls for features that are/aren't exposed to the guest.
 	 */
-	if (nested) {
+	if (nested &&
+	    kvm_check_has_quirk(vmx->vcpu.kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS)) {
 		/*
 		 * All features that can be added or removed to VMX MSRs must
 		 * be supported in the first place for nested virtualization.
@@ -4862,7 +4863,8 @@ static void __vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	init_vmcs(vmx);
 
-	if (nested)
+	if (nested &&
+	    kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS))
 		memcpy(&vmx->nested.msrs, &vmcs_config.nested, sizeof(vmx->nested.msrs));
 
 	vcpu_setup_sgx_lepubkeyhash(vcpu);
@@ -4875,7 +4877,8 @@ static void __vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx->nested.hv_evmcs_vmptr = EVMPTR_INVALID;
 #endif
 
-	vcpu->arch.microcode_version = 0x100000000ULL;
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_STUFF_FEATURE_MSRS))
+		vcpu->arch.microcode_version = 0x100000000ULL;
 	vmx->msr_ia32_feature_control_valid_bits = FEAT_CTL_LOCKED;
 
 	/*
