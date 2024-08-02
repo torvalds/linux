@@ -7218,7 +7218,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 #if defined(DV_BUILD)
 		// Assume a memory config setting of 3 in 420 mode or get a new ip parameter that reflects the programming.
 		if (mode_lib->ms.BytePerPixelC[k] != 0.0 && display_cfg->plane_descriptors[k].pixel_format != dml2_rgbe_alpha) {
-			lb_buffer_size_bits_luma = 34620 * 57;;
+			lb_buffer_size_bits_luma = 34620 * 57;
 			lb_buffer_size_bits_chroma = 13560 * 57;
 		}
 #endif
