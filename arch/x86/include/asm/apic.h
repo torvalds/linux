@@ -18,6 +18,11 @@
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
+/* Macros for apic_extnmi which controls external NMI masking */
+#define APIC_EXTNMI_BSP		0 /* Default */
+#define APIC_EXTNMI_ALL		1
+#define APIC_EXTNMI_NONE	2
+
 /*
  * Debugging macros
  */
@@ -25,22 +30,22 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
-/* Macros for apic_extnmi which controls external NMI masking */
-#define APIC_EXTNMI_BSP		0 /* Default */
-#define APIC_EXTNMI_ALL		1
-#define APIC_EXTNMI_NONE	2
-
 /*
- * Define the default level of output to be very little
- * This can be turned up by using apic=verbose for more
- * information and apic=debug for _lots_ of information.
- * apic_verbosity is defined in apic.c
+ * Define the default level of output to be very little This can be turned
+ * up by using apic=verbose for more information and apic=debug for _lots_
+ * of information.  apic_verbosity is defined in apic.c
  */
-#define apic_printk(v, s, a...) do {       \
-		if ((v) <= apic_verbosity) \
-			printk(s, ##a);    \
-	} while (0)
+#define apic_printk(v, s, a...)			\
+do {						\
+	if ((v) <= apic_verbosity)		\
+		printk(s, ##a);			\
+} while (0)
 
+#define apic_pr_verbose(s, a...)	apic_printk(APIC_VERBOSE, KERN_INFO s, ##a)
+#define apic_pr_debug(s, a...)		apic_printk(APIC_DEBUG, KERN_DEBUG s, ##a)
+#define apic_pr_debug_cont(s, a...)	apic_printk(APIC_DEBUG, KERN_CONT s, ##a)
+/* Unconditional debug prints for code which is guarded by apic_verbosity already */
+#define apic_dbg(s, a...)		printk(KERN_DEBUG s, ##a)
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
 extern void x86_32_probe_apic(void);
