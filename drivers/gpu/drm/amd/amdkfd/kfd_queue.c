@@ -224,16 +224,9 @@ out_err:
 	return -EINVAL;
 }
 
-void kfd_queue_buffer_put(struct amdgpu_vm *vm, struct amdgpu_bo **bo)
+/* FIXME: remove this function, just call amdgpu_bo_unref directly */
+void kfd_queue_buffer_put(struct amdgpu_bo **bo)
 {
-	if (*bo) {
-		struct amdgpu_bo_va *bo_va;
-
-		bo_va = amdgpu_vm_bo_find(vm, *bo);
-		if (bo_va)
-			bo_va->queue_refcount--;
-	}
-
 	amdgpu_bo_unref(bo);
 }
 
@@ -327,6 +320,10 @@ out_unreserve:
 out_err_unreserve:
 	amdgpu_bo_unreserve(vm->root.bo);
 out_err_release:
+	/* FIXME: make a _locked version of this that can be called before
+	 * dropping the VM reservation.
+	 */
+	kfd_queue_unref_bo_vas(pdd, properties);
 	kfd_queue_release_buffers(pdd, properties);
 	return err;
 }
@@ -334,22 +331,13 @@ out_err_release:
 int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
 {
 	struct kfd_topology_device *topo_dev;
-	struct amdgpu_vm *vm;
 	u32 total_cwsr_size;
-	int err;
 
-	vm = drm_priv_to_vm(pdd->drm_priv);
-	err = amdgpu_bo_reserve(vm->root.bo, false);
-	if (err)
-		return err;
-
-	kfd_queue_buffer_put(vm, &properties->wptr_bo);
-	kfd_queue_buffer_put(vm, &properties->rptr_bo);
-	kfd_queue_buffer_put(vm, &properties->ring_bo);
-	kfd_queue_buffer_put(vm, &properties->eop_buf_bo);
-	kfd_queue_buffer_put(vm, &properties->cwsr_bo);
-
-	amdgpu_bo_unreserve(vm->root.bo);
+	kfd_queue_buffer_put(&properties->wptr_bo);
+	kfd_queue_buffer_put(&properties->rptr_bo);
+	kfd_queue_buffer_put(&properties->ring_bo);
+	kfd_queue_buffer_put(&properties->eop_buf_bo);
+	kfd_queue_buffer_put(&properties->cwsr_bo);
 
 	topo_dev = kfd_topology_device_by_id(pdd->dev->id);
 	if (!topo_dev)
@@ -359,6 +347,38 @@ int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_prope
 	total_cwsr_size = ALIGN(total_cwsr_size, PAGE_SIZE);
 
 	kfd_queue_buffer_svm_put(pdd, properties->ctx_save_restore_area_address, total_cwsr_size);
+	return 0;
+}
+
+void kfd_queue_unref_bo_va(struct amdgpu_vm *vm, struct amdgpu_bo **bo)
+{
+	if (*bo) {
+		struct amdgpu_bo_va *bo_va;
+
+		bo_va = amdgpu_vm_bo_find(vm, *bo);
+		if (bo_va && bo_va->queue_refcount)
+			bo_va->queue_refcount--;
+	}
+}
+
+int kfd_queue_unref_bo_vas(struct kfd_process_device *pdd,
+			   struct queue_properties *properties)
+{
+	struct amdgpu_vm *vm;
+	int err;
+
+	vm = drm_priv_to_vm(pdd->drm_priv);
+	err = amdgpu_bo_reserve(vm->root.bo, false);
+	if (err)
+		return err;
+
+	kfd_queue_unref_bo_va(vm, &properties->wptr_bo);
+	kfd_queue_unref_bo_va(vm, &properties->rptr_bo);
+	kfd_queue_unref_bo_va(vm, &properties->ring_bo);
+	kfd_queue_unref_bo_va(vm, &properties->eop_buf_bo);
+	kfd_queue_unref_bo_va(vm, &properties->cwsr_bo);
+
+	amdgpu_bo_unreserve(vm->root.bo);
 	return 0;
 }
 

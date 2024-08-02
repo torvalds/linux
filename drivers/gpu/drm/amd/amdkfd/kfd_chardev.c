@@ -400,6 +400,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	return 0;
 
 err_create_queue:
+	kfd_queue_unref_bo_vas(pdd, &q_properties);
 	kfd_queue_release_buffers(pdd, &q_properties);
 err_acquire_queue_buf:
 err_sdma_engine_id:

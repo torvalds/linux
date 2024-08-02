@@ -217,6 +217,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		if (pqn->q) {
 			pdd = kfd_get_process_device_data(pqn->q->device, pqm->process);
+			kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
 			kfd_queue_release_buffers(pdd, &pqn->q->properties);
 			pqm_clean_queue_resource(pqm, pqn);
 		}
@@ -512,7 +513,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	}
 
 	if (pqn->q) {
-		retval = kfd_queue_release_buffers(pdd, &pqn->q->properties);
+		retval = kfd_queue_unref_bo_vas(pdd, &pqn->q->properties);
 		if (retval)
 			goto err_destroy_queue;
 
@@ -526,7 +527,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			if (retval != -ETIME)
 				goto err_destroy_queue;
 		}
-
+		kfd_queue_release_buffers(pdd, &pqn->q->properties);
 		pqm_clean_queue_resource(pqm, pqn);
 		uninit_queue(pqn->q);
 	}
@@ -579,7 +580,8 @@ int pqm_update_queue_properties(struct process_queue_manager *pqm,
 			return -EFAULT;
 		}
 
-		kfd_queue_buffer_put(vm, &pqn->q->properties.ring_bo);
+		kfd_queue_unref_bo_va(vm, &pqn->q->properties.ring_bo);
+		kfd_queue_buffer_put(&pqn->q->properties.ring_bo);
 		amdgpu_bo_unreserve(vm->root.bo);
 
 		pqn->q->properties.ring_bo = p->ring_bo;
