@@ -21,6 +21,7 @@
 	FN(TCP_ABORT_ON_LINGER)		\
 	FN(TCP_ABORT_ON_MEMORY)		\
 	FN(TCP_STATE)			\
+	FN(TCP_KEEPALIVE_TIMEOUT)	\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -108,6 +109,12 @@ enum sk_rst_reason {
 	 * Please see RFC 9293 for all possible reset conditions
 	 */
 	SK_RST_REASON_TCP_STATE,
+	/**
+	 * @SK_RST_REASON_TCP_KEEPALIVE_TIMEOUT: time to timeout
+	 * When we have already run out of all the chances, which means
+	 * keepalive timeout, we have to reset the connection
+	 */
+	SK_RST_REASON_TCP_KEEPALIVE_TIMEOUT,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
