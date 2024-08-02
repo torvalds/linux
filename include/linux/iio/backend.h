@@ -56,6 +56,8 @@ enum iio_backend_test_pattern {
 	IIO_BACKEND_NO_TEST_PATTERN,
 	/* modified prbs9 */
 	IIO_BACKEND_ADI_PRBS_9A = 32,
+	/* modified prbs23 */
+	IIO_BACKEND_ADI_PRBS_23A,
 	IIO_BACKEND_TEST_PATTERN_MAX
 };
 
