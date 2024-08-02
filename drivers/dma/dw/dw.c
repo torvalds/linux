@@ -67,12 +67,21 @@ static size_t dw_dma_block2bytes(struct dw_dma_chan *dwc, u32 block, u32 width)
 static u32 dw_dma_prepare_ctllo(struct dw_dma_chan *dwc)
 {
 	struct dma_slave_config	*sconfig = &dwc->dma_sconfig;
-	u8 smsize = (dwc->direction == DMA_DEV_TO_MEM) ? sconfig->src_maxburst : 0;
-	u8 dmsize = (dwc->direction == DMA_MEM_TO_DEV) ? sconfig->dst_maxburst : 0;
-	u8 p_master = dwc->dws.p_master;
-	u8 m_master = dwc->dws.m_master;
-	u8 dms = (dwc->direction == DMA_MEM_TO_DEV) ? p_master : m_master;
-	u8 sms = (dwc->direction == DMA_DEV_TO_MEM) ? p_master : m_master;
+	u8 smsize = 0, dmsize = 0;
+	u8 sms, dms;
+
+	if (dwc->direction == DMA_MEM_TO_DEV) {
+		sms = dwc->dws.m_master;
+		dms = dwc->dws.p_master;
+		dmsize = sconfig->dst_maxburst;
+	} else if (dwc->direction == DMA_DEV_TO_MEM) {
+		sms = dwc->dws.p_master;
+		dms = dwc->dws.m_master;
+		smsize = sconfig->src_maxburst;
+	} else /* DMA_MEM_TO_MEM */ {
+		sms = dwc->dws.m_master;
+		dms = dwc->dws.m_master;
+	}
 
 	return DWC_CTLL_LLP_D_EN | DWC_CTLL_LLP_S_EN |
 	       DWC_CTLL_DST_MSIZE(dmsize) | DWC_CTLL_SRC_MSIZE(smsize) |
