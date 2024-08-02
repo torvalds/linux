@@ -86,8 +86,8 @@ static unsigned int ioapic_dynirq_base;
 static int ioapic_initialized;
 
 struct irq_pin_list {
-	struct list_head list;
-	int apic, pin;
+	struct list_head	list;
+	int			apic, pin;
 };
 
 struct mp_chip_data {
@@ -96,7 +96,7 @@ struct mp_chip_data {
 	bool				is_level;
 	bool				active_low;
 	bool				isa_irq;
-	u32 count;
+	u32				count;
 };
 
 struct mp_ioapic_gsi {
@@ -105,21 +105,17 @@ struct mp_ioapic_gsi {
 };
 
 static struct ioapic {
-	/*
-	 * # of IRQ routing registers
-	 */
-	int nr_registers;
-	/*
-	 * Saved state during suspend/resume, or while enabling intr-remap.
-	 */
-	struct IO_APIC_route_entry *saved_registers;
+	/* # of IRQ routing registers */
+	int				nr_registers;
+	/* Saved state during suspend/resume, or while enabling intr-remap. */
+	struct IO_APIC_route_entry	*saved_registers;
 	/* I/O APIC config */
-	struct mpc_ioapic mp_config;
+	struct mpc_ioapic		mp_config;
 	/* IO APIC gsi routing info */
-	struct mp_ioapic_gsi  gsi_config;
-	struct ioapic_domain_cfg irqdomain_cfg;
-	struct irq_domain *irqdomain;
-	struct resource *iomem_res;
+	struct mp_ioapic_gsi		gsi_config;
+	struct ioapic_domain_cfg	irqdomain_cfg;
+	struct irq_domain		*irqdomain;
+	struct resource			*iomem_res;
 } ioapics[MAX_IO_APICS];
 
 #define mpc_ioapic_ver(ioapic_idx)	ioapics[ioapic_idx].mp_config.apicver
@@ -2431,8 +2427,8 @@ static void ioapic_resume(void)
 }
 
 static struct syscore_ops ioapic_syscore_ops = {
-	.suspend = save_ioapic_entries,
-	.resume = ioapic_resume,
+	.suspend	= save_ioapic_entries,
+	.resume		= ioapic_resume,
 };
 
 static int __init ioapic_init_ops(void)
