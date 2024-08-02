@@ -273,7 +273,7 @@ static const struct regmap_config axi_adc_regmap_config = {
 	.reg_stride = 4,
 };
 
-static const struct iio_backend_ops adi_axi_adc_generic = {
+static const struct iio_backend_ops adi_axi_adc_ops = {
 	.enable = axi_adc_enable,
 	.disable = axi_adc_disable,
 	.data_format_set = axi_adc_data_format_set,
@@ -285,6 +285,11 @@ static const struct iio_backend_ops adi_axi_adc_generic = {
 	.iodelay_set = axi_adc_iodelays_set,
 	.test_pattern_set = axi_adc_test_pattern_set,
 	.chan_status = axi_adc_chan_status,
+};
+
+static const struct iio_backend_info adi_axi_adc_generic = {
+	.name = "axi-adc",
+	.ops = &adi_axi_adc_ops,
 };
 
 static int adi_axi_adc_probe(struct platform_device *pdev)

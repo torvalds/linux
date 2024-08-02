@@ -641,20 +641,20 @@ static void iio_backend_unregister(void *arg)
 /**
  * devm_iio_backend_register - Device managed backend device register
  * @dev: Backend device being registered
- * @ops: Backend ops
+ * @info: Backend info
  * @priv: Device private data
  *
- * @ops is mandatory. Not providing it results in -EINVAL.
+ * @info is mandatory. Not providing it results in -EINVAL.
  *
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
 int devm_iio_backend_register(struct device *dev,
-			      const struct iio_backend_ops *ops, void *priv)
+			      const struct iio_backend_info *info, void *priv)
 {
 	struct iio_backend *back;
 
-	if (!ops)
+	if (!info || !info->ops)
 		return dev_err_probe(dev, -EINVAL, "No backend ops given\n");
 
 	/*
@@ -667,7 +667,7 @@ int devm_iio_backend_register(struct device *dev,
 	if (!back)
 		return -ENOMEM;
 
-	back->ops = ops;
+	back->ops = info->ops;
 	back->owner = dev->driver->owner;
 	back->dev = dev;
 	back->priv = priv;

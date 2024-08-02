@@ -507,7 +507,7 @@ static int axi_dac_set_sample_rate(struct iio_backend *back, unsigned int chan,
 	return 0;
 }
 
-static const struct iio_backend_ops axi_dac_generic = {
+static const struct iio_backend_ops axi_dac_generic_ops = {
 	.enable = axi_dac_enable,
 	.disable = axi_dac_disable,
 	.request_buffer = axi_dac_request_buffer,
@@ -517,6 +517,11 @@ static const struct iio_backend_ops axi_dac_generic = {
 	.ext_info_get = axi_dac_ext_info_get,
 	.data_source_set = axi_dac_data_source_set,
 	.set_sample_rate = axi_dac_set_sample_rate,
+};
+
+static const struct iio_backend_info axi_dac_generic = {
+	.name = "axi-dac",
+	.ops = &axi_dac_generic_ops,
 };
 
 static const struct regmap_config axi_dac_regmap_config = {
