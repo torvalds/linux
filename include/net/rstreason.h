@@ -17,6 +17,7 @@
 	FN(TCP_ABORT_ON_DATA)		\
 	FN(TCP_TIMEWAIT_SOCKET)		\
 	FN(INVALID_SYN)			\
+	FN(TCP_ABORT_ON_CLOSE)		\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -84,6 +85,11 @@ enum sk_rst_reason {
 	 * an error, send a reset"
 	 */
 	SK_RST_REASON_INVALID_SYN,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_CLOSE: abort on close
+	 * corresponding to LINUX_MIB_TCPABORTONCLOSE
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_CLOSE,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
