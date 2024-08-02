@@ -453,13 +453,13 @@ static int aca_log_aca_error_data(struct aca_bank_error *bank_error, enum aca_er
 
 	switch (type) {
 	case ACA_ERROR_TYPE_UE:
-		amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, count);
 		break;
 	case ACA_ERROR_TYPE_CE:
-		amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, count);
 		break;
 	case ACA_ERROR_TYPE_DEFERRED:
-		amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, NULL, count);
+		amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, count);
 		break;
 	default:
 		break;

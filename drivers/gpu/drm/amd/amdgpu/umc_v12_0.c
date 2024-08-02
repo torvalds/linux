@@ -157,9 +157,9 @@ static int umc_v12_0_query_error_count(struct amdgpu_device *adev,
 	umc_v12_0_query_error_count_per_type(adev, umc_reg_offset,
 					    &de_count, umc_v12_0_is_deferred_error);
 
-	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, NULL, ue_count);
-	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, NULL, ce_count);
-	amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, NULL, de_count);
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
+	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, ce_count);
+	amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, de_count);
 
 	return 0;
 }
