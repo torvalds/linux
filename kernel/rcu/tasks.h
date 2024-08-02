@@ -87,6 +87,7 @@ struct rcu_tasks_percpu {
  * @barrier_q_count: Number of queues being waited on.
  * @barrier_q_completion: Barrier wait/wakeup mechanism.
  * @barrier_q_seq: Sequence number for barrier operations.
+ * @barrier_q_start: Most recent barrier start in jiffies.
  * @name: This flavor's textual name.
  * @kname: This flavor's kthread name.
  */
@@ -122,6 +123,7 @@ struct rcu_tasks {
 	atomic_t barrier_q_count;
 	struct completion barrier_q_completion;
 	unsigned long barrier_q_seq;
+	unsigned long barrier_q_start;
 	char *name;
 	char *kname;
 };
@@ -430,6 +432,7 @@ static void __maybe_unused rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
 		mutex_unlock(&rtp->barrier_q_mutex);
 		return;
 	}
+	rtp->barrier_q_start = jiffies;
 	rcu_seq_start(&rtp->barrier_q_seq);
 	init_completion(&rtp->barrier_q_completion);
 	atomic_set(&rtp->barrier_q_count, 2);
@@ -785,8 +788,9 @@ static void rcu_tasks_torture_stats_print_generic(struct rcu_tasks *rtp, char *t
 		pr_cont(".\n");
 	else
 		pr_cont(" (none).\n");
-	pr_alert("\tBarrier seq %lu count %d holdout CPUs ",
-		 data_race(rtp->barrier_q_seq), atomic_read(&rtp->barrier_q_count));
+	pr_alert("\tBarrier seq %lu start %lu count %d holdout CPUs ",
+		 data_race(rtp->barrier_q_seq), j - data_race(rtp->barrier_q_start),
+		 atomic_read(&rtp->barrier_q_count));
 	if (cpumask_available(cm) && !cpumask_empty(cm))
 		pr_cont(" %*pbl.\n", cpumask_pr_args(cm));
 	else
