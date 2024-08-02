@@ -357,6 +357,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	rcu_read_lock();
 	ideal_cpu = smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift);
 	chosen_cpu = cpumask_next(ideal_cpu - 1, cpu_possible_mask);
+	WARN_ON_ONCE(chosen_cpu >= rcu_task_cpu_ids);
 	rtpcp = per_cpu_ptr(rtp->rtpcpu, chosen_cpu);
 	if (!raw_spin_trylock_rcu_node(rtpcp)) { // irqs already disabled.
 		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
