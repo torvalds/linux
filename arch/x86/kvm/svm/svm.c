@@ -573,7 +573,7 @@ static void __svm_write_tsc_multiplier(u64 multiplier)
 
 static __always_inline struct sev_es_save_area *sev_es_host_save_area(struct svm_cpu_data *sd)
 {
-	return page_address(sd->save_area) + 0x400;
+	return &sd->save_area->host_sev_es_save;
 }
 
 static inline void kvm_cpu_svm_disable(void)
@@ -696,7 +696,7 @@ static void svm_cpu_uninit(int cpu)
 		return;
 
 	kfree(sd->sev_vmcbs);
-	__free_page(sd->save_area);
+	__free_page(__sme_pa_to_page(sd->save_area_pa));
 	sd->save_area_pa = 0;
 	sd->save_area = NULL;
 }
@@ -704,23 +704,24 @@ static void svm_cpu_uninit(int cpu)
 static int svm_cpu_init(int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
+	struct page *save_area_page;
 	int ret = -ENOMEM;
 
 	memset(sd, 0, sizeof(struct svm_cpu_data));
-	sd->save_area = snp_safe_alloc_page_node(cpu_to_node(cpu), GFP_KERNEL);
-	if (!sd->save_area)
+	save_area_page = snp_safe_alloc_page_node(cpu_to_node(cpu), GFP_KERNEL);
+	if (!save_area_page)
 		return ret;
 
 	ret = sev_cpu_init(sd);
 	if (ret)
 		goto free_save_area;
 
-	sd->save_area_pa = __sme_page_pa(sd->save_area);
+	sd->save_area = page_address(save_area_page);
+	sd->save_area_pa = __sme_page_pa(save_area_page);
 	return 0;
 
 free_save_area:
-	__free_page(sd->save_area);
-	sd->save_area = NULL;
+	__free_page(save_area_page);
 	return ret;
 
 }
