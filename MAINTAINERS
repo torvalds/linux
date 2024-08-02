@@ -10894,6 +10894,7 @@ M:	Nuno Sa <nuno.sa@analog.com>
 R:	Olivier Moysan <olivier.moysan@foss.st.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/debugfs-iio-backend
 F:	drivers/iio/industrialio-backend.c
 F:	include/linux/iio/backend.h
 
