@@ -1186,26 +1186,21 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 	char buf[256];
 	int i;
 
-	printk(KERN_DEBUG "IOAPIC %d:\n", apic);
+	apic_dbg("IOAPIC %d:\n", apic);
 	for (i = 0; i <= nr_entries; i++) {
 		entry = ioapic_read_entry(apic, i);
-		snprintf(buf, sizeof(buf),
-			 " pin%02x, %s, %s, %s, V(%02X), IRR(%1d), S(%1d)",
-			 i,
-			 entry.masked ? "disabled" : "enabled ",
+		snprintf(buf, sizeof(buf), " pin%02x, %s, %s, %s, V(%02X), IRR(%1d), S(%1d)",
+			 i, entry.masked ? "disabled" : "enabled ",
 			 entry.is_level ? "level" : "edge ",
 			 entry.active_low ? "low " : "high",
 			 entry.vector, entry.irr, entry.delivery_status);
 		if (entry.ir_format) {
-			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf,
-			       (entry.ir_index_15 << 15) | entry.ir_index_0_14,
-				entry.ir_zero);
+			apic_dbg("%s, remapped, I(%04X),  Z(%X)\n", buf,
+				 (entry.ir_index_15 << 15) | entry.ir_index_0_14, entry.ir_zero);
 		} else {
-			printk(KERN_DEBUG "%s, %s, D(%02X%02X), M(%1d)\n", buf,
-			       entry.dest_mode_logical ? "logical " : "physical",
-			       entry.virt_destid_8_14, entry.destid_0_7,
-			       entry.delivery_mode);
+			apic_dbg("%s, %s, D(%02X%02X), M(%1d)\n", buf,
+				 entry.dest_mode_logical ? "logical " : "physic	al",
+				 entry.virt_destid_8_14, entry.destid_0_7, entry.delivery_mode);
 		}
 	}
 }
@@ -1226,19 +1221,15 @@ static void __init print_IO_APIC(int ioapic_idx)
 			reg_03.raw = io_apic_read(ioapic_idx, 3);
 	}
 
-	printk(KERN_DEBUG "IO APIC #%d......\n", mpc_ioapic_id(ioapic_idx));
-	printk(KERN_DEBUG ".... register #00: %08X\n", reg_00.raw);
-	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
-	printk(KERN_DEBUG ".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
-	printk(KERN_DEBUG ".......    : LTS          : %X\n", reg_00.bits.LTS);
-
-	printk(KERN_DEBUG ".... register #01: %08X\n", *(int *)&reg_01);
-	printk(KERN_DEBUG ".......     : max redirection entries: %02X\n",
-		reg_01.bits.entries);
-
-	printk(KERN_DEBUG ".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
-	printk(KERN_DEBUG ".......     : IO APIC version: %02X\n",
-		reg_01.bits.version);
+	apic_dbg("IO APIC #%d......\n", mpc_ioapic_id(ioapic_idx));
+	apic_dbg(".... register #00: %08X\n", reg_00.raw);
+	apic_dbg(".......    : physical APIC id: %02X\n", reg_00.bits.ID);
+	apic_dbg(".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
+	apic_dbg(".......    : LTS          : %X\n", reg_00.bits.LTS);
+	apic_dbg(".... register #01: %08X\n", *(int *)&reg_01);
+	apic_dbg(".......     : max redirection entries: %02X\n", reg_01.bits.entries);
+	apic_dbg(".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
+	apic_dbg(".......     : IO APIC version: %02X\n", reg_01.bits.version);
 
 	/*
 	 * Some Intel chipsets with IO APIC VERSION of 0x1? don't have reg_02,
@@ -1246,8 +1237,8 @@ static void __init print_IO_APIC(int ioapic_idx)
 	 * value, so ignore it if reg_02 == reg_01.
 	 */
 	if (reg_01.bits.version >= 0x10 && reg_02.raw != reg_01.raw) {
-		printk(KERN_DEBUG ".... register #02: %08X\n", reg_02.raw);
-		printk(KERN_DEBUG ".......     : arbitration: %02X\n", reg_02.bits.arbitration);
+		apic_dbg(".... register #02: %08X\n", reg_02.raw);
+		apic_dbg(".......     : arbitration: %02X\n", reg_02.bits.arbitration);
 	}
 
 	/*
@@ -1257,11 +1248,11 @@ static void __init print_IO_APIC(int ioapic_idx)
 	 */
 	if (reg_01.bits.version >= 0x20 && reg_03.raw != reg_02.raw &&
 	    reg_03.raw != reg_01.raw) {
-		printk(KERN_DEBUG ".... register #03: %08X\n", reg_03.raw);
-		printk(KERN_DEBUG ".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
+		apic_dbg(".... register #03: %08X\n", reg_03.raw);
+		apic_dbg(".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
 	}
 
-	printk(KERN_DEBUG ".... IRQ redirection table:\n");
+	apic_dbg(".... IRQ redirection table:\n");
 	io_apic_print_entries(ioapic_idx, reg_01.bits.entries);
 }
 
@@ -1270,11 +1261,11 @@ void __init print_IO_APICs(void)
 	int ioapic_idx;
 	unsigned int irq;
 
-	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
-	for_each_ioapic(ioapic_idx)
-		printk(KERN_DEBUG "number of IO-APIC #%d registers: %d.\n",
-		       mpc_ioapic_id(ioapic_idx),
-		       ioapics[ioapic_idx].nr_registers);
+	apic_dbg("number of MP IRQ sources: %d.\n", mp_irq_entries);
+	for_each_ioapic(ioapic_idx) {
+		apic_dbg("number of IO-APIC #%d registers: %d.\n",
+			 mpc_ioapic_id(ioapic_idx), ioapics[ioapic_idx].nr_registers);
+	}
 
 	/*
 	 * We are a bit conservative about what we expect.  We have to
@@ -1285,7 +1276,7 @@ void __init print_IO_APICs(void)
 	for_each_ioapic(ioapic_idx)
 		print_IO_APIC(ioapic_idx);
 
-	printk(KERN_DEBUG "IRQ to pin mappings:\n");
+	apic_dbg("IRQ to pin mappings:\n");
 	for_each_active_irq(irq) {
 		struct irq_pin_list *entry;
 		struct irq_chip *chip;
@@ -1300,7 +1291,7 @@ void __init print_IO_APICs(void)
 		if (list_empty(&data->irq_2_pin))
 			continue;
 
-		printk(KERN_DEBUG "IRQ%d ", irq);
+		apic_dbg("IRQ%d ", irq);
 		for_each_irq_pin(entry, data->irq_2_pin)
 			pr_cont("-> %d:%d", entry->apic, entry->pin);
 		pr_cont("\n");
