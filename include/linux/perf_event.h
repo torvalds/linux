@@ -295,6 +295,19 @@ struct perf_event_pmu_context;
 #define PERF_PMU_CAP_AUX_OUTPUT			0x0080
 #define PERF_PMU_CAP_EXTENDED_HW_TYPE		0x0100
 
+/**
+ * pmu::scope
+ */
+enum perf_pmu_scope {
+	PERF_PMU_SCOPE_NONE	= 0,
+	PERF_PMU_SCOPE_CORE,
+	PERF_PMU_SCOPE_DIE,
+	PERF_PMU_SCOPE_CLUSTER,
+	PERF_PMU_SCOPE_PKG,
+	PERF_PMU_SCOPE_SYS_WIDE,
+	PERF_PMU_MAX_SCOPE,
+};
+
 struct perf_output_handle;
 
 #define PMU_NULL_DEV	((void *)(~0UL))
@@ -317,6 +330,11 @@ struct pmu {
 	 * various common per-pmu feature flags
 	 */
 	int				capabilities;
+
+	/*
+	 * PMU scope
+	 */
+	unsigned int			scope;
 
 	int __percpu			*pmu_disable_count;
 	struct perf_cpu_pmu_context __percpu *cpu_pmu_context;
