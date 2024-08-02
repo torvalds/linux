@@ -520,6 +520,8 @@ rcu_scale_writer(void *arg)
 
 	jdone = jiffies + minruntime * HZ;
 	do {
+		bool gp_succeeded = false;
+
 		if (writer_holdoff)
 			udelay(writer_holdoff);
 		if (writer_holdoff_jiffies)
@@ -527,23 +529,24 @@ rcu_scale_writer(void *arg)
 		wdp = &wdpp[i];
 		*wdp = ktime_get_mono_fast_ns();
 		if (gp_async && !WARN_ON_ONCE(!cur_ops->async)) {
-retry:
 			if (!rhp)
 				rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
 			if (rhp && atomic_read(this_cpu_ptr(&n_async_inflight)) < gp_async_max) {
 				atomic_inc(this_cpu_ptr(&n_async_inflight));
 				cur_ops->async(rhp, rcu_scale_async_cb);
 				rhp = NULL;
+				gp_succeeded = true;
 			} else if (!kthread_should_stop()) {
 				cur_ops->gp_barrier();
-				goto retry;
 			} else {
 				kfree(rhp); /* Because we are stopping. */
 			}
 		} else if (gp_exp) {
 			cur_ops->exp_sync();
+			gp_succeeded = true;
 		} else {
 			cur_ops->sync();
+			gp_succeeded = true;
 		}
 		t = ktime_get_mono_fast_ns();
 		*wdp = t - *wdp;
@@ -599,7 +602,7 @@ retry:
 				__func__, me, started, done, writer_done[me], atomic_read(&n_rcu_scale_writer_finished), i, jiffies - jdone);
 			selfreport = true;
 		}
-		if (started && !alldone && i < MAX_MEAS - 1)
+		if (gp_succeeded && started && !alldone && i < MAX_MEAS - 1)
 			i++;
 		rcu_scale_wait_shutdown();
 	} while (!torture_must_stop());
