@@ -819,6 +819,7 @@ kfree_scale_cleanup(void)
 			torture_stop_kthread(kfree_scale_thread,
 					     kfree_reader_tasks[i]);
 		kfree(kfree_reader_tasks);
+		kfree_reader_tasks = NULL;
 	}
 
 	torture_cleanup_end();
@@ -987,6 +988,7 @@ rcu_scale_cleanup(void)
 			torture_stop_kthread(rcu_scale_reader,
 					     reader_tasks[i]);
 		kfree(reader_tasks);
+		reader_tasks = NULL;
 	}
 
 	if (writer_tasks) {
@@ -1043,8 +1045,11 @@ rcu_scale_cleanup(void)
 			}
 		}
 		kfree(writer_tasks);
+		writer_tasks = NULL;
 		kfree(writer_durations);
+		writer_durations = NULL;
 		kfree(writer_n_durations);
+		writer_n_durations = NULL;
 		kfree(writer_done);
 		writer_done = NULL;
 		kfree(writer_freelists);
