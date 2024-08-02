@@ -208,12 +208,10 @@ static int axi_adc_test_pattern_set(struct iio_backend *back,
 	}
 }
 
-static int axi_adc_chan_status(struct iio_backend *back, unsigned int chan,
-			       bool *error)
+static int axi_adc_read_chan_status(struct adi_axi_adc_state *st, unsigned int chan,
+				    unsigned int *status)
 {
-	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
 	int ret;
-	u32 val;
 
 	guard(mutex)(&st->lock);
 	/* reset test bits by setting them */
@@ -225,7 +223,18 @@ static int axi_adc_chan_status(struct iio_backend *back, unsigned int chan,
 	/* let's give enough time to validate or erroring the incoming pattern */
 	fsleep(1000);
 
-	ret = regmap_read(st->regmap, ADI_AXI_ADC_REG_CHAN_STATUS(chan), &val);
+	return regmap_read(st->regmap, ADI_AXI_ADC_REG_CHAN_STATUS(chan),
+			   status);
+}
+
+static int axi_adc_chan_status(struct iio_backend *back, unsigned int chan,
+			       bool *error)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	u32 val;
+	int ret;
+
+	ret = axi_adc_read_chan_status(st, chan, &val);
 	if (ret)
 		return ret;
 
