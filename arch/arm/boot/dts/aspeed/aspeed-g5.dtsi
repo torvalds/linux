@@ -140,7 +140,7 @@
 		};
 
 		cvic: interrupt-controller@1e6c2000 {
-			compatible = "aspeed,ast2500-cvic", "aspeed-cvic";
+			compatible = "aspeed,ast2500-cvic", "aspeed,cvic";
 			valid-sources = <0xffffffff>;
 			copro-sw-interrupts = <1>;
 			reg = <0x1e6c2000 0x80>;
