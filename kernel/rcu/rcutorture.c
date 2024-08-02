@@ -115,6 +115,7 @@ torture_param(int, stall_cpu_holdoff, 10, "Time to wait before starting stall (s
 torture_param(bool, stall_no_softlockup, false, "Avoid softlockup warning during cpu stall.");
 torture_param(int, stall_cpu_irqsoff, 0, "Disable interrupts while stalling.");
 torture_param(int, stall_cpu_block, 0, "Sleep while stalling.");
+torture_param(int, stall_cpu_repeat, 0, "Number of additional stalls after the first one.");
 torture_param(int, stall_gp_kthread, 0, "Grace-period kthread stall duration (s).");
 torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of seconds to run/halt test");
@@ -1393,7 +1394,8 @@ rcu_torture_writer(void *arg)
 
 	// If a new stall test is added, this must be adjusted.
 	if (stall_cpu_holdoff + stall_gp_kthread + stall_cpu)
-		stallsdone += (stall_cpu_holdoff + stall_gp_kthread + stall_cpu + 60) * HZ;
+		stallsdone += (stall_cpu_holdoff + stall_gp_kthread + stall_cpu + 60) *
+			      HZ * (stall_cpu_repeat + 1);
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
 	if (!can_expedite)
 		pr_alert("%s" TORTURE_FLAG
@@ -2391,7 +2393,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "test_boost=%d/%d test_boost_interval=%d "
 		 "test_boost_duration=%d shutdown_secs=%d "
 		 "stall_cpu=%d stall_cpu_holdoff=%d stall_cpu_irqsoff=%d "
-		 "stall_cpu_block=%d "
+		 "stall_cpu_block=%d stall_cpu_repeat=%d "
 		 "n_barrier_cbs=%d "
 		 "onoff_interval=%d onoff_holdoff=%d "
 		 "read_exit_delay=%d read_exit_burst=%d "
@@ -2403,7 +2405,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 test_boost, cur_ops->can_boost,
 		 test_boost_interval, test_boost_duration, shutdown_secs,
 		 stall_cpu, stall_cpu_holdoff, stall_cpu_irqsoff,
-		 stall_cpu_block,
+		 stall_cpu_block, stall_cpu_repeat,
 		 n_barrier_cbs,
 		 onoff_interval, onoff_holdoff,
 		 read_exit_delay, read_exit_burst,
@@ -2481,19 +2483,11 @@ static struct notifier_block rcu_torture_stall_block = {
  * induces a CPU stall for the time specified by stall_cpu.  If a new
  * stall test is added, stallsdone in rcu_torture_writer() must be adjusted.
  */
-static int rcu_torture_stall(void *args)
+static void rcu_torture_stall_one(int rep, int irqsoff)
 {
 	int idx;
-	int ret;
 	unsigned long stop_at;
 
-	VERBOSE_TOROUT_STRING("rcu_torture_stall task started");
-	if (rcu_cpu_stall_notifiers) {
-		ret = rcu_stall_chain_notifier_register(&rcu_torture_stall_block);
-		if (ret)
-			pr_info("%s: rcu_stall_chain_notifier_register() returned %d, %sexpected.\n",
-				__func__, ret, !IS_ENABLED(CONFIG_RCU_STALL_COMMON) ? "un" : "");
-	}
 	if (stall_cpu_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("rcu_torture_stall begin holdoff");
 		schedule_timeout_interruptible(stall_cpu_holdoff * HZ);
@@ -2513,12 +2507,12 @@ static int rcu_torture_stall(void *args)
 		stop_at = ktime_get_seconds() + stall_cpu;
 		/* RCU CPU stall is expected behavior in following code. */
 		idx = cur_ops->readlock();
-		if (stall_cpu_irqsoff)
+		if (irqsoff)
 			local_irq_disable();
 		else if (!stall_cpu_block)
 			preempt_disable();
-		pr_alert("%s start on CPU %d.\n",
-			  __func__, raw_smp_processor_id());
+		pr_alert("%s start stall episode %d on CPU %d.\n",
+			  __func__, rep + 1, raw_smp_processor_id());
 		while (ULONG_CMP_LT((unsigned long)ktime_get_seconds(), stop_at) &&
 		       !kthread_should_stop())
 			if (stall_cpu_block) {
@@ -2530,11 +2524,41 @@ static int rcu_torture_stall(void *args)
 			} else if (stall_no_softlockup) {
 				touch_softlockup_watchdog();
 			}
-		if (stall_cpu_irqsoff)
+		if (irqsoff)
 			local_irq_enable();
 		else if (!stall_cpu_block)
 			preempt_enable();
 		cur_ops->readunlock(idx);
+	}
+}
+
+/*
+ * CPU-stall kthread.  Invokes rcu_torture_stall_one() once, and then as many
+ * additional times as specified by the stall_cpu_repeat module parameter.
+ * Note that stall_cpu_irqsoff is ignored on the second and subsequent
+ * stall.
+ */
+static int rcu_torture_stall(void *args)
+{
+	int i;
+	int repeat = stall_cpu_repeat;
+	int ret;
+
+	VERBOSE_TOROUT_STRING("rcu_torture_stall task started");
+	if (repeat < 0) {
+		repeat = 0;
+		WARN_ON_ONCE(IS_BUILTIN(CONFIG_RCU_TORTURE_TEST));
+	}
+	if (rcu_cpu_stall_notifiers) {
+		ret = rcu_stall_chain_notifier_register(&rcu_torture_stall_block);
+		if (ret)
+			pr_info("%s: rcu_stall_chain_notifier_register() returned %d, %sexpected.\n",
+				__func__, ret, !IS_ENABLED(CONFIG_RCU_STALL_COMMON) ? "un" : "");
+	}
+	for (i = 0; i <= repeat; i++) {
+		if (kthread_should_stop())
+			break;
+		rcu_torture_stall_one(i, i == 0 ? stall_cpu_irqsoff : 0);
 	}
 	pr_alert("%s end.\n", __func__);
 	if (rcu_cpu_stall_notifiers && !ret) {
