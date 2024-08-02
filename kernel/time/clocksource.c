@@ -125,6 +125,13 @@ static u64 suspend_start;
  *
  * The default of 500 parts per million is based on NTP's limits.
  * If a clocksource is good enough for NTP, it is good enough for us!
+ *
+ * In other words, by default, even if a clocksource is extremely
+ * precise (for example, with a sub-nanosecond period), the maximum
+ * permissible skew between the clocksource watchdog and the clocksource
+ * under test is not permitted to go below the 500ppm minimum defined
+ * by MAX_SKEW_USEC.  This 500ppm minimum may be overridden using the
+ * CLOCKSOURCE_WATCHDOG_MAX_SKEW_US Kconfig option.
  */
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
 #define MAX_SKEW_USEC	CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
@@ -1146,14 +1153,19 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 	}
 
 	/*
-	 * If the uncertainty margin is not specified, calculate it.
-	 * If both scale and freq are non-zero, calculate the clock
-	 * period, but bound below at 2*WATCHDOG_MAX_SKEW.  However,
-	 * if either of scale or freq is zero, be very conservative and
-	 * take the tens-of-milliseconds WATCHDOG_THRESHOLD value for the
-	 * uncertainty margin.  Allow stupidly small uncertainty margins
-	 * to be specified by the caller for testing purposes, but warn
-	 * to discourage production use of this capability.
+	 * If the uncertainty margin is not specified, calculate it.  If
+	 * both scale and freq are non-zero, calculate the clock period, but
+	 * bound below at 2*WATCHDOG_MAX_SKEW, that is, 500ppm by default.
+	 * However, if either of scale or freq is zero, be very conservative
+	 * and take the tens-of-milliseconds WATCHDOG_THRESHOLD value
+	 * for the uncertainty margin.  Allow stupidly small uncertainty
+	 * margins to be specified by the caller for testing purposes,
+	 * but warn to discourage production use of this capability.
+	 *
+	 * Bottom line:  The sum of the uncertainty margins of the
+	 * watchdog clocksource and the clocksource under test will be at
+	 * least 500ppm by default.  For more information, please see the
+	 * comment preceding CONFIG_CLOCKSOURCE_WATCHDOG_MAX_SKEW_US above.
 	 */
 	if (scale && freq && !cs->uncertainty_margin) {
 		cs->uncertainty_margin = NSEC_PER_SEC / (scale * freq);
