@@ -483,6 +483,7 @@ rcu_scale_writer(void *arg)
 	unsigned long jdone;
 	long me = (long)arg;
 	struct rcu_head *rhp = NULL;
+	bool selfreport = false;
 	bool started = false, done = false, alldone = false;
 	u64 t;
 	DEFINE_TORTURE_RANDOM(tr);
@@ -592,6 +593,11 @@ retry:
 				if (cur_ops->stats)
 					cur_ops->stats();
 			}
+		}
+		if (!selfreport && time_after(jiffies, jdone + HZ * (70 + me))) {
+			pr_info("%s: Writer %ld self-report: started %d done %d/%d->%d i %d jdone %lu.\n",
+				__func__, me, started, done, writer_done[me], atomic_read(&n_rcu_scale_writer_finished), i, jiffies - jdone);
+			selfreport = true;
 		}
 		if (started && !alldone && i < MAX_MEAS - 1)
 			i++;
