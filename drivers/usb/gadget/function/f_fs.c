@@ -3731,10 +3731,10 @@ static int ffs_func_set_alt(struct usb_function *f,
 	struct ffs_data *ffs = func->ffs;
 	int ret = 0, intf;
 
-	if (alt > MAX_ALT_SETTINGS)
-		return -EINVAL;
-
 	if (alt != (unsigned)-1) {
+		if (alt > MAX_ALT_SETTINGS)
+			return -EINVAL;
+
 		intf = ffs_func_revmap_intf(func, interface);
 		if (intf < 0)
 			return intf;
