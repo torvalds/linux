@@ -290,7 +290,6 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 	return vram_type;
 }
 
-
 int
 amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				  int *vram_width, int *vram_type,
@@ -301,6 +300,7 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	u16 data_offset, size;
 	union igp_info *igp_info;
 	union vram_info *vram_info;
+	union umc_info *umc_info;
 	union vram_module *vram_module;
 	u8 frev, crev;
 	u8 mem_type;
@@ -312,10 +312,16 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 	if (adev->flags & AMD_IS_APU)
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    integratedsysteminfo);
-	else
-		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						    vram_info);
-
+	else {
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+		case IP_VERSION(12, 0, 0):
+		case IP_VERSION(12, 0, 1):
+			index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1, umc_info);
+			break;
+		default:
+			index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1, vram_info);
+		}
+	}
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context,
 					  index, &size,
 					  &frev, &crev, &data_offset)) {
@@ -383,123 +389,150 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				return -EINVAL;
 			}
 		} else {
-			vram_info = (union vram_info *)
-				(mode_info->atom_context->bios + data_offset);
-			module_id = (RREG32(adev->bios_scratch_reg_offset + 4) & 0x00ff0000) >> 16;
-			if (frev == 3) {
-				switch (crev) {
-				/* v30 */
-				case 0:
-					vram_module = (union vram_module *)vram_info->v30.vram_module;
-					mem_vendor = (vram_module->v30.dram_vendor_id) & 0xF;
-					if (vram_vendor)
-						*vram_vendor = mem_vendor;
-					mem_type = vram_info->v30.memory_type;
-					if (vram_type)
-						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-					mem_channel_number = vram_info->v30.channel_num;
-					mem_channel_width = vram_info->v30.channel_width;
-					if (vram_width)
-						*vram_width = mem_channel_number * 16;
-					break;
-				default:
+			switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+			case IP_VERSION(12, 0, 0):
+			case IP_VERSION(12, 0, 1):
+				umc_info = (union umc_info *)(mode_info->atom_context->bios + data_offset);
+
+				if (frev == 4) {
+					switch (crev) {
+					case 0:
+						mem_channel_number = le32_to_cpu(umc_info->v40.channel_num);
+						mem_type = le32_to_cpu(umc_info->v40.vram_type);
+						mem_channel_width = le32_to_cpu(umc_info->v40.channel_width);
+						mem_vendor = RREG32(adev->bios_scratch_reg_offset + 4) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						if (vram_width)
+							*vram_width = mem_channel_number * (1 << mem_channel_width);
+						break;
+					default:
+						return -EINVAL;
+					}
+				} else
+					return -EINVAL;
+				break;
+			default:
+				vram_info = (union vram_info *)
+					(mode_info->atom_context->bios + data_offset);
+
+				module_id = (RREG32(adev->bios_scratch_reg_offset + 4) & 0x00ff0000) >> 16;
+				if (frev == 3) {
+					switch (crev) {
+					/* v30 */
+					case 0:
+						vram_module = (union vram_module *)vram_info->v30.vram_module;
+						mem_vendor = (vram_module->v30.dram_vendor_id) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						mem_type = vram_info->v30.memory_type;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						mem_channel_number = vram_info->v30.channel_num;
+						mem_channel_width = vram_info->v30.channel_width;
+						if (vram_width)
+							*vram_width = mem_channel_number * 16;
+						break;
+					default:
+						return -EINVAL;
+					}
+				} else if (frev == 2) {
+					switch (crev) {
+					/* v23 */
+					case 3:
+						if (module_id > vram_info->v23.vram_module_num)
+							module_id = 0;
+						vram_module = (union vram_module *)vram_info->v23.vram_module;
+						while (i < module_id) {
+							vram_module = (union vram_module *)
+								((u8 *)vram_module + vram_module->v9.vram_module_size);
+							i++;
+						}
+						mem_type = vram_module->v9.memory_type;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						mem_channel_number = vram_module->v9.channel_num;
+						mem_channel_width = vram_module->v9.channel_width;
+						if (vram_width)
+							*vram_width = mem_channel_number * (1 << mem_channel_width);
+						mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						break;
+					/* v24 */
+					case 4:
+						if (module_id > vram_info->v24.vram_module_num)
+							module_id = 0;
+						vram_module = (union vram_module *)vram_info->v24.vram_module;
+						while (i < module_id) {
+							vram_module = (union vram_module *)
+								((u8 *)vram_module + vram_module->v10.vram_module_size);
+							i++;
+						}
+						mem_type = vram_module->v10.memory_type;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						mem_channel_number = vram_module->v10.channel_num;
+						mem_channel_width = vram_module->v10.channel_width;
+						if (vram_width)
+							*vram_width = mem_channel_number * (1 << mem_channel_width);
+						mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						break;
+					/* v25 */
+					case 5:
+						if (module_id > vram_info->v25.vram_module_num)
+							module_id = 0;
+						vram_module = (union vram_module *)vram_info->v25.vram_module;
+						while (i < module_id) {
+							vram_module = (union vram_module *)
+								((u8 *)vram_module + vram_module->v11.vram_module_size);
+							i++;
+						}
+						mem_type = vram_module->v11.memory_type;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						mem_channel_number = vram_module->v11.channel_num;
+						mem_channel_width = vram_module->v11.channel_width;
+						if (vram_width)
+							*vram_width = mem_channel_number * (1 << mem_channel_width);
+						mem_vendor = (vram_module->v11.vender_rev_id) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						break;
+					/* v26 */
+					case 6:
+						if (module_id > vram_info->v26.vram_module_num)
+							module_id = 0;
+						vram_module = (union vram_module *)vram_info->v26.vram_module;
+						while (i < module_id) {
+							vram_module = (union vram_module *)
+								((u8 *)vram_module + vram_module->v9.vram_module_size);
+							i++;
+						}
+						mem_type = vram_module->v9.memory_type;
+						if (vram_type)
+							*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+						mem_channel_number = vram_module->v9.channel_num;
+						mem_channel_width = vram_module->v9.channel_width;
+						if (vram_width)
+							*vram_width = mem_channel_number * (1 << mem_channel_width);
+						mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+						if (vram_vendor)
+							*vram_vendor = mem_vendor;
+						break;
+					default:
+						return -EINVAL;
+					}
+				} else {
+					/* invalid frev */
 					return -EINVAL;
 				}
-			} else if (frev == 2) {
-				switch (crev) {
-				/* v23 */
-				case 3:
-					if (module_id > vram_info->v23.vram_module_num)
-						module_id = 0;
-					vram_module = (union vram_module *)vram_info->v23.vram_module;
-					while (i < module_id) {
-						vram_module = (union vram_module *)
-							((u8 *)vram_module + vram_module->v9.vram_module_size);
-						i++;
-					}
-					mem_type = vram_module->v9.memory_type;
-					if (vram_type)
-						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-					mem_channel_number = vram_module->v9.channel_num;
-					mem_channel_width = vram_module->v9.channel_width;
-					if (vram_width)
-						*vram_width = mem_channel_number * (1 << mem_channel_width);
-					mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
-					if (vram_vendor)
-						*vram_vendor = mem_vendor;
-					break;
-				/* v24 */
-				case 4:
-					if (module_id > vram_info->v24.vram_module_num)
-						module_id = 0;
-					vram_module = (union vram_module *)vram_info->v24.vram_module;
-					while (i < module_id) {
-						vram_module = (union vram_module *)
-							((u8 *)vram_module + vram_module->v10.vram_module_size);
-						i++;
-					}
-					mem_type = vram_module->v10.memory_type;
-					if (vram_type)
-						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-					mem_channel_number = vram_module->v10.channel_num;
-					mem_channel_width = vram_module->v10.channel_width;
-					if (vram_width)
-						*vram_width = mem_channel_number * (1 << mem_channel_width);
-					mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
-					if (vram_vendor)
-						*vram_vendor = mem_vendor;
-					break;
-				/* v25 */
-				case 5:
-					if (module_id > vram_info->v25.vram_module_num)
-						module_id = 0;
-					vram_module = (union vram_module *)vram_info->v25.vram_module;
-					while (i < module_id) {
-						vram_module = (union vram_module *)
-							((u8 *)vram_module + vram_module->v11.vram_module_size);
-						i++;
-					}
-					mem_type = vram_module->v11.memory_type;
-					if (vram_type)
-						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-					mem_channel_number = vram_module->v11.channel_num;
-					mem_channel_width = vram_module->v11.channel_width;
-					if (vram_width)
-						*vram_width = mem_channel_number * (1 << mem_channel_width);
-					mem_vendor = (vram_module->v11.vender_rev_id) & 0xF;
-					if (vram_vendor)
-						*vram_vendor = mem_vendor;
-					break;
-				/* v26 */
-				case 6:
-					if (module_id > vram_info->v26.vram_module_num)
-						module_id = 0;
-					vram_module = (union vram_module *)vram_info->v26.vram_module;
-					while (i < module_id) {
-						vram_module = (union vram_module *)
-							((u8 *)vram_module + vram_module->v9.vram_module_size);
-						i++;
-					}
-					mem_type = vram_module->v9.memory_type;
-					if (vram_type)
-						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-					mem_channel_number = vram_module->v9.channel_num;
-					mem_channel_width = vram_module->v9.channel_width;
-					if (vram_width)
-						*vram_width = mem_channel_number * (1 << mem_channel_width);
-					mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
-					if (vram_vendor)
-						*vram_vendor = mem_vendor;
-					break;
-				default:
-					return -EINVAL;
-				}
-			} else {
-				/* invalid frev */
-				return -EINVAL;
 			}
 		}
-
 	}
 
 	return 0;

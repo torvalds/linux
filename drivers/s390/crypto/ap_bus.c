@@ -552,9 +552,9 @@ static void ap_poll_thread_stop(void)
  *
  * AP bus driver registration/unregistration.
  */
-static int ap_bus_match(struct device *dev, struct device_driver *drv)
+static int ap_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct ap_driver *ap_drv = to_ap_drv(drv);
+	const struct ap_driver *ap_drv = to_ap_drv(drv);
 	struct ap_device_id *id;
 
 	/*

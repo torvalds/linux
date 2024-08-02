@@ -149,6 +149,7 @@ config AD9739A
 
 config ADI_AXI_DAC
 	tristate "Analog Devices Generic AXI DAC IP core driver"
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || COMPILE_TEST
 	select IIO_BUFFER
 	select IIO_BUFFER_DMAENGINE
 	select REGMAP_MMIO

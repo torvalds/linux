@@ -63,6 +63,7 @@ do {											\
 
 #define SCALEOUT_ERRSTRING(s, x...) pr_alert("%s" SCALE_FLAG "!!! " s "\n", scale_type, ## x)
 
+MODULE_DESCRIPTION("Scalability test for object reference mechanisms");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Joel Fernandes (Google) <joel@joelfernandes.org>");
 

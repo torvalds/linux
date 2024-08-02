@@ -352,5 +352,6 @@ static struct platform_driver imx_pwm_driver = {
 };
 module_platform_driver(imx_pwm_driver);
 
+MODULE_DESCRIPTION("i.MX27 and later i.MX SoCs Pulse Width Modulator driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");

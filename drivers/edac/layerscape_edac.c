@@ -69,6 +69,7 @@ static void __exit fsl_ddr_mc_exit(void)
 
 module_exit(fsl_ddr_mc_exit);
 
+MODULE_DESCRIPTION("Freescale Layerscape EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NXP Semiconductor");
 module_param(edac_op_state, int, 0444);

@@ -158,7 +158,7 @@ void amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 	DRM_DEBUG_DRIVER("Enabling psr...\n");
 
 	vsync_rate_hz = div64_u64(div64_u64((
-			stream->timing.pix_clk_100hz * 100),
+			stream->timing.pix_clk_100hz * (uint64_t)100),
 			stream->timing.v_total),
 			stream->timing.h_total);
 
@@ -223,3 +223,31 @@ bool amdgpu_dm_psr_disable_all(struct amdgpu_display_manager *dm)
 	return dc_set_psr_allow_active(dm->dc, false);
 }
 
+/*
+ * amdgpu_dm_psr_is_active_allowed() - check if psr is allowed on any stream
+ * @dm:  pointer to amdgpu_display_manager
+ *
+ * Return: true if allowed
+ */
+
+bool amdgpu_dm_psr_is_active_allowed(struct amdgpu_display_manager *dm)
+{
+	unsigned int i;
+	bool allow_active = false;
+
+	for (i = 0; i < dm->dc->current_state->stream_count ; i++) {
+		struct dc_link *link;
+		struct dc_stream_state *stream = dm->dc->current_state->streams[i];
+
+		link = stream->link;
+		if (!link)
+			continue;
+		if (link->psr_settings.psr_feature_enabled &&
+		    link->psr_settings.psr_allow_active) {
+			allow_active = true;
+			break;
+		}
+	}
+
+	return allow_active;
+}

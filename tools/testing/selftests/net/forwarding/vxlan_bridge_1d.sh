@@ -680,9 +680,9 @@ test_learning()
 	local mac=de:ad:be:ef:13:37
 	local dst=192.0.2.100
 
-	# Enable learning on the VxLAN device and set ageing time to 10 seconds
-	ip link set dev br1 type bridge ageing_time 1000
-	ip link set dev vx1 type vxlan ageing 10
+	# Enable learning on the VxLAN device and set ageing time to 30 seconds
+	ip link set dev br1 type bridge ageing_time 3000
+	ip link set dev vx1 type vxlan ageing 30
 	ip link set dev vx1 type vxlan learning
 	reapply_config
 
@@ -740,7 +740,7 @@ test_learning()
 
 	vxlan_flood_test $mac $dst 0 10 0
 
-	sleep 20
+	sleep 60
 
 	bridge fdb show brport vx1 | grep $mac | grep -q self
 	check_fail $?

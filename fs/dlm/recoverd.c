@@ -33,7 +33,7 @@ static int dlm_create_masters_list(struct dlm_ls *ls)
 	}
 
 	read_lock_bh(&ls->ls_rsbtbl_lock);
-	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
+	list_for_each_entry(r, &ls->ls_slow_active, res_slow_list) {
 		if (r->res_nodeid)
 			continue;
 
@@ -63,12 +63,12 @@ static void dlm_create_root_list(struct dlm_ls *ls, struct list_head *root_list)
 	struct dlm_rsb *r;
 
 	read_lock_bh(&ls->ls_rsbtbl_lock);
-	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
+	list_for_each_entry(r, &ls->ls_slow_active, res_slow_list) {
 		list_add(&r->res_root_list, root_list);
 		dlm_hold_rsb(r);
 	}
 
-	WARN_ON_ONCE(!list_empty(&ls->ls_toss));
+	WARN_ON_ONCE(!list_empty(&ls->ls_slow_inactive));
 	read_unlock_bh(&ls->ls_rsbtbl_lock);
 }
 
@@ -98,16 +98,16 @@ static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 	spin_lock_bh(&ls->ls_recover_lock);
 	if (ls->ls_recover_seq == seq) {
 		set_bit(LSFL_RUNNING, &ls->ls_flags);
-		/* Schedule next timer if recovery put something on toss.
+		/* Schedule next timer if recovery put something on inactive.
 		 *
 		 * The rsbs that was queued while recovery on toss hasn't
 		 * started yet because LSFL_RUNNING was set everything
 		 * else recovery hasn't started as well because ls_in_recovery
 		 * is still hold. So we should not run into the case that
-		 * dlm_timer_resume() queues a timer that can occur in
+		 * resume_scan_timer() queues a timer that can occur in
 		 * a no op.
 		 */
-		dlm_timer_resume(ls);
+		resume_scan_timer(ls);
 		/* unblocks processes waiting to enter the dlm */
 		up_write(&ls->ls_in_recovery);
 		clear_bit(LSFL_RECOVER_LOCK, &ls->ls_flags);
@@ -131,7 +131,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_callback_suspend(ls);
 
-	dlm_clear_toss(ls);
+	dlm_clear_inactive(ls);
 
 	/*
 	 * This list of root rsb's will be the basis of most of the recovery

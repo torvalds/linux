@@ -200,7 +200,7 @@ OPTIONS
 	  ip, id, tid, pid, cpu, time, addr, period, txn, weight, phys_addr,
 	  code_pgsz, data_pgsz, weight1, weight2, weight3, ins_lat, retire_lat,
 	  p_stage_cyc, mem_op, mem_lvl, mem_snoop, mem_remote, mem_lock,
-	  mem_dtlb, mem_blk, mem_hops
+	  mem_dtlb, mem_blk, mem_hops, uid, gid
 
 	The <operator> can be one of:
 	  ==, !=, >, >=, <, <=, &
@@ -311,7 +311,7 @@ OPTIONS
 	User can change the size by passing the size after comma like
 	"--call-graph dwarf,4096".
 
-	When "fp" recording is used, perf tries to save stack enties
+	When "fp" recording is used, perf tries to save stack entries
 	up to the number specified in sysctl.kernel.perf_event_max_stack
 	by default.  User can change the number by passing it after comma
 	like "--call-graph fp,32".

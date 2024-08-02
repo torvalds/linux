@@ -45,3 +45,26 @@ void mt76_pci_disable_aspm(struct pci_dev *pdev)
 					   aspm_conf);
 }
 EXPORT_SYMBOL_GPL(mt76_pci_disable_aspm);
+
+bool mt76_pci_aspm_supported(struct pci_dev *pdev)
+{
+	struct pci_dev *parent = pdev->bus->self;
+	u16 aspm_conf, parent_aspm_conf = 0;
+	bool result = true;
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &aspm_conf);
+	aspm_conf &= PCI_EXP_LNKCTL_ASPMC;
+	if (parent) {
+		pcie_capability_read_word(parent, PCI_EXP_LNKCTL,
+					  &parent_aspm_conf);
+		parent_aspm_conf &= PCI_EXP_LNKCTL_ASPMC;
+	}
+
+	if (!aspm_conf && (!parent || !parent_aspm_conf)) {
+		/* aspm already disabled */
+		result = false;
+	}
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(mt76_pci_aspm_supported);

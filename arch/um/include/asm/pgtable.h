@@ -244,6 +244,38 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
 
+static inline void um_tlb_mark_sync(struct mm_struct *mm, unsigned long start,
+				    unsigned long end)
+{
+	if (!mm->context.sync_tlb_range_to) {
+		mm->context.sync_tlb_range_from = start;
+		mm->context.sync_tlb_range_to = end;
+	} else {
+		if (start < mm->context.sync_tlb_range_from)
+			mm->context.sync_tlb_range_from = start;
+		if (end > mm->context.sync_tlb_range_to)
+			mm->context.sync_tlb_range_to = end;
+	}
+}
+
+#define set_ptes set_ptes
+static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
+			    pte_t *ptep, pte_t pte, int nr)
+{
+	/* Basically the default implementation */
+	size_t length = nr * PAGE_SIZE;
+
+	for (;;) {
+		set_pte(ptep, pte);
+		if (--nr == 0)
+			break;
+		ptep++;
+		pte = __pte(pte_val(pte) + (nr << PFN_PTE_SHIFT));
+	}
+
+	um_tlb_mark_sync(mm, addr, addr + length);
+}
+
 #define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t pte_a, pte_t pte_b)
 {

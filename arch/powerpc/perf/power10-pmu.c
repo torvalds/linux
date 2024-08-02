@@ -593,7 +593,8 @@ static struct power_pmu power10_pmu = {
 	.get_mem_weight		= isa207_get_mem_weight,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S |
-				  PPMU_ARCH_31 | PPMU_HAS_ATTR_CONFIG1,
+				  PPMU_ARCH_31 | PPMU_HAS_ATTR_CONFIG1 |
+				  PPMU_P10,
 	.n_generic		= ARRAY_SIZE(power10_generic_events),
 	.generic_events		= power10_generic_events,
 	.cache_events		= &power10_cache_events,

@@ -672,7 +672,8 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 	 * https://www.ti.com/lit/pdf/sprz536
 	 */
 	if (priv->habit & UART_RX_TIMEOUT_QUIRK &&
-		(iir & UART_IIR_RX_TIMEOUT) == UART_IIR_RX_TIMEOUT) {
+	    (iir & UART_IIR_RX_TIMEOUT) == UART_IIR_RX_TIMEOUT &&
+	    serial_port_in(port, UART_OMAP_RX_LVL) == 0) {
 		unsigned char efr2, timeout_h, timeout_l;
 
 		efr2 = serial_in(up, UART_OMAP_EFR2);

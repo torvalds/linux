@@ -24,7 +24,7 @@
 #define VSWITCH1_OUTPUT         BIT(4)
 #define VUSBPHY_CHARGE          BIT(1)
 
-static struct pmic_table power_table[] = {
+static const struct pmic_table power_table[] = {
 	{
 		.address = 0x0,
 		.reg = 0x63,
@@ -177,7 +177,7 @@ static struct pmic_table power_table[] = {
 	} /* MOFF -> MODEMCTRL Bit 0 */
 };
 
-static struct pmic_table thermal_table[] = {
+static const struct pmic_table thermal_table[] = {
 	{
 		.address = 0x00,
 		.reg = 0x4F39

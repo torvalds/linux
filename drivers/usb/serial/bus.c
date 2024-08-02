@@ -14,7 +14,7 @@
 #include <linux/usb/serial.h>
 
 static int usb_serial_device_match(struct device *dev,
-						struct device_driver *drv)
+				   const struct device_driver *drv)
 {
 	const struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct usb_serial_driver *driver = to_usb_serial_driver(drv);

@@ -8,7 +8,7 @@
 /delete-node/ &reg_gmac_3v3;
 
 / {
-	model = "Pine H64 model B";
+	model = "Pine64 PINE H64 Model B";
 	compatible = "pine64,pine-h64-model-b", "allwinner,sun50i-h6";
 
 	wifi_pwrseq: pwrseq {

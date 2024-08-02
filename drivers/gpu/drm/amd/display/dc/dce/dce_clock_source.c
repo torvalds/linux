@@ -217,7 +217,7 @@ static bool calc_fb_divider_checking_tolerance(
 	actual_calc_clk_100hz = (uint64_t)feedback_divider *
 					calc_pll_cs->fract_fb_divider_factor +
 							fract_feedback_divider;
-	actual_calc_clk_100hz *= calc_pll_cs->ref_freq_khz * 10;
+	actual_calc_clk_100hz *= (uint64_t)calc_pll_cs->ref_freq_khz * 10;
 	actual_calc_clk_100hz =
 		div_u64(actual_calc_clk_100hz,
 			ref_divider * post_divider *
@@ -680,7 +680,7 @@ static bool calculate_ss(
 	 * so have to divided by 100 * 100*/
 	ss_amount = dc_fixpt_mul(
 		fb_div, dc_fixpt_from_fraction(ss_data->percentage,
-					100 * ss_data->percentage_divider));
+					100 * (long long)ss_data->percentage_divider));
 	ds_data->feedback_amount = dc_fixpt_floor(ss_amount);
 
 	ss_nslip_amount = dc_fixpt_sub(ss_amount,
@@ -695,8 +695,8 @@ static bool calculate_ss(
 
 	/* compute SS_STEP_SIZE_DSFRAC */
 	modulation_time = dc_fixpt_from_fraction(
-		pll_settings->reference_freq * 1000,
-		pll_settings->reference_divider * ss_data->modulation_freq_hz);
+		pll_settings->reference_freq * (uint64_t)1000,
+		pll_settings->reference_divider * (uint64_t)ss_data->modulation_freq_hz);
 
 	if (ss_data->flags.CENTER_SPREAD)
 		modulation_time = dc_fixpt_div_int(modulation_time, 4);
@@ -1063,6 +1063,105 @@ static bool dcn31_program_pix_clk(
 	return true;
 }
 
+static bool dcn401_program_pix_clk(
+		struct clock_source *clock_source,
+		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
+		struct pll_settings *pll_settings)
+{
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+	const struct pixel_rate_range_table_entry *e =
+			look_up_in_video_optimized_rate_tlb(pix_clk_params->requested_pix_clk_100hz / 10);
+	struct bp_pixel_clock_parameters bp_pc_params = {0};
+	enum transmitter_color_depth bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+	struct dp_dto_params dto_params = { 0 };
+
+	dto_params.otg_inst = inst;
+	dto_params.signal = pix_clk_params->signal_type;
+
+	// all but TMDS gets Driver to program DP_DTO without calling VBIOS Command table
+	if (!dc_is_tmds_signal(pix_clk_params->signal_type)) {
+		long long dtbclk_p_src_clk_khz;
+
+		dtbclk_p_src_clk_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
+		dto_params.clk_src = DPREFCLK;
+
+		if (e) {
+			dto_params.pixclk_hz = e->target_pixel_rate_khz;
+			dto_params.pixclk_hz *= e->mult_factor;
+			dto_params.refclk_hz = dtbclk_p_src_clk_khz;
+			dto_params.refclk_hz *= e->div_factor;
+		} else {
+			dto_params.pixclk_hz = pix_clk_params->requested_pix_clk_100hz;
+			dto_params.pixclk_hz *= 100;
+			dto_params.refclk_hz = dtbclk_p_src_clk_khz;
+			dto_params.refclk_hz *= 1000;
+		}
+
+		/* enable DP DTO */
+		clock_source->ctx->dc->res_pool->dccg->funcs->set_dp_dto(
+				clock_source->ctx->dc->res_pool->dccg,
+				&dto_params);
+
+	} else {
+		/* disables DP DTO when provided with TMDS signal type */
+		clock_source->ctx->dc->res_pool->dccg->funcs->set_dp_dto(
+				clock_source->ctx->dc->res_pool->dccg,
+				&dto_params);
+
+		/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
+		bp_pc_params.controller_id = pix_clk_params->controller_id;
+		bp_pc_params.pll_id = clock_source->id;
+		bp_pc_params.target_pixel_clock_100hz = pll_settings->actual_pix_clk_100hz;
+		bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
+		bp_pc_params.signal_type = pix_clk_params->signal_type;
+
+		// Make sure we send the correct color depth to DMUB for HDMI
+		if (pix_clk_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A) {
+			switch (pix_clk_params->color_depth) {
+			case COLOR_DEPTH_888:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+				break;
+			case COLOR_DEPTH_101010:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_30;
+				break;
+			case COLOR_DEPTH_121212:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_36;
+				break;
+			case COLOR_DEPTH_161616:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_48;
+				break;
+			default:
+				bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+				break;
+			}
+			bp_pc_params.color_depth = bp_pc_colour_depth;
+		}
+
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
+			bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
+							pll_settings->use_external_clk;
+			bp_pc_params.flags.SET_XTALIN_REF_SRC =
+							!pll_settings->use_external_clk;
+			if (pix_clk_params->flags.SUPPORT_YCBCR420) {
+				bp_pc_params.flags.SUPPORT_YUV_420 = 1;
+			}
+		}
+		if (clk_src->bios->funcs->set_pixel_clock(
+				clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
+			return false;
+		/* Resync deep color DTO */
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO)
+			dce112_program_pixel_clk_resync(clk_src,
+						pix_clk_params->signal_type,
+						pix_clk_params->color_depth,
+						pix_clk_params->flags.SUPPORT_YCBCR420);
+	}
+
+	return true;
+}
+
 static bool dce110_clock_source_power_down(
 		struct clock_source *clk_src)
 {
@@ -1310,6 +1409,13 @@ static const struct clock_source_funcs dcn3_clk_src_funcs = {
 static const struct clock_source_funcs dcn31_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dcn31_program_pix_clk,
+	.get_pix_clk_dividers = dcn3_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
+};
+
+static const struct clock_source_funcs dcn401_clk_src_funcs = {
+	.cs_power_down = dce110_clock_source_power_down,
+	.program_pix_clk = dcn401_program_pix_clk,
 	.get_pix_clk_dividers = dcn3_get_pix_clk_dividers,
 	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
@@ -1731,6 +1837,21 @@ bool dcn31_clk_src_construct(
 	return ret;
 }
 
+bool dcn401_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask)
+{
+	bool ret = dce112_clk_src_construct(clk_src, ctx, bios, id, regs, cs_shift, cs_mask);
+
+	clk_src->base.funcs = &dcn401_clk_src_funcs;
+
+	return ret;
+}
 bool dcn301_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,

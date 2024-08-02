@@ -905,7 +905,7 @@
 #include "aspeed-g6-pinctrl.dtsi"
 
 &i2c {
-	i2c0: i2c-bus@80 {
+	i2c0: i2c@80 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x80 0x80>;
@@ -919,7 +919,7 @@
 		status = "disabled";
 	};
 
-	i2c1: i2c-bus@100 {
+	i2c1: i2c@100 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x100 0x80>;
@@ -933,7 +933,7 @@
 		status = "disabled";
 	};
 
-	i2c2: i2c-bus@180 {
+	i2c2: i2c@180 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x180 0x80>;
@@ -947,7 +947,7 @@
 		status = "disabled";
 	};
 
-	i2c3: i2c-bus@200 {
+	i2c3: i2c@200 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x200 0x80>;
@@ -961,7 +961,7 @@
 		status = "disabled";
 	};
 
-	i2c4: i2c-bus@280 {
+	i2c4: i2c@280 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x280 0x80>;
@@ -975,7 +975,7 @@
 		status = "disabled";
 	};
 
-	i2c5: i2c-bus@300 {
+	i2c5: i2c@300 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x300 0x80>;
@@ -989,7 +989,7 @@
 		status = "disabled";
 	};
 
-	i2c6: i2c-bus@380 {
+	i2c6: i2c@380 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x380 0x80>;
@@ -1003,7 +1003,7 @@
 		status = "disabled";
 	};
 
-	i2c7: i2c-bus@400 {
+	i2c7: i2c@400 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x400 0x80>;
@@ -1017,7 +1017,7 @@
 		status = "disabled";
 	};
 
-	i2c8: i2c-bus@480 {
+	i2c8: i2c@480 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x480 0x80>;
@@ -1031,7 +1031,7 @@
 		status = "disabled";
 	};
 
-	i2c9: i2c-bus@500 {
+	i2c9: i2c@500 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x500 0x80>;
@@ -1045,7 +1045,7 @@
 		status = "disabled";
 	};
 
-	i2c10: i2c-bus@580 {
+	i2c10: i2c@580 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x580 0x80>;
@@ -1059,7 +1059,7 @@
 		status = "disabled";
 	};
 
-	i2c11: i2c-bus@600 {
+	i2c11: i2c@600 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x600 0x80>;
@@ -1073,7 +1073,7 @@
 		status = "disabled";
 	};
 
-	i2c12: i2c-bus@680 {
+	i2c12: i2c@680 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x680 0x80>;
@@ -1087,7 +1087,7 @@
 		status = "disabled";
 	};
 
-	i2c13: i2c-bus@700 {
+	i2c13: i2c@700 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x700 0x80>;
@@ -1101,7 +1101,7 @@
 		status = "disabled";
 	};
 
-	i2c14: i2c-bus@780 {
+	i2c14: i2c@780 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x780 0x80>;
@@ -1115,7 +1115,7 @@
 		status = "disabled";
 	};
 
-	i2c15: i2c-bus@800 {
+	i2c15: i2c@800 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x800 0x80>;

@@ -5,16 +5,16 @@
  * Copyright (C) 2006,2008 David Brownell
  * Copyright (C) 2017 Linus Walleij
  */
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of.h>
+#include <linux/property.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/spi_gpio.h>
-
 
 /*
  * This bitbanging SPI host driver should help make systems usable
@@ -239,8 +239,8 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 static int spi_gpio_setup(struct spi_device *spi)
 {
 	struct gpio_desc	*cs;
-	int			status = 0;
 	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
+	int ret;
 
 	/*
 	 * The CS GPIOs have already been
@@ -248,15 +248,14 @@ static int spi_gpio_setup(struct spi_device *spi)
 	 */
 	if (spi_gpio->cs_gpios) {
 		cs = spi_gpio->cs_gpios[spi_get_chipselect(spi, 0)];
-		if (!spi->controller_state && cs)
-			status = gpiod_direction_output(cs,
-						  !(spi->mode & SPI_CS_HIGH));
+		if (!spi->controller_state && cs) {
+			ret = gpiod_direction_output(cs, !(spi->mode & SPI_CS_HIGH));
+			if (ret)
+				return ret;
+		}
 	}
 
-	if (!status)
-		status = spi_bitbang_setup(spi);
-
-	return status;
+	return spi_bitbang_setup(spi);
 }
 
 static int spi_gpio_set_direction(struct spi_device *spi, bool output)
@@ -326,29 +325,6 @@ static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 	return PTR_ERR_OR_ZERO(spi_gpio->sck);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id spi_gpio_dt_ids[] = {
-	{ .compatible = "spi-gpio" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
-
-static int spi_gpio_probe_dt(struct platform_device *pdev,
-			     struct spi_controller *host)
-{
-	host->dev.of_node = pdev->dev.of_node;
-	host->use_gpio_descriptors = true;
-
-	return 0;
-}
-#else
-static inline int spi_gpio_probe_dt(struct platform_device *pdev,
-				    struct spi_controller *host)
-{
-	return 0;
-}
-#endif
-
 static int spi_gpio_probe_pdata(struct platform_device *pdev,
 				struct spi_controller *host)
 {
@@ -389,19 +365,21 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	struct spi_controller		*host;
 	struct spi_gpio			*spi_gpio;
 	struct device			*dev = &pdev->dev;
+	struct fwnode_handle		*fwnode = dev_fwnode(dev);
 	struct spi_bitbang		*bb;
 
 	host = devm_spi_alloc_host(dev, sizeof(*spi_gpio));
 	if (!host)
 		return -ENOMEM;
 
-	if (pdev->dev.of_node)
-		status = spi_gpio_probe_dt(pdev, host);
-	else
+	if (fwnode) {
+		device_set_node(&host->dev, fwnode);
+		host->use_gpio_descriptors = true;
+	} else {
 		status = spi_gpio_probe_pdata(pdev, host);
-
-	if (status)
-		return status;
+		if (status)
+			return status;
+	}
 
 	spi_gpio = spi_controller_get_devdata(host);
 
@@ -459,10 +437,16 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
+static const struct of_device_id spi_gpio_dt_ids[] = {
+	{ .compatible = "spi-gpio" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
+
 static struct platform_driver spi_gpio_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.of_match_table = of_match_ptr(spi_gpio_dt_ids),
+		.of_match_table = spi_gpio_dt_ids,
 	},
 	.probe		= spi_gpio_probe,
 };

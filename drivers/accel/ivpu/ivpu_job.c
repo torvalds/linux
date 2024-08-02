@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <drm/drm_file.h>
@@ -12,11 +12,13 @@
 #include <uapi/drm/ivpu_accel.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
+#include "vpu_boot_api.h"
 
 #define CMD_BUF_IDX	     0
 #define JOB_ID_JOB_MASK	     GENMASK(7, 0)
@@ -25,14 +27,60 @@
 
 static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 {
-	ivpu_hw_reg_db_set(vdev, cmdq->db_id);
+	ivpu_hw_db_set(vdev, cmdq->db_id);
 }
 
-static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 engine)
+static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,
+					  struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	u64 primary_size = ALIGN(vdev->fw->primary_preempt_buf_size, PAGE_SIZE);
+	u64 secondary_size = ALIGN(vdev->fw->secondary_preempt_buf_size, PAGE_SIZE);
+	struct ivpu_addr_range range;
+
+	if (vdev->hw->sched_mode != VPU_SCHEDULING_MODE_HW)
+		return 0;
+
+	range.start = vdev->hw->ranges.user.end - (primary_size * IVPU_NUM_CMDQS_PER_CTX);
+	range.end = vdev->hw->ranges.user.end;
+	cmdq->primary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &range, primary_size,
+						   DRM_IVPU_BO_WC);
+	if (!cmdq->primary_preempt_buf) {
+		ivpu_err(vdev, "Failed to create primary preemption buffer\n");
+		return -ENOMEM;
+	}
+
+	range.start = vdev->hw->ranges.shave.end - (secondary_size * IVPU_NUM_CMDQS_PER_CTX);
+	range.end = vdev->hw->ranges.shave.end;
+	cmdq->secondary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &range, secondary_size,
+						     DRM_IVPU_BO_WC);
+	if (!cmdq->secondary_preempt_buf) {
+		ivpu_err(vdev, "Failed to create secondary preemption buffer\n");
+		goto err_free_primary;
+	}
+
+	return 0;
+
+err_free_primary:
+	ivpu_bo_free(cmdq->primary_preempt_buf);
+	return -ENOMEM;
+}
+
+static void ivpu_preemption_buffers_free(struct ivpu_device *vdev,
+					 struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	if (vdev->hw->sched_mode != VPU_SCHEDULING_MODE_HW)
+		return;
+
+	drm_WARN_ON(&vdev->drm, !cmdq->primary_preempt_buf);
+	drm_WARN_ON(&vdev->drm, !cmdq->secondary_preempt_buf);
+	ivpu_bo_free(cmdq->primary_preempt_buf);
+	ivpu_bo_free(cmdq->secondary_preempt_buf);
+}
+
+static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv)
 {
 	struct xa_limit db_xa_limit = {.max = IVPU_MAX_DB, .min = IVPU_MIN_DB};
 	struct ivpu_device *vdev = file_priv->vdev;
-	struct vpu_job_queue_header *jobq_header;
 	struct ivpu_cmdq *cmdq;
 	int ret;
 
@@ -50,18 +98,14 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 	if (!cmdq->mem)
 		goto err_erase_xa;
 
-	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
-				  sizeof(struct vpu_job_queue_entry));
-
-	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
-	jobq_header = &cmdq->jobq->header;
-	jobq_header->engine_idx = engine;
-	jobq_header->head = 0;
-	jobq_header->tail = 0;
-	wmb(); /* Flush WC buffer for jobq->header */
+	ret = ivpu_preemption_buffers_create(vdev, file_priv, cmdq);
+	if (ret)
+		goto err_free_cmdq_mem;
 
 	return cmdq;
 
+err_free_cmdq_mem:
+	ivpu_bo_free(cmdq->mem);
 err_erase_xa:
 	xa_erase(&vdev->db_xa, cmdq->db_id);
 err_free_cmdq:
@@ -74,92 +118,183 @@ static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *c
 	if (!cmdq)
 		return;
 
+	ivpu_preemption_buffers_free(file_priv->vdev, file_priv, cmdq);
 	ivpu_bo_free(cmdq->mem);
 	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	kfree(cmdq);
 }
 
-static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16 engine)
+static int ivpu_hws_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq, u16 engine,
+			      u8 priority)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
-	struct ivpu_cmdq *cmdq = file_priv->cmdq[engine];
+	int ret;
+
+	ret = ivpu_jsm_hws_create_cmdq(vdev, file_priv->ctx.id, file_priv->ctx.id, cmdq->db_id,
+				       task_pid_nr(current), engine,
+				       cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
+	if (ret)
+		return ret;
+
+	ret = ivpu_jsm_hws_set_context_sched_properties(vdev, file_priv->ctx.id, cmdq->db_id,
+							priority);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+	int ret;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW)
+		ret = ivpu_jsm_hws_register_db(vdev, file_priv->ctx.id, cmdq->db_id, cmdq->db_id,
+					       cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
+	else
+		ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
+					   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
+
+	if (!ret)
+		ivpu_dbg(vdev, JOB, "DB %d registered to ctx %d\n", cmdq->db_id, file_priv->ctx.id);
+
+	return ret;
+}
+
+static int
+ivpu_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq, u16 engine, u8 priority)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+	struct vpu_job_queue_header *jobq_header;
+	int ret;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	if (cmdq->db_registered)
+		return 0;
+
+	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
+				  sizeof(struct vpu_job_queue_entry));
+
+	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
+	jobq_header = &cmdq->jobq->header;
+	jobq_header->engine_idx = engine;
+	jobq_header->head = 0;
+	jobq_header->tail = 0;
+	wmb(); /* Flush WC buffer for jobq->header */
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW) {
+		ret = ivpu_hws_cmdq_init(file_priv, cmdq, engine, priority);
+		if (ret)
+			return ret;
+	}
+
+	ret = ivpu_register_db(file_priv, cmdq);
+	if (ret)
+		return ret;
+
+	cmdq->db_registered = true;
+
+	return 0;
+}
+
+static int ivpu_cmdq_fini(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+	int ret;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	if (!cmdq->db_registered)
+		return 0;
+
+	cmdq->db_registered = false;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW) {
+		ret = ivpu_jsm_hws_destroy_cmdq(vdev, file_priv->ctx.id, cmdq->db_id);
+		if (!ret)
+			ivpu_dbg(vdev, JOB, "Command queue %d destroyed\n", cmdq->db_id);
+	}
+
+	ret = ivpu_jsm_unregister_db(vdev, cmdq->db_id);
+	if (!ret)
+		ivpu_dbg(vdev, JOB, "DB %d unregistered\n", cmdq->db_id);
+
+	return 0;
+}
+
+static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16 engine,
+					   u8 priority)
+{
+	int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
+	struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
 	int ret;
 
 	lockdep_assert_held(&file_priv->lock);
 
 	if (!cmdq) {
-		cmdq = ivpu_cmdq_alloc(file_priv, engine);
+		cmdq = ivpu_cmdq_alloc(file_priv);
 		if (!cmdq)
 			return NULL;
-		file_priv->cmdq[engine] = cmdq;
+		file_priv->cmdq[cmdq_idx] = cmdq;
 	}
 
-	if (cmdq->db_registered)
-		return cmdq;
-
-	ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
-				   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
+	ret = ivpu_cmdq_init(file_priv, cmdq, engine, priority);
 	if (ret)
 		return NULL;
-
-	cmdq->db_registered = true;
 
 	return cmdq;
 }
 
-static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engine)
+static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engine, u8 priority)
 {
-	struct ivpu_cmdq *cmdq = file_priv->cmdq[engine];
+	int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
+	struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
 
 	lockdep_assert_held(&file_priv->lock);
 
 	if (cmdq) {
-		file_priv->cmdq[engine] = NULL;
-		if (cmdq->db_registered)
-			ivpu_jsm_unregister_db(file_priv->vdev, cmdq->db_id);
-
+		file_priv->cmdq[cmdq_idx] = NULL;
+		ivpu_cmdq_fini(file_priv, cmdq);
 		ivpu_cmdq_free(file_priv, cmdq);
 	}
 }
 
 void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
 {
-	int i;
+	u16 engine;
+	u8 priority;
 
 	lockdep_assert_held(&file_priv->lock);
 
-	for (i = 0; i < IVPU_NUM_ENGINES; i++)
-		ivpu_cmdq_release_locked(file_priv, i);
+	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++)
+		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++)
+			ivpu_cmdq_release_locked(file_priv, engine, priority);
 }
 
 /*
- * Mark the doorbell as unregistered and reset job queue pointers.
+ * Mark the doorbell as unregistered
  * This function needs to be called when the VPU hardware is restarted
  * and FW loses job queue state. The next time job queue is used it
  * will be registered again.
  */
-static void ivpu_cmdq_reset_locked(struct ivpu_file_priv *file_priv, u16 engine)
+static void ivpu_cmdq_reset(struct ivpu_file_priv *file_priv)
 {
-	struct ivpu_cmdq *cmdq = file_priv->cmdq[engine];
-
-	lockdep_assert_held(&file_priv->lock);
-
-	if (cmdq) {
-		cmdq->db_registered = false;
-		cmdq->jobq->header.head = 0;
-		cmdq->jobq->header.tail = 0;
-		wmb(); /* Flush WC buffer for jobq header */
-	}
-}
-
-static void ivpu_cmdq_reset_all(struct ivpu_file_priv *file_priv)
-{
-	int i;
+	u16 engine;
+	u8 priority;
 
 	mutex_lock(&file_priv->lock);
 
-	for (i = 0; i < IVPU_NUM_ENGINES; i++)
-		ivpu_cmdq_reset_locked(file_priv, i);
+	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++) {
+		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
+			int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
+			struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
+
+			if (cmdq)
+				cmdq->db_registered = false;
+		}
+	}
 
 	mutex_unlock(&file_priv->lock);
 }
@@ -172,10 +307,36 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 	mutex_lock(&vdev->context_list_lock);
 
 	xa_for_each(&vdev->context_xa, ctx_id, file_priv)
-		ivpu_cmdq_reset_all(file_priv);
+		ivpu_cmdq_reset(file_priv);
 
 	mutex_unlock(&vdev->context_list_lock);
+}
 
+static void ivpu_cmdq_fini_all(struct ivpu_file_priv *file_priv)
+{
+	u16 engine;
+	u8 priority;
+
+	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++) {
+		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
+			int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
+
+			if (file_priv->cmdq[cmdq_idx])
+				ivpu_cmdq_fini(file_priv, file_priv->cmdq[cmdq_idx]);
+		}
+	}
+}
+
+void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
+{
+	struct ivpu_device *vdev = file_priv->vdev;
+
+	lockdep_assert_held(&file_priv->lock);
+
+	ivpu_cmdq_fini_all(file_priv);
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_OS)
+		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
 }
 
 static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
@@ -199,6 +360,15 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	entry->flags = 0;
 	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
 		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW &&
+	    (unlikely(!(ivpu_test_mode & IVPU_TEST_MODE_PREEMPTION_DISABLE)))) {
+		entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
+		entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
+		entry->secondary_preempt_buf_addr = cmdq->secondary_preempt_buf->vpu_addr;
+		entry->secondary_preempt_buf_size = ivpu_bo_size(cmdq->secondary_preempt_buf);
+	}
+
 	wmb(); /* Ensure that tail is updated after filling entry */
 	header->tail = next_entry;
 	wmb(); /* Flush WC buffer for jobq header */
@@ -295,11 +465,28 @@ err_free_job:
 	return NULL;
 }
 
+static struct ivpu_job *ivpu_job_remove_from_submitted_jobs(struct ivpu_device *vdev, u32 job_id)
+{
+	struct ivpu_job *job;
+
+	xa_lock(&vdev->submitted_jobs_xa);
+	job = __xa_erase(&vdev->submitted_jobs_xa, job_id);
+
+	if (xa_empty(&vdev->submitted_jobs_xa) && job) {
+		vdev->busy_time = ktime_add(ktime_sub(ktime_get(), vdev->busy_start_ts),
+					    vdev->busy_time);
+	}
+
+	xa_unlock(&vdev->submitted_jobs_xa);
+
+	return job;
+}
+
 static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 {
 	struct ivpu_job *job;
 
-	job = xa_erase(&vdev->submitted_jobs_xa, job_id);
+	job = ivpu_job_remove_from_submitted_jobs(vdev, job_id);
 	if (!job)
 		return -ENOENT;
 
@@ -328,12 +515,13 @@ void ivpu_jobs_abort_all(struct ivpu_device *vdev)
 		ivpu_job_signal_and_destroy(vdev, id, DRM_IVPU_JOB_STATUS_ABORTED);
 }
 
-static int ivpu_job_submit(struct ivpu_job *job)
+static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 {
 	struct ivpu_file_priv *file_priv = job->file_priv;
 	struct ivpu_device *vdev = job->vdev;
 	struct xa_limit job_id_range;
 	struct ivpu_cmdq *cmdq;
+	bool is_first_job;
 	int ret;
 
 	ret = ivpu_rpm_get(vdev);
@@ -342,10 +530,10 @@ static int ivpu_job_submit(struct ivpu_job *job)
 
 	mutex_lock(&file_priv->lock);
 
-	cmdq = ivpu_cmdq_acquire(job->file_priv, job->engine_idx);
+	cmdq = ivpu_cmdq_acquire(job->file_priv, job->engine_idx, priority);
 	if (!cmdq) {
-		ivpu_warn_ratelimited(vdev, "Failed get job queue, ctx %d engine %d\n",
-				      file_priv->ctx.id, job->engine_idx);
+		ivpu_warn_ratelimited(vdev, "Failed to get job queue, ctx %d engine %d prio %d\n",
+				      file_priv->ctx.id, job->engine_idx, priority);
 		ret = -EINVAL;
 		goto err_unlock_file_priv;
 	}
@@ -354,6 +542,7 @@ static int ivpu_job_submit(struct ivpu_job *job)
 	job_id_range.max = job_id_range.min | JOB_ID_JOB_MASK;
 
 	xa_lock(&vdev->submitted_jobs_xa);
+	is_first_job = xa_empty(&vdev->submitted_jobs_xa);
 	ret = __xa_alloc(&vdev->submitted_jobs_xa, &job->job_id, job, job_id_range, GFP_KERNEL);
 	if (ret) {
 		ivpu_dbg(vdev, JOB, "Too many active jobs in ctx %d\n",
@@ -373,10 +562,12 @@ static int ivpu_job_submit(struct ivpu_job *job)
 		wmb(); /* Flush WC buffer for jobq header */
 	} else {
 		ivpu_cmdq_ring_db(vdev, cmdq);
+		if (is_first_job)
+			vdev->busy_start_ts = ktime_get();
 	}
 
-	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d addr 0x%llx next %d\n",
-		 job->job_id, file_priv->ctx.id, job->engine_idx,
+	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d prio %d addr 0x%llx next %d\n",
+		 job->job_id, file_priv->ctx.id, job->engine_idx, priority,
 		 job->cmd_buf_vpu_addr, cmdq->jobq->header.tail);
 
 	xa_unlock(&vdev->submitted_jobs_xa);
@@ -464,6 +655,14 @@ unlock_reservations:
 	return ret;
 }
 
+static inline u8 ivpu_job_to_hws_priority(struct ivpu_file_priv *file_priv, u8 priority)
+{
+	if (priority == DRM_IVPU_JOB_PRIORITY_DEFAULT)
+		return DRM_IVPU_JOB_PRIORITY_NORMAL;
+
+	return priority - 1;
+}
+
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
@@ -472,6 +671,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct ivpu_job *job;
 	u32 *buf_handles;
 	int idx, ret;
+	u8 priority;
 
 	if (params->engine > DRM_IVPU_ENGINE_COPY)
 		return -EINVAL;
@@ -525,8 +725,10 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto err_destroy_job;
 	}
 
+	priority = ivpu_job_to_hws_priority(file_priv, params->priority);
+
 	down_read(&vdev->pm->reset_lock);
-	ret = ivpu_job_submit(job);
+	ret = ivpu_job_submit(job, priority);
 	up_read(&vdev->pm->reset_lock);
 	if (ret)
 		goto err_signal_fence;

@@ -61,7 +61,7 @@ static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 	return security_sb_show_options(m, sb);
 }
 
-static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
+static void show_vfsmnt_opts(struct seq_file *m, struct vfsmount *mnt)
 {
 	static const struct proc_fs_opts mnt_opts[] = {
 		{ MNT_NOSUID, ",nosuid" },
@@ -124,7 +124,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
-	show_mnt_opts(m, mnt);
+	show_vfsmnt_opts(m, mnt);
 	if (sb->s_op->show_options)
 		err = sb->s_op->show_options(m, mnt_path.dentry);
 	seq_puts(m, " 0 0\n");
@@ -153,7 +153,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 		goto out;
 
 	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
-	show_mnt_opts(m, mnt);
+	show_vfsmnt_opts(m, mnt);
 
 	/* Tagged fields ("foo:X" or "bar") */
 	if (IS_MNT_SHARED(r))

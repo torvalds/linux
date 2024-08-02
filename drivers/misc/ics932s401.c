@@ -95,7 +95,7 @@ static int ics932s401_detect(struct i2c_client *client,
 static void ics932s401_remove(struct i2c_client *client);
 
 static const struct i2c_device_id ics932s401_id[] = {
-	{ "ics932s401", 0 },
+	{ "ics932s401" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ics932s401_id);

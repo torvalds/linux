@@ -54,7 +54,7 @@
 #endif
 
 #ifdef CONFIG_PPC32
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 #include "head_booke.h"
 #endif
 #endif

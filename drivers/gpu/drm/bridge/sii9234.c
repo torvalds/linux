@@ -961,4 +961,5 @@ static struct i2c_driver sii9234_driver = {
 };
 
 module_i2c_driver(sii9234_driver);
+MODULE_DESCRIPTION("Silicon Image SII9234 HDMI/MHL bridge driver");
 MODULE_LICENSE("GPL");

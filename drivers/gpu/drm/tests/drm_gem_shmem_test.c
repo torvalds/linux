@@ -380,4 +380,5 @@ static struct kunit_suite drm_gem_shmem_suite = {
 
 kunit_test_suite(drm_gem_shmem_suite);
 
+MODULE_DESCRIPTION("KUnit test suite for GEM objects backed by shmem buffers");
 MODULE_LICENSE("GPL");

@@ -5259,7 +5259,7 @@ static int mvpp2_get_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
 }
 
 static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
-				     struct ethtool_ts_info *info)
+				     struct kernel_ethtool_ts_info *info)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 

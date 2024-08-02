@@ -24,6 +24,7 @@
     unsafe_op_in_unsafe_fn
 )]
 
+#[allow(dead_code)]
 mod bindings_raw {
     // Use glob import here to expose all helpers.
     // Symbols defined within the module will take precedence to the glob import.

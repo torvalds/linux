@@ -478,7 +478,7 @@ struct iwl_mvm_int_sta {
 };
 
 /**
- * Send the STA info to the FW.
+ * iwl_mvm_sta_send_to_fw - Send the STA info to the FW.
  *
  * @mvm: the iwl_mvm* to use
  * @sta: the STA

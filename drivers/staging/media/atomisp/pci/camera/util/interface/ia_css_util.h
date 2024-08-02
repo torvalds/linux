@@ -100,17 +100,6 @@ bool ia_css_util_res_leq(
 bool ia_css_util_resolution_is_zero(
     const struct ia_css_resolution resolution);
 
-/* ISP2401 */
-/**
- * @brief Check if resolution is even
- *
- * @param[in] resolution The resolution to check
- *
- * @returns true if resolution is even
- */
-bool ia_css_util_resolution_is_even(
-    const struct ia_css_resolution resolution);
-
 /* @brief check width and height
  *
  * @param[in] stream_format

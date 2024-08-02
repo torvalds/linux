@@ -291,9 +291,6 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__field(	u64,  ino		)
 		__field(	u64,  start		)
 		__field(	u64,  len		)
-		__field(	u64,  orig_start	)
-		__field(	u64,  block_start	)
-		__field(	u64,  block_len		)
 		__field(	u32,  flags		)
 		__field(	int,  refs		)
 	),
@@ -303,23 +300,15 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->ino		= btrfs_ino(inode);
 		__entry->start		= map->start;
 		__entry->len		= map->len;
-		__entry->orig_start	= map->orig_start;
-		__entry->block_start	= map->block_start;
-		__entry->block_len	= map->block_len;
 		__entry->flags		= map->flags;
 		__entry->refs		= refcount_read(&map->refs);
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu "
-		  "orig_start=%llu block_start=%llu(%s) "
-		  "block_len=%llu flags=%s refs=%u",
+	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu flags=%s refs=%u",
 		  show_root_type(__entry->root_objectid),
 		  __entry->ino,
 		  __entry->start,
 		  __entry->len,
-		  __entry->orig_start,
-		  show_map_type(__entry->block_start),
-		  __entry->block_len,
 		  show_map_flags(__entry->flags),
 		  __entry->refs)
 );
@@ -2556,9 +2545,10 @@ TRACE_EVENT(btrfs_extent_map_shrinker_count,
 
 TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_to_scan, long nr),
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_to_scan, long nr,
+		 u64 last_root_id, u64 last_ino),
 
-	TP_ARGS(fs_info, nr_to_scan, nr),
+	TP_ARGS(fs_info, nr_to_scan, nr, last_root_id, last_ino),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	long,	nr_to_scan	)
@@ -2570,8 +2560,8 @@ TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
 	TP_fast_assign_btrfs(fs_info,
 		__entry->nr_to_scan	= nr_to_scan;
 		__entry->nr		= nr;
-		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
-		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+		__entry->last_root_id	= last_root_id;
+		__entry->last_ino	= last_ino;
 	),
 
 	TP_printk_btrfs("nr_to_scan=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
@@ -2581,9 +2571,10 @@ TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
 
 TRACE_EVENT(btrfs_extent_map_shrinker_scan_exit,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_dropped, long nr),
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_dropped, long nr,
+		 u64 last_root_id, u64 last_ino),
 
-	TP_ARGS(fs_info, nr_dropped, nr),
+	TP_ARGS(fs_info, nr_dropped, nr, last_root_id, last_ino),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	long,	nr_dropped	)
@@ -2595,8 +2586,8 @@ TRACE_EVENT(btrfs_extent_map_shrinker_scan_exit,
 	TP_fast_assign_btrfs(fs_info,
 		__entry->nr_dropped	= nr_dropped;
 		__entry->nr		= nr;
-		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
-		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+		__entry->last_root_id	= last_root_id;
+		__entry->last_ino	= last_ino;
 	),
 
 	TP_printk_btrfs("nr_dropped=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
@@ -2615,7 +2606,6 @@ TRACE_EVENT(btrfs_extent_map_shrinker_remove_em,
 		__field(	u64,	root_id		)
 		__field(	u64,	start		)
 		__field(	u64,	len		)
-		__field(	u64,	block_start	)
 		__field(	u32,	flags		)
 	),
 
@@ -2624,15 +2614,12 @@ TRACE_EVENT(btrfs_extent_map_shrinker_remove_em,
 		__entry->root_id	= inode->root->root_key.objectid;
 		__entry->start		= em->start;
 		__entry->len		= em->len;
-		__entry->block_start	= em->block_start;
 		__entry->flags		= em->flags;
 	),
 
-	TP_printk_btrfs(
-"ino=%llu root=%llu(%s) start=%llu len=%llu block_start=%llu(%s) flags=%s",
+	TP_printk_btrfs("ino=%llu root=%llu(%s) start=%llu len=%llu flags=%s",
 			__entry->ino, show_root_type(__entry->root_id),
 			__entry->start, __entry->len,
-			show_map_type(__entry->block_start),
 			show_map_flags(__entry->flags))
 );
 

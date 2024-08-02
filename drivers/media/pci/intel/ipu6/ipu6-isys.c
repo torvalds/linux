@@ -799,7 +799,7 @@ static int isys_register_devices(struct ipu6_isys *isys)
 	isys->v4l2_dev.mdev = &isys->media_dev;
 	isys->v4l2_dev.ctrl_handler = NULL;
 
-	ret = v4l2_device_register(&pdev->dev, &isys->v4l2_dev);
+	ret = v4l2_device_register(dev, &isys->v4l2_dev);
 	if (ret < 0)
 		goto out_media_device_unregister;
 

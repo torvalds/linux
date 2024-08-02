@@ -123,4 +123,5 @@ int async_pmem_flush(struct nd_region *nd_region, struct bio *bio)
 	return 0;
 };
 EXPORT_SYMBOL_GPL(async_pmem_flush);
+MODULE_DESCRIPTION("Virtio Persistent Memory Driver");
 MODULE_LICENSE("GPL");

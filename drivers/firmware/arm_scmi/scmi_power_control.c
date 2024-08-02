@@ -50,6 +50,7 @@
 #include <linux/reboot.h>
 #include <linux/scmi_protocol.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/time64.h>
 #include <linux/timer.h>
 #include <linux/types.h>
@@ -78,6 +79,7 @@ enum scmi_syspower_state {
  * @reboot_nb: A notifier_block optionally used to track reboot progress
  * @forceful_work: A worker used to trigger a forceful transition once a
  *		   graceful has timed out.
+ * @suspend_work: A worker used to trigger system suspend
  */
 struct scmi_syspower_conf {
 	struct device *dev;
@@ -90,6 +92,7 @@ struct scmi_syspower_conf {
 	struct notifier_block reboot_nb;
 
 	struct delayed_work forceful_work;
+	struct work_struct suspend_work;
 };
 
 #define userspace_nb_to_sconf(x)	\
@@ -249,6 +252,9 @@ static void scmi_request_graceful_transition(struct scmi_syspower_conf *sc,
 	case SCMI_SYSTEM_WARMRESET:
 		orderly_reboot();
 		break;
+	case SCMI_SYSTEM_SUSPEND:
+		schedule_work(&sc->suspend_work);
+		break;
 	default:
 		break;
 	}
@@ -277,7 +283,8 @@ static int scmi_userspace_notifier(struct notifier_block *nb,
 	struct scmi_system_power_state_notifier_report *er = data;
 	struct scmi_syspower_conf *sc = userspace_nb_to_sconf(nb);
 
-	if (er->system_state >= SCMI_SYSTEM_POWERUP) {
+	if (er->system_state >= SCMI_SYSTEM_MAX ||
+	    er->system_state == SCMI_SYSTEM_POWERUP) {
 		dev_err(sc->dev, "Ignoring unsupported system_state: 0x%X\n",
 			er->system_state);
 		return NOTIFY_DONE;
@@ -315,6 +322,16 @@ static int scmi_userspace_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static void scmi_suspend_work_func(struct work_struct *work)
+{
+	struct scmi_syspower_conf *sc =
+		container_of(work, struct scmi_syspower_conf, suspend_work);
+
+	pm_suspend(PM_SUSPEND_MEM);
+
+	sc->state = SCMI_SYSPOWER_IDLE;
+}
+
 static int scmi_syspower_probe(struct scmi_device *sdev)
 {
 	int ret;
@@ -337,6 +354,8 @@ static int scmi_syspower_probe(struct scmi_device *sdev)
 	sc->required_transition = SCMI_SYSTEM_MAX;
 	sc->userspace_nb.notifier_call = &scmi_userspace_notifier;
 	sc->dev = &sdev->dev;
+
+	INIT_WORK(&sc->suspend_work, scmi_suspend_work_func);
 
 	return handle->notify_ops->devm_event_notifier_register(sdev,
 							   SCMI_PROTOCOL_SYSTEM,

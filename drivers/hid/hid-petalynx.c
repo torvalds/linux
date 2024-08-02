@@ -102,4 +102,5 @@ static struct hid_driver pl_driver = {
 };
 module_hid_driver(pl_driver);
 
+MODULE_DESCRIPTION("HID driver for some petalynx \"special\" devices");
 MODULE_LICENSE("GPL");

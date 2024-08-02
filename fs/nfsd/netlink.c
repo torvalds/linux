@@ -40,6 +40,11 @@ static const struct nla_policy nfsd_listener_set_nl_policy[NFSD_A_SERVER_SOCK_AD
 	[NFSD_A_SERVER_SOCK_ADDR] = NLA_POLICY_NESTED(nfsd_sock_nl_policy),
 };
 
+/* NFSD_CMD_POOL_MODE_SET - do */
+static const struct nla_policy nfsd_pool_mode_set_nl_policy[NFSD_A_POOL_MODE_MODE + 1] = {
+	[NFSD_A_POOL_MODE_MODE] = { .type = NLA_NUL_STRING, },
+};
+
 /* Ops table for nfsd */
 static const struct genl_split_ops nfsd_nl_ops[] = {
 	{
@@ -81,6 +86,18 @@ static const struct genl_split_ops nfsd_nl_ops[] = {
 	{
 		.cmd	= NFSD_CMD_LISTENER_GET,
 		.doit	= nfsd_nl_listener_get_doit,
+		.flags	= GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd		= NFSD_CMD_POOL_MODE_SET,
+		.doit		= nfsd_nl_pool_mode_set_doit,
+		.policy		= nfsd_pool_mode_set_nl_policy,
+		.maxattr	= NFSD_A_POOL_MODE_MODE,
+		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd	= NFSD_CMD_POOL_MODE_GET,
+		.doit	= nfsd_nl_pool_mode_get_doit,
 		.flags	= GENL_CMD_CAP_DO,
 	},
 };

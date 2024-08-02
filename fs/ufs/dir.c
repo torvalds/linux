@@ -188,7 +188,6 @@ Eend:
 		   "offset=%lu",
 		   dir->i_ino, (page->index<<PAGE_SHIFT)+offs);
 fail:
-	SetPageError(page);
 	return false;
 }
 

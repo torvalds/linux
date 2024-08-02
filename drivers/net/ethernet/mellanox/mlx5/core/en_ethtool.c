@@ -525,7 +525,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	arfs_enabled = opened && (priv->netdev->features & NETIF_F_NTUPLE);
+	arfs_enabled = opened && mlx5e_fs_want_arfs(priv->netdev);
 	if (arfs_enabled)
 		mlx5e_arfs_disable(priv->fs);
 
@@ -1195,7 +1195,7 @@ static int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	bool ext;
 	int err;
 
-	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
+	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1, 0);
 	if (err) {
 		netdev_err(priv->netdev, "%s: query port ptys failed: %d\n",
 			   __func__, err);
@@ -1658,7 +1658,7 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 }
 
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
-			      struct ethtool_ts_info *info)
+			      struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 
@@ -1682,7 +1682,7 @@ int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 }
 
 static int mlx5e_get_ts_info(struct net_device *dev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 

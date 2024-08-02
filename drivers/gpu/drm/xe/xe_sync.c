@@ -339,6 +339,21 @@ err_out:
 }
 
 /**
+ * __xe_sync_ufence_get() - Get user fence from user fence
+ * @ufence: input user fence
+ *
+ * Get a user fence reference from user fence
+ *
+ * Return: xe_user_fence pointer with reference
+ */
+struct xe_user_fence *__xe_sync_ufence_get(struct xe_user_fence *ufence)
+{
+	user_fence_get(ufence);
+
+	return ufence;
+}
+
+/**
  * xe_sync_ufence_get() - Get user fence from sync
  * @sync: input sync
  *

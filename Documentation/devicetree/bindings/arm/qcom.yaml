@@ -42,6 +42,7 @@ description: |
         msm8996
         msm8998
         qcs404
+        qcs8550
         qcm2290
         qcm6490
         qdu1000
@@ -96,6 +97,7 @@ properties:
       - items:
           - enum:
               - qcom,apq8016-sbc
+              - schneider,apq8016-hmibsc
           - const: qcom,apq8016
 
       - items:
@@ -104,6 +106,7 @@ properties:
               - huawei,sturgeon
               - lg,lenok
               - samsung,matisse-wifi
+              - samsung,milletwifi
           - const: qcom,apq8026
 
       - items:
@@ -138,6 +141,7 @@ properties:
               - microsoft,makepeace
               - microsoft,moneypenny
               - motorola,falcon
+              - samsung,ms013g
               - samsung,s3ve3g
           - const: qcom,msm8226
 
@@ -175,6 +179,7 @@ properties:
       - items:
           - enum:
               - lge,hammerhead
+              - samsung,hlte
               - sony,xperia-amami
               - sony,xperia-honami
           - const: qcom,msm8974
@@ -182,8 +187,10 @@ properties:
       - items:
           - enum:
               - fairphone,fp2
+              - htc,m8
               - oneplus,bacon
               - samsung,klte
+              - sony,xperia-aries
               - sony,xperia-castor
               - sony,xperia-leo
           - const: qcom,msm8974pro
@@ -203,8 +210,13 @@ properties:
               - asus,z00l
               - gplus,fl8005a
               - huawei,g7
+              - lg,c50
+              - lg,m216
               - longcheer,l8910
               - longcheer,l8150
+              - motorola,harpia
+              - motorola,osprey
+              - motorola,surnia
               - qcom,msm8916-mtp
               - samsung,a3u-eur
               - samsung,a5u-eur
@@ -316,6 +328,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq5018-rdp432-c2
+              - tplink,archer-ax55-v1
           - const: qcom,ipq5018
 
       - items:
@@ -366,6 +379,7 @@ properties:
               - fairphone,fp5
               - qcom,qcm6490-idp
               - qcom,qcs6490-rb3gen2
+              - shift,otter
           - const: qcom,qcm6490
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
@@ -802,6 +816,7 @@ properties:
 
       - items:
           - enum:
+              - lenovo,tbx605f
               - motorola,ali
           - const: qcom,sdm450
 
@@ -883,6 +898,7 @@ properties:
       - items:
           - enum:
               - qcom,sa8775p-ride
+              - qcom,sa8775p-ride-r3
           - const: qcom,sa8775p
 
       - items:
@@ -1004,17 +1020,28 @@ properties:
               - qcom,sm8550-hdk
               - qcom,sm8550-mtp
               - qcom,sm8550-qrd
+              - samsung,q5q
               - sony,pdx234
           - const: qcom,sm8550
 
       - items:
           - enum:
+              - qcom,qcs8550-aim300-aiot
+          - const: qcom,qcs8550-aim300
+          - const: qcom,qcs8550
+          - const: qcom,sm8550
+
+      - items:
+          - enum:
+              - qcom,sm8650-hdk
               - qcom,sm8650-mtp
               - qcom,sm8650-qrd
           - const: qcom,sm8650
 
       - items:
           - enum:
+              - asus,vivobook-s15
+              - lenovo,yoga-slim7x
               - qcom,x1e80100-crd
               - qcom,x1e80100-qcp
           - const: qcom,x1e80100

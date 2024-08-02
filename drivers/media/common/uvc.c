@@ -180,4 +180,5 @@ const struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
 }
 EXPORT_SYMBOL_GPL(uvc_format_by_guid);
 
+MODULE_DESCRIPTION("USB Video Class common code");
 MODULE_LICENSE("GPL");

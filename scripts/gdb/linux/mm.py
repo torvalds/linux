@@ -33,7 +33,7 @@ class aarch64_page_ops():
     def __init__(self):
         self.SUBSECTION_SHIFT = 21
         self.SEBSECTION_SIZE = 1 << self.SUBSECTION_SHIFT
-        self.MODULES_VSIZE = 128 * 1024 * 1024
+        self.MODULES_VSIZE = 2 * 1024 * 1024 * 1024
 
         if constants.LX_CONFIG_ARM64_64K_PAGES:
             self.SECTION_SIZE_BITS = 29
@@ -47,8 +47,13 @@ class aarch64_page_ops():
 
         self.VA_BITS = constants.LX_CONFIG_ARM64_VA_BITS
         if self.VA_BITS > 48:
-            self.VA_BITS_MIN = 48
-            self.vabits_actual = gdb.parse_and_eval('vabits_actual')
+            if constants.LX_CONFIG_ARM64_16K_PAGES:
+                self.VA_BITS_MIN = 47
+            else:
+                self.VA_BITS_MIN = 48
+            tcr_el1 = gdb.execute("info registers $TCR_EL1", to_string=True)
+            tcr_el1 = int(tcr_el1.split()[1], 16)
+            self.vabits_actual = 64 - ((tcr_el1 >> 16) & 63)
         else:
             self.VA_BITS_MIN = self.VA_BITS
             self.vabits_actual = self.VA_BITS
@@ -59,9 +64,9 @@ class aarch64_page_ops():
         if str(constants.LX_CONFIG_ARCH_FORCE_MAX_ORDER).isdigit():
             self.MAX_ORDER = constants.LX_CONFIG_ARCH_FORCE_MAX_ORDER
         else:
-            self.MAX_ORDER = 11
+            self.MAX_ORDER = 10
 
-        self.MAX_ORDER_NR_PAGES = 1 << (self.MAX_ORDER - 1)
+        self.MAX_ORDER_NR_PAGES = 1 << (self.MAX_ORDER)
         self.PFN_SECTION_SHIFT = self.SECTION_SIZE_BITS - self.PAGE_SHIFT
         self.NR_MEM_SECTIONS = 1 << self.SECTIONS_SHIFT
         self.PAGES_PER_SECTION = 1 << self.PFN_SECTION_SHIFT
@@ -89,10 +94,10 @@ class aarch64_page_ops():
         self.MODULES_VADDR = self._PAGE_END(self.VA_BITS_MIN)
         self.MODULES_END = self.MODULES_VADDR + self.MODULES_VSIZE
 
-        self.VMEMMAP_SHIFT = (self.PAGE_SHIFT - self.STRUCT_PAGE_MAX_SHIFT)
-        self.VMEMMAP_SIZE = ((self._PAGE_END(self.VA_BITS_MIN) - self.PAGE_OFFSET) >> self.VMEMMAP_SHIFT)
-        self.VMEMMAP_START = (-(1 << (self.VA_BITS - self.VMEMMAP_SHIFT))) & 0xffffffffffffffff
-        self.VMEMMAP_END = self.VMEMMAP_START + self.VMEMMAP_SIZE
+        self.VMEMMAP_RANGE = self._PAGE_END(self.VA_BITS_MIN) - self.PAGE_OFFSET
+        self.VMEMMAP_SIZE = (self.VMEMMAP_RANGE >> self.PAGE_SHIFT) * self.struct_page_size
+        self.VMEMMAP_END = (-(1 * 1024 * 1024 * 1024)) & 0xffffffffffffffff
+        self.VMEMMAP_START = self.VMEMMAP_END - self.VMEMMAP_SIZE
 
         self.VMALLOC_START = self.MODULES_END
         self.VMALLOC_END = self.VMEMMAP_START - 256 * 1024 * 1024

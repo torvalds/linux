@@ -244,6 +244,9 @@ void closure_debug_destroy(struct closure *cl)
 {
 	unsigned long flags;
 
+	if (cl->magic == CLOSURE_MAGIC_STACK)
+		return;
+
 	BUG_ON(cl->magic != CLOSURE_MAGIC_ALIVE);
 	cl->magic = CLOSURE_MAGIC_DEAD;
 

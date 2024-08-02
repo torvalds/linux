@@ -1945,9 +1945,9 @@ axienet_ethtools_set_coalesce(struct net_device *ndev,
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (netif_running(ndev)) {
-		netdev_err(ndev,
-			   "Please stop netif before applying configuration\n");
-		return -EFAULT;
+		NL_SET_ERR_MSG(extack,
+			       "Please stop netif before applying configuration");
+		return -EBUSY;
 	}
 
 	if (ecoalesce->rx_max_coalesced_frames)
@@ -2254,7 +2254,6 @@ static int axienet_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
-	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
 	ndev->features = NETIF_F_SG;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
 

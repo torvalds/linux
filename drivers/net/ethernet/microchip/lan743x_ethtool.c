@@ -1029,7 +1029,7 @@ static int lan743x_ethtool_set_rxfh(struct net_device *netdev,
 }
 
 static int lan743x_ethtool_get_ts_info(struct net_device *netdev,
-				       struct ethtool_ts_info *ts_info)
+				       struct kernel_ethtool_ts_info *ts_info)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 

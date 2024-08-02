@@ -1,27 +1,6 @@
-/*
- * Copyright 2023 Advanced Micro Devices, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: AMD
- *
- */
+// SPDX-License-Identifier: MIT
+//
+// Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dc.h"
 #include "dc_dmub_srv.h"
@@ -33,26 +12,23 @@
 
 #define MAX_PIPES 6
 
+static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
+static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
+
 /*
  * Get Replay state from firmware.
  */
 static void dmub_replay_get_state(struct dmub_replay *dmub, enum replay_state *state, uint8_t panel_inst)
 {
-	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
-	/* uint32_t raw_state = 0; */
 	uint32_t retry_count = 0;
-	enum dmub_status status;
 
 	do {
 		// Send gpint command and wait for ack
-		status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_REPLAY_STATE, panel_inst, 30);
-
-		if (status == DMUB_STATUS_OK) {
-			// GPINT was executed, get response
-			dmub_srv_get_gpint_response(srv, (uint32_t *)state);
-		} else
+		if (!dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
+					       (uint32_t *)state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 			// Return invalid state when GPINT times out
 			*state = REPLAY_STATE_INVALID;
+		}
 	} while (++retry_count <= 1000 && *state == REPLAY_STATE_INVALID);
 
 	// Assert if max retry hit
@@ -84,7 +60,7 @@ static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait,
 
 	cmd.replay_enable.header.payload_bytes = sizeof(struct dmub_rb_cmd_replay_enable_data);
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	/* Below loops 1000 x 500us = 500 ms.
 	 *  Exit REPLAY may need to wait 1-2 frames to power up. Timeout after at
@@ -102,14 +78,14 @@ static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait,
 					break;
 			}
 
-			fsleep(500);
+			/* must *not* be fsleep - this can be called from high irq levels */
+			udelay(500);
 		}
 
 		/* assert if max retry hit */
 		if (retry_count >= 1000)
 			ASSERT(0);
 	}
-
 }
 
 /*
@@ -127,7 +103,7 @@ static void dmub_replay_set_power_opt(struct dmub_replay *dmub, unsigned int pow
 	cmd.replay_set_power_opt.replay_set_power_opt_data.power_opt = power_opt;
 	cmd.replay_set_power_opt.replay_set_power_opt_data.panel_inst = panel_inst;
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 /*
@@ -200,11 +176,11 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 		(link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 		!link->panel_config.dsc.disable_dsc_edp &&
 		link->dc->caps.edp_dsc_support)) &&
-		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 /*&&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
 		(!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
 			sizeof(DP_SINK_DEVICE_STR_ID_1)) ||
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_2,
-			sizeof(DP_SINK_DEVICE_STR_ID_2)))*/)
+			sizeof(DP_SINK_DEVICE_STR_ID_2))))
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 0;
@@ -219,42 +195,62 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
  * Set coasting vtotal.
  */
 static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
-		uint16_t coasting_vtotal,
+		uint32_t coasting_vtotal,
 		uint8_t panel_inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
+	struct dmub_rb_cmd_replay_set_coasting_vtotal *pCmd = NULL;
+
+	pCmd = &(cmd.replay_set_coasting_vtotal);
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.replay_set_coasting_vtotal.header.type = DMUB_CMD__REPLAY;
-	cmd.replay_set_coasting_vtotal.header.sub_type = DMUB_CMD__REPLAY_SET_COASTING_VTOTAL;
-	cmd.replay_set_coasting_vtotal.header.payload_bytes = sizeof(struct dmub_cmd_replay_set_coasting_vtotal_data);
-	cmd.replay_set_coasting_vtotal.replay_set_coasting_vtotal_data.coasting_vtotal = coasting_vtotal;
+	pCmd->header.type = DMUB_CMD__REPLAY;
+	pCmd->header.sub_type = DMUB_CMD__REPLAY_SET_COASTING_VTOTAL;
+	pCmd->header.payload_bytes = sizeof(struct dmub_cmd_replay_set_coasting_vtotal_data);
+	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
+	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal_high = (coasting_vtotal & 0xFFFF0000) >> 16;
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 /*
  * Get Replay residency from firmware.
  */
 static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
-	uint32_t *residency, const bool is_start, const bool is_alpm)
+	uint32_t *residency, const bool is_start, enum pr_residency_mode mode)
 {
-	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
 	uint16_t param = (uint16_t)(panel_inst << 8);
 
-	if (is_alpm)
+	switch (mode) {
+	case PR_RESIDENCY_MODE_PHY:
+		param |= REPLAY_RESIDENCY_FIELD_MODE_PHY;
+		break;
+	case PR_RESIDENCY_MODE_ALPM:
 		param |= REPLAY_RESIDENCY_FIELD_MODE_ALPM;
+		break;
+	case PR_RESIDENCY_MODE_IPS2:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_IPS;
+		break;
+	case PR_RESIDENCY_MODE_FRAME_CNT:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_FRAME_CNT;
+		break;
+	case PR_RESIDENCY_MODE_ENABLEMENT_PERIOD:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_EN_PERIOD;
+		break;
+	default:
+		break;
+	}
 
 	if (is_start)
 		param |= REPLAY_RESIDENCY_ENABLE;
 
 	// Send gpint command and wait for ack
-	dmub_srv_send_gpint_command(srv, DMUB_GPINT__REPLAY_RESIDENCY, param, 30);
-
-	if (!is_start)
-		dmub_srv_get_gpint_response(srv, residency);
-	else
+	if (!dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__REPLAY_RESIDENCY, param,
+				       residency, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		*residency = 0;
 }
 
@@ -262,20 +258,22 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
  * Set REPLAY power optimization flags and coasting vtotal.
  */
 static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dmub,
-		unsigned int power_opt, uint8_t panel_inst, uint16_t coasting_vtotal)
+		unsigned int power_opt, uint8_t panel_inst, uint32_t coasting_vtotal)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
+	struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal *pCmd = NULL;
+
+	pCmd = &(cmd.replay_set_power_opt_and_coasting_vtotal);
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.replay_set_power_opt_and_coasting_vtotal.header.type = DMUB_CMD__REPLAY;
-	cmd.replay_set_power_opt_and_coasting_vtotal.header.sub_type =
-		DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL;
-	cmd.replay_set_power_opt_and_coasting_vtotal.header.payload_bytes =
-		sizeof(struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal);
-	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_power_opt_data.power_opt = power_opt;
-	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_power_opt_data.panel_inst = panel_inst;
-	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_coasting_vtotal_data.coasting_vtotal = coasting_vtotal;
+	pCmd->header.type = DMUB_CMD__REPLAY;
+	pCmd->header.sub_type = DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL;
+	pCmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal);
+	pCmd->replay_set_power_opt_data.power_opt = power_opt;
+	pCmd->replay_set_power_opt_data.panel_inst = panel_inst;
+	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
+	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal_high = (coasting_vtotal & 0xFFFF0000) >> 16;
 
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -330,6 +328,46 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 						cmd_element->timer_data.enable;
 		cmd.replay_set_frameupdate_timer.data.frameupdate_count =
 						cmd_element->timer_data.frameupdate_count;
+		break;
+	case Replay_Set_Pseudo_VTotal:
+		//Header
+		cmd.replay_set_pseudo_vtotal.header.sub_type =
+			DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL;
+		cmd.replay_set_pseudo_vtotal.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal);
+		//Cmd Body
+		cmd.replay_set_pseudo_vtotal.data.panel_inst =
+			cmd_element->pseudo_vtotal_data.panel_inst;
+		cmd.replay_set_pseudo_vtotal.data.vtotal =
+			cmd_element->pseudo_vtotal_data.vtotal;
+		break;
+	case Replay_Disabled_Adaptive_Sync_SDP:
+		//Header
+		cmd.replay_disabled_adaptive_sync_sdp.header.sub_type =
+			DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP;
+		cmd.replay_disabled_adaptive_sync_sdp.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp);
+		//Cmd Body
+		cmd.replay_disabled_adaptive_sync_sdp.data.panel_inst =
+			cmd_element->disabled_adaptive_sync_sdp_data.panel_inst;
+		cmd.replay_disabled_adaptive_sync_sdp.data.force_disabled =
+			cmd_element->disabled_adaptive_sync_sdp_data.force_disabled;
+		break;
+	case Replay_Set_General_Cmd:
+		//Header
+		cmd.replay_set_general_cmd.header.sub_type =
+			DMUB_CMD__REPLAY_SET_GENERAL_CMD;
+		cmd.replay_set_general_cmd.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_general_cmd);
+		//Cmd Body
+		cmd.replay_set_general_cmd.data.panel_inst =
+			cmd_element->set_general_cmd_data.panel_inst;
+		cmd.replay_set_general_cmd.data.subtype =
+			cmd_element->set_general_cmd_data.subtype;
+		cmd.replay_set_general_cmd.data.param1 =
+			cmd_element->set_general_cmd_data.param1;
+		cmd.replay_set_general_cmd.data.param2 =
+			cmd_element->set_general_cmd_data.param2;
 		break;
 	case Replay_Msg_Not_Support:
 	default:

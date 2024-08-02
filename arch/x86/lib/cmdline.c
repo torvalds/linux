@@ -6,8 +6,10 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+
 #include <asm/setup.h>
 #include <asm/cmdline.h>
+#include <asm/bug.h>
 
 static inline int myisspace(u8 c)
 {
@@ -205,12 +207,18 @@ __cmdline_find_option(const char *cmdline, int max_cmdline_size,
 
 int cmdline_find_option_bool(const char *cmdline, const char *option)
 {
+	if (IS_ENABLED(CONFIG_CMDLINE_BOOL))
+		WARN_ON_ONCE(!builtin_cmdline_added);
+
 	return __cmdline_find_option_bool(cmdline, COMMAND_LINE_SIZE, option);
 }
 
 int cmdline_find_option(const char *cmdline, const char *option, char *buffer,
 			int bufsize)
 {
+	if (IS_ENABLED(CONFIG_CMDLINE_BOOL))
+		WARN_ON_ONCE(!builtin_cmdline_added);
+
 	return __cmdline_find_option(cmdline, COMMAND_LINE_SIZE, option,
 				     buffer, bufsize);
 }

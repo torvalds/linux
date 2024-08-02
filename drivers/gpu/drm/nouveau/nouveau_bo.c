@@ -898,7 +898,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 	 * Without this the operation can timeout and we'll fallback to a
 	 * software copy, which might take several minutes to finish.
 	 */
-	nouveau_fence_wait(fence, false, false);
+	nouveau_fence_wait(fence, false);
 	ret = ttm_bo_move_accel_cleanup(bo, &fence->base, evict, false,
 					new_reg);
 	nouveau_fence_unref(&fence);

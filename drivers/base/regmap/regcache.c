@@ -170,8 +170,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	 * a copy of it.
 	 */
 	if (config->reg_defaults) {
-		tmp_buf = kmemdup(config->reg_defaults, map->num_reg_defaults *
-				  sizeof(struct reg_default), GFP_KERNEL);
+		tmp_buf = kmemdup_array(config->reg_defaults, map->num_reg_defaults,
+					sizeof(*map->reg_defaults), GFP_KERNEL);
 		if (!tmp_buf)
 			return -ENOMEM;
 		map->reg_defaults = tmp_buf;
@@ -407,7 +407,7 @@ out:
 	 * have gone out of sync, force writes of all the paging
 	 * registers.
 	 */
-	rb_for_each(node, 0, &map->range_tree, rbtree_all) {
+	rb_for_each(node, NULL, &map->range_tree, rbtree_all) {
 		struct regmap_range_node *this =
 			rb_entry(node, struct regmap_range_node, node);
 

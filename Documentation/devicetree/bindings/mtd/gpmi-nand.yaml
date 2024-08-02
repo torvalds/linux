@@ -24,6 +24,7 @@ properties:
           - fsl,imx6q-gpmi-nand
           - fsl,imx6sx-gpmi-nand
           - fsl,imx7d-gpmi-nand
+          - fsl,imx8qxp-gpmi-nand
       - items:
           - enum:
               - fsl,imx8mm-gpmi-nand
@@ -149,6 +150,27 @@ allOf:
         clock-names:
           items:
             - const: gpmi_io
+            - const: gpmi_bch_apb
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qxp-gpmi-nand
+    then:
+      properties:
+        clocks:
+          items:
+            - description: SoC gpmi io clock
+            - description: SoC gpmi apb clock
+            - description: SoC gpmi bch clock
+            - description: SoC gpmi bch apb clock
+        clock-names:
+          items:
+            - const: gpmi_io
+            - const: gpmi_apb
+            - const: gpmi_bch
             - const: gpmi_bch_apb
 
 examples:

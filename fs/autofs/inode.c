@@ -126,7 +126,7 @@ enum {
 const struct fs_parameter_spec autofs_param_specs[] = {
 	fsparam_flag	("direct",		Opt_direct),
 	fsparam_fd	("fd",			Opt_fd),
-	fsparam_u32	("gid",			Opt_gid),
+	fsparam_gid	("gid",			Opt_gid),
 	fsparam_flag	("ignore",		Opt_ignore),
 	fsparam_flag	("indirect",		Opt_indirect),
 	fsparam_u32	("maxproto",		Opt_maxproto),
@@ -134,7 +134,7 @@ const struct fs_parameter_spec autofs_param_specs[] = {
 	fsparam_flag	("offset",		Opt_offset),
 	fsparam_u32	("pgrp",		Opt_pgrp),
 	fsparam_flag	("strictexpire",	Opt_strictexpire),
-	fsparam_u32	("uid",			Opt_uid),
+	fsparam_uid	("uid",			Opt_uid),
 	{}
 };
 
@@ -193,8 +193,6 @@ static int autofs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct autofs_fs_context *ctx = fc->fs_private;
 	struct autofs_sb_info *sbi = fc->s_fs_info;
 	struct fs_parse_result result;
-	kuid_t uid;
-	kgid_t gid;
 	int opt;
 
 	opt = fs_parse(fc, autofs_param_specs, param, &result);
@@ -205,16 +203,10 @@ static int autofs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_fd:
 		return autofs_parse_fd(fc, sbi, param, &result);
 	case Opt_uid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			return invalfc(fc, "Invalid uid");
-		ctx->uid = uid;
+		ctx->uid = result.uid;
 		break;
 	case Opt_gid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			return invalfc(fc, "Invalid gid");
-		ctx->gid = gid;
+		ctx->gid = result.gid;
 		break;
 	case Opt_pgrp:
 		ctx->pgrp = result.uint_32;

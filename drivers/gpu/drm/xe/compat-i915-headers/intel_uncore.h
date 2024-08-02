@@ -172,4 +172,9 @@ static inline void __iomem *intel_uncore_regs(struct intel_uncore *uncore)
 #define raw_reg_write(base, reg, value) \
 	writel(value, base + i915_mmio_reg_offset(reg))
 
+#define intel_uncore_forcewake_get(x, y) do { } while (0)
+#define intel_uncore_forcewake_put(x, y) do { } while (0)
+
+#define intel_uncore_arm_unclaimed_mmio_detection(x) do { } while (0)
+
 #endif /* __INTEL_UNCORE_H__ */

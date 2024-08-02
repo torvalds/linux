@@ -38,11 +38,13 @@ void *z_erofs_get_gbuf(unsigned int requiredpages)
 {
 	struct z_erofs_gbuf *gbuf;
 
+	migrate_disable();
 	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
 	spin_lock(&gbuf->lock);
 	/* check if the buffer is too small */
 	if (requiredpages > gbuf->nrpages) {
 		spin_unlock(&gbuf->lock);
+		migrate_enable();
 		/* (for sparse checker) pretend gbuf->lock is still taken */
 		__acquire(gbuf->lock);
 		return NULL;
@@ -57,6 +59,7 @@ void z_erofs_put_gbuf(void *ptr) __releases(gbuf->lock)
 	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
 	DBG_BUGON(gbuf->ptr != ptr);
 	spin_unlock(&gbuf->lock);
+	migrate_enable();
 }
 
 int z_erofs_gbuf_growsize(unsigned int nrpages)
@@ -148,7 +151,7 @@ int __init z_erofs_gbuf_init(void)
 
 void z_erofs_gbuf_exit(void)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < z_erofs_gbuf_count + (!!z_erofs_rsvbuf); ++i) {
 		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
@@ -161,9 +164,9 @@ void z_erofs_gbuf_exit(void)
 		if (!gbuf->pages)
 			continue;
 
-		for (i = 0; i < gbuf->nrpages; ++i)
-			if (gbuf->pages[i])
-				put_page(gbuf->pages[i]);
+		for (j = 0; j < gbuf->nrpages; ++j)
+			if (gbuf->pages[j])
+				put_page(gbuf->pages[j]);
 		kfree(gbuf->pages);
 		gbuf->pages = NULL;
 	}

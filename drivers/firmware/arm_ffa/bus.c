@@ -19,7 +19,7 @@
 
 static DEFINE_IDA(ffa_bus_id);
 
-static int ffa_device_match(struct device *dev, struct device_driver *drv)
+static int ffa_device_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct ffa_device_id *id_table;
 	struct ffa_device *ffa_dev;
@@ -30,12 +30,11 @@ static int ffa_device_match(struct device *dev, struct device_driver *drv)
 	while (!uuid_is_null(&id_table->uuid)) {
 		/*
 		 * FF-A v1.0 doesn't provide discovery of UUIDs, just the
-		 * partition IDs, so fetch the partitions IDs for this
-		 * id_table UUID and assign the UUID to the device if the
-		 * partition ID matches
+		 * partition IDs, so match it unconditionally here and handle
+		 * it via the installed bus notifier during driver binding.
 		 */
 		if (uuid_is_null(&ffa_dev->uuid))
-			ffa_device_match_uuid(ffa_dev, &id_table->uuid);
+			return 1;
 
 		if (uuid_equal(&ffa_dev->uuid, &id_table->uuid))
 			return 1;
@@ -49,6 +48,10 @@ static int ffa_device_probe(struct device *dev)
 {
 	struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
 	struct ffa_device *ffa_dev = to_ffa_dev(dev);
+
+	/* UUID can be still NULL with FF-A v1.0, so just skip probing them */
+	if (uuid_is_null(&ffa_dev->uuid))
+		return -ENODEV;
 
 	return ffa_drv->probe(ffa_dev);
 }
@@ -232,14 +235,21 @@ void ffa_device_unregister(struct ffa_device *ffa_dev)
 }
 EXPORT_SYMBOL_GPL(ffa_device_unregister);
 
-int arm_ffa_bus_init(void)
+static int __init arm_ffa_bus_init(void)
 {
 	return bus_register(&ffa_bus_type);
 }
+subsys_initcall(arm_ffa_bus_init);
 
-void arm_ffa_bus_exit(void)
+static void __exit arm_ffa_bus_exit(void)
 {
 	ffa_devices_unregister();
 	bus_unregister(&ffa_bus_type);
 	ida_destroy(&ffa_bus_id);
 }
+module_exit(arm_ffa_bus_exit);
+
+MODULE_ALIAS("ffa-core");
+MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
+MODULE_DESCRIPTION("ARM FF-A bus");
+MODULE_LICENSE("GPL");

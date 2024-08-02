@@ -23,9 +23,7 @@
 /* Usage related data. */
 static const char usage_synopsis[] =
 	"apply a number of overlays to a base blob\n"
-	"	fdtoverlay <options> [<overlay.dtbo> [<overlay.dtbo>]]\n"
-	"\n"
-	USAGE_TYPE_MSG;
+	"	fdtoverlay <options> [<overlay.dtbo> [<overlay.dtbo>]]";
 static const char usage_short_opts[] = "i:o:v" USAGE_COMMON_SHORT_OPTS;
 static struct option const usage_long_opts[] = {
 	{"input",            required_argument, NULL, 'i'},
@@ -50,7 +48,7 @@ static void *apply_one(char *base, const char *overlay, size_t *buf_len,
 	int ret;
 
 	/*
-	 * We take a copies first, because a a failed apply can trash
+	 * We take a copies first, because a failed apply can trash
 	 * both the base blob and the overlay
 	 */
 	tmpo = xmalloc(fdt_totalsize(overlay));

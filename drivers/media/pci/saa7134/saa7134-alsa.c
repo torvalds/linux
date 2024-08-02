@@ -1254,5 +1254,6 @@ static void saa7134_alsa_exit(void)
 /* We initialize this late, to make sure the sound system is up and running */
 late_initcall(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
+MODULE_DESCRIPTION("Philips SAA7134 DMA audio support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");

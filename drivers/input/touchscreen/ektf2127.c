@@ -13,6 +13,7 @@
  * Hans de Goede <hdegoede@redhat.com>
  */
 
+#include <linux/bits.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -46,6 +47,11 @@ struct ektf2127_ts {
 	struct input_dev *input;
 	struct gpio_desc *power_gpios;
 	struct touchscreen_properties prop;
+	int status_shift;
+};
+
+struct ektf2127_i2c_chip_data {
+	int status_shift;
 };
 
 static void ektf2127_parse_coordinates(const u8 *buf, unsigned int touch_count,
@@ -112,8 +118,8 @@ static void ektf2127_report2_contact(struct ektf2127_ts *ts, int slot,
 
 static void ektf2127_report2_event(struct ektf2127_ts *ts, const u8 *buf)
 {
-	ektf2127_report2_contact(ts, 0, &buf[1], !!(buf[7] & 2));
-	ektf2127_report2_contact(ts, 1, &buf[4], !!(buf[7] & 4));
+	ektf2127_report2_contact(ts, 0, &buf[1], !!(buf[7] & BIT(ts->status_shift)));
+	ektf2127_report2_contact(ts, 1, &buf[4], !!(buf[7] & BIT(ts->status_shift + 1)));
 
 	input_mt_sync_frame(ts->input);
 	input_sync(ts->input);
@@ -247,6 +253,7 @@ static int ektf2127_query_dimension(struct i2c_client *client, bool width)
 static int ektf2127_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+	const struct ektf2127_i2c_chip_data *chip_data;
 	struct ektf2127_ts *ts;
 	struct input_dev *input;
 	u8 buf[4];
@@ -303,6 +310,13 @@ static int ektf2127_probe(struct i2c_client *client)
 		return error;
 
 	ts->input = input;
+
+	chip_data = i2c_get_match_data(client);
+	if (!chip_data)
+		return dev_err_probe(&client->dev, -EINVAL, "missing chip data\n");
+
+	ts->status_shift = chip_data->status_shift;
+
 	input_set_drvdata(input, ts);
 
 	error = devm_request_threaded_irq(dev, client->irq,
@@ -325,18 +339,28 @@ static int ektf2127_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct ektf2127_i2c_chip_data ektf2127_data = {
+	.status_shift = 1,
+};
+
+static const struct ektf2127_i2c_chip_data ektf2232_data = {
+	.status_shift = 0,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id ektf2127_of_match[] = {
-	{ .compatible = "elan,ektf2127" },
-	{ .compatible = "elan,ektf2132" },
+	{ .compatible = "elan,ektf2127", .data = &ektf2127_data},
+	{ .compatible = "elan,ektf2132", .data = &ektf2127_data},
+	{ .compatible = "elan,ektf2232", .data = &ektf2232_data},
 	{}
 };
 MODULE_DEVICE_TABLE(of, ektf2127_of_match);
 #endif
 
 static const struct i2c_device_id ektf2127_i2c_id[] = {
-	{ "ektf2127" },
-	{ "ektf2132" },
+	{ .name = "ektf2127", .driver_data = (long)&ektf2127_data },
+	{ .name = "ektf2132", .driver_data = (long)&ektf2127_data },
+	{ .name = "ektf2232", .driver_data = (long)&ektf2232_data },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ektf2127_i2c_id);

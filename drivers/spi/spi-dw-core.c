@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/of.h>
 
+#include "internals.h"
 #include "spi-dw.h"
 
 #ifdef CONFIG_DEBUG_FS
@@ -438,8 +439,7 @@ static int dw_spi_transfer_one(struct spi_controller *host,
 	transfer->effective_speed_hz = dws->current_freq;
 
 	/* Check if current transfer is a DMA transaction */
-	if (host->can_dma && host->can_dma(host, spi, transfer))
-		dws->dma_mapped = host->cur_msg_mapped;
+	dws->dma_mapped = spi_xfer_is_dma_mapped(host, spi, transfer);
 
 	/* For poll mode just disable all interrupts */
 	dw_spi_mask_intr(dws, 0xff);

@@ -297,7 +297,7 @@ vma occurs?
    c) execution continues at local label 2 (address of the
       instruction immediately after the faulting user access).
 
-The steps 8a to 8c in a certain way emulate the faulting instruction.
+   The steps a to c above in a certain way emulate the faulting instruction.
 
 That's it, mostly. If you look at our example, you might ask why
 we set EAX to -EFAULT in the exception handler code. Well, the

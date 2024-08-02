@@ -268,7 +268,7 @@ static int mt7921_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void mt7921_stop(struct ieee80211_hw *hw)
+static void mt7921_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	int err = 0;
@@ -281,7 +281,7 @@ static void mt7921_stop(struct ieee80211_hw *hw)
 			return;
 	}
 
-	mt792x_stop(hw);
+	mt792x_stop(hw, false);
 }
 
 static int
@@ -295,40 +295,40 @@ mt7921_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mt792x_mutex_acquire(dev);
 
-	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
-	if (mvif->mt76.idx >= MT792x_MAX_INTERFACES) {
+	mvif->bss_conf.mt76.idx = __ffs64(~dev->mt76.vif_mask);
+	if (mvif->bss_conf.mt76.idx >= MT792x_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
 	}
 
-	mvif->mt76.omac_idx = mvif->mt76.idx;
+	mvif->bss_conf.mt76.omac_idx = mvif->bss_conf.mt76.idx;
 	mvif->phy = phy;
-	mvif->mt76.band_idx = 0;
-	mvif->mt76.wmm_idx = mvif->mt76.idx % MT76_CONNAC_MAX_WMM_SETS;
+	mvif->bss_conf.mt76.band_idx = 0;
+	mvif->bss_conf.mt76.wmm_idx = mvif->bss_conf.mt76.idx % MT76_CONNAC_MAX_WMM_SETS;
 
-	ret = mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.wcid,
-					  true);
+	ret = mt76_connac_mcu_uni_add_dev(&dev->mphy, &vif->bss_conf,
+					  &mvif->sta.deflink.wcid, true);
 	if (ret)
 		goto out;
 
-	dev->mt76.vif_mask |= BIT_ULL(mvif->mt76.idx);
-	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
+	dev->mt76.vif_mask |= BIT_ULL(mvif->bss_conf.mt76.idx);
+	phy->omac_mask |= BIT_ULL(mvif->bss_conf.mt76.omac_idx);
 
-	idx = MT792x_WTBL_RESERVED - mvif->mt76.idx;
+	idx = MT792x_WTBL_RESERVED - mvif->bss_conf.mt76.idx;
 
-	INIT_LIST_HEAD(&mvif->sta.wcid.poll_list);
-	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.phy_idx = mvif->mt76.band_idx;
-	mvif->sta.wcid.hw_key_idx = -1;
-	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	mt76_wcid_init(&mvif->sta.wcid);
+	INIT_LIST_HEAD(&mvif->sta.deflink.wcid.poll_list);
+	mvif->sta.deflink.wcid.idx = idx;
+	mvif->sta.deflink.wcid.phy_idx = mvif->bss_conf.mt76.band_idx;
+	mvif->sta.deflink.wcid.hw_key_idx = -1;
+	mvif->sta.deflink.wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	mt76_wcid_init(&mvif->sta.deflink.wcid);
 
 	mt7921_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	ewma_rssi_init(&mvif->rssi);
+	ewma_rssi_init(&mvif->bss_conf.rssi);
 
-	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
+	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.deflink.wcid);
 	if (vif->txq) {
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 		mtxq->wcid = idx;
@@ -494,7 +494,7 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_sta *msta = sta ? (struct mt792x_sta *)sta->drv_priv :
 				  &mvif->sta;
-	struct mt76_wcid *wcid = &msta->wcid;
+	struct mt76_wcid *wcid = &msta->deflink.wcid;
 	u8 *wcid_keyidx = &wcid->hw_key_idx;
 	int idx = key->keyidx, err = 0;
 
@@ -541,18 +541,18 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	mt76_wcid_key_setup(&dev->mt76, wcid, key);
-	err = mt76_connac_mcu_add_key(&dev->mt76, vif, &msta->bip,
+	err = mt76_connac_mcu_add_key(&dev->mt76, vif, &msta->deflink.bip,
 				      key, MCU_UNI_CMD(STA_REC_UPDATE),
-				      &msta->wcid, cmd);
+				      &msta->deflink.wcid, cmd);
 	if (err)
 		goto out;
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP104 ||
 	    key->cipher == WLAN_CIPHER_SUITE_WEP40)
 		err = mt76_connac_mcu_add_key(&dev->mt76, vif,
-					      &mvif->wep_sta->bip,
+					      &mvif->wep_sta->deflink.bip,
 					      key, MCU_UNI_CMD(STA_REC_UPDATE),
-					      &mvif->wep_sta->wcid, cmd);
+					      &mvif->wep_sta->deflink.wcid, cmd);
 out:
 	mt792x_mutex_release(dev);
 
@@ -718,7 +718,7 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
-		mt76_connac_mcu_update_arp_filter(&dev->mt76, &mvif->mt76,
+		mt76_connac_mcu_update_arp_filter(&dev->mt76, &mvif->bss_conf.mt76,
 						  info);
 	}
 
@@ -799,13 +799,13 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	if (idx < 0)
 		return -ENOSPC;
 
-	INIT_LIST_HEAD(&msta->wcid.poll_list);
+	INIT_LIST_HEAD(&msta->deflink.wcid.poll_list);
 	msta->vif = mvif;
-	msta->wcid.sta = 1;
-	msta->wcid.idx = idx;
-	msta->wcid.phy_idx = mvif->mt76.band_idx;
-	msta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	msta->last_txs = jiffies;
+	msta->deflink.wcid.sta = 1;
+	msta->deflink.wcid.idx = idx;
+	msta->deflink.wcid.phy_idx = mvif->bss_conf.mt76.band_idx;
+	msta->deflink.wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	msta->deflink.last_txs = jiffies;
 
 	ret = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 	if (ret)
@@ -840,14 +840,14 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt792x_mutex_acquire(dev);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
-		mt76_connac_mcu_uni_add_bss(&dev->mphy, vif, &mvif->sta.wcid,
-					    true, mvif->mt76.ctx);
+		mt76_connac_mcu_uni_add_bss(&dev->mphy, vif, &mvif->sta.deflink.wcid,
+					    true, mvif->bss_conf.mt76.ctx);
 
-	ewma_avg_signal_init(&msta->avg_ack_signal);
+	ewma_avg_signal_init(&msta->deflink.avg_ack_signal);
 
-	mt7921_mac_wtbl_update(dev, msta->wcid.idx,
+	mt7921_mac_wtbl_update(dev, msta->deflink.wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-	memset(msta->airtime_ac, 0, sizeof(msta->airtime_ac));
+	memset(msta->deflink.airtime_ac, 0, sizeof(msta->deflink.airtime_ac));
 
 	mt7921_mcu_sta_update(dev, sta, vif, true, MT76_STA_INFO_STATE_ASSOC);
 
@@ -861,27 +861,27 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 
-	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->deflink.wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 
 	mt7921_mcu_sta_update(dev, sta, vif, false, MT76_STA_INFO_STATE_NONE);
-	mt7921_mac_wtbl_update(dev, msta->wcid.idx,
+	mt7921_mac_wtbl_update(dev, msta->deflink.wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 		mvif->wep_sta = NULL;
-		ewma_rssi_init(&mvif->rssi);
+		ewma_rssi_init(&mvif->bss_conf.rssi);
 		if (!sta->tdls)
 			mt76_connac_mcu_uni_add_bss(&dev->mphy, vif,
-						    &mvif->sta.wcid, false,
-						    mvif->mt76.ctx);
+						    &mvif->sta.deflink.wcid, false,
+						    mvif->bss_conf.mt76.ctx);
 	}
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
-	if (!list_empty(&msta->wcid.poll_list))
-		list_del_init(&msta->wcid.poll_list);
+	if (!list_empty(&msta->deflink.wcid.poll_list))
+		list_del_init(&msta->deflink.wcid.poll_list);
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 	mt7921_regd_set_6ghz_power_type(vif, false);
@@ -923,12 +923,12 @@ mt7921_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mt792x_mutex_acquire(dev);
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		mt76_rx_aggr_start(&dev->mt76, &msta->wcid, tid, ssn,
+		mt76_rx_aggr_start(&dev->mt76, &msta->deflink.wcid, tid, ssn,
 				   params->buf_size);
 		mt7921_mcu_uni_rx_ba(dev, params, true);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		mt76_rx_aggr_stop(&dev->mt76, &msta->wcid, tid);
+		mt76_rx_aggr_stop(&dev->mt76, &msta->deflink.wcid, tid);
 		mt7921_mcu_uni_rx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
@@ -939,16 +939,16 @@ mt7921_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mtxq->aggr = false;
-		clear_bit(tid, &msta->wcid.ampdu_state);
+		clear_bit(tid, &msta->deflink.wcid.ampdu_state);
 		mt7921_mcu_uni_tx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		set_bit(tid, &msta->wcid.ampdu_state);
+		set_bit(tid, &msta->deflink.wcid.ampdu_state);
 		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
-		clear_bit(tid, &msta->wcid.ampdu_state);
+		clear_bit(tid, &msta->deflink.wcid.ampdu_state);
 		mt7921_mcu_uni_tx_ba(dev, params, false);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1166,11 +1166,11 @@ static void mt7921_sta_set_decap_offload(struct ieee80211_hw *hw,
 	mt792x_mutex_acquire(dev);
 
 	if (enabled)
-		set_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
+		set_bit(MT_WCID_FLAG_HDR_TRANS, &msta->deflink.wcid.flags);
 	else
-		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
+		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->deflink.wcid.flags);
 
-	mt76_connac_mcu_sta_update_hdr_trans(&dev->mt76, vif, &msta->wcid,
+	mt76_connac_mcu_sta_update_hdr_trans(&dev->mt76, vif, &msta->deflink.wcid,
 					     MCU_UNI_CMD(STA_REC_UPDATE));
 
 	mt792x_mutex_release(dev);
@@ -1196,7 +1196,7 @@ static void mt7921_ipv6_addr_change(struct ieee80211_hw *hw,
 		struct mt76_connac_arpns_tlv arpns;
 	} req_hdr = {
 		.hdr = {
-			.bss_idx = mvif->mt76.idx,
+			.bss_idx = mvif->bss_conf.mt76.idx,
 		},
 		.arpns = {
 			.tag = cpu_to_le16(UNI_OFFLOAD_OFFLOAD_ND),
@@ -1294,8 +1294,8 @@ mt7921_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mt792x_mutex_acquire(dev);
 
-	err = mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid,
-					  true, mvif->mt76.ctx);
+	err = mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.deflink.wcid,
+					  true, mvif->bss_conf.mt76.ctx);
 	if (err)
 		goto out;
 
@@ -1326,8 +1326,8 @@ mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (err)
 		goto out;
 
-	mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid, false,
-				    mvif->mt76.ctx);
+	mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.deflink.wcid, false,
+				    mvif->bss_conf.mt76.ctx);
 
 out:
 	mt792x_mutex_release(dev);
@@ -1346,32 +1346,27 @@ mt7921_remove_chanctx(struct ieee80211_hw *hw,
 {
 }
 
-static void mt7921_ctx_iter(void *priv, u8 *mac,
-			    struct ieee80211_vif *vif)
-{
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct ieee80211_chanctx_conf *ctx = priv;
-
-	if (ctx != mvif->mt76.ctx)
-		return;
-
-	if (vif->type == NL80211_IFTYPE_MONITOR)
-		mt7921_mcu_config_sniffer(mvif, ctx);
-	else
-		mt76_connac_mcu_uni_set_chctx(mvif->phy->mt76, &mvif->mt76, ctx);
-}
-
 static void
 mt7921_change_chanctx(struct ieee80211_hw *hw,
 		      struct ieee80211_chanctx_conf *ctx,
 		      u32 changed)
 {
+	struct mt792x_chanctx *mctx = (struct mt792x_chanctx *)ctx->drv_priv;
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
+	struct ieee80211_vif *vif;
+	struct mt792x_vif *mvif;
+
+	if (!mctx->bss_conf)
+		return;
+
+	mvif = container_of(mctx->bss_conf, struct mt792x_vif, bss_conf);
+	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
 
 	mt792x_mutex_acquire(phy->dev);
-	ieee80211_iterate_active_interfaces(phy->mt76->hw,
-					    IEEE80211_IFACE_ITER_ACTIVE,
-					    mt7921_ctx_iter, ctx);
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		mt7921_mcu_config_sniffer(mvif, ctx);
+	else
+		mt76_connac_mcu_uni_set_chctx(mvif->phy->mt76, &mvif->bss_conf.mt76, ctx);
 	mt792x_mutex_release(phy->dev);
 }
 
@@ -1385,7 +1380,7 @@ static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
 		       jiffies_to_msecs(HZ);
 
 	mt792x_mutex_acquire(dev);
-	mt7921_set_roc(mvif->phy, mvif, mvif->mt76.ctx->def.chan, duration,
+	mt7921_set_roc(mvif->phy, mvif, mvif->bss_conf.mt76.ctx->def.chan, duration,
 		       MT7921_ROC_REQ_JOIN);
 	mt792x_mutex_release(dev);
 }

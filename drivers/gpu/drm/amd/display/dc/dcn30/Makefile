@@ -23,17 +23,12 @@
 #
 #
 
-DCN30 := dcn30_hubbub.o \
-	dcn30_hubp.o \
-	dcn30_dccg.o \
-	dcn30_mpc.o dcn30_vpg.o \
+DCN30 := dcn30_mpc.o dcn30_vpg.o \
 	dcn30_afmt.o \
-	dcn30_dio_stream_encoder.o \
 	dcn30_dwb.o \
 	dcn30_dwb_cm.o \
 	dcn30_cm_common.o \
 	dcn30_mmhubbub.o \
-	dcn30_dio_link_encoder.o
 
 
 

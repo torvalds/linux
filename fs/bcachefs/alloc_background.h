@@ -41,6 +41,7 @@ static inline void alloc_to_bucket(struct bucket *dst, struct bch_alloc_v4 src)
 {
 	dst->gen		= src.gen;
 	dst->data_type		= src.data_type;
+	dst->stripe_sectors	= src.stripe_sectors;
 	dst->dirty_sectors	= src.dirty_sectors;
 	dst->cached_sectors	= src.cached_sectors;
 	dst->stripe		= src.stripe;
@@ -50,6 +51,7 @@ static inline void __bucket_m_to_alloc(struct bch_alloc_v4 *dst, struct bucket s
 {
 	dst->gen		= src.gen;
 	dst->data_type		= src.data_type;
+	dst->stripe_sectors	= src.stripe_sectors;
 	dst->dirty_sectors	= src.dirty_sectors;
 	dst->cached_sectors	= src.cached_sectors;
 	dst->stripe		= src.stripe;
@@ -80,22 +82,41 @@ static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
 		bucket_data_type(bucket) != bucket_data_type(ptr);
 }
 
-static inline unsigned bch2_bucket_sectors_total(struct bch_alloc_v4 a)
+static inline s64 bch2_bucket_sectors_total(struct bch_alloc_v4 a)
 {
-	return a.dirty_sectors + a.cached_sectors;
+	return a.stripe_sectors + a.dirty_sectors + a.cached_sectors;
 }
 
-static inline unsigned bch2_bucket_sectors_dirty(struct bch_alloc_v4 a)
+static inline s64 bch2_bucket_sectors_dirty(struct bch_alloc_v4 a)
 {
-	return a.dirty_sectors;
+	return a.stripe_sectors + a.dirty_sectors;
 }
 
-static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
+static inline s64 bch2_bucket_sectors(struct bch_alloc_v4 a)
+{
+	return a.data_type == BCH_DATA_cached
+		? a.cached_sectors
+		: bch2_bucket_sectors_dirty(a);
+}
+
+static inline s64 bch2_bucket_sectors_fragmented(struct bch_dev *ca,
 						 struct bch_alloc_v4 a)
 {
-	int d = bch2_bucket_sectors_dirty(a);
+	int d = bch2_bucket_sectors(a);
 
 	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
+static inline s64 bch2_gc_bucket_sectors_fragmented(struct bch_dev *ca, struct bucket a)
+{
+	int d = a.stripe_sectors + a.dirty_sectors;
+
+	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
+static inline s64 bch2_bucket_sectors_unstriped(struct bch_alloc_v4 a)
+{
+	return a.data_type == BCH_DATA_stripe ? a.dirty_sectors : 0;
 }
 
 static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
@@ -103,7 +124,7 @@ static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
 {
 	if (a.stripe)
 		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
-	if (a.dirty_sectors)
+	if (bch2_bucket_sectors_dirty(a))
 		return data_type;
 	if (a.cached_sectors)
 		return BCH_DATA_cached;
@@ -185,7 +206,8 @@ static inline void set_alloc_v4_u64s(struct bkey_i_alloc_v4 *a)
 struct bkey_i_alloc_v4 *
 bch2_trans_start_alloc_update_noupdate(struct btree_trans *, struct btree_iter *, struct bpos);
 struct bkey_i_alloc_v4 *
-bch2_trans_start_alloc_update(struct btree_trans *, struct bpos);
+bch2_trans_start_alloc_update(struct btree_trans *, struct bpos,
+			      enum btree_iter_update_trigger_flags);
 
 void __bch2_alloc_to_v4(struct bkey_s_c, struct bch_alloc_v4 *);
 
@@ -270,6 +292,9 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 
 int bch2_alloc_read(struct bch_fs *);
 
+int bch2_alloc_key_to_dev_counters(struct btree_trans *, struct bch_dev *,
+				   const struct bch_alloc_v4 *,
+				   const struct bch_alloc_v4 *, unsigned);
 int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s,
 		       enum btree_iter_update_trigger_flags);

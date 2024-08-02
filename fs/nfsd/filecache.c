@@ -664,7 +664,7 @@ static int
 nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
 			    void *data)
 {
-	struct file_lock *fl = data;
+	struct file_lease *fl = data;
 
 	/* Only close files for F_SETLEASE leases */
 	if (fl->c.flc_flags & FL_LEASE)

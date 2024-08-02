@@ -16,6 +16,7 @@
 #include "trace.h"
 
 #include "nvmet.h"
+#include "debugfs.h"
 
 struct kmem_cache *nvmet_bvec_cache;
 struct workqueue_struct *buffered_io_wq;
@@ -55,18 +56,18 @@ inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 		return NVME_SC_SUCCESS;
 	case -ENOSPC:
 		req->error_loc = offsetof(struct nvme_rw_command, length);
-		return NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
+		return NVME_SC_CAP_EXCEEDED | NVME_STATUS_DNR;
 	case -EREMOTEIO:
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
-		return  NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		return  NVME_SC_LBA_RANGE | NVME_STATUS_DNR;
 	case -EOPNOTSUPP:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		switch (req->cmd->common.opcode) {
 		case nvme_cmd_dsm:
 		case nvme_cmd_write_zeroes:
-			return NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
+			return NVME_SC_ONCS_NOT_SUPPORTED | NVME_STATUS_DNR;
 		default:
-			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+			return NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
 		}
 		break;
 	case -ENODATA:
@@ -76,7 +77,7 @@ inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 		fallthrough;
 	default:
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INTERNAL | NVME_SC_DNR;
+		return NVME_SC_INTERNAL | NVME_STATUS_DNR;
 	}
 }
 
@@ -86,7 +87,7 @@ u16 nvmet_report_invalid_opcode(struct nvmet_req *req)
 		 req->sq->qid);
 
 	req->error_loc = offsetof(struct nvme_common_command, opcode);
-	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+	return NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
 }
 
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
@@ -97,7 +98,7 @@ u16 nvmet_copy_to_sgl(struct nvmet_req *req, off_t off, const void *buf,
 {
 	if (sg_pcopy_from_buffer(req->sg, req->sg_cnt, buf, len, off) != len) {
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR;
 	}
 	return 0;
 }
@@ -106,7 +107,7 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf, size_t len)
 {
 	if (sg_pcopy_to_buffer(req->sg, req->sg_cnt, buf, len, off) != len) {
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR;
 	}
 	return 0;
 }
@@ -115,7 +116,7 @@ u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len)
 {
 	if (sg_zero_buffer(req->sg, req->sg_cnt, len, off) != len) {
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+		return NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR;
 	}
 	return 0;
 }
@@ -145,7 +146,7 @@ static void nvmet_async_events_failall(struct nvmet_ctrl *ctrl)
 	while (ctrl->nr_async_event_cmds) {
 		req = ctrl->async_event_cmds[--ctrl->nr_async_event_cmds];
 		mutex_unlock(&ctrl->lock);
-		nvmet_req_complete(req, NVME_SC_INTERNAL | NVME_SC_DNR);
+		nvmet_req_complete(req, NVME_SC_INTERNAL | NVME_STATUS_DNR);
 		mutex_lock(&ctrl->lock);
 	}
 	mutex_unlock(&ctrl->lock);
@@ -444,7 +445,7 @@ u16 nvmet_req_find_ns(struct nvmet_req *req)
 		req->error_loc = offsetof(struct nvme_common_command, nsid);
 		if (nvmet_subsys_nsid_exists(subsys, nsid))
 			return NVME_SC_INTERNAL_PATH_ERROR;
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
+		return NVME_SC_INVALID_NS | NVME_STATUS_DNR;
 	}
 
 	percpu_ref_get(&req->ns->ref);
@@ -904,7 +905,7 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 		return nvmet_parse_fabrics_io_cmd(req);
 
 	if (unlikely(!nvmet_check_auth_status(req)))
-		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
+		return NVME_SC_AUTH_REQUIRED | NVME_STATUS_DNR;
 
 	ret = nvmet_check_ctrl_status(req);
 	if (unlikely(ret))
@@ -967,7 +968,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	/* no support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
 		req->error_loc = offsetof(struct nvme_common_command, flags);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto fail;
 	}
 
@@ -978,7 +979,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	 */
 	if (unlikely((flags & NVME_CMD_SGL_ALL) != NVME_CMD_SGL_METABUF)) {
 		req->error_loc = offsetof(struct nvme_common_command, flags);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto fail;
 	}
 
@@ -996,7 +997,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	trace_nvmet_req_init(req, req->cmd);
 
 	if (unlikely(!percpu_ref_tryget_live(&sq->ref))) {
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto fail;
 	}
 
@@ -1023,7 +1024,7 @@ bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len)
 {
 	if (unlikely(len != req->transfer_len)) {
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR);
+		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR);
 		return false;
 	}
 
@@ -1035,7 +1036,7 @@ bool nvmet_check_data_len_lte(struct nvmet_req *req, size_t data_len)
 {
 	if (unlikely(data_len > req->transfer_len)) {
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
-		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR);
+		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR);
 		return false;
 	}
 
@@ -1304,18 +1305,18 @@ u16 nvmet_check_ctrl_status(struct nvmet_req *req)
 	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
 		pr_err("got cmd %d while CC.EN == 0 on qid = %d\n",
 		       req->cmd->common.opcode, req->sq->qid);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+		return NVME_SC_CMD_SEQ_ERROR | NVME_STATUS_DNR;
 	}
 
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
 		pr_err("got cmd %d while CSTS.RDY == 0 on qid = %d\n",
 		       req->cmd->common.opcode, req->sq->qid);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+		return NVME_SC_CMD_SEQ_ERROR | NVME_STATUS_DNR;
 	}
 
 	if (unlikely(!nvmet_check_auth_status(req))) {
 		pr_warn("qid %d not authenticated\n", req->sq->qid);
-		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
+		return NVME_SC_AUTH_REQUIRED | NVME_STATUS_DNR;
 	}
 	return 0;
 }
@@ -1389,7 +1390,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	int ret;
 	u16 status;
 
-	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
+	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_STATUS_DNR;
 	subsys = nvmet_find_get_subsys(req->port, subsysnqn);
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
@@ -1405,7 +1406,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 			hostnqn, subsysnqn);
 		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
-		status = NVME_SC_CONNECT_INVALID_HOST | NVME_SC_DNR;
+		status = NVME_SC_CONNECT_INVALID_HOST | NVME_STATUS_DNR;
 		req->error_loc = offsetof(struct nvme_common_command, dptr);
 		goto out_put_subsystem;
 	}
@@ -1456,7 +1457,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 			     subsys->cntlid_min, subsys->cntlid_max,
 			     GFP_KERNEL);
 	if (ret < 0) {
-		status = NVME_SC_CONNECT_CTRL_BUSY | NVME_SC_DNR;
+		status = NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
 		goto out_free_sqs;
 	}
 	ctrl->cntlid = ret;
@@ -1479,6 +1480,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	mutex_lock(&subsys->lock);
 	list_add_tail(&ctrl->subsys_entry, &subsys->ctrls);
 	nvmet_setup_p2p_ns_map(ctrl, req);
+	nvmet_debugfs_ctrl_setup(ctrl);
 	mutex_unlock(&subsys->lock);
 
 	*ctrlp = ctrl;
@@ -1513,6 +1515,8 @@ static void nvmet_ctrl_free(struct kref *ref)
 
 	nvmet_destroy_auth(ctrl);
 
+	nvmet_debugfs_ctrl_free(ctrl);
+
 	ida_free(&cntlid_ida, ctrl->cntlid);
 
 	nvmet_async_events_free(ctrl);
@@ -1538,6 +1542,14 @@ void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl)
 	mutex_unlock(&ctrl->lock);
 }
 EXPORT_SYMBOL_GPL(nvmet_ctrl_fatal_error);
+
+ssize_t nvmet_ctrl_host_traddr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_len)
+{
+	if (!ctrl->ops->host_traddr)
+		return -EOPNOTSUPP;
+	return ctrl->ops->host_traddr(ctrl, traddr, traddr_len);
+}
 
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn)
@@ -1633,8 +1645,14 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	INIT_LIST_HEAD(&subsys->ctrls);
 	INIT_LIST_HEAD(&subsys->hosts);
 
+	ret = nvmet_debugfs_subsys_setup(subsys);
+	if (ret)
+		goto free_subsysnqn;
+
 	return subsys;
 
+free_subsysnqn:
+	kfree(subsys->subsysnqn);
 free_fr:
 	kfree(subsys->firmware_rev);
 free_mn:
@@ -1650,6 +1668,8 @@ static void nvmet_subsys_free(struct kref *ref)
 		container_of(ref, struct nvmet_subsys, ref);
 
 	WARN_ON_ONCE(!xa_empty(&subsys->namespaces));
+
+	nvmet_debugfs_subsys_free(subsys);
 
 	xa_destroy(&subsys->namespaces);
 	nvmet_passthru_subsys_free(subsys);
@@ -1705,11 +1725,18 @@ static int __init nvmet_init(void)
 	if (error)
 		goto out_free_nvmet_work_queue;
 
-	error = nvmet_init_configfs();
+	error = nvmet_init_debugfs();
 	if (error)
 		goto out_exit_discovery;
+
+	error = nvmet_init_configfs();
+	if (error)
+		goto out_exit_debugfs;
+
 	return 0;
 
+out_exit_debugfs:
+	nvmet_exit_debugfs();
 out_exit_discovery:
 	nvmet_exit_discovery();
 out_free_nvmet_work_queue:
@@ -1726,6 +1753,7 @@ out_destroy_bvec_cache:
 static void __exit nvmet_exit(void)
 {
 	nvmet_exit_configfs();
+	nvmet_exit_debugfs();
 	nvmet_exit_discovery();
 	ida_destroy(&cntlid_ida);
 	destroy_workqueue(nvmet_wq);

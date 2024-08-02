@@ -22,13 +22,8 @@
 
 const char *security_type_str(u8 value);
 
-#define SHA256_MAC_LEN 32
 #define AES_BLOCK_SIZE 16
 #define AES_PRIV_SIZE (4 * 44)
-
-#define RTW_KEK_LEN 16
-#define RTW_KCK_LEN 16
-#define RTW_REPLAY_CTR_LEN 8
 
 enum {
 	ENCRYP_PROTOCOL_OPENSYS,   /* open system */

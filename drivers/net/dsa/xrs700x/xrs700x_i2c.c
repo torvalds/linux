@@ -127,8 +127,8 @@ static void xrs700x_i2c_shutdown(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id xrs700x_i2c_id[] = {
-	{ "xrs700x-switch", 0 },
-	{},
+	{ "xrs700x-switch" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, xrs700x_i2c_id);

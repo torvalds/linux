@@ -12,6 +12,9 @@
 #include <linux/pfn_t.h>
 
 #include <drm/drm_prime.h>
+#include <drm/drm_file.h>
+
+#include <trace/events/gpu_mem.h>
 
 #include "msm_drv.h"
 #include "msm_fence.h"
@@ -31,6 +34,34 @@ static bool use_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	return !msm_obj->vram_node;
+}
+
+static void update_device_mem(struct msm_drm_private *priv, ssize_t size)
+{
+	uint64_t total_mem = atomic64_add_return(size, &priv->total_mem);
+	trace_gpu_mem_total(0, 0, total_mem);
+}
+
+static void update_ctx_mem(struct drm_file *file, ssize_t size)
+{
+	struct msm_file_private *ctx = file->driver_priv;
+	uint64_t ctx_mem = atomic64_add_return(size, &ctx->ctx_mem);
+
+	rcu_read_lock(); /* Locks file->pid! */
+	trace_gpu_mem_total(0, pid_nr(rcu_dereference(file->pid)), ctx_mem);
+	rcu_read_unlock();
+
+}
+
+static int msm_gem_open(struct drm_gem_object *obj, struct drm_file *file)
+{
+	update_ctx_mem(file, obj->size);
+	return 0;
+}
+
+static void msm_gem_close(struct drm_gem_object *obj, struct drm_file *file)
+{
+	update_ctx_mem(file, -obj->size);
 }
 
 /*
@@ -156,6 +187,8 @@ static struct page **get_pages(struct drm_gem_object *obj)
 			return p;
 		}
 
+		update_device_mem(dev->dev_private, obj->size);
+
 		msm_obj->pages = p;
 
 		msm_obj->sgt = drm_prime_pages_to_sg(obj->dev, p, npages);
@@ -208,6 +241,8 @@ static void put_pages(struct drm_gem_object *obj)
 			kfree(msm_obj->sgt);
 			msm_obj->sgt = NULL;
 		}
+
+		update_device_mem(obj->dev->dev_private, -obj->size);
 
 		if (use_pages(obj))
 			drm_gem_put_pages(obj, msm_obj->pages, true, false);
@@ -1118,6 +1153,8 @@ static const struct vm_operations_struct vm_ops = {
 
 static const struct drm_gem_object_funcs msm_gem_object_funcs = {
 	.free = msm_gem_free_object,
+	.open = msm_gem_open,
+	.close = msm_gem_close,
 	.pin = msm_gem_prime_pin,
 	.unpin = msm_gem_prime_unpin,
 	.get_sg_table = msm_gem_prime_get_sg_table,

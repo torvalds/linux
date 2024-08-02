@@ -356,4 +356,5 @@ static struct kunit_suite drm_format_test_suite = {
 
 kunit_test_suite(drm_format_test_suite);
 
+MODULE_DESCRIPTION("Test cases for the drm_format functions");
 MODULE_LICENSE("GPL");

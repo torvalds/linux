@@ -283,7 +283,7 @@ static u64 mlxsw_sp_dpipe_table_erif_size_get(void *priv)
 	return MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_erif_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_erif_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_erif_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_erif_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_erif_entries_dump,
@@ -734,7 +734,7 @@ static u64 mlxsw_sp_dpipe_table_host4_size_get(void *priv)
 	return mlxsw_sp_dpipe_table_host_size_get(mlxsw_sp, AF_INET);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_host4_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_host_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_host4_entries_dump,
@@ -811,7 +811,7 @@ static u64 mlxsw_sp_dpipe_table_host6_size_get(void *priv)
 	return mlxsw_sp_dpipe_table_host_size_get(mlxsw_sp, AF_INET6);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_host6_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_host6_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_host6_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_host_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_host6_entries_dump,
@@ -1230,7 +1230,7 @@ mlxsw_sp_dpipe_table_adj_size_get(void *priv)
 	return size;
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_adj_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_adj_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_adj_entries_dump,

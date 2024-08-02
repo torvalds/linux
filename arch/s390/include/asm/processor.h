@@ -14,13 +14,11 @@
 
 #include <linux/bits.h>
 
-#define CIF_SIE			0	/* CPU needs SIE exit cleanup */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 #define CIF_MCCK_GUEST		6	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
-#define _CIF_SIE		BIT(CIF_SIE)
 #define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
 #define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
@@ -42,21 +40,37 @@
 #include <asm/irqflags.h>
 #include <asm/alternative.h>
 
+struct pcpu {
+	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
+	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
+	unsigned long flags;		/* per CPU flags */
+	signed char state;		/* physical cpu state */
+	signed char polarization;	/* physical polarization */
+	u16 address;			/* physical cpu address */
+};
+
+DECLARE_PER_CPU(struct pcpu, pcpu_devices);
+
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
+
+static __always_inline struct pcpu *this_pcpu(void)
+{
+	return (struct pcpu *)(get_lowcore()->pcpu);
+}
 
 static __always_inline void set_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags |= (1UL << flag);
+	this_pcpu()->flags |= (1UL << flag);
 }
 
 static __always_inline void clear_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags &= ~(1UL << flag);
+	this_pcpu()->flags &= ~(1UL << flag);
 }
 
 static __always_inline bool test_cpu_flag(int flag)
 {
-	return S390_lowcore.cpu_flags & (1UL << flag);
+	return this_pcpu()->flags & (1UL << flag);
 }
 
 static __always_inline bool test_and_set_cpu_flag(int flag)
@@ -81,9 +95,7 @@ static __always_inline bool test_and_clear_cpu_flag(int flag)
  */
 static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
-	struct lowcore *lc = lowcore_ptr[cpu];
-
-	return lc->cpu_flags & (1UL << flag);
+	return per_cpu(pcpu_devices, cpu).flags & (1UL << flag);
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
@@ -269,7 +281,7 @@ static __always_inline unsigned long __current_stack_pointer(void)
 
 static __always_inline bool on_thread_stack(void)
 {
-	unsigned long ksp = S390_lowcore.kernel_stack;
+	unsigned long ksp = get_lowcore()->kernel_stack;
 
 	return !((ksp ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
 }
@@ -405,7 +417,7 @@ static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 
 static __always_inline void bpon(void)
 {
-	asm volatile(ALTERNATIVE("nop", ".insn	rrf,0xb2e80000,0,0,13,0", 82));
+	asm volatile(ALTERNATIVE("nop", ".insn	rrf,0xb2e80000,0,0,13,0", ALT_SPEC(82)));
 }
 
 #endif /* __ASSEMBLY__ */

@@ -49,4 +49,6 @@ static struct platform_driver clk_mt2712_mfg_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_mfg_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 GPU mfg clocks driver");
 MODULE_LICENSE("GPL");

@@ -40,8 +40,9 @@ enum pp_smu_ver {
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
 	PP_SMU_VER_NV,
-	PP_SMU_VER_RN,
 
+	PP_SMU_VER_RN,
+	PP_SMU_VER_VG,
 	PP_SMU_VER_MAX
 };
 

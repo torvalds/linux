@@ -511,7 +511,7 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
 		return -EINVAL;
 
 	if (!c)
-		return 0;
+		return -BCH_ERR_option_needs_open_fs;
 
 	if (!strlen(val) || !strcmp(val, "none")) {
 		*res = 0;

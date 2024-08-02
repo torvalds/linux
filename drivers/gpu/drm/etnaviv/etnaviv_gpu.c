@@ -172,10 +172,12 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 	return 0;
 }
 
+static inline bool etnaviv_is_model_rev(struct etnaviv_gpu *gpu, u32 model, u32 revision)
+{
+	return gpu->identity.model == model &&
+	       gpu->identity.revision == revision;
+}
 
-#define etnaviv_is_model_rev(gpu, mod, rev) \
-	((gpu)->identity.model == chipModel_##mod && \
-	 (gpu)->identity.revision == rev)
 #define etnaviv_field(val, field) \
 	(((val) & field##__MASK) >> field##__SHIFT)
 
@@ -281,7 +283,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	switch (gpu->identity.instruction_count) {
 	case 0:
-		if (etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
+		if (etnaviv_is_model_rev(gpu, 0x2000, 0x5108) ||
 		    gpu->identity.model == chipModel_GC880)
 			gpu->identity.instruction_count = 512;
 		else
@@ -315,17 +317,17 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	 * For some cores, two varyings are consumed for position, so the
 	 * maximum varying count needs to be reduced by one.
 	 */
-	if (etnaviv_is_model_rev(gpu, GC5000, 0x5434) ||
-	    etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
-	    etnaviv_is_model_rev(gpu, GC4000, 0x5245) ||
-	    etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
-	    etnaviv_is_model_rev(gpu, GC3000, 0x5435) ||
-	    etnaviv_is_model_rev(gpu, GC2200, 0x5244) ||
-	    etnaviv_is_model_rev(gpu, GC2100, 0x5108) ||
-	    etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
-	    etnaviv_is_model_rev(gpu, GC1500, 0x5246) ||
-	    etnaviv_is_model_rev(gpu, GC880, 0x5107) ||
-	    etnaviv_is_model_rev(gpu, GC880, 0x5106))
+	if (etnaviv_is_model_rev(gpu, 0x5000, 0x5434) ||
+	    etnaviv_is_model_rev(gpu, 0x4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, 0x4000, 0x5245) ||
+	    etnaviv_is_model_rev(gpu, 0x4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, 0x3000, 0x5435) ||
+	    etnaviv_is_model_rev(gpu, 0x2200, 0x5244) ||
+	    etnaviv_is_model_rev(gpu, 0x2100, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, 0x2000, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, 0x1500, 0x5246) ||
+	    etnaviv_is_model_rev(gpu, 0x880, 0x5107) ||
+	    etnaviv_is_model_rev(gpu, 0x880, 0x5106))
 		gpu->identity.varyings_count -= 1;
 }
 
@@ -351,7 +353,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		 * Reading these two registers on GC600 rev 0x19 result in a
 		 * unhandled fault: external abort on non-linefetch
 		 */
-		if (!etnaviv_is_model_rev(gpu, GC600, 0x19)) {
+		if (!etnaviv_is_model_rev(gpu, 0x600, 0x19)) {
 			gpu->identity.product_id = gpu_read(gpu, VIVS_HI_CHIP_PRODUCT_ID);
 			gpu->identity.eco_id = gpu_read(gpu, VIVS_HI_CHIP_ECO_ID);
 		}
@@ -368,7 +370,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		}
 
 		/* Another special case */
-		if (etnaviv_is_model_rev(gpu, GC300, 0x2201)) {
+		if (etnaviv_is_model_rev(gpu, 0x300, 0x2201)) {
 			u32 chipTime = gpu_read(gpu, VIVS_HI_CHIP_TIME);
 
 			if (chipDate == 0x20080814 && chipTime == 0x12051100) {
@@ -387,15 +389,15 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		 * Fix model/rev here, so all other places can refer to this
 		 * core by its real identity.
 		 */
-		if (etnaviv_is_model_rev(gpu, GC2000, 0xffff5450)) {
+		if (etnaviv_is_model_rev(gpu, 0x2000, 0xffff5450)) {
 			gpu->identity.model = chipModel_GC3000;
 			gpu->identity.revision &= 0xffff;
 		}
 
-		if (etnaviv_is_model_rev(gpu, GC1000, 0x5037) && (chipDate == 0x20120617))
+		if (etnaviv_is_model_rev(gpu, 0x1000, 0x5037) && (chipDate == 0x20120617))
 			gpu->identity.eco_id = 1;
 
-		if (etnaviv_is_model_rev(gpu, GC320, 0x5303) && (chipDate == 0x20140511))
+		if (etnaviv_is_model_rev(gpu, 0x320, 0x5303) && (chipDate == 0x20140511))
 			gpu->identity.eco_id = 1;
 	}
 
@@ -641,16 +643,22 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 		pmc |= BIT(15); /* Unknown bit */
 
 	/* Disable TX clock gating on affected core revisions. */
-	if (etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
-	    etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
-	    etnaviv_is_model_rev(gpu, GC7000, 0x6202) ||
-	    etnaviv_is_model_rev(gpu, GC7000, 0x6203))
+	if (etnaviv_is_model_rev(gpu, 0x4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, 0x2000, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, 0x7000, 0x6202) ||
+	    etnaviv_is_model_rev(gpu, 0x7000, 0x6203))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX;
 
 	/* Disable SE and RA clock gating on affected core revisions. */
-	if (etnaviv_is_model_rev(gpu, GC7000, 0x6202))
+	if (etnaviv_is_model_rev(gpu, 0x7000, 0x6202))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_SE |
 		       VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA;
+
+	/* Disable SH_EU clock gating on affected core revisions. */
+	if (etnaviv_is_model_rev(gpu, 0x8000, 0x7200) ||
+	    etnaviv_is_model_rev(gpu, 0x8000, 0x8002) ||
+	    etnaviv_is_model_rev(gpu, 0x9200, 0x6304))
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_SH_EU;
 
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ;
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ;
@@ -701,14 +709,14 @@ static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
 	 */
 	u32 pulse_eater = 0x01590880;
 
-	if (etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
-	    etnaviv_is_model_rev(gpu, GC4000, 0x5222)) {
+	if (etnaviv_is_model_rev(gpu, 0x4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, 0x4000, 0x5222)) {
 		pulse_eater |= BIT(23);
 
 	}
 
-	if (etnaviv_is_model_rev(gpu, GC1000, 0x5039) ||
-	    etnaviv_is_model_rev(gpu, GC1000, 0x5040)) {
+	if (etnaviv_is_model_rev(gpu, 0x1000, 0x5039) ||
+	    etnaviv_is_model_rev(gpu, 0x1000, 0x5040)) {
 		pulse_eater &= ~BIT(16);
 		pulse_eater |= BIT(17);
 	}
@@ -729,8 +737,8 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	WARN_ON(!(gpu->state == ETNA_GPU_STATE_IDENTIFIED ||
 		  gpu->state == ETNA_GPU_STATE_RESET));
 
-	if ((etnaviv_is_model_rev(gpu, GC320, 0x5007) ||
-	     etnaviv_is_model_rev(gpu, GC320, 0x5220)) &&
+	if ((etnaviv_is_model_rev(gpu, 0x320, 0x5007) ||
+	     etnaviv_is_model_rev(gpu, 0x320, 0x5220)) &&
 	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400) {
 		u32 mc_memory_debug;
 
@@ -756,7 +764,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		  VIVS_HI_AXI_CONFIG_ARCACHE(2));
 
 	/* GC2000 rev 5108 needs a special bus config */
-	if (etnaviv_is_model_rev(gpu, GC2000, 0x5108)) {
+	if (etnaviv_is_model_rev(gpu, 0x2000, 0x5108)) {
 		u32 bus_config = gpu_read(gpu, VIVS_MC_BUS_CONFIG);
 		bus_config &= ~(VIVS_MC_BUS_CONFIG_FE_BUS_CONFIG__MASK |
 				VIVS_MC_BUS_CONFIG_TX_BUS_CONFIG__MASK);
@@ -855,12 +863,15 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	 *
 	 * On MC1.0 cores the linear window offset is ignored by the TS engine,
 	 * leading to inconsistent memory views. Avoid using the offset on those
-	 * cores if possible, otherwise disable the TS feature.
+	 * cores if possible, otherwise disable the TS feature. MMUv2 doesn't
+	 * expose this issue, as all TS accesses are MMU translated, so the
+	 * linear window offset won't be used.
 	 */
 	cmdbuf_paddr = ALIGN_DOWN(etnaviv_cmdbuf_get_pa(&gpu->buffer), SZ_128M);
 
 	if (!(gpu->identity.features & chipFeatures_PIPE_3D) ||
-	    (gpu->identity.minor_features0 & chipMinorFeatures0_MC20)) {
+	    (gpu->identity.minor_features0 & chipMinorFeatures0_MC20) ||
+	    (gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION)) {
 		if (cmdbuf_paddr >= SZ_2G)
 			priv->mmu_global->memory_base = SZ_2G;
 		else
@@ -1537,6 +1548,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	u32 intr = gpu_read(gpu, VIVS_HI_INTR_ACKNOWLEDGE);
 
 	if (intr != 0) {
+		ktime_t now = ktime_get();
 		int event;
 
 		pm_runtime_mark_last_busy(gpu->dev);
@@ -1586,7 +1598,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 			 */
 			if (fence_after(fence->seqno, gpu->completed_fence))
 				gpu->completed_fence = fence->seqno;
-			dma_fence_signal(fence);
+			dma_fence_signal_timestamp(fence, now);
 
 			event_free(gpu, event);
 		}
@@ -1975,7 +1987,6 @@ static const struct dev_pm_ops etnaviv_gpu_pm_ops = {
 struct platform_driver etnaviv_gpu_driver = {
 	.driver = {
 		.name = "etnaviv-gpu",
-		.owner = THIS_MODULE,
 		.pm = pm_ptr(&etnaviv_gpu_pm_ops),
 		.of_match_table = etnaviv_gpu_match,
 	},

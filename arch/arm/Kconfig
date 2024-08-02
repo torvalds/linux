@@ -34,6 +34,7 @@ config ARM
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
+	select ARCH_NEED_CMPXCHG_1_EMU if CPU_V6
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_CFI_CLANG
 	select ARCH_SUPPORTS_HUGETLBFS if ARM_LPAE
@@ -1482,7 +1483,8 @@ config ARM_ATAG_DTB_COMPAT
 	  from the ATAG list and store it at run time into the appended DTB.
 
 choice
-	prompt "Kernel command line type" if ARM_ATAG_DTB_COMPAT
+	prompt "Kernel command line type"
+	depends on ARM_ATAG_DTB_COMPAT
 	default ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
 
 config ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
@@ -1511,7 +1513,8 @@ config CMDLINE
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
 choice
-	prompt "Kernel command line type" if CMDLINE != ""
+	prompt "Kernel command line type"
+	depends on CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
 
 config CMDLINE_FROM_BOOTLOADER

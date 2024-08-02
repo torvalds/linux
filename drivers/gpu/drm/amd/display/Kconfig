@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT
+# Copyright © 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
+
 menu "Display Engine Configuration"
 	depends on DRM && DRM_AMDGPU
 

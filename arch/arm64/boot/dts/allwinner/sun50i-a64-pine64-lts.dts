@@ -5,7 +5,7 @@
 #include "sun50i-a64-sopine-baseboard.dts"
 
 / {
-	model = "Pine64 LTS";
+	model = "Pine64 PINE A64 LTS";
 	compatible = "pine64,pine64-lts", "allwinner,sun50i-r18",
 		     "allwinner,sun50i-a64";
 

@@ -14,6 +14,7 @@ if IIO
 
 config IIO_BUFFER
 	bool "Enable buffer support within IIO"
+	select DMA_SHARED_BUFFER
 	help
 	  Provide core support for various buffer based data
 	  acquisition methods.

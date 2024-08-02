@@ -466,9 +466,7 @@ static int a6xx_rpmh_start(struct a6xx_gmu *gmu)
 	int ret;
 	u32 val;
 
-	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, 1 << 1);
-	/* Wait for the register to finish posting */
-	wmb();
+	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, BIT(1));
 
 	ret = gmu_poll_timeout(gmu, REG_A6XX_GMU_RSCC_CONTROL_ACK, val,
 		val & (1 << 1), 100, 10000);
@@ -769,8 +767,9 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct a6xx_info *a6xx_info = adreno_gpu->info->a6xx;
 	u32 fence_range_lower, fence_range_upper;
-	u32 chipid, chipid_min = 0;
+	u32 chipid = 0;
 	int ret;
 
 	/* Vote veto for FAL10 */
@@ -830,27 +829,8 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	 */
 	gmu_write(gmu, REG_A6XX_GMU_CM3_CFG, 0x4052);
 
-	/* NOTE: A730 may also fall in this if-condition with a future GMU fw update. */
-	if (adreno_is_a7xx(adreno_gpu) && !adreno_is_a730(adreno_gpu)) {
-		/* A7xx GPUs have obfuscated chip IDs. Use constant maj = 7 */
-		chipid = FIELD_PREP(GENMASK(31, 24), 0x7);
-
-		/*
-		 * The min part has a 1-1 mapping for each GPU SKU.
-		 * This chipid that the GMU expects corresponds to the "GENX_Y_Z" naming,
-		 * where X = major, Y = minor, Z = patchlevel, e.g. GEN7_2_1 for prod A740.
-		 */
-		if (adreno_is_a740(adreno_gpu))
-			chipid_min = 2;
-		else if (adreno_is_a750(adreno_gpu))
-			chipid_min = 9;
-		else
-			return -EINVAL;
-
-		chipid |= FIELD_PREP(GENMASK(23, 16), chipid_min);
-
-		/* Get the patchid (which may vary) from the device tree */
-		chipid |= FIELD_PREP(GENMASK(15, 8), adreno_patchid(adreno_gpu));
+	if (a6xx_info->gmu_chipid) {
+		chipid = a6xx_info->gmu_chipid;
 	} else {
 		/*
 		 * Note that the GMU has a slightly different layout for
@@ -1329,7 +1309,13 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 	if (!pri_count)
 		return -EINVAL;
 
-	sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
+	/*
+	 * Some targets have a separate gfx mxc rail. So try to read that first and then fall back
+	 * to regular mx rail if it is missing
+	 */
+	sec = cmd_db_read_aux_data("gmxc.lvl", &sec_count);
+	if (IS_ERR(sec) && sec != ERR_PTR(-EPROBE_DEFER))
+		sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
 	if (IS_ERR(sec))
 		return PTR_ERR(sec);
 

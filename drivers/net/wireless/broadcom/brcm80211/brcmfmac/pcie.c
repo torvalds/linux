@@ -313,11 +313,6 @@ struct brcmf_pcie_shared_info {
 	u8 version;
 };
 
-struct brcmf_pcie_core_info {
-	u32 base;
-	u32 wrapbase;
-};
-
 #define BRCMF_OTP_MAX_PARAM_LEN 16
 
 struct brcmf_otp_params {

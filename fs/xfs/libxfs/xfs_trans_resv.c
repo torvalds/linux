@@ -22,7 +22,6 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_attr_item.h"
 #include "xfs_log.h"
-#include "xfs_da_format.h"
 
 #define _ALLOC	true
 #define _FREE	false

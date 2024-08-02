@@ -89,6 +89,7 @@
  */
 static const char driver_name[] = "SyncLink GT";
 static const char tty_dev_prefix[] = "ttySLG";
+MODULE_DESCRIPTION("Device driver for Microgate SyncLink GT serial adapters");
 MODULE_LICENSE("GPL");
 #define MAX_DEVICES 32
 

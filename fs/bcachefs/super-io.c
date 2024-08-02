@@ -1312,7 +1312,10 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, "Device index:\t%u\n", sb->dev_idx);
 
 	prt_printf(out, "Label:\t");
-	prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
+	if (!strlen(sb->label))
+		prt_printf(out, "(none)");
+	else
+		prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	prt_newline(out);
 
 	prt_printf(out, "Version:\t");

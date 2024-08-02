@@ -352,10 +352,6 @@ struct amdgpu_mes_funcs {
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
 #define amdgpu_mes_kiq_hw_fini(adev) (adev)->mes.kiq_hw_fini((adev))
 
-signed long amdgpu_mes_fence_wait_polling(u64 *fence,
-					  u64 wait_seq,
-					  signed long timeout);
-
 int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs);
 
 int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe);

@@ -456,13 +456,14 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	 * the device.
 	 */
 	for_each_pipe(dev_priv, pipe)
-		dpll[pipe] = intel_de_rmw(dev_priv, DPLL(pipe), 0, DPLL_DVO_2X_MODE);
+		dpll[pipe] = intel_de_rmw(dev_priv, DPLL(dev_priv, pipe), 0,
+					  DPLL_DVO_2X_MODE);
 
 	ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
 
 	/* restore the DVO 2x clock state to original */
 	for_each_pipe(dev_priv, pipe) {
-		intel_de_write(dev_priv, DPLL(pipe), dpll[pipe]);
+		intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll[pipe]);
 	}
 
 	intel_gmbus_force_bit(i2c, false);

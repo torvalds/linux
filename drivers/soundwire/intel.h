@@ -59,6 +59,11 @@ struct sdw_intel {
 };
 
 struct sdw_intel_prop {
+	u16 clde;
+	u16 doaise2;
+	u16 dodse2;
+	u16 clds;
+	u16 clss;
 	u16 doaise;
 	u16 doais;
 	u16 dodse;

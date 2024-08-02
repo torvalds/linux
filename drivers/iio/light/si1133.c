@@ -1055,7 +1055,7 @@ static int si1133_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si1133_ids[] = {
-	{ "si1133", 0 },
+	{ "si1133" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si1133_ids);

@@ -39,12 +39,11 @@
 # define SEG "%fs"
 #endif
 
-static unsigned int dereference_seg_base(void)
-{
-	int ret;
-	asm volatile ("mov %" SEG ":(0), %0" : "=rm" (ret));
-	return ret;
-}
+/*
+ * Defined in clang_helpers_[32|64].S, because unlike gcc, clang inline asm does
+ * not support segmentation prefixes.
+ */
+unsigned int dereference_seg_base(void);
 
 static void init_seg(void)
 {

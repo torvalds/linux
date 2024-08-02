@@ -38,6 +38,16 @@ properties:
 
   clock-frequency: true
 
+  resets:
+    items:
+      - description:
+          Reset shared with all blocks attached to the Switch Core Register
+          Bus (CSR) including VRAP slave.
+
+  reset-names:
+    items:
+      - const: switch
+
 required:
   - compatible
   - reg

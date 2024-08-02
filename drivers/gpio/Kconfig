@@ -219,7 +219,7 @@ config GPIO_BCM_XGS_IPROC
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
 	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)
-	depends on OF_GPIO && (ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF_GPIO && (ARCH_BRCMSTB || ARCH_BCM2835 || BMIPS_GENERIC || COMPILE_TEST)
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -1888,6 +1888,37 @@ config GPIO_SIM
 	help
 	  This enables the GPIO simulator - a configfs-based GPIO testing
 	  driver.
+
+endmenu
+
+menu "GPIO Debugging utilities"
+
+config GPIO_SLOPPY_LOGIC_ANALYZER
+	tristate "Sloppy GPIO logic analyzer"
+	depends on (GPIOLIB || COMPILE_TEST) && CPUSETS && DEBUG_FS && EXPERT
+	help
+	  This option enables support for a sloppy logic analyzer using polled
+	  GPIOs. Use the 'tools/gpio/gpio-sloppy-logic-analyzer' script with
+	  this driver. The script will make it easier to use and will also
+	  isolate a CPU for the polling task. Note that this is a last resort
+	  analyzer which can be affected by latencies, non-deterministic code
+	  paths, or NMIs. However, for e.g. remote development, it may be useful
+	  to get a first view and aid further debugging.
+
+	  If this driver is built as a module it will be called
+	  'gpio-sloppy-logic-analyzer'.
+
+config GPIO_VIRTUSER
+	tristate "GPIO Virtual User Testing Module"
+	select DEBUG_FS
+	select CONFIGFS_FS
+	select IRQ_WORK
+	help
+	  Say Y here to enable the configurable, configfs-based virtual GPIO
+	  consumer testing driver.
+
+	  This driver is aimed as a helper in spotting any regressions in
+	  hot-unplug handling in GPIOLIB.
 
 endmenu
 

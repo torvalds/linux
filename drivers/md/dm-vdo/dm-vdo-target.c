@@ -928,9 +928,9 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->physical_block_size = VDO_BLOCK_SIZE;
 
 	/* The minimum io size for random io */
-	blk_limits_io_min(limits, VDO_BLOCK_SIZE);
+	limits->io_min = VDO_BLOCK_SIZE;
 	/* The optimal io size for streamed/sequential io */
-	blk_limits_io_opt(limits, VDO_BLOCK_SIZE);
+	limits->io_opt = VDO_BLOCK_SIZE;
 
 	/*
 	 * Sets the maximum discard size that will be passed into VDO. This value comes from a
@@ -945,7 +945,7 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * The value is used by dm-thin to determine whether to pass down discards. The block layer
 	 * splits large discards on this boundary when this is set.
 	 */
-	limits->max_discard_sectors =
+	limits->max_hw_discard_sectors =
 		(vdo->device_config->max_discard_blocks * VDO_SECTORS_PER_BLOCK);
 
 	/*

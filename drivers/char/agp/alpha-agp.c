@@ -217,4 +217,5 @@ module_init(agp_alpha_core_init);
 module_exit(agp_alpha_core_cleanup);
 
 MODULE_AUTHOR("Jeff Wiedemeier <Jeff.Wiedemeier@hp.com>");
+MODULE_DESCRIPTION("Alpha AGP support");
 MODULE_LICENSE("GPL and additional rights");

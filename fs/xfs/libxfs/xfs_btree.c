@@ -1331,30 +1331,6 @@ xfs_btree_init_block_cur(
 			xfs_btree_owner(cur));
 }
 
-/*
- * Return true if ptr is the last record in the btree and
- * we need to track updates to this record.  The decision
- * will be further refined in the update_lastrec method.
- */
-STATIC int
-xfs_btree_is_lastrec(
-	struct xfs_btree_cur	*cur,
-	struct xfs_btree_block	*block,
-	int			level)
-{
-	union xfs_btree_ptr	ptr;
-
-	if (level > 0)
-		return 0;
-	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_LASTREC_UPDATE))
-		return 0;
-
-	xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_RIGHTSIB);
-	if (!xfs_btree_ptr_is_null(cur, &ptr))
-		return 0;
-	return 1;
-}
-
 STATIC void
 xfs_btree_buf_to_ptr(
 	struct xfs_btree_cur	*cur,
@@ -2419,15 +2395,6 @@ xfs_btree_update(
 	/* Fill in the new contents and log them. */
 	xfs_btree_copy_recs(cur, rp, rec, 1);
 	xfs_btree_log_recs(cur, bp, ptr, ptr);
-
-	/*
-	 * If we are tracking the last record in the tree and
-	 * we are at the far right edge of the tree, update it.
-	 */
-	if (xfs_btree_is_lastrec(cur, block, 0)) {
-		cur->bc_ops->update_lastrec(cur, block, rec,
-					    ptr, LASTREC_UPDATE);
-	}
 
 	/* Pass new key value up to our parent. */
 	if (xfs_btree_needs_key_update(cur, ptr)) {
@@ -3618,15 +3585,6 @@ xfs_btree_insrec(
 	}
 
 	/*
-	 * If we are tracking the last record in the tree and
-	 * we are at the far right edge of the tree, update it.
-	 */
-	if (xfs_btree_is_lastrec(cur, block, level)) {
-		cur->bc_ops->update_lastrec(cur, block, rec,
-					    ptr, LASTREC_INSREC);
-	}
-
-	/*
 	 * Return the new block number, if any.
 	 * If there is one, give back a record value and a cursor too.
 	 */
@@ -3982,15 +3940,6 @@ xfs_btree_delrec(
 	 */
 	xfs_btree_set_numrecs(block, --numrecs);
 	xfs_btree_log_block(cur, bp, XFS_BB_NUMRECS);
-
-	/*
-	 * If we are tracking the last record in the tree and
-	 * we are at the far right edge of the tree, update it.
-	 */
-	if (xfs_btree_is_lastrec(cur, block, level)) {
-		cur->bc_ops->update_lastrec(cur, block, NULL,
-					    ptr, LASTREC_DELREC);
-	}
 
 	/*
 	 * We're at the root level.  First, shrink the root block in-memory.

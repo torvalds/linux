@@ -162,7 +162,11 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	} else
 		fputc('\n', fp);
 
-	if (desc && print_state->desc) {
+	if (long_desc && print_state->long_desc) {
+		fprintf(fp, "%*s", 8, "[");
+		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
+		fprintf(fp, "]\n");
+	} else if (desc && print_state->desc) {
 		char *desc_with_unit = NULL;
 		int desc_len = -1;
 
@@ -177,12 +181,6 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		wordwrap(fp, desc_len > 0 ? desc_with_unit : desc, 8, pager_get_columns(), 0);
 		fprintf(fp, "]\n");
 		free(desc_with_unit);
-	}
-	long_desc = long_desc ?: desc;
-	if (long_desc && print_state->long_desc) {
-		fprintf(fp, "%*s", 8, "[");
-		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
-		fprintf(fp, "]\n");
 	}
 
 	if (print_state->detailed && encoding_desc) {
@@ -256,14 +254,13 @@ static void default_print_metric(void *ps,
 	}
 	fprintf(fp, "  %s\n", name);
 
-	if (desc && print_state->desc) {
-		fprintf(fp, "%*s", 8, "[");
-		wordwrap(fp, desc, 8, pager_get_columns(), 0);
-		fprintf(fp, "]\n");
-	}
 	if (long_desc && print_state->long_desc) {
 		fprintf(fp, "%*s", 8, "[");
 		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
+		fprintf(fp, "]\n");
+	} else if (desc && print_state->desc) {
+		fprintf(fp, "%*s", 8, "[");
+		wordwrap(fp, desc, 8, pager_get_columns(), 0);
 		fprintf(fp, "]\n");
 	}
 	if (expr && print_state->detailed) {
@@ -507,6 +504,7 @@ int cmd_list(int argc, const char **argv)
 	int i, ret = 0;
 	struct print_state default_ps = {
 		.fp = stdout,
+		.desc = true,
 	};
 	struct print_state json_ps = {
 		.fp = stdout,
@@ -579,7 +577,6 @@ int cmd_list(int argc, const char **argv)
 		};
 		ps = &json_ps;
 	} else {
-		default_ps.desc = !default_ps.long_desc;
 		default_ps.last_topic = strdup("");
 		assert(default_ps.last_topic);
 		default_ps.visited_metrics = strlist__new(NULL, NULL);

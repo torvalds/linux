@@ -61,7 +61,7 @@ static const struct k3_soc_id {
 };
 
 static const char * const j721e_rev_string_map[] = {
-	"1.0", "1.1",
+	"1.0", "1.1", "2.0",
 };
 
 static int

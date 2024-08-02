@@ -27,7 +27,7 @@
 #define __DC_HWSS_DCN30_H__
 
 #include "hw_sequencer_private.h"
-#include "dcn20/dcn20_hwseq.h"
+
 struct dc;
 
 void dcn30_init_hw(struct dc *dc);

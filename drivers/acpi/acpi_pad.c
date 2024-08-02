@@ -25,6 +25,10 @@
 #define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
 #define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
+
+#define ACPI_PROCESSOR_AGGREGATOR_STATUS_SUCCESS	0
+#define ACPI_PROCESSOR_AGGREGATOR_STATUS_NO_ACTION	1
+
 static DEFINE_MUTEX(isolated_cpus_lock);
 static DEFINE_MUTEX(round_robin_lock);
 
@@ -382,16 +386,23 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 		.length = 4,
 		.pointer = (void *)&idle_cpus,
 	};
+	u32 status;
 
 	mutex_lock(&isolated_cpus_lock);
 	num_cpus = acpi_pad_pur(handle);
 	if (num_cpus < 0) {
-		mutex_unlock(&isolated_cpus_lock);
-		return;
+		/* The ACPI specification says that if no action was performed when
+		 * processing the _PUR object, _OST should still be evaluated, albeit
+		 * with a different status code.
+		 */
+		status = ACPI_PROCESSOR_AGGREGATOR_STATUS_NO_ACTION;
+	} else {
+		status = ACPI_PROCESSOR_AGGREGATOR_STATUS_SUCCESS;
+		acpi_pad_idle_cpus(num_cpus);
 	}
-	acpi_pad_idle_cpus(num_cpus);
+
 	idle_cpus = acpi_pad_idle_cpus_num();
-	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY, 0, &param);
+	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY, status, &param);
 	mutex_unlock(&isolated_cpus_lock);
 }
 

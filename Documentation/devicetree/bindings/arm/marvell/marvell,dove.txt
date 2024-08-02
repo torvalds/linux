@@ -5,18 +5,3 @@ Boards with a Marvell Dove SoC shall have the following properties:
 
 Required root node property:
 - compatible: must contain "marvell,dove";
-
-* Global Configuration registers
-
-Global Configuration registers of Dove SoC are shared by a syscon node.
-
-Required properties:
-- compatible: must contain "marvell,dove-global-config" and "syscon".
-- reg: base address and size of the Global Configuration registers.
-
-Example:
-
-gconf: global-config@e802c {
-	compatible = "marvell,dove-global-config", "syscon";
-	reg = <0xe802c 0x14>;
-};

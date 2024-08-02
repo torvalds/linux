@@ -441,4 +441,14 @@ ssize_t iio_read_channel_ext_info(struct iio_channel *chan,
 ssize_t iio_write_channel_ext_info(struct iio_channel *chan, const char *attr,
 				   const char *buf, size_t len);
 
+/**
+ * iio_read_channel_label() - read label for a given channel
+ * @chan:		The channel being queried.
+ * @buf:		Where to store the attribute value. Assumed to hold
+ *			at least PAGE_SIZE bytes.
+ *
+ * Returns the number of bytes written to buf, or an error code.
+ */
+ssize_t iio_read_channel_label(struct iio_channel *chan, char *buf);
+
 #endif

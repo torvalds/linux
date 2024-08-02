@@ -27,6 +27,7 @@
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
 #define MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN BIT(1)
+#define MT792x_CHIP_CAP_MLO_EVT_EN BIT(2)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT792x_BASIC_RATES_TBL	11
@@ -81,10 +82,8 @@ enum mt792x_reg_power_type {
 
 DECLARE_EWMA(avg_signal, 10, 8)
 
-struct mt792x_sta {
+struct mt792x_link_sta {
 	struct mt76_wcid wcid; /* must be first */
-
-	struct mt792x_vif *vif;
 
 	u32 airtime_ac[8];
 
@@ -94,21 +93,46 @@ struct mt792x_sta {
 	unsigned long last_txs;
 
 	struct mt76_connac_sta_key_conf bip;
+
+	struct mt792x_sta *sta;
+
+	struct ieee80211_link_sta *pri_link;
+};
+
+struct mt792x_sta {
+	struct mt792x_link_sta deflink; /* must be first */
+	struct mt792x_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct mt792x_vif *vif;
+
+	u16 valid_links;
+	u8 deflink_id;
 };
 
 DECLARE_EWMA(rssi, 10, 8);
 
-struct mt792x_vif {
+struct mt792x_chanctx {
+	struct mt792x_bss_conf *bss_conf;
+};
+
+struct mt792x_bss_conf {
 	struct mt76_vif mt76; /* must be first */
+	struct mt792x_vif *vif;
+	struct ewma_rssi rssi;
+	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+	unsigned int link_id;
+};
+
+struct mt792x_vif {
+	struct mt792x_bss_conf bss_conf; /* must be first */
+	struct mt792x_bss_conf __rcu *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	struct mt792x_sta sta;
 	struct mt792x_sta *wep_sta;
 
 	struct mt792x_phy *phy;
-
-	struct ewma_rssi rssi;
-
-	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+	u16 valid_links;
+	u8 deflink_id;
 };
 
 struct mt792x_phy {
@@ -140,6 +164,7 @@ struct mt792x_phy {
 #endif
 	void *clc[MT792x_CLC_MAX_NUM];
 	u64 chip_cap;
+	u16 eml_cap;
 
 	struct work_struct roc_work;
 	struct timer_list roc_timer;
@@ -190,6 +215,7 @@ struct mt792x_dev {
 	bool fw_assert:1;
 	bool has_eht:1;
 	bool regd_in_progress:1;
+	bool aspm_supported:1;
 	wait_queue_head_t wait;
 
 	struct work_struct init_work;
@@ -210,6 +236,66 @@ struct mt792x_dev {
 	u32 backup_l1;
 	u32 backup_l2;
 };
+
+static inline struct mt792x_bss_conf *
+mt792x_vif_to_link(struct mt792x_vif *mvif, u8 link_id)
+{
+	struct ieee80211_vif *vif;
+
+	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &mvif->bss_conf;
+
+	return rcu_dereference_protected(mvif->link_conf[link_id],
+		lockdep_is_held(&mvif->phy->dev->mt76.mutex));
+}
+
+static inline struct mt792x_link_sta *
+mt792x_sta_to_link(struct mt792x_sta *msta, u8 link_id)
+{
+	struct ieee80211_vif *vif;
+
+	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &msta->deflink;
+
+	return rcu_dereference_protected(msta->link[link_id],
+		lockdep_is_held(&msta->vif->phy->dev->mt76.mutex));
+}
+
+static inline struct mt792x_bss_conf *
+mt792x_link_conf_to_mconf(struct ieee80211_bss_conf *link_conf)
+{
+	struct ieee80211_vif *vif = link_conf->vif;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+
+	return mt792x_vif_to_link(mvif, link_conf->link_id);
+}
+
+static inline struct ieee80211_bss_conf *
+mt792x_vif_to_bss_conf(struct ieee80211_vif *vif, unsigned int link_id)
+{
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &vif->bss_conf;
+
+	return link_conf_dereference_protected(vif, link_id);
+}
+
+static inline struct ieee80211_link_sta *
+mt792x_sta_to_link_sta(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       unsigned int link_id)
+{
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &sta->deflink;
+
+	return link_sta_dereference_protected(sta, link_id);
+}
 
 static inline struct mt792x_dev *
 mt792x_hw_dev(struct ieee80211_hw *hw)
@@ -251,7 +337,7 @@ static inline bool mt792x_dma_need_reinit(struct mt792x_dev *dev)
 #define mt792x_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
-void mt792x_stop(struct ieee80211_hw *hw);
+void mt792x_stop(struct ieee80211_hw *hw, bool suspend);
 void mt792x_pm_wake_work(struct work_struct *work);
 void mt792x_pm_power_save_work(struct work_struct *work);
 void mt792x_reset(struct mt76_dev *mdev);
@@ -325,6 +411,9 @@ mt792x_get_mac80211_ops(struct device *dev,
 int mt792x_init_wcid(struct mt792x_dev *dev);
 int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
+void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
+				struct mt792x_bss_conf *mconf,
+				struct mt792x_link_sta *mlink);
 
 static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 {
@@ -368,7 +457,7 @@ void mt792xu_wr(struct mt76_dev *dev, u32 addr, u32 val);
 u32 mt792xu_rmw(struct mt76_dev *dev, u32 addr, u32 mask, u32 val);
 void mt792xu_copy(struct mt76_dev *dev, u32 offset, const void *data, int len);
 void mt792xu_disconnect(struct usb_interface *usb_intf);
-void mt792xu_stop(struct ieee80211_hw *hw);
+void mt792xu_stop(struct ieee80211_hw *hw, bool suspend);
 
 static inline void
 mt792x_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,

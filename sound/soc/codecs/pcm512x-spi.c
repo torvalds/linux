@@ -36,6 +36,7 @@ static const struct spi_device_id pcm512x_spi_id[] = {
 	{ "pcm5122", },
 	{ "pcm5141", },
 	{ "pcm5142", },
+	{ "pcm5242", },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, pcm512x_spi_id);
@@ -45,6 +46,7 @@ static const struct of_device_id pcm512x_of_match[] = {
 	{ .compatible = "ti,pcm5122", },
 	{ .compatible = "ti,pcm5141", },
 	{ .compatible = "ti,pcm5142", },
+	{ .compatible = "ti,pcm5242", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcm512x_of_match);

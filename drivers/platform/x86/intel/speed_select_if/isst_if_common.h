@@ -16,6 +16,9 @@
 #define PCI_DEVICE_ID_INTEL_RAPL_PRIO_DEVID_1	0x3251
 #define PCI_DEVICE_ID_INTEL_CFG_MBOX_DEVID_1	0x3259
 
+#define MSR_OS_MAILBOX_INTERFACE		0xB0
+#define MSR_OS_MAILBOX_DATA			0xB1
+
 /*
  * Validate maximum commands in a single request.
  * This is enough to handle command to every core in one ioctl, or all

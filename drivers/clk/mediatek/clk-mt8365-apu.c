@@ -53,4 +53,6 @@ static struct platform_driver clk_mt8365_apu_drv = {
 	},
 };
 module_platform_driver(clk_mt8365_apu_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8365 AI Processing Unit clocks driver");
 MODULE_LICENSE("GPL");

@@ -970,7 +970,7 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	bnxt_clear_usr_fltrs(bp, true);
 	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, false);
+		bnxt_clear_rss_ctxs(bp);
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
 			/* TODO CHIMP_FW: Send message to all VF's
@@ -1210,19 +1210,18 @@ fltr_err:
 static struct bnxt_rss_ctx *bnxt_get_rss_ctx_from_index(struct bnxt *bp,
 							u32 index)
 {
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
+	struct ethtool_rxfh_context *ctx;
 
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
-		if (rss_ctx->index == index)
-			return rss_ctx;
-	return NULL;
+	ctx = xa_load(&bp->dev->ethtool->rss_ctx, index);
+	if (!ctx)
+		return NULL;
+	return ethtool_rxfh_context_priv(ctx);
 }
 
-static int bnxt_alloc_rss_ctx_rss_table(struct bnxt *bp,
-					struct bnxt_rss_ctx *rss_ctx)
+static int bnxt_alloc_vnic_rss_table(struct bnxt *bp,
+				     struct bnxt_vnic_info *vnic)
 {
 	int size = L1_CACHE_ALIGN(BNXT_MAX_RSS_TABLE_SIZE_P5);
-	struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
 
 	vnic->rss_table_size = size + HW_HASH_KEY_SIZE;
 	vnic->rss_table = dma_alloc_coherent(&bp->pdev->dev,
@@ -1801,10 +1800,9 @@ static u32 bnxt_get_rxfh_key_size(struct net_device *dev)
 static int bnxt_get_rxfh(struct net_device *dev,
 			 struct ethtool_rxfh_param *rxfh)
 {
-	u32 rss_context = rxfh->rss_context;
 	struct bnxt_rss_ctx *rss_ctx = NULL;
 	struct bnxt *bp = netdev_priv(dev);
-	u16 *indir_tbl = bp->rss_indir_tbl;
+	u32 *indir_tbl = bp->rss_indir_tbl;
 	struct bnxt_vnic_info *vnic;
 	u32 i, tbl_size;
 
@@ -1815,10 +1813,13 @@ static int bnxt_get_rxfh(struct net_device *dev,
 
 	vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	if (rxfh->rss_context) {
-		rss_ctx = bnxt_get_rss_ctx_from_index(bp, rss_context);
-		if (!rss_ctx)
+		struct ethtool_rxfh_context *ctx;
+
+		ctx = xa_load(&bp->dev->ethtool->rss_ctx, rxfh->rss_context);
+		if (!ctx)
 			return -EINVAL;
-		indir_tbl = rss_ctx->rss_indir_tbl;
+		indir_tbl = ethtool_rxfh_context_indir(ctx);
+		rss_ctx = ethtool_rxfh_context_priv(ctx);
 		vnic = &rss_ctx->vnic;
 	}
 
@@ -1834,8 +1835,9 @@ static int bnxt_get_rxfh(struct net_device *dev,
 	return 0;
 }
 
-static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
-			    struct ethtool_rxfh_param *rxfh)
+static void bnxt_modify_rss(struct bnxt *bp, struct ethtool_rxfh_context *ctx,
+			    struct bnxt_rss_ctx *rss_ctx,
+			    const struct ethtool_rxfh_param *rxfh)
 {
 	if (rxfh->key) {
 		if (rss_ctx) {
@@ -1848,29 +1850,21 @@ static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	}
 	if (rxfh->indir) {
 		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
-		u16 *indir_tbl = bp->rss_indir_tbl;
+		u32 *indir_tbl = bp->rss_indir_tbl;
 
 		if (rss_ctx)
-			indir_tbl = rss_ctx->rss_indir_tbl;
+			indir_tbl = ethtool_rxfh_context_indir(ctx);
 		for (i = 0; i < tbl_size; i++)
 			indir_tbl[i] = rxfh->indir[i];
 		pad = bp->rss_indir_tbl_entries - tbl_size;
 		if (pad)
-			memset(&bp->rss_indir_tbl[i], 0, pad * sizeof(u16));
+			memset(&indir_tbl[i], 0, pad * sizeof(*indir_tbl));
 	}
 }
 
-static int bnxt_set_rxfh_context(struct bnxt *bp,
-				 struct ethtool_rxfh_param *rxfh,
-				 struct netlink_ext_ack *extack)
+static int bnxt_rxfh_context_check(struct bnxt *bp,
+				   struct netlink_ext_ack *extack)
 {
-	u32 *rss_context = &rxfh->rss_context;
-	struct bnxt_rss_ctx *rss_ctx;
-	struct bnxt_vnic_info *vnic;
-	bool modify = false;
-	int bit_id;
-	int rc;
-
 	if (!BNXT_SUPPORTS_MULTI_RSS_CTX(bp)) {
 		NL_SET_ERR_MSG_MOD(extack, "RSS contexts not supported");
 		return -EOPNOTSUPP;
@@ -1881,21 +1875,22 @@ static int bnxt_set_rxfh_context(struct bnxt *bp,
 		return -EAGAIN;
 	}
 
-	if (*rss_context != ETH_RXFH_CONTEXT_ALLOC) {
-		rss_ctx = bnxt_get_rss_ctx_from_index(bp, *rss_context);
-		if (!rss_ctx) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
-					       *rss_context);
-			return -EINVAL;
-		}
-		if (*rss_context && rxfh->rss_delete) {
-			bnxt_del_one_rss_ctx(bp, rss_ctx, true);
-			return 0;
-		}
-		modify = true;
-		vnic = &rss_ctx->vnic;
-		goto modify_context;
-	}
+	return 0;
+}
+
+static int bnxt_create_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    const struct ethtool_rxfh_param *rxfh,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+	struct bnxt_vnic_info *vnic;
+	int rc;
+
+	rc = bnxt_rxfh_context_check(bp, extack);
+	if (rc)
+		return rc;
 
 	if (bp->num_rss_ctx >= BNXT_MAX_ETH_RSS_CTX) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Out of RSS contexts, maximum %u",
@@ -1908,22 +1903,19 @@ static int bnxt_set_rxfh_context(struct bnxt *bp,
 		return -ENOMEM;
 	}
 
-	rss_ctx = bnxt_alloc_rss_ctx(bp);
-	if (!rss_ctx)
-		return -ENOMEM;
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
+
+	bp->num_rss_ctx++;
 
 	vnic = &rss_ctx->vnic;
+	vnic->rss_ctx = ctx;
 	vnic->flags |= BNXT_VNIC_RSSCTX_FLAG;
 	vnic->vnic_id = BNXT_VNIC_ID_INVALID;
-	rc = bnxt_alloc_rss_ctx_rss_table(bp, rss_ctx);
+	rc = bnxt_alloc_vnic_rss_table(bp, vnic);
 	if (rc)
 		goto out;
 
-	rc = bnxt_alloc_rss_indir_tbl(bp, rss_ctx);
-	if (rc)
-		goto out;
-
-	bnxt_set_dflt_rss_indir_tbl(bp, rss_ctx);
+	bnxt_set_dflt_rss_indir_tbl(bp, ctx);
 	memcpy(vnic->rss_hash_key, bp->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	rc = bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings);
@@ -1937,11 +1929,7 @@ static int bnxt_set_rxfh_context(struct bnxt *bp,
 		NL_SET_ERR_MSG_MOD(extack, "Unable to setup TPA");
 		goto out;
 	}
-modify_context:
-	bnxt_modify_rss(bp, rss_ctx, rxfh);
-
-	if (modify)
-		return bnxt_hwrm_vnic_rss_cfg_p5(bp, vnic);
+	bnxt_modify_rss(bp, ctx, rss_ctx, rxfh);
 
 	rc = __bnxt_setup_vnic_p5(bp, vnic);
 	if (rc) {
@@ -1949,19 +1937,45 @@ modify_context:
 		goto out;
 	}
 
-	bit_id = bitmap_find_free_region(bp->rss_ctx_bmap,
-					 BNXT_RSS_CTX_BMAP_LEN, 0);
-	if (bit_id < 0) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	rss_ctx->index = (u16)bit_id;
-	*rss_context = rss_ctx->index;
-
+	rss_ctx->index = rxfh->rss_context;
 	return 0;
 out:
 	bnxt_del_one_rss_ctx(bp, rss_ctx, true);
 	return rc;
+}
+
+static int bnxt_modify_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    const struct ethtool_rxfh_param *rxfh,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+	int rc;
+
+	rc = bnxt_rxfh_context_check(bp, extack);
+	if (rc)
+		return rc;
+
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
+
+	bnxt_modify_rss(bp, ctx, rss_ctx, rxfh);
+
+	return bnxt_hwrm_vnic_rss_cfg_p5(bp, &rss_ctx->vnic);
+}
+
+static int bnxt_remove_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    u32 rss_context,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
+
+	bnxt_del_one_rss_ctx(bp, rss_ctx, true);
+	return 0;
 }
 
 static int bnxt_set_rxfh(struct net_device *dev,
@@ -1974,10 +1988,7 @@ static int bnxt_set_rxfh(struct net_device *dev,
 	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (rxfh->rss_context)
-		return bnxt_set_rxfh_context(bp, rxfh, extack);
-
-	bnxt_modify_rss(bp, NULL, rxfh);
+	bnxt_modify_rss(bp, NULL, NULL, rxfh);
 
 	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
@@ -5013,7 +5024,7 @@ static int bnxt_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 }
 
 static int bnxt_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_ptp_cfg *ptp;
@@ -5233,6 +5244,19 @@ static void bnxt_get_rmon_stats(struct net_device *dev,
 	*ranges = bnxt_rmon_ranges;
 }
 
+static void bnxt_get_ptp_stats(struct net_device *dev,
+			       struct ethtool_ts_stats *ts_stats)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (ptp) {
+		ts_stats->pkts = ptp->stats.ts_pkts;
+		ts_stats->lost = ptp->stats.ts_lost;
+		ts_stats->err = atomic64_read(&ptp->stats.ts_err);
+	}
+}
+
 static void bnxt_get_link_ext_stats(struct net_device *dev,
 				    struct ethtool_link_ext_stats *stats)
 {
@@ -5256,6 +5280,9 @@ void bnxt_ethtool_free(struct bnxt *bp)
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.cap_link_lanes_supported	= 1,
 	.cap_rss_ctx_supported		= 1,
+	.rxfh_max_context_id		= BNXT_MAX_ETH_RSS_CTX,
+	.rxfh_indir_space		= BNXT_MAX_RSS_TABLE_ENTRIES_P5,
+	.rxfh_priv_size			= sizeof(struct bnxt_rss_ctx),
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USECS_IRQ |
@@ -5293,6 +5320,9 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,
 	.set_rxfh		= bnxt_set_rxfh,
+	.create_rxfh_context	= bnxt_create_rxfh_context,
+	.modify_rxfh_context	= bnxt_modify_rxfh_context,
+	.remove_rxfh_context	= bnxt_remove_rxfh_context,
 	.flash_device		= bnxt_flash_device,
 	.get_eeprom_len         = bnxt_get_eeprom_len,
 	.get_eeprom             = bnxt_get_eeprom,
@@ -5316,4 +5346,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_eth_mac_stats	= bnxt_get_eth_mac_stats,
 	.get_eth_ctrl_stats	= bnxt_get_eth_ctrl_stats,
 	.get_rmon_stats		= bnxt_get_rmon_stats,
+	.get_ts_stats		= bnxt_get_ptp_stats,
 };

@@ -69,9 +69,11 @@ extern int __cpu_logical_map[NR_CPUS];
 #define ACTION_BOOT_CPU	0
 #define ACTION_RESCHEDULE	1
 #define ACTION_CALL_FUNCTION	2
+#define ACTION_IRQ_WORK		3
 #define SMP_BOOT_CPU		BIT(ACTION_BOOT_CPU)
 #define SMP_RESCHEDULE		BIT(ACTION_RESCHEDULE)
 #define SMP_CALL_FUNCTION	BIT(ACTION_CALL_FUNCTION)
+#define SMP_IRQ_WORK		BIT(ACTION_IRQ_WORK)
 
 struct secondary_data {
 	unsigned long stack;

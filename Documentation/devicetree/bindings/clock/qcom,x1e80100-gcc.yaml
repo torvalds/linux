@@ -41,6 +41,7 @@ required:
   - compatible
   - clocks
   - power-domains
+  - '#power-domain-cells'
 
 allOf:
   - $ref: qcom,gcc.yaml#

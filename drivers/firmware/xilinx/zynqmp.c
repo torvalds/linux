@@ -41,9 +41,6 @@
 /* IOCTL/QUERY feature payload size */
 #define FEATURE_PAYLOAD_SIZE		2
 
-/* Firmware feature check version mask */
-#define FIRMWARE_VERSION_MASK		GENMASK(15, 0)
-
 static bool feature_check_enabled;
 static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
 static u32 ioctl_features[FEATURE_PAYLOAD_SIZE];
