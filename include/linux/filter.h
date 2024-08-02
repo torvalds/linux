@@ -1653,7 +1653,7 @@ static inline bool bpf_sk_lookup_run_v4(const struct net *net, int protocol,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline bool bpf_sk_lookup_run_v6(struct net *net, int protocol,
+static inline bool bpf_sk_lookup_run_v6(const struct net *net, int protocol,
 					const struct in6_addr *saddr,
 					const __be16 sport,
 					const struct in6_addr *daddr,
