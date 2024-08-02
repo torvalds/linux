@@ -204,11 +204,6 @@ void __thermal_cdev_update(struct thermal_cooling_device *cdev);
 
 int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip);
 
-struct thermal_instance *
-get_thermal_instance(struct thermal_zone_device *tz,
-		     struct thermal_cooling_device *cdev,
-		     int trip);
-
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point

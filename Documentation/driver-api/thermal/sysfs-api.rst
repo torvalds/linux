@@ -459,14 +459,7 @@ are supposed to implement the callback. If they don't, the thermal
 framework calculated the trend by comparing the previous and the current
 temperature values.
 
-4.2. get_thermal_instance
--------------------------
-
-This function returns the thermal_instance corresponding to a given
-{thermal_zone, cooling_device, trip_point} combination. Returns NULL
-if such an instance does not exist.
-
-4.3. thermal_cdev_update
+4.2. thermal_cdev_update
 ------------------------
 
 This function serves as an arbitrator to set the state of a cooling
