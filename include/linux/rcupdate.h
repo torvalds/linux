@@ -164,6 +164,7 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
 	} while (0)
 void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
+void rcu_tasks_torture_stats_print(char *tt, char *tf);
 # else
 # define rcu_tasks_classic_qs(t, preempt) do { } while (0)
 # define call_rcu_tasks call_rcu
@@ -190,6 +191,7 @@ void rcu_tasks_trace_qs_blkd(struct task_struct *t);
 			rcu_tasks_trace_qs_blkd(t);				\
 		}								\
 	} while (0)
+void rcu_tasks_trace_torture_stats_print(char *tt, char *tf);
 # else
 # define rcu_tasks_trace_qs(t) do { } while (0)
 # endif
@@ -202,6 +204,7 @@ do {									\
 
 # ifdef CONFIG_TASKS_RUDE_RCU
 void synchronize_rcu_tasks_rude(void);
+void rcu_tasks_rude_torture_stats_print(char *tt, char *tf);
 # endif
 
 #define rcu_note_voluntary_context_switch(t) rcu_tasks_qs(t, false)

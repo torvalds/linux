@@ -714,9 +714,7 @@ static void __init rcu_tasks_bootup_oddness(void)
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 }
 
-#endif /* #ifndef CONFIG_TINY_RCU */
 
-#ifndef CONFIG_TINY_RCU
 /* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
@@ -750,6 +748,52 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		rtp->lazy_jiffies,
 		s);
 }
+
+/* Dump out more rcutorture-relevant state common to all RCU-tasks flavors. */
+static void rcu_tasks_torture_stats_print_generic(struct rcu_tasks *rtp, char *tt,
+						  char *tf, char *tst)
+{
+	cpumask_var_t cm;
+	int cpu;
+	bool gotcb = false;
+	unsigned long j = jiffies;
+
+	pr_alert("%s%s Tasks%s RCU g%ld gp_start %lu gp_jiffies %lu gp_state %d (%s).\n",
+		 tt, tf, tst, data_race(rtp->tasks_gp_seq),
+		 j - data_race(rtp->gp_start), j - data_race(rtp->gp_jiffies),
+		 data_race(rtp->gp_state), tasks_gp_state_getname(rtp));
+	pr_alert("\tEnqueue shift %d limit %d Dequeue limit %d gpseq %lu.\n",
+		 data_race(rtp->percpu_enqueue_shift),
+		 data_race(rtp->percpu_enqueue_lim),
+		 data_race(rtp->percpu_dequeue_lim),
+		 data_race(rtp->percpu_dequeue_gpseq));
+	(void)zalloc_cpumask_var(&cm, GFP_KERNEL);
+	pr_alert("\tCallback counts:");
+	for_each_possible_cpu(cpu) {
+		long n;
+		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
+
+		if (cpumask_available(cm) && !rcu_barrier_cb_is_done(&rtpcp->barrier_q_head))
+			cpumask_set_cpu(cpu, cm);
+		n = rcu_segcblist_n_cbs(&rtpcp->cblist);
+		if (!n)
+			continue;
+		pr_cont(" %d:%ld", cpu, n);
+		gotcb = true;
+	}
+	if (gotcb)
+		pr_cont(".\n");
+	else
+		pr_cont(" (none).\n");
+	pr_alert("\tBarrier seq %lu count %d holdout CPUs ",
+		 data_race(rtp->barrier_q_seq), atomic_read(&rtp->barrier_q_count));
+	if (cpumask_available(cm) && !cpumask_empty(cm))
+		pr_cont(" %*pbl.\n", cpumask_pr_args(cm));
+	else
+		pr_cont("(none).\n");
+	free_cpumask_var(cm);
+}
+
 #endif // #ifndef CONFIG_TINY_RCU
 
 static void exit_tasks_rcu_finish_trace(struct task_struct *t);
@@ -1201,6 +1245,12 @@ void show_rcu_tasks_classic_gp_kthread(void)
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks, "");
 }
 EXPORT_SYMBOL_GPL(show_rcu_tasks_classic_gp_kthread);
+
+void rcu_tasks_torture_stats_print(char *tt, char *tf)
+{
+	rcu_tasks_torture_stats_print_generic(&rcu_tasks, tt, tf, "");
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_torture_stats_print);
 #endif // !defined(CONFIG_TINY_RCU)
 
 struct task_struct *get_rcu_tasks_gp_kthread(void)
@@ -1361,6 +1411,12 @@ void show_rcu_tasks_rude_gp_kthread(void)
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks_rude, "");
 }
 EXPORT_SYMBOL_GPL(show_rcu_tasks_rude_gp_kthread);
+
+void rcu_tasks_rude_torture_stats_print(char *tt, char *tf)
+{
+	rcu_tasks_torture_stats_print_generic(&rcu_tasks_rude, tt, tf, "");
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_rude_torture_stats_print);
 #endif // !defined(CONFIG_TINY_RCU)
 
 struct task_struct *get_rcu_tasks_rude_gp_kthread(void)
@@ -2038,6 +2094,12 @@ void show_rcu_tasks_trace_gp_kthread(void)
 	show_rcu_tasks_generic_gp_kthread(&rcu_tasks_trace, buf);
 }
 EXPORT_SYMBOL_GPL(show_rcu_tasks_trace_gp_kthread);
+
+void rcu_tasks_trace_torture_stats_print(char *tt, char *tf)
+{
+	rcu_tasks_torture_stats_print_generic(&rcu_tasks_trace, tt, tf, "");
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_trace_torture_stats_print);
 #endif // !defined(CONFIG_TINY_RCU)
 
 struct task_struct *get_rcu_tasks_trace_gp_kthread(void)
