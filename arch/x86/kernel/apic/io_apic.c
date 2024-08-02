@@ -384,12 +384,12 @@ static void io_apic_modify_irq(struct mp_chip_data *data, bool masked,
 	}
 }
 
+/*
+ * Synchronize the IO-APIC and the CPU by doing a dummy read from the
+ * IO-APIC
+ */
 static void io_apic_sync(struct irq_pin_list *entry)
 {
-	/*
-	 * Synchronize the IO-APIC and the CPU by doing
-	 * a dummy read from the IO-APIC
-	 */
 	struct io_apic __iomem *io_apic;
 
 	io_apic = io_apic_base(entry->apic);
@@ -442,17 +442,13 @@ static void __eoi_ioapic_pin(int apic, int pin, int vector)
 
 		entry = entry1 = __ioapic_read_entry(apic, pin);
 
-		/*
-		 * Mask the entry and change the trigger mode to edge.
-		 */
+		/* Mask the entry and change the trigger mode to edge. */
 		entry1.masked = true;
 		entry1.is_level = false;
 
 		__ioapic_write_entry(apic, pin, entry1);
 
-		/*
-		 * Restore the previous level triggered entry.
-		 */
+		/* Restore the previous level triggered entry. */
 		__ioapic_write_entry(apic, pin, entry);
 	}
 }
@@ -1012,16 +1008,12 @@ static int pin_2_irq(int idx, int ioapic, int pin, unsigned int flags)
 {
 	u32 gsi = mp_pin_to_gsi(ioapic, pin);
 
-	/*
-	 * Debugging check, we are in big trouble if this message pops up!
-	 */
+	/* Debugging check, we are in big trouble if this message pops up! */
 	if (mp_irqs[idx].dstirq != pin)
 		pr_err("broken BIOS or MPTABLE parser, ayiee!!\n");
 
 #ifdef CONFIG_X86_32
-	/*
-	 * PCI IRQ command line redirection. Yes, limits are hardcoded.
-	 */
+	/* PCI IRQ command line redirection. Yes, limits are hardcoded. */
 	if ((pin >= 16) && (pin <= 23)) {
 		if (pirq_entries[pin - 16] != -1) {
 			if (!pirq_entries[pin - 16]) {
@@ -1296,8 +1288,9 @@ void __init enable_IO_APIC(void)
 		/* See if any of the pins is in ExtINT mode */
 		struct IO_APIC_route_entry entry = ioapic_read_entry(apic, pin);
 
-		/* If the interrupt line is enabled and in ExtInt mode
-		 * I have found the pin where the i8259 is connected.
+		/*
+		 * If the interrupt line is enabled and in ExtInt mode I
+		 * have found the pin where the i8259 is connected.
 		 */
 		if (!entry.masked &&
 		    entry.delivery_mode == APIC_DELIVERY_MODE_EXTINT) {
@@ -1307,8 +1300,11 @@ void __init enable_IO_APIC(void)
 		}
 	}
  found_i8259:
-	/* Look to see what if the MP table has reported the ExtINT */
-	/* If we could not find the appropriate pin by looking at the ioapic
+
+	/*
+	 * Look to see what if the MP table has reported the ExtINT
+	 *
+	 * If we could not find the appropriate pin by looking at the ioapic
 	 * the i8259 probably is not connected the ioapic but give the
 	 * mptable a chance anyway.
 	 */
@@ -1348,9 +1344,7 @@ void native_restore_boot_irq_mode(void)
 		entry.destid_0_7	= apic_id & 0xFF;
 		entry.virt_destid_8_14	= apic_id >> 8;
 
-		/*
-		 * Add it to the IO-APIC irq-routing table:
-		 */
+		/* Add it to the IO-APIC irq-routing table */
 		ioapic_write_entry(ioapic_i8259.apic, ioapic_i8259.pin, entry);
 	}
 
@@ -1427,8 +1421,8 @@ static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		}
 
 		/*
-		 * We need to adjust the IRQ routing table
-		 * if the ID changed.
+		 * We need to adjust the IRQ routing table if the ID
+		 * changed.
 		 */
 		if (old_id != mpc_ioapic_id(ioapic_idx))
 			for (i = 0; i < mp_irq_entries; i++)
@@ -1437,8 +1431,8 @@ static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 						= mpc_ioapic_id(ioapic_idx);
 
 		/*
-		 * Update the ID register according to the right value
-		 * from the MPC table if they are different.
+		 * Update the ID register according to the right value from
+		 * the MPC table if they are different.
 		 */
 		if (mpc_ioapic_id(ioapic_idx) == reg_00.bits.ID)
 			continue;
@@ -1562,21 +1556,17 @@ static int __init timer_irq_works(void)
  * so we 'resend' these IRQs via IPIs, to the same CPU. It's much
  * better to do it this way as thus we do not have to be aware of
  * 'pending' interrupts in the IRQ path, except at this point.
- */
-/*
- * Edge triggered needs to resend any interrupt
- * that was delayed but this is now handled in the device
- * independent code.
- */
-
-/*
- * Starting up a edge-triggered IO-APIC interrupt is
- * nasty - we need to make sure that we get the edge.
- * If it is already asserted for some reason, we need
- * return 1 to indicate that is was pending.
  *
- * This is not complete - we should be able to fake
- * an edge even if it isn't on the 8259A...
+ *
+ * Edge triggered needs to resend any interrupt that was delayed but this
+ * is now handled in the device independent code.
+ *
+ * Starting up a edge-triggered IO-APIC interrupt is nasty - we need to
+ * make sure that we get the edge.  If it is already asserted for some
+ * reason, we need return 1 to indicate that is was pending.
+ *
+ * This is not complete - we should be able to fake an edge even if it
+ * isn't on the 8259A...
  */
 static unsigned int startup_ioapic_irq(struct irq_data *data)
 {
@@ -1627,7 +1617,8 @@ static inline bool ioapic_prepare_move(struct irq_data *data)
 static inline void ioapic_finish_move(struct irq_data *data, bool moveit)
 {
 	if (unlikely(moveit)) {
-		/* Only migrate the irq if the ack has been received.
+		/*
+		 * Only migrate the irq if the ack has been received.
 		 *
 		 * On rare occasions the broadcast level triggered ack gets
 		 * delayed going to ioapics, and if we reprogram the
@@ -1904,14 +1895,13 @@ static inline void init_IO_APIC_traps(void)
 		cfg = irq_cfg(irq);
 		if (IO_APIC_IRQ(irq) && cfg && !cfg->vector) {
 			/*
-			 * Hmm.. We don't have an entry for this,
-			 * so default to an old-fashioned 8259
-			 * interrupt if we can..
+			 * Hmm.. We don't have an entry for this, so
+			 * default to an old-fashioned 8259 interrupt if we
+			 * can. Otherwise set the dummy interrupt chip.
 			 */
 			if (irq < nr_legacy_irqs())
 				legacy_pic->make_irq(irq);
 			else
-				/* Strange. Oh, well.. */
 				irq_set_chip(irq, &no_irq_chip);
 		}
 	}
@@ -2307,9 +2297,7 @@ void __init setup_IO_APIC(void)
 	for_each_ioapic(ioapic)
 		BUG_ON(mp_irqdomain_create(ioapic));
 
-	/*
-         * Set up IO-APIC IRQ routing.
-         */
+	/* Set up IO-APIC IRQ routing. */
 	x86_init.mpparse.setup_ioapic_ids();
 
 	sync_Arb_IDs();
