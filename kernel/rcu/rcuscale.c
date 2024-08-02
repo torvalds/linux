@@ -145,6 +145,7 @@ struct rcu_scale_ops {
 	void (*sync)(void);
 	void (*exp_sync)(void);
 	struct task_struct *(*rso_gp_kthread)(void);
+	void (*stats)(void);
 	const char *name;
 };
 
@@ -226,6 +227,11 @@ static void srcu_scale_synchronize(void)
 	synchronize_srcu(srcu_ctlp);
 }
 
+static void srcu_scale_stats(void)
+{
+	srcu_torture_stats_print(srcu_ctlp, scale_type, SCALE_FLAG);
+}
+
 static void srcu_scale_synchronize_expedited(void)
 {
 	synchronize_srcu_expedited(srcu_ctlp);
@@ -243,6 +249,7 @@ static struct rcu_scale_ops srcu_ops = {
 	.gp_barrier	= srcu_rcu_barrier,
 	.sync		= srcu_scale_synchronize,
 	.exp_sync	= srcu_scale_synchronize_expedited,
+	.stats		= srcu_scale_stats,
 	.name		= "srcu"
 };
 
@@ -272,6 +279,7 @@ static struct rcu_scale_ops srcud_ops = {
 	.gp_barrier	= srcu_rcu_barrier,
 	.sync		= srcu_scale_synchronize,
 	.exp_sync	= srcu_scale_synchronize_expedited,
+	.stats		= srcu_scale_stats,
 	.name		= "srcud"
 };
 
@@ -563,6 +571,8 @@ retry:
 					pr_info("%s: Task %ld flags writer %d:\n", __func__, me, i);
 					sched_show_task(writer_tasks[i]);
 				}
+				if (cur_ops->stats)
+					cur_ops->stats();
 			}
 		}
 		if (started && !alldone && i < MAX_MEAS - 1)
