@@ -264,12 +264,14 @@ static __attribute_const__ struct io_apic __iomem *io_apic_base(int idx)
 static inline void io_apic_eoi(unsigned int apic, unsigned int vector)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
+
 	writel(vector, &io_apic->eoi);
 }
 
 unsigned int native_io_apic_read(unsigned int apic, unsigned int reg)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
+
 	writel(reg, &io_apic->index);
 	return readl(&io_apic->data);
 }
@@ -880,9 +882,9 @@ static bool mp_check_pin_attr(int irq, struct irq_alloc_info *info)
 static int alloc_irq_from_domain(struct irq_domain *domain, int ioapic, u32 gsi,
 				 struct irq_alloc_info *info)
 {
+	int type = ioapics[ioapic].irqdomain_cfg.type;
 	bool legacy = false;
 	int irq = -1;
-	int type = ioapics[ioapic].irqdomain_cfg.type;
 
 	switch (type) {
 	case IOAPIC_DOMAIN_LEGACY:
@@ -951,11 +953,11 @@ static int alloc_isa_irq_from_domain(struct irq_domain *domain, int irq, int ioa
 static int mp_map_pin_to_irq(u32 gsi, int idx, int ioapic, int pin,
 			     unsigned int flags, struct irq_alloc_info *info)
 {
-	int irq;
-	bool legacy = false;
+	struct irq_domain *domain = mp_ioapic_irqdomain(ioapic);
 	struct irq_alloc_info tmp;
 	struct mp_chip_data *data;
-	struct irq_domain *domain = mp_ioapic_irqdomain(ioapic);
+	bool legacy = false;
+	int irq;
 
 	if (!domain)
 		return -ENOSYS;
@@ -1269,8 +1271,7 @@ static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 void __init enable_IO_APIC(void)
 {
-	int i8259_apic, i8259_pin;
-	int apic, pin;
+	int i8259_apic, i8259_pin, apic, pin;
 
 	if (ioapic_is_disabled)
 		nr_ioapics = 0;
@@ -1943,9 +1944,9 @@ static void lapic_register_intr(int irq)
  */
 static inline void __init unlock_ExtINT_logic(void)
 {
-	int apic, pin, i;
-	struct IO_APIC_route_entry entry0, entry1;
 	unsigned char save_control, save_freq_select;
+	struct IO_APIC_route_entry entry0, entry1;
+	int apic, pin, i;
 	u32 apic_id;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
@@ -2211,11 +2212,11 @@ out:
 
 static int mp_irqdomain_create(int ioapic)
 {
-	struct irq_domain *parent;
+	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
 	int hwirqs = mp_ioapic_pin_count(ioapic);
 	struct ioapic *ip = &ioapics[ioapic];
 	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
-	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
+	struct irq_domain *parent;
 	struct fwnode_handle *fn;
 	struct irq_fwspec fwspec;
 
@@ -2491,8 +2492,8 @@ static struct resource *ioapic_resources;
 
 static struct resource * __init ioapic_setup_resources(void)
 {
-	unsigned long n;
 	struct resource *res;
+	unsigned long n;
 	char *mem;
 	int i;
 
