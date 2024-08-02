@@ -4147,12 +4147,21 @@ static int svm_vcpu_pre_run(struct kvm_vcpu *vcpu)
 
 static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+
 	if (is_guest_mode(vcpu))
 		return EXIT_FASTPATH_NONE;
 
-	if (to_svm(vcpu)->vmcb->control.exit_code == SVM_EXIT_MSR &&
-	    to_svm(vcpu)->vmcb->control.exit_info_1)
+	switch (svm->vmcb->control.exit_code) {
+	case SVM_EXIT_MSR:
+		if (!svm->vmcb->control.exit_info_1)
+			break;
 		return handle_fastpath_set_msr_irqoff(vcpu);
+	case SVM_EXIT_HLT:
+		return handle_fastpath_hlt(vcpu);
+	default:
+		break;
+	}
 
 	return EXIT_FASTPATH_NONE;
 }
