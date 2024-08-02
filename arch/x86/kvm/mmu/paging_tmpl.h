@@ -646,10 +646,10 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	 * really care if it changes underneath us after this point).
 	 */
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
-		goto out_gpte_changed;
+		return RET_PF_RETRY;
 
 	if (WARN_ON_ONCE(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
-		goto out_gpte_changed;
+		return RET_PF_RETRY;
 
 	/*
 	 * Load a new root and retry the faulting instruction in the extremely
@@ -659,7 +659,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	 */
 	if (unlikely(kvm_mmu_is_dummy_root(vcpu->arch.mmu->root.hpa))) {
 		kvm_make_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu);
-		goto out_gpte_changed;
+		return RET_PF_RETRY;
 	}
 
 	for_each_shadow_entry(vcpu, fault->addr, it) {
@@ -699,7 +699,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		 * protected is still there.
 		 */
 		if (FNAME(gpte_changed)(vcpu, gw, it.level - 1))
-			goto out_gpte_changed;
+			return RET_PF_RETRY;
 
 		if (sp != ERR_PTR(-EEXIST))
 			link_shadow_page(vcpu, it.sptep, sp);
@@ -753,9 +753,6 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 	return ret;
-
-out_gpte_changed:
-	return RET_PF_RETRY;
 }
 
 /*
