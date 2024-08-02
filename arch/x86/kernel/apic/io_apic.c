@@ -2122,10 +2122,10 @@ static int __init disable_timer_pin_setup(char *arg)
 }
 early_param("disable_timer_pin_1", disable_timer_pin_setup);
 
-static int mp_alloc_timer_irq(int ioapic, int pin)
+static int __init mp_alloc_timer_irq(int ioapic, int pin)
 {
-	int irq = -1;
 	struct irq_domain *domain = mp_ioapic_irqdomain(ioapic);
+	int irq = -1;
 
 	if (domain) {
 		struct irq_alloc_info info;
