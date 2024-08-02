@@ -255,6 +255,11 @@ static inline void debug_rcu_head_callback(struct rcu_head *rhp)
 		kmem_dump_obj(rhp);
 }
 
+static inline bool rcu_barrier_cb_is_done(struct rcu_head *rhp)
+{
+	return rhp->next == rhp;
+}
+
 extern int rcu_cpu_stall_suppress_at_boot;
 
 static inline bool rcu_stall_is_suppressed_at_boot(void)
