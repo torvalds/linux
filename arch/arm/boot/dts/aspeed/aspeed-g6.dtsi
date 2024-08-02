@@ -398,19 +398,6 @@
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			xdma: xdma@1e6e7000 {
-				compatible = "aspeed,ast2600-xdma";
-				reg = <0x1e6e7000 0x100>;
-				clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
-				resets = <&syscon ASPEED_RESET_DEV_XDMA>, <&syscon ASPEED_RESET_RC_XDMA>;
-				reset-names = "device", "root-complex";
-				interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
-				aspeed,pcie-device = "bmc";
-				aspeed,scu = <&syscon>;
-				status = "disabled";
-			};
-
 			adc0: adc@1e6e9000 {
 				compatible = "aspeed,ast2600-adc0";
 				reg = <0x1e6e9000 0x100>;
