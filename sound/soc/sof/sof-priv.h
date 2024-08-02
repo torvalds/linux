@@ -412,8 +412,8 @@ struct snd_sof_debugfs_map {
 
 /* mailbox descriptor, used for host <-> DSP IPC */
 struct snd_sof_mailbox {
-	u32 offset;
 	size_t size;
+	u32 offset;
 };
 
 /* IPC message descriptor for host <-> DSP IO */
