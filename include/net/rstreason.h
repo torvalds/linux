@@ -18,6 +18,7 @@
 	FN(TCP_TIMEWAIT_SOCKET)		\
 	FN(INVALID_SYN)			\
 	FN(TCP_ABORT_ON_CLOSE)		\
+	FN(TCP_ABORT_ON_LINGER)		\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -90,6 +91,11 @@ enum sk_rst_reason {
 	 * corresponding to LINUX_MIB_TCPABORTONCLOSE
 	 */
 	SK_RST_REASON_TCP_ABORT_ON_CLOSE,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_LINGER: abort on linger
+	 * corresponding to LINUX_MIB_TCPABORTONLINGER
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_LINGER,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
