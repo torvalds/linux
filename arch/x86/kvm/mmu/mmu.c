@@ -1307,15 +1307,6 @@ static bool __rmap_clear_dirty(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 	return flush;
 }
 
-/**
- * kvm_mmu_write_protect_pt_masked - write protect selected PT level pages
- * @kvm: kvm instance
- * @slot: slot to protect
- * @gfn_offset: start of the BITS_PER_LONG pages we care about
- * @mask: indicates which pages we should protect
- *
- * Used when we do not need to care about huge page mappings.
- */
 static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 				     struct kvm_memory_slot *slot,
 				     gfn_t gfn_offset, unsigned long mask)
@@ -1339,16 +1330,6 @@ static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 	}
 }
 
-/**
- * kvm_mmu_clear_dirty_pt_masked - clear MMU D-bit for PT level pages, or write
- * protect the page if the D-bit isn't supported.
- * @kvm: kvm instance
- * @slot: slot to clear D-bit
- * @gfn_offset: start of the BITS_PER_LONG pages we care about
- * @mask: indicates which pages we should clear D-bit
- *
- * Used for PML to re-log the dirty GPAs after userspace querying dirty_bitmap.
- */
 static void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 					 struct kvm_memory_slot *slot,
 					 gfn_t gfn_offset, unsigned long mask)
@@ -1372,24 +1353,16 @@ static void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 	}
 }
 
-/**
- * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
- * PT level pages.
- *
- * It calls kvm_mmu_write_protect_pt_masked to write protect selected pages to
- * enable dirty logging for them.
- *
- * We need to care about huge page mappings: e.g. during dirty logging we may
- * have such mappings.
- */
 void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 				struct kvm_memory_slot *slot,
 				gfn_t gfn_offset, unsigned long mask)
 {
 	/*
-	 * Huge pages are NOT write protected when we start dirty logging in
-	 * initially-all-set mode; must write protect them here so that they
-	 * are split to 4K on the first write.
+	 * If the slot was assumed to be "initially all dirty", write-protect
+	 * huge pages to ensure they are split to 4KiB on the first write (KVM
+	 * dirty logs at 4KiB granularity). If eager page splitting is enabled,
+	 * immediately try to split huge pages, e.g. so that vCPUs don't get
+	 * saddled with the cost of splitting.
 	 *
 	 * The gfn_offset is guaranteed to be aligned to 64, but the base_gfn
 	 * of memslot has no such restriction, so the range can cross two large
@@ -1411,7 +1384,16 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 						       PG_LEVEL_2M);
 	}
 
-	/* Now handle 4K PTEs.  */
+	/*
+	 * (Re)Enable dirty logging for all 4KiB SPTEs that map the GFNs in
+	 * mask.  If PML is enabled and the GFN doesn't need to be write-
+	 * protected for other reasons, e.g. shadow paging, clear the Dirty bit.
+	 * Otherwise clear the Writable bit.
+	 *
+	 * Note that kvm_mmu_clear_dirty_pt_masked() is called whenever PML is
+	 * enabled but it chooses between clearing the Dirty bit and Writeable
+	 * bit based on the context.
+	 */
 	if (kvm_x86_ops.cpu_dirty_log_size)
 		kvm_mmu_clear_dirty_pt_masked(kvm, slot, gfn_offset, mask);
 	else
