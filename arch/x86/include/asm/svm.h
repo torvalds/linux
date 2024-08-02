@@ -516,6 +516,20 @@ struct ghcb {
 	u32 ghcb_usage;
 } __packed;
 
+struct vmcb {
+	struct vmcb_control_area control;
+	union {
+		struct vmcb_save_area save;
+
+		/*
+		 * For SEV-ES VMs, the save area in the VMCB is used only to
+		 * save/load host state.  Guest state resides in a separate
+		 * page, the aptly named VM Save Area (VMSA), that is encrypted
+		 * with the guest's private key.
+		 */
+		struct sev_es_save_area host_sev_es_save;
+	};
+} __packed;
 
 #define EXPECTED_VMCB_SAVE_AREA_SIZE		744
 #define EXPECTED_GHCB_SAVE_AREA_SIZE		1032
@@ -532,6 +546,7 @@ static inline void __unused_size_checks(void)
 	BUILD_BUG_ON(sizeof(struct ghcb_save_area)	!= EXPECTED_GHCB_SAVE_AREA_SIZE);
 	BUILD_BUG_ON(sizeof(struct sev_es_save_area)	!= EXPECTED_SEV_ES_SAVE_AREA_SIZE);
 	BUILD_BUG_ON(sizeof(struct vmcb_control_area)	!= EXPECTED_VMCB_CONTROL_AREA_SIZE);
+	BUILD_BUG_ON(offsetof(struct vmcb, save)	!= EXPECTED_VMCB_CONTROL_AREA_SIZE);
 	BUILD_BUG_ON(sizeof(struct ghcb)		!= EXPECTED_GHCB_SIZE);
 
 	/* Check offsets of reserved fields */
@@ -567,11 +582,6 @@ static inline void __unused_size_checks(void)
 
 	BUILD_BUG_RESERVED_OFFSET(ghcb, 0xff0);
 }
-
-struct vmcb {
-	struct vmcb_control_area control;
-	struct vmcb_save_area save;
-} __packed;
 
 #define SVM_CPUID_FUNC 0x8000000a
 
