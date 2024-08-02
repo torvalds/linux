@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2011-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2011-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -240,7 +241,7 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		struct vmw_connector_state *vmw_conn_state;
 		int x, y;
 
-		sou->buffer = vps->bo;
+		sou->buffer = vmw_user_object_buffer(&vps->uo);
 
 		conn_state = sou->base.connector.state;
 		vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
@@ -376,10 +377,11 @@ vmw_sou_primary_plane_cleanup_fb(struct drm_plane *plane,
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
 	struct drm_crtc *crtc = plane->state->crtc ?
 		plane->state->crtc : old_state->crtc;
+	struct vmw_bo *bo = vmw_user_object_buffer(&vps->uo);
 
-	if (vps->bo)
-		vmw_bo_unpin(vmw_priv(crtc->dev), vps->bo, false);
-	vmw_bo_unreference(&vps->bo);
+	if (bo)
+		vmw_bo_unpin(vmw_priv(crtc->dev), bo, false);
+	vmw_user_object_unref(&vps->uo);
 	vps->bo_size = 0;
 
 	vmw_du_plane_cleanup_fb(plane, old_state);
@@ -411,9 +413,10 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 		.bo_type = ttm_bo_type_device,
 		.pin = true
 	};
+	struct vmw_bo *bo = NULL;
 
 	if (!new_fb) {
-		vmw_bo_unreference(&vps->bo);
+		vmw_user_object_unref(&vps->uo);
 		vps->bo_size = 0;
 
 		return 0;
@@ -422,17 +425,17 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	bo_params.size = new_state->crtc_w * new_state->crtc_h * 4;
 	dev_priv = vmw_priv(crtc->dev);
 
-	if (vps->bo) {
+	bo = vmw_user_object_buffer(&vps->uo);
+	if (bo) {
 		if (vps->bo_size == bo_params.size) {
 			/*
 			 * Note that this might temporarily up the pin-count
 			 * to 2, until cleanup_fb() is called.
 			 */
-			return vmw_bo_pin_in_vram(dev_priv, vps->bo,
-						      true);
+			return vmw_bo_pin_in_vram(dev_priv, bo, true);
 		}
 
-		vmw_bo_unreference(&vps->bo);
+		vmw_user_object_unref(&vps->uo);
 		vps->bo_size = 0;
 	}
 
@@ -442,7 +445,7 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_bo_create(dev_priv, &bo_params, &vps->bo);
+	ret = vmw_gem_object_create(dev_priv, &bo_params, &vps->uo.buffer);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret)
 		return ret;
@@ -453,7 +456,7 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * TTM already thinks the buffer is pinned, but make sure the
 	 * pin_count is upped.
 	 */
-	return vmw_bo_pin_in_vram(dev_priv, vps->bo, true);
+	return vmw_bo_pin_in_vram(dev_priv, vps->uo.buffer, true);
 }
 
 static uint32_t vmw_sou_bo_fifo_size(struct vmw_du_update_plane *update,
@@ -580,6 +583,7 @@ static uint32_t vmw_sou_surface_pre_clip(struct vmw_du_update_plane *update,
 {
 	struct vmw_kms_sou_dirty_cmd *blit = cmd;
 	struct vmw_framebuffer_surface *vfbs;
+	struct vmw_surface *surf = NULL;
 
 	vfbs = container_of(update->vfb, typeof(*vfbs), base);
 
@@ -587,7 +591,8 @@ static uint32_t vmw_sou_surface_pre_clip(struct vmw_du_update_plane *update,
 	blit->header.size = sizeof(blit->body) + sizeof(SVGASignedRect) *
 		num_hits;
 
-	blit->body.srcImage.sid = vfbs->surface->res.id;
+	surf = vmw_user_object_surface(&vfbs->uo);
+	blit->body.srcImage.sid = surf->res.id;
 	blit->body.destScreenId = update->du->unit;
 
 	/* Update the source and destination bounding box later in post_clip */
@@ -1104,7 +1109,7 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	int ret;
 
 	if (!srf)
-		srf = &vfbs->surface->res;
+		srf = &vmw_user_object_surface(&vfbs->uo)->res;
 
 	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
 					  NULL, NULL);
