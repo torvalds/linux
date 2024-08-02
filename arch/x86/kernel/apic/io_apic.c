@@ -362,12 +362,13 @@ static void __remove_pin_from_irq(struct mp_chip_data *data, int apic, int pin)
 {
 	struct irq_pin_list *tmp, *entry;
 
-	list_for_each_entry_safe(entry, tmp, &data->irq_2_pin, list)
+	list_for_each_entry_safe(entry, tmp, &data->irq_2_pin, list) {
 		if (entry->apic == apic && entry->pin == pin) {
 			list_del(&entry->list);
 			kfree(entry);
 			return;
 		}
+	}
 }
 
 static void io_apic_modify_irq(struct mp_chip_data *data, bool masked,
@@ -562,8 +563,7 @@ int save_ioapic_entries(void)
 		}
 
 		for_each_pin(apic, pin)
-			ioapics[apic].saved_registers[pin] =
-				ioapic_read_entry(apic, pin);
+			ioapics[apic].saved_registers[pin] = ioapic_read_entry(apic, pin);
 	}
 
 	return err;
@@ -604,8 +604,7 @@ int restore_ioapic_entries(void)
 			continue;
 
 		for_each_pin(apic, pin)
-			ioapic_write_entry(apic, pin,
-					   ioapics[apic].saved_registers[pin]);
+			ioapic_write_entry(apic, pin, ioapics[apic].saved_registers[pin]);
 	}
 	return 0;
 }
@@ -617,12 +616,13 @@ static int find_irq_entry(int ioapic_idx, int pin, int type)
 {
 	int i;
 
-	for (i = 0; i < mp_irq_entries; i++)
+	for (i = 0; i < mp_irq_entries; i++) {
 		if (mp_irqs[i].irqtype == type &&
 		    (mp_irqs[i].dstapic == mpc_ioapic_id(ioapic_idx) ||
 		     mp_irqs[i].dstapic == MP_APIC_ALL) &&
 		    mp_irqs[i].dstirq == pin)
 			return i;
+	}
 
 	return -1;
 }
@@ -662,9 +662,10 @@ static int __init find_isa_irq_apic(int irq, int type)
 	if (i < mp_irq_entries) {
 		int ioapic_idx;
 
-		for_each_ioapic(ioapic_idx)
+		for_each_ioapic(ioapic_idx) {
 			if (mpc_ioapic_id(ioapic_idx) == mp_irqs[i].dstapic)
 				return ioapic_idx;
+		}
 	}
 
 	return -1;
@@ -1424,11 +1425,12 @@ static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		 * We need to adjust the IRQ routing table if the ID
 		 * changed.
 		 */
-		if (old_id != mpc_ioapic_id(ioapic_idx))
-			for (i = 0; i < mp_irq_entries; i++)
+		if (old_id != mpc_ioapic_id(ioapic_idx)) {
+			for (i = 0; i < mp_irq_entries; i++) {
 				if (mp_irqs[i].dstapic == old_id)
-					mp_irqs[i].dstapic
-						= mpc_ioapic_id(ioapic_idx);
+					mp_irqs[i].dstapic = mpc_ioapic_id(ioapic_idx);
+			}
+		}
 
 		/*
 		 * Update the ID register according to the right value from
@@ -2666,12 +2668,10 @@ static int bad_ioapic_register(int idx)
 
 static int find_free_ioapic_entry(void)
 {
-	int idx;
-
-	for (idx = 0; idx < MAX_IO_APICS; idx++)
+	for (int idx = 0; idx < MAX_IO_APICS; idx++) {
 		if (ioapics[idx].nr_registers == 0)
 			return idx;
-
+	}
 	return MAX_IO_APICS;
 }
 
@@ -2780,11 +2780,13 @@ int mp_unregister_ioapic(u32 gsi_base)
 	int ioapic, pin;
 	int found = 0;
 
-	for_each_ioapic(ioapic)
+	for_each_ioapic(ioapic) {
 		if (ioapics[ioapic].gsi_config.gsi_base == gsi_base) {
 			found = 1;
 			break;
 		}
+	}
+
 	if (!found) {
 		pr_warn("can't find IOAPIC for GSI %d\n", gsi_base);
 		return -ENODEV;
