@@ -674,27 +674,25 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		sp = kvm_mmu_get_child_sp(vcpu, it.sptep, table_gfn,
 					  false, access);
 
-		if (sp != ERR_PTR(-EEXIST)) {
-			/*
-			 * We must synchronize the pagetable before linking it
-			 * because the guest doesn't need to flush tlb when
-			 * the gpte is changed from non-present to present.
-			 * Otherwise, the guest may use the wrong mapping.
-			 *
-			 * For PG_LEVEL_4K, kvm_mmu_get_page() has already
-			 * synchronized it transiently via kvm_sync_page().
-			 *
-			 * For higher level pagetable, we synchronize it via
-			 * the slower mmu_sync_children().  If it needs to
-			 * break, some progress has been made; return
-			 * RET_PF_RETRY and retry on the next #PF.
-			 * KVM_REQ_MMU_SYNC is not necessary but it
-			 * expedites the process.
-			 */
-			if (sp->unsync_children &&
-			    mmu_sync_children(vcpu, sp, false))
-				return RET_PF_RETRY;
-		}
+		/*
+		 * Synchronize the new page before linking it, as the CPU (KVM)
+		 * is architecturally disallowed from inserting non-present
+		 * entries into the TLB, i.e. the guest isn't required to flush
+		 * the TLB when changing the gPTE from non-present to present.
+		 *
+		 * For PG_LEVEL_4K, kvm_mmu_find_shadow_page() has already
+		 * synchronized the page via kvm_sync_page().
+		 *
+		 * For higher level pages, which cannot be unsync themselves
+		 * but can have unsync children, synchronize via the slower
+		 * mmu_sync_children().  If KVM needs to drop mmu_lock due to
+		 * contention or to reschedule, instruct the caller to retry
+		 * the #PF (mmu_sync_children() ensures forward progress will
+		 * be made).
+		 */
+		if (sp != ERR_PTR(-EEXIST) && sp->unsync_children &&
+		    mmu_sync_children(vcpu, sp, false))
+			return RET_PF_RETRY;
 
 		/*
 		 * Verify that the gpte in the page we've just write
