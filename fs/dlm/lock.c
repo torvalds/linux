@@ -1442,18 +1442,6 @@ static void deactivate_rsb(struct kref *kref)
 	}
 }
 
-/* See comment for unhold_lkb */
-
-static void unhold_rsb(struct dlm_rsb *r)
-{
-	int rv;
-
-	/* inactive rsbs are not ref counted */
-	WARN_ON(rsb_flag(r, RSB_INACTIVE));
-	rv = kref_put(&r->res_ref, deactivate_rsb);
-	DLM_ASSERT(!rv, dlm_dump_rsb(r););
-}
-
 void free_inactive_rsb(struct dlm_rsb *r)
 {
 	WARN_ON_ONCE(!rsb_flag(r, RSB_INACTIVE));
@@ -1675,10 +1663,8 @@ static void del_lkb(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 static void move_lkb(struct dlm_rsb *r, struct dlm_lkb *lkb, int sts)
 {
-	hold_lkb(lkb);
 	del_lkb(r, lkb);
 	add_lkb(r, lkb, sts);
-	unhold_lkb(lkb);
 }
 
 static int msg_reply_type(int mstype)
@@ -5409,7 +5395,6 @@ void dlm_recover_purge(struct dlm_ls *ls, const struct list_head *root_list)
 		return;
 
 	list_for_each_entry(r, root_list, res_root_list) {
-		hold_rsb(r);
 		lock_rsb(r);
 		if (is_master(r)) {
 			purge_dead_list(ls, r, &r->res_grantqueue,
@@ -5420,7 +5405,7 @@ void dlm_recover_purge(struct dlm_ls *ls, const struct list_head *root_list)
 					nodeid_gone, &lkb_count);
 		}
 		unlock_rsb(r);
-		unhold_rsb(r);
+
 		cond_resched();
 	}
 
