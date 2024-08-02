@@ -231,7 +231,7 @@
 			resets = <&syscon ASPEED_RESET_MII>;
 		};
 
-		mac0: ftgmac@1e660000 {
+		mac0: ethernet@1e660000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
 			reg = <0x1e660000 0x180>;
 			#address-cells = <1>;
@@ -241,7 +241,7 @@
 			status = "disabled";
 		};
 
-		mac1: ftgmac@1e680000 {
+		mac1: ethernet@1e680000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
 			reg = <0x1e680000 0x180>;
 			#address-cells = <1>;
@@ -251,7 +251,7 @@
 			status = "disabled";
 		};
 
-		mac2: ftgmac@1e670000 {
+		mac2: ethernet@1e670000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
 			reg = <0x1e670000 0x180>;
 			#address-cells = <1>;
@@ -261,7 +261,7 @@
 			status = "disabled";
 		};
 
-		mac3: ftgmac@1e690000 {
+		mac3: ethernet@1e690000 {
 			compatible = "aspeed,ast2600-mac", "faraday,ftgmac100";
 			reg = <0x1e690000 0x180>;
 			#address-cells = <1>;
