@@ -304,25 +304,40 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 
 static struct kmem_cache *x86_emulator_cache;
 
-/*
- * When called, it means the previous get/set msr reached an invalid msr.
- * Return true if we want to ignore/silent this failed msr access.
- */
-static bool kvm_msr_ignored_check(u32 msr, u64 data, bool write)
-{
-	const char *op = write ? "wrmsr" : "rdmsr";
+typedef int (*msr_access_t)(struct kvm_vcpu *vcpu, u32 index, u64 *data,
+			    bool host_initiated);
 
-	if (ignore_msrs) {
-		if (report_ignored_msrs)
-			kvm_pr_unimpl("ignored %s: 0x%x data 0x%llx\n",
-				      op, msr, data);
-		/* Mask the error */
-		return true;
-	} else {
+static __always_inline int kvm_do_msr_access(struct kvm_vcpu *vcpu, u32 msr,
+					     u64 *data, bool host_initiated,
+					     enum kvm_msr_access rw,
+					     msr_access_t msr_access_fn)
+{
+	const char *op = rw == MSR_TYPE_W ? "wrmsr" : "rdmsr";
+	int ret;
+
+	BUILD_BUG_ON(rw != MSR_TYPE_R && rw != MSR_TYPE_W);
+
+	/*
+	 * Zero the data on read failures to avoid leaking stack data to the
+	 * guest and/or userspace, e.g. if the failure is ignored below.
+	 */
+	ret = msr_access_fn(vcpu, msr, data, host_initiated);
+	if (ret && rw == MSR_TYPE_R)
+		*data = 0;
+
+	if (ret != KVM_MSR_RET_UNSUPPORTED)
+		return ret;
+
+	if (!ignore_msrs) {
 		kvm_debug_ratelimited("unhandled %s: 0x%x data 0x%llx\n",
-				      op, msr, data);
-		return false;
+				      op, msr, *data);
+		return ret;
 	}
+
+	if (report_ignored_msrs)
+		kvm_pr_unimpl("ignored %s: 0x%x data 0x%llx\n", op, msr, *data);
+
+	return 0;
 }
 
 static struct kmem_cache *kvm_alloc_emulator_cache(void)
@@ -1682,16 +1697,8 @@ static int kvm_get_feature_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 
 static int do_get_feature_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	int r;
-
-	/* Unconditionally clear the output for simplicity */
-	*data = 0;
-	r = kvm_get_feature_msr(vcpu, index, data, true);
-
-	if (r == KVM_MSR_RET_UNSUPPORTED && kvm_msr_ignored_check(index, 0, false))
-		r = 0;
-
-	return r;
+	return kvm_do_msr_access(vcpu, index, data, true, MSR_TYPE_R,
+				 kvm_get_feature_msr);
 }
 
 static bool __kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer)
@@ -1878,16 +1885,17 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 	return kvm_x86_call(set_msr)(vcpu, &msr);
 }
 
+static int _kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
+			bool host_initiated)
+{
+	return __kvm_set_msr(vcpu, index, *data, host_initiated);
+}
+
 static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
 				     u32 index, u64 data, bool host_initiated)
 {
-	int ret = __kvm_set_msr(vcpu, index, data, host_initiated);
-
-	if (ret == KVM_MSR_RET_UNSUPPORTED)
-		if (kvm_msr_ignored_check(index, data, true))
-			ret = 0;
-
-	return ret;
+	return kvm_do_msr_access(vcpu, index, &data, host_initiated, MSR_TYPE_W,
+				 _kvm_set_msr);
 }
 
 /*
@@ -1926,16 +1934,8 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 				     u32 index, u64 *data, bool host_initiated)
 {
-	int ret = __kvm_get_msr(vcpu, index, data, host_initiated);
-
-	if (ret == KVM_MSR_RET_UNSUPPORTED) {
-		/* Unconditionally clear *data for simplicity */
-		*data = 0;
-		if (kvm_msr_ignored_check(index, 0, false))
-			ret = 0;
-	}
-
-	return ret;
+	return kvm_do_msr_access(vcpu, index, data, host_initiated, MSR_TYPE_R,
+				 __kvm_get_msr);
 }
 
 static int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data)
