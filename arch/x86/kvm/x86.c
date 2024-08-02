@@ -1659,7 +1659,7 @@ static u64 kvm_get_arch_capabilities(void)
 	return data;
 }
 
-static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
+static int kvm_get_feature_msr(struct kvm_msr_entry *msr)
 {
 	switch (msr->index) {
 	case MSR_IA32_ARCH_CAPABILITIES:
@@ -1672,12 +1672,12 @@ static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
 		rdmsrl_safe(msr->index, &msr->data);
 		break;
 	default:
-		return kvm_x86_call(get_msr_feature)(msr->index, &msr->data);
+		return kvm_x86_call(get_feature_msr)(msr->index, &msr->data);
 	}
 	return 0;
 }
 
-static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
+static int do_get_feature_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
 	struct kvm_msr_entry msr;
 	int r;
@@ -1685,7 +1685,7 @@ static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	/* Unconditionally clear the output for simplicity */
 	msr.data = 0;
 	msr.index = index;
-	r = kvm_get_msr_feature(&msr);
+	r = kvm_get_feature_msr(&msr);
 
 	if (r == KVM_MSR_RET_UNSUPPORTED && kvm_msr_ignored_check(index, 0, false))
 		r = 0;
@@ -4943,7 +4943,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_MSRS:
-		r = msr_io(NULL, argp, do_get_msr_feature, 1);
+		r = msr_io(NULL, argp, do_get_feature_msr, 1);
 		break;
 #ifdef CONFIG_KVM_HYPERV
 	case KVM_GET_SUPPORTED_HV_CPUID:
@@ -7382,7 +7382,7 @@ static void kvm_probe_feature_msr(u32 msr_index)
 		.index = msr_index,
 	};
 
-	if (kvm_get_msr_feature(&msr))
+	if (kvm_get_feature_msr(&msr))
 		return;
 
 	msr_based_features[num_msr_based_features++] = msr_index;

@@ -2825,7 +2825,7 @@ static int efer_trap(struct kvm_vcpu *vcpu)
 	return kvm_complete_insn_gp(vcpu, ret);
 }
 
-static int svm_get_msr_feature(u32 msr, u64 *data)
+static int svm_get_feature_msr(u32 msr, u64 *data)
 {
 	*data = 0;
 
@@ -3181,7 +3181,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_AMD64_DE_CFG: {
 		u64 supported_de_cfg;
 
-		if (svm_get_msr_feature(ecx, &supported_de_cfg))
+		if (svm_get_feature_msr(ecx, &supported_de_cfg))
 			return 1;
 
 		if (data & ~supported_de_cfg)
@@ -5002,7 +5002,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.vcpu_unblocking = avic_vcpu_unblocking,
 
 	.update_exception_bitmap = svm_update_exception_bitmap,
-	.get_msr_feature = svm_get_msr_feature,
+	.get_feature_msr = svm_get_feature_msr,
 	.get_msr = svm_get_msr,
 	.set_msr = svm_set_msr,
 	.get_segment_base = svm_get_segment_base,
