@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+struct dso;
+
 struct llvm_a2l_frame {
   char* filename;
   char* funcname;
@@ -41,6 +43,15 @@ int llvm_addr2line(const char* dso_name,
                    unsigned int* line,
                    bool unwind_inlines,
                    struct llvm_a2l_frame** inline_frames);
+
+/*
+ * Simple symbolizers for addresses; will convert something like
+ * 0x12345 to "func+0x123". Will return NULL if no symbol was found.
+ *
+ * The returned value must be freed by the caller, with free().
+ */
+char *llvm_name_for_code(struct dso *dso, const char *dso_name, u64 addr);
+char *llvm_name_for_data(struct dso *dso, const char *dso_name, u64 addr);
 
 #ifdef __cplusplus
 }
