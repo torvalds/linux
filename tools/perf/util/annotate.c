@@ -848,6 +848,10 @@ static void annotation__calc_percent(struct annotation *notes,
 
 			BUG_ON(i >= al->data_nr);
 
+			if (symbol_conf.skip_empty &&
+			    evsel__hists(evsel)->stats.nr_samples == 0)
+				continue;
+
 			data = &al->data[i++];
 
 			calc_percent(notes, evsel, data, al->offset, end);
@@ -901,7 +905,7 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 		.options	= &annotate_opts,
 	};
 	struct arch *arch = NULL;
-	int err;
+	int err, nr;
 
 	err = evsel__get_arch(evsel, &arch);
 	if (err < 0)
@@ -922,10 +926,18 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 			return -1;
 	}
 
-	if (evsel__is_group_event(evsel))
-		notes->src->nr_events = evsel->core.nr_members;
-	else
-		notes->src->nr_events = 1;
+	nr = 0;
+	if (evsel__is_group_event(evsel)) {
+		struct evsel *pos;
+
+		for_each_group_evsel(pos, evsel) {
+			if (symbol_conf.skip_empty &&
+			    evsel__hists(pos)->stats.nr_samples == 0)
+				continue;
+			nr++;
+		}
+	}
+	notes->src->nr_events = nr ? nr : 1;
 
 	if (annotate_opts.full_addr)
 		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
