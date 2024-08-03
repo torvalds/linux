@@ -9,6 +9,17 @@
 #include <linux/binfmts.h>
 #include <linux/security.h>
 
+enum ipe_hook_type {
+	IPE_HOOK_BPRM_CHECK = 0,
+	IPE_HOOK_MMAP,
+	IPE_HOOK_MPROTECT,
+	IPE_HOOK_KERNEL_READ,
+	IPE_HOOK_KERNEL_LOAD,
+	__IPE_HOOK_MAX
+};
+
+#define IPE_HOOK_INVALID __IPE_HOOK_MAX
+
 int ipe_bprm_check_security(struct linux_binprm *bprm);
 
 int ipe_mmap_file(struct file *f, unsigned long reqprot, unsigned long prot,

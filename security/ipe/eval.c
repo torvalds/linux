@@ -9,12 +9,15 @@
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
+#include <linux/moduleparam.h>
 
 #include "ipe.h"
 #include "eval.h"
 #include "policy.h"
+#include "audit.h"
 
 struct ipe_policy __rcu *ipe_active_policy;
+bool success_audit;
 
 #define FILE_SUPERBLOCK(f) ((f)->f_path.mnt->mnt_sb)
 
@@ -33,13 +36,16 @@ static void build_ipe_sb_ctx(struct ipe_eval_ctx *ctx, const struct file *const 
  * @ctx: Supplies a pointer to the context to be populated.
  * @file: Supplies a pointer to the file to associated with the evaluation.
  * @op: Supplies the IPE policy operation associated with the evaluation.
+ * @hook: Supplies the LSM hook associated with the evaluation.
  */
 void ipe_build_eval_ctx(struct ipe_eval_ctx *ctx,
 			const struct file *file,
-			enum ipe_op_type op)
+			enum ipe_op_type op,
+			enum ipe_hook_type hook)
 {
 	ctx->file = file;
 	ctx->op = op;
+	ctx->hook = hook;
 
 	if (file)
 		build_ipe_sb_ctx(ctx, file);
@@ -100,6 +106,7 @@ int ipe_evaluate_event(const struct ipe_eval_ctx *const ctx)
 	struct ipe_policy *pol = NULL;
 	struct ipe_prop *prop = NULL;
 	enum ipe_action_type action;
+	enum ipe_match match_type;
 	bool match = false;
 
 	rcu_read_lock();
@@ -111,14 +118,14 @@ int ipe_evaluate_event(const struct ipe_eval_ctx *const ctx)
 	}
 
 	if (ctx->op == IPE_OP_INVALID) {
-		if (pol->parsed->global_default_action == IPE_ACTION_DENY) {
-			rcu_read_unlock();
-			return -EACCES;
-		}
-		if (pol->parsed->global_default_action == IPE_ACTION_INVALID)
+		if (pol->parsed->global_default_action == IPE_ACTION_INVALID) {
 			WARN(1, "no default rule set for unknown op, ALLOW it");
-		rcu_read_unlock();
-		return 0;
+			action = IPE_ACTION_ALLOW;
+		} else {
+			action = pol->parsed->global_default_action;
+		}
+		match_type = IPE_MATCH_GLOBAL;
+		goto eval;
 	}
 
 	rules = &pol->parsed->rules[ctx->op];
@@ -136,16 +143,32 @@ int ipe_evaluate_event(const struct ipe_eval_ctx *const ctx)
 			break;
 	}
 
-	if (match)
+	if (match) {
 		action = rule->action;
-	else if (rules->default_action != IPE_ACTION_INVALID)
+		match_type = IPE_MATCH_RULE;
+	} else if (rules->default_action != IPE_ACTION_INVALID) {
 		action = rules->default_action;
-	else
+		match_type = IPE_MATCH_TABLE;
+	} else {
 		action = pol->parsed->global_default_action;
+		match_type = IPE_MATCH_GLOBAL;
+	}
 
+eval:
+	ipe_audit_match(ctx, match_type, action, rule);
 	rcu_read_unlock();
+
 	if (action == IPE_ACTION_DENY)
 		return -EACCES;
 
 	return 0;
 }
+
+/* Set the right module name */
+#ifdef KBUILD_MODNAME
+#undef KBUILD_MODNAME
+#define KBUILD_MODNAME "ipe"
+#endif
+
+module_param(success_audit, bool, 0400);
+MODULE_PARM_DESC(success_audit, "Start IPE with success auditing enabled");
