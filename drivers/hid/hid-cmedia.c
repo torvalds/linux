@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL");
 /* Fixed report descriptor of HS-100B audio chip
  * Bit 4 is an abolute Microphone mute usage instead of being unassigned.
  */
-static __u8 hs100b_rdesc_fixed[] = {
+static const __u8 hs100b_rdesc_fixed[] = {
 	0x05, 0x0C,         /*  Usage Page (Consumer),          */
 	0x09, 0x01,         /*  Usage (Consumer Control),       */
 	0xA1, 0x01,         /*  Collection (Application),       */
@@ -204,8 +204,8 @@ static const __u8 *cmhid_hs100b_report_fixup(struct hid_device *hid, __u8 *rdesc
 {
 	if (*rsize == HS100B_RDESC_ORIG_SIZE) {
 		hid_info(hid, "Fixing CMedia HS-100B report descriptor\n");
-		rdesc = hs100b_rdesc_fixed;
 		*rsize = sizeof(hs100b_rdesc_fixed);
+		return hs100b_rdesc_fixed;
 	}
 	return rdesc;
 }
