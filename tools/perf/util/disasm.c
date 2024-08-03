@@ -1037,10 +1037,8 @@ static size_t disasm_line_size(int nr)
 struct disasm_line *disasm_line__new(struct annotate_args *args)
 {
 	struct disasm_line *dl = NULL;
-	int nr = 1;
-
-	if (evsel__is_group_event(args->evsel))
-		nr = args->evsel->core.nr_members;
+	struct annotation *notes = symbol__annotation(args->ms.sym);
+	int nr = notes->src->nr_events;
 
 	dl = zalloc(disasm_line_size(nr));
 	if (!dl)
