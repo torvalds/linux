@@ -690,8 +690,8 @@ static int corsair_input_mapping(struct hid_device *dev,
  * - USB ID 1b1c:1b3e, sold as Scimitar RGB Pro Gaming mouse
  */
 
-static __u8 *corsair_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-        unsigned int *rsize)
+static const __u8 *corsair_mouse_report_fixup(struct hid_device *hdev,
+	__u8 *rdesc, unsigned int *rsize)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 

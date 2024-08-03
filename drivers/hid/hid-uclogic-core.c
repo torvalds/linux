@@ -50,7 +50,7 @@ static void uclogic_inrange_timeout(struct timer_list *t)
 	input_sync(input);
 }
 
-static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 					unsigned int *rsize)
 {
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);

@@ -61,8 +61,8 @@ static __u8 mi_silent_mouse_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-static __u8 *xiaomi_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
+static const __u8 *xiaomi_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				       unsigned int *rsize)
 {
 	switch (hdev->product) {
 	case USB_DEVICE_ID_MI_SILENT_MOUSE:

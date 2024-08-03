@@ -24,7 +24,7 @@ static __u8 keytouch_fixed_rdesc[] = {
 0x26, 0xff, 0x00, 0x05, 0x07, 0x19, 0x00, 0x2a, 0xff, 0x00, 0x81, 0x00, 0xc0
 };
 
-static __u8 *keytouch_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *keytouch_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	hid_info(hdev, "fixing up Keytouch IEC report descriptor\n");

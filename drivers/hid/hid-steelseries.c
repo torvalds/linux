@@ -570,8 +570,8 @@ static void steelseries_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+static const __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev,
+		__u8 *rdesc, unsigned int *rsize)
 {
 	if (hdev->vendor != USB_VENDOR_ID_STEELSERIES ||
 	    hdev->product != USB_DEVICE_ID_STEELSERIES_SRWS1)

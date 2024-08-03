@@ -99,8 +99,8 @@ static const __u8 sm_0059_rdesc[] = {
 	0xc0,                    /* End Collection                      166 */
 };
 
-static __u8 *sm_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-			     unsigned int *rsize)
+static const __u8 *sm_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				   unsigned int *rsize)
 {
 	if (*rsize == sizeof(sm_0059_rdesc) &&
 	    !memcmp(sm_0059_rdesc, rdesc, *rsize)) {

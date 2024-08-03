@@ -165,7 +165,7 @@ static __u8 original_rdesc_buttons[] = {
  * This module skips numbers 32-63, unused on some throttle grips.
  */
 
-static __u8 *winwing_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *winwing_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	int sig_length = sizeof(original_rdesc_buttons);

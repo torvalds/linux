@@ -599,7 +599,7 @@ static __u8 sirius_battery_free_tablet_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	switch (hdev->product) {

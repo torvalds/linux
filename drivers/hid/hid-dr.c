@@ -228,8 +228,8 @@ static __u8 pid0011_rdesc_fixed[] = {
 	0xC0                /*  End Collection                  */
 };
 
-static __u8 *dr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				unsigned int *rsize)
+static const __u8 *dr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				   unsigned int *rsize)
 {
 	switch (hdev->product) {
 	case 0x0011:

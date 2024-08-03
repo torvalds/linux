@@ -822,7 +822,7 @@ struct hid_driver {
 			struct hid_usage *usage, __s32 value);
 	void (*report)(struct hid_device *hdev, struct hid_report *report);
 
-	__u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
+	const __u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
 			unsigned int *size);
 
 	int (*input_mapping)(struct hid_device *hdev,

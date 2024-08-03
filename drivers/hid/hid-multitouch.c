@@ -1441,7 +1441,7 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 	return 0;
 }
 
-static __u8 *mt_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *mt_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			     unsigned int *size)
 {
 	if (hdev->vendor == I2C_VENDOR_ID_GOODIX &&

@@ -42,8 +42,8 @@ static __u8 pxrc_rdesc_fixed[] = {
 	0xC0,              // End Collection
 };
 
-static __u8 *pxrc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				unsigned int *rsize)
+static const __u8 *pxrc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				     unsigned int *rsize)
 {
 	hid_info(hdev, "fixing up PXRC report descriptor\n");
 	*rsize = sizeof(pxrc_rdesc_fixed);

@@ -137,8 +137,8 @@ static u8 maltron_rdesc[] = {
 	0xC0               /* End Collection                     */
 };
 
-static __u8 *maltron_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				  unsigned int *rsize)
+static const __u8 *maltron_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+					unsigned int *rsize)
 {
 	if (*rsize == sizeof(maltron_rdesc_o) &&
 	    !memcmp(maltron_rdesc_o, rdesc, sizeof(maltron_rdesc_o))) {

@@ -199,7 +199,7 @@ static struct hid_driver cmhid_driver = {
 	.input_mapping = cmhid_input_mapping,
 };
 
-static __u8 *cmhid_hs100b_report_fixup(struct hid_device *hid, __u8 *rdesc,
+static const __u8 *cmhid_hs100b_report_fixup(struct hid_device *hid, __u8 *rdesc,
 				       unsigned int *rsize)
 {
 	if (*rsize == HS100B_RDESC_ORIG_SIZE) {

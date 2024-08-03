@@ -464,7 +464,7 @@ error_hw_stop:
 	return error;
 }
 
-static __u8 *bigben_report_fixup(struct hid_device *hid, __u8 *rdesc,
+static const __u8 *bigben_report_fixup(struct hid_device *hid, __u8 *rdesc,
 	unsigned int *rsize)
 {
 	if (*rsize == PID0902_RDESC_ORIG_SIZE) {
