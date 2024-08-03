@@ -602,7 +602,7 @@ struct hid_ll_driver;
 struct hid_device {							/* device report descriptor */
 	__u8 *dev_rdesc;
 	unsigned dev_rsize;
-	__u8 *rdesc;
+	const __u8 *rdesc;
 	unsigned rsize;
 	struct hid_collection *collection;				/* List of HID collections */
 	unsigned collection_size;					/* Number of allocated hid_collections */
