@@ -83,8 +83,15 @@ enum lsm_event {
 	LSM_POLICY_CHANGE,
 };
 
+struct dm_verity_digest {
+	const char *alg;
+	const u8 *digest;
+	size_t digest_len;
+};
+
 enum lsm_integrity_type {
-	__LSM_INT_MAX
+	LSM_INT_DMVERITY_SIG_VALID,
+	LSM_INT_DMVERITY_ROOTHASH,
 };
 
 /*

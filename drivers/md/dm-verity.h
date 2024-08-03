@@ -45,6 +45,10 @@ struct dm_verity {
 	u8 *salt;		/* salt: its size is salt_size */
 	u8 *initial_hashstate;	/* salted initial state, if shash_tfm is set */
 	u8 *zero_digest;	/* digest for a zero block */
+#ifdef CONFIG_SECURITY
+	u8 *root_digest_sig;	/* signature of the root digest */
+	unsigned int sig_size;	/* root digest signature size */
+#endif /* CONFIG_SECURITY */
 	unsigned int salt_size;
 	sector_t data_start;	/* data offset in 512-byte sectors */
 	sector_t hash_start;	/* hash start in blocks */
