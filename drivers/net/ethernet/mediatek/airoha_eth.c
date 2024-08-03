@@ -2071,13 +2071,21 @@ static int airoha_hw_init(struct platform_device *pdev,
 	int err, i;
 
 	/* disable xsi */
-	reset_control_bulk_assert(ARRAY_SIZE(eth->xsi_rsts), eth->xsi_rsts);
+	err = reset_control_bulk_assert(ARRAY_SIZE(eth->xsi_rsts),
+					eth->xsi_rsts);
+	if (err)
+		return err;
 
-	reset_control_bulk_assert(ARRAY_SIZE(eth->rsts), eth->rsts);
-	msleep(20);
-	reset_control_bulk_deassert(ARRAY_SIZE(eth->rsts), eth->rsts);
-	msleep(20);
+	err = reset_control_bulk_assert(ARRAY_SIZE(eth->rsts), eth->rsts);
+	if (err)
+		return err;
 
+	msleep(20);
+	err = reset_control_bulk_deassert(ARRAY_SIZE(eth->rsts), eth->rsts);
+	if (err)
+		return err;
+
+	msleep(20);
 	err = airoha_fe_init(eth);
 	if (err)
 		return err;
