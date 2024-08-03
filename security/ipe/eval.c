@@ -17,6 +17,20 @@
 struct ipe_policy __rcu *ipe_active_policy;
 
 /**
+ * ipe_build_eval_ctx() - Build an ipe evaluation context.
+ * @ctx: Supplies a pointer to the context to be populated.
+ * @file: Supplies a pointer to the file to associated with the evaluation.
+ * @op: Supplies the IPE policy operation associated with the evaluation.
+ */
+void ipe_build_eval_ctx(struct ipe_eval_ctx *ctx,
+			const struct file *file,
+			enum ipe_op_type op)
+{
+	ctx->file = file;
+	ctx->op = op;
+}
+
+/**
  * evaluate_property() - Analyze @ctx against a rule property.
  * @ctx: Supplies a pointer to the context to be evaluated.
  * @p: Supplies a pointer to the property to be evaluated.
