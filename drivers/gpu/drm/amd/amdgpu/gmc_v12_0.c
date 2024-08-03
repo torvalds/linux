@@ -542,6 +542,23 @@ static unsigned gmc_v12_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	return 0;
 }
 
+static unsigned int gmc_v12_0_get_dcc_alignment(struct amdgpu_device *adev)
+{
+	unsigned int max_tex_channel_caches, alignment;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 0, 0) &&
+	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 0, 1))
+		return 0;
+
+	max_tex_channel_caches = adev->gfx.config.max_texture_channel_caches;
+	if (is_power_of_2(max_tex_channel_caches))
+		alignment = (unsigned int)(max_tex_channel_caches / SZ_4);
+	else
+		alignment = roundup_pow_of_two(max_tex_channel_caches);
+
+	return (unsigned int)(alignment * max_tex_channel_caches * SZ_1K);
+}
+
 static const struct amdgpu_gmc_funcs gmc_v12_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v12_0_flush_gpu_tlb,
 	.flush_gpu_tlb_pasid = gmc_v12_0_flush_gpu_tlb_pasid,
@@ -551,6 +568,7 @@ static const struct amdgpu_gmc_funcs gmc_v12_0_gmc_funcs = {
 	.get_vm_pde = gmc_v12_0_get_vm_pde,
 	.get_vm_pte = gmc_v12_0_get_vm_pte,
 	.get_vbios_fb_size = gmc_v12_0_get_vbios_fb_size,
+	.get_dcc_alignment = gmc_v12_0_get_dcc_alignment,
 };
 
 static void gmc_v12_0_set_gmc_funcs(struct amdgpu_device *adev)
