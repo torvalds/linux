@@ -1594,13 +1594,12 @@ bool ui__has_annotation(void)
 
 
 static double annotation_line__max_percent(struct annotation_line *al,
-					   struct annotation *notes,
 					   unsigned int percent_type)
 {
 	double percent_max = 0.0;
 	int i;
 
-	for (i = 0; i < notes->src->nr_events; i++) {
+	for (i = 0; i < al->data_nr; i++) {
 		double percent;
 
 		percent = annotation_data__percent(&al->data[i],
@@ -1672,7 +1671,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				     void (*obj__write_graph)(void *obj, int graph))
 
 {
-	double percent_max = annotation_line__max_percent(al, notes, percent_type);
+	double percent_max = annotation_line__max_percent(al, percent_type);
 	int pcnt_width = annotation__pcnt_width(notes),
 	    cycles_width = annotation__cycles_width(notes);
 	bool show_title = false;
@@ -1690,7 +1689,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	if (al->offset != -1 && percent_max != 0.0) {
 		int i;
 
-		for (i = 0; i < notes->src->nr_events; i++) {
+		for (i = 0; i < al->data_nr; i++) {
 			double percent;
 
 			percent = annotation_data__percent(&al->data[i], percent_type);
