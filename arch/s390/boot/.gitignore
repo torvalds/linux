@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-image
-bzImage
-relocs.S
-section_cmp.*
-vmlinux
-vmlinux.lds
-vmlinux.syms

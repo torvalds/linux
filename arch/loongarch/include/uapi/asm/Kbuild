@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-syscall-y += unistd_64.h
-
-generic-y += kvm_para.h
