@@ -868,10 +868,6 @@
 	domain-supply = <&mt6358_vgpu_reg>;
 };
 
-&soc_data {
-	status = "okay";
-};
-
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
