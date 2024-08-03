@@ -12,5 +12,6 @@
 #define pr_fmt(fmt) "ipe: " fmt
 
 #include <linux/lsm_hooks.h>
+struct ipe_superblock *ipe_sb(const struct super_block *sb);
 
 #endif /* _IPE_H */

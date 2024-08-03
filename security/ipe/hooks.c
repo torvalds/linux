@@ -4,6 +4,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/types.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
@@ -181,4 +182,12 @@ int ipe_kernel_load_data(enum kernel_load_data_id id, bool contents)
 
 	ipe_build_eval_ctx(&ctx, NULL, op);
 	return ipe_evaluate_event(&ctx);
+}
+
+/**
+ * ipe_unpack_initramfs() - Mark the current rootfs as initramfs.
+ */
+void ipe_unpack_initramfs(void)
+{
+	ipe_sb(current->fs->root.mnt->mnt_sb)->initramfs = true;
 }
