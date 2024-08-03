@@ -5739,17 +5739,18 @@ EXPORT_SYMBOL(security_bdev_free);
  * Please note that the new hook should be invoked every time the security
  * information is updated to keep these data current. For example, in dm-verity,
  * if the mapping table is reloaded and configured to use a different dm-verity
- * target with a new roothash and signing information, the previously stored data
- * in the LSM blob will become obsolete. It is crucial to re-invoke the hook to
- * refresh these data and ensure they are up to date. This necessity arises from
- * the design of device-mapper, where a device-mapper device is first created, and
- * then targets are subsequently loaded into it. These targets can be modified
- * multiple times during the device's lifetime. Therefore, while the LSM blob is
- * allocated during the creation of the block device, its actual contents are
- * not initialized at this stage and can change substantially over time. This
- * includes alterations from data that the LSMs 'trusts' to those they do not,
- * making it essential to handle these changes correctly. Failure to address
- * this dynamic aspect could potentially allow for bypassing LSM checks.
+ * target with a new roothash and signing information, the previously stored
+ * data in the LSM blob will become obsolete. It is crucial to re-invoke the
+ * hook to refresh these data and ensure they are up to date. This necessity
+ * arises from the design of device-mapper, where a device-mapper device is
+ * first created, and then targets are subsequently loaded into it. These
+ * targets can be modified multiple times during the device's lifetime.
+ * Therefore, while the LSM blob is allocated during the creation of the block
+ * device, its actual contents are not initialized at this stage and can change
+ * substantially over time. This includes alterations from data that the LSMs
+ * 'trusts' to those they do not, making it essential to handle these changes
+ * correctly. Failure to address this dynamic aspect could potentially allow
+ * for bypassing LSM checks.
  *
  * Return: Returns 0 on success, negative values on failure.
  */

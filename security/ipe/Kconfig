@@ -8,6 +8,8 @@ menuconfig SECURITY_IPE
 	depends on SECURITY && SECURITYFS && AUDIT && AUDITSYSCALL
 	select PKCS7_MESSAGE_PARSER
 	select SYSTEM_DATA_VERIFICATION
+	select IPE_PROP_DM_VERITY if DM_VERITY
+	select IPE_PROP_DM_VERITY_SIGNATURE if DM_VERITY && DM_VERITY_VERIFY_ROOTHASH_SIG
 	help
 	  This option enables the Integrity Policy Enforcement LSM
 	  allowing users to define a policy to enforce a trust-based access
@@ -15,3 +17,28 @@ menuconfig SECURITY_IPE
 	  admins to reconfigure trust requirements on the fly.
 
 	  If unsure, answer N.
+
+if SECURITY_IPE
+menu "IPE Trust Providers"
+
+config IPE_PROP_DM_VERITY
+	bool "Enable support for dm-verity based on root hash"
+	depends on DM_VERITY
+	help
+	  This option enables the 'dmverity_roothash' property within IPE
+	  policies. The property evaluates to TRUE when a file from a dm-verity
+	  volume is evaluated, and the volume's root hash matches the value
+	  supplied in the policy.
+
+config IPE_PROP_DM_VERITY_SIGNATURE
+	bool "Enable support for dm-verity based on root hash signature"
+	depends on DM_VERITY && DM_VERITY_VERIFY_ROOTHASH_SIG
+	help
+	  This option enables the 'dmverity_signature' property within IPE
+	  policies. The property evaluates to TRUE when a file from a dm-verity
+	  volume, which has been mounted with a valid signed root hash,
+	  is evaluated.
+
+endmenu
+
+endif

@@ -8,10 +8,12 @@
 #include <linux/types.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
+#include <linux/blk_types.h>
 
 #include "ipe.h"
 #include "hooks.h"
 #include "eval.h"
+#include "digest.h"
 
 /**
  * ipe_bprm_check_security() - ipe security hook function for bprm check.
@@ -191,3 +193,93 @@ void ipe_unpack_initramfs(void)
 {
 	ipe_sb(current->fs->root.mnt->mnt_sb)->initramfs = true;
 }
+
+#ifdef CONFIG_IPE_PROP_DM_VERITY
+/**
+ * ipe_bdev_free_security() - Free IPE's LSM blob of block_devices.
+ * @bdev: Supplies a pointer to a block_device that contains the structure
+ *	  to free.
+ */
+void ipe_bdev_free_security(struct block_device *bdev)
+{
+	struct ipe_bdev *blob = ipe_bdev(bdev);
+
+	ipe_digest_free(blob->root_hash);
+}
+
+#ifdef CONFIG_IPE_PROP_DM_VERITY_SIGNATURE
+static void ipe_set_dmverity_signature(struct ipe_bdev *blob,
+				       const void *value,
+				       size_t size)
+{
+	blob->dm_verity_signed = size > 0 && value;
+}
+#else
+static inline void ipe_set_dmverity_signature(struct ipe_bdev *blob,
+					      const void *value,
+					      size_t size)
+{
+}
+#endif /* CONFIG_IPE_PROP_DM_VERITY_SIGNATURE */
+
+/**
+ * ipe_bdev_setintegrity() - Save integrity data from a bdev to IPE's LSM blob.
+ * @bdev: Supplies a pointer to a block_device that contains the LSM blob.
+ * @type: Supplies the integrity type.
+ * @value: Supplies the value to store.
+ * @size: The size of @value.
+ *
+ * This hook is currently used to save dm-verity's root hash or the existence
+ * of a validated signed dm-verity root hash into LSM blob.
+ *
+ * Return: %0 on success. If an error occurs, the function will return the
+ * -errno.
+ */
+int ipe_bdev_setintegrity(struct block_device *bdev, enum lsm_integrity_type type,
+			  const void *value, size_t size)
+{
+	const struct dm_verity_digest *digest = NULL;
+	struct ipe_bdev *blob = ipe_bdev(bdev);
+	struct digest_info *info = NULL;
+
+	if (type == LSM_INT_DMVERITY_SIG_VALID) {
+		ipe_set_dmverity_signature(blob, value, size);
+
+		return 0;
+	}
+
+	if (type != LSM_INT_DMVERITY_ROOTHASH)
+		return -EINVAL;
+
+	if (!value) {
+		ipe_digest_free(blob->root_hash);
+		blob->root_hash = NULL;
+
+		return 0;
+	}
+	digest = value;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->digest = kmemdup(digest->digest, digest->digest_len, GFP_KERNEL);
+	if (!info->digest)
+		goto err;
+
+	info->alg = kstrdup(digest->alg, GFP_KERNEL);
+	if (!info->alg)
+		goto err;
+
+	info->digest_len = digest->digest_len;
+
+	ipe_digest_free(blob->root_hash);
+	blob->root_hash = info;
+
+	return 0;
+err:
+	ipe_digest_free(info);
+
+	return -ENOMEM;
+}
+#endif /* CONFIG_IPE_PROP_DM_VERITY */
