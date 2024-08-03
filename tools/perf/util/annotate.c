@@ -925,6 +925,11 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 			return -1;
 	}
 
+	if (evsel__is_group_event(evsel))
+		notes->src->nr_events = evsel->core.nr_members;
+	else
+		notes->src->nr_events = 1;
+
 	if (annotate_opts.full_addr)
 		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
@@ -1842,10 +1847,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	size_t size = symbol__size(sym);
-	int nr_pcnt = 1, err;
-
-	if (evsel__is_group_event(evsel))
-		nr_pcnt = evsel->core.nr_members;
+	int err;
 
 	err = symbol__annotate(ms, evsel, parch);
 	if (err)
@@ -1861,8 +1863,6 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 		return err;
 
 	annotation__init_column_widths(notes, sym);
-	notes->src->nr_events = nr_pcnt;
-
 	annotation__update_column_widths(notes);
 	sym->annotate2 = 1;
 
