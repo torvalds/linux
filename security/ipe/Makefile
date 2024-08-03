@@ -7,3 +7,5 @@
 
 obj-$(CONFIG_SECURITY_IPE) += \
 	ipe.o \
+	policy.o \
+	policy_parser.o \
