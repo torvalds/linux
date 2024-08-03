@@ -46,7 +46,7 @@ struct hid_item {
 	    __s16  s16;
 	    __u32  u32;
 	    __s32  s32;
-	    __u8  *longdata;
+	    const __u8  *longdata;
 	} data;
 };
 
