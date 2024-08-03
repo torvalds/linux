@@ -216,7 +216,7 @@ Mutt is highly customizable. Here is a minimum configuration to start
 using Mutt to send patches through Gmail::
 
   # .muttrc
-  # ================  IMAP ====================
+  # ================  IMAP  ====================
   set imap_user = 'yourusername@gmail.com'
   set imap_pass = 'yourpassword'
   set spoolfile = imaps://imap.gmail.com/INBOX
