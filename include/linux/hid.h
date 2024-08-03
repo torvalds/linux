@@ -600,7 +600,7 @@ struct hid_driver;
 struct hid_ll_driver;
 
 struct hid_device {							/* device report descriptor */
-	__u8 *dev_rdesc;
+	const __u8 *dev_rdesc;
 	unsigned dev_rsize;
 	const __u8 *rdesc;
 	unsigned rsize;
