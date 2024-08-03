@@ -3921,6 +3921,12 @@ int spi_setup(struct spi_device *spi)
 		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		 SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL)))
 		return -EINVAL;
+	/* Check against conflicting MOSI idle configuration */
+	if ((spi->mode & SPI_MOSI_IDLE_LOW) && (spi->mode & SPI_MOSI_IDLE_HIGH)) {
+		dev_err(&spi->dev,
+			"setup: MOSI configured to idle low and high at the same time.\n");
+		return -EINVAL;
+	}
 	/*
 	 * Help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current controller.
