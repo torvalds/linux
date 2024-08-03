@@ -10,6 +10,8 @@ menuconfig SECURITY_IPE
 	select SYSTEM_DATA_VERIFICATION
 	select IPE_PROP_DM_VERITY if DM_VERITY
 	select IPE_PROP_DM_VERITY_SIGNATURE if DM_VERITY && DM_VERITY_VERIFY_ROOTHASH_SIG
+	select IPE_PROP_FS_VERITY if FS_VERITY
+	select IPE_PROP_FS_VERITY_BUILTIN_SIG if FS_VERITY && FS_VERITY_BUILTIN_SIGNATURES
 	help
 	  This option enables the Integrity Policy Enforcement LSM
 	  allowing users to define a policy to enforce a trust-based access
@@ -38,6 +40,30 @@ config IPE_PROP_DM_VERITY_SIGNATURE
 	  policies. The property evaluates to TRUE when a file from a dm-verity
 	  volume, which has been mounted with a valid signed root hash,
 	  is evaluated.
+
+	  If unsure, answer Y.
+
+config IPE_PROP_FS_VERITY
+	bool "Enable support for fs-verity based on file digest"
+	depends on FS_VERITY
+	help
+	  This option enables the 'fsverity_digest' property within IPE
+	  policies. The property evaluates to TRUE when a file is fsverity
+	  enabled and its digest matches the supplied digest value in the
+	  policy.
+
+	  if unsure, answer Y.
+
+config IPE_PROP_FS_VERITY_BUILTIN_SIG
+	bool "Enable support for fs-verity based on builtin signature"
+	depends on FS_VERITY && FS_VERITY_BUILTIN_SIGNATURES
+	help
+	  This option enables the 'fsverity_signature' property within IPE
+	  policies. The property evaluates to TRUE when a file is fsverity
+	  enabled and it has a valid builtin signature whose signing cert
+	  is in the .fs-verity keyring.
+
+	  if unsure, answer Y.
 
 endmenu
 

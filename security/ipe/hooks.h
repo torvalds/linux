@@ -9,6 +9,7 @@
 #include <linux/binfmts.h>
 #include <linux/security.h>
 #include <linux/blk_types.h>
+#include <linux/fsverity.h>
 
 enum ipe_hook_type {
 	IPE_HOOK_BPRM_CHECK = 0,
@@ -42,5 +43,10 @@ void ipe_bdev_free_security(struct block_device *bdev);
 int ipe_bdev_setintegrity(struct block_device *bdev, enum lsm_integrity_type type,
 			  const void *value, size_t len);
 #endif /* CONFIG_IPE_PROP_DM_VERITY */
+
+#ifdef CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG
+int ipe_inode_setintegrity(const struct inode *inode, enum lsm_integrity_type type,
+			   const void *value, size_t size);
+#endif /* CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG */
 
 #endif /* _IPE_HOOKS_H */
