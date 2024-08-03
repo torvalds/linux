@@ -953,7 +953,7 @@ struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device,
 				       enum hid_report_type type, unsigned int id,
 				       unsigned int application);
-int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
+int hid_parse_report(struct hid_device *hid, const __u8 *start, unsigned size);
 struct hid_report *hid_validate_values(struct hid_device *hid,
 				       enum hid_report_type type, unsigned int id,
 				       unsigned int field_index,

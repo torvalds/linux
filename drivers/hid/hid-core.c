@@ -946,7 +946,7 @@ static int hid_scan_report(struct hid_device *hid)
  * Allocate the device report as read by the bus driver. This function should
  * only be called from parse() in ll drivers.
  */
-int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size)
+int hid_parse_report(struct hid_device *hid, const __u8 *start, unsigned size)
 {
 	hid->dev_rdesc = kmemdup(start, size, GFP_KERNEL);
 	if (!hid->dev_rdesc)
