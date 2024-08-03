@@ -339,7 +339,7 @@ static inline int annotation__cycles_width(struct annotation *notes)
 
 static inline int annotation__pcnt_width(struct annotation *notes)
 {
-	return (symbol_conf.show_total_period ? 12 : 7) * notes->src->nr_events;
+	return (symbol_conf.show_total_period ? 12 : 8) * notes->src->nr_events;
 }
 
 static inline bool annotation_line__filter(struct annotation_line *al)

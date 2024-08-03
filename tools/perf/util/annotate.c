@@ -699,13 +699,13 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		       int percent_type)
 {
 	struct disasm_line *dl = container_of(al, struct disasm_line, al);
+	struct annotation *notes = symbol__annotation(sym);
 	static const char *prev_line;
 
 	if (al->offset != -1) {
 		double max_percent = 0.0;
 		int i, nr_percent = 1;
 		const char *color;
-		struct annotation *notes = symbol__annotation(sym);
 
 		for (i = 0; i < al->data_nr; i++) {
 			double percent;
@@ -775,13 +775,10 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
-		int width = symbol_conf.show_total_period ? 12 : 8;
+		int width = annotation__pcnt_width(notes);
 
 		if (queue)
 			return -1;
-
-		if (evsel__is_group_event(evsel))
-			width *= evsel->core.nr_members;
 
 		if (!*al->line)
 			printf(" %*s:\n", width, " ");
@@ -1111,7 +1108,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	int more = 0;
 	bool context = opts->context;
 	u64 len;
-	int width = symbol_conf.show_total_period ? 12 : 8;
+	int width = annotation__pcnt_width(notes);
 	int graph_dotted_len;
 	char buf[512];
 
@@ -1127,7 +1124,6 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	len = symbol__size(sym);
 
 	if (evsel__is_group_event(evsel)) {
-		width *= evsel->core.nr_members;
 		evsel__group_desc(evsel, buf, sizeof(buf));
 		evsel_name = buf;
 	}
@@ -1703,10 +1699,10 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 			if (symbol_conf.show_total_period) {
 				obj__printf(obj, "%11" PRIu64 " ", al->data[i].he.period);
 			} else if (symbol_conf.show_nr_samples) {
-				obj__printf(obj, "%6" PRIu64 " ",
+				obj__printf(obj, "%7" PRIu64 " ",
 						   al->data[i].he.nr_samples);
 			} else {
-				obj__printf(obj, "%6.2f ", percent);
+				obj__printf(obj, "%7.2f ", percent);
 			}
 		}
 	} else {
