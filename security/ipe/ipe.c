@@ -8,6 +8,8 @@
 #include "eval.h"
 #include "hooks.h"
 
+bool ipe_enabled;
+
 static struct lsm_blob_sizes ipe_blobs __ro_after_init = {
 	.lbs_superblock = sizeof(struct ipe_superblock),
 };
@@ -45,6 +47,7 @@ static struct security_hook_list ipe_hooks[] __ro_after_init = {
 static int __init ipe_init(void)
 {
 	security_add_hooks(ipe_hooks, ARRAY_SIZE(ipe_hooks), &ipe_lsmid);
+	ipe_enabled = true;
 
 	return 0;
 }

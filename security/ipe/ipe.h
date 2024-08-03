@@ -14,4 +14,6 @@
 #include <linux/lsm_hooks.h>
 struct ipe_superblock *ipe_sb(const struct super_block *sb);
 
+extern bool ipe_enabled;
+
 #endif /* _IPE_H */
