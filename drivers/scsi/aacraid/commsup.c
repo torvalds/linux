@@ -2327,8 +2327,9 @@ static int aac_send_wellness_command(struct aac_dev *dev, char *wellness_str,
 	sg64->sg[0].addr[0] = cpu_to_le32((u32)(addr & 0xffffffff));
 	sg64->sg[0].count = cpu_to_le32(datasize);
 
-	ret = aac_fib_send(ScsiPortCommand64, fibptr, sizeof(struct aac_srb),
-				FsaNormal, 1, 1, NULL, NULL);
+	ret = aac_fib_send(ScsiPortCommand64, fibptr,
+			   sizeof(struct aac_srb) + sizeof(struct sgentry),
+			   FsaNormal, 1, 1, NULL, NULL);
 
 	dma_free_coherent(&dev->pdev->dev, datasize, dma_buf, addr);
 
