@@ -18,6 +18,7 @@
 
 struct ipe_policy __rcu *ipe_active_policy;
 bool success_audit;
+bool enforce = true;
 
 #define FILE_SUPERBLOCK(f) ((f)->f_path.mnt->mnt_sb)
 
@@ -108,6 +109,7 @@ int ipe_evaluate_event(const struct ipe_eval_ctx *const ctx)
 	enum ipe_action_type action;
 	enum ipe_match match_type;
 	bool match = false;
+	int rc = 0;
 
 	rcu_read_lock();
 
@@ -159,9 +161,12 @@ eval:
 	rcu_read_unlock();
 
 	if (action == IPE_ACTION_DENY)
-		return -EACCES;
+		rc = -EACCES;
 
-	return 0;
+	if (!READ_ONCE(enforce))
+		rc = 0;
+
+	return rc;
 }
 
 /* Set the right module name */
@@ -172,3 +177,5 @@ eval:
 
 module_param(success_audit, bool, 0400);
 MODULE_PARM_DESC(success_audit, "Start IPE with success auditing enabled");
+module_param(enforce, bool, 0400);
+MODULE_PARM_DESC(enforce, "Start IPE in enforce or permissive mode");
