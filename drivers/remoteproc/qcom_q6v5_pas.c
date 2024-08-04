@@ -1785,7 +1785,7 @@ static int adsp_probe(struct platform_device *pdev)
 	mutex_unlock(&q6v5_pas_mutex);
 
 	if (adsp->check_status) {
-		adsp->panic_blk.priority = INT_MAX - 1;
+		adsp->panic_blk.priority = INT_MAX - 2;
 		adsp->panic_blk.notifier_call = rproc_panic_handler;
 		atomic_notifier_chain_register(&panic_notifier_list, &adsp->panic_blk);
 	}
