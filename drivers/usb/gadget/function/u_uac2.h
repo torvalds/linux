@@ -68,7 +68,20 @@ struct f_uac2_opts {
 	int				fb_max;
 	bool			bound;
 
-	char			function_name[32];
+	char			function_name[USB_MAX_STRING_LEN];
+	char			if_ctrl_name[USB_MAX_STRING_LEN];
+	char			clksrc_in_name[USB_MAX_STRING_LEN];
+	char			clksrc_out_name[USB_MAX_STRING_LEN];
+
+	char			p_it_name[USB_MAX_STRING_LEN];
+	char			p_it_ch_name[USB_MAX_STRING_LEN];
+	char			p_ot_name[USB_MAX_STRING_LEN];
+	char			p_fu_vol_name[USB_MAX_STRING_LEN];
+
+	char			c_it_name[USB_MAX_STRING_LEN];
+	char			c_it_ch_name[USB_MAX_STRING_LEN];
+	char			c_ot_name[USB_MAX_STRING_LEN];
+	char			c_fu_vol_name[USB_MAX_STRING_LEN];
 
 	s16				p_terminal_type;
 	s16				c_terminal_type;
