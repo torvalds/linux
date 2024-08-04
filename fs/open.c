@@ -33,6 +33,7 @@
 #include <linux/compat.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/filelock.h>
+#include <linux/printk_self.h>
 
 #include "internal.h"
 
@@ -1411,6 +1412,40 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
+	int log_print_times = 0;
+	int tmp_name_len = strlen(tmp->name);
+	for(int i = 0; i < PRINT_LOG_STATE_MAX; i++)
+	{
+		int record_file_len = strlen(record_file_names[i]);
+				
+		if(!strncmp(tmp->name, record_file_names[i], record_file_len))  // log with times need to compute times
+		{
+			if (PRINT_LOG_STATE_TIMES == i)
+			{
+				if (tmp_name_len > record_file_len) //like: log_times123
+				{
+					int len_small = record_file_len;
+					int times = 0;
+					while(tmp_name_len > len_small)
+					{
+						if(tmp->name[len_small] >= '0' && tmp->name[len_small] <= '9')
+							times = times * 10 + tmp->name[len_small] - '0';
+						len_small++;
+					}
+					log_print_times = times;
+				}
+				else  // log_times
+				{
+					log_print_times = 1000;
+				}
+			}
+			
+			GlobalLogParametersInit(i, log_print_times);			
+			pr_info_self("%s type: %d, filename: %s", record_file_names[i], i, tmp->name);
+			break;
+		}
+	}	
+	
 	fd = get_unused_fd_flags(how->flags);
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
