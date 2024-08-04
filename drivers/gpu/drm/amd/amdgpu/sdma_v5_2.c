@@ -1776,7 +1776,7 @@ static void sdma_v5_2_dump_ip_state(void *handle)
 	amdgpu_gfx_off_ctrl(adev, true);
 }
 
-const struct amd_ip_funcs sdma_v5_2_ip_funcs = {
+static const struct amd_ip_funcs sdma_v5_2_ip_funcs = {
 	.name = "sdma_v5_2",
 	.early_init = sdma_v5_2_early_init,
 	.late_init = NULL,
