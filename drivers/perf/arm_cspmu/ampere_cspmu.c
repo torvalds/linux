@@ -269,4 +269,5 @@ static void __exit ampere_cspmu_exit(void)
 module_init(ampere_cspmu_init);
 module_exit(ampere_cspmu_exit);
 
+MODULE_DESCRIPTION("Ampere SoC Performance Monitor Driver");
 MODULE_LICENSE("GPL");

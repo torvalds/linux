@@ -133,8 +133,8 @@ static int mt6311_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id mt6311_i2c_id[] = {
-	{"mt6311", 0},
-	{},
+	{ "mt6311" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, mt6311_i2c_id);
 

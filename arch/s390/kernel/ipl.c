@@ -2112,7 +2112,7 @@ void do_restart(void *arg)
 	tracing_off();
 	debug_locks_off();
 	lgr_info_log();
-	smp_call_online_cpu(__do_restart, arg);
+	smp_call_ipl_cpu(__do_restart, arg);
 }
 
 /* on halt */

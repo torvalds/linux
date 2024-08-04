@@ -316,7 +316,7 @@ endif # PARPORT_PANEL
 
 config PANEL_CHANGE_MESSAGE
 	bool "Change LCD initialization message ?"
-	depends on CHARLCD
+	depends on CHARLCD || LINEDISP
 	help
 	  This allows you to replace the boot message indicating the kernel version
 	  and the driver version with a custom message. This is useful on appliances

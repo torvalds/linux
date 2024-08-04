@@ -1201,7 +1201,7 @@ int tee_client_cancel_req(struct tee_context *ctx,
 }
 
 static int tee_client_device_match(struct device *dev,
-				   struct device_driver *drv)
+				   const struct device_driver *drv)
 {
 	const struct tee_client_device_id *id_table;
 	struct tee_client_device *tee_device;

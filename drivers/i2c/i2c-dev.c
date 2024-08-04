@@ -139,6 +139,10 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 
 	struct i2c_client *client = file->private_data;
 
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
+
 	if (count > 8192)
 		count = 8192;
 
@@ -162,6 +166,10 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 	int ret;
 	char *tmp;
 	struct i2c_client *client = file->private_data;
+
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
 
 	if (count > 8192)
 		count = 8192;
@@ -237,6 +245,10 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 {
 	u8 __user **data_ptrs;
 	int i, res;
+
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
 
 	data_ptrs = kmalloc_array(nmsgs, sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {

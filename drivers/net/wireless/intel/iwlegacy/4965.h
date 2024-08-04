@@ -151,7 +151,7 @@ void il4965_mac_tx(struct ieee80211_hw *hw,
 		   struct ieee80211_tx_control *control,
 		   struct sk_buff *skb);
 int il4965_mac_start(struct ieee80211_hw *hw);
-void il4965_mac_stop(struct ieee80211_hw *hw);
+void il4965_mac_stop(struct ieee80211_hw *hw, bool suspend);
 void il4965_configure_filter(struct ieee80211_hw *hw,
 			     unsigned int changed_flags,
 			     unsigned int *total_flags, u64 multicast);

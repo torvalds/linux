@@ -704,6 +704,7 @@ static void __exit mpc85xx_mc_exit(void)
 
 module_exit(mpc85xx_mc_exit);
 
+MODULE_DESCRIPTION("Freescale MPC85xx Memory Controller EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Montavista Software, Inc.");
 module_param(edac_op_state, int, 0444);

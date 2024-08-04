@@ -11,12 +11,14 @@
 #include "xe_drv.h"
 #include "xe_hw_fence.h"
 #include "xe_pci.h"
+#include "xe_observation.h"
 #include "xe_sched_job.h"
 
 struct xe_modparam xe_modparam = {
 	.enable_display = true,
 	.guc_log_level = 5,
 	.force_probe = CONFIG_DRM_XE_FORCE_PROBE,
+	.wedged_mode = 1,
 	/* the rest are 0 by default */
 };
 
@@ -55,6 +57,10 @@ MODULE_PARM_DESC(max_vfs,
 		 "(0 = no VFs [default]; N = allow up to N VFs)");
 #endif
 
+module_param_named_unsafe(wedged_mode, xe_modparam.wedged_mode, int, 0600);
+MODULE_PARM_DESC(wedged_mode,
+		 "Module's default policy for the wedged mode - 0=never, 1=upon-critical-errors[default], 2=upon-any-hang");
+
 struct init_funcs {
 	int (*init)(void);
 	void (*exit)(void);
@@ -72,6 +78,10 @@ static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_register_pci_driver,
 		.exit = xe_unregister_pci_driver,
+	},
+	{
+		.init = xe_observation_sysctl_register,
+		.exit = xe_observation_sysctl_unregister,
 	},
 };
 

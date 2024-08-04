@@ -1358,7 +1358,6 @@ static struct parport_driver plip_driver = {
 	.probe		= plip_probe,
 	.match_port	= plip_attach,
 	.detach		= plip_detach,
-	.devmodel	= true,
 };
 
 static void __exit plip_cleanup_module (void)

@@ -222,14 +222,16 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 		struct drm_gem_object *obj, u64 iova, bool full)
 {
 	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
 	/* Don't record write only objects */
 	state_bo->size = obj->size;
+	state_bo->flags = msm_obj->flags;
 	state_bo->iova = iova;
 
-	BUILD_BUG_ON(sizeof(state_bo->name) != sizeof(to_msm_bo(obj)->name));
+	BUILD_BUG_ON(sizeof(state_bo->name) != sizeof(msm_obj->name));
 
-	memcpy(state_bo->name, to_msm_bo(obj)->name, sizeof(state_bo->name));
+	memcpy(state_bo->name, msm_obj->name, sizeof(state_bo->name));
 
 	if (full) {
 		void *ptr;

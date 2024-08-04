@@ -106,7 +106,7 @@ int read_ipl_report(void)
 	 * the IPL parameter list, then align the address to a double
 	 * word boundary.
 	 */
-	tmp = (unsigned long) S390_lowcore.ipl_parmblock_ptr;
+	tmp = (unsigned long)get_lowcore()->ipl_parmblock_ptr;
 	pl_hdr = (struct ipl_pl_hdr *) tmp;
 	tmp = (tmp + pl_hdr->len + 7) & -8UL;
 	rl_hdr = (struct ipl_rl_hdr *) tmp;

@@ -1208,7 +1208,10 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * that's the only reason not to use a few MHz for f_min (until
 	 * the upper layer reads the target frequency from the CSD).
 	 */
-	mmc->f_min = 400000;
+	if (spi->controller->min_speed_hz > 400000)
+		dev_warn(&spi->dev,"Controller unable to reduce bus clock to 400 KHz\n");
+
+	mmc->f_min = max(spi->controller->min_speed_hz, 400000);
 	mmc->f_max = spi->max_speed_hz;
 
 	host = mmc_priv(mmc);

@@ -106,6 +106,9 @@ VERSION
     global:
 	__kernel_sigtramp_rt32;
 	__kernel_restart_syscall32;
+	__vdso_gettimeofday;
+	__vdso_clock_gettime;
+	__vdso_clock_gettime64;
     local: *;
   };
 }

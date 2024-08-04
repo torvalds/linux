@@ -62,11 +62,6 @@ MODULE_LICENSE("GPL v2");
 **********************************************************************
 */
 
-struct i2c_reg_value {
-	unsigned char reg;
-	unsigned char value;
-};
-
 struct adv7511_state_edid {
 	/* total number of blocks */
 	u32 blocks;

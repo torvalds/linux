@@ -326,17 +326,15 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 		return irq;
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get rdma clk\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "failed to get rdma clk\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->regs)) {
-		dev_err(dev, "failed to ioremap rdma\n");
-		return PTR_ERR(priv->regs);
-	}
+	if (IS_ERR(priv->regs))
+		return dev_err_probe(dev, PTR_ERR(priv->regs),
+				     "failed to ioremap rdma\n");
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
 	if (ret)
@@ -347,10 +345,9 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(dev->of_node,
 					   "mediatek,rdma-fifo-size",
 					   &priv->fifo_size);
-		if (ret) {
-			dev_err(dev, "Failed to get rdma fifo size\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to get rdma fifo size\n");
 	}
 
 	/* Disable and clear pending interrupts */
@@ -359,10 +356,8 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, mtk_disp_rdma_irq_handler,
 			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
-	if (ret < 0) {
-		dev_err(dev, "Failed to request irq %d: %d\n", irq, ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to request irq %d\n", irq);
 
 	priv->data = of_device_get_match_data(dev);
 
@@ -373,10 +368,10 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	ret = component_add(dev, &mtk_disp_rdma_component_ops);
 	if (ret) {
 		pm_runtime_disable(dev);
-		dev_err(dev, "Failed to add component: %d\n", ret);
+		return dev_err_probe(dev, ret, "Failed to add component\n");
 	}
 
-	return ret;
+	return 0;
 }
 
 static void mtk_disp_rdma_remove(struct platform_device *pdev)

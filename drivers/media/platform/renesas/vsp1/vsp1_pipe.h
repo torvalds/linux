@@ -9,6 +9,7 @@
 #ifndef __VSP1_PIPE_H__
 #define __VSP1_PIPE_H__
 
+#include <linux/dynamic_debug.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -54,17 +55,6 @@ enum vsp1_pipeline_state {
 };
 
 /*
- * struct vsp1_partition_window - Partition window coordinates
- * @left: horizontal coordinate of the partition start in pixels relative to the
- *	  left edge of the image
- * @width: partition width in pixels
- */
-struct vsp1_partition_window {
-	unsigned int left;
-	unsigned int width;
-};
-
-/*
  * struct vsp1_partition - A description of a slice for the partition algorithm
  * @rpf: The RPF partition window configuration
  * @uds_sink: The UDS input partition window configuration
@@ -73,11 +63,11 @@ struct vsp1_partition_window {
  * @wpf: The WPF partition window configuration
  */
 struct vsp1_partition {
-	struct vsp1_partition_window rpf;
-	struct vsp1_partition_window uds_sink;
-	struct vsp1_partition_window uds_source;
-	struct vsp1_partition_window sru;
-	struct vsp1_partition_window wpf;
+	struct v4l2_rect rpf[VSP1_MAX_RPF];
+	struct v4l2_rect uds_sink;
+	struct v4l2_rect uds_source;
+	struct v4l2_rect sru;
+	struct v4l2_rect wpf;
 };
 
 /*
@@ -106,7 +96,6 @@ struct vsp1_partition {
  * @configured: when false the @stream_config shall be written to the hardware
  * @interlaced: True when the pipeline is configured in interlaced mode
  * @partitions: The number of partitions used to process one frame
- * @partition: The current partition for configuration to process
  * @part_table: The pre-calculated partitions used by the pipeline
  */
 struct vsp1_pipeline {
@@ -146,7 +135,6 @@ struct vsp1_pipeline {
 	bool interlaced;
 
 	unsigned int partitions;
-	struct vsp1_partition *partition;
 	struct vsp1_partition *part_table;
 
 	u32 underrun_count;
@@ -154,6 +142,24 @@ struct vsp1_pipeline {
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_init(struct vsp1_pipeline *pipe);
+
+void __vsp1_pipeline_dump(struct _ddebug *, struct vsp1_pipeline *pipe,
+			  const char *msg);
+
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
+#define vsp1_pipeline_dump(pipe, msg)			\
+	_dynamic_func_call("vsp1_pipeline_dump()", __vsp1_pipeline_dump, pipe, msg)
+#elif defined(DEBUG)
+#define vsp1_pipeline_dump(pipe, msg)			\
+	__vsp1_pipeline_dump(NULL, pipe, msg)
+#else
+#define vsp1_pipeline_dump(pipe, msg)			\
+({							\
+	if (0)						\
+		__vsp1_pipeline_dump(NULL, pipe, msg);	\
+})
+#endif
 
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe);
 bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe);
@@ -166,10 +172,10 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_dl_body *dlb,
 				   unsigned int alpha);
 
-void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
+void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
 				       struct vsp1_partition *partition,
-				       unsigned int index,
-				       struct vsp1_partition_window *window);
+				       unsigned int div_size,
+				       unsigned int index);
 
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc);

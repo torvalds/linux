@@ -216,4 +216,5 @@ static struct kunit_suite range_test_module = {
 
 kunit_test_suites(&range_test_module);
 
+MODULE_DESCRIPTION("KUnit test for the linear_ranges helper");
 MODULE_LICENSE("GPL");

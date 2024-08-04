@@ -1342,5 +1342,6 @@ static void __exit exit_i82365(void)
 
 module_init(init_i82365);
 module_exit(exit_i82365);
+MODULE_DESCRIPTION("Driver for Intel 82365 and compatible PC Card controllers");
 MODULE_LICENSE("Dual MPL/GPL");
 /*====================================================================*/

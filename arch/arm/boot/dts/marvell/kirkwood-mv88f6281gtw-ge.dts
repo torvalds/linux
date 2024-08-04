@@ -73,17 +73,17 @@
 		pinctrl-0 = <&pmx_leds &pmx_usb_led>;
 		pinctrl-names = "default";
 
-		green-status {
+		led-green-status {
 			label = "gtw:green:Status";
 			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		red-status {
+		led-red-status {
 			label = "gtw:red:Status";
 			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
 		};
 
-		green-usb {
+		led-green-usb {
 			label = "gtw:green:USB";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
@@ -91,17 +91,15 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-0 = <&pmx_keys>;
 		pinctrl-names = "default";
 
-		restart {
+		button-restart {
 			label = "SWR Button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
-		wps {
+		button-wps {
 			label = "WPS Button";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;

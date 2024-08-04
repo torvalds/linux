@@ -92,6 +92,14 @@ config RESET_IMX7
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
 
+config RESET_IMX8MP_AUDIOMIX
+	tristate "i.MX8MP AudioMix Reset Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select AUXILIARY_BUS
+	default CLK_IMX8MP
+	help
+	  This enables the reset controller driver for i.MX8MP AudioMix
+
 config RESET_INTEL_GW
 	bool "Intel Reset Controller Driver"
 	depends on X86 || COMPILE_TEST
@@ -328,6 +336,12 @@ config RESET_ZYNQ
 	default ARCH_ZYNQ
 	help
 	  This enables the reset controller driver for Xilinx Zynq SoCs.
+
+config RESET_ZYNQMP
+	bool "ZYNQMP Reset Driver" if COMPILE_TEST
+	default ARCH_ZYNQMP
+	help
+	  This enables the reset controller driver for Xilinx ZynqMP SoCs.
 
 source "drivers/reset/starfive/Kconfig"
 source "drivers/reset/sti/Kconfig"

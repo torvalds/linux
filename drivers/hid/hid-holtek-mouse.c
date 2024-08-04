@@ -110,4 +110,5 @@ static struct hid_driver holtek_mouse_driver = {
 };
 
 module_hid_driver(holtek_mouse_driver);
+MODULE_DESCRIPTION("HID driver for Holtek gaming mice");
 MODULE_LICENSE("GPL");

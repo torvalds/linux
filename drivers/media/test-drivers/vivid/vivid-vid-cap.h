@@ -10,6 +10,8 @@
 
 void vivid_update_quality(struct vivid_dev *dev);
 void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls);
+void vivid_update_outputs(struct vivid_dev *dev);
+void vivid_update_connected_outputs(struct vivid_dev *dev);
 enum tpg_video_aspect vivid_get_video_aspect(const struct vivid_dev *dev);
 
 extern const v4l2_std_id vivid_standard[];

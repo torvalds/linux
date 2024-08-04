@@ -1653,6 +1653,20 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     Quantization parameter for a P frame for FWHT. Valid range: from 1
     to 31.
 
+``V4L2_CID_MPEG_VIDEO_AVERAGE_QP (integer)``
+    This read-only control returns the average QP value of the currently
+    encoded frame. The value applies to the last dequeued capture buffer
+    (VIDIOC_DQBUF). Its valid range depends on the encoding format and parameters.
+    For H264, its valid range is from 0 to 51.
+    For HEVC, its valid range is from 0 to 51 for 8 bit and
+    from 0 to 63 for 10 bit.
+    For H263 and MPEG4, its valid range is from 1 to 31.
+    For VP8, its valid range is from 0 to 127.
+    For VP9, its valid range is from 0 to 255.
+    If the codec's MIN_QP and MAX_QP are set, then the QP will meet both requirements.
+    Codecs need to always use the specified range, rather then a HW custom range.
+    Applicable to encoders
+
 .. raw:: latex
 
     \normalsize

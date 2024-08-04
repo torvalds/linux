@@ -576,6 +576,21 @@ static const struct export_operations erofs_export_ops = {
 	.get_parent = erofs_get_parent,
 };
 
+static void erofs_set_sysfs_name(struct super_block *sb)
+{
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+
+	if (erofs_is_fscache_mode(sb)) {
+		if (sbi->domain_id)
+			super_set_sysfs_name_generic(sb, "%s,%s",sbi->domain_id,
+						     sbi->fsid);
+		else
+			super_set_sysfs_name_generic(sb, "%s", sbi->fsid);
+		return;
+	}
+	super_set_sysfs_name_id(sb);
+}
+
 static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
@@ -643,6 +658,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_flags |= SB_POSIXACL;
 	else
 		sb->s_flags &= ~SB_POSIXACL;
+	erofs_set_sysfs_name(sb);
 
 #ifdef CONFIG_EROFS_FS_ZIP
 	xa_init(&sbi->managed_pslots);
@@ -849,23 +865,7 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto shrinker_err;
 
-	err = z_erofs_lzma_init();
-	if (err)
-		goto lzma_err;
-
-	err = z_erofs_deflate_init();
-	if (err)
-		goto deflate_err;
-
-	err = z_erofs_zstd_init();
-	if (err)
-		goto zstd_err;
-
-	err = z_erofs_gbuf_init();
-	if (err)
-		goto gbuf_err;
-
-	err = z_erofs_init_zip_subsystem();
+	err = z_erofs_init_subsystem();
 	if (err)
 		goto zip_err;
 
@@ -882,16 +882,8 @@ static int __init erofs_module_init(void)
 fs_err:
 	erofs_exit_sysfs();
 sysfs_err:
-	z_erofs_exit_zip_subsystem();
+	z_erofs_exit_subsystem();
 zip_err:
-	z_erofs_gbuf_exit();
-gbuf_err:
-	z_erofs_zstd_exit();
-zstd_err:
-	z_erofs_deflate_exit();
-deflate_err:
-	z_erofs_lzma_exit();
-lzma_err:
 	erofs_exit_shrinker();
 shrinker_err:
 	kmem_cache_destroy(erofs_inode_cachep);
@@ -906,13 +898,9 @@ static void __exit erofs_module_exit(void)
 	rcu_barrier();
 
 	erofs_exit_sysfs();
-	z_erofs_exit_zip_subsystem();
-	z_erofs_zstd_exit();
-	z_erofs_deflate_exit();
-	z_erofs_lzma_exit();
+	z_erofs_exit_subsystem();
 	erofs_exit_shrinker();
 	kmem_cache_destroy(erofs_inode_cachep);
-	z_erofs_gbuf_exit();
 }
 
 static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)

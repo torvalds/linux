@@ -50,8 +50,8 @@ static struct class *dma_heap_class;
 static DEFINE_XARRAY_ALLOC(dma_heap_minors);
 
 static int dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
-				 unsigned int fd_flags,
-				 unsigned int heap_flags)
+				 u32 fd_flags,
+				 u64 heap_flags)
 {
 	struct dma_buf *dmabuf;
 	int fd;

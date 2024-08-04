@@ -990,9 +990,7 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 	struct v4l2_subdev_state *subdev_state;
 	struct device *dev = &av->isys->adev->auxdev.dev;
 	struct v4l2_subdev *sd;
-	struct v4l2_subdev *ssd;
 	struct media_pad *r_pad;
-	struct media_pad *s_pad;
 	u32 sink_pad, sink_stream;
 	u64 r_stream;
 	u64 stream_mask = 0;
@@ -1003,7 +1001,6 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 	if (WARN(!stream->source_entity, "No source entity for stream\n"))
 		return -ENODEV;
 
-	ssd = media_entity_to_v4l2_subdev(stream->source_entity);
 	sd = &stream->asd->sd;
 	r_pad = media_pad_remote_pad_first(&av->pad);
 	r_stream = ipu6_isys_get_src_stream_by_src_pad(sd, r_pad->index);
@@ -1017,27 +1014,15 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 	if (ret)
 		return ret;
 
-	s_pad = media_pad_remote_pad_first(&stream->asd->pad[sink_pad]);
-
 	stream_mask = get_stream_mask_by_pipeline(av);
 	if (!state) {
 		stop_streaming_firmware(av);
 
-		/* stop external sub-device now. */
-		dev_dbg(dev, "disable streams 0x%llx of %s\n", stream_mask,
-			ssd->name);
-		ret = v4l2_subdev_disable_streams(ssd, s_pad->index,
-						  stream_mask);
-		if (ret) {
-			dev_err(dev, "disable streams of %s failed with %d\n",
-				ssd->name, ret);
-			return ret;
-		}
-
 		/* stop sub-device which connects with video */
-		dev_dbg(dev, "stream off entity %s pad:%d\n", sd->name,
-			r_pad->index);
-		ret = v4l2_subdev_call(sd, video, s_stream, state);
+		dev_dbg(dev, "stream off entity %s pad:%d mask:0x%llx\n",
+			sd->name, r_pad->index, stream_mask);
+		ret = v4l2_subdev_disable_streams(sd, r_pad->index,
+						  stream_mask);
 		if (ret) {
 			dev_err(dev, "stream off %s failed with %d\n", sd->name,
 				ret);
@@ -1052,33 +1037,19 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 		}
 
 		/* start sub-device which connects with video */
-		dev_dbg(dev, "stream on %s pad %d\n", sd->name, r_pad->index);
-		ret = v4l2_subdev_call(sd, video, s_stream, state);
+		dev_dbg(dev, "stream on %s pad %d mask 0x%llx\n", sd->name,
+			r_pad->index, stream_mask);
+		ret = v4l2_subdev_enable_streams(sd, r_pad->index, stream_mask);
 		if (ret) {
 			dev_err(dev, "stream on %s failed with %d\n", sd->name,
 				ret);
 			goto out_media_entity_stop_streaming_firmware;
-		}
-
-		/* start external sub-device now. */
-		dev_dbg(dev, "enable streams 0x%llx of %s\n", stream_mask,
-			ssd->name);
-		ret = v4l2_subdev_enable_streams(ssd, s_pad->index,
-						 stream_mask);
-		if (ret) {
-			dev_err(dev,
-				"enable streams 0x%llx of %s failed with %d\n",
-				stream_mask, stream->source_entity->name, ret);
-			goto out_media_entity_stop_streaming;
 		}
 	}
 
 	av->streaming = state;
 
 	return 0;
-
-out_media_entity_stop_streaming:
-	v4l2_subdev_disable_streams(sd, r_pad->index, BIT(r_stream));
 
 out_media_entity_stop_streaming_firmware:
 	stop_streaming_firmware(av);

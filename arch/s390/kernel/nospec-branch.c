@@ -4,6 +4,8 @@
 #include <linux/cpu.h>
 #include <asm/nospec-branch.h>
 
+int nobp = IS_ENABLED(CONFIG_KERNEL_NOBP);
+
 static int __init nobp_setup_early(char *str)
 {
 	bool enabled;
@@ -17,11 +19,11 @@ static int __init nobp_setup_early(char *str)
 		 * The user explicitly requested nobp=1, enable it and
 		 * disable the expoline support.
 		 */
-		__set_facility(82, alt_stfle_fac_list);
+		nobp = 1;
 		if (IS_ENABLED(CONFIG_EXPOLINE))
 			nospec_disable = 1;
 	} else {
-		__clear_facility(82, alt_stfle_fac_list);
+		nobp = 0;
 	}
 	return 0;
 }
@@ -29,7 +31,7 @@ early_param("nobp", nobp_setup_early);
 
 static int __init nospec_setup_early(char *str)
 {
-	__clear_facility(82, alt_stfle_fac_list);
+	nobp = 0;
 	return 0;
 }
 early_param("nospec", nospec_setup_early);
@@ -40,7 +42,7 @@ static int __init nospec_report(void)
 		pr_info("Spectre V2 mitigation: etokens\n");
 	if (nospec_uses_trampoline())
 		pr_info("Spectre V2 mitigation: execute trampolines\n");
-	if (__test_facility(82, alt_stfle_fac_list))
+	if (nobp_enabled())
 		pr_info("Spectre V2 mitigation: limited branch prediction\n");
 	return 0;
 }
@@ -66,14 +68,14 @@ void __init nospec_auto_detect(void)
 		 */
 		if (__is_defined(CC_USING_EXPOLINE))
 			nospec_disable = 1;
-		__clear_facility(82, alt_stfle_fac_list);
+		nobp = 0;
 	} else if (__is_defined(CC_USING_EXPOLINE)) {
 		/*
 		 * The kernel has been compiled with expolines.
 		 * Keep expolines enabled and disable nobp.
 		 */
 		nospec_disable = 0;
-		__clear_facility(82, alt_stfle_fac_list);
+		nobp = 0;
 	}
 	/*
 	 * If the kernel has not been compiled with expolines the
@@ -86,7 +88,7 @@ static int __init spectre_v2_setup_early(char *str)
 {
 	if (str && !strncmp(str, "on", 2)) {
 		nospec_disable = 0;
-		__clear_facility(82, alt_stfle_fac_list);
+		nobp = 0;
 	}
 	if (str && !strncmp(str, "off", 3))
 		nospec_disable = 1;

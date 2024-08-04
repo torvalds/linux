@@ -268,7 +268,7 @@ static const struct of_device_id noa1305_of_match[] = {
 MODULE_DEVICE_TABLE(of, noa1305_of_match);
 
 static const struct i2c_device_id noa1305_ids[] = {
-	{ "noa1305", 0 },
+	{ "noa1305" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, noa1305_ids);

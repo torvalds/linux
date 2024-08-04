@@ -180,13 +180,14 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 	GtkWidget *tab_label;
 	int err;
 
-	if (dso->annotate_warned)
+	if (dso__annotate_warned(dso))
 		return -1;
 
 	err = symbol__annotate(ms, evsel, NULL);
 	if (err) {
 		char msg[BUFSIZ];
-		dso->annotate_warned = true;
+
+		dso__set_annotate_warned(dso);
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s: %s\n", sym->name, msg);
 		return -1;

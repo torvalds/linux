@@ -95,13 +95,8 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	ret = jffs2_read_inode_range(c, f, pg_buf, pg->index << PAGE_SHIFT,
 				     PAGE_SIZE);
 
-	if (ret) {
-		ClearPageUptodate(pg);
-		SetPageError(pg);
-	} else {
+	if (!ret)
 		SetPageUptodate(pg);
-		ClearPageError(pg);
-	}
 
 	flush_dcache_page(pg);
 	kunmap(pg);
@@ -304,10 +299,8 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 
 	kunmap(pg);
 
-	if (ret) {
-		/* There was an error writing. */
-		SetPageError(pg);
-	}
+	if (ret)
+		mapping_set_error(mapping, ret);
 
 	/* Adjust writtenlen for the padding we did, so we don't confuse our caller */
 	writtenlen -= min(writtenlen, (start - aligned_start));
@@ -330,7 +323,6 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 		   it gets reread */
 		jffs2_dbg(1, "%s(): Not all bytes written. Marking page !uptodate\n",
 			__func__);
-		SetPageError(pg);
 		ClearPageUptodate(pg);
 	}
 

@@ -84,7 +84,7 @@ int rmi_register_desc_calc_reg_offset(
 bool rmi_register_desc_has_subpacket(const struct rmi_register_desc_item *item,
 			u8 subpacket);
 
-bool rmi_is_physical_driver(struct device_driver *);
+bool rmi_is_physical_driver(const struct device_driver *);
 int rmi_register_physical_driver(void);
 void rmi_unregister_physical_driver(void);
 void rmi_free_function_list(struct rmi_device *rmi_dev);

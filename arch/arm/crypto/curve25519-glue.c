@@ -133,4 +133,5 @@ module_exit(arm_curve25519_exit);
 
 MODULE_ALIAS_CRYPTO("curve25519");
 MODULE_ALIAS_CRYPTO("curve25519-neon");
+MODULE_DESCRIPTION("Public key crypto: Curve25519 (NEON-accelerated)");
 MODULE_LICENSE("GPL v2");

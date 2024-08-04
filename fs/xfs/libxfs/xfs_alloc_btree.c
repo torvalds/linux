@@ -115,67 +115,6 @@ xfs_allocbt_free_block(
 	return 0;
 }
 
-/*
- * Update the longest extent in the AGF
- */
-STATIC void
-xfs_allocbt_update_lastrec(
-	struct xfs_btree_cur		*cur,
-	const struct xfs_btree_block	*block,
-	const union xfs_btree_rec	*rec,
-	int				ptr,
-	int				reason)
-{
-	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
-	struct xfs_perag	*pag;
-	__be32			len;
-	int			numrecs;
-
-	ASSERT(!xfs_btree_is_bno(cur->bc_ops));
-
-	switch (reason) {
-	case LASTREC_UPDATE:
-		/*
-		 * If this is the last leaf block and it's the last record,
-		 * then update the size of the longest extent in the AG.
-		 */
-		if (ptr != xfs_btree_get_numrecs(block))
-			return;
-		len = rec->alloc.ar_blockcount;
-		break;
-	case LASTREC_INSREC:
-		if (be32_to_cpu(rec->alloc.ar_blockcount) <=
-		    be32_to_cpu(agf->agf_longest))
-			return;
-		len = rec->alloc.ar_blockcount;
-		break;
-	case LASTREC_DELREC:
-		numrecs = xfs_btree_get_numrecs(block);
-		if (ptr <= numrecs)
-			return;
-		ASSERT(ptr == numrecs + 1);
-
-		if (numrecs) {
-			xfs_alloc_rec_t *rrp;
-
-			rrp = XFS_ALLOC_REC_ADDR(cur->bc_mp, block, numrecs);
-			len = rrp->ar_blockcount;
-		} else {
-			len = 0;
-		}
-
-		break;
-	default:
-		ASSERT(0);
-		return;
-	}
-
-	agf->agf_longest = len;
-	pag = cur->bc_ag.agbp->b_pag;
-	pag->pagf_longest = be32_to_cpu(len);
-	xfs_alloc_log_agf(cur->bc_tp, cur->bc_ag.agbp, XFS_AGF_LONGEST);
-}
-
 STATIC int
 xfs_allocbt_get_minrecs(
 	struct xfs_btree_cur	*cur,
@@ -493,7 +432,6 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
-	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
@@ -511,7 +449,6 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 const struct xfs_btree_ops xfs_cntbt_ops = {
 	.name			= "cnt",
 	.type			= XFS_BTREE_TYPE_AG,
-	.geom_flags		= XFS_BTGEO_LASTREC_UPDATE,
 
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
@@ -525,7 +462,6 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
-	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,

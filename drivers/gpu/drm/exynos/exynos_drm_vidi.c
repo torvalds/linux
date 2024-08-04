@@ -41,7 +41,7 @@ struct vidi_context {
 	struct exynos_drm_crtc		*crtc;
 	struct drm_connector		connector;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
-	struct edid			*raw_edid;
+	const struct drm_edid		*raw_edid;
 	unsigned int			clkdiv;
 	unsigned int			connected;
 	bool				suspended;
@@ -195,12 +195,11 @@ static ssize_t vidi_store_connection(struct device *dev,
 	if (ctx->connected > 1)
 		return -EINVAL;
 
-	/* use fake edid data for test. */
-	if (!ctx->raw_edid)
-		ctx->raw_edid = (struct edid *)fake_edid_info;
-
-	/* if raw_edid isn't same as fake data then it can't be tested. */
-	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
+	/*
+	 * Use fake edid data for test. If raw_edid is set then it can't be
+	 * tested.
+	 */
+	if (ctx->raw_edid) {
 		DRM_DEV_DEBUG_KMS(dev, "edid data is not fake data.\n");
 		return -EINVAL;
 	}
@@ -246,30 +245,28 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	}
 
 	if (vidi->connection) {
-		struct edid *raw_edid;
+		const struct drm_edid *drm_edid;
+		const struct edid *raw_edid;
+		size_t size;
 
-		raw_edid = (struct edid *)(unsigned long)vidi->edid;
-		if (!drm_edid_is_valid(raw_edid)) {
+		raw_edid = (const struct edid *)(unsigned long)vidi->edid;
+		size = (raw_edid->extensions + 1) * EDID_LENGTH;
+
+		drm_edid = drm_edid_alloc(raw_edid, size);
+		if (!drm_edid)
+			return -ENOMEM;
+
+		if (!drm_edid_valid(drm_edid)) {
+			drm_edid_free(drm_edid);
 			DRM_DEV_DEBUG_KMS(ctx->dev,
 					  "edid data is invalid.\n");
 			return -EINVAL;
 		}
-		ctx->raw_edid = drm_edid_duplicate(raw_edid);
-		if (!ctx->raw_edid) {
-			DRM_DEV_DEBUG_KMS(ctx->dev,
-					  "failed to allocate raw_edid.\n");
-			return -ENOMEM;
-		}
+		ctx->raw_edid = drm_edid;
 	} else {
-		/*
-		 * with connection = 0, free raw_edid
-		 * only if raw edid data isn't same as fake data.
-		 */
-		if (ctx->raw_edid && ctx->raw_edid !=
-				(struct edid *)fake_edid_info) {
-			kfree(ctx->raw_edid);
-			ctx->raw_edid = NULL;
-		}
+		/* with connection = 0, free raw_edid */
+		drm_edid_free(ctx->raw_edid);
+		ctx->raw_edid = NULL;
 	}
 
 	ctx->connected = vidi->connection;
@@ -307,31 +304,22 @@ static const struct drm_connector_funcs vidi_connector_funcs = {
 static int vidi_get_modes(struct drm_connector *connector)
 {
 	struct vidi_context *ctx = ctx_from_connector(connector);
-	struct edid *edid;
-	int edid_len;
+	const struct drm_edid *drm_edid;
 	int count;
 
-	/*
-	 * the edid data comes from user side and it would be set
-	 * to ctx->raw_edid through specific ioctl.
-	 */
-	if (!ctx->raw_edid) {
-		DRM_DEV_DEBUG_KMS(ctx->dev, "raw_edid is null.\n");
+	if (ctx->raw_edid)
+		drm_edid = drm_edid_dup(ctx->raw_edid);
+	else
+		drm_edid = drm_edid_alloc(fake_edid_info, sizeof(fake_edid_info));
+
+	if (!drm_edid)
 		return 0;
-	}
 
-	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
-	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
-	if (!edid) {
-		DRM_DEV_DEBUG_KMS(ctx->dev, "failed to allocate edid\n");
-		return 0;
-	}
+	drm_edid_connector_update(connector, drm_edid);
 
-	drm_connector_update_edid_property(connector, edid);
+	count = drm_edid_connector_add_modes(connector);
 
-	count = drm_add_edid_modes(connector, edid);
-
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return count;
 }
@@ -471,10 +459,8 @@ static void vidi_remove(struct platform_device *pdev)
 {
 	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
-	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
-		kfree(ctx->raw_edid);
-		ctx->raw_edid = NULL;
-	}
+	drm_edid_free(ctx->raw_edid);
+	ctx->raw_edid = NULL;
 
 	component_del(&pdev->dev, &vidi_component_ops);
 }

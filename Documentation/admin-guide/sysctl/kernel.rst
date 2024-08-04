@@ -454,7 +454,7 @@ ignore-unaligned-usertrap
 
 On architectures where unaligned accesses cause traps, and where this
 feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
-currently, ``arc`` and ``loongarch``), controls whether all
+currently, ``arc``, ``parisc`` and ``loongarch``), controls whether all
 unaligned traps are logged.
 
 = =============================================================

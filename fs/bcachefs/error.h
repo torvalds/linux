@@ -110,18 +110,21 @@ struct fsck_err_state {
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
 
-__printf(4, 5) __cold
-int bch2_fsck_err(struct bch_fs *,
+__printf(5, 6) __cold
+int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
 		  enum bch_fsck_flags,
 		  enum bch_sb_error_id,
 		  const char *, ...);
+#define bch2_fsck_err(c, _flags, _err_type, ...)				\
+	__bch2_fsck_err(type_is(c, struct bch_fs *) ? (struct bch_fs *) c : NULL,\
+			type_is(c, struct btree_trans *) ? (struct btree_trans *) c : NULL,\
+			_flags, BCH_FSCK_ERR_##_err_type, __VA_ARGS__)
+
 void bch2_flush_fsck_errs(struct bch_fs *);
 
 #define __fsck_err(c, _flags, _err_type, ...)				\
 ({									\
-	int _ret = bch2_fsck_err(c, _flags, BCH_FSCK_ERR_##_err_type,	\
-				 __VA_ARGS__);				\
-									\
+	int _ret = bch2_fsck_err(c, _flags, _err_type, __VA_ARGS__);	\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
 	    _ret != -BCH_ERR_fsck_ignore) {				\
 		ret = _ret;						\
@@ -136,7 +139,14 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 /* XXX: mark in superblock that filesystem contains errors, if we ignore: */
 
 #define __fsck_err_on(cond, c, _flags, _err_type, ...)			\
-	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false)
+({									\
+	might_sleep();							\
+									\
+	if (type_is(c, struct bch_fs *))				\
+		WARN_ON(bch2_current_has_btree_trans((struct bch_fs *) c));\
+									\
+	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false);\
+})
 
 #define need_fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)

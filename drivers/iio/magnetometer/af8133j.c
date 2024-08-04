@@ -505,7 +505,7 @@ static const struct of_device_id af8133j_of_match[] = {
 MODULE_DEVICE_TABLE(of, af8133j_of_match);
 
 static const struct i2c_device_id af8133j_id[] = {
-	{ "af8133j", 0 },
+	{ "af8133j" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, af8133j_id);

@@ -100,8 +100,8 @@ static const struct irq_class irqclass_sub_desc[] = {
 
 static void do_IRQ(struct pt_regs *regs, int irq)
 {
-	if (tod_after_eq(S390_lowcore.int_clock,
-			 S390_lowcore.clock_comparator))
+	if (tod_after_eq(get_lowcore()->int_clock,
+			 get_lowcore()->clock_comparator))
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	generic_handle_irq(irq);
@@ -111,7 +111,7 @@ static int on_async_stack(void)
 {
 	unsigned long frame = current_frame_address();
 
-	return ((S390_lowcore.async_stack ^ frame) & ~(THREAD_SIZE - 1)) == 0;
+	return ((get_lowcore()->async_stack ^ frame) & ~(THREAD_SIZE - 1)) == 0;
 }
 
 static void do_irq_async(struct pt_regs *regs, int irq)
@@ -119,7 +119,7 @@ static void do_irq_async(struct pt_regs *regs, int irq)
 	if (on_async_stack()) {
 		do_IRQ(regs, irq);
 	} else {
-		call_on_stack(2, S390_lowcore.async_stack, void, do_IRQ,
+		call_on_stack(2, get_lowcore()->async_stack, void, do_IRQ,
 			      struct pt_regs *, regs, int, irq);
 	}
 }
@@ -153,8 +153,8 @@ void noinstr do_io_irq(struct pt_regs *regs)
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
 	do {
-		regs->tpi_info = S390_lowcore.tpi_info;
-		if (S390_lowcore.tpi_info.adapter_IO)
+		regs->tpi_info = get_lowcore()->tpi_info;
+		if (get_lowcore()->tpi_info.adapter_IO)
 			do_irq_async(regs, THIN_INTERRUPT);
 		else
 			do_irq_async(regs, IO_INTERRUPT);
@@ -183,9 +183,9 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 			current->thread.last_break = regs->last_break;
 	}
 
-	regs->int_code = S390_lowcore.ext_int_code_addr;
-	regs->int_parm = S390_lowcore.ext_params;
-	regs->int_parm_long = S390_lowcore.ext_params2;
+	regs->int_code = get_lowcore()->ext_int_code_addr;
+	regs->int_parm = get_lowcore()->ext_params;
+	regs->int_parm_long = get_lowcore()->ext_params2;
 
 	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (from_idle)

@@ -17,7 +17,7 @@
 #include "rtl8723b_cmd.h"
 #include "rtw_mp.h"
 #include "hal_pwr_seq.h"
-#include "hal_phy_reg_8723b.h"
+#include "Hal8192CPhyReg.h"
 #include "hal_phy_cfg.h"
 
 /*  */

@@ -25,8 +25,11 @@
 
 int nvdimm_major;
 static int nvdimm_bus_major;
-static struct class *nd_class;
 static DEFINE_IDA(nd_ida);
+
+static const struct class nd_class = {
+	.name = "nd",
+};
 
 static int to_nd_device_type(const struct device *dev)
 {
@@ -269,7 +272,7 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 }
 EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
 
-static int nvdimm_bus_match(struct device *dev, struct device_driver *drv);
+static int nvdimm_bus_match(struct device *dev, const struct device_driver *drv);
 
 static const struct bus_type nvdimm_bus_type = {
 	.name = "nd",
@@ -465,9 +468,9 @@ static struct nd_device_driver nd_bus_driver = {
 	},
 };
 
-static int nvdimm_bus_match(struct device *dev, struct device_driver *drv)
+static int nvdimm_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct nd_device_driver *nd_drv = to_nd_device_driver(drv);
+	const struct nd_device_driver *nd_drv = to_nd_device_driver(drv);
 
 	if (is_nvdimm_bus(dev) && nd_drv == &nd_bus_driver)
 		return true;
@@ -742,7 +745,7 @@ int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &nvdimm_ndctl_key);
 	device_set_pm_not_required(dev);
-	dev->class = nd_class;
+	dev->class = &nd_class;
 	dev->parent = &nvdimm_bus->dev;
 	dev->devt = devt;
 	dev->release = ndctl_release;
@@ -765,7 +768,7 @@ err:
 
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
-	device_destroy(nd_class, MKDEV(nvdimm_bus_major, nvdimm_bus->id));
+	device_destroy(&nd_class, MKDEV(nvdimm_bus_major, nvdimm_bus->id));
 }
 
 static const struct nd_cmd_desc __nd_cmd_dimm_descs[] = {
@@ -1320,11 +1323,9 @@ int __init nvdimm_bus_init(void)
 		goto err_dimm_chrdev;
 	nvdimm_major = rc;
 
-	nd_class = class_create("nd");
-	if (IS_ERR(nd_class)) {
-		rc = PTR_ERR(nd_class);
+	rc = class_register(&nd_class);
+	if (rc)
 		goto err_class;
-	}
 
 	rc = driver_register(&nd_bus_driver.drv);
 	if (rc)
@@ -1333,7 +1334,7 @@ int __init nvdimm_bus_init(void)
 	return 0;
 
  err_nd_bus:
-	class_destroy(nd_class);
+	class_unregister(&nd_class);
  err_class:
 	unregister_chrdev(nvdimm_major, "dimmctl");
  err_dimm_chrdev:
@@ -1347,7 +1348,7 @@ int __init nvdimm_bus_init(void)
 void nvdimm_bus_exit(void)
 {
 	driver_unregister(&nd_bus_driver.drv);
-	class_destroy(nd_class);
+	class_unregister(&nd_class);
 	unregister_chrdev(nvdimm_bus_major, "ndctl");
 	unregister_chrdev(nvdimm_major, "dimmctl");
 	bus_unregister(&nvdimm_bus_type);

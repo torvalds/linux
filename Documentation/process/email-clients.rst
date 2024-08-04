@@ -351,22 +351,11 @@ although tab2space problem can be solved with external editor.
 Another problem is that Gmail will base64-encode any message that has a
 non-ASCII character. That includes things like European names.
 
-Proton Mail
-***********
+HacKerMaiL (TUI)
+****************
 
-Proton Mail has a "feature" where it looks up keys using Web Key Directory
-(WKD) and encrypts mail to any recipients for which it finds a key.
-Kernel.org publishes the WKD for all developers who have kernel.org accounts.
-As a result, emails sent using Proton Mail to kernel.org addresses will be
-encrypted.
-Unfortunately, Proton Mail does not provide a mechanism to disable the
-automatic encryption, viewing it as a privacy feature.
-The automatic encryption feature is also enabled for mail sent via the Proton
-Mail Bridge, so this affects all outgoing messages, including patches sent with
-``git send-email``.
-Encrypted mail adds unnecessary friction, as other developers may not have mail
-clients, or tooling, configured for use with encrypted mail and some mail
-clients may encrypt responses to encrypted mail for all recipients, including
-the mailing lists.
-Unless a way to disable this "feature" is introduced, Proton Mail is unsuited
-to kernel development.
+HacKerMaiL (hkml) is a public-inbox based simple mails management tool that
+doesn't require subscription of mailing lists.  It is developed and maintained
+by the DAMON maintainer and aims to support simple development workflows for
+DAMON and general kernel subsystems.  Refer to the README
+(https://github.com/sjp38/hackermail/blob/master/README.md) for details.

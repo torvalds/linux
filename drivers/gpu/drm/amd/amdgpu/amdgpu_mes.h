@@ -52,7 +52,6 @@ enum amdgpu_mes_priority_level {
 
 #define AMDGPU_MES_PROC_CTX_SIZE 0x1000 /* one page area */
 #define AMDGPU_MES_GANG_CTX_SIZE 0x1000 /* one page area */
-#define AMDGPU_MES_LOG_BUFFER_SIZE 0x4000 /* Maximu log buffer size for MES */
 
 struct amdgpu_mes_funcs;
 
@@ -135,8 +134,9 @@ struct amdgpu_mes {
 	unsigned long			*doorbell_bitmap;
 
 	/* MES event log buffer */
-	struct amdgpu_bo		*event_log_gpu_obj;
-	uint64_t                        event_log_gpu_addr;
+	uint32_t			event_log_size;
+	struct amdgpu_bo	*event_log_gpu_obj;
+	uint64_t			event_log_gpu_addr;
 	void				*event_log_cpu_addr;
 
 	/* ip specific functions */
@@ -351,10 +351,6 @@ struct amdgpu_mes_funcs {
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
 #define amdgpu_mes_kiq_hw_fini(adev) (adev)->mes.kiq_hw_fini((adev))
-
-signed long amdgpu_mes_fence_wait_polling(u64 *fence,
-					  u64 wait_seq,
-					  signed long timeout);
 
 int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs);
 

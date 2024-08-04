@@ -357,7 +357,7 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_module, SND_SOC_SOF_CLIENT);
 
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 {
-	struct auxiliary_driver *adrv;
+	const struct auxiliary_driver *adrv;
 	struct sof_client_dev *cdev;
 
 	mutex_lock(&sdev->ipc_client_mutex);
@@ -380,7 +380,7 @@ EXPORT_SYMBOL_NS_GPL(sof_suspend_clients, SND_SOC_SOF_CLIENT);
 
 int sof_resume_clients(struct snd_sof_dev *sdev)
 {
-	struct auxiliary_driver *adrv;
+	const struct auxiliary_driver *adrv;
 	struct sof_client_dev *cdev;
 
 	mutex_lock(&sdev->ipc_client_mutex);

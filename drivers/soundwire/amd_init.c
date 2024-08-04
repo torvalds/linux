@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -69,7 +70,6 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 {
 	struct sdw_amd_ctx *ctx;
 	struct acpi_device *adev;
-	struct resource *sdw_res;
 	struct acp_sdw_pdata sdw_pdata[2];
 	struct platform_device_info pdevinfo[2];
 	u32 link_mask;
@@ -104,7 +104,8 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 
 	ctx->count = count;
 	ctx->link_mask = res->link_mask;
-	sdw_res = kzalloc(sizeof(*sdw_res), GFP_KERNEL);
+	struct resource *sdw_res __free(kfree) = kzalloc(sizeof(*sdw_res),
+							 GFP_KERNEL);
 	if (!sdw_res) {
 		kfree(ctx);
 		return NULL;
@@ -132,7 +133,6 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 		if (IS_ERR(ctx->pdev[index]))
 			goto err;
 	}
-	kfree(sdw_res);
 	return ctx;
 err:
 	while (index--) {
@@ -142,7 +142,6 @@ err:
 		platform_device_unregister(ctx->pdev[index]);
 	}
 
-	kfree(sdw_res);
 	kfree(ctx);
 	return NULL;
 }

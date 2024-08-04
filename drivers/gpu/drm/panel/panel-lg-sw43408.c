@@ -40,83 +40,83 @@ static inline struct sw43408_panel *to_panel_info(struct drm_panel *panel)
 
 static int sw43408_unprepare(struct drm_panel *panel)
 {
-	struct sw43408_panel *ctx = to_panel_info(panel);
+	struct sw43408_panel *sw43408 = to_panel_info(panel);
+	struct mipi_dsi_multi_context ctx = { .dsi = sw43408->link };
 	int ret;
 
-	ret = mipi_dsi_dcs_set_display_off(ctx->link);
-	if (ret < 0)
-		dev_err(panel->dev, "set_display_off cmd failed ret = %d\n", ret);
+	mipi_dsi_dcs_set_display_off_multi(&ctx);
 
-	ret = mipi_dsi_dcs_enter_sleep_mode(ctx->link);
-	if (ret < 0)
-		dev_err(panel->dev, "enter_sleep cmd failed ret = %d\n", ret);
+	mipi_dsi_dcs_enter_sleep_mode_multi(&ctx);
 
-	msleep(100);
+	mipi_dsi_msleep(&ctx, 100);
 
-	gpiod_set_value(ctx->reset_gpio, 1);
+	gpiod_set_value(sw43408->reset_gpio, 1);
 
-	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	ret = regulator_bulk_disable(ARRAY_SIZE(sw43408->supplies), sw43408->supplies);
+
+	return ret ? : ctx.accum_err;
 }
 
 static int sw43408_program(struct drm_panel *panel)
 {
-	struct sw43408_panel *ctx = to_panel_info(panel);
+	struct sw43408_panel *sw43408 = to_panel_info(panel);
+	struct mipi_dsi_multi_context ctx = { .dsi = sw43408->link };
 	struct drm_dsc_picture_parameter_set pps;
 
-	mipi_dsi_dcs_write_seq(ctx->link, MIPI_DCS_SET_GAMMA_CURVE, 0x02);
+	mipi_dsi_dcs_write_seq_multi(&ctx, MIPI_DCS_SET_GAMMA_CURVE, 0x02);
 
-	mipi_dsi_dcs_set_tear_on(ctx->link, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	mipi_dsi_dcs_set_tear_on_multi(&ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 
-	mipi_dsi_dcs_write_seq(ctx->link, 0x53, 0x0c, 0x30);
-	mipi_dsi_dcs_write_seq(ctx->link, 0x55, 0x00, 0x70, 0xdf, 0x00, 0x70, 0xdf);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xf7, 0x01, 0x49, 0x0c);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0x53, 0x0c, 0x30);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0x55, 0x00, 0x70, 0xdf, 0x00, 0x70, 0xdf);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xf7, 0x01, 0x49, 0x0c);
 
-	mipi_dsi_dcs_exit_sleep_mode(ctx->link);
+	mipi_dsi_dcs_exit_sleep_mode_multi(&ctx);
 
-	msleep(135);
+	mipi_dsi_msleep(&ctx, 135);
 
 	/* COMPRESSION_MODE moved after setting the PPS */
 
-	mipi_dsi_dcs_write_seq(ctx->link, 0xb0, 0xac);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xe5,
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb0, 0xac);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xe5,
 			       0x00, 0x3a, 0x00, 0x3a, 0x00, 0x0e, 0x10);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xb5,
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb5,
 			       0x75, 0x60, 0x2d, 0x5d, 0x80, 0x00, 0x0a, 0x0b,
 			       0x00, 0x05, 0x0b, 0x00, 0x80, 0x0d, 0x0e, 0x40,
 			       0x00, 0x0c, 0x00, 0x16, 0x00, 0xb8, 0x00, 0x80,
 			       0x0d, 0x0e, 0x40, 0x00, 0x0c, 0x00, 0x16, 0x00,
 			       0xb8, 0x00, 0x81, 0x00, 0x03, 0x03, 0x03, 0x01,
 			       0x01);
-	msleep(85);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xcd,
+	mipi_dsi_msleep(&ctx, 85);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xcd,
 			       0x00, 0x00, 0x00, 0x19, 0x19, 0x19, 0x19, 0x19,
 			       0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19,
 			       0x16, 0x16);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xcb, 0x80, 0x5c, 0x07, 0x03, 0x28);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xc0, 0x02, 0x02, 0x0f);
-	mipi_dsi_dcs_write_seq(ctx->link, 0x55, 0x04, 0x61, 0xdb, 0x04, 0x70, 0xdb);
-	mipi_dsi_dcs_write_seq(ctx->link, 0xb0, 0xca);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xcb, 0x80, 0x5c, 0x07, 0x03, 0x28);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xc0, 0x02, 0x02, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0x55, 0x04, 0x61, 0xdb, 0x04, 0x70, 0xdb);
+	mipi_dsi_dcs_write_seq_multi(&ctx, 0xb0, 0xca);
 
-	mipi_dsi_dcs_set_display_on(ctx->link);
+	mipi_dsi_dcs_set_display_on_multi(&ctx);
 
-	msleep(50);
+	mipi_dsi_msleep(&ctx, 50);
 
-	ctx->link->mode_flags &= ~MIPI_DSI_MODE_LPM;
+	sw43408->link->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
-	drm_dsc_pps_payload_pack(&pps, ctx->link->dsc);
-	mipi_dsi_picture_parameter_set(ctx->link, &pps);
+	drm_dsc_pps_payload_pack(&pps, sw43408->link->dsc);
 
-	ctx->link->mode_flags |= MIPI_DSI_MODE_LPM;
+	mipi_dsi_picture_parameter_set_multi(&ctx, &pps);
+
+	sw43408->link->mode_flags |= MIPI_DSI_MODE_LPM;
 
 	/*
 	 * This panel uses PPS selectors with offset:
 	 * PPS 1 if pps_identifier is 0
 	 * PPS 2 if pps_identifier is 1
 	 */
-	mipi_dsi_compression_mode_ext(ctx->link, true,
-				      MIPI_DSI_COMPRESSION_DSC, 1);
-
-	return 0;
+	mipi_dsi_compression_mode_ext_multi(&ctx, true,
+					    MIPI_DSI_COMPRESSION_DSC, 1);
+	return ctx.accum_err;
 }
 
 static int sw43408_prepare(struct drm_panel *panel)

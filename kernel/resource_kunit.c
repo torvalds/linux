@@ -149,4 +149,5 @@ static struct kunit_suite resource_test_suite = {
 };
 kunit_test_suite(resource_test_suite);
 
+MODULE_DESCRIPTION("I/O Port & Memory Resource manager unit tests");
 MODULE_LICENSE("GPL");

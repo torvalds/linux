@@ -189,16 +189,30 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 	union dpcd_replay_configuration replay_configuration = {0};
 	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
 	union psr_error_status replay_error_status = {0};
+	bool ret = false;
+	int retries = 0;
 
 	if (!link->replay_settings.replay_feature_enabled)
 		return;
 
-	dm_helpers_dp_read_dpcd(
-		link->ctx,
-		link,
-		DP_SINK_PR_REPLAY_STATUS,
-		&replay_configuration.raw,
-		sizeof(replay_configuration.raw));
+	while (retries < 10) {
+		ret = dm_helpers_dp_read_dpcd(
+			link->ctx,
+			link,
+			DP_SINK_PR_REPLAY_STATUS,
+			&replay_configuration.raw,
+			sizeof(replay_configuration.raw));
+
+		if (ret)
+			break;
+
+		retries++;
+	}
+
+	if (!ret)
+		DC_LOG_WARNING("[%s][%d] DPCD read addr.0x%x failed with %d retries\n",
+					__func__, __LINE__,
+					DP_SINK_PR_REPLAY_STATUS, retries);
 
 	dm_helpers_dp_read_dpcd(
 		link->ctx,
@@ -454,7 +468,8 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	 * If we got sink count changed it means
 	 * Downstream port status changed,
 	 * then DM should call DC to do the detection.
-	 * NOTE: Do not handle link loss on eDP since it is internal link*/
+	 * NOTE: Do not handle link loss on eDP since it is internal link
+	 */
 	if ((link->connector_signal != SIGNAL_TYPE_EDP) &&
 			dp_parse_link_loss_status(
 					link,

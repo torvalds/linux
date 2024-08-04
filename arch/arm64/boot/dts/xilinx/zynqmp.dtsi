@@ -207,13 +207,71 @@
 				mbox-names = "tx", "rx";
 			};
 
-			nvmem-firmware {
+			soc-nvmem {
 				compatible = "xlnx,zynqmp-nvmem-fw";
-				#address-cells = <1>;
-				#size-cells = <1>;
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-				soc_revision: soc-revision@0 {
-					reg = <0x0 0x4>;
+					soc_revision: soc-revision@0 {
+						reg = <0x0 0x4>;
+					};
+					/* efuse access */
+					efuse_dna: efuse-dna@c {
+						reg = <0xc 0xc>;
+					};
+					efuse_usr0: efuse-usr0@20 {
+						reg = <0x20 0x4>;
+					};
+					efuse_usr1: efuse-usr1@24 {
+						reg = <0x24 0x4>;
+					};
+					efuse_usr2: efuse-usr2@28 {
+						reg = <0x28 0x4>;
+					};
+					efuse_usr3: efuse-usr3@2c {
+						reg = <0x2c 0x4>;
+					};
+					efuse_usr4: efuse-usr4@30 {
+						reg = <0x30 0x4>;
+					};
+					efuse_usr5: efuse-usr5@34 {
+						reg = <0x34 0x4>;
+					};
+					efuse_usr6: efuse-usr6@38 {
+						reg = <0x38 0x4>;
+					};
+					efuse_usr7: efuse-usr7@3c {
+						reg = <0x3c 0x4>;
+					};
+					efuse_miscusr: efuse-miscusr@40 {
+						reg = <0x40 0x4>;
+					};
+					efuse_chash: efuse-chash@50 {
+						reg = <0x50 0x4>;
+					};
+					efuse_pufmisc: efuse-pufmisc@54 {
+						reg = <0x54 0x4>;
+					};
+					efuse_sec: efuse-sec@58 {
+						reg = <0x58 0x4>;
+					};
+					efuse_spkid: efuse-spkid@5c {
+						reg = <0x5c 0x4>;
+					};
+					efuse_aeskey: efuse-aeskey@60 {
+						reg = <0x60 0x20>;
+					};
+					efuse_ppk0hash: efuse-ppk0hash@a0 {
+						reg = <0xa0 0x30>;
+					};
+					efuse_ppk1hash: efuse-ppk1hash@d0 {
+						reg = <0xd0 0x30>;
+					};
+					efuse_pufuser: efuse-pufuser@100 {
+						reg = <0x100 0x7F>;
+					};
 				};
 			};
 
@@ -252,7 +310,7 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
-	fpga_full: fpga-full {
+	fpga_full: fpga-region {
 		compatible = "fpga-region";
 		fpga-mgr = <&zynqmp_pcap>;
 		#address-cells = <2>;
@@ -260,19 +318,76 @@
 		ranges;
 	};
 
-	remoteproc {
+	rproc_lockstep: remoteproc@ffe00000 {
 		compatible = "xlnx,zynqmp-r5fss";
 		xlnx,cluster-mode = <1>;
+		xlnx,tcm-mode = <1>;
 
-		r5f-0 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges = <0x0 0x0 0x0 0xffe00000 0x0 0x10000>,
+			 <0x0 0x20000 0x0 0xffe20000 0x0 0x10000>,
+			 <0x0 0x10000 0x0 0xffe10000 0x0 0x10000>,
+			 <0x0 0x30000 0x0 0xffe30000 0x0 0x10000>;
+
+		r5f@0 {
 			compatible = "xlnx,zynqmp-r5f";
-			power-domains = <&zynqmp_firmware PD_RPU_0>;
+			reg = <0x0 0x0 0x0 0x10000>,
+			      <0x0 0x20000 0x0 0x10000>,
+			      <0x0 0x10000 0x0 0x10000>,
+			      <0x0 0x30000 0x0 0x10000>;
+			reg-names = "atcm0", "btcm0", "atcm1", "btcm1";
+			power-domains = <&zynqmp_firmware PD_RPU_0>,
+					<&zynqmp_firmware PD_R5_0_ATCM>,
+					<&zynqmp_firmware PD_R5_0_BTCM>,
+					<&zynqmp_firmware PD_R5_1_ATCM>,
+					<&zynqmp_firmware PD_R5_1_BTCM>;
 			memory-region = <&rproc_0_fw_image>;
 		};
 
-		r5f-1 {
+		r5f@1 {
 			compatible = "xlnx,zynqmp-r5f";
-			power-domains = <&zynqmp_firmware PD_RPU_1>;
+			reg = <0x1 0x0 0x0 0x10000>, <0x1 0x20000 0x0 0x10000>;
+			reg-names = "atcm0", "btcm0";
+			power-domains = <&zynqmp_firmware PD_RPU_1>,
+					<&zynqmp_firmware PD_R5_1_ATCM>,
+					<&zynqmp_firmware PD_R5_1_BTCM>;
+			memory-region = <&rproc_1_fw_image>;
+		};
+	};
+
+	rproc_split: remoteproc-split@ffe00000 {
+		status = "disabled";
+		compatible = "xlnx,zynqmp-r5fss";
+		xlnx,cluster-mode = <0>;
+		xlnx,tcm-mode = <0>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges = <0x0 0x0 0x0 0xffe00000 0x0 0x10000>,
+			 <0x0 0x20000 0x0 0xffe20000 0x0 0x10000>,
+			 <0x1 0x0 0x0 0xffe90000 0x0 0x10000>,
+			 <0x1 0x20000 0x0 0xffeb0000 0x0 0x10000>;
+
+		r5f@0 {
+			compatible = "xlnx,zynqmp-r5f";
+			reg = <0x0 0x0 0x0 0x10000>, <0x0 0x20000 0x0 0x10000>;
+			reg-names = "atcm0", "btcm0";
+			power-domains = <&zynqmp_firmware PD_RPU_0>,
+					<&zynqmp_firmware PD_R5_0_ATCM>,
+					<&zynqmp_firmware PD_R5_0_BTCM>;
+			memory-region = <&rproc_0_fw_image>;
+		};
+
+		r5f@1 {
+			compatible = "xlnx,zynqmp-r5f";
+			reg = <0x1 0x0 0x0 0x10000>, <0x1 0x20000 0x0 0x10000>;
+			reg-names = "atcm0", "btcm0";
+			power-domains = <&zynqmp_firmware PD_RPU_1>,
+					<&zynqmp_firmware PD_R5_1_ATCM>,
+					<&zynqmp_firmware PD_R5_1_BTCM>;
 			memory-region = <&rproc_1_fw_image>;
 		};
 	};
@@ -328,6 +443,34 @@
 					     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		cpu0_debug: debug@fec10000 {
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
+			reg = <0x0 0xfec10000 0x0 0x1000>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu0>;
+		};
+
+		cpu1_debug: debug@fed10000 {
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
+			reg = <0x0 0xfed10000 0x0 0x1000>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu1>;
+		};
+
+		cpu2_debug: debug@fee10000 {
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
+			reg = <0x0 0xfee10000 0x0 0x1000>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu2>;
+		};
+
+		cpu3_debug: debug@fef10000 {
+			compatible = "arm,coresight-cpu-debug", "arm,primecell";
+			reg = <0x0 0xfef10000 0x0 0x1000>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu3>;
 		};
 
 		/* GDMA */
@@ -684,6 +827,13 @@
 			power-domains = <&zynqmp_firmware PD_I2C_1>;
 		};
 
+		ocm: memory-controller@ff960000 {
+			compatible = "xlnx,zynqmp-ocmc-1.0";
+			reg = <0x0 0xff960000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pcie: pcie@fd0e0000 {
 			compatible = "xlnx,nwl-pcie-2.11";
 			status = "disabled";
@@ -941,10 +1091,11 @@
 				status = "disabled";
 				reg = <0x0 0xfe200000 0x0 0x40000>;
 				interrupt-parent = <&gic>;
-				interrupt-names = "host", "peripheral", "otg";
+				interrupt-names = "host", "peripheral", "otg", "wakeup";
 				interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "ref";
 				/* iommus = <&smmu 0x860>; */
 				snps,quirk-frame-length-adjustment = <0x20>;
@@ -972,10 +1123,11 @@
 				status = "disabled";
 				reg = <0x0 0xfe300000 0x0 0x40000>;
 				interrupt-parent = <&gic>;
-				interrupt-names = "host", "peripheral", "otg";
+				interrupt-names = "host", "peripheral", "otg", "wakeup";
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "ref";
 				/* iommus = <&smmu 0x861>; */
 				snps,quirk-frame-length-adjustment = <0x20>;
@@ -1024,8 +1176,6 @@
 				compatible = "xlnx,zynqmp-ams-pl";
 				status = "disabled";
 				reg = <0x400 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 		};
 

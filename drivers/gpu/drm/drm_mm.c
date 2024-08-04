@@ -649,41 +649,6 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 EXPORT_SYMBOL(drm_mm_remove_node);
 
 /**
- * drm_mm_replace_node - move an allocation from @old to @new
- * @old: drm_mm_node to remove from the allocator
- * @new: drm_mm_node which should inherit @old's allocation
- *
- * This is useful for when drivers embed the drm_mm_node structure and hence
- * can't move allocations by reassigning pointers. It's a combination of remove
- * and insert with the guarantee that the allocation start will match.
- */
-void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
-{
-	struct drm_mm *mm = old->mm;
-
-	DRM_MM_BUG_ON(!drm_mm_node_allocated(old));
-
-	*new = *old;
-
-	__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &new->flags);
-	list_replace(&old->node_list, &new->node_list);
-	rb_replace_node_cached(&old->rb, &new->rb, &mm->interval_tree);
-
-	if (drm_mm_hole_follows(old)) {
-		list_replace(&old->hole_stack, &new->hole_stack);
-		rb_replace_node_cached(&old->rb_hole_size,
-				       &new->rb_hole_size,
-				       &mm->holes_size);
-		rb_replace_node(&old->rb_hole_addr,
-				&new->rb_hole_addr,
-				&mm->holes_addr);
-	}
-
-	clear_bit_unlock(DRM_MM_NODE_ALLOCATED_BIT, &old->flags);
-}
-EXPORT_SYMBOL(drm_mm_replace_node);
-
-/**
  * DOC: lru scan roster
  *
  * Very often GPUs need to have continuous allocations for a given object. When

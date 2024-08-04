@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(nlm_debug);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
-static int proc_do_xprt(struct ctl_table *table, int write,
+static int proc_do_xprt(const struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char tmpbuf[256];
@@ -62,7 +62,7 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 }
 
 static int
-proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
+proc_dodebug(const struct ctl_table *table, int write, void *buffer, size_t *lenp,
 	     loff_t *ppos)
 {
 	char		tmpbuf[20], *s = NULL;

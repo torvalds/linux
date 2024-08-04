@@ -56,6 +56,13 @@ static struct sk_buff *esp4_gro_receive(struct list_head *head,
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
 				      (xfrm_address_t *)&ip_hdr(skb)->daddr,
 				      spi, IPPROTO_ESP, AF_INET);
+
+		if (unlikely(x && x->dir && x->dir != XFRM_SA_DIR_IN)) {
+			/* non-offload path will record the error and audit log */
+			xfrm_state_put(x);
+			x = NULL;
+		}
+
 		if (!x)
 			goto out_reset;
 
@@ -264,6 +271,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	struct esp_info esp;
 	bool hw_offload = true;
 	__u32 seq;
+	int encap_type = 0;
 
 	esp.inplace = true;
 
@@ -296,8 +304,10 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 
 	esp.esph = ip_esp_hdr(skb);
 
+	if (x->encap)
+		encap_type = x->encap->encap_type;
 
-	if (!hw_offload || !skb_is_gso(skb)) {
+	if (!hw_offload || !skb_is_gso(skb) || (hw_offload && encap_type == UDP_ENCAP_ESPINUDP)) {
 		esp.nfrags = esp_output_head(x, skb, &esp);
 		if (esp.nfrags < 0)
 			return esp.nfrags;
@@ -323,6 +333,18 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 		xo->seq.hi++;
 
 	esp.seqno = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
+
+	if (hw_offload && encap_type == UDP_ENCAP_ESPINUDP) {
+		/* In the XFRM stack, the encapsulation protocol is set to iphdr->protocol by
+		 * setting *skb_mac_header(skb) (see esp_output_udp_encap()) where skb->mac_header
+		 * points to iphdr->protocol (see xfrm4_tunnel_encap_add()).
+		 * However, in esp_xmit(), skb->mac_header doesn't point to iphdr->protocol.
+		 * Therefore, the protocol field needs to be corrected.
+		 */
+		ip_hdr(skb)->protocol = IPPROTO_UDP;
+
+		esph->seq_no = htonl(seq);
+	}
 
 	ip_hdr(skb)->tot_len = htons(skb->len);
 	ip_send_check(ip_hdr(skb));

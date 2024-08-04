@@ -372,7 +372,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 
 	mlx5e_fs_set_ns(priv->fs, ns, false);
 	err = mlx5e_arfs_create_tables(priv->fs, priv->rx_res,
-				       !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
+				       mlx5e_fs_has_arfs(priv->netdev));
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create arfs tables, err=%d\n",
 			   err);
@@ -391,8 +391,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_arfs_tables:
-	mlx5e_arfs_destroy_tables(priv->fs,
-				  !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
+	mlx5e_arfs_destroy_tables(priv->fs, mlx5e_fs_has_arfs(priv->netdev));
 
 	return err;
 }
@@ -400,8 +399,7 @@ err_destroy_arfs_tables:
 static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
 	mlx5e_destroy_ttc_table(priv->fs);
-	mlx5e_arfs_destroy_tables(priv->fs,
-				  !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
+	mlx5e_arfs_destroy_tables(priv->fs, mlx5e_fs_has_arfs(priv->netdev));
 	mlx5e_ethtool_cleanup_steering(priv->fs);
 }
 

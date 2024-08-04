@@ -57,6 +57,9 @@ struct rga_ctx {
 	struct rga_frame out;
 	struct v4l2_ctrl_handler ctrl_handler;
 
+	int osequence;
+	int csequence;
+
 	/* Control values */
 	u32 op;
 	u32 hflip;

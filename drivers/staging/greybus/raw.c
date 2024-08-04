@@ -377,4 +377,5 @@ static void __exit raw_exit(void)
 }
 module_exit(raw_exit);
 
+MODULE_DESCRIPTION("Greybus driver for the Raw protocol");
 MODULE_LICENSE("GPL v2");

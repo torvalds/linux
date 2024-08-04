@@ -118,4 +118,5 @@ module_platform_driver(smccc_trng_driver);
 
 MODULE_ALIAS("platform:smccc_trng");
 MODULE_AUTHOR("Andre Przywara");
+MODULE_DESCRIPTION("Arm SMCCC TRNG firmware interface support");
 MODULE_LICENSE("GPL");

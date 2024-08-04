@@ -240,5 +240,6 @@ static struct mdio_driver bcm_ns_usb3_mdio_driver = {
 
 mdio_module_driver(bcm_ns_usb3_mdio_driver);
 
+MODULE_DESCRIPTION("Broadcom Northstar USB 3.0 PHY Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, bcm_ns_usb3_id_table);

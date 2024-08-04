@@ -235,8 +235,8 @@ static u32 ec_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm ec_i2c_algorithm = {
-	.master_xfer	= ec_i2c_xfer,
-	.functionality	= ec_i2c_functionality,
+	.xfer = ec_i2c_xfer,
+	.functionality = ec_i2c_functionality,
 };
 
 static int ec_i2c_probe(struct platform_device *pdev)

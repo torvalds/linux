@@ -390,11 +390,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev);
 int ps3_system_bus_driver_register(struct ps3_system_bus_driver *drv);
 void ps3_system_bus_driver_unregister(struct ps3_system_bus_driver *drv);
 
-static inline struct ps3_system_bus_driver *ps3_drv_to_system_bus_drv(
-	struct device_driver *_drv)
-{
-	return container_of(_drv, struct ps3_system_bus_driver, core);
-}
+#define ps3_drv_to_system_bus_drv(_drv) container_of_const(_drv, struct ps3_system_bus_driver, core)
 static inline struct ps3_system_bus_device *ps3_dev_to_system_bus_dev(
 	const struct device *_dev)
 {

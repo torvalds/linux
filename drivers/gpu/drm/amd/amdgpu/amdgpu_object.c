@@ -981,12 +981,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 
 	ttm_bo_pin(&bo->tbo);
 
-	domain = amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type);
-	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+	if (bo->tbo.resource->mem_type == TTM_PL_VRAM) {
 		atomic64_add(amdgpu_bo_size(bo), &adev->vram_pin_size);
 		atomic64_add(amdgpu_vram_mgr_bo_visible_size(bo),
 			     &adev->visible_pin_size);
-	} else if (domain == AMDGPU_GEM_DOMAIN_GTT) {
+	} else if (bo->tbo.resource->mem_type == TTM_PL_TT) {
 		atomic64_add(amdgpu_bo_size(bo), &adev->gart_pin_size);
 	}
 
@@ -1291,7 +1290,6 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 	struct ttm_resource *res = bo->tbo.resource;
 	uint64_t size = amdgpu_bo_size(bo);
 	struct drm_gem_object *obj;
-	unsigned int domain;
 	bool shared;
 
 	/* Abort if the BO doesn't currently have a backing store */
@@ -1301,21 +1299,20 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 	obj = &bo->tbo.base;
 	shared = drm_gem_object_is_shared_for_memory_stats(obj);
 
-	domain = amdgpu_mem_type_to_domain(res->mem_type);
-	switch (domain) {
-	case AMDGPU_GEM_DOMAIN_VRAM:
+	switch (res->mem_type) {
+	case TTM_PL_VRAM:
 		stats->vram += size;
-		if (amdgpu_res_cpu_visible(adev, bo->tbo.resource))
+		if (amdgpu_res_cpu_visible(adev, res))
 			stats->visible_vram += size;
 		if (shared)
 			stats->vram_shared += size;
 		break;
-	case AMDGPU_GEM_DOMAIN_GTT:
+	case TTM_PL_TT:
 		stats->gtt += size;
 		if (shared)
 			stats->gtt_shared += size;
 		break;
-	case AMDGPU_GEM_DOMAIN_CPU:
+	case TTM_PL_SYSTEM:
 	default:
 		stats->cpu += size;
 		if (shared)
@@ -1328,7 +1325,7 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
 			stats->requested_visible_vram += size;
 
-		if (domain != AMDGPU_GEM_DOMAIN_VRAM) {
+		if (res->mem_type != TTM_PL_VRAM) {
 			stats->evicted_vram += size;
 			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
 				stats->evicted_visible_vram += size;
@@ -1602,23 +1599,39 @@ u64 amdgpu_bo_print_info(int id, struct amdgpu_bo *bo, struct seq_file *m)
 	u64 size;
 
 	if (dma_resv_trylock(bo->tbo.base.resv)) {
-		unsigned int domain;
-
-		domain = amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type);
-		switch (domain) {
-		case AMDGPU_GEM_DOMAIN_VRAM:
-			if (amdgpu_res_cpu_visible(adev, bo->tbo.resource))
-				placement = "VRAM VISIBLE";
-			else
-				placement = "VRAM";
-			break;
-		case AMDGPU_GEM_DOMAIN_GTT:
-			placement = "GTT";
-			break;
-		case AMDGPU_GEM_DOMAIN_CPU:
-		default:
-			placement = "CPU";
-			break;
+		if (!bo->tbo.resource) {
+			placement = "NONE";
+		} else {
+			switch (bo->tbo.resource->mem_type) {
+			case TTM_PL_VRAM:
+				if (amdgpu_res_cpu_visible(adev, bo->tbo.resource))
+					placement = "VRAM VISIBLE";
+				else
+					placement = "VRAM";
+				break;
+			case TTM_PL_TT:
+				placement = "GTT";
+				break;
+			case AMDGPU_PL_GDS:
+				placement = "GDS";
+				break;
+			case AMDGPU_PL_GWS:
+				placement = "GWS";
+				break;
+			case AMDGPU_PL_OA:
+				placement = "OA";
+				break;
+			case AMDGPU_PL_PREEMPT:
+				placement = "PREEMPTIBLE";
+				break;
+			case AMDGPU_PL_DOORBELL:
+				placement = "DOORBELL";
+				break;
+			case TTM_PL_SYSTEM:
+			default:
+				placement = "CPU";
+				break;
+			}
 		}
 		dma_resv_unlock(bo->tbo.base.resv);
 	} else {

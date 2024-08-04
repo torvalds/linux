@@ -59,6 +59,7 @@
 # while it is forwarded between different vrfs.
 
 source lib.sh
+PATH=$PWD:$PWD/tools/testing/selftests/net:$PATH
 VERBOSE=0
 PAUSE_ON_FAIL=no
 DEFAULT_TTYPE=sym
@@ -533,6 +534,86 @@ ipv6_ping_frag_asym()
 	ipv6_ping_frag asym
 }
 
+ipv4_ping_local()
+{
+	log_section "IPv4 (sym route): VRF ICMP local error route lookup ping"
+
+	setup_sym
+
+	check_connectivity || return
+
+	run_cmd ip netns exec $r1 ip vrf exec blue ping -c1 -w1 ${H2_N2_IP}
+	log_test $? 0 "VRF ICMP local IPv4"
+}
+
+ipv4_tcp_local()
+{
+	log_section "IPv4 (sym route): VRF tcp local connection"
+
+	setup_sym
+
+	check_connectivity || return
+
+	run_cmd nettest -s -O "$h2" -l ${H2_N2_IP} -I eth0 -3 eth0 &
+	sleep 1
+	run_cmd nettest -N "$r1" -d blue -r ${H2_N2_IP}
+	log_test $? 0 "VRF tcp local connection IPv4"
+}
+
+ipv4_udp_local()
+{
+	log_section "IPv4 (sym route): VRF udp local connection"
+
+	setup_sym
+
+	check_connectivity || return
+
+	run_cmd nettest -s -D -O "$h2" -l ${H2_N2_IP} -I eth0 -3 eth0 &
+	sleep 1
+	run_cmd nettest -D -N "$r1" -d blue -r ${H2_N2_IP}
+	log_test $? 0 "VRF udp local connection IPv4"
+}
+
+ipv6_ping_local()
+{
+	log_section "IPv6 (sym route): VRF ICMP local error route lookup ping"
+
+	setup_sym
+
+	check_connectivity6 || return
+
+	run_cmd ip netns exec $r1 ip vrf exec blue ${ping6} -c1 -w1 ${H2_N2_IP6}
+	log_test $? 0 "VRF ICMP local IPv6"
+}
+
+ipv6_tcp_local()
+{
+	log_section "IPv6 (sym route): VRF tcp local connection"
+
+	setup_sym
+
+	check_connectivity6 || return
+
+	run_cmd nettest -s -6 -O "$h2" -l ${H2_N2_IP6} -I eth0 -3 eth0 &
+	sleep 1
+	run_cmd nettest -6 -N "$r1" -d blue -r ${H2_N2_IP6}
+	log_test $? 0 "VRF tcp local connection IPv6"
+}
+
+ipv6_udp_local()
+{
+	log_section "IPv6 (sym route): VRF udp local connection"
+
+	setup_sym
+
+	check_connectivity6 || return
+
+	run_cmd nettest -s -6 -D -O "$h2" -l ${H2_N2_IP6} -I eth0 -3 eth0 &
+	sleep 1
+	run_cmd nettest -6 -D -N "$r1" -d blue -r ${H2_N2_IP6}
+	log_test $? 0 "VRF udp local connection IPv6"
+}
+
 ################################################################################
 # usage
 
@@ -555,8 +636,10 @@ EOF
 # Some systems don't have a ping6 binary anymore
 command -v ping6 > /dev/null 2>&1 && ping6=$(command -v ping6) || ping6=$(command -v ping)
 
-TESTS_IPV4="ipv4_ping_ttl ipv4_traceroute ipv4_ping_frag ipv4_ping_ttl_asym ipv4_traceroute_asym"
-TESTS_IPV6="ipv6_ping_ttl ipv6_traceroute ipv6_ping_ttl_asym ipv6_traceroute_asym"
+TESTS_IPV4="ipv4_ping_ttl ipv4_traceroute ipv4_ping_frag ipv4_ping_local ipv4_tcp_local
+ipv4_udp_local ipv4_ping_ttl_asym ipv4_traceroute_asym"
+TESTS_IPV6="ipv6_ping_ttl ipv6_traceroute ipv6_ping_local ipv6_tcp_local ipv6_udp_local
+ipv6_ping_ttl_asym ipv6_traceroute_asym"
 
 ret=0
 nsuccess=0
@@ -594,12 +677,18 @@ do
 	ipv4_traceroute|traceroute)      ipv4_traceroute;;&
 	ipv4_traceroute_asym|traceroute) ipv4_traceroute_asym;;&
 	ipv4_ping_frag|ping)             ipv4_ping_frag;;&
+	ipv4_ping_local|ping)            ipv4_ping_local;;&
+	ipv4_tcp_local)                  ipv4_tcp_local;;&
+	ipv4_udp_local)                  ipv4_udp_local;;&
 
 	ipv6_ping_ttl|ping)              ipv6_ping_ttl;;&
 	ipv6_ping_ttl_asym|ping)         ipv6_ping_ttl_asym;;&
 	ipv6_traceroute|traceroute)      ipv6_traceroute;;&
 	ipv6_traceroute_asym|traceroute) ipv6_traceroute_asym;;&
 	ipv6_ping_frag|ping)             ipv6_ping_frag;;&
+	ipv6_ping_local|ping)            ipv6_ping_local;;&
+	ipv6_tcp_local)                  ipv6_tcp_local;;&
+	ipv6_udp_local)                  ipv6_udp_local;;&
 
 	# setup namespaces and config, but do not run any tests
 	setup_sym|setup)                 setup_sym; exit 0;;

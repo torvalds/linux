@@ -111,4 +111,5 @@ static void mcp23s08_i2c_exit(void)
 }
 module_exit(mcp23s08_i2c_exit);
 
+MODULE_DESCRIPTION("MCP23S08 I2C GPIO driver");
 MODULE_LICENSE("GPL");

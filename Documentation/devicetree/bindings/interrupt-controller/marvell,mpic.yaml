@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/marvell,mpic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 370, 375, 38x, 39x, XP Interrupt Controller
+
+maintainers:
+  - Marek Behún <kabel@kernel.org>
+
+description: |
+  The top-level interrupt controller on Marvell Armada 370 and XP. On these
+  platforms it also provides inter-processor interrupts.
+
+  On Marvell Armada 375, 38x and 39x this controller is wired under ARM GIC.
+
+  Provides MSI handling for the PCIe controllers.
+
+properties:
+  compatible:
+    const: marvell,mpic
+
+  reg:
+    items:
+      - description: main registers
+      - description: per-cpu registers
+
+  interrupts:
+    items:
+      - description: |
+          Parent interrupt on platforms where MPIC is not the top-level
+          interrupt controller.
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  msi-controller: true
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+  - msi-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    interrupt-controller@20a00 {
+        compatible = "marvell,mpic";
+        reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+        interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        msi-controller;
+    };

@@ -86,8 +86,10 @@ int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init)
 
 	if (virt->ops && virt->ops->req_full_gpu) {
 		r = virt->ops->req_full_gpu(adev, init);
-		if (r)
+		if (r) {
+			adev->no_hw_access = true;
 			return r;
+		}
 
 		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
 	}
@@ -153,6 +155,20 @@ void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_virt_ready_to_reset() - send ready to reset to host
+ * @adev:	amdgpu device.
+ * Send ready to reset message to GPU hypervisor to signal we have stopped GPU
+ * activity and is ready for host FLR
+ */
+void amdgpu_virt_ready_to_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->reset_gpu)
+		virt->ops->ready_to_reset(adev);
+}
+
+/**
  * amdgpu_virt_wait_reset() - wait for reset gpu completed
  * @adev:	amdgpu device.
  * Wait for GPU reset completed.
@@ -213,6 +229,22 @@ void amdgpu_virt_free_mm_table(struct amdgpu_device *adev)
 			      &adev->virt.mm_table.gpu_addr,
 			      (void *)&adev->virt.mm_table.cpu_addr);
 	adev->virt.mm_table.gpu_addr = 0;
+}
+
+/**
+ * amdgpu_virt_rcvd_ras_interrupt() - receive ras interrupt
+ * @adev:	amdgpu device.
+ * Check whether host sent RAS error message
+ * Return: true if found, otherwise false
+ */
+bool amdgpu_virt_rcvd_ras_interrupt(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (!virt->ops || !virt->ops->rcvd_ras_intr)
+		return false;
+
+	return virt->ops->rcvd_ras_intr(adev);
 }
 
 
@@ -394,6 +426,8 @@ static void amdgpu_virt_add_bad_page(struct amdgpu_device *adev,
 		vram_usage_va = adev->mman.fw_vram_usage_va;
 	else
 		vram_usage_va = adev->mman.drv_vram_usage_va;
+
+	memset(&bp, 0, sizeof(bp));
 
 	if (bp_block_size) {
 		bp_cnt = bp_block_size / sizeof(uint64_t);
@@ -583,7 +617,7 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	}
 	vf2pf_info->checksum =
 		amd_sriov_msg_checksum(
-		vf2pf_info, vf2pf_info->header.size, 0, 0);
+		vf2pf_info, sizeof(*vf2pf_info), 0, 0);
 
 	return 0;
 }
@@ -596,11 +630,14 @@ static void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
 	ret = amdgpu_virt_read_pf2vf_data(adev);
 	if (ret) {
 		adev->virt.vf2pf_update_retry_cnt++;
-		if ((adev->virt.vf2pf_update_retry_cnt >= AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT) &&
-		    amdgpu_sriov_runtime(adev) && !amdgpu_in_reset(adev)) {
+
+		if ((amdgpu_virt_rcvd_ras_interrupt(adev) ||
+			adev->virt.vf2pf_update_retry_cnt >= AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT) &&
+			amdgpu_sriov_runtime(adev)) {
+
 			amdgpu_ras_set_fed(adev, true);
 			if (amdgpu_reset_domain_schedule(adev->reset_domain,
-							  &adev->virt.flr_work))
+							&adev->kfd.reset_work))
 				return;
 			else
 				dev_err(adev->dev, "Failed to queue work! at %s", __func__);
@@ -820,6 +857,8 @@ void amdgpu_virt_post_reset(struct amdgpu_device *adev)
 		 */
 		adev->gfx.is_poweron = false;
 	}
+
+	adev->mes.ring.sched.ready = false;
 }
 
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_id)
@@ -975,11 +1014,17 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 		return 0;
 	}
 
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
+
 	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[xcc_id];
 	scratch_reg0 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg0;
 	scratch_reg1 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg1;
 	scratch_reg2 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg2;
 	scratch_reg3 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg3;
+
+	mutex_lock(&adev->virt.rlcg_reg_lock);
+
 	if (reg_access_ctrl->spare_int)
 		spare_int = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->spare_int;
 
@@ -1036,6 +1081,9 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 	}
 
 	ret = readl(scratch_reg0);
+
+	mutex_unlock(&adev->virt.rlcg_reg_lock);
+
 	return ret;
 }
 
@@ -1044,6 +1092,9 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 		       u32 acc_flags, u32 hwip, u32 xcc_id)
 {
 	u32 rlcg_flag;
+
+	if (amdgpu_device_skip_hw_access(adev))
+		return;
 
 	if (!amdgpu_sriov_runtime(adev) &&
 		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
@@ -1061,6 +1112,9 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		      u32 offset, u32 acc_flags, u32 hwip, u32 xcc_id)
 {
 	u32 rlcg_flag;
+
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
 
 	if (!amdgpu_sriov_runtime(adev) &&
 		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))

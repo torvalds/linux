@@ -117,7 +117,7 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_FOLIOS, &rreq->flags)) {
 			if (folio->index == rreq->no_unlock_folio &&
 			    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags))
-				kdebug("no unlock");
+				_debug("no unlock");
 			else
 				folio_unlock(folio);
 		}
@@ -204,7 +204,7 @@ void netfs_readahead(struct readahead_control *ractl)
 	struct netfs_inode *ctx = netfs_inode(ractl->mapping->host);
 	int ret;
 
-	kenter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
+	_enter("%lx,%x", readahead_index(ractl), readahead_count(ractl));
 
 	if (readahead_count(ractl) == 0)
 		return;
@@ -268,10 +268,10 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 	struct folio *sink = NULL;
 	int ret;
 
-	kenter("%lx", folio->index);
+	_enter("%lx", folio->index);
 
 	rreq = netfs_alloc_request(mapping, file,
-				   folio_file_pos(folio), folio_size(folio),
+				   folio_pos(folio), folio_size(folio),
 				   NETFS_READPAGE);
 	if (IS_ERR(rreq)) {
 		ret = PTR_ERR(rreq);
@@ -470,7 +470,7 @@ retry:
 	}
 
 	rreq = netfs_alloc_request(mapping, file,
-				   folio_file_pos(folio), folio_size(folio),
+				   folio_pos(folio), folio_size(folio),
 				   NETFS_READ_FOR_WRITE);
 	if (IS_ERR(rreq)) {
 		ret = PTR_ERR(rreq);
@@ -508,7 +508,7 @@ retry:
 
 have_folio:
 	*_folio = folio;
-	kleave(" = 0");
+	_leave(" = 0");
 	return 0;
 
 error_put:
@@ -518,7 +518,7 @@ error:
 		folio_unlock(folio);
 		folio_put(folio);
 	}
-	kleave(" = %d", ret);
+	_leave(" = %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_write_begin);
@@ -536,7 +536,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 	size_t flen = folio_size(folio);
 	int ret;
 
-	kenter("%zx @%llx", flen, start);
+	_enter("%zx @%llx", flen, start);
 
 	ret = -ENOMEM;
 
@@ -567,7 +567,7 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 error_put:
 	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
 error:
-	kleave(" = %d", ret);
+	_leave(" = %d", ret);
 	return ret;
 }
 

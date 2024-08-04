@@ -74,6 +74,8 @@ efi_status_t efi_boot_kernel(void *handle, efi_loaded_image_t *image,
 	/* Config Direct Mapping */
 	csr_write64(CSR_DMW0_INIT, LOONGARCH_CSR_DMWIN0);
 	csr_write64(CSR_DMW1_INIT, LOONGARCH_CSR_DMWIN1);
+	csr_write64(CSR_DMW2_INIT, LOONGARCH_CSR_DMWIN2);
+	csr_write64(CSR_DMW3_INIT, LOONGARCH_CSR_DMWIN3);
 
 	real_kernel_entry = (void *)kernel_entry_address(kernel_addr, image);
 

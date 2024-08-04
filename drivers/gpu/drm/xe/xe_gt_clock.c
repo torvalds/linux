@@ -3,10 +3,13 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <linux/math64.h>
+
 #include "xe_gt_clock.h"
 
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
+#include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_macros.h"
@@ -77,4 +80,22 @@ int xe_gt_clock_init(struct xe_gt *gt)
 
 	gt->info.reference_clock = freq;
 	return 0;
+}
+
+static u64 div_u64_roundup(u64 n, u32 d)
+{
+	return div_u64(n + d - 1, d);
+}
+
+/**
+ * xe_gt_clock_interval_to_ms - Convert sampled GT clock ticks to msec
+ *
+ * @gt: the &xe_gt
+ * @count: count of GT clock ticks
+ *
+ * Returns: time in msec
+ */
+u64 xe_gt_clock_interval_to_ms(struct xe_gt *gt, u64 count)
+{
+	return div_u64_roundup(count * MSEC_PER_SEC, gt->info.reference_clock);
 }

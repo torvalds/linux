@@ -43,101 +43,51 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 
 #undef DRAM_TYPE_STR
 
-static void pnv_detect_mem_freq(struct drm_i915_private *dev_priv)
+static bool pnv_is_ddr3(struct drm_i915_private *i915)
+{
+	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3;
+}
+
+static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u32 tmp;
 
 	tmp = intel_uncore_read(&dev_priv->uncore, CLKCFG);
 
-	switch (tmp & CLKCFG_FSB_MASK) {
-	case CLKCFG_FSB_533:
-		dev_priv->fsb_freq = 533; /* 133*4 */
-		break;
-	case CLKCFG_FSB_800:
-		dev_priv->fsb_freq = 800; /* 200*4 */
-		break;
-	case CLKCFG_FSB_667:
-		dev_priv->fsb_freq =  667; /* 167*4 */
-		break;
-	case CLKCFG_FSB_400:
-		dev_priv->fsb_freq = 400; /* 100*4 */
-		break;
-	}
-
 	switch (tmp & CLKCFG_MEM_MASK) {
 	case CLKCFG_MEM_533:
-		dev_priv->mem_freq = 533;
-		break;
+		return 533333;
 	case CLKCFG_MEM_667:
-		dev_priv->mem_freq = 667;
-		break;
+		return 666667;
 	case CLKCFG_MEM_800:
-		dev_priv->mem_freq = 800;
-		break;
+		return 800000;
 	}
 
-	/* detect pineview DDR3 setting */
-	tmp = intel_uncore_read(&dev_priv->uncore, CSHRDDR3CTL);
-	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
+	return 0;
 }
 
-static void ilk_detect_mem_freq(struct drm_i915_private *dev_priv)
+static unsigned int ilk_mem_freq(struct drm_i915_private *dev_priv)
 {
-	u16 ddrpll, csipll;
+	u16 ddrpll;
 
 	ddrpll = intel_uncore_read16(&dev_priv->uncore, DDRMPLL1);
 	switch (ddrpll & 0xff) {
 	case 0xc:
-		dev_priv->mem_freq = 800;
-		break;
+		return 800000;
 	case 0x10:
-		dev_priv->mem_freq = 1066;
-		break;
+		return 1066667;
 	case 0x14:
-		dev_priv->mem_freq = 1333;
-		break;
+		return 1333333;
 	case 0x18:
-		dev_priv->mem_freq = 1600;
-		break;
+		return 1600000;
 	default:
 		drm_dbg(&dev_priv->drm, "unknown memory frequency 0x%02x\n",
 			ddrpll & 0xff);
-		dev_priv->mem_freq = 0;
-		break;
-	}
-
-	csipll = intel_uncore_read16(&dev_priv->uncore, CSIPLL0);
-	switch (csipll & 0x3ff) {
-	case 0x00c:
-		dev_priv->fsb_freq = 3200;
-		break;
-	case 0x00e:
-		dev_priv->fsb_freq = 3733;
-		break;
-	case 0x010:
-		dev_priv->fsb_freq = 4266;
-		break;
-	case 0x012:
-		dev_priv->fsb_freq = 4800;
-		break;
-	case 0x014:
-		dev_priv->fsb_freq = 5333;
-		break;
-	case 0x016:
-		dev_priv->fsb_freq = 5866;
-		break;
-	case 0x018:
-		dev_priv->fsb_freq = 6400;
-		break;
-	default:
-		drm_dbg(&dev_priv->drm, "unknown fsb frequency 0x%04x\n",
-			csipll & 0x3ff);
-		dev_priv->fsb_freq = 0;
-		break;
+		return 0;
 	}
 }
 
-static void chv_detect_mem_freq(struct drm_i915_private *i915)
+static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
@@ -147,15 +97,13 @@ static void chv_detect_mem_freq(struct drm_i915_private *i915)
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
-		i915->mem_freq = 2000;
-		break;
+		return 2000000;
 	default:
-		i915->mem_freq = 1600;
-		break;
+		return 1600000;
 	}
 }
 
-static void vlv_detect_mem_freq(struct drm_i915_private *i915)
+static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
@@ -166,30 +114,125 @@ static void vlv_detect_mem_freq(struct drm_i915_private *i915)
 	switch ((val >> 6) & 3) {
 	case 0:
 	case 1:
-		i915->mem_freq = 800;
-		break;
+		return 800000;
 	case 2:
-		i915->mem_freq = 1066;
-		break;
+		return 1066667;
 	case 3:
-		i915->mem_freq = 1333;
-		break;
+		return 1333333;
 	}
+
+	return 0;
 }
 
 static void detect_mem_freq(struct drm_i915_private *i915)
 {
 	if (IS_PINEVIEW(i915))
-		pnv_detect_mem_freq(i915);
+		i915->mem_freq = pnv_mem_freq(i915);
 	else if (GRAPHICS_VER(i915) == 5)
-		ilk_detect_mem_freq(i915);
+		i915->mem_freq = ilk_mem_freq(i915);
 	else if (IS_CHERRYVIEW(i915))
-		chv_detect_mem_freq(i915);
+		i915->mem_freq = chv_mem_freq(i915);
 	else if (IS_VALLEYVIEW(i915))
-		vlv_detect_mem_freq(i915);
+		i915->mem_freq = vlv_mem_freq(i915);
+
+	if (IS_PINEVIEW(i915))
+		i915->is_ddr3 = pnv_is_ddr3(i915);
 
 	if (i915->mem_freq)
-		drm_dbg(&i915->drm, "DDR speed: %d MHz\n", i915->mem_freq);
+		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", i915->mem_freq);
+}
+
+unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
+{
+	u32 fsb;
+
+	/*
+	 * Note that this only reads the state of the FSB
+	 * straps, not the actual FSB frequency. Some BIOSen
+	 * let you configure each independently. Ideally we'd
+	 * read out the actual FSB frequency but sadly we
+	 * don't know which registers have that information,
+	 * and all the relevant docs have gone to bit heaven :(
+	 */
+	fsb = intel_uncore_read(&i915->uncore, CLKCFG) & CLKCFG_FSB_MASK;
+
+	if (IS_PINEVIEW(i915) || IS_MOBILE(i915)) {
+		switch (fsb) {
+		case CLKCFG_FSB_400:
+			return 400000;
+		case CLKCFG_FSB_533:
+			return 533333;
+		case CLKCFG_FSB_667:
+			return 666667;
+		case CLKCFG_FSB_800:
+			return 800000;
+		case CLKCFG_FSB_1067:
+			return 1066667;
+		case CLKCFG_FSB_1333:
+			return 1333333;
+		default:
+			MISSING_CASE(fsb);
+			return 1333333;
+		}
+	} else {
+		switch (fsb) {
+		case CLKCFG_FSB_400_ALT:
+			return 400000;
+		case CLKCFG_FSB_533:
+			return 533333;
+		case CLKCFG_FSB_667:
+			return 666667;
+		case CLKCFG_FSB_800:
+			return 800000;
+		case CLKCFG_FSB_1067_ALT:
+			return 1066667;
+		case CLKCFG_FSB_1333_ALT:
+			return 1333333;
+		case CLKCFG_FSB_1600_ALT:
+			return 1600000;
+		default:
+			MISSING_CASE(fsb);
+			return 1333333;
+		}
+	}
+}
+
+static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
+{
+	u16 fsb;
+
+	fsb = intel_uncore_read16(&dev_priv->uncore, CSIPLL0) & 0x3ff;
+
+	switch (fsb) {
+	case 0x00c:
+		return 3200000;
+	case 0x00e:
+		return 3733333;
+	case 0x010:
+		return 4266667;
+	case 0x012:
+		return 4800000;
+	case 0x014:
+		return 5333333;
+	case 0x016:
+		return 5866667;
+	case 0x018:
+		return 6400000;
+	default:
+		drm_dbg(&dev_priv->drm, "unknown fsb frequency 0x%04x\n", fsb);
+		return 0;
+	}
+}
+
+static void detect_fsb_freq(struct drm_i915_private *i915)
+{
+	if (GRAPHICS_VER(i915) == 5)
+		i915->fsb_freq = ilk_fsb_freq(i915);
+	else if (GRAPHICS_VER(i915) == 3 || GRAPHICS_VER(i915) == 4)
+		i915->fsb_freq = i9xx_fsb_freq(i915);
+
+	if (i915->fsb_freq)
+		drm_dbg(&i915->drm, "FSB frequency: %d kHz\n", i915->fsb_freq);
 }
 
 static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
@@ -640,6 +683,10 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915)
 	case 5:
 		dram_info->type = INTEL_DRAM_LPDDR3;
 		break;
+	case 8:
+		drm_WARN_ON(&i915->drm, !IS_DGFX(i915));
+		dram_info->type = INTEL_DRAM_GDDR;
+		break;
 	default:
 		MISSING_CASE(val);
 		return -EINVAL;
@@ -657,6 +704,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	struct dram_info *dram_info = &i915->dram_info;
 	int ret;
 
+	detect_fsb_freq(i915);
 	detect_mem_freq(i915);
 
 	if (GRAPHICS_VER(i915) < 9 || IS_DG2(i915) || !HAS_DISPLAY(i915))

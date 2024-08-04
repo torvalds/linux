@@ -75,18 +75,18 @@ MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
 #endif
 
 static const struct i2c_device_id axp20x_i2c_id[] = {
-	{ "axp152", 0 },
-	{ "axp192", 0 },
-	{ "axp202", 0 },
-	{ "axp209", 0 },
-	{ "axp221", 0 },
-	{ "axp223", 0 },
-	{ "axp313a", 0 },
-	{ "axp717", 0 },
-	{ "axp803", 0 },
-	{ "axp806", 0 },
-	{ "axp15060", 0 },
-	{ },
+	{ "axp152" },
+	{ "axp192" },
+	{ "axp202" },
+	{ "axp209" },
+	{ "axp221" },
+	{ "axp223" },
+	{ "axp313a" },
+	{ "axp717" },
+	{ "axp803" },
+	{ "axp806" },
+	{ "axp15060" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);
 

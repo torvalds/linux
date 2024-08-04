@@ -202,7 +202,7 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
 
 /*
  * If a thread running without exclusive control of the MMU lock must perform a
- * multi-part operation on an SPTE, it can set the SPTE to REMOVED_SPTE as a
+ * multi-part operation on an SPTE, it can set the SPTE to FROZEN_SPTE as a
  * non-present intermediate value. Other threads which encounter this value
  * should not modify the SPTE.
  *
@@ -212,14 +212,14 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  *
  * Only used by the TDP MMU.
  */
-#define REMOVED_SPTE	(SHADOW_NONPRESENT_VALUE | 0x5a0ULL)
+#define FROZEN_SPTE	(SHADOW_NONPRESENT_VALUE | 0x5a0ULL)
 
 /* Removed SPTEs must not be misconstrued as shadow present PTEs. */
-static_assert(!(REMOVED_SPTE & SPTE_MMU_PRESENT_MASK));
+static_assert(!(FROZEN_SPTE & SPTE_MMU_PRESENT_MASK));
 
-static inline bool is_removed_spte(u64 spte)
+static inline bool is_frozen_spte(u64 spte)
 {
-	return spte == REMOVED_SPTE;
+	return spte == FROZEN_SPTE;
 }
 
 /* Get an SPTE's index into its parent's page table (and the spt array). */

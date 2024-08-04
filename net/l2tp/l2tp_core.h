@@ -19,14 +19,6 @@
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
 
-/* Per tunnel session hash table size */
-#define L2TP_HASH_BITS	4
-#define L2TP_HASH_SIZE	BIT(L2TP_HASH_BITS)
-
-/* System-wide session hash table size */
-#define L2TP_HASH_BITS_2	8
-#define L2TP_HASH_SIZE_2	BIT(L2TP_HASH_BITS_2)
-
 struct sk_buff;
 
 struct l2tp_stats {
@@ -61,10 +53,15 @@ struct l2tp_session_cfg {
 	char			*ifname;
 };
 
+struct l2tp_session_coll_list {
+	spinlock_t lock;	/* for access to list */
+	struct list_head list;
+	refcount_t ref_count;
+};
+
 /* Represents a session (pseudowire) instance.
  * Tracks runtime state including cookies, dataplane packet sequencing, and IO statistics.
- * Is linked into a per-tunnel session hashlist; and in the case of an L2TPv3 session into
- * an additional per-net ("global") hashlist.
+ * Is linked into a per-tunnel session list and a per-net ("global") IDR tree.
  */
 #define L2TP_SESSION_NAME_MAX 32
 struct l2tp_session {
@@ -88,8 +85,12 @@ struct l2tp_session {
 	u32			nr_oos;		/* NR of last OOS packet */
 	int			nr_oos_count;	/* for OOS recovery */
 	int			nr_oos_count_max;
-	struct hlist_node	hlist;		/* hash list node */
+	struct list_head	list;		/* per-tunnel list node */
 	refcount_t		ref_count;
+	struct hlist_node	hlist;		/* per-net session hlist */
+	unsigned long		hlist_key;	/* key for session hlist */
+	struct l2tp_session_coll_list *coll_list; /* session collision list */
+	struct list_head	clist;		/* for coll_list */
 
 	char			name[L2TP_SESSION_NAME_MAX]; /* for logging */
 	char			ifname[IFNAMSIZ];
@@ -102,7 +103,6 @@ struct l2tp_session {
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
-	struct hlist_node	global_hlist;	/* global hash list node */
 
 	/* Session receive handler for data packets.
 	 * Each pseudowire implementation should implement this callback in order to
@@ -114,7 +114,7 @@ struct l2tp_session {
 	/* Session close handler.
 	 * Each pseudowire implementation may implement this callback in order to carry
 	 * out pseudowire-specific shutdown actions.
-	 * The callback is called by core after unhashing the session and purging its
+	 * The callback is called by core after unlisting the session and purging its
 	 * reorder queue.
 	 */
 	void (*session_close)(struct l2tp_session *session);
@@ -150,7 +150,7 @@ struct l2tp_tunnel_cfg {
 /* Represents a tunnel instance.
  * Tracks runtime state including IO statistics.
  * Holds the tunnel socket (either passed from userspace or directly created by the kernel).
- * Maintains a hashlist of sessions belonging to the tunnel instance.
+ * Maintains a list of sessions belonging to the tunnel instance.
  * Is linked into a per-net list of tunnels.
  */
 #define L2TP_TUNNEL_NAME_MAX 20
@@ -160,12 +160,11 @@ struct l2tp_tunnel {
 	unsigned long		dead;
 
 	struct rcu_head rcu;
-	spinlock_t		hlist_lock;	/* write-protection for session_hlist */
+	spinlock_t		list_lock;	/* write-protection for session_list */
 	bool			acpt_newsess;	/* indicates whether this tunnel accepts
-						 * new sessions. Protected by hlist_lock.
+						 * new sessions. Protected by list_lock.
 						 */
-	struct hlist_head	session_hlist[L2TP_HASH_SIZE];
-						/* hashed list of sessions, hashed by id */
+	struct list_head	session_list;	/* list of sessions */
 	u32			tunnel_id;
 	u32			peer_tunnel_id;
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
@@ -174,7 +173,6 @@ struct l2tp_tunnel {
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 
-	struct list_head	list;		/* list node on per-namespace list of tunnels */
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
@@ -224,10 +222,11 @@ void l2tp_session_dec_refcount(struct l2tp_session *session);
  */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth);
-struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
-					     u32 session_id);
 
-struct l2tp_session *l2tp_session_get(const struct net *net, u32 session_id);
+struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk, u32 session_id);
+struct l2tp_session *l2tp_v2_session_get(const struct net *net, u16 tunnel_id, u16 session_id);
+struct l2tp_session *l2tp_session_get(const struct net *net, struct sock *sk, int pver,
+				      u32 tunnel_id, u32 session_id);
 struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth);
 struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 						const char *ifname);

@@ -179,7 +179,7 @@ static int flexcop_usb_memory_req(struct flexcop_usb *fc_usb,
 		flexcop_usb_request_t req, flexcop_usb_mem_page_t page_start,
 		u32 addr, int extended, u8 *buf, u32 len)
 {
-	int i, ret = 0;
+	int ret = 0;
 	u16 wMax;
 	u32 pagechunk = 0;
 
@@ -196,7 +196,7 @@ static int flexcop_usb_memory_req(struct flexcop_usb *fc_usb,
 	default:
 		return -EINVAL;
 	}
-	for (i = 0; i < len;) {
+	while (len) {
 		pagechunk = min(wMax, bytes_left_to_read_on_page(addr, len));
 		deb_info("%x\n",
 			(addr & V8_MEMORY_PAGE_MASK) |
@@ -206,11 +206,12 @@ static int flexcop_usb_memory_req(struct flexcop_usb *fc_usb,
 			page_start + (addr / V8_MEMORY_PAGE_SIZE),
 			(addr & V8_MEMORY_PAGE_MASK) |
 				(V8_MEMORY_EXTENDED*extended),
-			&buf[i], pagechunk);
+			buf, pagechunk);
 
 		if (ret < 0)
 			return ret;
 		addr += pagechunk;
+		buf += pagechunk;
 		len -= pagechunk;
 	}
 	return 0;

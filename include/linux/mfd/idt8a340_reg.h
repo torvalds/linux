@@ -61,7 +61,7 @@
 #define HW_Q8_CTRL_SPARE  (0xa7d4)
 #define HW_Q11_CTRL_SPARE (0xa7ec)
 
-/**
+/*
  * Select FOD5 as sync_trigger for Q8 divider.
  * Transition from logic zero to one
  * sets trigger to sync Q8 divider.
@@ -70,7 +70,7 @@
  */
 #define Q9_TO_Q8_SYNC_TRIG  BIT(1)
 
-/**
+/*
  * Enable FOD5 as driver for clock and sync for Q8 divider.
  * Enable fanout buffer for FOD5.
  *
@@ -78,7 +78,7 @@
  */
 #define Q9_TO_Q8_FANOUT_AND_CLOCK_SYNC_ENABLE_MASK  (BIT(0) | BIT(2))
 
-/**
+/*
  * Select FOD6 as sync_trigger for Q11 divider.
  * Transition from logic zero to one
  * sets trigger to sync Q11 divider.
@@ -87,7 +87,7 @@
  */
 #define Q10_TO_Q11_SYNC_TRIG  BIT(1)
 
-/**
+/*
  * Enable FOD6 as driver for clock and sync for Q11 divider.
  * Enable fanout buffer for FOD6.
  *

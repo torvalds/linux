@@ -1090,4 +1090,5 @@ module_init(gsmi_init);
 module_exit(gsmi_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("EFI SMI interface for Google platforms");
 MODULE_LICENSE("GPL");

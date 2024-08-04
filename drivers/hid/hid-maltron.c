@@ -162,4 +162,5 @@ static struct hid_driver maltron_driver = {
 };
 module_hid_driver(maltron_driver);
 
+MODULE_DESCRIPTION("HID driver for Maltron L90");
 MODULE_LICENSE("GPL");

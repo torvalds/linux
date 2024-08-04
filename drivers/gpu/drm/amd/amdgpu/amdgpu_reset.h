@@ -33,6 +33,16 @@ enum AMDGPU_RESET_FLAGS {
 	AMDGPU_NEED_FULL_RESET = 0,
 	AMDGPU_SKIP_HW_RESET = 1,
 	AMDGPU_SKIP_COREDUMP = 2,
+	AMDGPU_HOST_FLR = 3,
+};
+
+enum AMDGPU_RESET_SRCS {
+	AMDGPU_RESET_SRC_UNKNOWN,
+	AMDGPU_RESET_SRC_JOB,
+	AMDGPU_RESET_SRC_RAS,
+	AMDGPU_RESET_SRC_MES,
+	AMDGPU_RESET_SRC_HWS,
+	AMDGPU_RESET_SRC_USER,
 };
 
 struct amdgpu_reset_context {
@@ -42,6 +52,7 @@ struct amdgpu_reset_context {
 	struct amdgpu_hive_info *hive;
 	struct list_head *reset_device_list;
 	unsigned long flags;
+	enum AMDGPU_RESET_SRCS src;
 };
 
 struct amdgpu_reset_handler {
@@ -128,6 +139,9 @@ static inline bool amdgpu_reset_domain_schedule(struct amdgpu_reset_domain *doma
 void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain);
 
 void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain);
+
+void amdgpu_reset_get_desc(struct amdgpu_reset_context *rst_ctxt, char *buf,
+			   size_t len);
 
 #define for_each_handler(i, handler, reset_ctl)                  \
 	for (i = 0; (i < AMDGPU_RESET_MAX_HANDLERS) &&           \

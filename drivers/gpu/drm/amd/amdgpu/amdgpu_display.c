@@ -654,6 +654,10 @@ amdgpu_lookup_format_info(u32 format, uint64_t modifier)
 	if (!IS_AMD_FMT_MOD(modifier))
 		return NULL;
 
+	if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) < AMD_FMT_MOD_TILE_VER_GFX9 ||
+	    AMD_FMT_MOD_GET(TILE_VERSION, modifier) >= AMD_FMT_MOD_TILE_VER_GFX12)
+		return NULL;
+
 	if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
 		return lookup_format_info(dcc_retile_formats,
 					  ARRAY_SIZE(dcc_retile_formats),
@@ -715,6 +719,30 @@ extract_render_dcc_offset(struct amdgpu_device *adev,
 			  ((u64)(metadata[7] & 0x1FE0000u) << 23);
 	}
 
+	return 0;
+}
+
+static int convert_tiling_flags_to_modifier_gfx12(struct amdgpu_framebuffer *afb)
+{
+	u64 modifier = 0;
+	int swizzle_mode = AMDGPU_TILING_GET(afb->tiling_flags, GFX12_SWIZZLE_MODE);
+
+	if (!swizzle_mode) {
+		modifier = DRM_FORMAT_MOD_LINEAR;
+	} else {
+		int max_comp_block =
+			AMDGPU_TILING_GET(afb->tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
+
+		modifier =
+			AMD_FMT_MOD |
+			AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12) |
+			AMD_FMT_MOD_SET(TILE, swizzle_mode) |
+			AMD_FMT_MOD_SET(DCC, afb->gfx12_dcc) |
+			AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_comp_block);
+	}
+
+	afb->base.modifier = modifier;
+	afb->base.flags |= DRM_MODE_FB_MODIFIERS;
 	return 0;
 }
 
@@ -917,8 +945,7 @@ static int check_tiling_flags_gfx6(struct amdgpu_framebuffer *afb)
 {
 	u64 micro_tile_mode;
 
-	/* Zero swizzle mode means linear */
-	if (AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE) == 0)
+	if (AMDGPU_TILING_GET(afb->tiling_flags, ARRAY_MODE) == 1) /* LINEAR_ALIGNED */
 		return 0;
 
 	micro_tile_mode = AMDGPU_TILING_GET(afb->tiling_flags, MICRO_TILE_MODE);
@@ -1042,6 +1069,30 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 			block_width = 256 / format_info->cpp[i];
 			block_height = 1;
 			block_size_log2 = 8;
+		} else if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) >= AMD_FMT_MOD_TILE_VER_GFX12) {
+			int swizzle = AMD_FMT_MOD_GET(TILE, modifier);
+
+			switch (swizzle) {
+			case AMD_FMT_MOD_TILE_GFX12_256B_2D:
+				block_size_log2 = 8;
+				break;
+			case AMD_FMT_MOD_TILE_GFX12_4K_2D:
+				block_size_log2 = 12;
+				break;
+			case AMD_FMT_MOD_TILE_GFX12_64K_2D:
+				block_size_log2 = 16;
+				break;
+			case AMD_FMT_MOD_TILE_GFX12_256K_2D:
+				block_size_log2 = 18;
+				break;
+			default:
+				drm_dbg_kms(rfb->base.dev,
+					    "Gfx12 swizzle mode with unknown block size: %d\n", swizzle);
+				return -EINVAL;
+			}
+
+			get_block_dimensions(block_size_log2, format_info->cpp[i],
+					     &block_width, &block_height);
 		} else {
 			int swizzle = AMD_FMT_MOD_GET(TILE, modifier);
 
@@ -1077,7 +1128,8 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 			return ret;
 	}
 
-	if (AMD_FMT_MOD_GET(DCC, modifier)) {
+	if (AMD_FMT_MOD_GET(TILE_VERSION, modifier) <= AMD_FMT_MOD_TILE_VER_GFX11 &&
+	    AMD_FMT_MOD_GET(DCC, modifier)) {
 		if (AMD_FMT_MOD_GET(DCC_RETILE, modifier)) {
 			block_size_log2 = get_dcc_block_size(modifier, false, false);
 			get_block_dimensions(block_size_log2 + 8, format_info->cpp[0],
@@ -1107,7 +1159,8 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 }
 
 static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
-				      uint64_t *tiling_flags, bool *tmz_surface)
+				      uint64_t *tiling_flags, bool *tmz_surface,
+				      bool *gfx12_dcc)
 {
 	struct amdgpu_bo *rbo;
 	int r;
@@ -1115,6 +1168,7 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	if (!amdgpu_fb) {
 		*tiling_flags = 0;
 		*tmz_surface = false;
+		*gfx12_dcc = false;
 		return 0;
 	}
 
@@ -1128,11 +1182,9 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 		return r;
 	}
 
-	if (tiling_flags)
-		amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
-
-	if (tmz_surface)
-		*tmz_surface = amdgpu_bo_encrypted(rbo);
+	amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
+	*tmz_surface = amdgpu_bo_encrypted(rbo);
+	*gfx12_dcc = rbo->flags & AMDGPU_GEM_CREATE_GFX12_DCC;
 
 	amdgpu_bo_unreserve(rbo);
 
@@ -1201,7 +1253,8 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		}
 	}
 
-	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
+	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface,
+					 &rfb->gfx12_dcc);
 	if (ret)
 		return ret;
 
@@ -1215,7 +1268,11 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 
 	if (!dev->mode_config.fb_modifiers_not_supported &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
-		ret = convert_tiling_flags_to_modifier(rfb);
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0))
+			ret = convert_tiling_flags_to_modifier_gfx12(rfb);
+		else
+			ret = convert_tiling_flags_to_modifier(rfb);
+
 		if (ret) {
 			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
 				    rfb->tiling_flags);

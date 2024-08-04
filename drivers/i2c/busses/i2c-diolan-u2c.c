@@ -414,7 +414,7 @@ static u32 diolan_usb_func(struct i2c_adapter *a)
 }
 
 static const struct i2c_algorithm diolan_usb_algorithm = {
-	.master_xfer = diolan_usb_xfer,
+	.xfer = diolan_usb_xfer,
 	.functionality = diolan_usb_func,
 };
 

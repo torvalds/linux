@@ -131,4 +131,5 @@ static struct coreboot_driver cbmem_entry_driver = {
 module_coreboot_driver(cbmem_entry_driver);
 
 MODULE_AUTHOR("Jack Rosenthal <jrosenth@chromium.org>");
+MODULE_DESCRIPTION("Driver for exporting CBMEM entries in sysfs");
 MODULE_LICENSE("GPL");

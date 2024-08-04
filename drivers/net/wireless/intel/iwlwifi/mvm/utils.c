@@ -892,7 +892,7 @@ static void iwl_mvm_tcm_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 
 static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 {
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	ieee80211_iterate_active_interfaces(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -900,8 +900,6 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		iwl_mvm_config_scan(mvm);
-
-	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
@@ -1130,10 +1128,9 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 	spin_unlock(&mvm->tcm.lock);
 
 	if (handle_uapsd && iwl_mvm_has_new_rx_api(mvm)) {
-		mutex_lock(&mvm->mutex);
+		guard(mvm)(mvm);
 		if (iwl_mvm_request_statistics(mvm, true))
 			handle_uapsd = false;
-		mutex_unlock(&mvm->mutex);
 	}
 
 	spin_lock(&mvm->tcm.lock);

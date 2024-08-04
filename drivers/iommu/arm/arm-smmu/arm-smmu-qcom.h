@@ -34,8 +34,10 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev);
 
 #ifdef CONFIG_ARM_SMMU_QCOM_DEBUG
 void qcom_smmu_tlb_sync_debug(struct arm_smmu_device *smmu);
+int qcom_tbu_probe(struct platform_device *pdev);
 #else
 static inline void qcom_smmu_tlb_sync_debug(struct arm_smmu_device *smmu) { }
+static inline int qcom_tbu_probe(struct platform_device *pdev) { return -EINVAL; }
 #endif
 
 #endif /* _ARM_SMMU_QCOM_H */

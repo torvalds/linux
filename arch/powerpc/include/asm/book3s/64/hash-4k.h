@@ -74,21 +74,6 @@
 #define remap_4k_pfn(vma, addr, pfn, prot)	\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
 
-#ifdef CONFIG_HUGETLB_PAGE
-static inline int hash__hugepd_ok(hugepd_t hpd)
-{
-	unsigned long hpdval = hpd_val(hpd);
-	/*
-	 * if it is not a pte and have hugepd shift mask
-	 * set, then it is a hugepd directory pointer
-	 */
-	if (!(hpdval & _PAGE_PTE) && (hpdval & _PAGE_PRESENT) &&
-	    ((hpdval & HUGEPD_SHIFT_MASK) != 0))
-		return true;
-	return false;
-}
-#endif
-
 /*
  * 4K PTE format is different from 64K PTE format. Saving the hash_slot is just
  * a matter of returning the PTE bits that need to be modified. On 64K PTE,

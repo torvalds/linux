@@ -780,7 +780,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!b)
 				goto next;
 
-			unsigned sectors = btree_ptr_sectors_written(&b->key);
+			unsigned sectors = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 
 			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
 			bch2_trans_iter_exit(trans, &iter);

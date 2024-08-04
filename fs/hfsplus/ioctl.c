@@ -40,7 +40,7 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 
 	/* Directory containing the bootable system */
 	vh->finder_info[0] = bvh->finder_info[0] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(d_parent_ino(dentry));
 
 	/*
 	 * Bootloader. Just using the inode here breaks in the case of
@@ -51,7 +51,7 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 
 	/* Per spec, the OS X system folder - same as finder_info[0] here */
 	vh->finder_info[5] = bvh->finder_info[5] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(d_parent_ino(dentry));
 
 	mutex_unlock(&sbi->vh_mutex);
 	return 0;

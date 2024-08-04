@@ -8,6 +8,8 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/hwprobe.h>
+#include <asm/processor.h>
+#include <asm/delay.h>
 #include <asm/sbi.h>
 #include <asm/switch_to.h>
 #include <asm/uaccess.h>
@@ -69,7 +71,7 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 	if (riscv_isa_extension_available(NULL, c))
 		pair->value |= RISCV_HWPROBE_IMA_C;
 
-	if (has_vector())
+	if (has_vector() && riscv_isa_extension_available(NULL, v))
 		pair->value |= RISCV_HWPROBE_IMA_V;
 
 	/*
@@ -92,30 +94,45 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 		 * regardless of the kernel's configuration, as no other checks, besides
 		 * presence in the hart_isa bitmap, are made.
 		 */
+		EXT_KEY(ZACAS);
+		EXT_KEY(ZAWRS);
 		EXT_KEY(ZBA);
 		EXT_KEY(ZBB);
-		EXT_KEY(ZBS);
-		EXT_KEY(ZICBOZ);
 		EXT_KEY(ZBC);
-
 		EXT_KEY(ZBKB);
 		EXT_KEY(ZBKC);
 		EXT_KEY(ZBKX);
+		EXT_KEY(ZBS);
+		EXT_KEY(ZCA);
+		EXT_KEY(ZCB);
+		EXT_KEY(ZCMOP);
+		EXT_KEY(ZICBOZ);
+		EXT_KEY(ZICOND);
+		EXT_KEY(ZIHINTNTL);
+		EXT_KEY(ZIHINTPAUSE);
+		EXT_KEY(ZIMOP);
 		EXT_KEY(ZKND);
 		EXT_KEY(ZKNE);
 		EXT_KEY(ZKNH);
 		EXT_KEY(ZKSED);
 		EXT_KEY(ZKSH);
 		EXT_KEY(ZKT);
-		EXT_KEY(ZIHINTNTL);
 		EXT_KEY(ZTSO);
-		EXT_KEY(ZACAS);
-		EXT_KEY(ZICOND);
-		EXT_KEY(ZIHINTPAUSE);
 
+		/*
+		 * All the following extensions must depend on the kernel
+		 * support of V.
+		 */
 		if (has_vector()) {
 			EXT_KEY(ZVBB);
 			EXT_KEY(ZVBC);
+			EXT_KEY(ZVE32F);
+			EXT_KEY(ZVE32X);
+			EXT_KEY(ZVE64D);
+			EXT_KEY(ZVE64F);
+			EXT_KEY(ZVE64X);
+			EXT_KEY(ZVFH);
+			EXT_KEY(ZVFHMIN);
 			EXT_KEY(ZVKB);
 			EXT_KEY(ZVKG);
 			EXT_KEY(ZVKNED);
@@ -124,14 +141,14 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 			EXT_KEY(ZVKSED);
 			EXT_KEY(ZVKSH);
 			EXT_KEY(ZVKT);
-			EXT_KEY(ZVFH);
-			EXT_KEY(ZVFHMIN);
 		}
 
 		if (has_fpu()) {
+			EXT_KEY(ZCD);
+			EXT_KEY(ZCF);
+			EXT_KEY(ZFA);
 			EXT_KEY(ZFH);
 			EXT_KEY(ZFHMIN);
-			EXT_KEY(ZFA);
 		}
 #undef EXT_KEY
 	}
@@ -215,6 +232,13 @@ static void hwprobe_one_pair(struct riscv_hwprobe *pair,
 		pair->value = 0;
 		if (hwprobe_ext0_has(cpus, RISCV_HWPROBE_EXT_ZICBOZ))
 			pair->value = riscv_cboz_block_size;
+		break;
+	case RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS:
+		pair->value = user_max_virt_addr();
+		break;
+
+	case RISCV_HWPROBE_KEY_TIME_CSR_FREQ:
+		pair->value = riscv_timebase;
 		break;
 
 	/*

@@ -58,7 +58,7 @@ struct gameport_driver {
 
 	bool ignore;
 };
-#define to_gameport_driver(d)	container_of(d, struct gameport_driver, driver)
+#define to_gameport_driver(d)	container_of_const(d, struct gameport_driver, driver)
 
 int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mode);
 void gameport_close(struct gameport *gameport);

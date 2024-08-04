@@ -12,9 +12,17 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
-#define IST3032C_WHOAMI			0x32c
+#define IST30XX_REG_STATUS		0x20
+#define IST30XX_REG_CHIPID		(0x40000000 | IST3038C_DIRECT_ACCESS)
 
-#define IST3038B_REG_STATUS		0x20
+#define IST30XX_WHOAMI			0x30003000
+#define IST30XXA_WHOAMI			0x300a300a
+#define IST30XXB_WHOAMI			0x300b300b
+#define IST3038_WHOAMI			0x30383038
+
+#define IST3032C_WHOAMI			0x32c
+#define IST3038C_WHOAMI			0x38c
+
 #define IST3038B_REG_CHIPID		0x30
 #define IST3038B_WHOAMI			0x30380b
 
@@ -25,7 +33,6 @@
 #define IST3038C_REG_TOUCH_STATUS	(IST3038C_REG_HIB_BASE | IST3038C_HIB_ACCESS)
 #define IST3038C_REG_TOUCH_COORD	(IST3038C_REG_HIB_BASE | IST3038C_HIB_ACCESS | 0x8)
 #define IST3038C_REG_INTR_MESSAGE	(IST3038C_REG_HIB_BASE | IST3038C_HIB_ACCESS | 0x4)
-#define IST3038C_WHOAMI			0x38c
 #define IST3038C_CHIP_ON_DELAY_MS	60
 #define IST3038C_I2C_RETRY_COUNT	3
 #define IST3038C_MAX_FINGER_NUM		10
@@ -121,11 +128,11 @@ static irqreturn_t imagis_interrupt(int irq, void *dev_id)
 	for (i = 0; i < finger_count; i++) {
 		if (ts->tdata->protocol_b)
 			error = imagis_i2c_read_reg(ts,
-						    ts->tdata->touch_coord_cmd, &finger_status);
-		else
-			error = imagis_i2c_read_reg(ts,
 						    ts->tdata->touch_coord_cmd + (i * 4),
 						    &finger_status);
+		else
+			error = imagis_i2c_read_reg(ts,
+						    ts->tdata->touch_coord_cmd, &finger_status);
 		if (error) {
 			dev_err(&ts->client->dev,
 				"failed to read coordinates for finger %d: %d\n",
@@ -394,14 +401,22 @@ static const struct imagis_properties imagis_3032c_data = {
 	.whoami_cmd = IST3038C_REG_CHIPID,
 	.whoami_val = IST3032C_WHOAMI,
 	.touch_keys_supported = true,
+	.protocol_b = true,
+};
+
+static const struct imagis_properties imagis_3038_data = {
+	.interrupt_msg_cmd = IST30XX_REG_STATUS,
+	.touch_coord_cmd = IST30XX_REG_STATUS,
+	.whoami_cmd = IST30XX_REG_CHIPID,
+	.whoami_val = IST3038_WHOAMI,
+	.touch_keys_supported = true,
 };
 
 static const struct imagis_properties imagis_3038b_data = {
-	.interrupt_msg_cmd = IST3038B_REG_STATUS,
-	.touch_coord_cmd = IST3038B_REG_STATUS,
+	.interrupt_msg_cmd = IST30XX_REG_STATUS,
+	.touch_coord_cmd = IST30XX_REG_STATUS,
 	.whoami_cmd = IST3038B_REG_CHIPID,
 	.whoami_val = IST3038B_WHOAMI,
-	.protocol_b = true,
 };
 
 static const struct imagis_properties imagis_3038c_data = {
@@ -409,11 +424,13 @@ static const struct imagis_properties imagis_3038c_data = {
 	.touch_coord_cmd = IST3038C_REG_TOUCH_COORD,
 	.whoami_cmd = IST3038C_REG_CHIPID,
 	.whoami_val = IST3038C_WHOAMI,
+	.protocol_b = true,
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id imagis_of_match[] = {
 	{ .compatible = "imagis,ist3032c", .data = &imagis_3032c_data },
+	{ .compatible = "imagis,ist3038", .data = &imagis_3038_data },
 	{ .compatible = "imagis,ist3038b", .data = &imagis_3038b_data },
 	{ .compatible = "imagis,ist3038c", .data = &imagis_3038c_data },
 	{ },

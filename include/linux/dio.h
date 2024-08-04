@@ -93,7 +93,7 @@ struct dio_driver {
 	struct device_driver driver;
 };
 
-#define to_dio_driver(drv)    container_of(drv, struct dio_driver, driver)
+#define to_dio_driver(drv)    container_of_const(drv, struct dio_driver, driver)
 
 /* DIO/DIO-II boards all have the following 8bit registers.
  * These are offsets from the base of the device.

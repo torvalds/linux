@@ -12,7 +12,7 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
@@ -84,20 +84,6 @@ resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size)
 	return offset - 65536;
 }
 
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-static struct drm_gem_object *mgag200_create_object(struct drm_device *dev, size_t size)
-{
-	struct drm_gem_shmem_object *shmem;
-
-	shmem = kzalloc(sizeof(*shmem), GFP_KERNEL);
-	if (!shmem)
-		return NULL;
-
-	shmem->map_wc = true;
-	return &shmem->base;
-}
-#endif
-
 /*
  * DRM driver
  */
@@ -113,9 +99,6 @@ static const struct drm_driver mgag200_driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-	.gem_create_object = mgag200_create_object,
-#endif
 	DRM_GEM_SHMEM_DRIVER_OPS,
 };
 
@@ -163,12 +146,18 @@ int mgag200_device_preinit(struct mga_device *mdev)
 	}
 	mdev->vram_res = res;
 
+#if defined(CONFIG_DRM_MGAG200_DISABLE_WRITECOMBINE)
+	mdev->vram = devm_ioremap(dev->dev, res->start, resource_size(res));
+	if (!mdev->vram)
+		return -ENOMEM;
+#else
 	mdev->vram = devm_ioremap_wc(dev->dev, res->start, resource_size(res));
 	if (!mdev->vram)
 		return -ENOMEM;
 
 	/* Don't fail on errors, but performance might be reduced. */
 	devm_arch_phys_wc_add(dev->dev, res->start, resource_size(res));
+#endif
 
 	return 0;
 }
@@ -285,7 +274,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * FIXME: A 24-bit color depth does not work with 24 bpp on
 	 * G200ER. Force 32 bpp.
 	 */
-	drm_fbdev_generic_setup(dev, 32);
+	drm_fbdev_shmem_setup(dev, 32);
 
 	return 0;
 }

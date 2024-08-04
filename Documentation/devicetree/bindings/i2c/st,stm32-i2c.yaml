@@ -145,31 +145,31 @@ examples:
     #include <dt-bindings/mfd/stm32f7-rcc.h>
     #include <dt-bindings/clock/stm32fx-clock.h>
     //Example 1 (with st,stm32f4-i2c compatible)
-      i2c@40005400 {
-          compatible = "st,stm32f4-i2c";
-          #address-cells = <1>;
-          #size-cells = <0>;
-          reg = <0x40005400 0x400>;
-          interrupts = <31>,
-                       <32>;
-          resets = <&rcc 277>;
-          clocks = <&rcc 0 149>;
-      };
+    i2c@40005400 {
+        compatible = "st,stm32f4-i2c";
+        reg = <0x40005400 0x400>;
+        interrupts = <31>,
+                     <32>;
+        resets = <&rcc 277>;
+        clocks = <&rcc 0 149>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };
 
   - |
     #include <dt-bindings/mfd/stm32f7-rcc.h>
     #include <dt-bindings/clock/stm32fx-clock.h>
     //Example 2 (with st,stm32f7-i2c compatible)
-      i2c@40005800 {
-          compatible = "st,stm32f7-i2c";
-          #address-cells = <1>;
-          #size-cells = <0>;
-          reg = <0x40005800 0x400>;
-          interrupts = <31>,
-                       <32>;
-          resets = <&rcc STM32F7_APB1_RESET(I2C1)>;
-          clocks = <&rcc 1 CLK_I2C1>;
-      };
+    i2c@40005800 {
+        compatible = "st,stm32f7-i2c";
+        reg = <0x40005800 0x400>;
+        interrupts = <31>,
+                     <32>;
+        resets = <&rcc STM32F7_APB1_RESET(I2C1)>;
+        clocks = <&rcc 1 CLK_I2C1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };
 
   - |
     #include <dt-bindings/mfd/stm32f7-rcc.h>
@@ -178,16 +178,16 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>
-      i2c@40013000 {
-          compatible = "st,stm32mp15-i2c";
-          #address-cells = <1>;
-          #size-cells = <0>;
-          reg = <0x40013000 0x400>;
-          interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
-                       <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-          clocks = <&rcc I2C2_K>;
-          resets = <&rcc I2C2_R>;
-          i2c-scl-rising-time-ns = <185>;
-          i2c-scl-falling-time-ns = <20>;
-          st,syscfg-fmp = <&syscfg 0x4 0x2>;
-      };
+    i2c@40013000 {
+        compatible = "st,stm32mp15-i2c";
+        reg = <0x40013000 0x400>;
+        interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&rcc I2C2_K>;
+        resets = <&rcc I2C2_R>;
+        i2c-scl-rising-time-ns = <185>;
+        i2c-scl-falling-time-ns = <20>;
+        st,syscfg-fmp = <&syscfg 0x4 0x2>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

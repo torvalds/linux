@@ -18,6 +18,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 
 #include "msm_drv.h"
+#include "msm_mdss.h"
 #include "dpu_kms.h"
 #include "dpu_formats.h"
 #include "dpu_hw_sspp.h"
@@ -1342,10 +1343,14 @@ void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
 static bool dpu_plane_format_mod_supported(struct drm_plane *plane,
 		uint32_t format, uint64_t modifier)
 {
+	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
+	bool has_no_ubwc = (dpu_kms->mdss->ubwc_enc_version == 0) &&
+			   (dpu_kms->mdss->ubwc_dec_version == 0);
+
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
 
-	if (modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
+	if (modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED && !has_no_ubwc)
 		return dpu_find_format(format, qcom_compressed_supported_formats,
 				ARRAY_SIZE(qcom_compressed_supported_formats));
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2020, 2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2020, 2022, 2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -77,7 +77,7 @@ struct iwl_time_quota_data_v1 {
 } __packed; /* TIME_QUOTA_DATA_API_S_VER_1 */
 
 /**
- * struct iwl_time_quota_cmd - configuration of time quota between bindings
+ * struct iwl_time_quota_cmd_v1 - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
  * Note: on non-CDB the fourth one is the auxilary mac and is

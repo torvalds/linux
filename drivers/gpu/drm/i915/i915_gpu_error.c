@@ -836,6 +836,7 @@ static void err_print_gt_engines(struct drm_i915_error_state_buf *m,
 static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 			       struct i915_gpu_coredump *error)
 {
+	struct drm_printer p = i915_error_printer(m);
 	const struct intel_engine_coredump *ee;
 	struct timespec64 ts;
 
@@ -873,7 +874,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
-	intel_dmc_print_error_state(m, m->i915);
+	intel_dmc_print_error_state(&p, m->i915);
 
 	err_printf(m, "RPM wakelock: %s\n", str_yes_no(error->wakelock));
 	err_printf(m, "PM suspended: %s\n", str_yes_no(error->suspended));
@@ -904,7 +905,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	}
 
 	if (error->overlay)
-		intel_overlay_print_error_state(m, error->overlay);
+		intel_overlay_print_error_state(&p, error->overlay);
 
 	err_print_capabilities(m, error);
 	err_print_params(m, &error->params);

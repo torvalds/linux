@@ -2153,6 +2153,94 @@ TRACE_EVENT(ff_layout_commit_error,
 		)
 );
 
+DECLARE_EVENT_CLASS(pnfs_bl_pr_key_class,
+	TP_PROTO(
+		const struct block_device *bdev,
+		u64 key
+	),
+	TP_ARGS(bdev, key),
+	TP_STRUCT__entry(
+		__field(u64, key)
+		__field(dev_t, dev)
+		__string(device, bdev->bd_disk->disk_name)
+	),
+	TP_fast_assign(
+		__entry->key = key;
+		__entry->dev = bdev->bd_dev;
+		__assign_str(device);
+	),
+	TP_printk("dev=%d,%d (%s) key=0x%016llx",
+		MAJOR(__entry->dev), MINOR(__entry->dev),
+		__get_str(device), __entry->key
+	)
+);
+
+#define DEFINE_NFS4_BLOCK_PRKEY_EVENT(name) \
+	DEFINE_EVENT(pnfs_bl_pr_key_class, name, \
+		TP_PROTO( \
+			const struct block_device *bdev, \
+			u64 key \
+		), \
+		TP_ARGS(bdev, key))
+DEFINE_NFS4_BLOCK_PRKEY_EVENT(bl_pr_key_reg);
+DEFINE_NFS4_BLOCK_PRKEY_EVENT(bl_pr_key_unreg);
+
+/*
+ * From uapi/linux/pr.h
+ */
+TRACE_DEFINE_ENUM(PR_STS_SUCCESS);
+TRACE_DEFINE_ENUM(PR_STS_IOERR);
+TRACE_DEFINE_ENUM(PR_STS_RESERVATION_CONFLICT);
+TRACE_DEFINE_ENUM(PR_STS_RETRY_PATH_FAILURE);
+TRACE_DEFINE_ENUM(PR_STS_PATH_FAST_FAILED);
+TRACE_DEFINE_ENUM(PR_STS_PATH_FAILED);
+
+#define show_pr_status(x) \
+	__print_symbolic(x, \
+		{ PR_STS_SUCCESS,		"SUCCESS" }, \
+		{ PR_STS_IOERR,			"IOERR" }, \
+		{ PR_STS_RESERVATION_CONFLICT,	"RESERVATION_CONFLICT" }, \
+		{ PR_STS_RETRY_PATH_FAILURE,	"RETRY_PATH_FAILURE" }, \
+		{ PR_STS_PATH_FAST_FAILED,	"PATH_FAST_FAILED" }, \
+		{ PR_STS_PATH_FAILED,		"PATH_FAILED" })
+
+DECLARE_EVENT_CLASS(pnfs_bl_pr_key_err_class,
+	TP_PROTO(
+		const struct block_device *bdev,
+		u64 key,
+		int status
+	),
+	TP_ARGS(bdev, key, status),
+	TP_STRUCT__entry(
+		__field(u64, key)
+		__field(dev_t, dev)
+		__field(unsigned long, status)
+		__string(device, bdev->bd_disk->disk_name)
+	),
+	TP_fast_assign(
+		__entry->key = key;
+		__entry->dev = bdev->bd_dev;
+		__entry->status = status;
+		__assign_str(device);
+	),
+	TP_printk("dev=%d,%d (%s) key=0x%016llx status=%s",
+		MAJOR(__entry->dev), MINOR(__entry->dev),
+		__get_str(device), __entry->key,
+		show_pr_status(__entry->status)
+	)
+);
+
+#define DEFINE_NFS4_BLOCK_PRKEY_ERR_EVENT(name) \
+	DEFINE_EVENT(pnfs_bl_pr_key_err_class, name, \
+		TP_PROTO( \
+			const struct block_device *bdev, \
+			u64 key, \
+			int status \
+		), \
+		TP_ARGS(bdev, key, status))
+DEFINE_NFS4_BLOCK_PRKEY_ERR_EVENT(bl_pr_key_reg_err);
+DEFINE_NFS4_BLOCK_PRKEY_ERR_EVENT(bl_pr_key_unreg_err);
+
 #ifdef CONFIG_NFS_V4_2
 TRACE_DEFINE_ENUM(NFS4_CONTENT_DATA);
 TRACE_DEFINE_ENUM(NFS4_CONTENT_HOLE);

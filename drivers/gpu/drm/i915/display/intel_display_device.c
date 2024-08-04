@@ -3,7 +3,7 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/i915_pciids.h>
+#include <drm/intel/i915_pciids.h>
 #include <drm/drm_color_mgmt.h>
 #include <linux/pci.h>
 
@@ -19,6 +19,25 @@
 
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for display info");
+
+struct subplatform_desc {
+	enum intel_display_subplatform subplatform;
+	const char *name;
+	const u16 *pciidlist;
+};
+
+struct platform_desc {
+	enum intel_display_platform platform;
+	const char *name;
+	const struct subplatform_desc *subplatforms;
+	const struct intel_display_device_info *info; /* NULL for GMD ID */
+};
+
+#define PLATFORM(_platform)			 \
+	.platform = (INTEL_DISPLAY_##_platform), \
+	.name = #_platform
+
+#define ID(id) (id)
 
 static const struct intel_display_device_info no_display = {};
 
@@ -200,33 +219,45 @@ static const struct intel_display_device_info no_display = {};
 	.__runtime_defaults.pipe_mask = BIT(PIPE_A), \
 	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
 
-static const struct intel_display_device_info i830_display = {
-	I830_DISPLAY,
+static const struct platform_desc i830_desc = {
+	PLATFORM(I830),
+	.info = &(const struct intel_display_device_info) {
+		I830_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C), /* DVO A/B/C */
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C), /* DVO A/B/C */
+	},
 };
 
-static const struct intel_display_device_info i845_display = {
-	I845_DISPLAY,
+static const struct platform_desc i845_desc = {
+	PLATFORM(I845G),
+	.info = &(const struct intel_display_device_info) {
+		I845_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
+	},
 };
 
-static const struct intel_display_device_info i85x_display = {
-	I830_DISPLAY,
+static const struct platform_desc i85x_desc = {
+	PLATFORM(I85X),
+	.info = &(const struct intel_display_device_info) {
+		I830_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info i865g_display = {
-	I845_DISPLAY,
+static const struct platform_desc i865g_desc = {
+	PLATFORM(I865G),
+	.info = &(const struct intel_display_device_info) {
+		I845_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* DVO B/C */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-#define GEN3_DISPLAY \
+#define GEN3_DISPLAY   \
 	.has_gmch = 1, \
 	.has_overlay = 1, \
 	I9XX_PIPE_OFFSETS, \
@@ -238,52 +269,70 @@ static const struct intel_display_device_info i865g_display = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) /* SDVO B/C */
 
-static const struct intel_display_device_info i915g_display = {
-	GEN3_DISPLAY,
-	I845_COLORS,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
+static const struct platform_desc i915g_desc = {
+	PLATFORM(I915G),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I845_COLORS,
+		.cursor_needs_physical = 1,
+		.overlay_needs_physical = 1,
+	},
 };
 
-static const struct intel_display_device_info i915gm_display = {
-	GEN3_DISPLAY,
-	I9XX_COLORS,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-	.supports_tv = 1,
+static const struct platform_desc i915gm_desc = {
+	PLATFORM(I915GM),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I9XX_COLORS,
+		.cursor_needs_physical = 1,
+		.overlay_needs_physical = 1,
+		.supports_tv = 1,
 
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info i945g_display = {
-	GEN3_DISPLAY,
-	I845_COLORS,
-	.has_hotplug = 1,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
+static const struct platform_desc i945g_desc = {
+	PLATFORM(I945G),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I845_COLORS,
+		.has_hotplug = 1,
+		.cursor_needs_physical = 1,
+		.overlay_needs_physical = 1,
+	},
 };
 
-static const struct intel_display_device_info i945gm_display = {
-	GEN3_DISPLAY,
-	I9XX_COLORS,
-	.has_hotplug = 1,
-	.cursor_needs_physical = 1,
-	.overlay_needs_physical = 1,
-	.supports_tv = 1,
+static const struct platform_desc i945gm_desc = {
+	PLATFORM(I915GM),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I9XX_COLORS,
+		.has_hotplug = 1,
+		.cursor_needs_physical = 1,
+		.overlay_needs_physical = 1,
+		.supports_tv = 1,
 
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info g33_display = {
-	GEN3_DISPLAY,
-	I845_COLORS,
-	.has_hotplug = 1,
+static const struct platform_desc g33_desc = {
+	PLATFORM(G33),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I845_COLORS,
+		.has_hotplug = 1,
+	},
 };
 
-static const struct intel_display_device_info pnv_display = {
-	GEN3_DISPLAY,
-	I9XX_COLORS,
-	.has_hotplug = 1,
+static const struct platform_desc pnv_desc = {
+	PLATFORM(PINEVIEW),
+	.info = &(const struct intel_display_device_info) {
+		GEN3_DISPLAY,
+		I9XX_COLORS,
+		.has_hotplug = 1,
+	},
 };
 
 #define GEN4_DISPLAY \
@@ -298,34 +347,46 @@ static const struct intel_display_device_info pnv_display = {
 	.__runtime_defaults.cpu_transcoder_mask = \
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
 
-static const struct intel_display_device_info i965g_display = {
-	GEN4_DISPLAY,
-	.has_overlay = 1,
+static const struct platform_desc i965g_desc = {
+	PLATFORM(I965G),
+	.info = &(const struct intel_display_device_info) {
+		GEN4_DISPLAY,
+		.has_overlay = 1,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* SDVO B/C */
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* SDVO B/C */
+	},
 };
 
-static const struct intel_display_device_info i965gm_display = {
-	GEN4_DISPLAY,
-	.has_overlay = 1,
-	.supports_tv = 1,
+static const struct platform_desc i965gm_desc = {
+	PLATFORM(I965GM),
+	.info = &(const struct intel_display_device_info) {
+		GEN4_DISPLAY,
+		.has_overlay = 1,
+		.supports_tv = 1,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* SDVO B/C */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* SDVO B/C */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info g45_display = {
-	GEN4_DISPLAY,
+static const struct platform_desc g45_desc = {
+	PLATFORM(G45),
+	.info = &(const struct intel_display_device_info) {
+		GEN4_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* SDVO/HDMI/DP B/C, DP D */
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* SDVO/HDMI/DP B/C, DP D */
+	},
 };
 
-static const struct intel_display_device_info gm45_display = {
-	GEN4_DISPLAY,
-	.supports_tv = 1,
+static const struct platform_desc gm45_desc = {
+	PLATFORM(GM45),
+	.info = &(const struct intel_display_device_info) {
+		GEN4_DISPLAY,
+		.supports_tv = 1,
 
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* SDVO/HDMI/DP B/C, DP D */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* SDVO/HDMI/DP B/C, DP D */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
 #define ILK_DISPLAY \
@@ -340,112 +401,175 @@ static const struct intel_display_device_info gm45_display = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
 
-static const struct intel_display_device_info ilk_d_display = {
-	ILK_DISPLAY,
+static const struct platform_desc ilk_d_desc = {
+	PLATFORM(IRONLAKE),
+	.info = &(const struct intel_display_device_info) {
+		ILK_DISPLAY,
+	},
 };
 
-static const struct intel_display_device_info ilk_m_display = {
-	ILK_DISPLAY,
+static const struct platform_desc ilk_m_desc = {
+	PLATFORM(IRONLAKE),
+	.info = &(const struct intel_display_device_info) {
+		ILK_DISPLAY,
 
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info snb_display = {
-	.has_hotplug = 1,
-	I9XX_PIPE_OFFSETS,
-	I9XX_CURSOR_OFFSETS,
-	ILK_COLORS,
+static const struct platform_desc snb_desc = {
+	PLATFORM(SANDYBRIDGE),
+	.info = &(const struct intel_display_device_info) {
+		.has_hotplug = 1,
+		I9XX_PIPE_OFFSETS,
+		I9XX_CURSOR_OFFSETS,
+		ILK_COLORS,
 
-	.__runtime_defaults.ip.ver = 6,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-	.__runtime_defaults.cpu_transcoder_mask =
+		.__runtime_defaults.ip.ver = 6,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info ivb_display = {
-	.has_hotplug = 1,
-	IVB_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
+static const struct platform_desc ivb_desc = {
+	PLATFORM(IVYBRIDGE),
+	.info = &(const struct intel_display_device_info) {
+		.has_hotplug = 1,
+		IVB_PIPE_OFFSETS,
+		IVB_CURSOR_OFFSETS,
+		IVB_COLORS,
 
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
+		.__runtime_defaults.ip.ver = 7,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info vlv_display = {
-	.has_gmch = 1,
-	.has_hotplug = 1,
-	.mmio_offset = VLV_DISPLAY_BASE,
-	I9XX_PIPE_OFFSETS,
-	I9XX_CURSOR_OFFSETS,
-	I9XX_COLORS,
+static const struct platform_desc vlv_desc = {
+	PLATFORM(VALLEYVIEW),
+	.info = &(const struct intel_display_device_info) {
+		.has_gmch = 1,
+		.has_hotplug = 1,
+		.mmio_offset = VLV_DISPLAY_BASE,
+		I9XX_PIPE_OFFSETS,
+		I9XX_CURSOR_OFFSETS,
+		I9XX_COLORS,
 
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-	.__runtime_defaults.cpu_transcoder_mask =
+		.__runtime_defaults.ip.ver = 7,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* HDMI/DP B/C */
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C), /* HDMI/DP B/C */
+	},
 };
 
-static const struct intel_display_device_info hsw_display = {
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	.has_psr = 1,
-	.has_psr_hw_tracking = 1,
-	HSW_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
+static const u16 hsw_ult_ids[] = {
+	INTEL_HSW_ULT_GT1_IDS(ID),
+	INTEL_HSW_ULT_GT2_IDS(ID),
+	INTEL_HSW_ULT_GT3_IDS(ID),
+	0
+};
 
-	.__runtime_defaults.ip.ver = 7,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
+static const u16 hsw_ulx_ids[] = {
+	INTEL_HSW_ULX_GT1_IDS(ID),
+	INTEL_HSW_ULX_GT2_IDS(ID),
+	0
+};
+
+static const struct platform_desc hsw_desc = {
+	PLATFORM(HASWELL),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_HASWELL_ULT, "ULT", hsw_ult_ids },
+		{ INTEL_DISPLAY_HASWELL_ULX, "ULX", hsw_ulx_ids },
+		{},
+	},
+	.info = &(const struct intel_display_device_info) {
+		.has_ddi = 1,
+		.has_dp_mst = 1,
+		.has_fpga_dbg = 1,
+		.has_hotplug = 1,
+		.has_psr = 1,
+		.has_psr_hw_tracking = 1,
+		HSW_PIPE_OFFSETS,
+		IVB_CURSOR_OFFSETS,
+		IVB_COLORS,
+
+		.__runtime_defaults.ip.ver = 7,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info bdw_display = {
-	.has_ddi = 1,
-	.has_dp_mst = 1,
-	.has_fpga_dbg = 1,
-	.has_hotplug = 1,
-	.has_psr = 1,
-	.has_psr_hw_tracking = 1,
-	HSW_PIPE_OFFSETS,
-	IVB_CURSOR_OFFSETS,
-	IVB_COLORS,
+static const u16 bdw_ult_ids[] = {
+	INTEL_BDW_ULT_GT1_IDS(ID),
+	INTEL_BDW_ULT_GT2_IDS(ID),
+	INTEL_BDW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_RSVD_IDS(ID),
+	0
+};
 
-	.__runtime_defaults.ip.ver = 8,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
+static const u16 bdw_ulx_ids[] = {
+	INTEL_BDW_ULX_GT1_IDS(ID),
+	INTEL_BDW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT3_IDS(ID),
+	INTEL_BDW_ULX_RSVD_IDS(ID),
+	0
+};
+
+static const struct platform_desc bdw_desc = {
+	PLATFORM(BROADWELL),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_BROADWELL_ULT, "ULT", bdw_ult_ids },
+		{ INTEL_DISPLAY_BROADWELL_ULX, "ULX", bdw_ulx_ids },
+		{},
+	},
+	.info = &(const struct intel_display_device_info) {
+		.has_ddi = 1,
+		.has_dp_mst = 1,
+		.has_fpga_dbg = 1,
+		.has_hotplug = 1,
+		.has_psr = 1,
+		.has_psr_hw_tracking = 1,
+		HSW_PIPE_OFFSETS,
+		IVB_CURSOR_OFFSETS,
+		IVB_COLORS,
+
+		.__runtime_defaults.ip.ver = 8,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
-	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
+		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+	},
 };
 
-static const struct intel_display_device_info chv_display = {
-	.has_hotplug = 1,
-	.has_gmch = 1,
-	.mmio_offset = VLV_DISPLAY_BASE,
-	CHV_PIPE_OFFSETS,
-	CHV_CURSOR_OFFSETS,
-	CHV_COLORS,
+static const struct platform_desc chv_desc = {
+	PLATFORM(CHERRYVIEW),
+	.info = &(const struct intel_display_device_info) {
+		.has_hotplug = 1,
+		.has_gmch = 1,
+		.mmio_offset = VLV_DISPLAY_BASE,
+		CHV_PIPE_OFFSETS,
+		CHV_CURSOR_OFFSETS,
+		CHV_COLORS,
 
-	.__runtime_defaults.ip.ver = 8,
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
+		.__runtime_defaults.ip.ver = 8,
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* HDMI/DP B/C/D */
+		.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* HDMI/DP B/C/D */
+	},
 };
 
 static const struct intel_display_device_info skl_display = {
@@ -467,13 +591,99 @@ static const struct intel_display_device_info skl_display = {
 	.__runtime_defaults.has_hdcp = 1,
 	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
 	.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
-		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
+	BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+	BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP),
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
 	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
-#define GEN9_LP_DISPLAY \
+static const u16 skl_ult_ids[] = {
+	INTEL_SKL_ULT_GT1_IDS(ID),
+	INTEL_SKL_ULT_GT2_IDS(ID),
+	INTEL_SKL_ULT_GT3_IDS(ID),
+	0
+};
+
+static const u16 skl_ulx_ids[] = {
+	INTEL_SKL_ULX_GT1_IDS(ID),
+	INTEL_SKL_ULX_GT2_IDS(ID),
+	0
+};
+
+static const struct platform_desc skl_desc = {
+	PLATFORM(SKYLAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_SKYLAKE_ULT, "ULT", skl_ult_ids },
+		{ INTEL_DISPLAY_SKYLAKE_ULX, "ULX", skl_ulx_ids },
+		{},
+	},
+	.info = &skl_display,
+};
+
+static const u16 kbl_ult_ids[] = {
+	INTEL_KBL_ULT_GT1_IDS(ID),
+	INTEL_KBL_ULT_GT2_IDS(ID),
+	INTEL_KBL_ULT_GT3_IDS(ID),
+	0
+};
+
+static const u16 kbl_ulx_ids[] = {
+	INTEL_KBL_ULX_GT1_IDS(ID),
+	INTEL_KBL_ULX_GT2_IDS(ID),
+	INTEL_AML_KBL_GT2_IDS(ID),
+	0
+};
+
+static const struct platform_desc kbl_desc = {
+	PLATFORM(KABYLAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_KABYLAKE_ULT, "ULT", kbl_ult_ids },
+		{ INTEL_DISPLAY_KABYLAKE_ULX, "ULX", kbl_ulx_ids },
+		{},
+	},
+	.info = &skl_display,
+};
+
+static const u16 cfl_ult_ids[] = {
+	INTEL_CFL_U_GT2_IDS(ID),
+	INTEL_CFL_U_GT3_IDS(ID),
+	INTEL_WHL_U_GT1_IDS(ID),
+	INTEL_WHL_U_GT2_IDS(ID),
+	INTEL_WHL_U_GT3_IDS(ID),
+	0
+};
+
+static const u16 cfl_ulx_ids[] = {
+	INTEL_AML_CFL_GT2_IDS(ID),
+	0
+};
+
+static const struct platform_desc cfl_desc = {
+	PLATFORM(COFFEELAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_COFFEELAKE_ULT, "ULT", cfl_ult_ids },
+		{ INTEL_DISPLAY_COFFEELAKE_ULX, "ULX", cfl_ulx_ids },
+		{},
+	},
+	.info = &skl_display,
+};
+
+static const u16 cml_ult_ids[] = {
+	INTEL_CML_U_GT1_IDS(ID),
+	INTEL_CML_U_GT2_IDS(ID),
+	0
+};
+
+static const struct platform_desc cml_desc = {
+	PLATFORM(COMETLAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_COMETLAKE_ULT, "ULT", cml_ult_ids },
+		{},
+	},
+	.info = &skl_display,
+};
+
+#define GEN9_LP_DISPLAY			 \
 	.dbuf.slice_mask = BIT(DBUF_S1), \
 	.has_dp_mst = 1, \
 	.has_ddi = 1, \
@@ -496,19 +706,25 @@ static const struct intel_display_device_info skl_display = {
 		BIT(TRANSCODER_DSI_A) | BIT(TRANSCODER_DSI_C), \
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C)
 
-static const struct intel_display_device_info bxt_display = {
-	GEN9_LP_DISPLAY,
-	.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
+static const struct platform_desc bxt_desc = {
+	PLATFORM(BROXTON),
+	.info = &(const struct intel_display_device_info) {
+		GEN9_LP_DISPLAY,
+		.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
 
-	.__runtime_defaults.ip.ver = 9,
+		.__runtime_defaults.ip.ver = 9,
+	},
 };
 
-static const struct intel_display_device_info glk_display = {
-	GEN9_LP_DISPLAY,
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
-	GLK_COLORS,
+static const struct platform_desc glk_desc = {
+	PLATFORM(GEMINILAKE),
+	.info = &(const struct intel_display_device_info) {
+		GEN9_LP_DISPLAY,
+		.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
+		GLK_COLORS,
 
-	.__runtime_defaults.ip.ver = 10,
+		.__runtime_defaults.ip.ver = 10,
+	},
 };
 
 #define ICL_DISPLAY \
@@ -552,16 +768,38 @@ static const struct intel_display_device_info glk_display = {
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
 	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A)
 
-static const struct intel_display_device_info icl_display = {
-	ICL_DISPLAY,
+static const u16 icl_port_f_ids[] = {
+	INTEL_ICL_PORT_F_IDS(ID),
+	0
+};
 
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
+static const struct platform_desc icl_desc = {
+	PLATFORM(ICELAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_ICELAKE_PORT_F, "Port F", icl_port_f_ids },
+		{},
+	},
+	.info = &(const struct intel_display_device_info) {
+		ICL_DISPLAY,
+
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) | BIT(PORT_E),
+	},
 };
 
 static const struct intel_display_device_info jsl_ehl_display = {
 	ICL_DISPLAY,
 
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D),
+};
+
+static const struct platform_desc jsl_desc = {
+	PLATFORM(JASPERLAKE),
+	.info = &jsl_ehl_display,
+};
+
+static const struct platform_desc ehl_desc = {
+	PLATFORM(ELKHARTLAKE),
+	.info = &jsl_ehl_display,
 };
 
 #define XE_D_DISPLAY \
@@ -607,44 +845,74 @@ static const struct intel_display_device_info jsl_ehl_display = {
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
 	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A)
 
-static const struct intel_display_device_info tgl_display = {
-	XE_D_DISPLAY,
+static const u16 tgl_uy_ids[] = {
+	INTEL_TGL_GT2_IDS(ID),
+	0
+};
 
-	/*
-	 * FIXME DDI C/combo PHY C missing due to combo PHY
-	 * code making a mess on SKUs where the PHY is missing.
-	 */
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
+static const struct platform_desc tgl_desc = {
+	PLATFORM(TIGERLAKE),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_TIGERLAKE_UY, "UY", tgl_uy_ids },
+		{},
+	},
+	.info = &(const struct intel_display_device_info) {
+		XE_D_DISPLAY,
+
+		/*
+		 * FIXME DDI C/combo PHY C missing due to combo PHY
+		 * code making a mess on SKUs where the PHY is missing.
+		 */
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4) | BIT(PORT_TC5) | BIT(PORT_TC6),
+	},
 };
 
-static const struct intel_display_device_info dg1_display = {
-	XE_D_DISPLAY,
+static const struct platform_desc dg1_desc = {
+	PLATFORM(DG1),
+	.info = &(const struct intel_display_device_info) {
+		XE_D_DISPLAY,
 
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2),
+	},
 };
 
-static const struct intel_display_device_info rkl_display = {
-	XE_D_DISPLAY,
-	.abox_mask = BIT(0),
-	.has_hti = 1,
-	.has_psr_hw_tracking = 0,
+static const struct platform_desc rkl_desc = {
+	PLATFORM(ROCKETLAKE),
+	.info = &(const struct intel_display_device_info) {
+		XE_D_DISPLAY,
+		.abox_mask = BIT(0),
+		.has_hti = 1,
+		.has_psr_hw_tracking = 0,
 
-	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-	.__runtime_defaults.cpu_transcoder_mask =
+		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+		.__runtime_defaults.cpu_transcoder_mask =
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
+		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2),
+	},
 };
 
-static const struct intel_display_device_info adl_s_display = {
-	XE_D_DISPLAY,
-	.has_hti = 1,
-	.has_psr_hw_tracking = 0,
+static const u16 adls_rpls_ids[] = {
+	INTEL_RPLS_IDS(ID),
+	0
+};
 
-	.__runtime_defaults.port_mask = BIT(PORT_A) |
+static const struct platform_desc adl_s_desc = {
+	PLATFORM(ALDERLAKE_S),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_ALDERLAKE_S_RAPTORLAKE_S, "RPL-S", adls_rpls_ids },
+		{},
+	},
+	.info = &(const struct intel_display_device_info) {
+		XE_D_DISPLAY,
+		.has_hti = 1,
+		.has_psr_hw_tracking = 0,
+
+		.__runtime_defaults.port_mask = BIT(PORT_A) |
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
+	},
 };
 
 #define XE_LPD_FEATURES \
@@ -703,6 +971,32 @@ static const struct intel_display_device_info xe_lpd_display = {
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 };
 
+static const u16 adlp_adln_ids[] = {
+	INTEL_ADLN_IDS(ID),
+	0
+};
+
+static const u16 adlp_rplu_ids[] = {
+	INTEL_RPLU_IDS(ID),
+	0
+};
+
+static const u16 adlp_rplp_ids[] = {
+	INTEL_RPLP_IDS(ID),
+	0
+};
+
+static const struct platform_desc adl_p_desc = {
+	PLATFORM(ALDERLAKE_P),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_ALDERLAKE_P_ALDERLAKE_N, "ADL-N", adlp_adln_ids },
+		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_U, "RPL-U", adlp_rplu_ids },
+		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_P, "RPL-P", adlp_rplp_ids },
+		{},
+	},
+	.info = &xe_lpd_display,
+};
+
 static const struct intel_display_device_info xe_hpd_display = {
 	XE_LPD_FEATURES,
 	.has_cdclk_squash = 1,
@@ -712,6 +1006,32 @@ static const struct intel_display_device_info xe_hpd_display = {
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D_XELPD) |
 		BIT(PORT_TC1),
+};
+
+static const u16 dg2_g10_ids[] = {
+	INTEL_DG2_G10_IDS(ID),
+	0
+};
+
+static const u16 dg2_g11_ids[] = {
+	INTEL_DG2_G11_IDS(ID),
+	0
+};
+
+static const u16 dg2_g12_ids[] = {
+	INTEL_DG2_G12_IDS(ID),
+	0
+};
+
+static const struct platform_desc dg2_desc = {
+	PLATFORM(DG2),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{ INTEL_DISPLAY_DG2_G10, "G10", dg2_g10_ids },
+		{ INTEL_DISPLAY_DG2_G11, "G11", dg2_g11_ids },
+		{ INTEL_DISPLAY_DG2_G12, "G12", dg2_g12_ids },
+		{},
+	},
+	.info = &xe_hpd_display,
 };
 
 #define XE_LPDP_FEATURES							\
@@ -771,6 +1091,29 @@ static const struct intel_display_device_info xe2_lpd_display = {
 		BIT(INTEL_FBC_C) | BIT(INTEL_FBC_D),
 };
 
+static const struct intel_display_device_info xe2_hpd_display = {
+	XE_LPDP_FEATURES,
+	.__runtime_defaults.port_mask = BIT(PORT_A) |
+		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
+};
+
+/*
+ * Do not initialize the .info member of the platform desc for GMD ID based
+ * platforms. Their display will be probed automatically based on the IP version
+ * reported by the hardware.
+ */
+static const struct platform_desc mtl_desc = {
+	PLATFORM(METEORLAKE),
+};
+
+static const struct platform_desc lnl_desc = {
+	PLATFORM(LUNARLAKE),
+};
+
+static const struct platform_desc bmg_desc = {
+	PLATFORM(BATTLEMAGE),
+};
+
 __diag_pop();
 
 /*
@@ -782,68 +1125,64 @@ __diag_pop();
 static bool has_no_display(struct pci_dev *pdev)
 {
 	static const struct pci_device_id ids[] = {
-		INTEL_IVB_Q_IDS(0),
+		INTEL_IVB_Q_IDS(INTEL_VGA_DEVICE, 0),
 		{}
 	};
 
 	return pci_match_id(ids, pdev);
 }
 
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(id, info) { id, info }
+#define INTEL_DISPLAY_DEVICE(_id, _desc) { .devid = (_id), .desc = (_desc) }
 
 static const struct {
 	u32 devid;
-	const struct intel_display_device_info *info;
+	const struct platform_desc *desc;
 } intel_display_ids[] = {
-	INTEL_I830_IDS(&i830_display),
-	INTEL_I845G_IDS(&i845_display),
-	INTEL_I85X_IDS(&i85x_display),
-	INTEL_I865G_IDS(&i865g_display),
-	INTEL_I915G_IDS(&i915g_display),
-	INTEL_I915GM_IDS(&i915gm_display),
-	INTEL_I945G_IDS(&i945g_display),
-	INTEL_I945GM_IDS(&i945gm_display),
-	INTEL_I965G_IDS(&i965g_display),
-	INTEL_G33_IDS(&g33_display),
-	INTEL_I965GM_IDS(&i965gm_display),
-	INTEL_GM45_IDS(&gm45_display),
-	INTEL_G45_IDS(&g45_display),
-	INTEL_PINEVIEW_G_IDS(&pnv_display),
-	INTEL_PINEVIEW_M_IDS(&pnv_display),
-	INTEL_IRONLAKE_D_IDS(&ilk_d_display),
-	INTEL_IRONLAKE_M_IDS(&ilk_m_display),
-	INTEL_SNB_D_IDS(&snb_display),
-	INTEL_SNB_M_IDS(&snb_display),
-	INTEL_IVB_M_IDS(&ivb_display),
-	INTEL_IVB_D_IDS(&ivb_display),
-	INTEL_HSW_IDS(&hsw_display),
-	INTEL_VLV_IDS(&vlv_display),
-	INTEL_BDW_IDS(&bdw_display),
-	INTEL_CHV_IDS(&chv_display),
-	INTEL_SKL_IDS(&skl_display),
-	INTEL_BXT_IDS(&bxt_display),
-	INTEL_GLK_IDS(&glk_display),
-	INTEL_KBL_IDS(&skl_display),
-	INTEL_CFL_IDS(&skl_display),
-	INTEL_ICL_11_IDS(&icl_display),
-	INTEL_EHL_IDS(&jsl_ehl_display),
-	INTEL_JSL_IDS(&jsl_ehl_display),
-	INTEL_TGL_12_IDS(&tgl_display),
-	INTEL_DG1_IDS(&dg1_display),
-	INTEL_RKL_IDS(&rkl_display),
-	INTEL_ADLS_IDS(&adl_s_display),
-	INTEL_RPLS_IDS(&adl_s_display),
-	INTEL_ADLP_IDS(&xe_lpd_display),
-	INTEL_ADLN_IDS(&xe_lpd_display),
-	INTEL_RPLP_IDS(&xe_lpd_display),
-	INTEL_DG2_IDS(&xe_hpd_display),
-
-	/*
-	 * Do not add any GMD_ID-based platforms to this list.  They will
-	 * be probed automatically based on the IP version reported by
-	 * the hardware.
-	 */
+	INTEL_I830_IDS(INTEL_DISPLAY_DEVICE, &i830_desc),
+	INTEL_I845G_IDS(INTEL_DISPLAY_DEVICE, &i845_desc),
+	INTEL_I85X_IDS(INTEL_DISPLAY_DEVICE, &i85x_desc),
+	INTEL_I865G_IDS(INTEL_DISPLAY_DEVICE, &i865g_desc),
+	INTEL_I915G_IDS(INTEL_DISPLAY_DEVICE, &i915g_desc),
+	INTEL_I915GM_IDS(INTEL_DISPLAY_DEVICE, &i915gm_desc),
+	INTEL_I945G_IDS(INTEL_DISPLAY_DEVICE, &i945g_desc),
+	INTEL_I945GM_IDS(INTEL_DISPLAY_DEVICE, &i945gm_desc),
+	INTEL_I965G_IDS(INTEL_DISPLAY_DEVICE, &i965g_desc),
+	INTEL_G33_IDS(INTEL_DISPLAY_DEVICE, &g33_desc),
+	INTEL_I965GM_IDS(INTEL_DISPLAY_DEVICE, &i965gm_desc),
+	INTEL_GM45_IDS(INTEL_DISPLAY_DEVICE, &gm45_desc),
+	INTEL_G45_IDS(INTEL_DISPLAY_DEVICE, &g45_desc),
+	INTEL_PNV_IDS(INTEL_DISPLAY_DEVICE, &pnv_desc),
+	INTEL_ILK_D_IDS(INTEL_DISPLAY_DEVICE, &ilk_d_desc),
+	INTEL_ILK_M_IDS(INTEL_DISPLAY_DEVICE, &ilk_m_desc),
+	INTEL_SNB_IDS(INTEL_DISPLAY_DEVICE, &snb_desc),
+	INTEL_IVB_IDS(INTEL_DISPLAY_DEVICE, &ivb_desc),
+	INTEL_HSW_IDS(INTEL_DISPLAY_DEVICE, &hsw_desc),
+	INTEL_VLV_IDS(INTEL_DISPLAY_DEVICE, &vlv_desc),
+	INTEL_BDW_IDS(INTEL_DISPLAY_DEVICE, &bdw_desc),
+	INTEL_CHV_IDS(INTEL_DISPLAY_DEVICE, &chv_desc),
+	INTEL_SKL_IDS(INTEL_DISPLAY_DEVICE, &skl_desc),
+	INTEL_BXT_IDS(INTEL_DISPLAY_DEVICE, &bxt_desc),
+	INTEL_GLK_IDS(INTEL_DISPLAY_DEVICE, &glk_desc),
+	INTEL_KBL_IDS(INTEL_DISPLAY_DEVICE, &kbl_desc),
+	INTEL_CFL_IDS(INTEL_DISPLAY_DEVICE, &cfl_desc),
+	INTEL_WHL_IDS(INTEL_DISPLAY_DEVICE, &cfl_desc),
+	INTEL_CML_IDS(INTEL_DISPLAY_DEVICE, &cml_desc),
+	INTEL_ICL_IDS(INTEL_DISPLAY_DEVICE, &icl_desc),
+	INTEL_EHL_IDS(INTEL_DISPLAY_DEVICE, &ehl_desc),
+	INTEL_JSL_IDS(INTEL_DISPLAY_DEVICE, &jsl_desc),
+	INTEL_TGL_IDS(INTEL_DISPLAY_DEVICE, &tgl_desc),
+	INTEL_DG1_IDS(INTEL_DISPLAY_DEVICE, &dg1_desc),
+	INTEL_RKL_IDS(INTEL_DISPLAY_DEVICE, &rkl_desc),
+	INTEL_ADLS_IDS(INTEL_DISPLAY_DEVICE, &adl_s_desc),
+	INTEL_RPLS_IDS(INTEL_DISPLAY_DEVICE, &adl_s_desc),
+	INTEL_ADLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
+	INTEL_ADLN_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
+	INTEL_RPLU_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
+	INTEL_RPLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
+	INTEL_DG2_IDS(INTEL_DISPLAY_DEVICE, &dg2_desc),
+	INTEL_MTL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
+	INTEL_LNL_IDS(INTEL_DISPLAY_DEVICE, &lnl_desc),
+	INTEL_BMG_IDS(INTEL_DISPLAY_DEVICE, &bmg_desc),
 };
 
 static const struct {
@@ -852,30 +1191,23 @@ static const struct {
 	const struct intel_display_device_info *display;
 } gmdid_display_map[] = {
 	{ 14,  0, &xe_lpdp_display },
+	{ 14,  1, &xe2_hpd_display },
 	{ 20,  0, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
-probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step)
+probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *ip_ver)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct intel_display_ip_ver gmd_id;
 	void __iomem *addr;
 	u32 val;
 	int i;
 
-	/* The caller expects to ver, rel and step to be initialized
-	 * here, and there's no good way to check when there was a
-	 * failure and no_display was returned.  So initialize all these
-	 * values here zero, to be sure.
-	 */
-	*ver = 0;
-	*rel = 0;
-	*step = 0;
-
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
 		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
-		return &no_display;
+		return NULL;
 	}
 
 	val = ioread32(addr);
@@ -883,57 +1215,82 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	if (val == 0) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
+		return NULL;
 	}
 
-	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
-	*rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
-	*step = REG_FIELD_GET(GMD_ID_STEP, val);
+	gmd_id.ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
+	gmd_id.rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
+	gmd_id.step = REG_FIELD_GET(GMD_ID_STEP, val);
 
-	for (i = 0; i < ARRAY_SIZE(gmdid_display_map); i++)
-		if (*ver == gmdid_display_map[i].ver &&
-		    *rel == gmdid_display_map[i].rel)
+	for (i = 0; i < ARRAY_SIZE(gmdid_display_map); i++) {
+		if (gmd_id.ver == gmdid_display_map[i].ver &&
+		    gmd_id.rel == gmdid_display_map[i].rel) {
+			*ip_ver = gmd_id;
 			return gmdid_display_map[i].display;
+		}
+	}
 
 	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
-		*ver, *rel);
-	return &no_display;
+		gmd_id.ver, gmd_id.rel);
+	return NULL;
 }
 
-static const struct intel_display_device_info *
-probe_display(struct drm_i915_private *i915)
+static const struct platform_desc *find_platform_desc(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
-
-	if (has_no_display(pdev)) {
-		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
 		if (intel_display_ids[i].devid == pdev->device)
-			return intel_display_ids[i].info;
+			return intel_display_ids[i].desc;
 	}
 
-	drm_dbg(&i915->drm, "No display ID found for device ID %04x; disabling display.\n",
-		pdev->device);
+	return NULL;
+}
 
-	return &no_display;
+static const struct subplatform_desc *
+find_subplatform_desc(struct pci_dev *pdev, const struct platform_desc *desc)
+{
+	const struct subplatform_desc *sp;
+	const u16 *id;
+
+	for (sp = desc->subplatforms; sp && sp->subplatform; sp++)
+		for (id = sp->pciidlist; *id; id++)
+			if (*id == pdev->device)
+				return sp;
+
+	return NULL;
 }
 
 void intel_display_device_probe(struct drm_i915_private *i915)
 {
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	const struct intel_display_device_info *info;
-	u16 ver, rel, step;
+	struct intel_display_ip_ver ip_ver = {};
+	const struct platform_desc *desc;
+	const struct subplatform_desc *subdesc;
 
 	/* Add drm device backpointer as early as possible. */
 	i915->display.drm = &i915->drm;
 
-	if (HAS_GMD_ID(i915))
-		info = probe_gmdid_display(i915, &ver, &rel, &step);
-	else
-		info = probe_display(i915);
+	intel_display_params_copy(&i915->display.params);
+
+	if (has_no_display(pdev)) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		goto no_display;
+	}
+
+	desc = find_platform_desc(pdev);
+	if (!desc) {
+		drm_dbg_kms(&i915->drm, "Unknown device ID %04x; disabling display.\n",
+			    pdev->device);
+		goto no_display;
+	}
+
+	info = desc->info;
+	if (!info)
+		info = probe_gmdid_display(i915, &ip_ver);
+	if (!info)
+		goto no_display;
 
 	DISPLAY_INFO(i915) = info;
 
@@ -941,13 +1298,27 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
-	if (HAS_GMD_ID(i915)) {
-		DISPLAY_RUNTIME_INFO(i915)->ip.ver = ver;
-		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
-		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
+	drm_WARN_ON(&i915->drm, !desc->platform || !desc->name);
+	DISPLAY_RUNTIME_INFO(i915)->platform = desc->platform;
+
+	subdesc = find_subplatform_desc(pdev, desc);
+	if (subdesc) {
+		drm_WARN_ON(&i915->drm, !subdesc->subplatform || !subdesc->name);
+		DISPLAY_RUNTIME_INFO(i915)->subplatform = subdesc->subplatform;
 	}
 
-	intel_display_params_copy(&i915->display.params);
+	if (ip_ver.ver || ip_ver.rel || ip_ver.step)
+		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;
+
+	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u\n",
+		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
+		 pdev->device, DISPLAY_RUNTIME_INFO(i915)->ip.ver,
+		 DISPLAY_RUNTIME_INFO(i915)->ip.rel);
+
+	return;
+
+no_display:
+	DISPLAY_INFO(i915) = &no_display;
 }
 
 void intel_display_device_remove(struct drm_i915_private *i915)

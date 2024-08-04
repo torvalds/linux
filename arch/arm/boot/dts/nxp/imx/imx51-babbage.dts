@@ -89,7 +89,7 @@
 		status = "disabled";
 		display-timings {
 			native-mode = <&timing1>;
-			timing1: claawvga {
+			timing1: timing-claawvga {
 				clock-frequency = <27000000>;
 				hactive = <800>;
 				vactive = <480>;

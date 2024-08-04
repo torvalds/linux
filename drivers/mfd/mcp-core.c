@@ -20,7 +20,7 @@
 #define to_mcp(d)		container_of(d, struct mcp, attached_device)
 #define to_mcp_driver(d)	container_of(d, struct mcp_driver, drv)
 
-static int mcp_bus_match(struct device *dev, struct device_driver *drv)
+static int mcp_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return 1;
 }

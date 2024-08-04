@@ -95,4 +95,5 @@ static struct i2c_driver uda1342_driver = {
 
 module_i2c_driver(uda1342_driver);
 
+MODULE_DESCRIPTION("Philips UDA1342 audio codec driver");
 MODULE_LICENSE("GPL v2");

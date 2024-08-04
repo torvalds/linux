@@ -368,13 +368,13 @@ static void sanity_check_fault(bool is_write, bool is_user,
  * Define the correct "is_write" bit in error_code based
  * on the processor family
  */
-#if (defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
+#ifdef CONFIG_BOOKE
 #define page_fault_is_write(__err)	((__err) & ESR_DST)
 #else
 #define page_fault_is_write(__err)	((__err) & DSISR_ISSTORE)
 #endif
 
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_BOOKE
 #define page_fault_is_bad(__err)	(0)
 #elif defined(CONFIG_PPC_8xx)
 #define page_fault_is_bad(__err)	((__err) & DSISR_NOEXEC_OR_G)

@@ -71,7 +71,7 @@ struct stm32_rcc_match_data {
 	unsigned int			maxbinding;
 	struct clk_stm32_clock_data	*clock_data;
 	struct clk_stm32_reset_data	*reset_data;
-	int (*check_security)(void __iomem *base,
+	int (*check_security)(struct device_node *np, void __iomem *base,
 			      const struct clock_config *cfg);
 	int (*multi_mux)(void __iomem *base, const struct clock_config *cfg);
 };

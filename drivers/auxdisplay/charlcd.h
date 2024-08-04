@@ -36,6 +36,8 @@ enum charlcd_lines {
 	CHARLCD_LINES_2,
 };
 
+struct charlcd_ops;
+
 struct charlcd {
 	const struct charlcd_ops *ops;
 	const unsigned char *char_conv;	/* Optional */

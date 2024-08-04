@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Nano River Technologies viperboard i2c master driver
+ *  Nano River Technologies viperboard i2c controller driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -273,8 +273,6 @@ static int vprbrd_i2c_xfer(struct i2c_adapter *i2c, struct i2c_msg *msgs,
 		(struct vprbrd_i2c_addr_msg *)vb->buf;
 	struct vprbrd_i2c_status *smsg = (struct vprbrd_i2c_status *)vb->buf;
 
-	dev_dbg(&i2c->dev, "master xfer %d messages:\n", num);
-
 	for (i = 0 ; i < num ; i++) {
 		pmsg = &msgs[i];
 
@@ -345,8 +343,8 @@ static u32 vprbrd_i2c_func(struct i2c_adapter *i2c)
 
 /* This is the actual algorithm we define */
 static const struct i2c_algorithm vprbrd_algorithm = {
-	.master_xfer	= vprbrd_i2c_xfer,
-	.functionality	= vprbrd_i2c_func,
+	.xfer = vprbrd_i2c_xfer,
+	.functionality = vprbrd_i2c_func,
 };
 
 static const struct i2c_adapter_quirks vprbrd_quirks = {
@@ -460,6 +458,6 @@ static void __exit vprbrd_i2c_exit(void)
 module_exit(vprbrd_i2c_exit);
 
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
-MODULE_DESCRIPTION("I2C master driver for Nano River Techs Viperboard");
+MODULE_DESCRIPTION("I2C controller driver for Nano River Techs Viperboard");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:viperboard-i2c");

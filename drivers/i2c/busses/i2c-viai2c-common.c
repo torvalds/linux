@@ -198,6 +198,6 @@ int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat)
 }
 EXPORT_SYMBOL_GPL(viai2c_init);
 
-MODULE_DESCRIPTION("Via/Wondermedia/Zhaoxin I2C master-mode bus adapter");
+MODULE_DESCRIPTION("Via/Wondermedia/Zhaoxin I2C controller core");
 MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
 MODULE_LICENSE("GPL");

@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2022, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2024, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -80,6 +80,8 @@ enum {
 #define VMXNET3_IO_TYPE(addr)           ((addr) >> 24)
 #define VMXNET3_IO_REG(addr)            ((addr) & 0xFFFFFF)
 
+#define VMXNET3_PMC_PSEUDO_TSC  0x10003
+
 enum {
 	VMXNET3_CMD_FIRST_SET = 0xCAFE0000,
 	VMXNET3_CMD_ACTIVATE_DEV = VMXNET3_CMD_FIRST_SET,
@@ -123,6 +125,8 @@ enum {
 	VMXNET3_CMD_GET_RESERVED4,
 	VMXNET3_CMD_GET_MAX_CAPABILITIES,
 	VMXNET3_CMD_GET_DCR0_REG,
+	VMXNET3_CMD_GET_TSRING_DESC_SIZE,
+	VMXNET3_CMD_GET_DISABLED_OFFLOADS,
 };
 
 /*
@@ -253,6 +257,24 @@ struct Vmxnet3_RxDesc {
 #define VMXNET3_RXD_GEN_SHIFT    31
 
 #define VMXNET3_RCD_HDR_INNER_SHIFT  13
+
+struct Vmxnet3TSInfo {
+	u64  tsData:56;
+	u64  tsType:4;
+	u64  tsi:1;      //bit to indicate to set ts
+	u64  pad:3;
+	u64  pad2;
+};
+
+struct Vmxnet3_TxTSDesc {
+	struct Vmxnet3TSInfo ts;
+	u64    pad[14];
+};
+
+struct Vmxnet3_RxTSDesc {
+	struct Vmxnet3TSInfo ts;
+	u64    pad[14];
+};
 
 struct Vmxnet3_RxCompDesc {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -427,6 +449,13 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_RXDATA_DESC_SIZE_ALIGN 64
 #define VMXNET3_RXDATA_DESC_SIZE_MASK  (VMXNET3_RXDATA_DESC_SIZE_ALIGN - 1)
 
+/* Rx TS Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_RXTS_DESC_SIZE_ALIGN 64
+#define VMXNET3_RXTS_DESC_SIZE_MASK  (VMXNET3_RXTS_DESC_SIZE_ALIGN - 1)
+/* Tx TS Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_TXTS_DESC_SIZE_ALIGN 64
+#define VMXNET3_TXTS_DESC_SIZE_MASK  (VMXNET3_TXTS_DESC_SIZE_ALIGN - 1)
+
 /* Max ring size */
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
@@ -438,6 +467,9 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_TXDATA_DESC_MAX_SIZE 2048
 
 #define VMXNET3_RXDATA_DESC_MAX_SIZE 2048
+
+#define VMXNET3_TXTS_DESC_MAX_SIZE   256
+#define VMXNET3_RXTS_DESC_MAX_SIZE   256
 
 /* a list of reasons for queue stop */
 
@@ -545,6 +577,24 @@ struct Vmxnet3_RxQueueConf {
 	u8		_pad2[4];
 };
 
+
+struct Vmxnet3_LatencyConf {
+	u16 sampleRate;
+	u16 pad;
+};
+
+struct Vmxnet3_TxQueueTSConf {
+	__le64  txTSRingBasePA;
+	__le16  txTSRingDescSize; /* size of tx timestamp ring buffer */
+	u16     pad;
+	struct Vmxnet3_LatencyConf latencyConf;
+};
+
+struct Vmxnet3_RxQueueTSConf {
+	__le64  rxTSRingBasePA;
+	__le16  rxTSRingDescSize; /* size of rx timestamp ring buffer */
+	u16     pad[3];
+};
 
 enum vmxnet3_intr_mask_mode {
 	VMXNET3_IMM_AUTO   = 0,
@@ -679,7 +729,8 @@ struct Vmxnet3_TxQueueDesc {
 	/* Driver read after a GET command */
 	struct Vmxnet3_QueueStatus		status;
 	struct UPT1_TxStats			stats;
-	u8					_pad[88]; /* 128 aligned */
+	struct Vmxnet3_TxQueueTSConf            tsConf;
+	u8					_pad[72]; /* 128 aligned */
 };
 
 
@@ -689,7 +740,8 @@ struct Vmxnet3_RxQueueDesc {
 	/* Driver read after a GET commad */
 	struct Vmxnet3_QueueStatus		status;
 	struct UPT1_RxStats			stats;
-	u8				      __pad[88]; /* 128 aligned */
+	struct Vmxnet3_RxQueueTSConf            tsConf;
+	u8				      __pad[72]; /* 128 aligned */
 };
 
 struct Vmxnet3_SetPolling {
@@ -860,5 +912,8 @@ struct Vmxnet3_DriverShared {
 #define VMXNET3_CAP_VERSION_7_MAX                  18
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
 #define VMXNET3_CAP_MAX                            VMXNET3_CAP_VERSION_7_MAX
+
+#define VMXNET3_OFFLOAD_TSO         BIT(0)
+#define VMXNET3_OFFLOAD_LRO         BIT(1)
 
 #endif /* _VMXNET3_DEFS_H_ */

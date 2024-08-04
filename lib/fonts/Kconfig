@@ -10,7 +10,7 @@ if FONT_SUPPORT
 
 config FONTS
 	bool "Select compiled-in fonts"
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE || DRM_PANIC
 	help
 	  Say Y here if you would like to use fonts other than the default
 	  your frame buffer console usually use.
@@ -23,7 +23,7 @@ config FONTS
 
 config FONT_8x8
 	bool "VGA 8x8 font" if FONTS
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE || DRM_PANIC
 	default y if !SPARC && !FONTS
 	help
 	  This is the "high resolution" font for the VGA frame buffer (the one
@@ -46,7 +46,7 @@ config FONT_8x16
 
 config FONT_6x11
 	bool "Mac console 6x11 font (not supported by all drivers)" if FONTS
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE || DRM_PANIC
 	default y if !SPARC && !FONTS && MAC
 	help
 	  Small console font with Macintosh-style high-half glyphs.  Some Mac
@@ -54,7 +54,7 @@ config FONT_6x11
 
 config FONT_7x14
 	bool "console 7x14 font (not supported by all drivers)" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
 	help
 	  Console font with characters just a bit smaller than the default.
 	  If the standard 8x16 font is a little too big for you, say Y.
@@ -62,7 +62,7 @@ config FONT_7x14
 
 config FONT_PEARL_8x8
 	bool "Pearl (old m68k) console 8x8 font" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
 	default y if !SPARC && !FONTS && AMIGA
 	help
 	  Small console font with PC-style control-character and high-half
@@ -70,7 +70,7 @@ config FONT_PEARL_8x8
 
 config FONT_ACORN_8x8
 	bool "Acorn console 8x8 font" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
 	default y if !SPARC && !FONTS && ARM && ARCH_ACORN
 	help
 	  Small console font with PC-style control characters and high-half
@@ -90,7 +90,7 @@ config FONT_6x10
 
 config FONT_10x18
 	bool "console 10x18 font (not supported by all drivers)" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
 	help
 	  This is a high resolution console font for machines with very
 	  big letters. It fits between the sun 12x22 and the normal 8x16 font.
@@ -105,7 +105,8 @@ config FONT_SUN8x16
 
 config FONT_SUN12x22
 	bool "Sparc console 12x22 font (not supported by all drivers)"
-	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
+	depends on !SPARC && FONTS
 	help
 	  This is the high resolution console font for Sun machines with very
 	  big letters (like the letters used in the SPARC PROM). If the
@@ -113,7 +114,8 @@ config FONT_SUN12x22
 
 config FONT_TER16x32
 	bool "Terminus 16x32 font (not supported by all drivers)"
-	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
+	depends on !SPARC && FONTS || SPARC
 	help
 	  Terminus Font is a clean, fixed width bitmap font, designed
 	  for long (8 and more hours per day) work with computers.
@@ -122,7 +124,7 @@ config FONT_TER16x32
 
 config FONT_6x8
 	bool "OLED 6x8 font" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
 	help
 	  This font is useful for small displays (OLED).
 

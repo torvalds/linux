@@ -25,7 +25,7 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
-#include <drm/intel-gtt.h>
+#include <drm/intel/intel-gtt.h>
 #include <asm/set_memory.h>
 
 /*
@@ -1461,4 +1461,5 @@ void intel_gmch_remove(void)
 EXPORT_SYMBOL(intel_gmch_remove);
 
 MODULE_AUTHOR("Dave Jones, Various @Intel");
+MODULE_DESCRIPTION("Intel GTT (Graphics Translation Table) routines");
 MODULE_LICENSE("GPL and additional rights");

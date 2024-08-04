@@ -144,6 +144,9 @@ static enum hl_asic_type get_asic_type(struct hl_device *hdev)
 		case REV_ID_C:
 			asic_type = ASIC_GAUDI2C;
 			break;
+		case REV_ID_D:
+			asic_type = ASIC_GAUDI2D;
+			break;
 		default:
 			break;
 		}
@@ -260,7 +263,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-	hl_mem_mgr_fini(&hpriv->mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	mutex_destroy(&hpriv->ctx_lock);

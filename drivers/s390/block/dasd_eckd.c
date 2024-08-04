@@ -44,6 +44,7 @@
 /* 64k are 128 x 512 byte sectors  */
 #define DASD_RAW_SECTORS_PER_TRACK 128
 
+MODULE_DESCRIPTION("S/390 DASD ECKD Disks device driver");
 MODULE_LICENSE("GPL");
 
 static struct dasd_discipline dasd_eckd_discipline;

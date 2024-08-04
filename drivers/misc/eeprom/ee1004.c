@@ -9,12 +9,14 @@
  * Copyright (C) 2008 Wolfram Sang, Pengutronix
  */
 
+#include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/nvmem-provider.h>
 
 /*
  * DDR4 memory modules use special EEPROMs following the Jedec EE1004
@@ -52,7 +54,7 @@ static struct ee1004_bus_data {
 } ee1004_bus_data[EE1004_MAX_BUSSES];
 
 static const struct i2c_device_id ee1004_ids[] = {
-	{ "ee1004", 0 },
+	{ "ee1004" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ee1004_ids);
@@ -144,13 +146,17 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 	return i2c_smbus_read_i2c_block_data_or_emulated(client, offset, count, buf);
 }
 
-static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr,
-			   char *buf, loff_t off, size_t count)
+static int ee1004_read(void *priv, unsigned int off, void *val, size_t count)
 {
-	struct i2c_client *client = kobj_to_i2c_client(kobj);
-	size_t requested = count;
-	int ret = 0;
+	struct i2c_client *client = priv;
+	char *buf = val;
+	int ret;
+
+	if (unlikely(!count))
+		return count;
+
+	if (off + count > EE1004_EEPROM_SIZE)
+		return -EINVAL;
 
 	/*
 	 * Read data from chip, protecting against concurrent access to
@@ -160,42 +166,52 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 
 	while (count) {
 		ret = ee1004_eeprom_read(client, buf, off, count);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			mutex_unlock(&ee1004_bus_lock);
+			return ret;
+		}
 
 		buf += ret;
 		off += ret;
 		count -= ret;
 	}
-out:
+
 	mutex_unlock(&ee1004_bus_lock);
 
-	return ret < 0 ? ret : requested;
+	return 0;
 }
-
-static BIN_ATTR_RO(eeprom, EE1004_EEPROM_SIZE);
-
-static struct bin_attribute *ee1004_attrs[] = {
-	&bin_attr_eeprom,
-	NULL
-};
-
-BIN_ATTRIBUTE_GROUPS(ee1004);
 
 static void ee1004_probe_temp_sensor(struct i2c_client *client)
 {
 	struct i2c_board_info info = { .type = "jc42" };
-	u8 byte14;
+	unsigned short addr = 0x18 | (client->addr & 7);
+	unsigned short addr_list[] = { addr, I2C_CLIENT_END };
+	u8 data[2];
 	int ret;
 
 	/* byte 14, bit 7 is set if temp sensor is present */
-	ret = ee1004_eeprom_read(client, &byte14, 14, 1);
-	if (ret != 1 || !(byte14 & BIT(7)))
+	ret = ee1004_eeprom_read(client, data, 14, 1);
+	if (ret != 1)
 		return;
 
-	info.addr = 0x18 | (client->addr & 7);
-
-	i2c_new_client_device(client->adapter, &info);
+	if (!(data[0] & BIT(7))) {
+		/*
+		 * If the SPD data suggests that there is no temperature
+		 * sensor, it may still be there for SPD revision 1.0.
+		 * See SPD Annex L, Revision 1 and 2, for details.
+		 * Check DIMM type and SPD revision; if it is a DDR4
+		 * with SPD revision 1.0, check the thermal sensor address
+		 * and instantiate the jc42 driver if a chip is found at
+		 * that address.
+		 * It is not necessary to check if there is a chip at the
+		 * temperature sensor address since i2c_new_scanned_device()
+		 * will do that and return silently if no chip is found.
+		 */
+		ret = ee1004_eeprom_read(client, data, 1, 2);
+		if (ret != 2 || data[0] != 0x10 || data[1] != 0x0c)
+			return;
+	}
+	i2c_new_scanned_device(client->adapter, &info, addr_list, NULL);
 }
 
 static void ee1004_cleanup(int idx, struct ee1004_bus_data *bd)
@@ -207,9 +223,36 @@ static void ee1004_cleanup(int idx, struct ee1004_bus_data *bd)
 	}
 }
 
+static void ee1004_cleanup_bus_data(void *data)
+{
+	struct ee1004_bus_data *bd = data;
+
+	/* Remove page select clients if this is the last device */
+	mutex_lock(&ee1004_bus_lock);
+	ee1004_cleanup(EE1004_NUM_PAGES, bd);
+	mutex_unlock(&ee1004_bus_lock);
+}
+
 static int ee1004_probe(struct i2c_client *client)
 {
+	struct nvmem_config config = {
+		.dev = &client->dev,
+		.name = dev_name(&client->dev),
+		.id = NVMEM_DEVID_NONE,
+		.owner = THIS_MODULE,
+		.type = NVMEM_TYPE_EEPROM,
+		.read_only = true,
+		.root_only = false,
+		.reg_read = ee1004_read,
+		.size = EE1004_EEPROM_SIZE,
+		.word_size = 1,
+		.stride = 1,
+		.priv = client,
+		.compat = true,
+		.base_dev = &client->dev,
+	};
 	struct ee1004_bus_data *bd;
+	struct nvmem_device *ndev;
 	int err, cnr = 0;
 
 	/* Make sure we can operate on this adapter */
@@ -228,6 +271,10 @@ static int ee1004_probe(struct i2c_client *client)
 				     "Only %d busses supported", EE1004_MAX_BUSSES);
 	}
 
+	err = devm_add_action_or_reset(&client->dev, ee1004_cleanup_bus_data, bd);
+	if (err < 0)
+		return err;
+
 	i2c_set_clientdata(client, bd);
 
 	if (++bd->dev_count == 1) {
@@ -237,16 +284,18 @@ static int ee1004_probe(struct i2c_client *client)
 
 			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
 			if (IS_ERR(cl)) {
-				err = PTR_ERR(cl);
-				goto err_clients;
+				mutex_unlock(&ee1004_bus_lock);
+				return PTR_ERR(cl);
 			}
 			bd->set_page[cnr] = cl;
 		}
 
 		/* Remember current page to avoid unneeded page select */
 		err = ee1004_get_current_page(bd);
-		if (err < 0)
-			goto err_clients;
+		if (err < 0) {
+			mutex_unlock(&ee1004_bus_lock);
+			return err;
+		}
 		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
 		bd->current_page = err;
 	}
@@ -255,27 +304,15 @@ static int ee1004_probe(struct i2c_client *client)
 
 	mutex_unlock(&ee1004_bus_lock);
 
+	ndev = devm_nvmem_register(&client->dev, &config);
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
+
 	dev_info(&client->dev,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
 
 	return 0;
-
- err_clients:
-	ee1004_cleanup(cnr, bd);
-	mutex_unlock(&ee1004_bus_lock);
-
-	return err;
-}
-
-static void ee1004_remove(struct i2c_client *client)
-{
-	struct ee1004_bus_data *bd = i2c_get_clientdata(client);
-
-	/* Remove page select clients if this is the last device */
-	mutex_lock(&ee1004_bus_lock);
-	ee1004_cleanup(EE1004_NUM_PAGES, bd);
-	mutex_unlock(&ee1004_bus_lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -283,10 +320,8 @@ static void ee1004_remove(struct i2c_client *client)
 static struct i2c_driver ee1004_driver = {
 	.driver = {
 		.name = "ee1004",
-		.dev_groups = ee1004_groups,
 	},
 	.probe = ee1004_probe,
-	.remove = ee1004_remove,
 	.id_table = ee1004_ids,
 };
 module_i2c_driver(ee1004_driver);
