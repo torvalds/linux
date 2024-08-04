@@ -57,16 +57,12 @@ struct f_uac1_opts {
 	char			p_it_name[USB_MAX_STRING_LEN];
 	char			p_it_ch_name[USB_MAX_STRING_LEN];
 	char			p_ot_name[USB_MAX_STRING_LEN];
-	char			p_fu_name[USB_MAX_STRING_LEN];
-	char			p_alt0_name[USB_MAX_STRING_LEN];
-	char			p_alt1_name[USB_MAX_STRING_LEN];
+	char			p_fu_vol_name[USB_MAX_STRING_LEN];
 
 	char			c_it_name[USB_MAX_STRING_LEN];
 	char			c_it_ch_name[USB_MAX_STRING_LEN];
 	char			c_ot_name[USB_MAX_STRING_LEN];
-	char			c_fu_name[USB_MAX_STRING_LEN];
-	char			c_alt0_name[USB_MAX_STRING_LEN];
-	char			c_alt1_name[USB_MAX_STRING_LEN];
+	char			c_fu_vol_name[USB_MAX_STRING_LEN];
 
 	struct mutex			lock;
 	int				refcnt;
