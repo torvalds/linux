@@ -426,6 +426,8 @@ static void drm_connector_cleanup_action(struct drm_device *dev,
  *
  * The connector structure should be allocated with drmm_kzalloc().
  *
+ * The @drm_connector_funcs.destroy hook must be NULL.
+ *
  * Returns:
  * Zero on success, error code on failure.
  */
@@ -473,6 +475,8 @@ EXPORT_SYMBOL(drmm_connector_init);
  * drm_connector_cleanup() in a DRM-managed action.
  *
  * The connector structure should be allocated with drmm_kzalloc().
+ *
+ * The @drm_connector_funcs.destroy hook must be NULL.
  *
  * Returns:
  * Zero on success, error code on failure.
