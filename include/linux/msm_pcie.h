@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #ifndef __MSM_PCIE_H
 #define __MSM_PCIE_H
@@ -236,6 +236,17 @@ int msm_pcie_reg_dump(struct pci_dev *pci_dev, u8 *buff, u32 len);
  */
 int msm_pcie_dsp_link_control(struct pci_dev *pci_dev,
 				    bool link_enable);
+
+/*
+ * msm_pcie_fmd_enable - deassert perst and enable FMD bit
+ * @pci_dev:	pci device structure
+ *
+ * This function will de-assert PERST if PERST is already in assert state
+ * and set fmd_enable  bit, after that no further perst assert/de-assert
+ * are allowed.
+ */
+int msm_pcie_fmd_enable(struct pci_dev *pci_dev);
+
 #else /* !CONFIG_PCI_MSM */
 static inline int msm_pcie_pm_control(enum msm_pcie_pm_opt pm_opt, u32 busnr,
 			void *user, void *data, u32 options)
@@ -301,6 +312,11 @@ static inline int msm_pcie_reg_dump(struct pci_dev *pci_dev, u8 *buff, u32 len)
 
 static inline int msm_pcie_dsp_link_control(struct pci_dev *pci_dev,
 						  bool link_enable)
+{
+	return -ENODEV;
+}
+
+static inline int msm_pcie_fmd_enable(struct pci_dev *pci_dev)
 {
 	return -ENODEV;
 }
