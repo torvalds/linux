@@ -709,6 +709,8 @@ static int msm_eusb2_phy_init(struct usb_phy *uphy)
 
 	msm_eusb2_write_readback(phy->base, USB_PHY_UTMI_CTRL5, POR, POR);
 
+	udelay(10);
+
 	msm_eusb2_write_readback(phy->base, USB_PHY_HS_PHY_CTRL_COMMON0,
 			PHY_ENABLE | RETENABLEN, PHY_ENABLE | RETENABLEN);
 
