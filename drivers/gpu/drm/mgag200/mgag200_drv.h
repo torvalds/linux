@@ -188,11 +188,6 @@ static inline struct mgag200_crtc_state *to_mgag200_crtc_state(struct drm_crtc_s
 	return container_of(base, struct mgag200_crtc_state, base);
 }
 
-struct mgag200_bmc_connector {
-	struct drm_connector base;
-	struct drm_connector *physical_connector;
-};
-
 enum mga_type {
 	G200_PCI,
 	G200_AGP,
@@ -283,10 +278,6 @@ struct mga_device {
 			struct drm_encoder encoder;
 			struct drm_connector connector;
 		} vga;
-		struct {
-			struct drm_encoder encoder;
-			struct mgag200_bmc_connector bmc_connector;
-		} bmc;
 	} output;
 };
 
@@ -446,6 +437,5 @@ int mgag200_vga_output_init(struct mga_device *mdev);
 /* mgag200_bmc.c */
 void mgag200_bmc_stop_scanout(struct mga_device *mdev);
 void mgag200_bmc_start_scanout(struct mga_device *mdev);
-int mgag200_bmc_output_init(struct mga_device *mdev, struct drm_connector *physical_connector);
 
 #endif				/* __MGAG200_DRV_H__ */
