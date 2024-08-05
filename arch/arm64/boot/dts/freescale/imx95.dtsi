@@ -187,7 +187,7 @@
 			compatible = "cache";
 			cache-size = <524288>;
 			cache-line-size = <64>;
-			cache-sets = <1024>;
+			cache-sets = <512>;
 			cache-level = <3>;
 			cache-unified;
 		};
