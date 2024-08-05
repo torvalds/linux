@@ -271,55 +271,6 @@ static int matrix_keypad_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
 				matrix_keypad_suspend, matrix_keypad_resume);
 
-static int matrix_keypad_init_pdata_gpio(struct platform_device *pdev,
-				const struct matrix_keypad_platform_data *pdata,
-				struct matrix_keypad *keypad)
-{
-	int i, err;
-
-	keypad->num_col_gpios = pdata->num_col_gpios;
-	keypad->num_row_gpios = pdata->num_row_gpios;
-
-	/* initialized strobe lines as outputs, activated */
-	for (i = 0; i < pdata->num_col_gpios; i++) {
-		err = devm_gpio_request(&pdev->dev,
-					pdata->col_gpios[i], "matrix_kbd_col");
-		if (err) {
-			dev_err(&pdev->dev,
-				"failed to request GPIO%d for COL%d\n",
-				pdata->col_gpios[i], i);
-			return err;
-		}
-
-		keypad->col_gpios[i] = gpio_to_desc(pdata->col_gpios[i]);
-
-		if (pdata->active_low ^ gpiod_is_active_low(keypad->col_gpios[i]))
-			gpiod_toggle_active_low(keypad->col_gpios[i]);
-
-		gpiod_direction_output(keypad->col_gpios[i], 1);
-	}
-
-	for (i = 0; i < pdata->num_row_gpios; i++) {
-		err = devm_gpio_request(&pdev->dev,
-					pdata->row_gpios[i], "matrix_kbd_row");
-		if (err) {
-			dev_err(&pdev->dev,
-				"failed to request GPIO%d for ROW%d\n",
-				pdata->row_gpios[i], i);
-			return err;
-		}
-
-		keypad->row_gpios[i] = gpio_to_desc(pdata->row_gpios[i]);
-
-		if (pdata->active_low ^ gpiod_is_active_low(keypad->row_gpios[i]))
-			gpiod_toggle_active_low(keypad->row_gpios[i]);
-
-		gpiod_direction_input(keypad->row_gpios[i]);
-	}
-
-	return 0;
-}
-
 static int matrix_keypad_init_gpio(struct platform_device *pdev,
 				   struct matrix_keypad *keypad)
 {
@@ -420,11 +371,8 @@ static int matrix_keypad_setup_interrupts(struct platform_device *pdev,
 
 static int matrix_keypad_probe(struct platform_device *pdev)
 {
-	const struct matrix_keypad_platform_data *pdata =
-						dev_get_platdata(&pdev->dev);
 	struct matrix_keypad *keypad;
 	struct input_dev *input_dev;
-	bool autorepeat;
 	bool wakeup;
 	int err;
 
@@ -448,16 +396,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "col-scan-delay-us",
 				 &keypad->col_scan_delay_us);
 
-	if (pdata) {
-		keypad->col_scan_delay_us = pdata->col_scan_delay_us;
-		keypad->debounce_ms = pdata->debounce_ms;
-		keypad->drive_inactive_cols = pdata->drive_inactive_cols;
-	}
-
-	if (pdata)
-		err = matrix_keypad_init_pdata_gpio(pdev, pdata, keypad);
-	else
-		err = matrix_keypad_init_gpio(pdev, keypad);
+	err = matrix_keypad_init_gpio(pdev, keypad);
 	if (err)
 		return err;
 
@@ -472,8 +411,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
 
-	err = matrix_keypad_build_keymap(pdata ? pdata->keymap_data : NULL,
-					 NULL,
+	err = matrix_keypad_build_keymap(NULL, NULL,
 					 keypad->num_row_gpios,
 					 keypad->num_col_gpios,
 					 NULL, input_dev);
@@ -482,11 +420,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	autorepeat = !device_property_read_bool(&pdev->dev,
-						"linux,no-autorepeat");
-	if (autorepeat && pdata->no_autorepeat)
-		autorepeat = false;
-	if (autorepeat)
+	if (!device_property_read_bool(&pdev->dev, "linux,no-autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -499,8 +433,6 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 	wakeup = device_property_read_bool(&pdev->dev, "wakeup-source") ||
 		 /* legacy */
 		 device_property_read_bool(&pdev->dev, "linux,wakeup");
-	if (!wakeup && pdata)
-		wakeup = pdata->wakeup;
 	device_init_wakeup(&pdev->dev, wakeup);
 
 	platform_set_drvdata(pdev, keypad);
