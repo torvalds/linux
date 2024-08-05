@@ -8,6 +8,22 @@
 #include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
+static int mgag200_vga_bmc_encoder_atomic_check(struct drm_encoder *encoder,
+						struct drm_crtc_state *new_crtc_state,
+						struct drm_connector_state *new_connector_state)
+{
+	struct mga_device *mdev = to_mga_device(encoder->dev);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+
+	new_mgag200_crtc_state->set_vidrst = mdev->info->sync_bmc;
+
+	return 0;
+}
+
+static const struct drm_encoder_helper_funcs mgag200_dac_encoder_helper_funcs = {
+	.atomic_check = mgag200_vga_bmc_encoder_atomic_check,
+};
+
 static const struct drm_encoder_funcs mgag200_dac_encoder_funcs = {
 	.destroy = drm_encoder_cleanup
 };
@@ -86,6 +102,8 @@ int mgag200_vga_bmc_output_init(struct mga_device *mdev)
 		drm_err(dev, "drm_encoder_init() failed: %d\n", ret);
 		return ret;
 	}
+	drm_encoder_helper_add(encoder, &mgag200_dac_encoder_helper_funcs);
+
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ddc = mgag200_ddc_create(mdev);

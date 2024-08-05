@@ -611,7 +611,6 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 	struct mga_device *mdev = to_mga_device(dev);
 	const struct mgag200_device_funcs *funcs = mdev->funcs;
 	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
-	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
 	struct drm_property_blob *new_gamma_lut = new_crtc_state->gamma_lut;
 	int ret;
 
@@ -621,8 +620,6 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
 	if (ret)
 		return ret;
-
-	new_mgag200_crtc_state->set_vidrst = mdev->info->sync_bmc;
 
 	if (new_crtc_state->mode_changed) {
 		if (funcs->pixpllc_atomic_check) {
