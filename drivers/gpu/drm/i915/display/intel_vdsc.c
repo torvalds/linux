@@ -8,6 +8,7 @@
 #include <linux/limits.h>
 
 #include <drm/display/drm_dsc_helper.h>
+#include <drm/drm_fixed.h>
 
 #include "i915_drv.h"
 #include "intel_crtc.h"
@@ -76,7 +77,7 @@ intel_vdsc_set_min_max_qp(struct drm_dsc_config *vdsc_cfg, int buf,
 static void
 calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 {
-	int bpp = to_bpp_int(vdsc_cfg->bits_per_pixel);
+	int bpp = fxp_q4_to_int(vdsc_cfg->bits_per_pixel);
 	int bpc = vdsc_cfg->bits_per_component;
 	int qp_bpc_modifier = (bpc - 8) * 2;
 	int uncompressed_bpg_rate;
@@ -263,7 +264,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
-	u16 compressed_bpp = to_bpp_int(pipe_config->dsc.compressed_bpp_x16);
+	u16 compressed_bpp = fxp_q4_to_int(pipe_config->dsc.compressed_bpp_x16);
 	int err;
 	int ret;
 
