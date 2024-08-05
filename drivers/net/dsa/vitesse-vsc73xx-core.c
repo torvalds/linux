@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
@@ -41,7 +42,8 @@
 #define VSC73XX_BLOCK_SYSTEM	0x7 /* Only subblock 0 */
 
 /* MII Block subblock */
-#define VSC73XX_BLOCK_MII_INTERNAL     0x0 /* Internal MDIO subblock */
+#define VSC73XX_BLOCK_MII_INTERNAL	0x0 /* Internal MDIO subblock */
+#define VSC73XX_BLOCK_MII_EXTERNAL	0x1 /* External MDIO subblock */
 
 #define CPU_PORT	6 /* CPU port */
 
@@ -224,10 +226,23 @@
 #define VSC73XX_VLANACCESS_VLAN_TBL_CMD_CLEAR_TABLE	3
 
 /* MII block 3 registers */
-#define VSC73XX_MII_STAT	0x0
-#define VSC73XX_MII_CMD		0x1
-#define VSC73XX_MII_DATA	0x2
-#define VSC73XX_MII_MPRES	0x3
+#define VSC73XX_MII_STAT		0x0
+#define VSC73XX_MII_CMD			0x1
+#define VSC73XX_MII_DATA		0x2
+#define VSC73XX_MII_MPRES		0x3
+
+#define VSC73XX_MII_STAT_BUSY		BIT(3)
+#define VSC73XX_MII_STAT_READ		BIT(2)
+#define VSC73XX_MII_STAT_WRITE		BIT(1)
+
+#define VSC73XX_MII_CMD_SCAN		BIT(27)
+#define VSC73XX_MII_CMD_OPERATION	BIT(26)
+#define VSC73XX_MII_CMD_PHY_ADDR	GENMASK(25, 21)
+#define VSC73XX_MII_CMD_PHY_REG		GENMASK(20, 16)
+#define VSC73XX_MII_CMD_WRITE_DATA	GENMASK(15, 0)
+
+#define VSC73XX_MII_DATA_FAILURE	BIT(16)
+#define VSC73XX_MII_DATA_READ_DATA	GENMASK(15, 0)
 
 #define VSC73XX_MII_MPRES_NOPREAMBLE	BIT(6)
 #define VSC73XX_MII_MPRES_PRESCALEVAL	GENMASK(5, 0)
@@ -543,20 +558,24 @@ static int vsc73xx_phy_read(struct dsa_switch *ds, int phy, int regnum)
 	int ret;
 
 	/* Setting bit 26 means "read" */
-	cmd = BIT(26) | (phy << 21) | (regnum << 16);
-	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, 0, 1, cmd);
+	cmd = VSC73XX_MII_CMD_OPERATION |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_ADDR, phy) |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_REG, regnum);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			    VSC73XX_MII_CMD, cmd);
 	if (ret)
 		return ret;
 	msleep(2);
-	ret = vsc73xx_read(vsc, VSC73XX_BLOCK_MII, 0, 2, &val);
+	ret = vsc73xx_read(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			   VSC73XX_MII_DATA, &val);
 	if (ret)
 		return ret;
-	if (val & BIT(16)) {
+	if (val & VSC73XX_MII_DATA_FAILURE) {
 		dev_err(vsc->dev, "reading reg %02x from phy%d failed\n",
 			regnum, phy);
 		return -EIO;
 	}
-	val &= 0xFFFFU;
+	val &= VSC73XX_MII_DATA_READ_DATA;
 
 	dev_dbg(vsc->dev, "read reg %02x from phy%d = %04x\n",
 		regnum, phy, val);
@@ -582,8 +601,10 @@ static int vsc73xx_phy_write(struct dsa_switch *ds, int phy, int regnum,
 		return 0;
 	}
 
-	cmd = (phy << 21) | (regnum << 16);
-	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, 0, 1, cmd);
+	cmd = FIELD_PREP(VSC73XX_MII_CMD_PHY_ADDR, phy) |
+	      FIELD_PREP(VSC73XX_MII_CMD_PHY_REG, regnum);
+	ret = vsc73xx_write(vsc, VSC73XX_BLOCK_MII, VSC73XX_BLOCK_MII_INTERNAL,
+			    VSC73XX_MII_CMD, cmd);
 	if (ret)
 		return ret;
 
