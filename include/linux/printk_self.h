@@ -6,29 +6,30 @@
  
  *  Steps:
 
- * 1. Add print logs in functions like: pr_info_self("%s", name);
+ * 1. Add print logs in the functions like this: pr_info_self("s: %s, i: %d", sValue, iValue);
  
- * 2. Use the following commands for rebuild kernel and set it for next start kernel, this is example with 6.9.0:
+ * 2. Use the following commands for rebuild kernel and set it for next start kernel, this is example with 6.9.0(6.9.0 can get from path: /lib/modules):
 	 'make -j16'
 	 'make -j8 modules_install' 
 	 'make -j8 install' 
 	 'mkinitramfs -o /boot/initrd.img-6.9.0' 
 	 'update-initramfs -c -k 6.9.0' 
+	 'update-grub2'
 	 'reboot'
 	 
  * 3. Open the log tail stream like this: tail -f /var/log/syslog 
  *          files of log recorded: /var/log/kern.log or /var/log/syslog or /var/log/dmesg
  
  * 4. start log print in files:
-          touch LOG_DEFAULT( with default level, of course others level can work) 
+          touch LOG_DEFAULT( with default level, of course other levels can work) 
           after this, may be no print logs, because some functions need OS layer operations, like: mkdir, touch files, wget url, etc...
  *                            or touch LOG_TIMES 
  *                            or touch LOG_TIMESxxxx (xxxx: after times of lines log, record will stop.)
  *                            or etc (infer fs/open.c do_sys_openat2)
 
- * 5. You can create file or create dirs or wget something etc if you add pr_info_self macro in the functions
+ * 5. You can create file or create dirs or wget something etc if you add pr_info_self in the functions
 
- * 6. Then you will get logs print in step 3 terminal
+ * 6. Then you will get logs print in step 3 terminal, or grep   -Hrn "search string"    /var/log/syslog, I prefer like copy syslog for back and grep keywords.
  
  * 5. stop log print in files:
  	touch LOG_STOP
@@ -36,10 +37,9 @@
  * Note: 
  	1.Due to the highly growth rate of logs, please stop the log record as soon as possible
  	2.You can modify filename in: static const char *const record_file_names[PRINT_LOG_STATE_MAX]
- *
- * If you want to record log from kernel start please add the similar codes into codes:
- *	GlobalLogParametersInit(PRINT_LOG_STATE_TIMES, 100);
- *	pr_info_self("start_kernel(void)");
+ *      3.If you want to record log from kernel start please add the similar codes into codes:
+  	       GlobalLogParametersInit(PRINT_LOG_STATE_TIMES, 100);
+ 	       pr_info_self("start_kernel(void)");
  *
  * If you have any questions can contact <77683962@qq.com>
 
@@ -86,6 +86,14 @@ extern int iGlobalLogPrintTimes;
 
 void GlobalLogParametersInit(int iLevel, int iTimes);
 
+void GlobalLogLevelSet(const char *filename);
+
+#define LOG_FILE_NAME_PREFIX             "LOG_"
+#define LOG_PRINT_TIMES_DEFAULT    1000
+
+#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
+
+
 /**
  * Infer pr_info from include/linux/printk.h 
 	pr_info_self("current->comm: %s", current->comm);	
@@ -93,6 +101,9 @@ void GlobalLogParametersInit(int iLevel, int iTimes);
  */
 #define pr_info_self(fmt, ...) \
 ({                                                                      \
+	if (iGlobalLogPrintLevel == PRINT_LOG_STATE_STOP)  \
+	    no_printk(fmt, ##__VA_ARGS__);  \
+	\
 	if (iGlobalLogPrintLevel == PRINT_LOG_STATE_DEFAULT) \
 	    printk(KERN_INFO "[%s %s %d %d %s %s] "pr_fmt(fmt), __FILE__, __FUNCTION__, __LINE__, current->pid, current->comm, record_file_names[PRINT_LOG_STATE_DEFAULT], ##__VA_ARGS__); \
 	\
