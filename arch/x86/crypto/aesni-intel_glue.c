@@ -1366,6 +1366,8 @@ gcm_crypt(struct aead_request *req, int flags)
 		err = skcipher_walk_aead_encrypt(&walk, req, false);
 	else
 		err = skcipher_walk_aead_decrypt(&walk, req, false);
+	if (err)
+		return err;
 
 	/*
 	 * Since the AES-GCM assembly code requires that at least three assembly
@@ -1381,37 +1383,31 @@ gcm_crypt(struct aead_request *req, int flags)
 	gcm_process_assoc(key, ghash_acc, req->src, assoclen, flags);
 
 	/* En/decrypt the data and pass the ciphertext through GHASH. */
-	while ((nbytes = walk.nbytes) != 0) {
-		if (unlikely(nbytes < walk.total)) {
-			/*
-			 * Non-last segment.  In this case, the assembly
-			 * function requires that the length be a multiple of 16
-			 * (AES_BLOCK_SIZE) bytes.  The needed buffering of up
-			 * to 16 bytes is handled by the skcipher_walk.  Here we
-			 * just need to round down to a multiple of 16.
-			 */
-			nbytes = round_down(nbytes, AES_BLOCK_SIZE);
-			aes_gcm_update(key, le_ctr, ghash_acc,
-				       walk.src.virt.addr, walk.dst.virt.addr,
-				       nbytes, flags);
-			le_ctr[0] += nbytes / AES_BLOCK_SIZE;
-			kernel_fpu_end();
-			err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-			kernel_fpu_begin();
-		} else {
-			/* Last segment: process all remaining data. */
-			aes_gcm_update(key, le_ctr, ghash_acc,
-				       walk.src.virt.addr, walk.dst.virt.addr,
-				       nbytes, flags);
-			err = skcipher_walk_done(&walk, 0);
-			/*
-			 * The low word of the counter isn't used by the
-			 * finalize, so there's no need to increment it here.
-			 */
-		}
+	while (unlikely((nbytes = walk.nbytes) < walk.total)) {
+		/*
+		 * Non-last segment.  In this case, the assembly function
+		 * requires that the length be a multiple of 16 (AES_BLOCK_SIZE)
+		 * bytes.  The needed buffering of up to 16 bytes is handled by
+		 * the skcipher_walk.  Here we just need to round down to a
+		 * multiple of 16.
+		 */
+		nbytes = round_down(nbytes, AES_BLOCK_SIZE);
+		aes_gcm_update(key, le_ctr, ghash_acc, walk.src.virt.addr,
+			       walk.dst.virt.addr, nbytes, flags);
+		le_ctr[0] += nbytes / AES_BLOCK_SIZE;
+		kernel_fpu_end();
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		if (err)
+			return err;
+		kernel_fpu_begin();
 	}
-	if (err)
-		goto out;
+	/* Last segment: process all remaining data. */
+	aes_gcm_update(key, le_ctr, ghash_acc, walk.src.virt.addr,
+		       walk.dst.virt.addr, nbytes, flags);
+	/*
+	 * The low word of the counter isn't used by the finalize, so there's no
+	 * need to increment it here.
+	 */
 
 	/* Finalize */
 	taglen = crypto_aead_authsize(tfm);
@@ -1439,8 +1435,9 @@ gcm_crypt(struct aead_request *req, int flags)
 				       datalen, tag, taglen, flags))
 			err = -EBADMSG;
 	}
-out:
 	kernel_fpu_end();
+	if (nbytes)
+		skcipher_walk_done(&walk, 0);
 	return err;
 }
 
