@@ -886,16 +886,14 @@ static void fw_device_release(struct device *dev)
 {
 	struct fw_device *device = fw_device(dev);
 	struct fw_card *card = device->card;
-	unsigned long flags;
 
 	/*
 	 * Take the card lock so we don't set this to NULL while a
 	 * FW_NODE_UPDATED callback is being handled or while the
 	 * bus manager work looks at this node.
 	 */
-	spin_lock_irqsave(&card->lock, flags);
-	device->node->data = NULL;
-	spin_unlock_irqrestore(&card->lock, flags);
+	scoped_guard(spinlock_irqsave, &card->lock)
+		device->node->data = NULL;
 
 	fw_node_put(device->node);
 	kfree(device->config_rom);
@@ -952,7 +950,7 @@ static int lookup_existing_device(struct device *dev, void *data)
 		return 0;
 
 	guard(rwsem_read)(&fw_device_rwsem); // serialize config_rom access
-	spin_lock_irq(&card->lock);  /* serialize node access */
+	guard(spinlock_irq)(&card->lock); // serialize node access
 
 	if (memcmp(old->config_rom, new->config_rom, 6 * 4) == 0 &&
 	    atomic_cmpxchg(&old->state,
@@ -981,8 +979,6 @@ static int lookup_existing_device(struct device *dev, void *data)
 
 		match = 1;
 	}
-
-	spin_unlock_irq(&card->lock);
 
 	return match;
 }
