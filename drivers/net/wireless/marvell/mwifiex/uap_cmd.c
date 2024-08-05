@@ -52,16 +52,17 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
 		bss_config->protocol |= PROTOCOL_WPA2;
 
+	bss_config->key_mgmt = 0;
 	for (i = 0; i < params->crypto.n_akm_suites; i++) {
 		switch (params->crypto.akm_suites[i]) {
 		case WLAN_AKM_SUITE_8021X:
-			bss_config->key_mgmt = KEY_MGMT_EAP;
+			bss_config->key_mgmt |= KEY_MGMT_EAP;
 			break;
 		case WLAN_AKM_SUITE_PSK:
-			bss_config->key_mgmt = KEY_MGMT_PSK;
+			bss_config->key_mgmt |= KEY_MGMT_PSK;
 			break;
 		case WLAN_AKM_SUITE_SAE:
-			bss_config->key_mgmt = KEY_MGMT_SAE;
+			bss_config->key_mgmt |= KEY_MGMT_SAE;
 			break;
 		default:
 			break;
