@@ -2218,11 +2218,6 @@ static inline int to_bpp_int_roundup(int bpp_x16)
 	return (bpp_x16 + 0xf) >> 4;
 }
 
-static inline int to_bpp_x16(int bpp)
-{
-	return bpp << 4;
-}
-
 /*
  * Conversion functions/macros from various pointer types to struct
  * intel_display pointer.

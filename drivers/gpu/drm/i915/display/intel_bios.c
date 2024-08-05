@@ -30,6 +30,7 @@
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -3521,8 +3522,8 @@ static void fill_dsc(struct intel_crtc_state *crtc_state,
 
 	crtc_state->pipe_bpp = bpc * 3;
 
-	crtc_state->dsc.compressed_bpp_x16 = to_bpp_x16(min(crtc_state->pipe_bpp,
-							    VBT_DSC_MAX_BPP(dsc->max_bpp)));
+	crtc_state->dsc.compressed_bpp_x16 = fxp_q4_from_int(min(crtc_state->pipe_bpp,
+								 VBT_DSC_MAX_BPP(dsc->max_bpp)));
 
 	/*
 	 * FIXME: This is ugly, and slice count should take DSC engine
