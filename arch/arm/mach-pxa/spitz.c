@@ -419,45 +419,82 @@ static inline void spitz_mkp_init(void) {}
  * GPIO keys
  ******************************************************************************/
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
-static struct gpio_keys_button spitz_gpio_keys[] = {
-	{
-		.type	= EV_PWR,
-		.code	= KEY_SUSPEND,
-		.gpio	= SPITZ_GPIO_ON_KEY,
-		.desc	= "On Off",
-		.wakeup	= 1,
-	},
-	/* Two buttons detecting the lid state */
-	{
-		.type	= EV_SW,
-		.code	= 0,
-		.gpio	= SPITZ_GPIO_SWA,
-		.desc	= "Display Down",
-	},
-	{
-		.type	= EV_SW,
-		.code	= 1,
-		.gpio	= SPITZ_GPIO_SWB,
-		.desc	= "Lid Closed",
-	},
+static const struct software_node spitz_gpio_keys_node = {
+	.name = "spitz-gpio-keys",
 };
 
-static struct gpio_keys_platform_data spitz_gpio_keys_platform_data = {
-	.buttons	= spitz_gpio_keys,
-	.nbuttons	= ARRAY_SIZE(spitz_gpio_keys),
+static const struct property_entry spitz_suspend_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_PWR),
+	PROPERTY_ENTRY_U32("linux,code", KEY_SUSPEND),
+	PROPERTY_ENTRY_GPIO("gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_ON_KEY, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "On Off"),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
 };
 
-static struct platform_device spitz_gpio_keys_device = {
-	.name	= "gpio-keys",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &spitz_gpio_keys_platform_data,
-	},
+static const struct software_node spitz_suspend_key_node = {
+	.parent = &spitz_gpio_keys_node,
+	.properties = spitz_suspend_key_props,
+};
+
+static const struct property_entry spitz_sw1_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", 0),
+	PROPERTY_ENTRY_GPIO("gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_SWA, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "Display Down"),
+	{ }
+};
+
+static const struct software_node spitz_sw1_node = {
+	.parent = &spitz_gpio_keys_node,
+	.properties = spitz_sw1_props,
+};
+
+static const struct property_entry spitz_sw2_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", 1),
+	PROPERTY_ENTRY_GPIO("gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_SWB, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "Lid Closed"),
+	{ }
+};
+
+static const struct software_node spitz_sw2_node = {
+	.parent = &spitz_gpio_keys_node,
+	.properties = spitz_sw2_props,
+};
+
+static const struct software_node *spitz_gpio_keys_swnodes[] = {
+	&spitz_gpio_keys_node,
+	&spitz_suspend_key_node,
+	&spitz_sw1_node,
+	&spitz_sw2_node,
+	NULL
 };
 
 static void __init spitz_keys_init(void)
 {
-	platform_device_register(&spitz_gpio_keys_device);
+	struct platform_device_info keys_info = {
+		.name	= "gpio-keys",
+		.id	= PLATFORM_DEVID_NONE,
+	};
+	struct platform_device *pd;
+	int err;
+
+	err = software_node_register_node_group(spitz_gpio_keys_swnodes);
+	if (err) {
+		pr_err("failed to register gpio-keys software nodes: %d\n", err);
+		return;
+	}
+
+	keys_info.fwnode = software_node_fwnode(&spitz_gpio_keys_node);
+
+	pd = platform_device_register_full(&keys_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create gpio-keys device: %d\n", err);
 }
 #else
 static inline void spitz_keys_init(void) {}
