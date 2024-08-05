@@ -1062,10 +1062,10 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	if (client->version < FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW)
 		context->drop_overflow_headers = true;
 
-	/* We only support one context at this time. */
-	spin_lock_irq(&client->lock);
+	// We only support one context at this time.
+	guard(spinlock_irq)(&client->lock);
+
 	if (client->iso_context != NULL) {
-		spin_unlock_irq(&client->lock);
 		fw_iso_context_destroy(context);
 
 		return -EBUSY;
@@ -1075,7 +1075,6 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 					    client->device->card,
 					    iso_dma_direction(context));
 		if (ret < 0) {
-			spin_unlock_irq(&client->lock);
 			fw_iso_context_destroy(context);
 
 			return ret;
@@ -1084,7 +1083,6 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	}
 	client->iso_closure = a->closure;
 	client->iso_context = context;
-	spin_unlock_irq(&client->lock);
 
 	a->handle = 0;
 
@@ -1806,16 +1804,15 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(&client->lock);
-	if (client->iso_context) {
-		ret = fw_iso_buffer_map_dma(&client->buffer,
-				client->device->card,
-				iso_dma_direction(client->iso_context));
-		client->buffer_is_mapped = (ret == 0);
+	scoped_guard(spinlock_irq, &client->lock) {
+		if (client->iso_context) {
+			ret = fw_iso_buffer_map_dma(&client->buffer, client->device->card,
+						    iso_dma_direction(client->iso_context));
+			if (ret < 0)
+				goto fail;
+			client->buffer_is_mapped = true;
+		}
 	}
-	spin_unlock_irq(&client->lock);
-	if (ret < 0)
-		goto fail;
 
 	ret = vm_map_pages_zero(vma, client->buffer.pages,
 				client->buffer.page_count);
