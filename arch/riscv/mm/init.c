@@ -234,8 +234,6 @@ static void __init setup_bootmem(void)
 	 */
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
-	phys_ram_end = memblock_end_of_DRAM();
-
 	/*
 	 * Make sure we align the start of the memory on a PMD boundary so that
 	 * at worst, we map the linear mapping with PMD mappings.
@@ -249,6 +247,16 @@ static void __init setup_bootmem(void)
 	 */
 	if (IS_ENABLED(CONFIG_64BIT) && IS_ENABLED(CONFIG_MMU))
 		kernel_map.va_pa_offset = PAGE_OFFSET - phys_ram_base;
+
+	/*
+	 * The size of the linear page mapping may restrict the amount of
+	 * usable RAM.
+	 */
+	if (IS_ENABLED(CONFIG_64BIT)) {
+		max_mapped_addr = __pa(PAGE_OFFSET) + KERN_VIRT_SIZE;
+		memblock_cap_memory_range(phys_ram_base,
+					  max_mapped_addr - phys_ram_base);
+	}
 
 	/*
 	 * Reserve physical address space that would be mapped to virtual
@@ -266,6 +274,7 @@ static void __init setup_bootmem(void)
 		memblock_reserve(max_mapped_addr, (phys_addr_t)-max_mapped_addr);
 	}
 
+	phys_ram_end = memblock_end_of_DRAM();
 	min_low_pfn = PFN_UP(phys_ram_base);
 	max_low_pfn = max_pfn = PFN_DOWN(phys_ram_end);
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
@@ -1284,8 +1293,6 @@ static void __init create_linear_mapping_page_table(void)
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
 			start = __pa(PAGE_OFFSET);
-		if (end >= __pa(PAGE_OFFSET) + memory_limit)
-			end = __pa(PAGE_OFFSET) + memory_limit;
 
 		create_linear_mapping_range(start, end, 0, NULL);
 	}
