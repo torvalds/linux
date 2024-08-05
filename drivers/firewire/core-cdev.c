@@ -375,10 +375,10 @@ static void for_each_client(struct fw_device *device,
 {
 	struct client *c;
 
-	mutex_lock(&device->client_list_mutex);
+	guard(mutex)(&device->client_list_mutex);
+
 	list_for_each_entry(c, &device->client_list, link)
 		callback(c);
-	mutex_unlock(&device->client_list_mutex);
 }
 
 static int schedule_reallocations(int id, void *p, void *data)
@@ -470,7 +470,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	if (ret != 0)
 		return -EFAULT;
 
-	mutex_lock(&client->device->client_list_mutex);
+	guard(mutex)(&client->device->client_list_mutex);
 
 	client->bus_reset_closure = a->bus_reset_closure;
 	if (a->bus_reset != 0) {
@@ -480,8 +480,6 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	}
 	if (ret == 0 && list_empty(&client->link))
 		list_add_tail(&client->link, &client->device->client_list);
-
-	mutex_unlock(&client->device->client_list_mutex);
 
 	return ret ? -EFAULT : 0;
 }
@@ -1884,9 +1882,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	list_del(&client->phy_receiver_link);
 	spin_unlock_irq(&client->device->card->lock);
 
-	mutex_lock(&client->device->client_list_mutex);
-	list_del(&client->link);
-	mutex_unlock(&client->device->client_list_mutex);
+	scoped_guard(mutex, &client->device->client_list_mutex)
+		list_del(&client->link);
 
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
