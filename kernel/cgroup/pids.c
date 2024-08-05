@@ -272,15 +272,10 @@ static void pids_event(struct pids_cgroup *pids_forking,
  */
 static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 {
-	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids, *pids_over_limit;
 	int err;
 
-	if (cset)
-		css = cset->subsys[pids_cgrp_id];
-	else
-		css = task_css_check(current, pids_cgrp_id, true);
-	pids = css_pids(css);
+	pids = css_pids(cset->subsys[pids_cgrp_id]);
 	err = pids_try_charge(pids, 1, &pids_over_limit);
 	if (err)
 		pids_event(pids, pids_over_limit);
@@ -290,14 +285,9 @@ static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 
 static void pids_cancel_fork(struct task_struct *task, struct css_set *cset)
 {
-	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
 
-	if (cset)
-		css = cset->subsys[pids_cgrp_id];
-	else
-		css = task_css_check(current, pids_cgrp_id, true);
-	pids = css_pids(css);
+	pids = css_pids(cset->subsys[pids_cgrp_id]);
 	pids_uncharge(pids, 1);
 }
 
