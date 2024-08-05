@@ -133,6 +133,18 @@
 #define SE_SPI_RX_TRANS_LEN		0x270
 #define TRANS_LEN_MSK			GENMASK(23, 0)
 
+/* GENI General Purpose Interrupt Status */
+#define M_GP_IRQ_ERR_START_BIT		5
+#define M_GP_IRQ_MASK			GENMASK(12, 5)
+#define Q2SPI_PWR_ON_NACK		BIT(0)
+#define Q2SPI_HDR_FAIL			BIT(1)
+#define Q2SPI_HCR_FAIL			BIT(2)
+#define Q2SPI_CHECKSUM_FAIL		BIT(3)
+#define Q2SPI_START_SEQ_TIMEOUT		BIT(4)
+#define Q2SPI_STOP_SEQ_TIMEOUT		BIT(5)
+#define Q2SPI_WAIT_PHASE_TIMEOUT	BIT(6)
+#define Q2SPI_CLIENT_EN_NOT_DETECTED	BIT(7)
+
 /* HRF FLOW Info */
 #define HRF_ENTRY_OPCODE		3
 #define HRF_ENTRY_TYPE			3
@@ -518,6 +530,7 @@ struct q2spi_dma_transfer {
  * @q2spi_sleep_cmd_enable: reflects start sending the sleep command to slave
  * @q2spi_cr_hdr_err: reflects CR Header incorrect in CR Header
  * @slave_sleep_lock: lock to wait for 3msec after sleep packet before initiating next transfer.
+ * @is_start_seq_fail: start sequence fail due to slave not responding
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -626,6 +639,7 @@ struct q2spi_geni {
 	bool q2spi_cr_hdr_err;
 	/* lock to protect sleep cmd to slave and next transfer */
 	struct mutex slave_sleep_lock;
+	bool is_start_seq_fail;
 };
 
 /**
