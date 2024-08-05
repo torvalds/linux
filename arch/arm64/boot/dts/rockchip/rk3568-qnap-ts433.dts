@@ -532,6 +532,7 @@
 &pmu_io_domains {
 	vccio4-supply = <&vcc_1v8>;
 	vccio6-supply = <&vcc_1v8>;
+	status = "okay";
 };
 
 &sata1 {
