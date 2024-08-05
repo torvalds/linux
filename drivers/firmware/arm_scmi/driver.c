@@ -2847,6 +2847,36 @@ static int scmi_device_request_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static const char * const dbg_counter_strs[] = {
+	"sent_ok",
+	"sent_fail",
+	"sent_fail_polling_unsupported",
+	"sent_fail_channel_not_found",
+	"response_ok",
+	"notification_ok",
+	"delayed_response_ok",
+	"xfers_response_timeout",
+	"xfers_response_polled_timeout",
+	"response_polled_ok",
+	"err_msg_unexpected",
+	"err_msg_invalid",
+	"err_msg_nomem",
+	"err_protocol",
+};
+
+static void scmi_debugfs_counters_setup(struct scmi_debug_info *dbg,
+					struct dentry *trans)
+{
+	struct dentry *counters;
+	int idx;
+
+	counters = debugfs_create_dir("counters", trans);
+
+	for (idx = 0; idx < SCMI_DEBUG_COUNTERS_LAST; idx++)
+		debugfs_create_atomic_t(dbg_counter_strs[idx], 0400, counters,
+					&dbg->counters[idx]);
+}
+
 static void scmi_debugfs_common_cleanup(void *d)
 {
 	struct scmi_debug_info *dbg = d;
@@ -2912,6 +2942,9 @@ static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
 
 	debugfs_create_u32("rx_max_msg", 0400, trans,
 			   (u32 *)&info->rx_minfo.max_msg);
+
+	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS))
+		scmi_debugfs_counters_setup(dbg, trans);
 
 	dbg->top_dentry = top_dentry;
 
