@@ -512,7 +512,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Allocate blocks in desired range */
 		vres->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
-	if (adev->gmc.gmc_funcs->get_dcc_alignment)
+	if (bo->flags & AMDGPU_GEM_CREATE_GFX12_DCC &&
+	    adev->gmc.gmc_funcs->get_dcc_alignment)
 		adjust_dcc_size = amdgpu_gmc_get_dcc_alignment(adev);
 
 	remaining_size = (u64)vres->base.size;
