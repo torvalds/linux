@@ -437,6 +437,9 @@ void mgag200_enable_display(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available);
 
+/* mgag200_vga_bmc.c */
+int mgag200_vga_bmc_output_init(struct mga_device *mdev);
+
 /* mgag200_vga.c */
 int mgag200_vga_output_init(struct mga_device *mdev);
 
