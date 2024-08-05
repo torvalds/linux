@@ -231,7 +231,7 @@ static ssize_t frame_rate_show(struct device *dev,
 	u32 period = mgb4_read_reg(&voutdev->mgbdev->video,
 				   voutdev->config->regs.frame_period);
 
-	return sprintf(buf, "%u\n", 125000000 / period);
+	return sprintf(buf, "%u\n", MGB4_HW_FREQ / period);
 }
 
 /*
@@ -252,7 +252,7 @@ static ssize_t frame_rate_store(struct device *dev,
 		return ret;
 
 	mgb4_write_reg(&voutdev->mgbdev->video,
-		       voutdev->config->regs.frame_period, 125000000 / val);
+		       voutdev->config->regs.frame_period, MGB4_HW_FREQ / val);
 
 	return count;
 }
