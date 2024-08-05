@@ -596,7 +596,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 	    handler->length == 0)
 		return -EINVAL;
 
-	spin_lock(&address_handler_list_lock);
+	guard(spinlock)(&address_handler_list_lock);
 
 	handler->offset = region->start;
 	while (handler->offset + handler->length <= region->end) {
@@ -615,8 +615,6 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 		}
 	}
 
-	spin_unlock(&address_handler_list_lock);
-
 	return ret;
 }
 EXPORT_SYMBOL(fw_core_add_address_handler);
@@ -632,9 +630,9 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
-	spin_lock(&address_handler_list_lock);
-	list_del_rcu(&handler->link);
-	spin_unlock(&address_handler_list_lock);
+	scoped_guard(spinlock, &address_handler_list_lock)
+		list_del_rcu(&handler->link);
+
 	synchronize_rcu();
 }
 EXPORT_SYMBOL(fw_core_remove_address_handler);
