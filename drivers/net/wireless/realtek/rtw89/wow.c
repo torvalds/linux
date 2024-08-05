@@ -687,17 +687,30 @@ static void rtw89_wow_enter_deep_ps(struct rtw89_dev *rtwdev)
 	__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }
 
-static void rtw89_wow_enter_lps(struct rtw89_dev *rtwdev)
+static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
 
-	rtw89_enter_lps(rtwdev, rtwvif, false);
+	if (rtw89_wow_mgd_linked(rtwdev))
+		rtw89_enter_lps(rtwdev, rtwvif, false);
+	else if (rtw89_wow_no_link(rtwdev))
+		rtw89_fw_h2c_fwips(rtwdev, rtwvif, true);
 }
 
-static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)
+static void rtw89_wow_leave_ps(struct rtw89_dev *rtwdev, bool enable_wow)
 {
-	rtw89_leave_lps(rtwdev);
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+
+	if (rtw89_wow_mgd_linked(rtwdev)) {
+		rtw89_leave_lps(rtwdev);
+	} else if (rtw89_wow_no_link(rtwdev)) {
+		if (enable_wow)
+			rtw89_leave_ips(rtwdev);
+		else
+			rtw89_fw_h2c_fwips(rtwdev, rtwvif, false);
+	}
 }
 
 static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
@@ -1430,7 +1443,7 @@ static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_enter_lps(rtwdev);
+	rtw89_wow_enter_ps(rtwdev);
 
 	ret = rtw89_wow_enable_trx_post(rtwdev);
 	if (ret) {
@@ -1455,7 +1468,7 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_leave_lps(rtwdev);
+	rtw89_wow_leave_ps(rtwdev, false);
 
 	ret = rtw89_wow_fw_stop(rtwdev);
 	if (ret) {
@@ -1478,6 +1491,12 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 out:
 	clear_bit(RTW89_FLAG_WOWLAN, rtwdev->flags);
 	return ret;
+}
+
+static void rtw89_wow_restore_ps(struct rtw89_dev *rtwdev)
+{
+	if (rtw89_wow_no_link(rtwdev))
+		rtw89_enter_ips(rtwdev);
 }
 
 int rtw89_wow_resume(struct rtw89_dev *rtwdev)
@@ -1504,6 +1523,7 @@ int rtw89_wow_resume(struct rtw89_dev *rtwdev)
 	if (ret)
 		rtw89_err(rtwdev, "failed to disable wow\n");
 
+	rtw89_wow_restore_ps(rtwdev);
 out:
 	rtw89_wow_clear_wakeups(rtwdev);
 	return ret;
@@ -1519,7 +1539,7 @@ int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan)
 		return ret;
 	}
 
-	rtw89_wow_leave_lps(rtwdev);
+	rtw89_wow_leave_ps(rtwdev, true);
 
 	ret = rtw89_wow_enable(rtwdev);
 	if (ret) {

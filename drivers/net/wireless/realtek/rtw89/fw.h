@@ -2748,6 +2748,13 @@ struct rtw89_h2c_scanofld_be {
 #define RTW89_H2C_SCANOFLD_BE_W9_SIZE_MACC GENMASK(15, 8)
 #define RTW89_H2C_SCANOFLD_BE_W9_SIZE_OP GENMASK(23, 16)
 
+struct rtw89_h2c_fwips {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_FW_IPS_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_FW_IPS_W0_ENABLE BIT(8)
+
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(7, 0));
@@ -3965,6 +3972,7 @@ enum rtw89_wow_h2c_func {
 #define H2C_CL_MAC_PS			0x2
 #define H2C_FUNC_MAC_LPS_PARM		0x0
 #define H2C_FUNC_P2P_ACT		0x1
+#define H2C_FUNC_IPS_CFG		0x3
 
 /* CLASS 3 - FW download */
 #define H2C_CL_MAC_FWDL		0x3
@@ -4446,6 +4454,8 @@ int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
 int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif);
+int rtw89_fw_h2c_fwips(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		       bool enable);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(struct rtw89_dev *rtwdev, u32 len);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_no_hdr(struct rtw89_dev *rtwdev, u32 len);
 int rtw89_fw_msg_reg(struct rtw89_dev *rtwdev,
