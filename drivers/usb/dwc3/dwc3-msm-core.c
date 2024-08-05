@@ -3073,39 +3073,6 @@ static int dwc3_msm_config_gdsc(struct dwc3_msm *mdwc, int on)
 	return ret;
 }
 
-static int dwc3_msm_link_clk_reset(struct dwc3_msm *mdwc, bool assert)
-{
-	int ret = 0;
-
-	if (assert) {
-		disable_irq(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
-		disable_irq_wake(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
-		/* Using asynchronous block reset to the hardware */
-		dev_dbg(mdwc->dev, "block_reset ASSERT\n");
-		clk_disable_unprepare(mdwc->utmi_clk);
-		clk_disable_unprepare(mdwc->sleep_clk);
-		clk_disable_unprepare(mdwc->core_clk);
-		clk_disable_unprepare(mdwc->iface_clk);
-		ret = reset_control_assert(mdwc->core_reset);
-		if (ret)
-			dev_err(mdwc->dev, "dwc3 core_reset assert failed\n");
-	} else {
-		dev_dbg(mdwc->dev, "block_reset DEASSERT\n");
-		ret = reset_control_deassert(mdwc->core_reset);
-		if (ret)
-			dev_err(mdwc->dev, "dwc3 core_reset deassert failed\n");
-		ndelay(200);
-		clk_prepare_enable(mdwc->iface_clk);
-		clk_prepare_enable(mdwc->core_clk);
-		clk_prepare_enable(mdwc->sleep_clk);
-		clk_prepare_enable(mdwc->utmi_clk);
-		enable_irq_wake(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
-		enable_irq(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
-	}
-
-	return ret;
-}
-
 static void dwc3_gsi_event_buf_alloc(struct dwc3 *dwc)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
@@ -3571,23 +3538,8 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 	}
 }
 
-static void dwc3_msm_block_reset(struct dwc3_msm *mdwc, bool core_reset)
+static void dwc3_msm_dbm_reset(struct dwc3_msm *mdwc)
 {
-	int ret  = 0;
-
-	if (core_reset) {
-		ret = dwc3_msm_link_clk_reset(mdwc, 1);
-		if (ret)
-			return;
-
-		usleep_range(1000, 1200);
-		ret = dwc3_msm_link_clk_reset(mdwc, 0);
-		if (ret)
-			return;
-
-		usleep_range(10000, 12000);
-	}
-
 	/* Reset the DBM */
 	msm_dbm_write_reg_field(mdwc, DBM_SOFT_RESET, DBM_SFT_RST_MASK, 1);
 	usleep_range(1000, 1200);
@@ -7212,7 +7164,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		 * Core reset is not required during start peripheral. Only
 		 * DBM reset is required, hence perform only DBM reset here.
 		 */
-		dwc3_msm_block_reset(mdwc, false);
+		dwc3_msm_dbm_reset(mdwc);
 		dwc3_dis_sleep_mode(mdwc);
 		mdwc->in_device_mode = true;
 
