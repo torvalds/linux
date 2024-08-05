@@ -4688,6 +4688,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 #ifdef CONFIG_PM
 	hw->wiphy->wowlan = rtwdev->chip->wowlan_stub;
+	hw->wiphy->max_sched_scan_ssids = RTW89_SCANOFLD_MAX_SSID;
 #endif
 
 	hw->wiphy->tid_config_support.vif |= BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL);

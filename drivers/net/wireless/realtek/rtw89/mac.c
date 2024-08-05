@@ -6527,8 +6527,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.is_txq_empty = mac_is_txq_empty_ax,
 
-	.add_chan_list = rtw89_hw_scan_add_chan_list,
-	.scan_offload = rtw89_fw_h2c_scan_offload,
+	.add_chan_list = rtw89_hw_scan_add_chan_list_ax,
+	.add_chan_list_pno = rtw89_pno_scan_add_chan_list_ax,
+	.scan_offload = rtw89_fw_h2c_scan_offload_ax,
 
 	.wow_config_mac = rtw89_wow_config_mac_ax,
 };

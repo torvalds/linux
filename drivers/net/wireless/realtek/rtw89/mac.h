@@ -1006,9 +1006,12 @@ struct rtw89_mac_gen_def {
 
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif, bool connected);
+	int (*add_chan_list_pno)(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif);
 	int (*scan_offload)(struct rtw89_dev *rtwdev,
 			    struct rtw89_scan_option *option,
-			    struct rtw89_vif *rtwvif);
+			    struct rtw89_vif *rtwvif,
+			    bool wowlan);
 
 	int (*wow_config_mac)(struct rtw89_dev *rtwdev, bool enable_wow);
 };

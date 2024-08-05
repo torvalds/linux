@@ -1898,6 +1898,24 @@ struct rtw89_h2c_wow_global {
 #define RTW89_H2C_WOW_GLOBAL_W0_PAIRWISE_SEC_ALGO GENMASK(23, 16)
 #define RTW89_H2C_WOW_GLOBAL_W0_GROUP_SEC_ALGO GENMASK(31, 24)
 
+#define RTW89_MAX_SUPPORT_NL_NUM	16
+struct rtw89_h2c_cfg_nlo {
+	__le32 w0;
+	u8 nlo_cnt;
+	u8 rsvd[3];
+	__le32 patterncheck;
+	__le32 rsvd1;
+	__le32 rsvd2;
+	u8 ssid_len[RTW89_MAX_SUPPORT_NL_NUM];
+	u8 chiper[RTW89_MAX_SUPPORT_NL_NUM];
+	u8 rsvd3[24];
+	u8 ssid[RTW89_MAX_SUPPORT_NL_NUM][IEEE80211_MAX_SSID_LEN];
+} __packed;
+
+#define RTW89_H2C_NLO_W0_ENABLE BIT(0)
+#define RTW89_H2C_NLO_W0_IGNORE_CIPHER BIT(2)
+#define RTW89_H2C_NLO_W0_MACID GENMASK(31, 24)
+
 static inline void RTW89_SET_WOW_WAKEUP_CTRL_PATTERN_MATCH_ENABLE(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
@@ -2093,6 +2111,10 @@ enum rtw89_scan_mode {
 
 enum rtw89_scan_type {
 	RTW89_SCAN_ONCE,
+	RTW89_SCAN_NORMAL,
+	RTW89_SCAN_NORMAL_SLOW,
+	RTW89_SCAN_SEAMLESS,
+	RTW89_SCAN_MAX,
 };
 
 static inline void RTW89_SET_FWCMD_CXHDR_TYPE(void *cmd, u8 val)
@@ -3958,6 +3980,7 @@ enum rtw89_wow_h2c_func {
 	H2C_FUNC_WOW_GLOBAL		= 0x2,
 	H2C_FUNC_GTK_OFLD		= 0x3,
 	H2C_FUNC_ARP_OFLD		= 0x4,
+	H2C_FUNC_NLO			= 0x7,
 	H2C_FUNC_WAKEUP_CTRL		= 0x8,
 	H2C_FUNC_WOW_CAM_UPD		= 0xC,
 	H2C_FUNC_AOAC_REPORT_REQ	= 0xD,
@@ -4412,12 +4435,14 @@ int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int ch_num,
 				   struct list_head *chan_list);
 int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 				      struct list_head *chan_list);
-int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
-			      struct rtw89_scan_option *opt,
-			      struct rtw89_vif *vif);
+int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
+				 struct rtw89_scan_option *opt,
+				 struct rtw89_vif *vif,
+				 bool wowlan);
 int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				 struct rtw89_scan_option *opt,
-				 struct rtw89_vif *vif);
+				 struct rtw89_vif *vif,
+				 bool wowlan);
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 			struct rtw89_fw_h2c_rf_reg_info *info,
 			u16 len, u8 page);
@@ -4470,10 +4495,14 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			  bool enable);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
-int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
-				struct rtw89_vif *rtwvif, bool connected);
+int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif *rtwvif, bool connected);
+int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif);
 int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 				   struct rtw89_vif *rtwvif, bool connected);
+int rtw89_pno_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 			  const struct rtw89_pkt_drop_params *params);
@@ -4486,6 +4515,8 @@ int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			    bool enable);
 int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool enable);
+int rtw89_fw_h2c_cfg_pno(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			 bool enable);
 int rtw89_fw_h2c_keep_alive(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			    bool enable);
 int rtw89_fw_h2c_arp_offload(struct rtw89_dev *rtwdev,
