@@ -369,6 +369,58 @@ TRACE_EVENT(xe_reg_rw,
 		  (u32)(__entry->val >> 32))
 );
 
+DECLARE_EVENT_CLASS(xe_pm_runtime,
+		    TP_PROTO(struct xe_device *xe, void *caller),
+		    TP_ARGS(xe, caller),
+
+		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_xe(xe))
+			     __field(void *, caller)
+			     ),
+
+		    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->caller = caller;
+			   ),
+
+		    TP_printk("dev=%s caller_function=%pS", __get_str(dev), __entry->caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_get,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_put,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_resume,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_suspend,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_resume,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_suspend,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_get_ioctl,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
 #endif
 
 /* This part must be outside protection */

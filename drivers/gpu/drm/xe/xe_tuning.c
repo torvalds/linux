@@ -93,6 +93,14 @@ static const struct xe_rtp_entry_sr lrc_tunings[] = {
 				   REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f)))
 	},
 
+	/* Xe2_HPG */
+
+	{ XE_RTP_NAME("Tuning: vs hit max value"),
+	  XE_RTP_RULES(GRAPHICS_VERSION(2001), ENGINE_CLASS(RENDER)),
+	  XE_RTP_ACTIONS(FIELD_SET(FF_MODE, VS_HIT_MAX_VALUE_MASK,
+				   REG_FIELD_PREP(VS_HIT_MAX_VALUE_MASK, 0x3f)))
+	},
+
 	{}
 };
 

@@ -171,7 +171,6 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	u32 adj_logical_mask = q->logical_mask;
 	u32 width_mask = (0x1 << q->width) - 1;
 	const char *process_name = "no process";
-	struct task_struct *task = NULL;
 
 	int i;
 	bool cookie;
@@ -179,14 +178,9 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	ss->snapshot_time = ktime_get_real();
 	ss->boot_time = ktime_get_boottime();
 
-	if (q->vm && q->vm->xef) {
-		task = get_pid_task(q->vm->xef->drm->pid, PIDTYPE_PID);
-		if (task)
-			process_name = task->comm;
-	}
+	if (q->vm && q->vm->xef)
+		process_name = q->vm->xef->process_name;
 	strscpy(ss->process_name, process_name);
-	if (task)
-		put_task_struct(task);
 
 	ss->gt = q->gt;
 	INIT_WORK(&ss->work, xe_devcoredump_deferred_snap_work);

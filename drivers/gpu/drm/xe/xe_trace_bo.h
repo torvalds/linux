@@ -117,11 +117,6 @@ DEFINE_EVENT(xe_vma, xe_vma_acc,
 	     TP_ARGS(vma)
 );
 
-DEFINE_EVENT(xe_vma, xe_vma_fail,
-	     TP_PROTO(struct xe_vma *vma),
-	     TP_ARGS(vma)
-);
-
 DEFINE_EVENT(xe_vma, xe_vma_bind,
 	     TP_PROTO(struct xe_vma *vma),
 	     TP_ARGS(vma)
@@ -233,6 +228,11 @@ DEFINE_EVENT(xe_vm, xe_vm_rebind_worker_retry,
 );
 
 DEFINE_EVENT(xe_vm, xe_vm_rebind_worker_exit,
+	     TP_PROTO(struct xe_vm *vm),
+	     TP_ARGS(vm)
+);
+
+DEFINE_EVENT(xe_vm, xe_vm_ops_fail,
 	     TP_PROTO(struct xe_vm *vm),
 	     TP_ARGS(vm)
 );

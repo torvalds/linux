@@ -54,6 +54,9 @@
 #include "xe_vm.h"
 #include "xe_vram.h"
 #include "xe_wait_user_fence.h"
+#include "xe_wa.h"
+
+#include <generated/xe_wa_oob.h>
 
 static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -61,6 +64,7 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	struct xe_drm_client *client;
 	struct xe_file *xef;
 	int ret = -ENOMEM;
+	struct task_struct *task = NULL;
 
 	xef = kzalloc(sizeof(*xef), GFP_KERNEL);
 	if (!xef)
@@ -87,7 +91,61 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	spin_unlock(&xe->clients.lock);
 
 	file->driver_priv = xef;
+	kref_init(&xef->refcount);
+
+	task = get_pid_task(rcu_access_pointer(file->pid), PIDTYPE_PID);
+	if (task) {
+		xef->process_name = kstrdup(task->comm, GFP_KERNEL);
+		xef->pid = task->pid;
+		put_task_struct(task);
+	}
+
 	return 0;
+}
+
+static void xe_file_destroy(struct kref *ref)
+{
+	struct xe_file *xef = container_of(ref, struct xe_file, refcount);
+	struct xe_device *xe = xef->xe;
+
+	xa_destroy(&xef->exec_queue.xa);
+	mutex_destroy(&xef->exec_queue.lock);
+	xa_destroy(&xef->vm.xa);
+	mutex_destroy(&xef->vm.lock);
+
+	spin_lock(&xe->clients.lock);
+	xe->clients.count--;
+	spin_unlock(&xe->clients.lock);
+
+	xe_drm_client_put(xef->client);
+	kfree(xef->process_name);
+	kfree(xef);
+}
+
+/**
+ * xe_file_get() - Take a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Anyone with a pointer to xef must take a reference to the xe file
+ * object using this call.
+ *
+ * Return: xe file pointer
+ */
+struct xe_file *xe_file_get(struct xe_file *xef)
+{
+	kref_get(&xef->refcount);
+	return xef;
+}
+
+/**
+ * xe_file_put() - Drop a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Used to drop reference to the xef object
+ */
+void xe_file_put(struct xe_file *xef)
+{
+	kref_put(&xef->refcount, xe_file_destroy);
 }
 
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
@@ -97,6 +155,8 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	struct xe_vm *vm;
 	struct xe_exec_queue *q;
 	unsigned long idx;
+
+	xe_pm_runtime_get(xe);
 
 	/*
 	 * No need for exec_queue.lock here as there is no contention for it
@@ -108,21 +168,14 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 		xe_exec_queue_kill(q);
 		xe_exec_queue_put(q);
 	}
-	xa_destroy(&xef->exec_queue.xa);
-	mutex_destroy(&xef->exec_queue.lock);
 	mutex_lock(&xef->vm.lock);
 	xa_for_each(&xef->vm.xa, idx, vm)
 		xe_vm_close_and_put(vm);
 	mutex_unlock(&xef->vm.lock);
-	xa_destroy(&xef->vm.xa);
-	mutex_destroy(&xef->vm.lock);
 
-	spin_lock(&xe->clients.lock);
-	xe->clients.count--;
-	spin_unlock(&xe->clients.lock);
+	xe_file_put(xef);
 
-	xe_drm_client_put(xef->client);
-	kfree(xef);
+	xe_pm_runtime_put(xe);
 }
 
 static const struct drm_ioctl_desc xe_ioctls[] = {
@@ -744,13 +797,22 @@ void xe_device_shutdown(struct xe_device *xe)
 {
 }
 
+/**
+ * xe_device_wmb() - Device specific write memory barrier
+ * @xe: the &xe_device
+ *
+ * While wmb() is sufficient for a barrier if we use system memory, on discrete
+ * platforms with device memory we additionally need to issue a register write.
+ * Since it doesn't matter which register we write to, use the read-only VF_CAP
+ * register that is also marked as accessible by the VFs.
+ */
 void xe_device_wmb(struct xe_device *xe)
 {
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 
 	wmb();
 	if (IS_DGFX(xe))
-		xe_mmio_write32(gt, SOFTWARE_FLAGS_SPR33, 0);
+		xe_mmio_write32(gt, VF_CAP_REG, 0);
 }
 
 /**
@@ -779,6 +841,11 @@ void xe_device_td_flush(struct xe_device *xe)
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) < 20)
 		return;
 
+	if (XE_WA(xe_root_mmio_gt(xe), 16023588340)) {
+		xe_device_l2_flush(xe);
+		return;
+	}
+
 	for_each_gt(gt, xe, id) {
 		if (xe_gt_is_media_type(gt))
 			continue;
@@ -800,6 +867,30 @@ void xe_device_td_flush(struct xe_device *xe)
 
 		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	}
+}
+
+void xe_device_l2_flush(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	int err;
+
+	gt = xe_root_mmio_gt(xe);
+
+	if (!XE_WA(gt, 16023588340))
+		return;
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (err)
+		return;
+
+	spin_lock(&gt->global_invl_lock);
+	xe_mmio_write32(gt, XE2_GLOBAL_INVAL, 0x1);
+
+	if (xe_mmio_wait32(gt, XE2_GLOBAL_INVAL, 0x1, 0x0, 150, NULL, true))
+		xe_gt_err_once(gt, "Global invalidation timeout\n");
+	spin_unlock(&gt->global_invl_lock);
+
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)
