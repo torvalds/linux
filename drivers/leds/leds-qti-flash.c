@@ -1421,8 +1421,8 @@ static int qti_flash_led_setup(struct qti_flash_led *led)
 		mask = FLASH_LED_STROBE_CFG_MASK | FLASH_LED_HW_SW_STROBE_SEL;
 
 		if (led->ext_led) {
-			val |= FLASH_LED_STROBE_TRIGGER | FLASH_LED_STROBE_POLARITY;
-			mask |= FLASH_LED_STROBE_TRIGGER | FLASH_LED_STROBE_POLARITY;
+			val |= FLASH_LED_STROBE_POLARITY;
+			mask |= FLASH_LED_STROBE_POLARITY;
 		}
 
 		rc = qti_flash_led_masked_write(led,
