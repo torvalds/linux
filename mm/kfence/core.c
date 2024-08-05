@@ -99,6 +99,10 @@ module_param_cb(sample_interval, &sample_interval_param_ops, &kfence_sample_inte
 static unsigned long kfence_skip_covered_thresh __read_mostly = 75;
 module_param_named(skip_covered_thresh, kfence_skip_covered_thresh, ulong, 0644);
 
+/* Allocation burst count: number of excess KFENCE allocations per sample. */
+static unsigned int kfence_burst __read_mostly;
+module_param_named(burst, kfence_burst, uint, 0644);
+
 /* If true, use a deferrable timer. */
 static bool kfence_deferrable __read_mostly = IS_ENABLED(CONFIG_KFENCE_DEFERRABLE);
 module_param_named(deferrable, kfence_deferrable, bool, 0444);
@@ -827,12 +831,12 @@ static void toggle_allocation_gate(struct work_struct *work)
 	if (!READ_ONCE(kfence_enabled))
 		return;
 
-	atomic_set(&kfence_allocation_gate, 0);
+	atomic_set(&kfence_allocation_gate, -kfence_burst);
 #ifdef CONFIG_KFENCE_STATIC_KEYS
 	/* Enable static key, and await allocation to happen. */
 	static_branch_enable(&kfence_allocation_key);
 
-	wait_event_idle(allocation_wait, atomic_read(&kfence_allocation_gate));
+	wait_event_idle(allocation_wait, atomic_read(&kfence_allocation_gate) > 0);
 
 	/* Disable static key and reset timer. */
 	static_branch_disable(&kfence_allocation_key);
@@ -1052,6 +1056,7 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 	unsigned long stack_entries[KFENCE_STACK_DEPTH];
 	size_t num_stack_entries;
 	u32 alloc_stack_hash;
+	int allocation_gate;
 
 	/*
 	 * Perform size check before switching kfence_allocation_gate, so that
@@ -1080,14 +1085,15 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 	if (s->flags & SLAB_SKIP_KFENCE)
 		return NULL;
 
-	if (atomic_inc_return(&kfence_allocation_gate) > 1)
+	allocation_gate = atomic_inc_return(&kfence_allocation_gate);
+	if (allocation_gate > 1)
 		return NULL;
 #ifdef CONFIG_KFENCE_STATIC_KEYS
 	/*
 	 * waitqueue_active() is fully ordered after the update of
 	 * kfence_allocation_gate per atomic_inc_return().
 	 */
-	if (waitqueue_active(&allocation_wait)) {
+	if (allocation_gate == 1 && waitqueue_active(&allocation_wait)) {
 		/*
 		 * Calling wake_up() here may deadlock when allocations happen
 		 * from within timer code. Use an irq_work to defer it.
