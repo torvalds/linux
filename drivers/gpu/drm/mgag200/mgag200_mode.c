@@ -693,9 +693,6 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	mgag200_enable_display(mdev);
 
-	if (mdev->info->sync_bmc)
-		mgag200_bmc_start_scanout(mdev);
-
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -704,9 +701,6 @@ void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic
 	struct mga_device *mdev = to_mga_device(crtc->dev);
 
 	drm_crtc_vblank_off(crtc);
-
-	if (mdev->info->sync_bmc)
-		mgag200_bmc_stop_scanout(mdev);
 
 	mgag200_disable_display(mdev);
 }

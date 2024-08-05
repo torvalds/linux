@@ -8,6 +8,24 @@
 #include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
+static void mgag200_vga_bmc_encoder_atomic_disable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct mga_device *mdev = to_mga_device(encoder->dev);
+
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_stop_scanout(mdev);
+}
+
+static void mgag200_vga_bmc_encoder_atomic_enable(struct drm_encoder *encoder,
+						  struct drm_atomic_state *state)
+{
+	struct mga_device *mdev = to_mga_device(encoder->dev);
+
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_start_scanout(mdev);
+}
+
 static int mgag200_vga_bmc_encoder_atomic_check(struct drm_encoder *encoder,
 						struct drm_crtc_state *new_crtc_state,
 						struct drm_connector_state *new_connector_state)
@@ -21,6 +39,8 @@ static int mgag200_vga_bmc_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs mgag200_dac_encoder_helper_funcs = {
+	.atomic_disable = mgag200_vga_bmc_encoder_atomic_disable,
+	.atomic_enable = mgag200_vga_bmc_encoder_atomic_enable,
 	.atomic_check = mgag200_vga_bmc_encoder_atomic_check,
 };
 

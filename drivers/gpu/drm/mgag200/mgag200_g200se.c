@@ -339,9 +339,6 @@ static void mgag200_g200se_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	mgag200_enable_display(mdev);
 
-	if (mdev->info->sync_bmc)
-		mgag200_bmc_start_scanout(mdev);
-
 	drm_crtc_vblank_on(crtc);
 }
 
