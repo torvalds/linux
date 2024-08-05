@@ -1382,7 +1382,7 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	if (protect && sdkp->protection_type == T10_PI_TYPE2_PROTECTION) {
 		ret = sd_setup_rw32_cmnd(cmd, write, lba, nr_blocks,
 					 protect | fua, dld);
-	} else if (rq->cmd_flags & REQ_ATOMIC && write) {
+	} else if (rq->cmd_flags & REQ_ATOMIC) {
 		ret = sd_setup_atomic_cmnd(cmd, lba, nr_blocks,
 				sdkp->use_atomic_write_boundary,
 				protect | fua);
