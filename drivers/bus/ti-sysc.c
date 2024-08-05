@@ -126,7 +126,6 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @enabled: sysc runtime enabled status
  * @needs_resume: runtime resume needed on resume from suspend
  * @child_needs_resume: runtime resume needed for child on resume from suspend
- * @disable_on_idle: status flag used for disabling modules with resets
  * @idle_work: work structure used to perform delayed idle on a module
  * @pre_reset_quirk: module specific pre-reset quirk
  * @post_reset_quirk: module specific post-reset quirk
