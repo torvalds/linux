@@ -1659,12 +1659,10 @@ static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	spin_lock_irq(&card->lock);
+	guard(spinlock_irq)(&card->lock);
 
 	list_move_tail(&client->phy_receiver_link, &card->phy_receiver_list);
 	client->phy_receiver_closure = a->closure;
-
-	spin_unlock_irq(&card->lock);
 
 	return 0;
 }
@@ -1672,13 +1670,11 @@ static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg
 void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 {
 	struct client *client;
-	struct inbound_phy_packet_event *e;
-	unsigned long flags;
 
-	spin_lock_irqsave(&card->lock, flags);
+	guard(spinlock_irqsave)(&card->lock);
 
 	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
-		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
+		struct inbound_phy_packet_event *e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
 		if (e == NULL)
 			break;
 
@@ -1706,8 +1702,6 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 			queue_event(client, &e->event, &e->phy_packet, sizeof(*pp) + 8, NULL, 0);
 		}
 	}
-
-	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
@@ -1855,9 +1849,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client *client = file->private_data;
 	struct event *event, *next_event;
 
-	spin_lock_irq(&client->device->card->lock);
-	list_del(&client->phy_receiver_link);
-	spin_unlock_irq(&client->device->card->lock);
+	scoped_guard(spinlock_irq, &client->device->card->lock)
+		list_del(&client->phy_receiver_link);
 
 	scoped_guard(mutex, &client->device->client_list_mutex)
 		list_del(&client->link);
