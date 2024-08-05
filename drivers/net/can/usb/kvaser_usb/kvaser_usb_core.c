@@ -94,7 +94,7 @@
 #define USB_MINI_PCIE_1XCAN_PRODUCT_ID 0x011B
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_hydra = {
-	.quirks = KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+	.quirks = 0,
 	.ops = &kvaser_usb_hydra_dev_ops,
 };
 
@@ -756,23 +756,12 @@ freeurb:
 static const struct net_device_ops kvaser_usb_netdev_ops = {
 	.ndo_open = kvaser_usb_open,
 	.ndo_stop = kvaser_usb_close,
-	.ndo_start_xmit = kvaser_usb_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
-};
-
-static const struct net_device_ops kvaser_usb_netdev_ops_hwts = {
-	.ndo_open = kvaser_usb_open,
-	.ndo_stop = kvaser_usb_close,
 	.ndo_eth_ioctl = can_eth_ioctl_hwts,
 	.ndo_start_xmit = kvaser_usb_start_xmit,
 	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops kvaser_usb_ethtool_ops = {
-	.get_ts_info = ethtool_op_get_ts_info,
-};
-
-static const struct ethtool_ops kvaser_usb_ethtool_ops_hwts = {
 	.get_ts_info = can_ethtool_op_get_ts_info_hwts,
 };
 
@@ -859,13 +848,7 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev, int channel)
 	netdev->flags |= IFF_ECHO;
 
 	netdev->netdev_ops = &kvaser_usb_netdev_ops;
-	if (driver_info->quirks & KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP) {
-		netdev->netdev_ops = &kvaser_usb_netdev_ops_hwts;
-		netdev->ethtool_ops = &kvaser_usb_ethtool_ops_hwts;
-	} else {
-		netdev->netdev_ops = &kvaser_usb_netdev_ops;
-		netdev->ethtool_ops = &kvaser_usb_ethtool_ops;
-	}
+	netdev->ethtool_ops = &kvaser_usb_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->intf->dev);
 	netdev->dev_id = channel;
 
