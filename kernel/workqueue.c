@@ -377,7 +377,7 @@ struct workqueue_struct {
 
 	/* hot fields used during command issue, aligned to cacheline */
 	unsigned int		flags ____cacheline_aligned; /* WQ: WQ_* flags */
-	struct pool_workqueue __percpu __rcu **cpu_pwq; /* I: per-cpu pwqs */
+	struct pool_workqueue __rcu * __percpu *cpu_pwq; /* I: per-cpu pwqs */
 	struct wq_node_nr_active *node_nr_active[]; /* I: per-node nr_active */
 };
 
