@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+struct drm_printer;
+
 enum transcoder;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -27,5 +29,7 @@ void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state);
 void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state);
+void intel_vdsc_state_dump(struct drm_printer *p, int indent,
+			   const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_VDSC_H__ */

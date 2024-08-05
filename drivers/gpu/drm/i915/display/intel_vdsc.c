@@ -990,3 +990,23 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 out:
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
+
+static void intel_vdsc_dump_state(struct drm_printer *p, int indent,
+				  const struct intel_crtc_state *crtc_state)
+{
+	drm_printf_indent(p, indent,
+			  "dsc-dss: compressed-bpp:" FXP_Q4_FMT ", slice-count: %d, split: %s\n",
+			  FXP_Q4_ARGS(crtc_state->dsc.compressed_bpp_x16),
+			  crtc_state->dsc.slice_count,
+			  str_yes_no(crtc_state->dsc.dsc_split));
+}
+
+void intel_vdsc_state_dump(struct drm_printer *p, int indent,
+			   const struct intel_crtc_state *crtc_state)
+{
+	if (!crtc_state->dsc.compression_enable)
+		return;
+
+	intel_vdsc_dump_state(p, indent, crtc_state);
+	drm_dsc_dump_config(p, indent, &crtc_state->dsc.config);
+}
