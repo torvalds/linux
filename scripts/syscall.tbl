@@ -53,6 +53,7 @@
 39	common	umount2				sys_umount
 40	common	mount				sys_mount
 41	common	pivot_root			sys_pivot_root
+42	common	nfsservctl			sys_ni_syscall
 43	32	statfs64			sys_statfs64			compat_sys_statfs64
 43	64	statfs				sys_statfs
 44	32	fstatfs64			sys_fstatfs64			compat_sys_fstatfs64
