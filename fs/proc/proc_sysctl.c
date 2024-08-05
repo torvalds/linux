@@ -33,7 +33,7 @@ static const struct inode_operations proc_sys_dir_operations;
  * Support for permanently empty directories.
  * Must be non-empty to avoid sharing an address with other tables.
  */
-static struct ctl_table sysctl_mount_point[] = {
+static const struct ctl_table sysctl_mount_point[] = {
 	{ }
 };
 
@@ -67,7 +67,7 @@ void proc_sys_poll_notify(struct ctl_table_poll *poll)
 	wake_up_interruptible(&poll->wait);
 }
 
-static struct ctl_table root_table[] = {
+static const struct ctl_table root_table[] = {
 	{
 		.procname = "",
 		.mode = S_IFDIR|S_IRUGO|S_IXUGO,
