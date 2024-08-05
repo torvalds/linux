@@ -2138,7 +2138,7 @@ static int cam_cc_sm8150_probe(struct platform_device *pdev)
 	/* Keep the critical clock always-on */
 	qcom_branch_set_clk_en(regmap, 0xc1e4); /* cam_cc_gdsc_clk */
 
-	ret = qcom_cc_really_probe(pdev, &cam_cc_sm8150_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &cam_cc_sm8150_desc, regmap);
 
 	pm_runtime_put(&pdev->dev);
 
