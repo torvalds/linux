@@ -498,10 +498,10 @@ adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *conne
 		return true;
 
 	drm_dbg_kms(&i915->drm,
-		    "[CRTC:%d:%s][CONNECTOR:%d:%s] Increasing link min bpp to " BPP_X16_FMT " in DSC mode due to hblank expansion quirk\n",
+		    "[CRTC:%d:%s][CONNECTOR:%d:%s] Increasing link min bpp to " FXP_Q4_FMT " in DSC mode due to hblank expansion quirk\n",
 		    crtc->base.base.id, crtc->base.name,
 		    connector->base.base.id, connector->base.name,
-		    BPP_X16_ARGS(min_bpp_x16));
+		    FXP_Q4_ARGS(min_bpp_x16));
 
 	if (limits->link.max_bpp_x16 < min_bpp_x16)
 		return false;
