@@ -67,7 +67,6 @@ properties:
               - renesas,sdhi-r9a07g054 # RZ/V2L
               - renesas,sdhi-r9a08g045 # RZ/G3S
               - renesas,sdhi-r9a09g011 # RZ/V2M
-              - renesas,sdhi-r9a09g057 # RZ/V2H(P)
           - const: renesas,rzg2l-sdhi
 
   reg:
@@ -120,7 +119,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,rzg2l-sdhi
+            enum:
+              - renesas,sdhi-r9a09g057
+              - renesas,rzg2l-sdhi
     then:
       properties:
         clocks:
