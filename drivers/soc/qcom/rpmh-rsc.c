@@ -1748,6 +1748,10 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 					      drv[i].regs[DRV_SOLVER_CONFIG]);
 		solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
 		solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
+
+		spin_lock_init(&drv[i].lock);
+		spin_lock_init(&drv[i].client.cache_lock);
+
 		if (of_find_property(dn, "power-domains", NULL)) {
 			ret = rpmh_rsc_pd_attach(&drv[i]);
 			if (ret)
@@ -1772,7 +1776,6 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 			drv[i].regs = rpmh_rsc_reg_offsets_ver_3_0_hw_channel;
 		}
 
-		spin_lock_init(&drv[i].lock);
 		init_waitqueue_head(&drv[i].tcs_wait);
 		bitmap_zero(drv[i].tcs_in_use, MAX_TCS_NR);
 		drv[i].client.non_batch_cache = devm_kcalloc(&pdev->dev, CMD_DB_MAX_RESOURCES,
@@ -1794,8 +1797,6 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 				       drv[i].name, &drv[i]);
 		if (ret)
 			return ret;
-
-		spin_lock_init(&drv[i].client.cache_lock);
 
 		drv[i].ipc_log_ctx = ipc_log_context_create(
 						RSC_DRV_IPC_LOG_SIZE,
