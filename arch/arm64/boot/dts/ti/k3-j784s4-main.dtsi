@@ -2429,7 +2429,7 @@
 	watchdog0: watchdog@2200000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2200000 0x00 0x100>;
-		clocks = <&k3_clks 348 1>;
+		clocks = <&k3_clks 348 0>;
 		power-domains = <&k3_pds 348 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 348 0>;
 		assigned-clock-parents = <&k3_clks 348 4>;
@@ -2438,7 +2438,7 @@
 	watchdog1: watchdog@2210000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2210000 0x00 0x100>;
-		clocks = <&k3_clks 349 1>;
+		clocks = <&k3_clks 349 0>;
 		power-domains = <&k3_pds 349 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 349 0>;
 		assigned-clock-parents = <&k3_clks 349 4>;
@@ -2447,7 +2447,7 @@
 	watchdog2: watchdog@2220000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2220000 0x00 0x100>;
-		clocks = <&k3_clks 350 1>;
+		clocks = <&k3_clks 350 0>;
 		power-domains = <&k3_pds 350 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 350 0>;
 		assigned-clock-parents = <&k3_clks 350 4>;
@@ -2456,7 +2456,7 @@
 	watchdog3: watchdog@2230000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2230000 0x00 0x100>;
-		clocks = <&k3_clks 351 1>;
+		clocks = <&k3_clks 351 0>;
 		power-domains = <&k3_pds 351 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 351 0>;
 		assigned-clock-parents = <&k3_clks 351 4>;
@@ -2465,7 +2465,7 @@
 	watchdog4: watchdog@2240000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2240000 0x00 0x100>;
-		clocks = <&k3_clks 352 1>;
+		clocks = <&k3_clks 352 0>;
 		power-domains = <&k3_pds 352 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 352 0>;
 		assigned-clock-parents = <&k3_clks 352 4>;
@@ -2474,7 +2474,7 @@
 	watchdog5: watchdog@2250000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2250000 0x00 0x100>;
-		clocks = <&k3_clks 353 1>;
+		clocks = <&k3_clks 353 0>;
 		power-domains = <&k3_pds 353 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 353 0>;
 		assigned-clock-parents = <&k3_clks 353 4>;
@@ -2483,7 +2483,7 @@
 	watchdog6: watchdog@2260000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2260000 0x00 0x100>;
-		clocks = <&k3_clks 354 1>;
+		clocks = <&k3_clks 354 0>;
 		power-domains = <&k3_pds 354 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 354 0>;
 		assigned-clock-parents = <&k3_clks 354 4>;
@@ -2492,7 +2492,7 @@
 	watchdog7: watchdog@2270000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2270000 0x00 0x100>;
-		clocks = <&k3_clks 355 1>;
+		clocks = <&k3_clks 355 0>;
 		power-domains = <&k3_pds 355 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 355 0>;
 		assigned-clock-parents = <&k3_clks 355 4>;
@@ -2506,7 +2506,7 @@
 	watchdog8: watchdog@22f0000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x22f0000 0x00 0x100>;
-		clocks = <&k3_clks 360 1>;
+		clocks = <&k3_clks 360 0>;
 		power-domains = <&k3_pds 360 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 360 0>;
 		assigned-clock-parents = <&k3_clks 360 4>;
@@ -2517,7 +2517,7 @@
 	watchdog9: watchdog@2300000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2300000 0x00 0x100>;
-		clocks = <&k3_clks 356 1>;
+		clocks = <&k3_clks 356 0>;
 		power-domains = <&k3_pds 356 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 356 0>;
 		assigned-clock-parents = <&k3_clks 356 4>;
@@ -2528,7 +2528,7 @@
 	watchdog10: watchdog@2310000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2310000 0x00 0x100>;
-		clocks = <&k3_clks 357 1>;
+		clocks = <&k3_clks 357 0>;
 		power-domains = <&k3_pds 357 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 357 0>;
 		assigned-clock-parents = <&k3_clks 357 4>;
@@ -2539,7 +2539,7 @@
 	watchdog11: watchdog@2320000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2320000 0x00 0x100>;
-		clocks = <&k3_clks 358 1>;
+		clocks = <&k3_clks 358 0>;
 		power-domains = <&k3_pds 358 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 358 0>;
 		assigned-clock-parents = <&k3_clks 358 4>;
@@ -2550,7 +2550,7 @@
 	watchdog12: watchdog@2330000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2330000 0x00 0x100>;
-		clocks = <&k3_clks 359 1>;
+		clocks = <&k3_clks 359 0>;
 		power-domains = <&k3_pds 359 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 359 0>;
 		assigned-clock-parents = <&k3_clks 359 4>;
@@ -2561,7 +2561,7 @@
 	watchdog13: watchdog@23c0000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x23c0000 0x00 0x100>;
-		clocks = <&k3_clks 361 1>;
+		clocks = <&k3_clks 361 0>;
 		power-domains = <&k3_pds 361 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 361 0>;
 		assigned-clock-parents = <&k3_clks 361 4>;
@@ -2572,7 +2572,7 @@
 	watchdog14: watchdog@23d0000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x23d0000 0x00 0x100>;
-		clocks = <&k3_clks 362 1>;
+		clocks = <&k3_clks 362 0>;
 		power-domains = <&k3_pds 362 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 362 0>;
 		assigned-clock-parents = <&k3_clks 362 4>;
@@ -2583,7 +2583,7 @@
 	watchdog15: watchdog@23e0000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x23e0000 0x00 0x100>;
-		clocks = <&k3_clks 363 1>;
+		clocks = <&k3_clks 363 0>;
 		power-domains = <&k3_pds 363 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 363 0>;
 		assigned-clock-parents = <&k3_clks 363 4>;
@@ -2594,7 +2594,7 @@
 	watchdog16: watchdog@23f0000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x23f0000 0x00 0x100>;
-		clocks = <&k3_clks 364 1>;
+		clocks = <&k3_clks 364 0>;
 		power-domains = <&k3_pds 364 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 364 0>;
 		assigned-clock-parents = <&k3_clks 364 4>;
@@ -2605,7 +2605,7 @@
 	watchdog17: watchdog@2540000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2540000 0x00 0x100>;
-		clocks = <&k3_clks 365 1>;
+		clocks = <&k3_clks 365 0>;
 		power-domains = <&k3_pds 365 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 365 0>;
 		assigned-clock-parents = <&k3_clks 366 4>;
@@ -2616,7 +2616,7 @@
 	watchdog18: watchdog@2550000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x00 0x2550000 0x00 0x100>;
-		clocks = <&k3_clks 366 1>;
+		clocks = <&k3_clks 366 0>;
 		power-domains = <&k3_pds 366 TI_SCI_PD_EXCLUSIVE>;
 		assigned-clocks = <&k3_clks 366 0>;
 		assigned-clock-parents = <&k3_clks 366 4>;
