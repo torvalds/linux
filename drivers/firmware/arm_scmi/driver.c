@@ -1261,9 +1261,6 @@ static int scmi_wait_for_reply(struct device *dev, const struct scmi_desc *desc,
 					    xfer->rx.buf, xfer->rx.len);
 
 			if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
-				struct scmi_info *info =
-					handle_to_scmi_info(cinfo->handle);
-
 				scmi_raw_message_report(info->raw, xfer,
 							SCMI_RAW_REPLY_QUEUE,
 							cinfo->id);
