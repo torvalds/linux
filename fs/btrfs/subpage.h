@@ -5,6 +5,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
+#include <linux/sizes.h>
 
 struct address_space;
 struct folio;
@@ -88,7 +89,15 @@ enum btrfs_subpage_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
+#if PAGE_SIZE > SZ_4K
 bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping);
+#else
+static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
+				    struct address_space *mapping)
+{
+	return false;
+}
+#endif
 
 void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize);
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,

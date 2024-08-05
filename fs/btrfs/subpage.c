@@ -64,6 +64,7 @@
  *   This means a slightly higher tree locking latency.
  */
 
+#if PAGE_SIZE > SZ_4K
 bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping)
 {
 	if (fs_info->sectorsize >= PAGE_SIZE)
@@ -85,6 +86,7 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space 
 		return true;
 	return false;
 }
+#endif
 
 void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize)
 {
