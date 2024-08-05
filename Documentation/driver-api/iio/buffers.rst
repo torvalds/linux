@@ -15,8 +15,8 @@ trigger source. Multiple data channels can be read at once from
 IIO buffer sysfs interface
 ==========================
 An IIO buffer has an associated attributes directory under
-:file:`/sys/bus/iio/iio:device{X}/buffer/*`. Here are some of the existing
-attributes:
+:file:`/sys/bus/iio/devices/iio:device{X}/buffer/*`. Here are some of the
+existing attributes:
 
 * :file:`length`, the total number of data samples (capacity) that can be
   stored by the buffer.
@@ -28,8 +28,8 @@ IIO buffer setup
 The meta information associated with a channel reading placed in a buffer is
 called a scan element. The important bits configuring scan elements are
 exposed to userspace applications via the
-:file:`/sys/bus/iio/iio:device{X}/scan_elements/` directory. This directory contains
-attributes of the following form:
+:file:`/sys/bus/iio/devices/iio:device{X}/scan_elements/` directory. This
+directory contains attributes of the following form:
 
 * :file:`enable`, used for enabling a channel. If and only if its attribute
   is non *zero*, then a triggered capture will contain data samples for this
