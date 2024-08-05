@@ -347,12 +347,14 @@ struct snd_sof_pcm_stream {
 /* ALSA SOF PCM device */
 struct snd_sof_pcm {
 	struct snd_soc_component *scomp;
-	struct snd_soc_tplg_pcm pcm;
 	struct snd_sof_pcm_stream stream[2];
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
 	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
+
+	/* Must be last - ends in a flex-array member. */
+	struct snd_soc_tplg_pcm pcm;
 };
 
 struct snd_sof_led_control {
