@@ -191,7 +191,14 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 	return (zdev->fh & (1UL << 31)) ? true : false;
 }
 
-extern const struct attribute_group *zpci_attr_groups[];
+extern const struct attribute_group zpci_attr_group;
+extern const struct attribute_group pfip_attr_group;
+extern const struct attribute_group zpci_ident_attr_group;
+
+#define ARCH_PCI_DEV_GROUPS &zpci_attr_group,		 \
+			    &pfip_attr_group,		 \
+			    &zpci_ident_attr_group,
+
 extern unsigned int s390_pci_force_floating __initdata;
 extern unsigned int s390_pci_no_rid;
 

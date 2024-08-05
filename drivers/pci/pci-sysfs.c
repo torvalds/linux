@@ -31,6 +31,10 @@
 #include <linux/aperture.h>
 #include "pci.h"
 
+#ifndef ARCH_PCI_DEV_GROUPS
+#define ARCH_PCI_DEV_GROUPS
+#endif
+
 static int sysfs_initialized;	/* = 0 */
 
 /* show configuration fields */
@@ -1624,6 +1628,7 @@ const struct attribute_group *pci_dev_groups[] = {
 	&pci_dev_acpi_attr_group,
 #endif
 	&pci_dev_resource_resize_group,
+	ARCH_PCI_DEV_GROUPS
 	NULL,
 };
 
