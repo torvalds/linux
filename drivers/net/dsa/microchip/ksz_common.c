@@ -3764,6 +3764,11 @@ static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 		return -EBUSY;
 	}
 
+	/* Need to initialize variable as the code to fill in settings may
+	 * not be executed.
+	 */
+	wol.wolopts = 0;
+
 	ksz_get_wol(ds, dp->index, &wol);
 	if (wol.wolopts & WAKE_MAGIC) {
 		dev_err(ds->dev,
