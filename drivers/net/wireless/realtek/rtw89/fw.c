@@ -4808,6 +4808,7 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	return 0;
 }
 
+#define RTW89_SCAN_DELAY_TSF_UNIT 104800
 int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 				 struct rtw89_scan_option *option,
 				 struct rtw89_vif *rtwvif,
@@ -4815,10 +4816,12 @@ int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_chan *op = &rtwdev->scan_info.op_chan;
+	enum rtw89_scan_mode scan_mode = RTW89_SCAN_IMMEDIATE;
 	struct rtw89_h2c_scanofld *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	unsigned int cond;
+	u64 tsf = 0;
 	int ret;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
@@ -4829,6 +4832,17 @@ int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_scanofld *)skb->data;
 
+	if (option->delay) {
+		ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif, &tsf);
+		if (ret) {
+			rtw89_warn(rtwdev, "NLO failed to get port tsf: %d\n", ret);
+			scan_mode = RTW89_SCAN_IMMEDIATE;
+		} else {
+			scan_mode = RTW89_SCAN_DELAY;
+			tsf += option->delay * RTW89_SCAN_DELAY_TSF_UNIT;
+		}
+	}
+
 	h2c->w0 = le32_encode_bits(rtwvif->mac_id, RTW89_H2C_SCANOFLD_W0_MACID) |
 		  le32_encode_bits(rtwvif->port, RTW89_H2C_SCANOFLD_W0_PORT_ID) |
 		  le32_encode_bits(RTW89_PHY_0, RTW89_H2C_SCANOFLD_W0_BAND) |
@@ -4837,8 +4851,7 @@ int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 	h2c->w1 = le32_encode_bits(true, RTW89_H2C_SCANOFLD_W1_NOTIFY_END) |
 		  le32_encode_bits(option->target_ch_mode,
 				   RTW89_H2C_SCANOFLD_W1_TARGET_CH_MODE) |
-		  le32_encode_bits(RTW89_SCAN_IMMEDIATE,
-				   RTW89_H2C_SCANOFLD_W1_START_MODE) |
+		  le32_encode_bits(scan_mode, RTW89_H2C_SCANOFLD_W1_START_MODE) |
 		  le32_encode_bits(option->repeat, RTW89_H2C_SCANOFLD_W1_SCAN_TYPE);
 
 	h2c->w2 = le32_encode_bits(option->norm_pd, RTW89_H2C_SCANOFLD_W2_NORM_PD) |
@@ -4854,6 +4867,11 @@ int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 		h2c->w0 |= le32_encode_bits(op->band_type,
 					    RTW89_H2C_SCANOFLD_W0_TARGET_CH_BAND);
 	}
+
+	h2c->tsf_high = le32_encode_bits(upper_32_bits(tsf),
+					 RTW89_H2C_SCANOFLD_W3_TSF_HIGH);
+	h2c->tsf_low = le32_encode_bits(lower_32_bits(tsf),
+					RTW89_H2C_SCANOFLD_W4_TSF_LOW);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
@@ -4972,7 +4990,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_5G) |
 		  le32_encode_bits(probe_id[NL80211_BAND_6GHZ],
 				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_6G) |
-		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W4_DELAY_START);
+		  le32_encode_bits(option->delay, RTW89_H2C_SCANOFLD_BE_W4_DELAY_START);
 
 	h2c->w5 = le32_encode_bits(option->mlo_mode, RTW89_H2C_SCANOFLD_BE_W5_MLO_MODE);
 

@@ -2107,6 +2107,7 @@ enum rtw89_btc_cxdrvinfo {
 
 enum rtw89_scan_mode {
 	RTW89_SCAN_IMMEDIATE,
+	RTW89_SCAN_DELAY,
 };
 
 enum rtw89_scan_type {
@@ -2686,6 +2687,8 @@ struct rtw89_h2c_scanofld {
 #define RTW89_H2C_SCANOFLD_W1_PROBE_REQ_PKT_ID GENMASK(31, 24)
 #define RTW89_H2C_SCANOFLD_W2_NORM_PD GENMASK(15, 0)
 #define RTW89_H2C_SCANOFLD_W2_SLOW_PD GENMASK(23, 16)
+#define RTW89_H2C_SCANOFLD_W3_TSF_HIGH GENMASK(31, 0)
+#define RTW89_H2C_SCANOFLD_W4_TSF_LOW GENMASK(31, 0)
 
 struct rtw89_h2c_scanofld_be_macc_role {
 	__le32 w0;
