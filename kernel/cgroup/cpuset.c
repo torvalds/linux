@@ -1127,25 +1127,27 @@ v2:
 	if (root_load_balance && (csn == 1))
 		goto single_root_domain;
 
-	if (!cgrpv2) {
-		for (i = 0; i < csn; i++)
-			uf_node_init(&csa[i]->node);
+	for (i = 0; i < csn; i++)
+		uf_node_init(&csa[i]->node);
 
-		/* Merge overlapping cpusets */
-		for (i = 0; i < csn; i++) {
-			for (j = i + 1; j < csn; j++) {
-				if (cpusets_overlap(csa[i], csa[j]))
-					uf_union(&csa[i]->node, &csa[j]->node);
+	/* Merge overlapping cpusets */
+	for (i = 0; i < csn; i++) {
+		for (j = i + 1; j < csn; j++) {
+			if (cpusets_overlap(csa[i], csa[j])) {
+				/*
+				 * Cgroup v2 shouldn't pass down overlapping
+				 * partition root cpusets.
+				 */
+				WARN_ON_ONCE(cgrpv2);
+				uf_union(&csa[i]->node, &csa[j]->node);
 			}
 		}
+	}
 
-		/* Count the total number of domains */
-		for (i = 0; i < csn; i++) {
-			if (uf_find(&csa[i]->node) == &csa[i]->node)
-				ndoms++;
-		}
-	} else {
-		ndoms = csn;
+	/* Count the total number of domains */
+	for (i = 0; i < csn; i++) {
+		if (uf_find(&csa[i]->node) == &csa[i]->node)
+			ndoms++;
 	}
 
 	/*
