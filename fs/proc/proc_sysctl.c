@@ -1359,7 +1359,7 @@ static struct ctl_dir *sysctl_mkdir_p(struct ctl_dir *dir, const char *path)
  */
 struct ctl_table_header *__register_sysctl_table(
 	struct ctl_table_set *set,
-	const char *path, struct ctl_table *table, size_t table_size)
+	const char *path, const struct ctl_table *table, size_t table_size)
 {
 	struct ctl_table_root *root = set->dir.header.root;
 	struct ctl_table_header *header;
@@ -1420,7 +1420,7 @@ fail:
  *
  * See __register_sysctl_table for more details.
  */
-struct ctl_table_header *register_sysctl_sz(const char *path, struct ctl_table *table,
+struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size)
 {
 	return __register_sysctl_table(&sysctl_table_root.default_set,
@@ -1449,7 +1449,7 @@ EXPORT_SYMBOL(register_sysctl_sz);
  *
  * Context: if your base directory does not exist it will be created for you.
  */
-void __init __register_sysctl_init(const char *path, struct ctl_table *table,
+void __init __register_sysctl_init(const char *path, const struct ctl_table *table,
 				 const char *table_name, size_t table_size)
 {
 	struct ctl_table_header *hdr = register_sysctl_sz(path, table, table_size);
