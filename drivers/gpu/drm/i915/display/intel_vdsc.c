@@ -185,7 +185,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 		}
 	} else {
 		/* fractional bpp part * 10000 (for precision up to 4 decimal places) */
-		int fractional_bits = to_bpp_frac(vdsc_cfg->bits_per_pixel);
+		int fractional_bits = fxp_q4_to_frac(vdsc_cfg->bits_per_pixel);
 
 		static const s8 ofs_und6[] = {
 			0, -2, -2, -4, -6, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12
