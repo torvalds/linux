@@ -6,6 +6,7 @@ bus_type
 clk_ops
 comedi_lrange
 component_ops
+ctl_table
 dentry_operations
 dev_pm_ops
 device_type
