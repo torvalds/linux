@@ -2864,6 +2864,24 @@ static const char * const dbg_counter_strs[] = {
 	"err_protocol",
 };
 
+static ssize_t reset_all_on_write(struct file *filp, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct scmi_debug_info *dbg = filp->private_data;
+
+	for (int i = 0; i < SCMI_DEBUG_COUNTERS_LAST; i++)
+		atomic_set(&dbg->counters[i], 0);
+
+	return count;
+}
+
+static const struct file_operations fops_reset_counts = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.llseek = no_llseek,
+	.write = reset_all_on_write,
+};
+
 static void scmi_debugfs_counters_setup(struct scmi_debug_info *dbg,
 					struct dentry *trans)
 {
@@ -2873,8 +2891,10 @@ static void scmi_debugfs_counters_setup(struct scmi_debug_info *dbg,
 	counters = debugfs_create_dir("counters", trans);
 
 	for (idx = 0; idx < SCMI_DEBUG_COUNTERS_LAST; idx++)
-		debugfs_create_atomic_t(dbg_counter_strs[idx], 0400, counters,
+		debugfs_create_atomic_t(dbg_counter_strs[idx], 0600, counters,
 					&dbg->counters[idx]);
+
+	debugfs_create_file("reset", 0200, counters, dbg, &fops_reset_counts);
 }
 
 static void scmi_debugfs_common_cleanup(void *d)
