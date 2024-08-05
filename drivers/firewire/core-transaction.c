@@ -925,16 +925,14 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	if (tcode == TCODE_LOCK_REQUEST)
 		tcode = 0x10 + async_header_get_extended_tcode(p->header);
 
-	rcu_read_lock();
-	handler = lookup_enclosing_address_handler(&address_handler_list,
-						   offset, request->length);
-	if (handler)
-		handler->address_callback(card, request,
-					  tcode, destination, source,
-					  p->generation, offset,
-					  request->data, request->length,
-					  handler->callback_data);
-	rcu_read_unlock();
+	scoped_guard(rcu) {
+		handler = lookup_enclosing_address_handler(&address_handler_list, offset,
+							   request->length);
+		if (handler)
+			handler->address_callback(card, request, tcode, destination, source,
+						  p->generation, offset, request->data,
+						  request->length, handler->callback_data);
+	}
 
 	if (!handler)
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
@@ -967,17 +965,14 @@ static void handle_fcp_region_request(struct fw_card *card,
 		return;
 	}
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(handler, &address_handler_list, link) {
-		if (is_enclosing_handler(handler, offset, request->length))
-			handler->address_callback(card, request, tcode,
-						  destination, source,
-						  p->generation, offset,
-						  request->data,
-						  request->length,
-						  handler->callback_data);
+	scoped_guard(rcu) {
+		list_for_each_entry_rcu(handler, &address_handler_list, link) {
+			if (is_enclosing_handler(handler, offset, request->length))
+				handler->address_callback(card, request, tcode, destination, source,
+							  p->generation, offset, request->data,
+							  request->length, handler->callback_data);
+		}
 	}
-	rcu_read_unlock();
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
