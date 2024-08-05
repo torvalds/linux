@@ -378,38 +378,56 @@ static const uint32_t spitz_keymap[] = {
 	KEY(6, 8, KEY_RIGHT),
 };
 
-static const struct matrix_keymap_data spitz_keymap_data = {
-	.keymap		= spitz_keymap,
-	.keymap_size	= ARRAY_SIZE(spitz_keymap),
+static const struct software_node_ref_args spitz_mkp_row_gpios[] = {
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 12, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 17, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 91, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 34, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 36, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 38, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 39, GPIO_ACTIVE_HIGH),
 };
 
-static const uint32_t spitz_row_gpios[] =
-		{ 12, 17, 91, 34, 36, 38, 39 };
-static const uint32_t spitz_col_gpios[] =
-		{ 88, 23, 24, 25, 26, 27, 52, 103, 107, 108, 114 };
-
-static struct matrix_keypad_platform_data spitz_mkp_pdata = {
-	.keymap_data		= &spitz_keymap_data,
-	.row_gpios		= spitz_row_gpios,
-	.col_gpios		= spitz_col_gpios,
-	.num_row_gpios		= ARRAY_SIZE(spitz_row_gpios),
-	.num_col_gpios		= ARRAY_SIZE(spitz_col_gpios),
-	.col_scan_delay_us	= 10,
-	.debounce_ms		= 10,
-	.wakeup			= 1,
+static const struct software_node_ref_args spitz_mkp_col_gpios[] = {
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 88, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 23, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 24, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 25, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 26, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 27, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 52, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 103, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 107, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 108, GPIO_ACTIVE_HIGH),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, 114, GPIO_ACTIVE_HIGH),
 };
 
-static struct platform_device spitz_mkp_device = {
+static const struct property_entry spitz_mkp_properties[] = {
+	PROPERTY_ENTRY_ARRAY_U32("linux,keymap", spitz_keymap),
+	PROPERTY_ENTRY_REF_ARRAY("row-gpios", spitz_mkp_row_gpios),
+	PROPERTY_ENTRY_REF_ARRAY("col-gpios", spitz_mkp_col_gpios),
+	PROPERTY_ENTRY_U32("col-scan-delay-us", 10),
+	PROPERTY_ENTRY_U32("debounce-delay-ms", 10),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct platform_device_info spitz_mkp_info __initconst = {
 	.name		= "matrix-keypad",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &spitz_mkp_pdata,
-	},
+	.id		= PLATFORM_DEVID_NONE,
+	.properties	= spitz_mkp_properties,
 };
+
 
 static void __init spitz_mkp_init(void)
 {
-	platform_device_register(&spitz_mkp_device);
+	struct platform_device *pd;
+	int err;
+
+	pd = platform_device_register_full(&spitz_mkp_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create keypad device: %d\n", err);
 }
 #else
 static inline void spitz_mkp_init(void) {}
