@@ -19,6 +19,15 @@ def _rss_key_rand(length):
     return [random.randint(0, 255) for _ in range(length)]
 
 
+def _rss_key_check(cfg, data=None, context=0):
+    if data is None:
+        data = get_rss(cfg, context=context)
+    if 'rss-hash-key' not in data:
+        return
+    non_zero = [x for x in data['rss-hash-key'] if x != 0]
+    ksft_eq(bool(non_zero), True, comment=f"RSS key is all zero {data['rss-hash-key']}")
+
+
 def get_rss(cfg, context=0):
     return ethtool(f"-x {cfg.ifname} context {context}", json=True)[0]
 
@@ -90,8 +99,9 @@ def _send_traffic_check(cfg, port, name, params):
 def test_rss_key_indir(cfg):
     """Test basics like updating the main RSS key and indirection table."""
 
-    if len(_get_rx_cnts(cfg)) < 2:
-        KsftSkipEx("Device has only one queue (or doesn't support queue stats)")
+    qcnt = len(_get_rx_cnts(cfg))
+    if qcnt < 3:
+        KsftSkipEx("Device has fewer than 3 queues (or doesn't support queue stats)")
 
     data = get_rss(cfg)
     want_keys = ['rss-hash-key', 'rss-hash-function', 'rss-indirection-table']
@@ -101,6 +111,7 @@ def test_rss_key_indir(cfg):
         if not data[k]:
             raise KsftFailEx(f"ethtool results empty for '{k}': {data[k]}")
 
+    _rss_key_check(cfg, data=data)
     key_len = len(data['rss-hash-key'])
 
     # Set the key
@@ -110,9 +121,26 @@ def test_rss_key_indir(cfg):
     data = get_rss(cfg)
     ksft_eq(key, data['rss-hash-key'])
 
+    # Set the indirection table and the key together
+    key = _rss_key_rand(key_len)
+    ethtool(f"-X {cfg.ifname} equal 3 hkey " + _rss_key_str(key))
+    reset_indir = defer(ethtool, f"-X {cfg.ifname} default")
+
+    data = get_rss(cfg)
+    _rss_key_check(cfg, data=data)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(2, max(data['rss-indirection-table']))
+
+    # Reset indirection table and set the key
+    key = _rss_key_rand(key_len)
+    ethtool(f"-X {cfg.ifname} default hkey " + _rss_key_str(key))
+    data = get_rss(cfg)
+    _rss_key_check(cfg, data=data)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(qcnt - 1, max(data['rss-indirection-table']))
+
     # Set the indirection table
     ethtool(f"-X {cfg.ifname} equal 2")
-    reset_indir = defer(ethtool, f"-X {cfg.ifname} default")
     data = get_rss(cfg)
     ksft_eq(0, min(data['rss-indirection-table']))
     ksft_eq(1, max(data['rss-indirection-table']))
@@ -317,8 +345,11 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
             ctx_cnt = i
             break
 
+        _rss_key_check(cfg, context=ctx_id)
+
         if not create_with_cfg:
             ethtool(f"-X {cfg.ifname} context {ctx_id} {want_cfg}")
+            _rss_key_check(cfg, context=ctx_id)
 
         # Sanity check the context we just created
         data = get_rss(cfg, ctx_id)
