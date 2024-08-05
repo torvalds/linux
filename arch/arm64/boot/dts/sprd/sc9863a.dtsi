@@ -551,7 +551,7 @@
 			#size-cells = <2>;
 			ranges;
 
-			sdio0: sdio@20300000 {
+			sdio0: mmc@20300000 {
 				compatible = "sprd,sdhci-r11";
 				reg = <0 0x20300000 0 0x1000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -567,7 +567,7 @@
 				no-mmc;
 			};
 
-			sdio3: sdio@20600000 {
+			sdio3: mmc@20600000 {
 				compatible = "sprd,sdhci-r11";
 				reg = <0 0x20600000 0 0x1000>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;

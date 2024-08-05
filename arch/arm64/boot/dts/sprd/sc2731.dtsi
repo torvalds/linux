@@ -95,7 +95,7 @@
 			nvmem-cells = <&adc_big_scale>, <&adc_small_scale>;
 		};
 
-		fgu@a00 {
+		fuel-gauge@a00 {
 			compatible = "sprd,sc2731-fgu";
 			reg = <0xa00>;
 			bat-detect-gpio = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
