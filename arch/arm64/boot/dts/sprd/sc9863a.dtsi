@@ -556,9 +556,9 @@
 				reg = <0 0x20300000 0 0x1000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 
-				clock-names = "sdio", "enable";
 				clocks = <&aon_clk CLK_SDIO0_2X>,
 					 <&apahb_gate CLK_SDIO0_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&aon_clk CLK_SDIO0_2X>;
 				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
 
@@ -572,9 +572,9 @@
 				reg = <0 0x20600000 0 0x1000>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 
-				clock-names = "sdio", "enable";
 				clocks = <&aon_clk CLK_EMMC_2X>,
 					 <&apahb_gate CLK_EMMC_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&aon_clk CLK_EMMC_2X>;
 				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
 
