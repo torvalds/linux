@@ -122,7 +122,6 @@ struct cyttsp {
 	enum cyttsp_state state;
 	bool suspended;
 
-	struct regulator_bulk_data regulators[2];
 	struct gpio_desc *reset_gpio;
 	bool use_hndshk;
 	u8 act_dist;
