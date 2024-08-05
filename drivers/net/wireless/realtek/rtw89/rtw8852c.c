@@ -14,10 +14,10 @@
 #include "rtw8852c_table.h"
 #include "util.h"
 
-#define RTW8852C_FW_FORMAT_MAX 0
+#define RTW8852C_FW_FORMAT_MAX 1
 #define RTW8852C_FW_BASENAME "rtw89/rtw8852c_fw"
 #define RTW8852C_MODULE_FIRMWARE \
-	RTW8852C_FW_BASENAME ".bin"
+	RTW8852C_FW_BASENAME "-" __stringify(RTW8852C_FW_FORMAT_MAX) ".bin"
 
 static const struct rtw89_hfc_ch_cfg rtw8852c_hfc_chcfg_pcie[] = {
 	{13, 1614, grp_0}, /* ACH 0 */
