@@ -503,8 +503,11 @@ def print_pending_events() -> None:
 
   first = True
   last_pmu = None
+  last_name = None
   pmus = set()
   for event in sorted(_pending_events, key=event_cmp_key):
+    if last_pmu and last_pmu == event.pmu:
+      assert event.name != last_name, f"Duplicate event: {last_pmu}/{last_name}/ in {_pending_events_tblname}"
     if event.pmu != last_pmu:
       if not first:
         _args.output_file.write('};\n')
@@ -516,6 +519,7 @@ def print_pending_events() -> None:
       pmus.add((event.pmu, pmu_name))
 
     _args.output_file.write(event.to_c_string(metric=False))
+    last_name = event.name
   _pending_events = []
 
   _args.output_file.write(f"""
