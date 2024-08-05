@@ -36,6 +36,7 @@
 #include "util.h"
 #include "arch/common.h"
 #include "units.h"
+#include "annotate.h"
 #include <internal/lib.h>
 
 #ifdef HAVE_ZSTD_SUPPORT
@@ -304,6 +305,7 @@ void perf_session__delete(struct perf_session *session)
 		return;
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
+	debuginfo_cache__delete();
 	perf_session__destroy_kernel_maps(session);
 	perf_decomp__release_events(session->decomp_data.decomp);
 	perf_env__exit(&session->header.env);

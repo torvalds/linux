@@ -25,6 +25,7 @@
 #include "srcline.h"
 #include "units.h"
 #include "debug.h"
+#include "debuginfo.h"
 #include "annotate.h"
 #include "annotate-data.h"
 #include "evsel.h"
@@ -2333,6 +2334,20 @@ u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
 	return map__rip_2objdump(ms->map, addr);
 }
 
+static struct debuginfo_cache {
+	struct dso *dso;
+	struct debuginfo *dbg;
+} di_cache;
+
+void debuginfo_cache__delete(void)
+{
+	dso__put(di_cache.dso);
+	di_cache.dso = NULL;
+
+	debuginfo__delete(di_cache.dbg);
+	di_cache.dbg = NULL;
+}
+
 /**
  * hist_entry__get_data_type - find data type for given hist entry
  * @he: hist entry
@@ -2364,6 +2379,27 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 
 	if (!symbol_conf.init_annotation) {
 		ann_data_stat.no_sym++;
+		return NULL;
+	}
+
+	/*
+	 * di_cache holds a pair of values, but code below assumes
+	 * di_cache.dso can be compared/updated and di_cache.dbg can be
+	 * read/updated independently from each other. That assumption only
+	 * holds in single threaded code.
+	 */
+	assert(perf_singlethreaded);
+
+	if (map__dso(ms->map) != di_cache.dso) {
+		dso__put(di_cache.dso);
+		di_cache.dso = dso__get(map__dso(ms->map));
+
+		debuginfo__delete(di_cache.dbg);
+		di_cache.dbg = debuginfo__new(dso__long_name(di_cache.dso));
+	}
+
+	if (di_cache.dbg == NULL) {
+		ann_data_stat.no_dbginfo++;
 		return NULL;
 	}
 
@@ -2411,6 +2447,7 @@ retry:
 			.ip = ms->sym->start + dl->al.offset,
 			.cpumode = he->cpumode,
 			.op = op_loc,
+			.di = di_cache.dbg,
 		};
 
 		if (!op_loc->mem_ref && op_loc->segment == INSN_SEG_NONE)

@@ -123,9 +123,9 @@ struct data_loc_info {
 	u64 var_addr;
 	u8 cpumode;
 	struct annotated_op_loc *op;
+	struct debuginfo *di;
 
 	/* These are used internally */
-	struct debuginfo *di;
 	int fbreg;
 	bool fb_cfa;
 

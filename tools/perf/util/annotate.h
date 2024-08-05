@@ -543,4 +543,6 @@ struct annotated_basic_block {
 int annotate_get_basic_blocks(struct symbol *sym, s64 src, s64 dst,
 			      struct list_head *head);
 
+void debuginfo_cache__delete(void);
+
 #endif	/* __PERF_ANNOTATE_H */

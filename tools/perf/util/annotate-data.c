@@ -1345,15 +1345,8 @@ out:
  */
 struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 {
-	struct annotated_data_type *result = NULL;
 	struct dso *dso = map__dso(dloc->ms->map);
 	Dwarf_Die type_die;
-
-	dloc->di = debuginfo__new(dso__long_name(dso));
-	if (dloc->di == NULL) {
-		pr_debug_dtp("cannot get the debug info\n");
-		return NULL;
-	}
 
 	/*
 	 * The type offset is the same as instruction offset by default.
@@ -1364,13 +1357,9 @@ struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 	dloc->fbreg = -1;
 
 	if (find_data_type_die(dloc, &type_die) < 0)
-		goto out;
+		return NULL;
 
-	result = dso__findnew_data_type(dso, &type_die);
-
-out:
-	debuginfo__delete(dloc->di);
-	return result;
+	return dso__findnew_data_type(dso, &type_die);
 }
 
 static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_entries)
