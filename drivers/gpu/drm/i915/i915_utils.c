@@ -11,47 +11,6 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 
-#define FDO_BUG_MSG "Please file a bug on drm/i915; see " FDO_BUG_URL " for details."
-
-void
-__i915_printk(struct drm_i915_private *dev_priv, const char *level,
-	      const char *fmt, ...)
-{
-	static bool shown_bug_once;
-	struct device *kdev = dev_priv->drm.dev;
-	bool is_error = level[1] <= KERN_ERR[1];
-	bool is_debug = level[1] == KERN_DEBUG[1];
-	struct va_format vaf;
-	va_list args;
-
-	if (is_debug && !drm_debug_enabled(DRM_UT_DRIVER))
-		return;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	if (is_error)
-		dev_printk(level, kdev, "%pV", &vaf);
-	else
-		dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
-			   __builtin_return_address(0), &vaf);
-
-	va_end(args);
-
-	if (is_error && !shown_bug_once) {
-		/*
-		 * Ask the user to file a bug report for the error, except
-		 * if they may have caused the bug by fiddling with unsafe
-		 * module parameters.
-		 */
-		if (!test_taint(TAINT_USER))
-			dev_notice(kdev, "%s", FDO_BUG_MSG);
-		shown_bug_once = true;
-	}
-}
-
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint)
 {
 	drm_notice(&i915->drm, "CI tainted: %#x by %pS\n",
