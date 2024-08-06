@@ -622,7 +622,95 @@ static ssize_t c2port_store_flash_erase(struct device *dev,
 	return count;
 }
 static DEVICE_ATTR(flash_erase, 0200, NULL, c2port_store_flash_erase);
+static ssize_t __c2port_write_flash_page_erase(struct c2port_device *dev, int block_num)
+{
+	u8 status;
+	int ret;
 
+	/* Target the C2 flash programming data register for C2 data register
+	 * access.
+	 */
+	c2port_write_ar(dev, C2PORT_FPDAT);
+
+	/* Send device page erase command */
+	c2port_write_dr(dev, C2PORT_PAGE_ERASE);
+
+	/* Wait for input acknowledge */
+	ret = c2port_poll_in_busy(dev);
+	if (ret < 0)
+		return ret;
+
+	/* Wait for status information */
+	ret = c2port_poll_out_ready(dev);
+	if (ret < 0)
+		return ret;
+
+	/* Read flash programming interface status */
+	ret = c2port_read_dr(dev, &status);
+	if (ret < 0)
+		return ret;
+	if (status != C2PORT_COMMAND_OK)
+		return -EBUSY;
+
+	c2port_write_dr(dev, block_num&0xff);
+	ret = c2port_poll_in_busy(dev);
+	if (ret < 0)
+		return ret;
+	ret = c2port_poll_out_ready(dev);
+	if (ret < 0)
+		return ret;
+	/* Read flash programming interface status */
+	ret = c2port_read_dr(dev, &status);
+	if (ret < 0)
+		return ret;
+	if (status != C2PORT_COMMAND_OK)
+		return -EBUSY;
+	c2port_write_dr(dev, 0x00);
+	ret = c2port_poll_in_busy(dev);
+	if (ret < 0)
+		return ret;
+	ret = c2port_poll_out_ready(dev);
+	if (ret < 0)
+		return ret;
+	/* Read flash programming interface status */
+	ret = c2port_read_dr(dev, &status);
+	if (ret < 0)
+		return ret;
+	if (status != C2PORT_COMMAND_OK)
+		return -EBUSY;
+
+	return 0;
+}
+
+static ssize_t c2port_store_flash_page_erase(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct c2port_device *c2dev = dev_get_drvdata(dev);
+	struct c2port_ops *ops = c2dev->ops;
+	int ret;
+	int block_num;
+	
+	/* Check the device and flash access status */
+	if (!c2dev->access || !c2dev->flash_access)
+		return -EBUSY;
+		
+	ret = sscanf(buf, "%d", &block_num);
+	if (ret != 1 || block_num >= ops->blocks_num || block_num < 0)
+		return -EINVAL;
+		
+	mutex_lock(&c2dev->mutex);
+	ret = __c2port_write_flash_page_erase(c2dev, block_num);
+	mutex_unlock(&c2dev->mutex);
+
+	if (ret < 0) {
+		dev_err(c2dev->dev, "cannot erase the page %d of the %s flash\n", block_num, c2dev->name);
+		return ret;
+	}
+
+	return count;
+}
+static DEVICE_ATTR(flash_page_erase, 0200, NULL, c2port_store_flash_page_erase);
 static ssize_t __c2port_read_flash_data(struct c2port_device *dev,
 				char *buffer, loff_t offset, size_t count)
 {
@@ -866,6 +954,7 @@ static struct attribute *c2port_attrs[] = {
 	&dev_attr_rev_id.attr,
 	&dev_attr_flash_access.attr,
 	&dev_attr_flash_erase.attr,
+	&dev_attr_flash_page_erase.attr,
 	NULL,
 };
 
