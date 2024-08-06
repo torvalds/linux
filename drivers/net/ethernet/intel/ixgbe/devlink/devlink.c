@@ -213,10 +213,7 @@ static int ixgbe_devlink_info_get(struct devlink *devlink,
 	if (err)
 		goto free_ctx;
 
-	err = ixgbe_read_pba_string_generic(hw, ctx->buf, sizeof(ctx->buf));
-	if (err)
-		goto free_ctx;
-
+	hw->eeprom.ops.read_pba_string(hw, ctx->buf, sizeof(ctx->buf));
 	err = devlink_info_version_fixed_put(req,
 					DEVLINK_INFO_VERSION_GENERIC_FW_UNDI,
 					ctx->buf);
