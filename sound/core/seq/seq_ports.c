@@ -362,6 +362,8 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 			port->direction |= SNDRV_SEQ_PORT_DIR_OUTPUT;
 	}
 
+	port->is_midi1 = !!(info->flags & SNDRV_SEQ_PORT_FLG_IS_MIDI1);
+
 	return 0;
 }
 

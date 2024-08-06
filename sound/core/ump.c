@@ -538,6 +538,7 @@ static void update_group_attrs(struct snd_ump_endpoint *ump)
 		group->active = 0;
 		group->group = i;
 		group->valid = false;
+		group->is_midi1 = false;
 	}
 
 	list_for_each_entry(fb, &ump->block_list, list) {
@@ -548,6 +549,8 @@ static void update_group_attrs(struct snd_ump_endpoint *ump)
 			group->valid = true;
 			if (fb->info.active)
 				group->active = 1;
+			if (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1)
+				group->is_midi1 = true;
 			switch (fb->info.direction) {
 			case SNDRV_UMP_DIR_INPUT:
 				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_INPUT);
@@ -1156,6 +1159,7 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 	struct snd_rawmidi_substream *substream;
 	struct ump_cvt_to_ump *ctx;
 	const int dir = SNDRV_RAWMIDI_STREAM_OUTPUT;
+	unsigned int protocol;
 	unsigned char c;
 	int group, size = 0;
 
@@ -1168,9 +1172,13 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 		if (!substream)
 			continue;
 		ctx = &ump->out_cvts[group];
+		protocol = ump->info.protocol;
+		if ((protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI2) &&
+		    ump->groups[group].is_midi1)
+			protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI1;
 		while (!ctx->ump_bytes &&
 		       snd_rawmidi_transmit(substream, &c, 1) > 0)
-			snd_ump_convert_to_ump(ctx, group, ump->info.protocol, c);
+			snd_ump_convert_to_ump(ctx, group, protocol, c);
 		if (ctx->ump_bytes && ctx->ump_bytes <= count) {
 			size = ctx->ump_bytes;
 			memcpy(buffer, ctx->ump, size);

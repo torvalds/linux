@@ -18,6 +18,7 @@ struct snd_ump_group {
 	unsigned int dir_bits;		/* directions */
 	bool active;			/* activeness */
 	bool valid;			/* valid group (referred by blocks) */
+	bool is_midi1;			/* belongs to a MIDI1 FB */
 	char name[64];			/* group name */
 };
 
