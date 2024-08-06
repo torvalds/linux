@@ -329,11 +329,11 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 
 	xe_hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
 	xe_hw_engine_mmio_write32(hwe, RING_HWS_PGA(0),
-			       xe_bo_ggtt_addr(hwe->hwsp));
+				  xe_bo_ggtt_addr(hwe->hwsp));
 	xe_hw_engine_mmio_write32(hwe, RING_MODE(0),
-			       _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
+				  _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
 	xe_hw_engine_mmio_write32(hwe, RING_MI_MODE(0),
-			       _MASKED_BIT_DISABLE(STOP_RING));
+				  _MASKED_BIT_DISABLE(STOP_RING));
 	xe_hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
 }
 
@@ -1173,6 +1173,16 @@ static const enum xe_engine_class user_to_xe_engine_class[] = {
 	[DRM_XE_ENGINE_CLASS_COMPUTE] = XE_ENGINE_CLASS_COMPUTE,
 };
 
+/**
+ * xe_hw_engine_lookup() - Lookup hardware engine for class:instance
+ * @xe: xe device
+ * @eci: engine class and instance
+ *
+ * This function will find a hardware engine for given engine
+ * class and instance.
+ *
+ * Return: If found xe_hw_engine pointer, NULL otherwise.
+ */
 struct xe_hw_engine *
 xe_hw_engine_lookup(struct xe_device *xe,
 		    struct drm_xe_engine_class_instance eci)
