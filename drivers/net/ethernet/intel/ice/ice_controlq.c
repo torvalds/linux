@@ -488,7 +488,7 @@ shutdown_sq_out:
 }
 
 /**
- * ice_aq_ver_check - Check the reported AQ API version.
+ * ice_aq_ver_check - Check the reported AQ API version
  * @hw: pointer to the hardware structure
  *
  * Checks if the driver should load on a given AQ API version.
@@ -508,14 +508,20 @@ static bool ice_aq_ver_check(struct ice_hw *hw)
 	} else if (hw->api_maj_ver == exp_fw_api_ver_major) {
 		if (hw->api_min_ver > (exp_fw_api_ver_minor + 2))
 			dev_info(ice_hw_to_dev(hw),
-				 "The driver for the device detected a newer version of the NVM image than expected. Please install the most recent version of the network driver.\n");
+				 "The driver for the device detected a newer version (%u.%u) of the NVM image than expected (%u.%u). Please install the most recent version of the network driver.\n",
+				 hw->api_maj_ver, hw->api_min_ver,
+				 exp_fw_api_ver_major, exp_fw_api_ver_minor);
 		else if ((hw->api_min_ver + 2) < exp_fw_api_ver_minor)
 			dev_info(ice_hw_to_dev(hw),
-				 "The driver for the device detected an older version of the NVM image than expected. Please update the NVM image.\n");
+				 "The driver for the device detected an older version (%u.%u) of the NVM image than expected (%u.%u). Please update the NVM image.\n",
+				 hw->api_maj_ver, hw->api_min_ver,
+				 exp_fw_api_ver_major, exp_fw_api_ver_minor);
 	} else {
 		/* Major API version is older than expected, log a warning */
 		dev_info(ice_hw_to_dev(hw),
-			 "The driver for the device detected an older version of the NVM image than expected. Please update the NVM image.\n");
+			 "The driver for the device detected an older version (%u.%u) of the NVM image than expected (%u.%u). Please update the NVM image.\n",
+			 hw->api_maj_ver, hw->api_min_ver,
+			 exp_fw_api_ver_major, exp_fw_api_ver_minor);
 	}
 	return true;
 }
