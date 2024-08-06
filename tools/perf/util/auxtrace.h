@@ -411,7 +411,6 @@ struct auxtrace_record {
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 	unsigned int alignment;
 	unsigned int default_aux_sample_size;
-	struct perf_pmu *pmu;
 	struct evlist *evlist;
 };
 
