@@ -604,10 +604,12 @@ int lnl_core_init(struct pmc_dev *pmcdev);
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);
 
-#define pmc_for_each_mode(i, mode, pmcdev)		\
-	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\
-	     i < pmcdev->num_lpm_modes;			\
-	     i++, mode = pmcdev->lpm_en_modes[i])
+#define pmc_for_each_mode(mode, pmcdev)						\
+	for (unsigned int __i = 0, __cond;					\
+	     __cond = __i < (pmcdev)->num_lpm_modes,				\
+	     __cond && ((mode) = (pmcdev)->lpm_en_modes[__i]),			\
+	     __cond;								\
+	     __i++)
 
 #define DEFINE_PMC_CORE_ATTR_WRITE(__name)				\
 static int __name ## _open(struct inode *inode, struct file *file)	\
