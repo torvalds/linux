@@ -35,6 +35,8 @@ __weak void backtrace_symbols_fd(void *const *buffer, int size, int fd)
 	dprintf(fd, "<backtrace not supported>\n");
 }
 
+int env_verbosity = 0;
+
 static bool verbose(void)
 {
 	return env.verbosity > VERBOSE_NONE;
@@ -973,6 +975,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 				return -EINVAL;
 			}
 		}
+		env_verbosity = env->verbosity;
 
 		if (verbose()) {
 			if (setenv("SELFTESTS_VERBOSE", "1", 1) == -1) {
