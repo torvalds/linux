@@ -407,7 +407,7 @@ proc_lookupfdinfo(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	return proc_lookupfd_common(dir, dentry, proc_fdinfo_instantiate);
 }
 
-static int proc_readfdinfo(struct file *file, struct dir_context *ctx)
+static int proc_fdinfo_iterate(struct file *file, struct dir_context *ctx)
 {
 	return proc_readfd_common(file, ctx,
 				  proc_fdinfo_instantiate);
@@ -421,6 +421,6 @@ const struct inode_operations proc_fdinfo_inode_operations = {
 
 const struct file_operations proc_fdinfo_operations = {
 	.read		= generic_read_dir,
-	.iterate_shared	= proc_readfdinfo,
+	.iterate_shared	= proc_fdinfo_iterate,
 	.llseek		= generic_file_llseek,
 };
