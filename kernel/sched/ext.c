@@ -2616,7 +2616,6 @@ out:
 	return has_tasks;
 }
 
-#ifdef CONFIG_SMP
 static int balance_scx(struct rq *rq, struct task_struct *prev,
 		       struct rq_flags *rf)
 {
@@ -2650,7 +2649,6 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 
 	return ret;
 }
-#endif
 
 static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 {
@@ -2719,37 +2717,6 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 
 static void put_prev_task_scx(struct rq *rq, struct task_struct *p)
 {
-#ifndef CONFIG_SMP
-	/*
-	 * UP workaround.
-	 *
-	 * Because SCX may transfer tasks across CPUs during dispatch, dispatch
-	 * is performed from its balance operation which isn't called in UP.
-	 * Let's work around by calling it from the operations which come right
-	 * after.
-	 *
-	 * 1. If the prev task is on SCX, pick_next_task() calls
-	 *    .put_prev_task() right after. As .put_prev_task() is also called
-	 *    from other places, we need to distinguish the calls which can be
-	 *    done by looking at the previous task's state - if still queued or
-	 *    dequeued with %SCX_DEQ_SLEEP, the caller must be pick_next_task().
-	 *    This case is handled here.
-	 *
-	 * 2. If the prev task is not on SCX, the first following call into SCX
-	 *    will be .pick_next_task(), which is covered by calling
-	 *    balance_scx() from pick_next_task_scx().
-	 *
-	 * Note that we can't merge the first case into the second as
-	 * balance_scx() must be called before the previous SCX task goes
-	 * through put_prev_task_scx().
-	 *
-         * @rq is pinned and can't be unlocked. As UP doesn't transfer tasks
-         * around, balance_one() doesn't need to.
-	 */
-	if (p->scx.flags & (SCX_TASK_QUEUED | SCX_TASK_DEQD_FOR_SLEEP))
-		balance_one(rq, p, true);
-#endif
-
 	update_curr_scx(rq);
 
 	/* see dequeue_task_scx() on why we skip when !QUEUED */
@@ -2806,12 +2773,6 @@ static struct task_struct *first_local_task(struct rq *rq)
 static struct task_struct *pick_next_task_scx(struct rq *rq)
 {
 	struct task_struct *p;
-
-#ifndef CONFIG_SMP
-	/* UP workaround - see the comment at the head of put_prev_task_scx() */
-	if (unlikely(rq->curr->sched_class != &ext_sched_class))
-		balance_one(rq, rq->curr, true);
-#endif
 
 	p = first_local_task(rq);
 	if (!p)
@@ -3673,6 +3634,7 @@ DEFINE_SCHED_CLASS(ext) = {
 
 	.wakeup_preempt		= wakeup_preempt_scx,
 
+	.balance		= balance_scx,
 	.pick_next_task		= pick_next_task_scx,
 
 	.put_prev_task		= put_prev_task_scx,
@@ -3681,7 +3643,6 @@ DEFINE_SCHED_CLASS(ext) = {
 	.switch_class		= switch_class_scx,
 
 #ifdef CONFIG_SMP
-	.balance		= balance_scx,
 	.select_task_rq		= select_task_rq_scx,
 	.task_woken		= task_woken_scx,
 	.set_cpus_allowed	= set_cpus_allowed_scx,

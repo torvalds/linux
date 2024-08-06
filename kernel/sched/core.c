@@ -5857,7 +5857,6 @@ static inline void schedule_debug(struct task_struct *prev, bool preempt)
 static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 				  struct rq_flags *rf)
 {
-#ifdef CONFIG_SMP
 	const struct sched_class *start_class = prev->sched_class;
 	const struct sched_class *class;
 
@@ -5880,10 +5879,9 @@ static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 	 * a runnable task of @class priority or higher.
 	 */
 	for_active_class_range(class, start_class, &idle_sched_class) {
-		if (class->balance(rq, prev, rf))
+		if (class->balance && class->balance(rq, prev, rf))
 			break;
 	}
-#endif
 
 	put_prev_task(rq, prev);
 
