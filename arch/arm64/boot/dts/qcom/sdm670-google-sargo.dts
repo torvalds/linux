@@ -408,6 +408,15 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+
+	zap-shader {
+		memory-region = <&gpu_mem>;
+		firmware-name = "qcom/sdm670/sargo/a615_zap.mbn";
+	};
+};
+
 &i2c9 {
 	clock-frequency = <100000>;
 	status = "okay";
