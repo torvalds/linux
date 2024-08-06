@@ -29,8 +29,11 @@
 #define PWM_CYC_CFG	0xC
 #define PWM_UPDATE	0x10
 #define PWM_PERIOD_CNT	0x14
+#define PWM_RESET	0x18
 
-#define PWM_FRAME_POLARITY_BIT	0
+#define PWM_FRAME_POLARITY_BIT		BIT(0)
+#define PWM_FRAME_ROLLOVER_CNT_BIT	BIT(4)
+#define PWM_FRAME_RESET_BIT		BIT(0)
 
 enum {
 	ENABLE_STATUS0,
@@ -42,6 +45,8 @@ enum {
 struct pdm_pwm_priv_data {
 	unsigned int max_channels;
 	const u16 *status_reg_offsets;
+	bool pwm_reset_support;
+	bool pwm_cnt_rollover;
 };
 
 /*
@@ -54,6 +59,7 @@ struct pdm_pwm_priv_data {
  * @current_freq: Current frequency of frame.
  * @freq_set: This bool flag is responsible for setting period once per frame.
  * @mutex: mutex lock per frame.
+ * @cnt_rollover_en: This bool flag is used to set rollover bit per frame.
  */
 struct pdm_pwm_frames {
 	u32	frame_id;
@@ -66,6 +72,7 @@ struct pdm_pwm_frames {
 	bool	freq_set;
 	struct mutex frame_lock; /* PWM per frame lock */
 	struct pdm_pwm_chip *pwm_chip;
+	bool cnt_rollover_en;
 };
 
 /*
@@ -100,8 +107,11 @@ static int __pdm_pwm_calc_pwm_frequency(struct pdm_pwm_chip *chip,
 	unsigned long cyc_cfg, freq;
 	int ret;
 
-	/* PWM client could set the period only once, due to HW limitation. */
-	if (chip->frames[hw_idx].freq_set)
+	/*
+	 * PWM client can set the period only once if the HW version does
+	 * not support reset functionality.
+	 */
+	if (chip->frames[hw_idx].freq_set && !chip->priv_data->pwm_reset_support)
 		return 0;
 
 	freq = PERIOD_TO_HZ(period_ns);
@@ -167,18 +177,34 @@ static int pdm_pwm_config(struct pdm_pwm_chip *chip, u32 hw_idx,
 
 	mutex_lock(&chip->frames[hw_idx].frame_lock);
 
+	/*
+	 * Set the counter rollover enable bit, so that counter doesn't get stuck
+	 * in period change configuration.
+	 */
+	if (chip->priv_data->pwm_cnt_rollover && !chip->frames[hw_idx].cnt_rollover_en) {
+		regmap_update_bits(chip->regmap, chip->frames[hw_idx].reg_offset + PWM_CTL0,
+				PWM_FRAME_ROLLOVER_CNT_BIT, PWM_FRAME_ROLLOVER_CNT_BIT);
+		chip->frames[hw_idx].cnt_rollover_en = true;
+	}
+
 	ret = __pdm_pwm_calc_pwm_frequency(chip, current_period, hw_idx);
 	if (ret)
 		goto out;
 
 	if (chip->frames[hw_idx].current_period_ns != period_ns) {
-		pr_err("Period cannot be updated, calculating dutycycle on old period\n");
-		current_period = chip->frames[hw_idx].current_period_ns;
+		if (chip->priv_data->pwm_reset_support)
+			regmap_update_bits(chip->regmap,
+					chip->frames[hw_idx].reg_offset + PWM_RESET,
+					PWM_FRAME_RESET_BIT, PWM_FRAME_RESET_BIT);
+		else {
+			pr_err("Period cannot be updated, calculating dutycycle on old period\n");
+			current_period = chip->frames[hw_idx].current_period_ns;
+		}
 	}
 
 	if (chip->frames[hw_idx].polarity != polarity) {
 		regmap_update_bits(chip->regmap, chip->frames[hw_idx].reg_offset
-				+ PWM_CTL0, BIT(PWM_FRAME_POLARITY_BIT), polarity);
+				+ PWM_CTL0, PWM_FRAME_POLARITY_BIT, polarity);
 		chip->frames[hw_idx].polarity = polarity;
 	}
 
@@ -218,21 +244,6 @@ fail:
 	clk_disable_unprepare(chip->pdm_ahb_clk);
 
 	return ret;
-}
-
-static void pdm_pwm_free(struct pwm_chip *pwm_chip, struct pwm_device *pwm)
-{
-	struct pdm_pwm_chip *chip = container_of(pwm_chip,
-					struct pdm_pwm_chip, pwm_chip);
-	u32 hw_idx = pwm->hwpwm;
-
-	mutex_lock(&chip->lock);
-
-	chip->frames[hw_idx].freq_set = false;
-	chip->frames[hw_idx].current_period_ns = 0;
-	chip->frames[hw_idx].current_duty_ns = 0;
-
-	mutex_unlock(&chip->lock);
 }
 
 static int pdm_pwm_enable(struct pdm_pwm_chip *chip, struct pwm_device *pwm)
@@ -305,7 +316,7 @@ static int pdm_pwm_apply(struct pwm_chip *pwm_chip, struct pwm_device *pwm,
 
 	pwm_get_state(pwm, &curr_state);
 
-	if (state->period < curr_state.period)
+	if (state->period < curr_state.period && !chip->priv_data->pwm_reset_support)
 		return -EINVAL;
 
 	if (state->period != curr_state.period ||
@@ -329,6 +340,24 @@ static int pdm_pwm_apply(struct pwm_chip *pwm_chip, struct pwm_device *pwm,
 	}
 
 	return 0;
+}
+
+static void pdm_pwm_free(struct pwm_chip *pwm_chip, struct pwm_device *pwm)
+{
+	struct pdm_pwm_chip *chip = container_of(pwm_chip,
+					struct pdm_pwm_chip, pwm_chip);
+	u32 hw_idx = pwm->hwpwm;
+
+	mutex_lock(&chip->lock);
+
+	chip->frames[hw_idx].freq_set = false;
+	chip->frames[hw_idx].current_period_ns = 0;
+	chip->frames[hw_idx].current_duty_ns = 0;
+	chip->frames[hw_idx].cnt_rollover_en = false;
+
+	mutex_unlock(&chip->lock);
+
+	pdm_pwm_disable(chip, pwm);
 }
 
 static const struct pwm_ops pdm_pwm_ops = {
@@ -465,7 +494,7 @@ static int get_polarity(struct seq_file *m, void *unused)
 	u32 temp;
 
 	regmap_read(chip->regmap, frame->reg_offset + PWM_CTL0, &temp);
-	if (BIT(PWM_FRAME_POLARITY_BIT) & temp)
+	if (PWM_FRAME_POLARITY_BIT & temp)
 		seq_puts(m, "PWM_POLARITY_INVERSED\n");
 	else
 		seq_puts(m, "PWM_POLARITY_NORMAL\n");
@@ -672,6 +701,8 @@ static struct pdm_pwm_priv_data pdm_pwm_v2_reg_offsets = {
 		[ENABLE_STATUS0] = 0xc,
 		[ENABLE_STATUS1] = 0x10,
 	},
+	.pwm_reset_support = true,
+	.pwm_cnt_rollover = true,
 };
 
 static const struct of_device_id pdm_pwm_of_match[] = {
