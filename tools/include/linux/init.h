@@ -34,6 +34,9 @@ struct obs_kernel_param {
 		__aligned(__alignof__(struct obs_kernel_param)) =	\
 		{ __setup_str_##unique_id, fn, early }
 
+#define __setup(str, fn)						\
+	__setup_param(str, fn, fn, 0)
+
 #define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
 
