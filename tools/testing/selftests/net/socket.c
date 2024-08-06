@@ -72,8 +72,8 @@ static int run_tests(void)
 			if (s->expect < 0) {
 				strerror_r(errno, err_string1, ERR_STRING_SZ);
 
-				fprintf(stderr, "socket(%d, %d, %d) expected "
-					"success got err (%s)\n",
+				fprintf(stderr, "Socket(%d, %d, %d) expected "
+					"success! Instead got error: (%s)\n",
 					s->domain, s->type, s->protocol,
 					err_string1);
 
