@@ -1696,22 +1696,22 @@
 		vqmmc-supply = <&vdd_1v8_vio>;
 	};
 
+	/* Peripheral USB via ASUS connector */
 	usb@7d000000 {
 		compatible = "nvidia,tegra114-udc";
 		status = "okay";
 		dr_mode = "peripheral";
-
-		/* Peripheral USB via ASUS connector */
 	};
 
 	usb-phy@7d000000 {
 		status = "okay";
+		dr_mode = "peripheral";
+		vbus-supply = <&avdd_usb>;
 	};
 
+	/* Host USB via dock */
 	usb@7d008000 {
 		status = "okay";
-
-		/* Host USB via dock */
 	};
 
 	usb-phy@7d008000 {
