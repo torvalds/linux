@@ -89,6 +89,10 @@ def define_neo_la():
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
+        "kernel/trace/qcom_ipc_logging.ko",
+        "net/qrtr/qrtr.ko",
+        "net/qrtr/qrtr-mhi.ko",
+        "net/qrtr/qrtr-smd.ko",
     ]
 
     _neo_consolidate_in_tree_modules = _neo_in_tree_modules + [
