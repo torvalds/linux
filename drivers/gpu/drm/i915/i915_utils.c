@@ -54,8 +54,8 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint)
 {
-	__i915_printk(i915, KERN_NOTICE, "CI tainted:%#x by %pS\n",
-		      taint, (void *)_RET_IP_);
+	drm_notice(&i915->drm, "CI tainted: %#x by %pS\n",
+		   taint, __builtin_return_address(0));
 
 	/* Failures that occur during fault injection testing are expected */
 	if (!i915_error_injected())
@@ -74,9 +74,9 @@ int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
 	if (++i915_probe_fail_count < i915_modparams.inject_probe_failure)
 		return 0;
 
-	__i915_printk(i915, KERN_INFO,
-		      "Injecting failure %d at checkpoint %u [%s:%d]\n",
-		      err, i915_modparams.inject_probe_failure, func, line);
+	drm_info(&i915->drm, "Injecting failure %d at checkpoint %u [%s:%d]\n",
+		 err, i915_modparams.inject_probe_failure, func, line);
+
 	i915_modparams.inject_probe_failure = 0;
 	return err;
 }
