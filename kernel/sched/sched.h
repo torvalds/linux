@@ -2534,6 +2534,19 @@ extern void sched_balance_trigger(struct rq *rq);
 extern int __set_cpus_allowed_ptr(struct task_struct *p, struct affinity_context *ctx);
 extern void set_cpus_allowed_common(struct task_struct *p, struct affinity_context *ctx);
 
+static inline bool task_allowed_on_cpu(struct task_struct *p, int cpu)
+{
+	/* When not in the task's cpumask, no point in looking further. */
+	if (!cpumask_test_cpu(cpu, p->cpus_ptr))
+		return false;
+
+	/* Can @cpu run a user thread? */
+	if (!(p->flags & PF_KTHREAD) && !task_cpu_possible(cpu, p))
+		return false;
+
+	return true;
+}
+
 static inline cpumask_t *alloc_user_cpus_ptr(int node)
 {
 	/*
@@ -2566,6 +2579,11 @@ static inline struct task_struct *get_push_task(struct rq *rq)
 extern int push_cpu_stop(void *arg);
 
 #else /* !CONFIG_SMP: */
+
+static inline bool task_allowed_on_cpu(struct task_struct *p, int cpu)
+{
+	return true;
+}
 
 static inline int __set_cpus_allowed_ptr(struct task_struct *p,
 					 struct affinity_context *ctx)

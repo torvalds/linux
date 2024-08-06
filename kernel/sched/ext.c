@@ -2224,18 +2224,29 @@ static void consume_local_task(struct rq *rq, struct scx_dispatch_q *dsq,
 
 #ifdef CONFIG_SMP
 /*
- * Similar to kernel/sched/core.c::is_cpu_allowed() but we're testing whether @p
- * can be pulled to @rq.
+ * Similar to kernel/sched/core.c::is_cpu_allowed(). However, there are two
+ * differences:
+ *
+ * - is_cpu_allowed() asks "Can this task run on this CPU?" while
+ *   task_can_run_on_remote_rq() asks "Can the BPF scheduler migrate the task to
+ *   this CPU?".
+ *
+ *   While migration is disabled, is_cpu_allowed() has to say "yes" as the task
+ *   must be allowed to finish on the CPU that it's currently on regardless of
+ *   the CPU state. However, task_can_run_on_remote_rq() must say "no" as the
+ *   BPF scheduler shouldn't attempt to migrate a task which has migration
+ *   disabled.
+ *
+ * - The BPF scheduler is bypassed while the rq is offline and we can always say
+ *   no to the BPF scheduler initiated migrations while offline.
  */
 static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq)
 {
 	int cpu = cpu_of(rq);
 
-	if (!cpumask_test_cpu(cpu, p->cpus_ptr))
+	if (!task_allowed_on_cpu(p, cpu))
 		return false;
 	if (unlikely(is_migration_disabled(p)))
-		return false;
-	if (!(p->flags & PF_KTHREAD) && unlikely(!task_cpu_possible(cpu, p)))
 		return false;
 	if (!scx_rq_online(rq))
 		return false;
