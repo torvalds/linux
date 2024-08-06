@@ -1805,7 +1805,7 @@ static struct attribute *hpload_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hpload);
 
-static struct reg_sequence hp_en_cal_seq[] = {
+static const struct reg_sequence hp_en_cal_seq[] = {
 	{CS43130_INT_MASK_4, CS43130_INT_MASK_ALL},
 	{CS43130_HP_MEAS_LOAD_1, 0},
 	{CS43130_HP_MEAS_LOAD_2, 0},
@@ -1820,7 +1820,7 @@ static struct reg_sequence hp_en_cal_seq[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 };
 
-static struct reg_sequence hp_en_cal_seq2[] = {
+static const struct reg_sequence hp_en_cal_seq2[] = {
 	{CS43130_INT_MASK_4, CS43130_INT_MASK_ALL},
 	{CS43130_HP_MEAS_LOAD_1, 0},
 	{CS43130_HP_MEAS_LOAD_2, 0},
@@ -1828,7 +1828,7 @@ static struct reg_sequence hp_en_cal_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 };
 
-static struct reg_sequence hp_dis_cal_seq[] = {
+static const struct reg_sequence hp_dis_cal_seq[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 	{CS43130_DXD1, 0x99},
 	{CS43130_DXD12, 0},
@@ -1836,12 +1836,12 @@ static struct reg_sequence hp_dis_cal_seq[] = {
 	{CS43130_HP_LOAD_1, 0},
 };
 
-static struct reg_sequence hp_dis_cal_seq2[] = {
+static const struct reg_sequence hp_dis_cal_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 	{CS43130_HP_LOAD_1, 0},
 };
 
-static struct reg_sequence hp_dc_ch_l_seq[] = {
+static const struct reg_sequence hp_dc_ch_l_seq[] = {
 	{CS43130_DXD1, 0x99},
 	{CS43130_DXD19, 0x0A},
 	{CS43130_DXD17, 0x93},
@@ -1851,12 +1851,12 @@ static struct reg_sequence hp_dc_ch_l_seq[] = {
 	{CS43130_HP_LOAD_1, 0x81},
 };
 
-static struct reg_sequence hp_dc_ch_l_seq2[] = {
+static const struct reg_sequence hp_dc_ch_l_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 	{CS43130_HP_LOAD_1, 0x81},
 };
 
-static struct reg_sequence hp_dc_ch_r_seq[] = {
+static const struct reg_sequence hp_dc_ch_r_seq[] = {
 	{CS43130_DXD1, 0x99},
 	{CS43130_DXD19, 0x8A},
 	{CS43130_DXD17, 0x15},
@@ -1866,12 +1866,12 @@ static struct reg_sequence hp_dc_ch_r_seq[] = {
 	{CS43130_HP_LOAD_1, 0x91},
 };
 
-static struct reg_sequence hp_dc_ch_r_seq2[] = {
+static const struct reg_sequence hp_dc_ch_r_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x90},
 	{CS43130_HP_LOAD_1, 0x91},
 };
 
-static struct reg_sequence hp_ac_ch_l_seq[] = {
+static const struct reg_sequence hp_ac_ch_l_seq[] = {
 	{CS43130_DXD1, 0x99},
 	{CS43130_DXD19, 0x0A},
 	{CS43130_DXD17, 0x93},
@@ -1881,12 +1881,12 @@ static struct reg_sequence hp_ac_ch_l_seq[] = {
 	{CS43130_HP_LOAD_1, 0x82},
 };
 
-static struct reg_sequence hp_ac_ch_l_seq2[] = {
+static const struct reg_sequence hp_ac_ch_l_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x80},
 	{CS43130_HP_LOAD_1, 0x82},
 };
 
-static struct reg_sequence hp_ac_ch_r_seq[] = {
+static const struct reg_sequence hp_ac_ch_r_seq[] = {
 	{CS43130_DXD1, 0x99},
 	{CS43130_DXD19, 0x8A},
 	{CS43130_DXD17, 0x15},
@@ -1896,24 +1896,24 @@ static struct reg_sequence hp_ac_ch_r_seq[] = {
 	{CS43130_HP_LOAD_1, 0x92},
 };
 
-static struct reg_sequence hp_ac_ch_r_seq2[] = {
+static const struct reg_sequence hp_ac_ch_r_seq2[] = {
 	{CS43130_HP_LOAD_1, 0x90},
 	{CS43130_HP_LOAD_1, 0x92},
 };
 
-static struct reg_sequence hp_cln_seq[] = {
+static const struct reg_sequence hp_cln_seq[] = {
 	{CS43130_INT_MASK_4, CS43130_INT_MASK_ALL},
 	{CS43130_HP_MEAS_LOAD_1, 0},
 	{CS43130_HP_MEAS_LOAD_2, 0},
 };
 
 struct reg_sequences {
-	struct reg_sequence	*seq;
-	int			size;
-	unsigned int		msk;
+	const struct reg_sequence	*seq;
+	int				size;
+	unsigned int			msk;
 };
 
-static struct reg_sequences hpload_seq1[] = {
+static const struct reg_sequences hpload_seq1[] = {
 	{
 		.seq	= hp_en_cal_seq,
 		.size	= ARRAY_SIZE(hp_en_cal_seq),
@@ -1951,7 +1951,7 @@ static struct reg_sequences hpload_seq1[] = {
 	},
 };
 
-static struct reg_sequences hpload_seq2[] = {
+static const struct reg_sequences hpload_seq2[] = {
 	{
 		.seq	= hp_en_cal_seq2,
 		.size	= ARRAY_SIZE(hp_en_cal_seq2),
@@ -2041,7 +2041,7 @@ static int cs43130_update_hpload(unsigned int msk, int ac_idx,
 }
 
 static int cs43130_hpload_proc(struct cs43130_private *cs43130,
-			       struct reg_sequence *seq, int seq_size,
+			       const struct reg_sequence *seq, int seq_size,
 			       unsigned int rslt_msk, int ac_idx)
 {
 	int ret;
@@ -2122,7 +2122,7 @@ static void cs43130_imp_meas(struct work_struct *wk)
 	int i, ret, ac_idx;
 	struct cs43130_private *cs43130;
 	struct snd_soc_component *component;
-	struct reg_sequences *hpload_seq;
+	const struct reg_sequences *hpload_seq;
 
 	cs43130 = container_of(wk, struct cs43130_private, work);
 	component = cs43130->component;
