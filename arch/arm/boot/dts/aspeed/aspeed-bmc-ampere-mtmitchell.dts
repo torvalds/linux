@@ -890,6 +890,10 @@
 	};
 };
 
+&i2c10 {
+	status = "okay";
+};
+
 &i2c11 {
 	status = "okay";
 	ssif-bmc@10 {
@@ -909,6 +913,25 @@
 	bmc_ast2600_cpu: temperature-sensor@35 {
 		compatible = "ti,tmp175";
 		reg = <0x35>;
+	};
+};
+
+&i2c15 {
+	status = "okay";
+	gpio_expander1: gpio-expander@22 {
+		compatible = "nxp,pca9535";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names =
+			"fan-fault","psu-fault",
+			"","",
+			"","",
+			"","",
+			"","",
+			"","",
+			"","",
+			"","";
 	};
 };
 
