@@ -57,6 +57,20 @@
 	};
 
 	host1x@50000000 {
+		hdmi@54280000 {
+			status = "okay";
+
+			hdmi-supply = <&hdmi_5v0_sys>;
+			pll-supply = <&avdd_hdmi_pll>;
+			vdd-supply = <&avdd_hdmi>;
+
+			port {
+				hdmi_out: endpoint {
+					remote-endpoint = <&connector_in>;
+				};
+			};
+		};
+
 		dsi@54300000 {
 			status = "okay";
 
@@ -1266,8 +1280,9 @@
 		};
 	};
 
-	i2c@7000c700 {
-		/* HDMI DDC */
+	hdmi_ddc: i2c@7000c700 {
+		status = "okay";
+		clock-frequency = <10000>;
 	};
 
 	i2c@7000d000 {
@@ -1621,6 +1636,20 @@
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 		clock-output-names = "pmic-oscillator";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		hpd-gpios = <&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+		ddc-i2c-bus = <&hdmi_ddc>;
+
+		port {
+			connector_in: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
 	};
 
 	gpio-hall-sensor {
