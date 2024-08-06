@@ -63,20 +63,21 @@ static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
 	done = true;
 }
 
-static int check_ftrace_capable(void)
+static bool check_ftrace_capable(void)
 {
-	if (!(perf_cap__capable(CAP_PERFMON) ||
-	      perf_cap__capable(CAP_SYS_ADMIN))) {
-		pr_err("ftrace only works for %s!\n",
-#ifdef HAVE_LIBCAP_SUPPORT
-		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
-#else
-		"root"
-#endif
+	bool used_root;
+
+	if (perf_cap__capable(CAP_PERFMON, &used_root))
+		return true;
+
+	if (!used_root && perf_cap__capable(CAP_SYS_ADMIN, &used_root))
+		return true;
+
+	pr_err("ftrace only works for %s!\n",
+		used_root ? "root"
+			  : "users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
 		);
-		return -1;
-	}
-	return 0;
+	return false;
 }
 
 static int __write_tracing_file(const char *name, const char *val, bool append)
@@ -1579,8 +1580,7 @@ int cmd_ftrace(int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGPIPE, sig_handler);
 
-	ret = check_ftrace_capable();
-	if (ret < 0)
+	if (!check_ftrace_capable())
 		return -1;
 
 	ret = perf_config(perf_ftrace_config, &ftrace);

@@ -325,9 +325,15 @@ int perf_event_paranoid(void)
 
 bool perf_event_paranoid_check(int max_level)
 {
-	return perf_cap__capable(CAP_SYS_ADMIN) ||
-			perf_cap__capable(CAP_PERFMON) ||
-			perf_event_paranoid() <= max_level;
+	bool used_root;
+
+	if (perf_cap__capable(CAP_SYS_ADMIN, &used_root))
+		return true;
+
+	if (!used_root && perf_cap__capable(CAP_PERFMON, &used_root))
+		return true;
+
+	return perf_event_paranoid() <= max_level;
 }
 
 static int
