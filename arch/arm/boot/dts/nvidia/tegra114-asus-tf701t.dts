@@ -1250,7 +1250,14 @@
 			compatible = "asahi-kasei,ak09911";
 			reg = <0xc>;
 
-			vdd-supply = <&vdd_3v3_sys>;
+			/* no DRDY (polling) */
+
+			vdd-supply = <&vdd_2v85_sen>;
+			vid-supply = <&vdd_1v8_vio>;
+
+			mount-matrix =  "0",  "1", "0",
+					"1",  "0", "0",
+					"0",  "0","-1";
 		};
 
 		rt5639: audio-codec@1c {
@@ -1267,7 +1274,10 @@
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
 
-			vcc-supply = <&vdd_3v3_sys>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_EDGE_FALLING>;
+
+			vcc-supply = <&vdd_1v8_vio>;
 			#thermal-sensor-cells = <1>;
 		};
 
@@ -1277,6 +1287,9 @@
 
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(R, 3) IRQ_TYPE_LEVEL_HIGH>;
+
+			vdd-supply = <&vdd_2v85_sen>;
+			vddio-supply = <&vdd_1v8_vio>;
 
 			mount-matrix =  "0", "-1", "0",
 					"1",  "0", "0",
@@ -1291,6 +1304,8 @@
 		power-sensor@44 {
 			compatible = "ti,ina230";
 			reg = <0x44>;
+
+			shunt-resistor = <5000>;
 		};
 	};
 
@@ -1302,7 +1317,7 @@
 			compatible = "dynaimage,al3320a";
 			reg = <0x1c>;
 
-			vdd-supply = <&vdd_3v3_sys>;
+			vdd-supply = <&vdd_1v8_vio>;
 		};
 	};
 
