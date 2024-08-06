@@ -1864,6 +1864,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_debug_mask & DC_DISABLE_IPS)
 		init_data.flags.disable_ips = DMUB_IPS_DISABLE_ALL;
+	else if (amdgpu_dc_debug_mask & DC_DISABLE_IPS_DYNAMIC)
+		init_data.flags.disable_ips = DMUB_IPS_DISABLE_DYNAMIC;
+	else if (amdgpu_dc_debug_mask & DC_DISABLE_IPS2_DYNAMIC)
+		init_data.flags.disable_ips = DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
+	else if (amdgpu_dc_debug_mask & DC_FORCE_IPS_ENABLE)
+		init_data.flags.disable_ips = DMUB_IPS_ENABLE;
 	else
 		init_data.flags.disable_ips = DMUB_IPS_ENABLE;
 
