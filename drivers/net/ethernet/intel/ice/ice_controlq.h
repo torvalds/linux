@@ -50,7 +50,6 @@ enum ice_ctl_q {
 struct ice_ctl_q_ring {
 	void *dma_head;			/* Virtual address to DMA head */
 	struct ice_dma_mem desc_buf;	/* descriptor ring memory */
-	void *cmd_buf;			/* command buffer memory */
 
 	union {
 		struct ice_dma_mem *sq_bi;
@@ -79,8 +78,6 @@ struct ice_ctl_q_ring {
 struct ice_sq_cd {
 	struct ice_aq_desc *wb_desc;
 };
-
-#define ICE_CTL_Q_DETAILS(R, i) (&(((struct ice_sq_cd *)((R).cmd_buf))[i]))
 
 /* rq event information */
 struct ice_rq_event_info {
