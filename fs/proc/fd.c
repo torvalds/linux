@@ -397,8 +397,8 @@ static struct dentry *proc_fdinfo_instantiate(struct dentry *dentry,
 	inode->i_fop = &proc_fdinfo_file_operations;
 	tid_fd_update_inode(task, inode, 0);
 
-	d_set_d_op(dentry, &tid_fd_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return proc_splice_unmountable(inode, dentry,
+				       &tid_fd_dentry_operations);
 }
 
 static struct dentry *
