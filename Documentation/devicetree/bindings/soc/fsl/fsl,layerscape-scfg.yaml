@@ -23,6 +23,9 @@ properties:
           - fsl,ls1028a-scfg
           - fsl,ls1043a-scfg
           - fsl,ls1046a-scfg
+          - fsl,ls1088a-isc
+          - fsl,ls2080a-isc
+          - fsl,lx2160a-isc
       - const: syscon
 
   reg:
