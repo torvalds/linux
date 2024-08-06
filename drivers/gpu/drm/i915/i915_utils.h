@@ -49,9 +49,6 @@ void __printf(3, 4)
 __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	      const char *fmt, ...);
 
-#define i915_report_error(dev_priv, fmt, ...)				   \
-	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
-
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
 int __i915_inject_probe_error(struct drm_i915_private *i915, int err,

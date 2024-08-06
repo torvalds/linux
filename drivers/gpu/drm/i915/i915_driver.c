@@ -451,8 +451,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
-			i915_report_error(dev_priv,
-					  "incompatible vGPU found, support for isolated ppGTT required\n");
+			drm_err(&dev_priv->drm,
+				"incompatible vGPU found, support for isolated ppGTT required\n");
 			return -ENXIO;
 		}
 	}
@@ -465,8 +465,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		 */
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_hwsp_emulation(dev_priv)) {
-			i915_report_error(dev_priv,
-					  "old vGPU host found, support for HWSP emulation required\n");
+			drm_err(&dev_priv->drm,
+				"old vGPU host found, support for HWSP emulation required\n");
 			return -ENXIO;
 		}
 	}
