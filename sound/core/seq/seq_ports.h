@@ -87,6 +87,8 @@ struct snd_seq_client_port {
 	unsigned char direction;
 	unsigned char ump_group;
 
+	bool is_midi1;	/* keep MIDI 1.0 protocol */
+
 #if IS_ENABLED(CONFIG_SND_SEQ_UMP)
 	struct snd_seq_ump_midi2_bank midi2_bank[16]; /* per channel */
 #endif
