@@ -1252,8 +1252,29 @@ retry:
 
 	while ((p = scx_task_iter_next(iter))) {
 		/*
-		 * is_idle_task() tests %PF_IDLE which may not be set for CPUs
-		 * which haven't yet been onlined. Test sched_class directly.
+		 * scx_task_iter is used to prepare and move tasks into SCX
+		 * while loading the BPF scheduler and vice-versa while
+		 * unloading. The init_tasks ("swappers") should be excluded
+		 * from the iteration because:
+		 *
+		 * - It's unsafe to use __setschduler_prio() on an init_task to
+		 *   determine the sched_class to use as it won't preserve its
+		 *   idle_sched_class.
+		 *
+		 * - ops.init/exit_task() can easily be confused if called with
+		 *   init_tasks as they, e.g., share PID 0.
+		 *
+		 * As init_tasks are never scheduled through SCX, they can be
+		 * skipped safely. Note that is_idle_task() which tests %PF_IDLE
+		 * doesn't work here:
+		 *
+		 * - %PF_IDLE may not be set for an init_task whose CPU hasn't
+		 *   yet been onlined.
+		 *
+		 * - %PF_IDLE can be set on tasks that are not init_tasks. See
+		 *   play_idle_precise() used by CONFIG_IDLE_INJECT.
+		 *
+		 * Test for idle_sched_class as only init_tasks are on it.
 		 */
 		if (p->sched_class != &idle_sched_class)
 			break;
