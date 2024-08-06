@@ -1084,7 +1084,8 @@ static void evm_file_release(struct file *file)
 	if (!S_ISREG(inode->i_mode) || !(mode & FMODE_WRITE))
 		return;
 
-	if (iint && atomic_read(&inode->i_writecount) == 1)
+	if (iint && iint->flags & EVM_NEW_FILE &&
+	    atomic_read(&inode->i_writecount) == 1)
 		iint->flags &= ~EVM_NEW_FILE;
 }
 
