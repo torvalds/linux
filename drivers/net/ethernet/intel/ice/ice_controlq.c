@@ -888,15 +888,40 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 }
 
 /**
+ * ice_ctl_q_str - Convert control queue type to string
+ * @qtype: the control queue type
+ *
+ * Return: A string name for the given control queue type.
+ */
+static const char *ice_ctl_q_str(enum ice_ctl_q qtype)
+{
+	switch (qtype) {
+	case ICE_CTL_Q_UNKNOWN:
+		return "Unknown CQ";
+	case ICE_CTL_Q_ADMIN:
+		return "AQ";
+	case ICE_CTL_Q_MAILBOX:
+		return "MBXQ";
+	case ICE_CTL_Q_SB:
+		return "SBQ";
+	default:
+		return "Unrecognized CQ";
+	}
+}
+
+/**
  * ice_debug_cq
  * @hw: pointer to the hardware structure
+ * @cq: pointer to the specific Control queue
  * @desc: pointer to control queue descriptor
  * @buf: pointer to command buffer
  * @buf_len: max length of buf
+ * @response: true if this is the writeback response
  *
  * Dumps debug log about control command with descriptor contents.
  */
-static void ice_debug_cq(struct ice_hw *hw, void *desc, void *buf, u16 buf_len)
+static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
+			 void *desc, void *buf, u16 buf_len, bool response)
 {
 	struct ice_aq_desc *cq_desc = desc;
 	u16 len;
@@ -910,7 +935,8 @@ static void ice_debug_cq(struct ice_hw *hw, void *desc, void *buf, u16 buf_len)
 
 	len = le16_to_cpu(cq_desc->datalen);
 
-	ice_debug(hw, ICE_DBG_AQ_DESC, "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
+	ice_debug(hw, ICE_DBG_AQ_DESC, "%s %s: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
+		  ice_ctl_q_str(cq->qtype), response ? "Response" : "Command",
 		  le16_to_cpu(cq_desc->opcode),
 		  le16_to_cpu(cq_desc->flags),
 		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
@@ -1064,7 +1090,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	/* Debug desc and buffer */
 	ice_debug(hw, ICE_DBG_AQ_DESC, "ATQ: Control Send queue desc and buffer:\n");
 
-	ice_debug_cq(hw, (void *)desc_on_ring, buf, buf_size);
+	ice_debug_cq(hw, cq, (void *)desc_on_ring, buf, buf_size, false);
 
 	(cq->sq.next_to_use)++;
 	if (cq->sq.next_to_use == cq->sq.count)
@@ -1106,7 +1132,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	ice_debug(hw, ICE_DBG_AQ_MSG, "ATQ: desc and buffer writeback:\n");
 
-	ice_debug_cq(hw, (void *)desc, buf, buf_size);
+	ice_debug_cq(hw, cq, (void *)desc, buf, buf_size, true);
 
 	/* save writeback AQ if requested */
 	if (details->wb_desc)
@@ -1210,7 +1236,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	ice_debug(hw, ICE_DBG_AQ_DESC, "ARQ: desc and buffer:\n");
 
-	ice_debug_cq(hw, (void *)desc, e->msg_buf, cq->rq_buf_size);
+	ice_debug_cq(hw, cq, (void *)desc, e->msg_buf, cq->rq_buf_size, true);
 
 	/* Restore the original datalen and buffer address in the desc,
 	 * FW updates datalen to indicate the event message size
