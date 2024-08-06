@@ -7591,19 +7591,20 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	int rx = bp->rx_nr_rings, stat;
 	int vnic, grp = rx;
 
-	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
-	    bp->hwrm_spec_code >= 0x10601)
-		return true;
-
 	/* Old firmware does not need RX ring reservations but we still
 	 * need to setup a default RSS map when needed.  With new firmware
 	 * we go through RX ring reservations first and then set up the
 	 * RSS map for the successfully reserved RX rings when needed.
 	 */
-	if (!BNXT_NEW_RM(bp)) {
+	if (!BNXT_NEW_RM(bp))
 		bnxt_check_rss_tbl_no_rmgr(bp);
+
+	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
+	    bp->hwrm_spec_code >= 0x10601)
+		return true;
+
+	if (!BNXT_NEW_RM(bp))
 		return false;
-	}
 
 	vnic = bnxt_get_total_vnics(bp, rx);
 
