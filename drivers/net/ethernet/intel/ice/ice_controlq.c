@@ -924,7 +924,7 @@ static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			 void *desc, void *buf, u16 buf_len, bool response)
 {
 	struct ice_aq_desc *cq_desc = desc;
-	u16 len;
+	u16 datalen, flags;
 
 	if (!IS_ENABLED(CONFIG_DYNAMIC_DEBUG) &&
 	    !((ICE_DBG_AQ_DESC | ICE_DBG_AQ_DESC_BUF) & hw->debug_mask))
@@ -933,13 +933,13 @@ static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	if (!desc)
 		return;
 
-	len = le16_to_cpu(cq_desc->datalen);
+	datalen = le16_to_cpu(cq_desc->datalen);
+	flags = le16_to_cpu(cq_desc->flags);
 
 	ice_debug(hw, ICE_DBG_AQ_DESC, "%s %s: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		  ice_ctl_q_str(cq->qtype), response ? "Response" : "Command",
-		  le16_to_cpu(cq_desc->opcode),
-		  le16_to_cpu(cq_desc->flags),
-		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
+		  le16_to_cpu(cq_desc->opcode), flags, datalen,
+		  le16_to_cpu(cq_desc->retval));
 	ice_debug(hw, ICE_DBG_AQ_DESC, "\tcookie (h,l) 0x%08X 0x%08X\n",
 		  le32_to_cpu(cq_desc->cookie_high),
 		  le32_to_cpu(cq_desc->cookie_low));
@@ -949,12 +949,15 @@ static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	ice_debug(hw, ICE_DBG_AQ_DESC, "\taddr (h,l)   0x%08X 0x%08X\n",
 		  le32_to_cpu(cq_desc->params.generic.addr_high),
 		  le32_to_cpu(cq_desc->params.generic.addr_low));
-	if (buf && cq_desc->datalen != 0) {
+	/* Dump buffer iff 1) one exists and 2) is either a response indicated
+	 * by the DD and/or CMP flag set or a command with the RD flag set.
+	 */
+	if (buf && cq_desc->datalen &&
+	    (flags & (ICE_AQ_FLAG_DD | ICE_AQ_FLAG_CMP | ICE_AQ_FLAG_RD))) {
 		ice_debug(hw, ICE_DBG_AQ_DESC_BUF, "Buffer:\n");
-		if (buf_len < len)
-			len = buf_len;
 
-		ice_debug_array(hw, ICE_DBG_AQ_DESC_BUF, 16, 1, buf, len);
+		ice_debug_array(hw, ICE_DBG_AQ_DESC_BUF, 16, 1, buf,
+				min_t(u16, buf_len, datalen));
 	}
 }
 
