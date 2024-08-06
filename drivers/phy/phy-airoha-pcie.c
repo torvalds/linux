@@ -18,6 +18,9 @@
 #define LEQ_LEN_CTRL_MAX_VAL	7
 #define FREQ_LOCK_MAX_ATTEMPT	10
 
+/* PCIe-PHY initialization time in ms needed by the hw to complete */
+#define PHY_HW_INIT_TIME_MS	30
+
 enum airoha_pcie_port_gen {
 	PCIE_PORT_GEN1 = 1,
 	PCIE_PORT_GEN2,
@@ -1181,7 +1184,8 @@ static int airoha_pcie_phy_init(struct phy *phy)
 	airoha_phy_pma1_set_bits(pcie_phy, REG_PCIE_PMA_SS_DA_XPON_PWDB0,
 				 PCIE_DA_XPON_CDR_PR_PWDB);
 
-	usleep_range(100, 200);
+	/* Wait for the PCIe PHY to complete initialization before returning */
+	msleep(PHY_HW_INIT_TIME_MS);
 
 	return 0;
 }
