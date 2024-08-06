@@ -312,14 +312,14 @@ static int proc_readfd_count(struct inode *inode, loff_t *count)
 	return 0;
 }
 
-static int proc_readfd(struct file *file, struct dir_context *ctx)
+static int proc_fd_iterate(struct file *file, struct dir_context *ctx)
 {
 	return proc_readfd_common(file, ctx, proc_fd_instantiate);
 }
 
 const struct file_operations proc_fd_operations = {
 	.read		= generic_read_dir,
-	.iterate_shared	= proc_readfd,
+	.iterate_shared	= proc_fd_iterate,
 	.llseek		= generic_file_llseek,
 };
 
