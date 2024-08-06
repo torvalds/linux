@@ -1466,20 +1466,14 @@ static void touch_core_sched_dispatch(struct rq *rq, struct task_struct *p)
 static void update_curr_scx(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
-	u64 now = rq_clock_task(rq);
-	u64 delta_exec;
+	s64 delta_exec;
 
-	if (time_before_eq64(now, curr->se.exec_start))
+	delta_exec = update_curr_common(rq);
+	if (unlikely(delta_exec <= 0))
 		return;
 
-	delta_exec = now - curr->se.exec_start;
-	curr->se.exec_start = now;
-	curr->se.sum_exec_runtime += delta_exec;
-	account_group_exec_runtime(curr, delta_exec);
-	cgroup_account_cputime(curr, delta_exec);
-
 	if (curr->scx.slice != SCX_SLICE_INF) {
-		curr->scx.slice -= min(curr->scx.slice, delta_exec);
+		curr->scx.slice -= min_t(u64, curr->scx.slice, delta_exec);
 		if (!curr->scx.slice)
 			touch_core_sched(rq, curr);
 	}
