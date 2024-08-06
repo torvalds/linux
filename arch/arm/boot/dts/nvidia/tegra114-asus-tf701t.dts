@@ -1722,8 +1722,7 @@
 	backlight: backlight {
 		compatible = "pwm-backlight";
 
-		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
-		power-supply = <&vdd_5v0_sys>;
+		power-supply = <&vdd_3v7_bl>;
 		pwms = <&pwm 1 1000000>;
 
 		brightness-levels = <1 255>;
