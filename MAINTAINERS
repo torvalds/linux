@@ -19197,6 +19197,7 @@ S:	Supported
 W:	https://oss.oracle.com/projects/rds/
 F:	Documentation/networking/rds.rst
 F:	net/rds/
+F:	tools/testing/selftests/net/rds/
 
 RDT - RESOURCE ALLOCATION
 M:	Fenghua Yu <fenghua.yu@intel.com>
