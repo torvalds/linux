@@ -1264,10 +1264,11 @@
 			compatible = "realtek,rt5639";
 			reg = <0x1c>;
 
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_EDGE_FALLING>;
+			realtek,ldo1-en-gpios =
+				<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 
-			realtek,ldo1-en-gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+			clocks = <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
+			clock-names = "mclk";
 		};
 
 		temp_sensor: temperature-sensor@4c {
@@ -1609,7 +1610,13 @@
 	};
 
 	ahub@70080000 {
-		i2s@70080300 {
+		/* HIFI CODEC (i2s1) */
+		i2s@70080400 {
+			status = "okay";
+		};
+
+		/* BT SCO (i2s3) */
+		i2s@70080600 {
 			status = "okay";
 		};
 	};
@@ -1748,13 +1755,16 @@
 			"Speakers", "SPORN",
 			"Speakers", "SPOLP",
 			"Speakers", "SPOLN",
-			"Mic Jack", "MICBIAS1",
-			"IN2P", "Mic Jack";
+			"IN1P", "Mic Jack",
+			"IN1N", "Mic Jack",
+			"DMIC1", "Int Mic",
+			"DMIC2", "Int Mic";
 
-		nvidia,i2s-controller = <&tegra_i2s0>;
+		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&rt5639>;
 
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_LOW>;
+		nvidia,int-mic-en-gpios = <&gpio TEGRA_GPIO(K, 3) GPIO_ACTIVE_HIGH>;
 
 		clocks = <&tegra_car TEGRA114_CLK_PLL_A>,
 			 <&tegra_car TEGRA114_CLK_PLL_A_OUT0>,
