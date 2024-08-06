@@ -16,6 +16,14 @@
 		serial8 = &uart9;
 
 		/*
+		 * I2C temperature alias port
+		 */
+		i2c20 = &i2c4_bus70_chn0;
+		i2c21 = &i2c4_bus70_chn1;
+		i2c22 = &i2c4_bus70_chn2;
+		i2c23 = &i2c4_bus70_chn3;
+
+		/*
 		 *  i2c bus 30-31 assigned to OCP slot 0-1
 		 */
 		i2c30 = &ocpslot_0;
