@@ -18,6 +18,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/coredump.h>
+#include <linux/sort.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
@@ -1249,6 +1250,18 @@ static void free_vma_snapshot(struct coredump_params *cprm)
 	}
 }
 
+static int cmp_vma_size(const void *vma_meta_lhs_ptr, const void *vma_meta_rhs_ptr)
+{
+	const struct core_vma_metadata *vma_meta_lhs = vma_meta_lhs_ptr;
+	const struct core_vma_metadata *vma_meta_rhs = vma_meta_rhs_ptr;
+
+	if (vma_meta_lhs->dump_size < vma_meta_rhs->dump_size)
+		return -1;
+	if (vma_meta_lhs->dump_size > vma_meta_rhs->dump_size)
+		return 1;
+	return 0;
+}
+
 /*
  * Under the mmap_lock, take a snapshot of relevant information about the task's
  * VMAs.
@@ -1310,6 +1323,9 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 
 		cprm->vma_data_size += m->dump_size;
 	}
+
+	sort(cprm->vma_meta, cprm->vma_count, sizeof(*cprm->vma_meta),
+		cmp_vma_size, NULL);
 
 	return true;
 }
