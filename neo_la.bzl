@@ -7,6 +7,9 @@ target_name = "neo-la"
 def define_neo_la():
     _neo_in_tree_modules = [
         # keep sorted
+        "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
+        "drivers/bus/mhi/devices/mhi_dev_uci.ko",
+        "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/camcc-neo.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
@@ -41,6 +44,7 @@ def define_neo_la():
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mfd/qcom-i2c-pmic.ko",
+        "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-neo.ko",
