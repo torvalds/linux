@@ -431,7 +431,13 @@ static int ad9739a_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad9739a_channels);
 	indio_dev->setup_ops = &ad9739a_buffer_setup_ops;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return ret;
+
+	iio_backend_debugfs_add(st->back, indio_dev);
+
+	return 0;
 }
 
 static const struct of_device_id ad9739a_of_match[] = {
