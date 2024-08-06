@@ -957,6 +957,12 @@ int rproc_set_state(struct rproc *rproc, bool state)
 			goto soccp_out;
 		}
 
+		ret = do_bus_scaling(adsp, true);
+		if (ret) {
+			dev_err(adsp->q6v5.dev, "failed to set bandwidth request\n");
+			goto soccp_out;
+		}
+
 		ret = clk_prepare_enable(adsp->xo);
 		if (ret) {
 			dev_err(adsp->dev, "failed to enable clks\n");
@@ -1014,6 +1020,12 @@ int rproc_set_state(struct rproc *rproc, bool state)
 			}
 			disable_regulators(adsp);
 			clk_disable_unprepare(adsp->xo);
+			ret = do_bus_scaling(adsp, false);
+			if (ret < 0) {
+				dev_err(adsp->q6v5.dev, "failed to set bandwidth request\n");
+				goto soccp_out;
+			}
+
 			adsp->current_users = 0;
 		}
 	}
