@@ -43,11 +43,10 @@ struct device *ice_hw_to_dev(struct ice_hw *hw);
 #define ice_debug(hw, type, fmt, args...) \
 	dev_dbg(ice_hw_to_dev(hw), fmt, ##args)
 
-#define ice_debug_array(hw, type, rowsize, groupsize, buf, len) \
-	print_hex_dump_debug(KBUILD_MODNAME " ",		\
-			     DUMP_PREFIX_OFFSET, rowsize,	\
-			     groupsize, buf, len, false)
-#else
+#define _ice_debug_array(hw, type, prefix, rowsize, groupsize, buf, len) \
+	print_hex_dump_debug(prefix, DUMP_PREFIX_OFFSET,		 \
+			     rowsize, groupsize, buf, len, false)
+#else /* CONFIG_DYNAMIC_DEBUG */
 #define ice_debug(hw, type, fmt, args...)			\
 do {								\
 	if ((type) & (hw)->debug_mask)				\
@@ -55,16 +54,15 @@ do {								\
 } while (0)
 
 #ifdef DEBUG
-#define ice_debug_array(hw, type, rowsize, groupsize, buf, len) \
+#define _ice_debug_array(hw, type, prefix, rowsize, groupsize, buf, len) \
 do {								\
 	if ((type) & (hw)->debug_mask)				\
-		print_hex_dump_debug(KBUILD_MODNAME,		\
-				     DUMP_PREFIX_OFFSET,	\
+		print_hex_dump_debug(prefix, DUMP_PREFIX_OFFSET,\
 				     rowsize, groupsize, buf,	\
 				     len, false);		\
 } while (0)
-#else
-#define ice_debug_array(hw, type, rowsize, groupsize, buf, len) \
+#else /* DEBUG */
+#define _ice_debug_array(hw, type, prefix, rowsize, groupsize, buf, len) \
 do {								\
 	struct ice_hw *hw_l = hw;				\
 	if ((type) & (hw_l)->debug_mask) {			\
@@ -81,5 +79,11 @@ do {								\
 } while (0)
 #endif /* DEBUG */
 #endif /* CONFIG_DYNAMIC_DEBUG */
+
+#define ice_debug_array(hw, type, rowsize, groupsize, buf, len) \
+	_ice_debug_array(hw, type, KBUILD_MODNAME, rowsize, groupsize, buf, len)
+
+#define ice_debug_array_w_prefix(hw, type, prefix, buf, len) \
+	_ice_debug_array(hw, type, prefix, 16, 1, buf, len)
 
 #endif /* _ICE_OSDEP_H_ */
