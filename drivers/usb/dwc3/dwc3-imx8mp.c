@@ -282,8 +282,7 @@ static void dwc3_imx8mp_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(dev);
 }
 
-static int __maybe_unused dwc3_imx8mp_suspend(struct dwc3_imx8mp *dwc3_imx,
-					      pm_message_t msg)
+static int dwc3_imx8mp_suspend(struct dwc3_imx8mp *dwc3_imx, pm_message_t msg)
 {
 	if (dwc3_imx->pm_suspended)
 		return 0;
@@ -297,8 +296,7 @@ static int __maybe_unused dwc3_imx8mp_suspend(struct dwc3_imx8mp *dwc3_imx,
 	return 0;
 }
 
-static int __maybe_unused dwc3_imx8mp_resume(struct dwc3_imx8mp *dwc3_imx,
-					     pm_message_t msg)
+static int dwc3_imx8mp_resume(struct dwc3_imx8mp *dwc3_imx, pm_message_t msg)
 {
 	struct dwc3	*dwc = platform_get_drvdata(dwc3_imx->dwc3);
 	int ret = 0;
@@ -331,7 +329,7 @@ static int __maybe_unused dwc3_imx8mp_resume(struct dwc3_imx8mp *dwc3_imx,
 	return ret;
 }
 
-static int __maybe_unused dwc3_imx8mp_pm_suspend(struct device *dev)
+static int dwc3_imx8mp_pm_suspend(struct device *dev)
 {
 	struct dwc3_imx8mp *dwc3_imx = dev_get_drvdata(dev);
 	int ret;
@@ -349,7 +347,7 @@ static int __maybe_unused dwc3_imx8mp_pm_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused dwc3_imx8mp_pm_resume(struct device *dev)
+static int dwc3_imx8mp_pm_resume(struct device *dev)
 {
 	struct dwc3_imx8mp *dwc3_imx = dev_get_drvdata(dev);
 	int ret;
@@ -379,7 +377,7 @@ static int __maybe_unused dwc3_imx8mp_pm_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused dwc3_imx8mp_runtime_suspend(struct device *dev)
+static int dwc3_imx8mp_runtime_suspend(struct device *dev)
 {
 	struct dwc3_imx8mp *dwc3_imx = dev_get_drvdata(dev);
 
@@ -388,7 +386,7 @@ static int __maybe_unused dwc3_imx8mp_runtime_suspend(struct device *dev)
 	return dwc3_imx8mp_suspend(dwc3_imx, PMSG_AUTO_SUSPEND);
 }
 
-static int __maybe_unused dwc3_imx8mp_runtime_resume(struct device *dev)
+static int dwc3_imx8mp_runtime_resume(struct device *dev)
 {
 	struct dwc3_imx8mp *dwc3_imx = dev_get_drvdata(dev);
 
@@ -398,9 +396,9 @@ static int __maybe_unused dwc3_imx8mp_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dwc3_imx8mp_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwc3_imx8mp_pm_suspend, dwc3_imx8mp_pm_resume)
-	SET_RUNTIME_PM_OPS(dwc3_imx8mp_runtime_suspend,
-			   dwc3_imx8mp_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dwc3_imx8mp_pm_suspend, dwc3_imx8mp_pm_resume)
+	RUNTIME_PM_OPS(dwc3_imx8mp_runtime_suspend, dwc3_imx8mp_runtime_resume,
+		       NULL)
 };
 
 static const struct of_device_id dwc3_imx8mp_of_match[] = {
@@ -414,7 +412,7 @@ static struct platform_driver dwc3_imx8mp_driver = {
 	.remove_new	= dwc3_imx8mp_remove,
 	.driver		= {
 		.name	= "imx8mp-dwc3",
-		.pm	= &dwc3_imx8mp_dev_pm_ops,
+		.pm	= pm_ptr(&dwc3_imx8mp_dev_pm_ops),
 		.of_match_table	= dwc3_imx8mp_of_match,
 	},
 };
