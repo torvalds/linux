@@ -579,7 +579,7 @@ dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
 
 bool
 dc_stream_forward_crc_window(struct dc_stream_state *stream,
-		struct rect *rect, bool is_stop)
+		struct rect *rect, uint8_t phy_id, bool is_stop)
 {
 	struct dmcu *dmcu;
 	struct dc_dmub_srv *dmub_srv;
@@ -598,7 +598,7 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
 	if (i == MAX_PIPES)
 		return false;
 
-	mux_mapping.phy_output_num = stream->link->link_enc_hw_inst;
+	mux_mapping.phy_output_num = phy_id;
 	mux_mapping.otg_output_num = pipe->stream_res.tg->inst;
 
 	dmcu = dc->res_pool->dmcu;

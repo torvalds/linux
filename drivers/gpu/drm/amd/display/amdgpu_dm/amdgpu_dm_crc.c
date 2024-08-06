@@ -89,6 +89,7 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_st
 	struct amdgpu_display_manager *dm = &drm_to_adev(drm_dev)->dm;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	bool was_activated;
+	uint8_t phy_id = stream->link->link_enc_hw_inst;
 
 	spin_lock_irq(&drm_dev->event_lock);
 	was_activated = acrtc->dm_irq_params.window_param.activated;
@@ -106,7 +107,7 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_st
 		/* stop ROI update on this crtc */
 		flush_work(&dm->secure_display_ctxs[crtc->index].notify_ta_work);
 		flush_work(&dm->secure_display_ctxs[crtc->index].forward_roi_work);
-		dc_stream_forward_crc_window(stream, NULL, true);
+		dc_stream_forward_crc_window(stream, NULL, phy_id, true);
 	}
 }
 
@@ -175,7 +176,8 @@ amdgpu_dm_forward_crc_window(struct work_struct *work)
 	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
 
 	mutex_lock(&dm->dc_lock);
-	dc_stream_forward_crc_window(stream, &secure_display_ctx->rect, false);
+	dc_stream_forward_crc_window(stream, &secure_display_ctx->rect,
+		stream->link->link_enc_hw_inst, false);
 	mutex_unlock(&dm->dc_lock);
 }
 
