@@ -60,7 +60,7 @@
 		dsi@54300000 {
 			status = "okay";
 
-			avdd-dsi-csi-supply = <&tps65913_ldo2>;
+			avdd-dsi-csi-supply = <&avdd_dsi_csi>;
 
 			nvidia,ganged-mode = <&dsib>;
 
@@ -70,7 +70,7 @@
 
 				link2 = <&panel_secondary>;
 
-				power-supply = <&vdd_lcd>;
+				power-supply = <&dvdd_1v8_lcd>;
 				backlight = <&backlight>;
 			};
 		};
@@ -78,7 +78,7 @@
 		dsi@54400000 {
 			status = "okay";
 
-			avdd-dsi-csi-supply = <&tps65913_ldo2>;
+			avdd-dsi-csi-supply = <&avdd_dsi_csi>;
 
 			panel_secondary: panel@0 {
 				compatible = "sharp,lq101r1sx01";
@@ -1284,10 +1284,34 @@
 
 			ti,system-power-controller;
 
+			palmas_gpadc: adc {
+				compatible = "ti,palmas-gpadc";
+				interrupts = <18 IRQ_TYPE_NONE>,
+					     <16 IRQ_TYPE_NONE>,
+					     <17 IRQ_TYPE_NONE>;
+
+				ti,channel0-current-microamp = <5>;
+				ti,channel3-current-microamp = <400>;
+				ti,enable-extended-delay;
+
+				#io-channel-cells = <1>;
+			};
+
+			palmas_extcon: extcon {
+				compatible = "ti,palmas-usb-vid";
+				ti,enable-vbus-detection;
+				ti,enable-id-detection;
+			};
+
 			palmas_gpio: gpio {
 				compatible = "ti,palmas-gpio";
 				gpio-controller;
 				#gpio-cells = <2>;
+			};
+
+			palmas_clk32kg@0 {
+				compatible = "ti,palmas-clk32kg";
+				#clock-cells = <0>;
 			};
 
 			pinmux {
@@ -1353,17 +1377,18 @@
 			pmic {
 				compatible = "ti,tps65913-pmic", "ti,palmas-pmic";
 
-				ldo1-in-supply = <&tps65913_smps7>;
-				ldo2-in-supply = <&tps65913_smps7>;
-				ldo4-in-supply = <&tps65913_smps8>;
-				ldo5-in-supply = <&tps65913_smps9>;
-				ldo6-in-supply = <&tps65913_smps9>;
-				ldo7-in-supply = <&tps65913_smps9>;
-				ldo9-in-supply = <&tps65913_smps9>;
+				ldo1-in-supply = <&vddio_ddr>;
+				ldo2-in-supply = <&vddio_ddr>;
+				ldo4-in-supply = <&vdd_1v8_vio>;
+				ldo5-in-supply = <&vcore_emmc>;
+				ldo6-in-supply = <&vcore_emmc>;
+				ldo7-in-supply = <&vcore_emmc>;
+				ldo9-in-supply = <&vcore_emmc>;
+				ldoln-in-supply = <&vdd_smps10_out2>;
 
 				regulators {
-					tps65913_smps123: smps123 {
-						regulator-name = "vdd-cpu";
+					vdd_cpu: smps123 {
+						regulator-name = "vdd_cpu";
 						regulator-min-microvolt = <900000>;
 						regulator-max-microvolt = <1350000>;
 						regulator-always-on;
@@ -1372,8 +1397,8 @@
 						ti,mode-sleep = <3>;
 					};
 
-					tps65913_smps45: smps45 {
-						regulator-name = "vdd-core";
+					vdd_core: smps45 {
+						regulator-name = "vdd_core";
 						regulator-min-microvolt = <900000>;
 						regulator-max-microvolt = <1400000>;
 						regulator-always-on;
@@ -1381,101 +1406,95 @@
 						ti,roof-floor = <3>;
 					};
 
-					smps6 {
-						regulator-name = "va-lcd-hv";
-						regulator-min-microvolt = <1000000>;
-						regulator-max-microvolt = <1000000>;
-						regulator-always-on;
-						regulator-boot-on;
-					};
+					/* smps6 disabled */
 
-					tps65913_smps7: smps7 {
-						regulator-name = "vdd-ddr";
+					vddio_ddr: smps7 {
+						regulator-name = "vddio_ddr";
 						regulator-min-microvolt = <1350000>;
 						regulator-max-microvolt = <1350000>;
 						regulator-always-on;
 						regulator-boot-on;
 					};
 
-					tps65913_smps8: smps8 {
-						regulator-name = "vdd-1v8";
+					vdd_1v8_vio: smps8 {
+						regulator-name = "vdd_1v8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-always-on;
 						regulator-boot-on;
 					};
 
-					tps65913_smps9: smps9 {
-						regulator-name = "vdd-sd";
+					vcore_emmc: smps9 {
+						regulator-name = "vdd_emmc";
 						regulator-min-microvolt = <2900000>;
 						regulator-max-microvolt = <2900000>;
-						regulator-always-on;
+						regulator-boot-on;
 					};
 
-					tps65913_smps10_out1: smps10_out1 {
-						regulator-name = "vd-smps10-out1";
+					smps10_out1 {
+						regulator-name = "vd_smps10_out1";
 						regulator-min-microvolt = <5000000>;
 						regulator-max-microvolt = <5000000>;
 						regulator-always-on;
 						regulator-boot-on;
 					};
 
-					tps65913_smps10_out2: smps10_out2 {
-						regulator-name = "vd-smps10-out2";
+					vdd_smps10_out2: smps10_out2 {
+						regulator-name = "vd_smps10_out2";
 						regulator-min-microvolt = <5000000>;
 						regulator-max-microvolt = <5000000>;
 						regulator-always-on;
 						regulator-boot-on;
 					};
 
-					tps65913_ldo1: ldo1 {
-						regulator-name = "vdd-hdmi-pll";
+					avdd_hdmi_pll: ldo1 {
+						regulator-name = "avdd_hdmi_pll";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
 						regulator-always-on;
+						regulator-boot-on;
 						ti,roof-floor = <3>;
 					};
 
-					tps65913_ldo2: ldo2 {
-						regulator-name = "vdd-2v8-dsi-csi";
+					avdd_dsi_csi: ldo2 {
+						regulator-name = "avdd_dsi_csi";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
 						regulator-boot-on;
 					};
 
 					ldo3 {
-						regulator-name = "vpp-fuse";
+						regulator-name = "vpp_fuse";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
-					ldo4 {
-						regulator-name = "vdd-1v2-cam";
+					vdd_1v2_cam: ldo4 {
+						regulator-name = "vdd_1v2_cam";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
 					};
 
-					ldo5 {
-						regulator-name = "vdd-cam";
+					avdd_2v8_cam: ldo5 {
+						regulator-name = "avdd_cam2";
 						regulator-min-microvolt = <2800000>;
 						regulator-max-microvolt = <2800000>;
 					};
 
-					ldo6 {
-						regulator-name = "vdd-dev";
+					vdd_2v85_sen: ldo6 {
+						regulator-name = "vdd_dev";
 						regulator-min-microvolt = <2850000>;
 						regulator-max-microvolt = <2850000>;
-						regulator-boot-on;
 					};
 
-					ldo7 {
-						regulator-name = "vdd-2v8-cam";
+					avdd_2v8_af: ldo7 {
+						regulator-name = "avdd_2v8_cam";
 						regulator-min-microvolt = <2800000>;
 						regulator-max-microvolt = <2800000>;
 					};
 
-					tps65913_ldo8: ldo8 {
-						regulator-name = "vdd-rtc";
+					ldo8 {
+						regulator-name = "vdd_rtc";
 						regulator-min-microvolt = <950000>;
 						regulator-max-microvolt = <950000>;
 						regulator-always-on;
@@ -1483,23 +1502,24 @@
 						ti,enable-ldo8-tracking;
 					};
 
-					tps65913_ldo9: ldo9 {
-						regulator-name = "vdd-sdmmc";
-						regulator-min-microvolt = <1800000>;
+					vddio_usd: ldo9 {
+						regulator-name = "vddio_usd";
+						/* min voltage of 1.8v is not stable */
+						regulator-min-microvolt = <2900000>;
 						regulator-max-microvolt = <2900000>;
 					};
 
-					tps65913_ldoln: ldoln {
-						regulator-name = "vdd-hdmi";
+					avdd_hdmi: ldoln {
+						regulator-name = "avdd_hdmi";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
+						regulator-boot-on;
 					};
 
-					ldousb {
-						regulator-name = "vdd-usb";
+					avdd_usb: ldousb {
+						regulator-name = "avdd_usb";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						regulator-always-on;
 						regulator-boot-on;
 					};
 				};
@@ -1508,8 +1528,27 @@
 			rtc {
 				compatible = "ti,palmas-rtc";
 				interrupt-parent = <&palmas>;
-				interrupts = <8 0>;
+				interrupts = <8 IRQ_TYPE_NONE>;
 			};
+		};
+	};
+
+	pmc@7000e400 {
+		status = "okay";
+		nvidia,suspend-mode = <2>;
+		nvidia,cpu-pwr-good-time = <300>;
+		nvidia,cpu-pwr-off-time = <300>;
+		nvidia,core-pwr-good-time = <641 3845>;
+		nvidia,core-pwr-off-time = <2000>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
+
+		/* Clear DEV_ON bit in DEV_CTRL register of TPS65913 PMIC  */
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <4>;
+			nvidia,bus-addr = <0x58>;
+			nvidia,reg-addr = <0xA0>;
+			nvidia,reg-data = <0x00>;
 		};
 	};
 
@@ -1533,8 +1572,8 @@
 		nvidia,default-tap = <0x3>;
 		nvidia,default-trim = <0x3>;
 
-		vmmc-supply = <&vdd_usd>;
-		vqmmc-supply = <&tps65913_ldo9>;
+		vmmc-supply = <&vdd_2v9_usd>;
+		vqmmc-supply = <&vddio_usd>;
 	};
 
 	mmc@78000600 {
@@ -1661,7 +1700,7 @@
 
 	vdd_5v0_sys: regulator-5v0-sys {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_5v0";
+		regulator-name = "vdd_5v0_sys";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
@@ -1670,31 +1709,119 @@
 
 	vdd_3v3_sys: regulator-3v3-sys {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_3v3";
+		regulator-name = "vdd_3v3_sys";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	vdd_lcd: regulator-vdd-lcd {
+	dvdd_1v8_lcd: regulator-vdd-lcd {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_lcd_1v8";
+		regulator-name = "dvdd_1v8_lcd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		vin-supply = <&tps65913_smps8>;
-		enable-active-high;
-		gpio = <&gpio TEGRA_GPIO(CC, 4) GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
+		gpio = <&palmas_gpio 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_1v8_vio>;
 	};
 
-	vdd_usd: regulator-vdd-usd {
+	vdd_3v7_bl: regulator-bl-en {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v7_bl";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	hdmi_5v0_sys: regulator-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_5v0_hdmi";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_smps10_out2>;
+	};
+
+	vdd_2v9_usd: regulator-vdd-usd {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_sd_slot";
 		regulator-min-microvolt = <2900000>;
 		regulator-max-microvolt = <2900000>;
-		vin-supply = <&tps65913_smps9>;
-		enable-active-high;
+		regulator-boot-on;
 		gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vcore_emmc>;
+	};
+
+	vdd_1v8_cam: regulator-cam-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v8_cam";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		gpio = <&palmas_gpio 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_1v8_vio>;
+	};
+
+	vdd_1v2_xusb: regulator-xusb-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "avddio_1v2_xusb";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		gpio = <&palmas_gpio 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vdd_3v3_xusb: regulator-xusb-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "hvdd_3v3_xusb";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		gpio = <&palmas_gpio 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vdd_3v3_com: regulator-com {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_com";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(U, 1) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_3v3_touch: regulator-touch-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_touch";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_1v8_touch: regulator-touch-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v8_touch";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		gpio = <&gpio TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
 	};
 };
