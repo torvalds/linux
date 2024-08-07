@@ -472,7 +472,9 @@ static int hist_entry__init(struct hist_entry *he,
 		memcpy(he->branch_info, template->branch_info,
 		       sizeof(*he->branch_info));
 
+		he->branch_info->from.ms.maps = maps__get(he->branch_info->from.ms.maps);
 		he->branch_info->from.ms.map = map__get(he->branch_info->from.ms.map);
+		he->branch_info->to.ms.maps = maps__get(he->branch_info->to.ms.maps);
 		he->branch_info->to.ms.map = map__get(he->branch_info->to.ms.map);
 	}
 
@@ -970,10 +972,21 @@ out:
 	return err;
 }
 
+static void branch_info__exit(struct branch_info *bi)
+{
+	map_symbol__exit(&bi->from.ms);
+	map_symbol__exit(&bi->to.ms);
+	zfree_srcline(&bi->srcline_from);
+	zfree_srcline(&bi->srcline_to);
+}
+
 static int
 iter_finish_branch_entry(struct hist_entry_iter *iter,
 			 struct addr_location *al __maybe_unused)
 {
+	for (int i = 0; i < iter->total; i++)
+		branch_info__exit(&iter->bi[i]);
+
 	zfree(&iter->bi);
 	iter->he = NULL;
 
@@ -1319,10 +1332,7 @@ void hist_entry__delete(struct hist_entry *he)
 	map_symbol__exit(&he->ms);
 
 	if (he->branch_info) {
-		map_symbol__exit(&he->branch_info->from.ms);
-		map_symbol__exit(&he->branch_info->to.ms);
-		zfree_srcline(&he->branch_info->srcline_from);
-		zfree_srcline(&he->branch_info->srcline_to);
+		branch_info__exit(he->branch_info);
 		zfree(&he->branch_info);
 	}
 
