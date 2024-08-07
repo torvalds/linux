@@ -7354,6 +7354,13 @@
 			it can be updated at runtime by writing to the
 			corresponding sysfs file.
 
+	workqueue.panic_on_stall=<uint>
+			Panic when workqueue stall is detected by
+			CONFIG_WQ_WATCHDOG. It sets the number times of the
+			stall to trigger panic.
+
+			The default is 0, which disables the panic on stall.
+
 	workqueue.cpu_intensive_thresh_us=
 			Per-cpu work items which run for longer than this
 			threshold are automatically considered CPU intensive
