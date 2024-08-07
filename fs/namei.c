@@ -3605,6 +3605,49 @@ out_dput:
 	return ERR_PTR(error);
 }
 
+static inline bool trailing_slashes(struct nameidata *nd)
+{
+	return (bool)nd->last.name[nd->last.len];
+}
+
+static struct dentry *lookup_fast_for_open(struct nameidata *nd, int open_flag)
+{
+	struct dentry *dentry;
+
+	if (open_flag & O_CREAT) {
+		/* Don't bother on an O_EXCL create */
+		if (open_flag & O_EXCL)
+			return NULL;
+
+		/*
+		 * FIXME: If auditing is enabled, then we'll have to unlazy to
+		 * use the dentry. For now, don't do this, since it shifts
+		 * contention from parent's i_rwsem to its d_lockref spinlock.
+		 * Reconsider this once dentry refcounting handles heavy
+		 * contention better.
+		 */
+		if ((nd->flags & LOOKUP_RCU) && !audit_dummy_context())
+			return NULL;
+	}
+
+	if (trailing_slashes(nd))
+		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+
+	dentry = lookup_fast(nd);
+	if (IS_ERR_OR_NULL(dentry))
+		return dentry;
+
+	if (open_flag & O_CREAT) {
+		/* Discard negative dentries. Need inode_lock to do the create */
+		if (!dentry->d_inode) {
+			if (!(nd->flags & LOOKUP_RCU))
+				dput(dentry);
+			dentry = NULL;
+		}
+	}
+	return dentry;
+}
+
 static const char *open_last_lookups(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
@@ -3622,28 +3665,39 @@ static const char *open_last_lookups(struct nameidata *nd,
 		return handle_dots(nd, nd->last_type);
 	}
 
+	/* We _can_ be in RCU mode here */
+	dentry = lookup_fast_for_open(nd, open_flag);
+	if (IS_ERR(dentry))
+		return ERR_CAST(dentry);
+
 	if (!(open_flag & O_CREAT)) {
-		if (nd->last.name[nd->last.len])
-			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
-		/* we _can_ be in RCU mode here */
-		dentry = lookup_fast(nd);
-		if (IS_ERR(dentry))
-			return ERR_CAST(dentry);
 		if (likely(dentry))
 			goto finish_lookup;
 
 		if (WARN_ON_ONCE(nd->flags & LOOKUP_RCU))
 			return ERR_PTR(-ECHILD);
 	} else {
-		/* create side of things */
 		if (nd->flags & LOOKUP_RCU) {
-			if (!try_to_unlazy(nd))
+			bool unlazied;
+
+			/* can stay in rcuwalk if not auditing */
+			if (dentry && audit_dummy_context()) {
+				if (trailing_slashes(nd))
+					return ERR_PTR(-EISDIR);
+				goto finish_lookup;
+			}
+			unlazied = dentry ? try_to_unlazy_next(nd, dentry) :
+					    try_to_unlazy(nd);
+			if (!unlazied)
 				return ERR_PTR(-ECHILD);
 		}
 		audit_inode(nd->name, dir, AUDIT_INODE_PARENT);
-		/* trailing slashes? */
-		if (unlikely(nd->last.name[nd->last.len]))
+		if (trailing_slashes(nd)) {
+			dput(dentry);
 			return ERR_PTR(-EISDIR);
+		}
+		if (dentry)
+			goto finish_lookup;
 	}
 
 	if (open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
