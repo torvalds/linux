@@ -836,6 +836,8 @@ LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE_HI,
 
 LE64_BITMASK(BCH_SB_VERSION_UPGRADE_COMPLETE,
 					struct bch_sb, flags[5],  0, 16);
+LE64_BITMASK(BCH_SB_ALLOCATOR_STUCK_TIMEOUT,
+					struct bch_sb, flags[5], 16, 32);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {
