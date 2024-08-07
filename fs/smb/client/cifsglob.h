@@ -345,7 +345,7 @@ struct smb_version_operations {
 	/* connect to a server share */
 	int (*tree_connect)(const unsigned int, struct cifs_ses *, const char *,
 			    struct cifs_tcon *, const struct nls_table *);
-	/* close tree connecion */
+	/* close tree connection */
 	int (*tree_disconnect)(const unsigned int, struct cifs_tcon *);
 	/* get DFS referrals */
 	int (*get_dfs_refer)(const unsigned int, struct cifs_ses *,
@@ -816,7 +816,7 @@ struct TCP_Server_Info {
 	 * Protected by @refpath_lock and @srv_lock.  The @refpath_lock is
 	 * mostly used for not requiring a copy of @leaf_fullpath when getting
 	 * cached or new DFS referrals (which might also sleep during I/O).
-	 * While @srv_lock is held for making string and NULL comparions against
+	 * While @srv_lock is held for making string and NULL comparisons against
 	 * both fields as in mount(2) and cache refresh.
 	 *
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]

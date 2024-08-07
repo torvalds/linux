@@ -352,7 +352,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 				 * on simple responses (wct, bcc both zero)
 				 * in particular have seen this on
 				 * ulogoffX and FindClose. This leaves
-				 * one byte of bcc potentially unitialized
+				 * one byte of bcc potentially uninitialized
 				 */
 				/* zero rest of bcc */
 				tmp[sizeof(struct smb_hdr)+1] = 0;
