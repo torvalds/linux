@@ -1022,9 +1022,6 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 	open_bucket_for_each(c, ptrs, ob, i)
 		__clear_bit(ob->dev, devs.d);
 
-	if (erasure_code && ec_open_bucket(c, ptrs))
-		return 0;
-
 	ret = bucket_alloc_set_writepoint(c, ptrs, wp, &devs,
 				 nr_replicas, nr_effective,
 				 have_cache, erasure_code, flags);
@@ -1079,7 +1076,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 {
 	int ret;
 
-	if (erasure_code) {
+	if (erasure_code && !ec_open_bucket(trans->c, ptrs)) {
 		ret = __open_bucket_add_buckets(trans, ptrs, wp,
 				devs_have, target, erasure_code,
 				nr_replicas, nr_effective, have_cache,
