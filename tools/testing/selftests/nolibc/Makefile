@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for nolibc tests
-include ../../../scripts/Makefile.include
-include ../../../scripts/utilities.mak
+# we're in ".../tools/testing/selftests/nolibc"
+ifeq ($(srctree),)
+srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
+endif
+
+include $(srctree)/tools/scripts/Makefile.include
+include $(srctree)/tools/scripts/utilities.mak
 # We need this for the "cc-option" macro.
-include ../../../build/Build.include
+include $(srctree)/tools/build/Build.include
 
 ifneq ($(O),)
 ifneq ($(call is-absolute,$(O)),y)
 $(error Only absolute O= parameters are supported)
 endif
-endif
-
-# we're in ".../tools/testing/selftests/nolibc"
-ifeq ($(srctree),)
-srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
 endif
 
 ifeq ($(ARCH),)
