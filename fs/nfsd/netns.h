@@ -152,8 +152,8 @@ struct nfsd_net {
 	/*
 	 * Version information
 	 */
-	bool *nfsd_versions;
-	bool *nfsd4_minorversions;
+	bool nfsd_versions[NFSD_MAXVERS + 1];
+	bool nfsd4_minorversions[NFSD_SUPPORTED_MINOR_VERSION + 1];
 
 	/*
 	 * Duplicate reply cache
@@ -219,8 +219,6 @@ struct nfsd_net {
 #define nfsd_netns_ready(nn) ((nn)->sessionid_hashtbl)
 
 extern bool nfsd_support_version(int vers);
-extern void nfsd_netns_free_versions(struct nfsd_net *nn);
-
 extern unsigned int nfsd_net_id;
 
 void nfsd_copy_write_verifier(__be32 verf[2], struct nfsd_net *nn);

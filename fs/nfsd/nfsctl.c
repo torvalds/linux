@@ -2231,8 +2231,9 @@ err_free_msg:
  */
 static __net_init int nfsd_net_init(struct net *net)
 {
-	int retval;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int retval;
+	int i;
 
 	retval = nfsd_export_init(net);
 	if (retval)
@@ -2246,8 +2247,10 @@ static __net_init int nfsd_net_init(struct net *net)
 		goto out_repcache_error;
 	memset(&nn->nfsd_svcstats, 0, sizeof(nn->nfsd_svcstats));
 	nn->nfsd_svcstats.program = &nfsd_program;
-	nn->nfsd_versions = NULL;
-	nn->nfsd4_minorversions = NULL;
+	for (i = 0; i < sizeof(nn->nfsd_versions); i++)
+		nn->nfsd_versions[i] = nfsd_support_version(i);
+	for (i = 0; i < sizeof(nn->nfsd4_minorversions); i++)
+		nn->nfsd4_minorversions[i] = nfsd_support_version(4);
 	nn->nfsd_info.mutex = &nfsd_mutex;
 	nn->nfsd_serv = NULL;
 	nfsd4_init_leases_net(nn);
@@ -2278,7 +2281,6 @@ static __net_exit void nfsd_net_exit(struct net *net)
 	percpu_counter_destroy_many(nn->counter, NFSD_STATS_COUNTERS_NUM);
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
-	nfsd_netns_free_versions(nn);
 }
 
 static struct pernet_operations nfsd_net_ops = {

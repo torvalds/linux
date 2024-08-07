@@ -23,9 +23,7 @@
 
 #include <uapi/linux/nfsd/debug.h>
 
-#include "netns.h"
 #include "export.h"
-#include "stats.h"
 
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
@@ -37,7 +35,14 @@
 /*
  * nfsd version
  */
+#define NFSD_MINVERS			2
+#define	NFSD_MAXVERS			4
 #define NFSD_SUPPORTED_MINOR_VERSION	2
+bool nfsd_support_version(int vers);
+
+#include "netns.h"
+#include "stats.h"
+
 /*
  * Maximum blocksizes supported by daemon under various circumstances.
  */
