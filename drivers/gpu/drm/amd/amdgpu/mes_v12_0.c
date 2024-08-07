@@ -1305,18 +1305,21 @@ static int mes_v12_0_sw_fini(void *handle)
 				      &adev->mes.eop_gpu_addr[pipe],
 				      NULL);
 		amdgpu_ucode_release(&adev->mes.fw[pipe]);
+
+		if (adev->enable_uni_mes || pipe == AMDGPU_MES_SCHED_PIPE) {
+			amdgpu_bo_free_kernel(&adev->mes.ring[pipe].mqd_obj,
+					      &adev->mes.ring[pipe].mqd_gpu_addr,
+					      &adev->mes.ring[pipe].mqd_ptr);
+			amdgpu_ring_fini(&adev->mes.ring[pipe]);
+		}
 	}
 
-	amdgpu_bo_free_kernel(&adev->gfx.kiq[0].ring.mqd_obj,
-			      &adev->gfx.kiq[0].ring.mqd_gpu_addr,
-			      &adev->gfx.kiq[0].ring.mqd_ptr);
-
-	amdgpu_bo_free_kernel(&adev->mes.ring[0].mqd_obj,
-			      &adev->mes.ring[0].mqd_gpu_addr,
-			      &adev->mes.ring[0].mqd_ptr);
-
-	amdgpu_ring_fini(&adev->gfx.kiq[0].ring);
-	amdgpu_ring_fini(&adev->mes.ring[0]);
+	if (!adev->enable_uni_mes) {
+		amdgpu_bo_free_kernel(&adev->gfx.kiq[0].ring.mqd_obj,
+				      &adev->gfx.kiq[0].ring.mqd_gpu_addr,
+				      &adev->gfx.kiq[0].ring.mqd_ptr);
+		amdgpu_ring_fini(&adev->gfx.kiq[0].ring);
+	}
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 		mes_v12_0_free_ucode_buffers(adev, AMDGPU_MES_KIQ_PIPE);
@@ -1433,7 +1436,13 @@ failure:
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev)
 {
 	if (adev->mes.ring[0].sched.ready) {
-		mes_v12_0_kiq_dequeue_sched(adev);
+		if (adev->enable_uni_mes)
+			amdgpu_mes_unmap_legacy_queue(adev,
+				      &adev->mes.ring[AMDGPU_MES_SCHED_PIPE],
+				      RESET_QUEUES, 0, 0);
+		else
+			mes_v12_0_kiq_dequeue_sched(adev);
+
 		adev->mes.ring[0].sched.ready = false;
 	}
 
