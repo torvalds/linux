@@ -1244,8 +1244,6 @@ out:
  * is in same phase.
  *
  * Also, *phase, *count, *data are modified in place.
- *
- * XXX Note : handling for bus free may be useful.
  */
 
 /*
@@ -1277,8 +1275,8 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 		 * valid
 		 */
 
-		if (NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ,
-					  HZ * can_sleep) < 0)
+		if (NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ | SR_BSY,
+					  SR_REQ | SR_BSY, HZ * can_sleep) < 0)
 			break;
 
 		dsprintk(NDEBUG_HANDSHAKE, instance, "REQ asserted\n");
@@ -1666,9 +1664,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  * Side effects : SCSI things happen, the disconnected queue will be
  * modified if a command disconnects, *instance->connected will
  * change.
- *
- * XXX Note : we need to watch for bus free or a reset condition here
- * to recover from an unexpected bus free condition.
  */
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance)
@@ -2009,9 +2004,20 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				NCR5380_dprint(NDEBUG_ANY, instance);
 			} /* switch(phase) */
 		} else {
+			int err;
+
 			spin_unlock_irq(&hostdata->lock);
-			NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ, HZ);
+			err = NCR5380_poll_politely(hostdata, STATUS_REG,
+						    SR_REQ, SR_REQ, HZ);
 			spin_lock_irq(&hostdata->lock);
+
+			if (err < 0 && hostdata->connected &&
+			    !(NCR5380_read(STATUS_REG) & SR_BSY)) {
+				scmd_printk(KERN_ERR, hostdata->connected,
+					    "BSY signal lost\n");
+				do_reset(instance);
+				bus_reset_cleanup(instance);
+			}
 		}
 	}
 }
