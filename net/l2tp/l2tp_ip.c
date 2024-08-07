@@ -37,7 +37,7 @@ static DEFINE_RWLOCK(l2tp_ip_lock);
 static struct hlist_head l2tp_ip_table;
 static struct hlist_head l2tp_ip_bind_table;
 
-static inline struct l2tp_ip_sock *l2tp_ip_sk(const struct sock *sk)
+static struct l2tp_ip_sock *l2tp_ip_sk(const struct sock *sk)
 {
 	return (struct l2tp_ip_sock *)sk;
 }

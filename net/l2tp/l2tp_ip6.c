@@ -43,7 +43,7 @@ static DEFINE_RWLOCK(l2tp_ip6_lock);
 static struct hlist_head l2tp_ip6_table;
 static struct hlist_head l2tp_ip6_bind_table;
 
-static inline struct l2tp_ip6_sock *l2tp_ip6_sk(const struct sock *sk)
+static struct l2tp_ip6_sock *l2tp_ip6_sk(const struct sock *sk)
 {
 	return (struct l2tp_ip6_sock *)sk;
 }

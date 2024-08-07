@@ -149,7 +149,7 @@ static struct sock *pppol2tp_session_get_sock(struct l2tp_session *session)
 
 /* Helpers to obtain tunnel/session contexts from sockets.
  */
-static inline struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
+static struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
 {
 	struct l2tp_session *session;
 

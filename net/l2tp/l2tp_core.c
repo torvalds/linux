@@ -117,12 +117,12 @@ struct l2tp_net {
 	struct hlist_head l2tp_v3_session_htable[16];
 };
 
-static inline u32 l2tp_v2_session_key(u16 tunnel_id, u16 session_id)
+static u32 l2tp_v2_session_key(u16 tunnel_id, u16 session_id)
 {
 	return ((u32)tunnel_id) << 16 | session_id;
 }
 
-static inline unsigned long l2tp_v3_session_hashkey(struct sock *sk, u32 session_id)
+static unsigned long l2tp_v3_session_hashkey(struct sock *sk, u32 session_id)
 {
 	return ((unsigned long)sk) + session_id;
 }
@@ -135,7 +135,7 @@ static bool l2tp_sk_is_v6(struct sock *sk)
 }
 #endif
 
-static inline struct l2tp_net *l2tp_pernet(const struct net *net)
+static struct l2tp_net *l2tp_pernet(const struct net *net)
 {
 	return net_generic(net, l2tp_net_id);
 }
