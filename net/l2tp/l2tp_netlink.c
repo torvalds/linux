@@ -491,14 +491,20 @@ err:
 	return ret;
 }
 
+struct l2tp_nl_cb_data {
+	unsigned long tkey;
+	unsigned long skey;
+};
+
 static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int ti = cb->args[0];
+	struct l2tp_nl_cb_data *cbd = (void *)&cb->ctx[0];
+	unsigned long key = cbd->tkey;
 	struct l2tp_tunnel *tunnel;
 	struct net *net = sock_net(skb->sk);
 
 	for (;;) {
-		tunnel = l2tp_tunnel_get_nth(net, ti);
+		tunnel = l2tp_tunnel_get_next(net, &key);
 		if (!tunnel)
 			goto out;
 
@@ -510,11 +516,11 @@ static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback 
 		}
 		l2tp_tunnel_dec_refcount(tunnel);
 
-		ti++;
+		key++;
 	}
 
 out:
-	cb->args[0] = ti;
+	cbd->tkey = key;
 
 	return skb->len;
 }
@@ -832,25 +838,27 @@ err:
 
 static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct l2tp_nl_cb_data *cbd = (void *)&cb->ctx[0];
 	struct net *net = sock_net(skb->sk);
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel = NULL;
-	int ti = cb->args[0];
-	int si = cb->args[1];
+	unsigned long tkey = cbd->tkey;
+	unsigned long skey = cbd->skey;
 
 	for (;;) {
 		if (!tunnel) {
-			tunnel = l2tp_tunnel_get_nth(net, ti);
+			tunnel = l2tp_tunnel_get_next(net, &tkey);
 			if (!tunnel)
 				goto out;
 		}
 
-		session = l2tp_session_get_nth(tunnel, si);
+		session = l2tp_session_get_next(net, tunnel->sock, tunnel->version,
+						tunnel->tunnel_id, &skey);
 		if (!session) {
-			ti++;
+			tkey++;
 			l2tp_tunnel_dec_refcount(tunnel);
 			tunnel = NULL;
-			si = 0;
+			skey = 0;
 			continue;
 		}
 
@@ -863,12 +871,12 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 		}
 		l2tp_session_dec_refcount(session);
 
-		si++;
+		skey++;
 	}
 
 out:
-	cb->args[0] = ti;
-	cb->args[1] = si;
+	cbd->tkey = tkey;
+	cbd->skey = skey;
 
 	return skb->len;
 }
