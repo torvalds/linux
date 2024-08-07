@@ -54,6 +54,8 @@
 #define CPACF_KM_XTS_256	0x34
 #define CPACF_KM_PXTS_128	0x3a
 #define CPACF_KM_PXTS_256	0x3c
+#define CPACF_KM_XTS_128_FULL	0x52
+#define CPACF_KM_XTS_256_FULL	0x54
 
 /*
  * Function codes for the KMC (CIPHER MESSAGE WITH CHAINING)
