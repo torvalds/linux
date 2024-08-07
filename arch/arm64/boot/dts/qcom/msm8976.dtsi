@@ -663,6 +663,11 @@
 			#thermal-sensor-cells = <1>;
 		};
 
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x004ab000 0x4>;
+		};
+
 		tlmm: pinctrl@1000000 {
 			compatible = "qcom,msm8976-pinctrl";
 			reg = <0x01000000 0x300000>;
