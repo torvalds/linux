@@ -6,8 +6,8 @@ srctree := $(patsubst %/tools/testing/selftests/,%,$(dir $(CURDIR)))
 endif
 
 include $(srctree)/tools/scripts/utilities.mak
-# We need this for the "cc-option" macro.
-include $(srctree)/tools/build/Build.include
+# We need this for the "__cc-option" macro.
+include $(srctree)/scripts/Makefile.compiler
 
 ifneq ($(O),)
 ifneq ($(call is-absolute,$(O)),y)
@@ -22,6 +22,8 @@ ifeq ($(ARCH),)
 include $(srctree)/scripts/subarch.include
 ARCH = $(SUBARCH)
 endif
+
+cc-option = $(call __cc-option, $(CC),$(CLANG_CROSS_FLAGS),$(1),$(2))
 
 # XARCH extends the kernel's ARCH with a few variants of the same
 # architecture that only differ by the configuration, the toolchain
