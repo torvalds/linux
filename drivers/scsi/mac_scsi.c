@@ -432,7 +432,7 @@ static struct scsi_host_template mac_scsi_template = {
 	.eh_host_reset_handler	= macscsi_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
-	.sg_tablesize		= 1,
+	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
 	.dma_boundary		= PAGE_SIZE - 1,
 	.cmd_size		= sizeof(struct NCR5380_cmd),
@@ -470,6 +470,9 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (setup_hostid >= 0)
 		mac_scsi_template.this_id = setup_hostid & 7;
 
+	if (macintosh_config->ident == MAC_MODEL_IIFX)
+		mac_scsi_template.sg_tablesize = 1;
+
 	instance = scsi_host_alloc(&mac_scsi_template,
 	                           sizeof(struct NCR5380_hostdata));
 	if (!instance)
@@ -490,6 +493,9 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
+
+	if (instance->sg_tablesize > 1)
+		host_flags |= FLAG_DMA_FIXUP;
 
 	error = NCR5380_init(instance, host_flags | FLAG_LATE_DMA_SETUP);
 	if (error)
