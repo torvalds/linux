@@ -321,6 +321,8 @@ int acp_init(struct acp_chip_info *chip)
 		pr_err("ACP reset failed\n");
 		return ret;
 	}
+	if (chip->acp_rev >= ACP70_DEV)
+		writel(0, chip->base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_init, SND_SOC_ACP_COMMON);
@@ -336,6 +338,9 @@ int acp_deinit(struct acp_chip_info *chip)
 
 	if (chip->acp_rev != ACP70_DEV)
 		writel(0, chip->base + ACP_CONTROL);
+
+	if (chip->acp_rev >= ACP70_DEV)
+		writel(0x01, chip->base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_deinit, SND_SOC_ACP_COMMON);
