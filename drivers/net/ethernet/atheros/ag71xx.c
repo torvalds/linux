@@ -447,6 +447,13 @@ static void ag71xx_int_disable(struct ag71xx *ag, u32 ints)
 	ag71xx_cb(ag, AG71XX_REG_INT_ENABLE, ints);
 }
 
+static int ag71xx_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
+{
+	struct ag71xx *ag = netdev_priv(ndev);
+
+	return phylink_mii_ioctl(ag->phylink, ifr, cmd);
+}
+
 static void ag71xx_get_drvinfo(struct net_device *ndev,
 			       struct ethtool_drvinfo *info)
 {
@@ -1799,7 +1806,7 @@ static const struct net_device_ops ag71xx_netdev_ops = {
 	.ndo_open		= ag71xx_open,
 	.ndo_stop		= ag71xx_stop,
 	.ndo_start_xmit		= ag71xx_hard_start_xmit,
-	.ndo_eth_ioctl		= phy_do_ioctl,
+	.ndo_eth_ioctl		= ag71xx_do_ioctl,
 	.ndo_tx_timeout		= ag71xx_tx_timeout,
 	.ndo_change_mtu		= ag71xx_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
