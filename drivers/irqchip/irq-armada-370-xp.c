@@ -133,7 +133,7 @@
 #define MPIC_INT_FABRIC_MASK			0x54
 #define MPIC_INT_CAUSE_PERF(cpu)		BIT(cpu)
 
-#define MPIC_MAX_PER_CPU_IRQS			28
+#define MPIC_PER_CPU_IRQS_NR			29
 
 /* IPI and MSI interrupt definitions for IPI platforms */
 #define IPI_DOORBELL_NR				8
@@ -202,7 +202,7 @@ static inline bool mpic_is_ipi_available(struct mpic *mpic)
 
 static inline bool mpic_is_percpu_irq(irq_hw_number_t hwirq)
 {
-	return hwirq <= MPIC_MAX_PER_CPU_IRQS;
+	return hwirq < MPIC_PER_CPU_IRQS_NR;
 }
 
 /*
@@ -545,7 +545,7 @@ static void mpic_smp_cpu_init(struct mpic *mpic)
 static void mpic_reenable_percpu(struct mpic *mpic)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
-	for (irq_hw_number_t i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
+	for (irq_hw_number_t i = 0; i < MPIC_PER_CPU_IRQS_NR; i++) {
 		unsigned int virq = irq_linear_revmap(mpic->domain, i);
 		struct irq_data *d;
 
