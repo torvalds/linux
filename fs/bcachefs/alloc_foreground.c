@@ -1603,7 +1603,8 @@ void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct ope
 	prt_newline(out);
 }
 
-void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
+void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c,
+			       struct bch_dev *ca)
 {
 	struct open_bucket *ob;
 
@@ -1613,7 +1614,8 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
 	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
 	     ob++) {
 		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list)
+		if (ob->valid && !ob->on_partial_list &&
+		    (!ca || ob->dev == ca->dev_idx))
 			bch2_open_bucket_to_text(out, c, ob);
 		spin_unlock(&ob->lock);
 	}
