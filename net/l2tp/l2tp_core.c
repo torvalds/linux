@@ -291,7 +291,8 @@ struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk,
 			 */
 			struct l2tp_tunnel *tunnel = READ_ONCE(session->tunnel);
 
-			if (tunnel && tunnel->sock == sk &&
+			if (session->session_id == session_id &&
+			    tunnel && tunnel->sock == sk &&
 			    refcount_inc_not_zero(&session->ref_count)) {
 				rcu_read_unlock_bh();
 				return session;
