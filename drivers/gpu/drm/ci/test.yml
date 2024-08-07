@@ -69,7 +69,7 @@
 .baremetal-igt-arm64:
   extends:
     - .baremetal-test-arm64
-    - .use-debian/arm64_test
+    - .use-debian/baremetal_arm64_test
     - .test-rules
   variables:
     FDO_CI_CONCURRENT: 10
@@ -79,7 +79,7 @@
     BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
     FARM: google
   needs:
-    - debian/arm64_test
+    - debian/baremetal_arm64_test
     - job: testing:arm64
       artifacts: false
     - igt:arm64
