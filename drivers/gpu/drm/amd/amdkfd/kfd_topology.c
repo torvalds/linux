@@ -1286,9 +1286,8 @@ static void kfd_set_recommended_sdma_engines(struct kfd_topology_device *to_dev,
 	struct amdgpu_device *adev = gpu->adev;
 	int num_xgmi_nodes = adev->gmc.xgmi.num_physical_nodes;
 	bool support_rec_eng = !amdgpu_sriov_vf(adev) && to_dev->gpu &&
-		adev->aid_mask && num_xgmi_nodes &&
-		(amdgpu_xcp_query_partition_mode(adev->xcp_mgr, AMDGPU_XCP_FL_NONE) ==
-		      AMDGPU_SPX_PARTITION_MODE) &&
+		adev->aid_mask && num_xgmi_nodes && gpu->kfd->num_nodes == 1 &&
+		kfd_get_num_xgmi_sdma_engines(gpu) >= 14 &&
 		(!(adev->flags & AMD_IS_APU) && num_xgmi_nodes == 8);
 
 	if (support_rec_eng) {
