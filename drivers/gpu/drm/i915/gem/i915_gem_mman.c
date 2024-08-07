@@ -293,8 +293,10 @@ out:
 static void set_address_limits(struct vm_area_struct *area,
 			       struct i915_vma *vma,
 			       unsigned long obj_offset,
+			       resource_size_t gmadr_start,
 			       unsigned long *start_vaddr,
-			       unsigned long *end_vaddr)
+			       unsigned long *end_vaddr,
+			       unsigned long *pfn)
 {
 	unsigned long vm_start, vm_end, vma_size; /* user's memory parameters */
 	long start, end; /* memory boundaries */
@@ -323,6 +325,10 @@ static void set_address_limits(struct vm_area_struct *area,
 	/* Let's move back into the "<< PAGE_SHIFT" domain */
 	*start_vaddr = (unsigned long)start << PAGE_SHIFT;
 	*end_vaddr = (unsigned long)end << PAGE_SHIFT;
+
+	*pfn = (gmadr_start + i915_ggtt_offset(vma)) >> PAGE_SHIFT;
+	*pfn += (*start_vaddr - area->vm_start) >> PAGE_SHIFT;
+	*pfn += obj_offset - vma->gtt_view.partial.offset;
 }
 
 static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
@@ -441,11 +447,13 @@ retry:
 	if (ret)
 		goto err_unpin;
 
-	set_address_limits(area, vma, obj_offset, &start, &end);
-
-	pfn = (ggtt->gmadr.start + i915_ggtt_offset(vma)) >> PAGE_SHIFT;
-	pfn += (start - area->vm_start) >> PAGE_SHIFT;
-	pfn += obj_offset - vma->gtt_view.partial.offset;
+	/*
+	 * Dump all the necessary parameters in this function to perform the
+	 * arithmetic calculation for the virtual address start and end and
+	 * the PFN (Page Frame Number).
+	 */
+	set_address_limits(area, vma, obj_offset, ggtt->gmadr.start,
+			   &start, &end, &pfn);
 
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area, start, pfn, end - start, &ggtt->iomap);
