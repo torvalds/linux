@@ -525,7 +525,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 }
 
 /* update dir_bits and active flag for all groups in the client */
-static void update_group_attrs(struct snd_ump_endpoint *ump)
+void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 {
 	struct snd_ump_block *fb;
 	struct snd_ump_group *group;
@@ -578,6 +578,7 @@ static void update_group_attrs(struct snd_ump_endpoint *ump)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(snd_ump_update_group_attrs);
 
 /*
  * UMP endpoint and function block handling
@@ -863,7 +864,7 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 	if (fb) {
 		fill_fb_info(ump, &fb->info, buf);
 		if (ump->parsed) {
-			update_group_attrs(ump);
+			snd_ump_update_group_attrs(ump);
 			seq_notify_fb_change(ump, fb);
 		}
 	}
@@ -895,7 +896,7 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 				buf->raw, 3);
 	/* notify the FB name update to sequencer, too */
 	if (ret > 0 && ump->parsed) {
-		update_group_attrs(ump);
+		snd_ump_update_group_attrs(ump);
 		seq_notify_fb_change(ump, fb);
 	}
 	return ret;
@@ -1065,7 +1066,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	}
 
 	/* initialize group attributions */
-	update_group_attrs(ump);
+	snd_ump_update_group_attrs(ump);
 
  error:
 	ump->parsed = true;

@@ -877,6 +877,8 @@ static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 		}
 	}
 
+	snd_ump_update_group_attrs(rmidi->ump);
+
 	usb_audio_dbg(umidi->chip,
 		      "Created a UMP block %d from GTB, name=%s, flags=0x%x\n",
 		      blk, fb->info.name, fb->info.flags);
