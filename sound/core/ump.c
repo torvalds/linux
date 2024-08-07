@@ -657,6 +657,17 @@ static int ump_append_string(struct snd_ump_endpoint *ump, char *dest,
 		format == UMP_STREAM_MSG_FORMAT_END);
 }
 
+/* Choose the default protocol */
+static void choose_default_protocol(struct snd_ump_endpoint *ump)
+{
+	if (ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)
+		return;
+	if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
+	else
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
+}
+
 /* handle EP info stream message; update the UMP attributes */
 static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -678,6 +689,10 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 
 	ump_dbg(ump, "EP info: version=%x, num_blocks=%x, proto_caps=%x\n",
 		ump->info.version, ump->info.num_blocks, ump->info.protocol_caps);
+
+	ump->info.protocol &= ump->info.protocol_caps;
+	choose_default_protocol(ump);
+
 	return 1; /* finished */
 }
 
@@ -1040,12 +1055,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 		ump_dbg(ump, "Unable to get UMP EP stream config\n");
 
 	/* If no protocol is set by some reason, assume the valid one */
-	if (!(ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)) {
-		if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
-			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
-		else if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI1)
-			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
-	}
+	choose_default_protocol(ump);
 
 	/* Query and create blocks from Function Blocks */
 	for (blk = 0; blk < ump->info.num_blocks; blk++) {
