@@ -198,7 +198,6 @@ static inline void set_resid_from_SCp(struct scsi_cmnd *cmd)
  * Polls the chip in a reasonably efficient manner waiting for an
  * event to occur. After a short quick poll we begin to yield the CPU
  * (if possible). In irq contexts the time-out is arbitrarily limited.
- * Callers may hold locks as long as they are held in irq mode.
  *
  * Returns 0 if either or both event(s) occurred otherwise -ETIMEDOUT.
  */
