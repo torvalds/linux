@@ -752,7 +752,6 @@ void drm_panic_register(struct drm_device *dev)
 	if (registered_plane)
 		drm_info(dev, "Registered %d planes with drm panic\n", registered_plane);
 }
-EXPORT_SYMBOL(drm_panic_register);
 
 /**
  * drm_panic_unregister()
@@ -771,4 +770,3 @@ void drm_panic_unregister(struct drm_device *dev)
 		kmsg_dump_unregister(&plane->kmsg_panic);
 	}
 }
-EXPORT_SYMBOL(drm_panic_unregister);
