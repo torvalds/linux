@@ -456,7 +456,7 @@ static void mpic_ipi_resume(void)
 	}
 }
 
-static __init int mpic_ipi_init(struct device_node *node)
+static int __init mpic_ipi_init(struct device_node *node)
 {
 	int base_ipi;
 
