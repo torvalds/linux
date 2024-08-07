@@ -11,8 +11,6 @@
 /plugin/;
 
 &{/} {
-	compatible = "gw,imx8mp-gw74xx", "fsl,imx8mp";
-
 	reg_cam: regulator-cam {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_cam>;
