@@ -81,7 +81,11 @@ static struct drm_panic_line panic_msg[] = {
 	PANIC_LINE("KERNEL PANIC!"),
 	PANIC_LINE(""),
 	PANIC_LINE("Please reboot your computer."),
+	PANIC_LINE(""),
+	PANIC_LINE(""), /* will be replaced by the panic description */
 };
+
+#define PANIC_MSG_LINES ARRAY_SIZE(panic_msg)
 
 static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE("     .--.        _"),
@@ -92,6 +96,8 @@ static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE(" /'\\_   _/`\\    (_)"),
 	PANIC_LINE(" \\___)=(___/"),
 };
+
+#define PANIC_LOGO_LINES ARRAY_SIZE(logo_ascii)
 
 #if defined(CONFIG_LOGO) && !defined(MODULE)
 static const struct linux_logo *logo_mono;
@@ -487,13 +493,12 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 
 static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 {
-	size_t msg_lines = ARRAY_SIZE(panic_msg);
-	size_t logo_ascii_lines = ARRAY_SIZE(logo_ascii);
 	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
 	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg;
 	unsigned int logo_width, logo_height;
+	unsigned int msg_width, msg_height;
 
 	if (!font)
 		return;
@@ -504,14 +509,14 @@ static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 		logo_width = logo_mono->width;
 		logo_height = logo_mono->height;
 	} else {
-		logo_width = get_max_line_len(logo_ascii, logo_ascii_lines) * font->width;
-		logo_height = logo_ascii_lines * font->height;
+		logo_width = get_max_line_len(logo_ascii, PANIC_LOGO_LINES) * font->width;
+		logo_height = PANIC_LOGO_LINES * font->height;
 	}
-
 	r_logo = DRM_RECT_INIT(0, 0, logo_width, logo_height);
-	r_msg = DRM_RECT_INIT(0, 0,
-			      min(get_max_line_len(panic_msg, msg_lines) * font->width, sb->width),
-			      min(msg_lines * font->height, sb->height));
+
+	msg_width = min(get_max_line_len(panic_msg, PANIC_MSG_LINES) * font->width, sb->width);
+	msg_height = min(PANIC_MSG_LINES * font->height, sb->height);
+	r_msg = DRM_RECT_INIT(0, 0, msg_width, msg_height);
 
 	/* Center the panic message */
 	drm_rect_translate(&r_msg, (sb->width - r_msg.x2) / 2, (sb->height - r_msg.y2) / 2);
@@ -525,10 +530,10 @@ static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 			drm_panic_blit(sb, &r_logo, logo_mono->data, DIV_ROUND_UP(logo_width, 8),
 				       fg_color);
 		else
-			draw_txt_rectangle(sb, font, logo_ascii, logo_ascii_lines, false, &r_logo,
+			draw_txt_rectangle(sb, font, logo_ascii, PANIC_LOGO_LINES, false, &r_logo,
 					   fg_color);
 	}
-	draw_txt_rectangle(sb, font, panic_msg, msg_lines, true, &r_msg, fg_color);
+	draw_txt_rectangle(sb, font, panic_msg, PANIC_MSG_LINES, true, &r_msg, fg_color);
 }
 
 /*
@@ -633,7 +638,31 @@ static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
 	}
 }
 
-static void draw_panic_plane(struct drm_plane *plane)
+static void drm_panic_set_description(const char *description)
+{
+	u32 len;
+
+	if (description) {
+		struct drm_panic_line *desc_line = &panic_msg[PANIC_MSG_LINES - 1];
+
+		desc_line->txt = description;
+		len = strlen(description);
+		/* ignore the last newline character */
+		if (len && description[len - 1] == '\n')
+			len -= 1;
+		desc_line->len = len;
+	}
+}
+
+static void drm_panic_clear_description(void)
+{
+	struct drm_panic_line *desc_line = &panic_msg[PANIC_MSG_LINES - 1];
+
+	desc_line->len = 0;
+	desc_line->txt = NULL;
+}
+
+static void draw_panic_plane(struct drm_plane *plane, const char *description)
 {
 	struct drm_scanout_buffer sb = { };
 	int ret;
@@ -642,6 +671,8 @@ static void draw_panic_plane(struct drm_plane *plane)
 	if (!drm_panic_trylock(plane->dev, flags))
 		return;
 
+	drm_panic_set_description(description);
+
 	ret = plane->helper_private->get_scanout_buffer(plane, &sb);
 
 	if (!ret && drm_panic_is_format_supported(sb.format)) {
@@ -649,6 +680,7 @@ static void draw_panic_plane(struct drm_plane *plane)
 		if (plane->helper_private->panic_flush)
 			plane->helper_private->panic_flush(plane);
 	}
+	drm_panic_clear_description();
 	drm_panic_unlock(plane->dev, flags);
 }
 
@@ -662,7 +694,7 @@ static void drm_panic(struct kmsg_dumper *dumper, struct kmsg_dump_detail *detai
 	struct drm_plane *plane = to_drm_plane(dumper);
 
 	if (detail->reason == KMSG_DUMP_PANIC)
-		draw_panic_plane(plane);
+		draw_panic_plane(plane, detail->description);
 }
 
 
@@ -682,7 +714,7 @@ static ssize_t debugfs_trigger_write(struct file *file, const char __user *user_
 	if (kstrtobool_from_user(user_buf, count, &run) == 0 && run) {
 		struct drm_plane *plane = file->private_data;
 
-		draw_panic_plane(plane);
+		draw_panic_plane(plane, "Test from debugfs");
 	}
 	return count;
 }
