@@ -405,9 +405,12 @@ static int __init numa_register_meminfo(struct numa_meminfo *mi)
 		unsigned long pfn_align = node_map_pfn_alignment();
 
 		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
-			pr_warn("Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
-				PFN_PHYS(pfn_align) >> 20,
-				PFN_PHYS(PAGES_PER_SECTION) >> 20);
+			unsigned long node_align_mb = PFN_PHYS(pfn_align) >> 20;
+
+			unsigned long sect_align_mb = PFN_PHYS(PAGES_PER_SECTION) >> 20;
+
+			pr_warn("Node alignment %luMB < min %luMB, rejecting NUMA config\n",
+				node_align_mb, sect_align_mb);
 			return -EINVAL;
 		}
 	}
@@ -418,18 +421,18 @@ static int __init numa_register_meminfo(struct numa_meminfo *mi)
 int __init numa_memblks_init(int (*init_func)(void),
 			     bool memblock_force_top_down)
 {
+	phys_addr_t max_addr = (phys_addr_t)ULLONG_MAX;
 	int ret;
 
 	nodes_clear(numa_nodes_parsed);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
-	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
-				  NUMA_NO_NODE));
-	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
+	WARN_ON(memblock_set_node(0, max_addr, &memblock.memory, NUMA_NO_NODE));
+	WARN_ON(memblock_set_node(0, max_addr, &memblock.reserved,
 				  NUMA_NO_NODE));
 	/* In case that parsing SRAT failed. */
-	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
+	WARN_ON(memblock_clear_hotplug(0, max_addr));
 	numa_reset_distance();
 
 	ret = init_func();
