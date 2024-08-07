@@ -1369,14 +1369,17 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EOPNOTSUPP;
 	create = rxfh.rss_context == ETH_RXFH_CONTEXT_ALLOC;
 
-	/* If either indir, hash key or function is valid, proceed further.
-	 * Must request at least one change: indir size, hash key, function
-	 * or input transformation.
-	 */
 	if ((rxfh.indir_size &&
 	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
-	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
+	    (rxfh.key_size && rxfh.key_size != dev_key_size))
+		return -EINVAL;
+
+	/* Must request at least one change: indir size, hash key, function
+	 * or input transformation.
+	 * There's no need for any of it in case of context creation.
+	 */
+	if (!create &&
 	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
