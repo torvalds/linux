@@ -1449,12 +1449,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 
 		if (ops->create_rxfh_context) {
-			u32 limit = ops->rxfh_max_context_id ?: U32_MAX;
+			u32 limit = ops->rxfh_max_num_contexts ?: U32_MAX;
 			u32 ctx_id;
 
 			/* driver uses new API, core allocates ID */
 			ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
-				       XA_LIMIT(1, limit), GFP_KERNEL_ACCOUNT);
+				       XA_LIMIT(1, limit - 1),
+				       GFP_KERNEL_ACCOUNT);
 			if (ret < 0) {
 				kfree(ctx);
 				goto out;
