@@ -69,15 +69,14 @@
 	};
 
 	rstcr: syscon@1e60000 {
-		compatible = "fsl,ls2080a-rstcr", "syscon";
+		compatible = "fsl,ls1028a-reset", "syscon", "simple-mfd";
 		reg = <0x0 0x1e60000 0x0 0x4>;
-	};
 
-	reboot {
-		compatible = "syscon-reboot";
-		regmap = <&rstcr>;
-		offset = <0x0>;
-		mask = <0x2>;
+		reboot {
+			compatible = "syscon-reboot";
+			offset = <0x0>;
+			mask = <0x2>;
+		};
 	};
 
 	thermal-zones {
