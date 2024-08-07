@@ -46,15 +46,18 @@ static int get_member_overhead(struct annotated_data_type *adt,
 	struct annotated_member *member = entry->data;
 	int i, k;
 
-	for (i = 0; i < member->size; i++) {
+	for (i = 0, k = 0; i < member->size; i++) {
 		struct type_hist *h;
 		struct evsel *evsel;
 		int offset = member->offset + i;
 
 		for_each_group_evsel(evsel, leader) {
+			if (symbol_conf.skip_empty &&
+			    evsel__hists(evsel)->stats.nr_samples == 0)
+				continue;
+
 			h = adt->histograms[evsel->core.idx];
-			k = evsel__group_idx(evsel);
-			update_hist_entry(&entry->hists[k], &h->addr[offset]);
+			update_hist_entry(&entry->hists[k++], &h->addr[offset]);
 		}
 	}
 	return 0;
@@ -203,6 +206,7 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 	struct annotated_data_type *adt = he->mem_type;
 	struct evsel *leader = hists_to_evsel(he->hists);
 	struct evsel *evsel;
+	int idx = 0;
 
 	if (member == NULL) {
 		bool current = ui_browser__is_current_entry(uib, row);
@@ -219,9 +223,12 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 	/* print the number */
 	for_each_group_evsel(evsel, leader) {
 		struct type_hist *h = adt->histograms[evsel->core.idx];
-		int idx = evsel__group_idx(evsel);
 
-		browser__write_overhead(uib, h, &be->hists[idx], row);
+		if (symbol_conf.skip_empty &&
+		    evsel__hists(evsel)->stats.nr_samples == 0)
+			continue;
+
+		browser__write_overhead(uib, h, &be->hists[idx++], row);
 	}
 
 	/* print type info */
@@ -300,8 +307,17 @@ int hist_entry__annotate_data_tui(struct hist_entry *he, struct evsel *evsel,
 
 	ui_helpline__push("Press ESC to exit");
 
-	if (evsel__is_group_event(evsel))
-		browser.nr_events = evsel->core.nr_members;
+	if (evsel__is_group_event(evsel)) {
+		struct evsel *pos;
+		int nr = 0;
+
+		for_each_group_evsel(pos, evsel) {
+			if (!symbol_conf.skip_empty ||
+			    evsel__hists(pos)->stats.nr_samples)
+				nr++;
+		}
+		browser.nr_events = nr;
+	}
 
 	ret = annotated_data_browser__collect_entries(&browser);
 	if (ret == 0)

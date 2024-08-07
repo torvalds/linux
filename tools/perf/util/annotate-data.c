@@ -1502,10 +1502,15 @@ static void print_annotated_data_header(struct hist_entry *he, struct evsel *evs
 		struct evsel *pos;
 		int i = 0;
 
-		for_each_group_evsel(pos, evsel)
-			printf(" event[%d] = %s\n", i++, pos->name);
+		nr_members = 0;
+		for_each_group_evsel(pos, evsel) {
+			if (symbol_conf.skip_empty &&
+			    evsel__hists(pos)->stats.nr_samples == 0)
+				continue;
 
-		nr_members = evsel->core.nr_members;
+			printf(" event[%d] = %s\n", i++, pos->name);
+			nr_members++;
+		}
 	}
 
 	if (symbol_conf.show_total_period) {
@@ -1540,31 +1545,26 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 {
 	struct annotated_member *child;
 	struct type_hist *h = mem_type->histograms[evsel->core.idx];
-	int i, nr_events = 1, samples = 0;
+	int i, nr_events = 0, samples = 0;
 	u64 period = 0;
 	int width = symbol_conf.show_total_period ? 11 : 7;
+	struct evsel *pos;
 
-	for (i = 0; i < member->size; i++) {
-		samples += h->addr[member->offset + i].nr_samples;
-		period += h->addr[member->offset + i].period;
-	}
-	print_annotated_data_value(h, period, samples);
+	for_each_group_evsel(pos, evsel) {
+		h = mem_type->histograms[pos->core.idx];
 
-	if (evsel__is_group_event(evsel)) {
-		struct evsel *pos;
+		if (symbol_conf.skip_empty &&
+		    evsel__hists(pos)->stats.nr_samples == 0)
+			continue;
 
-		for_each_group_member(pos, evsel) {
-			h = mem_type->histograms[pos->core.idx];
-
-			samples = 0;
-			period = 0;
-			for (i = 0; i < member->size; i++) {
-				samples += h->addr[member->offset + i].nr_samples;
-				period += h->addr[member->offset + i].period;
-			}
-			print_annotated_data_value(h, period, samples);
+		samples = 0;
+		period = 0;
+		for (i = 0; i < member->size; i++) {
+			samples += h->addr[member->offset + i].nr_samples;
+			period += h->addr[member->offset + i].period;
 		}
-		nr_events = evsel->core.nr_members;
+		print_annotated_data_value(h, period, samples);
+		nr_events++;
 	}
 
 	printf(" %10d %10d  %*s%s\t%s",
