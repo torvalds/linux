@@ -946,3 +946,20 @@ void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 		    subpage_info->bitmap_nr_bits, &ordered_bitmap,
 		    subpage_info->bitmap_nr_bits, &checked_bitmap);
 }
+
+void btrfs_get_subpage_dirty_bitmap(struct btrfs_fs_info *fs_info,
+				    struct folio *folio,
+				    unsigned long *ret_bitmap)
+{
+	struct btrfs_subpage_info *subpage_info = fs_info->subpage_info;
+	struct btrfs_subpage *subpage;
+	unsigned long flags;
+
+	ASSERT(folio_test_private(folio) && folio_get_private(folio));
+	ASSERT(subpage_info);
+	subpage = folio_get_private(folio);
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	GET_SUBPAGE_BITMAP(subpage, subpage_info, dirty, ret_bitmap);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+}

@@ -1333,56 +1333,68 @@ out:
 }
 
 /*
- * Find the first byte we need to write.
+ * Return 0 if we have submitted or queued the sector for submission.
+ * Return <0 for critical errors.
  *
- * For subpage, one page can contain several sectors, and
- * __extent_writepage_io() will just grab all extent maps in the page
- * range and try to submit all non-inline/non-compressed extents.
- *
- * This is a big problem for subpage, we shouldn't re-submit already written
- * data at all.
- * This function will lookup subpage dirty bit to find which range we really
- * need to submit.
- *
- * Return the next dirty range in [@start, @end).
- * If no dirty range is found, @start will be page_offset(page) + PAGE_SIZE.
+ * Caller should make sure filepos < i_size and handle filepos >= i_size case.
  */
-static void find_next_dirty_byte(const struct btrfs_fs_info *fs_info,
-				 struct folio *folio, u64 *start, u64 *end)
+static int submit_one_sector(struct btrfs_inode *inode,
+			     struct folio *folio,
+			     u64 filepos, struct btrfs_bio_ctrl *bio_ctrl,
+			     loff_t i_size)
 {
-	struct btrfs_subpage *subpage = folio_get_private(folio);
-	struct btrfs_subpage_info *spi = fs_info->subpage_info;
-	u64 orig_start = *start;
-	/* Declare as unsigned long so we can use bitmap ops */
-	unsigned long flags;
-	int range_start_bit;
-	int range_end_bit;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct extent_map *em;
+	u64 block_start;
+	u64 disk_bytenr;
+	u64 extent_offset;
+	u64 em_end;
+	const u32 sectorsize = fs_info->sectorsize;
+
+	ASSERT(IS_ALIGNED(filepos, sectorsize));
+
+	/* @filepos >= i_size case should be handled by the caller. */
+	ASSERT(filepos < i_size);
+
+	em = btrfs_get_extent(inode, NULL, filepos, sectorsize);
+	if (IS_ERR(em))
+		return PTR_ERR_OR_ZERO(em);
+
+	extent_offset = filepos - em->start;
+	em_end = extent_map_end(em);
+	ASSERT(filepos <= em_end);
+	ASSERT(IS_ALIGNED(em->start, sectorsize));
+	ASSERT(IS_ALIGNED(em->len, sectorsize));
+
+	block_start = extent_map_block_start(em);
+	disk_bytenr = extent_map_block_start(em) + extent_offset;
+
+	ASSERT(!extent_map_is_compressed(em));
+	ASSERT(block_start != EXTENT_MAP_HOLE);
+	ASSERT(block_start != EXTENT_MAP_INLINE);
+
+	free_extent_map(em);
+	em = NULL;
+
+	btrfs_set_range_writeback(inode, filepos, filepos + sectorsize - 1);
+	/*
+	 * Above call should set the whole folio with writeback flag, even
+	 * just for a single subpage sector.
+	 * As long as the folio is properly locked and the range is correct,
+	 * we should always get the folio with writeback flag.
+	 */
+	ASSERT(folio_test_writeback(folio));
 
 	/*
-	 * For regular sector size == page size case, since one page only
-	 * contains one sector, we return the page offset directly.
+	 * Although the PageDirty bit is cleared before entering this
+	 * function, subpage dirty bit is not cleared.
+	 * So clear subpage dirty bit here so next time we won't submit
+	 * folio for range already written to disk.
 	 */
-	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
-		*start = folio_pos(folio);
-		*end = folio_pos(folio) + folio_size(folio);
-		return;
-	}
-
-	range_start_bit = spi->dirty_offset +
-			  (offset_in_folio(folio, orig_start) >>
-			   fs_info->sectorsize_bits);
-
-	/* We should have the page locked, but just in case */
-	spin_lock_irqsave(&subpage->lock, flags);
-	bitmap_next_set_region(subpage->bitmaps, &range_start_bit, &range_end_bit,
-			       spi->dirty_offset + spi->bitmap_nr_bits);
-	spin_unlock_irqrestore(&subpage->lock, flags);
-
-	range_start_bit -= spi->dirty_offset;
-	range_end_bit -= spi->dirty_offset;
-
-	*start = folio_pos(folio) + range_start_bit * fs_info->sectorsize;
-	*end = folio_pos(folio) + range_end_bit * fs_info->sectorsize;
+	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
+	submit_extent_folio(bio_ctrl, disk_bytenr, folio,
+			    sectorsize, filepos - folio_pos(folio));
+	return 0;
 }
 
 /*
@@ -1400,16 +1412,24 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 						    loff_t i_size, int *nr_ret)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	u64 cur = start;
-	u64 end = start + len - 1;
-	u64 extent_offset;
-	u64 block_start;
-	struct extent_map *em;
+	unsigned long range_bitmap = 0;
+	/*
+	 * This is the default value for sectorsize == PAGE_SIZE case.
+	 * We known we need to write the dirty sector (aka the page),
+	 * even if the page is not dirty (we cleared it before entering).
+	 *
+	 * For subpage cases we will get the correct bitmap later.
+	 */
+	unsigned long dirty_bitmap = 1;
+	unsigned int bitmap_size = 1;
+	const u64 folio_start = folio_pos(folio);
+	u64 cur;
+	int bit;
 	int ret = 0;
 	int nr = 0;
 
-	ASSERT(start >= folio_pos(folio) &&
-	       start + len <= folio_pos(folio) + folio_size(folio));
+	ASSERT(start >= folio_start &&
+	       start + len <= folio_start + folio_size(folio));
 
 	ret = btrfs_writepage_cow_fixup(folio);
 	if (ret) {
@@ -1419,18 +1439,23 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		return 1;
 	}
 
+	if (btrfs_is_subpage(fs_info, inode->vfs_inode.i_mapping)) {
+		ASSERT(fs_info->subpage_info);
+		btrfs_get_subpage_dirty_bitmap(fs_info, folio, &dirty_bitmap);
+		bitmap_size = fs_info->subpage_info->bitmap_nr_bits;
+	}
+	for (cur = start; cur < start + len; cur += fs_info->sectorsize)
+		set_bit((cur - folio_start) >> fs_info->sectorsize_bits, &range_bitmap);
+	bitmap_and(&dirty_bitmap, &dirty_bitmap, &range_bitmap, bitmap_size);
+
 	bio_ctrl->end_io_func = end_bbio_data_write;
-	while (cur <= end) {
-		u32 len = end - cur + 1;
-		u64 disk_bytenr;
-		u64 em_end;
-		u64 dirty_range_start = cur;
-		u64 dirty_range_end;
-		u32 iosize;
+
+	for_each_set_bit(bit, &dirty_bitmap, bitmap_size) {
+		cur = folio_pos(folio) + (bit << fs_info->sectorsize_bits);
 
 		if (cur >= i_size) {
-			btrfs_mark_ordered_io_finished(inode, folio, cur, len,
-						       true);
+			btrfs_mark_ordered_io_finished(inode, folio, cur,
+						       start + len - cur, true);
 			/*
 			 * This range is beyond i_size, thus we don't need to
 			 * bother writing back.
@@ -1439,62 +1464,13 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			 * writeback the sectors with subpage dirty bits,
 			 * causing writeback without ordered extent.
 			 */
-			btrfs_folio_clear_dirty(fs_info, folio, cur, len);
+			btrfs_folio_clear_dirty(fs_info, folio, cur,
+						start + len - cur);
 			break;
 		}
-
-		find_next_dirty_byte(fs_info, folio, &dirty_range_start,
-				     &dirty_range_end);
-		if (cur < dirty_range_start) {
-			cur = dirty_range_start;
-			continue;
-		}
-
-		em = btrfs_get_extent(inode, NULL, cur, len);
-		if (IS_ERR(em)) {
-			ret = PTR_ERR_OR_ZERO(em);
+		ret = submit_one_sector(inode, folio, cur, bio_ctrl, i_size);
+		if (ret < 0)
 			goto out_error;
-		}
-
-		extent_offset = cur - em->start;
-		em_end = extent_map_end(em);
-		ASSERT(cur <= em_end);
-		ASSERT(cur < end);
-		ASSERT(IS_ALIGNED(em->start, fs_info->sectorsize));
-		ASSERT(IS_ALIGNED(em->len, fs_info->sectorsize));
-
-		block_start = extent_map_block_start(em);
-		disk_bytenr = extent_map_block_start(em) + extent_offset;
-
-		ASSERT(!extent_map_is_compressed(em));
-		ASSERT(block_start != EXTENT_MAP_HOLE);
-		ASSERT(block_start != EXTENT_MAP_INLINE);
-
-		/*
-		 * Note that em_end from extent_map_end() and dirty_range_end from
-		 * find_next_dirty_byte() are all exclusive
-		 */
-		iosize = min(min(em_end, end + 1), dirty_range_end) - cur;
-		free_extent_map(em);
-		em = NULL;
-
-		/*
-		 * Although the PageDirty bit is cleared before entering this
-		 * function, subpage dirty bit is not cleared.
-		 * So clear subpage dirty bit here so next time we won't submit
-		 * folio for range already written to disk.
-		 */
-		btrfs_folio_clear_dirty(fs_info, folio, cur, iosize);
-		btrfs_set_range_writeback(inode, cur, cur + iosize - 1);
-		if (!folio_test_writeback(folio)) {
-			btrfs_err(inode->root->fs_info,
-				   "folio %lu not writeback, cur %llu end %llu",
-			       folio->index, cur, end);
-		}
-
-		submit_extent_folio(bio_ctrl, disk_bytenr, folio,
-				    iosize, cur - folio_pos(folio));
-		cur += iosize;
 		nr++;
 	}
 
