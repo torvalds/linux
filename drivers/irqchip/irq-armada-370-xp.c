@@ -140,13 +140,11 @@
 #define IPI_DOORBELL_MASK			GENMASK(7, 0)
 #define PCI_MSI_DOORBELL_START			16
 #define PCI_MSI_DOORBELL_NR			16
-#define PCI_MSI_DOORBELL_END			32
 #define PCI_MSI_DOORBELL_MASK			GENMASK(31, 16)
 
 /* MSI interrupt definitions for non-IPI platforms */
 #define PCI_MSI_FULL_DOORBELL_START		0
 #define PCI_MSI_FULL_DOORBELL_NR		32
-#define PCI_MSI_FULL_DOORBELL_END		32
 #define PCI_MSI_FULL_DOORBELL_MASK		GENMASK(31, 0)
 #define PCI_MSI_FULL_DOORBELL_SRC0_MASK		GENMASK(15, 0)
 #define PCI_MSI_FULL_DOORBELL_SRC1_MASK		GENMASK(31, 16)
@@ -188,11 +186,6 @@ static inline unsigned int msi_doorbell_start(void)
 static inline unsigned int msi_doorbell_size(void)
 {
 	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_NR : PCI_MSI_FULL_DOORBELL_NR;
-}
-
-static inline unsigned int msi_doorbell_end(void)
-{
-	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_END : PCI_MSI_FULL_DOORBELL_END;
 }
 
 static inline bool mpic_is_percpu_irq(irq_hw_number_t hwirq)
