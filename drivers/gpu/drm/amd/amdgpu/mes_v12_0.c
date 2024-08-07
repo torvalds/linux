@@ -148,7 +148,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	union MESAPI__QUERY_MES_STATUS mes_status_pkt;
 	signed long timeout = 3000000; /* 3000 ms */
 	struct amdgpu_device *adev = mes->adev;
-	struct amdgpu_ring *ring = &mes->ring;
+	struct amdgpu_ring *ring = &mes->ring[0];
 	struct MES_API_STATUS *api_status;
 	union MESAPI__MISC *x_pkt = pkt;
 	const char *op_str, *misc_op_str;
@@ -177,7 +177,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	status_ptr = (u64 *)&adev->wb.wb[status_offset];
 	*status_ptr = 0;
 
-	spin_lock_irqsave(&mes->ring_lock, flags);
+	spin_lock_irqsave(&mes->ring_lock[0], flags);
 	r = amdgpu_ring_alloc(ring, (size + sizeof(mes_status_pkt)) / 4);
 	if (r)
 		goto error_unlock_free;
@@ -207,7 +207,7 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 				   sizeof(mes_status_pkt) / 4);
 
 	amdgpu_ring_commit(ring);
-	spin_unlock_irqrestore(&mes->ring_lock, flags);
+	spin_unlock_irqrestore(&mes->ring_lock[0], flags);
 
 	op_str = mes_v12_0_get_op_string(x_pkt);
 	misc_op_str = mes_v12_0_get_misc_op_string(x_pkt);
@@ -249,7 +249,7 @@ error_undo:
 	amdgpu_ring_undo(ring);
 
 error_unlock_free:
-	spin_unlock_irqrestore(&mes->ring_lock, flags);
+	spin_unlock_irqrestore(&mes->ring_lock[0], flags);
 
 error_wb_free:
 	amdgpu_device_wb_free(adev, status_offset);
@@ -1095,7 +1095,7 @@ static int mes_v12_0_kiq_enable_queue(struct amdgpu_device *adev)
 		return r;
 	}
 
-	kiq->pmf->kiq_map_queues(kiq_ring, &adev->mes.ring);
+	kiq->pmf->kiq_map_queues(kiq_ring, &adev->mes.ring[0]);
 
 	r = amdgpu_ring_test_ring(kiq_ring);
 	if (r) {
@@ -1114,7 +1114,7 @@ static int mes_v12_0_queue_init(struct amdgpu_device *adev,
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
 		ring = &adev->gfx.kiq[0].ring;
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
-		ring = &adev->mes.ring;
+		ring = &adev->mes.ring[0];
 	else
 		BUG();
 
@@ -1160,7 +1160,7 @@ static int mes_v12_0_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
 
-	ring = &adev->mes.ring;
+	ring = &adev->mes.ring[0];
 
 	ring->funcs = &mes_v12_0_ring_funcs;
 
@@ -1213,7 +1213,7 @@ static int mes_v12_0_mqd_sw_init(struct amdgpu_device *adev,
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
 		ring = &adev->gfx.kiq[0].ring;
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
-		ring = &adev->mes.ring;
+		ring = &adev->mes.ring[0];
 	else
 		BUG();
 
@@ -1302,12 +1302,12 @@ static int mes_v12_0_sw_fini(void *handle)
 			      &adev->gfx.kiq[0].ring.mqd_gpu_addr,
 			      &adev->gfx.kiq[0].ring.mqd_ptr);
 
-	amdgpu_bo_free_kernel(&adev->mes.ring.mqd_obj,
-			      &adev->mes.ring.mqd_gpu_addr,
-			      &adev->mes.ring.mqd_ptr);
+	amdgpu_bo_free_kernel(&adev->mes.ring[0].mqd_obj,
+			      &adev->mes.ring[0].mqd_gpu_addr,
+			      &adev->mes.ring[0].mqd_ptr);
 
 	amdgpu_ring_fini(&adev->gfx.kiq[0].ring);
-	amdgpu_ring_fini(&adev->mes.ring);
+	amdgpu_ring_fini(&adev->mes.ring[0]);
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 		mes_v12_0_free_ucode_buffers(adev, AMDGPU_MES_KIQ_PIPE);
@@ -1351,7 +1351,7 @@ static void mes_v12_0_kiq_dequeue_sched(struct amdgpu_device *adev)
 	soc21_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
-	adev->mes.ring.sched.ready = false;
+	adev->mes.ring[0].sched.ready = false;
 }
 
 static void mes_v12_0_kiq_setting(struct amdgpu_ring *ring)
@@ -1415,9 +1415,9 @@ failure:
 
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev)
 {
-	if (adev->mes.ring.sched.ready) {
+	if (adev->mes.ring[0].sched.ready) {
 		mes_v12_0_kiq_dequeue_sched(adev);
-		adev->mes.ring.sched.ready = false;
+		adev->mes.ring[0].sched.ready = false;
 	}
 
 	mes_v12_0_enable(adev, false);
@@ -1430,7 +1430,7 @@ static int mes_v12_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->mes.ring.sched.ready)
+	if (adev->mes.ring[0].sched.ready)
 		goto out;
 
 	if (!adev->enable_mes_kiq || adev->enable_uni_mes) {
@@ -1482,7 +1482,7 @@ out:
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq[0].ring.sched.ready = false;
-	adev->mes.ring.sched.ready = true;
+	adev->mes.ring[0].sched.ready = true;
 
 	return 0;
 
