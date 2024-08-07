@@ -720,9 +720,30 @@ static void rtw_usb_link_ps(struct rtw_dev *rtwdev, bool enter)
 	/* empty function for rtw_hci_ops */
 }
 
+static void rtw_usb_init_burst_pkt_len(struct rtw_dev *rtwdev)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	enum usb_device_speed speed = rtwusb->udev->speed;
+	u8 rxdma, burst_size;
+
+	rxdma = BIT_DMA_BURST_CNT | BIT_DMA_MODE;
+
+	if (speed == USB_SPEED_SUPER)
+		burst_size = BIT_DMA_BURST_SIZE_1024;
+	else if (speed == USB_SPEED_HIGH)
+		burst_size = BIT_DMA_BURST_SIZE_512;
+	else
+		burst_size = BIT_DMA_BURST_SIZE_64;
+
+	u8p_replace_bits(&rxdma, burst_size, BIT_DMA_BURST_SIZE);
+
+	rtw_write8(rtwdev, REG_RXDMA_MODE, rxdma);
+	rtw_write16_set(rtwdev, REG_TXDMA_OFFSET_CHK, BIT_DROP_DATA_EN);
+}
+
 static void rtw_usb_interface_cfg(struct rtw_dev *rtwdev)
 {
-	/* empty function for rtw_hci_ops */
+	rtw_usb_init_burst_pkt_len(rtwdev);
 }
 
 static struct rtw_hci_ops rtw_usb_ops = {
