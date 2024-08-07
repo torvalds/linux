@@ -1809,6 +1809,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	BUG_ON(v->nr_blocks	!= h->s->nr_data + h->s->nr_parity);
 	BUG_ON(v->nr_redundant	!= h->s->nr_parity);
 
+	/* * We bypass the sector allocator which normally does this: */
+	bitmap_and(devs.d, devs.d, c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
+
 	for_each_set_bit(i, h->s->blocks_gotten, v->nr_blocks) {
 		__clear_bit(v->ptrs[i].dev, devs.d);
 		if (i < h->s->nr_data)
