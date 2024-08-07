@@ -33,6 +33,7 @@ static inline bool numa_valid_node(int nid)
 extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)	(node_data[nid])
 
+void __init alloc_node_data(int nid);
 void __init alloc_offline_node_data(int nid);
 
 /* Generic implementation available */
