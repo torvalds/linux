@@ -1630,7 +1630,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 	struct qcom_glink *glink = data;
 	int ret;
 
-	ret = qcom_glink_native_rx(glink, 10);
+	ret = qcom_glink_native_rx(glink, 15);
 
 	return (ret) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 }
