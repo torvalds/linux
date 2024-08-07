@@ -1227,22 +1227,15 @@ out:
 	return ret;
 }
 
-/*
- * Function : int NCR5380_transfer_pio (struct Scsi_Host *instance,
- * unsigned char *phase, int *count, unsigned char **data)
+/**
+ * NCR5380_transfer_pio() - transfers data in given phase using polled I/O
+ * @instance: instance of driver
+ * @phase: pointer to what phase is expected
+ * @count: pointer to number of bytes to transfer
+ * @data: pointer to data pointer
+ * @can_sleep: 1 or 0 when sleeping is permitted or not, respectively
  *
- * Purpose : transfers data in given phase using polled I/O
- *
- * Inputs : instance - instance of driver, *phase - pointer to
- * what phase is expected, *count - pointer to number of
- * bytes to transfer, **data - pointer to data pointer,
- * can_sleep - 1 or 0 when sleeping is permitted or not, respectively.
- *
- * Returns : -1 when different phase is entered without transferring
- * maximum number of bytes, 0 if all bytes are transferred or exit
- * is in same phase.
- *
- * Also, *phase, *count, *data are modified in place.
+ * Returns: void. *phase, *count, *data are modified in place.
  */
 
 /*
@@ -1251,9 +1244,9 @@ out:
  * counts, we will always do a pseudo DMA or DMA transfer.
  */
 
-static int NCR5380_transfer_pio(struct Scsi_Host *instance,
-				unsigned char *phase, int *count,
-				unsigned char **data, unsigned int can_sleep)
+static void NCR5380_transfer_pio(struct Scsi_Host *instance,
+				 unsigned char *phase, int *count,
+				 unsigned char **data, unsigned int can_sleep)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char p = *phase, tmp;
@@ -1358,11 +1351,6 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 		*phase = tmp & PHASE_MASK;
 	else
 		*phase = PHASE_UNKNOWN;
-
-	if (!c || (*phase == p))
-		return 0;
-	else
-		return -1;
 }
 
 /**
