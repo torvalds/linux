@@ -1818,7 +1818,14 @@ dispatch:
 
 static bool scx_rq_online(struct rq *rq)
 {
-	return likely(rq->scx.flags & SCX_RQ_ONLINE);
+	/*
+	 * Test both cpu_active() and %SCX_RQ_ONLINE. %SCX_RQ_ONLINE indicates
+	 * the online state as seen from the BPF scheduler. cpu_active() test
+	 * guarantees that, if this function returns %true, %SCX_RQ_ONLINE will
+	 * stay set until the current scheduling operation is complete even if
+	 * we aren't locking @rq.
+	 */
+	return likely((rq->scx.flags & SCX_RQ_ONLINE) && cpu_active(cpu_of(rq)));
 }
 
 static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
