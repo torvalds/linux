@@ -450,32 +450,23 @@ static const struct reg_sequence cs35l56_hibernate_seq[] = {
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE),
 };
 
-static const struct reg_sequence cs35l56_hibernate_wake_seq[] = {
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_WAKEUP),
-};
-
 static void cs35l56_issue_wake_event(struct cs35l56_base *cs35l56_base)
 {
+	unsigned int val;
+
 	/*
 	 * Dummy transactions to trigger I2C/SPI auto-wake. Issue two
 	 * transactions to meet the minimum required time from the rising edge
 	 * to the last falling edge of wake.
 	 *
-	 * It uses bypassed write because we must wake the chip before
+	 * It uses bypassed read because we must wake the chip before
 	 * disabling regmap cache-only.
-	 *
-	 * This can NAK on I2C which will terminate the write sequence so the
-	 * single-write sequence is issued twice.
 	 */
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_hibernate_wake_seq,
-					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+	regmap_read_bypassed(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
 
 	usleep_range(CS35L56_WAKE_HOLD_TIME_US, 2 * CS35L56_WAKE_HOLD_TIME_US);
 
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_hibernate_wake_seq,
-					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+	regmap_read_bypassed(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
 
 	cs35l56_wait_control_port_ready();
 }
