@@ -810,6 +810,23 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 }
 #endif
 
+/**
+ * iio_device_suspend_triggering() - suspend trigger attached to an iio_dev
+ * @indio_dev: iio_dev associated with the device that will have triggers suspended
+ *
+ * Return 0 if successful, negative otherwise
+ **/
+int iio_device_suspend_triggering(struct iio_dev *indio_dev);
+
+/**
+ * iio_device_resume_triggering() - resume trigger attached to an iio_dev
+ *	that was previously suspended with iio_device_suspend_triggering()
+ * @indio_dev: iio_dev associated with the device that will have triggers resumed
+ *
+ * Return 0 if successful, negative otherwise
+ **/
+int iio_device_resume_triggering(struct iio_dev *indio_dev);
+
 #ifdef CONFIG_ACPI
 bool iio_read_acpi_mount_matrix(struct device *dev,
 				struct iio_mount_matrix *orientation,
