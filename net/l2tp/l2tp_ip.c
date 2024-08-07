@@ -167,7 +167,7 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 		goto discard_sess;
 
 	l2tp_recv_common(session, skb, ptr, optr, 0, skb->len);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 
@@ -200,7 +200,7 @@ pass_up:
 	return sk_receive_skb(sk, skb, 1);
 
 discard_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 	goto discard;
 
 discard_put:
@@ -265,7 +265,7 @@ static void l2tp_ip_destroy_sock(struct sock *sk)
 	tunnel = l2tp_sk_to_tunnel(sk);
 	if (tunnel) {
 		l2tp_tunnel_delete(tunnel);
-		l2tp_tunnel_dec_refcount(tunnel);
+		l2tp_tunnel_put(tunnel);
 	}
 }
 

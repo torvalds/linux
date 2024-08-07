@@ -170,7 +170,7 @@ static void l2tp_session_free(struct l2tp_session *session)
 {
 	trace_free_session(session);
 	if (session->tunnel)
-		l2tp_tunnel_dec_refcount(session->tunnel);
+		l2tp_tunnel_put(session->tunnel);
 	kfree_rcu(session, rcu);
 }
 
@@ -197,31 +197,19 @@ struct l2tp_tunnel *l2tp_sk_to_tunnel(const struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
-void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
-{
-	refcount_inc(&tunnel->ref_count);
-}
-EXPORT_SYMBOL_GPL(l2tp_tunnel_inc_refcount);
-
-void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
+void l2tp_tunnel_put(struct l2tp_tunnel *tunnel)
 {
 	if (refcount_dec_and_test(&tunnel->ref_count))
 		l2tp_tunnel_free(tunnel);
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_dec_refcount);
+EXPORT_SYMBOL_GPL(l2tp_tunnel_put);
 
-void l2tp_session_inc_refcount(struct l2tp_session *session)
-{
-	refcount_inc(&session->ref_count);
-}
-EXPORT_SYMBOL_GPL(l2tp_session_inc_refcount);
-
-void l2tp_session_dec_refcount(struct l2tp_session *session)
+void l2tp_session_put(struct l2tp_session *session)
 {
 	if (refcount_dec_and_test(&session->ref_count))
 		l2tp_session_free(session);
 }
-EXPORT_SYMBOL_GPL(l2tp_session_dec_refcount);
+EXPORT_SYMBOL_GPL(l2tp_session_put);
 
 /* Lookup a tunnel. A new reference is held on the returned tunnel. */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
@@ -454,7 +442,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 		if (tunnel) {
 			list_for_each_entry_rcu(session, &tunnel->session_list, list) {
 				if (!strcmp(session->ifname, ifname)) {
-					l2tp_session_inc_refcount(session);
+					refcount_inc(&session->ref_count);
 					rcu_read_unlock_bh();
 
 					return session;
@@ -471,7 +459,7 @@ EXPORT_SYMBOL_GPL(l2tp_session_get_by_ifname);
 static void l2tp_session_coll_list_add(struct l2tp_session_coll_list *clist,
 				       struct l2tp_session *session)
 {
-	l2tp_session_inc_refcount(session);
+	refcount_inc(&session->ref_count);
 	WARN_ON_ONCE(session->coll_list);
 	session->coll_list = clist;
 	spin_lock(&clist->lock);
@@ -557,7 +545,7 @@ static void l2tp_session_collision_del(struct l2tp_net *pn,
 		spin_unlock(&clist->lock);
 		if (refcount_dec_and_test(&clist->ref_count))
 			kfree(clist);
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 	}
 }
 
@@ -606,7 +594,7 @@ int l2tp_session_register(struct l2tp_session *session,
 		goto out;
 	}
 
-	l2tp_tunnel_inc_refcount(tunnel);
+	refcount_inc(&tunnel->ref_count);
 	WRITE_ONCE(session->tunnel, tunnel);
 	list_add_rcu(&session->list, &tunnel->session_list);
 
@@ -1089,7 +1077,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (!session || !session->recv_skb) {
 		if (session)
-			l2tp_session_dec_refcount(session);
+			l2tp_session_put(session);
 
 		/* Not found? Pass to userspace to deal with */
 		goto pass;
@@ -1103,12 +1091,12 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (version == L2TP_HDR_VER_3 &&
 	    l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr)) {
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 		goto invalid;
 	}
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 
@@ -1408,7 +1396,7 @@ static void l2tp_udp_encap_destroy(struct sock *sk)
 	tunnel = l2tp_sk_to_tunnel(sk);
 	if (tunnel) {
 		l2tp_tunnel_delete(tunnel);
-		l2tp_tunnel_dec_refcount(tunnel);
+		l2tp_tunnel_put(tunnel);
 	}
 }
 
@@ -1443,10 +1431,10 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 
 	l2tp_tunnel_remove(tunnel->l2tp_net, tunnel);
 	/* drop initial ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 
 	/* drop workqueue ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by
@@ -1634,7 +1622,7 @@ static int l2tp_validate_socket(const struct sock *sk, const struct net *net,
 
 	tunnel = l2tp_sk_to_tunnel(sk);
 	if (tunnel) {
-		l2tp_tunnel_dec_refcount(tunnel);
+		l2tp_tunnel_put(tunnel);
 		return -EBUSY;
 	}
 
@@ -1726,7 +1714,7 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
 	if (!test_and_set_bit(0, &tunnel->dead)) {
 		trace_delete_tunnel(tunnel);
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 		queue_work(l2tp_wq, &tunnel->del_work);
 	}
 }
@@ -1736,7 +1724,7 @@ void l2tp_session_delete(struct l2tp_session *session)
 {
 	if (!test_and_set_bit(0, &session->dead)) {
 		trace_delete_session(session);
-		l2tp_session_inc_refcount(session);
+		refcount_inc(&session->ref_count);
 		queue_work(l2tp_wq, &session->del_work);
 	}
 }
@@ -1754,10 +1742,10 @@ static void l2tp_session_del_work(struct work_struct *work)
 		(*session->session_close)(session);
 
 	/* drop initial ref */
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	/* drop workqueue ref */
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 }
 
 /* We come here whenever a session's send_seq, cookie_len or
