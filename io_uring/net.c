@@ -601,17 +601,18 @@ retry_bundle:
 			.iovs = &kmsg->fast_iov,
 			.max_len = INT_MAX,
 			.nr_iovs = 1,
-			.mode = KBUF_MODE_EXPAND,
 		};
 
 		if (kmsg->free_iov) {
 			arg.nr_iovs = kmsg->free_iov_nr;
 			arg.iovs = kmsg->free_iov;
-			arg.mode |= KBUF_MODE_FREE;
+			arg.mode = KBUF_MODE_FREE;
 		}
 
 		if (!(sr->flags & IORING_RECVSEND_BUNDLE))
 			arg.nr_iovs = 1;
+		else
+			arg.mode |= KBUF_MODE_EXPAND;
 
 		ret = io_buffers_select(req, &arg, issue_flags);
 		if (unlikely(ret < 0))
