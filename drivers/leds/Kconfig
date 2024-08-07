@@ -828,7 +828,7 @@ config LEDS_BLINKM
 config LEDS_BLINKM_MULTICOLOR
 	bool "Enable multicolor support for BlinkM I2C RGB LED"
 	depends on LEDS_BLINKM
-	depends on LEDS_CLASS_MULTICOLOR
+	depends on LEDS_CLASS_MULTICOLOR=y || LEDS_CLASS_MULTICOLOR=LEDS_BLINKM
 	help
 	  This option enables multicolor sysfs class support for BlinkM LED and
 	  disables the older, separated sysfs interface
