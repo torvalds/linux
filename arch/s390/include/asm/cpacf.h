@@ -123,6 +123,10 @@
 #define CPACF_KMAC_DEA		0x01
 #define CPACF_KMAC_TDEA_128	0x02
 #define CPACF_KMAC_TDEA_192	0x03
+#define CPACF_KMAC_HMAC_SHA_224	0x70
+#define CPACF_KMAC_HMAC_SHA_256	0x71
+#define CPACF_KMAC_HMAC_SHA_384	0x72
+#define CPACF_KMAC_HMAC_SHA_512	0x73
 
 /*
  * Function codes for the PCKMO (PERFORM CRYPTOGRAPHIC KEY MANAGEMENT)
@@ -427,9 +431,40 @@ static inline void cpacf_klmd(unsigned long func, void *param,
 }
 
 /**
+ * _cpacf_kmac() - executes the KMAC (COMPUTE MESSAGE AUTHENTICATION CODE)
+ * instruction and updates flags in gr0
+ * @gr0: pointer to gr0 (fc and flags) passed to KMAC; see CPACF_KMAC_xxx defines
+ * @param: address of parameter block; see POP for details on each func
+ * @src: address of source memory area
+ * @src_len: length of src operand in bytes
+ *
+ * Returns 0 for the query func, number of processed bytes for digest funcs
+ */
+static inline int _cpacf_kmac(unsigned long *gr0, void *param,
+			      const u8 *src, long src_len)
+{
+	union register_pair s;
+
+	s.even = (unsigned long)src;
+	s.odd  = (unsigned long)src_len;
+	asm volatile(
+		"	lgr	0,%[r0]\n"
+		"	lgr	1,%[pba]\n"
+		"0:	.insn	rre,%[opc] << 16,0,%[src]\n"
+		"	brc	1,0b\n" /* handle partial completion */
+		"	lgr	%[r0],0\n"
+		: [r0] "+d" (*gr0), [src] "+&d" (s.pair)
+		: [pba] "d" ((unsigned long)param),
+		  [opc] "i" (CPACF_KMAC)
+		: "cc", "memory", "0", "1");
+
+	return src_len - s.odd;
+}
+
+/**
  * cpacf_kmac() - executes the KMAC (COMPUTE MESSAGE AUTHENTICATION CODE)
- *		  instruction
- * @func: the function code passed to KM; see CPACF_KMAC_xxx defines
+ * instruction
+ * @func: function code passed to KMAC; see CPACF_KMAC_xxx defines
  * @param: address of parameter block; see POP for details on each func
  * @src: address of source memory area
  * @src_len: length of src operand in bytes
@@ -439,21 +474,7 @@ static inline void cpacf_klmd(unsigned long func, void *param,
 static inline int cpacf_kmac(unsigned long func, void *param,
 			     const u8 *src, long src_len)
 {
-	union register_pair s;
-
-	s.even = (unsigned long)src;
-	s.odd  = (unsigned long)src_len;
-	asm volatile(
-		"	lgr	0,%[fc]\n"
-		"	lgr	1,%[pba]\n"
-		"0:	.insn	rre,%[opc] << 16,0,%[src]\n"
-		"	brc	1,0b\n" /* handle partial completion */
-		: [src] "+&d" (s.pair)
-		: [fc] "d" (func), [pba] "d" ((unsigned long)param),
-		  [opc] "i" (CPACF_KMAC)
-		: "cc", "memory", "0", "1");
-
-	return src_len - s.odd;
+	return _cpacf_kmac(&func, param, src, src_len);
 }
 
 /**
