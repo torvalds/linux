@@ -48,6 +48,39 @@ bool pci_ats_supported(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_ats_supported);
 
 /**
+ * pci_prepare_ats - Setup the PS for ATS
+ * @dev: the PCI device
+ * @ps: the IOMMU page shift
+ *
+ * This must be done by the IOMMU driver on the PF before any VFs are created to
+ * ensure that the VF can have ATS enabled.
+ *
+ * Returns 0 on success, or negative on failure.
+ */
+int pci_prepare_ats(struct pci_dev *dev, int ps)
+{
+	u16 ctrl;
+
+	if (!pci_ats_supported(dev))
+		return -EINVAL;
+
+	if (WARN_ON(dev->ats_enabled))
+		return -EBUSY;
+
+	if (ps < PCI_ATS_MIN_STU)
+		return -EINVAL;
+
+	if (dev->is_virtfn)
+		return 0;
+
+	dev->ats_stu = ps;
+	ctrl = PCI_ATS_CTRL_STU(dev->ats_stu - PCI_ATS_MIN_STU);
+	pci_write_config_word(dev, dev->ats_cap + PCI_ATS_CTRL, ctrl);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_prepare_ats);
+
+/**
  * pci_enable_ats - enable the ATS capability
  * @dev: the PCI device
  * @ps: the IOMMU page shift

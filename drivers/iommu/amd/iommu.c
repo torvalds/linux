@@ -2203,6 +2203,9 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 
 	iommu_completion_wait(iommu);
 
+	if (dev_is_pci(dev))
+		pci_prepare_ats(to_pci_dev(dev), PAGE_SHIFT);
+
 	return iommu_dev;
 }
 
