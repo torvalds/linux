@@ -763,27 +763,22 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 	     btree < BTREE_ID_NR && !ret;
 	     btree++) {
 		unsigned depth = (BIT_ULL(btree) & btree_leaf_mask) ? 0 : 1;
-		struct btree_iter iter;
-		struct btree *b;
 
 		if (!(BIT_ULL(btree) & btree_leaf_mask) &&
 		    !(BIT_ULL(btree) & btree_interior_mask))
 			continue;
 
-		bch2_trans_begin(trans);
-
-		__for_each_btree_node(trans, iter, btree,
+		ret = __for_each_btree_node(trans, iter, btree,
 				      btree == start.btree ? start.pos : POS_MIN,
-				      0, depth, BTREE_ITER_prefetch, b, ret) {
+				      0, depth, BTREE_ITER_prefetch, b, ({
 			mem_may_pin -= btree_buf_bytes(b);
 			if (mem_may_pin <= 0) {
 				c->btree_cache.pinned_nodes_end = *end =
 					BBPOS(btree, b->key.k.p);
-				bch2_trans_iter_exit(trans, &iter);
-				return 0;
+				break;
 			}
-		}
-		bch2_trans_iter_exit(trans, &iter);
+			0;
+		}));
 	}
 
 	return ret;
