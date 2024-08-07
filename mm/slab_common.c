@@ -508,6 +508,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	if (unlikely(!s) || !kasan_check_byte(s))
 		return;
 
+	/* in-flight kfree_rcu()'s may include objects from our cache */
+	kvfree_rcu_barrier();
+
 	cpus_read_lock();
 	mutex_lock(&slab_mutex);
 
