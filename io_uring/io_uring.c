@@ -2377,7 +2377,8 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	ret = 0;
 	if (iowq->timeout == KTIME_MAX)
 		schedule();
-	else if (!schedule_hrtimeout(&iowq->timeout, HRTIMER_MODE_ABS))
+	else if (!schedule_hrtimeout_range_clock(&iowq->timeout, 0,
+						 HRTIMER_MODE_ABS, ctx->clockid))
 		ret = -ETIME;
 	current->in_iowait = 0;
 	return ret;
@@ -2422,7 +2423,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 
 		iowq.timeout = timespec64_to_ktime(ts);
 		if (!(flags & IORING_ENTER_ABS_TIMER))
-			iowq.timeout = ktime_add(iowq.timeout, ktime_get());
+			iowq.timeout = ktime_add(iowq.timeout, io_get_time(ctx));
 	}
 
 	if (sig) {
@@ -3423,6 +3424,9 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx = io_ring_ctx_alloc(p);
 	if (!ctx)
 		return -ENOMEM;
+
+	ctx->clockid = CLOCK_MONOTONIC;
+	ctx->clock_offset = 0;
 
 	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
 	    !(ctx->flags & IORING_SETUP_IOPOLL) &&
