@@ -12,8 +12,13 @@
 #  define __nolibc_has_attribute(attr) 0
 #endif
 
-#define __nolibc_entrypoint __attribute__((optimize("Os", "omit-frame-pointer")))
-#define __nolibc_entrypoint_epilogue() __builtin_unreachable()
+#if __nolibc_has_attribute(naked)
+#  define __nolibc_entrypoint __attribute__((naked))
+#  define __nolibc_entrypoint_epilogue()
+#else
+#  define __nolibc_entrypoint __attribute__((optimize("Os", "omit-frame-pointer")))
+#  define __nolibc_entrypoint_epilogue() __builtin_unreachable()
+#endif /* __nolibc_has_attribute(naked) */
 
 #if defined(__SSP__) || defined(__SSP_STRONG__) || defined(__SSP_ALL__) || defined(__SSP_EXPLICIT__)
 
