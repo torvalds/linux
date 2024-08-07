@@ -581,6 +581,7 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 		skb_reserve(skb, pkt_offset);
 
 		rtw_update_rx_freq_for_invalid(rtwdev, skb, &rx_status, &pkt_stat);
+		rtw_rx_stats(rtwdev, pkt_stat.vif, skb);
 		memcpy(skb->cb, &rx_status, sizeof(rx_status));
 		ieee80211_rx_irqsafe(rtwdev->hw, skb);
 	}
