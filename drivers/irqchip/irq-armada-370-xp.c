@@ -678,7 +678,7 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 	cause = readl_relaxed(mpic->per_cpu + MPIC_PPI_CAUSE);
 	cpuid = cpu_logical_map(smp_processor_id());
 
-	for_each_set_bit(i, &cause, BITS_PER_LONG) {
+	for_each_set_bit(i, &cause, MPIC_PER_CPU_IRQS_NR) {
 		irqsrc = readl_relaxed(mpic->base + MPIC_INT_SOURCE_CTL(i));
 
 		/* Check if the interrupt is not masked on current CPU.
