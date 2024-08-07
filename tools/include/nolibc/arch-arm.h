@@ -185,7 +185,7 @@
 })
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"mov r0, sp\n"          /* save stack pointer to %r0, as arg1 of _start_c */
@@ -193,7 +193,7 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 		"mov sp, ip\n"
 		"bl  _start_c\n"        /* transfer to c runtime                          */
 	);
-	__builtin_unreachable();
+	__nolibc_entrypoint_epilogue();
 }
 
 #endif /* _NOLIBC_ARCH_ARM_H */

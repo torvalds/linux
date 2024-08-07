@@ -179,7 +179,7 @@
 })
 
 /* startup code, note that it's called __start on MIPS */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector __start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector __start(void)
 {
 	__asm__ volatile (
 		".set push\n"
@@ -200,7 +200,7 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 		" nop\n"                 /* delayed slot                                   */
 		".set pop\n"
 	);
-	__builtin_unreachable();
+	__nolibc_entrypoint_epilogue();
 }
 
 #endif /* _NOLIBC_ARCH_MIPS_H */

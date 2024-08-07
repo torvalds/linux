@@ -12,6 +12,9 @@
 #  define __nolibc_has_attribute(attr) 0
 #endif
 
+#define __nolibc_entrypoint __attribute__((optimize("Os", "omit-frame-pointer")))
+#define __nolibc_entrypoint_epilogue() __builtin_unreachable()
+
 #if defined(__SSP__) || defined(__SSP_STRONG__) || defined(__SSP_ALL__) || defined(__SSP_EXPLICIT__)
 
 #define _NOLIBC_STACKPROTECTOR
