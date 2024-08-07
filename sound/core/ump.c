@@ -525,7 +525,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 }
 
 /* update dir_bits and active flag for all groups in the client */
-static void update_group_attrs(struct snd_ump_endpoint *ump)
+void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 {
 	struct snd_ump_block *fb;
 	struct snd_ump_group *group;
@@ -578,6 +578,7 @@ static void update_group_attrs(struct snd_ump_endpoint *ump)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(snd_ump_update_group_attrs);
 
 /*
  * UMP endpoint and function block handling
@@ -657,6 +658,17 @@ static int ump_append_string(struct snd_ump_endpoint *ump, char *dest,
 		format == UMP_STREAM_MSG_FORMAT_END);
 }
 
+/* Choose the default protocol */
+static void choose_default_protocol(struct snd_ump_endpoint *ump)
+{
+	if (ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)
+		return;
+	if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
+	else
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
+}
+
 /* handle EP info stream message; update the UMP attributes */
 static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -678,6 +690,10 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 
 	ump_dbg(ump, "EP info: version=%x, num_blocks=%x, proto_caps=%x\n",
 		ump->info.version, ump->info.num_blocks, ump->info.protocol_caps);
+
+	ump->info.protocol &= ump->info.protocol_caps;
+	choose_default_protocol(ump);
+
 	return 1; /* finished */
 }
 
@@ -848,7 +864,7 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 	if (fb) {
 		fill_fb_info(ump, &fb->info, buf);
 		if (ump->parsed) {
-			update_group_attrs(ump);
+			snd_ump_update_group_attrs(ump);
 			seq_notify_fb_change(ump, fb);
 		}
 	}
@@ -880,7 +896,7 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 				buf->raw, 3);
 	/* notify the FB name update to sequencer, too */
 	if (ret > 0 && ump->parsed) {
-		update_group_attrs(ump);
+		snd_ump_update_group_attrs(ump);
 		seq_notify_fb_change(ump, fb);
 	}
 	return ret;
@@ -1040,12 +1056,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 		ump_dbg(ump, "Unable to get UMP EP stream config\n");
 
 	/* If no protocol is set by some reason, assume the valid one */
-	if (!(ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)) {
-		if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
-			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
-		else if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI1)
-			ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
-	}
+	choose_default_protocol(ump);
 
 	/* Query and create blocks from Function Blocks */
 	for (blk = 0; blk < ump->info.num_blocks; blk++) {
@@ -1055,7 +1066,7 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	}
 
 	/* initialize group attributions */
-	update_group_attrs(ump);
+	snd_ump_update_group_attrs(ump);
 
  error:
 	ump->parsed = true;
