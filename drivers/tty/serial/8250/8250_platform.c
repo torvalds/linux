@@ -281,7 +281,7 @@ static struct platform_driver serial8250_isa_driver = {
 	.resume		= serial8250_resume,
 	.driver		= {
 		.name	= "serial8250",
-		.acpi_match_table = ACPI_PTR(acpi_platform_serial_table),
+		.acpi_match_table = acpi_platform_serial_table,
 	},
 };
 
