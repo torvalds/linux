@@ -16,9 +16,10 @@ build_location="$(realpath "${cache_dir}"/nolibc-tests/)"
 perform_download=0
 test_mode=system
 werror=1
+llvm=
 archs="i386 x86_64 arm64 arm mips32le mips32be ppc ppc64 ppc64le riscv s390 loongarch"
 
-TEMP=$(getopt -o 'j:d:c:b:a:m:peh' -n "$0" -- "$@")
+TEMP=$(getopt -o 'j:d:c:b:a:m:pelh' -n "$0" -- "$@")
 
 eval set -- "$TEMP"
 unset TEMP
@@ -42,6 +43,7 @@ Options:
  -b [DIR]       Build location (default: ${build_location})
  -m [MODE]      Test mode user/system (default: ${test_mode})
  -e             Disable -Werror
+ -l             Build with LLVM/clang
 EOF
 }
 
@@ -70,6 +72,9 @@ while true; do
 			shift 2; continue ;;
 		'-e')
 			werror=0
+			shift; continue ;;
+		'-l')
+			llvm=1
 			shift; continue ;;
 		'-h')
 			print_usage
@@ -143,7 +148,7 @@ test_arch() {
 	if [ "$werror" -ne 0 ]; then
 		CFLAGS_EXTRA="$CFLAGS_EXTRA -Werror"
 	fi
-	MAKE=(make -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" O="${build_dir}")
+	MAKE=(make -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" LLVM="${llvm}" O="${build_dir}")
 
 	mkdir -p "$build_dir"
 	if [ "$test_mode" = "system" ] && [ ! -f "${build_dir}/.config" ]; then
