@@ -863,9 +863,23 @@ static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 		fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1 |
 			SNDRV_UMP_BLOCK_IS_LOWSPEED;
 
+	/* if MIDI 2.0 protocol is supported and yet the GTB shows MIDI 1.0,
+	 * treat it as a MIDI 1.0-specific block
+	 */
+	if (rmidi->ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2) {
+		switch (desc->bMIDIProtocol) {
+		case USB_MS_MIDI_PROTO_1_0_64:
+		case USB_MS_MIDI_PROTO_1_0_64_JRTS:
+		case USB_MS_MIDI_PROTO_1_0_128:
+		case USB_MS_MIDI_PROTO_1_0_128_JRTS:
+			fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1;
+			break;
+		}
+	}
+
 	usb_audio_dbg(umidi->chip,
-		      "Created a UMP block %d from GTB, name=%s\n",
-		      blk, fb->info.name);
+		      "Created a UMP block %d from GTB, name=%s, flags=0x%x\n",
+		      blk, fb->info.name, fb->info.flags);
 	return 0;
 }
 
