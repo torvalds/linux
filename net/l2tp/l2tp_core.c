@@ -1855,8 +1855,16 @@ static __net_exit void l2tp_pre_exit_net(struct net *net)
 	}
 	rcu_read_unlock_bh();
 
-	if (l2tp_wq)
+	if (l2tp_wq) {
+		/* ensure that all TUNNEL_DELETE work items are run before
+		 * draining the work queue since TUNNEL_DELETE requests may
+		 * queue SESSION_DELETE work items for each session in the
+		 * tunnel. drain_workqueue may otherwise warn if SESSION_DELETE
+		 * requests are queued while the work queue is being drained.
+		 */
+		__flush_workqueue(l2tp_wq);
 		drain_workqueue(l2tp_wq);
+	}
 }
 
 static __net_exit void l2tp_exit_net(struct net *net)
