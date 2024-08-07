@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -17,11 +17,13 @@
 
 #define MBG_TEMP_MON_MM_MON2_FAULT_STATUS 0x50
 
-#define MON_FAULT_STATUS_MASK	GENMASK(7, 6)
-#define MON_FAULT_STATUS_SHIFT	6
-#define MON2_LVL1_ERR		0x1
+#define MON_FAULT_STATUS_MASK		GENMASK(7, 6)
+#define MON_FAULT_POLARITY_STATUS_MASK	GENMASK(5, 4)
 
-#define MON2_LVL1_UP_THRESH	0x59
+#define MON_FAULT_STATUS_LVL1		BIT(6)
+#define MON_FAULT_POLARITY_STATUS_UPR	BIT(4)
+
+#define MON2_LVL1_UP_THRESH		0x59
 
 #define MBG_TEMP_MON_MM_MON2_MISC_CFG	0x5f
 #define UP_THRESH_EN			BIT(1)
@@ -186,14 +188,15 @@ static irqreturn_t mbg_tm_isr(int irq, void *data)
 	if (ret < 0)
 		return IRQ_HANDLED;
 
-	val &= MON_FAULT_STATUS_MASK;
-	if ((val >> MON_FAULT_STATUS_SHIFT) & MON2_LVL1_ERR) {
-		chip->last_temp_set = true;
-		thermal_zone_device_update(chip->tz_dev,
-					THERMAL_TRIP_VIOLATED);
-		pr_debug("Notifying Thermal, val=%d\n", val);
-	} else {
-		pr_debug("High trip not violated, ignoring IRQ\n");
+	if ((val & MON_FAULT_STATUS_MASK) & MON_FAULT_STATUS_LVL1) {
+		if ((val & MON_FAULT_POLARITY_STATUS_MASK) & MON_FAULT_POLARITY_STATUS_UPR) {
+			chip->last_temp_set = true;
+			thermal_zone_device_update(chip->tz_dev,
+						THERMAL_TRIP_VIOLATED);
+			pr_debug("Notifying Thermal, val=%d\n", val);
+		} else {
+			pr_debug("High trip not violated, ignoring IRQ\n");
+		}
 	}
 
 	return IRQ_HANDLED;
