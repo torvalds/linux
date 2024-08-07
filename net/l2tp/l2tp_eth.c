@@ -72,31 +72,19 @@ static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev
 	unsigned int len = skb->len;
 	int ret = l2tp_xmit_skb(session, skb);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
-		DEV_STATS_ADD(dev, tx_bytes, len);
-		DEV_STATS_INC(dev, tx_packets);
-	} else {
+	if (likely(ret == NET_XMIT_SUCCESS))
+		dev_sw_netstats_tx_add(dev, 1, len);
+	else
 		DEV_STATS_INC(dev, tx_dropped);
-	}
-	return NETDEV_TX_OK;
-}
 
-static void l2tp_eth_get_stats64(struct net_device *dev,
-				 struct rtnl_link_stats64 *stats)
-{
-	stats->tx_bytes   = DEV_STATS_READ(dev, tx_bytes);
-	stats->tx_packets = DEV_STATS_READ(dev, tx_packets);
-	stats->tx_dropped = DEV_STATS_READ(dev, tx_dropped);
-	stats->rx_bytes   = DEV_STATS_READ(dev, rx_bytes);
-	stats->rx_packets = DEV_STATS_READ(dev, rx_packets);
-	stats->rx_errors  = DEV_STATS_READ(dev, rx_errors);
+	return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
-	.ndo_get_stats64	= l2tp_eth_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
@@ -112,6 +100,7 @@ static void l2tp_eth_dev_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_LLTX;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
 	dev->needs_free_netdev	= true;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_TSTATS;
 }
 
 static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb, int data_len)
@@ -138,12 +127,11 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	if (!dev)
 		goto error_rcu;
 
-	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
-		DEV_STATS_INC(dev, rx_packets);
-		DEV_STATS_ADD(dev, rx_bytes, data_len);
-	} else {
+	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS)
+		dev_sw_netstats_rx_add(dev, data_len);
+	else
 		DEV_STATS_INC(dev, rx_errors);
-	}
+
 	rcu_read_unlock();
 
 	return;
