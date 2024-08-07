@@ -542,27 +542,33 @@ static int mes_v12_0_set_hw_resources(struct amdgpu_mes *mes, int pipe)
 	mes_set_hw_res_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC;
 	mes_set_hw_res_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
-	mes_set_hw_res_pkt.vmid_mask_mmhub = mes->vmid_mask_mmhub;
-	mes_set_hw_res_pkt.vmid_mask_gfxhub = mes->vmid_mask_gfxhub;
-	mes_set_hw_res_pkt.gds_size = adev->gds.gds_size;
-	mes_set_hw_res_pkt.paging_vmid = 0;
-	mes_set_hw_res_pkt.g_sch_ctx_gpu_mc_ptr = mes->sch_ctx_gpu_addr;
+	if (pipe == AMDGPU_MES_SCHED_PIPE) {
+		mes_set_hw_res_pkt.vmid_mask_mmhub = mes->vmid_mask_mmhub;
+		mes_set_hw_res_pkt.vmid_mask_gfxhub = mes->vmid_mask_gfxhub;
+		mes_set_hw_res_pkt.gds_size = adev->gds.gds_size;
+		mes_set_hw_res_pkt.paging_vmid = 0;
+
+		for (i = 0; i < MAX_COMPUTE_PIPES; i++)
+			mes_set_hw_res_pkt.compute_hqd_mask[i] =
+				mes->compute_hqd_mask[i];
+
+		for (i = 0; i < MAX_GFX_PIPES; i++)
+			mes_set_hw_res_pkt.gfx_hqd_mask[i] =
+				mes->gfx_hqd_mask[i];
+
+		for (i = 0; i < MAX_SDMA_PIPES; i++)
+			mes_set_hw_res_pkt.sdma_hqd_mask[i] =
+				mes->sdma_hqd_mask[i];
+
+		for (i = 0; i < AMD_PRIORITY_NUM_LEVELS; i++)
+			mes_set_hw_res_pkt.aggregated_doorbells[i] =
+				mes->aggregated_doorbells[i];
+	}
+
+	mes_set_hw_res_pkt.g_sch_ctx_gpu_mc_ptr =
+		mes->sch_ctx_gpu_addr[pipe];
 	mes_set_hw_res_pkt.query_status_fence_gpu_mc_ptr =
-		mes->query_status_fence_gpu_addr;
-
-	for (i = 0; i < MAX_COMPUTE_PIPES; i++)
-		mes_set_hw_res_pkt.compute_hqd_mask[i] =
-			mes->compute_hqd_mask[i];
-
-	for (i = 0; i < MAX_GFX_PIPES; i++)
-		mes_set_hw_res_pkt.gfx_hqd_mask[i] = mes->gfx_hqd_mask[i];
-
-	for (i = 0; i < MAX_SDMA_PIPES; i++)
-		mes_set_hw_res_pkt.sdma_hqd_mask[i] = mes->sdma_hqd_mask[i];
-
-	for (i = 0; i < AMD_PRIORITY_NUM_LEVELS; i++)
-		mes_set_hw_res_pkt.aggregated_doorbells[i] =
-			mes->aggregated_doorbells[i];
+		mes->query_status_fence_gpu_addr[pipe];
 
 	for (i = 0; i < 5; i++) {
 		mes_set_hw_res_pkt.gc_base[i] = adev->reg_offset[GC_HWIP][0][i];
@@ -1291,9 +1297,6 @@ static int mes_v12_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int pipe;
-
-	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
-	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 		kfree(adev->mes.mqd_backup[pipe]);
