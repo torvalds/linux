@@ -324,6 +324,25 @@ to_hwpt_paging(struct iommufd_hw_pagetable *hwpt)
 	return container_of(hwpt, struct iommufd_hwpt_paging, common);
 }
 
+static inline struct iommufd_hwpt_nested *
+to_hwpt_nested(struct iommufd_hw_pagetable *hwpt)
+{
+	return container_of(hwpt, struct iommufd_hwpt_nested, common);
+}
+
+static inline struct iommufd_hwpt_paging *
+find_hwpt_paging(struct iommufd_hw_pagetable *hwpt)
+{
+	switch (hwpt->obj.type) {
+	case IOMMUFD_OBJ_HWPT_PAGING:
+		return to_hwpt_paging(hwpt);
+	case IOMMUFD_OBJ_HWPT_NESTED:
+		return to_hwpt_nested(hwpt)->parent;
+	default:
+		return NULL;
+	}
+}
+
 static inline struct iommufd_hwpt_paging *
 iommufd_get_hwpt_paging(struct iommufd_ucmd *ucmd, u32 id)
 {
