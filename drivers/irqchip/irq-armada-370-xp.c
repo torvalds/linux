@@ -187,7 +187,7 @@ struct mpic {
 	u32 doorbell_mask;
 };
 
-static struct mpic mpic_data;
+static struct mpic *mpic_data __ro_after_init;
 
 static inline bool mpic_is_ipi_available(struct mpic *mpic)
 {
@@ -575,7 +575,7 @@ static int mpic_starting_cpu(unsigned int cpu)
 
 static int mpic_cascaded_starting_cpu(unsigned int cpu)
 {
-	struct mpic *mpic = &mpic_data;
+	struct mpic *mpic = mpic_data;
 
 	mpic_perf_init(mpic);
 	mpic_reenable_percpu(mpic);
@@ -726,7 +726,7 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 
 static int mpic_suspend(void)
 {
-	struct mpic *mpic = &mpic_data;
+	struct mpic *mpic = mpic_data;
 
 	mpic->doorbell_mask = readl(mpic->per_cpu + MPIC_IN_DRBEL_MASK);
 
@@ -735,7 +735,7 @@ static int mpic_suspend(void)
 
 static void mpic_resume(void)
 {
-	struct mpic *mpic = &mpic_data;
+	struct mpic *mpic = mpic_data;
 	bool src0, src1;
 
 	/* Re-enable interrupts */
@@ -824,10 +824,16 @@ fail:
 
 static int __init mpic_of_init(struct device_node *node, struct device_node *parent)
 {
-	struct mpic *mpic = &mpic_data;
 	phys_addr_t phys_base;
 	unsigned int nr_irqs;
+	struct mpic *mpic;
 	int err;
+
+	mpic = kzalloc(sizeof(*mpic), GFP_KERNEL);
+	if (WARN_ON(!mpic))
+		return -ENOMEM;
+
+	mpic_data = mpic;
 
 	err = mpic_map_region(node, 0, &mpic->base, &phys_base);
 	if (err)
