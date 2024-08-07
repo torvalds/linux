@@ -4973,7 +4973,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	} else {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+				 "DDI %c/PHY %c", port_name(port), phy_name(phy));
 	}
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);

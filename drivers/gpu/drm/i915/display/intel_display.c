@@ -5111,7 +5111,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(!__same_type(current_config->name, bool), \
 				 __stringify(name) " is not bool");	\
-		pipe_config_mismatch(&p, fastset, crtc,  __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected %s, found %s)", \
 				     str_yes_no(current_config->name), \
 				     str_yes_no(pipe_config->name)); \

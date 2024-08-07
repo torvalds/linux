@@ -493,7 +493,7 @@ static void crtc_updates_info(struct seq_file *m,
 	seq_printf(m, "%sMax update: %lluns\n",
 		   hdr, crtc->debug.vbl.max);
 	seq_printf(m, "%sAverage update: %lluns\n",
-		   hdr, div64_u64(crtc->debug.vbl.sum,  count));
+		   hdr, div64_u64(crtc->debug.vbl.sum, count));
 	seq_printf(m, "%sOverruns > %uus: %u\n",
 		   hdr, VBLANK_EVASION_TIME_US, crtc->debug.vbl.over);
 }
