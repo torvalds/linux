@@ -3527,9 +3527,8 @@ restart_poll:
 	}
 
 	if (adapter->state != VNIC_CLOSING &&
-	    ((atomic_read(&adapter->rx_pool[scrq_num].available) <
-	      adapter->req_rx_add_entries_per_subcrq / 2) ||
-	      frames_processed < budget))
+	    (atomic_read(&adapter->rx_pool[scrq_num].available) <
+	      adapter->req_rx_add_entries_per_subcrq / 2))
 		replenish_rx_pool(adapter, &adapter->rx_pool[scrq_num]);
 	if (frames_processed < budget) {
 		if (napi_complete_done(napi, frames_processed)) {
