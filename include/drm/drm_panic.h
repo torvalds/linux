@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 or MIT */
+
+/*
+ * Copyright (c) 2024 Intel
+ * Copyright (c) 2024 Red Hat
+ */
+
 #ifndef __DRM_PANIC_H__
 #define __DRM_PANIC_H__
 
@@ -8,9 +14,6 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_fourcc.h>
-/*
- * Copyright (c) 2024 Intel
- */
 
 /**
  * struct drm_scanout_buffer - DRM scanout buffer
