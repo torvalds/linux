@@ -1079,9 +1079,9 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	rcu_read_lock();
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
-	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
-						  vma->vm_pgoff,
-						  vma_pages(vma));
+	node = drm_vma_offset_lookup_locked(dev->vma_offset_manager,
+					    vma->vm_pgoff,
+					    vma_pages(vma));
 	if (node && drm_vma_node_is_allowed(node, priv)) {
 		/*
 		 * Skip 0-refcnted objects as it is in the process of being
