@@ -1501,7 +1501,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix,
 				       sizeof(ucode_prefix));
-	if (adev->enable_uni_mes && pipe == AMDGPU_MES_SCHED_PIPE) {
+	if (adev->enable_uni_mes) {
 		snprintf(fw_name, sizeof(fw_name),
 			 "amdgpu/%s_uni_mes.bin", ucode_prefix);
 	} else if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&

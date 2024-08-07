@@ -744,16 +744,11 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 	if (enable) {
 		data = RREG32_SOC15(GC, 0, regCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
-		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET,
-		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET, 1);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 
 		mutex_lock(&adev->srbm_mutex);
 		for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
-			if ((!adev->enable_mes_kiq || adev->enable_uni_mes) &&
-			    pipe == AMDGPU_MES_KIQ_PIPE)
-				continue;
-
 			soc21_grbm_select(adev, 3, pipe, 0, 0);
 
 			ucode_addr = adev->mes.uc_start_addr[pipe] >> 2;
@@ -767,8 +762,7 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 
 		/* unhalt MES and activate pipe0 */
 		data = REG_SET_FIELD(0, CP_MES_CNTL, MES_PIPE0_ACTIVE, 1);
-		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE,
-		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE, 1);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 
 		if (amdgpu_emu_mode)
@@ -784,8 +778,7 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 		data = REG_SET_FIELD(data, CP_MES_CNTL,
 				     MES_INVALIDATE_ICACHE, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
-		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET,
-		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_HALT, 1);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 	}
@@ -800,10 +793,6 @@ static void mes_v12_0_set_ucode_start_addr(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->srbm_mutex);
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
-		if ((!adev->enable_mes_kiq || adev->enable_uni_mes) &&
-		    pipe == AMDGPU_MES_KIQ_PIPE)
-			continue;
-
 		/* me=3, queue=0 */
 		soc21_grbm_select(adev, 3, pipe, 0, 0);
 
@@ -1525,17 +1514,7 @@ static int mes_v12_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int pipe, r;
 
-	if (adev->enable_uni_mes) {
-		r = amdgpu_mes_init_microcode(adev, AMDGPU_MES_SCHED_PIPE);
-		if (!r)
-			return 0;
-
-		adev->enable_uni_mes = false;
-	}
-
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
-		if (!adev->enable_mes_kiq && pipe == AMDGPU_MES_KIQ_PIPE)
-			continue;
 		r = amdgpu_mes_init_microcode(adev, pipe);
 		if (r)
 			return r;
