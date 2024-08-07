@@ -161,6 +161,10 @@
  * @msi_used:		bitmap of used MSI numbers
  * @msi_lock:		mutex serializing access to @msi_used
  * @msi_doorbell_addr:	physical address of MSI doorbell register
+ * @msi_doorbell_mask:	mask of available doorbell bits for MSIs (either PCI_MSI_DOORBELL_MASK or
+ *			PCI_MSI_FULL_DOORBELL_MASK)
+ * @msi_doorbell_start:	first set bit in @msi_doorbell_mask
+ * @msi_doorbell_size:	number of set bits in @msi_doorbell_mask
  * @doorbell_mask:	doorbell mask of MSIs and IPIs, stored on suspend, restored on resume
  */
 struct mpic {
@@ -177,6 +181,8 @@ struct mpic {
 	DECLARE_BITMAP(msi_used, PCI_MSI_FULL_DOORBELL_NR);
 	struct mutex msi_lock;
 	phys_addr_t msi_doorbell_addr;
+	u32 msi_doorbell_mask;
+	unsigned int msi_doorbell_start, msi_doorbell_size;
 #endif
 	u32 doorbell_mask;
 };
@@ -193,21 +199,6 @@ static inline bool mpic_is_ipi_available(void)
 	 * interrupts.
 	 */
 	return mpic->parent_irq <= 0;
-}
-
-static inline u32 msi_doorbell_mask(void)
-{
-	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_MASK : PCI_MSI_FULL_DOORBELL_MASK;
-}
-
-static inline unsigned int msi_doorbell_start(void)
-{
-	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_START : PCI_MSI_FULL_DOORBELL_START;
-}
-
-static inline unsigned int msi_doorbell_size(void)
-{
-	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_NR : PCI_MSI_FULL_DOORBELL_NR;
 }
 
 static inline bool mpic_is_percpu_irq(irq_hw_number_t hwirq)
@@ -260,7 +251,7 @@ static void mpic_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 
 	msg->address_lo = lower_32_bits(mpic->msi_doorbell_addr);
 	msg->address_hi = upper_32_bits(mpic->msi_doorbell_addr);
-	msg->data = BIT(cpu + 8) | (d->hwirq + msi_doorbell_start());
+	msg->data = BIT(cpu + 8) | (d->hwirq + mpic->msi_doorbell_start);
 }
 
 static int mpic_msi_set_affinity(struct irq_data *d, const struct cpumask *mask, bool force)
@@ -292,7 +283,7 @@ static int mpic_msi_alloc(struct irq_domain *domain, unsigned int virq, unsigned
 	int hwirq;
 
 	mutex_lock(&mpic->msi_lock);
-	hwirq = bitmap_find_free_region(mpic->msi_used, msi_doorbell_size(),
+	hwirq = bitmap_find_free_region(mpic->msi_used, mpic->msi_doorbell_size,
 					order_base_2(nr_irqs));
 	mutex_unlock(&mpic->msi_lock);
 
@@ -329,7 +320,7 @@ static void mpic_msi_reenable_percpu(void)
 
 	/* Enable MSI doorbell mask and combined cpu local interrupt */
 	reg = readl(mpic->per_cpu + MPIC_IN_DRBEL_MASK);
-	reg |= msi_doorbell_mask();
+	reg |= mpic->msi_doorbell_mask;
 	writel(reg, mpic->per_cpu + MPIC_IN_DRBEL_MASK);
 
 	/* Unmask local doorbell interrupt */
@@ -342,7 +333,17 @@ static int __init mpic_msi_init(struct device_node *node, phys_addr_t main_int_p
 
 	mutex_init(&mpic->msi_lock);
 
-	mpic->msi_inner_domain = irq_domain_add_linear(NULL, msi_doorbell_size(),
+	if (mpic_is_ipi_available()) {
+		mpic->msi_doorbell_start = PCI_MSI_DOORBELL_START;
+		mpic->msi_doorbell_size = PCI_MSI_DOORBELL_NR;
+		mpic->msi_doorbell_mask = PCI_MSI_DOORBELL_MASK;
+	} else {
+		mpic->msi_doorbell_start = PCI_MSI_FULL_DOORBELL_START;
+		mpic->msi_doorbell_size = PCI_MSI_FULL_DOORBELL_NR;
+		mpic->msi_doorbell_mask = PCI_MSI_FULL_DOORBELL_MASK;
+	}
+
+	mpic->msi_inner_domain = irq_domain_add_linear(NULL, mpic->msi_doorbell_size,
 						       &mpic_msi_domain_ops, NULL);
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
@@ -620,12 +621,11 @@ static void mpic_handle_msi_irq(void)
 	unsigned int i;
 
 	cause = readl_relaxed(mpic->per_cpu + MPIC_IN_DRBEL_CAUSE);
-	cause &= msi_doorbell_mask();
+	cause &= mpic->msi_doorbell_mask;
 	writel(~cause, mpic->per_cpu + MPIC_IN_DRBEL_CAUSE);
 
 	for_each_set_bit(i, &cause, BITS_PER_LONG)
-		generic_handle_domain_irq(mpic->msi_inner_domain,
-					  i - msi_doorbell_start());
+		generic_handle_domain_irq(mpic->msi_inner_domain, i - mpic->msi_doorbell_start);
 }
 #else
 static void mpic_handle_msi_irq(void) {}
