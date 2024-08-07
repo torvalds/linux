@@ -766,6 +766,45 @@ static void rtw_usb_interface_cfg(struct rtw_dev *rtwdev)
 	rtw_usb_init_burst_pkt_len(rtwdev);
 }
 
+static void rtw_usb_dynamic_rx_agg_v1(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 size, timeout;
+	u16 val16;
+
+	rtw_write32_set(rtwdev, REG_RXDMA_AGG_PG_TH, BIT_EN_PRE_CALC);
+	rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_AGG_EN);
+	rtw_write8_clr(rtwdev, REG_RXDMA_AGG_PG_TH + 3, BIT(7));
+
+	if (enable) {
+		size = 0x5;
+		timeout = 0x20;
+	} else {
+		size = 0x0;
+		timeout = 0x1;
+	}
+	val16 = u16_encode_bits(size, BIT_RXDMA_AGG_PG_TH) |
+		u16_encode_bits(timeout, BIT_DMA_AGG_TO_V1);
+
+	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
+}
+
+static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
+{
+	switch (rtwdev->chip->id) {
+	case RTW_CHIP_TYPE_8822C:
+	case RTW_CHIP_TYPE_8822B:
+	case RTW_CHIP_TYPE_8821C:
+		rtw_usb_dynamic_rx_agg_v1(rtwdev, enable);
+		break;
+	case RTW_CHIP_TYPE_8723D:
+		/* Doesn't like aggregation. */
+		break;
+	case RTW_CHIP_TYPE_8703B:
+		/* Likely not found in USB devices. */
+		break;
+	}
+}
+
 static struct rtw_hci_ops rtw_usb_ops = {
 	.tx_write = rtw_usb_tx_write,
 	.tx_kick_off = rtw_usb_tx_kick_off,
@@ -775,6 +814,7 @@ static struct rtw_hci_ops rtw_usb_ops = {
 	.deep_ps = rtw_usb_deep_ps,
 	.link_ps = rtw_usb_link_ps,
 	.interface_cfg = rtw_usb_interface_cfg,
+	.dynamic_rx_agg = rtw_usb_dynamic_rx_agg,
 
 	.write8  = rtw_usb_write8,
 	.write16 = rtw_usb_write16,
