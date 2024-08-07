@@ -2726,17 +2726,19 @@ static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 
 static void process_ddsp_deferred_locals(struct rq *rq)
 {
-	struct task_struct *p, *tmp;
+	struct task_struct *p;
 
 	lockdep_assert_rq_held(rq);
 
 	/*
 	 * Now that @rq can be unlocked, execute the deferred enqueueing of
 	 * tasks directly dispatched to the local DSQs of other CPUs. See
-	 * direct_dispatch().
+	 * direct_dispatch(). Keep popping from the head instead of using
+	 * list_for_each_entry_safe() as dispatch_local_dsq() may unlock @rq
+	 * temporarily.
 	 */
-	list_for_each_entry_safe(p, tmp, &rq->scx.ddsp_deferred_locals,
-				 scx.dsq_list.node) {
+	while ((p = list_first_entry_or_null(&rq->scx.ddsp_deferred_locals,
+				struct task_struct, scx.dsq_list.node))) {
 		s32 ret;
 
 		list_del_init(&p->scx.dsq_list.node);
