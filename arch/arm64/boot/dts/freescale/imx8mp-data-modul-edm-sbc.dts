@@ -499,7 +499,6 @@
 };
 
 &sai3 {
-	#clock-cells = <0>;
 	#sound-dai-cells = <0>;
 	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
