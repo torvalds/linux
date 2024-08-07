@@ -314,7 +314,7 @@ static void mpic_msi_reenable_percpu(void)
 	writel(1, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
 }
 
-static int mpic_msi_init(struct device_node *node, phys_addr_t main_int_phys_base)
+static int __init mpic_msi_init(struct device_node *node, phys_addr_t main_int_phys_base)
 {
 	msi_doorbell_addr = main_int_phys_base + MPIC_SW_TRIG_INT;
 
