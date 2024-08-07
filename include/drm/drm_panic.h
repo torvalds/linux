@@ -146,16 +146,4 @@ struct drm_scanout_buffer {
 #define drm_panic_unlock(dev, flags) \
 	raw_spin_unlock_irqrestore(&(dev)->mode_config.panic_lock, flags)
 
-#ifdef CONFIG_DRM_PANIC
-
-void drm_panic_register(struct drm_device *dev);
-void drm_panic_unregister(struct drm_device *dev);
-
-#else
-
-static inline void drm_panic_register(struct drm_device *dev) {}
-static inline void drm_panic_unregister(struct drm_device *dev) {}
-
-#endif
-
 #endif /* __DRM_PANIC_H__ */
