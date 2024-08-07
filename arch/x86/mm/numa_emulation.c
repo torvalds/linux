@@ -6,6 +6,7 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/memblock.h>
+#include <linux/numa_memblks.h>
 #include <asm/dma.h>
 
 #include "numa_internal.h"
