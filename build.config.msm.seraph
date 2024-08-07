@@ -1,0 +1,33 @@
+################################################################################
+## Inheriting configs from ACK
+. ${ROOT_DIR}/msm-kernel/build.config.common
+. ${ROOT_DIR}/msm-kernel/build.config.aarch64
+
+################################################################################
+## Variant setup
+MSM_ARCH=seraph
+VARIANTS=(consolidate gki)
+[ -z "${VARIANT}" ] && VARIANT=consolidate
+
+ABL_SRC=bootable/bootloader/edk2
+BOOT_IMAGE_HEADER_VERSION=4
+BASE_ADDRESS=0x80000000
+PAGE_SIZE=4096
+BUILD_VENDOR_DLKM=1
+PREPARE_SYSTEM_DLKM=1
+SYSTEM_DLKM_MODULES_LIST=${ROOT_DIR}/${KERNEL_DIR}/android/gki_system_dlkm_modules
+SUPER_IMAGE_SIZE=0x10000000
+TRIM_UNUSED_MODULES=1
+BUILD_INIT_BOOT_IMG=1
+[ -z "${DT_OVERLAY_SUPPORT}" ] && DT_OVERLAY_SUPPORT=1
+
+if [ "${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
+	KERNEL_VENDOR_CMDLINE+='console=ttyMSM0,115200n8 earlycon'
+fi
+
+KERNEL_VENDOR_CMDLINE+=' bootconfig '
+
+################################################################################
+## Inheriting MSM configs
+. ${KERNEL_DIR}/build.config.msm.common
+. ${KERNEL_DIR}/build.config.msm.gki
