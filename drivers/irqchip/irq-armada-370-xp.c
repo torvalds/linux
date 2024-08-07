@@ -136,8 +136,7 @@
 #define MPIC_MAX_PER_CPU_IRQS			28
 
 /* IPI and MSI interrupt definitions for IPI platforms */
-#define IPI_DOORBELL_START			0
-#define IPI_DOORBELL_END			8
+#define IPI_DOORBELL_NR				8
 #define IPI_DOORBELL_MASK			GENMASK(7, 0)
 #define PCI_MSI_DOORBELL_START			16
 #define PCI_MSI_DOORBELL_NR			16
@@ -452,7 +451,7 @@ static const struct irq_domain_ops mpic_ipi_domain_ops = {
 
 static void mpic_ipi_resume(void)
 {
-	for (irq_hw_number_t i = 0; i < IPI_DOORBELL_END; i++) {
+	for (irq_hw_number_t i = 0; i < IPI_DOORBELL_NR; i++) {
 		unsigned int virq = irq_find_mapping(mpic_ipi_domain, i);
 		struct irq_data *d;
 
@@ -468,17 +467,17 @@ static __init int mpic_ipi_init(struct device_node *node)
 {
 	int base_ipi;
 
-	mpic_ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_END,
+	mpic_ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_NR,
 						   &mpic_ipi_domain_ops, NULL);
 	if (WARN_ON(!mpic_ipi_domain))
 		return -ENOMEM;
 
 	irq_domain_update_bus_token(mpic_ipi_domain, DOMAIN_BUS_IPI);
-	base_ipi = irq_domain_alloc_irqs(mpic_ipi_domain, IPI_DOORBELL_END, NUMA_NO_NODE, NULL);
+	base_ipi = irq_domain_alloc_irqs(mpic_ipi_domain, IPI_DOORBELL_NR, NUMA_NO_NODE, NULL);
 	if (WARN_ON(!base_ipi))
 		return -ENOMEM;
 
-	set_smp_ipi_range(base_ipi, IPI_DOORBELL_END);
+	set_smp_ipi_range(base_ipi, IPI_DOORBELL_NR);
 
 	return 0;
 }
@@ -627,7 +626,7 @@ static void mpic_handle_ipi_irq(void)
 	cause = readl_relaxed(per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
 	cause &= IPI_DOORBELL_MASK;
 
-	for_each_set_bit(i, &cause, IPI_DOORBELL_END)
+	for_each_set_bit(i, &cause, IPI_DOORBELL_NR)
 		generic_handle_domain_irq(mpic_ipi_domain, i);
 }
 #else
