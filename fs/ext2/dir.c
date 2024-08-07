@@ -87,7 +87,7 @@ static void ext2_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 	struct inode *dir = mapping->host;
 
 	inode_inc_iversion(dir);
-	block_write_end(NULL, mapping, pos, len, len, &folio->page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, folio, NULL);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
@@ -434,7 +434,7 @@ int ext2_inode_by_name(struct inode *dir, const struct qstr *child, ino_t *ino)
 
 static int ext2_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(&folio->page, pos, len, ext2_get_block);
+	return __block_write_begin(folio, pos, len, ext2_get_block);
 }
 
 static int ext2_handle_dirsync(struct inode *dir)

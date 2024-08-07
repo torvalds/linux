@@ -466,9 +466,9 @@ static int sysv_read_folio(struct file *file, struct folio *folio)
 	return block_read_full_folio(folio, get_block);
 }
 
-int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len)
+int sysv_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(page, pos, len, get_block);
+	return __block_write_begin(folio, pos, len, get_block);
 }
 
 static void sysv_write_failed(struct address_space *mapping, loff_t to)
@@ -483,11 +483,11 @@ static void sysv_write_failed(struct address_space *mapping, loff_t to)
 
 static int sysv_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, pagep, get_block);
+	ret = block_write_begin(mapping, pos, len, foliop, get_block);
 	if (unlikely(ret))
 		sysv_write_failed(mapping, pos + len);
 

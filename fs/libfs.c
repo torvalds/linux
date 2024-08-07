@@ -901,7 +901,7 @@ static int simple_read_folio(struct file *file, struct folio *folio)
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	struct folio *folio;
 
@@ -910,7 +910,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	if (!folio_test_uptodate(folio) && (len != folio_size(folio))) {
 		size_t from = offset_in_folio(folio, pos);
@@ -929,11 +929,11 @@ EXPORT_SYMBOL(simple_write_begin);
  * @pos: 		"
  * @len: 		"
  * @copied: 		"
- * @page: 		"
+ * @folio: 		"
  * @fsdata: 		"
  *
- * simple_write_end does the minimum needed for updating a page after writing is
- * done. It has the same API signature as the .write_end of
+ * simple_write_end does the minimum needed for updating a folio after
+ * writing is done. It has the same API signature as the .write_end of
  * address_space_operations vector. So it can just be set onto .write_end for
  * FSes that don't need any other processing. i_mutex is assumed to be held.
  * Block based filesystems should use generic_write_end().
@@ -946,9 +946,8 @@ EXPORT_SYMBOL(simple_write_begin);
  */
 static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
