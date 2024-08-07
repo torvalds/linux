@@ -381,7 +381,6 @@
 			dmas = <&edma0 0 62>, <&edma0 0 60>;
 			dma-names = "tx", "rx";
 			spi-num-chipselects = <4>;
-			little-endian;
 			status = "disabled";
 		};
 
@@ -397,7 +396,6 @@
 			dmas = <&edma0 0 58>, <&edma0 0 56>;
 			dma-names = "tx", "rx";
 			spi-num-chipselects = <4>;
-			little-endian;
 			status = "disabled";
 		};
 
@@ -413,7 +411,6 @@
 			dmas = <&edma0 0 54>, <&edma0 0 2>;
 			dma-names = "tx", "rx";
 			spi-num-chipselects = <3>;
-			little-endian;
 			status = "disabled";
 		};
 
