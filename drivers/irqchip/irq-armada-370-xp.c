@@ -848,6 +848,19 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	for (irq_hw_number_t i = 0; i < nr_irqs; i++)
 		writel(i, mpic->base + MPIC_INT_CLEAR_ENABLE);
 
+	/*
+	 * Initialize mpic->parent_irq before calling any other functions, since
+	 * it is used to distinguish between IPI and non-IPI platforms.
+	 */
+	mpic->parent_irq = irq_of_parse_and_map(node, 0);
+
+	/*
+	 * On non-IPI platforms the driver currently supports only the per-CPU
+	 * interrupts (the first 29 interrupts). See mpic_handle_cascade_irq().
+	 */
+	if (!mpic_is_ipi_available(mpic))
+		nr_irqs = MPIC_PER_CPU_IRQS_NR;
+
 	mpic->domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, mpic);
 	if (!mpic->domain) {
 		pr_err("%pOF: Unable to add IRQ domain\n", node);
@@ -855,12 +868,6 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	}
 
 	irq_domain_update_bus_token(mpic->domain, DOMAIN_BUS_WIRED);
-
-	/*
-	 * Initialize mpic->parent_irq before calling any other functions, since
-	 * it is used to distinguish between IPI and non-IPI platforms.
-	 */
-	mpic->parent_irq = irq_of_parse_and_map(node, 0);
 
 	/* Setup for the boot CPU */
 	mpic_perf_init(mpic);
