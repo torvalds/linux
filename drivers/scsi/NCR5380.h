@@ -3,10 +3,10 @@
  * NCR 5380 defines
  *
  * Copyright 1993, Drew Eckhardt
- *	Visionary Computing
- *	(Unix consulting and custom programming)
- * 	drew@colorado.edu
- *      +1 (303) 666-5836
+ * Visionary Computing
+ * (Unix consulting and custom programming)
+ * drew@colorado.edu
+ * +1 (303) 666-5836
  *
  * For more information, please consult 
  *
@@ -78,7 +78,7 @@
 #define ICR_DIFF_ENABLE		0x20	/* wo Set to enable diff. drivers */
 #define ICR_ASSERT_ACK		0x10	/* rw ini Set to assert ACK */
 #define ICR_ASSERT_BSY		0x08	/* rw Set to assert BSY */
-#define ICR_ASSERT_SEL 		0x04	/* rw Set to assert SEL */
+#define ICR_ASSERT_SEL		0x04	/* rw Set to assert SEL */
 #define ICR_ASSERT_ATN		0x02	/* rw Set to assert ATN */
 #define ICR_ASSERT_DATA		0x01	/* rw SCSI_DATA_REG is asserted */
 
@@ -135,7 +135,7 @@
 #define BASR_IRQ		0x10	/* ro mirror of IRQ pin */
 #define BASR_PHASE_MATCH	0x08	/* ro Set when MSG CD IO match TCR */
 #define BASR_BUSY_ERROR		0x04	/* ro Unexpected change to inactive state */
-#define BASR_ATN 		0x02	/* ro BUS status */
+#define BASR_ATN		0x02	/* ro BUS status */
 #define BASR_ACK		0x01	/* ro BUS status */
 
 /* Write any value to this register to start a DMA send */
@@ -170,7 +170,7 @@
 #define CSR_BASE CSR_53C80_INTR
 
 /* Note : PHASE_* macros are based on the values of the STATUS register */
-#define PHASE_MASK 	(SR_MSG | SR_CD | SR_IO)
+#define PHASE_MASK		(SR_MSG | SR_CD | SR_IO)
 
 #define PHASE_DATAOUT		0
 #define PHASE_DATAIN		SR_IO

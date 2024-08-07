@@ -1318,17 +1318,19 @@ static void NCR5380_transfer_pio(struct Scsi_Host *instance,
 
 		dsprintk(NDEBUG_HANDSHAKE, instance, "REQ negated, handshake complete\n");
 
-/*
- * We have several special cases to consider during REQ/ACK handshaking :
- * 1.  We were in MSGOUT phase, and we are on the last byte of the
- * message.  ATN must be dropped as ACK is dropped.
- *
- * 2.  We are in a MSGIN phase, and we are on the last byte of the
- * message.  We must exit with ACK asserted, so that the calling
- * code may raise ATN before dropping ACK to reject the message.
- *
- * 3.  ACK and ATN are clear and the target may proceed as normal.
- */
+		/*
+		 * We have several special cases to consider during REQ/ACK
+		 * handshaking:
+		 *
+		 * 1.  We were in MSGOUT phase, and we are on the last byte of
+		 * the message. ATN must be dropped as ACK is dropped.
+		 *
+		 * 2.  We are in MSGIN phase, and we are on the last byte of the
+		 * message. We must exit with ACK asserted, so that the calling
+		 * code may raise ATN before dropping ACK to reject the message.
+		 *
+		 * 3.  ACK and ATN are clear & the target may proceed as normal.
+		 */
 		if (!(p == PHASE_MSGIN && c == 1)) {
 			if (p == PHASE_MSGOUT && c > 1)
 				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
@@ -1559,39 +1561,41 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	/* The result is zero iff pseudo DMA send/receive was completed. */
 	hostdata->dma_len = c;
 
-/*
- * A note regarding the DMA errata workarounds for early NMOS silicon.
- *
- * For DMA sends, we want to wait until the last byte has been
- * transferred out over the bus before we turn off DMA mode.  Alas, there
- * seems to be no terribly good way of doing this on a 5380 under all
- * conditions.  For non-scatter-gather operations, we can wait until REQ
- * and ACK both go false, or until a phase mismatch occurs.  Gather-sends
- * are nastier, since the device will be expecting more data than we
- * are prepared to send it, and REQ will remain asserted.  On a 53C8[01] we
- * could test Last Byte Sent to assure transfer (I imagine this is precisely
- * why this signal was added to the newer chips) but on the older 538[01]
- * this signal does not exist.  The workaround for this lack is a watchdog;
- * we bail out of the wait-loop after a modest amount of wait-time if
- * the usual exit conditions are not met.  Not a terribly clean or
- * correct solution :-%
- *
- * DMA receive is equally tricky due to a nasty characteristic of the NCR5380.
- * If the chip is in DMA receive mode, it will respond to a target's
- * REQ by latching the SCSI data into the INPUT DATA register and asserting
- * ACK, even if it has _already_ been notified by the DMA controller that
- * the current DMA transfer has completed!  If the NCR5380 is then taken
- * out of DMA mode, this already-acknowledged byte is lost. This is
- * not a problem for "one DMA transfer per READ command", because
- * the situation will never arise... either all of the data is DMA'ed
- * properly, or the target switches to MESSAGE IN phase to signal a
- * disconnection (either operation bringing the DMA to a clean halt).
- * However, in order to handle scatter-receive, we must work around the
- * problem.  The chosen fix is to DMA fewer bytes, then check for the
- * condition before taking the NCR5380 out of DMA mode.  One or two extra
- * bytes are transferred via PIO as necessary to fill out the original
- * request.
- */
+	/*
+	 * A note regarding the DMA errata workarounds for early NMOS silicon.
+	 *
+	 * For DMA sends, we want to wait until the last byte has been
+	 * transferred out over the bus before we turn off DMA mode. Alas, there
+	 * seems to be no terribly good way of doing this on a 5380 under all
+	 * conditions. For non-scatter-gather operations, we can wait until REQ
+	 * and ACK both go false, or until a phase mismatch occurs. Gather-sends
+	 * are nastier, since the device will be expecting more data than we
+	 * are prepared to send it, and REQ will remain asserted. On a 53C8[01]
+	 * we could test Last Byte Sent to assure transfer (I imagine this is
+	 * precisely why this signal was added to the newer chips) but on the
+	 * older 538[01] this signal does not exist. The workaround for this
+	 * lack is a watchdog; we bail out of the wait-loop after a modest
+	 * amount of wait-time if the usual exit conditions are not met.
+	 * Not a terribly clean or correct solution :-%
+	 *
+	 * DMA receive is equally tricky due to a nasty characteristic of the
+	 * NCR5380. If the chip is in DMA receive mode, it will respond to a
+	 * target's REQ by latching the SCSI data into the INPUT DATA register
+	 * and asserting ACK, even if it has _already_ been notified by the
+	 * DMA controller that the current DMA transfer has completed! If the
+	 * NCR5380 is then taken out of DMA mode, this already-acknowledged
+	 * byte is lost.
+	 *
+	 * This is not a problem for "one DMA transfer per READ
+	 * command", because the situation will never arise... either all of
+	 * the data is DMA'ed properly, or the target switches to MESSAGE IN
+	 * phase to signal a disconnection (either operation bringing the DMA
+	 * to a clean halt). However, in order to handle scatter-receive, we
+	 * must work around the problem. The chosen fix is to DMA fewer bytes,
+	 * then check for the condition before taking the NCR5380 out of DMA
+	 * mode. One or two extra bytes are transferred via PIO as necessary
+	 * to fill out the original request.
+	 */
 
 	if ((hostdata->flags & FLAG_DMA_FIXUP) &&
 	    (NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH)) {
