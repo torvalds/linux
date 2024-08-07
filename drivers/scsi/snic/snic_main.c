@@ -873,7 +873,7 @@ snic_global_data_init(void)
 	snic_glob->req_cache[SNIC_REQ_CACHE_MAX_SGL] = cachep;
 
 	len = sizeof(struct snic_host_req);
-	cachep = kmem_cache_create("snic_req_maxsgl", len, SNIC_SG_DESC_ALIGN,
+	cachep = kmem_cache_create("snic_req_tm", len, SNIC_SG_DESC_ALIGN,
 				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachep) {
 		SNIC_ERR("Failed to create snic tm req slab\n");
