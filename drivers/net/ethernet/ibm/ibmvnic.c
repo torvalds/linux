@@ -2156,36 +2156,28 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 	int len = 0;
 	u8 *hdr;
 
-	if (skb_vlan_tagged(skb) && !skb_vlan_tag_present(skb))
-		hdr_len[0] = sizeof(struct vlan_ethhdr);
-	else
-		hdr_len[0] = sizeof(struct ethhdr);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		hdr_len[1] = ip_hdr(skb)->ihl * 4;
 		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
 			hdr_len[2] = tcp_hdrlen(skb);
 		else if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 			hdr_len[2] = sizeof(struct udphdr);
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		hdr_len[1] = sizeof(struct ipv6hdr);
 		if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 			hdr_len[2] = tcp_hdrlen(skb);
 		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
 			hdr_len[2] = sizeof(struct udphdr);
-	} else if (skb->protocol == htons(ETH_P_ARP)) {
-		hdr_len[1] = arp_hdr_len(skb->dev);
-		hdr_len[2] = 0;
 	}
 
-	memset(hdr_data, 0, 120);
 	if ((hdr_field >> 6) & 1) {
+		hdr_len[0] = skb_mac_header_len(skb);
 		hdr = skb_mac_header(skb);
 		memcpy(hdr_data, hdr, hdr_len[0]);
 		len += hdr_len[0];
 	}
 
 	if ((hdr_field >> 5) & 1) {
+		hdr_len[1] = skb_network_header_len(skb);
 		hdr = skb_network_header(skb);
 		memcpy(hdr_data + len, hdr, hdr_len[1]);
 		len += hdr_len[1];
@@ -2196,6 +2188,7 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 		memcpy(hdr_data + len, hdr, hdr_len[2]);
 		len += hdr_len[2];
 	}
+
 	return len;
 }
 
