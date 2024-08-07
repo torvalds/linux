@@ -231,7 +231,6 @@ struct NCR5380_cmd {
 	int this_residual;
 	struct scatterlist *buffer;
 	int status;
-	int message;
 	int phase;
 	struct list_head list;
 };

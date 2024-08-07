@@ -157,7 +157,6 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 	}
 
 	ncmd->status = 0;
-	ncmd->message = 0;
 }
 
 static inline void advance_sg_buffer(struct NCR5380_cmd *ncmd)
@@ -1807,7 +1806,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				NCR5380_transfer_pio(instance, &phase, &len, &data, 0);
 				if (tmp == 0xff)
 					break;
-				ncmd->message = tmp;
 
 				switch (tmp) {
 				case ABORT:
