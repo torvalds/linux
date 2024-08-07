@@ -32,7 +32,7 @@
 static void meson8_pmx_disable_other_groups(struct meson_pinctrl *pc,
 					    unsigned int pin, int sel_group)
 {
-	struct meson_pmx_group *group;
+	const struct meson_pmx_group *group;
 	struct meson8_pmx_data *pmx_data;
 	int i, j;
 
@@ -57,8 +57,8 @@ static int meson8_pmx_set_mux(struct pinctrl_dev *pcdev, unsigned func_num,
 			      unsigned group_num)
 {
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
-	struct meson_pmx_func *func = &pc->data->funcs[func_num];
-	struct meson_pmx_group *group = &pc->data->groups[group_num];
+	const struct meson_pmx_func *func = &pc->data->funcs[func_num];
+	const struct meson_pmx_group *group = &pc->data->groups[group_num];
 	struct meson8_pmx_data *pmx_data =
 		(struct meson8_pmx_data *)group->data;
 	int i, ret = 0;
