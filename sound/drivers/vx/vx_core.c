@@ -52,7 +52,9 @@ int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int t
 			return 0;
 		//msleep(10);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printd(KERN_DEBUG "vx_check_reg_bit: timeout, reg=%s, mask=0x%x, val=0x%x\n", reg_names[reg], mask, snd_vx_inb(chip, reg));
+	dev_dbg(chip->card->dev,
+		"vx_check_reg_bit: timeout, reg=%s, mask=0x%x, val=0x%x\n",
+		reg_names[reg], mask, snd_vx_inb(chip, reg));
 	return -EIO;
 }
 
@@ -129,13 +131,14 @@ static int vx_transfer_end(struct vx_core *chip, int cmd)
 	if (err & ISR_ERR) {
 		err = vx_wait_for_rx_full(chip);
 		if (err < 0) {
-			snd_printd(KERN_DEBUG "transfer_end: error in rx_full\n");
+			dev_dbg(chip->card->dev,
+				"transfer_end: error in rx_full\n");
 			return err;
 		}
 		err = vx_inb(chip, RXH) << 16;
 		err |= vx_inb(chip, RXM) << 8;
 		err |= vx_inb(chip, RXL);
-		snd_printd(KERN_DEBUG "transfer_end: error = 0x%x\n", err);
+		dev_dbg(chip->card->dev, "transfer_end: error = 0x%x\n", err);
 		return -(VX_ERR_MASK | err);
 	}
 	return 0;
@@ -239,20 +242,10 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 
 	err = vx_reset_chk(chip);
 	if (err < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: vx_reset_chk error\n");
+		dev_dbg(chip->card->dev, "vx_send_msg: vx_reset_chk error\n");
 		return err;
 	}
 
-#if 0
-	printk(KERN_DEBUG "rmh: cmd = 0x%06x, length = %d, stype = %d\n",
-	       rmh->Cmd[0], rmh->LgCmd, rmh->DspStat);
-	if (rmh->LgCmd > 1) {
-		printk(KERN_DEBUG "  ");
-		for (i = 1; i < rmh->LgCmd; i++)
-			printk(KERN_CONT "0x%06x ", rmh->Cmd[i]);
-		printk(KERN_CONT "\n");
-	}
-#endif
 	/* Check bit M is set according to length of the command */
 	if (rmh->LgCmd > 1)
 		rmh->Cmd[0] |= MASK_MORE_THAN_1_WORD_COMMAND;
@@ -262,7 +255,7 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	/* Wait for TX empty */
 	err = vx_wait_isr_bit(chip, ISR_TX_EMPTY);
 	if (err < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: wait tx empty error\n");
+		dev_dbg(chip->card->dev, "vx_send_msg: wait tx empty error\n");
 		return err;
 	}
 
@@ -274,7 +267,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	/* Trigger irq MESSAGE */
 	err = vx_send_irq_dsp(chip, IRQ_MESSAGE);
 	if (err < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: send IRQ_MESSAGE error\n");
+		dev_dbg(chip->card->dev,
+			"vx_send_msg: send IRQ_MESSAGE error\n");
 		return err;
 	}
 
@@ -287,13 +281,15 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	if (vx_inb(chip, ISR) & ISR_ERR) {
 		err = vx_wait_for_rx_full(chip);
 		if (err < 0) {
-			snd_printd(KERN_DEBUG "vx_send_msg: rx_full read error\n");
+			dev_dbg(chip->card->dev,
+				"vx_send_msg: rx_full read error\n");
 			return err;
 		}
 		err = vx_inb(chip, RXH) << 16;
 		err |= vx_inb(chip, RXM) << 8;
 		err |= vx_inb(chip, RXL);
-		snd_printd(KERN_DEBUG "msg got error = 0x%x at cmd[0]\n", err);
+		dev_dbg(chip->card->dev,
+			"msg got error = 0x%x at cmd[0]\n", err);
 		err = -(VX_ERR_MASK | err);
 		return err;
 	}
@@ -304,7 +300,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 			/* Wait for TX ready */
 			err = vx_wait_isr_bit(chip, ISR_TX_READY);
 			if (err < 0) {
-				snd_printd(KERN_DEBUG "vx_send_msg: tx_ready error\n");
+				dev_dbg(chip->card->dev,
+					"vx_send_msg: tx_ready error\n");
 				return err;
 			}
 
@@ -316,14 +313,16 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 			/* Trigger irq MESS_READ_NEXT */
 			err = vx_send_irq_dsp(chip, IRQ_MESS_READ_NEXT);
 			if (err < 0) {
-				snd_printd(KERN_DEBUG "vx_send_msg: IRQ_READ_NEXT error\n");
+				dev_dbg(chip->card->dev,
+					"vx_send_msg: IRQ_READ_NEXT error\n");
 				return err;
 			}
 		}
 		/* Wait for TX empty */
 		err = vx_wait_isr_bit(chip, ISR_TX_READY);
 		if (err < 0) {
-			snd_printd(KERN_DEBUG "vx_send_msg: TX_READY error\n");
+			dev_dbg(chip->card->dev,
+				"vx_send_msg: TX_READY error\n");
 			return err;
 		}
 		/* End of transfer */
@@ -372,9 +371,6 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return -EBUSY;
 
-#if 0
-	printk(KERN_DEBUG "send_rih: cmd = 0x%x\n", cmd);
-#endif
 	err = vx_reset_chk(chip);
 	if (err < 0)
 		return err;
@@ -453,7 +449,7 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 			if (no_fillup)
 				break;
 			if (vx_wait_isr_bit(chip, ISR_TX_EMPTY) < 0) {
-				snd_printk(KERN_ERR "dsp boot failed at %d\n", i);
+				dev_err(chip->card->dev, "dsp boot failed at %d\n", i);
 				return -EIO;
 			}
 			vx_outb(chip, TXH, 0);
@@ -462,7 +458,7 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 		} else {
 			const unsigned char *image = boot->data + i;
 			if (vx_wait_isr_bit(chip, ISR_TX_EMPTY) < 0) {
-				snd_printk(KERN_ERR "dsp boot failed at %d\n", i);
+				dev_err(chip->card->dev, "dsp boot failed at %d\n", i);
 				return -EIO;
 			}
 			vx_outb(chip, TXH, image[0]);
@@ -510,18 +506,12 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	if (vx_test_irq_src(chip, &events) < 0)
 		return IRQ_HANDLED;
     
-#if 0
-	if (events & 0x000800)
-		printk(KERN_ERR "DSP Stream underrun ! IRQ events = 0x%x\n", events);
-#endif
-	// printk(KERN_DEBUG "IRQ events = 0x%x\n", events);
-
 	/* We must prevent any application using this DSP
 	 * and block any further request until the application
 	 * either unregisters or reloads the DSP
 	 */
 	if (events & FATAL_DSP_ERROR) {
-		snd_printk(KERN_ERR "vx_core: fatal DSP error!!\n");
+		dev_err(chip->card->dev, "vx_core: fatal DSP error!!\n");
 		return IRQ_HANDLED;
 	}
 
@@ -698,8 +688,8 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 		/* Wait DSP ready for a new read */
 		err = vx_wait_isr_bit(chip, ISR_TX_EMPTY);
 		if (err < 0) {
-			printk(KERN_ERR
-			       "dsp loading error at position %d\n", i);
+			dev_err(chip->card->dev,
+				"dsp loading error at position %d\n", i);
 			return err;
 		}
 		cptr = image;
@@ -713,7 +703,6 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 		csum = (csum >> 24) | (csum << 8);
 		vx_outb(chip, TXL, *cptr++);
 	}
-	snd_printdd(KERN_DEBUG "checksum = 0x%08x\n", csum);
 
 	msleep(200);
 
@@ -759,7 +748,8 @@ int snd_vx_resume(struct vx_core *chip)
 			continue;
 		err = chip->ops->load_dsp(chip, i, chip->firmware[i]);
 		if (err < 0) {
-			snd_printk(KERN_ERR "vx: firmware resume error at DSP %d\n", i);
+			dev_err(chip->card->dev,
+				"vx: firmware resume error at DSP %d\n", i);
 			return -EIO;
 		}
 	}
