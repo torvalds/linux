@@ -18,6 +18,7 @@ load("//build:msm_kernel_extensions.bzl", "define_top_level_rules")
 load(":blair.bzl", "define_blair")
 load(":pitti.bzl", "define_pitti")
 load(":anorak.bzl", "define_anorak")
+load(":neo_la.bzl", "define_neo_la")
 
 def define_msm_platforms():
     define_top_level_rules()
@@ -40,3 +41,4 @@ def define_msm_platforms():
     define_blair()
     define_pitti()
     define_anorak()
+    define_neo_la()
