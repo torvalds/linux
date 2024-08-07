@@ -2002,7 +2002,7 @@ int iio_active_scan_mask_index(struct iio_dev *indio_dev)
 	}
 
 	dev_warn(indio_dev->dev.parent,
-		 "active scan mask is not part of the avaialable scan masks\n");
+		 "active scan mask is not part of the available scan masks\n");
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(iio_active_scan_mask_index);
