@@ -2423,7 +2423,6 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 		dt = timespec64_to_ktime(ts);
 		iowq.timeout = ktime_add(dt, ktime_get());
-		io_napi_adjust_timeout(ctx, &iowq, dt);
 	}
 
 	if (sig) {
