@@ -1495,7 +1495,7 @@ const struct device *rpmh_rsc_get_device(const char *name, u32 drv_id)
 	struct rsc_drv_top *rsc_top = rpmh_rsc_get_top_device(name);
 	int i;
 
-	if (IS_ERR(rsc_top))
+	if (IS_ERR(rsc_top) || strcmp(name, "cam_rsc"))
 		return ERR_PTR(-ENODEV);
 
 	for (i = 0; i < rsc_top->drv_count; i++) {
