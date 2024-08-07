@@ -78,7 +78,7 @@ struct drm_panic_line {
 #define PANIC_LINE(s) {.len = sizeof(s) - 1, .txt = s}
 
 static struct drm_panic_line panic_msg[] = {
-	PANIC_LINE("KERNEL PANIC !"),
+	PANIC_LINE("KERNEL PANIC!"),
 	PANIC_LINE(""),
 	PANIC_LINE("Please reboot your computer."),
 };
