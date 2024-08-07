@@ -865,7 +865,7 @@ out:
 }
 
 static int nla_put_nh_group(struct sk_buff *skb, struct nexthop *nh,
-			    u32 op_flags)
+			    u32 op_flags, u32 *resp_op_flags)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 	struct nexthop_grp *p;
@@ -873,6 +873,8 @@ static int nla_put_nh_group(struct sk_buff *skb, struct nexthop *nh,
 	struct nlattr *nla;
 	u16 group_type = 0;
 	int i;
+
+	*resp_op_flags |= NHA_OP_FLAG_RESP_GRP_RESVD_0;
 
 	if (nhg->hash_threshold)
 		group_type = NEXTHOP_GRP_TYPE_MPATH;
@@ -934,10 +936,12 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 
 	if (nh->is_group) {
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
+		u32 resp_op_flags = 0;
 
 		if (nhg->fdb_nh && nla_put_flag(skb, NHA_FDB))
 			goto nla_put_failure;
-		if (nla_put_nh_group(skb, nh, op_flags))
+		if (nla_put_nh_group(skb, nh, op_flags, &resp_op_flags) ||
+		    nla_put_u32(skb, NHA_OP_FLAGS, resp_op_flags))
 			goto nla_put_failure;
 		goto out;
 	}
@@ -1050,7 +1054,9 @@ static size_t nh_nlmsg_size(struct nexthop *nh)
 	sz += nla_total_size(4); /* NHA_ID */
 
 	if (nh->is_group)
-		sz += nh_nlmsg_size_grp(nh);
+		sz += nh_nlmsg_size_grp(nh) +
+		      nla_total_size(4) +	/* NHA_OP_FLAGS */
+		      0;
 	else
 		sz += nh_nlmsg_size_single(nh);
 
