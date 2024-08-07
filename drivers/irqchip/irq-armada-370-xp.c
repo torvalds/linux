@@ -188,9 +188,8 @@ struct mpic {
 };
 
 static struct mpic mpic_data;
-static struct mpic * const mpic = &mpic_data;
 
-static inline bool mpic_is_ipi_available(void)
+static inline bool mpic_is_ipi_available(struct mpic *mpic)
 {
 	/*
 	 * We distinguish IPI availability in the IC by the IC not having a
@@ -213,6 +212,7 @@ static inline bool mpic_is_percpu_irq(irq_hw_number_t hwirq)
  */
 static void mpic_irq_mask(struct irq_data *d)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	if (!mpic_is_percpu_irq(hwirq))
@@ -223,6 +223,7 @@ static void mpic_irq_mask(struct irq_data *d)
 
 static void mpic_irq_unmask(struct irq_data *d)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	if (!mpic_is_percpu_irq(hwirq))
@@ -248,6 +249,7 @@ static struct msi_domain_info mpic_msi_domain_info = {
 static void mpic_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 {
 	unsigned int cpu = cpumask_first(irq_data_get_effective_affinity_mask(d));
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 
 	msg->address_lo = lower_32_bits(mpic->msi_doorbell_addr);
 	msg->address_hi = upper_32_bits(mpic->msi_doorbell_addr);
@@ -280,6 +282,7 @@ static struct irq_chip mpic_msi_bottom_irq_chip = {
 static int mpic_msi_alloc(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs,
 			  void *args)
 {
+	struct mpic *mpic = domain->host_data;
 	int hwirq;
 
 	mutex_lock(&mpic->msi_lock);
@@ -303,6 +306,7 @@ static int mpic_msi_alloc(struct irq_domain *domain, unsigned int virq, unsigned
 static void mpic_msi_free(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	struct mpic *mpic = domain->host_data;
 
 	mutex_lock(&mpic->msi_lock);
 	bitmap_release_region(mpic->msi_used, d->hwirq, order_base_2(nr_irqs));
@@ -314,7 +318,7 @@ static const struct irq_domain_ops mpic_msi_domain_ops = {
 	.free	= mpic_msi_free,
 };
 
-static void mpic_msi_reenable_percpu(void)
+static void mpic_msi_reenable_percpu(struct mpic *mpic)
 {
 	u32 reg;
 
@@ -327,13 +331,14 @@ static void mpic_msi_reenable_percpu(void)
 	writel(1, mpic->per_cpu + MPIC_INT_CLEAR_MASK);
 }
 
-static int __init mpic_msi_init(struct device_node *node, phys_addr_t main_int_phys_base)
+static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
+				phys_addr_t main_int_phys_base)
 {
 	mpic->msi_doorbell_addr = main_int_phys_base + MPIC_SW_TRIG_INT;
 
 	mutex_init(&mpic->msi_lock);
 
-	if (mpic_is_ipi_available()) {
+	if (mpic_is_ipi_available(mpic)) {
 		mpic->msi_doorbell_start = PCI_MSI_DOORBELL_START;
 		mpic->msi_doorbell_size = PCI_MSI_DOORBELL_NR;
 		mpic->msi_doorbell_mask = PCI_MSI_DOORBELL_MASK;
@@ -344,7 +349,7 @@ static int __init mpic_msi_init(struct device_node *node, phys_addr_t main_int_p
 	}
 
 	mpic->msi_inner_domain = irq_domain_add_linear(NULL, mpic->msi_doorbell_size,
-						       &mpic_msi_domain_ops, NULL);
+						       &mpic_msi_domain_ops, mpic);
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
 
@@ -355,25 +360,25 @@ static int __init mpic_msi_init(struct device_node *node, phys_addr_t main_int_p
 		return -ENOMEM;
 	}
 
-	mpic_msi_reenable_percpu();
+	mpic_msi_reenable_percpu(mpic);
 
 	/* Unmask low 16 MSI irqs on non-IPI platforms */
-	if (!mpic_is_ipi_available())
+	if (!mpic_is_ipi_available(mpic))
 		writel(0, mpic->per_cpu + MPIC_INT_CLEAR_MASK);
 
 	return 0;
 }
 #else
-static __maybe_unused void mpic_msi_reenable_percpu(void) {}
+static __maybe_unused void mpic_msi_reenable_percpu(struct mpic *mpic) {}
 
-static inline int mpic_msi_init(struct device_node *node,
+static inline int mpic_msi_init(struct mpic *mpic, struct device_node *node,
 				phys_addr_t main_int_phys_base)
 {
 	return 0;
 }
 #endif
 
-static void mpic_perf_init(void)
+static void mpic_perf_init(struct mpic *mpic)
 {
 	u32 cpuid;
 
@@ -393,6 +398,7 @@ static void mpic_perf_init(void)
 #ifdef CONFIG_SMP
 static void mpic_ipi_mask(struct irq_data *d)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	u32 reg;
 
 	reg = readl(mpic->per_cpu + MPIC_IN_DRBEL_MASK);
@@ -402,6 +408,7 @@ static void mpic_ipi_mask(struct irq_data *d)
 
 static void mpic_ipi_unmask(struct irq_data *d)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	u32 reg;
 
 	reg = readl(mpic->per_cpu + MPIC_IN_DRBEL_MASK);
@@ -411,6 +418,7 @@ static void mpic_ipi_unmask(struct irq_data *d)
 
 static void mpic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	unsigned int cpu;
 	u32 map = 0;
 
@@ -430,6 +438,8 @@ static void mpic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 
 static void mpic_ipi_ack(struct irq_data *d)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
+
 	writel(~BIT(d->hwirq), mpic->per_cpu + MPIC_IN_DRBEL_CAUSE);
 }
 
@@ -464,7 +474,7 @@ static const struct irq_domain_ops mpic_ipi_domain_ops = {
 	.free	= mpic_ipi_free,
 };
 
-static void mpic_ipi_resume(void)
+static void mpic_ipi_resume(struct mpic *mpic)
 {
 	for (irq_hw_number_t i = 0; i < IPI_DOORBELL_NR; i++) {
 		unsigned int virq = irq_find_mapping(mpic->ipi_domain, i);
@@ -478,12 +488,12 @@ static void mpic_ipi_resume(void)
 	}
 }
 
-static int __init mpic_ipi_init(struct device_node *node)
+static int __init mpic_ipi_init(struct mpic *mpic, struct device_node *node)
 {
 	int base_ipi;
 
 	mpic->ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_NR,
-						    &mpic_ipi_domain_ops, NULL);
+						    &mpic_ipi_domain_ops, mpic);
 	if (WARN_ON(!mpic->ipi_domain))
 		return -ENOMEM;
 
@@ -499,6 +509,7 @@ static int __init mpic_ipi_init(struct device_node *node)
 
 static int mpic_set_affinity(struct irq_data *d, const struct cpumask *mask_val, bool force)
 {
+	struct mpic *mpic = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	unsigned int cpu;
 
@@ -513,12 +524,12 @@ static int mpic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	return IRQ_SET_MASK_OK;
 }
 
-static void mpic_smp_cpu_init(void)
+static void mpic_smp_cpu_init(struct mpic *mpic)
 {
 	for (irq_hw_number_t i = 0; i < mpic->domain->hwirq_max; i++)
 		writel(i, mpic->per_cpu + MPIC_INT_SET_MASK);
 
-	if (!mpic_is_ipi_available())
+	if (!mpic_is_ipi_available(mpic))
 		return;
 
 	/* Disable all IPIs */
@@ -531,7 +542,7 @@ static void mpic_smp_cpu_init(void)
 	writel(0, mpic->per_cpu + MPIC_INT_CLEAR_MASK);
 }
 
-static void mpic_reenable_percpu(void)
+static void mpic_reenable_percpu(struct mpic *mpic)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
 	for (irq_hw_number_t i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
@@ -545,32 +556,36 @@ static void mpic_reenable_percpu(void)
 		mpic_irq_unmask(d);
 	}
 
-	if (mpic_is_ipi_available())
-		mpic_ipi_resume();
+	if (mpic_is_ipi_available(mpic))
+		mpic_ipi_resume(mpic);
 
-	mpic_msi_reenable_percpu();
+	mpic_msi_reenable_percpu(mpic);
 }
 
 static int mpic_starting_cpu(unsigned int cpu)
 {
-	mpic_perf_init();
-	mpic_smp_cpu_init();
-	mpic_reenable_percpu();
+	struct mpic *mpic = irq_get_default_host()->host_data;
+
+	mpic_perf_init(mpic);
+	mpic_smp_cpu_init(mpic);
+	mpic_reenable_percpu(mpic);
 
 	return 0;
 }
 
 static int mpic_cascaded_starting_cpu(unsigned int cpu)
 {
-	mpic_perf_init();
-	mpic_reenable_percpu();
+	struct mpic *mpic = &mpic_data;
+
+	mpic_perf_init(mpic);
+	mpic_reenable_percpu(mpic);
 	enable_percpu_irq(mpic->parent_irq, IRQ_TYPE_NONE);
 
 	return 0;
 }
 #else
-static void mpic_smp_cpu_init(void) {}
-static void mpic_ipi_resume(void) {}
+static void mpic_smp_cpu_init(struct mpic *mpic) {}
+static void mpic_ipi_resume(struct mpic *mpic) {}
 #endif
 
 static struct irq_chip mpic_irq_chip = {
@@ -584,12 +599,15 @@ static struct irq_chip mpic_irq_chip = {
 	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
 };
 
-static int mpic_irq_map(struct irq_domain *h, unsigned int virq,
-			irq_hw_number_t hwirq)
+static int mpic_irq_map(struct irq_domain *domain, unsigned int virq, irq_hw_number_t hwirq)
 {
+	struct mpic *mpic = domain->host_data;
+
 	/* IRQs 0 and 1 cannot be mapped, they are handled internally */
 	if (hwirq <= 1)
 		return -EINVAL;
+
+	irq_set_chip_data(virq, mpic);
 
 	mpic_irq_mask(irq_get_irq_data(virq));
 	if (!mpic_is_percpu_irq(hwirq))
@@ -615,7 +633,7 @@ static const struct irq_domain_ops mpic_irq_ops = {
 };
 
 #ifdef CONFIG_PCI_MSI
-static void mpic_handle_msi_irq(void)
+static void mpic_handle_msi_irq(struct mpic *mpic)
 {
 	unsigned long cause;
 	unsigned int i;
@@ -628,11 +646,11 @@ static void mpic_handle_msi_irq(void)
 		generic_handle_domain_irq(mpic->msi_inner_domain, i - mpic->msi_doorbell_start);
 }
 #else
-static void mpic_handle_msi_irq(void) {}
+static void mpic_handle_msi_irq(struct mpic *mpic) {}
 #endif
 
 #ifdef CONFIG_SMP
-static void mpic_handle_ipi_irq(void)
+static void mpic_handle_ipi_irq(struct mpic *mpic)
 {
 	unsigned long cause;
 	irq_hw_number_t i;
@@ -644,11 +662,12 @@ static void mpic_handle_ipi_irq(void)
 		generic_handle_domain_irq(mpic->ipi_domain, i);
 }
 #else
-static inline void mpic_handle_ipi_irq(void) {}
+static inline void mpic_handle_ipi_irq(struct mpic *mpic) {}
 #endif
 
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
+	struct mpic *mpic = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long cause;
 	u32 irqsrc, cpuid;
@@ -669,7 +688,7 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 			continue;
 
 		if (i == 0 || i == 1) {
-			mpic_handle_msi_irq();
+			mpic_handle_msi_irq(mpic);
 			continue;
 		}
 
@@ -681,6 +700,7 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 
 static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 {
+	struct mpic *mpic = irq_get_default_host()->host_data;
 	irq_hw_number_t i;
 	u32 irqstat;
 
@@ -696,16 +716,18 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 
 		/* MSI handling */
 		if (i == 1)
-			mpic_handle_msi_irq();
+			mpic_handle_msi_irq(mpic);
 
 		/* IPI Handling */
 		if (i == 0)
-			mpic_handle_ipi_irq();
+			mpic_handle_ipi_irq(mpic);
 	} while (1);
 }
 
 static int mpic_suspend(void)
 {
+	struct mpic *mpic = &mpic_data;
+
 	mpic->doorbell_mask = readl(mpic->per_cpu + MPIC_IN_DRBEL_MASK);
 
 	return 0;
@@ -713,6 +735,7 @@ static int mpic_suspend(void)
 
 static void mpic_resume(void)
 {
+	struct mpic *mpic = &mpic_data;
 	bool src0, src1;
 
 	/* Re-enable interrupts */
@@ -746,7 +769,7 @@ static void mpic_resume(void)
 	/* Reconfigure doorbells for IPIs and MSIs */
 	writel(mpic->doorbell_mask, mpic->per_cpu + MPIC_IN_DRBEL_MASK);
 
-	if (mpic_is_ipi_available()) {
+	if (mpic_is_ipi_available(mpic)) {
 		src0 = mpic->doorbell_mask & IPI_DOORBELL_MASK;
 		src1 = mpic->doorbell_mask & PCI_MSI_DOORBELL_MASK;
 	} else {
@@ -759,8 +782,8 @@ static void mpic_resume(void)
 	if (src1)
 		writel(1, mpic->per_cpu + MPIC_INT_CLEAR_MASK);
 
-	if (mpic_is_ipi_available())
-		mpic_ipi_resume();
+	if (mpic_is_ipi_available(mpic))
+		mpic_ipi_resume(mpic);
 }
 
 static struct syscore_ops mpic_syscore_ops = {
@@ -801,6 +824,7 @@ fail:
 
 static int __init mpic_of_init(struct device_node *node, struct device_node *parent)
 {
+	struct mpic *mpic = &mpic_data;
 	phys_addr_t phys_base;
 	unsigned int nr_irqs;
 	int err;
@@ -818,7 +842,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	for (irq_hw_number_t i = 0; i < nr_irqs; i++)
 		writel(i, mpic->base + MPIC_INT_CLEAR_ENABLE);
 
-	mpic->domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, NULL);
+	mpic->domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, mpic);
 	if (!mpic->domain) {
 		pr_err("%pOF: Unable to add IRQ domain\n", node);
 		return -ENOMEM;
@@ -833,10 +857,10 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	mpic->parent_irq = irq_of_parse_and_map(node, 0);
 
 	/* Setup for the boot CPU */
-	mpic_perf_init();
-	mpic_smp_cpu_init();
+	mpic_perf_init(mpic);
+	mpic_smp_cpu_init(mpic);
 
-	err = mpic_msi_init(node, phys_base);
+	err = mpic_msi_init(mpic, node, phys_base);
 	if (err) {
 		pr_err("%pOF: Unable to initialize MSI domain\n", node);
 		return err;
@@ -846,7 +870,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 		irq_set_default_host(mpic->domain);
 		set_handle_irq(mpic_handle_irq);
 #ifdef CONFIG_SMP
-		err = mpic_ipi_init(node);
+		err = mpic_ipi_init(mpic, node);
 		if (err) {
 			pr_err("%pOF: Unable to initialize IPI domain\n", node);
 			return err;
@@ -862,7 +886,8 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 					  "irqchip/armada/cascade:starting",
 					  mpic_cascaded_starting_cpu, NULL);
 #endif
-		irq_set_chained_handler(mpic->parent_irq, mpic_handle_cascade_irq);
+		irq_set_chained_handler_and_data(mpic->parent_irq,
+						 mpic_handle_cascade_irq, mpic);
 	}
 
 	register_syscore_ops(&mpic_syscore_ops);
