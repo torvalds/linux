@@ -359,8 +359,8 @@ int qmc_chan_set_param(struct qmc_chan *chan, const struct qmc_chan_param *param
 
 	switch (param->mode) {
 	case QMC_HDLC:
-		if ((param->hdlc.max_rx_buf_size % 4) ||
-		    (param->hdlc.max_rx_buf_size < 8))
+		if (param->hdlc.max_rx_buf_size % 4 ||
+		    param->hdlc.max_rx_buf_size < 8)
 			return -EINVAL;
 
 		qmc_write16(chan->qmc->scc_pram + QMC_GBL_MRBLR,
@@ -1152,7 +1152,7 @@ static int qmc_check_chans(struct qmc *qmc)
 	if (ret)
 		return ret;
 
-	if ((info.nb_tx_ts > 64) || (info.nb_rx_ts > 64)) {
+	if (info.nb_tx_ts > 64 || info.nb_rx_ts > 64) {
 		dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned not supported\n");
 		return -EINVAL;
 	}
@@ -1161,7 +1161,7 @@ static int qmc_check_chans(struct qmc *qmc)
 	 * If more than 32 TS are assigned to this serial, one common table is
 	 * used for Tx and Rx and so masks must be equal for all channels.
 	 */
-	if ((info.nb_tx_ts > 32) || (info.nb_rx_ts > 32)) {
+	if (info.nb_tx_ts > 32 || info.nb_rx_ts > 32) {
 		if (info.nb_tx_ts != info.nb_rx_ts) {
 			dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned are not equal\n");
 			return -EINVAL;
