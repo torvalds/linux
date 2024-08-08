@@ -30,6 +30,10 @@ properties:
       A reference to a node representing a PCS PHY device found on
       the internal MDIO bus.
 
+  phys:
+    description: A reference to the SerDes lane(s)
+    maxItems: 1
+
 required:
   - reg
 

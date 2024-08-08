@@ -1575,8 +1575,7 @@ static void sdma_v7_0_emit_copy_buffer(struct amdgpu_ib *ib,
 	ib->ptr[ib->length_dw++] = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_COPY) |
 		SDMA_PKT_COPY_LINEAR_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR) |
 		SDMA_PKT_COPY_LINEAR_HEADER_TMZ((copy_flags & AMDGPU_COPY_FLAGS_TMZ) ? 1 : 0) |
-		SDMA_PKT_COPY_LINEAR_HEADER_CPV((copy_flags &
-			(AMDGPU_COPY_FLAGS_READ_DECOMPRESSED | AMDGPU_COPY_FLAGS_WRITE_COMPRESSED)) ? 1 : 0);
+		SDMA_PKT_COPY_LINEAR_HEADER_CPV(1);
 
 	ib->ptr[ib->length_dw++] = byte_count - 1;
 	ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
@@ -1590,6 +1589,8 @@ static void sdma_v7_0_emit_copy_buffer(struct amdgpu_ib *ib,
 			((copy_flags & AMDGPU_COPY_FLAGS_READ_DECOMPRESSED) ? SDMA_DCC_READ_CM(2) : 0) |
 			((copy_flags & AMDGPU_COPY_FLAGS_WRITE_COMPRESSED) ? SDMA_DCC_WRITE_CM(1) : 0) |
 			SDMA_DCC_MAX_COM(max_com) | SDMA_DCC_MAX_UCOM(1);
+	else
+		ib->ptr[ib->length_dw++] = 0;
 }
 
 /**
@@ -1616,7 +1617,7 @@ static void sdma_v7_0_emit_fill_buffer(struct amdgpu_ib *ib,
 
 static const struct amdgpu_buffer_funcs sdma_v7_0_buffer_funcs = {
 	.copy_max_bytes = 0x400000,
-	.copy_num_dw = 7,
+	.copy_num_dw = 8,
 	.emit_copy_buffer = sdma_v7_0_emit_copy_buffer,
 	.fill_max_bytes = 0x400000,
 	.fill_num_dw = 5,

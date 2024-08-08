@@ -1147,8 +1147,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, struct btrfs_em_shrink_c
 		return 0;
 
 	/*
-	 * We want to be fast because we can be called from any path trying to
-	 * allocate memory, so if the lock is busy we don't want to spend time
+	 * We want to be fast so if the lock is busy we don't want to spend time
 	 * waiting for it - either some task is about to do IO for the inode or
 	 * we may have another task shrinking extent maps, here in this code, so
 	 * skip this inode.
@@ -1191,9 +1190,7 @@ next:
 		/*
 		 * Stop if we need to reschedule or there's contention on the
 		 * lock. This is to avoid slowing other tasks trying to take the
-		 * lock and because the shrinker might be called during a memory
-		 * allocation path and we want to avoid taking a very long time
-		 * and slowing down all sorts of tasks.
+		 * lock.
 		 */
 		if (need_resched() || rwlock_needbreak(&tree->lock))
 			break;
@@ -1222,12 +1219,7 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 		if (ctx->scanned >= ctx->nr_to_scan)
 			break;
 
-		/*
-		 * We may be called from memory allocation paths, so we don't
-		 * want to take too much time and slowdown tasks.
-		 */
-		if (need_resched())
-			break;
+		cond_resched();
 
 		inode = btrfs_find_first_inode(root, min_ino);
 	}
@@ -1285,13 +1277,11 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 							   ctx.last_ino);
 	}
 
-	/*
-	 * We may be called from memory allocation paths, so we don't want to
-	 * take too much time and slowdown tasks, so stop if we need reschedule.
-	 */
-	while (ctx.scanned < ctx.nr_to_scan && !need_resched()) {
+	while (ctx.scanned < ctx.nr_to_scan) {
 		struct btrfs_root *root;
 		unsigned long count;
+
+		cond_resched();
 
 		spin_lock(&fs_info->fs_roots_radix_lock);
 		count = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
