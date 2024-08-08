@@ -66,6 +66,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	MISSED_BEACONS_NOTIF = 0xF6,
 	/**
+	 * @EMLSR_TRANS_FAIL_NOTIF: &struct iwl_esr_trans_fail_notif
+	 */
+	EMLSR_TRANS_FAIL_NOTIF = 0xF7,
+	/**
 	 * @ROC_NOTIF: &struct iwl_roc_notif
 	 */
 	ROC_NOTIF = 0xF8,
@@ -689,5 +693,31 @@ struct iwl_missed_beacons_notif {
 	__le32 other_link_id;
 	__le32 consec_missed_beacons_other_link;
 } __packed; /* MISSED_BEACON_NTFY_API_S_VER_5 */
+
+/*
+ * enum iwl_esr_trans_fail_code: to be used to parse the notif below
+ *
+ * @ESR_TRANS_FAILED_TX_STATUS_ERROR: failed to TX EML OMN frame
+ * @ESR_TRANSITION_FAILED_TX_TIMEOUT: timeout on the EML OMN frame
+ * @ESR_TRANSITION_FAILED_BEACONS_NOT_HEARD: can't get a beacon on the new link
+ */
+enum iwl_esr_trans_fail_code {
+	ESR_TRANS_FAILED_TX_STATUS_ERROR,
+	ESR_TRANSITION_FAILED_TX_TIMEOUT,
+	ESR_TRANSITION_FAILED_BEACONS_NOT_HEARD,
+};
+
+/**
+ * struct iwl_esr_trans_fail_notif - FW reports a failure in EMLSR transition
+ *
+ * @link_id: the link_id that was activated / de-activated
+ * @activation: true if the link was activated, false otherwise
+ * @err_code: see &enum iwl_esr_trans_fail_code
+ */
+struct iwl_esr_trans_fail_notif {
+	__le32 link_id;
+	__le32 activation;
+	__le32 err_code;
+} __packed; /* ESR_TRANSITION_FAILED_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */
