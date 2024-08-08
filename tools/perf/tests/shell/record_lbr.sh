@@ -4,7 +4,7 @@
 
 set -e
 
-if [ ! -f /sys/devices/cpu/caps/branches ]
+if [ ! -f /sys/devices/cpu/caps/branches ] && [ ! -f /sys/devices/cpu_core/caps/branches ]
 then
   echo "Skip: only x86 CPUs support LBR"
   exit 2
