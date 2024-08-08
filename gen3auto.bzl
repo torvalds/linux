@@ -87,6 +87,7 @@ def define_gen3auto():
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
+        "drivers/media/platform/msm/npu/msm_npu.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
         "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
