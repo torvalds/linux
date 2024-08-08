@@ -618,13 +618,22 @@ retry_bundle:
 		if (unlikely(ret < 0))
 			return ret;
 
-		sr->len = arg.out_len;
-		iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE, arg.iovs, ret,
-				arg.out_len);
 		if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
 			kmsg->free_iov_nr = ret;
 			kmsg->free_iov = arg.iovs;
 			req->flags |= REQ_F_NEED_CLEANUP;
+		}
+		sr->len = arg.out_len;
+
+		if (ret == 1) {
+			sr->buf = arg.iovs[0].iov_base;
+			ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
+						&kmsg->msg.msg_iter);
+			if (unlikely(ret))
+				return ret;
+		} else {
+			iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE,
+					arg.iovs, ret, arg.out_len);
 		}
 	}
 
