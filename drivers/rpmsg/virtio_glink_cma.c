@@ -51,6 +51,7 @@ enum {
 	MSG_SSR_AFTER_POWERUP,	/* outbound */
 	MSG_SSR_SETUP,		/* inbound */
 	MSG_SSR_SETUP_ACK,	/* outbound */
+	MSG_INBUF_RECLAIM,	/* inbound */
 	MSG_MAX,
 	MSG_ERR = 0xff,
 };
@@ -121,6 +122,7 @@ static int virtio_glink_bridge_msg_type_supported(u32 msg_type)
 	switch (msg_type) {
 	case MSG_SETUP:
 	case MSG_SSR_SETUP:
+	case MSG_INBUF_RECLAIM:
 		return true;
 	default:
 		return false;
@@ -263,6 +265,9 @@ static void virtio_glink_bridge_rx_work(struct work_struct *work)
 		rc = VIRTIO_GLINK_BRIDGE_EINVAL;
 		goto out;
 	}
+
+	if (msg_type == MSG_INBUF_RECLAIM)
+		return;
 
 	msg_ack_type = virtio_glink_bridge_to_msg_ack_type(msg_type);
 
