@@ -255,11 +255,19 @@ struct rkisp1_buffer {
  *
  * @vb:		vb2 buffer
  * @queue:	entry of the buffer in the queue
+ * @cfg:	scratch buffer used for caching the ISP configuration parameters
  */
 struct rkisp1_params_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
+	struct rkisp1_params_cfg *cfg;
 };
+
+static inline struct rkisp1_params_buffer *
+to_rkisp1_params_buffer(struct vb2_v4l2_buffer *vbuf)
+{
+	return container_of(vbuf, struct rkisp1_params_buffer, vb);
+}
 
 /*
  * struct rkisp1_dummy_buffer - A buffer to write the next frame to in case
