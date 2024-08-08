@@ -1168,8 +1168,8 @@ static int pac1921_probe(struct i2c_client *client)
 
 	priv->regmap = devm_regmap_init_i2c(client, &pac1921_regmap_config);
 	if (IS_ERR(priv->regmap))
-		dev_err_probe(dev, (int)PTR_ERR(priv->regmap),
-			      "Cannot initialize register map\n");
+		return dev_err_probe(dev, (int)PTR_ERR(priv->regmap),
+				     "Cannot initialize register map\n");
 
 	devm_mutex_init(dev, &priv->lock);
 
