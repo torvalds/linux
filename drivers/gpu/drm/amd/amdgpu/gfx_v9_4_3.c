@@ -63,6 +63,94 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_4_rlc.bin");
 #define NORMALIZE_XCC_REG_OFFSET(offset) \
 	(offset & 0xFFFF)
 
+static const struct amdgpu_hwip_reg_entry gc_reg_list_9_4_3[] = {
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS2),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_STALLED_STAT1),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_STALLED_STAT2),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPC_STALLED_STAT1),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPF_STALLED_STAT1),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_BUSY_STAT),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPC_BUSY_STAT),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPF_BUSY_STAT),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPF_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_GFX_ERROR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB_BASE),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB_RPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB_WPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB0_BASE),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB0_RPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB0_WPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB1_BASE),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB1_RPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB1_WPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB2_BASE),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB2_WPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_RB2_WPTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB1_CMD_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB2_CMD_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_CMD_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB2_CMD_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB1_BASE_LO),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB1_BASE_HI),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB1_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB2_BASE_LO),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB2_BASE_HI),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_IB2_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_BASE_LO),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_BASE_HI),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB2_BASE_LO),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB2_BASE_HI),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB2_BUFSZ),
+	SOC15_REG_ENTRY_STR(GC, 0, regCPF_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regCPC_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regCPG_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regGDS_PROTECTION_FAULT),
+	SOC15_REG_ENTRY_STR(GC, 0, regGDS_VM_PROTECTION_FAULT),
+	SOC15_REG_ENTRY_STR(GC, 0, regIA_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regIA_UTCL1_CNTL),
+	SOC15_REG_ENTRY_STR(GC, 0, regPA_CL_CNTL_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regRMI_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regSQC_DCACHE_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regSQC_ICACHE_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regSQ_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regTCP_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regWD_UTCL1_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regVM_L2_PROTECTION_FAULT_CNTL),
+	SOC15_REG_ENTRY_STR(GC, 0, regVM_L2_PROTECTION_FAULT_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_DEBUG),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_CNTL),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_INSTR_PNTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC1_INSTR_PNTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC2_INSTR_PNTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_ME_INSTR_PNTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_PFP_INSTR_PNTR),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CPC_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_STAT),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_COMMAND),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_MESSAGE),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_ARGUMENT_1),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_ARGUMENT_2),
+	SOC15_REG_ENTRY_STR(GC, 0, regSMU_RLC_RESPONSE),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SAFE_MODE),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_SAFE_MODE),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_INT_STAT),
+	SOC15_REG_ENTRY_STR(GC, 0, regRLC_GPM_GENERAL_6),
+	/* cp header registers */
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME2_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_ME_HEADER_DUMP),
+	/* SE status registers */
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE0),
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE1),
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE2),
+	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE3)
+};
+
 struct amdgpu_gfx_ras gfx_v9_4_3_ras;
 
 static void gfx_v9_4_3_set_ring_funcs(struct amdgpu_device *adev);
@@ -885,6 +973,22 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 				hw_prio, NULL);
 }
 
+static void gfx_v9_4_3_alloc_ip_dump(struct amdgpu_device *adev)
+{
+	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_9_4_3);
+	uint32_t *ptr, num_xcc;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	ptr = kcalloc(reg_count * num_xcc, sizeof(uint32_t), GFP_KERNEL);
+	if (!ptr) {
+		DRM_ERROR("Failed to allocate memory for GFX IP Dump\n");
+		adev->gfx.ip_dump_core = NULL;
+	} else {
+		adev->gfx.ip_dump_core = ptr;
+	}
+}
+
 static int gfx_v9_4_3_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id, xcc_id, num_xcc;
@@ -986,6 +1090,8 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	if (!amdgpu_sriov_vf(adev))
 		r = amdgpu_gfx_sysfs_init(adev);
 
+	gfx_v9_4_3_alloc_ip_dump(adev);
+
 	return r;
 }
 
@@ -1009,6 +1115,8 @@ static int gfx_v9_4_3_sw_fini(void *handle)
 	gfx_v9_4_3_free_microcode(adev);
 	if (!amdgpu_sriov_vf(adev))
 		amdgpu_gfx_sysfs_fini(adev);
+
+	kfree(adev->gfx.ip_dump_core);
 
 	return 0;
 }
@@ -4196,6 +4304,29 @@ static void gfx_v9_4_3_ring_insert_nop(struct amdgpu_ring *ring, uint32_t num_no
 		amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
+static void gfx_v9_4_3_ip_dump(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t i;
+	uint32_t xcc_id, xcc_offset, num_xcc;
+	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_9_4_3);
+
+	if (!adev->gfx.ip_dump_core)
+		return;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	amdgpu_gfx_off_ctrl(adev, false);
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		xcc_offset = xcc_id * reg_count;
+		for (i = 0; i < reg_count; i++)
+			adev->gfx.ip_dump_core[xcc_offset + i] =
+				RREG32(SOC15_REG_ENTRY_OFFSET_INST(gc_reg_list_9_4_3[i],
+								   GET_INST(GC, xcc_id)));
+	}
+	amdgpu_gfx_off_ctrl(adev, true);
+}
+
 static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
 	.name = "gfx_v9_4_3",
 	.early_init = gfx_v9_4_3_early_init,
@@ -4212,7 +4343,7 @@ static const struct amd_ip_funcs gfx_v9_4_3_ip_funcs = {
 	.set_clockgating_state = gfx_v9_4_3_set_clockgating_state,
 	.set_powergating_state = gfx_v9_4_3_set_powergating_state,
 	.get_clockgating_state = gfx_v9_4_3_get_clockgating_state,
-	.dump_ip_state = NULL,
+	.dump_ip_state = gfx_v9_4_3_ip_dump,
 	.print_ip_state = NULL,
 };
 
