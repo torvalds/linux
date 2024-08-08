@@ -307,6 +307,8 @@ static inline bool bch2_member_exists(struct bch_sb *sb, unsigned dev)
 	return false;
 }
 
+unsigned bch2_sb_nr_devices(const struct bch_sb *);
+
 static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 {
 	return (struct bch_member_cpu) {

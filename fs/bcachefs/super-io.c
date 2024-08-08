@@ -1295,14 +1295,8 @@ void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
 void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		     bool print_layout, unsigned fields)
 {
-	u64 fields_have = 0;
-	unsigned nr_devices = 0;
-
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 44);
-
-	for (int i = 0; i < sb->nr_devices; i++)
-		nr_devices += bch2_member_exists(sb, i);
 
 	prt_printf(out, "External UUID:\t");
 	pr_uuid(out, sb->user_uuid.b);
@@ -1359,9 +1353,10 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_newline(out);
 
 	prt_printf(out, "Clean:\t%llu\n", BCH_SB_CLEAN(sb));
-	prt_printf(out, "Devices:\t%u\n", nr_devices);
+	prt_printf(out, "Devices:\t%u\n", bch2_sb_nr_devices(sb));
 
 	prt_printf(out, "Sections:\t");
+	u64 fields_have = 0;
 	vstruct_for_each(sb, f)
 		fields_have |= 1 << le32_to_cpu(f->type);
 	prt_bitflags(out, bch2_sb_fields, fields_have);

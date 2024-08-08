@@ -465,3 +465,12 @@ void bch2_dev_btree_bitmap_mark(struct bch_fs *c, struct bkey_s_c k)
 		__bch2_dev_btree_bitmap_mark(mi, ptr->dev, ptr->offset, btree_sectors(c));
 	}
 }
+
+unsigned bch2_sb_nr_devices(const struct bch_sb *sb)
+{
+	unsigned nr = 0;
+
+	for (unsigned i = 0; i < sb->nr_devices; i++)
+		nr += bch2_member_exists((struct bch_sb *) sb, i);
+	return nr;
+}
