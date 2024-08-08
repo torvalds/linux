@@ -34,7 +34,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 
 	kcb = get_kprobe_ctlblk();
 	if (kprobe_running()) {
-		kprobes_inc_nmissed_count(p);
+		kprobes_inc_nmissed_count(p, KPROBE_MISSED_FTRACE_CALLBACK);
 	} else {
 		unsigned long orig_ip = regs->ip;
 		/* Kprobe handler expects regs->ip = ip + 1 as breakpoint hit */
