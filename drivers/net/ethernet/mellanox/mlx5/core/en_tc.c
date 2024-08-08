@@ -1742,10 +1742,15 @@ has_encap_dests(struct mlx5_flow_attr *attr)
 static int
 extra_split_attr_dests_needed(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr *attr)
 {
+	bool int_dest = false, ext_dest = false;
 	struct mlx5_esw_flow_attr *esw_attr;
+	int i;
 
 	if (flow->attr != attr ||
 	    !list_is_first(&attr->list, &flow->attrs))
+		return 0;
+
+	if (flow_flag_test(flow, SLOW))
 		return 0;
 
 	esw_attr = attr->esw_attr;
@@ -1757,6 +1762,18 @@ extra_split_attr_dests_needed(struct mlx5e_tc_flow *flow, struct mlx5_flow_attr 
 	    (esw_attr->dests[esw_attr->split_count].flags &
 	     MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE))
 		return esw_attr->split_count + 1;
+
+	for (i = esw_attr->split_count; i < esw_attr->out_count; i++) {
+		/* external dest with encap is considered as internal by firmware */
+		if (esw_attr->dests[i].vport == MLX5_VPORT_UPLINK &&
+		    !(esw_attr->dests[i].flags & MLX5_ESW_DEST_ENCAP_VALID))
+			ext_dest = true;
+		else
+			int_dest = true;
+
+		if (ext_dest && int_dest)
+			return esw_attr->split_count;
+	}
 
 	return 0;
 }
