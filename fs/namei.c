@@ -3624,16 +3624,6 @@ static struct dentry *lookup_fast_for_open(struct nameidata *nd, int open_flag)
 		/* Don't bother on an O_EXCL create */
 		if (open_flag & O_EXCL)
 			return NULL;
-
-		/*
-		 * FIXME: If auditing is enabled, then we'll have to unlazy to
-		 * use the dentry. For now, don't do this, since it shifts
-		 * contention from parent's i_rwsem to its d_lockref spinlock.
-		 * Reconsider this once dentry refcounting handles heavy
-		 * contention better.
-		 */
-		if ((nd->flags & LOOKUP_RCU) && !audit_dummy_context())
-			return NULL;
 	}
 
 	if (trailing_slashes(nd))
@@ -3687,7 +3677,7 @@ static const char *open_last_lookups(struct nameidata *nd,
 			bool unlazied;
 
 			/* can stay in rcuwalk if not auditing */
-			if (dentry && audit_dummy_context())
+			if (dentry)
 				goto finish_lookup;
 			unlazied = dentry ? try_to_unlazy_next(nd, dentry) :
 					    try_to_unlazy(nd);
