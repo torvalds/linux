@@ -170,12 +170,12 @@ static inline unsigned long *get_next_sdbt(unsigned long *s)
 /*
  * sf_disable() - Switch off sampling facility
  */
-static int sf_disable(void)
+static void sf_disable(void)
 {
 	struct hws_lsctl_request_block sreq;
 
 	memset(&sreq, 0, sizeof(sreq));
-	return lsctl(&sreq);
+	lsctl(&sreq);
 }
 
 /*
@@ -620,13 +620,12 @@ static void setup_pmc_cpu(void *flags)
 		if (err)
 			break;
 		cpuhw->flags |= PMU_F_RESERVED;
-		err = sf_disable();
+		sf_disable();
 		break;
 	case PMC_RELEASE:
 		cpuhw->flags &= ~PMU_F_RESERVED;
-		err = sf_disable();
-		if (!err)
-			deallocate_buffers(cpuhw);
+		sf_disable();
+		deallocate_buffers(cpuhw);
 		break;
 	}
 	if (err) {
