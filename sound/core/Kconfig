@@ -175,15 +175,6 @@ config SND_VERBOSE_PROCFS
 	  useful information to developers when a problem occurs).  On the
 	  other side, it makes the ALSA subsystem larger.
 
-config SND_VERBOSE_PRINTK
-	bool "Verbose printk"
-	help
-	  Say Y here to enable verbose log messages.  These messages
-	  will help to identify source file and position containing
-	  printed messages.
-
-	  You don't need this unless you're debugging ALSA.
-
 config SND_CTL_FAST_LOOKUP
 	bool "Fast lookup of control elements" if EXPERT
 	default y

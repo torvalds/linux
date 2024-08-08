@@ -9,6 +9,7 @@
 
 struct usb_stream_kernel {
 	struct usb_stream *s;
+	struct usb_device *dev;
 
 	void *write_page;
 
