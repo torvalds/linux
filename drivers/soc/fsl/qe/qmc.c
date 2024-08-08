@@ -221,6 +221,7 @@ struct qmc_data {
 	u32 zistate; /* Initial ZISTATE value */
 	u32 zdstate_hdlc; /* Initial ZDSTATE value (HDLC mode) */
 	u32 zdstate_transp; /* Initial ZDSTATE value (Transparent mode) */
+	u32 rpack; /* Initial RPACK value */
 };
 
 struct qmc {
@@ -552,6 +553,7 @@ int qmc_chan_read_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 	/* Restart receiver if needed */
 	if (chan->is_rx_halted && !chan->is_rx_stopped) {
 		/* Restart receiver */
+		qmc_write32(chan->s_param + QMC_SPE_RPACK, chan->qmc->data->rpack);
 		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
 			    chan->mode == QMC_TRANSPARENT ?
 				chan->qmc->data->zdstate_transp :
@@ -980,6 +982,7 @@ static int qmc_chan_start_rx(struct qmc_chan *chan)
 	}
 
 	/* Restart the receiver */
+	qmc_write32(chan->s_param + QMC_SPE_RPACK, chan->qmc->data->rpack);
 	qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
 		    chan->mode == QMC_TRANSPARENT ?
 			chan->qmc->data->zdstate_transp :
@@ -1405,6 +1408,7 @@ static int qmc_setup_chan(struct qmc *qmc, struct qmc_chan *chan)
 	qmc_write32(chan->s_param + QMC_SPE_TSTATE, chan->qmc->data->tstate);
 	qmc_write32(chan->s_param + QMC_SPE_RSTATE, chan->qmc->data->rstate);
 	qmc_write32(chan->s_param + QMC_SPE_ZISTATE, chan->qmc->data->zistate);
+	qmc_write32(chan->s_param + QMC_SPE_RPACK, chan->qmc->data->rpack);
 	if (chan->mode == QMC_TRANSPARENT) {
 		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, chan->qmc->data->zdstate_transp);
 		qmc_write16(chan->s_param + QMC_SPE_TMRBLR, 60);
@@ -1544,6 +1548,8 @@ static void qmc_irq_gint(struct qmc *qmc)
 			/* Restart the receiver if needed */
 			spin_lock_irqsave(&chan->rx_lock, flags);
 			if (chan->rx_pending && !chan->is_rx_stopped) {
+				qmc_write32(chan->s_param + QMC_SPE_RPACK,
+					    chan->qmc->data->rpack);
 				qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
 					    chan->mode == QMC_TRANSPARENT ?
 						chan->qmc->data->zdstate_transp :
@@ -1810,6 +1816,7 @@ static const struct qmc_data qmc_data_cpm1 = {
 	.zistate = 0x00000100,
 	.zdstate_hdlc = 0x00000080,
 	.zdstate_transp = 0x18000080,
+	.rpack = 0x00000000,
 };
 
 static const struct of_device_id qmc_id_table[] = {
