@@ -345,6 +345,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 {
 	u16 reply_desc_type, host_tag = 0;
 	u16 ioc_status = MPI3_IOCSTATUS_SUCCESS;
+	u16 masked_ioc_status = MPI3_IOCSTATUS_SUCCESS;
 	u32 ioc_loginfo = 0, sense_count = 0;
 	struct mpi3_status_reply_descriptor *status_desc;
 	struct mpi3_address_reply_descriptor *addr_desc;
@@ -366,8 +367,8 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 		if (ioc_status &
 		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
 			ioc_loginfo = le32_to_cpu(status_desc->ioc_log_info);
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
-		mpi3mr_reply_trigger(mrioc, ioc_status, ioc_loginfo);
+		masked_ioc_status = ioc_status & MPI3_IOCSTATUS_STATUS_MASK;
+		mpi3mr_reply_trigger(mrioc, masked_ioc_status, ioc_loginfo);
 		break;
 	case MPI3_REPLY_DESCRIPT_FLAGS_TYPE_ADDRESS_REPLY:
 		addr_desc = (struct mpi3_address_reply_descriptor *)reply_desc;
@@ -380,7 +381,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 		if (ioc_status &
 		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
 			ioc_loginfo = le32_to_cpu(def_reply->ioc_log_info);
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
+		masked_ioc_status = ioc_status & MPI3_IOCSTATUS_STATUS_MASK;
 		if (def_reply->function == MPI3_FUNCTION_SCSI_IO) {
 			scsi_reply = (struct mpi3_scsi_io_reply *)def_reply;
 			sense_buf = mpi3mr_get_sensebuf_virt_addr(mrioc,
@@ -393,7 +394,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 				    sshdr.asc, sshdr.ascq);
 			}
 		}
-		mpi3mr_reply_trigger(mrioc, ioc_status, ioc_loginfo);
+		mpi3mr_reply_trigger(mrioc, masked_ioc_status, ioc_loginfo);
 		break;
 	case MPI3_REPLY_DESCRIPT_FLAGS_TYPE_SUCCESS:
 		success_desc = (struct mpi3_success_reply_descriptor *)reply_desc;
@@ -408,7 +409,10 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 		if (cmdptr->state & MPI3MR_CMD_PENDING) {
 			cmdptr->state |= MPI3MR_CMD_COMPLETE;
 			cmdptr->ioc_loginfo = ioc_loginfo;
-			cmdptr->ioc_status = ioc_status;
+			if (host_tag == MPI3MR_HOSTTAG_BSG_CMDS)
+				cmdptr->ioc_status = ioc_status;
+			else
+				cmdptr->ioc_status = masked_ioc_status;
 			cmdptr->state &= ~MPI3MR_CMD_PENDING;
 			if (def_reply) {
 				cmdptr->state |= MPI3MR_CMD_REPLY_VALID;
