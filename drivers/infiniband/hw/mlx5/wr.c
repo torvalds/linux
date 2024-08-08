@@ -78,7 +78,7 @@ static void set_eth_seg(const struct ib_send_wr *wr, struct mlx5_ib_qp *qp,
 		 */
 		copysz = min_t(u64, *cur_edge - (void *)eseg->inline_hdr.start,
 			       left);
-		memcpy(eseg->inline_hdr.start, pdata, copysz);
+		memcpy(eseg->inline_hdr.data, pdata, copysz);
 		stride = ALIGN(sizeof(struct mlx5_wqe_eth_seg) -
 			       sizeof(eseg->inline_hdr.start) + copysz, 16);
 		*size += stride / 16;

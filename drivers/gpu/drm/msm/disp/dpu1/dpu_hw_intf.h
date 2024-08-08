@@ -33,6 +33,7 @@ struct intf_timing_params {
 	u32 hsync_skew;
 
 	bool wide_bus_en;
+	bool compression_en;
 };
 
 struct intf_prog_fetch {

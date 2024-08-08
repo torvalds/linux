@@ -66,6 +66,26 @@
 		__builtin_unreachable();	\
 	} while (0)
 
+/*
+ * GCC 'asm goto' with outputs miscompiles certain code sequences:
+ *
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
+ *
+ * Work around it via the same compiler barrier quirk that we used
+ * to use for the old 'asm goto' workaround.
+ *
+ * Also, always mark such 'asm goto' statements as volatile: all
+ * asm goto statements are supposed to be volatile as per the
+ * documentation, but some versions of gcc didn't actually do
+ * that for asms with outputs:
+ *
+ *    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98619
+ */
+#ifdef CONFIG_GCC_ASM_GOTO_OUTPUT_WORKAROUND
+#define asm_goto_output(x...) \
+	do { asm volatile goto(x); asm (""); } while (0)
+#endif
+
 #if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
 #define __HAVE_BUILTIN_BSWAP32__
 #define __HAVE_BUILTIN_BSWAP64__
