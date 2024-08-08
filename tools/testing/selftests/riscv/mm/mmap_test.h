@@ -48,11 +48,11 @@ uint32_t random_addresses[] = {
 };
 #endif
 
-// Only works on 64 bit
-#if __riscv_xlen == 64
 #define PROT (PROT_READ | PROT_WRITE)
 #define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS)
 
+// Only works on 64 bit
+#if __riscv_xlen == 64
 /* mmap must return a value that doesn't use more bits than the hint address. */
 static inline unsigned long get_max_value(unsigned long input)
 {
@@ -79,6 +79,8 @@ static inline unsigned long get_max_value(unsigned long input)
 		}                                                             \
 	})
 #endif /* __riscv_xlen == 64 */
+
+#define TEST_MMAPS do { } while (0)
 
 static inline int memory_layout(void)
 {
