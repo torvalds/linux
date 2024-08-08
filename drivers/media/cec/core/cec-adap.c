@@ -781,7 +781,8 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 {
 	struct cec_data *data;
 	bool is_raw = msg_is_raw(msg);
-	bool reply_vendor_id = msg->flags & CEC_MSG_FL_REPLY_VENDOR_ID;
+	bool reply_vendor_id = (msg->flags & CEC_MSG_FL_REPLY_VENDOR_ID) &&
+		msg->len > 1 && msg->msg[1] == CEC_MSG_VENDOR_COMMAND_WITH_ID;
 	int err;
 
 	if (adap->devnode.unregistered)
@@ -797,7 +798,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	msg->tx_error_cnt = 0;
 	msg->sequence = 0;
 	msg->flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS | CEC_MSG_FL_RAW |
-		      CEC_MSG_FL_REPLY_VENDOR_ID;
+		      (reply_vendor_id ? CEC_MSG_FL_REPLY_VENDOR_ID : 0);
 
 	if ((reply_vendor_id || msg->reply) && msg->timeout == 0) {
 		/* Make sure the timeout isn't 0. */
@@ -812,9 +813,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		dprintk(1, "%s: invalid length %d\n", __func__, msg->len);
 		return -EINVAL;
 	}
-	if (reply_vendor_id &&
-	    (msg->len < 6 || msg->msg[1] != CEC_MSG_VENDOR_COMMAND_WITH_ID)) {
-		dprintk(1, "%s: message too short or not <Vendor Command With ID>\n", __func__);
+	if (reply_vendor_id && msg->len < 6) {
+		dprintk(1, "%s: <Vendor Command With ID> message too short\n",
+			__func__);
 		return -EINVAL;
 	}
 
