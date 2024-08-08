@@ -876,10 +876,10 @@ err_attr:
 }
 
 static int
-mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
-			      struct flow_rule *flow_rule,
-			      struct mlx5_ct_entry *entry,
-			      bool nat, u8 zone_restore_id)
+mlx5_tc_ct_entry_update_rule(struct mlx5_tc_ct_priv *ct_priv,
+			     struct flow_rule *flow_rule,
+			     struct mlx5_ct_entry *entry,
+			     bool nat, u8 zone_restore_id)
 {
 	struct mlx5_ct_zone_rule *zone_rule = &entry->zone_rules[nat];
 	struct mlx5_flow_attr *attr = zone_rule->attr, *old_attr;
@@ -924,7 +924,7 @@ mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	kfree(old_attr);
 	kvfree(spec);
-	ct_dbg("Replaced ct entry rule in zone %d", entry->tuple.zone);
+	ct_dbg("Updated ct entry rule in zone %d", entry->tuple.zone);
 
 	return 0;
 
@@ -1141,23 +1141,23 @@ err_orig:
 }
 
 static int
-mlx5_tc_ct_entry_replace_rules(struct mlx5_tc_ct_priv *ct_priv,
-			       struct flow_rule *flow_rule,
-			       struct mlx5_ct_entry *entry,
-			       u8 zone_restore_id)
+mlx5_tc_ct_entry_update_rules(struct mlx5_tc_ct_priv *ct_priv,
+			      struct flow_rule *flow_rule,
+			      struct mlx5_ct_entry *entry,
+			      u8 zone_restore_id)
 {
 	int err = 0;
 
 	if (mlx5_tc_ct_entry_in_ct_table(entry)) {
-		err = mlx5_tc_ct_entry_replace_rule(ct_priv, flow_rule, entry, false,
-						    zone_restore_id);
+		err = mlx5_tc_ct_entry_update_rule(ct_priv, flow_rule, entry, false,
+						   zone_restore_id);
 		if (err)
 			return err;
 	}
 
 	if (mlx5_tc_ct_entry_in_ct_nat_table(entry)) {
-		err = mlx5_tc_ct_entry_replace_rule(ct_priv, flow_rule, entry, true,
-						    zone_restore_id);
+		err = mlx5_tc_ct_entry_update_rule(ct_priv, flow_rule, entry, true,
+						   zone_restore_id);
 		if (err && mlx5_tc_ct_entry_in_ct_table(entry))
 			mlx5_tc_ct_entry_del_rule(ct_priv, entry, false);
 	}
@@ -1165,13 +1165,13 @@ mlx5_tc_ct_entry_replace_rules(struct mlx5_tc_ct_priv *ct_priv,
 }
 
 static int
-mlx5_tc_ct_block_flow_offload_replace(struct mlx5_ct_ft *ft, struct flow_rule *flow_rule,
-				      struct mlx5_ct_entry *entry, unsigned long cookie)
+mlx5_tc_ct_block_flow_offload_update(struct mlx5_ct_ft *ft, struct flow_rule *flow_rule,
+				     struct mlx5_ct_entry *entry, unsigned long cookie)
 {
 	struct mlx5_tc_ct_priv *ct_priv = ft->ct_priv;
 	int err;
 
-	err = mlx5_tc_ct_entry_replace_rules(ct_priv, flow_rule, entry, ft->zone_restore_id);
+	err = mlx5_tc_ct_entry_update_rules(ct_priv, flow_rule, entry, ft->zone_restore_id);
 	if (!err)
 		return 0;
 
@@ -1216,7 +1216,7 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 		entry->restore_cookie = meta_action->ct_metadata.cookie;
 		spin_unlock_bh(&ct_priv->ht_lock);
 
-		err = mlx5_tc_ct_block_flow_offload_replace(ft, flow_rule, entry, cookie);
+		err = mlx5_tc_ct_block_flow_offload_update(ft, flow_rule, entry, cookie);
 		mlx5_tc_ct_entry_put(entry);
 		return err;
 	}
