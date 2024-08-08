@@ -714,19 +714,19 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	 * value) and then p*d_offset() walks into the target huge page instead
 	 * of the old page table (sees the new value).
 	 */
-	pgd = READ_ONCE(*pgd_offset(kvm->mm, hva));
+	pgd = pgdp_get(pgd_offset(kvm->mm, hva));
 	if (pgd_none(pgd))
 		goto out;
 
-	p4d = READ_ONCE(*p4d_offset(&pgd, hva));
+	p4d = p4dp_get(p4d_offset(&pgd, hva));
 	if (p4d_none(p4d) || !p4d_present(p4d))
 		goto out;
 
-	pud = READ_ONCE(*pud_offset(&p4d, hva));
+	pud = pudp_get(pud_offset(&p4d, hva));
 	if (pud_none(pud) || !pud_present(pud))
 		goto out;
 
-	pmd = READ_ONCE(*pmd_offset(&pud, hva));
+	pmd = pmdp_get(pmd_offset(&pud, hva));
 	if (pmd_none(pmd) || !pmd_present(pmd))
 		goto out;
 
