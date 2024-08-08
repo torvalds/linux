@@ -83,17 +83,15 @@ struct ptys2ethtool_config ptys2ext_ethtool_table[MLX5E_EXT_LINK_MODES_NUMBER];
 	({                                                              \
 		struct ptys2ethtool_config *cfg;                        \
 		const unsigned int modes[] = { __VA_ARGS__ };           \
-		unsigned int i, bit, idx;                               \
+		unsigned int i;                                         \
 		cfg = &ptys2##table##_ethtool_table[reg_];		\
 		bitmap_zero(cfg->supported,                             \
 			    __ETHTOOL_LINK_MODE_MASK_NBITS);            \
 		bitmap_zero(cfg->advertised,                            \
 			    __ETHTOOL_LINK_MODE_MASK_NBITS);            \
 		for (i = 0 ; i < ARRAY_SIZE(modes) ; ++i) {             \
-			bit = modes[i] % 64;                            \
-			idx = modes[i] / 64;                            \
-			__set_bit(bit, &cfg->supported[idx]);           \
-			__set_bit(bit, &cfg->advertised[idx]);          \
+			bitmap_set(cfg->supported, modes[i], 1);        \
+			bitmap_set(cfg->advertised, modes[i], 1);       \
 		}                                                       \
 	})
 
@@ -1299,7 +1297,8 @@ static u32 mlx5e_ethtool2ptys_adver_link(const unsigned long *link_modes)
 	u32 i, ptys_modes = 0;
 
 	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (*ptys2legacy_ethtool_table[i].advertised == 0)
+		if (bitmap_empty(ptys2legacy_ethtool_table[i].advertised,
+				 __ETHTOOL_LINK_MODE_MASK_NBITS))
 			continue;
 		if (bitmap_intersects(ptys2legacy_ethtool_table[i].advertised,
 				      link_modes,
@@ -1313,18 +1312,18 @@ static u32 mlx5e_ethtool2ptys_adver_link(const unsigned long *link_modes)
 static u32 mlx5e_ethtool2ptys_ext_adver_link(const unsigned long *link_modes)
 {
 	u32 i, ptys_modes = 0;
-	unsigned long modes[2];
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes);
 
 	for (i = 0; i < MLX5E_EXT_LINK_MODES_NUMBER; ++i) {
-		if (ptys2ext_ethtool_table[i].advertised[0] == 0 &&
-		    ptys2ext_ethtool_table[i].advertised[1] == 0)
+		if (bitmap_empty(ptys2ext_ethtool_table[i].advertised,
+				 __ETHTOOL_LINK_MODE_MASK_NBITS))
 			continue;
-		memset(modes, 0, sizeof(modes));
+		bitmap_zero(modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
 		bitmap_and(modes, ptys2ext_ethtool_table[i].advertised,
 			   link_modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
 
-		if (modes[0] == ptys2ext_ethtool_table[i].advertised[0] &&
-		    modes[1] == ptys2ext_ethtool_table[i].advertised[1])
+		if (bitmap_equal(modes, ptys2ext_ethtool_table[i].advertised,
+				 __ETHTOOL_LINK_MODE_MASK_NBITS))
 			ptys_modes |= MLX5E_PROT_MASK(i);
 	}
 	return ptys_modes;
