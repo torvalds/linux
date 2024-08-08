@@ -3666,26 +3666,17 @@ static const char *open_last_lookups(struct nameidata *nd,
 	if (IS_ERR(dentry))
 		return ERR_CAST(dentry);
 
-	if (!(open_flag & O_CREAT)) {
-		if (likely(dentry))
-			goto finish_lookup;
+	if (likely(dentry))
+		goto finish_lookup;
 
+	if (!(open_flag & O_CREAT)) {
 		if (WARN_ON_ONCE(nd->flags & LOOKUP_RCU))
 			return ERR_PTR(-ECHILD);
 	} else {
 		if (nd->flags & LOOKUP_RCU) {
-			bool unlazied;
-
-			/* can stay in rcuwalk if not auditing */
-			if (dentry)
-				goto finish_lookup;
-			unlazied = dentry ? try_to_unlazy_next(nd, dentry) :
-					    try_to_unlazy(nd);
-			if (!unlazied)
+			if (!try_to_unlazy(nd))
 				return ERR_PTR(-ECHILD);
 		}
-		if (dentry)
-			goto finish_lookup;
 	}
 
 	if (open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
