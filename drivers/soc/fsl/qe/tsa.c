@@ -66,12 +66,6 @@
 #define   TSA_SIGMR_RDM_STATIC_TDMAB	FIELD_PREP_CONST(TSA_SIGMR_RDM_MASK, 0x2)
 #define   TSA_SIGMR_RDM_DYN_TDMAB	FIELD_PREP_CONST(TSA_SIGMR_RDM_MASK, 0x3)
 
-/* SI status register (8 bits) */
-#define TSA_SISTR	0x06
-
-/* SI command register (8 bits) */
-#define TSA_SICMR	0x07
-
 /* SI clock route register (32 bits) */
 #define TSA_SICR	0x0C
 #define   TSA_SICR_SCC2_MASK		GENMASK(15, 8)
@@ -101,9 +95,6 @@
 #define       TSA_SICR_SCC_TXCS_CLK26	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x5)
 #define       TSA_SICR_SCC_TXCS_CLK37	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x6)
 #define       TSA_SICR_SCC_TXCS_CLK48	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x7)
-
-/* Serial interface RAM pointer register (32 bits) */
-#define TSA_SIRP	0x10
 
 struct tsa_entries_area {
 	void __iomem *entries_start;
