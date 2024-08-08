@@ -140,11 +140,14 @@ static int alloc_name(struct irq_domain *domain, char *base, enum irq_domain_bus
 }
 
 static int alloc_fwnode_name(struct irq_domain *domain, const struct fwnode_handle *fwnode,
-			     enum irq_domain_bus_token bus_token)
+			     enum irq_domain_bus_token bus_token, const char *suffix)
 {
-	char *name = bus_token ? kasprintf(GFP_KERNEL, "%pfw-%d", fwnode, bus_token) :
-				 kasprintf(GFP_KERNEL, "%pfw", fwnode);
+	const char *sep = suffix ? "-" : "";
+	const char *suf = suffix ? : "";
+	char *name;
 
+	name = bus_token ? kasprintf(GFP_KERNEL, "%pfw-%s%s%d", fwnode, suf, sep, bus_token) :
+			   kasprintf(GFP_KERNEL, "%pfw-%s", fwnode, suf);
 	if (!name)
 		return -ENOMEM;
 
@@ -172,11 +175,24 @@ static int alloc_unknown_name(struct irq_domain *domain, enum irq_domain_bus_tok
 	return 0;
 }
 
-static int irq_domain_set_name(struct irq_domain *domain, const struct fwnode_handle *fwnode,
-			       enum irq_domain_bus_token bus_token)
+static int irq_domain_set_name(struct irq_domain *domain, const struct irq_domain_info *info)
 {
+	enum irq_domain_bus_token bus_token = info->bus_token;
+	const struct fwnode_handle *fwnode = info->fwnode;
+
 	if (is_fwnode_irqchip(fwnode)) {
 		struct irqchip_fwid *fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
+
+		/*
+		 * The name_suffix is only intended to be used to avoid a name
+		 * collision when multiple domains are created for a single
+		 * device and the name is picked using a real device node.
+		 * (Typical use-case is regmap-IRQ controllers for devices
+		 * providing more than one physical IRQ.) There should be no
+		 * need to use name_suffix with irqchip-fwnode.
+		 */
+		if (info->name_suffix)
+			return -EINVAL;
 
 		switch (fwid->type) {
 		case IRQCHIP_FWNODE_NAMED:
@@ -189,7 +205,7 @@ static int irq_domain_set_name(struct irq_domain *domain, const struct fwnode_ha
 		}
 
 	} else if (is_of_node(fwnode) || is_acpi_device_node(fwnode) || is_software_node(fwnode)) {
-		return alloc_fwnode_name(domain, fwnode, bus_token);
+		return alloc_fwnode_name(domain, fwnode, bus_token, info->name_suffix);
 	}
 
 	if (domain->name)
@@ -215,7 +231,7 @@ static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
-	err = irq_domain_set_name(domain, info->fwnode, info->bus_token);
+	err = irq_domain_set_name(domain, info);
 	if (err) {
 		kfree(domain);
 		return ERR_PTR(err);
