@@ -315,7 +315,7 @@ static void cifs_free_subrequest(struct netfs_io_subrequest *subreq)
 #endif
 	}
 
-	if (rdata->credits.value != 0)
+	if (rdata->credits.value != 0) {
 		trace_smb3_rw_credits(rdata->rreq->debug_id,
 				      rdata->subreq.debug_index,
 				      rdata->credits.value,
@@ -323,8 +323,12 @@ static void cifs_free_subrequest(struct netfs_io_subrequest *subreq)
 				      rdata->server ? rdata->server->in_flight : 0,
 				      -rdata->credits.value,
 				      cifs_trace_rw_credits_free_subreq);
+		if (rdata->server)
+			add_credits_and_wake_if(rdata->server, &rdata->credits, 0);
+		else
+			rdata->credits.value = 0;
+	}
 
-	add_credits_and_wake_if(rdata->server, &rdata->credits, 0);
 	if (rdata->have_xid)
 		free_xid(rdata->xid);
 }
