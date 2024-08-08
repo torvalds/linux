@@ -7,8 +7,10 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/sizes.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include "qrtr.h"
 
@@ -43,10 +45,14 @@
 #define IRQ_SETUP_IDX		0
 #define IRQ_XFER_IDX		1
 
+#define STATE_WAIT_TIMEOUT	msecs_to_jiffies(1000)
+
 enum {
 	LOCAL_STATE_DEFAULT,
 	LOCAL_STATE_INIT,
 	LOCAL_STATE_START,
+	LOCAL_STATE_PREPARE_REBOOT,
+	LOCAL_STATE_REBOOT,
 };
 
 struct qrtr_genpool_hdr {
@@ -93,6 +99,8 @@ struct qrtr_genpool_pipe {
  * @irq_xfer_label: IRQ name for irq_xfer
  * @state: current state of the local side
  * @lock: lock for updating local state
+ * @state_wait: wait queue for specific state
+ * @reboot_handler: handle for getting reboot notifications
  */
 struct qrtr_genpool_dev {
 	struct qrtr_endpoint ep;
@@ -122,6 +130,9 @@ struct qrtr_genpool_dev {
 
 	u32 state;
 	spinlock_t lock; /* lock for local state updates */
+	wait_queue_head_t state_wait;
+
+	struct notifier_block reboot_handler;
 };
 
 static void qrtr_genpool_set_state(struct qrtr_genpool_dev *qdev, u32 state)
@@ -580,6 +591,20 @@ static void qrtr_genpool_setup_work(struct work_struct *work)
 	unsigned long flags;
 	int rc;
 
+	spin_lock_irqsave(&qdev->lock, flags);
+	if (qdev->state == LOCAL_STATE_REBOOT) {
+		spin_unlock_irqrestore(&qdev->lock, flags);
+		return;
+	}
+
+	if (qdev->state == LOCAL_STATE_PREPARE_REBOOT) {
+		qrtr_genpool_set_state(qdev, LOCAL_STATE_REBOOT);
+		spin_unlock_irqrestore(&qdev->lock, flags);
+		wake_up_all(&qdev->state_wait);
+		return;
+	}
+	spin_unlock_irqrestore(&qdev->lock, flags);
+
 	disable_irq(qdev->irq_xfer);
 
 	if (qdev->ep_registered) {
@@ -609,6 +634,42 @@ static void qrtr_genpool_setup_work(struct work_struct *work)
 	qrtr_genpool_set_state(qdev, LOCAL_STATE_START);
 	qrtr_genpool_signal_setup(qdev);
 	spin_unlock_irqrestore(&qdev->lock, flags);
+}
+
+static int qrtr_genpool_reboot_cb(struct notifier_block *nb,
+				  unsigned long action, void *data)
+{
+	struct qrtr_genpool_dev *qdev = container_of(nb, struct qrtr_genpool_dev, reboot_handler);
+	unsigned long flags;
+	int rc;
+
+	cancel_work_sync(&qdev->setup_work);
+
+	spin_lock_irqsave(&qdev->lock, flags);
+	qrtr_genpool_set_state(qdev, LOCAL_STATE_PREPARE_REBOOT);
+	qrtr_genpool_signal_setup(qdev);
+
+	rc = wait_event_lock_irq_timeout(qdev->state_wait,
+					 qdev->state == LOCAL_STATE_REBOOT,
+					 qdev->lock,
+					 STATE_WAIT_TIMEOUT);
+	if (!rc)
+		dev_dbg(qdev->dev, "timedout waiting for reboot state change\n");
+	spin_unlock_irqrestore(&qdev->lock, flags);
+
+	disable_irq(qdev->irq_xfer);
+
+	if (qdev->ep_registered) {
+		qrtr_endpoint_unregister(&qdev->ep);
+		qdev->ep_registered = false;
+	}
+
+	qrtr_genpool_memory_free(qdev);
+
+	vfree(qdev->ring.buf);
+	qdev->ring.buf = NULL;
+
+	return NOTIFY_DONE;
 }
 
 /**
@@ -648,12 +709,20 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 		goto err;
 
 	init_waitqueue_head(&qdev->tx_avail_notify);
+	init_waitqueue_head(&qdev->state_wait);
 	INIT_WORK(&qdev->setup_work, qrtr_genpool_setup_work);
 	spin_lock_init(&qdev->lock);
 
 	rc = qrtr_genpool_memory_alloc(qdev);
 	if (rc)
 		goto err;
+
+	qdev->reboot_handler.notifier_call = qrtr_genpool_reboot_cb;
+	rc = devm_register_reboot_notifier(qdev->dev, &qdev->reboot_handler);
+	if (rc) {
+		dev_err(qdev->dev, "failed to register reboot notifier rc%d\n", rc);
+		goto err;
+	}
 
 	rc = qrtr_genpool_mbox_init(qdev);
 	if (rc)
