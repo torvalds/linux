@@ -8,6 +8,7 @@
  */
 
 #include <soc/fsl/qe/qmc.h>
+#include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
 #include <linux/hdlc.h>
 #include <linux/interrupt.h>
@@ -23,23 +24,24 @@
 
 /* SCC general mode register high (32 bits) */
 #define SCC_GSMRL	0x00
-#define SCC_GSMRL_ENR		(1 << 5)
-#define SCC_GSMRL_ENT		(1 << 4)
-#define SCC_GSMRL_MODE_QMC	(0x0A << 0)
+#define SCC_GSMRL_ENR		BIT(5)
+#define SCC_GSMRL_ENT		BIT(4)
+#define SCC_GSMRL_MODE_MASK	GENMASK(3, 0)
+#define SCC_GSMRL_MODE_QMC	FIELD_PREP_CONST(SCC_GSMRL_MODE_MASK, 0x0A)
 
 /* SCC general mode register low (32 bits) */
 #define SCC_GSMRH	0x04
-#define   SCC_GSMRH_CTSS	(1 << 7)
-#define   SCC_GSMRH_CDS		(1 << 8)
-#define   SCC_GSMRH_CTSP	(1 << 9)
-#define   SCC_GSMRH_CDP		(1 << 10)
+#define   SCC_GSMRH_CTSS	BIT(7)
+#define   SCC_GSMRH_CDS		BIT(8)
+#define   SCC_GSMRH_CTSP	BIT(9)
+#define   SCC_GSMRH_CDP		BIT(10)
 
 /* SCC event register (16 bits) */
 #define SCC_SCCE	0x10
-#define   SCC_SCCE_IQOV		(1 << 3)
-#define   SCC_SCCE_GINT		(1 << 2)
-#define   SCC_SCCE_GUN		(1 << 1)
-#define   SCC_SCCE_GOV		(1 << 0)
+#define   SCC_SCCE_IQOV		BIT(3)
+#define   SCC_SCCE_GINT		BIT(2)
+#define   SCC_SCCE_GUN		BIT(1)
+#define   SCC_SCCE_GOV		BIT(0)
 
 /* SCC mask register (16 bits) */
 #define SCC_SCCM	0x14
@@ -75,25 +77,31 @@
 #define QMC_GBL_C_MASK16	0xA0
 
 /* TSA entry (16bit entry in TSATRX and TSATTX) */
-#define QMC_TSA_VALID		(1 << 15)
-#define QMC_TSA_WRAP		(1 << 14)
-#define QMC_TSA_MASK_8BIT	(0x303F)
-#define QMC_TSA_CHANNEL(x)	((x) << 6)
+#define QMC_TSA_VALID		BIT(15)
+#define QMC_TSA_WRAP		BIT(14)
+#define QMC_TSA_MASK_MASKH	GENMASK(13, 12)
+#define QMC_TSA_MASK_MASKL	GENMASK(5, 0)
+#define QMC_TSA_MASK_8BIT	(FIELD_PREP_CONST(QMC_TSA_MASK_MASKH, 0x3) | \
+				 FIELD_PREP_CONST(QMC_TSA_MASK_MASKL, 0x3F))
+#define QMC_TSA_CHANNEL_MASK	GENMASK(11, 6)
+#define QMC_TSA_CHANNEL(x)	FIELD_PREP(QMC_TSA_CHANNEL_MASK, x)
 
 /* Tx buffer descriptor base address (16 bits, offset from MCBASE) */
 #define QMC_SPE_TBASE	0x00
 
 /* Channel mode register (16 bits) */
 #define QMC_SPE_CHAMR	0x02
-#define   QMC_SPE_CHAMR_MODE_HDLC	(1 << 15)
-#define   QMC_SPE_CHAMR_MODE_TRANSP	((0 << 15) | (1 << 13))
-#define   QMC_SPE_CHAMR_ENT		(1 << 12)
-#define   QMC_SPE_CHAMR_POL		(1 << 8)
-#define   QMC_SPE_CHAMR_HDLC_IDLM	(1 << 13)
-#define   QMC_SPE_CHAMR_HDLC_CRC	(1 << 7)
-#define   QMC_SPE_CHAMR_HDLC_NOF	(0x0f << 0)
-#define   QMC_SPE_CHAMR_TRANSP_RD	(1 << 14)
-#define   QMC_SPE_CHAMR_TRANSP_SYNC	(1 << 10)
+#define   QMC_SPE_CHAMR_MODE_MASK	GENMASK(15, 15)
+#define   QMC_SPE_CHAMR_MODE_HDLC	FIELD_PREP_CONST(QMC_SPE_CHAMR_MODE_MASK, 1)
+#define   QMC_SPE_CHAMR_MODE_TRANSP	(FIELD_PREP_CONST(QMC_SPE_CHAMR_MODE_MASK, 0) | BIT(13))
+#define   QMC_SPE_CHAMR_ENT		BIT(12)
+#define   QMC_SPE_CHAMR_POL		BIT(8)
+#define   QMC_SPE_CHAMR_HDLC_IDLM	BIT(13)
+#define   QMC_SPE_CHAMR_HDLC_CRC	BIT(7)
+#define   QMC_SPE_CHAMR_HDLC_NOF_MASK	GENMASK(3, 0)
+#define   QMC_SPE_CHAMR_HDLC_NOF(x)	FIELD_PREP(QMC_SPE_CHAMR_HDLC_NOF_MASK, x)
+#define   QMC_SPE_CHAMR_TRANSP_RD	BIT(14)
+#define   QMC_SPE_CHAMR_TRANSP_SYNC	BIT(10)
 
 /* Tx internal state (32 bits) */
 #define QMC_SPE_TSTATE	0x04
@@ -120,43 +128,47 @@
 
 /* Transparent synchronization (16 bits) */
 #define QMC_SPE_TRNSYNC 0x3C
-#define   QMC_SPE_TRNSYNC_RX(x)	((x) << 8)
-#define   QMC_SPE_TRNSYNC_TX(x)	((x) << 0)
+#define   QMC_SPE_TRNSYNC_RX_MASK	GENMASK(15, 8)
+#define   QMC_SPE_TRNSYNC_RX(x)		FIELD_PREP(QMC_SPE_TRNSYNC_RX_MASK, x)
+#define   QMC_SPE_TRNSYNC_TX_MASK	GENMASK(7, 0)
+#define   QMC_SPE_TRNSYNC_TX(x)		FIELD_PREP(QMC_SPE_TRNSYNC_TX_MASK, x)
 
 /* Interrupt related registers bits */
-#define QMC_INT_V		(1 << 15)
-#define QMC_INT_W		(1 << 14)
-#define QMC_INT_NID		(1 << 13)
-#define QMC_INT_IDL		(1 << 12)
-#define QMC_INT_GET_CHANNEL(x)	(((x) & 0x0FC0) >> 6)
-#define QMC_INT_MRF		(1 << 5)
-#define QMC_INT_UN		(1 << 4)
-#define QMC_INT_RXF		(1 << 3)
-#define QMC_INT_BSY		(1 << 2)
-#define QMC_INT_TXB		(1 << 1)
-#define QMC_INT_RXB		(1 << 0)
+#define QMC_INT_V		BIT(15)
+#define QMC_INT_W		BIT(14)
+#define QMC_INT_NID		BIT(13)
+#define QMC_INT_IDL		BIT(12)
+#define QMC_INT_CHANNEL_MASK	GENMASK(11, 6)
+#define QMC_INT_GET_CHANNEL(x)	FIELD_GET(QMC_INT_CHANNEL_MASK, x)
+#define QMC_INT_MRF		BIT(5)
+#define QMC_INT_UN		BIT(4)
+#define QMC_INT_RXF		BIT(3)
+#define QMC_INT_BSY		BIT(2)
+#define QMC_INT_TXB		BIT(1)
+#define QMC_INT_RXB		BIT(0)
 
 /* BD related registers bits */
-#define QMC_BD_RX_E	(1 << 15)
-#define QMC_BD_RX_W	(1 << 13)
-#define QMC_BD_RX_I	(1 << 12)
-#define QMC_BD_RX_L	(1 << 11)
-#define QMC_BD_RX_F	(1 << 10)
-#define QMC_BD_RX_CM	(1 << 9)
-#define QMC_BD_RX_UB	(1 << 7)
-#define QMC_BD_RX_LG	(1 << 5)
-#define QMC_BD_RX_NO	(1 << 4)
-#define QMC_BD_RX_AB	(1 << 3)
-#define QMC_BD_RX_CR	(1 << 2)
+#define QMC_BD_RX_E	BIT(15)
+#define QMC_BD_RX_W	BIT(13)
+#define QMC_BD_RX_I	BIT(12)
+#define QMC_BD_RX_L	BIT(11)
+#define QMC_BD_RX_F	BIT(10)
+#define QMC_BD_RX_CM	BIT(9)
+#define QMC_BD_RX_UB	BIT(7)
+#define QMC_BD_RX_LG	BIT(5)
+#define QMC_BD_RX_NO	BIT(4)
+#define QMC_BD_RX_AB	BIT(3)
+#define QMC_BD_RX_CR	BIT(2)
 
-#define QMC_BD_TX_R	(1 << 15)
-#define QMC_BD_TX_W	(1 << 13)
-#define QMC_BD_TX_I	(1 << 12)
-#define QMC_BD_TX_L	(1 << 11)
-#define QMC_BD_TX_TC	(1 << 10)
-#define QMC_BD_TX_CM	(1 << 9)
-#define QMC_BD_TX_UB	(1 << 7)
-#define QMC_BD_TX_PAD	(0x0f << 0)
+#define QMC_BD_TX_R		BIT(15)
+#define QMC_BD_TX_W		BIT(13)
+#define QMC_BD_TX_I		BIT(12)
+#define QMC_BD_TX_L		BIT(11)
+#define QMC_BD_TX_TC		BIT(10)
+#define QMC_BD_TX_CM		BIT(9)
+#define QMC_BD_TX_UB		BIT(7)
+#define QMC_BD_TX_PAD_MASK	GENMASK(3, 0)
+#define QMC_BD_TX_PAD(x)	FIELD_PREP(QMC_BD_TX_PAD_MASK, x)
 
 /* Numbers of BDs and interrupt items */
 #define QMC_NB_TXBDS	8
@@ -662,7 +674,7 @@ static int qmc_chan_setup_tsa_64rxtx(struct qmc_chan *chan, const struct tsa_ser
 			continue;
 
 		qmc_clrsetbits16(chan->qmc->scc_pram + QMC_GBL_TSATRX + (i * 2),
-				 ~QMC_TSA_WRAP, enable ? val : 0x0000);
+				 (u16)~QMC_TSA_WRAP, enable ? val : 0x0000);
 	}
 
 	return 0;
@@ -698,7 +710,7 @@ static int qmc_chan_setup_tsa_32rx(struct qmc_chan *chan, const struct tsa_seria
 			continue;
 
 		qmc_clrsetbits16(chan->qmc->scc_pram + QMC_GBL_TSATRX + (i * 2),
-				 ~QMC_TSA_WRAP, enable ? val : 0x0000);
+				 (u16)~QMC_TSA_WRAP, enable ? val : 0x0000);
 	}
 
 	return 0;
@@ -734,7 +746,7 @@ static int qmc_chan_setup_tsa_32tx(struct qmc_chan *chan, const struct tsa_seria
 			continue;
 
 		qmc_clrsetbits16(chan->qmc->scc_pram + QMC_GBL_TSATTX + (i * 2),
-				 ~QMC_TSA_WRAP, enable ? val : 0x0000);
+				 (u16)~QMC_TSA_WRAP, enable ? val : 0x0000);
 	}
 
 	return 0;
