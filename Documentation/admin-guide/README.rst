@@ -3,33 +3,88 @@
 Linux kernel release 6.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 6.  Read them carefully,
-as they tell you what this is all about, explain how to install the
-kernel, and what to do if something goes wrong.
+These are the release notes for Linux version 6. Read them carefully as they explain 
+what this is all about, how to install the kernel, and what to do if something goes wrong.
+
+Table of Contents
+=================
+
+#. `What is Linux? <#what-is-linux>`_
+#. `Supported Hardware <#supported-hardware>`_
+#. `Documentation <#documentation>`_
+#. `Installing the Kernel Source <#installing-the-kernel-source>`_
+#. `Software Requirements <#software-requirements>`_
+#. `Building the Kernel <#build-directory-for-the-kernel>`_
+#. `Configuring the Kernel <#configuring-the-kernel>`_
+#. `Compiling the Kernel <#compiling-the-kernel>`_
+#. `Booting the New Kernel <#legacy-lilo-instructions>`_
+#. `Troubleshooting <#if-something-goes-wrong>`_
+
 
 What is Linux?
 --------------
+Linux is a clone of the operating system Unix, written from scratch by
+Linus Torvalds with assistance from a loosely-knit team of hackers across
+the Net. It aims towards POSIX and Single UNIX Specification compliance, featuring:
 
-  Linux is a clone of the operating system Unix, written from scratch by
-  Linus Torvalds with assistance from a loosely-knit team of hackers across
-  the Net. It aims towards POSIX and Single UNIX Specification compliance.
+- **Multitasking**: Running multiple processes simultaneously.
+- **Virtual Memory**: Using disk storage to extend RAM.
+- **Shared Libraries**: Reusable code for multiple programs.
+- **Demand Loading**: Loading parts of a program into memory only when needed.
+- **Copy-on-Write Executables**: Efficiently handling duplicate data by delaying the copying process until modification.
+- **Memory Management**: Efficiently handling the system's memory.
+- **Multistack Networking**: Supporting both IPv4 and IPv6 protocols.
 
-  It has all the features you would expect in a modern fully-fledged Unix,
-  including true multitasking, virtual memory, shared libraries, demand
-  loading, shared copy-on-write executables, proper memory management,
-  and multistack networking including IPv4 and IPv6.
 
   It is distributed under the GNU General Public License v2 - see the
   accompanying COPYING file for more details.
 
-On what hardware does it run?
------------------------------
+Supported Hardware
+=======================
 
   Although originally developed first for 32-bit x86-based PCs (386 or higher),
-  today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
-  UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH, Cell,
-  IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64 Xtensa, and
-  ARC architectures.
+  today Linux also runs on (at least)
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Architecture
+     - Description
+   * - **Compaq Alpha AXP**
+     - A 64-bit RISC architecture used in high-performance computing and workstations.
+   * - **Sun SPARC**
+     - A RISC architecture known for its scalability and performance in servers and workstations.
+   * - **UltraSPARC**
+     - An extension of the SPARC architecture with enhancements for higher performance.
+   * - **Motorola 68000**
+     - An older 16/32-bit CISC architecture used in early personal computers and embedded systems.
+   * - **PowerPC**
+     - A RISC architecture used in servers, workstations, and embedded systems, known for its performance and efficiency.
+   * - **PowerPC64**
+     - The 64-bit version of the PowerPC architecture, offering enhanced performance and memory addressing capabilities.
+   * - **ARM**
+     - A widely used RISC architecture known for its low power consumption and high performance, common in mobile and embedded devices.
+   * - **Hitachi SuperH**
+     - A RISC architecture used in embedded systems, known for its simplicity and efficiency.
+   * - **Cell**
+     - A multi-core architecture used in high-performance computing and gaming consoles, known for its parallel processing capabilities.
+   * - **IBM S/390**
+     - A mainframe architecture known for its reliability, scalability, and support for large-scale transaction processing.
+   * - **MIPS**
+     - A RISC architecture used in embedded systems, servers, and workstations, known for its simplicity and efficiency.
+   * - **HP PA-RISC**
+     - A RISC architecture used in high-performance computing and servers, known for its performance and reliability.
+   * - **Intel IA-64**
+     - A 64-bit architecture used in high-performance servers and workstations, designed for scalability and performance.
+   * - **DEC VAX**
+     - An older CISC architecture used in minicomputers and early workstations, known for its influence on computing design.
+   * - **AMD x86-64**
+     - The 64-bit extension of the x86 architecture, offering enhanced performance and memory addressing capabilities, common in desktops and servers.
+   * - **Xtensa**
+     - A customizable RISC architecture used in embedded systems, known for its flexibility and efficiency.
+   * - **ARC**
+     - A RISC architecture used in embedded systems, known for its configurability and performance.
+
 
   Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
@@ -41,75 +96,58 @@ On what hardware does it run?
 
 Documentation
 -------------
+There is a lot of documentation available, both online and in books, covering Linux-specific and general UNIX topics. For Linux-specific information, you can refer to the Linux Documentation Project (LDP) books available on various Linux FTP sites. **This README is not intended to be a comprehensive documentation guide; there are better sources available for detailed information.**
 
- - There is a lot of documentation available both in electronic form on
-   the Internet and in books, both Linux-specific and pertaining to
-   general UNIX questions.  I'd recommend looking into the documentation
-   subdirectories on any Linux FTP site for the LDP (Linux Documentation
-   Project) books.  This README is not meant to be documentation on the
-   system: there are much better sources available.
+Please refer to the `Documentation/process/changes.rst` file for kernel-specific installation notes and information about issues that may arise from upgrading your kernel.
 
- - There are various README files in the Documentation/ subdirectory:
-   these typically contain kernel-specific installation notes for some
-   drivers for example. Please read the
-   :ref:`Documentation/process/changes.rst <changes>` file, as it
-   contains information about the problems, which may result by upgrading
-   your kernel.
-
-Installing the kernel source
+Installing the Kernel Source
 ----------------------------
+To install the full kernel sources, follow these steps:
 
- - If you install the full sources, put the kernel tarball in a
-   directory where you have permissions (e.g. your home directory) and
-   unpack it::
+1. **Download and Unpack the Kernel Source:**
+   Place the kernel tarball in a directory where you have write permissions (e.g., your home directory). Unpack it using the following commands:
 
-     xz -cd linux-6.x.tar.xz | tar xvf -
+   .. code-block:: shell
 
-   Replace "X" with the version number of the latest kernel.
+      xz -cd linux-6.x.tar.xz | tar xvf -
 
-   Do NOT use the /usr/src/linux area! This area has a (usually
-   incomplete) set of kernel headers that are used by the library header
-   files.  They should match the library, and not get messed up by
-   whatever the kernel-du-jour happens to be.
+   Replace **`x`** with the version number of the latest kernel you wish to install.
 
- - You can also upgrade between 6.x releases by patching.  Patches are
-   distributed in the xz format.  To install by patching, get all the
-   newer patch files, enter the top level directory of the kernel source
-   (linux-6.x) and execute::
+   **Note:** **Do not use the `/usr/src/linux` directory.** This location typically contains an incomplete set of kernel headers used by library header files. It is important that these headers match the library and are not affected by the kernel version.
 
-     xz -cd ../patch-6.x.xz | patch -p1
+2. **Upgrading Between Releases:**
+   To upgrade between 6.x releases, you need to apply patches. Patches are distributed in xz format. Follow these steps:
 
-   Replace "x" for all versions bigger than the version "x" of your current
-   source tree, **in_order**, and you should be ok.  You may want to remove
-   the backup files (some-file-name~ or some-file-name.orig), and make sure
-   that there are no failed patches (some-file-name# or some-file-name.rej).
-   If there are, either you or I have made a mistake.
+   - Get all the newer patch files.
+   - Enter the top-level directory of the kernel source (`linux-6.x`).
+   - Apply the patches using the following command:
 
-   Unlike patches for the 6.x kernels, patches for the 6.x.y kernels
-   (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 6.x kernel.  For example, if your base kernel is 6.0
-   and you want to apply the 6.0.3 patch, you must not first apply the 6.0.1
-   and 6.0.2 patches. Similarly, if you are running kernel version 6.0.2 and
-   want to jump to 6.0.3, you must first reverse the 6.0.2 patch (that is,
-   patch -R) **before** applying the 6.0.3 patch. You can read more on this in
-   :ref:`Documentation/process/applying-patches.rst <applying_patches>`.
+     .. code-block:: shell
 
-   Alternatively, the script patch-kernel can be used to automate this
-   process.  It determines the current kernel version and applies any
-   patches found::
+        xz -cd ../patch-6.x.xz | patch -p1
 
-     linux/scripts/patch-kernel linux
+   Replace **`x`** with the appropriate version numbers for the patches. Ensure patches are applied in order. Remove backup files (e.g., `some-file-name~` or `some-file-name.orig`) and check for any failed patches (e.g., `some-file-name#` or `some-file-name.rej`). Address any issues if they occur.
 
-   The first argument in the command above is the location of the
-   kernel source.  Patches are applied from the current directory, but
-   an alternative directory can be specified as the second argument.
+   **Note:** For 6.x.y kernels (also known as -stable kernels), patches apply directly to the base 6.x kernel. For example, if your base kernel is 6.0 and you want to apply the 6.0.3 patch, you must not apply the 6.0.1 and 6.0.2 patches first. If upgrading from 6.0.2 to 6.0.3, reverse the 6.0.2 patch before applying the 6.0.3 patch. Refer to `Documentation/process/applying-patches.rst` for more details.
 
- - Make sure you have no stale .o files and dependencies lying around::
+   Alternatively, you can use the `patch-kernel` script to automate this process:
 
-     cd linux
-     make mrproper
+   .. code-block:: shell
 
-   You should now have the sources correctly installed.
+      linux/scripts/patch-kernel linux
+
+   Here, the first argument specifies the location of the kernel source. By default, patches are applied from the current directory, but you can specify an alternative directory as the second argument.
+
+3. **Clean Up:**
+   Make sure to remove any stale object files and dependencies by running:
+
+   .. code-block:: shell
+
+      cd linux
+      make mrproper
+
+   This ensures that the sources are correctly prepared for use.
+
 
 Software requirements
 ---------------------
@@ -350,11 +388,24 @@ Legacy LILO Instructions
 
 If something goes wrong
 -----------------------
+If you encounter problems that seem to be related to kernel bugs, please follow these guidelines:
 
-If you have problems that seem to be due to kernel bugs, please follow the
-instructions at 'Documentation/admin-guide/reporting-issues.rst'.
+1. **Reporting Kernel Bugs:**
+   Follow the instructions provided in the `Reporting Issues`_ guide.
 
-Hints on understanding kernel bug reports are in
-'Documentation/admin-guide/bug-hunting.rst'. More on debugging the kernel
-with gdb is in 'Documentation/dev-tools/gdb-kernel-debugging.rst' and
-'Documentation/dev-tools/kgdb.rst'.
+2. **Understanding Kernel Bug Reports:**
+   For hints on interpreting kernel bug reports, refer to the `Bug Reporting`_ guide.
+
+3. **Debugging the Kernel:**
+   To learn more about debugging the kernel with `gdb`, consult the following resources:
+   - `GDB Kernel Debugging`_
+   - `KGDB`_
+
+.. _Reporting Issues: https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/reporting-issues.rst
+.. _Bug Hunting: https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/bug-hunting.rst
+.. _GDB Kernel Debugging: https://github.com/torvalds/linux/blob/master/Documentation/dev-tools/gdb-kernel-debugging.rst
+.. _KGDB: https://github.com/torvalds/linux/blob/master/Documentation/dev-tools/kgdb.rst
+
+
+
+
