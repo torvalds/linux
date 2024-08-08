@@ -294,6 +294,6 @@ void btrfs_space_info_update_reclaimable(struct btrfs_space_info *space_info, s6
 void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool ready);
 bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info);
 int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info);
-int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info);
+void btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info);
 
 #endif /* BTRFS_SPACE_INFO_H */

@@ -301,7 +301,6 @@ struct nvme_ctrl {
 
 	struct opal_dev *opal_dev;
 
-	char name[12];
 	u16 cntlid;
 
 	u16 mtfa;

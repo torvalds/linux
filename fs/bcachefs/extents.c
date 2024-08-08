@@ -1017,6 +1017,8 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 
 		prt_printf(out, "ptr: %u:%llu:%u gen %u",
 			   ptr->dev, b, offset, ptr->gen);
+		if (ca->mi.durability != 1)
+			prt_printf(out, " d=%u", ca->mi.durability);
 		if (ptr->cached)
 			prt_str(out, " cached");
 		if (ptr->unwritten)
@@ -1375,6 +1377,45 @@ bool bch2_bkey_needs_rebalance(struct bch_fs *c, struct bkey_s_c k)
 		r = NULL;
 
 	return r != NULL;
+}
+
+static u64 __bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
+				       unsigned target, unsigned compression)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	u64 sectors = 0;
+
+	if (compression) {
+		unsigned compression_type = bch2_compression_opt_to_type(compression);
+
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
+			    p.ptr.unwritten) {
+				sectors = 0;
+				goto incompressible;
+			}
+
+			if (!p.ptr.cached && p.crc.compression_type != compression_type)
+				sectors += p.crc.compressed_size;
+		}
+	}
+incompressible:
+	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, target))
+				sectors += p.crc.compressed_size;
+	}
+
+	return sectors;
+}
+
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
+{
+	const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
+
+	return r ? __bch2_bkey_sectors_need_rebalance(c, k, r->target, r->compression) : 0;
 }
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
