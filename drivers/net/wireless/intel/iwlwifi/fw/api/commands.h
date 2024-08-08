@@ -401,7 +401,7 @@ enum iwl_legacy_cmds {
 	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/**
-	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif
+	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif_v4
 	 */
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
 
