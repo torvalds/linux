@@ -893,6 +893,8 @@ struct bch_fs {
 	struct bch_fs_usage_base __percpu *usage;
 	u64 __percpu		*online_reserved;
 
+	unsigned long		allocator_last_stuck;
+
 	struct io_clock		io_clock[2];
 
 	/* JOURNAL SEQ BLACKLIST */

@@ -1603,7 +1603,8 @@ void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct ope
 	prt_newline(out);
 }
 
-void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
+void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c,
+			       struct bch_dev *ca)
 {
 	struct open_bucket *ob;
 
@@ -1613,7 +1614,8 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
 	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
 	     ob++) {
 		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list)
+		if (ob->valid && !ob->on_partial_list &&
+		    (!ca || ob->dev == ca->dev_idx))
 			bch2_open_bucket_to_text(out, c, ob);
 		spin_unlock(&ob->lock);
 	}
@@ -1756,11 +1758,12 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_printf(out, "buckets to invalidate\t%llu\r\n",	should_invalidate_buckets(ca, stats));
 }
 
-void bch2_print_allocator_stuck(struct bch_fs *c)
+static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 {
 	struct printbuf buf = PRINTBUF;
 
-	prt_printf(&buf, "Allocator stuck? Waited for 10 seconds\n");
+	prt_printf(&buf, "Allocator stuck? Waited for %u seconds\n",
+		   c->opts.allocator_stuck_timeout);
 
 	prt_printf(&buf, "Allocator debug:\n");
 	printbuf_indent_add(&buf, 2);
@@ -1789,4 +1792,25 @@ void bch2_print_allocator_stuck(struct bch_fs *c)
 
 	bch2_print_string_as_lines(KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
+}
+
+static inline unsigned allocator_wait_timeout(struct bch_fs *c)
+{
+	if (c->allocator_last_stuck &&
+	    time_after(c->allocator_last_stuck + HZ * 60 * 2, jiffies))
+		return 0;
+
+	return c->opts.allocator_stuck_timeout * HZ;
+}
+
+void __bch2_wait_on_allocator(struct bch_fs *c, struct closure *cl)
+{
+	unsigned t = allocator_wait_timeout(c);
+
+	if (t && closure_sync_timeout(cl, t)) {
+		c->allocator_last_stuck = jiffies;
+		bch2_print_allocator_stuck(c);
+	}
+
+	closure_sync(cl);
 }
