@@ -10,6 +10,7 @@
 #include <soc/fsl/qe/qmc.h>
 #include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
+#include <linux/firmware.h>
 #include <linux/hdlc.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -1649,6 +1650,66 @@ static irqreturn_t qmc_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
+static int qmc_qe_soft_qmc_init(struct qmc *qmc, struct device_node *np)
+{
+	struct qe_firmware_info *qe_fw_info;
+	const struct qe_firmware *qe_fw;
+	const struct firmware *fw;
+	const char *filename;
+	int ret;
+
+	ret = of_property_read_string(np, "fsl,soft-qmc", &filename);
+	switch (ret) {
+	case 0:
+		break;
+	case -EINVAL:
+		/* fsl,soft-qmc property not set -> Simply do nothing */
+		return 0;
+	default:
+		dev_err(qmc->dev, "%pOF: failed to read fsl,soft-qmc\n",
+			np);
+		return ret;
+	}
+
+	qe_fw_info = qe_get_firmware_info();
+	if (qe_fw_info) {
+		if (!strstr(qe_fw_info->id, "Soft-QMC")) {
+			dev_err(qmc->dev, "Another Firmware is already loaded\n");
+			return -EALREADY;
+		}
+		dev_info(qmc->dev, "Firmware already loaded\n");
+		return 0;
+	}
+
+	dev_info(qmc->dev, "Using firmware %s\n", filename);
+
+	ret = request_firmware(&fw, filename, qmc->dev);
+	if (ret) {
+		dev_err(qmc->dev, "Failed to request firmware %s\n", filename);
+		return ret;
+	}
+
+	qe_fw = (const struct qe_firmware *)fw->data;
+
+	if (fw->size < sizeof(qe_fw->header) ||
+	    be32_to_cpu(qe_fw->header.length) != fw->size) {
+		dev_err(qmc->dev, "Invalid firmware %s\n", filename);
+		ret = -EINVAL;
+		goto end;
+	}
+
+	ret = qe_upload_firmware(qe_fw);
+	if (ret) {
+		dev_err(qmc->dev, "Failed to load firmware %s\n", filename);
+		goto end;
+	}
+
+	ret = 0;
+end:
+	release_firmware(fw);
+	return ret;
+}
+
 static int qmc_cpm1_init_resources(struct qmc *qmc, struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1854,6 +1915,12 @@ static int qmc_probe(struct platform_device *pdev)
 	ret = qmc_init_resources(qmc, pdev);
 	if (ret)
 		return ret;
+
+	if (qmc_is_qe(qmc)) {
+		ret = qmc_qe_soft_qmc_init(qmc, np);
+		if (ret)
+			return ret;
+	}
 
 	/* Parse channels informationss */
 	ret = qmc_of_parse_chans(qmc, np);
