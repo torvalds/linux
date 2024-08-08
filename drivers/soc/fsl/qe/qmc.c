@@ -215,8 +215,17 @@ struct qmc_chan {
 	bool	is_rx_stopped;
 };
 
+struct qmc_data {
+	u32 tstate; /* Initial TSTATE value */
+	u32 rstate; /* Initial RSTATE value */
+	u32 zistate; /* Initial ZISTATE value */
+	u32 zdstate_hdlc; /* Initial ZDSTATE value (HDLC mode) */
+	u32 zdstate_transp; /* Initial ZDSTATE value (Transparent mode) */
+};
+
 struct qmc {
 	struct device *dev;
+	const struct qmc_data *data;
 	struct tsa_serial *tsa_serial;
 	void __iomem *scc_regs;
 	void __iomem *scc_pram;
@@ -543,11 +552,11 @@ int qmc_chan_read_submit(struct qmc_chan *chan, dma_addr_t addr, size_t length,
 	/* Restart receiver if needed */
 	if (chan->is_rx_halted && !chan->is_rx_stopped) {
 		/* Restart receiver */
-		if (chan->mode == QMC_TRANSPARENT)
-			qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x18000080);
-		else
-			qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x00000080);
-		qmc_write32(chan->s_param + QMC_SPE_RSTATE, 0x31000000);
+		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
+			    chan->mode == QMC_TRANSPARENT ?
+				chan->qmc->data->zdstate_transp :
+				chan->qmc->data->zdstate_hdlc);
+		qmc_write32(chan->s_param + QMC_SPE_RSTATE, chan->qmc->data->rstate);
 		chan->is_rx_halted = false;
 	}
 	chan->rx_pending++;
@@ -971,11 +980,11 @@ static int qmc_chan_start_rx(struct qmc_chan *chan)
 	}
 
 	/* Restart the receiver */
-	if (chan->mode == QMC_TRANSPARENT)
-		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x18000080);
-	else
-		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x00000080);
-	qmc_write32(chan->s_param + QMC_SPE_RSTATE, 0x31000000);
+	qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
+		    chan->mode == QMC_TRANSPARENT ?
+			chan->qmc->data->zdstate_transp :
+			chan->qmc->data->zdstate_hdlc);
+	qmc_write32(chan->s_param + QMC_SPE_RSTATE, chan->qmc->data->rstate);
 	chan->is_rx_halted = false;
 
 	chan->is_rx_stopped = false;
@@ -1121,8 +1130,8 @@ static void qmc_chan_reset_tx(struct qmc_chan *chan)
 		    qmc_read16(chan->s_param + QMC_SPE_TBASE));
 
 	/* Reset TSTATE and ZISTATE to their initial value */
-	qmc_write32(chan->s_param + QMC_SPE_TSTATE, 0x30000000);
-	qmc_write32(chan->s_param + QMC_SPE_ZISTATE, 0x00000100);
+	qmc_write32(chan->s_param + QMC_SPE_TSTATE, chan->qmc->data->tstate);
+	qmc_write32(chan->s_param + QMC_SPE_ZISTATE, chan->qmc->data->zistate);
 
 	spin_unlock_irqrestore(&chan->tx_lock, flags);
 }
@@ -1393,11 +1402,11 @@ static int qmc_setup_chan(struct qmc *qmc, struct qmc_chan *chan)
 	val = ((chan->id * (QMC_NB_TXBDS + QMC_NB_RXBDS)) + QMC_NB_TXBDS) * sizeof(cbd_t);
 	qmc_write16(chan->s_param + QMC_SPE_RBASE, val);
 	qmc_write16(chan->s_param + QMC_SPE_RBPTR, val);
-	qmc_write32(chan->s_param + QMC_SPE_TSTATE, 0x30000000);
-	qmc_write32(chan->s_param + QMC_SPE_RSTATE, 0x31000000);
-	qmc_write32(chan->s_param + QMC_SPE_ZISTATE, 0x00000100);
+	qmc_write32(chan->s_param + QMC_SPE_TSTATE, chan->qmc->data->tstate);
+	qmc_write32(chan->s_param + QMC_SPE_RSTATE, chan->qmc->data->rstate);
+	qmc_write32(chan->s_param + QMC_SPE_ZISTATE, chan->qmc->data->zistate);
 	if (chan->mode == QMC_TRANSPARENT) {
-		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x18000080);
+		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, chan->qmc->data->zdstate_transp);
 		qmc_write16(chan->s_param + QMC_SPE_TMRBLR, 60);
 		val = QMC_SPE_CHAMR_MODE_TRANSP;
 		if (chan->is_reverse_data)
@@ -1407,7 +1416,7 @@ static int qmc_setup_chan(struct qmc *qmc, struct qmc_chan *chan)
 		if (ret)
 			return ret;
 	} else {
-		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x00000080);
+		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, chan->qmc->data->zdstate_hdlc);
 		qmc_write16(chan->s_param + QMC_SPE_MFLR, 60);
 		qmc_write16(chan->s_param + QMC_SPE_CHAMR,
 			    QMC_SPE_CHAMR_MODE_HDLC | QMC_SPE_CHAMR_HDLC_IDLM);
@@ -1535,11 +1544,12 @@ static void qmc_irq_gint(struct qmc *qmc)
 			/* Restart the receiver if needed */
 			spin_lock_irqsave(&chan->rx_lock, flags);
 			if (chan->rx_pending && !chan->is_rx_stopped) {
-				if (chan->mode == QMC_TRANSPARENT)
-					qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x18000080);
-				else
-					qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x00000080);
-				qmc_write32(chan->s_param + QMC_SPE_RSTATE, 0x31000000);
+				qmc_write32(chan->s_param + QMC_SPE_ZDSTATE,
+					    chan->mode == QMC_TRANSPARENT ?
+						chan->qmc->data->zdstate_transp :
+						chan->qmc->data->zdstate_hdlc);
+				qmc_write32(chan->s_param + QMC_SPE_RSTATE,
+					    chan->qmc->data->rstate);
 				chan->is_rx_halted = false;
 			} else {
 				chan->is_rx_halted = true;
@@ -1597,6 +1607,11 @@ static int qmc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qmc->dev = &pdev->dev;
+	qmc->data = of_device_get_match_data(&pdev->dev);
+	if (!qmc->data) {
+		dev_err(qmc->dev, "Missing match data\n");
+		return -EINVAL;
+	}
 	INIT_LIST_HEAD(&qmc->chan_head);
 
 	qmc->scc_regs = devm_platform_ioremap_resource_byname(pdev, "scc_regs");
@@ -1752,8 +1767,16 @@ static void qmc_remove(struct platform_device *pdev)
 	tsa_serial_disconnect(qmc->tsa_serial);
 }
 
+static const struct qmc_data qmc_data_cpm1 = {
+	.tstate = 0x30000000,
+	.rstate = 0x31000000,
+	.zistate = 0x00000100,
+	.zdstate_hdlc = 0x00000080,
+	.zdstate_transp = 0x18000080,
+};
+
 static const struct of_device_id qmc_id_table[] = {
-	{ .compatible = "fsl,cpm1-scc-qmc" },
+	{ .compatible = "fsl,cpm1-scc-qmc", .data = &qmc_data_cpm1 },
 	{} /* sentinel */
 };
 MODULE_DEVICE_TABLE(of, qmc_id_table);
