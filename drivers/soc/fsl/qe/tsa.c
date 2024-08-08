@@ -67,34 +67,34 @@
 #define   TSA_CPM1_SIGMR_RDM_DYN_TDMAB		FIELD_PREP_CONST(TSA_CPM1_SIGMR_RDM_MASK, 0x3)
 
 /* SI clock route register (32 bits) */
-#define TSA_SICR	0x0C
-#define   TSA_SICR_SCC2_MASK		GENMASK(15, 8)
-#define   TSA_SICR_SCC2(x)		FIELD_PREP(TSA_SICR_SCC2_MASK, x)
-#define   TSA_SICR_SCC3_MASK		GENMASK(23, 16)
-#define   TSA_SICR_SCC3(x)		FIELD_PREP(TSA_SICR_SCC3_MASK, x)
-#define   TSA_SICR_SCC4_MASK		GENMASK(31, 24)
-#define   TSA_SICR_SCC4(x)		FIELD_PREP(TSA_SICR_SCC4_MASK, x)
-#define     TSA_SICR_SCC_MASK		GENMASK(7, 0)
-#define     TSA_SICR_SCC_GRX		BIT(7)
-#define     TSA_SICR_SCC_SCX_TSA	BIT(6)
-#define     TSA_SICR_SCC_RXCS_MASK	GENMASK(5, 3)
-#define       TSA_SICR_SCC_RXCS_BRG1	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x0)
-#define       TSA_SICR_SCC_RXCS_BRG2	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x1)
-#define       TSA_SICR_SCC_RXCS_BRG3	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x2)
-#define       TSA_SICR_SCC_RXCS_BRG4	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x3)
-#define       TSA_SICR_SCC_RXCS_CLK15	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x4)
-#define       TSA_SICR_SCC_RXCS_CLK26	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x5)
-#define       TSA_SICR_SCC_RXCS_CLK37	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x6)
-#define       TSA_SICR_SCC_RXCS_CLK48	FIELD_PREP_CONST(TSA_SICR_SCC_RXCS_MASK, 0x7)
-#define     TSA_SICR_SCC_TXCS_MASK	GENMASK(2, 0)
-#define       TSA_SICR_SCC_TXCS_BRG1	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x0)
-#define       TSA_SICR_SCC_TXCS_BRG2	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x1)
-#define       TSA_SICR_SCC_TXCS_BRG3	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x2)
-#define       TSA_SICR_SCC_TXCS_BRG4	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x3)
-#define       TSA_SICR_SCC_TXCS_CLK15	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x4)
-#define       TSA_SICR_SCC_TXCS_CLK26	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x5)
-#define       TSA_SICR_SCC_TXCS_CLK37	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x6)
-#define       TSA_SICR_SCC_TXCS_CLK48	FIELD_PREP_CONST(TSA_SICR_SCC_TXCS_MASK, 0x7)
+#define TSA_CPM1_SICR	0x0C
+#define   TSA_CPM1_SICR_SCC2_MASK		GENMASK(15, 8)
+#define   TSA_CPM1_SICR_SCC2(x)			FIELD_PREP(TSA_CPM1_SICR_SCC2_MASK, x)
+#define   TSA_CPM1_SICR_SCC3_MASK		GENMASK(23, 16)
+#define   TSA_CPM1_SICR_SCC3(x)			FIELD_PREP(TSA_CPM1_SICR_SCC3_MASK, x)
+#define   TSA_CPM1_SICR_SCC4_MASK		GENMASK(31, 24)
+#define   TSA_CPM1_SICR_SCC4(x)			FIELD_PREP(TSA_CPM1_SICR_SCC4_MASK, x)
+#define     TSA_CPM1_SICR_SCC_MASK		GENMASK(7, 0)
+#define     TSA_CPM1_SICR_SCC_GRX		BIT(7)
+#define     TSA_CPM1_SICR_SCC_SCX_TSA		BIT(6)
+#define     TSA_CPM1_SICR_SCC_RXCS_MASK		GENMASK(5, 3)
+#define       TSA_CPM1_SICR_SCC_RXCS_BRG1	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x0)
+#define       TSA_CPM1_SICR_SCC_RXCS_BRG2	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x1)
+#define       TSA_CPM1_SICR_SCC_RXCS_BRG3	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x2)
+#define       TSA_CPM1_SICR_SCC_RXCS_BRG4	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x3)
+#define       TSA_CPM1_SICR_SCC_RXCS_CLK15	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x4)
+#define       TSA_CPM1_SICR_SCC_RXCS_CLK26	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x5)
+#define       TSA_CPM1_SICR_SCC_RXCS_CLK37	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x6)
+#define       TSA_CPM1_SICR_SCC_RXCS_CLK48	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_RXCS_MASK, 0x7)
+#define     TSA_CPM1_SICR_SCC_TXCS_MASK		GENMASK(2, 0)
+#define       TSA_CPM1_SICR_SCC_TXCS_BRG1	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x0)
+#define       TSA_CPM1_SICR_SCC_TXCS_BRG2	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x1)
+#define       TSA_CPM1_SICR_SCC_TXCS_BRG3	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x2)
+#define       TSA_CPM1_SICR_SCC_TXCS_BRG4	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x3)
+#define       TSA_CPM1_SICR_SCC_TXCS_CLK15	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x4)
+#define       TSA_CPM1_SICR_SCC_TXCS_CLK26	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x5)
+#define       TSA_CPM1_SICR_SCC_TXCS_CLK37	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x6)
+#define       TSA_CPM1_SICR_SCC_TXCS_CLK48	FIELD_PREP_CONST(TSA_CPM1_SICR_SCC_TXCS_MASK, 0x7)
 
 struct tsa_entries_area {
 	void __iomem *entries_start;
@@ -159,7 +159,7 @@ static inline void tsa_clrsetbits32(void __iomem *addr, u32 clr, u32 set)
 	tsa_write32(addr, (tsa_read32(addr) & ~clr) | set);
 }
 
-int tsa_serial_connect(struct tsa_serial *tsa_serial)
+static int tsa_cpm1_serial_connect(struct tsa_serial *tsa_serial, bool connect)
 {
 	struct tsa *tsa = tsa_serial_get_tsa(tsa_serial);
 	unsigned long flags;
@@ -168,16 +168,16 @@ int tsa_serial_connect(struct tsa_serial *tsa_serial)
 
 	switch (tsa_serial->id) {
 	case FSL_CPM_TSA_SCC2:
-		clear = TSA_SICR_SCC2(TSA_SICR_SCC_MASK);
-		set = TSA_SICR_SCC2(TSA_SICR_SCC_SCX_TSA);
+		clear = TSA_CPM1_SICR_SCC2(TSA_CPM1_SICR_SCC_MASK);
+		set = TSA_CPM1_SICR_SCC2(TSA_CPM1_SICR_SCC_SCX_TSA);
 		break;
 	case FSL_CPM_TSA_SCC3:
-		clear = TSA_SICR_SCC3(TSA_SICR_SCC_MASK);
-		set = TSA_SICR_SCC3(TSA_SICR_SCC_SCX_TSA);
+		clear = TSA_CPM1_SICR_SCC3(TSA_CPM1_SICR_SCC_MASK);
+		set = TSA_CPM1_SICR_SCC3(TSA_CPM1_SICR_SCC_SCX_TSA);
 		break;
 	case FSL_CPM_TSA_SCC4:
-		clear = TSA_SICR_SCC4(TSA_SICR_SCC_MASK);
-		set = TSA_SICR_SCC4(TSA_SICR_SCC_SCX_TSA);
+		clear = TSA_CPM1_SICR_SCC4(TSA_CPM1_SICR_SCC_MASK);
+		set = TSA_CPM1_SICR_SCC4(TSA_CPM1_SICR_SCC_SCX_TSA);
 		break;
 	default:
 		dev_err(tsa->dev, "Unsupported serial id %u\n", tsa_serial->id);
@@ -185,39 +185,22 @@ int tsa_serial_connect(struct tsa_serial *tsa_serial)
 	}
 
 	spin_lock_irqsave(&tsa->lock, flags);
-	tsa_clrsetbits32(tsa->si_regs + TSA_SICR, clear, set);
+	tsa_clrsetbits32(tsa->si_regs + TSA_CPM1_SICR, clear,
+			 connect ? set : 0);
 	spin_unlock_irqrestore(&tsa->lock, flags);
 
 	return 0;
+}
+
+int tsa_serial_connect(struct tsa_serial *tsa_serial)
+{
+	return tsa_cpm1_serial_connect(tsa_serial, true);
 }
 EXPORT_SYMBOL(tsa_serial_connect);
 
 int tsa_serial_disconnect(struct tsa_serial *tsa_serial)
 {
-	struct tsa *tsa = tsa_serial_get_tsa(tsa_serial);
-	unsigned long flags;
-	u32 clear;
-
-	switch (tsa_serial->id) {
-	case FSL_CPM_TSA_SCC2:
-		clear = TSA_SICR_SCC2(TSA_SICR_SCC_MASK);
-		break;
-	case FSL_CPM_TSA_SCC3:
-		clear = TSA_SICR_SCC3(TSA_SICR_SCC_MASK);
-		break;
-	case FSL_CPM_TSA_SCC4:
-		clear = TSA_SICR_SCC4(TSA_SICR_SCC_MASK);
-		break;
-	default:
-		dev_err(tsa->dev, "Unsupported serial id %u\n", tsa_serial->id);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&tsa->lock, flags);
-	tsa_clrsetbits32(tsa->si_regs + TSA_SICR, clear, 0);
-	spin_unlock_irqrestore(&tsa->lock, flags);
-
-	return 0;
+	return tsa_cpm1_serial_connect(tsa_serial, false);
 }
 EXPORT_SYMBOL(tsa_serial_disconnect);
 
