@@ -1325,8 +1325,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		       iwlwifi_mod_params.amsdu_size);
 	}
 
-	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
-
 	trans_cfg.command_groups = iwl_dvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
 

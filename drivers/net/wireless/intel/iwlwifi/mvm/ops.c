@@ -1449,10 +1449,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
 					  driver_data[2]);
 
-	/* Set a short watchdog for the command queue */
-	trans_cfg.cmd_q_wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, NULL, false, true);
-
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
 		 "%.31s", fw->fw_version);
