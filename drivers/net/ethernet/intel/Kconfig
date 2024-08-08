@@ -148,6 +148,7 @@ config IXGBE
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select MDIO
 	select NET_DEVLINK
+	select PLDMFW
 	select PHYLIB
 	help
 	  This driver supports Intel(R) 10GbE PCI Express family of
