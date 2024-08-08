@@ -2255,9 +2255,9 @@ void dcn20_post_unlock_program_front_end(
 			struct timing_generator *tg = pipe->stream_res.tg;
 
 
-			if (tg->funcs->get_double_buffer_pending) {
+			if (tg->funcs->get_optc_double_buffer_pending) {
 				for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_US / polling_interval_us
-				&& tg->funcs->get_double_buffer_pending(tg); j++)
+				&& tg->funcs->get_optc_double_buffer_pending(tg); j++)
 					udelay(polling_interval_us);
 			}
 		}
