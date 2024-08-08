@@ -1018,12 +1018,12 @@ int verify_hwp_req_self_consistency(int cpu, struct msr_hwp_request *req)
 			cpu, req->hwp_min, req->hwp_max);
 	}
 
-	/* fail if desired > max requestd */
+	/* fail if desired > max requested */
 	if (req->hwp_desired && (req->hwp_desired > req->hwp_max)) {
 		errx(1, "cpu%d: requested hwp-desired %d > hwp_max %d",
 			cpu, req->hwp_desired, req->hwp_max);
 	}
-	/* fail if desired < min requestd */
+	/* fail if desired < min requested */
 	if (req->hwp_desired && (req->hwp_desired < req->hwp_min)) {
 		errx(1, "cpu%d: requested hwp-desired %d < requested hwp_min %d",
 			cpu, req->hwp_desired, req->hwp_min);
@@ -1356,13 +1356,13 @@ int req_update_bounds_check(void)
 		return -EINVAL;
 	}
 
-	/* fail if desired > max requestd */
+	/* fail if desired > max requested */
 	if (req_update.hwp_desired && update_hwp_max &&
 	    (req_update.hwp_desired > req_update.hwp_max)) {
 		printf("hwp-desired cannot be greater than hwp_max\n");
 		return -EINVAL;
 	}
-	/* fail if desired < min requestd */
+	/* fail if desired < min requested */
 	if (req_update.hwp_desired && update_hwp_min &&
 	    (req_update.hwp_desired < req_update.hwp_min)) {
 		printf("hwp-desired cannot be less than hwp_min\n");
