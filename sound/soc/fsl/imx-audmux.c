@@ -320,7 +320,6 @@ static void imx_audmux_remove(struct platform_device *pdev)
 		audmux_debugfs_remove();
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int imx_audmux_suspend(struct device *dev)
 {
 	int i;
@@ -348,10 +347,9 @@ static int imx_audmux_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops imx_audmux_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx_audmux_suspend, imx_audmux_resume)
+	SYSTEM_SLEEP_PM_OPS(imx_audmux_suspend, imx_audmux_resume)
 };
 
 static struct platform_driver imx_audmux_driver = {
@@ -359,7 +357,7 @@ static struct platform_driver imx_audmux_driver = {
 	.remove_new	= imx_audmux_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.pm = &imx_audmux_pm,
+		.pm = pm_sleep_ptr(&imx_audmux_pm),
 		.of_match_table = imx_audmux_dt_ids,
 	}
 };
