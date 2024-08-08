@@ -231,6 +231,39 @@ static bool tsa_is_qe(const struct tsa *tsa)
 	return IS_ENABLED(CONFIG_QUICC_ENGINE);
 }
 
+static int tsa_qe_serial_get_num(struct tsa_serial *tsa_serial)
+{
+	struct tsa *tsa = tsa_serial_get_tsa(tsa_serial);
+
+	switch (tsa_serial->id) {
+	case FSL_QE_TSA_UCC1: return 0;
+	case FSL_QE_TSA_UCC2: return 1;
+	case FSL_QE_TSA_UCC3: return 2;
+	case FSL_QE_TSA_UCC4: return 3;
+	case FSL_QE_TSA_UCC5: return 4;
+	default:
+		break;
+	}
+
+	dev_err(tsa->dev, "Unsupported serial id %u\n", tsa_serial->id);
+	return -EINVAL;
+}
+
+int tsa_serial_get_num(struct tsa_serial *tsa_serial)
+{
+	struct tsa *tsa = tsa_serial_get_tsa(tsa_serial);
+
+	/*
+	 * There is no need to get the serial num out of the TSA driver in the
+	 * CPM case.
+	 * Further more, in CPM, we can have 2 types of serial SCCs and FCCs.
+	 * What kind of numbering to use that can be global to both SCCs and
+	 * FCCs ?
+	 */
+	return tsa_is_qe(tsa) ? tsa_qe_serial_get_num(tsa_serial) : -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(tsa_serial_get_num);
+
 static int tsa_cpm1_serial_connect(struct tsa_serial *tsa_serial, bool connect)
 {
 	struct tsa *tsa = tsa_serial_get_tsa(tsa_serial);
@@ -271,26 +304,9 @@ static int tsa_qe_serial_connect(struct tsa_serial *tsa_serial, bool connect)
 	int ucc_num;
 	int ret;
 
-	switch (tsa_serial->id) {
-	case FSL_QE_TSA_UCC1:
-		ucc_num = 0;
-		break;
-	case FSL_QE_TSA_UCC2:
-		ucc_num = 1;
-		break;
-	case FSL_QE_TSA_UCC3:
-		ucc_num = 2;
-		break;
-	case FSL_QE_TSA_UCC4:
-		ucc_num = 3;
-		break;
-	case FSL_QE_TSA_UCC5:
-		ucc_num = 4;
-		break;
-	default:
-		dev_err(tsa->dev, "Unsupported serial id %u\n", tsa_serial->id);
-		return -EINVAL;
-	}
+	ucc_num = tsa_qe_serial_get_num(tsa_serial);
+	if (ucc_num < 0)
+		return ucc_num;
 
 	spin_lock_irqsave(&tsa->lock, flags);
 	ret = ucc_set_qe_mux_tsa(ucc_num, connect);
