@@ -382,8 +382,7 @@ static ssize_t enabled_store(struct config_item *item,
 		netpoll_cleanup(&nt->np);
 	}
 
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
@@ -410,8 +409,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 
 	nt->release = release;
 
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
@@ -437,9 +435,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 
 	nt->extended = extended;
-
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
@@ -481,8 +477,7 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 	ret = kstrtou16(buf, 10, &nt->np.local_port);
 	if (ret < 0)
 		goto out_unlock;
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
@@ -504,8 +499,7 @@ static ssize_t remote_port_store(struct config_item *item,
 	ret = kstrtou16(buf, 10, &nt->np.remote_port);
 	if (ret < 0)
 		goto out_unlock;
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
@@ -515,6 +509,7 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 		size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
+	ssize_t ret = -EINVAL;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
@@ -541,17 +536,17 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 			goto out_unlock;
 	}
 
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return -EINVAL;
+	return ret;
 }
 
 static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 	       size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
+	ssize_t ret = -EINVAL;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
@@ -578,11 +573,10 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 			goto out_unlock;
 	}
 
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return -EINVAL;
+	return ret;
 }
 
 static ssize_t remote_mac_store(struct config_item *item, const char *buf,
@@ -590,6 +584,7 @@ static ssize_t remote_mac_store(struct config_item *item, const char *buf,
 {
 	struct netconsole_target *nt = to_target(item);
 	u8 remote_mac[ETH_ALEN];
+	ssize_t ret = -EINVAL;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
@@ -604,11 +599,10 @@ static ssize_t remote_mac_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	memcpy(nt->np.remote_mac, remote_mac, ETH_ALEN);
 
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return strnlen(buf, count);
+	ret = strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return -EINVAL;
+	return ret;
 }
 
 struct userdatum {
@@ -700,9 +694,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 	ud = to_userdata(item->ci_parent);
 	nt = userdata_to_target(ud);
 	update_userdata(nt);
-
-	mutex_unlock(&dynamic_netconsole_mutex);
-	return count;
+	ret = count;
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return ret;
