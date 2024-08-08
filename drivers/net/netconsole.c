@@ -336,14 +336,14 @@ static ssize_t enabled_store(struct config_item *item,
 	struct netconsole_target *nt = to_target(item);
 	unsigned long flags;
 	bool enabled;
-	ssize_t err;
+	ssize_t ret;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	err = kstrtobool(buf, &enabled);
-	if (err)
+	ret = kstrtobool(buf, &enabled);
+	if (ret)
 		goto out_unlock;
 
-	err = -EINVAL;
+	ret = -EINVAL;
 	if (enabled == nt->enabled) {
 		pr_info("network logging has already %s\n",
 			nt->enabled ? "started" : "stopped");
@@ -365,8 +365,8 @@ static ssize_t enabled_store(struct config_item *item,
 		 */
 		netpoll_print_options(&nt->np);
 
-		err = netpoll_setup(&nt->np);
-		if (err)
+		ret = netpoll_setup(&nt->np);
+		if (ret)
 			goto out_unlock;
 
 		nt->enabled = true;
@@ -386,7 +386,7 @@ static ssize_t enabled_store(struct config_item *item,
 	return strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return err;
+	return ret;
 }
 
 static ssize_t release_store(struct config_item *item, const char *buf,
@@ -394,18 +394,18 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 {
 	struct netconsole_target *nt = to_target(item);
 	bool release;
-	ssize_t err;
+	ssize_t ret;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	err = kstrtobool(buf, &release);
-	if (err)
+	ret = kstrtobool(buf, &release);
+	if (ret)
 		goto out_unlock;
 
 	nt->release = release;
@@ -414,7 +414,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 	return strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return err;
+	return ret;
 }
 
 static ssize_t extended_store(struct config_item *item, const char *buf,
@@ -422,18 +422,18 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 {
 	struct netconsole_target *nt = to_target(item);
 	bool extended;
-	ssize_t err;
+	ssize_t ret;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	err = kstrtobool(buf, &extended);
-	if (err)
+	ret = kstrtobool(buf, &extended);
+	if (ret)
 		goto out_unlock;
 
 	nt->extended = extended;
@@ -442,7 +442,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 	return strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return err;
+	return ret;
 }
 
 static ssize_t dev_name_store(struct config_item *item, const char *buf,
@@ -469,7 +469,7 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 		size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
-	ssize_t rv = -EINVAL;
+	ssize_t ret = -EINVAL;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
@@ -478,21 +478,21 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	}
 
-	rv = kstrtou16(buf, 10, &nt->np.local_port);
-	if (rv < 0)
+	ret = kstrtou16(buf, 10, &nt->np.local_port);
+	if (ret < 0)
 		goto out_unlock;
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return rv;
+	return ret;
 }
 
 static ssize_t remote_port_store(struct config_item *item,
 		const char *buf, size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
-	ssize_t rv = -EINVAL;
+	ssize_t ret = -EINVAL;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
@@ -501,14 +501,14 @@ static ssize_t remote_port_store(struct config_item *item,
 		goto out_unlock;
 	}
 
-	rv = kstrtou16(buf, 10, &nt->np.remote_port);
-	if (rv < 0)
+	ret = kstrtou16(buf, 10, &nt->np.remote_port);
+	if (ret < 0)
 		goto out_unlock;
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return strnlen(buf, count);
 out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
-	return rv;
+	return ret;
 }
 
 static ssize_t local_ip_store(struct config_item *item, const char *buf,
