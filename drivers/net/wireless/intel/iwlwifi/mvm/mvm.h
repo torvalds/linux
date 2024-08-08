@@ -2587,8 +2587,7 @@ u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    bool tdls, bool cmd_q);
+				    struct ieee80211_vif *vif);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
 void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
