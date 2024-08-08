@@ -3618,6 +3618,9 @@ static struct dentry *lookup_fast_for_open(struct nameidata *nd, int open_flag)
 	struct dentry *dentry;
 
 	if (open_flag & O_CREAT) {
+		if (trailing_slashes(nd))
+			return ERR_PTR(-EISDIR);
+
 		/* Don't bother on an O_EXCL create */
 		if (open_flag & O_EXCL)
 			return NULL;
@@ -3684,19 +3687,12 @@ static const char *open_last_lookups(struct nameidata *nd,
 			bool unlazied;
 
 			/* can stay in rcuwalk if not auditing */
-			if (dentry && audit_dummy_context()) {
-				if (trailing_slashes(nd))
-					return ERR_PTR(-EISDIR);
+			if (dentry && audit_dummy_context())
 				goto finish_lookup;
-			}
 			unlazied = dentry ? try_to_unlazy_next(nd, dentry) :
 					    try_to_unlazy(nd);
 			if (!unlazied)
 				return ERR_PTR(-ECHILD);
-		}
-		if (trailing_slashes(nd)) {
-			dput(dentry);
-			return ERR_PTR(-EISDIR);
 		}
 		if (dentry)
 			goto finish_lookup;
