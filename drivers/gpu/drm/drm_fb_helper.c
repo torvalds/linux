@@ -44,6 +44,7 @@
 #include <drm/drm_vblank.h>
 
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
@@ -527,6 +528,7 @@ struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 	fb_helper->info = info;
 	info->skip_vt_switch = true;
 
+	info->skip_panic = drm_panic_is_enabled(fb_helper->dev);
 	return info;
 
 err_release:

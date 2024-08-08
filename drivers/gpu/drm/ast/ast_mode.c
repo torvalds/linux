@@ -1622,6 +1622,8 @@ static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 	struct ast_device *ast = to_ast_device(dev);
 
 	ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+	ast_dp_link_training(ast);
+
 	ast_wait_for_vretrace(ast);
 	ast_dp_set_on_off(dev, 1);
 }

@@ -27,6 +27,8 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_print.h>
 
+#include "drm_crtc_internal.h"
+
 MODULE_AUTHOR("Jocelyn Falempe");
 MODULE_DESCRIPTION("DRM panic handler");
 MODULE_LICENSE("GPL");
@@ -655,11 +657,11 @@ static struct drm_plane *to_drm_plane(struct kmsg_dumper *kd)
 	return container_of(kd, struct drm_plane, kmsg_panic);
 }
 
-static void drm_panic(struct kmsg_dumper *dumper, enum kmsg_dump_reason reason)
+static void drm_panic(struct kmsg_dumper *dumper, struct kmsg_dump_detail *detail)
 {
 	struct drm_plane *plane = to_drm_plane(dumper);
 
-	if (reason == KMSG_DUMP_PANIC)
+	if (detail->reason == KMSG_DUMP_PANIC)
 		draw_panic_plane(plane);
 }
 
@@ -702,6 +704,26 @@ static void debugfs_register_plane(struct drm_plane *plane, int index)
 #else
 static void debugfs_register_plane(struct drm_plane *plane, int index) {}
 #endif /* CONFIG_DRM_PANIC_DEBUG */
+
+/**
+ * drm_panic_is_enabled
+ * @dev: the drm device that may supports drm_panic
+ *
+ * returns true if the drm device supports drm_panic
+ */
+bool drm_panic_is_enabled(struct drm_device *dev)
+{
+	struct drm_plane *plane;
+
+	if (!dev->mode_config.num_total_plane)
+		return false;
+
+	drm_for_each_plane(plane, dev)
+		if (plane->helper_private && plane->helper_private->get_scanout_buffer)
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(drm_panic_is_enabled);
 
 /**
  * drm_panic_register() - Initialize DRM panic for a device

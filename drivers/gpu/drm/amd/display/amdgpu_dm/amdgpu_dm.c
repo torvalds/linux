@@ -6725,6 +6725,14 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
+	} else if (property == dev->mode_config.power_saving_policy) {
+		dm_new_state->abm_forbidden = val & DRM_MODE_REQUIRE_COLOR_ACCURACY;
+		dm_new_state->abm_level = (dm_new_state->abm_forbidden ||
+					   !dm_old_state->abm_level) ?
+						ABM_LEVEL_IMMEDIATE_DISABLE :
+						dm_old_state->abm_level;
+		dm_new_state->psr_forbidden = val & DRM_MODE_REQUIRE_LOW_LATENCY;
+		ret = 0;
 	}
 
 	return ret;
@@ -6767,6 +6775,13 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
 		ret = 0;
+	} else if (property == dev->mode_config.power_saving_policy) {
+		*val = 0;
+		if (dm_state->psr_forbidden)
+			*val |= DRM_MODE_REQUIRE_LOW_LATENCY;
+		if (dm_state->abm_forbidden)
+			*val |= DRM_MODE_REQUIRE_COLOR_ACCURACY;
+		ret = 0;
 	}
 
 	return ret;
@@ -6793,9 +6808,12 @@ static ssize_t panel_power_savings_show(struct device *device,
 	u8 val;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	val = to_dm_connector_state(connector->state)->abm_level ==
-		ABM_LEVEL_IMMEDIATE_DISABLE ? 0 :
-		to_dm_connector_state(connector->state)->abm_level;
+	if (to_dm_connector_state(connector->state)->abm_forbidden)
+		val = 0;
+	else
+		val = to_dm_connector_state(connector->state)->abm_level ==
+			ABM_LEVEL_IMMEDIATE_DISABLE ? 0 :
+			to_dm_connector_state(connector->state)->abm_level;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
 	return sysfs_emit(buf, "%u\n", val);
@@ -6819,9 +6837,15 @@ static ssize_t panel_power_savings_store(struct device *device,
 		return -EINVAL;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	to_dm_connector_state(connector->state)->abm_level = val ?:
-		ABM_LEVEL_IMMEDIATE_DISABLE;
+	if (to_dm_connector_state(connector->state)->abm_forbidden)
+		ret = -EBUSY;
+	else
+		to_dm_connector_state(connector->state)->abm_level = val ?:
+			ABM_LEVEL_IMMEDIATE_DISABLE;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+	if (ret)
+		return ret;
 
 	drm_kms_helper_hotplug_event(dev);
 
@@ -8015,6 +8039,14 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 
 	aconnector->base.state->max_bpc = 16;
 	aconnector->base.state->max_requested_bpc = aconnector->base.state->max_bpc;
+
+	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    (dc_is_dmcu_initialized(adev->dm.dc) ||
+	     adev->dm.dc->ctx->dmub_srv)) {
+		drm_object_attach_property(&aconnector->base.base,
+					   dm->ddev->mode_config.power_saving_policy,
+					   0);
+	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA) {
 		/* Content Type is currently only implemented for HDMI. */
@@ -9716,6 +9748,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
+		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
 		struct dc_surface_update *dummy_updates;
 		struct dc_stream_update stream_update;
@@ -9767,6 +9800,15 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		if (hdr_changed) {
 			fill_hdr_info_packet(new_con_state, &hdr_packet);
 			stream_update.hdr_static_metadata = &hdr_packet;
+		}
+
+		aconnector->disallow_edp_enter_psr = dm_new_con_state->psr_forbidden;
+
+		/* immediately disable PSR if disallowed */
+		if (aconnector->disallow_edp_enter_psr) {
+			mutex_lock(&dm->dc_lock);
+			amdgpu_dm_psr_disable(dm_new_crtc_state->stream);
+			mutex_unlock(&dm->dc_lock);
 		}
 
 		status = dc_stream_get_status(dm_new_crtc_state->stream);

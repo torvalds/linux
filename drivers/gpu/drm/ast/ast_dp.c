@@ -9,11 +9,7 @@
 
 bool ast_astdp_is_connected(struct ast_device *ast)
 {
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING))
-		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))
-		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, AST_IO_VGACRDF_HPD))
 		return false;
 	return true;
 }
@@ -21,70 +17,55 @@ bool ast_astdp_is_connected(struct ast_device *ast)
 int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 {
 	struct ast_device *ast = to_ast_device(dev);
-	u8 i = 0, j = 0;
+	int ret = 0;
+	u8 i;
 
-	/*
-	 * CRD1[b5]: DP MCU FW is executing
-	 * CRDC[b0]: DP link success
-	 * CRDF[b0]: DP HPD
-	 * CRE5[b0]: Host reading EDID process is done
-	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-								ASTDP_HOST_EDID_READ_DONE_MASK))) {
-		goto err_astdp_edid_not_ready;
-	}
-
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							0x00);
+	/* Start reading EDID data */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE, 0x00);
 
 	for (i = 0; i < 32; i++) {
+		unsigned int j;
+
 		/*
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE4,
-				       ASTDP_AND_CLEAR_MASK, (u8)i);
-		j = 0;
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xe4, i);
 
 		/*
 		 * CRD7[b0]: valid flag for EDID
 		 * CRD6[b0]: mirror read pointer for EDID
 		 */
-		while ((ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD7,
-				ASTDP_EDID_VALID_FLAG_MASK) != 0x01) ||
-			(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD6,
-						ASTDP_EDID_READ_POINTER_MASK) != i)) {
+		for (j = 0; j < 200; ++j) {
+			u8 vgacrd7, vgacrd6;
+
 			/*
 			 * Delay are getting longer with each retry.
-			 * 1. The Delays are often 2 loops when users request "Display Settings"
+			 *
+			 * 1. No delay on first try
+			 * 2. The Delays are often 2 loops when users request "Display Settings"
 			 *	  of right-click of mouse.
-			 * 2. The Delays are often longer a lot when system resume from S3/S4.
+			 * 3. The Delays are often longer a lot when system resume from S3/S4.
 			 */
-			mdelay(j+1);
+			if (j)
+				mdelay(j + 1);
 
-			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1,
-							ASTDP_MCU_FW_EXECUTING) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
-							ASTDP_LINK_SUCCESS) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))) {
-				goto err_astdp_jump_out_loop_of_edid;
+			/* Wait for EDID offset to show up in mirror register */
+			vgacrd7 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd7);
+			if (vgacrd7 & AST_IO_VGACRD7_EDID_VALID_FLAG) {
+				vgacrd6 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd6);
+				if (vgacrd6 == i)
+					break;
 			}
-
-			j++;
-			if (j > 200)
-				goto err_astdp_jump_out_loop_of_edid;
+		}
+		if (j == 200) {
+			ret = -EBUSY;
+			goto out;
 		}
 
-		*(ediddata) = ast_get_index_reg_mask(ast, AST_IO_VGACRI,
-							0xD8, ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 1) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD9,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 2) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDA,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 3) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDB,
-								ASTDP_EDID_READ_DATA_MASK);
+		ediddata[0] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd8);
+		ediddata[1] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd9);
+		ediddata[2] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xda);
+		ediddata[3] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdb);
 
 		if (i == 31) {
 			/*
@@ -96,66 +77,47 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 *		The Bytes-126 indicates the Number of extensions to
 			 *		follow. 0 represents noextensions.
 			 */
-			*(ediddata + 3) = *(ediddata + 3) + *(ediddata + 2);
-			*(ediddata + 2) = 0;
+			ediddata[3] = ediddata[3] + ediddata[2];
+			ediddata[2] = 0;
 		}
 
 		ediddata += 4;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
+out:
+	/* Signal end of reading */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
 
-	return 0;
-
-err_astdp_jump_out_loop_of_edid:
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
-	return (~(j+256) + 1);
-
-err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING)))
-		return (~0xD1 + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
-		return (~0xDC + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)))
-		return (~0xDF + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
-		return (~0xE5 + 1);
-
-	return	0;
+	return ret;
 }
 
 /*
  * Launch Aspeed DP
  */
-void ast_dp_launch(struct drm_device *dev)
+int ast_dp_launch(struct ast_device *ast)
 {
-	u32 i = 0;
-	u8 bDPExecute = 1;
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
+	unsigned int i = 10;
 
-	// Wait one second then timeout.
-	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
-		ASTDP_MCU_FW_EXECUTING) {
-		i++;
-		// wait 100 ms
-		msleep(100);
+	while (i) {
+		u8 vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
 
-		if (i >= 10) {
-			// DP would not be ready.
-			bDPExecute = 0;
+		if (vgacrd1 & AST_IO_VGACRD1_MCU_FW_EXECUTING)
 			break;
-		}
+		--i;
+		msleep(100);
+	}
+	if (!i) {
+		drm_err(dev, "Wait DPMCU executing timeout\n");
+		return -ENODEV;
 	}
 
-	if (!bDPExecute)
-		drm_err(dev, "Wait DPMCU executing timeout\n");
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5,
+			       (u8) ~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-			       ASTDP_HOST_EDID_READ_DONE);
+	return 0;
 }
 
 bool ast_dp_power_is_on(struct ast_device *ast)
@@ -181,7 +143,22 @@ void ast_dp_power_on_off(struct drm_device *dev, bool on)
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
 }
 
+void ast_dp_link_training(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	unsigned int i = 10;
 
+	while (i--) {
+		u8 vgacrdc = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdc);
+
+		if (vgacrdc & AST_IO_VGACRDC_LINK_SUCCESS)
+			break;
+		if (i)
+			msleep(100);
+	}
+	if (!i)
+		drm_err(dev, "Link training failed\n");
+}
 
 void ast_dp_set_on_off(struct drm_device *dev, bool on)
 {
@@ -192,17 +169,13 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 	// Video On/Off
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
 
-	// If DP plug in and link successful then check video on / off status
-	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)) {
-		video_on_off <<= 4;
-		while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
+	video_on_off <<= 4;
+	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
 						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
-			// wait 1 ms
-			mdelay(1);
-			if (++i > 200)
-				break;
-		}
+		// wait 1 ms
+		mdelay(1);
+		if (++i > 200)
+			break;
 	}
 }
 

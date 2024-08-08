@@ -8,6 +8,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "mgag200_drv.h"
 
@@ -192,11 +193,8 @@ static void mgag200_g200ev_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	const struct drm_format_info *format = mgag200_crtc_state->format;
 
-	if (funcs->disable_vidrst)
-		funcs->disable_vidrst(mdev);
-
 	mgag200_set_format_regs(mdev, format);
-	mgag200_set_mode_regs(mdev, adjusted_mode);
+	mgag200_set_mode_regs(mdev, adjusted_mode, mgag200_crtc_state->set_vidrst);
 
 	if (funcs->pixpllc_atomic_update)
 		funcs->pixpllc_atomic_update(crtc, old_state);
@@ -210,8 +208,10 @@ static void mgag200_g200ev_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	mgag200_enable_display(mdev);
 
-	if (funcs->enable_vidrst)
-		funcs->enable_vidrst(mdev);
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_start_scanout(mdev);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static const struct drm_crtc_helper_funcs mgag200_g200ev_crtc_helper_funcs = {
@@ -219,7 +219,8 @@ static const struct drm_crtc_helper_funcs mgag200_g200ev_crtc_helper_funcs = {
 	.atomic_check = mgag200_crtc_helper_atomic_check,
 	.atomic_flush = mgag200_crtc_helper_atomic_flush,
 	.atomic_enable = mgag200_g200ev_crtc_helper_atomic_enable,
-	.atomic_disable = mgag200_crtc_helper_atomic_disable
+	.atomic_disable = mgag200_crtc_helper_atomic_disable,
+	.get_scanout_position = mgag200_crtc_helper_get_scanout_position,
 };
 
 static const struct drm_crtc_funcs mgag200_g200ev_crtc_funcs = {
@@ -322,6 +323,10 @@ struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const stru
 
 	drm_mode_config_reset(dev);
 	drm_kms_helper_poll_init(dev);
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return mdev;
 }

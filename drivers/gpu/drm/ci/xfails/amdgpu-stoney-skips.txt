@@ -2,9 +2,9 @@
 .*suspend.*
 
 # Skip driver specific tests
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*

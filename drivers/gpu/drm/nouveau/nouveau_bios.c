@@ -2015,7 +2015,7 @@ uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 static bool NVInitVBIOS(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
+	struct nvkm_bios *bios = nvxx_bios(drm);
 	struct nvbios *legacy = &drm->vbios;
 
 	memset(legacy, 0, sizeof(struct nvbios));
@@ -2086,7 +2086,7 @@ nouveau_bios_init(struct drm_device *dev)
 
 	/* only relevant for PCI devices */
 	if (!dev_is_pci(dev->dev) ||
-	    nvkm_gsp_rm(nvxx_device(&drm->client.device)->gsp))
+	    nvkm_gsp_rm(nvxx_device(drm)->gsp))
 		return 0;
 
 	if (!NVInitVBIOS(dev))

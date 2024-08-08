@@ -969,6 +969,11 @@ struct drm_mode_config {
 	 */
 	struct drm_atomic_state *suspend_state;
 
+	/**
+	 * @power_saving_policy: bitmask for power saving policy requests.
+	 */
+	struct drm_property *power_saving_policy;
+
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 

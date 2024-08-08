@@ -80,6 +80,7 @@ igt-runner \
     --igt-folder /igt/libexec/igt-gpu-tools \
     --caselist $TESTLIST \
     --output /results \
+    -vvvv \
     $IGT_SKIPS \
     $IGT_FLAKES \
     $IGT_FAILS \

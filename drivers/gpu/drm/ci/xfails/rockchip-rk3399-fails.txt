@@ -4,5 +4,5 @@ dumb_buffer@invalid-bpp,Fail
 dumb_buffer@map-invalid-size,Fail
 dumb_buffer@map-uaf,Fail
 dumb_buffer@map-valid,Fail
-panfrost_prime@gem-prime-import,Fail
+panfrost/panfrost_prime@gem-prime-import,Fail
 tools_test@tools_test,Fail

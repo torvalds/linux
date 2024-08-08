@@ -8,6 +8,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "mgag200_drv.h"
 
@@ -280,8 +281,6 @@ static const struct mgag200_device_info mgag200_g200wb_device_info =
 	MGAG200_DEVICE_INFO_INIT(1280, 1024, 31877, true, 0, 1, false);
 
 static const struct mgag200_device_funcs mgag200_g200wb_device_funcs = {
-	.disable_vidrst = mgag200_bmc_disable_vidrst,
-	.enable_vidrst = mgag200_bmc_enable_vidrst,
 	.pixpllc_atomic_check = mgag200_g200wb_pixpllc_atomic_check,
 	.pixpllc_atomic_update = mgag200_g200wb_pixpllc_atomic_update,
 };
@@ -327,6 +326,10 @@ struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const stru
 
 	drm_mode_config_reset(dev);
 	drm_kms_helper_poll_init(dev);
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return mdev;
 }

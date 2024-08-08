@@ -27,28 +27,6 @@
 #include <nvif/if0014.h>
 
 static int
-nvkm_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
-{
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
-	struct nvkm_device *device = chan->disp->engine.subdev.device;
-	u64 size, base = chan->func->user(chan, &size);
-
-	*data = nvkm_rd32(device, base + addr);
-	return 0;
-}
-
-static int
-nvkm_disp_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
-	struct nvkm_device *device = chan->disp->engine.subdev.device;
-	u64 size, base = chan->func->user(chan, &size);
-
-	nvkm_wr32(device, base + addr, data);
-	return 0;
-}
-
-static int
 nvkm_disp_chan_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **pevent)
 {
 	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
@@ -188,8 +166,6 @@ nvkm_disp_chan = {
 	.dtor = nvkm_disp_chan_dtor,
 	.init = nvkm_disp_chan_init,
 	.fini = nvkm_disp_chan_fini,
-	.rd32 = nvkm_disp_chan_rd32,
-	.wr32 = nvkm_disp_chan_wr32,
 	.ntfy = nvkm_disp_chan_ntfy,
 	.map = nvkm_disp_chan_map,
 	.sclass = nvkm_disp_chan_child_get,
