@@ -272,10 +272,10 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 	const char **clk_names;
 	int cnt, i, ret;
 
-	if (!of_find_property(np, "operating-points-v2", NULL))
+	if (!of_property_present(np, "operating-points-v2"))
 		return 0;
 
-	if (of_find_property(np, "freq-table-hz", NULL)) {
+	if (of_property_present(np, "freq-table-hz")) {
 		dev_err(dev, "%s: operating-points and freq-table-hz are incompatible\n",
 			 __func__);
 		return -EINVAL;
