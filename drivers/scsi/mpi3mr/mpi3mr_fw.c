@@ -443,6 +443,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 	u32 admin_reply_ci = mrioc->admin_reply_ci;
 	u32 num_admin_replies = 0;
 	u64 reply_dma = 0;
+	u16 threshold_comps = 0;
 	struct mpi3_default_reply_descriptor *reply_desc;
 
 	if (!atomic_add_unless(&mrioc->admin_reply_q_in_use, 1, 1))
@@ -466,6 +467,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		if (reply_dma)
 			mpi3mr_repost_reply_buf(mrioc, reply_dma);
 		num_admin_replies++;
+		threshold_comps++;
 		if (++admin_reply_ci == mrioc->num_admin_replies) {
 			admin_reply_ci = 0;
 			exp_phase ^= 1;
@@ -476,6 +478,11 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		if ((le16_to_cpu(reply_desc->reply_flags) &
 		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+		if (threshold_comps == MPI3MR_THRESHOLD_REPLY_COUNT) {
+			writel(admin_reply_ci,
+			    &mrioc->sysif_regs->admin_reply_queue_ci);
+			threshold_comps = 0;
+		}
 	} while (1);
 
 	writel(admin_reply_ci, &mrioc->sysif_regs->admin_reply_queue_ci);
@@ -529,7 +536,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	u32 num_op_reply = 0;
 	u64 reply_dma = 0;
 	struct mpi3_default_reply_descriptor *reply_desc;
-	u16 req_q_idx = 0, reply_qidx;
+	u16 req_q_idx = 0, reply_qidx, threshold_comps = 0;
 
 	reply_qidx = op_reply_q->qid - 1;
 
@@ -560,6 +567,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 		if (reply_dma)
 			mpi3mr_repost_reply_buf(mrioc, reply_dma);
 		num_op_reply++;
+		threshold_comps++;
 
 		if (++reply_ci == op_reply_q->num_replies) {
 			reply_ci = 0;
@@ -581,13 +589,19 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 			break;
 		}
 #endif
+		if (threshold_comps == MPI3MR_THRESHOLD_REPLY_COUNT) {
+			writel(reply_ci,
+			    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].consumer_index);
+			atomic_sub(threshold_comps, &op_reply_q->pend_ios);
+			threshold_comps = 0;
+		}
 	} while (1);
 
 	writel(reply_ci,
 	    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].consumer_index);
 	op_reply_q->ci = reply_ci;
 	op_reply_q->ephase = exp_phase;
-
+	atomic_sub(threshold_comps, &op_reply_q->pend_ios);
 	atomic_dec(&op_reply_q->in_use);
 	return num_op_reply;
 }
