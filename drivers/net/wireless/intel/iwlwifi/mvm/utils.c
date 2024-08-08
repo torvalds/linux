@@ -297,6 +297,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
+	/* SMPS is handled by firmware */
+	if (iwl_mvm_has_rlc_offload(mvm))
+		return;
+
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (WARN_ON_ONCE(!mvmvif->link[link_id]))

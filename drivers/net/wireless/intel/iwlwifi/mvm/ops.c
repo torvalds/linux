@@ -261,6 +261,12 @@ static void iwl_mvm_rx_thermal_dual_chain_req(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_thermal_dual_chain_request *req = (void *)pkt->data;
 
+	/* firmware is expected to handle that in RLC offload mode */
+	if (IWL_FW_CHECK(mvm, iwl_mvm_has_rlc_offload(mvm),
+			 "Got THERMAL_DUAL_CHAIN_REQUEST (0x%x) in RLC offload mode\n",
+			 req->event))
+		return;
+
 	/*
 	 * We could pass it to the iterator data, but also need to remember
 	 * it for new interfaces that are added while in this state.
