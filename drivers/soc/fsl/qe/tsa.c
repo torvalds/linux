@@ -448,8 +448,8 @@ static int tsa_of_parse_tdms(struct tsa *tsa, struct device_node *np)
 	int i;
 
 	tsa->tdms = 0;
-	tsa->tdm[0].is_enable = false;
-	tsa->tdm[1].is_enable = false;
+	for (i = 0; i < ARRAY_SIZE(tsa->tdm); i++)
+		tsa->tdm[i].is_enable = false;
 
 	for_each_available_child_of_node(np, tdm_np) {
 		ret = of_property_read_u32(tdm_np, "reg", &tdm_id);
@@ -609,7 +609,7 @@ static int tsa_of_parse_tdms(struct tsa *tsa, struct device_node *np)
 	return 0;
 
 err:
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < ARRAY_SIZE(tsa->tdm); i++) {
 		if (tsa->tdm[i].l1rsync_clk) {
 			clk_disable_unprepare(tsa->tdm[i].l1rsync_clk);
 			clk_put(tsa->tdm[i].l1rsync_clk);
@@ -710,7 +710,7 @@ static void tsa_remove(struct platform_device *pdev)
 	struct tsa *tsa = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < ARRAY_SIZE(tsa->tdm); i++) {
 		if (tsa->tdm[i].l1rsync_clk) {
 			clk_disable_unprepare(tsa->tdm[i].l1rsync_clk);
 			clk_put(tsa->tdm[i].l1rsync_clk);
