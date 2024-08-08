@@ -530,7 +530,8 @@ incomplete:
 
 	if (transferred_or_error == 0) {
 		if (__test_and_set_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags)) {
-			subreq->error = -ENODATA;
+			if (rreq->origin != NETFS_DIO_READ)
+				subreq->error = -ENODATA;
 			goto failed;
 		}
 	} else {
@@ -601,9 +602,14 @@ netfs_rreq_prepare_read(struct netfs_io_request *rreq,
 			}
 			if (subreq->len > ictx->zero_point - subreq->start)
 				subreq->len = ictx->zero_point - subreq->start;
+
+			/* We limit buffered reads to the EOF, but let the
+			 * server deal with larger-than-EOF DIO/unbuffered
+			 * reads.
+			 */
+			if (subreq->len > rreq->i_size - subreq->start)
+				subreq->len = rreq->i_size - subreq->start;
 		}
-		if (subreq->len > rreq->i_size - subreq->start)
-			subreq->len = rreq->i_size - subreq->start;
 		if (rreq->rsize && subreq->len > rreq->rsize)
 			subreq->len = rreq->rsize;
 
@@ -739,10 +745,9 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 	do {
 		_debug("submit %llx + %llx >= %llx",
 		       rreq->start, rreq->submitted, rreq->i_size);
-		if (rreq->origin == NETFS_DIO_READ &&
-		    rreq->start + rreq->submitted >= rreq->i_size)
-			break;
 		if (!netfs_rreq_submit_slice(rreq, &io_iter))
+			break;
+		if (test_bit(NETFS_SREQ_NO_PROGRESS, &rreq->flags))
 			break;
 		if (test_bit(NETFS_RREQ_BLOCKED, &rreq->flags) &&
 		    test_bit(NETFS_RREQ_NONBLOCK, &rreq->flags))
