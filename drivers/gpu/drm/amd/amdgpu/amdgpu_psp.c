@@ -2389,6 +2389,15 @@ static int psp_hw_start(struct psp_context *psp)
 			}
 		}
 
+		if ((is_psp_fw_valid(psp->spdm_drv)) &&
+		    (psp->funcs->bootloader_load_spdm_drv != NULL)) {
+			ret = psp_bootloader_load_spdm_drv(psp);
+			if (ret) {
+				dev_err(adev->dev, "PSP load spdm_drv failed!\n");
+				return ret;
+			}
+		}
+
 		if ((is_psp_fw_valid(psp->sos)) &&
 		    (psp->funcs->bootloader_load_sos != NULL)) {
 			ret = psp_bootloader_load_sos(psp);
@@ -3412,6 +3421,12 @@ static int parse_sos_bin_descriptor(struct psp_context *psp,
 		psp->ipkeymgr_drv.feature_version    = le32_to_cpu(desc->fw_version);
 		psp->ipkeymgr_drv.size_bytes         = le32_to_cpu(desc->size_bytes);
 		psp->ipkeymgr_drv.start_addr         = ucode_start_addr;
+		break;
+	case PSP_FW_TYPE_PSP_SPDM_DRV:
+		psp->spdm_drv.fw_version	= le32_to_cpu(desc->fw_version);
+		psp->spdm_drv.feature_version	= le32_to_cpu(desc->fw_version);
+		psp->spdm_drv.size_bytes	= le32_to_cpu(desc->size_bytes);
+		psp->spdm_drv.start_addr	= ucode_start_addr;
 		break;
 	default:
 		dev_warn(psp->adev->dev, "Unsupported PSP FW type: %d\n", desc->fw_type);
