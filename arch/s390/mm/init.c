@@ -108,6 +108,8 @@ void mark_rodata_ro(void)
 {
 	unsigned long size = __end_ro_after_init - __start_ro_after_init;
 
+	if (MACHINE_HAS_NX)
+		system_ctl_set_bit(0, CR0_INSTRUCTION_EXEC_PROTECTION_BIT);
 	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 }
@@ -168,13 +170,6 @@ void __init mem_init(void)
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
-}
-
-void free_initmem(void)
-{
-	set_memory_rwnx((unsigned long)_sinittext,
-			(unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
-	free_initmem_default(POISON_FREE_INITMEM);
 }
 
 unsigned long memory_block_size_bytes(void)
