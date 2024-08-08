@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2010,2015,2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -136,6 +136,9 @@ int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 	dma_addr_t cmd_phys;
 	__le32 *arg_buf;
 	const __le32 *res_buf;
+
+	if (!dev)
+		return -EPROBE_DEFER;
 
 	cmd = kzalloc(PAGE_ALIGN(alloc_len), GFP_KERNEL);
 	if (!cmd)
