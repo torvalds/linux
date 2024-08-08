@@ -635,15 +635,38 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	 * individually by clearing/setting MSB of each associated register. So,
 	 * we set all alarm enable bits to disable current alarm setting.
 	 */
-	mask = (ABB5ZES3_REG_ALRM_MN_AE | ABB5ZES3_REG_ALRM_HR_AE |
-		ABB5ZES3_REG_ALRM_DT_AE | ABB5ZES3_REG_ALRM_DW_AE);
-	ret = regmap_update_bits(regmap, ABB5ZES3_REG_CTRL2, mask, mask);
+	mask = (ABB5ZES3_REG_ALRM_MN_AE);
+	ret = regmap_update_bits(regmap, ABB5ZES3_REG_ALRM_MN, mask, mask);
 	if (ret < 0) {
-		dev_err(dev, "%s: unable to disable alarm setting (%d)\n",
+		dev_err(dev, "%s: unable to disable minute alarm setting (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+	
+	mask = (ABB5ZES3_REG_ALRM_HR_AE);
+	ret = regmap_update_bits(regmap, ABB5ZES3_REG_ALRM_HR, mask, mask);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to disable hour alarm setting (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+	
+	mask = (ABB5ZES3_REG_ALRM_DT_AE);
+	ret = regmap_update_bits(regmap, ABB5ZES3_REG_ALRM_DT, mask, mask);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to disable day alarm setting (%d)\n",
 			__func__, ret);
 		return ret;
 	}
 
+	mask = (ABB5ZES3_REG_ALRM_DW_AE);
+	ret = regmap_update_bits(regmap, ABB5ZES3_REG_ALRM_DW, mask, mask);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to disable weekday alarm setting (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+	
 	/* Set Control 1 register (RTC enabled, 24hr mode, all int. disabled) */
 	mask = (ABB5ZES3_REG_CTRL1_CIE | ABB5ZES3_REG_CTRL1_AIE |
 		ABB5ZES3_REG_CTRL1_SIE | ABB5ZES3_REG_CTRL1_PM |
