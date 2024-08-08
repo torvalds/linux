@@ -39,7 +39,7 @@ The superblocks
 ---------------
 
 The superblock contains all global information about the filesystem.
-Each qnx6fs got two superblocks, each one having a 64bit serial number.
+Each qnx6fs has two superblocks, each one having a 64bit serial number.
 That serial number is used to identify the "active" superblock.
 In write mode with reach new snapshot (after each synchronous write), the
 serial of the new master superblock is increased (old superblock serial + 1)
@@ -111,7 +111,7 @@ name with an inode number.
 
 '..' inode number points to the parent directory inode
 
-Eeach filename record additionally got a filename length field.
+Each filename record additionally got a filename length field.
 
 One special case are long filenames or subdirectory names.
 
