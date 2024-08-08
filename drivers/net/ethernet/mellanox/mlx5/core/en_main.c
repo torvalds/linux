@@ -5296,7 +5296,7 @@ static void mlx5e_get_queue_stats_rx(struct net_device *dev, int i,
 	struct mlx5e_rq_stats *rq_stats;
 
 	ASSERT_RTNL();
-	if (mlx5e_is_uplink_rep(priv))
+	if (mlx5e_is_uplink_rep(priv) || !priv->stats_nch)
 		return;
 
 	channel_stats = priv->channel_stats[i];
@@ -5316,6 +5316,9 @@ static void mlx5e_get_queue_stats_tx(struct net_device *dev, int i,
 	struct mlx5e_sq_stats *sq_stats;
 
 	ASSERT_RTNL();
+	if (!priv->stats_nch)
+		return;
+
 	/* no special case needed for ptp htb etc since txq2sq_stats is kept up
 	 * to date for active sq_stats, otherwise get_base_stats takes care of
 	 * inactive sqs.
