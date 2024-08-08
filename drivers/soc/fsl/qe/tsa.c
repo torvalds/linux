@@ -18,18 +18,18 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/* TSA SI RAM routing tables entry */
-#define TSA_SIRAM_ENTRY_LAST		BIT(16)
-#define TSA_SIRAM_ENTRY_BYTE		BIT(17)
-#define TSA_SIRAM_ENTRY_CNT_MASK	GENMASK(21, 18)
-#define TSA_SIRAM_ENTRY_CNT(x)		FIELD_PREP(TSA_SIRAM_ENTRY_CNT_MASK, x)
-#define TSA_SIRAM_ENTRY_CSEL_MASK	GENMASK(24, 22)
-#define TSA_SIRAM_ENTRY_CSEL_NU		FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x0)
-#define TSA_SIRAM_ENTRY_CSEL_SCC2	FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x2)
-#define TSA_SIRAM_ENTRY_CSEL_SCC3	FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x3)
-#define TSA_SIRAM_ENTRY_CSEL_SCC4	FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x4)
-#define TSA_SIRAM_ENTRY_CSEL_SMC1	FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x5)
-#define TSA_SIRAM_ENTRY_CSEL_SMC2	FIELD_PREP_CONST(TSA_SIRAM_ENTRY_CSEL_MASK, 0x6)
+/* TSA SI RAM routing tables entry (CPM1) */
+#define TSA_CPM1_SIRAM_ENTRY_LAST	BIT(16)
+#define TSA_CPM1_SIRAM_ENTRY_BYTE	BIT(17)
+#define TSA_CPM1_SIRAM_ENTRY_CNT_MASK	GENMASK(21, 18)
+#define TSA_CPM1_SIRAM_ENTRY_CNT(x)	FIELD_PREP(TSA_CPM1_SIRAM_ENTRY_CNT_MASK, x)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_MASK	GENMASK(24, 22)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_NU	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x0)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_SCC2	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x2)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_SCC3	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x3)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_SCC4	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x4)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_SMC1	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x5)
+#define TSA_CPM1_SIRAM_ENTRY_CSEL_SMC2	FIELD_PREP_CONST(TSA_CPM1_SIRAM_ENTRY_CSEL_MASK, 0x6)
 
 /* SI mode register (32 bits) */
 #define TSA_SIMODE	0x00
@@ -228,8 +228,8 @@ int tsa_serial_get_info(struct tsa_serial *tsa_serial, struct tsa_serial_info *i
 }
 EXPORT_SYMBOL(tsa_serial_get_info);
 
-static void tsa_init_entries_area(struct tsa *tsa, struct tsa_entries_area *area,
-				  u32 tdms, u32 tdm_id, bool is_rx)
+static void tsa_cpm1_init_entries_area(struct tsa *tsa, struct tsa_entries_area *area,
+				       u32 tdms, u32 tdm_id, bool is_rx)
 {
 	resource_size_t quarter;
 	resource_size_t half;
@@ -280,7 +280,13 @@ static void tsa_init_entries_area(struct tsa *tsa, struct tsa_entries_area *area
 	}
 }
 
-static const char *tsa_serial_id2name(struct tsa *tsa, u32 serial_id)
+static void tsa_init_entries_area(struct tsa *tsa, struct tsa_entries_area *area,
+				  u32 tdms, u32 tdm_id, bool is_rx)
+{
+	tsa_cpm1_init_entries_area(tsa, area, tdms, tdm_id, is_rx);
+}
+
+static const char *tsa_cpm1_serial_id2name(struct tsa *tsa, u32 serial_id)
 {
 	switch (serial_id) {
 	case FSL_CPM_TSA_NU:	return "Not used";
@@ -295,22 +301,27 @@ static const char *tsa_serial_id2name(struct tsa *tsa, u32 serial_id)
 	return NULL;
 }
 
-static u32 tsa_serial_id2csel(struct tsa *tsa, u32 serial_id)
+static const char *tsa_serial_id2name(struct tsa *tsa, u32 serial_id)
+{
+	return tsa_cpm1_serial_id2name(tsa, serial_id);
+}
+
+static u32 tsa_cpm1_serial_id2csel(struct tsa *tsa, u32 serial_id)
 {
 	switch (serial_id) {
-	case FSL_CPM_TSA_SCC2:	return TSA_SIRAM_ENTRY_CSEL_SCC2;
-	case FSL_CPM_TSA_SCC3:	return TSA_SIRAM_ENTRY_CSEL_SCC3;
-	case FSL_CPM_TSA_SCC4:	return TSA_SIRAM_ENTRY_CSEL_SCC4;
-	case FSL_CPM_TSA_SMC1:	return TSA_SIRAM_ENTRY_CSEL_SMC1;
-	case FSL_CPM_TSA_SMC2:	return TSA_SIRAM_ENTRY_CSEL_SMC2;
+	case FSL_CPM_TSA_SCC2:	return TSA_CPM1_SIRAM_ENTRY_CSEL_SCC2;
+	case FSL_CPM_TSA_SCC3:	return TSA_CPM1_SIRAM_ENTRY_CSEL_SCC3;
+	case FSL_CPM_TSA_SCC4:	return TSA_CPM1_SIRAM_ENTRY_CSEL_SCC4;
+	case FSL_CPM_TSA_SMC1:	return TSA_CPM1_SIRAM_ENTRY_CSEL_SMC1;
+	case FSL_CPM_TSA_SMC2:	return TSA_CPM1_SIRAM_ENTRY_CSEL_SMC2;
 	default:
 		break;
 	}
-	return TSA_SIRAM_ENTRY_CSEL_NU;
+	return TSA_CPM1_SIRAM_ENTRY_CSEL_NU;
 }
 
-static int tsa_add_entry(struct tsa *tsa, struct tsa_entries_area *area,
-			 u32 count, u32 serial_id)
+static int tsa_cpm1_add_entry(struct tsa *tsa, struct tsa_entries_area *area,
+			      u32 count, u32 serial_id)
 {
 	void __iomem *addr;
 	u32 left;
@@ -328,21 +339,21 @@ static int tsa_add_entry(struct tsa *tsa, struct tsa_entries_area *area,
 
 	if (area->last_entry) {
 		/* Clear last flag */
-		tsa_clrbits32(area->last_entry, TSA_SIRAM_ENTRY_LAST);
+		tsa_clrbits32(area->last_entry, TSA_CPM1_SIRAM_ENTRY_LAST);
 	}
 
 	left = count;
 	while (left) {
-		val = TSA_SIRAM_ENTRY_BYTE | tsa_serial_id2csel(tsa, serial_id);
+		val = TSA_CPM1_SIRAM_ENTRY_BYTE | tsa_cpm1_serial_id2csel(tsa, serial_id);
 
 		if (left > 16) {
 			cnt = 16;
 		} else {
 			cnt = left;
-			val |= TSA_SIRAM_ENTRY_LAST;
+			val |= TSA_CPM1_SIRAM_ENTRY_LAST;
 			area->last_entry = addr;
 		}
-		val |= TSA_SIRAM_ENTRY_CNT(cnt - 1);
+		val |= TSA_CPM1_SIRAM_ENTRY_CNT(cnt - 1);
 
 		tsa_write32(addr, val);
 		addr += 4;
@@ -350,6 +361,12 @@ static int tsa_add_entry(struct tsa *tsa, struct tsa_entries_area *area,
 	}
 
 	return 0;
+}
+
+static int tsa_add_entry(struct tsa *tsa, struct tsa_entries_area *area,
+			 u32 count, u32 serial_id)
+{
+	return tsa_cpm1_add_entry(tsa, area, count, serial_id);
 }
 
 static int tsa_of_parse_tdm_route(struct tsa *tsa, struct device_node *tdm_np,
@@ -636,7 +653,7 @@ static void tsa_init_si_ram(struct tsa *tsa)
 
 	/* Fill all entries as the last one */
 	for (i = 0; i < tsa->si_ram_sz; i += 4)
-		tsa_write32(tsa->si_ram + i, TSA_SIRAM_ENTRY_LAST);
+		tsa_write32(tsa->si_ram + i, TSA_CPM1_SIRAM_ENTRY_LAST);
 }
 
 static int tsa_probe(struct platform_device *pdev)
