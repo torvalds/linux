@@ -88,7 +88,6 @@ struct sixpack {
 	struct net_device	*dev;		/* easy for intr handling  */
 
 	/* These are pointers to the malloc()ed frame buffers. */
-	unsigned char		*rbuff;		/* receiver buffer	*/
 	int			rcount;         /* received chars counter  */
 	unsigned char		*xbuff;		/* transmitter buffer	*/
 	unsigned char		*xhead;         /* next byte to XMIT */
@@ -544,7 +543,7 @@ static inline int tnc_init(struct sixpack *sp)
  */
 static int sixpack_open(struct tty_struct *tty)
 {
-	char *rbuff = NULL, *xbuff = NULL;
+	char *xbuff = NULL;
 	struct net_device *dev;
 	struct sixpack *sp;
 	unsigned long len;
@@ -574,10 +573,8 @@ static int sixpack_open(struct tty_struct *tty)
 
 	len = dev->mtu * 2;
 
-	rbuff = kmalloc(len + 4, GFP_KERNEL);
 	xbuff = kmalloc(len + 4, GFP_KERNEL);
-
-	if (rbuff == NULL || xbuff == NULL) {
+	if (xbuff == NULL) {
 		err = -ENOBUFS;
 		goto out_free;
 	}
@@ -586,7 +583,6 @@ static int sixpack_open(struct tty_struct *tty)
 
 	sp->tty = tty;
 
-	sp->rbuff	= rbuff;
 	sp->xbuff	= xbuff;
 
 	sp->mtu		= AX25_MTU + 73;
@@ -631,7 +627,6 @@ static int sixpack_open(struct tty_struct *tty)
 
 out_free:
 	kfree(xbuff);
-	kfree(rbuff);
 
 	free_netdev(dev);
 
@@ -676,7 +671,6 @@ static void sixpack_close(struct tty_struct *tty)
 	del_timer_sync(&sp->resync_t);
 
 	/* Free all 6pack frame buffers after unreg. */
-	kfree(sp->rbuff);
 	kfree(sp->xbuff);
 
 	free_netdev(sp->dev);
