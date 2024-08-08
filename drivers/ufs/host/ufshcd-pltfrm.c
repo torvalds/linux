@@ -31,7 +31,6 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	const char *name;
 	u32 *clkfreq = NULL;
 	struct ufs_clk_info *clki;
-	int len = 0;
 	size_t sz = 0;
 
 	if (!np)
@@ -50,15 +49,12 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	if (cnt <= 0)
 		goto out;
 
-	if (!of_get_property(np, "freq-table-hz", &len)) {
+	sz = of_property_count_u32_elems(np, "freq-table-hz");
+	if (sz <= 0) {
 		dev_info(dev, "freq-table-hz property not specified\n");
 		goto out;
 	}
 
-	if (len <= 0)
-		goto out;
-
-	sz = len / sizeof(*clkfreq);
 	if (sz != 2 * cnt) {
 		dev_err(dev, "%s len mismatch\n", "freq-table-hz");
 		ret = -EINVAL;
