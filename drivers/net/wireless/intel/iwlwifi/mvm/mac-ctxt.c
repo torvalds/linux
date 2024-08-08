@@ -1664,10 +1664,27 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 				 "missed_beacons:%d, missed_beacons_since_rx:%d\n",
 				 rx_missed_bcon, rx_missed_bcon_since_rx);
 		}
-	} else if (rx_missed_bcon >= IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH &&
-		   link_id >= 0 && hweight16(vif->active_links) > 1) {
-		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_MISSED_BEACON,
-				 iwl_mvm_get_other_link(vif, link_id));
+	} else if (link_id >= 0 && hweight16(vif->active_links) > 1) {
+		u32 scnd_lnk_bcn_lost = 0;
+
+		if (notif_ver >= 5 &&
+		    !IWL_FW_CHECK(mvm,
+				  le32_to_cpu(mb->other_link_id) == IWL_MVM_FW_LINK_ID_INVALID,
+				  "No data for other link id but we are in EMLSR active_links: 0x%x\n",
+				  vif->active_links))
+			scnd_lnk_bcn_lost =
+				le32_to_cpu(mb->consec_missed_beacons_other_link);
+
+		/* Exit EMLSR if we lost more than
+		 * IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH beacons on boths links
+		 * OR more than IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH on any link.
+		 */
+		if ((rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_2_LINKS &&
+		     scnd_lnk_bcn_lost >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH_2_LINKS) ||
+		    rx_missed_bcon >= IWL_MVM_BCN_LOSS_EXIT_ESR_THRESH)
+			iwl_mvm_exit_esr(mvm, vif,
+					 IWL_MVM_ESR_EXIT_MISSED_BEACON,
+					 iwl_mvm_get_primary_link(vif));
 	} else if (rx_missed_bcon_since_rx > IWL_MVM_MISSED_BEACONS_THRESHOLD) {
 		if (!iwl_mvm_has_new_tx_api(mvm))
 			ieee80211_beacon_loss(vif);
