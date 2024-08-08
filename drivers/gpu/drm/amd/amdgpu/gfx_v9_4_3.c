@@ -4362,8 +4362,9 @@ static void gfx_v9_4_3_ring_insert_nop(struct amdgpu_ring *ring, uint32_t num_no
 static void gfx_v9_4_3_ip_print(void *handle, struct drm_printer *p)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	uint32_t i;
-	uint32_t xcc_id, xcc_offset, num_xcc;
+	uint32_t i, j, k;
+	uint32_t xcc_id, xcc_offset, inst_offset;
+	uint32_t num_xcc, reg, num_inst;
 	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_9_4_3);
 
 	if (!adev->gfx.ip_dump_core)
@@ -4378,6 +4379,43 @@ static void gfx_v9_4_3_ip_print(void *handle, struct drm_printer *p)
 			drm_printf(p, "%-50s \t 0x%08x\n",
 				   gc_reg_list_9_4_3[i].reg_name,
 				   adev->gfx.ip_dump_core[xcc_offset + i]);
+	}
+
+	/* print compute queue registers for all instances */
+	if (!adev->gfx.ip_dump_compute_queues)
+		return;
+
+	num_inst = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec *
+		adev->gfx.mec.num_queue_per_pipe;
+
+	reg_count = ARRAY_SIZE(gc_cp_reg_list_9_4_3);
+	drm_printf(p, "\nnum_xcc: %d num_mec: %d num_pipe: %d num_queue: %d\n",
+		   num_xcc,
+		   adev->gfx.mec.num_mec,
+		   adev->gfx.mec.num_pipe_per_mec,
+		   adev->gfx.mec.num_queue_per_pipe);
+
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		xcc_offset = xcc_id * reg_count * num_inst;
+		inst_offset = 0;
+		for (i = 0; i < adev->gfx.mec.num_mec; i++) {
+			for (j = 0; j < adev->gfx.mec.num_pipe_per_mec; j++) {
+				for (k = 0; k < adev->gfx.mec.num_queue_per_pipe; k++) {
+					drm_printf(p,
+						   "\nxcc:%d mec:%d, pipe:%d, queue:%d\n",
+						    xcc_id, i, j, k);
+					for (reg = 0; reg < reg_count; reg++) {
+						drm_printf(p,
+							   "%-50s \t 0x%08x\n",
+							   gc_cp_reg_list_9_4_3[reg].reg_name,
+							   adev->gfx.ip_dump_compute_queues
+								[xcc_offset + inst_offset +
+								reg]);
+					}
+					inst_offset += reg_count;
+				}
+			}
+		}
 	}
 }
 
