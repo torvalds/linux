@@ -56,8 +56,8 @@ struct buf_sel_arg {
 	struct iovec *iovs;
 	size_t out_len;
 	size_t max_len;
-	int nr_iovs;
-	int mode;
+	unsigned short nr_iovs;
+	unsigned short mode;
 };
 
 void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
