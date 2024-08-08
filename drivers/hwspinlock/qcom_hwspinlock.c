@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/soc/qcom/qcom_hwspinlock.h>
 #include <linux/regmap.h>
 
 #include "hwspinlock_internal.h"
@@ -24,6 +25,43 @@ struct qcom_hwspinlock_of_data {
 	u32 stride;
 	const struct regmap_config *regmap_config;
 };
+
+/**
+ * qcom_hwspinlock_bust() - bust qcom specific hwspinlock
+ * @hwlock: a previously-acquired hwspinlock which we want to bust
+ * @id: identifier of the remote lock holder, if applicable
+ *
+ * This function will bust a hwspinlock that was previously acquired as
+ * long as the current owner of the lock matches the id given by the caller.
+ *
+ * Context: Process context.
+ *
+ * Returns: 0 on success, or error if bust operation fails
+ */
+int qcom_hwspinlock_bust(struct hwspinlock *lock, unsigned int id)
+{
+	struct regmap_field *field = lock->priv;
+	u32 owner;
+	int ret;
+
+	ret = regmap_field_read(field, &owner);
+	if (ret) {
+		pr_err("%s: unable to query spinlock owner\n", __func__);
+		return ret;
+	}
+
+	if (owner != id)
+		return 0;
+
+	ret = regmap_field_write(field, 0);
+	if (ret) {
+		pr_err("%s: failed to bust spinlock\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_hwspinlock_bust);
 
 static int qcom_hwspinlock_trylock(struct hwspinlock *lock)
 {
