@@ -215,7 +215,12 @@ struct qmc_chan {
 	bool	is_rx_stopped;
 };
 
+enum qmc_version {
+	QMC_CPM1,
+};
+
 struct qmc_data {
+	enum qmc_version version;
 	u32 tstate; /* Initial TSTATE value */
 	u32 rstate; /* Initial RSTATE value */
 	u32 zistate; /* Initial ZISTATE value */
@@ -1811,6 +1816,7 @@ static void qmc_remove(struct platform_device *pdev)
 }
 
 static const struct qmc_data qmc_data_cpm1 = {
+	.version = QMC_CPM1,
 	.tstate = 0x30000000,
 	.rstate = 0x31000000,
 	.zistate = 0x00000100,
