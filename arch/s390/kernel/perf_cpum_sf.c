@@ -393,8 +393,8 @@ static void sfb_set_limits(unsigned long min, unsigned long max)
 	CPUM_SF_MAX_SDB = max;
 
 	memset(&si, 0, sizeof(si));
-	if (!qsi(&si))
-		CPUM_SF_SDB_DIAG_FACTOR = DIV_ROUND_UP(si.dsdes, si.bsdes);
+	qsi(&si);
+	CPUM_SF_SDB_DIAG_FACTOR = DIV_ROUND_UP(si.dsdes, si.bsdes);
 }
 
 static unsigned long sfb_max_limit(struct hw_perf_event *hwc)
@@ -607,18 +607,14 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 
 #define PMC_INIT      0
 #define PMC_RELEASE   1
-#define PMC_FAILURE   2
 static void setup_pmc_cpu(void *flags)
 {
 	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
-	int err = 0;
 
 	switch (*((int *)flags)) {
 	case PMC_INIT:
 		memset(cpuhw, 0, sizeof(*cpuhw));
-		err = qsi(&cpuhw->qsi);
-		if (err)
-			break;
+		qsi(&cpuhw->qsi);
 		cpuhw->flags |= PMU_F_RESERVED;
 		sf_disable();
 		break;
@@ -627,10 +623,6 @@ static void setup_pmc_cpu(void *flags)
 		sf_disable();
 		deallocate_buffers(cpuhw);
 		break;
-	}
-	if (err) {
-		*((int *)flags) |= PMC_FAILURE;
-		pr_err("Switching off the sampling facility failed with rc %i\n", err);
 	}
 }
 
@@ -642,18 +634,12 @@ static void release_pmc_hardware(void)
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
 }
 
-static int reserve_pmc_hardware(void)
+static void reserve_pmc_hardware(void)
 {
 	int flags = PMC_INIT;
 
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
-	if (flags & PMC_FAILURE) {
-		release_pmc_hardware();
-		return -ENODEV;
-	}
 	irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
-
-	return 0;
 }
 
 static void hw_perf_event_destroy(struct perf_event *event)
@@ -828,13 +814,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 	/* Reserve CPU-measurement sampling facility */
 	mutex_lock(&pmc_reserve_mutex);
 	if (!refcount_inc_not_zero(&num_events)) {
-		err = reserve_pmc_hardware();
-		if (!err)
-			refcount_set(&num_events, 1);
+		reserve_pmc_hardware();
+		refcount_set(&num_events, 1);
 	}
 	mutex_unlock(&pmc_reserve_mutex);
-	if (err)
-		goto out;
 	event->destroy = hw_perf_event_destroy;
 
 	/* Access per-CPU sampling information (query sampling info) */
@@ -848,9 +831,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	memset(&si, 0, sizeof(si));
 	cpuhw = NULL;
-	if (event->cpu == -1)
+	if (event->cpu == -1) {
 		qsi(&si);
-	else {
+	} else {
 		/* Event is pinned to a particular CPU, retrieve the per-CPU
 		 * sampling structure for accessing the CPU-specific QSI.
 		 */
@@ -1061,21 +1044,18 @@ static void cpumsf_pmu_disable(struct pmu *pmu)
 		return;
 	}
 
-	/* Save state of TEAR and DEAR register contents */
-	err = qsi(&si);
-	if (!err) {
-		/* TEAR/DEAR values are valid only if the sampling facility is
-		 * enabled.  Note that cpumsf_pmu_disable() might be called even
-		 * for a disabled sampling facility because cpumsf_pmu_enable()
-		 * controls the enable/disable state.
-		 */
-		if (si.es) {
-			cpuhw->lsctl.tear = si.tear;
-			cpuhw->lsctl.dear = si.dear;
-		}
-	} else
-		debug_sprintf_event(sfdbg, 3, "%s: qsi() failed with err %i\n",
-				    __func__, err);
+	/*
+	 * Save state of TEAR and DEAR register contents.
+	 * TEAR/DEAR values are valid only if the sampling facility is
+	 * enabled.  Note that cpumsf_pmu_disable() might be called even
+	 * for a disabled sampling facility because cpumsf_pmu_enable()
+	 * controls the enable/disable state.
+	 */
+	qsi(&si);
+	if (si.es) {
+		cpuhw->lsctl.tear = si.tear;
+		cpuhw->lsctl.dear = si.dear;
+	}
 
 	cpuhw->flags &= ~PMU_F_ENABLED;
 }
@@ -1869,8 +1849,7 @@ static int cpumsf_pmu_check_period(struct perf_event *event, u64 value)
 
 	memset(&si, 0, sizeof(si));
 	if (event->cpu == -1) {
-		if (qsi(&si))
-			return -ENODEV;
+		qsi(&si);
 	} else {
 		/* Event is pinned to a particular CPU, retrieve the per-CPU
 		 * sampling structure for accessing the CPU-specific QSI.
@@ -2210,10 +2189,12 @@ static const struct kernel_param_ops param_ops_sfb_size = {
 	.get = param_get_sfb_size,
 };
 
-#define RS_INIT_FAILURE_QSI	  0x0001
-#define RS_INIT_FAILURE_BSDES	  0x0002
-#define RS_INIT_FAILURE_ALRT	  0x0003
-#define RS_INIT_FAILURE_PERF	  0x0004
+enum {
+	RS_INIT_FAILURE_BSDES	= 2,	/* Bad basic sampling size */
+	RS_INIT_FAILURE_ALRT	= 3,	/* IRQ registration failure */
+	RS_INIT_FAILURE_PERF	= 4	/* PMU registration failure */
+};
+
 static void __init pr_cpumsf_err(unsigned int reason)
 {
 	pr_err("Sampling facility support for perf is not available: "
@@ -2229,11 +2210,7 @@ static int __init init_cpum_sampling_pmu(void)
 		return -ENODEV;
 
 	memset(&si, 0, sizeof(si));
-	if (qsi(&si)) {
-		pr_cpumsf_err(RS_INIT_FAILURE_QSI);
-		return -ENODEV;
-	}
-
+	qsi(&si);
 	if (!si.as && !si.ad)
 		return -ENODEV;
 
