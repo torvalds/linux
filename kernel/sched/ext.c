@@ -4013,11 +4013,11 @@ static const char *scx_exit_reason(enum scx_exit_kind kind)
 {
 	switch (kind) {
 	case SCX_EXIT_UNREG:
-		return "Scheduler unregistered from user space";
+		return "unregistered from user space";
 	case SCX_EXIT_UNREG_BPF:
-		return "Scheduler unregistered from BPF";
+		return "unregistered from BPF";
 	case SCX_EXIT_UNREG_KERN:
-		return "Scheduler unregistered from the main kernel";
+		return "unregistered from the main kernel";
 	case SCX_EXIT_SYSRQ:
 		return "disabled by sysrq-S";
 	case SCX_EXIT_ERROR:
@@ -4135,14 +4135,16 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	percpu_up_write(&scx_fork_rwsem);
 
 	if (ei->kind >= SCX_EXIT_ERROR) {
-		printk(KERN_ERR "sched_ext: BPF scheduler \"%s\" errored, disabling\n", scx_ops.name);
+		pr_err("sched_ext: BPF scheduler \"%s\" disabled (%s)\n",
+		       scx_ops.name, ei->reason);
 
-		if (ei->msg[0] == '\0')
-			printk(KERN_ERR "sched_ext: %s\n", ei->reason);
-		else
-			printk(KERN_ERR "sched_ext: %s (%s)\n", ei->reason, ei->msg);
+		if (ei->msg[0] != '\0')
+			pr_err("sched_ext: %s: %s\n", scx_ops.name, ei->msg);
 
 		stack_trace_print(ei->bt, ei->bt_len, 2);
+	} else {
+		pr_info("sched_ext: BPF scheduler \"%s\" disabled (%s)\n",
+			scx_ops.name, ei->reason);
 	}
 
 	if (scx_ops.exit)
@@ -4817,6 +4819,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (!(ops->flags & SCX_OPS_SWITCH_PARTIAL))
 		static_branch_enable(&__scx_switched_all);
 
+	pr_info("sched_ext: BPF scheduler \"%s\" enabled%s\n",
+		scx_ops.name, scx_switched_all() ? "" : " (partial)");
 	kobject_uevent(scx_root_kobj, KOBJ_ADD);
 	mutex_unlock(&scx_ops_enable_mutex);
 
