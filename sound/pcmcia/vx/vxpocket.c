@@ -268,7 +268,7 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 	err = snd_card_new(&p_dev->dev, index[i], id[i], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		dev_err(&pdev->dev, "vxpocket: cannot create a card instance\n");
+		dev_err(&p_dev->dev, "vxpocket: cannot create a card instance\n");
 		return err;
 	}
 
