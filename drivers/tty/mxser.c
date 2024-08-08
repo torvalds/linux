@@ -1770,8 +1770,6 @@ static void mxser_initbrd(struct mxser_board *brd, bool high_baud)
 
 		mxser_process_txrx_fifo(info);
 
-		info->port.close_delay = 5 * HZ / 10;
-		info->port.closing_wait = 30 * HZ;
 		spin_lock_init(&info->slock);
 
 		/* before set INT ISR, disable all int */
