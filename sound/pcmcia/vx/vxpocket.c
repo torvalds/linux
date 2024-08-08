@@ -204,8 +204,6 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	chip->dev = &link->dev;
-
 	if (snd_vxpocket_assign_resources(chip, link->resource[0]->start,
 						link->irq) < 0)
 		goto failed;
