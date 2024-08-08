@@ -889,6 +889,7 @@ EXPORT_SYMBOL(qmc_chan_stop);
 static int qmc_setup_chan_trnsync(struct qmc *qmc, struct qmc_chan *chan)
 {
 	struct tsa_serial_info info;
+	unsigned int w_rx, w_tx;
 	u16 first_rx, last_tx;
 	u16 trnsync;
 	int ret;
@@ -897,6 +898,14 @@ static int qmc_setup_chan_trnsync(struct qmc *qmc, struct qmc_chan *chan)
 	ret = tsa_serial_get_info(chan->qmc->tsa_serial, &info);
 	if (ret)
 		return ret;
+
+	w_rx = hweight64(chan->rx_ts_mask);
+	w_tx = hweight64(chan->tx_ts_mask);
+	if (w_rx <= 1 && w_tx <= 1) {
+		dev_dbg(qmc->dev, "only one or zero ts -> disable trnsync\n");
+		qmc_clrbits16(chan->s_param + QMC_SPE_CHAMR, QMC_SPE_CHAMR_TRANSP_SYNC);
+		return 0;
+	}
 
 	/* Find the first Rx TS allocated to the channel */
 	first_rx = chan->rx_ts_mask ? __ffs64(chan->rx_ts_mask) + 1 : 0;
@@ -911,6 +920,7 @@ static int qmc_setup_chan_trnsync(struct qmc *qmc, struct qmc_chan *chan)
 		trnsync |= QMC_SPE_TRNSYNC_TX((last_tx % info.nb_tx_ts) * 2);
 
 	qmc_write16(chan->s_param + QMC_SPE_TRNSYNC, trnsync);
+	qmc_setbits16(chan->s_param + QMC_SPE_CHAMR, QMC_SPE_CHAMR_TRANSP_SYNC);
 
 	dev_dbg(qmc->dev, "chan %u: trnsync=0x%04x, rx %u/%u 0x%llx, tx %u/%u 0x%llx\n",
 		chan->id, trnsync,
@@ -1378,7 +1388,7 @@ static int qmc_setup_chan(struct qmc *qmc, struct qmc_chan *chan)
 	if (chan->mode == QMC_TRANSPARENT) {
 		qmc_write32(chan->s_param + QMC_SPE_ZDSTATE, 0x18000080);
 		qmc_write16(chan->s_param + QMC_SPE_TMRBLR, 60);
-		val = QMC_SPE_CHAMR_MODE_TRANSP | QMC_SPE_CHAMR_TRANSP_SYNC;
+		val = QMC_SPE_CHAMR_MODE_TRANSP;
 		if (chan->is_reverse_data)
 			val |= QMC_SPE_CHAMR_TRANSP_RD;
 		qmc_write16(chan->s_param + QMC_SPE_CHAMR, val);
