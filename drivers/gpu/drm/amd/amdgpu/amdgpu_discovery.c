@@ -105,6 +105,7 @@
 #include "smuio_v14_0_2.h"
 #include "vcn_v5_0_0.h"
 #include "jpeg_v5_0_0.h"
+#include "jpeg_v5_0_1.h"
 
 #include "amdgpu_vpe.h"
 #if defined(CONFIG_DRM_AMD_ISP)
@@ -2365,6 +2366,9 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(5, 0, 0):
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_0_ip_block);
+			break;
+		case IP_VERSION(5, 0, 1):
+			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_1_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,
