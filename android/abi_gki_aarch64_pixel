@@ -2794,6 +2794,7 @@
   vmf_insert_pfn_prot
   vm_iomap_memory
   vm_node_stat
+  vm_unmapped_area
   vm_zone_stat
   vprintk
   vprintk_emit
