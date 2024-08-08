@@ -86,6 +86,7 @@ struct mlx5_flow_attr {
 	u32 dest_chain;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_table *dest_ft;
+	struct mlx5_flow_table *extra_split_ft;
 	u8 inner_match_level;
 	u8 outer_match_level;
 	u8 tun_ip_version;
