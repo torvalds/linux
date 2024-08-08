@@ -610,7 +610,6 @@ static void init_intel(struct cpuinfo_x86 *c)
 	init_intel_misc_features(c);
 
 	split_lock_init();
-	bus_lock_init();
 
 	intel_init_thermal(c);
 }
