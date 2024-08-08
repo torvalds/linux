@@ -427,54 +427,71 @@ void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	mutex_unlock(&p->mib.cnt_mutex);
 }
 
+static int ksz9477_half_duplex_monitor(struct ksz_device *dev, int port,
+				       u64 tx_late_col)
+{
+	u8 lue_ctrl;
+	u32 pmavbc;
+	u16 pqm;
+	int ret;
+
+	/* Errata DS80000754 recommends monitoring potential faults in
+	 * half-duplex mode. The switch might not be able to communicate anymore
+	 * in these states. If you see this message, please read the
+	 * errata-sheet for more information:
+	 * https://ww1.microchip.com/downloads/aemDocuments/documents
+	 * /UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
+	 * To workaround this issue, half-duplex mode should be avoided.
+	 * A software reset could be implemented to recover from this state.
+	 */
+	dev_warn_once(dev->dev,
+		      "Half-duplex detected on port %d, transmission halt may occur\n",
+		      port);
+	if (tx_late_col != 0) {
+		/* Transmission halt with late collisions */
+		dev_crit_once(dev->dev,
+			      "TX late collisions detected, transmission may be halted on port %d\n",
+			      port);
+	}
+	ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &lue_ctrl);
+	if (ret)
+		return ret;
+	if (lue_ctrl & SW_VLAN_ENABLE) {
+		ret = ksz_pread16(dev, port, REG_PORT_QM_TX_CNT_0__4, &pqm);
+		if (ret)
+			return ret;
+
+		ret = ksz_read32(dev, REG_PMAVBC, &pmavbc);
+		if (ret)
+			return ret;
+
+		if ((FIELD_GET(PMAVBC_MASK, pmavbc) <= PMAVBC_MIN) ||
+		    (FIELD_GET(PORT_QM_TX_CNT_M, pqm) >= PORT_QM_TX_CNT_MAX)) {
+			/* Transmission halt with Half-Duplex and VLAN */
+			dev_crit_once(dev->dev,
+				      "resources out of limits, transmission may be halted\n");
+		}
+	}
+
+	return ret;
+}
+
 int ksz9477_errata_monitor(struct ksz_device *dev, int port,
 			   u64 tx_late_col)
 {
-	u32 pmavbc;
 	u8 status;
-	u16 pqm;
 	int ret;
 
 	ret = ksz_pread8(dev, port, REG_PORT_STATUS_0, &status);
 	if (ret)
 		return ret;
-	if (!(FIELD_GET(PORT_INTF_SPEED_MASK, status) == PORT_INTF_SPEED_NONE) &&
+
+	if (!(FIELD_GET(PORT_INTF_SPEED_MASK, status)
+	      == PORT_INTF_SPEED_NONE) &&
 	    !(status & PORT_INTF_FULL_DUPLEX)) {
-		/* Errata DS80000754 recommends monitoring potential faults in
-		 * half-duplex mode. The switch might not be able to communicate anymore
-		 * in these states.
-		 * If you see this message, please read the errata-sheet for more information:
-		 * https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
-		 * To workaround this issue, half-duplex mode should be avoided.
-		 * A software reset could be implemented to recover from this state.
-		 */
-		dev_warn_once(dev->dev,
-			      "Half-duplex detected on port %d, transmission halt may occur\n",
-			      port);
-		if (tx_late_col != 0) {
-			/* Transmission halt with late collisions */
-			dev_crit_once(dev->dev,
-				      "TX late collisions detected, transmission may be halted on port %d\n",
-				      port);
-		}
-		ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &status);
-		if (ret)
-			return ret;
-		if (status & SW_VLAN_ENABLE) {
-			ret = ksz_pread16(dev, port, REG_PORT_QM_TX_CNT_0__4, &pqm);
-			if (ret)
-				return ret;
-			ret = ksz_read32(dev, REG_PMAVBC, &pmavbc);
-			if (ret)
-				return ret;
-			if ((FIELD_GET(PMAVBC_MASK, pmavbc) <= PMAVBC_MIN) ||
-			    (FIELD_GET(PORT_QM_TX_CNT_M, pqm) >= PORT_QM_TX_CNT_MAX)) {
-				/* Transmission halt with Half-Duplex and VLAN */
-				dev_crit_once(dev->dev,
-					      "resources out of limits, transmission may be halted\n");
-			}
-		}
+		ret = ksz9477_half_duplex_monitor(dev, port, tx_late_col);
 	}
+
 	return ret;
 }
 
