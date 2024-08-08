@@ -267,13 +267,20 @@ static void irq_domain_free(struct irq_domain *domain)
 	kfree(domain);
 }
 
-/**
- * irq_domain_instantiate() - Instantiate a new irq domain data structure
- * @info: Domain information pointer pointing to the information for this domain
- *
- * Return: A pointer to the instantiated irq domain or an ERR_PTR value.
- */
-struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
+static void irq_domain_instantiate_descs(const struct irq_domain_info *info)
+{
+	if (!IS_ENABLED(CONFIG_SPARSE_IRQ))
+		return;
+
+	if (irq_alloc_descs(info->virq_base, info->virq_base, info->size,
+			    of_node_to_nid(to_of_node(info->fwnode))) < 0) {
+		pr_info("Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+			info->virq_base);
+	}
+}
+
+static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info *info,
+						   bool cond_alloc_descs)
 {
 	struct irq_domain *domain;
 	int err;
@@ -306,6 +313,15 @@ struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 
 	__irq_domain_publish(domain);
 
+	if (cond_alloc_descs && info->virq_base > 0)
+		irq_domain_instantiate_descs(info);
+
+	/* Legacy interrupt domains have a fixed Linux interrupt number */
+	if (info->virq_base > 0) {
+		irq_domain_associate_many(domain, info->virq_base, info->hwirq_base,
+					  info->size - info->hwirq_base);
+	}
+
 	return domain;
 
 err_domain_gc_remove:
@@ -314,6 +330,17 @@ err_domain_gc_remove:
 err_domain_free:
 	irq_domain_free(domain);
 	return ERR_PTR(err);
+}
+
+/**
+ * irq_domain_instantiate() - Instantiate a new irq domain data structure
+ * @info: Domain information pointer pointing to the information for this domain
+ *
+ * Return: A pointer to the instantiated irq domain or an ERR_PTR value.
+ */
+struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
+{
+	return __irq_domain_instantiate(info, false);
 }
 EXPORT_SYMBOL_GPL(irq_domain_instantiate);
 
@@ -413,28 +440,13 @@ struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
 		.fwnode		= fwnode,
 		.size		= size,
 		.hwirq_max	= size,
+		.virq_base	= first_irq,
 		.ops		= ops,
 		.host_data	= host_data,
 	};
-	struct irq_domain *domain;
+	struct irq_domain *domain = __irq_domain_instantiate(&info, true);
 
-	domain = irq_domain_instantiate(&info);
-	if (IS_ERR(domain))
-		return NULL;
-
-	if (first_irq > 0) {
-		if (IS_ENABLED(CONFIG_SPARSE_IRQ)) {
-			/* attempt to allocated irq_descs */
-			int rc = irq_alloc_descs(first_irq, first_irq, size,
-						 of_node_to_nid(to_of_node(fwnode)));
-			if (rc < 0)
-				pr_info("Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
-					first_irq);
-		}
-		irq_domain_associate_many(domain, first_irq, 0, size);
-	}
-
-	return domain;
+	return IS_ERR(domain) ? NULL : domain;
 }
 EXPORT_SYMBOL_GPL(irq_domain_create_simple);
 
@@ -476,18 +488,14 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 		.fwnode		= fwnode,
 		.size		= first_hwirq + size,
 		.hwirq_max	= first_hwirq + size,
+		.hwirq_base	= first_hwirq,
+		.virq_base	= first_irq,
 		.ops		= ops,
 		.host_data	= host_data,
 	};
-	struct irq_domain *domain;
+	struct irq_domain *domain = irq_domain_instantiate(&info);
 
-	domain = irq_domain_instantiate(&info);
-	if (IS_ERR(domain))
-		return NULL;
-
-	irq_domain_associate_many(domain, first_irq, first_hwirq, size);
-
-	return domain;
+	return IS_ERR(domain) ? NULL : domain;
 }
 EXPORT_SYMBOL_GPL(irq_domain_create_legacy);
 
