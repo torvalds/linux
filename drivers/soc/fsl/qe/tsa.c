@@ -114,12 +114,17 @@ struct tsa_tdm {
 #define TSA_TDMA	0
 #define TSA_TDMB	1
 
+enum tsa_version {
+	TSA_CPM1 = 1, /* Avoid 0 value */
+};
+
 struct tsa {
 	struct device *dev;
 	void __iomem *si_regs;
 	void __iomem *si_ram;
 	resource_size_t si_ram_sz;
 	spinlock_t	lock; /* Lock for read/modify/write sequence */
+	enum tsa_version version;
 	int tdms; /* TSA_TDMx ORed */
 	struct tsa_tdm tdm[2]; /* TDMa and TDMb */
 	struct tsa_serial {
@@ -685,6 +690,15 @@ static int tsa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	tsa->dev = &pdev->dev;
+	tsa->version = (enum tsa_version)(uintptr_t)of_device_get_match_data(&pdev->dev);
+	switch (tsa->version) {
+	case TSA_CPM1:
+		dev_info(tsa->dev, "CPM1 version\n");
+		break;
+	default:
+		dev_err(tsa->dev, "Unknown version (%d)\n", tsa->version);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tsa->serials); i++)
 		tsa->serials[i].id = i;
@@ -746,7 +760,7 @@ static void tsa_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tsa_id_table[] = {
-	{ .compatible = "fsl,cpm1-tsa" },
+	{ .compatible = "fsl,cpm1-tsa", .data = (void *)TSA_CPM1 },
 	{} /* sentinel */
 };
 MODULE_DEVICE_TABLE(of, tsa_id_table);
