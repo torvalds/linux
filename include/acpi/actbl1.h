@@ -1796,7 +1796,7 @@ struct acpi_hmat_cache {
 	u32 reserved1;
 	u64 cache_size;
 	u32 cache_attributes;
-	u16 reserved2;
+	u16 address_mode;
 	u16 number_of_SMBIOShandles;
 };
 
@@ -1807,6 +1807,9 @@ struct acpi_hmat_cache {
 #define ACPI_HMAT_CACHE_ASSOCIATIVITY   (0x00000F00)
 #define ACPI_HMAT_WRITE_POLICY          (0x0000F000)
 #define ACPI_HMAT_CACHE_LINE_SIZE       (0xFFFF0000)
+
+#define ACPI_HMAT_CACHE_MODE_UNKNOWN            (0)
+#define ACPI_HMAT_CACHE_MODE_EXTENDED_LINEAR    (1)
 
 /* Values for cache associativity flag */
 
