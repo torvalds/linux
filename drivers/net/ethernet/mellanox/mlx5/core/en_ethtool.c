@@ -699,26 +699,34 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	int err = 0;
 
 	if (!MLX5_CAP_GEN(mdev, cq_moderation) ||
-	    !MLX5_CAP_GEN(mdev, cq_period_mode_modify))
+	    !MLX5_CAP_GEN(mdev, cq_period_mode_modify)) {
+		NL_SET_ERR_MSG_MOD(extack, "CQ moderation not supported");
 		return -EOPNOTSUPP;
+	}
 
 	if (coal->tx_coalesce_usecs > MLX5E_MAX_COAL_TIME ||
 	    coal->rx_coalesce_usecs > MLX5E_MAX_COAL_TIME) {
-		netdev_info(priv->netdev, "%s: maximum coalesce time supported is %lu usecs\n",
-			    __func__, MLX5E_MAX_COAL_TIME);
+		NL_SET_ERR_MSG_FMT_MOD(
+			extack,
+			"Max coalesce time %lu usecs, tx-usecs (%u) rx-usecs (%u)",
+			MLX5E_MAX_COAL_TIME, coal->tx_coalesce_usecs,
+			coal->rx_coalesce_usecs);
 		return -ERANGE;
 	}
 
 	if (coal->tx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES ||
 	    coal->rx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES) {
-		netdev_info(priv->netdev, "%s: maximum coalesced frames supported is %lu\n",
-			    __func__, MLX5E_MAX_COAL_FRAMES);
+		NL_SET_ERR_MSG_FMT_MOD(
+			extack,
+			"Max coalesce frames %lu, tx-frames (%u) rx-frames (%u)",
+			MLX5E_MAX_COAL_FRAMES, coal->tx_max_coalesced_frames,
+			coal->rx_max_coalesced_frames);
 		return -ERANGE;
 	}
 
 	if ((kernel_coal->use_cqe_mode_rx || kernel_coal->use_cqe_mode_tx) &&
 	    !MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe)) {
-		NL_SET_ERR_MSG_MOD(extack, "cqe_mode_rx/tx is not supported on this device");
+		NL_SET_ERR_MSG_MOD(extack, "cqe-mode-rx/tx is not supported on this device");
 		return -EOPNOTSUPP;
 	}
 
