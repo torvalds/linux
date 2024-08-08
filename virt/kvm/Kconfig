@@ -113,10 +113,10 @@ config KVM_GENERIC_PRIVATE_MEM
        select KVM_PRIVATE_MEM
        bool
 
-config HAVE_KVM_GMEM_PREPARE
+config HAVE_KVM_ARCH_GMEM_PREPARE
        bool
        depends on KVM_PRIVATE_MEM
 
-config HAVE_KVM_GMEM_INVALIDATE
+config HAVE_KVM_ARCH_GMEM_INVALIDATE
        bool
        depends on KVM_PRIVATE_MEM

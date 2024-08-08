@@ -313,6 +313,7 @@ enum {
 	MLX5_CMD_OP_MODIFY_VHCA_STATE             = 0xb0e,
 	MLX5_CMD_OP_SYNC_CRYPTO                   = 0xb12,
 	MLX5_CMD_OP_ALLOW_OTHER_VHCA_ACCESS       = 0xb16,
+	MLX5_CMD_OPCODE_QUERY_VUID                = 0xb22,
 	MLX5_CMD_OP_MAX
 };
 
@@ -1885,7 +1886,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_5a0[0x10];
 	u8         enhanced_cqe_compression[0x1];
-	u8         reserved_at_5b1[0x2];
+	u8         reserved_at_5b1[0x1];
+	u8         crossing_vhca_mkey[0x1];
 	u8         log_max_dek[0x5];
 	u8         reserved_at_5b8[0x4];
 	u8         mini_cqe_resp_stride_index[0x1];
@@ -1954,7 +1956,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   dynamic_msix_table_size[0xc];
 	u8	   reserved_at_740[0xc];
 	u8	   min_dynamic_vf_msix_table_size[0x4];
-	u8	   reserved_at_750[0x4];
+	u8	   reserved_at_750[0x2];
+	u8	   data_direct[0x1];
+	u8	   reserved_at_753[0x1];
 	u8	   max_dynamic_vf_msix_table_size[0xc];
 
 	u8         reserved_at_760[0x3];
@@ -1982,7 +1986,9 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_0[0x80];
 
 	u8         migratable[0x1];
-	u8         reserved_at_81[0x1f];
+	u8         reserved_at_81[0x11];
+	u8         query_vuid[0x1];
+	u8         reserved_at_93[0xd];
 
 	u8	   max_reformat_insert_size[0x8];
 	u8	   max_reformat_insert_offset[0x8];
@@ -4154,6 +4160,7 @@ enum {
 	MLX5_MKC_ACCESS_MODE_KSM   = 0x3,
 	MLX5_MKC_ACCESS_MODE_SW_ICM = 0x4,
 	MLX5_MKC_ACCESS_MODE_MEMIC = 0x5,
+	MLX5_MKC_ACCESS_MODE_CROSSING = 0x6,
 };
 
 struct mlx5_ifc_mkc_bits {
@@ -4196,7 +4203,10 @@ struct mlx5_ifc_mkc_bits {
 
 	u8         bsf_octword_size[0x20];
 
-	u8         reserved_at_120[0x80];
+	u8         reserved_at_120[0x60];
+
+	u8         crossing_target_vhca_id[0x10];
+	u8         reserved_at_190[0x10];
 
 	u8         translations_octword_size[0x20];
 
@@ -5122,6 +5132,36 @@ struct mlx5_ifc_query_vport_state_out_bits {
 	u8         reserved_at_60[0x18];
 	u8         admin_state[0x4];
 	u8         state[0x4];
+};
+
+struct mlx5_ifc_array1024_auto_bits {
+	u8         array1024_auto[32][0x20];
+};
+
+struct mlx5_ifc_query_vuid_in_bits {
+	u8         opcode[0x10];
+	u8         uid[0x10];
+
+	u8         reserved_at_20[0x40];
+
+	u8         query_vfs_vuid[0x1];
+	u8         data_direct[0x1];
+	u8         reserved_at_62[0xe];
+	u8         vhca_id[0x10];
+};
+
+struct mlx5_ifc_query_vuid_out_bits {
+	u8        status[0x8];
+	u8        reserved_at_8[0x18];
+
+	u8        syndrome[0x20];
+
+	u8        reserved_at_40[0x1a0];
+
+	u8        reserved_at_1e0[0x10];
+	u8        num_of_entries[0x10];
+
+	struct mlx5_ifc_array1024_auto_bits vuid[];
 };
 
 enum {
@@ -8989,7 +9029,8 @@ struct mlx5_ifc_create_mkey_in_bits {
 
 	u8         pg_access[0x1];
 	u8         mkey_umem_valid[0x1];
-	u8         reserved_at_62[0x1e];
+	u8         data_direct[0x1];
+	u8         reserved_at_63[0x1d];
 
 	struct mlx5_ifc_mkc_bits memory_key_mkey_entry;
 

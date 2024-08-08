@@ -1293,6 +1293,9 @@ static void exynos_ufs_fmp_resume(struct ufs_hba *hba)
 {
 	struct arm_smccc_res res;
 
+	if (!(hba->caps & UFSHCD_CAP_CRYPTO))
+		return;
+
 	arm_smccc_smc(SMC_CMD_FMP_SECURITY, 0, SMU_EMBEDDED, CFG_DESCTYPE_3,
 		      0, 0, 0, 0, &res);
 	if (res.a0)

@@ -163,7 +163,7 @@ struct sev_config {
 	       */
 	      use_cas		: 1,
 
-	      __reserved	: 62;
+	      __reserved	: 61;
 };
 
 static struct sev_config sev_cfg __read_mostly;
