@@ -100,8 +100,6 @@ struct sixpack {
 	unsigned int		rx_count_cooked;
 	spinlock_t		rxlock;
 
-	int			buffsize;       /* Max buffers sizes */
-
 	unsigned long		flags;		/* Flag values/ mode etc */
 	unsigned char		mode;		/* 6pack mode */
 
@@ -584,7 +582,6 @@ static int sixpack_open(struct tty_struct *tty)
 
 	sp->xbuff	= xbuff;
 
-	sp->buffsize	= len;
 	sp->rcount	= 0;
 	sp->rx_count	= 0;
 	sp->rx_count_cooked = 0;
