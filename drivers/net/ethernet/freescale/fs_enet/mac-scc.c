@@ -131,15 +131,14 @@ static int setup_data(struct net_device *dev)
 static int allocate_bd(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
+	struct fs_platform_info *fpi = fep->fpi;
 
-	fep->ring_mem_addr = cpm_muram_alloc((fpi->tx_ring + fpi->rx_ring) *
-					     sizeof(cbd_t), 8);
-	if (IS_ERR_VALUE(fep->ring_mem_addr))
+	fpi->dpram_offset = cpm_muram_alloc((fpi->tx_ring + fpi->rx_ring) *
+					    sizeof(cbd_t), 8);
+	if (IS_ERR_VALUE(fpi->dpram_offset))
 		return -ENOMEM;
 
-	fep->ring_base = (void __iomem __force*)
-		cpm_muram_addr(fep->ring_mem_addr);
+	fep->ring_base = cpm_muram_addr(fpi->dpram_offset);
 
 	return 0;
 }
@@ -147,9 +146,10 @@ static int allocate_bd(struct net_device *dev)
 static void free_bd(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
+	const struct fs_platform_info *fpi = fep->fpi;
 
 	if (fep->ring_base)
-		cpm_muram_free(fep->ring_mem_addr);
+		cpm_muram_free(fpi->dpram_offset);
 }
 
 static void cleanup_data(struct net_device *dev)
@@ -247,9 +247,9 @@ static void restart(struct net_device *dev)
 		__fs_out8((u8 __iomem *)ep + i, 0);
 
 	/* point to bds */
-	W16(ep, sen_genscc.scc_rbase, fep->ring_mem_addr);
+	W16(ep, sen_genscc.scc_rbase, fpi->dpram_offset);
 	W16(ep, sen_genscc.scc_tbase,
-	    fep->ring_mem_addr + sizeof(cbd_t) * fpi->rx_ring);
+	    fpi->dpram_offset + sizeof(cbd_t) * fpi->rx_ring);
 
 	/* Initialize function code registers for big-endian.
 	 */
