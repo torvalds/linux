@@ -7,7 +7,7 @@ charset-normalizer==3.2.0
 idna==3.4
 pip==23.3
 python-gitlab==3.15.0
-requests==2.31.0
+requests==2.32.2
 requests-toolbelt==1.0.0
 ruamel.yaml==0.17.32
 ruamel.yaml.clib==0.2.7
