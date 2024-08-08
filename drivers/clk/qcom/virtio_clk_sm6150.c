@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -91,6 +91,8 @@ static const struct virtio_clk_init_data sm6150_scc_virtio_clocks[] = {
 	[SCC_QUPV3_SE1_CLK] = {.name = "scc_qupv3_se1_clk",},
 	[SCC_QUPV3_SE2_CLK] = {.name = "scc_qupv3_se2_clk",},
 	[SCC_QUPV3_SE3_CLK] = {.name = "scc_qupv3_se3_clk",},
+	[SCC_QUPV3_SE4_CLK] = {.name = "scc_qupv3_se4_clk",},
+	[SCC_QUPV3_SE5_CLK] = {.name = "scc_qupv3_se5_clk",},
 	[SCC_QUPV3_M_HCLK_CLK] = {.name = "scc_qupv3_m_hclk_clk",},
 	[SCC_QUPV3_S_HCLK_CLK] = {.name = "scc_qupv3_s_hclk_clk",},
 };
