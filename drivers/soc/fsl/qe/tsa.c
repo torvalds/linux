@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-
 /* TSA SI RAM routing tables entry */
 #define TSA_SIRAM_ENTRY_LAST		BIT(16)
 #define TSA_SIRAM_ENTRY_BYTE		BIT(17)
@@ -244,8 +243,8 @@ static void tsa_init_entries_area(struct tsa *tsa, struct tsa_entries_area *area
 	resource_size_t quarter;
 	resource_size_t half;
 
-	quarter = tsa->si_ram_sz/4;
-	half = tsa->si_ram_sz/2;
+	quarter = tsa->si_ram_sz / 4;
+	half = tsa->si_ram_sz / 2;
 
 	if (tdms == BIT(TSA_TDMA)) {
 		/* Only TDMA */
@@ -408,7 +407,7 @@ static int tsa_of_parse_tdm_route(struct tsa *tsa, struct device_node *tdm_np,
 		}
 
 		dev_dbg(tsa->dev, "tdm_id=%u, %s ts %u..%u -> %s\n",
-			tdm_id, route_name, ts, ts+count-1, serial_name);
+			tdm_id, route_name, ts, ts + count - 1, serial_name);
 		ts += count;
 
 		ret = tsa_add_entry(tsa, &area, count, serial_id);
