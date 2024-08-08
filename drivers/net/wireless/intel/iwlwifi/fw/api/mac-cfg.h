@@ -62,6 +62,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	ROC_CMD = 0xE,
 	/**
+	 * @MISSED_BEACONS_NOTIF: &struct iwl_missed_beacons_notif
+	 */
+	MISSED_BEACONS_NOTIF = 0xF6,
+	/**
 	 * @ROC_NOTIF: &struct iwl_roc_notif
 	 */
 	ROC_NOTIF = 0xF8,
@@ -664,5 +668,26 @@ enum iwl_mvm_fw_esr_recommendation {
 struct iwl_mvm_esr_mode_notif {
 	__le32 action;
 } __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_missed_beacons_notif - sent when by the firmware upon beacon loss
+ *  ( MISSED_BEACONS_NOTIF = 0xF6 )
+ * @link_id: fw link ID
+ * @consec_missed_beacons_since_last_rx: number of consecutive missed
+ *	beacons since last RX.
+ * @consec_missed_beacons: number of consecutive missed beacons
+ * @other_link_id: used in EMLSR only. The fw link ID for
+ *	&consec_missed_beacons_other_link. IWL_MVM_FW_LINK_ID_INVALID (0xff) if
+ *	invalid.
+ * @consec_missed_beacons_other_link: number of consecutive missed beacons on
+ *	&other_link_id.
+ */
+struct iwl_missed_beacons_notif {
+	__le32 link_id;
+	__le32 consec_missed_beacons_since_last_rx;
+	__le32 consec_missed_beacons;
+	__le32 other_link_id;
+	__le32 consec_missed_beacons_other_link;
+} __packed; /* MISSED_BEACON_NTFY_API_S_VER_5 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */
