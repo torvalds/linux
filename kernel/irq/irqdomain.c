@@ -128,72 +128,76 @@ void irq_domain_free_fwnode(struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
-static int irq_domain_set_name(struct irq_domain *domain,
-			       const struct fwnode_handle *fwnode,
-			       enum irq_domain_bus_token bus_token)
+static int alloc_name(struct irq_domain *domain, char *base, enum irq_domain_bus_token bus_token)
+{
+	domain->name = bus_token ? kasprintf(GFP_KERNEL, "%s-%d", base, bus_token) :
+				   kasprintf(GFP_KERNEL, "%s", base);
+	if (!domain->name)
+		return -ENOMEM;
+
+	domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	return 0;
+}
+
+static int alloc_fwnode_name(struct irq_domain *domain, const struct fwnode_handle *fwnode,
+			     enum irq_domain_bus_token bus_token)
+{
+	char *name = bus_token ? kasprintf(GFP_KERNEL, "%pfw-%d", fwnode, bus_token) :
+				 kasprintf(GFP_KERNEL, "%pfw", fwnode);
+
+	if (!name)
+		return -ENOMEM;
+
+	/*
+	 * fwnode paths contain '/', which debugfs is legitimately unhappy
+	 * about. Replace them with ':', which does the trick and is not as
+	 * offensive as '\'...
+	 */
+	domain->name = strreplace(name, '/', ':');
+	domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	return 0;
+}
+
+static int alloc_unknown_name(struct irq_domain *domain, enum irq_domain_bus_token bus_token)
 {
 	static atomic_t unknown_domains;
-	struct irqchip_fwid *fwid;
+	int id = atomic_inc_return(&unknown_domains);
 
+	domain->name = bus_token ? kasprintf(GFP_KERNEL, "unknown-%d-%d", id, bus_token) :
+				   kasprintf(GFP_KERNEL, "unknown-%d", id);
+
+	if (!domain->name)
+		return -ENOMEM;
+	domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	return 0;
+}
+
+static int irq_domain_set_name(struct irq_domain *domain, const struct fwnode_handle *fwnode,
+			       enum irq_domain_bus_token bus_token)
+{
 	if (is_fwnode_irqchip(fwnode)) {
-		fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
+		struct irqchip_fwid *fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
 
 		switch (fwid->type) {
 		case IRQCHIP_FWNODE_NAMED:
 		case IRQCHIP_FWNODE_NAMED_ID:
-			domain->name = bus_token ?
-					kasprintf(GFP_KERNEL, "%s-%d",
-						  fwid->name, bus_token) :
-					kstrdup(fwid->name, GFP_KERNEL);
-			if (!domain->name)
-				return -ENOMEM;
-			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
-			break;
+			return alloc_name(domain, fwid->name, bus_token);
 		default:
 			domain->name = fwid->name;
-			if (bus_token) {
-				domain->name = kasprintf(GFP_KERNEL, "%s-%d",
-							 fwid->name, bus_token);
-				if (!domain->name)
-					return -ENOMEM;
-				domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
-			}
-			break;
+			if (bus_token)
+				return alloc_name(domain, fwid->name, bus_token);
 		}
-	} else if (is_of_node(fwnode) || is_acpi_device_node(fwnode) ||
-		   is_software_node(fwnode)) {
-		char *name;
 
-		/*
-		 * fwnode paths contain '/', which debugfs is legitimately
-		 * unhappy about. Replace them with ':', which does
-		 * the trick and is not as offensive as '\'...
-		 */
-		name = bus_token ?
-			kasprintf(GFP_KERNEL, "%pfw-%d", fwnode, bus_token) :
-			kasprintf(GFP_KERNEL, "%pfw", fwnode);
-		if (!name)
-			return -ENOMEM;
-
-		domain->name = strreplace(name, '/', ':');
-		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	} else if (is_of_node(fwnode) || is_acpi_device_node(fwnode) || is_software_node(fwnode)) {
+		return alloc_fwnode_name(domain, fwnode, bus_token);
 	}
 
-	if (!domain->name) {
-		if (fwnode)
-			pr_err("Invalid fwnode type for irqdomain\n");
-		domain->name = bus_token ?
-				kasprintf(GFP_KERNEL, "unknown-%d-%d",
-					  atomic_inc_return(&unknown_domains),
-					  bus_token) :
-				kasprintf(GFP_KERNEL, "unknown-%d",
-					  atomic_inc_return(&unknown_domains));
-		if (!domain->name)
-			return -ENOMEM;
-		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
-	}
+	if (domain->name)
+		return 0;
 
-	return 0;
+	if (fwnode)
+		pr_err("Invalid fwnode type for irqdomain\n");
+	return alloc_unknown_name(domain, bus_token);
 }
 
 static struct irq_domain *__irq_domain_create(const struct irq_domain_info *info)
