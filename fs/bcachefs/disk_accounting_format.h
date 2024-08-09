@@ -130,11 +130,11 @@ struct bch_acct_compression {
 
 struct bch_acct_snapshot {
 	__u32			id;
-};
+} __packed;
 
 struct bch_acct_btree {
 	__u32			id;
-};
+} __packed;
 
 struct bch_acct_rebalance_work {
 };
@@ -152,8 +152,8 @@ struct disk_accounting_pos {
 		struct bch_acct_snapshot	snapshot;
 		struct bch_acct_btree		btree;
 		struct bch_acct_rebalance_work	rebalance_work;
-		};
-	};
+		} __packed;
+	} __packed;
 		struct bpos			_pad;
 	};
 };
