@@ -526,7 +526,7 @@ static int ltc2664_channel_config(struct ltc2664_state *st)
 			return dev_err_probe(dev, -EINVAL,
 			       "adi,manual-span-operation-config not supported\n");
 
-		if (mspan > ARRAY_SIZE(ltc2664_mspan_lut))
+		if (mspan >= ARRAY_SIZE(ltc2664_mspan_lut))
 			return dev_err_probe(dev, -EINVAL,
 			       "adi,manual-span-operation-config not in range\n");
 	}
