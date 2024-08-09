@@ -1805,10 +1805,10 @@ static const struct msm_pingroup x1e80100_groups[] = {
 	[235] = PINGROUP(235, aon_cci, qdss_gpio, _, _, _, _, _, _, _),
 	[236] = PINGROUP(236, aon_cci, qdss_gpio, _, _, _, _, _, _, _),
 	[237] = PINGROUP(237, _, _, _, _, _, _, _, _, _),
-	[238] = UFS_RESET(ufs_reset, 0x1f9000),
-	[239] = SDC_QDSD_PINGROUP(sdc2_clk, 0x1f2000, 14, 6),
-	[240] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x1f2000, 11, 3),
-	[241] = SDC_QDSD_PINGROUP(sdc2_data, 0x1f2000, 9, 0),
+	[238] = UFS_RESET(ufs_reset, 0xf9000),
+	[239] = SDC_QDSD_PINGROUP(sdc2_clk, 0xf2000, 14, 6),
+	[240] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xf2000, 11, 3),
+	[241] = SDC_QDSD_PINGROUP(sdc2_data, 0xf2000, 9, 0),
 };
 
 static const struct msm_gpio_wakeirq_map x1e80100_pdc_map[] = {
