@@ -227,6 +227,8 @@ static struct in_ifaddr *inet_alloc_ifa(struct in_device *in_dev)
 	in_dev_hold(in_dev);
 	ifa->ifa_dev = in_dev;
 
+	INIT_HLIST_NODE(&ifa->hash);
+
 	return ifa;
 }
 
@@ -889,7 +891,6 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 	if (!tb[IFA_ADDRESS])
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
-	INIT_HLIST_NODE(&ifa->hash);
 	ifa->ifa_prefixlen = ifm->ifa_prefixlen;
 	ifa->ifa_mask = inet_make_mask(ifm->ifa_prefixlen);
 	ifa->ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) :
@@ -1186,7 +1187,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr)
 			ifa = inet_alloc_ifa(in_dev);
 			if (!ifa)
 				break;
-			INIT_HLIST_NODE(&ifa->hash);
+
 			if (colon)
 				memcpy(ifa->ifa_label, ifr->ifr_name, IFNAMSIZ);
 			else
@@ -1588,7 +1589,6 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			struct in_ifaddr *ifa = inet_alloc_ifa(in_dev);
 
 			if (ifa) {
-				INIT_HLIST_NODE(&ifa->hash);
 				ifa->ifa_local =
 				  ifa->ifa_address = htonl(INADDR_LOOPBACK);
 				ifa->ifa_prefixlen = 8;
