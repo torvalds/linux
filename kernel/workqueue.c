@@ -4775,11 +4775,17 @@ static void wq_init_lockdep(struct workqueue_struct *wq)
 
 static void wq_unregister_lockdep(struct workqueue_struct *wq)
 {
+	if (wq->lockdep_map != &wq->__lockdep_map)
+		return;
+
 	lockdep_unregister_key(&wq->key);
 }
 
 static void wq_free_lockdep(struct workqueue_struct *wq)
 {
+	if (wq->lockdep_map != &wq->__lockdep_map)
+		return;
+
 	if (wq->lock_name != wq->name)
 		kfree(wq->lock_name);
 }
@@ -5755,6 +5761,28 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 	return wq;
 }
 EXPORT_SYMBOL_GPL(alloc_workqueue);
+
+#ifdef CONFIG_LOCKDEP
+__printf(1, 5)
+struct workqueue_struct *
+alloc_workqueue_lockdep_map(const char *fmt, unsigned int flags,
+			    int max_active, struct lockdep_map *lockdep_map, ...)
+{
+	struct workqueue_struct *wq;
+	va_list args;
+
+	va_start(args, lockdep_map);
+	wq = __alloc_workqueue(fmt, flags, max_active, args);
+	va_end(args);
+	if (!wq)
+		return NULL;
+
+	wq->lockdep_map = lockdep_map;
+
+	return wq;
+}
+EXPORT_SYMBOL_GPL(alloc_workqueue_lockdep_map);
+#endif
 
 static bool pwq_busy(struct pool_workqueue *pwq)
 {
