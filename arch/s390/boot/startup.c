@@ -341,7 +341,8 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	BUILD_BUG_ON(MAX_DCSS_ADDR > (1UL << MAX_PHYSMEM_BITS));
 	max_mappable = max(ident_map_size, MAX_DCSS_ADDR);
 	max_mappable = min(max_mappable, vmemmap_start);
-	__identity_base = round_down(vmemmap_start - max_mappable, rte_size);
+	if (IS_ENABLED(CONFIG_RANDOMIZE_IDENTITY_BASE))
+		__identity_base = round_down(vmemmap_start - max_mappable, rte_size);
 
 	return asce_limit;
 }
