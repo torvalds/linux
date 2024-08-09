@@ -619,8 +619,6 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct shash_desc *shash);
 enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
-struct cifs_aio_ctx *cifs_aio_ctx_alloc(void);
-void cifs_aio_ctx_release(struct kref *refcount);
 
 int cifs_alloc_hash(const char *name, struct shash_desc **sdesc);
 void cifs_free_hash(struct shash_desc **sdesc);
