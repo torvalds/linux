@@ -247,23 +247,25 @@ The following keys are defined:
   the performance of misaligned scalar native word accesses on the selected set
   of processors.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNKNOWN`: The performance of misaligned
-    accesses is unknown.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SCALAR_UNKNOWN`: The performance of
+    misaligned scalar accesses is unknown.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_EMULATED`: Misaligned accesses are
-    emulated via software, either in or below the kernel.  These accesses are
-    always extremely slow.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SCALAR_EMULATED`: Misaligned scalar
+    accesses are emulated via software, either in or below the kernel.  These
+    accesses are always extremely slow.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SLOW`: Misaligned native word
-    sized accesses are slower than the equivalent quantity of byte accesses.
-    Misaligned accesses may be supported directly in hardware, or trapped and
-    emulated by software.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SCALAR_SLOW`: Misaligned scalar native
+    word sized accesses are slower than the equivalent quantity of byte
+    accesses. Misaligned accesses may be supported directly in hardware, or
+    trapped and emulated by software.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_FAST`: Misaligned native word
-    sized accesses are faster than the equivalent quantity of byte accesses.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SCALAR_FAST`: Misaligned scalar native
+    word sized accesses are faster than the equivalent quantity of byte
+    accesses.
 
-  * :c:macro:`RISCV_HWPROBE_MISALIGNED_UNSUPPORTED`: Misaligned accesses are
-    not supported at all and will generate a misaligned address fault.
+  * :c:macro:`RISCV_HWPROBE_MISALIGNED_SCALAR_UNSUPPORTED`: Misaligned scalar
+    accesses are not supported at all and will generate a misaligned address
+    fault.
 
 * :c:macro:`RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE`: An unsigned int which
   represents the size of the Zicboz block in bytes.
