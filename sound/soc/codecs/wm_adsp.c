@@ -583,7 +583,7 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 	kfree(kcontrol);
 }
 
-static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
+int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 {
 	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
 	struct cs_dsp *cs_dsp = &dsp->cs_dsp;
@@ -657,6 +657,17 @@ err_ctl:
 	kfree(ctl);
 
 	return ret;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_control_add);
+
+static int wm_adsp_control_add_cb(struct cs_dsp_coeff_ctl *cs_ctl)
+{
+	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
+
+	if (dsp->control_add)
+		return (dsp->control_add)(dsp, cs_ctl);
+	else
+		return wm_adsp_control_add(cs_ctl);
 }
 
 static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
@@ -2072,12 +2083,12 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 EXPORT_SYMBOL_GPL(wm_halo_wdt_expire);
 
 static const struct cs_dsp_client_ops wm_adsp1_client_ops = {
-	.control_add = wm_adsp_control_add,
+	.control_add = wm_adsp_control_add_cb,
 	.control_remove = wm_adsp_control_remove,
 };
 
 static const struct cs_dsp_client_ops wm_adsp2_client_ops = {
-	.control_add = wm_adsp_control_add,
+	.control_add = wm_adsp_control_add_cb,
 	.control_remove = wm_adsp_control_remove,
 	.pre_run = wm_adsp_pre_run,
 	.post_run = wm_adsp_event_post_run,

@@ -186,7 +186,7 @@ static int fsl_xcvr_activate_ctl(struct snd_soc_dai *dai, const char *name,
 
 	lockdep_assert_held(&card->snd_card->controls_rwsem);
 
-	kctl = snd_soc_card_get_kcontrol_locked(card, name);
+	kctl = snd_soc_card_get_kcontrol(card, name);
 	if (kctl == NULL)
 		return -ENOENT;
 
