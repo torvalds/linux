@@ -176,7 +176,7 @@ static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 
 static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	int bytes_per_sample, bpp, ret, i;
+	int bytes_per_sample, bpp, ret;
 	int index = substream->number;
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;

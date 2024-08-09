@@ -2015,7 +2015,7 @@ static int snd_cs4231_ebus_create(struct snd_card *card,
 
 	if (ebus_dma_register(&chip->p_dma.ebus_info)) {
 		snd_cs4231_ebus_free(chip);
-		dev_dbg(chpi->card->dev,
+		dev_dbg(chip->card->dev,
 			"cs4231-%d: Unable to register EBUS play DMA\n",
 			dev);
 		return -EBUSY;
