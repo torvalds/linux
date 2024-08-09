@@ -87,6 +87,12 @@ enum {
 	UFS_QCOM_CMD_COMPL,
 };
 
+enum {
+	UFS_QCOM_SYSFS_NONE,
+	UFS_QCOM_SYSFS_S2R,
+	UFS_QCOM_SYSFS_DEEPSLEEP,
+};
+
 static char android_boot_dev[ANDROID_BOOT_DEV_MAX];
 
 static DEFINE_PER_CPU(struct freq_qos_request, qos_min_req);
@@ -5571,6 +5577,59 @@ static ssize_t irq_affinity_support_show(struct device *dev,
 
 static DEVICE_ATTR_RW(irq_affinity_support);
 
+static ssize_t ufs_pm_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret = -1;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	switch (host->ufs_pm_mode) {
+	case 0:
+		ret = scnprintf(buf, 6, "NONE\n");
+		break;
+	case 1:
+		ret = scnprintf(buf, 5, "S2R\n");
+		break;
+	case 2:
+		ret = scnprintf(buf, 12, "DEEPSLEEP\n");
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static ssize_t ufs_pm_mode_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	char kbuff[12] = {0};
+
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	if (!buf)
+		return -EINVAL;
+
+	strscpy(kbuff, buf, 11);
+
+	if (!strncasecmp(kbuff, "NONE", 4))
+		host->ufs_pm_mode = 0;
+	else if (!strncasecmp(kbuff, "S2R", 3))
+		host->ufs_pm_mode = 1;
+	else if (!strncasecmp(kbuff, "DEEPSLEEP", 9))
+		host->ufs_pm_mode = 2;
+	else
+		dev_err(hba->dev, "Invalid entry for ufs_pm_mode\n");
+
+	return count;
+}
+
+
+static DEVICE_ATTR_RW(ufs_pm_mode);
+
 static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_err_state.attr,
 	&dev_attr_power_mode.attr,
@@ -5582,6 +5641,7 @@ static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_hibern8_count.attr,
 	&dev_attr_ber_th_exceeded.attr,
 	&dev_attr_irq_affinity_support.attr,
+	&dev_attr_ufs_pm_mode.attr,
 	NULL
 };
 
@@ -6052,10 +6112,24 @@ static int ufs_qcom_suspend_prepare(struct device *dev)
 	 * regulators is turned off in DS. For other senerios
 	 * like s2idle, retain the default spm level.
 	 */
-	if (pm_suspend_target_state == PM_SUSPEND_MEM)
-		hba->spm_lvl = UFS_PM_LVL_5;
-	else
+	switch (host->ufs_pm_mode) {
+	case UFS_QCOM_SYSFS_NONE:
+		if (pm_suspend_target_state == PM_SUSPEND_MEM)
+			hba->spm_lvl = UFS_PM_LVL_5;
+		else
+			hba->spm_lvl = host->spm_lvl_default;
+		break;
+	case UFS_QCOM_SYSFS_S2R:
 		hba->spm_lvl = host->spm_lvl_default;
+		break;
+	case UFS_QCOM_SYSFS_DEEPSLEEP:
+		hba->spm_lvl = UFS_PM_LVL_5;
+		break;
+	default:
+		break;
+	}
+
+	dev_info(dev, "spm level is set to %d\n", hba->spm_lvl);
 
 	return ufshcd_suspend_prepare(dev);
 }
