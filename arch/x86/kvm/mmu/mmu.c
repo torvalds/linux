@@ -1573,6 +1573,16 @@ static __always_inline bool walk_slot_rmaps_4k(struct kvm *kvm,
 	return walk_slot_rmaps(kvm, slot, fn, PG_LEVEL_4K, PG_LEVEL_4K, flush_on_yield);
 }
 
+static bool __kvm_rmap_zap_gfn_range(struct kvm *kvm,
+				     const struct kvm_memory_slot *slot,
+				     gfn_t start, gfn_t end, bool can_yield,
+				     bool flush)
+{
+	return __walk_slot_rmaps(kvm, slot, __kvm_zap_rmap,
+				 PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
+				 start, end - 1, can_yield, true, flush);
+}
+
 typedef bool (*rmap_handler_t)(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 			       struct kvm_memory_slot *slot, gfn_t gfn,
 			       int level);
@@ -6602,9 +6612,8 @@ static bool kvm_rmap_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_e
 			if (WARN_ON_ONCE(start >= end))
 				continue;
 
-			flush = __walk_slot_rmaps(kvm, memslot, __kvm_zap_rmap,
-						  PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
-						  start, end - 1, true, true, flush);
+			flush = __kvm_rmap_zap_gfn_range(kvm, memslot, start,
+							 end, true, flush);
 		}
 	}
 
