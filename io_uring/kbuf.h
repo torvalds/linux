@@ -4,6 +4,13 @@
 
 #include <uapi/linux/io_uring.h>
 
+enum {
+	/* ring mapped provided buffers */
+	IOBL_BUF_RING	= 1,
+	/* ring mapped provided buffers, but mmap'ed by application */
+	IOBL_MMAP	= 2,
+};
+
 struct io_buffer_list {
 	/*
 	 * If ->buf_nr_pages is set, then buf_pages/buf_ring are used. If not,
@@ -25,12 +32,9 @@ struct io_buffer_list {
 	__u16 head;
 	__u16 mask;
 
-	atomic_t refs;
+	__u16 flags;
 
-	/* ring mapped provided buffers */
-	__u8 is_buf_ring;
-	/* ring mapped provided buffers, but mmap'ed by application */
-	__u8 is_mmap;
+	atomic_t refs;
 };
 
 struct io_buffer {
