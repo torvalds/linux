@@ -149,15 +149,22 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 			rnbd_to_bio_flags(le32_to_cpu(msg->rw)), GFP_KERNEL);
 	if (bio_add_page(bio, virt_to_page(data), datalen,
 			offset_in_page(data)) != datalen) {
-		rnbd_srv_err(sess_dev, "Failed to map data to bio\n");
+		rnbd_srv_err_rl(sess_dev, "Failed to map data to bio\n");
 		err = -EINVAL;
 		goto bio_put;
 	}
 
+	bio->bi_opf = rnbd_to_bio_flags(le32_to_cpu(msg->rw));
+	if (bio_has_data(bio) &&
+	    bio->bi_iter.bi_size != le32_to_cpu(msg->bi_size)) {
+		rnbd_srv_err_rl(sess_dev, "Datalen mismatch:  bio bi_size (%u), bi_size (%u)\n",
+				bio->bi_iter.bi_size, msg->bi_size);
+		err = -EINVAL;
+		goto bio_put;
+	}
 	bio->bi_end_io = rnbd_dev_bi_end_io;
 	bio->bi_private = priv;
 	bio->bi_iter.bi_sector = le64_to_cpu(msg->sector);
-	bio->bi_iter.bi_size = le32_to_cpu(msg->bi_size);
 	prio = srv_sess->ver < RNBD_PROTO_VER_MAJOR ||
 	       usrlen < sizeof(*msg) ? 0 : le16_to_cpu(msg->prio);
 	bio_set_prio(bio, prio);
