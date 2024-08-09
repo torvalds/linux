@@ -1516,6 +1516,59 @@ static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
 	     slot_rmap_walk_okay(_iter_);				\
 	     slot_rmap_walk_next(_iter_))
 
+/* The return value indicates if tlb flush on all vcpus is needed. */
+typedef bool (*slot_rmaps_handler) (struct kvm *kvm,
+				    struct kvm_rmap_head *rmap_head,
+				    const struct kvm_memory_slot *slot);
+
+static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
+					      const struct kvm_memory_slot *slot,
+					      slot_rmaps_handler fn,
+					      int start_level, int end_level,
+					      gfn_t start_gfn, gfn_t end_gfn,
+					      bool flush_on_yield, bool flush)
+{
+	struct slot_rmap_walk_iterator iterator;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	for_each_slot_rmap_range(slot, start_level, end_level, start_gfn,
+			end_gfn, &iterator) {
+		if (iterator.rmap)
+			flush |= fn(kvm, iterator.rmap, slot);
+
+		if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
+			if (flush && flush_on_yield) {
+				kvm_flush_remote_tlbs_range(kvm, start_gfn,
+							    iterator.gfn - start_gfn + 1);
+				flush = false;
+			}
+			cond_resched_rwlock_write(&kvm->mmu_lock);
+		}
+	}
+
+	return flush;
+}
+
+static __always_inline bool walk_slot_rmaps(struct kvm *kvm,
+					    const struct kvm_memory_slot *slot,
+					    slot_rmaps_handler fn,
+					    int start_level, int end_level,
+					    bool flush_on_yield)
+{
+	return __walk_slot_rmaps(kvm, slot, fn, start_level, end_level,
+				 slot->base_gfn, slot->base_gfn + slot->npages - 1,
+				 flush_on_yield, false);
+}
+
+static __always_inline bool walk_slot_rmaps_4k(struct kvm *kvm,
+					       const struct kvm_memory_slot *slot,
+					       slot_rmaps_handler fn,
+					       bool flush_on_yield)
+{
+	return walk_slot_rmaps(kvm, slot, fn, PG_LEVEL_4K, PG_LEVEL_4K, flush_on_yield);
+}
+
 typedef bool (*rmap_handler_t)(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 			       struct kvm_memory_slot *slot, gfn_t gfn,
 			       int level);
@@ -6271,59 +6324,6 @@ void kvm_configure_mmu(bool enable_tdp, int tdp_forced_root_level,
 		max_huge_page_level = PG_LEVEL_2M;
 }
 EXPORT_SYMBOL_GPL(kvm_configure_mmu);
-
-/* The return value indicates if tlb flush on all vcpus is needed. */
-typedef bool (*slot_rmaps_handler) (struct kvm *kvm,
-				    struct kvm_rmap_head *rmap_head,
-				    const struct kvm_memory_slot *slot);
-
-static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
-					      const struct kvm_memory_slot *slot,
-					      slot_rmaps_handler fn,
-					      int start_level, int end_level,
-					      gfn_t start_gfn, gfn_t end_gfn,
-					      bool flush_on_yield, bool flush)
-{
-	struct slot_rmap_walk_iterator iterator;
-
-	lockdep_assert_held_write(&kvm->mmu_lock);
-
-	for_each_slot_rmap_range(slot, start_level, end_level, start_gfn,
-			end_gfn, &iterator) {
-		if (iterator.rmap)
-			flush |= fn(kvm, iterator.rmap, slot);
-
-		if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
-			if (flush && flush_on_yield) {
-				kvm_flush_remote_tlbs_range(kvm, start_gfn,
-							    iterator.gfn - start_gfn + 1);
-				flush = false;
-			}
-			cond_resched_rwlock_write(&kvm->mmu_lock);
-		}
-	}
-
-	return flush;
-}
-
-static __always_inline bool walk_slot_rmaps(struct kvm *kvm,
-					    const struct kvm_memory_slot *slot,
-					    slot_rmaps_handler fn,
-					    int start_level, int end_level,
-					    bool flush_on_yield)
-{
-	return __walk_slot_rmaps(kvm, slot, fn, start_level, end_level,
-				 slot->base_gfn, slot->base_gfn + slot->npages - 1,
-				 flush_on_yield, false);
-}
-
-static __always_inline bool walk_slot_rmaps_4k(struct kvm *kvm,
-					       const struct kvm_memory_slot *slot,
-					       slot_rmaps_handler fn,
-					       bool flush_on_yield)
-{
-	return walk_slot_rmaps(kvm, slot, fn, PG_LEVEL_4K, PG_LEVEL_4K, flush_on_yield);
-}
 
 static void free_mmu_pages(struct kvm_mmu *mmu)
 {
