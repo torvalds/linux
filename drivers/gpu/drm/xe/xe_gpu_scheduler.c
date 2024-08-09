@@ -94,8 +94,15 @@ void xe_sched_add_msg(struct xe_gpu_scheduler *sched,
 		      struct xe_sched_msg *msg)
 {
 	xe_sched_msg_lock(sched);
-	list_add_tail(&msg->link, &sched->msgs);
+	xe_sched_add_msg_locked(sched, msg);
 	xe_sched_msg_unlock(sched);
+}
 
+void xe_sched_add_msg_locked(struct xe_gpu_scheduler *sched,
+			     struct xe_sched_msg *msg)
+{
+	lockdep_assert_held(&sched->base.job_list_lock);
+
+	list_add_tail(&msg->link, &sched->msgs);
 	xe_sched_process_msg_queue(sched);
 }
