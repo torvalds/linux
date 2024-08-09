@@ -381,10 +381,10 @@ static int swsci(struct drm_i915_private *dev_priv,
 #define DISPLAY_TYPE_EXTERNAL_FLAT_PANEL	2
 #define DISPLAY_TYPE_INTERNAL_FLAT_PANEL	3
 
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+int intel_opregion_notify_encoder(struct intel_encoder *encoder,
 				  bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 parm = 0;
 	u32 type = 0;
 	u32 port;
@@ -399,10 +399,10 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	if (ret)
 		return ret;
 
-	if (intel_encoder->type == INTEL_OUTPUT_DSI)
+	if (encoder->type == INTEL_OUTPUT_DSI)
 		port = 0;
 	else
-		port = intel_encoder->port;
+		port = encoder->port;
 
 	if (port == PORT_E)  {
 		port = 0;
@@ -421,15 +421,15 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	if (port > 4) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "[ENCODER:%d:%s] port %c (index %u) out of bounds for display power state notification\n",
-			    intel_encoder->base.base.id, intel_encoder->base.name,
-			    port_name(intel_encoder->port), port);
+			    encoder->base.base.id, encoder->base.name,
+			    port_name(encoder->port), port);
 		return -EINVAL;
 	}
 
 	if (!enable)
 		parm |= 4 << 8;
 
-	switch (intel_encoder->type) {
+	switch (encoder->type) {
 	case INTEL_OUTPUT_ANALOG:
 		type = DISPLAY_TYPE_CRT;
 		break;
@@ -446,7 +446,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	default:
 		drm_WARN_ONCE(&dev_priv->drm, 1,
 			      "unsupported intel_encoder type %d\n",
-			      intel_encoder->type);
+			      encoder->type);
 		return -EINVAL;
 	}
 
@@ -1093,7 +1093,7 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 
 /**
  * intel_opregion_get_edid - Fetch EDID from ACPI OpRegion mailbox #5
- * @intel_connector: eDP connector
+ * @connector: eDP connector
  *
  * This reads the ACPI Opregion mailbox #5 to extract the EDID that is passed
  * to it.
@@ -1102,10 +1102,9 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
  * The EDID in the OpRegion, or NULL if there is none or it's invalid.
  *
  */
-const struct drm_edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
+const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector)
 {
-	struct drm_connector *connector = &intel_connector->base;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_opregion *opregion = i915->display.opregion;
 	const struct drm_edid *drm_edid;
 	const void *edid;

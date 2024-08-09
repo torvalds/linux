@@ -46,7 +46,7 @@ void intel_opregion_suspend(struct drm_i915_private *dev_priv,
 
 bool intel_opregion_asle_present(struct drm_i915_private *i915);
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+int intel_opregion_notify_encoder(struct intel_encoder *encoder,
 				  bool enable);
 int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 				  pci_power_t state);
@@ -98,7 +98,7 @@ static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 }
 
 static inline int
-intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
+intel_opregion_notify_encoder(struct intel_encoder *encoder, bool enable)
 {
 	return 0;
 }
