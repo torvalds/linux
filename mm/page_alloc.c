@@ -322,6 +322,11 @@ static inline bool deferred_pages_enabled(void)
 {
 	return false;
 }
+
+static inline bool _deferred_grow_zone(struct zone *zone, unsigned int order)
+{
+	return false;
+}
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
 /* Return a pointer to the bitmap storing bits affecting a block of pages */
@@ -3395,7 +3400,6 @@ check_alloc_wmark:
 			if (cond_accept_memory(zone, order))
 				goto try_this_zone;
 
-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 			/*
 			 * Watermark failed for this zone, but see if we can
 			 * grow this zone if it contains deferred pages.
@@ -3404,7 +3408,6 @@ check_alloc_wmark:
 				if (_deferred_grow_zone(zone, order))
 					goto try_this_zone;
 			}
-#endif
 			/* Checked here to keep the fast path fast */
 			BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 			if (alloc_flags & ALLOC_NO_WATERMARKS)
@@ -3450,13 +3453,11 @@ try_this_zone:
 			if (cond_accept_memory(zone, order))
 				goto try_this_zone;
 
-#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 			/* Try again if zone has deferred pages */
 			if (deferred_pages_enabled()) {
 				if (_deferred_grow_zone(zone, order))
 					goto try_this_zone;
 			}
-#endif
 		}
 	}
 
