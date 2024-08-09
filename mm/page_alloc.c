@@ -6935,11 +6935,46 @@ static bool page_contains_unaccepted(struct page *page, unsigned int order)
 	return range_contains_unaccepted_memory(start, PAGE_SIZE << order);
 }
 
+static void __accept_page(struct zone *zone, unsigned long *flags,
+			  struct page *page)
+{
+	bool last;
+
+	list_del(&page->lru);
+	last = list_empty(&zone->unaccepted_pages);
+
+	account_freepages(zone, -MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
+	__mod_zone_page_state(zone, NR_UNACCEPTED, -MAX_ORDER_NR_PAGES);
+	__ClearPageUnaccepted(page);
+	spin_unlock_irqrestore(&zone->lock, *flags);
+
+	accept_memory(page_to_phys(page), PAGE_SIZE << MAX_PAGE_ORDER);
+
+	__free_pages_ok(page, MAX_PAGE_ORDER, FPI_TO_TAIL);
+
+	if (last)
+		static_branch_dec(&zones_with_unaccepted_pages);
+}
+
+void accept_page(struct page *page)
+{
+	struct zone *zone = page_zone(page);
+	unsigned long flags;
+
+	spin_lock_irqsave(&zone->lock, flags);
+	if (!PageUnaccepted(page)) {
+		spin_unlock_irqrestore(&zone->lock, flags);
+		return;
+	}
+
+	/* Unlocks zone->lock */
+	__accept_page(zone, &flags, page);
+}
+
 static bool try_to_accept_memory_one(struct zone *zone)
 {
 	unsigned long flags;
 	struct page *page;
-	bool last;
 
 	spin_lock_irqsave(&zone->lock, flags);
 	page = list_first_entry_or_null(&zone->unaccepted_pages,
@@ -6949,20 +6984,8 @@ static bool try_to_accept_memory_one(struct zone *zone)
 		return false;
 	}
 
-	list_del(&page->lru);
-	last = list_empty(&zone->unaccepted_pages);
-
-	account_freepages(zone, -MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
-	__mod_zone_page_state(zone, NR_UNACCEPTED, -MAX_ORDER_NR_PAGES);
-	__ClearPageUnaccepted(page);
-	spin_unlock_irqrestore(&zone->lock, flags);
-
-	accept_memory(page_to_phys(page), PAGE_SIZE << MAX_PAGE_ORDER);
-
-	__free_pages_ok(page, MAX_PAGE_ORDER, FPI_TO_TAIL);
-
-	if (last)
-		static_branch_dec(&zones_with_unaccepted_pages);
+	/* Unlocks zone->lock */
+	__accept_page(zone, &flags, page);
 
 	return true;
 }

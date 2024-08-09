@@ -1432,4 +1432,12 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 	unsigned long new_addr, unsigned long len,
 	bool need_rmap_locks, bool for_stack);
 
+#ifdef CONFIG_UNACCEPTED_MEMORY
+void accept_page(struct page *page);
+#else /* CONFIG_UNACCEPTED_MEMORY */
+static inline void accept_page(struct page *page)
+{
+}
+#endif /* CONFIG_UNACCEPTED_MEMORY */
+
 #endif	/* __MM_INTERNAL_H */
