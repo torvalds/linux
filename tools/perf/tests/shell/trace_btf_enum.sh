@@ -10,6 +10,7 @@ non_syscall="timer:hrtimer_init,timer:hrtimer_start"
 
 TESTPROG="perf test -w landlock"
 
+# shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
 skip_if_no_perf_trace || exit 2
 
