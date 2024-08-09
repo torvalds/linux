@@ -383,13 +383,9 @@ static int aemif_probe(struct platform_device *pdev)
 	 * child will be probed after the AEMIF timing parameters are set.
 	 */
 	if (np) {
-		for_each_available_child_of_node(np, child_np) {
-			ret = of_platform_populate(child_np, NULL, NULL, dev);
-			if (ret < 0) {
-				of_node_put(child_np);
-				return ret;
-			}
-		}
+		ret = devm_of_platform_populate(dev);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
