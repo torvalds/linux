@@ -181,15 +181,13 @@
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cpsw_pins>;
+	status = "okay";
 };
 
 &cpsw_port1 {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&cpsw3g_phy0>;
-};
-
-&cpsw_port2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &cpsw3g_mdio {
