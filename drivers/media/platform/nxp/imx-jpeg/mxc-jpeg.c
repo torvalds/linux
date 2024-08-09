@@ -2888,7 +2888,6 @@ err_clk:
 	return ret;
 }
 
-#ifdef CONFIG_PM
 static int mxc_jpeg_runtime_resume(struct device *dev)
 {
 	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
@@ -2911,9 +2910,7 @@ static int mxc_jpeg_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int mxc_jpeg_suspend(struct device *dev)
 {
 	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
@@ -2934,12 +2931,10 @@ static int mxc_jpeg_resume(struct device *dev)
 	v4l2_m2m_resume(jpeg->m2m_dev);
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops	mxc_jpeg_pm_ops = {
-	SET_RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend,
-			   mxc_jpeg_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
+	RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend, mxc_jpeg_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
 };
 
 static void mxc_jpeg_remove(struct platform_device *pdev)
@@ -2963,7 +2958,7 @@ static struct platform_driver mxc_jpeg_driver = {
 	.driver = {
 		.name = "mxc-jpeg",
 		.of_match_table = mxc_jpeg_match,
-		.pm = &mxc_jpeg_pm_ops,
+		.pm = pm_ptr(&mxc_jpeg_pm_ops),
 	},
 };
 module_platform_driver(mxc_jpeg_driver);
