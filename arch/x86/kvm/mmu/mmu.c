@@ -1464,7 +1464,7 @@ static bool slot_rmap_walk_okay(struct slot_rmap_walk_iterator *iterator)
 static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
 {
 	while (++iterator->rmap <= iterator->end_rmap) {
-		iterator->gfn += (1UL << KVM_HPAGE_GFN_SHIFT(iterator->level));
+		iterator->gfn += KVM_PAGES_PER_HPAGE(iterator->level);
 
 		if (iterator->rmap->val)
 			return;
