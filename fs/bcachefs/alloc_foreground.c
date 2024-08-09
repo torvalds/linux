@@ -1740,7 +1740,7 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);
 
-	bch2_dev_usage_to_text(out, &stats);
+	bch2_dev_usage_to_text(out, ca, &stats);
 
 	prt_newline(out);
 
