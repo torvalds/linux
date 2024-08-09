@@ -1324,7 +1324,7 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 		if (delay > PCI_RESET_WAIT) {
 			if (retrain) {
 				retrain = false;
-				if (pcie_failed_link_retrain(bridge)) {
+				if (pcie_failed_link_retrain(bridge) == 0) {
 					delay = 1;
 					continue;
 				}
