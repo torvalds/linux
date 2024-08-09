@@ -165,13 +165,6 @@ snd_ctl_find_id_mixer(struct snd_card *card, const char *name)
 	return snd_ctl_find_id(card, &id);
 }
 
-/* to be removed */
-static inline struct snd_kcontrol *
-snd_ctl_find_id_mixer_locked(struct snd_card *card, const char *name)
-{
-	return snd_ctl_find_id_mixer(card, name);
-}
-
 int snd_ctl_create(struct snd_card *card);
 
 int snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn);
