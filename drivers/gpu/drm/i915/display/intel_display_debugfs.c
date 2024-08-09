@@ -1049,6 +1049,7 @@ static const struct {
 
 void intel_display_debugfs_register(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_minor *minor = i915->drm.primary;
 	int i;
 
@@ -1067,9 +1068,9 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_bios_debugfs_register(i915);
 	intel_cdclk_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
-	intel_fbc_debugfs_register(&i915->display);
+	intel_fbc_debugfs_register(display);
 	intel_hpd_debugfs_register(i915);
-	intel_opregion_debugfs_register(i915);
+	intel_opregion_debugfs_register(display);
 	intel_psr_debugfs_register(i915);
 	intel_wm_debugfs_register(i915);
 	intel_display_debugfs_params(i915);

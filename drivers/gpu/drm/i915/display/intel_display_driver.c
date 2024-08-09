@@ -535,7 +535,7 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 		return;
 
 	/* Must be done after probing outputs */
-	intel_opregion_register(i915);
+	intel_opregion_register(display);
 	intel_acpi_video_register(display);
 
 	intel_audio_init(i915);
@@ -626,6 +626,8 @@ void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 
 void intel_display_driver_unregister(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (!HAS_DISPLAY(i915))
 		return;
 
@@ -645,7 +647,7 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 	drm_atomic_helper_shutdown(&i915->drm);
 
 	acpi_video_unregister();
-	intel_opregion_unregister(i915);
+	intel_opregion_unregister(display);
 }
 
 /*
