@@ -276,14 +276,13 @@ EXPORT_SYMBOL_GPL(usb_decode_interval);
  */
 enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 {
-	struct device_node *controller = NULL;
+	struct device_node *controller;
 	struct of_phandle_args args;
 	const char *dr_mode;
 	int index;
 	int err;
 
-	do {
-		controller = of_find_node_with_property(controller, "phys");
+	for_each_node_with_property(controller, "phys") {
 		if (!of_device_is_available(controller))
 			continue;
 		index = 0;
@@ -306,7 +305,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 				goto finish;
 			index++;
 		} while (args.np);
-	} while (controller);
+	}
 
 finish:
 	err = of_property_read_string(controller, "dr_mode", &dr_mode);
