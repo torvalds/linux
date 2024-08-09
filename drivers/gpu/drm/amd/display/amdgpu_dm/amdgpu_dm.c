@@ -6908,9 +6908,14 @@ static ssize_t panel_power_savings_store(struct device *device,
 					 const char *buf, size_t count)
 {
 	struct drm_connector *connector = dev_get_drvdata(device);
+	struct amdgpu_dm_connector *aconn = to_amdgpu_dm_connector(connector);
 	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct dc *dc = adev->dm.dc;
+	struct pipe_ctx *pipe_ctx;
 	long val;
 	int ret;
+	int i;
 
 	ret = kstrtol(buf, 0, &val);
 
@@ -6925,7 +6930,17 @@ static ssize_t panel_power_savings_store(struct device *device,
 		ABM_LEVEL_IMMEDIATE_DISABLE;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
-	drm_kms_helper_hotplug_event(dev);
+	mutex_lock(&adev->dm.dc_lock);
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream &&
+		    pipe_ctx->stream->link == aconn->dc_link) {
+			dc_set_abm_level(dc, pipe_ctx, val);
+			break;
+		}
+	}
+	mutex_unlock(&adev->dm.dc_lock);
 
 	return count;
 }
