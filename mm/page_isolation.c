@@ -152,6 +152,9 @@ static int set_migratetype_isolate(struct page *page, int migratetype, int isol_
 	unsigned long flags;
 	unsigned long check_unmovable_start, check_unmovable_end;
 
+	if (PageUnaccepted(page))
+		accept_page(page);
+
 	spin_lock_irqsave(&zone->lock, flags);
 
 	/*
@@ -366,6 +369,11 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 
 		VM_BUG_ON(!page);
 		pfn = page_to_pfn(page);
+
+		if (PageUnaccepted(page)) {
+			pfn += MAX_ORDER_NR_PAGES;
+			continue;
+		}
 
 		if (PageBuddy(page)) {
 			int order = buddy_order(page);
