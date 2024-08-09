@@ -18,6 +18,7 @@ nouveau_.*
 gem_.*
 i915_.*
 xe_.*
+tools_test.*
 
 # Currently fails and causes coverage loss for other tests
 # since core_getversion also fails.

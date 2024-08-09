@@ -50,4 +50,3 @@ kms_writeback@writeback-fb-id-XRGB2101010,Fail
 kms_writeback@writeback-invalid-parameters,Fail
 kms_writeback@writeback-pixel-formats,Fail
 perf@i915-ref-count,Fail
-tools_test@tools_test,Fail

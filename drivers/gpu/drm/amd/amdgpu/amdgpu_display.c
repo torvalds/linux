@@ -1407,10 +1407,6 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
-	if (adev->dc_enabled)
-		drm_mode_create_power_saving_policy_property(adev_to_drm(adev),
-							     DRM_MODE_POWER_SAVING_POLICY_ALL);
-
 	return 0;
 }
 

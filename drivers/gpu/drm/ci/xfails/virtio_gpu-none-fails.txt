@@ -187,4 +187,3 @@ kms_vblank@wait-forked,Fail
 kms_vblank@wait-forked-busy,Fail
 kms_vblank@wait-idle,Fail
 perf@i915-ref-count,Fail
-tools_test@tools_test,Fail

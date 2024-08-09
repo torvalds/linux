@@ -43,4 +43,3 @@ kms_plane_alpha_blend@coverage-vs-premult-vs-constant,Fail
 kms_plane_lowres@tiling-none,Fail
 kms_rmfb@close-fd,Fail
 kms_vblank@ts-continuation-dpms-rpm,Fail
-tools_test@tools_test,Fail

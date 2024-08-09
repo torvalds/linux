@@ -38,4 +38,3 @@ kms_plane@pixel-format,Fail
 kms_plane_cursor@primary,Fail
 kms_rotation_crc@primary-rotation-180,Fail
 perf@i915-ref-count,Fail
-tools_test@tools_test,Fail
