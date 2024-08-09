@@ -208,7 +208,8 @@ amdgpu-y += \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o \
 	jpeg_v4_0_5.o \
-	jpeg_v5_0_0.o
+	jpeg_v5_0_0.o \
+	jpeg_v5_0_1.o
 
 # add VPE block
 amdgpu-y += \
