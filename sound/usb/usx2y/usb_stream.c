@@ -665,7 +665,7 @@ static void i_playback_start(struct urb *urb)
 int usb_stream_start(struct usb_stream_kernel *sk)
 {
 	struct usb_stream *s = sk->s;
-	int frame = 0, iters = 0;
+	int frame = 0;
 	int u, err;
 	int try = 0;
 
@@ -700,7 +700,6 @@ dotry:
 			frame = usb_get_current_frame_number(dev);
 			do {
 				now = usb_get_current_frame_number(dev);
-				++iters;
 			} while (now > -1 && now == frame);
 		}
 		err = usb_submit_urb(inurb, GFP_ATOMIC);
