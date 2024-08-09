@@ -703,8 +703,6 @@ errout:
 	return err;
 }
 
-#define INFINITY_LIFE_TIME	0xFFFFFFFF
-
 static void check_lifetime(struct work_struct *work)
 {
 	unsigned long now, next, next_sec, next_sched;
