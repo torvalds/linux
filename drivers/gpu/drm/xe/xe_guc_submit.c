@@ -1374,9 +1374,11 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 	struct xe_exec_queue *q = msg->private_data;
 
 	if (guc_exec_queue_allowed_to_change_state(q)) {
-		q->guc->resume_time = RESUME_PENDING;
 		clear_exec_queue_suspended(q);
-		enable_scheduling(q);
+		if (!exec_queue_enabled(q)) {
+			q->guc->resume_time = RESUME_PENDING;
+			enable_scheduling(q);
+		}
 	} else {
 		clear_exec_queue_suspended(q);
 	}
