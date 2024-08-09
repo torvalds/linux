@@ -70,6 +70,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/acpi.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>
@@ -834,6 +835,34 @@ void __init xen_do_remap_nonram(void)
 	pr_info("Remapped %u non-RAM page(s)\n", remapped);
 }
 
+#ifdef CONFIG_ACPI
+/*
+ * Xen variant of acpi_os_ioremap() taking potentially remapped non-RAM
+ * regions into account.
+ * Any attempt to map an area crossing a remap boundary will produce a
+ * WARN() splat.
+ * phys is related to remap->maddr on input and will be rebased to remap->paddr.
+ */
+static void __iomem *xen_acpi_os_ioremap(acpi_physical_address phys,
+					 acpi_size size)
+{
+	unsigned int i;
+	const struct nonram_remap *remap = xen_nonram_remap;
+
+	for (i = 0; i < nr_nonram_remap; i++) {
+		if (phys + size > remap->maddr &&
+		    phys < remap->maddr + remap->size) {
+			WARN_ON(phys < remap->maddr ||
+				phys + size > remap->maddr + remap->size);
+			phys += remap->paddr - remap->maddr;
+			break;
+		}
+	}
+
+	return x86_acpi_os_ioremap(phys, size);
+}
+#endif /* CONFIG_ACPI */
+
 /*
  * Add a new non-RAM remap entry.
  * In case of no free entry found, just crash the system.
@@ -847,6 +876,12 @@ void __init xen_add_remap_nonram(phys_addr_t maddr, phys_addr_t paddr,
 		xen_raw_console_write("Number of required E820 entry remapping actions exceed maximum value\n");
 		BUG();
 	}
+
+#ifdef CONFIG_ACPI
+	/* Switch to the Xen acpi_os_ioremap() variant. */
+	if (nr_nonram_remap == 0)
+		acpi_os_ioremap = xen_acpi_os_ioremap;
+#endif
 
 	xen_nonram_remap[nr_nonram_remap].maddr = maddr;
 	xen_nonram_remap[nr_nonram_remap].paddr = paddr;
