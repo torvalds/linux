@@ -212,14 +212,25 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 	buf = io_ring_head_to_buf(br, head, bl->mask);
 	if (arg->max_len) {
 		u32 len = READ_ONCE(buf->len);
-		size_t needed;
 
 		if (unlikely(!len))
 			return -ENOBUFS;
-		needed = (arg->max_len + len - 1) / len;
-		needed = min_not_zero(needed, (size_t) PEEK_MAX_IMPORT);
-		if (nr_avail > needed)
-			nr_avail = needed;
+		/*
+		 * Limit incremental buffers to 1 segment. No point trying
+		 * to peek ahead and map more than we need, when the buffers
+		 * themselves should be large when setup with
+		 * IOU_PBUF_RING_INC.
+		 */
+		if (bl->flags & IOBL_INC) {
+			nr_avail = 1;
+		} else {
+			size_t needed;
+
+			needed = (arg->max_len + len - 1) / len;
+			needed = min_not_zero(needed, (size_t) PEEK_MAX_IMPORT);
+			if (nr_avail > needed)
+				nr_avail = needed;
+		}
 	}
 
 	/*
@@ -244,16 +255,21 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 
 	req->buf_index = buf->bid;
 	do {
-		/* truncate end piece, if needed */
-		if (buf->len > arg->max_len)
-			buf->len = arg->max_len;
+		u32 len = buf->len;
+
+		/* truncate end piece, if needed, for non partial buffers */
+		if (len > arg->max_len) {
+			len = arg->max_len;
+			if (!(bl->flags & IOBL_INC))
+				buf->len = len;
+		}
 
 		iov->iov_base = u64_to_user_ptr(buf->addr);
-		iov->iov_len = buf->len;
+		iov->iov_len = len;
 		iov++;
 
-		arg->out_len += buf->len;
-		arg->max_len -= buf->len;
+		arg->out_len += len;
+		arg->max_len -= len;
 		if (!arg->max_len)
 			break;
 
@@ -675,7 +691,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 
 	if (reg.resv[0] || reg.resv[1] || reg.resv[2])
 		return -EINVAL;
-	if (reg.flags & ~IOU_PBUF_RING_MMAP)
+	if (reg.flags & ~(IOU_PBUF_RING_MMAP | IOU_PBUF_RING_INC))
 		return -EINVAL;
 	if (!(reg.flags & IOU_PBUF_RING_MMAP)) {
 		if (!reg.ring_addr)
@@ -713,6 +729,8 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (!ret) {
 		bl->nr_entries = reg.ring_entries;
 		bl->mask = reg.ring_entries - 1;
+		if (reg.flags & IOU_PBUF_RING_INC)
+			bl->flags |= IOBL_INC;
 
 		io_buffer_add_list(ctx, bl, reg.bgid);
 		return 0;

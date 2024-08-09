@@ -9,6 +9,9 @@ enum {
 	IOBL_BUF_RING	= 1,
 	/* ring mapped provided buffers, but mmap'ed by application */
 	IOBL_MMAP	= 2,
+	/* buffers are consumed incrementally rather than always fully */
+	IOBL_INC	= 4,
+
 };
 
 struct io_buffer_list {
@@ -124,24 +127,45 @@ static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 /* Mapped buffer ring, return io_uring_buf from head */
 #define io_ring_head_to_buf(br, head, mask)	&(br)->bufs[(head) & (mask)]
 
-static inline void io_kbuf_commit(struct io_kiocb *req,
+static inline bool io_kbuf_commit(struct io_kiocb *req,
 				  struct io_buffer_list *bl, int len, int nr)
 {
 	if (unlikely(!(req->flags & REQ_F_BUFFERS_COMMIT)))
-		return;
-	bl->head += nr;
+		return true;
+
 	req->flags &= ~REQ_F_BUFFERS_COMMIT;
+
+	if (unlikely(len < 0))
+		return true;
+
+	if (bl->flags & IOBL_INC) {
+		struct io_uring_buf *buf;
+
+		buf = io_ring_head_to_buf(bl->buf_ring, bl->head, bl->mask);
+		if (WARN_ON_ONCE(len > buf->len))
+			len = buf->len;
+		buf->len -= len;
+		if (buf->len) {
+			buf->addr += len;
+			return false;
+		}
+	}
+
+	bl->head += nr;
+	return true;
 }
 
-static inline void __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
+static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
 {
 	struct io_buffer_list *bl = req->buf_list;
+	bool ret = true;
 
 	if (bl) {
-		io_kbuf_commit(req, bl, len, nr);
+		ret = io_kbuf_commit(req, bl, len, nr);
 		req->buf_index = bl->bgid;
 	}
 	req->flags &= ~REQ_F_BUFFER_RING;
+	return ret;
 }
 
 static inline void __io_put_kbuf_list(struct io_kiocb *req, int len,
@@ -176,10 +200,12 @@ static inline unsigned int __io_put_kbufs(struct io_kiocb *req, int len,
 		return 0;
 
 	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
-	if (req->flags & REQ_F_BUFFER_RING)
-		__io_put_kbuf_ring(req, len, nbufs);
-	else
+	if (req->flags & REQ_F_BUFFER_RING) {
+		if (!__io_put_kbuf_ring(req, len, nbufs))
+			ret |= IORING_CQE_F_BUF_MORE;
+	} else {
 		__io_put_kbuf(req, len, issue_flags);
+	}
 	return ret;
 }
 
