@@ -870,7 +870,6 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 
 int intel_opregion_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_opregion *opregion;
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	u32 asls, mboxes;
@@ -991,7 +990,7 @@ int intel_opregion_setup(struct intel_display *display)
 
 		vbt = opregion->rvda;
 		vbt_size = opregion->asle->rvds;
-		if (intel_bios_is_valid_vbt(i915, vbt, vbt_size)) {
+		if (intel_bios_is_valid_vbt(display, vbt, vbt_size)) {
 			drm_dbg_kms(display->drm,
 				    "Found valid VBT in ACPI OpRegion (RVDA)\n");
 			opregion->vbt = vbt;
@@ -1016,7 +1015,7 @@ int intel_opregion_setup(struct intel_display *display)
 	vbt_size = (mboxes & MBOX_ASLE_EXT) ?
 		OPREGION_ASLE_EXT_OFFSET : OPREGION_SIZE;
 	vbt_size -= OPREGION_VBT_OFFSET;
-	if (intel_bios_is_valid_vbt(i915, vbt, vbt_size)) {
+	if (intel_bios_is_valid_vbt(display, vbt, vbt_size)) {
 		drm_dbg_kms(display->drm,
 			    "Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
 		opregion->vbt = vbt;

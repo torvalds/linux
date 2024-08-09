@@ -6503,8 +6503,9 @@ static bool _intel_dp_is_port_edp(struct drm_i915_private *dev_priv,
 
 bool intel_dp_is_port_edp(struct drm_i915_private *i915, enum port port)
 {
+	struct intel_display *display = &i915->display;
 	const struct intel_bios_encoder_data *devdata =
-		intel_bios_encoder_data_lookup(i915, port);
+		intel_bios_encoder_data_lookup(display, port);
 
 	return _intel_dp_is_port_edp(i915, devdata, port);
 }
@@ -6607,6 +6608,7 @@ static void intel_edp_backlight_setup(struct intel_dp *intel_dp,
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector)
 {
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode;
@@ -6632,7 +6634,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	intel_bios_init_panel_early(dev_priv, &intel_connector->panel,
+	intel_bios_init_panel_early(display, &intel_connector->panel,
 				    encoder->devdata);
 
 	if (!intel_pps_init(intel_dp)) {
@@ -6729,7 +6731,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		drm_edid = ERR_PTR(-ENOENT);
 	}
 
-	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata,
+	intel_bios_init_panel_late(display, &intel_connector->panel, encoder->devdata,
 				   IS_ERR(drm_edid) ? NULL : drm_edid);
 
 	intel_panel_add_edid_fixed_modes(intel_connector, true);

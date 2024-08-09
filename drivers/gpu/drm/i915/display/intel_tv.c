@@ -1930,6 +1930,7 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 void
 intel_tv_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct drm_connector *connector;
 	struct intel_tv *intel_tv;
 	struct intel_encoder *intel_encoder;
@@ -1939,7 +1940,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	if ((intel_de_read(dev_priv, TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 		return;
 
-	if (!intel_bios_is_tv_present(dev_priv)) {
+	if (!intel_bios_is_tv_present(display)) {
 		drm_dbg_kms(&dev_priv->drm, "Integrated TV is not present.\n");
 		return;
 	}

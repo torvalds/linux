@@ -2919,6 +2919,7 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, u16 type)
 static bool
 intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, u16 type)
 {
+	struct intel_display *display = to_intel_display(&intel_sdvo->base);
 	struct drm_encoder *encoder = &intel_sdvo->base.base;
 	struct drm_i915_private *i915 = to_i915(encoder->dev);
 	struct drm_connector *connector;
@@ -2946,7 +2947,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, u16 type)
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
-	intel_bios_init_panel_late(i915, &intel_connector->panel, NULL, NULL);
+	intel_bios_init_panel_late(display, &intel_connector->panel, NULL, NULL);
 
 	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some

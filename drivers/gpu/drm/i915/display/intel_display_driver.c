@@ -217,7 +217,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 			return ret;
 	}
 
-	intel_bios_init(i915);
+	intel_bios_init(display);
 
 	ret = intel_vga_register(i915);
 	if (ret)
@@ -275,7 +275,7 @@ cleanup_vga_client_pw_domain_dmc:
 cleanup_vga:
 	intel_vga_unregister(i915);
 cleanup_bios:
-	intel_bios_driver_remove(i915);
+	intel_bios_driver_remove(display);
 
 	return ret;
 }
@@ -615,13 +615,15 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 /* part #3: call after gem init */
 void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	intel_dmc_fini(i915);
 
 	intel_power_domains_driver_remove(i915);
 
 	intel_vga_unregister(i915);
 
-	intel_bios_driver_remove(i915);
+	intel_bios_driver_remove(display);
 }
 
 void intel_display_driver_unregister(struct drm_i915_private *i915)

@@ -1945,6 +1945,7 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 void icl_dsi_init(struct drm_i915_private *dev_priv,
 		  const struct intel_bios_encoder_data *devdata)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
@@ -2008,7 +2009,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv,
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata, NULL);
+	intel_bios_init_panel_late(display, &intel_connector->panel, encoder->devdata, NULL);
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);

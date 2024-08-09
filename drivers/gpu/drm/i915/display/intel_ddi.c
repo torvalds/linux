@@ -4854,9 +4854,10 @@ static bool port_in_use(struct drm_i915_private *i915, enum port port)
 	return false;
 }
 
-void intel_ddi_init(struct drm_i915_private *dev_priv,
+void intel_ddi_init(struct intel_display *display,
 		    const struct intel_bios_encoder_data *devdata)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp;

@@ -1697,6 +1697,7 @@ static void icp_irq_postinstall(struct drm_i915_private *i915);
 
 void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	u32 de_pipe_masked = gen8_de_pipe_fault_mask(dev_priv) |
@@ -1731,7 +1732,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		enum port port;
 
-		if (intel_bios_is_dsi_present(dev_priv, &port))
+		if (intel_bios_is_dsi_present(display, &port))
 			de_port_masked |= DSI0_TE | DSI1_TE;
 	}
 

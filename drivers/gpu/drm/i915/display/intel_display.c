@@ -7786,6 +7786,7 @@ bool assert_port_valid(struct drm_i915_private *i915, enum port port)
 
 void intel_setup_outputs(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
@@ -7798,7 +7799,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (intel_ddi_crt_present(dev_priv))
 			intel_crt_init(dev_priv);
 
-		intel_bios_for_each_encoder(dev_priv, intel_ddi_init);
+		intel_bios_for_each_encoder(display, intel_ddi_init);
 
 		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 			vlv_dsi_init(dev_priv);
@@ -7860,14 +7861,14 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * HDMI ports that the VBT claim are DP or eDP.
 		 */
 		has_edp = intel_dp_is_port_edp(dev_priv, PORT_B);
-		has_port = intel_bios_is_port_present(dev_priv, PORT_B);
+		has_port = intel_bios_is_port_present(display, PORT_B);
 		if (intel_de_read(dev_priv, VLV_DP_B) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_B, PORT_B);
 		if ((intel_de_read(dev_priv, VLV_HDMIB) & SDVO_DETECTED || has_port) && !has_edp)
 			g4x_hdmi_init(dev_priv, VLV_HDMIB, PORT_B);
 
 		has_edp = intel_dp_is_port_edp(dev_priv, PORT_C);
-		has_port = intel_bios_is_port_present(dev_priv, PORT_C);
+		has_port = intel_bios_is_port_present(display, PORT_C);
 		if (intel_de_read(dev_priv, VLV_DP_C) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_C, PORT_C);
 		if ((intel_de_read(dev_priv, VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
@@ -7878,7 +7879,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			 * eDP not supported on port D,
 			 * so no need to worry about it
 			 */
-			has_port = intel_bios_is_port_present(dev_priv, PORT_D);
+			has_port = intel_bios_is_port_present(display, PORT_D);
 			if (intel_de_read(dev_priv, CHV_DP_D) & DP_DETECTED || has_port)
 				g4x_dp_init(dev_priv, CHV_DP_D, PORT_D);
 			if (intel_de_read(dev_priv, CHV_HDMID) & SDVO_DETECTED || has_port)
