@@ -4507,7 +4507,7 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	/* Wa_16019325821 */
 	/* Wa_14019159160 */
 	if ((engine->class == COMPUTE_CLASS || engine->class == RENDER_CLASS) &&
-	    IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 71)))
+	    IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 74)))
 		engine->flags |= I915_ENGINE_USES_WA_HOLD_SWITCHOUT;
 
 	/*
