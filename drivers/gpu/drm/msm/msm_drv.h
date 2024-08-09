@@ -215,8 +215,6 @@ struct msm_drm_private {
 	struct notifier_block vmap_notifier;
 	struct shrinker *shrinker;
 
-	struct drm_atomic_state *pm_state;
-
 	/**
 	 * hangcheck_period: For hang detection, in ms
 	 *
