@@ -1526,7 +1526,8 @@ static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
 					      slot_rmaps_handler fn,
 					      int start_level, int end_level,
 					      gfn_t start_gfn, gfn_t end_gfn,
-					      bool flush_on_yield, bool flush)
+					      bool can_yield, bool flush_on_yield,
+					      bool flush)
 {
 	struct slot_rmap_walk_iterator iterator;
 
@@ -1536,6 +1537,9 @@ static __always_inline bool __walk_slot_rmaps(struct kvm *kvm,
 			end_gfn, &iterator) {
 		if (iterator.rmap)
 			flush |= fn(kvm, iterator.rmap, slot);
+
+		if (!can_yield)
+			continue;
 
 		if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
 			if (flush && flush_on_yield) {
@@ -1558,7 +1562,7 @@ static __always_inline bool walk_slot_rmaps(struct kvm *kvm,
 {
 	return __walk_slot_rmaps(kvm, slot, fn, start_level, end_level,
 				 slot->base_gfn, slot->base_gfn + slot->npages - 1,
-				 flush_on_yield, false);
+				 true, flush_on_yield, false);
 }
 
 static __always_inline bool walk_slot_rmaps_4k(struct kvm *kvm,
@@ -6600,7 +6604,7 @@ static bool kvm_rmap_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_e
 
 			flush = __walk_slot_rmaps(kvm, memslot, __kvm_zap_rmap,
 						  PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
-						  start, end - 1, true, flush);
+						  start, end - 1, true, true, flush);
 		}
 	}
 
@@ -6888,7 +6892,7 @@ static void kvm_shadow_mmu_try_split_huge_pages(struct kvm *kvm,
 	 */
 	for (level = KVM_MAX_HUGEPAGE_LEVEL; level > target_level; level--)
 		__walk_slot_rmaps(kvm, slot, shadow_mmu_try_split_huge_pages,
-				  level, level, start, end - 1, true, false);
+				  level, level, start, end - 1, true, true, false);
 }
 
 /* Must be called with the mmu_lock held in write-mode. */
