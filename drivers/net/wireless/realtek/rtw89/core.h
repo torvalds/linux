@@ -3566,6 +3566,8 @@ struct rtw89_chip_ops {
 	void (*cfg_txrx_path)(struct rtw89_dev *rtwdev);
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
+	void (*digital_pwr_comp)(struct rtw89_dev *rtwdev,
+				 enum rtw89_phy_idx phy_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
@@ -6272,6 +6274,15 @@ void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->set_txpwr_ul_tb_offset)
 		chip->ops->set_txpwr_ul_tb_offset(rtwdev, 0, rtwvif->mac_idx);
+}
+
+static inline void rtw89_chip_digital_pwr_comp(struct rtw89_dev *rtwdev,
+					       enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->digital_pwr_comp)
+		chip->ops->digital_pwr_comp(rtwdev, phy_idx);
 }
 
 static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,

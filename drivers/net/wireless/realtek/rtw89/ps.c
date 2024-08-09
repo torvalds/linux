@@ -98,10 +98,10 @@ static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 }
 
-static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, u8 mac_id)
+static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	struct rtw89_lps_parm lps_param = {
-		.macid = mac_id,
+		.macid = rtwvif->mac_id,
 		.psmode = RTW89_MAC_AX_PS_MODE_ACTIVE,
 		.lastrpwm = RTW89_LAST_RPWM_ACTIVE,
 	};
@@ -109,6 +109,7 @@ static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, u8 mac_id)
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
 	rtw89_fw_leave_lps_check(rtwdev, 0);
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_ON);
+	rtw89_chip_digital_pwr_comp(rtwdev, rtwvif->phy_idx);
 }
 
 void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
@@ -137,7 +138,7 @@ static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwv
 	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
 		return;
 
-	__rtw89_leave_lps(rtwdev, rtwvif->mac_id);
+	__rtw89_leave_lps(rtwdev, rtwvif);
 }
 
 void rtw89_leave_lps(struct rtw89_dev *rtwdev)

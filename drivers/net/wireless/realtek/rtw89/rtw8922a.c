@@ -1689,6 +1689,60 @@ static int rtw8922a_ctrl_rx_path_tmac(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+#define DIGITAL_PWR_COMP_REG_NUM 22
+static const u32 rtw8922a_digital_pwr_comp_val[][DIGITAL_PWR_COMP_REG_NUM] = {
+	{0x012C0096, 0x044C02BC, 0x00322710, 0x015E0096, 0x03C8028A,
+	 0x0BB80708, 0x17701194, 0x02020100, 0x03030303, 0x01000303,
+	 0x05030302, 0x06060605, 0x06050300, 0x0A090807, 0x02000B0B,
+	 0x09080604, 0x0D0D0C0B, 0x08060400, 0x110F0C0B, 0x05001111,
+	 0x0D0C0907, 0x12121210},
+	{0x012C0096, 0x044C02BC, 0x00322710, 0x015E0096, 0x03C8028A,
+	 0x0BB80708, 0x17701194, 0x04030201, 0x05050505, 0x01000505,
+	 0x07060504, 0x09090908, 0x09070400, 0x0E0D0C0B, 0x03000E0E,
+	 0x0D0B0907, 0x1010100F, 0x0B080500, 0x1512100D, 0x05001515,
+	 0x100D0B08, 0x15151512},
+};
+
+static void rtw8922a_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
+					  bool enable, u8 nss,
+					  enum rtw89_rf_path path)
+{
+	static const u32 ltpc_t0[2] = {R_BE_LTPC_T0_PATH0, R_BE_LTPC_T0_PATH1};
+	const u32 *digital_pwr_comp;
+	u32 addr, val;
+	u32 i;
+
+	if (nss == 1)
+		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[0];
+	else
+		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[1];
+
+	addr = ltpc_t0[path];
+	for (i = 0; i < DIGITAL_PWR_COMP_REG_NUM; i++, addr += 4) {
+		val = enable ? digital_pwr_comp[i] : 0;
+		rtw89_phy_write32(rtwdev, addr, val);
+	}
+}
+
+static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	bool enable = chan->band_type != RTW89_BAND_2G;
+	u8 path;
+
+	if (rtwdev->mlo_dbcc_mode == MLO_1_PLUS_1_1RF) {
+		if (phy_idx == RTW89_PHY_0)
+			path = RF_PATH_A;
+		else
+			path = RF_PATH_B;
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 1, path);
+	} else {
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_A);
+		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_B);
+	}
+}
+
 static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode mode)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
@@ -1810,11 +1864,13 @@ static void rtw8922a_pre_set_channel_bb(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8922a_post_set_channel_bb(struct rtw89_dev *rtwdev,
-					 enum rtw89_mlo_dbcc_mode mode)
+					 enum rtw89_mlo_dbcc_mode mode,
+					 enum rtw89_phy_idx phy_idx)
 {
 	if (!rtwdev->dbcc_en)
 		return;
 
+	rtw8922a_digital_pwr_comp(rtwdev, phy_idx);
 	rtw8922a_ctrl_mlo(rtwdev, mode);
 }
 
@@ -1921,7 +1977,7 @@ static void rtw8922a_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	rtw8922a_hal_reset(rtwdev, phy_idx, mac_idx, chan->band_type, &p->tx_en, enter);
 
 	if (!enter) {
-		rtw8922a_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode);
+		rtw8922a_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode, phy_idx);
 		rtw8922a_post_set_channel_rf(rtwdev, phy_idx);
 	}
 }
@@ -2494,6 +2550,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.ctrl_nbtg_bt_tx	= rtw8922a_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8922a_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= NULL,
+	.digital_pwr_comp	= rtw8922a_digital_pwr_comp,
 	.pwr_on_func		= rtw8922a_pwr_on_func,
 	.pwr_off_func		= rtw8922a_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc_v2,
