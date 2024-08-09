@@ -218,8 +218,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	struct lp3943_platform_data *pdata;
 	struct lp3943_pwm_map *pwm_map;
 	enum lp3943_pwm_output *output;
-	int i, err, count = 0;
-	u32 num_outputs;
+	int i, err, num_outputs, count = 0;
 
 	if (!node)
 		return -EINVAL;
