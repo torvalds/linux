@@ -78,6 +78,6 @@ struct utf8data_table {
 	const unsigned char *utf8data;
 };
 
-extern struct utf8data_table utf8_data_table;
+extern const struct utf8data_table utf8_data_table;
 
 #endif /* UTF8NORM_H */

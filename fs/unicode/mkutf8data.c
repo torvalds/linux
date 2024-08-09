@@ -3338,7 +3338,7 @@ static void write_file(void)
 	}
 	fprintf(file, "};\n");
 	fprintf(file, "\n");
-	fprintf(file, "struct utf8data_table utf8_data_table = {\n");
+	fprintf(file, "const struct utf8data_table utf8_data_table = {\n");
 	fprintf(file, "\t.utf8agetab = utf8agetab,\n");
 	fprintf(file, "\t.utf8agetab_size = ARRAY_SIZE(utf8agetab),\n");
 	fprintf(file, "\n");
