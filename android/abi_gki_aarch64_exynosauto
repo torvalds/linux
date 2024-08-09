@@ -77,6 +77,11 @@
   _dev_err
   dev_err_probe
   dev_fwnode
+  dev_forward_skb
+  dev_mc_sync
+  dev_pre_changeaddr_notify
+  dev_set_allmulti
+  dev_uc_sync
   device_create
   device_create_file
   device_destroy
@@ -332,6 +337,8 @@
   iommu_unregister_device_fault_handler
   ioremap_prot
   iounmap
+  ip6_route_input_lookup
+  ip_route_input_noref
   __irq_apply_affinity_hint
   irq_chip_ack_parent
   irq_chip_mask_parent
@@ -432,6 +439,7 @@
   mutex_unlock
   netdev_err
   netdev_info
+  netdev_is_rx_handler_busy
   netdev_warn
   noop_llseek
   nr_cpu_ids
@@ -571,6 +579,8 @@
   __register_chrdev
   register_chrdev_region
   register_console
+  register_inet6addr_validator_notifier
+  register_inetaddr_validator_notifier
   register_pm_notifier
   register_reboot_notifier
   register_syscore_ops
@@ -677,6 +687,8 @@
   __udelay
   __unregister_chrdev
   unregister_chrdev_region
+  unregister_inet6addr_validator_notifier
+  unregister_inetaddr_validator_notifier
   unregister_pm_notifier
   up
   up_write

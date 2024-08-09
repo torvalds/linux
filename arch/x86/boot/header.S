@@ -406,7 +406,7 @@ xloadflags:
 # define XLF1 0
 #endif
 
-#ifdef CONFIG_EFI_STUB
+#ifdef CONFIG_EFI_HANDOVER_PROTOCOL
 # ifdef CONFIG_EFI_MIXED
 #  define XLF23 (XLF_EFI_HANDOVER_32|XLF_EFI_HANDOVER_64)
 # else

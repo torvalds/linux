@@ -15,7 +15,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/spitfire.h>
 #include <asm/chmctrl.h>
 #include <asm/cpudata.h>

@@ -103,6 +103,7 @@ static inline void free_screen_info(struct screen_info *si)
 }
 
 #define EFI_ALLOC_ALIGN		SZ_64K
+#define EFI_ALLOC_LIMIT		((1UL << 48) - 1)
 
 /*
  * On ARM systems, virtually remapped UEFI runtime services are set up in two

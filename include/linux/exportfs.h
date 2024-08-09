@@ -221,6 +221,7 @@ struct export_operations {
 #define EXPORT_OP_NOATOMIC_ATTR		(0x10) /* Filesystem cannot supply
 						  atomic attribute updates
 						*/
+#define EXPORT_OP_FLUSH_ON_CLOSE	(0x20) /* fs flushes file data on close */
 	unsigned long	flags;
 };
 
