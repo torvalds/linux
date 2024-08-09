@@ -235,3 +235,78 @@ static int xe_hw_engine_group_wait_for_dma_fence_jobs(struct xe_hw_engine_group 
 
 	return 0;
 }
+
+static int switch_mode(struct xe_hw_engine_group *group)
+{
+	int err = 0;
+	enum xe_hw_engine_group_execution_mode new_mode;
+
+	lockdep_assert_held_write(&group->mode_sem);
+
+	switch (group->cur_mode) {
+	case EXEC_MODE_LR:
+		new_mode = EXEC_MODE_DMA_FENCE;
+		err = xe_hw_engine_group_suspend_faulting_lr_jobs(group);
+		break;
+	case EXEC_MODE_DMA_FENCE:
+		new_mode = EXEC_MODE_LR;
+		err = xe_hw_engine_group_wait_for_dma_fence_jobs(group);
+		break;
+	}
+
+	if (err)
+		return err;
+
+	group->cur_mode = new_mode;
+
+	return 0;
+}
+
+/**
+ * xe_hw_engine_group_get_mode() - Get the group to execute in the new mode
+ * @group: The hw engine group
+ * @new_mode: The new execution mode
+ * @previous_mode: Pointer to the previous mode provided for use by caller
+ *
+ * Return: 0 if successful, -EINTR if locking failed.
+ */
+int xe_hw_engine_group_get_mode(struct xe_hw_engine_group *group,
+				enum xe_hw_engine_group_execution_mode new_mode,
+				enum xe_hw_engine_group_execution_mode *previous_mode)
+__acquires(&group->mode_sem)
+{
+	int err = down_read_interruptible(&group->mode_sem);
+
+	if (err)
+		return err;
+
+	*previous_mode = group->cur_mode;
+
+	if (new_mode != group->cur_mode) {
+		up_read(&group->mode_sem);
+		err = down_write_killable(&group->mode_sem);
+		if (err)
+			return err;
+
+		if (new_mode != group->cur_mode) {
+			err = switch_mode(group);
+			if (err) {
+				up_write(&group->mode_sem);
+				return err;
+			}
+		}
+		downgrade_write(&group->mode_sem);
+	}
+
+	return err;
+}
+
+/**
+ * xe_hw_engine_group_put() - Put the group
+ * @group: The hw engine group
+ */
+void xe_hw_engine_group_put(struct xe_hw_engine_group *group)
+__releases(&group->mode_sem)
+{
+	up_read(&group->mode_sem);
+}
