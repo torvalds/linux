@@ -14,6 +14,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
+#include "xe_hw_engine_group.h"
 #include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
@@ -73,6 +74,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->ops = gt->exec_queue_ops;
 	INIT_LIST_HEAD(&q->lr.link);
 	INIT_LIST_HEAD(&q->multi_gt_link);
+	INIT_LIST_HEAD(&q->hw_engine_group_link);
 
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
 	q->sched_props.preempt_timeout_us =
@@ -624,6 +626,12 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			if (XE_IOCTL_DBG(xe, err))
 				goto put_exec_queue;
 		}
+
+		if (q->vm && q->hwe->hw_engine_group) {
+			err = xe_hw_engine_group_add_exec_queue(q->hwe->hw_engine_group, q);
+			if (err)
+				goto put_exec_queue;
+		}
 	}
 
 	mutex_lock(&xef->exec_queue.lock);
@@ -814,6 +822,9 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&xef->exec_queue.lock);
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
+
+	if (q->vm && q->hwe->hw_engine_group)
+		xe_hw_engine_group_del_exec_queue(q->hwe->hw_engine_group, q);
 
 	xe_exec_queue_kill(q);
 
