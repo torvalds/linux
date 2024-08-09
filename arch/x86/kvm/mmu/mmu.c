@@ -912,6 +912,7 @@ static struct kvm_memory_slot *gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu
  * in this rmap chain. Otherwise, (rmap_head->val & ~1) points to a struct
  * pte_list_desc containing more mappings.
  */
+#define KVM_RMAP_MANY	BIT(0)
 
 /*
  * Returns the number of pointers in the rmap chain, not counting the new one.
@@ -924,16 +925,16 @@ static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 
 	if (!rmap_head->val) {
 		rmap_head->val = (unsigned long)spte;
-	} else if (!(rmap_head->val & 1)) {
+	} else if (!(rmap_head->val & KVM_RMAP_MANY)) {
 		desc = kvm_mmu_memory_cache_alloc(cache);
 		desc->sptes[0] = (u64 *)rmap_head->val;
 		desc->sptes[1] = spte;
 		desc->spte_count = 2;
 		desc->tail_count = 0;
-		rmap_head->val = (unsigned long)desc | 1;
+		rmap_head->val = (unsigned long)desc | KVM_RMAP_MANY;
 		++count;
 	} else {
-		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+		desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 		count = desc->tail_count + desc->spte_count;
 
 		/*
@@ -942,10 +943,10 @@ static int pte_list_add(struct kvm_mmu_memory_cache *cache, u64 *spte,
 		 */
 		if (desc->spte_count == PTE_LIST_EXT) {
 			desc = kvm_mmu_memory_cache_alloc(cache);
-			desc->more = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+			desc->more = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 			desc->spte_count = 0;
 			desc->tail_count = count;
-			rmap_head->val = (unsigned long)desc | 1;
+			rmap_head->val = (unsigned long)desc | KVM_RMAP_MANY;
 		}
 		desc->sptes[desc->spte_count++] = spte;
 	}
@@ -956,7 +957,7 @@ static void pte_list_desc_remove_entry(struct kvm *kvm,
 				       struct kvm_rmap_head *rmap_head,
 				       struct pte_list_desc *desc, int i)
 {
-	struct pte_list_desc *head_desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+	struct pte_list_desc *head_desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 	int j = head_desc->spte_count - 1;
 
 	/*
@@ -985,7 +986,7 @@ static void pte_list_desc_remove_entry(struct kvm *kvm,
 	if (!head_desc->more)
 		rmap_head->val = 0;
 	else
-		rmap_head->val = (unsigned long)head_desc->more | 1;
+		rmap_head->val = (unsigned long)head_desc->more | KVM_RMAP_MANY;
 	mmu_free_pte_list_desc(head_desc);
 }
 
@@ -998,13 +999,13 @@ static void pte_list_remove(struct kvm *kvm, u64 *spte,
 	if (KVM_BUG_ON_DATA_CORRUPTION(!rmap_head->val, kvm))
 		return;
 
-	if (!(rmap_head->val & 1)) {
+	if (!(rmap_head->val & KVM_RMAP_MANY)) {
 		if (KVM_BUG_ON_DATA_CORRUPTION((u64 *)rmap_head->val != spte, kvm))
 			return;
 
 		rmap_head->val = 0;
 	} else {
-		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+		desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 		while (desc) {
 			for (i = 0; i < desc->spte_count; ++i) {
 				if (desc->sptes[i] == spte) {
@@ -1037,12 +1038,12 @@ static bool kvm_zap_all_rmap_sptes(struct kvm *kvm,
 	if (!rmap_head->val)
 		return false;
 
-	if (!(rmap_head->val & 1)) {
+	if (!(rmap_head->val & KVM_RMAP_MANY)) {
 		mmu_spte_clear_track_bits(kvm, (u64 *)rmap_head->val);
 		goto out;
 	}
 
-	desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+	desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 
 	for (; desc; desc = next) {
 		for (i = 0; i < desc->spte_count; i++)
@@ -1062,10 +1063,10 @@ unsigned int pte_list_count(struct kvm_rmap_head *rmap_head)
 
 	if (!rmap_head->val)
 		return 0;
-	else if (!(rmap_head->val & 1))
+	else if (!(rmap_head->val & KVM_RMAP_MANY))
 		return 1;
 
-	desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+	desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 	return desc->tail_count + desc->spte_count;
 }
 
@@ -1127,13 +1128,13 @@ static u64 *rmap_get_first(struct kvm_rmap_head *rmap_head,
 	if (!rmap_head->val)
 		return NULL;
 
-	if (!(rmap_head->val & 1)) {
+	if (!(rmap_head->val & KVM_RMAP_MANY)) {
 		iter->desc = NULL;
 		sptep = (u64 *)rmap_head->val;
 		goto out;
 	}
 
-	iter->desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
+	iter->desc = (struct pte_list_desc *)(rmap_head->val & ~KVM_RMAP_MANY);
 	iter->pos = 0;
 	sptep = iter->desc->sptes[iter->pos];
 out:
