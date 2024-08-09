@@ -214,5 +214,6 @@
 &main_gpio1 {
 	gpio-ranges = <&main_pmx0 7 101 25>, <&main_pmx0 42 137 5>,
 			<&main_pmx0 47 143 3>, <&main_pmx0 50 149 2>;
+	gpio-reserved-ranges = <0 7>, <32 10>;
 	ti,ngpio = <73>;
 };
