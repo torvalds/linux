@@ -614,32 +614,6 @@ static u64 mmu_spte_get_lockless(u64 *sptep)
 	return __get_spte_lockless(sptep);
 }
 
-/* Returns the Accessed status of the PTE and resets it at the same time. */
-static bool mmu_spte_age(u64 *sptep)
-{
-	u64 spte = mmu_spte_get_lockless(sptep);
-
-	if (!is_accessed_spte(spte))
-		return false;
-
-	if (spte_ad_enabled(spte)) {
-		clear_bit((ffs(shadow_accessed_mask) - 1),
-			  (unsigned long *)sptep);
-	} else {
-		/*
-		 * Capture the dirty status of the page, so that it doesn't get
-		 * lost when the SPTE is marked for access tracking.
-		 */
-		if (is_writable_pte(spte))
-			kvm_set_pfn_dirty(spte_to_pfn(spte));
-
-		spte = mark_spte_for_access_track(spte);
-		mmu_spte_update_no_track(sptep, spte);
-	}
-
-	return true;
-}
-
 static inline bool is_tdp_mmu_active(struct kvm_vcpu *vcpu)
 {
 	return tdp_mmu_enabled && vcpu->arch.mmu->root_role.direct;
@@ -1641,10 +1615,30 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 	for_each_slot_rmap_range(range->slot, PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
 				 range->start, range->end - 1, &iterator) {
 		for_each_rmap_spte(iterator.rmap, &iter, sptep) {
-			if (test_only && is_accessed_spte(*sptep))
+			u64 spte = *sptep;
+
+			if (!is_accessed_spte(spte))
+				continue;
+
+			if (test_only)
 				return true;
 
-			young = mmu_spte_age(sptep);
+			if (spte_ad_enabled(spte)) {
+				clear_bit((ffs(shadow_accessed_mask) - 1),
+					(unsigned long *)sptep);
+			} else {
+				/*
+				 * Capture the dirty status of the page, so that
+				 * it doesn't get lost when the SPTE is marked
+				 * for access tracking.
+				 */
+				if (is_writable_pte(spte))
+					kvm_set_pfn_dirty(spte_to_pfn(spte));
+
+				spte = mark_spte_for_access_track(spte);
+				mmu_spte_update_no_track(sptep, spte);
+			}
+			young = true;
 		}
 	}
 	return young;
