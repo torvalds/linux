@@ -31,7 +31,7 @@ xe_sched_get_msg(struct xe_gpu_scheduler *sched)
 	msg = list_first_entry_or_null(&sched->msgs,
 				       struct xe_sched_msg, link);
 	if (msg)
-		list_del(&msg->link);
+		list_del_init(&msg->link);
 	xe_sched_msg_unlock(sched);
 
 	return msg;
