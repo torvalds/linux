@@ -722,7 +722,8 @@ static void set_did(struct intel_opregion *opregion, int i, u32 val)
 
 static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 {
-	struct intel_opregion *opregion = dev_priv->display.opregion;
+	struct intel_display *display = &dev_priv->display;
+	struct intel_opregion *opregion = display->opregion;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	int i = 0, max_outputs;
@@ -737,7 +738,7 @@ static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 	max_outputs = ARRAY_SIZE(opregion->acpi->didl) +
 		ARRAY_SIZE(opregion->acpi->did2);
 
-	intel_acpi_device_id_update(dev_priv);
+	intel_acpi_device_id_update(display);
 
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
@@ -1189,7 +1190,8 @@ void intel_opregion_register(struct drm_i915_private *i915)
 
 static void intel_opregion_resume_display(struct drm_i915_private *i915)
 {
-	struct intel_opregion *opregion = i915->display.opregion;
+	struct intel_display *display = &i915->display;
+	struct intel_opregion *opregion = display->opregion;
 
 	if (opregion->acpi) {
 		intel_didl_outputs(i915);
@@ -1210,7 +1212,7 @@ static void intel_opregion_resume_display(struct drm_i915_private *i915)
 	}
 
 	/* Some platforms abuse the _DSM to enable MUX */
-	intel_dsm_get_bios_data_funcs_supported(i915);
+	intel_dsm_get_bios_data_funcs_supported(display);
 }
 
 void intel_opregion_resume(struct drm_i915_private *i915)

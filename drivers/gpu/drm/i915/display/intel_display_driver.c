@@ -416,7 +416,8 @@ bool intel_display_driver_check_access(struct drm_i915_private *i915)
 /* part #2: call after irq install, but before gem init */
 int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &i915->drm;
+	struct intel_display *display = &i915->display;
+	struct drm_device *dev = display->drm;
 	enum pipe pipe;
 	int ret;
 
@@ -466,7 +467,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(i915, dev->mode_config.acquire_ctx);
-	intel_acpi_assign_connector_fwnodes(i915);
+	intel_acpi_assign_connector_fwnodes(display);
 	drm_modeset_unlock_all(dev);
 
 	intel_initial_plane_config(i915);
@@ -526,6 +527,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_printer p = drm_dbg_printer(&i915->drm, DRM_UT_KMS,
 					       "i915 display info:");
 
@@ -534,7 +536,7 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 
 	/* Must be done after probing outputs */
 	intel_opregion_register(i915);
-	intel_acpi_video_register(i915);
+	intel_acpi_video_register(display);
 
 	intel_audio_init(i915);
 
