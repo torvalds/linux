@@ -939,6 +939,7 @@ enum pagetype {
 	PG_hugetlb	= 0x04000000,
 	PG_slab		= 0x02000000,
 	PG_zsmalloc	= 0x01000000,
+	PG_unaccepted	= 0x00800000,
 
 	PAGE_TYPE_BASE	= 0x80000000,
 
@@ -1071,6 +1072,13 @@ FOLIO_TEST_FLAG_FALSE(hugetlb)
 #endif
 
 PAGE_TYPE_OPS(Zsmalloc, zsmalloc, zsmalloc)
+
+/*
+ * Mark pages that has to be accepted before touched for the first time.
+ *
+ * Serialized with zone lock.
+ */
+PAGE_TYPE_OPS(Unaccepted, unaccepted, unaccepted)
 
 /**
  * PageHuge - Determine if the page belongs to hugetlbfs

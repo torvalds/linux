@@ -6963,6 +6963,7 @@ static bool try_to_accept_memory_one(struct zone *zone)
 
 	account_freepages(zone, -MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
 	__mod_zone_page_state(zone, NR_UNACCEPTED, -MAX_ORDER_NR_PAGES);
+	__ClearPageUnaccepted(page);
 	spin_unlock_irqrestore(&zone->lock, flags);
 
 	accept_page(page, MAX_PAGE_ORDER);
@@ -7021,6 +7022,7 @@ static bool __free_unaccepted(struct page *page)
 	list_add_tail(&page->lru, &zone->unaccepted_pages);
 	account_freepages(zone, MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
 	__mod_zone_page_state(zone, NR_UNACCEPTED, MAX_ORDER_NR_PAGES);
+	__SetPageUnaccepted(page);
 	spin_unlock_irqrestore(&zone->lock, flags);
 
 	if (first)
