@@ -1577,25 +1577,6 @@ static bool __kvm_rmap_zap_gfn_range(struct kvm *kvm,
 				 start, end - 1, can_yield, true, flush);
 }
 
-typedef bool (*rmap_handler_t)(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			       struct kvm_memory_slot *slot, gfn_t gfn,
-			       int level);
-
-static __always_inline bool kvm_handle_gfn_range(struct kvm *kvm,
-						 struct kvm_gfn_range *range,
-						 rmap_handler_t handler)
-{
-	struct slot_rmap_walk_iterator iterator;
-	bool ret = false;
-
-	for_each_slot_rmap_range(range->slot, PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
-				 range->start, range->end - 1, &iterator)
-		ret |= handler(kvm, iterator.rmap, range->slot, iterator.gfn,
-			       iterator.level);
-
-	return ret;
-}
-
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
 	bool flush = false;
@@ -1613,31 +1594,6 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
 
 	return flush;
-}
-
-static bool kvm_age_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			 struct kvm_memory_slot *slot, gfn_t gfn, int level)
-{
-	u64 *sptep;
-	struct rmap_iterator iter;
-	int young = 0;
-
-	for_each_rmap_spte(rmap_head, &iter, sptep)
-		young |= mmu_spte_age(sptep);
-
-	return young;
-}
-
-static bool kvm_test_age_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			      struct kvm_memory_slot *slot, gfn_t gfn, int level)
-{
-	u64 *sptep;
-	struct rmap_iterator iter;
-
-	for_each_rmap_spte(rmap_head, &iter, sptep)
-		if (is_accessed_spte(*sptep))
-			return true;
-	return false;
 }
 
 #define RMAP_RECYCLE_THRESHOLD 1000
@@ -1674,12 +1630,32 @@ static void rmap_add(struct kvm_vcpu *vcpu, const struct kvm_memory_slot *slot,
 	__rmap_add(vcpu->kvm, cache, slot, spte, gfn, access);
 }
 
+static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
+				   struct kvm_gfn_range *range, bool test_only)
+{
+	struct slot_rmap_walk_iterator iterator;
+	struct rmap_iterator iter;
+	bool young = false;
+	u64 *sptep;
+
+	for_each_slot_rmap_range(range->slot, PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
+				 range->start, range->end - 1, &iterator) {
+		for_each_rmap_spte(iterator.rmap, &iter, sptep) {
+			if (test_only && is_accessed_spte(*sptep))
+				return true;
+
+			young = mmu_spte_age(sptep);
+		}
+	}
+	return young;
+}
+
 bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
 	bool young = false;
 
 	if (kvm_memslots_have_rmaps(kvm))
-		young = kvm_handle_gfn_range(kvm, range, kvm_age_rmap);
+		young = kvm_rmap_age_gfn_range(kvm, range, false);
 
 	if (tdp_mmu_enabled)
 		young |= kvm_tdp_mmu_age_gfn_range(kvm, range);
@@ -1692,7 +1668,7 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	bool young = false;
 
 	if (kvm_memslots_have_rmaps(kvm))
-		young = kvm_handle_gfn_range(kvm, range, kvm_test_age_rmap);
+		young = kvm_rmap_age_gfn_range(kvm, range, true);
 
 	if (tdp_mmu_enabled)
 		young |= kvm_tdp_mmu_test_age_gfn(kvm, range);
