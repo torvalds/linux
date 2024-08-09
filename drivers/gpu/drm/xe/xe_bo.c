@@ -793,8 +793,16 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			}
 		}
 	} else {
-		if (move_lacks_source)
-			fence = xe_migrate_clear(migrate, bo, new_mem);
+		if (move_lacks_source) {
+			u32 flags = 0;
+
+			if (mem_type_is_vram(new_mem->mem_type))
+				flags |= XE_MIGRATE_CLEAR_FLAG_FULL;
+			else if (handle_system_ccs)
+				flags |= XE_MIGRATE_CLEAR_FLAG_CCS_DATA;
+
+			fence = xe_migrate_clear(migrate, bo, new_mem, flags);
+		}
 		else
 			fence = xe_migrate_copy(migrate, bo, bo, old_mem,
 						new_mem, handle_system_ccs);
