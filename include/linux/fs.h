@@ -947,6 +947,7 @@ static inline unsigned imajor(const struct inode *inode)
 }
 
 struct fown_struct {
+	struct file *file;	/* backpointer for security modules */
 	rwlock_t lock;          /* protects pid, uid, euid fields */
 	struct pid *pid;	/* pid or -pgrp where SIGIO should be sent */
 	enum pid_type pid_type;	/* Kind of process group SIGIO should be sent to */
@@ -1011,7 +1012,7 @@ struct file {
 	struct mutex		f_pos_lock;
 	loff_t			f_pos;
 	unsigned int		f_flags;
-	struct fown_struct	f_owner;
+	struct fown_struct	*f_owner;
 	const struct cred	*f_cred;
 	struct file_ra_state	f_ra;
 	struct path		f_path;
@@ -1076,6 +1077,12 @@ struct file_lease;
 #define OFFT_OFFSET_MAX	type_max(off_t)
 #endif
 
+int file_f_owner_allocate(struct file *file);
+static inline struct fown_struct *file_f_owner(const struct file *file)
+{
+	return READ_ONCE(file->f_owner);
+}
+
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
 static inline struct inode *file_inode(const struct file *f)
@@ -1124,7 +1131,7 @@ extern void __f_setown(struct file *filp, struct pid *, enum pid_type, int force
 extern int f_setown(struct file *filp, int who, int force);
 extern void f_delown(struct file *filp);
 extern pid_t f_getown(struct file *filp);
-extern int send_sigurg(struct fown_struct *fown);
+extern int send_sigurg(struct file *file);
 
 /*
  * sb->s_flags.  Note that these mirror the equivalent MS_* flags where

@@ -1451,7 +1451,7 @@ int lease_modify(struct file_lease *fl, int arg, struct list_head *dispose)
 		struct file *filp = fl->c.flc_file;
 
 		f_delown(filp);
-		filp->f_owner.signum = 0;
+		file_f_owner(filp)->signum = 0;
 		fasync_helper(0, fl->c.flc_file, 0, &fl->fl_fasync);
 		if (fl->fl_fasync != NULL) {
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
@@ -1782,6 +1782,10 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 
 	lease = *flp;
 	trace_generic_add_lease(inode, lease);
+
+	error = file_f_owner_allocate(filp);
+	if (error)
+		return error;
 
 	/* Note that arg is never F_UNLCK here */
 	ctx = locks_get_lock_context(inode, arg);
