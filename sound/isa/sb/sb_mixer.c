@@ -20,7 +20,7 @@ void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char dat
 	outb(data, SBP(chip, MIXER_DATA));
 	udelay(10);
 #ifdef IO_DEBUG
-	snd_printk(KERN_DEBUG "mixer_write 0x%x 0x%x\n", reg, data);
+	dev_dbg(chip->card->dev, "mixer_write 0x%x 0x%x\n", reg, data);
 #endif
 }
 
@@ -33,7 +33,7 @@ unsigned char snd_sbmixer_read(struct snd_sb *chip, unsigned char reg)
 	result = inb(SBP(chip, MIXER_DATA));
 	udelay(10);
 #ifdef IO_DEBUG
-	snd_printk(KERN_DEBUG "mixer_read 0x%x 0x%x\n", reg, result);
+	dev_dbg(chip->card->dev, "mixer_read 0x%x 0x%x\n", reg, result);
 #endif
 	return result;
 }

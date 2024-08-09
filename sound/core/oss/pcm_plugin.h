@@ -160,7 +160,7 @@ snd_pcm_sframes_t snd_pcm_oss_readv3(struct snd_pcm_substream *substream,
 				     void **bufs, snd_pcm_uframes_t frames);
 
 #ifdef PLUGIN_DEBUG
-#define pdprintf(fmt, args...) printk(KERN_DEBUG "plugin: " fmt, ##args)
+#define pdprintf(fmt, args...) pr_debug("plugin: " fmt, ##args)
 #else
 #define pdprintf(fmt, args...)
 #endif

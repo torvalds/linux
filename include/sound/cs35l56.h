@@ -277,6 +277,11 @@ static inline int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_ba
 	return 0;
 }
 
+static inline bool cs35l56_is_otp_register(unsigned int reg)
+{
+	return (reg >> 16) == 3;
+}
+
 extern struct regmap_config cs35l56_regmap_i2c;
 extern struct regmap_config cs35l56_regmap_spi;
 extern struct regmap_config cs35l56_regmap_sdw;

@@ -279,8 +279,8 @@ int snd_cs4236_create(struct snd_card *card,
 		return err;
 
 	if ((chip->hardware & WSS_HW_CS4236B_MASK) == 0) {
-		snd_printd("chip is not CS4236+, hardware=0x%x\n",
-			   chip->hardware);
+		dev_dbg(card->dev, "chip is not CS4236+, hardware=0x%x\n",
+			chip->hardware);
 		*rchip = chip;
 		return 0;
 	}
@@ -288,25 +288,25 @@ int snd_cs4236_create(struct snd_card *card,
 	{
 		int idx;
 		for (idx = 0; idx < 8; idx++)
-			snd_printk(KERN_DEBUG "CD%i = 0x%x\n",
-				   idx, inb(chip->cport + idx));
+			dev_dbg(card->dev, "CD%i = 0x%x\n",
+				idx, inb(chip->cport + idx));
 		for (idx = 0; idx < 9; idx++)
-			snd_printk(KERN_DEBUG "C%i = 0x%x\n",
-				   idx, snd_cs4236_ctrl_in(chip, idx));
+			dev_dbg(card->dev, "C%i = 0x%x\n",
+				idx, snd_cs4236_ctrl_in(chip, idx));
 	}
 #endif
 	if (cport < 0x100 || cport == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR "please, specify control port "
-			   "for CS4236+ chips\n");
+		dev_err(card->dev, "please, specify control port for CS4236+ chips\n");
 		return -ENODEV;
 	}
 	ver1 = snd_cs4236_ctrl_in(chip, 1);
 	ver2 = snd_cs4236_ext_in(chip, CS4236_VERSION);
-	snd_printdd("CS4236: [0x%lx] C1 (version) = 0x%x, ext = 0x%x\n",
-			cport, ver1, ver2);
+	dev_dbg(card->dev, "CS4236: [0x%lx] C1 (version) = 0x%x, ext = 0x%x\n",
+		cport, ver1, ver2);
 	if (ver1 != ver2) {
-		snd_printk(KERN_ERR "CS4236+ chip detected, but "
-			   "control port 0x%lx is not valid\n", cport);
+		dev_err(card->dev,
+			"CS4236+ chip detected, but control port 0x%lx is not valid\n",
+			cport);
 		return -ENODEV;
 	}
 	snd_cs4236_ctrl_out(chip, 0, 0x00);
@@ -934,14 +934,14 @@ static int snd_cs4236_get_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = chip->image[CS4231_ALT_FEATURE_1] & 0x02 ? 1 : 0;
 #if 0
-	printk(KERN_DEBUG "get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
-	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
-			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
-			snd_cs4236_ctrl_in(chip, 3),
-			snd_cs4236_ctrl_in(chip, 4),
-			snd_cs4236_ctrl_in(chip, 5),
-			snd_cs4236_ctrl_in(chip, 6),
-			snd_cs4236_ctrl_in(chip, 8));
+	dev_dbg(chip->card->dev,
+		"get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
+		snd_wss_in(chip, CS4231_ALT_FEATURE_1),
+		snd_cs4236_ctrl_in(chip, 3),
+		snd_cs4236_ctrl_in(chip, 4),
+		snd_cs4236_ctrl_in(chip, 5),
+		snd_cs4236_ctrl_in(chip, 6),
+		snd_cs4236_ctrl_in(chip, 8));
 #endif
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
@@ -972,14 +972,14 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	mutex_unlock(&chip->mce_mutex);
 
 #if 0
-	printk(KERN_DEBUG "set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
-	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
-			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
-			snd_cs4236_ctrl_in(chip, 3),
-			snd_cs4236_ctrl_in(chip, 4),
-			snd_cs4236_ctrl_in(chip, 5),
-			snd_cs4236_ctrl_in(chip, 6),
-			snd_cs4236_ctrl_in(chip, 8));
+	dev_dbg(chip->card->dev,
+		"set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
+		snd_wss_in(chip, CS4231_ALT_FEATURE_1),
+		snd_cs4236_ctrl_in(chip, 3),
+		snd_cs4236_ctrl_in(chip, 4),
+		snd_cs4236_ctrl_in(chip, 5),
+		snd_cs4236_ctrl_in(chip, 6),
+		snd_cs4236_ctrl_in(chip, 8));
 #endif
 	return change;
 }

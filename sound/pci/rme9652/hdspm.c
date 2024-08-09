@@ -1838,8 +1838,10 @@ static inline int snd_hdspm_midi_output_possible (struct hdspm *hdspm, int id)
 
 static void snd_hdspm_flush_midi_input(struct hdspm *hdspm, int id)
 {
-	while (snd_hdspm_midi_input_available (hdspm, id))
-		snd_hdspm_midi_read_byte (hdspm, id);
+	int count = 256;
+
+	while (snd_hdspm_midi_input_available(hdspm, id) && --count)
+		snd_hdspm_midi_read_byte(hdspm, id);
 }
 
 static int snd_hdspm_midi_output_write (struct hdspm_midi *hmidi)
@@ -5610,15 +5612,13 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 	/*
 	   dev_dbg(hdspm->card->dev,
 	   "Allocated sample buffer for %s at 0x%08X\n",
-	   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-	   "playback" : "capture",
+	   snd_pcm_direction_name(substream->stream),
 	   snd_pcm_sgbuf_get_addr(substream, 0));
 	   */
 	/*
 	   dev_dbg(hdspm->card->dev,
 	   "set_hwparams: %s %d Hz, %d channels, bs = %d\n",
-	   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-	   "playback" : "capture",
+	   snd_pcm_direction_name(substream->stream),
 	   params_rate(params), params_channels(params),
 	   params_buffer_size(params));
 	   */

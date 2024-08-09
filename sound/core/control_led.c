@@ -677,7 +677,7 @@ static void snd_ctl_led_sysfs_add(struct snd_card *card)
 cerr:
 		put_device(&led_card->dev);
 cerr2:
-		printk(KERN_ERR "snd_ctl_led: unable to add card%d", card->number);
+		dev_err(card->dev, "snd_ctl_led: unable to add card%d", card->number);
 	}
 }
 

@@ -30,8 +30,6 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 
-#define PFX "azt2320: "
-
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("Aztech Systems AZT2320");
 MODULE_LICENSE("GPL");
@@ -99,7 +97,7 @@ static int snd_card_azt2320_pnp(int dev, struct snd_card_azt2320 *acard,
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "AUDIO pnp configure failure\n");
+		dev_err(&pdev->dev, "AUDIO pnp configure failure\n");
 		return err;
 	}
 	port[dev] = pnp_port_start(pdev, 0);
@@ -120,7 +118,7 @@ static int snd_card_azt2320_pnp(int dev, struct snd_card_azt2320 *acard,
 	     __mpu_error:
 	     	if (pdev) {
 		     	pnp_release_card_device(pdev);
-	     		snd_printk(KERN_ERR PFX "MPU401 pnp configure failure, skipping\n");
+			dev_err(&pdev->dev, "MPU401 pnp configure failure, skipping\n");
 	     	}
 	     	acard->devmpu = NULL;
 	     	mpu_port[dev] = -1;
@@ -210,15 +208,15 @@ static int snd_card_azt2320_probe(int dev,
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
 				mpu_port[dev], 0,
 				mpu_irq[dev], NULL) < 0)
-			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
+			dev_err(card->dev, "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
-				   fm_port[dev], fm_port[dev] + 2);
+			dev_err(card->dev, "no OPL device at 0x%lx-0x%lx\n",
+				fm_port[dev], fm_port[dev] + 2);
 		} else {
 			error = snd_opl3_timer_new(opl3, 1, 2);
 			if (error < 0)
@@ -303,7 +301,7 @@ static int __init alsa_card_azt2320_init(void)
 	if (!azt2320_devices) {
 		pnp_unregister_card_driver(&azt2320_pnpc_driver);
 #ifdef MODULE
-		snd_printk(KERN_ERR "no AZT2320 based soundcards found\n");
+		pr_err("no AZT2320 based soundcards found\n");
 #endif
 		return -ENODEV;
 	}

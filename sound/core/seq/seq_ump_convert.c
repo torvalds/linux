@@ -595,12 +595,13 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 	type = ump_message_type(ump_ev->ump[0]);
 
 	if (snd_seq_client_is_ump(dest)) {
-		if (snd_seq_client_is_midi2(dest) &&
-		    type == UMP_MSG_TYPE_MIDI1_CHANNEL_VOICE)
+		bool is_midi2 = snd_seq_client_is_midi2(dest) &&
+			!dest_port->is_midi1;
+
+		if (is_midi2 && type == UMP_MSG_TYPE_MIDI1_CHANNEL_VOICE)
 			return cvt_ump_midi1_to_midi2(dest, dest_port,
 						      event, atomic, hop);
-		else if (!snd_seq_client_is_midi2(dest) &&
-			 type == UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE)
+		else if (!is_midi2 && type == UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE)
 			return cvt_ump_midi2_to_midi1(dest, dest_port,
 						      event, atomic, hop);
 		/* non-EP port and different group is set? */
@@ -1279,7 +1280,7 @@ int snd_seq_deliver_to_ump(struct snd_seq_client *source,
 		return 0; /* group filtered - skip the event */
 	if (event->type == SNDRV_SEQ_EVENT_SYSEX)
 		return cvt_sysex_to_ump(dest, dest_port, event, atomic, hop);
-	else if (snd_seq_client_is_midi2(dest))
+	else if (snd_seq_client_is_midi2(dest) && !dest_port->is_midi1)
 		return cvt_to_ump_midi2(dest, dest_port, event, atomic, hop);
 	else
 		return cvt_to_ump_midi1(dest, dest_port, event, atomic, hop);

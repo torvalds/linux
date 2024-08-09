@@ -236,19 +236,45 @@ int snd_soc_component_force_enable_pin_unlocked(
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
 
+static void soc_get_kcontrol_name(struct snd_soc_component *component,
+				  char *buf, int size, const char * const ctl)
+{
+	/* When updating, change also snd_soc_dapm_widget_name_cmp() */
+	if (component->name_prefix)
+		snprintf(buf, size, "%s %s", component->name_prefix, ctl);
+	else
+		snprintf(buf, size, "%s", ctl);
+}
+
+struct snd_kcontrol *snd_soc_component_get_kcontrol(struct snd_soc_component *component,
+						    const char * const ctl)
+{
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+	soc_get_kcontrol_name(component, name, ARRAY_SIZE(name), ctl);
+
+	return snd_soc_card_get_kcontrol(component->card, name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_get_kcontrol);
+
+struct snd_kcontrol *
+snd_soc_component_get_kcontrol_locked(struct snd_soc_component *component,
+				      const char * const ctl)
+{
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+	soc_get_kcontrol_name(component, name, ARRAY_SIZE(name), ctl);
+
+	return snd_soc_card_get_kcontrol_locked(component->card, name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_get_kcontrol_locked);
+
 int snd_soc_component_notify_control(struct snd_soc_component *component,
 				     const char * const ctl)
 {
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	struct snd_kcontrol *kctl;
 
-	/* When updating, change also snd_soc_dapm_widget_name_cmp() */
-	if (component->name_prefix)
-		snprintf(name, ARRAY_SIZE(name), "%s %s", component->name_prefix, ctl);
-	else
-		snprintf(name, ARRAY_SIZE(name), "%s", ctl);
-
-	kctl = snd_soc_card_get_kcontrol(component->card, name);
+	kctl = snd_soc_component_get_kcontrol(component, ctl);
 	if (!kctl)
 		return soc_component_ret(component, -EINVAL);
 

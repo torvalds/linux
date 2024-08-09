@@ -108,8 +108,7 @@ void snd_pcm_timer_init(struct snd_pcm_substream *substream)
 	if (snd_timer_new(substream->pcm->card, "PCM", &tid, &timer) < 0)
 		return;
 	sprintf(timer->name, "PCM %s %i-%i-%i",
-			substream->stream == SNDRV_PCM_STREAM_CAPTURE ?
-				"capture" : "playback",
+			snd_pcm_direction_name(substream->stream),
 			tid.card, tid.device, tid.subdevice);
 	timer->hw = snd_pcm_timer;
 	if (snd_device_register(timer->card, timer) < 0) {

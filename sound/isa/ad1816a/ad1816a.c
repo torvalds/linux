@@ -17,8 +17,6 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 
-#define PFX "ad1816a: "
-
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("AD1816A, AD1815");
 MODULE_LICENSE("GPL");
@@ -87,7 +85,7 @@ static int snd_card_ad1816a_pnp(int dev, struct pnp_card_link *card,
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		printk(KERN_ERR PFX "AUDIO PnP configure failure\n");
+		dev_err(&pdev->dev, "AUDIO PnP configure failure\n");
 		return -EBUSY;
 	}
 
@@ -100,13 +98,13 @@ static int snd_card_ad1816a_pnp(int dev, struct pnp_card_link *card,
 	pdev = pnp_request_card_device(card, id->devs[1].id, NULL);
 	if (pdev == NULL) {
 		mpu_port[dev] = -1;
-		snd_printk(KERN_WARNING PFX "MPU401 device busy, skipping.\n");
+		dev_warn(&pdev->dev, "MPU401 device busy, skipping.\n");
 		return 0;
 	}
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		printk(KERN_ERR PFX "MPU401 PnP configure failure\n");
+		dev_err(&pdev->dev, "MPU401 PnP configure failure\n");
 		mpu_port[dev] = -1;
 	} else {
 		mpu_port[dev] = pnp_port_start(pdev, 0);
@@ -166,14 +164,16 @@ static int snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard,
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 					mpu_port[dev], 0, mpu_irq[dev],
 					NULL) < 0)
-			printk(KERN_ERR PFX "no MPU-401 device at 0x%lx.\n", mpu_port[dev]);
+			dev_err(card->dev, "no MPU-401 device at 0x%lx.\n",
+				mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx.\n", fm_port[dev], fm_port[dev] + 2);
+			dev_err(card->dev, "no OPL device at 0x%lx-0x%lx.\n",
+				fm_port[dev], fm_port[dev] + 2);
 		} else {
 			error = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 			if (error < 0)
@@ -252,7 +252,7 @@ static int __init alsa_card_ad1816a_init(void)
 	if (!ad1816a_devices) {
 		pnp_unregister_card_driver(&ad1816a_pnpc_driver);
 #ifdef MODULE
-		printk(KERN_ERR "no AD1816A based soundcards found.\n");
+		pr_err("no AD1816A based soundcards found.\n");
 #endif	/* MODULE */
 		return -ENODEV;
 	}
