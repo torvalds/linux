@@ -17,7 +17,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/ti-aemif.h>
 
 #define TA_SHIFT	2
 #define RHOLD_SHIFT	4
@@ -332,15 +331,10 @@ static int aemif_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
 	struct aemif_device *aemif;
-	struct aemif_platform_data *pdata;
-	struct of_dev_auxdata *dev_lookup;
 
 	aemif = devm_kzalloc(dev, sizeof(*aemif), GFP_KERNEL);
 	if (!aemif)
 		return -ENOMEM;
-
-	pdata = dev_get_platdata(&pdev->dev);
-	dev_lookup = pdata ? pdata->dev_lookup : NULL;
 
 	platform_set_drvdata(pdev, aemif);
 
@@ -358,8 +352,6 @@ static int aemif_probe(struct platform_device *pdev)
 
 	if (np && of_device_is_compatible(np, "ti,da850-aemif"))
 		aemif->cs_offset = 2;
-	else if (pdata)
-		aemif->cs_offset = pdata->cs_offset;
 
 	aemif->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(aemif->base)) {
@@ -381,11 +373,6 @@ static int aemif_probe(struct platform_device *pdev)
 				goto error;
 			}
 		}
-	} else if (pdata && pdata->num_abus_data > 0) {
-		for (i = 0; i < pdata->num_abus_data; i++, aemif->num_cs++) {
-			aemif->cs_data[i].cs = pdata->abus_data[i].cs;
-			aemif_get_hw_params(pdev, i);
-		}
 	}
 
 	for (i = 0; i < aemif->num_cs; i++) {
@@ -403,20 +390,10 @@ static int aemif_probe(struct platform_device *pdev)
 	 */
 	if (np) {
 		for_each_available_child_of_node(np, child_np) {
-			ret = of_platform_populate(child_np, NULL,
-						   dev_lookup, dev);
+			ret = of_platform_populate(child_np, NULL, NULL, dev);
 			if (ret < 0) {
 				of_node_put(child_np);
 				goto error;
-			}
-		}
-	} else if (pdata) {
-		for (i = 0; i < pdata->num_sub_devices; i++) {
-			pdata->sub_devices[i].dev.parent = dev;
-			ret = platform_device_register(&pdata->sub_devices[i]);
-			if (ret) {
-				dev_warn(dev, "Error register sub device %s\n",
-					 pdata->sub_devices[i].name);
 			}
 		}
 	}
