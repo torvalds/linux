@@ -2690,11 +2690,11 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *rdst, *fdst = NULL;
 	const struct ip_tunnel_info *info;
-	bool did_rsc = false;
 	struct vxlan_fdb *f;
 	struct ethhdr *eth;
 	__be32 vni = 0;
 	u32 nhid = 0;
+	bool did_rsc;
 
 	info = skb_tunnel_info(skb);
 
