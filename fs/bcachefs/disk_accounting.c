@@ -114,11 +114,74 @@ int bch2_mod_dev_cached_sectors(struct btree_trans *trans,
 	return bch2_disk_accounting_mod(trans, &acc, &sectors, 1, gc);
 }
 
+static inline bool is_zero(char *start, char *end)
+{
+	BUG_ON(start > end);
+
+	for (; start < end; start++)
+		if (*start)
+			return false;
+	return true;
+}
+
+#define field_end(p, member)	(((void *) (&p.member)) + sizeof(p.member))
+
 int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 			    enum bch_validate_flags flags,
 			    struct printbuf *err)
 {
-	return 0;
+	struct disk_accounting_pos acc_k;
+	bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+	void *end = &acc_k + 1;
+	int ret = 0;
+
+	switch (acc_k.type) {
+	case BCH_DISK_ACCOUNTING_nr_inodes:
+		end = field_end(acc_k, nr_inodes);
+		break;
+	case BCH_DISK_ACCOUNTING_persistent_reserved:
+		end = field_end(acc_k, persistent_reserved);
+		break;
+	case BCH_DISK_ACCOUNTING_replicas:
+		bkey_fsck_err_on(!acc_k.replicas.nr_devs,
+				 c, err, accounting_key_replicas_nr_devs_0,
+				 "accounting key replicas entry with nr_devs=0");
+
+		bkey_fsck_err_on(acc_k.replicas.nr_required > acc_k.replicas.nr_devs ||
+				 (acc_k.replicas.nr_required > 1 &&
+				  acc_k.replicas.nr_required == acc_k.replicas.nr_devs),
+				 c, err, accounting_key_replicas_nr_required_bad,
+				 "accounting key replicas entry with bad nr_required");
+
+		for (unsigned i = 0; i + 1 < acc_k.replicas.nr_devs; i++)
+			bkey_fsck_err_on(acc_k.replicas.devs[i] > acc_k.replicas.devs[i + 1],
+					 c, err, accounting_key_replicas_devs_unsorted,
+					 "accounting key replicas entry with unsorted devs");
+
+		end = (void *) &acc_k.replicas + replicas_entry_bytes(&acc_k.replicas);
+		break;
+	case BCH_DISK_ACCOUNTING_dev_data_type:
+		end = field_end(acc_k, dev_data_type);
+		break;
+	case BCH_DISK_ACCOUNTING_compression:
+		end = field_end(acc_k, compression);
+		break;
+	case BCH_DISK_ACCOUNTING_snapshot:
+		end = field_end(acc_k, snapshot);
+		break;
+	case BCH_DISK_ACCOUNTING_btree:
+		end = field_end(acc_k, btree);
+		break;
+	case BCH_DISK_ACCOUNTING_rebalance_work:
+		end = field_end(acc_k, rebalance_work);
+		break;
+	}
+
+	bkey_fsck_err_on(!is_zero(end, (void *) (&acc_k + 1)),
+			 c, err, accounting_key_junk_at_end,
+			 "junk at end of accounting key");
+fsck_err:
+	return ret;
 }
 
 void bch2_accounting_key_to_text(struct printbuf *out, struct disk_accounting_pos *k)

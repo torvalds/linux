@@ -61,12 +61,37 @@
 	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
 	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
 	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
-	  BCH_FSCK_ERR_accounting_mismatch)
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(disk_accounting_v3,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_bkey_version_in_future,			\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_accounting_mismatch,			\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_required_bad,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_devs_unsorted,	\
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\
 	  0)							\
 	x(disk_accounting_v2,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_hidden_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_btree_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_data_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_cached_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_reserved_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
+	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_bkey_version_in_future)			\
+	x(disk_accounting_v3,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
 	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
 	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
