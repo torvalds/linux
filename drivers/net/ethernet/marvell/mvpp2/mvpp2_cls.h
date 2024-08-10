@@ -264,7 +264,7 @@ int mvpp22_port_rss_init(struct mvpp2_port *port);
 int mvpp22_port_rss_enable(struct mvpp2_port *port);
 int mvpp22_port_rss_disable(struct mvpp2_port *port);
 
-int mvpp22_port_rss_ctx_create(struct mvpp2_port *port, u32 *rss_ctx);
+int mvpp22_port_rss_ctx_create(struct mvpp2_port *port, u32 rss_ctx);
 int mvpp22_port_rss_ctx_delete(struct mvpp2_port *port, u32 rss_ctx);
 
 int mvpp22_port_rss_ctx_indir_set(struct mvpp2_port *port, u32 rss_ctx,
