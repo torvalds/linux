@@ -732,7 +732,7 @@ retry:
 		return;
 	}
 
-	t->extra = (t->size - rounddown_pow_of_two(t->size - 1)) << 1;
+	t->extra = eytzinger1_extra(t->size - 1);
 
 	/* First we figure out where the first key in each cacheline is */
 	eytzinger1_for_each(j, t->size - 1) {
