@@ -825,7 +825,7 @@ static struct configfs_group_operations userdata_ops = {
 	.drop_item		= userdatum_drop,
 };
 
-static struct config_item_type userdata_type = {
+static const struct config_item_type userdata_type = {
 	.ct_item_ops	= &userdatum_ops,
 	.ct_group_ops	= &userdata_ops,
 	.ct_attrs	= userdata_attrs,
