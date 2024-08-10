@@ -10,6 +10,7 @@ struct xe_gt;
 struct drm_printer;
 
 enum xe_gt_stats_id {
+	XE_GT_STATS_ID_TLB_INVAL,
 	/* must be the last entry */
 	__XE_GT_STATS_NUM_IDS,
 };
