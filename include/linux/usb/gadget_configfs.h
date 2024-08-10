@@ -34,7 +34,7 @@ static struct configfs_item_operations struct_in##_langid_item_ops = {	\
 	.release                = struct_in##_attr_release,		\
 };									\
 									\
-static struct config_item_type struct_in##_langid_type = {		\
+static const struct config_item_type struct_in##_langid_type = {	\
 	.ct_item_ops	= &struct_in##_langid_item_ops,			\
 	.ct_attrs	= struct_in##_langid_attrs,			\
 	.ct_owner	= THIS_MODULE,					\
@@ -91,7 +91,7 @@ static struct configfs_group_operations struct_in##_strings_ops = {	\
 	.drop_item      = &struct_in##_strings_drop,			\
 };									\
 									\
-static struct config_item_type struct_in##_strings_type = {		\
+static const struct config_item_type struct_in##_strings_type = {	\
 	.ct_group_ops   = &struct_in##_strings_ops,			\
 	.ct_owner       = THIS_MODULE,					\
 }
