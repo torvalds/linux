@@ -316,6 +316,74 @@ void fbnic_clear_rx_mode(struct net_device *netdev)
 	__dev_mc_unsync(netdev, NULL);
 }
 
+static void fbnic_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats64)
+{
+	u64 tx_bytes, tx_packets, tx_dropped = 0;
+	u64 rx_bytes, rx_packets, rx_dropped = 0;
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_queue_stats *stats;
+	unsigned int start, i;
+
+	stats = &fbn->tx_stats;
+
+	tx_bytes = stats->bytes;
+	tx_packets = stats->packets;
+	tx_dropped = stats->dropped;
+
+	stats64->tx_bytes = tx_bytes;
+	stats64->tx_packets = tx_packets;
+	stats64->tx_dropped = tx_dropped;
+
+	for (i = 0; i < fbn->num_tx_queues; i++) {
+		struct fbnic_ring *txr = fbn->tx[i];
+
+		if (!txr)
+			continue;
+
+		stats = &txr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tx_bytes = stats->bytes;
+			tx_packets = stats->packets;
+			tx_dropped = stats->dropped;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->tx_bytes += tx_bytes;
+		stats64->tx_packets += tx_packets;
+		stats64->tx_dropped += tx_dropped;
+	}
+
+	stats = &fbn->rx_stats;
+
+	rx_bytes = stats->bytes;
+	rx_packets = stats->packets;
+	rx_dropped = stats->dropped;
+
+	stats64->rx_bytes = rx_bytes;
+	stats64->rx_packets = rx_packets;
+	stats64->rx_dropped = rx_dropped;
+
+	for (i = 0; i < fbn->num_rx_queues; i++) {
+		struct fbnic_ring *rxr = fbn->rx[i];
+
+		if (!rxr)
+			continue;
+
+		stats = &rxr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			rx_bytes = stats->bytes;
+			rx_packets = stats->packets;
+			rx_dropped = stats->dropped;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->rx_bytes += rx_bytes;
+		stats64->rx_packets += rx_packets;
+		stats64->rx_dropped += rx_dropped;
+	}
+}
+
 static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_open		= fbnic_open,
 	.ndo_stop		= fbnic_stop,
@@ -324,6 +392,7 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_features_check	= fbnic_features_check,
 	.ndo_set_mac_address	= fbnic_set_mac,
 	.ndo_set_rx_mode	= fbnic_set_rx_mode,
+	.ndo_get_stats64	= fbnic_get_stats64,
 };
 
 void fbnic_reset_queues(struct fbnic_net *fbn,
