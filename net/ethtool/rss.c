@@ -43,13 +43,9 @@ rss_parse_request(struct ethnl_req_info *req_info, struct nlattr **tb,
 }
 
 static int
-rss_prepare_data(const struct ethnl_req_info *req_base,
-		 struct ethnl_reply_data *reply_base,
-		 const struct genl_info *info)
+rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
+		struct rss_reply_data *data, const struct genl_info *info)
 {
-	struct rss_reply_data *data = RSS_REPDATA(reply_base);
-	struct rss_req_info *request = RSS_REQINFO(req_base);
-	struct net_device *dev = reply_base->dev;
 	struct ethtool_rxfh_param rxfh = {};
 	const struct ethtool_ops *ops;
 	u32 total_size, indir_bytes;
@@ -57,16 +53,6 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	ops = dev->ethtool_ops;
-	if (!ops->get_rxfh)
-		return -EOPNOTSUPP;
-
-	/* Some drivers don't handle rss_context */
-	if (request->rss_context) {
-		if (!ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
-			return -EOPNOTSUPP;
-
-		data->no_key_fields = !ops->rxfh_per_ctx_key;
-	}
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -107,6 +93,31 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 out_ops:
 	ethnl_ops_complete(dev);
 	return ret;
+}
+
+static int
+rss_prepare_data(const struct ethnl_req_info *req_base,
+		 struct ethnl_reply_data *reply_base,
+		 const struct genl_info *info)
+{
+	struct rss_reply_data *data = RSS_REPDATA(reply_base);
+	struct rss_req_info *request = RSS_REQINFO(req_base);
+	struct net_device *dev = reply_base->dev;
+	const struct ethtool_ops *ops;
+
+	ops = dev->ethtool_ops;
+	if (!ops->get_rxfh)
+		return -EOPNOTSUPP;
+
+	/* Some drivers don't handle rss_context */
+	if (request->rss_context) {
+		if (!ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
+			return -EOPNOTSUPP;
+
+		data->no_key_fields = !ops->rxfh_per_ctx_key;
+	}
+
+	return rss_prepare_get(request, dev, data, info);
 }
 
 static int
