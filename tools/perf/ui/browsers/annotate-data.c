@@ -46,11 +46,12 @@ static int get_member_overhead(struct annotated_data_type *adt,
 	struct annotated_member *member = entry->data;
 	int i, k;
 
-	for (i = 0, k = 0; i < member->size; i++) {
+	for (i = 0; i < member->size; i++) {
 		struct type_hist *h;
 		struct evsel *evsel;
 		int offset = member->offset + i;
 
+		k = 0;
 		for_each_group_evsel(evsel, leader) {
 			if (symbol_conf.skip_empty &&
 			    evsel__hists(evsel)->stats.nr_samples == 0)
