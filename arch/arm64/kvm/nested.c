@@ -282,11 +282,6 @@ static int walk_nested_s2_pgd(phys_addr_t ipa,
 		return 1;
 	}
 
-	/*
-	 * We don't use the contiguous bit in the stage-2 ptes, so skip check
-	 * for misprogramming of the contiguous bit.
-	 */
-
 	if (check_output_size(wi, desc)) {
 		out->esr = compute_fsc(level, ESR_ELx_FSC_ADDRSZ);
 		out->upper_attr = desc;
@@ -298,6 +293,8 @@ static int walk_nested_s2_pgd(phys_addr_t ipa,
 		out->upper_attr = desc;
 		return 1;
 	}
+
+	addr_bottom += contiguous_bit_shift(desc, wi, level);
 
 	/* Calculate and return the result */
 	paddr = (desc & GENMASK_ULL(47, addr_bottom)) |

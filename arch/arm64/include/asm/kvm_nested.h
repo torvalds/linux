@@ -205,4 +205,26 @@ static inline u64 kvm_encode_nested_level(struct kvm_s2_trans *trans)
 	return FIELD_PREP(KVM_NV_GUEST_MAP_SZ, trans->level);
 }
 
+/* Adjust alignment for the contiguous bit as per StageOA() */
+#define contiguous_bit_shift(d, wi, l)					\
+	({								\
+		u8 shift = 0;						\
+									\
+		if ((d) & PTE_CONT) {					\
+			switch (BIT((wi)->pgshift)) {			\
+			case SZ_4K:					\
+				shift = 4;				\
+				break;					\
+			case SZ_16K:					\
+				shift = (l) == 2 ? 5 : 7;		\
+				break;					\
+			case SZ_64K:					\
+				shift = 5;				\
+				break;					\
+			}						\
+		}							\
+									\
+		shift;							\
+	})
+
 #endif /* __ARM64_KVM_NESTED_H */
