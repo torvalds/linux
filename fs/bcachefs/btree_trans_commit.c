@@ -973,9 +973,13 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		bch2_trans_unlock(trans);
 
 		trace_and_count(c, trans_blocked_journal_reclaim, trans, trace_ip);
+		track_event_change(&c->times[BCH_TIME_blocked_key_cache_flush], true);
 
 		wait_event_freezable(c->journal.reclaim_wait,
 				     (ret = journal_reclaim_wait_done(c)));
+
+		track_event_change(&c->times[BCH_TIME_blocked_key_cache_flush], false);
+
 		if (ret < 0)
 			break;
 
