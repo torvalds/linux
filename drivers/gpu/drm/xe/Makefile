@@ -277,6 +277,7 @@ ifeq ($(CONFIG_DEBUG_FS),y)
 	xe-y += xe_debugfs.o \
 		xe_gt_debugfs.o \
 		xe_gt_sriov_vf_debugfs.o \
+		xe_gt_stats.o \
 		xe_guc_debugfs.o \
 		xe_huc_debugfs.o \
 		xe_uc_debugfs.o
