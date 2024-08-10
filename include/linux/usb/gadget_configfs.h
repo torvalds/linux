@@ -4,9 +4,6 @@
 
 #include <linux/configfs.h>
 
-int check_user_usb_string(const char *name,
-		struct usb_gadget_strings *stringtab_dev);
-
 #define GS_STRINGS_W(__struct, __name)	\
 static ssize_t __struct##_##__name##_store(struct config_item *item, \
 		const char *page, size_t len)		\

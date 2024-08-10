@@ -12,7 +12,7 @@
 #include "u_f.h"
 #include "u_os_desc.h"
 
-int check_user_usb_string(const char *name,
+static int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
 {
 	u16 num;
