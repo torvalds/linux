@@ -208,6 +208,141 @@ static void rss_cleanup_data(struct ethnl_reply_data *reply_base)
 	kfree(data->indir_table);
 }
 
+struct rss_nl_dump_ctx {
+	unsigned long		ifindex;
+	unsigned long		ctx_idx;
+
+	/* User wants to only dump contexts from given ifindex */
+	unsigned int		match_ifindex;
+};
+
+static struct rss_nl_dump_ctx *rss_dump_ctx(struct netlink_callback *cb)
+{
+	NL_ASSERT_DUMP_CTX_FITS(struct rss_nl_dump_ctx);
+
+	return (struct rss_nl_dump_ctx *)cb->ctx;
+}
+
+int ethnl_rss_dump_start(struct netlink_callback *cb)
+{
+	const struct genl_info *info = genl_info_dump(cb);
+	struct rss_nl_dump_ctx *ctx = rss_dump_ctx(cb);
+	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
+	int ret;
+
+	/* Filtering by context not supported */
+	if (tb[ETHTOOL_A_RSS_CONTEXT]) {
+		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_CONTEXT]);
+		return -EINVAL;
+	}
+
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_RSS_HEADER],
+					 sock_net(cb->skb->sk), cb->extack,
+					 false);
+	if (req_info.dev) {
+		ctx->match_ifindex = req_info.dev->ifindex;
+		ctx->ifindex = ctx->match_ifindex;
+		ethnl_parse_header_dev_put(&req_info);
+		req_info.dev = NULL;
+	}
+
+	return ret;
+}
+
+static int
+rss_dump_one_ctx(struct sk_buff *skb, struct netlink_callback *cb,
+		 struct net_device *dev, u32 rss_context)
+{
+	const struct genl_info *info = genl_info_dump(cb);
+	struct rss_reply_data data = {};
+	struct rss_req_info req = {};
+	void *ehdr;
+	int ret;
+
+	req.rss_context = rss_context;
+
+	ehdr = ethnl_dump_put(skb, cb, ETHTOOL_MSG_RSS_GET_REPLY);
+	if (!ehdr)
+		return -EMSGSIZE;
+
+	ret = ethnl_fill_reply_header(skb, dev, ETHTOOL_A_RSS_HEADER);
+	if (ret < 0)
+		goto err_cancel;
+
+	/* Context 0 is not currently storred or cached in the XArray */
+	if (!rss_context)
+		ret = rss_prepare_get(&req, dev, &data, info);
+	else
+		ret = rss_prepare_ctx(&req, dev, &data, info);
+	if (ret)
+		goto err_cancel;
+
+	ret = rss_fill_reply(skb, &req.base, &data.base);
+	if (ret)
+		goto err_cleanup;
+	genlmsg_end(skb, ehdr);
+
+	rss_cleanup_data(&data.base);
+	return 0;
+
+err_cleanup:
+	rss_cleanup_data(&data.base);
+err_cancel:
+	genlmsg_cancel(skb, ehdr);
+	return ret;
+}
+
+static int
+rss_dump_one_dev(struct sk_buff *skb, struct netlink_callback *cb,
+		 struct net_device *dev)
+{
+	struct rss_nl_dump_ctx *ctx = rss_dump_ctx(cb);
+	int ret;
+
+	if (!dev->ethtool_ops->get_rxfh)
+		return 0;
+
+	if (!ctx->ctx_idx) {
+		ret = rss_dump_one_ctx(skb, cb, dev, 0);
+		if (ret)
+			return ret;
+		ctx->ctx_idx++;
+	}
+
+	for (; xa_find(&dev->ethtool->rss_ctx, &ctx->ctx_idx,
+		       ULONG_MAX, XA_PRESENT); ctx->ctx_idx++) {
+		ret = rss_dump_one_ctx(skb, cb, dev, ctx->ctx_idx);
+		if (ret)
+			return ret;
+	}
+	ctx->ctx_idx = 0;
+
+	return 0;
+}
+
+int ethnl_rss_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct rss_nl_dump_ctx *ctx = rss_dump_ctx(cb);
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+	int ret = 0;
+
+	rtnl_lock();
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		if (ctx->match_ifindex && ctx->match_ifindex != ctx->ifindex)
+			break;
+
+		ret = rss_dump_one_dev(skb, cb, dev);
+		if (ret)
+			break;
+	}
+	rtnl_unlock();
+
+	return ret;
+}
+
 const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_RSS_GET,
 	.reply_cmd		= ETHTOOL_MSG_RSS_GET_REPLY,
