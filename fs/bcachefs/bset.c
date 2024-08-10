@@ -1097,8 +1097,7 @@ static inline void prefetch_four_cachelines(void *p)
 }
 
 static inline bool bkey_mantissa_bits_dropped(const struct btree *b,
-					      const struct bkey_float *f,
-					      unsigned idx)
+					      const struct bkey_float *f)
 {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	unsigned key_bits_start = b->format.key_u64s * 64 - b->nr_key_bits;
@@ -1134,7 +1133,7 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 		l = f->mantissa;
 		r = bkey_mantissa(packed_search, f);
 
-		if (unlikely(l == r) && bkey_mantissa_bits_dropped(b, f, n))
+		if (unlikely(l == r) && bkey_mantissa_bits_dropped(b, f))
 			goto slowpath;
 
 		n = n * 2 + (l < r);
