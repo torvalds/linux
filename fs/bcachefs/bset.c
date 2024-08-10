@@ -753,9 +753,6 @@ retry:
 		EBUG_ON(tree_to_bkey(b, t, j) != k);
 	}
 
-	while (k != btree_bkey_last(b, t))
-		prev = k, k = bkey_p_next(k);
-
 	if (!bkey_pack_pos(bkey_to_packed(&min_key), b->data->min_key, b)) {
 		bkey_init(&min_key.k);
 		min_key.k.p = b->data->min_key;
