@@ -90,9 +90,7 @@ int proc_do_static_key(const struct ctl_table *table, int write, void *buffer,
 
 /*
  * Register a set of sysctl names by calling register_sysctl
- * with an initialised array of struct ctl_table's.  An entry with 
- * NULL procname terminates the table.  table->de will be
- * set up by the registration and need not be initialised in advance.
+ * with an initialised array of struct ctl_table's.
  *
  * sysctl names can be mirrored automatically under /proc/sys.  The
  * procname supplied controls /proc naming.
@@ -133,7 +131,7 @@ static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
 
 /* A sysctl table is an array of struct ctl_table: */
 struct ctl_table {
-	const char *procname;		/* Text ID for /proc/sys, or zero */
+	const char *procname;		/* Text ID for /proc/sys */
 	void *data;
 	int maxlen;
 	umode_t mode;
