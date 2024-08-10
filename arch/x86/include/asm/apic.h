@@ -127,8 +127,6 @@ static inline bool apic_is_x2apic_enabled(void)
 
 extern void enable_IR_x2apic(void);
 
-extern int get_physical_broadcast(void);
-
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
 extern void disconnect_bsp_APIC(int virt_wire_setup);
@@ -508,8 +506,6 @@ static inline bool is_vector_pending(unsigned int vector)
 #define TRAMPOLINE_PHYS_LOW		0x467
 #define TRAMPOLINE_PHYS_HIGH		0x469
 
-extern void generic_bigsmp_probe(void);
-
 #ifdef CONFIG_X86_LOCAL_APIC
 
 #include <asm/smp.h>
@@ -531,8 +527,6 @@ extern void x86_64_probe_apic(void);
 static inline int default_acpi_madt_oem_check(char *a, char *b) { return 0; }
 static inline void x86_64_probe_apic(void) { }
 #endif
-
-extern int default_apic_id_valid(u32 apicid);
 
 extern u32 apic_default_calc_apicid(unsigned int cpu);
 extern u32 apic_flat_calc_apicid(unsigned int cpu);
