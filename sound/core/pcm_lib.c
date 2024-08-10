@@ -184,6 +184,9 @@ void __snd_pcm_xrun(struct snd_pcm_substream *substream)
 		pcm_warn(substream->pcm, "XRUN: %s\n", name);
 		dump_stack_on_xrun(substream);
 	}
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	substream->xrun_counter++;
+#endif
 }
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
