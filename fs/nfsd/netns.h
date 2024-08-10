@@ -13,6 +13,7 @@
 #include <linux/nfs4.h>
 #include <linux/percpu_counter.h>
 #include <linux/siphash.h>
+#include <linux/sunrpc/stats.h>
 
 /* Hash tables for nfs4_clientid state */
 #define CLIENT_HASH_BITS                 4
@@ -182,6 +183,9 @@ struct nfsd_net {
 
 	/* Per-netns stats counters */
 	struct percpu_counter    counter[NFSD_STATS_COUNTERS_NUM];
+
+	/* sunrpc svc stats */
+	struct svc_stat          nfsd_svcstats;
 
 	/* longest hash chain seen */
 	unsigned int             longest_chain;
