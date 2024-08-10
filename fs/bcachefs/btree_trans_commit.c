@@ -927,7 +927,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 static int journal_reclaim_wait_done(struct bch_fs *c)
 {
 	int ret = bch2_journal_error(&c->journal) ?:
-		!bch2_btree_key_cache_must_wait(c);
+		bch2_btree_key_cache_wait_done(c);
 
 	if (!ret)
 		journal_reclaim_kick(&c->journal);
