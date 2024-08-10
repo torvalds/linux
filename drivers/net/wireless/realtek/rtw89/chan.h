@@ -76,17 +76,17 @@ static inline void rtw89_set_entity_mode(struct rtw89_dev *rtwdev,
 void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 		       enum rtw89_band band, enum rtw89_bandwidth bandwidth);
 bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
-			      enum rtw89_sub_entity_idx idx,
+			      enum rtw89_chanctx_idx idx,
 			      const struct rtw89_chan *new);
 int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
 			      int (*iterator)(const struct rtw89_chan *chan,
 					      void *data),
 			      void *data);
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
-				 enum rtw89_sub_entity_idx idx,
+				 enum rtw89_chanctx_idx idx,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
-			      enum rtw89_sub_entity_idx idx,
+			      enum rtw89_chanctx_idx idx,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);

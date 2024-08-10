@@ -948,6 +948,7 @@ static void rtw_sdio_rx_skb(struct rtw_dev *rtwdev, struct sk_buff *skb,
 	skb_put(skb, pkt_stat->pkt_len);
 	skb_reserve(skb, pkt_offset);
 
+	rtw_update_rx_freq_for_invalid(rtwdev, skb, rx_status, pkt_stat);
 	rtw_rx_stats(rtwdev, pkt_stat->vif, skb);
 
 	ieee80211_rx_irqsafe(rtwdev->hw, skb);
@@ -1156,6 +1157,7 @@ static struct rtw_hci_ops rtw_sdio_ops = {
 	.deep_ps = rtw_sdio_deep_ps,
 	.link_ps = rtw_sdio_link_ps,
 	.interface_cfg = rtw_sdio_interface_cfg,
+	.dynamic_rx_agg = NULL,
 
 	.read8 = rtw_sdio_read8,
 	.read16 = rtw_sdio_read16,

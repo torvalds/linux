@@ -1625,6 +1625,7 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_size18 = {RTW89_WDE_PG_64, 0, 2048,},
 	/* 8852C PCIE SCC */
 	.wde_size19 = {RTW89_WDE_PG_64, 3328, 0,},
+	.wde_size23 = {RTW89_WDE_PG_64, 1022, 2,},
 	/* PCIE */
 	.ple_size0 = {RTW89_PLE_PG_128, 1520, 16,},
 	.ple_size0_v1 = {RTW89_PLE_PG_128, 2688, 240, 212992,},
@@ -1635,6 +1636,7 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_size6 = {RTW89_PLE_PG_128, 496, 16,},
 	/* DLFW */
 	.ple_size8 = {RTW89_PLE_PG_128, 64, 960,},
+	.ple_size9 = {RTW89_PLE_PG_128, 2288, 16,},
 	/* 8852C DLFW */
 	.ple_size18 = {RTW89_PLE_PG_128, 2544, 16,},
 	/* 8852C PCIE SCC */
@@ -1652,6 +1654,7 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_qt17 = {0, 0, 0,  0,},
 	/* 8852C PCIE SCC */
 	.wde_qt18 = {3228, 60, 0, 40,},
+	.wde_qt23 = {958, 48, 0, 16,},
 	.ple_qt0 = {320, 320, 32, 16, 13, 13, 292, 292, 64, 18, 1, 4, 0,},
 	.ple_qt1 = {320, 320, 32, 16, 1316, 1316, 1595, 1595, 1367, 1321, 1, 1307, 0,},
 	/* PCIE SCC */
@@ -1671,12 +1674,16 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt46 = {525, 0, 16, 20, 13, 13, 178, 0, 32, 62, 8, 16,},
 	/* 8852C PCIE SCC */
 	.ple_qt47 = {525, 0, 32, 20, 1034, 13, 1199, 0, 1053, 62, 160, 1037,},
+	.ple_qt57 = {147, 0, 16, 20, 13, 13, 178, 0, 32, 14, 8, 0,},
 	/* PCIE 64 */
 	.ple_qt58 = {147, 0, 16, 20, 157, 13, 229, 0, 172, 14, 24, 0,},
+	.ple_qt59 = {147, 0, 32, 20, 1860, 13, 2025, 0, 1879, 14, 24, 0,},
 	/* 8852A PCIE WOW */
 	.ple_qt_52a_wow = {264, 0, 32, 20, 64, 13, 1005, 0, 64, 128, 120,},
 	/* 8852B PCIE WOW */
 	.ple_qt_52b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
+	/* 8852BT PCIE WOW */
+	.ple_qt_52bt_wow = {147, 0, 32, 20, 1860, 13, 1929, 0, 1879, 14, 24, 0,},
 	/* 8851B PCIE WOW */
 	.ple_qt_51b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
 	.ple_rsvd_qt0 = {2, 107, 107, 6, 6, 6, 6, 0, 0, 0,},
@@ -2025,10 +2032,15 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow)
 
 void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 msk32 = B_AX_UC_MGNT_DEC | B_AX_BMC_MGNT_DEC;
 
 	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
 		return;
+
+	/* 8852C enable B_AX_UC_MGNT_DEC by default */
+	if (chip->chip_id == RTL8852C)
+		msk32 = B_AX_BMC_MGNT_DEC;
 
 	if (enable)
 		rtw89_write32_set(rtwdev, R_AX_SEC_ENG_CTRL, msk32);
@@ -2254,6 +2266,8 @@ static int sec_eng_init_ax(struct rtw89_dev *rtwdev)
 	/* init TX encryption */
 	val |= (B_AX_SEC_TX_ENC | B_AX_SEC_RX_DEC);
 	val |= (B_AX_MC_DEC | B_AX_BC_DEC);
+	if (chip->chip_id == RTL8852C)
+		val |= B_AX_UC_MGNT_DEC;
 	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
 	    chip->chip_id == RTL8851B)
 		val &= ~B_AX_TX_PARTIAL_MODE;
@@ -3781,7 +3795,7 @@ static int rtw89_mac_enable_cpu_ax(struct rtw89_dev *rtwdev, u8 boot_reason,
 
 	rtw89_write32(rtwdev, R_AX_WCPU_FW_CTRL, val);
 
-	if (rtwdev->chip->chip_id == RTL8852B)
+	if (rtw89_is_rtl885xb(rtwdev))
 		rtw89_write32_mask(rtwdev, R_AX_SEC_CTRL,
 				   B_AX_SEC_IDMEM_SIZE_CONFIG_MASK, 0x2);
 
@@ -4774,14 +4788,14 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_SCAN_ENTER_OP_NOTIFY:
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
 		if (rtw89_is_op_chan(rtwdev, band, chan)) {
-			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+			rtw89_assign_entity_chan(rtwdev, rtwvif->chanctx_idx,
 						 &rtwdev->scan_info.op_chan);
 			rtw89_mac_enable_beacon_for_ap_vifs(rtwdev, true);
 			ieee80211_wake_queues(rtwdev->hw);
 		} else {
 			rtw89_chan_create(&new, chan, chan, band,
 					  RTW89_CHANNEL_WIDTH_20);
-			rtw89_assign_entity_chan(rtwdev, rtwvif->sub_entity_idx,
+			rtw89_assign_entity_chan(rtwdev, rtwvif->chanctx_idx,
 						 &new);
 		}
 		break;
@@ -6513,8 +6527,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.is_txq_empty = mac_is_txq_empty_ax,
 
-	.add_chan_list = rtw89_hw_scan_add_chan_list,
-	.scan_offload = rtw89_fw_h2c_scan_offload,
+	.add_chan_list = rtw89_hw_scan_add_chan_list_ax,
+	.add_chan_list_pno = rtw89_pno_scan_add_chan_list_ax,
+	.scan_offload = rtw89_fw_h2c_scan_offload_ax,
 
 	.wow_config_mac = rtw89_wow_config_mac_ax,
 };

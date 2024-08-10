@@ -13,10 +13,10 @@
 #include "rtw8922a_rfk.h"
 #include "util.h"
 
-#define RTW8922A_FW_FORMAT_MAX 0
+#define RTW8922A_FW_FORMAT_MAX 1
 #define RTW8922A_FW_BASENAME "rtw89/rtw8922a_fw"
 #define RTW8922A_MODULE_FIRMWARE \
-	RTW8922A_FW_BASENAME ".bin"
+	RTW8922A_FW_BASENAME "-" __stringify(RTW8922A_FW_FORMAT_MAX) ".bin"
 
 #define HE_N_USER_MAX_8922A 4
 
@@ -163,6 +163,15 @@ static const struct rtw89_imr_table rtw8922a_imr_cmac_table = {
 static const struct rtw89_rrsr_cfgs rtw8922a_rrsr_cfgs = {
 	.ref_rate = {R_BE_TRXPTCL_RESP_1, B_BE_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_BE_PTCL_RRSR1, B_BE_RSC_MASK, 2},
+};
+
+static const struct rtw89_rfkill_regs rtw8922a_rfkill_regs = {
+	.pinmux = {R_BE_GPIO8_15_FUNC_SEL,
+		   B_BE_PINMUX_GPIO9_FUNC_SEL_MASK,
+		   0xf},
+	.mode = {R_BE_GPIO_EXT_CTRL + 2,
+		 (B_BE_GPIO_MOD_9 | B_BE_GPIO_IO_SEL_9) >> 16,
+		 0x0},
 };
 
 static const struct rtw89_dig_regs rtw8922a_dig_regs = {
@@ -1682,7 +1691,7 @@ static int rtw8922a_ctrl_rx_path_tmac(struct rtw89_dev *rtwdev,
 
 static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode mode)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
 	if (mode == MLO_1_PLUS_1_1RF || mode == DBCC_LEGACY) {
 		rtw89_phy_write32_mask(rtwdev, R_DBCC, B_DBCC_EN, 0x1);
@@ -1953,10 +1962,10 @@ static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
 	}
 }
 
-static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev)
+static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
-	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB);
+	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB, RTW89_CHANCTX_0);
 	u32 tx_en;
 
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_START);
@@ -1980,7 +1989,8 @@ static void rtw8922a_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_SCAN, 6);
 }
 
-static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool start)
 {
 }
 
@@ -2109,7 +2119,7 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 
 static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	enum rtw89_band band = chan->band_type;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ntx_path = RF_PATH_AB;
@@ -2562,6 +2572,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= true,
+	.hw_mgmt_tx_encrypt	= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -2624,6 +2635,8 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.rrsr_cfgs		= &rtw8922a_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_VLD_V2, B_BSS_CLR_VLD0_V2},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
+	.rfkill_init		= &rtw8922a_rfkill_regs,
+	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM
