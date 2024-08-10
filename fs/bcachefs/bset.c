@@ -585,8 +585,7 @@ static unsigned rw_aux_tree_bsearch(struct btree *b,
 }
 
 static inline unsigned bkey_mantissa(const struct bkey_packed *k,
-				     const struct bkey_float *f,
-				     unsigned idx)
+				     const struct bkey_float *f)
 {
 	u64 v;
 
@@ -668,7 +667,7 @@ static __always_inline void make_bfloat(struct btree *b, struct bset_tree *t,
 	EBUG_ON(shift < 0 || shift >= BFLOAT_FAILED);
 
 	f->exponent = shift;
-	mantissa = bkey_mantissa(m, f, j);
+	mantissa = bkey_mantissa(m, f);
 
 	/*
 	 * If we've got garbage bits, set them to all 1s - it's legal for the
@@ -1133,7 +1132,7 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 			goto slowpath;
 
 		l = f->mantissa;
-		r = bkey_mantissa(packed_search, f, n);
+		r = bkey_mantissa(packed_search, f);
 
 		if (unlikely(l == r) && bkey_mantissa_bits_dropped(b, f, n))
 			goto slowpath;
