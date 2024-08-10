@@ -52,11 +52,12 @@
 typedef mpi_limb_t *mpi_ptr_t;	/* pointer to a limb */
 typedef int mpi_size_t;		/* (must be a signed type) */
 
-#define RESIZE_IF_NEEDED(a, b)			\
-	do {					\
-		if ((a)->alloced < (b))		\
-			mpi_resize((a), (b));	\
-	} while (0)
+static inline int RESIZE_IF_NEEDED(MPI a, unsigned b)
+{
+	if (a->alloced < b)
+		return mpi_resize(a, b);
+	return 0;
+}
 
 /* Copy N limbs from S to D.  */
 #define MPN_COPY(d, s, n) \

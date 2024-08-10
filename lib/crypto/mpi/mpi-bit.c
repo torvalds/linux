@@ -76,9 +76,10 @@ EXPORT_SYMBOL_GPL(mpi_test_bit);
 /****************
  * Set bit N of A.
  */
-void mpi_set_bit(MPI a, unsigned int n)
+int mpi_set_bit(MPI a, unsigned int n)
 {
 	unsigned int i, limbno, bitno;
+	int err;
 
 	limbno = n / BITS_PER_MPI_LIMB;
 	bitno  = n % BITS_PER_MPI_LIMB;
@@ -86,27 +87,31 @@ void mpi_set_bit(MPI a, unsigned int n)
 	if (limbno >= a->nlimbs) {
 		for (i = a->nlimbs; i < a->alloced; i++)
 			a->d[i] = 0;
-		mpi_resize(a, limbno+1);
+		err = mpi_resize(a, limbno+1);
+		if (err)
+			return err;
 		a->nlimbs = limbno+1;
 	}
 	a->d[limbno] |= (A_LIMB_1<<bitno);
+	return 0;
 }
 
 /*
  * Shift A by N bits to the right.
  */
-void mpi_rshift(MPI x, MPI a, unsigned int n)
+int mpi_rshift(MPI x, MPI a, unsigned int n)
 {
 	mpi_size_t xsize;
 	unsigned int i;
 	unsigned int nlimbs = (n/BITS_PER_MPI_LIMB);
 	unsigned int nbits = (n%BITS_PER_MPI_LIMB);
+	int err;
 
 	if (x == a) {
 		/* In-place operation.  */
 		if (nlimbs >= x->nlimbs) {
 			x->nlimbs = 0;
-			return;
+			return 0;
 		}
 
 		if (nlimbs) {
@@ -121,7 +126,9 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 		/* Copy and shift by more or equal bits than in a limb. */
 		xsize = a->nlimbs;
 		x->sign = a->sign;
-		RESIZE_IF_NEEDED(x, xsize);
+		err = RESIZE_IF_NEEDED(x, xsize);
+		if (err)
+			return err;
 		x->nlimbs = xsize;
 		for (i = 0; i < a->nlimbs; i++)
 			x->d[i] = a->d[i];
@@ -129,7 +136,7 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 
 		if (nlimbs >= x->nlimbs) {
 			x->nlimbs = 0;
-			return;
+			return 0;
 		}
 
 		for (i = 0; i < x->nlimbs - nlimbs; i++)
@@ -143,7 +150,9 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 		/* Copy and shift by less than bits in a limb.  */
 		xsize = a->nlimbs;
 		x->sign = a->sign;
-		RESIZE_IF_NEEDED(x, xsize);
+		err = RESIZE_IF_NEEDED(x, xsize);
+		if (err)
+			return err;
 		x->nlimbs = xsize;
 
 		if (xsize) {
@@ -159,5 +168,7 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 		}
 	}
 	MPN_NORMALIZE(x->d, x->nlimbs);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mpi_rshift);

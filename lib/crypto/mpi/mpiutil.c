@@ -133,6 +133,8 @@ MPI mpi_copy(MPI a)
 
 	if (a) {
 		b = mpi_alloc(a->nlimbs);
+		if (!b)
+			return NULL;
 		b->nlimbs = a->nlimbs;
 		b->sign = a->sign;
 		b->flags = a->flags;

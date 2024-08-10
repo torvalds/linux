@@ -59,7 +59,7 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sg, unsigned nbytes,
 		     int *sign);
 
 /*-- mpi-mod.c --*/
-void mpi_mod(MPI rem, MPI dividend, MPI divisor);
+int mpi_mod(MPI rem, MPI dividend, MPI divisor);
 
 /*-- mpi-pow.c --*/
 int mpi_powm(MPI res, MPI base, MPI exp, MPI mod);
@@ -75,22 +75,22 @@ int mpi_sub_ui(MPI w, MPI u, unsigned long vval);
 void mpi_normalize(MPI a);
 unsigned mpi_get_nbits(MPI a);
 int mpi_test_bit(MPI a, unsigned int n);
-void mpi_set_bit(MPI a, unsigned int n);
-void mpi_rshift(MPI x, MPI a, unsigned int n);
+int mpi_set_bit(MPI a, unsigned int n);
+int mpi_rshift(MPI x, MPI a, unsigned int n);
 
 /*-- mpi-add.c --*/
-void mpi_add(MPI w, MPI u, MPI v);
-void mpi_sub(MPI w, MPI u, MPI v);
-void mpi_addm(MPI w, MPI u, MPI v, MPI m);
-void mpi_subm(MPI w, MPI u, MPI v, MPI m);
+int mpi_add(MPI w, MPI u, MPI v);
+int mpi_sub(MPI w, MPI u, MPI v);
+int mpi_addm(MPI w, MPI u, MPI v, MPI m);
+int mpi_subm(MPI w, MPI u, MPI v, MPI m);
 
 /*-- mpi-mul.c --*/
-void mpi_mul(MPI w, MPI u, MPI v);
-void mpi_mulm(MPI w, MPI u, MPI v, MPI m);
+int mpi_mul(MPI w, MPI u, MPI v);
+int mpi_mulm(MPI w, MPI u, MPI v, MPI m);
 
 /*-- mpi-div.c --*/
-void mpi_tdiv_r(MPI rem, MPI num, MPI den);
-void mpi_fdiv_r(MPI rem, MPI dividend, MPI divisor);
+int mpi_tdiv_r(MPI rem, MPI num, MPI den);
+int mpi_fdiv_r(MPI rem, MPI dividend, MPI divisor);
 
 /* inline functions */
 

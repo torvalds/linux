@@ -7,7 +7,7 @@
 
 #include "mpi-internal.h"
 
-void mpi_mod(MPI rem, MPI dividend, MPI divisor)
+int mpi_mod(MPI rem, MPI dividend, MPI divisor)
 {
-	mpi_fdiv_r(rem, dividend, divisor);
+	return mpi_fdiv_r(rem, dividend, divisor);
 }
