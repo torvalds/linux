@@ -1028,6 +1028,9 @@ attribute-sets:
       -
         name: input_xfrm
         type: u32
+      -
+        name: start-context
+        type: u32
   -
     name: plca
     attributes:
@@ -1766,6 +1769,7 @@ operations:
         request:
           attributes:
             - header
+            - start-context
         reply: *rss-reply
     -
       name: plca-get-cfg

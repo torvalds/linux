@@ -28,6 +28,7 @@ struct rss_reply_data {
 const struct nla_policy ethnl_rss_get_policy[] = {
 	[ETHTOOL_A_RSS_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_RSS_CONTEXT] = { .type = NLA_U32 },
+	[ETHTOOL_A_RSS_START_CONTEXT] = { .type = NLA_U32 },
 };
 
 static int
@@ -38,6 +39,10 @@ rss_parse_request(struct ethnl_req_info *req_info, struct nlattr **tb,
 
 	if (tb[ETHTOOL_A_RSS_CONTEXT])
 		request->rss_context = nla_get_u32(tb[ETHTOOL_A_RSS_CONTEXT]);
+	if (tb[ETHTOOL_A_RSS_START_CONTEXT]) {
+		NL_SET_BAD_ATTR(extack, tb[ETHTOOL_A_RSS_START_CONTEXT]);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -214,6 +219,7 @@ struct rss_nl_dump_ctx {
 
 	/* User wants to only dump contexts from given ifindex */
 	unsigned int		match_ifindex;
+	unsigned int		start_ctx;
 };
 
 static struct rss_nl_dump_ctx *rss_dump_ctx(struct netlink_callback *cb)
@@ -235,6 +241,10 @@ int ethnl_rss_dump_start(struct netlink_callback *cb)
 	if (tb[ETHTOOL_A_RSS_CONTEXT]) {
 		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_CONTEXT]);
 		return -EINVAL;
+	}
+	if (tb[ETHTOOL_A_RSS_START_CONTEXT]) {
+		ctx->start_ctx = nla_get_u32(tb[ETHTOOL_A_RSS_START_CONTEXT]);
+		ctx->ctx_idx = ctx->start_ctx;
 	}
 
 	ret = ethnl_parse_header_dev_get(&req_info,
@@ -317,7 +327,7 @@ rss_dump_one_dev(struct sk_buff *skb, struct netlink_callback *cb,
 		if (ret)
 			return ret;
 	}
-	ctx->ctx_idx = 0;
+	ctx->ctx_idx = ctx->start_ctx;
 
 	return 0;
 }
