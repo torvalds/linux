@@ -66,14 +66,6 @@ typedef int mpi_size_t;		/* (must be a signed type) */
 			(d)[_i] = (s)[_i];	\
 	} while (0)
 
-#define MPN_COPY_INCR(d, s, n)		\
-	do {					\
-		mpi_size_t _i;			\
-		for (_i = 0; _i < (n); _i++)	\
-			(d)[_i] = (s)[_i];	\
-	} while (0)
-
-
 #define MPN_COPY_DECR(d, s, n) \
 	do {					\
 		mpi_size_t _i;			\
@@ -181,8 +173,6 @@ int mpihelp_mul(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t usize,
 void mpih_sqr_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size);
 void mpih_sqr_n(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size,
 		mpi_ptr_t tspace);
-void mpihelp_mul_n(mpi_ptr_t prodp,
-		mpi_ptr_t up, mpi_ptr_t vp, mpi_size_t size);
 
 int mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 			       mpi_ptr_t up, mpi_size_t usize,

@@ -13,57 +13,6 @@
 
 #include "mpi-internal.h"
 
-/****************
- * Add the unsigned integer V to the mpi-integer U and store the
- * result in W. U and V may be the same.
- */
-void mpi_add_ui(MPI w, MPI u, unsigned long v)
-{
-	mpi_ptr_t wp, up;
-	mpi_size_t usize, wsize;
-	int usign, wsign;
-
-	usize = u->nlimbs;
-	usign = u->sign;
-	wsign = 0;
-
-	/* If not space for W (and possible carry), increase space.  */
-	wsize = usize + 1;
-	if (w->alloced < wsize)
-		mpi_resize(w, wsize);
-
-	/* These must be after realloc (U may be the same as W).  */
-	up = u->d;
-	wp = w->d;
-
-	if (!usize) {  /* simple */
-		wp[0] = v;
-		wsize = v ? 1:0;
-	} else if (!usign) {  /* mpi is not negative */
-		mpi_limb_t cy;
-		cy = mpihelp_add_1(wp, up, usize, v);
-		wp[usize] = cy;
-		wsize = usize + cy;
-	} else {
-		/* The signs are different.  Need exact comparison to determine
-		 * which operand to subtract from which.
-		 */
-		if (usize == 1 && up[0] < v) {
-			wp[0] = v - up[0];
-			wsize = 1;
-		} else {
-			mpihelp_sub_1(wp, up, usize, v);
-			/* Size can decrease with at most one limb. */
-			wsize = usize - (wp[usize-1] == 0);
-			wsign = 1;
-		}
-	}
-
-	w->nlimbs = wsize;
-	w->sign   = wsign;
-}
-
-
 void mpi_add(MPI w, MPI u, MPI v)
 {
 	mpi_ptr_t wp, up, vp;

@@ -15,7 +15,6 @@
 #include "longlong.h"
 
 void mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den);
-void mpi_fdiv_qr(MPI quot, MPI rem, MPI dividend, MPI divisor);
 
 void mpi_fdiv_r(MPI rem, MPI dividend, MPI divisor)
 {
@@ -35,34 +34,6 @@ void mpi_fdiv_r(MPI rem, MPI dividend, MPI divisor)
 
 	if (((divisor_sign?1:0) ^ (dividend->sign?1:0)) && rem->nlimbs)
 		mpi_add(rem, rem, divisor);
-
-	if (temp_divisor)
-		mpi_free(temp_divisor);
-}
-
-void mpi_fdiv_q(MPI quot, MPI dividend, MPI divisor)
-{
-	MPI tmp = mpi_alloc(mpi_get_nlimbs(quot));
-	mpi_fdiv_qr(quot, tmp, dividend, divisor);
-	mpi_free(tmp);
-}
-
-void mpi_fdiv_qr(MPI quot, MPI rem, MPI dividend, MPI divisor)
-{
-	int divisor_sign = divisor->sign;
-	MPI temp_divisor = NULL;
-
-	if (quot == divisor || rem == divisor) {
-		temp_divisor = mpi_copy(divisor);
-		divisor = temp_divisor;
-	}
-
-	mpi_tdiv_qr(quot, rem, dividend, divisor);
-
-	if ((divisor_sign ^ dividend->sign) && rem->nlimbs) {
-		mpi_sub_ui(quot, quot, 1);
-		mpi_add(rem, rem, divisor);
-	}
 
 	if (temp_divisor)
 		mpi_free(temp_divisor);
