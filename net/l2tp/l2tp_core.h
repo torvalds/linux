@@ -209,23 +209,22 @@ static inline void *l2tp_session_priv(struct l2tp_session *session)
 }
 
 /* Tunnel and session refcounts */
-void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel);
-void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel);
-void l2tp_session_inc_refcount(struct l2tp_session *session);
-void l2tp_session_dec_refcount(struct l2tp_session *session);
+void l2tp_tunnel_put(struct l2tp_tunnel *tunnel);
+void l2tp_session_put(struct l2tp_session *session);
 
 /* Tunnel and session lookup.
  * These functions take a reference on the instances they return, so
  * the caller must ensure that the reference is dropped appropriately.
  */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
-struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth);
+struct l2tp_tunnel *l2tp_tunnel_get_next(const struct net *net, unsigned long *key);
 
 struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk, u32 session_id);
 struct l2tp_session *l2tp_v2_session_get(const struct net *net, u16 tunnel_id, u16 session_id);
 struct l2tp_session *l2tp_session_get(const struct net *net, struct sock *sk, int pver,
 				      u32 tunnel_id, u32 session_id);
-struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth);
+struct l2tp_session *l2tp_session_get_next(const struct net *net, struct sock *sk, int pver,
+					   u32 tunnel_id, unsigned long *key);
 struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 						const char *ifname);
 

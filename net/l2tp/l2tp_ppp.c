@@ -149,7 +149,7 @@ static struct sock *pppol2tp_session_get_sock(struct l2tp_session *session)
 
 /* Helpers to obtain tunnel/session contexts from sockets.
  */
-static inline struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
+static struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
 {
 	struct l2tp_session *session;
 
@@ -313,12 +313,12 @@ static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
 	l2tp_xmit_skb(session, skb);
 	local_bh_enable();
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return total_len;
 
 error_put_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 error:
 	return error;
 }
@@ -372,12 +372,12 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	l2tp_xmit_skb(session, skb);
 	local_bh_enable();
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 1;
 
 abort_put_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 abort:
 	/* Free the original skb */
 	kfree_skb(skb);
@@ -413,7 +413,7 @@ static void pppol2tp_session_close(struct l2tp_session *session)
 		sock_put(ps->__sk);
 
 		/* drop ref taken when we referenced socket via sk_user_data */
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 	}
 }
 
@@ -444,7 +444,7 @@ static int pppol2tp_release(struct socket *sock)
 	if (session) {
 		l2tp_session_delete(session);
 		/* drop ref taken by pppol2tp_sock_to_session */
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 	}
 
 	release_sock(sk);
@@ -668,7 +668,7 @@ static struct l2tp_tunnel *pppol2tp_tunnel_get(struct net *net,
 			if (error < 0)
 				return ERR_PTR(error);
 
-			l2tp_tunnel_inc_refcount(tunnel);
+			refcount_inc(&tunnel->ref_count);
 			error = l2tp_tunnel_register(tunnel, net, &tcfg);
 			if (error < 0) {
 				kfree(tunnel);
@@ -684,7 +684,7 @@ static struct l2tp_tunnel *pppol2tp_tunnel_get(struct net *net,
 
 		/* Error if socket is not prepped */
 		if (!tunnel->sock) {
-			l2tp_tunnel_dec_refcount(tunnel);
+			l2tp_tunnel_put(tunnel);
 			return ERR_PTR(-ENOENT);
 		}
 	}
@@ -774,13 +774,13 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 		pppol2tp_session_init(session);
 		ps = l2tp_session_priv(session);
-		l2tp_session_inc_refcount(session);
+		refcount_inc(&session->ref_count);
 
 		mutex_lock(&ps->sk_lock);
 		error = l2tp_session_register(session, tunnel);
 		if (error < 0) {
 			mutex_unlock(&ps->sk_lock);
-			l2tp_session_dec_refcount(session);
+			l2tp_session_put(session);
 			goto end;
 		}
 
@@ -836,8 +836,8 @@ end:
 			l2tp_tunnel_delete(tunnel);
 	}
 	if (drop_refcnt)
-		l2tp_session_dec_refcount(session);
-	l2tp_tunnel_dec_refcount(tunnel);
+		l2tp_session_put(session);
+	l2tp_tunnel_put(tunnel);
 	release_sock(sk);
 
 	return error;
@@ -877,7 +877,7 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 	return 0;
 
 err_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 err:
 	return error;
 }
@@ -988,7 +988,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 
 	error = len;
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 end:
 	return error;
 }
@@ -1038,12 +1038,12 @@ static int pppol2tp_tunnel_copy_stats(struct pppol2tp_ioc_stats *stats,
 		return -EBADR;
 
 	if (session->pwtype != L2TP_PWTYPE_PPP) {
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 		return -EBADR;
 	}
 
 	pppol2tp_copy_stats(stats, &session->stats);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 }
@@ -1261,7 +1261,7 @@ static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
 		err = pppol2tp_session_setsockopt(sk, session, optname, val);
 	}
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 end:
 	return err;
 }
@@ -1382,7 +1382,7 @@ static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
 	err = 0;
 
 end_put_sess:
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 end:
 	return err;
 }
@@ -1397,8 +1397,8 @@ end:
 
 struct pppol2tp_seq_data {
 	struct seq_net_private p;
-	int tunnel_idx;			/* current tunnel */
-	int session_idx;		/* index of session within current tunnel */
+	unsigned long tkey;		/* lookup key of current tunnel */
+	unsigned long skey;		/* lookup key of current session */
 	struct l2tp_tunnel *tunnel;
 	struct l2tp_session *session;	/* NULL means get next tunnel */
 };
@@ -1407,17 +1407,17 @@ static void pppol2tp_next_tunnel(struct net *net, struct pppol2tp_seq_data *pd)
 {
 	/* Drop reference taken during previous invocation */
 	if (pd->tunnel)
-		l2tp_tunnel_dec_refcount(pd->tunnel);
+		l2tp_tunnel_put(pd->tunnel);
 
 	for (;;) {
-		pd->tunnel = l2tp_tunnel_get_nth(net, pd->tunnel_idx);
-		pd->tunnel_idx++;
+		pd->tunnel = l2tp_tunnel_get_next(net, &pd->tkey);
+		pd->tkey++;
 
 		/* Only accept L2TPv2 tunnels */
 		if (!pd->tunnel || pd->tunnel->version == 2)
 			return;
 
-		l2tp_tunnel_dec_refcount(pd->tunnel);
+		l2tp_tunnel_put(pd->tunnel);
 	}
 }
 
@@ -1425,13 +1425,15 @@ static void pppol2tp_next_session(struct net *net, struct pppol2tp_seq_data *pd)
 {
 	/* Drop reference taken during previous invocation */
 	if (pd->session)
-		l2tp_session_dec_refcount(pd->session);
+		l2tp_session_put(pd->session);
 
-	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx);
-	pd->session_idx++;
+	pd->session = l2tp_session_get_next(net, pd->tunnel->sock,
+					    pd->tunnel->version,
+					    pd->tunnel->tunnel_id, &pd->skey);
+	pd->skey++;
 
 	if (!pd->session) {
-		pd->session_idx = 0;
+		pd->skey = 0;
 		pppol2tp_next_tunnel(net, pd);
 	}
 }
@@ -1483,11 +1485,11 @@ static void pppol2tp_seq_stop(struct seq_file *p, void *v)
 	 * or pppol2tp_next_tunnel().
 	 */
 	if (pd->session) {
-		l2tp_session_dec_refcount(pd->session);
+		l2tp_session_put(pd->session);
 		pd->session = NULL;
 	}
 	if (pd->tunnel) {
-		l2tp_tunnel_dec_refcount(pd->tunnel);
+		l2tp_tunnel_put(pd->tunnel);
 		pd->tunnel = NULL;
 	}
 }
