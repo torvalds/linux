@@ -98,8 +98,7 @@ properties:
   vddwlmx-supply:
     description: VDD_WLMX supply regulator handle
 
-  max-speed:
-    description: see Documentation/devicetree/bindings/serial/serial.yaml
+  max-speed: true
 
   firmware-name:
     description: specify the name of nvm firmware to load
@@ -118,6 +117,7 @@ additionalProperties: false
 
 allOf:
   - $ref: bluetooth-controller.yaml#
+  - $ref: /schemas/serial/serial-peripheral-props.yaml#
   - if:
       properties:
         compatible:

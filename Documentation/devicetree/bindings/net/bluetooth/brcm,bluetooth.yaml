@@ -119,29 +119,28 @@ properties:
     items:
       - const: host-wakeup
 
-  max-speed: true
-  current-speed: true
-
 required:
   - compatible
 
 dependencies:
   brcm,requires-autobaud-mode: [ shutdown-gpios ]
 
-if:
-  not:
-    properties:
-      compatible:
-        contains:
-          enum:
-            - brcm,bcm20702a1
-            - brcm,bcm4329-bt
-            - brcm,bcm4330-bt
-then:
-  properties:
-    reset-gpios: false
+allOf:
+  - $ref: /schemas/serial/serial-peripheral-props.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - brcm,bcm20702a1
+                - brcm,bcm4329-bt
+                - brcm,bcm4330-bt
+    then:
+      properties:
+        reset-gpios: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

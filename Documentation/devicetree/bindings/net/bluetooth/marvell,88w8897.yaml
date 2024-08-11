@@ -19,13 +19,13 @@ properties:
       - mrvl,88w8897
       - mrvl,88w8997
 
-  max-speed:
-    description: see Documentation/devicetree/bindings/serial/serial.yaml
+  max-speed: true
 
 required:
   - compatible
 
 allOf:
+  - $ref: /schemas/serial/serial-peripheral-props.yaml#
   - if:
       properties:
         compatible:

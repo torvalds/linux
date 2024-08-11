@@ -74,6 +74,9 @@ properties:
 required:
   - compatible
 
+allOf:
+  - $ref: /schemas/serial/serial-peripheral-props.yaml#
+
 additionalProperties: false
 
 examples:
