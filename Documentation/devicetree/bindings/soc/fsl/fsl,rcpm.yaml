@@ -80,17 +80,8 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    rcpm: global-utilities@e2000 {
+    global-utilities@e2000 {
           compatible = "fsl,t4240-rcpm", "fsl,qoriq-rcpm-2.0";
           reg = <0xe2000 0x1000>;
           #fsl,rcpm-wakeup-cells = <2>;
-    };
-
-    serial@2950000 {
-         compatible = "fsl,ls1021a-lpuart";
-         reg = <0x2950000 0x1000>;
-         interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-         clocks = <&sysclk>;
-         clock-names = "ipg";
-         fsl,rcpm-wakeup = <&rcpm 0x0 0x40000000>;
     };
