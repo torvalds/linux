@@ -20,11 +20,13 @@ Instantiating the device is regular. Example for bus 0, address 0x30::
 
   # echo "slave-testunit 0x1030" > /sys/bus/i2c/devices/i2c-0/new_device
 
-After that, you will have a write-only device listening. Reads will just return
-an 8-bit version number of the testunit. When writing, the device consists of 4
-8-bit registers and, except for some "partial" commands, all registers must be
-written to start a testcase, i.e. you usually write 4 bytes to the device. The
-registers are:
+After that, you will have the device listening. Reading will return a single
+byte. Its value is 0 if the testunit is idle, otherwise the command number of
+the currently running command.
+
+When writing, the device consists of 4 8-bit registers and, except for some
+"partial" commands, all registers must be written to start a testcase, i.e. you
+usually write 4 bytes to the device. The registers are:
 
 .. csv-table::
   :header: "Offset", "Name", "Description"
@@ -170,4 +172,4 @@ are not equivalent to a REPEATED START. As an example, this returns just the
 default response::
 
   # i2cset -y 0 0x30 4 0 0 i; i2cget -y 0 0x30
-  0x01
+  0x00

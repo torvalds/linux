@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h> /* FIXME: is system_long_wq the best choice? */
 
-#define TU_CUR_VERSION 0x01
 #define TU_VERSION_MAX_LENGTH 128
 
 enum testunit_cmds {
@@ -159,7 +158,8 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 		else if (is_proc_call)
 			*val = tu->regs[TU_REG_DATAH];
 		else
-			*val = TU_CUR_VERSION;
+			*val = test_bit(TU_FLAG_IN_PROCESS, &tu->flags) ?
+					tu->regs[TU_REG_CMD] : 0;
 		break;
 	}
 
