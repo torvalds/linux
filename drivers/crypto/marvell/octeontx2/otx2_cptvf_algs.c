@@ -1702,14 +1702,6 @@ static int compare_func(const void *lptr, const void *rptr)
 	return 0;
 }
 
-static void swap_func(void *lptr, void *rptr, int size)
-{
-	struct cpt_device_desc *ldesc = lptr;
-	struct cpt_device_desc *rdesc = rptr;
-
-	swap(*ldesc, *rdesc);
-}
-
 int otx2_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 			 int num_queues, int num_devices)
 {
@@ -1739,7 +1731,7 @@ int otx2_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 		is_crypto_registered = true;
 	}
 	sort(se_devices.desc, count, sizeof(struct cpt_device_desc),
-	     compare_func, swap_func);
+	     compare_func, NULL);
 
 unlock:
 	mutex_unlock(&mutex);
