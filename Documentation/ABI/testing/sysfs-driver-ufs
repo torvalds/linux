@@ -1532,3 +1532,30 @@ Contact:	Bean Huo <beanhuo@micron.com>
 Description:
 		rtc_update_ms indicates how often the host should synchronize or update the
 		UFS RTC. If set to 0, this will disable UFS RTC periodic update.
+
+What:		/sys/devices/platform/.../ufshci_capabilities/version
+Date:		August 2024
+Contact:	Avri Altman <avri.altman@wdc.com>
+Description:
+		Host Capabilities register group: UFS version register.
+		Symbol - VER.  This file shows the UFSHCD version.
+		Example: Version 3.12 would be represented as 0000_0312h.
+		The file is read only.
+
+What:		/sys/devices/platform/.../ufshci_capabilities/product_id
+Date:		August 2024
+Contact:	Avri Altman <avri.altman@wdc.com>
+Description:
+		Host Capabilities register group: product ID register.
+		Symbol - HCPID.  This file shows the UFSHCD product id.
+		The content of this register is vendor specific.
+		The file is read only.
+
+What:		/sys/devices/platform/.../ufshci_capabilities/man_id
+Date:		August 2024
+Contact:	Avri Altman <avri.altman@wdc.com>
+Description:
+		Host Capabilities register group: manufacturer ID register.
+		Symbol - HCMID. This file shows the UFSHCD manufacturer id.
+		The Manufacturer ID is defined by JEDEC in JEDEC-JEP106.
+		The file is read only.
