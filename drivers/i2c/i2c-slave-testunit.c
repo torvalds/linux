@@ -94,6 +94,14 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 	int ret = 0;
 
 	switch (event) {
+	case I2C_SLAVE_WRITE_REQUESTED:
+		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
+			return -EBUSY;
+
+		memset(tu->regs, 0, TU_NUM_REGS);
+		tu->reg_idx = 0;
+		break;
+
 	case I2C_SLAVE_WRITE_RECEIVED:
 		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
 			return -EBUSY;
@@ -124,14 +132,6 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 		 * STOP after a following read message. But do not clear TU regs
 		 * here because we still need them in the workqueue!
 		 */
-		tu->reg_idx = 0;
-		break;
-
-	case I2C_SLAVE_WRITE_REQUESTED:
-		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
-			return -EBUSY;
-
-		memset(tu->regs, 0, TU_NUM_REGS);
 		tu->reg_idx = 0;
 		break;
 
