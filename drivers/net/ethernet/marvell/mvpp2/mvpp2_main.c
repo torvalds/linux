@@ -7417,8 +7417,6 @@ static int mvpp2_get_sram(struct platform_device *pdev,
 
 static int mvpp2_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	struct fwnode_handle *port_fwnode;
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
@@ -7591,7 +7589,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Map DTS-active ports. Should be done before FIFO mvpp2_init */
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	device_for_each_child_node_scoped(&pdev->dev, port_fwnode) {
 		if (!fwnode_property_read_u32(port_fwnode, "port-id", &i))
 			priv->port_map |= BIT(i);
 	}
@@ -7614,7 +7612,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_axi_clk;
 
 	/* Initialize ports */
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	device_for_each_child_node_scoped(&pdev->dev, port_fwnode) {
 		err = mvpp2_port_probe(pdev, port_fwnode, priv);
 		if (err < 0)
 			goto err_port_probe;
@@ -7653,14 +7651,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 	return 0;
 
 err_port_probe:
-	fwnode_handle_put(port_fwnode);
-
-	i = 0;
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
-		if (priv->port_list[i])
-			mvpp2_port_remove(priv->port_list[i]);
-		i++;
-	}
+	for (i = 0; i < priv->port_count; i++)
+		mvpp2_port_remove(priv->port_list[i]);
 err_axi_clk:
 	clk_disable_unprepare(priv->axi_clk);
 err_mg_core_clk:
@@ -7677,18 +7669,13 @@ err_pp_clk:
 static void mvpp2_remove(struct platform_device *pdev)
 {
 	struct mvpp2 *priv = platform_get_drvdata(pdev);
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	int i = 0, poolnum = MVPP2_BM_POOLS_NUM;
-	struct fwnode_handle *port_fwnode;
+	int i, poolnum = MVPP2_BM_POOLS_NUM;
 
 	mvpp2_dbgfs_cleanup(priv);
 
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
-		if (priv->port_list[i]) {
-			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
-			mvpp2_port_remove(priv->port_list[i]);
-		}
-		i++;
+	for (i = 0; i < priv->port_count; i++) {
+		mutex_destroy(&priv->port_list[i]->gather_stats_lock);
+		mvpp2_port_remove(priv->port_list[i]);
 	}
 
 	destroy_workqueue(priv->stats_queue);
@@ -7711,7 +7698,7 @@ static void mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
-	if (is_acpi_node(port_fwnode))
+	if (!dev_of_node(&pdev->dev))
 		return;
 
 	clk_disable_unprepare(priv->axi_clk);
