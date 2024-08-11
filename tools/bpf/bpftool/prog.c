@@ -1707,10 +1707,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	}
 
 	if (pinmaps) {
-		err = create_and_mount_bpffs_dir(pinmaps);
-		if (err)
-			goto err_unpin;
-
 		err = bpf_object__pin_maps(obj, pinmaps);
 		if (err) {
 			p_err("failed to pin all maps");
