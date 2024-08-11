@@ -15,26 +15,20 @@ void *__genradix_ptr(struct __genradix *radix, size_t offset)
 }
 EXPORT_SYMBOL(__genradix_ptr);
 
-static inline struct genradix_node *genradix_alloc_node(gfp_t gfp_mask)
-{
-	return kzalloc(GENRADIX_NODE_SIZE, gfp_mask);
-}
-
-static inline void genradix_free_node(struct genradix_node *node)
-{
-	kfree(node);
-}
-
 /*
  * Returns pointer to the specified byte @offset within @radix, allocating it if
  * necessary - newly allocated slots are always zeroed out:
  */
 void *__genradix_ptr_alloc(struct __genradix *radix, size_t offset,
+			   struct genradix_node **preallocated,
 			   gfp_t gfp_mask)
 {
 	struct genradix_root *v = READ_ONCE(radix->root);
 	struct genradix_node *n, *new_node = NULL;
 	unsigned level;
+
+	if (preallocated)
+		swap(new_node, *preallocated);
 
 	/* Increase tree depth if necessary: */
 	while (1) {
@@ -219,7 +213,7 @@ int __genradix_prealloc(struct __genradix *radix, size_t size,
 	size_t offset;
 
 	for (offset = 0; offset < size; offset += GENRADIX_NODE_SIZE)
-		if (!__genradix_ptr_alloc(radix, offset, gfp_mask))
+		if (!__genradix_ptr_alloc(radix, offset, NULL, gfp_mask))
 			return -ENOMEM;
 
 	return 0;
