@@ -75,7 +75,7 @@ from another device on the bus. If the bus master under test also wants to
 access the bus at the same time, the bus will be busy. Example to read 128
 bytes from device 0x50 after 50ms of delay::
 
-  # i2cset -y 0 0x30 0x01 0x50 0x80 0x05 i
+  # i2cset -y 0 0x30 1 0x50 0x80 5 i
 
 0x02 SMBUS_HOST_NOTIFY
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -95,9 +95,9 @@ bytes from device 0x50 after 50ms of delay::
 
 Also needs master mode. This test will send an SMBUS_HOST_NOTIFY message to the
 host. Note that the status word is currently ignored in the Linux Kernel.
-Example to send a notification after 10ms::
+Example to send a notification with status word 0x6442 after 10ms::
 
-  # i2cset -y 0 0x30 0x02 0x42 0x64 0x01 i
+  # i2cset -y 0 0x30 2 0x42 0x64 1 i
 
 If the host controller supports HostNotify, this message with debug level
 should appear (Linux 6.11 and later)::
@@ -116,7 +116,7 @@ should appear (Linux 6.11 and later)::
     - DELAY
 
   * - 0x03
-    - must be '1', i.e. one further byte will be written
+    - 0x01 (i.e. one further byte will be written)
     - number of bytes to be sent back
     - leave out, partial command!
 
@@ -131,5 +131,5 @@ from length-1 to 0. Here is an example which emulates
 i2c_smbus_block_process_call() using i2ctransfer (you need i2c-tools v4.2 or
 later)::
 
-  # i2ctransfer -y 0 w3@0x30 0x03 0x01 0x10 r?
+  # i2ctransfer -y 0 w3@0x30 3 1 0x10 r?
   0x10 0x0f 0x0e 0x0d 0x0c 0x0b 0x0a 0x09 0x08 0x07 0x06 0x05 0x04 0x03 0x02 0x01 0x00
