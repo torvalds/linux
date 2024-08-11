@@ -133,3 +133,41 @@ later)::
 
   # i2ctransfer -y 0 w3@0x30 3 1 0x10 r?
   0x10 0x0f 0x0e 0x0d 0x0c 0x0b 0x0a 0x09 0x08 0x07 0x06 0x05 0x04 0x03 0x02 0x01 0x00
+
+0x04 GET_VERSION_WITH_REP_START
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+  :header-rows: 1
+
+  * - CMD
+    - DATAL
+    - DATAH
+    - DELAY
+
+  * - 0x04
+    - currently unused
+    - currently unused
+    - leave out, partial command!
+
+Partial command. After sending this command, the testunit will reply to a read
+message with a NUL terminated version string based on UTS_RELEASE. The first
+character is always a 'v' and the length of the version string is at maximum
+128 bytes. However, it will only respond if the read message is connected to
+the write message via repeated start. If your controller driver handles
+repeated start correctly, this will work::
+
+  # i2ctransfer -y 0 w3@0x30 4 0 0 r128
+  0x76 0x36 0x2e 0x31 0x31 0x2e 0x30 0x2d 0x72 0x63 0x31 0x2d 0x30 0x30 0x30 0x30 ...
+
+If you have i2c-tools 4.4 or later, you can print out the data right away::
+
+  # i2ctransfer -y -b 0 w3@0x30 4 0 0 r128
+  v6.11.0-rc1-00009-gd37a1b4d3fd0
+
+STOP/START combinations between the two messages will *not* work because they
+are not equivalent to a REPEATED START. As an example, this returns just the
+default response::
+
+  # i2cset -y 0 0x30 4 0 0 i; i2cget -y 0 0x30
+  0x01

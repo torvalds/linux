@@ -6,6 +6,7 @@
  * Copyright (C) 2020 by Renesas Electronics Corporation
  */
 
+#include <generated/utsrelease.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -15,11 +16,13 @@
 #include <linux/workqueue.h> /* FIXME: is system_long_wq the best choice? */
 
 #define TU_CUR_VERSION 0x01
+#define TU_VERSION_MAX_LENGTH 128
 
 enum testunit_cmds {
 	TU_CMD_READ_BYTES = 1,	/* save 0 for ABORT, RESET or similar */
 	TU_CMD_SMBUS_HOST_NOTIFY,
 	TU_CMD_SMBUS_BLOCK_PROC_CALL,
+	TU_CMD_GET_VERSION_WITH_REP_START,
 	TU_NUM_CMDS
 };
 
@@ -39,9 +42,12 @@ struct testunit_data {
 	unsigned long flags;
 	u8 regs[TU_NUM_REGS];
 	u8 reg_idx;
+	u8 read_idx;
 	struct i2c_client *client;
 	struct delayed_work worker;
 };
+
+static char tu_version_info[] = "v" UTS_RELEASE "\n\0";
 
 static void i2c_slave_testunit_work(struct work_struct *work)
 {
@@ -91,6 +97,8 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 	struct testunit_data *tu = i2c_get_clientdata(client);
 	bool is_proc_call = tu->reg_idx == 3 && tu->regs[TU_REG_DATAL] == 1 &&
 			    tu->regs[TU_REG_CMD] == TU_CMD_SMBUS_BLOCK_PROC_CALL;
+	bool is_get_version = tu->reg_idx == 3 &&
+			      tu->regs[TU_REG_CMD] == TU_CMD_GET_VERSION_WITH_REP_START;
 	int ret = 0;
 
 	switch (event) {
@@ -100,6 +108,7 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 
 		memset(tu->regs, 0, TU_NUM_REGS);
 		tu->reg_idx = 0;
+		tu->read_idx = 0;
 		break;
 
 	case I2C_SLAVE_WRITE_RECEIVED:
@@ -136,12 +145,21 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 		break;
 
 	case I2C_SLAVE_READ_PROCESSED:
-		if (is_proc_call && tu->regs[TU_REG_DATAH])
+		/* Advance until we reach the NUL character */
+		if (is_get_version && tu_version_info[tu->read_idx] != 0)
+			tu->read_idx++;
+		else if (is_proc_call && tu->regs[TU_REG_DATAH])
 			tu->regs[TU_REG_DATAH]--;
+
 		fallthrough;
 
 	case I2C_SLAVE_READ_REQUESTED:
-		*val = is_proc_call ? tu->regs[TU_REG_DATAH] : TU_CUR_VERSION;
+		if (is_get_version)
+			*val = tu_version_info[tu->read_idx];
+		else if (is_proc_call)
+			*val = tu->regs[TU_REG_DATAH];
+		else
+			*val = TU_CUR_VERSION;
 		break;
 	}
 
@@ -159,6 +177,9 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 	tu->client = client;
 	i2c_set_clientdata(client, tu);
 	INIT_DELAYED_WORK(&tu->worker, i2c_slave_testunit_work);
+
+	if (sizeof(tu_version_info) > TU_VERSION_MAX_LENGTH)
+		tu_version_info[TU_VERSION_MAX_LENGTH - 1] = 0;
 
 	return i2c_slave_register(client, i2c_slave_testunit_slave_cb);
 };
