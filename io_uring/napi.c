@@ -302,7 +302,7 @@ void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
 {
 	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
 
-	if (!(ctx->flags & IORING_SETUP_SQPOLL) && ctx->napi_enabled)
+	if (!(ctx->flags & IORING_SETUP_SQPOLL))
 		io_napi_blocking_busy_loop(ctx, iowq);
 }
 
