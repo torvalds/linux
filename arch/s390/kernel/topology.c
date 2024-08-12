@@ -376,6 +376,25 @@ void topology_expect_change(void)
 
 static int cpu_management;
 
+static int set_polarization(int polarization)
+{
+	int rc = 0;
+
+	cpus_read_lock();
+	mutex_lock(&smp_cpu_state_mutex);
+	if (cpu_management == polarization)
+		goto out;
+	rc = topology_set_cpu_management(polarization);
+	if (rc)
+		goto out;
+	cpu_management = polarization;
+	topology_expect_change();
+out:
+	mutex_unlock(&smp_cpu_state_mutex);
+	cpus_read_unlock();
+	return rc;
+}
+
 static ssize_t dispatching_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -400,19 +419,7 @@ static ssize_t dispatching_store(struct device *dev,
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
-	rc = 0;
-	cpus_read_lock();
-	mutex_lock(&smp_cpu_state_mutex);
-	if (cpu_management == val)
-		goto out;
-	rc = topology_set_cpu_management(val);
-	if (rc)
-		goto out;
-	cpu_management = val;
-	topology_expect_change();
-out:
-	mutex_unlock(&smp_cpu_state_mutex);
-	cpus_read_unlock();
+	rc = set_polarization(val);
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_RW(dispatching);
@@ -624,11 +631,36 @@ static int topology_ctl_handler(const struct ctl_table *ctl, int write,
 	return rc;
 }
 
+static int polarization_ctl_handler(const struct ctl_table *ctl, int write,
+				    void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int polarization;
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &polarization,
+		.maxlen		= sizeof(int),
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	};
+
+	polarization = cpu_management;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+	return set_polarization(polarization);
+}
+
 static struct ctl_table topology_ctl_table[] = {
 	{
 		.procname	= "topology",
 		.mode		= 0644,
 		.proc_handler	= topology_ctl_handler,
+	},
+	{
+		.procname	= "polarization",
+		.mode		= 0644,
+		.proc_handler	= polarization_ctl_handler,
 	},
 };
 
