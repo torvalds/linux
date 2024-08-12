@@ -1781,7 +1781,7 @@ static int mvneta_txq_sent_desc_proc(struct mvneta_port *pp,
 }
 
 /* Set TXQ descriptors fields relevant for CSUM calculation */
-static u32 mvneta_txq_desc_csum(int l3_offs, int l3_proto,
+static u32 mvneta_txq_desc_csum(int l3_offs, __be16 l3_proto,
 				int ip_hdr_len, int l4_proto)
 {
 	u32 command;
