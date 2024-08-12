@@ -1575,13 +1575,6 @@ static inline bool amdgpu_acpi_is_s3_active(struct amdgpu_device *adev) { return
 static inline void amdgpu_choose_low_power_state(struct amdgpu_device *adev) { }
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC)
-int amdgpu_dm_display_resume(struct amdgpu_device *adev );
-#else
-static inline int amdgpu_dm_display_resume(struct amdgpu_device *adev) { return 0; }
-#endif
-
-
 void amdgpu_register_gpu_instance(struct amdgpu_device *adev);
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev);
 
