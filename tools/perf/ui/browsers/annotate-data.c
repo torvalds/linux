@@ -596,9 +596,17 @@ int hist_entry__annotate_data_tui(struct hist_entry *he, struct evsel *evsel,
 	}
 
 	ret = annotated_data_browser__collect_entries(&browser);
-	if (ret == 0)
-		ret = annotated_data_browser__run(&browser, evsel, hbt);
+	if (ret < 0)
+		goto out;
 
+	/* To get the top and current entry */
+	browser__refresh(&browser.b);
+	/* Show the first-level child entries by default */
+	annotated_data_browser__toggle_fold(&browser, /*recursive=*/false);
+
+	ret = annotated_data_browser__run(&browser, evsel, hbt);
+
+out:
 	annotated_data_browser__delete_entries(&browser);
 
 	return ret;
