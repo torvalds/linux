@@ -66,6 +66,7 @@ int rpcrdma_rn_register(struct ib_device *device,
 		return -ENOMEM;
 	kref_get(&rd->rd_kref);
 	rn->rn_done = done;
+	trace_rpcrdma_client_register(device, rn);
 	return 0;
 }
 
@@ -91,6 +92,7 @@ void rpcrdma_rn_unregister(struct ib_device *device,
 	if (!rd)
 		return;
 
+	trace_rpcrdma_client_unregister(device, rn);
 	xa_erase(&rd->rd_xa, rn->rn_index);
 	kref_put(&rd->rd_kref, rpcrdma_rn_release);
 }
