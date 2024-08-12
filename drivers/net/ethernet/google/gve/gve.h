@@ -831,6 +831,9 @@ struct gve_priv {
 	u32 num_flow_rules;
 
 	struct gve_flow_rules_cache flow_rules_cache;
+
+	u16 rss_key_size;
+	u16 rss_lut_size;
 };
 
 enum gve_service_task_flags_bit {

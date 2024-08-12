@@ -164,6 +164,14 @@ struct gve_device_option_flow_steering {
 
 static_assert(sizeof(struct gve_device_option_flow_steering) == 12);
 
+struct gve_device_option_rss_config {
+	__be32 supported_features_mask;
+	__be16 hash_key_size;
+	__be16 hash_lut_size;
+};
+
+static_assert(sizeof(struct gve_device_option_rss_config) == 8);
+
 /* Terminology:
  *
  * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
@@ -182,6 +190,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_JUMBO_FRAMES		= 0x8,
 	GVE_DEV_OPT_ID_BUFFER_SIZES		= 0xa,
 	GVE_DEV_OPT_ID_FLOW_STEERING		= 0xb,
+	GVE_DEV_OPT_ID_RSS_CONFIG		= 0xe,
 };
 
 enum gve_dev_opt_req_feat_mask {
@@ -194,6 +203,7 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES		= 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING		= 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_FLOW_STEERING		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_RSS_CONFIG		= 0x0,
 };
 
 enum gve_sup_feature_mask {
@@ -201,6 +211,7 @@ enum gve_sup_feature_mask {
 	GVE_SUP_JUMBO_FRAMES_MASK	= 1 << 2,
 	GVE_SUP_BUFFER_SIZES_MASK	= 1 << 4,
 	GVE_SUP_FLOW_STEERING_MASK	= 1 << 5,
+	GVE_SUP_RSS_CONFIG_MASK		= 1 << 7,
 };
 
 #define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
@@ -214,6 +225,7 @@ enum gve_driver_capbility {
 	gve_driver_capability_dqo_rda = 3,
 	gve_driver_capability_alt_miss_compl = 4,
 	gve_driver_capability_flexible_buffer_size = 5,
+	gve_driver_capability_flexible_rss_size = 6,
 };
 
 #define GVE_CAP1(a) BIT((int)a)
@@ -226,7 +238,8 @@ enum gve_driver_capbility {
 	 GVE_CAP1(gve_driver_capability_gqi_rda) | \
 	 GVE_CAP1(gve_driver_capability_dqo_rda) | \
 	 GVE_CAP1(gve_driver_capability_alt_miss_compl) | \
-	 GVE_CAP1(gve_driver_capability_flexible_buffer_size))
+	 GVE_CAP1(gve_driver_capability_flexible_buffer_size) | \
+	 GVE_CAP1(gve_driver_capability_flexible_rss_size))
 
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
