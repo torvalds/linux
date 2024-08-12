@@ -1347,7 +1347,7 @@ static void mas_node_count(struct ma_state *mas, int count)
  * - If mas->node is an error or not mas_start, return NULL.
  * - If it's an empty tree:     NULL & mas->status == ma_none
  * - If it's a single entry:    The entry & mas->status == ma_root
- * - If it's a tree:            NULL & mas->status == safe root node.
+ * - If it's a tree:            NULL & mas->status == ma_active
  */
 static inline struct maple_enode *mas_start(struct ma_state *mas)
 {
