@@ -48,8 +48,10 @@
 #include <linux/cpumask.h>
 #include <linux/kernel_stat.h>
 #include <linux/ktime.h>
+#include <linux/sysctl.h>
 #include <linux/workqueue.h>
 #include <asm/hiperdispatch.h>
+#include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/topology.h>
 
@@ -69,8 +71,20 @@ static int hd_online_cores;		/* Current online CORE count */
 
 static unsigned long hd_previous_steal;	/* Previous iteration's CPU steal timer total */
 
+static int hd_enabled;
+
 static void hd_capacity_work_fn(struct work_struct *work);
 static DECLARE_DELAYED_WORK(hd_capacity_work, hd_capacity_work_fn);
+
+static int hd_set_hiperdispatch_mode(int enable)
+{
+	if (!MACHINE_HAS_TOPOLOGY)
+		enable = 0;
+	if (hd_enabled == enable)
+		return 0;
+	hd_enabled = enable;
+	return 1;
+}
 
 void hd_reset_state(void)
 {
@@ -131,6 +145,8 @@ void hd_disable_hiperdispatch(void)
 
 int hd_enable_hiperdispatch(void)
 {
+	if (hd_enabled == 0)
+		return 0;
 	if (hd_entitled_cores == 0)
 		return 0;
 	if (hd_online_cores <= hd_entitled_cores)
@@ -211,3 +227,47 @@ static void hd_capacity_work_fn(struct work_struct *work)
 	mutex_unlock(&smp_cpu_state_mutex);
 	schedule_delayed_work(&hd_capacity_work, HD_DELAY_INTERVAL);
 }
+
+static int hiperdispatch_ctl_handler(const struct ctl_table *ctl, int write,
+				     void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int hiperdispatch;
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &hiperdispatch,
+		.maxlen		= sizeof(int),
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	};
+
+	hiperdispatch = hd_enabled;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+	mutex_lock(&smp_cpu_state_mutex);
+	if (hd_set_hiperdispatch_mode(hiperdispatch))
+		topology_schedule_update();
+	mutex_unlock(&smp_cpu_state_mutex);
+	return 0;
+}
+
+static struct ctl_table hiperdispatch_ctl_table[] = {
+	{
+		.procname	= "hiperdispatch",
+		.mode		= 0644,
+		.proc_handler	= hiperdispatch_ctl_handler,
+	},
+};
+
+static int __init hd_init(void)
+{
+	if (IS_ENABLED(CONFIG_HIPERDISPATCH_ON)) {
+		hd_set_hiperdispatch_mode(1);
+		topology_schedule_update();
+	}
+	if (!register_sysctl("s390", hiperdispatch_ctl_table))
+		pr_warn("Failed to register s390.hiperdispatch sysctl attribute\n");
+	return 0;
+}
+late_initcall(hd_init);

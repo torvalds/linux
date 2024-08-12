@@ -521,6 +521,18 @@ config SCHED_TOPOLOGY_VERTICAL
 	  Use vertical CPU polarization by default if available.
 	  The default CPU polarization is horizontal.
 
+config HIPERDISPATCH_ON
+	def_bool y
+	bool "Use hiperdispatch on vertical polarization by default"
+	depends on SCHED_TOPOLOGY
+	depends on PROC_SYSCTL
+	help
+	  Hiperdispatch aims to improve the CPU scheduler's decision
+	  making when using vertical polarization by adjusting CPU
+	  capacities dynamically. Set this option to use hiperdispatch
+	  on vertical polarization by default. This can be overwritten
+	  by sysctl's s390.hiperdispatch attribute later on.
+
 source "kernel/Kconfig.hz"
 
 config CERT_STORE
