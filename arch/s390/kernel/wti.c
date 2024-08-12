@@ -5,6 +5,8 @@
  * Copyright IBM Corp. 2023
  */
 
+#include <linux/cpu.h>
+#include <linux/debugfs.h>
 #include <linux/kallsyms.h>
 #include <linux/smpboot.h>
 #include <linux/irq.h>
@@ -117,6 +119,26 @@ static void wti_dbf_grace_period(struct wti_state *st)
 	wdi->missed++;
 }
 
+static int wti_show(struct seq_file *seq, void *v)
+{
+	struct wti_state *st;
+	int cpu;
+
+	cpus_read_lock();
+	seq_puts(seq, "       ");
+	for_each_online_cpu(cpu)
+		seq_printf(seq, "CPU%-8d", cpu);
+	seq_putc(seq, '\n');
+	for_each_online_cpu(cpu) {
+		st = per_cpu_ptr(&wti_state, cpu);
+		seq_printf(seq, " %10lu", st->dbg.missed);
+	}
+	seq_putc(seq, '\n');
+	cpus_read_unlock();
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(wti);
+
 static void wti_thread_fn(unsigned int cpu)
 {
 	struct wti_state *st = per_cpu_ptr(&wti_state, cpu);
@@ -143,6 +165,7 @@ static struct smp_hotplug_thread wti_threads = {
 static int __init wti_init(void)
 {
 	struct sched_param wti_sched_param = { .sched_priority = MAX_RT_PRIO - 1 };
+	struct dentry *wti_dir;
 	struct wti_state *st;
 	int cpu, rc;
 
@@ -168,6 +191,8 @@ static int __init wti_init(void)
 		rc = -EOPNOTSUPP;
 		goto out_subclass;
 	}
+	wti_dir = debugfs_create_dir("wti", arch_debugfs_dir);
+	debugfs_create_file("stat", 0400, wti_dir, NULL, &wti_fops);
 	wti_dbg = debug_register("wti", 1, 1, WTI_DBF_LEN);
 	if (!wti_dbg) {
 		rc = -ENOMEM;
