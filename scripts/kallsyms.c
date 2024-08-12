@@ -27,6 +27,8 @@
 #include <ctype.h>
 #include <limits.h>
 
+#include <xalloc.h>
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #define KSYM_NAME_LEN		512
@@ -168,12 +170,7 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	 * compressed together */
 	len++;
 
-	sym = malloc(sizeof(*sym) + len + 1);
-	if (!sym) {
-		fprintf(stderr, "kallsyms failure: "
-			"unable to allocate required amount of memory\n");
-		exit(EXIT_FAILURE);
-	}
+	sym = xmalloc(sizeof(*sym) + len + 1);
 	sym->addr = addr;
 	sym->len = len;
 	sym->sym[0] = type;
@@ -278,12 +275,7 @@ static void read_map(const char *in)
 
 		if (table_cnt >= table_size) {
 			table_size += 10000;
-			table = realloc(table, sizeof(*table) * table_size);
-			if (!table) {
-				fprintf(stderr, "out of memory\n");
-				fclose(fp);
-				exit (1);
-			}
+			table = xrealloc(table, sizeof(*table) * table_size);
 		}
 
 		table[table_cnt++] = sym;
@@ -391,12 +383,7 @@ static void write_src(void)
 	/* table of offset markers, that give the offset in the compressed stream
 	 * every 256 symbols */
 	markers_cnt = (table_cnt + 255) / 256;
-	markers = malloc(sizeof(*markers) * markers_cnt);
-	if (!markers) {
-		fprintf(stderr, "kallsyms failure: "
-			"unable to allocate required memory\n");
-		exit(EXIT_FAILURE);
-	}
+	markers = xmalloc(sizeof(*markers) * markers_cnt);
 
 	output_label("kallsyms_names");
 	off = 0;
