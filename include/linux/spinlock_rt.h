@@ -132,7 +132,7 @@ static __always_inline void spin_unlock_irqrestore(spinlock_t *lock,
 #define spin_trylock_irq(lock)				\
 	__cond_lock(lock, rt_spin_trylock(lock))
 
-#define __spin_trylock_irqsave(lock, flags)		\
+#define spin_trylock_irqsave(lock, flags)		\
 ({							\
 	int __locked;					\
 							\
@@ -141,9 +141,6 @@ static __always_inline void spin_unlock_irqrestore(spinlock_t *lock,
 	__locked = spin_trylock(lock);			\
 	__locked;					\
 })
-
-#define spin_trylock_irqsave(lock, flags)		\
-	__cond_lock(lock, __spin_trylock_irqsave(lock, flags))
 
 #define spin_is_contended(lock)		(((void)(lock), 0))
 
