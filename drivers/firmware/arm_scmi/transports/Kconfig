@@ -62,4 +62,19 @@ config ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE
 	  in atomic context too, at the price of using a number of busy-waiting
 	  primitives all over instead. If unsure say N.
 
+config ARM_SCMI_TRANSPORT_OPTEE
+	tristate "SCMI transport based on OP-TEE service"
+	depends on OPTEE
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	select ARM_SCMI_HAVE_MSG
+	default y
+	help
+	  This enables the OP-TEE service based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on OP-TEE SCMI service, answer Y.
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi_transport_optee.
+
 endmenu
