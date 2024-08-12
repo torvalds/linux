@@ -110,7 +110,7 @@ static void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
 	memcpy(xfer->rx.buf, msg->msg_payload, xfer->rx.len);
 }
 
-const struct scmi_message_operations scmi_msg_ops = {
+static const struct scmi_message_operations scmi_msg_ops = {
 	.tx_prepare = msg_tx_prepare,
 	.command_size = msg_command_size,
 	.response_size = msg_response_size,

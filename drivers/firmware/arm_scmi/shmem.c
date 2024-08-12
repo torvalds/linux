@@ -176,7 +176,7 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	return addr;
 }
 
-const struct scmi_shared_mem_operations scmi_shmem_ops = {
+static const struct scmi_shared_mem_operations scmi_shmem_ops = {
 	.tx_prepare = shmem_tx_prepare,
 	.read_header = shmem_read_header,
 	.fetch_response = shmem_fetch_response,
