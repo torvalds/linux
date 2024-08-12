@@ -417,6 +417,7 @@ config DP83TD510_PHY
 
 config DP83TG720_PHY
 	tristate "Texas Instruments DP83TG720 Ethernet 1000Base-T1 PHY"
+	select OPEN_ALLIANCE_HELPERS
 	help
 	  The DP83TG720S-Q1 is an automotive Ethernet physical layer
 	  transceiver compliant with IEEE 802.3bp and Open Alliance
