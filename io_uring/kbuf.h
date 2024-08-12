@@ -121,15 +121,21 @@ static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	return false;
 }
 
+static inline void io_kbuf_commit(struct io_kiocb *req,
+				  struct io_buffer_list *bl, int nr)
+{
+	if (unlikely(!(req->flags & REQ_F_BUFFERS_COMMIT)))
+		return;
+	bl->head += nr;
+	req->flags &= ~REQ_F_BUFFERS_COMMIT;
+}
+
 static inline void __io_put_kbuf_ring(struct io_kiocb *req, int nr)
 {
 	struct io_buffer_list *bl = req->buf_list;
 
 	if (bl) {
-		if (req->flags & REQ_F_BUFFERS_COMMIT) {
-			bl->head += nr;
-			req->flags &= ~REQ_F_BUFFERS_COMMIT;
-		}
+		io_kbuf_commit(req, bl, nr);
 		req->buf_index = bl->bgid;
 	}
 	req->flags &= ~REQ_F_BUFFER_RING;
