@@ -1022,11 +1022,15 @@ attribute-sets:
       -
         name: indir
         type: binary
+        sub-type: u32
       -
         name: hkey
         type: binary
       -
         name: input_xfrm
+        type: u32
+      -
+        name: start-context
         type: u32
   -
     name: plca
@@ -1749,12 +1753,12 @@ operations:
 
       attribute-set: rss
 
-      do: &rss-get-op
+      do:
         request:
           attributes:
             - header
             - context
-        reply:
+        reply: &rss-reply
           attributes:
             - header
             - context
@@ -1762,6 +1766,12 @@ operations:
             - indir
             - hkey
             - input_xfrm
+      dump:
+        request:
+          attributes:
+            - header
+            - start-context
+        reply: *rss-reply
     -
       name: plca-get-cfg
       doc: Get PLCA params.
