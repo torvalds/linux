@@ -185,6 +185,8 @@
 			reset-gpios = <&expander2 7 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <500000>;
 			reset-deassert-us = <500>;
+			interrupt-parent = <&expander2>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };
