@@ -113,21 +113,23 @@ static int serial8250_platform_probe(struct platform_device *pdev)
 	unsigned char iotype;
 	int ret, line;
 
-	regs = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (regs) {
+	regs = platform_get_mem_or_io(pdev, 0);
+	if (!regs)
+		return dev_err_probe(dev, -EINVAL, "no registers defined\n");
+
+	switch (resource_type(regs)) {
+	case IORESOURCE_IO:
 		uart.port.iobase = regs->start;
 		iotype = UPIO_PORT;
-	} else {
-		regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!regs) {
-			dev_err(dev, "no registers defined\n");
-			return -EINVAL;
-		}
-
+		break;
+	case IORESOURCE_MEM:
 		uart.port.mapbase = regs->start;
 		uart.port.mapsize = resource_size(regs);
 		uart.port.flags = UPF_IOREMAP;
 		iotype = UPIO_MEM;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	/* Default clock frequency*/
