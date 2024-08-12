@@ -18,6 +18,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/power/xlnx-zynqmp-power.h>
 #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "xlnx,zynqmp";
@@ -36,6 +37,7 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
+			#cooling-cells = <2>;
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
@@ -46,6 +48,7 @@
 		};
 
 		cpu1: cpu@1 {
+			#cooling-cells = <2>;
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
@@ -56,6 +59,7 @@
 		};
 
 		cpu2: cpu@2 {
+			#cooling-cells = <2>;
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
@@ -66,6 +70,7 @@
 		};
 
 		cpu3: cpu@3 {
+			#cooling-cells = <2>;
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
@@ -404,6 +409,87 @@
 			<&xilinx_ams 21>, <&xilinx_ams 22>, <&xilinx_ams 23>,
 			<&xilinx_ams 24>, <&xilinx_ams 25>, <&xilinx_ams 26>,
 			<&xilinx_ams 27>, <&xilinx_ams 28>, <&xilinx_ams 29>;
+	};
+
+
+	tsens_apu: thermal-sensor-apu {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&xilinx_ams 7>;
+		io-channel-names = "sensor-channel";
+	};
+
+	tsens_rpu: thermal-sensor-rpu {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&xilinx_ams 8>;
+		io-channel-names = "sensor-channel";
+	};
+
+	tsens_pl: thermal-sensor-pl {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&xilinx_ams 20>;
+		io-channel-names = "sensor-channel";
+	};
+
+	thermal-zones {
+		apu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tsens_apu>;
+
+			trips {
+				apu_passive: passive {
+					temperature = <93000>;
+					hysteresis = <3500>;
+					type = "passive";
+				};
+
+				apu_critical: critical {
+					temperature = <96500>;
+					hysteresis = <3500>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map {
+					trip = <&apu_passive>;
+					cooling-device =
+						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		rpu-thermal {
+			polling-delay = <10000>;
+			thermal-sensors = <&tsens_rpu>;
+
+			trips {
+				critical {
+					temperature = <96500>;
+					hysteresis = <3500>;
+					type = "critical";
+				};
+			};
+		};
+
+		pl-thermal {
+			polling-delay = <10000>;
+			thermal-sensors = <&tsens_pl>;
+
+			trips {
+				critical {
+					temperature = <96500>;
+					hysteresis = <3500>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	amba: axi {
