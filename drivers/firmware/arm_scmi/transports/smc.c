@@ -16,10 +16,11 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/limits.h>
+#include <linux/platform_device.h>
 #include <linux/processor.h>
 #include <linux/slab.h>
 
-#include "common.h"
+#include "../common.h"
 
 /*
  * The shmem address is split into 4K page and offset.
@@ -69,12 +70,14 @@ struct scmi_smc {
 	unsigned long cap_id;
 };
 
+static struct scmi_transport_core_operations *core;
+
 static irqreturn_t smc_msg_done_isr(int irq, void *data)
 {
 	struct scmi_smc *scmi_info = data;
 
-	scmi_rx_callback(scmi_info->cinfo,
-			 scmi_shmem_ops.read_header(scmi_info->shmem), NULL);
+	core->rx_callback(scmi_info->cinfo,
+			  core->shmem->read_header(scmi_info->shmem), NULL);
 
 	return IRQ_HANDLED;
 }
@@ -141,7 +144,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!scmi_info)
 		return -ENOMEM;
 
-	scmi_info->shmem = scmi_shmem_ops.setup_iomap(cinfo, dev, tx, &res);
+	scmi_info->shmem = core->shmem->setup_iomap(cinfo, dev, tx, &res);
 	if (IS_ERR(scmi_info->shmem))
 		return PTR_ERR(scmi_info->shmem);
 
@@ -226,7 +229,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	 */
 	smc_channel_lock_acquire(scmi_info, xfer);
 
-	scmi_shmem_ops.tx_prepare(scmi_info->shmem, xfer, cinfo);
+	core->shmem->tx_prepare(scmi_info->shmem, xfer, cinfo);
 
 	if (scmi_info->cap_id != ULONG_MAX)
 		arm_smccc_1_1_invoke(scmi_info->func_id, scmi_info->cap_id, 0,
@@ -250,7 +253,7 @@ static void smc_fetch_response(struct scmi_chan_info *cinfo,
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 
-	scmi_shmem_ops.fetch_response(scmi_info->shmem, xfer);
+	core->shmem->fetch_response(scmi_info->shmem, xfer);
 }
 
 static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret,
@@ -270,7 +273,7 @@ static const struct scmi_transport_ops scmi_smc_ops = {
 	.fetch_response = smc_fetch_response,
 };
 
-const struct scmi_desc scmi_smc_desc = {
+static const struct scmi_desc scmi_smc_desc = {
 	.ops = &scmi_smc_ops,
 	.max_rx_timeout_ms = 30,
 	.max_msg = 20,
@@ -286,3 +289,19 @@ const struct scmi_desc scmi_smc_desc = {
 	.sync_cmds_completed_on_ret = true,
 	.atomic_enabled = IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE),
 };
+
+static const struct of_device_id scmi_of_match[] = {
+	{ .compatible = "arm,scmi-smc" },
+	{ .compatible = "arm,scmi-smc-param" },
+	{ .compatible = "qcom,scmi-smc" },
+	{ /* Sentinel */ },
+};
+
+DEFINE_SCMI_TRANSPORT_DRIVER(scmi_smc, scmi_smc_driver, scmi_smc_desc,
+			     scmi_of_match, core);
+module_platform_driver(scmi_smc_driver);
+
+MODULE_AUTHOR("Peng Fan <peng.fan@nxp.com>");
+MODULE_AUTHOR("Nikunj Kela <quic_nkela@quicinc.com>");
+MODULE_DESCRIPTION("SCMI SMC Transport driver");
+MODULE_LICENSE("GPL");
