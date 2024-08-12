@@ -461,12 +461,6 @@ static bool kvm_test_age_gfn_pr(struct kvm *kvm, struct kvm_gfn_range *range)
 	return false;
 }
 
-static bool kvm_set_spte_gfn_pr(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	/* The page will get remapped properly on its next fault */
-	return do_kvm_unmap_gfn(kvm, range);
-}
-
 /*****************************************/
 
 static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
@@ -2071,7 +2065,6 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.unmap_gfn_range = kvm_unmap_gfn_range_pr,
 	.age_gfn  = kvm_age_gfn_pr,
 	.test_age_gfn = kvm_test_age_gfn_pr,
-	.set_spte_gfn = kvm_set_spte_gfn_pr,
 	.free_memslot = kvmppc_core_free_memslot_pr,
 	.init_vm = kvmppc_core_init_vm_pr,
 	.destroy_vm = kvmppc_core_destroy_vm_pr,
@@ -2118,6 +2111,7 @@ void kvmppc_book3s_exit_pr(void)
 module_init(kvmppc_book3s_init_pr);
 module_exit(kvmppc_book3s_exit_pr);
 
+MODULE_DESCRIPTION("KVM on Book3S without using hypervisor mode");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(KVM_MINOR);
 MODULE_ALIAS("devname:kvm");

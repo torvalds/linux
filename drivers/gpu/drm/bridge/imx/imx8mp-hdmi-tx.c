@@ -104,13 +104,11 @@ static int imx8mp_dw_hdmi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx8mp_dw_hdmi_remove(struct platform_device *pdev)
+static void imx8mp_dw_hdmi_remove(struct platform_device *pdev)
 {
 	struct imx8mp_hdmi *hdmi = platform_get_drvdata(pdev);
 
 	dw_hdmi_remove(hdmi->dw_hdmi);
-
-	return 0;
 }
 
 static int __maybe_unused imx8mp_dw_hdmi_pm_suspend(struct device *dev)
@@ -140,7 +138,7 @@ MODULE_DEVICE_TABLE(of, imx8mp_dw_hdmi_of_table);
 
 static struct platform_driver imx8mp_dw_hdmi_platform_driver = {
 	.probe		= imx8mp_dw_hdmi_probe,
-	.remove		= imx8mp_dw_hdmi_remove,
+	.remove_new	= imx8mp_dw_hdmi_remove,
 	.driver		= {
 		.name	= "imx8mp-dw-hdmi-tx",
 		.of_match_table = imx8mp_dw_hdmi_of_table,

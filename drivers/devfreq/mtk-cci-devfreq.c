@@ -392,7 +392,7 @@ out_free_resources:
 	return ret;
 }
 
-static int mtk_ccifreq_remove(struct platform_device *pdev)
+static void mtk_ccifreq_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_ccifreq_drv *drv;
@@ -405,8 +405,6 @@ static int mtk_ccifreq_remove(struct platform_device *pdev)
 	regulator_disable(drv->proc_reg);
 	if (drv->sram_reg)
 		regulator_disable(drv->sram_reg);
-
-	return 0;
 }
 
 static const struct mtk_ccifreq_platform_data mt8183_platform_data = {
@@ -432,7 +430,7 @@ MODULE_DEVICE_TABLE(of, mtk_ccifreq_machines);
 
 static struct platform_driver mtk_ccifreq_platdrv = {
 	.probe	= mtk_ccifreq_probe,
-	.remove	= mtk_ccifreq_remove,
+	.remove_new = mtk_ccifreq_remove,
 	.driver = {
 		.name = "mtk-ccifreq",
 		.of_match_table = mtk_ccifreq_machines,

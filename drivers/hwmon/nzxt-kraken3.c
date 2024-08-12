@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * hwmon driver for NZXT Kraken X53/X63/X73 and Z53/Z63/Z73 all in one coolers.
- * X53 and Z53 in code refer to all models in their respective series (shortened
- * for brevity).
+ * hwmon driver for NZXT Kraken X53/X63/X73, Z53/Z63/Z73 and 2023/2023 Elite all in one coolers.
+ * X53 and Z53 in code refer to all models in their respective series (shortened for brevity).
+ * 2023 models use the Z53 code paths.
  *
  * Copyright 2021  Jonas Malaco <jonas@protocubo.io>
  * Copyright 2022  Aleksa Savic <savicaleksa83@gmail.com>
@@ -23,14 +23,11 @@
 #define USB_PRODUCT_ID_X53		0x2007
 #define USB_PRODUCT_ID_X53_SECOND	0x2014
 #define USB_PRODUCT_ID_Z53		0x3008
+#define USB_PRODUCT_ID_KRAKEN2023	0x300E
+#define USB_PRODUCT_ID_KRAKEN2023_ELITE	0x300C
 
-enum kinds { X53, Z53 } __packed;
+enum kinds { X53, Z53, KRAKEN2023 } __packed;
 enum pwm_enable { off, manual, curve } __packed;
-
-static const char *const kraken3_device_names[] = {
-	[X53] = "x53",
-	[Z53] = "z53",
-};
 
 #define DRIVER_NAME		"nzxt_kraken3"
 #define STATUS_REPORT_ID	0x75
@@ -141,6 +138,7 @@ static umode_t kraken3_is_visible(const void *data, enum hwmon_sensor_types type
 				return 0444;
 			break;
 		case Z53:
+		case KRAKEN2023:
 			/* Pump and fan */
 			if (channel < 2)
 				return 0444;
@@ -160,6 +158,7 @@ static umode_t kraken3_is_visible(const void *data, enum hwmon_sensor_types type
 					return 0644;
 				break;
 			case Z53:
+			case KRAKEN2023:
 				/* Pump and fan */
 				if (channel < 2)
 					return 0644;
@@ -247,6 +246,7 @@ static int kraken3_read_x53(struct kraken3_data *priv)
 	return 0;
 }
 
+/* Covers Z53 and KRAKEN2023 device kinds */
 static int kraken3_read_z53(struct kraken3_data *priv)
 {
 	int ret = mutex_lock_interruptible(&priv->z53_status_request_lock);
@@ -359,6 +359,13 @@ static int kraken3_write_curve(struct kraken3_data *priv, u8 *curve_array, int c
 
 	/* Set the correct ID for writing pump/fan duty (0x01 or 0x02, respectively) */
 	fixed_duty_cmd[SET_DUTY_ID_OFFSET] = channel + 1;
+
+	if (priv->kind == KRAKEN2023) {
+		/* These require 1s in the next one or two slots after SET_DUTY_ID_OFFSET */
+		fixed_duty_cmd[SET_DUTY_ID_OFFSET + 1] = 1;
+		if (channel == 1) /* Fan */
+			fixed_duty_cmd[SET_DUTY_ID_OFFSET + 2] = 1;
+	}
 
 	/* Copy curve to command */
 	memcpy(fixed_duty_cmd + SET_CURVE_DUTY_CMD_HEADER_LENGTH, curve_array, CUSTOM_CURVE_POINTS);
@@ -507,8 +514,8 @@ static umode_t kraken3_curve_props_are_visible(struct kobject *kobj, struct attr
 	struct device *dev = kobj_to_dev(kobj);
 	struct kraken3_data *priv = dev_get_drvdata(dev);
 
-	/* Only Z53 has the fan curve */
-	if (index >= CUSTOM_CURVE_POINTS && priv->kind != Z53)
+	/* X53 does not have a fan */
+	if (index >= CUSTOM_CURVE_POINTS && priv->kind == X53)
 		return 0;
 
 	return attr->mode;
@@ -774,8 +781,8 @@ static int kraken3_raw_event(struct hid_device *hdev, struct hid_report *report,
 	if (priv->kind == X53 && !completion_done(&priv->status_report_processed)) {
 		/* Mark first X-series device report as received */
 		complete_all(&priv->status_report_processed);
-	} else if (priv->kind == Z53) {
-		/* Additional readings for Z53 */
+	} else if (priv->kind == Z53 || priv->kind == KRAKEN2023) {
+		/* Additional readings for Z53 and KRAKEN2023 */
 		priv->fan_input[1] = get_unaligned_le16(data + Z53_FAN_SPEED_OFFSET);
 		priv->channel_info[1].reported_duty =
 		    kraken3_percent_to_pwm(data[Z53_FAN_DUTY_OFFSET]);
@@ -849,14 +856,14 @@ static int firmware_version_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(firmware_version);
 
-static void kraken3_debugfs_init(struct kraken3_data *priv)
+static void kraken3_debugfs_init(struct kraken3_data *priv, const char *device_name)
 {
 	char name[64];
 
 	if (!priv->firmware_version[0])
 		return;		/* Nothing to display in debugfs */
 
-	scnprintf(name, sizeof(name), "%s_%s-%s", DRIVER_NAME, kraken3_device_names[priv->kind],
+	scnprintf(name, sizeof(name), "%s_%s-%s", DRIVER_NAME, device_name,
 		  dev_name(&priv->hdev->dev));
 
 	priv->debugfs = debugfs_create_dir(name, NULL);
@@ -866,6 +873,7 @@ static void kraken3_debugfs_init(struct kraken3_data *priv)
 static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct kraken3_data *priv;
+	const char *device_name;
 	int ret;
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -905,12 +913,23 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 	case USB_PRODUCT_ID_X53:
 	case USB_PRODUCT_ID_X53_SECOND:
 		priv->kind = X53;
+		device_name = "x53";
 		break;
 	case USB_PRODUCT_ID_Z53:
 		priv->kind = Z53;
+		device_name = "z53";
+		break;
+	case USB_PRODUCT_ID_KRAKEN2023:
+		priv->kind = KRAKEN2023;
+		device_name = "kraken2023";
+		break;
+	case USB_PRODUCT_ID_KRAKEN2023_ELITE:
+		priv->kind = KRAKEN2023;
+		device_name = "kraken2023elite";
 		break;
 	default:
-		break;
+		ret = -ENODEV;
+		goto fail_and_close;
 	}
 
 	priv->buffer = devm_kzalloc(&hdev->dev, MAX_REPORT_LENGTH, GFP_KERNEL);
@@ -936,8 +955,7 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 	if (ret < 0)
 		hid_warn(hdev, "fw version request failed with %d\n", ret);
 
-	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev,
-							  kraken3_device_names[priv->kind], priv,
+	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, device_name, priv,
 							  &kraken3_chip_info, kraken3_groups);
 	if (IS_ERR(priv->hwmon_dev)) {
 		ret = PTR_ERR(priv->hwmon_dev);
@@ -945,7 +963,7 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 		goto fail_and_close;
 	}
 
-	kraken3_debugfs_init(priv);
+	kraken3_debugfs_init(priv, device_name);
 
 	return 0;
 
@@ -972,6 +990,8 @@ static const struct hid_device_id kraken3_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_X53) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_X53_SECOND) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_Z53) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_KRAKEN2023) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_KRAKEN2023_ELITE) },
 	{ }
 };
 

@@ -61,7 +61,7 @@ properties:
     default: 30000000
 
   regulators:
-    $ref: ../regulator/rohm,bd71815-regulator.yaml
+    $ref: /schemas/regulator/rohm,bd71815-regulator.yaml
     description:
       List of child nodes that specify the regulators.
 

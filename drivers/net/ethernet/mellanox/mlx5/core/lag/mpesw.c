@@ -99,7 +99,7 @@ static int enable_mpesw(struct mlx5_lag *ldev)
 	dev0->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 	mlx5_rescan_drivers_locked(dev0);
 	for (i = 0; i < ldev->ports; i++) {
-		err = mlx5_eswitch_reload_reps(ldev->pf[i].dev->priv.eswitch);
+		err = mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
 		if (err)
 			goto err_rescan_drivers;
 	}
@@ -113,7 +113,7 @@ err_rescan_drivers:
 err_add_devices:
 	mlx5_lag_add_devices(ldev);
 	for (i = 0; i < ldev->ports; i++)
-		mlx5_eswitch_reload_reps(ldev->pf[i].dev->priv.eswitch);
+		mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
 	mlx5_mpesw_metadata_cleanup(ldev);
 	return err;
 }

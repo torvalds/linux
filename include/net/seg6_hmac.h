@@ -49,9 +49,16 @@ extern int seg6_hmac_info_del(struct net *net, u32 key);
 extern int seg6_push_hmac(struct net *net, struct in6_addr *saddr,
 			  struct ipv6_sr_hdr *srh);
 extern bool seg6_hmac_validate_skb(struct sk_buff *skb);
+#ifdef CONFIG_IPV6_SEG6_HMAC
 extern int seg6_hmac_init(void);
 extern void seg6_hmac_exit(void);
 extern int seg6_hmac_net_init(struct net *net);
 extern void seg6_hmac_net_exit(struct net *net);
+#else
+static inline int seg6_hmac_init(void) { return 0; }
+static inline void seg6_hmac_exit(void) {}
+static inline int seg6_hmac_net_init(struct net *net) { return 0; }
+static inline void seg6_hmac_net_exit(struct net *net) {}
+#endif
 
 #endif

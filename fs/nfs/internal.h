@@ -112,6 +112,7 @@ struct nfs_fs_context {
 	unsigned short		protofamily;
 	unsigned short		mountfamily;
 	bool			has_sec_mnt_opts;
+	int			lock_status;
 
 	struct {
 		union {
@@ -151,6 +152,12 @@ struct nfs_fs_context {
 		struct nfs_fattr	*fattr;
 		unsigned int		inherited_bsize;
 	} clone_data;
+};
+
+enum nfs_lock_status {
+	NFS_LOCK_NOT_SET	= 0,
+	NFS_LOCK_LOCK		= 1,
+	NFS_LOCK_NOLOCK		= 2,
 };
 
 #define nfs_errorf(fc, fmt, ...) ((fc)->log.log ?		\
@@ -710,9 +717,9 @@ unsigned long nfs_block_bits(unsigned long bsize, unsigned char *nrbitsp)
 	if ((bsize & (bsize - 1)) || nrbitsp) {
 		unsigned char	nrbits;
 
-		for (nrbits = 31; nrbits && !(bsize & (1 << nrbits)); nrbits--)
+		for (nrbits = 31; nrbits && !(bsize & (1UL << nrbits)); nrbits--)
 			;
-		bsize = 1 << nrbits;
+		bsize = 1UL << nrbits;
 		if (nrbitsp)
 			*nrbitsp = nrbits;
 	}
@@ -778,7 +785,7 @@ static inline void nfs_folio_mark_unstable(struct folio *folio,
 					   struct nfs_commit_info *cinfo)
 {
 	if (folio && !cinfo->dreq) {
-		struct inode *inode = folio_file_mapping(folio)->host;
+		struct inode *inode = folio->mapping->host;
 		long nr = folio_nr_pages(folio);
 
 		/* This page is really still in write-back - just that the
@@ -793,31 +800,12 @@ static inline void nfs_folio_mark_unstable(struct folio *folio,
 /*
  * Determine the number of bytes of data the page contains
  */
-static inline
-unsigned int nfs_page_length(struct page *page)
-{
-	loff_t i_size = i_size_read(page_file_mapping(page)->host);
-
-	if (i_size > 0) {
-		pgoff_t index = page_index(page);
-		pgoff_t end_index = (i_size - 1) >> PAGE_SHIFT;
-		if (index < end_index)
-			return PAGE_SIZE;
-		if (index == end_index)
-			return ((i_size - 1) & ~PAGE_MASK) + 1;
-	}
-	return 0;
-}
-
-/*
- * Determine the number of bytes of data the page contains
- */
 static inline size_t nfs_folio_length(struct folio *folio)
 {
-	loff_t i_size = i_size_read(folio_file_mapping(folio)->host);
+	loff_t i_size = i_size_read(folio->mapping->host);
 
 	if (i_size > 0) {
-		pgoff_t index = folio_index(folio) >> folio_order(folio);
+		pgoff_t index = folio->index >> folio_order(folio);
 		pgoff_t end_index = (i_size - 1) >> folio_shift(folio);
 		if (index < end_index)
 			return folio_size(folio);

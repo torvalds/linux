@@ -66,10 +66,13 @@ for i in "-4 $TGT4" "-6 $TGT6"; do
 		 awk '/SND/ { if ($3 > 1000) print "OK"; }')
 	check_result $? "$ts" "OK" "$prot - TXTIME abs"
 
-	ts=$(ip netns exec $NS ./cmsg_sender -p $p $i 1234 -t -d 1000 |
+	[ "$KSFT_MACHINE_SLOW" = yes ] && delay=8000 || delay=1000
+
+	ts=$(ip netns exec $NS ./cmsg_sender -p $p $i 1234 -t -d $delay |
 		 awk '/SND/ {snd=$3}
 		      /SCHED/ {sch=$3}
-		      END { if (snd - sch > 500) print "OK"; }')
+		      END { if (snd - sch > '$((delay/2))') print "OK";
+			    else print snd, "-", sch, "<", '$((delay/2))'; }')
 	check_result $? "$ts" "OK" "$prot - TXTIME rel"
     done
 done

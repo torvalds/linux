@@ -365,13 +365,13 @@ static void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
 }
 
 /**
- * zbud_get_pool_size() - gets the zbud pool size in pages
+ * zbud_get_pool_pages() - gets the zbud pool size in pages
  * @pool:	pool whose size is being queried
  *
  * Returns: size in pages of the given pool.  The pool lock need not be
  * taken to access pages_nr.
  */
-static u64 zbud_get_pool_size(struct zbud_pool *pool)
+static u64 zbud_get_pool_pages(struct zbud_pool *pool)
 {
 	return pool->pages_nr;
 }
@@ -410,9 +410,9 @@ static void zbud_zpool_unmap(void *pool, unsigned long handle)
 	zbud_unmap(pool, handle);
 }
 
-static u64 zbud_zpool_total_size(void *pool)
+static u64 zbud_zpool_total_pages(void *pool)
 {
-	return zbud_get_pool_size(pool) * PAGE_SIZE;
+	return zbud_get_pool_pages(pool);
 }
 
 static struct zpool_driver zbud_zpool_driver = {
@@ -425,7 +425,7 @@ static struct zpool_driver zbud_zpool_driver = {
 	.free =		zbud_zpool_free,
 	.map =		zbud_zpool_map,
 	.unmap =	zbud_zpool_unmap,
-	.total_size =	zbud_zpool_total_size,
+	.total_pages =	zbud_zpool_total_pages,
 };
 
 MODULE_ALIAS("zpool-zbud");

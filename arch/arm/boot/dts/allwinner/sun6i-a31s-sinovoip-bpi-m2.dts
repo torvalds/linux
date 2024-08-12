@@ -75,7 +75,7 @@
 		};
 	};
 
-	mmc2_pwrseq: mmc2_pwrseq {
+	mmc2_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 WIFI_EN */
 	};

@@ -19,8 +19,6 @@
  * Migration is a command line option. When used on non-numa machines will 
  * exit with error. Test is still usefull on non-numa for testing IPIs.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <getopt.h>
 #include <pthread.h>
 #include <inttypes.h>
@@ -410,8 +408,6 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&params[0].vcpu, halter_guest_code);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(params[0].vcpu);
 	vm_install_exception_handler(vm, IPI_VECTOR, guest_ipi_handler);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);

@@ -209,7 +209,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cypress_sf_pm_ops,
 				cypress_sf_suspend, cypress_sf_resume);
 
 static struct i2c_device_id cypress_sf_id_table[] = {
-	{ CYPRESS_SF_DEV_NAME, 0 },
+	{ CYPRESS_SF_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cypress_sf_id_table);

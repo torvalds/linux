@@ -10,4 +10,12 @@
 
 int amd_sdw_manager_start(struct amd_sdw_manager *amd_manager);
 
+static inline void amd_updatel(void __iomem *mmio, int offset, u32 mask, u32 val)
+{
+	u32 tmp;
+
+	tmp = readl(mmio + offset);
+	tmp = (tmp & ~mask) | val;
+	writel(tmp, mmio + offset);
+}
 #endif

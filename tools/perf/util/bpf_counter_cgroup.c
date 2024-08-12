@@ -136,9 +136,8 @@ static int bperf_load_program(struct evlist *evlist)
 		cgrp = evsel->cgrp;
 
 		if (read_cgroup_id(cgrp) < 0) {
-			pr_err("Failed to get cgroup id\n");
-			err = -1;
-			goto out;
+			pr_debug("Failed to get cgroup id for %s\n", cgrp->name);
+			cgrp->id = 0;
 		}
 
 		map_fd = bpf_map__fd(skel->maps.cgrp_idx);

@@ -411,7 +411,7 @@ struct drm_driver {
 	char *name;
 	/** @desc: driver description */
 	char *desc;
-	/** @date: driver date */
+	/** @date: driver date, unused, to be removed */
 	char *date;
 
 	/**

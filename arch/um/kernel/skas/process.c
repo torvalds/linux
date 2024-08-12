@@ -8,21 +8,20 @@
 #include <linux/sched/task_stack.h>
 #include <linux/sched/task.h>
 
+#include <asm/tlbflush.h>
+
 #include <as-layout.h>
 #include <kern.h>
 #include <os.h>
 #include <skas.h>
+#include <kern_util.h>
 
 extern void start_kernel(void);
 
 static int __init start_kernel_proc(void *unused)
 {
-	int pid;
-
 	block_signals_trace();
-	pid = os_getpid();
 
-	cpu_tasks[0].pid = pid;
 	cpu_tasks[0].task = current;
 
 	start_kernel();
@@ -52,4 +51,20 @@ unsigned long current_stub_stack(void)
 		return 0;
 
 	return current->mm->context.id.stack;
+}
+
+struct mm_id *current_mm_id(void)
+{
+	if (current->mm == NULL)
+		return NULL;
+
+	return &current->mm->context.id;
+}
+
+void current_mm_sync(void)
+{
+	if (current->mm == NULL)
+		return;
+
+	um_tlb_sync(current->mm);
 }

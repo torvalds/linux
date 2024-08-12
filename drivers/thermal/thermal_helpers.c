@@ -39,30 +39,53 @@ int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip
 	return trend;
 }
 
-struct thermal_instance *
-get_thermal_instance(struct thermal_zone_device *tz,
-		     struct thermal_cooling_device *cdev, int trip_index)
+static struct thermal_instance *get_instance(struct thermal_zone_device *tz,
+					     struct thermal_cooling_device *cdev,
+					     const struct thermal_trip *trip)
 {
-	struct thermal_instance *pos = NULL;
-	struct thermal_instance *target_instance = NULL;
-	const struct thermal_trip *trip;
+	struct thermal_instance *ti;
+
+	list_for_each_entry(ti, &tz->thermal_instances, tz_node) {
+		if (ti->trip == trip && ti->cdev == cdev)
+			return ti;
+	}
+
+	return NULL;
+}
+
+bool thermal_trip_is_bound_to_cdev(struct thermal_zone_device *tz,
+				   const struct thermal_trip *trip,
+				   struct thermal_cooling_device *cdev)
+{
+	bool ret;
 
 	mutex_lock(&tz->lock);
 	mutex_lock(&cdev->lock);
 
-	trip = &tz->trips[trip_index];
-
-	list_for_each_entry(pos, &tz->thermal_instances, tz_node) {
-		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {
-			target_instance = pos;
-			break;
-		}
-	}
+	ret = !!get_instance(tz, cdev, trip);
 
 	mutex_unlock(&cdev->lock);
 	mutex_unlock(&tz->lock);
 
-	return target_instance;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(thermal_trip_is_bound_to_cdev);
+
+struct thermal_instance *
+get_thermal_instance(struct thermal_zone_device *tz,
+		     struct thermal_cooling_device *cdev, int trip_index)
+{
+	struct thermal_instance *ti;
+
+	mutex_lock(&tz->lock);
+	mutex_lock(&cdev->lock);
+
+	ti = get_instance(tz, cdev, &tz->trips[trip_index].trip);
+
+	mutex_unlock(&cdev->lock);
+	mutex_unlock(&tz->lock);
+
+	return ti;
 }
 EXPORT_SYMBOL(get_thermal_instance);
 
@@ -82,7 +105,7 @@ EXPORT_SYMBOL(get_thermal_instance);
  */
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 	int crit_temp = INT_MAX;
 	int ret = -EINVAL;
 
@@ -91,7 +114,9 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	ret = tz->ops.get_temp(tz, temp);
 
 	if (IS_ENABLED(CONFIG_THERMAL_EMULATION) && tz->emul_temperature) {
-		for_each_trip(tz, trip) {
+		for_each_trip_desc(tz, td) {
+			const struct thermal_trip *trip = &td->trip;
+
 			if (trip->type == THERMAL_TRIP_CRITICAL) {
 				crit_temp = trip->temperature;
 				break;
@@ -138,6 +163,8 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	}
 
 	ret = __thermal_zone_get_temp(tz, temp);
+	if (!ret && *temp <= THERMAL_TEMP_INVALID)
+		ret = -ENODATA;
 
 unlock:
 	mutex_unlock(&tz->lock);

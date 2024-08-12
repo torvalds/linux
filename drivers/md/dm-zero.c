@@ -61,7 +61,6 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 
 static void zero_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
-	limits->max_discard_sectors = UINT_MAX;
 	limits->max_hw_discard_sectors = UINT_MAX;
 	limits->discard_granularity = 512;
 }

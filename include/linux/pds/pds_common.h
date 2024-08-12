@@ -4,6 +4,8 @@
 #ifndef _PDS_COMMON_H_
 #define _PDS_COMMON_H_
 
+#include <linux/notifier.h>
+
 #define PDS_CORE_DRV_NAME			"pds_core"
 
 /* the device's internal addressing uses up to 52 bits */

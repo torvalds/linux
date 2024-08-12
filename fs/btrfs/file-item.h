@@ -68,8 +68,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit,
 			     bool nowait);
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
-			    struct list_head *list, int search_commit,
-			    bool nowait);
+			    struct list_head *list, bool nowait);
 int btrfs_lookup_csums_bitmap(struct btrfs_root *root, struct btrfs_path *path,
 			      u64 start, u64 end, u8 *csum_buf,
 			      unsigned long *csum_bitmap);

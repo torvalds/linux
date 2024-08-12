@@ -83,6 +83,7 @@ allOf:
             enum:
               - x-powers,axp313a
               - x-powers,axp15060
+              - x-powers,axp717
 
     then:
       properties:
@@ -99,6 +100,7 @@ properties:
           - x-powers,axp221
           - x-powers,axp223
           - x-powers,axp313a
+          - x-powers,axp717
           - x-powers,axp803
           - x-powers,axp806
           - x-powers,axp809

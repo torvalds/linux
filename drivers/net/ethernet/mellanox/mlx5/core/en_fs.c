@@ -896,8 +896,7 @@ static void mlx5e_set_inner_ttc_params(struct mlx5e_flow_steering *fs,
 	int tt;
 
 	memset(ttc_params, 0, sizeof(*ttc_params));
-	ttc_params->ns = mlx5_get_flow_namespace(fs->mdev,
-						 MLX5_FLOW_NAMESPACE_KERNEL);
+	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
 	ft_attr->level = MLX5E_INNER_TTC_FT_LEVEL;
 	ft_attr->prio = MLX5E_NIC_PRIO;
 
@@ -920,8 +919,7 @@ void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 	int tt;
 
 	memset(ttc_params, 0, sizeof(*ttc_params));
-	ttc_params->ns = mlx5_get_flow_namespace(fs->mdev,
-						 MLX5_FLOW_NAMESPACE_KERNEL);
+	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
 	ft_attr->level = MLX5E_TTC_FT_LEVEL;
 	ft_attr->prio = MLX5E_NIC_PRIO;
 
@@ -1309,8 +1307,7 @@ int mlx5e_create_flow_steering(struct mlx5e_flow_steering *fs,
 		return -EOPNOTSUPP;
 
 	mlx5e_fs_set_ns(fs, ns, false);
-	err = mlx5e_arfs_create_tables(fs, rx_res,
-				       !!(netdev->hw_features & NETIF_F_NTUPLE));
+	err = mlx5e_arfs_create_tables(fs, rx_res, mlx5e_fs_has_arfs(netdev));
 	if (err) {
 		fs_err(fs, "Failed to create arfs tables, err=%d\n", err);
 		netdev->hw_features &= ~NETIF_F_NTUPLE;
@@ -1357,7 +1354,7 @@ err_destroy_ttc_table:
 err_destroy_inner_ttc_table:
 	mlx5e_destroy_inner_ttc_table(fs);
 err_destroy_arfs_tables:
-	mlx5e_arfs_destroy_tables(fs, !!(netdev->hw_features & NETIF_F_NTUPLE));
+	mlx5e_arfs_destroy_tables(fs, mlx5e_fs_has_arfs(netdev));
 
 	return err;
 }

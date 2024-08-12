@@ -28,9 +28,9 @@ static noinstr void fred_bad_type(struct pt_regs *regs, unsigned long error_code
 	if (regs->fred_cs.sl > 0) {
 		pr_emerg("PANIC: invalid or fatal FRED event; event type %u "
 			 "vector %u error 0x%lx aux 0x%lx at %04x:%016lx\n",
-			 regs->fred_ss.type, regs->fred_ss.vector, regs->orig_ax,
+			 regs->fred_ss.type, regs->fred_ss.vector, error_code,
 			 fred_event_data(regs), regs->cs, regs->ip);
-		die("invalid or fatal FRED event", regs, regs->orig_ax);
+		die("invalid or fatal FRED event", regs, error_code);
 		panic("invalid or fatal FRED event");
 	} else {
 		unsigned long flags = oops_begin();
@@ -38,10 +38,10 @@ static noinstr void fred_bad_type(struct pt_regs *regs, unsigned long error_code
 
 		pr_alert("BUG: invalid or fatal FRED event; event type %u "
 			 "vector %u error 0x%lx aux 0x%lx at %04x:%016lx\n",
-			 regs->fred_ss.type, regs->fred_ss.vector, regs->orig_ax,
+			 regs->fred_ss.type, regs->fred_ss.vector, error_code,
 			 fred_event_data(regs), regs->cs, regs->ip);
 
-		if (__die("Invalid or fatal FRED event", regs, regs->orig_ax))
+		if (__die("Invalid or fatal FRED event", regs, error_code))
 			sig = 0;
 
 		oops_end(flags, regs, sig);
@@ -66,7 +66,7 @@ static noinstr void fred_intx(struct pt_regs *regs)
 	/* INT80 */
 	case IA32_SYSCALL_VECTOR:
 		if (ia32_enabled())
-			return int80_emulation(regs);
+			return fred_int80_emulation(regs);
 		fallthrough;
 #endif
 
@@ -117,6 +117,8 @@ static idtentry_t sysvec_table[NR_SYSTEM_VECTORS] __ro_after_init = {
 	SYSVEC(POSTED_INTR_VECTOR,		kvm_posted_intr_ipi),
 	SYSVEC(POSTED_INTR_WAKEUP_VECTOR,	kvm_posted_intr_wakeup_ipi),
 	SYSVEC(POSTED_INTR_NESTED_VECTOR,	kvm_posted_intr_nested_ipi),
+
+	SYSVEC(POSTED_MSI_NOTIFICATION_VECTOR,	posted_msi_notification),
 };
 
 static bool fred_setup_done __initdata;

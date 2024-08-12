@@ -394,14 +394,14 @@ static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 	if (!ath10k_pci_irq_pending(ar))
 		return IRQ_NONE;
 
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
 	napi_schedule(&ar->napi);
 
 	return IRQ_HANDLED;
 }
 
-static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
+static int ath10k_ahb_request_irq_intx(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
@@ -415,12 +415,12 @@ static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 			    ar_ahb->irq, ret);
 		return ret;
 	}
-	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
+	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_INTX;
 
 	return 0;
 }
 
-static void ath10k_ahb_release_irq_legacy(struct ath10k *ar)
+static void ath10k_ahb_release_irq_intx(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 
@@ -430,7 +430,7 @@ static void ath10k_ahb_release_irq_legacy(struct ath10k *ar)
 static void ath10k_ahb_irq_disable(struct ath10k *ar)
 {
 	ath10k_ce_disable_interrupts(ar);
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 }
 
 static int ath10k_ahb_resource_init(struct ath10k *ar)
@@ -621,7 +621,7 @@ static int ath10k_ahb_hif_start(struct ath10k *ar)
 
 	ath10k_core_napi_enable(ar);
 	ath10k_ce_enable_interrupts(ar);
-	ath10k_pci_enable_legacy_irq(ar);
+	ath10k_pci_enable_intx_irq(ar);
 
 	ath10k_pci_rx_post(ar);
 
@@ -775,7 +775,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 
 	ath10k_pci_init_napi(ar);
 
-	ret = ath10k_ahb_request_irq_legacy(ar);
+	ret = ath10k_ahb_request_irq_intx(ar);
 	if (ret)
 		goto err_free_pipes;
 
@@ -806,7 +806,7 @@ err_halt_device:
 	ath10k_ahb_clock_disable(ar);
 
 err_free_irq:
-	ath10k_ahb_release_irq_legacy(ar);
+	ath10k_ahb_release_irq_intx(ar);
 
 err_free_pipes:
 	ath10k_pci_release_resource(ar);
@@ -828,7 +828,7 @@ static void ath10k_ahb_remove(struct platform_device *pdev)
 
 	ath10k_core_unregister(ar);
 	ath10k_ahb_irq_disable(ar);
-	ath10k_ahb_release_irq_legacy(ar);
+	ath10k_ahb_release_irq_intx(ar);
 	ath10k_pci_release_resource(ar);
 	ath10k_ahb_halt_chip(ar);
 	ath10k_ahb_clock_disable(ar);

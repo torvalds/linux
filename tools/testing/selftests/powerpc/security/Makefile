@@ -5,9 +5,10 @@ TEST_PROGS := mitigation-patching.sh
 
 top_srcdir = ../../../../..
 
-CFLAGS += $(KHDR_INCLUDES)
-
 include ../../lib.mk
+include ../flags.mk
+
+CFLAGS += $(KHDR_INCLUDES)
 
 $(TEST_GEN_PROGS): ../harness.c ../utils.c
 

@@ -23,6 +23,12 @@ properties:
       - adi,adis16497-1
       - adi,adis16497-2
       - adi,adis16497-3
+      - adi,adis16545-1
+      - adi,adis16545-2
+      - adi,adis16545-3
+      - adi,adis16547-1
+      - adi,adis16547-2
+      - adi,adis16547-3
 
   reg:
     maxItems: 1

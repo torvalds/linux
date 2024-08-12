@@ -261,7 +261,7 @@ static int adjd_s311_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adjd_s311_id[] = {
-	{ "adjd_s311", 0 },
+	{ "adjd_s311" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adjd_s311_id);

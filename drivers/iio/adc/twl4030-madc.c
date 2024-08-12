@@ -19,10 +19,12 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/mfd/twl.h>
-#include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
@@ -30,7 +32,6 @@
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/err.h>
-#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
@@ -744,14 +745,14 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
  */
 static int twl4030_madc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct twl4030_madc_platform_data *pdata = dev_get_platdata(dev);
 	struct twl4030_madc_data *madc;
-	struct twl4030_madc_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
 	int irq, ret;
 	u8 regval;
 	struct iio_dev *iio_dev = NULL;
 
-	if (!pdata && !np) {
+	if (!pdata && !dev_fwnode(dev)) {
 		dev_err(&pdev->dev, "neither platform data nor Device Tree node available\n");
 		return -EINVAL;
 	}
@@ -779,7 +780,7 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	if (pdata)
 		madc->use_second_irq = (pdata->irq_line != 1);
 	else
-		madc->use_second_irq = of_property_read_bool(np,
+		madc->use_second_irq = device_property_read_bool(dev,
 				       "ti,system-uses-second-madc-irq");
 
 	madc->imr = madc->use_second_irq ? TWL4030_MADC_IMR2 :
@@ -905,20 +906,18 @@ static void twl4030_madc_remove(struct platform_device *pdev)
 	regulator_disable(madc->usb3v1);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id twl_madc_of_match[] = {
 	{ .compatible = "ti,twl4030-madc", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, twl_madc_of_match);
-#endif
 
 static struct platform_driver twl4030_madc_driver = {
 	.probe = twl4030_madc_probe,
 	.remove_new = twl4030_madc_remove,
 	.driver = {
 		   .name = "twl4030_madc",
-		   .of_match_table = of_match_ptr(twl_madc_of_match),
+		   .of_match_table = twl_madc_of_match,
 	},
 };
 

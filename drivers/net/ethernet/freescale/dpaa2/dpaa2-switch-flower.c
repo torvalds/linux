@@ -33,6 +33,9 @@ static int dpaa2_switch_flower_parse_key(struct flow_cls_offload *cls,
 	acl_h = &acl_key->match;
 	acl_m = &acl_key->mask;
 
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
 
@@ -547,6 +550,9 @@ static int dpaa2_switch_flower_parse_mirror_key(struct flow_cls_offload *cls,
 				   "Mirroring is supported only per VLAN");
 		return -EOPNOTSUPP;
 	}
+
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_match_vlan match;

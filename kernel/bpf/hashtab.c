@@ -221,13 +221,11 @@ static bool htab_has_extra_elems(struct bpf_htab *htab)
 	return !htab_is_percpu(htab) && !htab_is_lru(htab);
 }
 
-static void htab_free_prealloced_timers(struct bpf_htab *htab)
+static void htab_free_prealloced_timers_and_wq(struct bpf_htab *htab)
 {
 	u32 num_entries = htab->map.max_entries;
 	int i;
 
-	if (!btf_record_has_field(htab->map.record, BPF_TIMER))
-		return;
 	if (htab_has_extra_elems(htab))
 		num_entries += num_possible_cpus();
 
@@ -235,7 +233,12 @@ static void htab_free_prealloced_timers(struct bpf_htab *htab)
 		struct htab_elem *elem;
 
 		elem = get_htab_elem(htab, i);
-		bpf_obj_free_timer(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
+		if (btf_record_has_field(htab->map.record, BPF_TIMER))
+			bpf_obj_free_timer(htab->map.record,
+					   elem->key + round_up(htab->map.key_size, 8));
+		if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
+			bpf_obj_free_workqueue(htab->map.record,
+					       elem->key + round_up(htab->map.key_size, 8));
 		cond_resched();
 	}
 }
@@ -1490,11 +1493,12 @@ static void delete_all_elements(struct bpf_htab *htab)
 			hlist_nulls_del_rcu(&l->hash_node);
 			htab_elem_free(htab, l);
 		}
+		cond_resched();
 	}
 	migrate_enable();
 }
 
-static void htab_free_malloced_timers(struct bpf_htab *htab)
+static void htab_free_malloced_timers_and_wq(struct bpf_htab *htab)
 {
 	int i;
 
@@ -1506,24 +1510,29 @@ static void htab_free_malloced_timers(struct bpf_htab *htab)
 
 		hlist_nulls_for_each_entry(l, n, head, hash_node) {
 			/* We only free timer on uref dropping to zero */
-			bpf_obj_free_timer(htab->map.record, l->key + round_up(htab->map.key_size, 8));
+			if (btf_record_has_field(htab->map.record, BPF_TIMER))
+				bpf_obj_free_timer(htab->map.record,
+						   l->key + round_up(htab->map.key_size, 8));
+			if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
+				bpf_obj_free_workqueue(htab->map.record,
+						       l->key + round_up(htab->map.key_size, 8));
 		}
 		cond_resched_rcu();
 	}
 	rcu_read_unlock();
 }
 
-static void htab_map_free_timers(struct bpf_map *map)
+static void htab_map_free_timers_and_wq(struct bpf_map *map)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 
-	/* We only free timer on uref dropping to zero */
-	if (!btf_record_has_field(htab->map.record, BPF_TIMER))
-		return;
-	if (!htab_is_prealloc(htab))
-		htab_free_malloced_timers(htab);
-	else
-		htab_free_prealloced_timers(htab);
+	/* We only free timer and workqueue on uref dropping to zero */
+	if (btf_record_has_field(htab->map.record, BPF_TIMER | BPF_WORKQUEUE)) {
+		if (!htab_is_prealloc(htab))
+			htab_free_malloced_timers_and_wq(htab);
+		else
+			htab_free_prealloced_timers_and_wq(htab);
+	}
 }
 
 /* Called when map->refcnt goes to zero, either from workqueue or from syscall */
@@ -1538,7 +1547,7 @@ static void htab_map_free(struct bpf_map *map)
 	 */
 
 	/* htab no longer uses call_rcu() directly. bpf_mem_alloc does it
-	 * underneath and is reponsible for waiting for callbacks to finish
+	 * underneath and is responsible for waiting for callbacks to finish
 	 * during bpf_mem_alloc_destroy().
 	 */
 	if (!htab_is_prealloc(htab)) {
@@ -2259,7 +2268,7 @@ const struct bpf_map_ops htab_map_ops = {
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
 	.map_get_next_key = htab_map_get_next_key,
-	.map_release_uref = htab_map_free_timers,
+	.map_release_uref = htab_map_free_timers_and_wq,
 	.map_lookup_elem = htab_map_lookup_elem,
 	.map_lookup_and_delete_elem = htab_map_lookup_and_delete_elem,
 	.map_update_elem = htab_map_update_elem,
@@ -2280,7 +2289,7 @@ const struct bpf_map_ops htab_lru_map_ops = {
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
 	.map_get_next_key = htab_map_get_next_key,
-	.map_release_uref = htab_map_free_timers,
+	.map_release_uref = htab_map_free_timers_and_wq,
 	.map_lookup_elem = htab_lru_map_lookup_elem,
 	.map_lookup_and_delete_elem = htab_lru_map_lookup_and_delete_elem,
 	.map_lookup_elem_sys_only = htab_lru_map_lookup_elem_sys,
@@ -2305,6 +2314,26 @@ static void *htab_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 		return this_cpu_ptr(htab_elem_get_ptr(l, map->key_size));
 	else
 		return NULL;
+}
+
+/* inline bpf_map_lookup_elem() call for per-CPU hashmap */
+static int htab_percpu_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	if (!bpf_jit_supports_percpu_insn())
+		return -EOPNOTSUPP;
+
+	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+		     (void *(*)(struct bpf_map *map, void *key))NULL));
+	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3);
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_0,
+				offsetof(struct htab_elem, key) + map->key_size);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0);
+	*insn++ = BPF_MOV64_PERCPU_REG(BPF_REG_0, BPF_REG_0);
+
+	return insn - insn_buf;
 }
 
 static void *htab_percpu_map_lookup_percpu_elem(struct bpf_map *map, void *key, u32 cpu)
@@ -2435,6 +2464,7 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_free = htab_map_free,
 	.map_get_next_key = htab_map_get_next_key,
 	.map_lookup_elem = htab_percpu_map_lookup_elem,
+	.map_gen_lookup = htab_percpu_map_gen_lookup,
 	.map_lookup_and_delete_elem = htab_percpu_map_lookup_and_delete_elem,
 	.map_update_elem = htab_percpu_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,

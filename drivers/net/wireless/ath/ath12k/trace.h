@@ -36,8 +36,8 @@ TRACE_EVENT(ath12k_htt_pktlog,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->buf_len = buf_len;
 		__entry->pktlog_checksum = pktlog_checksum;
 		memcpy(__get_dynamic_array(pktlog), buf, buf_len);
@@ -73,8 +73,8 @@ TRACE_EVENT(ath12k_htt_ppdu_stats,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->len = len;
 		__entry->info = ar->pdev->timestamp.info;
 		__entry->sync_tstmp_lo_us = ar->pdev->timestamp.sync_timestamp_hi_us;
@@ -117,8 +117,8 @@ TRACE_EVENT(ath12k_htt_rxdesc,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ar->ab->dev));
-		__assign_str(driver, dev_driver_string(ar->ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->len = len;
 		__entry->type = type;
 		__entry->info = ar->pdev->timestamp.info;
@@ -153,8 +153,8 @@ TRACE_EVENT(ath12k_wmi_diag,
 	),
 
 	TP_fast_assign(
-		__assign_str(device, dev_name(ab->dev));
-		__assign_str(driver, dev_driver_string(ab->dev));
+		__assign_str(device);
+		__assign_str(driver);
 		__entry->len = len;
 		memcpy(__get_dynamic_array(data), data, len);
 	),

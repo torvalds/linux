@@ -24,6 +24,7 @@
 #include "xfs_pnfs.h"
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
+#include "xfs_file.h"
 
 #include <linux/dax.h>
 #include <linux/falloc.h>
@@ -38,33 +39,19 @@ static const struct vm_operations_struct xfs_file_vm_ops;
  * Decide if the given file range is aligned to the size of the fundamental
  * allocation unit for the file.
  */
-static bool
+bool
 xfs_is_falloc_aligned(
 	struct xfs_inode	*ip,
 	loff_t			pos,
 	long long int		len)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	uint64_t		mask;
+	unsigned int		alloc_unit = xfs_inode_alloc_unitsize(ip);
 
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		if (!is_power_of_2(mp->m_sb.sb_rextsize)) {
-			u64	rextbytes;
-			u32	mod;
+	if (!is_power_of_2(alloc_unit))
+		return isaligned_64(pos, alloc_unit) &&
+		       isaligned_64(len, alloc_unit);
 
-			rextbytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
-			div_u64_rem(pos, rextbytes, &mod);
-			if (mod)
-				return false;
-			div_u64_rem(len, rextbytes, &mod);
-			return mod == 0;
-		}
-		mask = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize) - 1;
-	} else {
-		mask = mp->m_sb.sb_blocksize - 1;
-	}
-
-	return !((pos | len) & mask);
+	return !((pos | len) & (alloc_unit - 1));
 }
 
 /*
@@ -226,29 +213,18 @@ xfs_ilock_iocb_for_write(
 	if (ret)
 		return ret;
 
-	if (*lock_mode == XFS_IOLOCK_EXCL)
-		return 0;
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return 0;
+	/*
+	 * If a reflink remap is in progress we always need to take the iolock
+	 * exclusively to wait for it to finish.
+	 */
+	if (*lock_mode == XFS_IOLOCK_SHARED &&
+	    xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, *lock_mode);
+		*lock_mode = XFS_IOLOCK_EXCL;
+		return xfs_ilock_iocb(iocb, *lock_mode);
+	}
 
-	xfs_iunlock(ip, *lock_mode);
-	*lock_mode = XFS_IOLOCK_EXCL;
-	return xfs_ilock_iocb(iocb, *lock_mode);
-}
-
-static unsigned int
-xfs_ilock_for_write_fault(
-	struct xfs_inode	*ip)
-{
-	/* get a shared lock if no remapping in progress */
-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return XFS_MMAPLOCK_SHARED;
-
-	/* wait for remapping to complete */
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	return XFS_MMAPLOCK_EXCL;
+	return 0;
 }
 
 STATIC ssize_t
@@ -861,67 +837,6 @@ xfs_file_write_iter(
 	return xfs_file_buffered_write(iocb, from);
 }
 
-static void
-xfs_wait_dax_page(
-	struct inode		*inode)
-{
-	struct xfs_inode        *ip = XFS_I(inode);
-
-	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
-	schedule();
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-}
-
-int
-xfs_break_dax_layouts(
-	struct inode		*inode,
-	bool			*retry)
-{
-	struct page		*page;
-
-	xfs_assert_ilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL);
-
-	page = dax_layout_busy_page(inode->i_mapping);
-	if (!page)
-		return 0;
-
-	*retry = true;
-	return ___wait_var_event(&page->_refcount,
-			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-			0, 0, xfs_wait_dax_page(inode));
-}
-
-int
-xfs_break_layouts(
-	struct inode		*inode,
-	uint			*iolock,
-	enum layout_break_reason reason)
-{
-	bool			retry;
-	int			error;
-
-	xfs_assert_ilocked(XFS_I(inode), XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL);
-
-	do {
-		retry = false;
-		switch (reason) {
-		case BREAK_UNMAP:
-			error = xfs_break_dax_layouts(inode, &retry);
-			if (error || retry)
-				break;
-			fallthrough;
-		case BREAK_WRITE:
-			error = xfs_break_leased_layouts(inode, iolock, &retry);
-			break;
-		default:
-			WARN_ON_ONCE(1);
-			error = -EINVAL;
-		}
-	} while (error == 0 && retry);
-
-	return error;
-}
-
 /* Does this file, inode, or mount want synchronous writes? */
 static inline bool xfs_file_sync_writes(struct file *filp)
 {
@@ -1230,8 +1145,7 @@ xfs_file_open(
 {
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC |
-			FMODE_DIO_PARALLEL_WRITE | FMODE_CAN_ODIRECT;
+	file->f_mode |= FMODE_NOWAIT | FMODE_CAN_ODIRECT;
 	return generic_file_open(inode, file);
 }
 
@@ -1244,7 +1158,9 @@ xfs_dir_open(
 	unsigned int	mode;
 	int		error;
 
-	error = xfs_file_open(inode, file);
+	if (xfs_is_shutdown(ip->i_mount))
+		return -EIO;
+	error = generic_file_open(inode, file);
 	if (error)
 		return error;
 
@@ -1320,31 +1236,77 @@ xfs_file_llseek(
 	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 }
 
-#ifdef CONFIG_FS_DAX
 static inline vm_fault_t
-xfs_dax_fault(
+xfs_dax_fault_locked(
 	struct vm_fault		*vmf,
 	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
+	bool			write_fault)
 {
-	return dax_iomap_fault(vmf, order, pfn, NULL,
+	vm_fault_t		ret;
+	pfn_t			pfn;
+
+	if (!IS_ENABLED(CONFIG_FS_DAX)) {
+		ASSERT(0);
+		return VM_FAULT_SIGBUS;
+	}
+	ret = dax_iomap_fault(vmf, order, &pfn, NULL,
 			(write_fault && !vmf->cow_page) ?
 				&xfs_dax_write_iomap_ops :
 				&xfs_read_iomap_ops);
+	if (ret & VM_FAULT_NEEDDSYNC)
+		ret = dax_finish_sync_fault(vmf, order, pfn);
+	return ret;
 }
-#else
-static inline vm_fault_t
-xfs_dax_fault(
+
+static vm_fault_t
+xfs_dax_read_fault(
 	struct vm_fault		*vmf,
-	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
+	unsigned int		order)
 {
-	ASSERT(0);
-	return VM_FAULT_SIGBUS;
+	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
+	vm_fault_t		ret;
+
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+	ret = xfs_dax_fault_locked(vmf, order, false);
+	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+
+	return ret;
 }
-#endif
+
+static vm_fault_t
+xfs_write_fault(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+	struct xfs_inode	*ip = XFS_I(inode);
+	unsigned int		lock_mode = XFS_MMAPLOCK_SHARED;
+	vm_fault_t		ret;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vmf->vma->vm_file);
+
+	/*
+	 * Normally we only need the shared mmaplock, but if a reflink remap is
+	 * in progress we take the exclusive lock to wait for the remap to
+	 * finish before taking a write fault.
+	 */
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+	if (xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		lock_mode = XFS_MMAPLOCK_EXCL;
+	}
+
+	if (IS_DAX(inode))
+		ret = xfs_dax_fault_locked(vmf, order, true);
+	else
+		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
+	xfs_iunlock(ip, lock_mode);
+
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
 
 /*
  * Locking for serialisation of IO during page faults. This results in a lock
@@ -1363,38 +1325,14 @@ __xfs_filemap_fault(
 	bool			write_fault)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	vm_fault_t		ret;
-	unsigned int		lock_mode = 0;
 
-	trace_xfs_filemap_fault(ip, order, write_fault);
-
-	if (write_fault) {
-		sb_start_pagefault(inode->i_sb);
-		file_update_time(vmf->vma->vm_file);
-	}
-
-	if (IS_DAX(inode) || write_fault)
-		lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
-
-	if (IS_DAX(inode)) {
-		pfn_t pfn;
-
-		ret = xfs_dax_fault(vmf, order, write_fault, &pfn);
-		if (ret & VM_FAULT_NEEDDSYNC)
-			ret = dax_finish_sync_fault(vmf, order, pfn);
-	} else if (write_fault) {
-		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
-	} else {
-		ret = filemap_fault(vmf);
-	}
-
-	if (lock_mode)
-		xfs_iunlock(XFS_I(inode), lock_mode);
+	trace_xfs_filemap_fault(XFS_I(inode), order, write_fault);
 
 	if (write_fault)
-		sb_end_pagefault(inode->i_sb);
-	return ret;
+		return xfs_write_fault(vmf, order);
+	if (IS_DAX(inode))
+		return xfs_dax_read_fault(vmf, order);
+	return filemap_fault(vmf);
 }
 
 static inline bool
@@ -1490,7 +1428,6 @@ const struct file_operations xfs_file_operations = {
 	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
 	.mmap		= xfs_file_mmap,
-	.mmap_supported_flags = MAP_SYNC,
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
@@ -1498,6 +1435,8 @@ const struct file_operations xfs_file_operations = {
 	.fallocate	= xfs_file_fallocate,
 	.fadvise	= xfs_file_fadvise,
 	.remap_file_range = xfs_file_remap_range,
+	.fop_flags	= FOP_MMAP_SYNC | FOP_BUFFER_RASYNC |
+			  FOP_BUFFER_WASYNC | FOP_DIO_PARALLEL_WRITE,
 };
 
 const struct file_operations xfs_dir_file_operations = {

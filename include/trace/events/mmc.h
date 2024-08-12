@@ -68,7 +68,7 @@ TRACE_EVENT(mmc_request_start,
 		__entry->need_retune = host->need_retune;
 		__entry->hold_retune = host->hold_retune;
 		__entry->retune_period = host->retune_period;
-		__assign_str(name, mmc_hostname(host));
+		__assign_str(name);
 		__entry->mrq = mrq;
 	),
 
@@ -156,7 +156,7 @@ TRACE_EVENT(mmc_request_done,
 		__entry->need_retune = host->need_retune;
 		__entry->hold_retune = host->hold_retune;
 		__entry->retune_period = host->retune_period;
-		__assign_str(name, mmc_hostname(host));
+		__assign_str(name);
 		__entry->mrq = mrq;
 	),
 

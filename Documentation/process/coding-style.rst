@@ -732,7 +732,7 @@ these rules, to quickly re-format parts of your code automatically,
 and to review full files in order to spot coding style mistakes,
 typos and possible improvements. It is also handy for sorting ``#includes``,
 for aligning variables/macros, for reflowing text and other similar tasks.
-See the file :ref:`Documentation/process/clang-format.rst <clangformat>`
+See the file :ref:`Documentation/dev-tools/clang-format.rst <clangformat>`
 for more details.
 
 Some basic editor settings, such as indentation and line endings, will be
@@ -826,6 +826,29 @@ Macros with multiple statements should be enclosed in a do - while block:
 			if (a == 5)			\
 				do_this(b, c);		\
 		} while (0)
+
+Function-like macros with unused parameters should be replaced by static
+inline functions to avoid the issue of unused variables:
+
+.. code-block:: c
+
+	static inline void fun(struct foo *foo)
+	{
+	}
+
+Due to historical practices, many files still employ the "cast to (void)"
+approach to evaluate parameters. However, this method is not advisable.
+Inline functions address the issue of "expression with side effects
+evaluated more than once", circumvent unused-variable problems, and
+are generally better documented than macros for some reason.
+
+.. code-block:: c
+
+	/*
+	 * Avoid doing this whenever possible and instead opt for static
+	 * inline functions
+	 */
+	#define macrofun(foo) do { (void) (foo); } while (0)
 
 Things to avoid when using macros:
 

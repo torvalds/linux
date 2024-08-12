@@ -35,6 +35,7 @@
 
 #include <linux/sync_file.h>
 #include <linux/hashtable.h>
+#include <linux/vmalloc.h>
 
 /*
  * Helper macro to get dx_ctx_node if available otherwise print an error

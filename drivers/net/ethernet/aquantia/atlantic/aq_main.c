@@ -146,7 +146,7 @@ static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
 
 	if (err < 0)
 		goto err_exit;
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 err_exit:
 	return err;

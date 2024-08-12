@@ -346,7 +346,7 @@ ccflags-y, asflags-y and ldflags-y
   Example::
 
     #arch/cris/boot/compressed/Makefile
-    ldflags-y += -T $(srctree)/$(src)/decompress_$(arch-y).lds
+    ldflags-y += -T $(src)/decompress_$(arch-y).lds
 
 subdir-ccflags-y, subdir-asflags-y
   The two flags listed above are similar to ccflags-y and asflags-y.
@@ -426,14 +426,14 @@ path to prerequisite files and target files.
 Two variables are used when defining custom rules:
 
 $(src)
-  $(src) is a relative path which points to the directory
-  where the Makefile is located. Always use $(src) when
+  $(src) is the directory where the Makefile is located. Always use $(src) when
   referring to files located in the src tree.
 
 $(obj)
-  $(obj) is a relative path which points to the directory
-  where the target is saved. Always use $(obj) when
-  referring to generated files.
+  $(obj) is the directory where the target is saved. Always use $(obj) when
+  referring to generated files. Use $(obj) for pattern rules that need to work
+  for both generated files and real sources (VPATH will help to find the
+  prerequisites not only in the object tree but also in the source tree).
 
   Example::
 
@@ -578,7 +578,7 @@ cc-option
   Note: cc-option uses KBUILD_CFLAGS for $(CC) options
 
 cc-option-yn
-  cc-option-yn is used to check if gcc supports a given option
+  cc-option-yn is used to check if $(CC) supports a given option
   and return "y" if supported, otherwise "n".
 
   Example::
@@ -596,7 +596,7 @@ cc-option-yn
   Note: cc-option-yn uses KBUILD_CFLAGS for $(CC) options
 
 cc-disable-warning
-  cc-disable-warning checks if gcc supports a given warning and returns
+  cc-disable-warning checks if $(CC) supports a given warning and returns
   the commandline switch to disable it. This special function is needed,
   because gcc 4.4 and later accept any unknown -Wno-* option and only
   warn about it if there is another warning in the source file.
@@ -606,7 +606,7 @@ cc-disable-warning
     KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
   In the above example, -Wno-unused-but-set-variable will be added to
-  KBUILD_CFLAGS only if gcc really accepts it.
+  KBUILD_CFLAGS only if $(CC) really accepts it.
 
 gcc-min-version
   gcc-min-version tests if the value of $(CONFIG_GCC_VERSION) is greater than

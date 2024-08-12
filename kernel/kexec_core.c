@@ -888,7 +888,7 @@ struct kimage *kexec_crash_image;
 static int kexec_load_disabled;
 
 #ifdef CONFIG_SYSCTL
-static int kexec_limit_handler(struct ctl_table *table, int write,
+static int kexec_limit_handler(const struct ctl_table *table, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct kexec_load_limit *limit = table->data;
@@ -948,7 +948,6 @@ static struct ctl_table kexec_core_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= kexec_limit_handler,
 	},
-	{ }
 };
 
 static int __init kexec_core_sysctl_init(void)

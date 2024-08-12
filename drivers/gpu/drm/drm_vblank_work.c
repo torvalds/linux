@@ -233,6 +233,28 @@ void drm_vblank_work_flush(struct drm_vblank_work *work)
 EXPORT_SYMBOL(drm_vblank_work_flush);
 
 /**
+ * drm_vblank_work_flush_all - flush all currently pending vblank work on crtc.
+ * @crtc: crtc for which vblank work to flush
+ *
+ * Wait until all currently queued vblank work on @crtc
+ * has finished executing once.
+ */
+void drm_vblank_work_flush_all(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_vblank_crtc *vblank = &dev->vblank[drm_crtc_index(crtc)];
+
+	spin_lock_irq(&dev->event_lock);
+	wait_event_lock_irq(vblank->work_wait_queue,
+			    list_empty(&vblank->pending_work),
+			    dev->event_lock);
+	spin_unlock_irq(&dev->event_lock);
+
+	kthread_flush_worker(vblank->worker);
+}
+EXPORT_SYMBOL(drm_vblank_work_flush_all);
+
+/**
  * drm_vblank_work_init - initialize a vblank work item
  * @work: vblank work item
  * @crtc: CRTC whose vblank will trigger the work execution
@@ -245,7 +267,7 @@ void drm_vblank_work_init(struct drm_vblank_work *work, struct drm_crtc *crtc,
 {
 	kthread_init_work(&work->base, func);
 	INIT_LIST_HEAD(&work->node);
-	work->vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
+	work->vblank = drm_crtc_vblank_crtc(crtc);
 }
 EXPORT_SYMBOL(drm_vblank_work_init);
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_ATMEL_HLCDC
 	tristate "DRM Support for ATMEL HLCDC Display Controller"
-	depends on DRM && OF && COMMON_CLK && MFD_ATMEL_HLCDC && ARM
+	depends on DRM && OF && COMMON_CLK && ((MFD_ATMEL_HLCDC && ARM) || COMPILE_TEST)
 	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL

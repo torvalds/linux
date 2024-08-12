@@ -6,6 +6,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -25,19 +26,24 @@
  *
  * These are not required.
  */
-ENTRY(cpu_arm940_proc_init)
-ENTRY(cpu_arm940_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm940_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm940_proc_init)
+
+SYM_TYPED_FUNC_START(cpu_arm940_switch_mm)
+	ret	lr
+SYM_FUNC_END(cpu_arm940_switch_mm)
 
 /*
  * cpu_arm940_proc_fin()
  */
-ENTRY(cpu_arm940_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm940_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm940_proc_fin)
 
 /*
  * cpu_arm940_reset(loc)
@@ -45,7 +51,7 @@ ENTRY(cpu_arm940_proc_fin)
  * Notes   : This sets up everything for a reset
  */
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm940_reset)
+SYM_TYPED_FUNC_START(cpu_arm940_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c5, 0		@ flush I cache
 	mcr	p15, 0, ip, c7, c6, 0		@ flush D cache
@@ -55,42 +61,43 @@ ENTRY(cpu_arm940_reset)
 	bic	ip, ip, #0x00001000		@ i-cache
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_arm940_reset)
+SYM_FUNC_END(cpu_arm940_reset)
 	.popsection
 
 /*
  * cpu_arm940_do_idle()
  */
 	.align	5
-ENTRY(cpu_arm940_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm940_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_arm940_do_idle)
 
 /*
  *	flush_icache_all()
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(arm940_flush_icache_all)
+SYM_TYPED_FUNC_START(arm940_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(arm940_flush_icache_all)
+SYM_FUNC_END(arm940_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
  */
-ENTRY(arm940_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_FUNC_ALIAS(arm940_flush_user_cache_all, arm940_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(arm940_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(arm940_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
-	/* FALLTHROUGH */
+	b	arm940_flush_user_cache_range
+SYM_FUNC_END(arm940_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -102,7 +109,7 @@ ENTRY(arm940_flush_kern_cache_all)
  *	- end	- end address (exclusive)
  *	- flags	- vm_flags describing address space
  */
-ENTRY(arm940_flush_user_cache_range)
+SYM_TYPED_FUNC_START(arm940_flush_user_cache_range)
 	mov	ip, #0
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mcr	p15, 0, ip, c7, c6, 0		@ flush D cache
@@ -119,6 +126,7 @@ ENTRY(arm940_flush_user_cache_range)
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm940_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -130,8 +138,9 @@ ENTRY(arm940_flush_user_cache_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm940_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(arm940_coherent_kern_range)
+	b	arm940_flush_kern_dcache_area
+SYM_FUNC_END(arm940_coherent_kern_range)
 
 /*
  *	coherent_user_range(start, end)
@@ -143,8 +152,11 @@ ENTRY(arm940_coherent_kern_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm940_coherent_user_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(arm940_coherent_user_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+	b	arm940_flush_kern_dcache_area
+#endif
+SYM_FUNC_END(arm940_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -155,7 +167,7 @@ ENTRY(arm940_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(arm940_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(arm940_flush_kern_dcache_area)
 	mov	r0, #0
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -167,6 +179,7 @@ ENTRY(arm940_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm940_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -199,7 +212,7 @@ arm940_dma_inv_range:
  *	- end	- virtual end address
  */
 arm940_dma_clean_range:
-ENTRY(cpu_arm940_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm940_dcache_clean_area)
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
@@ -212,6 +225,7 @@ ENTRY(cpu_arm940_dcache_clean_area)
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_arm940_dcache_clean_area)
 
 /*
  *	dma_flush_range(start, end)
@@ -222,7 +236,7 @@ ENTRY(cpu_arm940_dcache_clean_area)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm940_dma_flush_range)
+SYM_TYPED_FUNC_START(arm940_dma_flush_range)
 	mov	ip, #0
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -238,6 +252,7 @@ ENTRY(arm940_dma_flush_range)
 	bcs	1b				@ segments 7 to 0
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm940_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -245,13 +260,13 @@ ENTRY(arm940_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm940_dma_map_area)
+SYM_TYPED_FUNC_START(arm940_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	arm940_dma_clean_range
 	bcs	arm940_dma_inv_range
 	b	arm940_dma_flush_range
-ENDPROC(arm940_dma_map_area)
+SYM_FUNC_END(arm940_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -259,15 +274,9 @@ ENDPROC(arm940_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm940_dma_unmap_area)
+SYM_TYPED_FUNC_START(arm940_dma_unmap_area)
 	ret	lr
-ENDPROC(arm940_dma_unmap_area)
-
-	.globl	arm940_flush_kern_cache_louis
-	.equ	arm940_flush_kern_cache_louis, arm940_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions arm940
+SYM_FUNC_END(arm940_dma_unmap_area)
 
 	.type	__arm940_setup, #function
 __arm940_setup:

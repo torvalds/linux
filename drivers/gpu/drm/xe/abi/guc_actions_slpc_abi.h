@@ -246,4 +246,26 @@ struct slpc_shared_data {
 #define HOST2GUC_PC_SLPC_REQUEST_MSG_1_EVENT_ARGC	(0xffu << 0)
 #define HOST2GUC_PC_SLPC_REQUEST_MSG_N_EVENT_DATA_N	GUC_HXG_REQUEST_MSG_n_DATAn
 
+/**
+ * DOC: SETUP_PC_GUCRC
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN = GUC_HXG_ORIGIN_HOST_                                |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_FAST_REQUEST_                            |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 27:16 | DATA0 = MBZ                                                  |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  15:0 | ACTION = _`GUC_ACTION_HOST2GUC_SETUP_PC_GUCRC` = 0x3004      |
+ *  +---+-------+--------------------------------------------------------------+
+ *  | 1 |  31:0 | **MODE** = GUCRC_HOST_CONTROL(0), GUCRC_FIRMWARE_CONTROL(1)  |
+ *  +---+-------+--------------------------------------------------------------+
+ */
+
+#define GUC_ACTION_HOST2GUC_SETUP_PC_GUCRC		0x3004u
+#define   GUCRC_HOST_CONTROL				0u
+#define   GUCRC_FIRMWARE_CONTROL			1u
+
 #endif

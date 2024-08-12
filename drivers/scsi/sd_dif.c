@@ -24,13 +24,14 @@
 /*
  * Configure exchange of protection information between OS and HBA.
  */
-void sd_dif_config_host(struct scsi_disk *sdkp)
+void sd_dif_config_host(struct scsi_disk *sdkp, struct queue_limits *lim)
 {
 	struct scsi_device *sdp = sdkp->device;
-	struct gendisk *disk = sdkp->disk;
 	u8 type = sdkp->protection_type;
-	struct blk_integrity bi;
+	struct blk_integrity *bi = &lim->integrity;
 	int dif, dix;
+
+	memset(bi, 0, sizeof(*bi));
 
 	dif = scsi_host_dif_capable(sdp->host, type);
 	dix = scsi_host_dix_capable(sdp->host, type);
@@ -39,45 +40,33 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		dif = 0; dix = 1;
 	}
 
-	if (!dix) {
-		blk_integrity_unregister(disk);
+	if (!dix)
 		return;
-	}
-
-	memset(&bi, 0, sizeof(bi));
 
 	/* Enable DMA of protection information */
-	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP) {
-		if (type == T10_PI_TYPE3_PROTECTION)
-			bi.profile = &t10_pi_type3_ip;
-		else
-			bi.profile = &t10_pi_type1_ip;
+	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP)
+		bi->csum_type = BLK_INTEGRITY_CSUM_IP;
+	else
+		bi->csum_type = BLK_INTEGRITY_CSUM_CRC;
 
-		bi.flags |= BLK_INTEGRITY_IP_CHECKSUM;
-	} else
-		if (type == T10_PI_TYPE3_PROTECTION)
-			bi.profile = &t10_pi_type3_crc;
-		else
-			bi.profile = &t10_pi_type1_crc;
+	if (type != T10_PI_TYPE3_PROTECTION)
+		bi->flags |= BLK_INTEGRITY_REF_TAG;
 
-	bi.tuple_size = sizeof(struct t10_pi_tuple);
+	bi->tuple_size = sizeof(struct t10_pi_tuple);
 
 	if (dif && type) {
-		bi.flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+		bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 
 		if (!sdkp->ATO)
-			goto out;
+			return;
 
 		if (type == T10_PI_TYPE3_PROTECTION)
-			bi.tag_size = sizeof(u16) + sizeof(u32);
+			bi->tag_size = sizeof(u16) + sizeof(u32);
 		else
-			bi.tag_size = sizeof(u16);
+			bi->tag_size = sizeof(u16);
 	}
 
 	sd_first_printk(KERN_NOTICE, sdkp,
 			"Enabling DIX %s, application tag size %u bytes\n",
-			bi.profile->name, bi.tag_size);
-out:
-	blk_integrity_register(disk, &bi);
+			blk_integrity_profile_name(bi), bi->tag_size);
 }
-

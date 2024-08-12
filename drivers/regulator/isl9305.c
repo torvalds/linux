@@ -134,7 +134,7 @@ static const struct regmap_config isl9305_regmap = {
 	.val_bits = 8,
 
 	.max_register = ISL9305_MAX_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int isl9305_i2c_probe(struct i2c_client *i2c)

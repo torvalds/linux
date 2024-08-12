@@ -1394,9 +1394,10 @@ int fuse_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa);
 
 /* iomode.c */
-int fuse_file_cached_io_start(struct inode *inode, struct fuse_file *ff);
-int fuse_file_uncached_io_start(struct inode *inode, struct fuse_file *ff, struct fuse_backing *fb);
-void fuse_file_uncached_io_end(struct inode *inode, struct fuse_file *ff);
+int fuse_file_cached_io_open(struct inode *inode, struct fuse_file *ff);
+int fuse_inode_uncached_io_start(struct fuse_inode *fi,
+				 struct fuse_backing *fb);
+void fuse_inode_uncached_io_end(struct fuse_inode *fi);
 
 int fuse_file_io_open(struct file *file, struct inode *inode);
 void fuse_file_io_release(struct fuse_file *ff, struct inode *inode);

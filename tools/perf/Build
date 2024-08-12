@@ -1,4 +1,4 @@
-perf-y += builtin-bench.o
+perf-bench-y += builtin-bench.o
 perf-y += builtin-annotate.o
 perf-y += builtin-config.o
 perf-y += builtin-diff.o
@@ -35,8 +35,8 @@ endif
 
 perf-$(CONFIG_LIBELF) += builtin-probe.o
 
-perf-y += bench/
-perf-y += tests/
+perf-bench-y += bench/
+perf-test-y += tests/
 
 perf-y += perf.o
 
@@ -53,9 +53,25 @@ CFLAGS_builtin-trace.o	   += -DSTRACE_GROUPS_DIR="BUILD_STR($(STRACE_GROUPS_DIR_
 CFLAGS_builtin-report.o	   += -DTIPDIR="BUILD_STR($(tipdir_SQ))"
 CFLAGS_builtin-report.o	   += -DDOCDIR="BUILD_STR($(srcdir_SQ)/Documentation)"
 
-perf-y += util/
+perf-util-y += util/
+perf-util-y += arch/
 perf-y += arch/
-perf-y += ui/
-perf-y += scripts/
+perf-test-y += arch/
+perf-ui-y += ui/
+perf-util-y += scripts/
 
 gtk-y += ui/gtk/
+
+ifdef SHELLCHECK
+  SHELL_TESTS := $(wildcard *.sh)
+  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -s bash -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

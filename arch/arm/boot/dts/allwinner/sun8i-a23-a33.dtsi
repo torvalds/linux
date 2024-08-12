@@ -108,7 +108,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		osc24M: osc24M_clk {
+		osc24M: osc24M-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
@@ -116,7 +116,7 @@
 			clock-output-names = "osc24M";
 		};
 
-		ext_osc32k: ext_osc32k_clk {
+		ext_osc32k: ext-osc32k-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
@@ -733,7 +733,7 @@
 			compatible = "allwinner,sun8i-a23-prcm";
 			reg = <0x01f01400 0x200>;
 
-			ar100: ar100_clk {
+			ar100: ar100-clk {
 				compatible = "fixed-factor-clock";
 				#clock-cells = <0>;
 				clock-div = <1>;
@@ -742,7 +742,7 @@
 				clock-output-names = "ar100";
 			};
 
-			ahb0: ahb0_clk {
+			ahb0: ahb0-clk {
 				compatible = "fixed-factor-clock";
 				#clock-cells = <0>;
 				clock-div = <1>;
@@ -751,14 +751,14 @@
 				clock-output-names = "ahb0";
 			};
 
-			apb0: apb0_clk {
+			apb0: apb0-clk {
 				compatible = "allwinner,sun8i-a23-apb0-clk";
 				#clock-cells = <0>;
 				clocks = <&ahb0>;
 				clock-output-names = "apb0";
 			};
 
-			apb0_gates: apb0_gates_clk {
+			apb0_gates: apb0-gates-clk {
 				compatible = "allwinner,sun8i-a23-apb0-gates-clk";
 				#clock-cells = <1>;
 				clocks = <&apb0>;
@@ -767,7 +767,7 @@
 						"apb0_i2c";
 			};
 
-			apb0_rst: apb0_rst {
+			apb0_rst: apb0-rst {
 				compatible = "allwinner,sun6i-a31-clock-reset";
 				#reset-cells = <1>;
 			};

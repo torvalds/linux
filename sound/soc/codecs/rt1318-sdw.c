@@ -606,7 +606,7 @@ static int rt1318_sdw_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt1318->sdw_slave, &stream_config,
 				&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
@@ -631,8 +631,8 @@ static int rt1318_sdw_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT1318_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Rate %d is not supported\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 
@@ -835,7 +835,7 @@ static int __maybe_unused rt1318_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT1318_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
 
@@ -855,7 +855,6 @@ static const struct dev_pm_ops rt1318_pm = {
 static struct sdw_driver rt1318_sdw_driver = {
 	.driver = {
 		.name = "rt1318-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt1318_pm,
 	},
 	.probe = rt1318_sdw_probe,

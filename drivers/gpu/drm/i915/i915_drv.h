@@ -235,25 +235,17 @@ struct drm_i915_private {
 	/* protects the irq masks */
 	spinlock_t irq_lock;
 
-	bool display_irqs_enabled;
-
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
 	struct pm_qos_request sb_qos;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
-	union {
-		u32 irq_mask;
-		u32 de_irq_mask[I915_MAX_PIPES];
-	};
-	u32 pipestat_irq_mask[I915_MAX_PIPES];
+	u32 irq_mask;
 
 	bool preserve_bios_swizzle;
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
-	unsigned int skl_preferred_vco_freq;
 
-	unsigned int max_dotclk_freq;
 	unsigned int hpll_freq;
 	unsigned int czclk_freq;
 
@@ -313,6 +305,7 @@ struct drm_i915_private {
 			INTEL_DRAM_LPDDR4,
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
+			INTEL_DRAM_GDDR,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;
@@ -349,9 +342,6 @@ struct drm_i915_private {
 	} gem;
 
 	struct intel_pxp *pxp;
-
-	/* For i915gm/i945gm vblank irq workaround */
-	u8 vblank_enabled;
 
 	bool irq_enabled;
 
@@ -544,11 +534,17 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_DG1(i915)        IS_PLATFORM(i915, INTEL_DG1)
 #define IS_ALDERLAKE_S(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_S)
 #define IS_ALDERLAKE_P(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_P)
-#define IS_XEHPSDV(i915) IS_PLATFORM(i915, INTEL_XEHPSDV)
 #define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
-#define IS_PONTEVECCHIO(i915) IS_PLATFORM(i915, INTEL_PONTEVECCHIO)
 #define IS_METEORLAKE(i915) IS_PLATFORM(i915, INTEL_METEORLAKE)
-#define IS_LUNARLAKE(i915) 0
+/*
+ * Display code shared by i915 and Xe relies on macros like IS_LUNARLAKE,
+ * so we need to define these even on platforms that the i915 base driver
+ * doesn't support.  Ensure the parameter is used in the definition to
+ * avoid 'unused variable' warnings when compiling the shared display code
+ * for i915.
+ */
+#define IS_LUNARLAKE(i915) (0 && i915)
+#define IS_BATTLEMAGE(i915)  (0 && i915)
 
 #define IS_DG2_G10(i915) \
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G10)
@@ -620,17 +616,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define IS_TIGERLAKE_UY(i915) \
 	IS_SUBPLATFORM(i915, INTEL_TIGERLAKE, INTEL_SUBPLATFORM_UY)
-
-#define IS_XEHPSDV_GRAPHICS_STEP(__i915, since, until) \
-	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
-
-#define IS_PVC_BD_STEP(__i915, since, until) \
-	(IS_PONTEVECCHIO(__i915) && \
-	 IS_BASEDIE_STEP(__i915, since, until))
-
-#define IS_PVC_CT_STEP(__i915, since, until) \
-	(IS_PONTEVECCHIO(__i915) && \
-	 IS_GRAPHICS_STEP(__i915, since, until))
 
 #define IS_LP(i915)		(INTEL_INFO(i915)->is_lp)
 #define IS_GEN9_LP(i915)	(GRAPHICS_VER(i915) == 9 && IS_LP(i915))
@@ -739,8 +724,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define HAS_64K_PAGES(i915) (INTEL_INFO(i915)->has_64k_pages)
 
-#define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
-#define HAS_LMEM(i915) HAS_REGION(i915, REGION_LMEM)
+#define HAS_REGION(i915, id) (INTEL_INFO(i915)->memory_regions & BIT(id))
+#define HAS_LMEM(i915) HAS_REGION(i915, INTEL_REGION_LMEM_0)
 
 #define HAS_EXTRA_GT_LIST(i915)   (INTEL_INFO(i915)->extra_gt_list)
 

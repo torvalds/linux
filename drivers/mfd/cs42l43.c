@@ -43,6 +43,9 @@
 #define CS42L43_MCU_UPDATE_TIMEOUT_US		500000
 #define CS42L43_MCU_UPDATE_RETRIES		5
 
+#define CS42L43_MCU_ROM_REV			0x2001
+#define CS42L43_MCU_ROM_BIOS_REV		0x0000
+
 #define CS42L43_MCU_SUPPORTED_REV		0x2105
 #define CS42L43_MCU_SHADOW_REGS_REQUIRED_REV	0x2200
 #define CS42L43_MCU_SUPPORTED_BIOS_REV		0x0001
@@ -709,6 +712,23 @@ err:
 	complete(&cs42l43->firmware_download);
 }
 
+static int cs42l43_mcu_is_hw_compatible(struct cs42l43 *cs42l43,
+					unsigned int mcu_rev,
+					unsigned int bios_rev)
+{
+	/*
+	 * The firmware has two revision numbers bringing either of them up to a
+	 * supported version will provide the disable the driver requires.
+	 */
+	if (mcu_rev < CS42L43_MCU_SUPPORTED_REV &&
+	    bios_rev < CS42L43_MCU_SUPPORTED_BIOS_REV) {
+		dev_err(cs42l43->dev, "Firmware too old to support disable\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * The process of updating the firmware is split into a series of steps, at the
  * end of each step a soft reset of the device might be required which will
@@ -745,11 +765,10 @@ static int cs42l43_mcu_update_step(struct cs42l43 *cs42l43)
 		  ((mcu_rev & CS42L43_FW_SUBMINOR_REV_MASK) >> 8);
 
 	/*
-	 * The firmware has two revision numbers bringing either of them up to a
-	 * supported version will provide the features the driver requires.
+	 * The firmware has two revision numbers both of them being at the ROM
+	 * revision indicates no patch has been applied.
 	 */
-	patched = mcu_rev >= CS42L43_MCU_SUPPORTED_REV ||
-		  bios_rev >= CS42L43_MCU_SUPPORTED_BIOS_REV;
+	patched = mcu_rev != CS42L43_MCU_ROM_REV || bios_rev != CS42L43_MCU_ROM_BIOS_REV;
 	/*
 	 * Later versions of the firmwware require the driver to access some
 	 * features through a set of shadow registers.
@@ -794,10 +813,15 @@ static int cs42l43_mcu_update_step(struct cs42l43 *cs42l43)
 			return cs42l43_mcu_stage_2_3(cs42l43, shadow);
 		}
 	case CS42L43_MCU_BOOT_STAGE3:
-		if (patched)
+		if (patched) {
+			ret = cs42l43_mcu_is_hw_compatible(cs42l43, mcu_rev, bios_rev);
+			if (ret)
+				return ret;
+
 			return cs42l43_mcu_disable(cs42l43);
-		else
+		} else {
 			return cs42l43_mcu_stage_3_2(cs42l43);
+		}
 	case CS42L43_MCU_BOOT_STAGE4:
 		return 0;
 	default:

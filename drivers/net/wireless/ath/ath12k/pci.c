@@ -350,6 +350,7 @@ static void ath12k_pci_free_ext_irq(struct ath12k_base *ab)
 			free_irq(ab->irq_num[irq_grp->irqs[j]], irq_grp);
 
 		netif_napi_del(&irq_grp->napi);
+		free_netdev(irq_grp->napi_ndev);
 	}
 }
 
@@ -472,7 +473,8 @@ static void __ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
 {
 	int i;
 
-	clear_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
+	if (!test_and_clear_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags))
+		return;
 
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
@@ -560,8 +562,9 @@ static irqreturn_t ath12k_pci_ext_interrupt_handler(int irq, void *arg)
 static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 {
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
-	int i, j, ret, num_vectors = 0;
+	int i, j, n, ret, num_vectors = 0;
 	u32 user_base_data = 0, base_vector = 0, base_idx;
+	struct ath12k_ext_irq_grp *irq_grp;
 
 	base_idx = ATH12K_PCI_IRQ_CE0_OFFSET + CE_COUNT_MAX;
 	ret = ath12k_pci_get_user_msi_assignment(ab, "DP",
@@ -572,13 +575,18 @@ static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 		return ret;
 
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
-		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
+		irq_grp = &ab->ext_irq_grp[i];
 		u32 num_irq = 0;
 
 		irq_grp->ab = ab;
 		irq_grp->grp_id = i;
-		init_dummy_netdev(&irq_grp->napi_ndev);
-		netif_napi_add(&irq_grp->napi_ndev, &irq_grp->napi,
+		irq_grp->napi_ndev = alloc_netdev_dummy(0);
+		if (!irq_grp->napi_ndev) {
+			ret = -ENOMEM;
+			goto fail_allocate;
+		}
+
+		netif_napi_add(irq_grp->napi_ndev, &irq_grp->napi,
 			       ath12k_pci_ext_grp_napi_poll);
 
 		if (ab->hw_params->ring_mask->tx[i] ||
@@ -611,13 +619,23 @@ static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 			if (ret) {
 				ath12k_err(ab, "failed request irq %d: %d\n",
 					   vector, ret);
-				return ret;
+				goto fail_request;
 			}
 		}
 		ath12k_pci_ext_grp_disable(irq_grp);
 	}
 
 	return 0;
+
+fail_request:
+	/* i ->napi_ndev was properly allocated. Free it also */
+	i += 1;
+fail_allocate:
+	for (n = 0; n < i; n++) {
+		irq_grp = &ab->ext_irq_grp[n];
+		free_netdev(irq_grp->napi_ndev);
+	}
+	return ret;
 }
 
 static int ath12k_pci_set_irq_affinity_hint(struct ath12k_pci *ab_pci,
@@ -872,7 +890,7 @@ static int ath12k_pci_claim(struct ath12k_pci *ab_pci, struct pci_dev *pdev)
 		goto release_region;
 	}
 
-	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot pci_mem 0x%pK\n", ab->mem);
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot pci_mem 0x%p\n", ab->mem);
 	return 0;
 
 release_region:
@@ -1090,14 +1108,14 @@ void ath12k_pci_ext_irq_enable(struct ath12k_base *ab)
 {
 	int i;
 
-	set_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
-
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
 
 		napi_enable(&irq_grp->napi);
 		ath12k_pci_ext_grp_enable(irq_grp);
 	}
+
+	set_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
 }
 
 void ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
@@ -1271,7 +1289,7 @@ int ath12k_pci_power_up(struct ath12k_base *ab)
 	return 0;
 }
 
-void ath12k_pci_power_down(struct ath12k_base *ab)
+void ath12k_pci_power_down(struct ath12k_base *ab, bool is_suspend)
 {
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 
@@ -1280,9 +1298,16 @@ void ath12k_pci_power_down(struct ath12k_base *ab)
 
 	ath12k_pci_force_wake(ab_pci->ab);
 	ath12k_pci_msi_disable(ab_pci);
-	ath12k_mhi_stop(ab_pci);
+	ath12k_mhi_stop(ab_pci, is_suspend);
 	clear_bit(ATH12K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath12k_pci_sw_reset(ab_pci->ab, false);
+}
+
+static int ath12k_pci_panic_handler(struct ath12k_base *ab)
+{
+	ath12k_pci_sw_reset(ab, false);
+
+	return NOTIFY_OK;
 }
 
 static const struct ath12k_hif_ops ath12k_pci_hif_ops = {
@@ -1302,6 +1327,7 @@ static const struct ath12k_hif_ops ath12k_pci_hif_ops = {
 	.ce_irq_enable = ath12k_pci_hif_ce_irq_enable,
 	.ce_irq_disable = ath12k_pci_hif_ce_irq_disable,
 	.get_ce_msi_idx = ath12k_pci_get_ce_msi_idx,
+	.panic_handler = ath12k_pci_panic_handler,
 };
 
 static
@@ -1503,7 +1529,7 @@ static void ath12k_pci_remove(struct pci_dev *pdev)
 	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 	if (test_bit(ATH12K_FLAG_QMI_FAIL, &ab->dev_flags)) {
-		ath12k_pci_power_down(ab);
+		ath12k_pci_power_down(ab, false);
 		ath12k_qmi_deinit_service(ab);
 		goto qmi_fail;
 	}
@@ -1531,7 +1557,7 @@ static void ath12k_pci_shutdown(struct pci_dev *pdev)
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 
 	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
-	ath12k_pci_power_down(ab);
+	ath12k_pci_power_down(ab, false);
 }
 
 static __maybe_unused int ath12k_pci_pm_suspend(struct device *dev)
@@ -1558,9 +1584,36 @@ static __maybe_unused int ath12k_pci_pm_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(ath12k_pci_pm_ops,
-			 ath12k_pci_pm_suspend,
-			 ath12k_pci_pm_resume);
+static __maybe_unused int ath12k_pci_pm_suspend_late(struct device *dev)
+{
+	struct ath12k_base *ab = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ath12k_core_suspend_late(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to late suspend core: %d\n", ret);
+
+	return ret;
+}
+
+static __maybe_unused int ath12k_pci_pm_resume_early(struct device *dev)
+{
+	struct ath12k_base *ab = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ath12k_core_resume_early(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to early resume core: %d\n", ret);
+
+	return ret;
+}
+
+static const struct dev_pm_ops __maybe_unused ath12k_pci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ath12k_pci_pm_suspend,
+				ath12k_pci_pm_resume)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(ath12k_pci_pm_suspend_late,
+				     ath12k_pci_pm_resume_early)
+};
 
 static struct pci_driver ath12k_pci_driver = {
 	.name = "ath12k_pci",

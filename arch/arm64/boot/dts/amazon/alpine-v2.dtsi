@@ -39,6 +39,7 @@
 / {
 	model = "Annapurna Labs Alpine v2";
 	compatible = "al,alpine-v2";
+	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 
@@ -89,6 +90,22 @@
 		clock-frequency = <1000000>;
 	};
 
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a57-pmu";
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -96,22 +113,6 @@
 
 		interrupt-parent = <&gic>;
 		ranges;
-
-		timer {
-			compatible = "arm,armv8-timer";
-			interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
-				     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
-		};
-
-		pmu {
-			compatible = "arm,armv8-pmuv3";
-			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
-		};
 
 		gic: interrupt-controller@f0200000 {
 			compatible = "arm,gic-v3";
@@ -150,7 +151,7 @@
 			al,msi-num-spis = <160>;
 		};
 
-		io-fabric {
+		io-fabric@fc000000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

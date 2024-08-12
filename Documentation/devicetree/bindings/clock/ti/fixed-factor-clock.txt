@@ -1,7 +1,5 @@
 Binding for TI fixed factor rate clock sources.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1], and also uses the autoidle
 support from TI autoidle clock [2].
 

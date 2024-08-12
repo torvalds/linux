@@ -47,7 +47,7 @@ struct ena_com_rx_ctx {
 	bool frag;
 	u32 hash;
 	u16 descs;
-	int max_bufs;
+	u16 max_bufs;
 	u8 pkt_offset;
 };
 

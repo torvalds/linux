@@ -393,6 +393,17 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		 * automatically there. Just add a delay and suppose the handshake finish
 		 * after that.
 		 */
+
+		/*
+		 * For some BLK-CTL module (eg. AudioMix on i.MX8MP) doesn't have BUS
+		 * clk-en bit, it is better to add delay here, as the BLK-CTL module
+		 * doesn't need to care about how it is powered up.
+		 *
+		 * regmap_read_bypassed() is to make sure the above write IO transaction
+		 * already reaches target before udelay()
+		 */
+		regmap_read_bypassed(domain->regmap, domain->regs->hsk, &reg_val);
+		udelay(5);
 	}
 
 	/* Disable reset clocks for all devices in the domain */

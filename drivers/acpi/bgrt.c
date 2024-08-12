@@ -29,14 +29,7 @@ BGRT_SHOW(type, image_type);
 BGRT_SHOW(xoffset, image_offset_x);
 BGRT_SHOW(yoffset, image_offset_y);
 
-static ssize_t image_read(struct file *file, struct kobject *kobj,
-	       struct bin_attribute *attr, char *buf, loff_t off, size_t count)
-{
-	memcpy(buf, attr->private + off, count);
-	return count;
-}
-
-static BIN_ATTR_RO(image, 0);	/* size gets filled in later */
+static BIN_ATTR_SIMPLE_RO(image);
 
 static struct attribute *bgrt_attributes[] = {
 	&bgrt_attr_version.attr,

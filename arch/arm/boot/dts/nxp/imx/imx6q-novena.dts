@@ -67,7 +67,7 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 10000000>;
+		pwms = <&pwm1 0 10000000 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_backlight_novena>;
 		power-supply = <&reg_lvds_lcd>;
@@ -465,7 +465,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 

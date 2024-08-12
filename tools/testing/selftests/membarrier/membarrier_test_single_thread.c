@@ -24,5 +24,5 @@ int main(int argc, char **argv)
 
 	test_membarrier_get_registrations(/*cmd=*/0);
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

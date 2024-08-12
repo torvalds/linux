@@ -112,6 +112,7 @@ struct icmp6hdr {
 #define ICMPV6_MOBILE_PREFIX_ADV	147
 
 #define ICMPV6_MRDISC_ADV		151
+#define ICMPV6_MRDISC_SOL		152
 
 #define ICMPV6_MSG_MAX          255
 

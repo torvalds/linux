@@ -870,7 +870,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 /*
  * Init call to initialise performance events at kernel startup.
  */
-int __init init_hw_perf_events(void)
+static int __init init_hw_perf_events(void)
 {
 	pr_info("Performance events: ");
 

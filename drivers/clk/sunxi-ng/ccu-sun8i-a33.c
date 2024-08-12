@@ -823,6 +823,7 @@ static const struct of_device_id sun8i_a33_ccu_ids[] = {
 	{ .compatible = "allwinner,sun8i-a33-ccu" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun8i_a33_ccu_ids);
 
 static struct platform_driver sun8i_a33_ccu_driver = {
 	.probe	= sun8i_a33_ccu_probe,
@@ -835,4 +836,5 @@ static struct platform_driver sun8i_a33_ccu_driver = {
 module_platform_driver(sun8i_a33_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner A33 CCU");
 MODULE_LICENSE("GPL");

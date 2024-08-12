@@ -179,6 +179,13 @@ u32 mlx5e_rqt_size(struct mlx5_core_dev *mdev, unsigned int num_channels)
 	return min_t(u32, rqt_size, max_cap_rqt_size);
 }
 
+#define MLX5E_MAX_RQT_SIZE_ALLOWED_WITH_XOR8_HASH 256
+
+unsigned int mlx5e_rqt_max_num_channels_allowed_for_xor8(void)
+{
+	return MLX5E_MAX_RQT_SIZE_ALLOWED_WITH_XOR8_HASH / MLX5E_UNIFORM_SPREAD_RQT_FACTOR;
+}
+
 void mlx5e_rqt_destroy(struct mlx5e_rqt *rqt)
 {
 	mlx5_core_destroy_rqt(rqt->mdev, rqt->rqtn);

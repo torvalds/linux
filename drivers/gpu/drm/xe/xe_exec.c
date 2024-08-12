@@ -94,48 +94,16 @@
  *	Unlock all
  */
 
+/*
+ * Add validation and rebinding to the drm_exec locking loop, since both can
+ * trigger eviction which may require sleeping dma_resv locks.
+ */
 static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 {
 	struct xe_vm *vm = container_of(vm_exec->vm, struct xe_vm, gpuvm);
-	struct drm_gem_object *obj;
-	unsigned long index;
-	int num_fences;
-	int ret;
 
-	ret = drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
-	if (ret)
-		return ret;
-
-	/*
-	 * 1 fence slot for the final submit, and 1 more for every per-tile for
-	 * GPU bind and 1 extra for CPU bind. Note that there are potentially
-	 * many vma per object/dma-resv, however the fence slot will just be
-	 * re-used, since they are largely the same timeline and the seqno
-	 * should be in order. In the case of CPU bind there is dummy fence used
-	 * for all CPU binds, so no need to have a per-tile slot for that.
-	 */
-	num_fences = 1 + 1 + vm->xe->info.tile_count;
-
-	/*
-	 * We don't know upfront exactly how many fence slots we will need at
-	 * the start of the exec, since the TTM bo_validate above can consume
-	 * numerous fence slots. Also due to how the dma_resv_reserve_fences()
-	 * works it only ensures that at least that many fence slots are
-	 * available i.e if there are already 10 slots available and we reserve
-	 * two more, it can just noop without reserving anything.  With this it
-	 * is quite possible that TTM steals some of the fence slots and then
-	 * when it comes time to do the vma binding and final exec stage we are
-	 * lacking enough fence slots, leading to some nasty BUG_ON() when
-	 * adding the fences. Hence just add our own fences here, after the
-	 * validate stage.
-	 */
-	drm_exec_for_each_locked_object(&vm_exec->exec, index, obj) {
-		ret = dma_resv_reserve_fences(obj->resv, num_fences);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	/* The fence slot added here is intended for the exec sched job. */
+	return xe_vm_validate_rebind(vm, &vm_exec->exec, 1);
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -150,9 +118,8 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	u64 addresses[XE_HW_ENGINE_MAX_INSTANCE];
 	struct drm_gpuvm_exec vm_exec = {.extra.fn = xe_exec_fn};
 	struct drm_exec *exec = &vm_exec.exec;
-	u32 i, num_syncs = 0, num_ufence = 0;
+	u32 i, num_syncs, num_ufence = 0;
 	struct xe_sched_job *job;
-	struct dma_fence *rebind_fence;
 	struct xe_vm *vm;
 	bool write_locked, skip_retry = false;
 	ktime_t end = 0;
@@ -174,7 +141,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			 q->width != args->num_batch_buffer))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_BANNED)) {
+	if (XE_IOCTL_DBG(xe, q->ops->reset_status(q))) {
 		err = -ECANCELED;
 		goto err_exec_queue;
 	}
@@ -189,15 +156,15 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	vm = q->vm;
 
-	for (i = 0; i < args->num_syncs; i++) {
-		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs++],
-					  &syncs_user[i], SYNC_PARSE_FLAG_EXEC |
+	for (num_syncs = 0; num_syncs < args->num_syncs; num_syncs++) {
+		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs],
+					  &syncs_user[num_syncs], SYNC_PARSE_FLAG_EXEC |
 					  (xe_vm_in_lr_mode(vm) ?
 					   SYNC_PARSE_FLAG_LR_MODE : 0));
 		if (err)
 			goto err_syncs;
 
-		if (xe_sync_is_ufence(&syncs[i]))
+		if (xe_sync_is_ufence(&syncs[num_syncs]))
 			num_ufence++;
 	}
 
@@ -249,7 +216,7 @@ retry:
 				goto err_unlock_list;
 			}
 			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
+				xe_sync_entry_signal(&syncs[i], fence);
 			xe_exec_queue_last_fence_set(q, vm, fence);
 			dma_fence_put(fence);
 		}
@@ -290,43 +257,11 @@ retry:
 		goto err_exec;
 	}
 
-	/*
-	 * Rebind any invalidated userptr or evicted BOs in the VM, non-compute
-	 * VM mode only.
-	 */
-	rebind_fence = xe_vm_rebind(vm, false);
-	if (IS_ERR(rebind_fence)) {
-		err = PTR_ERR(rebind_fence);
-		goto err_put_job;
-	}
-
-	/*
-	 * We store the rebind_fence in the VM so subsequent execs don't get
-	 * scheduled before the rebinds of userptrs / evicted BOs is complete.
-	 */
-	if (rebind_fence) {
-		dma_fence_put(vm->rebind_fence);
-		vm->rebind_fence = rebind_fence;
-	}
-	if (vm->rebind_fence) {
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			     &vm->rebind_fence->flags)) {
-			dma_fence_put(vm->rebind_fence);
-			vm->rebind_fence = NULL;
-		} else {
-			dma_fence_get(vm->rebind_fence);
-			err = drm_sched_job_add_dependency(&job->drm,
-							   vm->rebind_fence);
-			if (err)
-				goto err_put_job;
-		}
-	}
-
-	/* Wait behind munmap style rebinds */
+	/* Wait behind rebinds */
 	if (!xe_vm_in_lr_mode(vm)) {
-		err = drm_sched_job_add_resv_dependencies(&job->drm,
-							  xe_vm_resv(vm),
-							  DMA_RESV_USAGE_KERNEL);
+		err = xe_sched_job_add_deps(job,
+					    xe_vm_resv(vm),
+					    DMA_RESV_USAGE_KERNEL);
 		if (err)
 			goto err_put_job;
 	}
@@ -359,9 +294,10 @@ retry:
 		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
 					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
 
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], job,
-				     &job->drm.s_fence->finished);
+	for (i = 0; i < num_syncs; i++) {
+		xe_sync_entry_signal(&syncs[i], &job->drm.s_fence->finished);
+		xe_sched_job_init_user_fence(job, &syncs[i]);
+	}
 
 	if (xe_exec_queue_is_lr(q))
 		q->ring_ops->emit_job(job);
@@ -385,15 +321,12 @@ err_put_job:
 err_exec:
 	drm_exec_fini(exec);
 err_unlock_list:
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
+	up_read(&vm->lock);
 	if (err == -EAGAIN && !skip_retry)
 		goto retry;
 err_syncs:
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_cleanup(&syncs[i]);
+	while (num_syncs--)
+		xe_sync_entry_cleanup(&syncs[num_syncs]);
 	kfree(syncs);
 err_exec_queue:
 	xe_exec_queue_put(q);

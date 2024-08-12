@@ -9,7 +9,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -396,7 +395,7 @@ MODULE_DEVICE_TABLE(of, ak4118_of_match);
 #endif
 
 static const struct i2c_device_id ak4118_id_table[] = {
-	{ "ak4118", 0 },
+	{ "ak4118" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ak4118_id_table);

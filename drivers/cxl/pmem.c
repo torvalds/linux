@@ -11,8 +11,6 @@
 #include "cxlmem.h"
 #include "cxl.h"
 
-extern const struct nvdimm_security_ops *cxl_security_ops;
-
 static __read_mostly DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 
 static void clear_exclusive(void *mds)
@@ -455,6 +453,7 @@ static __exit void cxl_pmem_exit(void)
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
 }
 
+MODULE_DESCRIPTION("CXL PMEM: Persistent Memory Support");
 MODULE_LICENSE("GPL v2");
 module_init(cxl_pmem_init);
 module_exit(cxl_pmem_exit);

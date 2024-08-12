@@ -256,8 +256,6 @@ static int test_wait_fds(int sk[], size_t nr, bool is_writable[],
 
 static void test_client_active_rst(unsigned int port)
 {
-	/* one in queue, another accept()ed */
-	unsigned int wait_for = backlog + 2;
 	int i, sk[3], err;
 	bool is_writable[ARRAY_SIZE(sk)] = {false};
 	unsigned int last = ARRAY_SIZE(sk) - 1;
@@ -275,15 +273,19 @@ static void test_client_active_rst(unsigned int port)
 	for (i = 0; i < last; i++) {
 		err = _test_connect_socket(sk[i], this_ip_dest, port,
 					       (i == 0) ? TEST_TIMEOUT_SEC : -1);
-
 		if (err < 0)
 			test_error("failed to connect()");
 	}
 
-	synchronize_threads(); /* 2: connection accept()ed, another queued */
-	err = test_wait_fds(sk, last, is_writable, wait_for, TEST_TIMEOUT_SEC);
+	synchronize_threads(); /* 2: two connections: one accept()ed, another queued */
+	err = test_wait_fds(sk, last, is_writable, last, TEST_TIMEOUT_SEC);
 	if (err < 0)
 		test_error("test_wait_fds(): %d", err);
+
+	/* async connect() with third sk to get into request_sock_queue */
+	err = _test_connect_socket(sk[last], this_ip_dest, port, -1);
+	if (err < 0)
+		test_error("failed to connect()");
 
 	synchronize_threads(); /* 3: close listen socket */
 	if (test_client_verify(sk[0], packet_sz, quota / packet_sz, TEST_TIMEOUT_SEC))
@@ -292,13 +294,14 @@ static void test_client_active_rst(unsigned int port)
 		test_ok("Verified established tcp connection");
 
 	synchronize_threads(); /* 4: finishing up */
-	err = _test_connect_socket(sk[last], this_ip_dest, port, -1);
-	if (err < 0)
-		test_error("failed to connect()");
 
 	synchronize_threads(); /* 5: closed active sk */
-	err = test_wait_fds(sk, ARRAY_SIZE(sk), NULL,
-			    wait_for, TEST_TIMEOUT_SEC);
+	/*
+	 * Wait for 2 connections: one accepted, another in the accept queue,
+	 * the one in request_sock_queue won't get fully established, so
+	 * doesn't receive an active RST, see inet_csk_listen_stop().
+	 */
+	err = test_wait_fds(sk, last, NULL, last, TEST_TIMEOUT_SEC);
 	if (err < 0)
 		test_error("select(): %d", err);
 

@@ -442,7 +442,7 @@ static ssize_t slpc_ignore_eff_freq_show(struct kobject *kobj,
 					 char *buff)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
-	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
+	struct intel_guc_slpc *slpc = &gt_to_guc(gt)->slpc;
 
 	return sysfs_emit(buff, "%u\n", slpc->ignore_eff_freq);
 }
@@ -452,7 +452,7 @@ static ssize_t slpc_ignore_eff_freq_store(struct kobject *kobj,
 					  const char *buff, size_t count)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
-	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
+	struct intel_guc_slpc *slpc = &gt_to_guc(gt)->slpc;
 	int err;
 	u32 val;
 
@@ -573,7 +573,6 @@ static ssize_t media_freq_factor_show(struct kobject *kobj,
 				      char *buff)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
-	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
 	intel_wakeref_t wakeref;
 	u32 mode;
 
@@ -581,20 +580,12 @@ static ssize_t media_freq_factor_show(struct kobject *kobj,
 	 * Retrieve media_ratio_mode from GEN6_RPNSWREQ bit 13 set by
 	 * GuC. GEN6_RPNSWREQ:13 value 0 represents 1:2 and 1 represents 1:1
 	 */
-	if (IS_XEHPSDV(gt->i915) &&
-	    slpc->media_ratio_mode == SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL) {
-		/*
-		 * For XEHPSDV dynamic mode GEN6_RPNSWREQ:13 does not contain
-		 * the media_ratio_mode, just return the cached media ratio
-		 */
-		mode = slpc->media_ratio_mode;
-	} else {
-		with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-			mode = intel_uncore_read(gt->uncore, GEN6_RPNSWREQ);
-		mode = REG_FIELD_GET(GEN12_MEDIA_FREQ_RATIO, mode) ?
-			SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_ONE :
-			SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO;
-	}
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		mode = intel_uncore_read(gt->uncore, GEN6_RPNSWREQ);
+
+	mode = REG_FIELD_GET(GEN12_MEDIA_FREQ_RATIO, mode) ?
+		SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_ONE :
+		SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO;
 
 	return sysfs_emit(buff, "%u\n", media_ratio_mode_to_factor(mode));
 }
@@ -604,7 +595,7 @@ static ssize_t media_freq_factor_store(struct kobject *kobj,
 				       const char *buff, size_t count)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
-	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
+	struct intel_guc_slpc *slpc = &gt_to_guc(gt)->slpc;
 	u32 factor, mode;
 	int err;
 

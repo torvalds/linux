@@ -438,5 +438,6 @@ static void __exit pcf857x_exit(void)
 }
 module_exit(pcf857x_exit);
 
+MODULE_DESCRIPTION("Driver for pcf857x, pca857x, and pca967x I2C GPIO expanders");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

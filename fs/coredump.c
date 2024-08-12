@@ -56,10 +56,15 @@
 static bool dump_vma_snapshot(struct coredump_params *cprm);
 static void free_vma_snapshot(struct coredump_params *cprm);
 
+#define CORE_FILE_NOTE_SIZE_DEFAULT (4*1024*1024)
+/* Define a reasonable max cap */
+#define CORE_FILE_NOTE_SIZE_MAX (16*1024*1024)
+
 static int core_uses_pid;
 static unsigned int core_pipe_limit;
 static char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
+unsigned int core_file_note_size_limit = CORE_FILE_NOTE_SIZE_DEFAULT;
 
 struct core_name {
 	char *corename;
@@ -356,24 +361,21 @@ out:
 	return ispipe;
 }
 
-static int zap_process(struct task_struct *start, int exit_code)
+static int zap_process(struct signal_struct *signal, int exit_code)
 {
 	struct task_struct *t;
 	int nr = 0;
 
-	/* Allow SIGKILL, see prepare_signal() */
-	start->signal->flags = SIGNAL_GROUP_EXIT;
-	start->signal->group_exit_code = exit_code;
-	start->signal->group_stop_count = 0;
+	signal->flags = SIGNAL_GROUP_EXIT;
+	signal->group_exit_code = exit_code;
+	signal->group_stop_count = 0;
 
-	for_each_thread(start, t) {
+	__for_each_thread(signal, t) {
 		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 		if (t != current && !(t->flags & PF_POSTCOREDUMP)) {
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
-			/* The vhost_worker does not particpate in coredumps */
-			if ((t->flags & (PF_USER_WORKER | PF_IO_WORKER)) != PF_USER_WORKER)
-				nr++;
+			nr++;
 		}
 	}
 
@@ -388,8 +390,9 @@ static int zap_threads(struct task_struct *tsk,
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	if (!(signal->flags & SIGNAL_GROUP_EXIT) && !signal->group_exec_task) {
+		/* Allow SIGKILL, see prepare_signal() */
 		signal->core_state = core_state;
-		nr = zap_process(tsk, exit_code);
+		nr = zap_process(signal, exit_code);
 		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 		tsk->flags |= PF_DUMPCORE;
 		atomic_set(&core_state->nr_threads, nr);
@@ -988,7 +991,7 @@ void validate_coredump_safety(void)
 	}
 }
 
-static int proc_dostring_coredump(struct ctl_table *table, int write,
+static int proc_dostring_coredump(const struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int error = proc_dostring(table, write, buffer, lenp, ppos);
@@ -997,6 +1000,9 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 		validate_coredump_safety();
 	return error;
 }
+
+static const unsigned int core_file_note_size_min = CORE_FILE_NOTE_SIZE_DEFAULT;
+static const unsigned int core_file_note_size_max = CORE_FILE_NOTE_SIZE_MAX;
 
 static struct ctl_table coredump_sysctls[] = {
 	{
@@ -1019,6 +1025,15 @@ static struct ctl_table coredump_sysctls[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname       = "core_file_note_size_limit",
+		.data           = &core_file_note_size_limit,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= (unsigned int *)&core_file_note_size_min,
+		.extra2		= (unsigned int *)&core_file_note_size_max,
 	},
 };
 

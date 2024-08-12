@@ -96,4 +96,5 @@ static struct kunit_suite time_test_suite = {
 };
 
 kunit_test_suite(time_test_suite);
+MODULE_DESCRIPTION("time unit test suite");
 MODULE_LICENSE("GPL");

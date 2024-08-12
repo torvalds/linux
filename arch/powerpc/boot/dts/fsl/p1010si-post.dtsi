@@ -35,7 +35,7 @@
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	compatible = "fsl,ifc", "simple-bus";
+	compatible = "fsl,ifc";
 	interrupts = <16 2 0 0 19 2 0 0>;
 };
 
@@ -183,9 +183,23 @@
 /include/ "pq3-etsec2-1.dtsi"
 /include/ "pq3-etsec2-2.dtsi"
 
+	enet0: ethernet@b0000 {
+		fsl,pmc-handle = <&etsec1_clk>;
+	};
+
+	enet1: ethernet@b1000 {
+		fsl,pmc-handle = <&etsec2_clk>;
+	};
+
+	enet2: ethernet@b2000 {
+		fsl,pmc-handle = <&etsec3_clk>;
+	};
+
 	global-utilities@e0000 {
 		compatible = "fsl,p1010-guts";
 		reg = <0xe0000 0x1000>;
 		fsl,has-rstcr;
 	};
+
+/include/ "pq3-power.dtsi"
 };

@@ -14,7 +14,7 @@
 #include "cs42l51.h"
 
 static struct i2c_device_id cs42l51_i2c_id[] = {
-	{"cs42l51", 0},
+	{"cs42l51"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs42l51_i2c_id);

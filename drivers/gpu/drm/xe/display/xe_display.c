@@ -23,6 +23,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_encoder.h"
 #include "intel_fbdev.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -51,14 +52,6 @@ bool xe_display_driver_probe_defer(struct pci_dev *pdev)
 	return intel_display_driver_probe_defer(pdev);
 }
 
-static void xe_display_last_close(struct drm_device *dev)
-{
-	struct xe_device *xe = to_xe_device(dev);
-
-	if (xe->info.enable_display)
-		intel_fbdev_restore_mode(to_xe_device(dev));
-}
-
 /**
  * xe_display_driver_set_hooks - Add driver flags and hooks for display
  * @driver: DRM device driver
@@ -73,7 +66,6 @@ void xe_display_driver_set_hooks(struct drm_driver *driver)
 		return;
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;
-	driver->lastclose = xe_display_last_close;
 }
 
 static void unset_display_features(struct xe_device *xe)
@@ -101,25 +93,11 @@ static void display_destroy(struct drm_device *dev, void *dummy)
  */
 int xe_display_create(struct xe_device *xe)
 {
-	int err;
-
 	spin_lock_init(&xe->display.fb_tracking.lock);
 
 	xe->display.hotplug.dp_wq = alloc_ordered_workqueue("xe-dp", 0);
 
-	drmm_mutex_init(&xe->drm, &xe->sb_lock);
-	drmm_mutex_init(&xe->drm, &xe->display.backlight.lock);
-	drmm_mutex_init(&xe->drm, &xe->display.audio.mutex);
-	drmm_mutex_init(&xe->drm, &xe->display.wm.wm_mutex);
-	drmm_mutex_init(&xe->drm, &xe->display.pps.mutex);
-	drmm_mutex_init(&xe->drm, &xe->display.hdcp.hdcp_mutex);
-	xe->enabled_irq_mask = ~0;
-
-	err = drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
 }
 
 static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
@@ -146,15 +124,14 @@ int xe_display_init_nommio(struct xe_device *xe)
 	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_nommio, xe);
 }
 
-static void xe_display_fini_noirq(struct drm_device *dev, void *dummy)
+static void xe_display_fini_noirq(void *arg)
 {
-	struct xe_device *xe = to_xe_device(dev);
+	struct xe_device *xe = arg;
 
 	if (!xe->info.enable_display)
 		return;
 
 	intel_display_driver_remove_noirq(xe);
-	intel_power_domains_driver_remove(xe);
 }
 
 int xe_display_init_noirq(struct xe_device *xe)
@@ -183,12 +160,12 @@ int xe_display_init_noirq(struct xe_device *xe)
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_noirq, NULL);
+	return devm_add_action_or_reset(xe->drm.dev, xe_display_fini_noirq, xe);
 }
 
-static void xe_display_fini_noaccel(struct drm_device *dev, void *dummy)
+static void xe_display_fini_noaccel(void *arg)
 {
-	struct xe_device *xe = to_xe_device(dev);
+	struct xe_device *xe = arg;
 
 	if (!xe->info.enable_display)
 		return;
@@ -207,7 +184,7 @@ int xe_display_init_noaccel(struct xe_device *xe)
 	if (err)
 		return err;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_noaccel, NULL);
+	return devm_add_action_or_reset(xe->drm.dev, xe_display_fini_noaccel, xe);
 }
 
 int xe_display_init(struct xe_device *xe)
@@ -223,9 +200,7 @@ void xe_display_fini(struct xe_device *xe)
 	if (!xe->info.enable_display)
 		return;
 
-	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_hpd_poll_fini(xe);
-	intel_fbdev_fini(xe);
 
 	intel_hdcp_component_fini(xe);
 	intel_audio_deinit(xe);
@@ -257,8 +232,6 @@ void xe_display_driver_remove(struct xe_device *xe)
 		return;
 
 	intel_display_driver_remove(xe);
-
-	intel_display_device_remove(xe);
 }
 
 /* IRQ-related functions */
@@ -298,21 +271,6 @@ void xe_display_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 		gen11_de_irq_postinstall(xe);
 }
 
-static void intel_suspend_encoders(struct xe_device *xe)
-{
-	struct drm_device *dev = &xe->drm;
-	struct intel_encoder *encoder;
-
-	if (has_display(xe))
-		return;
-
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
-		if (encoder->suspend)
-			encoder->suspend(encoder);
-	drm_modeset_unlock_all(dev);
-}
-
 static bool suspend_to_idle(void)
 {
 #if IS_ENABLED(CONFIG_ACPI_SLEEP)
@@ -322,7 +280,7 @@ static bool suspend_to_idle(void)
 	return false;
 }
 
-void xe_display_pm_suspend(struct xe_device *xe)
+void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 {
 	bool s2idle = suspend_to_idle();
 	if (!xe->info.enable_display)
@@ -336,13 +294,14 @@ void xe_display_pm_suspend(struct xe_device *xe)
 	if (has_display(xe))
 		drm_kms_helper_poll_disable(&xe->drm);
 
-	intel_display_driver_suspend(xe);
+	if (!runtime)
+		intel_display_driver_suspend(xe);
 
 	intel_dp_mst_suspend(xe);
 
 	intel_hpd_cancel_work(xe);
 
-	intel_suspend_encoders(xe);
+	intel_encoder_suspend_all(&xe->display);
 
 	intel_opregion_suspend(xe, s2idle ? PCI_D1 : PCI_D3cold);
 
@@ -372,7 +331,7 @@ void xe_display_pm_resume_early(struct xe_device *xe)
 	intel_power_domains_resume(xe);
 }
 
-void xe_display_pm_resume(struct xe_device *xe)
+void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 {
 	if (!xe->info.enable_display)
 		return;
@@ -387,7 +346,8 @@ void xe_display_pm_resume(struct xe_device *xe)
 
 	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(xe);
-	intel_display_driver_resume(xe);
+	if (!runtime)
+		intel_display_driver_resume(xe);
 
 	intel_hpd_poll_disable(xe);
 	if (has_display(xe))
@@ -400,17 +360,31 @@ void xe_display_pm_resume(struct xe_device *xe)
 	intel_power_domains_enable(xe);
 }
 
-void xe_display_probe(struct xe_device *xe)
+static void display_device_remove(struct drm_device *dev, void *arg)
 {
+	struct xe_device *xe = arg;
+
+	intel_display_device_remove(xe);
+}
+
+int xe_display_probe(struct xe_device *xe)
+{
+	int err;
+
 	if (!xe->info.enable_display)
 		goto no_display;
 
 	intel_display_device_probe(xe);
 
+	err = drmm_add_action_or_reset(&xe->drm, display_device_remove, xe);
+	if (err)
+		return err;
+
 	if (has_display(xe))
-		return;
+		return 0;
 
 no_display:
 	xe->info.enable_display = false;
 	unset_display_features(xe);
+	return 0;
 }

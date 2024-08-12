@@ -518,6 +518,24 @@ struct nfsd4_free_stateid {
 	stateid_t	fr_stateid;         /* request */
 };
 
+struct nfsd4_get_dir_delegation {
+	/* request */
+	u32			gdda_signal_deleg_avail;
+	u32			gdda_notification_types[1];
+	struct timespec64	gdda_child_attr_delay;
+	struct timespec64	gdda_dir_attr_delay;
+	u32			gdda_child_attributes[3];
+	u32			gdda_dir_attributes[3];
+	/* response */
+	u32			gddrnf_status;
+	nfs4_verifier		gddr_cookieverf;
+	stateid_t		gddr_stateid;
+	u32			gddr_notification[1];
+	u32			gddr_child_attributes[3];
+	u32			gddr_dir_attributes[3];
+	bool			gddrnf_will_signal_deleg_avail;
+};
+
 /* also used for NVERIFY */
 struct nfsd4_verify {
 	u32		ve_bmval[3];        /* request */
@@ -674,8 +692,10 @@ struct nfsd4_copy {
 #define NFSD4_COPY_F_INTRA		(1)
 #define NFSD4_COPY_F_SYNCHRONOUS	(2)
 #define NFSD4_COPY_F_COMMITTED		(3)
+#define NFSD4_COPY_F_COMPLETED		(4)
 
 	/* response */
+	__be32			nfserr;
 	struct nfsd42_write_res	cp_res;
 	struct knfsd_fh		fh;
 
@@ -735,7 +755,8 @@ struct nfsd4_offload_status {
 
 	/* response */
 	u64		count;
-	u32		status;
+	__be32		status;
+	bool		completed;
 };
 
 struct nfsd4_copy_notify {
@@ -797,6 +818,7 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+		struct nfsd4_get_dir_delegation	get_dir_delegation;
 		struct nfsd4_getdeviceinfo	getdeviceinfo;
 		struct nfsd4_layoutget		layoutget;
 		struct nfsd4_layoutcommit	layoutcommit;

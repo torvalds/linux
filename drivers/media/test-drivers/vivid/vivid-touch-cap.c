@@ -13,21 +13,17 @@ static int touch_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				 struct device *alloc_devs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-	unsigned int q_num_bufs = vb2_get_num_buffers(vq);
 	struct v4l2_pix_format *f = &dev->tch_format;
 	unsigned int size = f->sizeimage;
 
 	if (*nplanes) {
-		if (sizes[0] < size)
+		if (*nplanes != 1)
 			return -EINVAL;
-	} else {
-		sizes[0] = size;
+		return sizes[0] < size ? -EINVAL : 0;
 	}
 
-	if (q_num_bufs + *nbuffers < 2)
-		*nbuffers = 2 - q_num_bufs;
-
 	*nplanes = 1;
+	sizes[0] = size;
 	return 0;
 }
 

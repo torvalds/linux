@@ -1789,7 +1789,7 @@ static int stm32f7_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	struct stm32f7_i2c_msg *f7_msg = &i2c_dev->f7_msg;
 	struct stm32_i2c_dma *dma = i2c_dev->dma;
 	struct device *dev = i2c_dev->dev;
-	unsigned long timeout;
+	unsigned long time_left;
 	int i, ret;
 
 	f7_msg->addr = addr;
@@ -1809,8 +1809,8 @@ static int stm32f7_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	if (ret)
 		goto pm_free;
 
-	timeout = wait_for_completion_timeout(&i2c_dev->complete,
-					      i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->complete,
+						i2c_dev->adap.timeout);
 	ret = f7_msg->result;
 	if (ret) {
 		if (i2c_dev->use_dma)
@@ -1826,7 +1826,7 @@ static int stm32f7_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		goto pm_free;
 	}
 
-	if (!timeout) {
+	if (!time_left) {
 		dev_dbg(dev, "Access to slave 0x%x timed out\n", f7_msg->addr);
 		if (i2c_dev->use_dma)
 			dmaengine_terminate_sync(dma->chan_using);

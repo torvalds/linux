@@ -47,7 +47,7 @@ static int goodix_berlin_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id goodix_berlin_i2c_id[] = {
-	{ "gt9916", 0 },
+	{ "gt9916" },
 	{ }
 };
 

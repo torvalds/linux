@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/iopoll.h>
+#include <linux/spi/spi-mem.h>
 
 #define AMD_SPI_CTRL0_REG	0x00
 #define AMD_SPI_EXEC_CMD	BIT(16)
@@ -35,6 +36,7 @@
 
 #define AMD_SPI_FIFO_SIZE	70
 #define AMD_SPI_MEM_SIZE	200
+#define AMD_SPI_MAX_DATA	64
 
 #define AMD_SPI_ENA_REG		0x20
 #define AMD_SPI_ALT_SPD_SHIFT	20
@@ -358,6 +360,115 @@ fin_msg:
 	return message->status;
 }
 
+static bool amd_spi_supports_op(struct spi_mem *mem,
+				const struct spi_mem_op *op)
+{
+	/* bus width is number of IO lines used to transmit */
+	if (op->cmd.buswidth > 1 || op->addr.buswidth > 1 ||
+	    op->data.buswidth > 1 || op->data.nbytes > AMD_SPI_MAX_DATA)
+		return false;
+
+	return spi_mem_default_supports_op(mem, op);
+}
+
+static int amd_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_MAX_DATA);
+	return 0;
+}
+
+static void amd_spi_set_addr(struct amd_spi *amd_spi,
+			     const struct spi_mem_op *op)
+{
+	u8 nbytes = op->addr.nbytes;
+	u64 addr_val = op->addr.val;
+	int base_addr, i;
+
+	base_addr = AMD_SPI_FIFO_BASE + nbytes;
+
+	for (i = 0; i < nbytes; i++) {
+		amd_spi_writereg8(amd_spi, base_addr - i - 1, addr_val &
+				  GENMASK(7, 0));
+		addr_val >>= 8;
+	}
+}
+
+static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
+				 const struct spi_mem_op *op)
+{
+	int base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes;
+	u8 *buf = (u8 *)op->data.buf.out;
+	u32 nbytes = op->data.nbytes;
+	int i;
+
+	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+	amd_spi_set_addr(amd_spi, op);
+
+	for (i = 0; i < nbytes; i++)
+		amd_spi_writereg8(amd_spi, (base_addr + i), buf[i]);
+
+	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->data.nbytes);
+	amd_spi_set_rx_count(amd_spi, 0);
+	amd_spi_clear_fifo_ptr(amd_spi);
+	amd_spi_execute_opcode(amd_spi);
+}
+
+static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
+				const struct spi_mem_op *op)
+{
+	int offset = (op->addr.nbytes == 0) ? 0 : 1;
+	u8 *buf = (u8 *)op->data.buf.in;
+	u32 nbytes = op->data.nbytes;
+	int base_addr, i;
+
+	base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes + offset;
+
+	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+	amd_spi_set_addr(amd_spi, op);
+	amd_spi_set_tx_count(amd_spi, op->addr.nbytes);
+	amd_spi_set_rx_count(amd_spi, op->data.nbytes + 1);
+	amd_spi_clear_fifo_ptr(amd_spi);
+	amd_spi_execute_opcode(amd_spi);
+	amd_spi_busy_wait(amd_spi);
+
+	for (i = 0; i < nbytes; i++)
+		buf[i] = amd_spi_readreg8(amd_spi, base_addr + i);
+}
+
+static int amd_spi_exec_mem_op(struct spi_mem *mem,
+			       const struct spi_mem_op *op)
+{
+	struct amd_spi *amd_spi;
+	int ret;
+
+	amd_spi = spi_controller_get_devdata(mem->spi->controller);
+
+	ret = amd_set_spi_freq(amd_spi, mem->spi->max_speed_hz);
+	if (ret)
+		return ret;
+
+	switch (op->data.dir) {
+	case SPI_MEM_DATA_IN:
+		amd_spi_mem_data_in(amd_spi, op);
+		break;
+	case SPI_MEM_DATA_OUT:
+		fallthrough;
+	case SPI_MEM_NO_DATA:
+		amd_spi_mem_data_out(amd_spi, op);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static const struct spi_controller_mem_ops amd_spi_mem_ops = {
+	.exec_op = amd_spi_exec_mem_op,
+	.adjust_op_size = amd_spi_adjust_op_size,
+	.supports_op = amd_spi_supports_op,
+};
+
 static int amd_spi_host_transfer(struct spi_controller *host,
 				   struct spi_message *msg)
 {
@@ -409,6 +520,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	host->min_speed_hz = AMD_SPI_MIN_HZ;
 	host->setup = amd_spi_host_setup;
 	host->transfer_one_message = amd_spi_host_transfer;
+	host->mem_ops = &amd_spi_mem_ops;
 	host->max_transfer_size = amd_spi_max_transfer_size;
 	host->max_message_size = amd_spi_max_transfer_size;
 

@@ -1188,7 +1188,7 @@ static int pxa168_eth_change_mtu(struct net_device *dev, int mtu)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	set_port_config_ext(pep);
 
 	if (!netif_running(dev))

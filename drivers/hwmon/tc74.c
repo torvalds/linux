@@ -151,7 +151,7 @@ static int tc74_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc74_id[] = {
-	{ "tc74", 0 },
+	{ "tc74" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tc74_id);

@@ -10,7 +10,7 @@
  * The P2WI controller looks like an SMBus controller which only supports byte
  * data transfers. But, it differs from standard SMBus protocol on several
  * aspects:
- * - it supports only one slave device, and thus drop the address field
+ * - it supports only one target device, and thus drop the address field
  * - it adds a parity bit every 8bits of data
  * - only one read access is required to read a byte (instead of a write
  *   followed by a read access in standard SMBus protocol)
@@ -88,7 +88,7 @@ struct p2wi {
 	void __iomem *regs;
 	struct clk *clk;
 	struct reset_control *rstc;
-	int slave_addr;
+	int target_addr;
 };
 
 static irqreturn_t p2wi_interrupt(int irq, void *dev_id)
@@ -121,7 +121,7 @@ static int p2wi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	struct p2wi *p2wi = i2c_get_adapdata(adap);
 	unsigned long dlen = P2WI_DLEN_DATA_LENGTH(1);
 
-	if (p2wi->slave_addr >= 0 && addr != p2wi->slave_addr) {
+	if (p2wi->target_addr >= 0 && addr != p2wi->target_addr) {
 		dev_err(&adap->dev, "invalid P2WI address\n");
 		return -EINVAL;
 	}
@@ -188,7 +188,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	unsigned long parent_clk_freq;
 	u32 clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 	struct p2wi *p2wi;
-	u32 slave_addr;
+	u32 target_addr;
 	int clk_div;
 	int irq;
 	int ret;
@@ -207,7 +207,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	}
 
 	if (of_get_child_count(np) > 1) {
-		dev_err(dev, "P2WI only supports one slave device\n");
+		dev_err(dev, "P2WI only supports one target device\n");
 		return -EINVAL;
 	}
 
@@ -215,24 +215,24 @@ static int p2wi_probe(struct platform_device *pdev)
 	if (!p2wi)
 		return -ENOMEM;
 
-	p2wi->slave_addr = -1;
+	p2wi->target_addr = -1;
 
 	/*
 	 * Authorize a p2wi node without any children to be able to use an
 	 * i2c-dev from userpace.
-	 * In this case the slave_addr is set to -1 and won't be checked when
+	 * In this case the target_addr is set to -1 and won't be checked when
 	 * launching a P2WI transfer.
 	 */
 	childnp = of_get_next_available_child(np, NULL);
 	if (childnp) {
-		ret = of_property_read_u32(childnp, "reg", &slave_addr);
+		ret = of_property_read_u32(childnp, "reg", &target_addr);
 		if (ret) {
-			dev_err(dev, "invalid slave address on node %pOF\n",
+			dev_err(dev, "invalid target address on node %pOF\n",
 				childnp);
 			return -EINVAL;
 		}
 
-		p2wi->slave_addr = slave_addr;
+		p2wi->target_addr = target_addr;
 	}
 
 	p2wi->regs = devm_platform_ioremap_resource(pdev, 0);

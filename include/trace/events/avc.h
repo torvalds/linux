@@ -36,9 +36,9 @@ TRACE_EVENT(selinux_audited,
 		__entry->denied		= sad->denied;
 		__entry->audited	= sad->audited;
 		__entry->result		= sad->result;
-		__assign_str(tcontext, tcontext);
-		__assign_str(scontext, scontext);
-		__assign_str(tclass, tclass);
+		__assign_str(tcontext);
+		__assign_str(scontext);
+		__assign_str(tclass);
 	),
 
 	TP_printk("requested=0x%x denied=0x%x audited=0x%x result=%d scontext=%s tcontext=%s tclass=%s",

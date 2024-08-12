@@ -1,0 +1,11 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/3.Early-stage.rst
+
+.. _sp_development_early_stage:
+
+Planificación en etapa inicial
+==============================
+
+.. warning::
+	TODO aún no traducido

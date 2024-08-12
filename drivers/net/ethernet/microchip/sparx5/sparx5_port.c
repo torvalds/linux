@@ -370,7 +370,7 @@ static int sparx5_port_disable(struct sparx5 *sparx5, struct sparx5_port *port, 
 	/* 6: Wait while the last frame is exiting the queues */
 	usleep_range(8 * spd_prm, 10 * spd_prm);
 
-	/* 7: Flush the queues accociated with the port->portno */
+	/* 7: Flush the queues associated with the port->portno */
 	spx5_rmw(HSCH_FLUSH_CTRL_FLUSH_PORT_SET(port->portno) |
 		 HSCH_FLUSH_CTRL_FLUSH_DST_SET(1) |
 		 HSCH_FLUSH_CTRL_FLUSH_SRC_SET(1) |
@@ -731,7 +731,7 @@ static int sparx5_port_pcs_low_set(struct sparx5 *sparx5,
 	bool sgmii = false, inband_aneg = false;
 	int err;
 
-	if (port->conf.inband) {
+	if (conf->inband) {
 		if (conf->portmode == PHY_INTERFACE_MODE_SGMII ||
 		    conf->portmode == PHY_INTERFACE_MODE_QSGMII)
 			inband_aneg = true; /* Cisco-SGMII in-band-aneg */
@@ -948,7 +948,7 @@ int sparx5_port_pcs_set(struct sparx5 *sparx5,
 	if (err)
 		return -EINVAL;
 
-	if (port->conf.inband) {
+	if (conf->inband) {
 		/* Enable/disable 1G counters in ASM */
 		spx5_rmw(ASM_PORT_CFG_CSC_STAT_DIS_SET(high_speed_dev),
 			 ASM_PORT_CFG_CSC_STAT_DIS,

@@ -777,7 +777,7 @@ static const struct net_device_ops peak_canfd_netdev_ops = {
 };
 
 static int peak_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |

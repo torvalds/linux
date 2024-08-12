@@ -89,7 +89,7 @@ struct x86_dev_info {
 	int pdev_count;
 	int serdev_count;
 	int gpio_button_count;
-	int (*init)(void);
+	int (*init)(struct device *dev);
 	void (*exit)(void);
 };
 
@@ -112,6 +112,7 @@ extern const struct x86_dev_info czc_p10t;
 extern const struct x86_dev_info lenovo_yogabook_x90_info;
 extern const struct x86_dev_info lenovo_yogabook_x91_info;
 extern const struct x86_dev_info lenovo_yoga_tab2_830_1050_info;
+extern const struct x86_dev_info lenovo_yoga_tab2_1380_info;
 extern const struct x86_dev_info lenovo_yt3_info;
 extern const struct x86_dev_info medion_lifetab_s10346_info;
 extern const struct x86_dev_info nextbook_ares8_info;

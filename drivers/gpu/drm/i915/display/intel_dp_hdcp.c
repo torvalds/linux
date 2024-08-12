@@ -687,16 +687,20 @@ int intel_dp_hdcp_get_remote_capability(struct intel_connector *connector,
 					bool *hdcp2_capable)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct drm_dp_aux *aux = &connector->port->aux;
+	struct drm_dp_aux *aux;
 	u8 bcaps;
 	int ret;
 
-	if (!intel_encoder_is_mst(connector->encoder))
+	*hdcp_capable = false;
+	*hdcp2_capable = false;
+	if (!connector->mst_port)
 		return -EINVAL;
 
+	aux = &connector->port->aux;
 	ret =  _intel_dp_hdcp2_get_capability(aux, hdcp2_capable);
 	if (ret)
-		return ret;
+		drm_dbg_kms(&i915->drm,
+			    "HDCP2 DPCD capability read failed err: %d\n", ret);
 
 	ret = intel_dp_hdcp_read_bcaps(aux, i915, &bcaps);
 	if (ret)
@@ -766,11 +770,9 @@ intel_dp_mst_hdcp_stream_encryption(struct intel_connector *connector,
 		return -EINVAL;
 
 	/* Wait for encryption confirmation */
-	if (intel_de_wait_for_register(i915,
-				       HDCP_STATUS(i915, cpu_transcoder, port),
-				       stream_enc_status,
-				       enable ? stream_enc_status : 0,
-				       HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait(i915, HDCP_STATUS(i915, cpu_transcoder, port),
+			  stream_enc_status, enable ? stream_enc_status : 0,
+			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(&i915->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
 			transcoder_name(cpu_transcoder), enable ? "enabled" : "disabled");
 		return -ETIMEDOUT;
@@ -801,11 +803,10 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 		return ret;
 
 	/* Wait for encryption confirmation */
-	if (intel_de_wait_for_register(i915,
-				       HDCP2_STREAM_STATUS(i915, cpu_transcoder, pipe),
-				       STREAM_ENCRYPTION_STATUS,
-				       enable ? STREAM_ENCRYPTION_STATUS : 0,
-				       HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait(i915, HDCP2_STREAM_STATUS(i915, cpu_transcoder, pipe),
+			  STREAM_ENCRYPTION_STATUS,
+			  enable ? STREAM_ENCRYPTION_STATUS : 0,
+			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(&i915->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
 			transcoder_name(cpu_transcoder), enable ? "enabled" : "disabled");
 		return -ETIMEDOUT;

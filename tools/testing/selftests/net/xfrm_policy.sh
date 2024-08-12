@@ -293,7 +293,7 @@ check_random_order()
 	local ns=$1
 	local log=$2
 
-	for i in $(seq 100); do
+	for i in $(seq 50); do
 		ip -net $ns xfrm policy flush
 		for j in $(seq 0 16 255 | sort -R); do
 			ip -net $ns xfrm policy add dst $j.0.0.0/24 dir out priority 10 action allow
@@ -306,7 +306,7 @@ check_random_order()
 		done
 	done
 
-	for i in $(seq 100); do
+	for i in $(seq 50); do
 		ip -net $ns xfrm policy flush
 		for j in $(seq 0 16 255 | sort -R); do
 			local addr=$(printf "e000:0000:%02x00::/56" $j)

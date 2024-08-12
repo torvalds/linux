@@ -513,6 +513,14 @@ properties:
               - renesas,rzv2mevk2   # RZ/V2M Eval Board v2.0
           - const: renesas,r9a09g011
 
+      - description: RZ/V2H(P) (R9A09G057)
+        items:
+          - enum:
+              - renesas,r9a09g057h41 # RZ/V2H
+              - renesas,r9a09g057h42 # RZ/V2H with Mali-G31 support
+              - renesas,r9a09g057h44 # RZ/V2HP with Mali-G31 + Mali-C55 support
+          - const: renesas,r9a09g057
+
 additionalProperties: true
 
 ...

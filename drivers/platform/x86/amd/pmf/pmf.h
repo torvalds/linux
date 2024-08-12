@@ -12,6 +12,7 @@
 #define PMF_H
 
 #include <linux/acpi.h>
+#include <linux/input.h>
 #include <linux/platform_profile.h>
 
 #define POLICY_BUF_MAX_SZ		0x4b000
@@ -300,6 +301,7 @@ struct amd_pmf_dev {
 	void __iomem *policy_base;
 	bool smart_pc_enabled;
 	u16 pmf_if_version;
+	struct input_dev *pmf_idev;
 };
 
 struct apmf_sps_prop_granular_v2 {
@@ -719,5 +721,8 @@ int apmf_check_smart_pc(struct amd_pmf_dev *pmf_dev);
 /* Smart PC - TA interfaces */
 void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in);
 void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in);
+
+/* Quirk infrastructure */
+void amd_pmf_quirks_init(struct amd_pmf_dev *dev);
 
 #endif /* PMF_H */

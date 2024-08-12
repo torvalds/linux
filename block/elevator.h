@@ -74,7 +74,6 @@ struct elevator_type
 	struct elv_fs_entry *elevator_attrs;
 	const char *elevator_name;
 	const char *elevator_alias;
-	const unsigned int elevator_features;
 	struct module *elevator_owner;
 #ifdef CONFIG_BLK_DEBUG_FS
 	const struct blk_mq_debugfs_attr *queue_debugfs_attrs;
@@ -148,8 +147,8 @@ extern void elv_unregister(struct elevator_type *);
 /*
  * io scheduler sysfs switching
  */
-extern ssize_t elv_iosched_show(struct request_queue *, char *);
-extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
+ssize_t elv_iosched_show(struct gendisk *disk, char *page);
+ssize_t elv_iosched_store(struct gendisk *disk, const char *page, size_t count);
 
 extern bool elv_bio_merge_ok(struct request *, struct bio *);
 extern struct elevator_queue *elevator_alloc(struct request_queue *,

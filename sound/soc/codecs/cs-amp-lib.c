@@ -56,6 +56,11 @@ static int _cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 	dev_dbg(dsp->dev, "Calibration: Ambient=%#x, Status=%#x, CalR=%d\n",
 		data->calAmbient, data->calStatus, data->calR);
 
+	if (list_empty(&dsp->ctl_list)) {
+		dev_info(dsp->dev, "Calibration disabled due to missing firmware controls\n");
+		return -ENOENT;
+	}
+
 	ret = cs_amp_write_cal_coeff(dsp, controls, controls->ambient, data->calAmbient);
 	if (ret)
 		return ret;
@@ -103,7 +108,7 @@ static efi_status_t cs_amp_get_efi_variable(efi_char16_t *name,
 
 	KUNIT_STATIC_STUB_REDIRECT(cs_amp_get_efi_variable, name, guid, size, buf);
 
-	if (IS_ENABLED(CONFIG_EFI))
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		return efi.get_variable(name, guid, &attr, size, buf);
 
 	return EFI_NOT_FOUND;

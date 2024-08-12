@@ -1788,7 +1788,7 @@ static int ag71xx_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct ag71xx *ag = netdev_priv(ndev);
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 	ag71xx_wr(ag, AG71XX_REG_MAC_MFL,
 		  ag71xx_max_frame_len(ndev->mtu));
 

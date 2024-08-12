@@ -156,6 +156,8 @@ struct amdgpu_gmc_funcs {
 				      uint64_t addr, uint64_t *flags);
 	/* get the amount of memory used by the vbios for pre-OS console */
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
+	/* get the DCC buffer alignment */
+	unsigned int (*get_dcc_alignment)(struct amdgpu_device *adev);
 
 	enum amdgpu_memory_partition (*query_mem_partition_mode)(
 		struct amdgpu_device *adev);
@@ -198,6 +200,13 @@ struct amdgpu_mem_partition_info {
 };
 
 #define INVALID_PFN    -1
+
+struct amdgpu_gmc_memrange {
+	uint64_t base_address;
+	uint64_t limit_address;
+	uint32_t flags;
+	int nid_mask;
+};
 
 enum amdgpu_gart_placement {
 	AMDGPU_GART_PLACEMENT_BEST_FIT = 0,
@@ -356,6 +365,10 @@ struct amdgpu_gmc {
 	(adev)->gmc.gmc_funcs->override_vm_pte_flags			\
 		((adev), (vm), (addr), (pte_flags))
 #define amdgpu_gmc_get_vbios_fb_size(adev) (adev)->gmc.gmc_funcs->get_vbios_fb_size((adev))
+#define amdgpu_gmc_get_dcc_alignment(adev) ({			\
+	typeof(adev) _adev = (adev);				\
+	_adev->gmc.gmc_funcs->get_dcc_alignment(_adev);		\
+})
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -438,5 +451,9 @@ uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev);
 int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev);
+
+int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
+				 struct amdgpu_mem_partition_info *mem_ranges,
+				 int exp_ranges);
 
 #endif

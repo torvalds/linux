@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// Make sure pm_runtime_* calls does not use unnecessary IS_ERR_VALUE
+/// Make sure pm_runtime_* calls do not unnecessarily use IS_ERR_VALUE
 ///
 // Keywords: pm_runtime
 // Confidence: Medium

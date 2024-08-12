@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/brcm,bcm2835-aux-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BCM2835 AUXILIARY UART
+
+maintainers:
+  - Pratik Farkase <pratikfarkase94@gmail.com>
+  - Florian Fainelli <florian.fainelli@broadcom.com>
+  - Stefan Wahren <wahrenst@gmx.net>
+
+allOf:
+  - $ref: serial.yaml
+
+properties:
+  compatible:
+    const: brcm,bcm2835-aux-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835-aux.h>
+    serial@7e215040 {
+        compatible = "brcm,bcm2835-aux-uart";
+        reg = <0x7e215040 0x40>;
+        interrupts = <1 29>;
+        clocks = <&aux BCM2835_AUX_CLOCK_UART>;
+    };

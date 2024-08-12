@@ -20,15 +20,6 @@
 
 #include "internal.h"
 
-static inline struct crypto_istat_aead *aead_get_stat(struct aead_alg *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	return &alg->stat;
-#else
-	return NULL;
-#endif
-}
-
 static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 			    unsigned int keylen)
 {
@@ -45,8 +36,7 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = crypto_aead_alg(tfm)->setkey(tfm, alignbuffer, keylen);
-	memset(alignbuffer, 0, keylen);
-	kfree(buffer);
+	kfree_sensitive(buffer);
 	return ret;
 }
 
@@ -90,62 +80,28 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
 
-static inline int crypto_aead_errstat(struct crypto_istat_aead *istat, int err)
-{
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err && err != -EINPROGRESS && err != -EBUSY)
-		atomic64_inc(&istat->err_cnt);
-
-	return err;
-}
-
 int crypto_aead_encrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct aead_alg *alg = crypto_aead_alg(aead);
-	struct crypto_istat_aead *istat;
-	int ret;
-
-	istat = aead_get_stat(alg);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		atomic64_inc(&istat->encrypt_cnt);
-		atomic64_add(req->cryptlen, &istat->encrypt_tlen);
-	}
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
-	else
-		ret = alg->encrypt(req);
+		return -ENOKEY;
 
-	return crypto_aead_errstat(istat, ret);
+	return crypto_aead_alg(aead)->encrypt(req);
 }
 EXPORT_SYMBOL_GPL(crypto_aead_encrypt);
 
 int crypto_aead_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct aead_alg *alg = crypto_aead_alg(aead);
-	struct crypto_istat_aead *istat;
-	int ret;
-
-	istat = aead_get_stat(alg);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		atomic64_inc(&istat->encrypt_cnt);
-		atomic64_add(req->cryptlen, &istat->encrypt_tlen);
-	}
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
-	else if (req->cryptlen < crypto_aead_authsize(aead))
-		ret = -EINVAL;
-	else
-		ret = alg->decrypt(req);
+		return -ENOKEY;
 
-	return crypto_aead_errstat(istat, ret);
+	if (req->cryptlen < crypto_aead_authsize(aead))
+		return -EINVAL;
+
+	return crypto_aead_alg(aead)->decrypt(req);
 }
 EXPORT_SYMBOL_GPL(crypto_aead_decrypt);
 
@@ -215,26 +171,6 @@ static void crypto_aead_free_instance(struct crypto_instance *inst)
 	aead->free(aead);
 }
 
-static int __maybe_unused crypto_aead_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
-	struct crypto_istat_aead *istat = aead_get_stat(aead);
-	struct crypto_stat_aead raead;
-
-	memset(&raead, 0, sizeof(raead));
-
-	strscpy(raead.type, "aead", sizeof(raead.type));
-
-	raead.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
-	raead.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
-	raead.stat_decrypt_cnt = atomic64_read(&istat->decrypt_cnt);
-	raead.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
-	raead.stat_err_cnt = atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_AEAD, sizeof(raead), &raead);
-}
-
 static const struct crypto_type crypto_aead_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_aead_init_tfm,
@@ -244,9 +180,6 @@ static const struct crypto_type crypto_aead_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_aead_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_aead_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
@@ -277,7 +210,6 @@ EXPORT_SYMBOL_GPL(crypto_has_aead);
 
 static int aead_prepare_alg(struct aead_alg *alg)
 {
-	struct crypto_istat_aead *istat = aead_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	if (max3(alg->maxauthsize, alg->ivsize, alg->chunksize) >
@@ -290,9 +222,6 @@ static int aead_prepare_alg(struct aead_alg *alg)
 	base->cra_type = &crypto_aead_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_AEAD;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		memset(istat, 0, sizeof(*istat));
 
 	return 0;
 }

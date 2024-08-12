@@ -198,7 +198,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 {
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
 	static const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
-	long timeout;
+	long time_left;
 
 	pr_debug("%s", __func__);
 
@@ -208,11 +208,11 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 		return -EIO;
 	}
 
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 		&kim_gdata->kim_rcvd, msecs_to_jiffies(CMD_RESP_TIME));
-	if (timeout <= 0) {
+	if (time_left <= 0) {
 		pr_err(" waiting for ver info- timed out or received signal");
-		return timeout ? -ERESTARTSYS : -ETIMEDOUT;
+		return time_left ? -ERESTARTSYS : -ETIMEDOUT;
 	}
 	reinit_completion(&kim_gdata->kim_rcvd);
 	/*
@@ -563,7 +563,7 @@ long st_kim_stop(void *kim_data)
 
 static int version_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	seq_printf(s, "%04X %d.%d.%d\n", kim_gdata->version.full,
 			kim_gdata->version.chip, kim_gdata->version.maj_ver,
 			kim_gdata->version.min_ver);
@@ -572,7 +572,7 @@ static int version_show(struct seq_file *s, void *unused)
 
 static int list_show(struct seq_file *s, void *unused)
 {
-	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
+	struct kim_data_s *kim_gdata = s->private;
 	kim_st_list_protocols(kim_gdata->core_data, s);
 	return 0;
 }

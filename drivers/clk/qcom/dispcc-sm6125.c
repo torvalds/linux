@@ -28,7 +28,7 @@ enum {
 	P_GPLL0_OUT_MAIN,
 };
 
-static struct pll_vco disp_cc_pll_vco[] = {
+static const struct pll_vco disp_cc_pll_vco[] = {
 	{ 500000000, 1000000000, 2 },
 };
 
@@ -682,7 +682,7 @@ static int disp_cc_sm6125_probe(struct platform_device *pdev)
 
 	clk_alpha_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
 
-	return qcom_cc_really_probe(pdev, &disp_cc_sm6125_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &disp_cc_sm6125_desc, regmap);
 }
 
 static struct platform_driver disp_cc_sm6125_driver = {

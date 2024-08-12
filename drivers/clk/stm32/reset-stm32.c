@@ -19,6 +19,7 @@ struct stm32_reset_data {
 	struct reset_controller_dev	rcdev;
 	void __iomem			*membase;
 	u32				clear_offset;
+	const struct stm32_reset_cfg	**reset_lines;
 };
 
 static inline struct stm32_reset_data *
@@ -27,22 +28,46 @@ to_stm32_reset_data(struct reset_controller_dev *rcdev)
 	return container_of(rcdev, struct stm32_reset_data, rcdev);
 }
 
+static const struct stm32_reset_cfg *stm32_get_reset_line(struct reset_controller_dev *rcdev,
+							  unsigned long id,
+							  struct stm32_reset_cfg *line)
+{
+	struct stm32_reset_data *data = to_stm32_reset_data(rcdev);
+
+	if (!data->reset_lines) {
+		int reg_width = sizeof(u32);
+		int bank = id / (reg_width * BITS_PER_BYTE);
+		int offset = id % (reg_width * BITS_PER_BYTE);
+
+		line->offset = bank * reg_width;
+		line->bit_idx = offset;
+		line->set_clr = (data->clear_offset ? true : false);
+
+		return line;
+	}
+
+	return data->reset_lines[id];
+}
+
 static int stm32_reset_update(struct reset_controller_dev *rcdev,
 			      unsigned long id, bool assert)
 {
 	struct stm32_reset_data *data = to_stm32_reset_data(rcdev);
-	int reg_width = sizeof(u32);
-	int bank = id / (reg_width * BITS_PER_BYTE);
-	int offset = id % (reg_width * BITS_PER_BYTE);
+	struct stm32_reset_cfg line_reset;
+	const struct stm32_reset_cfg *ptr_line;
 
-	if (data->clear_offset) {
+	ptr_line = stm32_get_reset_line(rcdev, id, &line_reset);
+	if (!ptr_line)
+		return -EPERM;
+
+	if (ptr_line->set_clr) {
 		void __iomem *addr;
 
-		addr = data->membase + (bank * reg_width);
+		addr = data->membase + ptr_line->offset;
 		if (!assert)
 			addr += data->clear_offset;
 
-		writel(BIT(offset), addr);
+		writel(BIT(ptr_line->bit_idx), addr);
 
 	} else {
 		unsigned long flags;
@@ -50,14 +75,14 @@ static int stm32_reset_update(struct reset_controller_dev *rcdev,
 
 		spin_lock_irqsave(&data->lock, flags);
 
-		reg = readl(data->membase + (bank * reg_width));
+		reg = readl(data->membase + ptr_line->offset);
 
 		if (assert)
-			reg |= BIT(offset);
+			reg |= BIT(ptr_line->bit_idx);
 		else
-			reg &= ~BIT(offset);
+			reg &= ~BIT(ptr_line->bit_idx);
 
-		writel(reg, data->membase + (bank * reg_width));
+		writel(reg, data->membase + ptr_line->offset);
 
 		spin_unlock_irqrestore(&data->lock, flags);
 	}
@@ -81,14 +106,17 @@ static int stm32_reset_status(struct reset_controller_dev *rcdev,
 			      unsigned long id)
 {
 	struct stm32_reset_data *data = to_stm32_reset_data(rcdev);
-	int reg_width = sizeof(u32);
-	int bank = id / (reg_width * BITS_PER_BYTE);
-	int offset = id % (reg_width * BITS_PER_BYTE);
+	struct stm32_reset_cfg line_reset;
+	const struct stm32_reset_cfg *ptr_line;
 	u32 reg;
 
-	reg = readl(data->membase + (bank * reg_width));
+	ptr_line = stm32_get_reset_line(rcdev, id, &line_reset);
+	if (!ptr_line)
+		return -EPERM;
 
-	return !!(reg & BIT(offset));
+	reg = readl(data->membase + ptr_line->offset);
+
+	return !!(reg & BIT(ptr_line->bit_idx));
 }
 
 static const struct reset_control_ops stm32_reset_ops = {
@@ -113,6 +141,7 @@ int stm32_rcc_reset_init(struct device *dev, struct clk_stm32_reset_data *data,
 	reset_data->rcdev.ops = &stm32_reset_ops;
 	reset_data->rcdev.of_node = dev_of_node(dev);
 	reset_data->rcdev.nr_resets = data->nr_lines;
+	reset_data->reset_lines = data->reset_lines;
 	reset_data->clear_offset = data->clear_offset;
 
 	return reset_controller_register(&reset_data->rcdev);

@@ -1,0 +1,115 @@
+[
+  {
+    "EventName": "de_op_queue_empty",
+    "EventCode": "0xa9",
+    "BriefDescription": "Cycles where the op queue is empty. Such cycles indicate that the front-end is not delivering instructions fast enough."
+  },
+  {
+    "EventName": "de_src_op_disp.x86_decoder",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops dispatched from x86 decoder.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_src_op_disp.op_cache",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops dispatched from op cache.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_src_op_disp.all",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops dispatched from any source.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "de_dis_ops_from_decoder.any_fp_dispatch",
+    "EventCode": "0xab",
+    "BriefDescription": "Number of ops dispatched to the floating-point unit.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dis_ops_from_decoder.any_integer_dispatch",
+    "EventCode": "0xab",
+    "BriefDescription": "Number of ops dispatched to the integer execution unit.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part1.int_phy_reg_file_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to an integer physical register file resource stall.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part1.load_queue_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a lack of load queue tokens.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part1.store_queue_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a lack of store queue tokens.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part1.taken_brnch_buffer_rsrc",
+    "EventCode": "0xae",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a taken branch buffer resource stall.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part1.fp_sch_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a floating-point non-schedulable queue token stall.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part2.al_tokens",
+    "EventCode": "0xaf",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to unavailability of ALU tokens.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part2.ag_tokens",
+    "EventCode": "0xaf",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to unavailability of agen tokens.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part2.ex_flush_recovery",
+    "EventCode": "0xaf",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a pending integer execution flush recovery.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dispatch_stall_cycle_dynamic_tokens_part2.retq",
+    "EventCode": "0xaf",
+    "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to unavailability of retire queue tokens.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.no_ops_from_frontend",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts dispatch slots left empty because the front-end did not supply ops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.backend_stalls",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts ops unable to dispatch because of back-end stalls.",
+    "UMask": "0x1e"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.smt_contention",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts ops unable to dispatch because the dispatch cycle was granted to the other SMT thread.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "de_additional_resource_stalls.dispatch_stalls",
+    "EventCode": "0x1a2",
+    "BriefDescription": "Counts additional cycles where dispatch is stalled due to a lack of dispatch resources.",
+    "UMask": "0x30"
+  }
+]

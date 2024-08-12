@@ -285,13 +285,21 @@
 		ti,invert-autoidle-bit;
 	};
 
-	dpll_core_byp_mux: clock-dpll-core-byp-mux-23@12c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_core_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x012c>;
+	/* CM_CLKSEL_DPLL_CORE */
+	clock@12c {
+		compatible = "ti,clksel";
+		reg = <0x12c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_core_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_core_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_core_ck: clock@120 {
@@ -368,13 +376,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_dsp_byp_mux: clock-dpll-dsp-byp-mux-23@240 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_dsp_byp_mux";
-		clocks = <&sys_clkin1>, <&dsp_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x0240>;
+	/* CM_CLKSEL_DPLL_DSP */
+	clock@240 {
+		compatible = "ti,clksel";
+		reg = <0x240>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_dsp_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_dsp_byp_mux";
+			clocks = <&sys_clkin1>, <&dsp_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_dsp_ck: clock@234 {
@@ -410,13 +426,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_iva_byp_mux: clock-dpll-iva-byp-mux-23@1ac {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_iva_byp_mux";
-		clocks = <&sys_clkin1>, <&iva_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x01ac>;
+	/* CM_CLKSEL_DPLL_IVA */
+	clock@1ac {
+		compatible = "ti,clksel";
+		reg = <0x1ac>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_iva_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_iva_byp_mux";
+			clocks = <&sys_clkin1>, <&iva_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_iva_ck: clock@1a0 {
@@ -452,13 +476,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_gpu_byp_mux: clock-dpll-gpu-byp-mux-23@2e4 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_gpu_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x02e4>;
+	/* CM_CLKSEL_DPLL_GPU */
+	clock@2e4 {
+		compatible = "ti,clksel";
+		reg = <0x2e4>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_gpu_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_gpu_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_gpu_ck: clock@2d8 {
@@ -506,13 +538,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_ddr_byp_mux: clock-dpll-ddr-byp-mux-23@21c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_ddr_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x021c>;
+	/* CM_CLKSEL_DPLL_DDR */
+	clock@21c {
+		compatible = "ti,clksel";
+		reg = <0x21c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_ddr_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_ddr_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_ddr_ck: clock@210 {
@@ -535,13 +575,21 @@
 		ti,invert-autoidle-bit;
 	};
 
-	dpll_gmac_byp_mux: clock-dpll-gmac-byp-mux-23@2b4 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_gmac_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x02b4>;
+	/* CM_CLKSEL_DPLL_GMAC */
+	clock@2b4 {
+		compatible = "ti,clksel";
+		reg = <0x2b4>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_gmac_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_gmac_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_gmac_ck: clock@2a8 {
@@ -618,13 +666,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_eve_byp_mux: clock-dpll-eve-byp-mux-23@290 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_eve_byp_mux";
-		clocks = <&sys_clkin1>, <&eve_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x0290>;
+	/* CM_CLKSEL_DPLL_EVE */
+	clock@290 {
+		compatible = "ti,clksel";
+		reg = <0x290>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_eve_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_eve_byp_mux";
+			clocks = <&sys_clkin1>, <&eve_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_eve_ck: clock@284 {
@@ -838,15 +894,23 @@
 		clock-div = <1>;
 	};
 
-	l3_iclk_div: clock-l3-iclk-div-4@100 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clock-output-names = "l3_iclk_div";
-		ti,max-div = <2>;
-		ti,bit-shift = <4>;
-		reg = <0x0100>;
-		clocks = <&dpll_core_h12x2_ck>;
-		ti,index-power-of-two;
+	/* CM_CLKSEL_CORE */
+	clock@100 {
+		compatible = "ti,clksel";
+		reg = <0x100>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		l3_iclk_div: clock@4 {
+			reg = <4>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "l3_iclk_div";
+			ti,max-div = <2>;
+			clocks = <&dpll_core_h12x2_ck>;
+			ti,index-power-of-two;
+			#clock-cells = <0>;
+		};
 	};
 
 	l4_root_clk_div: clock-l4-root-clk-div {
@@ -911,12 +975,21 @@
 		ti,index-starts-at-one;
 	};
 
-	abe_dpll_sys_clk_mux: clock-abe-dpll-sys-clk-mux@118 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "abe_dpll_sys_clk_mux";
-		clocks = <&sys_clkin1>, <&sys_clkin2>;
-		reg = <0x0118>;
+	/* CM_CLKSEL_ABE_PLL_SYS */
+	clock@118 {
+		compatible = "ti,clksel";
+		reg = <0x118>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		abe_dpll_sys_clk_mux: clock@0 {
+			reg = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "abe_dpll_sys_clk_mux";
+			clocks = <&sys_clkin1>, <&sys_clkin2>;
+			#clock-cells = <0>;
+		};
 	};
 
 	abe_dpll_bypass_clk_mux: clock-abe-dpll-bypass-clk-mux@114 {
@@ -1018,14 +1091,23 @@
 		ti,index-power-of-two;
 	};
 
-	dsp_gclk_div: clock-dsp-gclk-div@18c {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clock-output-names = "dsp_gclk_div";
-		clocks = <&dpll_dsp_m2_ck>;
-		ti,max-div = <64>;
-		reg = <0x018c>;
-		ti,index-power-of-two;
+	/* CM_CLKSEL_DPLL_USB */
+	clock@18c {
+		compatible = "ti,clksel";
+		reg = <0x18c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dsp_gclk_div: clock@0 {
+			reg = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dsp_gclk_div";
+			clocks = <&dpll_dsp_m2_ck>;
+			ti,max-div = <64>;
+			ti,index-power-of-two;
+			#clock-cells = <0>;
+		};
 	};
 
 	gpu_dclk: clock-gpu-dclk@1a0 {
@@ -1326,13 +1408,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_per_byp_mux: clock-dpll-per-byp-mux-23@14c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_per_byp_mux";
-		clocks = <&sys_clkin1>, <&per_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x014c>;
+	/* CM_CLKSEL_DPLL_PER */
+	clock@14c {
+		compatible = "ti,clksel";
+		reg = <0x14c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_per_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_per_byp_mux";
+			clocks = <&sys_clkin1>, <&per_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_per_ck: clock@140 {
@@ -1364,13 +1454,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_usb_byp_mux: clock-dpll-usb-byp-mux-23@18c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_usb_byp_mux";
-		clocks = <&sys_clkin1>, <&usb_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x018c>;
+	/* CM_CLKSEL_DPLL_USB */
+	clock@18c {
+		compatible = "ti,clksel";
+		reg = <0x18c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_usb_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_usb_byp_mux";
+			clocks = <&sys_clkin1>, <&usb_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_usb_ck: clock@180 {

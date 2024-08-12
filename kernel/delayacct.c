@@ -44,7 +44,7 @@ void delayacct_init(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-static int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
+static int sysctl_delayacct(const struct ctl_table *table, int write, void *buffer,
 		     size_t *lenp, loff_t *ppos)
 {
 	int state = delayacct_on;
@@ -74,7 +74,6 @@ static struct ctl_table kern_delayacct_table[] = {
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
-	{ }
 };
 
 static __init int kernel_delayacct_sysctls_init(void)

@@ -151,7 +151,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 
 	/* Do not add any adapter for the idle state (if it's there at all). */
 	for (i = 0; i < num_names - !!muxc->deselect; i++) {
-		ret = i2c_mux_add_adapter(muxc, 0, i, 0);
+		ret = i2c_mux_add_adapter(muxc, 0, i);
 		if (ret)
 			goto err_del_adapter;
 	}

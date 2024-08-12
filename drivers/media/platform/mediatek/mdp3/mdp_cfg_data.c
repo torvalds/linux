@@ -46,6 +46,53 @@ enum mt8183_mdp_comp_id {
 	MT8183_MDP_COMP_WROT1,          /* 25 */
 };
 
+enum mt8188_mdp_comp_id {
+	/* MT8188 Comp id */
+	/* ISP */
+	MT8188_MDP_COMP_WPEI = 0,
+	MT8188_MDP_COMP_WPEO,           /* 1 */
+
+	/* MDP */
+	MT8188_MDP_COMP_CAMIN,          /* 2 */
+	MT8188_MDP_COMP_RDMA0,          /* 3 */
+	MT8188_MDP_COMP_RDMA2,          /* 4 */
+	MT8188_MDP_COMP_RDMA3,          /* 5 */
+	MT8188_MDP_COMP_FG0,            /* 6 */
+	MT8188_MDP_COMP_FG2,            /* 7 */
+	MT8188_MDP_COMP_FG3,            /* 8 */
+	MT8188_MDP_COMP_TO_SVPP2MOUT,   /* 9 */
+	MT8188_MDP_COMP_TO_SVPP3MOUT,   /* 10 */
+	MT8188_MDP_COMP_TO_WARP0MOUT,   /* 11 */
+	MT8188_MDP_COMP_VPP0_SOUT,      /* 12 */
+	MT8188_MDP_COMP_VPP1_SOUT,      /* 13 */
+	MT8188_MDP_COMP_PQ0_SOUT,       /* 14 */
+	MT8188_MDP_COMP_HDR0,           /* 15 */
+	MT8188_MDP_COMP_HDR2,           /* 16 */
+	MT8188_MDP_COMP_HDR3,           /* 17 */
+	MT8188_MDP_COMP_AAL0,           /* 18 */
+	MT8188_MDP_COMP_AAL2,           /* 19 */
+	MT8188_MDP_COMP_AAL3,           /* 20 */
+	MT8188_MDP_COMP_RSZ0,           /* 21 */
+	MT8188_MDP_COMP_RSZ2,           /* 22 */
+	MT8188_MDP_COMP_RSZ3,           /* 23 */
+	MT8188_MDP_COMP_TDSHP0,         /* 24 */
+	MT8188_MDP_COMP_TDSHP2,         /* 25 */
+	MT8188_MDP_COMP_TDSHP3,         /* 26 */
+	MT8188_MDP_COMP_COLOR0,         /* 27 */
+	MT8188_MDP_COMP_COLOR2,         /* 28 */
+	MT8188_MDP_COMP_COLOR3,         /* 29 */
+	MT8188_MDP_COMP_OVL0,           /* 30 */
+	MT8188_MDP_COMP_PAD0,           /* 31 */
+	MT8188_MDP_COMP_PAD2,           /* 32 */
+	MT8188_MDP_COMP_PAD3,           /* 33 */
+	MT8188_MDP_COMP_TCC0,           /* 34 */
+	MT8188_MDP_COMP_WROT0,          /* 35 */
+	MT8188_MDP_COMP_WROT2,          /* 36 */
+	MT8188_MDP_COMP_WROT3,          /* 37 */
+	MT8188_MDP_COMP_MERGE2,         /* 38 */
+	MT8188_MDP_COMP_MERGE3,         /* 39 */
+};
+
 enum mt8195_mdp_comp_id {
 	/* MT8195 Comp id */
 	/* ISP */
@@ -123,6 +170,13 @@ static const struct of_device_id mt8183_mdp_probe_infra[MDP_INFRA_MAX] = {
 	[MDP_INFRA_SCP] = { .compatible = "mediatek,mt8183-scp" }
 };
 
+static const struct of_device_id mt8188_mdp_probe_infra[MDP_INFRA_MAX] = {
+	[MDP_INFRA_MMSYS] = { .compatible = "mediatek,mt8188-vppsys0" },
+	[MDP_INFRA_MMSYS2] = { .compatible = "mediatek,mt8188-vppsys1" },
+	[MDP_INFRA_MUTEX] = { .compatible = "mediatek,mt8188-vpp-mutex" },
+	[MDP_INFRA_MUTEX2] = { .compatible = "mediatek,mt8188-vpp-mutex" },
+};
+
 static const struct of_device_id mt8195_mdp_probe_infra[MDP_INFRA_MAX] = {
 	[MDP_INFRA_MMSYS] = { .compatible = "mediatek,mt8195-vppsys0" },
 	[MDP_INFRA_MMSYS2] = { .compatible = "mediatek,mt8195-vppsys1" },
@@ -165,6 +219,40 @@ static const u32 mt8183_mutex_idx[MDP_MAX_COMP_COUNT] = {
 	[MDP_COMP_WDMA] = MUTEX_MOD_IDX_MDP_WDMA,
 	[MDP_COMP_AAL0] = MUTEX_MOD_IDX_MDP_AAL0,
 	[MDP_COMP_CCORR0] = MUTEX_MOD_IDX_MDP_CCORR0,
+};
+
+static const u32 mt8188_mutex_idx[MDP_MAX_COMP_COUNT] = {
+	[MDP_COMP_RDMA0] = MUTEX_MOD_IDX_MDP_RDMA0,
+	[MDP_COMP_RDMA2] = MUTEX_MOD_IDX_MDP_RDMA2,
+	[MDP_COMP_RDMA3] = MUTEX_MOD_IDX_MDP_RDMA3,
+	[MDP_COMP_FG0] = MUTEX_MOD_IDX_MDP_FG0,
+	[MDP_COMP_FG2] = MUTEX_MOD_IDX_MDP_FG2,
+	[MDP_COMP_FG3] = MUTEX_MOD_IDX_MDP_FG3,
+	[MDP_COMP_HDR0] = MUTEX_MOD_IDX_MDP_HDR0,
+	[MDP_COMP_HDR2] = MUTEX_MOD_IDX_MDP_HDR2,
+	[MDP_COMP_HDR3] = MUTEX_MOD_IDX_MDP_HDR3,
+	[MDP_COMP_AAL0] = MUTEX_MOD_IDX_MDP_AAL0,
+	[MDP_COMP_AAL2] = MUTEX_MOD_IDX_MDP_AAL2,
+	[MDP_COMP_AAL3] = MUTEX_MOD_IDX_MDP_AAL3,
+	[MDP_COMP_RSZ0] = MUTEX_MOD_IDX_MDP_RSZ0,
+	[MDP_COMP_RSZ2] = MUTEX_MOD_IDX_MDP_RSZ2,
+	[MDP_COMP_RSZ3] = MUTEX_MOD_IDX_MDP_RSZ3,
+	[MDP_COMP_MERGE2] = MUTEX_MOD_IDX_MDP_MERGE2,
+	[MDP_COMP_MERGE3] = MUTEX_MOD_IDX_MDP_MERGE3,
+	[MDP_COMP_TDSHP0] = MUTEX_MOD_IDX_MDP_TDSHP0,
+	[MDP_COMP_TDSHP2] = MUTEX_MOD_IDX_MDP_TDSHP2,
+	[MDP_COMP_TDSHP3] = MUTEX_MOD_IDX_MDP_TDSHP3,
+	[MDP_COMP_COLOR0] = MUTEX_MOD_IDX_MDP_COLOR0,
+	[MDP_COMP_COLOR2] = MUTEX_MOD_IDX_MDP_COLOR2,
+	[MDP_COMP_COLOR3] = MUTEX_MOD_IDX_MDP_COLOR3,
+	[MDP_COMP_OVL0] = MUTEX_MOD_IDX_MDP_OVL0,
+	[MDP_COMP_PAD0] = MUTEX_MOD_IDX_MDP_PAD0,
+	[MDP_COMP_PAD2] = MUTEX_MOD_IDX_MDP_PAD2,
+	[MDP_COMP_PAD3] = MUTEX_MOD_IDX_MDP_PAD3,
+	[MDP_COMP_TCC0] = MUTEX_MOD_IDX_MDP_TCC0,
+	[MDP_COMP_WROT0] = MUTEX_MOD_IDX_MDP_WROT0,
+	[MDP_COMP_WROT2] = MUTEX_MOD_IDX_MDP_WROT2,
+	[MDP_COMP_WROT3] = MUTEX_MOD_IDX_MDP_WROT3,
 };
 
 static const u32 mt8195_mutex_idx[MDP_MAX_COMP_COUNT] = {
@@ -285,6 +373,171 @@ static const struct mdp_comp_data mt8183_mdp_comp_data[MDP_MAX_COMP_COUNT] = {
 	[MDP_COMP_WDMA] = {
 		{MDP_COMP_TYPE_WDMA, 0, MT8183_MDP_COMP_WDMA, MDP_MM_SUBSYS_0},
 		{1, 0, 0}
+	},
+};
+
+static const struct mdp_comp_data mt8188_mdp_comp_data[MDP_MAX_COMP_COUNT] = {
+	[MDP_COMP_WPEI] = {
+		{MDP_COMP_TYPE_WPEI, 0, MT8188_MDP_COMP_WPEI, MDP_MM_SUBSYS_0},
+		{0, 0, 0}
+	},
+	[MDP_COMP_WPEO] = {
+		{MDP_COMP_TYPE_EXTO, 0, MT8188_MDP_COMP_WPEO, MDP_MM_SUBSYS_0},
+		{0, 0, 0}
+	},
+	[MDP_COMP_CAMIN] = {
+		{MDP_COMP_TYPE_DL_PATH, 0, MT8188_MDP_COMP_CAMIN, MDP_MM_SUBSYS_0},
+		{3, 3, 0}
+	},
+	[MDP_COMP_RDMA0] = {
+		{MDP_COMP_TYPE_RDMA, 0, MT8188_MDP_COMP_RDMA0, MDP_MM_SUBSYS_0},
+		{3, 0, 0}
+	},
+	[MDP_COMP_RDMA2] = {
+		{MDP_COMP_TYPE_RDMA, 1, MT8188_MDP_COMP_RDMA2, MDP_MM_SUBSYS_1},
+		{3, 0, 0}
+	},
+	[MDP_COMP_RDMA3] = {
+		{MDP_COMP_TYPE_RDMA, 2, MT8188_MDP_COMP_RDMA3, MDP_MM_SUBSYS_1},
+		{3, 0, 0}
+	},
+	[MDP_COMP_FG0] = {
+		{MDP_COMP_TYPE_FG, 0, MT8188_MDP_COMP_FG0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_FG2] = {
+		{MDP_COMP_TYPE_FG, 1, MT8188_MDP_COMP_FG2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_FG3] = {
+		{MDP_COMP_TYPE_FG, 2, MT8188_MDP_COMP_FG3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_HDR0] = {
+		{MDP_COMP_TYPE_HDR, 0, MT8188_MDP_COMP_HDR0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_HDR2] = {
+		{MDP_COMP_TYPE_HDR, 1, MT8188_MDP_COMP_HDR2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_HDR3] = {
+		{MDP_COMP_TYPE_HDR, 2, MT8188_MDP_COMP_HDR3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_AAL0] = {
+		{MDP_COMP_TYPE_AAL, 0, MT8188_MDP_COMP_AAL0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_AAL2] = {
+		{MDP_COMP_TYPE_AAL, 1, MT8188_MDP_COMP_AAL2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_AAL3] = {
+		{MDP_COMP_TYPE_AAL, 2, MT8188_MDP_COMP_AAL3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_RSZ0] = {
+		{MDP_COMP_TYPE_RSZ, 0, MT8188_MDP_COMP_RSZ0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_RSZ2] = {
+		{MDP_COMP_TYPE_RSZ, 1, MT8188_MDP_COMP_RSZ2, MDP_MM_SUBSYS_1},
+		{2, 0, 0},
+		{MDP_COMP_MERGE2, true, true}
+	},
+	[MDP_COMP_RSZ3] = {
+		{MDP_COMP_TYPE_RSZ, 2, MT8188_MDP_COMP_RSZ3, MDP_MM_SUBSYS_1},
+		{2, 0, 0},
+		{MDP_COMP_MERGE3, true, true}
+	},
+	[MDP_COMP_TDSHP0] = {
+		{MDP_COMP_TYPE_TDSHP, 0, MT8188_MDP_COMP_TDSHP0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_TDSHP2] = {
+		{MDP_COMP_TYPE_TDSHP, 1, MT8188_MDP_COMP_TDSHP2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_TDSHP3] = {
+		{MDP_COMP_TYPE_TDSHP, 2, MT8188_MDP_COMP_TDSHP3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_COLOR0] = {
+		{MDP_COMP_TYPE_COLOR, 0, MT8188_MDP_COMP_COLOR0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_COLOR2] = {
+		{MDP_COMP_TYPE_COLOR, 1, MT8188_MDP_COMP_COLOR2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_COLOR3] = {
+		{MDP_COMP_TYPE_COLOR, 2, MT8188_MDP_COMP_COLOR3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_OVL0] = {
+		{MDP_COMP_TYPE_OVL, 0, MT8188_MDP_COMP_OVL0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_PAD0] = {
+		{MDP_COMP_TYPE_PAD, 0, MT8188_MDP_COMP_PAD0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_PAD2] = {
+		{MDP_COMP_TYPE_PAD, 1, MT8188_MDP_COMP_PAD2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_PAD3] = {
+		{MDP_COMP_TYPE_PAD, 2, MT8188_MDP_COMP_PAD3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_TCC0] = {
+		{MDP_COMP_TYPE_TCC, 0, MT8188_MDP_COMP_TCC0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_WROT0] = {
+		{MDP_COMP_TYPE_WROT, 0, MT8188_MDP_COMP_WROT0, MDP_MM_SUBSYS_0},
+		{1, 0, 0}
+	},
+	[MDP_COMP_WROT2] = {
+		{MDP_COMP_TYPE_WROT, 1, MT8188_MDP_COMP_WROT2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_WROT3] = {
+		{MDP_COMP_TYPE_WROT, 2, MT8188_MDP_COMP_WROT3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_MERGE2] = {
+		{MDP_COMP_TYPE_MERGE, 0, MT8188_MDP_COMP_MERGE2, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_MERGE3] = {
+		{MDP_COMP_TYPE_MERGE, 1, MT8188_MDP_COMP_MERGE3, MDP_MM_SUBSYS_1},
+		{1, 0, 0}
+	},
+	[MDP_COMP_PQ0_SOUT] = {
+		{MDP_COMP_TYPE_DUMMY, 0, MT8188_MDP_COMP_PQ0_SOUT, MDP_MM_SUBSYS_0},
+		{0, 0, 0}
+	},
+	[MDP_COMP_TO_WARP0MOUT] = {
+		{MDP_COMP_TYPE_DUMMY, 1, MT8188_MDP_COMP_TO_WARP0MOUT, MDP_MM_SUBSYS_0},
+		{0, 0, 0}
+	},
+	[MDP_COMP_TO_SVPP2MOUT] = {
+		{MDP_COMP_TYPE_DUMMY, 2, MT8188_MDP_COMP_TO_SVPP2MOUT, MDP_MM_SUBSYS_1},
+		{0, 0, 0}
+	},
+	[MDP_COMP_TO_SVPP3MOUT] = {
+		{MDP_COMP_TYPE_DUMMY, 3, MT8188_MDP_COMP_TO_SVPP3MOUT, MDP_MM_SUBSYS_1},
+		{0, 0, 0}
+	},
+	[MDP_COMP_VPP0_SOUT] = {
+		{MDP_COMP_TYPE_PATH, 0, MT8188_MDP_COMP_VPP0_SOUT, MDP_MM_SUBSYS_1},
+		{2, 6, 0}
+	},
+	[MDP_COMP_VPP1_SOUT] = {
+		{MDP_COMP_TYPE_PATH, 1, MT8188_MDP_COMP_VPP1_SOUT, MDP_MM_SUBSYS_0},
+		{2, 8, 0}
 	},
 };
 
@@ -1046,6 +1299,15 @@ static const struct mdp_pipe_info mt8183_pipe_info[] = {
 	[MDP_PIPE_RDMA0] = {MDP_PIPE_RDMA0, MDP_MM_SUBSYS_0, 3}
 };
 
+static const struct mdp_pipe_info mt8188_pipe_info[] = {
+	[MDP_PIPE_WPEI] = {MDP_PIPE_WPEI, MDP_MM_SUBSYS_0, 0},
+	[MDP_PIPE_RDMA0] = {MDP_PIPE_RDMA0, MDP_MM_SUBSYS_0, 1},
+	[MDP_PIPE_RDMA2] = {MDP_PIPE_RDMA2, MDP_MM_SUBSYS_1, 0},
+	[MDP_PIPE_RDMA3] = {MDP_PIPE_RDMA3, MDP_MM_SUBSYS_1, 1},
+	[MDP_PIPE_VPP1_SOUT] = {MDP_PIPE_VPP1_SOUT, MDP_MM_SUBSYS_0, 2},
+	[MDP_PIPE_VPP0_SOUT] = {MDP_PIPE_VPP0_SOUT, MDP_MM_SUBSYS_1, 2},
+};
+
 static const struct mdp_pipe_info mt8195_pipe_info[] = {
 	[MDP_PIPE_WPEI] = {MDP_PIPE_WPEI, MDP_MM_SUBSYS_0, 0},
 	[MDP_PIPE_WPEI2] = {MDP_PIPE_WPEI2, MDP_MM_SUBSYS_0, 1},
@@ -1080,6 +1342,24 @@ const struct mtk_mdp_driver_data mt8183_mdp_driver_data = {
 	.pipe_info = mt8183_pipe_info,
 	.pipe_info_len = ARRAY_SIZE(mt8183_pipe_info),
 	.pp_used = MDP_PP_USED_1,
+};
+
+const struct mtk_mdp_driver_data mt8188_mdp_driver_data = {
+	.mdp_plat_id = MT8188,
+	.mdp_con_res = 0x14001000,
+	.mdp_probe_infra = mt8188_mdp_probe_infra,
+	.mdp_sub_comp_dt_ids = mt8195_sub_comp_dt_ids,
+	.mdp_cfg = &mt8195_plat_cfg,
+	.mdp_mutex_table_idx = mt8188_mutex_idx,
+	.comp_data = mt8188_mdp_comp_data,
+	.comp_data_len = ARRAY_SIZE(mt8188_mdp_comp_data),
+	.format = mt8195_formats,
+	.format_len = ARRAY_SIZE(mt8195_formats),
+	.def_limit = &mt8195_mdp_def_limit,
+	.pipe_info = mt8188_pipe_info,
+	.pipe_info_len = ARRAY_SIZE(mt8188_pipe_info),
+	.pp_criteria = &mt8195_mdp_pp_criteria,
+	.pp_used = MDP_PP_USED_2,
 };
 
 const struct mtk_mdp_driver_data mt8195_mdp_driver_data = {

@@ -148,7 +148,7 @@ struct nvmet_fc_tgt_queue {
 	struct workqueue_struct		*work_q;
 	struct kref			ref;
 	/* array of fcp_iods */
-	struct nvmet_fc_fcp_iod		fod[] __counted_by(sqsize);
+	struct nvmet_fc_fcp_iod		fod[] /* __counted_by(sqsize) */;
 } __aligned(sizeof(unsigned long long));
 
 struct nvmet_fc_hostport {
@@ -1115,16 +1115,21 @@ nvmet_fc_schedule_delete_assoc(struct nvmet_fc_tgt_assoc *assoc)
 }
 
 static bool
-nvmet_fc_assoc_exits(struct nvmet_fc_tgtport *tgtport, u64 association_id)
+nvmet_fc_assoc_exists(struct nvmet_fc_tgtport *tgtport, u64 association_id)
 {
 	struct nvmet_fc_tgt_assoc *a;
+	bool found = false;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(a, &tgtport->assoc_list, a_list) {
-		if (association_id == a->association_id)
-			return true;
+		if (association_id == a->association_id) {
+			found = true;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	return false;
+	return found;
 }
 
 static struct nvmet_fc_tgt_assoc *
@@ -1164,13 +1169,11 @@ nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 		ran = ran << BYTES_FOR_QID_SHIFT;
 
 		spin_lock_irqsave(&tgtport->lock, flags);
-		rcu_read_lock();
-		if (!nvmet_fc_assoc_exits(tgtport, ran)) {
+		if (!nvmet_fc_assoc_exists(tgtport, ran)) {
 			assoc->association_id = ran;
 			list_add_tail_rcu(&assoc->a_list, &tgtport->assoc_list);
 			done = true;
 		}
-		rcu_read_unlock();
 		spin_unlock_irqrestore(&tgtport->lock, flags);
 	} while (!done);
 
@@ -2931,6 +2934,38 @@ nvmet_fc_discovery_chg(struct nvmet_port *port)
 		tgtport->ops->discovery_event(&tgtport->fc_target_port);
 }
 
+static ssize_t
+nvmet_fc_host_traddr(struct nvmet_ctrl *ctrl,
+		char *traddr, size_t traddr_size)
+{
+	struct nvmet_sq *sq = ctrl->sqs[0];
+	struct nvmet_fc_tgt_queue *queue =
+		container_of(sq, struct nvmet_fc_tgt_queue, nvme_sq);
+	struct nvmet_fc_tgtport *tgtport = queue->assoc ? queue->assoc->tgtport : NULL;
+	struct nvmet_fc_hostport *hostport = queue->assoc ? queue->assoc->hostport : NULL;
+	u64 wwnn, wwpn;
+	ssize_t ret = 0;
+
+	if (!tgtport || !nvmet_fc_tgtport_get(tgtport))
+		return -ENODEV;
+	if (!hostport || !nvmet_fc_hostport_get(hostport)) {
+		ret = -ENODEV;
+		goto out_put;
+	}
+
+	if (tgtport->ops->host_traddr) {
+		ret = tgtport->ops->host_traddr(hostport->hosthandle, &wwnn, &wwpn);
+		if (ret)
+			goto out_put_host;
+		ret = snprintf(traddr, traddr_size, "nn-0x%llx:pn-0x%llx", wwnn, wwpn);
+	}
+out_put_host:
+	nvmet_fc_hostport_put(hostport);
+out_put:
+	nvmet_fc_tgtport_put(tgtport);
+	return ret;
+}
+
 static const struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {
 	.owner			= THIS_MODULE,
 	.type			= NVMF_TRTYPE_FC,
@@ -2940,6 +2975,7 @@ static const struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {
 	.queue_response		= nvmet_fc_fcp_nvme_cmd_done,
 	.delete_ctrl		= nvmet_fc_delete_ctrl,
 	.discovery_chg		= nvmet_fc_discovery_chg,
+	.host_traddr		= nvmet_fc_host_traddr,
 };
 
 static int __init nvmet_fc_init_module(void)

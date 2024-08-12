@@ -20,6 +20,26 @@ There are several variants of 'perf sched':
   'perf sched latency' to report the per task scheduling latencies
   and other scheduling properties of the workload.
 
+   Example usage:
+       perf sched record -- sleep 1
+       perf sched latency
+
+  -------------------------------------------------------------------------------------------------------------------------------------------
+  Task                  |   Runtime ms  |  Count   | Avg delay ms    | Max delay ms    | Max delay start           | Max delay end          |
+  -------------------------------------------------------------------------------------------------------------------------------------------
+  perf:(2)              |      2.804 ms |       66 | avg:   0.524 ms | max:   1.069 ms | max start: 254752.314960 s | max end: 254752.316029 s
+  NetworkManager:1343   |      0.372 ms |       13 | avg:   0.008 ms | max:   0.013 ms | max start: 254751.551153 s | max end: 254751.551166 s
+  kworker/1:2-xfs:4649  |      0.012 ms |        1 | avg:   0.008 ms | max:   0.008 ms | max start: 254751.519807 s | max end: 254751.519815 s
+  kworker/3:1-xfs:388   |      0.011 ms |        1 | avg:   0.006 ms | max:   0.006 ms | max start: 254751.519809 s | max end: 254751.519815 s
+  sleep:147736          |      0.938 ms |        3 | avg:   0.006 ms | max:   0.007 ms | max start: 254751.313817 s | max end: 254751.313824 s
+
+  It shows Runtime(time that a task spent actually running on the CPU),
+  Count(number of times a delay was calculated) and delay(time that a
+  task was ready to run but was kept waiting).
+
+  Tasks with the same command name are merged and the merge count is
+  given within (), However if -p option is used, pid is mentioned.
+
   'perf sched script' to see a detailed trace of the workload that
    was recorded (aliased to 'perf script' for now).
 
@@ -44,8 +64,8 @@ There are several variants of 'perf sched':
     
    By default it shows the individual schedule events, including the wait
    time (time between sched-out and next sched-in events for the task), the
-   task scheduling delay (time between wakeup and actually running) and run
-   time for the task:
+   task scheduling delay (time between runnable and actually running) and
+   run time for the task:
     
                 time    cpu  task name             wait time  sch delay   run time
                              [tid/pid]                (msec)     (msec)     (msec)
@@ -78,6 +98,22 @@ OPTIONS
 --force::
 	Don't complain, do it.
 
+OPTIONS for 'perf sched latency'
+-------------------------------
+
+-C::
+--CPU <n>::
+        CPU to profile on.
+
+-p::
+--pids::
+        latency stats per pid instead of per command name.
+
+-s::
+--sort <key[,key2...]>::
+        sort by key(s): runtime, switch, avg, max
+        by default it's sorted by "avg ,max ,switch ,runtime".
+
 OPTIONS for 'perf sched map'
 ----------------------------
 
@@ -93,6 +129,16 @@ OPTIONS for 'perf sched map'
 
 --color-pids::
 	Highlight the given pids.
+
+--task-name <task>::
+	Map output only for the given task name(s). Separate the
+	task names with a comma (without whitespace). The sched-out
+	time is printed and is represented by '*-' for the given
+	task name(s).
+	('-' indicates other tasks while '.' is idle).
+
+--fuzzy-name::
+	Given task name(s) can be partially matched (fuzzy matching).
 
 OPTIONS for 'perf sched timehist'
 ---------------------------------
@@ -165,6 +211,13 @@ OPTIONS for 'perf sched timehist'
 
 --state::
 	Show task state when it switched out.
+
+OPTIONS for 'perf sched replay'
+------------------------------
+
+-r::
+--repeat <n>::
+	repeat the workload n times (0: infinite). Default is 10.
 
 SEE ALSO
 --------

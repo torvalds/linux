@@ -2,26 +2,36 @@
 /*
  * Copyright (C) 2023, Tencent, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <x86intrin.h>
 
 #include "pmu.h"
 #include "processor.h"
 
-/* Number of LOOP instructions for the guest measurement payload. */
-#define NUM_BRANCHES		10
+/* Number of iterations of the loop for the guest measurement payload. */
+#define NUM_LOOPS			10
+
+/* Each iteration of the loop retires one branch instruction. */
+#define NUM_BRANCH_INSNS_RETIRED	(NUM_LOOPS)
+
+/*
+ * Number of instructions in each loop. 1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE,
+ * 1 LOOP.
+ */
+#define NUM_INSNS_PER_LOOP		3
+
 /*
  * Number of "extra" instructions that will be counted, i.e. the number of
- * instructions that are needed to set up the loop and then disabled the
- * counter.  1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE, 2 MOV, 2 XOR, 1 WRMSR.
+ * instructions that are needed to set up the loop and then disable the
+ * counter.  2 MOV, 2 XOR, 1 WRMSR.
  */
-#define NUM_EXTRA_INSNS		7
-#define NUM_INSNS_RETIRED	(NUM_BRANCHES + NUM_EXTRA_INSNS)
+#define NUM_EXTRA_INSNS			5
+
+/* Total number of instructions retired within the measured section. */
+#define NUM_INSNS_RETIRED		(NUM_LOOPS * NUM_INSNS_PER_LOOP + NUM_EXTRA_INSNS)
+
 
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
-static bool is_forced_emulation_enabled;
 
 static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						  void *guest_code,
@@ -31,11 +41,7 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 	struct kvm_vm *vm;
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(*vcpu);
-
 	sync_global_to_guest(vm, kvm_pmu_version);
-	sync_global_to_guest(vm, is_forced_emulation_enabled);
 
 	/*
 	 * Set PERF_CAPABILITIES before PMU version as KVM disallows enabling
@@ -107,7 +113,7 @@ static void guest_assert_event_count(uint8_t idx,
 		GUEST_ASSERT_EQ(count, NUM_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_BRANCHES_RETIRED_INDEX:
-		GUEST_ASSERT_EQ(count, NUM_BRANCHES);
+		GUEST_ASSERT_EQ(count, NUM_BRANCH_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_LLC_REFERENCES_INDEX:
 	case INTEL_ARCH_LLC_MISSES_INDEX:
@@ -127,7 +133,7 @@ static void guest_assert_event_count(uint8_t idx,
 	}
 
 sanity_checks:
-	__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
+	__asm__ __volatile__("loop ." : "+c"((int){NUM_LOOPS}));
 	GUEST_ASSERT_EQ(_rdpmc(pmc), count);
 
 	wrmsr(pmc_msr, 0xdead);
@@ -141,8 +147,8 @@ sanity_checks:
  * before the end of the sequence.
  *
  * If CLFUSH{,OPT} is supported, flush the cacheline containing (at least) the
- * start of the loop to force LLC references and misses, i.e. to allow testing
- * that those events actually count.
+ * CLFUSH{,OPT} instruction on each loop iteration to force LLC references and
+ * misses, i.e. to allow testing that those events actually count.
  *
  * If forced emulation is enabled (and specified), force emulation on a subset
  * of the measured code to verify that KVM correctly emulates instructions and
@@ -152,10 +158,11 @@ sanity_checks:
 #define GUEST_MEASURE_EVENT(_msr, _value, clflush, FEP)				\
 do {										\
 	__asm__ __volatile__("wrmsr\n\t"					\
+			     " mov $" __stringify(NUM_LOOPS) ", %%ecx\n\t"	\
+			     "1:\n\t"						\
 			     clflush "\n\t"					\
 			     "mfence\n\t"					\
-			     "1: mov $" __stringify(NUM_BRANCHES) ", %%ecx\n\t"	\
-			     FEP "loop .\n\t"					\
+			     FEP "loop 1b\n\t"					\
 			     FEP "mov %%edi, %%ecx\n\t"				\
 			     FEP "xor %%eax, %%eax\n\t"				\
 			     FEP "xor %%edx, %%edx\n\t"				\
@@ -170,9 +177,9 @@ do {										\
 	wrmsr(pmc_msr, 0);							\
 										\
 	if (this_cpu_has(X86_FEATURE_CLFLUSHOPT))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt 1f", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt .", FEP);	\
 	else if (this_cpu_has(X86_FEATURE_CLFLUSH))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush 1f", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush .", FEP);	\
 	else									\
 		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "nop", FEP);		\
 										\
@@ -416,11 +423,29 @@ static void guest_rd_wr_counters(uint32_t base_msr, uint8_t nr_possible_counters
 
 static void guest_test_gp_counters(void)
 {
+	uint8_t pmu_version = guest_get_pmu_version();
 	uint8_t nr_gp_counters = 0;
 	uint32_t base_msr;
 
-	if (guest_get_pmu_version())
+	if (pmu_version)
 		nr_gp_counters = this_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
+
+	/*
+	 * For v2+ PMUs, PERF_GLOBAL_CTRL's architectural post-RESET value is
+	 * "Sets bits n-1:0 and clears the upper bits", where 'n' is the number
+	 * of GP counters.  If there are no GP counters, require KVM to leave
+	 * PERF_GLOBAL_CTRL '0'.  This edge case isn't covered by the SDM, but
+	 * follow the spirit of the architecture and only globally enable GP
+	 * counters, of which there are none.
+	 */
+	if (pmu_version > 1) {
+		uint64_t global_ctrl = rdmsr(MSR_CORE_PERF_GLOBAL_CTRL);
+
+		if (nr_gp_counters)
+			GUEST_ASSERT_EQ(global_ctrl, GENMASK_ULL(nr_gp_counters - 1, 0));
+		else
+			GUEST_ASSERT_EQ(global_ctrl, 0);
+	}
 
 	if (this_cpu_has(X86_FEATURE_PDCM) &&
 	    rdmsr(MSR_IA32_PERF_CAPABILITIES) & PMU_CAP_FW_WRITES)
@@ -489,7 +514,7 @@ static void guest_test_fixed_counters(void)
 		wrmsr(MSR_CORE_PERF_FIXED_CTR0 + i, 0);
 		wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(i, FIXED_PMC_KERNEL));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, FIXED_PMC_GLOBAL_CTRL_ENABLE(i));
-		__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
+		__asm__ __volatile__("loop ." : "+c"((int){NUM_LOOPS}));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 		val = rdmsr(MSR_CORE_PERF_FIXED_CTR0 + i);
 
@@ -612,7 +637,6 @@ int main(int argc, char *argv[])
 
 	kvm_pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
 	kvm_has_perf_caps = kvm_cpu_has(X86_FEATURE_PDCM);
-	is_forced_emulation_enabled = kvm_is_forced_emulation_enabled();
 
 	test_intel_counters();
 

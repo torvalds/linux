@@ -72,7 +72,6 @@ static int create_beep_ctls(struct hda_codec *codec)
 #define create_beep_ctls(codec)		0
 #endif
 
-#ifdef CONFIG_PM
 static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 				hda_nid_t hp)
 {
@@ -118,7 +117,6 @@ static int ad198x_suspend(struct hda_codec *codec)
 	ad198x_power_eapd(codec);
 	return 0;
 }
-#endif
 
 /* follow EAPD via vmaster hook */
 static void ad_vmaster_eapd_hook(void *private_data, int enabled)
@@ -158,10 +156,8 @@ static const struct hda_codec_ops ad198x_auto_patch_ops = {
 	.init = snd_hda_gen_init,
 	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
 	.suspend = ad198x_suspend,
-#endif
 };
 
 

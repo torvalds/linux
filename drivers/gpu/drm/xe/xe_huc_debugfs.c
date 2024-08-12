@@ -12,6 +12,7 @@
 #include "xe_gt.h"
 #include "xe_huc.h"
 #include "xe_macros.h"
+#include "xe_pm.h"
 
 static struct xe_gt *
 huc_to_gt(struct xe_huc *huc)
@@ -36,9 +37,9 @@ static int huc_info(struct seq_file *m, void *data)
 	struct xe_device *xe = huc_to_xe(huc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_device_mem_access_get(xe);
+	xe_pm_runtime_get(xe);
 	xe_huc_print_info(huc, &p);
-	xe_device_mem_access_put(xe);
+	xe_pm_runtime_put(xe);
 
 	return 0;
 }

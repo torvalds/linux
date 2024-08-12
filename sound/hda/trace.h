@@ -24,7 +24,7 @@ TRACE_EVENT(hda_send_cmd,
 		__field(u32, cmd)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name((bus)->dev));
+		__assign_str(name);
 		__entry->cmd = cmd;
 	),
 	TP_printk("[%s:%d] val=0x%08x", __get_str(name), __entry->cmd >> 28, __entry->cmd)
@@ -39,7 +39,7 @@ TRACE_EVENT(hda_get_response,
 		__field(u32, res)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name((bus)->dev));
+		__assign_str(name);
 		__entry->addr = addr;
 		__entry->res = res;
 	),
@@ -55,7 +55,7 @@ TRACE_EVENT(hda_unsol_event,
 		__field(u32, res_ex)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name((bus)->dev));
+		__assign_str(name);
 		__entry->res = res;
 		__entry->res_ex = res_ex;
 	),

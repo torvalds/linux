@@ -180,6 +180,9 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 	.urgent_latency_adjustment_fabric_clock_reference_mhz = 3000,
 };
 
+static bool dcn32_apply_merge_split_flags_helper(struct dc *dc, struct dc_state *context,
+	bool *repopulate_pipes, int *split, bool *merge);
+
 void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr)
 {
 	/* defaults */
@@ -622,7 +625,7 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		 *   to combine this with SubVP can cause issues with the scheduling).
 		 * - Not TMZ surface
 		 */
-		if (pipe->plane_state && !pipe->top_pipe && !dcn32_is_center_timing(pipe) &&
+		if (pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe && !dcn32_is_center_timing(pipe) &&
 				!(pipe->stream->timing.pix_clk_100hz / 10000 > DCN3_2_MAX_SUBVP_PIXEL_RATE_MHZ) &&
 				(!dcn32_is_psr_capable(pipe) || (context->stream_count == 1 && dc->caps.dmub_caps.subvp_psr)) &&
 				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_NONE &&
@@ -720,7 +723,7 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
  */
 static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 {
-	struct pipe_ctx *subvp_pipes[2];
+	struct pipe_ctx *subvp_pipes[2] = {0};
 	struct dc_stream_state *phantom = NULL;
 	uint32_t microschedule_lines = 0;
 	uint32_t index = 0;
@@ -735,9 +738,9 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 		/* Loop to calculate the maximum microschedule time between the two SubVP pipes,
 		 * and also to store the two main SubVP pipe pointers in subvp_pipes[2].
 		 */
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
+		phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
+		if (phantom && pipe->stream && pipe->plane_state && !pipe->top_pipe &&
 			dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
-			phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
 			microschedule_lines = (phantom->timing.v_total - phantom->timing.v_front_porch) +
 					phantom->timing.v_addressable;
 
@@ -842,8 +845,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_found && drr_found) {
-		phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	if (phantom_stream && subvp_found && drr_found) {
 		main_timing = &pipe->stream->timing;
 		phantom_timing = &phantom_stream->timing;
 		drr_timing = &drr_pipe->stream->timing;
@@ -994,7 +997,7 @@ static bool subvp_subvp_admissable(struct dc *dc,
 		if (pipe->plane_state && !pipe->top_pipe &&
 				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
 			refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
-				pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				pipe->stream->timing.v_total * (uint64_t)pipe->stream->timing.h_total - (uint64_t)1);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 
@@ -1174,6 +1177,9 @@ static void init_pipe_slice_table_from_context(
 		stream = context->streams[i];
 		otg_master = resource_get_otg_master_for_stream(
 				&context->res_ctx, stream);
+		if (!otg_master)
+			continue;
+
 		count = resource_get_odm_slice_count(otg_master);
 		update_slice_table_for_stream(table, stream, count);
 
@@ -1425,13 +1431,14 @@ static bool is_test_pattern_enabled(
 	return false;
 }
 
-static void dcn32_full_validate_bw_helper(struct dc *dc,
+static bool dcn32_full_validate_bw_helper(struct dc *dc,
 				   struct dc_state *context,
 				   display_e2e_pipe_params_st *pipes,
 				   int *vlevel,
 				   int *split,
 				   bool *merge,
-				   int *pipe_cnt)
+				   int *pipe_cnt,
+				   bool *repopulate_pipes)
 {
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	unsigned int dc_pipe_idx = 0;
@@ -1461,6 +1468,12 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 		vba->VoltageLevel = *vlevel;
 	}
 
+	/* Apply split and merge flags before checking for subvp */
+	if (!dcn32_apply_merge_split_flags_helper(dc, context, repopulate_pipes, split, merge))
+		return false;
+	memset(split, 0, MAX_PIPES * sizeof(int));
+	memset(merge, 0, MAX_PIPES * sizeof(bool));
+
 	/* Conditions for setting up phantom pipes for SubVP:
 	 * 1. Not force disable SubVP
 	 * 2. Full update (i.e. !fast_validate)
@@ -1475,19 +1488,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported ||
 	    dc->debug.force_subvp_mclk_switch)) {
 
-		dcn32_merge_pipes_for_subvp(dc, context);
-		memset(merge, 0, MAX_PIPES * sizeof(bool));
-
 		vlevel_temp = *vlevel;
-		/* to re-initialize viewport after the pipe merge */
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (!pipe_ctx->plane_state || !pipe_ctx->stream)
-				continue;
-
-			resource_build_scaling_params(pipe_ctx);
-		}
 
 		while (!found_supported_config && dcn32_enough_pipes_for_subvp(dc, context) &&
 			dcn32_assign_subvp_pipe(dc, context, &dc_pipe_idx)) {
@@ -1576,8 +1577,6 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			 * add phantom pipes. If pipe split (ODM / MPC) is required, both the main
 			 * and phantom pipes will be split in the regular pipe splitting sequence.
 			 */
-			memset(split, 0, MAX_PIPES * sizeof(int));
-			memset(merge, 0, MAX_PIPES * sizeof(bool));
 			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
 			vba->VoltageLevel = *vlevel;
 			// Note: We can't apply the phantom pipes to hardware at this time. We have to wait
@@ -1590,6 +1589,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 		try_odm_power_optimization_and_revalidate(
 				dc, context, pipes, split, merge, vlevel, *pipe_cnt);
 
+	return true;
 }
 
 static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
@@ -1929,106 +1929,23 @@ static bool dcn32_split_stream_for_mpc_or_odm(
 	return true;
 }
 
-bool dcn32_internal_validate_bw(struct dc *dc,
-				struct dc_state *context,
-				display_e2e_pipe_params_st *pipes,
-				int *pipe_cnt_out,
-				int *vlevel_out,
-				bool fast_validate)
+static bool dcn32_apply_merge_split_flags_helper(
+		struct dc *dc,
+		struct dc_state *context,
+		bool *repopulate_pipes,
+		int *split,
+		bool *merge)
 {
-	bool out = false;
-	bool repopulate_pipes = false;
-	int split[MAX_PIPES] = { 0 };
-	bool merge[MAX_PIPES] = { false };
+	int i, pipe_idx;
 	bool newly_split[MAX_PIPES] = { false };
-	int pipe_cnt, i, pipe_idx;
-	int vlevel = context->bw_ctx.dml.soc.num_states;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
-	dc_assert_fp_enabled();
-
-	ASSERT(pipes);
-	if (!pipes)
-		return false;
-
-	// For each full update, remove all existing phantom pipes first
-	dc_state_remove_phantom_streams_and_planes(dc, context);
-	dc_state_release_phantom_streams_and_planes(dc, context);
-
-	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
-
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
-
-	if (!pipe_cnt) {
-		out = true;
-		goto validate_out;
-	}
-
-	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
-	context->bw_ctx.dml.soc.max_vratio_pre = dcn32_determine_max_vratio_prefetch(dc, context);
-
-	if (!fast_validate)
-		dcn32_full_validate_bw_helper(dc, context, pipes, &vlevel, split, merge, &pipe_cnt);
-
-	if (fast_validate ||
-			(dc->debug.dml_disallow_alternate_prefetch_modes &&
-			(vlevel == context->bw_ctx.dml.soc.num_states ||
-				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported))) {
-		/*
-		 * If dml_disallow_alternate_prefetch_modes is false, then we have already
-		 * tried alternate prefetch modes during full validation.
-		 *
-		 * If mode is unsupported or there is no p-state support, then
-		 * fall back to favouring voltage.
-		 *
-		 * If Prefetch mode 0 failed for this config, or passed with Max UCLK, then try
-		 * to support with Prefetch mode 1 (dm_prefetch_support_fclk_and_stutter == 2)
-		 */
-		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
-			dm_prefetch_support_none;
-
-		context->bw_ctx.dml.validate_max_state = fast_validate;
-		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-
-		context->bw_ctx.dml.validate_max_state = false;
-
-		if (vlevel < context->bw_ctx.dml.soc.num_states) {
-			memset(split, 0, sizeof(split));
-			memset(merge, 0, sizeof(merge));
-			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
-			// dcn20_validate_apply_pipe_split_flags can modify voltage level outside of DML
-			vba->VoltageLevel = vlevel;
-		}
-	}
-
-	dml_log_mode_support_params(&context->bw_ctx.dml);
-
-	if (vlevel == context->bw_ctx.dml.soc.num_states)
-		goto validate_fail;
-
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *mpo_pipe = pipe->bottom_pipe;
-
-		if (!pipe->stream)
-			continue;
-
-		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
-				&& !dc->config.enable_windowed_mpo_odm
-				&& pipe->plane_state && mpo_pipe
-				&& memcmp(&mpo_pipe->plane_state->clip_rect,
-						&pipe->stream->src,
-						sizeof(struct rect)) != 0) {
-			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
-			goto validate_fail;
-		}
-		pipe_idx++;
-	}
-
 	if (dc->config.enable_windowed_mpo_odm) {
-		repopulate_pipes = update_pipes_with_split_flags(
-				dc, context, vba, split, merge);
+		if (update_pipes_with_split_flags(
+			dc, context, vba, split, merge))
+			*repopulate_pipes = true;
 	} else {
+
 		/* the code below will be removed once windowed mpo odm is fully
 		 * enabled.
 		 */
@@ -2085,7 +2002,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 				memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
 				memset(&pipe->link_res, 0, sizeof(pipe->link_res));
-				repopulate_pipes = true;
+				*repopulate_pipes = true;
 			} else if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state) {
 				struct pipe_ctx *top_pipe = pipe->top_pipe;
 				struct pipe_ctx *bottom_pipe = pipe->bottom_pipe;
@@ -2101,7 +2018,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				memset(&pipe->plane_res, 0, sizeof(pipe->plane_res));
 				memset(&pipe->stream_res, 0, sizeof(pipe->stream_res));
 				memset(&pipe->link_res, 0, sizeof(pipe->link_res));
-				repopulate_pipes = true;
+				*repopulate_pipes = true;
 			} else
 				ASSERT(0); /* Should never try to merge master pipe */
 
@@ -2140,15 +2057,15 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				hsplit_pipe = dcn32_find_split_pipe(dc, context, old_index);
 				ASSERT(hsplit_pipe);
 				if (!hsplit_pipe)
-					goto validate_fail;
+					return false;
 
 				if (!dcn32_split_stream_for_mpc_or_odm(
 						dc, &context->res_ctx,
 						pipe, hsplit_pipe, odm))
-					goto validate_fail;
+					return false;
 
 				newly_split[hsplit_pipe->pipe_idx] = true;
-				repopulate_pipes = true;
+				*repopulate_pipes = true;
 			}
 			if (split[i] == 4) {
 				struct pipe_ctx *pipe_4to1;
@@ -2163,11 +2080,11 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				pipe_4to1 = dcn32_find_split_pipe(dc, context, old_index);
 				ASSERT(pipe_4to1);
 				if (!pipe_4to1)
-					goto validate_fail;
+					return false;
 				if (!dcn32_split_stream_for_mpc_or_odm(
 						dc, &context->res_ctx,
 						pipe, pipe_4to1, odm))
-					goto validate_fail;
+					return false;
 				newly_split[pipe_4to1->pipe_idx] = true;
 
 				if (odm && old_pipe->next_odm_pipe && old_pipe->next_odm_pipe->next_odm_pipe
@@ -2182,11 +2099,11 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				pipe_4to1 = dcn32_find_split_pipe(dc, context, old_index);
 				ASSERT(pipe_4to1);
 				if (!pipe_4to1)
-					goto validate_fail;
+					return false;
 				if (!dcn32_split_stream_for_mpc_or_odm(
 						dc, &context->res_ctx,
 						hsplit_pipe, pipe_4to1, odm))
-					goto validate_fail;
+					return false;
 				newly_split[pipe_4to1->pipe_idx] = true;
 			}
 			if (odm)
@@ -2198,10 +2115,123 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 
 			if (pipe->plane_state) {
 				if (!resource_build_scaling_params(pipe))
-					goto validate_fail;
+					return false;
 			}
 		}
+
+		for (i = 0; i < context->stream_count; i++) {
+			struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(&context->res_ctx,
+					context->streams[i]);
+
+			if (otg_master)
+				resource_build_test_pattern_params(&context->res_ctx, otg_master);
+		}
 	}
+	return true;
+}
+
+bool dcn32_internal_validate_bw(struct dc *dc,
+				struct dc_state *context,
+				display_e2e_pipe_params_st *pipes,
+				int *pipe_cnt_out,
+				int *vlevel_out,
+				bool fast_validate)
+{
+	bool out = false;
+	bool repopulate_pipes = false;
+	int split[MAX_PIPES] = { 0 };
+	bool merge[MAX_PIPES] = { false };
+	int pipe_cnt, i, pipe_idx;
+	int vlevel = context->bw_ctx.dml.soc.num_states;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+
+	dc_assert_fp_enabled();
+
+	ASSERT(pipes);
+	if (!pipes)
+		return false;
+
+	/* For each full update, remove all existing phantom pipes first */
+	dc_state_remove_phantom_streams_and_planes(dc, context);
+	dc_state_release_phantom_streams_and_planes(dc, context);
+
+	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
+
+	for (i = 0; i < context->stream_count; i++)
+		resource_update_pipes_for_stream_with_slice_count(context, dc->current_state, dc->res_pool, context->streams[i], 1);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+
+	if (!pipe_cnt) {
+		out = true;
+		goto validate_out;
+	}
+
+	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
+	context->bw_ctx.dml.soc.max_vratio_pre = dcn32_determine_max_vratio_prefetch(dc, context);
+
+	if (!fast_validate) {
+		if (!dcn32_full_validate_bw_helper(dc, context, pipes, &vlevel, split, merge,
+			&pipe_cnt, &repopulate_pipes))
+			goto validate_fail;
+	}
+
+	if (fast_validate ||
+			(dc->debug.dml_disallow_alternate_prefetch_modes &&
+			(vlevel == context->bw_ctx.dml.soc.num_states ||
+				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported))) {
+		/*
+		 * If dml_disallow_alternate_prefetch_modes is false, then we have already
+		 * tried alternate prefetch modes during full validation.
+		 *
+		 * If mode is unsupported or there is no p-state support, then
+		 * fall back to favouring voltage.
+		 *
+		 * If Prefetch mode 0 failed for this config, or passed with Max UCLK, then try
+		 * to support with Prefetch mode 1 (dm_prefetch_support_fclk_and_stutter == 2)
+		 */
+		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+			dm_prefetch_support_none;
+
+		context->bw_ctx.dml.validate_max_state = fast_validate;
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+
+		context->bw_ctx.dml.validate_max_state = false;
+
+		if (vlevel < context->bw_ctx.dml.soc.num_states) {
+			memset(split, 0, sizeof(split));
+			memset(merge, 0, sizeof(merge));
+			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
+			/* dcn20_validate_apply_pipe_split_flags can modify voltage level outside of DML */
+			vba->VoltageLevel = vlevel;
+		}
+	}
+
+	dml_log_mode_support_params(&context->bw_ctx.dml);
+
+	if (vlevel == context->bw_ctx.dml.soc.num_states)
+		goto validate_fail;
+
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *mpo_pipe = pipe->bottom_pipe;
+
+		if (!pipe->stream)
+			continue;
+
+		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
+				&& !dc->config.enable_windowed_mpo_odm
+				&& pipe->plane_state && mpo_pipe
+				&& memcmp(&mpo_pipe->plane_state->clip_rect,
+						&pipe->stream->src,
+						sizeof(struct rect)) != 0) {
+			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
+			goto validate_fail;
+		}
+		pipe_idx++;
+	}
+
+	if (!dcn32_apply_merge_split_flags_helper(dc, context, &repopulate_pipes, split, merge))
+		goto validate_fail;
 
 	/* Actual dsc count per stream dsc validation*/
 	if (!dcn20_validate_dsc(dc, context)) {
@@ -2284,6 +2314,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	bool need_fclk_lat_as_dummy = false;
 	bool is_subvp_p_drr = false;
 	struct dc_stream_state *fpo_candidate_stream = NULL;
+	struct dc_stream_status *stream_status = NULL;
 
 	dc_assert_fp_enabled();
 
@@ -2318,8 +2349,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
 	for (i = 0; i < context->stream_count; i++) {
+		stream_status = NULL;
 		if (context->streams[i])
-			context->streams[i]->fpo_in_use = false;
+			stream_status = dc_state_get_stream_status(context, context->streams[i]);
+		if (stream_status)
+			stream_status->fpo_in_use = false;
 	}
 
 	if (!pstate_en || (!dc->debug.disable_fpo_optimizations &&
@@ -2327,7 +2361,9 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
 		fpo_candidate_stream = dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 		if (fpo_candidate_stream) {
-			fpo_candidate_stream->fpo_in_use = true;
+			stream_status = dc_state_get_stream_status(context, fpo_candidate_stream);
+			if (stream_status)
+				stream_status->fpo_in_use = true;
 			context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = true;
 		}
 
@@ -2364,8 +2400,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				 */
 				context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
 				for (i = 0; i < context->stream_count; i++) {
+					stream_status = NULL;
 					if (context->streams[i])
-						context->streams[i]->fpo_in_use = false;
+						stream_status = dc_state_get_stream_status(context, context->streams[i]);
+					if (stream_status)
+						stream_status->fpo_in_use = false;
 				}
 				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
 				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
@@ -3207,6 +3246,16 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 				dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
 			}
 
+			/* bw_params->clk_table.entries[MAX_NUM_DPM_LVL].
+			 * MAX_NUM_DPM_LVL is 8.
+			 * dcn3_02_soc.clock_limits[DC__VOLTAGE_STATES].
+			 * DC__VOLTAGE_STATES is 40.
+			 */
+			if (num_states > MAX_NUM_DPM_LVL) {
+				ASSERT(0);
+				return;
+			}
+
 			dcn3_2_soc.num_states = num_states;
 			for (i = 0; i < dcn3_2_soc.num_states; i++) {
 				dcn3_2_soc.clock_limits[i].state = i;
@@ -3496,15 +3545,16 @@ void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *co
  *
  * @dc: current dc state
  * @context: new dc state
+ * @fpo_candidate_stream: candidate stream to be chosen for FPO
  * @vactive_margin_req_us: The vactive marign required for a vactive pipe to be considered "found"
  *
  * Return: True if VACTIVE display is found, false otherwise
  */
-bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint32_t vactive_margin_req_us)
+bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, struct dc_stream_state *fpo_candidate_stream, uint32_t vactive_margin_req_us)
 {
 	unsigned int i, pipe_idx;
 	const struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
-	bool vactive_found = false;
+	bool vactive_found = true;
 	unsigned int blank_us = 0;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
@@ -3513,11 +3563,20 @@ bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint
 		if (!pipe->stream)
 			continue;
 
+		/* Don't need to check for vactive margin on the FPO candidate stream */
+		if (fpo_candidate_stream && pipe->stream == fpo_candidate_stream) {
+			pipe_idx++;
+			continue;
+		}
+
+		/* Every plane (apart from the ones driven by the FPO pipes) needs to have active margin
+		 * in order for us to have found a valid "vactive" config for FPO + Vactive
+		 */
 		blank_us = ((pipe->stream->timing.v_total - pipe->stream->timing.v_addressable) * pipe->stream->timing.h_total /
 				(double)(pipe->stream->timing.pix_clk_100hz * 100)) * 1000000;
-		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] >= vactive_margin_req_us &&
-				!(pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed) && blank_us < dc->debug.fpo_vactive_max_blank_us) {
-			vactive_found = true;
+		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] < vactive_margin_req_us ||
+				pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed || blank_us >= dc->debug.fpo_vactive_max_blank_us) {
+			vactive_found = false;
 			break;
 		}
 		pipe_idx++;

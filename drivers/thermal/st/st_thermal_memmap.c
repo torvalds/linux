@@ -142,15 +142,6 @@ static const struct st_thermal_sensor_ops st_mmap_sensor_ops = {
 	.enable_irq		= st_mmap_enable_irq,
 };
 
-/* Compatible device data stih416 mpe thermal sensor */
-static const struct st_thermal_compat_data st_416mpe_cdata = {
-	.reg_fields		= st_mmap_thermal_regfields,
-	.ops			= &st_mmap_sensor_ops,
-	.calibration_val	= 14,
-	.temp_adjust_val	= -95,
-	.crit_temp		= 120,
-};
-
 /* Compatible device data stih407 thermal sensor */
 static const struct st_thermal_compat_data st_407_cdata = {
 	.reg_fields		= st_mmap_thermal_regfields,
@@ -161,7 +152,6 @@ static const struct st_thermal_compat_data st_407_cdata = {
 };
 
 static const struct of_device_id st_mmap_thermal_of_match[] = {
-	{ .compatible = "st,stih416-mpe-thermal", .data = &st_416mpe_cdata },
 	{ .compatible = "st,stih407-thermal",     .data = &st_407_cdata },
 	{ /* sentinel */ }
 };

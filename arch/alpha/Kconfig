@@ -10,7 +10,7 @@ config ALPHA
 	select ARCH_NO_SG_CHAIN
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select DMA_OPS if PCI
-	select FORCE_PCI if !ALPHA_JENSEN
+	select FORCE_PCI
 	select PCI_DOMAINS if PCI
 	select PCI_SYSCALL if PCI
 	select HAVE_ASM_MODVERSIONS
@@ -90,22 +90,11 @@ choice
 	  <http://www.alphalinux.org/>. In summary:
 
 	  Alcor/Alpha-XLT     AS 600, AS 500, XL-300, XL-366
-	  Alpha-XL            XL-233, XL-266
-	  AlphaBook1          Alpha laptop
-	  Avanti              AS 200, AS 205, AS 250, AS 255, AS 300, AS 400
-	  Cabriolet           AlphaPC64, AlphaPCI64
 	  DP264               DP264 / DS20 / ES40 / DS10 / DS10L
-	  EB164               EB164 21164 evaluation board
-	  EB64+               EB64+ 21064 evaluation board
-	  EB66                EB66 21066 evaluation board
-	  EB66+               EB66+ 21066 evaluation board
-	  Jensen              DECpc 150, DEC 2000 models 300, 500
 	  LX164               AlphaPC164-LX
-	  Lynx                AS 2100A
 	  Miata               Personal Workstation 433/500/600 a/au
 	  Marvel              AlphaServer ES47 / ES80 / GS1280
 	  Mikasa              AS 1000
-	  Noname              AXPpci33, UDB (Multia)
 	  Noritake            AS 1000A, AS 600A, AS 800
 	  PC164               AlphaPC164
 	  Rawhide             AS 1200, AS 4000, AS 4100
@@ -137,27 +126,6 @@ config ALPHA_ALCOR
 	  all the work required to support an external Bcache and to maintain
 	  memory coherence when a PCI device DMAs into (or out of) memory.
 
-config ALPHA_XL
-	bool "Alpha-XL"
-	help
-	  XL-233 and XL-266-based Alpha systems.
-
-config ALPHA_BOOK1
-	bool "AlphaBook1"
-	help
-	  Dec AlphaBook1/Burns Alpha-based laptops.
-
-config ALPHA_AVANTI_CH
-	bool "Avanti"
-
-config ALPHA_CABRIOLET
-	bool "Cabriolet"
-	help
-	  Cabriolet AlphaPC64, AlphaPCI64 systems.  Derived from EB64+ but now
-	  baby-AT with Flash boot ROM, no on-board SCSI or Ethernet. 3 ISA
-	  slots, 4 PCI slots (one pair are on a shared slot), uses plug-in
-	  Bcache SIMMs.  Requires power supply with 3.3V output.
-
 config ALPHA_DP264
 	bool "DP264"
 	help
@@ -165,61 +133,17 @@ config ALPHA_DP264
 	  API Networks: 264DP, UP2000(+), CS20;
 	  Compaq: DS10(E,L), XP900, XP1000, DS20(E), ES40.
 
-config ALPHA_EB164
-	bool "EB164"
-	help
-	  EB164 21164 evaluation board from DEC.  Uses 21164 and ALCOR.  Has
-	  ISA and PCI expansion (3 ISA slots, 2 64-bit PCI slots (one is
-	  shared with an ISA slot) and 2 32-bit PCI slots.  Uses plus-in
-	  Bcache SIMMs. I/O sub-system provides SuperI/O (2S, 1P, FD), KBD,
-	  MOUSE (PS2 style), RTC/NVRAM.  Boot ROM is Flash.  PC-AT-sized
-	  motherboard.  Requires power supply with 3.3V output.
-
-config ALPHA_EB64P_CH
-	bool "EB64+"
-
-config ALPHA_EB66
-	bool "EB66"
-	help
-	  A Digital DS group board.  Uses 21066 or 21066A.  I/O sub-system is
-	  identical to EB64+.  Baby PC-AT size.  Runs from standard PC power
-	  supply.  The EB66 schematic was published as a marketing poster
-	  advertising the 21066 as "the first microprocessor in the world with
-	  embedded PCI".
-
-config ALPHA_EB66P
-	bool "EB66+"
-	help
-	  Later variant of the EB66 board.
-
 config ALPHA_EIGER
 	bool "Eiger"
 	help
 	  Apparently an obscure OEM single-board computer based on the
 	  Typhoon/Tsunami chipset family. Information on it is scanty.
 
-config ALPHA_JENSEN
-	bool "Jensen"
-	select HAVE_EISA
-	help
-	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
-	  of the first-generation Alpha systems. A number of these systems
-	  seem to be available on the second- hand market. The Jensen is a
-	  floor-standing tower system which originally used a 150MHz 21064 It
-	  used programmable logic to interface a 486 EISA I/O bridge to the
-	  CPU.
-
 config ALPHA_LX164
 	bool "LX164"
 	help
 	  A technical overview of this board is available at
 	  <http://www.unix-ag.org/Linux-Alpha/Architectures/LX164.html>.
-
-config ALPHA_LYNX
-	bool "Lynx"
-	select HAVE_EISA
-	help
-	  AlphaServer 2100A-based systems.
 
 config ALPHA_MARVEL
 	bool "Marvel"
@@ -243,9 +167,6 @@ config ALPHA_NAUTILUS
 	help
 	  Alpha systems based on the AMD 751 & ALI 1543C chipsets.
 
-config ALPHA_NONAME_CH
-	bool "Noname"
-
 config ALPHA_NORITAKE
 	bool "Noritake"
 	select HAVE_EISA
@@ -255,9 +176,6 @@ config ALPHA_NORITAKE
 
 config ALPHA_PC164
 	bool "PC164"
-
-config ALPHA_P2K
-	bool "Platform2000"
 
 config ALPHA_RAWHIDE
 	bool "Rawhide"
@@ -322,84 +240,18 @@ config ISA_DMA_API
 	bool
 	default y
 
-config ALPHA_NONAME
-	bool
-	depends on ALPHA_BOOK1 || ALPHA_NONAME_CH
-	default y
-	help
-	  The AXPpci33 (aka NoName), is based on the EB66 (includes the Multia
-	  UDB).  This design was produced by Digital's Technical OEM (TOEM)
-	  group. It uses the 21066 processor running at 166MHz or 233MHz. It
-	  is a baby-AT size, and runs from a standard PC power supply. It has
-	  5 ISA slots and 3 PCI slots (one pair are a shared slot). There are
-	  2 versions, with either PS/2 or large DIN connectors for the
-	  keyboard.
-
-config ALPHA_EV4
-	bool
-	depends on ALPHA_JENSEN || (ALPHA_SABLE && !ALPHA_GAMMA) || ALPHA_LYNX || ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
-	default y if !ALPHA_LYNX
-	default y if !ALPHA_EV5
-
-config ALPHA_LCA
-	bool
-	depends on ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
-	default y
-
-config ALPHA_APECS
-	bool
-	depends on !ALPHA_PRIMO && (ALPHA_NORITAKE || ALPHA_MIKASA) || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL
-	default y
-
-config ALPHA_EB64P
-	bool
-	depends on ALPHA_CABRIOLET || ALPHA_EB64P_CH
-	default y
-	help
-	  Uses 21064 or 21064A and APECs.  Has ISA and PCI expansion (3 ISA,
-	  2 PCI, one pair are on a shared slot). Supports 36-bit DRAM SIMs.
-	  ISA bus generated by Intel SaturnI/O PCI-ISA bridge. On-board SCSI
-	  (NCR 810 on PCI) Ethernet (Digital 21040), KBD, MOUSE (PS2 style),
-	  SuperI/O (2S, 1P, FD), RTC/NVRAM. Boot ROM is EPROM.  PC-AT size.
-	  Runs from standard PC power supply.
-
-config ALPHA_EV5
-	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_LYNX
-	default y if ALPHA_RX164 || ALPHA_RAWHIDE || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_SABLE && ALPHA_GAMMA || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
-
 config ALPHA_CIA
 	bool
-	depends on ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
+	depends on ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_NORITAKE || ALPHA_MIKASA || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_ALCOR
 	default y
 
 config ALPHA_EV56
-	bool "EV56 CPU (speed >= 366MHz)?" if ALPHA_ALCOR
-	default y if ALPHA_RX164 || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_PC164 || ALPHA_TAKARA
-
-config ALPHA_EV56
-	prompt "EV56 CPU (speed >= 333MHz)?"
-	depends on ALPHA_NORITAKE || ALPHA_PRIMO
-
-config ALPHA_EV56
-	prompt "EV56 CPU (speed >= 400MHz)?"
-	depends on ALPHA_RAWHIDE
-
-config ALPHA_PRIMO
-	bool "EV5 CPU daughtercard (model 5/xxx)?"
-	depends on ALPHA_NORITAKE || ALPHA_MIKASA
-	help
-	  Say Y if you have an AS 1000 5/xxx or an AS 1000A 5/xxx.
-
-config ALPHA_GAMMA
-	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_SABLE
-	depends on ALPHA_SABLE || ALPHA_LYNX
-	default ALPHA_LYNX
-	help
-	  Say Y if you have an AS 2000 5/xxx or an AS 2100 5/xxx.
+	bool
+	default y if ALPHA_ALCOR || ALPHA_RX164 || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_NORITAKE || ALPHA_MIKASA || ALPHA_RAWHIDE || ALPHA_SABLE
 
 config ALPHA_T2
 	bool
-	depends on ALPHA_SABLE || ALPHA_LYNX
+	depends on ALPHA_SABLE
 	default y
 
 config ALPHA_PYXIS
@@ -443,15 +295,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y if !ALPHA_EV67
 
-config ALPHA_AVANTI
-	bool
-	depends on ALPHA_XL || ALPHA_AVANTI_CH
-	default y
-	help
-	  Avanti AS 200, AS 205, AS 250, AS 255, AS 300, and AS 400-based
-	  Alphas. Info at
-	  <http://www.unix-ag.org/Linux-Alpha/Architectures/Avanti.html>.
-
 config ALPHA_BROKEN_IRQ_MASK
 	bool
 	depends on ALPHA_GENERIC || ALPHA_PC164
@@ -481,9 +324,9 @@ config ALPHA_QEMU
 
 
 config ALPHA_SRM
-	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
+	bool "Use SRM as bootloader" if ALPHA_PC164 || ALPHA_TAKARA || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS
 	depends on TTY
-	default y if ALPHA_JENSEN || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
+	default y if ALPHA_MIKASA || ALPHA_SABLE || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
@@ -509,7 +352,7 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config SMP
 	bool "Symmetric multi-processing support"
-	depends on ALPHA_SABLE || ALPHA_LYNX || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
+	depends on ALPHA_SABLE || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -545,7 +388,7 @@ config ARCH_SPARSEMEM_ENABLE
 config ALPHA_WTINT
 	bool "Use WTINT" if ALPHA_SRM || ALPHA_GENERIC
 	default y if ALPHA_QEMU
-	default n if ALPHA_EV5 || ALPHA_EV56 || (ALPHA_EV4 && !ALPHA_LCA)
+	default n if ALPHA_EV56
 	default n if !ALPHA_SRM && !ALPHA_GENERIC
 	default y if SMP
 	help

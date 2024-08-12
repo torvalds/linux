@@ -54,11 +54,10 @@ unevaluatedProperties: false
 
 examples:
   - |
-    mlahb: ahb@38000000 {
+    ahb {
       compatible = "st,mlahb", "simple-bus";
       #address-cells = <1>;
       #size-cells = <1>;
-      reg = <0x10000000 0x40000>;
       ranges;
       dma-ranges = <0x00000000 0x38000000 0x10000>,
                    <0x10000000 0x10000000 0x60000>,

@@ -72,6 +72,8 @@ out:
 
 void dlm_memory_exit(void)
 {
+	rcu_barrier();
+
 	kmem_cache_destroy(writequeue_cache);
 	kmem_cache_destroy(mhandle_cache);
 	kmem_cache_destroy(msg_cache);
@@ -84,7 +86,7 @@ char *dlm_allocate_lvb(struct dlm_ls *ls)
 {
 	char *p;
 
-	p = kzalloc(ls->ls_lvblen, GFP_NOFS);
+	p = kzalloc(ls->ls_lvblen, GFP_ATOMIC);
 	return p;
 }
 
@@ -97,22 +99,28 @@ struct dlm_rsb *dlm_allocate_rsb(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
 
-	r = kmem_cache_zalloc(rsb_cache, GFP_NOFS);
+	r = kmem_cache_zalloc(rsb_cache, GFP_ATOMIC);
 	return r;
+}
+
+static void __free_rsb_rcu(struct rcu_head *rcu)
+{
+	struct dlm_rsb *r = container_of(rcu, struct dlm_rsb, rcu);
+	if (r->res_lvbptr)
+		dlm_free_lvb(r->res_lvbptr);
+	kmem_cache_free(rsb_cache, r);
 }
 
 void dlm_free_rsb(struct dlm_rsb *r)
 {
-	if (r->res_lvbptr)
-		dlm_free_lvb(r->res_lvbptr);
-	kmem_cache_free(rsb_cache, r);
+	call_rcu(&r->rcu, __free_rsb_rcu);
 }
 
 struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 
-	lkb = kmem_cache_zalloc(lkb_cache, GFP_NOFS);
+	lkb = kmem_cache_zalloc(lkb_cache, GFP_ATOMIC);
 	return lkb;
 }
 
@@ -127,16 +135,12 @@ void dlm_free_lkb(struct dlm_lkb *lkb)
 		}
 	}
 
-	/* drop references if they are set */
-	dlm_callback_set_last_ptr(&lkb->lkb_last_cast, NULL);
-	dlm_callback_set_last_ptr(&lkb->lkb_last_cb, NULL);
-
 	kmem_cache_free(lkb_cache, lkb);
 }
 
-struct dlm_mhandle *dlm_allocate_mhandle(gfp_t allocation)
+struct dlm_mhandle *dlm_allocate_mhandle(void)
 {
-	return kmem_cache_alloc(mhandle_cache, allocation);
+	return kmem_cache_alloc(mhandle_cache, GFP_ATOMIC);
 }
 
 void dlm_free_mhandle(struct dlm_mhandle *mhandle)
@@ -154,9 +158,9 @@ void dlm_free_writequeue(struct writequeue_entry *writequeue)
 	kmem_cache_free(writequeue_cache, writequeue);
 }
 
-struct dlm_msg *dlm_allocate_msg(gfp_t allocation)
+struct dlm_msg *dlm_allocate_msg(void)
 {
-	return kmem_cache_alloc(msg_cache, allocation);
+	return kmem_cache_alloc(msg_cache, GFP_ATOMIC);
 }
 
 void dlm_free_msg(struct dlm_msg *msg)

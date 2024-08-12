@@ -47,6 +47,12 @@ member of the ``fmt`` union as needed per the desired operation. Both drivers
 and applications must set the remainder of the :c:type:`v4l2_format` structure
 to 0.
 
+Devices that capture metadata by line have the struct v4l2_fmtdesc
+``V4L2_FMT_FLAG_META_LINE_BASED`` flag set for :c:func:`VIDIOC_ENUM_FMT`. Such
+devices can typically also :ref:`capture image data <capture>`. This primarily
+involves devices that receive the data from a different devices such as a camera
+sensor.
+
 .. c:type:: v4l2_meta_format
 
 .. tabularcolumns:: |p{1.4cm}|p{2.4cm}|p{13.5cm}|
@@ -65,3 +71,18 @@ to 0.
       - ``buffersize``
       - Maximum buffer size in bytes required for data. The value is set by the
         driver.
+    * - __u32
+      - ``width``
+      - Width of a line of metadata in Data Units. Valid when
+	:c:type`v4l2_fmtdesc` flag ``V4L2_FMT_FLAG_META_LINE_BASED`` is set,
+	otherwise zero. See :c:func:`VIDIOC_ENUM_FMT`.
+    * - __u32
+      - ``height``
+      - Number of rows of metadata. Valid when :c:type`v4l2_fmtdesc` flag
+	``V4L2_FMT_FLAG_META_LINE_BASED`` is set, otherwise zero. See
+	:c:func:`VIDIOC_ENUM_FMT`.
+    * - __u32
+      - ``bytesperline``
+      - Offset in bytes between the beginning of two consecutive lines. Valid
+	when :c:type`v4l2_fmtdesc` flag ``V4L2_FMT_FLAG_META_LINE_BASED`` is
+	set, otherwise zero. See :c:func:`VIDIOC_ENUM_FMT`.

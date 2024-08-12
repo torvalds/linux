@@ -22,10 +22,10 @@ TRACE_EVENT(mlx5_cmd,
 			    __field(u32, syndrome)
 			    __field(int, err)
 			    ),
-	    TP_fast_assign(__assign_str(command_str, command_str);
+	    TP_fast_assign(__assign_str(command_str);
 			__entry->opcode = opcode;
 			__entry->op_mod = op_mod;
-			__assign_str(status_str, status_str);
+			__assign_str(status_str);
 			__entry->status = status;
 			__entry->syndrome = syndrome;
 			__entry->err = err;

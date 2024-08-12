@@ -590,7 +590,7 @@ static int dpaa2_switch_port_change_mtu(struct net_device *netdev, int mtu)
 		return err;
 	}
 
-	netdev->mtu = mtu;
+	WRITE_ONCE(netdev->mtu, mtu);
 	return 0;
 }
 

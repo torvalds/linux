@@ -10,8 +10,6 @@
 /plugin/;
 
 &{/} {
-	/delete-node/ panel;
-
 	hdmi: connector-hdmi {
 		compatible = "hdmi-connector";
 		label = "hdmi";
@@ -80,6 +78,10 @@
 			};
 		};
 	};
+};
+
+&panel_dpi {
+	status = "disabled";
 };
 
 &tve {

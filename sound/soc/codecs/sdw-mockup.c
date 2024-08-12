@@ -262,7 +262,6 @@ MODULE_DEVICE_TABLE(sdw, sdw_mockup_id);
 static struct sdw_driver sdw_mockup_sdw_driver = {
 	.driver = {
 		.name = "sdw-mockup",
-		.owner = THIS_MODULE,
 	},
 	.probe = sdw_mockup_sdw_probe,
 	.remove = sdw_mockup_sdw_remove,

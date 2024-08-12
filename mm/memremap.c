@@ -456,21 +456,23 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 }
 EXPORT_SYMBOL_GPL(get_dev_pagemap);
 
-void free_zone_device_page(struct page *page)
+void free_zone_device_folio(struct folio *folio)
 {
-	if (WARN_ON_ONCE(!page->pgmap->ops || !page->pgmap->ops->page_free))
+	if (WARN_ON_ONCE(!folio->page.pgmap->ops ||
+			!folio->page.pgmap->ops->page_free))
 		return;
 
-	mem_cgroup_uncharge(page_folio(page));
+	mem_cgroup_uncharge(folio);
 
 	/*
 	 * Note: we don't expect anonymous compound pages yet. Once supported
 	 * and we could PTE-map them similar to THP, we'd have to clear
 	 * PG_anon_exclusive on all tail pages.
 	 */
-	VM_BUG_ON_PAGE(PageAnon(page) && PageCompound(page), page);
-	if (PageAnon(page))
-		__ClearPageAnonExclusive(page);
+	if (folio_test_anon(folio)) {
+		VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
+		__ClearPageAnonExclusive(folio_page(folio, 0));
+	}
 
 	/*
 	 * When a device managed page is freed, the folio->mapping field
@@ -481,20 +483,20 @@ void free_zone_device_page(struct page *page)
 	 *
 	 * For other types of ZONE_DEVICE pages, migration is either
 	 * handled differently or not done at all, so there is no need
-	 * to clear page->mapping.
+	 * to clear folio->mapping.
 	 */
-	page->mapping = NULL;
-	page->pgmap->ops->page_free(page);
+	folio->mapping = NULL;
+	folio->page.pgmap->ops->page_free(folio_page(folio, 0));
 
-	if (page->pgmap->type != MEMORY_DEVICE_PRIVATE &&
-	    page->pgmap->type != MEMORY_DEVICE_COHERENT)
+	if (folio->page.pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    folio->page.pgmap->type != MEMORY_DEVICE_COHERENT)
 		/*
-		 * Reset the page count to 1 to prepare for handing out the page
+		 * Reset the refcount to 1 to prepare for handing out the page
 		 * again.
 		 */
-		set_page_count(page, 1);
+		folio_set_count(folio, 1);
 	else
-		put_dev_pagemap(page->pgmap);
+		put_dev_pagemap(folio->page.pgmap);
 }
 
 void zone_device_page_init(struct page *page)
@@ -510,9 +512,9 @@ void zone_device_page_init(struct page *page)
 EXPORT_SYMBOL_GPL(zone_device_page_init);
 
 #ifdef CONFIG_FS_DAX
-bool __put_devmap_managed_page_refs(struct page *page, int refs)
+bool __put_devmap_managed_folio_refs(struct folio *folio, int refs)
 {
-	if (page->pgmap->type != MEMORY_DEVICE_FS_DAX)
+	if (folio->page.pgmap->type != MEMORY_DEVICE_FS_DAX)
 		return false;
 
 	/*
@@ -520,9 +522,9 @@ bool __put_devmap_managed_page_refs(struct page *page, int refs)
 	 * refcount is 1, then the page is free and the refcount is
 	 * stable because nobody holds a reference on the page.
 	 */
-	if (page_ref_sub_return(page, refs) == 1)
-		wake_up_var(&page->_refcount);
+	if (folio_ref_sub_return(folio, refs) == 1)
+		wake_up_var(&folio->_refcount);
 	return true;
 }
-EXPORT_SYMBOL(__put_devmap_managed_page_refs);
+EXPORT_SYMBOL(__put_devmap_managed_folio_refs);
 #endif /* CONFIG_FS_DAX */

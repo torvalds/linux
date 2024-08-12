@@ -29,6 +29,7 @@
 #include "dasd_int.h"
 #include "dasd_diag.h"
 
+MODULE_DESCRIPTION("S/390 Support for DIAG access to DASD Disks");
 MODULE_LICENSE("GPL");
 
 /* The maximum number of blocks per request (max_blocks) is dependent on the

@@ -13,11 +13,14 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/ucs2_string.h>
 
 #include <linux/firmware/qcom/qcom_qseecom.h>
+#include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_tzmem.h>
 
 /* -- Qualcomm "uefisecapp" interface definitions. -------------------------- */
 
@@ -221,6 +224,19 @@ struct qsee_rsp_uefi_query_variable_info {
  * alignment of 8 bytes (64 bits) for GUIDs. Our definition of efi_guid_t,
  * however, has an alignment of 4 byte (32 bits). So far, this seems to work
  * fine here. See also the comment on the typedef of efi_guid_t.
+ *
+ * Note: It looks like uefisecapp is quite picky about how the memory passed to
+ * it is structured and aligned. In particular the request/response setup used
+ * for QSEE_CMD_UEFI_GET_VARIABLE. While qcom_qseecom_app_send(), in theory,
+ * accepts separate buffers/addresses for the request and response parts, in
+ * practice, however, it seems to expect them to be both part of a larger
+ * contiguous block. We initially allocated separate buffers for the request
+ * and response but this caused the QSEE_CMD_UEFI_GET_VARIABLE command to
+ * either not write any response to the response buffer or outright crash the
+ * device. Therefore, we now allocate a single contiguous block of DMA memory
+ * for both and properly align the data using the macros below. In particular,
+ * request and response structs are aligned at 8 byte (via __reqdata_offs()),
+ * following the driver that this has been reverse-engineered from.
  */
 #define qcuefi_buf_align_fields(fields...)					\
 	({									\
@@ -244,6 +260,12 @@ struct qsee_rsp_uefi_query_variable_info {
 #define __array_offs(type, count, offset)					\
 	__field_impl(sizeof(type) * (count), __alignof__(type), offset)
 
+#define __array_offs_aligned(type, count, align, offset)			\
+	__field_impl(sizeof(type) * (count), align, offset)
+
+#define __reqdata_offs(size, offset)						\
+	__array_offs_aligned(u8, size, 8, offset)
+
 #define __array(type, count)		__array_offs(type, count, NULL)
 #define __field_offs(type, offset)	__array_offs(type, 1, offset)
 #define __field(type)			__array_offs(type, 1, NULL)
@@ -253,6 +275,7 @@ struct qsee_rsp_uefi_query_variable_info {
 struct qcuefi_client {
 	struct qseecom_client *client;
 	struct efivars efivars;
+	struct qcom_tzmem_pool *mempool;
 };
 
 static struct device *qcuefi_dev(struct qcuefi_client *qcuefi)
@@ -274,13 +297,17 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 {
 	struct qsee_req_uefi_get_variable *req_data;
 	struct qsee_rsp_uefi_get_variable *rsp_data;
+	void *cmd_buf __free(qcom_tzmem) = NULL;
 	unsigned long buffer_size = *data_size;
-	efi_status_t efi_status = EFI_SUCCESS;
 	unsigned long name_length;
+	efi_status_t efi_status;
+	size_t cmd_buf_size;
 	size_t guid_offs;
 	size_t name_offs;
 	size_t req_size;
 	size_t rsp_size;
+	size_t req_offs;
+	size_t rsp_offs;
 	ssize_t status;
 
 	if (!name || !guid)
@@ -304,17 +331,17 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 		__array(u8, buffer_size)
 	);
 
-	req_data = kzalloc(req_size, GFP_KERNEL);
-	if (!req_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out;
-	}
+	cmd_buf_size = qcuefi_buf_align_fields(
+		__reqdata_offs(req_size, &req_offs)
+		__reqdata_offs(rsp_size, &rsp_offs)
+	);
 
-	rsp_data = kzalloc(rsp_size, GFP_KERNEL);
-	if (!rsp_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out_free_req;
-	}
+	cmd_buf = qcom_tzmem_alloc(qcuefi->mempool, cmd_buf_size, GFP_KERNEL);
+	if (!cmd_buf)
+		return EFI_OUT_OF_RESOURCES;
+
+	req_data = cmd_buf + req_offs;
+	rsp_data = cmd_buf + rsp_offs;
 
 	req_data->command_id = QSEE_CMD_UEFI_GET_VARIABLE;
 	req_data->data_size = buffer_size;
@@ -325,28 +352,22 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 	req_data->length = req_size;
 
 	status = ucs2_strscpy(((void *)req_data) + req_data->name_offset, name, name_length);
-	if (status < 0) {
-		efi_status = EFI_INVALID_PARAMETER;
-		goto out_free;
-	}
+	if (status < 0)
+		return EFI_INVALID_PARAMETER;
 
 	memcpy(((void *)req_data) + req_data->guid_offset, guid, req_data->guid_size);
 
-	status = qcom_qseecom_app_send(qcuefi->client, req_data, req_size, rsp_data, rsp_size);
-	if (status) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	status = qcom_qseecom_app_send(qcuefi->client,
+				       cmd_buf + req_offs, req_size,
+				       cmd_buf + rsp_offs, rsp_size);
+	if (status)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->command_id != QSEE_CMD_UEFI_GET_VARIABLE) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->command_id != QSEE_CMD_UEFI_GET_VARIABLE)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->length < sizeof(*rsp_data)) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length < sizeof(*rsp_data))
+		return EFI_DEVICE_ERROR;
 
 	if (rsp_data->status) {
 		dev_dbg(qcuefi_dev(qcuefi), "%s: uefisecapp error: 0x%x\n",
@@ -360,18 +381,14 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 				*attributes = rsp_data->attributes;
 		}
 
-		goto out_free;
+		return qsee_uefi_status_to_efi(rsp_data->status);
 	}
 
-	if (rsp_data->length > rsp_size) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length > rsp_size)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->data_offset + rsp_data->data_size > rsp_data->length) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->data_offset + rsp_data->data_size > rsp_data->length)
+		return EFI_DEVICE_ERROR;
 
 	/*
 	 * Note: We need to set attributes and data size even if the buffer is
@@ -394,24 +411,15 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 	if (attributes)
 		*attributes = rsp_data->attributes;
 
-	if (buffer_size == 0 && !data) {
-		efi_status = EFI_SUCCESS;
-		goto out_free;
-	}
+	if (buffer_size == 0 && !data)
+		return EFI_SUCCESS;
 
-	if (buffer_size < rsp_data->data_size) {
-		efi_status = EFI_BUFFER_TOO_SMALL;
-		goto out_free;
-	}
+	if (buffer_size < rsp_data->data_size)
+		return EFI_BUFFER_TOO_SMALL;
 
 	memcpy(data, ((void *)rsp_data) + rsp_data->data_offset, rsp_data->data_size);
 
-out_free:
-	kfree(rsp_data);
-out_free_req:
-	kfree(req_data);
-out:
-	return efi_status;
+	return EFI_SUCCESS;
 }
 
 static efi_status_t qsee_uefi_set_variable(struct qcuefi_client *qcuefi, const efi_char16_t *name,
@@ -420,12 +428,15 @@ static efi_status_t qsee_uefi_set_variable(struct qcuefi_client *qcuefi, const e
 {
 	struct qsee_req_uefi_set_variable *req_data;
 	struct qsee_rsp_uefi_set_variable *rsp_data;
-	efi_status_t efi_status = EFI_SUCCESS;
+	void *cmd_buf __free(qcom_tzmem) = NULL;
 	unsigned long name_length;
+	size_t cmd_buf_size;
 	size_t name_offs;
 	size_t guid_offs;
 	size_t data_offs;
 	size_t req_size;
+	size_t req_offs;
+	size_t rsp_offs;
 	ssize_t status;
 
 	if (!name || !guid)
@@ -450,17 +461,17 @@ static efi_status_t qsee_uefi_set_variable(struct qcuefi_client *qcuefi, const e
 		__array_offs(u8, data_size, &data_offs)
 	);
 
-	req_data = kzalloc(req_size, GFP_KERNEL);
-	if (!req_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out;
-	}
+	cmd_buf_size = qcuefi_buf_align_fields(
+		__reqdata_offs(req_size, &req_offs)
+		__reqdata_offs(sizeof(*rsp_data), &rsp_offs)
+	);
 
-	rsp_data = kzalloc(sizeof(*rsp_data), GFP_KERNEL);
-	if (!rsp_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out_free_req;
-	}
+	cmd_buf = qcom_tzmem_alloc(qcuefi->mempool, cmd_buf_size, GFP_KERNEL);
+	if (!cmd_buf)
+		return EFI_OUT_OF_RESOURCES;
+
+	req_data = cmd_buf + req_offs;
+	rsp_data = cmd_buf + rsp_offs;
 
 	req_data->command_id = QSEE_CMD_UEFI_SET_VARIABLE;
 	req_data->attributes = attributes;
@@ -473,45 +484,33 @@ static efi_status_t qsee_uefi_set_variable(struct qcuefi_client *qcuefi, const e
 	req_data->length = req_size;
 
 	status = ucs2_strscpy(((void *)req_data) + req_data->name_offset, name, name_length);
-	if (status < 0) {
-		efi_status = EFI_INVALID_PARAMETER;
-		goto out_free;
-	}
+	if (status < 0)
+		return EFI_INVALID_PARAMETER;
 
 	memcpy(((void *)req_data) + req_data->guid_offset, guid, req_data->guid_size);
 
 	if (data_size)
 		memcpy(((void *)req_data) + req_data->data_offset, data, req_data->data_size);
 
-	status = qcom_qseecom_app_send(qcuefi->client, req_data, req_size, rsp_data,
-				       sizeof(*rsp_data));
-	if (status) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	status = qcom_qseecom_app_send(qcuefi->client,
+				       cmd_buf + req_offs, req_size,
+				       cmd_buf + rsp_offs, sizeof(*rsp_data));
+	if (status)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->command_id != QSEE_CMD_UEFI_SET_VARIABLE) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->command_id != QSEE_CMD_UEFI_SET_VARIABLE)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->length != sizeof(*rsp_data)) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length != sizeof(*rsp_data))
+		return EFI_DEVICE_ERROR;
 
 	if (rsp_data->status) {
 		dev_dbg(qcuefi_dev(qcuefi), "%s: uefisecapp error: 0x%x\n",
 			__func__, rsp_data->status);
-		efi_status = qsee_uefi_status_to_efi(rsp_data->status);
+		return qsee_uefi_status_to_efi(rsp_data->status);
 	}
 
-out_free:
-	kfree(rsp_data);
-out_free_req:
-	kfree(req_data);
-out:
-	return efi_status;
+	return EFI_SUCCESS;
 }
 
 static efi_status_t qsee_uefi_get_next_variable(struct qcuefi_client *qcuefi,
@@ -520,11 +519,15 @@ static efi_status_t qsee_uefi_get_next_variable(struct qcuefi_client *qcuefi,
 {
 	struct qsee_req_uefi_get_next_variable *req_data;
 	struct qsee_rsp_uefi_get_next_variable *rsp_data;
-	efi_status_t efi_status = EFI_SUCCESS;
+	void *cmd_buf __free(qcom_tzmem) = NULL;
+	efi_status_t efi_status;
+	size_t cmd_buf_size;
 	size_t guid_offs;
 	size_t name_offs;
 	size_t req_size;
 	size_t rsp_size;
+	size_t req_offs;
+	size_t rsp_offs;
 	ssize_t status;
 
 	if (!name_size || !name || !guid)
@@ -545,17 +548,17 @@ static efi_status_t qsee_uefi_get_next_variable(struct qcuefi_client *qcuefi,
 		__array(*name, *name_size / sizeof(*name))
 	);
 
-	req_data = kzalloc(req_size, GFP_KERNEL);
-	if (!req_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out;
-	}
+	cmd_buf_size = qcuefi_buf_align_fields(
+		__reqdata_offs(req_size, &req_offs)
+		__reqdata_offs(rsp_size, &rsp_offs)
+	);
 
-	rsp_data = kzalloc(rsp_size, GFP_KERNEL);
-	if (!rsp_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out_free_req;
-	}
+	cmd_buf = qcom_tzmem_alloc(qcuefi->mempool, cmd_buf_size, GFP_KERNEL);
+	if (!cmd_buf)
+		return EFI_OUT_OF_RESOURCES;
+
+	req_data = cmd_buf + req_offs;
+	rsp_data = cmd_buf + rsp_offs;
 
 	req_data->command_id = QSEE_CMD_UEFI_GET_NEXT_VARIABLE;
 	req_data->guid_offset = guid_offs;
@@ -567,26 +570,20 @@ static efi_status_t qsee_uefi_get_next_variable(struct qcuefi_client *qcuefi,
 	memcpy(((void *)req_data) + req_data->guid_offset, guid, req_data->guid_size);
 	status = ucs2_strscpy(((void *)req_data) + req_data->name_offset, name,
 			      *name_size / sizeof(*name));
-	if (status < 0) {
-		efi_status = EFI_INVALID_PARAMETER;
-		goto out_free;
-	}
+	if (status < 0)
+		return EFI_INVALID_PARAMETER;
 
-	status = qcom_qseecom_app_send(qcuefi->client, req_data, req_size, rsp_data, rsp_size);
-	if (status) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	status = qcom_qseecom_app_send(qcuefi->client,
+				       cmd_buf + req_offs, req_size,
+				       cmd_buf + rsp_offs, rsp_size);
+	if (status)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->command_id != QSEE_CMD_UEFI_GET_NEXT_VARIABLE) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->command_id != QSEE_CMD_UEFI_GET_NEXT_VARIABLE)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->length < sizeof(*rsp_data)) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length < sizeof(*rsp_data))
+		return EFI_DEVICE_ERROR;
 
 	if (rsp_data->status) {
 		dev_dbg(qcuefi_dev(qcuefi), "%s: uefisecapp error: 0x%x\n",
@@ -601,55 +598,40 @@ static efi_status_t qsee_uefi_get_next_variable(struct qcuefi_client *qcuefi,
 		if (efi_status == EFI_BUFFER_TOO_SMALL)
 			*name_size = rsp_data->name_size;
 
-		goto out_free;
+		return efi_status;
 	}
 
-	if (rsp_data->length > rsp_size) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length > rsp_size)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->name_offset + rsp_data->name_size > rsp_data->length) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->name_offset + rsp_data->name_size > rsp_data->length)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->guid_offset + rsp_data->guid_size > rsp_data->length) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->guid_offset + rsp_data->guid_size > rsp_data->length)
+		return EFI_DEVICE_ERROR;
 
 	if (rsp_data->name_size > *name_size) {
 		*name_size = rsp_data->name_size;
-		efi_status = EFI_BUFFER_TOO_SMALL;
-		goto out_free;
+		return EFI_BUFFER_TOO_SMALL;
 	}
 
-	if (rsp_data->guid_size != sizeof(*guid)) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->guid_size != sizeof(*guid))
+		return EFI_DEVICE_ERROR;
 
 	memcpy(guid, ((void *)rsp_data) + rsp_data->guid_offset, rsp_data->guid_size);
 	status = ucs2_strscpy(name, ((void *)rsp_data) + rsp_data->name_offset,
 			      rsp_data->name_size / sizeof(*name));
 	*name_size = rsp_data->name_size;
 
-	if (status < 0) {
+	if (status < 0)
 		/*
 		 * Return EFI_DEVICE_ERROR here because the buffer size should
 		 * have already been validated above, causing this function to
 		 * bail with EFI_BUFFER_TOO_SMALL.
 		 */
-		efi_status = EFI_DEVICE_ERROR;
-	}
+		return EFI_DEVICE_ERROR;
 
-out_free:
-	kfree(rsp_data);
-out_free_req:
-	kfree(req_data);
-out:
-	return efi_status;
+	return EFI_SUCCESS;
 }
 
 static efi_status_t qsee_uefi_query_variable_info(struct qcuefi_client *qcuefi, u32 attr,
@@ -658,47 +640,44 @@ static efi_status_t qsee_uefi_query_variable_info(struct qcuefi_client *qcuefi, 
 {
 	struct qsee_req_uefi_query_variable_info *req_data;
 	struct qsee_rsp_uefi_query_variable_info *rsp_data;
-	efi_status_t efi_status = EFI_SUCCESS;
+	void *cmd_buf __free(qcom_tzmem) = NULL;
+	size_t cmd_buf_size;
+	size_t req_offs;
+	size_t rsp_offs;
 	int status;
 
-	req_data = kzalloc(sizeof(*req_data), GFP_KERNEL);
-	if (!req_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out;
-	}
+	cmd_buf_size = qcuefi_buf_align_fields(
+		__reqdata_offs(sizeof(*req_data), &req_offs)
+		__reqdata_offs(sizeof(*rsp_data), &rsp_offs)
+	);
 
-	rsp_data = kzalloc(sizeof(*rsp_data), GFP_KERNEL);
-	if (!rsp_data) {
-		efi_status = EFI_OUT_OF_RESOURCES;
-		goto out_free_req;
-	}
+	cmd_buf = qcom_tzmem_alloc(qcuefi->mempool, cmd_buf_size, GFP_KERNEL);
+	if (!cmd_buf)
+		return EFI_OUT_OF_RESOURCES;
+
+	req_data = cmd_buf + req_offs;
+	rsp_data = cmd_buf + rsp_offs;
 
 	req_data->command_id = QSEE_CMD_UEFI_QUERY_VARIABLE_INFO;
 	req_data->attributes = attr;
 	req_data->length = sizeof(*req_data);
 
-	status = qcom_qseecom_app_send(qcuefi->client, req_data, sizeof(*req_data), rsp_data,
-				       sizeof(*rsp_data));
-	if (status) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	status = qcom_qseecom_app_send(qcuefi->client,
+				       cmd_buf + req_offs, sizeof(*req_data),
+				       cmd_buf + rsp_offs, sizeof(*rsp_data));
+	if (status)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->command_id != QSEE_CMD_UEFI_QUERY_VARIABLE_INFO) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->command_id != QSEE_CMD_UEFI_QUERY_VARIABLE_INFO)
+		return EFI_DEVICE_ERROR;
 
-	if (rsp_data->length != sizeof(*rsp_data)) {
-		efi_status = EFI_DEVICE_ERROR;
-		goto out_free;
-	}
+	if (rsp_data->length != sizeof(*rsp_data))
+		return EFI_DEVICE_ERROR;
 
 	if (rsp_data->status) {
 		dev_dbg(qcuefi_dev(qcuefi), "%s: uefisecapp error: 0x%x\n",
 			__func__, rsp_data->status);
-		efi_status = qsee_uefi_status_to_efi(rsp_data->status);
-		goto out_free;
+		return qsee_uefi_status_to_efi(rsp_data->status);
 	}
 
 	if (storage_space)
@@ -710,12 +689,7 @@ static efi_status_t qsee_uefi_query_variable_info(struct qcuefi_client *qcuefi, 
 	if (max_variable_size)
 		*max_variable_size = rsp_data->max_variable_size;
 
-out_free:
-	kfree(rsp_data);
-out_free_req:
-	kfree(req_data);
-out:
-	return efi_status;
+	return EFI_SUCCESS;
 }
 
 /* -- Global efivar interface. ---------------------------------------------- */
@@ -826,6 +800,7 @@ static const struct efivar_operations qcom_efivar_ops = {
 static int qcom_uefisecapp_probe(struct auxiliary_device *aux_dev,
 				 const struct auxiliary_device_id *aux_dev_id)
 {
+	struct qcom_tzmem_pool_config pool_config;
 	struct qcuefi_client *qcuefi;
 	int status;
 
@@ -843,6 +818,16 @@ static int qcom_uefisecapp_probe(struct auxiliary_device *aux_dev,
 	status = efivars_register(&qcuefi->efivars, &qcom_efivar_ops);
 	if (status)
 		qcuefi_set_reference(NULL);
+
+	memset(&pool_config, 0, sizeof(pool_config));
+	pool_config.initial_size = SZ_4K;
+	pool_config.policy = QCOM_TZMEM_POLICY_MULTIPLIER;
+	pool_config.increment = 2;
+	pool_config.max_size = SZ_256K;
+
+	qcuefi->mempool = devm_qcom_tzmem_pool_new(&aux_dev->dev, &pool_config);
+	if (IS_ERR(qcuefi->mempool))
+		return PTR_ERR(qcuefi->mempool);
 
 	return status;
 }

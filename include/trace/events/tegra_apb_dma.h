@@ -16,7 +16,7 @@ TRACE_EVENT(tegra_dma_tx_status,
 		__field(__u32,	residue)
 	),
 	TP_fast_assign(
-		__assign_str(chan, dev_name(&dc->dev->device));
+		__assign_str(chan);
 		__entry->cookie = cookie;
 		__entry->residue = state ? state->residue : (u32)-1;
 	),
@@ -33,7 +33,7 @@ TRACE_EVENT(tegra_dma_complete_cb,
 		__field(void *,	ptr)
 		),
 	TP_fast_assign(
-		__assign_str(chan, dev_name(&dc->dev->device));
+		__assign_str(chan);
 		__entry->count = count;
 		__entry->ptr = ptr;
 		),
@@ -49,7 +49,7 @@ TRACE_EVENT(tegra_dma_isr,
 		__field(int,	irq)
 	),
 	TP_fast_assign(
-		__assign_str(chan, dev_name(&dc->dev->device));
+		__assign_str(chan);
 		__entry->irq = irq;
 	),
 	TP_printk("%s: irq %d\n",  __get_str(chan), __entry->irq)

@@ -714,7 +714,7 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_HID1:
 		to_book3s(vcpu)->hid[1] = spr_val;
 		break;
-	case SPRN_HID2:
+	case SPRN_HID2_750FX:
 		to_book3s(vcpu)->hid[2] = spr_val;
 		break;
 	case SPRN_HID2_GEKKO:
@@ -900,7 +900,7 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_HID1:
 		*spr_val = to_book3s(vcpu)->hid[1];
 		break;
-	case SPRN_HID2:
+	case SPRN_HID2_750FX:
 	case SPRN_HID2_GEKKO:
 		*spr_val = to_book3s(vcpu)->hid[2];
 		break;

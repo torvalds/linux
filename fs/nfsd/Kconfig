@@ -162,7 +162,7 @@ config NFSD_V4_SECURITY_LABEL
 config NFSD_LEGACY_CLIENT_TRACKING
 	bool "Support legacy NFSv4 client tracking methods (DEPRECATED)"
 	depends on NFSD_V4
-	default n
+	default y
 	help
 	  The NFSv4 server needs to store a small amount of information on
 	  stable storage in order to handle state recovery after reboot. Most

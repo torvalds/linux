@@ -94,8 +94,11 @@ struct amdgpu_mem_stats;
 #define AMDGPU_VM_NORETRY_FLAGS_TF (AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM | \
 				   AMDGPU_PTE_PRT)
 /* For GFX9 */
-#define AMDGPU_PTE_MTYPE_VG10(a)	((uint64_t)(a) << 57)
-#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype)	((uint64_t)(mtype) << 57)
+#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_VG10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype))
 
 #define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
@@ -108,8 +111,34 @@ struct amdgpu_mem_stats;
                                 | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
 /* gfx10 */
-#define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)
-#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype)	((uint64_t)(mtype) << 48)
+#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10_SHIFT(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_NV10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype))
+
+/* gfx12 */
+#define AMDGPU_PTE_PRT_GFX12		(1ULL << 56)
+#define AMDGPU_PTE_PRT_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PTE_PRT_GFX12 : AMDGPU_PTE_PRT)
+
+#define AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype)	((uint64_t)(mtype) << 54)
+#define AMDGPU_PTE_MTYPE_GFX12_MASK	AMDGPU_PTE_MTYPE_GFX12_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_GFX12(flags, mtype)				\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_GFX12_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype))
+
+#define AMDGPU_PTE_DCC			(1ULL << 58)
+#define AMDGPU_PTE_IS_PTE		(1ULL << 63)
+
+/* PDE Block Fragment Size for gfx v12 */
+#define AMDGPU_PDE_BFS_GFX12(a)		((uint64_t)((a) & 0x1fULL) << 58)
+#define AMDGPU_PDE_BFS_FLAG(adev, a)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_BFS_GFX12(a) : AMDGPU_PDE_BFS(a))
+/* PDE is handled as PTE for gfx v12 */
+#define AMDGPU_PDE_PTE_GFX12		(1ULL << 63)
+#define AMDGPU_PDE_PTE_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_PTE_GFX12 : AMDGPU_PDE_PTE)
 
 /* How to program VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
@@ -257,15 +286,20 @@ struct amdgpu_vm_update_params {
 	unsigned int num_dw_left;
 
 	/**
-	 * @table_freed: return true if page table is freed when updating
+	 * @needs_flush: true whenever we need to invalidate the TLB
 	 */
-	bool table_freed;
+	bool needs_flush;
 
 	/**
 	 * @allow_override: true for memory that is not uncached: allows MTYPE
 	 * to be overridden for NUMA local memory.
 	 */
 	bool allow_override;
+
+	/**
+	 * @tlb_flush_waitlist: temporary storage for BOs until tlb_flush
+	 */
+	struct list_head tlb_flush_waitlist;
 };
 
 struct amdgpu_vm_update_funcs {
@@ -342,6 +376,7 @@ struct amdgpu_vm {
 	atomic64_t		tlb_seq;
 	struct dma_fence	*last_tlb_flush;
 	atomic64_t		kfd_last_flushed_seq;
+	uint64_t		tlb_fence_context;
 
 	/* How many times we had to re-generate the page tables */
 	uint64_t		generation;
@@ -422,6 +457,8 @@ struct amdgpu_vm_manager {
 	 * look up VM of a page fault
 	 */
 	struct xarray				pasids;
+	/* Global registration of recent page fault information */
+	struct amdgpu_vm_fault_info	fault_info;
 };
 
 struct amdgpu_bo_va_mapping;
@@ -544,12 +581,16 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 			  uint64_t start, uint64_t end,
 			  uint64_t dst, uint64_t flags);
 void amdgpu_vm_pt_free_work(struct work_struct *work);
+void amdgpu_vm_pt_free_list(struct amdgpu_device *adev,
+			    struct amdgpu_vm_update_params *params);
 
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m);
 #endif
 
 int amdgpu_vm_pt_map_tables(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+
+bool amdgpu_vm_is_bo_always_valid(struct amdgpu_vm *vm, struct amdgpu_bo *bo);
 
 /**
  * amdgpu_vm_tlb_seq - return tlb flush sequence number
@@ -609,5 +650,8 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 				  uint64_t addr,
 				  uint32_t status,
 				  unsigned int vmhub);
+void amdgpu_vm_tlb_fence_create(struct amdgpu_device *adev,
+				 struct amdgpu_vm *vm,
+				 struct dma_fence **fence);
 
 #endif

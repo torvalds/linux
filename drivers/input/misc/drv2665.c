@@ -283,7 +283,7 @@ out:
 static DEFINE_SIMPLE_DEV_PM_OPS(drv2665_pm_ops, drv2665_suspend, drv2665_resume);
 
 static const struct i2c_device_id drv2665_id[] = {
-	{ "drv2665", 0 },
+	{ "drv2665" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, drv2665_id);

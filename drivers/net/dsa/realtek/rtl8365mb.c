@@ -1048,11 +1048,13 @@ static void rtl8365mb_phylink_get_caps(struct dsa_switch *ds, int port,
 		phy_interface_set_rgmii(config->supported_interfaces);
 }
 
-static void rtl8365mb_phylink_mac_config(struct dsa_switch *ds, int port,
+static void rtl8365mb_phylink_mac_config(struct phylink_config *config,
 					 unsigned int mode,
 					 const struct phylink_link_state *state)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
+	u8 port = dp->index;
 	int ret;
 
 	if (mode != MLO_AN_PHY && mode != MLO_AN_FIXED) {
@@ -1076,13 +1078,15 @@ static void rtl8365mb_phylink_mac_config(struct dsa_switch *ds, int port,
 	 */
 }
 
-static void rtl8365mb_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void rtl8365mb_phylink_mac_link_down(struct phylink_config *config,
 					    unsigned int mode,
 					    phy_interface_t interface)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
 	struct rtl8365mb_port *p;
 	struct rtl8365mb *mb;
+	u8 port = dp->index;
 	int ret;
 
 	mb = priv->chip_data;
@@ -1101,16 +1105,18 @@ static void rtl8365mb_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	}
 }
 
-static void rtl8365mb_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void rtl8365mb_phylink_mac_link_up(struct phylink_config *config,
+					  struct phy_device *phydev,
 					  unsigned int mode,
 					  phy_interface_t interface,
-					  struct phy_device *phydev, int speed,
-					  int duplex, bool tx_pause,
+					  int speed, int duplex, bool tx_pause,
 					  bool rx_pause)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
 	struct rtl8365mb_port *p;
 	struct rtl8365mb *mb;
+	u8 port = dp->index;
 	int ret;
 
 	mb = priv->chip_data;
@@ -2106,15 +2112,18 @@ static int rtl8365mb_detect(struct realtek_priv *priv)
 	return 0;
 }
 
+static const struct phylink_mac_ops rtl8365mb_phylink_mac_ops = {
+	.mac_config = rtl8365mb_phylink_mac_config,
+	.mac_link_down = rtl8365mb_phylink_mac_link_down,
+	.mac_link_up = rtl8365mb_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops rtl8365mb_switch_ops = {
 	.get_tag_protocol = rtl8365mb_get_tag_protocol,
 	.change_tag_protocol = rtl8365mb_change_tag_protocol,
 	.setup = rtl8365mb_setup,
 	.teardown = rtl8365mb_teardown,
 	.phylink_get_caps = rtl8365mb_phylink_get_caps,
-	.phylink_mac_config = rtl8365mb_phylink_mac_config,
-	.phylink_mac_link_down = rtl8365mb_phylink_mac_link_down,
-	.phylink_mac_link_up = rtl8365mb_phylink_mac_link_up,
 	.port_stp_state_set = rtl8365mb_port_stp_state_set,
 	.get_strings = rtl8365mb_get_strings,
 	.get_ethtool_stats = rtl8365mb_get_ethtool_stats,
@@ -2136,6 +2145,7 @@ static const struct realtek_ops rtl8365mb_ops = {
 const struct realtek_variant rtl8365mb_variant = {
 	.ds_ops = &rtl8365mb_switch_ops,
 	.ops = &rtl8365mb_ops,
+	.phylink_mac_ops = &rtl8365mb_phylink_mac_ops,
 	.clk_delay = 10,
 	.cmd_read = 0xb9,
 	.cmd_write = 0xb8,

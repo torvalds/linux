@@ -16,9 +16,11 @@ properties:
   compatible:
     const: innolux,p097pfg
 
+  reg:
+    maxItems: 1
+
   backlight: true
   enable-gpios: true
-  reg: true
 
   avdd-supply:
     description: The regulator that provides positive voltage

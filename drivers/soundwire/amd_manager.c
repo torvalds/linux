@@ -6,6 +6,7 @@
  */
 
 #include <linux/completion.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -89,9 +90,8 @@ static void amd_enable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 	u32 val;
 
 	mutex_lock(amd_manager->acp_sdw_lock);
-	val = readl(amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
-	val |= sdw_manager_reg_mask_array[amd_manager->instance];
-	writel(val, amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
+	val = sdw_manager_reg_mask_array[amd_manager->instance];
+	amd_updatel(amd_manager->acp_mmio, ACP_EXTERNAL_INTR_CNTL(amd_manager->instance), val, val);
 	mutex_unlock(amd_manager->acp_sdw_lock);
 
 	writel(AMD_SDW_IRQ_MASK_0TO7, amd_manager->mmio +
@@ -103,12 +103,12 @@ static void amd_enable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 
 static void amd_disable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 {
-	u32 val;
+	u32 irq_mask;
 
 	mutex_lock(amd_manager->acp_sdw_lock);
-	val = readl(amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
-	val &= ~sdw_manager_reg_mask_array[amd_manager->instance];
-	writel(val, amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
+	irq_mask = sdw_manager_reg_mask_array[amd_manager->instance];
+	amd_updatel(amd_manager->acp_mmio, ACP_EXTERNAL_INTR_CNTL(amd_manager->instance),
+		    irq_mask, 0);
 	mutex_unlock(amd_manager->acp_sdw_lock);
 
 	writel(0x00, amd_manager->mmio + ACP_SW_STATE_CHANGE_STATUS_MASK_0TO7);
@@ -128,6 +128,19 @@ static void amd_sdw_set_frameshape(struct amd_sdw_manager *amd_manager)
 
 	frame_size = (amd_manager->rows_index << 3) | amd_manager->cols_index;
 	writel(frame_size, amd_manager->mmio + ACP_SW_FRAMESIZE);
+}
+
+static void amd_sdw_wake_enable(struct amd_sdw_manager *amd_manager, bool enable)
+{
+	u32 wake_ctrl;
+
+	wake_ctrl = readl(amd_manager->mmio + ACP_SW_STATE_CHANGE_STATUS_MASK_8TO11);
+	if (enable)
+		wake_ctrl |= AMD_SDW_WAKE_INTR_MASK;
+	else
+		wake_ctrl &= ~AMD_SDW_WAKE_INTR_MASK;
+
+	writel(wake_ctrl, amd_manager->mmio + ACP_SW_STATE_CHANGE_STATUS_MASK_8TO11);
 }
 
 static void amd_sdw_ctl_word_prep(u32 *lower_word, u32 *upper_word, struct sdw_msg *msg,
@@ -559,6 +572,9 @@ static int sdw_master_read_amd_prop(struct sdw_bus *bus)
 	amd_manager->wake_en_mask = wake_en_mask;
 	fwnode_property_read_u32(link, "amd-sdw-power-mode", &power_mode_mask);
 	amd_manager->power_mode_mask = power_mode_mask;
+
+	fwnode_handle_put(link);
+
 	return 0;
 }
 
@@ -588,7 +604,6 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct amd_sdw_manager *amd_manager = snd_soc_dai_get_drvdata(dai);
 	struct sdw_amd_dai_runtime *dai_runtime;
 	struct sdw_stream_config sconfig;
-	struct sdw_port_config *pconfig;
 	int ch, dir;
 	int ret;
 
@@ -611,11 +626,10 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
-	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
-	if (!pconfig) {
-		ret =  -ENOMEM;
-		goto error;
-	}
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc(sizeof(*pconfig),
+								GFP_KERNEL);
+	if (!pconfig)
+		return -ENOMEM;
 
 	pconfig->num = dai->id;
 	pconfig->ch_mask = (1 << ch) - 1;
@@ -624,8 +638,6 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		dev_err(amd_manager->dev, "add manager to stream failed:%d\n", ret);
 
-	kfree(pconfig);
-error:
 	return ret;
 }
 
@@ -1095,6 +1107,7 @@ static int __maybe_unused amd_suspend(struct device *dev)
 	}
 
 	if (amd_manager->power_mode_mask & AMD_SDW_CLK_STOP_MODE) {
+		amd_sdw_wake_enable(amd_manager, false);
 		return amd_sdw_clock_stop(amd_manager);
 	} else if (amd_manager->power_mode_mask & AMD_SDW_POWER_OFF_MODE) {
 		/*
@@ -1121,6 +1134,7 @@ static int __maybe_unused amd_suspend_runtime(struct device *dev)
 		return 0;
 	}
 	if (amd_manager->power_mode_mask & AMD_SDW_CLK_STOP_MODE) {
+		amd_sdw_wake_enable(amd_manager, true);
 		return amd_sdw_clock_stop(amd_manager);
 	} else if (amd_manager->power_mode_mask & AMD_SDW_POWER_OFF_MODE) {
 		ret = amd_sdw_clock_stop(amd_manager);

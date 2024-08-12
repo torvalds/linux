@@ -72,15 +72,6 @@ struct alpha_machine_vector
 	int (*mv_is_ioaddr)(unsigned long);
 	int (*mv_is_mmio)(const volatile void __iomem *);
 
-	void (*mv_switch_mm)(struct mm_struct *, struct mm_struct *,
-			     struct task_struct *);
-	void (*mv_activate_mm)(struct mm_struct *, struct mm_struct *);
-
-	void (*mv_flush_tlb_current)(struct mm_struct *);
-	void (*mv_flush_tlb_current_page)(struct mm_struct * mm,
-					  struct vm_area_struct *vma,
-					  unsigned long addr);
-
 	void (*update_irq_hw)(unsigned long, unsigned long, int);
 	void (*ack_irq)(unsigned long);
 	void (*device_interrupt)(unsigned long vector);

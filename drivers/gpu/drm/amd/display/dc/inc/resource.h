@@ -29,6 +29,7 @@
 #include "core_status.h"
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
+#include "spl/dc_spl.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 #define MEMORY_TYPE_HBM 2
@@ -77,11 +78,9 @@ struct resource_create_funcs {
 
 	struct hpo_dp_stream_encoder *(*create_hpo_dp_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
-
 	struct hpo_dp_link_encoder *(*create_hpo_dp_link_encoder)(
 			uint8_t inst,
 			struct dc_context *ctx);
-
 	struct dce_hwseq *(*create_hwseq)(
 			struct dc_context *ctx);
 };
@@ -443,6 +442,16 @@ int resource_get_odm_slice_count(const struct pipe_ctx *pipe);
 /* Get the ODM slice index counting from 0 from left most slice */
 int resource_get_odm_slice_index(const struct pipe_ctx *opp_head);
 
+/* Get ODM slice source rect in timing active as input to OPP block */
+struct rect resource_get_odm_slice_src_rect(struct pipe_ctx *pipe_ctx);
+
+/* Get ODM slice destination rect in timing active as output from OPP block */
+struct rect resource_get_odm_slice_dst_rect(struct pipe_ctx *pipe_ctx);
+
+/* Get ODM slice destination width in timing active as output from OPP block */
+int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
+		bool is_last_segment);
+
 /* determine if pipe topology is changed between state a and state b */
 bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
 		const struct dc_state *state_b);
@@ -504,6 +513,17 @@ int recource_find_free_pipe_not_used_in_cur_res_ctx(
  * pipe idx of the free pipe
  */
 int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
+
+/*
+ * Look for a free pipe in new resource context that is used as a secondary DPP
+ * pipe in current resource context.
+ * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * pipe idx of the free pipe
+ */
+int resource_find_free_pipe_used_as_cur_sec_dpp(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool);
@@ -573,13 +593,6 @@ bool get_temp_dp_link_res(struct dc_link *link,
 		struct link_resource *link_res,
 		struct dc_link_settings *link_settings);
 
-#if defined(CONFIG_DRM_AMD_DC_FP)
-struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
-		const struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		const struct dc_link *link);
-#endif
-
 void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
 	struct dc_state *context);
 
@@ -615,4 +628,15 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
 bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
+
+/* Get hw programming parameters container from pipe context
+ * @pipe_ctx: pipe context
+ * @dscl_prog_data: struct to hold programmable hw reg values
+ */
+struct dscl_prog_data *resource_get_dscl_prog_data(struct pipe_ctx *pipe_ctx);
+/* Setup dc callbacks for dml2
+ * @dc: the display core structure
+ * @dml2_options: struct to hold callbacks
+ */
+void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

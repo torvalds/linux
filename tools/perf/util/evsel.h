@@ -170,6 +170,20 @@ struct evsel {
 
 	/* for missing_features */
 	struct perf_pmu		*pmu;
+
+	/* For tool events */
+	/* Beginning time subtracted when the counter is read. */
+	union {
+		/* duration_time is a single global time. */
+		__u64 start_time;
+		/*
+		 * user_time and system_time read an initial value potentially
+		 * per-CPU or per-pid.
+		 */
+		struct xyarray *start_times;
+	};
+	/* Is the tool's fd for /proc/pid/stat or /proc/stat. */
+	bool pid_stat;
 };
 
 struct perf_missing_features {
@@ -234,14 +248,14 @@ void free_config_terms(struct list_head *config_terms);
 
 
 #ifdef HAVE_LIBTRACEEVENT
-struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx, bool format);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
 static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
-	return evsel__newtp_idx(sys, name, 0);
+	return evsel__newtp_idx(sys, name, 0, true);
 }
 #endif
 

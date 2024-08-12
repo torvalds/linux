@@ -133,9 +133,8 @@ static int fbtft_backlight_update_status(struct backlight_device *bd)
 	struct fbtft_par *par = bl_get_data(bd);
 	bool polarity = par->polarity;
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
-		      "%s: polarity=%d, power=%d, fb_blank=%d\n",
-		      __func__, polarity, bd->props.power, bd->props.fb_blank);
+	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s: polarity=%d, power=%d\n", __func__,
+		      polarity, bd->props.power);
 
 	if (!backlight_is_blank(bd))
 		gpiod_set_value(par->gpio.led[0], polarity);
@@ -1277,4 +1276,5 @@ void fbtft_remove_common(struct device *dev, struct fb_info *info)
 }
 EXPORT_SYMBOL(fbtft_remove_common);
 
+MODULE_DESCRIPTION("Core FB support for small TFT LCD display modules");
 MODULE_LICENSE("GPL");

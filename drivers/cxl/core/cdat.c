@@ -14,11 +14,41 @@
 struct dsmas_entry {
 	struct range dpa_range;
 	u8 handle;
-	struct access_coordinate coord;
+	struct access_coordinate coord[ACCESS_COORDINATE_MAX];
 
 	int entries;
 	int qos_class;
 };
+
+static u32 cdat_normalize(u16 entry, u64 base, u8 type)
+{
+	u32 value;
+
+	/*
+	 * Check for invalid and overflow values
+	 */
+	if (entry == 0xffff || !entry)
+		return 0;
+	else if (base > (UINT_MAX / (entry)))
+		return 0;
+
+	/*
+	 * CDAT fields follow the format of HMAT fields. See table 5 Device
+	 * Scoped Latency and Bandwidth Information Structure in Coherent Device
+	 * Attribute Table (CDAT) Specification v1.01.
+	 */
+	value = entry * base;
+	switch (type) {
+	case ACPI_HMAT_ACCESS_LATENCY:
+	case ACPI_HMAT_READ_LATENCY:
+	case ACPI_HMAT_WRITE_LATENCY:
+		value = DIV_ROUND_UP(value, 1000);
+		break;
+	default:
+		break;
+	}
+	return value;
+}
 
 static int cdat_dsmas_handler(union acpi_subtable_headers *header, void *arg,
 			      const unsigned long end)
@@ -58,8 +88,8 @@ static int cdat_dsmas_handler(union acpi_subtable_headers *header, void *arg,
 	return 0;
 }
 
-static void cxl_access_coordinate_set(struct access_coordinate *coord,
-				      int access, unsigned int val)
+static void __cxl_access_coordinate_set(struct access_coordinate *coord,
+					int access, unsigned int val)
 {
 	switch (access) {
 	case ACPI_HMAT_ACCESS_LATENCY:
@@ -85,6 +115,13 @@ static void cxl_access_coordinate_set(struct access_coordinate *coord,
 	}
 }
 
+static void cxl_access_coordinate_set(struct access_coordinate *coord,
+				      int access, unsigned int val)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++)
+		__cxl_access_coordinate_set(&coord[i], access, val);
+}
+
 static int cdat_dslbis_handler(union acpi_subtable_headers *header, void *arg,
 			       const unsigned long end)
 {
@@ -97,7 +134,6 @@ static int cdat_dslbis_handler(union acpi_subtable_headers *header, void *arg,
 	__le16 le_val;
 	u64 val;
 	u16 len;
-	int rc;
 
 	len = le16_to_cpu((__force __le16)hdr->length);
 	if (len != size || (unsigned long)hdr + len > end) {
@@ -124,12 +160,10 @@ static int cdat_dslbis_handler(union acpi_subtable_headers *header, void *arg,
 
 	le_base = (__force __le64)dslbis->entry_base_unit;
 	le_val = (__force __le16)dslbis->entry[0];
-	rc = check_mul_overflow(le64_to_cpu(le_base),
-				le16_to_cpu(le_val), &val);
-	if (rc)
-		pr_warn("DSLBIS value overflowed.\n");
+	val = cdat_normalize(le16_to_cpu(le_val), le64_to_cpu(le_base),
+			     dslbis->data_type);
 
-	cxl_access_coordinate_set(&dent->coord, dslbis->data_type, val);
+	cxl_access_coordinate_set(dent->coord, dslbis->data_type, val);
 
 	return 0;
 }
@@ -163,22 +197,15 @@ static int cxl_cdat_endpoint_process(struct cxl_port *port,
 static int cxl_port_perf_data_calculate(struct cxl_port *port,
 					struct xarray *dsmas_xa)
 {
-	struct access_coordinate ep_c;
-	struct access_coordinate coord[ACCESS_COORDINATE_MAX];
+	struct access_coordinate ep_c[ACCESS_COORDINATE_MAX];
 	struct dsmas_entry *dent;
 	int valid_entries = 0;
 	unsigned long index;
 	int rc;
 
-	rc = cxl_endpoint_get_perf_coordinates(port, &ep_c);
+	rc = cxl_endpoint_get_perf_coordinates(port, ep_c);
 	if (rc) {
 		dev_dbg(&port->dev, "Failed to retrieve ep perf coordinates.\n");
-		return rc;
-	}
-
-	rc = cxl_hb_get_perf_coordinates(port, coord);
-	if (rc)  {
-		dev_dbg(&port->dev, "Failed to retrieve hb perf coordinates.\n");
 		return rc;
 	}
 
@@ -193,18 +220,10 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	xa_for_each(dsmas_xa, index, dent) {
 		int qos_class;
 
-		cxl_coordinates_combine(&dent->coord, &dent->coord, &ep_c);
-		/*
-		 * Keeping the host bridge coordinates separate from the dsmas
-		 * coordinates in order to allow calculation of access class
-		 * 0 and 1 for region later.
-		 */
-		cxl_coordinates_combine(&coord[ACCESS_COORDINATE_CPU],
-					&coord[ACCESS_COORDINATE_CPU],
-					&dent->coord);
+		cxl_coordinates_combine(dent->coord, dent->coord, ep_c);
 		dent->entries = 1;
 		rc = cxl_root->ops->qos_class(cxl_root,
-					      &coord[ACCESS_COORDINATE_CPU],
+					      &dent->coord[ACCESS_COORDINATE_CPU],
 					      1, &qos_class);
 		if (rc != 1)
 			continue;
@@ -222,14 +241,17 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
 			      struct cxl_dpa_perf *dpa_perf)
 {
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++)
+		dpa_perf->coord[i] = dent->coord[i];
 	dpa_perf->dpa_range = dent->dpa_range;
-	dpa_perf->coord = dent->coord;
 	dpa_perf->qos_class = dent->qos_class;
 	dev_dbg(dev,
 		"DSMAS: dpa: %#llx qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
 		dent->dpa_range.start, dpa_perf->qos_class,
-		dent->coord.read_bandwidth, dent->coord.write_bandwidth,
-		dent->coord.read_latency, dent->coord.write_latency);
+		dent->coord[ACCESS_COORDINATE_CPU].read_bandwidth,
+		dent->coord[ACCESS_COORDINATE_CPU].write_bandwidth,
+		dent->coord[ACCESS_COORDINATE_CPU].read_latency,
+		dent->coord[ACCESS_COORDINATE_CPU].write_latency);
 }
 
 static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
@@ -461,17 +483,16 @@ static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 
 		le_base = (__force __le64)tbl->sslbis_header.entry_base_unit;
 		le_val = (__force __le16)tbl->entries[i].latency_or_bandwidth;
-
-		if (check_mul_overflow(le64_to_cpu(le_base),
-				       le16_to_cpu(le_val), &val))
-			dev_warn(dev, "SSLBIS value overflowed!\n");
+		val = cdat_normalize(le16_to_cpu(le_val), le64_to_cpu(le_base),
+				     sslbis->data_type);
 
 		xa_for_each(&port->dports, index, dport) {
 			if (dsp_id == ACPI_CDAT_SSLBIS_ANY_PORT ||
-			    dsp_id == dport->port_id)
-				cxl_access_coordinate_set(&dport->sw_coord,
+			    dsp_id == dport->port_id) {
+				cxl_access_coordinate_set(dport->coord,
 							  sslbis->data_type,
 							  val);
+			}
 		}
 	}
 
@@ -493,16 +514,9 @@ void cxl_switch_parse_cdat(struct cxl_port *port)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, CXL);
 
-/**
- * cxl_coordinates_combine - Combine the two input coordinates
- *
- * @out: Output coordinate of c1 and c2 combined
- * @c1: input coordinates
- * @c2: input coordinates
- */
-void cxl_coordinates_combine(struct access_coordinate *out,
-			     struct access_coordinate *c1,
-			     struct access_coordinate *c2)
+static void __cxl_coordinates_combine(struct access_coordinate *out,
+				      struct access_coordinate *c1,
+				      struct access_coordinate *c2)
 {
 		if (c1->write_bandwidth && c2->write_bandwidth)
 			out->write_bandwidth = min(c1->write_bandwidth,
@@ -515,23 +529,34 @@ void cxl_coordinates_combine(struct access_coordinate *out,
 		out->read_latency = c1->read_latency + c2->read_latency;
 }
 
+/**
+ * cxl_coordinates_combine - Combine the two input coordinates
+ *
+ * @out: Output coordinate of c1 and c2 combined
+ * @c1: input coordinates
+ * @c2: input coordinates
+ */
+void cxl_coordinates_combine(struct access_coordinate *out,
+			     struct access_coordinate *c1,
+			     struct access_coordinate *c2)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++)
+		__cxl_coordinates_combine(&out[i], &c1[i], &c2[i]);
+}
+
 MODULE_IMPORT_NS(CXL);
 
 void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 				    struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-	struct cxl_port *port = cxlmd->endpoint;
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	struct access_coordinate hb_coord[ACCESS_COORDINATE_MAX];
-	struct access_coordinate coord;
 	struct range dpa = {
 			.start = cxled->dpa_res->start,
 			.end = cxled->dpa_res->end,
 	};
 	struct cxl_dpa_perf *perf;
-	int rc;
 
 	switch (cxlr->mode) {
 	case CXL_DECODER_RAM:
@@ -549,35 +574,16 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 	if (!range_contains(&perf->dpa_range, &dpa))
 		return;
 
-	rc = cxl_hb_get_perf_coordinates(port, hb_coord);
-	if (rc)  {
-		dev_dbg(&port->dev, "Failed to retrieve hb perf coordinates.\n");
-		return;
-	}
-
 	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
-		/* Pickup the host bridge coords */
-		cxl_coordinates_combine(&coord, &hb_coord[i], &perf->coord);
-
 		/* Get total bandwidth and the worst latency for the cxl region */
 		cxlr->coord[i].read_latency = max_t(unsigned int,
 						    cxlr->coord[i].read_latency,
-						    coord.read_latency);
+						    perf->coord[i].read_latency);
 		cxlr->coord[i].write_latency = max_t(unsigned int,
 						     cxlr->coord[i].write_latency,
-						     coord.write_latency);
-		cxlr->coord[i].read_bandwidth += coord.read_bandwidth;
-		cxlr->coord[i].write_bandwidth += coord.write_bandwidth;
-
-		/*
-		 * Convert latency to nanosec from picosec to be consistent
-		 * with the resulting latency coordinates computed by the
-		 * HMAT_REPORTING code.
-		 */
-		cxlr->coord[i].read_latency =
-			DIV_ROUND_UP(cxlr->coord[i].read_latency, 1000);
-		cxlr->coord[i].write_latency =
-			DIV_ROUND_UP(cxlr->coord[i].write_latency, 1000);
+						     perf->coord[i].write_latency);
+		cxlr->coord[i].read_bandwidth += perf->coord[i].read_bandwidth;
+		cxlr->coord[i].write_bandwidth += perf->coord[i].write_bandwidth;
 	}
 }
 

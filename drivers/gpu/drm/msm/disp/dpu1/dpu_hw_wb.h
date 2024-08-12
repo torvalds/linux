@@ -46,7 +46,7 @@ struct dpu_hw_wb_ops {
 			struct dpu_hw_qos_cfg *cfg);
 
 	void (*setup_cdp)(struct dpu_hw_wb *ctx,
-			  const struct dpu_format *fmt,
+			  const struct msm_format *fmt,
 			  bool enable);
 
 	bool (*setup_clk_force_ctrl)(struct dpu_hw_wb *ctx,

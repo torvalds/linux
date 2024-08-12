@@ -6,6 +6,7 @@
 
 
 #include <linux/bitfield.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
@@ -15,7 +16,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/spi/spi.h>
-#include <linux/delay.h>
+#include "internals.h"
 
 #define DRV_NAME "spi-pci1xxxx"
 
@@ -567,7 +568,7 @@ error:
 static int pci1xxxx_spi_transfer_one(struct spi_controller *spi_ctlr,
 				     struct spi_device *spi, struct spi_transfer *xfer)
 {
-	if (spi_ctlr->can_dma(spi_ctlr, spi, xfer) && spi_ctlr->cur_msg_mapped)
+	if (spi_xfer_is_dma_mapped(spi_ctlr, spi, xfer))
 		return pci1xxxx_spi_transfer_with_dma(spi_ctlr, spi, xfer);
 	else
 		return pci1xxxx_spi_transfer_with_io(spi_ctlr, spi, xfer);
@@ -725,6 +726,8 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 		spi_bus->spi_int[iter] = devm_kzalloc(&pdev->dev,
 						      sizeof(struct pci1xxxx_spi_internal),
 						      GFP_KERNEL);
+		if (!spi_bus->spi_int[iter])
+			return -ENOMEM;
 		spi_sub_ptr = spi_bus->spi_int[iter];
 		spi_sub_ptr->spi_host = devm_spi_alloc_host(dev, sizeof(struct spi_controller));
 		if (!spi_sub_ptr->spi_host)

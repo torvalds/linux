@@ -52,4 +52,12 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc
 				    func_name, line);
 }
 
+void dm_trace_smu_msg(uint32_t msg_id, uint32_t param_in, struct dc_context *ctx)
+{
+}
+
+void dm_trace_smu_delay(uint32_t delay, struct dc_context *ctx)
+{
+}
+
 /**** power component interfaces ****/

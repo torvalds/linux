@@ -1092,7 +1092,7 @@ static int ftmac100_change_mtu(struct net_device *netdev, int mtu)
 	}
 	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
 
-	netdev->mtu = mtu;
+	WRITE_ONCE(netdev->mtu, mtu);
 
 	return 0;
 }

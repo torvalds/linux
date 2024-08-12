@@ -165,10 +165,12 @@
 		};
 
 		fsi_hub0: hub@3400 {
+			#interrupt-cells = <1>;
 			compatible = "fsi-master-hub";
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
+			interrupt-controller;
 		};
 	};
 };

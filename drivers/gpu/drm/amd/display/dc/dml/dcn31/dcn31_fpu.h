@@ -30,6 +30,7 @@
 #define DCN3_15_DEFAULT_DET_SIZE 192
 #define DCN3_15_MIN_COMPBUF_SIZE_KB 128
 #define DCN3_16_DEFAULT_DET_SIZE 192
+#define DCN3_16_MIN_COMPBUF_SIZE_KB 128
 
 void dcn31_zero_pipe_dcc_fraction(display_e2e_pipe_params_st *pipes,
 				  int pipe_cnt);

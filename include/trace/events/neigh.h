@@ -42,7 +42,7 @@ TRACE_EVENT(neigh_create,
 		__be32 *p32;
 
 		__entry->family = tbl->family;
-		__assign_str(dev, (dev ? dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->entries = atomic_read(&tbl->gc_entries);
 		__entry->created = n != NULL;
 		__entry->gc_exempt = exempt_from_gc;
@@ -103,7 +103,7 @@ TRACE_EVENT(neigh_update,
 		__be32 *p32;
 
 		__entry->family = n->tbl->family;
-		__assign_str(dev, (n->dev ? n->dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->lladdr_len = lladdr_len;
 		memcpy(__entry->lladdr, n->ha, lladdr_len);
 		__entry->flags = n->flags;
@@ -180,7 +180,7 @@ DECLARE_EVENT_CLASS(neigh__update,
 		__be32 *p32;
 
 		__entry->family = n->tbl->family;
-		__assign_str(dev, (n->dev ? n->dev->name : "NULL"));
+		__assign_str(dev);
 		__entry->lladdr_len = lladdr_len;
 		memcpy(__entry->lladdr, n->ha, lladdr_len);
 		__entry->flags = n->flags;

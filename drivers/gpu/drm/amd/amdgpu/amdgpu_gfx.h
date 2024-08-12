@@ -259,7 +259,6 @@ struct amdgpu_cu_info {
 struct amdgpu_gfx_ras {
 	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
-	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
 	int (*rlc_gc_fed_irq)(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry);
@@ -298,6 +297,7 @@ struct amdgpu_gfx_funcs {
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
 	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
+	int (*get_xccs_per_xcp)(struct amdgpu_device *adev);
 };
 
 struct sq_work {
@@ -434,6 +434,11 @@ struct amdgpu_gfx {
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 	bool				mcbp; /* mid command buffer preemption */
+
+	/* IP reg dump */
+	uint32_t			*ip_dump_core;
+	uint32_t			*ip_dump_compute_queues;
+	uint32_t			*ip_dump_gfx_queues;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -552,8 +557,6 @@ static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 	default:
 		return "UNKNOWN";
 	}
-
-	return "UNKNOWN";
 }
 
 #endif

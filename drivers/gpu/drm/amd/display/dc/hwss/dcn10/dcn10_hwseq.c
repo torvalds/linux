@@ -233,7 +233,8 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_nom_l   pr_nom_c   rc_pg_nl   rc_pg_nc "
 			"  mr_nom_l   mr_nom_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
 			"  rc_ld_c    cha_cur0   ofst_cur1  cha_cur1   vr_af_vc0  ddrq_limt  x_rt_dlay"
-			"  x_rp_dlay  x_rr_sfl\n");
+			"  x_rp_dlay  x_rr_sfl  rc_td_grp\n");
+
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
 		struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &s->dlg_attr;
@@ -241,7 +242,7 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 		if (!s->blank_en)
 			DTN_INFO("[%2d]:  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh"
 				"  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh"
-				"  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh\n",
+				"  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh %xh\n",
 				pool->hubps[i]->inst, dlg_regs->refcyc_h_blank_end, dlg_regs->dlg_vblank_end, dlg_regs->min_dst_y_next_start,
 				dlg_regs->refcyc_per_htotal, dlg_regs->refcyc_x_after_scaler, dlg_regs->dst_y_after_scaler,
 				dlg_regs->dst_y_prefetch, dlg_regs->dst_y_per_vm_vblank, dlg_regs->dst_y_per_row_vblank,
@@ -259,7 +260,7 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 				dlg_regs->refcyc_per_line_delivery_c, dlg_regs->chunk_hdl_adjust_cur0, dlg_regs->dst_y_offset_cur1,
 				dlg_regs->chunk_hdl_adjust_cur1, dlg_regs->vready_after_vcount0, dlg_regs->dst_y_delta_drq_limit,
 				dlg_regs->xfc_reg_transfer_delay, dlg_regs->xfc_reg_precharge_delay,
-				dlg_regs->xfc_reg_remote_surface_flip_latency);
+				dlg_regs->xfc_reg_remote_surface_flip_latency, dlg_regs->refcyc_per_tdlut_group);
 	}
 
 	DTN_INFO("========TTU========\n");
@@ -288,6 +289,7 @@ static void dcn10_log_color_state(struct dc *dc,
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
+	bool is_gamut_remap_available = false;
 	int i;
 
 	DTN_INFO("DPP:    IGAM format    IGAM mode    DGAM mode    RGAM mode"
@@ -300,16 +302,15 @@ static void dcn10_log_color_state(struct dc *dc,
 		struct dcn_dpp_state s = {0};
 
 		dpp->funcs->dpp_read_state(dpp, &s);
-		dpp->funcs->dpp_get_gamut_remap(dpp, &s.gamut_remap);
+		if (dpp->funcs->dpp_get_gamut_remap) {
+			dpp->funcs->dpp_get_gamut_remap(dpp, &s.gamut_remap);
+			is_gamut_remap_available = true;
+		}
 
 		if (!s.is_enabled)
 			continue;
 
-		DTN_INFO("[%2d]:  %11xh  %11s    %9s    %9s"
-			 "  %12s  "
-			 "%010lld %010lld %010lld %010lld "
-			 "%010lld %010lld %010lld %010lld "
-			 "%010lld %010lld %010lld %010lld",
+		DTN_INFO("[%2d]:  %11xh  %11s    %9s    %9s",
 				dpp->inst,
 				s.igam_input_format,
 				(s.igam_lut_mode == 0) ? "BypassFixed" :
@@ -328,22 +329,27 @@ static void dcn10_log_color_state(struct dc *dc,
 					((s.rgam_lut_mode == 2) ? "Ycc" :
 					((s.rgam_lut_mode == 3) ? "RAM" :
 					((s.rgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
-				(s.gamut_remap.gamut_adjust_type == 0) ? "Bypass" :
-					((s.gamut_remap.gamut_adjust_type == 1) ? "HW" :
-										  "SW"),
-				s.gamut_remap.temperature_matrix[0].value,
-				s.gamut_remap.temperature_matrix[1].value,
-				s.gamut_remap.temperature_matrix[2].value,
-				s.gamut_remap.temperature_matrix[3].value,
-				s.gamut_remap.temperature_matrix[4].value,
-				s.gamut_remap.temperature_matrix[5].value,
-				s.gamut_remap.temperature_matrix[6].value,
-				s.gamut_remap.temperature_matrix[7].value,
-				s.gamut_remap.temperature_matrix[8].value,
-				s.gamut_remap.temperature_matrix[9].value,
-				s.gamut_remap.temperature_matrix[10].value,
-				s.gamut_remap.temperature_matrix[11].value);
+								 "Unknown")))));
+		if (is_gamut_remap_available)
+			DTN_INFO("  %12s  "
+				 "%010lld %010lld %010lld %010lld "
+				 "%010lld %010lld %010lld %010lld "
+				 "%010lld %010lld %010lld %010lld",
+				 (s.gamut_remap.gamut_adjust_type == 0) ? "Bypass" :
+					((s.gamut_remap.gamut_adjust_type == 1) ? "HW" : "SW"),
+				 s.gamut_remap.temperature_matrix[0].value,
+				 s.gamut_remap.temperature_matrix[1].value,
+				 s.gamut_remap.temperature_matrix[2].value,
+				 s.gamut_remap.temperature_matrix[3].value,
+				 s.gamut_remap.temperature_matrix[4].value,
+				 s.gamut_remap.temperature_matrix[5].value,
+				 s.gamut_remap.temperature_matrix[6].value,
+				 s.gamut_remap.temperature_matrix[7].value,
+				 s.gamut_remap.temperature_matrix[8].value,
+				 s.gamut_remap.temperature_matrix[9].value,
+				 s.gamut_remap.temperature_matrix[10].value,
+				 s.gamut_remap.temperature_matrix[11].value);
+
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
@@ -367,7 +373,7 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.dpp.ocsc);
 
 	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE\n");
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
@@ -1128,25 +1134,8 @@ static bool dcn10_hw_wa_force_recovery(struct dc *dc)
 {
 	struct hubp *hubp ;
 	unsigned int i;
-	bool need_recover = true;
 
 	if (!dc->debug.recovery_enabled)
-		return false;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx =
-			&dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx != NULL) {
-			hubp = pipe_ctx->plane_res.hubp;
-			if (hubp != NULL && hubp->funcs->hubp_get_underflow_status) {
-				if (hubp->funcs->hubp_get_underflow_status(hubp) != 0) {
-					/* one pipe underflow, we will reset all the pipes*/
-					need_recover = true;
-				}
-			}
-		}
-	}
-	if (!need_recover)
 		return false;
 	/*
 	DCHUBP_CNTL:HUBP_BLANK_EN=1
@@ -1254,7 +1243,7 @@ void dcn10_plane_atomic_disconnect(struct dc *dc,
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
 	// Phantom pipes have OTG disabled by default, so MPCC_STATUS will never assert idle,
 	// so don't wait for MPCC_IDLE in the programming sequence
-	if (opp != NULL && dc_state_get_pipe_subvp_type(state, pipe_ctx) != SUBVP_PHANTOM)
+	if (dc_state_get_pipe_subvp_type(state, pipe_ctx) != SUBVP_PHANTOM)
 		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
@@ -1366,6 +1355,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	bool can_apply_seamless_boot = false;
+	bool tg_enabled[MAX_PIPES] = {false};
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->streams[i]->apply_seamless_boot_optimization) {
@@ -1412,6 +1402,8 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		if (hubbub && hubp) {
 			if (hubbub->funcs->program_det_size)
 				hubbub->funcs->program_det_size(hubbub, hubp->inst, 0);
+			if (hubbub->funcs->program_det_segments)
+				hubbub->funcs->program_det_segments(hubbub, hubp->inst, 0);
 		}
 	}
 
@@ -1447,6 +1439,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
 			hubp->power_gated = true;
+			tg_enabled[i] = true;
 			continue;
 		}
 
@@ -1486,6 +1479,20 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 
 		tg->funcs->tg_init(tg);
+	}
+
+	/* Clean up MPC tree */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (tg_enabled[i]) {
+			if (dc->res_pool->opps[i]->mpc_tree_params.opp_list) {
+				if (dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot) {
+					int bot_id = dc->res_pool->opps[i]->mpc_tree_params.opp_list->mpcc_bot->mpcc_id;
+
+					if ((bot_id < MAX_MPCC) && (bot_id < MAX_PIPES) && (!tg_enabled[bot_id]))
+						dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
+				}
+			}
+		}
 	}
 
 	/* Power gate DSCs */
@@ -1813,18 +1820,14 @@ bool dcn10_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	if (dpp_base == NULL)
 		return false;
 
-	if (plane_state->in_transfer_func)
-		tf = plane_state->in_transfer_func;
+	tf = &plane_state->in_transfer_func;
 
-	if (plane_state->gamma_correction &&
-		!dpp_base->ctx->dc->debug.always_use_regamma
-		&& !plane_state->gamma_correction->is_identity
+	if (!dpp_base->ctx->dc->debug.always_use_regamma
+		&& !plane_state->gamma_correction.is_identity
 			&& dce_use_lut(plane_state->format))
-		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
+		dpp_base->funcs->dpp_program_input_lut(dpp_base, &plane_state->gamma_correction);
 
-	if (tf == NULL)
-		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
-	else if (tf->type == TF_TYPE_PREDEFINED) {
+	if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_HW_sRGB);
@@ -1861,7 +1864,7 @@ bool dcn10_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 #define MAX_NUM_HW_POINTS 0x200
 
 static void log_tf(struct dc_context *ctx,
-				struct dc_transfer_func *tf, uint32_t hw_points_num)
+				const struct dc_transfer_func *tf, uint32_t hw_points_num)
 {
 	// DC_LOG_GAMMA is default logging of all hw points
 	// DC_LOG_ALL_GAMMA logs all points, not only hw points
@@ -1898,16 +1901,15 @@ bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 
 	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->out_transfer_func &&
-	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
-	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB)
+	if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func.tf == TRANSFER_FUNCTION_SRGB)
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us, only do it when full
 	 * update.
 	 */
 	else if (cm_helper_translate_curve_to_hw_format(dc->ctx,
-			stream->out_transfer_func,
+			&stream->out_transfer_func,
 			&dpp->regamma_params, false)) {
 		dpp->funcs->dpp_program_regamma_pwl(
 				dpp,
@@ -1915,10 +1917,9 @@ bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	} else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 
-	if (stream->ctx &&
-	    stream->out_transfer_func) {
+	if (stream->ctx) {
 		log_tf(stream->ctx,
-				stream->out_transfer_func,
+				&stream->out_transfer_func,
 				dpp->regamma_params.hw_points_num);
 	}
 
@@ -2173,7 +2174,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
-	unsigned int pclk;
+	unsigned int pclk = 0;
 
 	uint32_t embedded_pix_clk_100hz;
 	uint16_t embedded_h_total;
@@ -2209,7 +2210,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 					grouped_pipes[i]->stream->signal)) {
 				embedded = i;
 				master = i;
-				phase[i] = embedded_pix_clk_100hz*100;
+				phase[i] = embedded_pix_clk_100hz*(uint64_t)100;
 				modulo[i] = dp_ref_clk_100hz*100;
 			} else {
 
@@ -2264,7 +2265,7 @@ void dcn10_enable_vblanks_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height, master;
+	int i, width = 0, height = 0, master;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -2330,7 +2331,7 @@ void dcn10_enable_timing_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height;
+	int i, width = 0, height = 0;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -2873,8 +2874,8 @@ static void dcn10_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
-		dc->hwss.set_cursor_position(pipe_ctx);
 		dc->hwss.set_cursor_attribute(pipe_ctx);
+		dc->hwss.set_cursor_position(pipe_ctx);
 
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);

@@ -11,6 +11,7 @@
 #define _ASM_ADDRSPACE_H
 
 #include <linux/const.h>
+#include <linux/sizes.h>
 
 #include <asm/loongarch.h>
 
@@ -34,6 +35,10 @@ extern unsigned long vm_map_base;
 
 #ifndef UNCACHE_BASE
 #define UNCACHE_BASE		CSR_DMW0_BASE
+#endif
+
+#ifndef WRITECOMBINE_BASE
+#define WRITECOMBINE_BASE	CSR_DMW2_BASE
 #endif
 
 #define DMW_PABITS	48

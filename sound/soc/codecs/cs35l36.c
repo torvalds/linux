@@ -1300,7 +1300,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l36 = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs35l36_regmap = {
+static const struct regmap_config cs35l36_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -1930,7 +1930,7 @@ static const struct of_device_id cs35l36_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l36_of_match);
 
 static const struct i2c_device_id cs35l36_id[] = {
-	{"cs35l36", 0},
+	{"cs35l36"},
 	{}
 };
 

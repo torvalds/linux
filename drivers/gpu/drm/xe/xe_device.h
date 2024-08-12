@@ -6,19 +6,9 @@
 #ifndef _XE_DEVICE_H_
 #define _XE_DEVICE_H_
 
-struct xe_exec_queue;
-struct xe_file;
-
 #include <drm/drm_util.h>
 
-#include "regs/xe_gpu_commands.h"
 #include "xe_device_types.h"
-#include "xe_force_wake.h"
-#include "xe_macros.h"
-
-#ifdef CONFIG_LOCKDEP
-extern struct lockdep_map xe_device_mem_access_lockdep_map;
-#endif
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
@@ -137,12 +127,7 @@ static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 	return &gt->mmio.fw;
 }
 
-void xe_device_mem_access_get(struct xe_device *xe);
-bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe);
-void xe_device_mem_access_put(struct xe_device *xe);
-
 void xe_device_assert_mem_access(struct xe_device *xe);
-bool xe_device_mem_access_ongoing(struct xe_device *xe);
 
 static inline bool xe_device_in_fault_mode(struct xe_device *xe)
 {
@@ -175,5 +160,14 @@ void xe_device_snapshot_print(struct xe_device *xe, struct drm_printer *p);
 
 u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
+
+void xe_device_td_flush(struct xe_device *xe);
+
+static inline bool xe_device_wedged(struct xe_device *xe)
+{
+	return atomic_read(&xe->wedged.flag);
+}
+
+void xe_device_declare_wedged(struct xe_device *xe);
 
 #endif

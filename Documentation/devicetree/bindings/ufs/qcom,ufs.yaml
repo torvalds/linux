@@ -27,10 +27,13 @@ properties:
           - qcom,msm8996-ufshc
           - qcom,msm8998-ufshc
           - qcom,sa8775p-ufshc
+          - qcom,sc7180-ufshc
           - qcom,sc7280-ufshc
+          - qcom,sc8180x-ufshc
           - qcom,sc8280xp-ufshc
           - qcom,sdm845-ufshc
           - qcom,sm6115-ufshc
+          - qcom,sm6125-ufshc
           - qcom,sm6350-ufshc
           - qcom,sm8150-ufshc
           - qcom,sm8250-ufshc
@@ -42,12 +45,12 @@ properties:
       - const: jedec,ufs-2.0
 
   clocks:
-    minItems: 8
-    maxItems: 11
+    minItems: 7
+    maxItems: 9
 
   clock-names:
-    minItems: 8
-    maxItems: 11
+    minItems: 7
+    maxItems: 9
 
   dma-coherent: true
 
@@ -117,9 +120,35 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sc7180-ufshc
+    then:
+      properties:
+        clocks:
+          minItems: 7
+          maxItems: 7
+        clock-names:
+          items:
+            - const: core_clk
+            - const: bus_aggr_clk
+            - const: iface_clk
+            - const: core_clk_unipro
+            - const: ref_clk
+            - const: tx_lane0_sync_clk
+            - const: rx_lane0_sync_clk
+        reg:
+          maxItems: 1
+        reg-names:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,msm8998-ufshc
               - qcom,sa8775p-ufshc
               - qcom,sc7280-ufshc
+              - qcom,sc8180x-ufshc
               - qcom,sc8280xp-ufshc
               - qcom,sm8250-ufshc
               - qcom,sm8350-ufshc
@@ -188,16 +217,14 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 11
-          maxItems: 11
+          minItems: 9
+          maxItems: 9
         clock-names:
           items:
-            - const: core_clk_src
             - const: core_clk
             - const: bus_clk
             - const: bus_aggr_clk
             - const: iface_clk
-            - const: core_clk_unipro_src
             - const: core_clk_unipro
             - const: core_clk_ice
             - const: ref_clk
@@ -215,6 +242,7 @@ allOf:
           contains:
             enum:
               - qcom,sm6115-ufshc
+              - qcom,sm6125-ufshc
     then:
       properties:
         clocks:
@@ -248,7 +276,7 @@ allOf:
         reg:
           maxItems: 1
         clocks:
-          minItems: 8
+          minItems: 7
           maxItems: 8
     else:
       properties:
@@ -256,8 +284,8 @@ allOf:
           minItems: 1
           maxItems: 2
         clocks:
-          minItems: 8
-          maxItems: 11
+          minItems: 7
+          maxItems: 9
 
 unevaluatedProperties: false
 

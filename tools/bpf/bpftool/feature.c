@@ -664,7 +664,8 @@ probe_helper_ifindex(enum bpf_func_id id, enum bpf_prog_type prog_type,
 
 	probe_prog_load_ifindex(prog_type, insns, ARRAY_SIZE(insns), buf,
 				sizeof(buf), ifindex);
-	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ");
+	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ") &&
+		!grep(buf, "program of this type cannot use helper ");
 
 	switch (get_vendor_id(ifindex)) {
 	case 0x19ee: /* Netronome specific */

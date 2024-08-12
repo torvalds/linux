@@ -470,7 +470,6 @@
 
 &mdss_dp_out {
 	data-lanes = <0 1>;
-	remote-endpoint = <&usb_1_qmpphy_dp_in>;
 };
 
 &mdss_dsi0 {
@@ -556,7 +555,7 @@
 
 			port@0 {
 				reg = <0>;
-				pm8150b_role_switch_in: endpoint {
+				pm8150b_hs_in: endpoint {
 					remote-endpoint = <&usb_1_dwc3_hs>;
 				};
 			};
@@ -607,6 +606,11 @@
 	status = "okay";
 
 	firmware-name = "qcom/sm8150/cdsp.mbn";
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/sm8150/modem.mbn";
+	status = "okay";
 };
 
 &remoteproc_slpi {
@@ -671,16 +675,8 @@
 	orientation-switch;
 };
 
-&usb_1_qmpphy_dp_in {
-	remote-endpoint = <&mdss_dp_out>;
-};
-
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pm8150b_typec_mux_in>;
-};
-
-&usb_1_qmpphy_usb_ss_in {
-	remote-endpoint = <&usb_1_dwc3_ss>;
 };
 
 &usb_2_qmpphy {
@@ -703,13 +699,20 @@
 };
 
 &usb_1_dwc3_hs {
-	remote-endpoint = <&pm8150b_role_switch_in>;
-};
-
-&usb_1_dwc3_ss {
-	remote-endpoint = <&usb_1_qmpphy_usb_ss_in>;
+	remote-endpoint = <&pm8150b_hs_in>;
 };
 
 &usb_2_dwc3 {
 	dr_mode = "host";
+};
+
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&vreg_l1a_0p75>;
+	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
+	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
+	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
+
+	qcom,ath10k-calibration-variant = "Qualcomm_sm8150hdk";
 };

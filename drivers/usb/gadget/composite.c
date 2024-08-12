@@ -2112,7 +2112,7 @@ unknown:
 			buf[5] = 0x01;
 			switch (ctrl->bRequestType & USB_RECIP_MASK) {
 			case USB_RECIP_DEVICE:
-				if (w_index != 0x4 || (w_value >> 8))
+				if (w_index != 0x4 || (w_value & 0xff))
 					break;
 				buf[6] = w_index;
 				/* Number of ext compat interfaces */
@@ -2128,9 +2128,9 @@ unknown:
 				}
 				break;
 			case USB_RECIP_INTERFACE:
-				if (w_index != 0x5 || (w_value >> 8))
+				if (w_index != 0x5 || (w_value & 0xff))
 					break;
-				interface = w_value & 0xFF;
+				interface = w_value >> 8;
 				if (interface >= MAX_CONFIG_INTERFACES ||
 				    !os_desc_cfg->interface[interface])
 					break;
@@ -2799,5 +2799,6 @@ void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 }
 EXPORT_SYMBOL_GPL(usb_composite_overwrite_options);
 
+MODULE_DESCRIPTION("infrastructure for Composite USB Gadgets");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

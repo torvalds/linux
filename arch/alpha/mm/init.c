@@ -33,7 +33,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 
-extern void die_if_kernel(char *,struct pt_regs *,long);
+#include "../kernel/proto.h"
 
 static struct pcb_struct original_pcb;
 

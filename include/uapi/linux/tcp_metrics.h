@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* tcp_metrics.h - TCP Metrics Interface */
 
-#ifndef _LINUX_TCP_METRICS_H
-#define _LINUX_TCP_METRICS_H
+#ifndef _UAPI_LINUX_TCP_METRICS_H
+#define _UAPI_LINUX_TCP_METRICS_H
 
 #include <linux/types.h>
 
@@ -26,6 +26,22 @@ enum tcp_metric_index {
 };
 
 #define TCP_METRIC_MAX	(__TCP_METRIC_MAX - 1)
+
+/* Re-define enum tcp_metric_index, again, using the values carried
+ * as netlink attribute types.
+ */
+enum {
+	TCP_METRICS_A_METRICS_RTT = 1,
+	TCP_METRICS_A_METRICS_RTTVAR,
+	TCP_METRICS_A_METRICS_SSTHRESH,
+	TCP_METRICS_A_METRICS_CWND,
+	TCP_METRICS_A_METRICS_REODERING,
+	TCP_METRICS_A_METRICS_RTT_US,
+	TCP_METRICS_A_METRICS_RTTVAR_US,
+
+	__TCP_METRICS_A_METRICS_MAX
+};
+#define TCP_METRICS_A_METRICS_MAX (__TCP_METRICS_A_METRICS_MAX - 1)
 
 enum {
 	TCP_METRICS_ATTR_UNSPEC,
@@ -58,4 +74,4 @@ enum {
 
 #define TCP_METRICS_CMD_MAX	(__TCP_METRICS_CMD_MAX - 1)
 
-#endif /* _LINUX_TCP_METRICS_H */
+#endif /* _UAPI_LINUX_TCP_METRICS_H */

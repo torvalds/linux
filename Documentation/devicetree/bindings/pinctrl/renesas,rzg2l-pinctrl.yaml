@@ -26,6 +26,7 @@ properties:
               - renesas,r9a07g043-pinctrl # RZ/G2UL{Type-1,Type-2} and RZ/Five
               - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
               - renesas,r9a08g045-pinctrl # RZ/G3S
+              - renesas,r9a09g057-pinctrl # RZ/V2H(P)
 
       - items:
           - enum:
@@ -66,10 +67,14 @@ properties:
     maxItems: 1
 
   resets:
-    items:
-      - description: GPIO_RSTN signal
-      - description: GPIO_PORT_RESETN signal
-      - description: GPIO_SPARE_RESETN signal
+    oneOf:
+      - items:
+          - description: GPIO_RSTN signal
+          - description: GPIO_PORT_RESETN signal
+          - description: GPIO_SPARE_RESETN signal
+      - items:
+          - description: PFC main reset
+          - description: Reset for the control register related to WDTUDFCA and WDTUDFFCM pins
 
 additionalProperties:
   anyOf:
@@ -78,21 +83,6 @@ additionalProperties:
       allOf:
         - $ref: pincfg-node.yaml#
         - $ref: pinmux-node.yaml#
-
-        - if:
-            properties:
-              compatible:
-                contains:
-                  enum:
-                    - renesas,r9a08g045-pinctrl
-          then:
-            properties:
-              drive-strength: false
-              output-impedance-ohms: false
-              slew-rate: false
-          else:
-            properties:
-              drive-strength-microamp: false
 
       description:
         Pin controller client devices use pin configuration subnodes (children
@@ -120,10 +110,22 @@ additionalProperties:
         slew-rate: true
         gpio-hog: true
         gpios: true
+        input: true
         input-enable: true
+        output-enable: true
         output-high: true
         output-low: true
         line-name: true
+        bias-disable: true
+        bias-pull-down: true
+        bias-pull-up: true
+        renesas,output-impedance:
+          description:
+            Output impedance for pins on the RZ/V2H(P) SoC. The value provided by this
+            property corresponds to register bit values that can be set in the PFC_IOLH_mn
+            register, which adjusts the drive strength value and is pin-dependent.
+          $ref: /schemas/types.yaml#/definitions/uint32
+          enum: [0, 1, 2, 3]
 
     - type: object
       additionalProperties:
@@ -131,6 +133,20 @@ additionalProperties:
 
 allOf:
   - $ref: pinctrl.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g057-pinctrl
+    then:
+      properties:
+        resets:
+          maxItems: 2
+    else:
+      properties:
+        resets:
+          minItems: 3
 
 required:
   - compatible

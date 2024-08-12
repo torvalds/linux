@@ -405,8 +405,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	} else
 		sch_tree_lock(sch);
 
-	q->flags = ctl->flags;
-	q->limit = ctl->limit;
+	WRITE_ONCE(q->flags, ctl->flags);
+	WRITE_ONCE(q->limit, ctl->limit);
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 		      ctl->Plog, ctl->Scell_log,
@@ -431,15 +431,16 @@ static int choke_init(struct Qdisc *sch, struct nlattr *opt,
 static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
+	u8 Wlog = READ_ONCE(q->parms.Wlog);
 	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
-		.limit		= q->limit,
-		.flags		= q->flags,
-		.qth_min	= q->parms.qth_min >> q->parms.Wlog,
-		.qth_max	= q->parms.qth_max >> q->parms.Wlog,
-		.Wlog		= q->parms.Wlog,
-		.Plog		= q->parms.Plog,
-		.Scell_log	= q->parms.Scell_log,
+		.limit		= READ_ONCE(q->limit),
+		.flags		= READ_ONCE(q->flags),
+		.qth_min	= READ_ONCE(q->parms.qth_min) >> Wlog,
+		.qth_max	= READ_ONCE(q->parms.qth_max) >> Wlog,
+		.Wlog		= Wlog,
+		.Plog		= READ_ONCE(q->parms.Plog),
+		.Scell_log	= READ_ONCE(q->parms.Scell_log),
 	};
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
@@ -447,7 +448,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt) ||
-	    nla_put_u32(skb, TCA_CHOKE_MAX_P, q->parms.max_P))
+	    nla_put_u32(skb, TCA_CHOKE_MAX_P, READ_ONCE(q->parms.max_P)))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 

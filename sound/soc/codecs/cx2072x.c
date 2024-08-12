@@ -63,11 +63,6 @@ static const DECLARE_TLV_DB_SCALE(adc_tlv, -7400, 100, 0);
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -7400, 100, 0);
 static const DECLARE_TLV_DB_SCALE(boost_tlv, 0, 1200, 0);
 
-struct cx2072x_eq_ctrl {
-	u8 ch;
-	u8 band;
-};
-
 static const DECLARE_TLV_DB_RANGE(hpf_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(120, 0, 0),
 	1, 63, TLV_DB_SCALE_ITEM(30, 30, 0)
@@ -1686,8 +1681,8 @@ static void cx2072x_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id cx2072x_i2c_id[] = {
-	{ "cx20721", 0 },
-	{ "cx20723", 0 },
+	{ "cx20721" },
+	{ "cx20723" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cx2072x_i2c_id);

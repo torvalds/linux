@@ -1202,23 +1202,19 @@ static void __devlink_compat_running_version(struct devlink *devlink,
 	if (err)
 		goto free_msg;
 
-	nla_for_each_attr(nlattr, (void *)msg->data, msg->len, rem) {
+	nla_for_each_attr_type(nlattr, DEVLINK_ATTR_INFO_VERSION_RUNNING,
+			       (void *)msg->data, msg->len, rem) {
 		const struct nlattr *kv;
 		int rem_kv;
 
-		if (nla_type(nlattr) != DEVLINK_ATTR_INFO_VERSION_RUNNING)
-			continue;
-
-		nla_for_each_nested(kv, nlattr, rem_kv) {
-			if (nla_type(kv) != DEVLINK_ATTR_INFO_VERSION_VALUE)
-				continue;
-
+		nla_for_each_nested_type(kv, DEVLINK_ATTR_INFO_VERSION_VALUE,
+					 nlattr, rem_kv) {
 			strlcat(buf, nla_data(kv), len);
 			strlcat(buf, " ", len);
 		}
 	}
 free_msg:
-	nlmsg_free(msg);
+	nlmsg_consume(msg);
 }
 
 void devlink_compat_running_version(struct devlink *devlink,

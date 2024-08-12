@@ -20,7 +20,7 @@ TRACE_EVENT(mlx5_sf_vhca_event,
 			     __field(u32, sfnum)
 			     __field(u8, vhca_state)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->hw_fn_id = event->function_id;
 		    __entry->sfnum = event->sw_function_id;
 		    __entry->vhca_state = event->new_vhca_state;

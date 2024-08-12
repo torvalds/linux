@@ -54,7 +54,8 @@ int intel_gt_terminally_wedged(struct intel_gt *gt);
 void intel_gt_set_wedged_on_init(struct intel_gt *gt);
 void intel_gt_set_wedged_on_fini(struct intel_gt *gt);
 
-int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask);
+int intel_gt_reset_engine(struct intel_engine_cs *engine);
+int intel_gt_reset_all_engines(struct intel_gt *gt);
 
 int intel_reset_guc(struct intel_gt *gt);
 

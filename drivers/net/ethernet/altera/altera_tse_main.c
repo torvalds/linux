@@ -788,7 +788,7 @@ static int tse_change_mtu(struct net_device *dev, int new_mtu)
 		return -EBUSY;
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	netdev_update_features(dev);
 
 	return 0;

@@ -6637,7 +6637,7 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 	struct s2io_nic *sp = netdev_priv(dev);
 	int ret = 0;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	if (netif_running(dev)) {
 		s2io_stop_all_tx_queue(sp);
 		s2io_card_down(sp);

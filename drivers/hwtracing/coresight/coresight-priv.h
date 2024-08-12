@@ -13,7 +13,7 @@
 #include <linux/pm_runtime.h>
 
 extern struct mutex coresight_mutex;
-extern struct device_type coresight_dev_type[];
+extern const struct device_type coresight_dev_type[];
 
 /*
  * Coresight management registers (0xf00-0xfcc)
@@ -220,6 +220,16 @@ static inline void *coresight_get_uci_data(const struct amba_id *id)
 		return NULL;
 
 	return uci_id->data;
+}
+
+static inline void *coresight_get_uci_data_from_amba(const struct amba_id *table, u32 pid)
+{
+	while (table->mask) {
+		if ((pid & table->mask) == table->id)
+			return coresight_get_uci_data(table);
+		table++;
+	};
+	return NULL;
 }
 
 void coresight_release_platform_data(struct coresight_device *csdev,

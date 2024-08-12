@@ -397,11 +397,10 @@
 					reg = <0x02024000 0x4000>;
 					interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6QDL_CLK_ESAI_IPG>,
-						 <&clks IMX6QDL_CLK_ESAI_MEM>,
 						 <&clks IMX6QDL_CLK_ESAI_EXTAL>,
 						 <&clks IMX6QDL_CLK_ESAI_IPG>,
 						 <&clks IMX6QDL_CLK_SPBA>;
-					clock-names = "core", "mem", "extal", "fsys", "spba";
+					clock-names = "core", "extal", "fsys", "spba";
 					dmas = <&sdma 23 21 0>, <&sdma 24 21 0>;
 					dma-names = "rx", "tx";
 					status = "disabled";

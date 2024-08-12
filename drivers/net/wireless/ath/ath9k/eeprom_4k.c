@@ -76,7 +76,7 @@ static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 static u32 ath9k_dump_4k_modal_eeprom(char *buf, u32 len, u32 size,
 				      struct modal_eep_4k_header *modal_hdr)
 {
-	PR_EEP("Chain0 Ant. Control", le16_to_cpu(modal_hdr->antCtrlChain[0]));
+	PR_EEP("Chain0 Ant. Control", le32_to_cpu(modal_hdr->antCtrlChain[0]));
 	PR_EEP("Ant. Common Control", le32_to_cpu(modal_hdr->antCtrlCommon));
 	PR_EEP("Chain0 Ant. Gain", modal_hdr->antennaGainCh[0]);
 	PR_EEP("Switch Settle", modal_hdr->switchSettling);

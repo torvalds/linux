@@ -13,6 +13,7 @@
 #include "ishtp-dev.h"
 #include "hbm.h"
 #include "client.h"
+#include "loader.h"
 
 /**
  * ishtp_hbm_fw_cl_allocate() - Allocate FW clients
@@ -570,6 +571,10 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 			return;
 		}
 
+		/* Start firmware loading process if it has loader capability */
+		if (version_res->host_version_supported & ISHTP_SUPPORT_CAP_LOADER)
+			schedule_work(&dev->work_fw_loader);
+
 		dev->version.major_version = HBM_MAJOR_VERSION;
 		dev->version.minor_version = HBM_MINOR_VERSION;
 		if (dev->dev_state == ISHTP_DEV_INIT_CLIENTS &&
@@ -865,6 +870,20 @@ eoi:
 }
 
 /**
+ * ishtp_loader_recv_msg() - Receive a message from the ISHTP device
+ * @dev: The ISHTP device
+ * @buf: The buffer containing the message
+ */
+static void ishtp_loader_recv_msg(struct ishtp_device *dev, void *buf)
+{
+	if (dev->fw_loader_rx_buf)
+		memcpy(dev->fw_loader_rx_buf, buf, dev->fw_loader_rx_size);
+
+	dev->fw_loader_received = true;
+	wake_up_interruptible(&dev->wait_loader_recvd_msg);
+}
+
+/**
  * recv_fixed_cl_msg() - Receive fixed client message
  * @dev: ISHTP device instance
  * @ishtp_hdr: received bus message
@@ -890,6 +909,8 @@ void recv_fixed_cl_msg(struct ishtp_device *dev,
 		else
 			dev_err(dev->devc, "unknown fixed client msg [%02X]\n",
 				msg_hdr->cmd);
+	} else if (ishtp_hdr->fw_addr == ISHTP_LOADER_CLIENT_ADDR) {
+		ishtp_loader_recv_msg(dev, rd_msg_buf);
 	}
 }
 

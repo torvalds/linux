@@ -17,7 +17,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&bt_pins_wakeup>;
 
-		wobt {
+		event-wobt {
 			label = "Wake on BT";
 			gpios = <&pio 42 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WAKEUP>;
@@ -47,10 +47,8 @@
 	};
 };
 
-&wifi_wakeup {
-	wowlan {
-		gpios = <&pio 113 GPIO_ACTIVE_LOW>;
-	};
+&wifi_wakeup_event {
+	gpios = <&pio 113 GPIO_ACTIVE_LOW>;
 };
 
 &wifi_pwrseq {
@@ -68,21 +66,22 @@
 
 &mmc1_pins_default {
 	pins-cmd-dat {
-		drive-strength = <MTK_DRIVE_6mA>;
+		drive-strength = <6>;
 	};
 	pins-clk {
-		drive-strength = <MTK_DRIVE_6mA>;
+		drive-strength = <6>;
 	};
 };
 
 &mmc1_pins_uhs {
 	pins-clk {
-		drive-strength = <MTK_DRIVE_6mA>;
+		drive-strength = <6>;
 	};
 };
 
 &mmc1 {
-	bt_reset: bt-reset {
+	bluetooth@2 {
+		reg = <2>;
 		compatible = "mediatek,mt7921s-bluetooth";
 		pinctrl-names = "default";
 		pinctrl-0 = <&bt_pins_reset>;

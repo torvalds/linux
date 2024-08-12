@@ -8,12 +8,17 @@
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
 / {
+	aliases {
+		ethernet1 = &eth1;
+	};
+
 	connector {
 		compatible = "gpio-usb-b-connector", "usb-b-connector";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbcon1>;
 		type = "micro";
 		label = "otg";
+		vbus-supply = <&reg_usb1_vbus>;
 		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
 
 		port {
@@ -151,6 +156,38 @@
 	pinctrl-0 = <&pinctrl_pcie0>;
 	reset-gpio = <&gpio4 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x0000 0 0 0 0>;
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		pcie@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			pcie@3,0 {
+				reg = <0x1800 0 0 0 0>;
+				device_type = "pci";
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+
+				eth1: ethernet@0,0 {
+					reg = <0x0000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					ranges;
+					local-mac-address = [00 00 00 00 00 00];
+				};
+			};
+		};
+	};
 };
 
 /* GPS */
@@ -183,7 +220,6 @@
 };
 
 &usb3_phy0 {
-	vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
 

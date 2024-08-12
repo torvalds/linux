@@ -1,6 +1,7 @@
 perf-y += clone.o
 perf-y += fcntl.o
 perf-y += flock.o
+perf-y += fs_at_flags.o
 perf-y += fsmount.o
 perf-y += fspick.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
@@ -19,3 +20,17 @@ perf-y += statx.o
 perf-y += sync_file_range.o
 perf-y += timespec.o
 perf-y += tracepoints/
+
+ifdef SHELLCHECK
+  SHELL_TESTS := $(wildcard trace/beauty/*.sh)
+  TEST_LOGS := $(SHELL_TESTS:trace/beauty/%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -s bash -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

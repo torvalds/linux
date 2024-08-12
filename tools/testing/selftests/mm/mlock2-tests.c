@@ -20,8 +20,6 @@ static int get_vm_area(unsigned long addr, struct vm_boundaries *area)
 	FILE *file;
 	int ret = 1;
 	char line[1024] = {0};
-	char *end_addr;
-	char *stop;
 	unsigned long start;
 	unsigned long end;
 
@@ -37,21 +35,10 @@ static int get_vm_area(unsigned long addr, struct vm_boundaries *area)
 	memset(area, 0, sizeof(struct vm_boundaries));
 
 	while(fgets(line, 1024, file)) {
-		end_addr = strchr(line, '-');
-		if (!end_addr) {
+		if (sscanf(line, "%lx-%lx", &start, &end) != 2) {
 			ksft_print_msg("cannot parse /proc/self/maps\n");
 			goto out;
 		}
-		*end_addr = '\0';
-		end_addr++;
-		stop = strchr(end_addr, ' ');
-		if (!stop) {
-			ksft_print_msg("cannot parse /proc/self/maps\n");
-			goto out;
-		}
-
-		sscanf(line, "%lx", &start);
-		sscanf(end_addr, "%lx", &end);
 
 		if (start <= addr && end > addr) {
 			area->start = start;

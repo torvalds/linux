@@ -38,16 +38,13 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(macsec_hw)
 	unsigned int i;
 
 	if (!priv->macsec)
-		return idx;
+		return;
 
 	if (!mlx5e_is_macsec_device(priv->mdev))
-		return idx;
+		return;
 
 	for (i = 0; i < NUM_MACSEC_HW_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       mlx5e_macsec_hw_stats_desc[i].format);
-
-	return idx;
+		ethtool_puts(data, mlx5e_macsec_hw_stats_desc[i].format);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(macsec_hw)
@@ -56,19 +53,18 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(macsec_hw)
 	int i;
 
 	if (!priv->macsec)
-		return idx;
+		return;
 
 	if (!mlx5e_is_macsec_device(priv->mdev))
-		return idx;
+		return;
 
 	macsec_fs = priv->mdev->macsec_fs;
 	mlx5_macsec_fs_get_stats_fill(macsec_fs, mlx5_macsec_fs_get_stats(macsec_fs));
 	for (i = 0; i < NUM_MACSEC_HW_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_macsec_fs_get_stats(macsec_fs),
-						   mlx5e_macsec_hw_stats_desc,
-						   i);
-
-	return idx;
+		mlx5e_ethtool_put_stat(
+			data, MLX5E_READ_CTR64_CPU(
+				      mlx5_macsec_fs_get_stats(macsec_fs),
+				      mlx5e_macsec_hw_stats_desc, i));
 }
 
 MLX5E_DEFINE_STATS_GRP(macsec_hw, 0);

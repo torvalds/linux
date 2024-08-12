@@ -14,6 +14,7 @@
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
 #include <linux/rculist.h>
+#include <uapi/linux/if_ether.h>
 
 #include "hif.h"
 #include "wlan.h"
@@ -220,6 +221,13 @@ struct wilc {
 
 	/* protect vif list */
 	struct mutex vif_mutex;
+	/* Sleepable RCU struct to manipulate vif list. Sleepable version is
+	 * needed over the classic RCU version because the driver's current
+	 * design involves some sleeping code while manipulating a vif
+	 * retrieved from vif list (so in a SRCU critical section), like:
+	 * - sending commands to the chip, using info from retrieved vif
+	 * - registering a new monitoring net device
+	 */
 	struct srcu_struct srcu;
 	u8 open_ifcs;
 
@@ -264,7 +272,6 @@ struct wilc {
 	const struct firmware *firmware;
 
 	struct device *dev;
-	bool suspend_event;
 
 	struct workqueue_struct *hif_workqueue;
 	struct wilc_cfg cfg;
@@ -279,6 +286,7 @@ struct wilc {
 	struct ieee80211_rate bitrates[ARRAY_SIZE(wilc_bitrates)];
 	struct ieee80211_supported_band band;
 	u32 cipher_suites[ARRAY_SIZE(wilc_cipher_suites)];
+	u8 nv_mac_address[ETH_ALEN];
 };
 
 struct wilc_wfi_mon_priv {

@@ -22,8 +22,11 @@ extern const struct v4l2_dv_timings_cap vivid_dv_timings_cap;
 
 const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat);
 
+struct vivid_dev *vivid_input_is_connected_to(struct vivid_dev *dev);
+struct vivid_dev *vivid_output_is_connected_to(struct vivid_dev *dev);
 bool vivid_vid_can_loop(struct vivid_dev *dev);
-void vivid_send_source_change(struct vivid_dev *dev, unsigned type);
+void vivid_send_source_change(struct vivid_dev *dev, unsigned int type);
+void vivid_send_input_source_change(struct vivid_dev *dev, unsigned int input_index);
 
 int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r);
 

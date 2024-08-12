@@ -77,11 +77,6 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_PRODUCT_ID                0x1c
 #define ETNAVIV_PARAM_GPU_CUSTOMER_ID               0x1d
 #define ETNAVIV_PARAM_GPU_ECO_ID                    0x1e
-#define ETNAVIV_PARAM_GPU_NN_CORE_COUNT             0x1f
-#define ETNAVIV_PARAM_GPU_NN_MAD_PER_CORE           0x20
-#define ETNAVIV_PARAM_GPU_TP_CORE_COUNT             0x21
-#define ETNAVIV_PARAM_GPU_ON_CHIP_SRAM_SIZE         0x22
-#define ETNAVIV_PARAM_GPU_AXI_SRAM_SIZE             0x23
 
 #define ETNA_MAX_PIPES 4
 

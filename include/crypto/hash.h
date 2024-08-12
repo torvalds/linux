@@ -24,26 +24,7 @@ struct crypto_ahash;
  */
 
 /*
- * struct crypto_istat_hash - statistics for has algorithm
- * @hash_cnt:		number of hash requests
- * @hash_tlen:		total data size hashed
- * @err_cnt:		number of error for hash requests
- */
-struct crypto_istat_hash {
-	atomic64_t hash_cnt;
-	atomic64_t hash_tlen;
-	atomic64_t err_cnt;
-};
-
-#ifdef CONFIG_CRYPTO_STATS
-#define HASH_ALG_COMMON_STAT struct crypto_istat_hash stat;
-#else
-#define HASH_ALG_COMMON_STAT
-#endif
-
-/*
  * struct hash_alg_common - define properties of message digest
- * @stat: Statistics for hash algorithm.
  * @digestsize: Size of the result of the transformation. A buffer of this size
  *	        must be available to the @final and @finup calls, so they can
  *	        store the resulting hash into it. For various predefined sizes,
@@ -60,8 +41,6 @@ struct crypto_istat_hash {
  *	  information.
  */
 #define HASH_ALG_COMMON {		\
-	HASH_ALG_COMMON_STAT		\
-					\
 	unsigned int digestsize;	\
 	unsigned int statesize;		\
 					\
@@ -243,7 +222,6 @@ struct shash_alg {
 	};
 };
 #undef HASH_ALG_COMMON
-#undef HASH_ALG_COMMON_STAT
 
 struct crypto_ahash {
 	bool using_shash; /* Underlying algorithm is shash, not ahash */
@@ -578,19 +556,20 @@ static inline void ahash_request_set_tfm(struct ahash_request *req,
  *
  * Return: allocated request handle in case of success, or NULL if out of memory
  */
-static inline struct ahash_request *ahash_request_alloc(
+static inline struct ahash_request *ahash_request_alloc_noprof(
 	struct crypto_ahash *tfm, gfp_t gfp)
 {
 	struct ahash_request *req;
 
-	req = kmalloc(sizeof(struct ahash_request) +
-		      crypto_ahash_reqsize(tfm), gfp);
+	req = kmalloc_noprof(sizeof(struct ahash_request) +
+			     crypto_ahash_reqsize(tfm), gfp);
 
 	if (likely(req))
 		ahash_request_set_tfm(req, tfm);
 
 	return req;
 }
+#define ahash_request_alloc(...)	alloc_hooks(ahash_request_alloc_noprof(__VA_ARGS__))
 
 /**
  * ahash_request_free() - zeroize and free the request data structure

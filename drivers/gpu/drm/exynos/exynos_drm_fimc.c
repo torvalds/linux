@@ -1412,7 +1412,6 @@ struct platform_driver fimc_driver = {
 	.driver		= {
 		.of_match_table = fimc_of_match,
 		.name	= "exynos-drm-fimc",
-		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&fimc_pm_ops),
 	},
 };

@@ -5,4 +5,4 @@ iwlmei-y += net.o
 iwlmei-$(CONFIG_IWLWIFI_DEVICE_TRACING) += trace.o
 CFLAGS_trace.o := -I$(src)
 
-ccflags-y += -I $(srctree)/$(src)/../
+ccflags-y += -I $(src)/../

@@ -170,7 +170,7 @@ __xfs_inobt_free_block(
 	xfs_inobt_mod_blockcount(cur, -1);
 	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
 	return xfs_free_extent_later(cur->bc_tp, fsbno, 1,
-			&XFS_RMAP_OINFO_INOBT, resv, false);
+			&XFS_RMAP_OINFO_INOBT, resv, 0);
 }
 
 STATIC int
@@ -745,7 +745,7 @@ xfs_finobt_count_blocks(
 	struct xfs_btree_cur	*cur;
 	int			error;
 
-	error = xfs_ialloc_read_agi(pag, tp, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, &agbp);
 	if (error)
 		return error;
 
@@ -768,7 +768,7 @@ xfs_finobt_read_blocks(
 	struct xfs_agi		*agi;
 	int			error;
 
-	error = xfs_ialloc_read_agi(pag, tp, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, &agbp);
 	if (error)
 		return error;
 

@@ -1300,9 +1300,6 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 	struct zcrypt_device_status_ext *stat;
 	int card, queue;
 
-	memset(devstatus, 0, MAX_ZDEV_ENTRIES_EXT
-	       * sizeof(struct zcrypt_device_status_ext));
-
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
@@ -1607,9 +1604,9 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		size_t total_size = MAX_ZDEV_ENTRIES_EXT
 			* sizeof(struct zcrypt_device_status_ext);
 
-		device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-					       sizeof(struct zcrypt_device_status_ext),
-					       GFP_KERNEL);
+		device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+					 sizeof(struct zcrypt_device_status_ext),
+					 GFP_KERNEL);
 		if (!device_status)
 			return -ENOMEM;
 		zcrypt_device_status_mask_ext(device_status);

@@ -248,7 +248,7 @@ struct iwl_fw_error_dump_mem {
 #define IWL_INI_DUMP_NAME_TYPE (BIT(31) | BIT(24))
 
 /**
- * struct iwl_fw_error_dump_data - data for one type
+ * struct iwl_fw_ini_error_dump_data - data for one type
  * @type: &enum iwl_fw_ini_region_type
  * @sub_type: sub type id
  * @sub_type_ver: sub type version
@@ -278,7 +278,7 @@ struct iwl_fw_ini_dump_entry {
 } __packed;
 
 /**
- * struct iwl_fw_error_dump_file - header of dump file
+ * struct iwl_fw_ini_dump_file_hdr - header of dump file
  * @barker: must be %IWL_FW_INI_ERROR_DUMP_BARKER
  * @file_len: the length of all the file including the header
  */

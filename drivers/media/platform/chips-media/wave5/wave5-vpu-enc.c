@@ -1247,7 +1247,7 @@ static int initialize_sequence(struct vpu_instance *inst)
 		__func__, initial_info.min_frame_buffer_count,
 		initial_info.min_src_frame_count);
 	inst->min_src_buf_count = initial_info.min_src_frame_count +
-				  COMMAND_QUEUE_DEPTH;
+				  WAVE521_COMMAND_QUEUE_DEPTH;
 
 	ctrl = v4l2_ctrl_find(&inst->v4l2_ctrl_hdl,
 			      V4L2_CID_MIN_BUFFERS_FOR_OUTPUT);
@@ -1554,7 +1554,6 @@ static int wave5_vpu_open_enc(struct file *filp)
 	v4l2_fh_add(&inst->v4l2_fh);
 
 	INIT_LIST_HEAD(&inst->list);
-	list_add_tail(&inst->list, &dev->instances);
 
 	inst->v4l2_m2m_dev = inst->dev->v4l2_m2m_enc_dev;
 	inst->v4l2_fh.m2m_ctx =
@@ -1728,6 +1727,18 @@ static int wave5_vpu_open_enc(struct file *filp)
 	}
 
 	wave5_vdi_allocate_sram(inst->dev);
+
+	ret = mutex_lock_interruptible(&dev->dev_lock);
+	if (ret)
+		goto cleanup_inst;
+
+	if (dev->irq < 0 && !hrtimer_active(&dev->hrtimer) && list_empty(&dev->instances))
+		hrtimer_start(&dev->hrtimer, ns_to_ktime(dev->vpu_poll_interval * NSEC_PER_MSEC),
+			      HRTIMER_MODE_REL_PINNED);
+
+	list_add_tail(&inst->list, &dev->instances);
+
+	mutex_unlock(&dev->dev_lock);
 
 	return 0;
 

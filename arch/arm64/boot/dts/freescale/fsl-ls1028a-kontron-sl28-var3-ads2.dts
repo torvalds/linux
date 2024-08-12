@@ -10,7 +10,7 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/fsl,qoriq-clockgen.h>
-#include "fsl-ls1028a-kontron-sl28.dts"
+#include "fsl-ls1028a-kontron-sl28-var3.dts"
 
 / {
 	model = "Kontron SMARC-sAL28 (Single PHY) on SMARC Eval 2.0 carrier";

@@ -38,7 +38,9 @@ static bool rt711_readable_register(struct device *dev, unsigned int reg)
 	case 0x8300 ... 0x83ff:
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
+	case 0x752008:
 	case 0x752009:
+	case 0x75200b:
 	case 0x752011:
 	case 0x75201a:
 	case 0x752045:
@@ -408,7 +410,7 @@ static int rt711_bus_config(struct sdw_slave *slave,
 
 	ret = rt711_clock_config(&slave->dev);
 	if (ret < 0)
-		dev_err(&slave->dev, "Invalid clk config");
+		dev_err(&slave->dev, "%s: Invalid clk config", __func__);
 
 	return ret;
 }
@@ -536,19 +538,19 @@ static int __maybe_unused rt711_dev_resume(struct device *dev)
 		return 0;
 
 	if (!slave->unattach_request) {
+		mutex_lock(&rt711->disable_irq_lock);
 		if (rt711->disable_irq == true) {
-			mutex_lock(&rt711->disable_irq_lock);
 			sdw_write_no_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
 			rt711->disable_irq = false;
-			mutex_unlock(&rt711->disable_irq_lock);
 		}
+		mutex_unlock(&rt711->disable_irq_lock);
 		goto regmap_sync;
 	}
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT711_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
 
@@ -569,7 +571,6 @@ static const struct dev_pm_ops rt711_pm = {
 static struct sdw_driver rt711_sdw_driver = {
 	.driver = {
 		.name = "rt711",
-		.owner = THIS_MODULE,
 		.pm = &rt711_pm,
 	},
 	.probe = rt711_sdw_probe,

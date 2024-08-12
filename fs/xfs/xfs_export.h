@@ -57,4 +57,6 @@ struct xfs_fid64 {
 /* This flag goes on the wire.  Don't play with it. */
 #define XFS_FILEID_TYPE_64FLAG	0x80	/* NFS fileid has 64bit inodes */
 
+struct inode *xfs_nfs_get_inode(struct super_block *sb, u64 ino, u32 gen);
+
 #endif	/* __XFS_EXPORT_H__ */

@@ -12,7 +12,9 @@ maintainers:
 
 properties:
   compatible:
-    const: starfive,jh7110-crypto
+    enum:
+      - starfive,jh7110-crypto
+      - starfive,jh8100-crypto
 
   reg:
     maxItems: 1
@@ -28,7 +30,10 @@ properties:
       - const: ahb
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: SHA2 module irq
+      - description: SM3 module irq
 
   resets:
     maxItems: 1
@@ -53,6 +58,27 @@ required:
   - dma-names
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: starfive,jh7110-crypto
+
+    then:
+      properties:
+        interrupts:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          const: starfive,jh8100-crypto
+
+    then:
+      properties:
+        interrupts:
+          minItems: 2
 
 examples:
   - |

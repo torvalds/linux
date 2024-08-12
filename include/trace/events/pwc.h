@@ -26,7 +26,7 @@ TRACE_EVENT(pwc_handler_enter,
 		__entry->urb__actual_length = urb->actual_length;
 		__entry->fbuf__filled = (pdev->fill_buf
 					 ? pdev->fill_buf->filled : 0);
-		__assign_str(name, pdev->v4l2_dev.name);
+		__assign_str(name);
 	),
 	TP_printk("dev=%s (fbuf=%p filled=%d) urb=%p (status=%d actual_length=%u)",
 		__get_str(name),
@@ -50,7 +50,7 @@ TRACE_EVENT(pwc_handler_exit,
 		__entry->urb = urb;
 		__entry->fbuf = pdev->fill_buf;
 		__entry->fbuf__filled = pdev->fill_buf->filled;
-		__assign_str(name, pdev->v4l2_dev.name);
+		__assign_str(name);
 	),
 	TP_printk(" dev=%s (fbuf=%p filled=%d) urb=%p",
 		__get_str(name),

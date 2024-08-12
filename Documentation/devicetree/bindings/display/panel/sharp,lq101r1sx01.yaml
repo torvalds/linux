@@ -37,7 +37,9 @@ properties:
       - enum:
           - sharp,lq101r1sx01
 
-  reg: true
+  reg:
+    maxItems: 1
+
   power-supply: true
   backlight: true
 

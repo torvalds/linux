@@ -6,8 +6,6 @@
  *
  * Test for KVM_CAP_MAX_VCPUS and KVM_CAP_MAX_VCPU_ID.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

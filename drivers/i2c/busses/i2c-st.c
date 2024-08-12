@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 STMicroelectronics
  *
- * I2C master mode controller driver, used in STMicroelectronics devices.
+ * I2C controller driver, used in STMicroelectronics devices.
  *
  * Author: Maxime Coquelin <maxime.coquelin@st.com>
  */
@@ -150,7 +150,7 @@ struct st_i2c_timings {
 
 /**
  * struct st_i2c_client - client specific data
- * @addr: 8-bit slave addr, including r/w bit
+ * @addr: 8-bit target addr, including r/w bit
  * @count: number of bytes to be transfered
  * @xfered: number of bytes already transferred
  * @buf: data buffer
@@ -647,7 +647,7 @@ static int st_i2c_xfer_msg(struct st_i2c_dev *i2c_dev, struct i2c_msg *msg,
 {
 	struct st_i2c_client *c = &i2c_dev->client;
 	u32 ctl, i2c, it;
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 
 	c->addr		= i2c_8bit_addr_from_msg(msg);
@@ -667,7 +667,7 @@ static int st_i2c_xfer_msg(struct st_i2c_dev *i2c_dev, struct i2c_msg *msg,
 		i2c |= SSC_I2C_ACKG;
 	st_i2c_set_bits(i2c_dev->base + SSC_I2C, i2c);
 
-	/* Write slave address */
+	/* Write target address */
 	st_i2c_write_tx_fifo(i2c_dev, c->addr);
 
 	/* Pre-fill Tx fifo with data in case of write */
@@ -685,15 +685,12 @@ static int st_i2c_xfer_msg(struct st_i2c_dev *i2c_dev, struct i2c_msg *msg,
 		st_i2c_set_bits(i2c_dev->base + SSC_I2C, SSC_I2C_STRTG);
 	}
 
-	timeout = wait_for_completion_timeout(&i2c_dev->complete,
-			i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->complete,
+						i2c_dev->adap.timeout);
 	ret = c->result;
 
-	if (!timeout) {
-		dev_err(i2c_dev->dev, "Write to slave 0x%x timed out\n",
-				c->addr);
+	if (!time_left)
 		ret = -ETIMEDOUT;
-	}
 
 	i2c = SSC_I2C_STOPG | SSC_I2C_REPSTRTG;
 	st_i2c_clr_bits(i2c_dev->base + SSC_I2C, i2c);
@@ -769,7 +766,7 @@ static u32 st_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm st_i2c_algo = {
-	.master_xfer = st_i2c_xfer,
+	.xfer = st_i2c_xfer,
 	.functionality = st_i2c_func,
 };
 

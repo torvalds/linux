@@ -2,7 +2,7 @@
 /*
  * Intel Smart Sound Technology (SST) DSP Core Driver
  *
- * Copyright (C) 2013, Intel Corporation. All rights reserved.
+ * Copyright (C) 2013, Intel Corporation
  */
 
 #include <linux/slab.h>

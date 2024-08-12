@@ -58,7 +58,7 @@ int lan743x_gpio_init(struct lan743x_adapter *adapter)
 static void lan743x_ptp_wait_till_cmd_done(struct lan743x_adapter *adapter,
 					   u32 bit_mask)
 {
-	int timeout = 1000;
+	int timeout = PTP_CMD_CTL_TIMEOUT_CNT;
 	u32 data = 0;
 
 	while (timeout &&
@@ -555,7 +555,7 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 			if (half == wf_high) {
 				/* It's 50% match. Use the toggle option */
 				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_TOGGLE_;
-				/* In this case, devide period value by 2 */
+				/* In this case, divide period value by 2 */
 				ts_period = ns_to_timespec64(div_s64(period64, 2));
 				period_sec = ts_period.tv_sec;
 				period_nsec = ts_period.tv_nsec;

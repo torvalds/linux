@@ -120,9 +120,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 
 		/* tweak L2 for high voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 &= ~0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 	}
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -131,9 +131,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 	if (low_speed == 1) {
 		/* tweak L2 for low voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 |= 0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 
 		/* ramping down, set voltage last */

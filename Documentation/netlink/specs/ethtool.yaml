@@ -16,6 +16,29 @@ definitions:
     name: stringset
     type: enum
     entries: []
+  -
+    name: header-flags
+    type: flags
+    entries: [ compact-bitsets, omit-reply, stats ]
+  -
+    name: module-fw-flash-status
+    type: enum
+    entries: [ started, in_progress, completed, error ]
+  -
+    name: c33-pse-ext-state
+    enum-name:
+    type: enum
+    name-prefix: ethtool-c33-pse-ext-state-
+    entries:
+        - none
+        - error-condition
+        - mr-mps-valid
+        - mr-pse-enable
+        - option-detect-ted
+        - option-vport-lim
+        - ovld-detected
+        - power-not-available
+        - short-detected
 
 attribute-sets:
   -
@@ -30,6 +53,7 @@ attribute-sets:
       -
         name: flags
         type: u32
+        enum: header-flags
 
   -
     name: bitset-bit
@@ -410,6 +434,26 @@ attribute-sets:
         type: u32
 
   -
+    name: irq-moderation
+    attributes:
+      -
+        name: usec
+        type: u32
+      -
+        name: pkts
+        type: u32
+      -
+        name: comps
+        type: u32
+  -
+    name: profile
+    attributes:
+      -
+        name: irq-moderation
+        type: nest
+        multi-attr: true
+        nested-attributes: irq-moderation
+  -
     name: coalesce
     attributes:
       -
@@ -497,6 +541,15 @@ attribute-sets:
       -
         name: tx-aggr-time-usecs
         type: u32
+      -
+        name: rx-profile
+        type: nest
+        nested-attributes: profile
+      -
+        name: tx-profile
+        type: nest
+        nested-attributes: profile
+
   -
     name: pause-stat
     attributes:
@@ -560,6 +613,18 @@ attribute-sets:
         name: tx-lpi-timer
         type: u32
   -
+    name: ts-stat
+    attributes:
+      -
+        name: tx-pkts
+        type: uint
+      -
+        name: tx-lost
+        type: uint
+      -
+        name: tx-err
+        type: uint
+  -
     name: tsinfo
     attributes:
       -
@@ -581,6 +646,10 @@ attribute-sets:
       -
         name: phc-index
         type: u32
+      -
+        name: stats
+        type: nest
+        nested-attributes: ts-stat
   -
     name: cable-result
     attributes:
@@ -871,6 +940,15 @@ attribute-sets:
         name: power-mode
         type: u8
   -
+    name: c33-pse-pw-limit
+    attributes:
+      -
+        name: min
+        type: u32
+      -
+        name: max
+        type: u32
+  -
     name: pse
     attributes:
       -
@@ -878,17 +956,56 @@ attribute-sets:
         type: nest
         nested-attributes: header
       -
-        name: admin-state
+        name: podl-pse-admin-state
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
       -
-        name: admin-control
+        name: podl-pse-admin-control
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
       -
-        name: pw-d-status
+        name: podl-pse-pw-d-status
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-admin-state
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-admin-control
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-d-status
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-class
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-actual-pw
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-ext-state
+        type: u32
+        name-prefix: ethtool-a-
+        enum: c33-pse-ext-state
+      -
+        name: c33-pse-ext-substate
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-avail-pw-limit
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-limit-ranges
+        name-prefix: ethtool-a-
+        type: nest
+        multi-attr: true
+        nested-attributes: c33-pse-pw-limit
   -
     name: rss
     attributes:
@@ -942,6 +1059,32 @@ attribute-sets:
       -
         name: burst-tmr
         type: u32
+  -
+    name: module-fw-flash
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: file-name
+        type: string
+      -
+        name: password
+        type: u32
+      -
+        name: status
+        type: u32
+        enum: module-fw-flash-status
+      -
+        name: status-msg
+        type: string
+      -
+        name: done
+        type: uint
+      -
+        name: total
+        type: uint
 
 operations:
   enum-model: directional
@@ -1292,6 +1435,8 @@ operations:
             - tx-aggr-max-bytes
             - tx-aggr-max-frames
             - tx-aggr-time-usecs
+            - rx-profile
+            - tx-profile
       dump: *coalesce-get-op
     -
       name: coalesce-set
@@ -1388,6 +1533,7 @@ operations:
             - tx-types
             - rx-filters
             - phc-index
+            - stats
       dump: *tsinfo-get-op
     -
       name: cable-test-act
@@ -1569,11 +1715,20 @@ operations:
           attributes:
             - header
         reply:
-          attributes: &pse
+          attributes:
             - header
-            - admin-state
-            - admin-control
-            - pw-d-status
+            - podl-pse-admin-state
+            - podl-pse-admin-control
+            - podl-pse-pw-d-status
+            - c33-pse-admin-state
+            - c33-pse-admin-control
+            - c33-pse-pw-d-status
+            - c33-pse-pw-class
+            - c33-pse-actual-pw
+            - c33-pse-ext-state
+            - c33-pse-ext-substate
+            - c33-pse-avail-pw-limit
+            - c33-pse-pw-limit-ranges
       dump: *pse-get-op
     -
       name: pse-set
@@ -1583,7 +1738,11 @@ operations:
 
       do:
         request:
-          attributes: *pse
+          attributes:
+            - header
+            - podl-pse-admin-control
+            - c33-pse-admin-control
+            - c33-pse-avail-pw-limit
     -
       name: rss-get
       doc: Get RSS params.
@@ -1594,6 +1753,7 @@ operations:
         request:
           attributes:
             - header
+            - context
         reply:
           attributes:
             - header
@@ -1602,7 +1762,6 @@ operations:
             - indir
             - hkey
             - input_xfrm
-      dump: *rss-get-op
     -
       name: plca-get-cfg
       doc: Get PLCA params.
@@ -1693,3 +1852,28 @@ operations:
       name: mm-ntf
       doc: Notification for change in MAC Merge configuration.
       notify: mm-get
+    -
+      name: module-fw-flash-act
+      doc: Flash transceiver module firmware.
+
+      attribute-set: module-fw-flash
+
+      do:
+        request:
+          attributes:
+            - header
+            - file-name
+            - password
+    -
+      name: module-fw-flash-ntf
+      doc: Notification for firmware flashing progress and status.
+
+      attribute-set: module-fw-flash
+
+      event:
+        attributes:
+          - header
+          - status
+          - status-msg
+          - done
+          - total

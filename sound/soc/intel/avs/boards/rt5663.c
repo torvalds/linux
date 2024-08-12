@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2022-2023 Intel Corporation. All rights reserved.
+// Copyright(c) 2022-2023 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -43,7 +43,7 @@ static const struct snd_soc_dapm_route card_routes[] = {
 	{ "IN1N", NULL, "Headset Mic" },
 };
 
-static struct snd_soc_jack_pin card_headset_pins[] = {
+static const struct snd_soc_jack_pin card_headset_pins[] = {
 	{
 		.pin = "Headphone Jack",
 		.mask = SND_JACK_HEADPHONE,
@@ -265,4 +265,5 @@ static struct platform_driver avs_rt5663_driver = {
 
 module_platform_driver(avs_rt5663_driver);
 
+MODULE_DESCRIPTION("Intel rt5663 machine driver");
 MODULE_LICENSE("GPL");

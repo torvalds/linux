@@ -2,7 +2,7 @@
 /*
  * Sound card driver for Intel Broadwell Wildcat Point with Realtek 286
  *
- * Copyright (C) 2013, Intel Corporation. All rights reserved.
+ * Copyright (C) 2013, Intel Corporation
  */
 
 #include <linux/module.h>

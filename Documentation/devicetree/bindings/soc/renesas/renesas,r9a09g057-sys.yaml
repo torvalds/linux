@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/renesas/renesas,r9a09g057-sys.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/V2H(P) System Controller (SYS)
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description: |
+  The RZ/V2H(P) SYS (System Controller) controls the overall
+  configuration of the LSI and supports the following functions,
+  - Trust zone control
+  - Extend access by specific masters to address beyond 4GB space
+  - GBETH configuration
+  - Control of settings and states of SRAM/PCIe/CM33/CA55/CR8/xSPI/ADC/TSU
+  - LSI version
+  - WDT stop control
+  - General registers
+
+properties:
+  compatible:
+    const: renesas,r9a09g057-sys
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    sys: system-controller@10430000 {
+        compatible = "renesas,r9a09g057-sys";
+        reg = <0x10430000 0x10000>;
+        clocks = <&cpg 1>;
+        resets = <&cpg 1>;
+    };

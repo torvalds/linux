@@ -136,13 +136,6 @@ config LEDS_TRIGGER_PATTERN
 	  which is a series of tuples, of brightness and duration (ms).
 	  If unsure, say N
 
-config LEDS_TRIGGER_AUDIO
-	tristate "Audio Mute LED Trigger"
-	help
-	  This allows LEDs to be controlled by audio drivers for following
-	  the audio mute and mic-mute changes.
-	  If unsure, say N
-
 config LEDS_TRIGGER_TTY
 	tristate "LED Trigger for TTY devices"
 	depends on TTY
@@ -151,5 +144,21 @@ config LEDS_TRIGGER_TTY
 	  serial devices like /dev/ttyS0.
 
 	  When build as a module this driver will be called ledtrig-tty.
+
+config LEDS_TRIGGER_INPUT_EVENTS
+	tristate "LED Input events trigger"
+	depends on INPUT
+	help
+	  Turn LEDs on when there is input (/dev/input/event*) activity and turn
+	  them back off again after there has been no activity for 5 seconds.
+
+	  This is primarily intended to control LEDs which are a backlight for
+	  capacitive touch-buttons, such as e.g. the menu / home / back buttons
+	  found on the bottom bezel of many older smartphones and tablets.
+
+	  This can also be used to turn on the keyboard backlight LED on
+	  input events and turn the keyboard backlight off again when idle.
+
+	  When build as a module this driver will be called ledtrig-input-events.
 
 endif # LEDS_TRIGGERS

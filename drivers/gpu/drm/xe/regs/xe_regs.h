@@ -30,6 +30,9 @@
 #define XEHP_CLOCK_GATE_DIS			XE_REG(0x101014)
 #define   SGSI_SIDECLK_DIS			REG_BIT(17)
 
+#define XEHP_MTCFG_ADDR				XE_REG(0x101800)
+#define   TILE_COUNT				REG_GENMASK(15, 8)
+
 #define GGC					XE_REG(0x108040)
 #define   GMS_MASK				REG_GENMASK(15, 8)
 #define   GGMS_MASK				REG_GENMASK(7, 6)
@@ -57,7 +60,7 @@
 #define   DG1_MSTR_IRQ				REG_BIT(31)
 #define   DG1_MSTR_TILE(t)			REG_BIT(t)
 
-#define GFX_MSTR_IRQ				XE_REG(0x190010)
+#define GFX_MSTR_IRQ				XE_REG(0x190010, XE_REG_OPTION_VF)
 #define   MASTER_IRQ				REG_BIT(31)
 #define   GU_MISC_IRQ				REG_BIT(29)
 #define   DISPLAY_IRQ				REG_BIT(16)

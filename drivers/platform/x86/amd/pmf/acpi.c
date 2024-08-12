@@ -343,7 +343,10 @@ static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 	if (err)
 		return err;
 
-	pdev->supported_func = output.supported_functions;
+	/* only set if not already set by a quirk */
+	if (!pdev->supported_func)
+		pdev->supported_func = output.supported_functions;
+
 	dev_dbg(pdev->dev, "supported functions:0x%x notifications:0x%x version:%u\n",
 		output.supported_functions, output.notification_mask, output.version);
 
@@ -437,7 +440,7 @@ int apmf_check_smart_pc(struct amd_pmf_dev *pmf_dev)
 
 	status = acpi_walk_resources(ahandle, METHOD_NAME__CRS, apmf_walk_resources, pmf_dev);
 	if (ACPI_FAILURE(status)) {
-		dev_err(pmf_dev->dev, "acpi_walk_resources failed :%d\n", status);
+		dev_dbg(pmf_dev->dev, "acpi_walk_resources failed :%d\n", status);
 		return -EINVAL;
 	}
 

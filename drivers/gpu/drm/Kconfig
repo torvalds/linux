@@ -29,6 +29,8 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+if DRM
+
 config DRM_MIPI_DBI
 	tristate
 	depends on DRM
@@ -77,6 +79,7 @@ config DRM_KUNIT_TEST
 	depends on DRM && KUNIT && MMU
 	select DRM_BUDDY
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_EXEC
 	select DRM_EXPORT_FOR_TESTS if m
@@ -101,6 +104,50 @@ config DRM_KMS_HELPER
 	depends on DRM
 	help
 	  CRTC helpers for KMS drivers.
+
+config DRM_PANIC
+	bool "Display a user-friendly message when a kernel panic occurs"
+	depends on DRM && !(FRAMEBUFFER_CONSOLE && VT_CONSOLE)
+	select FONT_SUPPORT
+	help
+	  Enable a drm panic handler, which will display a user-friendly message
+	  when a kernel panic occurs. It's useful when using a user-space
+	  console instead of fbcon.
+	  It will only work if your graphic driver supports this feature.
+	  To support Hi-DPI Display, you can enable bigger fonts like
+	  FONT_TER16x32
+
+config DRM_PANIC_FOREGROUND_COLOR
+	hex "Drm panic screen foreground color, in RGB"
+	depends on DRM_PANIC
+	default 0xffffff
+
+config DRM_PANIC_BACKGROUND_COLOR
+	hex "Drm panic screen background color, in RGB"
+	depends on DRM_PANIC
+	default 0x000000
+
+config DRM_PANIC_DEBUG
+	bool "Add a debug fs entry to trigger drm_panic"
+	depends on DRM_PANIC && DEBUG_FS
+	help
+	  Add dri/[device]/drm_panic_plane_x in the kernel debugfs, to force the
+	  panic handler to write the panic message to this plane scanout buffer.
+	  This is unsafe and should not be enabled on a production build.
+	  If in doubt, say "N".
+
+config DRM_PANIC_SCREEN
+	string "Panic screen formatter"
+	default "user"
+	depends on DRM_PANIC
+	help
+	  This option enable to choose what will be displayed when a kernel
+	  panic occurs. You can choose between "user", a short message telling
+	  the user to reboot the system, or "kmsg" which will display the last
+	  lines of kmsg.
+	  This can also be overridden by drm.panic_screen=xxxx kernel parameter
+	  or by writing to /sys/module/drm/parameters/panic_screen sysfs entry
+	  Default is "user"
 
 config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
         bool "Enable refcount backtrace history in the DP MST helpers"
@@ -200,6 +247,7 @@ config DRM_TTM_KUNIT_TEST
         default n
         depends on DRM && KUNIT && MMU && (UML || COMPILE_TEST)
         select DRM_TTM
+        select DRM_BUDDY
         select DRM_EXPORT_FOR_TESTS if m
         select DRM_KUNIT_TEST_HELPERS
         default KUNIT_ALL_TESTS
@@ -220,6 +268,7 @@ config DRM_EXEC
 config DRM_GPUVM
 	tristate
 	depends on DRM
+	select DRM_EXEC
 	help
 	  GPU-VM representation providing helpers to manage a GPUs virtual
 	  address space
@@ -371,6 +420,8 @@ source "drivers/gpu/drm/lima/Kconfig"
 
 source "drivers/gpu/drm/panfrost/Kconfig"
 
+source "drivers/gpu/drm/panthor/Kconfig"
+
 source "drivers/gpu/drm/aspeed/Kconfig"
 
 source "drivers/gpu/drm/mcde/Kconfig"
@@ -403,10 +454,6 @@ config DRM_HYPERV
 config DRM_EXPORT_FOR_TESTS
 	bool
 
-# Separate option because drm_panel_orientation_quirks.c is shared with fbdev
-config DRM_PANEL_ORIENTATION_QUIRKS
-	tristate
-
 config DRM_LIB_RANDOM
 	bool
 	default n
@@ -414,3 +461,23 @@ config DRM_LIB_RANDOM
 config DRM_PRIVACY_SCREEN
 	bool
 	default n
+
+config DRM_WERROR
+	bool "Compile the drm subsystem with warnings as errors"
+	depends on DRM && EXPERT
+	depends on !WERROR
+	default n
+	help
+	  A kernel build should not cause any compiler warnings, and this
+	  enables the '-Werror' flag to enforce that rule in the drm subsystem.
+
+	  The drm subsystem enables more warnings than the kernel default, so
+	  this config option is disabled by default.
+
+	  If in doubt, say N.
+
+endif
+
+# Separate option because drm_panel_orientation_quirks.c is shared with fbdev
+config DRM_PANEL_ORIENTATION_QUIRKS
+	tristate

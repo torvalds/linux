@@ -105,7 +105,7 @@ static bool cpu_is_self(int cpu)
  * IPI implementation on Hyper-V.
  */
 static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
-		bool exclude_self)
+			       bool exclude_self)
 {
 	struct hv_send_ipi_ex *ipi_arg;
 	unsigned long flags;
@@ -132,8 +132,8 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 	if (!cpumask_equal(mask, cpu_present_mask) || exclude_self) {
 		ipi_arg->vp_set.format = HV_GENERIC_SET_SPARSE_4K;
 
-		nr_bank = cpumask_to_vpset_skip(&(ipi_arg->vp_set), mask,
-				exclude_self ? cpu_is_self : NULL);
+		nr_bank = cpumask_to_vpset_skip(&ipi_arg->vp_set, mask,
+						exclude_self ? cpu_is_self : NULL);
 
 		/*
 		 * 'nr_bank <= 0' means some CPUs in cpumask can't be
@@ -147,7 +147,7 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 	}
 
 	status = hv_do_rep_hypercall(HVCALL_SEND_IPI_EX, 0, nr_bank,
-			      ipi_arg, NULL);
+				     ipi_arg, NULL);
 
 ipi_mask_ex_done:
 	local_irq_restore(flags);
@@ -155,7 +155,7 @@ ipi_mask_ex_done:
 }
 
 static bool __send_ipi_mask(const struct cpumask *mask, int vector,
-		bool exclude_self)
+			    bool exclude_self)
 {
 	int cur_cpu, vcpu, this_cpu = smp_processor_id();
 	struct hv_send_ipi ipi_arg;
@@ -181,7 +181,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 			return false;
 	}
 
-	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
+	if (vector < HV_IPI_LOW_VECTOR || vector > HV_IPI_HIGH_VECTOR)
 		return false;
 
 	/*
@@ -218,7 +218,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 	}
 
 	status = hv_do_fast_hypercall16(HVCALL_SEND_IPI, ipi_arg.vector,
-				     ipi_arg.cpu_mask);
+					ipi_arg.cpu_mask);
 	return hv_result_success(status);
 
 do_ex_hypercall:
@@ -241,7 +241,7 @@ static bool __send_ipi_one(int cpu, int vector)
 			return false;
 	}
 
-	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
+	if (vector < HV_IPI_LOW_VECTOR || vector > HV_IPI_HIGH_VECTOR)
 		return false;
 
 	if (vp >= 64)

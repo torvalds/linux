@@ -359,6 +359,7 @@
  * @app2:         MM2S/S2MM User Application Field 2.
  * @app3:         MM2S/S2MM User Application Field 3.
  * @app4:         MM2S/S2MM User Application Field 4.
+ * @skb:          Pointer to SKB transferred using DMA
  */
 struct axidma_bd {
 	u32 next;	/* Physical address of next buffer descriptor */
@@ -399,7 +400,6 @@ struct skbuf_dma_descriptor {
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
- * @phy_node:	Pointer to device node structure
  * @phylink:	Pointer to phylink instance
  * @phylink_config: phylink configuration settings
  * @pcs_phy:	Reference to PCS/PMA PHY if used
@@ -537,7 +537,7 @@ struct axienet_local {
 };
 
 /**
- * struct axiethernet_option - Used to set axi ethernet hardware options
+ * struct axienet_option - Used to set axi ethernet hardware options
  * @opt:	Option to be set.
  * @reg:	Register offset to be written for setting the option
  * @m_or:	Mask to be ORed for setting the option in the register

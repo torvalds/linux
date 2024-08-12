@@ -202,24 +202,17 @@ static int vcn_v1_0_hw_init(void *handle)
 
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
-		goto done;
+		return r;
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.inst->ring_enc[i];
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
-			goto done;
+			return r;
 	}
 
 	ring = adev->jpeg.inst->ring_dec;
 	r = amdgpu_ring_test_helper(ring);
-	if (r)
-		goto done;
-
-done:
-	if (!r)
-		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
-			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)?"DPG Mode":"SPG Mode");
 
 	return r;
 }
@@ -1902,6 +1895,8 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.post_soft_reset = NULL /* vcn_v1_0_post_soft_reset */,
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
 	.set_powergating_state = vcn_v1_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 /*
@@ -2041,7 +2036,6 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->vcn.inst->ring_dec.funcs = &vcn_v1_0_dec_ring_vm_funcs;
-	DRM_INFO("VCN decode is enabled in VM mode\n");
 }
 
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev)
@@ -2050,8 +2044,6 @@ static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 		adev->vcn.inst->ring_enc[i].funcs = &vcn_v1_0_enc_ring_vm_funcs;
-
-	DRM_INFO("VCN encode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {

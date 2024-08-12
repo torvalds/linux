@@ -2,7 +2,7 @@
 //
 // ALSA SoC Texas Instruments TAS2781 Audio Smart Amplifier
 //
-// Copyright (C) 2022 - 2023 Texas Instruments Incorporated
+// Copyright (C) 2022 - 2024 Texas Instruments Incorporated
 // https://www.ti.com
 //
 // The TAS2781 driver implements a flexible and configurable
@@ -13,8 +13,8 @@
 // Author: Kevin Lu <kevin-lu@ti.com>
 //
 
-#ifndef __TASDEVICE_DSP_H__
-#define __TASDEVICE_DSP_H__
+#ifndef __TAS2781_DSP_H__
+#define __TAS2781_DSP_H__
 
 #define MAIN_ALL_DEVICES			0x0d
 #define MAIN_DEVICE_A				0x01
@@ -117,10 +117,17 @@ struct tasdevice_fw {
 	struct device *dev;
 };
 
-enum tasdevice_dsp_fw_state {
-	TASDEVICE_DSP_FW_NONE = 0,
+enum tasdevice_fw_state {
+	/* Driver in startup mode, not load any firmware. */
 	TASDEVICE_DSP_FW_PENDING,
+	/* DSP firmware in the system, but parsing error. */
 	TASDEVICE_DSP_FW_FAIL,
+	/*
+	 * Only RCA (Reconfigurable Architecture) firmware load
+	 * successfully.
+	 */
+	TASDEVICE_RCA_FW_OK,
+	/* Both RCA and DSP firmware load successfully. */
 	TASDEVICE_DSP_FW_ALL_OK,
 };
 
@@ -180,7 +187,6 @@ void tasdevice_calbin_remove(void *context);
 int tasdevice_select_tuningprm_cfg(void *context, int prm,
 	int cfg_no, int rca_conf_no);
 int tasdevice_prmg_load(void *context, int prm_no);
-int tasdevice_prmg_calibdata_load(void *context, int prm_no);
 void tasdevice_tuning_switch(void *context, int state);
 int tas2781_load_calibration(void *context, char *file_name,
 	unsigned short i);

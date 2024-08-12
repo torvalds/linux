@@ -55,7 +55,7 @@
 };
 
 / {
-	memory {
+	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x2000000>; /* 32 MB */
 	};

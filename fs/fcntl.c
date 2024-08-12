@@ -327,6 +327,22 @@ static long fcntl_set_rw_hint(struct file *file, unsigned int cmd,
 	return 0;
 }
 
+/* Is the file descriptor a dup of the file? */
+static long f_dupfd_query(int fd, struct file *filp)
+{
+	CLASS(fd_raw, f)(fd);
+
+	/*
+	 * We can do the 'fdput()' immediately, as the only thing that
+	 * matters is the pointer value which isn't changed by the fdput.
+	 *
+	 * Technically we didn't need a ref at all, and 'fdget()' was
+	 * overkill, but given our lockless file pointer lookup, the
+	 * alternatives are complicated.
+	 */
+	return f.file == filp;
+}
+
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
@@ -341,6 +357,9 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_DUPFD_CLOEXEC:
 		err = f_dupfd(argi, filp, O_CLOEXEC);
+		break;
+	case F_DUPFD_QUERY:
+		err = f_dupfd_query(argi, filp);
 		break;
 	case F_GETFD:
 		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;
@@ -446,6 +465,7 @@ static int check_fcntl_cmd(unsigned cmd)
 	switch (cmd) {
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
+	case F_DUPFD_QUERY:
 	case F_GETFD:
 	case F_SETFD:
 	case F_GETFL:

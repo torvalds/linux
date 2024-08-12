@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains platform specific structure definitions
- * and init function used by Meteor Lake PCH.
+ * and init function used by Arrow Lake PCH.
  *
  * Copyright (c) 2022, Intel Corporation.
  * All Rights Reserved.

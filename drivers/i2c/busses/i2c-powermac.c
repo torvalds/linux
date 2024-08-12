@@ -127,13 +127,13 @@ static s32 i2c_powermac_smbus_xfer(	struct i2c_adapter*	adap,
 }
 
 /*
- * Generic i2c master transfer entrypoint. This driver only support single
+ * Generic i2c transfer entrypoint. This driver only supports single
  * messages (for "lame i2c" transfers). Anything else should use the smbus
  * entry point
  */
-static int i2c_powermac_master_xfer(	struct i2c_adapter *adap,
-					struct i2c_msg *msgs,
-					int num)
+static int i2c_powermac_xfer(struct i2c_adapter *adap,
+			     struct i2c_msg *msgs,
+			     int num)
 {
 	struct pmac_i2c_bus	*bus = i2c_get_adapdata(adap);
 	int			rc = 0;
@@ -179,9 +179,9 @@ static u32 i2c_powermac_func(struct i2c_adapter * adapter)
 
 /* For now, we only handle smbus */
 static const struct i2c_algorithm i2c_powermac_algorithm = {
-	.smbus_xfer	= i2c_powermac_smbus_xfer,
-	.master_xfer	= i2c_powermac_master_xfer,
-	.functionality	= i2c_powermac_func,
+	.smbus_xfer = i2c_powermac_smbus_xfer,
+	.xfer = i2c_powermac_xfer,
+	.functionality = i2c_powermac_func,
 };
 
 static const struct i2c_adapter_quirks i2c_powermac_quirks = {

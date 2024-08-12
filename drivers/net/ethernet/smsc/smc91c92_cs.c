@@ -1595,7 +1595,7 @@ static int s9k_config(struct net_device *dev, struct ifmap *map)
 	    return -EOPNOTSUPP;
 	else if (map->port > 2)
 	    return -EINVAL;
-	dev->if_port = map->port;
+	WRITE_ONCE(dev->if_port, map->port);
 	netdev_info(dev, "switched to %s port\n", if_names[dev->if_port]);
 	smc_reset(dev);
     }

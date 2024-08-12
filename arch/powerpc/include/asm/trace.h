@@ -137,7 +137,7 @@ TRACE_EVENT(rtas_input,
 
 	TP_fast_assign(
 		__entry->nargs = be32_to_cpu(rtas_args->nargs);
-		__assign_str(name, name);
+		__assign_str(name);
 		be32_to_cpu_array(__get_dynamic_array(inputs), rtas_args->args, __entry->nargs);
 	),
 
@@ -162,7 +162,7 @@ TRACE_EVENT(rtas_output,
 	TP_fast_assign(
 		__entry->nr_other = be32_to_cpu(rtas_args->nret) - 1;
 		__entry->status = be32_to_cpu(rtas_args->rets[0]);
-		__assign_str(name, name);
+		__assign_str(name);
 		be32_to_cpu_array(__get_dynamic_array(other_outputs),
 				  &rtas_args->rets[1], __entry->nr_other);
 	),

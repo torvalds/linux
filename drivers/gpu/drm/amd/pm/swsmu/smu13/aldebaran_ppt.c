@@ -266,15 +266,51 @@ static int aldebaran_tables_init(struct smu_context *smu)
 	return 0;
 }
 
+static int aldebaran_select_plpd_policy(struct smu_context *smu, int level)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	/* The message only works on master die and NACK will be sent
+	 * back for other dies, only send it on master die.
+	 */
+	if (adev->smuio.funcs->get_socket_id(adev) ||
+	    adev->smuio.funcs->get_die_id(adev))
+		return 0;
+
+	if (level == XGMI_PLPD_DEFAULT)
+		return smu_cmn_send_smc_msg_with_param(
+			smu, SMU_MSG_GmiPwrDnControl, 0, NULL);
+	else if (level == XGMI_PLPD_DISALLOW)
+		return smu_cmn_send_smc_msg_with_param(
+			smu, SMU_MSG_GmiPwrDnControl, 1, NULL);
+	else
+		return -EINVAL;
+}
+
 static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_dpm_policy *policy;
 
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_13_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
+
+	smu_dpm->dpm_policies =
+		kzalloc(sizeof(struct smu_dpm_policy_ctxt), GFP_KERNEL);
+
+	if (!smu_dpm->dpm_policies)
+		return -ENOMEM;
+
+	policy = &(smu_dpm->dpm_policies->policies[0]);
+	policy->policy_type = PP_PM_POLICY_XGMI_PLPD;
+	policy->level_mask = BIT(XGMI_PLPD_DISALLOW) | BIT(XGMI_PLPD_DEFAULT);
+	policy->current_level = XGMI_PLPD_DEFAULT;
+	policy->set_policy = aldebaran_select_plpd_policy;
+	smu_cmn_generic_plpd_policy_desc(policy);
+	smu_dpm->dpm_policies->policy_mask |= BIT(PP_PM_POLICY_XGMI_PLPD);
 
 	return 0;
 }
@@ -759,8 +795,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "GFXCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_SCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->gfxclk_pstate.curr.min,
+				      pstate_table->gfxclk_pstate.curr.max);
+		return 0;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
 		if (ret) {
@@ -788,8 +827,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_OD_MCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "MCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_MCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->uclk_pstate.curr.min,
+				      pstate_table->uclk_pstate.curr.max);
+		return 0;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
 		if (ret) {
@@ -850,7 +892,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	}
 
 	switch (type) {
-	case SMU_OD_SCLK:
 	case SMU_SCLK:
 		for (i = 0; i < display_levels; i++) {
 			clock_mhz = freq_values[i];
@@ -863,7 +904,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		}
 		break;
 
-	case SMU_OD_MCLK:
 	case SMU_MCLK:
 	case SMU_SOCCLK:
 	case SMU_FCLK:
@@ -1581,11 +1621,11 @@ out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
 }
 
-static bool aldebaran_is_baco_supported(struct smu_context *smu)
+static int aldebaran_get_bamaco_support(struct smu_context *smu)
 {
 	/* aldebaran is not support baco */
 
-	return false;
+	return 0;
 }
 
 static int aldebaran_set_df_cstate(struct smu_context *smu,
@@ -1601,29 +1641,6 @@ static int aldebaran_set_df_cstate(struct smu_context *smu,
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
-}
-
-static int aldebaran_select_xgmi_plpd_policy(struct smu_context *smu,
-					     enum pp_xgmi_plpd_mode mode)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	/* The message only works on master die and NACK will be sent
-	   back for other dies, only send it on master die */
-	if (adev->smuio.funcs->get_socket_id(adev) ||
-	    adev->smuio.funcs->get_die_id(adev))
-		return 0;
-
-	if (mode == XGMI_PLPD_DEFAULT)
-		return smu_cmn_send_smc_msg_with_param(smu,
-						       SMU_MSG_GmiPwrDnControl,
-						       0, NULL);
-	else if (mode == XGMI_PLPD_DISALLOW)
-		return smu_cmn_send_smc_msg_with_param(smu,
-						       SMU_MSG_GmiPwrDnControl,
-						       1, NULL);
-	else
-		return -EINVAL;
 }
 
 static const struct throttling_logging_label {
@@ -1846,7 +1863,6 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 	u32 fatal_err, param;
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	fatal_err = 0;
 	param = SMU_RESET_MODE_1;
@@ -1859,8 +1875,8 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 	} else {
 		/* fatal error triggered by ras, PMFW supports the flag
 		   from 68.44.0 */
-		if ((smu->smc_fw_version >= 0x00442c00) && ras &&
-		    atomic_read(&ras->in_recovery))
+		if ((smu->smc_fw_version >= 0x00442c00) &&
+		    amdgpu_ras_get_fed_status(adev))
 			fatal_err = 1;
 
 		param |= (fatal_err << 16);
@@ -1882,7 +1898,8 @@ static int aldebaran_mode2_reset(struct smu_context *smu)
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 						SMU_MSG_GfxDeviceDriverReset);
-
+	if (index < 0 )
+		return -EINVAL;
 	mutex_lock(&smu->message_lock);
 	if (smu->smc_fw_version >= 0x00441400) {
 		ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, SMU_RESET_MODE_2);
@@ -2059,12 +2076,11 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.register_irq_handler = smu_v13_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v13_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v13_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support = aldebaran_is_baco_supported,
+	.get_bamaco_support = aldebaran_get_bamaco_support,
 	.get_dpm_ultimate_freq = smu_v13_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = aldebaran_set_soft_freq_limited_range,
 	.od_edit_dpm_table = aldebaran_usr_edit_dpm_table,
 	.set_df_cstate = aldebaran_set_df_cstate,
-	.select_xgmi_plpd_policy = aldebaran_select_xgmi_plpd_policy,
 	.log_thermal_throttling_event = aldebaran_log_thermal_throttling_event,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,

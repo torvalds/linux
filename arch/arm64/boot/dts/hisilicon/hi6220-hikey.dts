@@ -82,7 +82,7 @@
 		};
 	};
 
-	reg_sys_5v: regulator@0 {
+	reg_sys_5v: regulator-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "SYS_5V";
 		regulator-min-microvolt = <5000000>;
@@ -91,7 +91,7 @@
 		regulator-always-on;
 	};
 
-	reg_vdd_3v3: regulator@1 {
+	reg_vdd_3v3: regulator-1 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -101,7 +101,7 @@
 		vin-supply = <&reg_sys_5v>;
 	};
 
-	reg_5v_hub: regulator@2 {
+	reg_5v_hub: regulator-2 {
 		compatible = "regulator-fixed";
 		regulator-name = "5V_HUB";
 		regulator-min-microvolt = <5000000>;
@@ -514,6 +514,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			port@0 {
+				reg = <0>;
 				adv7533_in: endpoint {
 					remote-endpoint = <&dsi_out0>;
 				};

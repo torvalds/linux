@@ -23,7 +23,7 @@ static int cs4271_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cs4271_i2c_id[] = {
-	{ "cs4271", 0 },
+	{ "cs4271" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs4271_i2c_id);

@@ -44,9 +44,10 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_work.h>
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
 #include <media/cec-notifier.h>
 
+#include "gem/i915_gem_object_types.h" /* for to_intel_bo() */
 #include "i915_vma.h"
 #include "i915_vma_types.h"
 #include "intel_bios.h"
@@ -145,6 +146,8 @@ struct intel_framebuffer {
 	};
 
 	struct i915_address_space *dpt_vm;
+
+	unsigned int min_alignment;
 };
 
 enum intel_hotplug_state {
@@ -160,6 +163,11 @@ struct intel_encoder {
 	enum port port;
 	u16 cloneable;
 	u8 pipe_mask;
+
+	/* Check and recover a bad link state. */
+	struct delayed_work link_check_work;
+	void (*link_check)(struct intel_encoder *encoder);
+
 	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
 					    struct intel_connector *connector);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
@@ -305,7 +313,7 @@ enum drrs_type {
 };
 
 struct intel_vbt_panel_data {
-	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
+	struct drm_display_mode *lfp_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
 	/* Feature bits */
@@ -329,6 +337,7 @@ struct intel_vbt_panel_data {
 		u8 drrs_msa_timing_delay;
 		bool low_vswing;
 		bool hobl;
+		bool dsc_disable;
 	} edp;
 
 	struct {
@@ -401,7 +410,12 @@ struct intel_panel {
 			} vesa;
 			struct {
 				bool sdr_uses_aux;
-			} intel;
+				bool supports_2084_decode;
+				bool supports_2020_gamut;
+				bool supports_segmented_backlight;
+				bool supports_sdp_colorimetry;
+				bool supports_tone_mapping;
+			} intel_cap;
 		} edp;
 
 		struct backlight_device *device;
@@ -661,7 +675,8 @@ struct intel_digital_connector_state {
 	int broadcast_rgb;
 };
 
-#define to_intel_digital_connector_state(x) container_of(x, struct intel_digital_connector_state, base)
+#define to_intel_digital_connector_state(conn_state) \
+	container_of_const((conn_state), struct intel_digital_connector_state, base)
 
 struct dpll {
 	/* given values */
@@ -728,6 +743,9 @@ struct intel_plane_state {
 
 	struct intel_fb_view view;
 	u32 phys_dma_addr; /* for cursor_needs_physical */
+
+	/* for legacy cursor fb unpin */
+	struct drm_vblank_work unpin_work;
 
 	/* Plane pxp decryption state */
 	bool decrypt;
@@ -1003,18 +1021,6 @@ enum intel_output_format {
 	INTEL_OUTPUT_FORMAT_YCBCR444,
 };
 
-struct intel_mpllb_state {
-	u32 clock; /* in KHz */
-	u32 ref_control;
-	u32 mpllb_cp;
-	u32 mpllb_div;
-	u32 mpllb_div2;
-	u32 mpllb_fracn1;
-	u32 mpllb_fracn2;
-	u32 mpllb_sscen;
-	u32 mpllb_sscstep;
-};
-
 /* Used by dp and fdi links */
 struct intel_link_m_n {
 	u32 tu;
@@ -1028,31 +1034,6 @@ struct intel_csc_matrix {
 	u16 coeff[9];
 	u16 preoff[3];
 	u16 postoff[3];
-};
-
-struct intel_c10pll_state {
-	u32 clock; /* in KHz */
-	u8 tx;
-	u8 cmn;
-	u8 pll[20];
-};
-
-struct intel_c20pll_state {
-	u32 clock; /* in kHz */
-	u16 tx[3];
-	u16 cmn[4];
-	union {
-		u16 mplla[10];
-		u16 mpllb[11];
-	};
-};
-
-struct intel_cx0pll_state {
-	union {
-		struct intel_c10pll_state c10;
-		struct intel_c20pll_state c20;
-	};
-	bool ssc_enabled;
 };
 
 struct intel_crtc_state {
@@ -1078,7 +1059,7 @@ struct intel_crtc_state {
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
 	 *
-	 * Bigjoiner will allow a transcoder mode that spans 2 pipes;
+	 * Joiner will allow a transcoder mode that spans 2 pipes;
 	 * Use the pipe_mode for calculations like watermarks, pipe
 	 * scaler, and bandwidth.
 	 *
@@ -1199,11 +1180,7 @@ struct intel_crtc_state {
 	struct intel_shared_dpll *shared_dpll;
 
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
-	union {
-		struct intel_dpll_hw_state dpll_hw_state;
-		struct intel_mpllb_state mpllb_state;
-		struct intel_cx0pll_state cx0pll_state;
-	};
+	struct intel_dpll_hw_state dpll_hw_state;
 
 	/*
 	 * ICL reserved DPLLs for the CRTC/port. The active PLL is selected by
@@ -1229,7 +1206,7 @@ struct intel_crtc_state {
 
 	/* PSR is supported but might not be enabled due the lack of enabled planes */
 	bool has_psr;
-	bool has_psr2;
+	bool has_sel_update;
 	bool enable_psr2_sel_fetch;
 	bool enable_psr2_su_region_et;
 	bool req_psr2_sdp_prior_scanline;
@@ -1346,6 +1323,7 @@ struct intel_crtc_state {
 		union hdmi_infoframe hdmi;
 		union hdmi_infoframe drm;
 		struct drm_dp_vsc_sdp vsc;
+		struct drm_dp_as_sdp as_sdp;
 	} infoframes;
 
 	u8 eld[MAX_ELD_BYTES];
@@ -1377,8 +1355,8 @@ struct intel_crtc_state {
 	/* enable vlv/chv wgc csc? */
 	bool wgc_enable;
 
-	/* big joiner pipe bitmask */
-	u8 bigjoiner_pipes;
+	/* joiner pipe bitmask */
+	u8 joiner_pipes;
 
 	/* Display Stream compression state */
 	struct {
@@ -1423,6 +1401,8 @@ struct intel_crtc_state {
 
 	u32 psr2_man_track_ctl;
 
+	u32 pipe_srcsz_early_tpt;
+
 	struct drm_rect psr2_su_area;
 
 	/* Variable Refresh Rate state */
@@ -1430,7 +1410,14 @@ struct intel_crtc_state {
 		bool enable, in_range;
 		u8 pipeline_full;
 		u16 flipline, vmin, vmax, guardband;
+		u32 vsync_end, vsync_start;
 	} vrr;
+
+	/* Content Match Refresh Rate state */
+	struct {
+		bool enable;
+		u64 cmrr_n, cmrr_m;
+	} cmrr;
 
 	/* Stream Splitter for eDP MSO */
 	struct {
@@ -1441,6 +1428,9 @@ struct intel_crtc_state {
 
 	/* for loading single buffered registers during vblank */
 	struct drm_vblank_work vblank_work;
+
+	/* LOBF flag */
+	bool has_lobf;
 };
 
 enum intel_pipe_crc_source {
@@ -1557,7 +1547,7 @@ struct intel_plane {
 	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
-	bool need_async_flip_disable_wa;
+	bool need_async_flip_toggle_wa;
 	u32 frontbuffer_bit;
 
 	struct {
@@ -1581,6 +1571,9 @@ struct intel_plane {
 	int (*max_height)(const struct drm_framebuffer *fb,
 			  int color_plane,
 			  unsigned int rotation);
+	unsigned int (*min_alignment)(struct intel_plane *plane,
+				      const struct drm_framebuffer *fb,
+				      int color_plane);
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
@@ -1618,12 +1611,17 @@ struct intel_watermark_params {
 
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
-#define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, uapi)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
-#define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 #define to_intel_plane(x) container_of(x, struct intel_plane, base)
-#define to_intel_plane_state(x) container_of(x, struct intel_plane_state, uapi)
+
+#define to_intel_crtc_state(crtc_state) \
+	container_of_const((crtc_state), struct intel_crtc_state, uapi)
+#define to_intel_plane_state(plane_state) \
+	container_of_const((plane_state), struct intel_plane_state, uapi)
+#define to_intel_framebuffer(fb) \
+	container_of_const((fb), struct intel_framebuffer, base)
+
 #define intel_fb_obj(x) ((x) ? to_intel_bo((x)->obj[0]) : NULL)
 
 struct intel_hdmi {
@@ -1713,6 +1711,7 @@ struct intel_psr {
 #define I915_PSR_DEBUG_ENABLE_SEL_FETCH		0x4
 #define I915_PSR_DEBUG_IRQ			0x10
 #define I915_PSR_DEBUG_SU_REGION_ET_DISABLE	0x20
+#define I915_PSR_DEBUG_PANEL_REPLAY_DISABLE	0x40
 
 	u32 debug;
 	bool sink_support;
@@ -1726,20 +1725,12 @@ struct intel_psr {
 	unsigned int busy_frontbuffer_bits;
 	bool sink_psr2_support;
 	bool link_standby;
-	bool psr2_enabled;
+	bool sel_update_enabled;
 	bool psr2_sel_fetch_enabled;
 	bool psr2_sel_fetch_cff_enabled;
+	bool su_region_et_enabled;
 	bool req_psr2_sdp_prior_scanline;
 	u8 sink_sync_latency;
-
-	struct {
-		u8 io_wake_lines;
-		u8 fast_wake_lines;
-
-		/* LNL and beyond */
-		u8 check_entry_lines;
-	} alpm_parameters;
-
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 	bool sink_not_reliable;
@@ -1748,6 +1739,7 @@ struct intel_psr {
 	u16 su_y_granularity;
 	bool source_panel_replay_support;
 	bool sink_panel_replay_support;
+	bool sink_panel_replay_su_support;
 	bool panel_replay_enabled;
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
@@ -1762,10 +1754,10 @@ struct intel_dp {
 	u8 lane_count;
 	u8 sink_count;
 	bool link_trained;
-	bool reset_link_params;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
+	u8 pr_dpcd;
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];
@@ -1783,10 +1775,21 @@ struct intel_dp {
 	/* intersection of source and sink rates */
 	int num_common_rates;
 	int common_rates[DP_MAX_SUPPORTED_RATES];
-	/* Max lane count for the current link */
-	int max_link_lane_count;
-	/* Max rate for the current link */
-	int max_link_rate;
+	struct {
+		/* TODO: move the rest of link specific fields to here */
+		/* Max lane count for the current link */
+		int max_lane_count;
+		/* Max rate for the current link */
+		int max_rate;
+		int force_lane_count;
+		int force_rate;
+		bool retrain_disabled;
+		/* Sequential link training failures after a passing LT */
+		int seq_train_failures;
+		int force_train_failure;
+		bool force_retrain;
+	} link;
+	bool reset_link_params;
 	int mso_link_count;
 	int mso_pixel_overlap;
 	/* sink or branch descriptor */
@@ -1799,6 +1802,7 @@ struct intel_dp {
 
 	bool is_mst;
 	int active_mst_links;
+	enum drm_dp_mst_mode mst_detect;
 
 	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
@@ -1868,6 +1872,19 @@ struct intel_dp {
 	unsigned long last_oui_write;
 
 	bool colorimetry_support;
+
+	struct {
+		u8 io_wake_lines;
+		u8 fast_wake_lines;
+
+		/* LNL and beyond */
+		u8 check_entry_lines;
+		u8 aux_less_wake_lines;
+		u8 silence_period_sym_clocks;
+		u8 lfps_half_cycle_num_of_syms;
+	} alpm_parameters;
+
+	u8 alpm_dpcd;
 };
 
 enum lspcon_vendor {
@@ -2183,5 +2200,42 @@ static inline int to_bpp_x16(int bpp)
 {
 	return bpp << 4;
 }
+
+/*
+ * Conversion functions/macros from various pointer types to struct
+ * intel_display pointer.
+ */
+#define __drm_device_to_intel_display(p) \
+	(&to_i915(p)->display)
+#define __intel_connector_to_intel_display(p)		\
+	__drm_device_to_intel_display((p)->base.dev)
+#define __intel_crtc_to_intel_display(p)		\
+	__drm_device_to_intel_display((p)->base.dev)
+#define __intel_crtc_state_to_intel_display(p)			\
+	__drm_device_to_intel_display((p)->uapi.crtc->dev)
+#define __intel_digital_port_to_intel_display(p)		\
+	__drm_device_to_intel_display((p)->base.base.dev)
+#define __intel_dp_to_intel_display(p)	\
+	__drm_device_to_intel_display(dp_to_dig_port(p)->base.base.dev)
+#define __intel_encoder_to_intel_display(p)		\
+	__drm_device_to_intel_display((p)->base.dev)
+#define __intel_hdmi_to_intel_display(p)	\
+	__drm_device_to_intel_display(hdmi_to_dig_port(p)->base.base.dev)
+
+/* Helper for generic association. Map types to conversion functions/macros. */
+#define __assoc(type, p) \
+	struct type: __##type##_to_intel_display((struct type *)(p))
+
+/* Convert various pointer types to struct intel_display pointer. */
+#define to_intel_display(p)				\
+	_Generic(*p,					\
+		 __assoc(drm_device, p),		\
+		 __assoc(intel_connector, p),		\
+		 __assoc(intel_crtc, p),		\
+		 __assoc(intel_crtc_state, p),		\
+		 __assoc(intel_digital_port, p),	\
+		 __assoc(intel_dp, p),			\
+		 __assoc(intel_encoder, p),		\
+		 __assoc(intel_hdmi, p))
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

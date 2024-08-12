@@ -2886,7 +2886,7 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 {
 	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	struct _fll_div fll_div;
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 	int fll1 = 0;
 
@@ -2974,14 +2974,14 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 	 * higher if we'll error out
 	 */
 	if (wm8962->irq)
-		timeout = msecs_to_jiffies(5);
+		time_left = msecs_to_jiffies(5);
 	else
-		timeout = msecs_to_jiffies(1);
+		time_left = msecs_to_jiffies(1);
 
-	timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-					      timeout);
+	time_left = wait_for_completion_timeout(&wm8962->fll_lock,
+						time_left);
 
-	if (timeout == 0 && wm8962->irq) {
+	if (time_left == 0 && wm8962->irq) {
 		dev_err(component->dev, "FLL lock timed out");
 		snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1,
 				    WM8962_FLL_ENA, 0);
@@ -3938,7 +3938,7 @@ static const struct dev_pm_ops wm8962_pm = {
 };
 
 static const struct i2c_device_id wm8962_i2c_id[] = {
-	{ "wm8962", 0 },
+	{ "wm8962" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8962_i2c_id);

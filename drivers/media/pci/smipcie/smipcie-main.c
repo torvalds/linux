@@ -279,10 +279,10 @@ static void smi_port_clearInterrupt(struct smi_port *port)
 		(port->_dmaInterruptCH0 | port->_dmaInterruptCH1));
 }
 
-/* tasklet handler: DMA data to dmx.*/
-static void smi_dma_xfer(struct tasklet_struct *t)
+/* BH work handler: DMA data to dmx.*/
+static void smi_dma_xfer(struct work_struct *t)
 {
-	struct smi_port *port = from_tasklet(port, t, tasklet);
+	struct smi_port *port = from_work(port, t, bh_work);
 	struct smi_dev *dev = port->dev;
 	u32 intr_status, finishedData, dmaManagement;
 	u8 dmaChan0State, dmaChan1State;
@@ -426,8 +426,8 @@ static int smi_port_init(struct smi_port *port, int dmaChanUsed)
 	}
 
 	smi_port_disableInterrupt(port);
-	tasklet_setup(&port->tasklet, smi_dma_xfer);
-	tasklet_disable(&port->tasklet);
+	INIT_WORK(&port->bh_work, smi_dma_xfer);
+	disable_work_sync(&port->bh_work);
 	port->enable = 1;
 	return 0;
 err:
@@ -438,7 +438,7 @@ err:
 static void smi_port_exit(struct smi_port *port)
 {
 	smi_port_disableInterrupt(port);
-	tasklet_kill(&port->tasklet);
+	cancel_work_sync(&port->bh_work);
 	smi_port_dma_free(port);
 	port->enable = 0;
 }
@@ -452,7 +452,7 @@ static int smi_port_irq(struct smi_port *port, u32 int_status)
 		smi_port_disableInterrupt(port);
 		port->_int_status = int_status;
 		smi_port_clearInterrupt(port);
-		tasklet_schedule(&port->tasklet);
+		queue_work(system_bh_wq, &port->bh_work);
 		handled = 1;
 	}
 	return handled;
@@ -823,7 +823,7 @@ static int smi_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		smi_port_clearInterrupt(port);
 		smi_port_enableInterrupt(port);
 		smi_write(port->DMA_MANAGEMENT, dmaManagement);
-		tasklet_enable(&port->tasklet);
+		enable_and_queue_work(system_bh_wq, &port->bh_work);
 	}
 	return port->users;
 }
@@ -837,7 +837,7 @@ static int smi_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--port->users)
 		return port->users;
 
-	tasklet_disable(&port->tasklet);
+	disable_work_sync(&port->bh_work);
 	smi_port_disableInterrupt(port);
 	smi_clear(port->DMA_MANAGEMENT, 0x30003);
 	return 0;

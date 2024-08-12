@@ -88,6 +88,7 @@
 #define STORE_LE32(addr, val)	(*(u32 *)addr = val)
 
 
+MODULE_DESCRIPTION("Mediated virtual PCI display host device driver");
 MODULE_LICENSE("GPL v2");
 
 static int max_mbytes = 256;

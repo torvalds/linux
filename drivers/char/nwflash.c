@@ -618,6 +618,7 @@ static void __exit nwflash_exit(void)
 	iounmap((void *)FLASH_BASE);
 }
 
+MODULE_DESCRIPTION("NetWinder flash memory driver");
 MODULE_LICENSE("GPL");
 
 module_param(flashdebug, bool, 0644);

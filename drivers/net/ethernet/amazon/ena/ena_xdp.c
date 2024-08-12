@@ -89,7 +89,7 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 
 	rc = ena_xdp_tx_map_frame(tx_ring, tx_info, xdpf, &ena_tx_ctx);
 	if (unlikely(rc))
-		return rc;
+		goto err;
 
 	ena_tx_ctx.req_id = req_id;
 
@@ -112,7 +112,9 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 
 error_unmap_dma:
 	ena_unmap_tx_buff(tx_ring, tx_info);
+err:
 	tx_info->xdpf = NULL;
+
 	return rc;
 }
 

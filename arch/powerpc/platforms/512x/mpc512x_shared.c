@@ -279,7 +279,7 @@ static void __init mpc512x_setup_diu(void)
 	 * and so negatively affect boot time. Instead we reserve the
 	 * already configured frame buffer area so that it won't be
 	 * destroyed. The starting address of the area to reserve and
-	 * also it's length is passed to memblock_reserve(). It will be
+	 * also its length is passed to memblock_reserve(). It will be
 	 * freed later on first open of fbdev, when splash image is not
 	 * needed any more.
 	 */

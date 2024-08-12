@@ -309,7 +309,7 @@ static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **ps
 
 		if (knob->type == ACPI_TYPE_STRING) {
 			memset(&psvt->limit, 0, sizeof(u64));
-			strncpy(psvt->limit.string, psvt_ptr->limit.str_ptr, knob->string.length);
+			strscpy(psvt->limit.string, psvt_ptr->limit.str_ptr, ACPI_LIMIT_STR_MAX_LEN);
 		} else {
 			psvt->limit.integer = psvt_ptr->limit.integer;
 		}
@@ -468,7 +468,7 @@ static int fill_psvt(char __user *ubuf)
 		psvt_user[i].unlimit_coeff = psvts[i].unlimit_coeff;
 		psvt_user[i].control_knob_type = psvts[i].control_knob_type;
 		if (psvt_user[i].control_knob_type == ACPI_TYPE_STRING)
-			strncpy(psvt_user[i].limit.string, psvts[i].limit.string,
+			strscpy(psvt_user[i].limit.string, psvts[i].limit.string,
 				ACPI_LIMIT_STR_MAX_LEN);
 		else
 			psvt_user[i].limit.integer = psvts[i].limit.integer;

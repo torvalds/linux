@@ -370,6 +370,7 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 			      struct bnxt_tc_flow *flow)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(tc_flow_cmd);
+	struct netlink_ext_ack *extack = tc_flow_cmd->common.extack;
 	struct flow_dissector *dissector = rule->match.dissector;
 
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
@@ -379,6 +380,9 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 			    dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
+
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;

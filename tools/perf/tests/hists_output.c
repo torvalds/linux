@@ -129,7 +129,7 @@ static void put_fake_samples(void)
 typedef int (*test_fn_t)(struct evsel *, struct machine *);
 
 #define COMM(he)  (thread__comm_str(he->thread))
-#define DSO(he)   (map__dso(he->ms.map)->short_name)
+#define DSO(he)   (dso__short_name(map__dso(he->ms.map)))
 #define SYM(he)   (he->ms.sym->name)
 #define CPU(he)   (he->cpu)
 #define PID(he)   (thread__tid(he->thread))

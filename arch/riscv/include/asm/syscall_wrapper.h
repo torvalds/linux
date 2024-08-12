@@ -36,7 +36,8 @@ asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *);
 					ulong)						\
 			__attribute__((alias(__stringify(___se_##prefix##name))));	\
 	__diag_pop();									\
-	static long noinline ___se_##prefix##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
+	static long noinline ___se_##prefix##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
+			__used;								\
 	static long ___se_##prefix##name(__MAP(x,__SC_LONG,__VA_ARGS__))
 
 #define SC_RISCV_REGS_TO_ARGS(x, ...) \

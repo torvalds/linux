@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -32,6 +31,32 @@ static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *regio
 		const uint64_t offset = (i - lowest_page_in_region) * vm->page_size;
 
 		sev_launch_update_data(vm, gpa_base + offset, size);
+	}
+}
+
+void sev_vm_init(struct kvm_vm *vm)
+{
+	if (vm->type == KVM_X86_DEFAULT_VM) {
+		assert(vm->arch.sev_fd == -1);
+		vm->arch.sev_fd = open_sev_dev_path_or_exit();
+		vm_sev_ioctl(vm, KVM_SEV_INIT, NULL);
+	} else {
+		struct kvm_sev_init init = { 0 };
+		assert(vm->type == KVM_X86_SEV_VM);
+		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
+	}
+}
+
+void sev_es_vm_init(struct kvm_vm *vm)
+{
+	if (vm->type == KVM_X86_DEFAULT_VM) {
+		assert(vm->arch.sev_fd == -1);
+		vm->arch.sev_fd = open_sev_dev_path_or_exit();
+		vm_sev_ioctl(vm, KVM_SEV_ES_INIT, NULL);
+	} else {
+		struct kvm_sev_init init = { 0 };
+		assert(vm->type == KVM_X86_SEV_ES_VM);
+		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
 }
 
@@ -87,28 +112,30 @@ void sev_vm_launch_finish(struct kvm_vm *vm)
 	TEST_ASSERT_EQ(status.state, SEV_GUEST_STATE_RUNNING);
 }
 
-struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t policy, void *guest_code,
+struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t type, void *guest_code,
 					   struct kvm_vcpu **cpu)
 {
 	struct vm_shape shape = {
-		.type = VM_TYPE_DEFAULT,
 		.mode = VM_MODE_DEFAULT,
-		.subtype = policy & SEV_POLICY_ES ? VM_SUBTYPE_SEV_ES :
-						    VM_SUBTYPE_SEV,
+		.type = type,
 	};
 	struct kvm_vm *vm;
 	struct kvm_vcpu *cpus[1];
-	uint8_t measurement[512];
 
 	vm = __vm_create_with_vcpus(shape, 1, 0, guest_code, cpus);
 	*cpu = cpus[0];
 
+	return vm;
+}
+
+void vm_sev_launch(struct kvm_vm *vm, uint32_t policy, uint8_t *measurement)
+{
 	sev_vm_launch(vm, policy);
 
-	/* TODO: Validate the measurement is as expected. */
+	if (!measurement)
+		measurement = alloca(256);
+
 	sev_vm_launch_measure(vm, measurement);
 
 	sev_vm_launch_finish(vm);
-
-	return vm;
 }

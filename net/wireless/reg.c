@@ -1600,6 +1600,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
 	if (rd_flags & NL80211_RRF_PSD)
 		channel_flags |= IEEE80211_CHAN_PSD;
+	if (rd_flags & NL80211_RRF_ALLOW_6GHZ_VLP_AP)
+		channel_flags |= IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP;
 	return channel_flags;
 }
 
@@ -3284,7 +3286,7 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
-int regulatory_hint_indoor(bool is_indoor, u32 portid)
+void regulatory_hint_indoor(bool is_indoor, u32 portid)
 {
 	spin_lock(&reg_indoor_lock);
 
@@ -3307,8 +3309,6 @@ int regulatory_hint_indoor(bool is_indoor, u32 portid)
 
 	if (!is_indoor)
 		reg_check_channels();
-
-	return 0;
 }
 
 void regulatory_netlink_notify(u32 portid)
@@ -3666,9 +3666,9 @@ static bool pending_reg_beacon(struct ieee80211_channel *beacon_chan)
 	return false;
 }
 
-int regulatory_hint_found_beacon(struct wiphy *wiphy,
-				 struct ieee80211_channel *beacon_chan,
-				 gfp_t gfp)
+void regulatory_hint_found_beacon(struct wiphy *wiphy,
+				  struct ieee80211_channel *beacon_chan,
+				  gfp_t gfp)
 {
 	struct reg_beacon *reg_beacon;
 	bool processing;
@@ -3677,18 +3677,18 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 	    beacon_chan->flags & IEEE80211_CHAN_RADAR ||
 	    (beacon_chan->band == NL80211_BAND_2GHZ &&
 	     !freq_is_chan_12_13_14(beacon_chan->center_freq)))
-		return 0;
+		return;
 
 	spin_lock_bh(&reg_pending_beacons_lock);
 	processing = pending_reg_beacon(beacon_chan);
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
 	if (processing)
-		return 0;
+		return;
 
 	reg_beacon = kzalloc(sizeof(struct reg_beacon), gfp);
 	if (!reg_beacon)
-		return -ENOMEM;
+		return;
 
 	pr_debug("Found new beacon on frequency: %d.%03d MHz (Ch %d) on %s\n",
 		 beacon_chan->center_freq, beacon_chan->freq_offset,
@@ -3708,8 +3708,6 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
 	schedule_work(&reg_work);
-
-	return 0;
 }
 
 static void print_rd_rules(const struct ieee80211_regdomain *rd)

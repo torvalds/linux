@@ -523,7 +523,6 @@
 
 &pcie2x1 {
 	reset-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
-	disable-gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_mini_pcie>;
 	status = "okay";
 };

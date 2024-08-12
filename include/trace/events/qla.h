@@ -25,7 +25,7 @@ DECLARE_EVENT_CLASS(qla_log_event,
 		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
-		__assign_str(buf, buf);
+		__assign_str(buf);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 

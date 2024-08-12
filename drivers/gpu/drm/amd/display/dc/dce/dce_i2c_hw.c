@@ -22,9 +22,6 @@
  * Authors: AMD
  *
  */
-
-#include <linux/delay.h>
-
 #include "resource.h"
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
@@ -301,19 +298,16 @@ static bool setup_engine(
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
 	uint32_t  reset_length = 0;
 
-        if (dce_i2c_hw->ctx->dc->debug.enable_mem_low_power.bits.i2c) {
-	     if (dce_i2c_hw->regs->DIO_MEM_PWR_CTRL) {
-		     REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 0);
-		     REG_WAIT(DIO_MEM_PWR_STATUS, I2C_MEM_PWR_STATE, 0, 0, 5);
-		     }
-	     }
+	if (dce_i2c_hw->ctx->dc->debug.enable_mem_low_power.bits.i2c) {
+		if (dce_i2c_hw->regs->DIO_MEM_PWR_CTRL) {
+			REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 0);
+			REG_WAIT(DIO_MEM_PWR_STATUS, I2C_MEM_PWR_STATE, 0, 0, 5);
+		}
+	}
 
 	if (dce_i2c_hw->masks->DC_I2C_DDC1_CLK_EN)
 		REG_UPDATE_N(SETUP, 1,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN), 1);
-
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
-	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);

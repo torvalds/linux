@@ -19,8 +19,8 @@
 #include <linux/mei_cl_bus.h>
 #include <linux/component.h>
 #include <drm/drm_connector.h>
-#include <drm/i915_component.h>
-#include <drm/i915_pxp_tee_interface.h>
+#include <drm/intel/i915_component.h>
+#include <drm/intel/i915_pxp_tee_interface.h>
 
 #include "mei_pxp.h"
 
@@ -236,8 +236,11 @@ static int mei_pxp_component_match(struct device *dev, int subcomponent,
 
 	pdev = to_pci_dev(dev);
 
-	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) ||
-	    pdev->vendor != PCI_VENDOR_ID_INTEL)
+	if (pdev->vendor != PCI_VENDOR_ID_INTEL)
+		return 0;
+
+	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) &&
+	    pdev->class != (PCI_CLASS_DISPLAY_OTHER << 8))
 		return 0;
 
 	if (subcomponent != I915_COMPONENT_PXP)

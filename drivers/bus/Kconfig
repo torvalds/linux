@@ -163,6 +163,16 @@ config QCOM_SSC_BLOCK_BUS
 	  i2c/spi/uart controllers, a hexagon core, and a clock controller
 	  which provides clocks for the above.
 
+config STM32_FIREWALL
+	bool "STM32 Firewall framework"
+	depends on (ARCH_STM32 || COMPILE_TEST) && OF
+	select OF_DYNAMIC
+	help
+	  Say y to enable STM32 firewall framework and its services. Firewall
+	  controllers will be able to register to the framework. Access for
+	  hardware resources linked to a firewall controller can be requested
+	  through this STM32 framework.
+
 config SUN50I_DE2_BUS
 	bool "Allwinner A64 DE2 Bus Driver"
 	  default ARM64

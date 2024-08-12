@@ -565,6 +565,7 @@ static const struct of_device_id suniv_f1c100s_ccu_ids[] = {
 	{ .compatible = "allwinner,suniv-f1c100s-ccu" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, suniv_f1c100s_ccu_ids);
 
 static struct platform_driver suniv_f1c100s_ccu_driver = {
 	.probe	= suniv_f1c100s_ccu_probe,
@@ -577,4 +578,5 @@ static struct platform_driver suniv_f1c100s_ccu_driver = {
 module_platform_driver(suniv_f1c100s_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner newer F1C100s CCU");
 MODULE_LICENSE("GPL");

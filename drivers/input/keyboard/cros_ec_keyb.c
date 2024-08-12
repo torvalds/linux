@@ -35,7 +35,6 @@
  * @rows: Number of rows in the keypad
  * @cols: Number of columns in the keypad
  * @row_shift: log2 or number of rows, rounded up
- * @keymap_data: Matrix keymap data used to convert to keyscan values
  * @ghost_filter: true to enable the matrix key-ghosting filter
  * @valid_keys: bitmap of existing keys for each matrix column
  * @old_kb_state: bitmap of keys pressed last scan
@@ -50,7 +49,6 @@ struct cros_ec_keyb {
 	unsigned int rows;
 	unsigned int cols;
 	int row_shift;
-	const struct matrix_keymap_data *keymap_data;
 	bool ghost_filter;
 	uint8_t *valid_keys;
 	uint8_t *old_kb_state;

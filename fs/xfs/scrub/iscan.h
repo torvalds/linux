@@ -59,6 +59,9 @@ struct xchk_iscan {
 /* Set if the scan has been aborted due to some event in the fs. */
 #define XCHK_ISCAN_OPSTATE_ABORTED	(1)
 
+/* Use trylock to acquire the AGI */
+#define XCHK_ISCAN_OPSTATE_TRYLOCK_AGI	(2)
+
 static inline bool
 xchk_iscan_aborted(const struct xchk_iscan *iscan)
 {
@@ -71,8 +74,21 @@ xchk_iscan_abort(struct xchk_iscan *iscan)
 	set_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
 }
 
+static inline bool
+xchk_iscan_agi_needs_trylock(const struct xchk_iscan *iscan)
+{
+	return test_bit(XCHK_ISCAN_OPSTATE_TRYLOCK_AGI, &iscan->__opstate);
+}
+
+static inline void
+xchk_iscan_set_agi_trylock(struct xchk_iscan *iscan)
+{
+	set_bit(XCHK_ISCAN_OPSTATE_TRYLOCK_AGI, &iscan->__opstate);
+}
+
 void xchk_iscan_start(struct xfs_scrub *sc, unsigned int iget_timeout,
 		unsigned int iget_retry_delay, struct xchk_iscan *iscan);
+void xchk_iscan_finish_early(struct xchk_iscan *iscan);
 void xchk_iscan_teardown(struct xchk_iscan *iscan);
 
 int xchk_iscan_iter(struct xchk_iscan *iscan, struct xfs_inode **ipp);

@@ -20,6 +20,7 @@ orders. See also `the Wikipedia article on Bayer filter
     :maxdepth: 1
 
     pixfmt-srggb8
+    pixfmt-srggb8-pisp-comp
     pixfmt-srggb10
     pixfmt-srggb10p
     pixfmt-srggb10alaw8

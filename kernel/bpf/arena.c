@@ -37,7 +37,7 @@
  */
 
 /* number of bytes addressable by LDX/STX insn with 16-bit 'off' field */
-#define GUARD_SZ (1ull << sizeof(((struct bpf_insn *)0)->off) * 8)
+#define GUARD_SZ (1ull << sizeof_field(struct bpf_insn, off) * 8)
 #define KERN_VM_SZ (SZ_4G + GUARD_SZ)
 
 struct bpf_arena {
@@ -212,6 +212,7 @@ static u64 arena_map_mem_usage(const struct bpf_map *map)
 struct vma_list {
 	struct vm_area_struct *vma;
 	struct list_head head;
+	atomic_t mmap_count;
 };
 
 static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
@@ -221,20 +222,30 @@ static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
 	vml = kmalloc(sizeof(*vml), GFP_KERNEL);
 	if (!vml)
 		return -ENOMEM;
+	atomic_set(&vml->mmap_count, 1);
 	vma->vm_private_data = vml;
 	vml->vma = vma;
 	list_add(&vml->head, &arena->vma_list);
 	return 0;
 }
 
+static void arena_vm_open(struct vm_area_struct *vma)
+{
+	struct vma_list *vml = vma->vm_private_data;
+
+	atomic_inc(&vml->mmap_count);
+}
+
 static void arena_vm_close(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
-	struct vma_list *vml;
+	struct vma_list *vml = vma->vm_private_data;
 
+	if (!atomic_dec_and_test(&vml->mmap_count))
+		return;
 	guard(mutex)(&arena->lock);
-	vml = vma->vm_private_data;
+	/* update link list under lock */
 	list_del(&vml->head);
 	vma->vm_private_data = NULL;
 	kfree(vml);
@@ -251,7 +262,7 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	int ret;
 
 	kbase = bpf_arena_get_kern_vm_start(arena);
-	kaddr = kbase + (u32)(vmf->address & PAGE_MASK);
+	kaddr = kbase + (u32)(vmf->address);
 
 	guard(mutex)(&arena->lock);
 	page = vmalloc_to_page((void *)kaddr);
@@ -287,6 +298,7 @@ out:
 }
 
 static const struct vm_operations_struct arena_vm_ops = {
+	.open		= arena_vm_open,
 	.close		= arena_vm_close,
 	.fault          = arena_vm_fault,
 };
@@ -314,7 +326,7 @@ static unsigned long arena_get_unmapped_area(struct file *filp, unsigned long ad
 			return -EINVAL;
 	}
 
-	ret = current->mm->get_unmapped_area(filp, addr, len * 2, 0, flags);
+	ret = mm_get_unmapped_area(current->mm, filp, addr, len * 2, 0, flags);
 	if (IS_ERR_VALUE(ret))
 		return ret;
 	if ((ret >> 32) == ((ret + len - 1) >> 32))

@@ -51,6 +51,28 @@ struct mptcp_sched_ops *mptcp_sched_find(const char *name)
 	return ret;
 }
 
+/* Build string with list of available scheduler values.
+ * Similar to tcp_get_available_congestion_control()
+ */
+void mptcp_get_available_schedulers(char *buf, size_t maxlen)
+{
+	struct mptcp_sched_ops *sched;
+	size_t offs = 0;
+
+	rcu_read_lock();
+	spin_lock(&mptcp_sched_list_lock);
+	list_for_each_entry_rcu(sched, &mptcp_sched_list, list) {
+		offs += snprintf(buf + offs, maxlen - offs,
+				 "%s%s",
+				 offs == 0 ? "" : " ", sched->name);
+
+		if (WARN_ON_ONCE(offs >= maxlen))
+			break;
+	}
+	spin_unlock(&mptcp_sched_list_lock);
+	rcu_read_unlock();
+}
+
 int mptcp_register_scheduler(struct mptcp_sched_ops *sched)
 {
 	if (!sched->get_subflow)

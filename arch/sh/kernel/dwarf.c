@@ -344,7 +344,7 @@ out:
  *	dwarf_lookup_fde - locate the FDE that covers pc
  *	@pc: the program counter
  */
-struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
+static struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
 {
 	struct rb_node **rb_node = &fde_root.rb_node;
 	struct dwarf_fde *fde = NULL;

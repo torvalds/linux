@@ -122,7 +122,7 @@
 		compatible = "linux,spdif-dit";
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 		clocks = <&rtc CLK_OSC32K_FANOUT>;
@@ -185,7 +185,7 @@
 	 * Explicitly define the sdio device, so that we can add an ethernet
 	 * alias for it (which e.g. makes u-boot set a mac-address).
 	 */
-	sdiowifi: sdio_wifi@1 {
+	sdiowifi: wifi@1 {
 		reg = <1>;
 	};
 };

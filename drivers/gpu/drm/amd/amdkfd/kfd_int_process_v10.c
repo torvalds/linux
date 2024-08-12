@@ -134,6 +134,7 @@ static void event_interrupt_poison_consumption(struct kfd_node *dev,
 {
 	enum amdgpu_ras_block block = 0;
 	int old_poison, ret = -EINVAL;
+	uint32_t reset = 0;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
 	if (!p)
@@ -153,6 +154,8 @@ static void event_interrupt_poison_consumption(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_UTCL2:
 		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
 		block = AMDGPU_RAS_BLOCK__GFX;
+		if (ret)
+			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		break;
 	case SOC15_IH_CLIENTID_SDMA0:
 	case SOC15_IH_CLIENTID_SDMA1:
@@ -160,6 +163,7 @@ static void event_interrupt_poison_consumption(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_SDMA3:
 	case SOC15_IH_CLIENTID_SDMA4:
 		block = AMDGPU_RAS_BLOCK__SDMA;
+		reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		break;
 	default:
 		break;
@@ -170,17 +174,16 @@ static void event_interrupt_poison_consumption(struct kfd_node *dev,
 	/* resetting queue passes, do page retirement without gpu reset
 	 * resetting queue fails, fallback to gpu reset solution
 	 */
-	if (!ret) {
+	if (!ret)
 		dev_warn(dev->adev->dev,
 			"RAS poison consumption, unmap queue flow succeeded: client id %d\n",
 			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
-	} else {
+	else
 		dev_warn(dev->adev->dev,
 			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
 			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
-	}
+
+	amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, reset);
 }
 
 static bool event_interrupt_isr_v10(struct kfd_node *dev,
@@ -368,10 +371,25 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
+		uint32_t node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
+		uint32_t vmid_type = SOC15_VMID_TYPE_FROM_IH_ENTRY(ih_ring_entry);
+		int hub_inst = 0;
 		struct kfd_hsa_memory_exception_data exception_data;
 
-		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
-				amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
+		/* gfxhub */
+		if (!vmid_type && dev->adev->gfx.funcs->ih_node_to_logical_xcc) {
+			hub_inst = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
+				node_id);
+			if (hub_inst < 0)
+				hub_inst = 0;
+		}
+
+		/* mmhub */
+		if (vmid_type && client_id == SOC15_IH_CLIENTID_VMC)
+			hub_inst = node_id / 4;
+
+		if (amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev,
+					hub_inst, vmid_type)) {
 			event_interrupt_poison_consumption(dev, pasid, client_id);
 			return;
 		}

@@ -84,6 +84,8 @@ struct ia_css_state_memory_offsets;
 /* Virtual address within the CSS address space. */
 typedef u32 ia_css_ptr;
 
+#define SIZE_OF_IA_CSS_PTR		sizeof(uint32_t)
+
 /* Generic resolution structure.
  */
 struct ia_css_resolution {

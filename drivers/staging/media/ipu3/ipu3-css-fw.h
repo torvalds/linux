@@ -9,6 +9,8 @@
 #define IMGU_FW_NAME		"intel/ipu3-fw.bin"
 #define IMGU_FW_NAME_20161208	\
 	"intel/irci_irci_ecr-master_20161208_0213_20170112_1500.bin"
+#define IMGU_FW_NAME_IPU_20161208	\
+	"intel/ipu/irci_irci_ecr-master_20161208_0213_20170112_1500.bin"
 
 typedef u32 imgu_fw_ptr;
 

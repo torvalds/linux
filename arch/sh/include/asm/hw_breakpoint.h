@@ -52,6 +52,8 @@ struct pmu;
 
 /* arch/sh/kernel/hw_breakpoint.c */
 extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
+extern int arch_bp_generic_fields(int sh_len, int sh_type, int *gen_len,
+				  int *gen_type);
 extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 				    const struct perf_event_attr *attr,
 				    struct arch_hw_breakpoint *hw);

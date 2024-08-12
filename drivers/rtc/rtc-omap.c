@@ -1027,4 +1027,5 @@ static struct platform_driver omap_rtc_driver = {
 module_platform_driver(omap_rtc_driver);
 
 MODULE_AUTHOR("George G. Davis (and others)");
+MODULE_DESCRIPTION("TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx RTC driver");
 MODULE_LICENSE("GPL");

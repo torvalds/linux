@@ -660,7 +660,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 			     struct i2c_msg *msg, int stop, bool polling)
 {
 	struct omap_i2c_dev *omap = i2c_get_adapdata(adap);
-	unsigned long timeout;
+	unsigned long time_left;
 	u16 w;
 	int ret;
 
@@ -740,19 +740,18 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	 * into arbitration and we're currently unable to recover from it.
 	 */
 	if (!polling) {
-		timeout = wait_for_completion_timeout(&omap->cmd_complete,
-						      OMAP_I2C_TIMEOUT);
+		time_left = wait_for_completion_timeout(&omap->cmd_complete,
+							OMAP_I2C_TIMEOUT);
 	} else {
 		do {
 			omap_i2c_wait(omap);
 			ret = omap_i2c_xfer_data(omap);
 		} while (ret == -EAGAIN);
 
-		timeout = !ret;
+		time_left = !ret;
 	}
 
-	if (timeout == 0) {
-		dev_err(omap->dev, "controller timed out\n");
+	if (time_left == 0) {
 		omap_i2c_reset(omap);
 		__omap_i2c_init(omap);
 		return -ETIMEDOUT;
@@ -1535,7 +1534,7 @@ static void omap_i2c_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused omap_i2c_runtime_suspend(struct device *dev)
+static int omap_i2c_runtime_suspend(struct device *dev)
 {
 	struct omap_i2c_dev *omap = dev_get_drvdata(dev);
 
@@ -1561,7 +1560,7 @@ static int __maybe_unused omap_i2c_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused omap_i2c_runtime_resume(struct device *dev)
+static int omap_i2c_runtime_resume(struct device *dev)
 {
 	struct omap_i2c_dev *omap = dev_get_drvdata(dev);
 
@@ -1575,11 +1574,33 @@ static int __maybe_unused omap_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int omap_i2c_suspend(struct device *dev)
+{
+	/*
+	 * If the controller is autosuspended, there is no way to wakeup it once
+	 * runtime pm is disabled (in suspend_late()).
+	 * But a device may need the controller up during suspend_noirq() or
+	 * resume_noirq().
+	 * Wakeup the controller while runtime pm is enabled, so it is available
+	 * until its suspend_noirq(), and from resume_noirq().
+	 */
+	return pm_runtime_resume_and_get(dev);
+}
+
+static int omap_i2c_resume(struct device *dev)
+{
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return 0;
+}
+
 static const struct dev_pm_ops omap_i2c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				      pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(omap_i2c_runtime_suspend,
-			   omap_i2c_runtime_resume, NULL)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				  pm_runtime_force_resume)
+	SYSTEM_SLEEP_PM_OPS(omap_i2c_suspend, omap_i2c_resume)
+	RUNTIME_PM_OPS(omap_i2c_runtime_suspend,
+		       omap_i2c_runtime_resume, NULL)
 };
 
 static struct platform_driver omap_i2c_driver = {
@@ -1587,7 +1608,7 @@ static struct platform_driver omap_i2c_driver = {
 	.remove_new	= omap_i2c_remove,
 	.driver		= {
 		.name	= "omap_i2c",
-		.pm	= &omap_i2c_pm_ops,
+		.pm	= pm_ptr(&omap_i2c_pm_ops),
 		.of_match_table = of_match_ptr(omap_i2c_of_match),
 	},
 };

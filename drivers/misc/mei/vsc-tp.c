@@ -94,6 +94,27 @@ static const struct acpi_gpio_mapping vsc_tp_acpi_gpios[] = {
 	{}
 };
 
+static irqreturn_t vsc_tp_isr(int irq, void *data)
+{
+	struct vsc_tp *tp = data;
+
+	atomic_inc(&tp->assert_cnt);
+
+	wake_up(&tp->xfer_wait);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t vsc_tp_thread_isr(int irq, void *data)
+{
+	struct vsc_tp *tp = data;
+
+	if (tp->event_notify)
+		tp->event_notify(tp->event_notify_context);
+
+	return IRQ_HANDLED;
+}
+
 /* wakeup firmware and wait for response */
 static int vsc_tp_wakeup_request(struct vsc_tp *tp)
 {
@@ -310,12 +331,12 @@ int vsc_tp_rom_xfer(struct vsc_tp *tp, const void *obuf, void *ibuf, size_t len)
 		return ret;
 	}
 
-	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, tp->rx_buf, len);
+	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, ibuf ? tp->rx_buf : NULL, len);
 	if (ret)
 		return ret;
 
 	if (ibuf)
-		cpu_to_be32_array(ibuf, tp->rx_buf, words);
+		be32_to_cpu_array(ibuf, tp->rx_buf, words);
 
 	return ret;
 }
@@ -384,6 +405,37 @@ int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
 EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, VSC_TP);
 
 /**
+ * vsc_tp_request_irq - request irq for vsc_tp device
+ * @tp: vsc_tp device handle
+ */
+int vsc_tp_request_irq(struct vsc_tp *tp)
+{
+	struct spi_device *spi = tp->spi;
+	struct device *dev = &spi->dev;
+	int ret;
+
+	irq_set_status_flags(spi->irq, IRQ_DISABLE_UNLAZY);
+	ret = request_threaded_irq(spi->irq, vsc_tp_isr, vsc_tp_thread_isr,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				   dev_name(dev), tp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, VSC_TP);
+
+/**
+ * vsc_tp_free_irq - free irq for vsc_tp device
+ * @tp: vsc_tp device handle
+ */
+void vsc_tp_free_irq(struct vsc_tp *tp)
+{
+	free_irq(tp->spi->irq, tp);
+}
+EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, VSC_TP);
+
+/**
  * vsc_tp_intr_synchronize - synchronize vsc_tp interrupt
  * @tp: vsc_tp device handle
  */
@@ -412,27 +464,6 @@ void vsc_tp_intr_disable(struct vsc_tp *tp)
 	disable_irq(tp->spi->irq);
 }
 EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_disable, VSC_TP);
-
-static irqreturn_t vsc_tp_isr(int irq, void *data)
-{
-	struct vsc_tp *tp = data;
-
-	atomic_inc(&tp->assert_cnt);
-
-	return IRQ_WAKE_THREAD;
-}
-
-static irqreturn_t vsc_tp_thread_isr(int irq, void *data)
-{
-	struct vsc_tp *tp = data;
-
-	wake_up(&tp->xfer_wait);
-
-	if (tp->event_notify)
-		tp->event_notify(tp->event_notify_context);
-
-	return IRQ_HANDLED;
-}
 
 static int vsc_tp_match_any(struct acpi_device *adev, void *data)
 {
@@ -490,10 +521,9 @@ static int vsc_tp_probe(struct spi_device *spi)
 	tp->spi = spi;
 
 	irq_set_status_flags(spi->irq, IRQ_DISABLE_UNLAZY);
-	ret = devm_request_threaded_irq(dev, spi->irq, vsc_tp_isr,
-					vsc_tp_thread_isr,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					dev_name(dev), tp);
+	ret = request_threaded_irq(spi->irq, vsc_tp_isr, vsc_tp_thread_isr,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				   dev_name(dev), tp);
 	if (ret)
 		return ret;
 
@@ -522,6 +552,8 @@ static int vsc_tp_probe(struct spi_device *spi)
 err_destroy_lock:
 	mutex_destroy(&tp->mutex);
 
+	free_irq(spi->irq, tp);
+
 	return ret;
 }
 
@@ -532,6 +564,21 @@ static void vsc_tp_remove(struct spi_device *spi)
 	platform_device_unregister(tp->pdev);
 
 	mutex_destroy(&tp->mutex);
+
+	free_irq(spi->irq, tp);
+}
+
+static void vsc_tp_shutdown(struct spi_device *spi)
+{
+	struct vsc_tp *tp = spi_get_drvdata(spi);
+
+	platform_device_unregister(tp->pdev);
+
+	mutex_destroy(&tp->mutex);
+
+	vsc_tp_reset(tp);
+
+	free_irq(spi->irq, tp);
 }
 
 static const struct acpi_device_id vsc_tp_acpi_ids[] = {
@@ -546,6 +593,7 @@ MODULE_DEVICE_TABLE(acpi, vsc_tp_acpi_ids);
 static struct spi_driver vsc_tp_driver = {
 	.probe = vsc_tp_probe,
 	.remove = vsc_tp_remove,
+	.shutdown = vsc_tp_shutdown,
 	.driver = {
 		.name = "vsc-tp",
 		.acpi_match_table = vsc_tp_acpi_ids,

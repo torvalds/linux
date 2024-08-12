@@ -422,7 +422,7 @@ struct dc_dwb_params {
 	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
 	struct scaling_taps 		scaler_taps;	/* Scaling taps */
 	enum dwb_subsample_position	subsample_position;
-	struct dc_transfer_func *out_transfer_func;
+	const struct dc_transfer_func *out_transfer_func;
 };
 
 /* audio*/
@@ -1035,6 +1035,8 @@ enum replay_FW_Message_type {
 	Replay_Set_Timing_Sync_Supported,
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
+	Replay_Disabled_Adaptive_Sync_SDP,
+	Replay_Set_General_Cmd,
 };
 
 union replay_error_status {
@@ -1050,6 +1052,8 @@ union replay_error_status {
 struct replay_config {
 	/* Replay feature is supported */
 	bool replay_supported;
+	/* Replay caps support DPCD & EDID caps*/
+	bool replay_cap_support;
 	/* Power opt flags that are supported */
 	unsigned int replay_power_opt_supported;
 	/* SMU optimization is supported */
@@ -1088,8 +1092,10 @@ struct replay_settings {
 	uint32_t coasting_vtotal;
 	/* Coasting vtotal table */
 	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Defer Update Coasting vtotal table */
+	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
-	enum replay_link_off_frame_count_level link_off_frame_count_level;
+	uint32_t link_off_frame_count;
 	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
 	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
 	/* Replay last pseudo vtotal set to DMUB */
@@ -1170,9 +1176,102 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum dc_cm2_shaper_3dlut_setting {
+	DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL,
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER,
+	/* Bypassing Shaper will always bypass 3DLUT */
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT
+};
+
+enum dc_cm2_gpu_mem_layout {
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB,
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR,
+	DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm2_gpu_mem_pixel_component_order {
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+};
+
+enum dc_cm2_gpu_mem_format {
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12MSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12LSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10
+};
+
+struct dc_cm2_gpu_mem_format_parameters {
+	enum dc_cm2_gpu_mem_format format;
+	union {
+		struct {
+			/* bias & scale for float only */
+			uint16_t bias;
+			uint16_t scale;
+		} float_params;
+	};
+};
+
+enum dc_cm2_gpu_mem_size {
+	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED
+};
+
+struct dc_cm2_gpu_mem_parameters {
+	struct dc_plane_address addr;
+	enum dc_cm2_gpu_mem_layout layout;
+	struct dc_cm2_gpu_mem_format_parameters format_params;
+	enum dc_cm2_gpu_mem_pixel_component_order component_order;
+	enum dc_cm2_gpu_mem_size  size;
+};
+
+enum dc_cm2_transfer_func_source {
+	DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM,
+	DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
+};
+
+struct dc_cm2_component_settings {
+	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting;
+	bool lut1d_enable;
+};
+
+/*
+ * All pointers in this struct must remain valid for as long as the 3DLUTs are used
+ */
+struct dc_cm2_func_luts {
+	const struct dc_transfer_func *shaper;
+	struct {
+		enum dc_cm2_transfer_func_source lut3d_src;
+		union {
+			const struct dc_3dlut *lut3d_func;
+			struct dc_cm2_gpu_mem_parameters gpu_mem_params;
+		};
+	} lut3d_data;
+	const struct dc_transfer_func *lut1d_func;
+};
+
+struct dc_cm2_parameters {
+	struct dc_cm2_component_settings component_settings;
+	struct dc_cm2_func_luts cm2_luts;
+};
+
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use
 	SUBVP_MAIN, // subvp in use, this stream is main stream
 	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
 };
+
+enum dc_power_source_type {
+	DC_POWER_SOURCE_AC, // wall power
+	DC_POWER_SOURCE_DC, // battery power
+};
+
+struct dc_state_create_params {
+	enum dc_power_source_type power_source;
+};
+
+struct dc_commit_streams_params {
+	struct dc_stream_state **streams;
+	uint8_t stream_count;
+	enum dc_power_source_type power_source;
+};
+
 #endif /* DC_TYPES_H_ */

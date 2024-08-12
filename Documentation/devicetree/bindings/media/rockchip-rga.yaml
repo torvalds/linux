@@ -24,6 +24,7 @@ properties:
           - enum:
               - rockchip,rk3228-rga
               - rockchip,rk3568-rga
+              - rockchip,rk3588-rga
           - const: rockchip,rk3288-rga
 
   reg:

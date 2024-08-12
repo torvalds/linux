@@ -14,6 +14,7 @@
 		simple-audio-card,bitclock-master = <&codec_dai>;
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "verdin-nau8822";
 		simple-audio-card,routing =
 			"Headphones", "LHP",
@@ -34,7 +35,6 @@
 			"Line", "Line In";
 
 		codec_dai: simple-audio-card,codec {
-			clocks = <&audio_refclk1>;
 			sound-dai = <&nau8822_1a>;
 		};
 
@@ -107,6 +107,8 @@
 		reg = <0x1a>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2s1_mclk>;
+		clock-names = "mclk";
+		clocks = <&audio_refclk1>;
 		#sound-dai-cells = <0>;
 	};
 
@@ -181,7 +183,8 @@
 	pinctrl-0 = <&pinctrl_gpio_1>,
 		    <&pinctrl_gpio_2>,
 		    <&pinctrl_gpio_3>,
-		    <&pinctrl_gpio_4>;
+		    <&pinctrl_gpio_4>,
+		    <&pinctrl_pcie_1_reset>;
 };
 
 /* Verdin I2C_3_HDMI */
@@ -229,6 +232,11 @@
 
 /* Verdin CTRL_WAKE1_MICO# */
 &verdin_gpio_keys {
+	status = "okay";
+};
+
+/* Verdin PCIE_1_RESET# */
+&verdin_pcie_1_reset_hog {
 	status = "okay";
 };
 

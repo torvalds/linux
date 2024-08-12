@@ -8,8 +8,6 @@
  * including requesting an invalid register set, updates to/from values
  * in kvm_run.s.regs when kvm_valid_regs and kvm_dirty_regs are toggled.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

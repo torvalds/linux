@@ -24,6 +24,14 @@ struct btree_key_cache {
 	atomic_long_t		nr_freed;
 	atomic_long_t		nr_keys;
 	atomic_long_t		nr_dirty;
+
+	/* shrinker stats */
+	unsigned long		requested_to_free;
+	unsigned long		freed;
+	unsigned long		moved_to_freelist;
+	unsigned long		skipped_dirty;
+	unsigned long		skipped_accessed;
+	unsigned long		skipped_lock_fail;
 };
 
 struct bkey_cached_key {

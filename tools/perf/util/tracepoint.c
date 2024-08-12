@@ -4,10 +4,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/param.h>
 #include <unistd.h>
 
 #include <api/fs/tracing_path.h>
+#include "fncache.h"
 
 int tp_event_has_id(const char *dir_path, struct dirent *evt_dir)
 {
@@ -26,39 +28,25 @@ int tp_event_has_id(const char *dir_path, struct dirent *evt_dir)
 /*
  * Check whether event is in <debugfs_mount_point>/tracing/events
  */
-int is_valid_tracepoint(const char *event_string)
+bool is_valid_tracepoint(const char *event_string)
 {
-	DIR *sys_dir, *evt_dir;
-	struct dirent *sys_dirent, *evt_dirent;
-	char evt_path[MAXPATHLEN];
-	char *dir_path;
+	char *dst, *path = malloc(strlen(event_string) + 4); /* Space for "/id\0". */
+	bool have_file = false; /* Conservatively return false if memory allocation failed. */
+	const char *src;
 
-	sys_dir = tracing_events__opendir();
-	if (!sys_dir)
-		return 0;
+	if (!path)
+		return false;
 
-	for_each_subsystem(sys_dir, sys_dirent) {
-		dir_path = get_events_file(sys_dirent->d_name);
-		if (!dir_path)
-			continue;
-		evt_dir = opendir(dir_path);
-		if (!evt_dir)
-			goto next;
+	/* Copy event_string replacing the ':' with '/'. */
+	for (src = event_string, dst = path; *src; src++, dst++)
+		*dst = (*src == ':') ? '/' : *src;
+	/* Add "/id\0". */
+	memcpy(dst, "/id", 4);
 
-		for_each_event(dir_path, evt_dir, evt_dirent) {
-			snprintf(evt_path, MAXPATHLEN, "%s:%s",
-				 sys_dirent->d_name, evt_dirent->d_name);
-			if (!strcmp(evt_path, event_string)) {
-				closedir(evt_dir);
-				put_events_file(dir_path);
-				closedir(sys_dir);
-				return 1;
-			}
-		}
-		closedir(evt_dir);
-next:
-		put_events_file(dir_path);
-	}
-	closedir(sys_dir);
-	return 0;
+	dst = get_events_file(path);
+	if (dst)
+		have_file = file_available(dst);
+	free(dst);
+	free(path);
+	return have_file;
 }

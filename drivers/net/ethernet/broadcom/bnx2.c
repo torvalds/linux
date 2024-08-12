@@ -7912,7 +7912,7 @@ bnx2_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return bnx2_change_ring_size(bp, bp->rx_ring_size, bp->tx_ring_size,
 				     false);
 }

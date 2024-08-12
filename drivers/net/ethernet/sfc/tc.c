@@ -273,11 +273,10 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 			match->value.ip_firstfrag = fm.key->flags & FLOW_DIS_FIRST_FRAG;
 			match->mask.ip_firstfrag = true;
 		}
-		if (fm.mask->flags & ~(FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
-					       fm.mask->flags);
+		if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT |
+						     FLOW_DIS_FIRST_FRAG,
+						     fm.mask->flags, extack))
 			return -EOPNOTSUPP;
-		}
 	}
 	if (dissector->used_keys &
 	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
@@ -388,11 +387,8 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		struct flow_match_control fm;
 
 		flow_rule_match_enc_control(rule, &fm);
-		if (fm.mask->flags) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on enc_control.flags %#x",
-					       fm.mask->flags);
+		if (flow_rule_has_enc_control_flags(fm.mask->flags, extack))
 			return -EOPNOTSUPP;
-		}
 		if (!IS_ALL_ONES(fm.mask->addr_type)) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported enc addr_type mask %u (key %u)",
 					       fm.mask->addr_type,

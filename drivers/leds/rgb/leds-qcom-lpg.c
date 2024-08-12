@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017-2022 Linaro Ltd
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
@@ -254,6 +254,9 @@ static int lpg_clear_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 	u8 val = 0;
 	int rc;
 
+	if (!lpg->lpg_chan_sdam)
+		return 0;
+
 	lpg->pbs_en_bitmap &= (~lut_mask);
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
@@ -275,6 +278,9 @@ static int lpg_set_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 {
 	u8 val = PBS_SW_TRIG_BIT;
 	int rc;
+
+	if (!lpg->lpg_chan_sdam)
+		return 0;
 
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
@@ -1693,6 +1699,13 @@ static const struct lpg_data pm8941_lpg_data = {
 	},
 };
 
+static const struct lpg_data pmi8950_pwm_data = {
+	.num_channels = 1,
+	.channels = (const struct lpg_channel_data[]) {
+		{ .base = 0xb000 },
+	},
+};
+
 static const struct lpg_data pm8994_lpg_data = {
 	.lut_base = 0xb000,
 	.lut_size = 64,
@@ -1819,6 +1832,7 @@ static const struct of_device_id lpg_of_table[] = {
 	{ .compatible = "qcom,pm8941-lpg", .data = &pm8941_lpg_data },
 	{ .compatible = "qcom,pm8994-lpg", .data = &pm8994_lpg_data },
 	{ .compatible = "qcom,pmi632-lpg", .data = &pmi632_lpg_data },
+	{ .compatible = "qcom,pmi8950-pwm", .data = &pmi8950_pwm_data },
 	{ .compatible = "qcom,pmi8994-lpg", .data = &pmi8994_lpg_data },
 	{ .compatible = "qcom,pmi8998-lpg", .data = &pmi8998_lpg_data },
 	{ .compatible = "qcom,pmc8180c-lpg", .data = &pm8150l_lpg_data },

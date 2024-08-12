@@ -38,6 +38,7 @@
 #include "ui/browsers/hists.h"
 #include "thread.h"
 #include "mem2node.h"
+#include "mem-info.h"
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
@@ -529,7 +530,7 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[20];
 
 	if (he->mem_info)
-		addr = cl_address(he->mem_info->daddr.addr, chk_double_cl);
+		addr = cl_address(mem_info__daddr(he->mem_info)->addr, chk_double_cl);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
@@ -567,7 +568,7 @@ static int offset_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[20];
 
 	if (he->mem_info)
-		addr = cl_offset(he->mem_info->daddr.al_addr, chk_double_cl);
+		addr = cl_offset(mem_info__daddr(he->mem_info)->al_addr, chk_double_cl);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
@@ -579,10 +580,10 @@ offset_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	uint64_t l = 0, r = 0;
 
 	if (left->mem_info)
-		l = cl_offset(left->mem_info->daddr.addr, chk_double_cl);
+		l = cl_offset(mem_info__daddr(left->mem_info)->addr, chk_double_cl);
 
 	if (right->mem_info)
-		r = cl_offset(right->mem_info->daddr.addr, chk_double_cl);
+		r = cl_offset(mem_info__daddr(right->mem_info)->addr, chk_double_cl);
 
 	return (int64_t)(r - l);
 }
@@ -596,7 +597,7 @@ iaddr_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[20];
 
 	if (he->mem_info)
-		addr = he->mem_info->iaddr.addr;
+		addr = mem_info__iaddr(he->mem_info)->addr;
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
@@ -2050,7 +2051,7 @@ static int hpp_list__parse(struct perf_hpp_list *hpp_list,
 	perf_hpp__setup_output_field(hpp_list);
 
 	/*
-	 * We dont need other sorting keys other than those
+	 * We don't need other sorting keys other than those
 	 * we already specified. It also really slows down
 	 * the processing a lot with big number of output
 	 * fields, so switching this off for c2c.
@@ -2319,11 +2320,7 @@ static int setup_nodes(struct perf_session *session)
 
 		nodes[node] = set;
 
-		/* empty node, skip */
-		if (perf_cpu_map__has_any_cpu_or_is_empty(map))
-			continue;
-
-		perf_cpu_map__for_each_cpu(cpu, idx, map) {
+		perf_cpu_map__for_each_cpu_skip_any(cpu, idx, map) {
 			__set_bit(cpu.cpu, set);
 
 			if (WARN_ONCE(cpu2node[cpu.cpu] != -1, "node/cpu topology bug"))
@@ -2596,7 +2593,7 @@ perf_c2c_cacheline_browser__title(struct hist_browser *browser,
 	he = cl_browser->he;
 
 	if (he->mem_info)
-		addr = cl_address(he->mem_info->daddr.addr, chk_double_cl);
+		addr = cl_address(mem_info__daddr(he->mem_info)->addr, chk_double_cl);
 
 	scnprintf(bf, size, "Cacheline 0x%lx", addr);
 	return 0;

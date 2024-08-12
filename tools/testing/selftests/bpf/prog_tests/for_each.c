@@ -5,6 +5,7 @@
 #include "for_each_hash_map_elem.skel.h"
 #include "for_each_array_map_elem.skel.h"
 #include "for_each_map_elem_write_key.skel.h"
+#include "for_each_multi_maps.skel.h"
 
 static unsigned int duration;
 
@@ -143,6 +144,65 @@ static void test_write_map_key(void)
 		for_each_map_elem_write_key__destroy(skel);
 }
 
+static void test_multi_maps(void)
+{
+	struct for_each_multi_maps *skel;
+	__u64 val, array_total, hash_total;
+	__u32 key, max_entries;
+	int i, err;
+
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
+
+	skel = for_each_multi_maps__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "for_each_multi_maps__open_and_load"))
+		return;
+
+	array_total = 0;
+	max_entries = bpf_map__max_entries(skel->maps.arraymap);
+	for (i = 0; i < max_entries; i++) {
+		key = i;
+		val = i + 1;
+		array_total += val;
+		err = bpf_map__update_elem(skel->maps.arraymap, &key, sizeof(key),
+					   &val, sizeof(val), BPF_ANY);
+		if (!ASSERT_OK(err, "array_map_update"))
+			goto out;
+	}
+
+	hash_total = 0;
+	max_entries = bpf_map__max_entries(skel->maps.hashmap);
+	for (i = 0; i < max_entries; i++) {
+		key = i + 100;
+		val = i + 1;
+		hash_total += val;
+		err = bpf_map__update_elem(skel->maps.hashmap, &key, sizeof(key),
+					   &val, sizeof(val), BPF_ANY);
+		if (!ASSERT_OK(err, "hash_map_update"))
+			goto out;
+	}
+
+	skel->bss->data_output = 0;
+	skel->bss->use_array = 1;
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_pkt_access), &topts);
+	ASSERT_OK(err, "bpf_prog_test_run_opts");
+	ASSERT_OK(topts.retval, "retval");
+	ASSERT_EQ(skel->bss->data_output, array_total, "array output");
+
+	skel->bss->data_output = 0;
+	skel->bss->use_array = 0;
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_pkt_access), &topts);
+	ASSERT_OK(err, "bpf_prog_test_run_opts");
+	ASSERT_OK(topts.retval, "retval");
+	ASSERT_EQ(skel->bss->data_output, hash_total, "hash output");
+
+out:
+	for_each_multi_maps__destroy(skel);
+}
+
 void test_for_each(void)
 {
 	if (test__start_subtest("hash_map"))
@@ -151,4 +211,6 @@ void test_for_each(void)
 		test_array_map();
 	if (test__start_subtest("write_map_key"))
 		test_write_map_key();
+	if (test__start_subtest("multi_maps"))
+		test_multi_maps();
 }

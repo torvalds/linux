@@ -581,7 +581,7 @@ static int hinic_change_mtu(struct net_device *netdev, int new_mtu)
 	if (err)
 		netif_err(nic_dev, drv, netdev, "Failed to set port mtu\n");
 	else
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	return err;
 }

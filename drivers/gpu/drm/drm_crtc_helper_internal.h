@@ -26,10 +26,15 @@
  * implementation details and are not exported to drivers.
  */
 
-#include <drm/drm_connector.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_modes.h>
+#ifndef __DRM_CRTC_HELPER_INTERNAL_H__
+#define __DRM_CRTC_HELPER_INTERNAL_H__
+
+enum drm_mode_status;
+struct drm_connector;
+struct drm_crtc;
+struct drm_display_mode;
+struct drm_encoder;
+struct drm_modeset_acquire_ctx;
 
 /* drm_probe_helper.c */
 enum drm_mode_status drm_crtc_mode_valid(struct drm_crtc *crtc,
@@ -44,3 +49,5 @@ drm_connector_mode_valid(struct drm_connector *connector,
 
 struct drm_encoder *
 drm_connector_get_single_encoder(struct drm_connector *connector);
+
+#endif /* __DRM_CRTC_HELPER_INTERNAL_H__ */

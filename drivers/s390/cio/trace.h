@@ -50,7 +50,7 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 		__entry->devno = schib->pmcw.dev;
 		__entry->schib = *schib;
 		__entry->pmcw_ena = schib->pmcw.ena;
-		__entry->pmcw_st = schib->pmcw.ena;
+		__entry->pmcw_st = schib->pmcw.st;
 		__entry->pmcw_dnv = schib->pmcw.dnv;
 		__entry->pmcw_dev = schib->pmcw.dev;
 		__entry->pmcw_lpm = schib->pmcw.lpm;
@@ -169,7 +169,7 @@ TRACE_EVENT(s390_cio_tpi,
 		else if (addr)
 			__entry->tpi_info = *addr;
 		else
-			__entry->tpi_info = S390_lowcore.tpi_info;
+			__entry->tpi_info = get_lowcore()->tpi_info;
 		__entry->cssid = __entry->tpi_info.schid.cssid;
 		__entry->ssid = __entry->tpi_info.schid.ssid;
 		__entry->schno = __entry->tpi_info.schid.sch_no;

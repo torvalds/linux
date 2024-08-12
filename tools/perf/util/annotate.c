@@ -16,6 +16,7 @@
 #include "build-id.h"
 #include "color.h"
 #include "config.h"
+#include "disasm.h"
 #include "dso.h"
 #include "env.h"
 #include "map.h"
@@ -64,47 +65,6 @@
 /* global annotation options */
 struct annotation_options annotate_opts;
 
-static regex_t	 file_lineno;
-
-static struct ins_ops *ins__find(struct arch *arch, const char *name);
-static void ins__sort(struct arch *arch);
-static int disasm_line__parse(char *line, const char **namep, char **rawp);
-static int call__scnprintf(struct ins *ins, char *bf, size_t size,
-			  struct ins_operands *ops, int max_ins_name);
-static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
-			  struct ins_operands *ops, int max_ins_name);
-
-struct arch {
-	const char	*name;
-	struct ins	*instructions;
-	size_t		nr_instructions;
-	size_t		nr_instructions_allocated;
-	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
-	bool		sorted_instructions;
-	bool		initialized;
-	const char	*insn_suffix;
-	void		*priv;
-	unsigned int	model;
-	unsigned int	family;
-	int		(*init)(struct arch *arch, char *cpuid);
-	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
-					const char *ins2);
-	struct		{
-		char comment_char;
-		char skip_functions_char;
-		char register_char;
-		char memory_ref_char;
-	} objdump;
-};
-
-static struct ins_ops call_ops;
-static struct ins_ops dec_ops;
-static struct ins_ops jump_ops;
-static struct ins_ops mov_ops;
-static struct ins_ops nop_ops;
-static struct ins_ops lock_ops;
-static struct ins_ops ret_ops;
-
 /* Data type collection debug statistics */
 struct annotated_data_stat ann_data_stat;
 LIST_HEAD(ann_insn_stat);
@@ -117,752 +77,12 @@ struct annotated_data_type stackop_type = {
 	},
 };
 
-static int arch__grow_instructions(struct arch *arch)
-{
-	struct ins *new_instructions;
-	size_t new_nr_allocated;
-
-	if (arch->nr_instructions_allocated == 0 && arch->instructions)
-		goto grow_from_non_allocated_table;
-
-	new_nr_allocated = arch->nr_instructions_allocated + 128;
-	new_instructions = realloc(arch->instructions, new_nr_allocated * sizeof(struct ins));
-	if (new_instructions == NULL)
-		return -1;
-
-out_update_instructions:
-	arch->instructions = new_instructions;
-	arch->nr_instructions_allocated = new_nr_allocated;
-	return 0;
-
-grow_from_non_allocated_table:
-	new_nr_allocated = arch->nr_instructions + 128;
-	new_instructions = calloc(new_nr_allocated, sizeof(struct ins));
-	if (new_instructions == NULL)
-		return -1;
-
-	memcpy(new_instructions, arch->instructions, arch->nr_instructions);
-	goto out_update_instructions;
-}
-
-static int arch__associate_ins_ops(struct arch* arch, const char *name, struct ins_ops *ops)
-{
-	struct ins *ins;
-
-	if (arch->nr_instructions == arch->nr_instructions_allocated &&
-	    arch__grow_instructions(arch))
-		return -1;
-
-	ins = &arch->instructions[arch->nr_instructions];
-	ins->name = strdup(name);
-	if (!ins->name)
-		return -1;
-
-	ins->ops  = ops;
-	arch->nr_instructions++;
-
-	ins__sort(arch);
-	return 0;
-}
-
-#include "arch/arc/annotate/instructions.c"
-#include "arch/arm/annotate/instructions.c"
-#include "arch/arm64/annotate/instructions.c"
-#include "arch/csky/annotate/instructions.c"
-#include "arch/loongarch/annotate/instructions.c"
-#include "arch/mips/annotate/instructions.c"
-#include "arch/x86/annotate/instructions.c"
-#include "arch/powerpc/annotate/instructions.c"
-#include "arch/riscv64/annotate/instructions.c"
-#include "arch/s390/annotate/instructions.c"
-#include "arch/sparc/annotate/instructions.c"
-
-static struct arch architectures[] = {
-	{
-		.name = "arc",
-		.init = arc__annotate_init,
-	},
-	{
-		.name = "arm",
-		.init = arm__annotate_init,
-	},
-	{
-		.name = "arm64",
-		.init = arm64__annotate_init,
-	},
-	{
-		.name = "csky",
-		.init = csky__annotate_init,
-	},
-	{
-		.name = "mips",
-		.init = mips__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
-	},
-	{
-		.name = "x86",
-		.init = x86__annotate_init,
-		.instructions = x86__instructions,
-		.nr_instructions = ARRAY_SIZE(x86__instructions),
-		.insn_suffix = "bwlq",
-		.objdump =  {
-			.comment_char = '#',
-			.register_char = '%',
-			.memory_ref_char = '(',
-		},
-	},
-	{
-		.name = "powerpc",
-		.init = powerpc__annotate_init,
-	},
-	{
-		.name = "riscv64",
-		.init = riscv64__annotate_init,
-	},
-	{
-		.name = "s390",
-		.init = s390__annotate_init,
-		.objdump =  {
-			.comment_char = '#',
-		},
-	},
-	{
-		.name = "sparc",
-		.init = sparc__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
-	},
-	{
-		.name = "loongarch",
-		.init = loongarch__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
+struct annotated_data_type canary_type = {
+	.self = {
+		.type_name = (char *)"(stack canary)",
+		.children = LIST_HEAD_INIT(canary_type.self.children),
 	},
 };
-
-static void ins__delete(struct ins_operands *ops)
-{
-	if (ops == NULL)
-		return;
-	zfree(&ops->source.raw);
-	zfree(&ops->source.name);
-	zfree(&ops->target.raw);
-	zfree(&ops->target.name);
-}
-
-static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
-			      struct ins_operands *ops, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->raw);
-}
-
-int ins__scnprintf(struct ins *ins, char *bf, size_t size,
-		   struct ins_operands *ops, int max_ins_name)
-{
-	if (ins->ops->scnprintf)
-		return ins->ops->scnprintf(ins, bf, size, ops, max_ins_name);
-
-	return ins__raw_scnprintf(ins, bf, size, ops, max_ins_name);
-}
-
-bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
-{
-	if (!arch || !arch->ins_is_fused)
-		return false;
-
-	return arch->ins_is_fused(arch, ins1, ins2);
-}
-
-static int call__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
-{
-	char *endptr, *tok, *name;
-	struct map *map = ms->map;
-	struct addr_map_symbol target = {
-		.ms = { .map = map, },
-	};
-
-	ops->target.addr = strtoull(ops->raw, &endptr, 16);
-
-	name = strchr(endptr, '<');
-	if (name == NULL)
-		goto indirect_call;
-
-	name++;
-
-	if (arch->objdump.skip_functions_char &&
-	    strchr(name, arch->objdump.skip_functions_char))
-		return -1;
-
-	tok = strchr(name, '>');
-	if (tok == NULL)
-		return -1;
-
-	*tok = '\0';
-	ops->target.name = strdup(name);
-	*tok = '>';
-
-	if (ops->target.name == NULL)
-		return -1;
-find_target:
-	target.addr = map__objdump_2mem(map, ops->target.addr);
-
-	if (maps__find_ams(ms->maps, &target) == 0 &&
-	    map__rip_2objdump(target.ms.map, map__map_ip(target.ms.map, target.addr)) == ops->target.addr)
-		ops->target.sym = target.ms.sym;
-
-	return 0;
-
-indirect_call:
-	tok = strchr(endptr, '*');
-	if (tok != NULL) {
-		endptr++;
-
-		/* Indirect call can use a non-rip register and offset: callq  *0x8(%rbx).
-		 * Do not parse such instruction.  */
-		if (strstr(endptr, "(%r") == NULL)
-			ops->target.addr = strtoull(endptr, NULL, 16);
-	}
-	goto find_target;
-}
-
-static int call__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
-{
-	if (ops->target.sym)
-		return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->target.sym->name);
-
-	if (ops->target.addr == 0)
-		return ins__raw_scnprintf(ins, bf, size, ops, max_ins_name);
-
-	if (ops->target.name)
-		return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->target.name);
-
-	return scnprintf(bf, size, "%-*s *%" PRIx64, max_ins_name, ins->name, ops->target.addr);
-}
-
-static struct ins_ops call_ops = {
-	.parse	   = call__parse,
-	.scnprintf = call__scnprintf,
-};
-
-bool ins__is_call(const struct ins *ins)
-{
-	return ins->ops == &call_ops || ins->ops == &s390_call_ops || ins->ops == &loongarch_call_ops;
-}
-
-/*
- * Prevents from matching commas in the comment section, e.g.:
- * ffff200008446e70:       b.cs    ffff2000084470f4 <generic_exec_single+0x314>  // b.hs, b.nlast
- *
- * and skip comma as part of function arguments, e.g.:
- * 1d8b4ac <linemap_lookup(line_maps const*, unsigned int)+0xcc>
- */
-static inline const char *validate_comma(const char *c, struct ins_operands *ops)
-{
-	if (ops->jump.raw_comment && c > ops->jump.raw_comment)
-		return NULL;
-
-	if (ops->jump.raw_func_start && c > ops->jump.raw_func_start)
-		return NULL;
-
-	return c;
-}
-
-static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
-{
-	struct map *map = ms->map;
-	struct symbol *sym = ms->sym;
-	struct addr_map_symbol target = {
-		.ms = { .map = map, },
-	};
-	const char *c = strchr(ops->raw, ',');
-	u64 start, end;
-
-	ops->jump.raw_comment = strchr(ops->raw, arch->objdump.comment_char);
-	ops->jump.raw_func_start = strchr(ops->raw, '<');
-
-	c = validate_comma(c, ops);
-
-	/*
-	 * Examples of lines to parse for the _cpp_lex_token@@Base
-	 * function:
-	 *
-	 * 1159e6c: jne    115aa32 <_cpp_lex_token@@Base+0xf92>
-	 * 1159e8b: jne    c469be <cpp_named_operator2name@@Base+0xa72>
-	 *
-	 * The first is a jump to an offset inside the same function,
-	 * the second is to another function, i.e. that 0xa72 is an
-	 * offset in the cpp_named_operator2name@@base function.
-	 */
-	/*
-	 * skip over possible up to 2 operands to get to address, e.g.:
-	 * tbnz	 w0, #26, ffff0000083cd190 <security_file_permission+0xd0>
-	 */
-	if (c++ != NULL) {
-		ops->target.addr = strtoull(c, NULL, 16);
-		if (!ops->target.addr) {
-			c = strchr(c, ',');
-			c = validate_comma(c, ops);
-			if (c++ != NULL)
-				ops->target.addr = strtoull(c, NULL, 16);
-		}
-	} else {
-		ops->target.addr = strtoull(ops->raw, NULL, 16);
-	}
-
-	target.addr = map__objdump_2mem(map, ops->target.addr);
-	start = map__unmap_ip(map, sym->start);
-	end = map__unmap_ip(map, sym->end);
-
-	ops->target.outside = target.addr < start || target.addr > end;
-
-	/*
-	 * FIXME: things like this in _cpp_lex_token (gcc's cc1 program):
-
-		cpp_named_operator2name@@Base+0xa72
-
-	 * Point to a place that is after the cpp_named_operator2name
-	 * boundaries, i.e.  in the ELF symbol table for cc1
-	 * cpp_named_operator2name is marked as being 32-bytes long, but it in
-	 * fact is much larger than that, so we seem to need a symbols__find()
-	 * routine that looks for >= current->start and  < next_symbol->start,
-	 * possibly just for C++ objects?
-	 *
-	 * For now lets just make some progress by marking jumps to outside the
-	 * current function as call like.
-	 *
-	 * Actual navigation will come next, with further understanding of how
-	 * the symbol searching and disassembly should be done.
-	 */
-	if (maps__find_ams(ms->maps, &target) == 0 &&
-	    map__rip_2objdump(target.ms.map, map__map_ip(target.ms.map, target.addr)) == ops->target.addr)
-		ops->target.sym = target.ms.sym;
-
-	if (!ops->target.outside) {
-		ops->target.offset = target.addr - start;
-		ops->target.offset_avail = true;
-	} else {
-		ops->target.offset_avail = false;
-	}
-
-	return 0;
-}
-
-static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
-{
-	const char *c;
-
-	if (!ops->target.addr || ops->target.offset < 0)
-		return ins__raw_scnprintf(ins, bf, size, ops, max_ins_name);
-
-	if (ops->target.outside && ops->target.sym != NULL)
-		return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->target.sym->name);
-
-	c = strchr(ops->raw, ',');
-	c = validate_comma(c, ops);
-
-	if (c != NULL) {
-		const char *c2 = strchr(c + 1, ',');
-
-		c2 = validate_comma(c2, ops);
-		/* check for 3-op insn */
-		if (c2 != NULL)
-			c = c2;
-		c++;
-
-		/* mirror arch objdump's space-after-comma style */
-		if (*c == ' ')
-			c++;
-	}
-
-	return scnprintf(bf, size, "%-*s %.*s%" PRIx64, max_ins_name,
-			 ins->name, c ? c - ops->raw : 0, ops->raw,
-			 ops->target.offset);
-}
-
-static void jump__delete(struct ins_operands *ops __maybe_unused)
-{
-	/*
-	 * The ops->jump.raw_comment and ops->jump.raw_func_start belong to the
-	 * raw string, don't free them.
-	 */
-}
-
-static struct ins_ops jump_ops = {
-	.free	   = jump__delete,
-	.parse	   = jump__parse,
-	.scnprintf = jump__scnprintf,
-};
-
-bool ins__is_jump(const struct ins *ins)
-{
-	return ins->ops == &jump_ops || ins->ops == &loongarch_jump_ops;
-}
-
-static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
-{
-	char *endptr, *name, *t;
-
-	if (strstr(raw, "(%rip)") == NULL)
-		return 0;
-
-	*addrp = strtoull(comment, &endptr, 16);
-	if (endptr == comment)
-		return 0;
-	name = strchr(endptr, '<');
-	if (name == NULL)
-		return -1;
-
-	name++;
-
-	t = strchr(name, '>');
-	if (t == NULL)
-		return 0;
-
-	*t = '\0';
-	*namep = strdup(name);
-	*t = '>';
-
-	return 0;
-}
-
-static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
-{
-	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
-	if (ops->locked.ops == NULL)
-		return 0;
-
-	if (disasm_line__parse(ops->raw, &ops->locked.ins.name, &ops->locked.ops->raw) < 0)
-		goto out_free_ops;
-
-	ops->locked.ins.ops = ins__find(arch, ops->locked.ins.name);
-
-	if (ops->locked.ins.ops == NULL)
-		goto out_free_ops;
-
-	if (ops->locked.ins.ops->parse &&
-	    ops->locked.ins.ops->parse(arch, ops->locked.ops, ms) < 0)
-		goto out_free_ops;
-
-	return 0;
-
-out_free_ops:
-	zfree(&ops->locked.ops);
-	return 0;
-}
-
-static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
-{
-	int printed;
-
-	if (ops->locked.ins.ops == NULL)
-		return ins__raw_scnprintf(ins, bf, size, ops, max_ins_name);
-
-	printed = scnprintf(bf, size, "%-*s ", max_ins_name, ins->name);
-	return printed + ins__scnprintf(&ops->locked.ins, bf + printed,
-					size - printed, ops->locked.ops, max_ins_name);
-}
-
-static void lock__delete(struct ins_operands *ops)
-{
-	struct ins *ins = &ops->locked.ins;
-
-	if (ins->ops && ins->ops->free)
-		ins->ops->free(ops->locked.ops);
-	else
-		ins__delete(ops->locked.ops);
-
-	zfree(&ops->locked.ops);
-	zfree(&ops->target.raw);
-	zfree(&ops->target.name);
-}
-
-static struct ins_ops lock_ops = {
-	.free	   = lock__delete,
-	.parse	   = lock__parse,
-	.scnprintf = lock__scnprintf,
-};
-
-/*
- * Check if the operand has more than one registers like x86 SIB addressing:
- *   0x1234(%rax, %rbx, 8)
- *
- * But it doesn't care segment selectors like %gs:0x5678(%rcx), so just check
- * the input string after 'memory_ref_char' if exists.
- */
-static bool check_multi_regs(struct arch *arch, const char *op)
-{
-	int count = 0;
-
-	if (arch->objdump.register_char == 0)
-		return false;
-
-	if (arch->objdump.memory_ref_char) {
-		op = strchr(op, arch->objdump.memory_ref_char);
-		if (op == NULL)
-			return false;
-	}
-
-	while ((op = strchr(op, arch->objdump.register_char)) != NULL) {
-		count++;
-		op++;
-	}
-
-	return count > 1;
-}
-
-static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
-{
-	char *s = strchr(ops->raw, ','), *target, *comment, prev;
-
-	if (s == NULL)
-		return -1;
-
-	*s = '\0';
-
-	/*
-	 * x86 SIB addressing has something like 0x8(%rax, %rcx, 1)
-	 * then it needs to have the closing parenthesis.
-	 */
-	if (strchr(ops->raw, '(')) {
-		*s = ',';
-		s = strchr(ops->raw, ')');
-		if (s == NULL || s[1] != ',')
-			return -1;
-		*++s = '\0';
-	}
-
-	ops->source.raw = strdup(ops->raw);
-	*s = ',';
-
-	if (ops->source.raw == NULL)
-		return -1;
-
-	ops->source.multi_regs = check_multi_regs(arch, ops->source.raw);
-
-	target = skip_spaces(++s);
-	comment = strchr(s, arch->objdump.comment_char);
-
-	if (comment != NULL)
-		s = comment - 1;
-	else
-		s = strchr(s, '\0') - 1;
-
-	while (s > target && isspace(s[0]))
-		--s;
-	s++;
-	prev = *s;
-	*s = '\0';
-
-	ops->target.raw = strdup(target);
-	*s = prev;
-
-	if (ops->target.raw == NULL)
-		goto out_free_source;
-
-	ops->target.multi_regs = check_multi_regs(arch, ops->target.raw);
-
-	if (comment == NULL)
-		return 0;
-
-	comment = skip_spaces(comment);
-	comment__symbol(ops->source.raw, comment + 1, &ops->source.addr, &ops->source.name);
-	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
-
-	return 0;
-
-out_free_source:
-	zfree(&ops->source.raw);
-	return -1;
-}
-
-static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s %s,%s", max_ins_name, ins->name,
-			 ops->source.name ?: ops->source.raw,
-			 ops->target.name ?: ops->target.raw);
-}
-
-static struct ins_ops mov_ops = {
-	.parse	   = mov__parse,
-	.scnprintf = mov__scnprintf,
-};
-
-static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
-{
-	char *target, *comment, *s, prev;
-
-	target = s = ops->raw;
-
-	while (s[0] != '\0' && !isspace(s[0]))
-		++s;
-	prev = *s;
-	*s = '\0';
-
-	ops->target.raw = strdup(target);
-	*s = prev;
-
-	if (ops->target.raw == NULL)
-		return -1;
-
-	comment = strchr(s, arch->objdump.comment_char);
-	if (comment == NULL)
-		return 0;
-
-	comment = skip_spaces(comment);
-	comment__symbol(ops->target.raw, comment + 1, &ops->target.addr, &ops->target.name);
-
-	return 0;
-}
-
-static int dec__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name,
-			 ops->target.name ?: ops->target.raw);
-}
-
-static struct ins_ops dec_ops = {
-	.parse	   = dec__parse,
-	.scnprintf = dec__scnprintf,
-};
-
-static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
-			  struct ins_operands *ops __maybe_unused, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s", max_ins_name, "nop");
-}
-
-static struct ins_ops nop_ops = {
-	.scnprintf = nop__scnprintf,
-};
-
-static struct ins_ops ret_ops = {
-	.scnprintf = ins__raw_scnprintf,
-};
-
-bool ins__is_ret(const struct ins *ins)
-{
-	return ins->ops == &ret_ops;
-}
-
-bool ins__is_lock(const struct ins *ins)
-{
-	return ins->ops == &lock_ops;
-}
-
-static int ins__key_cmp(const void *name, const void *insp)
-{
-	const struct ins *ins = insp;
-
-	return strcmp(name, ins->name);
-}
-
-static int ins__cmp(const void *a, const void *b)
-{
-	const struct ins *ia = a;
-	const struct ins *ib = b;
-
-	return strcmp(ia->name, ib->name);
-}
-
-static void ins__sort(struct arch *arch)
-{
-	const int nmemb = arch->nr_instructions;
-
-	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
-}
-
-static struct ins_ops *__ins__find(struct arch *arch, const char *name)
-{
-	struct ins *ins;
-	const int nmemb = arch->nr_instructions;
-
-	if (!arch->sorted_instructions) {
-		ins__sort(arch);
-		arch->sorted_instructions = true;
-	}
-
-	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
-	if (ins)
-		return ins->ops;
-
-	if (arch->insn_suffix) {
-		char tmp[32];
-		char suffix;
-		size_t len = strlen(name);
-
-		if (len == 0 || len >= sizeof(tmp))
-			return NULL;
-
-		suffix = name[len - 1];
-		if (strchr(arch->insn_suffix, suffix) == NULL)
-			return NULL;
-
-		strcpy(tmp, name);
-		tmp[len - 1] = '\0'; /* remove the suffix and check again */
-
-		ins = bsearch(tmp, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
-	}
-	return ins ? ins->ops : NULL;
-}
-
-static struct ins_ops *ins__find(struct arch *arch, const char *name)
-{
-	struct ins_ops *ops = __ins__find(arch, name);
-
-	if (!ops && arch->associate_instruction_ops)
-		ops = arch->associate_instruction_ops(arch, name);
-
-	return ops;
-}
-
-static int arch__key_cmp(const void *name, const void *archp)
-{
-	const struct arch *arch = archp;
-
-	return strcmp(name, arch->name);
-}
-
-static int arch__cmp(const void *a, const void *b)
-{
-	const struct arch *aa = a;
-	const struct arch *ab = b;
-
-	return strcmp(aa->name, ab->name);
-}
-
-static void arch__sort(void)
-{
-	const int nmemb = ARRAY_SIZE(architectures);
-
-	qsort(architectures, nmemb, sizeof(struct arch), arch__cmp);
-}
-
-static struct arch *arch__find(const char *name)
-{
-	const int nmemb = ARRAY_SIZE(architectures);
-	static bool sorted;
-
-	if (!sorted) {
-		arch__sort();
-		sorted = true;
-	}
-
-	return bsearch(name, architectures, nmemb, sizeof(struct arch), arch__key_cmp);
-}
-
-bool arch__is(struct arch *arch, const char *name)
-{
-	return !strcmp(arch->name, name);
-}
 
 /* symbol histogram: key = offset << 16 | evsel->core.idx */
 static size_t sym_hist_hash(long key, void *ctx __maybe_unused)
@@ -887,10 +107,17 @@ static struct annotated_source *annotated_source__new(void)
 
 static __maybe_unused void annotated_source__delete(struct annotated_source *src)
 {
+	struct hashmap_entry *cur;
+	size_t bkt;
+
 	if (src == NULL)
 		return;
 
-	hashmap__free(src->samples);
+	if (src->samples) {
+		hashmap__for_each_entry(src->samples, cur, bkt)
+			zfree(&cur->pvalue);
+		hashmap__free(src->samples);
+	}
 	zfree(&src->histograms);
 	free(src);
 }
@@ -1149,14 +376,33 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	return err;
 }
 
+struct annotation_line *annotated_source__get_line(struct annotated_source *src,
+						   s64 offset)
+{
+	struct annotation_line *al;
+
+	list_for_each_entry(al, &src->source, node) {
+		if (al->offset == offset)
+			return al;
+	}
+	return NULL;
+}
+
 static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
 {
+	struct annotation_line *al;
 	unsigned n_insn = 0;
-	u64 offset;
 
-	for (offset = start; offset <= end; offset++) {
-		if (notes->src->offsets[offset])
-			n_insn++;
+	al = annotated_source__get_line(notes->src, start);
+	if (al == NULL)
+		return 0;
+
+	list_for_each_entry_from(al, &notes->src->source, node) {
+		if (al->offset == -1)
+			continue;
+		if ((u64)al->offset > end)
+			break;
+		n_insn++;
 	}
 	return n_insn;
 }
@@ -1173,10 +419,10 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 {
 	unsigned n_insn;
 	unsigned int cover_insn = 0;
-	u64 offset;
 
 	n_insn = annotation__count_insn(notes, start, end);
 	if (n_insn && ch->num && ch->cycles) {
+		struct annotation_line *al;
 		struct annotated_branch *branch;
 		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
 
@@ -1184,10 +430,16 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 		if (ch->reset >= 0x7fff)
 			return;
 
-		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al = notes->src->offsets[offset];
+		al = annotated_source__get_line(notes->src, start);
+		if (al == NULL)
+			return;
 
-			if (al && al->cycles && al->cycles->ipc == 0.0) {
+		list_for_each_entry_from(al, &notes->src->source, node) {
+			if (al->offset == -1)
+				continue;
+			if ((u64)al->offset > end)
+				break;
+			if (al->cycles && al->cycles->ipc == 0.0) {
 				al->cycles->ipc = ipc;
 				cover_insn++;
 			}
@@ -1223,7 +475,7 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 		if (ch && ch->cycles) {
 			struct annotation_line *al;
 
-			al = notes->src->offsets[offset];
+			al = annotated_source__get_line(notes->src, offset);
 			if (al && al->cycles == NULL) {
 				al->cycles = zalloc(sizeof(*al->cycles));
 				if (al->cycles == NULL) {
@@ -1246,7 +498,9 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 			struct cyc_hist *ch = &notes->branch->cycles_hist[offset];
 
 			if (ch && ch->cycles) {
-				struct annotation_line *al = notes->src->offsets[offset];
+				struct annotation_line *al;
+
+				al = annotated_source__get_line(notes->src, offset);
 				if (al)
 					zfree(&al->cycles);
 			}
@@ -1269,142 +523,6 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *samp
 	return symbol__inc_addr_samples(&he->ms, evsel, ip, sample);
 }
 
-static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map_symbol *ms)
-{
-	dl->ins.ops = ins__find(arch, dl->ins.name);
-
-	if (!dl->ins.ops)
-		return;
-
-	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, ms) < 0)
-		dl->ins.ops = NULL;
-}
-
-static int disasm_line__parse(char *line, const char **namep, char **rawp)
-{
-	char tmp, *name = skip_spaces(line);
-
-	if (name[0] == '\0')
-		return -1;
-
-	*rawp = name + 1;
-
-	while ((*rawp)[0] != '\0' && !isspace((*rawp)[0]))
-		++*rawp;
-
-	tmp = (*rawp)[0];
-	(*rawp)[0] = '\0';
-	*namep = strdup(name);
-
-	if (*namep == NULL)
-		goto out;
-
-	(*rawp)[0] = tmp;
-	*rawp = strim(*rawp);
-
-	return 0;
-
-out:
-	return -1;
-}
-
-struct annotate_args {
-	struct arch		  *arch;
-	struct map_symbol	  ms;
-	struct evsel		  *evsel;
-	struct annotation_options *options;
-	s64			  offset;
-	char			  *line;
-	int			  line_nr;
-	char			  *fileloc;
-};
-
-static void annotation_line__init(struct annotation_line *al,
-				  struct annotate_args *args,
-				  int nr)
-{
-	al->offset = args->offset;
-	al->line = strdup(args->line);
-	al->line_nr = args->line_nr;
-	al->fileloc = args->fileloc;
-	al->data_nr = nr;
-}
-
-static void annotation_line__exit(struct annotation_line *al)
-{
-	zfree_srcline(&al->path);
-	zfree(&al->line);
-	zfree(&al->cycles);
-}
-
-static size_t disasm_line_size(int nr)
-{
-	struct annotation_line *al;
-
-	return (sizeof(struct disasm_line) + (sizeof(al->data[0]) * nr));
-}
-
-/*
- * Allocating the disasm annotation line data with
- * following structure:
- *
- *    -------------------------------------------
- *    struct disasm_line | struct annotation_line
- *    -------------------------------------------
- *
- * We have 'struct annotation_line' member as last member
- * of 'struct disasm_line' to have an easy access.
- */
-static struct disasm_line *disasm_line__new(struct annotate_args *args)
-{
-	struct disasm_line *dl = NULL;
-	int nr = 1;
-
-	if (evsel__is_group_event(args->evsel))
-		nr = args->evsel->core.nr_members;
-
-	dl = zalloc(disasm_line_size(nr));
-	if (!dl)
-		return NULL;
-
-	annotation_line__init(&dl->al, args, nr);
-	if (dl->al.line == NULL)
-		goto out_delete;
-
-	if (args->offset != -1) {
-		if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
-			goto out_free_line;
-
-		disasm_line__init_ins(dl, args->arch, &args->ms);
-	}
-
-	return dl;
-
-out_free_line:
-	zfree(&dl->al.line);
-out_delete:
-	free(dl);
-	return NULL;
-}
-
-void disasm_line__free(struct disasm_line *dl)
-{
-	if (dl->ins.ops && dl->ins.ops->free)
-		dl->ins.ops->free(&dl->ops);
-	else
-		ins__delete(&dl->ops);
-	zfree(&dl->ins.name);
-	annotation_line__exit(&dl->al);
-	free(dl);
-}
-
-int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw, int max_ins_name)
-{
-	if (raw || !dl->ins.ops)
-		return scnprintf(bf, size, "%-*s %s", max_ins_name, dl->ins.name, dl->ops.raw);
-
-	return ins__scnprintf(&dl->ins, bf, size, &dl->ops, max_ins_name);
-}
 
 void annotation__exit(struct annotation *notes)
 {
@@ -1464,8 +582,7 @@ bool annotation__trylock(struct annotation *notes)
 	return mutex_trylock(mutex);
 }
 
-
-static void annotation_line__add(struct annotation_line *al, struct list_head *head)
+void annotation_line__add(struct annotation_line *al, struct list_head *head)
 {
 	list_add_tail(&al->node, head);
 }
@@ -1675,673 +792,6 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 	return 0;
 }
 
-/*
- * symbol__parse_objdump_line() parses objdump output (with -d --no-show-raw)
- * which looks like following
- *
- *  0000000000415500 <_init>:
- *    415500:       sub    $0x8,%rsp
- *    415504:       mov    0x2f5ad5(%rip),%rax        # 70afe0 <_DYNAMIC+0x2f8>
- *    41550b:       test   %rax,%rax
- *    41550e:       je     415515 <_init+0x15>
- *    415510:       callq  416e70 <__gmon_start__@plt>
- *    415515:       add    $0x8,%rsp
- *    415519:       retq
- *
- * it will be parsed and saved into struct disasm_line as
- *  <offset>       <name>  <ops.raw>
- *
- * The offset will be a relative offset from the start of the symbol and -1
- * means that it's not a disassembly line so should be treated differently.
- * The ops.raw part will be parsed further according to type of the instruction.
- */
-static int symbol__parse_objdump_line(struct symbol *sym,
-				      struct annotate_args *args,
-				      char *parsed_line, int *line_nr, char **fileloc)
-{
-	struct map *map = args->ms.map;
-	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *dl;
-	char *tmp;
-	s64 line_ip, offset = -1;
-	regmatch_t match[2];
-
-	/* /filename:linenr ? Save line number and ignore. */
-	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
-		*line_nr = atoi(parsed_line + match[1].rm_so);
-		free(*fileloc);
-		*fileloc = strdup(parsed_line);
-		return 0;
-	}
-
-	/* Process hex address followed by ':'. */
-	line_ip = strtoull(parsed_line, &tmp, 16);
-	if (parsed_line != tmp && tmp[0] == ':' && tmp[1] != '\0') {
-		u64 start = map__rip_2objdump(map, sym->start),
-		    end = map__rip_2objdump(map, sym->end);
-
-		offset = line_ip - start;
-		if ((u64)line_ip < start || (u64)line_ip >= end)
-			offset = -1;
-		else
-			parsed_line = tmp + 1;
-	}
-
-	args->offset  = offset;
-	args->line    = parsed_line;
-	args->line_nr = *line_nr;
-	args->fileloc = *fileloc;
-	args->ms.sym  = sym;
-
-	dl = disasm_line__new(args);
-	(*line_nr)++;
-
-	if (dl == NULL)
-		return -1;
-
-	if (!disasm_line__has_local_offset(dl)) {
-		dl->ops.target.offset = dl->ops.target.addr -
-					map__rip_2objdump(map, sym->start);
-		dl->ops.target.offset_avail = true;
-	}
-
-	/* kcore has no symbols, so add the call target symbol */
-	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.sym) {
-		struct addr_map_symbol target = {
-			.addr = dl->ops.target.addr,
-			.ms = { .map = map, },
-		};
-
-		if (!maps__find_ams(args->ms.maps, &target) &&
-		    target.ms.sym->start == target.al_addr)
-			dl->ops.target.sym = target.ms.sym;
-	}
-
-	annotation_line__add(&dl->al, &notes->src->source);
-	return 0;
-}
-
-static __attribute__((constructor)) void symbol__init_regexpr(void)
-{
-	regcomp(&file_lineno, "^/[^:]+:([0-9]+)", REG_EXTENDED);
-}
-
-static void delete_last_nop(struct symbol *sym)
-{
-	struct annotation *notes = symbol__annotation(sym);
-	struct list_head *list = &notes->src->source;
-	struct disasm_line *dl;
-
-	while (!list_empty(list)) {
-		dl = list_entry(list->prev, struct disasm_line, al.node);
-
-		if (dl->ins.ops) {
-			if (dl->ins.ops != &nop_ops)
-				return;
-		} else {
-			if (!strstr(dl->al.line, " nop ") &&
-			    !strstr(dl->al.line, " nopl ") &&
-			    !strstr(dl->al.line, " nopw "))
-				return;
-		}
-
-		list_del_init(&dl->al.node);
-		disasm_line__free(dl);
-	}
-}
-
-int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen)
-{
-	struct dso *dso = map__dso(ms->map);
-
-	BUG_ON(buflen == 0);
-
-	if (errnum >= 0) {
-		str_error_r(errnum, buf, buflen);
-		return 0;
-	}
-
-	switch (errnum) {
-	case SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX: {
-		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
-		char *build_id_msg = NULL;
-
-		if (dso->has_build_id) {
-			build_id__sprintf(&dso->bid, bf + 15);
-			build_id_msg = bf;
-		}
-		scnprintf(buf, buflen,
-			  "No vmlinux file%s\nwas found in the path.\n\n"
-			  "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
-			  "Please use:\n\n"
-			  "  perf buildid-cache -vu vmlinux\n\n"
-			  "or:\n\n"
-			  "  --vmlinux vmlinux\n", build_id_msg ?: "");
-	}
-		break;
-	case SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF:
-		scnprintf(buf, buflen, "Please link with binutils's libopcode to enable BPF annotation");
-		break;
-	case SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP:
-		scnprintf(buf, buflen, "Problems with arch specific instruction name regular expressions.");
-		break;
-	case SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING:
-		scnprintf(buf, buflen, "Problems while parsing the CPUID in the arch specific initialization.");
-		break;
-	case SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE:
-		scnprintf(buf, buflen, "Invalid BPF file: %s.", dso->long_name);
-		break;
-	case SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF:
-		scnprintf(buf, buflen, "The %s BPF file has no BTF section, compile with -g or use pahole -J.",
-			  dso->long_name);
-		break;
-	default:
-		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
-		break;
-	}
-
-	return 0;
-}
-
-static int dso__disassemble_filename(struct dso *dso, char *filename, size_t filename_size)
-{
-	char linkname[PATH_MAX];
-	char *build_id_filename;
-	char *build_id_path = NULL;
-	char *pos;
-	int len;
-
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
-	    !dso__is_kcore(dso))
-		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
-
-	build_id_filename = dso__build_id_filename(dso, NULL, 0, false);
-	if (build_id_filename) {
-		__symbol__join_symfs(filename, filename_size, build_id_filename);
-		free(build_id_filename);
-	} else {
-		if (dso->has_build_id)
-			return ENOMEM;
-		goto fallback;
-	}
-
-	build_id_path = strdup(filename);
-	if (!build_id_path)
-		return ENOMEM;
-
-	/*
-	 * old style build-id cache has name of XX/XXXXXXX.. while
-	 * new style has XX/XXXXXXX../{elf,kallsyms,vdso}.
-	 * extract the build-id part of dirname in the new style only.
-	 */
-	pos = strrchr(build_id_path, '/');
-	if (pos && strlen(pos) < SBUILD_ID_SIZE - 2)
-		dirname(build_id_path);
-
-	if (dso__is_kcore(dso))
-		goto fallback;
-
-	len = readlink(build_id_path, linkname, sizeof(linkname) - 1);
-	if (len < 0)
-		goto fallback;
-
-	linkname[len] = '\0';
-	if (strstr(linkname, DSO__NAME_KALLSYMS) ||
-		access(filename, R_OK)) {
-fallback:
-		/*
-		 * If we don't have build-ids or the build-id file isn't in the
-		 * cache, or is just a kallsyms file, well, lets hope that this
-		 * DSO is the same as when 'perf record' ran.
-		 */
-		if (dso->kernel && dso->long_name[0] == '/')
-			snprintf(filename, filename_size, "%s", dso->long_name);
-		else
-			__symbol__join_symfs(filename, filename_size, dso->long_name);
-
-		mutex_lock(&dso->lock);
-		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
-			char *new_name = dso__filename_with_chroot(dso, filename);
-			if (new_name) {
-				strlcpy(filename, new_name, filename_size);
-				free(new_name);
-			}
-		}
-		mutex_unlock(&dso->lock);
-	}
-
-	free(build_id_path);
-	return 0;
-}
-
-#if defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
-#define PACKAGE "perf"
-#include <bfd.h>
-#include <dis-asm.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
-#include <linux/btf.h>
-#include <tools/dis-asm-compat.h>
-
-static int symbol__disassemble_bpf(struct symbol *sym,
-				   struct annotate_args *args)
-{
-	struct annotation *notes = symbol__annotation(sym);
-	struct bpf_prog_linfo *prog_linfo = NULL;
-	struct bpf_prog_info_node *info_node;
-	int len = sym->end - sym->start;
-	disassembler_ftype disassemble;
-	struct map *map = args->ms.map;
-	struct perf_bpil *info_linear;
-	struct disassemble_info info;
-	struct dso *dso = map__dso(map);
-	int pc = 0, count, sub_id;
-	struct btf *btf = NULL;
-	char tpath[PATH_MAX];
-	size_t buf_size;
-	int nr_skip = 0;
-	char *buf;
-	bfd *bfdf;
-	int ret;
-	FILE *s;
-
-	if (dso->binary_type != DSO_BINARY_TYPE__BPF_PROG_INFO)
-		return SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE;
-
-	pr_debug("%s: handling sym %s addr %" PRIx64 " len %" PRIx64 "\n", __func__,
-		  sym->name, sym->start, sym->end - sym->start);
-
-	memset(tpath, 0, sizeof(tpath));
-	perf_exe(tpath, sizeof(tpath));
-
-	bfdf = bfd_openr(tpath, NULL);
-	if (bfdf == NULL)
-		abort();
-
-	if (!bfd_check_format(bfdf, bfd_object))
-		abort();
-
-	s = open_memstream(&buf, &buf_size);
-	if (!s) {
-		ret = errno;
-		goto out;
-	}
-	init_disassemble_info_compat(&info, s,
-				     (fprintf_ftype) fprintf,
-				     fprintf_styled);
-	info.arch = bfd_get_arch(bfdf);
-	info.mach = bfd_get_mach(bfdf);
-
-	info_node = perf_env__find_bpf_prog_info(dso->bpf_prog.env,
-						 dso->bpf_prog.id);
-	if (!info_node) {
-		ret = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
-		goto out;
-	}
-	info_linear = info_node->info_linear;
-	sub_id = dso->bpf_prog.sub_id;
-
-	info.buffer = (void *)(uintptr_t)(info_linear->info.jited_prog_insns);
-	info.buffer_length = info_linear->info.jited_prog_len;
-
-	if (info_linear->info.nr_line_info)
-		prog_linfo = bpf_prog_linfo__new(&info_linear->info);
-
-	if (info_linear->info.btf_id) {
-		struct btf_node *node;
-
-		node = perf_env__find_btf(dso->bpf_prog.env,
-					  info_linear->info.btf_id);
-		if (node)
-			btf = btf__new((__u8 *)(node->data),
-				       node->data_size);
-	}
-
-	disassemble_init_for_target(&info);
-
-#ifdef DISASM_FOUR_ARGS_SIGNATURE
-	disassemble = disassembler(info.arch,
-				   bfd_big_endian(bfdf),
-				   info.mach,
-				   bfdf);
-#else
-	disassemble = disassembler(bfdf);
-#endif
-	if (disassemble == NULL)
-		abort();
-
-	fflush(s);
-	do {
-		const struct bpf_line_info *linfo = NULL;
-		struct disasm_line *dl;
-		size_t prev_buf_size;
-		const char *srcline;
-		u64 addr;
-
-		addr = pc + ((u64 *)(uintptr_t)(info_linear->info.jited_ksyms))[sub_id];
-		count = disassemble(pc, &info);
-
-		if (prog_linfo)
-			linfo = bpf_prog_linfo__lfind_addr_func(prog_linfo,
-								addr, sub_id,
-								nr_skip);
-
-		if (linfo && btf) {
-			srcline = btf__name_by_offset(btf, linfo->line_off);
-			nr_skip++;
-		} else
-			srcline = NULL;
-
-		fprintf(s, "\n");
-		prev_buf_size = buf_size;
-		fflush(s);
-
-		if (!annotate_opts.hide_src_code && srcline) {
-			args->offset = -1;
-			args->line = strdup(srcline);
-			args->line_nr = 0;
-			args->fileloc = NULL;
-			args->ms.sym  = sym;
-			dl = disasm_line__new(args);
-			if (dl) {
-				annotation_line__add(&dl->al,
-						     &notes->src->source);
-			}
-		}
-
-		args->offset = pc;
-		args->line = buf + prev_buf_size;
-		args->line_nr = 0;
-		args->fileloc = NULL;
-		args->ms.sym  = sym;
-		dl = disasm_line__new(args);
-		if (dl)
-			annotation_line__add(&dl->al, &notes->src->source);
-
-		pc += count;
-	} while (count > 0 && pc < len);
-
-	ret = 0;
-out:
-	free(prog_linfo);
-	btf__free(btf);
-	fclose(s);
-	bfd_close(bfdf);
-	return ret;
-}
-#else // defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
-static int symbol__disassemble_bpf(struct symbol *sym __maybe_unused,
-				   struct annotate_args *args __maybe_unused)
-{
-	return SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF;
-}
-#endif // defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
-
-static int
-symbol__disassemble_bpf_image(struct symbol *sym,
-			      struct annotate_args *args)
-{
-	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *dl;
-
-	args->offset = -1;
-	args->line = strdup("to be implemented");
-	args->line_nr = 0;
-	args->fileloc = NULL;
-	dl = disasm_line__new(args);
-	if (dl)
-		annotation_line__add(&dl->al, &notes->src->source);
-
-	zfree(&args->line);
-	return 0;
-}
-
-/*
- * Possibly create a new version of line with tabs expanded. Returns the
- * existing or new line, storage is updated if a new line is allocated. If
- * allocation fails then NULL is returned.
- */
-static char *expand_tabs(char *line, char **storage, size_t *storage_len)
-{
-	size_t i, src, dst, len, new_storage_len, num_tabs;
-	char *new_line;
-	size_t line_len = strlen(line);
-
-	for (num_tabs = 0, i = 0; i < line_len; i++)
-		if (line[i] == '\t')
-			num_tabs++;
-
-	if (num_tabs == 0)
-		return line;
-
-	/*
-	 * Space for the line and '\0', less the leading and trailing
-	 * spaces. Each tab may introduce 7 additional spaces.
-	 */
-	new_storage_len = line_len + 1 + (num_tabs * 7);
-
-	new_line = malloc(new_storage_len);
-	if (new_line == NULL) {
-		pr_err("Failure allocating memory for tab expansion\n");
-		return NULL;
-	}
-
-	/*
-	 * Copy regions starting at src and expand tabs. If there are two
-	 * adjacent tabs then 'src == i', the memcpy is of size 0 and the spaces
-	 * are inserted.
-	 */
-	for (i = 0, src = 0, dst = 0; i < line_len && num_tabs; i++) {
-		if (line[i] == '\t') {
-			len = i - src;
-			memcpy(&new_line[dst], &line[src], len);
-			dst += len;
-			new_line[dst++] = ' ';
-			while (dst % 8 != 0)
-				new_line[dst++] = ' ';
-			src = i + 1;
-			num_tabs--;
-		}
-	}
-
-	/* Expand the last region. */
-	len = line_len - src;
-	memcpy(&new_line[dst], &line[src], len);
-	dst += len;
-	new_line[dst] = '\0';
-
-	free(*storage);
-	*storage = new_line;
-	*storage_len = new_storage_len;
-	return new_line;
-
-}
-
-static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
-{
-	struct annotation_options *opts = &annotate_opts;
-	struct map *map = args->ms.map;
-	struct dso *dso = map__dso(map);
-	char *command;
-	FILE *file;
-	char symfs_filename[PATH_MAX];
-	struct kcore_extract kce;
-	bool delete_extract = false;
-	bool decomp = false;
-	int lineno = 0;
-	char *fileloc = NULL;
-	int nline;
-	char *line;
-	size_t line_len;
-	const char *objdump_argv[] = {
-		"/bin/sh",
-		"-c",
-		NULL, /* Will be the objdump command to run. */
-		"--",
-		NULL, /* Will be the symfs path. */
-		NULL,
-	};
-	struct child_process objdump_process;
-	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
-
-	if (err)
-		return err;
-
-	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
-		 symfs_filename, sym->name, map__unmap_ip(map, sym->start),
-		 map__unmap_ip(map, sym->end));
-
-	pr_debug("annotating [%p] %30s : [%p] %30s\n",
-		 dso, dso->long_name, sym, sym->name);
-
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO) {
-		return symbol__disassemble_bpf(sym, args);
-	} else if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE) {
-		return symbol__disassemble_bpf_image(sym, args);
-	} else if (dso__is_kcore(dso)) {
-		kce.kcore_filename = symfs_filename;
-		kce.addr = map__rip_2objdump(map, sym->start);
-		kce.offs = sym->start;
-		kce.len = sym->end - sym->start;
-		if (!kcore_extract__create(&kce)) {
-			delete_extract = true;
-			strlcpy(symfs_filename, kce.extract_filename,
-				sizeof(symfs_filename));
-		}
-	} else if (dso__needs_decompress(dso)) {
-		char tmp[KMOD_DECOMP_LEN];
-
-		if (dso__decompress_kmodule_path(dso, symfs_filename,
-						 tmp, sizeof(tmp)) < 0)
-			return -1;
-
-		decomp = true;
-		strcpy(symfs_filename, tmp);
-	}
-
-	err = asprintf(&command,
-		 "%s %s%s --start-address=0x%016" PRIx64
-		 " --stop-address=0x%016" PRIx64
-		 " %s -d %s %s %s %c%s%c %s%s -C \"$1\"",
-		 opts->objdump_path ?: "objdump",
-		 opts->disassembler_style ? "-M " : "",
-		 opts->disassembler_style ?: "",
-		 map__rip_2objdump(map, sym->start),
-		 map__rip_2objdump(map, sym->end),
-		 opts->show_linenr ? "-l" : "",
-		 opts->show_asm_raw ? "" : "--no-show-raw-insn",
-		 opts->annotate_src ? "-S" : "",
-		 opts->prefix ? "--prefix " : "",
-		 opts->prefix ? '"' : ' ',
-		 opts->prefix ?: "",
-		 opts->prefix ? '"' : ' ',
-		 opts->prefix_strip ? "--prefix-strip=" : "",
-		 opts->prefix_strip ?: "");
-
-	if (err < 0) {
-		pr_err("Failure allocating memory for the command to run\n");
-		goto out_remove_tmp;
-	}
-
-	pr_debug("Executing: %s\n", command);
-
-	objdump_argv[2] = command;
-	objdump_argv[4] = symfs_filename;
-
-	/* Create a pipe to read from for stdout */
-	memset(&objdump_process, 0, sizeof(objdump_process));
-	objdump_process.argv = objdump_argv;
-	objdump_process.out = -1;
-	objdump_process.err = -1;
-	objdump_process.no_stderr = 1;
-	if (start_command(&objdump_process)) {
-		pr_err("Failure starting to run %s\n", command);
-		err = -1;
-		goto out_free_command;
-	}
-
-	file = fdopen(objdump_process.out, "r");
-	if (!file) {
-		pr_err("Failure creating FILE stream for %s\n", command);
-		/*
-		 * If we were using debug info should retry with
-		 * original binary.
-		 */
-		err = -1;
-		goto out_close_stdout;
-	}
-
-	/* Storage for getline. */
-	line = NULL;
-	line_len = 0;
-
-	nline = 0;
-	while (!feof(file)) {
-		const char *match;
-		char *expanded_line;
-
-		if (getline(&line, &line_len, file) < 0 || !line)
-			break;
-
-		/* Skip lines containing "filename:" */
-		match = strstr(line, symfs_filename);
-		if (match && match[strlen(symfs_filename)] == ':')
-			continue;
-
-		expanded_line = strim(line);
-		expanded_line = expand_tabs(expanded_line, &line, &line_len);
-		if (!expanded_line)
-			break;
-
-		/*
-		 * The source code line number (lineno) needs to be kept in
-		 * across calls to symbol__parse_objdump_line(), so that it
-		 * can associate it with the instructions till the next one.
-		 * See disasm_line__new() and struct disasm_line::line_nr.
-		 */
-		if (symbol__parse_objdump_line(sym, args, expanded_line,
-					       &lineno, &fileloc) < 0)
-			break;
-		nline++;
-	}
-	free(line);
-	free(fileloc);
-
-	err = finish_command(&objdump_process);
-	if (err)
-		pr_err("Error running %s\n", command);
-
-	if (nline == 0) {
-		err = -1;
-		pr_err("No output from %s\n", command);
-	}
-
-	/*
-	 * kallsyms does not have symbol sizes so there may a nop at the end.
-	 * Remove it.
-	 */
-	if (dso__is_kcore(dso))
-		delete_last_nop(sym);
-
-	fclose(file);
-
-out_close_stdout:
-	close(objdump_process.out);
-
-out_free_command:
-	free(command);
-
-out_remove_tmp:
-	if (decomp)
-		unlink(symfs_filename);
-
-	if (delete_extract)
-		kcore_extract__delete(&kce);
-
-	return err;
-}
-
 static void calc_percent(struct annotation *notes,
 			 struct evsel *evsel,
 			 struct annotation_data *data,
@@ -2422,8 +872,10 @@ static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 	struct arch *arch;
 	int err;
 
-	if (!arch_name)
+	if (!arch_name) {
+		*parch = NULL;
 		return errno;
+	}
 
 	*parch = arch = arch__find(arch_name);
 	if (arch == NULL) {
@@ -2461,12 +913,22 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	if (parch)
 		*parch = arch;
 
+	if (notes->src && !list_empty(&notes->src->source))
+		return 0;
+
 	args.arch = arch;
 	args.ms = *ms;
+
+	if (notes->src == NULL) {
+		notes->src = annotated_source__new();
+		if (notes->src == NULL)
+			return -1;
+	}
+
 	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		notes->src->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -2648,7 +1110,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	int graph_dotted_len;
 	char buf[512];
 
-	filename = strdup(dso->long_name);
+	filename = strdup(dso__long_name(dso));
 	if (!filename)
 		return -ENOMEM;
 
@@ -2813,7 +1275,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
 	}
 
 	fprintf(fp, "%s() %s\nEvent: %s\n\n",
-		ms->sym->name, map__dso(ms->map)->long_name, ev_name);
+		ms->sym->name, dso__long_name(map__dso(ms->map)), ev_name);
 	symbol__annotate_fprintf2(ms->sym, fp);
 
 	fclose(fp);
@@ -2835,13 +1297,16 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
-	int len = symbol__size(sym), offset;
+	struct annotation_line *al;
 
 	h->nr_samples = 0;
-	for (offset = 0; offset < len; ++offset) {
+	list_for_each_entry(al, &notes->src->source, node) {
 		struct sym_hist_entry *entry;
 
-		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		if (al->offset == -1)
+			continue;
+
+		entry = annotated_source__hist_entry(notes->src, evidx, al->offset);
 		if (entry == NULL)
 			continue;
 
@@ -2898,64 +1363,56 @@ bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym
 	return true;
 }
 
-void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
+static void
+annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 {
-	u64 offset, size = symbol__size(sym);
+	struct annotation_line *al;
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
 		return;
 
-	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = notes->src->offsets[offset];
+	list_for_each_entry(al, &notes->src->source, node) {
 		struct disasm_line *dl;
+		struct annotation_line *target;
 
 		dl = disasm_line(al);
 
 		if (!disasm_line__is_valid_local_jump(dl, sym))
 			continue;
 
-		al = notes->src->offsets[dl->ops.target.offset];
-
+		target = annotated_source__get_line(notes->src,
+						    dl->ops.target.offset);
 		/*
 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
 		 * have to adjust to the previous offset?
 		 */
-		if (al == NULL)
+		if (target == NULL)
 			continue;
 
-		if (++al->jump_sources > notes->max_jump_sources)
-			notes->max_jump_sources = al->jump_sources;
+		if (++target->jump_sources > notes->src->max_jump_sources)
+			notes->src->max_jump_sources = target->jump_sources;
 	}
 }
 
-void annotation__set_offsets(struct annotation *notes, s64 size)
+static void annotation__set_index(struct annotation *notes)
 {
 	struct annotation_line *al;
 	struct annotated_source *src = notes->src;
 
-	src->max_line_len = 0;
+	src->widths.max_line_len = 0;
 	src->nr_entries = 0;
 	src->nr_asm_entries = 0;
 
 	list_for_each_entry(al, &src->source, node) {
 		size_t line_len = strlen(al->line);
 
-		if (src->max_line_len < line_len)
-			src->max_line_len = line_len;
+		if (src->widths.max_line_len < line_len)
+			src->widths.max_line_len = line_len;
 		al->idx = src->nr_entries++;
-		if (al->offset != -1) {
+		if (al->offset != -1)
 			al->idx_asm = src->nr_asm_entries++;
-			/*
-			 * FIXME: short term bandaid to cope with assembly
-			 * routines that comes with labels in the same column
-			 * as the address in objdump, sigh.
-			 *
-			 * E.g. copy_user_generic_unrolled
- 			 */
-			if (al->offset < size)
-				notes->src->offsets[al->offset] = al;
-		} else
+		else
 			al->idx_asm = -1;
 	}
 }
@@ -2986,28 +1443,29 @@ static int annotation__max_ins_name(struct annotation *notes)
 	return max_name;
 }
 
-void annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
+static void
+annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
 {
-	notes->widths.addr = notes->widths.target =
-		notes->widths.min_addr = hex_width(symbol__size(sym));
-	notes->widths.max_addr = hex_width(sym->end);
-	notes->widths.jumps = width_jumps(notes->max_jump_sources);
-	notes->widths.max_ins_name = annotation__max_ins_name(notes);
+	notes->src->widths.addr = notes->src->widths.target =
+		notes->src->widths.min_addr = hex_width(symbol__size(sym));
+	notes->src->widths.max_addr = hex_width(sym->end);
+	notes->src->widths.jumps = width_jumps(notes->src->max_jump_sources);
+	notes->src->widths.max_ins_name = annotation__max_ins_name(notes);
 }
 
 void annotation__update_column_widths(struct annotation *notes)
 {
 	if (annotate_opts.use_offset)
-		notes->widths.target = notes->widths.min_addr;
+		notes->src->widths.target = notes->src->widths.min_addr;
 	else if (annotate_opts.full_addr)
-		notes->widths.target = BITS_PER_LONG / 4;
+		notes->src->widths.target = BITS_PER_LONG / 4;
 	else
-		notes->widths.target = notes->widths.max_addr;
+		notes->src->widths.target = notes->src->widths.max_addr;
 
-	notes->widths.addr = notes->widths.target;
+	notes->src->widths.addr = notes->src->widths.target;
 
 	if (annotate_opts.show_nr_jumps)
-		notes->widths.addr += notes->widths.jumps + 1;
+		notes->src->widths.addr += notes->src->widths.jumps + 1;
 }
 
 void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms)
@@ -3015,14 +1473,14 @@ void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *m
 	annotate_opts.full_addr = !annotate_opts.full_addr;
 
 	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		notes->src->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	annotation__update_column_widths(notes);
 }
 
-static void annotation__calc_lines(struct annotation *notes, struct map *map,
+static void annotation__calc_lines(struct annotation *notes, struct map_symbol *ms,
 				   struct rb_root *root)
 {
 	struct annotation_line *al;
@@ -3030,6 +1488,7 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 
 	list_for_each_entry(al, &notes->src->source, node) {
 		double percent_max = 0.0;
+		u64 addr;
 		int i;
 
 		for (i = 0; i < al->data_nr; i++) {
@@ -3045,8 +1504,9 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		if (percent_max <= 0.5)
 			continue;
 
-		al->path = get_srcline(map__dso(map), notes->start + al->offset, NULL,
-				       false, true, notes->start + al->offset);
+		addr = map__rip_2objdump(ms->map, ms->sym->start);
+		al->path = get_srcline(map__dso(ms->map), addr + al->offset, NULL,
+				       false, true, ms->sym->start + al->offset);
 		insert_source_line(&tmp_root, al);
 	}
 
@@ -3057,7 +1517,7 @@ static void symbol__calc_lines(struct map_symbol *ms, struct rb_root *root)
 {
 	struct annotation *notes = symbol__annotation(ms->sym);
 
-	annotation__calc_lines(notes, ms->map, root);
+	annotation__calc_lines(notes, ms, root);
 }
 
 int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
@@ -3073,7 +1533,7 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso__set_annotate_warned(dso);
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		return -1;
@@ -3082,13 +1542,12 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	if (annotate_opts.print_lines) {
 		srcline_full_filename = annotate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
-		print_summary(&source_line, dso->long_name);
+		print_summary(&source_line, dso__long_name(dso));
 	}
 
 	hists__scnprintf_title(hists, buf, sizeof(buf));
 	fprintf(stdout, "%s, [percent: %s]\n%s() %s\n",
-		buf, percent_type_str(annotate_opts.percent_type), sym->name,
-		dso->long_name);
+		buf, percent_type_str(annotate_opts.percent_type), sym->name, dso__long_name(dso));
 	symbol__annotate_fprintf2(sym, stdout);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
@@ -3107,7 +1566,7 @@ int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso__set_annotate_warned(dso);
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		return -1;
@@ -3118,7 +1577,7 @@ int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
 	if (annotate_opts.print_lines) {
 		srcline_full_filename = annotate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
-		print_summary(&source_line, dso->long_name);
+		print_summary(&source_line, dso__long_name(dso));
 	}
 
 	symbol__annotate_printf(ms, evsel);
@@ -3141,7 +1600,7 @@ static double annotation_line__max_percent(struct annotation_line *al,
 	double percent_max = 0.0;
 	int i;
 
-	for (i = 0; i < notes->nr_events; i++) {
+	for (i = 0; i < notes->src->nr_events; i++) {
 		double percent;
 
 		percent = annotation_data__percent(&al->data[i],
@@ -3182,7 +1641,8 @@ call_like:
 		obj__printf(obj, "  ");
 	}
 
-	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset, notes->widths.max_ins_name);
+	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset,
+			       notes->src->widths.max_ins_name);
 }
 
 static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
@@ -3230,7 +1690,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	if (al->offset != -1 && percent_max != 0.0) {
 		int i;
 
-		for (i = 0; i < notes->nr_events; i++) {
+		for (i = 0; i < notes->src->nr_events; i++) {
 			double percent;
 
 			percent = annotation_data__percent(&al->data[i], percent_type);
@@ -3310,9 +1770,11 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
 	else if (al->offset == -1) {
 		if (al->line_nr && annotate_opts.show_linenr)
-			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
+			printed = scnprintf(bf, sizeof(bf), "%-*d ",
+					    notes->src->widths.addr + 1, al->line_nr);
 		else
-			printed = scnprintf(bf, sizeof(bf), "%-*s  ", notes->widths.addr, " ");
+			printed = scnprintf(bf, sizeof(bf), "%-*s  ",
+					    notes->src->widths.addr, " ");
 		obj__printf(obj, bf);
 		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
 	} else {
@@ -3320,7 +1782,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		int color = -1;
 
 		if (!annotate_opts.use_offset)
-			addr += notes->start;
+			addr += notes->src->start;
 
 		if (!annotate_opts.use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
@@ -3330,7 +1792,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				if (annotate_opts.show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
-							    notes->widths.jumps,
+							    notes->src->widths.jumps,
 							    al->jump_sources);
 					prev = obj__set_jumps_percent_color(obj, al->jump_sources,
 									    current_entry);
@@ -3339,7 +1801,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				}
 print_addr:
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
-						    notes->widths.target, addr);
+						    notes->src->widths.target, addr);
 			} else if (ins__is_call(&disasm_line(al)->ins) &&
 				   annotate_opts.offset_level >= ANNOTATION__OFFSET_CALL) {
 				goto print_addr;
@@ -3347,7 +1809,7 @@ print_addr:
 				goto print_addr;
 			} else {
 				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
-						    notes->widths.addr, " ");
+						    notes->src->widths.addr, " ");
 			}
 		}
 
@@ -3383,37 +1845,29 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	size_t size = symbol__size(sym);
 	int nr_pcnt = 1, err;
 
-	notes->src->offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (notes->src->offsets == NULL)
-		return ENOMEM;
-
 	if (evsel__is_group_event(evsel))
 		nr_pcnt = evsel->core.nr_members;
 
 	err = symbol__annotate(ms, evsel, parch);
 	if (err)
-		goto out_free_offsets;
+		return err;
 
 	symbol__calc_percent(sym, evsel);
 
-	annotation__set_offsets(notes, size);
+	annotation__set_index(notes);
 	annotation__mark_jump_targets(notes, sym);
 
 	err = annotation__compute_ipc(notes, size);
 	if (err)
-		goto out_free_offsets;
+		return err;
 
 	annotation__init_column_widths(notes, sym);
-	notes->nr_events = nr_pcnt;
+	notes->src->nr_events = nr_pcnt;
 
 	annotation__update_column_widths(notes);
 	sym->annotate2 = 1;
 
 	return 0;
-
-out_free_offsets:
-	zfree(&notes->src->offsets);
-	return err;
 }
 
 static int annotation__config(const char *var, const char *value, void *data)
@@ -3585,6 +2039,12 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 	 * %gs:0x18(%rbx).  In that case it should skip the part.
 	 */
 	if (*str == arch->objdump.register_char) {
+		if (arch__is(arch, "x86")) {
+			/* FIXME: Handle other segment registers */
+			if (!strncmp(str, "%gs:", 4))
+				op_loc->segment = INSN_SEG_X86_GS;
+		}
+
 		while (*str && !isdigit(*str) &&
 		       *str != arch->objdump.memory_ref_char)
 			str++;
@@ -3639,7 +2099,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  *   mov  0x18, %r8      # src_reg1 = -1, src_mem = 0
  *                       # dst_reg1 = r8, dst_mem = 0
  *
- *   mov  %rsi, 8(%rbx,%rcx,4)  # src_reg1 = rsi, src_mem = 0, dst_multi_regs = 0
+ *   mov  %rsi, 8(%rbx,%rcx,4)  # src_reg1 = rsi, src_mem = 0, src_multi_regs = 0
  *                              # dst_reg1 = rbx, dst_reg2 = rcx, dst_mem = 1
  *                              # dst_multi_regs = 1, dst_offset = 8
  */
@@ -3650,7 +2110,7 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 	struct annotated_op_loc *op_loc;
 	int i;
 
-	if (!strcmp(dl->ins.name, "lock"))
+	if (ins__is_lock(&dl->ins))
 		ops = dl->ops.locked.ops;
 	else
 		ops = &dl->ops;
@@ -3681,40 +2141,40 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 			op_loc->multi_regs = multi_regs;
 			extract_reg_offset(arch, insn_str, op_loc);
 		} else {
-			char *s = strdup(insn_str);
+			char *s, *p = NULL;
 
-			if (s) {
-				op_loc->reg1 = get_dwarf_regnum(s, 0);
-				free(s);
+			if (arch__is(arch, "x86")) {
+				/* FIXME: Handle other segment registers */
+				if (!strncmp(insn_str, "%gs:", 4)) {
+					op_loc->segment = INSN_SEG_X86_GS;
+					op_loc->offset = strtol(insn_str + 4,
+								&p, 0);
+					if (p && p != insn_str + 4)
+						op_loc->imm = true;
+					continue;
+				}
 			}
+
+			s = strdup(insn_str);
+			if (s == NULL)
+				return -1;
+
+			if (*s == arch->objdump.register_char)
+				op_loc->reg1 = get_dwarf_regnum(s, 0);
+			else if (*s == arch->objdump.imm_char) {
+				op_loc->offset = strtol(s + 1, &p, 0);
+				if (p && p != s + 1)
+					op_loc->imm = true;
+			}
+			free(s);
 		}
 	}
 
 	return 0;
 }
 
-static void symbol__ensure_annotate(struct map_symbol *ms, struct evsel *evsel)
-{
-	struct disasm_line *dl, *tmp_dl;
-	struct annotation *notes;
-
-	notes = symbol__annotation(ms->sym);
-	if (!list_empty(&notes->src->source))
-		return;
-
-	if (symbol__annotate(ms, evsel, NULL) < 0)
-		return;
-
-	/* remove non-insn disasm lines for simplicity */
-	list_for_each_entry_safe(dl, tmp_dl, &notes->src->source, al.node) {
-		if (dl->al.offset == -1) {
-			list_del(&dl->al.node);
-			free(dl);
-		}
-	}
-}
-
-static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip)
+static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip,
+					    bool allow_update)
 {
 	struct disasm_line *dl;
 	struct annotation *notes;
@@ -3722,12 +2182,16 @@ static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip)
 	notes = symbol__annotation(sym);
 
 	list_for_each_entry(dl, &notes->src->source, al.node) {
+		if (dl->al.offset == -1)
+			continue;
+
 		if (sym->start + dl->al.offset == ip) {
 			/*
 			 * llvm-objdump places "lock" in a separate line and
 			 * in that case, we want to get the next line.
 			 */
-			if (!strcmp(dl->ins.name, "lock") && *dl->ops.raw == '\0') {
+			if (ins__is_lock(&dl->ins) &&
+			    *dl->ops.raw == '\0' && allow_update) {
 				ip++;
 				continue;
 			}
@@ -3773,6 +2237,58 @@ static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
 	return false;
 }
 
+static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
+{
+	/* On x86_64, %gs:40 is used for stack canary */
+	if (arch__is(arch, "x86")) {
+		if (loc->segment == INSN_SEG_X86_GS && loc->imm &&
+		    loc->offset == 40)
+			return true;
+	}
+
+	return false;
+}
+
+static struct disasm_line *
+annotation__prev_asm_line(struct annotation *notes, struct disasm_line *curr)
+{
+	struct list_head *sources = &notes->src->source;
+	struct disasm_line *prev;
+
+	if (curr == list_first_entry(sources, struct disasm_line, al.node))
+		return NULL;
+
+	prev = list_prev_entry(curr, al.node);
+	while (prev->al.offset == -1 &&
+	       prev != list_first_entry(sources, struct disasm_line, al.node))
+		prev = list_prev_entry(prev, al.node);
+
+	if (prev->al.offset == -1)
+		return NULL;
+
+	return prev;
+}
+
+static struct disasm_line *
+annotation__next_asm_line(struct annotation *notes, struct disasm_line *curr)
+{
+	struct list_head *sources = &notes->src->source;
+	struct disasm_line *next;
+
+	if (curr == list_last_entry(sources, struct disasm_line, al.node))
+		return NULL;
+
+	next = list_next_entry(curr, al.node);
+	while (next->al.offset == -1 &&
+	       next != list_last_entry(sources, struct disasm_line, al.node))
+		next = list_next_entry(next, al.node);
+
+	if (next->al.offset == -1)
+		return NULL;
+
+	return next;
+}
+
 u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
 			struct disasm_line *dl)
 {
@@ -3788,12 +2304,12 @@ u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
 	 * disasm_line.  If it's the last one, we can use symbol's end
 	 * address directly.
 	 */
-	if (&dl->al.node == notes->src->source.prev)
+	next = annotation__next_asm_line(notes, dl);
+	if (next == NULL)
 		addr = ms->sym->end + offset;
-	else {
-		next = list_next_entry(dl, al.node);
+	else
 		addr = ip + (next->al.offset - dl->al.offset) + offset;
-	}
+
 	return map__rip_2objdump(ms->map, addr);
 }
 
@@ -3816,9 +2332,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	struct annotated_op_loc *op_loc;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;
-	u64 ip = he->ip, addr = 0;
-	const char *var_name = NULL;
-	int var_offset;
+	u64 ip = he->ip;
 	int i;
 
 	ann_data_stat.total++;
@@ -3833,19 +2347,17 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		return NULL;
 	}
 
-	if (evsel__get_arch(evsel, &arch) < 0) {
+	/* Make sure it has the disasm of the function */
+	if (symbol__annotate(ms, evsel, &arch) < 0) {
 		ann_data_stat.no_insn++;
 		return NULL;
 	}
-
-	/* Make sure it runs objdump to get disasm of the function */
-	symbol__ensure_annotate(ms, evsel);
 
 	/*
 	 * Get a disasm to extract the location from the insn.
 	 * This is too slow...
 	 */
-	dl = find_disasm_line(ms->sym, ip);
+	dl = find_disasm_line(ms->sym, ip, /*allow_update=*/true);
 	if (dl == NULL) {
 		ann_data_stat.no_insn++;
 		return NULL;
@@ -3871,51 +2383,55 @@ retry:
 	}
 
 	for_each_insn_op_loc(&loc, i, op_loc) {
-		if (!op_loc->mem_ref)
+		struct data_loc_info dloc = {
+			.arch = arch,
+			.thread = he->thread,
+			.ms = ms,
+			/* Recalculate IP for LOCK prefix or insn fusion */
+			.ip = ms->sym->start + dl->al.offset,
+			.cpumode = he->cpumode,
+			.op = op_loc,
+		};
+
+		if (!op_loc->mem_ref && op_loc->segment == INSN_SEG_NONE)
 			continue;
 
 		/* Recalculate IP because of LOCK prefix or insn fusion */
 		ip = ms->sym->start + dl->al.offset;
 
-		var_offset = op_loc->offset;
-
 		/* PC-relative addressing */
 		if (op_loc->reg1 == DWARF_REG_PC) {
-			struct addr_location al;
-			struct symbol *var;
-			u64 map_addr;
-
-			addr = annotate_calc_pcrel(ms, ip, op_loc->offset, dl);
-			/* Kernel symbols might be relocated */
-			map_addr = addr + map__reloc(ms->map);
-
-			addr_location__init(&al);
-			var = thread__find_symbol_fb(he->thread, he->cpumode,
-						     map_addr, &al);
-			if (var) {
-				var_name = var->name;
-				/* Calculate type offset from the start of variable */
-				var_offset = map_addr - map__unmap_ip(al.map, var->start);
-			}
-			addr_location__exit(&al);
+			dloc.var_addr = annotate_calc_pcrel(ms, dloc.ip,
+							    op_loc->offset, dl);
 		}
 
-		mem_type = find_data_type(ms, ip, op_loc, addr, var_name);
+		/* This CPU access in kernel - pretend PC-relative addressing */
+		if (dso__kernel(map__dso(ms->map)) && arch__is(arch, "x86") &&
+		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
+			dloc.var_addr = op_loc->offset;
+			op_loc->reg1 = DWARF_REG_PC;
+		}
+
+		mem_type = find_data_type(&dloc);
+
+		if (mem_type == NULL && is_stack_canary(arch, op_loc)) {
+			istat->good++;
+			he->mem_type_off = 0;
+			return &canary_type;
+		}
+
 		if (mem_type)
 			istat->good++;
 		else
 			istat->bad++;
 
-		if (mem_type && var_name)
-			op_loc->offset = var_offset;
-
 		if (symbol_conf.annotate_data_sample) {
 			annotated_data_type__update_samples(mem_type, evsel,
-							    op_loc->offset,
+							    dloc.type_offset,
 							    he->stat.nr_events,
 							    he->stat.period);
 		}
-		he->mem_type_off = op_loc->offset;
+		he->mem_type_off = dloc.type_offset;
 		return mem_type;
 	}
 
@@ -3924,10 +2440,13 @@ retry:
 	 * from the previous instruction.
 	 */
 	if (dl->al.offset > 0) {
+		struct annotation *notes;
 		struct disasm_line *prev_dl;
 
-		prev_dl = list_prev_entry(dl, al.node);
-		if (ins__is_fused(arch, prev_dl->ins.name, dl->ins.name)) {
+		notes = symbol__annotation(ms->sym);
+		prev_dl = annotation__prev_asm_line(notes, dl);
+
+		if (prev_dl && ins__is_fused(arch, prev_dl->ins.name, dl->ins.name)) {
 			dl = prev_dl;
 			goto retry;
 		}
@@ -3936,4 +2455,228 @@ retry:
 	ann_data_stat.no_mem_ops++;
 	istat->bad++;
 	return NULL;
+}
+
+/* Basic block traversal (BFS) data structure */
+struct basic_block_data {
+	struct list_head queue;
+	struct list_head visited;
+};
+
+/*
+ * During the traversal, it needs to know the parent block where the current
+ * block block started from.  Note that single basic block can be parent of
+ * two child basic blocks (in case of condition jump).
+ */
+struct basic_block_link {
+	struct list_head node;
+	struct basic_block_link *parent;
+	struct annotated_basic_block *bb;
+};
+
+/* Check any of basic block in the list already has the offset */
+static bool basic_block_has_offset(struct list_head *head, s64 offset)
+{
+	struct basic_block_link *link;
+
+	list_for_each_entry(link, head, node) {
+		s64 begin_offset = link->bb->begin->al.offset;
+		s64 end_offset = link->bb->end->al.offset;
+
+		if (begin_offset <= offset && offset <= end_offset)
+			return true;
+	}
+	return false;
+}
+
+static bool is_new_basic_block(struct basic_block_data *bb_data,
+			       struct disasm_line *dl)
+{
+	s64 offset = dl->al.offset;
+
+	if (basic_block_has_offset(&bb_data->visited, offset))
+		return false;
+	if (basic_block_has_offset(&bb_data->queue, offset))
+		return false;
+	return true;
+}
+
+/* Add a basic block starting from dl and link it to the parent */
+static int add_basic_block(struct basic_block_data *bb_data,
+			   struct basic_block_link *parent,
+			   struct disasm_line *dl)
+{
+	struct annotated_basic_block *bb;
+	struct basic_block_link *link;
+
+	if (dl == NULL)
+		return -1;
+
+	if (!is_new_basic_block(bb_data, dl))
+		return 0;
+
+	bb = zalloc(sizeof(*bb));
+	if (bb == NULL)
+		return -1;
+
+	bb->begin = dl;
+	bb->end = dl;
+	INIT_LIST_HEAD(&bb->list);
+
+	link = malloc(sizeof(*link));
+	if (link == NULL) {
+		free(bb);
+		return -1;
+	}
+
+	link->bb = bb;
+	link->parent = parent;
+	list_add_tail(&link->node, &bb_data->queue);
+	return 0;
+}
+
+/* Returns true when it finds the target in the current basic block */
+static bool process_basic_block(struct basic_block_data *bb_data,
+				struct basic_block_link *link,
+				struct symbol *sym, u64 target)
+{
+	struct disasm_line *dl, *next_dl, *last_dl;
+	struct annotation *notes = symbol__annotation(sym);
+	bool found = false;
+
+	dl = link->bb->begin;
+	/* Check if it's already visited */
+	if (basic_block_has_offset(&bb_data->visited, dl->al.offset))
+		return false;
+
+	last_dl = list_last_entry(&notes->src->source,
+				  struct disasm_line, al.node);
+	if (last_dl->al.offset == -1)
+		last_dl = annotation__prev_asm_line(notes, last_dl);
+
+	if (last_dl == NULL)
+		return false;
+
+	list_for_each_entry_from(dl, &notes->src->source, al.node) {
+		/* Skip comment or debug info line */
+		if (dl->al.offset == -1)
+			continue;
+		/* Found the target instruction */
+		if (sym->start + dl->al.offset == target) {
+			found = true;
+			break;
+		}
+		/* End of the function, finish the block */
+		if (dl == last_dl)
+			break;
+		/* 'return' instruction finishes the block */
+		if (ins__is_ret(&dl->ins))
+			break;
+		/* normal instructions are part of the basic block */
+		if (!ins__is_jump(&dl->ins))
+			continue;
+		/* jump to a different function, tail call or return */
+		if (dl->ops.target.outside)
+			break;
+		/* jump instruction creates new basic block(s) */
+		next_dl = find_disasm_line(sym, sym->start + dl->ops.target.offset,
+					   /*allow_update=*/false);
+		if (next_dl)
+			add_basic_block(bb_data, link, next_dl);
+
+		/*
+		 * FIXME: determine conditional jumps properly.
+		 * Conditional jumps create another basic block with the
+		 * next disasm line.
+		 */
+		if (!strstr(dl->ins.name, "jmp")) {
+			next_dl = annotation__next_asm_line(notes, dl);
+			if (next_dl)
+				add_basic_block(bb_data, link, next_dl);
+		}
+		break;
+
+	}
+	link->bb->end = dl;
+	return found;
+}
+
+/*
+ * It founds a target basic block, build a proper linked list of basic blocks
+ * by following the link recursively.
+ */
+static void link_found_basic_blocks(struct basic_block_link *link,
+				    struct list_head *head)
+{
+	while (link) {
+		struct basic_block_link *parent = link->parent;
+
+		list_move(&link->bb->list, head);
+		list_del(&link->node);
+		free(link);
+
+		link = parent;
+	}
+}
+
+static void delete_basic_blocks(struct basic_block_data *bb_data)
+{
+	struct basic_block_link *link, *tmp;
+
+	list_for_each_entry_safe(link, tmp, &bb_data->queue, node) {
+		list_del(&link->node);
+		zfree(&link->bb);
+		free(link);
+	}
+
+	list_for_each_entry_safe(link, tmp, &bb_data->visited, node) {
+		list_del(&link->node);
+		zfree(&link->bb);
+		free(link);
+	}
+}
+
+/**
+ * annotate_get_basic_blocks - Get basic blocks for given address range
+ * @sym: symbol to annotate
+ * @src: source address
+ * @dst: destination address
+ * @head: list head to save basic blocks
+ *
+ * This function traverses disasm_lines from @src to @dst and save them in a
+ * list of annotated_basic_block to @head.  It uses BFS to find the shortest
+ * path between two.  The basic_block_link is to maintain parent links so
+ * that it can build a list of blocks from the start.
+ */
+int annotate_get_basic_blocks(struct symbol *sym, s64 src, s64 dst,
+			      struct list_head *head)
+{
+	struct basic_block_data bb_data = {
+		.queue = LIST_HEAD_INIT(bb_data.queue),
+		.visited = LIST_HEAD_INIT(bb_data.visited),
+	};
+	struct basic_block_link *link;
+	struct disasm_line *dl;
+	int ret = -1;
+
+	dl = find_disasm_line(sym, src, /*allow_update=*/false);
+	if (dl == NULL)
+		return -1;
+
+	if (add_basic_block(&bb_data, /*parent=*/NULL, dl) < 0)
+		return -1;
+
+	/* Find shortest path from src to dst using BFS */
+	while (!list_empty(&bb_data.queue)) {
+		link = list_first_entry(&bb_data.queue, struct basic_block_link, node);
+
+		if (process_basic_block(&bb_data, link, sym, dst)) {
+			link_found_basic_blocks(link, head);
+			ret = 0;
+			break;
+		}
+		list_move(&link->node, &bb_data.visited);
+	}
+	delete_basic_blocks(&bb_data);
+	return ret;
 }

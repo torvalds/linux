@@ -240,4 +240,6 @@ static struct platform_driver clk_mt8195_infra_ao_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_infra_ao_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 infracfg clocks driver");
 MODULE_LICENSE("GPL");

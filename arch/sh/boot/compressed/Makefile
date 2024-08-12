@@ -5,14 +5,11 @@
 # create a compressed vmlinux image from the original vmlinux
 #
 
-OBJECTS := head_32.o misc.o cache.o piggy.o \
+OBJECTS := head_32.o misc.o piggy.o \
            ashiftrt.o ashldi3.o ashrsi3.o ashlsi3.o lshrsi3.o
 
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 \
            vmlinux.bin.lzma vmlinux.bin.xz vmlinux.bin.lzo $(OBJECTS)
-
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
 
 #
 # IMAGE_OFFSET is the load offset of the compression loader

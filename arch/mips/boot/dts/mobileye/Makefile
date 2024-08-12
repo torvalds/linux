@@ -2,3 +2,4 @@
 # Copyright 2023 Mobileye Vision Technologies Ltd.
 
 dtb-$(CONFIG_MACH_EYEQ5)		+= eyeq5-epm5.dtb
+dtb-$(CONFIG_MACH_EYEQ6H)		+= eyeq6h-epm6.dtb

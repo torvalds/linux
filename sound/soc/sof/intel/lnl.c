@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
-// Copyright(c) 2023 Intel Corporation. All rights reserved.
+// Copyright(c) 2023 Intel Corporation
 
 /*
  * Hardware interface for audio DSP on LunarLake.
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <sound/hda_register.h>
 #include <sound/sof/ipc4/header.h>
@@ -16,28 +17,31 @@
 #include "hda-ipc.h"
 #include "../sof-audio.h"
 #include "mtl.h"
+#include "lnl.h"
 #include <sound/hda-mlink.h>
 
 /* LunarLake ops */
 struct snd_sof_dsp_ops sof_lnl_ops;
-EXPORT_SYMBOL_NS(sof_lnl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static const struct snd_sof_debugfs_map lnl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"fw_regs", HDA_DSP_BAR,  MTL_SRAM_WINDOW_OFFSET(0), 0x1000, SOF_DEBUGFS_ACCESS_D0_ONLY},
 };
 
 /* this helps allows the DSP to setup DMIC/SSP */
-static int hdac_bus_offload_dmic_ssp(struct hdac_bus *bus)
+static int hdac_bus_offload_dmic_ssp(struct hdac_bus *bus, bool enable)
 {
 	int ret;
 
-	ret = hdac_bus_eml_enable_offload(bus, true,  AZX_REG_ML_LEPTR_ID_INTEL_SSP, true);
+	ret = hdac_bus_eml_enable_offload(bus, true,
+					  AZX_REG_ML_LEPTR_ID_INTEL_SSP, enable);
 	if (ret < 0)
 		return ret;
 
-	ret = hdac_bus_eml_enable_offload(bus, true,  AZX_REG_ML_LEPTR_ID_INTEL_DMIC, true);
+	ret = hdac_bus_eml_enable_offload(bus, true,
+					  AZX_REG_ML_LEPTR_ID_INTEL_DMIC, enable);
 	if (ret < 0)
 		return ret;
 
@@ -52,7 +56,19 @@ static int lnl_hda_dsp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
+}
+
+static void lnl_hda_dsp_remove(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), false);
+	if (ret < 0)
+		dev_warn(sdev->dev,
+			 "Failed to disable offload for DMIC/SSP: %d\n", ret);
+
+	hda_dsp_remove(sdev);
 }
 
 static int lnl_hda_dsp_resume(struct snd_sof_dev *sdev)
@@ -63,7 +79,7 @@ static int lnl_hda_dsp_resume(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
 }
 
 static int lnl_hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
@@ -74,7 +90,7 @@ static int lnl_hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev));
+	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
 }
 
 static int lnl_dsp_post_fw_run(struct snd_sof_dev *sdev)
@@ -83,8 +99,12 @@ static int lnl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT))
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) {
 			hda->imrboot_supported = true;
+			debugfs_create_bool("skip_imr_boot",
+					    0644, sdev->debugfs_root,
+					    &hda->skip_imr_boot);
+		}
 	}
 
 	return 0;
@@ -97,9 +117,11 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 	/* common defaults */
 	memcpy(&sof_lnl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
 
-	/* probe */
-	if (!sdev->dspless_mode_selected)
+	/* probe/remove */
+	if (!sdev->dspless_mode_selected) {
 		sof_lnl_ops.probe = lnl_hda_dsp_probe;
+		sof_lnl_ops.remove = lnl_hda_dsp_remove;
+	}
 
 	/* shutdown */
 	sof_lnl_ops.shutdown = hda_dsp_shutdown;
@@ -134,8 +156,6 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 		sof_lnl_ops.runtime_resume = lnl_hda_dsp_runtime_resume;
 	}
 
-	sof_lnl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
-
 	/* dsp core get/put */
 	sof_lnl_ops.core_get = mtl_dsp_core_get;
 	sof_lnl_ops.core_put = mtl_dsp_core_put;
@@ -161,7 +181,6 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 };
-EXPORT_SYMBOL_NS(sof_lnl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /* Check if an SDW IRQ occurred */
 static bool lnl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
@@ -185,6 +204,23 @@ static int lnl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 	return mtl_enable_interrupts(sdev, false);
 }
 
+static bool lnl_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	u16 wake_sts;
+
+	/*
+	 * we need to use the global HDaudio WAKEEN/STS to be able to
+	 * detect wakes in low-power modes. The link-specific information
+	 * is handled in the process_wakeen() helper, this helper only
+	 * detects a SoundWire wake without identifying the link.
+	 */
+	wake_sts = snd_hdac_chip_readw(bus, STATESTS);
+
+	/* filter out the range of SDIs that can be set for SoundWire */
+	return wake_sts & GENMASK(SDW_MAX_DEVICES, SDW_INTEL_DEV_NUM_IDA_MIN);
+}
+
 const struct sof_intel_dsp_desc lnl_chip_info = {
 	.cores_num = 5,
 	.init_core_mask = BIT(0),
@@ -194,17 +230,18 @@ const struct sof_intel_dsp_desc lnl_chip_info = {
 	.ipc_ack = MTL_DSP_REG_HFIPCXIDA,
 	.ipc_ack_mask = MTL_DSP_REG_HFIPCXIDA_DONE,
 	.ipc_ctl = MTL_DSP_REG_HFIPCXCTL,
-	.rom_status_reg = MTL_DSP_ROM_STS,
+	.rom_status_reg = LNL_DSP_REG_HFDSC,
 	.rom_init_timeout = 300,
 	.ssp_count = MTL_SSP_COUNT,
 	.d0i3_offset = MTL_HDA_VS_D0I3C,
 	.read_sdw_lcount =  hda_sdw_check_lcount_ext,
 	.enable_sdw_irq = lnl_enable_sdw_irq,
 	.check_sdw_irq = lnl_dsp_check_sdw_irq,
+	.check_sdw_wakeen_irq = lnl_sdw_check_wakeen_irq,
+	.sdw_process_wakeen = hda_sdw_process_wakeen_common,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = lnl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_2_0,
 };
-EXPORT_SYMBOL_NS(lnl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

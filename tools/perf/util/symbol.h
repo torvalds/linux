@@ -268,18 +268,6 @@ enum {
 	SDT_NOTE_IDX_REFCTR,
 };
 
-struct mem_info *mem_info__new(void);
-struct mem_info *mem_info__get(struct mem_info *mi);
-void   mem_info__put(struct mem_info *mi);
-
-static inline void __mem_info__zput(struct mem_info **mi)
-{
-	mem_info__put(*mi);
-	*mi = NULL;
-}
-
-#define mem_info__zput(mi) __mem_info__zput(&mi)
-
 int symbol__validate_sym_arguments(void);
 
 #endif /* __PERF_SYMBOL */

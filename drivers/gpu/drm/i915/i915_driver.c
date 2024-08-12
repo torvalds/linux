@@ -53,6 +53,7 @@
 #include "display/intel_dmc.h"
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
+#include "display/intel_encoder.h"
 #include "display/intel_fbdev.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
@@ -202,7 +203,7 @@ static void sanitize_gpu(struct drm_i915_private *i915)
 		unsigned int i;
 
 		for_each_gt(gt, i915, i)
-			__intel_gt_reset(gt, ALL_ENGINES);
+			intel_gt_reset_all_engines(gt);
 	}
 }
 
@@ -920,27 +921,6 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-/**
- * i915_driver_lastclose - clean up after all DRM clients have exited
- * @dev: DRM device
- *
- * Take care of cleaning up after all DRM clients have exited.  In the
- * mode setting case, we want to restore the kernel's initial mode (just
- * in case the last client left us in a bad state).
- *
- * Additionally, in the non-mode setting case, we'll tear down the GTT
- * and DMA structures, since the kernel won't be using them, and clea
- * up any GEM state.
- */
-static void i915_driver_lastclose(struct drm_device *dev)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-
-	intel_fbdev_restore_mode(i915);
-
-	vga_switcheroo_process_delayed_switch();
-}
-
 static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -952,50 +932,6 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 
 	/* Catch up with all the deferred frees from "this" client */
 	i915_gem_flush_free_objects(to_i915(dev));
-}
-
-static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
-{
-	struct intel_encoder *encoder;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	/*
-	 * TODO: check and remove holding the modeset locks if none of
-	 * the encoders depends on this.
-	 */
-	drm_modeset_lock_all(&dev_priv->drm);
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->suspend)
-			encoder->suspend(encoder);
-	drm_modeset_unlock_all(&dev_priv->drm);
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->suspend_complete)
-			encoder->suspend_complete(encoder);
-}
-
-static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
-{
-	struct intel_encoder *encoder;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	/*
-	 * TODO: check and remove holding the modeset locks if none of
-	 * the encoders depends on this.
-	 */
-	drm_modeset_lock_all(&dev_priv->drm);
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->shutdown)
-			encoder->shutdown(encoder);
-	drm_modeset_unlock_all(&dev_priv->drm);
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->shutdown_complete)
-			encoder->shutdown_complete(encoder);
 }
 
 void i915_driver_shutdown(struct drm_i915_private *i915)
@@ -1020,8 +956,8 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	if (HAS_DISPLAY(i915))
 		intel_display_driver_suspend_access(i915);
 
-	intel_suspend_encoders(i915);
-	intel_shutdown_encoders(i915);
+	intel_encoder_suspend_all(&i915->display);
+	intel_encoder_shutdown_all(&i915->display);
 
 	intel_dmc_suspend(i915);
 
@@ -1104,7 +1040,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	if (HAS_DISPLAY(dev_priv))
 		intel_display_driver_suspend_access(dev_priv);
 
-	intel_suspend_encoders(dev_priv);
+	intel_encoder_suspend_all(&dev_priv->display);
 
 	/* Must be called before GGTT is suspended. */
 	intel_dpt_suspend(dev_priv);
@@ -1831,7 +1767,6 @@ static const struct drm_driver i915_drm_driver = {
 	    DRIVER_SYNCOBJ_TIMELINE,
 	.release = i915_driver_release,
 	.open = i915_driver_open,
-	.lastclose = i915_driver_lastclose,
 	.postclose = i915_driver_postclose,
 	.show_fdinfo = PTR_IF(IS_ENABLED(CONFIG_PROC_FS), i915_drm_client_fdinfo),
 

@@ -498,7 +498,7 @@ static int pic32_spi_one_transfer(struct spi_controller *host,
 {
 	struct pic32_spi *pic32s;
 	bool dma_issued = false;
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 
 	pic32s = spi_controller_get_devdata(host);
@@ -545,8 +545,8 @@ static int pic32_spi_one_transfer(struct spi_controller *host,
 	}
 
 	/* wait for completion */
-	timeout = wait_for_completion_timeout(&pic32s->xfer_done, 2 * HZ);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&pic32s->xfer_done, 2 * HZ);
+	if (time_left == 0) {
 		dev_err(&spi->dev, "wait error/timedout\n");
 		if (dma_issued) {
 			dmaengine_terminate_all(host->dma_rx);

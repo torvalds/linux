@@ -295,7 +295,7 @@ static int __init sh7785lcr_devices_setup(void)
 device_initcall(sh7785lcr_devices_setup);
 
 /* Initialize IRQ setting */
-void __init init_sh7785lcr_IRQ(void)
+static void __init init_sh7785lcr_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ7654);
 	plat_irq_setup_pins(IRQ_MODE_IRQ3210);

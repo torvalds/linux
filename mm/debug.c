@@ -55,25 +55,17 @@ static void __dump_folio(struct folio *folio, struct page *page,
 		unsigned long pfn, unsigned long idx)
 {
 	struct address_space *mapping = folio_mapping(folio);
-	int mapcount = 0;
+	int mapcount = atomic_read(&page->_mapcount);
 	char *type = "";
 
-	/*
-	 * page->_mapcount space in struct page is used by slab pages to
-	 * encode own info, and we must avoid calling page_folio() again.
-	 */
-	if (!folio_test_slab(folio)) {
-		mapcount = atomic_read(&page->_mapcount) + 1;
-		if (folio_test_large(folio))
-			mapcount += folio_entire_mapcount(folio);
-	}
-
+	mapcount = page_type_has_type(mapcount) ? 0 : mapcount + 1;
 	pr_warn("page: refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
 			folio_ref_count(folio), mapcount, mapping,
 			folio->index + idx, pfn);
 	if (folio_test_large(folio)) {
-		pr_warn("head: order:%u entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
+		pr_warn("head: order:%u mapcount:%d entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
 				folio_order(folio),
+				folio_mapcount(folio),
 				folio_entire_mapcount(folio),
 				folio_nr_pages_mapped(folio),
 				atomic_read(&folio->_pincount));
@@ -99,7 +91,8 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	 */
 	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
 		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
-	pr_warn("page_type: %pGt\n", &folio->page.page_type);
+	if (page_has_type(&folio->page))
+		pr_warn("page_type: %pGt\n", &folio->page.page_type);
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
@@ -180,9 +173,6 @@ EXPORT_SYMBOL(dump_vma);
 void dump_mm(const struct mm_struct *mm)
 {
 	pr_emerg("mm %px task_size %lu\n"
-#ifdef CONFIG_MMU
-		"get_unmapped_area %px\n"
-#endif
 		"mmap_base %lu mmap_legacy_base %lu\n"
 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
@@ -208,9 +198,6 @@ void dump_mm(const struct mm_struct *mm)
 		"def_flags: %#lx(%pGv)\n",
 
 		mm, mm->task_size,
-#ifdef CONFIG_MMU
-		mm->get_unmapped_area,
-#endif
 		mm->mmap_base, mm->mmap_legacy_base,
 		mm->pgd, atomic_read(&mm->mm_users),
 		atomic_read(&mm->mm_count),

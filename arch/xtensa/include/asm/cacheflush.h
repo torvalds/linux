@@ -100,6 +100,10 @@ void flush_cache_range(struct vm_area_struct*, ulong, ulong);
 void flush_icache_range(unsigned long start, unsigned long end);
 void flush_cache_page(struct vm_area_struct*,
 			     unsigned long, unsigned long);
+#define flush_cache_all flush_cache_all
+#define flush_cache_range flush_cache_range
+#define flush_icache_range flush_icache_range
+#define flush_cache_page flush_cache_page
 #else
 #define flush_cache_all local_flush_cache_all
 #define flush_cache_range local_flush_cache_range
@@ -136,20 +140,7 @@ void local_flush_cache_page(struct vm_area_struct *vma,
 
 #else
 
-#define flush_cache_all()				do { } while (0)
-#define flush_cache_mm(mm)				do { } while (0)
-#define flush_cache_dup_mm(mm)				do { } while (0)
-
-#define flush_cache_vmap(start,end)			do { } while (0)
-#define flush_cache_vmap_early(start,end)		do { } while (0)
-#define flush_cache_vunmap(start,end)			do { } while (0)
-
-#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
-#define flush_dcache_page(page)				do { } while (0)
-
 #define flush_icache_range local_flush_icache_range
-#define flush_cache_page(vma, addr, pfn)		do { } while (0)
-#define flush_cache_range(vma, start, end)		do { } while (0)
 
 #endif
 
@@ -162,15 +153,14 @@ void local_flush_cache_page(struct vm_area_struct *vma,
 		__invalidate_icache_range(start,(end) - (start));	\
 	} while (0)
 
-#define flush_dcache_mmap_lock(mapping)			do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)		do { } while (0)
-
 #if defined(CONFIG_MMU) && (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 extern void copy_to_user_page(struct vm_area_struct*, struct page*,
 		unsigned long, void*, const void*, unsigned long);
 extern void copy_from_user_page(struct vm_area_struct*, struct page*,
 		unsigned long, void*, const void*, unsigned long);
+#define copy_to_user_page copy_to_user_page
+#define copy_from_user_page copy_from_user_page
 
 #else
 
@@ -185,5 +175,7 @@ extern void copy_from_user_page(struct vm_area_struct*, struct page*,
 	memcpy(dst, src, len)
 
 #endif
+
+#include <asm-generic/cacheflush.h>
 
 #endif /* _XTENSA_CACHEFLUSH_H */

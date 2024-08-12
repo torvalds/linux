@@ -12,7 +12,7 @@
 #include <net/ipv6.h>
 
 #include "iwl-trans.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "mvm.h"
 #include "sta.h"
 #include "time-sync.h"
@@ -802,10 +802,30 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	if (info.control.vif) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info.control.vif);
+		bool p2p_aux = iwl_mvm_has_p2p_over_aux(mvm);
 
-		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-		    info.control.vif->type == NL80211_IFTYPE_AP ||
-		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
+		if ((info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE &&
+		     p2p_aux) ||
+		    (info.control.vif->type == NL80211_IFTYPE_STATION &&
+		     offchannel)) {
+			/*
+			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
+			 * that can be used in 2 different types of vifs, P2P
+			 * Device and STATION.
+			 * P2P Device uses the offchannel queue.
+			 * STATION (HS2.0) uses the auxiliary context of the FW,
+			 * and hence needs to be sent on the aux queue.
+			 * If P2P_DEV_OVER_AUX is supported (p2p_aux = true)
+			 * also P2P Device uses the aux queue.
+			 */
+			sta_id = mvm->aux_sta.sta_id;
+			queue = mvm->aux_queue;
+			if (WARN_ON(queue == IWL_MVM_INVALID_QUEUE))
+				return -1;
+		} else if (info.control.vif->type ==
+			   NL80211_IFTYPE_P2P_DEVICE ||
+			   info.control.vif->type == NL80211_IFTYPE_AP ||
+			   info.control.vif->type == NL80211_IFTYPE_ADHOC) {
 			u32 link_id = u32_get_bits(info.control.flags,
 						   IEEE80211_TX_CTRL_MLO_LINK);
 			struct iwl_mvm_vif_link_info *link;
@@ -831,18 +851,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
-		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			   offchannel) {
-			/*
-			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
-			 * that can be used in 2 different types of vifs, P2P &
-			 * STATION.
-			 * P2P uses the offchannel queue.
-			 * STATION (HS2.0) uses the auxiliary context of the FW,
-			 * and hence needs to be sent on the aux queue.
-			 */
-			sta_id = mvm->aux_sta.sta_id;
-			queue = mvm->aux_queue;
 		}
 	}
 
@@ -1870,6 +1878,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "Next reclaimed packet:%d\n",
 						   next_reclaimed);
+				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, true, 0);
 			} else {
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "NDP - don't update next_reclaimed\n");
@@ -2247,9 +2256,13 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   le32_to_cpu(ba_res->tx_rate), false);
 		}
 
-		if (mvmsta)
+		if (mvmsta) {
 			iwl_mvm_tx_airtime(mvm, mvmsta,
 					   le32_to_cpu(ba_res->wireless_time));
+
+			iwl_mvm_count_mpdu(mvmsta, sta_id,
+					   le16_to_cpu(ba_res->txed), true, 0);
+		}
 		rcu_read_unlock();
 		return;
 	}

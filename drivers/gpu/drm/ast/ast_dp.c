@@ -158,7 +158,14 @@ void ast_dp_launch(struct drm_device *dev)
 			       ASTDP_HOST_EDID_READ_DONE);
 }
 
+bool ast_dp_power_is_on(struct ast_device *ast)
+{
+	u8 vgacre3;
 
+	vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
+
+	return !(vgacre3 & AST_DP_PHY_SLEEP);
+}
 
 void ast_dp_power_on_off(struct drm_device *dev, bool on)
 {
@@ -180,6 +187,7 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 {
 	struct ast_device *ast = to_ast_device(dev);
 	u8 video_on_off = on;
+	u32 i = 0;
 
 	// Video On/Off
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
@@ -192,6 +200,8 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
 			// wait 1 ms
 			mdelay(1);
+			if (++i > 200)
+				break;
 		}
 	}
 }

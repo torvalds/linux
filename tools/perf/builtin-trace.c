@@ -765,7 +765,7 @@ static const char *fcntl_cmds[] = {
 static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
-	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
+	"SETLEASE", "GETLEASE", "NOTIFY", "DUPFD_QUERY", [5] = "CANCELLK", "DUPFD_CLOEXEC",
 	"SETPIPE_SZ", "GETPIPE_SZ", "ADD_SEALS", "GET_SEALS",
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };
@@ -947,6 +947,15 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [1] = STRARRAY(op, epoll_ctl_ops), }, },
 	{ .name	    = "eventfd2",
 	  .arg = { [1] = { .scnprintf = SCA_EFD_FLAGS, /* flags */ }, }, },
+	{ .name     = "faccessat",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ }, }, },
+	{ .name     = "faccessat2",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ },
+		   [3] = { .scnprintf = SCA_FACCESSAT2_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fchmodat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "fchownat",
@@ -969,7 +978,6 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [1] = { .scnprintf = SCA_FILENAME,	  /* path */ },
 		   [2] = { .scnprintf = SCA_FSPICK_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fstat", .alias = "newfstat", },
-	{ .name	    = "fstatat", .alias = "newfstatat", },
 	{ .name	    = "futex",
 	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ },
 		   [5] = { .scnprintf = SCA_FUTEX_VAL3, /* val3 */ }, }, },
@@ -1025,7 +1033,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 #if defined(__s390x__)
 	.alias = "old_mmap",
 #endif
-	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ },
 		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */
 			   .strtoul   = STUL_STRARRAY_FLAGS,
 			   .parm      = &strarray__mmap_flags, },
@@ -1042,15 +1050,19 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [4] = { .scnprintf = SCA_MOVE_MOUNT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ }, }, },
+		   [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ }, }, },
 	{ .name	    = "mq_unlink",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* u_name */ }, }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
-	{ .name	    = "newfstatat",
-	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	{ .name	    = "nanosleep",
+	  .arg = { [0] = { .scnprintf = SCA_TIMESPEC,  /* req */ }, }, },
+	{ .name	    = "newfstatat", .alias = "fstatat",
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [3] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open",
 	  .arg = { [1] = { .scnprintf = SCA_OPEN_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open_by_handle_at",
@@ -1072,7 +1084,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_INT,	/* key */ }, }, },
 	{ .name	    = "pkey_mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+		   [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ },
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
@@ -1142,7 +1154,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "stat", .alias = "newstat", },
 	{ .name	    = "statx",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	 /* fdat */ },
-		   [2] = { .scnprintf = SCA_STATX_FLAGS, /* flags */ } ,
+		   [2] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ } ,
 		   [3] = { .scnprintf = SCA_STATX_MASK,	 /* mask */ }, }, },
 	{ .name	    = "swapoff",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* specialfile */ }, }, },
@@ -1160,7 +1172,9 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* name */ }, }, },
 	{ .name	    = "uname", .alias = "newuname", },
 	{ .name	    = "unlinkat",
-	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dfd */ },
+		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [2] = { .scnprintf = SCA_FS_AT_FLAGS,  /* flags */ }, }, },
 	{ .name	    = "utimensat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dirfd */ }, }, },
 	{ .name	    = "wait4",	    .errpid = true,
@@ -2077,17 +2091,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			val = syscall_arg_fmt__mask_val(&sc->arg_fmt[arg.idx], &arg, val);
 
 			/*
- 			 * Suppress this argument if its value is zero and
- 			 * and we don't have a string associated in an
- 			 * strarray for it.
- 			 */
-			if (val == 0 &&
-			    !trace->show_zeros &&
-			    !(sc->arg_fmt &&
-			      (sc->arg_fmt[arg.idx].show_zero ||
-			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
-			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAYS) &&
-			      sc->arg_fmt[arg.idx].parm))
+			 * Suppress this argument if its value is zero and show_zero
+			 * property isn't set.
+			 */
+			if (val == 0 && !trace->show_zeros &&
+			    !(sc->arg_fmt && sc->arg_fmt[arg.idx].show_zero))
 				continue;
 
 			printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
@@ -2782,17 +2790,8 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 		 */
 		val = syscall_arg_fmt__mask_val(arg, &syscall_arg, val);
 
-		/*
-		 * Suppress this argument if its value is zero and
-		 * we don't have a string associated in an
-		 * strarray for it.
-		 */
-		if (val == 0 &&
-		    !trace->show_zeros &&
-		    !((arg->show_zero ||
-		       arg->scnprintf == SCA_STRARRAY ||
-		       arg->scnprintf == SCA_STRARRAYS) &&
-		      arg->parm))
+		/* Suppress this argument if its value is zero and show_zero property isn't set. */
+		if (val == 0 && !trace->show_zeros && !arg->show_zero)
 			continue;
 
 		printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
@@ -2903,7 +2902,7 @@ static void print_location(FILE *f, struct perf_sample *sample,
 {
 
 	if ((verbose > 0 || print_dso) && al->map)
-		fprintf(f, "%s@", map__dso(al->map)->long_name);
+		fprintf(f, "%s@", dso__long_name(map__dso(al->map)));
 
 	if ((verbose > 0 || print_sym) && al->sym)
 		fprintf(f, "%s+0x%" PRIx64, al->sym->name,
@@ -3355,8 +3354,6 @@ static int trace__bpf_prog_sys_exit_fd(struct trace *trace, int id)
 static struct bpf_program *trace__find_usable_bpf_prog_entry(struct trace *trace, struct syscall *sc)
 {
 	struct tep_format_field *field, *candidate_field;
-	int id;
-
 	/*
 	 * We're only interested in syscalls that have a pointer:
 	 */
@@ -3368,7 +3365,8 @@ static struct bpf_program *trace__find_usable_bpf_prog_entry(struct trace *trace
 	return NULL;
 
 try_to_find_pair:
-	for (id = 0; id < trace->sctbl->syscalls.nr_entries; ++id) {
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int id = syscalltbl__id_at_idx(trace->sctbl, i);
 		struct syscall *pair = trace__syscall_info(trace, NULL, id);
 		struct bpf_program *pair_prog;
 		bool is_candidate = false;
@@ -3457,10 +3455,10 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 {
 	int map_enter_fd = bpf_map__fd(trace->skel->maps.syscalls_sys_enter);
 	int map_exit_fd  = bpf_map__fd(trace->skel->maps.syscalls_sys_exit);
-	int err = 0, key;
+	int err = 0;
 
-	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
-		int prog_fd;
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int prog_fd, key = syscalltbl__id_at_idx(trace->sctbl, i);
 
 		if (!trace__syscall_enabled(trace, key))
 			continue;
@@ -3506,7 +3504,8 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 	 * first and second arg (this one on the raw_syscalls:sys_exit prog
 	 * array tail call, then that one will be used.
 	 */
-	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int key = syscalltbl__id_at_idx(trace->sctbl, i);
 		struct syscall *sc = trace__syscall_info(trace, NULL, key);
 		struct bpf_program *pair_prog;
 		int prog_fd;
@@ -4869,6 +4868,11 @@ int cmd_trace(int argc, const char **argv)
 	if (!trace.trace_syscalls)
 		goto skip_augmentation;
 
+	if ((argc >= 1) && (strcmp(argv[0], "record") == 0)) {
+		pr_debug("Syscall augmentation fails with record, disabling augmentation");
+		goto skip_augmentation;
+	}
+
 	trace.skel = augmented_raw_syscalls_bpf__open();
 	if (!trace.skel) {
 		pr_debug("Failed to open augmented syscalls BPF skeleton");
@@ -4902,7 +4906,7 @@ int cmd_trace(int argc, const char **argv)
 		goto out;
 	}
 	trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
-	assert(!strcmp(evsel__name(trace.syscalls.events.bpf_output), "__augmented_syscalls__"));
+	assert(evsel__name_is(trace.syscalls.events.bpf_output, "__augmented_syscalls__"));
 skip_augmentation:
 #endif
 	err = -1;
@@ -4959,7 +4963,7 @@ skip_augmentation:
 	 */
 	if (trace.syscalls.events.bpf_output) {
 		evlist__for_each_entry(trace.evlist, evsel) {
-			bool raw_syscalls_sys_exit = strcmp(evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
+			bool raw_syscalls_sys_exit = evsel__name_is(evsel, "raw_syscalls:sys_exit");
 
 			if (raw_syscalls_sys_exit) {
 				trace.raw_augmented_syscalls = true;

@@ -92,7 +92,7 @@ TRACE_EVENT(ufshcd_clk_gating,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->state = state;
 	),
 
@@ -117,9 +117,9 @@ TRACE_EVENT(ufshcd_clk_scaling,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
-		__assign_str(state, state);
-		__assign_str(clk, clk);
+		__assign_str(dev_name);
+		__assign_str(state);
+		__assign_str(clk);
 		__entry->prev_state = prev_state;
 		__entry->curr_state = curr_state;
 	),
@@ -141,8 +141,8 @@ TRACE_EVENT(ufshcd_auto_bkops_state,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
-		__assign_str(state, state);
+		__assign_str(dev_name);
+		__assign_str(state);
 	),
 
 	TP_printk("%s: auto bkops - %s",
@@ -163,8 +163,8 @@ DECLARE_EVENT_CLASS(ufshcd_profiling_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
-		__assign_str(profile_info, profile_info);
+		__assign_str(dev_name);
+		__assign_str(profile_info);
 		__entry->time_us = time_us;
 		__entry->err = err;
 	),
@@ -206,7 +206,7 @@ DECLARE_EVENT_CLASS(ufshcd_template,
 	TP_fast_assign(
 		__entry->usecs = usecs;
 		__entry->err = err;
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->dev_state = dev_state;
 		__entry->link_state = link_state;
 	),
@@ -326,7 +326,7 @@ TRACE_EVENT(ufshcd_uic_command,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->str_t = str_t;
 		__entry->cmd = cmd;
 		__entry->arg1 = arg1;
@@ -356,7 +356,7 @@ TRACE_EVENT(ufshcd_upiu,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->str_t = str_t;
 		memcpy(__entry->hdr, hdr, sizeof(__entry->hdr));
 		memcpy(__entry->tsf, tsf, sizeof(__entry->tsf));
@@ -384,7 +384,7 @@ TRACE_EVENT(ufshcd_exception_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->status = status;
 	),
 

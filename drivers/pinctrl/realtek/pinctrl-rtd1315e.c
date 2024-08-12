@@ -1414,6 +1414,7 @@ static const struct of_device_id rtd1315e_pinctrl_of_match[] = {
 	{ .compatible = "realtek,rtd1315e-pinctrl", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, rtd1315e_pinctrl_of_match);
 
 static struct platform_driver rtd1315e_pinctrl_driver = {
 	.driver = {

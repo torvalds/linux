@@ -2,7 +2,7 @@
 #
 # Copyright 2009 Simtec Electronics
 
-include $(srctree)/$(src)/Makefile.s3c64xx
+include $(src)/Makefile.s3c64xx
 
 # Objects we always build independent of SoC choice
 

@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/linux/sched.h`](srctree/include/linux/sched.h).
 
-use crate::{bindings, types::Opaque};
+use crate::types::Opaque;
 use core::{
     ffi::{c_int, c_long, c_uint},
     marker::PhantomData,

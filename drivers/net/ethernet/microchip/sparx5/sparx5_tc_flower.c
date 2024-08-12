@@ -36,6 +36,27 @@ struct sparx5_tc_flower_template {
 	u16 l3_proto; /* protocol specified in the template */
 };
 
+/* SparX-5 VCAP fragment types:
+ * 0 = no fragment, 1 = initial fragment,
+ * 2 = suspicious fragment, 3 = valid follow-up fragment
+ */
+enum {                   /* key / mask */
+	FRAG_NOT   = 0x03, /* 0 / 3 */
+	FRAG_SOME  = 0x11, /* 1 / 1 */
+	FRAG_FIRST = 0x13, /* 1 / 3 */
+	FRAG_LATER = 0x33, /* 3 / 3 */
+	FRAG_INVAL = 0xff, /* invalid */
+};
+
+/* Flower fragment flag to VCAP fragment type mapping */
+static const u8 sparx5_vcap_frag_map[4][4] = {		  /* is_frag */
+	{ FRAG_INVAL, FRAG_INVAL, FRAG_INVAL, FRAG_FIRST }, /* 0/0 */
+	{ FRAG_NOT,   FRAG_NOT,   FRAG_INVAL, FRAG_INVAL }, /* 0/1 */
+	{ FRAG_INVAL, FRAG_INVAL, FRAG_INVAL, FRAG_INVAL }, /* 1/0 */
+	{ FRAG_SOME,  FRAG_LATER, FRAG_INVAL, FRAG_FIRST }  /* 1/1 */
+	/* 0/0	      0/1	  1/0	      1/1 <-- first_frag */
+};
+
 static int
 sparx5_tc_flower_es0_tpid(struct vcap_tc_flower_parse_usage *st)
 {
@@ -138,49 +159,51 @@ out:
 static int
 sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 {
+	struct netlink_ext_ack *extack = st->fco->common.extack;
 	struct flow_match_control mt;
 	u32 value, mask;
 	int err = 0;
 
 	flow_rule_match_control(st->frule, &mt);
 
-	if (mt.mask->flags) {
-		if (mt.mask->flags & FLOW_DIS_FIRST_FRAG) {
-			if (mt.key->flags & FLOW_DIS_FIRST_FRAG) {
-				value = 1; /* initial fragment */
-				mask = 0x3;
-			} else {
-				if (mt.mask->flags & FLOW_DIS_IS_FRAGMENT) {
-					value = 3; /* follow up fragment */
-					mask = 0x3;
-				} else {
-					value = 0; /* no fragment */
-					mask = 0x3;
-				}
-			}
-		} else {
-			if (mt.mask->flags & FLOW_DIS_IS_FRAGMENT) {
-				value = 3; /* follow up fragment */
-				mask = 0x3;
-			} else {
-				value = 0; /* no fragment */
-				mask = 0x3;
-			}
+	if (mt.mask->flags & (FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
+		u8 is_frag_key = !!(mt.key->flags & FLOW_DIS_IS_FRAGMENT);
+		u8 is_frag_mask = !!(mt.mask->flags & FLOW_DIS_IS_FRAGMENT);
+		u8 is_frag_idx = (is_frag_key << 1) | is_frag_mask;
+
+		u8 first_frag_key = !!(mt.key->flags & FLOW_DIS_FIRST_FRAG);
+		u8 first_frag_mask = !!(mt.mask->flags & FLOW_DIS_FIRST_FRAG);
+		u8 first_frag_idx = (first_frag_key << 1) | first_frag_mask;
+
+		/* Lookup verdict based on the 2 + 2 input bits */
+		u8 vdt = sparx5_vcap_frag_map[is_frag_idx][first_frag_idx];
+
+		if (vdt == FRAG_INVAL) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Match on invalid fragment flag combination");
+			return -EINVAL;
 		}
+
+		/* Extract VCAP fragment key and mask from verdict */
+		value = (vdt >> 4) & 0x3;
+		mask = vdt & 0x3;
 
 		err = vcap_rule_add_key_u32(st->vrule,
 					    VCAP_KF_L3_FRAGMENT_TYPE,
 					    value, mask);
-		if (err)
-			goto out;
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "ip_frag parse error");
+			return err;
+		}
 	}
+
+	if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT |
+					     FLOW_DIS_FIRST_FRAG,
+					     mt.mask->flags, extack))
+		return -EOPNOTSUPP;
 
 	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_frag parse error");
 	return err;
 }
 
@@ -1004,6 +1027,64 @@ static int sparx5_tc_action_vlan_push(struct vcap_admin *admin,
 	return err;
 }
 
+static void sparx5_tc_flower_set_port_mask(struct vcap_u72_action *ports,
+					   struct net_device *ndev)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	int byidx = port->portno / BITS_PER_BYTE;
+	int biidx = port->portno % BITS_PER_BYTE;
+
+	ports->value[byidx] |= BIT(biidx);
+}
+
+static int sparx5_tc_action_mirred(struct vcap_admin *admin,
+				   struct vcap_rule *vrule,
+				   struct flow_cls_offload *fco,
+				   struct flow_action_entry *act)
+{
+	struct vcap_u72_action ports = {0};
+	int err;
+
+	if (admin->vtype != VCAP_TYPE_IS0 && admin->vtype != VCAP_TYPE_IS2) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Mirror action not supported in this VCAP");
+		return -EOPNOTSUPP;
+	}
+
+	err = vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE,
+				       SPX5_PMM_OR_DSTMASK);
+	if (err)
+		return err;
+
+	sparx5_tc_flower_set_port_mask(&ports, act->dev);
+
+	return vcap_rule_add_action_u72(vrule, VCAP_AF_PORT_MASK, &ports);
+}
+
+static int sparx5_tc_action_redirect(struct vcap_admin *admin,
+				     struct vcap_rule *vrule,
+				     struct flow_cls_offload *fco,
+				     struct flow_action_entry *act)
+{
+	struct vcap_u72_action ports = {0};
+	int err;
+
+	if (admin->vtype != VCAP_TYPE_IS0 && admin->vtype != VCAP_TYPE_IS2) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Redirect action not supported in this VCAP");
+		return -EOPNOTSUPP;
+	}
+
+	err = vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE,
+				       SPX5_PMM_REPLACE_ALL);
+	if (err)
+		return err;
+
+	sparx5_tc_flower_set_port_mask(&ports, act->dev);
+
+	return vcap_rule_add_action_u72(vrule, VCAP_AF_PORT_MASK, &ports);
+}
+
 /* Remove rule keys that may prevent templates from matching a keyset */
 static void sparx5_tc_flower_simplify_rule(struct vcap_admin *admin,
 					   struct vcap_rule *vrule,
@@ -1147,6 +1228,16 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 		}
 		case FLOW_ACTION_TRAP:
 			err = sparx5_tc_action_trap(admin, vrule, fco);
+			if (err)
+				goto out;
+			break;
+		case FLOW_ACTION_MIRRED:
+			err = sparx5_tc_action_mirred(admin, vrule, fco, act);
+			if (err)
+				goto out;
+			break;
+		case FLOW_ACTION_REDIRECT:
+			err = sparx5_tc_action_redirect(admin, vrule, fco, act);
 			if (err)
 				goto out;
 			break;

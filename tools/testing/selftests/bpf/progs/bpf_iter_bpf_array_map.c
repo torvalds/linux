@@ -6,12 +6,6 @@
 
 char _license[] SEC("license") = "GPL";
 
-struct key_t {
-	int a;
-	int b;
-	int c;
-};
-
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 3);

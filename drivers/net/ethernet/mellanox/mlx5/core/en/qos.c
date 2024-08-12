@@ -83,24 +83,25 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 
 	txq_ix = mlx5e_qid_from_qos(chs, node_qid);
 
-	WARN_ON(node_qid > priv->htb_max_qos_sqs);
-	if (node_qid == priv->htb_max_qos_sqs) {
-		struct mlx5e_sq_stats *stats, **stats_list = NULL;
+	WARN_ON(node_qid >= mlx5e_htb_cur_leaf_nodes(priv->htb));
+	if (!priv->htb_qos_sq_stats) {
+		struct mlx5e_sq_stats **stats_list;
 
-		if (priv->htb_max_qos_sqs == 0) {
-			stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
-					      sizeof(*stats_list),
-					      GFP_KERNEL);
-			if (!stats_list)
-				return -ENOMEM;
-		}
-		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
-		if (!stats) {
-			kvfree(stats_list);
+		stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
+				      sizeof(*stats_list), GFP_KERNEL);
+		if (!stats_list)
 			return -ENOMEM;
-		}
-		if (stats_list)
-			WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
+
+		WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
+	}
+
+	if (!priv->htb_qos_sq_stats[node_qid]) {
+		struct mlx5e_sq_stats *stats;
+
+		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+		if (!stats)
+			return -ENOMEM;
+
 		WRITE_ONCE(priv->htb_qos_sq_stats[node_qid], stats);
 		/* Order htb_max_qos_sqs increment after writing the array pointer.
 		 * Pairs with smp_load_acquire in en_stats.c.
@@ -169,6 +170,7 @@ int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
 	mlx5e_tx_disable_queue(netdev_get_tx_queue(priv->netdev, qid));
 
 	priv->txq2sq[qid] = sq;
+	priv->txq2sq_stats[qid] = sq->stats;
 
 	/* Make the change to txq2sq visible before the queue is started.
 	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
@@ -185,6 +187,7 @@ int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
 void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 {
 	struct mlx5e_txqsq *sq;
+	u16 txq_ix;
 
 	sq = mlx5e_get_qos_sq(priv, qid);
 	if (!sq) /* Handle the case when the SQ failed to open. */
@@ -193,7 +196,10 @@ void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	qos_dbg(sq->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
-	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;
+	txq_ix = mlx5e_qid_from_qos(&priv->channels, qid);
+
+	priv->txq2sq[txq_ix] = NULL;
+	priv->txq2sq_stats[txq_ix] = NULL;
 
 	/* Make the change to txq2sq visible before the queue is started again.
 	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
@@ -324,6 +330,7 @@ void mlx5e_qos_deactivate_queues(struct mlx5e_channel *c)
 {
 	struct mlx5e_params *params = &c->priv->channels.params;
 	struct mlx5e_txqsq __rcu **qos_sqs;
+	u16 txq_ix;
 	int i;
 
 	qos_sqs = mlx5e_state_dereference(c->priv, c->qos_sqs);
@@ -341,8 +348,11 @@ void mlx5e_qos_deactivate_queues(struct mlx5e_channel *c)
 		qos_dbg(c->mdev, "Deactivate QoS SQ qid %u\n", qid);
 		mlx5e_deactivate_txqsq(sq);
 
+		txq_ix = mlx5e_qid_from_qos(&c->priv->channels, qid);
+
 		/* The queue is disabled, no synchronization with datapath is needed. */
-		c->priv->txq2sq[mlx5e_qid_from_qos(&c->priv->channels, qid)] = NULL;
+		c->priv->txq2sq[txq_ix] = NULL;
+		c->priv->txq2sq_stats[txq_ix] = NULL;
 	}
 }
 

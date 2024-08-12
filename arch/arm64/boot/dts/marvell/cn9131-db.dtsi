@@ -18,7 +18,7 @@
 		ethernet4 = &cp1_eth1;
 	};
 
-	cp1_reg_usb3_vbus0: cp1_usb3_vbus@0 {
+	cp1_reg_usb3_vbus0: regulator-6 {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_xhci0_vbus_pins>;
@@ -29,12 +29,12 @@
 		gpio = <&cp1_gpio1 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	cp1_usb3_0_phy0: cp1_usb3_phy0 {
+	cp1_usb3_0_phy0: usb-phy-3 {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp1_reg_usb3_vbus0>;
 	};
 
-	cp1_sfp_eth1: sfp-eth1 {
+	cp1_sfp_eth1: sfp-eth-2 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp1_i2c0>;
 		los-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_HIGH>;
@@ -138,8 +138,6 @@
 	reg = <0x700680 0x50>;
 
 	flash@0 {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		/* On-board MUX does not allow higher frequencies */

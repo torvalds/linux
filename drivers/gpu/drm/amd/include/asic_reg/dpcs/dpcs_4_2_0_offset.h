@@ -155,6 +155,8 @@
 #define regRDPCSTX0_RDPCSTX_CNTL2_BASE_IDX                                                              2
 #define regRDPCSTX0_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG                                                    0x293c
 #define regRDPCSTX0_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG_BASE_IDX                                           2
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG                                                                0x293d
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL0                                                                   0x2940
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL1                                                                   0x2941
@@ -239,6 +241,8 @@
 #define regRDPCSTX1_RDPCSTX_CNTL2_BASE_IDX                                                              2
 #define regRDPCSTX1_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG                                                    0x2a14
 #define regRDPCSTX1_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG_BASE_IDX                                           2
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG                                                                0x2a15
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL0                                                                   0x2a18
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL1                                                                   0x2a19
@@ -323,6 +327,8 @@
 #define regRDPCSTX2_RDPCSTX_CNTL2_BASE_IDX                                                              2
 #define regRDPCSTX2_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG                                                    0x2aec
 #define regRDPCSTX2_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG_BASE_IDX                                           2
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG                                                                0x2aed
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL0                                                                   0x2af0
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL1                                                                   0x2af1
@@ -407,6 +413,8 @@
 #define regRDPCSTX3_RDPCSTX_CNTL2_BASE_IDX                                                              2
 #define regRDPCSTX3_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG                                                    0x2bc4
 #define regRDPCSTX3_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG_BASE_IDX                                           2
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG                                                                0x2bc5
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL0                                                                   0x2bc8
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL1                                                                   0x2bc9
@@ -491,6 +499,8 @@
 #define regRDPCSTX4_RDPCSTX_CNTL2_BASE_IDX                                                              2
 #define regRDPCSTX4_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG                                                    0x2c9c
 #define regRDPCSTX4_RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG_BASE_IDX                                           2
+#define regRDPCSTX4_RDPCSTX_DEBUG_CONFIG                                                                0x2c9d
+#define regRDPCSTX4_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX4_RDPCSTX_PHY_CNTL0                                                                   0x2ca0
 #define regRDPCSTX4_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX4_RDPCSTX_PHY_CNTL1                                                                   0x2ca1

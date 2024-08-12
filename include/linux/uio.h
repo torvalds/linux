@@ -206,6 +206,16 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 }
 
 static __always_inline __must_check
+bool copy_to_iter_full(const void *addr, size_t bytes, struct iov_iter *i)
+{
+	size_t copied = copy_to_iter(addr, bytes, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
+}
+
+static __always_inline __must_check
 bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 {
 	size_t copied = copy_from_iter(addr, bytes, i);

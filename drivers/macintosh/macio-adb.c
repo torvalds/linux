@@ -83,35 +83,32 @@ struct adb_driver macio_adb_driver = {
 
 int macio_probe(void)
 {
-	struct device_node *np;
+	struct device_node *np __free(device_node) =
+		of_find_compatible_node(NULL, "adb", "chrp,adb0");
 
-	np = of_find_compatible_node(NULL, "adb", "chrp,adb0");
-	if (np) {
-		of_node_put(np);
+	if (np)
 		return 0;
-	}
+
 	return -ENODEV;
 }
 
 int macio_init(void)
 {
-	struct device_node *adbs;
+	struct device_node *adbs __free(device_node) =
+		of_find_compatible_node(NULL, "adb", "chrp,adb0");
 	struct resource r;
 	unsigned int irq;
 
-	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
 	if (!adbs)
 		return -ENXIO;
 
-	if (of_address_to_resource(adbs, 0, &r)) {
-		of_node_put(adbs);
+	if (of_address_to_resource(adbs, 0, &r))
 		return -ENXIO;
-	}
+
 	adb = ioremap(r.start, sizeof(struct adb_regs));
-	if (!adb) {
-		of_node_put(adbs);
+	if (!adb)
 		return -ENOMEM;
-	}
+
 
 	out_8(&adb->ctrl.r, 0);
 	out_8(&adb->intr.r, 0);
@@ -121,7 +118,6 @@ int macio_init(void)
 	out_8(&adb->autopoll.r, APE);
 
 	irq = irq_of_parse_and_map(adbs, 0);
-	of_node_put(adbs);
 	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
 		iounmap(adb);
 		printk(KERN_ERR "ADB: can't get irq %d\n", irq);

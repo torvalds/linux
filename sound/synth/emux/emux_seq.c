@@ -65,11 +65,11 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 		return -ENODEV;
 	}
 
-	if (emu->num_ports < 0) {
+	if (emu->num_ports <= 0) {
 		snd_printk(KERN_WARNING "seqports must be greater than zero\n");
 		emu->num_ports = 1;
-	} else if (emu->num_ports >= SNDRV_EMUX_MAX_PORTS) {
-		snd_printk(KERN_WARNING "too many ports."
+	} else if (emu->num_ports > SNDRV_EMUX_MAX_PORTS) {
+		snd_printk(KERN_WARNING "too many ports. "
 			   "limited max. ports %d\n", SNDRV_EMUX_MAX_PORTS);
 		emu->num_ports = SNDRV_EMUX_MAX_PORTS;
 	}

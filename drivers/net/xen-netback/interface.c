@@ -358,7 +358,7 @@ static int xenvif_change_mtu(struct net_device *dev, int mtu)
 
 	if (mtu > max)
 		return -EINVAL;
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	return 0;
 }
 
@@ -593,7 +593,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 
 	for (i = 0; i < MAX_PENDING_REQS; i++) {
 		queue->pending_tx_info[i].callback_struct = (struct ubuf_info_msgzc)
-			{ { .callback = xenvif_zerocopy_callback },
+			{ { .ops = &xenvif_ubuf_ops },
 			  { { .ctx = NULL,
 			      .desc = i } } };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;

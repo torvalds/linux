@@ -11,10 +11,10 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/mii.h>
 #include <linux/phylink.h>
 #include <linux/net_tstamp.h>
-#include <asm/io.h>
 
 #include "stmmac.h"
 #include "dwmac_dma.h"
@@ -212,6 +212,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_tx_excessdef),
 	STMMAC_MMC_STAT(mmc_tx_pause_frame),
 	STMMAC_MMC_STAT(mmc_tx_vlan_frame_g),
+	STMMAC_MMC_STAT(mmc_tx_oversize_g),
 	STMMAC_MMC_STAT(mmc_tx_lpi_usec),
 	STMMAC_MMC_STAT(mmc_tx_lpi_tran),
 	STMMAC_MMC_STAT(mmc_rx_framecount_gb),
@@ -238,6 +239,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_fifo_overflow),
 	STMMAC_MMC_STAT(mmc_rx_vlan_frames_gb),
 	STMMAC_MMC_STAT(mmc_rx_watchdog_error),
+	STMMAC_MMC_STAT(mmc_rx_error),
 	STMMAC_MMC_STAT(mmc_rx_lpi_usec),
 	STMMAC_MMC_STAT(mmc_rx_lpi_tran),
 	STMMAC_MMC_STAT(mmc_rx_discard_frames_gb),
@@ -1197,7 +1199,7 @@ static int stmmac_set_channels(struct net_device *dev,
 }
 
 static int stmmac_get_ts_info(struct net_device *dev,
-			      struct ethtool_ts_info *info)
+			      struct kernel_ethtool_ts_info *info)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 

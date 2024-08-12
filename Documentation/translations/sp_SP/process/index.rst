@@ -28,3 +28,5 @@
    management-style
    submit-checklist
    howto
+   development-process
+   maintainer-kvm-x86

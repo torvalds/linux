@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -73,12 +74,11 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 	struct sdw_intel *sdw = s_file->private;
 	void __iomem *s = sdw->link_res->shim;
 	void __iomem *a = sdw->link_res->alh;
-	char *buf;
 	ssize_t ret;
 	int i, j;
 	unsigned int links, reg;
 
-	buf = kzalloc(RD_BUF, GFP_KERNEL);
+	char *buf __free(kfree) = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -129,7 +129,6 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 		ret += intel_sprintf(a, true, buf, ret, SDW_ALH_STRMZCFG(i));
 
 	seq_printf(s_file, "%s", buf);
-	kfree(buf);
 
 	return 0;
 }
@@ -345,8 +344,10 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	u32 spa_mask, cpa_mask;
 	u32 link_control;
 	int ret = 0;
+	u32 clock_source;
 	u32 syncprd;
 	u32 sync_reg;
+	bool lcap_mlcs;
 
 	mutex_lock(sdw->link_res->shim_lock);
 
@@ -358,12 +359,35 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	 * is only dependent on the oscillator clock provided to
 	 * the IP, so adjust based on _DSD properties reported in DSDT
 	 * tables. The values reported are based on either 24MHz
-	 * (CNL/CML) or 38.4 MHz (ICL/TGL+).
+	 * (CNL/CML) or 38.4 MHz (ICL/TGL+). On MeteorLake additional
+	 * frequencies are available with the MLCS clock source selection.
 	 */
-	if (prop->mclk_freq % 6000000)
-		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
-	else
-		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
+	lcap_mlcs = intel_readl(shim, SDW_SHIM_LCAP) & SDW_SHIM_LCAP_MLCS_MASK;
+
+	if (prop->mclk_freq % 6000000) {
+		if (prop->mclk_freq % 2400000) {
+			if (lcap_mlcs) {
+				syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24_576;
+				clock_source = SDW_SHIM_MLCS_CARDINAL_CLK;
+			} else {
+				dev_err(sdw->cdns.dev, "%s: invalid clock configuration, mclk %d lcap_mlcs %d\n",
+					__func__, prop->mclk_freq, lcap_mlcs);
+				ret = -EINVAL;
+				goto out;
+			}
+		} else {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
+			clock_source = SDW_SHIM_MLCS_XTAL_CLK;
+		}
+	} else {
+		if (lcap_mlcs) {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_96;
+			clock_source = SDW_SHIM_MLCS_AUDIO_PLL_CLK;
+		} else {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
+			clock_source = SDW_SHIM_MLCS_XTAL_CLK;
+		}
+	}
 
 	if (!*shim_mask) {
 		dev_dbg(sdw->cdns.dev, "powering up all links\n");
@@ -402,6 +426,13 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 			dev_err(sdw->cdns.dev,
 				"Failed to set SHIM_SYNC: %d\n", ret);
 			goto out;
+		}
+
+		/* update link clock if needed */
+		if (lcap_mlcs) {
+			link_control = intel_readl(shim, SDW_SHIM_LCTL);
+			u32p_replace_bits(&link_control, clock_source, SDW_SHIM_LCTL_MLCS_MASK);
+			intel_writel(shim, SDW_SHIM_LCTL, link_control);
 		}
 	}
 
@@ -668,6 +699,24 @@ static int intel_params_stream(struct sdw_intel *sdw,
  * DAI routines
  */
 
+static int intel_free_stream(struct sdw_intel *sdw,
+			     struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai,
+			     int link_id)
+{
+	struct sdw_intel_link_res *res = sdw->link_res;
+	struct sdw_intel_stream_free_data free_data;
+
+	free_data.substream = substream;
+	free_data.dai = dai;
+	free_data.link_id = link_id;
+
+	if (res->ops && res->ops->free_stream && res->dev)
+		return res->ops->free_stream(res->dev, &free_data);
+
+	return 0;
+}
+
 static int intel_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
@@ -677,7 +726,6 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_cdns_dai_runtime *dai_runtime;
 	struct sdw_cdns_pdi *pdi;
 	struct sdw_stream_config sconfig;
-	struct sdw_port_config *pconfig;
 	int ch, dir;
 	int ret;
 
@@ -693,10 +741,8 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 
 	pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
 
-	if (!pdi) {
-		ret = -EINVAL;
-		goto error;
-	}
+	if (!pdi)
+		return -EINVAL;
 
 	/* do run-time configurations for SHIM, ALH and PDI/PORT */
 	intel_pdi_shim_configure(sdw, pdi);
@@ -713,7 +759,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 				  sdw->instance,
 				  pdi->intel_alh_id);
 	if (ret)
-		goto error;
+		return ret;
 
 	sconfig.direction = dir;
 	sconfig.ch_count = ch;
@@ -723,11 +769,10 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
-	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
-	if (!pconfig) {
-		ret =  -ENOMEM;
-		goto error;
-	}
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc(sizeof(*pconfig),
+								GFP_KERNEL);
+	if (!pconfig)
+		return -ENOMEM;
 
 	pconfig->num = pdi->num;
 	pconfig->ch_mask = (1 << ch) - 1;
@@ -737,8 +782,6 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		dev_err(cdns->dev, "add master to stream failed:%d\n", ret);
 
-	kfree(pconfig);
-error:
 	return ret;
 }
 
@@ -799,6 +842,7 @@ static int
 intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_cdns_dai_runtime *dai_runtime;
 	int ret;
 
@@ -816,6 +860,12 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 	if (ret < 0) {
 		dev_err(dai->dev, "remove master from stream %s failed: %d\n",
 			dai_runtime->stream->name, ret);
+		return ret;
+	}
+
+	ret = intel_free_stream(sdw, substream, dai, sdw->instance);
+	if (ret < 0) {
+		dev_err(dai->dev, "intel_free_stream: failed %d\n", ret);
 		return ret;
 	}
 
@@ -1062,4 +1112,3 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.sync_check_cmdsync_unlocked = intel_check_cmdsync_unlocked,
 };
 EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
-

@@ -301,7 +301,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			(*ptr) += 4;
 			if (print)
 				DEBUG("IMM 0x%08X\n", val);
-			return val;
+			break;
 		case ATOM_SRC_WORD0:
 		case ATOM_SRC_WORD8:
 		case ATOM_SRC_WORD16:
@@ -309,7 +309,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			(*ptr) += 2;
 			if (print)
 				DEBUG("IMM 0x%04X\n", val);
-			return val;
+			break;
 		case ATOM_SRC_BYTE0:
 		case ATOM_SRC_BYTE8:
 		case ATOM_SRC_BYTE16:
@@ -318,9 +318,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			(*ptr)++;
 			if (print)
 				DEBUG("IMM 0x%02X\n", val);
-			return val;
+			break;
 		}
-		break;
+		return val;
 	case ATOM_ARG_PLL:
 		idx = U8(*ptr);
 		(*ptr)++;
@@ -1243,6 +1243,7 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
 	ectx.ps_size = params_size;
 	ectx.abort = false;
 	ectx.last_jump = 0;
+	ectx.last_jump_jiffies = 0;
 	if (ws) {
 		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
 		ectx.ws_size = ws;

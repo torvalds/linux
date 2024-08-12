@@ -667,4 +667,5 @@ void lance_poll(struct net_device *dev)
 EXPORT_SYMBOL_GPL(lance_poll);
 #endif
 
+MODULE_DESCRIPTION("LANCE Ethernet IC generic routines");
 MODULE_LICENSE("GPL");

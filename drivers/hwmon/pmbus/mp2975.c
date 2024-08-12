@@ -5,12 +5,14 @@
  * Copyright (C) 2020 Nvidia Technologies Ltd.
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+
 #include "pmbus.h"
 
 /* Vendor specific registers. */
@@ -97,6 +99,11 @@ static const int mp2975_max_phases[][MP2975_PAGE_NUM] = {
 	[mp2971] = { MP2971_MAX_PHASE_RAIL1, MP2971_MAX_PHASE_RAIL2 },
 };
 
+struct mp2975_driver_info {
+	const struct pmbus_driver_info *info;
+	enum chips chip_id;
+};
+
 struct mp2975_data {
 	struct pmbus_driver_info info;
 	enum chips chip_id;
@@ -109,15 +116,6 @@ struct mp2975_data {
 	int vout_ov_fixed[MP2975_PAGE_NUM];
 	int curr_sense_gain[MP2975_PAGE_NUM];
 };
-
-static const struct i2c_device_id mp2975_id[] = {
-	{"mp2971", mp2971},
-	{"mp2973", mp2973},
-	{"mp2975", mp2975},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, mp2975_id);
 
 static const struct regulator_desc __maybe_unused mp2975_reg_desc[] = {
 	PMBUS_REGULATOR("vout", 0),
@@ -390,6 +388,80 @@ static int mp2973_read_word_data(struct i2c_client *client, int page,
 	}
 
 	return ret;
+}
+
+static int mp2973_write_word_data(struct i2c_client *client, int page,
+				  int reg, u16 word)
+{
+	u8 target, mask;
+	long ret;
+
+	if (reg != PMBUS_SMBALERT_MASK)
+		return -ENODATA;
+
+	/*
+	 * Vendor-specific SMBALERT_MASK register with 16 maskable bits.
+	 */
+	ret = pmbus_read_word_data(client, 0, 0, PMBUS_SMBALERT_MASK);
+	if (ret < 0)
+		return ret;
+
+	target = word & 0xff;
+	mask = word >> 8;
+
+/*
+ * Set/Clear 'bit' in 'ret' based on condition followed by define for each bit in SMBALERT_MASK.
+ * Also bit 2 & 15 are reserved.
+ */
+
+#define MP2973_TEMP_OT		0
+#define MP2973_VIN_UVLO		1
+#define MP2973_VIN_OVP		3
+#define MP2973_MTP_FAULT	4
+#define MP2973_OTHER_COMM	5
+#define MP2973_MTP_BLK_TRIG	6
+#define MP2973_PACKET_ERROR	7
+#define MP2973_INVALID_DATA	8
+#define MP2973_INVALID_COMMAND	9
+#define MP2973_IOUT_OC_LV	10
+#define MP2973_IOUT_OC		11
+#define MP2973_VOUT_MAX_MIN_WARNING 12
+#define MP2973_VOLTAGE_UV	13
+#define MP2973_VOLTAGE_OV	14
+
+	switch (target) {
+	case PMBUS_STATUS_CML:
+		__assign_bit(MP2973_INVALID_DATA, &ret, !(mask & PB_CML_FAULT_INVALID_DATA));
+		__assign_bit(MP2973_INVALID_COMMAND, &ret, !(mask & PB_CML_FAULT_INVALID_COMMAND));
+		__assign_bit(MP2973_OTHER_COMM, &ret, !(mask & PB_CML_FAULT_OTHER_COMM));
+		__assign_bit(MP2973_PACKET_ERROR, &ret, !(mask & PB_CML_FAULT_PACKET_ERROR));
+		break;
+	case PMBUS_STATUS_VOUT:
+		__assign_bit(MP2973_VOLTAGE_UV, &ret, !(mask & PB_VOLTAGE_UV_FAULT));
+		__assign_bit(MP2973_VOLTAGE_OV, &ret, !(mask & PB_VOLTAGE_OV_FAULT));
+		break;
+	case PMBUS_STATUS_IOUT:
+		__assign_bit(MP2973_IOUT_OC, &ret, !(mask & PB_IOUT_OC_FAULT));
+		__assign_bit(MP2973_IOUT_OC_LV, &ret, !(mask & PB_IOUT_OC_LV_FAULT));
+		break;
+	case PMBUS_STATUS_TEMPERATURE:
+		__assign_bit(MP2973_TEMP_OT, &ret, !(mask & PB_TEMP_OT_FAULT));
+		break;
+	/*
+	 * Map remaining bits to MFR specific to let the PMBUS core mask
+	 * those bits by default.
+	 */
+	case PMBUS_STATUS_MFR_SPECIFIC:
+		__assign_bit(MP2973_VIN_UVLO, &ret, !(mask & BIT(1)));
+		__assign_bit(MP2973_VIN_OVP, &ret, !(mask & BIT(3)));
+		__assign_bit(MP2973_MTP_FAULT, &ret, !(mask & BIT(4)));
+		__assign_bit(MP2973_MTP_BLK_TRIG, &ret, !(mask & BIT(6)));
+		break;
+	default:
+		return 0;
+	}
+
+	return pmbus_write_word_data(client, 0, PMBUS_SMBALERT_MASK, ret);
 }
 
 static int mp2975_read_word_data(struct i2c_client *client, int page,
@@ -867,7 +939,7 @@ mp2975_vout_per_rail_config_get(struct i2c_client *client,
 	return 0;
 }
 
-static struct pmbus_driver_info mp2975_info = {
+static const struct pmbus_driver_info mp2975_info = {
 	.pages = 1,
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = direct,
@@ -892,7 +964,7 @@ static struct pmbus_driver_info mp2975_info = {
 #endif
 };
 
-static struct pmbus_driver_info mp2973_info = {
+static const struct pmbus_driver_info mp2973_info = {
 	.pages = 1,
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = direct,
@@ -907,35 +979,41 @@ static struct pmbus_driver_info mp2973_info = {
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP | PMBUS_HAVE_POUT |
 		PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT,
 	.read_word_data = mp2973_read_word_data,
+	.write_word_data = mp2973_write_word_data,
 #if IS_ENABLED(CONFIG_SENSORS_MP2975_REGULATOR)
 	.num_regulators = 1,
 	.reg_desc = mp2975_reg_desc,
 #endif
 };
 
+static const struct mp2975_driver_info mp2975_ddinfo[] = {
+	[mp2975] = { .info = &mp2975_info, .chip_id = mp2975 },
+	[mp2973] = { .info = &mp2973_info, .chip_id = mp2973 },
+	[mp2971] = { .info = &mp2973_info, .chip_id = mp2971 },
+};
+
 static int mp2975_probe(struct i2c_client *client)
 {
+	const struct mp2975_driver_info *ddinfo;
 	struct pmbus_driver_info *info;
 	struct mp2975_data *data;
 	int ret;
+
+	ddinfo = i2c_get_match_data(client);
+	if (!ddinfo)
+		return -ENODEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2975_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
-		data->chip_id = (enum chips)(unsigned long)of_device_get_match_data(&client->dev);
-	else
-		data->chip_id = i2c_match_id(mp2975_id, client)->driver_data;
+	data->chip_id = ddinfo->chip_id;
 
 	memcpy(data->max_phases, mp2975_max_phases[data->chip_id],
 	       sizeof(data->max_phases));
 
-	if (data->chip_id == mp2975)
-		memcpy(&data->info, &mp2975_info, sizeof(*info));
-	else
-		memcpy(&data->info, &mp2973_info, sizeof(*info));
+	memcpy(&data->info, ddinfo->info, sizeof(data->info));
 
 	info = &data->info;
 
@@ -993,18 +1071,26 @@ static int mp2975_probe(struct i2c_client *client)
 	return pmbus_do_probe(client, info);
 }
 
-static const struct of_device_id __maybe_unused mp2975_of_match[] = {
-	{.compatible = "mps,mp2971", .data = (void *)mp2971},
-	{.compatible = "mps,mp2973", .data = (void *)mp2973},
-	{.compatible = "mps,mp2975", .data = (void *)mp2975},
+static const struct of_device_id mp2975_of_match[] = {
+	{.compatible = "mps,mp2971", .data = &mp2975_ddinfo[mp2971]},
+	{.compatible = "mps,mp2973", .data = &mp2975_ddinfo[mp2973]},
+	{.compatible = "mps,mp2975", .data = &mp2975_ddinfo[mp2975]},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mp2975_of_match);
 
+static const struct i2c_device_id mp2975_id[] = {
+	{"mp2971", (kernel_ulong_t)&mp2975_ddinfo[mp2971]},
+	{"mp2973", (kernel_ulong_t)&mp2975_ddinfo[mp2973]},
+	{"mp2975", (kernel_ulong_t)&mp2975_ddinfo[mp2975]},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mp2975_id);
+
 static struct i2c_driver mp2975_driver = {
 	.driver = {
 		.name = "mp2975",
-		.of_match_table = of_match_ptr(mp2975_of_match),
+		.of_match_table = mp2975_of_match,
 	},
 	.probe = mp2975_probe,
 	.id_table = mp2975_id,

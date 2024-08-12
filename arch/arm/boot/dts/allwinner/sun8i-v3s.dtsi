@@ -98,7 +98,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		osc24M: osc24M_clk {
+		osc24M: osc24M-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
@@ -106,7 +106,7 @@
 			clock-output-names = "osc24M";
 		};
 
-		osc32k: osc32k_clk {
+		osc32k: osc32k-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;

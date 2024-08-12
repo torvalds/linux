@@ -730,7 +730,8 @@ static int rvin_s_dv_timings(struct file *file, void *priv_fh,
 	struct v4l2_subdev *sd = vin_to_source(vin);
 	int ret;
 
-	ret = v4l2_subdev_call(sd, video, s_dv_timings, timings);
+	ret = v4l2_subdev_call(sd, pad, s_dv_timings,
+			       vin->parallel.sink_pad, timings);
 	if (ret)
 		return ret;
 
@@ -744,7 +745,8 @@ static int rvin_g_dv_timings(struct file *file, void *priv_fh,
 	struct rvin_dev *vin = video_drvdata(file);
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	return v4l2_subdev_call(sd, video, g_dv_timings, timings);
+	return v4l2_subdev_call(sd, pad, g_dv_timings,
+				vin->parallel.sink_pad, timings);
 }
 
 static int rvin_query_dv_timings(struct file *file, void *priv_fh,
@@ -753,7 +755,8 @@ static int rvin_query_dv_timings(struct file *file, void *priv_fh,
 	struct rvin_dev *vin = video_drvdata(file);
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	return v4l2_subdev_call(sd, video, query_dv_timings, timings);
+	return v4l2_subdev_call(sd, pad, query_dv_timings,
+				vin->parallel.sink_pad, timings);
 }
 
 static int rvin_dv_timings_cap(struct file *file, void *priv_fh,

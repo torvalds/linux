@@ -11,22 +11,9 @@
 
 struct ttm_tt_test_case {
 	const char *description;
-	uint32_t size;
-	uint32_t extra_pages_num;
+	u32 size;
+	u32 extra_pages_num;
 };
-
-static int ttm_tt_test_init(struct kunit *test)
-{
-	struct ttm_test_devices *priv;
-
-	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
-
-	priv = ttm_test_devices_all(test);
-	test->priv = priv;
-
-	return 0;
-}
 
 static const struct ttm_tt_test_case ttm_tt_init_basic_cases[] = {
 	{
@@ -54,16 +41,16 @@ static void ttm_tt_init_basic(struct kunit *test)
 	const struct ttm_tt_test_case *params = test->param_value;
 	struct ttm_buffer_object *bo;
 	struct ttm_tt *tt;
-	uint32_t page_flags = TTM_TT_FLAG_ZERO_ALLOC;
+	u32 page_flags = TTM_TT_FLAG_ZERO_ALLOC;
 	enum ttm_caching caching = ttm_cached;
-	uint32_t extra_pages = params->extra_pages_num;
+	u32 extra_pages = params->extra_pages_num;
 	int num_pages = params->size >> PAGE_SHIFT;
 	int err;
 
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, params->size);
+	bo = ttm_bo_kunit_init(test, test->priv, params->size, NULL);
 
 	err = ttm_tt_init(tt, bo, page_flags, caching, extra_pages);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -82,14 +69,14 @@ static void ttm_tt_init_misaligned(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	struct ttm_tt *tt;
 	enum ttm_caching caching = ttm_cached;
-	uint32_t size = SZ_8K;
+	u32 size = SZ_8K;
 	int num_pages = (size + SZ_4K) >> PAGE_SHIFT;
 	int err;
 
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, size);
+	bo = ttm_bo_kunit_init(test, test->priv, size, NULL);
 
 	/* Make the object size misaligned */
 	bo->base.size += 1;
@@ -110,7 +97,7 @@ static void ttm_tt_fini_basic(struct kunit *test)
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	err = ttm_tt_init(tt, bo, 0, caching, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -130,7 +117,7 @@ static void ttm_tt_fini_sg(struct kunit *test)
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	err = ttm_sg_tt_init(tt, bo, 0, caching);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -151,7 +138,7 @@ static void ttm_tt_fini_shmem(struct kunit *test)
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	err = ttm_tt_init(tt, bo, 0, caching, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -168,7 +155,7 @@ static void ttm_tt_create_basic(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	int err;
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 	bo->type = ttm_bo_type_device;
 
 	dma_resv_lock(bo->base.resv, NULL);
@@ -187,7 +174,7 @@ static void ttm_tt_create_invalid_bo_type(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	int err;
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 	bo->type = ttm_bo_type_sg + 1;
 
 	dma_resv_lock(bo->base.resv, NULL);
@@ -208,7 +195,7 @@ static void ttm_tt_create_ttm_exists(struct kunit *test)
 	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, tt);
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	err = ttm_tt_init(tt, bo, 0, caching, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -224,7 +211,7 @@ static void ttm_tt_create_ttm_exists(struct kunit *test)
 }
 
 static struct ttm_tt *ttm_tt_null_create(struct ttm_buffer_object *bo,
-					 uint32_t page_flags)
+					 u32 page_flags)
 {
 	return NULL;
 }
@@ -239,7 +226,7 @@ static void ttm_tt_create_failed(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	int err;
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	/* Update ttm_device_funcs so we don't alloc ttm_tt */
 	devs->ttm_dev->funcs = &ttm_dev_empty_funcs;
@@ -257,7 +244,7 @@ static void ttm_tt_destroy_basic(struct kunit *test)
 	struct ttm_buffer_object *bo;
 	int err;
 
-	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE);
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
 
 	dma_resv_lock(bo->base.resv, NULL);
 	err = ttm_tt_create(bo, false);
@@ -267,6 +254,120 @@ static void ttm_tt_destroy_basic(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, bo->ttm);
 
 	ttm_tt_destroy(devs->ttm_dev, bo->ttm);
+}
+
+static void ttm_tt_populate_null_ttm(struct kunit *test)
+{
+	const struct ttm_test_devices *devs = test->priv;
+	struct ttm_operation_ctx ctx = { };
+	int err;
+
+	err = ttm_tt_populate(devs->ttm_dev, NULL, &ctx);
+	KUNIT_ASSERT_EQ(test, err, -EINVAL);
+}
+
+static void ttm_tt_populate_populated_ttm(struct kunit *test)
+{
+	const struct ttm_test_devices *devs = test->priv;
+	struct ttm_operation_ctx ctx = { };
+	struct ttm_buffer_object *bo;
+	struct ttm_tt *tt;
+	struct page *populated_page;
+	int err;
+
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
+
+	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tt);
+
+	err = ttm_tt_init(tt, bo, 0, ttm_cached, 0);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	err = ttm_tt_populate(devs->ttm_dev, tt, &ctx);
+	KUNIT_ASSERT_EQ(test, err, 0);
+	populated_page = *tt->pages;
+
+	err = ttm_tt_populate(devs->ttm_dev, tt, &ctx);
+	KUNIT_ASSERT_PTR_EQ(test, populated_page, *tt->pages);
+}
+
+static void ttm_tt_unpopulate_basic(struct kunit *test)
+{
+	const struct ttm_test_devices *devs = test->priv;
+	struct ttm_operation_ctx ctx = { };
+	struct ttm_buffer_object *bo;
+	struct ttm_tt *tt;
+	int err;
+
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
+
+	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tt);
+
+	err = ttm_tt_init(tt, bo, 0, ttm_cached, 0);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	err = ttm_tt_populate(devs->ttm_dev, tt, &ctx);
+	KUNIT_ASSERT_EQ(test, err, 0);
+	KUNIT_ASSERT_TRUE(test, ttm_tt_is_populated(tt));
+
+	ttm_tt_unpopulate(devs->ttm_dev, tt);
+	KUNIT_ASSERT_FALSE(test, ttm_tt_is_populated(tt));
+}
+
+static void ttm_tt_unpopulate_empty_ttm(struct kunit *test)
+{
+	const struct ttm_test_devices *devs = test->priv;
+	struct ttm_buffer_object *bo;
+	struct ttm_tt *tt;
+	int err;
+
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
+
+	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tt);
+
+	err = ttm_tt_init(tt, bo, 0, ttm_cached, 0);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	ttm_tt_unpopulate(devs->ttm_dev, tt);
+	/* Expect graceful handling of unpopulated TTs */
+}
+
+static void ttm_tt_swapin_basic(struct kunit *test)
+{
+	const struct ttm_test_devices *devs = test->priv;
+	int expected_num_pages = BO_SIZE >> PAGE_SHIFT;
+	struct ttm_operation_ctx ctx = { };
+	struct ttm_buffer_object *bo;
+	struct ttm_tt *tt;
+	int err, num_pages;
+
+	bo = ttm_bo_kunit_init(test, test->priv, BO_SIZE, NULL);
+
+	tt = kunit_kzalloc(test, sizeof(*tt), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, tt);
+
+	err = ttm_tt_init(tt, bo, 0, ttm_cached, 0);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	err = ttm_tt_populate(devs->ttm_dev, tt, &ctx);
+	KUNIT_ASSERT_EQ(test, err, 0);
+	KUNIT_ASSERT_TRUE(test, ttm_tt_is_populated(tt));
+
+	num_pages = ttm_tt_swapout(devs->ttm_dev, tt, GFP_KERNEL);
+	KUNIT_ASSERT_EQ(test, num_pages, expected_num_pages);
+	KUNIT_ASSERT_NOT_NULL(test, tt->swap_storage);
+	KUNIT_ASSERT_TRUE(test, tt->page_flags & TTM_TT_FLAG_SWAPPED);
+
+	/* Swapout depopulates TT, allocate pages and then swap them in */
+	err = ttm_pool_alloc(&devs->ttm_dev->pool, tt, &ctx);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	err = ttm_tt_swapin(tt);
+	KUNIT_ASSERT_EQ(test, err, 0);
+	KUNIT_ASSERT_NULL(test, tt->swap_storage);
+	KUNIT_ASSERT_FALSE(test, tt->page_flags & TTM_TT_FLAG_SWAPPED);
 }
 
 static struct kunit_case ttm_tt_test_cases[] = {
@@ -280,16 +381,22 @@ static struct kunit_case ttm_tt_test_cases[] = {
 	KUNIT_CASE(ttm_tt_create_ttm_exists),
 	KUNIT_CASE(ttm_tt_create_failed),
 	KUNIT_CASE(ttm_tt_destroy_basic),
+	KUNIT_CASE(ttm_tt_populate_null_ttm),
+	KUNIT_CASE(ttm_tt_populate_populated_ttm),
+	KUNIT_CASE(ttm_tt_unpopulate_basic),
+	KUNIT_CASE(ttm_tt_unpopulate_empty_ttm),
+	KUNIT_CASE(ttm_tt_swapin_basic),
 	{}
 };
 
 static struct kunit_suite ttm_tt_test_suite = {
 	.name = "ttm_tt",
-	.init = ttm_tt_test_init,
+	.init = ttm_test_devices_all_init,
 	.exit = ttm_test_devices_fini,
 	.test_cases = ttm_tt_test_cases,
 };
 
 kunit_test_suites(&ttm_tt_test_suite);
 
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit tests for ttm_tt APIs");
+MODULE_LICENSE("GPL and additional rights");

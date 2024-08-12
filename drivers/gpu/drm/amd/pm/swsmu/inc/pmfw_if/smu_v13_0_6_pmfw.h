@@ -123,7 +123,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0xB
+#define SMU_METRICS_TABLE_VERSION 0xC
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -223,6 +223,10 @@ typedef struct __attribute__((packed, aligned(4))) {
   // VCN/JPEG ACTIVITY
   uint32_t VcnBusy[4];
   uint32_t JpegBusy[32];
+
+  // PCIE LINK Speed and width
+  uint32_t PCIeLinkSpeed;
+  uint32_t PCIeLinkWidth;
 } MetricsTableX_t;
 
 typedef struct __attribute__((packed, aligned(4))) {

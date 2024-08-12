@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/samsung,s3c6400-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C6400 SoC clock controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  There are several clocks that are generated outside the SoC. It is expected
+  that they are defined using standard clock bindings with following
+  clock-output-names and/or provided as clock inputs to this clock controller:
+   - "fin_pll" - PLL input clock (xtal/extclk) - required,
+   - "xusbxti" - USB xtal - required,
+   - "iiscdclk0" - I2S0 codec clock - optional,
+   - "iiscdclk1" - I2S1 codec clock - optional,
+   - "iiscdclk2" - I2S2 codec clock - optional,
+   - "pcmcdclk0" - PCM0 codec clock - optional,
+   - "pcmcdclk1" - PCM1 codec clock - optional, only S3C6410.
+
+  All available clocks are defined as preprocessor macros in
+  include/dt-bindings/clock/samsung,s3c64xx-clock.h header.
+
+properties:
+  compatible:
+    enum:
+      - samsung,s3c6400-clock
+      - samsung,s3c6410-clock
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@7e00f000 {
+        compatible = "samsung,s3c6410-clock";
+        reg = <0x7e00f000 0x1000>;
+        #clock-cells = <1>;
+        clocks = <&fin_pll>;
+    };

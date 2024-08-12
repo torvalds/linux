@@ -25,15 +25,15 @@ static inline u32 intel_uncore_read(struct intel_uncore *uncore,
 	return xe_mmio_read32(__compat_uncore_to_gt(uncore), reg);
 }
 
-static inline u32 intel_uncore_read8(struct intel_uncore *uncore,
-				     i915_reg_t i915_reg)
+static inline u8 intel_uncore_read8(struct intel_uncore *uncore,
+				    i915_reg_t i915_reg)
 {
 	struct xe_reg reg = XE_REG(i915_mmio_reg_offset(i915_reg));
 
 	return xe_mmio_read8(__compat_uncore_to_gt(uncore), reg);
 }
 
-static inline u32 intel_uncore_read16(struct intel_uncore *uncore,
+static inline u16 intel_uncore_read16(struct intel_uncore *uncore,
 				      i915_reg_t i915_reg)
 {
 	struct xe_reg reg = XE_REG(i915_mmio_reg_offset(i915_reg));
@@ -171,5 +171,10 @@ static inline void __iomem *intel_uncore_regs(struct intel_uncore *uncore)
 	readl(base + i915_mmio_reg_offset(reg))
 #define raw_reg_write(base, reg, value) \
 	writel(value, base + i915_mmio_reg_offset(reg))
+
+#define intel_uncore_forcewake_get(x, y) do { } while (0)
+#define intel_uncore_forcewake_put(x, y) do { } while (0)
+
+#define intel_uncore_arm_unclaimed_mmio_detection(x) do { } while (0)
 
 #endif /* __INTEL_UNCORE_H__ */

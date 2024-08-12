@@ -143,7 +143,7 @@ static const struct amdgpu_video_codec_info rn_video_codecs_decode_array[] =
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1, 4096, 4096, 4)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
-	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 };
 
@@ -156,7 +156,7 @@ static const struct amdgpu_video_codecs rn_video_codecs_decode =
 static const struct amdgpu_video_codec_info vcn_4_0_3_video_codecs_decode_array[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
-	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
 };
@@ -326,7 +326,8 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 0) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 1) ||
-	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6))
+	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 14))
 		return 10000;
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(10, 0, 0) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(10, 0, 1))
@@ -502,7 +503,7 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
-	bool baco_reset = false;
+	int baco_reset = 0;
 	bool connected_to_cpu = false;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
@@ -540,7 +541,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 			 */
 			if (ras && adev->ras_enabled &&
 			    adev->pm.fw_version <= 0x283400)
-				baco_reset = false;
+				baco_reset = 0;
 		} else {
 			baco_reset = amdgpu_dpm_is_baco_supported(adev);
 		}
@@ -554,6 +555,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 			return AMD_RESET_METHOD_MODE2;
 		break;
 	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
 		/* Use gpu_recovery param to target a reset method.
 		 * Enable triggering of GPU reset only if specified
 		 * by module parameter.
@@ -620,7 +622,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	}
 }
 
-static bool soc15_supports_baco(struct amdgpu_device *adev)
+static int soc15_supports_baco(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(9, 0, 0):
@@ -628,13 +630,13 @@ static bool soc15_supports_baco(struct amdgpu_device *adev)
 		if (adev->asic_type == CHIP_VEGA20) {
 			if (adev->psp.sos.fw_version >= 0x80067)
 				return amdgpu_dpm_is_baco_supported(adev);
-			return false;
+			return 0;
 		} else {
 			return amdgpu_dpm_is_baco_supported(adev);
 		}
 		break;
 	default:
-		return false;
+		return 0;
 	}
 }
 
@@ -929,13 +931,9 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 
 static int soc15_common_early_init(void *handle)
 {
-#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
-		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
-	}
+	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &amdgpu_device_indirect_rreg;
@@ -1172,6 +1170,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_CGCG |
@@ -1183,12 +1182,8 @@ static int soc15_common_early_init(void *handle)
 			AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
+		/*TODO: need a new external_rev_id for GC 9.4.4? */
 		adev->external_rev_id = adev->rev_id + 0x46;
-		/* GC 9.4.3 uses MMIO register region hole at a different offset */
-		if (!amdgpu_sriov_vf(adev)) {
-			adev->rmmio_remap.reg_offset = 0x1A000;
-			adev->rmmio_remap.bus_addr = adev->rmmio_base + 0x1A000;
-		}
 		break;
 	default:
 		/* FIXME: not supported yet */
@@ -1458,7 +1453,8 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 		adev->hdp.funcs->get_clock_gating_state(adev, flags);
 
 	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 2)) &&
-	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6))) {
+	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6)) &&
+	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 14))) {
 		/* AMD_CG_SUPPORT_DRM_MGCG */
 		data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
 		if (!(data & 0x01000000))
@@ -1501,4 +1497,6 @@ static const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.set_clockgating_state = soc15_common_set_clockgating_state,
 	.set_powergating_state = soc15_common_set_powergating_state,
 	.get_clockgating_state= soc15_common_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };

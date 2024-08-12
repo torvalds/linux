@@ -19,7 +19,6 @@
 #include <type_support.h>
 #include "dma_global.h"
 
-#include <defs.h>				/* HRTCAT() */
 #include <bits.h>				/* _hrt_get_bits() */
 #include <hive_isp_css_defs.h>		/* HIVE_DMA_NUM_CHANNELS */
 #include <dma_v2_defs.h>

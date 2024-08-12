@@ -857,7 +857,7 @@ static inline void brcmnand_read_data_bus(struct brcmnand_controller *ctrl,
 	struct brcmnand_soc *soc = ctrl->soc;
 	int i;
 
-	if (soc->read_data_bus) {
+	if (soc && soc->read_data_bus) {
 		soc->read_data_bus(soc, flash_cache, buffer, fc_words);
 	} else {
 		for (i = 0; i < fc_words; i++)

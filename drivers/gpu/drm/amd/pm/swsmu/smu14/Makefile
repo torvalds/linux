@@ -23,7 +23,7 @@
 # Makefile for the 'smu manager' sub-component of powerplay.
 # It provides the smu management services for the driver.
 
-SMU14_MGR = smu_v14_0.o smu_v14_0_0_ppt.o
+SMU14_MGR = smu_v14_0.o smu_v14_0_0_ppt.o smu_v14_0_2_ppt.o
 
 AMD_SWSMU_SMU14MGR = $(addprefix $(AMD_SWSMU_PATH)/smu14/,$(SMU14_MGR))
 

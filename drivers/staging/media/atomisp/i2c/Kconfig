@@ -56,18 +56,3 @@ config VIDEO_ATOMISP_GC0310
 	help
 	  This is a Video4Linux2 sensor-level driver for the Galaxycore
 	  GC0310 0.3MP sensor.
-
-#
-# Kconfig for flash drivers
-#
-
-config VIDEO_ATOMISP_LM3554
-       tristate "LM3554 flash light driver"
-	depends on ACPI
-       depends on VIDEO_DEV && I2C
-	help
-	 This is a Video4Linux2 sub-dev driver for the LM3554
-	 flash light driver.
-
-	 To compile this driver as a module, choose M here: the
-	 module will be called lm3554

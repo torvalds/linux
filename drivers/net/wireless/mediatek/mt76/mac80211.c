@@ -465,6 +465,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
 
 	if (!(dev->drv->drv_flags & MT_DRV_AMSDU_OFFLOAD) &&
 	    hw->max_tx_fragments > 1) {
@@ -1123,6 +1124,11 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 		     sizeof(mstat.chain_signal));
 	memcpy(status->chain_signal, mstat.chain_signal,
 	       sizeof(mstat.chain_signal));
+
+	if (mstat.wcid) {
+		status->link_valid = mstat.wcid->link_valid;
+		status->link_id = mstat.wcid->link_id;
+	}
 
 	*sta = wcid_to_sta(mstat.wcid);
 	*hw = mt76_phy_hw(dev, mstat.phy_idx);

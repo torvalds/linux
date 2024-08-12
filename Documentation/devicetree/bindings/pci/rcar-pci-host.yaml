@@ -12,7 +12,7 @@ maintainers:
   - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 
 allOf:
-  - $ref: pci-bus.yaml#
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
 
 properties:
   compatible:
@@ -76,6 +76,9 @@ properties:
 
   vpcie12v-supply:
     description: The 12v regulator to use for PCIe.
+
+  iommu-map: true
+  iommu-map-mask: true
 
 required:
   - compatible

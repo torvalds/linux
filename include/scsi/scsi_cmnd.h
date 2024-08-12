@@ -353,6 +353,8 @@ static inline u8 get_host_byte(struct scsi_cmnd *cmd)
 
 /**
  * scsi_msg_to_host_byte() - translate message byte
+ * @cmd: the SCSI command
+ * @msg: the SCSI parallel message byte to translate
  *
  * Translate the SCSI parallel message byte to a matching
  * host byte setting. A message of COMMAND_COMPLETE indicates

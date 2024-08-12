@@ -70,7 +70,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy,
 				   struct cpufreq_frequency_table *table)
 {
 	struct cpufreq_frequency_table *pos;
-	unsigned int freq, next_larger = ~0;
+	unsigned int freq, prev_smaller = 0;
 	bool found = false;
 
 	pr_debug("request for verification of policy (%u - %u kHz) for cpu %u\n",
@@ -86,12 +86,12 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy,
 			break;
 		}
 
-		if ((next_larger > freq) && (freq > policy->max))
-			next_larger = freq;
+		if ((prev_smaller < freq) && (freq <= policy->max))
+			prev_smaller = freq;
 	}
 
 	if (!found) {
-		policy->max = next_larger;
+		policy->max = prev_smaller;
 		cpufreq_verify_within_cpu_limits(policy);
 	}
 
@@ -194,7 +194,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	}
 	if (optimal.driver_data > i) {
 		if (suboptimal.driver_data > i) {
-			WARN(1, "Invalid frequency table: %d\n", policy->cpu);
+			WARN(1, "Invalid frequency table: %u\n", policy->cpu);
 			return 0;
 		}
 
@@ -254,7 +254,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		if (show_boost ^ (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		count += sprintf(&buf[count], "%d ", pos->frequency);
+		count += sprintf(&buf[count], "%u ", pos->frequency);
 	}
 	count += sprintf(&buf[count], "\n");
 

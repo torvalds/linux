@@ -136,7 +136,7 @@ static int mlx5i_get_coalesce(struct net_device *netdev,
 }
 
 static int mlx5i_get_ts_info(struct net_device *netdev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
@@ -215,7 +215,7 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	int speed, ret;
 
 	ret = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper, &ib_proto_oper,
-				      1);
+				      1, 0);
 	if (ret)
 		return ret;
 

@@ -100,6 +100,13 @@
 		#size-cells = <2>;
 		dma-coherent;
 
+		isa@18000000 {
+			compatible = "isa";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			ranges = <1 0x0 0x0 0x18000000 0x4000>;
+		};
+
 		liointc0: interrupt-controller@1fe01400 {
 			compatible = "loongson,liointc-2.0";
 			reg = <0x0 0x1fe01400 0x0 0x40>,
@@ -152,7 +159,6 @@
 			#clock-cells = <1>;
 			clocks = <&ref_100m>;
 			clock-names = "ref_100m";
-			status = "disabled";
 		};
 
 		gpio0: gpio@1fe00500 {

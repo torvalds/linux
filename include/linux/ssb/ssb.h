@@ -325,7 +325,7 @@ struct ssb_driver {
 
 	struct device_driver drv;
 };
-#define drv_to_ssb_drv(_drv) container_of(_drv, struct ssb_driver, drv)
+#define drv_to_ssb_drv(_drv) container_of_const(_drv, struct ssb_driver, drv)
 
 extern int __ssb_driver_register(struct ssb_driver *drv, struct module *owner);
 #define ssb_driver_register(drv) \
@@ -620,14 +620,6 @@ static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
 extern u32 ssb_dma_translation(struct ssb_device *dev);
 #define SSB_DMA_TRANSLATION_MASK	0xC0000000
 #define SSB_DMA_TRANSLATION_SHIFT	30
-
-static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
-{
-#ifdef CONFIG_SSB_DEBUG
-	printk(KERN_ERR "SSB: BUG! Calling DMA API for "
-	       "unsupported bustype %d\n", dev->bus->bustype);
-#endif /* DEBUG */
-}
 
 #ifdef CONFIG_SSB_PCIHOST
 /* PCI-host wrapper driver */

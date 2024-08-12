@@ -868,7 +868,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 }
 
 /**
- * spu_deactivate - unbind a context from it's physical spu
+ * spu_deactivate - unbind a context from its physical spu
  * @ctx:	spu context to unbind
  *
  * Unbind @ctx from the physical spu it is running on and schedule

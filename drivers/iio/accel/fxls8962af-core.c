@@ -15,9 +15,11 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/of_irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
 
@@ -226,8 +228,8 @@ static int fxls8962af_power_off(struct fxls8962af_data *data)
 
 static int fxls8962af_standby(struct fxls8962af_data *data)
 {
-	return regmap_update_bits(data->regmap, FXLS8962AF_SENS_CONFIG1,
-				  FXLS8962AF_SENS_CONFIG1_ACTIVE, 0);
+	return regmap_clear_bits(data->regmap, FXLS8962AF_SENS_CONFIG1,
+				 FXLS8962AF_SENS_CONFIG1_ACTIVE);
 }
 
 static int fxls8962af_active(struct fxls8962af_data *data)
@@ -783,9 +785,8 @@ static int fxls8962af_reset(struct fxls8962af_data *data)
 	unsigned int reg;
 	int ret;
 
-	ret = regmap_update_bits(data->regmap, FXLS8962AF_SENS_CONFIG1,
-				 FXLS8962AF_SENS_CONFIG1_RST,
-				 FXLS8962AF_SENS_CONFIG1_RST);
+	ret = regmap_set_bits(data->regmap, FXLS8962AF_SENS_CONFIG1,
+			      FXLS8962AF_SENS_CONFIG1_RST);
 	if (ret)
 		return ret;
 
@@ -828,9 +829,8 @@ static int fxls8962af_buffer_postenable(struct iio_dev *indio_dev)
 	fxls8962af_standby(data);
 
 	/* Enable buffer interrupt */
-	ret = regmap_update_bits(data->regmap, FXLS8962AF_INT_EN,
-				 FXLS8962AF_INT_EN_BUF_EN,
-				 FXLS8962AF_INT_EN_BUF_EN);
+	ret = regmap_set_bits(data->regmap, FXLS8962AF_INT_EN,
+			      FXLS8962AF_INT_EN_BUF_EN);
 	if (ret)
 		return ret;
 
@@ -849,8 +849,8 @@ static int fxls8962af_buffer_predisable(struct iio_dev *indio_dev)
 	fxls8962af_standby(data);
 
 	/* Disable buffer interrupt */
-	ret = regmap_update_bits(data->regmap, FXLS8962AF_INT_EN,
-				 FXLS8962AF_INT_EN_BUF_EN, 0);
+	ret = regmap_clear_bits(data->regmap, FXLS8962AF_INT_EN,
+				FXLS8962AF_INT_EN_BUF_EN);
 	if (ret)
 		return ret;
 
@@ -1062,12 +1062,12 @@ static void fxls8962af_pm_disable(void *dev_ptr)
 	fxls8962af_standby(iio_priv(indio_dev));
 }
 
-static void fxls8962af_get_irq(struct device_node *of_node,
+static void fxls8962af_get_irq(struct device *dev,
 			       enum fxls8962af_int_pin *pin)
 {
 	int irq;
 
-	irq = of_irq_get_byname(of_node, "INT2");
+	irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
 	if (irq > 0) {
 		*pin = FXLS8962AF_PIN_INT2;
 		return;
@@ -1086,7 +1086,7 @@ static int fxls8962af_irq_setup(struct iio_dev *indio_dev, int irq)
 	u8 int_pin_sel;
 	int ret;
 
-	fxls8962af_get_irq(dev->of_node, &int_pin);
+	fxls8962af_get_irq(dev, &int_pin);
 	switch (int_pin) {
 	case FXLS8962AF_PIN_INT1:
 		int_pin_sel = FXLS8962AF_INT_PIN_SEL_INT1;

@@ -3,7 +3,7 @@
  * Copyright 2023, Intel Corporation.
  */
 
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
 
 #include "gem/i915_gem_region.h"
 #include "gt/intel_gt.h"
@@ -12,6 +12,12 @@
 #include "i915_utils.h"
 #include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
+
+struct intel_hdcp_gsc_message {
+	struct i915_vma *vma;
+	void *hdcp_cmd_in;
+	void *hdcp_cmd_out;
+};
 
 bool intel_hdcp_gsc_cs_required(struct drm_i915_private *i915)
 {

@@ -156,7 +156,7 @@ int venc_if_set_param(struct mtk_vcodec_enc_ctx *ctx,
  * @ctx: device context
  * @opt: encode frame option
  * @frm_buf: input frame buffer information
- * @bs_buf: output bitstream buffer infomraiton
+ * @bs_buf: output bitstream buffer information
  * @result: encode result
  * Return: 0 if encoding frame successfully, otherwise it is failed.
  */

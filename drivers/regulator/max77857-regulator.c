@@ -67,7 +67,7 @@ static bool max77857_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config max77857_regmap_config = {
+static const struct regmap_config max77857_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_MAPLE,

@@ -81,6 +81,7 @@ void kvm_save_timer(struct kvm_vcpu *vcpu);
 void kvm_restore_timer(struct kvm_vcpu *vcpu);
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
+struct kvm_vcpu *kvm_get_vcpu_by_cpuid(struct kvm *kvm, int cpuid);
 
 /*
  * Loongarch KVM guest interrupt handling
@@ -107,6 +108,21 @@ static inline int kvm_queue_exception(struct kvm_vcpu *vcpu,
 		return 0;
 	} else
 		return -1;
+}
+
+static inline unsigned long kvm_read_reg(struct kvm_vcpu *vcpu, int num)
+{
+	return vcpu->arch.gprs[num];
+}
+
+static inline void kvm_write_reg(struct kvm_vcpu *vcpu, int num, unsigned long val)
+{
+	vcpu->arch.gprs[num] = val;
+}
+
+static inline bool kvm_pvtime_supported(void)
+{
+	return !!sched_info_on();
 }
 
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */

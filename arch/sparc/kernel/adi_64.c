@@ -121,9 +121,9 @@ adi_not_found:
 		mdesc_release(hp);
 }
 
-tag_storage_desc_t *find_tag_store(struct mm_struct *mm,
-				   struct vm_area_struct *vma,
-				   unsigned long addr)
+static tag_storage_desc_t *find_tag_store(struct mm_struct *mm,
+					  struct vm_area_struct *vma,
+					  unsigned long addr)
 {
 	tag_storage_desc_t *tag_desc = NULL;
 	unsigned long i, max_desc, flags;
@@ -153,9 +153,9 @@ tag_storage_desc_t *find_tag_store(struct mm_struct *mm,
 	return tag_desc;
 }
 
-tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
-				    struct vm_area_struct *vma,
-				    unsigned long addr)
+static tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
+					   struct vm_area_struct *vma,
+					   unsigned long addr)
 {
 	unsigned char *tags;
 	unsigned long i, size, max_desc, flags;
@@ -296,7 +296,7 @@ out:
 	return tag_desc;
 }
 
-void del_tag_store(tag_storage_desc_t *tag_desc, struct mm_struct *mm)
+static void del_tag_store(tag_storage_desc_t *tag_desc, struct mm_struct *mm)
 {
 	unsigned long flags;
 	unsigned char *tags = NULL;

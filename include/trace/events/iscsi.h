@@ -30,7 +30,7 @@ DECLARE_EVENT_CLASS(iscsi_log_msg,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 

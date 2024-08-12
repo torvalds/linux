@@ -282,7 +282,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart3_default_pins>;
 	uart-has-rtscts;
-	rs485-rts-active-low;
 	linux,rs485-enabled-at-boot-time;
 	status = "okay";
 };

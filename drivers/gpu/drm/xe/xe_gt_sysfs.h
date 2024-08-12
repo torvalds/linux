@@ -8,7 +8,7 @@
 
 #include "xe_gt_sysfs_types.h"
 
-void xe_gt_sysfs_init(struct xe_gt *gt);
+int xe_gt_sysfs_init(struct xe_gt *gt);
 
 static inline struct xe_gt *
 kobj_to_gt(struct kobject *kobj)

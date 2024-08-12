@@ -112,7 +112,7 @@ void __init kasan_init(void)
 	pte_t zero_pte = pfn_pte(virt_to_pfn(kasan_early_shadow_page), PAGE_KERNEL_RO);
 
 	for_each_mem_range(i, &start, &end)
-		kasan_init_phys_region((void *)start, (void *)end);
+		kasan_init_phys_region(phys_to_virt(start), phys_to_virt(end));
 
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC))
 		kasan_remove_zero_shadow((void *)VMALLOC_START, VMALLOC_SIZE);

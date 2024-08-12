@@ -68,7 +68,7 @@ struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
 	struct rpc_message cb_msg;
 	const struct nfsd4_callback_ops *cb_ops;
-	struct delayed_work cb_work;
+	struct work_struct cb_work;
 	int cb_seq_status;
 	int cb_status;
 	bool cb_need_restart;
@@ -408,6 +408,8 @@ struct nfs4_client {
 					 1 << NFSD4_CLIENT_CB_KILL)
 #define NFSD4_CLIENT_CB_RECALL_ANY	(6)
 	unsigned long		cl_flags;
+
+	struct workqueue_struct *cl_callback_wq;
 	const struct cred	*cl_cb_cred;
 	struct rpc_clnt		*cl_cb_client;
 	u32			cl_cb_ident;
@@ -486,7 +488,7 @@ struct nfs4_replay {
 	unsigned int		rp_buflen;
 	char			*rp_buf;
 	struct knfsd_fh		rp_openfh;
-	struct mutex		rp_mutex;
+	atomic_t		rp_locked;
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
@@ -735,8 +737,6 @@ extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *
 extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);
-extern int nfsd4_create_callback_queue(void);
-extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,

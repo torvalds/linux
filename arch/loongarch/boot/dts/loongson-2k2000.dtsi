@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/loongson,ls2k-clk.h>
 
 / {
 	#address-cells = <2>;
@@ -19,27 +20,50 @@
 			compatible = "loongson,la364";
 			device_type = "cpu";
 			reg = <0x0>;
-			clocks = <&cpu_clk>;
+			clocks = <&clk LOONGSON2_NODE_CLK>;
 		};
 
 		cpu1: cpu@2 {
 			compatible = "loongson,la364";
 			device_type = "cpu";
 			reg = <0x1>;
-			clocks = <&cpu_clk>;
+			clocks = <&clk LOONGSON2_NODE_CLK>;
 		};
 	};
 
-	cpu_clk: cpu-clk {
+	ref_100m: clock-ref-100m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <1400000000>;
+		clock-frequency = <100000000>;
+		clock-output-names = "ref_100m";
 	};
 
 	cpuintc: interrupt-controller {
 		compatible = "loongson,cpu-interrupt-controller";
 		#interrupt-cells = <1>;
 		interrupt-controller;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tsensor 0>;
+
+			trips {
+				cpu-alert {
+					temperature = <40000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
+				cpu-crit {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	bus@10000000 {
@@ -50,6 +74,21 @@
 			 <0xfe 0x0 0xfe 0x0 0x0 0x40000000>;
 		#address-cells = <2>;
 		#size-cells = <2>;
+
+		isa@18400000 {
+			compatible = "isa";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			ranges = <1 0x0 0x0 0x18400000 0x4000>;
+		};
+
+		clk: clock-controller@10010480 {
+			compatible = "loongson,ls2k2000-clk";
+			reg = <0x0 0x10010480 0x0 0x100>;
+			#clock-cells = <1>;
+			clocks = <&ref_100m>;
+			clock-names = "ref_100m";
+		};
 
 		pmc: power-management@100d0000 {
 			compatible = "loongson,ls2k2000-pmc", "loongson,ls2k0500-pmc", "syscon";
@@ -71,6 +110,15 @@
 				mask = <0x3c00>;
 				value = <0x3c00>;
 			};
+		};
+
+		tsensor: thermal-sensor@1fe01460 {
+			compatible = "loongson,ls2k2000-thermal";
+			reg = <0x0 0x1fe01460 0x0 0x30>,
+			      <0x0 0x1fe0019c 0x0 0x4>;
+			interrupt-parent = <&liointc>;
+			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+			#thermal-sensor-cells = <1>;
 		};
 
 		liointc: interrupt-controller@1fe01400 {
@@ -109,6 +157,8 @@
 		msi: msi-controller@1fe01140 {
 			compatible = "loongson,pch-msi-1.0";
 			reg = <0x0 0x1fe01140 0x0 0x8>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 			msi-controller;
 			loongson,msi-base-vec = <64>;
 			loongson,msi-num-vecs = <192>;
@@ -140,27 +190,34 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			msi-parent = <&msi>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x01000000 0x0 0x00008000 0x0 0x18400000 0x0 0x00008000>,
+			ranges = <0x01000000 0x0 0x00008000 0x0 0x18408000 0x0 0x00008000>,
 				 <0x02000000 0x0 0x60000000 0x0 0x60000000 0x0 0x20000000>;
 
 			gmac0: ethernet@3,0 {
 				reg = <0x1800 0x0 0x0 0x0 0x0>;
-				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
+					     <13 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};
 
 			gmac1: ethernet@3,1 {
 				reg = <0x1900 0x0 0x0 0x0 0x0>;
-				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+					     <15 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};
 
 			gmac2: ethernet@3,2 {
 				reg = <0x1a00 0x0 0x0 0x0 0x0>;
-				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
+					     <18 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};

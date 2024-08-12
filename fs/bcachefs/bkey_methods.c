@@ -7,6 +7,7 @@
 #include "btree_types.h"
 #include "alloc_background.h"
 #include "dirent.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
@@ -27,7 +28,7 @@ const char * const bch2_bkey_types[] = {
 };
 
 static int deleted_key_invalid(struct bch_fs *c, struct bkey_s_c k,
-			       enum bkey_invalid_flags flags, struct printbuf *err)
+			       enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -41,7 +42,7 @@ static int deleted_key_invalid(struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int empty_val_key_invalid(struct bch_fs *c, struct bkey_s_c k,
-				 enum bkey_invalid_flags flags, struct printbuf *err)
+				 enum bch_validate_flags flags, struct printbuf *err)
 {
 	int ret = 0;
 
@@ -58,7 +59,7 @@ fsck_err:
 })
 
 static int key_type_cookie_invalid(struct bch_fs *c, struct bkey_s_c k,
-				   enum bkey_invalid_flags flags, struct printbuf *err)
+				   enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -82,7 +83,7 @@ static void key_type_cookie_to_text(struct printbuf *out, struct bch_fs *c,
 })
 
 static int key_type_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
-					enum bkey_invalid_flags flags, struct printbuf *err)
+					enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -123,9 +124,12 @@ const struct bkey_ops bch2_bkey_null_ops = {
 };
 
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
+	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
+		return 0;
+
 	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 	int ret = 0;
 
@@ -159,9 +163,12 @@ const char *bch2_btree_node_type_str(enum btree_node_type type)
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum btree_node_type type,
-			enum bkey_invalid_flags flags,
+			enum bch_validate_flags flags,
 			struct printbuf *err)
 {
+	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
+		return 0;
+
 	int ret = 0;
 
 	bkey_fsck_err_on(k.k->u64s < BKEY_U64s, c, err,
@@ -171,11 +178,15 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (type >= BKEY_TYPE_NR)
 		return 0;
 
-	bkey_fsck_err_on((flags & BKEY_INVALID_COMMIT) &&
+	bkey_fsck_err_on(k.k->type < KEY_TYPE_MAX &&
+			 (type == BKEY_TYPE_btree || (flags & BCH_VALIDATE_commit)) &&
 			 !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type)), c, err,
 			 bkey_invalid_type_for_btree,
 			 "invalid key type for btree %s (%s)",
-			 bch2_btree_node_type_str(type), bch2_bkey_types[k.k->type]);
+			 bch2_btree_node_type_str(type),
+			 k.k->type < KEY_TYPE_MAX
+			 ? bch2_bkey_types[k.k->type]
+			 : "(unknown)");
 
 	if (btree_node_type_is_extents(type) && !bkey_whiteout(k.k)) {
 		bkey_fsck_err_on(k.k->size == 0, c, err,
@@ -220,7 +231,7 @@ fsck_err:
 
 int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		      enum btree_node_type type,
-		      enum bkey_invalid_flags flags,
+		      enum bch_validate_flags flags,
 		      struct printbuf *err)
 {
 	return __bch2_bkey_invalid(c, k, type, flags, err) ?:
@@ -388,8 +399,12 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 	for (i = 0; i < nr_compat; i++)
 	switch (!write ? i : nr_compat - 1 - i) {
 	case 0:
-		if (big_endian != CPU_BIG_ENDIAN)
+		if (big_endian != CPU_BIG_ENDIAN) {
 			bch2_bkey_swab_key(f, k);
+		} else if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+			bch2_bkey_swab_key(f, k);
+			bch2_bkey_swab_key(f, k);
+		}
 		break;
 	case 1:
 		if (version < bcachefs_metadata_version_bkey_renumber)

@@ -24,7 +24,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/i915_pciids.h>
+#include <drm/intel/i915_pciids.h>
 
 #include "display/intel_display.h"
 #include "display/intel_display_driver.h"
@@ -37,6 +37,9 @@
 #include "i915_pci.h"
 #include "i915_reg.h"
 #include "intel_pci_config.h"
+
+__diag_push();
+__diag_ignore_all("-Woverride-init", "Allow field initialization overrides for device info");
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
@@ -59,14 +62,6 @@
 		[I915_CACHE_WT]     = 2, \
 	}
 
-#define PVC_CACHELEVEL \
-	.cachelevel_to_pat = { \
-		[I915_CACHE_NONE]   = 0, \
-		[I915_CACHE_LLC]    = 3, \
-		[I915_CACHE_L3_LLC] = 3, \
-		[I915_CACHE_WT]     = 2, \
-	}
-
 #define MTL_CACHELEVEL \
 	.cachelevel_to_pat = { \
 		[I915_CACHE_NONE]   = 2, \
@@ -81,7 +76,7 @@
 	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN_DEFAULT_REGIONS \
-	.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_STOLEN_SMEM)
 
 #define I830_FEATURES \
 	GEN(2), \
@@ -660,7 +655,7 @@ static const struct intel_device_info rkl_info = {
 };
 
 #define DGFX_FEATURES \
-	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_LMEM_0) | BIT(INTEL_REGION_STOLEN_LMEM), \
 	.has_llc = 0, \
 	.has_pxp = 0, \
 	.has_snoop = 1, \
@@ -705,8 +700,6 @@ static const struct intel_device_info adl_p_info = {
 		I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.__runtime.graphics.ip.ver = 12, \
-	.__runtime.graphics.ip.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	TGL_CACHELEVEL, \
 	.dma_mask_size = 46, \
@@ -730,32 +723,12 @@ static const struct intel_device_info adl_p_info = {
 	.__runtime.ppgtt_size = 48, \
 	.__runtime.ppgtt_type = INTEL_PPGTT_FULL
 
-#define XE_HPM_FEATURES \
-	.__runtime.media.ip.ver = 12, \
-	.__runtime.media.ip.rel = 50
-
-__maybe_unused
-static const struct intel_device_info xehpsdv_info = {
-	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
-	DGFX_FEATURES,
-	PLATFORM(INTEL_XEHPSDV),
-	.has_64k_pages = 1,
-	.has_media_ratio_mode = 1,
-	.platform_engine_mask =
-		BIT(RCS0) | BIT(BCS0) |
-		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
-		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
-		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7) |
-		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
-	.require_force_probe = 1,
-};
-
 #define DG2_FEATURES \
 	XE_HP_FEATURES, \
-	XE_HPM_FEATURES, \
 	DGFX_FEATURES, \
+	.__runtime.graphics.ip.ver = 12, \
 	.__runtime.graphics.ip.rel = 55, \
+	.__runtime.media.ip.ver = 12, \
 	.__runtime.media.ip.rel = 55, \
 	PLATFORM(INTEL_DG2), \
 	.has_64k_pages = 1, \
@@ -776,33 +749,6 @@ static const struct intel_device_info ats_m_info = {
 	DG2_FEATURES,
 	.require_force_probe = 1,
 	.tuning_thread_rr_after_dep = 1,
-};
-
-#define XE_HPC_FEATURES \
-	XE_HP_FEATURES, \
-	.dma_mask_size = 52, \
-	.has_3d_pipeline = 0, \
-	.has_guc_deprivilege = 1, \
-	.has_l3_ccs_read = 1, \
-	.has_mslice_steering = 0, \
-	.has_one_eu_per_fuse_bit = 1
-
-__maybe_unused
-static const struct intel_device_info pvc_info = {
-	XE_HPC_FEATURES,
-	XE_HPM_FEATURES,
-	DGFX_FEATURES,
-	.__runtime.graphics.ip.rel = 60,
-	.__runtime.media.ip.rel = 60,
-	PLATFORM(INTEL_PONTEVECCHIO),
-	.has_flat_ccs = 0,
-	.max_pat_index = 7,
-	.platform_engine_mask =
-		BIT(BCS0) |
-		BIT(VCS0) |
-		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
-	.require_force_probe = 1,
-	PVC_CACHELEVEL,
 };
 
 static const struct intel_gt_definition xelpmp_extra_gt[] = {
@@ -835,12 +781,14 @@ static const struct intel_device_info mtl_info = {
 	.has_snoop = 1,
 	.max_pat_index = 4,
 	.has_pxp = 1,
-	.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_STOLEN_LMEM),
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
 	MTL_CACHELEVEL,
 };
 
 #undef PLATFORM
+
+__diag_pop();
 
 /*
  * Make sure any device matches here are from most specific to most
@@ -849,80 +797,81 @@ static const struct intel_device_info mtl_info = {
  * PCI ID matches, otherwise we'll use the wrong info struct above.
  */
 static const struct pci_device_id pciidlist[] = {
-	INTEL_I830_IDS(&i830_info),
-	INTEL_I845G_IDS(&i845g_info),
-	INTEL_I85X_IDS(&i85x_info),
-	INTEL_I865G_IDS(&i865g_info),
-	INTEL_I915G_IDS(&i915g_info),
-	INTEL_I915GM_IDS(&i915gm_info),
-	INTEL_I945G_IDS(&i945g_info),
-	INTEL_I945GM_IDS(&i945gm_info),
-	INTEL_I965G_IDS(&i965g_info),
-	INTEL_G33_IDS(&g33_info),
-	INTEL_I965GM_IDS(&i965gm_info),
-	INTEL_GM45_IDS(&gm45_info),
-	INTEL_G45_IDS(&g45_info),
-	INTEL_PINEVIEW_G_IDS(&pnv_g_info),
-	INTEL_PINEVIEW_M_IDS(&pnv_m_info),
-	INTEL_IRONLAKE_D_IDS(&ilk_d_info),
-	INTEL_IRONLAKE_M_IDS(&ilk_m_info),
-	INTEL_SNB_D_GT1_IDS(&snb_d_gt1_info),
-	INTEL_SNB_D_GT2_IDS(&snb_d_gt2_info),
-	INTEL_SNB_M_GT1_IDS(&snb_m_gt1_info),
-	INTEL_SNB_M_GT2_IDS(&snb_m_gt2_info),
-	INTEL_IVB_Q_IDS(&ivb_q_info), /* must be first IVB */
-	INTEL_IVB_M_GT1_IDS(&ivb_m_gt1_info),
-	INTEL_IVB_M_GT2_IDS(&ivb_m_gt2_info),
-	INTEL_IVB_D_GT1_IDS(&ivb_d_gt1_info),
-	INTEL_IVB_D_GT2_IDS(&ivb_d_gt2_info),
-	INTEL_HSW_GT1_IDS(&hsw_gt1_info),
-	INTEL_HSW_GT2_IDS(&hsw_gt2_info),
-	INTEL_HSW_GT3_IDS(&hsw_gt3_info),
-	INTEL_VLV_IDS(&vlv_info),
-	INTEL_BDW_GT1_IDS(&bdw_gt1_info),
-	INTEL_BDW_GT2_IDS(&bdw_gt2_info),
-	INTEL_BDW_GT3_IDS(&bdw_gt3_info),
-	INTEL_BDW_RSVD_IDS(&bdw_rsvd_info),
-	INTEL_CHV_IDS(&chv_info),
-	INTEL_SKL_GT1_IDS(&skl_gt1_info),
-	INTEL_SKL_GT2_IDS(&skl_gt2_info),
-	INTEL_SKL_GT3_IDS(&skl_gt3_info),
-	INTEL_SKL_GT4_IDS(&skl_gt4_info),
-	INTEL_BXT_IDS(&bxt_info),
-	INTEL_GLK_IDS(&glk_info),
-	INTEL_KBL_GT1_IDS(&kbl_gt1_info),
-	INTEL_KBL_GT2_IDS(&kbl_gt2_info),
-	INTEL_KBL_GT3_IDS(&kbl_gt3_info),
-	INTEL_KBL_GT4_IDS(&kbl_gt3_info),
-	INTEL_AML_KBL_GT2_IDS(&kbl_gt2_info),
-	INTEL_CFL_S_GT1_IDS(&cfl_gt1_info),
-	INTEL_CFL_S_GT2_IDS(&cfl_gt2_info),
-	INTEL_CFL_H_GT1_IDS(&cfl_gt1_info),
-	INTEL_CFL_H_GT2_IDS(&cfl_gt2_info),
-	INTEL_CFL_U_GT2_IDS(&cfl_gt2_info),
-	INTEL_CFL_U_GT3_IDS(&cfl_gt3_info),
-	INTEL_WHL_U_GT1_IDS(&cfl_gt1_info),
-	INTEL_WHL_U_GT2_IDS(&cfl_gt2_info),
-	INTEL_AML_CFL_GT2_IDS(&cfl_gt2_info),
-	INTEL_WHL_U_GT3_IDS(&cfl_gt3_info),
-	INTEL_CML_GT1_IDS(&cml_gt1_info),
-	INTEL_CML_GT2_IDS(&cml_gt2_info),
-	INTEL_CML_U_GT1_IDS(&cml_gt1_info),
-	INTEL_CML_U_GT2_IDS(&cml_gt2_info),
-	INTEL_ICL_11_IDS(&icl_info),
-	INTEL_EHL_IDS(&ehl_info),
-	INTEL_JSL_IDS(&jsl_info),
-	INTEL_TGL_12_IDS(&tgl_info),
-	INTEL_RKL_IDS(&rkl_info),
-	INTEL_ADLS_IDS(&adl_s_info),
-	INTEL_ADLP_IDS(&adl_p_info),
-	INTEL_ADLN_IDS(&adl_p_info),
-	INTEL_DG1_IDS(&dg1_info),
-	INTEL_RPLS_IDS(&adl_s_info),
-	INTEL_RPLP_IDS(&adl_p_info),
-	INTEL_DG2_IDS(&dg2_info),
-	INTEL_ATS_M_IDS(&ats_m_info),
-	INTEL_MTL_IDS(&mtl_info),
+	INTEL_I830_IDS(INTEL_VGA_DEVICE, &i830_info),
+	INTEL_I845G_IDS(INTEL_VGA_DEVICE, &i845g_info),
+	INTEL_I85X_IDS(INTEL_VGA_DEVICE, &i85x_info),
+	INTEL_I865G_IDS(INTEL_VGA_DEVICE, &i865g_info),
+	INTEL_I915G_IDS(INTEL_VGA_DEVICE, &i915g_info),
+	INTEL_I915GM_IDS(INTEL_VGA_DEVICE, &i915gm_info),
+	INTEL_I945G_IDS(INTEL_VGA_DEVICE, &i945g_info),
+	INTEL_I945GM_IDS(INTEL_VGA_DEVICE, &i945gm_info),
+	INTEL_I965G_IDS(INTEL_VGA_DEVICE, &i965g_info),
+	INTEL_G33_IDS(INTEL_VGA_DEVICE, &g33_info),
+	INTEL_I965GM_IDS(INTEL_VGA_DEVICE, &i965gm_info),
+	INTEL_GM45_IDS(INTEL_VGA_DEVICE, &gm45_info),
+	INTEL_G45_IDS(INTEL_VGA_DEVICE, &g45_info),
+	INTEL_PNV_G_IDS(INTEL_VGA_DEVICE, &pnv_g_info),
+	INTEL_PNV_M_IDS(INTEL_VGA_DEVICE, &pnv_m_info),
+	INTEL_ILK_D_IDS(INTEL_VGA_DEVICE, &ilk_d_info),
+	INTEL_ILK_M_IDS(INTEL_VGA_DEVICE, &ilk_m_info),
+	INTEL_SNB_D_GT1_IDS(INTEL_VGA_DEVICE, &snb_d_gt1_info),
+	INTEL_SNB_D_GT2_IDS(INTEL_VGA_DEVICE, &snb_d_gt2_info),
+	INTEL_SNB_M_GT1_IDS(INTEL_VGA_DEVICE, &snb_m_gt1_info),
+	INTEL_SNB_M_GT2_IDS(INTEL_VGA_DEVICE, &snb_m_gt2_info),
+	INTEL_IVB_Q_IDS(INTEL_VGA_DEVICE, &ivb_q_info), /* must be first IVB */
+	INTEL_IVB_M_GT1_IDS(INTEL_VGA_DEVICE, &ivb_m_gt1_info),
+	INTEL_IVB_M_GT2_IDS(INTEL_VGA_DEVICE, &ivb_m_gt2_info),
+	INTEL_IVB_D_GT1_IDS(INTEL_VGA_DEVICE, &ivb_d_gt1_info),
+	INTEL_IVB_D_GT2_IDS(INTEL_VGA_DEVICE, &ivb_d_gt2_info),
+	INTEL_HSW_GT1_IDS(INTEL_VGA_DEVICE, &hsw_gt1_info),
+	INTEL_HSW_GT2_IDS(INTEL_VGA_DEVICE, &hsw_gt2_info),
+	INTEL_HSW_GT3_IDS(INTEL_VGA_DEVICE, &hsw_gt3_info),
+	INTEL_VLV_IDS(INTEL_VGA_DEVICE, &vlv_info),
+	INTEL_BDW_GT1_IDS(INTEL_VGA_DEVICE, &bdw_gt1_info),
+	INTEL_BDW_GT2_IDS(INTEL_VGA_DEVICE, &bdw_gt2_info),
+	INTEL_BDW_GT3_IDS(INTEL_VGA_DEVICE, &bdw_gt3_info),
+	INTEL_BDW_RSVD_IDS(INTEL_VGA_DEVICE, &bdw_rsvd_info),
+	INTEL_CHV_IDS(INTEL_VGA_DEVICE, &chv_info),
+	INTEL_SKL_GT1_IDS(INTEL_VGA_DEVICE, &skl_gt1_info),
+	INTEL_SKL_GT2_IDS(INTEL_VGA_DEVICE, &skl_gt2_info),
+	INTEL_SKL_GT3_IDS(INTEL_VGA_DEVICE, &skl_gt3_info),
+	INTEL_SKL_GT4_IDS(INTEL_VGA_DEVICE, &skl_gt4_info),
+	INTEL_BXT_IDS(INTEL_VGA_DEVICE, &bxt_info),
+	INTEL_GLK_IDS(INTEL_VGA_DEVICE, &glk_info),
+	INTEL_KBL_GT1_IDS(INTEL_VGA_DEVICE, &kbl_gt1_info),
+	INTEL_KBL_GT2_IDS(INTEL_VGA_DEVICE, &kbl_gt2_info),
+	INTEL_KBL_GT3_IDS(INTEL_VGA_DEVICE, &kbl_gt3_info),
+	INTEL_KBL_GT4_IDS(INTEL_VGA_DEVICE, &kbl_gt3_info),
+	INTEL_AML_KBL_GT2_IDS(INTEL_VGA_DEVICE, &kbl_gt2_info),
+	INTEL_CFL_S_GT1_IDS(INTEL_VGA_DEVICE, &cfl_gt1_info),
+	INTEL_CFL_S_GT2_IDS(INTEL_VGA_DEVICE, &cfl_gt2_info),
+	INTEL_CFL_H_GT1_IDS(INTEL_VGA_DEVICE, &cfl_gt1_info),
+	INTEL_CFL_H_GT2_IDS(INTEL_VGA_DEVICE, &cfl_gt2_info),
+	INTEL_CFL_U_GT2_IDS(INTEL_VGA_DEVICE, &cfl_gt2_info),
+	INTEL_CFL_U_GT3_IDS(INTEL_VGA_DEVICE, &cfl_gt3_info),
+	INTEL_WHL_U_GT1_IDS(INTEL_VGA_DEVICE, &cfl_gt1_info),
+	INTEL_WHL_U_GT2_IDS(INTEL_VGA_DEVICE, &cfl_gt2_info),
+	INTEL_AML_CFL_GT2_IDS(INTEL_VGA_DEVICE, &cfl_gt2_info),
+	INTEL_WHL_U_GT3_IDS(INTEL_VGA_DEVICE, &cfl_gt3_info),
+	INTEL_CML_GT1_IDS(INTEL_VGA_DEVICE, &cml_gt1_info),
+	INTEL_CML_GT2_IDS(INTEL_VGA_DEVICE, &cml_gt2_info),
+	INTEL_CML_U_GT1_IDS(INTEL_VGA_DEVICE, &cml_gt1_info),
+	INTEL_CML_U_GT2_IDS(INTEL_VGA_DEVICE, &cml_gt2_info),
+	INTEL_ICL_IDS(INTEL_VGA_DEVICE, &icl_info),
+	INTEL_EHL_IDS(INTEL_VGA_DEVICE, &ehl_info),
+	INTEL_JSL_IDS(INTEL_VGA_DEVICE, &jsl_info),
+	INTEL_TGL_IDS(INTEL_VGA_DEVICE, &tgl_info),
+	INTEL_RKL_IDS(INTEL_VGA_DEVICE, &rkl_info),
+	INTEL_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_info),
+	INTEL_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_info),
+	INTEL_ADLN_IDS(INTEL_VGA_DEVICE, &adl_p_info),
+	INTEL_DG1_IDS(INTEL_VGA_DEVICE, &dg1_info),
+	INTEL_RPLS_IDS(INTEL_VGA_DEVICE, &adl_s_info),
+	INTEL_RPLU_IDS(INTEL_VGA_DEVICE, &adl_p_info),
+	INTEL_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_info),
+	INTEL_DG2_IDS(INTEL_VGA_DEVICE, &dg2_info),
+	INTEL_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_info),
+	INTEL_MTL_IDS(INTEL_VGA_DEVICE, &mtl_info),
 	{}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

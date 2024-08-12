@@ -510,7 +510,7 @@ static const struct regmap_config max8973_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 	.max_register		= MAX8973_CHIPID2,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static struct max8973_regulator_platform_data *max8973_parse_dt(

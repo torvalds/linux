@@ -2,7 +2,7 @@
 /*
  *  Support for the interrupt controllers found on Power Macintosh,
  *  currently Apple's "Grand Central" interrupt controller in all
- *  it's incarnations. OpenPIC support used on newer machines is
+ *  its incarnations. OpenPIC support used on newer machines is
  *  in a separate file
  *
  *  Copyright (C) 1997 Paul Mackerras (paulus@samba.org)

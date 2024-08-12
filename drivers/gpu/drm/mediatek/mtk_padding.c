@@ -11,9 +11,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
 
 #define PADDING_CONTROL_REG	0x00
 #define PADDING_BYPASS			BIT(0)
@@ -103,23 +103,19 @@ static int mtk_padding_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clk\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "failed to get clk\n");
 
 	priv->reg = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(priv->reg)) {
-		dev_err(dev, "failed to do ioremap\n");
-		return PTR_ERR(priv->reg);
-	}
+	if (IS_ERR(priv->reg))
+		return dev_err_probe(dev, PTR_ERR(priv->reg),
+				     "failed to do ioremap\n");
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
-	if (ret) {
-		dev_err(dev, "failed to get gce client reg\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get gce client reg\n");
 #endif
 
 	platform_set_drvdata(pdev, priv);
@@ -137,10 +133,9 @@ static int mtk_padding_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_padding_remove(struct platform_device *pdev)
+static void mtk_padding_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_padding_component_ops);
-	return 0;
 }
 
 static const struct of_device_id mtk_padding_driver_dt_match[] = {
@@ -151,10 +146,9 @@ MODULE_DEVICE_TABLE(of, mtk_padding_driver_dt_match);
 
 struct platform_driver mtk_padding_driver = {
 	.probe		= mtk_padding_probe,
-	.remove		= mtk_padding_remove,
+	.remove_new	= mtk_padding_remove,
 	.driver		= {
 		.name	= "mediatek-disp-padding",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_padding_driver_dt_match,
 	},
 };

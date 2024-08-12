@@ -37,4 +37,5 @@ static struct hid_driver semitek_driver = {
 };
 module_hid_driver(semitek_driver);
 
+MODULE_DESCRIPTION("HID driver for Semitek keyboards");
 MODULE_LICENSE("GPL");

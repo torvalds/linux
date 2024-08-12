@@ -24,6 +24,10 @@ static inline void tlb_unwire_entry(void)
 	BUG();
 }
 #endif /* CONFIG_CPU_SH4 */
+
+asmlinkage int handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
+			      unsigned long address);
+
 #endif /* CONFIG_MMU */
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_SH_TLB_H */

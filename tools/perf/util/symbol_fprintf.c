@@ -64,8 +64,8 @@ size_t dso__fprintf_symbols_by_name(struct dso *dso,
 {
 	size_t ret = 0;
 
-	for (size_t i = 0; i < dso->symbol_names_len; i++) {
-		struct symbol *pos = dso->symbol_names[i];
+	for (size_t i = 0; i < dso__symbol_names_len(dso); i++) {
+		struct symbol *pos = dso__symbol_names(dso)[i];
 
 		ret += fprintf(fp, "%s\n", pos->name);
 	}

@@ -95,14 +95,11 @@ static void timbuart_rx_chars(struct uart_port *port)
 
 static void timbuart_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	unsigned char ch;
 
 	while (!(ioread32(port->membase + TIMBUART_ISR) & TXBF) &&
-		!uart_circ_empty(xmit)) {
-		iowrite8(xmit->buf[xmit->tail],
-			port->membase + TIMBUART_TXFIFO);
-		uart_xmit_advance(port, 1);
-	}
+			uart_fifo_get(port, &ch))
+		iowrite8(ch, port->membase + TIMBUART_TXFIFO);
 
 	dev_dbg(port->dev,
 		"%s - total written %d bytes, CTL: %x, RTS: %x, baud: %x\n",
@@ -117,9 +114,9 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 {
 	struct timbuart_port *uart =
 		container_of(port, struct timbuart_port, port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))
 		return;
 
 	if (port->x_char)
@@ -130,7 +127,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 		/* clear all TX interrupts */
 		iowrite32(TXFLAGS, port->membase + TIMBUART_ISR);
 
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(port);
 	} else
 		/* Re-enable any tx interrupt */
@@ -141,7 +138,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 	 * we wake up the upper layer later when we got the interrupt
 	 * to give it some time to go out...
 	 */
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		*ier |= TXBAE;
 
 	dev_dbg(port->dev, "%s - leaving\n", __func__);

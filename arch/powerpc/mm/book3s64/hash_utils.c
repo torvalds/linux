@@ -1233,10 +1233,6 @@ void __init hash__early_init_mmu(void)
 	__pmd_table_size = H_PMD_TABLE_SIZE;
 	__pud_table_size = H_PUD_TABLE_SIZE;
 	__pgd_table_size = H_PGD_TABLE_SIZE;
-	/*
-	 * 4k use hugepd format, so for hash set then to
-	 * zero
-	 */
 	__pmd_val_bits = HASH_PMD_VAL_BITS;
 	__pud_val_bits = HASH_PUD_VAL_BITS;
 	__pgd_val_bits = HASH_PGD_VAL_BITS;
@@ -1544,6 +1540,13 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		DBG_LOW(" no PTE !\n");
 		rc = 1;
 		goto bail;
+	}
+
+	if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !radix_enabled()) {
+		if (hugeshift == PMD_SHIFT && psize == MMU_PAGE_16M)
+			hugeshift = mmu_psize_defs[MMU_PAGE_16M].shift;
+		if (hugeshift == PUD_SHIFT && psize == MMU_PAGE_16G)
+			hugeshift = mmu_psize_defs[MMU_PAGE_16G].shift;
 	}
 
 	/*

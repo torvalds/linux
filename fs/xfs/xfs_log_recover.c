@@ -1177,8 +1177,8 @@ xlog_check_unmount_rec(
 			 */
 			xlog_assign_atomic_lsn(&log->l_tail_lsn,
 					log->l_curr_cycle, after_umount_blk);
-			xlog_assign_atomic_lsn(&log->l_last_sync_lsn,
-					log->l_curr_cycle, after_umount_blk);
+			log->l_ailp->ail_head_lsn =
+					atomic64_read(&log->l_tail_lsn);
 			*tail_blk = after_umount_blk;
 
 			*clean = true;
@@ -1212,11 +1212,7 @@ xlog_set_state(
 	if (bump_cycle)
 		log->l_curr_cycle++;
 	atomic64_set(&log->l_tail_lsn, be64_to_cpu(rhead->h_tail_lsn));
-	atomic64_set(&log->l_last_sync_lsn, be64_to_cpu(rhead->h_lsn));
-	xlog_assign_grant_head(&log->l_reserve_head.grant, log->l_curr_cycle,
-					BBTOB(log->l_curr_block));
-	xlog_assign_grant_head(&log->l_write_head.grant, log->l_curr_cycle,
-					BBTOB(log->l_curr_block));
+	log->l_ailp->ail_head_lsn = be64_to_cpu(rhead->h_lsn);
 }
 
 /*
@@ -1767,6 +1763,37 @@ xlog_recover_iget(
 	return 0;
 }
 
+/*
+ * Get an inode so that we can recover a log operation.
+ *
+ * Log intent items that target inodes effectively contain a file handle.
+ * Check that the generation number matches the intent item like we do for
+ * other file handles.  Log intent items defined after this validation weakness
+ * was identified must use this function.
+ */
+int
+xlog_recover_iget_handle(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino,
+	uint32_t		gen,
+	struct xfs_inode	**ipp)
+{
+	struct xfs_inode	*ip;
+	int			error;
+
+	error = xlog_recover_iget(mp, ino, &ip);
+	if (error)
+		return error;
+
+	if (VFS_I(ip)->i_generation != gen) {
+		xfs_irele(ip);
+		return -EFSCORRUPTED;
+	}
+
+	*ipp = ip;
+	return 0;
+}
+
 /******************************************************************************
  *
  *		Log recover routines
@@ -1789,6 +1816,8 @@ static const struct xlog_recover_item_ops *xlog_recover_item_ops[] = {
 	&xlog_bud_item_ops,
 	&xlog_attri_item_ops,
 	&xlog_attrd_item_ops,
+	&xlog_xmi_item_ops,
+	&xlog_xmd_item_ops,
 };
 
 static const struct xlog_recover_item_ops *
@@ -2456,7 +2485,10 @@ xlog_recover_process_data(
 
 		ohead = (struct xlog_op_header *)dp;
 		dp += sizeof(*ohead);
-		ASSERT(dp <= end);
+		if (dp > end) {
+			xfs_warn(log->l_mp, "%s: op header overrun", __func__);
+			return -EFSCORRUPTED;
+		}
 
 		/* errors will abort recovery */
 		error = xlog_recover_process_ophdr(log, rhash, rhead, ohead,
@@ -2656,7 +2688,7 @@ xlog_recover_clear_agi_bucket(
 	if (error)
 		goto out_error;
 
-	error = xfs_read_agi(pag, tp, &agibp);
+	error = xfs_read_agi(pag, tp, 0, &agibp);
 	if (error)
 		goto out_abort;
 
@@ -2772,7 +2804,7 @@ xlog_recover_iunlink_ag(
 	int			bucket;
 	int			error;
 
-	error = xfs_read_agi(pag, NULL, &agibp);
+	error = xfs_read_agi(pag, NULL, 0, &agibp);
 	if (error) {
 		/*
 		 * AGI is b0rked. Don't process it.
@@ -2966,7 +2998,7 @@ xlog_do_recovery_pass(
 	int			error = 0, h_size, h_len;
 	int			error2 = 0;
 	int			bblks, split_bblks;
-	int			hblks, split_hblks, wrapped_hblks;
+	int			hblks = 1, split_hblks, wrapped_hblks;
 	int			i;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
 	LIST_HEAD		(buffer_list);
@@ -2976,6 +3008,10 @@ xlog_do_recovery_pass(
 
 	for (i = 0; i < XLOG_RHASH_SIZE; i++)
 		INIT_HLIST_HEAD(&rhash[i]);
+
+	hbp = xlog_alloc_buffer(log, hblks);
+	if (!hbp)
+		return -ENOMEM;
 
 	/*
 	 * Read the header of the tail block and get the iclog buffer size from
@@ -2987,10 +3023,6 @@ xlog_do_recovery_pass(
 		 * iclog header and extract the header size from it.  Get a
 		 * new hbp that is the correct size.
 		 */
-		hbp = xlog_alloc_buffer(log, 1);
-		if (!hbp)
-			return -ENOMEM;
-
 		error = xlog_bread(log, tail_blk, 1, hbp, &offset);
 		if (error)
 			goto bread_err1;
@@ -3022,20 +3054,27 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err1;
 
-		hblks = xlog_logrec_hblks(log, rhead);
-		if (hblks != 1) {
-			kvfree(hbp);
-			hbp = xlog_alloc_buffer(log, hblks);
+		/*
+		 * This open codes xlog_logrec_hblks so that we can reuse the
+		 * fixed up h_size value calculated above.  Without that we'd
+		 * still allocate the buffer based on the incorrect on-disk
+		 * size.
+		 */
+		if (h_size > XLOG_HEADER_CYCLE_SIZE &&
+		    (rhead->h_version & cpu_to_be32(XLOG_VERSION_2))) {
+			hblks = DIV_ROUND_UP(h_size, XLOG_HEADER_CYCLE_SIZE);
+			if (hblks > 1) {
+				kvfree(hbp);
+				hbp = xlog_alloc_buffer(log, hblks);
+				if (!hbp)
+					return -ENOMEM;
+			}
 		}
 	} else {
 		ASSERT(log->l_sectBBsize == 1);
-		hblks = 1;
-		hbp = xlog_alloc_buffer(log, 1);
 		h_size = XLOG_BIG_RECORD_BSIZE;
 	}
 
-	if (!hbp)
-		return -ENOMEM;
 	dbp = xlog_alloc_buffer(log, BTOBB(h_size));
 	if (!dbp) {
 		kvfree(hbp);
@@ -3323,14 +3362,13 @@ xlog_do_recover(
 
 	/*
 	 * We now update the tail_lsn since much of the recovery has completed
-	 * and there may be space available to use.  If there were no extent
-	 * or iunlinks, we can free up the entire log and set the tail_lsn to
-	 * be the last_sync_lsn.  This was set in xlog_find_tail to be the
-	 * lsn of the last known good LR on disk.  If there are extent frees
-	 * or iunlinks they will have some entries in the AIL; so we look at
-	 * the AIL to determine how to set the tail_lsn.
+	 * and there may be space available to use.  If there were no extent or
+	 * iunlinks, we can free up the entire log.  This was set in
+	 * xlog_find_tail to be the lsn of the last known good LR on disk.  If
+	 * there are extent frees or iunlinks they will have some entries in the
+	 * AIL; so we look at the AIL to determine how to set the tail_lsn.
 	 */
-	xlog_assign_tail_lsn(mp);
+	xfs_ail_assign_tail_lsn(log->l_ailp);
 
 	/*
 	 * Now that we've finished replaying all buffer and inode updates,
@@ -3495,21 +3533,6 @@ xlog_recover_finish(
 	 * would have problems pushing the intents out of the way.
 	 */
 	xfs_log_force(log->l_mp, XFS_LOG_SYNC);
-
-	/*
-	 * Now that we've recovered the log and all the intents, we can clear
-	 * the log incompat feature bits in the superblock because there's no
-	 * longer anything to protect.  We rely on the AIL push to write out the
-	 * updated superblock after everything else.
-	 */
-	if (xfs_clear_incompat_log_features(log->l_mp)) {
-		error = xfs_sync_sb(log->l_mp, false);
-		if (error < 0) {
-			xfs_alert(log->l_mp,
-	"Failed to clear log incompat features on recovery");
-			goto out_error;
-		}
-	}
 
 	xlog_recover_process_iunlinks(log);
 

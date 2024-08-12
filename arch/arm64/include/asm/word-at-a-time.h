@@ -27,19 +27,14 @@ static inline unsigned long has_zero(unsigned long a, unsigned long *bits,
 }
 
 #define prep_zero_mask(a, bits, c) (bits)
+#define create_zero_mask(bits) (bits)
+#define find_zero(bits) (__ffs(bits) >> 3)
 
-static inline unsigned long create_zero_mask(unsigned long bits)
+static inline unsigned long zero_bytemask(unsigned long bits)
 {
 	bits = (bits - 1) & ~bits;
 	return bits >> 7;
 }
-
-static inline unsigned long find_zero(unsigned long mask)
-{
-	return fls64(mask) >> 3;
-}
-
-#define zero_bytemask(mask) (mask)
 
 #else	/* __AARCH64EB__ */
 #include <asm-generic/word-at-a-time.h>

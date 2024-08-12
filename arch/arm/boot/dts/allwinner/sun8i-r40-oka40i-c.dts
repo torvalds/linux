@@ -62,7 +62,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pio 1 10 GPIO_ACTIVE_LOW>; // PB10 WIFI_EN
 		clocks = <&ccu CLK_OUTA>;

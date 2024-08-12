@@ -49,6 +49,7 @@ static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),
 	ENA_STAT_GLOBAL_ENTRY(admin_q_pause),
+	ENA_STAT_GLOBAL_ENTRY(reset_fail),
 };
 
 static const struct ena_stats ena_stats_eni_strings[] = {
@@ -459,10 +460,18 @@ static void ena_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
+	ssize_t ret = 0;
 
-	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strscpy(info->bus_info, pci_name(adapter->pdev),
-		sizeof(info->bus_info));
+	ret = strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	if (ret < 0)
+		netif_dbg(adapter, drv, dev,
+			  "module name will be truncated, status = %zd\n", ret);
+
+	ret = strscpy(info->bus_info, pci_name(adapter->pdev),
+		      sizeof(info->bus_info));
+	if (ret < 0)
+		netif_dbg(adapter, drv, dev,
+			  "bus info will be truncated, status = %zd\n", ret);
 }
 
 static void ena_get_ringparam(struct net_device *netdev,

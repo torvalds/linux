@@ -38,6 +38,12 @@ struct dwc_pwm_info {
 	unsigned int size;
 };
 
+struct dwc_pwm_drvdata {
+	const struct dwc_pwm_info *info;
+	void __iomem *io_base;
+	struct pwm_chip *chips[];
+};
+
 struct dwc_pwm_ctx {
 	u32 cnt;
 	u32 cnt2;

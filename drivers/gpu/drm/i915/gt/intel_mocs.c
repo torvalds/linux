@@ -53,7 +53,6 @@ struct drm_i915_mocs_table {
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
-#define PVC_NUM_MOCS_ENTRIES	3
 #define MTL_NUM_MOCS_ENTRIES	16
 
 /* (e)LLC caching options */
@@ -367,31 +366,6 @@ static const struct drm_i915_mocs_entry gen12_mocs_table[] = {
 		   L3_3_WB),
 };
 
-static const struct drm_i915_mocs_entry xehpsdv_mocs_table[] = {
-	/* wa_1608975824 */
-	MOCS_ENTRY(0, 0, L3_3_WB | L3_LKUP(1)),
-
-	/* UC - Coherent; GO:L3 */
-	MOCS_ENTRY(1, 0, L3_1_UC | L3_LKUP(1)),
-	/* UC - Coherent; GO:Memory */
-	MOCS_ENTRY(2, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Non-Coherent; GO:Memory */
-	MOCS_ENTRY(3, 0, L3_1_UC | L3_GLBGO(1)),
-	/* UC - Non-Coherent; GO:L3 */
-	MOCS_ENTRY(4, 0, L3_1_UC),
-
-	/* WB */
-	MOCS_ENTRY(5, 0, L3_3_WB | L3_LKUP(1)),
-
-	/* HW Reserved - SW program but never use. */
-	MOCS_ENTRY(48, 0, L3_3_WB | L3_LKUP(1)),
-	MOCS_ENTRY(49, 0, L3_1_UC | L3_LKUP(1)),
-	MOCS_ENTRY(60, 0, L3_1_UC),
-	MOCS_ENTRY(61, 0, L3_1_UC),
-	MOCS_ENTRY(62, 0, L3_1_UC),
-	MOCS_ENTRY(63, 0, L3_1_UC),
-};
-
 static const struct drm_i915_mocs_entry dg2_mocs_table[] = {
 	/* UC - Coherent; GO:L3 */
 	MOCS_ENTRY(0, 0, L3_1_UC | L3_LKUP(1)),
@@ -402,17 +376,6 @@ static const struct drm_i915_mocs_entry dg2_mocs_table[] = {
 
 	/* WB - LC */
 	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
-};
-
-static const struct drm_i915_mocs_entry pvc_mocs_table[] = {
-	/* Error */
-	MOCS_ENTRY(0, 0, L3_3_WB),
-
-	/* UC */
-	MOCS_ENTRY(1, 0, L3_1_UC),
-
-	/* WB */
-	MOCS_ENTRY(2, 0, L3_3_WB),
 };
 
 static const struct drm_i915_mocs_entry mtl_mocs_table[] = {
@@ -501,25 +464,12 @@ static unsigned int get_mocs_settings(struct drm_i915_private *i915,
 		table->n_entries = MTL_NUM_MOCS_ENTRIES;
 		table->uc_index = 9;
 		table->unused_entries_index = 1;
-	} else if (IS_PONTEVECCHIO(i915)) {
-		table->size = ARRAY_SIZE(pvc_mocs_table);
-		table->table = pvc_mocs_table;
-		table->n_entries = PVC_NUM_MOCS_ENTRIES;
-		table->uc_index = 1;
-		table->wb_index = 2;
-		table->unused_entries_index = 2;
 	} else if (IS_DG2(i915)) {
 		table->size = ARRAY_SIZE(dg2_mocs_table);
 		table->table = dg2_mocs_table;
 		table->uc_index = 1;
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->unused_entries_index = 3;
-	} else if (IS_XEHPSDV(i915)) {
-		table->size = ARRAY_SIZE(xehpsdv_mocs_table);
-		table->table = xehpsdv_mocs_table;
-		table->uc_index = 2;
-		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		table->unused_entries_index = 5;
 	} else if (IS_DG1(i915)) {
 		table->size = ARRAY_SIZE(dg1_mocs_table);
 		table->table = dg1_mocs_table;
@@ -670,7 +620,7 @@ static void init_l3cc_table(struct intel_gt *gt,
 
 	intel_gt_mcr_lock(gt, &flags);
 	for_each_l3cc(l3cc, table, i)
-		if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55))
 			intel_gt_mcr_multicast_write_fw(gt, XEHP_LNCFCMOCS(i), l3cc);
 		else
 			intel_uncore_write_fw(gt->uncore, GEN9_LNCFCMOCS(i), l3cc);

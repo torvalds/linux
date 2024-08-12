@@ -3098,7 +3098,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 	int old_mtu;
 
 	old_mtu = dev->mtu;
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	/* return early if the buffer sizes will not change */
 	if (old_mtu <= ETH_DATA_LEN && new_mtu <= ETH_DATA_LEN)

@@ -128,6 +128,11 @@ struct msm_drm_private {
 	struct msm_perf_state *perf;
 
 	/**
+	 * total_mem: Total/global amount of memory backing GEM objects.
+	 */
+	atomic64_t total_mem;
+
+	/**
 	 * List of all GEM objects (mainly for debugfs, protected by obj_lock
 	 * (acquire before per GEM object lock)
 	 */
@@ -239,9 +244,7 @@ struct msm_drm_private {
 	bool disable_err_irq;
 };
 
-struct msm_format {
-	uint32_t pixel_format;
-};
+const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format, uint64_t modifier);
 
 struct msm_pending_timer;
 
@@ -332,6 +335,7 @@ bool msm_dsi_is_bonded_dsi(struct msm_dsi *msm_dsi);
 bool msm_dsi_is_master_dsi(struct msm_dsi *msm_dsi);
 bool msm_dsi_wide_bus_enabled(struct msm_dsi *msm_dsi);
 struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi);
+const char *msm_dsi_get_te_source(struct msm_dsi *msm_dsi);
 #else
 static inline void __init msm_dsi_register(void)
 {
@@ -366,6 +370,11 @@ static inline bool msm_dsi_wide_bus_enabled(struct msm_dsi *msm_dsi)
 }
 
 static inline struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
+{
+	return NULL;
+}
+
+static inline const char *msm_dsi_get_te_source(struct msm_dsi *msm_dsi)
 {
 	return NULL;
 }
@@ -488,15 +497,12 @@ void __iomem *msm_ioremap_mdss(struct platform_device *mdss_pdev,
 
 struct icc_path *msm_icc_get(struct device *dev, const char *name);
 
-#define msm_writel(data, addr) writel((data), (addr))
-#define msm_readl(addr) readl((addr))
-
 static inline void msm_rmw(void __iomem *addr, u32 mask, u32 or)
 {
-	u32 val = msm_readl(addr);
+	u32 val = readl(addr);
 
 	val &= ~mask;
-	msm_writel(val | or, addr);
+	writel(val | or, addr);
 }
 
 /**

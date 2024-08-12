@@ -89,7 +89,7 @@ int do_misaligned_access(unsigned long address, struct pt_regs *regs,
 
 /*
  * Entry point for miscll errors such as Nested Exceptions
- *  -Duplicate TLB entry is handled seperately though
+ *  -Duplicate TLB entry is handled separately though
  */
 void do_machine_check_fault(unsigned long address, struct pt_regs *regs)
 {

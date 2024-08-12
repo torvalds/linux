@@ -581,32 +581,6 @@ static const struct resource_caps res_cap_rn = {
 		.num_dsc = 3,
 };
 
-#ifdef DIAGS_BUILD
-static const struct resource_caps res_cap_rn_FPGA_4pipe = {
-		.num_timing_generator = 4,
-		.num_opp = 4,
-		.num_video_plane = 4,
-		.num_audio = 7,
-		.num_stream_encoder = 4,
-		.num_pll = 4,
-		.num_dwb = 1,
-		.num_ddc = 4,
-		.num_dsc = 0,
-};
-
-static const struct resource_caps res_cap_rn_FPGA_2pipe_dsc = {
-		.num_timing_generator = 2,
-		.num_opp = 2,
-		.num_video_plane = 2,
-		.num_audio = 7,
-		.num_stream_encoder = 2,
-		.num_pll = 4,
-		.num_dwb = 1,
-		.num_ddc = 4,
-		.num_dsc = 2,
-};
-#endif
-
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
 	.per_pixel_alpha = true,
@@ -1415,16 +1389,11 @@ static bool dcn21_resource_construct(
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
 	uint32_t pipe_fuses = read_pipe_fuses(ctx);
-	uint32_t num_pipes;
+	uint32_t num_pipes = 0;
 
 	ctx->dc_bios->regs = &bios_regs;
 
 	pool->base.res_cap = &res_cap_rn;
-#ifdef DIAGS_BUILD
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		//pool->base.res_cap = &res_cap_nv10_FPGA_2pipe_dsc;
-		pool->base.res_cap = &res_cap_rn_FPGA_4pipe;
-#endif
 
 	pool->base.funcs = &dcn21_res_pool_funcs;
 

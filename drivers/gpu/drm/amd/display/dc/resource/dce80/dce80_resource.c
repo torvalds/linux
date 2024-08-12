@@ -56,7 +56,6 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_i2c.h"
-/* TODO remove this include */
 
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_7_1_d.h"
@@ -1539,6 +1538,7 @@ struct resource_pool *dce83_create_resource_pool(
 	if (dce83_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
+	kfree(pool);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }

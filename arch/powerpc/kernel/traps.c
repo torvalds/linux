@@ -2244,7 +2244,7 @@ void __noreturn unrecoverable_exception(struct pt_regs *regs)
 		;
 }
 
-#if defined(CONFIG_BOOKE_WDT) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_WDT
 DEFINE_INTERRUPT_HANDLER_NMI(WatchdogException)
 {
 	printk (KERN_EMERG "PowerPC Book-E Watchdog Exception\n");

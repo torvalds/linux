@@ -437,6 +437,7 @@ static int mmdc_pmu_init(struct mmdc_pmu *pmu_mmdc,
 {
 	*pmu_mmdc = (struct mmdc_pmu) {
 		.pmu = (struct pmu) {
+			.parent		= dev,
 			.task_ctx_nr    = perf_invalid_context,
 			.attr_groups    = attr_groups,
 			.event_init     = mmdc_pmu_event_init,

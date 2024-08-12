@@ -6,20 +6,23 @@
 #include <drm/drm_blend.h>
 
 #include "i915_drv.h"
-#include "i915_fixed.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_bw.h"
+#include "intel_cdclk.h"
 #include "intel_crtc.h"
+#include "intel_cursor_regs.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fixed.h"
 #include "intel_pcode.h"
 #include "intel_wm.h"
+#include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
 
@@ -69,7 +72,7 @@ static bool skl_needs_memory_bw_wa(struct drm_i915_private *i915)
 	return DISPLAY_VER(i915) == 9;
 }
 
-static bool
+bool
 intel_has_sagv(struct drm_i915_private *i915)
 {
 	return HAS_SAGV(i915) &&
@@ -1393,7 +1396,7 @@ skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 	return data_rate;
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id,
 		   int level)
@@ -1406,7 +1409,7 @@ skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 	return &wm->wm[level];
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id)
 {
@@ -2362,101 +2365,6 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 	return skl_wm_check_vblank(crtc_state);
 }
 
-static void skl_ddb_entry_write(struct drm_i915_private *i915,
-				i915_reg_t reg,
-				const struct skl_ddb_entry *entry)
-{
-	if (entry->end)
-		intel_de_write_fw(i915, reg,
-				  PLANE_BUF_END(entry->end - 1) |
-				  PLANE_BUF_START(entry->start));
-	else
-		intel_de_write_fw(i915, reg, 0);
-}
-
-static void skl_write_wm_level(struct drm_i915_private *i915,
-			       i915_reg_t reg,
-			       const struct skl_wm_level *level)
-{
-	u32 val = 0;
-
-	if (level->enable)
-		val |= PLANE_WM_EN;
-	if (level->ignore_lines)
-		val |= PLANE_WM_IGNORE_LINES;
-	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
-	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
-
-	intel_de_write_fw(i915, reg, val);
-}
-
-void skl_write_plane_wm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	const struct skl_ddb_entry *ddb_y =
-		&crtc_state->wm.skl.plane_ddb_y[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, PLANE_WM(pipe, plane_id, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
-
-	skl_write_wm_level(i915, PLANE_WM_TRANS(pipe, plane_id),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		skl_write_wm_level(i915, PLANE_WM_SAGV(pipe, plane_id),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
-				   &wm->sagv.trans_wm);
-	}
-
-	skl_ddb_entry_write(i915,
-			    PLANE_BUF_CFG(pipe, plane_id), ddb);
-
-	if (DISPLAY_VER(i915) < 11)
-		skl_ddb_entry_write(i915,
-				    PLANE_NV12_BUF_CFG(pipe, plane_id), ddb_y);
-}
-
-void skl_write_cursor_wm(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, CUR_WM(pipe, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
-
-	skl_write_wm_level(i915, CUR_WM_TRANS(pipe),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		skl_write_wm_level(i915, CUR_WM_SAGV(pipe),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, CUR_WM_SAGV_TRANS(pipe),
-				   &wm->sagv.trans_wm);
-	}
-
-	skl_ddb_entry_write(i915, CUR_BUF_CFG(pipe), ddb);
-}
-
 static bool skl_wm_level_equals(const struct skl_wm_level *l1,
 				const struct skl_wm_level *l2)
 {
@@ -2521,12 +2429,14 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 }
 
 static int
-skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
-			    struct intel_crtc_state *new_crtc_state)
+skl_ddb_add_affected_planes(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(new_crtc_state->uapi.state);
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane *plane;
 
 	for_each_intel_plane_on_crtc(&i915->drm, crtc, plane) {
@@ -2538,6 +2448,12 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 		    skl_ddb_entry_equal(&old_crtc_state->wm.skl.plane_ddb_y[plane_id],
 					&new_crtc_state->wm.skl.plane_ddb_y[plane_id]))
 			continue;
+
+		if (new_crtc_state->do_async_flip) {
+			drm_dbg_kms(&i915->drm, "[PLANE:%d:%s] Can't change DDB during async flip\n",
+				    plane->base.base.id, plane->base.name);
+			return -EINVAL;
+		}
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state))
@@ -2575,7 +2491,6 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_dbuf_state *old_dbuf_state;
 	struct intel_dbuf_state *new_dbuf_state = NULL;
-	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
@@ -2601,9 +2516,16 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	if (HAS_MBUS_JOINING(i915))
+	if (HAS_MBUS_JOINING(i915)) {
 		new_dbuf_state->joined_mbus =
 			adlp_check_mbus_joined(new_dbuf_state->active_pipes);
+
+		if (old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
+			ret = intel_cdclk_state_set_joined_mbus(state, new_dbuf_state->joined_mbus);
+			if (ret)
+				return ret;
+		}
+	}
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		enum pipe pipe = crtc->pipe;
@@ -2627,13 +2549,6 @@ skl_compute_ddb(struct intel_atomic_state *state)
 		ret = intel_atomic_serialize_global_state(&new_dbuf_state->base);
 		if (ret)
 			return ret;
-
-		if (old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
-			/* TODO: Implement vblank synchronized MBUS joining changes */
-			ret = intel_modeset_all_pipes_late(state, "MBUS joining change");
-			if (ret)
-				return ret;
-		}
 
 		drm_dbg_kms(&i915->drm,
 			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x), mbus joined? %s->%s\n",
@@ -2663,14 +2578,12 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		ret = skl_crtc_allocate_plane_ddb(state, crtc);
 		if (ret)
 			return ret;
 
-		ret = skl_ddb_add_affected_planes(old_crtc_state,
-						  new_crtc_state);
+		ret = skl_ddb_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 	}
@@ -2898,6 +2811,12 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 						 &new_crtc_state->wm.skl.optimal))
 			continue;
 
+		if (new_crtc_state->do_async_flip) {
+			drm_dbg_kms(&i915->drm, "[PLANE:%d:%s] Can't change watermarks during async flip\n",
+				    plane->base.base.id, plane->base.name);
+			return -EINVAL;
+		}
+
 		plane_state = intel_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state))
 			return PTR_ERR(plane_state);
@@ -3056,6 +2975,8 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 
 	if (HAS_MBUS_JOINING(i915))
 		dbuf_state->joined_mbus = intel_de_read(i915, MBUS_CTL) & MBUS_JOIN;
+
+	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(i915, &i915->display.cdclk.hw);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -3530,85 +3451,6 @@ int intel_dbuf_init(struct drm_i915_private *i915)
 	return 0;
 }
 
-/*
- * Configure MBUS_CTL and all DBUF_CTL_S of each slice to join_mbus state before
- * update the request state of all DBUS slices.
- */
-static void update_mbus_pre_enable(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	u32 mbus_ctl, dbuf_min_tracker_val;
-	enum dbuf_slice slice;
-	const struct intel_dbuf_state *dbuf_state =
-		intel_atomic_get_new_dbuf_state(state);
-
-	if (!HAS_MBUS_JOINING(i915))
-		return;
-
-	/*
-	 * TODO: Implement vblank synchronized MBUS joining changes.
-	 * Must be properly coordinated with dbuf reprogramming.
-	 */
-	if (dbuf_state->joined_mbus) {
-		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN |
-			MBUS_JOIN_PIPE_SELECT_NONE;
-		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(3);
-	} else {
-		mbus_ctl = MBUS_HASHING_MODE_2x2 |
-			MBUS_JOIN_PIPE_SELECT_NONE;
-		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(1);
-	}
-
-	intel_de_rmw(i915, MBUS_CTL,
-		     MBUS_HASHING_MODE_MASK | MBUS_JOIN |
-		     MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
-
-	for_each_dbuf_slice(i915, slice)
-		intel_de_rmw(i915, DBUF_CTL_S(slice),
-			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
-			     dbuf_min_tracker_val);
-}
-
-void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_dbuf_state *new_dbuf_state =
-		intel_atomic_get_new_dbuf_state(state);
-	const struct intel_dbuf_state *old_dbuf_state =
-		intel_atomic_get_old_dbuf_state(state);
-
-	if (!new_dbuf_state ||
-	    (new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices &&
-	     new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus))
-		return;
-
-	WARN_ON(!new_dbuf_state->base.changed);
-
-	update_mbus_pre_enable(state);
-	gen9_dbuf_slices_update(i915,
-				old_dbuf_state->enabled_slices |
-				new_dbuf_state->enabled_slices);
-}
-
-void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_dbuf_state *new_dbuf_state =
-		intel_atomic_get_new_dbuf_state(state);
-	const struct intel_dbuf_state *old_dbuf_state =
-		intel_atomic_get_old_dbuf_state(state);
-
-	if (!new_dbuf_state ||
-	    (new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices &&
-	     new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus))
-		return;
-
-	WARN_ON(!new_dbuf_state->base.changed);
-
-	gen9_dbuf_slices_update(i915,
-				new_dbuf_state->enabled_slices);
-}
-
 static bool xelpdp_is_only_pipe_per_dbuf_bank(enum pipe pipe, u8 active_pipes)
 {
 	switch (pipe) {
@@ -3628,14 +3470,12 @@ static bool xelpdp_is_only_pipe_per_dbuf_bank(enum pipe pipe, u8 active_pipes)
 	return false;
 }
 
-void intel_mbus_dbox_update(struct intel_atomic_state *state)
+static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
-	const struct intel_crtc_state *new_crtc_state;
 	const struct intel_crtc *crtc;
 	u32 val = 0;
-	int i;
 
 	if (DISPLAY_VER(i915) < 11)
 		return;
@@ -3679,13 +3519,10 @@ void intel_mbus_dbox_update(struct intel_atomic_state *state)
 		val |= MBUS_DBOX_B_CREDIT(8);
 	}
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes) {
 		u32 pipe_val = val;
 
-		if (!new_crtc_state->hw.active)
-			continue;
-
-		if (DISPLAY_VER(i915) >= 14) {
+		if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
 			if (xelpdp_is_only_pipe_per_dbuf_bank(crtc->pipe,
 							      new_dbuf_state->active_pipes))
 				pipe_val |= MBUS_DBOX_BW_8CREDITS_MTL;
@@ -3695,6 +3532,217 @@ void intel_mbus_dbox_update(struct intel_atomic_state *state)
 
 		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe), pipe_val);
 	}
+}
+
+int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
+					   int ratio)
+{
+	struct intel_dbuf_state *dbuf_state;
+
+	dbuf_state = intel_atomic_get_dbuf_state(state);
+	if (IS_ERR(dbuf_state))
+		return PTR_ERR(dbuf_state);
+
+	dbuf_state->mdclk_cdclk_ratio = ratio;
+
+	return intel_atomic_lock_global_state(&dbuf_state->base);
+}
+
+void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
+					 int ratio, bool joined_mbus)
+{
+	enum dbuf_slice slice;
+
+	if (!HAS_MBUS_JOINING(i915))
+		return;
+
+	if (DISPLAY_VER(i915) >= 20)
+		intel_de_rmw(i915, MBUS_CTL, MBUS_TRANSLATION_THROTTLE_MIN_MASK,
+			     MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
+
+	if (joined_mbus)
+		ratio *= 2;
+
+	drm_dbg_kms(&i915->drm, "Updating dbuf ratio to %d (mbus joined: %s)\n",
+		    ratio, str_yes_no(joined_mbus));
+
+	for_each_dbuf_slice(i915, slice)
+		intel_de_rmw(i915, DBUF_CTL_S(slice),
+			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+			     DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
+}
+
+static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	int mdclk_cdclk_ratio;
+
+	if (intel_cdclk_is_decreasing_later(state)) {
+		/* cdclk/mdclk will be changed later by intel_set_cdclk_post_plane_update() */
+		mdclk_cdclk_ratio = old_dbuf_state->mdclk_cdclk_ratio;
+	} else {
+		/* cdclk/mdclk already changed by intel_set_cdclk_pre_plane_update() */
+		mdclk_cdclk_ratio = new_dbuf_state->mdclk_cdclk_ratio;
+	}
+
+	intel_dbuf_mdclk_cdclk_ratio_update(i915, mdclk_cdclk_ratio,
+					    new_dbuf_state->joined_mbus);
+}
+
+static enum pipe intel_mbus_joined_pipe(struct intel_atomic_state *state,
+					const struct intel_dbuf_state *dbuf_state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	enum pipe pipe = ffs(dbuf_state->active_pipes) - 1;
+	const struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+
+	drm_WARN_ON(&i915->drm, !dbuf_state->joined_mbus);
+	drm_WARN_ON(&i915->drm, !is_power_of_2(dbuf_state->active_pipes));
+
+	crtc = intel_crtc_for_pipe(i915, pipe);
+	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (new_crtc_state && !intel_crtc_needs_modeset(new_crtc_state))
+		return pipe;
+	else
+		return INVALID_PIPE;
+}
+
+static void intel_dbuf_mbus_join_update(struct intel_atomic_state *state,
+					enum pipe pipe)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	u32 mbus_ctl;
+
+	drm_dbg_kms(&i915->drm, "Changing mbus joined: %s -> %s (pipe: %c)\n",
+		    str_yes_no(old_dbuf_state->joined_mbus),
+		    str_yes_no(new_dbuf_state->joined_mbus),
+		    pipe != INVALID_PIPE ? pipe_name(pipe) : '*');
+
+	if (new_dbuf_state->joined_mbus)
+		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN;
+	else
+		mbus_ctl = MBUS_HASHING_MODE_2x2;
+
+	if (pipe != INVALID_PIPE)
+		mbus_ctl |= MBUS_JOIN_PIPE_SELECT(pipe);
+	else
+		mbus_ctl |= MBUS_JOIN_PIPE_SELECT_NONE;
+
+	intel_de_rmw(i915, MBUS_CTL,
+		     MBUS_HASHING_MODE_MASK | MBUS_JOIN |
+		     MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
+}
+
+void intel_dbuf_mbus_pre_ddb_update(struct intel_atomic_state *state)
+{
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+
+	if (!new_dbuf_state)
+		return;
+
+	if (!old_dbuf_state->joined_mbus && new_dbuf_state->joined_mbus) {
+		enum pipe pipe = intel_mbus_joined_pipe(state, new_dbuf_state);
+
+		WARN_ON(!new_dbuf_state->base.changed);
+
+		intel_dbuf_mbus_join_update(state, pipe);
+		intel_mbus_dbox_update(state);
+		intel_dbuf_mdclk_min_tracker_update(state);
+	}
+}
+
+void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+
+	if (!new_dbuf_state)
+		return;
+
+	if (old_dbuf_state->joined_mbus && !new_dbuf_state->joined_mbus) {
+		enum pipe pipe = intel_mbus_joined_pipe(state, old_dbuf_state);
+
+		WARN_ON(!new_dbuf_state->base.changed);
+
+		intel_dbuf_mdclk_min_tracker_update(state);
+		intel_mbus_dbox_update(state);
+		intel_dbuf_mbus_join_update(state, pipe);
+
+		if (pipe != INVALID_PIPE) {
+			struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
+
+			intel_crtc_wait_for_next_vblank(crtc);
+		}
+	} else if (old_dbuf_state->joined_mbus == new_dbuf_state->joined_mbus &&
+		   old_dbuf_state->active_pipes != new_dbuf_state->active_pipes) {
+		WARN_ON(!new_dbuf_state->base.changed);
+
+		intel_dbuf_mdclk_min_tracker_update(state);
+		intel_mbus_dbox_update(state);
+	}
+
+}
+
+void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	u8 old_slices, new_slices;
+
+	if (!new_dbuf_state)
+		return;
+
+	old_slices = old_dbuf_state->enabled_slices;
+	new_slices = old_dbuf_state->enabled_slices | new_dbuf_state->enabled_slices;
+
+	if (old_slices == new_slices)
+		return;
+
+	WARN_ON(!new_dbuf_state->base.changed);
+
+	gen9_dbuf_slices_update(i915, new_slices);
+}
+
+void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	u8 old_slices, new_slices;
+
+	if (!new_dbuf_state)
+		return;
+
+	old_slices = old_dbuf_state->enabled_slices | new_dbuf_state->enabled_slices;
+	new_slices = new_dbuf_state->enabled_slices;
+
+	if (old_slices == new_slices)
+		return;
+
+	WARN_ON(!new_dbuf_state->base.changed);
+
+	gen9_dbuf_slices_update(i915, new_slices);
 }
 
 static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)

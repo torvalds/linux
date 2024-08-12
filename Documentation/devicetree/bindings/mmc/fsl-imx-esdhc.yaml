@@ -91,6 +91,9 @@ properties:
           - enum:
               - fsl,imxrt1170-usdhc
           - const: fsl,imxrt1050-usdhc
+      - items:
+          - const: nxp,s32g3-usdhc
+          - const: nxp,s32g2-usdhc
 
   reg:
     maxItems: 1

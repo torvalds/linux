@@ -5,7 +5,7 @@
 #include "rk3566-soquartz.dtsi"
 
 / {
-	model = "Pine64 RK3566 SoQuartz with CM4-IO Carrier Board";
+	model = "Pine64 SOQuartz on CM4-IO carrier board";
 	compatible = "pine64,soquartz-cm4io", "pine64,soquartz", "rockchip,rk3566";
 
 	aliases {

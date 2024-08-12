@@ -1460,7 +1460,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * lead to unexpected results.
 	 */
 	sb->s_iflags |= SB_I_NOUMASK;
-	sb->s_iflags |= SB_I_EVM_UNSUPPORTED;
+	sb->s_iflags |= SB_I_EVM_HMAC_UNSUPPORTED;
 
 	err = -ENOMEM;
 	root_dentry = ovl_get_root(sb, ctx->upper.dentry, oe);

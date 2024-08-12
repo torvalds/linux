@@ -225,7 +225,7 @@ int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map)
 		goto out;
 
 	res = -EINVAL;
-	if (map->flags)
+	if (map->flags || map->padding)
 		goto out;
 
 	file = fget(map->fd);

@@ -13,7 +13,7 @@ CFLAGS_blacklist_hashes.o := -I $(obj)
 quiet_cmd_check_and_copy_blacklist_hash_list = GEN     $@
       cmd_check_and_copy_blacklist_hash_list = \
 	$(if $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST), \
-	$(AWK) -f $(srctree)/$(src)/check-blacklist-hashes.awk $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) >&2; \
+	$(AWK) -f $(src)/check-blacklist-hashes.awk $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) >&2; \
 	{ cat $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST); echo $(comma) NULL; } > $@, \
 	echo NULL > $@)
 
@@ -55,7 +55,7 @@ $(obj)/signing_key.pem: $(obj)/x509.genkey FORCE
 targets += signing_key.pem
 
 quiet_cmd_copy_x509_config = COPY    $@
-      cmd_copy_x509_config = cat $(srctree)/$(src)/default_x509.genkey > $@
+      cmd_copy_x509_config = cat $(src)/default_x509.genkey > $@
 
 # You can provide your own config file. If not present, copy the default one.
 $(obj)/x509.genkey:

@@ -197,15 +197,12 @@ static int finish_previous_chapter(struct uds_index *index, u64 current_chapter_
 static int swap_open_chapter(struct index_zone *zone)
 {
 	int result;
-	struct open_chapter_zone *temporary_chapter;
 
 	result = finish_previous_chapter(zone->index, zone->newest_virtual_chapter);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	temporary_chapter = zone->open_chapter;
-	zone->open_chapter = zone->writing_chapter;
-	zone->writing_chapter = temporary_chapter;
+	swap(zone->open_chapter, zone->writing_chapter);
 	return UDS_SUCCESS;
 }
 

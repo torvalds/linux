@@ -324,12 +324,8 @@ xfs_bmap_update_get_group(
 	struct xfs_mount	*mp,
 	struct xfs_bmap_intent	*bi)
 {
-	xfs_agnumber_t		agno;
-
 	if (xfs_ifork_is_realtime(bi->bi_owner, bi->bi_whichfork))
 		return;
-
-	agno = XFS_FSB_TO_AGNO(mp, bi->bi_bmap.br_startblock);
 
 	/*
 	 * Bump the intent count on behalf of the deferred rmap and refcount
@@ -338,7 +334,7 @@ xfs_bmap_update_get_group(
 	 * intent drops the intent count, ensuring that the intent count
 	 * remains nonzero across the transaction roll.
 	 */
-	bi->bi_pag = xfs_perag_intent_get(mp, agno);
+	bi->bi_pag = xfs_perag_intent_get(mp, bi->bi_bmap.br_startblock);
 }
 
 /* Add this deferred BUI to the transaction. */
@@ -524,9 +520,7 @@ xfs_bmap_recover_work(
 	else
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
-	error = xfs_iext_count_may_overflow(ip, work->bi_whichfork, iext_delta);
-	if (error == -EFBIG)
-		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
+	error = xfs_iext_count_extend(tp, ip, work->bi_whichfork, iext_delta);
 	if (error)
 		goto err_cancel;
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HAL_TX_H
@@ -57,7 +57,7 @@ struct hal_tx_info {
 struct hal_tx_status {
 	enum hal_wbm_rel_src_module buf_rel_source;
 	enum hal_wbm_tqm_rel_reason status;
-	u8 ack_rssi;
+	s8 ack_rssi;
 	u32 flags; /* %HAL_TX_STATUS_FLAGS_ */
 	u32 ppdu_id;
 	u8 try_cnt;

@@ -601,8 +601,7 @@ static void del_netdev_default_ips_join(struct ib_device *ib_dev, u32 port,
 
 	rcu_read_lock();
 	master_ndev = netdev_master_upper_dev_get_rcu(rdma_ndev);
-	if (master_ndev)
-		dev_hold(master_ndev);
+	dev_hold(master_ndev);
 	rcu_read_unlock();
 
 	if (master_ndev) {

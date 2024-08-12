@@ -33,6 +33,8 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	return addr;
 }
 
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr);
+
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -42,6 +44,14 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 extern void *return_address(unsigned int);
 
 #define ftrace_return_address(n) return_address(n)
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void arch_ftrace_nmi_enter(void);
+extern void arch_ftrace_nmi_exit(void);
+#else
+static inline void arch_ftrace_nmi_enter(void) { }
+static inline void arch_ftrace_nmi_exit(void) { }
+#endif
 
 #endif /* __ASSEMBLY__ */
 

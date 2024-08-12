@@ -53,6 +53,7 @@
 #define MMC_TX_EXCESSDEF		0x6c
 #define MMC_TX_PAUSE_FRAME		0x70
 #define MMC_TX_VLAN_FRAME_G		0x74
+#define MMC_TX_OVERSIZE_G		0x78
 
 /* MMC RX counter registers */
 #define MMC_RX_FRAMECOUNT_GB		0x80
@@ -79,6 +80,13 @@
 #define MMC_RX_FIFO_OVERFLOW		0xd4
 #define MMC_RX_VLAN_FRAMES_GB		0xd8
 #define MMC_RX_WATCHDOG_ERROR		0xdc
+#define MMC_RX_ERROR			0xe0
+
+#define MMC_TX_LPI_USEC			0xec
+#define MMC_TX_LPI_TRAN			0xf0
+#define MMC_RX_LPI_USEC			0xf4
+#define MMC_RX_LPI_TRAN			0xf8
+
 /* IPC*/
 #define MMC_RX_IPC_INTR_MASK		0x100
 #define MMC_RX_IPC_INTR			0x108
@@ -283,6 +291,9 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_tx_excessdef += readl(mmcaddr + MMC_TX_EXCESSDEF);
 	mmc->mmc_tx_pause_frame += readl(mmcaddr + MMC_TX_PAUSE_FRAME);
 	mmc->mmc_tx_vlan_frame_g += readl(mmcaddr + MMC_TX_VLAN_FRAME_G);
+	mmc->mmc_tx_oversize_g	 += readl(mmcaddr + MMC_TX_OVERSIZE_G);
+	mmc->mmc_tx_lpi_usec += readl(mmcaddr + MMC_TX_LPI_USEC);
+	mmc->mmc_tx_lpi_tran += readl(mmcaddr + MMC_TX_LPI_TRAN);
 
 	/* MMC RX counter registers */
 	mmc->mmc_rx_framecount_gb += readl(mmcaddr + MMC_RX_FRAMECOUNT_GB);
@@ -316,6 +327,10 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_fifo_overflow += readl(mmcaddr + MMC_RX_FIFO_OVERFLOW);
 	mmc->mmc_rx_vlan_frames_gb += readl(mmcaddr + MMC_RX_VLAN_FRAMES_GB);
 	mmc->mmc_rx_watchdog_error += readl(mmcaddr + MMC_RX_WATCHDOG_ERROR);
+	mmc->mmc_rx_error += readl(mmcaddr + MMC_RX_ERROR);
+	mmc->mmc_rx_lpi_usec += readl(mmcaddr + MMC_RX_LPI_USEC);
+	mmc->mmc_rx_lpi_tran += readl(mmcaddr + MMC_RX_LPI_TRAN);
+
 	/* IPv4 */
 	mmc->mmc_rx_ipv4_gd += readl(mmcaddr + MMC_RX_IPV4_GD);
 	mmc->mmc_rx_ipv4_hderr += readl(mmcaddr + MMC_RX_IPV4_HDERR);

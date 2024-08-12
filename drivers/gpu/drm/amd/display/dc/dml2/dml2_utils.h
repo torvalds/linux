@@ -40,9 +40,14 @@ void dml2_util_copy_dml_output(struct dml_output_cfg_st *dml_output_array, unsig
 unsigned int dml2_util_get_maximum_odm_combine_for_output(bool force_odm_4to1, enum dml_output_encoder_class encoder, bool dsc_enabled);
 void dml2_copy_clocks_to_dc_state(struct dml2_dcn_clocks *out_clks, struct dc_state *context);
 void dml2_extract_watermark_set(struct dcn_watermarks *watermark, struct display_mode_lib_st *dml_core_ctx);
+void dml2_extract_writeback_wm(struct dc_state *context, struct display_mode_lib_st *dml_core_ctx);
 int dml2_helper_find_dml_pipe_idx_by_stream_id(struct dml2_context *ctx, unsigned int stream_id);
 bool is_dtbclk_required(const struct dc *dc, struct dc_state *context);
 bool dml2_is_stereo_timing(const struct dc_stream_state *stream);
+unsigned int dml2_calc_max_scaled_time(
+		unsigned int time_per_pixel,
+		enum mmhubbub_wbif_mode mode,
+		unsigned int urgent_watermark);
 
 /*
  * dml2_dc_construct_pipes - This function will determine if we need additional pipes based

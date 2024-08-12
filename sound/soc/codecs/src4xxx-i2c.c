@@ -19,7 +19,7 @@ static int src4xxx_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id src4xxx_i2c_ids[] = {
-	{ "src4392", 0 },
+	{ "src4392" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, src4xxx_i2c_ids);

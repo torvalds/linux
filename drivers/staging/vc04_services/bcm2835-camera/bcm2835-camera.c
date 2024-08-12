@@ -591,7 +591,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static void stop_streaming(struct vb2_queue *vq)
 {
 	int ret;
-	unsigned long timeout;
+	unsigned long time_left;
 	struct bcm2835_mmal_dev *dev = vb2_get_drv_priv(vq);
 	struct vchiq_mmal_port *port = dev->capture.port;
 
@@ -636,9 +636,9 @@ static void stop_streaming(struct vb2_queue *vq)
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 			 "%s: Waiting for buffers to be returned - %d outstanding\n",
 			 __func__, atomic_read(&port->buffers_with_vpu));
-		timeout = wait_for_completion_timeout(&dev->capture.frame_cmplt,
-						      HZ);
-		if (timeout == 0) {
+		time_left = wait_for_completion_timeout(&dev->capture.frame_cmplt,
+							HZ);
+		if (time_left == 0) {
 			v4l2_err(&dev->v4l2_dev, "%s: Timeout waiting for buffers to be returned - %d outstanding\n",
 				 __func__,
 				 atomic_read(&port->buffers_with_vpu));
@@ -1555,7 +1555,7 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	u32 param_size;
 	struct vchiq_mmal_component  *camera;
 
-	ret = vchiq_mmal_init(&dev->instance);
+	ret = vchiq_mmal_init(dev->v4l2_dev.dev, &dev->instance);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "%s: vchiq mmal init failed %d\n",
 			 __func__, ret);
@@ -1854,7 +1854,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
 		return ret;
 	}
 
-	ret = vchiq_mmal_init(&instance);
+	ret = vchiq_mmal_init(&device->dev, &instance);
 	if (ret < 0)
 		return ret;
 

@@ -35,6 +35,8 @@ static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
 static int battery_charge_counter	= -1000;
 static int battery_current		= -1600;
+static enum power_supply_charge_behaviour battery_charge_behaviour =
+	POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
 
 static bool module_initialized;
 
@@ -123,9 +125,37 @@ static int test_power_get_battery_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = battery_current;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		val->intval = battery_charge_behaviour;
+		break;
 	default:
 		pr_info("%s: some properties deliberately report errors.\n",
 			__func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int test_power_battery_property_is_writeable(struct power_supply *psy,
+						    enum power_supply_property psp)
+{
+	return psp == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR;
+}
+
+static int test_power_set_battery_property(struct power_supply *psy,
+					   enum power_supply_property psp,
+					   const union power_supply_propval *val)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		if (val->intval < 0 ||
+		    val->intval >= BITS_PER_TYPE(typeof(psy->desc->charge_behaviours)) ||
+		    !(BIT(val->intval) & psy->desc->charge_behaviours)) {
+			return -EINVAL;
+		}
+		battery_charge_behaviour = val->intval;
+		break;
+	default:
 		return -EINVAL;
 	}
 	return 0;
@@ -156,6 +186,7 @@ static enum power_supply_property test_power_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 };
 
 static char *test_power_ac_supplied_to[] = {
@@ -178,6 +209,11 @@ static const struct power_supply_desc test_power_desc[] = {
 		.properties = test_power_battery_props,
 		.num_properties = ARRAY_SIZE(test_power_battery_props),
 		.get_property = test_power_get_battery_property,
+		.set_property = test_power_set_battery_property,
+		.property_is_writeable = test_power_battery_property_is_writeable,
+		.charge_behaviours = BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO)
+				   | BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)
+				   | BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE),
 	},
 	[TEST_USB] = {
 		.name = "test_usb",

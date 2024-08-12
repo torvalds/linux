@@ -240,7 +240,7 @@ struct erdma_cmdq_create_cq_req {
 	u32 qbuf_addr_l;
 	u32 qbuf_addr_h;
 	u32 cfg1;
-	u64 cq_db_info_addr;
+	u64 cq_dbrec_dma;
 	u32 first_page_offset;
 	u32 cfg2;
 };
@@ -335,8 +335,8 @@ struct erdma_cmdq_create_qp_req {
 	u64 rq_buf_addr;
 	u32 sq_mtt_cfg;
 	u32 rq_mtt_cfg;
-	u64 sq_db_info_dma_addr;
-	u64 rq_db_info_dma_addr;
+	u64 sq_dbrec_dma;
+	u64 rq_dbrec_dma;
 
 	u64 sq_mtt_entry[3];
 	u64 rq_mtt_entry[3];

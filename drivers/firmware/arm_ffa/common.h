@@ -14,8 +14,6 @@ typedef struct arm_smccc_1_2_regs ffa_value_t;
 
 typedef void (ffa_fn)(ffa_value_t, ffa_value_t *);
 
-int arm_ffa_bus_init(void);
-void arm_ffa_bus_exit(void);
 bool ffa_device_is_valid(struct ffa_device *ffa_dev);
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid);
 

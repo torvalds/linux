@@ -100,10 +100,6 @@ static bool ft_create_alias_supported(struct mlx5_core_dev *dev)
 
 static bool mlx5_sd_is_supported(struct mlx5_core_dev *dev, u8 host_buses)
 {
-	/* Feature is currently implemented for PFs only */
-	if (!mlx5_core_is_pf(dev))
-		return false;
-
 	/* Honor the SW implementation limit */
 	if (host_buses > MLX5_SD_MAX_GROUP_SZ)
 		return false;
@@ -162,6 +158,14 @@ static int sd_init(struct mlx5_core_dev *dev)
 	bool sdm;
 	int err;
 
+	/* Feature is currently implemented for PFs only */
+	if (!mlx5_core_is_pf(dev))
+		return 0;
+
+	/* Block on embedded CPU PFs */
+	if (mlx5_core_is_ecpf(dev))
+		return 0;
+
 	if (!MLX5_CAP_MCAM_REG(dev, mpir))
 		return 0;
 
@@ -213,8 +217,8 @@ static int sd_register(struct mlx5_core_dev *dev)
 	sd = mlx5_get_sd(dev);
 	devcom = mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_SD_GROUP,
 						sd->group_id, NULL, dev);
-	if (!devcom)
-		return -ENOMEM;
+	if (IS_ERR(devcom))
+		return PTR_ERR(devcom);
 
 	sd->devcom = devcom;
 

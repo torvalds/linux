@@ -135,14 +135,6 @@ SYM_FUNC_START(cpu_do_resume)
 
 	msr	tcr_el1, x8
 	msr	vbar_el1, x9
-
-	/*
-	 * __cpu_setup() cleared MDSCR_EL1.MDE and friends, before unmasking
-	 * debug exceptions. By restoring MDSCR_EL1 here, we may take a debug
-	 * exception. Mask them until local_daif_restore() in cpu_suspend()
-	 * resets them.
-	 */
-	disable_daif
 	msr	mdscr_el1, x10
 
 	msr	sctlr_el1, x12
@@ -466,8 +458,6 @@ SYM_FUNC_START(__cpu_setup)
 	msr	cpacr_el1, xzr			// Reset cpacr_el1
 	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x1			// access to the DCC from EL0
-	isb					// Unmask debug exceptions now,
-	enable_dbg				// since this is per-cpu
 	reset_pmuserenr_el0 x1			// Disable PMU access from EL0
 	reset_amuserenr_el0 x1			// Disable AMU access from EL0
 

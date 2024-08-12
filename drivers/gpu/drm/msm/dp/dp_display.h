@@ -16,7 +16,6 @@ struct msm_dp {
 	struct drm_device *drm_dev;
 	struct platform_device *pdev;
 	struct device *codec_dev;
-	struct drm_bridge *bridge;
 	struct drm_connector *connector;
 	struct drm_bridge *next_bridge;
 	bool link_ready;
@@ -27,8 +26,6 @@ struct msm_dp {
 	bool internal_hpd;
 
 	hdmi_codec_plugged_cb plugged_cb;
-
-	bool wide_bus_en;
 
 	struct dp_audio *dp_audio;
 	bool psr_supported;

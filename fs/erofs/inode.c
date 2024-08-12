@@ -26,7 +26,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 	blkaddr = erofs_blknr(sb, inode_loc);
 	*ofs = erofs_blkoff(sb, inode_loc);
 
-	kaddr = erofs_read_metabuf(buf, sb, blkaddr, EROFS_KMAP);
+	kaddr = erofs_read_metabuf(buf, sb, erofs_pos(sb, blkaddr), EROFS_KMAP);
 	if (IS_ERR(kaddr)) {
 		erofs_err(sb, "failed to get inode (nid: %llu) page, err %ld",
 			  vi->nid, PTR_ERR(kaddr));
@@ -66,7 +66,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 				goto err_out;
 			}
 			memcpy(copied, dic, gotten);
-			kaddr = erofs_read_metabuf(buf, sb, blkaddr + 1,
+			kaddr = erofs_read_metabuf(buf, sb, erofs_pos(sb, blkaddr + 1),
 						   EROFS_KMAP);
 			if (IS_ERR(kaddr)) {
 				erofs_err(sb, "failed to get inode payload block (nid: %llu), err %ld",
@@ -334,14 +334,29 @@ int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  unsigned int query_flags)
 {
 	struct inode *const inode = d_inode(path->dentry);
+	bool compressed =
+		erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout);
 
-	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
+	if (compressed)
 		stat->attributes |= STATX_ATTR_COMPRESSED;
-
 	stat->attributes |= STATX_ATTR_IMMUTABLE;
 	stat->attributes_mask |= (STATX_ATTR_COMPRESSED |
 				  STATX_ATTR_IMMUTABLE);
 
+	/*
+	 * Return the DIO alignment restrictions if requested.
+	 *
+	 * In EROFS, STATX_DIOALIGN is not supported in ondemand mode and
+	 * compressed files, so in these cases we report no DIO support.
+	 */
+	if ((request_mask & STATX_DIOALIGN) && S_ISREG(inode->i_mode)) {
+		stat->result_mask |= STATX_DIOALIGN;
+		if (!erofs_is_fscache_mode(inode->i_sb) && !compressed) {
+			stat->dio_mem_align =
+				bdev_logical_block_size(inode->i_sb->s_bdev);
+			stat->dio_offset_align = stat->dio_mem_align;
+		}
+	}
 	generic_fillattr(idmap, request_mask, inode, stat);
 	return 0;
 }

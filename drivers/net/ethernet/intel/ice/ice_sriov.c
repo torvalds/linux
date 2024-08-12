@@ -170,8 +170,6 @@ void ice_free_vfs(struct ice_pf *pf)
 	else
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	ice_eswitch_reserve_cp_queues(pf, -ice_get_num_vfs(pf));
-
 	mutex_lock(&vfs->table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
@@ -227,7 +225,7 @@ static struct ice_vsi *ice_vf_vsi_setup(struct ice_vf *vf)
 	struct ice_vsi *vsi;
 
 	params.type = ICE_VSI_VF;
-	params.pi = ice_vf_get_port_info(vf);
+	params.port_info = ice_vf_get_port_info(vf);
 	params.vf = vf;
 	params.flags = ICE_VSI_FLAG_INIT;
 
@@ -362,13 +360,14 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
  * @vf: VF to calculate the register index for
  * @q_vector: a q_vector associated to the VF
  */
-int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
+void ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
 {
 	if (!vf || !q_vector)
-		return -EINVAL;
+		return;
 
 	/* always add one to account for the OICR being the first MSIX */
-	return vf->first_vector_idx + q_vector->v_idx + 1;
+	q_vector->vf_reg_idx = q_vector->v_idx + ICE_NONQ_VECS_VF;
+	q_vector->reg_idx = vf->first_vector_idx + q_vector->vf_reg_idx;
 }
 
 /**
@@ -833,11 +832,6 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 
 		pci_dev_get(vfdev);
 
-		/* set default number of MSI-X */
-		vf->num_msix = pf->vfs.num_msix_per;
-		vf->num_vf_qs = pf->vfs.num_qps_per;
-		ice_vc_set_default_allowlist(vf);
-
 		hash_add_rcu(vfs->table, &vf->entry, vf_id);
 	}
 
@@ -897,7 +891,6 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 		goto err_unroll_sriov;
 	}
 
-	ice_eswitch_reserve_cp_queues(pf, num_vfs);
 	ret = ice_start_vfs(pf);
 	if (ret) {
 		dev_err(dev, "Failed to start %d VFs, err %d\n", num_vfs, ret);
@@ -1423,21 +1416,23 @@ out_put_vf:
 }
 
 /**
- * ice_set_vf_mac
- * @netdev: network interface device structure
+ * __ice_set_vf_mac - program VF MAC address
+ * @pf: PF to be configure
  * @vf_id: VF identifier
  * @mac: MAC address
  *
  * program VF MAC address
+ * Return: zero on success or an error code on failure
  */
-int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
+int __ice_set_vf_mac(struct ice_pf *pf, u16 vf_id, const u8 *mac)
 {
-	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+	struct device *dev;
 	struct ice_vf *vf;
 	int ret;
 
+	dev = ice_pf_to_dev(pf);
 	if (is_multicast_ether_addr(mac)) {
-		netdev_err(netdev, "%pM not a valid unicast address\n", mac);
+		dev_err(dev, "%pM not a valid unicast address\n", mac);
 		return -EINVAL;
 	}
 
@@ -1466,13 +1461,13 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	if (is_zero_ether_addr(mac)) {
 		/* VF will send VIRTCHNL_OP_ADD_ETH_ADDR message with its MAC */
 		vf->pf_set_mac = false;
-		netdev_info(netdev, "Removing MAC on VF %d. VF driver will be reinitialized\n",
-			    vf->vf_id);
+		dev_info(dev, "Removing MAC on VF %d. VF driver will be reinitialized\n",
+			 vf->vf_id);
 	} else {
 		/* PF will add MAC rule for the VF */
 		vf->pf_set_mac = true;
-		netdev_info(netdev, "Setting MAC %pM on VF %d. VF driver will be reinitialized\n",
-			    mac, vf_id);
+		dev_info(dev, "Setting MAC %pM on VF %d. VF driver will be reinitialized\n",
+			 mac, vf_id);
 	}
 
 	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);
@@ -1481,6 +1476,20 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 out_put_vf:
 	ice_put_vf(vf);
 	return ret;
+}
+
+/**
+ * ice_set_vf_mac - .ndo_set_vf_mac handler
+ * @netdev: network interface device structure
+ * @vf_id: VF identifier
+ * @mac: MAC address
+ *
+ * program VF MAC address
+ * Return: zero on success or an error code on failure
+ */
+int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
+{
+	return __ice_set_vf_mac(ice_netdev_to_pf(netdev), vf_id, mac);
 }
 
 /**
@@ -1869,6 +1878,24 @@ void ice_print_vf_rx_mdd_event(struct ice_vf *vf)
 }
 
 /**
+ * ice_print_vf_tx_mdd_event - print VF Tx malicious driver detect event
+ * @vf: pointer to the VF structure
+ */
+void ice_print_vf_tx_mdd_event(struct ice_vf *vf)
+{
+	struct ice_pf *pf = vf->pf;
+	struct device *dev;
+
+	dev = ice_pf_to_dev(pf);
+
+	dev_info(dev, "%d Tx Malicious Driver Detection events detected on PF %d VF %d MAC %pM. mdd-auto-reset-vfs=%s\n",
+		 vf->mdd_tx_events.count, pf->hw.pf_id, vf->vf_id,
+		 vf->dev_lan_addr,
+		 test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags)
+			  ? "on" : "off");
+}
+
+/**
  * ice_print_vfs_mdd_events - print VFs malicious driver detect event
  * @pf: pointer to the PF structure
  *
@@ -1876,8 +1903,6 @@ void ice_print_vf_rx_mdd_event(struct ice_vf *vf)
  */
 void ice_print_vfs_mdd_events(struct ice_pf *pf)
 {
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
 	struct ice_vf *vf;
 	unsigned int bkt;
 
@@ -1904,10 +1929,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 		if (vf->mdd_tx_events.count != vf->mdd_tx_events.last_printed) {
 			vf->mdd_tx_events.last_printed =
 							vf->mdd_tx_events.count;
-
-			dev_info(dev, "%d Tx Malicious Driver Detection events detected on PF %d VF %d MAC %pM.\n",
-				 vf->mdd_tx_events.count, hw->pf_id, vf->vf_id,
-				 vf->dev_lan_addr);
+			ice_print_vf_tx_mdd_event(vf);
 		}
 	}
 	mutex_unlock(&pf->vfs.table_lock);

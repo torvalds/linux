@@ -23,6 +23,7 @@
 #include <asm/cpufeature.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/text-patching.h>
 #include <as-layout.h>
 #include <arch.h>
 #include <init.h>
@@ -124,9 +125,6 @@ EXPORT_SYMBOL(uml_physmem);
 unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
 unsigned long end_vm;
-
-/* Set in uml_ncpus_setup */
-int ncpus = 1;
 
 /* Set in early boot */
 static int have_root __initdata;

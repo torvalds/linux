@@ -102,10 +102,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN21)
 
 ###############################################################################
 
-###############################################################################
-
-###############################################################################
-
 RESOURCE_DCN30 = dcn30_resource.o
 
 AMD_DAL_RESOURCE_DCN30 = $(addprefix $(AMDDALPATH)/dc/resource/dcn30/,$(RESOURCE_DCN30))
@@ -170,7 +166,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN316)
 
 ###############################################################################
 
-RESOURCE_DCN32 = dcn32_resource.o
+RESOURCE_DCN32 = dcn32_resource.o dcn32_resource_helpers.o
 
 AMD_DAL_RESOURCE_DCN32 = $(addprefix $(AMDDALPATH)/dc/resource/dcn32/,$(RESOURCE_DCN32))
 
@@ -203,5 +199,11 @@ AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN351)
 ###############################################################################
 
 ###############################################################################
+
+RESOURCE_DCN401 = dcn401_resource.o
+
+AMD_DAL_RESOURCE_DCN401 = $(addprefix $(AMDDALPATH)/dc/resource/dcn401/,$(RESOURCE_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN401)
 
 endif

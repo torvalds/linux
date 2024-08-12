@@ -199,25 +199,28 @@ ets_set_dwrr_two_bands()
 ets_test_strict()
 {
 	ets_set_strict
-	ets_dwrr_test_01
-	ets_dwrr_test_12
+	xfail_on_slow ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_12
 }
 
 ets_test_mixed()
 {
 	ets_set_mixed
-	ets_dwrr_test_01
-	ets_dwrr_test_12
+	xfail_on_slow ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_12
 }
 
 ets_test_dwrr()
 {
 	ets_set_dwrr_uniform
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_set_dwrr_varying
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_change_quantum
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_set_dwrr_two_bands
-	ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_01
 }

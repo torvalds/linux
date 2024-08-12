@@ -370,8 +370,7 @@ static int hx8394_enable(struct drm_panel *panel)
 
 sleep_in:
 	/* This will probably fail, but let's try orderly power off anyway. */
-	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
-	if (!ret)
+	if (!mipi_dsi_dcs_enter_sleep_mode(dsi))
 		msleep(50);
 
 	return ret;

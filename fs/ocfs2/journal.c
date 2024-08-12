@@ -446,6 +446,23 @@ bail:
 }
 
 /*
+ * Make sure handle has at least 'nblocks' credits available. If it does not
+ * have that many credits available, we will try to extend the handle to have
+ * enough credits. If that fails, we will restart transaction to have enough
+ * credits. Similar notes regarding data consistency and locking implications
+ * as for ocfs2_extend_trans() apply here.
+ */
+int ocfs2_assure_trans_credits(handle_t *handle, int nblocks)
+{
+	int old_nblks = jbd2_handle_buffer_credits(handle);
+
+	trace_ocfs2_assure_trans_credits(old_nblks);
+	if (old_nblks >= nblocks)
+		return 0;
+	return ocfs2_extend_trans(handle, nblocks - old_nblks);
+}
+
+/*
  * If we have fewer than thresh credits, extend by OCFS2_MAX_TRANS_DATA.
  * If that fails, restart the transaction & regain write access for the
  * buffer head which is used for metadata modifications.
@@ -478,12 +495,6 @@ int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
 bail:
 	return status;
 }
-
-
-struct ocfs2_triggers {
-	struct jbd2_buffer_trigger_type	ot_triggers;
-	int				ot_offset;
-};
 
 static inline struct ocfs2_triggers *to_ocfs2_trigger(struct jbd2_buffer_trigger_type *triggers)
 {
@@ -548,85 +559,76 @@ static void ocfs2_db_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 				struct buffer_head *bh)
 {
+	struct ocfs2_triggers *ot = to_ocfs2_trigger(triggers);
+
 	mlog(ML_ERROR,
 	     "ocfs2_abort_trigger called by JBD2.  bh = 0x%lx, "
 	     "bh->b_blocknr = %llu\n",
 	     (unsigned long)bh,
 	     (unsigned long long)bh->b_blocknr);
 
-	ocfs2_error(bh->b_assoc_map->host->i_sb,
+	ocfs2_error(ot->sb,
 		    "JBD2 has aborted our journal, ocfs2 cannot continue\n");
 }
 
-static struct ocfs2_triggers di_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_dinode, i_check),
-};
+static void ocfs2_setup_csum_triggers(struct super_block *sb,
+				      enum ocfs2_journal_trigger_type type,
+				      struct ocfs2_triggers *ot)
+{
+	BUG_ON(type >= OCFS2_JOURNAL_TRIGGER_COUNT);
 
-static struct ocfs2_triggers eb_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_extent_block, h_check),
-};
+	switch (type) {
+	case OCFS2_JTR_DI:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_dinode, i_check);
+		break;
+	case OCFS2_JTR_EB:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_extent_block, h_check);
+		break;
+	case OCFS2_JTR_RB:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_refcount_block, rf_check);
+		break;
+	case OCFS2_JTR_GD:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_group_desc, bg_check);
+		break;
+	case OCFS2_JTR_DB:
+		ot->ot_triggers.t_frozen = ocfs2_db_frozen_trigger;
+		break;
+	case OCFS2_JTR_XB:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_xattr_block, xb_check);
+		break;
+	case OCFS2_JTR_DQ:
+		ot->ot_triggers.t_frozen = ocfs2_dq_frozen_trigger;
+		break;
+	case OCFS2_JTR_DR:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_dx_root_block, dr_check);
+		break;
+	case OCFS2_JTR_DL:
+		ot->ot_triggers.t_frozen = ocfs2_frozen_trigger;
+		ot->ot_offset = offsetof(struct ocfs2_dx_leaf, dl_check);
+		break;
+	case OCFS2_JTR_NONE:
+		/* To make compiler happy... */
+		return;
+	}
 
-static struct ocfs2_triggers rb_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_refcount_block, rf_check),
-};
+	ot->ot_triggers.t_abort = ocfs2_abort_trigger;
+	ot->sb = sb;
+}
 
-static struct ocfs2_triggers gd_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_group_desc, bg_check),
-};
+void ocfs2_initialize_journal_triggers(struct super_block *sb,
+				       struct ocfs2_triggers triggers[])
+{
+	enum ocfs2_journal_trigger_type type;
 
-static struct ocfs2_triggers db_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_db_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-};
-
-static struct ocfs2_triggers xb_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_xattr_block, xb_check),
-};
-
-static struct ocfs2_triggers dq_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_dq_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-};
-
-static struct ocfs2_triggers dr_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_dx_root_block, dr_check),
-};
-
-static struct ocfs2_triggers dl_triggers = {
-	.ot_triggers = {
-		.t_frozen = ocfs2_frozen_trigger,
-		.t_abort = ocfs2_abort_trigger,
-	},
-	.ot_offset	= offsetof(struct ocfs2_dx_leaf, dl_check),
-};
+	for (type = OCFS2_JTR_DI; type < OCFS2_JOURNAL_TRIGGER_COUNT; type++)
+		ocfs2_setup_csum_triggers(sb, type, &triggers[type]);
+}
 
 static int __ocfs2_journal_access(handle_t *handle,
 				  struct ocfs2_caching_info *ci,
@@ -708,56 +710,91 @@ static int __ocfs2_journal_access(handle_t *handle,
 int ocfs2_journal_access_di(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &di_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				      &osb->s_journal_triggers[OCFS2_JTR_DI],
+				      type);
 }
 
 int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &eb_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				      &osb->s_journal_triggers[OCFS2_JTR_EB],
+				      type);
 }
 
 int ocfs2_journal_access_rb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &rb_triggers,
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				      &osb->s_journal_triggers[OCFS2_JTR_RB],
 				      type);
 }
 
 int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &gd_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_GD],
+				     type);
 }
 
 int ocfs2_journal_access_db(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &db_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_DB],
+				     type);
 }
 
 int ocfs2_journal_access_xb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &xb_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_XB],
+				     type);
 }
 
 int ocfs2_journal_access_dq(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &dq_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_DQ],
+				     type);
 }
 
 int ocfs2_journal_access_dr(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &dr_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_DR],
+				     type);
 }
 
 int ocfs2_journal_access_dl(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, ci, bh, &dl_triggers, type);
+	struct ocfs2_super *osb = OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
+
+	return __ocfs2_journal_access(handle, ci, bh,
+				     &osb->s_journal_triggers[OCFS2_JTR_DL],
+				     type);
 }
 
 int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
@@ -778,13 +815,15 @@ void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 		if (!is_handle_aborted(handle)) {
 			journal_t *journal = handle->h_transaction->t_journal;
 
-			mlog(ML_ERROR, "jbd2_journal_dirty_metadata failed. "
-					"Aborting transaction and journal.\n");
+			mlog(ML_ERROR, "jbd2_journal_dirty_metadata failed: "
+			     "handle type %u started at line %u, credits %u/%u "
+			     "errcode %d. Aborting transaction and journal.\n",
+			     handle->h_type, handle->h_line_no,
+			     handle->h_requested_credits,
+			     jbd2_handle_buffer_credits(handle), status);
 			handle->h_err = status;
 			jbd2_journal_abort_handle(handle);
 			jbd2_journal_abort(journal, status);
-			ocfs2_abort(bh->b_assoc_map->host->i_sb,
-				    "Journal already aborted.\n");
 		}
 	}
 }

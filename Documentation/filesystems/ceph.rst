@@ -67,12 +67,15 @@ Snapshot names have two limitations:
   more than 255 characters, and `<node-id>` takes 13 characters, the long
   snapshot names can take as much as 255 - 1 - 1 - 13 = 240.
 
-Ceph also provides some recursive accounting on directories for nested
-files and bytes.  That is, a 'getfattr -d foo' on any directory in the
-system will reveal the total number of nested regular files and
-subdirectories, and a summation of all nested file sizes.  This makes
-the identification of large disk space consumers relatively quick, as
-no 'du' or similar recursive scan of the file system is required.
+Ceph also provides some recursive accounting on directories for nested files
+and bytes.  You can run the commands::
+
+ getfattr -n ceph.dir.rfiles /some/dir
+ getfattr -n ceph.dir.rbytes /some/dir
+
+to get the total number of nested files and their combined size, respectively.
+This makes the identification of large disk space consumers relatively quick,
+as no 'du' or similar recursive scan of the file system is required.
 
 Finally, Ceph also allows quotas to be set on any directory in the system.
 The quota can restrict the number of bytes or the number of files stored

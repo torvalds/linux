@@ -6,6 +6,7 @@
 #include "xe_gt_mcr.h"
 
 #include "regs/xe_gt_regs.h"
+#include "xe_assert.h"
 #include "xe_gt.h"
 #include "xe_gt_topology.h"
 #include "xe_gt_types.h"
@@ -294,14 +295,40 @@ static void init_steering_mslice(struct xe_gt *gt)
 	gt->steering[LNCF].instance_target = 0;		/* unused */
 }
 
+static unsigned int dss_per_group(struct xe_gt *gt)
+{
+	if (gt_to_xe(gt)->info.platform == XE_PVC)
+		return 8;
+	else if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+		return 4;
+	else
+		return 6;
+}
+
+/**
+ * xe_gt_mcr_get_dss_steering - Get the group/instance steering for a DSS
+ * @gt: GT structure
+ * @dss: DSS ID to obtain steering for
+ * @group: pointer to storage for steering group ID
+ * @instance: pointer to storage for steering instance ID
+ */
+void xe_gt_mcr_get_dss_steering(struct xe_gt *gt, unsigned int dss, u16 *group, u16 *instance)
+{
+	int dss_per_grp = dss_per_group(gt);
+
+	xe_gt_assert(gt, dss < XE_MAX_DSS_FUSE_BITS);
+
+	*group = dss / dss_per_grp;
+	*instance = dss % dss_per_grp;
+}
+
 static void init_steering_dss(struct xe_gt *gt)
 {
-	unsigned int dss = min(xe_dss_mask_group_ffs(gt->fuse_topo.g_dss_mask, 0, 0),
-			       xe_dss_mask_group_ffs(gt->fuse_topo.c_dss_mask, 0, 0));
-	unsigned int dss_per_grp = gt_to_xe(gt)->info.platform == XE_PVC ? 8 : 4;
-
-	gt->steering[DSS].group_target = dss / dss_per_grp;
-	gt->steering[DSS].instance_target = dss % dss_per_grp;
+	xe_gt_mcr_get_dss_steering(gt,
+				   min(xe_dss_mask_group_ffs(gt->fuse_topo.g_dss_mask, 0, 0),
+				       xe_dss_mask_group_ffs(gt->fuse_topo.c_dss_mask, 0, 0)),
+				   &gt->steering[DSS].group_target,
+				   &gt->steering[DSS].instance_target);
 }
 
 static void init_steering_oaddrm(struct xe_gt *gt)
@@ -315,7 +342,7 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 	else
 		gt->steering[OADDRM].group_target = 1;
 
-	gt->steering[DSS].instance_target = 0;		/* unused */
+	gt->steering[OADDRM].instance_target = 0;	/* unused */
 }
 
 static void init_steering_sqidi_psmi(struct xe_gt *gt)
@@ -330,8 +357,8 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 
 static void init_steering_inst0(struct xe_gt *gt)
 {
-	gt->steering[DSS].group_target = 0;		/* unused */
-	gt->steering[DSS].instance_target = 0;		/* unused */
+	gt->steering[INSTANCE0].group_target = 0;	/* unused */
+	gt->steering[INSTANCE0].instance_target = 0;	/* unused */
 }
 
 static const struct {
@@ -348,17 +375,34 @@ static const struct {
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
 
+/**
+ * xe_gt_mcr_init_early - Early initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform early software only initialization of the MCR lock to allow
+ * the synchronization on accessing the STEER_SEMAPHORE register and
+ * use the xe_gt_mcr_multicast_write() function.
+ */
+void xe_gt_mcr_init_early(struct xe_gt *gt)
+{
+	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
+	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
+
+	spin_lock_init(&gt->mcr_lock);
+}
+
+/**
+ * xe_gt_mcr_init - Normal initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform normal initialization of the MCR for all usages.
+ */
 void xe_gt_mcr_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
-	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
-	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
-
 	if (IS_SRIOV_VF(xe))
 		return;
-
-	spin_lock_init(&gt->mcr_lock);
 
 	if (gt->info.type == XE_GT_TYPE_MEDIA) {
 		drm_WARN_ON(&xe->drm, MEDIA_VER(xe) < 13);

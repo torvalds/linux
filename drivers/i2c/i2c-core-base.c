@@ -136,10 +136,10 @@ const void *i2c_get_match_data(const struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_get_match_data);
 
-static int i2c_device_match(struct device *dev, struct device_driver *drv)
+static int i2c_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
-	struct i2c_driver	*driver;
+	const struct i2c_driver	*driver;
 
 
 	/* Attempt an OF style match */
@@ -1066,7 +1066,8 @@ EXPORT_SYMBOL(i2c_find_device_by_fwnode);
 
 
 static const struct i2c_device_id dummy_id[] = {
-	{ "dummy", 0 },
+	{ "dummy", },
+	{ "smbus_host_notify", },
 	{ },
 };
 
@@ -1467,6 +1468,8 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
 
 	if (!adap)
 		return -EINVAL;
+
+	dev_dbg(&adap->dev, "Detected HostNotify from address 0x%02x", addr);
 
 	irq = irq_find_mapping(adap->host_notify_domain, addr);
 	if (irq <= 0)
@@ -2200,12 +2203,17 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
  * Returns negative errno, else the number of messages executed.
  *
  * Adapter lock must be held when calling this function. No debug logging
- * takes place. adap->algo->master_xfer existence isn't checked.
+ * takes place.
  */
 int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	unsigned long orig_jiffies;
 	int ret, try;
+
+	if (!adap->algo->master_xfer) {
+		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (WARN_ON(!msgs || num < 1))
 		return -EINVAL;
@@ -2272,11 +2280,6 @@ EXPORT_SYMBOL(__i2c_transfer);
 int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	int ret;
-
-	if (!adap->algo->master_xfer) {
-		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	/* REVISIT the fault reporting model here is weak:
 	 *

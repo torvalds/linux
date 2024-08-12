@@ -414,7 +414,7 @@ static int ocfs2_resmap_find_free_bits(struct ocfs2_reservation_map *resmap,
 
 	start = search_start;
 	while ((offset = ocfs2_find_next_zero_bit(bitmap, resmap->m_bitmap_len,
-						 start)) != -1) {
+					start)) < resmap->m_bitmap_len) {
 		/* Search reached end of the region */
 		if (offset >= (search_start + search_len))
 			break;

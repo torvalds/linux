@@ -60,6 +60,10 @@ static inline const char *printk_skip_headers(const char *buffer)
 #define CONSOLE_LOGLEVEL_DEFAULT CONFIG_CONSOLE_LOGLEVEL_DEFAULT
 #define CONSOLE_LOGLEVEL_QUIET	 CONFIG_CONSOLE_LOGLEVEL_QUIET
 
+int match_devname_and_update_preferred_console(const char *match,
+					       const char *name,
+					       const short idx);
+
 extern int console_printk[];
 
 #define console_loglevel (console_printk[0])
@@ -71,7 +75,7 @@ extern void console_verbose(void);
 
 /* strlen("ratelimit") + 1 */
 #define DEVKMSG_STR_MAX_SIZE 10
-extern char devkmsg_log_str[];
+extern char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE];
 struct ctl_table;
 
 extern int suppress_printk;
@@ -126,7 +130,7 @@ struct va_format {
 #define no_printk(fmt, ...)				\
 ({							\
 	if (0)						\
-		printk(fmt, ##__VA_ARGS__);		\
+		_printk(fmt, ##__VA_ARGS__);		\
 	0;						\
 })
 
@@ -192,6 +196,7 @@ void show_regs_print_info(const char *log_lvl);
 extern asmlinkage void dump_stack_lvl(const char *log_lvl) __cold;
 extern asmlinkage void dump_stack(void) __cold;
 void printk_trigger_flush(void);
+void console_try_replay_all(void);
 #else
 static inline __printf(1, 0)
 int vprintk(const char *s, va_list args)
@@ -269,6 +274,9 @@ static inline void dump_stack(void)
 {
 }
 static inline void printk_trigger_flush(void)
+{
+}
+static inline void console_try_replay_all(void)
 {
 }
 #endif

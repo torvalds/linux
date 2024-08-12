@@ -80,6 +80,7 @@ struct lock_class_key {
 };
 
 extern struct lock_class_key __lockdep_no_validate__;
+extern struct lock_class_key __lockdep_no_track__;
 
 struct lock_trace;
 

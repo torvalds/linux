@@ -878,7 +878,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	}
 
 	if (config->version == 0) {
-		u64 device_size = i_size_read(config->owned_device->bdev->bd_inode);
+		u64 device_size = bdev_nr_bytes(config->owned_device->bdev);
 
 		config->physical_blocks = device_size / VDO_BLOCK_SIZE;
 	}
@@ -928,9 +928,9 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->physical_block_size = VDO_BLOCK_SIZE;
 
 	/* The minimum io size for random io */
-	blk_limits_io_min(limits, VDO_BLOCK_SIZE);
+	limits->io_min = VDO_BLOCK_SIZE;
 	/* The optimal io size for streamed/sequential io */
-	blk_limits_io_opt(limits, VDO_BLOCK_SIZE);
+	limits->io_opt = VDO_BLOCK_SIZE;
 
 	/*
 	 * Sets the maximum discard size that will be passed into VDO. This value comes from a
@@ -945,7 +945,7 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * The value is used by dm-thin to determine whether to pass down discards. The block layer
 	 * splits large discards on this boundary when this is set.
 	 */
-	limits->max_discard_sectors =
+	limits->max_hw_discard_sectors =
 		(vdo->device_config->max_discard_blocks * VDO_SECTORS_PER_BLOCK);
 
 	/*
@@ -1011,7 +1011,7 @@ static void vdo_status(struct dm_target *ti, status_type_t status_type,
 
 static block_count_t __must_check get_underlying_device_block_count(const struct vdo *vdo)
 {
-	return i_size_read(vdo_get_backing_device(vdo)->bd_inode) / VDO_BLOCK_SIZE;
+	return bdev_nr_bytes(vdo_get_backing_device(vdo)) / VDO_BLOCK_SIZE;
 }
 
 static int __must_check process_vdo_message_locked(struct vdo *vdo, unsigned int argc,

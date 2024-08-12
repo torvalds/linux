@@ -3,8 +3,10 @@
  * ARM Generic Interrupt Controller (GIC) v3 host support
  */
 
+#include <linux/kernel.h>
 #include <linux/kvm.h>
 #include <linux/sizes.h>
+#include <asm/cputype.h>
 #include <asm/kvm_para.h>
 #include <asm/kvm.h>
 
@@ -19,8 +21,6 @@
  * Input args:
  *	vm - KVM VM
  *	nr_vcpus - Number of vCPUs supported by this VM
- *	gicd_base_gpa - Guest Physical Address of the Distributor region
- *	gicr_base_gpa - Guest Physical Address of the Redistributor region
  *
  * Output args: None
  *
@@ -30,11 +30,10 @@
  * redistributor regions of the guest. Since it depends on the number of
  * vCPUs for the VM, it must be called after all the vCPUs have been created.
  */
-int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
-		uint64_t gicd_base_gpa, uint64_t gicr_base_gpa)
+int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
 {
 	int gic_fd;
-	uint64_t redist_attr;
+	uint64_t attr;
 	struct list_head *iter;
 	unsigned int nr_gic_pages, nr_vcpus_created = 0;
 
@@ -60,18 +59,19 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
+	attr = GICD_BASE_GPA;
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			    KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa);
+			    KVM_VGIC_V3_ADDR_TYPE_DIST, &attr);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_DIST_SIZE);
-	virt_map(vm, gicd_base_gpa, gicd_base_gpa,  nr_gic_pages);
+	virt_map(vm, GICD_BASE_GPA, GICD_BASE_GPA, nr_gic_pages);
 
 	/* Redistributor setup */
-	redist_attr = REDIST_REGION_ATTR_ADDR(nr_vcpus, gicr_base_gpa, 0, 0);
+	attr = REDIST_REGION_ATTR_ADDR(nr_vcpus, GICR_BASE_GPA, 0, 0);
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &redist_attr);
+			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &attr);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode,
 						KVM_VGIC_V3_REDIST_SIZE * nr_vcpus);
-	virt_map(vm, gicr_base_gpa, gicr_base_gpa,  nr_gic_pages);
+	virt_map(vm, GICR_BASE_GPA, GICR_BASE_GPA, nr_gic_pages);
 
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
@@ -167,4 +167,22 @@ void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISACTIVER);
+}
+
+int vgic_its_setup(struct kvm_vm *vm)
+{
+	int its_fd = kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_ITS);
+	u64 attr;
+
+	attr = GITS_BASE_GPA;
+	kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_ITS_ADDR_TYPE, &attr);
+
+	kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
+
+	virt_map(vm, GITS_BASE_GPA, GITS_BASE_GPA,
+		 vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_ITS_SIZE));
+
+	return its_fd;
 }

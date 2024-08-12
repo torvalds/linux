@@ -21,12 +21,13 @@ static inline bool fuse_is_io_cache_wait(struct fuse_inode *fi)
 }
 
 /*
- * Start cached io mode.
+ * Called on cached file open() and on first mmap() of direct_io file.
+ * Takes cached_io inode mode reference to be dropped on file release.
  *
  * Blocks new parallel dio writes and waits for the in-progress parallel dio
  * writes to complete.
  */
-int fuse_file_cached_io_start(struct inode *inode, struct fuse_file *ff)
+int fuse_file_cached_io_open(struct inode *inode, struct fuse_file *ff)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
@@ -67,10 +68,9 @@ int fuse_file_cached_io_start(struct inode *inode, struct fuse_file *ff)
 	return 0;
 }
 
-static void fuse_file_cached_io_end(struct inode *inode, struct fuse_file *ff)
+static void fuse_file_cached_io_release(struct fuse_file *ff,
+					struct fuse_inode *fi)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
-
 	spin_lock(&fi->lock);
 	WARN_ON(fi->iocachectr <= 0);
 	WARN_ON(ff->iomode != IOM_CACHED);
@@ -82,16 +82,15 @@ static void fuse_file_cached_io_end(struct inode *inode, struct fuse_file *ff)
 }
 
 /* Start strictly uncached io mode where cache access is not allowed */
-int fuse_file_uncached_io_start(struct inode *inode, struct fuse_file *ff, struct fuse_backing *fb)
+int fuse_inode_uncached_io_start(struct fuse_inode *fi, struct fuse_backing *fb)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_backing *oldfb;
 	int err = 0;
 
 	spin_lock(&fi->lock);
 	/* deny conflicting backing files on same fuse inode */
 	oldfb = fuse_inode_backing(fi);
-	if (oldfb && oldfb != fb) {
+	if (fb && oldfb && oldfb != fb) {
 		err = -EBUSY;
 		goto unlock;
 	}
@@ -99,12 +98,10 @@ int fuse_file_uncached_io_start(struct inode *inode, struct fuse_file *ff, struc
 		err = -ETXTBSY;
 		goto unlock;
 	}
-	WARN_ON(ff->iomode != IOM_NONE);
 	fi->iocachectr--;
-	ff->iomode = IOM_UNCACHED;
 
 	/* fuse inode holds a single refcount of backing file */
-	if (!oldfb) {
+	if (fb && !oldfb) {
 		oldfb = fuse_inode_backing_set(fi, fb);
 		WARN_ON_ONCE(oldfb != NULL);
 	} else {
@@ -115,15 +112,29 @@ unlock:
 	return err;
 }
 
-void fuse_file_uncached_io_end(struct inode *inode, struct fuse_file *ff)
+/* Takes uncached_io inode mode reference to be dropped on file release */
+static int fuse_file_uncached_io_open(struct inode *inode,
+				      struct fuse_file *ff,
+				      struct fuse_backing *fb)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
+	int err;
+
+	err = fuse_inode_uncached_io_start(fi, fb);
+	if (err)
+		return err;
+
+	WARN_ON(ff->iomode != IOM_NONE);
+	ff->iomode = IOM_UNCACHED;
+	return 0;
+}
+
+void fuse_inode_uncached_io_end(struct fuse_inode *fi)
+{
 	struct fuse_backing *oldfb = NULL;
 
 	spin_lock(&fi->lock);
 	WARN_ON(fi->iocachectr >= 0);
-	WARN_ON(ff->iomode != IOM_UNCACHED);
-	ff->iomode = IOM_NONE;
 	fi->iocachectr++;
 	if (!fi->iocachectr) {
 		wake_up(&fi->direct_io_waitq);
@@ -132,6 +143,15 @@ void fuse_file_uncached_io_end(struct inode *inode, struct fuse_file *ff)
 	spin_unlock(&fi->lock);
 	if (oldfb)
 		fuse_backing_put(oldfb);
+}
+
+/* Drop uncached_io reference from passthrough open */
+static void fuse_file_uncached_io_release(struct fuse_file *ff,
+					  struct fuse_inode *fi)
+{
+	WARN_ON(ff->iomode != IOM_UNCACHED);
+	ff->iomode = IOM_NONE;
+	fuse_inode_uncached_io_end(fi);
 }
 
 /*
@@ -163,7 +183,7 @@ static int fuse_file_passthrough_open(struct inode *inode, struct file *file)
 		return PTR_ERR(fb);
 
 	/* First passthrough file open denies caching inode io mode */
-	err = fuse_file_uncached_io_start(inode, ff, fb);
+	err = fuse_file_uncached_io_open(inode, ff, fb);
 	if (!err)
 		return 0;
 
@@ -216,7 +236,7 @@ int fuse_file_io_open(struct file *file, struct inode *inode)
 	if (ff->open_flags & FOPEN_PASSTHROUGH)
 		err = fuse_file_passthrough_open(inode, file);
 	else
-		err = fuse_file_cached_io_start(inode, ff);
+		err = fuse_file_cached_io_open(inode, ff);
 	if (err)
 		goto fail;
 
@@ -236,8 +256,10 @@ fail:
 /* No more pending io and no new io possible to inode via open/mmapped file */
 void fuse_file_io_release(struct fuse_file *ff, struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	/*
-	 * Last parallel dio close allows caching inode io mode.
+	 * Last passthrough file close allows caching inode io mode.
 	 * Last caching file close exits caching inode io mode.
 	 */
 	switch (ff->iomode) {
@@ -245,10 +267,10 @@ void fuse_file_io_release(struct fuse_file *ff, struct inode *inode)
 		/* Nothing to do */
 		break;
 	case IOM_UNCACHED:
-		fuse_file_uncached_io_end(inode, ff);
+		fuse_file_uncached_io_release(ff, fi);
 		break;
 	case IOM_CACHED:
-		fuse_file_cached_io_end(inode, ff);
+		fuse_file_cached_io_release(ff, fi);
 		break;
 	}
 }

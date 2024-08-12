@@ -180,7 +180,7 @@ static inline bool crosses_local_route_boundary(int skb_af, struct sk_buff *skb,
 			(!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
 			(addr_type & IPV6_ADDR_LOOPBACK);
 		old_rt_is_local = __ip_vs_is_local_route6(
-			(struct rt6_info *)skb_dst(skb));
+			dst_rt6_info(skb_dst(skb)));
 	} else
 #endif
 	{
@@ -318,7 +318,7 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	if (dest) {
 		dest_dst = __ip_vs_dst_check(dest);
 		if (likely(dest_dst))
-			rt = (struct rtable *) dest_dst->dst_cache;
+			rt = dst_rtable(dest_dst->dst_cache);
 		else {
 			dest_dst = ip_vs_dest_dst_alloc();
 			spin_lock_bh(&dest->dst_lock);
@@ -390,10 +390,10 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			    skb->ip_summed == CHECKSUM_PARTIAL)
 				mtu -= GUE_PLEN_REMCSUM + GUE_LEN_PRIV;
 		} else if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
-			__be16 tflags = 0;
+			IP_TUNNEL_DECLARE_FLAGS(tflags) = { };
 
 			if (dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
-				tflags |= TUNNEL_CSUM;
+				__set_bit(IP_TUNNEL_CSUM_BIT, tflags);
 			mtu -= gre_calc_hlen(tflags);
 		}
 		if (mtu < 68) {
@@ -481,7 +481,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	if (dest) {
 		dest_dst = __ip_vs_dst_check(dest);
 		if (likely(dest_dst))
-			rt = (struct rt6_info *) dest_dst->dst_cache;
+			rt = dst_rt6_info(dest_dst->dst_cache);
 		else {
 			u32 cookie;
 
@@ -501,7 +501,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 				ip_vs_dest_dst_free(dest_dst);
 				goto err_unreach;
 			}
-			rt = (struct rt6_info *) dst;
+			rt = dst_rt6_info(dst);
 			cookie = rt6_get_cookie(rt);
 			__ip_vs_dst_set(dest, dest_dst, &rt->dst, cookie);
 			spin_unlock_bh(&dest->dst_lock);
@@ -517,7 +517,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 					      rt_mode);
 		if (!dst)
 			goto err_unreach;
-		rt = (struct rt6_info *) dst;
+		rt = dst_rt6_info(dst);
 	}
 
 	local = __ip_vs_is_local_route6(rt);
@@ -553,10 +553,10 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			    skb->ip_summed == CHECKSUM_PARTIAL)
 				mtu -= GUE_PLEN_REMCSUM + GUE_LEN_PRIV;
 		} else if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
-			__be16 tflags = 0;
+			IP_TUNNEL_DECLARE_FLAGS(tflags) = { };
 
 			if (dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
-				tflags |= TUNNEL_CSUM;
+				__set_bit(IP_TUNNEL_CSUM_BIT, tflags);
 			mtu -= gre_calc_hlen(tflags);
 		}
 		if (mtu < IPV6_MIN_MTU) {
@@ -862,7 +862,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 				      IP_VS_RT_MODE_RDR);
 	if (local < 0)
 		goto tx_error;
-	rt = (struct rt6_info *) skb_dst(skb);
+	rt = dst_rt6_info(skb_dst(skb));
 	/*
 	 * Avoid duplicate tuple in reply direction for NAT traffic
 	 * to local address when connection is sync-ed
@@ -1082,11 +1082,11 @@ ipvs_gre_encap(struct net *net, struct sk_buff *skb,
 {
 	__be16 proto = *next_protocol == IPPROTO_IPIP ?
 				htons(ETH_P_IP) : htons(ETH_P_IPV6);
-	__be16 tflags = 0;
+	IP_TUNNEL_DECLARE_FLAGS(tflags) = { };
 	size_t hdrlen;
 
 	if (cp->dest->tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
-		tflags |= TUNNEL_CSUM;
+		__set_bit(IP_TUNNEL_CSUM_BIT, tflags);
 
 	hdrlen = gre_calc_hlen(tflags);
 	gre_build_header(skb, hdrlen, tflags, proto, 0, 0);
@@ -1165,11 +1165,11 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 		max_headroom += sizeof(struct udphdr) + gue_hdrlen;
 	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		IP_TUNNEL_DECLARE_FLAGS(tflags) = { };
 		size_t gre_hdrlen;
-		__be16 tflags = 0;
 
 		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
-			tflags |= TUNNEL_CSUM;
+			__set_bit(IP_TUNNEL_CSUM_BIT, tflags);
 		gre_hdrlen = gre_calc_hlen(tflags);
 
 		max_headroom += gre_hdrlen;
@@ -1288,7 +1288,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (local)
 		return ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 1);
 
-	rt = (struct rt6_info *) skb_dst(skb);
+	rt = dst_rt6_info(skb_dst(skb));
 	tdev = rt->dst.dev;
 
 	/*
@@ -1310,11 +1310,11 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 		max_headroom += sizeof(struct udphdr) + gue_hdrlen;
 	} else if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		IP_TUNNEL_DECLARE_FLAGS(tflags) = { };
 		size_t gre_hdrlen;
-		__be16 tflags = 0;
 
 		if (tun_flags & IP_VS_TUNNEL_ENCAP_FLAG_CSUM)
-			tflags |= TUNNEL_CSUM;
+			__set_bit(IP_TUNNEL_CSUM_BIT, tflags);
 		gre_hdrlen = gre_calc_hlen(tflags);
 
 		max_headroom += gre_hdrlen;
@@ -1590,7 +1590,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 				      &cp->daddr.in6, NULL, ipvsh, 0, rt_mode);
 	if (local < 0)
 		goto tx_error;
-	rt = (struct rt6_info *) skb_dst(skb);
+	rt = dst_rt6_info(skb_dst(skb));
 	/*
 	 * Avoid duplicate tuple in reply direction for NAT traffic
 	 * to local address when connection is sync-ed

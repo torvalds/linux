@@ -140,7 +140,3 @@ int sof_rembrandt_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-
-MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
-MODULE_DESCRIPTION("REMBRANDT SOF Driver");
-MODULE_LICENSE("Dual BSD/GPL");

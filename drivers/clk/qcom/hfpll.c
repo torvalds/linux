@@ -14,7 +14,7 @@
 #include "clk-regmap.h"
 #include "clk-hfpll.h"
 
-static const struct hfpll_data hdata = {
+static const struct hfpll_data qcs404 = {
 	.mode_reg = 0x00,
 	.l_reg = 0x04,
 	.m_reg = 0x08,
@@ -84,10 +84,12 @@ static const struct hfpll_data msm8976_cci = {
 };
 
 static const struct of_device_id qcom_hfpll_match_table[] = {
-	{ .compatible = "qcom,hfpll", .data = &hdata },
 	{ .compatible = "qcom,msm8976-hfpll-a53", .data = &msm8976_a53 },
 	{ .compatible = "qcom,msm8976-hfpll-a72", .data = &msm8976_a72 },
 	{ .compatible = "qcom,msm8976-hfpll-cci", .data = &msm8976_cci },
+	{ .compatible = "qcom,qcs404-hfpll", .data = &qcs404 },
+	/* Deprecated in bindings */
+	{ .compatible = "qcom,hfpll", .data = &qcs404 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_hfpll_match_table);

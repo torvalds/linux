@@ -196,14 +196,14 @@
 		 * The actual TX clock rate is not controlled by the
 		 * gmac_tx clock.
 		 */
-		mii_phy_tx_clk: mii_phy_tx_clk {
+		mii_phy_tx_clk: mii-phy-tx-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <25000000>;
 			clock-output-names = "mii_phy_tx";
 		};
 
-		gmac_int_tx_clk: gmac_int_tx_clk {
+		gmac_int_tx_clk: gmac-int-tx-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <125000000>;

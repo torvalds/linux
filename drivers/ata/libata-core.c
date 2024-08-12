@@ -86,7 +86,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
-atomic_t ata_print_id = ATOMIC_INIT(0);
+static DEFINE_IDA(ata_ida);
 
 #ifdef CONFIG_ATA_FORCE
 struct ata_force_param {
@@ -1480,19 +1480,19 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_exec_internal_sg - execute libata internal command
+ *	ata_exec_internal - execute libata internal command
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
  *	@dma_dir: Data transfer direction of the command
- *	@sgl: sg list for the data buffer of the command
- *	@n_elem: Number of sg entries
+ *	@buf: Data buffer of the command
+ *	@buflen: Length of data buffer
  *	@timeout: Timeout in msecs (0 for default)
  *
- *	Executes libata internal command with timeout.  @tf contains
- *	command on entry and result on return.  Timeout and error
- *	conditions are reported via return value.  No recovery action
- *	is taken after a command times out.  It's caller's duty to
+ *	Executes libata internal command with timeout. @tf contains
+ *	the command on entry and the result on return. Timeout and error
+ *	conditions are reported via the return value. No recovery action
+ *	is taken after a command times out. It is the caller's duty to
  *	clean up after timeout.
  *
  *	LOCKING:
@@ -1501,34 +1501,38 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-static unsigned ata_exec_internal_sg(struct ata_device *dev,
-				     struct ata_taskfile *tf, const u8 *cdb,
-				     int dma_dir, struct scatterlist *sgl,
-				     unsigned int n_elem, unsigned int timeout)
+unsigned int ata_exec_internal(struct ata_device *dev, struct ata_taskfile *tf,
+			       const u8 *cdb, enum dma_data_direction dma_dir,
+			       void *buf, unsigned int buflen,
+			       unsigned int timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	u8 command = tf->command;
-	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
+	struct scatterlist sgl;
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
+	bool auto_timeout = false;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
 
+	if (WARN_ON(dma_dir != DMA_NONE && !buf))
+		return AC_ERR_INVALID;
+
 	spin_lock_irqsave(ap->lock, flags);
 
-	/* no internal command while frozen */
+	/* No internal command while frozen */
 	if (ata_port_is_frozen(ap)) {
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
 
-	/* initialize internal qc */
+	/* Initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
@@ -1547,12 +1551,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ap->qc_active = 0;
 	ap->nr_active_links = 0;
 
-	/* prepare & issue qc */
+	/* Prepare and issue qc */
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 
-	/* some SATA bridges need us to indicate data xfer direction */
+	/* Some SATA bridges need us to indicate data xfer direction */
 	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
 	    dma_dir == DMA_FROM_DEVICE)
 		qc->tf.feature |= ATAPI_DMADIR;
@@ -1560,13 +1564,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
-		unsigned int i, buflen = 0;
-		struct scatterlist *sg;
-
-		for_each_sg(sgl, sg, n_elem, i)
-			buflen += sg->length;
-
-		ata_sg_init(qc, sgl, n_elem);
+		sg_init_one(&sgl, buf, buflen);
+		ata_sg_init(qc, &sgl, 1);
 		qc->nbytes = buflen;
 	}
 
@@ -1578,11 +1577,11 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	if (!timeout) {
-		if (ata_probe_timeout)
+		if (ata_probe_timeout) {
 			timeout = ata_probe_timeout * 1000;
-		else {
+		} else {
 			timeout = ata_internal_cmd_timeout(dev, command);
-			auto_timeout = 1;
+			auto_timeout = true;
 		}
 	}
 
@@ -1595,30 +1594,25 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_sff_flush_pio_task(ap);
 
 	if (!rc) {
-		spin_lock_irqsave(ap->lock, flags);
-
-		/* We're racing with irq here.  If we lose, the
-		 * following test prevents us from completing the qc
-		 * twice.  If we win, the port is frozen and will be
-		 * cleaned up by ->post_internal_cmd().
+		/*
+		 * We are racing with irq here. If we lose, the following test
+		 * prevents us from completing the qc twice. If we win, the port
+		 * is frozen and will be cleaned up by ->post_internal_cmd().
 		 */
+		spin_lock_irqsave(ap->lock, flags);
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask |= AC_ERR_TIMEOUT;
-
 			ata_port_freeze(ap);
-
 			ata_dev_warn(dev, "qc timeout after %u msecs (cmd 0x%x)\n",
 				     timeout, command);
 		}
-
 		spin_unlock_irqrestore(ap->lock, flags);
 	}
 
-	/* do post_internal_cmd */
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
-	/* perform minimal error analysis */
+	/* Perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_EH) {
 		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
 			qc->err_mask |= AC_ERR_DEV;
@@ -1632,7 +1626,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->result_tf.status |= ATA_SENSE;
 	}
 
-	/* finish up */
+	/* Finish up */
 	spin_lock_irqsave(ap->lock, flags);
 
 	*tf = qc->result_tf;
@@ -1650,44 +1644,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	return err_mask;
-}
-
-/**
- *	ata_exec_internal - execute libata internal command
- *	@dev: Device to which the command is sent
- *	@tf: Taskfile registers for the command and the result
- *	@cdb: CDB for packet command
- *	@dma_dir: Data transfer direction of the command
- *	@buf: Data buffer of the command
- *	@buflen: Length of data buffer
- *	@timeout: Timeout in msecs (0 for default)
- *
- *	Wrapper around ata_exec_internal_sg() which takes simple
- *	buffer instead of sg list.
- *
- *	LOCKING:
- *	None.  Should be called with kernel context, might sleep.
- *
- *	RETURNS:
- *	Zero on success, AC_ERR_* mask on failure
- */
-unsigned ata_exec_internal(struct ata_device *dev,
-			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen,
-			   unsigned int timeout)
-{
-	struct scatterlist *psg = NULL, sg;
-	unsigned int n_elem = 0;
-
-	if (dma_dir != DMA_NONE) {
-		WARN_ON(!buf);
-		sg_init_one(&sg, buf, buflen);
-		psg = &sg;
-		n_elem++;
-	}
-
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
-				    timeout);
 }
 
 /**
@@ -2539,7 +2495,7 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	bool cdl_enabled;
 	u64 val;
 
-	if (ata_id_major_version(dev->id) < 12)
+	if (ata_id_major_version(dev->id) < 11)
 		goto not_supported;
 
 	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE) ||
@@ -4180,8 +4136,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "PIONEER BD-RW   BDR-207M",	NULL,	ATA_HORKAGE_NOLPM },
 	{ "PIONEER BD-RW   BDR-205",	NULL,	ATA_HORKAGE_NOLPM },
 
-	/* Crucial BX100 SSD 500GB has broken LPM support */
-	{ "CT500BX100SSD1",		NULL,	ATA_HORKAGE_NOLPM },
+	/* Crucial devices with broken LPM support */
+	{ "CT*0BX*00SSD1",		NULL,	ATA_HORKAGE_NOLPM },
 
 	/* 512GB MX100 with MU01 firmware has both queued TRIM and LPM issues */
 	{ "Crucial_CT512MX100*",	"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
@@ -4198,6 +4154,12 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Crucial_CT960M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
 						ATA_HORKAGE_ZERO_AFTER_TRIM |
 						ATA_HORKAGE_NOLPM },
+
+	/* AMD Radeon devices with broken LPM support */
+	{ "R3SL240G",			NULL,	ATA_HORKAGE_NOLPM },
+
+	/* Apacer models with LPM issues */
+	{ "Apacer AS340*",		NULL,	ATA_HORKAGE_NOLPM },
 
 	/* These specific Samsung models/firmware-revs do not handle LPM well */
 	{ "SAMSUNG MZMPC128HBFU-000MV", "CXM14M1Q", ATA_HORKAGE_NOLPM },
@@ -4838,8 +4800,16 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
+	/*
+	 * rtf may already be filled (e.g. for successful NCQ commands).
+	 * If that is the case, we have nothing to do.
+	 */
+	if (qc->flags & ATA_QCFLAG_RTF_FILLED)
+		return;
+
 	qc->result_tf.flags = qc->tf.flags;
 	ap->ops->qc_fill_rtf(qc);
+	qc->flags |= ATA_QCFLAG_RTF_FILLED;
 }
 
 static void ata_verify_xfer(struct ata_queued_cmd *qc)
@@ -5493,6 +5463,7 @@ int sata_link_init_spd(struct ata_link *link)
 struct ata_port *ata_port_alloc(struct ata_host *host)
 {
 	struct ata_port *ap;
+	int id;
 
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	if (!ap)
@@ -5500,8 +5471,12 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	ap->pflags |= ATA_PFLAG_INITIALIZING | ATA_PFLAG_FROZEN;
 	ap->lock = &host->lock;
-	ap->print_id = -1;
-	ap->local_port_no = -1;
+	id = ida_alloc_min(&ata_ida, 1, GFP_KERNEL);
+	if (id < 0) {
+		kfree(ap);
+		return NULL;
+	}
+	ap->print_id = id;
 	ap->host = host;
 	ap->dev = host->dev;
 
@@ -5526,6 +5501,20 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	return ap;
 }
+EXPORT_SYMBOL_GPL(ata_port_alloc);
+
+void ata_port_free(struct ata_port *ap)
+{
+	if (!ap)
+		return;
+
+	kfree(ap->pmp_link);
+	kfree(ap->slave_link);
+	kfree(ap->ncq_sense_buf);
+	ida_free(&ata_ida, ap->print_id);
+	kfree(ap);
+}
+EXPORT_SYMBOL_GPL(ata_port_free);
 
 static void ata_devres_release(struct device *gendev, void *res)
 {
@@ -5553,12 +5542,7 @@ static void ata_host_release(struct kref *kref)
 	int i;
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		kfree(ap->pmp_link);
-		kfree(ap->slave_link);
-		kfree(ap->ncq_sense_buf);
-		kfree(ap);
+		ata_port_free(host->ports[i]);
 		host->ports[i] = NULL;
 	}
 	kfree(host);
@@ -5578,16 +5562,11 @@ EXPORT_SYMBOL_GPL(ata_host_put);
 /**
  *	ata_host_alloc - allocate and init basic ATA host resources
  *	@dev: generic device this host is associated with
- *	@max_ports: maximum number of ATA ports associated with this host
+ *	@n_ports: the number of ATA ports associated with this host
  *
  *	Allocate and initialize basic ATA host resources.  LLD calls
  *	this function to allocate a host, initializes it fully and
  *	attaches it using ata_host_register().
- *
- *	@max_ports ports are allocated and host->n_ports is
- *	initialized to @max_ports.  The caller is allowed to decrease
- *	host->n_ports before calling ata_host_register().  The unused
- *	ports will be automatically freed on registration.
  *
  *	RETURNS:
  *	Allocate ATA host on success, NULL on failure.
@@ -5595,7 +5574,7 @@ EXPORT_SYMBOL_GPL(ata_host_put);
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
  */
-struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
+struct ata_host *ata_host_alloc(struct device *dev, int n_ports)
 {
 	struct ata_host *host;
 	size_t sz;
@@ -5603,13 +5582,15 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	void *dr;
 
 	/* alloc a container for our list of ATA ports (buses) */
-	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
+	sz = sizeof(struct ata_host) + n_ports * sizeof(void *);
 	host = kzalloc(sz, GFP_KERNEL);
 	if (!host)
 		return NULL;
 
-	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		goto err_free;
+	if (!devres_open_group(dev, NULL, GFP_KERNEL)) {
+		kfree(host);
+		return NULL;
+	}
 
 	dr = devres_alloc(ata_devres_release, 0, GFP_KERNEL);
 	if (!dr)
@@ -5621,11 +5602,11 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	spin_lock_init(&host->lock);
 	mutex_init(&host->eh_mutex);
 	host->dev = dev;
-	host->n_ports = max_ports;
+	host->n_ports = n_ports;
 	kref_init(&host->kref);
 
 	/* allocate ports bound to this host */
-	for (i = 0; i < max_ports; i++) {
+	for (i = 0; i < n_ports; i++) {
 		struct ata_port *ap;
 
 		ap = ata_port_alloc(host);
@@ -5641,8 +5622,6 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 
  err_out:
 	devres_release_group(dev, NULL);
- err_free:
-	kfree(host);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(ata_host_alloc);
@@ -5934,19 +5913,6 @@ int ata_host_register(struct ata_host *host, const struct scsi_host_template *sh
 		dev_err(host->dev, "BUG: trying to register unstarted host\n");
 		WARN_ON(1);
 		return -EINVAL;
-	}
-
-	/* Blow away unused ports.  This happens when LLD can't
-	 * determine the exact number of ports to allocate at
-	 * allocation time.
-	 */
-	for (i = host->n_ports; host->ports[i]; i++)
-		kfree(host->ports[i]);
-
-	/* give ports names and add SCSI hosts */
-	for (i = 0; i < host->n_ports; i++) {
-		host->ports[i]->print_id = atomic_inc_return(&ata_print_id);
-		host->ports[i]->local_port_no = i + 1;
 	}
 
 	/* Create associated sysfs transport objects  */

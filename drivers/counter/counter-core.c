@@ -49,12 +49,12 @@ static void counter_device_release(struct device *dev)
 	kfree(container_of(counter, struct counter_device_allochelper, counter));
 }
 
-static struct device_type counter_device_type = {
+static const struct device_type counter_device_type = {
 	.name = "counter_device",
 	.release = counter_device_release,
 };
 
-static struct bus_type counter_bus_type = {
+static const struct bus_type counter_bus_type = {
 	.name = "counter",
 	.dev_name = "counter",
 };

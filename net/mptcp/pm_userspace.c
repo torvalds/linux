@@ -6,6 +6,7 @@
 
 #include "protocol.h"
 #include "mib.h"
+#include "mptcp_pm_gen.h"
 
 void mptcp_free_local_addr_list(struct mptcp_sock *msk)
 {
@@ -162,6 +163,24 @@ int mptcp_userspace_pm_get_local_id(struct mptcp_sock *msk,
 		new_entry.addr.port = 0;
 
 	return mptcp_userspace_pm_append_new_local_addr(msk, &new_entry, true);
+}
+
+bool mptcp_userspace_pm_is_backup(struct mptcp_sock *msk,
+				  struct mptcp_addr_info *skc)
+{
+	struct mptcp_pm_addr_entry *entry;
+	bool backup = false;
+
+	spin_lock_bh(&msk->pm.lock);
+	list_for_each_entry(entry, &msk->pm.userspace_pm_local_addr_list, list) {
+		if (mptcp_addresses_equal(&entry->addr, skc, false)) {
+			backup = !!(entry->flags & MPTCP_PM_ADDR_FLAG_BACKUP);
+			break;
+		}
+	}
+	spin_unlock_bh(&msk->pm.lock);
+
+	return backup;
 }
 
 int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info)

@@ -704,6 +704,10 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		goto unregister_dev;
 	}
 
+	ret = acp_init(sdev);
+	if (ret < 0)
+		goto free_smn_dev;
+
 	sdev->ipc_irq = pci->irq;
 	ret = request_threaded_irq(sdev->ipc_irq, acp_irq_handler, acp_irq_thread,
 				   IRQF_SHARED, "AudioDSP", sdev);
@@ -712,10 +716,6 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 			sdev->ipc_irq);
 		goto free_smn_dev;
 	}
-
-	ret = acp_init(sdev);
-	if (ret < 0)
-		goto free_ipc_irq;
 
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = acp_sof_scan_sdw_devices(sdev, chip->sdw_acpi_dev_addr);
@@ -801,7 +801,7 @@ void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_remove, SND_SOC_SOF_AMD_COMMON);
 
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("AMD ACP sof driver");
 MODULE_IMPORT_NS(SOUNDWIRE_AMD_INIT);
 MODULE_IMPORT_NS(SND_AMD_SOUNDWIRE_ACPI);
-MODULE_LICENSE("Dual BSD/GPL");

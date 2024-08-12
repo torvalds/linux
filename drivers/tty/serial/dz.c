@@ -252,13 +252,13 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 static inline void dz_transmit_chars(struct dz_mux *mux)
 {
 	struct dz_port *dport = &mux->dport[0];
-	struct circ_buf *xmit;
+	struct tty_port *tport;
 	unsigned char tmp;
 	u16 status;
 
 	status = dz_in(dport, DZ_CSR);
 	dport = &mux->dport[LINE(status)];
-	xmit = &dport->port.state->xmit;
+	tport = &dport->port.state->port;
 
 	if (dport->port.x_char) {		/* XON/XOFF chars */
 		dz_out(dport, DZ_TDR, dport->port.x_char);
@@ -267,7 +267,8 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 		return;
 	}
 	/* If nothing to do or stopped or hardware stopped. */
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&dport->port)) {
+	if (uart_tx_stopped(&dport->port) ||
+			!uart_fifo_get(&dport->port, &tmp)) {
 		uart_port_lock(&dport->port);
 		dz_stop_tx(&dport->port);
 		uart_port_unlock(&dport->port);
@@ -278,15 +279,13 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 	 * If something to do... (remember the dz has no output fifo,
 	 * so we go one char at a time) :-<
 	 */
-	tmp = xmit->buf[xmit->tail];
 	dz_out(dport, DZ_TDR, tmp);
-	uart_xmit_advance(&dport->port, 1);
 
-	if (uart_circ_chars_pending(xmit) < DZ_WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < DZ_WAKEUP_CHARS)
 		uart_write_wakeup(&dport->port);
 
 	/* Are we are done. */
-	if (uart_circ_empty(xmit)) {
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
 		uart_port_lock(&dport->port);
 		dz_stop_tx(&dport->port);
 		uart_port_unlock(&dport->port);

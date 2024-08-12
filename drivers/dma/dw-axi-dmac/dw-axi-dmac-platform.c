@@ -302,6 +302,7 @@ static struct axi_dma_desc *axi_desc_alloc(u32 num)
 		kfree(desc);
 		return NULL;
 	}
+	desc->nr_hw_descs = num;
 
 	return desc;
 }
@@ -328,7 +329,7 @@ static struct axi_dma_lli *axi_desc_get(struct axi_dma_chan *chan,
 static void axi_desc_put(struct axi_dma_desc *desc)
 {
 	struct axi_dma_chan *chan = desc->chan;
-	int count = atomic_read(&chan->descs_allocated);
+	int count = desc->nr_hw_descs;
 	struct axi_dma_hw_desc *hw_desc;
 	int descs_put;
 
@@ -1139,9 +1140,6 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 		/* Remove the completed descriptor from issued list before completing */
 		list_del(&vd->node);
 		vchan_cookie_complete(vd);
-
-		/* Submit queued descriptors after processing the completed ones */
-		axi_chan_start_first_queued(chan);
 	}
 
 out:
@@ -1445,6 +1443,24 @@ static int parse_device_properties(struct axi_dma_chip *chip)
 	return 0;
 }
 
+static int axi_req_irqs(struct platform_device *pdev, struct axi_dma_chip *chip)
+{
+	int irq_count = platform_irq_count(pdev);
+	int ret;
+
+	for (int i = 0; i < irq_count; i++) {
+		chip->irq[i] = platform_get_irq(pdev, i);
+		if (chip->irq[i] < 0)
+			return chip->irq[i];
+		ret = devm_request_irq(chip->dev, chip->irq[i], dw_axi_dma_interrupt,
+				IRQF_SHARED, KBUILD_MODNAME, chip);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int dw_probe(struct platform_device *pdev)
 {
 	struct axi_dma_chip *chip;
@@ -1470,10 +1486,6 @@ static int dw_probe(struct platform_device *pdev)
 	chip->dw = dw;
 	chip->dev = &pdev->dev;
 	chip->dw->hdata = hdata;
-
-	chip->irq = platform_get_irq(pdev, 0);
-	if (chip->irq < 0)
-		return chip->irq;
 
 	chip->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->regs))
@@ -1515,8 +1527,7 @@ static int dw_probe(struct platform_device *pdev)
 	if (!dw->chan)
 		return -ENOMEM;
 
-	ret = devm_request_irq(chip->dev, chip->irq, dw_axi_dma_interrupt,
-			       IRQF_SHARED, KBUILD_MODNAME, chip);
+	ret = axi_req_irqs(pdev, chip);
 	if (ret)
 		return ret;
 
@@ -1629,7 +1640,9 @@ static void dw_remove(struct platform_device *pdev)
 	pm_runtime_disable(chip->dev);
 	axi_dma_suspend(chip);
 
-	devm_free_irq(chip->dev, chip->irq, chip);
+	for (i = 0; i < DMAC_MAX_CHANNELS; i++)
+		if (chip->irq[i] > 0)
+			devm_free_irq(chip->dev, chip->irq[i], chip);
 
 	of_dma_controller_free(chip->dev->of_node);
 
@@ -1653,6 +1666,9 @@ static const struct of_device_id dw_dma_of_id_table[] = {
 	}, {
 		.compatible = "starfive,jh7110-axi-dma",
 		.data = (void *)(AXI_DMA_FLAG_HAS_RESETS | AXI_DMA_FLAG_USE_CFG2),
+	}, {
+		.compatible = "starfive,jh8100-axi-dma",
+		.data = (void *)AXI_DMA_FLAG_HAS_RESETS,
 	},
 	{}
 };

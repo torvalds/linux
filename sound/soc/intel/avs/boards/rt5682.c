@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -80,7 +80,7 @@ static const struct snd_soc_dapm_route card_base_routes[] = {
 	{ "IN1P", NULL, "Headset Mic" },
 };
 
-static struct snd_soc_jack_pin card_jack_pins[] = {
+static const struct snd_soc_jack_pin card_jack_pins[] = {
 	{
 		.pin = "Headphone Jack",
 		.mask = SND_JACK_HEADPHONE,
@@ -341,5 +341,6 @@ static struct platform_driver avs_rt5682_driver = {
 
 module_platform_driver(avs_rt5682_driver)
 
+MODULE_DESCRIPTION("Intel rt5682 machine driver");
 MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_LICENSE("GPL");

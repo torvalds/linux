@@ -17,8 +17,6 @@ struct io_issue_def {
 	unsigned		poll_exclusive : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
-	/* opcode is not supported by this kernel */
-	unsigned		not_supported : 1;
 	/* skip auditing */
 	unsigned		audit_skip : 1;
 	/* supports ioprio */
@@ -27,28 +25,27 @@ struct io_issue_def {
 	unsigned		iopoll : 1;
 	/* have to be put into the iopoll list */
 	unsigned		iopoll_queue : 1;
-	/* opcode specific path will handle ->async_data allocation if needed */
-	unsigned		manual_alloc : 1;
 	/* vectored opcode, set if 1) vectored, and 2) handler needs to know */
 	unsigned		vectored : 1;
+
+	/* size of async data needed, if any */
+	unsigned short		async_size;
 
 	int (*issue)(struct io_kiocb *, unsigned int);
 	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
 };
 
 struct io_cold_def {
-	/* size of async data needed, if any */
-	unsigned short		async_size;
-
 	const char		*name;
 
-	int (*prep_async)(struct io_kiocb *);
 	void (*cleanup)(struct io_kiocb *);
 	void (*fail)(struct io_kiocb *);
 };
 
 extern const struct io_issue_def io_issue_defs[];
 extern const struct io_cold_def io_cold_defs[];
+
+bool io_uring_op_supported(u8 opcode);
 
 void io_uring_optable_init(void);
 #endif

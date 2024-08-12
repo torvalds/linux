@@ -1049,7 +1049,7 @@ static void rsnd_ssi_debug_info(struct seq_file *m,
 	seq_printf(m, "chan:            %d\n",		ssi->chan);
 	seq_printf(m, "user:            %d\n",		ssi->usrcnt);
 
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSI,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SSI,
 				  rsnd_mod_id(mod) * 0x40, 0x40);
 }
 #define DEBUG_INFO .debug_info = rsnd_ssi_debug_info

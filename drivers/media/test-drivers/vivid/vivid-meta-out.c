@@ -18,7 +18,6 @@ static int meta_out_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				struct device *alloc_devs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-	unsigned int q_num_bufs = vb2_get_num_buffers(vq);
 	unsigned int size =  sizeof(struct vivid_meta_out_buf);
 
 	if (!vivid_is_webcam(dev))
@@ -30,9 +29,6 @@ static int meta_out_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 	} else {
 		sizes[0] = size;
 	}
-
-	if (q_num_bufs + *nbuffers < 2)
-		*nbuffers = 2 - q_num_bufs;
 
 	*nplanes = 1;
 	return 0;

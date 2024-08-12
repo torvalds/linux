@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * DT overlay for PCIe support (limits USB to 2.0/high-speed)
+ *
+ * Copyright (C) 2021 PHYTEC America, LLC - https://www.phytec.com
+ * Author: Matt McKee <mmckee@phytec.com>
+ *
+ * Copyright (C) 2024 PHYTEC America, LLC - https://www.phytec.com
+ * Author: Nathan Morrisson <nmorrisson@phytec.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/phy/phy-cadence.h>
+
+#include "k3-pinctrl.h"
+#include "k3-serdes.h"
+
+&{/} {
+	pcie_refclk0: pcie-refclk0 {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_usb_sel_pins_default>;
+		clocks = <&serdes_refclk>;
+		#clock-cells = <0>;
+		enable-gpios = <&main_gpio1 7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&main_pmx0 {
+	pcie_usb_sel_pins_default: pcie-usb-sel-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x017c, PIN_OUTPUT, 7)	/* (T1) PRG0_PRU0_GPO7.GPIO1_7 */
+		>;
+	};
+
+	pcie_pins_default: pcie-default-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0098, PIN_OUTPUT, 7)	/* (W19) GPMC0_WAIT0.GPIO0_37 */
+		>;
+	};
+};
+
+&pcie0_rc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_pins_default>;
+	reset-gpios = <&main_gpio0 37 GPIO_ACTIVE_HIGH>;
+	phys = <&serdes0_pcie_usb_link>;
+	phy-names = "pcie-phy";
+	num-lanes = <1>;
+	status = "okay";
+};
+
+&serdes0_pcie_usb_link {
+	cdns,phy-type = <PHY_TYPE_PCIE>;
+};
+
+&serdes_ln_ctrl {
+	idle-states = <AM64_SERDES0_LANE0_PCIE0>;
+};
+
+&serdes0 {
+	assigned-clock-parents = <&pcie_refclk0>, <&pcie_refclk0>, <&pcie_refclk0>;
+};
+
+&serdes_refclk {
+	clock-frequency = <100000000>;
+};
+
+/*
+ * Assign pcie_refclk0 to serdes_wiz0 as ext_ref_clk.
+ * This makes sure that the clock generator gets enabled at the right time.
+ */
+&serdes_wiz0 {
+	clocks = <&k3_clks 162 0>, <&k3_clks 162 1>, <&pcie_refclk0>;
+};
+
+&usbss0 {
+	ti,usb2-only;
+};
+
+&usb0 {
+	maximum-speed = "high-speed";
+};

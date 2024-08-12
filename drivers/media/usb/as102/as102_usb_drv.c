@@ -259,7 +259,7 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 	for (i = 0; i < MAX_STREAM_URB; i++) {
 		struct urb *urb;
 
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (urb == NULL) {
 			as102_free_usb_stream_buffer(dev);
 			return -ENOMEM;

@@ -180,8 +180,6 @@ struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
 		cpus->nr = nr;
 		for (i = 0; i < nr; i++)
 			cpus->map[i] = aggr_cpu_id__empty();
-
-		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -655,10 +653,10 @@ static char hex_char(unsigned char val)
 
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 {
-	int i, cpu;
+	int idx;
 	char *ptr = buf;
 	unsigned char *bitmap;
-	struct perf_cpu last_cpu = perf_cpu_map__cpu(map, perf_cpu_map__nr(map) - 1);
+	struct perf_cpu c, last_cpu = perf_cpu_map__max(map);
 
 	if (buf == NULL)
 		return 0;
@@ -669,12 +667,10 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 		return 0;
 	}
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		cpu = perf_cpu_map__cpu(map, i).cpu;
-		bitmap[cpu / 8] |= 1 << (cpu % 8);
-	}
+	perf_cpu_map__for_each_cpu(c, idx, map)
+		bitmap[c.cpu / 8] |= 1 << (c.cpu % 8);
 
-	for (cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {
+	for (int cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {
 		unsigned char bits = bitmap[cpu / 8];
 
 		if (cpu % 8)

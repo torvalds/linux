@@ -20,9 +20,10 @@ management subsystem maintainer.  After more sufficient tests, the patches will
 be queued in mm-stable [3]_ , and finally pull-requested to the mainline by the
 memory management subsystem maintainer.
 
-Note again the patches for review should be made against the mm-unstable
-tree [1]_ whenever possible.  damon/next is only for preview of others' works
-in progress.
+Note again the patches for mm-unstable tree [1]_ are queued by the memory
+management subsystem maintainer.  If the patches requires some patches in
+damon/next tree [2]_ which not yet merged in mm-unstable, please make sure the
+requirement is clearly specified.
 
 Submit checklist addendum
 -------------------------
@@ -48,9 +49,43 @@ Review cadence
 --------------
 
 The DAMON maintainer does the work on the usual work hour (09:00 to 17:00,
-Mon-Fri) in PST.  The response to patches will occasionally be slow.  Do not
-hesitate to send a ping if you have not heard back within a week of sending a
-patch.
+Mon-Fri) in PT (Pacific Time).  The response to patches will occasionally be
+slow.  Do not hesitate to send a ping if you have not heard back within a week
+of sending a patch.
+
+Mailing tool
+------------
+
+Like many other Linux kernel subsystems, DAMON uses the mailing lists
+(damon@lists.linux.dev and linux-mm@kvack.org) as the major communication
+channel.  There is a simple tool called HacKerMaiL (``hkml``) [8]_ , which is
+for people who are not very familiar with the mailing lists based
+communication.  The tool could be particularly helpful for DAMON community
+members since it is developed and maintained by DAMON maintainer.  The tool is
+also officially announced to support DAMON and general Linux kernel development
+workflow.
+
+In other words, ``hkml`` [8]_ is a mailing tool for DAMON community, which
+DAMON maintainer is committed to support.  Please feel free to try and report
+issues or feature requests for the tool to the maintainer.
+
+Community meetup
+----------------
+
+DAMON community is maintaining two bi-weekly meetup series for community
+members who prefer synchronous conversations over mails.
+
+The first one is for any discussion between every community member.  No
+reservation is needed.
+
+The seconds one is for discussions on specific topics between restricted
+members including the maintainer.  The maintainer shares the available time
+slots, and attendees should reserve one of those at least 24 hours before the
+time slot, by reaching out to the maintainer.
+
+Schedules and available reservation time slots are available at the Google doc
+[9]_ .  DAMON maintainer will also provide periodic reminder to the mailing
+list (damon@lists.linux.dev).
 
 
 .. [1] https://git.kernel.org/akpm/mm/h/mm-unstable
@@ -60,3 +95,5 @@ patch.
 .. [5] https://github.com/awslabs/damon-tests/blob/master/corr/tests/kunit.sh
 .. [6] https://github.com/awslabs/damon-tests/tree/master/corr
 .. [7] https://github.com/awslabs/damon-tests/tree/master/perf
+.. [8] https://github.com/damonitor/hackermail
+.. [9] https://docs.google.com/document/d/1v43Kcj3ly4CYqmAkMaZzLiM2GEnWfgdGbZAH3mi2vpM/edit?usp=sharing

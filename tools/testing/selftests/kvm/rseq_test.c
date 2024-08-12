@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define _GNU_SOURCE /* for program_invocation_short_name */
+
+/*
+ * Include rseq.c without _GNU_SOURCE defined, before including any headers, so
+ * that rseq.c is compiled with its configuration, not KVM selftests' config.
+ */
+#undef _GNU_SOURCE
+#include "../rseq/rseq.c"
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -19,8 +27,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "test_util.h"
-
-#include "../rseq/rseq.c"
+#include "ucall_common.h"
 
 /*
  * Any bug related to task migration is likely to be timing-dependent; perform
@@ -186,12 +193,35 @@ static void calc_min_max_cpu(void)
 		       "Only one usable CPU, task migration not possible");
 }
 
+static void help(const char *name)
+{
+	puts("");
+	printf("usage: %s [-h] [-u]\n", name);
+	printf(" -u: Don't sanity check the number of successful KVM_RUNs\n");
+	puts("");
+	exit(0);
+}
+
 int main(int argc, char *argv[])
 {
+	bool skip_sanity_check = false;
 	int r, i, snapshot;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
 	u32 cpu, rseq_cpu;
+	int opt;
+
+	while ((opt = getopt(argc, argv, "hu")) != -1) {
+		switch (opt) {
+		case 'u':
+			skip_sanity_check = true;
+			break;
+		case 'h':
+		default:
+			help(argv[0]);
+			break;
+		}
+	}
 
 	r = sched_getaffinity(0, sizeof(possible_mask), &possible_mask);
 	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)", errno,
@@ -254,9 +284,17 @@ int main(int argc, char *argv[])
 	 * getcpu() to stabilize.  A 2:1 migration:KVM_RUN ratio is a fairly
 	 * conservative ratio on x86-64, which can do _more_ KVM_RUNs than
 	 * migrations given the 1us+ delay in the migration task.
+	 *
+	 * Another reason why it may have small migration:KVM_RUN ratio is that,
+	 * on systems with large low power mode wakeup latency, it may happen
+	 * quite often that the scheduler is not able to wake up the target CPU
+	 * before the vCPU thread is scheduled to another CPU.
 	 */
-	TEST_ASSERT(i > (NR_TASK_MIGRATIONS / 2),
-		    "Only performed %d KVM_RUNs, task stalled too much?", i);
+	TEST_ASSERT(skip_sanity_check || i > (NR_TASK_MIGRATIONS / 2),
+		    "Only performed %d KVM_RUNs, task stalled too much?\n\n"
+		    "  Try disabling deep sleep states to reduce CPU wakeup latency,\n"
+		    "  e.g. via cpuidle.off=1 or setting /dev/cpu_dma_latency to '0',\n"
+		    "  or run with -u to disable this sanity check.", i);
 
 	pthread_join(migration_thread, NULL);
 

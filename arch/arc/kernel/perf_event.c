@@ -38,7 +38,7 @@
  * (based on a specific RTL build)
  * Below is the static map between perf generic/arc specific event_id and
  * h/w condition names.
- * At the time of probe, we loop thru each index and find it's name to
+ * At the time of probe, we loop thru each index and find its name to
  * complete the mapping of perf event_id to h/w index as latter is needed
  * to program the counter really
  */

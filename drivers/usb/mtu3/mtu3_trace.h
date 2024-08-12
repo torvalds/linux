@@ -26,7 +26,7 @@ TRACE_EVENT(mtu3_log,
 		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
@@ -127,7 +127,7 @@ DECLARE_EVENT_CLASS(mtu3_log_request,
 		__field(int, no_interrupt)
 	),
 	TP_fast_assign(
-		__assign_str(name, mreq->mep->name);
+		__assign_str(name);
 		__entry->mreq = mreq;
 		__entry->gpd = mreq->gpd;
 		__entry->actual = mreq->request.actual;
@@ -182,7 +182,7 @@ DECLARE_EVENT_CLASS(mtu3_log_gpd,
 		__field(u32, dw3)
 	),
 	TP_fast_assign(
-		__assign_str(name, mep->name);
+		__assign_str(name);
 		__entry->gpd = gpd;
 		__entry->dw0 = le32_to_cpu(gpd->dw0_info);
 		__entry->dw1 = le32_to_cpu(gpd->next_gpd);
@@ -226,7 +226,7 @@ DECLARE_EVENT_CLASS(mtu3_log_ep,
 		__field(struct mtu3_gpd_ring *, gpd_ring)
 	),
 	TP_fast_assign(
-		__assign_str(name, mep->name);
+		__assign_str(name);
 		__entry->type = mep->type;
 		__entry->slot = mep->slot;
 		__entry->maxp = mep->ep.maxpacket;

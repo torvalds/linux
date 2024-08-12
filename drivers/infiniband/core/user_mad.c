@@ -63,6 +63,8 @@ MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand userspace MAD packet access");
 MODULE_LICENSE("Dual BSD/GPL");
 
+#define MAX_UMAD_RECV_LIST_SIZE 200000
+
 enum {
 	IB_UMAD_MAX_PORTS  = RDMA_MAX_PORTS,
 	IB_UMAD_MAX_AGENTS = 32,
@@ -113,6 +115,7 @@ struct ib_umad_file {
 	struct mutex		mutex;
 	struct ib_umad_port    *port;
 	struct list_head	recv_list;
+	atomic_t		recv_list_size;
 	struct list_head	send_list;
 	struct list_head	port_list;
 	spinlock_t		send_lock;
@@ -180,24 +183,28 @@ static struct ib_mad_agent *__get_agent(struct ib_umad_file *file, int id)
 	return file->agents_dead ? NULL : file->agent[id];
 }
 
-static int queue_packet(struct ib_umad_file *file,
-			struct ib_mad_agent *agent,
-			struct ib_umad_packet *packet)
+static int queue_packet(struct ib_umad_file *file, struct ib_mad_agent *agent,
+			struct ib_umad_packet *packet, bool is_recv_mad)
 {
 	int ret = 1;
 
 	mutex_lock(&file->mutex);
+
+	if (is_recv_mad &&
+	    atomic_read(&file->recv_list_size) > MAX_UMAD_RECV_LIST_SIZE)
+		goto unlock;
 
 	for (packet->mad.hdr.id = 0;
 	     packet->mad.hdr.id < IB_UMAD_MAX_AGENTS;
 	     packet->mad.hdr.id++)
 		if (agent == __get_agent(file, packet->mad.hdr.id)) {
 			list_add_tail(&packet->list, &file->recv_list);
+			atomic_inc(&file->recv_list_size);
 			wake_up_interruptible(&file->recv_wait);
 			ret = 0;
 			break;
 		}
-
+unlock:
 	mutex_unlock(&file->mutex);
 
 	return ret;
@@ -224,7 +231,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
 		packet->length = IB_MGMT_MAD_HDR;
 		packet->mad.hdr.status = ETIMEDOUT;
-		if (!queue_packet(file, agent, packet))
+		if (!queue_packet(file, agent, packet, false))
 			return;
 	}
 	kfree(packet);
@@ -284,7 +291,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 		rdma_destroy_ah_attr(&ah_attr);
 	}
 
-	if (queue_packet(file, agent, packet))
+	if (queue_packet(file, agent, packet, true))
 		goto err2;
 	return;
 
@@ -409,6 +416,7 @@ static ssize_t ib_umad_read(struct file *filp, char __user *buf,
 
 	packet = list_entry(file->recv_list.next, struct ib_umad_packet, list);
 	list_del(&packet->list);
+	atomic_dec(&file->recv_list_size);
 
 	mutex_unlock(&file->mutex);
 
@@ -421,6 +429,7 @@ static ssize_t ib_umad_read(struct file *filp, char __user *buf,
 		/* Requeue packet */
 		mutex_lock(&file->mutex);
 		list_add(&packet->list, &file->recv_list);
+		atomic_inc(&file->recv_list_size);
 		mutex_unlock(&file->mutex);
 	} else {
 		if (packet->recv_wc)
@@ -1312,15 +1321,17 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (ret)
 		goto err_cdev;
 
-	ib_umad_init_port_dev(&port->sm_dev, port, device);
-	port->sm_dev.devt = base_issm;
-	dev_set_name(&port->sm_dev, "issm%d", port->dev_num);
-	cdev_init(&port->sm_cdev, &umad_sm_fops);
-	port->sm_cdev.owner = THIS_MODULE;
+	if (rdma_cap_ib_smi(device, port_num)) {
+		ib_umad_init_port_dev(&port->sm_dev, port, device);
+		port->sm_dev.devt = base_issm;
+		dev_set_name(&port->sm_dev, "issm%d", port->dev_num);
+		cdev_init(&port->sm_cdev, &umad_sm_fops);
+		port->sm_cdev.owner = THIS_MODULE;
 
-	ret = cdev_device_add(&port->sm_cdev, &port->sm_dev);
-	if (ret)
-		goto err_dev;
+		ret = cdev_device_add(&port->sm_cdev, &port->sm_dev);
+		if (ret)
+			goto err_dev;
+	}
 
 	return 0;
 
@@ -1336,9 +1347,13 @@ err_cdev:
 static void ib_umad_kill_port(struct ib_umad_port *port)
 {
 	struct ib_umad_file *file;
+	bool has_smi = false;
 	int id;
 
-	cdev_device_del(&port->sm_cdev, &port->sm_dev);
+	if (rdma_cap_ib_smi(port->ib_dev, port->port_num)) {
+		cdev_device_del(&port->sm_cdev, &port->sm_dev);
+		has_smi = true;
+	}
 	cdev_device_del(&port->cdev, &port->dev);
 
 	mutex_lock(&port->file_mutex);
@@ -1364,7 +1379,8 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	ida_free(&umad_ida, port->dev_num);
 
 	/* balances device_initialize() */
-	put_device(&port->sm_dev);
+	if (has_smi)
+		put_device(&port->sm_dev);
 	put_device(&port->dev);
 }
 

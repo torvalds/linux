@@ -14,6 +14,7 @@
 #include <linux/dmi.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/panic_notifier.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -26,6 +27,9 @@
 #include "reg.h"
 #include "dbring.h"
 #include "fw.h"
+#include "acpi.h"
+#include "wow.h"
+#include "debugfs_htt_stats.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -46,6 +50,7 @@
 #define ATH12K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 #define ATH12K_INVALID_HW_MAC_ID	0xFF
+#define ATH12K_CONNECTION_LOSS_HZ	(3 * HZ)
 #define	ATH12K_RX_RATE_TABLE_NUM	320
 #define	ATH12K_RX_RATE_TABLE_11AX_NUM	576
 
@@ -144,7 +149,7 @@ struct ath12k_ext_irq_grp {
 	u32 grp_id;
 	u64 timestamp;
 	struct napi_struct napi;
-	struct net_device napi_ndev;
+	struct net_device *napi_ndev;
 };
 
 struct ath12k_smbios_bdf {
@@ -178,8 +183,6 @@ struct ath12k_he {
 	u32 heop_param;
 };
 
-#define MAX_RADIOS 3
-
 enum {
 	WMI_HOST_TP_SCALE_MAX   = 0,
 	WMI_HOST_TP_SCALE_50    = 1,
@@ -210,8 +213,29 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_EXT_IRQ_ENABLED,
 };
 
-enum ath12k_monitor_flags {
-	ATH12K_FLAG_MONITOR_ENABLED,
+struct ath12k_tx_conf {
+	bool changed;
+	u16 ac;
+	struct ieee80211_tx_queue_params tx_queue_params;
+};
+
+struct ath12k_key_conf {
+	bool changed;
+	enum set_key_cmd cmd;
+	struct ieee80211_key_conf *key;
+};
+
+struct ath12k_vif_cache {
+	struct ath12k_tx_conf tx_conf;
+	struct ath12k_key_conf key_conf;
+	u32 bss_conf_changed;
+};
+
+struct ath12k_rekey_data {
+	u8 kck[NL80211_KCK_LEN];
+	u8 kek[NL80211_KCK_LEN];
+	u64 replay_ctr;
+	bool enable_offload;
 };
 
 struct ath12k_vif {
@@ -251,11 +275,13 @@ struct ath12k_vif {
 		} ap;
 	} u;
 
+	bool is_created;
 	bool is_started;
 	bool is_up;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
@@ -267,10 +293,13 @@ struct ath12k_vif {
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
 	bool ps;
+	struct ath12k_vif_cache *cache;
+	struct ath12k_rekey_data rekey_data;
 };
 
 struct ath12k_vif_iter {
 	u32 vdev_id;
+	struct ath12k *ar;
 	struct ath12k_vif *arvif;
 };
 
@@ -430,15 +459,15 @@ struct ath12k_sta {
 #define ATH12K_MIN_5G_FREQ 4150
 #define ATH12K_MIN_6G_FREQ 5925
 #define ATH12K_MAX_6G_FREQ 7115
-#define ATH12K_NUM_CHANS 100
+#define ATH12K_NUM_CHANS 101
 #define ATH12K_MAX_5G_CHAN 173
 
-enum ath12k_state {
-	ATH12K_STATE_OFF,
-	ATH12K_STATE_ON,
-	ATH12K_STATE_RESTARTING,
-	ATH12K_STATE_RESTARTED,
-	ATH12K_STATE_WEDGED,
+enum ath12k_hw_state {
+	ATH12K_HW_STATE_OFF,
+	ATH12K_HW_STATE_ON,
+	ATH12K_HW_STATE_RESTARTING,
+	ATH12K_HW_STATE_RESTARTED,
+	ATH12K_HW_STATE_WEDGED,
 	/* Add other states as required */
 };
 
@@ -451,6 +480,19 @@ struct ath12k_fw_stats {
 	struct list_head pdevs;
 	struct list_head vdevs;
 	struct list_head bcn;
+};
+
+struct ath12k_dbg_htt_stats {
+	enum ath12k_dbg_htt_ext_stats_type type;
+	u32 cfg_param[4];
+	u8 reset;
+	struct debug_htt_stats_req *stats_req;
+};
+
+struct ath12k_debug {
+	struct dentry *debugfs_pdev;
+	struct dentry *debugfs_pdev_symlink;
+	struct ath12k_dbg_htt_stats htt_stats;
 };
 
 struct ath12k_per_peer_tx_stats {
@@ -483,7 +525,6 @@ struct ath12k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	struct ath12k_he ar_he;
-	enum ath12k_state state;
 	bool supports_6ghz;
 	struct {
 		struct completion started;
@@ -505,7 +546,6 @@ struct ath12k {
 
 	unsigned long dev_flags;
 	unsigned int filter_flags;
-	unsigned long monitor_flags;
 	u32 min_tx_power;
 	u32 max_tx_power;
 	u32 txpower_limit_2g;
@@ -585,6 +625,9 @@ struct ath12k {
 	struct work_struct wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
+	struct ath12k_wow wow;
+	struct completion target_suspend;
+	bool target_suspend_ack;
 	struct ath12k_per_peer_tx_stats peer_tx_stats;
 	struct list_head ppdu_stats_info;
 	u32 ppdu_stat_list_depth;
@@ -592,18 +635,34 @@ struct ath12k {
 	struct ath12k_per_peer_tx_stats cached_stats;
 	u32 last_ppdu_id;
 	u32 cached_ppdu_id;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct ath12k_debug debug;
+#endif
 
 	bool dfs_block_radar_events;
 	bool monitor_conf_enabled;
 	bool monitor_vdev_created;
 	bool monitor_started;
 	int monitor_vdev_id;
+
+	u32 freq_low;
+	u32 freq_high;
+
+	bool nlo_enabled;
 };
 
 struct ath12k_hw {
 	struct ieee80211_hw *hw;
-
+	/* Protect the write operation of the hardware state ath12k_hw::state
+	 * between hardware start<=>reconfigure<=>stop transitions.
+	 */
+	struct mutex hw_mutex;
+	enum ath12k_hw_state state;
+	bool regd_updated;
+	bool use_6ghz_regd;
 	u8 num_radio;
+
+	/* Keep last */
 	struct ath12k radio[] __aligned(sizeof(void *));
 };
 
@@ -653,6 +712,7 @@ struct mlo_timestamp {
 struct ath12k_pdev {
 	struct ath12k *ar;
 	u32 pdev_id;
+	u32 hw_link_id;
 	struct ath12k_pdev_cap cap;
 	u8 mac_addr[ETH_ALEN];
 	struct mlo_timestamp timestamp;
@@ -688,6 +748,21 @@ struct ath12k_soc_dp_stats {
 	struct ath12k_soc_dp_tx_err_stats tx_err;
 };
 
+/**
+ * enum ath12k_link_capable_flags - link capable flags
+ *
+ * Single/Multi link capability information
+ *
+ * @ATH12K_INTRA_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
+ *	the links (radios) present within a device.
+ * @ATH12K_INTER_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
+ *	the links (radios) present across the devices.
+ */
+enum ath12k_link_capable_flags {
+	ATH12K_INTRA_DEVICE_MLO_SUPPORT	= BIT(0),
+	ATH12K_INTER_DEVICE_MLO_SUPPORT	= BIT(1),
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath12k_base {
 	enum ath12k_hw_rev hw_rev;
@@ -696,6 +771,7 @@ struct ath12k_base {
 	struct ath12k_qmi qmi;
 	struct ath12k_wmi_base wmi_ab;
 	struct completion fw_ready;
+	u8 device_id;
 	int num_radios;
 	/* HW channel counters frequency value in hertz common to all MACs */
 	u32 cc_freq_hz;
@@ -711,6 +787,11 @@ struct ath12k_base {
 		enum ath12k_bus bus;
 		const struct ath12k_hif_ops *ops;
 	} hif;
+
+	struct {
+		struct completion wakeup_completed;
+		u32 wmi_conf_rx_decap_mode;
+	} wow;
 
 	struct ath12k_ce ce;
 	struct timer_list rx_replenish_retry;
@@ -782,6 +863,9 @@ struct ath12k_base {
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
 	struct ath12k_soc_dp_stats soc_stats;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct dentry *debugfs_soc;
+#endif
 
 	unsigned long dev_flags;
 	struct completion driver_recovery;
@@ -791,11 +875,8 @@ struct ath12k_base {
 	struct work_struct reset_work;
 	atomic_t reset_count;
 	atomic_t recovery_count;
-	atomic_t recovery_start_count;
 	bool is_reset;
 	struct completion reset_complete;
-	struct completion reconfigure_complete;
-	struct completion recovery_start;
 	/* continuous recovery fail count */
 	atomic_t fail_cont_count;
 	unsigned long reset_fail_timeout;
@@ -843,10 +924,33 @@ struct ath12k_base {
 
 	const struct hal_rx_ops *hal_rx_ops;
 
-	/* slo_capable denotes if the single/multi link operation
-	 * is supported within the same chip (SoC).
+	/* mlo_capable_flags denotes the single/multi link operation
+	 * capabilities of the Device.
+	 *
+	 * See enum ath12k_link_capable_flags
 	 */
-	bool slo_capable;
+	u8 mlo_capable_flags;
+
+	struct completion restart_completed;
+
+#ifdef CONFIG_ACPI
+
+	struct {
+		bool started;
+		u32 func_bit;
+		bool acpi_tas_enable;
+		bool acpi_bios_sar_enable;
+		u8 tas_cfg[ATH12K_ACPI_DSM_TAS_CFG_SIZE];
+		u8 tas_sar_power_table[ATH12K_ACPI_DSM_TAS_DATA_SIZE];
+		u8 bios_sar_data[ATH12K_ACPI_DSM_BIOS_SAR_DATA_SIZE];
+		u8 geo_offset_data[ATH12K_ACPI_DSM_GEO_OFFSET_DATA_SIZE];
+		u8 cca_data[ATH12K_ACPI_DSM_CCA_DATA_SIZE];
+		u8 band_edge_power[ATH12K_ACPI_DSM_BAND_EDGE_DATA_SIZE];
+	} acpi;
+
+#endif /* CONFIG_ACPI */
+
+	struct notifier_block panic_nb;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -874,8 +978,10 @@ int ath12k_core_fetch_regdb(struct ath12k_base *ab, struct ath12k_board_data *bd
 int ath12k_core_check_dt(struct ath12k_base *ath12k);
 int ath12k_core_check_smbios(struct ath12k_base *ab);
 void ath12k_core_halt(struct ath12k *ar);
+int ath12k_core_resume_early(struct ath12k_base *ab);
 int ath12k_core_resume(struct ath12k_base *ab);
 int ath12k_core_suspend(struct ath12k_base *ab);
+int ath12k_core_suspend_late(struct ath12k_base *ab);
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 						    const char *filename);
@@ -951,13 +1057,26 @@ static inline struct ath12k_hw *ath12k_hw_to_ah(struct ieee80211_hw  *hw)
 	return hw->priv;
 }
 
-static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah)
+static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah, u8 hw_link_id)
 {
-	return ah->radio;
+	if (WARN(hw_link_id >= ah->num_radio,
+		 "bad hw link id %d, so switch to default link\n", hw_link_id))
+		hw_link_id = 0;
+
+	return &ah->radio[hw_link_id];
+}
+
+static inline struct ath12k_hw *ath12k_ar_to_ah(struct ath12k *ar)
+{
+	return ar->ah;
 }
 
 static inline struct ieee80211_hw *ath12k_ar_to_hw(struct ath12k *ar)
 {
 	return ar->ah->hw;
 }
+
+#define for_each_ar(ah, ar, index) \
+	for ((index) = 0; ((index) < (ah)->num_radio && \
+	     ((ar) = &(ah)->radio[(index)])); (index)++)
 #endif /* _CORE_H_ */

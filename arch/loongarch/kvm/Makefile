@@ -3,7 +3,7 @@
 # Makefile for LoongArch KVM support
 #
 
-ccflags-y += -I $(srctree)/$(src)
+ccflags-y += -I $(src)
 
 include $(srctree)/virt/kvm/Makefile.kvm
 

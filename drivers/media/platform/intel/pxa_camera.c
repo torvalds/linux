@@ -43,6 +43,7 @@
 #include <linux/videodev2.h>
 
 #include <linux/platform_data/media/camera-pxa.h>
+#include <linux/workqueue.h>
 
 #define PXA_CAM_VERSION "0.0.6"
 #define PXA_CAM_DRV_NAME "pxa27x-camera"
@@ -683,7 +684,7 @@ struct pxa_camera_dev {
 	unsigned int		buf_sequence;
 
 	struct pxa_buffer	*active;
-	struct tasklet_struct	task_eof;
+	struct work_struct	eof_bh_work;
 
 	u32			save_cicr[5];
 };
@@ -1146,9 +1147,9 @@ static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 	clk_disable_unprepare(pcdev->clk);
 }
 
-static void pxa_camera_eof(struct tasklet_struct *t)
+static void pxa_camera_eof_bh_work(struct work_struct *t)
 {
-	struct pxa_camera_dev *pcdev = from_tasklet(pcdev, t, task_eof);
+	struct pxa_camera_dev *pcdev = from_work(pcdev, t, eof_bh_work);
 	unsigned long cifr;
 	struct pxa_buffer *buf;
 
@@ -1185,7 +1186,7 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 	if (status & CISR_EOF) {
 		cicr0 = __raw_readl(pcdev->base + CICR0) | CICR0_EOFM;
 		__raw_writel(cicr0, pcdev->base + CICR0);
-		tasklet_schedule(&pcdev->task_eof);
+		queue_work(system_bh_wq, &pcdev->eof_bh_work);
 	}
 
 	return IRQ_HANDLED;
@@ -2383,7 +2384,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		}
 	}
 
-	tasklet_setup(&pcdev->task_eof, pxa_camera_eof);
+	INIT_WORK(&pcdev->eof_bh_work, pxa_camera_eof_bh_work);
 
 	pxa_camera_activate(pcdev);
 
@@ -2409,7 +2410,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	return 0;
 exit_deactivate:
 	pxa_camera_deactivate(pcdev);
-	tasklet_kill(&pcdev->task_eof);
+	cancel_work_sync(&pcdev->eof_bh_work);
 exit_free_dma:
 	dma_release_channel(pcdev->dma_chans[2]);
 exit_free_dma_u:
@@ -2428,7 +2429,7 @@ static void pxa_camera_remove(struct platform_device *pdev)
 	struct pxa_camera_dev *pcdev = platform_get_drvdata(pdev);
 
 	pxa_camera_deactivate(pcdev);
-	tasklet_kill(&pcdev->task_eof);
+	cancel_work_sync(&pcdev->eof_bh_work);
 	dma_release_channel(pcdev->dma_chans[0]);
 	dma_release_channel(pcdev->dma_chans[1]);
 	dma_release_channel(pcdev->dma_chans[2]);

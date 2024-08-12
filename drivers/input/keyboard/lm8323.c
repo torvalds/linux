@@ -792,7 +792,7 @@ static int lm8323_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(lm8323_pm_ops, lm8323_suspend, lm8323_resume);
 
 static const struct i2c_device_id lm8323_id[] = {
-	{ "lm8323", 0 },
+	{ "lm8323" },
 	{ }
 };
 

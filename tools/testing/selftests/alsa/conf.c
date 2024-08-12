@@ -105,7 +105,7 @@ static struct card_cfg_data *conf_data_by_card(int card, bool msg)
 	return NULL;
 }
 
-static int dump_config_tree(snd_config_t *top)
+static void dump_config_tree(snd_config_t *top)
 {
 	snd_output_t *out;
 	int err;

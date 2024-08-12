@@ -61,7 +61,7 @@
 			compatible = "simple-bus";
 			ranges = <0x0 0x0 0xf0000000 0x1000000>;
 
-			smmu: iommu@5000000 {
+			smmu: iommu@100000 {
 				compatible = "marvell,ap806-smmu-500", "arm,mmu-500";
 				reg = <0x100000 0x100000>;
 				dma-coherent;

@@ -129,6 +129,8 @@ struct dcn_optc_registers {
 	uint32_t OTG_V_TOTAL_MID;
 	uint32_t OTG_V_TOTAL_MIN;
 	uint32_t OTG_V_TOTAL_CONTROL;
+	uint32_t OTG_V_COUNT_STOP_CONTROL;
+	uint32_t OTG_V_COUNT_STOP_CONTROL2;
 	uint32_t OTG_TRIGA_CNTL;
 	uint32_t OTG_TRIGA_MANUAL_TRIG;
 	uint32_t OTG_MANUAL_FLOW_CONTROL;
@@ -198,6 +200,7 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC1_WINDOWB_X_CONTROL_READBACK;
 	uint32_t OTG_CRC1_WINDOWB_Y_CONTROL_READBACK;
 	uint32_t OPTC_CLOCK_CONTROL;
+	uint32_t OPTC_WIDTH_CONTROL2;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -326,8 +329,6 @@ struct dcn_optc_registers {
 	SF(GSL_SOURCE_SELECT, GSL1_READY_SOURCE_SEL, mask_sh),\
 	SF(GSL_SOURCE_SELECT, GSL2_READY_SOURCE_SEL, mask_sh),\
 	SF(OTG0_OTG_GLOBAL_CONTROL2, MANUAL_FLOW_CONTROL_SEL, mask_sh)
-
-
 
 #define TG_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
 	TG_COMMON_MASK_SH_LIST_DCN(mask_sh),\
@@ -515,12 +516,15 @@ struct dcn_optc_registers {
 	type MANUAL_FLOW_CONTROL;\
 	type MANUAL_FLOW_CONTROL_SEL;
 
+#define V_TOTAL_REGS(type)
+
 #define TG_REG_FIELD_LIST(type) \
 	TG_REG_FIELD_LIST_DCN1_0(type)\
 	type OTG_V_SYNC_MODE;\
 	type OTG_DRR_TRIGGER_WINDOW_START_X;\
 	type OTG_DRR_TRIGGER_WINDOW_END_X;\
 	type OTG_DRR_V_TOTAL_CHANGE_LIMIT;\
+	V_TOTAL_REGS(type)\
 	type OTG_OUT_MUX;\
 	type OTG_M_CONST_DTO_PHASE;\
 	type OTG_M_CONST_DTO_MODULO;\
@@ -558,11 +562,11 @@ struct dcn_optc_registers {
 	type OTG_CRC_DATA_FORMAT;\
 	type OTG_V_TOTAL_LAST_USED_BY_DRR;\
 	type OTG_DRR_TIMING_DBUF_UPDATE_PENDING;\
-	type OTG_H_TIMING_DIV_MODE_DB_UPDATE_PENDING;
+	type OTG_H_TIMING_DIV_MODE_DB_UPDATE_PENDING;\
+	type OPTC_DOUBLE_BUFFER_PENDING;\
 
 #define TG_REG_FIELD_LIST_DCN3_2(type) \
 	type OTG_H_TIMING_DIV_MODE_MANUAL;
-
 
 #define TG_REG_FIELD_LIST_DCN3_5(type) \
 	type OTG_CRC0_WINDOWA_X_START_READBACK;\
@@ -581,18 +585,26 @@ struct dcn_optc_registers {
 	type OTG_CRC1_WINDOWB_X_END_READBACK;\
 	type OTG_CRC1_WINDOWB_Y_START_READBACK;\
 	type OTG_CRC1_WINDOWB_Y_END_READBACK;\
-	type OPTC_FGCG_REP_DIS;
+	type OPTC_FGCG_REP_DIS;\
+	type OTG_V_COUNT_STOP;\
+	type OTG_V_COUNT_STOP_TIMER;
+
+#define TG_REG_FIELD_LIST_DCN401(type) \
+	type OPTC_SEGMENT_WIDTH_LAST;
+
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
+	TG_REG_FIELD_LIST_DCN401(uint8_t)
 };
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint32_t)
+	TG_REG_FIELD_LIST_DCN401(uint32_t)
 };
 
 void dcn10_timing_generator_init(struct optc *optc);

@@ -382,7 +382,8 @@ static void sbd_receive_chars(struct sbd_port *sport)
 static void sbd_transmit_chars(struct sbd_port *sport)
 {
 	struct uart_port *uport = &sport->port;
-	struct circ_buf *xmit = &sport->port.state->xmit;
+	struct tty_port *tport = &sport->port.state->port;
+	unsigned char ch;
 	unsigned int mask;
 	int stop_tx;
 
@@ -395,19 +396,19 @@ static void sbd_transmit_chars(struct sbd_port *sport)
 	}
 
 	/* If nothing to do or stopped or hardware stopped.  */
-	stop_tx = (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port));
+	stop_tx = uart_tx_stopped(&sport->port) ||
+		!uart_fifo_get(&sport->port, &ch);
 
 	/* Send char.  */
 	if (!stop_tx) {
-		write_sbdchn(sport, R_DUART_TX_HOLD, xmit->buf[xmit->tail]);
-		uart_xmit_advance(&sport->port, 1);
+		write_sbdchn(sport, R_DUART_TX_HOLD, ch);
 
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&sport->port);
 	}
 
 	/* Are we are done?  */
-	if (stop_tx || uart_circ_empty(xmit)) {
+	if (stop_tx || kfifo_is_empty(&tport->xmit_fifo)) {
 		/* Disable tx interrupts.  */
 		mask = read_sbdshr(sport, R_DUART_IMRREG((uport->line) % 2));
 		mask &= ~M_DUART_IMR_TX;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2023 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2023 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -192,4 +192,5 @@ static struct platform_driver avs_rt5514_driver = {
 
 module_platform_driver(avs_rt5514_driver);
 
+MODULE_DESCRIPTION("Intel rt5514 machine driver");
 MODULE_LICENSE("GPL");

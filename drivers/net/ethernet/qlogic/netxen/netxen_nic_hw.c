@@ -960,7 +960,7 @@ int netxen_nic_change_mtu(struct net_device *netdev, int mtu)
 		rc = adapter->set_mtu(adapter, mtu);
 
 	if (!rc)
-		netdev->mtu = mtu;
+		WRITE_ONCE(netdev->mtu, mtu);
 
 	return rc;
 }

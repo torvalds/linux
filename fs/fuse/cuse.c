@@ -310,6 +310,10 @@ struct cuse_init_args {
 /**
  * cuse_process_init_reply - finish initializing CUSE channel
  *
+ * @fm: The fuse mount information containing the CUSE connection.
+ * @args: The arguments passed to the init reply.
+ * @error: The error code signifying if any error occurred during the process.
+ *
  * This function creates the character device and sets up all the
  * required data structures for it.  Please read the comment at the
  * top of this file for high level overview.

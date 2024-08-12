@@ -56,7 +56,7 @@ int usnic_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				int attr_mask, struct ib_udata *udata);
 int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		       struct ib_udata *udata);
+		       struct uverbs_attr_bundle *attrs);
 int usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 				u64 virt_addr, int access_flags,

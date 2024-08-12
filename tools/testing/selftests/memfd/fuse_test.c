@@ -306,7 +306,7 @@ int main(int argc, char **argv)
 	 * then the kernel did a page-replacement or canceled the read() (or
 	 * whatever magic it did..). In that case, the memfd object is still
 	 * all zero.
-	 * In case the memfd-object was *not* sealed, the read() was successfull
+	 * In case the memfd-object was *not* sealed, the read() was successful
 	 * and the memfd object must *not* be all zero.
 	 * Note that in real scenarios, there might be a mixture of both, but
 	 * in this test-cases, we have explicit 200ms delays which should be

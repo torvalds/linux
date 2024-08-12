@@ -149,38 +149,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		goto out;
 	}
 
-	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
-	if (amdgpu_device_supports_px(dev) &&
-	    (amdgpu_runtime_pm != 0)) { /* enable PX as runtime mode */
-		adev->pm.rpm_mode = AMDGPU_RUNPM_PX;
-		dev_info(adev->dev, "Using ATPX for runtime pm\n");
-	} else if (amdgpu_device_supports_boco(dev) &&
-		   (amdgpu_runtime_pm != 0)) { /* enable boco as runtime mode */
-		adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
-		dev_info(adev->dev, "Using BOCO for runtime pm\n");
-	} else if (amdgpu_device_supports_baco(dev) &&
-		   (amdgpu_runtime_pm != 0)) {
-		switch (adev->asic_type) {
-		case CHIP_VEGA20:
-		case CHIP_ARCTURUS:
-			/* enable BACO as runpm mode if runpm=1 */
-			if (amdgpu_runtime_pm > 0)
-				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
-			break;
-		case CHIP_VEGA10:
-			/* enable BACO as runpm mode if noretry=0 */
-			if (!adev->gmc.noretry)
-				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
-			break;
-		default:
-			/* enable BACO as runpm mode on CI+ */
-			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
-			break;
-		}
-
-		if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO)
-			dev_info(adev->dev, "Using BACO for runtime pm\n");
-	}
+	amdgpu_device_detect_runtime_pm_mode(adev);
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
@@ -649,30 +618,37 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 
 		if (adev->xcp_mgr && adev->xcp_mgr->num_xcps > 0 &&
-		    fpriv->xcp_id >= 0 && fpriv->xcp_id < adev->xcp_mgr->num_xcps) {
+		    fpriv->xcp_id < adev->xcp_mgr->num_xcps) {
 			xcp = &adev->xcp_mgr->xcp[fpriv->xcp_id];
 			switch (type) {
 			case AMD_IP_BLOCK_TYPE_GFX:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			case AMD_IP_BLOCK_TYPE_SDMA:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_SDMA, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			case AMD_IP_BLOCK_TYPE_JPEG:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask) * adev->jpeg.num_jpeg_rings;
 				break;
 			case AMD_IP_BLOCK_TYPE_VCN:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			default:
 				return -EINVAL;
 			}
-			if (ret)
-				return ret;
+
 			return copy_to_user(out, &count, min(size, 4u)) ? -EFAULT : 0;
 		}
 

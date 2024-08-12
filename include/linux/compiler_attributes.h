@@ -362,6 +362,19 @@
 #define __used                          __attribute__((__used__))
 
 /*
+ * The __used attribute guarantees that the attributed variable will be
+ * always emitted by a compiler. It doesn't prevent the compiler from
+ * throwing 'unused' warnings when it can't detect how the variable is
+ * actually used. It's a compiler implementation details either emit
+ * the warning in that case or not.
+ *
+ * The combination of both 'used' and 'unused' attributes ensures that
+ * the variable would be emitted, and will not trigger 'unused' warnings.
+ * The attribute is applicable for functions, static and global variables.
+ */
+#define __always_used			__used __maybe_unused
+
+/*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-warn_005funused_005fresult-function-attribute
  * clang: https://clang.llvm.org/docs/AttributeReference.html#nodiscard-warn-unused-result
  */

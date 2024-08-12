@@ -47,10 +47,18 @@ patternProperties:
     type: object
 
   '^pinctrl(@[0-9a-f]+)?$':
-    oneOf:
-      - $ref: /schemas/pinctrl/aspeed,ast2400-pinctrl.yaml
-      - $ref: /schemas/pinctrl/aspeed,ast2500-pinctrl.yaml
-      - $ref: /schemas/pinctrl/aspeed,ast2600-pinctrl.yaml
+    type: object
+    additionalProperties: true
+    properties:
+      compatible:
+        contains:
+          enum:
+            - aspeed,ast2400-pinctrl
+            - aspeed,ast2500-pinctrl
+            - aspeed,ast2600-pinctrl
+
+    required:
+      - compatible
 
   '^interrupt-controller@[0-9a-f]+$':
     description: See Documentation/devicetree/bindings/interrupt-controller/aspeed,ast2xxx-scu-ic.txt

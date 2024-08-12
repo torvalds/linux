@@ -358,7 +358,7 @@ static int sbsm_probe(struct i2c_client *client)
 	/* register muxed i2c channels. One for each supported battery */
 	for (i = 0; i < SBSM_MAX_BATS; ++i) {
 		if (data->supported_bats & BIT(i)) {
-			ret = i2c_mux_add_adapter(data->muxc, 0, i + 1, 0);
+			ret = i2c_mux_add_adapter(data->muxc, 0, i + 1);
 			if (ret)
 				break;
 		}
@@ -389,8 +389,8 @@ static int sbsm_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sbsm_ids[] = {
-	{ "sbs-manager", 0 },
-	{ "ltc1760",     0 },
+	{ "sbs-manager" },
+	{ "ltc1760" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sbsm_ids);

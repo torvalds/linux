@@ -12,6 +12,7 @@
 
 #define INSN_NOP		0x03400000
 #define INSN_BREAK		0x002a0000
+#define INSN_HVCL		0x002b8000
 
 #define ADDR_IMMMASK_LU52ID	0xFFF0000000000000
 #define ADDR_IMMMASK_LU32ID	0x000FFFFF00000000
@@ -67,6 +68,7 @@ enum reg2_op {
 	revhd_op	= 0x11,
 	extwh_op	= 0x16,
 	extwb_op	= 0x17,
+	cpucfg_op	= 0x1b,
 	iocsrrdb_op     = 0x19200,
 	iocsrrdh_op     = 0x19201,
 	iocsrrdw_op     = 0x19202,
@@ -529,6 +531,9 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 }
 
 DEF_EMIT_REG0I15_FORMAT(break, break_op)
+
+/* like emit_break(imm) but returns a constant expression */
+#define __emit_break(imm)	((u32)((imm) | (break_op << 15)))
 
 #define DEF_EMIT_REG0I26_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\

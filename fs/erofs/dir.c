@@ -58,12 +58,12 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 	int err = 0;
 	bool initial = true;
 
-	buf.inode = dir;
+	buf.mapping = dir->i_mapping;
 	while (ctx->pos < dirsize) {
 		struct erofs_dirent *de;
 		unsigned int nameoff, maxsize;
 
-		de = erofs_bread(&buf, i, EROFS_KMAP);
+		de = erofs_bread(&buf, erofs_pos(sb, i), EROFS_KMAP);
 		if (IS_ERR(de)) {
 			erofs_err(sb, "fail to readdir of logical block %u of nid %llu",
 				  i, EROFS_I(dir)->nid);

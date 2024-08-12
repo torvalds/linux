@@ -214,6 +214,11 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
 		return;
 
+	/* check for recovered fabric node */
+	if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+	    ndlp->nlp_DID == Fabric_DID)
+		return;
+
 	if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn))
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6789 rport name %llx != node port name %llx",
@@ -487,7 +492,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 					recovering = true;
 			} else {
 				/* Physical port path. */
-				if (phba->hba_flag & HBA_FLOGI_OUTSTANDING)
+				if (test_bit(HBA_FLOGI_OUTSTANDING,
+					     &phba->hba_flag))
 					recovering = true;
 			}
 			break;
@@ -545,6 +551,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 					 ndlp->nlp_DID, kref_read(&ndlp->kref),
 					 ndlp, ndlp->nlp_flag,
 					 vport->port_state);
+			spin_lock_irqsave(&ndlp->lock, iflags);
+			ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+			spin_unlock_irqrestore(&ndlp->lock, iflags);
 			return fcf_inuse;
 		}
 
@@ -652,14 +661,15 @@ lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba, int fcf_inuse,
 	if (!fcf_inuse)
 		return;
 
-	if ((phba->hba_flag & HBA_FIP_SUPPORT) && !lpfc_fcf_inuse(phba)) {
+	if (test_bit(HBA_FIP_SUPPORT, &phba->hba_flag) &&
+	    !lpfc_fcf_inuse(phba)) {
 		spin_lock_irq(&phba->hbalock);
 		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
-			if (phba->hba_flag & HBA_DEVLOSS_TMO) {
+			if (test_and_set_bit(HBA_DEVLOSS_TMO,
+					     &phba->hba_flag)) {
 				spin_unlock_irq(&phba->hbalock);
 				return;
 			}
-			phba->hba_flag |= HBA_DEVLOSS_TMO;
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2847 Last remote node (x%x) using "
 					"FCF devloss tmo\n", nlp_did);
@@ -671,8 +681,9 @@ lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba, int fcf_inuse,
 					"in progress\n");
 			return;
 		}
-		if (!(phba->hba_flag & (FCF_TS_INPROG | FCF_RR_INPROG))) {
-			spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irq(&phba->hbalock);
+		if (!test_bit(FCF_TS_INPROG, &phba->hba_flag) &&
+		    !test_bit(FCF_RR_INPROG, &phba->hba_flag)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2869 Devloss tmo to idle FIP engine, "
 					"unreg in-use FCF and rescan.\n");
@@ -680,11 +691,10 @@ lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba, int fcf_inuse,
 			lpfc_unregister_fcf_rescan(phba);
 			return;
 		}
-		spin_unlock_irq(&phba->hbalock);
-		if (phba->hba_flag & FCF_TS_INPROG)
+		if (test_bit(FCF_TS_INPROG, &phba->hba_flag))
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2870 FCF table scan in progress\n");
-		if (phba->hba_flag & FCF_RR_INPROG)
+		if (test_bit(FCF_RR_INPROG, &phba->hba_flag))
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2871 FLOGI roundrobin FCF failover "
 					"in progress\n");
@@ -978,18 +988,15 @@ lpfc_work_done(struct lpfc_hba *phba)
 
 	/* Process SLI4 events */
 	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
-		if (phba->hba_flag & HBA_RRQ_ACTIVE)
+		if (test_bit(HBA_RRQ_ACTIVE, &phba->hba_flag))
 			lpfc_handle_rrq_active(phba);
-		if (phba->hba_flag & ELS_XRI_ABORT_EVENT)
+		if (test_bit(ELS_XRI_ABORT_EVENT, &phba->hba_flag))
 			lpfc_sli4_els_xri_abort_event_proc(phba);
-		if (phba->hba_flag & ASYNC_EVENT)
+		if (test_bit(ASYNC_EVENT, &phba->hba_flag))
 			lpfc_sli4_async_event_proc(phba);
-		if (phba->hba_flag & HBA_POST_RECEIVE_BUFFER) {
-			spin_lock_irq(&phba->hbalock);
-			phba->hba_flag &= ~HBA_POST_RECEIVE_BUFFER;
-			spin_unlock_irq(&phba->hbalock);
+		if (test_and_clear_bit(HBA_POST_RECEIVE_BUFFER,
+				       &phba->hba_flag))
 			lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
-		}
 		if (phba->fcf.fcf_flag & FCF_REDISC_EVT)
 			lpfc_sli4_fcf_redisc_event_proc(phba);
 	}
@@ -1035,11 +1042,11 @@ lpfc_work_done(struct lpfc_hba *phba)
 	status >>= (4*LPFC_ELS_RING);
 	if (pring && (status & HA_RXMASK ||
 		      pring->flag & LPFC_DEFERRED_RING_EVENT ||
-		      phba->hba_flag & HBA_SP_QUEUE_EVT)) {
+		      test_bit(HBA_SP_QUEUE_EVT, &phba->hba_flag))) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Preserve legacy behavior. */
-			if (!(phba->hba_flag & HBA_SP_QUEUE_EVT))
+			if (!test_bit(HBA_SP_QUEUE_EVT, &phba->hba_flag))
 				set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
 			/* Driver could have abort request completed in queue
@@ -1420,7 +1427,8 @@ lpfc_linkup(struct lpfc_hba *phba)
 	spin_unlock_irq(shost->host_lock);
 
 	/* reinitialize initial HBA flag */
-	phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_RHBA_CMPL);
+	clear_bit(HBA_FLOGI_ISSUED, &phba->hba_flag);
+	clear_bit(HBA_RHBA_CMPL, &phba->hba_flag);
 
 	return 0;
 }
@@ -1505,7 +1513,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* don't perform discovery for SLI4 loopback diagnostic test */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-	    !(phba->hba_flag & HBA_FCOE_MODE) &&
+	    !test_bit(HBA_FCOE_MODE, &phba->hba_flag) &&
 	    (phba->link_flag & LS_LOOPBACK_MODE))
 		return;
 
@@ -1548,7 +1556,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				goto sparam_out;
 			}
 
-			phba->hba_flag |= HBA_DEFER_FLOGI;
+			set_bit(HBA_DEFER_FLOGI, &phba->hba_flag);
 		}  else {
 			lpfc_initial_flogi(vport);
 		}
@@ -1617,27 +1625,23 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_unlock_irq(&phba->hbalock);
 
 	/* If there is a pending FCoE event, restart FCF table scan. */
-	if ((!(phba->hba_flag & FCF_RR_INPROG)) &&
-		lpfc_check_pending_fcoe_event(phba, LPFC_UNREG_FCF))
+	if (!test_bit(FCF_RR_INPROG, &phba->hba_flag) &&
+	    lpfc_check_pending_fcoe_event(phba, LPFC_UNREG_FCF))
 		goto fail_out;
 
 	/* Mark successful completion of FCF table scan */
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag |= (FCF_SCAN_DONE | FCF_IN_USE);
-	phba->hba_flag &= ~FCF_TS_INPROG;
-	if (vport->port_state != LPFC_FLOGI) {
-		phba->hba_flag |= FCF_RR_INPROG;
-		spin_unlock_irq(&phba->hbalock);
-		lpfc_issue_init_vfi(vport);
-		goto out;
-	}
 	spin_unlock_irq(&phba->hbalock);
+	clear_bit(FCF_TS_INPROG, &phba->hba_flag);
+	if (vport->port_state != LPFC_FLOGI) {
+		set_bit(FCF_RR_INPROG, &phba->hba_flag);
+		lpfc_issue_init_vfi(vport);
+	}
 	goto out;
 
 fail_out:
-	spin_lock_irq(&phba->hbalock);
-	phba->hba_flag &= ~FCF_RR_INPROG;
-	spin_unlock_irq(&phba->hbalock);
+	clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 out:
 	mempool_free(mboxq, phba->mbox_mem_pool);
 }
@@ -1867,32 +1871,31 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	/* If the FCF is not available do nothing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
-		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
 		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		return;
 	}
 
 	/* The FCF is already registered, start discovery */
 	if (phba->fcf.fcf_flag & FCF_REGISTERED) {
 		phba->fcf.fcf_flag |= (FCF_SCAN_DONE | FCF_IN_USE);
-		phba->hba_flag &= ~FCF_TS_INPROG;
+		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
 		if (phba->pport->port_state != LPFC_FLOGI &&
 		    test_bit(FC_FABRIC, &phba->pport->fc_flag)) {
-			phba->hba_flag |= FCF_RR_INPROG;
-			spin_unlock_irq(&phba->hbalock);
+			set_bit(FCF_RR_INPROG, &phba->hba_flag);
 			lpfc_initial_flogi(phba->pport);
 			return;
 		}
-		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
 	spin_unlock_irq(&phba->hbalock);
 
 	fcf_mbxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!fcf_mbxq) {
-		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
-		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		return;
 	}
 
@@ -1901,9 +1904,8 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	fcf_mbxq->mbox_cmpl = lpfc_mbx_cmpl_reg_fcfi;
 	rc = lpfc_sli_issue_mbox(phba, fcf_mbxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
-		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		mempool_free(fcf_mbxq, phba->mbox_mem_pool);
 	}
 
@@ -1956,7 +1958,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 	    bf_get(lpfc_fcf_record_fcf_sol, new_fcf_record))
 		return 0;
 
-	if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
+	if (!test_bit(HBA_FIP_SUPPORT, &phba->hba_flag)) {
 		*boot_flag = 0;
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
 				new_fcf_record);
@@ -2151,8 +2153,9 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2833 Stop FCF discovery process due to link "
 				"state change (x%x)\n", phba->link_state);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
 		phba->fcf.fcf_flag &= ~(FCF_REDISC_FOV | FCF_DISCOVERY);
 		spin_unlock_irq(&phba->hbalock);
 	}
@@ -2380,9 +2383,7 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 	int rc;
 
 	if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
-		spin_lock_irq(&phba->hbalock);
-		if (phba->hba_flag & HBA_DEVLOSS_TMO) {
-			spin_unlock_irq(&phba->hbalock);
+		if (test_bit(HBA_DEVLOSS_TMO, &phba->hba_flag)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 					"2872 Devloss tmo with no eligible "
 					"FCF, unregister in-use FCF (x%x) "
@@ -2392,8 +2393,9 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *vport, uint16_t fcf_index)
 			goto stop_flogi_current_fcf;
 		}
 		/* Mark the end to FLOGI roundrobin failover */
-		phba->hba_flag &= ~FCF_RR_INPROG;
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		/* Allow action to new fcf asynchronous event */
+		spin_lock_irq(&phba->hbalock);
 		phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
 		spin_unlock_irq(&phba->hbalock);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
@@ -2630,9 +2632,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				"2765 Mailbox command READ_FCF_RECORD "
 				"failed to retrieve a FCF record.\n");
 		/* Let next new FCF event trigger fast failover */
-		spin_lock_irq(&phba->hbalock);
-		phba->hba_flag &= ~FCF_TS_INPROG;
-		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_TS_INPROG, &phba->hba_flag);
 		lpfc_sli4_mbox_cmd_free(phba, mboxq);
 		return;
 	}
@@ -2873,10 +2873,10 @@ read_next_fcf:
 					       phba->fcoe_eventtag_at_fcf_scan,
 					       bf_get(lpfc_fcf_record_fcf_index,
 						      new_fcf_record));
-				spin_lock_irq(&phba->hbalock);
-				if (phba->hba_flag & HBA_DEVLOSS_TMO) {
-					phba->hba_flag &= ~FCF_TS_INPROG;
-					spin_unlock_irq(&phba->hbalock);
+				if (test_bit(HBA_DEVLOSS_TMO,
+					     &phba->hba_flag)) {
+					clear_bit(FCF_TS_INPROG,
+						  &phba->hba_flag);
 					/* Unregister in-use FCF and rescan */
 					lpfc_printf_log(phba, KERN_INFO,
 							LOG_FIP,
@@ -2889,8 +2889,7 @@ read_next_fcf:
 				/*
 				 * Let next new FCF event trigger fast failover
 				 */
-				phba->hba_flag &= ~FCF_TS_INPROG;
-				spin_unlock_irq(&phba->hbalock);
+				clear_bit(FCF_TS_INPROG, &phba->hba_flag);
 				return;
 			}
 			/*
@@ -2996,8 +2995,8 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (phba->link_state < LPFC_LINK_UP) {
 		spin_lock_irq(&phba->hbalock);
 		phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-		phba->hba_flag &= ~FCF_RR_INPROG;
 		spin_unlock_irq(&phba->hbalock);
+		clear_bit(FCF_RR_INPROG, &phba->hba_flag);
 		goto out;
 	}
 
@@ -3008,7 +3007,7 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
 				"2766 Mailbox command READ_FCF_RECORD "
 				"failed to retrieve a FCF record. "
-				"hba_flg x%x fcf_flg x%x\n", phba->hba_flag,
+				"hba_flg x%lx fcf_flg x%x\n", phba->hba_flag,
 				phba->fcf.fcf_flag);
 		lpfc_unregister_fcf_rescan(phba);
 		goto out;
@@ -3471,9 +3470,9 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Check if sending the FLOGI is being deferred to after we get
 	 * up to date CSPs from MBX_READ_SPARAM.
 	 */
-	if (phba->hba_flag & HBA_DEFER_FLOGI) {
+	if (test_bit(HBA_DEFER_FLOGI, &phba->hba_flag)) {
 		lpfc_initial_flogi(vport);
-		phba->hba_flag &= ~HBA_DEFER_FLOGI;
+		clear_bit(HBA_DEFER_FLOGI, &phba->hba_flag);
 	}
 	return;
 
@@ -3495,7 +3494,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
 		case LPFC_LINK_SPEED_1GHZ:
 		case LPFC_LINK_SPEED_2GHZ:
@@ -3611,7 +3610,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		goto out;
 	}
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!cfglink_mbox)
 			goto out;
@@ -3631,7 +3630,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		 * is phase 1 implementation that support FCF index 0 and driver
 		 * defaults.
 		 */
-		if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
+		if (!test_bit(HBA_FIP_SUPPORT, &phba->hba_flag)) {
 			fcf_record = kzalloc(sizeof(struct fcf_record),
 					GFP_KERNEL);
 			if (unlikely(!fcf_record)) {
@@ -3661,12 +3660,10 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		 * The driver is expected to do FIP/FCF. Call the port
 		 * and get the FCF Table.
 		 */
-		spin_lock_irqsave(&phba->hbalock, iflags);
-		if (phba->hba_flag & FCF_TS_INPROG) {
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
+		if (test_bit(FCF_TS_INPROG, &phba->hba_flag))
 			return;
-		}
 		/* This is the initial FCF discovery scan */
+		spin_lock_irqsave(&phba->hbalock, iflags);
 		phba->fcf.fcf_flag |= FCF_INIT_DISC;
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
@@ -5736,7 +5733,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 				return ndlp;
 
 			if (ndlp->nlp_state > NLP_STE_UNUSED_NODE &&
-			    ndlp->nlp_state < NLP_STE_PRLI_ISSUE) {
+			    ndlp->nlp_state <= NLP_STE_PRLI_ISSUE) {
 				lpfc_disc_state_machine(vport, ndlp, NULL,
 							NLP_EVT_DEVICE_RECOVERY);
 			}
@@ -6997,11 +6994,11 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	 * registered, do nothing.
 	 */
 	spin_lock_irq(&phba->hbalock);
-	if (!(phba->hba_flag & HBA_FCOE_MODE) ||
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag) ||
 	    !(phba->fcf.fcf_flag & FCF_REGISTERED) ||
-	    !(phba->hba_flag & HBA_FIP_SUPPORT) ||
+	    !test_bit(HBA_FIP_SUPPORT, &phba->hba_flag) ||
 	    (phba->fcf.fcf_flag & FCF_DISCOVERY) ||
-	    (phba->pport->port_state == LPFC_FLOGI)) {
+	    phba->pport->port_state == LPFC_FLOGI) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
 	}

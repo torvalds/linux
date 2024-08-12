@@ -196,6 +196,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	if (!pmu)
 		return -ENOMEM;
 
+	pmu->pmu.parent = &pdev->dev;
 	pmu->plat_device = pdev;
 
 	ret = pmu_parse_irqs(pmu);

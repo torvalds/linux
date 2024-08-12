@@ -35,9 +35,9 @@ static bool engine_supports_migration(struct intel_engine_cs *engine)
 	return true;
 }
 
-static void xehpsdv_toggle_pdes(struct i915_address_space *vm,
-				struct i915_page_table *pt,
-				void *data)
+static void xehp_toggle_pdes(struct i915_address_space *vm,
+			     struct i915_page_table *pt,
+			     void *data)
 {
 	struct insert_pte_data *d = data;
 
@@ -52,9 +52,9 @@ static void xehpsdv_toggle_pdes(struct i915_address_space *vm,
 	d->offset += SZ_2M;
 }
 
-static void xehpsdv_insert_pte(struct i915_address_space *vm,
-			       struct i915_page_table *pt,
-			       void *data)
+static void xehp_insert_pte(struct i915_address_space *vm,
+			    struct i915_page_table *pt,
+			    void *data)
 {
 	struct insert_pte_data *d = data;
 
@@ -120,7 +120,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 	 * 512 entry layout using 4K GTT pages. The other two windows just map
 	 * lmem pages and must use the new compact 32 entry layout using 64K GTT
 	 * pages, which ensures we can address any lmem object that the user
-	 * throws at us. We then also use the xehpsdv_toggle_pdes as a way of
+	 * throws at us. We then also use the xehp_toggle_pdes as a way of
 	 * just toggling the PDE bit(GEN12_PDE_64K) for us, to enable the
 	 * compact layout for each of these page-tables, that fall within the
 	 * [CHUNK_SIZE, 3 * CHUNK_SIZE) range.
@@ -209,12 +209,12 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 		/* Now allow the GPU to rewrite the PTE via its own ppGTT */
 		if (HAS_64K_PAGES(gt->i915)) {
 			vm->vm.foreach(&vm->vm, base, d.offset - base,
-				       xehpsdv_insert_pte, &d);
+				       xehp_insert_pte, &d);
 			d.offset = base + CHUNK_SZ;
 			vm->vm.foreach(&vm->vm,
 				       d.offset,
 				       2 * CHUNK_SZ,
-				       xehpsdv_toggle_pdes, &d);
+				       xehp_toggle_pdes, &d);
 		} else {
 			vm->vm.foreach(&vm->vm, base, d.offset - base,
 				       insert_pte, &d);
@@ -925,7 +925,7 @@ static int emit_clear(struct i915_request *rq, u32 offset, int size,
 
 	GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 		ring_sz = XY_FAST_COLOR_BLT_DW;
 	else if (ver >= 8)
 		ring_sz = 8;
@@ -936,7 +936,7 @@ static int emit_clear(struct i915_request *rq, u32 offset, int size,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		*cs++ = XY_FAST_COLOR_BLT_CMD | XY_FAST_COLOR_BLT_DEPTH_32 |
 			(XY_FAST_COLOR_BLT_DW - 2);
 		*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, mocs) |

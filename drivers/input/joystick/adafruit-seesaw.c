@@ -56,7 +56,7 @@
 #define SEESAW_GAMEPAD_POLL_MIN		8
 #define SEESAW_GAMEPAD_POLL_MAX		32
 
-static const unsigned long SEESAW_BUTTON_MASK =
+static const u32 SEESAW_BUTTON_MASK =
 	BIT(SEESAW_BUTTON_A) | BIT(SEESAW_BUTTON_B) | BIT(SEESAW_BUTTON_X) |
 	BIT(SEESAW_BUTTON_Y) | BIT(SEESAW_BUTTON_START) |
 	BIT(SEESAW_BUTTON_SELECT);
@@ -64,6 +64,7 @@ static const unsigned long SEESAW_BUTTON_MASK =
 struct seesaw_gamepad {
 	struct input_dev *input_dev;
 	struct i2c_client *i2c_client;
+	u32 button_state;
 };
 
 struct seesaw_data {
@@ -178,10 +179,20 @@ static int seesaw_read_data(struct i2c_client *client, struct seesaw_data *data)
 	return 0;
 }
 
+static int seesaw_open(struct input_dev *input)
+{
+	struct seesaw_gamepad *private = input_get_drvdata(input);
+
+	private->button_state = 0;
+
+	return 0;
+}
+
 static void seesaw_poll(struct input_dev *input)
 {
 	struct seesaw_gamepad *private = input_get_drvdata(input);
 	struct seesaw_data data;
+	unsigned long changed;
 	int err, i;
 
 	err = seesaw_read_data(private->i2c_client, &data);
@@ -194,8 +205,11 @@ static void seesaw_poll(struct input_dev *input)
 	input_report_abs(input, ABS_X, data.x);
 	input_report_abs(input, ABS_Y, data.y);
 
-	for_each_set_bit(i, &SEESAW_BUTTON_MASK,
-			 BITS_PER_TYPE(SEESAW_BUTTON_MASK)) {
+	data.button_state &= SEESAW_BUTTON_MASK;
+	changed = private->button_state ^ data.button_state;
+	private->button_state = data.button_state;
+
+	for_each_set_bit(i, &changed, fls(SEESAW_BUTTON_MASK)) {
 		if (!sparse_keymap_report_event(input, i,
 						data.button_state & BIT(i),
 						false))
@@ -253,6 +267,7 @@ static int seesaw_probe(struct i2c_client *client)
 	seesaw->input_dev->id.bustype = BUS_I2C;
 	seesaw->input_dev->name = "Adafruit Seesaw Gamepad";
 	seesaw->input_dev->phys = "i2c/" SEESAW_DEVICE_NAME;
+	seesaw->input_dev->open = seesaw_open;
 	input_set_drvdata(seesaw->input_dev, seesaw);
 	input_set_abs_params(seesaw->input_dev, ABS_X,
 			     0, SEESAW_JOYSTICK_MAX_AXIS,

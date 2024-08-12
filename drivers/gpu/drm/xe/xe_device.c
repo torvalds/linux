@@ -5,10 +5,12 @@
 
 #include "xe_device.h"
 
+#include <linux/delay.h>
 #include <linux/units.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
@@ -16,24 +18,31 @@
 #include <drm/xe_drm.h>
 
 #include "display/xe_display.h"
+#include "instructions/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_debugfs.h"
+#include "xe_devcoredump.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
 #include "xe_drv.h"
 #include "xe_exec.h"
 #include "xe_exec_queue.h"
+#include "xe_force_wake.h"
 #include "xe_ggtt.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_hwmon.h"
 #include "xe_irq.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_observation.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
@@ -43,13 +52,8 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
+#include "xe_vram.h"
 #include "xe_wait_user_fence.h"
-
-#ifdef CONFIG_LOCKDEP
-struct lockdep_map xe_device_mem_access_lockdep_map = {
-	.name = "xe_device_mem_access_lockdep_map"
-};
-#endif
 
 static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -94,12 +98,16 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	struct xe_exec_queue *q;
 	unsigned long idx;
 
-	mutex_lock(&xef->exec_queue.lock);
+	/*
+	 * No need for exec_queue.lock here as there is no contention for it
+	 * when FD is closing as IOCTLs presumably can't be modifying the
+	 * xarray. Taking exec_queue.lock here causes undue dependency on
+	 * vm->lock taken during xe_exec_queue_kill().
+	 */
 	xa_for_each(&xef->exec_queue.xa, idx, q) {
 		xe_exec_queue_kill(q);
 		xe_exec_queue_put(q);
 	}
-	mutex_unlock(&xef->exec_queue.lock);
 	xa_destroy(&xef->exec_queue.xa);
 	mutex_destroy(&xef->exec_queue.lock);
 	mutex_lock(&xef->vm.lock);
@@ -134,29 +142,62 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_WAIT_USER_FENCE, xe_wait_user_fence_ioctl,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(XE_OBSERVATION, xe_observation_ioctl, DRM_RENDER_ALLOW),
 };
+
+static long xe_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct drm_file *file_priv = file->private_data;
+	struct xe_device *xe = to_xe_device(file_priv->minor->dev);
+	long ret;
+
+	if (xe_device_wedged(xe))
+		return -ECANCELED;
+
+	ret = xe_pm_runtime_get_ioctl(xe);
+	if (ret >= 0)
+		ret = drm_ioctl(file, cmd, arg);
+	xe_pm_runtime_put(xe);
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long xe_drm_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct drm_file *file_priv = file->private_data;
+	struct xe_device *xe = to_xe_device(file_priv->minor->dev);
+	long ret;
+
+	if (xe_device_wedged(xe))
+		return -ECANCELED;
+
+	ret = xe_pm_runtime_get_ioctl(xe);
+	if (ret >= 0)
+		ret = drm_compat_ioctl(file, cmd, arg);
+	xe_pm_runtime_put(xe);
+
+	return ret;
+}
+#else
+/* similarly to drm_compat_ioctl, let's it be assigned to .compat_ioct unconditionally */
+#define xe_drm_compat_ioctl NULL
+#endif
 
 static const struct file_operations xe_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release_noglobal,
-	.unlocked_ioctl = drm_ioctl,
+	.unlocked_ioctl = xe_drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-	.compat_ioctl = drm_compat_ioctl,
+	.compat_ioctl = xe_drm_compat_ioctl,
 	.llseek = noop_llseek,
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
 };
-
-static void xe_driver_release(struct drm_device *dev)
-{
-	struct xe_device *xe = to_xe_device(dev);
-
-	pci_set_drvdata(to_pci_dev(xe->drm.dev), NULL);
-}
 
 static struct drm_driver driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
@@ -176,8 +217,6 @@ static struct drm_driver driver = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = xe_drm_client_fdinfo,
 #endif
-	.release = &xe_driver_release,
-
 	.ioctls = xe_ioctls,
 	.num_ioctls = ARRAY_SIZE(xe_ioctls),
 	.fops = &xe_driver_fops,
@@ -192,6 +231,9 @@ static struct drm_driver driver = {
 static void xe_device_destroy(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
+
+	if (xe->preempt_fence_wq)
+		destroy_workqueue(xe->preempt_fence_wq);
 
 	if (xe->ordered_wq)
 		destroy_workqueue(xe->ordered_wq);
@@ -237,7 +279,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	init_waitqueue_head(&xe->ufence_wq);
 
-	drmm_mutex_init(&xe->drm, &xe->usm.lock);
+	err = drmm_mutex_init(&xe->drm, &xe->usm.lock);
+	if (err)
+		goto err;
+
 	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC);
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
@@ -258,9 +303,15 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&xe->pinned.external_vram);
 	INIT_LIST_HEAD(&xe->pinned.evicted);
 
+	xe->preempt_fence_wq = alloc_ordered_workqueue("xe-preempt-fence-wq", 0);
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
 	xe->unordered_wq = alloc_workqueue("xe-unordered-wq", 0, 0);
-	if (!xe->ordered_wq || !xe->unordered_wq) {
+	if (!xe->ordered_wq || !xe->unordered_wq ||
+	    !xe->preempt_fence_wq) {
+		/*
+		 * Cleanup done in xe_device_destroy via
+		 * drmm_add_action_or_reset register above
+		 */
 		drm_err(&xe->drm, "Failed to allocate xe workqueues\n");
 		err = -ENOMEM;
 		goto err;
@@ -340,7 +391,7 @@ static void xe_driver_flr(struct xe_device *xe)
 	xe_mmio_write32(gt, GU_DEBUG, DRIVERFLR_STATUS);
 }
 
-static void xe_driver_flr_fini(struct drm_device *drm, void *arg)
+static void xe_driver_flr_fini(void *arg)
 {
 	struct xe_device *xe = arg;
 
@@ -348,7 +399,7 @@ static void xe_driver_flr_fini(struct drm_device *drm, void *arg)
 		xe_driver_flr(xe);
 }
 
-static void xe_device_sanitize(struct drm_device *drm, void *arg)
+static void xe_device_sanitize(void *arg)
 {
 	struct xe_device *xe = arg;
 	struct xe_gt *gt;
@@ -380,8 +431,81 @@ mask_err:
 	return err;
 }
 
-/*
- * Initialize MMIO resources that don't require any knowledge about tile count.
+static bool verify_lmem_ready(struct xe_gt *gt)
+{
+	u32 val = xe_mmio_read32(gt, GU_CNTL) & LMEM_INIT;
+
+	return !!val;
+}
+
+static int wait_for_lmem_ready(struct xe_device *xe)
+{
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	unsigned long timeout, start;
+
+	if (!IS_DGFX(xe))
+		return 0;
+
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
+	if (verify_lmem_ready(gt))
+		return 0;
+
+	drm_dbg(&xe->drm, "Waiting for lmem initialization\n");
+
+	start = jiffies;
+	timeout = start + msecs_to_jiffies(60 * 1000); /* 60 sec! */
+
+	do {
+		if (signal_pending(current))
+			return -EINTR;
+
+		/*
+		 * The boot firmware initializes local memory and
+		 * assesses its health. If memory training fails,
+		 * the punit will have been instructed to keep the GT powered
+		 * down.we won't be able to communicate with it
+		 *
+		 * If the status check is done before punit updates the register,
+		 * it can lead to the system being unusable.
+		 * use a timeout and defer the probe to prevent this.
+		 */
+		if (time_after(jiffies, timeout)) {
+			drm_dbg(&xe->drm, "lmem not initialized by firmware\n");
+			return -EPROBE_DEFER;
+		}
+
+		msleep(20);
+
+	} while (!verify_lmem_ready(gt));
+
+	drm_dbg(&xe->drm, "lmem ready after %ums",
+		jiffies_to_msecs(jiffies - start));
+
+	return 0;
+}
+
+static void update_device_info(struct xe_device *xe)
+{
+	/* disable features that are not available/applicable to VFs */
+	if (IS_SRIOV_VF(xe)) {
+		xe->info.enable_display = 0;
+		xe->info.has_heci_gscfi = 0;
+		xe->info.skip_guc_pc = 1;
+		xe->info.skip_pcode = 1;
+	}
+}
+
+/**
+ * xe_device_probe_early: Device early probe
+ * @xe: xe device instance
+ *
+ * Initialize MMIO resources that don't require any
+ * knowledge about tile count. Also initialize pcode and
+ * check vram initialization on root tile.
+ *
+ * Return: 0 on success, error code on failure
  */
 int xe_device_probe_early(struct xe_device *xe)
 {
@@ -391,9 +515,19 @@ int xe_device_probe_early(struct xe_device *xe)
 	if (err)
 		return err;
 
-	err = xe_mmio_root_tile_init(xe);
+	xe_sriov_probe_early(xe);
+
+	update_device_info(xe);
+
+	err = xe_pcode_probe_early(xe);
 	if (err)
 		return err;
+
+	err = wait_for_lmem_ready(xe);
+	if (err)
+		return err;
+
+	xe->wedged.mode = xe_modparam.wedged_mode;
 
 	return 0;
 }
@@ -445,14 +579,28 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	xe_mmio_probe_tiles(xe);
+	err = xe_mmio_probe_tiles(xe);
+	if (err)
+		return err;
 
 	xe_ttm_sys_mgr_init(xe);
 
-	for_each_gt(gt, xe, id)
-		xe_force_wake_init_gt(gt, gt_to_fw(gt));
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_init_early(gt);
+		if (err)
+			return err;
+	}
 
 	for_each_tile(tile, xe, id) {
+		if (IS_SRIOV_VF(xe)) {
+			xe_guc_comm_init_early(&tile->primary_gt->uc.guc);
+			err = xe_gt_sriov_vf_bootstrap(tile->primary_gt);
+			if (err)
+				return err;
+			err = xe_gt_sriov_vf_query_config(tile->primary_gt);
+			if (err)
+				return err;
+		}
 		err = xe_ggtt_init_early(tile->mem.ggtt);
 		if (err)
 			return err;
@@ -469,15 +617,12 @@ int xe_device_probe(struct xe_device *xe)
 			return err;
 	}
 
-	err = drmm_add_action_or_reset(&xe->drm, xe_driver_flr_fini, xe);
+	err = xe_devcoredump_init(xe);
 	if (err)
 		return err;
-
-	for_each_gt(gt, xe, id) {
-		err = xe_pcode_probe(gt);
-		if (err)
-			return err;
-	}
+	err = devm_add_action_or_reset(xe->drm.dev, xe_driver_flr_fini, xe);
+	if (err)
+		return err;
 
 	err = xe_display_init_noirq(xe);
 	if (err)
@@ -487,24 +632,18 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err;
 
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_init_early(gt);
-		if (err)
-			goto err_irq_shutdown;
-	}
-
 	err = xe_device_set_has_flat_ccs(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
-	err = xe_mmio_probe_vram(xe);
+	err = xe_vram_probe(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
 	for_each_tile(tile, xe, id) {
 		err = xe_tile_init_noalloc(tile);
 		if (err)
-			goto err_irq_shutdown;
+			goto err;
 	}
 
 	/* Allocate and map stolen after potential VRAM resize */
@@ -518,7 +657,7 @@ int xe_device_probe(struct xe_device *xe)
 	 */
 	err = xe_display_init_noaccel(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
 	for_each_gt(gt, xe, id) {
 		last_gt = id;
@@ -530,9 +669,13 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_heci_gsc_init(xe);
 
-	err = xe_display_init(xe);
+	err = xe_oa_init(xe);
 	if (err)
 		goto err_fini_gt;
+
+	err = xe_display_init(xe);
+	if (err)
+		goto err_fini_oa;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
@@ -540,18 +683,22 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_display_register(xe);
 
+	xe_oa_register(xe);
+
 	xe_debugfs_register(xe);
 
 	xe_hwmon_register(xe);
 
-	err = drmm_add_action_or_reset(&xe->drm, xe_device_sanitize, xe);
-	if (err)
-		return err;
+	for_each_gt(gt, xe, id)
+		xe_gt_sanitize_freq(gt);
 
-	return 0;
+	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
 err_fini_display:
 	xe_display_driver_remove(xe);
+
+err_fini_oa:
+	xe_oa_fini(xe);
 
 err_fini_gt:
 	for_each_gt(gt, xe, id) {
@@ -561,8 +708,6 @@ err_fini_gt:
 			break;
 	}
 
-err_irq_shutdown:
-	xe_irq_shutdown(xe);
 err:
 	xe_display_fini(xe);
 	return err;
@@ -581,16 +726,18 @@ void xe_device_remove(struct xe_device *xe)
 	struct xe_gt *gt;
 	u8 id;
 
+	xe_oa_unregister(xe);
+
 	xe_device_remove_display(xe);
 
 	xe_display_fini(xe);
+
+	xe_oa_fini(xe);
 
 	xe_heci_gsc_fini(xe);
 
 	for_each_gt(gt, xe, id)
 		xe_gt_remove(gt);
-
-	xe_irq_shutdown(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)
@@ -606,93 +753,75 @@ void xe_device_wmb(struct xe_device *xe)
 		xe_mmio_write32(gt, SOFTWARE_FLAGS_SPR33, 0);
 }
 
+/**
+ * xe_device_td_flush() - Flush transient L3 cache entries
+ * @xe: The device
+ *
+ * Display engine has direct access to memory and is never coherent with L3/L4
+ * caches (or CPU caches), however KMD is responsible for specifically flushing
+ * transient L3 GPU cache entries prior to the flip sequence to ensure scanout
+ * can happen from such a surface without seeing corruption.
+ *
+ * Display surfaces can be tagged as transient by mapping it using one of the
+ * various L3:XD PAT index modes on Xe2.
+ *
+ * Note: On non-discrete xe2 platforms, like LNL, the entire L3 cache is flushed
+ * at the end of each submission via PIPE_CONTROL for compute/render, since SA
+ * Media is not coherent with L3 and we want to support render-vs-media
+ * usescases. For other engines like copy/blt the HW internally forces uncached
+ * behaviour, hence why we can skip the TDF on such platforms.
+ */
+void xe_device_td_flush(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	u8 id;
+
+	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) < 20)
+		return;
+
+	for_each_gt(gt, xe, id) {
+		if (xe_gt_is_media_type(gt))
+			continue;
+
+		if (xe_force_wake_get(gt_to_fw(gt), XE_FW_GT))
+			return;
+
+		xe_mmio_write32(gt, XE2_TDF_CTRL, TRANSIENT_FLUSH_REQUEST);
+		/*
+		 * FIXME: We can likely do better here with our choice of
+		 * timeout. Currently we just assume the worst case, i.e. 150us,
+		 * which is believed to be sufficient to cover the worst case
+		 * scenario on current platforms if all cache entries are
+		 * transient and need to be flushed..
+		 */
+		if (xe_mmio_wait32(gt, XE2_TDF_CTRL, TRANSIENT_FLUSH_REQUEST, 0,
+				   150, NULL, false))
+			xe_gt_err_once(gt, "TD flush timeout\n");
+
+		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+	}
+}
+
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)
 {
 	return xe_device_has_flat_ccs(xe) ?
 		DIV_ROUND_UP_ULL(size, NUM_BYTES_PER_CCS_BYTE(xe)) : 0;
 }
 
-bool xe_device_mem_access_ongoing(struct xe_device *xe)
-{
-	if (xe_pm_read_callback_task(xe) != NULL)
-		return true;
-
-	return atomic_read(&xe->mem_access.ref);
-}
-
+/**
+ * xe_device_assert_mem_access - Inspect the current runtime_pm state.
+ * @xe: xe device instance
+ *
+ * To be used before any kind of memory access. It will splat a debug warning
+ * if the device is currently sleeping. But it doesn't guarantee in any way
+ * that the device is going to remain awake. Xe PM runtime get and put
+ * functions might be added to the outer bound of the memory access, while
+ * this check is intended for inner usage to splat some warning if the worst
+ * case has just happened.
+ */
 void xe_device_assert_mem_access(struct xe_device *xe)
 {
-	XE_WARN_ON(!xe_device_mem_access_ongoing(xe));
-}
-
-bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)
-{
-	bool active;
-
-	if (xe_pm_read_callback_task(xe) == current)
-		return true;
-
-	active = xe_pm_runtime_get_if_active(xe);
-	if (active) {
-		int ref = atomic_inc_return(&xe->mem_access.ref);
-
-		xe_assert(xe, ref != S32_MAX);
-	}
-
-	return active;
-}
-
-void xe_device_mem_access_get(struct xe_device *xe)
-{
-	int ref;
-
-	/*
-	 * This looks racy, but should be fine since the pm_callback_task only
-	 * transitions from NULL -> current (and back to NULL again), during the
-	 * runtime_resume() or runtime_suspend() callbacks, for which there can
-	 * only be a single one running for our device. We only need to prevent
-	 * recursively calling the runtime_get or runtime_put from those
-	 * callbacks, as well as preventing triggering any access_ongoing
-	 * asserts.
-	 */
-	if (xe_pm_read_callback_task(xe) == current)
-		return;
-
-	/*
-	 * Since the resume here is synchronous it can be quite easy to deadlock
-	 * if we are not careful. Also in practice it might be quite timing
-	 * sensitive to ever see the 0 -> 1 transition with the callers locks
-	 * held, so deadlocks might exist but are hard for lockdep to ever see.
-	 * With this in mind, help lockdep learn about the potentially scary
-	 * stuff that can happen inside the runtime_resume callback by acquiring
-	 * a dummy lock (it doesn't protect anything and gets compiled out on
-	 * non-debug builds).  Lockdep then only needs to see the
-	 * mem_access_lockdep_map -> runtime_resume callback once, and then can
-	 * hopefully validate all the (callers_locks) -> mem_access_lockdep_map.
-	 * For example if the (callers_locks) are ever grabbed in the
-	 * runtime_resume callback, lockdep should give us a nice splat.
-	 */
-	lock_map_acquire(&xe_device_mem_access_lockdep_map);
-	lock_map_release(&xe_device_mem_access_lockdep_map);
-
-	xe_pm_runtime_get(xe);
-	ref = atomic_inc_return(&xe->mem_access.ref);
-
-	xe_assert(xe, ref != S32_MAX);
-
-}
-
-void xe_device_mem_access_put(struct xe_device *xe)
-{
-	int ref;
-
-	if (xe_pm_read_callback_task(xe) == current)
-		return;
-
-	ref = atomic_dec_return(&xe->mem_access.ref);
-	xe_pm_runtime_put(xe);
-
-	xe_assert(xe, ref >= 0);
+	xe_assert(xe, !xe_pm_runtime_suspended(xe));
 }
 
 void xe_device_snapshot_print(struct xe_device *xe, struct drm_printer *p)
@@ -723,4 +852,55 @@ u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address)
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
 {
 	return address & GENMASK_ULL(xe->info.va_bits - 1, 0);
+}
+
+static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_device *xe = arg;
+
+	xe_pm_runtime_put(xe);
+}
+
+/**
+ * xe_device_declare_wedged - Declare device wedged
+ * @xe: xe device instance
+ *
+ * This is a final state that can only be cleared with a mudule
+ * re-probe (unbind + bind).
+ * In this state every IOCTL will be blocked so the GT cannot be used.
+ * In general it will be called upon any critical error such as gt reset
+ * failure or guc loading failure.
+ * If xe.wedged module parameter is set to 2, this function will be called
+ * on every single execution timeout (a.k.a. GPU hang) right after devcoredump
+ * snapshot capture. In this mode, GT reset won't be attempted so the state of
+ * the issue is preserved for further debugging.
+ */
+void xe_device_declare_wedged(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	u8 id;
+
+	if (xe->wedged.mode == 0) {
+		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
+		return;
+	}
+
+	if (drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe)) {
+		drm_err(&xe->drm, "Failed to register xe_device_wedged_fini clean-up. Although device is wedged.\n");
+		return;
+	}
+
+	xe_pm_runtime_get_noresume(xe);
+
+	if (!atomic_xchg(&xe->wedged.flag, 1)) {
+		xe->needs_flr_on_fini = true;
+		drm_err(&xe->drm,
+			"CRITICAL: Xe has declared device %s as wedged.\n"
+			"IOCTLs and executions are blocked. Only a rebind may clear the failure\n"
+			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
+			dev_name(xe->drm.dev));
+	}
+
+	for_each_gt(gt, xe, id)
+		xe_gt_declare_wedged(gt);
 }

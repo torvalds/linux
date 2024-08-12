@@ -39,6 +39,7 @@
 #include "panel_cntl.h"
 #include "dmub/inc/dmub_cmd.h"
 #include "pg_cntl.h"
+#include "spl/dc_spl.h"
 
 #define MAX_CLOCK_SOURCES 7
 #define MAX_SVP_PHANTOM_STREAMS 2
@@ -59,6 +60,9 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 /********** DAL Core*********************/
 #include "transform.h"
 #include "dpp.h"
+
+#include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2/dml21/inc/dml_top_types.h"
 
 struct resource_pool;
 struct dc_state;
@@ -90,6 +94,12 @@ struct resource_funcs {
 	void (*update_soc_for_wm_a)(
 				struct dc *dc, struct dc_state *context);
 
+	unsigned int (*calculate_mall_ways_from_bytes)(
+				const struct dc *dc,
+				unsigned int total_size_in_mall_bytes);
+	void (*prepare_mcache_programming)(
+					struct dc *dc,
+					struct dc_state *context);
 	/**
 	 * @populate_dml_pipes - Populate pipe data struct
 	 *
@@ -156,6 +166,7 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
+
 	enum dc_status (*patch_unknown_plane_state)(
 			struct dc_plane_state *plane_state);
 
@@ -163,6 +174,7 @@ struct resource_funcs {
 			struct resource_context *res_ctx,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
+
 	void (*populate_dml_writeback_from_context)(
 			struct dc *dc,
 			struct resource_context *res_ctx,
@@ -173,6 +185,7 @@ struct resource_funcs {
 			struct dc_state *context,
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
+
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
 			struct clk_bw_params *bw_params);
@@ -289,7 +302,6 @@ struct resource_pool {
 	struct abm *abm;
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
-
 	struct dmub_replay *replay;
 
 	struct abm *multiple_abms[MAX_PIPES];
@@ -336,7 +348,16 @@ struct stream_resource {
 };
 
 struct plane_resource {
+	/* scl_data is scratch space required to program a plane */
 	struct scaler_data scl_data;
+	/* Below pointers to hw objects are required to enable the plane */
+	/* spl_in and spl_out are the input and output structures for SPL
+	 * which are required when using Scaler Programming Library
+	 * these are scratch spaces needed when programming a plane
+	 */
+	struct spl_in spl_in;
+	struct spl_out spl_out;
+	/* Below pointers to hw objects are required to enable the plane */
 	struct hubp *hubp;
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
@@ -379,6 +400,11 @@ union pipe_update_flags {
 		uint32_t test_pattern_changed : 1;
 	} bits;
 	uint32_t raw;
+};
+
+struct pixel_rate_divider {
+	uint32_t div_factor1;
+	uint32_t div_factor2;
 };
 
 enum p_state_switch_method {
@@ -435,6 +461,8 @@ struct pipe_ctx {
 	int det_buffer_size_kb;
 	bool unbounded_req;
 	unsigned int surface_size_in_mall_bytes;
+	struct dml2_dchub_per_pipe_register_set hubp_regs;
+	struct dml2_hubp_pipe_mcache_regs mcache_regs;
 
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
@@ -444,6 +472,7 @@ struct pipe_ctx {
 	bool has_vactive_margin;
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
+	struct pixel_rate_divider pixel_rate_divider;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -496,7 +525,7 @@ struct dcn_bw_writeback {
 
 struct dcn_bw_output {
 	struct dc_clocks clk;
-	struct dcn_watermark_set watermarks;
+	union dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
 	unsigned int mall_ss_size_bytes;
@@ -504,6 +533,10 @@ struct dcn_bw_output {
 	unsigned int mall_subvp_size_bytes;
 	unsigned int legacy_svp_drr_stream_index;
 	bool legacy_svp_drr_stream_index_valid;
+	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
+	struct dmub_fams2_stream_static_state fams2_stream_params[DML2_MAX_PLANES];
+	unsigned fams2_stream_count;
+	struct dml2_display_arb_regs arb_regs;
 };
 
 union bw_output {
@@ -515,30 +548,12 @@ struct bw_context {
 	union bw_output bw;
 	struct display_mode_lib dml;
 	struct dml2_context *dml2;
+	struct dml2_context *dml2_dc_power_source;
 };
 
 struct dc_dmub_cmd {
 	union dmub_rb_cmd dmub_cmd;
 	enum dm_dmub_wait_type wait_type;
-};
-
-struct dc_scratch_space {
-	/* used to temporarily backup plane states of a stream during
-	 * dc update. The reason is that plane states are overwritten
-	 * with surface updates in dc update. Once they are overwritten
-	 * current state is no longer valid. We want to temporarily
-	 * store current value in plane states so we can still recover
-	 * a valid current state during dc update.
-	 */
-	struct dc_plane_state plane_states[MAX_SURFACE_NUM];
-	struct dc_gamma gamma_correction[MAX_SURFACE_NUM];
-	struct dc_transfer_func in_transfer_func[MAX_SURFACE_NUM];
-	struct dc_3dlut lut3d_func[MAX_SURFACE_NUM];
-	struct dc_transfer_func in_shaper_func[MAX_SURFACE_NUM];
-	struct dc_transfer_func blend_tf[MAX_SURFACE_NUM];
-
-	struct dc_stream_state stream_state;
-	struct dc_transfer_func out_transfer_func;
 };
 
 /**
@@ -623,8 +638,7 @@ struct dc_state {
 		unsigned int stutter_period_us;
 	} perf_params;
 
-
-	struct dc_scratch_space scratch;
+	enum dc_power_source_type power_source;
 };
 
 struct replay_context {

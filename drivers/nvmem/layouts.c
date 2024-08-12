@@ -17,11 +17,11 @@
 #include "internals.h"
 
 #define to_nvmem_layout_driver(drv) \
-	(container_of((drv), struct nvmem_layout_driver, driver))
+	(container_of_const((drv), struct nvmem_layout_driver, driver))
 #define to_nvmem_layout_device(_dev) \
 	container_of((_dev), struct nvmem_layout, dev)
 
-static int nvmem_layout_bus_match(struct device *dev, struct device_driver *drv)
+static int nvmem_layout_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return of_driver_match_device(dev, drv);
 }
@@ -52,13 +52,15 @@ static const struct bus_type nvmem_layout_bus_type = {
 	.remove		= nvmem_layout_bus_remove,
 };
 
-int nvmem_layout_driver_register(struct nvmem_layout_driver *drv)
+int __nvmem_layout_driver_register(struct nvmem_layout_driver *drv,
+				   struct module *owner)
 {
 	drv->driver.bus = &nvmem_layout_bus_type;
+	drv->driver.owner = owner;
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(nvmem_layout_driver_register);
+EXPORT_SYMBOL_GPL(__nvmem_layout_driver_register);
 
 void nvmem_layout_driver_unregister(struct nvmem_layout_driver *drv)
 {

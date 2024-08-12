@@ -24,6 +24,7 @@
 #define __AMD_SHARED_H__
 
 #include <drm/amd_asic_type.h>
+#include <drm/drm_print.h>
 
 
 #define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
@@ -85,6 +86,7 @@ enum amd_apu_flags {
 * @AMD_IP_BLOCK_TYPE_JPEG: JPEG Engine
 * @AMD_IP_BLOCK_TYPE_VPE: Video Processing Engine
 * @AMD_IP_BLOCK_TYPE_UMSCH_MM: User Mode Schduler for Multimedia
+* @AMD_IP_BLOCK_TYPE_ISP: Image Signal Processor
 * @AMD_IP_BLOCK_TYPE_NUM: Total number of IP block types
 */
 enum amd_ip_block_type {
@@ -104,6 +106,7 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_JPEG,
 	AMD_IP_BLOCK_TYPE_VPE,
 	AMD_IP_BLOCK_TYPE_UMSCH_MM,
+	AMD_IP_BLOCK_TYPE_ISP,
 	AMD_IP_BLOCK_TYPE_NUM,
 };
 
@@ -290,6 +293,8 @@ enum amd_dpm_forced_level;
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
+ * @dump_ip_state: dump the IP state of the ASIC during a gpu hang
+ * @print_ip_state: print the IP state in devcoredump for each IP of the ASIC
  *
  * These hooks provide an interface for controlling the operational state
  * of IP blocks. After acquiring a list of IP blocks for the GPU in use,
@@ -321,6 +326,8 @@ struct amd_ip_funcs {
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u64 *flags);
+	void (*dump_ip_state)(void *handle);
+	void (*print_ip_state)(void *handle, struct drm_printer *p);
 };
 
 

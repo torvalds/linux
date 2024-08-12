@@ -1,0 +1,51 @@
+// Check conntrack copes with syn/ack reply for a previous, old incarnation.
+
+// tcpdump with buggy sequence
+// 10.176.25.8.829 > 10.192.171.30.2049: Flags [S], seq 2375731741, win 29200, options [mss 1460,sackOK,TS val 2083107423 ecr 0,nop,wscale 7], length 0
+// OLD synack, for old/previous S
+// 10.192.171.30.2049 > 10.176.25.8.829: Flags [S.], seq 145824453, ack 643160523, win 65535, options [mss 8952,nop,wscale 5,TS val 3215437785 ecr 2082921663,nop,nop], length 0
+// This reset never makes it to the endpoint, elided in the packetdrill script
+// 10.192.171.30.2049 > 10.176.25.8.829: Flags [R.], seq 1, ack 1, win 65535, options [mss 8952,nop,wscale 5,TS val 3215443451 ecr 2082921663,nop,nop], length 0
+// Syn retransmit, no change
+// 10.176.25.8.829 > 10.192.171.30.2049: Flags [S], seq 2375731741, win 29200, options [mss 1460,sackOK,TS val 2083115583 ecr 0,nop,wscale 7], length 0
+// CORRECT synack, should be accepted, but conntrack classified this as INVALID:
+// SEQ is over the upper bound (over the window of the receiver) IN=tun0 OUT= MAC= SRC=192.0.2.1 DST=192.168.37.78 LEN=40 TOS=0x00 PREC=0x00 TTL=255 ID=0 PROTO=TCP SPT=8080 DPT=34500 SEQ=162602411 ACK=2124350315 ..
+// 10.192.171.30.2049 > 10.176.25.8.829: Flags [S.], seq 162602410, ack 2375731742, win 65535, options [mss 8952,nop,wscale 5,TS val 3215445754 ecr 2083115583,nop,nop], length 0
+
+`packetdrill/common.sh`
+
++0 `$xtables -A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
++0 `$xtables -A OUTPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+0.1 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+0.1 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1 ecr 0,nop,wscale 8>
+
+// bogus/outdated synack, invalid ack value
+0.1 < S. 145824453:145824453(0) ack 643160523 win 240 <mss 1440,nop,nop,TS val 1 ecr 1,nop,wscale 0>
+
+// syn retransmitted
+1.01 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1015 ecr 0,nop,wscale 8>
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep UNREPLIED | grep -q SYN_SENT`
+
+// correct synack
++0 < S. 145758918:145758918(0) ack 1 win 250 <mss 1460,nop,nop,TS val 1 ecr 1,nop,wscale 0>
++0 write(3, ..., 1) = 1
+
+// with buggy conntrack above packet is dropped, so SYN rtx is seen:
+// script packet:  1.054007 . 1:1(0) ack 16777958 win 256 <nop,nop,TS val 1033 ecr 1>
+// actual packet:  3.010000 S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1015 ecr 0,nop,wscale 8>
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep ESTABLISHED | grep -q ASSURED`
+
++0 > P. 1:2(1) ack 4294901762 win 256 <nop,nop,TS val 1067 ecr 1>
+
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep ASSURED | grep -q ESTABLISHED`
+
+// No packets should have been marked INVALID in OUTPUT direction, 1 in INPUT
++0 `$xtables -v -S OUTPUT | grep INVALID | grep -q -- "-c 0 0"`
++0 `$xtables -v -S INPUT  | grep INVALID | grep -q -- "-c 1 "`
+
++0 `$xtables -D INPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
++0 `$xtables -D OUTPUT -p tcp -m conntrack --ctstate INVALID -j DROP`

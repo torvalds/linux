@@ -3,14 +3,8 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020-2022 Intel Corporation
  */
-
-/* HDA Registers */
-#define MTL_PPLCLLPL_BASE		0x948
-#define MTL_PPLCLLPU_STRIDE		0x10
-#define MTL_PPLCLLPL(x)			(MTL_PPLCLLPL_BASE + (x) * MTL_PPLCLLPU_STRIDE)
-#define MTL_PPLCLLPU(x)			(MTL_PPLCLLPL_BASE + 0x4 + (x) * MTL_PPLCLLPU_STRIDE)
 
 /* DSP Registers */
 #define MTL_HFDSSCS			0x1000
@@ -76,8 +70,52 @@
 #define MTL_DSP_ROM_STS			MTL_SRAM_WINDOW_OFFSET(0) /* ROM status */
 #define MTL_DSP_ROM_ERROR		(MTL_SRAM_WINDOW_OFFSET(0) + 0x4) /* ROM error code */
 
-#define MTL_DSP_REG_HFFLGPXQWY		0x163200 /* ROM debug status */
-#define MTL_DSP_REG_HFFLGPXQWY_ERROR	0x163204 /* ROM debug error code */
+#define MTL_DSP_REG_HFFLGPXQWY		0x163200 /* DSP core0 status */
+#define MTL_DSP_REG_HFFLGPXQWY_ERROR	0x163204 /* DSP core0 error */
+
+/* FSR status codes */
+#define FSR_STATE_ROM_RESET_VECTOR_DONE		0x8
+#define FSR_STATE_ROM_PURGE_BOOT		0x9
+#define FSR_STATE_ROM_RESTORE_BOOT		0xA
+#define FSR_STATE_ROM_FW_ENTRY_POINT		0xB
+#define FSR_STATE_ROM_VALIDATE_PUB_KEY		0xC
+#define FSR_STATE_ROM_POWER_DOWN_HPSRAM		0xD
+#define FSR_STATE_ROM_POWER_DOWN_ULPSRAM	0xE
+#define FSR_STATE_ROM_POWER_UP_ULPSRAM_STACK	0xF
+#define FSR_STATE_ROM_POWER_UP_HPSRAM_DMA	0x10
+#define FSR_STATE_ROM_BEFORE_EP_POINTER_READ	0x11
+#define FSR_STATE_ROM_VALIDATE_MANIFEST		0x12
+#define FSR_STATE_ROM_VALIDATE_FW_MODULE	0x13
+#define FSR_STATE_ROM_PROTECT_IMR_REGION	0x14
+#define FSR_STATE_ROM_PUSH_MODEL_ROUTINE	0x15
+#define FSR_STATE_ROM_PULL_MODEL_ROUTINE	0x16
+#define FSR_STATE_ROM_VALIDATE_PKG_DIR		0x17
+#define FSR_STATE_ROM_VALIDATE_CPD		0x18
+#define FSR_STATE_ROM_VALIDATE_CSS_MAN_HEADER	0x19
+#define FSR_STATE_ROM_VALIDATE_BLOB_SVN		0x1A
+#define FSR_STATE_ROM_VERIFY_IFWI_PARTITION	0x1B
+#define FSR_STATE_ROM_REMOVE_ACCESS_CONTROL	0x1C
+#define FSR_STATE_ROM_AUTH_BYPASS		0x1D
+#define FSR_STATE_ROM_AUTH_ENABLED		0x1E
+#define FSR_STATE_ROM_INIT_DMA			0x1F
+#define FSR_STATE_ROM_PURGE_FW_ENTRY		0x20
+#define FSR_STATE_ROM_PURGE_FW_END		0x21
+#define FSR_STATE_ROM_CLEAN_UP_BSS_DONE		0x22
+#define FSR_STATE_ROM_IMR_RESTORE_ENTRY		0x23
+#define FSR_STATE_ROM_IMR_RESTORE_END		0x24
+#define FSR_STATE_ROM_FW_MANIFEST_IN_DMA_BUFF	0x25
+#define FSR_STATE_ROM_LOAD_CSE_MAN_TO_IMR	0x26
+#define FSR_STATE_ROM_LOAD_FW_MAN_TO_IMR	0x27
+#define FSR_STATE_ROM_LOAD_FW_CODE_TO_IMR	0x28
+#define FSR_STATE_ROM_FW_LOADING_DONE		0x29
+#define FSR_STATE_ROM_FW_CODE_LOADED		0x2A
+#define FSR_STATE_ROM_VERIFY_IMAGE_TYPE		0x2B
+#define FSR_STATE_ROM_AUTH_API_INIT		0x2C
+#define FSR_STATE_ROM_AUTH_API_PROC		0x2D
+#define FSR_STATE_ROM_AUTH_API_FIRST_BUSY	0x2E
+#define FSR_STATE_ROM_AUTH_API_FIRST_RESULT	0x2F
+#define FSR_STATE_ROM_AUTH_API_CLEANUP		0x30
+
 #define MTL_DSP_REG_HfIMRIS1		0x162088
 #define MTL_DSP_REG_HfIMRIS1_IU_MASK	BIT(0)
 
@@ -102,10 +140,6 @@ int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
 int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
 
 void mtl_ipc_dump(struct snd_sof_dev *sdev);
-
-u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
-					 struct snd_soc_component *component,
-					 struct snd_pcm_substream *substream);
 
 int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core);
 int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core);

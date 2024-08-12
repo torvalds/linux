@@ -17,7 +17,7 @@
 		ethernet5 = &cp2_eth0;
 	};
 
-	cp2_reg_usb3_vbus0: cp2_usb3_vbus@0 {
+	cp2_reg_usb3_vbus0: regulator-7 {
 		compatible = "regulator-fixed";
 		regulator-name = "cp2-xhci0-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -26,12 +26,12 @@
 		gpio = <&cp2_gpio1 2 GPIO_ACTIVE_HIGH>;
 	};
 
-	cp2_usb3_0_phy0: cp2_usb3_phy0 {
+	cp2_usb3_0_phy0: usb-phy-4 {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp2_reg_usb3_vbus0>;
 	};
 
-	cp2_reg_usb3_vbus1: cp2_usb3_vbus@1 {
+	cp2_reg_usb3_vbus1: regulator-8 {
 		compatible = "regulator-fixed";
 		regulator-name = "cp2-xhci1-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -40,12 +40,12 @@
 		gpio = <&cp2_gpio1 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	cp2_usb3_0_phy1: cp2_usb3_phy1 {
+	cp2_usb3_0_phy1: usb-phy-5 {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp2_reg_usb3_vbus1>;
 	};
 
-	cp2_reg_sd_vccq: cp2_sd_vccq@0 {
+	cp2_reg_sd_vccq: regulator-9 {
 		compatible = "regulator-gpio";
 		regulator-name = "cp2_sd_vcc";
 		regulator-min-microvolt = <1800000>;
@@ -54,7 +54,7 @@
 		states = <1800000 0x1 3300000 0x0>;
 	};
 
-	cp2_sfp_eth0: sfp-eth0 {
+	cp2_sfp_eth0: sfp-eth-3 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp2_sfpp0_i2c>;
 		los-gpios = <&cp2_module_expander1 11 GPIO_ACTIVE_HIGH>;

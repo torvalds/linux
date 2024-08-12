@@ -29,9 +29,8 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  *       its->cmd_lock (mutex)
  *         its->its_lock (mutex)
  *           vgic_cpu->ap_list_lock		must be taken with IRQs disabled
- *             kvm->lpi_list_lock		must be taken with IRQs disabled
- *               vgic_dist->lpi_xa.xa_lock	must be taken with IRQs disabled
- *                 vgic_irq->irq_lock		must be taken with IRQs disabled
+ *             vgic_dist->lpi_xa.xa_lock	must be taken with IRQs disabled
+ *               vgic_irq->irq_lock		must be taken with IRQs disabled
  *
  * As the ap_list_lock might be taken from the timer interrupt handler,
  * we have to disable IRQs before taking this lock and everything lower
@@ -126,7 +125,6 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	__xa_erase(&dist->lpi_xa, irq->intid);
 	xa_unlock_irqrestore(&dist->lpi_xa, flags);
 
-	atomic_dec(&dist->lpi_count);
 	kfree_rcu(irq, rcu);
 }
 
@@ -937,17 +935,6 @@ void kvm_vgic_put(struct kvm_vcpu *vcpu)
 		vgic_v2_put(vcpu);
 	else
 		vgic_v3_put(vcpu);
-}
-
-void kvm_vgic_vmcr_sync(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(!irqchip_in_kernel(vcpu->kvm)))
-		return;
-
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_vmcr_sync(vcpu);
-	else
-		vgic_v3_vmcr_sync(vcpu);
 }
 
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)

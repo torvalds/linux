@@ -13,6 +13,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 struct guest_vals {
 	uint64_t a;
