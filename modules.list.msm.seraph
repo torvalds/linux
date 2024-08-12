@@ -12,6 +12,11 @@ clk-qcom.ko
 gdsc-regulator.ko
 cmd-db.ko
 qcom_rpmh.ko
+icc-bcm-voter.ko
+icc-rpmh.ko
+icc-debug.ko
+qnoc-qos.ko
+qnoc-seraph.ko
 stub-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
