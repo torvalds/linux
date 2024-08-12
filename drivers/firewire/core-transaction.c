@@ -13,7 +13,6 @@
 #include <linux/firewire-constants.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/idr.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -1359,7 +1358,7 @@ static void __exit fw_core_cleanup(void)
 	unregister_chrdev(fw_cdev_major, "firewire");
 	bus_unregister(&fw_bus_type);
 	destroy_workqueue(fw_workqueue);
-	idr_destroy(&fw_device_idr);
+	xa_destroy(&fw_device_xa);
 }
 
 module_init(fw_core_init);

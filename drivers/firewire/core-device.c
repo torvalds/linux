@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
-#include <linux/idr.h>
 #include <linux/jiffies.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
@@ -813,7 +812,7 @@ static int shutdown_unit(struct device *device, void *data)
  */
 DECLARE_RWSEM(fw_device_rwsem);
 
-DEFINE_IDR(fw_device_idr);
+DEFINE_XARRAY_ALLOC(fw_device_xa);
 int fw_cdev_major;
 
 struct fw_device *fw_device_get_by_devt(dev_t devt)
@@ -822,7 +821,7 @@ struct fw_device *fw_device_get_by_devt(dev_t devt)
 
 	guard(rwsem_read)(&fw_device_rwsem);
 
-	device = idr_find(&fw_device_idr, MINOR(devt));
+	device = xa_load(&fw_device_xa, MINOR(devt));
 	if (device)
 		fw_device_get(device);
 
@@ -858,7 +857,6 @@ static void fw_device_shutdown(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
-	int minor = MINOR(device->device.devt);
 
 	if (time_before64(get_jiffies_64(),
 			  device->card->reset_jiffies + SHUTDOWN_DELAY)
@@ -877,7 +875,7 @@ static void fw_device_shutdown(struct work_struct *work)
 	device_unregister(&device->device);
 
 	scoped_guard(rwsem_write, &fw_device_rwsem)
-		idr_remove(&fw_device_idr, minor);
+		xa_erase(&fw_device_xa, MINOR(device->device.devt));
 
 	fw_device_put(device);
 }
@@ -1049,7 +1047,8 @@ static void fw_device_init(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	struct fw_card *card = device->card;
 	struct device *revived_dev;
-	int minor, ret;
+	u32 minor;
+	int ret;
 
 	/*
 	 * All failure paths here set node->data to NULL, so that we
@@ -1087,9 +1086,11 @@ static void fw_device_init(struct work_struct *work)
 	device_initialize(&device->device);
 
 	fw_device_get(device);
+
 	scoped_guard(rwsem_write, &fw_device_rwsem) {
-		minor = idr_alloc(&fw_device_idr, device, 0, 1 << MINORBITS, GFP_KERNEL);
-		if (minor < 0)
+		// The index of allocated entry is used for minor identifier of device node.
+		ret = xa_alloc(&fw_device_xa, &minor, device, XA_LIMIT(0, MINORMASK), GFP_KERNEL);
+		if (ret < 0)
 			goto error;
 	}
 
@@ -1152,9 +1153,9 @@ static void fw_device_init(struct work_struct *work)
 
  error_with_cdev:
 	scoped_guard(rwsem_write, &fw_device_rwsem)
-		idr_remove(&fw_device_idr, minor);
+		xa_erase(&fw_device_xa, minor);
  error:
-	fw_device_put(device);		/* fw_device_idr's reference */
+	fw_device_put(device);		// fw_device_xa's reference.
 
 	put_device(&device->device);	/* our reference */
 }

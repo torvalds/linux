@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/mm_types.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
@@ -133,7 +134,7 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p);
 /* -device */
 
 extern struct rw_semaphore fw_device_rwsem;
-extern struct idr fw_device_idr;
+extern struct xarray fw_device_xa;
 extern int fw_cdev_major;
 
 static inline struct fw_device *fw_device_get(struct fw_device *device)
