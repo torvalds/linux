@@ -150,7 +150,7 @@ static int serial8250_platform_probe(struct platform_device *pdev)
 
 	line = serial8250_register_8250_port(&uart);
 	if (line < 0)
-		return -ENODEV;
+		return line;
 
 	return 0;
 }
