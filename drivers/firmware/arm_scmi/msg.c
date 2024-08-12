@@ -118,3 +118,8 @@ const struct scmi_message_operations scmi_msg_ops = {
 	.fetch_response = msg_fetch_response,
 	.fetch_notification = msg_fetch_notification,
 };
+
+const struct scmi_message_operations *scmi_message_operations_get(void)
+{
+	return &scmi_msg_ops;
+}

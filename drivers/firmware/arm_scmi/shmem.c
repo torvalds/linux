@@ -187,3 +187,8 @@ const struct scmi_shared_mem_operations scmi_shmem_ops = {
 	.channel_intr_enabled = shmem_channel_intr_enabled,
 	.setup_iomap = shmem_setup_iomap,
 };
+
+const struct scmi_shared_mem_operations *scmi_shared_mem_operations_get(void)
+{
+	return &scmi_shmem_ops;
+}

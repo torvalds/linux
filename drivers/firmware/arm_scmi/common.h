@@ -373,6 +373,8 @@ struct scmi_shared_mem_operations {
 				     bool tx, struct resource *res);
 };
 
+const struct scmi_shared_mem_operations *scmi_shared_mem_operations_get(void);
+
 /* declarations for message passing transports */
 struct scmi_msg_payld;
 
@@ -399,6 +401,88 @@ struct scmi_message_operations {
 	void (*fetch_notification)(struct scmi_msg_payld *msg, size_t len,
 				   size_t max_len, struct scmi_xfer *xfer);
 };
+
+const struct scmi_message_operations *scmi_message_operations_get(void);
+
+/**
+ * struct scmi_transport_core_operations  - Transpoert core operations
+ *
+ * @bad_message_trace: An helper to report a malformed/unexpected message
+ * @rx_callback: Callback to report received messages
+ * @shmem: Datagram operations for shared memory based transports
+ * @msg: Datagram operations for message based transports
+ */
+struct scmi_transport_core_operations {
+	void (*bad_message_trace)(struct scmi_chan_info *cinfo,
+				  u32 msg_hdr, enum scmi_bad_msg err);
+	void (*rx_callback)(struct scmi_chan_info *cinfo, u32 msg_hdr,
+			    void *priv);
+	const struct scmi_shared_mem_operations *shmem;
+	const struct scmi_message_operations *msg;
+};
+
+/**
+ * struct scmi_transport  - A structure representing a configured transport
+ *
+ * @supplier: Device representing the transport and acting as a supplier for
+ *	      the core SCMI stack
+ * @desc: Transport descriptor
+ * @core_ops: A pointer to a pointer used by the core SCMI stack to make the
+ *	      core transport operations accessible to the transports.
+ */
+struct scmi_transport {
+	struct device *supplier;
+	const struct scmi_desc *desc;
+	struct scmi_transport_core_operations **core_ops;
+};
+
+#define DEFINE_SCMI_TRANSPORT_DRIVER(__tag, __drv, __desc, __match, __core_ops)\
+static void __tag##_dev_free(void *data)				       \
+{									       \
+	struct platform_device *spdev = data;				       \
+									       \
+	platform_device_unregister(spdev);				       \
+}									       \
+									       \
+static int __tag##_probe(struct platform_device *pdev)			       \
+{									       \
+	struct device *dev = &pdev->dev;				       \
+	struct platform_device *spdev;					       \
+	struct scmi_transport strans;					       \
+	int ret;							       \
+									       \
+	spdev = platform_device_alloc("arm-scmi", PLATFORM_DEVID_AUTO);	       \
+	if (!spdev)							       \
+		return -ENOMEM;						       \
+									       \
+	device_set_of_node_from_dev(&spdev->dev, dev);			       \
+									       \
+	strans.supplier = dev;						       \
+	strans.desc = &(__desc);					       \
+	strans.core_ops = &(__core_ops);				       \
+									       \
+	ret = platform_device_add_data(spdev, &strans, sizeof(strans));	       \
+	if (ret)							       \
+		goto err;						       \
+									       \
+	ret = platform_device_add(spdev);				       \
+	if (ret)							       \
+		goto err;						       \
+									       \
+	return devm_add_action_or_reset(dev, __tag##_dev_free, spdev);	       \
+									       \
+err:									       \
+	platform_device_put(spdev);					       \
+	return ret;							       \
+}									       \
+									       \
+static struct platform_driver __drv = {					       \
+	.driver = {							       \
+		   .name = #__tag "_transport",				       \
+		   .of_match_table = __match,				       \
+		   },							       \
+	.probe = __tag##_probe,						       \
+}
 
 extern const struct scmi_shared_mem_operations scmi_shmem_ops;
 extern const struct scmi_message_operations scmi_msg_ops;
