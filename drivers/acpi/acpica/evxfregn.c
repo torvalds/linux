@@ -85,7 +85,8 @@ acpi_install_address_space_handler_internal(acpi_handle device,
 	/* Run all _REG methods for this address space */
 
 	if (run_reg) {
-		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+		acpi_ev_execute_reg_methods(node, ACPI_UINT32_MAX, space_id,
+					    ACPI_REG_CONNECT);
 	}
 
 unlock_and_exit:
@@ -263,6 +264,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_address_space_handler)
  * FUNCTION:    acpi_execute_reg_methods
  *
  * PARAMETERS:  device          - Handle for the device
+ *              max_depth       - Depth to which search for _REG
  *              space_id        - The address space ID
  *
  * RETURN:      Status
@@ -271,7 +273,8 @@ ACPI_EXPORT_SYMBOL(acpi_remove_address_space_handler)
  *
  ******************************************************************************/
 acpi_status
-acpi_execute_reg_methods(acpi_handle device, acpi_adr_space_type space_id)
+acpi_execute_reg_methods(acpi_handle device, u32 max_depth,
+			 acpi_adr_space_type space_id)
 {
 	struct acpi_namespace_node *node;
 	acpi_status status;
@@ -296,7 +299,8 @@ acpi_execute_reg_methods(acpi_handle device, acpi_adr_space_type space_id)
 
 		/* Run all _REG methods for this address space */
 
-		acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
+		acpi_ev_execute_reg_methods(node, max_depth, space_id,
+					    ACPI_REG_CONNECT);
 	} else {
 		status = AE_BAD_PARAMETER;
 	}
