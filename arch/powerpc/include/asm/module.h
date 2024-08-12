@@ -35,9 +35,11 @@ struct mod_arch_specific {
 	bool toc_fixed;			/* Have we fixed up .TOC.? */
 #endif
 
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* For module function descriptor dereference */
 	unsigned long start_opd;
 	unsigned long end_opd;
+#endif
 #else /* powerpc64 */
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;
