@@ -1781,8 +1781,6 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	void *p;
 	bool update_prog = false;
 
-	perf_tool__fill_defaults(tool);
-
 	/*
 	 * If it's from a file saving pipe data (by redirection), it would have
 	 * a file name other than "-".  Then we can get the total size and show
@@ -2206,8 +2204,6 @@ static int __perf_session__process_events(struct perf_session *session)
 	struct ui_progress prog;
 	int err;
 
-	perf_tool__fill_defaults(tool);
-
 	if (rd.data_size == 0)
 		return -1;
 
@@ -2259,8 +2255,6 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 	struct ui_progress prog;
 	u64 total_size = perf_data__size(session->data);
 	struct reader *rd;
-
-	perf_tool__fill_defaults(tool);
 
 	ui_progress__init_size(&prog, total_size, "Processing events...");
 
