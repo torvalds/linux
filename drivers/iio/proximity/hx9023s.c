@@ -598,7 +598,8 @@ static int hx9023s_property_get(struct hx9023s_data *data)
 	device_for_each_child_node_scoped(dev, child) {
 		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= HX9023S_CH_NUM)
-			return dev_err_probe(dev, ret, "Failed to read reg\n");
+			return dev_err_probe(dev, ret < 0 ? ret : -EINVAL,
+					     "Failed to read reg\n");
 		__set_bit(reg, &data->chan_in_use);
 
 		ret = fwnode_property_read_u32(child, "single-channel", &temp);
