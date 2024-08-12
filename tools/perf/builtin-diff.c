@@ -388,7 +388,7 @@ struct hist_entry_ops block_hist_ops = {
 	.free   = block_hist_free,
 };
 
-static int diff__process_sample_event(struct perf_tool *tool,
+static int diff__process_sample_event(const struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct evsel *evsel,

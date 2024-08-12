@@ -103,7 +103,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_tool *tool,
+				       const struct perf_tool *tool,
 				       u64 file_offset,
 				       const char *file_path);
 
@@ -330,7 +330,7 @@ static int process_event_synth_tracing_data_stub(struct perf_session *session
 	return 0;
 }
 
-static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
+static int process_event_synth_attr_stub(const struct perf_tool *tool __maybe_unused,
 					 union perf_event *event __maybe_unused,
 					 struct evlist **pevlist
 					 __maybe_unused)
@@ -339,7 +339,7 @@ static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_unused,
+static int process_event_synth_event_update_stub(const struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
 						 struct evlist **pevlist
 						 __maybe_unused)
@@ -351,7 +351,7 @@ static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_
 	return 0;
 }
 
-static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
+static int process_event_sample_stub(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
 				     struct evsel *evsel __maybe_unused,
@@ -361,7 +361,7 @@ static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_stub(struct perf_tool *tool __maybe_unused,
+static int process_event_stub(const struct perf_tool *tool __maybe_unused,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -370,7 +370,7 @@ static int process_event_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
+static int process_finished_round_stub(const struct perf_tool *tool __maybe_unused,
 				       union perf_event *event __maybe_unused,
 				       struct ordered_events *oe __maybe_unused)
 {
@@ -1078,7 +1078,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
  *      Flush every events below timestamp 7
  *      etc...
  */
-int perf_event__process_finished_round(struct perf_tool *tool __maybe_unused,
+int perf_event__process_finished_round(const struct perf_tool *tool __maybe_unused,
 				       union perf_event *event __maybe_unused,
 				       struct ordered_events *oe)
 {
@@ -1472,7 +1472,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 }
 
 static int deliver_sample_value(struct evlist *evlist,
-				struct perf_tool *tool,
+				const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct sample_read_value *v,
@@ -1504,7 +1504,7 @@ static int deliver_sample_value(struct evlist *evlist,
 }
 
 static int deliver_sample_group(struct evlist *evlist,
-				struct perf_tool *tool,
+				const struct perf_tool *tool,
 				union  perf_event *event,
 				struct perf_sample *sample,
 				struct machine *machine,
@@ -1526,7 +1526,7 @@ static int deliver_sample_group(struct evlist *evlist,
 	return ret;
 }
 
-static int evlist__deliver_sample(struct evlist *evlist, struct perf_tool *tool,
+static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool *tool,
 				  union  perf_event *event, struct perf_sample *sample,
 				  struct evsel *evsel, struct machine *machine)
 {
@@ -1551,7 +1551,7 @@ static int machines__deliver_event(struct machines *machines,
 				   struct evlist *evlist,
 				   union perf_event *event,
 				   struct perf_sample *sample,
-				   struct perf_tool *tool, u64 file_offset,
+				   const struct perf_tool *tool, u64 file_offset,
 				   const char *file_path)
 {
 	struct evsel *evsel;
@@ -1639,7 +1639,7 @@ static int machines__deliver_event(struct machines *machines,
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_tool *tool,
+				       const struct perf_tool *tool,
 				       u64 file_offset,
 				       const char *file_path)
 {
@@ -1672,7 +1672,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 					    const char *file_path)
 {
 	struct ordered_events *oe = &session->ordered_events;
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_sample sample = { .time = 0, };
 	int fd = perf_data__fd(session->data);
 	int err;
@@ -1759,7 +1759,7 @@ int perf_session__deliver_synth_event(struct perf_session *session,
 				      struct perf_sample *sample)
 {
 	struct evlist *evlist = session->evlist;
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 
 	events_stats__inc(&evlist->stats, event->header.type);
 
@@ -1891,7 +1891,7 @@ static s64 perf_session__process_event(struct perf_session *session,
 				       const char *file_path)
 {
 	struct evlist *evlist = session->evlist;
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	int ret;
 
 	if (session->header.needs_swap)

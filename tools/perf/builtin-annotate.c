@@ -279,7 +279,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 	return ret;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,

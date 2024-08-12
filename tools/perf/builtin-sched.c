@@ -1489,7 +1489,7 @@ again:
 	}
 }
 
-static int process_sched_wakeup_event(struct perf_tool *tool,
+static int process_sched_wakeup_event(const struct perf_tool *tool,
 				      struct evsel *evsel,
 				      struct perf_sample *sample,
 				      struct machine *machine)
@@ -1502,7 +1502,7 @@ static int process_sched_wakeup_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_sched_wakeup_ignore(struct perf_tool *tool __maybe_unused,
+static int process_sched_wakeup_ignore(const struct perf_tool *tool __maybe_unused,
 				      struct evsel *evsel __maybe_unused,
 				      struct perf_sample *sample __maybe_unused,
 				      struct machine *machine __maybe_unused)
@@ -1770,7 +1770,7 @@ out:
 	return 0;
 }
 
-static int process_sched_switch_event(struct perf_tool *tool,
+static int process_sched_switch_event(const struct perf_tool *tool,
 				      struct evsel *evsel,
 				      struct perf_sample *sample,
 				      struct machine *machine)
@@ -1796,7 +1796,7 @@ static int process_sched_switch_event(struct perf_tool *tool,
 	return err;
 }
 
-static int process_sched_runtime_event(struct perf_tool *tool,
+static int process_sched_runtime_event(const struct perf_tool *tool,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
 				       struct machine *machine)
@@ -1809,7 +1809,7 @@ static int process_sched_runtime_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int perf_sched__process_fork_event(struct perf_tool *tool,
+static int perf_sched__process_fork_event(const struct perf_tool *tool,
 					  union perf_event *event,
 					  struct perf_sample *sample,
 					  struct machine *machine)
@@ -1826,7 +1826,7 @@ static int perf_sched__process_fork_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_sched_migrate_task_event(struct perf_tool *tool,
+static int process_sched_migrate_task_event(const struct perf_tool *tool,
 					    struct evsel *evsel,
 					    struct perf_sample *sample,
 					    struct machine *machine)
@@ -1839,12 +1839,12 @@ static int process_sched_migrate_task_event(struct perf_tool *tool,
 	return 0;
 }
 
-typedef int (*tracepoint_handler)(struct perf_tool *tool,
+typedef int (*tracepoint_handler)(const struct perf_tool *tool,
 				  struct evsel *evsel,
 				  struct perf_sample *sample,
 				  struct machine *machine);
 
-static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_unused,
+static int perf_sched__process_tracepoint_sample(const struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
 						 struct perf_sample *sample,
 						 struct evsel *evsel,
@@ -1860,7 +1860,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 	return err;
 }
 
-static int perf_sched__process_comm(struct perf_tool *tool __maybe_unused,
+static int perf_sched__process_comm(const struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
 				    struct perf_sample *sample,
 				    struct machine *machine)
@@ -2506,7 +2506,7 @@ static void timehist_print_wakeup_event(struct perf_sched *sched,
 	printf("\n");
 }
 
-static int timehist_sched_wakeup_ignore(struct perf_tool *tool __maybe_unused,
+static int timehist_sched_wakeup_ignore(const struct perf_tool *tool __maybe_unused,
 					union perf_event *event __maybe_unused,
 					struct evsel *evsel __maybe_unused,
 					struct perf_sample *sample __maybe_unused,
@@ -2515,7 +2515,7 @@ static int timehist_sched_wakeup_ignore(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int timehist_sched_wakeup_event(struct perf_tool *tool,
+static int timehist_sched_wakeup_event(const struct perf_tool *tool,
 				       union perf_event *event __maybe_unused,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
@@ -2599,7 +2599,7 @@ static void timehist_print_migration_event(struct perf_sched *sched,
 	printf("\n");
 }
 
-static int timehist_migrate_task_event(struct perf_tool *tool,
+static int timehist_migrate_task_event(const struct perf_tool *tool,
 				       union perf_event *event __maybe_unused,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
@@ -2627,7 +2627,7 @@ static int timehist_migrate_task_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int timehist_sched_change_event(struct perf_tool *tool,
+static int timehist_sched_change_event(const struct perf_tool *tool,
 				       union perf_event *event,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
@@ -2758,7 +2758,7 @@ out:
 	return rc;
 }
 
-static int timehist_sched_switch_event(struct perf_tool *tool,
+static int timehist_sched_switch_event(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct evsel *evsel,
 			     struct perf_sample *sample,
@@ -2767,7 +2767,7 @@ static int timehist_sched_switch_event(struct perf_tool *tool,
 	return timehist_sched_change_event(tool, event, evsel, sample, machine);
 }
 
-static int process_lost(struct perf_tool *tool __maybe_unused,
+static int process_lost(const struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct perf_sample *sample,
 			struct machine *machine __maybe_unused)
@@ -3010,13 +3010,13 @@ static void timehist_print_summary(struct perf_sched *sched,
 	printf(" (x %d)\n", sched->max_cpu.cpu);
 }
 
-typedef int (*sched_handler)(struct perf_tool *tool,
+typedef int (*sched_handler)(const struct perf_tool *tool,
 			  union perf_event *event,
 			  struct evsel *evsel,
 			  struct perf_sample *sample,
 			  struct machine *machine);
 
-static int perf_timehist__process_sample(struct perf_tool *tool,
+static int perf_timehist__process_sample(const struct perf_tool *tool,
 					 union perf_event *event,
 					 struct perf_sample *sample,
 					 struct evsel *evsel,

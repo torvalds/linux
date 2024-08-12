@@ -320,7 +320,7 @@ static int *cpus_cstate_state;
 static u64 *cpus_pstate_start_times;
 static u64 *cpus_pstate_state;
 
-static int process_comm_event(struct perf_tool *tool,
+static int process_comm_event(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -330,7 +330,7 @@ static int process_comm_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_fork_event(struct perf_tool *tool,
+static int process_fork_event(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -340,7 +340,7 @@ static int process_fork_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_exit_event(struct perf_tool *tool,
+static int process_exit_event(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -571,7 +571,7 @@ typedef int (*tracepoint_handler)(struct timechart *tchart,
 				  struct perf_sample *sample,
 				  const char *backtrace);
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,

@@ -134,7 +134,7 @@ struct event_entry {
 	union perf_event event[];
 };
 
-static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
+static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
 				struct machine *machine, u8 cpumode, u32 flags);
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
@@ -149,7 +149,7 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 	return 0;
 }
 
-static int perf_event__repipe_synth(struct perf_tool *tool,
+static int perf_event__repipe_synth(const struct perf_tool *tool,
 				    union perf_event *event)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
@@ -158,7 +158,7 @@ static int perf_event__repipe_synth(struct perf_tool *tool,
 	return output_bytes(inject, event, event->header.size);
 }
 
-static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+static int perf_event__repipe_oe_synth(const struct perf_tool *tool,
 				       union perf_event *event,
 				       struct ordered_events *oe __maybe_unused)
 {
@@ -166,7 +166,7 @@ static int perf_event__repipe_oe_synth(struct perf_tool *tool,
 }
 
 #ifdef HAVE_JITDUMP
-static int perf_event__drop_oe(struct perf_tool *tool __maybe_unused,
+static int perf_event__drop_oe(const struct perf_tool *tool __maybe_unused,
 			       union perf_event *event __maybe_unused,
 			       struct ordered_events *oe __maybe_unused)
 {
@@ -188,7 +188,7 @@ static int perf_event__repipe_op4_synth(struct perf_session *session,
 	return perf_event__repipe_synth(session->tool, event);
 }
 
-static int perf_event__repipe_attr(struct perf_tool *tool,
+static int perf_event__repipe_attr(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct evlist **pevlist)
 {
@@ -206,7 +206,7 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_event_update(struct perf_tool *tool,
+static int perf_event__repipe_event_update(const struct perf_tool *tool,
 					   union perf_event *event,
 					   struct evlist **pevlist __maybe_unused)
 {
@@ -237,7 +237,7 @@ static int copy_bytes(struct perf_inject *inject, struct perf_data *data, off_t 
 static s64 perf_event__repipe_auxtrace(struct perf_session *session,
 				       union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
 	int ret;
@@ -284,7 +284,7 @@ perf_event__repipe_auxtrace(struct perf_session *session __maybe_unused,
 
 #endif
 
-static int perf_event__repipe(struct perf_tool *tool,
+static int perf_event__repipe(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -292,7 +292,7 @@ static int perf_event__repipe(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__drop(struct perf_tool *tool __maybe_unused,
+static int perf_event__drop(const struct perf_tool *tool __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
 			    struct machine *machine __maybe_unused)
@@ -300,7 +300,7 @@ static int perf_event__drop(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int perf_event__drop_aux(struct perf_tool *tool,
+static int perf_event__drop_aux(const struct perf_tool *tool,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct machine *machine __maybe_unused)
@@ -341,13 +341,13 @@ perf_inject__cut_auxtrace_sample(struct perf_inject *inject,
 	return ev;
 }
 
-typedef int (*inject_handler)(struct perf_tool *tool,
+typedef int (*inject_handler)(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample,
 			      struct evsel *evsel,
 			      struct machine *machine);
 
-static int perf_event__repipe_sample(struct perf_tool *tool,
+static int perf_event__repipe_sample(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct evsel *evsel,
@@ -372,7 +372,7 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_mmap(struct perf_tool *tool,
+static int perf_event__repipe_mmap(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -386,7 +386,7 @@ static int perf_event__repipe_mmap(struct perf_tool *tool,
 }
 
 #ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
+static int perf_event__jit_repipe_mmap(const struct perf_tool *tool,
 				       union perf_event *event,
 				       struct perf_sample *sample,
 				       struct machine *machine)
@@ -455,7 +455,7 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	return dso;
 }
 
-static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
+static int perf_event__repipe_buildid_mmap(const struct perf_tool *tool,
 					   union perf_event *event,
 					   struct perf_sample *sample,
 					   struct machine *machine)
@@ -474,7 +474,7 @@ static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
 	return perf_event__repipe(tool, event, sample, machine);
 }
 
-static int perf_event__repipe_mmap2(struct perf_tool *tool,
+static int perf_event__repipe_mmap2(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -500,7 +500,7 @@ static int perf_event__repipe_mmap2(struct perf_tool *tool,
 }
 
 #ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
+static int perf_event__jit_repipe_mmap2(const struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_sample *sample,
 					struct machine *machine)
@@ -524,7 +524,7 @@ static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 }
 #endif
 
-static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
+static int perf_event__repipe_buildid_mmap2(const struct perf_tool *tool,
 					    union perf_event *event,
 					    struct perf_sample *sample,
 					    struct machine *machine)
@@ -565,7 +565,7 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 	return 0;
 }
 
-static int perf_event__repipe_fork(struct perf_tool *tool,
+static int perf_event__repipe_fork(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -578,7 +578,7 @@ static int perf_event__repipe_fork(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_comm(struct perf_tool *tool,
+static int perf_event__repipe_comm(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -591,7 +591,7 @@ static int perf_event__repipe_comm(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_namespaces(struct perf_tool *tool,
+static int perf_event__repipe_namespaces(const struct perf_tool *tool,
 					 union perf_event *event,
 					 struct perf_sample *sample,
 					 struct machine *machine)
@@ -603,7 +603,7 @@ static int perf_event__repipe_namespaces(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_exit(struct perf_tool *tool,
+static int perf_event__repipe_exit(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -712,7 +712,7 @@ static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
 	return false;
 }
 
-static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
+static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
 				struct machine *machine, u8 cpumode, u32 flags)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
@@ -743,7 +743,7 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 	return 0;
 }
 
-int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
+int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel __maybe_unused,
 			       struct machine *machine)
@@ -776,7 +776,7 @@ repipe:
 	return 0;
 }
 
-static int perf_inject__sched_process_exit(struct perf_tool *tool,
+static int perf_inject__sched_process_exit(const struct perf_tool *tool,
 					   union perf_event *event __maybe_unused,
 					   struct perf_sample *sample,
 					   struct evsel *evsel __maybe_unused,
@@ -796,7 +796,7 @@ static int perf_inject__sched_process_exit(struct perf_tool *tool,
 	return 0;
 }
 
-static int perf_inject__sched_switch(struct perf_tool *tool,
+static int perf_inject__sched_switch(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct evsel *evsel,
@@ -821,7 +821,7 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 }
 
 #ifdef HAVE_LIBTRACEEVENT
-static int perf_inject__sched_stat(struct perf_tool *tool,
+static int perf_inject__sched_stat(const struct perf_tool *tool,
 				   union perf_event *event __maybe_unused,
 				   struct perf_sample *sample,
 				   struct evsel *evsel,
@@ -866,7 +866,7 @@ static int guest_session__output_bytes(struct guest_session *gs, void *buf, size
 	return ret < 0 ? ret : 0;
 }
 
-static int guest_session__repipe(struct perf_tool *tool,
+static int guest_session__repipe(const struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample __maybe_unused,
 				 struct machine *machine __maybe_unused)
@@ -1032,7 +1032,7 @@ static struct guest_id *guest_session__lookup_id(struct guest_session *gs, u64 i
 	return NULL;
 }
 
-static int process_attr(struct perf_tool *tool, union perf_event *event,
+static int process_attr(const struct perf_tool *tool, union perf_event *event,
 			struct perf_sample *sample __maybe_unused,
 			struct machine *machine __maybe_unused)
 {
@@ -1160,7 +1160,7 @@ static u64 evlist__first_id(struct evlist *evlist)
 	return 0;
 }
 
-static int process_build_id(struct perf_tool *tool,
+static int process_build_id(const struct perf_tool *tool,
 			    union perf_event *event,
 			    struct perf_sample *sample __maybe_unused,
 			    struct machine *machine __maybe_unused)
@@ -1210,7 +1210,7 @@ static int guest_session__add_build_ids(struct guest_session *gs)
 				  gs);
 }
 
-static int guest_session__ksymbol_event(struct perf_tool *tool,
+static int guest_session__ksymbol_event(const struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_sample *sample __maybe_unused,
 					struct machine *machine __maybe_unused)
@@ -1574,7 +1574,7 @@ static int guest_session__flush_events(struct guest_session *gs)
 	return guest_session__inject_events(gs, -1);
 }
 
-static int host__repipe(struct perf_tool *tool,
+static int host__repipe(const struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
 			struct machine *machine)
@@ -1647,7 +1647,7 @@ static int host__finished_init(struct perf_session *session, union perf_event *e
  * guest events up to the same time. Finally write out the FINISHED_ROUND event
  * itself.
  */
-static int host__finished_round(struct perf_tool *tool,
+static int host__finished_round(const struct perf_tool *tool,
 				union perf_event *event,
 				struct ordered_events *oe)
 {
@@ -1665,7 +1665,7 @@ static int host__finished_round(struct perf_tool *tool,
 	return perf_event__repipe_oe_synth(tool, event, oe);
 }
 
-static int host__context_switch(struct perf_tool *tool,
+static int host__context_switch(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct machine *machine)
@@ -1719,7 +1719,7 @@ static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *
 	return 0;
 }
 
-static int drop_sample(struct perf_tool *tool __maybe_unused,
+static int drop_sample(const struct perf_tool *tool __maybe_unused,
 		       union perf_event *event __maybe_unused,
 		       struct perf_sample *sample __maybe_unused,
 		       struct evsel *evsel __maybe_unused,

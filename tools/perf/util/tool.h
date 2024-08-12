@@ -15,14 +15,14 @@ struct perf_tool;
 struct machine;
 struct ordered_events;
 
-typedef int (*event_sample)(struct perf_tool *tool, union perf_event *event,
+typedef int (*event_sample)(const struct perf_tool *tool, union perf_event *event,
 			    struct perf_sample *sample,
 			    struct evsel *evsel, struct machine *machine);
 
-typedef int (*event_op)(struct perf_tool *tool, union perf_event *event,
+typedef int (*event_op)(const struct perf_tool *tool, union perf_event *event,
 			struct perf_sample *sample, struct machine *machine);
 
-typedef int (*event_attr_op)(struct perf_tool *tool,
+typedef int (*event_attr_op)(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct evlist **pevlist);
 
@@ -31,7 +31,7 @@ typedef s64 (*event_op3)(struct perf_session *session, union perf_event *event);
 typedef int (*event_op4)(struct perf_session *session, union perf_event *event, u64 data,
 			 const char *str);
 
-typedef int (*event_oe)(struct perf_tool *tool, union perf_event *event,
+typedef int (*event_oe)(const struct perf_tool *tool, union perf_event *event,
 			struct ordered_events *oe);
 
 enum show_feature_header {

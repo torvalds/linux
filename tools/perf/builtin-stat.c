@@ -248,7 +248,7 @@ static void perf_stat__reset_stats(void)
 	perf_stat__reset_shadow_stats();
 }
 
-static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
+static int process_synthesized_event(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
@@ -2180,7 +2180,7 @@ static
 int process_stat_config_event(struct perf_session *session,
 			      union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	perf_event__read_stat_config(&stat_config, &event->stat_config);
@@ -2229,7 +2229,7 @@ static
 int process_thread_map_event(struct perf_session *session,
 			     union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	if (st->threads) {
@@ -2248,7 +2248,7 @@ static
 int process_cpu_map_event(struct perf_session *session,
 			  union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 	struct perf_cpu_map *cpus;
 

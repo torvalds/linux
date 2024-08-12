@@ -955,7 +955,7 @@ static bool perf_kmem__skip_sample(struct perf_sample *sample)
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -2061,4 +2061,3 @@ out_delete:
 
 	return ret;
 }
-

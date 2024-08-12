@@ -4326,7 +4326,7 @@ out_delete_evlist:
 int perf_event__process_feature(struct perf_session *session,
 				union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct feat_fd ff = { .fd = 0 };
 	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
 	int type = fe->header.type;
@@ -4405,7 +4405,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 	return ret;
 }
 
-int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
+int perf_event__process_attr(const struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct evlist **pevlist)
 {
@@ -4444,7 +4444,7 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
+int perf_event__process_event_update(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct evlist **pevlist)
 {

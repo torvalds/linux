@@ -179,7 +179,7 @@ out:
 }
 
 static int
-dump_raw_samples(struct perf_tool *tool,
+dump_raw_samples(const struct perf_tool *tool,
 		 union perf_event *event,
 		 struct perf_sample *sample,
 		 struct machine *machine)
@@ -253,7 +253,7 @@ out_put:
 	return 0;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel __maybe_unused,

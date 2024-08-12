@@ -42,7 +42,7 @@
 
 static bool no_buildid_cache;
 
-int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
+int build_id__mark_dso_hit(const struct perf_tool *tool __maybe_unused,
 			   union perf_event *event,
 			   struct perf_sample *sample,
 			   struct evsel *evsel __maybe_unused,
@@ -67,7 +67,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
+static int perf_event__exit_del_thread(const struct perf_tool *tool __maybe_unused,
 				       union perf_event *event,
 				       struct perf_sample *sample
 				       __maybe_unused,

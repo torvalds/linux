@@ -263,7 +263,7 @@ static int process_feature_event(struct perf_session *session,
 	return 0;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -339,7 +339,7 @@ out_put:
 	return ret;
 }
 
-static int process_read_event(struct perf_tool *tool,
+static int process_read_event(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct evsel *evsel,
@@ -765,7 +765,7 @@ static void report__output_resort(struct report *rep)
 	ui_progress__finish();
 }
 
-static int count_sample_event(struct perf_tool *tool __maybe_unused,
+static int count_sample_event(const struct perf_tool *tool __maybe_unused,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
 			      struct evsel *evsel,
@@ -777,7 +777,7 @@ static int count_sample_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int count_lost_samples_event(struct perf_tool *tool,
+static int count_lost_samples_event(const struct perf_tool *tool,
 				    union perf_event *event,
 				    struct perf_sample *sample,
 				    struct machine *machine __maybe_unused)
@@ -793,7 +793,7 @@ static int count_lost_samples_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_attr(struct perf_tool *tool __maybe_unused,
+static int process_attr(const struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct evlist **pevlist);
 
@@ -1233,7 +1233,7 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
-static int process_attr(struct perf_tool *tool __maybe_unused,
+static int process_attr(const struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct evlist **pevlist)
 {

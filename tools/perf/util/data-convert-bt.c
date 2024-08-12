@@ -792,7 +792,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 	return cs->count >= STREAM_FLUSH_COUNT;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *_event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -871,7 +871,7 @@ do {							\
 } while(0)
 
 #define __FUNC_PROCESS_NON_SAMPLE(_name, body) 	\
-static int process_##_name##_event(struct perf_tool *tool,	\
+static int process_##_name##_event(const struct perf_tool *tool,	\
 				   union perf_event *_event,	\
 				   struct perf_sample *sample,	\
 				   struct machine *machine)	\

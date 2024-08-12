@@ -1166,7 +1166,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 }
 
 #if defined(HAVE_TIMERFD_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
-static int process_lost_event(struct perf_tool *tool,
+static int process_lost_event(const struct perf_tool *tool,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -1187,7 +1187,7 @@ static bool skip_sample(struct perf_kvm_stat *kvm,
 	return false;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,

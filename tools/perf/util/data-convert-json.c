@@ -118,7 +118,7 @@ static void output_json_key_format(FILE *out, bool comma, int depth,
 	va_end(args);
 }
 
-static void output_sample_callchain_entry(struct perf_tool *tool,
+static void output_sample_callchain_entry(const struct perf_tool *tool,
 		u64 ip, struct addr_location *al)
 {
 	struct convert_json *c = container_of(tool, struct convert_json, tool);
@@ -146,7 +146,7 @@ static void output_sample_callchain_entry(struct perf_tool *tool,
 	output_json_format(out, false, 4, "}");
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct evsel *evsel __maybe_unused,

@@ -424,7 +424,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 {
 	struct perf_sample sample;
 	union perf_event *event;
-	struct perf_tool *tool = jd->session->tool;
+	const struct perf_tool *tool = jd->session->tool;
 	uint64_t code, addr;
 	uintptr_t uaddr;
 	char *filename;
@@ -543,7 +543,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 {
 	struct perf_sample sample;
 	union perf_event *event;
-	struct perf_tool *tool = jd->session->tool;
+	const struct perf_tool *tool = jd->session->tool;
 	char *filename;
 	size_t size;
 	struct stat st;

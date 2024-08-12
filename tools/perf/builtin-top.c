@@ -740,7 +740,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	return 0;
 }
 
-static void perf_event__process_sample(struct perf_tool *tool,
+static void perf_event__process_sample(const struct perf_tool *tool,
 				       const union perf_event *event,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,

@@ -1778,7 +1778,7 @@ static int trace__process_event(struct trace *trace, struct machine *machine,
 	return ret;
 }
 
-static int trace__tool_process(struct perf_tool *tool,
+static int trace__tool_process(const struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine)
@@ -3179,7 +3179,7 @@ static void trace__set_base_time(struct trace *trace,
 		trace->base_time = sample->time;
 }
 
-static int trace__process_sample(struct perf_tool *tool,
+static int trace__process_sample(const struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample,
 				 struct evsel *evsel,

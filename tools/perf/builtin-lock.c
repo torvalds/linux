@@ -1501,7 +1501,7 @@ static const struct evsel_str_handler contention_tracepoints[] = {
 	{ "lock:contention_end",   evsel__process_contention_end,   },
 };
 
-static int process_event_update(struct perf_tool *tool,
+static int process_event_update(const struct perf_tool *tool,
 				union perf_event *event,
 				struct evlist **pevlist)
 {
@@ -1520,7 +1520,7 @@ static int process_event_update(struct perf_tool *tool,
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
