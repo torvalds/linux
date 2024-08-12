@@ -111,7 +111,7 @@ static int rpcrdma_add_one(struct ib_device *device)
 		return -ENOMEM;
 
 	kref_init(&rd->rd_kref);
-	xa_init_flags(&rd->rd_xa, XA_FLAGS_ALLOC1);
+	xa_init_flags(&rd->rd_xa, XA_FLAGS_ALLOC);
 	rd->rd_device = device;
 	init_completion(&rd->rd_done);
 	ib_set_client_data(device, &rpcrdma_ib_client, rd);
