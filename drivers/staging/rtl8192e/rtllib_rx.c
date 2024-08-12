@@ -729,7 +729,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	u16		llc_offset = sizeof(struct ieee80211_hdr_3addr);
 	bool		is_aggregate_frame = false;
-	u16		nSubframe_Length;
+	u16		subframe_len;
 	u8		pad_len = 0;
 	u16		SeqNum = 0;
 	struct sk_buff *sub_skb;
@@ -781,20 +781,20 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	memcpy(rxb->dst, dst, ETH_ALEN);
 	while (skb->len > ETHERNET_HEADER_SIZE) {
 		/* Offset 12 denote 2 mac address */
-		nSubframe_Length = *((u16 *)(skb->data + 12));
-		nSubframe_Length = (nSubframe_Length >> 8) +
-				   (nSubframe_Length << 8);
+		subframe_len = *((u16 *)(skb->data + 12));
+		subframe_len = (subframe_len >> 8) +
+				   (subframe_len << 8);
 
-		if (skb->len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
+		if (skb->len < (ETHERNET_HEADER_SIZE + subframe_len)) {
 			netdev_info(ieee->dev,
 				    "%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",
 				    __func__, rxb->nr_subframes);
 			netdev_info(ieee->dev,
 				    "%s: A-MSDU parse error!! Subframe Length: %d\n",
-				    __func__, nSubframe_Length);
+				    __func__, subframe_len);
 			netdev_info(ieee->dev,
-				    "nRemain_Length is %d and nSubframe_Length is : %d\n",
-				    skb->len, nSubframe_Length);
+				    "nRemain_Length is %d and subframe_len is : %d\n",
+				    skb->len, subframe_len);
 			netdev_info(ieee->dev,
 				    "The Packet SeqNum is %d\n",
 				    SeqNum);
@@ -813,11 +813,11 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		 */
 
 		/* Allocate new skb for releasing to upper layer */
-		sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+		sub_skb = dev_alloc_skb(subframe_len + 12);
 		if (!sub_skb)
 			return 0;
 		skb_reserve(sub_skb, 12);
-		skb_put_data(sub_skb, skb->data, nSubframe_Length);
+		skb_put_data(sub_skb, skb->data, subframe_len);
 
 		sub_skb->dev = ieee->dev;
 		rxb->subframes[rxb->nr_subframes++] = sub_skb;
@@ -826,10 +826,10 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 				   "ParseSubframe(): Too many Subframes! Packets dropped!\n");
 			break;
 		}
-		skb_pull(skb, nSubframe_Length);
+		skb_pull(skb, subframe_len);
 
 		if (skb->len != 0) {
-			pad_len = 4 - ((nSubframe_Length +
+			pad_len = 4 - ((subframe_len +
 					  ETHERNET_HEADER_SIZE) % 4);
 			if (pad_len == 4)
 				pad_len = 0;
