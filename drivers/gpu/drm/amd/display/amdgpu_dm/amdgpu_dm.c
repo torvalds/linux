@@ -2610,7 +2610,7 @@ static void resume_mst_branch_status(struct drm_dp_mst_topology_mgr *mgr)
 		}
 	}
 
-	memcpy(mgr->mst_primary->guid, guid, 16);
+	import_guid(&mgr->mst_primary->guid, guid);
 
 out_fail:
 	mutex_unlock(&mgr->lock);
