@@ -264,9 +264,8 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	struct dma_fence *fence = NULL;
 	int r;
 
-	/* Ignore soft recovered fences here */
 	r = drm_sched_entity_error(s_entity);
-	if (r && r != -ENODATA)
+	if (r)
 		goto error;
 
 	if (!fence && job->gang_submit)

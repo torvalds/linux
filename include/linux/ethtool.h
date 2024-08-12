@@ -736,10 +736,10 @@ struct kernel_ethtool_ts_info {
  * @rxfh_key_space: same as @rxfh_indir_space, but for the key.
  * @rxfh_priv_size: size of the driver private data area the core should
  *	allocate for an RSS context (in &struct ethtool_rxfh_context).
- * @rxfh_max_context_id: maximum (exclusive) supported RSS context ID.  If this
- *	is zero then the core may choose any (nonzero) ID, otherwise the core
- *	will only use IDs strictly less than this value, as the @rss_context
- *	argument to @create_rxfh_context and friends.
+ * @rxfh_max_num_contexts: maximum (exclusive) supported RSS context ID.
+ *	If this is zero then the core may choose any (nonzero) ID, otherwise
+ *	the core will only use IDs strictly less than this value, as the
+ *	@rss_context argument to @create_rxfh_context and friends.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
  * @get_drvinfo: Report driver/device information. Modern drivers no
@@ -954,7 +954,7 @@ struct ethtool_ops {
 	u32	rxfh_indir_space;
 	u16	rxfh_key_space;
 	u16	rxfh_priv_size;
-	u32	rxfh_max_context_id;
+	u32	rxfh_max_num_contexts;
 	u32	supported_coalesce_params;
 	u32	supported_ring_params;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);

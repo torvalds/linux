@@ -124,20 +124,19 @@ struct bch_dev_data_type {
 	__u8			data_type;
 };
 
-struct bch_dev_stripe_buckets {
-	__u8			dev;
-};
-
 struct bch_acct_compression {
 	__u8			type;
 };
 
 struct bch_acct_snapshot {
 	__u32			id;
-};
+} __packed;
 
 struct bch_acct_btree {
 	__u32			id;
+} __packed;
+
+struct bch_acct_rebalance_work {
 };
 
 struct disk_accounting_pos {
@@ -149,12 +148,12 @@ struct disk_accounting_pos {
 		struct bch_persistent_reserved	persistent_reserved;
 		struct bch_replicas_entry_v1	replicas;
 		struct bch_dev_data_type	dev_data_type;
-		struct bch_dev_stripe_buckets	dev_stripe_buckets;
 		struct bch_acct_compression	compression;
 		struct bch_acct_snapshot	snapshot;
 		struct bch_acct_btree		btree;
-		};
-	};
+		struct bch_acct_rebalance_work	rebalance_work;
+		} __packed;
+	} __packed;
 		struct bpos			_pad;
 	};
 };

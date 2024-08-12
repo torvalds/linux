@@ -4673,10 +4673,10 @@ static int ice_get_port_fec_stats(struct ice_hw *hw, u16 pcs_quad, u16 pcs_port,
 	if (err)
 		return err;
 
-	fec_stats->uncorrectable_blocks.total = (fec_corr_high_val << 16) +
-						 fec_corr_low_val;
-	fec_stats->corrected_blocks.total = (fec_uncorr_high_val << 16) +
-					     fec_uncorr_low_val;
+	fec_stats->corrected_blocks.total = (fec_corr_high_val << 16) +
+					     fec_corr_low_val;
+	fec_stats->uncorrectable_blocks.total = (fec_uncorr_high_val << 16) +
+						 fec_uncorr_low_val;
 	return 0;
 }
 
