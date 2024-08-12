@@ -2790,6 +2790,8 @@ do_map:
 				goto clear_out;
 			}
 
+			f2fs_wait_on_page_writeback(page, DATA, true, true);
+
 			set_page_dirty(page);
 			set_page_private_gcing(page);
 			f2fs_put_page(page, 1);
@@ -4189,6 +4191,8 @@ static int redirty_blocks(struct inode *inode, pgoff_t page_idx, int len)
 
 		/* It will never fail, when page has pinned above */
 		f2fs_bug_on(F2FS_I_SB(inode), !page);
+
+		f2fs_wait_on_page_writeback(page, DATA, true, true);
 
 		set_page_dirty(page);
 		set_page_private_gcing(page);
