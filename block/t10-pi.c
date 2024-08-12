@@ -239,9 +239,9 @@ static void ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 	}
 }
 
-static bool ext_pi_ref_escape(u8 *ref_tag)
+static bool ext_pi_ref_escape(const u8 ref_tag[6])
 {
-	static u8 ref_escape[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	static const u8 ref_escape[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	return memcmp(ref_tag, ref_escape, sizeof(ref_escape)) == 0;
 }
