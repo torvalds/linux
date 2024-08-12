@@ -46,7 +46,9 @@
  */
 
 #include <linux/cpumask.h>
+#include <linux/device.h>
 #include <linux/kernel_stat.h>
+#include <linux/kstrtox.h>
 #include <linux/ktime.h>
 #include <linux/sysctl.h>
 #include <linux/workqueue.h>
@@ -71,6 +73,8 @@ static int hd_online_cores;		/* Current online CORE count */
 
 static unsigned long hd_previous_steal;	/* Previous iteration's CPU steal timer total */
 
+static unsigned int hd_steal_threshold = HD_STEAL_THRESHOLD;
+static unsigned int hd_delay_factor = HD_DELAY_FACTOR;
 static int hd_enabled;
 
 static void hd_capacity_work_fn(struct work_struct *work);
@@ -151,7 +155,7 @@ int hd_enable_hiperdispatch(void)
 		return 0;
 	if (hd_online_cores <= hd_entitled_cores)
 		return 0;
-	mod_delayed_work(system_wq, &hd_capacity_work, HD_DELAY_INTERVAL * HD_DELAY_FACTOR);
+	mod_delayed_work(system_wq, &hd_capacity_work, HD_DELAY_INTERVAL * hd_delay_factor);
 	hd_update_capacities();
 	return 1;
 }
@@ -214,7 +218,7 @@ static void hd_capacity_work_fn(struct work_struct *work)
 		return;
 	}
 	steal_percentage = hd_steal_avg(hd_calculate_steal_percentage());
-	if (steal_percentage < HD_STEAL_THRESHOLD)
+	if (steal_percentage < hd_steal_threshold)
 		new_cores = hd_online_cores;
 	else
 		new_cores = hd_entitled_cores;
@@ -260,6 +264,81 @@ static struct ctl_table hiperdispatch_ctl_table[] = {
 	},
 };
 
+static ssize_t hd_steal_threshold_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	return sysfs_emit(buf, "%u\n", hd_steal_threshold);
+}
+
+static ssize_t hd_steal_threshold_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t count)
+{
+	unsigned int val;
+	int rc;
+
+	rc = kstrtouint(buf, 0, &val);
+	if (rc)
+		return rc;
+	if (val > 100)
+		return -ERANGE;
+	hd_steal_threshold = val;
+	return count;
+}
+
+static DEVICE_ATTR_RW(hd_steal_threshold);
+
+static ssize_t hd_delay_factor_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	return sysfs_emit(buf, "%u\n", hd_delay_factor);
+}
+
+static ssize_t hd_delay_factor_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t count)
+{
+	unsigned int val;
+	int rc;
+
+	rc = kstrtouint(buf, 0, &val);
+	if (rc)
+		return rc;
+	if (!val)
+		return -ERANGE;
+	hd_delay_factor = val;
+	return count;
+}
+
+static DEVICE_ATTR_RW(hd_delay_factor);
+
+static struct attribute *hd_attrs[] = {
+	&dev_attr_hd_steal_threshold.attr,
+	&dev_attr_hd_delay_factor.attr,
+	NULL,
+};
+
+static const struct attribute_group hd_attr_group = {
+	.name  = "hiperdispatch",
+	.attrs = hd_attrs,
+};
+
+static void __init hd_create_attributes(void)
+{
+	struct device *dev;
+
+	dev = bus_get_dev_root(&cpu_subsys);
+	if (!dev)
+		return;
+	if (sysfs_create_group(&dev->kobj, &hd_attr_group))
+		pr_warn("Unable to create hiperdispatch attribute group\n");
+	put_device(dev);
+}
+
 static int __init hd_init(void)
 {
 	if (IS_ENABLED(CONFIG_HIPERDISPATCH_ON)) {
@@ -268,6 +347,7 @@ static int __init hd_init(void)
 	}
 	if (!register_sysctl("s390", hiperdispatch_ctl_table))
 		pr_warn("Failed to register s390.hiperdispatch sysctl attribute\n");
+	hd_create_attributes();
 	return 0;
 }
 late_initcall(hd_init);
