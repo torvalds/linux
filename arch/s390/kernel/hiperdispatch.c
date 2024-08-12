@@ -56,6 +56,7 @@
 #define HD_DELAY_FACTOR			(4)
 #define HD_DELAY_INTERVAL		(HZ / 4)
 #define HD_STEAL_THRESHOLD		30
+#define HD_STEAL_AVG_WEIGHT		16
 
 static cpumask_t hd_vl_coremask;	/* Mask containing all vertical low COREs */
 static cpumask_t hd_vmvl_cpumask;	/* Mask containing vertical medium and low CPUs */
@@ -136,6 +137,14 @@ int hd_enable_hiperdispatch(void)
 	return 1;
 }
 
+static unsigned long hd_steal_avg(unsigned long new)
+{
+	static unsigned long steal;
+
+	steal = (steal * (HD_STEAL_AVG_WEIGHT - 1) + new) / HD_STEAL_AVG_WEIGHT;
+	return steal;
+}
+
 static unsigned long hd_calculate_steal_percentage(void)
 {
 	unsigned long time_delta, steal_delta, steal, percentage;
@@ -185,7 +194,7 @@ static void hd_capacity_work_fn(struct work_struct *work)
 		mutex_unlock(&smp_cpu_state_mutex);
 		return;
 	}
-	steal_percentage = hd_calculate_steal_percentage();
+	steal_percentage = hd_steal_avg(hd_calculate_steal_percentage());
 	if (steal_percentage < HD_STEAL_THRESHOLD)
 		new_cores = hd_online_cores;
 	else
