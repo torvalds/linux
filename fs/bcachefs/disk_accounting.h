@@ -106,8 +106,37 @@ static inline int accounting_pos_cmp(const void *_l, const void *_r)
 int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, bool);
 void bch2_accounting_mem_gc(struct bch_fs *);
 
-static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
+/*
+ * Update in memory counters so they match the btree update we're doing; called
+ * from transaction commit path
+ */
+static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans, struct bkey_s_c_accounting a, bool gc, bool read)
 {
+	struct bch_fs *c = trans->c;
+	struct disk_accounting_pos acc_k;
+	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
+
+	if (!gc && !read) {
+		switch (acc_k.type) {
+		case BCH_DISK_ACCOUNTING_persistent_reserved:
+			trans->fs_usage_delta.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
+			break;
+		case BCH_DISK_ACCOUNTING_replicas:
+			fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
+			break;
+		case BCH_DISK_ACCOUNTING_dev_data_type:
+			rcu_read_lock();
+			struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+			if (ca) {
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
+			}
+			rcu_read_unlock();
+			break;
+		}
+	}
+
 	struct bch_accounting_mem *acc = &c->accounting;
 	unsigned idx;
 
@@ -129,45 +158,10 @@ static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_ac
 	return 0;
 }
 
-/*
- * Update in memory counters so they match the btree update we're doing; called
- * from transaction commit path
- */
-static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans, struct bkey_s_c_accounting a, bool gc)
-{
-	struct bch_fs *c = trans->c;
-
-	if (!gc) {
-		struct disk_accounting_pos acc_k;
-		bpos_to_disk_accounting_pos(&acc_k, a.k->p);
-
-		switch (acc_k.type) {
-		case BCH_DISK_ACCOUNTING_persistent_reserved:
-			trans->fs_usage_delta.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
-			break;
-		case BCH_DISK_ACCOUNTING_replicas:
-			fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
-			break;
-		case BCH_DISK_ACCOUNTING_dev_data_type:
-			rcu_read_lock();
-			struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
-			if (ca) {
-				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
-				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
-				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
-			}
-			rcu_read_unlock();
-			break;
-		}
-	}
-
-	return __bch2_accounting_mem_mod(c, a, gc);
-}
-
 static inline int bch2_accounting_mem_add(struct btree_trans *trans, struct bkey_s_c_accounting a, bool gc)
 {
 	percpu_down_read(&trans->c->mark_lock);
-	int ret = bch2_accounting_mem_mod_locked(trans, a, gc);
+	int ret = bch2_accounting_mem_mod_locked(trans, a, gc, false);
 	percpu_up_read(&trans->c->mark_lock);
 	return ret;
 }

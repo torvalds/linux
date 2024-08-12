@@ -566,7 +566,7 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 					struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
 
 					accounting_key_init(&k_i.k, &acc_k, src_v, nr);
-					bch2_accounting_mem_mod_locked(trans, bkey_i_to_s_c_accounting(&k_i.k), false);
+					bch2_accounting_mem_mod_locked(trans, bkey_i_to_s_c_accounting(&k_i.k), false, false);
 
 					preempt_disable();
 					struct bch_fs_usage_base *dst = this_cpu_ptr(c->usage);
@@ -595,7 +595,7 @@ static int accounting_read_key(struct btree_trans *trans, struct bkey_s_c k)
 		return 0;
 
 	percpu_down_read(&c->mark_lock);
-	int ret = __bch2_accounting_mem_mod(c, bkey_s_c_to_accounting(k), false);
+	int ret = bch2_accounting_mem_mod_locked(trans, bkey_s_c_to_accounting(k), false, true);
 	percpu_up_read(&c->mark_lock);
 
 	if (bch2_accounting_key_is_zero(bkey_s_c_to_accounting(k)) &&
