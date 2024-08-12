@@ -697,10 +697,7 @@ static char *get_modinfo(struct elf_info *info, const char *tag)
 
 static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 {
-	if (sym)
-		return elf->strtab + sym->st_name;
-	else
-		return "(unknown)";
+	return sym ? elf->strtab + sym->st_name : "";
 }
 
 /*
@@ -1013,6 +1010,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	Elf_Sym *from;
 	const char *tosym;
 	const char *fromsym;
+	char taddr_str[16];
 
 	from = find_fromsym(elf, faddr, fsecndx);
 	fromsym = sym_name(elf, from);
@@ -1026,10 +1024,17 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 
 	sec_mismatch_count++;
 
-	warn("%s: section mismatch in reference: %s+0x%x (section: %s) -> %s (section: %s)\n",
-	     modname, fromsym,
-	     (unsigned int)(faddr - (from ? from->st_value : 0)),
-	     fromsec, tosym, tosec);
+	if (!tosym[0])
+		snprintf(taddr_str, sizeof(taddr_str), "0x%x", (unsigned int)taddr);
+
+	/*
+	 * The format for the reference source:      <symbol_name>+<offset> or <address>
+	 * The format for the reference destination: <symbol_name>          or <address>
+	 */
+	warn("%s: section mismatch in reference: %s%s0x%x (section: %s) -> %s (section: %s)\n",
+	     modname, fromsym, fromsym[0] ? "+" : "",
+	     (unsigned int)(faddr - (fromsym[0] ? from->st_value : 0)),
+	     fromsec, tosym[0] ? tosym : taddr_str, tosec);
 
 	if (mismatch->mismatch == EXTABLE_TO_NON_TEXT) {
 		if (match(tosec, mismatch->bad_tosec))
