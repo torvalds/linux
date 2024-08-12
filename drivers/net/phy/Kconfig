@@ -44,6 +44,9 @@ config LED_TRIGGER_PHY
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
 		for any speed known to the PHY.
 
+config OPEN_ALLIANCE_HELPERS
+	bool
+
 config PHYLIB_LEDS
 	def_bool OF
 	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
