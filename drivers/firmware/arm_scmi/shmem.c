@@ -2,7 +2,7 @@
 /*
  * For transport using shared mem structure.
  *
- * Copyright (C) 2019 ARM Ltd.
+ * Copyright (C) 2019-2024 ARM Ltd.
  */
 
 #include <linux/ktime.h>
@@ -34,8 +34,9 @@ struct scmi_shared_mem {
 	u8 msg_payload[];
 };
 
-void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
-		      struct scmi_xfer *xfer, struct scmi_chan_info *cinfo)
+static void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
+			     struct scmi_xfer *xfer,
+			     struct scmi_chan_info *cinfo)
 {
 	ktime_t stop;
 
@@ -75,13 +76,13 @@ void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
 		memcpy_toio(shmem->msg_payload, xfer->tx.buf, xfer->tx.len);
 }
 
-u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem)
+static u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem)
 {
 	return ioread32(&shmem->msg_header);
 }
 
-void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
-			  struct scmi_xfer *xfer)
+static void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
+				 struct scmi_xfer *xfer)
 {
 	size_t len = ioread32(&shmem->length);
 
@@ -93,8 +94,8 @@ void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
 	memcpy_fromio(xfer->rx.buf, shmem->msg_payload + 4, xfer->rx.len);
 }
 
-void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
-			      size_t max_len, struct scmi_xfer *xfer)
+static void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
+				     size_t max_len, struct scmi_xfer *xfer)
 {
 	size_t len = ioread32(&shmem->length);
 
@@ -105,13 +106,13 @@ void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
 	memcpy_fromio(xfer->rx.buf, shmem->msg_payload, xfer->rx.len);
 }
 
-void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem)
+static void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem)
 {
 	iowrite32(SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE, &shmem->channel_status);
 }
 
-bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
-		     struct scmi_xfer *xfer)
+static bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
+			    struct scmi_xfer *xfer)
 {
 	u16 xfer_id;
 
@@ -125,20 +126,20 @@ bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
 		 SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE);
 }
 
-bool shmem_channel_free(struct scmi_shared_mem __iomem *shmem)
+static bool shmem_channel_free(struct scmi_shared_mem __iomem *shmem)
 {
 	return (ioread32(&shmem->channel_status) &
 			SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE);
 }
 
-bool shmem_channel_intr_enabled(struct scmi_shared_mem __iomem *shmem)
+static bool shmem_channel_intr_enabled(struct scmi_shared_mem __iomem *shmem)
 {
 	return ioread32(&shmem->flags) & SCMI_SHMEM_FLAG_INTR_ENABLED;
 }
 
-void __iomem *setup_shmem_iomap(struct scmi_chan_info *cinfo,
-				struct device *dev, bool tx,
-				struct resource *res)
+static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
+				       struct device *dev, bool tx,
+				       struct resource *res)
 {
 	struct device_node *shmem __free(device_node);
 	const char *desc = tx ? "Tx" : "Rx";
@@ -174,3 +175,15 @@ void __iomem *setup_shmem_iomap(struct scmi_chan_info *cinfo,
 
 	return addr;
 }
+
+const struct scmi_shared_mem_operations scmi_shmem_ops = {
+	.tx_prepare = shmem_tx_prepare,
+	.read_header = shmem_read_header,
+	.fetch_response = shmem_fetch_response,
+	.fetch_notification = shmem_fetch_notification,
+	.clear_channel = shmem_clear_channel,
+	.poll_done = shmem_poll_done,
+	.channel_free = shmem_channel_free,
+	.channel_intr_enabled = shmem_channel_intr_enabled,
+	.setup_iomap = shmem_setup_iomap,
+};

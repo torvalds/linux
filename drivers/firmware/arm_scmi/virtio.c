@@ -295,7 +295,7 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 		if (msg) {
 			msg->rx_len = length;
 			scmi_rx_callback(vioch->cinfo,
-					 msg_read_header(msg->input), msg);
+					 scmi_msg_ops.read_header(msg->input), msg);
 
 			scmi_finalize_message(vioch, msg);
 		}
@@ -340,7 +340,7 @@ static void scmi_vio_deferred_tx_worker(struct work_struct *work)
 		 */
 		if (msg->poll_status == VIO_MSG_NOT_POLLED)
 			scmi_rx_callback(vioch->cinfo,
-					 msg_read_header(msg->input), msg);
+					 scmi_msg_ops.read_header(msg->input), msg);
 
 		/* Free the processed message once done */
 		scmi_vio_msg_release(vioch, msg);
@@ -510,10 +510,10 @@ static int virtio_send_message(struct scmi_chan_info *cinfo,
 		return -EBUSY;
 	}
 
-	msg_tx_prepare(msg->request, xfer);
+	scmi_msg_ops.tx_prepare(msg->request, xfer);
 
-	sg_init_one(&sg_out, msg->request, msg_command_size(xfer));
-	sg_init_one(&sg_in, msg->input, msg_response_size(xfer));
+	sg_init_one(&sg_out, msg->request, scmi_msg_ops.command_size(xfer));
+	sg_init_one(&sg_in, msg->input, scmi_msg_ops.response_size(xfer));
 
 	spin_lock_irqsave(&vioch->lock, flags);
 
@@ -560,7 +560,7 @@ static void virtio_fetch_response(struct scmi_chan_info *cinfo,
 	struct scmi_vio_msg *msg = xfer->priv;
 
 	if (msg)
-		msg_fetch_response(msg->input, msg->rx_len, xfer);
+		scmi_msg_ops.fetch_response(msg->input, msg->rx_len, xfer);
 }
 
 static void virtio_fetch_notification(struct scmi_chan_info *cinfo,
@@ -569,7 +569,7 @@ static void virtio_fetch_notification(struct scmi_chan_info *cinfo,
 	struct scmi_vio_msg *msg = xfer->priv;
 
 	if (msg)
-		msg_fetch_notification(msg->input, msg->rx_len, max_len, xfer);
+		scmi_msg_ops.fetch_notification(msg->input, msg->rx_len, max_len, xfer);
 }
 
 /**

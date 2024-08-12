@@ -4,7 +4,7 @@
  * driver common header file containing some definitions, structures
  * and function prototypes used in all the different SCMI protocols.
  *
- * Copyright (C) 2018-2022 ARM Ltd.
+ * Copyright (C) 2018-2024 ARM Ltd.
  */
 #ifndef _SCMI_COMMON_H
 #define _SCMI_COMMON_H
@@ -339,20 +339,39 @@ void scmi_bad_message_trace(struct scmi_chan_info *cinfo, u32 msg_hdr,
 /* shmem related declarations */
 struct scmi_shared_mem;
 
-void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
-		      struct scmi_xfer *xfer, struct scmi_chan_info *cinfo);
-u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem);
-void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
+/**
+ * struct scmi_shared_mem_operations  - Transport core operations for
+ * Shared Memory
+ *
+ * @tx_prepare: Prepare the @xfer message for transmission on the chosen @shmem
+ * @read_header: Read header of the message currently hold in @shmem
+ * @fetch_response: Copy the message response from @shmem into @xfer
+ * @fetch_notification: Copy the message notification from @shmem into @xfer
+ * @clear_channel: Clear the @shmem channel busy flag
+ * @poll_done: Check if poll has completed for @xfer on @shmem
+ * @channel_free: Check if @shmem channel is marked as free
+ * @channel_intr_enabled: Check is @shmem channel has requested a completion irq
+ * @setup_iomap: Setup IO shared memory for channel @cinfo
+ */
+struct scmi_shared_mem_operations {
+	void (*tx_prepare)(struct scmi_shared_mem __iomem *shmem,
+			   struct scmi_xfer *xfer,
+			   struct scmi_chan_info *cinfo);
+	u32 (*read_header)(struct scmi_shared_mem __iomem *shmem);
+
+	void (*fetch_response)(struct scmi_shared_mem __iomem *shmem,
+			       struct scmi_xfer *xfer);
+	void (*fetch_notification)(struct scmi_shared_mem __iomem *shmem,
+				   size_t max_len, struct scmi_xfer *xfer);
+	void (*clear_channel)(struct scmi_shared_mem __iomem *shmem);
+	bool (*poll_done)(struct scmi_shared_mem __iomem *shmem,
 			  struct scmi_xfer *xfer);
-void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
-			      size_t max_len, struct scmi_xfer *xfer);
-void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem);
-bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
-		     struct scmi_xfer *xfer);
-bool shmem_channel_free(struct scmi_shared_mem __iomem *shmem);
-bool shmem_channel_intr_enabled(struct scmi_shared_mem __iomem *shmem);
-void __iomem *setup_shmem_iomap(struct scmi_chan_info *cinfo, struct device *dev,
-				bool tx, struct resource *res);
+	bool (*channel_free)(struct scmi_shared_mem __iomem *shmem);
+	bool (*channel_intr_enabled)(struct scmi_shared_mem __iomem *shmem);
+	void __iomem *(*setup_iomap)(struct scmi_chan_info *cinfo,
+				     struct device *dev,
+				     bool tx, struct resource *res);
+};
 
 /* declarations for message passing transports */
 struct scmi_msg_payld;
@@ -360,14 +379,29 @@ struct scmi_msg_payld;
 /* Maximum overhead of message w.r.t. struct scmi_desc.max_msg_size */
 #define SCMI_MSG_MAX_PROT_OVERHEAD (2 * sizeof(__le32))
 
-size_t msg_response_size(struct scmi_xfer *xfer);
-size_t msg_command_size(struct scmi_xfer *xfer);
-void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer);
-u32 msg_read_header(struct scmi_msg_payld *msg);
-void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
-			struct scmi_xfer *xfer);
-void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
-			    size_t max_len, struct scmi_xfer *xfer);
+/**
+ * struct scmi_message_operations  - Transport core operations for Message
+ *
+ * @response_size: Get calculated response size for @xfer
+ * @command_size: Get calculated command size for @xfer
+ * @tx_prepare: Prepare the @xfer message for transmission on the provided @msg
+ * @read_header: Read header of the message currently hold in @msg
+ * @fetch_response: Copy the message response from @msg into @xfer
+ * @fetch_notification: Copy the message notification from @msg into @xfer
+ */
+struct scmi_message_operations {
+	size_t (*response_size)(struct scmi_xfer *xfer);
+	size_t (*command_size)(struct scmi_xfer *xfer);
+	void (*tx_prepare)(struct scmi_msg_payld *msg, struct scmi_xfer *xfer);
+	u32 (*read_header)(struct scmi_msg_payld *msg);
+	void (*fetch_response)(struct scmi_msg_payld *msg, size_t len,
+			       struct scmi_xfer *xfer);
+	void (*fetch_notification)(struct scmi_msg_payld *msg, size_t len,
+				   size_t max_len, struct scmi_xfer *xfer);
+};
+
+extern const struct scmi_shared_mem_operations scmi_shmem_ops;
+extern const struct scmi_message_operations scmi_msg_ops;
 
 void scmi_notification_instance_data_set(const struct scmi_handle *handle,
 					 void *priv);

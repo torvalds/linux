@@ -74,7 +74,7 @@ static irqreturn_t smc_msg_done_isr(int irq, void *data)
 	struct scmi_smc *scmi_info = data;
 
 	scmi_rx_callback(scmi_info->cinfo,
-			 shmem_read_header(scmi_info->shmem), NULL);
+			 scmi_shmem_ops.read_header(scmi_info->shmem), NULL);
 
 	return IRQ_HANDLED;
 }
@@ -141,7 +141,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!scmi_info)
 		return -ENOMEM;
 
-	scmi_info->shmem = setup_shmem_iomap(cinfo, dev, tx, &res);
+	scmi_info->shmem = scmi_shmem_ops.setup_iomap(cinfo, dev, tx, &res);
 	if (IS_ERR(scmi_info->shmem))
 		return PTR_ERR(scmi_info->shmem);
 
@@ -226,7 +226,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	 */
 	smc_channel_lock_acquire(scmi_info, xfer);
 
-	shmem_tx_prepare(scmi_info->shmem, xfer, cinfo);
+	scmi_shmem_ops.tx_prepare(scmi_info->shmem, xfer, cinfo);
 
 	if (scmi_info->cap_id != ULONG_MAX)
 		arm_smccc_1_1_invoke(scmi_info->func_id, scmi_info->cap_id, 0,
@@ -250,7 +250,7 @@ static void smc_fetch_response(struct scmi_chan_info *cinfo,
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 
-	shmem_fetch_response(scmi_info->shmem, xfer);
+	scmi_shmem_ops.fetch_response(scmi_info->shmem, xfer);
 }
 
 static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret,

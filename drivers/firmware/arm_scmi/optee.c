@@ -343,7 +343,7 @@ static void scmi_optee_clear_channel(struct scmi_chan_info *cinfo)
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
 	if (!channel->tee_shm)
-		shmem_clear_channel(channel->req.shmem);
+		scmi_shmem_ops.clear_channel(channel->req.shmem);
 }
 
 static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *channel)
@@ -368,7 +368,7 @@ static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *ch
 static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 			      struct scmi_optee_channel *channel)
 {
-	channel->req.shmem = setup_shmem_iomap(cinfo, dev, true, NULL);
+	channel->req.shmem = scmi_shmem_ops.setup_iomap(cinfo, dev, true, NULL);
 	if (IS_ERR(channel->req.shmem))
 		return PTR_ERR(channel->req.shmem);
 
@@ -479,10 +479,10 @@ static int scmi_optee_send_message(struct scmi_chan_info *cinfo,
 	mutex_lock(&channel->mu);
 
 	if (channel->tee_shm) {
-		msg_tx_prepare(channel->req.msg, xfer);
-		ret = invoke_process_msg_channel(channel, msg_command_size(xfer));
+		scmi_msg_ops.tx_prepare(channel->req.msg, xfer);
+		ret = invoke_process_msg_channel(channel, scmi_msg_ops.command_size(xfer));
 	} else {
-		shmem_tx_prepare(channel->req.shmem, xfer, cinfo);
+		scmi_shmem_ops.tx_prepare(channel->req.shmem, xfer, cinfo);
 		ret = invoke_process_smt_channel(channel);
 	}
 
@@ -498,9 +498,9 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
 	if (channel->tee_shm)
-		msg_fetch_response(channel->req.msg, channel->rx_len, xfer);
+		scmi_msg_ops.fetch_response(channel->req.msg, channel->rx_len, xfer);
 	else
-		shmem_fetch_response(channel->req.shmem, xfer);
+		scmi_shmem_ops.fetch_response(channel->req.shmem, xfer);
 }
 
 static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,
