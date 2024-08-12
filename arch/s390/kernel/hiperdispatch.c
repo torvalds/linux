@@ -53,6 +53,9 @@
 #include <asm/smp.h>
 #include <asm/topology.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/hiperdispatch.h>
+
 #define HD_DELAY_FACTOR			(4)
 #define HD_DELAY_INTERVAL		(HZ / 4)
 #define HD_STEAL_THRESHOLD		30
@@ -200,9 +203,11 @@ static void hd_capacity_work_fn(struct work_struct *work)
 	else
 		new_cores = hd_entitled_cores;
 	if (hd_high_capacity_cores != new_cores) {
+		trace_s390_hd_rebuild_domains(hd_high_capacity_cores, new_cores);
 		hd_high_capacity_cores = new_cores;
 		topology_schedule_update();
 	}
+	trace_s390_hd_work_fn(steal_percentage, hd_entitled_cores, hd_high_capacity_cores);
 	mutex_unlock(&smp_cpu_state_mutex);
 	schedule_delayed_work(&hd_capacity_work, HD_DELAY_INTERVAL);
 }
