@@ -743,6 +743,29 @@ static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
 	return 0;
 }
 
+struct mark_dso_hit_args {
+	const struct perf_tool *tool;
+	struct machine *machine;
+	u8 cpumode;
+};
+
+static int mark_dso_hit_callback(struct callchain_cursor_node *node, void *data)
+{
+	struct mark_dso_hit_args *args = data;
+	struct map *map = node->ms.map;
+
+	if (map) {
+		struct dso *dso = map__dso(map);
+
+		if (dso && !dso__hit(dso)) {
+			dso__set_hit(dso);
+			dso__inject_build_id(dso, args->tool, args->machine,
+					     args->cpumode, map__flags(map));
+		}
+	}
+	return 0;
+}
+
 int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel __maybe_unused,
@@ -750,6 +773,11 @@ int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *e
 {
 	struct addr_location al;
 	struct thread *thread;
+	struct mark_dso_hit_args args = {
+		.tool = tool,
+		.machine = machine,
+		.cpumode = sample->cpumode,
+	};
 
 	addr_location__init(&al);
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
@@ -768,6 +796,9 @@ int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *e
 					     sample->cpumode, map__flags(al.map));
 		}
 	}
+
+	sample__for_each_callchain_node(thread, evsel, sample, PERF_MAX_STACK_DEPTH,
+					mark_dso_hit_callback, &args);
 
 	thread__put(thread);
 repipe:
