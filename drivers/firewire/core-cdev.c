@@ -139,6 +139,26 @@ struct iso_resource {
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
+static struct address_handler_resource *to_address_handler_resource(struct client_resource *resource)
+{
+	return container_of(resource, struct address_handler_resource, resource);
+}
+
+static struct inbound_transaction_resource *to_inbound_transaction_resource(struct client_resource *resource)
+{
+	return container_of(resource, struct inbound_transaction_resource, resource);
+}
+
+static struct descriptor_resource *to_descriptor_resource(struct client_resource *resource)
+{
+	return container_of(resource, struct descriptor_resource, resource);
+}
+
+static struct iso_resource *to_iso_resource(struct client_resource *resource)
+{
+	return container_of(resource, struct iso_resource, resource);
+}
+
 static void release_iso_resource(struct client *, struct client_resource *);
 
 static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
@@ -151,8 +171,7 @@ static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 static void schedule_if_iso_resource(struct client_resource *resource)
 {
 	if (resource->release == release_iso_resource)
-		schedule_iso_resource(container_of(resource,
-					struct iso_resource, resource), 0);
+		schedule_iso_resource(to_iso_resource(resource), 0);
 }
 
 /*
@@ -682,8 +701,7 @@ static int ioctl_send_request(struct client *client, union ioctl_arg *arg)
 static void release_request(struct client *client,
 			    struct client_resource *resource)
 {
-	struct inbound_transaction_resource *r = container_of(resource,
-			struct inbound_transaction_resource, resource);
+	struct inbound_transaction_resource *r = to_inbound_transaction_resource(resource);
 
 	if (r->is_fcp)
 		fw_request_put(r->request);
@@ -793,8 +811,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 static void release_address_handler(struct client *client,
 				    struct client_resource *resource)
 {
-	struct address_handler_resource *r =
-	    container_of(resource, struct address_handler_resource, resource);
+	struct address_handler_resource *r = to_address_handler_resource(resource);
 
 	fw_core_remove_address_handler(&r->handler);
 	kfree(r);
@@ -858,8 +875,7 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 				    release_request, &resource) < 0)
 		return -EINVAL;
 
-	r = container_of(resource, struct inbound_transaction_resource,
-			 resource);
+	r = to_inbound_transaction_resource(resource);
 	if (r->is_fcp) {
 		fw_request_put(r->request);
 		goto out;
@@ -893,8 +909,7 @@ static int ioctl_initiate_bus_reset(struct client *client, union ioctl_arg *arg)
 static void release_descriptor(struct client *client,
 			       struct client_resource *resource)
 {
-	struct descriptor_resource *r =
-		container_of(resource, struct descriptor_resource, resource);
+	struct descriptor_resource *r = to_descriptor_resource(resource);
 
 	fw_core_remove_descriptor(&r->descriptor);
 	kfree(r);
@@ -1387,8 +1402,7 @@ static void iso_resource_work(struct work_struct *work)
 static void release_iso_resource(struct client *client,
 				 struct client_resource *resource)
 {
-	struct iso_resource *r =
-		container_of(resource, struct iso_resource, resource);
+	struct iso_resource *r = to_iso_resource(resource);
 
 	guard(spinlock_irq)(&client->lock);
 
