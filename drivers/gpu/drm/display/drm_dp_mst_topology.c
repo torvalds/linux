@@ -2698,18 +2698,10 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 				 guid_t *guid)
 {
-	u64 salt;
-	u8 buf[UUID_SIZE];
-
 	if (!guid_is_null(guid))
 		return true;
 
-	salt = get_jiffies_64();
-
-	memcpy(&buf[0], &salt, sizeof(u64));
-	memcpy(&buf[8], &salt, sizeof(u64));
-
-	import_guid(guid, buf);
+	guid_gen(guid);
 
 	return false;
 }
