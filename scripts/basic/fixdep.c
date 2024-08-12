@@ -99,6 +99,8 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include <xalloc.h>
+
 static void usage(void)
 {
 	fprintf(stderr, "Usage: fixdep <depfile> <target> <cmdline>\n");
@@ -131,12 +133,9 @@ static unsigned int strhash(const char *str, unsigned int sz)
 static void add_to_hashtable(const char *name, int len, unsigned int hash,
 			     struct item *hashtab[])
 {
-	struct item *aux = malloc(sizeof(*aux) + len);
+	struct item *aux;
 
-	if (!aux) {
-		perror("fixdep:malloc");
-		exit(1);
-	}
+	aux = xmalloc(sizeof(*aux) + len);
 	memcpy(aux->name, name, len);
 	aux->len = len;
 	aux->hash = hash;
@@ -228,11 +227,7 @@ static void *read_file(const char *filename)
 		perror(filename);
 		exit(2);
 	}
-	buf = malloc(st.st_size + 1);
-	if (!buf) {
-		perror("fixdep: malloc");
-		exit(2);
-	}
+	buf = xmalloc(st.st_size + 1);
 	if (read(fd, buf, st.st_size) != st.st_size) {
 		perror("fixdep: read");
 		exit(2);
