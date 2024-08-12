@@ -193,10 +193,10 @@ __asm__ (
 	"movq %rdi, %rdx\n\t"
 	"subq %rsi, %rdx\n\t"
 	"cmpq %rcx, %rdx\n\t"
-	"jb   .Lbackward_copy\n\t"
+	"jb   1f\n\t"
 	"rep movsb\n\t"
 	"retq\n"
-".Lbackward_copy:"
+"1:" /* backward copy */
 	"leaq -1(%rdi, %rcx, 1), %rdi\n\t"
 	"leaq -1(%rsi, %rcx, 1), %rsi\n\t"
 	"std\n\t"
