@@ -76,8 +76,8 @@
 					(x) == AD7173_AIN_REF_NEG)
 
 #define AD7172_2_ID			0x00d0
-#define AD7175_ID			0x0cd0
 #define AD7176_ID			0x0c90
+#define AD7175_ID			0x0cd0
 #define AD7175_2_ID			0x0cd0
 #define AD7172_4_ID			0x2050
 #define AD7173_ID			0x30d0
