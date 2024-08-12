@@ -366,10 +366,6 @@
 			  "", "", "", ""; /* 170 - 173 */
 };
 
-&xilinx_ams {
-	status = "okay";
-};
-
 &ams_ps {
 	status = "okay";
 };

@@ -1157,7 +1157,6 @@
 
 		xilinx_ams: ams@ffa50000 {
 			compatible = "xlnx,zynqmp-ams";
-			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x0 0xffa50000 0x0 0x800>;
