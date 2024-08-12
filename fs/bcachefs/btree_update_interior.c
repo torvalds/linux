@@ -1264,7 +1264,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			ret = bch2_btree_reserve_get(trans, as, nr_nodes, flags, &cl);
 
 			bch2_trans_unlock(trans);
-			closure_sync(&cl);
+			bch2_wait_on_allocator(c, &cl);
 		} while (bch2_err_matches(ret, BCH_ERR_operation_blocked));
 	}
 

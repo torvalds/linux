@@ -2711,8 +2711,6 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 
 		if (buffer[14] & 0x40) /* LBPRZ */
 			sdkp->lbprz = 1;
-
-		sd_config_discard(sdkp, lim, SD_LBP_WS16);
 	}
 
 	sdkp->capacity = lba + 1;
@@ -3365,8 +3363,6 @@ static void sd_read_block_limits(struct scsi_disk *sdkp,
 			sdkp->unmap_alignment =
 				get_unaligned_be32(&vpd->data[32]) & ~(1 << 31);
 
-		sd_config_discard(sdkp, lim, sd_discard_mode(sdkp));
-
 config_atomic:
 		sdkp->max_atomic = get_unaligned_be32(&vpd->data[44]);
 		sdkp->atomic_alignment = get_unaligned_be32(&vpd->data[48]);
@@ -3753,8 +3749,9 @@ static int sd_revalidate_disk(struct gendisk *disk)
 			sd_read_block_limits_ext(sdkp);
 			sd_read_block_characteristics(sdkp, &lim);
 			sd_zbc_read_zones(sdkp, &lim, buffer);
-			sd_read_cpr(sdkp);
 		}
+
+		sd_config_discard(sdkp, &lim, sd_discard_mode(sdkp));
 
 		sd_print_capacity(sdkp, old_capacity);
 
@@ -3807,6 +3804,14 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	blk_mq_unfreeze_queue(sdkp->disk->queue);
 	if (err)
 		return err;
+
+	/*
+	 * Query concurrent positioning ranges after
+	 * queue_limits_commit_update() unlocked q->limits_lock to avoid
+	 * deadlock with q->sysfs_dir_lock and q->sysfs_lock.
+	 */
+	if (sdkp->media_present && scsi_device_supports_vpd(sdp))
+		sd_read_cpr(sdkp);
 
 	/*
 	 * For a zoned drive, revalidating the zones can be done only once

@@ -1044,13 +1044,13 @@ static struct binder_ref *binder_get_ref_olocked(struct binder_proc *proc,
 }
 
 /* Find the smallest unused descriptor the "slow way" */
-static u32 slow_desc_lookup_olocked(struct binder_proc *proc)
+static u32 slow_desc_lookup_olocked(struct binder_proc *proc, u32 offset)
 {
 	struct binder_ref *ref;
 	struct rb_node *n;
 	u32 desc;
 
-	desc = 1;
+	desc = offset;
 	for (n = rb_first(&proc->refs_by_desc); n; n = rb_next(n)) {
 		ref = rb_entry(n, struct binder_ref, rb_node_desc);
 		if (ref->data.desc > desc)
@@ -1071,21 +1071,18 @@ static int get_ref_desc_olocked(struct binder_proc *proc,
 				u32 *desc)
 {
 	struct dbitmap *dmap = &proc->dmap;
+	unsigned int nbits, offset;
 	unsigned long *new, bit;
-	unsigned int nbits;
 
 	/* 0 is reserved for the context manager */
-	if (node == proc->context->binder_context_mgr_node) {
-		*desc = 0;
-		return 0;
-	}
+	offset = (node == proc->context->binder_context_mgr_node) ? 0 : 1;
 
 	if (!dbitmap_enabled(dmap)) {
-		*desc = slow_desc_lookup_olocked(proc);
+		*desc = slow_desc_lookup_olocked(proc, offset);
 		return 0;
 	}
 
-	if (dbitmap_acquire_first_zero_bit(dmap, &bit) == 0) {
+	if (dbitmap_acquire_next_zero_bit(dmap, offset, &bit) == 0) {
 		*desc = bit;
 		return 0;
 	}
