@@ -1524,6 +1524,12 @@ properties:
               - fsl,ls2080a-rdb
           - const: fsl,ls2080a
 
+      - description: LS2081A based Boards
+        items:
+          - enum:
+              - fsl,ls2081a-rdb
+          - const: fsl,ls2081a
+
       - description: LS2088A based Boards
         items:
           - enum:
