@@ -980,7 +980,7 @@ void get_surface_tile_visual_confirm_color(
 }
 
 /**
- * hwss_wait_for_blank_complete - wait for all active OPPs to finish pending blank
+ * hwss_wait_for_all_blank_complete - wait for all active OPPs to finish pending blank
  * pattern updates
  *
  * @dc: [in] dc reference
