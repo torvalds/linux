@@ -149,9 +149,9 @@ static int alloc_fwnode_name(struct irq_domain *domain, const struct fwnode_hand
 	char *name;
 
 	if (bus_token == DOMAIN_BUS_ANY)
-		name = kasprintf(GFP_KERNEL, "%pfw-%s", fwnode, suf);
+		name = kasprintf(GFP_KERNEL, "%pfw%s%s", fwnode, sep, suf);
 	else
-		name = kasprintf(GFP_KERNEL, "%pfw-%s%s%d", fwnode, suf, sep, bus_token);
+		name = kasprintf(GFP_KERNEL, "%pfw%s%s-%d", fwnode, sep, suf, bus_token);
 	if (!name)
 		return -ENOMEM;
 
