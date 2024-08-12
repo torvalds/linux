@@ -18,6 +18,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <xalloc.h>
 #include "internal.h"
 #include "lkc.h"
 

@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 #include "qconf.h"
 

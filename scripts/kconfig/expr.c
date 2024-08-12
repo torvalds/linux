@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 
 #define DEBUG_EXPR	0

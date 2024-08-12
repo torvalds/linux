@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <hashtable.h>
+#include <xalloc.h>
 #include "lkc.h"
 
 unsigned int strhash(const char *s)
@@ -101,53 +102,4 @@ void str_printf(struct gstr *gs, const char *fmt, ...)
 char *str_get(const struct gstr *gs)
 {
 	return gs->s;
-}
-
-void *xmalloc(size_t size)
-{
-	void *p = malloc(size);
-	if (p)
-		return p;
-	fprintf(stderr, "Out of memory.\n");
-	exit(1);
-}
-
-void *xcalloc(size_t nmemb, size_t size)
-{
-	void *p = calloc(nmemb, size);
-	if (p)
-		return p;
-	fprintf(stderr, "Out of memory.\n");
-	exit(1);
-}
-
-void *xrealloc(void *p, size_t size)
-{
-	p = realloc(p, size);
-	if (p)
-		return p;
-	fprintf(stderr, "Out of memory.\n");
-	exit(1);
-}
-
-char *xstrdup(const char *s)
-{
-	char *p;
-
-	p = strdup(s);
-	if (p)
-		return p;
-	fprintf(stderr, "Out of memory.\n");
-	exit(1);
-}
-
-char *xstrndup(const char *s, size_t n)
-{
-	char *p;
-
-	p = strndup(s, n);
-	if (p)
-		return p;
-	fprintf(stderr, "Out of memory.\n");
-	exit(1);
 }
