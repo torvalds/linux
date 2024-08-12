@@ -40,6 +40,9 @@ struct fbnic_net {
 	u32 rss_key[FBNIC_RPC_RSS_KEY_DWORD_LEN];
 	u32 rss_flow_hash[FBNIC_NUM_HASH_OPT];
 
+	/* Storage for stats after ring destruction */
+	struct fbnic_queue_stats tx_stats;
+	struct fbnic_queue_stats rx_stats;
 	u64 link_down_events;
 
 	struct list_head napis;

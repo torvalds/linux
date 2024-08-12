@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
+#include <net/netdev_queues.h>
 
 #include "fbnic.h"
 #include "fbnic_netdev.h"
@@ -316,6 +317,74 @@ void fbnic_clear_rx_mode(struct net_device *netdev)
 	__dev_mc_unsync(netdev, NULL);
 }
 
+static void fbnic_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats64)
+{
+	u64 tx_bytes, tx_packets, tx_dropped = 0;
+	u64 rx_bytes, rx_packets, rx_dropped = 0;
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_queue_stats *stats;
+	unsigned int start, i;
+
+	stats = &fbn->tx_stats;
+
+	tx_bytes = stats->bytes;
+	tx_packets = stats->packets;
+	tx_dropped = stats->dropped;
+
+	stats64->tx_bytes = tx_bytes;
+	stats64->tx_packets = tx_packets;
+	stats64->tx_dropped = tx_dropped;
+
+	for (i = 0; i < fbn->num_tx_queues; i++) {
+		struct fbnic_ring *txr = fbn->tx[i];
+
+		if (!txr)
+			continue;
+
+		stats = &txr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tx_bytes = stats->bytes;
+			tx_packets = stats->packets;
+			tx_dropped = stats->dropped;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->tx_bytes += tx_bytes;
+		stats64->tx_packets += tx_packets;
+		stats64->tx_dropped += tx_dropped;
+	}
+
+	stats = &fbn->rx_stats;
+
+	rx_bytes = stats->bytes;
+	rx_packets = stats->packets;
+	rx_dropped = stats->dropped;
+
+	stats64->rx_bytes = rx_bytes;
+	stats64->rx_packets = rx_packets;
+	stats64->rx_dropped = rx_dropped;
+
+	for (i = 0; i < fbn->num_rx_queues; i++) {
+		struct fbnic_ring *rxr = fbn->rx[i];
+
+		if (!rxr)
+			continue;
+
+		stats = &rxr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			rx_bytes = stats->bytes;
+			rx_packets = stats->packets;
+			rx_dropped = stats->dropped;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->rx_bytes += rx_bytes;
+		stats64->rx_packets += rx_packets;
+		stats64->rx_dropped += rx_dropped;
+	}
+}
+
 static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_open		= fbnic_open,
 	.ndo_stop		= fbnic_stop,
@@ -324,6 +393,72 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_features_check	= fbnic_features_check,
 	.ndo_set_mac_address	= fbnic_set_mac,
 	.ndo_set_rx_mode	= fbnic_set_rx_mode,
+	.ndo_get_stats64	= fbnic_get_stats64,
+};
+
+static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
+				     struct netdev_queue_stats_rx *rx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_ring *rxr = fbn->rx[idx];
+	struct fbnic_queue_stats *stats;
+	unsigned int start;
+	u64 bytes, packets;
+
+	if (!rxr)
+		return;
+
+	stats = &rxr->stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		bytes = stats->bytes;
+		packets = stats->packets;
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	rx->bytes = bytes;
+	rx->packets = packets;
+}
+
+static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
+				     struct netdev_queue_stats_tx *tx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_ring *txr = fbn->tx[idx];
+	struct fbnic_queue_stats *stats;
+	unsigned int start;
+	u64 bytes, packets;
+
+	if (!txr)
+		return;
+
+	stats = &txr->stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		bytes = stats->bytes;
+		packets = stats->packets;
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	tx->bytes = bytes;
+	tx->packets = packets;
+}
+
+static void fbnic_get_base_stats(struct net_device *dev,
+				 struct netdev_queue_stats_rx *rx,
+				 struct netdev_queue_stats_tx *tx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+
+	tx->bytes = fbn->tx_stats.bytes;
+	tx->packets = fbn->tx_stats.packets;
+
+	rx->bytes = fbn->rx_stats.bytes;
+	rx->packets = fbn->rx_stats.packets;
+}
+
+static const struct netdev_stat_ops fbnic_stat_ops = {
+	.get_queue_stats_rx	= fbnic_get_queue_stats_rx,
+	.get_queue_stats_tx	= fbnic_get_queue_stats_tx,
+	.get_base_stats		= fbnic_get_base_stats,
 };
 
 void fbnic_reset_queues(struct fbnic_net *fbn,
@@ -384,6 +519,7 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	fbd->netdev = netdev;
 
 	netdev->netdev_ops = &fbnic_netdev_ops;
+	netdev->stat_ops = &fbnic_stat_ops;
 
 	fbn = netdev_priv(netdev);
 
