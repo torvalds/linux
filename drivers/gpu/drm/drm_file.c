@@ -38,6 +38,7 @@
 #include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
 
 #include <drm/drm_client.h>
 #include <drm/drm_drv.h>
@@ -404,6 +405,9 @@ void drm_lastclose(struct drm_device * dev)
 	drm_dbg_core(dev, "driver lastclose completed\n");
 
 	drm_client_dev_restore(dev);
+
+	if (dev_is_pci(dev->dev))
+		vga_switcheroo_process_delayed_switch();
 }
 
 /**
