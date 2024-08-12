@@ -165,14 +165,13 @@ static int serial8250_probe(struct platform_device *dev)
 	struct plat_serial8250_port *p = dev_get_platdata(&dev->dev);
 	struct uart_8250_port uart;
 	int ret, i, irqflag = 0;
-	struct fwnode_handle *fwnode = dev_fwnode(&dev->dev);
 
 	/*
 	 * Probe platform UART devices defined using standard hardware
 	 * discovery mechanism like ACPI or DT. Support only ACPI based
 	 * serial device for now.
 	 */
-	if (!p && is_acpi_node(fwnode))
+	if (!p && has_acpi_companion(&dev->dev))
 		return serial8250_platform_probe(dev);
 
 	memset(&uart, 0, sizeof(uart));
