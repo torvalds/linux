@@ -23,6 +23,7 @@
 
 #include <hashtable.h>
 #include <list.h>
+#include <xalloc.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
 
@@ -97,14 +98,6 @@ static inline bool strends(const char *str, const char *postfix)
 	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
 }
 
-void *do_nofail(void *ptr, const char *expr)
-{
-	if (!ptr)
-		fatal("Memory allocation failure: %s.\n", expr);
-
-	return ptr;
-}
-
 char *read_text_file(const char *filename)
 {
 	struct stat st;
@@ -123,7 +116,7 @@ char *read_text_file(const char *filename)
 		exit(1);
 	}
 
-	buf = NOFAIL(malloc(st.st_size + 1));
+	buf = xmalloc(st.st_size + 1);
 
 	nbytes = st.st_size;
 
@@ -181,7 +174,7 @@ static struct module *new_module(const char *name, size_t namelen)
 {
 	struct module *mod;
 
-	mod = NOFAIL(malloc(sizeof(*mod) + namelen + 1));
+	mod = xmalloc(sizeof(*mod) + namelen + 1);
 	memset(mod, 0, sizeof(*mod));
 
 	INIT_LIST_HEAD(&mod->exported_symbols);
@@ -240,7 +233,7 @@ static inline unsigned int tdb_hash(const char *name)
  **/
 static struct symbol *alloc_symbol(const char *name)
 {
-	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
+	struct symbol *s = xmalloc(sizeof(*s) + strlen(name) + 1);
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
@@ -313,8 +306,7 @@ static void add_namespace(struct list_head *head, const char *namespace)
 	struct namespace_list *ns_entry;
 
 	if (!contains_namespace(head, namespace)) {
-		ns_entry = NOFAIL(malloc(sizeof(*ns_entry) +
-					 strlen(namespace) + 1));
+		ns_entry = xmalloc(sizeof(*ns_entry) + strlen(namespace) + 1);
 		strcpy(ns_entry->namespace, namespace);
 		list_add_tail(&ns_entry->list, head);
 	}
@@ -369,7 +361,7 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 	s = alloc_symbol(name);
 	s->module = mod;
 	s->is_gpl_only = gpl_only;
-	s->namespace = NOFAIL(strdup(namespace));
+	s->namespace = xstrdup(namespace);
 	list_add_tail(&s->list, &mod->exported_symbols);
 	hash_add_symbol(s);
 
@@ -637,7 +629,7 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 			if (ELF_ST_TYPE(sym->st_info) == STT_SPARC_REGISTER)
 				break;
 			if (symname[0] == '.') {
-				char *munged = NOFAIL(strdup(symname));
+				char *munged = xstrdup(symname);
 				munged[0] = '_';
 				munged[1] = toupper(munged[1]);
 				symname = munged;
@@ -1677,7 +1669,7 @@ void buf_write(struct buffer *buf, const char *s, int len)
 {
 	if (buf->size - buf->pos < len) {
 		buf->size += len + SZ;
-		buf->p = NOFAIL(realloc(buf->p, buf->size));
+		buf->p = xrealloc(buf->p, buf->size);
 	}
 	strncpy(buf->p + buf->pos, s, len);
 	buf->pos += len;
@@ -1962,7 +1954,7 @@ static void write_if_changed(struct buffer *b, const char *fname)
 	if (st.st_size != b->pos)
 		goto close_write;
 
-	tmp = NOFAIL(malloc(b->pos));
+	tmp = xmalloc(b->pos);
 	if (fread(tmp, 1, b->pos, file) != b->pos)
 		goto free_write;
 
@@ -2167,7 +2159,7 @@ int main(int argc, char **argv)
 			external_module = true;
 			break;
 		case 'i':
-			dl = NOFAIL(malloc(sizeof(*dl)));
+			dl = xmalloc(sizeof(*dl));
 			dl->file = optarg;
 			list_add_tail(&dl->list, &dump_lists);
 			break;
