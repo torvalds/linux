@@ -11,7 +11,7 @@
 #include "protocols.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
-#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20001
 
 #define VOLTAGE_DOMS_NUM_MASK		GENMASK(15, 0)
 #define REMAINING_LEVELS_MASK		GENMASK(31, 16)
