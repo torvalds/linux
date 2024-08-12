@@ -62,9 +62,9 @@ int rpcrdma_rn_register(struct ib_device *device,
 	if (!rd || test_bit(RPCRDMA_RD_F_REMOVING, &rd->rd_flags))
 		return -ENETUNREACH;
 
-	kref_get(&rd->rd_kref);
 	if (xa_alloc(&rd->rd_xa, &rn->rn_index, rn, xa_limit_32b, GFP_KERNEL) < 0)
 		return -ENOMEM;
+	kref_get(&rd->rd_kref);
 	rn->rn_done = done;
 	return 0;
 }
