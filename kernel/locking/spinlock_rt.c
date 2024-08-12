@@ -51,7 +51,7 @@ static __always_inline void __rt_spin_lock(spinlock_t *lock)
 	migrate_disable();
 }
 
-void __sched rt_spin_lock(spinlock_t *lock)
+void __sched rt_spin_lock(spinlock_t *lock) __acquires(RCU)
 {
 	spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
 	__rt_spin_lock(lock);
@@ -75,7 +75,7 @@ void __sched rt_spin_lock_nest_lock(spinlock_t *lock,
 EXPORT_SYMBOL(rt_spin_lock_nest_lock);
 #endif
 
-void __sched rt_spin_unlock(spinlock_t *lock)
+void __sched rt_spin_unlock(spinlock_t *lock) __releases(RCU)
 {
 	spin_release(&lock->dep_map, _RET_IP_);
 	migrate_enable();
@@ -225,7 +225,7 @@ int __sched rt_write_trylock(rwlock_t *rwlock)
 }
 EXPORT_SYMBOL(rt_write_trylock);
 
-void __sched rt_read_lock(rwlock_t *rwlock)
+void __sched rt_read_lock(rwlock_t *rwlock) __acquires(RCU)
 {
 	rtlock_might_resched();
 	rwlock_acquire_read(&rwlock->dep_map, 0, 0, _RET_IP_);
@@ -235,7 +235,7 @@ void __sched rt_read_lock(rwlock_t *rwlock)
 }
 EXPORT_SYMBOL(rt_read_lock);
 
-void __sched rt_write_lock(rwlock_t *rwlock)
+void __sched rt_write_lock(rwlock_t *rwlock) __acquires(RCU)
 {
 	rtlock_might_resched();
 	rwlock_acquire(&rwlock->dep_map, 0, 0, _RET_IP_);
@@ -246,7 +246,7 @@ void __sched rt_write_lock(rwlock_t *rwlock)
 EXPORT_SYMBOL(rt_write_lock);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-void __sched rt_write_lock_nested(rwlock_t *rwlock, int subclass)
+void __sched rt_write_lock_nested(rwlock_t *rwlock, int subclass) __acquires(RCU)
 {
 	rtlock_might_resched();
 	rwlock_acquire(&rwlock->dep_map, subclass, 0, _RET_IP_);
@@ -257,7 +257,7 @@ void __sched rt_write_lock_nested(rwlock_t *rwlock, int subclass)
 EXPORT_SYMBOL(rt_write_lock_nested);
 #endif
 
-void __sched rt_read_unlock(rwlock_t *rwlock)
+void __sched rt_read_unlock(rwlock_t *rwlock) __releases(RCU)
 {
 	rwlock_release(&rwlock->dep_map, _RET_IP_);
 	migrate_enable();
@@ -266,7 +266,7 @@ void __sched rt_read_unlock(rwlock_t *rwlock)
 }
 EXPORT_SYMBOL(rt_read_unlock);
 
-void __sched rt_write_unlock(rwlock_t *rwlock)
+void __sched rt_write_unlock(rwlock_t *rwlock) __releases(RCU)
 {
 	rwlock_release(&rwlock->dep_map, _RET_IP_);
 	rcu_read_unlock();
