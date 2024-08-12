@@ -975,6 +975,19 @@ config TOUCHSCREEN_MX25
 	  To compile this driver as a module, choose M here: the
 	  module will be called fsl-imx25-tcq.
 
+config TOUCHSCREEN_FT8756
+	tristate "Focaltech FT8756 SPI touchscreen controller"
+	depends on SPI_MASTER
+	select REGMAP
+        help
+          Say Y here if you have a Focaltech FT8756
+          touchscreen connected to your system over SPI.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the
+          module will be called ft8756.
+
 config TOUCHSCREEN_MC13783
 	tristate "Freescale MC13783 touchscreen input driver"
 	depends on MFD_MC13XXX

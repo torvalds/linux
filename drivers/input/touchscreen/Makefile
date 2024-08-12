@@ -59,6 +59,7 @@ obj-$(CONFIG_TOUCHSCREEN_LPC32XX)	+= lpc32xx_ts.o
 obj-$(CONFIG_TOUCHSCREEN_MAX11801)	+= max11801_ts.o
 obj-$(CONFIG_TOUCHSCREEN_MXS_LRADC)     += mxs-lradc-ts.o
 obj-$(CONFIG_TOUCHSCREEN_MX25)		+= fsl-imx25-tcq.o
+obj-$(CONFIG_TOUCHSCREEN_FT8756)		+= ft8756.o
 obj-$(CONFIG_TOUCHSCREEN_MC13783)	+= mc13783_ts.o
 obj-$(CONFIG_TOUCHSCREEN_MELFAS_MIP4)	+= melfas_mip4.o
 obj-$(CONFIG_TOUCHSCREEN_MIGOR)		+= migor_ts.o
