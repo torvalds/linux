@@ -674,6 +674,8 @@ static int __init topology_init(void)
 		set_topology_timer();
 	else
 		topology_update_polarization_simple();
+	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY_VERTICAL))
+		set_polarization(1);
 	register_sysctl("s390", topology_ctl_table);
 
 	dev_root = bus_get_dev_root(&cpu_subsys);

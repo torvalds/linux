@@ -513,6 +513,14 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
+config SCHED_TOPOLOGY_VERTICAL
+	def_bool y
+	bool "Use vertical CPU polarization by default"
+	depends on SCHED_TOPOLOGY
+	help
+	  Use vertical CPU polarization by default if available.
+	  The default CPU polarization is horizontal.
+
 source "kernel/Kconfig.hz"
 
 config CERT_STORE
