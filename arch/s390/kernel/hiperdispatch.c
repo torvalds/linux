@@ -46,11 +46,13 @@
  */
 
 #include <linux/cpumask.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/kernel_stat.h>
 #include <linux/kstrtox.h>
 #include <linux/ktime.h>
 #include <linux/sysctl.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
 #include <asm/hiperdispatch.h>
 #include <asm/setup.h>
@@ -72,6 +74,9 @@ static int hd_entitled_cores;		/* Total vertical high and medium CORE count */
 static int hd_online_cores;		/* Current online CORE count */
 
 static unsigned long hd_previous_steal;	/* Previous iteration's CPU steal timer total */
+static unsigned long hd_high_time;	/* Total time spent while all cpus have high capacity */
+static unsigned long hd_low_time;	/* Total time spent while vl cpus have low capacity */
+static atomic64_t hd_adjustments;	/* Total occurrence count of hiperdispatch adjustments */
 
 static unsigned int hd_steal_threshold = HD_STEAL_THRESHOLD;
 static unsigned int hd_delay_factor = HD_DELAY_FACTOR;
@@ -121,6 +126,33 @@ void hd_add_core(int cpu)
 	}
 }
 
+/* Serialize update and read operations of debug counters. */
+static DEFINE_MUTEX(hd_counter_mutex);
+
+static void hd_update_times(void)
+{
+	static ktime_t prev;
+	ktime_t now;
+
+	/*
+	 * Check if hiperdispatch is active, if not set the prev to 0.
+	 * This way it is possible to differentiate the first update iteration after
+	 * enabling hiperdispatch.
+	 */
+	if (hd_entitled_cores == 0 || hd_enabled == 0) {
+		prev = ktime_set(0, 0);
+		return;
+	}
+	now = ktime_get();
+	if (ktime_after(prev, 0)) {
+		if (hd_high_capacity_cores == hd_online_cores)
+			hd_high_time += ktime_ms_delta(now, prev);
+		else
+			hd_low_time += ktime_ms_delta(now, prev);
+	}
+	prev = now;
+}
+
 static void hd_update_capacities(void)
 {
 	int cpu, upscaling_cores;
@@ -149,6 +181,9 @@ void hd_disable_hiperdispatch(void)
 
 int hd_enable_hiperdispatch(void)
 {
+	mutex_lock(&hd_counter_mutex);
+	hd_update_times();
+	mutex_unlock(&hd_counter_mutex);
 	if (hd_enabled == 0)
 		return 0;
 	if (hd_entitled_cores == 0)
@@ -225,6 +260,7 @@ static void hd_capacity_work_fn(struct work_struct *work)
 	if (hd_high_capacity_cores != new_cores) {
 		trace_s390_hd_rebuild_domains(hd_high_capacity_cores, new_cores);
 		hd_high_capacity_cores = new_cores;
+		atomic64_inc(&hd_adjustments);
 		topology_schedule_update();
 	}
 	trace_s390_hd_work_fn(steal_percentage, hd_entitled_cores, hd_high_capacity_cores);
@@ -327,6 +363,46 @@ static const struct attribute_group hd_attr_group = {
 	.attrs = hd_attrs,
 };
 
+static int hd_greedy_time_get(void *unused, u64 *val)
+{
+	mutex_lock(&hd_counter_mutex);
+	hd_update_times();
+	*val = hd_high_time;
+	mutex_unlock(&hd_counter_mutex);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(hd_greedy_time_fops, hd_greedy_time_get, NULL, "%llu\n");
+
+static int hd_conservative_time_get(void *unused, u64 *val)
+{
+	mutex_lock(&hd_counter_mutex);
+	hd_update_times();
+	*val = hd_low_time;
+	mutex_unlock(&hd_counter_mutex);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(hd_conservative_time_fops, hd_conservative_time_get, NULL, "%llu\n");
+
+static int hd_adjustment_count_get(void *unused, u64 *val)
+{
+	*val = atomic64_read(&hd_adjustments);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(hd_adjustments_fops, hd_adjustment_count_get, NULL, "%llu\n");
+
+static void __init hd_create_debugfs_counters(void)
+{
+	struct dentry *dir;
+
+	dir = debugfs_create_dir("hiperdispatch", arch_debugfs_dir);
+	debugfs_create_file("conservative_time_ms", 0400, dir, NULL, &hd_conservative_time_fops);
+	debugfs_create_file("greedy_time_ms", 0400, dir, NULL, &hd_greedy_time_fops);
+	debugfs_create_file("adjustment_count", 0400, dir, NULL, &hd_adjustments_fops);
+}
+
 static void __init hd_create_attributes(void)
 {
 	struct device *dev;
@@ -347,6 +423,7 @@ static int __init hd_init(void)
 	}
 	if (!register_sysctl("s390", hiperdispatch_ctl_table))
 		pr_warn("Failed to register s390.hiperdispatch sysctl attribute\n");
+	hd_create_debugfs_counters();
 	hd_create_attributes();
 	return 0;
 }
