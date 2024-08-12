@@ -161,6 +161,11 @@ static struct iso_resource *to_iso_resource(struct client_resource *resource)
 
 static void release_iso_resource(struct client *, struct client_resource *);
 
+static int is_iso_resource(const struct client_resource *resource)
+{
+	return resource->release == release_iso_resource;
+}
+
 static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 {
 	client_get(r->client);
@@ -170,7 +175,7 @@ static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 
 static void schedule_if_iso_resource(struct client_resource *resource)
 {
-	if (resource->release == release_iso_resource)
+	if (is_iso_resource(resource))
 		schedule_iso_resource(to_iso_resource(resource), 0);
 }
 
