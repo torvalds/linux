@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/nodemask.h>
 #include <linux/node.h>
+#include <asm/hiperdispatch.h>
 #include <asm/sysinfo.h>
 
 #define PTF_HORIZONTAL	(0UL)
@@ -47,6 +48,7 @@ static int topology_mode = TOPOLOGY_MODE_UNINITIALIZED;
 static void set_topology_timer(void);
 static void topology_work_fn(struct work_struct *work);
 static struct sysinfo_15_1_x *tl_info;
+static int cpu_management;
 
 static DECLARE_WORK(topology_work, topology_work_fn);
 
@@ -144,6 +146,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			cpumask_set_cpu(cpu, &book->mask);
 			cpumask_set_cpu(cpu, &socket->mask);
 			smp_cpu_set_polarization(cpu, tl_core->pp);
+			smp_cpu_set_capacity(cpu, CPU_CAPACITY_HIGH);
 		}
 	}
 }
@@ -270,6 +273,7 @@ void update_cpu_masks(void)
 			topo->drawer_id = id;
 		}
 	}
+	hd_reset_state();
 	for_each_online_cpu(cpu) {
 		topo = &cpu_topology[cpu];
 		pkg_first = cpumask_first(&topo->core_mask);
@@ -278,8 +282,10 @@ void update_cpu_masks(void)
 			for_each_cpu(sibling, &topo->core_mask) {
 				topo_sibling = &cpu_topology[sibling];
 				smt_first = cpumask_first(&topo_sibling->thread_mask);
-				if (sibling == smt_first)
+				if (sibling == smt_first) {
 					topo_package->booted_cores++;
+					hd_add_core(sibling);
+				}
 			}
 		} else {
 			topo->booted_cores = topo_package->booted_cores;
@@ -303,8 +309,10 @@ static void __arch_update_dedicated_flag(void *arg)
 static int __arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
-	int rc = 0;
+	int rc, hd_status;
 
+	hd_status = 0;
+	rc = 0;
 	mutex_lock(&smp_cpu_state_mutex);
 	if (MACHINE_HAS_TOPOLOGY) {
 		rc = 1;
@@ -314,7 +322,11 @@ static int __arch_update_cpu_topology(void)
 	update_cpu_masks();
 	if (!MACHINE_HAS_TOPOLOGY)
 		topology_update_polarization_simple();
+	if (cpu_management == 1)
+		hd_status = hd_enable_hiperdispatch();
 	mutex_unlock(&smp_cpu_state_mutex);
+	if (hd_status == 0)
+		hd_disable_hiperdispatch();
 	return rc;
 }
 
@@ -373,8 +385,6 @@ void topology_expect_change(void)
 	atomic_add(60, &topology_poll);
 	set_topology_timer();
 }
-
-static int cpu_management;
 
 static int set_polarization(int polarization)
 {

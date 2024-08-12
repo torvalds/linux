@@ -51,7 +51,7 @@ obj-$(CONFIG_SYSFS)		+= nospec-sysfs.o
 CFLAGS_REMOVE_nospec-branch.o	+= $(CC_FLAGS_EXPOLINE)
 
 obj-$(CONFIG_MODULES)		+= module.o
-obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o
+obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o hiperdispatch.o
 obj-$(CONFIG_NUMA)		+= numa.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
