@@ -304,11 +304,6 @@ struct bkey_float {
 };
 #define BKEY_MANTISSA_BITS	16
 
-static unsigned bkey_float_byte_offset(unsigned idx)
-{
-	return idx * sizeof(struct bkey_float);
-}
-
 struct ro_aux_tree {
 	u8			nothing[0];
 	struct bkey_float	f[];
@@ -328,8 +323,7 @@ static unsigned bset_aux_tree_buf_end(const struct bset_tree *t)
 		return t->aux_data_offset;
 	case BSET_RO_AUX_TREE:
 		return t->aux_data_offset +
-			DIV_ROUND_UP(t->size * sizeof(struct bkey_float) +
-				     t->size * sizeof(u8), 8);
+			DIV_ROUND_UP(t->size * sizeof(struct bkey_float), 8);
 	case BSET_RW_AUX_TREE:
 		return t->aux_data_offset +
 			DIV_ROUND_UP(sizeof(struct rw_aux_tree) * t->size, 8);
@@ -358,14 +352,6 @@ static struct ro_aux_tree *ro_aux_tree_base(const struct btree *b,
 	EBUG_ON(bset_aux_tree_type(t) != BSET_RO_AUX_TREE);
 
 	return __aux_tree_base(b, t);
-}
-
-static u8 *ro_aux_tree_prev(const struct btree *b,
-			    const struct bset_tree *t)
-{
-	EBUG_ON(bset_aux_tree_type(t) != BSET_RO_AUX_TREE);
-
-	return __aux_tree_base(b, t) + bkey_float_byte_offset(t->size);
 }
 
 static struct bkey_float *bkey_float(const struct btree *b,
@@ -477,15 +463,6 @@ static inline struct bkey_packed *tree_to_bkey(const struct btree *b,
 	return cacheline_to_bkey(b, t,
 			__eytzinger1_to_inorder(j, t->size - 1, t->extra),
 			bkey_float(b, t, j)->key_offset);
-}
-
-static struct bkey_packed *tree_to_prev_bkey(const struct btree *b,
-					     const struct bset_tree *t,
-					     unsigned j)
-{
-	unsigned prev_u64s = ro_aux_tree_prev(b, t)[j];
-
-	return (void *) ((u64 *) tree_to_bkey(b, t, j)->_data - prev_u64s);
 }
 
 static struct rw_aux_tree *rw_aux_tree(const struct btree *b,
@@ -689,8 +666,7 @@ static unsigned __bset_tree_capacity(struct btree *b, const struct bset_tree *t)
 
 static unsigned bset_ro_tree_capacity(struct btree *b, const struct bset_tree *t)
 {
-	return __bset_tree_capacity(b, t) /
-		(sizeof(struct bkey_float) + sizeof(u8));
+	return __bset_tree_capacity(b, t) / sizeof(struct bkey_float);
 }
 
 static unsigned bset_rw_tree_capacity(struct btree *b, const struct bset_tree *t)
@@ -719,7 +695,7 @@ static noinline void __build_rw_aux_tree(struct btree *b, struct bset_tree *t)
 
 static noinline void __build_ro_aux_tree(struct btree *b, struct bset_tree *t)
 {
-	struct bkey_packed *prev = NULL, *k = btree_bkey_first(b, t);
+	struct bkey_packed *k = btree_bkey_first(b, t);
 	struct bkey_i min_key, max_key;
 	unsigned cacheline = 1;
 
@@ -737,7 +713,7 @@ retry:
 	/* First we figure out where the first key in each cacheline is */
 	eytzinger1_for_each(j, t->size - 1) {
 		while (bkey_to_cacheline(b, t, k) < cacheline)
-			prev = k, k = bkey_p_next(k);
+			k = bkey_p_next(k);
 
 		if (k >= btree_bkey_last(b, t)) {
 			/* XXX: this path sucks */
@@ -745,11 +721,9 @@ retry:
 			goto retry;
 		}
 
-		ro_aux_tree_prev(b, t)[j] = prev->u64s;
 		bkey_float(b, t, j)->key_offset =
 			bkey_to_cacheline_offset(b, t, cacheline++, k);
 
-		EBUG_ON(tree_to_prev_bkey(b, t, j) != prev);
 		EBUG_ON(tree_to_bkey(b, t, j) != k);
 	}
 
