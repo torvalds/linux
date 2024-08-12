@@ -105,7 +105,7 @@ void __init serial8250_isa_init_ports(void)
 /*
  * Generic 16550A platform devices
  */
-static int serial8250_platform_probe(struct platform_device *pdev)
+static int serial8250_probe_acpi(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port uart = { };
@@ -157,24 +157,10 @@ static int serial8250_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * Register a set of serial devices attached to a platform device.  The
- * list is terminated with a zero flags entry, which means we expect
- * all entries to have at least UPF_BOOT_AUTOCONF set.
- */
-static int serial8250_probe(struct platform_device *dev)
+static int serial8250_probe_platform(struct platform_device *dev, struct plat_serial8250_port *p)
 {
-	struct plat_serial8250_port *p = dev_get_platdata(&dev->dev);
 	struct uart_8250_port uart;
 	int ret, i, irqflag = 0;
-
-	/*
-	 * Probe platform UART devices defined using standard hardware
-	 * discovery mechanism like ACPI or DT. Support only ACPI based
-	 * serial device for now.
-	 */
-	if (!p && has_acpi_companion(&dev->dev))
-		return serial8250_platform_probe(dev);
 
 	memset(&uart, 0, sizeof(uart));
 
@@ -217,6 +203,31 @@ static int serial8250_probe(struct platform_device *dev)
 				p->irq, ret);
 		}
 	}
+	return 0;
+}
+
+/*
+ * Register a set of serial devices attached to a platform device.  The
+ * list is terminated with a zero flags entry, which means we expect
+ * all entries to have at least UPF_BOOT_AUTOCONF set.
+ */
+static int serial8250_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct plat_serial8250_port *p;
+
+	p = dev_get_platdata(dev);
+	if (p)
+		return serial8250_probe_platform(pdev, p);
+
+	/*
+	 * Probe platform UART devices defined using standard hardware
+	 * discovery mechanism like ACPI or DT. Support only ACPI based
+	 * serial device for now.
+	 */
+	if (has_acpi_companion(dev))
+		return serial8250_probe_acpi(pdev);
+
 	return 0;
 }
 
