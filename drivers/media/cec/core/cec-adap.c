@@ -1557,11 +1557,8 @@ unconfigure:
  */
 static void cec_claim_log_addrs(struct cec_adapter *adap, bool block)
 {
-	if (WARN_ON(adap->is_claiming_log_addrs ||
-		    adap->is_configuring || adap->is_configured))
+	if (WARN_ON(adap->is_configuring || adap->is_configured))
 		return;
-
-	adap->is_claiming_log_addrs = true;
 
 	init_completion(&adap->config_completion);
 
@@ -1577,7 +1574,6 @@ static void cec_claim_log_addrs(struct cec_adapter *adap, bool block)
 		wait_for_completion(&adap->config_completion);
 		mutex_lock(&adap->lock);
 	}
-	adap->is_claiming_log_addrs = false;
 }
 
 /*
