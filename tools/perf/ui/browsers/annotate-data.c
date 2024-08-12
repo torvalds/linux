@@ -18,12 +18,6 @@
 #define UNFOLD_SIGN  '-'
 #define NOCHLD_SIGN  ' '
 
-struct annotated_data_browser {
-	struct ui_browser b;
-	struct list_head entries;
-	int nr_events;
-};
-
 struct browser_entry {
 	struct list_head node;
 	struct annotated_member *data;
@@ -33,6 +27,13 @@ struct browser_entry {
 	int indent;  /*indentation level, starts from 0 */
 	int nr_entries; /* # of visible entries: self + descendents */
 	bool folded;  /* only can be false when it has children */
+};
+
+struct annotated_data_browser {
+	struct ui_browser b;
+	struct list_head entries;
+	struct browser_entry *curr;
+	int nr_events;
 };
 
 static struct annotated_data_browser *get_browser(struct ui_browser *uib)
@@ -302,6 +303,7 @@ static void browser__seek(struct ui_browser *uib, off_t offset, int whence)
 
 static unsigned int browser__refresh(struct ui_browser *uib)
 {
+	struct annotated_data_browser *browser = get_browser(uib);
 	struct browser_entry *entry, *next;
 	int row = 0;
 
@@ -314,6 +316,8 @@ static unsigned int browser__refresh(struct ui_browser *uib)
 		if (!uib->filter || !uib->filter(uib, &entry->node)) {
 			ui_browser__gotorc(uib, row, 0);
 			uib->write(uib, entry, row);
+			if (uib->top_idx + row == uib->index)
+				browser->curr = entry;
 			if (++row == uib->rows)
 				break;
 		}
@@ -438,6 +442,78 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 	ui_browser__write_nstring(uib, "", uib->width);
 }
 
+static void annotated_data_browser__fold(struct annotated_data_browser *browser,
+					 struct browser_entry *entry,
+					 bool recursive)
+{
+	struct browser_entry *child;
+
+	if (list_empty(&entry->children))
+		return;
+	if (entry->folded && !recursive)
+		return;
+
+	if (recursive) {
+		list_for_each_entry(child, &entry->children, node)
+			annotated_data_browser__fold(browser, child, true);
+	}
+
+	entry->nr_entries = 1;
+	entry->folded = true;
+}
+
+static void annotated_data_browser__unfold(struct annotated_data_browser *browser,
+					   struct browser_entry *entry,
+					   bool recursive)
+{
+	struct browser_entry *child;
+	int nr_entries;
+
+	if (list_empty(&entry->children))
+		return;
+	if (!entry->folded && !recursive)
+		return;
+
+	nr_entries = 1; /* for self */
+	list_for_each_entry(child, &entry->children, node) {
+		if (recursive)
+			annotated_data_browser__unfold(browser, child, true);
+
+		nr_entries += child->nr_entries;
+	}
+
+	entry->nr_entries = nr_entries;
+	entry->folded = false;
+}
+
+static void annotated_data_browser__toggle_fold(struct annotated_data_browser *browser,
+						bool recursive)
+{
+	struct browser_entry *curr = browser->curr;
+	struct browser_entry *parent;
+
+	parent = curr->parent;
+	while (parent) {
+		parent->nr_entries -= curr->nr_entries;
+		parent = parent->parent;
+	}
+	browser->b.nr_entries -= curr->nr_entries;
+
+	if (curr->folded)
+		annotated_data_browser__unfold(browser, curr, recursive);
+	else
+		annotated_data_browser__fold(browser, curr, recursive);
+
+	parent = curr->parent;
+	while (parent) {
+		parent->nr_entries += curr->nr_entries;
+		parent = parent->parent;
+	}
+	browser->b.nr_entries += curr->nr_entries;
+
+	assert(browser->b.nr_entries == count_visible_entries(browser));
+}
+
 static int annotated_data_browser__run(struct annotated_data_browser *browser,
 				       struct evsel *evsel __maybe_unused,
 				       struct hist_browser_timer *hbt)
@@ -462,8 +538,18 @@ static int annotated_data_browser__run(struct annotated_data_browser *browser,
 		"UP/DOWN/PGUP\n"
 		"PGDN/SPACE    Navigate\n"
 		"</>           Move to prev/next symbol\n"
+		"e             Expand/Collapse current entry\n"
+		"E             Expand/Collapse all children of the current\n"
 		"q/ESC/CTRL+C  Exit\n\n");
 			continue;
+		case 'e':
+			annotated_data_browser__toggle_fold(browser,
+							    /*recursive=*/false);
+			break;
+		case 'E':
+			annotated_data_browser__toggle_fold(browser,
+							    /*recursive=*/true);
+			break;
 		case K_LEFT:
 		case '<':
 		case '>':
