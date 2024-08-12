@@ -5,7 +5,6 @@
 #ifndef __DML_TOP_TYPES_H__
 #define __DML_TOP_TYPES_H__
 
-#include "dml_top_types.h"
 #include "dml_top_display_cfg_types.h"
 #include "dml_top_soc_parameter_types.h"
 #include "dml_top_policy_types.h"

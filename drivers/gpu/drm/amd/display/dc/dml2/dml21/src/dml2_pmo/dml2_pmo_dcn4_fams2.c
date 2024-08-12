@@ -334,7 +334,6 @@ bool pmo_dcn4_fams2_optimize_dcc_mcache(struct dml2_pmo_optimize_dcc_mcache_in_o
 							in_out->cfg_support_info->plane_support_info[i].dpps_used)) {
 							result = false;
 						} else {
-							free_pipes -= planes_on_stream;
 							break;
 						}
 					} else {
@@ -671,8 +670,6 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 
 			/* populate list */
 			expand_base_strategies(pmo, base_strategy_list_4_display, base_strategy_list_4_display_size, 4);
-			break;
-		default:
 			break;
 		}
 	}

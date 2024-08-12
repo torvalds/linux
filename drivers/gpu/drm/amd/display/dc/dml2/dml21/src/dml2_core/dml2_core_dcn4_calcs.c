@@ -2085,7 +2085,11 @@ static void CalculateDCCConfiguration(
 	unsigned int full_swath_bytes_vert_wc_l;
 	unsigned int full_swath_bytes_vert_wc_c;
 
-	yuv420 = dml_is_420(SourcePixelFormat);
+	if (dml_is_420(SourcePixelFormat))
+		yuv420 = 1;
+	else
+		yuv420 = 0;
+
 	horz_div_l = 1;
 	horz_div_c = 1;
 	vert_div_l = 1;
@@ -2553,8 +2557,11 @@ static void calculate_mcache_setting(
 		l->luma_time_factor = (double)l->mvmpg_width_c / l->mvmpg_width_l * 2;
 
 	// The algorithm starts with computing a non-integer, avg_mcache_element_size_l/c:
-	l->avg_mcache_element_size_l = l->meta_row_width_l / *p->num_mcaches_l;
-	if (l->is_dual_plane) {
+	if (*p->num_mcaches_l) {
+		l->avg_mcache_element_size_l = l->meta_row_width_l / *p->num_mcaches_l;
+	}
+
+	if (l->is_dual_plane && *p->num_mcaches_c) {
 		l->avg_mcache_element_size_c = l->meta_row_width_c / *p->num_mcaches_c;
 
 		if (!p->imall_enable || (*p->mall_comb_mcache_l == *p->mall_comb_mcache_c)) {
@@ -2683,9 +2690,9 @@ static double dml_get_return_bandwidth_available(
 	double ideal_fabric_bandwidth = fclk_mhz * (double)soc->fabric_datapath_to_dcn_data_return_bytes;
 	double ideal_dram_bandwidth = dram_bw_mbps; //dram_speed_mts * soc->clk_table.dram_config.channel_count * soc->clk_table.dram_config.channel_width_bytes;
 
-	double derate_sdp_factor = 1;
-	double derate_fabric_factor = 1;
-	double derate_dram_factor = 1;
+	double derate_sdp_factor;
+	double derate_fabric_factor;
+	double derate_dram_factor;
 
 	double derate_sdp_bandwidth;
 	double derate_fabric_bandwidth;
@@ -7209,7 +7216,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	mode_lib->ms.support.WritebackLatencySupport = true;
 	for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
 		if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.enable == true &&
-			(mode_lib->ms.WriteBandwidth[k] > mode_lib->ip.writeback_interface_buffer_size_kbytes * 1024 / mode_lib->soc.qos_parameters.writeback.base_latency_us)) {
+			(mode_lib->ms.WriteBandwidth[k] > mode_lib->ip.writeback_interface_buffer_size_kbytes * 1024 / ((double)mode_lib->soc.qos_parameters.writeback.base_latency_us))) {
 			mode_lib->ms.support.WritebackLatencySupport = false;
 		}
 	}

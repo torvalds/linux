@@ -497,7 +497,6 @@ bool pmo_dcn3_optimize_dcc_mcache(struct dml2_pmo_optimize_dcc_mcache_in_out *in
 							in_out->cfg_support_info->plane_support_info[i].dpps_used)) {
 							result = false;
 						} else {
-							free_pipes -= planes_on_stream;
 							break;
 						}
 					} else {
@@ -666,7 +665,7 @@ bool pmo_dcn3_optimize_for_pstate_support(struct dml2_pmo_optimize_for_pstate_su
 	struct dml2_pmo_instance *pmo = in_out->instance;
 	unsigned int stream_index;
 	bool success = false;
-	bool reached_end = true;
+	bool reached_end;
 
 	memcpy(in_out->optimized_display_config, in_out->base_display_config, sizeof(struct display_configuation_with_meta));
 
