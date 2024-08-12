@@ -166,17 +166,19 @@ static int is_iso_resource(const struct client_resource *resource)
 	return resource->release == release_iso_resource;
 }
 
+static void release_transaction(struct client *client,
+				struct client_resource *resource);
+
+static int is_outbound_transaction_resource(const struct client_resource *resource)
+{
+	return resource->release == release_transaction;
+}
+
 static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
 {
 	client_get(r->client);
 	if (!queue_delayed_work(fw_workqueue, &r->work, delay))
 		client_put(r->client);
-}
-
-static void schedule_if_iso_resource(struct client_resource *resource)
-{
-	if (is_iso_resource(resource))
-		schedule_iso_resource(to_iso_resource(resource), 0);
 }
 
 /*
@@ -401,16 +403,11 @@ static void for_each_client(struct fw_device *device,
 		callback(c);
 }
 
-static int schedule_reallocations(int id, void *p, void *data)
-{
-	schedule_if_iso_resource(p);
-
-	return 0;
-}
-
 static void queue_bus_reset_event(struct client *client)
 {
 	struct bus_reset_event *e;
+	struct client_resource *resource;
+	int id;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL)
@@ -423,7 +420,10 @@ static void queue_bus_reset_event(struct client *client)
 
 	guard(spinlock_irq)(&client->lock);
 
-	idr_for_each(&client->resource_idr, schedule_reallocations, client);
+	idr_for_each_entry(&client->resource_idr, resource, id) {
+		if (is_iso_resource(resource))
+			schedule_iso_resource(to_iso_resource(resource), 0);
+	}
 }
 
 void fw_device_cdev_update(struct fw_device *device)
@@ -518,7 +518,8 @@ static int add_client_resource(struct client *client,
 		if (ret >= 0) {
 			resource->handle = ret;
 			client_get(client);
-			schedule_if_iso_resource(resource);
+			if (is_iso_resource(resource))
+				schedule_iso_resource(to_iso_resource(resource), 0);
 		}
 	}
 
@@ -1835,35 +1836,27 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
-static int is_outbound_transaction_resource(int id, void *p, void *data)
+static bool has_outbound_transactions(struct client *client)
 {
-	struct client_resource *resource = p;
+	struct client_resource *resource;
+	int id;
 
-	return resource->release == release_transaction;
-}
-
-static int has_outbound_transactions(struct client *client)
-{
 	guard(spinlock_irq)(&client->lock);
 
-	return idr_for_each(&client->resource_idr, is_outbound_transaction_resource, NULL);
-}
+	idr_for_each_entry(&client->resource_idr, resource, id) {
+		if (is_outbound_transaction_resource(resource))
+			return true;
+	}
 
-static int shutdown_resource(int id, void *p, void *data)
-{
-	struct client_resource *resource = p;
-	struct client *client = data;
-
-	resource->release(client, resource);
-	client_put(client);
-
-	return 0;
+	return false;
 }
 
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *event, *next_event;
+	struct client_resource *resource;
+	int id;
 
 	scoped_guard(spinlock_irq, &client->device->card->lock)
 		list_del(&client->phy_receiver_link);
@@ -1883,7 +1876,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 
 	wait_event(client->tx_flush_wait, !has_outbound_transactions(client));
 
-	idr_for_each(&client->resource_idr, shutdown_resource, client);
+	idr_for_each_entry(&client->resource_idr, resource, id) {
+		resource->release(client, resource);
+		client_put(client);
+	}
 	idr_destroy(&client->resource_idr);
 
 	list_for_each_entry_safe(event, next_event, &client->event_list, link)
