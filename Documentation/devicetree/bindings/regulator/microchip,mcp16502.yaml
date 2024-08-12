@@ -28,6 +28,21 @@ properties:
   reg:
     maxItems: 1
 
+  lvin-supply:
+    description: Input supply phandle for LDO1 and LDO2
+
+  pvin1-supply:
+    description: Input supply phandle for VDD_IO (BUCK1)
+
+  pvin2-supply:
+    description: Input supply phandle for VDD_DDR (BUCK2)
+
+  pvin3-supply:
+    description: Input supply phandle for VDD_CORE (BUCK3)
+
+  pvin4-supply:
+    description: Input supply phandle for VDD_OTHER (BUCK4)
+
   regulators:
     type: object
     additionalProperties: false
@@ -68,6 +83,11 @@ examples:
         pmic@5b {
             compatible = "microchip,mcp16502";
             reg = <0x5b>;
+            lvin-supply = <&reg_5v>;
+            pvin1-supply = <&reg_5v>;
+            pvin2-supply = <&reg_5v>;
+            pvin3-supply = <&reg_5v>;
+            pvin4-supply = <&reg_5v>;
 
             regulators {
                 VDD_IO {
