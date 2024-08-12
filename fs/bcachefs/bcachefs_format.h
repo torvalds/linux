@@ -675,7 +675,8 @@ struct bch_sb_field_ext {
 	x(btree_subvolume_children,	BCH_VERSION(1,  6))		\
 	x(mi_btree_bitmap,		BCH_VERSION(1,  7))		\
 	x(bucket_stripe_sectors,	BCH_VERSION(1,  8))		\
-	x(disk_accounting_v2,		BCH_VERSION(1,  9))
+	x(disk_accounting_v2,		BCH_VERSION(1,  9))		\
+	x(disk_accounting_v3,		BCH_VERSION(1, 10))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -836,6 +837,8 @@ LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE_HI,
 
 LE64_BITMASK(BCH_SB_VERSION_UPGRADE_COMPLETE,
 					struct bch_sb, flags[5],  0, 16);
+LE64_BITMASK(BCH_SB_ALLOCATOR_STUCK_TIMEOUT,
+					struct bch_sb, flags[5], 16, 32);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {

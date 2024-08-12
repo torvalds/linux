@@ -693,18 +693,6 @@ u64 ring_buffer_event_time_stamp(struct trace_buffer *buffer,
 }
 
 /**
- * ring_buffer_nr_pages - get the number of buffer pages in the ring buffer
- * @buffer: The ring_buffer to get the number of pages from
- * @cpu: The cpu of the ring_buffer to get the number of pages from
- *
- * Returns the number of pages used by a per_cpu buffer of the ring buffer.
- */
-size_t ring_buffer_nr_pages(struct trace_buffer *buffer, int cpu)
-{
-	return buffer->buffers[cpu]->nr_pages;
-}
-
-/**
  * ring_buffer_nr_dirty_pages - get the number of used pages in the ring buffer
  * @buffer: The ring_buffer to get the number of pages from
  * @cpu: The cpu of the ring_buffer to get the number of pages from

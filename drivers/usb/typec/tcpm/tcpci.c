@@ -67,7 +67,7 @@ static int tcpci_write16(struct tcpci *tcpci, unsigned int reg, u16 val)
 	return regmap_raw_write(tcpci->regmap, reg, &val, sizeof(u16));
 }
 
-static bool tcpci_check_std_output_cap(struct regmap *regmap, u8 mask)
+static int tcpci_check_std_output_cap(struct regmap *regmap, u8 mask)
 {
 	unsigned int reg;
 	int ret;
