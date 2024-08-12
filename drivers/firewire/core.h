@@ -7,7 +7,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/idr.h>
 #include <linux/xarray.h>
 #include <linux/mm_types.h>
 #include <linux/rwsem.h>
