@@ -616,7 +616,7 @@ static __always_inline void make_bfloat(struct btree *b, struct bset_tree *t,
 	struct bkey_packed *m = tree_to_bkey(b, t, j);
 	struct bkey_packed *l = is_power_of_2(j)
 		? min_key
-		: tree_to_prev_bkey(b, t, j >> ffs(j));
+		: tree_to_bkey(b, t, j >> ffs(j));
 	struct bkey_packed *r = is_power_of_2(j + 1)
 		? max_key
 		: tree_to_bkey(b, t, j >> (ffz(j) + 1));
