@@ -116,6 +116,7 @@ static inline bool
 mlx5e_ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 				  struct mlx5_wqe_eth_seg *eseg)
 {
+	struct mlx5_core_dev *mdev = sq->mdev;
 	u8 inner_ipproto;
 
 	if (!mlx5e_ipsec_eseg_meta(eseg))
@@ -125,9 +126,12 @@ mlx5e_ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	inner_ipproto = xfrm_offload(skb)->inner_ipproto;
 	if (inner_ipproto) {
 		eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
-		if (inner_ipproto == IPPROTO_TCP || inner_ipproto == IPPROTO_UDP)
+		if (inner_ipproto == IPPROTO_TCP || inner_ipproto == IPPROTO_UDP) {
+			mlx5e_swp_encap_csum_partial(mdev, skb, true);
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_INNER_CSUM;
+		}
 	} else if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+		mlx5e_swp_encap_csum_partial(mdev, skb, false);
 		eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 		sq->stats->csum_partial_inner++;
 	}

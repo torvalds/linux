@@ -65,6 +65,13 @@ static irqreturn_t fsl_edma3_tx_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t fsl_edma2_tx_handler(int irq, void *devi_id)
+{
+	struct fsl_edma_chan *fsl_chan = devi_id;
+
+	return fsl_edma_tx_handler(irq, fsl_chan->edma);
+}
+
 static irqreturn_t fsl_edma_err_handler(int irq, void *dev_id)
 {
 	struct fsl_edma_engine *fsl_edma = dev_id;
@@ -228,7 +235,6 @@ fsl_edma_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma
 
 static int fsl_edma3_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma)
 {
-	int ret;
 	int i;
 
 	for (i = 0; i < fsl_edma->n_chans; i++) {
@@ -243,13 +249,7 @@ static int fsl_edma3_irq_init(struct platform_device *pdev, struct fsl_edma_engi
 		if (fsl_chan->txirq < 0)
 			return  -EINVAL;
 
-		ret = devm_request_irq(&pdev->dev, fsl_chan->txirq,
-			fsl_edma3_tx_handler, IRQF_SHARED,
-			fsl_chan->chan_name, fsl_chan);
-		if (ret) {
-			dev_err(&pdev->dev, "Can't register chan%d's IRQ.\n", i);
-			return -EINVAL;
-		}
+		fsl_chan->irq_handler = fsl_edma3_tx_handler;
 	}
 
 	return 0;
@@ -278,19 +278,20 @@ fsl_edma2_irq_init(struct platform_device *pdev,
 	 */
 	for (i = 0; i < count; i++) {
 		irq = platform_get_irq(pdev, i);
+		ret = 0;
 		if (irq < 0)
 			return -ENXIO;
 
 		/* The last IRQ is for eDMA err */
-		if (i == count - 1)
+		if (i == count - 1) {
 			ret = devm_request_irq(&pdev->dev, irq,
 						fsl_edma_err_handler,
 						0, "eDMA2-ERR", fsl_edma);
-		else
-			ret = devm_request_irq(&pdev->dev, irq,
-						fsl_edma_tx_handler, 0,
-						fsl_edma->chans[i].chan_name,
-						fsl_edma);
+		} else {
+			fsl_edma->chans[i].txirq = irq;
+			fsl_edma->chans[i].irq_handler = fsl_edma2_tx_handler;
+		}
+
 		if (ret)
 			return ret;
 	}
@@ -342,7 +343,7 @@ static struct fsl_edma_drvdata imx7ulp_data = {
 };
 
 static struct fsl_edma_drvdata imx8qm_data = {
-	.flags = FSL_EDMA_DRV_HAS_PD | FSL_EDMA_DRV_EDMA3,
+	.flags = FSL_EDMA_DRV_HAS_PD | FSL_EDMA_DRV_EDMA3 | FSL_EDMA_DRV_MEM_REMOTE,
 	.chreg_space_sz = 0x10000,
 	.chreg_off = 0x10000,
 	.setup_irq = fsl_edma3_irq_init,
@@ -543,7 +544,6 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		fsl_chan->edma = fsl_edma;
 		fsl_chan->pm_state = RUNNING;
 		fsl_chan->srcid = 0;
-		fsl_chan->idle = true;
 		fsl_chan->dma_dir = DMA_NONE;
 		fsl_chan->vchan.desc_free = fsl_edma_free_desc;
 
@@ -668,7 +668,7 @@ static int fsl_edma_suspend_late(struct device *dev)
 			continue;
 		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 		/* Make sure chan is idle or will force disable. */
-		if (unlikely(!fsl_chan->idle)) {
+		if (unlikely(fsl_chan->status == DMA_IN_PROGRESS)) {
 			dev_warn(dev, "WARN: There is non-idle channel.");
 			fsl_edma_disable_request(fsl_chan);
 			fsl_edma_chan_mux(fsl_chan, 0, false);

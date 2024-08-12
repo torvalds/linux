@@ -49,6 +49,7 @@
 #include "mconsole.h"
 #include "harddog.h"
 
+MODULE_DESCRIPTION("UML hardware watchdog");
 MODULE_LICENSE("GPL");
 
 static DEFINE_MUTEX(harddog_mutex);

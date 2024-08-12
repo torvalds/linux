@@ -68,7 +68,7 @@ static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	struct gameport *port;
 	int error;
 
-	gp = kzalloc(sizeof(struct fm801_gp), GFP_KERNEL);
+	gp = kzalloc(sizeof(*gp), GFP_KERNEL);
 	port = gameport_allocate_port();
 	if (!gp || !port) {
 		printk(KERN_ERR "fm801-gp: Memory allocation failed\n");

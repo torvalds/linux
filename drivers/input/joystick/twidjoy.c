@@ -171,7 +171,7 @@ static int twidjoy_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	twidjoy = kzalloc(sizeof(struct twidjoy), GFP_KERNEL);
+	twidjoy = kzalloc(sizeof(*twidjoy), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!twidjoy || !input_dev)
 		goto fail1;

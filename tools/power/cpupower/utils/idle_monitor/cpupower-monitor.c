@@ -35,7 +35,7 @@ static unsigned int avail_monitors;
 static char *progname;
 
 enum operation_mode_e { list = 1, show, show_all };
-static int mode;
+static enum operation_mode_e mode;
 static int interval = 1;
 static char *show_monitors_param;
 static struct cpupower_topology cpu_top;

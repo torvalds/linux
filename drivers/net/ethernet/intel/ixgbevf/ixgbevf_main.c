@@ -76,7 +76,6 @@ static const struct pci_device_id ixgbevf_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ixgbevf_pci_tbl);
 
-MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) 10 Gigabit Virtual Function Network Driver");
 MODULE_LICENSE("GPL v2");
 

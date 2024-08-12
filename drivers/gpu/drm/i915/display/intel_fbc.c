@@ -56,6 +56,7 @@
 #include "intel_display_device.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_display_wa.h"
 #include "intel_fbc.h"
 #include "intel_fbc_regs.h"
 #include "intel_frontbuffer.h"
@@ -1234,6 +1235,11 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 
 	if (!plane_state->uapi.visible) {
 		plane_state->no_fbc_reason = "plane not visible";
+		return 0;
+	}
+
+	if (intel_display_needs_wa_16023588340(i915)) {
+		plane_state->no_fbc_reason = "Wa_16023588340";
 		return 0;
 	}
 

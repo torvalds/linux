@@ -39,7 +39,7 @@
     We make sure that the SMB is enabled. We leave the ACPI alone.
 
     This driver controls the SMB Host only.
-    The SMB Slave controller on the M15X3 is not enabled.
+    The SMB Target controller on the M15X3 is not enabled.
 
     This driver does not use interrupts.
 */

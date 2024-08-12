@@ -35,6 +35,13 @@ Description
 
 Set the values of requested output lines.
 
+The values set are logical, indicating if the line is to be active or inactive.
+The ``GPIO_V2_LINE_FLAG_ACTIVE_LOW`` flag controls the mapping between logical
+values (active/inactive) and physical values (high/low).
+If ``GPIO_V2_LINE_FLAG_ACTIVE_LOW`` is not set then active is high and inactive
+is low.  If ``GPIO_V2_LINE_FLAG_ACTIVE_LOW`` is set then active is low and
+inactive is high.
+
 Only the values of output lines may be set.
 Attempting to set the value of an input line is an error (**EPERM**).
 

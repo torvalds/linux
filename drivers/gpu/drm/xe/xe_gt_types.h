@@ -27,6 +27,11 @@ enum xe_gt_type {
 	XE_GT_TYPE_MEDIA,
 };
 
+enum xe_gt_eu_type {
+	XE_GT_EU_TYPE_SIMD8,
+	XE_GT_EU_TYPE_SIMD16,
+};
+
 #define XE_MAX_DSS_FUSE_REGS		3
 #define XE_MAX_DSS_FUSE_BITS		(32 * XE_MAX_DSS_FUSE_REGS)
 #define XE_MAX_EU_FUSE_REGS		1
@@ -343,6 +348,12 @@ struct xe_gt {
 
 		/** @fuse_topo.l3_bank_mask: L3 bank mask */
 		xe_l3_bank_mask_t l3_bank_mask;
+
+		/**
+		 * @fuse_topo.eu_type: type/width of EU stored in
+		 * fuse_topo.eu_mask_per_dss
+		 */
+		enum xe_gt_eu_type eu_type;
 	} fuse_topo;
 
 	/** @steering: register steering for individual HW units */
@@ -362,6 +373,12 @@ struct xe_gt {
 	 */
 	spinlock_t mcr_lock;
 
+	/**
+	 * @global_invl_lock: protects the register for the duration
+	 *    of a global invalidation of l2 cache
+	 */
+	spinlock_t global_invl_lock;
+
 	/** @wa_active: keep track of active workarounds */
 	struct {
 		/** @wa_active.gt: bitmap with active GT workarounds */
@@ -370,8 +387,14 @@ struct xe_gt {
 		unsigned long *engine;
 		/** @wa_active.lrc: bitmap with active LRC workarounds */
 		unsigned long *lrc;
-		/** @wa_active.oob: bitmap with active OOB workaroudns */
+		/** @wa_active.oob: bitmap with active OOB workarounds */
 		unsigned long *oob;
+		/**
+		 * @wa_active.oob_initialized: mark oob as initialized to help
+		 * detecting misuse of XE_WA() - it can only be called on
+		 * initialization after OOB WAs have being processed
+		 */
+		bool oob_initialized;
 	} wa_active;
 
 	/** @user_engines: engines present in GT and available to userspace */

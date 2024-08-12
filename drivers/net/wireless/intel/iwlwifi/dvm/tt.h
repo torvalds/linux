@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2014, 2023 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014, 2023-2024 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -64,7 +64,7 @@ struct iwl_tt_trans {
 };
 
 /**
- * struct iwl_tt_mgnt - Thermal Throttling Management structure
+ * struct iwl_tt_mgmt - Thermal Throttling Management structure
  * @advanced_tt:    advanced thermal throttle required
  * @state:          current Thermal Throttling state
  * @tt_power_mode:  Thermal Throttling power mode index

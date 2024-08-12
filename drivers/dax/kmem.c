@@ -299,6 +299,7 @@ static void __exit dax_kmem_exit(void)
 }
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("KMEM DAX: map dax-devices as System-RAM");
 MODULE_LICENSE("GPL v2");
 module_init(dax_kmem_init);
 module_exit(dax_kmem_exit);

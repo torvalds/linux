@@ -111,8 +111,6 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 	struct device_node *node = irq_domain_get_of_node(domain);
 	struct irq_chip_generic *gc;
 	struct aic_chip_data *aic;
-	struct property *prop;
-	const __be32 *p;
 	u32 hwirq;
 
 	gc = irq_get_domain_generic_chip(domain, 0);
@@ -120,7 +118,7 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 	aic = gc->private;
 	aic->ext_irqs |= 1;
 
-	of_property_for_each_u32(node, "atmel,external-irqs", prop, p, hwirq) {
+	of_property_for_each_u32(node, "atmel,external-irqs", hwirq) {
 		gc = irq_get_domain_generic_chip(domain, hwirq);
 		if (!gc) {
 			pr_warn("AIC: external irq %d >= %d skip it\n",

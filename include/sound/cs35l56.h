@@ -80,9 +80,7 @@
 #define CS35L56_DSP1_AHBM_WINDOW_DEBUG_1		0x25E2044
 #define CS35L56_DSP1_XMEM_UNPACKED24_0			0x2800000
 #define CS35L56_DSP1_FW_VER				0x2800010
-#define CS35L56_DSP1_HALO_STATE_A1			0x2801E58
 #define CS35L56_DSP1_HALO_STATE				0x28021E0
-#define CS35L56_DSP1_PM_CUR_STATE_A1			0x2804000
 #define CS35L56_DSP1_PM_CUR_STATE			0x2804308
 #define CS35L56_DSP1_XMEM_UNPACKED24_8191		0x2807FFC
 #define CS35L56_DSP1_CORE_BASE				0x2B80000
@@ -209,7 +207,7 @@
 
 /* CS35L56_MAIN_RENDER_USER_VOLUME */
 #define CS35L56_MAIN_RENDER_USER_VOLUME_MIN		-400
-#define CS35L56_MAIN_RENDER_USER_VOLUME_MAX		400
+#define CS35L56_MAIN_RENDER_USER_VOLUME_MAX		48
 #define CS35L56_MAIN_RENDER_USER_VOLUME_MASK		0x0000FFC0
 #define CS35L56_MAIN_RENDER_USER_VOLUME_SHIFT		6
 #define CS35L56_MAIN_RENDER_USER_VOLUME_SIGNBIT		9
@@ -267,12 +265,17 @@ struct cs35l56_base {
 	bool fw_patched;
 	bool secured;
 	bool can_hibernate;
-	bool fw_owns_asp1;
 	bool cal_data_valid;
 	s8 cal_index;
 	struct cirrus_amp_cal_data cal_data;
 	struct gpio_desc *reset_gpio;
 };
+
+/* Temporary to avoid a build break with the HDA driver */
+static inline int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base)
+{
+	return 0;
+}
 
 extern struct regmap_config cs35l56_regmap_i2c;
 extern struct regmap_config cs35l56_regmap_spi;
@@ -284,8 +287,6 @@ extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
 
 int cs35l56_set_patch(struct cs35l56_base *cs35l56_base);
-int cs35l56_init_asp1_regs_for_driver_control(struct cs35l56_base *cs35l56_base);
-int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base);
 int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command);
 int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base);
 int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base);

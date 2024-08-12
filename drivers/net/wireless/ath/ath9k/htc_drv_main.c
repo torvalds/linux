@@ -973,7 +973,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void ath9k_htc_stop(struct ieee80211_hw *hw)
+static void ath9k_htc_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;

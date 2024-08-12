@@ -277,7 +277,8 @@ bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie)
 	unsigned long cur_s = READ_ONCE(ssp->srcu_idx);
 
 	barrier();
-	return ULONG_CMP_GE(cur_s, cookie) || ULONG_CMP_LT(cur_s, cookie - 3);
+	return cookie == SRCU_GET_STATE_COMPLETED ||
+	       ULONG_CMP_GE(cur_s, cookie) || ULONG_CMP_LT(cur_s, cookie - 3);
 }
 EXPORT_SYMBOL_GPL(poll_state_synchronize_srcu);
 

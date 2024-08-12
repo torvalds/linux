@@ -116,6 +116,7 @@ static const char *const pmic_models[] = {
 	[50] = "PM8350B",
 	[51] = "PMR735A",
 	[52] = "PMR735B",
+	[54] = "PM6350",
 	[55] = "PM4125",
 	[58] = "PM8450",
 	[65] = "PM8010",
@@ -125,7 +126,8 @@ static const char *const pmic_models[] = {
 	[72] = "PMR735D",
 	[73] = "PM8550",
 	[74] = "PMK8550",
-	[82] = "SMB2360",
+	[82] = "PMC8380",
+	[83] = "SMB2360",
 };
 
 struct socinfo_params {
@@ -340,6 +342,7 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(SDA630) },
 	{ qcom_board_id(MSM8905) },
 	{ qcom_board_id(SDX202) },
+	{ qcom_board_id(SDM670) },
 	{ qcom_board_id(SDM450) },
 	{ qcom_board_id(SM8150) },
 	{ qcom_board_id(SDA845) },
@@ -437,6 +440,7 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(QCS8550) },
 	{ qcom_board_id(QCM8550) },
 	{ qcom_board_id(IPQ5300) },
+	{ qcom_board_id(IPQ5321) },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)

@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifdef CONFIG_40x
-#include "cpu_specs_40x.h"
-#endif
-
 #ifdef CONFIG_PPC_47x
 #include "cpu_specs_47x.h"
 #elif defined(CONFIG_44x)

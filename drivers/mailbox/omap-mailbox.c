@@ -230,7 +230,8 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 	int ret = 0;
 
 	ret = request_threaded_irq(mbox->irq, NULL, mbox_interrupt,
-				   IRQF_ONESHOT, mbox->name, mbox);
+				   IRQF_SHARED | IRQF_ONESHOT, mbox->name,
+				   mbox);
 	if (unlikely(ret)) {
 		pr_err("failed to register mailbox interrupt:%d\n", ret);
 		return ret;

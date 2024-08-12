@@ -11,6 +11,9 @@
 
 #include "lpass-macro-common.h"
 
+static DEFINE_MUTEX(lpass_codec_mutex);
+static enum lpass_codec_version lpass_codec_version;
+
 struct lpass_macro *lpass_macro_pds_init(struct device *dev)
 {
 	struct lpass_macro *l_pds;
@@ -65,6 +68,26 @@ void lpass_macro_pds_exit(struct lpass_macro *pds)
 	}
 }
 EXPORT_SYMBOL_GPL(lpass_macro_pds_exit);
+
+void lpass_macro_set_codec_version(enum lpass_codec_version version)
+{
+	mutex_lock(&lpass_codec_mutex);
+	lpass_codec_version = version;
+	mutex_unlock(&lpass_codec_mutex);
+}
+EXPORT_SYMBOL_GPL(lpass_macro_set_codec_version);
+
+enum lpass_codec_version lpass_macro_get_codec_version(void)
+{
+	enum lpass_codec_version ver;
+
+	mutex_lock(&lpass_codec_mutex);
+	ver = lpass_codec_version;
+	mutex_unlock(&lpass_codec_mutex);
+
+	return ver;
+}
+EXPORT_SYMBOL_GPL(lpass_macro_get_codec_version);
 
 MODULE_DESCRIPTION("Common macro driver");
 MODULE_LICENSE("GPL");

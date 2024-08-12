@@ -908,15 +908,16 @@ static int bch_dirty_init_thread(void *arg)
 	struct dirty_init_thrd_info *info = arg;
 	struct bch_dirty_init_state *state = info->state;
 	struct cache_set *c = state->c;
-	struct btree_iter_stack iter;
+	struct btree_iter iter;
 	struct bkey *k, *p;
 	int cur_idx, prev_idx, skip_nr;
 
 	k = p = NULL;
 	prev_idx = 0;
 
-	bch_btree_iter_stack_init(&c->root->keys, &iter, NULL);
-	k = bch_btree_iter_next_filter(&iter.iter, &c->root->keys, bch_ptr_bad);
+	min_heap_init(&iter.heap, NULL, MAX_BSETS);
+	bch_btree_iter_init(&c->root->keys, &iter, NULL);
+	k = bch_btree_iter_next_filter(&iter, &c->root->keys, bch_ptr_bad);
 	BUG_ON(!k);
 
 	p = k;
@@ -930,7 +931,7 @@ static int bch_dirty_init_thread(void *arg)
 		skip_nr = cur_idx - prev_idx;
 
 		while (skip_nr) {
-			k = bch_btree_iter_next_filter(&iter.iter,
+			k = bch_btree_iter_next_filter(&iter,
 						       &c->root->keys,
 						       bch_ptr_bad);
 			if (k)
@@ -979,10 +980,12 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 	int i;
 	struct btree *b = NULL;
 	struct bkey *k = NULL;
-	struct btree_iter_stack iter;
+	struct btree_iter iter;
 	struct sectors_dirty_init op;
 	struct cache_set *c = d->c;
 	struct bch_dirty_init_state state;
+
+	min_heap_init(&iter.heap, NULL, MAX_BSETS);
 
 retry_lock:
 	b = c->root;

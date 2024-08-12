@@ -729,4 +729,5 @@ void gphonet_cleanup(struct net_device *dev)
 
 DECLARE_USB_FUNCTION_INIT(phonet, phonet_alloc_inst, phonet_alloc);
 MODULE_AUTHOR("Rémi Denis-Courmont");
+MODULE_DESCRIPTION("USB CDC Phonet function");
 MODULE_LICENSE("GPL");

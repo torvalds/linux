@@ -41,6 +41,9 @@ properties:
       Phandle to a regulator that provides power to the PHY. This
       regulator will be managed during the PHY power on/off sequence.
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

@@ -9,25 +9,8 @@
 
 #include <linux/mutex.h>
 
-#define FW_PWR0	0
-#define FW_PWR1		1
-#define FW_PWR2		2
-#define FW_PWR3		3
-
-
-#define HW_PWR0	7
-#define HW_PWR1		6
-#define HW_PWR2		2
-#define HW_PWR3	0
-#define HW_PWR4	8
-
-#define FW_PWRMSK	0x7
-
-
 #define XMIT_ALIVE	BIT(0)
-#define RECV_ALIVE	BIT(1)
 #define CMD_ALIVE	BIT(2)
-#define EVT_ALIVE	BIT(3)
 #define BTCOEX_ALIVE	BIT(4)
 
 
@@ -58,30 +41,16 @@ enum {
 #define PS_ALL_ON			BIT(2)
 #define PS_ST_ACTIVE		BIT(3)
 
-#define PS_ISR_ENABLE		BIT(4)
-#define PS_IMR_ENABLE		BIT(5)
 #define PS_ACK				BIT(6)
 #define PS_TOGGLE			BIT(7)
 
 #define PS_STATE_MASK		(0x0F)
-#define PS_STATE_HW_MASK	(0x07)
-#define PS_SEQ_MASK			(0xc0)
 
 #define PS_STATE(x)		(PS_STATE_MASK & (x))
-#define PS_STATE_HW(x)	(PS_STATE_HW_MASK & (x))
-#define PS_SEQ(x)		(PS_SEQ_MASK & (x))
 
 #define PS_STATE_S0		(PS_DPS)
-#define PS_STATE_S1		(PS_LCLK)
 #define PS_STATE_S2		(PS_RF_OFF)
-#define PS_STATE_S3		(PS_ALL_ON)
 #define PS_STATE_S4		((PS_ST_ACTIVE) | (PS_ALL_ON))
-
-
-#define PS_IS_RF_ON(x)	((x) & (PS_ALL_ON))
-#define PS_IS_ACTIVE(x)	((x) & (PS_ST_ACTIVE))
-#define CLR_PS_STATE(x)	((x) = ((x) & (0xF0)))
-
 
 struct reportpwrstate_parm {
 	unsigned char mode;
@@ -90,10 +59,6 @@ struct reportpwrstate_parm {
 };
 
 #define LPS_DELAY_TIME	(1 * HZ) /*  1 sec */
-
-#define EXE_PWR_NONE	0x01
-#define EXE_PWR_IPS		0x02
-#define EXE_PWR_LPS		0x04
 
 /*  RF state. */
 enum rt_rf_power_state {
@@ -246,9 +211,6 @@ struct pwrctrl_priv {
 	do { \
 		_set_timer(&(pwrctl)->pwr_state_check_timer, (ms)); \
 	} while (0)
-
-#define rtw_set_pwr_state_check_timer(pwrctl) \
-	_rtw_set_pwr_state_check_timer((pwrctl), (pwrctl)->pwr_state_check_interval)
 
 extern void rtw_init_pwrctrl_priv(struct adapter *adapter);
 extern void rtw_free_pwrctrl_priv(struct adapter *adapter);

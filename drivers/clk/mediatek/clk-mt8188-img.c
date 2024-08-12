@@ -107,6 +107,7 @@ static struct platform_driver clk_mt8188_imgsys_main_drv = {
 		.of_match_table = of_match_clk_mt8188_imgsys_main,
 	},
 };
-
 module_platform_driver(clk_mt8188_imgsys_main_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 imgsys clocks driver");
 MODULE_LICENSE("GPL");

@@ -207,7 +207,6 @@ if ARCH_NXP
 
 config ARCH_LAYERSCAPE
 	bool "Freescale Layerscape SoC family"
-	select EDAC_SUPPORT
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
@@ -267,6 +266,7 @@ config ARCH_QCOM
 	bool "Qualcomm Platforms"
 	select GPIOLIB
 	select PINCTRL
+	select HAVE_PWRCTL if PCI
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
 
@@ -309,9 +309,10 @@ config ARCH_STM32
 	select GPIOLIB
 	select PINCTRL
 	select PINCTRL_STM32MP257
-	select STM32_EXTI
 	select ARM_SMC_MBOX
 	select ARM_SCMI_PROTOCOL
+	select REGULATOR
+	select REGULATOR_ARM_SCMI
 	select COMMON_CLK_SCMI
 	select STM32_FIREWALL
 	help

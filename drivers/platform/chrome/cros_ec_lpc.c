@@ -39,6 +39,16 @@ static bool cros_ec_lpc_acpi_device_found;
  * be used as the base port for EC mapped memory.
  */
 #define CROS_EC_LPC_QUIRK_REMAP_MEMORY              BIT(0)
+/*
+ * Indicates that lpc_driver_data.quirk_acpi_id should be used to find
+ * the ACPI device.
+ */
+#define CROS_EC_LPC_QUIRK_ACPI_ID                   BIT(1)
+/*
+ * Indicates that lpc_driver_data.quirk_aml_mutex_name should be used
+ * to find an AML mutex to protect access to Microchip EC.
+ */
+#define CROS_EC_LPC_QUIRK_AML_MUTEX                 BIT(2)
 
 /**
  * struct lpc_driver_data - driver data attached to a DMI device ID to indicate
@@ -46,10 +56,15 @@ static bool cros_ec_lpc_acpi_device_found;
  * @quirks: a bitfield composed of quirks from CROS_EC_LPC_QUIRK_*
  * @quirk_mmio_memory_base: The first I/O port addressing EC mapped memory (used
  *                          when quirk ...REMAP_MEMORY is set.)
+ * @quirk_acpi_id: An ACPI HID to be used to find the ACPI device.
+ * @quirk_aml_mutex_name: The name of an AML mutex to be used to protect access
+ *                        to Microchip EC.
  */
 struct lpc_driver_data {
 	u32 quirks;
 	u16 quirk_mmio_memory_base;
+	const char *quirk_acpi_id;
+	const char *quirk_aml_mutex_name;
 };
 
 /**
@@ -62,14 +77,16 @@ struct cros_ec_lpc {
 
 /**
  * struct lpc_driver_ops - LPC driver operations
- * @read: Copy length bytes from EC address offset into buffer dest. Returns
- *        the 8-bit checksum of all bytes read.
- * @write: Copy length bytes from buffer msg into EC address offset. Returns
- *         the 8-bit checksum of all bytes written.
+ * @read: Copy length bytes from EC address offset into buffer dest.
+ *        Returns a negative error code on error, or the 8-bit checksum
+ *        of all bytes read.
+ * @write: Copy length bytes from buffer msg into EC address offset.
+ *         Returns a negative error code on error, or the 8-bit checksum
+ *         of all bytes written.
  */
 struct lpc_driver_ops {
-	u8 (*read)(unsigned int offset, unsigned int length, u8 *dest);
-	u8 (*write)(unsigned int offset, unsigned int length, const u8 *msg);
+	int (*read)(unsigned int offset, unsigned int length, u8 *dest);
+	int (*write)(unsigned int offset, unsigned int length, const u8 *msg);
 };
 
 static struct lpc_driver_ops cros_ec_lpc_ops = { };
@@ -78,10 +95,10 @@ static struct lpc_driver_ops cros_ec_lpc_ops = { };
  * A generic instance of the read function of struct lpc_driver_ops, used for
  * the LPC EC.
  */
-static u8 cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
-				 u8 *dest)
+static int cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
+				  u8 *dest)
 {
-	int sum = 0;
+	u8 sum = 0;
 	int i;
 
 	for (i = 0; i < length; ++i) {
@@ -97,10 +114,10 @@ static u8 cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
  * A generic instance of the write function of struct lpc_driver_ops, used for
  * the LPC EC.
  */
-static u8 cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
-				  const u8 *msg)
+static int cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
+				   const u8 *msg)
 {
-	int sum = 0;
+	u8 sum = 0;
 	int i;
 
 	for (i = 0; i < length; ++i) {
@@ -116,13 +133,13 @@ static u8 cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
  * An instance of the read function of struct lpc_driver_ops, used for the
  * MEC variant of LPC EC.
  */
-static u8 cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
-				     u8 *dest)
+static int cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
+				      u8 *dest)
 {
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
 	if (in_range < 0)
-		return 0;
+		return in_range;
 
 	return in_range ?
 		cros_ec_lpc_io_bytes_mec(MEC_IO_READ,
@@ -135,13 +152,13 @@ static u8 cros_ec_lpc_mec_read_bytes(unsigned int offset, unsigned int length,
  * An instance of the write function of struct lpc_driver_ops, used for the
  * MEC variant of LPC EC.
  */
-static u8 cros_ec_lpc_mec_write_bytes(unsigned int offset, unsigned int length,
-				      const u8 *msg)
+static int cros_ec_lpc_mec_write_bytes(unsigned int offset, unsigned int length,
+				       const u8 *msg)
 {
 	int in_range = cros_ec_lpc_mec_in_range(offset, length);
 
 	if (in_range < 0)
-		return 0;
+		return in_range;
 
 	return in_range ?
 		cros_ec_lpc_io_bytes_mec(MEC_IO_WRITE,
@@ -154,11 +171,14 @@ static int ec_response_timed_out(void)
 {
 	unsigned long one_second = jiffies + HZ;
 	u8 data;
+	int ret;
 
 	usleep_range(200, 300);
 	do {
-		if (!(cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_CMD, 1, &data) &
-		    EC_LPC_STATUS_BUSY_MASK))
+		ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_CMD, 1, &data);
+		if (ret < 0)
+			return ret;
+		if (!(data & EC_LPC_STATUS_BUSY_MASK))
 			return 0;
 		usleep_range(100, 200);
 	} while (time_before(jiffies, one_second));
@@ -179,28 +199,41 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 		goto done;
 
 	/* Write buffer */
-	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
+	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
+	if (ret < 0)
+		goto done;
 
 	/* Here we go */
 	sum = EC_COMMAND_PROTOCOL_3;
-	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	if (ret < 0)
+		goto done;
 
-	if (ec_response_timed_out()) {
+	ret = ec_response_timed_out();
+	if (ret < 0)
+		goto done;
+	if (ret) {
 		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}
 
 	/* Check result */
-	msg->result = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	if (ret < 0)
+		goto done;
+	msg->result = ret;
 	ret = cros_ec_check_result(ec, msg);
 	if (ret)
 		goto done;
 
 	/* Read back response */
 	dout = (u8 *)&response;
-	sum = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET, sizeof(response),
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET, sizeof(response),
 				   dout);
+	if (ret < 0)
+		goto done;
+	sum = ret;
 
 	msg->result = response.result;
 
@@ -213,9 +246,12 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	}
 
 	/* Read response and process checksum */
-	sum += cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET +
-				    sizeof(response), response.data_len,
-				    msg->data);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PACKET +
+				   sizeof(response), response.data_len,
+				   msg->data);
+	if (ret < 0)
+		goto done;
+	sum += ret;
 
 	if (sum) {
 		dev_err(ec->dev,
@@ -255,32 +291,47 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	sum = msg->command + args.flags + args.command_version + args.data_size;
 
 	/* Copy data and update checksum */
-	sum += cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PARAM, msg->outsize,
-				     msg->data);
+	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_PARAM, msg->outsize,
+				    msg->data);
+	if (ret < 0)
+		goto done;
+	sum += ret;
 
 	/* Finalize checksum and write args */
 	args.checksum = sum;
-	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_ARGS, sizeof(args),
-			      (u8 *)&args);
+	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_ARGS, sizeof(args),
+				    (u8 *)&args);
+	if (ret < 0)
+		goto done;
 
 	/* Here we go */
 	sum = msg->command;
-	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	ret = cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
+	if (ret < 0)
+		goto done;
 
-	if (ec_response_timed_out()) {
+	ret = ec_response_timed_out();
+	if (ret < 0)
+		goto done;
+	if (ret) {
 		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}
 
 	/* Check result */
-	msg->result = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_DATA, 1, &sum);
+	if (ret < 0)
+		goto done;
+	msg->result = ret;
 	ret = cros_ec_check_result(ec, msg);
 	if (ret)
 		goto done;
 
 	/* Read back args */
-	cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_ARGS, sizeof(args), (u8 *)&args);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_ARGS, sizeof(args), (u8 *)&args);
+	if (ret < 0)
+		goto done;
 
 	if (args.data_size > msg->insize) {
 		dev_err(ec->dev,
@@ -294,8 +345,11 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	sum = msg->command + args.flags + args.command_version + args.data_size;
 
 	/* Read response and update checksum */
-	sum += cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PARAM, args.data_size,
-				    msg->data);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_HOST_PARAM, args.data_size,
+				   msg->data);
+	if (ret < 0)
+		goto done;
+	sum += ret;
 
 	/* Verify checksum */
 	if (args.checksum != sum) {
@@ -320,19 +374,24 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 	int i = offset;
 	char *s = dest;
 	int cnt = 0;
+	int ret;
 
 	if (offset >= EC_MEMMAP_SIZE - bytes)
 		return -EINVAL;
 
 	/* fixed length */
 	if (bytes) {
-		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + offset, bytes, s);
+		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + offset, bytes, s);
+		if (ret < 0)
+			return ret;
 		return bytes;
 	}
 
 	/* string */
 	for (; i < EC_MEMMAP_SIZE; i++, s++) {
-		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + i, 1, s);
+		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + i, 1, s);
+		if (ret < 0)
+			return ret;
 		cnt++;
 		if (!*s)
 			break;
@@ -374,6 +433,26 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 		pm_system_wakeup();
 }
 
+static acpi_status cros_ec_lpc_parse_device(acpi_handle handle, u32 level,
+					    void *context, void **retval)
+{
+	*(struct acpi_device **)context = acpi_fetch_acpi_dev(handle);
+	return AE_CTRL_TERMINATE;
+}
+
+static struct acpi_device *cros_ec_lpc_get_device(const char *id)
+{
+	struct acpi_device *adev = NULL;
+	acpi_status status = acpi_get_devices(id, cros_ec_lpc_parse_device,
+					      &adev, NULL);
+	if (ACPI_FAILURE(status)) {
+		pr_warn(DRV_NAME ": Looking for %s failed\n", id);
+		return NULL;
+	}
+
+	return adev;
+}
+
 static int cros_ec_lpc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -401,6 +480,27 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 
 		if (quirks & CROS_EC_LPC_QUIRK_REMAP_MEMORY)
 			ec_lpc->mmio_memory_base = driver_data->quirk_mmio_memory_base;
+
+		if (quirks & CROS_EC_LPC_QUIRK_ACPI_ID) {
+			adev = cros_ec_lpc_get_device(driver_data->quirk_acpi_id);
+			if (!adev) {
+				dev_err(dev, "failed to get ACPI device '%s'",
+					driver_data->quirk_acpi_id);
+				return -ENODEV;
+			}
+			ACPI_COMPANION_SET(dev, adev);
+		}
+
+		if (quirks & CROS_EC_LPC_QUIRK_AML_MUTEX) {
+			const char *name
+				= driver_data->quirk_aml_mutex_name;
+			ret = cros_ec_lpc_mec_acpi_mutex(ACPI_COMPANION(dev), name);
+			if (ret) {
+				dev_err(dev, "failed to get AML mutex '%s'", name);
+				return ret;
+			}
+			dev_info(dev, "got AML mutex '%s'", name);
+		}
 	}
 
 	/*
@@ -425,7 +525,9 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	 */
 	cros_ec_lpc_ops.read = cros_ec_lpc_mec_read_bytes;
 	cros_ec_lpc_ops.write = cros_ec_lpc_mec_write_bytes;
-	cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
+	ret = cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
+	if (ret < 0)
+		return ret;
 	if (buf[0] != 'E' || buf[1] != 'C') {
 		if (!devm_request_region(dev, ec_lpc->mmio_memory_base, EC_MEMMAP_SIZE,
 					 dev_name(dev))) {
@@ -436,8 +538,10 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		/* Re-assign read/write operations for the non MEC variant */
 		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
 		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
-		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
-				     buf);
+		ret = cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
+					   buf);
+		if (ret < 0)
+			return ret;
 		if (buf[0] != 'E' || buf[1] != 'C') {
 			dev_err(dev, "EC ID not detected\n");
 			return -ENODEV;
@@ -532,6 +636,12 @@ static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initc
 	.quirk_mmio_memory_base = 0xE00,
 };
 
+static const struct lpc_driver_data framework_laptop_11_lpc_driver_data __initconst = {
+	.quirks = CROS_EC_LPC_QUIRK_ACPI_ID|CROS_EC_LPC_QUIRK_AML_MUTEX,
+	.quirk_acpi_id = "PNP0C09",
+	.quirk_aml_mutex_name = "ECMT",
+};
+
 static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
@@ -600,6 +710,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
 		},
+		.driver_data = (void *)&framework_laptop_11_lpc_driver_data,
 	},
 	{ /* sentinel */ }
 };
@@ -661,23 +772,12 @@ static struct platform_device cros_ec_lpc_device = {
 	.name = DRV_NAME
 };
 
-static acpi_status cros_ec_lpc_parse_device(acpi_handle handle, u32 level,
-					    void *context, void **retval)
-{
-	*(bool *)context = true;
-	return AE_CTRL_TERMINATE;
-}
-
 static int __init cros_ec_lpc_init(void)
 {
 	int ret;
-	acpi_status status;
 	const struct dmi_system_id *dmi_match;
 
-	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
-				  &cros_ec_lpc_acpi_device_found, NULL);
-	if (ACPI_FAILURE(status))
-		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
+	cros_ec_lpc_acpi_device_found = !!cros_ec_lpc_get_device(ACPI_DRV_NAME);
 
 	dmi_match = dmi_first_match(cros_ec_lpc_dmi_table);
 

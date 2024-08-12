@@ -367,4 +367,5 @@ int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags,
 }
 EXPORT_SYMBOL_GPL(dpdmai_get_tx_queue);
 
+MODULE_DESCRIPTION("NXP DPAA2 QDMA driver");
 MODULE_LICENSE("GPL v2");

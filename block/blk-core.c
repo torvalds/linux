@@ -94,20 +94,6 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_queue_flag_clear);
 
-/**
- * blk_queue_flag_test_and_set - atomically test and set a queue flag
- * @flag: flag to be set
- * @q: request queue
- *
- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
- * the flag was already set.
- */
-bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
-{
-	return test_and_set_bit(flag, &q->queue_flags);
-}
-EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_set);
-
 #define REQ_OP_NAME(name) [REQ_OP_##name] = #name
 static const char *const blk_op_name[] = {
 	REQ_OP_NAME(READ),
@@ -173,6 +159,8 @@ static const struct {
 
 	/* Command duration limit device-side timeout */
 	[BLK_STS_DURATION_LIMIT]	= { -ETIME, "duration limit exceeded" },
+
+	[BLK_STS_INVAL]		= { -EINVAL,	"invalid" },
 
 	/* everything else not covered above: */
 	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
@@ -739,6 +727,18 @@ void submit_bio_noacct_nocheck(struct bio *bio)
 		__submit_bio_noacct(bio);
 }
 
+static blk_status_t blk_validate_atomic_write_op_size(struct request_queue *q,
+						 struct bio *bio)
+{
+	if (bio->bi_iter.bi_size > queue_atomic_write_unit_max_bytes(q))
+		return BLK_STS_INVAL;
+
+	if (bio->bi_iter.bi_size % queue_atomic_write_unit_min_bytes(q))
+		return BLK_STS_INVAL;
+
+	return BLK_STS_OK;
+}
+
 /**
  * submit_bio_noacct - re-submit a bio to the block device layer for I/O
  * @bio:  The bio describing the location in memory and on the device.
@@ -782,7 +782,7 @@ void submit_bio_noacct(struct bio *bio)
 		if (WARN_ON_ONCE(bio_op(bio) != REQ_OP_WRITE &&
 				 bio_op(bio) != REQ_OP_ZONE_APPEND))
 			goto end_io;
-		if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
+		if (!bdev_write_cache(bdev)) {
 			bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
 			if (!bio_sectors(bio)) {
 				status = BLK_STS_OK;
@@ -791,12 +791,20 @@ void submit_bio_noacct(struct bio *bio)
 		}
 	}
 
-	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+	if (!(q->limits.features & BLK_FEAT_POLL) &&
+			(bio->bi_opf & REQ_POLLED)) {
 		bio_clear_polled(bio);
+		goto not_supported;
+	}
 
 	switch (bio_op(bio)) {
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
+		if (bio->bi_opf & REQ_ATOMIC) {
+			status = blk_validate_atomic_write_op_size(q, bio);
+			if (status != BLK_STS_OK)
+				goto end_io;
+		}
 		break;
 	case REQ_OP_FLUSH:
 		/*
@@ -825,11 +833,8 @@ void submit_bio_noacct(struct bio *bio)
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
 	case REQ_OP_ZONE_FINISH:
-		if (!bdev_is_zoned(bio->bi_bdev))
-			goto not_supported;
-		break;
 	case REQ_OP_ZONE_RESET_ALL:
-		if (!bdev_is_zoned(bio->bi_bdev) || !blk_queue_zone_resetall(q))
+		if (!bdev_is_zoned(bio->bi_bdev))
 			goto not_supported;
 		break;
 	case REQ_OP_DRV_IN:
@@ -915,8 +920,7 @@ int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
 		return 0;
 
 	q = bdev_get_queue(bdev);
-	if (cookie == BLK_QC_T_NONE ||
-	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+	if (cookie == BLK_QC_T_NONE || !(q->limits.features & BLK_FEAT_POLL))
 		return 0;
 
 	blk_flush_plug(current->plug, false);

@@ -55,9 +55,6 @@
 
 #include <trace/events/ipi.h>
 
-DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
-EXPORT_PER_CPU_SYMBOL(cpu_number);
-
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
@@ -132,7 +129,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	/* Now bring the CPU into our world */
 	ret = boot_secondary(cpu, idle);
 	if (ret) {
-		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
+		if (ret != -EPERM)
+			pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 		return ret;
 	}
 
@@ -510,6 +508,59 @@ static int __init smp_cpu_setup(int cpu)
 static bool bootcpu_valid __initdata;
 static unsigned int cpu_count = 1;
 
+int arch_register_cpu(int cpu)
+{
+	acpi_handle acpi_handle = acpi_get_processor_handle(cpu);
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+
+	if (!acpi_disabled && !acpi_handle &&
+	    IS_ENABLED(CONFIG_ACPI_HOTPLUG_CPU))
+		return -EPROBE_DEFER;
+
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+	/* For now block anything that looks like physical CPU Hotplug */
+	if (invalid_logical_cpuid(cpu) || !cpu_present(cpu)) {
+		pr_err_once("Changing CPU present bit is not supported\n");
+		return -ENODEV;
+	}
+#endif
+
+	/*
+	 * Availability of the acpi handle is sufficient to establish
+	 * that _STA has aleady been checked. No need to recheck here.
+	 */
+	c->hotpluggable = arch_cpu_is_hotpluggable(cpu);
+
+	return register_cpu(c, cpu);
+}
+
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+void arch_unregister_cpu(int cpu)
+{
+	acpi_handle acpi_handle = acpi_get_processor_handle(cpu);
+	struct cpu *c = &per_cpu(cpu_devices, cpu);
+	acpi_status status;
+	unsigned long long sta;
+
+	if (!acpi_handle) {
+		pr_err_once("Removing a CPU without associated ACPI handle\n");
+		return;
+	}
+
+	status = acpi_evaluate_integer(acpi_handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status))
+		return;
+
+	/* For now do not allow anything that looks like physical CPU HP */
+	if (cpu_present(cpu) && !(sta & ACPI_STA_DEVICE_PRESENT)) {
+		pr_err_once("Changing CPU present bit is not supported\n");
+		return;
+	}
+
+	unregister_cpu(c);
+}
+#endif /* CONFIG_ACPI_HOTPLUG_CPU */
+
 #ifdef CONFIG_ACPI
 static struct acpi_madt_generic_interrupt cpu_madt_gicc[NR_CPUS];
 
@@ -530,7 +581,8 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 {
 	u64 hwid = processor->arm_mpidr;
 
-	if (!acpi_gicc_is_usable(processor)) {
+	if (!(processor->flags &
+	      (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE))) {
 		pr_debug("skipping disabled CPU entry with 0x%llx MPIDR\n", hwid);
 		return;
 	}
@@ -749,8 +801,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	for_each_possible_cpu(cpu) {
 
-		per_cpu(cpu_number, cpu) = cpu;
-
 		if (cpu == smp_processor_id())
 			continue;
 
@@ -767,13 +817,15 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-static const char *ipi_types[NR_IPI] __tracepoint_string = {
+static const char *ipi_types[MAX_IPI] __tracepoint_string = {
 	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
 	[IPI_CALL_FUNC]		= "Function call interrupts",
 	[IPI_CPU_STOP]		= "CPU stop interrupts",
 	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
 	[IPI_TIMER]		= "Timer broadcast interrupts",
 	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_CPU_BACKTRACE]	= "CPU backtrace interrupts",
+	[IPI_KGDB_ROUNDUP]	= "KGDB roundup interrupts",
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr);
@@ -784,7 +836,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	unsigned int cpu, i;
 
-	for (i = 0; i < NR_IPI; i++) {
+	for (i = 0; i < MAX_IPI; i++) {
 		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
 			   prec >= 4 ? " " : "");
 		for_each_online_cpu(cpu)
@@ -1028,12 +1080,12 @@ void __init set_smp_ipi_range(int ipi_base, int n)
 
 		if (ipi_should_be_nmi(i)) {
 			err = request_percpu_nmi(ipi_base + i, ipi_handler,
-						 "IPI", &cpu_number);
+						 "IPI", &irq_stat);
 			WARN(err, "Could not request IPI %d as NMI, err=%d\n",
 			     i, err);
 		} else {
 			err = request_percpu_irq(ipi_base + i, ipi_handler,
-						 "IPI", &cpu_number);
+						 "IPI", &irq_stat);
 			WARN(err, "Could not request IPI %d as IRQ, err=%d\n",
 			     i, err);
 		}

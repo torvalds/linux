@@ -145,4 +145,20 @@ config LEDS_TRIGGER_TTY
 
 	  When build as a module this driver will be called ledtrig-tty.
 
+config LEDS_TRIGGER_INPUT_EVENTS
+	tristate "LED Input events trigger"
+	depends on INPUT
+	help
+	  Turn LEDs on when there is input (/dev/input/event*) activity and turn
+	  them back off again after there has been no activity for 5 seconds.
+
+	  This is primarily intended to control LEDs which are a backlight for
+	  capacitive touch-buttons, such as e.g. the menu / home / back buttons
+	  found on the bottom bezel of many older smartphones and tablets.
+
+	  This can also be used to turn on the keyboard backlight LED on
+	  input events and turn the keyboard backlight off again when idle.
+
+	  When build as a module this driver will be called ledtrig-input-events.
+
 endif # LEDS_TRIGGERS

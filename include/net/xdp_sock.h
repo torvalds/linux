@@ -121,7 +121,7 @@ struct xsk_tx_metadata_ops {
 
 int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp);
-void __xsk_map_flush(void);
+void __xsk_map_flush(struct list_head *flush_list);
 
 /**
  *  xsk_tx_metadata_to_compl - Save enough relevant metadata information
@@ -206,7 +206,7 @@ static inline int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 	return -EOPNOTSUPP;
 }
 
-static inline void __xsk_map_flush(void)
+static inline void __xsk_map_flush(struct list_head *flush_list)
 {
 }
 
@@ -228,14 +228,4 @@ static inline void xsk_tx_metadata_complete(struct xsk_tx_metadata_compl *compl,
 }
 
 #endif /* CONFIG_XDP_SOCKETS */
-
-#if defined(CONFIG_XDP_SOCKETS) && defined(CONFIG_DEBUG_NET)
-bool xsk_map_check_flush(void);
-#else
-static inline bool xsk_map_check_flush(void)
-{
-	return false;
-}
-#endif
-
 #endif /* _LINUX_XDP_SOCK_H */

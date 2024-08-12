@@ -1450,7 +1450,7 @@ out_failed_reset:
 	return ret;
 }
 
-static int ipu_remove(struct platform_device *pdev)
+static void ipu_remove(struct platform_device *pdev)
 {
 	struct ipu_soc *ipu = platform_get_drvdata(pdev);
 
@@ -1459,8 +1459,6 @@ static int ipu_remove(struct platform_device *pdev)
 	ipu_irq_exit(ipu);
 
 	clk_disable_unprepare(ipu->clk);
-
-	return 0;
 }
 
 static struct platform_driver imx_ipu_driver = {
@@ -1469,7 +1467,7 @@ static struct platform_driver imx_ipu_driver = {
 		.of_match_table = imx_ipu_dt_ids,
 	},
 	.probe = ipu_probe,
-	.remove = ipu_remove,
+	.remove_new = ipu_remove,
 };
 
 static struct platform_driver * const drivers[] = {

@@ -1283,6 +1283,33 @@ static int smack_inode_getattr(const struct path *path)
 }
 
 /**
+ * smack_inode_xattr_skipcap - Skip the xattr capability checks?
+ * @name: name of the xattr
+ *
+ * Returns 1 to indicate that Smack "owns" the access control rights to xattrs
+ * named @name; the LSM layer should avoid enforcing any traditional
+ * capability based access controls on this xattr.  Returns 0 to indicate that
+ * Smack does not "own" the access control rights to xattrs named @name and is
+ * deferring to the LSM layer for further access controls, including capability
+ * based controls.
+ */
+static int smack_inode_xattr_skipcap(const char *name)
+{
+	if (strncmp(name, XATTR_SMACK_SUFFIX, strlen(XATTR_SMACK_SUFFIX)))
+		return 0;
+
+	if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKEXEC) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKMMAP) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0)
+		return 1;
+
+	return 0;
+}
+
+/**
  * smack_inode_setxattr - Smack check for setting xattrs
  * @idmap: idmap of the mount
  * @dentry: the object
@@ -1325,8 +1352,7 @@ static int smack_inode_setxattr(struct mnt_idmap *idmap,
 		    size != TRANS_TRUE_SIZE ||
 		    strncmp(value, TRANS_TRUE, TRANS_TRUE_SIZE) != 0)
 			rc = -EINVAL;
-	} else
-		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+	}
 
 	if (check_priv && !smack_privileged(CAP_MAC_ADMIN))
 		rc = -EPERM;
@@ -1435,8 +1461,7 @@ static int smack_inode_removexattr(struct mnt_idmap *idmap,
 	    strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
 		if (!smack_privileged(CAP_MAC_ADMIN))
 			rc = -EPERM;
-	} else
-		rc = cap_inode_removexattr(idmap, dentry, name);
+	}
 
 	if (rc != 0)
 		return rc;
@@ -3846,12 +3871,18 @@ static int smack_unix_stream_connect(struct sock *sock,
 		}
 	}
 
-	/*
-	 * Cross reference the peer labels for SO_PEERSEC.
-	 */
 	if (rc == 0) {
+		/*
+		 * Cross reference the peer labels for SO_PEERSEC.
+		 */
 		nsp->smk_packet = ssp->smk_out;
 		ssp->smk_packet = osp->smk_out;
+
+		/*
+		 * new/child/established socket must inherit listening socket labels
+		 */
+		nsp->smk_out = osp->smk_out;
+		nsp->smk_in  = osp->smk_in;
 	}
 
 	return rc;
@@ -4431,7 +4462,7 @@ static int smack_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (hskp == NULL)
-		rc = netlbl_req_setattr(req, &skp->smk_netlabel);
+		rc = netlbl_req_setattr(req, &ssp->smk_out->smk_netlabel);
 	else
 		netlbl_req_delattr(req);
 
@@ -5053,6 +5084,7 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_permission, smack_inode_permission),
 	LSM_HOOK_INIT(inode_setattr, smack_inode_setattr),
 	LSM_HOOK_INIT(inode_getattr, smack_inode_getattr),
+	LSM_HOOK_INIT(inode_xattr_skipcap, smack_inode_xattr_skipcap),
 	LSM_HOOK_INIT(inode_setxattr, smack_inode_setxattr),
 	LSM_HOOK_INIT(inode_post_setxattr, smack_inode_post_setxattr),
 	LSM_HOOK_INIT(inode_getxattr, smack_inode_getxattr),

@@ -13,6 +13,7 @@
 #include <asm/bootinfo.h>
 #include <asm/early_ioremap.h>
 #include <asm/inst.h>
+#include <asm/io.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 
@@ -34,11 +35,27 @@ static inline void __init relocate_relative(void)
 		if (rela->r_info != R_LARCH_RELATIVE)
 			continue;
 
-		if (relocated_addr >= VMLINUX_LOAD_ADDRESS)
-			relocated_addr = (Elf64_Addr)RELOCATED(relocated_addr);
-
+		relocated_addr = (Elf64_Addr)RELOCATED(relocated_addr);
 		*(Elf64_Addr *)RELOCATED(addr) = relocated_addr;
 	}
+
+#ifdef CONFIG_RELR
+	u64 *addr = NULL;
+	u64 *relr = (u64 *)&__relr_dyn_begin;
+	u64 *relr_end = (u64 *)&__relr_dyn_end;
+
+	for ( ; relr < relr_end; relr++) {
+		if ((*relr & 1) == 0) {
+			addr = (u64 *)(*relr + reloc_offset);
+			*addr++ += reloc_offset;
+		} else {
+			for (u64 *p = addr, r = *relr >> 1; r; p++, r >>= 1)
+				if (r & 1)
+					*p += reloc_offset;
+			addr += 63;
+		}
+	}
+#endif
 }
 
 static inline void __init relocate_absolute(long random_offset)
@@ -123,6 +140,32 @@ static inline __init bool kaslr_disabled(void)
 	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
 		return true;
 
+#ifdef CONFIG_HIBERNATION
+	str = strstr(builtin_cmdline, "nohibernate");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(boot_command_line, "nohibernate");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(builtin_cmdline, "noresume");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(boot_command_line, "noresume");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return false;
+
+	str = strstr(builtin_cmdline, "resume=");
+	if (str == builtin_cmdline || (str > builtin_cmdline && *(str - 1) == ' '))
+		return true;
+
+	str = strstr(boot_command_line, "resume=");
+	if (str == boot_command_line || (str > boot_command_line && *(str - 1) == ' '))
+		return true;
+#endif
+
 	return false;
 }
 
@@ -170,7 +213,7 @@ unsigned long __init relocate_kernel(void)
 	unsigned long kernel_length;
 	unsigned long random_offset = 0;
 	void *location_new = _text; /* Default to original kernel start */
-	char *cmdline = early_ioremap(fw_arg1, COMMAND_LINE_SIZE); /* Boot command line is passed in fw_arg1 */
+	char *cmdline = early_memremap_ro(fw_arg1, COMMAND_LINE_SIZE); /* Boot command line is passed in fw_arg1 */
 
 	strscpy(boot_command_line, cmdline, COMMAND_LINE_SIZE);
 
@@ -182,6 +225,7 @@ unsigned long __init relocate_kernel(void)
 		random_offset = (unsigned long)location_new - (unsigned long)(_text);
 #endif
 	reloc_offset = (unsigned long)_text - VMLINUX_LOAD_ADDRESS;
+	early_memunmap(cmdline, COMMAND_LINE_SIZE);
 
 	if (random_offset) {
 		kernel_length = (long)(_end) - (long)(_text);

@@ -134,8 +134,8 @@ static void gdlm_ast(void *arg)
 
 	switch (gl->gl_lksb.sb_status) {
 	case -DLM_EUNLOCK: /* Unlocked, so glock can be freed */
-		if (gl->gl_ops->go_free)
-			gl->gl_ops->go_free(gl);
+		if (gl->gl_ops->go_unlocked)
+			gl->gl_ops->go_unlocked(gl);
 		gfs2_glock_free(gl);
 		return;
 	case -DLM_ECANCEL: /* Cancel while getting lock */
@@ -163,11 +163,21 @@ static void gdlm_ast(void *arg)
 			BUG();
 	}
 
-	set_bit(GLF_INITIAL, &gl->gl_flags);
+	/*
+	 * The GLF_INITIAL flag is initially set for new glocks.  Upon the
+	 * first successful new (non-conversion) request, we clear this flag to
+	 * indicate that a DLM lock exists and that gl->gl_lksb.sb_lkid is the
+	 * identifier to use for identifying it.
+	 *
+	 * Any failed initial requests do not create a DLM lock, so we ignore
+	 * the gl->gl_lksb.sb_lkid values that come with such requests.
+	 */
+
+	clear_bit(GLF_INITIAL, &gl->gl_flags);
 	gfs2_glock_complete(gl, ret);
 	return;
 out:
-	if (!test_bit(GLF_INITIAL, &gl->gl_flags))
+	if (test_bit(GLF_INITIAL, &gl->gl_flags))
 		gl->gl_lksb.sb_lkid = 0;
 	gfs2_glock_complete(gl, ret);
 }
@@ -239,7 +249,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 			BUG();
 	}
 
-	if (gl->gl_lksb.sb_lkid != 0) {
+	if (!test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		lkf |= DLM_LKF_CONVERT;
 		if (test_bit(GLF_BLOCKING, &gl->gl_flags))
 			lkf |= DLM_LKF_QUECVT;
@@ -270,14 +280,14 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	lkf = make_flags(gl, flags, req);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
-	if (gl->gl_lksb.sb_lkid) {
-		gfs2_update_request_times(gl);
-	} else {
+	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		memset(strname, ' ', GDLM_STRNAME_BYTES - 1);
 		strname[GDLM_STRNAME_BYTES - 1] = '\0';
 		gfs2_reverse_hex(strname + 7, gl->gl_name.ln_type);
 		gfs2_reverse_hex(strname + 23, gl->gl_name.ln_number);
 		gl->gl_dstamp = ktime_get_real();
+	} else {
+		gfs2_update_request_times(gl);
 	}
 	/*
 	 * Submit the actual lock request.
@@ -301,7 +311,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 
 	BUG_ON(!__lockref_is_dead(&gl->gl_lockref));
 
-	if (gl->gl_lksb.sb_lkid == 0) {
+	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		gfs2_glock_free(gl);
 		return;
 	}

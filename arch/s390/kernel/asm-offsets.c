@@ -28,6 +28,7 @@ int main(void)
 	BLANK();
 	/* thread info offsets */
 	OFFSET(__TI_flags, task_struct, thread_info.flags);
+	OFFSET(__TI_sie, task_struct, thread_info.sie);
 	BLANK();
 	/* pt_regs offsets */
 	OFFSET(__PT_PSW, pt_regs, psw);
@@ -63,6 +64,7 @@ int main(void)
 	OFFSET(__SF_SIE_REASON, stack_frame, sie_reason);
 	OFFSET(__SF_SIE_FLAGS, stack_frame, sie_flags);
 	OFFSET(__SF_SIE_CONTROL_PHYS, stack_frame, sie_control_block_phys);
+	OFFSET(__SF_SIE_GUEST_ASCE, stack_frame, sie_guest_asce);
 	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	OFFSET(__SFUSER_BACKCHAIN, stack_frame_user, back_chain);
@@ -113,7 +115,7 @@ int main(void)
 	OFFSET(__LC_SAVE_AREA_SYNC, lowcore, save_area_sync);
 	OFFSET(__LC_SAVE_AREA_ASYNC, lowcore, save_area_async);
 	OFFSET(__LC_SAVE_AREA_RESTART, lowcore, save_area_restart);
-	OFFSET(__LC_CPU_FLAGS, lowcore, cpu_flags);
+	OFFSET(__LC_PCPU, lowcore, pcpu);
 	OFFSET(__LC_RETURN_PSW, lowcore, return_psw);
 	OFFSET(__LC_RETURN_MCCK_PSW, lowcore, return_mcck_psw);
 	OFFSET(__LC_SYS_ENTER_TIMER, lowcore, sys_enter_timer);
@@ -185,5 +187,7 @@ int main(void)
 #endif
 	OFFSET(__FTRACE_REGS_PT_REGS, ftrace_regs, regs);
 	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct ftrace_regs));
+
+	OFFSET(__PCPU_FLAGS, pcpu, flags);
 	return 0;
 }

@@ -28,6 +28,9 @@
 
 #define MES_API_VERSION 0x14
 
+/* Maximum log buffer size for MES. Needs to be updated if MES expands MES_EVT_INTR_HIST_LOG_12 */
+#define  AMDGPU_MES_LOG_BUFFER_SIZE  0xC000
+
 /* Driver submits one API(cmd) as a single Frame and this command size is same for all API
  * to ease the debugging and parsing of ring buffer.
  */

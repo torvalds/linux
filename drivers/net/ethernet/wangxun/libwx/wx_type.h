@@ -157,6 +157,8 @@
 #define WX_RDB_RA_CTL_RSS_IPV6_TCP   BIT(21)
 #define WX_RDB_RA_CTL_RSS_IPV4_UDP   BIT(22)
 #define WX_RDB_RA_CTL_RSS_IPV6_UDP   BIT(23)
+#define WX_RDB_FDIR_MATCH            0x19558
+#define WX_RDB_FDIR_MISS             0x1955C
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -503,6 +505,34 @@ enum WX_MSCA_CMD_value {
 #define WX_PTYPE_TYP_TCP             0x04
 #define WX_PTYPE_TYP_SCTP            0x05
 
+/* Packet type non-ip values */
+enum wx_l2_ptypes {
+	WX_PTYPE_L2_ABORTED = (WX_PTYPE_PKT_MAC),
+	WX_PTYPE_L2_MAC = (WX_PTYPE_PKT_MAC | WX_PTYPE_TYP_MAC),
+
+	WX_PTYPE_L2_IPV4_FRAG = (WX_PTYPE_PKT_IP | WX_PTYPE_TYP_IPFRAG),
+	WX_PTYPE_L2_IPV4 = (WX_PTYPE_PKT_IP | WX_PTYPE_TYP_IP),
+	WX_PTYPE_L2_IPV4_UDP = (WX_PTYPE_PKT_IP | WX_PTYPE_TYP_UDP),
+	WX_PTYPE_L2_IPV4_TCP = (WX_PTYPE_PKT_IP | WX_PTYPE_TYP_TCP),
+	WX_PTYPE_L2_IPV4_SCTP = (WX_PTYPE_PKT_IP | WX_PTYPE_TYP_SCTP),
+	WX_PTYPE_L2_IPV6_FRAG = (WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6 |
+				 WX_PTYPE_TYP_IPFRAG),
+	WX_PTYPE_L2_IPV6 = (WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6 |
+			    WX_PTYPE_TYP_IP),
+	WX_PTYPE_L2_IPV6_UDP = (WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6 |
+				WX_PTYPE_TYP_UDP),
+	WX_PTYPE_L2_IPV6_TCP = (WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6 |
+				WX_PTYPE_TYP_TCP),
+	WX_PTYPE_L2_IPV6_SCTP = (WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6 |
+				 WX_PTYPE_TYP_SCTP),
+
+	WX_PTYPE_L2_TUN4_MAC = (WX_PTYPE_TUN_IPV4 | WX_PTYPE_PKT_IGM),
+	WX_PTYPE_L2_TUN6_MAC = (WX_PTYPE_TUN_IPV6 | WX_PTYPE_PKT_IGM),
+};
+
+#define WX_PTYPE_PKT(_pt)            ((_pt) & 0x30)
+#define WX_PTYPE_TYPL4(_pt)          ((_pt) & 0x07)
+
 #define WX_RXD_PKTTYPE(_rxd) \
 	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 9) & 0xFF)
 #define WX_RXD_IPV6EX(_rxd) \
@@ -552,6 +582,9 @@ enum wx_tx_flags {
 	WX_TX_FLAGS_OUTER_IPV4	= 0x100,
 	WX_TX_FLAGS_LINKSEC	= 0x200,
 	WX_TX_FLAGS_IPSEC	= 0x400,
+
+	/* software defined flags */
+	WX_TX_FLAGS_SW_VLAN	= 0x40,
 };
 
 /* VLAN info */
@@ -900,7 +933,13 @@ struct wx_ring {
 					 */
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 next_to_alloc;
+	union {
+		u16 next_to_alloc;
+		struct {
+			u8 atr_sample_rate;
+			u8 atr_count;
+		};
+	};
 
 	struct wx_queue_stats stats;
 	struct u64_stats_sync syncp;
@@ -939,6 +978,7 @@ struct wx_ring_feature {
 enum wx_ring_f_enum {
 	RING_F_NONE = 0,
 	RING_F_RSS,
+	RING_F_FDIR,
 	RING_F_ARRAY_SIZE  /* must be last in enum set */
 };
 
@@ -980,15 +1020,26 @@ struct wx_hw_stats {
 	u64 crcerrs;
 	u64 rlec;
 	u64 qmprc;
+	u64 fdirmatch;
+	u64 fdirmiss;
 };
 
 enum wx_state {
 	WX_STATE_RESETTING,
 	WX_STATE_NBITS,		/* must be last */
 };
+
+enum wx_pf_flags {
+	WX_FLAG_FDIR_CAPABLE,
+	WX_FLAG_FDIR_HASH,
+	WX_FLAG_FDIR_PERFECT,
+	WX_PF_FLAGS_NBITS               /* must be last */
+};
+
 struct wx {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	DECLARE_BITMAP(state, WX_STATE_NBITS);
+	DECLARE_BITMAP(flags, WX_PF_FLAGS_NBITS);
 
 	void *priv;
 	u8 __iomem *hw_addr;
@@ -1058,6 +1109,7 @@ struct wx {
 	dma_addr_t isb_dma;
 	u32 *isb_mem;
 	u32 isb_tag[WX_ISB_MAX];
+	bool misc_irq_domain;
 
 #define WX_MAX_RETA_ENTRIES 128
 #define WX_RSS_INDIR_TBL_MAX 64
@@ -1077,6 +1129,9 @@ struct wx {
 	u64 hw_csum_rx_error;
 	u64 alloc_rx_buff_failed;
 
+	u32 atr_sample_rate;
+	void (*atr)(struct wx_ring *ring, struct wx_tx_buffer *first, u8 ptype);
+	void (*configure_fdir)(struct wx *wx);
 	void (*do_reset)(struct net_device *netdev);
 };
 

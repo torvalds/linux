@@ -14,7 +14,6 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/if_phonet.h>

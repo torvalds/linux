@@ -82,13 +82,11 @@ static int litex_reset_handler(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id litex_soc_ctrl_of_match[] = {
 	{.compatible = "litex,soc-controller"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, litex_soc_ctrl_of_match);
-#endif /* CONFIG_OF */
 
 static int litex_soc_ctrl_probe(struct platform_device *pdev)
 {
@@ -130,7 +128,7 @@ static void litex_soc_ctrl_remove(struct platform_device *pdev)
 static struct platform_driver litex_soc_ctrl_driver = {
 	.driver = {
 		.name = "litex-soc-controller",
-		.of_match_table = of_match_ptr(litex_soc_ctrl_of_match)
+		.of_match_table = litex_soc_ctrl_of_match,
 	},
 	.probe = litex_soc_ctrl_probe,
 	.remove_new = litex_soc_ctrl_remove,

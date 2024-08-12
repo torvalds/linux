@@ -226,8 +226,6 @@ int __init efi_memblock_x86_reserve_range(void)
 	if (add_efi_memmap || do_efi_soft_reserve())
 		do_add_efi_memmap();
 
-	efi_fake_memmap_early();
-
 	WARN(efi.memmap.desc_version != 1,
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
 	     efi.memmap.desc_version);

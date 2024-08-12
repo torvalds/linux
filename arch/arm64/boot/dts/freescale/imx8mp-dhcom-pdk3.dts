@@ -75,6 +75,18 @@
 		};
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X28";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	led {
 		compatible = "gpio-leds";
 
@@ -245,6 +257,33 @@
 };
 
 &flexcan1 {
+	status = "okay";
+};
+
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	ddc-i2c-bus = <&i2cmuxed1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 

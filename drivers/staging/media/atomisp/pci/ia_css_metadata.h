@@ -20,6 +20,8 @@
  * This file contains structure for processing sensor metadata.
  */
 
+#include <linux/build_bug.h>
+
 #include <type_support.h>
 #include "ia_css_types.h"
 #include "ia_css_stream_format.h"
@@ -49,6 +51,8 @@ struct ia_css_metadata {
 };
 
 #define SIZE_OF_IA_CSS_METADATA_STRUCT sizeof(struct ia_css_metadata)
+
+static_assert(sizeof(struct ia_css_metadata) == SIZE_OF_IA_CSS_METADATA_STRUCT);
 
 /* @brief Allocate a metadata buffer.
  * @param[in]   metadata_info Metadata info struct, contains details on metadata buffers.

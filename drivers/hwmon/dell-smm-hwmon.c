@@ -1264,6 +1264,13 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		},
 	},
 	{
+		.ident = "Dell OptiPlex 7060",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "OptiPlex 7060"),
+		},
+	},
+	{
 		.ident = "Dell Precision",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),

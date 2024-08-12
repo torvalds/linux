@@ -87,13 +87,13 @@ static irqreturn_t mx25_gcq_irq(int irq, void *data)
 	regmap_read(priv->regs, MX25_ADCQ_SR, &stats);
 
 	if (stats & MX25_ADCQ_SR_EOQ) {
-		regmap_update_bits(priv->regs, MX25_ADCQ_MR,
-				   MX25_ADCQ_MR_EOQ_IRQ, MX25_ADCQ_MR_EOQ_IRQ);
+		regmap_set_bits(priv->regs, MX25_ADCQ_MR,
+				MX25_ADCQ_MR_EOQ_IRQ);
 		complete(&priv->completed);
 	}
 
 	/* Disable conversion queue run */
-	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS, 0);
+	regmap_clear_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS);
 
 	/* Acknowledge all possible irqs */
 	regmap_write(priv->regs, MX25_ADCQ_SR, MX25_ADCQ_SR_FRR |
@@ -115,11 +115,10 @@ static int mx25_gcq_get_raw_value(struct device *dev,
 	regmap_write(priv->regs, MX25_ADCQ_ITEM_7_0,
 		     MX25_ADCQ_ITEM(0, chan->channel));
 
-	regmap_update_bits(priv->regs, MX25_ADCQ_MR, MX25_ADCQ_MR_EOQ_IRQ, 0);
+	regmap_clear_bits(priv->regs, MX25_ADCQ_MR, MX25_ADCQ_MR_EOQ_IRQ);
 
 	/* Trigger queue for one run */
-	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS,
-			   MX25_ADCQ_CR_FQS);
+	regmap_set_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS);
 
 	time_left = wait_for_completion_interruptible_timeout(
 		&priv->completed, MX25_GCQ_TIMEOUT);
@@ -272,9 +271,8 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 				   MX25_ADCQ_CFG_REFN_MASK,
 				   refp | refn);
 	}
-	regmap_update_bits(priv->regs, MX25_ADCQ_CR,
-			   MX25_ADCQ_CR_FRST | MX25_ADCQ_CR_QRST,
-			   MX25_ADCQ_CR_FRST | MX25_ADCQ_CR_QRST);
+	regmap_set_bits(priv->regs, MX25_ADCQ_CR,
+			MX25_ADCQ_CR_FRST | MX25_ADCQ_CR_QRST);
 
 	regmap_write(priv->regs, MX25_ADCQ_CR,
 		     MX25_ADCQ_CR_PDMSK | MX25_ADCQ_CR_QSM_FQS);

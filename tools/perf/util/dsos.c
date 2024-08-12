@@ -164,6 +164,9 @@ static struct dso *__dsos__find_by_longname_id(struct dsos *dsos,
 	};
 	struct dso **res;
 
+	if (dsos->dsos == NULL)
+		return NULL;
+
 	if (!dsos->sorted) {
 		if (!write_locked) {
 			struct dso *dso;
@@ -203,11 +206,27 @@ int __dsos__add(struct dsos *dsos, struct dso *dso)
 		dsos->dsos = temp;
 		dsos->allocated = to_allocate;
 	}
-	dsos->dsos[dsos->cnt++] = dso__get(dso);
-	if (dsos->cnt >= 2 && dsos->sorted) {
-		dsos->sorted = dsos__cmp_long_name_id_short_name(&dsos->dsos[dsos->cnt - 2],
-								 &dsos->dsos[dsos->cnt - 1])
-			<= 0;
+	if (!dsos->sorted) {
+		dsos->dsos[dsos->cnt++] = dso__get(dso);
+	} else {
+		int low = 0, high = dsos->cnt - 1;
+		int insert = dsos->cnt; /* Default to inserting at the end. */
+
+		while (low <= high) {
+			int mid = low + (high - low) / 2;
+			int cmp = dsos__cmp_long_name_id_short_name(&dsos->dsos[mid], &dso);
+
+			if (cmp < 0) {
+				low = mid + 1;
+			} else {
+				high = mid - 1;
+				insert = mid;
+			}
+		}
+		memmove(&dsos->dsos[insert + 1], &dsos->dsos[insert],
+			(dsos->cnt - insert) * sizeof(struct dso *));
+		dsos->cnt++;
+		dsos->dsos[insert] = dso__get(dso);
 	}
 	dso__set_dsos(dso, dsos);
 	return 0;
@@ -275,7 +294,7 @@ static void dso__set_basename(struct dso *dso)
 	char *base, *lname;
 	int tid;
 
-	if (sscanf(dso__long_name(dso), "/tmp/perf-%d.map", &tid) == 1) {
+	if (perf_pid_map_tid(dso__long_name(dso), &tid)) {
 		if (asprintf(&base, "[JIT] tid %d", tid) < 0)
 			return;
 	} else {

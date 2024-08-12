@@ -1,4 +1,4 @@
-perf-y += Context.o
+perf-util-y += Context.o
 
 CFLAGS_Context.o += $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-bad-function-cast -Wno-declaration-after-statement -Wno-switch-enum
 CFLAGS_Context.o += -Wno-unused-parameter -Wno-nested-externs -Wno-undef

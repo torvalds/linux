@@ -14,12 +14,12 @@
 
 FIXTURE(scm_rights)
 {
-	int fd[16];
+	int fd[32];
 };
 
 FIXTURE_VARIANT(scm_rights)
 {
-	char name[16];
+	char name[32];
 	int type;
 	int flags;
 	bool test_listener;
@@ -172,6 +172,8 @@ static void __create_sockets(struct __test_metadata *_metadata,
 			     const FIXTURE_VARIANT(scm_rights) *variant,
 			     int n)
 {
+	ASSERT_LE(n * 2, sizeof(self->fd) / sizeof(self->fd[0]));
+
 	if (variant->test_listener)
 		create_listeners(_metadata, self, n);
 	else
@@ -281,6 +283,25 @@ TEST_F(scm_rights, cross_edge)
 	send_fd(7, 6);
 
 	close_sockets(8);
+}
+
+TEST_F(scm_rights, backtrack_from_scc)
+{
+	create_sockets(10);
+
+	send_fd(0, 1);
+	send_fd(0, 4);
+	send_fd(1, 2);
+	send_fd(2, 3);
+	send_fd(3, 1);
+
+	send_fd(5, 6);
+	send_fd(5, 9);
+	send_fd(6, 7);
+	send_fd(7, 8);
+	send_fd(8, 6);
+
+	close_sockets(10);
 }
 
 TEST_HARNESS_MAIN

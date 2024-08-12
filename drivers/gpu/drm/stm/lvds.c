@@ -1186,15 +1186,13 @@ err_lvds_probe:
 	return ret;
 }
 
-static int lvds_remove(struct platform_device *pdev)
+static void lvds_remove(struct platform_device *pdev)
 {
 	struct stm_lvds *lvds = platform_get_drvdata(pdev);
 
 	lvds_pixel_clk_unregister(lvds);
 
 	drm_bridge_remove(&lvds->lvds_bridge);
-
-	return 0;
 }
 
 static const struct of_device_id lvds_dt_ids[] = {

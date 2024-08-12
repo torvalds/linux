@@ -112,7 +112,7 @@ static int get_ac_property(struct power_supply *psy,
 	return 0;
 }
 
-static enum power_supply_property ac_props[] = {
+static const enum power_supply_property ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 

@@ -1022,8 +1022,10 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	 */
 	if (binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_PREVIEW &&
 	    (binary->vf_downscale_log2 > 0)) {
-		/* TODO: Remove this after preview output decimation is fixed
-		 * by configuring out&vf info fiels properly */
+		/*
+		 * TODO: Remove this after preview output decimation is fixed
+		 * by configuring out&vf info fields properly.
+		 */
 		sh_css_sp_stage.frames.out[0].info.padded_width
 		<<= binary->vf_downscale_log2;
 		sh_css_sp_stage.frames.out[0].info.res.width
@@ -1325,7 +1327,7 @@ bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command)
 			      host2sp_command)
 			      / sizeof(int);
 	enum host2sp_commands last_cmd = host2sp_cmd_error;
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 
 	/* Previous command must be handled by SP (by design) */
 	last_cmd = load_sp_array_uint(host_sp_com, offset);
@@ -1343,7 +1345,7 @@ sh_css_read_host2sp_command(void)
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	unsigned int offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_command)
 	/ sizeof(int);
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 	return (enum host2sp_commands)load_sp_array_uint(host_sp_com, offset);
 }
 
@@ -1351,7 +1353,7 @@ sh_css_read_host2sp_command(void)
  * Frame data is no longer part of the sp_stage structure but part of a
  * separate structure. The aim is to make the sp_data struct static
  * (it defines a pipeline) and that the dynamic (per frame) data is stored
- * separetly.
+ * separately.
  *
  * This function must be called first every where were you start constructing
  * a new pipeline by defining one or more stages with use of variable
@@ -1364,7 +1366,7 @@ sh_css_init_host2sp_frame_data(void)
 	/* Clean table */
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 	/*
 	 * rvanimme: don't clean it to save static frame info line ref_in
 	 * ref_out, and tnr_frames. Once this static data is in a
@@ -1544,7 +1546,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 	 * - different assert for Linux and Windows
 	 */
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 
 	IA_CSS_LOG("or_mask=%x, and_mask=%x", or_mask, and_mask);
 	event_irq_mask.or_mask  = (uint16_t)or_mask;
@@ -1573,7 +1575,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 	struct sh_css_event_irq_mask event_irq_mask;
 	unsigned int pipe_num;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_host_sp_com; /* Suppress warnings in CRUN */
 
 	IA_CSS_ENTER_LEAVE("");
 
@@ -1623,7 +1625,7 @@ sh_css_sp_start_isp(void)
 	if (sp_running)
 		return;
 
-	(void)HIVE_ADDR_sp_sw_state; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_sp_sw_state; /* Suppress warnings in CRUN */
 
 	/* no longer here, sp started immediately */
 	/*ia_css_debug_pipe_graph_dump_epilogue();*/
@@ -1664,7 +1666,7 @@ ia_css_isp_has_started(void)
 {
 	const struct ia_css_fw_info *fw = &sh_css_sp_fw;
 	unsigned int HIVE_ADDR_ia_css_ispctrl_sp_isp_started = fw->info.sp.isp_started;
-	(void)HIVE_ADDR_ia_css_ispctrl_sp_isp_started; /* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_ia_css_ispctrl_sp_isp_started; /* Suppress warnings in CRUN */
 
 	return (bool)load_sp_uint(ia_css_ispctrl_sp_isp_started);
 }
@@ -1719,7 +1721,7 @@ sh_css_sp_set_dma_sw_reg(int dma_id,
 	sw_reg =
 	    sh_css_sp_group.debug.dma_sw_reg;
 
-	/* get the offest of the target bit */
+	/* get the offset of the target bit */
 	bit_offset = (8 * request_type) + channel_id;
 
 	/* clear the value of the target bit */

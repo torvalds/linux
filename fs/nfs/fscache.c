@@ -341,7 +341,7 @@ void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr)
 
 int nfs_netfs_folio_unlock(struct folio *folio)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 
 	/*
 	 * If fscache is enabled, netfs will unlock pages.

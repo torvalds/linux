@@ -10,6 +10,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/gfp.h>
 #include <linux/dma-mapping.h>
+#include <linux/completion.h>
 
 /**
  * struct virtqueue - a queue to register buffers for sending or receiving.
@@ -109,6 +110,8 @@ struct virtio_admin_cmd {
 	__le64 group_member_id;
 	struct scatterlist *data_sg;
 	struct scatterlist *result_sg;
+	struct completion completion;
+	int ret;
 };
 
 /**
@@ -209,10 +212,7 @@ struct virtio_driver {
 	int (*restore)(struct virtio_device *dev);
 };
 
-static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
-{
-	return container_of(drv, struct virtio_driver, driver);
-}
+#define drv_to_virtio(__drv)	container_of_const(__drv, struct virtio_driver, driver)
 
 /* use a macro to avoid include chaining to get THIS_MODULE */
 #define register_virtio_driver(drv) \

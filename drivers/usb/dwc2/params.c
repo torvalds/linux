@@ -133,7 +133,15 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->no_clock_gating = true;
 }
 
-static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
+static void dwc2_set_ltq_danube_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+}
+
+static void dwc2_set_ltq_ase_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
@@ -142,10 +150,19 @@ static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
 	p->host_rx_fifo_size = 288;
 	p->host_nperio_tx_fifo_size = 128;
 	p->host_perio_tx_fifo_size = 96;
-	p->max_transfer_size = 65535;
-	p->max_packet_count = 511;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
+}
+
+static void dwc2_set_ltq_xrx200_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->host_rx_fifo_size = 288;
+	p->host_nperio_tx_fifo_size = 128;
+	p->host_perio_tx_fifo_size = 136;
 }
 
 static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
@@ -297,8 +314,11 @@ const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "ingenic,x1830-otg", .data = dwc2_set_x1600_params },
 	{ .compatible = "ingenic,x2000-otg", .data = dwc2_set_x2000_params },
 	{ .compatible = "rockchip,rk3066-usb", .data = dwc2_set_rk_params },
-	{ .compatible = "lantiq,arx100-usb", .data = dwc2_set_ltq_params },
-	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },
+	{ .compatible = "lantiq,danube-usb", .data = &dwc2_set_ltq_danube_params },
+	{ .compatible = "lantiq,ase-usb", .data = &dwc2_set_ltq_ase_params },
+	{ .compatible = "lantiq,arx100-usb", .data = &dwc2_set_ltq_ase_params },
+	{ .compatible = "lantiq,xrx200-usb", .data = &dwc2_set_ltq_xrx200_params },
+	{ .compatible = "lantiq,xrx300-usb", .data = &dwc2_set_ltq_xrx200_params },
 	{ .compatible = "snps,dwc2" },
 	{ .compatible = "samsung,s3c6400-hsotg",
 	  .data = dwc2_set_s3c6400_params },

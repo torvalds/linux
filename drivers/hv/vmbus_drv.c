@@ -685,7 +685,7 @@ static const struct hv_vmbus_device_id vmbus_device_null;
  * Return a matching hv_vmbus_device_id pointer.
  * If there is no match, return NULL.
  */
-static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
+static const struct hv_vmbus_device_id *hv_vmbus_get_id(const struct hv_driver *drv,
 							struct hv_device *dev)
 {
 	const guid_t *guid = &dev->dev_type;
@@ -696,7 +696,7 @@ static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
 		return NULL;
 
 	/* Look at the dynamic ids first, before the static ones */
-	id = hv_vmbus_dynid_match(drv, guid);
+	id = hv_vmbus_dynid_match((struct hv_driver *)drv, guid);
 	if (!id)
 		id = hv_vmbus_dev_match(drv->id_table, guid);
 
@@ -809,9 +809,9 @@ ATTRIBUTE_GROUPS(vmbus_drv);
 /*
  * vmbus_match - Attempt to match the specified device to the specified driver
  */
-static int vmbus_match(struct device *device, struct device_driver *driver)
+static int vmbus_match(struct device *device, const struct device_driver *driver)
 {
-	struct hv_driver *drv = drv_to_hv_drv(driver);
+	const struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
 
 	/* The hv_sock driver handles all hv_sock offers. */

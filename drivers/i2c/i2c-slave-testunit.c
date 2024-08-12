@@ -118,6 +118,13 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 			queue_delayed_work(system_long_wq, &tu->worker,
 					   msecs_to_jiffies(10 * tu->regs[TU_REG_DELAY]));
 		}
+
+		/*
+		 * Reset reg_idx to avoid that work gets queued again in case of
+		 * STOP after a following read message. But do not clear TU regs
+		 * here because we still need them in the workqueue!
+		 */
+		tu->reg_idx = 0;
 		break;
 
 	case I2C_SLAVE_WRITE_REQUESTED:
@@ -165,7 +172,7 @@ static void i2c_slave_testunit_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_slave_testunit_id[] = {
-	{ "slave-testunit", 0 },
+	{ "slave-testunit" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_slave_testunit_id);

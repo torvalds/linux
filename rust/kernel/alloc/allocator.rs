@@ -18,23 +18,16 @@ pub(crate) unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: F
     // Customized layouts from `Layout::from_size_align()` can have size < align, so pad first.
     let layout = new_layout.pad_to_align();
 
-    let mut size = layout.size();
-
-    if layout.align() > bindings::ARCH_SLAB_MINALIGN {
-        // The alignment requirement exceeds the slab guarantee, thus try to enlarge the size
-        // to use the "power-of-two" size/alignment guarantee (see comments in `kmalloc()` for
-        // more information).
-        //
-        // Note that `layout.size()` (after padding) is guaranteed to be a multiple of
-        // `layout.align()`, so `next_power_of_two` gives enough alignment guarantee.
-        size = size.next_power_of_two();
-    }
+    // Note that `layout.size()` (after padding) is guaranteed to be a multiple of `layout.align()`
+    // which together with the slab guarantees means the `krealloc` will return a properly aligned
+    // object (see comments in `kmalloc()` for more information).
+    let size = layout.size();
 
     // SAFETY:
     // - `ptr` is either null or a pointer returned from a previous `k{re}alloc()` by the
     //   function safety requirement.
-    // - `size` is greater than 0 since it's either a `layout.size()` (which cannot be zero
-    //   according to the function safety requirement) or a result from `next_power_of_two()`.
+    // - `size` is greater than 0 since it's from `layout.size()` (which cannot be zero according
+    //   to the function safety requirement)
     unsafe { bindings::krealloc(ptr as *const core::ffi::c_void, size, flags.0) as *mut u8 }
 }
 

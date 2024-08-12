@@ -58,6 +58,8 @@ struct xe_bo {
 #endif
 	/** @freed: List node for delayed put. */
 	struct llist_node freed;
+	/** @update_index: Update index if PT BO */
+	int update_index;
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
 
@@ -66,7 +68,8 @@ struct xe_bo {
 
 	/**
 	 * @cpu_caching: CPU caching mode. Currently only used for userspace
-	 * objects.
+	 * objects. Exceptions are system memory on DGFX, which is always
+	 * WB.
 	 */
 	u16 cpu_caching;
 

@@ -5,6 +5,7 @@
 // Copyright (C) 2012 Renesas Solutions Corp.
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -129,24 +130,6 @@ static void simple_parse_convert(struct device *dev,
 	of_node_put(node);
 }
 
-static void simple_parse_mclk_fs(struct device_node *top,
-				 struct device_node *np,
-				 struct simple_dai_props *props,
-				 char *prefix)
-{
-	struct device_node *node = of_get_parent(np);
-	char prop[128];
-
-	snprintf(prop, sizeof(prop), "%smclk-fs", PREFIX);
-	of_property_read_u32(top,	prop, &props->mclk_fs);
-
-	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
-	of_property_read_u32(node,	prop, &props->mclk_fs);
-	of_property_read_u32(np,	prop, &props->mclk_fs);
-
-	of_node_put(node);
-}
-
 static int simple_parse_node(struct simple_util_priv *priv,
 			     struct device_node *np,
 			     struct link_info *li,
@@ -154,7 +137,6 @@ static int simple_parse_node(struct simple_util_priv *priv,
 			     int *cpu)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct snd_soc_dai_link_component *dlc;
@@ -168,8 +150,6 @@ static int simple_parse_node(struct simple_util_priv *priv,
 		dlc = snd_soc_link_to_codec(dai_link, 0);
 		dai = simple_props_to_dai_codec(dai_props, 0);
 	}
-
-	simple_parse_mclk_fs(top, np, dai_props, prefix);
 
 	ret = simple_parse_dai(dev, np, dlc, cpu);
 	if (ret)
@@ -187,24 +167,59 @@ static int simple_parse_node(struct simple_util_priv *priv,
 }
 
 static int simple_link_init(struct simple_util_priv *priv,
-			    struct device_node *node,
+			    struct device_node *cpu,
 			    struct device_node *codec,
 			    struct link_info *li,
 			    char *prefix, char *name)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
+	struct device_node *node = of_get_parent(cpu);
+	enum snd_soc_trigger_order trigger_start = SND_SOC_TRIGGER_ORDER_DEFAULT;
+	enum snd_soc_trigger_order trigger_stop  = SND_SOC_TRIGGER_ORDER_DEFAULT;
+	bool playback_only = 0, capture_only = 0;
 	int ret;
 
 	ret = simple_util_parse_daifmt(dev, node, codec,
 				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
-		return 0;
+		goto init_end;
+
+	graph_util_parse_link_direction(top,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(node,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(cpu,	&playback_only, &capture_only);
+	graph_util_parse_link_direction(codec,	&playback_only, &capture_only);
+
+	of_property_read_u32(top,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(top,	PREFIX	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(node,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(node,	PREFIX	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(cpu,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(cpu,	PREFIX	"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(codec,		"mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(codec,	PREFIX	"mclk-fs", &dai_props->mclk_fs);
+
+	graph_util_parse_trigger_order(priv, top,	&trigger_start, &trigger_stop);
+	graph_util_parse_trigger_order(priv, node,	&trigger_start, &trigger_stop);
+	graph_util_parse_trigger_order(priv, cpu,	&trigger_start, &trigger_stop);
+	graph_util_parse_trigger_order(priv, codec,	&trigger_start, &trigger_stop);
+
+	dai_link->playback_only		= playback_only;
+	dai_link->capture_only		= capture_only;
+
+	dai_link->trigger_start		= trigger_start;
+	dai_link->trigger_stop		= trigger_stop;
 
 	dai_link->init			= simple_util_dai_init;
 	dai_link->ops			= &simple_ops;
 
-	return simple_util_set_dailink_name(dev, dai_link, name);
+	ret = simple_util_set_dailink_name(dev, dai_link, name);
+init_end:
+	of_node_put(node);
+
+	return ret;
 }
 
 static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
@@ -278,7 +293,7 @@ static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
 
 	snd_soc_dai_link_set_capabilities(dai_link);
 
-	ret = simple_link_init(priv, node, codec, li, prefix, dai_name);
+	ret = simple_link_init(priv, np, codec, li, prefix, dai_name);
 
 out_put_node:
 	li->link++;
@@ -336,7 +351,7 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 	simple_util_canonicalize_cpu(cpus, single_cpu);
 	simple_util_canonicalize_platform(platforms, cpus);
 
-	ret = simple_link_init(priv, node, codec, li, prefix, dai_name);
+	ret = simple_link_init(priv, cpu, codec, li, prefix, dai_name);
 
 dai_link_of_err:
 	of_node_put(plat);
@@ -713,7 +728,6 @@ static int simple_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct snd_soc_card *card;
-	struct link_info *li;
 	int ret;
 
 	/* Allocate the private data and the DAI link array */
@@ -727,7 +741,7 @@ static int simple_probe(struct platform_device *pdev)
 	card->probe		= simple_soc_probe;
 	card->driver_name       = "simple-card";
 
-	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
+	struct link_info *li __free(kfree) = kzalloc(sizeof(*li), GFP_KERNEL);
 	if (!li)
 		return -ENOMEM;
 
@@ -804,7 +818,6 @@ static int simple_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	devm_kfree(dev, li);
 	return 0;
 err:
 	simple_util_clean_reference(card);

@@ -759,6 +759,9 @@ static void power_allocator_manage(struct thermal_zone_device *tz)
 		return;
 	}
 
+	if (!params->trip_max)
+		return;
+
 	allocate_power(tz, params->trip_max->temperature);
 	params->update_cdevs = true;
 }

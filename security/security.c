@@ -2278,7 +2278,20 @@ int security_inode_getattr(const struct path *path)
  * @size: size of xattr value
  * @flags: flags
  *
- * Check permission before setting the extended attributes.
+ * This hook performs the desired permission checks before setting the extended
+ * attributes (xattrs) on @dentry.  It is important to note that we have some
+ * additional logic before the main LSM implementation calls to detect if we
+ * need to perform an additional capability check at the LSM layer.
+ *
+ * Normally we enforce a capability check prior to executing the various LSM
+ * hook implementations, but if a LSM wants to avoid this capability check,
+ * it can register a 'inode_xattr_skipcap' hook and return a value of 1 for
+ * xattrs that it wants to avoid the capability check, leaving the LSM fully
+ * responsible for enforcing the access control for the specific xattr.  If all
+ * of the enabled LSMs refrain from registering a 'inode_xattr_skipcap' hook,
+ * or return a 0 (the default return value), the capability check is still
+ * performed.  If no 'inode_xattr_skipcap' hooks are registered the capability
+ * check is performed.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -2286,20 +2299,20 @@ int security_inode_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
-	int ret;
+	int rc;
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	/*
-	 * SELinux and Smack integrate the cap call,
-	 * so assume that all LSMs supplying this call do so.
-	 */
-	ret = call_int_hook(inode_setxattr, idmap, dentry, name, value, size,
-			    flags);
 
-	if (ret == 1)
-		ret = cap_inode_setxattr(dentry, name, value, size, flags);
-	return ret;
+	/* enforce the capability checks at the lsm layer, if needed */
+	if (!call_int_hook(inode_xattr_skipcap, name)) {
+		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+		if (rc)
+			return rc;
+	}
+
+	return call_int_hook(inode_setxattr, idmap, dentry, name, value, size,
+			     flags);
 }
 
 /**
@@ -2452,26 +2465,39 @@ int security_inode_listxattr(struct dentry *dentry)
  * @dentry: file
  * @name: xattr name
  *
- * Check permission before removing the extended attribute identified by @name
- * for @dentry.
+ * This hook performs the desired permission checks before setting the extended
+ * attributes (xattrs) on @dentry.  It is important to note that we have some
+ * additional logic before the main LSM implementation calls to detect if we
+ * need to perform an additional capability check at the LSM layer.
+ *
+ * Normally we enforce a capability check prior to executing the various LSM
+ * hook implementations, but if a LSM wants to avoid this capability check,
+ * it can register a 'inode_xattr_skipcap' hook and return a value of 1 for
+ * xattrs that it wants to avoid the capability check, leaving the LSM fully
+ * responsible for enforcing the access control for the specific xattr.  If all
+ * of the enabled LSMs refrain from registering a 'inode_xattr_skipcap' hook,
+ * or return a 0 (the default return value), the capability check is still
+ * performed.  If no 'inode_xattr_skipcap' hooks are registered the capability
+ * check is performed.
  *
  * Return: Returns 0 if permission is granted.
  */
 int security_inode_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
-	int ret;
+	int rc;
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	/*
-	 * SELinux and Smack integrate the cap call,
-	 * so assume that all LSMs supplying this call do so.
-	 */
-	ret = call_int_hook(inode_removexattr, idmap, dentry, name);
-	if (ret == 1)
-		ret = cap_inode_removexattr(idmap, dentry, name);
-	return ret;
+
+	/* enforce the capability checks at the lsm layer, if needed */
+	if (!call_int_hook(inode_xattr_skipcap, name)) {
+		rc = cap_inode_removexattr(idmap, dentry, name);
+		if (rc)
+			return rc;
+	}
+
+	return call_int_hook(inode_removexattr, idmap, dentry, name);
 }
 
 /**

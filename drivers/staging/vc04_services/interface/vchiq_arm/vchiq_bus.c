@@ -14,7 +14,7 @@
 #include "vchiq_arm.h"
 #include "vchiq_bus.h"
 
-static int vchiq_bus_type_match(struct device *dev, struct device_driver *drv)
+static int vchiq_bus_type_match(struct device *dev, const struct device_driver *drv)
 {
 	if (dev->bus == &vchiq_bus_type &&
 	    strcmp(dev_name(dev), drv->name) == 0)

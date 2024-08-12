@@ -25,17 +25,6 @@ struct int3403_sensor {
 	struct int34x_thermal_zone *int340x_zone;
 };
 
-struct int3403_performance_state {
-	u64 performance;
-	u64 power;
-	u64 latency;
-	u64 linear;
-	u64 control;
-	u64 raw_performace;
-	char *raw_unit;
-	int reserved;
-};
-
 struct int3403_cdev {
 	struct thermal_cooling_device *cdev;
 	unsigned long max_state;

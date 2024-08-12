@@ -1114,7 +1114,6 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 {
 	struct mcp3564_state *adc = iio_priv(indio_dev);
 	struct device *dev = &adc->spi->dev;
-	const struct spi_device_id *dev_id;
 	u8 tmp_reg;
 	u16 tmp_u16;
 	enum mcp3564_ids ids;
@@ -1212,11 +1211,6 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 		 * try using fallback compatible in device tree to deal with some newer part number.
 		 */
 		adc->chip_info = spi_get_device_match_data(adc->spi);
-		if (!adc->chip_info) {
-			dev_id = spi_get_device_id(adc->spi);
-			adc->chip_info = (const struct mcp3564_chip_info *)dev_id->driver_data;
-		}
-
 		adc->have_vref = adc->chip_info->have_vref;
 	} else {
 		adc->chip_info = &mcp3564_chip_infos_tbl[ids];

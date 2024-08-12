@@ -22,6 +22,7 @@ properties:
     enum:
       - fsl,imx8mp-xcvr
       - fsl,imx93-xcvr
+      - fsl,imx95-xcvr
 
   reg:
     items:
@@ -41,6 +42,7 @@ properties:
     items:
       - description: WAKEUPMIX Audio XCVR Interrupt 1
       - description: WAKEUPMIX Audio XCVR Interrupt 2
+      - description: SPDIF wakeup interrupt from PHY
     minItems: 1
 
   clocks:
@@ -49,6 +51,9 @@ properties:
       - description: PHY clock
       - description: SPBA clock
       - description: PLL clock
+      - description: PLL clock source for 8kHz series
+      - description: PLL clock source for 11kHz series
+    minItems: 4
 
   clock-names:
     items:
@@ -56,6 +61,9 @@ properties:
       - const: phy
       - const: spba
       - const: pll_ipg
+      - const: pll8k
+      - const: pll11k
+    minItems: 4
 
   dmas:
     items:
@@ -79,15 +87,25 @@ required:
   - clock-names
   - dmas
   - dma-names
-  - resets
 
 allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8mp-xcvr
+    then:
+      required:
+        - resets
+
   - if:
       properties:
         compatible:
           contains:
             enum:
               - fsl,imx93-xcvr
+              - fsl,imx95-xcvr
     then:
       properties:
         interrupts:
@@ -96,9 +114,24 @@ allOf:
     else:
       properties:
         interrupts:
-          maxItems: 1
+          minItems: 3
+          maxItems: 3
 
-additionalProperties: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8mp-xcvr
+              - fsl,imx93-xcvr
+    then:
+      properties:
+        clocks:
+          maxItems: 4
+        clock-names:
+          maxItems: 4
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -113,7 +146,9 @@ examples:
                  <0x30cc0c00 0x080>,
                  <0x30cc0e00 0x080>;
            reg-names = "ram", "regs", "rxfifo", "txfifo";
-           interrupts = <0x0 128 IRQ_TYPE_LEVEL_HIGH>;
+           interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
            clocks = <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_IPG>,
                     <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_PHY>,
                     <&audiomix_clk IMX8MP_CLK_AUDIOMIX_SPBA2_ROOT>,

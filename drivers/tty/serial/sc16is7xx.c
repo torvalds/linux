@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/export.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/idr.h>
 #include <linux/kthread.h>
@@ -1467,6 +1468,29 @@ static const struct serial_rs485 sc16is7xx_rs485_supported = {
 	.delay_rts_after_send = 1,	/* Not supported but keep returning -EINVAL */
 };
 
+/* Reset device, purging any pending irq / data */
+static int sc16is7xx_reset(struct device *dev, struct regmap *regmap)
+{
+	struct gpio_desc *reset_gpio;
+
+	/* Assert reset GPIO if defined and valid. */
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(reset_gpio), "Failed to get reset GPIO\n");
+
+	if (reset_gpio) {
+		/* The minimum reset pulse width is 3 us. */
+		fsleep(5);
+		gpiod_set_value_cansleep(reset_gpio, 0); /* Deassert GPIO */
+	} else {
+		/* Software reset */
+		regmap_write(regmap, SC16IS7XX_IOCONTROL_REG,
+			     SC16IS7XX_IOCONTROL_SRESET_BIT);
+	}
+
+	return 0;
+}
+
 int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		    struct regmap *regmaps[], int irq)
 {
@@ -1536,9 +1560,9 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 	}
 	sched_set_fifo(s->kworker_task);
 
-	/* reset device, purging any pending irq / data */
-	regmap_write(regmaps[0], SC16IS7XX_IOCONTROL_REG,
-		     SC16IS7XX_IOCONTROL_SRESET_BIT);
+	ret = sc16is7xx_reset(dev, regmaps[0]);
+	if (ret)
+		goto out_kthread;
 
 	/* Mark each port line and status as uninitialised. */
 	for (i = 0; i < devtype->nr_uart; ++i) {
@@ -1663,6 +1687,7 @@ out_ports:
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 	}
 
+out_kthread:
 	kthread_stop(s->kworker_task);
 
 out_clk:

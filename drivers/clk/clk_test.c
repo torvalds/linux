@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Kunit test for clk rate management
+ * Kunit tests for clk framework
  */
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -2674,4 +2674,5 @@ kunit_test_suites(
 	&clk_single_parent_mux_test_suite,
 	&clk_uncached_test_suite
 );
+MODULE_DESCRIPTION("Kunit tests for clk framework");
 MODULE_LICENSE("GPL v2");

@@ -33,6 +33,8 @@ int main_prog(struct __sk_buff *skb)
 	struct iphdr *ip = NULL;
 	struct tcphdr *tcp;
 	__u8 proto = 0;
+	int urg_ptr;
+	u32 offset;
 
 	if (!(ip = get_iphdr(skb)))
 		goto out;
@@ -48,7 +50,14 @@ int main_prog(struct __sk_buff *skb)
 	if (!tcp)
 		goto out;
 
-	return tcp->urg_ptr;
+	urg_ptr = tcp->urg_ptr;
+
+	/* Checksum validation part */
+	proto++;
+	offset = sizeof(struct ethhdr) + offsetof(struct iphdr, protocol);
+	bpf_skb_store_bytes(skb, offset, &proto, sizeof(proto), BPF_F_RECOMPUTE_CSUM);
+
+	return urg_ptr;
 out:
 	return -1;
 }

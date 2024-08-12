@@ -31,7 +31,7 @@ Groups:
     KVM_VGIC_V2_ADDR_TYPE_CPU (rw, 64-bit)
       Base address in the guest physical address space of the GIC virtual cpu
       interface register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
-      This address needs to be 4K aligned and the region covers 4 KByte.
+      This address needs to be 4K aligned and the region covers 8 KByte.
 
   Errors:
 

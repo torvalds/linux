@@ -96,4 +96,5 @@ module_init(test_blackholedev_init);
 module_exit(test_blackholedev_exit);
 
 MODULE_AUTHOR("Mahesh Bandewar <maheshb@google.com>");
+MODULE_DESCRIPTION("module test of the blackhole_dev");
 MODULE_LICENSE("GPL");

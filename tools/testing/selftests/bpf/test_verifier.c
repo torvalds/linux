@@ -1237,11 +1237,6 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	fixup_prog_kfuncs(prog, fd_array, test->fixup_kfunc_btf_id);
 }
 
-struct libcap {
-	struct __user_cap_header_struct hdr;
-	struct __user_cap_data_struct data[2];
-};
-
 static int set_admin(bool admin)
 {
 	int err;

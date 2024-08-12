@@ -8,6 +8,7 @@
 #ifndef _VPU_CONFIG_H_
 #define _VPU_CONFIG_H_
 
+#define WAVE515_CODE			0x5150
 #define WAVE517_CODE                    0x5170
 #define WAVE537_CODE                    0x5370
 #define WAVE511_CODE                    0x5110
@@ -21,12 +22,13 @@
 		((c) == WAVE517_CODE ||	(c) == WAVE537_CODE ||		\
 		 (c) == WAVE511_CODE || (c) == WAVE521_CODE ||		\
 		 (c) == WAVE521E1_CODE || (c) == WAVE521C_CODE ||	\
-		 (c) == WAVE521C_DUAL_CODE);				\
+		 (c) == WAVE521C_DUAL_CODE) || (c) == WAVE515_CODE;	\
 })
 
 #define WAVE517_WORKBUF_SIZE            (2 * 1024 * 1024)
 #define WAVE521ENC_WORKBUF_SIZE         (128 * 1024)      //HEVC 128K, AVC 40K
 #define WAVE521DEC_WORKBUF_SIZE         (1784 * 1024)
+#define WAVE515DEC_WORKBUF_SIZE		(2 * 1024 * 1024)
 
 #define MAX_NUM_INSTANCE                32
 
@@ -49,17 +51,21 @@
 /************************************************************************/
 #define VLC_BUF_NUM                     (2)
 
-#define COMMAND_QUEUE_DEPTH             (2)
+#define WAVE521_COMMAND_QUEUE_DEPTH	(2)
+#define WAVE515_COMMAND_QUEUE_DEPTH	(4)
 
 #define W5_REMAP_INDEX0                 0
 #define W5_REMAP_INDEX1                 1
 #define W5_REMAP_MAX_SIZE               (1024 * 1024)
 
-#define WAVE5_MAX_CODE_BUF_SIZE         (2 * 1024 * 1024)
-#define WAVE5_TEMPBUF_OFFSET            WAVE5_MAX_CODE_BUF_SIZE
+#define WAVE521_MAX_CODE_BUF_SIZE	(2 * 1024 * 1024)
+#define WAVE515_MAX_CODE_BUF_SIZE	(1024 * 1024)
 #define WAVE5_TEMPBUF_SIZE              (1024 * 1024)
 
-#define SIZE_COMMON                 (WAVE5_MAX_CODE_BUF_SIZE + WAVE5_TEMPBUF_SIZE)
+#define WAVE521_SIZE_COMMON		(WAVE521_MAX_CODE_BUF_SIZE + WAVE5_TEMPBUF_SIZE)
+#define WAVE515_ONE_TASKBUF_SIZE	(8 * 1024 * 1024)
+#define WAVE515_SIZE_COMMON		(WAVE515_MAX_CODE_BUF_SIZE + WAVE5_TEMPBUF_SIZE + \
+					 WAVE515_COMMAND_QUEUE_DEPTH * WAVE515_ONE_TASKBUF_SIZE)
 
 //=====4. VPU REPORT MEMORY  ======================//
 

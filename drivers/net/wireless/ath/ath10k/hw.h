@@ -512,6 +512,7 @@ struct ath10k_hw_params {
 	const char *name;
 	u32 patch_load_addr;
 	int uart_pin;
+	int led_pin;
 	u32 otp_exe_param;
 
 	/* Type of hw cycle counter wraparound logic, for more info

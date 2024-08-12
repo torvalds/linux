@@ -91,6 +91,7 @@ patternProperties:
               - const: 0
               - description: |
                   Shall encode the I3C LVR (Legacy Virtual Register):
+                  See include/dt-bindings/i3c/i3c.h
                     bit[31:8]: unused/ignored
                     bit[7:5]: I2C device index. Possible values:
                       * 0: I2C device has a 50 ns spike filter
@@ -153,6 +154,8 @@ additionalProperties: true
 
 examples:
   - |
+    #include <dt-bindings/i3c/i3c.h>
+
     i3c@d040000 {
         compatible = "cdns,i3c-master";
         clocks = <&coreclock>, <&i3csysclock>;
@@ -166,7 +169,7 @@ examples:
         /* I2C device. */
         eeprom@57 {
             compatible = "atmel,24c01";
-            reg = <0x57 0x0 0x10>;
+            reg = <0x57 0x0 (I2C_FM | I2C_FILTER)>;
             pagesize = <0x8>;
         };
 

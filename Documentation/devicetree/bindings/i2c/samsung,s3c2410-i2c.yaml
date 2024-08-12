@@ -26,9 +26,6 @@ properties:
               - samsung,exynos850-i2c
           - const: samsung,s3c2440-i2c
 
-  '#address-cells':
-    const: 1
-
   clocks:
     maxItems: 1
 
@@ -72,9 +69,6 @@ properties:
   samsung,sysreg-phandle:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Pandle to syscon used to control the system registers.
-
-  '#size-cells':
-    const: 0
 
 required:
   - compatible

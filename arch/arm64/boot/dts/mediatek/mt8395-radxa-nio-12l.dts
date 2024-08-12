@@ -140,6 +140,38 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&mt6359_vcore_buck_reg>;
+};
+
+&cpu1 {
+	cpu-supply = <&mt6359_vcore_buck_reg>;
+};
+
+&cpu2 {
+	cpu-supply = <&mt6359_vcore_buck_reg>;
+};
+
+&cpu3 {
+	cpu-supply = <&mt6359_vcore_buck_reg>;
+};
+
+&cpu4 {
+	cpu-supply = <&mt6315_6_vbuck1>;
+};
+
+&cpu5 {
+	cpu-supply = <&mt6315_6_vbuck1>;
+};
+
+&cpu6 {
+	cpu-supply = <&mt6315_6_vbuck1>;
+};
+
+&cpu7 {
+	cpu-supply = <&mt6315_6_vbuck1>;
+};
+
 &eth {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&rgmii_phy>;
@@ -343,6 +375,14 @@
 	};
 };
 
+&mfg0 {
+	domain-supply = <&mt6315_7_vbuck1>;
+};
+
+&mfg1 {
+	domain-supply = <&mt6359_vsram_others_ldo_reg>;
+};
+
 /* MMC0 Controller: eMMC (HS400). Power lines are shared with UFS! */
 &mmc0 {
 	pinctrl-names = "default", "state_uhs";
@@ -434,6 +474,8 @@
 };
 
 &pio {
+	mediatek,rsel-resistance-in-si-unit;
+
 	eth_default_pins: eth-default-pins {
 		pins-cc {
 			pinmux = <PINMUX_GPIO85__FUNC_GBE_TXC>,
@@ -509,7 +551,7 @@
 		pins-bus {
 			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
 				 <PINMUX_GPIO13__FUNC_SCL2>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-pull-up = <1000>;
 			drive-strength = <6>;
 			drive-strength-microamp = <1000>;
 		};
@@ -519,7 +561,7 @@
 		pins-bus {
 			pinmux = <PINMUX_GPIO16__FUNC_SDA4>,
 				 <PINMUX_GPIO17__FUNC_SCL4>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-pull-up = <1000>;
 			drive-strength-microamp = <1000>;
 		};
 	};
@@ -528,7 +570,7 @@
 		pins {
 			pinmux = <PINMUX_GPIO25__FUNC_SDA6>,
 				 <PINMUX_GPIO26__FUNC_SCL6>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-disable;
 		};
 	};
 
@@ -683,6 +725,26 @@
 		};
 	};
 
+	usb3_port0_pins: usb3p0-default-pins {
+		pins-vbus {
+			pinmux = <PINMUX_GPIO63__FUNC_VBUSVALID>;
+			input-enable;
+		};
+	};
+
+	usb2_port0_pins: usb2p0-default-pins {
+		pins-iddig {
+			pinmux = <PINMUX_GPIO130__FUNC_IDDIG_1P>;
+			input-enable;
+			bias-pull-up;
+		};
+
+		pins-vbus {
+			pinmux = <PINMUX_GPIO131__FUNC_USB_DRVVBUS_1P>;
+			output-low;
+		};
+	};
+
 	wifi_vreg_pins: wifi-vreg-pins {
 		pins-wifi-pmu-en {
 			pinmux = <PINMUX_GPIO65__FUNC_GPIO65>;
@@ -704,6 +766,10 @@
 &pcie1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie1_default_pins>;
+	status = "okay";
+};
+
+&pciephy {
 	status = "okay";
 };
 
@@ -774,6 +840,18 @@
 	};
 };
 
+&u3phy0 {
+	status = "okay";
+};
+
+&u3phy1 {
+	status = "okay";
+};
+
+&u3phy2 {
+	status = "okay";
+};
+
 &uart0 {
 	/* Exposed at 40 pin connector */
 	pinctrl-0 = <&uart0_pins>;
@@ -789,6 +867,8 @@
 };
 
 &ssusb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb3_port0_pins>;
 	role-switch-default-mode = "host";
 	usb-role-switch;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
@@ -802,6 +882,8 @@
 };
 
 &ssusb2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_port0_pins>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };

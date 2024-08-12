@@ -107,27 +107,27 @@
 #define AD9647_MAX_TEST_POINTS		32
 
 struct ad9467_chip_info {
-	const char		*name;
-	unsigned int		id;
-	const struct		iio_chan_spec *channels;
-	unsigned int		num_channels;
-	const unsigned int	(*scale_table)[2];
-	int			num_scales;
-	unsigned long		max_rate;
-	unsigned int		default_output_mode;
-	unsigned int		vref_mask;
-	unsigned int		num_lanes;
+	const char *name;
+	unsigned int id;
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
+	const unsigned int (*scale_table)[2];
+	int num_scales;
+	unsigned long max_rate;
+	unsigned int default_output_mode;
+	unsigned int vref_mask;
+	unsigned int num_lanes;
 	/* data clock output */
-	bool			has_dco;
+	bool has_dco;
 };
 
 struct ad9467_state {
-	const struct ad9467_chip_info	*info;
-	struct iio_backend		*back;
-	struct spi_device		*spi;
-	struct clk			*clk;
-	unsigned int			output_mode;
-	unsigned int                    (*scales)[2];
+	const struct ad9467_chip_info *info;
+	struct iio_backend *back;
+	struct spi_device *spi;
+	struct clk *clk;
+	unsigned int output_mode;
+	unsigned int (*scales)[2];
 	/*
 	 * Times 2 because we may also invert the signal polarity and run the
 	 * calibration again. For some reference on the test points (ad9265) see:
@@ -138,12 +138,13 @@ struct ad9467_state {
 	 * at the io delay control section.
 	 */
 	DECLARE_BITMAP(calib_map, AD9647_MAX_TEST_POINTS * 2);
-	struct gpio_desc		*pwrdown_gpio;
+	struct gpio_desc *pwrdown_gpio;
 	/* ensure consistent state obtained on multiple related accesses */
-	struct mutex			lock;
+	struct mutex lock;
+	u8 buf[3] __aligned(IIO_DMA_MINALIGN);
 };
 
-static int ad9467_spi_read(struct spi_device *spi, unsigned int reg)
+static int ad9467_spi_read(struct ad9467_state *st, unsigned int reg)
 {
 	unsigned char tbuf[2], rbuf[1];
 	int ret;
@@ -151,7 +152,7 @@ static int ad9467_spi_read(struct spi_device *spi, unsigned int reg)
 	tbuf[0] = 0x80 | (reg >> 8);
 	tbuf[1] = reg & 0xFF;
 
-	ret = spi_write_then_read(spi,
+	ret = spi_write_then_read(st->spi,
 				  tbuf, ARRAY_SIZE(tbuf),
 				  rbuf, ARRAY_SIZE(rbuf));
 
@@ -161,35 +162,32 @@ static int ad9467_spi_read(struct spi_device *spi, unsigned int reg)
 	return rbuf[0];
 }
 
-static int ad9467_spi_write(struct spi_device *spi, unsigned int reg,
+static int ad9467_spi_write(struct ad9467_state *st, unsigned int reg,
 			    unsigned int val)
 {
-	unsigned char buf[3];
+	st->buf[0] = reg >> 8;
+	st->buf[1] = reg & 0xFF;
+	st->buf[2] = val;
 
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xFF;
-	buf[2] = val;
-
-	return spi_write(spi, buf, ARRAY_SIZE(buf));
+	return spi_write(st->spi, st->buf, ARRAY_SIZE(st->buf));
 }
 
 static int ad9467_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
 	struct ad9467_state *st = iio_priv(indio_dev);
-	struct spi_device *spi = st->spi;
 	int ret;
 
 	if (!readval) {
 		guard(mutex)(&st->lock);
-		ret = ad9467_spi_write(spi, reg, writeval);
+		ret = ad9467_spi_write(st, reg, writeval);
 		if (ret)
 			return ret;
-		return ad9467_spi_write(spi, AN877_ADC_REG_TRANSFER,
+		return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 					AN877_ADC_TRANSFER_SYNC);
 	}
 
-	ret = ad9467_spi_read(spi, reg);
+	ret = ad9467_spi_read(st, reg);
 	if (ret < 0)
 		return ret;
 	*readval = ret;
@@ -295,7 +293,7 @@ static int ad9467_get_scale(struct ad9467_state *st, int *val, int *val2)
 	unsigned int i, vref_val;
 	int ret;
 
-	ret = ad9467_spi_read(st->spi, AN877_ADC_REG_VREF);
+	ret = ad9467_spi_read(st, AN877_ADC_REG_VREF);
 	if (ret < 0)
 		return ret;
 
@@ -330,31 +328,31 @@ static int ad9467_set_scale(struct ad9467_state *st, int val, int val2)
 			continue;
 
 		guard(mutex)(&st->lock);
-		ret = ad9467_spi_write(st->spi, AN877_ADC_REG_VREF,
+		ret = ad9467_spi_write(st, AN877_ADC_REG_VREF,
 				       info->scale_table[i][1]);
 		if (ret < 0)
 			return ret;
 
-		return ad9467_spi_write(st->spi, AN877_ADC_REG_TRANSFER,
+		return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 					AN877_ADC_TRANSFER_SYNC);
 	}
 
 	return -EINVAL;
 }
 
-static int ad9467_outputmode_set(struct spi_device *spi, unsigned int mode)
+static int ad9467_outputmode_set(struct ad9467_state *st, unsigned int mode)
 {
 	int ret;
 
-	ret = ad9467_spi_write(spi, AN877_ADC_REG_OUTPUT_MODE, mode);
+	ret = ad9467_spi_write(st, AN877_ADC_REG_OUTPUT_MODE, mode);
 	if (ret < 0)
 		return ret;
 
-	return ad9467_spi_write(spi, AN877_ADC_REG_TRANSFER,
+	return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 				AN877_ADC_TRANSFER_SYNC);
 }
 
-static int ad9647_calibrate_prepare(const struct ad9467_state *st)
+static int ad9647_calibrate_prepare(struct ad9467_state *st)
 {
 	struct iio_backend_data_fmt data = {
 		.enable = false,
@@ -362,17 +360,17 @@ static int ad9647_calibrate_prepare(const struct ad9467_state *st)
 	unsigned int c;
 	int ret;
 
-	ret = ad9467_spi_write(st->spi, AN877_ADC_REG_TEST_IO,
+	ret = ad9467_spi_write(st, AN877_ADC_REG_TEST_IO,
 			       AN877_ADC_TESTMODE_PN9_SEQ);
 	if (ret)
 		return ret;
 
-	ret = ad9467_spi_write(st->spi, AN877_ADC_REG_TRANSFER,
+	ret = ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 			       AN877_ADC_TRANSFER_SYNC);
 	if (ret)
 		return ret;
 
-	ret = ad9467_outputmode_set(st->spi, st->info->default_output_mode);
+	ret = ad9467_outputmode_set(st, st->info->default_output_mode);
 	if (ret)
 		return ret;
 
@@ -390,7 +388,7 @@ static int ad9647_calibrate_prepare(const struct ad9467_state *st)
 	return iio_backend_chan_enable(st->back, 0);
 }
 
-static int ad9647_calibrate_polarity_set(const struct ad9467_state *st,
+static int ad9647_calibrate_polarity_set(struct ad9467_state *st,
 					 bool invert)
 {
 	enum iio_backend_sample_trigger trigger;
@@ -401,7 +399,7 @@ static int ad9647_calibrate_polarity_set(const struct ad9467_state *st,
 		if (invert)
 			phase |= AN877_ADC_INVERT_DCO_CLK;
 
-		return ad9467_spi_write(st->spi, AN877_ADC_REG_OUTPUT_PHASE,
+		return ad9467_spi_write(st, AN877_ADC_REG_OUTPUT_PHASE,
 					phase);
 	}
 
@@ -437,19 +435,18 @@ static unsigned int ad9467_find_optimal_point(const unsigned long *calib_map,
 	return cnt;
 }
 
-static int ad9467_calibrate_apply(const struct ad9467_state *st,
-				  unsigned int val)
+static int ad9467_calibrate_apply(struct ad9467_state *st, unsigned int val)
 {
 	unsigned int lane;
 	int ret;
 
 	if (st->info->has_dco) {
-		ret = ad9467_spi_write(st->spi, AN877_ADC_REG_OUTPUT_DELAY,
+		ret = ad9467_spi_write(st, AN877_ADC_REG_OUTPUT_DELAY,
 				       val);
 		if (ret)
 			return ret;
 
-		return ad9467_spi_write(st->spi, AN877_ADC_REG_TRANSFER,
+		return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 					AN877_ADC_TRANSFER_SYNC);
 	}
 
@@ -462,7 +459,7 @@ static int ad9467_calibrate_apply(const struct ad9467_state *st,
 	return 0;
 }
 
-static int ad9647_calibrate_stop(const struct ad9467_state *st)
+static int ad9647_calibrate_stop(struct ad9467_state *st)
 {
 	struct iio_backend_data_fmt data = {
 		.sign_extend = true,
@@ -487,16 +484,16 @@ static int ad9647_calibrate_stop(const struct ad9467_state *st)
 	}
 
 	mode = st->info->default_output_mode | AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
-	ret = ad9467_outputmode_set(st->spi, mode);
+	ret = ad9467_outputmode_set(st, mode);
 	if (ret)
 		return ret;
 
-	ret = ad9467_spi_write(st->spi, AN877_ADC_REG_TEST_IO,
+	ret = ad9467_spi_write(st, AN877_ADC_REG_TEST_IO,
 			       AN877_ADC_TESTMODE_OFF);
 	if (ret)
 		return ret;
 
-	return ad9467_spi_write(st->spi, AN877_ADC_REG_TRANSFER,
+	return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
 			       AN877_ADC_TRANSFER_SYNC);
 }
 
@@ -846,7 +843,7 @@ static int ad9467_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	id = ad9467_spi_read(spi, AN877_ADC_REG_CHIP_ID);
+	id = ad9467_spi_read(st, AN877_ADC_REG_CHIP_ID);
 	if (id != st->info->id) {
 		dev_err(&spi->dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
 			id, st->info->id);

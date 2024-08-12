@@ -39,8 +39,8 @@
 /* Controller command and status bits */
 #define TWSI_CTL_CE		0x80	/* High level controller enable */
 #define TWSI_CTL_ENAB		0x40	/* Bus enable */
-#define TWSI_CTL_STA		0x20	/* Master-mode start, HW clears when done */
-#define TWSI_CTL_STP		0x10	/* Master-mode stop, HW clears when done */
+#define TWSI_CTL_STA		0x20	/* Controller-mode start, HW clears when done */
+#define TWSI_CTL_STP		0x10	/* Controller-mode stop, HW clears when done */
 #define TWSI_CTL_IFLG		0x08	/* HW event, SW writes 0 to ACK */
 #define TWSI_CTL_AAK		0x04	/* Assert ACK */
 

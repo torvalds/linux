@@ -72,14 +72,17 @@ properties:
           - const: tx
           - const: tx_reply
           - const: rx
+          - const: rx_reply
         minItems: 2
 
   mboxes:
     description:
       List of phandle and mailbox channel specifiers. It should contain
-      exactly one, two or three mailboxes; the first one or two for transmitting
-      messages ("tx") and another optional ("rx") for receiving notifications
-      and delayed responses, if supported by the platform.
+      exactly one, two, three or four mailboxes; the first one or two for
+      transmitting messages ("tx") and another optional ("rx") for receiving
+      notifications and delayed responses, if supported by the platform.
+      The optional ("rx_reply") is for notifications completion interrupt,
+      if supported by the platform.
       The number of mailboxes needed for transmitting messages depends on the
       type of channels exposed by the specific underlying mailbox controller;
       one single channel descriptor is enough if such channel is bidirectional,
@@ -92,9 +95,10 @@ properties:
        2 mbox / 2 shmem => SCMI TX and RX over 2 mailbox bidirectional channels
        2 mbox / 1 shmem => SCMI TX over 2 mailbox unidirectional channels
        3 mbox / 2 shmem => SCMI TX and RX over 3 mailbox unidirectional channels
+       4 mbox / 2 shmem => SCMI TX and RX over 4 mailbox unidirectional channels
       Any other combination of mboxes and shmem is invalid.
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   shmem:
     description:
@@ -251,7 +255,9 @@ properties:
     type: object
     allOf:
       - $ref: '#/$defs/protocol-node'
-      - $ref: /schemas/pinctrl/pinctrl.yaml
+      - anyOf:
+          - $ref: /schemas/pinctrl/pinctrl.yaml
+          - $ref: /schemas/firmware/nxp,imx95-scmi-pinctrl.yaml
 
     unevaluatedProperties: false
 

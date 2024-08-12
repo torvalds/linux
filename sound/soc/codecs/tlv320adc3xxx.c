@@ -25,7 +25,6 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/cdev.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -40,9 +39,10 @@
  */
 
 #define ADC3XXX_MICBIAS_PINS		2
+#define ADC3XXX_GPIO_PINS		2
 
 /* Number of GPIO pins exposed via the gpiolib interface */
-#define ADC3XXX_GPIOS_MAX		2
+#define ADC3XXX_GPIOS_MAX		(ADC3XXX_MICBIAS_PINS + ADC3XXX_GPIO_PINS)
 
 #define ADC3XXX_RATES		SNDRV_PCM_RATE_8000_96000
 #define ADC3XXX_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | \
@@ -321,7 +321,8 @@ struct adc3xxx {
 	struct gpio_desc *rst_pin;
 	unsigned int pll_mode;
 	unsigned int sysclk;
-	unsigned int gpio_cfg[ADC3XXX_GPIOS_MAX]; /* value+1 (0 => not set)  */
+	unsigned int gpio_cfg[ADC3XXX_GPIO_PINS]; /* value+1 (0 => not set)  */
+	unsigned int micbias_gpo[ADC3XXX_MICBIAS_PINS]; /* 1 => pin is GPO */
 	unsigned int micbias_vg[ADC3XXX_MICBIAS_PINS];
 	int master;
 	u8 page_no;
@@ -329,7 +330,7 @@ struct adc3xxx {
 	struct gpio_chip gpio_chip;
 };
 
-static const unsigned int adc3xxx_gpio_ctrl_reg[ADC3XXX_GPIOS_MAX] = {
+static const unsigned int adc3xxx_gpio_ctrl_reg[ADC3XXX_GPIO_PINS] = {
 	ADC3XXX_GPIO1_CTRL,
 	ADC3XXX_GPIO2_CTRL
 };
@@ -960,14 +961,23 @@ static int adc3xxx_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	if (offset >= ADC3XXX_GPIOS_MAX)
 		return -EINVAL;
 
-	/* GPIO1 is offset 0, GPIO2 is offset 1 */
-	/* We check here that the GPIO pins are either not configured in the
-	 * DT, or that they purposely are set as outputs.
-	 * (Input mode not yet implemented).
-	 */
-	if (adc3xxx->gpio_cfg[offset] != 0 &&
-	    adc3xxx->gpio_cfg[offset] != ADC3XXX_GPIO_GPO + 1)
-		return -EINVAL;
+	if (offset >= 0 && offset < ADC3XXX_GPIO_PINS) {
+		/* GPIO1 is offset 0, GPIO2 is offset 1 */
+		/* We check here that the GPIO pins are either not configured
+		 * in the DT, or that they purposely are set as outputs.
+		 * (Input mode not yet implemented).
+		 */
+		if (adc3xxx->gpio_cfg[offset] != 0 &&
+		    adc3xxx->gpio_cfg[offset] != ADC3XXX_GPIO_GPO + 1)
+			return -EINVAL;
+	} else if (offset >= ADC3XXX_GPIO_PINS && offset < ADC3XXX_GPIOS_MAX) {
+		/* MICBIAS1 is offset 2, MICBIAS2 is offset 3 */
+		/* We check here if the MICBIAS pins are in fact configured
+		 * as GPOs.
+		 */
+		if (!adc3xxx->micbias_gpo[offset - ADC3XXX_GPIO_PINS])
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -976,6 +986,21 @@ static int adc3xxx_gpio_direction_out(struct gpio_chip *chip,
 				      unsigned int offset, int value)
 {
 	struct adc3xxx *adc3xxx = gpiochip_get_data(chip);
+
+	/* For the MICBIAS pins, they are by definition outputs. */
+	if (offset >= ADC3XXX_GPIO_PINS) {
+		unsigned int vg;
+		unsigned int micbias = offset - ADC3XXX_GPIO_PINS;
+
+		if (value)
+			vg = adc3xxx->micbias_vg[micbias];
+		else
+			vg = ADC3XXX_MICBIAS_OFF;
+		return regmap_update_bits(adc3xxx->regmap,
+					   ADC3XXX_MICBIAS_CTRL,
+					   ADC3XXX_MICBIAS_MASK << adc3xxx_micbias_shift[micbias],
+					   vg << adc3xxx_micbias_shift[micbias]);
+	}
 
 	/* Set GPIO output function. */
 	return regmap_update_bits(adc3xxx->regmap,
@@ -1005,9 +1030,17 @@ static int adc3xxx_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	unsigned int regval;
 	int ret;
 
-	/* We only allow output pins, so just read the value set in the output
-	 * pin register field.
-	 */
+	/* We only allow output pins, so just read the value prevously set. */
+	if (offset >= ADC3XXX_GPIO_PINS) {
+		/* MICBIAS pins */
+		unsigned int micbias = offset - ADC3XXX_GPIO_PINS;
+
+		ret = regmap_read(adc3xxx->regmap, ADC3XXX_MICBIAS_CTRL, &regval);
+		if (ret)
+			return ret;
+		return ((regval >> adc3xxx_micbias_shift[micbias]) & ADC3XXX_MICBIAS_MASK) !=
+		       ADC3XXX_MICBIAS_OFF;
+	}
 	ret = regmap_read(adc3xxx->regmap, adc3xxx_gpio_ctrl_reg[offset], &regval);
 	if (ret)
 		return ret;
@@ -1049,7 +1082,7 @@ static void adc3xxx_init_gpio(struct adc3xxx *adc3xxx)
 	 * This allows us to set up things which are not software
 	 * controllable GPIOs, such as PDM microphone I/O,
 	 */
-	for (gpio = 0; gpio < ADC3XXX_GPIOS_MAX; gpio++) {
+	for (gpio = 0; gpio < ADC3XXX_GPIO_PINS; gpio++) {
 		unsigned int cfg = adc3xxx->gpio_cfg[gpio];
 
 		if (cfg) {
@@ -1061,9 +1094,15 @@ static void adc3xxx_init_gpio(struct adc3xxx *adc3xxx)
 		}
 	}
 
-	/* Set up micbias voltage */
+	/* Set up micbias voltage. */
+	/* If pin is configured as GPO, set off initially. */
 	for (micbias = 0; micbias < ADC3XXX_MICBIAS_PINS; micbias++) {
-		unsigned int vg = adc3xxx->micbias_vg[micbias];
+		unsigned int vg;
+
+		if (adc3xxx->micbias_gpo[micbias])
+			vg = ADC3XXX_MICBIAS_OFF;
+		else
+			vg = adc3xxx->micbias_vg[micbias];
 
 		regmap_update_bits(adc3xxx->regmap,
 				   ADC3XXX_MICBIAS_CTRL,
@@ -1091,8 +1130,19 @@ static int adc3xxx_parse_dt_gpio(struct adc3xxx *adc3xxx,
 	return 0;
 }
 
-static int adc3xxx_parse_dt_micbias(struct adc3xxx *adc3xxx,
-				    const char *propname, unsigned int *vg)
+static int adc3xxx_parse_dt_micbias_gpo(struct adc3xxx *adc3xxx,
+					const char *propname,
+					unsigned int *cfg)
+{
+	struct device *dev = adc3xxx->dev;
+	struct device_node *np = dev->of_node;
+
+	*cfg = of_property_read_bool(np, propname);
+	return 0;
+}
+
+static int adc3xxx_parse_dt_micbias_vg(struct adc3xxx *adc3xxx,
+				       const char *propname, unsigned int *vg)
 {
 	struct device *dev = adc3xxx->dev;
 	struct device_node *np = dev->of_node;
@@ -1383,16 +1433,28 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 		dev_dbg(dev, "Enabled MCLK, freq %lu Hz\n", clk_get_rate(adc3xxx->mclk));
 	}
 
+	/* Configure mode for DMDIN/GPIO1 pin */
 	ret = adc3xxx_parse_dt_gpio(adc3xxx, "ti,dmdin-gpio1", &adc3xxx->gpio_cfg[0]);
 	if (ret < 0)
 		goto err_unprepare_mclk;
+	/* Configure mode for DMCLK/GPIO2 pin */
 	ret = adc3xxx_parse_dt_gpio(adc3xxx, "ti,dmclk-gpio2", &adc3xxx->gpio_cfg[1]);
 	if (ret < 0)
 		goto err_unprepare_mclk;
-	ret = adc3xxx_parse_dt_micbias(adc3xxx, "ti,micbias1-vg", &adc3xxx->micbias_vg[0]);
+	/* Configure mode for MICBIAS1: as Mic Bias output or GPO */
+	ret = adc3xxx_parse_dt_micbias_gpo(adc3xxx, "ti,micbias1-gpo", &adc3xxx->micbias_gpo[0]);
 	if (ret < 0)
 		goto err_unprepare_mclk;
-	ret = adc3xxx_parse_dt_micbias(adc3xxx, "ti,micbias2-vg", &adc3xxx->micbias_vg[1]);
+	/* Configure mode for MICBIAS2: as Mic Bias output or GPO */
+	ret = adc3xxx_parse_dt_micbias_gpo(adc3xxx, "ti,micbias2-gpo", &adc3xxx->micbias_gpo[1]);
+	if (ret < 0)
+		goto err_unprepare_mclk;
+	/* Configure voltage for MICBIAS1 pin (ON voltage when used as GPO) */
+	ret = adc3xxx_parse_dt_micbias_vg(adc3xxx, "ti,micbias1-vg", &adc3xxx->micbias_vg[0]);
+	if (ret < 0)
+		goto err_unprepare_mclk;
+	/* Configure voltage for MICBIAS2 pin (ON voltage when used as GPO) */
+	ret = adc3xxx_parse_dt_micbias_vg(adc3xxx, "ti,micbias2-vg", &adc3xxx->micbias_vg[1]);
 	if (ret < 0)
 		goto err_unprepare_mclk;
 

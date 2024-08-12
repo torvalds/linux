@@ -103,7 +103,7 @@ int of_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 	if (ret > 0)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+	for (i = 0; i < gpio_suffix_count; i++) {
 		if (con_id)
 			snprintf(propname, sizeof(propname), "%s-%s",
 				 con_id, gpio_suffixes[i]);
@@ -202,6 +202,24 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		 * helper, and be consistent with what other drivers do.
 		 */
 		{ "qi,lb60",		"rb-gpios",	true },
+#endif
+#if IS_ENABLED(CONFIG_PCI_LANTIQ)
+		/*
+		 * According to the PCI specification, the RST# pin is an
+		 * active-low signal. However, most of the device trees that
+		 * have been widely used for a long time incorrectly describe
+		 * reset GPIO as active-high, and were also using wrong name
+		 * for the property.
+		 */
+		{ "lantiq,pci-xway",	"gpio-reset",	false },
+#endif
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_TSC2005)
+		/*
+		 * DTS for Nokia N900 incorrectly specified "active high"
+		 * polarity for the reset line, while the chip actually
+		 * treats it as "active low".
+		 */
+		{ "ti,tsc2005",		"reset-gpios",	false },
 #endif
 	};
 	unsigned int i;
@@ -504,9 +522,9 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 		{ "reset",	"reset-n-io",	"marvell,nfc-uart" },
 		{ "reset",	"reset-n-io",	"mrvl,nfc-uart" },
 #endif
-#if !IS_ENABLED(CONFIG_PCI_LANTIQ)
+#if IS_ENABLED(CONFIG_PCI_LANTIQ)
 		/* MIPS Lantiq PCI */
-		{ "reset",	"gpios-reset",	"lantiq,pci-xway" },
+		{ "reset",	"gpio-reset",	"lantiq,pci-xway" },
 #endif
 
 		/*
@@ -676,7 +694,7 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
 	unsigned int i;
 
 	/* Try GPIO property "foo-gpios" and "foo-gpio" */
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+	for (i = 0; i < gpio_suffix_count; i++) {
 		if (con_id)
 			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
 				 gpio_suffixes[i]);

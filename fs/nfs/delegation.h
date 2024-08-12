@@ -38,12 +38,15 @@ enum {
 	NFS_DELEGATION_TEST_EXPIRED,
 	NFS_DELEGATION_INODE_FREEING,
 	NFS_DELEGATION_RETURN_DELAYED,
+	NFS_DELEGATION_DELEGTIME,
 };
 
 int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
-		fmode_t type, const nfs4_stateid *stateid, unsigned long pagemod_limit);
+			     fmode_t type, const nfs4_stateid *stateid,
+			     unsigned long pagemod_limit, u32 deleg_type);
 void nfs_inode_reclaim_delegation(struct inode *inode, const struct cred *cred,
-		fmode_t type, const nfs4_stateid *stateid, unsigned long pagemod_limit);
+				  fmode_t type, const nfs4_stateid *stateid,
+				  unsigned long pagemod_limit, u32 deleg_type);
 int nfs4_inode_return_delegation(struct inode *inode);
 void nfs4_inode_return_delegation_on_close(struct inode *inode);
 int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
@@ -67,7 +70,9 @@ void nfs_test_expired_all_delegations(struct nfs_client *clp);
 void nfs_reap_expired_delegations(struct nfs_client *clp);
 
 /* NFSv4 delegation-related procedures */
-int nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nfs4_stateid *stateid, int issync);
+int nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred,
+			  const nfs4_stateid *stateid,
+			  struct nfs_delegation *delegation, int issync);
 int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid);
 int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid);
 bool nfs4_copy_delegation_stateid(struct inode *inode, fmode_t flags, nfs4_stateid *dst, const struct cred **cred);
@@ -75,8 +80,8 @@ bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode);
 
 struct nfs_delegation *nfs4_get_valid_delegation(const struct inode *inode);
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
-int nfs4_have_delegation(struct inode *inode, fmode_t flags);
-int nfs4_check_delegation(struct inode *inode, fmode_t flags);
+int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags);
+int nfs4_check_delegation(struct inode *inode, fmode_t type);
 bool nfs4_delegation_flush_on_close(const struct inode *inode);
 void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid);
@@ -84,9 +89,37 @@ int nfs4_inode_make_writeable(struct inode *inode);
 
 #endif
 
+#define NFS_DELEGATION_FLAG_TIME	BIT(1)
+
+void nfs_update_delegated_atime(struct inode *inode);
+void nfs_update_delegated_mtime(struct inode *inode);
+void nfs_update_delegated_mtime_locked(struct inode *inode);
+
+static inline int nfs_have_read_or_write_delegation(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0);
+}
+
+static inline int nfs_have_write_delegation(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE, 0);
+}
+
 static inline int nfs_have_delegated_attributes(struct inode *inode)
 {
-	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ);
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0);
+}
+
+static inline int nfs_have_delegated_atime(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ,
+						 NFS_DELEGATION_FLAG_TIME);
+}
+
+static inline int nfs_have_delegated_mtime(struct inode *inode)
+{
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE,
+						 NFS_DELEGATION_FLAG_TIME);
 }
 
 #endif

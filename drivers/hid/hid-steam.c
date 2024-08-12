@@ -45,6 +45,7 @@
 #include <linux/power_supply.h>
 #include "hid-ids.h"
 
+MODULE_DESCRIPTION("HID driver for Valve Steam Controller");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rodrigo Rivas Costa <rodrigorivascosta@gmail.com>");
 
@@ -1267,7 +1268,7 @@ static int steam_probe(struct hid_device *hdev,
 	steam->client_hdev = steam_create_client_hid(hdev);
 	if (IS_ERR(steam->client_hdev)) {
 		ret = PTR_ERR(steam->client_hdev);
-		goto err_stream_unregister;
+		goto err_steam_unregister;
 	}
 	steam->client_hdev->driver_data = steam;
 
@@ -1279,7 +1280,7 @@ static int steam_probe(struct hid_device *hdev,
 
 err_destroy:
 	hid_destroy_device(steam->client_hdev);
-err_stream_unregister:
+err_steam_unregister:
 	if (steam->connected)
 		steam_unregister(steam);
 err_hw_close:

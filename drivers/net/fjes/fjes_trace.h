@@ -358,7 +358,7 @@ TRACE_EVENT(fjes_stop_req_irq_post,
 
 #undef TRACE_INCLUDE_PATH
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_PATH ../../../drivers/net/fjes
+#define TRACE_INCLUDE_PATH ../../drivers/net/fjes
 #define TRACE_INCLUDE_FILE fjes_trace
 
 /* This part must be outside protection */

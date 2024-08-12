@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/fsl,vf610-ftm-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale FlexTimer Module (FTM) PWM controller
+
+description: |
+  The same FTM PWM device can have a different endianness on different SoCs. The
+  device tree provides a property to describing this so that an operating system
+  device driver can handle all variants of the device. Refer to the table below
+  for the endianness of the FTM PWM block as integrated into the existing SoCs:
+
+  SoC     | FTM-PWM endianness
+  --------+-------------------
+  Vybrid  | LE
+  LS1     | BE
+  LS2     | LE
+
+  Please see ../regmap/regmap.txt for more detail about how to specify endian
+  modes in device tree.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,vf610-ftm-pwm
+      - fsl,imx8qm-ftm-pwm
+
+  reg:
+    maxItems: 1
+
+  "#pwm-cells":
+    const: 3
+
+  clocks:
+    minItems: 4
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: ftm_sys
+      - const: ftm_ext
+      - const: ftm_fix
+      - const: ftm_cnt_clk_en
+
+  pinctrl-0: true
+  pinctrl-1: true
+
+  pinctrl-names:
+    minItems: 1
+    items:
+      - const: default
+      - const: sleep
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Boolean property, required if the FTM PWM registers use a big-
+      endian rather than little-endian layout.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: pwm.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/vf610-clock.h>
+
+    pwm@40038000 {
+        compatible = "fsl,vf610-ftm-pwm";
+        reg = <0x40038000 0x1000>;
+        #pwm-cells = <3>;
+        clocks = <&clks VF610_CLK_FTM0>,
+                 <&clks VF610_CLK_FTM0_EXT_SEL>,
+                 <&clks VF610_CLK_FTM0_FIX_SEL>,
+                 <&clks VF610_CLK_FTM0_EXT_FIX_EN>;
+        clock-names = "ftm_sys", "ftm_ext", "ftm_fix", "ftm_cnt_clk_en";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_pwm0_1>;
+        big-endian;
+    };

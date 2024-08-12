@@ -5,6 +5,8 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
@@ -16,8 +18,7 @@
 #include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
-#include <linux/dmaengine.h>
-#include <linux/dma-mapping.h>
+#include "internals.h"
 
 #define QUP_CONFIG			0x0000
 #define QUP_STATE			0x0004
@@ -709,9 +710,7 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (controller->n_words <= (controller->in_fifo_sz / sizeof(u32)))
 		controller->mode = QUP_IO_M_MODE_FIFO;
-	else if (spi->controller->can_dma &&
-		 spi->controller->can_dma(spi->controller, spi, xfer) &&
-		 spi->controller->cur_msg_mapped)
+	else if (spi_xfer_is_dma_mapped(spi->controller, spi, xfer))
 		controller->mode = QUP_IO_M_MODE_BAM;
 	else
 		controller->mode = QUP_IO_M_MODE_BLOCK;
@@ -1369,5 +1368,6 @@ static struct platform_driver spi_qup_driver = {
 };
 module_platform_driver(spi_qup_driver);
 
+MODULE_DESCRIPTION("Qualcomm SPI controller with QUP interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spi_qup");

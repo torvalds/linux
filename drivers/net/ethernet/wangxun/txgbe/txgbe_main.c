@@ -18,6 +18,7 @@
 #include "txgbe_hw.h"
 #include "txgbe_phy.h"
 #include "txgbe_irq.h"
+#include "txgbe_fdir.h"
 #include "txgbe_ethtool.h"
 
 char txgbe_driver_name[] = "txgbe";
@@ -257,6 +258,14 @@ static int txgbe_sw_init(struct wx *wx)
 						   num_online_cpus());
 	wx->rss_enabled = true;
 
+	wx->ring_feature[RING_F_FDIR].limit = min_t(int, TXGBE_MAX_FDIR_INDICES,
+						    num_online_cpus());
+	set_bit(WX_FLAG_FDIR_CAPABLE, wx->flags);
+	set_bit(WX_FLAG_FDIR_HASH, wx->flags);
+	wx->atr_sample_rate = TXGBE_DEFAULT_ATR_SAMPLE_RATE;
+	wx->atr = txgbe_atr;
+	wx->configure_fdir = txgbe_configure_fdir;
+
 	/* enable itr by default in dynamic mode */
 	wx->rx_itr_setting = 1;
 	wx->tx_itr_setting = 1;
@@ -272,6 +281,12 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->do_reset = txgbe_do_reset;
 
 	return 0;
+}
+
+static void txgbe_init_fdir(struct txgbe *txgbe)
+{
+	txgbe->fdir_filter_count = 0;
+	spin_lock_init(&txgbe->fdir_perfect_lock);
 }
 
 /**
@@ -294,9 +309,9 @@ static int txgbe_open(struct net_device *netdev)
 
 	wx_configure(wx);
 
-	err = txgbe_request_irq(wx);
+	err = txgbe_request_queue_irqs(wx);
 	if (err)
-		goto err_free_isb;
+		goto err_free_resources;
 
 	/* Notify the stack of the actual queue counts. */
 	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
@@ -313,8 +328,8 @@ static int txgbe_open(struct net_device *netdev)
 
 err_free_irq:
 	wx_free_irq(wx);
-err_free_isb:
-	wx_free_isb_resources(wx);
+err_free_resources:
+	wx_free_resources(wx);
 err_reset:
 	txgbe_reset(wx);
 
@@ -352,6 +367,7 @@ static int txgbe_close(struct net_device *netdev)
 	txgbe_down(wx);
 	wx_free_irq(wx);
 	wx_free_resources(wx);
+	txgbe_fdir_filter_exit(wx);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -660,6 +676,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 	txgbe->wx = wx;
 	wx->priv = txgbe;
 
+	txgbe_init_fdir(txgbe);
+
 	err = txgbe_setup_misc_irq(txgbe);
 	if (err)
 		goto err_release_hw;
@@ -729,6 +747,7 @@ static void txgbe_remove(struct pci_dev *pdev)
 
 	txgbe_remove_phy(txgbe);
 	txgbe_free_misc_irq(txgbe);
+	wx_free_isb_resources(wx);
 
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));

@@ -49,8 +49,6 @@ static DEFINE_SPINLOCK(parportlist_lock);
 static LIST_HEAD(all_ports);
 static DEFINE_SPINLOCK(full_list_lock);
 
-static LIST_HEAD(drivers);
-
 static DEFINE_MUTEX(registration_lock);
 
 /* What you can do to a port that's gone away.. */
@@ -130,7 +128,7 @@ static int parport_probe(struct device *dev)
 	return drv->probe(to_pardevice(dev));
 }
 
-static struct bus_type parport_bus_type = {
+static const struct bus_type parport_bus_type = {
 	.name = "parport",
 	.probe = parport_probe,
 };
@@ -165,10 +163,6 @@ static int driver_check(struct device_driver *dev_drv, void *_port)
 static void attach_driver_chain(struct parport *port)
 {
 	/* caller has exclusive registration_lock */
-	struct parport_driver *drv;
-
-	list_for_each_entry(drv, &drivers, list)
-		drv->attach(port);
 
 	/*
 	 * call the driver_check function of the drivers registered in
@@ -191,10 +185,7 @@ static int driver_detach(struct device_driver *_drv, void *_port)
 /* Call detach(port) for each registered driver. */
 static void detach_driver_chain(struct parport *port)
 {
-	struct parport_driver *drv;
 	/* caller has exclusive registration_lock */
-	list_for_each_entry(drv, &drivers, list)
-		drv->detach(port);
 
 	/*
 	 * call the detach function of the drivers registered in
@@ -1219,4 +1210,5 @@ irqreturn_t parport_irq_handler(int irq, void *dev_id)
 }
 EXPORT_SYMBOL(parport_irq_handler);
 
+MODULE_DESCRIPTION("Parallel-port resource manager");
 MODULE_LICENSE("GPL");

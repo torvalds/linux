@@ -1058,7 +1058,7 @@ nxp_c45_no_ptp_irq:
 }
 
 static int nxp_c45_ts_info(struct mii_timestamper *mii_ts,
-			   struct ethtool_ts_info *ts_info)
+			   struct kernel_ethtool_ts_info *ts_info)
 {
 	struct nxp_c45_phy *priv = container_of(mii_ts, struct nxp_c45_phy,
 						mii_ts);
@@ -1660,6 +1660,9 @@ static int nxp_c45_probe(struct phy_device *phydev)
 		priv->mii_ts.ts_info = nxp_c45_ts_info;
 		phydev->mii_ts = &priv->mii_ts;
 		ret = nxp_c45_init_ptp_clock(priv);
+
+		/* Timestamp selected by default to keep legacy API */
+		phydev->default_timestamp = true;
 	} else {
 		phydev_dbg(phydev, "PTP support not enabled even if the phy supports it");
 	}

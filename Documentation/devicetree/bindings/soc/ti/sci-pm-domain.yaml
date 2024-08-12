@@ -40,7 +40,7 @@ properties:
       TI_SCI_PD_SHARED - Allows the device to be shared by multiple hosts.
       Please refer to dt-bindings/soc/ti,sci_pm_domain.h for the definitions.
 
-      Please see  http://processors.wiki.ti.com/index.php/TISCI for
+      Please see https://software-dl.ti.com/tisci/esd/latest/index.html for
       protocol documentation for the values to be used for different devices.
 
 additionalProperties: false

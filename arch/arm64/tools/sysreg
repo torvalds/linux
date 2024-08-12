@@ -149,7 +149,7 @@ Res0	63:32
 UnsignedEnum	31:28	GIC
 	0b0000	NI
 	0b0001	GICv3
-	0b0010	GICv4p1
+	0b0011	GICv4p1
 EndEnum
 UnsignedEnum	27:24	Virt_frac
 	0b0000	NI
@@ -903,7 +903,7 @@ EndEnum
 UnsignedEnum	27:24	GIC
 	0b0000	NI
 	0b0001	IMP
-	0b0010	V4P1
+	0b0011	V4P1
 EndEnum
 SignedEnum	23:20	AdvSIMD
 	0b0000	IMP

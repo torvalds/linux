@@ -1556,7 +1556,7 @@ static int __init
 arch_timer_mem_frame_register(struct arch_timer_mem_frame *frame)
 {
 	void __iomem *base;
-	int ret, irq = 0;
+	int ret, irq;
 
 	if (arch_timer_mem_use_virtual)
 		irq = frame->virt_irq;

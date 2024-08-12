@@ -33,10 +33,10 @@ void idxd_driver_unregister(struct idxd_device_driver *idxd_drv)
 EXPORT_SYMBOL_GPL(idxd_driver_unregister);
 
 static int idxd_config_bus_match(struct device *dev,
-				 struct device_driver *drv)
+				 const struct device_driver *drv)
 {
-	struct idxd_device_driver *idxd_drv =
-		container_of(drv, struct idxd_device_driver, drv);
+	const struct idxd_device_driver *idxd_drv =
+		container_of_const(drv, struct idxd_device_driver, drv);
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 	int i = 0;
 

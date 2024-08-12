@@ -123,7 +123,6 @@ struct btrfs_inode;
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
- * TODO: Use kmem cache to alloc it.
  */
 struct btrfs_qgroup_extent_record {
 	struct rb_node node;
@@ -279,6 +278,14 @@ struct btrfs_qgroup {
 	struct kobject kobj;
 };
 
+/* Glue structure to represent the relations between qgroups. */
+struct btrfs_qgroup_list {
+	struct list_head next_group;
+	struct list_head next_member;
+	struct btrfs_qgroup *group;
+	struct btrfs_qgroup *member;
+};
+
 struct btrfs_squota_delta {
 	/* The fstree root this delta counts against. */
 	u64 root;
@@ -312,9 +319,9 @@ enum btrfs_qgroup_mode {
 	BTRFS_QGROUP_MODE_SIMPLE
 };
 
-enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info);
-bool btrfs_qgroup_enabled(struct btrfs_fs_info *fs_info);
-bool btrfs_qgroup_full_accounting(struct btrfs_fs_info *fs_info);
+enum btrfs_qgroup_mode btrfs_qgroup_mode(const struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_enabled(const struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_full_accounting(const struct btrfs_fs_info *fs_info);
 int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 		       struct btrfs_ioctl_quota_ctl_args *quota_ctl_args);
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
@@ -322,11 +329,13 @@ int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
 				     bool interruptible);
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst);
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst,
+			      struct btrfs_qgroup_list *prealloc);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 			      u64 dst);
 int btrfs_create_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
 int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
+int btrfs_qgroup_cleanup_dropped_subvolume(struct btrfs_fs_info *fs_info, u64 subvolid);
 int btrfs_limit_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid,
 		       struct btrfs_qgroup_limit *limit);
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
@@ -361,7 +370,7 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       enum btrfs_qgroup_rsv_type type);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
+int btrfs_verify_qgroup_counts(const struct btrfs_fs_info *fs_info, u64 qgroupid,
 			       u64 rfer, u64 excl);
 #endif
 
@@ -431,9 +440,9 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
 int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 		struct btrfs_root *root, struct extent_buffer *eb);
 void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans);
-bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info);
+bool btrfs_check_quota_leak(const struct btrfs_fs_info *fs_info);
 void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_bytes);
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
-			      struct btrfs_squota_delta *delta);
+			      const struct btrfs_squota_delta *delta);
 
 #endif

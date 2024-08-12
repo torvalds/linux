@@ -38,7 +38,7 @@ static bool __read_mostly sched_itmt_capable;
  */
 unsigned int __read_mostly sysctl_sched_itmt_enabled;
 
-static int sched_itmt_update_handler(struct ctl_table *table, int write,
+static int sched_itmt_update_handler(const struct ctl_table *table, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old_sysctl;

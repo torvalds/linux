@@ -1064,7 +1064,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {

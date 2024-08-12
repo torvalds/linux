@@ -1379,6 +1379,11 @@ int mlx5dr_cmd_create_modify_header_arg(struct mlx5_core_dev *dev,
 void mlx5dr_cmd_destroy_modify_header_arg(struct mlx5_core_dev *dev,
 					  u32 obj_id);
 
+int mlx5dr_definer_get(struct mlx5dr_domain *dmn, u16 format_id,
+		       u8 *dw_selectors, u8 *byte_selectors,
+		       u8 *match_mask, u32 *definer_id);
+void mlx5dr_definer_put(struct mlx5dr_domain *dmn, u32 definer_id);
+
 struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 					       enum mlx5dr_icm_type icm_type);
 void mlx5dr_icm_pool_destroy(struct mlx5dr_icm_pool *pool);

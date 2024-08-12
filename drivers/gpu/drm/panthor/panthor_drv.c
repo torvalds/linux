@@ -86,14 +86,14 @@ panthor_get_uobj_array(const struct drm_panthor_obj_array *in, u32 min_stride,
 	int ret = 0;
 	void *out_alloc;
 
+	if (!in->count)
+		return NULL;
+
 	/* User stride must be at least the minimum object size, otherwise it might
 	 * lack useful information.
 	 */
 	if (in->stride < min_stride)
 		return ERR_PTR(-EINVAL);
-
-	if (!in->count)
-		return NULL;
 
 	out_alloc = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
 	if (!out_alloc)

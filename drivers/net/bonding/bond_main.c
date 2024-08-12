@@ -1121,13 +1121,10 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 	return bestslave;
 }
 
+/* must be called in RCU critical section or with RTNL held */
 static bool bond_should_notify_peers(struct bonding *bond)
 {
-	struct slave *slave;
-
-	rcu_read_lock();
-	slave = rcu_dereference(bond->curr_active_slave);
-	rcu_read_unlock();
+	struct slave *slave = rcu_dereference_rtnl(bond->curr_active_slave);
 
 	if (!slave || !bond->send_peer_notif ||
 	    bond->send_peer_notif %
@@ -5755,10 +5752,10 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 }
 
 static int bond_ethtool_get_ts_info(struct net_device *bond_dev,
-				    struct ethtool_ts_info *info)
+				    struct kernel_ethtool_ts_info *info)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct ethtool_ts_info ts_info;
+	struct kernel_ethtool_ts_info ts_info;
 	struct net_device *real_dev;
 	bool sw_tx_support = false;
 	struct list_head *iter;

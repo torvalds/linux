@@ -128,7 +128,7 @@ config ZSWAP_COMPRESSOR_DEFAULT
 choice
 	prompt "Default allocator"
 	depends on ZSWAP
-	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if MMU
+	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if HAVE_ZSMALLOC
 	default ZSWAP_ZPOOL_DEFAULT_ZBUD
 	help
 	  Selects the default allocator for the compressed cache for
@@ -154,6 +154,7 @@ config ZSWAP_ZPOOL_DEFAULT_Z3FOLD
 
 config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
 	bool "zsmalloc"
+	depends on HAVE_ZSMALLOC
 	select ZSMALLOC
 	help
 	  Use the zsmalloc allocator as the default allocator.
@@ -186,10 +187,15 @@ config Z3FOLD
 	  page. It is a ZBUD derivative so the simplicity and determinism are
 	  still there.
 
+config HAVE_ZSMALLOC
+	def_bool y
+	depends on MMU
+	depends on PAGE_SIZE_LESS_THAN_256KB # we want <= 64 KiB
+
 config ZSMALLOC
 	tristate
 	prompt "N:1 compression allocator (zsmalloc)" if ZSWAP
-	depends on MMU
+	depends on HAVE_ZSMALLOC
 	help
 	  zsmalloc is a slab-based memory allocator designed to store
 	  pages of various compression levels efficiently. It achieves
@@ -272,6 +278,23 @@ config SLAB_FREELIST_HARDENED
 	  other infrastructure. This options makes minor performance
 	  sacrifices to harden the kernel slab allocator against common
 	  freelist exploit methods.
+
+config SLAB_BUCKETS
+	bool "Support allocation from separate kmalloc buckets"
+	depends on !SLUB_TINY
+	default SLAB_FREELIST_HARDENED
+	help
+	  Kernel heap attacks frequently depend on being able to create
+	  specifically-sized allocations with user-controlled contents
+	  that will be allocated into the same kmalloc bucket as a
+	  target object. To avoid sharing these allocation buckets,
+	  provide an explicitly separated set of buckets to be used for
+	  user-controlled allocations. This may very slightly increase
+	  memory fragmentation, though in practice it's only a handful
+	  of extra pages since the bulk of user-controlled allocations
+	  are relatively long-lived.
+
+	  If unsure, say Y.
 
 config SLUB_STATS
 	default n
@@ -714,7 +737,7 @@ config DEFAULT_MMAP_MIN_ADDR
 	  from userspace allocation.  Keeping a user from writing to low pages
 	  can help reduce the impact of kernel NULL pointer bugs.
 
-	  For most ppc64 and x86 users with lots of address space
+	  For most arm64, ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
 	  On arm and other archs it should not be higher than 32768.
 	  Programs which use vm86 functionality or have some need to map
@@ -946,6 +969,7 @@ config DEFERRED_STRUCT_PAGE_INIT
 	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
 	depends on 64BIT
+	depends on !KMSAN
 	select PADATA
 	help
 	  Ordinarily all struct pages are initialised during early boot in a
@@ -1117,16 +1141,6 @@ config DMAPOOL_TEST
 	  dma_pool_alloc/free routines affect performance.
 
 config ARCH_HAS_PTE_SPECIAL
-	bool
-
-#
-# Some architectures require a special hugepage directory format that is
-# required to support multiple hugepage sizes. For example a4fe3ce76
-# "powerpc/mm: Allow more flexible layouts for hugepage pagetables"
-# introduced it on powerpc.  This allows for a more flexible hugepage
-# pagetable layouts.
-#
-config ARCH_HAS_HUGEPD
 	bool
 
 config MAPPING_DIRTY_HELPERS

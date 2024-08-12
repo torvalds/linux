@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+#include "internals.h"
 
 #define REG_SSIDR	0x0
 #define REG_SSICR0	0x4
@@ -242,11 +243,10 @@ static int spi_ingenic_transfer_one(struct spi_controller *ctlr,
 {
 	struct ingenic_spi *priv = spi_controller_get_devdata(ctlr);
 	unsigned int bits = xfer->bits_per_word ?: spi->bits_per_word;
-	bool can_dma = ctlr->can_dma && ctlr->can_dma(ctlr, spi, xfer);
 
 	spi_ingenic_prepare_transfer(priv, spi, xfer);
 
-	if (ctlr->cur_msg_mapped && can_dma)
+	if (spi_xfer_is_dma_mapped(ctlr, spi, xfer))
 		return spi_ingenic_dma_tx(ctlr, xfer, bits);
 
 	if (bits > 16)

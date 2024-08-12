@@ -221,7 +221,7 @@ struct mhi_ep_driver {
 };
 
 #define to_mhi_ep_device(dev) container_of(dev, struct mhi_ep_device, dev)
-#define to_mhi_ep_driver(drv) container_of(drv, struct mhi_ep_driver, driver)
+#define to_mhi_ep_driver(drv) container_of_const(drv, struct mhi_ep_driver, driver)
 
 /*
  * module_mhi_ep_driver() - Helper macro for drivers that don't do

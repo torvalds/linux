@@ -49,26 +49,26 @@ static bool legacy_hole_en(struct addr_ctx *ctx)
 	return FIELD_GET(DF_LEGACY_MMIO_HOLE_EN, reg);
 }
 
-static int add_legacy_hole(struct addr_ctx *ctx)
+static u64 add_legacy_hole(struct addr_ctx *ctx, u64 addr)
 {
-	u32 dram_hole_base;
-	u8 func = 0;
-
 	if (!legacy_hole_en(ctx))
-		return 0;
+		return addr;
 
-	if (df_cfg.rev >= DF4)
-		func = 7;
+	if (addr >= df_cfg.dram_hole_base)
+		addr += (BIT_ULL(32) - df_cfg.dram_hole_base);
 
-	if (df_indirect_read_broadcast(ctx->node_id, func, 0x104, &dram_hole_base))
-		return -EINVAL;
+	return addr;
+}
 
-	dram_hole_base &= DF_DRAM_HOLE_BASE_MASK;
+static u64 remove_legacy_hole(struct addr_ctx *ctx, u64 addr)
+{
+	if (!legacy_hole_en(ctx))
+		return addr;
 
-	if (ctx->ret_addr >= dram_hole_base)
-		ctx->ret_addr += (BIT_ULL(32) - dram_hole_base);
+	if (addr >= df_cfg.dram_hole_base)
+		addr -= (BIT_ULL(32) - df_cfg.dram_hole_base);
 
-	return 0;
+	return addr;
 }
 
 static u64 get_base_addr(struct addr_ctx *ctx)
@@ -83,14 +83,14 @@ static u64 get_base_addr(struct addr_ctx *ctx)
 	return base_addr << DF_DRAM_BASE_LIMIT_LSB;
 }
 
-static int add_base_and_hole(struct addr_ctx *ctx)
+u64 add_base_and_hole(struct addr_ctx *ctx, u64 addr)
 {
-	ctx->ret_addr += get_base_addr(ctx);
+	return add_legacy_hole(ctx, addr + get_base_addr(ctx));
+}
 
-	if (add_legacy_hole(ctx))
-		return -EINVAL;
-
-	return 0;
+u64 remove_base_and_hole(struct addr_ctx *ctx, u64 addr)
+{
+	return remove_legacy_hole(ctx, addr) - get_base_addr(ctx);
 }
 
 static bool late_hole_remove(struct addr_ctx *ctx)
@@ -125,6 +125,9 @@ unsigned long norm_to_sys_addr(u8 socket_id, u8 die_id, u8 coh_st_inst_id, unsig
 	ctx.inputs.die_id = die_id;
 	ctx.inputs.coh_st_inst_id = coh_st_inst_id;
 
+	if (legacy_hole_en(&ctx) && !df_cfg.dram_hole_base)
+		return -EINVAL;
+
 	if (determine_node_id(&ctx, socket_id, die_id))
 		return -EINVAL;
 
@@ -134,14 +137,14 @@ unsigned long norm_to_sys_addr(u8 socket_id, u8 die_id, u8 coh_st_inst_id, unsig
 	if (denormalize_address(&ctx))
 		return -EINVAL;
 
-	if (!late_hole_remove(&ctx) && add_base_and_hole(&ctx))
-		return -EINVAL;
+	if (!late_hole_remove(&ctx))
+		ctx.ret_addr = add_base_and_hole(&ctx, ctx.ret_addr);
 
 	if (dehash_address(&ctx))
 		return -EINVAL;
 
-	if (late_hole_remove(&ctx) && add_base_and_hole(&ctx))
-		return -EINVAL;
+	if (late_hole_remove(&ctx))
+		ctx.ret_addr = add_base_and_hole(&ctx, ctx.ret_addr);
 
 	if (addr_over_limit(&ctx))
 		return -EINVAL;
@@ -206,7 +209,7 @@ static int __init amd_atl_init(void)
 	__module_get(THIS_MODULE);
 	amd_atl_register_decoder(convert_umc_mca_addr_to_sys_addr);
 
-	pr_info("AMD Address Translation Library initialized");
+	pr_info("AMD Address Translation Library initialized\n");
 	return 0;
 }
 
@@ -222,4 +225,5 @@ static void __exit amd_atl_exit(void)
 module_init(amd_atl_init);
 module_exit(amd_atl_exit);
 
+MODULE_DESCRIPTION("AMD Address Translation Library");
 MODULE_LICENSE("GPL");

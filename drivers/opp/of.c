@@ -1444,6 +1444,38 @@ put_required_np:
 EXPORT_SYMBOL_GPL(of_get_required_opp_performance_state);
 
 /**
+ * dev_pm_opp_of_has_required_opp - Find out if a required-opps exists.
+ * @dev: The device to investigate.
+ *
+ * Returns true if the device's node has a "operating-points-v2" property and if
+ * the corresponding node for the opp-table describes opp nodes that uses the
+ * "required-opps" property.
+ *
+ * Return: True if a required-opps is present, else false.
+ */
+bool dev_pm_opp_of_has_required_opp(struct device *dev)
+{
+	struct device_node *opp_np, *np;
+	int count;
+
+	opp_np = _opp_of_get_opp_desc_node(dev->of_node, 0);
+	if (!opp_np)
+		return false;
+
+	np = of_get_next_available_child(opp_np, NULL);
+	of_node_put(opp_np);
+	if (!np) {
+		dev_warn(dev, "Empty OPP table\n");
+		return false;
+	}
+
+	count = of_count_phandle_with_args(np, "required-opps", NULL);
+	of_node_put(np);
+
+	return count > 0;
+}
+
+/**
  * dev_pm_opp_get_of_node() - Gets the DT node corresponding to an opp
  * @opp:	opp for which DT node has to be returned for
  *

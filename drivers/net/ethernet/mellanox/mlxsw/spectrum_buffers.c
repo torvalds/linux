@@ -399,11 +399,13 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_hdroom *hdroom)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	unsigned int max_mtu = mlxsw_sp_port->dev->max_mtu;
 	u16 reserve_cells;
 	int i;
 
+	max_mtu += MLXSW_PORT_ETH_FRAME_HDR;
 	/* Internal buffer. */
-	reserve_cells = mlxsw_sp_hdroom_int_buf_size_get(mlxsw_sp, mlxsw_sp_port->max_mtu,
+	reserve_cells = mlxsw_sp_hdroom_int_buf_size_get(mlxsw_sp, max_mtu,
 							 mlxsw_sp_port->max_speed);
 	reserve_cells = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, reserve_cells);
 	hdroom->int_buf.reserve_cells = reserve_cells;
@@ -613,7 +615,9 @@ static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
 
 	/* Buffer 9 is used for control traffic. */
-	size9 = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port, mlxsw_sp_port->max_mtu);
+	size9 = mlxsw_sp_port_headroom_8x_adjust(mlxsw_sp_port,
+						 mlxsw_sp_port->dev->max_mtu +
+						 MLXSW_PORT_ETH_FRAME_HDR);
 	hdroom.bufs.buf[9].size_cells = mlxsw_sp_bytes_cells(mlxsw_sp, size9);
 
 	return __mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom, true);

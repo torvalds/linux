@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/sprd,sc9860-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum SC9860 DMA controller
+
+description: |
+  There are three DMA controllers: AP DMA, AON DMA and AGCP DMA. For AGCP
+  DMA controller, it can or do not request the IRQ, which will save
+  system power without resuming system by DMA interrupts if AGCP DMA
+  does not request the IRQ.
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+properties:
+  compatible:
+    const: sprd,sc9860-dma
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: DMA enable clock
+      - description: optional ashb_eb clock, only for the AGCP DMA controller
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: enable
+      - const: ashb_eb
+
+  '#dma-cells':
+    const: 1
+
+  dma-channels:
+    const: 32
+
+  '#dma-channels':
+    const: 32
+    deprecated: true
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#dma-cells'
+  - dma-channels
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sprd,sc9860-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    /* AP DMA controller */
+    dma-controller@20100000 {
+      compatible = "sprd,sc9860-dma";
+      reg = <0x20100000 0x4000>;
+      interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&apahb_gate CLK_DMA_EB>;
+      clock-names = "enable";
+      #dma-cells = <1>;
+      dma-channels = <32>;
+    };
+
+    /* AGCP DMA controller */
+    dma-controller@41580000 {
+      compatible = "sprd,sc9860-dma";
+      reg = <0x41580000 0x4000>;
+      clocks = <&agcp_gate CLK_AGCP_DMAAP_EB>,
+               <&agcp_gate CLK_AGCP_AP_ASHB_EB>;
+      clock-names = "enable", "ashb_eb";
+      #dma-cells = <1>;
+      dma-channels = <32>;
+    };
+...

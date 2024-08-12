@@ -250,6 +250,7 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 	TP_PROTO(struct urb *urb),
 	TP_ARGS(urb),
 	TP_STRUCT__entry(
+		__string(devname, dev_name(&urb->dev->dev))
 		__field(void *, urb)
 		__field(unsigned int, pipe)
 		__field(unsigned int, stream)
@@ -265,6 +266,7 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 		__field(int, slot_id)
 	),
 	TP_fast_assign(
+		__assign_str(devname);
 		__entry->urb = urb;
 		__entry->pipe = urb->pipe;
 		__entry->stream = urb->stream_id;
@@ -279,7 +281,8 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 		__entry->type = usb_endpoint_type(&urb->ep->desc);
 		__entry->slot_id = urb->dev->slot_id;
 	),
-	TP_printk("ep%d%s-%s: urb %p pipe %u slot %d length %d/%d sgs %d/%d stream %d flags %08x",
+	TP_printk("%s ep%d%s-%s: urb %p pipe %u slot %d length %d/%d sgs %d/%d stream %d flags %08x",
+			__get_str(devname),
 			__entry->epnum, __entry->dir_in ? "in" : "out",
 			__print_symbolic(__entry->type,
 				   { USB_ENDPOINT_XFER_INT,	"intr" },

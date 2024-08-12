@@ -190,10 +190,10 @@ static bool match_ids(const struct ieee1394_device_id *id_table, int *id)
 }
 
 static const struct ieee1394_device_id *unit_match(struct device *dev,
-						   struct device_driver *drv)
+						   const struct device_driver *drv)
 {
 	const struct ieee1394_device_id *id_table =
-			container_of(drv, struct fw_driver, driver)->id_table;
+			container_of_const(drv, struct fw_driver, driver)->id_table;
 	int id[] = {0, 0, 0, 0};
 
 	get_modalias_ids(fw_unit(dev), id);
@@ -207,7 +207,7 @@ static const struct ieee1394_device_id *unit_match(struct device *dev,
 
 static bool is_fw_unit(const struct device *dev);
 
-static int fw_unit_match(struct device *dev, struct device_driver *drv)
+static int fw_unit_match(struct device *dev, const struct device_driver *drv)
 {
 	/* We only allow binding to fw_units. */
 	return is_fw_unit(dev) && unit_match(dev, drv) != NULL;

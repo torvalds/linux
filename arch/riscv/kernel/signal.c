@@ -84,7 +84,7 @@ static long save_v_state(struct pt_regs *regs, void __user **sc_vec)
 	datap = state + 1;
 
 	/* datap is designed to be 16 byte aligned for better performance */
-	WARN_ON(unlikely(!IS_ALIGNED((unsigned long)datap, 16)));
+	WARN_ON(!IS_ALIGNED((unsigned long)datap, 16));
 
 	get_cpu_vector_context();
 	riscv_v_vstate_save(&current->thread.vstate, regs);

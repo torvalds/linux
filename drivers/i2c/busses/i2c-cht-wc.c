@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Intel CHT Whiskey Cove PMIC I2C Master driver
+ * Intel CHT Whiskey Cove PMIC I2C controller driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
@@ -106,7 +106,7 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 	return IRQ_HANDLED;
 }
 
-static u32 cht_wc_i2c_adap_master_func(struct i2c_adapter *adap)
+static u32 cht_wc_i2c_adap_func(struct i2c_adapter *adap)
 {
 	/* This i2c adapter only supports SMBUS byte transfers */
 	return I2C_FUNC_SMBUS_BYTE_DATA;
@@ -168,7 +168,7 @@ static int cht_wc_i2c_adap_smbus_xfer(struct i2c_adapter *_adap, u16 addr,
 }
 
 static const struct i2c_algorithm cht_wc_i2c_adap_algo = {
-	.functionality = cht_wc_i2c_adap_master_func,
+	.functionality = cht_wc_i2c_adap_func,
 	.smbus_xfer = cht_wc_i2c_adap_smbus_xfer,
 };
 
@@ -554,6 +554,6 @@ static struct platform_driver cht_wc_i2c_adap_driver = {
 };
 module_platform_driver(cht_wc_i2c_adap_driver);
 
-MODULE_DESCRIPTION("Intel CHT Whiskey Cove PMIC I2C Master driver");
+MODULE_DESCRIPTION("Intel CHT Whiskey Cove PMIC I2C controller driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");

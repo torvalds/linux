@@ -453,6 +453,7 @@ static __exit void cxl_pmem_exit(void)
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
 }
 
+MODULE_DESCRIPTION("CXL PMEM: Persistent Memory Support");
 MODULE_LICENSE("GPL v2");
 module_init(cxl_pmem_init);
 module_exit(cxl_pmem_exit);

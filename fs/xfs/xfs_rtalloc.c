@@ -12,6 +12,7 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
+#include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap_util.h"
@@ -1382,7 +1383,7 @@ retry:
 		start = 0;
 	} else if (xfs_bmap_adjacent(ap)) {
 		start = xfs_rtb_to_rtx(mp, ap->blkno);
-	} else if (ap->eof && ap->offset == 0) {
+	} else if (ap->datatype & XFS_ALLOC_INITIAL_USER_DATA) {
 		/*
 		 * If it's an allocation to an empty file at offset 0, pick an
 		 * extent that will space things out in the rt area.

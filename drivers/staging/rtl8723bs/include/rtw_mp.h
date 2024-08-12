@@ -8,7 +8,6 @@
 #define _RTW_MP_H_
 
 #define MAX_MP_XMITBUF_SZ	2048
-#define NR_MP_XMITFRAME		8
 
 struct mp_xmit_frame {
 	struct list_head	list;
@@ -151,12 +150,6 @@ struct mpt_context {
 };
 /* endif */
 
-/* E-Fuse */
-#define EFUSE_MAP_SIZE		512
-
-#define EFUSE_MAX_SIZE		512
-/* end of E-Fuse */
-
 /* define RTPRIV_IOCTL_MP					(SIOCIWFIRSTPRIV + 0x17) */
 enum {
 	WRITE_REG = 1,
@@ -259,32 +252,10 @@ struct mp_priv {
 	u8 *TXradomBuffer;
 };
 
-#define LOWER	true
-#define RAISE	false
-
 /* Hardware Registers */
-#define BB_REG_BASE_ADDR		0x800
-
-#define MAX_RF_PATH_NUMS	RF_PATH_MAX
-
 extern u8 mpdatarate[NumRates];
 
 #define MAX_TX_PWR_INDEX_N_MODE 64	/*  0x3F */
-
-#define RX_PKT_BROADCAST	1
-#define RX_PKT_DEST_ADDR	2
-#define RX_PKT_PHY_MATCH	3
-
-#define Mac_OFDM_OK			0x00000000
-#define Mac_OFDM_Fail			0x10000000
-#define Mac_OFDM_FasleAlarm	0x20000000
-#define Mac_CCK_OK				0x30000000
-#define Mac_CCK_Fail			0x40000000
-#define Mac_CCK_FasleAlarm		0x50000000
-#define Mac_HT_OK				0x60000000
-#define Mac_HT_Fail			0x70000000
-#define Mac_HT_FasleAlarm		0x90000000
-#define Mac_DropPacket			0xA0000000
 
 #define		REG_RF_BB_GAIN_OFFSET	0x7f
 #define		RF_GAIN_OFFSET_MASK	0xfffff

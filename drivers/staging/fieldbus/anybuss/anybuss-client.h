@@ -44,11 +44,7 @@ static inline struct anybuss_client *to_anybuss_client(struct device *dev)
 	return container_of(dev, struct anybuss_client, dev);
 }
 
-static inline struct anybuss_client_driver *
-to_anybuss_client_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct anybuss_client_driver, driver);
-}
+#define to_anybuss_client_driver(__drv) container_of_const(__drv, struct anybuss_client_driver, driver)
 
 static inline void *
 anybuss_get_drvdata(const struct anybuss_client *client)

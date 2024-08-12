@@ -13,7 +13,9 @@
  */
 
 #ifdef __GNUC__
-#if __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#ifdef __MINGW_PRINTF_FORMAT
+#define PRINTF(i, j)	__attribute__((format (__MINGW_PRINTF_FORMAT, i, j)))
+#elif __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 #define PRINTF(i, j)	__attribute__((format (gnu_printf, i, j)))
 #else
 #define PRINTF(i, j)	__attribute__((format (printf, i, j)))
@@ -65,7 +67,7 @@ extern char *xstrndup(const char *s, size_t len);
 
 extern int PRINTF(2, 3) xasprintf(char **strp, const char *fmt, ...);
 extern int PRINTF(2, 3) xasprintf_append(char **strp, const char *fmt, ...);
-extern int xavsprintf_append(char **strp, const char *fmt, va_list ap);
+extern int PRINTF(2, 0) xavsprintf_append(char **strp, const char *fmt, va_list ap);
 extern char *join_path(const char *path, const char *name);
 
 /**

@@ -68,7 +68,7 @@ kbuild-file = $(or $(wildcard $(src)/Kbuild),$(src)/Makefile)
 # Read a file, replacing newlines with spaces
 #
 # Make 4.2 or later can read a file by using its builtin function.
-ifneq ($(filter-out 3.% 4.0 4.1, $(MAKE_VERSION)),)
+ifneq ($(filter-out 4.0 4.1, $(MAKE_VERSION)),)
 read-file = $(subst $(newline),$(space),$(file < $1))
 else
 read-file = $(shell cat $1 2>/dev/null)

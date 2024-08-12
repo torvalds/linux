@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * BCM2835 master mode driver
+ * BCM2835 I2C controller driver
  */
 
 #include <linux/clk.h>
@@ -25,7 +25,7 @@
 #define BCM2835_I2C_DEL		0x18
 /*
  * 16-bit field for the number of SCL cycles to wait after rising SCL
- * before deciding the slave is not responding. 0 disables the
+ * before deciding the target is not responding. 0 disables the
  * timeout detection.
  */
 #define BCM2835_I2C_CLKT	0x1c
@@ -223,7 +223,7 @@ static void bcm2835_drain_rxfifo(struct bcm2835_i2c_dev *i2c_dev)
 /*
  * Repeated Start Condition (Sr)
  * The BCM2835 ARM Peripherals datasheet mentions a way to trigger a Sr when it
- * talks about reading from a slave with 10 bit address. This is achieved by
+ * talks about reading from a target with 10 bit address. This is achieved by
  * issuing a write, poll the I2CS.TA flag and wait for it to be set, and then
  * issue a read.
  * A comment in https://github.com/raspberrypi/linux/issues/254 shows how the
@@ -390,8 +390,8 @@ static u32 bcm2835_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm bcm2835_i2c_algo = {
-	.master_xfer	= bcm2835_i2c_xfer,
-	.functionality	= bcm2835_i2c_func,
+	.xfer = bcm2835_i2c_xfer,
+	.functionality = bcm2835_i2c_func,
 };
 
 /*
