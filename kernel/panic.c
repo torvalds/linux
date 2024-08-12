@@ -64,6 +64,8 @@ unsigned long panic_on_taint;
 bool panic_on_taint_nousertaint = false;
 static unsigned int warn_limit __read_mostly;
 
+bool panic_triggering_all_cpu_backtrace;
+
 int panic_timeout = CONFIG_PANIC_TIMEOUT;
 EXPORT_SYMBOL_GPL(panic_timeout);
 
@@ -253,8 +255,12 @@ void check_panic_on_warn(const char *origin)
  */
 static void panic_other_cpus_shutdown(bool crash_kexec)
 {
-	if (panic_print & PANIC_PRINT_ALL_CPU_BT)
+	if (panic_print & PANIC_PRINT_ALL_CPU_BT) {
+		/* Temporary allow non-panic CPUs to write their backtraces. */
+		panic_triggering_all_cpu_backtrace = true;
 		trigger_all_cpu_backtrace();
+		panic_triggering_all_cpu_backtrace = false;
+	}
 
 	/*
 	 * Note that smp_send_stop() is the usual SMP shutdown function,
