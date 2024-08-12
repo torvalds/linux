@@ -62,11 +62,6 @@ gsc_to_gt(struct xe_gsc *gsc)
 	return container_of(gsc, struct xe_gt, uc.gsc);
 }
 
-static inline struct xe_device *kdev_to_xe(struct device *kdev)
-{
-	return dev_get_drvdata(kdev);
-}
-
 bool xe_gsc_proxy_init_done(struct xe_gsc *gsc)
 {
 	struct xe_gt *gt = gsc_to_gt(gsc);
@@ -345,7 +340,7 @@ void xe_gsc_proxy_irq_handler(struct xe_gsc *gsc, u32 iir)
 static int xe_gsc_proxy_component_bind(struct device *xe_kdev,
 				       struct device *mei_kdev, void *data)
 {
-	struct xe_device *xe = kdev_to_xe(xe_kdev);
+	struct xe_device *xe = kdev_to_xe_device(xe_kdev);
 	struct xe_gt *gt = xe->tiles[0].media_gt;
 	struct xe_gsc *gsc = &gt->uc.gsc;
 
@@ -360,7 +355,7 @@ static int xe_gsc_proxy_component_bind(struct device *xe_kdev,
 static void xe_gsc_proxy_component_unbind(struct device *xe_kdev,
 					  struct device *mei_kdev, void *data)
 {
-	struct xe_device *xe = kdev_to_xe(xe_kdev);
+	struct xe_device *xe = kdev_to_xe_device(xe_kdev);
 	struct xe_gt *gt = xe->tiles[0].media_gt;
 	struct xe_gsc *gsc = &gt->uc.gsc;
 

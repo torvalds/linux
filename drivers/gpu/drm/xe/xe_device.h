@@ -15,6 +15,11 @@ static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 	return container_of(dev, struct xe_device, drm);
 }
 
+static inline struct xe_device *kdev_to_xe_device(struct device *kdev)
+{
+	return dev_get_drvdata(kdev);
+}
+
 static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
