@@ -7005,6 +7005,19 @@ void mt_set_non_kernel(unsigned int val)
 	kmem_cache_set_non_kernel(maple_node_cache, val);
 }
 
+extern void kmem_cache_set_callback(struct kmem_cache *cachep,
+		void (*callback)(void *));
+void mt_set_callback(void (*callback)(void *))
+{
+	kmem_cache_set_callback(maple_node_cache, callback);
+}
+
+extern void kmem_cache_set_private(struct kmem_cache *cachep, void *private);
+void mt_set_private(void *private)
+{
+	kmem_cache_set_private(maple_node_cache, private);
+}
+
 extern unsigned long kmem_cache_get_alloc(struct kmem_cache *);
 unsigned long mt_get_alloc_size(void)
 {

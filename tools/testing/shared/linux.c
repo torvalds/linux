@@ -26,7 +26,20 @@ struct kmem_cache {
 	unsigned int non_kernel;
 	unsigned long nr_allocated;
 	unsigned long nr_tallocated;
+	bool exec_callback;
+	void (*callback)(void *);
+	void *private;
 };
+
+void kmem_cache_set_callback(struct kmem_cache *cachep, void (*callback)(void *))
+{
+	cachep->callback = callback;
+}
+
+void kmem_cache_set_private(struct kmem_cache *cachep, void *private)
+{
+	cachep->private = private;
+}
 
 void kmem_cache_set_non_kernel(struct kmem_cache *cachep, unsigned int val)
 {
@@ -58,9 +71,17 @@ void *kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *lru,
 {
 	void *p;
 
+	if (cachep->exec_callback) {
+		if (cachep->callback)
+			cachep->callback(cachep->private);
+		cachep->exec_callback = false;
+	}
+
 	if (!(gfp & __GFP_DIRECT_RECLAIM)) {
-		if (!cachep->non_kernel)
+		if (!cachep->non_kernel) {
+			cachep->exec_callback = true;
 			return NULL;
+		}
 
 		cachep->non_kernel--;
 	}
@@ -223,6 +244,9 @@ kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 	ret->objs = NULL;
 	ret->ctor = ctor;
 	ret->non_kernel = 0;
+	ret->exec_callback = false;
+	ret->callback = NULL;
+	ret->private = NULL;
 	return ret;
 }
 

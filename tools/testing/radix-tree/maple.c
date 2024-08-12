@@ -36224,6 +36224,65 @@ static noinline void __init check_mtree_dup(struct maple_tree *mt)
 
 extern void test_kmem_cache_bulk(void);
 
+/* callback function used for check_nomem_writer_race() */
+static void writer2(void *maple_tree)
+{
+	struct maple_tree *mt = (struct maple_tree *)maple_tree;
+	MA_STATE(mas, mt, 6, 10);
+
+	mtree_lock(mas.tree);
+	mas_store(&mas, xa_mk_value(0xC));
+	mas_destroy(&mas);
+	mtree_unlock(mas.tree);
+}
+
+/*
+ * check_nomem_writer_race() - test a possible race in the mas_nomem() path
+ * @mt: The tree to build.
+ *
+ * There is a possible race condition in low memory conditions when mas_nomem()
+ * gives up its lock. A second writer can chagne the entry that the primary
+ * writer executing the mas_nomem() path is modifying. This test recreates this
+ * scenario to ensure we are handling it correctly.
+ */
+static void check_nomem_writer_race(struct maple_tree *mt)
+{
+	MA_STATE(mas, mt, 0, 5);
+
+	mt_set_non_kernel(0);
+	/* setup root with 2 values with NULL in between */
+	mtree_store_range(mt, 0, 5, xa_mk_value(0xA), GFP_KERNEL);
+	mtree_store_range(mt, 6, 10, NULL, GFP_KERNEL);
+	mtree_store_range(mt, 11, 15, xa_mk_value(0xB), GFP_KERNEL);
+
+	/* setup writer 2 that will trigger the race condition */
+	mt_set_private(mt);
+	mt_set_callback(writer2);
+
+	mtree_lock(mt);
+	/* erase 0-5 */
+	mas_erase(&mas);
+
+	/* index 6-10 should retain the value from writer 2 */
+	check_load(mt, 6, xa_mk_value(0xC));
+	mtree_unlock(mt);
+
+	/* test for the same race but with mas_store_gfp() */
+	mtree_store_range(mt, 0, 5, xa_mk_value(0xA), GFP_KERNEL);
+	mtree_store_range(mt, 6, 10, NULL, GFP_KERNEL);
+
+	mas_set_range(&mas, 0, 5);
+	mtree_lock(mt);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+
+	/* ensure write made by writer 2 is retained */
+	check_load(mt, 6, xa_mk_value(0xC));
+
+	mt_set_private(NULL);
+	mt_set_callback(NULL);
+	mtree_unlock(mt);
+}
+
 void farmer_tests(void)
 {
 	struct maple_node *node;
@@ -36255,6 +36314,10 @@ void farmer_tests(void)
 
 	mt_init_flags(&tree, 0);
 	check_dfs_preorder(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE | MT_FLAGS_USE_RCU);
+	check_nomem_writer_race(&tree);
 	mtree_destroy(&tree);
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
