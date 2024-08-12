@@ -8,7 +8,6 @@
 #include <linux/blk-integrity.h>
 #include <linux/crc-t10dif.h>
 #include <linux/crc64.h>
-#include <linux/module.h>
 #include <net/checksum.h>
 #include <asm/unaligned.h>
 #include "blk.h"
@@ -472,6 +471,3 @@ void blk_integrity_complete(struct request *rq, unsigned int nr_bytes)
 	else
 		t10_pi_type1_complete(rq, nr_bytes);
 }
-
-MODULE_DESCRIPTION("T10 Protection Information module");
-MODULE_LICENSE("GPL");
