@@ -161,7 +161,7 @@ param_get_pool_mode(char *buf, const struct kernel_param *kp)
 	str[len] = '\n';
 	str[len + 1] = '\0';
 
-	return sysfs_emit(buf, str);
+	return sysfs_emit(buf, "%s", str);
 }
 
 module_param_call(pool_mode, param_set_pool_mode, param_get_pool_mode,

@@ -559,18 +559,6 @@ static void cs35l56_hda_release_firmware_files(const struct firmware *wmfw_firmw
 	kfree(coeff_filename);
 }
 
-static void cs35l56_hda_create_dsp_controls_work(struct work_struct *work)
-{
-	struct cs35l56_hda *cs35l56 = container_of(work, struct cs35l56_hda, control_work);
-	struct hda_cs_dsp_ctl_info info;
-
-	info.device_name = cs35l56->amp_name;
-	info.fw_type = HDA_CS_DSP_FW_MISC;
-	info.card = cs35l56->codec->card;
-
-	hda_cs_dsp_add_controls(&cs35l56->cs_dsp, &info);
-}
-
 static void cs35l56_hda_apply_calibration(struct cs35l56_hda *cs35l56)
 {
 	int ret;
@@ -595,26 +583,15 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	char *wmfw_filename = NULL;
 	unsigned int preloaded_fw_ver;
 	bool firmware_missing;
-	bool add_dsp_controls_required = false;
 	int ret;
-
-	/*
-	 * control_work must be flushed before proceeding, but we can't do that
-	 * here as it would create a deadlock on controls_rwsem so it must be
-	 * performed before queuing dsp_work.
-	 */
-	WARN_ON_ONCE(work_busy(&cs35l56->control_work));
 
 	/*
 	 * Prepare for a new DSP power-up. If the DSP has had firmware
 	 * downloaded previously then it needs to be powered down so that it
-	 * can be updated and if hadn't been patched before then the controls
-	 * will need to be added once firmware download succeeds.
+	 * can be updated.
 	 */
 	if (cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
-	else
-		add_dsp_controls_required = true;
 
 	cs35l56->base.fw_patched = false;
 
@@ -698,15 +675,6 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
 
-	/*
-	 * Adding controls is deferred to prevent a lock inversion - ALSA takes
-	 * the controls_rwsem when adding a control, the get() / put()
-	 * functions of a control are called holding controls_rwsem and those
-	 * that depend on running firmware wait for dsp_work() to complete.
-	 */
-	if (add_dsp_controls_required)
-		queue_work(system_long_wq, &cs35l56->control_work);
-
 	ret = cs_dsp_run(&cs35l56->cs_dsp);
 	if (ret)
 		dev_dbg(cs35l56->base.dev, "%s: cs_dsp_run ret %d\n", __func__, ret);
@@ -753,7 +721,6 @@ static int cs35l56_hda_bind(struct device *dev, struct device *master, void *mas
 	strscpy(comp->name, dev_name(dev), sizeof(comp->name));
 	comp->playback_hook = cs35l56_hda_playback_hook;
 
-	flush_work(&cs35l56->control_work);
 	queue_work(system_long_wq, &cs35l56->dsp_work);
 
 	cs35l56_hda_create_controls(cs35l56);
@@ -775,7 +742,6 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	struct hda_component *comp;
 
 	cancel_work_sync(&cs35l56->dsp_work);
-	cancel_work_sync(&cs35l56->control_work);
 
 	cs35l56_hda_remove_controls(cs35l56);
 
@@ -806,7 +772,6 @@ static int cs35l56_hda_system_suspend(struct device *dev)
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
 	cs35l56_hda_wait_dsp_ready(cs35l56);
-	flush_work(&cs35l56->control_work);
 
 	if (cs35l56->playing)
 		cs35l56_hda_pause(cs35l56);
@@ -1026,7 +991,6 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
 	INIT_WORK(&cs35l56->dsp_work, cs35l56_hda_dsp_work);
-	INIT_WORK(&cs35l56->control_work, cs35l56_hda_create_dsp_controls_work);
 
 	ret = cs35l56_hda_read_acpi(cs35l56, hid, id);
 	if (ret)
