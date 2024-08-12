@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/minmax.h>
 #include "spacc_core.h"
 
+#ifndef MIN
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
 
 /* prevent reading past the end of the buffer */
 static void read_from_buf(unsigned char *dst, unsigned char *src,
