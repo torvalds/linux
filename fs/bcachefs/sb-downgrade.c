@@ -72,7 +72,10 @@
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_required_bad,	\
 	  BCH_FSCK_ERR_accounting_key_replicas_devs_unsorted,	\
-	  BCH_FSCK_ERR_accounting_key_junk_at_end)
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
+	x(disk_accounting_inum,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\

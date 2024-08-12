@@ -768,6 +768,9 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
 				continue;
 
+			if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+				continue;
+
 			bch2_accounting_mem_read(c, k.k->p, v, nr);
 
 			if (memcmp(a.v->d, v, nr * sizeof(u64))) {

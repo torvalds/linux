@@ -116,6 +116,9 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans, stru
 	struct disk_accounting_pos acc_k;
 	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 
+	if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+		return 0;
+
 	if (!gc && !read) {
 		switch (acc_k.type) {
 		case BCH_DISK_ACCOUNTING_persistent_reserved:

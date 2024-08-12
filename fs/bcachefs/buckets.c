@@ -810,6 +810,20 @@ static int __trigger_extent(struct btree_trans *trans,
 		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, &replicas_sectors, 1, gc);
 		if (ret)
 			return ret;
+	} else {
+		bool insert = !(flags & BTREE_TRIGGER_overwrite);
+		struct disk_accounting_pos acc_inum_key = {
+			.type		= BCH_DISK_ACCOUNTING_inum,
+			.inum.inum	= k.k->p.inode,
+		};
+		s64 v[3] = {
+			insert ? 1 : -1,
+			insert ? k.k->size : -((s64) k.k->size),
+			replicas_sectors,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc_inum_key, v, ARRAY_SIZE(v), gc);
+		if (ret)
+			return ret;
 	}
 
 	if (bch2_bkey_rebalance_opts(k)) {
