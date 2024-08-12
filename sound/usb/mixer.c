@@ -728,7 +728,7 @@ static int get_cluster_channels_v3(struct mixer_build *state, unsigned int clust
 			UAC3_CS_REQ_HIGH_CAPABILITY_DESCRIPTOR,
 			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			cluster_id,
-			snd_usb_ctrl_intf(state->chip),
+			snd_usb_ctrl_intf(state->mixer->hostif),
 			&c_header, sizeof(c_header));
 	if (err < 0)
 		goto error;

@@ -460,7 +460,7 @@ static int scarlett_ctl_meter_get(struct snd_kcontrol *kctl,
 	struct snd_usb_audio *chip = elem->head.mixer->chip;
 	unsigned char buf[2 * MAX_CHANNELS] = {0, };
 	int wValue = (elem->control << 8) | elem->idx_off;
-	int idx = snd_usb_ctrl_intf(chip) | (elem->head.id << 8);
+	int idx = snd_usb_ctrl_intf(elem->head.mixer->hostif) | (elem->head.id << 8);
 	int err;
 
 	err = snd_usb_ctl_msg(chip->dev,
@@ -1002,7 +1002,7 @@ int snd_scarlett_controls_create(struct usb_mixer_interface *mixer)
 	err = snd_usb_ctl_msg(mixer->chip->dev,
 		usb_sndctrlpipe(mixer->chip->dev, 0), UAC2_CS_CUR,
 		USB_RECIP_INTERFACE | USB_TYPE_CLASS |
-		USB_DIR_OUT, 0x0100, snd_usb_ctrl_intf(mixer->chip) |
+		USB_DIR_OUT, 0x0100, snd_usb_ctrl_intf(mixer->hostif) |
 		(0x29 << 8), sample_rate_buffer, 4);
 	if (err < 0)
 		return err;
