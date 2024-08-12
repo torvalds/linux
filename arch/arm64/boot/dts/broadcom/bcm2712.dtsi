@@ -221,7 +221,7 @@
 			#mbox-cells = <0>;
 		};
 
-		local_intc: local-intc@7cd00000 {
+		local_intc: interrupt-controller@7cd00000 {
 			compatible = "brcm,bcm2836-l1-intc";
 			reg = <0x7cd00000 0x100>;
 		};
