@@ -32,10 +32,10 @@ do {								\
 	__rt_spin_lock_init(slock, #slock, &__key, true);	\
 } while (0)
 
-extern void rt_spin_lock(spinlock_t *lock);
-extern void rt_spin_lock_nested(spinlock_t *lock, int subclass);
-extern void rt_spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *nest_lock);
-extern void rt_spin_unlock(spinlock_t *lock);
+extern void rt_spin_lock(spinlock_t *lock) __acquires(lock);
+extern void rt_spin_lock_nested(spinlock_t *lock, int subclass)	__acquires(lock);
+extern void rt_spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *nest_lock) __acquires(lock);
+extern void rt_spin_unlock(spinlock_t *lock)	__releases(lock);
 extern void rt_spin_lock_unlock(spinlock_t *lock);
 extern int rt_spin_trylock_bh(spinlock_t *lock);
 extern int rt_spin_trylock(spinlock_t *lock);
