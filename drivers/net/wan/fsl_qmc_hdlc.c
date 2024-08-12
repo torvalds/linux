@@ -18,6 +18,7 @@
 #include <linux/hdlc.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -37,7 +38,7 @@ struct qmc_hdlc {
 	struct qmc_chan *qmc_chan;
 	struct net_device *netdev;
 	struct framer *framer;
-	spinlock_t carrier_lock; /* Protect carrier detection */
+	struct mutex carrier_lock; /* Protect carrier detection */
 	struct notifier_block nb;
 	bool is_crc32;
 	spinlock_t tx_lock; /* Protect tx descriptors */
@@ -60,7 +61,7 @@ static int qmc_hdlc_framer_set_carrier(struct qmc_hdlc *qmc_hdlc)
 	if (!qmc_hdlc->framer)
 		return 0;
 
-	guard(spinlock_irqsave)(&qmc_hdlc->carrier_lock);
+	guard(mutex)(&qmc_hdlc->carrier_lock);
 
 	ret = framer_get_status(qmc_hdlc->framer, &framer_status);
 	if (ret) {
@@ -249,6 +250,7 @@ static void qmc_hcld_recv_complete(void *context, size_t length, unsigned int fl
 	struct qmc_hdlc_desc *desc = context;
 	struct net_device *netdev;
 	struct qmc_hdlc *qmc_hdlc;
+	size_t crc_size;
 	int ret;
 
 	netdev = desc->netdev;
@@ -267,15 +269,26 @@ static void qmc_hcld_recv_complete(void *context, size_t length, unsigned int fl
 		if (flags & QMC_RX_FLAG_HDLC_CRC) /* CRC error */
 			netdev->stats.rx_crc_errors++;
 		kfree_skb(desc->skb);
-	} else {
-		netdev->stats.rx_packets++;
-		netdev->stats.rx_bytes += length;
-
-		skb_put(desc->skb, length);
-		desc->skb->protocol = hdlc_type_trans(desc->skb, netdev);
-		netif_rx(desc->skb);
+		goto re_queue;
 	}
 
+	/* Discard the CRC */
+	crc_size = qmc_hdlc->is_crc32 ? 4 : 2;
+	if (length < crc_size) {
+		netdev->stats.rx_length_errors++;
+		kfree_skb(desc->skb);
+		goto re_queue;
+	}
+	length -= crc_size;
+
+	netdev->stats.rx_packets++;
+	netdev->stats.rx_bytes += length;
+
+	skb_put(desc->skb, length);
+	desc->skb->protocol = hdlc_type_trans(desc->skb, netdev);
+	netif_rx(desc->skb);
+
+re_queue:
 	/* Re-queue a transfer using the same descriptor */
 	ret = qmc_hdlc_recv_queue(qmc_hdlc, desc, desc->dma_size);
 	if (ret) {
@@ -706,7 +719,7 @@ static int qmc_hdlc_probe(struct platform_device *pdev)
 
 	qmc_hdlc->dev = dev;
 	spin_lock_init(&qmc_hdlc->tx_lock);
-	spin_lock_init(&qmc_hdlc->carrier_lock);
+	mutex_init(&qmc_hdlc->carrier_lock);
 
 	qmc_hdlc->qmc_chan = devm_qmc_chan_get_bychild(dev, dev->of_node);
 	if (IS_ERR(qmc_hdlc->qmc_chan))

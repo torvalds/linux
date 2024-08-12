@@ -36,6 +36,7 @@ struct nvme_ns_info {
 	struct nvme_ns_ids ids;
 	u32 nsid;
 	__le32 anagrpid;
+	u8 pi_offset;
 	bool is_shared;
 	bool is_readonly;
 	bool is_ready;
@@ -1757,8 +1758,8 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
-		struct queue_limits *lim)
+static bool nvme_init_integrity(struct nvme_ns_head *head,
+		struct queue_limits *lim, struct nvme_ns_info *info)
 {
 	struct blk_integrity *bi = &lim->integrity;
 
@@ -1816,7 +1817,7 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
 	}
 
 	bi->tuple_size = head->ms;
-	bi->pi_offset = head->pi_offset;
+	bi->pi_offset = info->pi_offset;
 	return true;
 }
 
@@ -1902,12 +1903,11 @@ static void nvme_configure_pi_elbas(struct nvme_ns_head *head,
 
 static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 		struct nvme_ns_head *head, struct nvme_id_ns *id,
-		struct nvme_id_ns_nvm *nvm)
+		struct nvme_id_ns_nvm *nvm, struct nvme_ns_info *info)
 {
 	head->features &= ~(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
 	head->pi_type = 0;
 	head->pi_size = 0;
-	head->pi_offset = 0;
 	head->ms = le16_to_cpu(id->lbaf[nvme_lbaf_index(id->flbas)].ms);
 	if (!head->ms || !(ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
 		return;
@@ -1922,7 +1922,7 @@ static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 	if (head->pi_size && head->ms >= head->pi_size)
 		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
 	if (!(id->dps & NVME_NS_DPS_PI_FIRST))
-		head->pi_offset = head->ms - head->pi_size;
+		info->pi_offset = head->ms - head->pi_size;
 
 	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		/*
@@ -2156,7 +2156,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 
 	lim = queue_limits_start_update(ns->disk->queue);
 	nvme_set_ctrl_limits(ns->ctrl, &lim);
-	nvme_configure_metadata(ns->ctrl, ns->head, id, nvm);
+	nvme_configure_metadata(ns->ctrl, ns->head, id, nvm, info);
 	nvme_set_chunk_sectors(ns, id, &lim);
 	if (!nvme_update_disk_info(ns, id, &lim))
 		capacity = 0;
@@ -2176,7 +2176,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	 * I/O to namespaces with metadata except when the namespace supports
 	 * PI, as it can strip/insert in that case.
 	 */
-	if (!nvme_init_integrity(ns->disk, ns->head, &lim))
+	if (!nvme_init_integrity(ns->head, &lim, info))
 		capacity = 0;
 
 	ret = queue_limits_commit_update(ns->disk->queue, &lim);
@@ -2280,7 +2280,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		if (unsupported)
 			ns->head->disk->flags |= GENHD_FL_HIDDEN;
 		else
-			nvme_init_integrity(ns->head->disk, ns->head, &lim);
+			nvme_init_integrity(ns->head, &lim, info);
 		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
 
 		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));

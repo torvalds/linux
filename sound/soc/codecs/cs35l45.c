@@ -176,17 +176,10 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 	struct snd_kcontrol *kcontrol;
 	struct snd_kcontrol_volatile *vd;
 	unsigned int index_offset;
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
-	if (component->name_prefix)
-		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
-			 component->name_prefix, ctl_name);
-	else
-		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s", ctl_name);
-
-	kcontrol = snd_soc_card_get_kcontrol_locked(component->card, name);
+	kcontrol = snd_soc_component_get_kcontrol_locked(component, ctl_name);
 	if (!kcontrol) {
-		dev_err(component->dev, "Can't find kcontrol %s\n", name);
+		dev_err(component->dev, "Can't find kcontrol %s\n", ctl_name);
 		return -EINVAL;
 	}
 

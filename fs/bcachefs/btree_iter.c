@@ -1921,6 +1921,11 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_btree_iter_verify(iter);
 
+	ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
+	if (ret)
+		goto err;
+
+
 	struct btree_path *path = btree_iter_path(trans, iter);
 
 	/* already at end? */
