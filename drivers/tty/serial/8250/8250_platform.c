@@ -142,12 +142,6 @@ static int serial8250_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (uart.port.mapbase) {
-		uart.port.membase = devm_ioremap(dev, uart.port.mapbase, uart.port.mapsize);
-		if (!uart.port.membase)
-			return -ENOMEM;
-	}
-
 	/*
 	 * The previous call may not set iotype correctly when reg-io-width
 	 * property is absent and it doesn't support IO port resource.
