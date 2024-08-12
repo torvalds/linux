@@ -53,8 +53,10 @@ static int __init init_dlm(void)
 		goto out_user;
 
 	dlm_wq = alloc_workqueue("dlm_wq", 0, 0);
-	if (!dlm_wq)
+	if (!dlm_wq) {
+		error = -ENOMEM;
 		goto out_plock;
+	}
 
 	printk("DLM installed\n");
 
