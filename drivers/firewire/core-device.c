@@ -806,7 +806,6 @@ static int shutdown_unit(struct device *device, void *data)
 
 /*
  * fw_device_rwsem acts as dual purpose mutex:
- *   - serializes accesses to fw_device_idr,
  *   - serializes accesses to fw_device.config_rom/.config_rom_length and
  *     fw_unit.directory, unless those accesses happen at safe occasions
  */
@@ -818,8 +817,6 @@ int fw_cdev_major;
 struct fw_device *fw_device_get_by_devt(dev_t devt)
 {
 	struct fw_device *device;
-
-	guard(rwsem_read)(&fw_device_rwsem);
 
 	device = xa_load(&fw_device_xa, MINOR(devt));
 	if (device)
@@ -874,8 +871,7 @@ static void fw_device_shutdown(struct work_struct *work)
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
 
-	scoped_guard(rwsem_write, &fw_device_rwsem)
-		xa_erase(&fw_device_xa, MINOR(device->device.devt));
+	xa_erase(&fw_device_xa, MINOR(device->device.devt));
 
 	fw_device_put(device);
 }
@@ -1087,12 +1083,10 @@ static void fw_device_init(struct work_struct *work)
 
 	fw_device_get(device);
 
-	scoped_guard(rwsem_write, &fw_device_rwsem) {
-		// The index of allocated entry is used for minor identifier of device node.
-		ret = xa_alloc(&fw_device_xa, &minor, device, XA_LIMIT(0, MINORMASK), GFP_KERNEL);
-		if (ret < 0)
-			goto error;
-	}
+	// The index of allocated entry is used for minor identifier of device node.
+	ret = xa_alloc(&fw_device_xa, &minor, device, XA_LIMIT(0, MINORMASK), GFP_KERNEL);
+	if (ret < 0)
+		goto error;
 
 	device->device.bus = &fw_bus_type;
 	device->device.type = &fw_device_type;
@@ -1152,8 +1146,7 @@ static void fw_device_init(struct work_struct *work)
 	return;
 
  error_with_cdev:
-	scoped_guard(rwsem_write, &fw_device_rwsem)
-		xa_erase(&fw_device_xa, minor);
+	xa_erase(&fw_device_xa, minor);
  error:
 	fw_device_put(device);		// fw_device_xa's reference.
 
