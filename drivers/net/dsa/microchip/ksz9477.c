@@ -439,8 +439,7 @@ static int ksz9477_half_duplex_monitor(struct ksz_device *dev, int port,
 	 * half-duplex mode. The switch might not be able to communicate anymore
 	 * in these states. If you see this message, please read the
 	 * errata-sheet for more information:
-	 * https://ww1.microchip.com/downloads/aemDocuments/documents
-	 * /UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
+	 * https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
 	 * To workaround this issue, half-duplex mode should be avoided.
 	 * A software reset could be implemented to recover from this state.
 	 */
