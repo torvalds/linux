@@ -2730,10 +2730,10 @@ static int timehist_sched_change_event(const struct perf_tool *tool,
 
 			itr->last_thread = NULL;
 		}
-	}
 
-	if (!sched->summary_only)
-		timehist_print_sample(sched, evsel, sample, &al, thread, t, state);
+		if (!sched->summary_only)
+			timehist_print_sample(sched, evsel, sample, &al, thread, t, state);
+	}
 
 out:
 	if (sched->hist_time.start == 0 && t >= ptime->start)
