@@ -41,7 +41,7 @@ static struct workqueue_struct *cgroup_pidlist_destroy_wq;
 /* protects cgroup_subsys->release_agent_path */
 static DEFINE_SPINLOCK(release_agent_path_lock);
 
-bool cgroup1_ssid_disabled(int ssid)
+bool cgroup1_ssid_disabled(int ssid) test
 {
 	return cgroup_no_v1_mask & (1 << ssid);
 }
