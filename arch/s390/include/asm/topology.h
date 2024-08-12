@@ -67,6 +67,9 @@ static inline void topology_expect_change(void) { }
 #define POLARIZATION_VM		(2)
 #define POLARIZATION_VH		(3)
 
+#define CPU_CAPACITY_HIGH	SCHED_CAPACITY_SCALE
+#define CPU_CAPACITY_LOW	(SCHED_CAPACITY_SCALE >> 3)
+
 #define SD_BOOK_INIT	SD_CPU_INIT
 
 #ifdef CONFIG_NUMA
