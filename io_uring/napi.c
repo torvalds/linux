@@ -26,7 +26,6 @@ static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 	hlist_for_each_entry_rcu(e, hash_list, node) {
 		if (e->napi_id != napi_id)
 			continue;
-		e->timeout = jiffies + NAPI_TIMEOUT;
 		return e;
 	}
 
