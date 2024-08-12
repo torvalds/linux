@@ -1043,7 +1043,7 @@ static int snd_ftu_eff_switch_init(struct usb_mixer_interface *mixer,
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      pval & 0xff00,
-			      snd_usb_ctrl_intf(mixer->chip) | ((pval & 0xff) << 8),
+			      snd_usb_ctrl_intf(mixer->hostif) | ((pval & 0xff) << 8),
 			      value, 2);
 	if (err < 0)
 		return err;
@@ -1077,7 +1077,7 @@ static int snd_ftu_eff_switch_update(struct usb_mixer_elem_list *list)
 			      UAC_SET_CUR,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
 			      pval & 0xff00,
-			      snd_usb_ctrl_intf(chip) | ((pval & 0xff) << 8),
+			      snd_usb_ctrl_intf(list->mixer->hostif) | ((pval & 0xff) << 8),
 			      value, 2);
 	snd_usb_unlock_shutdown(chip);
 	return err;
@@ -2115,24 +2115,25 @@ static int dell_dock_mixer_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
-static void dell_dock_init_vol(struct snd_usb_audio *chip, int ch, int id)
+static void dell_dock_init_vol(struct usb_mixer_interface *mixer, int ch, int id)
 {
+	struct snd_usb_audio *chip = mixer->chip;
 	u16 buf = 0;
 
 	snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0), UAC_SET_CUR,
 			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
 			(UAC_FU_VOLUME << 8) | ch,
-			snd_usb_ctrl_intf(chip) | (id << 8),
+			snd_usb_ctrl_intf(mixer->hostif) | (id << 8),
 			&buf, 2);
 }
 
 static int dell_dock_mixer_init(struct usb_mixer_interface *mixer)
 {
 	/* fix to 0dB playback volumes */
-	dell_dock_init_vol(mixer->chip, 1, 16);
-	dell_dock_init_vol(mixer->chip, 2, 16);
-	dell_dock_init_vol(mixer->chip, 1, 19);
-	dell_dock_init_vol(mixer->chip, 2, 19);
+	dell_dock_init_vol(mixer, 1, 16);
+	dell_dock_init_vol(mixer, 2, 16);
+	dell_dock_init_vol(mixer, 1, 19);
+	dell_dock_init_vol(mixer, 2, 19);
 	return 0;
 }
 

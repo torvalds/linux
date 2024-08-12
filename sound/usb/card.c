@@ -206,6 +206,8 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 		return -EINVAL;
 	}
 
+	snd_usb_add_ctrl_interface_link(chip, interface, ctrlif);
+
 	if (! snd_usb_parse_audio_interface(chip, interface)) {
 		usb_set_interface(dev, interface, 0); /* reset the current interface */
 		return usb_driver_claim_interface(&usb_audio_driver, iface,
