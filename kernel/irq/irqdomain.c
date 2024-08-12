@@ -130,8 +130,10 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
 static int alloc_name(struct irq_domain *domain, char *base, enum irq_domain_bus_token bus_token)
 {
-	domain->name = bus_token ? kasprintf(GFP_KERNEL, "%s-%d", base, bus_token) :
-				   kasprintf(GFP_KERNEL, "%s", base);
+	if (bus_token == DOMAIN_BUS_ANY)
+		domain->name = kasprintf(GFP_KERNEL, "%s", base);
+	else
+		domain->name = kasprintf(GFP_KERNEL, "%s-%d", base, bus_token);
 	if (!domain->name)
 		return -ENOMEM;
 
@@ -146,8 +148,10 @@ static int alloc_fwnode_name(struct irq_domain *domain, const struct fwnode_hand
 	const char *suf = suffix ? : "";
 	char *name;
 
-	name = bus_token ? kasprintf(GFP_KERNEL, "%pfw-%s%s%d", fwnode, suf, sep, bus_token) :
-			   kasprintf(GFP_KERNEL, "%pfw-%s", fwnode, suf);
+	if (bus_token == DOMAIN_BUS_ANY)
+		name = kasprintf(GFP_KERNEL, "%pfw-%s", fwnode, suf);
+	else
+		name = kasprintf(GFP_KERNEL, "%pfw-%s%s%d", fwnode, suf, sep, bus_token);
 	if (!name)
 		return -ENOMEM;
 
@@ -166,11 +170,13 @@ static int alloc_unknown_name(struct irq_domain *domain, enum irq_domain_bus_tok
 	static atomic_t unknown_domains;
 	int id = atomic_inc_return(&unknown_domains);
 
-	domain->name = bus_token ? kasprintf(GFP_KERNEL, "unknown-%d-%d", id, bus_token) :
-				   kasprintf(GFP_KERNEL, "unknown-%d", id);
-
+	if (bus_token == DOMAIN_BUS_ANY)
+		domain->name = kasprintf(GFP_KERNEL, "unknown-%d", id);
+	else
+		domain->name = kasprintf(GFP_KERNEL, "unknown-%d-%d", id, bus_token);
 	if (!domain->name)
 		return -ENOMEM;
+
 	domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 	return 0;
 }
@@ -200,7 +206,7 @@ static int irq_domain_set_name(struct irq_domain *domain, const struct irq_domai
 			return alloc_name(domain, fwid->name, bus_token);
 		default:
 			domain->name = fwid->name;
-			if (bus_token)
+			if (bus_token != DOMAIN_BUS_ANY)
 				return alloc_name(domain, fwid->name, bus_token);
 		}
 
