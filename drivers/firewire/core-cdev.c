@@ -512,15 +512,14 @@ static int release_client_resource(struct client *client, u32 handle,
 
 	scoped_guard(spinlock_irq, &client->lock) {
 		if (client->in_shutdown)
-			resource = NULL;
-		else
-			resource = idr_find(&client->resource_idr, handle);
-		if (resource && resource->release == release)
-			idr_remove(&client->resource_idr, handle);
-	}
+			return -EINVAL;
 
-	if (!(resource && resource->release == release))
-		return -EINVAL;
+		resource = idr_find(&client->resource_idr, handle);
+		if (!resource || resource->release != release)
+			return -EINVAL;
+
+		idr_remove(&client->resource_idr, handle);
+	}
 
 	if (return_resource)
 		*return_resource = resource;
