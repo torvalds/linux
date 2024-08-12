@@ -22,7 +22,7 @@ extern void (*const __init_array_end[])(int, char **, char**) __attribute__((wea
 extern void (*const __fini_array_start[])(void) __attribute__((weak));
 extern void (*const __fini_array_end[])(void) __attribute__((weak));
 
-__attribute__((weak))
+__attribute__((weak,used))
 void _start_c(long *sp)
 {
 	long argc;
