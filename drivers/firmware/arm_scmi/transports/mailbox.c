@@ -3,7 +3,7 @@
  * System Control and Management Interface (SCMI) Message Mailbox Transport
  * driver.
  *
- * Copyright (C) 2019 ARM Ltd.
+ * Copyright (C) 2019-2024 ARM Ltd.
  */
 
 #include <linux/err.h>
@@ -11,9 +11,10 @@
 #include <linux/mailbox_client.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "common.h"
+#include "../common.h"
 
 /**
  * struct scmi_mailbox - Structure representing a SCMI mailbox transport
@@ -36,11 +37,13 @@ struct scmi_mailbox {
 
 #define client_to_scmi_mailbox(c) container_of(c, struct scmi_mailbox, cl)
 
+static struct scmi_transport_core_operations *core;
+
 static void tx_prepare(struct mbox_client *cl, void *m)
 {
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
 
-	scmi_shmem_ops.tx_prepare(smbox->shmem, m, smbox->cinfo);
+	core->shmem->tx_prepare(smbox->shmem, m, smbox->cinfo);
 }
 
 static void rx_callback(struct mbox_client *cl, void *m)
@@ -56,15 +59,17 @@ static void rx_callback(struct mbox_client *cl, void *m)
 	 * a previous timed-out reply which arrived late could be wrongly
 	 * associated with the next pending transaction.
 	 */
-	if (cl->knows_txdone && !scmi_shmem_ops.channel_free(smbox->shmem)) {
+	if (cl->knows_txdone &&
+	    !core->shmem->channel_free(smbox->shmem)) {
 		dev_warn(smbox->cinfo->dev, "Ignoring spurious A2P IRQ !\n");
-		scmi_bad_message_trace(smbox->cinfo,
-				       scmi_shmem_ops.read_header(smbox->shmem),
-				       MSG_MBOX_SPURIOUS);
+		core->bad_message_trace(smbox->cinfo,
+			     core->shmem->read_header(smbox->shmem),
+							     MSG_MBOX_SPURIOUS);
 		return;
 	}
 
-	scmi_rx_callback(smbox->cinfo, scmi_shmem_ops.read_header(smbox->shmem), NULL);
+	core->rx_callback(smbox->cinfo,
+		      core->shmem->read_header(smbox->shmem), NULL);
 }
 
 static bool mailbox_chan_available(struct device_node *of_node, int idx)
@@ -192,7 +197,7 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!smbox)
 		return -ENOMEM;
 
-	smbox->shmem = scmi_shmem_ops.setup_iomap(cinfo, dev, tx, NULL);
+	smbox->shmem = core->shmem->setup_iomap(cinfo, dev, tx, NULL);
 	if (IS_ERR(smbox->shmem))
 		return PTR_ERR(smbox->shmem);
 
@@ -293,7 +298,7 @@ static void mailbox_fetch_response(struct scmi_chan_info *cinfo,
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	scmi_shmem_ops.fetch_response(smbox->shmem, xfer);
+	core->shmem->fetch_response(smbox->shmem, xfer);
 }
 
 static void mailbox_fetch_notification(struct scmi_chan_info *cinfo,
@@ -301,7 +306,7 @@ static void mailbox_fetch_notification(struct scmi_chan_info *cinfo,
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	scmi_shmem_ops.fetch_notification(smbox->shmem, max_len, xfer);
+	core->shmem->fetch_notification(smbox->shmem, max_len, xfer);
 }
 
 static void mailbox_clear_channel(struct scmi_chan_info *cinfo)
@@ -310,9 +315,9 @@ static void mailbox_clear_channel(struct scmi_chan_info *cinfo)
 	struct mbox_chan *intr_chan;
 	int ret;
 
-	scmi_shmem_ops.clear_channel(smbox->shmem);
+	core->shmem->clear_channel(smbox->shmem);
 
-	if (!scmi_shmem_ops.channel_intr_enabled(smbox->shmem))
+	if (!core->shmem->channel_intr_enabled(smbox->shmem))
 		return;
 
 	if (smbox->chan_platform_receiver)
@@ -335,7 +340,7 @@ mailbox_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	return scmi_shmem_ops.poll_done(smbox->shmem, xfer);
+	return core->shmem->poll_done(smbox->shmem, xfer);
 }
 
 static const struct scmi_transport_ops scmi_mailbox_ops = {
@@ -350,9 +355,22 @@ static const struct scmi_transport_ops scmi_mailbox_ops = {
 	.poll_done = mailbox_poll_done,
 };
 
-const struct scmi_desc scmi_mailbox_desc = {
+static const struct scmi_desc scmi_mailbox_desc = {
 	.ops = &scmi_mailbox_ops,
 	.max_rx_timeout_ms = 30, /* We may increase this if required */
 	.max_msg = 20, /* Limited by MBOX_TX_QUEUE_LEN */
 	.max_msg_size = 128,
 };
+
+static const struct of_device_id scmi_of_match[] = {
+	{ .compatible = "arm,scmi" },
+	{ /* Sentinel */ },
+};
+
+DEFINE_SCMI_TRANSPORT_DRIVER(scmi_mailbox, scmi_mailbox_driver,
+			     scmi_mailbox_desc, scmi_of_match, core);
+module_platform_driver(scmi_mailbox_driver);
+
+MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
+MODULE_DESCRIPTION("SCMI Mailbox Transport driver");
+MODULE_LICENSE("GPL");
