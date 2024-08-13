@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf annotate basic tests
 # SPDX-License-Identifier: GPL-2.0
 
@@ -28,6 +28,7 @@ cleanup() {
 }
 
 trap_cleanup() {
+  echo "Unexpected signal in ${FUNCNAME[1]}"
   cleanup
   exit 1
 }
