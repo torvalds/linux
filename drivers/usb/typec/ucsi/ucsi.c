@@ -1340,12 +1340,26 @@ EXPORT_SYMBOL_GPL(ucsi_connector_change);
 
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Hard Reset bit field was defined with value 1 in UCSI spec version 1.0.
+ * Starting with spec version 1.1, Hard Reset bit field was removed from the
+ * CONNECTOR_RESET command, until spec 2.0 reintroduced it with value 0, so, in effect,
+ * the value to pass in to the command for a Hard Reset is different depending
+ * on the supported UCSI version by the LPM.
+ *
+ * For performing a Data Reset on LPMs supporting version 2.0 and greater,
+ * this function needs to be called with the second argument set to 0.
+ */
 static int ucsi_reset_connector(struct ucsi_connector *con, bool hard)
 {
 	u64 command;
 
 	command = UCSI_CONNECTOR_RESET | UCSI_CONNECTOR_NUMBER(con->num);
-	command |= hard ? UCSI_CONNECTOR_RESET_HARD : 0;
+
+	if (con->ucsi->version < UCSI_VERSION_1_1)
+		command |= hard ? UCSI_CONNECTOR_RESET_HARD_VER_1_0 : 0;
+	else if (con->ucsi->version >= UCSI_VERSION_2_0)
+		command |= hard ? 0 : UCSI_CONNECTOR_RESET_DATA_VER_2_0;
 
 	return ucsi_send_command(con->ucsi, command, NULL, 0);
 }
