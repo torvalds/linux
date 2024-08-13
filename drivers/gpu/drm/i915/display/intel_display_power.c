@@ -198,20 +198,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 	}
 }
 
-/**
- * __intel_display_power_is_enabled - unlocked check for a power domain
- * @dev_priv: i915 device instance
- * @domain: power domain to check
- *
- * This is the unlocked version of intel_display_power_is_enabled() and should
- * only be used from error capture and recovery code where deadlocks are
- * possible.
- *
- * Returns:
- * True when the power domain is enabled, false otherwise.
- */
-bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
-				      enum intel_display_power_domain domain)
+static bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+					     enum intel_display_power_domain domain)
 {
 	struct i915_power_well *power_well;
 	bool is_enabled;
