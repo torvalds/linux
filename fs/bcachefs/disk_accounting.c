@@ -154,7 +154,7 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 				 "accounting key replicas entry with bad nr_required");
 
 		for (unsigned i = 0; i + 1 < acc_k.replicas.nr_devs; i++)
-			bkey_fsck_err_on(acc_k.replicas.devs[i] > acc_k.replicas.devs[i + 1],
+			bkey_fsck_err_on(acc_k.replicas.devs[i] >= acc_k.replicas.devs[i + 1],
 					 c, err, accounting_key_replicas_devs_unsorted,
 					 "accounting key replicas entry with unsorted devs");
 
