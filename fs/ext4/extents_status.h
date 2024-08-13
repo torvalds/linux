@@ -42,6 +42,10 @@ enum {
 #define ES_SHIFT (sizeof(ext4_fsblk_t)*8 - ES_FLAGS)
 #define ES_MASK (~((ext4_fsblk_t)0) << ES_SHIFT)
 
+/*
+ * Besides EXTENT_STATUS_REFERENCED, all these extent type masks
+ * are exclusive, only one type can be set at a time.
+ */
 #define EXTENT_STATUS_WRITTEN	(1 << ES_WRITTEN_B)
 #define EXTENT_STATUS_UNWRITTEN (1 << ES_UNWRITTEN_B)
 #define EXTENT_STATUS_DELAYED	(1 << ES_DELAYED_B)
@@ -51,7 +55,9 @@ enum {
 #define ES_TYPE_MASK	((ext4_fsblk_t)(EXTENT_STATUS_WRITTEN | \
 			  EXTENT_STATUS_UNWRITTEN | \
 			  EXTENT_STATUS_DELAYED | \
-			  EXTENT_STATUS_HOLE) << ES_SHIFT)
+			  EXTENT_STATUS_HOLE))
+
+#define ES_TYPE_VALID(type)	((type) && !((type) & ((type) - 1)))
 
 struct ext4_sb_info;
 struct ext4_extent;
@@ -156,7 +162,7 @@ static inline unsigned int ext4_es_status(struct extent_status *es)
 
 static inline unsigned int ext4_es_type(struct extent_status *es)
 {
-	return (es->es_pblk & ES_TYPE_MASK) >> ES_SHIFT;
+	return (es->es_pblk >> ES_SHIFT) & ES_TYPE_MASK;
 }
 
 static inline int ext4_es_is_written(struct extent_status *es)
@@ -228,6 +234,8 @@ static inline void ext4_es_store_pblock_status(struct extent_status *es,
 					       ext4_fsblk_t pb,
 					       unsigned int status)
 {
+	WARN_ON_ONCE(!ES_TYPE_VALID(status & ES_TYPE_MASK));
+
 	es->es_pblk = (((ext4_fsblk_t)status << ES_SHIFT) & ES_MASK) |
 		      (pb & ~ES_MASK);
 }
