@@ -126,9 +126,8 @@ static inline bool is_zero(char *start, char *end)
 
 #define field_end(p, member)	(((void *) (&p.member)) + sizeof(p.member))
 
-int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags,
-			    struct printbuf *err)
+int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
+			     enum bch_validate_flags flags)
 {
 	struct disk_accounting_pos acc_k;
 	bpos_to_disk_accounting_pos(&acc_k, k.k->p);
@@ -144,18 +143,18 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 		break;
 	case BCH_DISK_ACCOUNTING_replicas:
 		bkey_fsck_err_on(!acc_k.replicas.nr_devs,
-				 c, err, accounting_key_replicas_nr_devs_0,
+				 c, accounting_key_replicas_nr_devs_0,
 				 "accounting key replicas entry with nr_devs=0");
 
 		bkey_fsck_err_on(acc_k.replicas.nr_required > acc_k.replicas.nr_devs ||
 				 (acc_k.replicas.nr_required > 1 &&
 				  acc_k.replicas.nr_required == acc_k.replicas.nr_devs),
-				 c, err, accounting_key_replicas_nr_required_bad,
+				 c, accounting_key_replicas_nr_required_bad,
 				 "accounting key replicas entry with bad nr_required");
 
 		for (unsigned i = 0; i + 1 < acc_k.replicas.nr_devs; i++)
 			bkey_fsck_err_on(acc_k.replicas.devs[i] >= acc_k.replicas.devs[i + 1],
-					 c, err, accounting_key_replicas_devs_unsorted,
+					 c, accounting_key_replicas_devs_unsorted,
 					 "accounting key replicas entry with unsorted devs");
 
 		end = (void *) &acc_k.replicas + replicas_entry_bytes(&acc_k.replicas);
@@ -178,7 +177,7 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	bkey_fsck_err_on(!is_zero(end, (void *) (&acc_k + 1)),
-			 c, err, accounting_key_junk_at_end,
+			 c, accounting_key_junk_at_end,
 			 "junk at end of accounting key");
 fsck_err:
 	return ret;

@@ -818,50 +818,6 @@ static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans
 			bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
 
-static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
-						   enum bch_validate_flags flags,
-						   struct btree_insert_entry *i,
-						   struct printbuf *err)
-{
-	struct bch_fs *c = trans->c;
-
-	printbuf_reset(err);
-	prt_printf(err, "invalid bkey on insert from %s -> %ps\n",
-		   trans->fn, (void *) i->ip_allocated);
-	printbuf_indent_add(err, 2);
-
-	bch2_bkey_val_to_text(err, c, bkey_i_to_s_c(i->k));
-	prt_newline(err);
-
-	bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type, flags, err);
-	bch2_print_string_as_lines(KERN_ERR, err->buf);
-
-	bch2_inconsistent_error(c);
-	bch2_dump_trans_updates(trans);
-
-	return -EINVAL;
-}
-
-static noinline int bch2_trans_commit_journal_entry_invalid(struct btree_trans *trans,
-						   struct jset_entry *i)
-{
-	struct bch_fs *c = trans->c;
-	struct printbuf buf = PRINTBUF;
-
-	prt_printf(&buf, "invalid bkey on insert from %s\n", trans->fn);
-	printbuf_indent_add(&buf, 2);
-
-	bch2_journal_entry_to_text(&buf, c, i);
-	prt_newline(&buf);
-
-	bch2_print_string_as_lines(KERN_ERR, buf.buf);
-
-	bch2_inconsistent_error(c);
-	bch2_dump_trans_updates(trans);
-
-	return -EINVAL;
-}
-
 static int bch2_trans_commit_journal_pin_flush(struct journal *j,
 				struct journal_entry_pin *_pin, u64 seq)
 {
@@ -1064,20 +1020,19 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		goto out_reset;
 
 	trans_for_each_update(trans, i) {
-		struct printbuf buf = PRINTBUF;
 		enum bch_validate_flags invalid_flags = 0;
 
 		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
 			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
 
-		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-					       i->bkey_type, invalid_flags, &buf)))
-			ret = bch2_trans_commit_bkey_invalid(trans, invalid_flags, i, &buf);
-		btree_insert_entry_checks(trans, i);
-		printbuf_exit(&buf);
-
-		if (ret)
+		ret = bch2_bkey_validate(c, bkey_i_to_s_c(i->k),
+					 i->bkey_type, invalid_flags);
+		if (unlikely(ret)){
+			bch2_trans_inconsistent(trans, "invalid bkey on insert from %s -> %ps\n",
+						trans->fn, (void *) i->ip_allocated);
 			return ret;
+		}
+		btree_insert_entry_checks(trans, i);
 	}
 
 	for (struct jset_entry *i = trans->journal_entries;
@@ -1088,13 +1043,14 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
 			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
 
-		if (unlikely(bch2_journal_entry_validate(c, NULL, i,
-					bcachefs_metadata_version_current,
-					CPU_BIG_ENDIAN, invalid_flags)))
-			ret = bch2_trans_commit_journal_entry_invalid(trans, i);
-
-		if (ret)
+		ret = bch2_journal_entry_validate(c, NULL, i,
+						  bcachefs_metadata_version_current,
+						  CPU_BIG_ENDIAN, invalid_flags);
+		if (unlikely(ret)) {
+			bch2_trans_inconsistent(trans, "invalid journal entry on insert from %s\n",
+						trans->fn);
 			return ret;
+		}
 	}
 
 	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {

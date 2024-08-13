@@ -47,9 +47,8 @@ static bool extent_matches_bp(struct bch_fs *c,
 	return false;
 }
 
-int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bch_validate_flags flags,
-			     struct printbuf *err)
+int bch2_backpointer_validate(struct bch_fs *c, struct bkey_s_c k,
+			      enum bch_validate_flags flags)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
@@ -68,8 +67,7 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 	bkey_fsck_err_on((bp.v->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT) >= ca->mi.bucket_size ||
 			 !bpos_eq(bp.k->p, bp_pos),
-			 c, err,
-			 backpointer_bucket_offset_wrong,
+			 c, backpointer_bucket_offset_wrong,
 			 "backpointer bucket_offset wrong");
 fsck_err:
 	return ret;
