@@ -507,7 +507,7 @@ static void inode_unpin_lru_isolating(struct inode *inode)
 
 static void inode_wait_for_lru_isolating(struct inode *inode)
 {
-	spin_lock(&inode->i_lock);
+	lockdep_assert_held(&inode->i_lock);
 	if (inode->i_state & I_LRU_ISOLATING) {
 		DEFINE_WAIT_BIT(wq, &inode->i_state, __I_LRU_ISOLATING);
 		wait_queue_head_t *wqh;
@@ -518,7 +518,6 @@ static void inode_wait_for_lru_isolating(struct inode *inode)
 		spin_lock(&inode->i_lock);
 		WARN_ON(inode->i_state & I_LRU_ISOLATING);
 	}
-	spin_unlock(&inode->i_lock);
 }
 
 /**
@@ -690,6 +689,7 @@ static void evict(struct inode *inode)
 
 	inode_sb_list_del(inode);
 
+	spin_lock(&inode->i_lock);
 	inode_wait_for_lru_isolating(inode);
 
 	/*
@@ -699,6 +699,7 @@ static void evict(struct inode *inode)
 	 * the inode.  We just have to wait for running writeback to finish.
 	 */
 	inode_wait_for_writeback(inode);
+	spin_unlock(&inode->i_lock);
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);

@@ -1510,13 +1510,12 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
  * Wait for writeback on an inode to complete. Called with i_lock held.
  * Caller must make sure inode cannot go away when we drop i_lock.
  */
-static void __inode_wait_for_writeback(struct inode *inode)
-	__releases(inode->i_lock)
-	__acquires(inode->i_lock)
+void inode_wait_for_writeback(struct inode *inode)
 {
 	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
 	wait_queue_head_t *wqh;
 
+	lockdep_assert_held(&inode->i_lock);
 	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
 	while (inode->i_state & I_SYNC) {
 		spin_unlock(&inode->i_lock);
@@ -1524,16 +1523,6 @@ static void __inode_wait_for_writeback(struct inode *inode)
 			      TASK_UNINTERRUPTIBLE);
 		spin_lock(&inode->i_lock);
 	}
-}
-
-/*
- * Wait for writeback on an inode to complete. Caller must have inode pinned.
- */
-void inode_wait_for_writeback(struct inode *inode)
-{
-	spin_lock(&inode->i_lock);
-	__inode_wait_for_writeback(inode);
-	spin_unlock(&inode->i_lock);
 }
 
 /*
@@ -1757,7 +1746,7 @@ static int writeback_single_inode(struct inode *inode,
 		 */
 		if (wbc->sync_mode != WB_SYNC_ALL)
 			goto out;
-		__inode_wait_for_writeback(inode);
+		inode_wait_for_writeback(inode);
 	}
 	WARN_ON(inode->i_state & I_SYNC);
 	/*
