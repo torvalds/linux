@@ -391,6 +391,12 @@ int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 			   struct netlink_ext_ack *extack);
 void ksz_switch_macaddr_put(struct dsa_switch *ds);
 void ksz_switch_shutdown(struct ksz_device *dev);
+int ksz9477_handle_wake_reason(struct ksz_device *dev, int port);
+void ksz9477_get_wol(struct ksz_device *dev, int port,
+		     struct ethtool_wolinfo *wol);
+int ksz9477_set_wol(struct ksz_device *dev, int port,
+		    struct ethtool_wolinfo *wol);
+void ksz9477_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled);
 
 /* Common register access functions */
 static inline struct regmap *ksz_regmap_8(struct ksz_device *dev)
@@ -694,6 +700,19 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define P_RGMII_ID_EG_ENABLE		BIT(3)
 #define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
+
+/* KSZ9477, KSZ8795 Wake-on-LAN (WoL) masks */
+#define REG_PORT_PME_STATUS		0x0013
+#define REG_PORT_PME_CTRL		0x0017
+
+#define PME_WOL_MAGICPKT		BIT(2)
+#define PME_WOL_LINKUP			BIT(1)
+#define PME_WOL_ENERGY			BIT(0)
+
+#define REG_SW_PME_CTRL			0x0006
+
+#define PME_ENABLE			BIT(1)
+#define PME_POLARITY			BIT(0)
 
 /* Interrupt */
 #define REG_SW_PORT_INT_STATUS__1	0x001B
