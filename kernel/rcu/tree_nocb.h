@@ -493,7 +493,7 @@ static bool rcu_nocb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("FirstBQ"));
 	}
 	rcu_nocb_bypass_unlock(rdp);
-	smp_mb(); /* Order enqueue before wake. */
+
 	// A wake up of the grace period kthread or timer adjustment
 	// needs to be done only if:
 	// 1. Bypass list was fully empty before (this is the first
