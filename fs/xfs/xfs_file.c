@@ -1177,10 +1177,75 @@ xfs_dir_open(
 
 STATIC int
 xfs_file_release(
-	struct inode	*inode,
-	struct file	*filp)
+	struct inode		*inode,
+	struct file		*file)
 {
-	return xfs_release(XFS_I(inode));
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	int			error;
+
+	/* If this is a read-only mount, don't generate I/O */
+	if (xfs_is_readonly(mp))
+		return 0;
+
+	/*
+	 * If we previously truncated this file and removed old data in the
+	 * process, we want to initiate "early" writeout on the last close.
+	 * This is an attempt to combat the notorious NULL files problem which
+	 * is particularly noticeable from a truncate down, buffered (re-)write
+	 * (delalloc), followed by a crash.  What we are effectively doing here
+	 * is significantly reducing the time window where we'd otherwise be
+	 * exposed to that problem.
+	 */
+	if (!xfs_is_shutdown(mp) &&
+	    xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED)) {
+		xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
+		if (ip->i_delayed_blks > 0) {
+			error = filemap_flush(inode->i_mapping);
+			if (error)
+				return error;
+		}
+	}
+
+	/*
+	 * XFS aggressively preallocates post-EOF space to generate contiguous
+	 * allocations for writers that append to the end of the file and we
+	 * try to free these when an open file context is released.
+	 *
+	 * There is no point in freeing blocks here for open but unlinked files
+	 * as they will be taken care of by the inactivation path soon.
+	 *
+	 * If we can't get the iolock just skip truncating the blocks past EOF
+	 * because we could deadlock with the mmap_lock otherwise. We'll get
+	 * another chance to drop them once the last reference to the inode is
+	 * dropped, so we'll never leak blocks permanently.
+	 */
+	if (inode->i_nlink && xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+		if (xfs_can_free_eofblocks(ip) &&
+		    !xfs_iflags_test(ip, XFS_IDIRTY_RELEASE)) {
+			/*
+			 * Check if the inode is being opened, written and
+			 * closed frequently and we have delayed allocation
+			 * blocks outstanding (e.g. streaming writes from the
+			 * NFS server), truncating the blocks past EOF will
+			 * cause fragmentation to occur.
+			 *
+			 * In this case don't do the truncation, but we have to
+			 * be careful how we detect this case. Blocks beyond EOF
+			 * show up as i_delayed_blks even when the inode is
+			 * clean, so we need to truncate them away first before
+			 * checking for a dirty release. Hence on the first
+			 * dirty close we will still remove the speculative
+			 * allocation, but after that we will leave it in place.
+			 */
+			error = xfs_free_eofblocks(ip);
+			if (!error && ip->i_delayed_blks)
+				xfs_iflags_set(ip, XFS_IDIRTY_RELEASE);
+		}
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	}
+
+	return error;
 }
 
 STATIC int
