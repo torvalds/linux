@@ -53,7 +53,7 @@ static vm_fault_t f2fs_filemap_fault(struct vm_fault *vmf)
 
 static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
@@ -85,7 +85,7 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	if (f2fs_compressed_file(inode)) {
-		int ret = f2fs_is_compressed_cluster(inode, page->index);
+		int ret = f2fs_is_compressed_cluster(inode, folio->index);
 
 		if (ret < 0) {
 			err = ret;
@@ -105,11 +105,11 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	file_update_time(vmf->vma->vm_file);
 	filemap_invalidate_lock_shared(inode->i_mapping);
-	lock_page(page);
-	if (unlikely(page->mapping != inode->i_mapping ||
-			page_offset(page) > i_size_read(inode) ||
-			!PageUptodate(page))) {
-		unlock_page(page);
+	folio_lock(folio);
+	if (unlikely(folio->mapping != inode->i_mapping ||
+			folio_pos(folio) > i_size_read(inode) ||
+			!folio_test_uptodate(folio))) {
+		folio_unlock(folio);
 		err = -EFAULT;
 		goto out_sem;
 	}
@@ -117,9 +117,9 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	if (need_alloc) {
 		/* block allocation */
-		err = f2fs_get_block_locked(&dn, page->index);
+		err = f2fs_get_block_locked(&dn, folio->index);
 	} else {
-		err = f2fs_get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
+		err = f2fs_get_dnode_of_data(&dn, folio->index, LOOKUP_NODE);
 		f2fs_put_dnode(&dn);
 		if (f2fs_is_pinned_file(inode) &&
 		    !__is_valid_data_blkaddr(dn.data_blkaddr))
@@ -127,11 +127,11 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	}
 
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto out_sem;
 	}
 
-	f2fs_wait_on_page_writeback(page, DATA, false, true);
+	f2fs_wait_on_page_writeback(folio_page(folio, 0), DATA, false, true);
 
 	/* wait for GCed page writeback via META_MAPPING */
 	f2fs_wait_on_block_writeback(inode, dn.data_blkaddr);
@@ -139,18 +139,18 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	/*
 	 * check to see if the page is mapped already (no holes)
 	 */
-	if (PageMappedToDisk(page))
+	if (folio_test_mappedtodisk(folio))
 		goto out_sem;
 
 	/* page is wholly or partially inside EOF */
-	if (((loff_t)(page->index + 1) << PAGE_SHIFT) >
+	if (((loff_t)(folio->index + 1) << PAGE_SHIFT) >
 						i_size_read(inode)) {
 		loff_t offset;
 
 		offset = i_size_read(inode) & ~PAGE_MASK;
-		zero_user_segment(page, offset, PAGE_SIZE);
+		folio_zero_segment(folio, offset, folio_size(folio));
 	}
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 	f2fs_update_iostat(sbi, inode, APP_MAPPED_IO, F2FS_BLKSIZE);
 	f2fs_update_time(sbi, REQ_TIME);
@@ -162,7 +162,7 @@ out_sem:
 out:
 	ret = vmf_fs_error(err);
 
-	trace_f2fs_vm_page_mkwrite(inode, page->index, vmf->vma->vm_flags, ret);
+	trace_f2fs_vm_page_mkwrite(inode, folio->index, vmf->vma->vm_flags, ret);
 	return ret;
 }
 
