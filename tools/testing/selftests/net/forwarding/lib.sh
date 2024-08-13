@@ -509,6 +509,13 @@ xfail_on_slow()
 	fi
 }
 
+omit_on_slow()
+{
+	if [[ $KSFT_MACHINE_SLOW != yes ]]; then
+		"$@"
+	fi
+}
+
 xfail_on_veth()
 {
 	local dev=$1; shift
