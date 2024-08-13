@@ -3113,7 +3113,7 @@ static void ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
 		return;
 
 	ext4_es_insert_extent(inode, ee_block, ee_len, ee_pblock,
-			      EXTENT_STATUS_WRITTEN);
+			      EXTENT_STATUS_WRITTEN, 0);
 }
 
 /* FIXME!! we need to try to merge to left or right after zero-out  */
@@ -4097,7 +4097,8 @@ again:
 insert_hole:
 	/* Put just found gap into cache to speed up subsequent requests */
 	ext_debug(inode, " -> %u:%u\n", hole_start, len);
-	ext4_es_insert_extent(inode, hole_start, len, ~0, EXTENT_STATUS_HOLE);
+	ext4_es_insert_extent(inode, hole_start, len, ~0,
+			      EXTENT_STATUS_HOLE, 0);
 
 	/* Update hole_len to reflect hole size after lblk */
 	if (hole_start != lblk)

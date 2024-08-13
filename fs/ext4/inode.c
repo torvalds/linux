@@ -478,7 +478,7 @@ static int ext4_map_query_blocks(handle_t *handle, struct inode *inode,
 	status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 			EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 	ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-			      map->m_pblk, status);
+			      map->m_pblk, status, 0);
 	return retval;
 }
 
@@ -559,7 +559,7 @@ static int ext4_map_create_blocks(handle_t *handle, struct inode *inode,
 	status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 			EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 	ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-			      map->m_pblk, status);
+			      map->m_pblk, status, flags);
 
 	return retval;
 }
@@ -677,7 +677,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
-				      map->m_pblk, status);
+				      map->m_pblk, status, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
 
@@ -4065,7 +4065,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 						    stop_block);
 
 		ext4_es_insert_extent(inode, first_block, hole_len, ~0,
-				      EXTENT_STATUS_HOLE);
+				      EXTENT_STATUS_HOLE, 0);
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
 	ext4_fc_track_range(handle, inode, first_block, stop_block);
