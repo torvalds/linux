@@ -348,9 +348,9 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = ksz9477_change_mtu,
-	.get_wol = ksz9477_get_wol,
-	.set_wol = ksz9477_set_wol,
-	.wol_pre_shutdown = ksz9477_wol_pre_shutdown,
+	.pme_write8 = ksz_write8,
+	.pme_pread8 = ksz_pread8,
+	.pme_pwrite8 = ksz_pwrite8,
 	.config_cpu_port = ksz9477_config_cpu_port,
 	.tc_cbs_set_cinc = ksz9477_tc_cbs_set_cinc,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
@@ -539,6 +539,9 @@ static const u16 ksz9477_regs[] = {
 	[S_MULTICAST_CTRL]		= 0x0331,
 	[P_XMII_CTRL_0]			= 0x0300,
 	[P_XMII_CTRL_1]			= 0x0301,
+	[REG_SW_PME_CTRL]		= 0x0006,
+	[REG_PORT_PME_STATUS]		= 0x0013,
+	[REG_PORT_PME_CTRL]		= 0x0017,
 };
 
 static const u32 ksz9477_masks[] = {
@@ -3742,17 +3745,8 @@ static int ksz_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
-static void ksz_get_wol(struct dsa_switch *ds, int port,
-			struct ethtool_wolinfo *wol)
-{
-	struct ksz_device *dev = ds->priv;
-
-	if (dev->dev_ops->get_wol)
-		dev->dev_ops->get_wol(dev, port, wol);
-}
-
 /**
- * ksz9477_handle_wake_reason - Handle wake reason on a specified port.
+ * ksz_handle_wake_reason - Handle wake reason on a specified port.
  * @dev: The device structure.
  * @port: The port number.
  *
@@ -3764,12 +3758,15 @@ static void ksz_get_wol(struct dsa_switch *ds, int port,
  *
  * Return: 0 on success, or an error code on failure.
  */
-int ksz9477_handle_wake_reason(struct ksz_device *dev, int port)
+int ksz_handle_wake_reason(struct ksz_device *dev, int port)
 {
+	const struct ksz_dev_ops *ops = dev->dev_ops;
+	const u16 *regs = dev->info->regs;
 	u8 pme_status;
 	int ret;
 
-	ret = ksz_pread8(dev, port, REG_PORT_PME_STATUS, &pme_status);
+	ret = ops->pme_pread8(dev, port, regs[REG_PORT_PME_STATUS],
+			      &pme_status);
 	if (ret)
 		return ret;
 
@@ -3781,24 +3778,30 @@ int ksz9477_handle_wake_reason(struct ksz_device *dev, int port)
 		pme_status & PME_WOL_LINKUP ? " \"Link Up\"" : "",
 		pme_status & PME_WOL_ENERGY ? " \"Energy detect\"" : "");
 
-	return ksz_pwrite8(dev, port, REG_PORT_PME_STATUS, pme_status);
+	return ops->pme_pwrite8(dev, port, regs[REG_PORT_PME_STATUS],
+				pme_status);
 }
 
 /**
- * ksz9477_get_wol - Get Wake-on-LAN settings for a specified port.
- * @dev: The device structure.
+ * ksz_get_wol - Get Wake-on-LAN settings for a specified port.
+ * @ds: The dsa_switch structure.
  * @port: The port number.
  * @wol: Pointer to ethtool Wake-on-LAN settings structure.
  *
- * This function checks the PME Pin Control Register to see if  PME Pin Output
- * Enable is set, indicating PME is enabled. If enabled, it sets the supported
- * and active WoL flags.
+ * This function checks the device PME wakeup_source flag and chip_id.
+ * If enabled and supported, it sets the supported and active WoL
+ * flags.
  */
-void ksz9477_get_wol(struct ksz_device *dev, int port,
-		     struct ethtool_wolinfo *wol)
+static void ksz_get_wol(struct dsa_switch *ds, int port,
+			struct ethtool_wolinfo *wol)
 {
+	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
 	u8 pme_ctrl;
 	int ret;
+
+	if (!is_ksz9477(dev))
+		return;
 
 	if (!dev->wakeup_source)
 		return;
@@ -3812,7 +3815,8 @@ void ksz9477_get_wol(struct ksz_device *dev, int port,
 	if (ksz_is_port_mac_global_usable(dev->ds, port))
 		wol->supported |= WAKE_MAGIC;
 
-	ret = ksz_pread8(dev, port, REG_PORT_PME_CTRL, &pme_ctrl);
+	ret = dev->dev_ops->pme_pread8(dev, port, regs[REG_PORT_PME_CTRL],
+				       &pme_ctrl);
 	if (ret)
 		return;
 
@@ -3822,35 +3826,26 @@ void ksz9477_get_wol(struct ksz_device *dev, int port,
 		wol->wolopts |= WAKE_PHY;
 }
 
-static int ksz_set_wol(struct dsa_switch *ds, int port,
-		       struct ethtool_wolinfo *wol)
-{
-	struct ksz_device *dev = ds->priv;
-
-	if (dev->dev_ops->set_wol)
-		return dev->dev_ops->set_wol(dev, port, wol);
-
-	return -EOPNOTSUPP;
-}
-
 /**
- * ksz9477_set_wol - Set Wake-on-LAN settings for a specified port.
- * @dev: The device structure.
+ * ksz_set_wol - Set Wake-on-LAN settings for a specified port.
+ * @ds: The dsa_switch structure.
  * @port: The port number.
  * @wol: Pointer to ethtool Wake-on-LAN settings structure.
  *
- * This function configures Wake-on-LAN (WoL) settings for a specified port.
- * It validates the provided WoL options, checks if PME is enabled via the
- * switch's PME Pin Control Register, clears any previous wake reasons,
- * and sets the Magic Packet flag in the port's PME control register if
+ * This function configures Wake-on-LAN (WoL) settings for a specified
+ * port. It validates the provided WoL options, checks if PME is
+ * enabled and supported, clears any previous wake reasons, and sets
+ * the Magic Packet flag in the port's PME control register if
  * specified.
  *
  * Return: 0 on success, or other error codes on failure.
  */
-int ksz9477_set_wol(struct ksz_device *dev, int port,
-		    struct ethtool_wolinfo *wol)
+static int ksz_set_wol(struct dsa_switch *ds, int port,
+		       struct ethtool_wolinfo *wol)
 {
 	u8 pme_ctrl = 0, pme_ctrl_old = 0;
+	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
 	bool magic_switched_off;
 	bool magic_switched_on;
 	int ret;
@@ -3858,10 +3853,13 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
 	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
 		return -EINVAL;
 
+	if (!is_ksz9477(dev))
+		return -EOPNOTSUPP;
+
 	if (!dev->wakeup_source)
 		return -EOPNOTSUPP;
 
-	ret = ksz9477_handle_wake_reason(dev, port);
+	ret = ksz_handle_wake_reason(dev, port);
 	if (ret)
 		return ret;
 
@@ -3870,7 +3868,8 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
 	if (wol->wolopts & WAKE_PHY)
 		pme_ctrl |= PME_WOL_LINKUP | PME_WOL_ENERGY;
 
-	ret = ksz_pread8(dev, port, REG_PORT_PME_CTRL, &pme_ctrl_old);
+	ret = dev->dev_ops->pme_pread8(dev, port, regs[REG_PORT_PME_CTRL],
+				       &pme_ctrl_old);
 	if (ret)
 		return ret;
 
@@ -3893,7 +3892,8 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
 		ksz_switch_macaddr_put(dev->ds);
 	}
 
-	ret = ksz_pwrite8(dev, port, REG_PORT_PME_CTRL, pme_ctrl);
+	ret = dev->dev_ops->pme_pwrite8(dev, port, regs[REG_PORT_PME_CTRL],
+					pme_ctrl);
 	if (ret) {
 		if (magic_switched_on)
 			ksz_switch_macaddr_put(dev->ds);
@@ -3904,8 +3904,8 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
 }
 
 /**
- * ksz9477_wol_pre_shutdown - Prepares the switch device for shutdown while
- *                            considering Wake-on-LAN (WoL) settings.
+ * ksz_wol_pre_shutdown - Prepares the switch device for shutdown while
+ *                        considering Wake-on-LAN (WoL) settings.
  * @dev: The switch device structure.
  * @wol_enabled: Pointer to a boolean which will be set to true if WoL is
  *               enabled on any port.
@@ -3915,12 +3915,17 @@ int ksz9477_set_wol(struct ksz_device *dev, int port,
  * the wol_enabled flag accordingly to reflect whether WoL is active on any
  * port.
  */
-void ksz9477_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
+static void ksz_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
 {
+	const struct ksz_dev_ops *ops = dev->dev_ops;
+	const u16 *regs = dev->info->regs;
 	struct dsa_port *dp;
 	int ret;
 
 	*wol_enabled = false;
+
+	if (!is_ksz9477(dev))
+		return;
 
 	if (!dev->wakeup_source)
 		return;
@@ -3928,19 +3933,20 @@ void ksz9477_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
 	dsa_switch_for_each_user_port(dp, dev->ds) {
 		u8 pme_ctrl = 0;
 
-		ret = ksz_pread8(dev, dp->index, REG_PORT_PME_CTRL, &pme_ctrl);
+		ret = ops->pme_pread8(dev, dp->index,
+				      regs[REG_PORT_PME_CTRL], &pme_ctrl);
 		if (!ret && pme_ctrl)
 			*wol_enabled = true;
 
 		/* make sure there are no pending wake events which would
 		 * prevent the device from going to sleep/shutdown.
 		 */
-		ksz9477_handle_wake_reason(dev, dp->index);
+		ksz_handle_wake_reason(dev, dp->index);
 	}
 
 	/* Now we are save to enable PME pin. */
 	if (*wol_enabled)
-		ksz_write8(dev, REG_SW_PME_CTRL, PME_ENABLE);
+		ops->pme_write8(dev, regs[REG_SW_PME_CTRL], PME_ENABLE);
 }
 
 static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
@@ -4253,8 +4259,7 @@ void ksz_switch_shutdown(struct ksz_device *dev)
 {
 	bool wol_enabled = false;
 
-	if (dev->dev_ops->wol_pre_shutdown)
-		dev->dev_ops->wol_pre_shutdown(dev, &wol_enabled);
+	ksz_wol_pre_shutdown(dev, &wol_enabled);
 
 	if (dev->dev_ops->reset && !wol_enabled)
 		dev->dev_ops->reset(dev);
