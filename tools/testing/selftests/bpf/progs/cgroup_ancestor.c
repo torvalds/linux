@@ -1,43 +1,38 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018 Facebook
 
-#include <linux/bpf.h>
-#include <linux/pkt_cls.h>
-
-#include <string.h>
-
+#include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-
+#include <bpf/bpf_core_read.h>
+#include "bpf_tracing_net.h"
 #define NUM_CGROUP_LEVELS	4
 
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, __u32);
-	__type(value, __u64);
-	__uint(max_entries, NUM_CGROUP_LEVELS);
-} cgroup_ids SEC(".maps");
+__u64 cgroup_ids[NUM_CGROUP_LEVELS];
+__u16 dport;
 
 static __always_inline void log_nth_level(struct __sk_buff *skb, __u32 level)
 {
-	__u64 id;
-
 	/* [1] &level passed to external function that may change it, it's
 	 *     incompatible with loop unroll.
 	 */
-	id = bpf_skb_ancestor_cgroup_id(skb, level);
-	bpf_map_update_elem(&cgroup_ids, &level, &id, 0);
+	cgroup_ids[level] = bpf_skb_ancestor_cgroup_id(skb, level);
 }
 
 SEC("tc")
 int log_cgroup_id(struct __sk_buff *skb)
 {
-	/* Loop unroll can't be used here due to [1]. Unrolling manually.
-	 * Number of calls should be in sync with NUM_CGROUP_LEVELS.
-	 */
-	log_nth_level(skb, 0);
-	log_nth_level(skb, 1);
-	log_nth_level(skb, 2);
-	log_nth_level(skb, 3);
+	struct sock *sk = (void *)skb->sk;
+
+	if (!sk)
+		return TC_ACT_OK;
+
+	sk = bpf_core_cast(sk, struct sock);
+	if (sk->sk_protocol == IPPROTO_UDP && sk->sk_dport == dport) {
+		log_nth_level(skb, 0);
+		log_nth_level(skb, 1);
+		log_nth_level(skb, 2);
+		log_nth_level(skb, 3);
+	}
 
 	return TC_ACT_OK;
 }
