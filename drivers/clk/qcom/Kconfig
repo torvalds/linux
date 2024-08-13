@@ -836,6 +836,7 @@ config SM_CAMCC_7150
 
 config SM_CAMCC_8150
 	tristate "SM8150 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8150
 	help
 	  Support for the camera clock controller on Qualcomm Technologies, Inc
