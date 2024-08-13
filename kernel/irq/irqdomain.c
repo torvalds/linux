@@ -306,7 +306,7 @@ static void irq_domain_instantiate_descs(const struct irq_domain_info *info)
 }
 
 static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info *info,
-						   bool cond_alloc_descs)
+						   bool cond_alloc_descs, bool force_associate)
 {
 	struct irq_domain *domain;
 	int err;
@@ -342,8 +342,12 @@ static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info 
 	if (cond_alloc_descs && info->virq_base > 0)
 		irq_domain_instantiate_descs(info);
 
-	/* Legacy interrupt domains have a fixed Linux interrupt number */
-	if (info->virq_base > 0) {
+	/*
+	 * Legacy interrupt domains have a fixed Linux interrupt number
+	 * associated. Other interrupt domains can request association by
+	 * providing a Linux interrupt number > 0.
+	 */
+	if (force_associate || info->virq_base > 0) {
 		irq_domain_associate_many(domain, info->virq_base, info->hwirq_base,
 					  info->size - info->hwirq_base);
 	}
@@ -366,7 +370,7 @@ err_domain_free:
  */
 struct irq_domain *irq_domain_instantiate(const struct irq_domain_info *info)
 {
-	return __irq_domain_instantiate(info, false);
+	return __irq_domain_instantiate(info, false, false);
 }
 EXPORT_SYMBOL_GPL(irq_domain_instantiate);
 
@@ -470,7 +474,7 @@ struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
 		.ops		= ops,
 		.host_data	= host_data,
 	};
-	struct irq_domain *domain = __irq_domain_instantiate(&info, true);
+	struct irq_domain *domain = __irq_domain_instantiate(&info, true, false);
 
 	return IS_ERR(domain) ? NULL : domain;
 }
@@ -519,7 +523,7 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 		.ops		= ops,
 		.host_data	= host_data,
 	};
-	struct irq_domain *domain = irq_domain_instantiate(&info);
+	struct irq_domain *domain = __irq_domain_instantiate(&info, false, true);
 
 	return IS_ERR(domain) ? NULL : domain;
 }
