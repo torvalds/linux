@@ -75,7 +75,7 @@
 		pon: pon@800 {
 			compatible = "qcom,pm8916-pon";
 			reg = <0x0800>;
-			pwrkey {
+			pmc8180_pwrkey: pwrkey {
 				compatible = "qcom,pm8941-pwrkey";
 				interrupts = <0x0 0x8 0x0 IRQ_TYPE_EDGE_BOTH>;
 				debounce = <15625>;

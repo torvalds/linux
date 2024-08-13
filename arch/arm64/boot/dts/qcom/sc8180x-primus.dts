@@ -578,6 +578,10 @@
 	status = "okay";
 };
 
+&pmc8180_pwrkey {
+	status = "okay";
+};
+
 &pmc8180c_lpg {
 	status = "okay";
 };
