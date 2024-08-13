@@ -30,8 +30,10 @@ setup()
 	wait_for_ip
 
 	tc qdisc add dev ${TEST_IF} clsact
-	tc filter add dev ${TEST_IF} egress bpf obj ${BPF_PROG_OBJ} \
-		sec ${BPF_PROG_SECTION} da
+	mkdir -p /sys/fs/bpf/${BPF_PROG_PIN}
+	bpftool prog loadall ${BPF_PROG_OBJ} /sys/fs/bpf/${BPF_PROG_PIN} type tc
+	tc filter add dev ${TEST_IF} egress bpf da object-pinned \
+		/sys/fs/bpf/${BPF_PROG_PIN}/${BPF_PROG_NAME}
 
 	BPF_PROG_ID=$(tc filter show dev ${TEST_IF} egress | \
 			awk '/ id / {sub(/.* id /, "", $0); print($1)}')
@@ -41,6 +43,7 @@ cleanup()
 {
 	ip link del ${TEST_IF} 2>/dev/null || :
 	ip link del ${TEST_IF_PEER} 2>/dev/null || :
+	rm -rf /sys/fs/bpf/${BPF_PROG_PIN}
 }
 
 main()
@@ -54,8 +57,9 @@ DIR=$(dirname $0)
 TEST_IF="test_cgid_1"
 TEST_IF_PEER="test_cgid_2"
 MAX_PING_TRIES=5
-BPF_PROG_OBJ="${DIR}/test_skb_cgroup_id_kern.bpf.o"
-BPF_PROG_SECTION="cgroup_id_logger"
+BPF_PROG_PIN="cgroup_ancestor"
+BPF_PROG_OBJ="${DIR}/${BPF_PROG_PIN}.bpf.o"
+BPF_PROG_NAME="log_cgroup_id"
 BPF_PROG_ID=0
 PROG="${DIR}/test_skb_cgroup_id_user"
 type ping6 >/dev/null 2>&1 && PING6="ping6" || PING6="ping -6"

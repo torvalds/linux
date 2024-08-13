@@ -28,7 +28,7 @@ static __always_inline void log_nth_level(struct __sk_buff *skb, __u32 level)
 	bpf_map_update_elem(&cgroup_ids, &level, &id, 0);
 }
 
-SEC("cgroup_id_logger")
+SEC("tc")
 int log_cgroup_id(struct __sk_buff *skb)
 {
 	/* Loop unroll can't be used here due to [1]. Unrolling manually.
