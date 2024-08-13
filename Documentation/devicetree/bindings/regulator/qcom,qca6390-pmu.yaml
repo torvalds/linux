@@ -65,7 +65,7 @@ properties:
 
   bt-enable-gpios:
     maxItems: 1
-    description: GPIO line enabling the ATH11K Bluetooth module supplied by the PMU
+    description: GPIO line enabling the Bluetooth module supplied by the PMU
 
   clocks:
     maxItems: 1
