@@ -627,7 +627,7 @@ osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_top_params *p
 		auto_house_keeping(&params->monitored_cpus);
 	}
 
-	if (isatty(1) && !params->quiet)
+	if (isatty(STDOUT_FILENO) && !params->quiet)
 		params->pretty_output = 1;
 
 	return 0;

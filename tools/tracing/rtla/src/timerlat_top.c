@@ -850,7 +850,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 		}
 	}
 
-	if (isatty(1) && !params->quiet)
+	if (isatty(STDOUT_FILENO) && !params->quiet)
 		params->pretty_output = 1;
 
 	return 0;
