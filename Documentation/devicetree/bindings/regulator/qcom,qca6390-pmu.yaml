@@ -68,6 +68,10 @@ properties:
     maxItems: 1
     description: GPIO line enabling the Bluetooth module supplied by the PMU
 
+  swctrl-gpios:
+    maxItems: 1
+    description: GPIO line indicating the state of the clock supply to the BT module
+
   clocks:
     maxItems: 1
     description: Reference clock handle
