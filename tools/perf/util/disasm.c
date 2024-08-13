@@ -566,6 +566,7 @@ static void lock__delete(struct ins_operands *ops)
 		ins_ops__delete(ops->locked.ops);
 
 	zfree(&ops->locked.ops);
+	zfree(&ops->locked.ins.name);
 	zfree(&ops->target.raw);
 	zfree(&ops->target.name);
 }
