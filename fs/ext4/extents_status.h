@@ -224,13 +224,6 @@ static inline void ext4_es_store_pblock(struct extent_status *es,
 	es->es_pblk = block;
 }
 
-static inline void ext4_es_store_status(struct extent_status *es,
-					unsigned int status)
-{
-	es->es_pblk = (((ext4_fsblk_t)status << ES_SHIFT) & ES_MASK) |
-		      (es->es_pblk & ~ES_MASK);
-}
-
 static inline void ext4_es_store_pblock_status(struct extent_status *es,
 					       ext4_fsblk_t pb,
 					       unsigned int status)
