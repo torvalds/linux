@@ -14,6 +14,7 @@
 #include "spark.h"
 #include "hashmap.h"
 #include "disasm.h"
+#include "branch.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -288,6 +289,9 @@ struct annotated_source {
 struct annotation_line *annotated_source__get_line(struct annotated_source *src,
 						   s64 offset);
 
+/* A branch counter once saturated */
+#define ANNOTATION__BR_CNTR_SATURATED_FLAG	(1ULL << 63)
+
 /**
  * struct annotated_branch - basic block and IPC information for a symbol.
  *
@@ -297,6 +301,7 @@ struct annotation_line *annotated_source__get_line(struct annotated_source *src,
  * @cover_insn: Number of distinct, actually executed instructions.
  * @cycles_hist: Array of cyc_hist for each instruction.
  * @max_coverage: Maximum number of covered basic block (used for block-range).
+ * @br_cntr: Array of the occurrences of events (branch counters) during a block.
  *
  * This struct is used by two different codes when the sample has branch stack
  * and cycles information.  annotation__compute_ipc() calculates average IPC
@@ -313,6 +318,7 @@ struct annotated_branch {
 	unsigned int		cover_insn;
 	struct cyc_hist		*cycles_hist;
 	u64			max_coverage;
+	u64			*br_cntr;
 };
 
 struct LOCKABLE annotation {
@@ -383,7 +389,9 @@ struct annotated_branch *annotation__get_branch(struct annotation *notes);
 
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
-				    unsigned cycles);
+				    unsigned cycles,
+				    struct evsel *evsel,
+				    u64 br_cntr);
 
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct evsel *evsel, u64 addr);
