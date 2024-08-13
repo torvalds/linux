@@ -863,7 +863,7 @@ int __init init_common(struct tsens_priv *priv)
 {
 	void __iomem *tm_base, *srot_base;
 	struct device *dev = priv->dev;
-	u32 ver_minor;
+	u32 ver_minor = -1;
 	struct resource *res;
 	u32 enabled;
 	int ret, i, j;
