@@ -149,6 +149,14 @@ struct evsel {
 	__u64			synth_sample_type;
 
 	/*
+	 * Store the branch counter related information.
+	 * br_cntr_idx: The idx of the branch counter event in the evlist
+	 * br_cntr_nr:  The number of the branch counter event in the group
+	 *	        (Only available for the leader event)
+	 */
+	int			br_cntr_idx;
+	int			br_cntr_nr;
+	/*
 	 * bpf_counter_ops serves two use cases:
 	 *   1. perf-stat -b          counting events used byBPF programs
 	 *   2. perf-stat --use-bpf   use BPF programs to aggregate counts

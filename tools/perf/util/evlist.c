@@ -79,6 +79,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	evlist->ctl_fd.fd = -1;
 	evlist->ctl_fd.ack = -1;
 	evlist->ctl_fd.pos = -1;
+	evlist->nr_br_cntr = -1;
 }
 
 struct evlist *evlist__new(void)
@@ -1262,6 +1263,20 @@ u64 evlist__combined_branch_type(struct evlist *evlist)
 	evlist__for_each_entry(evlist, evsel)
 		branch_type |= evsel->core.attr.branch_sample_type;
 	return branch_type;
+}
+
+void evlist__update_br_cntr(struct evlist *evlist)
+{
+	struct evsel *evsel;
+	int i = 0;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS) {
+			evsel->br_cntr_idx = i++;
+			evsel__leader(evsel)->br_cntr_nr++;
+		}
+	}
+	evlist->nr_br_cntr = i;
 }
 
 bool evlist__valid_read_format(struct evlist *evlist)
