@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -11,6 +11,7 @@
 
 static int neg_four = -4;
 static int four = 4;
+static int three = 3;
 static int two_hundred_fifty_five = 255;
 static unsigned int ns_per_sec = NSEC_PER_SEC;
 static unsigned int one_hundred_thousand = 100000;
@@ -884,6 +885,28 @@ unlock_mutex:
 }
 #endif /* CONFIG_PROC_SYSCTL */
 
+static int sysctl_sched_sibling_cluster_map[4] = {-1, -1, -1, -1};
+static int sched_sibling_cluster_handler(struct ctl_table *table, int write,
+				       void __user *buffer, size_t *lenp,
+				       loff_t *ppos)
+{
+	int ret = -EACCES, i = 0;
+	static bool initialized;
+	struct walt_sched_cluster *cluster;
+
+	if (write && initialized)
+		return ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!ret && write) {
+		initialized = true;
+		for_each_sched_cluster(cluster)
+			cluster->sibling_cluster = sysctl_sched_sibling_cluster_map[i++];
+	}
+
+	return ret;
+}
+
 struct ctl_table input_boost_sysctls[] = {
 	{
 		.procname	= "input_boost_ms",
@@ -1495,6 +1518,15 @@ struct ctl_table walt_table[] = {
 		.maxlen		= sizeof(int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
 		.mode		= 0644,
 		.proc_handler	= sched_freq_map_handler,
+	},
+	{
+		.procname	= "sched_sibling_cluster",
+		.data		= &sysctl_sched_sibling_cluster_map,
+		.maxlen		= sizeof(int) * 4,
+		.mode		= 0644,
+		.proc_handler	= sched_sibling_cluster_handler,
+		.extra1		= SYSCTL_NEG_ONE,
+		.extra2		= &three,
 	},
 	{ }
 };
