@@ -19,7 +19,6 @@ test_sock
 urandom_read
 test_sockmap
 test_lirc_mode2_user
-get_cgroup_id_user
 test_skb_cgroup_id_user
 test_cgroup_storage
 test_flow_dissector
