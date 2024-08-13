@@ -8,11 +8,11 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
+struct intel_display;
 enum phy;
 
-void intel_hti_init(struct drm_i915_private *i915);
-bool intel_hti_uses_phy(struct drm_i915_private *i915, enum phy phy);
-u32 intel_hti_dpll_mask(struct drm_i915_private *i915);
+void intel_hti_init(struct intel_display *display);
+bool intel_hti_uses_phy(struct intel_display *display, enum phy phy);
+u32 intel_hti_dpll_mask(struct intel_display *display);
 
 #endif /* __INTEL_HTI_H__ */
