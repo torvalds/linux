@@ -232,19 +232,16 @@ out_path:
 
 struct bpf_token *bpf_token_get_from_fd(u32 ufd)
 {
-	struct fd f = fdget(ufd);
+	CLASS(fd, f)(ufd);
 	struct bpf_token *token;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
-	if (fd_file(f)->f_op != &bpf_token_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &bpf_token_fops)
 		return ERR_PTR(-EINVAL);
-	}
 
 	token = fd_file(f)->private_data;
 	bpf_token_inc(token);
-	fdput(f);
 
 	return token;
 }

@@ -3187,20 +3187,16 @@ int bpf_link_new_fd(struct bpf_link *link)
 
 struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 {
-	struct fd f = fdget(ufd);
+	CLASS(fd, f)(ufd);
 	struct bpf_link *link;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
-	if (fd_file(f)->f_op != &bpf_link_fops && fd_file(f)->f_op != &bpf_link_fops_poll) {
-		fdput(f);
+	if (fd_file(f)->f_op != &bpf_link_fops && fd_file(f)->f_op != &bpf_link_fops_poll)
 		return ERR_PTR(-EINVAL);
-	}
 
 	link = fd_file(f)->private_data;
 	bpf_link_inc(link);
-	fdput(f);
-
 	return link;
 }
 EXPORT_SYMBOL(bpf_link_get_from_fd);
