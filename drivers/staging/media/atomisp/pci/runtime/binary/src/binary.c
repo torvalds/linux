@@ -328,7 +328,8 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 
 	dvs_info = &info->dvs_grid.dvs_grid_info;
 
-	/* for DIS, we use a division instead of a ceil_div. If this is smaller
+	/*
+	 * For DIS, we use a division instead of a DIV_ROUND_UP(). If this is smaller
 	 * than the 3a grid size, it indicates that the outer values are not
 	 * valid for DIS.
 	 */
