@@ -2764,7 +2764,7 @@ out:
 	return err;
 }
 
-int f2fs_write_single_data_page(struct page *page, int *submitted,
+int f2fs_write_single_data_page(struct folio *folio, int *submitted,
 				struct bio **bio,
 				sector_t *last_block,
 				struct writeback_control *wbc,
@@ -2772,12 +2772,13 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 				int compr_blocks,
 				bool allow_balance)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
+	struct page *page = folio_page(folio, 0);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = ((unsigned long long)i_size)
 							>> PAGE_SHIFT;
-	loff_t psize = (loff_t)(page->index + 1) << PAGE_SHIFT;
+	loff_t psize = (loff_t)(folio->index + 1) << PAGE_SHIFT;
 	unsigned offset = 0;
 	bool need_balance_fs = false;
 	bool quota_inode = IS_NOQUOTA(inode);
@@ -2801,11 +2802,11 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 		.last_block = last_block,
 	};
 
-	trace_f2fs_writepage(page_folio(page), DATA);
+	trace_f2fs_writepage(folio, DATA);
 
 	/* we should bypass data pages to proceed the kworker jobs */
 	if (unlikely(f2fs_cp_error(sbi))) {
-		mapping_set_error(page->mapping, -EIO);
+		mapping_set_error(folio->mapping, -EIO);
 		/*
 		 * don't drop any dirty dentry pages for keeping lastest
 		 * directory structure.
@@ -2823,7 +2824,7 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		goto redirty_out;
 
-	if (page->index < end_index ||
+	if (folio->index < end_index ||
 			f2fs_verity_in_progress(inode) ||
 			compr_blocks)
 		goto write;
@@ -2833,10 +2834,10 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 	 * this page does not have to be written to disk.
 	 */
 	offset = i_size & (PAGE_SIZE - 1);
-	if ((page->index >= end_index + 1) || !offset)
+	if ((folio->index >= end_index + 1) || !offset)
 		goto out;
 
-	zero_user_segment(page, offset, PAGE_SIZE);
+	folio_zero_segment(folio, offset, folio_size(folio));
 write:
 	/* Dentry/quota blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode) || quota_inode) {
@@ -2896,7 +2897,7 @@ done:
 out:
 	inode_dec_dirty_pages(inode);
 	if (err) {
-		ClearPageUptodate(page);
+		folio_clear_uptodate(folio);
 		clear_page_private_gcing(page);
 	}
 
@@ -2906,7 +2907,7 @@ out:
 		f2fs_remove_dirty_inode(inode);
 		submitted = NULL;
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 	if (!S_ISDIR(inode->i_mode) && !IS_NOQUOTA(inode) &&
 			!F2FS_I(inode)->wb_task && allow_balance)
 		f2fs_balance_fs(sbi, need_balance_fs);
@@ -2924,7 +2925,7 @@ out:
 	return 0;
 
 redirty_out:
-	redirty_page_for_writepage(wbc, page);
+	folio_redirty_for_writepage(wbc, folio);
 	/*
 	 * pageout() in MM translates EAGAIN, so calls handle_write_error()
 	 * -> mapping_set_error() -> set_bit(AS_EIO, ...).
@@ -2933,7 +2934,7 @@ redirty_out:
 	 */
 	if (!err || wbc->for_reclaim)
 		return AOP_WRITEPAGE_ACTIVATE;
-	unlock_page(page);
+	folio_unlock(folio);
 	return err;
 }
 
@@ -2955,7 +2956,7 @@ static int f2fs_write_data_page(struct page *page,
 out:
 #endif
 
-	return f2fs_write_single_data_page(page, NULL, NULL, NULL,
+	return f2fs_write_single_data_page(page_folio(page), NULL, NULL, NULL,
 						wbc, FS_DATA_IO, 0, true);
 }
 
@@ -3165,7 +3166,7 @@ continue_unlock:
 				continue;
 			}
 #endif
-			ret = f2fs_write_single_data_page(&folio->page,
+			ret = f2fs_write_single_data_page(folio,
 					&submitted, &bio, &last_block,
 					wbc, io_type, 0, true);
 			if (ret == AOP_WRITEPAGE_ACTIVATE)
