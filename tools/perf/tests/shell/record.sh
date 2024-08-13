@@ -21,6 +21,7 @@ testprog="perf test -w thloop"
 cpu_pmu_dir="/sys/bus/event_source/devices/cpu*"
 br_cntr_file="/caps/branch_counter_nr"
 br_cntr_output="branch stack counters"
+br_cntr_script_output="br_cntr: A"
 
 cleanup() {
   rm -rf "${perfdata}"
@@ -165,7 +166,7 @@ test_workload() {
 }
 
 test_branch_counter() {
-  echo "Basic branch counter test"
+  echo "Branch counter test"
   # Check if the branch counter feature is supported
   for dir in $cpu_pmu_dir
   do
@@ -175,19 +176,25 @@ test_branch_counter() {
       return
     fi
   done
-  if ! perf record -o "${perfdata}" -j any,counter ${testprog} 2> /dev/null
+  if ! perf record -o "${perfdata}" -e "{branches:p,instructions}" -j any,counter ${testprog} 2> /dev/null
   then
-    echo "Basic branch counter test [Failed record]"
+    echo "Branch counter record test [Failed record]"
     err=1
     return
   fi
   if ! perf report -i "${perfdata}" -D -q | grep -q "$br_cntr_output"
   then
-    echo "Basic branch record test [Failed missing output]"
+    echo "Branch counter report test [Failed missing output]"
     err=1
     return
   fi
-  echo "Basic branch counter test [Success]"
+  if ! perf script -i "${perfdata}" -F +brstackinsn,+brcntr | grep -q "$br_cntr_script_output"
+  then
+    echo " Branch counter script test [Failed missing output]"
+    err=1
+    return
+  fi
+  echo "Branch counter test [Success]"
 }
 
 test_per_thread
