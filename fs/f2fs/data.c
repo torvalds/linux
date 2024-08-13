@@ -4117,9 +4117,8 @@ const struct address_space_operations f2fs_dblock_aops = {
 	.swap_deactivate = f2fs_swap_deactivate,
 };
 
-void f2fs_clear_page_cache_dirty_tag(struct page *page)
+void f2fs_clear_page_cache_dirty_tag(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct address_space *mapping = folio->mapping;
 	unsigned long flags;
 

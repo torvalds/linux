@@ -281,7 +281,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
 			 page, 0, MAX_INLINE_DATA(inode));
 	set_page_dirty(ipage);
 
-	f2fs_clear_page_cache_dirty_tag(page);
+	f2fs_clear_page_cache_dirty_tag(page_folio(page));
 
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	set_inode_flag(inode, FI_DATA_EXIST);
