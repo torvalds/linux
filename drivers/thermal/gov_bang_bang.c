@@ -26,6 +26,7 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
 	 * when the trip is crossed on the way down.
 	 */
 	instance->target = target;
+	instance->initialized = true;
 
 	dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 
@@ -80,8 +81,37 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 	}
 }
 
+static void bang_bang_manage(struct thermal_zone_device *tz)
+{
+	const struct thermal_trip_desc *td;
+	struct thermal_instance *instance;
+
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
+		if (tz->temperature >= td->threshold ||
+		    trip->temperature == THERMAL_TEMP_INVALID ||
+		    trip->type == THERMAL_TRIP_CRITICAL ||
+		    trip->type == THERMAL_TRIP_HOT)
+			continue;
+
+		/*
+		 * If the initial cooling device state is "on", but the zone
+		 * temperature is not above the trip point, the core will not
+		 * call bang_bang_control() until the zone temperature reaches
+		 * the trip point temperature which may be never.  In those
+		 * cases, set the initial state of the cooling device to 0.
+		 */
+		list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+			if (!instance->initialized && instance->trip == trip)
+				bang_bang_set_instance_target(instance, 0);
+		}
+	}
+}
+
 static struct thermal_governor thermal_gov_bang_bang = {
 	.name		= "bang_bang",
 	.trip_crossed	= bang_bang_control,
+	.manage		= bang_bang_manage,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_bang_bang);
