@@ -153,9 +153,15 @@ struct evsel {
 	 * br_cntr_idx: The idx of the branch counter event in the evlist
 	 * br_cntr_nr:  The number of the branch counter event in the group
 	 *	        (Only available for the leader event)
+	 * abbr_name:   The abbreviation name assigned to an event which is
+	 *		logged by the branch counter.
+	 *		The abbr name is from A to Z9. NA is applied if out
+	 *		of the range.
 	 */
 	int			br_cntr_idx;
 	int			br_cntr_nr;
+	char			abbr_name[3];
+
 	/*
 	 * bpf_counter_ops serves two use cases:
 	 *   1. perf-stat -b          counting events used byBPF programs

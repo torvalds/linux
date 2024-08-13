@@ -33,6 +33,7 @@
 #include "util/bpf-filter.h"
 #include "util/stat.h"
 #include "util/util.h"
+#include "util/env.h"
 #include "util/intel-tpebs.h"
 #include <signal.h>
 #include <unistd.h>
@@ -1265,15 +1266,67 @@ u64 evlist__combined_branch_type(struct evlist *evlist)
 	return branch_type;
 }
 
+static struct evsel *
+evlist__find_dup_event_from_prev(struct evlist *evlist, struct evsel *event)
+{
+	struct evsel *pos;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (event == pos)
+			break;
+		if ((pos->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS) &&
+		    !strcmp(pos->name, event->name))
+			return pos;
+	}
+	return NULL;
+}
+
+#define MAX_NR_ABBR_NAME	(26 * 11)
+
+/*
+ * The abbr name is from A to Z9. If the number of event
+ * which requires the branch counter > MAX_NR_ABBR_NAME,
+ * return NA.
+ */
+static void evlist__new_abbr_name(char *name)
+{
+	static int idx;
+	int i = idx / 26;
+
+	if (idx >= MAX_NR_ABBR_NAME) {
+		name[0] = 'N';
+		name[1] = 'A';
+		name[2] = '\0';
+		return;
+	}
+
+	name[0] = 'A' + (idx % 26);
+
+	if (!i)
+		name[1] = '\0';
+	else {
+		name[1] = '0' + i - 1;
+		name[2] = '\0';
+	}
+
+	idx++;
+}
+
 void evlist__update_br_cntr(struct evlist *evlist)
 {
-	struct evsel *evsel;
+	struct evsel *evsel, *dup;
 	int i = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS) {
 			evsel->br_cntr_idx = i++;
 			evsel__leader(evsel)->br_cntr_nr++;
+
+			dup = evlist__find_dup_event_from_prev(evlist, evsel);
+			if (dup)
+				memcpy(evsel->abbr_name, dup->abbr_name, 3 * sizeof(char));
+			else
+				evlist__new_abbr_name(evsel->abbr_name);
 		}
 	}
 	evlist->nr_br_cntr = i;
