@@ -95,7 +95,7 @@ void class_dev_iter_exit(struct class_dev_iter *iter);
 int class_for_each_device(const struct class *class, const struct device *start, void *data,
 			  int (*fn)(struct device *dev, void *data));
 struct device *class_find_device(const struct class *class, const struct device *start,
-				 const void *data, int (*match)(struct device *, const void *));
+				 const void *data, device_match_t match);
 
 /**
  * class_find_device_by_name - device iterator for locating a particular device
