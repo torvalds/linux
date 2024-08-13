@@ -2429,7 +2429,7 @@ static int f2fs_mpage_readpages(struct inode *inode,
 		if (ret)
 			goto set_error_page;
 
-		f2fs_compress_ctx_add_page(&cc, &folio->page);
+		f2fs_compress_ctx_add_page(&cc, folio);
 
 		goto next_page;
 read_single_page:
@@ -3161,7 +3161,7 @@ continue_unlock:
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 			if (f2fs_compressed_file(inode)) {
 				folio_get(folio);
-				f2fs_compress_ctx_add_page(&cc, &folio->page);
+				f2fs_compress_ctx_add_page(&cc, folio);
 				continue;
 			}
 #endif
