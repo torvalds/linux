@@ -1665,12 +1665,10 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
 
 void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
 		    dl_server_has_tasks_f has_tasks,
-		    dl_server_pick_f pick_next,
 		    dl_server_pick_f pick_task)
 {
 	dl_se->rq = rq;
 	dl_se->server_has_tasks = has_tasks;
-	dl_se->server_pick_next = pick_next;
 	dl_se->server_pick_task = pick_task;
 }
 
@@ -2404,9 +2402,8 @@ static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
 /*
  * __pick_next_task_dl - Helper to pick the next -deadline task to run.
  * @rq: The runqueue to pick the next task from.
- * @peek: If true, just peek at the next task. Only relevant for dlserver.
  */
-static struct task_struct *__pick_next_task_dl(struct rq *rq, bool peek)
+static struct task_struct *__pick_task_dl(struct rq *rq)
 {
 	struct sched_dl_entity *dl_se;
 	struct dl_rq *dl_rq = &rq->dl;
@@ -2420,10 +2417,7 @@ again:
 	WARN_ON_ONCE(!dl_se);
 
 	if (dl_server(dl_se)) {
-		if (IS_ENABLED(CONFIG_SMP) && peek)
-			p = dl_se->server_pick_task(dl_se);
-		else
-			p = dl_se->server_pick_next(dl_se);
+		p = dl_se->server_pick_task(dl_se);
 		if (!p) {
 			dl_se->dl_yielded = 1;
 			update_curr_dl_se(rq, dl_se, 0);
@@ -2440,7 +2434,7 @@ again:
 #ifdef CONFIG_SMP
 static struct task_struct *pick_task_dl(struct rq *rq)
 {
-	return __pick_next_task_dl(rq, true);
+	return __pick_task_dl(rq);
 }
 #endif
 
@@ -2448,11 +2442,13 @@ static struct task_struct *pick_next_task_dl(struct rq *rq)
 {
 	struct task_struct *p;
 
-	p = __pick_next_task_dl(rq, false);
+	p = __pick_task_dl(rq);
 	if (!p)
 		return p;
 
-	if (!p->dl_server)
+	if (p->dl_server)
+		p->sched_class->set_next_task(rq, p, true);
+	else
 		set_next_task_dl(rq, p, true);
 
 	return p;
