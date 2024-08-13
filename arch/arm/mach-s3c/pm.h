@@ -48,8 +48,6 @@ extern unsigned long s3c_pm_flags;
 
 /* from sleep.S */
 
-extern int s3c2410_cpu_suspend(unsigned long);
-
 #ifdef CONFIG_PM_SLEEP
 extern int s3c_irq_wake(struct irq_data *data, unsigned int state);
 extern void s3c_cpu_resume(void);
