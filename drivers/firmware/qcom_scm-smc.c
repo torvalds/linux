@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015,2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -212,6 +212,9 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 	struct arm_smccc_res smc_res;
 	struct arm_smccc_args smc = {0};
 
+	if (!dev)
+		return -EPROBE_DEFER;
+
 	smc.args[0] = ARM_SMCCC_CALL_VAL(
 		smccc_call_type,
 		qcom_smccc_convention,
@@ -222,9 +225,6 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 		smc.args[i + SCM_SMC_FIRST_REG_IDX] = desc->args[i];
 
 	if (unlikely(arglen > SCM_SMC_N_REG_ARGS)) {
-		if (!dev)
-			return -EPROBE_DEFER;
-
 		alloc_len = SCM_SMC_N_EXT_ARGS * sizeof(u64);
 		use_qtee_shmbridge = qtee_shmbridge_is_enabled();
 		if (use_qtee_shmbridge) {
