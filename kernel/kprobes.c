@@ -353,8 +353,8 @@ struct kprobe_insn_cache kprobe_optinsn_slots = {
 	/* .insn_size is initialized later */
 	.nr_garbage = 0,
 };
-#endif
-#endif
+#endif /* CONFIG_OPTPROBES */
+#endif /* __ARCH_WANT_KPROBES_INSN_SLOT */
 
 /* We have preemption disabled.. so it is safe to use __ versions */
 static inline void set_kprobe_instance(struct kprobe *kp)
@@ -1543,7 +1543,7 @@ static int check_ftrace_location(struct kprobe *p)
 	if (ftrace_location(addr) == addr) {
 #ifdef CONFIG_KPROBES_ON_FTRACE
 		p->flags |= KPROBE_FLAG_FTRACE;
-#else	/* !CONFIG_KPROBES_ON_FTRACE */
+#else
 		return -EINVAL;
 #endif
 	}
