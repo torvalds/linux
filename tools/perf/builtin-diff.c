@@ -691,7 +691,7 @@ static void hists__precompute(struct hists *hists)
 		if (compute == COMPUTE_CYCLES) {
 			bh = container_of(he, struct block_hist, he);
 			init_block_hist(bh);
-			block_info__process_sym(he, bh, NULL, 0);
+			block_info__process_sym(he, bh, NULL, 0, 0);
 		}
 
 		data__for_each_file_new(i, d) {
@@ -714,7 +714,7 @@ static void hists__precompute(struct hists *hists)
 				pair_bh = container_of(pair, struct block_hist,
 						       he);
 				init_block_hist(pair_bh);
-				block_info__process_sym(pair, pair_bh, NULL, 0);
+				block_info__process_sym(pair, pair_bh, NULL, 0, 0);
 
 				bh = container_of(he, struct block_hist, he);
 

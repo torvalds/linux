@@ -614,6 +614,7 @@ include::itrace.txt[]
 	'Avg Cycles%'     - block average sampled cycles / sum of total block average
 			    sampled cycles
 	'Avg Cycles'      - block average sampled cycles
+	'Branch Counter'  - block branch counter histogram (with -v showing the number)
 
 --skip-empty::
 	Do not print 0 results in the --stat output.

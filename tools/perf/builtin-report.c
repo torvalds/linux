@@ -575,6 +575,13 @@ static int evlist__tty_browse_hists(struct evlist *evlist, struct report *rep, c
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 
 		if (rep->total_cycles_mode) {
+			char *buf;
+
+			if (!annotation_br_cntr_abbr_list(&buf, pos, true)) {
+				fprintf(stdout, "%s", buf);
+				fprintf(stdout, "#\n");
+				free(buf);
+			}
 			report__browse_block_hists(&rep->block_reports[i - 1].hist,
 						   rep->min_percent, pos, NULL);
 			continue;
@@ -1119,18 +1126,23 @@ static int __cmd_report(struct report *rep)
 	report__output_resort(rep);
 
 	if (rep->total_cycles_mode) {
-		int block_hpps[6] = {
+		int nr_hpps = 4;
+		int block_hpps[PERF_HPP_REPORT__BLOCK_MAX_INDEX] = {
 			PERF_HPP_REPORT__BLOCK_TOTAL_CYCLES_PCT,
 			PERF_HPP_REPORT__BLOCK_LBR_CYCLES,
 			PERF_HPP_REPORT__BLOCK_CYCLES_PCT,
 			PERF_HPP_REPORT__BLOCK_AVG_CYCLES,
-			PERF_HPP_REPORT__BLOCK_RANGE,
-			PERF_HPP_REPORT__BLOCK_DSO,
 		};
+
+		if (session->evlist->nr_br_cntr > 0)
+			block_hpps[nr_hpps++] = PERF_HPP_REPORT__BLOCK_BRANCH_COUNTER;
+
+		block_hpps[nr_hpps++] = PERF_HPP_REPORT__BLOCK_RANGE;
+		block_hpps[nr_hpps++] = PERF_HPP_REPORT__BLOCK_DSO;
 
 		rep->block_reports = block_info__create_report(session->evlist,
 							       rep->total_cycles,
-							       block_hpps, 6,
+							       block_hpps, nr_hpps,
 							       &rep->nr_block_reports);
 		if (!rep->block_reports)
 			return -1;

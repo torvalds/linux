@@ -3684,8 +3684,10 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 	struct hist_browser *browser;
 	int key = -1;
 	struct popup_action action;
+	char *br_cntr_text = NULL;
 	static const char help[] =
-	" q             Quit \n";
+	" q             Quit \n"
+	" B             Branch counter abbr list (Optional)\n";
 
 	browser = hist_browser__new(hists);
 	if (!browser)
@@ -3702,6 +3704,8 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 	SLtty_set_suspend_state(true);
 
 	memset(&action, 0, sizeof(action));
+
+	annotation_br_cntr_abbr_list(&br_cntr_text, evsel, false);
 
 	while (1) {
 		key = hist_browser__run(browser, "? - help", true, 0);
@@ -3723,6 +3727,16 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 			action.ms.sym = browser->selection->sym;
 			do_annotate(browser, &action);
 			continue;
+		case 'B':
+			if (br_cntr_text) {
+				ui__question_window("Branch counter abbr list",
+						    br_cntr_text, "Press any key...", 0);
+			} else {
+				ui__question_window("Branch counter abbr list",
+						    "\n The branch counter is not available.\n",
+						    "Press any key...", 0);
+			}
+			continue;
 		default:
 			break;
 		}
@@ -3730,5 +3744,6 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 
 out:
 	hist_browser__delete(browser);
+	free(br_cntr_text);
 	return 0;
 }

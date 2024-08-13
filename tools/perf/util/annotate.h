@@ -553,4 +553,7 @@ int annotate_get_basic_blocks(struct symbol *sym, s64 src, s64 dst,
 
 void debuginfo_cache__delete(void);
 
+int annotation_br_cntr_entry(char **str, int br_cntr_nr, u64 *br_cntr,
+			     int num_aggr, struct evsel *evsel);
+int annotation_br_cntr_abbr_list(char **str, struct evsel *evsel, bool header);
 #endif	/* __PERF_ANNOTATE_H */
