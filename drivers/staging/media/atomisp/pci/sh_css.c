@@ -5826,20 +5826,19 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
  * Later, merge this with ia_css_pipe_create_cas_scaler_desc
  */
 static int ia_css_pipe_create_cas_scaler_desc_single_output(
-	    struct ia_css_frame_info *cas_scaler_in_info,
-	    struct ia_css_frame_info *cas_scaler_out_info,
-	    struct ia_css_frame_info *cas_scaler_vf_info,
+	    struct ia_css_frame_info *in_info,
+	    struct ia_css_frame_info *out_info,
+	    struct ia_css_frame_info *vf_info,
 	    struct ia_css_cas_binary_descr *descr)
 {
 	unsigned int i;
 	unsigned int hor_ds_factor = 0, ver_ds_factor = 0;
 	int err = 0;
 	struct ia_css_frame_info tmp_in_info;
-
 	unsigned int max_scale_factor_per_stage = MAX_PREFERRED_YUV_DS_PER_STEP;
 
-	assert(cas_scaler_in_info);
-	assert(cas_scaler_out_info);
+	assert(in_info);
+	assert(out_info);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "ia_css_pipe_create_cas_scaler_desc() enter:\n");
@@ -5847,10 +5846,8 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 	/* We assume that this function is used only for single output port case. */
 	descr->num_output_stage = 1;
 
-	hor_ds_factor = CEIL_DIV(cas_scaler_in_info->res.width,
-				 cas_scaler_out_info->res.width);
-	ver_ds_factor = CEIL_DIV(cas_scaler_in_info->res.height,
-				 cas_scaler_out_info->res.height);
+	hor_ds_factor = CEIL_DIV(in_info->res.width, out_info->res.width);
+	ver_ds_factor = CEIL_DIV(in_info->res.height, out_info->res.height);
 	/* use the same horizontal and vertical downscaling factor for simplicity */
 	assert(hor_ds_factor == ver_ds_factor);
 
@@ -5895,30 +5892,29 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 		goto ERR;
 	}
 
-	tmp_in_info = *cas_scaler_in_info;
+	tmp_in_info = *in_info;
 	for (i = 0; i < descr->num_stage; i++) {
 		descr->in_info[i] = tmp_in_info;
-		if ((tmp_in_info.res.width / max_scale_factor_per_stage) <=
-		    cas_scaler_out_info->res.width) {
+		if ((tmp_in_info.res.width / max_scale_factor_per_stage) <= out_info->res.width) {
 			descr->is_output_stage[i] = true;
 			if ((descr->num_output_stage > 1) && (i != (descr->num_stage - 1))) {
-				descr->internal_out_info[i].res.width = cas_scaler_out_info->res.width;
-				descr->internal_out_info[i].res.height = cas_scaler_out_info->res.height;
-				descr->internal_out_info[i].padded_width = cas_scaler_out_info->padded_width;
+				descr->internal_out_info[i].res.width = out_info->res.width;
+				descr->internal_out_info[i].res.height = out_info->res.height;
+				descr->internal_out_info[i].padded_width = out_info->padded_width;
 				descr->internal_out_info[i].format = IA_CSS_FRAME_FORMAT_YUV420;
 			} else {
 				assert(i == (descr->num_stage - 1));
 				descr->internal_out_info[i].res.width = 0;
 				descr->internal_out_info[i].res.height = 0;
 			}
-			descr->out_info[i].res.width = cas_scaler_out_info->res.width;
-			descr->out_info[i].res.height = cas_scaler_out_info->res.height;
-			descr->out_info[i].padded_width = cas_scaler_out_info->padded_width;
-			descr->out_info[i].format = cas_scaler_out_info->format;
-			if (cas_scaler_vf_info) {
-				descr->vf_info[i].res.width = cas_scaler_vf_info->res.width;
-				descr->vf_info[i].res.height = cas_scaler_vf_info->res.height;
-				descr->vf_info[i].padded_width = cas_scaler_vf_info->padded_width;
+			descr->out_info[i].res.width = out_info->res.width;
+			descr->out_info[i].res.height = out_info->res.height;
+			descr->out_info[i].padded_width = out_info->padded_width;
+			descr->out_info[i].format = out_info->format;
+			if (vf_info) {
+				descr->vf_info[i].res.width = vf_info->res.width;
+				descr->vf_info[i].res.height = vf_info->res.height;
+				descr->vf_info[i].padded_width = vf_info->padded_width;
 				ia_css_frame_info_set_format(&descr->vf_info[i], IA_CSS_FRAME_FORMAT_YUV_LINE);
 			} else {
 				descr->vf_info[i].res.width = 0;
