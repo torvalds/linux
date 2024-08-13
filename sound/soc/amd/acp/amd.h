@@ -22,6 +22,7 @@
 #define ACP6X_DEV			6
 #define ACP63_DEV			0x63
 #define ACP70_DEV			0x70
+#define ACP71_DEV			0x71
 
 #define DMIC_INSTANCE			0x00
 #define I2S_SP_INSTANCE			0x01

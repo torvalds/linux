@@ -270,6 +270,7 @@ static int acp_power_on(struct acp_chip_info *chip)
 		acp_pgfsm_ctrl_reg = ACP63_PGFSM_CONTROL;
 		break;
 	case ACP70_DEV:
+	case ACP71_DEV:
 		acp_pgfsm_stat_reg = ACP70_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP70_PGFSM_CONTROL;
 		break;
@@ -336,10 +337,9 @@ int acp_deinit(struct acp_chip_info *chip)
 	if (ret)
 		return ret;
 
-	if (chip->acp_rev != ACP70_DEV)
+	if (chip->acp_rev < ACP70_DEV)
 		writel(0, chip->base + ACP_CONTROL);
-
-	if (chip->acp_rev >= ACP70_DEV)
+	else
 		writel(0x01, chip->base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
@@ -461,6 +461,7 @@ void check_acp_config(struct pci_dev *pci, struct acp_chip_info *chip)
 		check_acp6x_config(chip);
 		break;
 	case ACP70_DEV:
+	case ACP71_DEV:
 		pdm_addr = ACP70_PDM_ADDR;
 		check_acp70_config(chip);
 		break;
