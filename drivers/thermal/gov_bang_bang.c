@@ -86,6 +86,10 @@ static void bang_bang_manage(struct thermal_zone_device *tz)
 	const struct thermal_trip_desc *td;
 	struct thermal_instance *instance;
 
+	/* If the code below has run already, nothing needs to be done. */
+	if (tz->governor_data)
+		return;
+
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
 
@@ -107,11 +111,25 @@ static void bang_bang_manage(struct thermal_zone_device *tz)
 				bang_bang_set_instance_target(instance, 0);
 		}
 	}
+
+	tz->governor_data = (void *)true;
+}
+
+static void bang_bang_update_tz(struct thermal_zone_device *tz,
+				enum thermal_notify_event reason)
+{
+	/*
+	 * Let bang_bang_manage() know that it needs to walk trips after binding
+	 * a new cdev and after system resume.
+	 */
+	if (reason == THERMAL_TZ_BIND_CDEV || reason == THERMAL_TZ_RESUME)
+		tz->governor_data = NULL;
 }
 
 static struct thermal_governor thermal_gov_bang_bang = {
 	.name		= "bang_bang",
 	.trip_crossed	= bang_bang_control,
 	.manage		= bang_bang_manage,
+	.update_tz	= bang_bang_update_tz,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_bang_bang);
