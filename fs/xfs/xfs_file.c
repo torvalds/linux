@@ -1204,15 +1204,21 @@ xfs_file_release(
 	 * exposed to that problem.
 	 */
 	if (xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED)) {
-		xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
+		xfs_iflags_clear(ip, XFS_EOFBLOCKS_RELEASED);
 		if (ip->i_delayed_blks > 0)
 			filemap_flush(inode->i_mapping);
 	}
 
 	/*
 	 * XFS aggressively preallocates post-EOF space to generate contiguous
-	 * allocations for writers that append to the end of the file and we
-	 * try to free these when an open file context is released.
+	 * allocations for writers that append to the end of the file.
+	 *
+	 * To support workloads that close and reopen the file frequently, these
+	 * preallocations usually persist after a close unless it is the first
+	 * close for the inode.  This is a tradeoff to generate tightly packed
+	 * data layouts for unpacking tarballs or similar archives that write
+	 * one file after another without going back to it while keeping the
+	 * preallocation for files that have recurring open/write/close cycles.
 	 *
 	 * There is no point in freeing blocks here for open but unlinked files
 	 * as they will be taken care of by the inactivation path soon.
@@ -1230,25 +1236,9 @@ xfs_file_release(
 	    (file->f_mode & FMODE_WRITE) &&
 	    xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 		if (xfs_can_free_eofblocks(ip) &&
-		    !xfs_iflags_test(ip, XFS_IDIRTY_RELEASE)) {
-			/*
-			 * Check if the inode is being opened, written and
-			 * closed frequently and we have delayed allocation
-			 * blocks outstanding (e.g. streaming writes from the
-			 * NFS server), truncating the blocks past EOF will
-			 * cause fragmentation to occur.
-			 *
-			 * In this case don't do the truncation, but we have to
-			 * be careful how we detect this case. Blocks beyond EOF
-			 * show up as i_delayed_blks even when the inode is
-			 * clean, so we need to truncate them away first before
-			 * checking for a dirty release. Hence on the first
-			 * dirty close we will still remove the speculative
-			 * allocation, but after that we will leave it in place.
-			 */
+		    !xfs_iflags_test(ip, XFS_EOFBLOCKS_RELEASED)) {
 			xfs_free_eofblocks(ip);
-			if (ip->i_delayed_blks)
-				xfs_iflags_set(ip, XFS_IDIRTY_RELEASE);
+			xfs_iflags_set(ip, XFS_EOFBLOCKS_RELEASED);
 		}
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	}
