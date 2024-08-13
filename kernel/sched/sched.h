@@ -1066,6 +1066,7 @@ struct rq {
 	unsigned int		nr_uninterruptible;
 
 	struct task_struct __rcu	*curr;
+	struct sched_dl_entity	*dl_server;
 	struct task_struct	*idle;
 	struct task_struct	*stop;
 	unsigned long		next_balance;
@@ -1193,6 +1194,7 @@ struct rq {
 	/* per rq */
 	struct rq		*core;
 	struct task_struct	*core_pick;
+	struct sched_dl_entity	*core_dl_server;
 	unsigned int		core_enabled;
 	unsigned int		core_sched_seq;
 	struct rb_root		core_tree;
@@ -2370,11 +2372,23 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
 	next->sched_class->set_next_task(rq, next, false);
 }
 
+static inline void
+__put_prev_set_next_dl_server(struct rq *rq,
+			      struct task_struct *prev,
+			      struct task_struct *next)
+{
+	prev->dl_server = NULL;
+	next->dl_server = rq->dl_server;
+	rq->dl_server = NULL;
+}
+
 static inline void put_prev_set_next_task(struct rq *rq,
 					  struct task_struct *prev,
 					  struct task_struct *next)
 {
 	WARN_ON_ONCE(rq->curr != prev);
+
+	__put_prev_set_next_dl_server(rq, prev, next);
 
 	if (next == prev)
 		return;
