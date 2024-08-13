@@ -1767,6 +1767,8 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 
 	set_btree_node_read_in_flight(b);
 
+	/* we can't pass the trans to read_done() for fsck errors, so it must be unlocked */
+	bch2_trans_unlock(trans);
 	bch2_btree_node_read(trans, b, true);
 
 	if (btree_node_read_error(b)) {
