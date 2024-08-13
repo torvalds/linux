@@ -104,6 +104,7 @@
 	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
 	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
 	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_accounting_replicas_not_marked,		\
 	  BCH_FSCK_ERR_bkey_version_in_future)
 
 struct upgrade_downgrade_entry {
