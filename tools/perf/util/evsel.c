@@ -2884,8 +2884,6 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 		array = (void *)array + sz;
 
 		if (evsel__has_branch_counters(evsel)) {
-			OVERFLOW_CHECK_u64(array);
-
 			data->branch_stack_cntr = (u64 *)array;
 			sz = data->branch_stack->nr * sizeof(u64);
 
