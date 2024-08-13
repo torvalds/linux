@@ -65,7 +65,7 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 
 	dev_info(&pdev->dev, "fixup device configuration\n");
 
-	mem = pcim_iomap(pdev, 0, 0);
+	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "ioremap error\n");
 		return -EINVAL;
@@ -103,7 +103,7 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 	pci_write_config_word(pdev, PCI_COMMAND, cmd);
 
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, bar0);
-	pcim_iounmap(pdev, mem);
+	pci_iounmap(pdev, mem);
 
 	pci_disable_device(pdev);
 
@@ -200,10 +200,8 @@ static int owl_probe(struct pci_dev *pdev,
 	const char *eeprom_name;
 	int err = 0;
 
-	if (pcim_enable_device(pdev))
+	if (pci_enable_device(pdev))
 		return -EIO;
-
-	pcim_pin_device(pdev);
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
