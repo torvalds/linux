@@ -206,29 +206,29 @@ static bool collect_one_slot(struct kprobe_insn_page *kip, int idx)
 {
 	kip->slot_used[idx] = SLOT_CLEAN;
 	kip->nused--;
-	if (kip->nused == 0) {
+	if (kip->nused != 0)
+		return false;
+
+	/*
+	 * Page is no longer in use.  Free it unless
+	 * it's the last one.  We keep the last one
+	 * so as not to have to set it up again the
+	 * next time somebody inserts a probe.
+	 */
+	if (!list_is_singular(&kip->list)) {
 		/*
-		 * Page is no longer in use.  Free it unless
-		 * it's the last one.  We keep the last one
-		 * so as not to have to set it up again the
-		 * next time somebody inserts a probe.
+		 * Record perf ksymbol unregister event before removing
+		 * the page.
 		 */
-		if (!list_is_singular(&kip->list)) {
-			/*
-			 * Record perf ksymbol unregister event before removing
-			 * the page.
-			 */
-			perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
-					   (unsigned long)kip->insns, PAGE_SIZE, true,
-					   kip->cache->sym);
-			list_del_rcu(&kip->list);
-			synchronize_rcu();
-			kip->cache->free(kip->insns);
-			kfree(kip);
-		}
-		return true;
+		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_OOL,
+				   (unsigned long)kip->insns, PAGE_SIZE, true,
+				   kip->cache->sym);
+		list_del_rcu(&kip->list);
+		synchronize_rcu();
+		kip->cache->free(kip->insns);
+		kfree(kip);
 	}
-	return false;
+	return true;
 }
 
 static int collect_garbage_slots(struct kprobe_insn_cache *c)
@@ -1725,28 +1725,29 @@ static struct kprobe *__disable_kprobe(struct kprobe *p)
 	if (unlikely(orig_p == NULL))
 		return ERR_PTR(-EINVAL);
 
-	if (!kprobe_disabled(p)) {
-		/* Disable probe if it is a child probe */
-		if (p != orig_p)
-			p->flags |= KPROBE_FLAG_DISABLED;
+	if (kprobe_disabled(p))
+		return orig_p;
 
-		/* Try to disarm and disable this/parent probe */
-		if (p == orig_p || aggr_kprobe_disabled(orig_p)) {
-			/*
-			 * Don't be lazy here.  Even if 'kprobes_all_disarmed'
-			 * is false, 'orig_p' might not have been armed yet.
-			 * Note arm_all_kprobes() __tries__ to arm all kprobes
-			 * on the best effort basis.
-			 */
-			if (!kprobes_all_disarmed && !kprobe_disabled(orig_p)) {
-				ret = disarm_kprobe(orig_p, true);
-				if (ret) {
-					p->flags &= ~KPROBE_FLAG_DISABLED;
-					return ERR_PTR(ret);
-				}
+	/* Disable probe if it is a child probe */
+	if (p != orig_p)
+		p->flags |= KPROBE_FLAG_DISABLED;
+
+	/* Try to disarm and disable this/parent probe */
+	if (p == orig_p || aggr_kprobe_disabled(orig_p)) {
+		/*
+		 * Don't be lazy here.  Even if 'kprobes_all_disarmed'
+		 * is false, 'orig_p' might not have been armed yet.
+		 * Note arm_all_kprobes() __tries__ to arm all kprobes
+		 * on the best effort basis.
+		 */
+		if (!kprobes_all_disarmed && !kprobe_disabled(orig_p)) {
+			ret = disarm_kprobe(orig_p, true);
+			if (ret) {
+				p->flags &= ~KPROBE_FLAG_DISABLED;
+				return ERR_PTR(ret);
 			}
-			orig_p->flags |= KPROBE_FLAG_DISABLED;
 		}
+		orig_p->flags |= KPROBE_FLAG_DISABLED;
 	}
 
 	return orig_p;
