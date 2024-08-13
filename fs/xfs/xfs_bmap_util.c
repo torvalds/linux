@@ -492,12 +492,12 @@ bool
 xfs_can_free_eofblocks(
 	struct xfs_inode	*ip)
 {
-	struct xfs_bmbt_irec	imap;
 	struct xfs_mount	*mp = ip->i_mount;
+	bool			found_blocks = false;
 	xfs_fileoff_t		end_fsb;
 	xfs_fileoff_t		last_fsb;
-	int			nimaps = 1;
-	int			error;
+	struct xfs_bmbt_irec	imap;
+	struct xfs_iext_cursor	icur;
 
 	/*
 	 * Caller must either hold the exclusive io lock; or be inactivating
@@ -544,21 +544,13 @@ xfs_can_free_eofblocks(
 		return false;
 
 	/*
-	 * Look up the mapping for the first block past EOF.  If we can't find
-	 * it, there's nothing to free.
+	 * Check if there is an post-EOF extent to free.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = xfs_bmapi_read(ip, end_fsb, last_fsb - end_fsb, &imap, &nimaps,
-			0);
+	if (xfs_iext_lookup_extent(ip, &ip->i_df, end_fsb, &icur, &imap))
+		found_blocks = true;
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	if (error || nimaps == 0)
-		return false;
-
-	/*
-	 * If there's a real mapping there or there are delayed allocation
-	 * reservations, then we have post-EOF blocks to try to free.
-	 */
-	return imap.br_startblock != HOLESTARTBLOCK || ip->i_delayed_blks;
+	return found_blocks;
 }
 
 /*
