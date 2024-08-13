@@ -1015,6 +1015,7 @@ static void annotation_line__exit(struct annotation_line *al)
 	zfree_srcline(&al->path);
 	zfree(&al->line);
 	zfree(&al->cycles);
+	zfree(&al->br_cntr);
 }
 
 static size_t disasm_line_size(int nr)

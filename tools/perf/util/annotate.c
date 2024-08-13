@@ -501,8 +501,10 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 	}
 }
 
-static int annotation__compute_ipc(struct annotation *notes, size_t size)
+static int annotation__compute_ipc(struct annotation *notes, size_t size,
+				   struct evsel *evsel)
 {
+	unsigned int br_cntr_nr = evsel->evlist->nr_br_cntr;
 	int err = 0;
 	s64 offset;
 
@@ -537,6 +539,20 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 				al->cycles->max = ch->cycles_max;
 				al->cycles->min = ch->cycles_min;
 			}
+			if (al && notes->branch->br_cntr) {
+				if (!al->br_cntr) {
+					al->br_cntr = calloc(br_cntr_nr, sizeof(u64));
+					if (!al->br_cntr) {
+						err = ENOMEM;
+						break;
+					}
+				}
+				al->num_aggr = ch->num_aggr;
+				al->br_cntr_nr = br_cntr_nr;
+				al->evsel = evsel;
+				memcpy(al->br_cntr, &notes->branch->br_cntr[offset * br_cntr_nr],
+				       br_cntr_nr * sizeof(u64));
+			}
 		}
 	}
 
@@ -548,8 +564,10 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 				struct annotation_line *al;
 
 				al = annotated_source__get_line(notes->src, offset);
-				if (al)
+				if (al) {
 					zfree(&al->cycles);
+					zfree(&al->br_cntr);
+				}
 			}
 		}
 	}
@@ -1960,6 +1978,22 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 					    "Cycle(min/max)");
 		}
 
+		if (annotate_opts.show_br_cntr) {
+			if (show_title) {
+				obj__printf(obj, "%*s ",
+					    ANNOTATION__BR_CNTR_WIDTH,
+					    "Branch Counter");
+			} else {
+				char *buf;
+
+				if (!annotation_br_cntr_entry(&buf, al->br_cntr_nr, al->br_cntr,
+							      al->num_aggr, al->evsel)) {
+					obj__printf(obj, "%*s ", ANNOTATION__BR_CNTR_WIDTH, buf);
+					free(buf);
+				}
+			}
+		}
+
 		if (show_title && !*al->line) {
 			ipc_coverage_string(bf, sizeof(bf), notes);
 			obj__printf(obj, "%*s", ANNOTATION__AVG_IPC_WIDTH, bf);
@@ -2056,7 +2090,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	annotation__set_index(notes);
 	annotation__mark_jump_targets(notes, sym);
 
-	err = annotation__compute_ipc(notes, size);
+	err = annotation__compute_ipc(notes, size, evsel);
 	if (err)
 		return err;
 

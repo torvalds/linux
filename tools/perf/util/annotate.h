@@ -31,6 +31,7 @@ struct annotated_data_type;
 #define ANNOTATION__CYCLES_WIDTH 6
 #define ANNOTATION__MINMAX_CYCLES_WIDTH 19
 #define ANNOTATION__AVG_IPC_WIDTH 36
+#define ANNOTATION__BR_CNTR_WIDTH 30
 #define ANNOTATION_DUMMY_LEN	256
 
 struct annotation_options {
@@ -44,6 +45,7 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_minmax_cycle,
 	     show_asm_raw,
+	     show_br_cntr,
 	     annotate_src,
 	     full_addr;
 	u8   offset_level;
@@ -104,6 +106,10 @@ struct annotation_line {
 	char			*fileloc;
 	char			*path;
 	struct cycles_info	*cycles;
+	int			 num_aggr;
+	int			 br_cntr_nr;
+	u64			*br_cntr;
+	struct evsel		*evsel;
 	int			 jump_sources;
 	u32			 idx;
 	int			 idx_asm;
@@ -351,6 +357,11 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 static inline bool annotation_line__filter(struct annotation_line *al)
 {
 	return annotate_opts.hide_src_code && al->offset == -1;
+}
+
+static inline u8 annotation__br_cntr_width(void)
+{
+	return annotate_opts.show_br_cntr ? ANNOTATION__BR_CNTR_WIDTH : 0;
 }
 
 void annotation__update_column_widths(struct annotation *notes);

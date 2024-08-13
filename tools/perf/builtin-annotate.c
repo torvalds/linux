@@ -927,11 +927,15 @@ int cmd_annotate(int argc, const char **argv)
 		sort_order = "dso,symbol";
 
 	/*
-	 * Set SORT_MODE__BRANCH so that annotate display IPC/Cycle
-	 * if branch info is in perf data in TUI mode.
+	 * Set SORT_MODE__BRANCH so that annotate displays IPC/Cycle and
+	 * branch counters, if the corresponding branch info is available
+	 * in the perf data in the TUI mode.
 	 */
-	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack)
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
+		if (annotate.session->evlist->nr_br_cntr > 0)
+			annotate_opts.show_br_cntr = true;
+	}
 
 	if (setup_sorting(NULL) < 0)
 		usage_with_options(annotate_usage, options);
