@@ -71,12 +71,9 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 
 		mutex_lock(&instance->cdev->lock);
-		instance->cdev->updated = false; /* cdev needs update */
+		__thermal_cdev_update(instance->cdev);
 		mutex_unlock(&instance->cdev->lock);
 	}
-
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
-		thermal_cdev_update(instance->cdev);
 }
 
 static struct thermal_governor thermal_gov_bang_bang = {
