@@ -616,9 +616,9 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.skip_mtcfg = desc->skip_mtcfg;
 	xe->info.skip_pcode = desc->skip_pcode;
 
-	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
-				  xe_modparam.enable_display &&
-				  desc->has_display;
+	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
+				 xe_modparam.probe_display &&
+				 desc->has_display;
 
 	err = xe_tile_init_early(xe_device_get_root_tile(xe), xe, 0);
 	if (err)
@@ -829,7 +829,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe->info.media_name,
 		xe->info.media_verx100 / 100,
 		xe->info.media_verx100 % 100,
-		str_yes_no(xe->info.enable_display),
+		str_yes_no(xe->info.probe_display),
 		xe->info.dma_mask_size, xe->info.tile_count,
 		xe->info.has_heci_gscfi, xe->info.has_heci_cscfi);
 

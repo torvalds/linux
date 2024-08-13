@@ -15,7 +15,7 @@
 #include "xe_sched_job.h"
 
 struct xe_modparam xe_modparam = {
-	.enable_display = true,
+	.probe_display = true,
 	.guc_log_level = 5,
 	.force_probe = CONFIG_DRM_XE_FORCE_PROBE,
 	.wedged_mode = 1,
@@ -25,8 +25,8 @@ struct xe_modparam xe_modparam = {
 module_param_named_unsafe(force_execlist, xe_modparam.force_execlist, bool, 0444);
 MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
 
-module_param_named(enable_display, xe_modparam.enable_display, bool, 0444);
-MODULE_PARM_DESC(enable_display, "Enable display");
+module_param_named(probe_display, xe_modparam.probe_display, bool, 0444);
+MODULE_PARM_DESC(probe_display, "Probe display HW, otherwise it's left untouched (default: true)");
 
 module_param_named(vram_bar_size, xe_modparam.force_vram_bar_size, uint, 0600);
 MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size(in MiB)");

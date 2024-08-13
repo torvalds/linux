@@ -282,8 +282,15 @@ struct xe_device {
 		u8 has_sriov:1;
 		/** @info.has_usm: Device has unified shared memory support */
 		u8 has_usm:1;
-		/** @info.enable_display: display enabled */
-		u8 enable_display:1;
+		/**
+		 * @info.probe_display: Probe display hardware.  If set to
+		 * false, the driver will behave as if there is no display
+		 * hardware present and will not try to read/write to it in any
+		 * way.  The display hardware, if it exists, will not be
+		 * exposed to userspace and will be left untouched in whatever
+		 * state the firmware or bootloader left it in.
+		 */
+		u8 probe_display:1;
 		/** @info.skip_mtcfg: skip Multi-Tile configuration from MTCFG register */
 		u8 skip_mtcfg:1;
 		/** @info.skip_pcode: skip access to PCODE uC */
