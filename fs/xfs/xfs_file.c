@@ -1187,8 +1187,11 @@ xfs_file_release(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
-	/* If this is a read-only mount, don't generate I/O */
-	if (xfs_is_readonly(mp))
+	/*
+	 * If this is a read-only mount or the file system has been shut down,
+	 * don't generate I/O.
+	 */
+	if (xfs_is_readonly(mp) || xfs_is_shutdown(mp))
 		return 0;
 
 	/*
@@ -1200,8 +1203,7 @@ xfs_file_release(
 	 * is significantly reducing the time window where we'd otherwise be
 	 * exposed to that problem.
 	 */
-	if (!xfs_is_shutdown(mp) &&
-	    xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED)) {
+	if (xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED)) {
 		xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
 		if (ip->i_delayed_blks > 0)
 			filemap_flush(inode->i_mapping);
