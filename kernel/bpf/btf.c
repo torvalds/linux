@@ -3754,6 +3754,7 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 	return -EINVAL;
 }
 
+/* Callers have to ensure the life cycle of btf if it is program BTF */
 static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 			  struct btf_field_info *info)
 {
@@ -3782,7 +3783,6 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		field->kptr.dtor = NULL;
 		id = info->kptr.type_id;
 		kptr_btf = (struct btf *)btf;
-		btf_get(kptr_btf);
 		goto found_dtor;
 	}
 	if (id < 0)
