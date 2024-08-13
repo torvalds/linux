@@ -13,6 +13,27 @@
 
 #include "thermal_core.h"
 
+static void bang_bang_set_instance_target(struct thermal_instance *instance,
+					  unsigned int target)
+{
+	if (instance->target != 0 && instance->target != 1 &&
+	    instance->target != THERMAL_NO_TARGET)
+		pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
+			 instance->target, instance->name);
+
+	/*
+	 * Enable the fan when the trip is crossed on the way up and disable it
+	 * when the trip is crossed on the way down.
+	 */
+	instance->target = target;
+
+	dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
+
+	mutex_lock(&instance->cdev->lock);
+	__thermal_cdev_update(instance->cdev);
+	mutex_unlock(&instance->cdev->lock);
+}
+
 /**
  * bang_bang_control - controls devices associated with the given zone
  * @tz: thermal_zone_device
@@ -54,25 +75,8 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 		tz->temperature, trip->hysteresis);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip)
-			continue;
-
-		if (instance->target != 0 && instance->target != 1 &&
-		    instance->target != THERMAL_NO_TARGET)
-			pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
-				 instance->target, instance->name);
-
-		/*
-		 * Enable the fan when the trip is crossed on the way up and
-		 * disable it when the trip is crossed on the way down.
-		 */
-		instance->target = crossed_up;
-
-		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
-
-		mutex_lock(&instance->cdev->lock);
-		__thermal_cdev_update(instance->cdev);
-		mutex_unlock(&instance->cdev->lock);
+		if (instance->trip == trip)
+			bang_bang_set_instance_target(instance, crossed_up);
 	}
 }
 
