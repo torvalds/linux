@@ -1217,12 +1217,18 @@ xfs_file_release(
 	 * There is no point in freeing blocks here for open but unlinked files
 	 * as they will be taken care of by the inactivation path soon.
 	 *
+	 * When releasing a read-only context, don't flush data or trim post-EOF
+	 * blocks.  This avoids open/read/close workloads from removing EOF
+	 * blocks that other writers depend upon to reduce fragmentation.
+	 *
 	 * If we can't get the iolock just skip truncating the blocks past EOF
 	 * because we could deadlock with the mmap_lock otherwise. We'll get
 	 * another chance to drop them once the last reference to the inode is
 	 * dropped, so we'll never leak blocks permanently.
 	 */
-	if (inode->i_nlink && xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+	if (inode->i_nlink &&
+	    (file->f_mode & FMODE_WRITE) &&
+	    xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 		if (xfs_can_free_eofblocks(ip) &&
 		    !xfs_iflags_test(ip, XFS_IDIRTY_RELEASE)) {
 			/*
