@@ -1086,9 +1086,6 @@ xfs_release(
 	xfs_mount_t	*mp = ip->i_mount;
 	int		error = 0;
 
-	if (!S_ISREG(VFS_I(ip)->i_mode) || (VFS_I(ip)->i_mode == 0))
-		return 0;
-
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (xfs_is_readonly(mp))
 		return 0;
