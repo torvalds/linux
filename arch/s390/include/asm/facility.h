@@ -20,7 +20,6 @@
 #define MAX_FACILITY_BIT (sizeof(stfle_fac_list) * 8)
 
 extern u64 stfle_fac_list[16];
-extern u64 alt_stfle_fac_list[16];
 
 static inline void __set_facility(unsigned long nr, void *facilities)
 {

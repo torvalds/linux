@@ -1011,6 +1011,9 @@ Out:
 
 uint32_t amdgpu_ras_eeprom_max_record_count(struct amdgpu_ras_eeprom_control *control)
 {
+	/* get available eeprom table version first before eeprom table init */
+	amdgpu_ras_set_eeprom_table_version(control);
+
 	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
 		return RAS_MAX_RECORD_COUNT_V2_1;
 	else

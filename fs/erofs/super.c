@@ -576,6 +576,21 @@ static const struct export_operations erofs_export_ops = {
 	.get_parent = erofs_get_parent,
 };
 
+static void erofs_set_sysfs_name(struct super_block *sb)
+{
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+
+	if (erofs_is_fscache_mode(sb)) {
+		if (sbi->domain_id)
+			super_set_sysfs_name_generic(sb, "%s,%s",sbi->domain_id,
+						     sbi->fsid);
+		else
+			super_set_sysfs_name_generic(sb, "%s", sbi->fsid);
+		return;
+	}
+	super_set_sysfs_name_id(sb);
+}
+
 static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
@@ -643,6 +658,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_flags |= SB_POSIXACL;
 	else
 		sb->s_flags &= ~SB_POSIXACL;
+	erofs_set_sysfs_name(sb);
 
 #ifdef CONFIG_EROFS_FS_ZIP
 	xa_init(&sbi->managed_pslots);

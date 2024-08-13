@@ -277,7 +277,7 @@ static int nvidia_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	 */
 	if (of_device_is_compatible(np, "nvidia,tegra234-smmu") ||
 	    of_device_is_compatible(np, "nvidia,tegra194-smmu")) {
-		smmu->pgsize_bitmap = PAGE_SIZE;
+		smmu->pgsize_bitmap &= GENMASK(PAGE_SHIFT, 0);
 		pgtbl_cfg->pgsize_bitmap = smmu->pgsize_bitmap;
 	}
 

@@ -2250,12 +2250,12 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	bool nonatomic = substream->pcm->nonatomic;
 	CLASS(fd, f)(fd);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADFD;
-	if (!is_pcm_file(f.file))
+	if (!is_pcm_file(fd_file(f)))
 		return -EBADFD;
 
-	pcm_file = f.file->private_data;
+	pcm_file = fd_file(f)->private_data;
 	substream1 = pcm_file->substream;
 
 	if (substream == substream1)

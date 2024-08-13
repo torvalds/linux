@@ -1924,20 +1924,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 	}
 
 	/*
-	 * For SMU 13.0.4/11 and 14.0.0, PMFW will handle the features disablement properly
+	 * For GFX11 and subsequent APUs, PMFW will handle the features disablement properly
 	 * for gpu reset and S0i3 cases. Driver involvement is unnecessary.
 	 */
-	if (amdgpu_in_reset(adev) || adev->in_s0ix) {
-		switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-		case IP_VERSION(13, 0, 4):
-		case IP_VERSION(13, 0, 11):
-		case IP_VERSION(14, 0, 0):
-		case IP_VERSION(14, 0, 1):
-			return 0;
-		default:
-			break;
-		}
-	}
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, GC_HWIP, 0)) >= 11 &&
+	    smu->is_apu && (amdgpu_in_reset(adev) || adev->in_s0ix))
+		return 0;
 
 	/*
 	 * For gpu reset, runpm and hibernation through BACO,

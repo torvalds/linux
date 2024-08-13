@@ -306,27 +306,12 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-SND_SOC_DAILINK_DEFS(hifi,
-	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_EMPTY(), COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
-
-SND_SOC_DAILINK_DEFS(hifi_fe,
-	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_DUMMY()),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
-
-SND_SOC_DAILINK_DEFS(hifi_be,
-	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_EMPTY(), COMP_EMPTY()));
-
 static const struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 	/* Default ASoC DAI Link*/
 	{
 		.name = "HiFi",
 		.stream_name = "HiFi",
 		.ops = &fsl_asoc_card_ops,
-		SND_SOC_DAILINK_REG(hifi),
 	},
 	/* DPCM Link between Front-End and Back-End (Optional) */
 	{
@@ -335,7 +320,6 @@ static const struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.dynamic = 1,
-		SND_SOC_DAILINK_REG(hifi_fe),
 	},
 	{
 		.name = "HiFi-ASRC-BE",
@@ -345,7 +329,6 @@ static const struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
-		SND_SOC_DAILINK_REG(hifi_be),
 	},
 };
 
@@ -637,6 +620,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	struct platform_device *cpu_pdev;
 	struct fsl_asoc_card_priv *priv;
 	struct device *codec_dev[2] = { NULL, NULL };
+	struct snd_soc_dai_link_component *dlc;
 	const char *codec_dai_name[2];
 	const char *codec_dev_name[2];
 	u32 asrc_fmt = 0;
@@ -717,7 +701,35 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	memcpy(priv->dai_link, fsl_asoc_card_dai,
 	       sizeof(struct snd_soc_dai_link) * ARRAY_SIZE(priv->dai_link));
+	/*
+	 * "Default ASoC DAI Link": 1 cpus, 2 codecs, 1 platforms
+	 * "DPCM Link Front-End":  1 cpus, 1 codecs (dummy), 1 platforms
+	 * "DPCM Link Back-End": 1 cpus, 2 codecs
+	 * totally 10 components
+	 */
+	dlc = devm_kcalloc(&pdev->dev, 10, sizeof(*dlc), GFP_KERNEL);
+	if (!dlc) {
+		ret = -ENOMEM;
+		goto asrc_fail;
+	}
+
+	priv->dai_link[0].cpus = &dlc[0];
+	priv->dai_link[0].num_cpus = 1;
+	priv->dai_link[0].codecs = &dlc[1];
 	priv->dai_link[0].num_codecs = 1;
+	priv->dai_link[0].platforms = &dlc[3];
+	priv->dai_link[0].num_platforms = 1;
+
+	priv->dai_link[1].cpus = &dlc[4];
+	priv->dai_link[1].num_cpus = 1;
+	priv->dai_link[1].codecs = &dlc[5];
+	priv->dai_link[1].num_codecs = 0; /* dummy */
+	priv->dai_link[1].platforms = &dlc[6];
+	priv->dai_link[1].num_platforms = 1;
+
+	priv->dai_link[2].cpus = &dlc[7];
+	priv->dai_link[2].num_cpus = 1;
+	priv->dai_link[2].codecs = &dlc[8];
 	priv->dai_link[2].num_codecs = 1;
 
 	priv->card.dapm_routes = audio_map;

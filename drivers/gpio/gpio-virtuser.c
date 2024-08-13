@@ -805,7 +805,7 @@ static int gpio_virtuser_dbgfs_init_line_attrs(struct device *dev,
 		return -ENOMEM;
 
 	data->ad.desc = desc;
-	sprintf(data->consumer, id);
+	strscpy(data->consumer, id);
 	atomic_set(&data->irq, 0);
 	atomic_set(&data->irq_count, 0);
 

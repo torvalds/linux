@@ -188,7 +188,7 @@ again:
 			       !rq->partial_decoding);
 	buf.in_size = min(rq->inputsize, PAGE_SIZE - rq->pageofs_in);
 	rq->inputsize -= buf.in_size;
-	buf.in = dctx.kin + rq->pageofs_in,
+	buf.in = dctx.kin + rq->pageofs_in;
 	dctx.bounce = strm->bounce;
 	do {
 		dctx.avail_out = buf.out_size - buf.out_pos;

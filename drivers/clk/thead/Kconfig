@@ -3,6 +3,7 @@
 config CLK_THEAD_TH1520_AP
 	bool "T-HEAD TH1520 AP clock support"
 	depends on ARCH_THEAD || COMPILE_TEST
+	depends on 64BIT
 	default ARCH_THEAD
 	select REGMAP_MMIO
 	help

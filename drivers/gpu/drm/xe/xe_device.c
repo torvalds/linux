@@ -854,6 +854,13 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
 	return address & GENMASK_ULL(xe->info.va_bits - 1, 0);
 }
 
+static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_device *xe = arg;
+
+	xe_pm_runtime_put(xe);
+}
+
 /**
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
@@ -870,10 +877,20 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  */
 void xe_device_declare_wedged(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	if (xe->wedged.mode == 0) {
 		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
 		return;
 	}
+
+	if (drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe)) {
+		drm_err(&xe->drm, "Failed to register xe_device_wedged_fini clean-up. Although device is wedged.\n");
+		return;
+	}
+
+	xe_pm_runtime_get_noresume(xe);
 
 	if (!atomic_xchg(&xe->wedged.flag, 1)) {
 		xe->needs_flr_on_fini = true;
@@ -883,4 +900,7 @@ void xe_device_declare_wedged(struct xe_device *xe)
 			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
 			dev_name(xe->drm.dev));
 	}
+
+	for_each_gt(gt, xe, id)
+		xe_gt_declare_wedged(gt);
 }

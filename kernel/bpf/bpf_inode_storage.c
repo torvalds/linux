@@ -80,10 +80,10 @@ static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
 	struct bpf_local_storage_data *sdata;
 	struct fd f = fdget_raw(*(int *)key);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	sdata = inode_storage_lookup(file_inode(f.file), map, true);
+	sdata = inode_storage_lookup(file_inode(fd_file(f)), map, true);
 	fdput(f);
 	return sdata ? sdata->data : NULL;
 }
@@ -94,14 +94,14 @@ static long bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
 	struct bpf_local_storage_data *sdata;
 	struct fd f = fdget_raw(*(int *)key);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	if (!inode_storage_ptr(file_inode(f.file))) {
+	if (!inode_storage_ptr(file_inode(fd_file(f)))) {
 		fdput(f);
 		return -EBADF;
 	}
 
-	sdata = bpf_local_storage_update(file_inode(f.file),
+	sdata = bpf_local_storage_update(file_inode(fd_file(f)),
 					 (struct bpf_local_storage_map *)map,
 					 value, map_flags, GFP_ATOMIC);
 	fdput(f);
@@ -126,10 +126,10 @@ static long bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
 	struct fd f = fdget_raw(*(int *)key);
 	int err;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	err = inode_storage_delete(file_inode(f.file), map);
+	err = inode_storage_delete(file_inode(fd_file(f)), map);
 	fdput(f);
 	return err;
 }

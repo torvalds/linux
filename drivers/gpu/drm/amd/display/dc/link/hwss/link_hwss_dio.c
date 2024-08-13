@@ -26,6 +26,16 @@
 #include "core_types.h"
 #include "link_enc_cfg.h"
 
+/**
+ * DOC: overview
+ *
+ * Display Input Output (DIO), is the display input and output unit in DCN. It
+ * includes output encoders to support different display output, like
+ * DisplayPort, HDMI, DVI interface, and others. It also includes the control
+ * and status channels for these interfaces.
+ */
+
+
 void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -254,12 +264,31 @@ static const struct link_hwss dio_link_hwss = {
 	},
 };
 
+/**
+ * can_use_dio_link_hwss - Check if the link_hwss is accessible
+ *
+ * @link: Reference a link struct containing one or more sinks and the
+ *	  connective status.
+ * @link_res: Mappable hardware resource used to enable a link.
+ *
+ * Returns:
+ * Return true if the link encoder is accessible from link.
+ */
 bool can_use_dio_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
 	return link->link_enc != NULL;
 }
 
+/**
+ * get_dio_link_hwss - Return link_hwss reference
+ *
+ * This function behaves like a get function to return the link_hwss populated
+ * in the link_hwss_dio.c file.
+ *
+ * Returns:
+ * Return the reference to the filled struct of link_hwss.
+ */
 const struct link_hwss *get_dio_link_hwss(void)
 {
 	return &dio_link_hwss;

@@ -26,6 +26,7 @@ atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
 enum populate_mode {
 	POPULATE_NONE,
 	POPULATE_DIRECT,
+	POPULATE_LOWCORE,
 	POPULATE_ABS_LOWCORE,
 	POPULATE_IDENTITY,
 	POPULATE_KERNEL,
@@ -242,6 +243,8 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 		return -1;
 	case POPULATE_DIRECT:
 		return addr;
+	case POPULATE_LOWCORE:
+		return __lowcore_pa(addr);
 	case POPULATE_ABS_LOWCORE:
 		return __abs_lowcore_pa(addr);
 	case POPULATE_KERNEL:
@@ -418,6 +421,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit)
 {
+	unsigned long lowcore_address = 0;
 	unsigned long start, end;
 	unsigned long asce_type;
 	unsigned long asce_bits;
@@ -455,12 +459,17 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
 	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
+	if (relocate_lowcore)
+		lowcore_address = LOWCORE_ALT_ADDRESS;
+
 	/*
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
+	pgtable_populate(lowcore_address,
+			 lowcore_address + sizeof(struct lowcore),
+			 POPULATE_LOWCORE);
 	for_each_physmem_usable_range(i, &start, &end) {
 		pgtable_populate((unsigned long)__identity_va(start),
 				 (unsigned long)__identity_va(end),

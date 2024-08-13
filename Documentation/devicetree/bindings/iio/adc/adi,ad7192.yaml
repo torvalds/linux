@@ -120,9 +120,8 @@ patternProperties:
         description:
           Positive input can be connected to pins AIN1 to AIN16 by choosing the
           appropriate value from 1 to 16. Negative input is connected to AINCOM.
-        items:
-          minimum: 1
-          maximum: 16
+        minimum: 1
+        maximum: 16
 
     oneOf:
       - required:

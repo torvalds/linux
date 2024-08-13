@@ -1068,10 +1068,10 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 		return;
 
 	f = fdget(kernel_fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return;
 
-	process_buffer_measurement(file_mnt_idmap(f.file), file_inode(f.file),
+	process_buffer_measurement(file_mnt_idmap(fd_file(f)), file_inode(fd_file(f)),
 				   buf, size, "kexec-cmdline", KEXEC_CMDLINE, 0,
 				   NULL, false, NULL, 0);
 	fdput(f);

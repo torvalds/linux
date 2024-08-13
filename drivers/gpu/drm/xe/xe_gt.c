@@ -904,3 +904,18 @@ struct xe_hw_engine *xe_gt_any_hw_engine(struct xe_gt *gt)
 
 	return NULL;
 }
+
+/**
+ * xe_gt_declare_wedged() - Declare GT wedged
+ * @gt: the GT object
+ *
+ * Wedge the GT which stops all submission, saves desired debug state, and
+ * cleans up anything which could timeout.
+ */
+void xe_gt_declare_wedged(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, gt_to_xe(gt)->wedged.mode);
+
+	xe_uc_declare_wedged(&gt->uc);
+	xe_gt_tlb_invalidation_reset(gt);
+}

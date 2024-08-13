@@ -127,9 +127,9 @@ static int coda_parse_fd(struct fs_context *fc, int fd)
 	int idx;
 
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	inode = file_inode(f.file);
+	inode = file_inode(fd_file(f));
 	if (!S_ISCHR(inode->i_mode) || imajor(inode) != CODA_PSDEV_MAJOR) {
 		fdput(f);
 		return invalf(fc, "code: Not coda psdev");
