@@ -829,7 +829,19 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
+
+	struct bch_alloc_v4 *new_a;
+	if (likely(new.k->type == KEY_TYPE_alloc_v4)) {
+		new_a = bkey_s_to_alloc_v4(new).v;
+	} else {
+		BUG_ON(!(flags & BTREE_TRIGGER_gc));
+
+		struct bkey_i_alloc_v4 *new_ka = bch2_alloc_to_v4_mut_inlined(trans, new.s_c);
+		ret = PTR_ERR_OR_ZERO(new_ka);
+		if (unlikely(ret))
+			goto err;
+		new_a = &new_ka->v;
+	}
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		alloc_data_type_set(new_a, new_a->data_type);
