@@ -174,6 +174,7 @@ struct ksz_device {
 	bool synclko_125;
 	bool synclko_disable;
 	bool wakeup_source;
+	bool pme_active_high;
 
 	struct vlan_table *vlan_cache;
 
@@ -704,13 +705,16 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
 
-/* KSZ9477, KSZ8795 Wake-on-LAN (WoL) masks */
+/* KSZ9477, KSZ87xx Wake-on-LAN (WoL) masks */
 #define PME_WOL_MAGICPKT		BIT(2)
 #define PME_WOL_LINKUP			BIT(1)
 #define PME_WOL_ENERGY			BIT(0)
 
 #define PME_ENABLE			BIT(1)
 #define PME_POLARITY			BIT(0)
+
+#define KSZ87XX_REG_INT_EN		0x7D
+#define KSZ87XX_INT_PME_MASK		BIT(4)
 
 /* Interrupt */
 #define REG_SW_PORT_INT_STATUS__1	0x001B
