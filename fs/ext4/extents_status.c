@@ -853,6 +853,7 @@ void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status newes;
 	ext4_lblk_t end = lblk + len - 1;
 	int err1 = 0, err2 = 0, err3 = 0;
+	int resv_used = 0, pending = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct extent_status *es1 = NULL;
 	struct extent_status *es2 = NULL;
@@ -891,7 +892,7 @@ retry:
 		pr = __alloc_pending(true);
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
-	err1 = __es_remove_extent(inode, lblk, end, NULL, es1);
+	err1 = __es_remove_extent(inode, lblk, end, &resv_used, es1);
 	if (err1 != 0)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
@@ -921,9 +922,31 @@ retry:
 			__free_pending(pr);
 			pr = NULL;
 		}
+		pending = err3;
 	}
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
+	/*
+	 * Reduce the reserved cluster count to reflect successful deferred
+	 * allocation of delayed allocated clusters or direct allocation of
+	 * clusters discovered to be delayed allocated.  Once allocated, a
+	 * cluster is not included in the reserved count.
+	 *
+	 * When direct allocating (from fallocate, filemap, DIO, or clusters
+	 * allocated when delalloc has been disabled by ext4_nonda_switch())
+	 * an extent either 1) contains delayed blocks but start with
+	 * non-delayed allocated blocks (e.g. hole) or 2) contains non-delayed
+	 * allocated blocks which belong to delayed allocated clusters when
+	 * bigalloc feature is enabled, quota has already been claimed by
+	 * ext4_mb_new_blocks(), so release the quota reservations made for
+	 * any previously delayed allocated clusters instead of claim them
+	 * again.
+	 */
+	resv_used += pending;
+	if (resv_used)
+		ext4_da_update_reserve_space(inode, resv_used,
+				flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE);
+
 	if (err1 || err2 || err3 < 0)
 		goto retry;
 
