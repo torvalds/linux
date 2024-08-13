@@ -245,9 +245,7 @@ static int bcm2835aux_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops bcm2835aux_dev_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(bcm2835aux_suspend, bcm2835aux_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm2835aux_dev_pm_ops, bcm2835aux_suspend, bcm2835aux_resume);
 
 static struct platform_driver bcm2835aux_serial_driver = {
 	.driver = {
