@@ -20,7 +20,6 @@ urandom_read
 test_sockmap
 test_lirc_mode2_user
 test_skb_cgroup_id_user
-test_cgroup_storage
 test_flow_dissector
 flow_dissector_load
 test_tcpnotify_user
