@@ -6010,7 +6010,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 		next = rq->core_pick;
 		if (next != prev) {
 			put_prev_task(rq, prev);
-			set_next_task(rq, next);
+			set_next_task_first(rq, next);
 		}
 
 		rq->core_pick = NULL;
@@ -6184,7 +6184,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	}
 
 out_set_next:
-	set_next_task(rq, next);
+	set_next_task_first(rq, next);
 out:
 	if (rq->core->core_forceidle_count && next == rq->idle)
 		queue_core_balance(rq);
