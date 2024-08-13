@@ -5512,36 +5512,70 @@ static const char *alloc_obj_fields[] = {
 static struct btf_struct_metas *
 btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 {
-	union {
-		struct btf_id_set set;
-		struct {
-			u32 _cnt;
-			u32 _ids[ARRAY_SIZE(alloc_obj_fields)];
-		} _arr;
-	} aof;
 	struct btf_struct_metas *tab = NULL;
+	struct btf_id_set *aof;
 	int i, n, id, ret;
 
 	BUILD_BUG_ON(offsetof(struct btf_id_set, cnt) != 0);
 	BUILD_BUG_ON(sizeof(struct btf_id_set) != sizeof(u32));
 
-	memset(&aof, 0, sizeof(aof));
+	aof = kmalloc(sizeof(*aof), GFP_KERNEL | __GFP_NOWARN);
+	if (!aof)
+		return ERR_PTR(-ENOMEM);
+	aof->cnt = 0;
+
 	for (i = 0; i < ARRAY_SIZE(alloc_obj_fields); i++) {
 		/* Try to find whether this special type exists in user BTF, and
 		 * if so remember its ID so we can easily find it among members
 		 * of structs that we iterate in the next loop.
 		 */
+		struct btf_id_set *new_aof;
+
 		id = btf_find_by_name_kind(btf, alloc_obj_fields[i], BTF_KIND_STRUCT);
 		if (id < 0)
 			continue;
-		aof.set.ids[aof.set.cnt++] = id;
+
+		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+				   GFP_KERNEL | __GFP_NOWARN);
+		if (!new_aof) {
+			ret = -ENOMEM;
+			goto free_aof;
+		}
+		aof = new_aof;
+		aof->ids[aof->cnt++] = id;
 	}
 
-	if (!aof.set.cnt)
-		return NULL;
-	sort(&aof.set.ids, aof.set.cnt, sizeof(aof.set.ids[0]), btf_id_cmp_func, NULL);
-
 	n = btf_nr_types(btf);
+	for (i = 1; i < n; i++) {
+		/* Try to find if there are kptrs in user BTF and remember their ID */
+		struct btf_id_set *new_aof;
+		struct btf_field_info tmp;
+		const struct btf_type *t;
+
+		t = btf_type_by_id(btf, i);
+		if (!t) {
+			ret = -EINVAL;
+			goto free_aof;
+		}
+
+		ret = btf_find_kptr(btf, t, 0, 0, &tmp);
+		if (ret != BTF_FIELD_FOUND)
+			continue;
+
+		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+				   GFP_KERNEL | __GFP_NOWARN);
+		if (!new_aof) {
+			ret = -ENOMEM;
+			goto free_aof;
+		}
+		aof = new_aof;
+		aof->ids[aof->cnt++] = i;
+	}
+
+	if (!aof->cnt)
+		return NULL;
+	sort(&aof->ids, aof->cnt, sizeof(aof->ids[0]), btf_id_cmp_func, NULL);
+
 	for (i = 1; i < n; i++) {
 		struct btf_struct_metas *new_tab;
 		const struct btf_member *member;
@@ -5551,17 +5585,13 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		int j, tab_cnt;
 
 		t = btf_type_by_id(btf, i);
-		if (!t) {
-			ret = -EINVAL;
-			goto free;
-		}
 		if (!__btf_type_is_struct(t))
 			continue;
 
 		cond_resched();
 
 		for_each_member(j, t, member) {
-			if (btf_id_set_contains(&aof.set, member->type))
+			if (btf_id_set_contains(aof, member->type))
 				goto parse;
 		}
 		continue;
@@ -5580,7 +5610,8 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type = &tab->types[tab->cnt];
 		type->btf_id = i;
 		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE |
-						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT, t->size);
+						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT |
+						  BPF_KPTR, t->size);
 		/* The record cannot be unset, treat it as an error if so */
 		if (IS_ERR_OR_NULL(record)) {
 			ret = PTR_ERR_OR_ZERO(record) ?: -EFAULT;
@@ -5589,9 +5620,12 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type->record = record;
 		tab->cnt++;
 	}
+	kfree(aof);
 	return tab;
 free:
 	btf_struct_metas_free(tab);
+free_aof:
+	kfree(aof);
 	return ERR_PTR(ret);
 }
 
