@@ -5111,6 +5111,9 @@ static void cpu_online_stub(s32 cpu) {}
 static void cpu_offline_stub(s32 cpu) {}
 static s32 init_stub(void) { return -EINVAL; }
 static void exit_stub(struct scx_exit_info *info) {}
+static void dump_stub(struct scx_dump_ctx *ctx) {}
+static void dump_cpu_stub(struct scx_dump_ctx *ctx, s32 cpu, bool idle) {}
+static void dump_task_stub(struct scx_dump_ctx *ctx, struct task_struct *p) {}
 
 static struct sched_ext_ops __bpf_ops_sched_ext_ops = {
 	.select_cpu = select_cpu_stub,
@@ -5136,6 +5139,9 @@ static struct sched_ext_ops __bpf_ops_sched_ext_ops = {
 	.cpu_offline = cpu_offline_stub,
 	.init = init_stub,
 	.exit = exit_stub,
+	.dump = dump_stub,
+	.dump_cpu = dump_cpu_stub,
+	.dump_task = dump_task_stub,
 };
 
 static struct bpf_struct_ops bpf_sched_ext_ops = {
