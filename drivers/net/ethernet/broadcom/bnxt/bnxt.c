@@ -5056,7 +5056,7 @@ void bnxt_del_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
 		list_del_init(&fltr->list);
 }
 
-void bnxt_clear_usr_fltrs(struct bnxt *bp, bool all)
+static void bnxt_clear_usr_fltrs(struct bnxt *bp, bool all)
 {
 	struct bnxt_filter_base *usr_fltr, *tmp;
 
@@ -10248,7 +10248,7 @@ static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 	}
 }
 
-void bnxt_clear_rss_ctxs(struct bnxt *bp)
+static void bnxt_clear_rss_ctxs(struct bnxt *bp)
 {
 	struct ethtool_rxfh_context *ctx;
 	unsigned long context;
