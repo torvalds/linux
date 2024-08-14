@@ -20,6 +20,18 @@ Instantiating the device is regular. Example for bus 0, address 0x30::
 
   # echo "slave-testunit 0x1030" > /sys/bus/i2c/devices/i2c-0/new_device
 
+Or using firmware nodes. Here is a devicetree example (note this is only a
+debug device, so there are no official DT bindings)::
+
+  &i2c0	{
+        ...
+
+	testunit@30 {
+		compatible = "slave-testunit";
+		reg = <(0x30 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
+  };
+
 After that, you will have the device listening. Reading will return a single
 byte. Its value is 0 if the testunit is idle, otherwise the command number of
 the currently running command.
