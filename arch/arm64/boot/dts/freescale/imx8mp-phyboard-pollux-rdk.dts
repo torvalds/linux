@@ -232,6 +232,7 @@
 	pinctrl-0 = <&pinctrl_rtc>;
 	interrupt-parent = <&gpio4>;
 	interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+	aux-voltage-chargeable = <1>;
 	wakeup-source;
 	trickle-resistor-ohms = <3000>;
 };
