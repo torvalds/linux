@@ -470,8 +470,8 @@ int hab_mem_import(struct uhab_context *ctx,
 		int kernel)
 {
 	int ret = 0, found = 0;
-	struct export_desc *exp = NULL;
-	struct export_desc_super *exp_super = NULL;
+	struct export_desc *export = NULL;
+	struct export_desc_super *exp_super = NULL, key = {0};
 	struct virtual_channel *vchan = NULL;
 	struct hab_header header = HAB_HEADER_INITIALIZER;
 	struct hab_import_ack expected_ack = {0};
@@ -528,59 +528,56 @@ int hab_mem_import(struct uhab_context *ctx,
 		}
 	}
 
+	key.exp.export_id = param->exportid;
+	key.exp.pchan = vchan->pchan;
 	spin_lock_bh(&ctx->imp_lock);
-	list_for_each_entry(exp, &ctx->imp_whse, node) {
-		if ((exp->export_id == param->exportid) &&
-			(exp->pchan == vchan->pchan)) {
-			exp_super = container_of(exp, struct export_desc_super, exp);
-
-			/* not allowed to import one exp desc more than once */
-			if (exp_super->import_state == EXP_DESC_IMPORTED
-				|| exp_super->import_state == EXP_DESC_IMPORTING) {
-				pr_err("vc %x not allowed to import expid %u more than once\n",
-					vchan->id, exp->export_id);
-				spin_unlock_bh(&ctx->imp_lock);
-				ret = -EINVAL;
-				goto err_imp;
-			}
-
-			/*
-			 * set the flag to avoid another thread getting the exp desc again
-			 * and must be before unlock, otherwise it is no use.
-			 */
-			exp_super->import_state = EXP_DESC_IMPORTING;
-			found = 1;
-			break;
+	exp_super = hab_rb_exp_find(&ctx->imp_whse, &key);
+	if (exp_super) {
+		/* not allowed to import one exp desc more than once */
+		if (exp_super->import_state == EXP_DESC_IMPORTED
+			|| exp_super->import_state == EXP_DESC_IMPORTING) {
+			export = &exp_super->exp;
+			pr_err("vc %x not allowed to import one expid %u more than once\n",
+					vchan->id, export->export_id);
+			spin_unlock_bh(&ctx->imp_lock);
+			ret = -EINVAL;
+			goto err_imp;
 		}
-	}
-	spin_unlock_bh(&ctx->imp_lock);
-
-	if (!found) {
-		pr_err("vc %x fail to get export descriptor from export id %d\n",
-			vchan->id, param->exportid);
+		/*
+		 * set the flag to avoid another thread getting the exp desc again
+		 * and must be before unlock, otherwise it is no use.
+		 */
+		exp_super->import_state = EXP_DESC_IMPORTING;
+		found = 1;
+	} else {
+		spin_unlock_bh(&ctx->imp_lock);
+		pr_err("Fail to get export descriptor from export id %d vcid %x\n",
+			param->exportid, vchan->id);
 		ret = -ENODEV;
 		goto err_imp;
 	}
+	spin_unlock_bh(&ctx->imp_lock);
 
-	if ((exp->payload_count << PAGE_SHIFT) != param->sizebytes) {
+	export = &exp_super->exp;
+	if ((export->payload_count << PAGE_SHIFT) != param->sizebytes) {
 		pr_err("vc %x input size %d don't match buffer size %d\n",
-			vchan->id, param->sizebytes, exp->payload_count << PAGE_SHIFT);
+			vchan->id, param->sizebytes, export->payload_count << PAGE_SHIFT);
 		ret = -EINVAL;
 		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
 	}
 
-	ret = habmem_imp_hyp_map(ctx->import_ctx, param, exp, kernel);
+	ret = habmem_imp_hyp_map(ctx->import_ctx, param, export, kernel);
 	if (ret) {
 		pr_err("Import fail on vc %x ret:%d pcnt:%d rem:%d 1st_ref:0x%X\n",
-			vchan->id, ret, exp->payload_count,
-			exp->domid_local, *((uint32_t *)exp->payload));
+			vchan->id, ret, export->payload_count,
+			export->domid_local, *((uint32_t *)export->payload));
 		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
 	}
 
-	exp->import_index = param->index;
-	exp->kva = kernel ? (void *)param->kva : NULL;
+	export->import_index = param->index;
+	export->kva = kernel ? (void *)param->kva : NULL;
 	exp_super->import_state = EXP_DESC_IMPORTED;
 
 err_imp:
@@ -590,10 +587,10 @@ err_imp:
 			(found == 1) &&
 			(ret != 0)) {
 			/* dma_buf create failure, rollback required */
-			hab_send_unimport_msg(vchan, exp->export_id);
+			hab_send_unimport_msg(vchan, export->export_id);
 
 			spin_lock_bh(&ctx->imp_lock);
-			list_del(&exp->node);
+			hab_rb_remove(&ctx->imp_whse, exp_super);
 			ctx->import_total--;
 			spin_unlock_bh(&ctx->imp_lock);
 
@@ -610,8 +607,8 @@ int hab_mem_unimport(struct uhab_context *ctx,
 		int kernel)
 {
 	int ret = 0, found = 0;
-	struct export_desc *exp = NULL, *exp_tmp;
-	struct export_desc_super *exp_super = NULL;
+	struct export_desc *exp = NULL;
+	struct export_desc_super *exp_super = NULL, key = {0};
 	struct virtual_channel *vchan;
 
 	if (!ctx || !param)
@@ -624,30 +621,27 @@ int hab_mem_unimport(struct uhab_context *ctx,
 		return -ENODEV;
 	}
 
+	key.exp.export_id = param->exportid;
+	key.exp.pchan = vchan->pchan;
 	spin_lock_bh(&ctx->imp_lock);
-	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
-
-		/* same pchan is expected here */
-		if (exp->export_id == param->exportid &&
-			exp->pchan == vchan->pchan) {
-			exp_super = container_of(exp, struct export_desc_super, exp);
-
-			/* only successfully imported export desc could be found and released */
-			if (exp_super->import_state == EXP_DESC_IMPORTED) {
-				list_del(&exp->node);
-				ctx->import_total--;
-				found = 1;
-			} else
-				pr_err("vc %x exp id:%u status:%d is found, invalid to unimport\n",
-					vchan->id, exp->export_id, exp_super->import_state);
-			break;
-		}
+	exp_super = hab_rb_exp_find(&ctx->imp_whse, &key);
+	if (exp_super) {
+		/* only successfully imported export desc could be found and released */
+		if (exp_super->import_state == EXP_DESC_IMPORTED) {
+			hab_rb_remove(&ctx->imp_whse, exp_super);
+			ctx->import_total--;
+			found = 1;
+		} else
+			pr_err("vc %x exp id:%u status:%d is found, invalid to unimport\n",
+				vchan->id, exp_super->exp.export_id, exp_super->import_state);
 	}
 	spin_unlock_bh(&ctx->imp_lock);
 
-	if (!found)
+	if (!found) {
 		ret = -EINVAL;
-	else {
+		pr_err("exp id %u unavailable on vc %x\n", param->exportid, vchan->id);
+	} else {
+		exp = &exp_super->exp;
 		ret = habmm_imp_hyp_unmap(ctx->import_ctx, exp, kernel);
 		if (ret) {
 			pr_err("unmap fail id:%d pcnt:%d vcid:%d\n",

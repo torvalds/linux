@@ -242,17 +242,23 @@ static void hab_msg_queue(struct virtual_channel *vchan,
 }
 
 static int hab_export_enqueue(struct virtual_channel *vchan,
-		struct export_desc *exp)
+		struct export_desc *export)
 {
 	struct uhab_context *ctx = vchan->ctx;
+	struct export_desc_super *exp_super = container_of(export, struct export_desc_super, exp);
 	int irqs_disabled = irqs_disabled();
+	struct export_desc_super *ret;
 
 	hab_spin_lock(&ctx->imp_lock, irqs_disabled);
-	list_add_tail(&exp->node, &ctx->imp_whse);
-	ctx->import_total++;
+	ret = hab_rb_exp_insert(&ctx->imp_whse, exp_super);
+	if (ret != NULL)
+		pr_err("expid %u already exists on vc %x, size %d\n",
+			export->export_id, vchan->id, PAGE_SIZE * export->payload_count);
+	else
+		ctx->import_total++;
 	hab_spin_unlock(&ctx->imp_lock, irqs_disabled);
 
-	return 0;
+	return (ret == NULL) ? 0 : -EINVAL;
 }
 
 /*
@@ -544,19 +550,22 @@ static int hab_receive_export_desc(struct physical_channel *pchan,
 		ack_recvd->ack.export_id = exp_desc->export_id;
 		ack_recvd->ack.vcid_local = exp_desc->vcid_local;
 		ack_recvd->ack.vcid_remote = exp_desc->vcid_remote;
-		ack_recvd->ack.imp_whse_added = 1;
 	}
 
-	hab_export_enqueue(vchan, exp_desc);
+	ret = hab_export_enqueue(vchan, exp_desc);
 
 	if (pchan->mem_proto == 1) {
+		ack_recvd->ack.imp_whse_added = ret ? 0 : 1;
 		hab_spin_lock(&vchan->ctx->impq_lock, irqs_disabled);
 		list_add_tail(&ack_recvd->node, &vchan->ctx->imp_rxq);
 		hab_spin_unlock(&vchan->ctx->impq_lock, irqs_disabled);
 	} else
-		hab_send_export_ack(vchan, pchan, exp_desc);
+		(void)hab_send_export_ack(vchan, pchan, exp_desc);
 
-	return 0;
+	if (ret)
+		kfree(exp_desc_super);
+
+	return ret;
 
 err_imp:
 	if (pchan->mem_proto == 1) {
