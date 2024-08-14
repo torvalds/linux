@@ -12,7 +12,9 @@ use core::marker::PhantomData;
 use core::ptr;
 
 mod impl_list_item_mod;
-pub use self::impl_list_item_mod::{impl_has_list_links, impl_list_item, HasListLinks};
+pub use self::impl_list_item_mod::{
+    impl_has_list_links, impl_has_list_links_self_ptr, impl_list_item, HasListLinks, HasSelfPtr,
+};
 
 mod arc;
 pub use self::arc::{impl_list_arc_safe, AtomicTracker, ListArc, ListArcSafe, TryNewListArc};
@@ -180,6 +182,49 @@ impl<const ID: u64> ListLinks<ID> {
     #[inline]
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()
+    }
+}
+
+/// Similar to [`ListLinks`], but also contains a pointer to the full value.
+///
+/// This type can be used instead of [`ListLinks`] to support lists with trait objects.
+#[repr(C)]
+pub struct ListLinksSelfPtr<T: ?Sized, const ID: u64 = 0> {
+    /// The `ListLinks` field inside this value.
+    ///
+    /// This is public so that it can be used with `impl_has_list_links!`.
+    pub inner: ListLinks<ID>,
+    // UnsafeCell is not enough here because we use `Opaque::uninit` as a dummy value, and
+    // `ptr::null()` doesn't work for `T: ?Sized`.
+    self_ptr: Opaque<*const T>,
+}
+
+// SAFETY: The fields of a ListLinksSelfPtr can be moved across thread boundaries.
+unsafe impl<T: ?Sized + Send, const ID: u64> Send for ListLinksSelfPtr<T, ID> {}
+// SAFETY: The type is opaque so immutable references to a ListLinksSelfPtr are useless. Therefore,
+// it's okay to have immutable access to a ListLinks from several threads at once.
+//
+// Note that `inner` being a public field does not prevent this type from being opaque, since
+// `inner` is a opaque type.
+unsafe impl<T: ?Sized + Sync, const ID: u64> Sync for ListLinksSelfPtr<T, ID> {}
+
+impl<T: ?Sized, const ID: u64> ListLinksSelfPtr<T, ID> {
+    /// The offset from the [`ListLinks`] to the self pointer field.
+    pub const LIST_LINKS_SELF_PTR_OFFSET: usize = core::mem::offset_of!(Self, self_ptr);
+
+    /// Creates a new initializer for this type.
+    pub fn new() -> impl PinInit<Self> {
+        // INVARIANT: Pin-init initializers can't be used on an existing `Arc`, so this value will
+        // not be constructed in an `Arc` that already has a `ListArc`.
+        Self {
+            inner: ListLinks {
+                inner: Opaque::new(ListLinksFields {
+                    prev: ptr::null_mut(),
+                    next: ptr::null_mut(),
+                }),
+            },
+            self_ptr: Opaque::uninit(),
+        }
     }
 }
 
