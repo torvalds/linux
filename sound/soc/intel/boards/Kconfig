@@ -319,20 +319,6 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
-config SND_SOC_INTEL_BXT_RT298_MACH
-	tristate "Broxton with RT298 I2S mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_RT298
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_HDA_DSP_COMMON
-	help
-	   This adds support for ASoC machine driver for Broxton platforms
-	   with RT286 I2S audio codec.
-	   Say Y or m if you have such a device. This is a recommended option.
-	   If unsure select "N".
-
 endif ## SND_SOC_INTEL_APL
 
 if SND_SOC_SOF_APOLLOLAKE
