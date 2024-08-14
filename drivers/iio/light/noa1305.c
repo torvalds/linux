@@ -197,7 +197,7 @@ static int noa1305_write_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	/* Look up integration time register settings and write it if found. */
-	for (i = 0; i < ARRAY_SIZE(noa1305_int_time_available); i++)
+	for (i = 0; i < ARRAY_SIZE(noa1305_int_time_available) / 2; i++)
 		if (noa1305_int_time_available[2 * i + 1] == val2)
 			return regmap_write(priv->regmap, NOA1305_REG_INTEGRATION_TIME, i);
 
