@@ -2066,8 +2066,7 @@ static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 
 		if (fa->fa_slen != slen)
 			continue;
-		if (fa->fa_dscp &&
-		    fa->fa_dscp != inet_dsfield_to_dscp(flp->flowi4_tos))
+		if (fa->fa_dscp && !fib_dscp_masked_match(fa->fa_dscp, flp))
 			continue;
 		if (fa->tb_id != tb->tb_id)
 			continue;

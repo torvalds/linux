@@ -2,6 +2,8 @@
 #ifndef _LINUX_IN_ROUTE_H
 #define _LINUX_IN_ROUTE_H
 
+#include <linux/ip.h>
+
 /* IPv4 routing cache flags */
 
 #define RTCF_DEAD	RTNH_F_DEAD
