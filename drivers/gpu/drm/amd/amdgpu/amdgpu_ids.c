@@ -484,7 +484,7 @@ error:
 bool amdgpu_vmid_uses_reserved(struct amdgpu_vm *vm, unsigned int vmhub)
 {
 	return vm->reserved_vmid[vmhub] ||
-		(enforce_isolation && (vmhub == AMDGPU_GFXHUB(0)));
+		(enforce_isolation && AMDGPU_IS_GFXHUB(vmhub));
 }
 
 int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
