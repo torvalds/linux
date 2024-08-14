@@ -354,6 +354,11 @@ enum {
 	NFSERR_REPLAY_CACHE,
 #define	nfserr_replay_cache	cpu_to_be32(NFSERR_REPLAY_CACHE)
 
+/* symlink found where dir expected - handled differently to
+ * other symlink found errors by NFSv3.
+ */
+	NFSERR_SYMLINK_NOT_DIR,
+#define	nfserr_symlink_not_dir	cpu_to_be32(NFSERR_SYMLINK_NOT_DIR)
 };
 
 /* Check for dir entries '.' and '..' */

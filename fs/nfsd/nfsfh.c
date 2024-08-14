@@ -62,8 +62,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
  * the write call).
  */
 static inline __be32
-nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
-		umode_t requested)
+nfsd_mode_check(struct dentry *dentry, umode_t requested)
 {
 	umode_t mode = d_inode(dentry)->i_mode & S_IFMT;
 
@@ -76,17 +75,16 @@ nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
 		}
 		return nfs_ok;
 	}
-	/*
-	 * v4 has an error more specific than err_notdir which we should
-	 * return in preference to err_notdir:
-	 */
-	if (rqstp->rq_vers == 4 && mode == S_IFLNK)
+	if (mode == S_IFLNK) {
+		if (requested == S_IFDIR)
+			return nfserr_symlink_not_dir;
 		return nfserr_symlink;
+	}
 	if (requested == S_IFDIR)
 		return nfserr_notdir;
 	if (mode == S_IFDIR)
 		return nfserr_isdir;
-	return nfserr_inval;
+	return nfserr_wrong_type;
 }
 
 static bool nfsd_originating_port_ok(struct svc_rqst *rqstp, int flags)
@@ -364,7 +362,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	if (error)
 		goto out;
 
-	error = nfsd_mode_check(rqstp, dentry, type);
+	error = nfsd_mode_check(dentry, type);
 	if (error)
 		goto out;
 
