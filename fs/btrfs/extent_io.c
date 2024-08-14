@@ -1409,7 +1409,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 						    struct folio *folio,
 						    u64 start, u32 len,
 						    struct btrfs_bio_ctrl *bio_ctrl,
-						    loff_t i_size, int *nr_ret)
+						    loff_t i_size)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	unsigned long range_bitmap = 0;
@@ -1422,11 +1422,11 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	 */
 	unsigned long dirty_bitmap = 1;
 	unsigned int bitmap_size = 1;
+	bool submitted_io = false;
 	const u64 folio_start = folio_pos(folio);
 	u64 cur;
 	int bit;
 	int ret = 0;
-	int nr = 0;
 
 	ASSERT(start >= folio_start &&
 	       start + len <= folio_start + folio_size(folio));
@@ -1470,20 +1470,24 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		}
 		ret = submit_one_sector(inode, folio, cur, bio_ctrl, i_size);
 		if (ret < 0)
-			goto out_error;
-		nr++;
+			goto out;
+		submitted_io = true;
 	}
 
 	btrfs_folio_assert_not_dirty(fs_info, folio, start, len);
-	*nr_ret = nr;
-	return 0;
-
-out_error:
+out:
 	/*
-	 * If we finish without problem, we should not only clear folio dirty,
-	 * but also empty subpage dirty bits
+	 * If we didn't submitted any sector (>= i_size), folio dirty get
+	 * cleared but PAGECACHE_TAG_DIRTY is not cleared (only cleared
+	 * by folio_start_writeback() if the folio is not dirty).
+	 *
+	 * Here we set writeback and clear for the range. If the full folio
+	 * is no longer dirty then we clear the PAGECACHE_TAG_DIRTY tag.
 	 */
-	*nr_ret = nr;
+	if (!submitted_io) {
+		btrfs_folio_set_writeback(fs_info, folio, start, len);
+		btrfs_folio_clear_writeback(fs_info, folio, start, len);
+	}
 	return ret;
 }
 
@@ -1501,7 +1505,6 @@ static int __extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ct
 	struct inode *inode = folio->mapping->host;
 	const u64 page_start = folio_pos(folio);
 	int ret;
-	int nr = 0;
 	size_t pg_offset;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
@@ -1532,18 +1535,13 @@ static int __extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ct
 		goto done;
 
 	ret = __extent_writepage_io(BTRFS_I(inode), folio, folio_pos(folio),
-				    PAGE_SIZE, bio_ctrl, i_size, &nr);
+				    PAGE_SIZE, bio_ctrl, i_size);
 	if (ret == 1)
 		return 0;
 
 	bio_ctrl->wbc->nr_to_write--;
 
 done:
-	if (nr == 0) {
-		/* make sure the mapping tag for page dirty gets cleared */
-		folio_start_writeback(folio);
-		folio_end_writeback(folio);
-	}
 	if (ret) {
 		btrfs_mark_ordered_io_finished(BTRFS_I(inode), folio,
 					       page_start, PAGE_SIZE, !ret);
@@ -2276,7 +2274,6 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 		u64 cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
 		u32 cur_len = cur_end + 1 - cur;
 		struct folio *folio;
-		int nr = 0;
 
 		folio = __filemap_get_folio(mapping, cur >> PAGE_SHIFT, 0, 0);
 
@@ -2297,15 +2294,10 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 			ASSERT(folio_test_dirty(folio));
 
 		ret = __extent_writepage_io(BTRFS_I(inode), folio, cur, cur_len,
-					    &bio_ctrl, i_size, &nr);
+					    &bio_ctrl, i_size);
 		if (ret == 1)
 			goto next_page;
 
-		/* Make sure the mapping tag for page dirty gets cleared. */
-		if (nr == 0) {
-			btrfs_folio_set_writeback(fs_info, folio, cur, cur_len);
-			btrfs_folio_clear_writeback(fs_info, folio, cur, cur_len);
-		}
 		if (ret) {
 			btrfs_mark_ordered_io_finished(BTRFS_I(inode), folio,
 						       cur, cur_len, !ret);
