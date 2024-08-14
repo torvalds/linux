@@ -1196,16 +1196,36 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 	spin_unlock_irqrestore(&zone->lock, flags);
 }
 
+/* Split a multi-block free page into its individual pageblocks. */
+static void split_large_buddy(struct zone *zone, struct page *page,
+			      unsigned long pfn, int order, fpi_t fpi)
+{
+	unsigned long end = pfn + (1 << order);
+
+	VM_WARN_ON_ONCE(!IS_ALIGNED(pfn, 1 << order));
+	/* Caller removed page from freelist, buddy info cleared! */
+	VM_WARN_ON_ONCE(PageBuddy(page));
+
+	if (order > pageblock_order)
+		order = pageblock_order;
+
+	while (pfn != end) {
+		int mt = get_pfnblock_migratetype(page, pfn);
+
+		__free_one_page(page, pfn, zone, order, mt, fpi);
+		pfn += 1 << order;
+		page = pfn_to_page(pfn);
+	}
+}
+
 static void free_one_page(struct zone *zone, struct page *page,
 			  unsigned long pfn, unsigned int order,
 			  fpi_t fpi_flags)
 {
 	unsigned long flags;
-	int migratetype;
 
 	spin_lock_irqsave(&zone->lock, flags);
-	migratetype = get_pfnblock_migratetype(page, pfn);
-	__free_one_page(page, pfn, zone, order, migratetype, fpi_flags);
+	split_large_buddy(zone, page, pfn, order, fpi_flags);
 	spin_unlock_irqrestore(&zone->lock, flags);
 }
 
@@ -1697,27 +1717,6 @@ static unsigned long find_large_buddy(unsigned long start_pfn)
 	return start_pfn;
 }
 
-/* Split a multi-block free page into its individual pageblocks */
-static void split_large_buddy(struct zone *zone, struct page *page,
-			      unsigned long pfn, int order)
-{
-	unsigned long end_pfn = pfn + (1 << order);
-
-	VM_WARN_ON_ONCE(order <= pageblock_order);
-	VM_WARN_ON_ONCE(pfn & (pageblock_nr_pages - 1));
-
-	/* Caller removed page from freelist, buddy info cleared! */
-	VM_WARN_ON_ONCE(PageBuddy(page));
-
-	while (pfn != end_pfn) {
-		int mt = get_pfnblock_migratetype(page, pfn);
-
-		__free_one_page(page, pfn, zone, pageblock_order, mt, FPI_NONE);
-		pfn += pageblock_nr_pages;
-		page = pfn_to_page(pfn);
-	}
-}
-
 /**
  * move_freepages_block_isolate - move free pages in block for page isolation
  * @zone: the zone
@@ -1758,7 +1757,7 @@ bool move_freepages_block_isolate(struct zone *zone, struct page *page,
 		del_page_from_free_list(buddy, zone, order,
 					get_pfnblock_migratetype(buddy, pfn));
 		set_pageblock_migratetype(page, migratetype);
-		split_large_buddy(zone, buddy, pfn, order);
+		split_large_buddy(zone, buddy, pfn, order, FPI_NONE);
 		return true;
 	}
 
@@ -1769,7 +1768,7 @@ bool move_freepages_block_isolate(struct zone *zone, struct page *page,
 		del_page_from_free_list(page, zone, order,
 					get_pfnblock_migratetype(page, pfn));
 		set_pageblock_migratetype(page, migratetype);
-		split_large_buddy(zone, page, pfn, order);
+		split_large_buddy(zone, page, pfn, order, FPI_NONE);
 		return true;
 	}
 move:
@@ -6437,6 +6436,31 @@ int __alloc_contig_migrate_range(struct compact_control *cc,
 	return (ret < 0) ? ret : 0;
 }
 
+static void split_free_pages(struct list_head *list)
+{
+	int order;
+
+	for (order = 0; order < NR_PAGE_ORDERS; order++) {
+		struct page *page, *next;
+		int nr_pages = 1 << order;
+
+		list_for_each_entry_safe(page, next, &list[order], lru) {
+			int i;
+
+			post_alloc_hook(page, order, __GFP_MOVABLE);
+			if (!order)
+				continue;
+
+			split_page(page, order);
+
+			/* Add all subpages to the order-0 head, in sequence. */
+			list_del(&page->lru);
+			for (i = 0; i < nr_pages; i++)
+				list_add_tail(&page[i].lru, &list[0]);
+		}
+	}
+}
+
 /**
  * alloc_contig_range() -- tries to allocate given range of pages
  * @start:	start PFN to allocate
@@ -6549,12 +6573,25 @@ int alloc_contig_range_noprof(unsigned long start, unsigned long end,
 		goto done;
 	}
 
-	/* Free head and tail (if any) */
-	if (start != outer_start)
-		free_contig_range(outer_start, start - outer_start);
-	if (end != outer_end)
-		free_contig_range(end, outer_end - end);
+	if (!(gfp_mask & __GFP_COMP)) {
+		split_free_pages(cc.freepages);
 
+		/* Free head and tail (if any) */
+		if (start != outer_start)
+			free_contig_range(outer_start, start - outer_start);
+		if (end != outer_end)
+			free_contig_range(end, outer_end - end);
+	} else if (start == outer_start && end == outer_end && is_power_of_2(end - start)) {
+		struct page *head = pfn_to_page(start);
+		int order = ilog2(end - start);
+
+		check_new_pages(head, order);
+		prep_new_page(head, order, gfp_mask, 0);
+	} else {
+		ret = -EINVAL;
+		WARN(true, "PFN range: requested [%lu, %lu), allocated [%lu, %lu)\n",
+		     start, end, outer_start, outer_end);
+	}
 done:
 	undo_isolate_page_range(start, end, migratetype);
 	return ret;
@@ -6663,6 +6700,18 @@ struct page *alloc_contig_pages_noprof(unsigned long nr_pages, gfp_t gfp_mask,
 void free_contig_range(unsigned long pfn, unsigned long nr_pages)
 {
 	unsigned long count = 0;
+	struct folio *folio = pfn_folio(pfn);
+
+	if (folio_test_large(folio)) {
+		int expected = folio_nr_pages(folio);
+
+		if (nr_pages == expected)
+			folio_put(folio);
+		else
+			WARN(true, "PFN %lu: nr_pages %lu != expected %d\n",
+			     pfn, nr_pages, expected);
+		return;
+	}
 
 	for (; nr_pages--; pfn++) {
 		struct page *page = pfn_to_page(pfn);
