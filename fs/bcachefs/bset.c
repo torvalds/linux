@@ -969,7 +969,6 @@ static void bch2_bset_fix_lookup_table(struct btree *b,
 }
 
 void bch2_bset_insert(struct btree *b,
-		      struct btree_node_iter *iter,
 		      struct bkey_packed *where,
 		      struct bkey_i *insert,
 		      unsigned clobber_u64s)
