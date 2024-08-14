@@ -1904,7 +1904,8 @@ int spacc_open(struct spacc_device *spacc, int enc, int hash, int ctxid,
 		ctrl |= SPACC_CTRL_SET(SPACC_CTRL_HASH_ALG,
 				H_SHAKE256);
 		ctrl |= SPACC_CTRL_SET(SPACC_CTRL_HASH_MODE,
-				HM_SHAKE_KMAC); break;
+				HM_SHAKE_KMAC);
+		break;
 	case CRYPTO_MODE_MAC_KMACXOF128:
 		ctrl |= SPACC_CTRL_SET(SPACC_CTRL_HASH_ALG,
 				H_SHAKE128);
