@@ -2922,6 +2922,43 @@ static struct clk_branch ssc_cnoc_ahbs_clk = {
 	},
 };
 
+static struct clk_branch hlos1_vote_lpass_core_smmu_clk = {
+	.halt_reg = 0x7D010,
+	.clkr = {
+		.enable_reg = 0x7D010,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data) {
+			.name = "hlos1_vote_lpass_core_smmu_clk",
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch hlos1_vote_lpass_adsp_smmu_clk = {
+	.halt_reg = 0x7D014,
+	.clkr = {
+		.enable_reg = 0x7D014,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data) {
+			.name = "hlos1_vote_lpass_adsp_smmu_clk",
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
+	.halt_reg = 0x8A040,
+	.clkr = {
+		.enable_reg = 0x8A040,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data) {
+			.name = "gcc_mss_q6_bimc_axi_clk",
+			.flags = CLK_IS_CRITICAL,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct gdsc pcie_0_gdsc = {
 	.gdscr = 0x6b004,
 	.gds_hw_ctrl = 0x0,
@@ -2951,6 +2988,26 @@ static struct gdsc usb_30_gdsc = {
 	/* TODO: Change to OFF_ON when USB drivers get proper suspend support */
 	.pwrsts = PWRSTS_RET_ON,
 	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_lpass_adsp = {
+	.gdscr = 0x7d034,
+	.gds_hw_ctrl = 0x0,
+	.pd = {
+		.name = "lpass_adsp_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_lpass_core = {
+	.gdscr = 0x7d038,
+	.gds_hw_ctrl = 0x0,
+	.pd = {
+		.name = "lpass_core_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = ALWAYS_ON,
 };
 
 static struct clk_regmap *gcc_msm8998_clocks[] = {
@@ -3133,12 +3190,17 @@ static struct clk_regmap *gcc_msm8998_clocks[] = {
 	[GCC_MMSS_GPLL0_DIV_CLK] = &gcc_mmss_gpll0_div_clk.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK] = &gcc_gpu_gpll0_div_clk.clkr,
 	[GCC_GPU_GPLL0_CLK] = &gcc_gpu_gpll0_clk.clkr,
+	[HLOS1_VOTE_LPASS_CORE_SMMU_CLK] = &hlos1_vote_lpass_core_smmu_clk.clkr,
+	[HLOS1_VOTE_LPASS_ADSP_SMMU_CLK] = &hlos1_vote_lpass_adsp_smmu_clk.clkr,
+	[GCC_MSS_Q6_BIMC_AXI_CLK] = &gcc_mss_q6_bimc_axi_clk.clkr,
 };
 
 static struct gdsc *gcc_msm8998_gdscs[] = {
 	[PCIE_0_GDSC] = &pcie_0_gdsc,
 	[UFS_GDSC] = &ufs_gdsc,
 	[USB_30_GDSC] = &usb_30_gdsc,
+	[LPASS_ADSP_GDSC] = &hlos1_vote_lpass_adsp,
+	[LPASS_CORE_GDSC] = &hlos1_vote_lpass_core,
 };
 
 static const struct qcom_reset_map gcc_msm8998_resets[] = {
