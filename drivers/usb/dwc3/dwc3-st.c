@@ -225,13 +225,13 @@ static int st_dwc3_probe(struct platform_device *pdev)
 
 	dwc3_data->syscfg_reg_off = res->start;
 
-	dev_vdbg(&pdev->dev, "glue-logic addr 0x%pK, syscfg-reg offset 0x%x\n",
+	dev_vdbg(dev, "glue-logic addr 0x%pK, syscfg-reg offset 0x%x\n",
 		 dwc3_data->glue_base, dwc3_data->syscfg_reg_off);
 
 	struct device_node *child __free(device_node) = of_get_compatible_child(node,
 										"snps,dwc3");
 	if (!child) {
-		dev_err(&pdev->dev, "failed to find dwc3 core node\n");
+		dev_err(dev, "failed to find dwc3 core node\n");
 		return -ENODEV;
 	}
 
