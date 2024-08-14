@@ -179,6 +179,7 @@
 		compatible = "atmel,24c32";
 		reg = <0x51>;
 		pagesize = <32>;
+		vcc-supply = <&reg_vdd_io>;
 	};
 
 	rv3028: rtc@52 {
