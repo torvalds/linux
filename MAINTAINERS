@@ -15886,6 +15886,7 @@ F:	include/linux/netdevice.h
 F:	include/uapi/linux/cn_proc.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdevice.h
+F:	tools/testing/selftests/drivers/net/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
