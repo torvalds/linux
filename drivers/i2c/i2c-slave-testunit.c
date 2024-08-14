@@ -48,48 +48,6 @@ struct testunit_data {
 
 static char tu_version_info[] = "v" UTS_RELEASE "\n\0";
 
-static void i2c_slave_testunit_work(struct work_struct *work)
-{
-	struct testunit_data *tu = container_of(work, struct testunit_data, worker.work);
-	struct i2c_msg msg;
-	u8 msgbuf[256];
-	int ret = 0;
-
-	msg.addr = I2C_CLIENT_END;
-	msg.buf = msgbuf;
-
-	switch (tu->regs[TU_REG_CMD]) {
-	case TU_CMD_READ_BYTES:
-		msg.addr = tu->regs[TU_REG_DATAL];
-		msg.flags = I2C_M_RD;
-		msg.len = tu->regs[TU_REG_DATAH];
-		break;
-
-	case TU_CMD_SMBUS_HOST_NOTIFY:
-		msg.addr = 0x08;
-		msg.flags = 0;
-		msg.len = 3;
-		msgbuf[0] = tu->client->addr;
-		msgbuf[1] = tu->regs[TU_REG_DATAL];
-		msgbuf[2] = tu->regs[TU_REG_DATAH];
-		break;
-
-	default:
-		break;
-	}
-
-	if (msg.addr != I2C_CLIENT_END) {
-		ret = i2c_transfer(tu->client->adapter, &msg, 1);
-		/* convert '0 msgs transferred' to errno */
-		ret = (ret == 0) ? -EIO : ret;
-	}
-
-	if (ret < 0)
-		dev_err(&tu->client->dev, "CMD%02X failed (%d)\n", tu->regs[TU_REG_CMD], ret);
-
-	clear_bit(TU_FLAG_IN_PROCESS, &tu->flags);
-}
-
 static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 				     enum i2c_slave_event event, u8 *val)
 {
@@ -164,6 +122,48 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 	}
 
 	return ret;
+}
+
+static void i2c_slave_testunit_work(struct work_struct *work)
+{
+	struct testunit_data *tu = container_of(work, struct testunit_data, worker.work);
+	struct i2c_msg msg;
+	u8 msgbuf[256];
+	int ret = 0;
+
+	msg.addr = I2C_CLIENT_END;
+	msg.buf = msgbuf;
+
+	switch (tu->regs[TU_REG_CMD]) {
+	case TU_CMD_READ_BYTES:
+		msg.addr = tu->regs[TU_REG_DATAL];
+		msg.flags = I2C_M_RD;
+		msg.len = tu->regs[TU_REG_DATAH];
+		break;
+
+	case TU_CMD_SMBUS_HOST_NOTIFY:
+		msg.addr = 0x08;
+		msg.flags = 0;
+		msg.len = 3;
+		msgbuf[0] = tu->client->addr;
+		msgbuf[1] = tu->regs[TU_REG_DATAL];
+		msgbuf[2] = tu->regs[TU_REG_DATAH];
+		break;
+
+	default:
+		break;
+	}
+
+	if (msg.addr != I2C_CLIENT_END) {
+		ret = i2c_transfer(tu->client->adapter, &msg, 1);
+		/* convert '0 msgs transferred' to errno */
+		ret = (ret == 0) ? -EIO : ret;
+	}
+
+	if (ret < 0)
+		dev_err(&tu->client->dev, "CMD%02X failed (%d)\n", tu->regs[TU_REG_CMD], ret);
+
+	clear_bit(TU_FLAG_IN_PROCESS, &tu->flags);
 }
 
 static int i2c_slave_testunit_probe(struct i2c_client *client)
