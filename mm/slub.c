@@ -3416,14 +3416,15 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 {
 	static DEFINE_RATELIMIT_STATE(slub_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
+	int cpu = raw_smp_processor_id();
 	int node;
 	struct kmem_cache_node *n;
 
 	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slub_oom_rs))
 		return;
 
-	pr_warn("SLUB: Unable to allocate memory on node %d, gfp=%#x(%pGg)\n",
-		nid, gfpflags, &gfpflags);
+	pr_warn("SLUB: Unable to allocate memory on CPU %u (of node %d) on node %d, gfp=%#x(%pGg)\n",
+		cpu, cpu_to_node(cpu), nid, gfpflags, &gfpflags);
 	pr_warn("  cache: %s, object size: %u, buffer size: %u, default order: %u, min order: %u\n",
 		s->name, s->object_size, s->size, oo_order(s->oo),
 		oo_order(s->min));
