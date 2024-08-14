@@ -358,30 +358,18 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *regs;
-	int ret = 0;
 
 	rtk = devm_kzalloc(dev, sizeof(*rtk), GFP_KERNEL);
-	if (!rtk) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!rtk)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, rtk);
 
 	rtk->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing memory resource\n");
-		ret = -ENODEV;
-		goto out;
-	}
-
-	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		ret = PTR_ERR(regs);
-		goto out;
-	}
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	rtk->regs = regs;
 	rtk->regs_size = resource_size(res);
@@ -389,16 +377,11 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		rtk->pm_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(rtk->pm_base)) {
-			ret = PTR_ERR(rtk->pm_base);
-			goto out;
-		}
+		if (IS_ERR(rtk->pm_base))
+			return PTR_ERR(rtk->pm_base);
 	}
 
-	ret = dwc3_rtk_probe_dwc3_core(rtk);
-
-out:
-	return ret;
+	return dwc3_rtk_probe_dwc3_core(rtk);
 }
 
 static void dwc3_rtk_remove(struct platform_device *pdev)
