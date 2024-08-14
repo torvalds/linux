@@ -1295,7 +1295,7 @@ int spacc_isenabled(struct spacc_device *spacc, int mode, int keysize)
 {
 	int x;
 
-	if (mode < 0 || mode > CRYPTO_MODE_LAST)
+	if (mode < 0 || mode >= CRYPTO_MODE_LAST)
 		return 0;
 
 	if (mode == CRYPTO_MODE_NULL    ||
