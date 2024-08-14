@@ -275,6 +275,8 @@ out_up_write:
  * xe_vm_remove_compute_exec_queue() - Remove compute exec queue from VM
  * @vm: The VM.
  * @q: The exec_queue
+ *
+ * Note that this function might be called multiple times on the same queue.
  */
 void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 {
@@ -282,8 +284,10 @@ void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 		return;
 
 	down_write(&vm->lock);
-	list_del(&q->lr.link);
-	--vm->preempt.num_exec_queues;
+	if (!list_empty(&q->lr.link)) {
+		list_del_init(&q->lr.link);
+		--vm->preempt.num_exec_queues;
+	}
 	if (q->lr.pfence) {
 		dma_fence_enable_sw_signaling(q->lr.pfence);
 		dma_fence_put(q->lr.pfence);

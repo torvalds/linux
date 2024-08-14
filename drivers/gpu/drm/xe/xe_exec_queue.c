@@ -770,6 +770,15 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
 }
 
+/**
+ * xe_exec_queue_kill - permanently stop all execution from an exec queue
+ * @q: The exec queue
+ *
+ * This function permanently stops all activity on an exec queue. If the queue
+ * is actively executing on the HW, it will be kicked off the engine; any
+ * pending jobs are discarded and all future submissions are rejected.
+ * This function is safe to call multiple times.
+ */
 void xe_exec_queue_kill(struct xe_exec_queue *q)
 {
 	struct xe_exec_queue *eq = q, *next;
