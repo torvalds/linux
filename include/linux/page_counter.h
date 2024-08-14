@@ -81,4 +81,8 @@ static inline void page_counter_reset_watermark(struct page_counter *counter)
 	counter->watermark = page_counter_read(counter);
 }
 
+void page_counter_calculate_protection(struct page_counter *root,
+				       struct page_counter *counter,
+				       bool recursive_protection);
+
 #endif /* _LINUX_PAGE_COUNTER_H */

@@ -11,6 +11,7 @@
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <linux/sched/task_stack.h>
+#include <linux/uprobes.h>
 
 #include "internal.h"
 
@@ -29,7 +30,7 @@ static inline size_t perf_callchain_entry__sizeof(void)
 				 sysctl_perf_event_max_contexts_per_stack));
 }
 
-static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
+static DEFINE_PER_CPU(u8, callchain_recursion[PERF_NR_CONTEXTS]);
 static atomic_t nr_callchain_events;
 static DEFINE_MUTEX(callchain_mutex);
 static struct callchain_cpus_entries *callchain_cpus_entries;
@@ -176,13 +177,51 @@ put_callchain_entry(int rctx)
 	put_recursion_context(this_cpu_ptr(callchain_recursion), rctx);
 }
 
+static void fixup_uretprobe_trampoline_entries(struct perf_callchain_entry *entry,
+					       int start_entry_idx)
+{
+#ifdef CONFIG_UPROBES
+	struct uprobe_task *utask = current->utask;
+	struct return_instance *ri;
+	__u64 *cur_ip, *last_ip, tramp_addr;
+
+	if (likely(!utask || !utask->return_instances))
+		return;
+
+	cur_ip = &entry->ip[start_entry_idx];
+	last_ip = &entry->ip[entry->nr - 1];
+	ri = utask->return_instances;
+	tramp_addr = uprobe_get_trampoline_vaddr();
+
+	/*
+	 * If there are pending uretprobes for the current thread, they are
+	 * recorded in a list inside utask->return_instances; each such
+	 * pending uretprobe replaces traced user function's return address on
+	 * the stack, so when stack trace is captured, instead of seeing
+	 * actual function's return address, we'll have one or many uretprobe
+	 * trampoline addresses in the stack trace, which are not helpful and
+	 * misleading to users.
+	 * So here we go over the pending list of uretprobes, and each
+	 * encountered trampoline address is replaced with actual return
+	 * address.
+	 */
+	while (ri && cur_ip <= last_ip) {
+		if (*cur_ip == tramp_addr) {
+			*cur_ip = ri->orig_ret_vaddr;
+			ri = ri->next;
+		}
+		cur_ip++;
+	}
+#endif
+}
+
 struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark)
 {
 	struct perf_callchain_entry *entry;
 	struct perf_callchain_entry_ctx ctx;
-	int rctx;
+	int rctx, start_entry_idx;
 
 	entry = get_callchain_entry(&rctx);
 	if (!entry)
@@ -215,7 +254,9 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 			if (add_mark)
 				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
 
+			start_entry_idx = entry->nr;
 			perf_callchain_user(&ctx, regs);
+			fixup_uretprobe_trampoline_entries(entry, start_entry_idx);
 		}
 	}
 
@@ -229,7 +270,7 @@ exit_put:
  * Used for sysctl_perf_event_max_stack and
  * sysctl_perf_event_max_contexts_per_stack.
  */
-int perf_event_max_stack_handler(struct ctl_table *table, int write,
+int perf_event_max_stack_handler(const struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *value = table->data;

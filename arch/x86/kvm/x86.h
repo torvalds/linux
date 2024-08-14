@@ -33,6 +33,20 @@ struct kvm_caps {
 	u64 supported_perf_cap;
 };
 
+struct kvm_host_values {
+	/*
+	 * The host's raw MAXPHYADDR, i.e. the number of non-reserved physical
+	 * address bits irrespective of features that repurpose legal bits,
+	 * e.g. MKTME.
+	 */
+	u8 maxphyaddr;
+
+	u64 efer;
+	u64 xcr0;
+	u64 xss;
+	u64 arch_capabilities;
+};
+
 void kvm_spurious_fault(void);
 
 #define KVM_NESTED_VMENTER_CONSISTENCY_CHECK(consistency_check)		\
@@ -159,7 +173,7 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 
 	if (!is_long_mode(vcpu))
 		return false;
-	static_call(kvm_x86_get_cs_db_l_bits)(vcpu, &cs_db, &cs_l);
+	kvm_x86_call(get_cs_db_l_bits)(vcpu, &cs_db, &cs_l);
 	return cs_l;
 }
 
@@ -311,12 +325,8 @@ int handle_ud(struct kvm_vcpu *vcpu);
 void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu,
 				   struct kvm_queued_exception *ex);
 
-void kvm_vcpu_mtrr_init(struct kvm_vcpu *vcpu);
-u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn);
 int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
-bool kvm_mtrr_check_gfn_range_consistency(struct kvm_vcpu *vcpu, gfn_t gfn,
-					  int page_num);
 bool kvm_vector_hashing_enabled(void);
 void kvm_fixup_and_inject_pf_error(struct kvm_vcpu *vcpu, gva_t gva, u16 error_code);
 int x86_decode_emulated_instruction(struct kvm_vcpu *vcpu, int emulation_type,
@@ -325,11 +335,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			    int emulation_type, void *insn, int insn_len);
 fastpath_t handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu);
 
-extern u64 host_xcr0;
-extern u64 host_xss;
-extern u64 host_arch_capabilities;
-
 extern struct kvm_caps kvm_caps;
+extern struct kvm_host_values kvm_host;
 
 extern bool enable_pmu;
 

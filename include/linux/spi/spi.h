@@ -351,10 +351,8 @@ struct spi_driver {
 	struct device_driver	driver;
 };
 
-static inline struct spi_driver *to_spi_driver(struct device_driver *drv)
-{
-	return drv ? container_of(drv, struct spi_driver, driver) : NULL;
-}
+#define to_spi_driver(__drv)   \
+	( __drv ? container_of_const(__drv, struct spi_driver, driver) : NULL )
 
 extern int __spi_register_driver(struct module *owner, struct spi_driver *sdrv);
 
@@ -447,7 +445,6 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @cur_msg_need_completion: Flag used internally to opportunistically skip
  *	the @cur_msg_completion. This flag is used to signal the context that
  *	is running spi_finalize_current_message() that it needs to complete()
- * @cur_msg_mapped: message has been mapped for DMA
  * @fallback: fallback to PIO if DMA transfer return failure with
  *	SPI_TRANS_FAIL_NO_START.
  * @last_cs_mode_high: was (mode & SPI_CS_HIGH) true on the last call to set_cs.
@@ -533,6 +530,9 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @queue_empty: signal green light for opportunistically skipping the queue
  *	for spi_sync transfers.
  * @must_async: disable all fast paths in the core
+ * @defer_optimize_message: set to true if controller cannot pre-optimize messages
+ *	and needs to defer the optimization step until the message is actually
+ *	being transferred
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -708,7 +708,6 @@ struct spi_controller {
 	bool				running;
 	bool				rt;
 	bool				auto_runtime_pm;
-	bool				cur_msg_mapped;
 	bool                            fallback;
 	bool				last_cs_mode_high;
 	s8				last_cs[SPI_CS_CNT_MAX];
@@ -776,6 +775,7 @@ struct spi_controller {
 	/* Flag for enabling opportunistic skipping of the queue in spi_sync */
 	bool			queue_empty;
 	bool			must_async;
+	bool			defer_optimize_message;
 };
 
 static inline void *spi_controller_get_devdata(struct spi_controller *ctlr)
@@ -981,6 +981,8 @@ struct spi_res {
  *      transfer this transfer. Set to 0 if the SPI bus driver does
  *      not support it.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
+ * @tx_sg_mapped: If true, the @tx_sg is mapped for DMA
+ * @rx_sg_mapped: If true, the @rx_sg is mapped for DMA
  * @tx_sg: Scatterlist for transmit, currently not for client use
  * @rx_sg: Scatterlist for receive, currently not for client use
  * @ptp_sts_word_pre: The word (subject to bits_per_word semantics) offset
@@ -1077,20 +1079,24 @@ struct spi_transfer {
 #define SPI_TRANS_FAIL_IO	BIT(1)
 	u16		error;
 
-	dma_addr_t	tx_dma;
-	dma_addr_t	rx_dma;
+	bool		tx_sg_mapped;
+	bool		rx_sg_mapped;
+
 	struct sg_table tx_sg;
 	struct sg_table rx_sg;
+	dma_addr_t	tx_dma;
+	dma_addr_t	rx_dma;
 
 	unsigned	dummy_data:1;
 	unsigned	cs_off:1;
 	unsigned	cs_change:1;
-	unsigned	tx_nbits:3;
-	unsigned	rx_nbits:3;
+	unsigned	tx_nbits:4;
+	unsigned	rx_nbits:4;
 	unsigned	timestamped:1;
 #define	SPI_NBITS_SINGLE	0x01 /* 1-bit transfer */
 #define	SPI_NBITS_DUAL		0x02 /* 2-bit transfer */
 #define	SPI_NBITS_QUAD		0x04 /* 4-bit transfer */
+#define	SPI_NBITS_OCTAL	0x08 /* 8-bit transfer */
 	u8		bits_per_word;
 	struct spi_delay	delay;
 	struct spi_delay	cs_change_delay;
@@ -1268,6 +1274,8 @@ static inline void spi_message_free(struct spi_message *m)
 
 extern int spi_optimize_message(struct spi_device *spi, struct spi_message *msg);
 extern void spi_unoptimize_message(struct spi_message *msg);
+extern int devm_spi_optimize_message(struct device *dev, struct spi_device *spi,
+				     struct spi_message *msg);
 
 extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);

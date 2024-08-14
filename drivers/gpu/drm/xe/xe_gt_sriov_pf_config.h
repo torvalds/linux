@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+enum xe_guc_klv_threshold_index;
 struct drm_printer;
 struct xe_gt;
 
@@ -43,9 +44,18 @@ u32 xe_gt_sriov_pf_config_get_preempt_timeout(struct xe_gt *gt, unsigned int vfi
 int xe_gt_sriov_pf_config_set_preempt_timeout(struct xe_gt *gt, unsigned int vfid,
 					      u32 preempt_timeout);
 
+u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index);
+int xe_gt_sriov_pf_config_set_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index, u32 value);
+
 int xe_gt_sriov_pf_config_set_fair(struct xe_gt *gt, unsigned int vfid, unsigned int num_vfs);
 int xe_gt_sriov_pf_config_release(struct xe_gt *gt, unsigned int vfid, bool force);
 int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh);
+
+bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid);
+
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt);
 
 int xe_gt_sriov_pf_config_print_ggtt(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_config_print_ctxs(struct xe_gt *gt, struct drm_printer *p);

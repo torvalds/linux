@@ -126,13 +126,13 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 	} while (true);
 }
 
-void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
+void ionic_lif_deferred_enqueue(struct ionic_lif *lif,
 				struct ionic_deferred_work *work)
 {
-	spin_lock_bh(&def->lock);
-	list_add_tail(&work->list, &def->list);
-	spin_unlock_bh(&def->lock);
-	schedule_work(&def->work);
+	spin_lock_bh(&lif->deferred.lock);
+	list_add_tail(&work->list, &lif->deferred.list);
+	spin_unlock_bh(&lif->deferred.lock);
+	queue_work(lif->ionic->wq, &lif->deferred.work);
 }
 
 static void ionic_link_status_check(struct ionic_lif *lif)
@@ -207,17 +207,10 @@ void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep)
 		}
 
 		work->type = IONIC_DW_TYPE_LINK_STATUS;
-		ionic_lif_deferred_enqueue(&lif->deferred, work);
+		ionic_lif_deferred_enqueue(lif, work);
 	} else {
 		ionic_link_status_check(lif);
 	}
-}
-
-static void ionic_napi_deadline(struct timer_list *timer)
-{
-	struct ionic_qcq *qcq = container_of(timer, struct ionic_qcq, napi_deadline);
-
-	napi_schedule(&qcq->napi);
 }
 
 static irqreturn_t ionic_isr(int irq, void *data)
@@ -237,12 +230,12 @@ static int ionic_request_irq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	const char *name;
 
 	if (lif->registered)
-		name = lif->netdev->name;
+		name = netdev_name(lif->netdev);
 	else
 		name = dev_name(dev);
 
 	snprintf(intr->name, sizeof(intr->name),
-		 "%s-%s-%s", IONIC_DRV_NAME, name, q->name);
+		 "%.5s-%.16s-%.8s", IONIC_DRV_NAME, name, q->name);
 
 	return devm_request_irq(dev, intr->vector, ionic_isr,
 				0, intr->name, &qcq->napi);
@@ -270,6 +263,18 @@ static void ionic_intr_free(struct ionic *ionic, int index)
 {
 	if (index != IONIC_INTR_INDEX_NOT_ASSIGNED && index < ionic->nintrs)
 		clear_bit(index, ionic->intrs);
+}
+
+static void ionic_irq_aff_notify(struct irq_affinity_notify *notify,
+				 const cpumask_t *mask)
+{
+	struct ionic_intr_info *intr = container_of(notify, struct ionic_intr_info, aff_notify);
+
+	cpumask_copy(*intr->affinity_mask, mask);
+}
+
+static void ionic_irq_aff_release(struct kref __always_unused *ref)
+{
 }
 
 static int ionic_qcq_enable(struct ionic_qcq *qcq)
@@ -304,12 +309,12 @@ static int ionic_qcq_enable(struct ionic_qcq *qcq)
 	if (ret)
 		return ret;
 
-	if (qcq->napi.poll)
-		napi_enable(&qcq->napi);
-
 	if (qcq->flags & IONIC_QCQ_F_INTR) {
+		napi_enable(&qcq->napi);
+		irq_set_affinity_notifier(qcq->intr.vector,
+					  &qcq->intr.aff_notify);
 		irq_set_affinity_hint(qcq->intr.vector,
-				      &qcq->intr.affinity_mask);
+				      *qcq->intr.affinity_mask);
 		ionic_intr_mask(idev->intr_ctrl, qcq->intr.index,
 				IONIC_INTR_MASK_CLEAR);
 	}
@@ -339,13 +344,15 @@ static int ionic_qcq_disable(struct ionic_lif *lif, struct ionic_qcq *qcq, int f
 	if (qcq->flags & IONIC_QCQ_F_INTR) {
 		struct ionic_dev *idev = &lif->ionic->idev;
 
+		if (lif->doorbell_wa)
+			cancel_work_sync(&qcq->doorbell_napi_work);
 		cancel_work_sync(&qcq->dim.work);
 		ionic_intr_mask(idev->intr_ctrl, qcq->intr.index,
 				IONIC_INTR_MASK_SET);
 		synchronize_irq(qcq->intr.vector);
+		irq_set_affinity_notifier(qcq->intr.vector, NULL);
 		irq_set_affinity_hint(qcq->intr.vector, NULL);
 		napi_disable(&qcq->napi);
-		del_timer_sync(&qcq->napi_deadline);
 	}
 
 	/* If there was a previous fw communcation error, don't bother with
@@ -480,11 +487,11 @@ static void ionic_link_qcq_interrupts(struct ionic_qcq *src_qcq,
 {
 	n_qcq->intr.vector = src_qcq->intr.vector;
 	n_qcq->intr.index = src_qcq->intr.index;
-	n_qcq->napi_qcq = src_qcq->napi_qcq;
 }
 
 static int ionic_alloc_qcq_interrupt(struct ionic_lif *lif, struct ionic_qcq *qcq)
 {
+	cpumask_var_t *affinity_mask;
 	int err;
 
 	if (!(qcq->flags & IONIC_QCQ_F_INTR)) {
@@ -516,10 +523,19 @@ static int ionic_alloc_qcq_interrupt(struct ionic_lif *lif, struct ionic_qcq *qc
 	}
 
 	/* try to get the irq on the local numa node first */
-	qcq->intr.cpu = cpumask_local_spread(qcq->intr.index,
-					     dev_to_node(lif->ionic->dev));
-	if (qcq->intr.cpu != -1)
-		cpumask_set_cpu(qcq->intr.cpu, &qcq->intr.affinity_mask);
+	affinity_mask = &lif->ionic->affinity_masks[qcq->intr.index];
+	if (cpumask_empty(*affinity_mask)) {
+		unsigned int cpu;
+
+		cpu = cpumask_local_spread(qcq->intr.index,
+					   dev_to_node(lif->ionic->dev));
+		if (cpu != -1)
+			cpumask_set_cpu(cpu, *affinity_mask);
+	}
+
+	qcq->intr.affinity_mask = affinity_mask;
+	qcq->intr.aff_notify.notify = ionic_irq_aff_notify;
+	qcq->intr.aff_notify.release = ionic_irq_aff_release;
 
 	netdev_dbg(lif->netdev, "%s: Interrupt index %d\n", qcq->q.name, qcq->intr.index);
 	return 0;
@@ -676,6 +692,8 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 
 	INIT_WORK(&new->dim.work, ionic_dim_work);
 	new->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_CQE;
+	if (lif->doorbell_wa)
+		INIT_WORK(&new->doorbell_napi_work, ionic_doorbell_napi_work);
 
 	*qcq = new;
 
@@ -834,11 +852,8 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	q->dbell_deadline = IONIC_TX_DOORBELL_DEADLINE;
 	q->dbell_jiffies = jiffies;
 
-	if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state)) {
+	if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state))
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_tx_napi);
-		qcq->napi_qcq = qcq;
-		timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
-	}
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
@@ -910,9 +925,6 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_rx_napi);
 	else
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_txrx_napi);
-
-	qcq->napi_qcq = qcq;
-	timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
@@ -1168,7 +1180,6 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	struct ionic_dev *idev = &lif->ionic->idev;
 	unsigned long irqflags;
 	unsigned int flags = 0;
-	bool resched = false;
 	int rx_work = 0;
 	int tx_work = 0;
 	int n_work = 0;
@@ -1184,6 +1195,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	if (lif->adminqcq && lif->adminqcq->flags & IONIC_QCQ_F_INITED)
 		a_work = ionic_cq_service(&lif->adminqcq->cq, budget,
 					  ionic_adminq_service, NULL, NULL);
+
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 
 	if (lif->hwstamp_rxq)
@@ -1191,7 +1203,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 					   ionic_rx_service, NULL, NULL);
 
 	if (lif->hwstamp_txq)
-		tx_work = ionic_tx_cq_service(&lif->hwstamp_txq->cq, budget);
+		tx_work = ionic_tx_cq_service(&lif->hwstamp_txq->cq, budget, !!budget);
 
 	work_done = max(max(n_work, a_work), max(rx_work, tx_work));
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
@@ -1205,15 +1217,14 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 		ionic_intr_credits(idev->intr_ctrl, intr->index, credits, flags);
 	}
 
-	if (!a_work && ionic_adminq_poke_doorbell(&lif->adminqcq->q))
-		resched = true;
-	if (lif->hwstamp_rxq && !rx_work && ionic_rxq_poke_doorbell(&lif->hwstamp_rxq->q))
-		resched = true;
-	if (lif->hwstamp_txq && !tx_work && ionic_txq_poke_doorbell(&lif->hwstamp_txq->q))
-		resched = true;
-	if (resched)
-		mod_timer(&lif->adminqcq->napi_deadline,
-			  jiffies + IONIC_NAPI_DEADLINE);
+	if (lif->doorbell_wa) {
+		if (!a_work)
+			ionic_adminq_poke_doorbell(&lif->adminqcq->q);
+		if (lif->hwstamp_rxq && !rx_work)
+			ionic_rxq_poke_doorbell(&lif->hwstamp_rxq->q);
+		if (lif->hwstamp_txq && !tx_work)
+			ionic_txq_poke_doorbell(&lif->hwstamp_txq->q);
+	}
 
 	return work_done;
 }
@@ -1385,7 +1396,7 @@ static void ionic_ndo_set_rx_mode(struct net_device *netdev)
 	}
 	work->type = IONIC_DW_TYPE_RX_MODE;
 	netdev_dbg(lif->netdev, "deferred: rx_mode\n");
-	ionic_lif_deferred_enqueue(&lif->deferred, work);
+	ionic_lif_deferred_enqueue(lif, work);
 }
 
 static __le64 ionic_netdev_features_to_nic(netdev_features_t features)
@@ -3141,6 +3152,44 @@ err_out:
 	return err;
 }
 
+static int ionic_affinity_masks_alloc(struct ionic *ionic)
+{
+	cpumask_var_t *affinity_masks;
+	int nintrs = ionic->nintrs;
+	int i;
+
+	affinity_masks = kcalloc(nintrs, sizeof(cpumask_var_t), GFP_KERNEL);
+	if (!affinity_masks)
+		return -ENOMEM;
+
+	for (i = 0; i < nintrs; i++) {
+		if (!zalloc_cpumask_var_node(&affinity_masks[i], GFP_KERNEL,
+					     dev_to_node(ionic->dev)))
+			goto err_out;
+	}
+
+	ionic->affinity_masks = affinity_masks;
+
+	return 0;
+
+err_out:
+	for (--i; i >= 0; i--)
+		free_cpumask_var(affinity_masks[i]);
+	kfree(affinity_masks);
+
+	return -ENOMEM;
+}
+
+static void ionic_affinity_masks_free(struct ionic *ionic)
+{
+	int i;
+
+	for (i = 0; i < ionic->nintrs; i++)
+		free_cpumask_var(ionic->affinity_masks[i]);
+	kfree(ionic->affinity_masks);
+	ionic->affinity_masks = NULL;
+}
+
 int ionic_lif_alloc(struct ionic *ionic)
 {
 	struct device *dev = ionic->dev;
@@ -3232,11 +3281,15 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 	ionic_debugfs_add_lif(lif);
 
+	err = ionic_affinity_masks_alloc(ionic);
+	if (err)
+		goto err_out_free_lif_info;
+
 	/* allocate control queues and txrx queue arrays */
 	ionic_lif_queue_identify(lif);
 	err = ionic_qcqs_alloc(lif);
 	if (err)
-		goto err_out_free_lif_info;
+		goto err_out_free_affinity_masks;
 
 	/* allocate rss indirection table */
 	tbl_sz = le16_to_cpu(lif->ionic->ident.lif.eth.rss_ind_tbl_sz);
@@ -3258,6 +3311,8 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 err_out_free_qcqs:
 	ionic_qcqs_free(lif);
+err_out_free_affinity_masks:
+	ionic_affinity_masks_free(lif->ionic);
 err_out_free_lif_info:
 	dma_free_coherent(dev, lif->info_sz, lif->info, lif->info_pa);
 	lif->info = NULL;
@@ -3358,6 +3413,7 @@ int ionic_restart_lif(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
 	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
+	ionic_queue_doorbell_check(ionic, IONIC_NAPI_DEADLINE);
 
 	return 0;
 
@@ -3388,6 +3444,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	 * just need to reanimate it.
 	 */
 	ionic_init_devinfo(ionic);
+	ionic_reset(ionic);
 	err = ionic_identify(ionic);
 	if (err)
 		goto err_out;
@@ -3429,6 +3486,8 @@ void ionic_lif_free(struct ionic_lif *lif)
 	ionic_qcqs_free(lif);
 	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 		ionic_lif_reset(lif);
+
+	ionic_affinity_masks_free(lif->ionic);
 
 	/* free lif info */
 	kfree(lif->identity);
@@ -3503,14 +3562,11 @@ static int ionic_lif_adminq_init(struct ionic_lif *lif)
 
 	netif_napi_add(lif->netdev, &qcq->napi, ionic_adminq_napi);
 
-	qcq->napi_qcq = qcq;
-	timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
-
 	napi_enable(&qcq->napi);
 
 	if (qcq->flags & IONIC_QCQ_F_INTR) {
 		irq_set_affinity_hint(qcq->intr.vector,
-				      &qcq->intr.affinity_mask);
+				      *qcq->intr.affinity_mask);
 		ionic_intr_mask(idev->intr_ctrl, qcq->intr.index,
 				IONIC_INTR_MASK_CLEAR);
 	}
@@ -3697,6 +3753,7 @@ int ionic_lif_init(struct ionic_lif *lif)
 		goto err_out_notifyq_deinit;
 
 	lif->rx_copybreak = IONIC_RX_COPYBREAK_DEFAULT;
+	lif->doorbell_wa = ionic_doorbell_wa(lif->ionic);
 
 	set_bit(IONIC_LIF_F_INITED, lif->state);
 
@@ -3731,7 +3788,7 @@ static void ionic_lif_set_netdev_info(struct ionic_lif *lif)
 		},
 	};
 
-	strscpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
+	strscpy(ctx.cmd.lif_setattr.name, netdev_name(lif->netdev),
 		sizeof(ctx.cmd.lif_setattr.name));
 
 	ionic_adminq_post_wait(lif, &ctx);

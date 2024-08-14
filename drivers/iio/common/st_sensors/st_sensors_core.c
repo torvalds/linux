@@ -606,10 +606,9 @@ int st_sensors_verify_id(struct iio_dev *indio_dev)
 		}
 
 		if (sdata->sensor_settings->wai != wai) {
-			dev_err(&indio_dev->dev,
+			dev_warn(&indio_dev->dev,
 				"%s: WhoAmI mismatch (0x%x).\n",
 				indio_dev->name, wai);
-			return -EINVAL;
 		}
 	}
 

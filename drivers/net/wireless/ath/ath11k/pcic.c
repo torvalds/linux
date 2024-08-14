@@ -561,6 +561,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 {
 	int i, j, n, ret, num_vectors = 0;
 	u32 user_base_data = 0, base_vector = 0;
+	struct ath11k_ext_irq_grp *irq_grp;
 	unsigned long irq_flags;
 
 	ret = ath11k_pcic_get_user_msi_assignment(ab, "DP", &num_vectors,
@@ -574,14 +575,16 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 		irq_flags |= IRQF_NOBALANCING;
 
 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
-		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
+		irq_grp = &ab->ext_irq_grp[i];
 		u32 num_irq = 0;
 
 		irq_grp->ab = ab;
 		irq_grp->grp_id = i;
 		irq_grp->napi_ndev = alloc_netdev_dummy(0);
-		if (!irq_grp->napi_ndev)
-			return -ENOMEM;
+		if (!irq_grp->napi_ndev) {
+			ret = -ENOMEM;
+			goto fail_allocate;
+		}
 
 		netif_napi_add(irq_grp->napi_ndev, &irq_grp->napi,
 			       ath11k_pcic_ext_grp_napi_poll);
@@ -606,11 +609,8 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 			int irq = ath11k_pcic_get_msi_irq(ab, vector);
 
 			if (irq < 0) {
-				for (n = 0; n <= i; n++) {
-					irq_grp = &ab->ext_irq_grp[n];
-					free_netdev(irq_grp->napi_ndev);
-				}
-				return irq;
+				ret = irq;
+				goto fail_irq;
 			}
 
 			ab->irq_num[irq_idx] = irq;
@@ -635,6 +635,15 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 	}
 
 	return 0;
+fail_irq:
+	/* i ->napi_ndev was properly allocated. Free it also */
+	i += 1;
+fail_allocate:
+	for (n = 0; n < i; n++) {
+		irq_grp = &ab->ext_irq_grp[n];
+		free_netdev(irq_grp->napi_ndev);
+	}
+	return ret;
 }
 
 int ath11k_pcic_config_irq(struct ath11k_base *ab)

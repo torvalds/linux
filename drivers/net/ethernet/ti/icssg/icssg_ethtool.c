@@ -110,7 +110,7 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 }
 
 static int emac_get_ts_info(struct net_device *ndev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct prueth_emac *emac = netdev_priv(ndev);
 
@@ -312,3 +312,4 @@ const struct ethtool_ops icssg_ethtool_ops = {
 	.nway_reset = emac_nway_reset,
 	.get_rmon_stats = emac_get_rmon_stats,
 };
+EXPORT_SYMBOL_GPL(icssg_ethtool_ops);

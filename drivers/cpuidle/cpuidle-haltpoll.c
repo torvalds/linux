@@ -141,5 +141,6 @@ static void __exit haltpoll_exit(void)
 
 module_init(haltpoll_init);
 module_exit(haltpoll_exit);
+MODULE_DESCRIPTION("cpuidle driver for haltpoll governor");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marcelo Tosatti <mtosatti@redhat.com>");

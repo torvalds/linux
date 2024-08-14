@@ -1249,7 +1249,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	return ret;
 }
 
-static void rtl8180_stop(struct ieee80211_hw *dev)
+static void rtl8180_stop(struct ieee80211_hw *dev, bool suspend)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	u8 reg;

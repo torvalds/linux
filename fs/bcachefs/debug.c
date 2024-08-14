@@ -568,6 +568,32 @@ static const struct file_operations cached_btree_nodes_ops = {
 	.read		= bch2_cached_btree_nodes_read,
 };
 
+typedef int (*list_cmp_fn)(const struct list_head *l, const struct list_head *r);
+
+static void list_sort(struct list_head *head, list_cmp_fn cmp)
+{
+	struct list_head *pos;
+
+	list_for_each(pos, head)
+		while (!list_is_last(pos, head) &&
+		       cmp(pos, pos->next) > 0) {
+			struct list_head *pos2, *next = pos->next;
+
+			list_del(next);
+			list_for_each(pos2, head)
+				if (cmp(next, pos2) < 0)
+					goto pos_found;
+			BUG();
+pos_found:
+			list_add_tail(next, pos2);
+		}
+}
+
+static int list_ptr_order_cmp(const struct list_head *l, const struct list_head *r)
+{
+	return cmp_int(l, r);
+}
+
 static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 					    size_t size, loff_t *ppos)
 {
@@ -575,40 +601,38 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
 	ssize_t ret = 0;
-	u32 seq;
 
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
+	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
 
-		if (!task || task->pid <= i->iter)
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if ((ulong) trans <= i->iter)
 			continue;
 
-		closure_get(&trans->ref);
-		seq = seqmutex_seq(&c->btree_trans_lock);
-		seqmutex_unlock(&c->btree_trans_lock);
+		i->iter = (ulong) trans;
 
-		ret = flush_buf(i);
-		if (ret) {
-			closure_put(&trans->ref);
-			goto unlocked;
-		}
+		if (!closure_get_not_zero(&trans->ref))
+			continue;
+
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
 		bch2_btree_trans_to_text(&i->buf, trans);
 
 		prt_printf(&i->buf, "backtrace:\n");
 		printbuf_indent_add(&i->buf, 2);
-		bch2_prt_task_backtrace(&i->buf, task, 0, GFP_KERNEL);
+		bch2_prt_task_backtrace(&i->buf, trans->locking_wait.task, 0, GFP_KERNEL);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 
-		i->iter = task->pid;
-
 		closure_put(&trans->ref);
+
+		ret = flush_buf(i);
+		if (ret)
+			goto unlocked;
 
 		if (!seqmutex_relock(&c->btree_trans_lock, seq))
 			goto restart;
@@ -804,50 +828,55 @@ static const struct file_operations btree_transaction_stats_op = {
 	.read		= btree_transaction_stats_read,
 };
 
-static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
-					    size_t size, loff_t *ppos)
+/* walk btree transactions until we find a deadlock and print it */
+static void btree_deadlock_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct dump_iter *i = file->private_data;
-	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
-	ssize_t ret = 0;
-	u32 seq;
-
-	i->ubuf = buf;
-	i->size	= size;
-	i->ret	= 0;
-
-	if (i->iter)
-		goto out;
+	ulong iter = 0;
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
+	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
 
-		if (!task || task->pid <= i->iter)
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if ((ulong) trans <= iter)
 			continue;
 
-		closure_get(&trans->ref);
-		seq = seqmutex_seq(&c->btree_trans_lock);
-		seqmutex_unlock(&c->btree_trans_lock);
+		iter = (ulong) trans;
 
-		ret = flush_buf(i);
-		if (ret) {
-			closure_put(&trans->ref);
-			goto out;
-		}
+		if (!closure_get_not_zero(&trans->ref))
+			continue;
 
-		bch2_check_for_deadlock(trans, &i->buf);
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
-		i->iter = task->pid;
+		bool found = bch2_check_for_deadlock(trans, out) != 0;
 
 		closure_put(&trans->ref);
+
+		if (found)
+			return;
 
 		if (!seqmutex_relock(&c->btree_trans_lock, seq))
 			goto restart;
 	}
 	seqmutex_unlock(&c->btree_trans_lock);
-out:
+}
+
+static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
+					    size_t size, loff_t *ppos)
+{
+	struct dump_iter *i = file->private_data;
+	struct bch_fs *c = i->c;
+	ssize_t ret = 0;
+
+	i->ubuf = buf;
+	i->size	= size;
+	i->ret	= 0;
+
+	if (!i->iter) {
+		btree_deadlock_to_text(&i->buf, c);
+		i->iter++;
+	}
+
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;
 

@@ -30,16 +30,11 @@
  * - Pages falling into physical memory gaps - not IORESOURCE_SYSRAM. Trying
  *   to read/write these pages might end badly. Don't touch!
  * - The zero page(s)
- * - Pages not added to the page allocator when onlining a section because
- *   they were excluded via the online_page_callback() or because they are
- *   PG_hwpoison.
  * - Pages allocated in the context of kexec/kdump (loaded kernel image,
  *   control pages, vmcoreinfo)
  * - MMIO/DMA pages. Some architectures don't allow to ioremap pages that are
  *   not marked PG_reserved (as they might be in use by somebody else who does
  *   not respect the caching strategy).
- * - Pages part of an offline section (struct pages of offline sections should
- *   not be trusted as they will be initialized when first onlined).
  * - MCA pages on ia64
  * - Pages holding CPU notes for POWER Firmware Assisted Dump
  * - Device memory (e.g. PMEM, DAX, HMM)
@@ -616,11 +611,6 @@ PAGEFLAG_FALSE(Uncached, uncached)
 PAGEFLAG(HWPoison, hwpoison, PF_ANY)
 TESTSCFLAG(HWPoison, hwpoison, PF_ANY)
 #define __PG_HWPOISON (1UL << PG_hwpoison)
-#define MAGIC_HWPOISON	0x48575053U	/* HWPS */
-extern void SetPageHWPoisonTakenOff(struct page *page);
-extern void ClearPageHWPoisonTakenOff(struct page *page);
-extern bool take_page_off_buddy(struct page *page);
-extern bool put_page_back_buddy(struct page *page);
 #else
 PAGEFLAG_FALSE(HWPoison, hwpoison)
 #define __PG_HWPOISON 0
@@ -655,27 +645,28 @@ PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
 #endif
 
 /*
- * On an anonymous page mapped into a user virtual memory area,
- * page->mapping points to its anon_vma, not to a struct address_space;
+ * On an anonymous folio mapped into a user virtual memory area,
+ * folio->mapping points to its anon_vma, not to a struct address_space;
  * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
  *
  * On an anonymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
  * the PAGE_MAPPING_MOVABLE bit may be set along with the PAGE_MAPPING_ANON
- * bit; and then page->mapping points, not to an anon_vma, but to a private
+ * bit; and then folio->mapping points, not to an anon_vma, but to a private
  * structure which KSM associates with that merged page.  See ksm.h.
  *
  * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
- * page and then page->mapping points to a struct movable_operations.
+ * page and then folio->mapping points to a struct movable_operations.
  *
- * Please note that, confusingly, "page_mapping" refers to the inode
- * address_space which maps the page from disk; whereas "page_mapped"
- * refers to user virtual address space into which the page is mapped.
+ * Please note that, confusingly, "folio_mapping" refers to the inode
+ * address_space which maps the folio from disk; whereas "folio_mapped"
+ * refers to user virtual address space into which the folio is mapped.
  *
  * For slab pages, since slab reuses the bits in struct page to store its
- * internal states, the page->mapping does not exist as such, nor do these
- * flags below.  So in order to avoid testing non-existent bits, please
- * make sure that PageSlab(page) actually evaluates to false before calling
- * the following functions (e.g., PageAnon).  See mm/slab.h.
+ * internal states, the folio->mapping does not exist as such, nor do
+ * these flags below.  So in order to avoid testing non-existent bits,
+ * please make sure that folio_test_slab(folio) actually evaluates to
+ * false before calling the following functions (e.g., folio_test_anon).
+ * See mm/slab.h.
  */
 #define PAGE_MAPPING_ANON	0x1
 #define PAGE_MAPPING_MOVABLE	0x2
@@ -944,20 +935,29 @@ PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
  * mistaken for a page type value.
  */
 
-#define PAGE_TYPE_BASE	0xf0000000
-/* Reserve		0x0000007f to catch underflows of _mapcount */
-#define PAGE_MAPCOUNT_RESERVE	-128
-#define PG_buddy	0x00000080
-#define PG_offline	0x00000100
-#define PG_table	0x00000200
-#define PG_guard	0x00000400
-#define PG_hugetlb	0x00000800
-#define PG_slab		0x00001000
+enum pagetype {
+	PG_buddy	= 0x40000000,
+	PG_offline	= 0x20000000,
+	PG_table	= 0x10000000,
+	PG_guard	= 0x08000000,
+	PG_hugetlb	= 0x04000000,
+	PG_slab		= 0x02000000,
+	PG_zsmalloc	= 0x01000000,
+
+	PAGE_TYPE_BASE	= 0x80000000,
+
+	/*
+	 * Reserve 0xffff0000 - 0xfffffffe to catch _mapcount underflows and
+	 * allow owners that set a type to reuse the lower 16 bit for their own
+	 * purposes.
+	 */
+	PAGE_MAPCOUNT_RESERVE	= ~0x0000ffff,
+};
 
 #define PageType(page, flag)						\
-	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
+	((READ_ONCE(page->page_type) & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
 #define folio_test_type(folio, flag)					\
-	((folio->page.page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
+	((READ_ONCE(folio->page.page_type) & (PAGE_TYPE_BASE | flag))  == PAGE_TYPE_BASE)
 
 static inline int page_type_has_type(unsigned int page_type)
 {
@@ -966,7 +966,7 @@ static inline int page_type_has_type(unsigned int page_type)
 
 static inline int page_has_type(const struct page *page)
 {
-	return page_type_has_type(page->page_type);
+	return page_type_has_type(READ_ONCE(page->page_type));
 }
 
 #define FOLIO_TYPE_OPS(lname, fname)					\
@@ -1015,15 +1015,22 @@ PAGE_TYPE_OPS(Buddy, buddy, buddy)
  * The content of these pages is effectively stale. Such pages should not
  * be touched (read/write/dump/save) except by their owner.
  *
+ * When a memory block gets onlined, all pages are initialized with a
+ * refcount of 1 and PageOffline(). generic_online_page() will
+ * take care of clearing PageOffline().
+ *
  * If a driver wants to allow to offline unmovable PageOffline() pages without
  * putting them back to the buddy, it can do so via the memory notifier by
  * decrementing the reference count in MEM_GOING_OFFLINE and incrementing the
  * reference count in MEM_CANCEL_OFFLINE. When offlining, the PageOffline()
- * pages (now with a reference count of zero) are treated like free pages,
- * allowing the containing memory block to get offlined. A driver that
+ * pages (now with a reference count of zero) are treated like free (unmanaged)
+ * pages, allowing the containing memory block to get offlined. A driver that
  * relies on this feature is aware that re-onlining the memory block will
- * require to re-set the pages PageOffline() and not giving them to the
- * buddy via online_page_callback_t.
+ * require not giving them to the buddy via generic_online_page().
+ *
+ * Memory offlining code will not adjust the managed page count for any
+ * PageOffline() pages, treating them like they were never exposed to the
+ * buddy using generic_online_page().
  *
  * There are drivers that mark a page PageOffline() and expect there won't be
  * any further access to page content. PFN walkers that read content of random
@@ -1066,6 +1073,8 @@ FOLIO_TYPE_OPS(hugetlb, hugetlb)
 #else
 FOLIO_TEST_FLAG_FALSE(hugetlb)
 #endif
+
+PAGE_TYPE_OPS(Zsmalloc, zsmalloc, zsmalloc)
 
 /**
  * PageHuge - Determine if the page belongs to hugetlbfs

@@ -531,7 +531,7 @@ struct f2fs_filename {
 	 * internal operation where usr_fname is also NULL.  In all these cases
 	 * we fall back to treating the name as an opaque byte sequence.
 	 */
-	struct fscrypt_str cf_name;
+	struct qstr cf_name;
 #endif
 };
 
@@ -803,6 +803,7 @@ enum {
 	FI_COW_FILE,		/* indicate COW file */
 	FI_ATOMIC_COMMITTED,	/* indicate atomic commit completed except disk sync */
 	FI_ATOMIC_REPLACE,	/* indicate atomic replace */
+	FI_OPENED_FILE,		/* indicate file has been opened */
 	FI_MAX,			/* max flag, never be used */
 };
 
@@ -842,7 +843,11 @@ struct f2fs_inode_info {
 	struct task_struct *atomic_write_task;	/* store atomic write task */
 	struct extent_tree *extent_tree[NR_EXTENT_CACHES];
 					/* cached extent_tree entry */
-	struct inode *cow_inode;	/* copy-on-write inode for atomic write */
+	union {
+		struct inode *cow_inode;	/* copy-on-write inode for atomic write */
+		struct inode *atomic_inode;
+					/* point to atomic_inode, available only for cow_inode */
+	};
 
 	/* avoid racing between foreground op and gc */
 	struct f2fs_rwsem i_gc_rwsem[2];
@@ -1210,7 +1215,7 @@ struct f2fs_io_info {
 	unsigned int in_list:1;		/* indicate fio is in io_list */
 	unsigned int is_por:1;		/* indicate IO is from recovery or not */
 	unsigned int encrypted:1;	/* indicate file is encrypted */
-	unsigned int post_read:1;	/* require post read */
+	unsigned int meta_gc:1;		/* require meta inode GC */
 	enum iostat_type io_type;	/* io type */
 	struct writeback_control *io_wbc; /* writeback control */
 	struct bio **bio;		/* bio for ipu */
@@ -3222,21 +3227,15 @@ static inline bool f2fs_need_compress_data(struct inode *inode)
 	return false;
 }
 
-static inline unsigned int addrs_per_inode(struct inode *inode)
+static inline unsigned int addrs_per_page(struct inode *inode,
+							bool is_inode)
 {
-	unsigned int addrs = CUR_ADDRS_PER_INODE(inode) -
-				get_inline_xattr_addrs(inode);
+	unsigned int addrs = is_inode ? (CUR_ADDRS_PER_INODE(inode) -
+			get_inline_xattr_addrs(inode)) : DEF_ADDRS_PER_BLOCK;
 
-	if (!f2fs_compressed_file(inode))
-		return addrs;
-	return ALIGN_DOWN(addrs, F2FS_I(inode)->i_cluster_size);
-}
-
-static inline unsigned int addrs_per_block(struct inode *inode)
-{
-	if (!f2fs_compressed_file(inode))
-		return DEF_ADDRS_PER_BLOCK;
-	return ALIGN_DOWN(DEF_ADDRS_PER_BLOCK, F2FS_I(inode)->i_cluster_size);
+	if (f2fs_compressed_file(inode))
+		return ALIGN_DOWN(addrs, F2FS_I(inode)->i_cluster_size);
+	return addrs;
 }
 
 static inline void *inline_xattr_addr(struct inode *inode, struct page *page)
@@ -3533,8 +3532,22 @@ int f2fs_get_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 /*
  * dir.c
  */
+#if IS_ENABLED(CONFIG_UNICODE)
 int f2fs_init_casefolded_name(const struct inode *dir,
 			      struct f2fs_filename *fname);
+void f2fs_free_casefolded_name(struct f2fs_filename *fname);
+#else
+static inline int f2fs_init_casefolded_name(const struct inode *dir,
+					    struct f2fs_filename *fname)
+{
+	return 0;
+}
+
+static inline void f2fs_free_casefolded_name(struct f2fs_filename *fname)
+{
+}
+#endif /* CONFIG_UNICODE */
+
 int f2fs_setup_filename(struct inode *dir, const struct qstr *iname,
 			int lookup, struct f2fs_filename *fname);
 int f2fs_prepare_lookup(struct inode *dir, struct dentry *dentry,
@@ -3692,6 +3705,7 @@ void f2fs_release_discard_addrs(struct f2fs_sb_info *sbi);
 int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra);
 bool f2fs_segment_has_free_slot(struct f2fs_sb_info *sbi, int segno);
 int f2fs_init_inmem_curseg(struct f2fs_sb_info *sbi);
+int f2fs_reinit_atgc_curseg(struct f2fs_sb_info *sbi);
 void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi);
 void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi);
 int f2fs_allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
@@ -4149,7 +4163,7 @@ extern struct kmem_cache *f2fs_inode_entry_slab;
  * inline.c
  */
 bool f2fs_may_inline_data(struct inode *inode);
-bool f2fs_sanity_check_inline_data(struct inode *inode);
+bool f2fs_sanity_check_inline_data(struct inode *inode, struct page *ipage);
 bool f2fs_may_inline_dentry(struct inode *inode);
 void f2fs_do_read_inline_data(struct folio *folio, struct page *ipage);
 void f2fs_truncate_inline_inode(struct inode *inode,
@@ -4190,7 +4204,7 @@ void f2fs_leave_shrinker(struct f2fs_sb_info *sbi);
 /*
  * extent_cache.c
  */
-bool sanity_check_extent_cache(struct inode *inode);
+bool sanity_check_extent_cache(struct inode *inode, struct page *ipage);
 void f2fs_init_extent_tree(struct inode *inode);
 void f2fs_drop_extent_tree(struct inode *inode);
 void f2fs_destroy_extent_node(struct inode *inode);
@@ -4261,6 +4275,16 @@ static inline bool f2fs_post_read_required(struct inode *inode)
 		f2fs_compressed_file(inode);
 }
 
+static inline bool f2fs_used_in_atomic_write(struct inode *inode)
+{
+	return f2fs_is_atomic_file(inode) || f2fs_is_cow_file(inode);
+}
+
+static inline bool f2fs_meta_inode_gc_required(struct inode *inode)
+{
+	return f2fs_post_read_required(inode) || f2fs_used_in_atomic_write(inode);
+}
+
 /*
  * compress.c
  */
@@ -4296,7 +4320,7 @@ void f2fs_update_read_extent_tree_range_compressed(struct inode *inode,
 				unsigned int llen, unsigned int c_len);
 int f2fs_read_multi_pages(struct compress_ctx *cc, struct bio **bio_ret,
 				unsigned nr_pages, sector_t *last_block_in_bio,
-				bool is_readahead, bool for_write);
+				struct readahead_control *rac, bool for_write);
 struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc);
 void f2fs_decompress_end_io(struct decompress_io_ctx *dic, bool failed,
 				bool in_task);
@@ -4387,22 +4411,18 @@ static inline int set_compress_context(struct inode *inode)
 {
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 
-	F2FS_I(inode)->i_compress_algorithm =
-			F2FS_OPTION(sbi).compress_algorithm;
-	F2FS_I(inode)->i_log_cluster_size =
-			F2FS_OPTION(sbi).compress_log_size;
-	F2FS_I(inode)->i_compress_flag =
-			F2FS_OPTION(sbi).compress_chksum ?
-				BIT(COMPRESS_CHKSUM) : 0;
-	F2FS_I(inode)->i_cluster_size =
-			BIT(F2FS_I(inode)->i_log_cluster_size);
-	if ((F2FS_I(inode)->i_compress_algorithm == COMPRESS_LZ4 ||
-		F2FS_I(inode)->i_compress_algorithm == COMPRESS_ZSTD) &&
+	fi->i_compress_algorithm = F2FS_OPTION(sbi).compress_algorithm;
+	fi->i_log_cluster_size = F2FS_OPTION(sbi).compress_log_size;
+	fi->i_compress_flag = F2FS_OPTION(sbi).compress_chksum ?
+					BIT(COMPRESS_CHKSUM) : 0;
+	fi->i_cluster_size = BIT(fi->i_log_cluster_size);
+	if ((fi->i_compress_algorithm == COMPRESS_LZ4 ||
+		fi->i_compress_algorithm == COMPRESS_ZSTD) &&
 			F2FS_OPTION(sbi).compress_level)
-		F2FS_I(inode)->i_compress_level =
-				F2FS_OPTION(sbi).compress_level;
-	F2FS_I(inode)->i_flags |= F2FS_COMPR_FL;
+		fi->i_compress_level = F2FS_OPTION(sbi).compress_level;
+	fi->i_flags |= F2FS_COMPR_FL;
 	set_inode_flag(inode, FI_COMPRESSED_FILE);
 	stat_inc_compr_inode(inode);
 	inc_compr_inode_stat(inode);
@@ -4417,15 +4437,15 @@ static inline bool f2fs_disable_compressed_file(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 
-	f2fs_down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&fi->i_sem);
 
 	if (!f2fs_compressed_file(inode)) {
-		f2fs_up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&fi->i_sem);
 		return true;
 	}
 	if (f2fs_is_mmap_file(inode) ||
 		(S_ISREG(inode->i_mode) && F2FS_HAS_BLOCKS(inode))) {
-		f2fs_up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&fi->i_sem);
 		return false;
 	}
 
@@ -4434,7 +4454,7 @@ static inline bool f2fs_disable_compressed_file(struct inode *inode)
 	clear_inode_flag(inode, FI_COMPRESSED_FILE);
 	f2fs_mark_inode_dirty_sync(inode, true);
 
-	f2fs_up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&fi->i_sem);
 	return true;
 }
 

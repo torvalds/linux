@@ -582,7 +582,7 @@ depending on the hardware. In all cases, however, only routes that have the
 Devices generating the streams may allow enabling and disabling some of the
 routes or have a fixed routing configuration. If the routes can be disabled, not
 declaring the routes (or declaring them without
-``VIDIOC_SUBDEV_STREAM_FL_ACTIVE`` flag set) in ``VIDIOC_SUBDEV_S_ROUTING`` will
+``V4L2_SUBDEV_STREAM_FL_ACTIVE`` flag set) in ``VIDIOC_SUBDEV_S_ROUTING`` will
 disable the routes. ``VIDIOC_SUBDEV_S_ROUTING`` will still return such routes
 back to the user in the routes array, with the ``V4L2_SUBDEV_STREAM_FL_ACTIVE``
 flag unset.

@@ -17,6 +17,8 @@
 #   $3 - kernel map file
 #   $4 - default install path (blank if root directory)
 
+set -e
+
 case "${2##*/}" in
 # Compressed install
 Image.*|vmlinuz.efi)

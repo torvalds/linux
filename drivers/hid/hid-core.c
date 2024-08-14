@@ -95,9 +95,9 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 		return NULL;
 	}
 
-	field = kzalloc((sizeof(struct hid_field) +
-			 usages * sizeof(struct hid_usage) +
-			 3 * usages * sizeof(unsigned int)), GFP_KERNEL);
+	field = kvzalloc((sizeof(struct hid_field) +
+			  usages * sizeof(struct hid_usage) +
+			  3 * usages * sizeof(unsigned int)), GFP_KERNEL);
 	if (!field)
 		return NULL;
 
@@ -661,7 +661,7 @@ static void hid_free_report(struct hid_report *report)
 	kfree(report->field_entries);
 
 	for (n = 0; n < report->maxfield; n++)
-		kfree(report->field[n]);
+		kvfree(report->field[n]);
 	kfree(report);
 }
 
@@ -1448,7 +1448,6 @@ static void implement(const struct hid_device *hid, u8 *report,
 			hid_warn(hid,
 				 "%s() called with too large value %d (n: %d)! (%s)\n",
 				 __func__, value, n, current->comm);
-			WARN_ON(1);
 			value &= m;
 		}
 	}
@@ -2026,19 +2025,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(hid_report_raw_event);
 
-/**
- * hid_input_report - report data from lower layer (usb, bt...)
- *
- * @hid: hid device
- * @type: HID report type (HID_*_REPORT)
- * @data: report contents
- * @size: size of data parameter
- * @interrupt: distinguish between interrupt and control transfers
- *
- * This is data entry for lower layers.
- */
-int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data, u32 size,
-		     int interrupt)
+
+static int __hid_input_report(struct hid_device *hid, enum hid_report_type type,
+			      u8 *data, u32 size, int interrupt, u64 source, bool from_bpf,
+			      bool lock_already_taken)
 {
 	struct hid_report_enum *report_enum;
 	struct hid_driver *hdrv;
@@ -2048,8 +2038,13 @@ int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data
 	if (!hid)
 		return -ENODEV;
 
-	if (down_trylock(&hid->driver_input_lock))
+	ret = down_trylock(&hid->driver_input_lock);
+	if (lock_already_taken && !ret) {
+		up(&hid->driver_input_lock);
+		return -EINVAL;
+	} else if (!lock_already_taken && ret) {
 		return -EBUSY;
+	}
 
 	if (!hid->driver) {
 		ret = -ENODEV;
@@ -2058,7 +2053,7 @@ int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data
 	report_enum = hid->report_enum + type;
 	hdrv = hid->driver;
 
-	data = dispatch_hid_bpf_device_event(hid, type, data, &size, interrupt);
+	data = dispatch_hid_bpf_device_event(hid, type, data, &size, interrupt, source, from_bpf);
 	if (IS_ERR(data)) {
 		ret = PTR_ERR(data);
 		goto unlock;
@@ -2090,8 +2085,28 @@ int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data
 	ret = hid_report_raw_event(hid, type, data, size, interrupt);
 
 unlock:
-	up(&hid->driver_input_lock);
+	if (!lock_already_taken)
+		up(&hid->driver_input_lock);
 	return ret;
+}
+
+/**
+ * hid_input_report - report data from lower layer (usb, bt...)
+ *
+ * @hid: hid device
+ * @type: HID report type (HID_*_REPORT)
+ * @data: report contents
+ * @size: size of data parameter
+ * @interrupt: distinguish between interrupt and control transfers
+ *
+ * This is data entry for lower layers.
+ */
+int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data, u32 size,
+		     int interrupt)
+{
+	return __hid_input_report(hid, type, data, size, interrupt, 0,
+				  false, /* from_bpf */
+				  false /* lock_already_taken */);
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
 
@@ -2393,6 +2408,30 @@ void hid_hw_request(struct hid_device *hdev,
 }
 EXPORT_SYMBOL_GPL(hid_hw_request);
 
+int __hid_hw_raw_request(struct hid_device *hdev,
+			 unsigned char reportnum, __u8 *buf,
+			 size_t len, enum hid_report_type rtype,
+			 enum hid_class_request reqtype,
+			 u64 source, bool from_bpf)
+{
+	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
+	int ret;
+
+	if (hdev->ll_driver->max_buffer_size)
+		max_buffer_size = hdev->ll_driver->max_buffer_size;
+
+	if (len < 1 || len > max_buffer_size || !buf)
+		return -EINVAL;
+
+	ret = dispatch_hid_bpf_raw_requests(hdev, reportnum, buf, len, rtype,
+					    reqtype, source, from_bpf);
+	if (ret)
+		return ret;
+
+	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
+					    rtype, reqtype);
+}
+
 /**
  * hid_hw_raw_request - send report request to device
  *
@@ -2411,7 +2450,15 @@ int hid_hw_raw_request(struct hid_device *hdev,
 		       unsigned char reportnum, __u8 *buf,
 		       size_t len, enum hid_report_type rtype, enum hid_class_request reqtype)
 {
+	return __hid_hw_raw_request(hdev, reportnum, buf, len, rtype, reqtype, 0, false);
+}
+EXPORT_SYMBOL_GPL(hid_hw_raw_request);
+
+int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, u64 source,
+			   bool from_bpf)
+{
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
+	int ret;
 
 	if (hdev->ll_driver->max_buffer_size)
 		max_buffer_size = hdev->ll_driver->max_buffer_size;
@@ -2419,10 +2466,15 @@ int hid_hw_raw_request(struct hid_device *hdev,
 	if (len < 1 || len > max_buffer_size || !buf)
 		return -EINVAL;
 
-	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
-					    rtype, reqtype);
+	ret = dispatch_hid_bpf_output_report(hdev, buf, len, source, from_bpf);
+	if (ret)
+		return ret;
+
+	if (hdev->ll_driver->output_report)
+		return hdev->ll_driver->output_report(hdev, buf, len);
+
+	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(hid_hw_raw_request);
 
 /**
  * hid_hw_output_report - send output report to device
@@ -2435,18 +2487,7 @@ EXPORT_SYMBOL_GPL(hid_hw_raw_request);
  */
 int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len)
 {
-	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
-
-	if (hdev->ll_driver->max_buffer_size)
-		max_buffer_size = hdev->ll_driver->max_buffer_size;
-
-	if (len < 1 || len > max_buffer_size || !buf)
-		return -EINVAL;
-
-	if (hdev->ll_driver->output_report)
-		return hdev->ll_driver->output_report(hdev, buf, len);
-
-	return -ENOSYS;
+	return __hid_hw_output_report(hdev, buf, len, 0, false);
 }
 EXPORT_SYMBOL_GPL(hid_hw_output_report);
 
@@ -2563,7 +2604,7 @@ const struct hid_device_id *hid_match_device(struct hid_device *hdev,
 }
 EXPORT_SYMBOL_GPL(hid_match_device);
 
-static int hid_bus_match(struct device *dev, struct device_driver *drv)
+static int hid_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct hid_driver *hdrv = to_hid_driver(drv);
 	struct hid_device *hdev = to_hid_device(dev);
@@ -2855,9 +2896,15 @@ struct hid_device *hid_allocate_device(void)
 	mutex_init(&hdev->ll_open_lock);
 	kref_init(&hdev->ref);
 
-	hid_bpf_device_init(hdev);
+	ret = hid_bpf_device_init(hdev);
+	if (ret)
+		goto out_err;
 
 	return hdev;
+
+out_err:
+	hid_destroy_device(hdev);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(hid_allocate_device);
 
@@ -2971,11 +3018,11 @@ int hid_check_keys_pressed(struct hid_device *hid)
 EXPORT_SYMBOL_GPL(hid_check_keys_pressed);
 
 #ifdef CONFIG_HID_BPF
-static struct hid_bpf_ops hid_ops = {
+static struct hid_ops __hid_ops = {
 	.hid_get_report = hid_get_report,
-	.hid_hw_raw_request = hid_hw_raw_request,
-	.hid_hw_output_report = hid_hw_output_report,
-	.hid_input_report = hid_input_report,
+	.hid_hw_raw_request = __hid_hw_raw_request,
+	.hid_hw_output_report = __hid_hw_output_report,
+	.hid_input_report = __hid_input_report,
 	.owner = THIS_MODULE,
 	.bus_type = &hid_bus_type,
 };
@@ -2992,7 +3039,7 @@ static int __init hid_init(void)
 	}
 
 #ifdef CONFIG_HID_BPF
-	hid_bpf_ops = &hid_ops;
+	hid_ops = &__hid_ops;
 #endif
 
 	ret = hidraw_init();
@@ -3011,7 +3058,7 @@ err:
 static void __exit hid_exit(void)
 {
 #ifdef CONFIG_HID_BPF
-	hid_bpf_ops = NULL;
+	hid_ops = NULL;
 #endif
 	hid_debug_exit();
 	hidraw_exit();
@@ -3025,4 +3072,5 @@ module_exit(hid_exit);
 MODULE_AUTHOR("Andreas Gal");
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_AUTHOR("Jiri Kosina");
+MODULE_DESCRIPTION("HID support for Linux");
 MODULE_LICENSE("GPL");

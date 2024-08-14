@@ -73,7 +73,10 @@ enum bpf_iter_state {
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
-	/* Fixed part of pointer offset, pointer types only */
+	/*
+	 * Fixed part of pointer offset, pointer types only.
+	 * Or constant delta between "linked" scalars with the same ID.
+	 */
 	s32 off;
 	union {
 		/* valid when type == PTR_TO_PACKET */
@@ -167,6 +170,13 @@ struct bpf_reg_state {
 	 * Similarly to dynptrs, we use ID to track "belonging" of a reference
 	 * to a specific instance of bpf_iter.
 	 */
+	/*
+	 * Upper bit of ID is used to remember relationship between "linked"
+	 * registers. Example:
+	 * r1 = r2;    both will have r1->id == r2->id == N
+	 * r1 += 10;   r1->id == N | BPF_ADD_CONST and r1->off == 10
+	 */
+#define BPF_ADD_CONST (1U << 31)
 	u32 id;
 	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
 	 * from a pointer-cast helper, bpf_sk_fullsock() and
@@ -746,6 +756,8 @@ struct bpf_verifier_env {
 	/* Same as scratched_regs but for stack slots */
 	u64 scratched_stack_slots;
 	u64 prev_log_pos, prev_insn_print_pos;
+	/* buffer used to temporary hold constants as scalar registers */
+	struct bpf_reg_state fake_reg[2];
 	/* buffer used to generate temporary string representations,
 	 * e.g., in reg_type_str() to generate reg_type string
 	 */
@@ -844,7 +856,7 @@ static inline u32 type_flag(u32 type)
 /* only use after check_attach_btf_id() */
 static inline enum bpf_prog_type resolve_prog_type(const struct bpf_prog *prog)
 {
-	return prog->type == BPF_PROG_TYPE_EXT ?
+	return (prog->type == BPF_PROG_TYPE_EXT && prog->aux->dst_prog) ?
 		prog->aux->dst_prog->type : prog->type;
 }
 

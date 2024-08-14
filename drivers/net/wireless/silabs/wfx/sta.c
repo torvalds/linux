@@ -805,7 +805,7 @@ int wfx_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void wfx_stop(struct ieee80211_hw *hw)
+void wfx_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct wfx_dev *wdev = hw->priv;
 

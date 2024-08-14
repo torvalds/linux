@@ -393,7 +393,8 @@ static int probe_uprobe_multi_link(int token_fd)
 	err = -errno; /* close() can clobber errno */
 
 	if (link_fd >= 0 || err != -EBADF) {
-		close(link_fd);
+		if (link_fd >= 0)
+			close(link_fd);
 		close(prog_fd);
 		return 0;
 	}

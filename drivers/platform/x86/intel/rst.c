@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+MODULE_DESCRIPTION("Intel Rapid Start Technology Driver");
 MODULE_LICENSE("GPL");
 
 static ssize_t irst_show_wakeup_events(struct device *dev,

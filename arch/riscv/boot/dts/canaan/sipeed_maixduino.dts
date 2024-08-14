@@ -15,6 +15,10 @@
 	model = "SiPeed MAIXDUINO";
 	compatible = "sipeed,maixduino", "canaan,kendryte-k210";
 
+	aliases {
+		serial0 = &uarths0;
+	};
+
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
 		stdout-path = "serial0:115200n8";
@@ -39,8 +43,6 @@
 };
 
 &fpioa {
-	status = "okay";
-
 	uarths_pinctrl: uarths-pinmux {
 		pinmux = <K210_FPIOA(4, K210_PCF_UARTHS_RX)>, /* Header "0" */
 			 <K210_FPIOA(5, K210_PCF_UARTHS_TX)>; /* Header "1" */
@@ -132,6 +134,7 @@
 	#sound-dai-cells = <1>;
 	pinctrl-0 = <&i2s0_pinctrl>;
 	pinctrl-names = "default";
+	status = "okay";
 };
 
 &i2c1 {
@@ -146,6 +149,7 @@
 	pinctrl-names = "default";
 	num-cs = <1>;
 	cs-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 
 	panel@0 {
 		compatible = "sitronix,st7789v";
@@ -174,6 +178,8 @@
 };
 
 &spi3 {
+	status = "okay";
+
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;

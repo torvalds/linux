@@ -3470,7 +3470,7 @@ static int skl_tplg_complete(struct snd_soc_component *component)
 	return 0;
 }
 
-static struct snd_soc_tplg_ops skl_tplg_ops  = {
+static const struct snd_soc_tplg_ops skl_tplg_ops = {
 	.widget_load = skl_tplg_widget_load,
 	.control_load = skl_tplg_control_load,
 	.bytes_ext_ops = skl_tlv_ops,

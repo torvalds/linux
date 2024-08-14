@@ -10,7 +10,6 @@
 	thermal-zones {
 		pm8010-m-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pm8010_m_temp_alarm>;
 
@@ -31,7 +30,6 @@
 
 		pm8010-n-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pm8010_n_temp_alarm>;
 

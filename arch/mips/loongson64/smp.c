@@ -33,7 +33,6 @@ static void __iomem *ipi_clear0_regs[16];
 static void __iomem *ipi_status0_regs[16];
 static void __iomem *ipi_en0_regs[16];
 static void __iomem *ipi_mailbox_buf[16];
-static uint32_t core0_c0count[NR_CPUS];
 
 static u32 (*ipi_read_clear)(int cpu);
 static void (*ipi_write_action)(int cpu, u32 action);
@@ -382,11 +381,10 @@ loongson3_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ipi_write_action(cpu_logical_map(i), (u32)action);
 }
 
-
 static irqreturn_t loongson3_ipi_interrupt(int irq, void *dev_id)
 {
-	int i, cpu = smp_processor_id();
-	unsigned int action, c0count;
+	int cpu = smp_processor_id();
+	unsigned int action;
 
 	action = ipi_read_clear(cpu);
 
@@ -399,26 +397,14 @@ static irqreturn_t loongson3_ipi_interrupt(int irq, void *dev_id)
 		irq_exit();
 	}
 
-	if (action & SMP_ASK_C0COUNT) {
-		BUG_ON(cpu != 0);
-		c0count = read_c0_count();
-		c0count = c0count ? c0count : 1;
-		for (i = 1; i < nr_cpu_ids; i++)
-			core0_c0count[i] = c0count;
-		nudge_writes(); /* Let others see the result ASAP */
-	}
-
 	return IRQ_HANDLED;
 }
 
-#define MAX_LOOPS 800
 /*
  * SMP init and finish on secondary CPUs
  */
 static void loongson3_init_secondary(void)
 {
-	int i;
-	uint32_t initcount;
 	unsigned int cpu = smp_processor_id();
 	unsigned int imask = STATUSF_IP7 | STATUSF_IP6 |
 			     STATUSF_IP3 | STATUSF_IP2;
@@ -432,23 +418,6 @@ static void loongson3_init_secondary(void)
 		     cpu_logical_map(cpu) % loongson_sysconf.cores_per_package);
 	cpu_data[cpu].package =
 		cpu_logical_map(cpu) / loongson_sysconf.cores_per_package;
-
-	i = 0;
-	core0_c0count[cpu] = 0;
-	loongson3_send_ipi_single(0, SMP_ASK_C0COUNT);
-	while (!core0_c0count[cpu]) {
-		i++;
-		cpu_relax();
-	}
-
-	if (i > MAX_LOOPS)
-		i = MAX_LOOPS;
-	if (cpu_data[cpu].package)
-		initcount = core0_c0count[cpu] + i;
-	else /* Local access is faster for loops */
-		initcount = core0_c0count[cpu] + i/2;
-
-	write_c0_count(initcount);
 }
 
 static void loongson3_smp_finish(void)
@@ -466,12 +435,25 @@ static void loongson3_smp_finish(void)
 static void __init loongson3_smp_setup(void)
 {
 	int i = 0, num = 0; /* i: physical id, num: logical id */
+	int max_cpus = 0;
 
 	init_cpu_possible(cpu_none_mask);
+
+	for (i = 0; i < ARRAY_SIZE(smp_group); i++) {
+		if (!smp_group[i])
+			break;
+		max_cpus += loongson_sysconf.cores_per_node;
+	}
+
+	if (max_cpus < loongson_sysconf.nr_cpus) {
+		pr_err("SMP Groups are less than the number of CPUs\n");
+		loongson_sysconf.nr_cpus = max_cpus ? max_cpus : 1;
+	}
 
 	/* For unified kernel, NR_CPUS is the maximum possible value,
 	 * loongson_sysconf.nr_cpus is the really present value
 	 */
+	i = 0;
 	while (i < loongson_sysconf.nr_cpus) {
 		if (loongson_sysconf.reserved_cpus_mask & (1<<i)) {
 			/* Reserved physical CPU cores */
@@ -492,14 +474,14 @@ static void __init loongson3_smp_setup(void)
 		__cpu_logical_map[num] = -1;
 		num++;
 	}
-
 	csr_ipi_probe();
 	ipi_set0_regs_init();
 	ipi_clear0_regs_init();
 	ipi_status0_regs_init();
 	ipi_en0_regs_init();
 	ipi_mailbox_buf_init();
-	ipi_write_enable(0);
+	if (smp_group[0])
+		ipi_write_enable(0);
 
 	cpu_set_core(&cpu_data[0],
 		     cpu_logical_map(0) % loongson_sysconf.cores_per_package);
@@ -818,6 +800,9 @@ static int loongson3_disable_clock(unsigned int cpu)
 	uint64_t core_id = cpu_core(&cpu_data[cpu]);
 	uint64_t package_id = cpu_data[cpu].package;
 
+	if (!loongson_chipcfg[package_id] || !loongson_freqctrl[package_id])
+		return 0;
+
 	if ((read_c0_prid() & PRID_REV_MASK) == PRID_REV_LOONGSON3A_R1) {
 		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
 	} else {
@@ -831,6 +816,9 @@ static int loongson3_enable_clock(unsigned int cpu)
 {
 	uint64_t core_id = cpu_core(&cpu_data[cpu]);
 	uint64_t package_id = cpu_data[cpu].package;
+
+	if (!loongson_chipcfg[package_id] || !loongson_freqctrl[package_id])
+		return 0;
 
 	if ((read_c0_prid() & PRID_REV_MASK) == PRID_REV_LOONGSON3A_R1) {
 		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);

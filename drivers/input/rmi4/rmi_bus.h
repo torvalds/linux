@@ -87,7 +87,7 @@ struct rmi_function_handler {
 };
 
 #define to_rmi_function_handler(d) \
-		container_of(d, struct rmi_function_handler, driver)
+		container_of_const(d, struct rmi_function_handler, driver)
 
 int __must_check __rmi_register_function_handler(struct rmi_function_handler *,
 						 struct module *, const char *);

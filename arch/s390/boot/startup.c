@@ -30,6 +30,7 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata_preserved(max_mappable);
+int __bootdata_preserved(relocate_lowcore);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
@@ -78,10 +79,10 @@ static int cmma_test_essa(void)
 		  [reg2] "=&a" (reg2),
 		  [rc] "+&d" (rc),
 		  [tmp] "=&d" (tmp),
-		  "+Q" (S390_lowcore.program_new_psw),
+		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw),
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
 		  [cmd] "i" (ESSA_GET_STATE)
 		: "cc", "memory");
 	return rc;
@@ -101,10 +102,10 @@ static void cmma_init(void)
 
 static void setup_lpp(void)
 {
-	S390_lowcore.current_pid = 0;
-	S390_lowcore.lpp = LPP_MAGIC;
+	get_lowcore()->current_pid = 0;
+	get_lowcore()->lpp = LPP_MAGIC;
 	if (test_facility(40))
-		lpp(&S390_lowcore.lpp);
+		lpp(&get_lowcore()->lpp);
 }
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
@@ -170,11 +171,14 @@ static void kaslr_adjust_got(unsigned long offset)
 	u64 *entry;
 
 	/*
-	 * Even without -fPIE, Clang still uses a global offset table for some
-	 * reason. Adjust the GOT entries.
+	 * Adjust GOT entries, except for ones for undefined weak symbols
+	 * that resolved to zero. This also skips the first three reserved
+	 * entries on s390x that are zero.
 	 */
-	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
-		*entry += offset - __START_KERNEL;
+	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++) {
+		if (*entry)
+			*entry += offset - __START_KERNEL;
+	}
 }
 
 /*
@@ -301,11 +305,18 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	MODULES_END = round_down(kernel_start, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
+	if (IS_ENABLED(CONFIG_KMSAN))
+		VMALLOC_END -= MODULES_LEN * 2;
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
 	vsize = (VMALLOC_END - FIXMAP_SIZE) / 2;
 	vsize = round_down(vsize, _SEGMENT_SIZE);
 	vmalloc_size = min(vmalloc_size, vsize);
+	if (IS_ENABLED(CONFIG_KMSAN)) {
+		/* take 2/3 of vmalloc area for KMSAN shadow and origins */
+		vmalloc_size = round_down(vmalloc_size / 3, _SEGMENT_SIZE);
+		VMALLOC_END -= vmalloc_size * 2;
+	}
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
 	__memcpy_real_area = round_down(VMALLOC_START - MEMCPY_REAL_SIZE, PAGE_SIZE);
@@ -366,6 +377,8 @@ static void kaslr_adjust_vmlinux_info(long offset)
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
+	vmlinux.alt_instructions += offset;
+	vmlinux.alt_instructions_end += offset;
 #ifdef CONFIG_KASAN
 	vmlinux.kasan_early_shadow_page_off += offset;
 	vmlinux.kasan_early_shadow_pte_off += offset;
@@ -384,7 +397,7 @@ static void fixup_vmlinux_info(void)
 void startup_kernel(void)
 {
 	unsigned long kernel_size = vmlinux.image_size + vmlinux.bss_size;
-	unsigned long nokaslr_offset_phys = mem_safe_offset();
+	unsigned long nokaslr_offset_phys, kaslr_large_page_offset;
 	unsigned long amode31_lma = 0;
 	unsigned long max_physmem_end;
 	unsigned long asce_limit;
@@ -393,6 +406,12 @@ void startup_kernel(void)
 
 	fixup_vmlinux_info();
 	setup_lpp();
+
+	/*
+	 * Non-randomized kernel physical start address must be _SEGMENT_SIZE
+	 * aligned (see blow).
+	 */
+	nokaslr_offset_phys = ALIGN(mem_safe_offset(), _SEGMENT_SIZE);
 	safe_addr = PAGE_ALIGN(nokaslr_offset_phys + kernel_size);
 
 	/*
@@ -425,10 +444,25 @@ void startup_kernel(void)
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
 
-	if (kaslr_enabled())
-		__kaslr_offset_phys = randomize_within_range(kernel_size, THREAD_SIZE, 0, ident_map_size);
+	/*
+	 * __kaslr_offset_phys must be _SEGMENT_SIZE aligned, so the lower
+	 * 20 bits (the offset within a large page) are zero. Copy the last
+	 * 20 bits of __kaslr_offset, which is THREAD_SIZE aligned, to
+	 * __kaslr_offset_phys.
+	 *
+	 * With this the last 20 bits of __kaslr_offset_phys and __kaslr_offset
+	 * are identical, which is required to allow for large mappings of the
+	 * kernel image.
+	 */
+	kaslr_large_page_offset = __kaslr_offset & ~_SEGMENT_MASK;
+	if (kaslr_enabled()) {
+		unsigned long end = ident_map_size - kaslr_large_page_offset;
+
+		__kaslr_offset_phys = randomize_within_range(kernel_size, _SEGMENT_SIZE, 0, end);
+	}
 	if (!__kaslr_offset_phys)
 		__kaslr_offset_phys = nokaslr_offset_phys;
+	__kaslr_offset_phys |= kaslr_large_page_offset;
 	kaslr_adjust_vmlinux_info(__kaslr_offset_phys);
 	physmem_reserve(RR_VMLINUX, __kaslr_offset_phys, kernel_size);
 	deploy_kernel((void *)__kaslr_offset_phys);
@@ -447,8 +481,12 @@ void startup_kernel(void)
 	 * before the kernel started. Therefore, in case the two sections
 	 * overlap there is no risk of corrupting any data.
 	 */
-	if (kaslr_enabled())
-		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G);
+	if (kaslr_enabled()) {
+		unsigned long amode31_min;
+
+		amode31_min = (unsigned long)_decompressor_end;
+		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, amode31_min, SZ_2G);
+	}
 	if (!amode31_lma)
 		amode31_lma = __kaslr_offset_phys - vmlinux.amode31_size;
 	physmem_reserve(RR_AMODE31, amode31_lma, vmlinux.amode31_size);
@@ -472,12 +510,15 @@ void startup_kernel(void)
 	kaslr_adjust_got(__kaslr_offset);
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
+	__apply_alternatives((struct alt_instr *)_vmlinux_info.alt_instructions,
+			     (struct alt_instr *)_vmlinux_info.alt_instructions_end,
+			     ALT_CTX_EARLY);
 
 	/*
 	 * Save KASLR offset for early dumps, before vmcore_info is set.
 	 * Mark as uneven to distinguish from real vmcore_info pointer.
 	 */
-	S390_lowcore.vmcore_info = __kaslr_offset_phys ? __kaslr_offset_phys | 0x1UL : 0;
+	get_lowcore()->vmcore_info = __kaslr_offset_phys ? __kaslr_offset_phys | 0x1UL : 0;
 
 	/*
 	 * Jump to the decompressed kernel entry point and switch DAT mode on.

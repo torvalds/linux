@@ -13,7 +13,7 @@
  * need two 16-bit instructions.
  */
 
-#include <asm/unistd.h>
+#include <asm/unistd_compat_32.h>
 
 	.section .rodata
 	.globl __aarch32_sigret_code_start
@@ -22,26 +22,26 @@ __aarch32_sigret_code_start:
 	/*
 	 * ARM Code
 	 */
-	.byte	__NR_compat_sigreturn, 0x70, 0xa0, 0xe3		// mov	r7, #__NR_compat_sigreturn
-	.byte	__NR_compat_sigreturn, 0x00, 0x00, 0xef		// svc	#__NR_compat_sigreturn
+	.byte	__NR_compat32_sigreturn, 0x70, 0xa0, 0xe3	// mov	r7, #__NR_compat32_sigreturn
+	.byte	__NR_compat32_sigreturn, 0x00, 0x00, 0xef	// svc	#__NR_compat32_sigreturn
 
 	/*
 	 * Thumb code
 	 */
-	.byte	__NR_compat_sigreturn, 0x27			// svc	#__NR_compat_sigreturn
-	.byte	__NR_compat_sigreturn, 0xdf			// mov	r7, #__NR_compat_sigreturn
+	.byte	__NR_compat32_sigreturn, 0x27			// svc	#__NR_compat32_sigreturn
+	.byte	__NR_compat32_sigreturn, 0xdf			// mov	r7, #__NR_compat32_sigreturn
 
 	/*
 	 * ARM code
 	 */
-	.byte	__NR_compat_rt_sigreturn, 0x70, 0xa0, 0xe3	// mov	r7, #__NR_compat_rt_sigreturn
-	.byte	__NR_compat_rt_sigreturn, 0x00, 0x00, 0xef	// svc	#__NR_compat_rt_sigreturn
+	.byte	__NR_compat32_rt_sigreturn, 0x70, 0xa0, 0xe3	// mov	r7, #__NR_compat32_rt_sigreturn
+	.byte	__NR_compat32_rt_sigreturn, 0x00, 0x00, 0xef	// svc	#__NR_compat32_rt_sigreturn
 
 	/*
 	 * Thumb code
 	 */
-	.byte	__NR_compat_rt_sigreturn, 0x27			// svc	#__NR_compat_rt_sigreturn
-	.byte	__NR_compat_rt_sigreturn, 0xdf			// mov	r7, #__NR_compat_rt_sigreturn
+	.byte	__NR_compat32_rt_sigreturn, 0x27		// svc	#__NR_compat32_rt_sigreturn
+	.byte	__NR_compat32_rt_sigreturn, 0xdf		// mov	r7, #__NR_compat32_rt_sigreturn
 
         .globl __aarch32_sigret_code_end
 __aarch32_sigret_code_end:

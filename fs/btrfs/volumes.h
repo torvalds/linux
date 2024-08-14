@@ -834,6 +834,6 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
 bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
 
 bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
-u8 *btrfs_sb_fsid_ptr(struct btrfs_super_block *sb);
+const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb);
 
 #endif

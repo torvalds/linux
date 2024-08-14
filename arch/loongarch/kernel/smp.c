@@ -13,6 +13,7 @@
 #include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq_work.h>
 #include <linux/profile.h>
 #include <linux/seq_file.h>
 #include <linux/smp.h>
@@ -70,6 +71,7 @@ static DEFINE_PER_CPU(int, cpu_state);
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	[IPI_RESCHEDULE] = "Rescheduling interrupts",
 	[IPI_CALL_FUNCTION] = "Function call interrupts",
+	[IPI_IRQ_WORK] = "IRQ work interrupts",
 };
 
 void show_ipi_list(struct seq_file *p, int prec)
@@ -217,6 +219,13 @@ void arch_smp_send_reschedule(int cpu)
 }
 EXPORT_SYMBOL_GPL(arch_smp_send_reschedule);
 
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	mp_ops.send_ipi_single(smp_processor_id(), ACTION_IRQ_WORK);
+}
+#endif
+
 static irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 {
 	unsigned int action;
@@ -232,6 +241,11 @@ static irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 	if (action & SMP_CALL_FUNCTION) {
 		generic_smp_call_function_interrupt();
 		per_cpu(irq_stat, cpu).ipi_irqs[IPI_CALL_FUNCTION]++;
+	}
+
+	if (action & SMP_IRQ_WORK) {
+		irq_work_run();
+		per_cpu(irq_stat, cpu).ipi_irqs[IPI_IRQ_WORK]++;
 	}
 
 	return IRQ_HANDLED;
@@ -271,18 +285,19 @@ static void __init fdt_smp_setup(void)
 		if (cpuid >= nr_cpu_ids)
 			continue;
 
-		if (cpuid == loongson_sysconf.boot_cpu_id) {
+		if (cpuid == loongson_sysconf.boot_cpu_id)
 			cpu = 0;
-			numa_add_cpu(cpu);
-		} else {
-			cpu = cpumask_next_zero(-1, cpu_present_mask);
-		}
+		else
+			cpu = find_first_zero_bit(cpumask_bits(cpu_present_mask), NR_CPUS);
 
 		num_processors++;
 		set_cpu_possible(cpu, true);
 		set_cpu_present(cpu, true);
 		__cpu_number_map[cpuid] = cpu;
 		__cpu_logical_map[cpu] = cpuid;
+
+		early_numa_add_cpu(cpu, 0);
+		set_cpuid_to_node(cpuid, 0);
 	}
 
 	loongson_sysconf.nr_cpus = num_processors;
@@ -468,6 +483,7 @@ void smp_prepare_boot_cpu(void)
 	set_cpu_possible(0, true);
 	set_cpu_online(0, true);
 	set_my_cpu_offset(per_cpu_offset(0));
+	numa_add_cpu(0);
 
 	rr_node = first_node(node_online_map);
 	for_each_possible_cpu(cpu) {

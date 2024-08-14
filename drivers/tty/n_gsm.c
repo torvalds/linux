@@ -4634,5 +4634,6 @@ module_init(gsm_init);
 module_exit(gsm_exit);
 
 
+MODULE_DESCRIPTION("GSM 0710 tty multiplexor");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_GSM0710);

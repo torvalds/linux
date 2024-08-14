@@ -200,7 +200,7 @@ all'ABI dello spazio utente, eccetera.  Qualunque tipo di revisione è ben
 accetta e di valore, se porta ad avere un codice migliore nel kernel.
 
 Non esistono requisiti particolarmente stringenti per l'uso di etichette come
-``Reviewd-by``. Tuttavia, perché la revisione sia efficace ci si aspetta un
+``Reviewed-by``. Tuttavia, perché la revisione sia efficace ci si aspetta un
 qualche tipo di messaggio che dica "ho verificato A, B e C nel codice che è
 appena stato inviato e mi sembra tutto in ordine". Inoltre, questo permette ai
 manutentori di prendere conoscenza circa una revisione avvenuta per davvero.

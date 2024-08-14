@@ -46,9 +46,7 @@ struct mem_cgroup;
  * which is guaranteed to be aligned.  If you use the same storage as
  * page->mapping, you must restore it to NULL before freeing the page.
  *
- * If your page will not be mapped to userspace, you can also use the four
- * bytes in the mapcount union, but you must call page_mapcount_reset()
- * before freeing it.
+ * The mapcount field must not be used for own purposes.
  *
  * If you want to use the refcount field, it must be used in such a way
  * that other CPUs temporarily incrementing and then decrementing the
@@ -152,25 +150,40 @@ struct page {
 
 	union {		/* This union is 4 bytes in size. */
 		/*
-		 * If the page can be mapped to userspace, encodes the number
-		 * of times this page is referenced by a page table.
-		 */
-		atomic_t _mapcount;
-
-		/*
-		 * If the page is neither PageSlab nor mappable to userspace,
-		 * the value stored here may help determine what this page
-		 * is used for.  See page-flags.h for a list of page types
-		 * which are currently stored here.
+		 * For head pages of typed folios, the value stored here
+		 * allows for determining what this page is used for. The
+		 * tail pages of typed folios will not store a type
+		 * (page_type == _mapcount == -1).
+		 *
+		 * See page-flags.h for a list of page types which are currently
+		 * stored here.
+		 *
+		 * Owners of typed folios may reuse the lower 16 bit of the
+		 * head page page_type field after setting the page type,
+		 * but must reset these 16 bit to -1 before clearing the
+		 * page type.
 		 */
 		unsigned int page_type;
+
+		/*
+		 * For pages that are part of non-typed folios for which mappings
+		 * are tracked via the RMAP, encodes the number of times this page
+		 * is directly referenced by a page table.
+		 *
+		 * Note that the mapcount is always initialized to -1, so that
+		 * transitions both from it and to it can be tracked, using
+		 * atomic_inc_and_test() and atomic_add_negative(-1).
+		 */
+		atomic_t _mapcount;
 	};
 
 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
 	atomic_t _refcount;
 
-#ifdef CONFIG_SLAB_OBJ_EXT
+#ifdef CONFIG_MEMCG
 	unsigned long memcg_data;
+#elif defined(CONFIG_SLAB_OBJ_EXT)
+	unsigned long _unused_slab_obj_exts;
 #endif
 
 	/*
@@ -298,6 +311,7 @@ typedef struct {
  * @_hugetlb_cgroup_rsvd: Do not use directly, use accessor in hugetlb_cgroup.h.
  * @_hugetlb_hwpoison: Do not use directly, call raw_hwp_list_head().
  * @_deferred_list: Folios to be split under memory pressure.
+ * @_unused_slab_obj_exts: Placeholder to match obj_exts in struct slab.
  *
  * A folio is a physically, virtually and logically contiguous set
  * of bytes.  It is a power-of-two in size, and it is aligned to that
@@ -332,8 +346,10 @@ struct folio {
 			};
 			atomic_t _mapcount;
 			atomic_t _refcount;
-#ifdef CONFIG_SLAB_OBJ_EXT
+#ifdef CONFIG_MEMCG
 			unsigned long memcg_data;
+#elif defined(CONFIG_SLAB_OBJ_EXT)
+			unsigned long _unused_slab_obj_exts;
 #endif
 #if defined(WANT_PAGE_VIRTUAL)
 			void *virtual;
@@ -985,7 +1001,7 @@ struct mm_struct {
 		 * Represent how many empty pages are merged with kernel zero
 		 * pages when enabling KSM use_zero_pages.
 		 */
-		unsigned long ksm_zero_pages;
+		atomic_long_t ksm_zero_pages;
 #endif /* CONFIG_KSM */
 #ifdef CONFIG_LRU_GEN_WALKS_MMU
 		struct {

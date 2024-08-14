@@ -168,6 +168,8 @@ properties:
           - isil,isl69269
             # Intersil ISL76682 Ambient Light Sensor
           - isil,isl76682
+            # JEDEC JESD300 (SPD5118) Hub and Serial Presence Detect
+          - jedec,spd5118
             # Linear Technology LTC2488
           - lineartechnology,ltc2488
             # 5 Bit Programmable, Pulse-Width Modulator
@@ -286,14 +288,22 @@ properties:
           - mps,mp2857
             # Monolithic Power Systems Inc. multi-phase controller mp2888
           - mps,mp2888
+            # Monolithic Power Systems Inc. multi-phase controller mp2891
+          - mps,mp2891
             # Monolithic Power Systems Inc. multi-phase controller mp2971
           - mps,mp2971
             # Monolithic Power Systems Inc. multi-phase controller mp2973
           - mps,mp2973
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
+            # Monolithic Power Systems Inc. multi-phase controller mp2993
+          - mps,mp2993
+            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5920
+          - mps,mp5920
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
+            # Monolithic Power Systems Inc. digital step-down converter mp9941
+          - mps,mp9941
             # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
           - mps,mpq8785
             # Temperature sensor with integrated fan control
@@ -318,7 +328,9 @@ properties:
           - renesas,hs3001
             # Renesas ISL29501 time-of-flight sensor
           - renesas,isl29501
-            # Rohm DH2228FV
+            # Rohm BH2228FV 8 channel DAC
+          - rohm,bh2228fv
+            # Rohm DH2228FV - This device does not exist, use rohm,bh2228fv instead.
           - rohm,dh2228fv
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
@@ -354,6 +366,8 @@ properties:
           - sparkfun,qwiic-joystick
             # i2c serial eeprom (24cxx)
           - st,24c256
+            # Sierra Wireless mangOH Green SPI IoT interface
+          - swir,mangoh-iotport-spi
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
             # Temperature Monitoring and Fan Control

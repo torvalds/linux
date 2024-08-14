@@ -47,13 +47,18 @@ fan1_input		ro	tachometer speed
 fan1_min		rw	"
 fan1_max		rw	"
 fan1_fault		ro	"
-fan1_div		rw	Fan divisor can be either 2 or 4.
+fan1_pulses		rw	Pulses per revolution can be either 2 or 4.
+fan1_target		rw	Target fan speed, to be used with pwm1_enable
+				mode 4.
 
 pwm1			rw	pwm1
 pwm1_enable		rw	regulator mode, 1=open loop, 2=fan controlled
 				by remote temperature, 3=fan controlled by
 				combination of the on-chip temperature and
 				remote-sensor temperature,
+				4=fan controlled by target rpm set with
+				fan1_target attribute.
+pwm1_mode		rw	Fan duty control mode (0=DC, 1=PWM)
 pwm1_auto_channels_temp ro	1 if pwm_enable==2, 3 if pwm_enable==3
 pwm1_auto_point1_pwm	ro	Hardwired to 0, shared for both
 				temperature channels.

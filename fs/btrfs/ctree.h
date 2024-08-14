@@ -221,9 +221,11 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t inode_lock;
-	/* red-black tree that keeps track of in-memory inodes */
-	struct rb_root inode_tree;
+	/*
+	 * Xarray that keeps track of in-memory inodes, protected by the lock
+	 * @inode_lock.
+	 */
+	struct xarray inodes;
 
 	/*
 	 * Xarray that keeps track of delayed nodes of every inode, protected
@@ -354,6 +356,16 @@ static inline void btrfs_set_root_last_log_commit(struct btrfs_root *root, int c
 	WRITE_ONCE(root->last_log_commit, commit_id);
 }
 
+static inline u64 btrfs_get_root_last_trans(const struct btrfs_root *root)
+{
+	return READ_ONCE(root->last_trans);
+}
+
+static inline void btrfs_set_root_last_trans(struct btrfs_root *root, u64 transid)
+{
+	WRITE_ONCE(root->last_trans, transid);
+}
+
 /*
  * Structure that conveys information about an extent that is going to replace
  * all the extents in a file range.
@@ -447,6 +459,7 @@ struct btrfs_file_private {
 	void *filldir_buf;
 	u64 last_index;
 	struct extent_state *llseek_cached_state;
+	bool fsync_skip_inode_lock;
 };
 
 static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)

@@ -186,17 +186,6 @@ static void ne2k_pci_block_output(struct net_device *dev, const int count,
 static const struct ethtool_ops ne2k_pci_ethtool_ops;
 
 
-
-/* There is no room in the standard 8390 structure for extra info we need,
- * so we build a meta/outer-wrapper structure..
- */
-struct ne2k_pci_card {
-	struct net_device *dev;
-	struct pci_dev *pci_dev;
-};
-
-
-
 /* NEx000-clone boards have a Station Address (SA) PROM (SAPROM) in the packet
  * buffer memory space.  By-the-spec NE2000 clones have 0x57,0x57 in bytes
  * 0x0e,0x0f of the SAPROM, while other supposed NE2000 clones must be

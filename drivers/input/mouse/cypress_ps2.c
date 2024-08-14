@@ -32,33 +32,30 @@ static void cypress_set_packet_size(struct psmouse *psmouse, unsigned int n)
 	cytp->pkt_size = n;
 }
 
-static const unsigned char cytp_rate[] = {10, 20, 40, 60, 100, 200};
-static const unsigned char cytp_resolution[] = {0x00, 0x01, 0x02, 0x03};
+static const u8 cytp_rate[] = {10, 20, 40, 60, 100, 200};
+static const u8 cytp_resolution[] = {0x00, 0x01, 0x02, 0x03};
 
-static int cypress_ps2_sendbyte(struct psmouse *psmouse, int value)
+static int cypress_ps2_sendbyte(struct psmouse *psmouse, u8 cmd)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
+	int error;
 
-	if (ps2_sendbyte(ps2dev, value & 0xff, CYTP_CMD_TIMEOUT) < 0) {
+	error = ps2_sendbyte(ps2dev, cmd, CYTP_CMD_TIMEOUT);
+	if (error) {
 		psmouse_dbg(psmouse,
-				"sending command 0x%02x failed, resp 0x%02x\n",
-				value & 0xff, ps2dev->nak);
-		if (ps2dev->nak == CYTP_PS2_RETRY)
-			return CYTP_PS2_RETRY;
-		else
-			return CYTP_PS2_ERROR;
+			    "sending command 0x%02x failed, resp 0x%02x, error %d\n",
+			    cmd, ps2dev->nak, error);
+		return error;
 	}
 
 #ifdef CYTP_DEBUG_VERBOSE
-	psmouse_dbg(psmouse, "sending command 0x%02x succeeded, resp 0xfa\n",
-			value & 0xff);
+	psmouse_dbg(psmouse, "sending command 0x%02x succeeded\n", cmd);
 #endif
 
 	return 0;
 }
 
-static int cypress_ps2_ext_cmd(struct psmouse *psmouse, unsigned short cmd,
-			       unsigned char data)
+static int cypress_ps2_ext_cmd(struct psmouse *psmouse, u8 prefix, u8 nibble)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	int tries = CYTP_PS2_CMD_TRIES;
@@ -72,22 +69,21 @@ static int cypress_ps2_ext_cmd(struct psmouse *psmouse, unsigned short cmd,
 		 * If sending the command fails, send recovery command
 		 * to make the device return to the ready state.
 		 */
-		rc = cypress_ps2_sendbyte(psmouse, cmd & 0xff);
-		if (rc == CYTP_PS2_RETRY) {
+		rc = cypress_ps2_sendbyte(psmouse, prefix);
+		if (rc == -EAGAIN) {
 			rc = cypress_ps2_sendbyte(psmouse, 0x00);
-			if (rc == CYTP_PS2_RETRY)
+			if (rc == -EAGAIN)
 				rc = cypress_ps2_sendbyte(psmouse, 0x0a);
 		}
-		if (rc == CYTP_PS2_ERROR)
-			continue;
 
-		rc = cypress_ps2_sendbyte(psmouse, data);
-		if (rc == CYTP_PS2_RETRY)
-			rc = cypress_ps2_sendbyte(psmouse, data);
-		if (rc == CYTP_PS2_ERROR)
-			continue;
-		else
-			break;
+		if (!rc) {
+			rc = cypress_ps2_sendbyte(psmouse, nibble);
+			if (rc == -EAGAIN)
+				rc = cypress_ps2_sendbyte(psmouse, nibble);
+
+			if (!rc)
+				break;
+		}
 	} while (--tries > 0);
 
 	ps2_end_command(ps2dev);
@@ -96,13 +92,12 @@ static int cypress_ps2_ext_cmd(struct psmouse *psmouse, unsigned short cmd,
 }
 
 static int cypress_ps2_read_cmd_status(struct psmouse *psmouse,
-				       unsigned char cmd,
-				       unsigned char *param)
+				       u8 cmd, u8 *param)
 {
-	int rc;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	enum psmouse_state old_state;
 	int pktsize;
+	int rc;
 
 	ps2_begin_command(ps2dev);
 
@@ -113,13 +108,16 @@ static int cypress_ps2_read_cmd_status(struct psmouse *psmouse,
 	pktsize = (cmd == CYTP_CMD_READ_TP_METRICS) ? 8 : 3;
 	memset(param, 0, pktsize);
 
-	rc = cypress_ps2_sendbyte(psmouse, 0xe9);
-	if (rc < 0)
+	rc = cypress_ps2_sendbyte(psmouse, PSMOUSE_CMD_GETINFO & 0xff);
+	if (rc)
 		goto out;
 
-	wait_event_timeout(ps2dev->wait,
-			(psmouse->pktcnt >= pktsize),
-			msecs_to_jiffies(CYTP_CMD_TIMEOUT));
+	if (!wait_event_timeout(ps2dev->wait,
+				psmouse->pktcnt >= pktsize,
+				msecs_to_jiffies(CYTP_CMD_TIMEOUT))) {
+		rc = -ETIMEDOUT;
+		goto out;
+	}
 
 	memcpy(param, psmouse->packet, pktsize);
 
@@ -135,8 +133,7 @@ out:
 	return rc;
 }
 
-static bool cypress_verify_cmd_state(struct psmouse *psmouse,
-				     unsigned char cmd, unsigned char *param)
+static bool cypress_verify_cmd_state(struct psmouse *psmouse, u8 cmd, u8* param)
 {
 	bool rate_match = false;
 	bool resolution_match = false;
@@ -166,31 +163,24 @@ static bool cypress_verify_cmd_state(struct psmouse *psmouse,
 	return false;
 }
 
-static int cypress_send_ext_cmd(struct psmouse *psmouse, unsigned char cmd,
-				unsigned char *param)
+static int cypress_send_ext_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {
+	u8 cmd_prefix = PSMOUSE_CMD_SETRES & 0xff;
 	int tries = CYTP_PS2_CMD_TRIES;
-	int rc;
+	int error;
 
 	psmouse_dbg(psmouse, "send extension cmd 0x%02x, [%d %d %d %d]\n",
 		 cmd, DECODE_CMD_AA(cmd), DECODE_CMD_BB(cmd),
 		 DECODE_CMD_CC(cmd), DECODE_CMD_DD(cmd));
 
 	do {
-		cypress_ps2_ext_cmd(psmouse,
-				    PSMOUSE_CMD_SETRES, DECODE_CMD_DD(cmd));
-		cypress_ps2_ext_cmd(psmouse,
-				    PSMOUSE_CMD_SETRES, DECODE_CMD_CC(cmd));
-		cypress_ps2_ext_cmd(psmouse,
-				    PSMOUSE_CMD_SETRES, DECODE_CMD_BB(cmd));
-		cypress_ps2_ext_cmd(psmouse,
-				    PSMOUSE_CMD_SETRES, DECODE_CMD_AA(cmd));
+		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_DD(cmd));
+		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_CC(cmd));
+		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_BB(cmd));
+		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_AA(cmd));
 
-		rc = cypress_ps2_read_cmd_status(psmouse, cmd, param);
-		if (rc)
-			continue;
-
-		if (cypress_verify_cmd_state(psmouse, cmd, param))
+		error = cypress_ps2_read_cmd_status(psmouse, cmd, param);
+		if (!error && cypress_verify_cmd_state(psmouse, cmd, param))
 			return 0;
 
 	} while (--tries > 0);
@@ -200,7 +190,7 @@ static int cypress_send_ext_cmd(struct psmouse *psmouse, unsigned char cmd,
 
 int cypress_detect(struct psmouse *psmouse, bool set_properties)
 {
-	unsigned char param[3];
+	u8 param[3];
 
 	if (cypress_send_ext_cmd(psmouse, CYTP_CMD_READ_CYPRESS_ID, param))
 		return -ENODEV;
@@ -220,7 +210,7 @@ int cypress_detect(struct psmouse *psmouse, bool set_properties)
 static int cypress_read_fw_version(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp = psmouse->private;
-	unsigned char param[3];
+	u8 param[3];
 
 	if (cypress_send_ext_cmd(psmouse, CYTP_CMD_READ_CYPRESS_ID, param))
 		return -ENODEV;
@@ -249,7 +239,7 @@ static int cypress_read_fw_version(struct psmouse *psmouse)
 static int cypress_read_tp_metrics(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp = psmouse->private;
-	unsigned char param[8];
+	u8 param[8];
 
 	/* set default values for tp metrics. */
 	cytp->tp_width = CYTP_DEFAULT_WIDTH;
@@ -321,15 +311,15 @@ static int cypress_read_tp_metrics(struct psmouse *psmouse)
 
 static int cypress_query_hardware(struct psmouse *psmouse)
 {
-	int ret;
+	int error;
 
-	ret = cypress_read_fw_version(psmouse);
-	if (ret)
-		return ret;
+	error = cypress_read_fw_version(psmouse);
+	if (error)
+		return error;
 
-	ret = cypress_read_tp_metrics(psmouse);
-	if (ret)
-		return ret;
+	error = cypress_read_tp_metrics(psmouse);
+	if (error)
+		return error;
 
 	return 0;
 }
@@ -337,10 +327,13 @@ static int cypress_query_hardware(struct psmouse *psmouse)
 static int cypress_set_absolute_mode(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp = psmouse->private;
-	unsigned char param[3];
+	u8 param[3];
+	int error;
 
-	if (cypress_send_ext_cmd(psmouse, CYTP_CMD_ABS_WITH_PRESSURE_MODE, param) < 0)
-		return -1;
+	error = cypress_send_ext_cmd(psmouse, CYTP_CMD_ABS_WITH_PRESSURE_MODE,
+				     param);
+	if (error)
+		return error;
 
 	cytp->mode = (cytp->mode & ~CYTP_BIT_ABS_REL_MASK)
 			| CYTP_BIT_ABS_PRESSURE;
@@ -365,7 +358,7 @@ static void cypress_reset(struct psmouse *psmouse)
 static int cypress_set_input_params(struct input_dev *input,
 				    struct cytp_data *cytp)
 {
-	int ret;
+	int error;
 
 	if (!cytp->tp_res_x || !cytp->tp_res_y)
 		return -EINVAL;
@@ -382,10 +375,10 @@ static int cypress_set_input_params(struct input_dev *input,
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, cytp->tp_max_abs_y, 0, 0);
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
-	ret = input_mt_init_slots(input, CYTP_MAX_MT_SLOTS,
-			INPUT_MT_DROP_UNUSED|INPUT_MT_TRACK);
-	if (ret < 0)
-		return ret;
+	error = input_mt_init_slots(input, CYTP_MAX_MT_SLOTS,
+				    INPUT_MT_DROP_UNUSED | INPUT_MT_TRACK);
+	if (error)
+		return error;
 
 	__set_bit(INPUT_PROP_SEMI_MT, input->propbit);
 
@@ -414,9 +407,9 @@ static int cypress_set_input_params(struct input_dev *input,
 	return 0;
 }
 
-static int cypress_get_finger_count(unsigned char header_byte)
+static int cypress_get_finger_count(u8 header_byte)
 {
-	unsigned char bits6_7;
+	u8 bits6_7;
 	int finger_count;
 
 	bits6_7 = header_byte >> 6;
@@ -441,10 +434,11 @@ static int cypress_get_finger_count(unsigned char header_byte)
 
 
 static int cypress_parse_packet(struct psmouse *psmouse,
-				struct cytp_data *cytp, struct cytp_report_data *report_data)
+				struct cytp_data *cytp,
+				struct cytp_report_data *report_data)
 {
-	unsigned char *packet = psmouse->packet;
-	unsigned char header_byte = packet[0];
+	u8 *packet = psmouse->packet;
+	u8 header_byte = packet[0];
 
 	memset(report_data, 0, sizeof(struct cytp_report_data));
 
@@ -559,7 +553,7 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 {
 	int contact_cnt;
 	int index = psmouse->pktcnt - 1;
-	unsigned char *packet = psmouse->packet;
+	u8 *packet = psmouse->packet;
 	struct cytp_data *cytp = psmouse->private;
 
 	if (index < 0 || index > cytp->pkt_size)
@@ -612,6 +606,7 @@ static psmouse_ret_t cypress_protocol_handler(struct psmouse *psmouse)
 static void cypress_set_rate(struct psmouse *psmouse, unsigned int rate)
 {
 	struct cytp_data *cytp = psmouse->private;
+	u8 rate_param;
 
 	if (rate >= 80) {
 		psmouse->rate = 80;
@@ -621,8 +616,8 @@ static void cypress_set_rate(struct psmouse *psmouse, unsigned int rate)
 		cytp->mode &= ~CYTP_BIT_HIGH_RATE;
 	}
 
-	ps2_command(&psmouse->ps2dev, (unsigned char *)&psmouse->rate,
-		    PSMOUSE_CMD_SETRATE);
+	rate_param = (u8)rate;
+	ps2_command(&psmouse->ps2dev, &rate_param, PSMOUSE_CMD_SETRATE);
 }
 
 static void cypress_disconnect(struct psmouse *psmouse)
@@ -635,21 +630,22 @@ static void cypress_disconnect(struct psmouse *psmouse)
 static int cypress_reconnect(struct psmouse *psmouse)
 {
 	int tries = CYTP_PS2_CMD_TRIES;
-	int rc;
+	int error;
 
 	do {
 		cypress_reset(psmouse);
-		rc = cypress_detect(psmouse, false);
-	} while (rc && (--tries > 0));
+		error = cypress_detect(psmouse, false);
+	} while (error && (--tries > 0));
 
-	if (rc) {
+	if (error) {
 		psmouse_err(psmouse, "Reconnect: unable to detect trackpad.\n");
-		return -1;
+		return error;
 	}
 
-	if (cypress_set_absolute_mode(psmouse)) {
+	error = cypress_set_absolute_mode(psmouse);
+	if (error) {
 		psmouse_err(psmouse, "Reconnect: Unable to initialize Cypress absolute mode.\n");
-		return -1;
+		return error;
 	}
 
 	return 0;
@@ -658,8 +654,9 @@ static int cypress_reconnect(struct psmouse *psmouse)
 int cypress_init(struct psmouse *psmouse)
 {
 	struct cytp_data *cytp;
+	int error;
 
-	cytp = kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
+	cytp = kzalloc(sizeof(*cytp), GFP_KERNEL);
 	if (!cytp)
 		return -ENOMEM;
 
@@ -668,17 +665,20 @@ int cypress_init(struct psmouse *psmouse)
 
 	cypress_reset(psmouse);
 
-	if (cypress_query_hardware(psmouse)) {
+	error = cypress_query_hardware(psmouse);
+	if (error) {
 		psmouse_err(psmouse, "Unable to query Trackpad hardware.\n");
 		goto err_exit;
 	}
 
-	if (cypress_set_absolute_mode(psmouse)) {
+	error = cypress_set_absolute_mode(psmouse);
+	if (error) {
 		psmouse_err(psmouse, "init: Unable to initialize Cypress absolute mode.\n");
 		goto err_exit;
 	}
 
-	if (cypress_set_input_params(psmouse->dev, cytp) < 0) {
+	error = cypress_set_input_params(psmouse->dev, cytp);
+	if (error) {
 		psmouse_err(psmouse, "init: Unable to set input params.\n");
 		goto err_exit;
 	}
@@ -703,5 +703,5 @@ err_exit:
 	psmouse->private = NULL;
 	kfree(cytp);
 
-	return -1;
+	return error;
 }

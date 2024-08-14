@@ -1285,14 +1285,12 @@ void mpi_ec_mul_point(MPI_POINT result,
 		sum = &p2_;
 
 		for (j = nbits-1; j >= 0; j--) {
-			MPI_POINT t;
-
 			sw = mpi_test_bit(scalar, j);
 			point_swap_cond(q1, q2, sw, ctx);
 			montgomery_ladder(prd, sum, q1, q2, point->x, ctx);
 			point_swap_cond(prd, sum, sw, ctx);
-			t = q1;  q1 = prd;  prd = t;
-			t = q2;  q2 = sum;  sum = t;
+			swap(q1, prd);
+			swap(q2, sum);
 		}
 
 		mpi_clear(result->y);

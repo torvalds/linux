@@ -30,7 +30,7 @@ static u32 rt6_multipath_hash_fields_all_mask =
 static u32 ioam6_id_max = IOAM6_DEFAULT_ID;
 static u64 ioam6_id_wide_max = IOAM6_DEFAULT_ID_WIDE;
 
-static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
+static int proc_rt6_multipath_hash_policy(const struct ctl_table *table, int write,
 					  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
@@ -46,7 +46,7 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 }
 
 static int
-proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
+proc_rt6_multipath_hash_fields(const struct ctl_table *table, int write, void *buffer,
 			       size_t *lenp, loff_t *ppos)
 {
 	struct net *net;

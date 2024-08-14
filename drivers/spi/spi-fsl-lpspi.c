@@ -296,7 +296,7 @@ static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 {
 	struct lpspi_config config = fsl_lpspi->config;
-	unsigned int perclk_rate, scldiv;
+	unsigned int perclk_rate, scldiv, div;
 	u8 prescale;
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
@@ -313,8 +313,10 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 		return -EINVAL;
 	}
 
+	div = DIV_ROUND_UP(perclk_rate, config.speed_hz);
+
 	for (prescale = 0; prescale < 8; prescale++) {
-		scldiv = perclk_rate / config.speed_hz / (1 << prescale) - 2;
+		scldiv = div / (1 << prescale) - 2;
 		if (scldiv < 256) {
 			fsl_lpspi->config.prescale = prescale;
 			break;
@@ -960,13 +962,13 @@ static void fsl_lpspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(fsl_lpspi->dev);
 }
 
-static int __maybe_unused fsl_lpspi_suspend(struct device *dev)
+static int fsl_lpspi_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused fsl_lpspi_resume(struct device *dev)
+static int fsl_lpspi_resume(struct device *dev)
 {
 	int ret;
 
@@ -984,14 +986,14 @@ static int __maybe_unused fsl_lpspi_resume(struct device *dev)
 static const struct dev_pm_ops fsl_lpspi_pm_ops = {
 	SET_RUNTIME_PM_OPS(fsl_lpspi_runtime_suspend,
 				fsl_lpspi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(fsl_lpspi_suspend, fsl_lpspi_resume)
+	SYSTEM_SLEEP_PM_OPS(fsl_lpspi_suspend, fsl_lpspi_resume)
 };
 
 static struct platform_driver fsl_lpspi_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = fsl_lpspi_dt_ids,
-		.pm = &fsl_lpspi_pm_ops,
+		.pm = pm_ptr(&fsl_lpspi_pm_ops),
 	},
 	.probe = fsl_lpspi_probe,
 	.remove_new = fsl_lpspi_remove,

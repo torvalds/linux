@@ -260,4 +260,5 @@ static void __exit exit_nls_iso8859_6(void)
 module_init(init_nls_iso8859_6)
 module_exit(exit_nls_iso8859_6)
 
+MODULE_DESCRIPTION("NLS ISO 8859-6 (Arabic)");
 MODULE_LICENSE("Dual BSD/GPL");

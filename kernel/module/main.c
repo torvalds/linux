@@ -2166,6 +2166,8 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 #endif
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	mod->btf_data = any_section_objs(info, ".BTF", 1, &mod->btf_data_size);
+	mod->btf_base_data = any_section_objs(info, ".BTF.base", 1,
+					      &mod->btf_base_data_size);
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	mod->jump_entries = section_objs(info, "__jump_table",
@@ -2590,8 +2592,9 @@ static noinline int do_init_module(struct module *mod)
 	}
 
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
-	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointer */
+	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointers */
 	mod->btf_data = NULL;
+	mod->btf_base_data = NULL;
 #endif
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
@@ -3101,7 +3104,7 @@ static bool idempotent(struct idempotent *u, const void *cookie)
 	struct idempotent *existing;
 	bool first;
 
-	u->ret = 0;
+	u->ret = -EINTR;
 	u->cookie = cookie;
 	init_completion(&u->complete);
 
@@ -3137,12 +3140,34 @@ static int idempotent_complete(struct idempotent *u, int ret)
 	hlist_for_each_entry_safe(pos, next, head, entry) {
 		if (pos->cookie != cookie)
 			continue;
-		hlist_del(&pos->entry);
+		hlist_del_init(&pos->entry);
 		pos->ret = ret;
 		complete(&pos->complete);
 	}
 	spin_unlock(&idem_lock);
 	return ret;
+}
+
+/*
+ * Wait for the idempotent worker.
+ *
+ * If we get interrupted, we need to remove ourselves from the
+ * the idempotent list, and the completion may still come in.
+ *
+ * The 'idem_lock' protects against the race, and 'idem.ret' was
+ * initialized to -EINTR and is thus always the right return
+ * value even if the idempotent work then completes between
+ * the wait_for_completion and the cleanup.
+ */
+static int idempotent_wait_for_completion(struct idempotent *u)
+{
+	if (wait_for_completion_interruptible(&u->complete)) {
+		spin_lock(&idem_lock);
+		if (!hlist_unhashed(&u->entry))
+			hlist_del(&u->entry);
+		spin_unlock(&idem_lock);
+	}
+	return u->ret;
 }
 
 static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
@@ -3180,15 +3205,16 @@ static int idempotent_init_module(struct file *f, const char __user * uargs, int
 	if (!f || !(f->f_mode & FMODE_READ))
 		return -EBADF;
 
-	/* See if somebody else is doing the operation? */
-	if (idempotent(&idem, file_inode(f))) {
-		wait_for_completion(&idem.complete);
-		return idem.ret;
+	/* Are we the winners of the race and get to do this? */
+	if (!idempotent(&idem, file_inode(f))) {
+		int ret = init_module_from_file(f, uargs, flags);
+		return idempotent_complete(&idem, ret);
 	}
 
-	/* Otherwise, we'll do it and complete others */
-	return idempotent_complete(&idem,
-		init_module_from_file(f, uargs, flags));
+	/*
+	 * Somebody else won the race and is loading the module.
+	 */
+	return idempotent_wait_for_completion(&idem);
 }
 
 SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)

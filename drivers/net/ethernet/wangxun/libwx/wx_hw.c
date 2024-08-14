@@ -1147,8 +1147,15 @@ static void wx_enable_rx(struct wx *wx)
 static void wx_set_rxpba(struct wx *wx)
 {
 	u32 rxpktsize, txpktsize, txpbthresh;
+	u32 pbsize = wx->mac.rx_pb_size;
 
-	rxpktsize = wx->mac.rx_pb_size << WX_RDB_PB_SZ_SHIFT;
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)) {
+		if (test_bit(WX_FLAG_FDIR_HASH, wx->flags) ||
+		    test_bit(WX_FLAG_FDIR_PERFECT, wx->flags))
+			pbsize -= 64; /* Default 64KB */
+	}
+
+	rxpktsize = pbsize << WX_RDB_PB_SZ_SHIFT;
 	wr32(wx, WX_RDB_PB_SZ(0), rxpktsize);
 
 	/* Only support an equally distributed Tx packet buffer strategy. */
@@ -1261,7 +1268,7 @@ static void wx_configure_port(struct wx *wx)
  *  Stops the receive data path and waits for the HW to internally empty
  *  the Rx security block
  **/
-static int wx_disable_sec_rx_path(struct wx *wx)
+int wx_disable_sec_rx_path(struct wx *wx)
 {
 	u32 secrx;
 
@@ -1271,6 +1278,7 @@ static int wx_disable_sec_rx_path(struct wx *wx)
 	return read_poll_timeout(rd32, secrx, secrx & WX_RSC_ST_RSEC_RDY,
 				 1000, 40000, false, wx, WX_RSC_ST);
 }
+EXPORT_SYMBOL(wx_disable_sec_rx_path);
 
 /**
  *  wx_enable_sec_rx_path - Enables the receive data path
@@ -1278,11 +1286,12 @@ static int wx_disable_sec_rx_path(struct wx *wx)
  *
  *  Enables the receive data path.
  **/
-static void wx_enable_sec_rx_path(struct wx *wx)
+void wx_enable_sec_rx_path(struct wx *wx)
 {
 	wr32m(wx, WX_RSC_CTL, WX_RSC_CTL_RX_DIS, 0);
 	WX_WRITE_FLUSH(wx);
 }
+EXPORT_SYMBOL(wx_enable_sec_rx_path);
 
 static void wx_vlan_strip_control(struct wx *wx, bool enable)
 {
@@ -1498,6 +1507,13 @@ static void wx_configure_tx_ring(struct wx *wx,
 	if (ring->count < WX_MAX_TXD)
 		txdctl |= ring->count / 128 << WX_PX_TR_CFG_TR_SIZE_SHIFT;
 	txdctl |= 0x20 << WX_PX_TR_CFG_WTHRESH_SHIFT;
+
+	ring->atr_count = 0;
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags) &&
+	    test_bit(WX_FLAG_FDIR_HASH, wx->flags))
+		ring->atr_sample_rate = wx->atr_sample_rate;
+	else
+		ring->atr_sample_rate = 0;
 
 	/* reinitialize tx_buffer_info */
 	memset(ring->tx_buffer_info, 0,
@@ -1732,7 +1748,9 @@ void wx_configure(struct wx *wx)
 
 	wx_set_rx_mode(wx->netdev);
 	wx_restore_vlan(wx);
-	wx_enable_sec_rx_path(wx);
+
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags))
+		wx->configure_fdir(wx);
 
 	wx_configure_tx(wx);
 	wx_configure_rx(wx);
@@ -1959,6 +1977,8 @@ int wx_sw_init(struct wx *wx)
 	}
 
 	bitmap_zero(wx->state, WX_STATE_NBITS);
+	bitmap_zero(wx->flags, WX_PF_FLAGS_NBITS);
+	wx->misc_irq_domain = false;
 
 	return 0;
 }
@@ -2332,6 +2352,11 @@ void wx_update_stats(struct wx *wx)
 	hwstats->o2bspc += rd32(wx, WX_MNG_OS2BMC_CNT);
 	hwstats->b2ogprc += rd32(wx, WX_RDM_BMC2OS_CNT);
 	hwstats->rdmdrop += rd32(wx, WX_RDM_DRP_PKT);
+
+	if (wx->mac.type == wx_mac_sp) {
+		hwstats->fdirmatch += rd32(wx, WX_RDB_FDIR_MATCH);
+		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
+	}
 
 	for (i = 0; i < wx->mac.max_rx_queues; i++)
 		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));

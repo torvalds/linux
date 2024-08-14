@@ -2466,8 +2466,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	struct mmc_blk_data *md;
 	int devidx, ret;
 	char cap_str[10];
-	bool cache_enabled = false;
-	bool fua_enabled = false;
+	unsigned int features = 0;
 
 	devidx = ida_alloc_max(&mmc_blk_ida, max_devices - 1, GFP_KERNEL);
 	if (devidx < 0) {
@@ -2499,7 +2498,24 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 */
 	md->read_only = mmc_blk_readonly(card);
 
-	md->disk = mmc_init_queue(&md->queue, card);
+	if (mmc_host_cmd23(card->host)) {
+		if ((mmc_card_mmc(card) &&
+		     card->csd.mmca_vsn >= CSD_SPEC_VER_3) ||
+		    (mmc_card_sd(card) &&
+		     card->scr.cmds & SD_SCR_CMD23_SUPPORT))
+			md->flags |= MMC_BLK_CMD23;
+	}
+
+	if (md->flags & MMC_BLK_CMD23 &&
+	    ((card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN) ||
+	     card->ext_csd.rel_sectors)) {
+		md->flags |= MMC_BLK_REL_WR;
+		features |= (BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA);
+	} else if (mmc_cache_enabled(card->host)) {
+		features |= BLK_FEAT_WRITE_CACHE;
+	}
+
+	md->disk = mmc_init_queue(&md->queue, card, features);
 	if (IS_ERR(md->disk)) {
 		ret = PTR_ERR(md->disk);
 		goto err_kfree;
@@ -2538,26 +2554,6 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 		 "mmcblk%u%s", card->host->index, subname ? subname : "");
 
 	set_capacity(md->disk, size);
-
-	if (mmc_host_cmd23(card->host)) {
-		if ((mmc_card_mmc(card) &&
-		     card->csd.mmca_vsn >= CSD_SPEC_VER_3) ||
-		    (mmc_card_sd(card) &&
-		     card->scr.cmds & SD_SCR_CMD23_SUPPORT))
-			md->flags |= MMC_BLK_CMD23;
-	}
-
-	if (md->flags & MMC_BLK_CMD23 &&
-	    ((card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN) ||
-	     card->ext_csd.rel_sectors)) {
-		md->flags |= MMC_BLK_REL_WR;
-		fua_enabled = true;
-		cache_enabled = true;
-	}
-	if (mmc_cache_enabled(card->host))
-		cache_enabled  = true;
-
-	blk_queue_write_cache(md->queue.queue, cache_enabled, fua_enabled);
 
 	string_get_size((u64)size, 512, STRING_UNITS_2,
 			cap_str, sizeof(cap_str));

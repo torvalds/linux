@@ -427,7 +427,7 @@ EXPORT_SYMBOL_GPL(exportfs_encode_fh);
 
 struct dentry *
 exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
-		       int fileid_type,
+		       int fileid_type, unsigned int flags,
 		       int (*acceptable)(void *, struct dentry *),
 		       void *context)
 {
@@ -444,6 +444,11 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
 	if (IS_ERR_OR_NULL(result))
 		return result;
+
+	if ((flags & EXPORT_FH_DIR_ONLY) && !d_is_dir(result)) {
+		err = -ENOTDIR;
+		goto err_result;
+	}
 
 	/*
 	 * If no acceptance criteria was specified by caller, a disconnected
@@ -581,7 +586,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 {
 	struct dentry *ret;
 
-	ret = exportfs_decode_fh_raw(mnt, fid, fh_len, fileid_type,
+	ret = exportfs_decode_fh_raw(mnt, fid, fh_len, fileid_type, 0,
 				     acceptable, context);
 	if (IS_ERR_OR_NULL(ret)) {
 		if (ret == ERR_PTR(-ENOMEM))

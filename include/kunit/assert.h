@@ -60,7 +60,7 @@ void kunit_assert_prologue(const struct kunit_loc *loc,
  * struct kunit_fail_assert - Represents a plain fail expectation/assertion.
  * @assert: The parent of this type.
  *
- * Represents a simple KUNIT_FAIL/KUNIT_ASSERT_FAILURE that always fails.
+ * Represents a simple KUNIT_FAIL/KUNIT_FAIL_AND_ABORT that always fails.
  */
 struct kunit_fail_assert {
 	struct kunit_assert assert;
@@ -217,5 +217,16 @@ struct kunit_mem_assert {
 void kunit_mem_assert_format(const struct kunit_assert *assert,
 			     const struct va_format *message,
 			     struct string_stream *stream);
+
+#if IS_ENABLED(CONFIG_KUNIT)
+void kunit_assert_print_msg(const struct va_format *message,
+			    struct string_stream *stream);
+bool is_literal(const char *text, long long value);
+bool is_str_literal(const char *text, const char *value);
+void kunit_assert_hexdump(struct string_stream *stream,
+			  const void *buf,
+			  const void *compared_buf,
+			  const size_t len);
+#endif
 
 #endif /*  _KUNIT_ASSERT_H */

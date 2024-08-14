@@ -131,7 +131,6 @@ static struct fib6_info *rt6_get_route_info(struct net *net,
 struct uncached_list {
 	spinlock_t		lock;
 	struct list_head	head;
-	struct list_head	quarantine;
 };
 
 static DEFINE_PER_CPU_ALIGNED(struct uncached_list, rt6_uncached_list);
@@ -189,8 +188,7 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 				handled = true;
 			}
 			if (handled)
-				list_move(&rt->dst.rt_uncached,
-					  &ul->quarantine);
+				list_del_init(&rt->dst.rt_uncached);
 		}
 		spin_unlock_bh(&ul->lock);
 	}
@@ -368,7 +366,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		in6_dev_put(idev);
 	}
 
-	from = xchg((__force struct fib6_info **)&rt->from, NULL);
+	from = unrcu_pointer(xchg(&rt->from, NULL));
 	fib6_info_release(from);
 }
 
@@ -638,6 +636,8 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 	rcu_read_lock();
 	last_probe = READ_ONCE(fib6_nh->last_probe);
 	idev = __in6_dev_get(dev);
+	if (!idev)
+		goto out;
 	neigh = __ipv6_neigh_lookup_noref(dev, nh_gw);
 	if (neigh) {
 		if (READ_ONCE(neigh->nud_state) & NUD_VALID)
@@ -1409,6 +1409,7 @@ static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 		struct rt6_info *prev, **p;
 
 		p = this_cpu_ptr(res->nh->rt6i_pcpu);
+		/* Paired with READ_ONCE() in __fib6_drop_pcpu_from() */
 		prev = xchg(p, NULL);
 		if (prev) {
 			dst_dev_put(&prev->dst);
@@ -1437,7 +1438,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	if (res->f6i->fib6_destroying) {
 		struct fib6_info *from;
 
-		from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
+		from = unrcu_pointer(xchg(&pcpu_rt->from, NULL));
 		fib6_info_release(from);
 	}
 
@@ -1466,7 +1467,7 @@ static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 	/* purge completely the exception to allow releasing the held resources:
 	 * some [sk] cache may keep the dst around for unlimited time
 	 */
-	from = xchg((__force struct fib6_info **)&rt6_ex->rt6i->from, NULL);
+	from = unrcu_pointer(xchg(&rt6_ex->rt6i->from, NULL));
 	fib6_info_release(from);
 	dst_dev_put(&rt6_ex->rt6i->dst);
 
@@ -2373,7 +2374,7 @@ static u32 rt6_multipath_custom_hash_outer(const struct net *net,
 		hash_keys.ports.dst = keys.ports.dst;
 
 	*p_has_inner = !!(keys.control.flags & FLOW_DIS_ENCAPSULATION);
-	return flow_hash_from_keys(&hash_keys);
+	return fib_multipath_hash_from_keys(net, &hash_keys);
 }
 
 static u32 rt6_multipath_custom_hash_inner(const struct net *net,
@@ -2422,7 +2423,7 @@ static u32 rt6_multipath_custom_hash_inner(const struct net *net,
 	if (hash_fields & FIB_MULTIPATH_HASH_FIELD_INNER_DST_PORT)
 		hash_keys.ports.dst = keys.ports.dst;
 
-	return flow_hash_from_keys(&hash_keys);
+	return fib_multipath_hash_from_keys(net, &hash_keys);
 }
 
 static u32 rt6_multipath_custom_hash_skb(const struct net *net,
@@ -2461,7 +2462,7 @@ static u32 rt6_multipath_custom_hash_fl6(const struct net *net,
 	if (hash_fields & FIB_MULTIPATH_HASH_FIELD_DST_PORT)
 		hash_keys.ports.dst = fl6->fl6_dport;
 
-	return flow_hash_from_keys(&hash_keys);
+	return fib_multipath_hash_from_keys(net, &hash_keys);
 }
 
 /* if skb is set it will be used and fl6 can be NULL */
@@ -2483,7 +2484,7 @@ u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
 			hash_keys.tags.flow_label = (__force u32)flowi6_get_flowlabel(fl6);
 			hash_keys.basic.ip_proto = fl6->flowi6_proto;
 		}
-		mhash = flow_hash_from_keys(&hash_keys);
+		mhash = fib_multipath_hash_from_keys(net, &hash_keys);
 		break;
 	case 1:
 		if (skb) {
@@ -2515,7 +2516,7 @@ u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
 			hash_keys.ports.dst = fl6->fl6_dport;
 			hash_keys.basic.ip_proto = fl6->flowi6_proto;
 		}
-		mhash = flow_hash_from_keys(&hash_keys);
+		mhash = fib_multipath_hash_from_keys(net, &hash_keys);
 		break;
 	case 2:
 		memset(&hash_keys, 0, sizeof(hash_keys));
@@ -2552,7 +2553,7 @@ u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
 			hash_keys.tags.flow_label = (__force u32)flowi6_get_flowlabel(fl6);
 			hash_keys.basic.ip_proto = fl6->flowi6_proto;
 		}
-		mhash = flow_hash_from_keys(&hash_keys);
+		mhash = fib_multipath_hash_from_keys(net, &hash_keys);
 		break;
 	case 3:
 		if (skb)
@@ -3602,7 +3603,7 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	if (!dev)
 		goto out;
 
-	if (idev->cnf.disable_ipv6) {
+	if (!idev || idev->cnf.disable_ipv6) {
 		NL_SET_ERR_MSG(extack, "IPv6 is disabled on nexthop device");
 		err = -EACCES;
 		goto out;
@@ -3761,7 +3762,7 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!rt)
 		goto out;
 
-	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len,
+	rt->fib6_metrics = ip_fib_metrics_init(cfg->fc_mx, cfg->fc_mx_len,
 					       extack);
 	if (IS_ERR(rt->fib6_metrics)) {
 		err = PTR_ERR(rt->fib6_metrics);
@@ -5686,7 +5687,7 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 				goto nla_put_failure;
 	} else if (dest) {
 		struct in6_addr saddr_buf;
-		if (ip6_route_get_saddr(net, rt, dest, 0, &saddr_buf) == 0 &&
+		if (ip6_route_get_saddr(net, rt, dest, 0, 0, &saddr_buf) == 0 &&
 		    nla_put_in6_addr(skb, RTA_PREFSRC, &saddr_buf))
 			goto nla_put_failure;
 	}
@@ -6333,7 +6334,7 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 #ifdef CONFIG_SYSCTL
 
-static int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
+static int ipv6_sysctl_rtcache_flush(const struct ctl_table *ctl, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
@@ -6342,12 +6343,12 @@ static int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
 	if (!write)
 		return -EINVAL;
 
-	net = (struct net *)ctl->extra1;
-	delay = net->ipv6.sysctl.flush_delay;
 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 	if (ret)
 		return ret;
 
+	net = (struct net *)ctl->extra1;
+	delay = net->ipv6.sysctl.flush_delay;
 	fib6_run_gc(delay <= 0 ? 0 : (unsigned long)delay, net, delay > 0);
 	return 0;
 }
@@ -6755,7 +6756,6 @@ int __init ip6_route_init(void)
 		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
 
 		INIT_LIST_HEAD(&ul->head);
-		INIT_LIST_HEAD(&ul->quarantine);
 		spin_lock_init(&ul->lock);
 	}
 

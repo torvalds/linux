@@ -38,7 +38,27 @@ static long hcall_return_busy_check(long rc)
 {
 	/* Check if we are stalled for some time */
 	if (H_IS_LONG_BUSY(rc)) {
-		msleep(get_longbusy_msecs(rc));
+		unsigned int ms;
+		/*
+		 * Allocate, Modify and Deallocate HCALLs returns
+		 * H_LONG_BUSY_ORDER_1_MSEC or H_LONG_BUSY_ORDER_10_MSEC
+		 * for the long delay. So the sleep time should always
+		 * be either 1 or 10msecs, but in case if the HCALL
+		 * returns the long delay > 10 msecs, clamp the sleep
+		 * time to 10msecs.
+		 */
+		ms = clamp(get_longbusy_msecs(rc), 1, 10);
+
+		/*
+		 * msleep() will often sleep at least 20 msecs even
+		 * though the hypervisor suggests that the OS reissue
+		 * HCALLs after 1 or 10msecs. Also the delay hint from
+		 * the HCALL is just a suggestion. So OK to pause for
+		 * less time than the hinted delay. Use usleep_range()
+		 * to ensure we don't sleep much longer than actually
+		 * needed.
+		 */
+		usleep_range(ms * (USEC_PER_MSEC / 10), ms * USEC_PER_MSEC);
 		rc = H_BUSY;
 	} else if (rc == H_BUSY) {
 		cond_resched();

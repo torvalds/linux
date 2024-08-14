@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -143,6 +143,30 @@ static const struct file_operations dvfs_mode_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.write = dvfs_mode_fops_write,
+};
+
+static ssize_t
+fw_dyndbg_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+	char buffer[VPU_DYNDBG_CMD_MAX_LEN] = {};
+	int ret;
+
+	if (size >= VPU_DYNDBG_CMD_MAX_LEN)
+		return -EINVAL;
+
+	ret = strncpy_from_user(buffer, user_buf, size);
+	if (ret < 0)
+		return ret;
+
+	ivpu_jsm_dyndbg_control(vdev, buffer, size);
+	return size;
+}
+
+static const struct file_operations fw_dyndbg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = fw_dyndbg_fops_write,
 };
 
 static int fw_log_show(struct seq_file *s, void *v)
@@ -335,6 +359,61 @@ static const struct file_operations ivpu_reset_engine_fops = {
 	.write = ivpu_reset_engine_fn,
 };
 
+static ssize_t
+ivpu_resume_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+
+	if (!size)
+		return -EINVAL;
+
+	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
+		return -ENODEV;
+	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COPY))
+		return -ENODEV;
+
+	return size;
+}
+
+static const struct file_operations ivpu_resume_engine_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = ivpu_resume_engine_fn,
+};
+
+static int dct_active_get(void *data, u64 *active_percent)
+{
+	struct ivpu_device *vdev = data;
+
+	*active_percent = vdev->pm->dct_active_percent;
+
+	return 0;
+}
+
+static int dct_active_set(void *data, u64 active_percent)
+{
+	struct ivpu_device *vdev = data;
+	int ret;
+
+	if (active_percent > 100)
+		return -EINVAL;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret)
+		return ret;
+
+	if (active_percent)
+		ret = ivpu_pm_dct_enable(vdev, active_percent);
+	else
+		ret = ivpu_pm_dct_disable(vdev);
+
+	ivpu_rpm_put(vdev);
+
+	return ret;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_dct_fops, dct_active_get, dct_active_set, "%llu\n");
+
 void ivpu_debugfs_init(struct ivpu_device *vdev)
 {
 	struct dentry *debugfs_root = vdev->drm.debugfs_root;
@@ -347,6 +426,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 	debugfs_create_file("dvfs_mode", 0200, debugfs_root, vdev,
 			    &dvfs_mode_fops);
 
+	debugfs_create_file("fw_dyndbg", 0200, debugfs_root, vdev,
+			    &fw_dyndbg_fops);
 	debugfs_create_file("fw_log", 0644, debugfs_root, vdev,
 			    &fw_log_fops);
 	debugfs_create_file("fw_trace_destination_mask", 0200, debugfs_root, vdev,
@@ -358,8 +439,12 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 
 	debugfs_create_file("reset_engine", 0200, debugfs_root, vdev,
 			    &ivpu_reset_engine_fops);
+	debugfs_create_file("resume_engine", 0200, debugfs_root, vdev,
+			    &ivpu_resume_engine_fops);
 
-	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX)
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX) {
 		debugfs_create_file("fw_profiling_freq_drive", 0200,
 				    debugfs_root, vdev, &fw_profiling_freq_fops);
+		debugfs_create_file("dct", 0644, debugfs_root, vdev, &ivpu_dct_fops);
+	}
 }

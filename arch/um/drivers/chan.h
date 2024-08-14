@@ -22,7 +22,8 @@ struct chan {
 	unsigned int output:1;
 	unsigned int opened:1;
 	unsigned int enabled:1;
-	int fd;
+	int fd_in;
+	int fd_out; /* only different to fd_in if blocking output is needed */
 	const struct chan_ops *ops;
 	void *data;
 };

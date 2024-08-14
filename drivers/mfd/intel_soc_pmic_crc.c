@@ -137,7 +137,9 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 
 /* PWM consumed by the Intel GFX */
 static struct pwm_lookup crc_pwm_lookup[] = {
-	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
+	PWM_LOOKUP_WITH_MODULE("crystal_cove_pwm", 0, "0000:00:02.0",
+			       "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-crc"),
 };
 
 struct crystal_cove_config {

@@ -1820,8 +1820,8 @@ static const struct of_device_id fusb302_dt_match[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, fusb302_dt_match);
 
 static const struct i2c_device_id fusb302_i2c_device_id[] = {
-	{"typec_fusb302", 0},
-	{},
+	{ "typec_fusb302" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, fusb302_i2c_device_id);
 

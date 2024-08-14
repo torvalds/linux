@@ -9,10 +9,13 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
+#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_printk.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_step_types.h"
 
@@ -36,33 +39,30 @@ struct xe_mocs_entry {
 	u16 used;
 };
 
+struct xe_mocs_info;
+
+struct xe_mocs_ops {
+	void (*dump)(struct xe_mocs_info *mocs, unsigned int flags,
+		     struct xe_gt *gt, struct drm_printer *p);
+};
+
 struct xe_mocs_info {
-	unsigned int size;
-	unsigned int n_entries;
+	/*
+	 * Size of the spec's suggested MOCS programming table.  The list of
+	 * table entries from the spec can potentially be smaller than the
+	 * number of hardware registers used to program the MOCS table; in such
+	 * cases the registers for the remaining indices will be programmed to
+	 * match unused_entries_index.
+	 */
+	unsigned int table_size;
+	/* Number of MOCS entries supported by the hardware */
+	unsigned int num_mocs_regs;
 	const struct xe_mocs_entry *table;
+	const struct xe_mocs_ops *ops;
 	u8 uc_index;
 	u8 wb_index;
 	u8 unused_entries_index;
 };
-
-/* Defines for the tables (XXX_MOCS_0 - XXX_MOCS_63) */
-#define _LE_CACHEABILITY(value)	((value) << 0)
-#define _LE_TGT_CACHE(value)	((value) << 2)
-#define LE_LRUM(value)		((value) << 4)
-#define LE_AOM(value)		((value) << 6)
-#define LE_RSC(value)		((value) << 7)
-#define LE_SCC(value)		((value) << 8)
-#define LE_PFM(value)		((value) << 11)
-#define LE_SCF(value)		((value) << 14)
-#define LE_COS(value)		((value) << 15)
-#define LE_SSE(value)		((value) << 17)
-
-/* Defines for the tables (LNCFMOCS0 - LNCFMOCS31) - two entries per word */
-#define L3_ESC(value)		((value) << 0)
-#define L3_SCC(value)		((value) << 1)
-#define _L3_CACHEABILITY(value)	((value) << 4)
-#define L3_GLBGO(value)		((value) << 6)
-#define L3_LKUP(value)		((value) << 7)
 
 /* Defines for the tables (GLOB_MOCS_0 - GLOB_MOCS_16) */
 #define IG_PAT				REG_BIT(8)
@@ -80,22 +80,22 @@ struct xe_mocs_info {
  * Note: LE_0_PAGETABLE works only up to Gen11; for newer gens it means
  * the same as LE_UC
  */
-#define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
-#define LE_1_UC			_LE_CACHEABILITY(1)
-#define LE_2_WT			_LE_CACHEABILITY(2)
-#define LE_3_WB			_LE_CACHEABILITY(3)
+#define LE_0_PAGETABLE		LE_CACHEABILITY(0)
+#define LE_1_UC			LE_CACHEABILITY(1)
+#define LE_2_WT			LE_CACHEABILITY(2)
+#define LE_3_WB			LE_CACHEABILITY(3)
 
 /* Target cache */
-#define LE_TC_0_PAGETABLE	_LE_TGT_CACHE(0)
-#define LE_TC_1_LLC		_LE_TGT_CACHE(1)
-#define LE_TC_2_LLC_ELLC	_LE_TGT_CACHE(2)
-#define LE_TC_3_LLC_ELLC_ALT	_LE_TGT_CACHE(3)
+#define LE_TC_0_PAGETABLE	LE_TGT_CACHE(0)
+#define LE_TC_1_LLC		LE_TGT_CACHE(1)
+#define LE_TC_2_LLC_ELLC	LE_TGT_CACHE(2)
+#define LE_TC_3_LLC_ELLC_ALT	LE_TGT_CACHE(3)
 
 /* L3 caching options */
-#define L3_0_DIRECT		_L3_CACHEABILITY(0)
-#define L3_1_UC			_L3_CACHEABILITY(1)
-#define L3_2_RESERVED		_L3_CACHEABILITY(2)
-#define L3_3_WB			_L3_CACHEABILITY(3)
+#define L3_0_DIRECT		L3_CACHEABILITY(0)
+#define L3_1_UC			L3_CACHEABILITY(1)
+#define L3_2_RESERVED		L3_CACHEABILITY(2)
+#define L3_3_WB			L3_CACHEABILITY(3)
 
 /* L4 caching options */
 #define L4_0_WB                 REG_FIELD_PREP(L4_CACHE_POLICY_MASK, 0)
@@ -106,6 +106,8 @@ struct xe_mocs_info {
 /* XD: WB Transient Display */
 #define XE2_L3_1_XD		REG_FIELD_PREP(L3_CACHE_POLICY_MASK, 1)
 #define XE2_L3_3_UC		REG_FIELD_PREP(L3_CACHE_POLICY_MASK, 3)
+
+#define XE2_L3_CLOS_MASK	REG_GENMASK(7, 6)
 
 #define MOCS_ENTRY(__idx, __control_value, __l3cc_value) \
 	[__idx] = { \
@@ -255,6 +257,84 @@ static const struct xe_mocs_entry gen12_mocs_desc[] = {
 		   L3_1_UC)
 };
 
+static bool regs_are_mcr(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe_gt_is_media_type(gt))
+		return MEDIA_VER(xe) >= 20;
+	else
+		return GRAPHICS_VERx100(xe) >= 1250;
+}
+
+static void xelp_lncf_dump(struct xe_mocs_info *info, struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int i, j;
+	u32 reg_val;
+
+	drm_printf(p, "LNCFCMOCS[idx] = [ESC, SCC, L3CC] (value)\n\n");
+
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
+		if (regs_are_mcr(gt))
+			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
+		else
+			reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i));
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [%u, %u, %u] (%#8x)\n",
+			   j++,
+			   !!(reg_val & L3_ESC_MASK),
+			   REG_FIELD_GET(L3_SCC_MASK, reg_val),
+			   REG_FIELD_GET(L3_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [%u, %u, %u] (%#8x)\n",
+			   j,
+			   !!(reg_val & L3_UPPER_IDX_ESC_MASK),
+			   REG_FIELD_GET(L3_UPPER_IDX_SCC_MASK, reg_val),
+			   REG_FIELD_GET(L3_UPPER_IDX_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+	}
+}
+
+static void xelp_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
+			   struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int i;
+	u32 reg_val;
+
+	if (flags & HAS_GLOBAL_MOCS) {
+		drm_printf(p, "Global mocs table configuration:\n");
+		drm_printf(p, "GLOB_MOCS[idx] = [LeCC, TC, LRUM, AOM, RSC, SCC, PFM, SCF, CoS, SSE] (value)\n\n");
+
+		for (i = 0; i < info->num_mocs_regs; i++) {
+			if (regs_are_mcr(gt))
+				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
+			else
+				reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));
+
+			drm_printf(p, "GLOB_MOCS[%2d] = [%u, %u, %u, %u, %u, %u, %u, %u, %u, %u ] (%#8x)\n",
+				   i,
+				   REG_FIELD_GET(LE_CACHEABILITY_MASK, reg_val),
+				   REG_FIELD_GET(LE_TGT_CACHE_MASK, reg_val),
+				   REG_FIELD_GET(LE_LRUM_MASK, reg_val),
+				   !!(reg_val & LE_AOM_MASK),
+				   !!(reg_val & LE_RSC_MASK),
+				   REG_FIELD_GET(LE_SCC_MASK, reg_val),
+				   REG_FIELD_GET(LE_PFM_MASK, reg_val),
+				   !!(reg_val & LE_SCF_MASK),
+				   REG_FIELD_GET(LE_COS_MASK, reg_val),
+				   REG_FIELD_GET(LE_SSE_MASK, reg_val),
+				   reg_val);
+		}
+	}
+
+	xelp_lncf_dump(info, gt, p);
+}
+
+static const struct xe_mocs_ops xelp_mocs_ops = {
+	.dump = xelp_mocs_dump,
+};
+
 static const struct xe_mocs_entry dg1_mocs_desc[] = {
 	/* UC */
 	MOCS_ENTRY(1, 0, L3_1_UC),
@@ -291,6 +371,40 @@ static const struct xe_mocs_entry dg2_mocs_desc[] = {
 	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
 };
 
+static void xehp_lncf_dump(struct xe_mocs_info *info, unsigned int flags,
+			   struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int i, j;
+	u32 reg_val;
+
+	drm_printf(p, "LNCFCMOCS[idx] = [UCL3LOOKUP, GLBGO, L3CC] (value)\n\n");
+
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
+		if (regs_are_mcr(gt))
+			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
+		else
+			reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i));
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [%u, %u, %u] (%#8x)\n",
+			   j++,
+			   !!(reg_val & L3_LKUP_MASK),
+			   !!(reg_val & L3_GLBGO_MASK),
+			   REG_FIELD_GET(L3_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [%u, %u, %u] (%#8x)\n",
+			   j,
+			   !!(reg_val & L3_UPPER_LKUP_MASK),
+			   !!(reg_val & L3_UPPER_GLBGO_MASK),
+			   REG_FIELD_GET(L3_UPPER_IDX_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+	}
+}
+
+static const struct xe_mocs_ops xehp_mocs_ops = {
+	.dump = xehp_lncf_dump,
+};
+
 static const struct xe_mocs_entry pvc_mocs_desc[] = {
 	/* Error */
 	MOCS_ENTRY(0, 0, L3_3_WB),
@@ -300,6 +414,36 @@ static const struct xe_mocs_entry pvc_mocs_desc[] = {
 
 	/* WB */
 	MOCS_ENTRY(2, 0, L3_3_WB),
+};
+
+static void pvc_mocs_dump(struct xe_mocs_info *info, unsigned int flags, struct xe_gt *gt,
+			  struct drm_printer *p)
+{
+	unsigned int i, j;
+	u32 reg_val;
+
+	drm_printf(p, "LNCFCMOCS[idx] = [ L3CC ] (value)\n\n");
+
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
+		if (regs_are_mcr(gt))
+			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
+		else
+			reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i));
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [ %u ] (%#8x)\n",
+			   j++,
+			   REG_FIELD_GET(L3_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+
+		drm_printf(p, "LNCFCMOCS[%2d] = [ %u ] (%#8x)\n",
+			   j,
+			   REG_FIELD_GET(L3_UPPER_IDX_CACHEABILITY_MASK, reg_val),
+			   reg_val);
+	}
+}
+
+static const struct xe_mocs_ops pvc_mocs_ops = {
+	.dump = pvc_mocs_dump,
 };
 
 static const struct xe_mocs_entry mtl_mocs_desc[] = {
@@ -353,6 +497,36 @@ static const struct xe_mocs_entry mtl_mocs_desc[] = {
 		   L3_GLBGO(1) | L3_1_UC),
 };
 
+static void mtl_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
+			  struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int i;
+	u32 reg_val;
+
+	drm_printf(p, "Global mocs table configuration:\n");
+	drm_printf(p, "GLOB_MOCS[idx] = [IG_PAT, L4_CACHE_POLICY] (value)\n\n");
+
+	for (i = 0; i < info->num_mocs_regs; i++) {
+		if (regs_are_mcr(gt))
+			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
+		else
+			reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));
+
+		drm_printf(p, "GLOB_MOCS[%2d] = [%u, %u]  (%#8x)\n",
+			   i,
+			   !!(reg_val & IG_PAT),
+			   REG_FIELD_GET(L4_CACHE_POLICY_MASK, reg_val),
+			   reg_val);
+	}
+
+	/* MTL lncf mocs table pattern is similar to that of xehp */
+	xehp_lncf_dump(info, flags, gt, p);
+}
+
+static const struct xe_mocs_ops mtl_mocs_ops = {
+	.dump = mtl_mocs_dump,
+};
+
 static const struct xe_mocs_entry xe2_mocs_table[] = {
 	/* Defer to PAT */
 	MOCS_ENTRY(0, XE2_L3_0_WB | L4_3_UC, 0),
@@ -366,6 +540,34 @@ static const struct xe_mocs_entry xe2_mocs_table[] = {
 	MOCS_ENTRY(4, IG_PAT | XE2_L3_0_WB | L4_0_WB, 0),
 };
 
+static void xe2_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
+			  struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int i;
+	u32 reg_val;
+
+	drm_printf(p, "Global mocs table configuration:\n");
+	drm_printf(p, "GLOB_MOCS[idx] = [IG_PAT, L3_CLOS, L3_CACHE_POLICY, L4_CACHE_POLICY] (value)\n\n");
+
+	for (i = 0; i < info->num_mocs_regs; i++) {
+		if (regs_are_mcr(gt))
+			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
+		else
+			reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));
+
+		drm_printf(p, "GLOB_MOCS[%2d] = [%u, %u, %u]  (%#8x)\n",
+			   i,
+			   !!(reg_val & IG_PAT),
+			   REG_FIELD_GET(XE2_L3_CLOS_MASK, reg_val),
+			   REG_FIELD_GET(L4_CACHE_POLICY_MASK, reg_val),
+			   reg_val);
+	}
+}
+
+static const struct xe_mocs_ops xe2_mocs_ops = {
+	.dump = xe2_mocs_dump,
+};
+
 static unsigned int get_mocs_settings(struct xe_device *xe,
 				      struct xe_mocs_info *info)
 {
@@ -376,44 +578,49 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	switch (xe->info.platform) {
 	case XE_LUNARLAKE:
 	case XE_BATTLEMAGE:
-		info->size = ARRAY_SIZE(xe2_mocs_table);
+		info->ops = &xe2_mocs_ops;
+		info->table_size = ARRAY_SIZE(xe2_mocs_table);
 		info->table = xe2_mocs_table;
-		info->n_entries = XE2_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XE2_NUM_MOCS_ENTRIES;
 		info->uc_index = 3;
 		info->wb_index = 4;
 		info->unused_entries_index = 4;
 		break;
 	case XE_PVC:
-		info->size = ARRAY_SIZE(pvc_mocs_desc);
+		info->ops = &pvc_mocs_ops;
+		info->table_size = ARRAY_SIZE(pvc_mocs_desc);
 		info->table = pvc_mocs_desc;
-		info->n_entries = PVC_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = PVC_NUM_MOCS_ENTRIES;
 		info->uc_index = 1;
 		info->wb_index = 2;
 		info->unused_entries_index = 2;
 		break;
 	case XE_METEORLAKE:
-		info->size = ARRAY_SIZE(mtl_mocs_desc);
+		info->ops = &mtl_mocs_ops;
+		info->table_size = ARRAY_SIZE(mtl_mocs_desc);
 		info->table = mtl_mocs_desc;
-		info->n_entries = MTL_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = MTL_NUM_MOCS_ENTRIES;
 		info->uc_index = 9;
 		info->unused_entries_index = 1;
 		break;
 	case XE_DG2:
-		info->size = ARRAY_SIZE(dg2_mocs_desc);
+		info->ops = &xehp_mocs_ops;
+		info->table_size = ARRAY_SIZE(dg2_mocs_desc);
 		info->table = dg2_mocs_desc;
 		info->uc_index = 1;
 		/*
 		 * Last entry is RO on hardware, don't bother with what was
 		 * written when checking later
 		 */
-		info->n_entries = XELP_NUM_MOCS_ENTRIES - 1;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES - 1;
 		info->unused_entries_index = 3;
 		break;
 	case XE_DG1:
-		info->size = ARRAY_SIZE(dg1_mocs_desc);
+		info->ops = &xelp_mocs_ops;
+		info->table_size = ARRAY_SIZE(dg1_mocs_desc);
 		info->table = dg1_mocs_desc;
 		info->uc_index = 1;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES;
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
@@ -421,9 +628,10 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	case XE_ALDERLAKE_S:
 	case XE_ALDERLAKE_P:
 	case XE_ALDERLAKE_N:
-		info->size  = ARRAY_SIZE(gen12_mocs_desc);
+		info->ops = &xelp_mocs_ops;
+		info->table_size  = ARRAY_SIZE(gen12_mocs_desc);
 		info->table = gen12_mocs_desc;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES;
 		info->uc_index = 3;
 		info->unused_entries_index = 2;
 		break;
@@ -442,10 +650,8 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	 */
 	xe_assert(xe, info->unused_entries_index != 0);
 
-	if (XE_WARN_ON(info->size > info->n_entries)) {
-		info->table = NULL;
-		return 0;
-	}
+	xe_assert(xe, info->ops && info->ops->dump);
+	xe_assert(xe, info->table_size <= info->num_mocs_regs);
 
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) >= 20)
 		flags |= HAS_GLOBAL_MOCS;
@@ -462,19 +668,9 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 static u32 get_entry_control(const struct xe_mocs_info *info,
 			     unsigned int index)
 {
-	if (index < info->size && info->table[index].used)
+	if (index < info->table_size && info->table[index].used)
 		return info->table[index].control_value;
 	return info->table[info->unused_entries_index].control_value;
-}
-
-static bool regs_are_mcr(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-
-	if (xe_gt_is_media_type(gt))
-		return MEDIA_VER(xe) >= 20;
-	else
-		return GRAPHICS_VERx100(xe) >= 1250;
 }
 
 static void __init_mocs_table(struct xe_gt *gt,
@@ -483,12 +679,9 @@ static void __init_mocs_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 mocs;
 
-	xe_gt_WARN_ONCE(gt, !info->unused_entries_index,
-			"Unused entries index should have been defined\n");
+	mocs_dbg(gt, "mocs entries: %d\n", info->num_mocs_regs);
 
-	mocs_dbg(gt, "mocs entries: %d\n", info->n_entries);
-
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		mocs = get_entry_control(info, i);
 
 		mocs_dbg(gt, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
@@ -509,7 +702,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 static u16 get_entry_l3cc(const struct xe_mocs_info *info,
 			  unsigned int index)
 {
-	if (index < info->size && info->table[index].used)
+	if (index < info->table_size && info->table[index].used)
 		return info->table[index].l3cc_value;
 	return info->table[info->unused_entries_index].l3cc_value;
 }
@@ -525,9 +718,9 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(gt, "l3cc entries: %d\n", info->n_entries);
+	mocs_dbg(gt, "l3cc entries: %d\n", info->num_mocs_regs);
 
-	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
+	for (i = 0; i < (info->num_mocs_regs + 1) / 2; i++) {
 		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				    get_entry_l3cc(info, 2 * i + 1));
 
@@ -576,6 +769,30 @@ void xe_mocs_init(struct xe_gt *gt)
 		__init_mocs_table(gt, &table);
 	if (flags & HAS_LNCF_MOCS)
 		init_l3cc_table(gt, &table);
+}
+
+void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_mocs_info table;
+	unsigned int flags;
+	u32 ret;
+	struct xe_device *xe = gt_to_xe(gt);
+
+	flags = get_mocs_settings(xe, &table);
+
+	xe_pm_runtime_get_noresume(xe);
+	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+
+	if (ret)
+		goto err_fw;
+
+	table.ops->dump(&table, flags, gt, p);
+
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+
+err_fw:
+	xe_assert(xe, !ret);
+	xe_pm_runtime_put(xe);
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

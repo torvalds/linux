@@ -79,6 +79,13 @@ static inline bool is_via_compact_memory(int order) { return false; }
 #define COMPACTION_HPAGE_ORDER	(PMD_SHIFT - PAGE_SHIFT)
 #endif
 
+static struct page *mark_allocated_noprof(struct page *page, unsigned int order, gfp_t gfp_flags)
+{
+	post_alloc_hook(page, order, __GFP_MOVABLE);
+	return page;
+}
+#define mark_allocated(...)	alloc_hooks(mark_allocated_noprof(__VA_ARGS__))
+
 static void split_map_pages(struct list_head *freepages)
 {
 	unsigned int i, order;
@@ -93,7 +100,7 @@ static void split_map_pages(struct list_head *freepages)
 
 			nr_pages = 1 << order;
 
-			post_alloc_hook(page, order, __GFP_MOVABLE);
+			mark_allocated(page, order, __GFP_MOVABLE);
 			if (order)
 				split_page(page, order);
 
@@ -122,7 +129,7 @@ static unsigned long release_free_list(struct list_head *freepages)
 			 * Convert free pages into post allocation pages, so
 			 * that we can free them via __free_page.
 			 */
-			post_alloc_hook(page, order, __GFP_MOVABLE);
+			mark_allocated(page, order, __GFP_MOVABLE);
 			__free_pages(page, order);
 			if (pfn > high_pfn)
 				high_pfn = pfn;
@@ -1172,22 +1179,22 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		if (((mode & ISOLATE_ASYNC_MIGRATE) && is_dirty) ||
 		    (mapping && is_unevictable)) {
 			bool migrate_dirty = true;
-			bool is_unmovable;
+			bool is_inaccessible;
 
 			/*
 			 * Only folios without mappings or that have
 			 * a ->migrate_folio callback are possible to migrate
 			 * without blocking.
 			 *
-			 * Folios from unmovable mappings are not migratable.
+			 * Folios from inaccessible mappings are not migratable.
 			 *
 			 * However, we can be racing with truncation, which can
 			 * free the mapping that we need to check. Truncation
 			 * holds the folio lock until after the folio is removed
 			 * from the page so holding it ourselves is sufficient.
 			 *
-			 * To avoid locking the folio just to check unmovable,
-			 * assume every unmovable folio is also unevictable,
+			 * To avoid locking the folio just to check inaccessible,
+			 * assume every inaccessible folio is also unevictable,
 			 * which is a cheaper test.  If our assumption goes
 			 * wrong, it's not a correctness bug, just potentially
 			 * wasted cycles.
@@ -1200,9 +1207,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				migrate_dirty = !mapping ||
 						mapping->a_ops->migrate_folio;
 			}
-			is_unmovable = mapping && mapping_unmovable(mapping);
+			is_inaccessible = mapping && mapping_inaccessible(mapping);
 			folio_unlock(folio);
-			if (!migrate_dirty || is_unmovable)
+			if (!migrate_dirty || is_inaccessible)
 				goto isolate_fail_put;
 		}
 
@@ -2955,7 +2962,7 @@ static int compact_nodes(void)
 	return 0;
 }
 
-static int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
+static int compaction_proactiveness_sysctl_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc, nid;
@@ -2985,7 +2992,7 @@ static int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int 
  * This is the entry point for compacting all nodes via
  * /proc/sys/vm/compact_memory
  */
-static int sysctl_compaction_handler(struct ctl_table *table, int write,
+static int sysctl_compaction_handler(const struct ctl_table *table, int write,
 			void *buffer, size_t *length, loff_t *ppos)
 {
 	int ret;
@@ -3296,7 +3303,7 @@ static int kcompactd_cpu_online(unsigned int cpu)
 	return 0;
 }
 
-static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
+static int proc_dointvec_minmax_warn_RT_change(const struct ctl_table *table,
 		int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret, old;

@@ -21,6 +21,7 @@
  * @cl: Mailbox Client
  * @chan: Transmit/Receive mailbox uni/bi-directional channel
  * @chan_receiver: Optional Receiver mailbox unidirectional channel
+ * @chan_platform_receiver: Optional Platform Receiver mailbox unidirectional channel
  * @cinfo: SCMI channel info
  * @shmem: Transmit/Receive shared memory area
  */
@@ -28,6 +29,7 @@ struct scmi_mailbox {
 	struct mbox_client cl;
 	struct mbox_chan *chan;
 	struct mbox_chan *chan_receiver;
+	struct mbox_chan *chan_platform_receiver;
 	struct scmi_chan_info *cinfo;
 	struct scmi_shared_mem __iomem *shmem;
 };
@@ -91,6 +93,8 @@ static bool mailbox_chan_available(struct device_node *of_node, int idx)
  *		 for replies on the a2p channel. Set as zero if not present.
  * @p2a_chan: A reference to the optional p2a channel.
  *	      Set as zero if not present.
+ * @p2a_rx_chan: A reference to the optional p2a completion channel.
+ *	      Set as zero if not present.
  *
  * At first, validate the transport configuration as described in terms of
  * 'mboxes' and 'shmem', then determin which mailbox channel indexes are
@@ -98,8 +102,8 @@ static bool mailbox_chan_available(struct device_node *of_node, int idx)
  *
  * Return: 0 on Success or error
  */
-static int mailbox_chan_validate(struct device *cdev,
-				 int *a2p_rx_chan, int *p2a_chan)
+static int mailbox_chan_validate(struct device *cdev, int *a2p_rx_chan,
+				 int *p2a_chan, int *p2a_rx_chan)
 {
 	int num_mb, num_sh, ret = 0;
 	struct device_node *np = cdev->of_node;
@@ -109,8 +113,9 @@ static int mailbox_chan_validate(struct device *cdev,
 	dev_dbg(cdev, "Found %d mboxes and %d shmems !\n", num_mb, num_sh);
 
 	/* Bail out if mboxes and shmem descriptors are inconsistent */
-	if (num_mb <= 0 || num_sh <= 0 || num_sh > 2 || num_mb > 3 ||
-	    (num_mb == 1 && num_sh != 1) || (num_mb == 3 && num_sh != 2)) {
+	if (num_mb <= 0 || num_sh <= 0 || num_sh > 2 || num_mb > 4 ||
+	    (num_mb == 1 && num_sh != 1) || (num_mb == 3 && num_sh != 2) ||
+	    (num_mb == 4 && num_sh != 2)) {
 		dev_warn(cdev,
 			 "Invalid channel descriptor for '%s' - mbs:%d  shm:%d\n",
 			 of_node_full_name(np), num_mb, num_sh);
@@ -139,6 +144,7 @@ static int mailbox_chan_validate(struct device *cdev,
 		case 1:
 			*a2p_rx_chan = 0;
 			*p2a_chan = 0;
+			*p2a_rx_chan = 0;
 			break;
 		case 2:
 			if (num_sh == 2) {
@@ -148,10 +154,17 @@ static int mailbox_chan_validate(struct device *cdev,
 				*a2p_rx_chan = 1;
 				*p2a_chan = 0;
 			}
+			*p2a_rx_chan = 0;
 			break;
 		case 3:
 			*a2p_rx_chan = 1;
 			*p2a_chan = 2;
+			*p2a_rx_chan = 0;
+			break;
+		case 4:
+			*a2p_rx_chan = 1;
+			*p2a_chan = 2;
+			*p2a_rx_chan = 3;
 			break;
 		}
 	}
@@ -166,12 +179,12 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct device *cdev = cinfo->dev;
 	struct scmi_mailbox *smbox;
 	struct device_node *shmem;
-	int ret, a2p_rx_chan, p2a_chan, idx = tx ? 0 : 1;
+	int ret, a2p_rx_chan, p2a_chan, p2a_rx_chan, idx = tx ? 0 : 1;
 	struct mbox_client *cl;
 	resource_size_t size;
 	struct resource res;
 
-	ret = mailbox_chan_validate(cdev, &a2p_rx_chan, &p2a_chan);
+	ret = mailbox_chan_validate(cdev, &a2p_rx_chan, &p2a_chan, &p2a_rx_chan);
 	if (ret)
 		return ret;
 
@@ -229,6 +242,17 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		}
 	}
 
+	if (!tx && p2a_rx_chan) {
+		smbox->chan_platform_receiver = mbox_request_channel(cl, p2a_rx_chan);
+		if (IS_ERR(smbox->chan_platform_receiver)) {
+			ret = PTR_ERR(smbox->chan_platform_receiver);
+			if (ret != -EPROBE_DEFER)
+				dev_err(cdev, "failed to request SCMI P2A Receiver mailbox\n");
+			return ret;
+		}
+	}
+
+
 	cinfo->transport_info = smbox;
 	smbox->cinfo = cinfo;
 
@@ -243,9 +267,11 @@ static int mailbox_chan_free(int id, void *p, void *data)
 	if (smbox && !IS_ERR(smbox->chan)) {
 		mbox_free_channel(smbox->chan);
 		mbox_free_channel(smbox->chan_receiver);
+		mbox_free_channel(smbox->chan_platform_receiver);
 		cinfo->transport_info = NULL;
 		smbox->chan = NULL;
 		smbox->chan_receiver = NULL;
+		smbox->chan_platform_receiver = NULL;
 		smbox->cinfo = NULL;
 	}
 
@@ -300,8 +326,27 @@ static void mailbox_fetch_notification(struct scmi_chan_info *cinfo,
 static void mailbox_clear_channel(struct scmi_chan_info *cinfo)
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
+	struct mbox_chan *intr_chan;
+	int ret;
 
 	shmem_clear_channel(smbox->shmem);
+
+	if (!shmem_channel_intr_enabled(smbox->shmem))
+		return;
+
+	if (smbox->chan_platform_receiver)
+		intr_chan = smbox->chan_platform_receiver;
+	else if (smbox->chan)
+		intr_chan = smbox->chan;
+	else
+		return;
+
+	ret = mbox_send_message(intr_chan, NULL);
+	/* mbox_send_message returns non-negative value on success, so reset */
+	if (ret > 0)
+		ret = 0;
+
+	mbox_client_txdone(intr_chan, ret);
 }
 
 static bool

@@ -19,6 +19,7 @@ ath10k_core-$(CONFIG_ATH10K_SPECTRAL) += spectral.o
 ath10k_core-$(CONFIG_NL80211_TESTMODE) += testmode.o
 ath10k_core-$(CONFIG_ATH10K_TRACING) += trace.o
 ath10k_core-$(CONFIG_THERMAL) += thermal.o
+ath10k_core-$(CONFIG_ATH10K_LEDS) += leds.o
 ath10k_core-$(CONFIG_MAC80211_DEBUGFS) += debugfs_sta.o
 ath10k_core-$(CONFIG_PM) += wow.o
 ath10k_core-$(CONFIG_DEV_COREDUMP) += coredump.o

@@ -30,6 +30,8 @@ enum dma_alloc_type {
 
 #define MEM_SCRUB_DEFAULT_VAL 0x1122334455667788
 
+static void hl_device_heartbeat(struct work_struct *work);
+
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
  *
@@ -130,8 +132,8 @@ static void *hl_dma_alloc_common(struct hl_device *hdev, size_t size, dma_addr_t
 	}
 
 	if (trace_habanalabs_dma_alloc_enabled() && !ZERO_OR_NULL_PTR(ptr))
-		trace_habanalabs_dma_alloc(hdev->dev, (u64) (uintptr_t) ptr, *dma_handle, size,
-						caller);
+		trace_habanalabs_dma_alloc(&(hdev)->pdev->dev, (u64) (uintptr_t) ptr, *dma_handle,
+						size, caller);
 
 	return ptr;
 }
@@ -152,7 +154,7 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 		break;
 	}
 
-	trace_habanalabs_dma_free(hdev->dev, store_cpu_addr, dma_handle, size, caller);
+	trace_habanalabs_dma_free(&(hdev)->pdev->dev, store_cpu_addr, dma_handle, size, caller);
 }
 
 void *hl_asic_dma_alloc_coherent_caller(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
@@ -204,15 +206,15 @@ int hl_dma_map_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
 		return 0;
 
 	for_each_sgtable_dma_sg(sgt, sg, i)
-		trace_habanalabs_dma_map_page(hdev->dev,
-				page_to_phys(sg_page(sg)),
-				sg->dma_address - prop->device_dma_offset_for_host_access,
+		trace_habanalabs_dma_map_page(&(hdev)->pdev->dev,
+					page_to_phys(sg_page(sg)),
+					sg->dma_address - prop->device_dma_offset_for_host_access,
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
-				sg->dma_length,
+					sg->dma_length,
 #else
-				sg->length,
+					sg->length,
 #endif
-				dir, caller);
+					dir, caller);
 
 	return 0;
 }
@@ -247,7 +249,8 @@ void hl_dma_unmap_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
 
 	if (trace_habanalabs_dma_unmap_page_enabled()) {
 		for_each_sgtable_dma_sg(sgt, sg, i)
-			trace_habanalabs_dma_unmap_page(hdev->dev, page_to_phys(sg_page(sg)),
+			trace_habanalabs_dma_unmap_page(&(hdev)->pdev->dev,
+					page_to_phys(sg_page(sg)),
 					sg->dma_address - prop->device_dma_offset_for_host_access,
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
 					sg->dma_length,
@@ -439,16 +442,19 @@ static void print_idle_status_mask(struct hl_device *hdev, const char *message,
 					u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE])
 {
 	if (idle_mask[3])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx_%016llx)\n",
-			message, idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx_%016llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message,
+			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
 	else if (idle_mask[2])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx)\n",
-			message, idle_mask[2], idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message,
+			idle_mask[2], idle_mask[1], idle_mask[0]);
 	else if (idle_mask[1])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx)\n",
-			message, idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message, idle_mask[1], idle_mask[0]);
 	else
-		dev_err(hdev->dev, "%s (mask %#llx)\n", message, idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx)\n", dev_name(&hdev->pdev->dev), message,
+			idle_mask[0]);
 }
 
 static void hpriv_release(struct kref *ref)
@@ -545,7 +551,8 @@ int hl_hpriv_put(struct hl_fpriv *hpriv)
 	return kref_put(&hpriv->refcount, hpriv_release);
 }
 
-static void print_device_in_use_info(struct hl_device *hdev, const char *message)
+static void print_device_in_use_info(struct hl_device *hdev,
+		struct hl_mem_mgr_fini_stats *mm_fini_stats, const char *message)
 {
 	u32 active_cs_num, dmabuf_export_cnt;
 	bool unknown_reason = true;
@@ -569,6 +576,12 @@ static void print_device_in_use_info(struct hl_device *hdev, const char *message
 					dmabuf_export_cnt);
 	}
 
+	if (mm_fini_stats->n_busy_cb) {
+		unknown_reason = false;
+		offset += scnprintf(buf + offset, size - offset, " [%u live CB handles]",
+				mm_fini_stats->n_busy_cb);
+	}
+
 	if (unknown_reason)
 		scnprintf(buf + offset, size - offset, " [unknown reason]");
 
@@ -586,6 +599,7 @@ void hl_device_release(struct drm_device *ddev, struct drm_file *file_priv)
 {
 	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = to_hl_device(ddev);
+	struct hl_mem_mgr_fini_stats mm_fini_stats;
 
 	if (!hdev) {
 		pr_crit("Closing FD after device was removed. Memory leak will occur and it is advised to reboot.\n");
@@ -597,12 +611,13 @@ void hl_device_release(struct drm_device *ddev, struct drm_file *file_priv)
 	/* Memory buffers might be still in use at this point and thus the handles IDR destruction
 	 * is postponed to hpriv_release().
 	 */
-	hl_mem_mgr_fini(&hpriv->mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr, &mm_fini_stats);
 
 	hdev->compute_ctx_in_release = 1;
 
 	if (!hl_hpriv_put(hpriv)) {
-		print_device_in_use_info(hdev, "User process closed FD but device still in use");
+		print_device_in_use_info(hdev, &mm_fini_stats,
+				"User process closed FD but device still in use");
 		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	}
 
@@ -858,6 +873,10 @@ static int device_early_init(struct hl_device *hdev)
 		gaudi2_set_asic_funcs(hdev);
 		strscpy(hdev->asic_name, "GAUDI2C", sizeof(hdev->asic_name));
 		break;
+	case ASIC_GAUDI2D:
+		gaudi2_set_asic_funcs(hdev);
+		strscpy(hdev->asic_name, "GAUDI2D", sizeof(hdev->asic_name));
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 			hdev->asic_type);
@@ -946,6 +965,8 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cb_mgr;
 	}
 
+	INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
+
 	INIT_DELAYED_WORK(&hdev->device_reset_work.reset_work, device_hard_reset_pending);
 	hdev->device_reset_work.hdev = hdev;
 	hdev->device_fini_pending = 0;
@@ -968,7 +989,7 @@ static int device_early_init(struct hl_device *hdev)
 	return 0;
 
 free_cb_mgr:
-	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hdev->kernel_mem_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
@@ -1012,7 +1033,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	mutex_destroy(&hdev->clk_throttling.lock);
 
-	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hdev->kernel_mem_mgr);
 
 	kfree(hdev->hl_chip_info);
@@ -1045,21 +1066,55 @@ static bool is_pci_link_healthy(struct hl_device *hdev)
 	return (device_id == hdev->pdev->device);
 }
 
-static int hl_device_eq_heartbeat_check(struct hl_device *hdev)
+static void stringify_time_of_last_heartbeat(struct hl_device *hdev, char *time_str, size_t size,
+						bool is_pq_hb)
 {
+	time64_t seconds = is_pq_hb ? hdev->heartbeat_debug_info.last_pq_heartbeat_ts
+					: hdev->heartbeat_debug_info.last_eq_heartbeat_ts;
+	struct tm tm;
+
+	if (!seconds)
+		return;
+
+	time64_to_tm(seconds, 0, &tm);
+
+	snprintf(time_str, size, "%ld-%02d-%02d %02d:%02d:%02d (UTC)",
+		tm.tm_year + 1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+static bool hl_device_eq_heartbeat_received(struct hl_device *hdev)
+{
+	struct eq_heartbeat_debug_info *heartbeat_debug_info = &hdev->heartbeat_debug_info;
+	u32 cpu_q_id = heartbeat_debug_info->cpu_queue_id, pq_pi_mask = (HL_QUEUE_LENGTH << 1) - 1;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	char pq_time_str[64] = "N/A", eq_time_str[64] = "N/A";
 
 	if (!prop->cpucp_info.eq_health_check_supported)
-		return 0;
+		return true;
 
-	if (hdev->eq_heartbeat_received) {
-		hdev->eq_heartbeat_received = false;
-	} else {
+	if (!hdev->eq_heartbeat_received) {
 		dev_err(hdev->dev, "EQ heartbeat event was not received!\n");
-		return -EIO;
+
+		stringify_time_of_last_heartbeat(hdev, pq_time_str, sizeof(pq_time_str), true);
+		stringify_time_of_last_heartbeat(hdev, eq_time_str, sizeof(eq_time_str), false);
+		dev_err(hdev->dev,
+			"EQ: {CI %u, HB counter %u, last HB time: %s}, PQ: {PI: %u, CI: %u (%u), last HB time: %s}\n",
+			hdev->event_queue.ci,
+			heartbeat_debug_info->heartbeat_event_counter,
+			eq_time_str,
+			hdev->kernel_queues[cpu_q_id].pi,
+			atomic_read(&hdev->kernel_queues[cpu_q_id].ci),
+			atomic_read(&hdev->kernel_queues[cpu_q_id].ci) & pq_pi_mask,
+			pq_time_str);
+
+		hl_eq_dump(hdev, &hdev->event_queue);
+
+		return false;
 	}
 
-	return 0;
+	hdev->eq_heartbeat_received = false;
+
+	return true;
 }
 
 static void hl_device_heartbeat(struct work_struct *work)
@@ -1078,7 +1133,7 @@ static void hl_device_heartbeat(struct work_struct *work)
 	 * in order to validate the eq is working.
 	 * Only if both the EQ is healthy and we managed to send the next heartbeat reschedule.
 	 */
-	if ((!hl_device_eq_heartbeat_check(hdev)) && (!hdev->asic_funcs->send_heartbeat(hdev)))
+	if (hl_device_eq_heartbeat_received(hdev) && (!hdev->asic_funcs->send_heartbeat(hdev)))
 		goto reschedule;
 
 	if (hl_device_operational(hdev, NULL))
@@ -1132,21 +1187,6 @@ static int device_late_init(struct hl_device *hdev)
 	}
 
 	hdev->high_pll = hdev->asic_prop.high_pll;
-
-	if (hdev->heartbeat) {
-		/*
-		 * Before scheduling the heartbeat driver will check if eq event has received.
-		 * for the first schedule we need to set the indication as true then for the next
-		 * one this indication will be true only if eq event was sent by FW.
-		 */
-		hdev->eq_heartbeat_received = true;
-
-		INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
-
-		schedule_delayed_work(&hdev->work_heartbeat,
-				usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
-	}
-
 	hdev->late_init_done = true;
 
 	return 0;
@@ -1162,9 +1202,6 @@ static void device_late_fini(struct hl_device *hdev)
 {
 	if (!hdev->late_init_done)
 		return;
-
-	if (hdev->heartbeat)
-		cancel_delayed_work_sync(&hdev->work_heartbeat);
 
 	if (hdev->asic_funcs->late_fini)
 		hdev->asic_funcs->late_fini(hdev);
@@ -1266,8 +1303,12 @@ static void hl_abort_waiting_for_completions(struct hl_device *hdev)
 static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset,
 				bool skip_wq_flush)
 {
-	if (hard_reset)
+	if (hard_reset) {
+		if (hdev->heartbeat)
+			cancel_delayed_work_sync(&hdev->work_heartbeat);
+
 		device_late_fini(hdev);
+	}
 
 	/*
 	 * Halt the engines and disable interrupts so we won't get any more
@@ -1495,15 +1536,14 @@ static void send_disable_pci_access(struct hl_device *hdev, u32 flags)
 		 * of heartbeat, the device CPU is marked as disable
 		 * so this message won't be sent
 		 */
-		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0)) {
-			dev_warn(hdev->dev, "Failed to disable FW's PCI access\n");
+		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
 			return;
-		}
 
-		/* verify that last EQs are handled before disabled is set */
+		/* disable_irq also generates sync irq, this verifies that last EQs are handled
+		 * before disabled is set. The IRQ will be enabled again in request_irq call.
+		 */
 		if (hdev->cpu_queues_enable)
-			synchronize_irq(pci_irq_vector(hdev->pdev,
-					hdev->asic_prop.eq_interrupt_id));
+			disable_irq(pci_irq_vector(hdev->pdev, hdev->asic_prop.eq_interrupt_id));
 	}
 }
 
@@ -1545,6 +1585,31 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 	} else {
 		hdev->reset_info.reset_trigger_repeated = 1;
 	}
+}
+
+static void reset_heartbeat_debug_info(struct hl_device *hdev)
+{
+	hdev->heartbeat_debug_info.last_pq_heartbeat_ts = 0;
+	hdev->heartbeat_debug_info.last_eq_heartbeat_ts = 0;
+	hdev->heartbeat_debug_info.heartbeat_event_counter = 0;
+}
+
+static inline void device_heartbeat_schedule(struct hl_device *hdev)
+{
+	if (!hdev->heartbeat)
+		return;
+
+	reset_heartbeat_debug_info(hdev);
+
+	/*
+	 * Before scheduling the heartbeat driver will check if eq event has received.
+	 * for the first schedule we need to set the indication as true then for the next
+	 * one this indication will be true only if eq event was sent by FW.
+	 */
+	hdev->eq_heartbeat_received = true;
+
+	schedule_delayed_work(&hdev->work_heartbeat,
+			usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
 }
 
 /*
@@ -1915,6 +1980,8 @@ kill_processes:
 
 	if (hard_reset) {
 		hdev->reset_info.hard_reset_cnt++;
+
+		device_heartbeat_schedule(hdev);
 
 		/* After reset is done, we are ready to receive events from
 		 * the F/W. We can't do it before because we will ignore events
@@ -2350,6 +2417,12 @@ int hl_device_init(struct hl_device *hdev)
 		goto out_disabled;
 	}
 
+	/* Scheduling the EQ heartbeat thread must come after driver is done with all
+	 * initializations, as we want to make sure the FW gets enough time to be prepared
+	 * to respond to heartbeat packets.
+	 */
+	device_heartbeat_schedule(hdev);
+
 	dev_notice(hdev->dev,
 		"Successfully added device %s to habanalabs driver\n",
 		dev_name(&(hdev)->pdev->dev));
@@ -2592,7 +2665,7 @@ inline u32 hl_rreg(struct hl_device *hdev, u32 reg)
 	u32 val = readl(hdev->rmmio + reg);
 
 	if (unlikely(trace_habanalabs_rreg32_enabled()))
-		trace_habanalabs_rreg32(hdev->dev, reg, val);
+		trace_habanalabs_rreg32(&(hdev)->pdev->dev, reg, val);
 
 	return val;
 }
@@ -2610,7 +2683,7 @@ inline u32 hl_rreg(struct hl_device *hdev, u32 reg)
 inline void hl_wreg(struct hl_device *hdev, u32 reg, u32 val)
 {
 	if (unlikely(trace_habanalabs_wreg32_enabled()))
-		trace_habanalabs_wreg32(hdev->dev, reg, val);
+		trace_habanalabs_wreg32(&(hdev)->pdev->dev, reg, val);
 
 	writel(val, hdev->rmmio + reg);
 }
@@ -2835,4 +2908,57 @@ void hl_set_irq_affinity(struct hl_device *hdev, int irq)
 
 	if (irq_set_affinity_and_hint(irq, &hdev->irq_affinity_mask))
 		dev_err(hdev->dev, "Failed setting irq %d affinity\n", irq);
+}
+
+void hl_eq_heartbeat_event_handle(struct hl_device *hdev)
+{
+	hdev->heartbeat_debug_info.heartbeat_event_counter++;
+	hdev->heartbeat_debug_info.last_eq_heartbeat_ts = ktime_get_real_seconds();
+	hdev->eq_heartbeat_received = true;
+}
+
+void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *event_mask)
+{
+	struct hl_clk_throttle *clk_throttle = &hdev->clk_throttling;
+	ktime_t zero_time = ktime_set(0, 0);
+
+	mutex_lock(&clk_throttle->lock);
+
+	switch (event_type) {
+	case EQ_EVENT_POWER_EVT_START:
+		clk_throttle->current_reason |= HL_CLK_THROTTLE_POWER;
+		clk_throttle->aggregated_reason |= HL_CLK_THROTTLE_POWER;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].start = ktime_get();
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = zero_time;
+		dev_dbg_ratelimited(hdev->dev, "Clock throttling due to power consumption\n");
+		break;
+
+	case EQ_EVENT_POWER_EVT_END:
+		clk_throttle->current_reason &= ~HL_CLK_THROTTLE_POWER;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = ktime_get();
+		dev_dbg_ratelimited(hdev->dev, "Power envelop is safe, back to optimal clock\n");
+		break;
+
+	case EQ_EVENT_THERMAL_EVT_START:
+		clk_throttle->current_reason |= HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->aggregated_reason |= HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].start = ktime_get();
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = zero_time;
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		dev_info_ratelimited(hdev->dev, "Clock throttling due to overheating\n");
+		break;
+
+	case EQ_EVENT_THERMAL_EVT_END:
+		clk_throttle->current_reason &= ~HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = ktime_get();
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		dev_info_ratelimited(hdev->dev, "Thermal envelop is safe, back to optimal clock\n");
+		break;
+
+	default:
+		dev_err(hdev->dev, "Received invalid clock change event %d\n", event_type);
+		break;
+	}
+
+	mutex_unlock(&clk_throttle->lock);
 }

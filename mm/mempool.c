@@ -273,7 +273,7 @@ mempool_t *mempool_create_node_noprof(int min_nr, mempool_alloc_t *alloc_fn,
 {
 	mempool_t *pool;
 
-	pool = kzalloc_node(sizeof(*pool), gfp_mask, node_id);
+	pool = kmalloc_node_noprof(sizeof(*pool), gfp_mask | __GFP_ZERO, node_id);
 	if (!pool)
 		return NULL;
 

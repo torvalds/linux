@@ -212,6 +212,7 @@ static u64 arena_map_mem_usage(const struct bpf_map *map)
 struct vma_list {
 	struct vm_area_struct *vma;
 	struct list_head head;
+	atomic_t mmap_count;
 };
 
 static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
@@ -221,20 +222,30 @@ static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
 	vml = kmalloc(sizeof(*vml), GFP_KERNEL);
 	if (!vml)
 		return -ENOMEM;
+	atomic_set(&vml->mmap_count, 1);
 	vma->vm_private_data = vml;
 	vml->vma = vma;
 	list_add(&vml->head, &arena->vma_list);
 	return 0;
 }
 
+static void arena_vm_open(struct vm_area_struct *vma)
+{
+	struct vma_list *vml = vma->vm_private_data;
+
+	atomic_inc(&vml->mmap_count);
+}
+
 static void arena_vm_close(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
-	struct vma_list *vml;
+	struct vma_list *vml = vma->vm_private_data;
 
+	if (!atomic_dec_and_test(&vml->mmap_count))
+		return;
 	guard(mutex)(&arena->lock);
-	vml = vma->vm_private_data;
+	/* update link list under lock */
 	list_del(&vml->head);
 	vma->vm_private_data = NULL;
 	kfree(vml);
@@ -287,6 +298,7 @@ out:
 }
 
 static const struct vm_operations_struct arena_vm_ops = {
+	.open		= arena_vm_open,
 	.close		= arena_vm_close,
 	.fault          = arena_vm_fault,
 };

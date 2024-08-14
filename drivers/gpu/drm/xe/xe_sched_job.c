@@ -6,7 +6,7 @@
 #include "xe_sched_job.h"
 
 #include <drm/xe_drm.h>
-#include <linux/dma-fence-array.h>
+#include <linux/dma-fence-chain.h>
 #include <linux/slab.h>
 
 #include "xe_device.h"
@@ -29,7 +29,7 @@ int __init xe_sched_job_module_init(void)
 	xe_sched_job_slab =
 		kmem_cache_create("xe_sched_job",
 				  sizeof(struct xe_sched_job) +
-				  sizeof(u64), 0,
+				  sizeof(struct xe_job_ptrs), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_sched_job_slab)
 		return -ENOMEM;
@@ -37,7 +37,7 @@ int __init xe_sched_job_module_init(void)
 	xe_sched_job_parallel_slab =
 		kmem_cache_create("xe_sched_job_parallel",
 				  sizeof(struct xe_sched_job) +
-				  sizeof(u64) *
+				  sizeof(struct xe_job_ptrs) *
 				  XE_HW_ENGINE_MAX_INSTANCE, 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_sched_job_parallel_slab) {
@@ -79,25 +79,32 @@ static struct xe_device *job_to_xe(struct xe_sched_job *job)
 	return gt_to_xe(job->q->gt);
 }
 
+/* Free unused pre-allocated fences */
+static void xe_sched_job_free_fences(struct xe_sched_job *job)
+{
+	int i;
+
+	for (i = 0; i < job->q->width; ++i) {
+		struct xe_job_ptrs *ptrs = &job->ptrs[i];
+
+		if (ptrs->lrc_fence)
+			xe_lrc_free_seqno_fence(ptrs->lrc_fence);
+		if (ptrs->chain_fence)
+			dma_fence_chain_free(ptrs->chain_fence);
+	}
+}
+
 struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 					 u64 *batch_addr)
 {
-	struct xe_sched_job *job;
-	struct dma_fence **fences;
 	bool is_migration = xe_sched_job_is_migration(q);
+	struct xe_sched_job *job;
 	int err;
-	int i, j;
+	int i;
 	u32 width;
 
 	/* only a kernel context can submit a vm-less job */
 	XE_WARN_ON(!q->vm && !(q->flags & EXEC_QUEUE_FLAG_KERNEL));
-
-	/* Migration and kernel engines have their own locking */
-	if (!(q->flags & (EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_VM))) {
-		lockdep_assert_held(&q->vm->lock);
-		if (!xe_vm_in_lr_mode(q->vm))
-			xe_vm_assert_held(q->vm);
-	}
 
 	job = job_alloc(xe_exec_queue_is_parallel(q) || is_migration);
 	if (!job)
@@ -111,44 +118,25 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 	if (err)
 		goto err_free;
 
-	if (!xe_exec_queue_is_parallel(q)) {
-		job->fence = xe_lrc_create_seqno_fence(q->lrc);
-		if (IS_ERR(job->fence)) {
-			err = PTR_ERR(job->fence);
+	for (i = 0; i < q->width; ++i) {
+		struct dma_fence *fence = xe_lrc_alloc_seqno_fence();
+		struct dma_fence_chain *chain;
+
+		if (IS_ERR(fence)) {
+			err = PTR_ERR(fence);
 			goto err_sched_job;
 		}
-	} else {
-		struct dma_fence_array *cf;
+		job->ptrs[i].lrc_fence = fence;
 
-		fences = kmalloc_array(q->width, sizeof(*fences), GFP_KERNEL);
-		if (!fences) {
+		if (i + 1 == q->width)
+			continue;
+
+		chain = dma_fence_chain_alloc();
+		if (!chain) {
 			err = -ENOMEM;
 			goto err_sched_job;
 		}
-
-		for (j = 0; j < q->width; ++j) {
-			fences[j] = xe_lrc_create_seqno_fence(q->lrc + j);
-			if (IS_ERR(fences[j])) {
-				err = PTR_ERR(fences[j]);
-				goto err_fences;
-			}
-		}
-
-		cf = dma_fence_array_create(q->width, fences,
-					    q->parallel.composite_fence_ctx,
-					    q->parallel.composite_fence_seqno++,
-					    false);
-		if (!cf) {
-			--q->parallel.composite_fence_seqno;
-			err = -ENOMEM;
-			goto err_fences;
-		}
-
-		/* Sanity check */
-		for (j = 0; j < q->width; ++j)
-			xe_assert(job_to_xe(job), cf->base.seqno == fences[j]->seqno);
-
-		job->fence = &cf->base;
+		job->ptrs[i].chain_fence = chain;
 	}
 
 	width = q->width;
@@ -156,23 +144,14 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 		width = 2;
 
 	for (i = 0; i < width; ++i)
-		job->batch_addr[i] = batch_addr[i];
+		job->ptrs[i].batch_addr = batch_addr[i];
 
-	/* All other jobs require a VM to be open which has a ref */
-	if (unlikely(q->flags & EXEC_QUEUE_FLAG_KERNEL))
-		xe_pm_runtime_get_noresume(job_to_xe(job));
-	xe_device_assert_mem_access(job_to_xe(job));
-
+	xe_pm_runtime_get_noresume(job_to_xe(job));
 	trace_xe_sched_job_create(job);
 	return job;
 
-err_fences:
-	for (j = j - 1; j >= 0; --j) {
-		--q->lrc[j].fence_ctx.next_seqno;
-		dma_fence_put(fences[j]);
-	}
-	kfree(fences);
 err_sched_job:
+	xe_sched_job_free_fences(job);
 	drm_sched_job_cleanup(&job->drm);
 err_free:
 	xe_exec_queue_put(q);
@@ -191,36 +170,42 @@ void xe_sched_job_destroy(struct kref *ref)
 {
 	struct xe_sched_job *job =
 		container_of(ref, struct xe_sched_job, refcount);
+	struct xe_device *xe = job_to_xe(job);
 
-	if (unlikely(job->q->flags & EXEC_QUEUE_FLAG_KERNEL))
-		xe_pm_runtime_put(job_to_xe(job));
+	xe_sched_job_free_fences(job);
 	xe_exec_queue_put(job->q);
 	dma_fence_put(job->fence);
 	drm_sched_job_cleanup(&job->drm);
 	job_free(job);
+	xe_pm_runtime_put(xe);
+}
+
+/* Set the error status under the fence to avoid racing with signaling */
+static bool xe_fence_set_error(struct dma_fence *fence, int error)
+{
+	unsigned long irq_flags;
+	bool signaled;
+
+	spin_lock_irqsave(fence->lock, irq_flags);
+	signaled = test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags);
+	if (!signaled)
+		dma_fence_set_error(fence, error);
+	spin_unlock_irqrestore(fence->lock, irq_flags);
+
+	return signaled;
 }
 
 void xe_sched_job_set_error(struct xe_sched_job *job, int error)
 {
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags))
+	if (xe_fence_set_error(job->fence, error))
 		return;
 
-	dma_fence_set_error(job->fence, error);
+	if (dma_fence_is_chain(job->fence)) {
+		struct dma_fence *iter;
 
-	if (dma_fence_is_array(job->fence)) {
-		struct dma_fence_array *array =
-			to_dma_fence_array(job->fence);
-		struct dma_fence **child = array->fences;
-		unsigned int nchild = array->num_fences;
-
-		do {
-			struct dma_fence *current_fence = *child++;
-
-			if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-				     &current_fence->flags))
-				continue;
-			dma_fence_set_error(current_fence, error);
-		} while (--nchild);
+		dma_fence_chain_for_each(iter, job->fence)
+			xe_fence_set_error(dma_fence_chain_contained(iter),
+					   error);
 	}
 
 	trace_xe_sched_job_set_error(job);
@@ -231,30 +216,42 @@ void xe_sched_job_set_error(struct xe_sched_job *job, int error)
 
 bool xe_sched_job_started(struct xe_sched_job *job)
 {
-	struct xe_lrc *lrc = job->q->lrc;
+	struct xe_lrc *lrc = job->q->lrc[0];
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job),
+	return !__dma_fence_is_later(xe_sched_job_lrc_seqno(job),
 				     xe_lrc_start_seqno(lrc),
-				     job->fence->ops);
+				     dma_fence_chain_contained(job->fence)->ops);
 }
 
 bool xe_sched_job_completed(struct xe_sched_job *job)
 {
-	struct xe_lrc *lrc = job->q->lrc;
+	struct xe_lrc *lrc = job->q->lrc[0];
 
 	/*
 	 * Can safely check just LRC[0] seqno as that is last seqno written when
 	 * parallel handshake is done.
 	 */
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job), xe_lrc_seqno(lrc),
-				     job->fence->ops);
+	return !__dma_fence_is_later(xe_sched_job_lrc_seqno(job),
+				     xe_lrc_seqno(lrc),
+				     dma_fence_chain_contained(job->fence)->ops);
 }
 
 void xe_sched_job_arm(struct xe_sched_job *job)
 {
 	struct xe_exec_queue *q = job->q;
+	struct dma_fence *fence, *prev;
 	struct xe_vm *vm = q->vm;
+	u64 seqno = 0;
+	int i;
+
+	/* Migration and kernel engines have their own locking */
+	if (IS_ENABLED(CONFIG_LOCKDEP) &&
+	    !(q->flags & (EXEC_QUEUE_FLAG_KERNEL | EXEC_QUEUE_FLAG_VM))) {
+		lockdep_assert_held(&q->vm->lock);
+		if (!xe_vm_in_lr_mode(q->vm))
+			xe_vm_assert_held(q->vm);
+	}
 
 	if (vm && !xe_sched_job_is_migration(q) && !xe_vm_in_lr_mode(vm) &&
 	    (vm->batch_invalidate_tlb || vm->tlb_flush_seqno != q->tlb_flush_seqno)) {
@@ -263,6 +260,27 @@ void xe_sched_job_arm(struct xe_sched_job *job)
 		job->ring_ops_flush_tlb = true;
 	}
 
+	/* Arm the pre-allocated fences */
+	for (i = 0; i < q->width; prev = fence, ++i) {
+		struct dma_fence_chain *chain;
+
+		fence = job->ptrs[i].lrc_fence;
+		xe_lrc_init_seqno_fence(q->lrc[i], fence);
+		job->ptrs[i].lrc_fence = NULL;
+		if (!i) {
+			job->lrc_seqno = fence->seqno;
+			continue;
+		} else {
+			xe_assert(gt_to_xe(q->gt), job->lrc_seqno == fence->seqno);
+		}
+
+		chain = job->ptrs[i - 1].chain_fence;
+		dma_fence_chain_init(chain, prev, fence, seqno++);
+		job->ptrs[i - 1].chain_fence = NULL;
+		fence = &chain->base;
+	}
+
+	job->fence = fence;
 	drm_sched_job_arm(&job->drm);
 }
 
@@ -322,7 +340,8 @@ xe_sched_job_snapshot_capture(struct xe_sched_job *job)
 
 	snapshot->batch_addr_len = q->width;
 	for (i = 0; i < q->width; i++)
-		snapshot->batch_addr[i] = xe_device_uncanonicalize_addr(xe, job->batch_addr[i]);
+		snapshot->batch_addr[i] =
+			xe_device_uncanonicalize_addr(xe, job->ptrs[i].batch_addr);
 
 	return snapshot;
 }
@@ -343,4 +362,10 @@ xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot,
 
 	for (i = 0; i < snapshot->batch_addr_len; i++)
 		drm_printf(p, "batch_addr[%u]: 0x%016llx\n", i, snapshot->batch_addr[i]);
+}
+
+int xe_sched_job_add_deps(struct xe_sched_job *job, struct dma_resv *resv,
+			  enum dma_resv_usage usage)
+{
+	return drm_sched_job_add_resv_dependencies(&job->drm, resv, usage);
 }

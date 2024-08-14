@@ -45,6 +45,14 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_set_master(pdev);
 
+	flags = pci_resource_flags(pdev, 0);
+	if (flags & IORESOURCE_IO) {
+		ret = -ENOTSUPP;
+		dev_err(&pdev->dev,
+			"IO mapped PCI devices are not supported\n");
+		goto out_disable;
+	}
+
 	priv->mapbase = pci_resource_start(pdev, 0);
 	if (!priv->mapbase) {
 		dev_err(&pdev->dev, "No PCI resource\n");
@@ -65,14 +73,6 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!priv->base) {
 		dev_err(&pdev->dev, "Cannot ioremap\n");
 		ret = -ENOMEM;
-		goto out_disable;
-	}
-
-	flags = pci_resource_flags(pdev, 0);
-	if (flags & IORESOURCE_IO) {
-		ret = -ENOTSUPP;
-		dev_err(&pdev->dev,
-			"IO mapped PCI devices are not supported\n");
 		goto out_disable;
 	}
 

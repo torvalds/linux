@@ -10,7 +10,6 @@ fail() { #msg
 }
 
 sample_events() {
-    echo > trace
     echo 1 > events/kmem/kmem_cache_free/enable
     echo 1 > tracing_on
     ls > /dev/null
@@ -22,6 +21,7 @@ echo 0 > tracing_on
 echo 0 > events/enable
 
 echo "Get the most frequently calling function"
+echo > trace
 sample_events
 
 target_func=`cat trace | grep -o 'call_site=\([^+]*\)' | sed 's/call_site=//' | sort | uniq -c | sort | tail -n 1 | sed 's/^[ 0-9]*//'`
@@ -32,7 +32,16 @@ echo > trace
 
 echo "Test event filter function name"
 echo "call_site.function == $target_func" > events/kmem/kmem_cache_free/filter
+
 sample_events
+max_retry=10
+while [ `grep kmem_cache_free trace| wc -l` -eq 0 ]; do
+sample_events
+max_retry=$((max_retry - 1))
+if [ $max_retry -eq 0 ]; then
+	exit_fail
+fi
+done
 
 hitcnt=`grep kmem_cache_free trace| grep $target_func | wc -l`
 misscnt=`grep kmem_cache_free trace| grep -v $target_func | wc -l`
@@ -49,7 +58,16 @@ address=`grep " ${target_func}\$" /proc/kallsyms | cut -d' ' -f1`
 
 echo "Test event filter function address"
 echo "call_site.function == 0x$address" > events/kmem/kmem_cache_free/filter
+echo > trace
 sample_events
+max_retry=10
+while [ `grep kmem_cache_free trace| wc -l` -eq 0 ]; do
+sample_events
+max_retry=$((max_retry - 1))
+if [ $max_retry -eq 0 ]; then
+	exit_fail
+fi
+done
 
 hitcnt=`grep kmem_cache_free trace| grep $target_func | wc -l`
 misscnt=`grep kmem_cache_free trace| grep -v $target_func | wc -l`

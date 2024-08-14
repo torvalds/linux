@@ -1091,4 +1091,5 @@ static struct platform_driver meson_axg_pinctrl_driver = {
 };
 
 module_platform_driver(meson_axg_pinctrl_driver);
+MODULE_DESCRIPTION("Amlogic Meson AXG pinctrl driver");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -267,6 +267,10 @@ are the following:
 ``related_cpus``
 	List of all (online and offline) CPUs belonging to this policy.
 
+``scaling_available_frequencies``
+	List of available frequencies of the CPUs belonging to this policy
+	(in kHz).
+
 ``scaling_available_governors``
 	List of ``CPUFreq`` scaling governors present in the kernel that can
 	be attached to this policy or (if the |intel_pstate| scaling driver is

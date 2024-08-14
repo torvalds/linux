@@ -28,8 +28,8 @@
 
 #define MEI_VSC_MAX_MSG_SIZE		512
 
-#define MEI_VSC_POLL_DELAY_US		(50 * USEC_PER_MSEC)
-#define MEI_VSC_POLL_TIMEOUT_US		(200 * USEC_PER_MSEC)
+#define MEI_VSC_POLL_DELAY_US		(100 * USEC_PER_MSEC)
+#define MEI_VSC_POLL_TIMEOUT_US		(400 * USEC_PER_MSEC)
 
 #define mei_dev_to_vsc_hw(dev)		((struct mei_vsc_hw *)((dev)->hw))
 
@@ -399,41 +399,32 @@ static void mei_vsc_remove(struct platform_device *pdev)
 
 static int mei_vsc_suspend(struct device *dev)
 {
-	struct mei_device *mei_dev = dev_get_drvdata(dev);
-	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
+	struct mei_device *mei_dev;
+	int ret = 0;
 
-	mei_stop(mei_dev);
+	mei_dev = dev_get_drvdata(dev);
+	if (!mei_dev)
+		return -ENODEV;
 
-	mei_disable_interrupts(mei_dev);
+	mutex_lock(&mei_dev->device_lock);
 
-	vsc_tp_free_irq(hw->tp);
+	if (!mei_write_is_idle(mei_dev))
+		ret = -EAGAIN;
 
-	return 0;
+	mutex_unlock(&mei_dev->device_lock);
+
+	return ret;
 }
 
 static int mei_vsc_resume(struct device *dev)
 {
-	struct mei_device *mei_dev = dev_get_drvdata(dev);
-	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
-	int ret;
+	struct mei_device *mei_dev;
 
-	ret = vsc_tp_request_irq(hw->tp);
-	if (ret)
-		return ret;
-
-	ret = mei_restart(mei_dev);
-	if (ret)
-		goto err_free;
-
-	/* start timer if stopped in suspend */
-	schedule_delayed_work(&mei_dev->timer_work, HZ);
+	mei_dev = dev_get_drvdata(dev);
+	if (!mei_dev)
+		return -ENODEV;
 
 	return 0;
-
-err_free:
-	vsc_tp_free_irq(hw->tp);
-
-	return ret;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(mei_vsc_pm_ops, mei_vsc_suspend, mei_vsc_resume);

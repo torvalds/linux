@@ -104,6 +104,7 @@ struct ath12k_pci {
 	struct mhi_controller *mhi_ctrl;
 	const struct ath12k_msi_config *msi_config;
 	unsigned long mhi_state;
+	enum mhi_callback mhi_pre_cb;
 	u32 register_window;
 
 	/* protects register_window above */

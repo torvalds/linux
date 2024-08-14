@@ -26,6 +26,7 @@ atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
 enum populate_mode {
 	POPULATE_NONE,
 	POPULATE_DIRECT,
+	POPULATE_LOWCORE,
 	POPULATE_ABS_LOWCORE,
 	POPULATE_IDENTITY,
 	POPULATE_KERNEL,
@@ -242,6 +243,8 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 		return -1;
 	case POPULATE_DIRECT:
 		return addr;
+	case POPULATE_LOWCORE:
+		return __lowcore_pa(addr);
 	case POPULATE_ABS_LOWCORE:
 		return __abs_lowcore_pa(addr);
 	case POPULATE_KERNEL:
@@ -261,21 +264,27 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 
 static bool large_allowed(enum populate_mode mode)
 {
-	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY);
+	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY) || (mode == POPULATE_KERNEL);
 }
 
 static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end,
 			  enum populate_mode mode)
 {
+	unsigned long size = end - addr;
+
 	return machine.has_edat2 && large_allowed(mode) &&
-	       IS_ALIGNED(addr, PUD_SIZE) && (end - addr) >= PUD_SIZE;
+	       IS_ALIGNED(addr, PUD_SIZE) && (size >= PUD_SIZE) &&
+	       IS_ALIGNED(_pa(addr, size, mode), PUD_SIZE);
 }
 
 static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end,
 			  enum populate_mode mode)
 {
+	unsigned long size = end - addr;
+
 	return machine.has_edat1 && large_allowed(mode) &&
-	       IS_ALIGNED(addr, PMD_SIZE) && (end - addr) >= PMD_SIZE;
+	       IS_ALIGNED(addr, PMD_SIZE) && (size >= PMD_SIZE) &&
+	       IS_ALIGNED(_pa(addr, size, mode), PMD_SIZE);
 }
 
 static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end,
@@ -412,6 +421,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit)
 {
+	unsigned long lowcore_address = 0;
 	unsigned long start, end;
 	unsigned long asce_type;
 	unsigned long asce_bits;
@@ -449,12 +459,17 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
 	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
+	if (relocate_lowcore)
+		lowcore_address = LOWCORE_ALT_ADDRESS;
+
 	/*
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
+	pgtable_populate(lowcore_address,
+			 lowcore_address + sizeof(struct lowcore),
+			 POPULATE_LOWCORE);
 	for_each_physmem_usable_range(i, &start, &end) {
 		pgtable_populate((unsigned long)__identity_va(start),
 				 (unsigned long)__identity_va(end),
@@ -470,13 +485,13 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 
 	kasan_populate_shadow(kernel_start, kernel_end);
 
-	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
-	S390_lowcore.user_asce = s390_invalid_asce;
+	get_lowcore()->kernel_asce.val = swapper_pg_dir | asce_bits;
+	get_lowcore()->user_asce = s390_invalid_asce;
 
-	local_ctl_load(1, &S390_lowcore.kernel_asce);
-	local_ctl_load(7, &S390_lowcore.user_asce);
-	local_ctl_load(13, &S390_lowcore.kernel_asce);
+	local_ctl_load(1, &get_lowcore()->kernel_asce);
+	local_ctl_load(7, &get_lowcore()->user_asce);
+	local_ctl_load(13, &get_lowcore()->kernel_asce);
 
-	init_mm.context.asce = S390_lowcore.kernel_asce.val;
+	init_mm.context.asce = get_lowcore()->kernel_asce.val;
 	init_mm.pgd = init_mm_pgd;
 }

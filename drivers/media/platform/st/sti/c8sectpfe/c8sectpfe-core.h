@@ -51,7 +51,7 @@ struct channel_info {
 	unsigned long  fifo;
 
 	struct completion idle_completion;
-	struct tasklet_struct tsklet;
+	struct work_struct bh_work;
 
 	struct c8sectpfei *fei;
 	void __iomem *irec;

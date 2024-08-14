@@ -137,5 +137,6 @@ static struct platform_driver co_cache_error_driver = {
 };
 module_platform_driver(co_cache_error_driver);
 
+MODULE_DESCRIPTION("Cavium Octeon Primary Caches EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

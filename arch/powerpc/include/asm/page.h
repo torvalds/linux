@@ -269,38 +269,6 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
 #define is_kernel_addr(x)	((x) >= TASK_SIZE)
 #endif
 
-#ifndef CONFIG_PPC_BOOK3S_64
-/*
- * Use the top bit of the higher-level page table entries to indicate whether
- * the entries we point to contain hugepages.  This works because we know that
- * the page tables live in kernel space.  If we ever decide to support having
- * page tables at arbitrary addresses, this breaks and will have to change.
- */
-#ifdef CONFIG_PPC64
-#define PD_HUGE 0x8000000000000000UL
-#else
-#define PD_HUGE 0x80000000
-#endif
-
-#else	/* CONFIG_PPC_BOOK3S_64 */
-/*
- * Book3S 64 stores real addresses in the hugepd entries to
- * avoid overlaps with _PAGE_PRESENT and _PAGE_PTE.
- */
-#define HUGEPD_ADDR_MASK	(0x0ffffffffffffffful & ~HUGEPD_SHIFT_MASK)
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
-/*
- * Some number of bits at the level of the page table that points to
- * a hugepte are used to encode the size.  This masks those bits.
- * On 8xx, HW assistance requires 4k alignment for the hugepte.
- */
-#ifdef CONFIG_PPC_8xx
-#define HUGEPD_SHIFT_MASK     0xfff
-#else
-#define HUGEPD_SHIFT_MASK     0x3f
-#endif
-
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_BOOK3S_64

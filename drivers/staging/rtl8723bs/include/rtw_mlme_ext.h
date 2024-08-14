@@ -20,50 +20,18 @@
 /* define DISCONNECT_TO	(3000) */
 #define ADDBA_TO			(2000)
 
-#define LINKED_TO (1) /* unit:2 sec, 1x2 =2 sec */
-
 #define REAUTH_LIMIT	(4)
 #define REASSOC_LIMIT	(4)
-#define READDBA_LIMIT	(2)
-
-#define ROAMING_LIMIT	8
-/* define	IOCMD_REG0		0x10250370 */
-/* define	IOCMD_REG1		0x10250374 */
-/* define	IOCMD_REG2		0x10250378 */
-
-/* define	FW_DYNAMIC_FUN_SWITCH	0x10250364 */
-
-/* define	WRITE_BB_CMD		0xF0000001 */
-/* define	SET_CHANNEL_CMD	0xF3000000 */
-/* define	UPDATE_RA_CMD	0xFD0000A2 */
 
 #define DYNAMIC_FUNC_DISABLE		(0x0)
 
 /*  ====== ODM_ABILITY_E ======== */
 /*  BB ODM section BIT 0-15 */
 #define DYNAMIC_BB_DIG				BIT0 /* ODM_BB_DIG */
-#define DYNAMIC_BB_RA_MASK			BIT1 /* ODM_BB_RA_MASK */
 #define DYNAMIC_BB_DYNAMIC_TXPWR	BIT2 /* ODM_BB_DYNAMIC_TXPWR */
-#define DYNAMIC_BB_BB_FA_CNT		BIT3 /* ODM_BB_FA_CNT */
-#define DYNAMIC_BB_RSSI_MONITOR		BIT4 /* ODM_BB_RSSI_MONITOR */
-#define DYNAMIC_BB_CCK_PD			BIT5 /* ODM_BB_CCK_PD */
 #define DYNAMIC_BB_ANT_DIV			BIT6 /* ODM_BB_ANT_DIV */
-#define DYNAMIC_BB_PWR_SAVE			BIT7 /* ODM_BB_PWR_SAVE */
-#define DYNAMIC_BB_PWR_TRAIN		BIT8 /* ODM_BB_PWR_TRAIN */
-#define DYNAMIC_BB_RATE_ADAPTIVE	BIT9 /* ODM_BB_RATE_ADAPTIVE */
-#define DYNAMIC_BB_PATH_DIV			BIT10/* ODM_BB_PATH_DIV */
-#define DYNAMIC_BB_PSD				BIT11/* ODM_BB_PSD */
-#define DYNAMIC_BB_RXHP				BIT12/* ODM_BB_RXHP */
-#define DYNAMIC_BB_ADAPTIVITY		BIT13/* ODM_BB_ADAPTIVITY */
-#define DYNAMIC_BB_DYNAMIC_ATC		BIT14/* ODM_BB_DYNAMIC_ATC */
-
-/*  MAC DM section BIT 16-23 */
-#define DYNAMIC_MAC_EDCA_TURBO		BIT16/* ODM_MAC_EDCA_TURBO */
-#define DYNAMIC_MAC_EARLY_MODE		BIT17/* ODM_MAC_EARLY_MODE */
 
 /*  RF ODM section BIT 24-31 */
-#define DYNAMIC_RF_TX_PWR_TRACK		BIT24/* ODM_RF_TX_PWR_TRACK */
-#define DYNAMIC_RF_RX_GAIN_TRACK	BIT25/* ODM_RF_RX_GAIN_TRACK */
 #define DYNAMIC_RF_CALIBRATION		BIT26/* ODM_RF_CALIBRATION */
 
 #define DYNAMIC_ALL_FUNC_ENABLE		0xFFFFFFF
@@ -91,11 +59,6 @@
 MCS rate definitions
 *********************************************************/
 #define MCS_RATE_1R	(0x000000ff)
-#define MCS_RATE_2R	(0x0000ffff)
-#define MCS_RATE_3R	(0x00ffffff)
-#define MCS_RATE_4R	(0xffffffff)
-#define MCS_RATE_2R_13TO15_OFF	(0x00001fff)
-
 
 extern unsigned char RTW_WPA_OUI[];
 extern unsigned char WMM_OUI[];

@@ -49,4 +49,5 @@ int fw_attributes_class_put(void)
 EXPORT_SYMBOL_GPL(fw_attributes_class_put);
 
 MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
+MODULE_DESCRIPTION("Firmware attributes class helper module");
 MODULE_LICENSE("GPL");

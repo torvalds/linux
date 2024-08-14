@@ -249,7 +249,7 @@ __mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 		memcpy(chunk + pad_bytes, &erp_region_id,
 		       sizeof(erp_region_id));
 		memcpy(chunk + key_offset,
-		       &aentry->enc_key[chunk_key_offsets[chunk_index]],
+		       &aentry->ht_key.enc_key[chunk_key_offsets[chunk_index]],
 		       chunk_key_len);
 		chunk += chunk_len;
 	}

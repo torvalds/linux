@@ -765,7 +765,7 @@ static const char *fcntl_cmds[] = {
 static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
-	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
+	"SETLEASE", "GETLEASE", "NOTIFY", "DUPFD_QUERY", [5] = "CANCELLK", "DUPFD_CLOEXEC",
 	"SETPIPE_SZ", "GETPIPE_SZ", "ADD_SEALS", "GET_SEALS",
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };
@@ -1033,7 +1033,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 #if defined(__s390x__)
 	.alias = "old_mmap",
 #endif
-	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ },
 		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */
 			   .strtoul   = STUL_STRARRAY_FLAGS,
 			   .parm      = &strarray__mmap_flags, },
@@ -1050,7 +1050,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [4] = { .scnprintf = SCA_MOVE_MOUNT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ }, }, },
+		   [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ }, }, },
 	{ .name	    = "mq_unlink",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* u_name */ }, }, },
 	{ .name	    = "mremap",	    .hexret = true,
@@ -1084,7 +1084,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_INT,	/* key */ }, }, },
 	{ .name	    = "pkey_mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+		   [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ },
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
@@ -2091,17 +2091,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			val = syscall_arg_fmt__mask_val(&sc->arg_fmt[arg.idx], &arg, val);
 
 			/*
- 			 * Suppress this argument if its value is zero and
- 			 * and we don't have a string associated in an
- 			 * strarray for it.
- 			 */
-			if (val == 0 &&
-			    !trace->show_zeros &&
-			    !(sc->arg_fmt &&
-			      (sc->arg_fmt[arg.idx].show_zero ||
-			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
-			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAYS) &&
-			      sc->arg_fmt[arg.idx].parm))
+			 * Suppress this argument if its value is zero and show_zero
+			 * property isn't set.
+			 */
+			if (val == 0 && !trace->show_zeros &&
+			    !(sc->arg_fmt && sc->arg_fmt[arg.idx].show_zero))
 				continue;
 
 			printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
@@ -2796,17 +2790,8 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 		 */
 		val = syscall_arg_fmt__mask_val(arg, &syscall_arg, val);
 
-		/*
-		 * Suppress this argument if its value is zero and
-		 * we don't have a string associated in an
-		 * strarray for it.
-		 */
-		if (val == 0 &&
-		    !trace->show_zeros &&
-		    !((arg->show_zero ||
-		       arg->scnprintf == SCA_STRARRAY ||
-		       arg->scnprintf == SCA_STRARRAYS) &&
-		      arg->parm))
+		/* Suppress this argument if its value is zero and show_zero property isn't set. */
+		if (val == 0 && !trace->show_zeros && !arg->show_zero)
 			continue;
 
 		printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
@@ -3369,8 +3354,6 @@ static int trace__bpf_prog_sys_exit_fd(struct trace *trace, int id)
 static struct bpf_program *trace__find_usable_bpf_prog_entry(struct trace *trace, struct syscall *sc)
 {
 	struct tep_format_field *field, *candidate_field;
-	int id;
-
 	/*
 	 * We're only interested in syscalls that have a pointer:
 	 */
@@ -3382,7 +3365,8 @@ static struct bpf_program *trace__find_usable_bpf_prog_entry(struct trace *trace
 	return NULL;
 
 try_to_find_pair:
-	for (id = 0; id < trace->sctbl->syscalls.nr_entries; ++id) {
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int id = syscalltbl__id_at_idx(trace->sctbl, i);
 		struct syscall *pair = trace__syscall_info(trace, NULL, id);
 		struct bpf_program *pair_prog;
 		bool is_candidate = false;
@@ -3471,10 +3455,10 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 {
 	int map_enter_fd = bpf_map__fd(trace->skel->maps.syscalls_sys_enter);
 	int map_exit_fd  = bpf_map__fd(trace->skel->maps.syscalls_sys_exit);
-	int err = 0, key;
+	int err = 0;
 
-	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
-		int prog_fd;
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int prog_fd, key = syscalltbl__id_at_idx(trace->sctbl, i);
 
 		if (!trace__syscall_enabled(trace, key))
 			continue;
@@ -3520,7 +3504,8 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace)
 	 * first and second arg (this one on the raw_syscalls:sys_exit prog
 	 * array tail call, then that one will be used.
 	 */
-	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
+	for (int i = 0; i < trace->sctbl->syscalls.nr_entries; ++i) {
+		int key = syscalltbl__id_at_idx(trace->sctbl, i);
 		struct syscall *sc = trace__syscall_info(trace, NULL, key);
 		struct bpf_program *pair_prog;
 		int prog_fd;

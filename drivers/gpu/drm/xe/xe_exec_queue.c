@@ -67,7 +67,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->fence_irq = &gt->fence_irq[hwe->class];
 	q->ring_ops = gt->ring_ops[hwe->class];
 	q->ops = gt->exec_queue_ops;
-	INIT_LIST_HEAD(&q->compute.link);
+	INIT_LIST_HEAD(&q->lr.link);
 	INIT_LIST_HEAD(&q->multi_gt_link);
 
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
@@ -86,7 +86,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 
 	if (extensions) {
 		/*
-		 * may set q->usm, must come before xe_lrc_init(),
+		 * may set q->usm, must come before xe_lrc_create(),
 		 * may overwrite q->sched_props, must come before q->ops->init()
 		 */
 		err = exec_queue_user_extensions(xe, q, extensions, 0);
@@ -96,45 +96,30 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 		}
 	}
 
-	if (xe_exec_queue_is_parallel(q)) {
-		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
-		q->parallel.composite_fence_seqno = XE_FENCE_INITIAL_SEQNO;
-	}
-
 	return q;
 }
 
 static int __xe_exec_queue_init(struct xe_exec_queue *q)
 {
-	struct xe_device *xe = gt_to_xe(q->gt);
 	int i, err;
 
 	for (i = 0; i < q->width; ++i) {
-		err = xe_lrc_init(q->lrc + i, q->hwe, q, q->vm, SZ_16K);
-		if (err)
+		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K);
+		if (IS_ERR(q->lrc[i])) {
+			err = PTR_ERR(q->lrc[i]);
 			goto err_lrc;
+		}
 	}
 
 	err = q->ops->init(q);
 	if (err)
 		goto err_lrc;
 
-	/*
-	 * Normally the user vm holds an rpm ref to keep the device
-	 * awake, and the context holds a ref for the vm, however for
-	 * some engines we use the kernels migrate vm underneath which offers no
-	 * such rpm ref, or we lack a vm. Make sure we keep a ref here, so we
-	 * can perform GuC CT actions when needed. Caller is expected to have
-	 * already grabbed the rpm ref outside any sensitive locks.
-	 */
-	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
-		xe_pm_runtime_get_noresume(xe);
-
 	return 0;
 
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
-		xe_lrc_finish(q->lrc + i);
+		xe_lrc_put(q->lrc[i]);
 	return err;
 }
 
@@ -215,9 +200,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 	int i;
 
 	for (i = 0; i < q->width; ++i)
-		xe_lrc_finish(q->lrc + i);
-	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
-		xe_pm_runtime_put(gt_to_xe(q->gt));
+		xe_lrc_put(q->lrc[i]);
 	__xe_exec_queue_free(q);
 }
 
@@ -650,8 +633,8 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			return PTR_ERR(q);
 
 		if (xe_vm_in_preempt_fence_mode(vm)) {
-			q->compute.context = dma_fence_context_alloc(1);
-			spin_lock_init(&q->compute.lock);
+			q->lr.context = dma_fence_context_alloc(1);
+			spin_lock_init(&q->lr.lock);
 
 			err = xe_vm_add_compute_exec_queue(vm, q);
 			if (XE_IOCTL_DBG(xe, err))
@@ -694,7 +677,7 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->property) {
 	case DRM_XE_EXEC_QUEUE_GET_PROPERTY_BAN:
-		args->value = !!(q->flags & EXEC_QUEUE_FLAG_BANNED);
+		args->value = q->ops->reset_status(q);
 		ret = 0;
 		break;
 	default:
@@ -720,7 +703,7 @@ bool xe_exec_queue_is_lr(struct xe_exec_queue *q)
 
 static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
 {
-	return q->lrc->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc) - 1;
+	return q->lrc[0]->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc[0]) - 1;
 }
 
 /**
@@ -731,7 +714,7 @@ static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
  */
 bool xe_exec_queue_ring_full(struct xe_exec_queue *q)
 {
-	struct xe_lrc *lrc = q->lrc;
+	struct xe_lrc *lrc = q->lrc[0];
 	s32 max_job = lrc->ring.size / MAX_JOB_SIZE_BYTES;
 
 	return xe_exec_queue_num_job_inflight(q) >= max_job;
@@ -757,16 +740,50 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 		int i;
 
 		for (i = 0; i < q->width; ++i) {
-			if (xe_lrc_seqno(&q->lrc[i]) !=
-			    q->lrc[i].fence_ctx.next_seqno - 1)
+			if (xe_lrc_seqno(q->lrc[i]) !=
+			    q->lrc[i]->fence_ctx.next_seqno - 1)
 				return false;
 		}
 
 		return true;
 	}
 
-	return xe_lrc_seqno(&q->lrc[0]) ==
-		q->lrc[0].fence_ctx.next_seqno - 1;
+	return xe_lrc_seqno(q->lrc[0]) ==
+		q->lrc[0]->fence_ctx.next_seqno - 1;
+}
+
+/**
+ * xe_exec_queue_update_run_ticks() - Update run time in ticks for this exec queue
+ * from hw
+ * @q: The exec queue
+ *
+ * Update the timestamp saved by HW for this exec queue and save run ticks
+ * calculated by using the delta from last update.
+ */
+void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
+{
+	struct xe_lrc *lrc;
+	u32 old_ts, new_ts;
+
+	/*
+	 * Jobs that are run during driver load may use an exec_queue, but are
+	 * not associated with a user xe file, so avoid accumulating busyness
+	 * for kernel specific work.
+	 */
+	if (!q->vm || !q->vm->xef)
+		return;
+
+	/*
+	 * Only sample the first LRC. For parallel submission, all of them are
+	 * scheduled together and we compensate that below by multiplying by
+	 * width - this may introduce errors if that premise is not true and
+	 * they don't exit 100% aligned. On the other hand, looping through
+	 * the LRCs and reading them in different time could also introduce
+	 * errors.
+	 */
+	lrc = q->lrc[0];
+	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
+	q->run_ticks += (new_ts - old_ts) * q->width;
 }
 
 void xe_exec_queue_kill(struct xe_exec_queue *q)

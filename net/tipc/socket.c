@@ -657,7 +657,7 @@ static int tipc_release(struct socket *sock)
 }
 
 /**
- * __tipc_bind - associate or disassocate TIPC name(s) with a socket
+ * __tipc_bind - associate or disassociate TIPC name(s) with a socket
  * @sock: socket structure
  * @skaddr: socket address describing name(s) and desired operation
  * @alen: size of socket address data structure

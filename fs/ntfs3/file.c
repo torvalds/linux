@@ -13,6 +13,7 @@
 #include <linux/compat.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
+#include <linux/fileattr.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -48,6 +49,65 @@ static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 	return 0;
 }
 
+/*
+ * ntfs_fileattr_get - inode_operations::fileattr_get
+ */
+int ntfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	u32 flags = 0;
+
+	if (inode->i_flags & S_IMMUTABLE)
+		flags |= FS_IMMUTABLE_FL;
+
+	if (inode->i_flags & S_APPEND)
+		flags |= FS_APPEND_FL;
+
+	if (is_compressed(ni))
+		flags |= FS_COMPR_FL;
+
+	if (is_encrypted(ni))
+		flags |= FS_ENCRYPT_FL;
+
+	fileattr_fill_flags(fa, flags);
+
+	return 0;
+}
+
+/*
+ * ntfs_fileattr_set - inode_operations::fileattr_set
+ */
+int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	u32 flags = fa->flags;
+	unsigned int new_fl = 0;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL))
+		return -EOPNOTSUPP;
+
+	if (flags & FS_IMMUTABLE_FL)
+		new_fl |= S_IMMUTABLE;
+
+	if (flags & FS_APPEND_FL)
+		new_fl |= S_APPEND;
+
+	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
+
+	inode_set_ctime_current(inode);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
+
+/*
+ * ntfs_ioctl - file_operations::unlocked_ioctl
+ */
 long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -77,19 +137,26 @@ int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
+	stat->result_mask |= STATX_BTIME;
+	stat->btime = ni->i_crtime;
+	stat->blksize = ni->mi.sbi->cluster_size; /* 512, 1K, ..., 2M */
+
+	if (inode->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	if (inode->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+
 	if (is_compressed(ni))
 		stat->attributes |= STATX_ATTR_COMPRESSED;
 
 	if (is_encrypted(ni))
 		stat->attributes |= STATX_ATTR_ENCRYPTED;
 
-	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED;
+	stat->attributes_mask |= STATX_ATTR_COMPRESSED | STATX_ATTR_ENCRYPTED |
+				 STATX_ATTR_IMMUTABLE | STATX_ATTR_APPEND;
 
 	generic_fillattr(idmap, request_mask, inode, stat);
-
-	stat->result_mask |= STATX_BTIME;
-	stat->btime = ni->i_crtime;
-	stat->blksize = ni->mi.sbi->cluster_size; /* 512, 1K, ..., 2M */
 
 	return 0;
 }
@@ -196,9 +263,9 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 						       PAGE_SIZE;
 		iblock = page_off >> inode->i_blkbits;
 
-		folio = __filemap_get_folio(mapping, idx,
-				FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
-				mapping_gfp_constraint(mapping, ~__GFP_FS));
+		folio = __filemap_get_folio(
+			mapping, idx, FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+			mapping_gfp_constraint(mapping, ~__GFP_FS));
 		if (IS_ERR(folio))
 			return PTR_ERR(folio);
 
@@ -253,8 +320,7 @@ out:
  */
 static int ntfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u64 from = ((u64)vma->vm_pgoff << PAGE_SHIFT);
 	bool rw = vma->vm_flags & VM_WRITE;
@@ -299,10 +365,7 @@ static int ntfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 
 		if (ni->i_valid < to) {
-			if (!inode_trylock(inode)) {
-				err = -EAGAIN;
-				goto out;
-			}
+			inode_lock(inode);
 			err = ntfs_extend_initialized_size(file, ni,
 							   ni->i_valid, to);
 			inode_unlock(inode);
@@ -431,7 +494,7 @@ static int ntfs_truncate(struct inode *inode, loff_t new_size)
  */
 static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	struct super_block *sb = inode->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
@@ -744,7 +807,7 @@ out:
 static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
@@ -781,7 +844,7 @@ static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
 				     struct pipe_inode_info *pipe, size_t len,
 				     unsigned int flags)
 {
-	struct inode *inode = in->f_mapping->host;
+	struct inode *inode = file_inode(in);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
@@ -824,23 +887,25 @@ static int ntfs_get_frame_pages(struct address_space *mapping, pgoff_t index,
 	*frame_uptodate = true;
 
 	for (npages = 0; npages < pages_per_frame; npages++, index++) {
-		struct page *page;
+		struct folio *folio;
 
-		page = find_or_create_page(mapping, index, gfp_mask);
-		if (!page) {
+		folio = __filemap_get_folio(mapping, index,
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    gfp_mask);
+		if (IS_ERR(folio)) {
 			while (npages--) {
-				page = pages[npages];
-				unlock_page(page);
-				put_page(page);
+				folio = page_folio(pages[npages]);
+				folio_unlock(folio);
+				folio_put(folio);
 			}
 
 			return -ENOMEM;
 		}
 
-		if (!PageUptodate(page))
+		if (!folio_test_uptodate(folio))
 			*frame_uptodate = false;
 
-		pages[npages] = page;
+		pages[npages] = &folio->page;
 	}
 
 	return 0;
@@ -1075,8 +1140,7 @@ out:
 static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct inode *inode = file_inode(file);
 	ssize_t ret;
 	int err;
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -1198,7 +1262,7 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 }
 
 /*
- * ntfs_fiemap - file_operations::fiemap
+ * ntfs_fiemap - inode_operations::fiemap
  */
 int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len)
@@ -1227,6 +1291,8 @@ const struct inode_operations ntfs_file_inode_operations = {
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.fiemap		= ntfs_fiemap,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 };
 
 const struct file_operations ntfs_file_operations = {
@@ -1246,6 +1312,7 @@ const struct file_operations ntfs_file_operations = {
 	.release	= ntfs_file_release,
 };
 
+#if IS_ENABLED(CONFIG_NTFS_FS)
 const struct file_operations ntfs_legacy_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= ntfs_file_read_iter,
@@ -1253,4 +1320,5 @@ const struct file_operations ntfs_legacy_file_operations = {
 	.open		= ntfs_file_open,
 	.release	= ntfs_file_release,
 };
+#endif
 // clang-format on

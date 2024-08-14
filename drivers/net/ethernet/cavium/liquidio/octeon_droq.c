@@ -30,11 +30,6 @@
 #include "cn23xx_pf_device.h"
 #include "cn23xx_vf_device.h"
 
-struct niclist {
-	struct list_head list;
-	void *ptr;
-};
-
 struct __dispatch {
 	struct list_head list;
 	struct octeon_recv_info *rinfo;

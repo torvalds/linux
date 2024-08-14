@@ -53,7 +53,7 @@ struct fm3130 {
 	int			data_valid;
 };
 static const struct i2c_device_id fm3130_id[] = {
-	{ "fm3130", 0 },
+	{ "fm3130" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fm3130_id);

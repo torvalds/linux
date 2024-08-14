@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Wondermedia I2C Master Mode Driver
+ *  Wondermedia I2C Controller Driver
  *
  *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *
@@ -35,8 +35,8 @@ static u32 wmt_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm wmt_i2c_algo = {
-	.master_xfer	= viai2c_xfer,
-	.functionality	= wmt_i2c_func,
+	.xfer = viai2c_xfer,
+	.functionality = wmt_i2c_func,
 };
 
 static int wmt_i2c_reset_hardware(struct viai2c *i2c)
@@ -72,6 +72,32 @@ static int wmt_i2c_reset_hardware(struct viai2c *i2c)
 	return 0;
 }
 
+static irqreturn_t wmt_i2c_isr(int irq, void *data)
+{
+	struct viai2c *i2c = data;
+	u8 status;
+
+	/* save the status and write-clear it */
+	status = readw(i2c->base + VIAI2C_REG_ISR);
+	writew(status, i2c->base + VIAI2C_REG_ISR);
+
+	i2c->ret = 0;
+	if (status & VIAI2C_ISR_NACK_ADDR)
+		i2c->ret = -EIO;
+
+	if (status & VIAI2C_ISR_SCL_TIMEOUT)
+		i2c->ret = -ETIMEDOUT;
+
+	if (!i2c->ret)
+		i2c->ret = viai2c_irq_xfer(i2c);
+
+	/* All the data has been successfully transferred or error occurred */
+	if (i2c->ret)
+		complete(&i2c->complete);
+
+	return IRQ_HANDLED;
+}
+
 static int wmt_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -83,6 +109,16 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	err = viai2c_init(pdev, &i2c, VIAI2C_PLAT_WMT);
 	if (err)
 		return err;
+
+	i2c->irq = platform_get_irq(pdev, 0);
+	if (i2c->irq < 0)
+		return i2c->irq;
+
+	err = devm_request_irq(&pdev->dev, i2c->irq, wmt_i2c_isr,
+			       0, pdev->name, i2c);
+	if (err)
+		return dev_err_probe(&pdev->dev, err,
+				"failed to request irq %i\n", i2c->irq);
 
 	i2c->clk = of_clk_get(np, 0);
 	if (IS_ERR(i2c->clk)) {
@@ -142,7 +178,7 @@ static struct platform_driver wmt_i2c_driver = {
 
 module_platform_driver(wmt_i2c_driver);
 
-MODULE_DESCRIPTION("Wondermedia I2C master-mode bus adapter");
+MODULE_DESCRIPTION("Wondermedia I2C controller driver");
 MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, wmt_i2c_dt_ids);

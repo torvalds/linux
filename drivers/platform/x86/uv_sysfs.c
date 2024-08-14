@@ -929,4 +929,5 @@ module_init(uv_sysfs_init);
 module_exit(uv_sysfs_exit);
 
 MODULE_AUTHOR("Hewlett Packard Enterprise");
+MODULE_DESCRIPTION("Sysfs structure for HPE UV systems");
 MODULE_LICENSE("GPL");

@@ -27,6 +27,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 
+MODULE_DESCRIPTION("Support for Logitech devices relying on the HID++ specification");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");
 MODULE_AUTHOR("Nestor Lopez Casado <nlopezcasad@logitech.com>");

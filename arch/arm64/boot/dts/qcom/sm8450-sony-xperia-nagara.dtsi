@@ -488,7 +488,7 @@
 		compatible = "samsung,s6sy761";
 		reg = <0x48>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <21 0x2008>;
+		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&pm8350c_l2>;
 		avdd-supply = <&pm8350c_l3>;
 

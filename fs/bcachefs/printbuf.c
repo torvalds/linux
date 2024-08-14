@@ -316,6 +316,20 @@ void bch2_prt_newline(struct printbuf *buf)
 	buf->cur_tabstop	= 0;
 }
 
+void bch2_printbuf_strip_trailing_newline(struct printbuf *out)
+{
+	for (int p = out->pos - 1; p >= 0; --p) {
+		if (out->buf[p] == '\n') {
+			out->pos = p;
+			break;
+		}
+		if (out->buf[p] != ' ')
+			break;
+	}
+
+	printbuf_nul_terminate_reserved(out);
+}
+
 static void __prt_tab(struct printbuf *out)
 {
 	int spaces = max_t(int, 0, cur_tabstop(out) - printbuf_linelen(out));

@@ -23,6 +23,8 @@ and type of the memory area are set using three variables:
   * ``mem_size`` for the size. The memory size will be rounded down to a
     power of two.
   * ``mem_type`` to specify if the memory type (default is pgprot_writecombine).
+  * ``mem_name`` to specify a memory region defined by ``reserve_mem`` command
+    line parameter.
 
 Typically the default value of ``mem_type=0`` should be used as that sets the pstore
 mapping to pgprot_writecombine. Setting ``mem_type=1`` attempts to use
@@ -117,6 +119,17 @@ Setting the ramoops parameters can be done in several different manners:
 	printk(KERN_ERR "unable to register platform device\n");
 	return ret;
   }
+
+ D. Using a region of memory reserved via ``reserve_mem`` command line
+    parameter. The address and size will be defined by the ``reserve_mem``
+    parameter. Note, that ``reserve_mem`` may not always allocate memory
+    in the same location, and cannot be relied upon. Testing will need
+    to be done, and it may not work on every machine, nor every kernel.
+    Consider this a "best effort" approach. The ``reserve_mem`` option
+    takes a size, alignment and name as arguments. The name is used
+    to map the memory to a label that can be retrieved by ramoops.
+
+	reserver_mem=2M:4096:oops  ramoops.mem_name=oops
 
 You can specify either RAM memory or peripheral devices' memory. However, when
 specifying RAM, be sure to reserve the memory by issuing memblock_reserve()

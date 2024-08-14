@@ -9,6 +9,7 @@
 #
 
 load-$(CONFIG_MACH_EYEQ5)	= 0xa800000808000000
+load-$(CONFIG_MACH_EYEQ6H)	= 0xa800000100800000
 all-$(CONFIG_MACH_EYEQ5)	+= vmlinux.gz.itb
 
 its-y					:= vmlinux.its.S

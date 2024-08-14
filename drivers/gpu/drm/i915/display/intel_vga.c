@@ -3,6 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/delay.h>
 #include <linux/vgaarb.h>
 
 #include <video/vga.h>

@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
@@ -30,6 +31,7 @@
 #include <sound/tas2781.h>
 #include <sound/tlv.h>
 #include <sound/tas2781-tlv.h>
+#include <asm/unaligned.h>
 
 static const struct i2c_device_id tasdevice_id[] = {
 	{ "tas2563", TAS2563 },
@@ -103,7 +105,7 @@ static int tas2781_amp_putvol(struct snd_kcontrol *kcontrol,
 	return tasdevice_amp_putvol(tas_priv, ucontrol, mc);
 }
 
-static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
+static int tasdev_force_fwload_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
@@ -118,7 +120,7 @@ static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
+static int tasdev_force_fwload_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
@@ -139,6 +141,106 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static int tas2563_digital_gain_get(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
+	unsigned int l = 0, r = mc->max;
+	unsigned int target, ar_mid, mid, ar_l, ar_r;
+	unsigned int reg = mc->reg;
+	unsigned char data[4];
+	int ret;
+
+	mutex_lock(&tas_dev->codec_lock);
+	/* Read the primary device */
+	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	if (ret) {
+		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
+		goto out;
+	}
+
+	target = get_unaligned_be32(&data[0]);
+
+	while (r > 1 + l) {
+		mid = (l + r) / 2;
+		ar_mid = get_unaligned_be32(tas2563_dvc_table[mid]);
+		if (target < ar_mid)
+			r = mid;
+		else
+			l = mid;
+	}
+
+	ar_l = get_unaligned_be32(tas2563_dvc_table[l]);
+	ar_r = get_unaligned_be32(tas2563_dvc_table[r]);
+
+	/* find out the member same as or closer to the current volume */
+	ucontrol->value.integer.value[0] =
+		abs(target - ar_l) <= abs(target - ar_r) ? l : r;
+out:
+	mutex_unlock(&tas_dev->codec_lock);
+	return 0;
+}
+
+static int tas2563_digital_gain_put(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
+	int vol = ucontrol->value.integer.value[0];
+	int status = 0, max = mc->max, rc = 1;
+	int i, ret;
+	unsigned int reg = mc->reg;
+	unsigned int volrd, volwr;
+	unsigned char data[4];
+
+	vol = clamp(vol, 0, max);
+	mutex_lock(&tas_dev->codec_lock);
+	/* Read the primary device */
+	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	if (ret) {
+		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
+		rc = -1;
+		goto out;
+	}
+
+	volrd = get_unaligned_be32(&data[0]);
+	volwr = get_unaligned_be32(tas2563_dvc_table[vol]);
+
+	if (volrd == volwr) {
+		rc = 0;
+		goto out;
+	}
+
+	for (i = 0; i < tas_dev->ndev; i++) {
+		ret = tasdevice_dev_bulk_write(tas_dev, i, reg,
+			(unsigned char *)tas2563_dvc_table[vol], 4);
+		if (ret) {
+			dev_err(tas_dev->dev,
+				"%s, set digital vol error in dev %d\n",
+				__func__, i);
+			status |= BIT(i);
+		}
+	}
+
+	if (status)
+		rc = -1;
+out:
+	mutex_unlock(&tas_dev->codec_lock);
+	return rc;
+}
+
+static const struct snd_kcontrol_new tasdevice_snd_controls[] = {
+	SOC_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
+		tasdev_force_fwload_get, tasdev_force_fwload_put),
+};
+
 static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	SOC_SINGLE_RANGE_EXT_TLV("Speaker Analog Gain", TAS2781_AMP_LEVEL,
 		1, 0, 20, 0, tas2781_amp_getvol,
@@ -146,8 +248,13 @@ static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	SOC_SINGLE_RANGE_EXT_TLV("Speaker Digital Gain", TAS2781_DVC_LVL,
 		0, 0, 200, 1, tas2781_digital_getvol,
 		tas2781_digital_putvol, dvc_tlv),
-	SOC_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
-		tas2781_force_fwload_get, tas2781_force_fwload_put),
+};
+
+static const struct snd_kcontrol_new tas2563_snd_controls[] = {
+	SOC_SINGLE_RANGE_EXT_TLV("Speaker Digital Volume", TAS2563_DVC_LVL, 0,
+		0, ARRAY_SIZE(tas2563_dvc_table) - 1, 0,
+		tas2563_digital_gain_get, tas2563_digital_gain_put,
+		tas2563_dvc_tlv),
 };
 
 static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
@@ -380,23 +487,41 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	mutex_lock(&tas_priv->codec_lock);
 
 	ret = tasdevice_rca_parser(tas_priv, fmw);
-	if (ret)
+	if (ret) {
+		tasdevice_config_info_remove(tas_priv);
 		goto out;
+	}
 	tasdevice_create_control(tas_priv);
 
 	tasdevice_dsp_remove(tas_priv);
 	tasdevice_calbin_remove(tas_priv);
-	tas_priv->fw_state = TASDEVICE_DSP_FW_PENDING;
-	scnprintf(tas_priv->coef_binaryname, 64, "%s_coef.bin",
-		tas_priv->dev_name);
+	/*
+	 * The baseline is the RCA-only case, and then the code attempts to
+	 * load DSP firmware but in case of failures just keep going, i.e.
+	 * failing to load DSP firmware is NOT an error.
+	 */
+	tas_priv->fw_state = TASDEVICE_RCA_FW_OK;
+	if (tas_priv->name_prefix)
+		scnprintf(tas_priv->rca_binaryname, 64, "%s-%s_coef.bin",
+			tas_priv->name_prefix, tas_priv->dev_name);
+	else
+		scnprintf(tas_priv->coef_binaryname, 64, "%s_coef.bin",
+			tas_priv->dev_name);
 	ret = tasdevice_dsp_parser(tas_priv);
 	if (ret) {
 		dev_err(tas_priv->dev, "dspfw load %s error\n",
 			tas_priv->coef_binaryname);
-		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
 		goto out;
 	}
-	tasdevice_dsp_create_ctrls(tas_priv);
+
+	/*
+	 * If no dsp-related kcontrol created, the dsp resource will be freed.
+	 */
+	ret = tasdevice_dsp_create_ctrls(tas_priv);
+	if (ret) {
+		dev_err(tas_priv->dev, "dsp controls error\n");
+		goto out;
+	}
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
 
@@ -404,8 +529,15 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	 * calibrated data inside algo.
 	 */
 	for (i = 0; i < tas_priv->ndev; i++) {
-		scnprintf(tas_priv->cal_binaryname[i], 64, "%s_cal_0x%02x.bin",
-			tas_priv->dev_name, tas_priv->tasdevice[i].dev_addr);
+		if (tas_priv->name_prefix)
+			scnprintf(tas_priv->cal_binaryname[i], 64,
+				"%s-%s_cal_0x%02x.bin", tas_priv->name_prefix,
+				tas_priv->dev_name,
+				tas_priv->tasdevice[i].dev_addr);
+		else
+			scnprintf(tas_priv->cal_binaryname[i], 64,
+				"%s_cal_0x%02x.bin", tas_priv->dev_name,
+				tas_priv->tasdevice[i].dev_addr);
 		ret = tas2781_load_calibration(tas_priv,
 			tas_priv->cal_binaryname[i], i);
 		if (ret != 0)
@@ -417,9 +549,8 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	tasdevice_prmg_load(tas_priv, 0);
 	tas_priv->cur_prog = 0;
 out:
-	if (tas_priv->fw_state == TASDEVICE_DSP_FW_FAIL) {
-		/*If DSP FW fail, kcontrol won't be created */
-		tasdevice_config_info_remove(tas_priv);
+	if (tas_priv->fw_state == TASDEVICE_RCA_FW_OK) {
+		/* If DSP FW fail, DSP kcontrol won't be created. */
 		tasdevice_dsp_remove(tas_priv);
 	}
 	mutex_unlock(&tas_priv->codec_lock);
@@ -466,14 +597,14 @@ static int tasdevice_startup(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *codec = dai->component;
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
-	int ret = 0;
 
-	if (tas_priv->fw_state != TASDEVICE_DSP_FW_ALL_OK) {
-		dev_err(tas_priv->dev, "DSP bin file not loaded\n");
-		ret = -EINVAL;
+	switch (tas_priv->fw_state) {
+	case TASDEVICE_RCA_FW_OK:
+	case TASDEVICE_DSP_FW_ALL_OK:
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static int tasdevice_hw_params(struct snd_pcm_substream *substream,
@@ -565,7 +696,28 @@ static struct snd_soc_dai_driver tasdevice_dai_driver[] = {
 static int tasdevice_codec_probe(struct snd_soc_component *codec)
 {
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	struct snd_kcontrol_new *p;
+	unsigned int size;
+	int rc;
 
+	switch (tas_priv->chip_id) {
+	case TAS2781:
+		p = (struct snd_kcontrol_new *)tas2781_snd_controls;
+		size = ARRAY_SIZE(tas2781_snd_controls);
+		break;
+	default:
+		p = (struct snd_kcontrol_new *)tas2563_snd_controls;
+		size = ARRAY_SIZE(tas2563_snd_controls);
+	}
+
+	rc = snd_soc_add_component_controls(codec, p, size);
+	if (rc < 0) {
+		dev_err(tas_priv->dev, "%s: Add control err rc = %d",
+			__func__, rc);
+		return rc;
+	}
+
+	tas_priv->name_prefix = codec->name_prefix;
 	return tascodec_init(tas_priv, codec, THIS_MODULE, tasdevice_fw_ready);
 }
 
@@ -591,8 +743,8 @@ static const struct snd_soc_component_driver
 	soc_codec_driver_tasdevice = {
 	.probe			= tasdevice_codec_probe,
 	.remove			= tasdevice_codec_remove,
-	.controls		= tas2781_snd_controls,
-	.num_controls		= ARRAY_SIZE(tas2781_snd_controls),
+	.controls		= tasdevice_snd_controls,
+	.num_controls		= ARRAY_SIZE(tasdevice_snd_controls),
 	.dapm_widgets		= tasdevice_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(tasdevice_dapm_widgets),
 	.dapm_routes		= tasdevice_audio_map,
@@ -622,33 +774,20 @@ static void tasdevice_parse_dt(struct tasdevice_priv *tas_priv)
 
 		tas_priv->irq_info.irq_gpio =
 			acpi_dev_gpio_irq_get(ACPI_COMPANION(&client->dev), 0);
-	} else {
+	} else if (IS_ENABLED(CONFIG_OF)) {
 		struct device_node *np = tas_priv->dev->of_node;
-#ifdef CONFIG_OF
-		const __be32 *reg, *reg_end;
-		int len, sw, aw;
+		u64 addr;
 
-		aw = of_n_addr_cells(np);
-		sw = of_n_size_cells(np);
-		if (sw == 0) {
-			reg = (const __be32 *)of_get_property(np,
-				"reg", &len);
-			reg_end = reg + len/sizeof(*reg);
-			ndev = 0;
-			do {
-				dev_addrs[ndev] = of_read_number(reg, aw);
-				reg += aw;
-				ndev++;
-			} while (reg < reg_end);
-		} else {
-			ndev = 1;
-			dev_addrs[0] = client->addr;
+		for (i = 0; i < TASDEVICE_MAX_CHANNELS; i++) {
+			if (of_property_read_reg(np, i, &addr, NULL))
+				break;
+			dev_addrs[ndev++] = addr;
 		}
-#else
+
+		tas_priv->irq_info.irq_gpio = of_irq_get(np, 0);
+	} else {
 		ndev = 1;
 		dev_addrs[0] = client->addr;
-#endif
-		tas_priv->irq_info.irq_gpio = of_irq_get(np, 0);
 	}
 	tas_priv->ndev = ndev;
 	for (i = 0; i < ndev; i++)
@@ -714,6 +853,8 @@ static int tasdevice_i2c_probe(struct i2c_client *i2c)
 	if (ret)
 		goto err;
 
+	tasdevice_reset(tas_priv);
+
 	ret = devm_snd_soc_register_component(tas_priv->dev,
 		&soc_codec_driver_tasdevice,
 		tasdevice_dai_driver, ARRAY_SIZE(tasdevice_dai_driver));
@@ -746,7 +887,7 @@ MODULE_DEVICE_TABLE(acpi, tasdevice_acpi_match);
 
 static struct i2c_driver tasdevice_i2c_driver = {
 	.driver = {
-		.name = "tas2781-codec",
+		.name = "tasdev-codec",
 		.of_match_table = of_match_ptr(tasdevice_of_match),
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(tasdevice_acpi_match),

@@ -263,7 +263,7 @@ void xe_sync_entry_cleanup(struct xe_sync_entry *sync)
 	if (sync->fence)
 		dma_fence_put(sync->fence);
 	if (sync->chain_fence)
-		dma_fence_put(&sync->chain_fence->base);
+		dma_fence_chain_free(sync->chain_fence);
 	if (sync->ufence)
 		user_fence_put(sync->ufence);
 }
@@ -336,6 +336,21 @@ err_out:
 	kfree(cf);
 
 	return ERR_PTR(-ENOMEM);
+}
+
+/**
+ * __xe_sync_ufence_get() - Get user fence from user fence
+ * @ufence: input user fence
+ *
+ * Get a user fence reference from user fence
+ *
+ * Return: xe_user_fence pointer with reference
+ */
+struct xe_user_fence *__xe_sync_ufence_get(struct xe_user_fence *ufence)
+{
+	user_fence_get(ufence);
+
+	return ufence;
 }
 
 /**

@@ -137,6 +137,7 @@ module_param(backplane, int, 0);
 module_param(clockp, int, 0);
 module_param(clockm, int, 0);
 
+MODULE_DESCRIPTION("ARCnet COM20020 chipset ISA driver");
 MODULE_LICENSE("GPL");
 
 static struct net_device *my_dev;

@@ -104,4 +104,5 @@ static void __exit kretprobe_exit(void)
 
 module_init(kretprobe_init)
 module_exit(kretprobe_exit)
+MODULE_DESCRIPTION("sample kernel module showing the use of return probes");
 MODULE_LICENSE("GPL");

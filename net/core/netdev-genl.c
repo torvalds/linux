@@ -59,22 +59,22 @@ XDP_METADATA_KFUNC_xxx
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_RX_METADATA_FEATURES,
 			      xdp_rx_meta, NETDEV_A_DEV_PAD) ||
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XSK_FEATURES,
-			      xsk_features, NETDEV_A_DEV_PAD)) {
-		genlmsg_cancel(rsp, hdr);
-		return -EINVAL;
-	}
+			      xsk_features, NETDEV_A_DEV_PAD))
+		goto err_cancel_msg;
 
 	if (netdev->xdp_features & NETDEV_XDP_ACT_XSK_ZEROCOPY) {
 		if (nla_put_u32(rsp, NETDEV_A_DEV_XDP_ZC_MAX_SEGS,
-				netdev->xdp_zc_max_segs)) {
-			genlmsg_cancel(rsp, hdr);
-			return -EINVAL;
-		}
+				netdev->xdp_zc_max_segs))
+			goto err_cancel_msg;
 	}
 
 	genlmsg_end(rsp, hdr);
 
 	return 0;
+
+err_cancel_msg:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
 }
 
 static void

@@ -176,6 +176,11 @@ struct dccg_funcs {
 			enum pixel_rate_div k1,
 			enum pixel_rate_div k2);
 
+	void (*get_pixel_rate_div)(struct dccg *dccg,
+			uint32_t otg_inst,
+			uint32_t *div_factor1,
+			uint32_t *div_factor2);
+
 	void (*set_valid_pixel_rate)(
 			struct dccg *dccg,
 			int ref_dtbclk_khz,
@@ -208,7 +213,8 @@ struct dccg_funcs {
 			uint32_t otg_inst);
 	void (*set_dto_dscclk)(
 			struct dccg *dccg,
-			uint32_t dsc_inst);
+			uint32_t dsc_inst,
+			bool enable);
 	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 };
 

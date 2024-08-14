@@ -521,7 +521,7 @@ static int wacom_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err = -ENOMEM;
 
-	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
+	wacom = kzalloc(sizeof(*wacom), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!wacom || !input_dev)
 		goto free_device;

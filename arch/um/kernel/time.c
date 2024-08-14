@@ -31,6 +31,7 @@ EXPORT_SYMBOL_GPL(time_travel_mode);
 static bool time_travel_start_set;
 static unsigned long long time_travel_start;
 static unsigned long long time_travel_time;
+static unsigned long long time_travel_shm_offset;
 static LIST_HEAD(time_travel_events);
 static LIST_HEAD(time_travel_irqs);
 static unsigned long long time_travel_timer_interval;
@@ -40,8 +41,11 @@ static int time_travel_ext_fd = -1;
 static unsigned int time_travel_ext_waiting;
 static bool time_travel_ext_prev_request_valid;
 static unsigned long long time_travel_ext_prev_request;
-static bool time_travel_ext_free_until_valid;
-static unsigned long long time_travel_ext_free_until;
+static unsigned long long *time_travel_ext_free_until;
+static unsigned long long _time_travel_ext_free_until;
+static u16 time_travel_shm_id;
+static struct um_timetravel_schedshm *time_travel_shm;
+static union um_timetravel_schedshm_client *time_travel_shm_client;
 
 static void time_travel_set_time(unsigned long long ns)
 {
@@ -58,7 +62,51 @@ enum time_travel_message_handling {
 	TTMH_IDLE,
 	TTMH_POLL,
 	TTMH_READ,
+	TTMH_READ_START_ACK,
 };
+
+static u64 bc_message;
+int time_travel_should_print_bc_msg;
+
+void _time_travel_print_bc_msg(void)
+{
+	time_travel_should_print_bc_msg = 0;
+	printk(KERN_INFO "time-travel: received broadcast 0x%llx\n", bc_message);
+}
+
+static void time_travel_setup_shm(int fd, u16 id)
+{
+	u32 len;
+
+	time_travel_shm = os_mmap_rw_shared(fd, sizeof(*time_travel_shm));
+
+	if (!time_travel_shm)
+		goto out;
+
+	len = time_travel_shm->len;
+
+	if (time_travel_shm->version != UM_TIMETRAVEL_SCHEDSHM_VERSION ||
+	    len < struct_size(time_travel_shm, clients, id + 1)) {
+		os_unmap_memory(time_travel_shm, sizeof(*time_travel_shm));
+		time_travel_shm = NULL;
+		goto out;
+	}
+
+	time_travel_shm = os_mremap_rw_shared(time_travel_shm,
+					      sizeof(*time_travel_shm),
+					      len);
+	if (!time_travel_shm)
+		goto out;
+
+	time_travel_shm_offset = time_travel_shm->current_time;
+	time_travel_shm_client = &time_travel_shm->clients[id];
+	time_travel_shm_client->capa |= UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE;
+	time_travel_shm_id = id;
+	/* always look at that free_until from now on */
+	time_travel_ext_free_until = &time_travel_shm->free_until;
+out:
+	os_close_file(fd);
+}
 
 static void time_travel_handle_message(struct um_timetravel_msg *msg,
 				       enum time_travel_message_handling mode)
@@ -80,7 +128,20 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		}
 	}
 
-	ret = os_read_file(time_travel_ext_fd, msg, sizeof(*msg));
+	if (unlikely(mode == TTMH_READ_START_ACK)) {
+		int fd[UM_TIMETRAVEL_SHARED_MAX_FDS];
+
+		ret = os_rcv_fd_msg(time_travel_ext_fd, fd,
+				    ARRAY_SIZE(fd), msg, sizeof(*msg));
+		if (ret == sizeof(*msg)) {
+			time_travel_setup_shm(fd[UM_TIMETRAVEL_SHARED_MEMFD],
+					      msg->time & UM_TIMETRAVEL_START_ACK_ID);
+			/* we don't use the logging for now */
+			os_close_file(fd[UM_TIMETRAVEL_SHARED_LOGFD]);
+		}
+	} else {
+		ret = os_read_file(time_travel_ext_fd, msg, sizeof(*msg));
+	}
 
 	if (ret == 0)
 		panic("time-travel external link is broken\n");
@@ -96,10 +157,24 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		return;
 	case UM_TIMETRAVEL_RUN:
 		time_travel_set_time(msg->time);
+		if (time_travel_shm) {
+			/* no request right now since we're running */
+			time_travel_shm_client->flags &=
+				~UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
+			/* no ack for shared memory RUN */
+			return;
+		}
 		break;
 	case UM_TIMETRAVEL_FREE_UNTIL:
-		time_travel_ext_free_until_valid = true;
-		time_travel_ext_free_until = msg->time;
+		/* not supposed to get this with shm, but ignore it */
+		if (time_travel_shm)
+			break;
+		time_travel_ext_free_until = &_time_travel_ext_free_until;
+		_time_travel_ext_free_until = msg->time;
+		break;
+	case UM_TIMETRAVEL_BROADCAST:
+		bc_message = msg->time;
+		time_travel_should_print_bc_msg = 1;
 		break;
 	}
 
@@ -136,8 +211,15 @@ static u64 time_travel_ext_req(u32 op, u64 time)
 	block_signals_hard();
 	os_write_file(time_travel_ext_fd, &msg, sizeof(msg));
 
+	/* no ACK expected for WAIT in shared memory mode */
+	if (msg.op == UM_TIMETRAVEL_WAIT && time_travel_shm)
+		goto done;
+
 	while (msg.op != UM_TIMETRAVEL_ACK)
-		time_travel_handle_message(&msg, TTMH_READ);
+		time_travel_handle_message(&msg,
+					   op == UM_TIMETRAVEL_START ?
+						TTMH_READ_START_ACK :
+						TTMH_READ);
 
 	if (msg.seq != mseq)
 		panic("time-travel: ACK message has different seqno! op=%d, seq=%d != %d time=%lld\n",
@@ -145,6 +227,7 @@ static u64 time_travel_ext_req(u32 op, u64 time)
 
 	if (op == UM_TIMETRAVEL_GET)
 		time_travel_set_time(msg.time);
+done:
 	unblock_signals_hard();
 
 	return msg.time;
@@ -180,19 +263,47 @@ static void time_travel_ext_update_request(unsigned long long time)
 	/*
 	 * if we're running and are allowed to run past the request
 	 * then we don't need to update it either
+	 *
+	 * Note for shm we ignore FREE_UNTIL messages and leave the pointer
+	 * to shared memory, and for non-shm the offset is 0.
 	 */
-	if (!time_travel_ext_waiting && time_travel_ext_free_until_valid &&
-	    time < time_travel_ext_free_until)
+	if (!time_travel_ext_waiting && time_travel_ext_free_until &&
+	    time < (*time_travel_ext_free_until - time_travel_shm_offset))
 		return;
 
 	time_travel_ext_prev_request = time;
 	time_travel_ext_prev_request_valid = true;
+
+	if (time_travel_shm) {
+		union um_timetravel_schedshm_client *running;
+
+		running = &time_travel_shm->clients[time_travel_shm->running_id];
+
+		if (running->capa & UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE) {
+			time_travel_shm_client->flags |=
+				UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
+			time += time_travel_shm_offset;
+			time_travel_shm_client->req_time = time;
+			if (time < time_travel_shm->free_until)
+				time_travel_shm->free_until = time;
+			return;
+		}
+	}
+
 	time_travel_ext_req(UM_TIMETRAVEL_REQUEST, time);
 }
 
 void __time_travel_propagate_time(void)
 {
 	static unsigned long long last_propagated;
+
+	if (time_travel_shm) {
+		if (time_travel_shm->running_id != time_travel_shm_id)
+			panic("time-travel: setting time while not running\n");
+		time_travel_shm->current_time = time_travel_time +
+						time_travel_shm_offset;
+		return;
+	}
 
 	if (last_propagated == time_travel_time)
 		return;
@@ -209,9 +320,12 @@ static bool time_travel_ext_request(unsigned long long time)
 	 * If we received an external sync point ("free until") then we
 	 * don't have to request/wait for anything until then, unless
 	 * we're already waiting.
+	 *
+	 * Note for shm we ignore FREE_UNTIL messages and leave the pointer
+	 * to shared memory, and for non-shm the offset is 0.
 	 */
-	if (!time_travel_ext_waiting && time_travel_ext_free_until_valid &&
-	    time < time_travel_ext_free_until)
+	if (!time_travel_ext_waiting && time_travel_ext_free_until &&
+	    time < (*time_travel_ext_free_until - time_travel_shm_offset))
 		return false;
 
 	time_travel_ext_update_request(time);
@@ -225,7 +339,8 @@ static void time_travel_ext_wait(bool idle)
 	};
 
 	time_travel_ext_prev_request_valid = false;
-	time_travel_ext_free_until_valid = false;
+	if (!time_travel_shm)
+		time_travel_ext_free_until = NULL;
 	time_travel_ext_waiting++;
 
 	time_travel_ext_req(UM_TIMETRAVEL_WAIT, -1);
@@ -248,7 +363,11 @@ static void time_travel_ext_wait(bool idle)
 
 static void time_travel_ext_get_time(void)
 {
-	time_travel_ext_req(UM_TIMETRAVEL_GET, -1);
+	if (time_travel_shm)
+		time_travel_set_time(time_travel_shm->current_time -
+				     time_travel_shm_offset);
+	else
+		time_travel_ext_req(UM_TIMETRAVEL_GET, -1);
 }
 
 static void __time_travel_update_time(unsigned long long ns, bool idle)
@@ -875,9 +994,49 @@ static int setup_time_travel_start(char *str)
 	return 1;
 }
 
-__setup("time-travel-start", setup_time_travel_start);
+__setup("time-travel-start=", setup_time_travel_start);
 __uml_help(setup_time_travel_start,
-"time-travel-start=<seconds>\n"
+"time-travel-start=<nanoseconds>\n"
 "Configure the UML instance's wall clock to start at this value rather than\n"
 "the host's wall clock at the time of UML boot.\n");
+static struct kobject *bc_time_kobject;
+
+static ssize_t bc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%llx", bc_message);
+}
+
+static ssize_t bc_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	u64 user_bc_message;
+
+	ret = kstrtou64(buf, 0, &user_bc_message);
+	if (ret)
+		return ret;
+
+	bc_message = user_bc_message;
+
+	time_travel_ext_req(UM_TIMETRAVEL_BROADCAST, bc_message);
+	pr_info("um: time: sent broadcast message: 0x%llx\n", bc_message);
+	return count;
+}
+
+static struct kobj_attribute bc_attribute = __ATTR(bc-message, 0660, bc_show, bc_store);
+
+static int __init um_bc_start(void)
+{
+	if (time_travel_mode != TT_MODE_EXTERNAL)
+		return 0;
+
+	bc_time_kobject = kobject_create_and_add("um-ext-time", kernel_kobj);
+	if (!bc_time_kobject)
+		return 0;
+
+	if (sysfs_create_file(bc_time_kobject, &bc_attribute.attr))
+		pr_debug("failed to create the bc file in /sys/kernel/um_time");
+
+	return 0;
+}
+late_initcall(um_bc_start);
 #endif

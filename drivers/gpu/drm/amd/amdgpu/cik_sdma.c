@@ -107,7 +107,6 @@ static void cik_sdma_free_microcode(struct amdgpu_device *adev)
 static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
-	char fw_name[30];
 	int err = 0, i;
 
 	DRM_DEBUG("\n");
@@ -133,16 +132,18 @@ static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		if (i == 0)
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
+			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   "amdgpu/%s_sdma.bin", chip_name);
 		else
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma1.bin", chip_name);
-		err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw, fw_name);
+			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   "amdgpu/%s_sdma1.bin", chip_name);
 		if (err)
 			goto out;
 	}
 out:
 	if (err) {
-		pr_err("cik_sdma: Failed to load firmware \"%s\"\n", fw_name);
+		pr_err("cik_sdma: Failed to load firmware \"%s_sdma%s.bin\"\n",
+		       chip_name, i == 0 ? "" : "1");
 		for (i = 0; i < adev->sdma.num_instances; i++)
 			amdgpu_ucode_release(&adev->sdma.instance[i].fw);
 	}

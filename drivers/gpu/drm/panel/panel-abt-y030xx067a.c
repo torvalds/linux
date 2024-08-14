@@ -381,4 +381,5 @@ module_spi_driver(y030xx067a_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
+MODULE_DESCRIPTION("Asia Better Technology Ltd. Y030XX067A IPS LCD panel driver");
 MODULE_LICENSE("GPL v2");

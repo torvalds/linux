@@ -346,12 +346,9 @@ struct otx2_flow_config {
 	u16			*def_ent;
 	u16			nr_flows;
 #define OTX2_DEFAULT_FLOWCOUNT		16
-#define OTX2_MAX_UNICAST_FLOWS		8
+#define OTX2_DEFAULT_UNICAST_FLOWS	4
 #define OTX2_MAX_VLAN_FLOWS		1
 #define OTX2_MAX_TC_FLOWS	OTX2_DEFAULT_FLOWCOUNT
-#define OTX2_MCAM_COUNT		(OTX2_DEFAULT_FLOWCOUNT + \
-				 OTX2_MAX_UNICAST_FLOWS + \
-				 OTX2_MAX_VLAN_FLOWS)
 	u16			unicast_offset;
 	u16			rx_vlan_offset;
 	u16			vf_vlan_offset;
@@ -365,6 +362,7 @@ struct otx2_flow_config {
 	u16                     max_flows;
 	refcount_t		mark_flows;
 	struct list_head	flow_list_tc;
+	u8			ucast_flt_cnt;
 	bool			ntuple;
 };
 
@@ -1067,6 +1065,7 @@ int otx2_handle_ntuple_tc_features(struct net_device *netdev,
 int otx2_smq_flush(struct otx2_nic *pfvf, int smq);
 void otx2_free_bufs(struct otx2_nic *pfvf, struct otx2_pool *pool,
 		    u64 iova, int size);
+int otx2_mcam_entry_init(struct otx2_nic *pfvf);
 
 /* tc support */
 int otx2_init_tc(struct otx2_nic *nic);

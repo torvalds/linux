@@ -1083,6 +1083,17 @@ bool sockopt_capable(int cap)
 }
 EXPORT_SYMBOL(sockopt_capable);
 
+static int sockopt_validate_clockid(__kernel_clockid_t value)
+{
+	switch (value) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_TAI:
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
@@ -1497,6 +1508,11 @@ set_sndbuf:
 			ret = -EPERM;
 			break;
 		}
+
+		ret = sockopt_validate_clockid(sk_txtime.clockid);
+		if (ret)
+			break;
+
 		sock_valbool_flag(sk, SOCK_TXTIME, true);
 		sk->sk_clockid = sk_txtime.clockid;
 		sk->sk_txtime_deadline_mode =
@@ -2262,7 +2278,12 @@ static void sk_init_common(struct sock *sk)
 	lockdep_set_class_and_name(&sk->sk_error_queue.lock,
 			af_elock_keys + sk->sk_family,
 			af_family_elock_key_strings[sk->sk_family]);
-	lockdep_set_class_and_name(&sk->sk_callback_lock,
+	if (sk->sk_kern_sock)
+		lockdep_set_class_and_name(&sk->sk_callback_lock,
+			af_kern_callback_keys + sk->sk_family,
+			af_family_kern_clock_key_strings[sk->sk_family]);
+	else
+		lockdep_set_class_and_name(&sk->sk_callback_lock,
 			af_callback_keys + sk->sk_family,
 			af_family_clock_key_strings[sk->sk_family]);
 }
@@ -3460,18 +3481,6 @@ void sock_init_data_uid(struct socket *sock, struct sock *sk, kuid_t uid)
 	}
 	sk->sk_uid	=	uid;
 
-	rwlock_init(&sk->sk_callback_lock);
-	if (sk->sk_kern_sock)
-		lockdep_set_class_and_name(
-			&sk->sk_callback_lock,
-			af_kern_callback_keys + sk->sk_family,
-			af_family_kern_clock_key_strings[sk->sk_family]);
-	else
-		lockdep_set_class_and_name(
-			&sk->sk_callback_lock,
-			af_callback_keys + sk->sk_family,
-			af_family_clock_key_strings[sk->sk_family]);
-
 	sk->sk_state_change	=	sock_def_wakeup;
 	sk->sk_data_ready	=	sock_def_readable;
 	sk->sk_write_space	=	sock_def_write_space;
@@ -3741,6 +3750,9 @@ void sk_common_release(struct sock *sk)
 	 */
 
 	sk->sk_prot->unhash(sk);
+
+	if (sk->sk_socket)
+		sk->sk_socket->sk = NULL;
 
 	/*
 	 * In this point socket cannot receive new packets, but it is possible

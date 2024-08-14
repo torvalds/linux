@@ -21,6 +21,9 @@
 
 #include "reg_fields.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "amd_atl: " fmt
+
 /* Maximum possible number of Coherent Stations within a single Data Fabric. */
 #define MAX_COH_ST_CHANNELS		32
 
@@ -33,6 +36,8 @@
 /* Shift needed for adjusting register values to true values. */
 #define DF_DRAM_BASE_LIMIT_LSB		28
 #define MI300_DRAM_LIMIT_LSB		20
+
+#define INVALID_SPA ~0ULL
 
 enum df_revisions {
 	UNKNOWN,
@@ -90,6 +95,44 @@ enum intlv_modes {
 	DF4p5_NPS1_10CHAN_2K_HASH	= 0x49,
 };
 
+struct df4p5_denorm_ctx {
+	/* Indicates the number of "lost" bits. This will be 1, 2, or 3. */
+	u8 perm_shift;
+
+	/* A mask indicating the bits that need to be rehashed. */
+	u16 rehash_vector;
+
+	/*
+	 * Represents the value that the high bits of the normalized address
+	 * are divided by during normalization. This value will be 3 for
+	 * interleave modes with a number of channels divisible by 3 or the
+	 * value will be 5 for interleave modes with a number of channels
+	 * divisible by 5. Power-of-two interleave modes are handled
+	 * separately.
+	 */
+	u8 mod_value;
+
+	/*
+	 * Represents the bits that can be directly pulled from the normalized
+	 * address. In each case, pass through bits [7:0] of the normalized
+	 * address. The other bits depend on the interleave bit position which
+	 * will be bit 10 for 1K interleave stripe cases and bit 11 for 2K
+	 * interleave stripe cases.
+	 */
+	u64 base_denorm_addr;
+
+	/*
+	 * Represents the high bits of the physical address that have been
+	 * divided by the mod_value.
+	 */
+	u64 div_addr;
+
+	u64 current_spa;
+	u64 resolved_spa;
+
+	u16 coh_st_fabric_id;
+};
+
 struct df_flags {
 	__u8	legacy_ficaa		: 1,
 		socket_id_shift_quirk	: 1,
@@ -131,6 +174,8 @@ struct df_config {
 
 	/* Number of DRAM Address maps visible in a Coherent Station. */
 	u8 num_coh_st_maps;
+
+	u32 dram_hole_base;
 
 	/* Global flags to handle special cases. */
 	struct df_flags flags;
@@ -224,7 +269,7 @@ int df_indirect_read_broadcast(u16 node, u8 func, u16 reg, u32 *lo);
 
 int get_df_system_info(void);
 int determine_node_id(struct addr_ctx *ctx, u8 socket_num, u8 die_num);
-int get_addr_hash_mi300(void);
+int get_umc_info_mi300(void);
 
 int get_address_map(struct addr_ctx *ctx);
 
@@ -233,6 +278,9 @@ int dehash_address(struct addr_ctx *ctx);
 
 unsigned long norm_to_sys_addr(u8 socket_id, u8 die_id, u8 coh_st_inst_id, unsigned long addr);
 unsigned long convert_umc_mca_addr_to_sys_addr(struct atl_err *err);
+
+u64 add_base_and_hole(struct addr_ctx *ctx, u64 addr);
+u64 remove_base_and_hole(struct addr_ctx *ctx, u64 addr);
 
 /*
  * Make a gap in @data that is @num_bits long starting at @bit_num.

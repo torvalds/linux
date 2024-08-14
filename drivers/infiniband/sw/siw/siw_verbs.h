@@ -43,7 +43,7 @@ int siw_get_port_immutable(struct ib_device *base_dev, u32 port,
 int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 		     struct ib_udata *udata);
 int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
-		  struct ib_udata *udata);
+		  struct uverbs_attr_bundle *attrs);
 int siw_query_port(struct ib_device *base_dev, u32 port,
 		   struct ib_port_attr *attr);
 int siw_query_gid(struct ib_device *base_dev, u32 port, int idx,

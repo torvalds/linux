@@ -29,7 +29,6 @@
 #include "extent-io-tree.h"
 #include "async-thread.h"
 #include "block-rsv.h"
-#include "fs.h"
 
 struct inode;
 struct super_block;
@@ -99,7 +98,9 @@ enum {
 	/* The btrfs_fs_info created for self-tests */
 	BTRFS_FS_STATE_DUMMY_FS_INFO,
 
-	BTRFS_FS_STATE_NO_CSUMS,
+	/* Checksum errors are ignored. */
+	BTRFS_FS_STATE_NO_DATA_CSUMS,
+	BTRFS_FS_STATE_SKIP_META_CSUMS,
 
 	/* Indicates there was an error cleaning up a log tree. */
 	BTRFS_FS_STATE_LOG_CLEANUP_ERROR,
@@ -194,37 +195,39 @@ enum {
  * Note: don't forget to add new options to btrfs_show_options()
  */
 enum {
-	BTRFS_MOUNT_NODATASUM			= (1UL << 0),
-	BTRFS_MOUNT_NODATACOW			= (1UL << 1),
-	BTRFS_MOUNT_NOBARRIER			= (1UL << 2),
-	BTRFS_MOUNT_SSD				= (1UL << 3),
-	BTRFS_MOUNT_DEGRADED			= (1UL << 4),
-	BTRFS_MOUNT_COMPRESS			= (1UL << 5),
-	BTRFS_MOUNT_NOTREELOG   		= (1UL << 6),
-	BTRFS_MOUNT_FLUSHONCOMMIT		= (1UL << 7),
-	BTRFS_MOUNT_SSD_SPREAD			= (1UL << 8),
-	BTRFS_MOUNT_NOSSD			= (1UL << 9),
-	BTRFS_MOUNT_DISCARD_SYNC		= (1UL << 10),
-	BTRFS_MOUNT_FORCE_COMPRESS      	= (1UL << 11),
-	BTRFS_MOUNT_SPACE_CACHE			= (1UL << 12),
-	BTRFS_MOUNT_CLEAR_CACHE			= (1UL << 13),
-	BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED	= (1UL << 14),
-	BTRFS_MOUNT_ENOSPC_DEBUG		= (1UL << 15),
-	BTRFS_MOUNT_AUTO_DEFRAG			= (1UL << 16),
-	BTRFS_MOUNT_USEBACKUPROOT		= (1UL << 17),
-	BTRFS_MOUNT_SKIP_BALANCE		= (1UL << 18),
-	BTRFS_MOUNT_PANIC_ON_FATAL_ERROR	= (1UL << 19),
-	BTRFS_MOUNT_RESCAN_UUID_TREE		= (1UL << 20),
-	BTRFS_MOUNT_FRAGMENT_DATA		= (1UL << 21),
-	BTRFS_MOUNT_FRAGMENT_METADATA		= (1UL << 22),
-	BTRFS_MOUNT_FREE_SPACE_TREE		= (1UL << 23),
-	BTRFS_MOUNT_NOLOGREPLAY			= (1UL << 24),
-	BTRFS_MOUNT_REF_VERIFY			= (1UL << 25),
-	BTRFS_MOUNT_DISCARD_ASYNC		= (1UL << 26),
-	BTRFS_MOUNT_IGNOREBADROOTS		= (1UL << 27),
-	BTRFS_MOUNT_IGNOREDATACSUMS		= (1UL << 28),
-	BTRFS_MOUNT_NODISCARD			= (1UL << 29),
-	BTRFS_MOUNT_NOSPACECACHE		= (1UL << 30),
+	BTRFS_MOUNT_NODATASUM			= (1ULL << 0),
+	BTRFS_MOUNT_NODATACOW			= (1ULL << 1),
+	BTRFS_MOUNT_NOBARRIER			= (1ULL << 2),
+	BTRFS_MOUNT_SSD				= (1ULL << 3),
+	BTRFS_MOUNT_DEGRADED			= (1ULL << 4),
+	BTRFS_MOUNT_COMPRESS			= (1ULL << 5),
+	BTRFS_MOUNT_NOTREELOG			= (1ULL << 6),
+	BTRFS_MOUNT_FLUSHONCOMMIT		= (1ULL << 7),
+	BTRFS_MOUNT_SSD_SPREAD			= (1ULL << 8),
+	BTRFS_MOUNT_NOSSD			= (1ULL << 9),
+	BTRFS_MOUNT_DISCARD_SYNC		= (1ULL << 10),
+	BTRFS_MOUNT_FORCE_COMPRESS		= (1ULL << 11),
+	BTRFS_MOUNT_SPACE_CACHE			= (1ULL << 12),
+	BTRFS_MOUNT_CLEAR_CACHE			= (1ULL << 13),
+	BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED	= (1ULL << 14),
+	BTRFS_MOUNT_ENOSPC_DEBUG		= (1ULL << 15),
+	BTRFS_MOUNT_AUTO_DEFRAG			= (1ULL << 16),
+	BTRFS_MOUNT_USEBACKUPROOT		= (1ULL << 17),
+	BTRFS_MOUNT_SKIP_BALANCE		= (1ULL << 18),
+	BTRFS_MOUNT_PANIC_ON_FATAL_ERROR	= (1ULL << 19),
+	BTRFS_MOUNT_RESCAN_UUID_TREE		= (1ULL << 20),
+	BTRFS_MOUNT_FRAGMENT_DATA		= (1ULL << 21),
+	BTRFS_MOUNT_FRAGMENT_METADATA		= (1ULL << 22),
+	BTRFS_MOUNT_FREE_SPACE_TREE		= (1ULL << 23),
+	BTRFS_MOUNT_NOLOGREPLAY			= (1ULL << 24),
+	BTRFS_MOUNT_REF_VERIFY			= (1ULL << 25),
+	BTRFS_MOUNT_DISCARD_ASYNC		= (1ULL << 26),
+	BTRFS_MOUNT_IGNOREBADROOTS		= (1ULL << 27),
+	BTRFS_MOUNT_IGNOREDATACSUMS		= (1ULL << 28),
+	BTRFS_MOUNT_NODISCARD			= (1ULL << 29),
+	BTRFS_MOUNT_NOSPACECACHE		= (1ULL << 30),
+	BTRFS_MOUNT_IGNOREMETACSUMS		= (1ULL << 31),
+	BTRFS_MOUNT_IGNORESUPERFLAGS		= (1ULL << 32),
 };
 
 /*
@@ -478,7 +481,7 @@ struct btrfs_fs_info {
 	 * required instead of the faster short fsync log commits
 	 */
 	u64 last_trans_log_full_commit;
-	unsigned long mount_opt;
+	unsigned long long mount_opt;
 
 	unsigned long compress_type:4;
 	unsigned int compress_level;
@@ -630,6 +633,7 @@ struct btrfs_fs_info {
 	s32 delalloc_batch;
 
 	struct percpu_counter evictable_extent_maps;
+	spinlock_t extent_map_shrinker_lock;
 	u64 extent_map_shrinker_last_root;
 	u64 extent_map_shrinker_last_ino;
 
@@ -957,7 +961,7 @@ static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
 /*
  * Count how many fs_info->max_extent_size cover the @size
  */
-static inline u32 count_max_extents(struct btrfs_fs_info *fs_info, u64 size)
+static inline u32 count_max_extents(const struct btrfs_fs_info *fs_info, u64 size)
 {
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (!fs_info)
@@ -1018,7 +1022,7 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 #define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 
-static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_fs_closing(const struct btrfs_fs_info *fs_info)
 {
 	/* Do it this way so we only ever do one test_bit in the normal case. */
 	if (test_bit(BTRFS_FS_CLOSING_START, &fs_info->flags)) {
@@ -1037,7 +1041,7 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  * since setting and checking for SB_RDONLY in the superblock's flags is not
  * atomic.
  */
-static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
+static inline int btrfs_need_cleaner_sleep(const struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state) ||
 		btrfs_fs_closing(fs_info);
@@ -1058,7 +1062,7 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 
 #define EXPORT_FOR_TESTS
 
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 }
@@ -1069,7 +1073,7 @@ void btrfs_test_destroy_inode(struct inode *inode);
 
 #define EXPORT_FOR_TESTS static
 
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
+static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
 	return 0;
 }

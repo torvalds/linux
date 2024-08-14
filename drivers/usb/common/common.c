@@ -433,4 +433,5 @@ static void __exit usb_common_exit(void)
 subsys_initcall(usb_common_init);
 module_exit(usb_common_exit);
 
+MODULE_DESCRIPTION("Common code for host and device side USB");
 MODULE_LICENSE("GPL");

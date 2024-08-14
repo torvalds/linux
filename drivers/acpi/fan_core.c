@@ -336,6 +336,10 @@ static int acpi_fan_probe(struct platform_device *pdev)
 		if (result)
 			return result;
 
+		result = devm_acpi_fan_create_hwmon(device);
+		if (result)
+			return result;
+
 		result = acpi_fan_create_attributes(device);
 		if (result)
 			return result;

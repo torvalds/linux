@@ -135,7 +135,7 @@ config I2C_SLAVE_EEPROM
 	  Documentation/i2c/slave-eeprom-backend.rst for further details.
 
 config I2C_SLAVE_TESTUNIT
-	tristate "I2C eeprom testunit driver"
+	tristate "I2C testunit driver"
 	help
 	  This backend can be used to trigger test cases for I2C bus masters
 	  which require a remote device with certain capabilities, e.g.

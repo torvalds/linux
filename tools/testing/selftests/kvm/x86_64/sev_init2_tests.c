@@ -105,11 +105,11 @@ void test_features(uint32_t vm_type, uint64_t supported_features)
 	int i;
 
 	for (i = 0; i < 64; i++) {
-		if (!(supported_features & (1u << i)))
+		if (!(supported_features & BIT_ULL(i)))
 			test_init2_invalid(vm_type,
 				&(struct kvm_sev_init){ .vmsa_features = BIT_ULL(i) },
 				"unknown feature");
-		else if (KNOWN_FEATURES & (1u << i))
+		else if (KNOWN_FEATURES & BIT_ULL(i))
 			test_init2(vm_type,
 				&(struct kvm_sev_init){ .vmsa_features = BIT_ULL(i) });
 	}

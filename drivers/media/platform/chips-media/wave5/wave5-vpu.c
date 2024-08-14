@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
+#include <linux/reset.h>
 #include "wave5-vpu.h"
 #include "wave5-regdefine.h"
 #include "wave5-vpuconfig.h"
@@ -24,6 +25,7 @@
 struct wave5_match_data {
 	int flags;
 	const char *fw_name;
+	u32 sram_size;
 };
 
 static int vpu_poll_interval = 5;
@@ -61,7 +63,13 @@ static void wave5_vpu_handle_irq(void *dev_id)
 
 		if (irq_reason & BIT(INT_WAVE5_INIT_SEQ) ||
 		    irq_reason & BIT(INT_WAVE5_ENC_SET_PARAM)) {
-			if (seq_done & BIT(inst->id)) {
+			if (dev->product_code == WAVE515_CODE &&
+			    (cmd_done & BIT(inst->id))) {
+				cmd_done &= ~BIT(inst->id);
+				wave5_vdi_write_register(dev, W5_RET_QUEUE_CMD_DONE_INST,
+							 cmd_done);
+				complete(&inst->irq_done);
+			} else if (seq_done & BIT(inst->id)) {
 				seq_done &= ~BIT(inst->id);
 				wave5_vdi_write_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO,
 							 seq_done);
@@ -179,6 +187,16 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, dev);
 	dev->dev = &pdev->dev;
 
+	dev->resets = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
+	if (IS_ERR(dev->resets)) {
+		return dev_err_probe(&pdev->dev, PTR_ERR(dev->resets),
+				     "Failed to get reset control\n");
+	}
+
+	ret = reset_control_deassert(dev->resets);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to deassert resets\n");
+
 	ret = devm_clk_bulk_get_all(&pdev->dev, &dev->clks);
 
 	/* continue without clock, assume externally managed */
@@ -191,19 +209,14 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	ret = clk_bulk_prepare_enable(dev->num_clks, dev->clks);
 	if (ret) {
 		dev_err(&pdev->dev, "Enabling clocks, fail: %d\n", ret);
-		return ret;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "sram-size",
-				   &dev->sram_size);
-	if (ret) {
-		dev_warn(&pdev->dev, "sram-size not found\n");
-		dev->sram_size = 0;
+		goto err_reset_assert;
 	}
 
 	dev->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
 	if (!dev->sram_pool)
 		dev_warn(&pdev->dev, "sram node not found\n");
+
+	dev->sram_size = match_data->sram_size;
 
 	dev->product_code = wave5_vdi_read_register(dev, VPU_PRODUCT_CODE_REGISTER);
 	ret = wave5_vdi_init(&pdev->dev);
@@ -282,6 +295,8 @@ err_vdi_release:
 	wave5_vdi_release(&pdev->dev);
 err_clk_dis:
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
+err_reset_assert:
+	reset_control_assert(dev->resets);
 
 	return ret;
 }
@@ -297,6 +312,7 @@ static void wave5_vpu_remove(struct platform_device *pdev)
 
 	mutex_destroy(&dev->dev_lock);
 	mutex_destroy(&dev->hw_lock);
+	reset_control_assert(dev->resets);
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
 	wave5_vpu_enc_unregister_device(dev);
 	wave5_vpu_dec_unregister_device(dev);
@@ -308,6 +324,7 @@ static void wave5_vpu_remove(struct platform_device *pdev)
 static const struct wave5_match_data ti_wave521c_data = {
 	.flags = WAVE5_IS_ENC | WAVE5_IS_DEC,
 	.fw_name = "cnm/wave521c_k3_codec_fw.bin",
+	.sram_size = (64 * 1024),
 };
 
 static const struct of_device_id wave5_dt_ids[] = {

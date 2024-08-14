@@ -52,8 +52,8 @@ static DEFINE_IDA(rpmsg_minor_ida);
  * @readq:	wait object for incoming queue
  * @default_ept: set to channel default endpoint if the default endpoint should be re-used
  *              on device open to prevent endpoint address update.
- * remote_flow_restricted: to indicate if the remote has requested for flow to be limited
- * remote_flow_updated: to indicate if the flow control has been requested
+ * @remote_flow_restricted: to indicate if the remote has requested for flow to be limited
+ * @remote_flow_updated: to indicate if the flow control has been requested
  */
 struct rpmsg_eptdev {
 	struct device dev;
@@ -566,4 +566,5 @@ static void rpmsg_chrdev_exit(void)
 module_exit(rpmsg_chrdev_exit);
 
 MODULE_ALIAS("rpmsg:rpmsg_chrdev");
+MODULE_DESCRIPTION("RPMSG device interface");
 MODULE_LICENSE("GPL v2");

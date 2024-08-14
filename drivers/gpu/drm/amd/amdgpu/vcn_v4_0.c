@@ -258,7 +258,7 @@ static int vcn_v4_0_hw_init(void *handle)
 	if (amdgpu_sriov_vf(adev)) {
 		r = vcn_v4_0_start_sriov(adev);
 		if (r)
-			goto done;
+			return r;
 
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			if (adev->vcn.harvest_config & (1 << i))
@@ -269,7 +269,6 @@ static int vcn_v4_0_hw_init(void *handle)
 			ring->wptr_old = 0;
 			vcn_v4_0_unified_ring_set_wptr(ring);
 			ring->sched.ready = true;
-
 		}
 	} else {
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -283,18 +282,11 @@ static int vcn_v4_0_hw_init(void *handle)
 
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
-				goto done;
-
+				return r;
 		}
 	}
 
 	return 0;
-done:
-	if (!r)
-		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
-			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)?"DPG Mode":"SPG Mode");
-
-	return r;
 }
 
 /**
@@ -1053,6 +1045,9 @@ static int vcn_v4_0_start(struct amdgpu_device *adev)
 		amdgpu_dpm_enable_uvd(adev, true);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
 		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
 
 		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
@@ -1506,6 +1501,9 @@ static int vcn_v4_0_stop(struct amdgpu_device *adev)
 	int i, r = 0;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
 		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
 		fw_shared->sq.queue_mode |= FW_QUEUE_DPG_HOLD_OFF;
 
@@ -1900,8 +1898,6 @@ static void vcn_v4_0_set_unified_ring_funcs(struct amdgpu_device *adev)
 		adev->vcn.inst[i].ring_enc[0].funcs =
 		       (const struct amdgpu_ring_funcs *)&vcn_v4_0_unified_ring_vm_funcs;
 		adev->vcn.inst[i].ring_enc[0].me = i;
-
-		DRM_INFO("VCN(%d) encode/decode are enabled in VM mode\n", i);
 	}
 }
 

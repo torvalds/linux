@@ -119,11 +119,6 @@ static int imx8qxp_pc_bridge_attach(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
-	if (!bridge->encoder) {
-		DRM_DEV_ERROR(pc->dev, "missing encoder\n");
-		return -ENODEV;
-	}
-
 	return drm_bridge_attach(bridge->encoder,
 				 ch->next_bridge, bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);

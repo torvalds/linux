@@ -1339,4 +1339,5 @@ static struct greybus_driver gb_lights_driver = {
 };
 module_greybus_driver(gb_lights_driver);
 
+MODULE_DESCRIPTION("Greybus Lights protocol driver");
 MODULE_LICENSE("GPL v2");

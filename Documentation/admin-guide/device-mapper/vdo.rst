@@ -241,6 +241,7 @@ Messages
 All vdo devices accept messages in the form:
 
 ::
+
         dmsetup message <target-name> 0 <message-name> <message-parameters>
 
 The messages are:

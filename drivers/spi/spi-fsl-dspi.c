@@ -1006,6 +1006,7 @@ static int dspi_setup(struct spi_device *spi)
 	struct chip_data *chip;
 	unsigned long clkrate;
 	bool cs = true;
+	int val;
 
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
@@ -1018,11 +1019,19 @@ static int dspi_setup(struct spi_device *spi)
 	pdata = dev_get_platdata(&dspi->pdev->dev);
 
 	if (!pdata) {
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-cs-sck-delay",
-				     &cs_sck_delay);
+		val = spi_delay_to_ns(&spi->cs_setup, NULL);
+		cs_sck_delay = val >= 0 ? val : 0;
+		if (!cs_sck_delay)
+			of_property_read_u32(spi->dev.of_node,
+					     "fsl,spi-cs-sck-delay",
+					     &cs_sck_delay);
 
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-sck-cs-delay",
-				     &sck_cs_delay);
+		val = spi_delay_to_ns(&spi->cs_hold, NULL);
+		sck_cs_delay =  val >= 0 ? val : 0;
+		if (!sck_cs_delay)
+			of_property_read_u32(spi->dev.of_node,
+					     "fsl,spi-sck-cs-delay",
+					     &sck_cs_delay);
 	} else {
 		cs_sck_delay = pdata->cs_sck_delay;
 		sck_cs_delay = pdata->sck_cs_delay;

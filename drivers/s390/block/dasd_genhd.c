@@ -68,7 +68,6 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 		blk_mq_free_tag_set(&block->tag_set);
 		return PTR_ERR(gdp);
 	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, gdp->queue);
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;

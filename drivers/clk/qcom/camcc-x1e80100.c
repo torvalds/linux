@@ -2466,7 +2466,7 @@ static int cam_cc_x1e80100_probe(struct platform_device *pdev)
 	qcom_branch_set_clk_en(regmap, 0x13a9c); /* CAM_CC_GDSC_CLK */
 	qcom_branch_set_clk_en(regmap, 0x13ab8); /* CAM_CC_SLEEP_CLK */
 
-	ret = qcom_cc_really_probe(pdev, &cam_cc_x1e80100_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &cam_cc_x1e80100_desc, regmap);
 
 	pm_runtime_put(&pdev->dev);
 

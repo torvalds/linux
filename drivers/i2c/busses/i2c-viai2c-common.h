@@ -80,6 +80,6 @@ struct viai2c {
 int viai2c_wait_bus_not_busy(struct viai2c *i2c);
 int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num);
 int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat);
-int viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq);
+int viai2c_irq_xfer(struct viai2c *i2c);
 
 #endif

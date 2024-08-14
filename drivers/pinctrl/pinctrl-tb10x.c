@@ -830,4 +830,5 @@ static struct platform_driver tb10x_pinctrl_pdrv = {
 module_platform_driver(tb10x_pinctrl_pdrv);
 
 MODULE_AUTHOR("Christian Ruppert <christian.ruppert@abilis.com>");
+MODULE_DESCRIPTION("Abilis Systems TB10x pinctrl driver");
 MODULE_LICENSE("GPL");

@@ -58,10 +58,8 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		power {
+		key-power {
 			label = "Power push button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
@@ -71,11 +69,11 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "cloudbox:red:fail";
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
-		blue-sata {
+		led-blue-sata {
 			label = "cloudbox:blue:sata";
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};

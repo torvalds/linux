@@ -53,12 +53,6 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 	}
 }
 
-struct memslot_antagonist_args {
-	struct kvm_vm *vm;
-	useconds_t delay;
-	uint64_t nr_modifications;
-};
-
 static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 			       uint64_t nr_modifications)
 {

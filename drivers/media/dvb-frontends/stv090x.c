@@ -748,6 +748,22 @@ static int stv090x_write_reg(struct stv090x_state *state, unsigned int reg, u8 d
 	return stv090x_write_regs(state, reg, &tmp, 1);
 }
 
+static inline void stv090x_tuner_i2c_lock(struct stv090x_state *state)
+{
+	if (state->config->tuner_i2c_lock)
+		state->config->tuner_i2c_lock(&state->frontend, 1);
+	else
+		mutex_lock(&state->internal->tuner_lock);
+}
+
+static inline void stv090x_tuner_i2c_unlock(struct stv090x_state *state)
+{
+	if (state->config->tuner_i2c_lock)
+		state->config->tuner_i2c_lock(&state->frontend, 0);
+	else
+		mutex_unlock(&state->internal->tuner_lock);
+}
+
 static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 {
 	u32 reg;
@@ -761,12 +777,8 @@ static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 	 * In case of any error, the lock is unlocked and exit within the
 	 * relevant operations themselves.
 	 */
-	if (enable) {
-		if (state->config->tuner_i2c_lock)
-			state->config->tuner_i2c_lock(&state->frontend, 1);
-		else
-			mutex_lock(&state->internal->tuner_lock);
-	}
+	if (enable)
+		stv090x_tuner_i2c_lock(state);
 
 	reg = STV090x_READ_DEMOD(state, I2CRPT);
 	if (enable) {
@@ -782,20 +794,13 @@ static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 			goto err;
 	}
 
-	if (!enable) {
-		if (state->config->tuner_i2c_lock)
-			state->config->tuner_i2c_lock(&state->frontend, 0);
-		else
-			mutex_unlock(&state->internal->tuner_lock);
-	}
+	if (!enable)
+		stv090x_tuner_i2c_unlock(state);
 
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
-	if (state->config->tuner_i2c_lock)
-		state->config->tuner_i2c_lock(&state->frontend, 0);
-	else
-		mutex_unlock(&state->internal->tuner_lock);
+	stv090x_tuner_i2c_unlock(state);
 	return -1;
 }
 
