@@ -167,7 +167,7 @@
 			pinctrl@fffff200 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,at91rm9200-pinctrl", "simple-mfd";
 				ranges = <0xfffff200 0xfffff200 0xa00>;
 
 				atmel,mux-mask = <
