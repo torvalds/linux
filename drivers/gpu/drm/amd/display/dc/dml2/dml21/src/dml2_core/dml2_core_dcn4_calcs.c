@@ -5056,6 +5056,8 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->trip_to_mem = 0.0;
 	*p->Tvm_trips = 0.0;
 	*p->Tr0_trips = 0.0;
+	s->Tvm_no_trip_oto = 0.0;
+	s->Tr0_no_trip_oto = 0.0;
 	s->Tvm_trips_rounded = 0.0;
 	s->Tr0_trips_rounded = 0.0;
 	s->max_Tsw = 0.0;
@@ -5293,31 +5295,38 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->Lsw_oto = math_ceil2(4.0 * math_max2(s->prefetch_sw_bytes / s->prefetch_bw_oto / s->LineTime, s->min_Lsw_oto), 1.0) / 4.0;
 
 	if (p->display_cfg->gpuvm_enable == true) {
-		s->Tvm_oto = math_max3(
-			*p->Tvm_trips,
+		s->Tvm_no_trip_oto = math_max2(
 			*p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw_oto,
 			s->LineTime / 4.0);
+		s->Tvm_oto = math_max2(
+			*p->Tvm_trips,
+			s->Tvm_no_trip_oto);
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: Tvm_oto max0 = %f\n", __func__, *p->Tvm_trips);
 		dml2_printf("DML::%s: Tvm_oto max1 = %f\n", __func__, *p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw_oto);
 		dml2_printf("DML::%s: Tvm_oto max2 = %f\n", __func__, s->LineTime / 4.0);
 #endif
 	} else {
+		s->Tvm_no_trip_oto = s->Tvm_trips_rounded;
 		s->Tvm_oto = s->Tvm_trips_rounded;
 	}
 
 	if ((p->display_cfg->gpuvm_enable == true || p->setup_for_tdlut || dcc_mrq_enable)) {
-		s->Tr0_oto = math_max3(
-			*p->Tr0_trips,
+		s->Tr0_no_trip_oto = math_max2(
 			(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / s->prefetch_bw_oto,
 			s->LineTime / 4.0);
+		s->Tr0_oto = math_max2(
+			*p->Tr0_trips,
+			s->Tr0_no_trip_oto);
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: Tr0_oto max0 = %f\n", __func__, *p->Tr0_trips);
 		dml2_printf("DML::%s: Tr0_oto max1 = %f\n", __func__, (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / s->prefetch_bw_oto);
 		dml2_printf("DML::%s: Tr0_oto max2 = %f\n", __func__, s->LineTime / 4);
 #endif
-	} else
-		s->Tr0_oto = (s->LineTime - s->Tvm_oto) / 4.0;
+	} else {
+		s->Tr0_no_trip_oto = (s->LineTime - s->Tvm_oto) / 4.0;
+		s->Tr0_oto = s->Tr0_no_trip_oto;
+	}
 
 	s->Tvm_oto_lines = math_ceil2(4.0 * s->Tvm_oto / s->LineTime, 1) / 4.0;
 	s->Tr0_oto_lines = math_ceil2(4.0 * s->Tr0_oto / s->LineTime, 1) / 4.0;
@@ -5595,6 +5604,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML::%s: Tvm_equ = %f\n", __func__, s->Tvm_equ);
 		dml2_printf("DML::%s: Tr0_equ = %f\n", __func__, s->Tr0_equ);
 #endif
+		// Lsw = dst_y_prefetch - (dst_y_per_vm_vblank + 2*dst_y_per_row_vblank)
+		s->Lsw_equ = s->dst_y_prefetch_equ - math_ceil2(4.0 * (s->Tvm_equ + 2 * s->Tr0_equ) / s->LineTime, 1.0) / 4.0;
+
 		// Use the more stressful prefetch schedule
 		if (s->dst_y_prefetch_oto < s->dst_y_prefetch_equ) {
 			*p->dst_y_prefetch = s->dst_y_prefetch_oto;
@@ -5603,25 +5615,28 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 
 			*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
 			*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+			s->dst_y_per_vm_no_trip_vblank = math_ceil2(4.0 * s->Tvm_no_trip_oto / s->LineTime, 1.0) / 4.0;
+			s->dst_y_per_row_no_trip_vblank = math_ceil2(4.0 * s->Tr0_no_trip_oto / s->LineTime, 1.0) / 4.0;
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: Using oto scheduling for prefetch\n", __func__);
 #endif
-
 		} else {
 			*p->dst_y_prefetch = s->dst_y_prefetch_equ;
 			s->TimeForFetchingVM = s->Tvm_equ;
 			s->TimeForFetchingRowInVBlank = s->Tr0_equ;
 
-		*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
-		*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+			*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
+			*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+			s->dst_y_per_vm_no_trip_vblank = *p->dst_y_per_vm_vblank;
+			s->dst_y_per_row_no_trip_vblank = *p->dst_y_per_row_vblank;
 
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: Using equ bw scheduling for prefetch\n", __func__);
 #endif
 		}
 
-		// Lsw = dst_y_prefetch - (dst_y_per_vm_vblank + 2*dst_y_per_row_vblank)
-		s->LinesToRequestPrefetchPixelData = *p->dst_y_prefetch - *p->dst_y_per_vm_vblank - 2 * *p->dst_y_per_row_vblank; // Lsw
+		/* take worst case Lsw to calculate bandwidth requirement regardless of schedule */
+		s->LinesToRequestPrefetchPixelData = math_min2(s->Lsw_equ, s->Lsw_oto); // Lsw
 
 		s->cursor_prefetch_bytes = (unsigned int)math_max2(p->cursor_bytes_per_chunk, 4 * p->cursor_bytes_per_line);
 		*p->prefetch_cursor_bw = p->num_cursors * s->cursor_prefetch_bytes / (s->LinesToRequestPrefetchPixelData * s->LineTime);
@@ -5741,13 +5756,13 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 
 		if (vm_bytes == 0) {
 			prefetch_vm_bw = 0;
-		} else if (*p->dst_y_per_vm_vblank > 0) {
+		} else if (s->dst_y_per_vm_no_trip_vblank > 0) {
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: HostVMInefficiencyFactor = %f\n", __func__, p->HostVMInefficiencyFactor);
 			dml2_printf("DML::%s: dst_y_per_vm_vblank = %f\n", __func__, *p->dst_y_per_vm_vblank);
 			dml2_printf("DML::%s: LineTime = %f\n", __func__, s->LineTime);
 #endif
-			prefetch_vm_bw = vm_bytes * p->HostVMInefficiencyFactor / (*p->dst_y_per_vm_vblank * s->LineTime);
+			prefetch_vm_bw = vm_bytes * p->HostVMInefficiencyFactor / (s->dst_y_per_vm_no_trip_vblank * s->LineTime);
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: prefetch_vm_bw = %f\n", __func__, prefetch_vm_bw);
 #endif
@@ -5759,8 +5774,8 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 
 		if (p->PixelPTEBytesPerRow == 0 && tdlut_row_bytes == 0) {
 			prefetch_row_bw = 0;
-		} else if (*p->dst_y_per_row_vblank > 0) {
-			prefetch_row_bw = (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + tdlut_row_bytes) / (*p->dst_y_per_row_vblank * s->LineTime);
+		} else if (s->dst_y_per_row_no_trip_vblank > 0) {
+			prefetch_row_bw = (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + tdlut_row_bytes) / (s->dst_y_per_row_no_trip_vblank * s->LineTime);
 
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: PixelPTEBytesPerRow = %u\n", __func__, p->PixelPTEBytesPerRow);
@@ -10739,7 +10754,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 				mode_lib->mp.UrgentLatency,
 				mode_lib->mp.TripToMemory,
 				!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k]) && display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.drr_config.enabled ?
-				get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000), in_out_params->min_clk_index) : 0.0);
+				get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->mp.uclk_freq_mhz * 1000), in_out_params->min_clk_index) : 0.0);
 
 			myPipe->Dppclk = mode_lib->mp.Dppclk[k];
 			myPipe->Dispclk = mode_lib->mp.Dispclk;
