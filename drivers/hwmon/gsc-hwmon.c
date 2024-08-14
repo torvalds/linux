@@ -400,6 +400,7 @@ static const struct of_device_id gsc_hwmon_of_match[] = {
 	{ .compatible = "gw,gsc-adc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, gsc_hwmon_of_match);
 
 static struct platform_driver gsc_hwmon_driver = {
 	.driver = {
