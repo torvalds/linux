@@ -323,9 +323,15 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
  */
 static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 {
-	unsigned int plane;
+	int plane;
 
-	for (plane = 0; plane < vb->num_planes; ++plane)
+	/*
+	 * When multiple planes share the same DMA buffer attachment, the plane
+	 * with the lowest index owns the mem_priv.
+	 * Put planes in the reversed order so that we don't leave invalid
+	 * mem_priv behind.
+	 */
+	for (plane = vb->num_planes - 1; plane >= 0; --plane)
 		__vb2_plane_dmabuf_put(vb, &vb->planes[plane]);
 }
 
