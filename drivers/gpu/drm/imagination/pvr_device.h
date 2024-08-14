@@ -668,7 +668,7 @@ pvr_ioctl_union_padding_check(void *instance, size_t union_offset,
 	void *padding_start = ((u8 *)instance) + union_offset + member_size;
 	size_t padding_size = union_size - member_size;
 
-	return !memchr_inv(padding_start, 0, padding_size);
+	return mem_is_zero(padding_start, padding_size);
 }
 
 /**
