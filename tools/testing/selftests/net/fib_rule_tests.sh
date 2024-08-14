@@ -245,6 +245,19 @@ fib_rule6_test()
 			"$getnomatch no redirect to table"
 	done
 
+	# Re-test TOS matching, but with input routes since they are handled
+	# differently from output routes.
+	match="tos 0x10"
+	for cnt in "0x10" "0x11" "0x12" "0x13"; do
+		getmatch="tos $cnt"
+		getnomatch="tos 0x20"
+		fib_rule6_test_match_n_redirect "$match" \
+			"from $SRC_IP6 iif $DEV $getmatch" \
+			"from $SRC_IP6 iif $DEV $getnomatch" \
+			"iif $getmatch redirect to table" \
+			"iif $getnomatch no redirect to table"
+	done
+
 	match="fwmark 0x64"
 	getmatch="mark 0x64"
 	getnomatch="mark 0x63"
@@ -403,15 +416,14 @@ fib_rule4_test()
 	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
 		"oif redirect to table" "oif no redirect to table"
 
-	# need enable forwarding and disable rp_filter temporarily as all the
-	# addresses are in the same subnet and egress device == ingress device.
+	# Enable forwarding and disable rp_filter as all the addresses are in
+	# the same subnet and egress device == ingress device.
 	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec $testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
 	getnomatch="from $SRC_IP iif lo"
 	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
 		"iif redirect to table" "iif no redirect to table"
-	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=0
 
 	# Reject dsfield (tos) options which have ECN bits set
 	for cnt in $(seq 1 3); do
@@ -429,6 +441,19 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
 			"$getnomatch" "$getmatch redirect to table" \
 			"$getnomatch no redirect to table"
+	done
+
+	# Re-test TOS matching, but with input routes since they are handled
+	# differently from output routes.
+	match="tos 0x10"
+	for cnt in "0x10" "0x11" "0x12" "0x13"; do
+		getmatch="tos $cnt"
+		getnomatch="tos 0x20"
+		fib_rule4_test_match_n_redirect "$match" \
+			"from $SRC_IP iif $DEV $getmatch" \
+			"from $SRC_IP iif $DEV $getnomatch" \
+			"iif $getmatch redirect to table" \
+			"iif $getnomatch no redirect to table"
 	done
 
 	match="fwmark 0x64"
