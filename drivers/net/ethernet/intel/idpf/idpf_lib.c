@@ -357,24 +357,11 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 		goto free_msix;
 	}
 
-	if (adapter->req_vec_chunks) {
-		struct virtchnl2_vector_chunks *vchunks;
-		struct virtchnl2_alloc_vectors *ac;
-
-		ac = adapter->req_vec_chunks;
-		vchunks = &ac->vchunks;
-
-		num_vec_ids = idpf_get_vec_ids(adapter, vecids, total_vecs,
-					       vchunks);
-		if (num_vec_ids < v_actual) {
-			err = -EINVAL;
-			goto free_vecids;
-		}
-	} else {
-		int i;
-
-		for (i = 0; i < v_actual; i++)
-			vecids[i] = i;
+	num_vec_ids = idpf_get_vec_ids(adapter, vecids, total_vecs,
+				       &adapter->req_vec_chunks->vchunks);
+	if (num_vec_ids < v_actual) {
+		err = -EINVAL;
+		goto free_vecids;
 	}
 
 	for (vector = 0; vector < v_actual; vector++) {
