@@ -14,6 +14,7 @@
  * Inspired by dwc3-omap.c and dwc3-exynos.c.
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -197,7 +198,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	struct st_dwc3 *dwc3_data;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_node *node = dev->of_node;
 	struct platform_device *child_pdev;
 	struct regmap *regmap;
 	int ret;
@@ -227,6 +228,13 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	dev_vdbg(&pdev->dev, "glue-logic addr 0x%pK, syscfg-reg offset 0x%x\n",
 		 dwc3_data->glue_base, dwc3_data->syscfg_reg_off);
 
+	struct device_node *child __free(device_node) = of_get_compatible_child(node,
+										"snps,dwc3");
+	if (!child) {
+		dev_err(&pdev->dev, "failed to find dwc3 core node\n");
+		return -ENODEV;
+	}
+
 	dwc3_data->rstc_pwrdn =
 		devm_reset_control_get_exclusive(dev, "powerdown");
 	if (IS_ERR(dwc3_data->rstc_pwrdn)) {
@@ -248,18 +256,11 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	/* Manage SoftReset */
 	reset_control_deassert(dwc3_data->rstc_rst);
 
-	child = of_get_compatible_child(node, "snps,dwc3");
-	if (!child) {
-		dev_err(&pdev->dev, "failed to find dwc3 core node\n");
-		ret = -ENODEV;
-		goto err_node_put;
-	}
-
 	/* Allocate and initialize the core */
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to add dwc3 core\n");
-		goto err_node_put;
+		goto undo_softreset;
 	}
 
 	child_pdev = of_find_device_by_node(child);
@@ -270,7 +271,6 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	}
 
 	dwc3_data->dr_mode = usb_get_dr_mode(&child_pdev->dev);
-	of_node_put(child);
 	platform_device_put(child_pdev);
 
 	/*
@@ -282,8 +282,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	ret = st_dwc3_drd_init(dwc3_data);
 	if (ret) {
 		dev_err(dev, "drd initialisation failed\n");
-		of_platform_depopulate(dev);
-		goto undo_softreset;
+		goto depopulate;
 	}
 
 	/* ST glue logic init */
@@ -294,8 +293,6 @@ static int st_dwc3_probe(struct platform_device *pdev)
 
 depopulate:
 	of_platform_depopulate(dev);
-err_node_put:
-	of_node_put(child);
 undo_softreset:
 	reset_control_assert(dwc3_data->rstc_rst);
 undo_powerdown:
