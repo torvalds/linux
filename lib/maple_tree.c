@@ -6371,14 +6371,18 @@ write_retry:
 
 	/* Must reset to ensure spanning writes of last slot are detected */
 	mas_reset(mas);
-	mas_wr_store_setup(&wr_mas);
-	mas_wr_store_entry(&wr_mas);
+	mas_wr_preallocate(&wr_mas, NULL);
 	if (mas_nomem(mas, GFP_KERNEL)) {
 		/* in case the range of entry changed when unlocked */
 		mas->index = mas->last = index;
 		goto write_retry;
 	}
 
+	if (mas_is_err(mas))
+		goto out;
+
+	mas_wr_store_entry(&wr_mas);
+out:
 	mas_destroy(mas);
 	return entry;
 }
