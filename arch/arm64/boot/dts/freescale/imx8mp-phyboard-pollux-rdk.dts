@@ -43,6 +43,15 @@
 		};
 	};
 
+	reg_vcc_5v_sw: regulator-vcc-5v-sw {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "VCC_5V_SW";
+	};
+
 	reg_can1_stby: regulator-can1-stby {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
