@@ -104,7 +104,7 @@ alternative_else_nop_endif
 
 #define __ptrauth_save_key(ctxt, key)					\
 	do {								\
-		u64 __val;                                              \
+		u64 __val;						\
 		__val = read_sysreg_s(SYS_ ## key ## KEYLO_EL1);	\
 		ctxt_sys_reg(ctxt, key ## KEYLO_EL1) = __val;		\
 		__val = read_sysreg_s(SYS_ ## key ## KEYHI_EL1);	\
