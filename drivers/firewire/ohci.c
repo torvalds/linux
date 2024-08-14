@@ -77,7 +77,7 @@ struct descriptor {
 	__le32 branch_address;
 	__le16 res_count;
 	__le16 transfer_status;
-} __attribute__((aligned(16)));
+} __aligned(16);
 
 #define CONTROL_SET(regs)	(regs)
 #define CONTROL_CLEAR(regs)	((regs) + 4)
