@@ -174,11 +174,16 @@ fib_rule6_test_match_n_redirect()
 {
 	local match="$1"
 	local getmatch="$2"
-	local description="$3"
+	local getnomatch="$3"
+	local description="$4"
+	local nomatch_description="$5"
 
 	$IP -6 rule add $match table $RTABLE
 	$IP -6 route get $GW_IP6 $getmatch | grep -q "table $RTABLE"
 	log_test $? 0 "rule6 check: $description"
+
+	$IP -6 route get $GW_IP6 $getnomatch 2>&1 | grep -q "table $RTABLE"
+	log_test $? 1 "rule6 check: $nomatch_description"
 
 	fib_rule6_del_by_pref "$match"
 	log_test $? 0 "rule6 del by pref: $description"
@@ -201,6 +206,7 @@ fib_rule6_test_reject()
 fib_rule6_test()
 {
 	local ext_name=$1; shift
+	local getnomatch
 	local getmatch
 	local match
 	local cnt
@@ -212,10 +218,14 @@ fib_rule6_test()
 	$IP -6 route add table $RTABLE default via $GW_IP6 dev $DEV onlink
 
 	match="oif $DEV"
-	fib_rule6_test_match_n_redirect "$match" "$match" "oif redirect to table"
+	getnomatch="oif lo"
+	fib_rule6_test_match_n_redirect "$match" "$match" "$getnomatch" \
+		"oif redirect to table" "oif no redirect to table"
 
 	match="from $SRC_IP6 iif $DEV"
-	fib_rule6_test_match_n_redirect "$match" "$match" "iif redirect to table"
+	getnomatch="from $SRC_IP6 iif lo"
+	fib_rule6_test_match_n_redirect "$match" "$match" "$getnomatch" \
+		"iif redirect to table" "iif no redirect to table"
 
 	# Reject dsfield (tos) options which have ECN bits set
 	for cnt in $(seq 1 3); do
@@ -229,37 +239,52 @@ fib_rule6_test()
 		# Using option 'tos' instead of 'dsfield' as old iproute2
 		# versions don't support 'dsfield' in ip rule show.
 		getmatch="tos $cnt"
+		getnomatch="tos 0x20"
 		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
-						"$getmatch redirect to table"
+			"$getnomatch" "$getmatch redirect to table" \
+			"$getnomatch no redirect to table"
 	done
 
 	match="fwmark 0x64"
 	getmatch="mark 0x64"
-	fib_rule6_test_match_n_redirect "$match" "$getmatch" "fwmark redirect to table"
+	getnomatch="mark 0x63"
+	fib_rule6_test_match_n_redirect "$match" "$getmatch" "$getnomatch" \
+		"fwmark redirect to table" "fwmark no redirect to table"
 
 	fib_check_iproute_support "uidrange" "uid"
 	if [ $? -eq 0 ]; then
 		match="uidrange 100-100"
 		getmatch="uid 100"
-		fib_rule6_test_match_n_redirect "$match" "$getmatch" "uid redirect to table"
+		getnomatch="uid 101"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "uid redirect to table" \
+			"uid no redirect to table"
 	fi
 
 	fib_check_iproute_support "sport" "sport"
 	if [ $? -eq 0 ]; then
 		match="sport 666 dport 777"
-		fib_rule6_test_match_n_redirect "$match" "$match" "sport and dport redirect to table"
+		getnomatch="sport 667 dport 778"
+		fib_rule6_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "sport and dport redirect to table" \
+			"sport and dport no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto tcp"
-		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto match"
+		getnomatch="ipproto udp"
+		fib_rule6_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "ipproto tcp match" "ipproto udp no match"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto ipv6-icmp"
-		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto ipv6-icmp match"
+		getnomatch="ipproto tcp"
+		fib_rule6_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "ipproto ipv6-icmp match" \
+			"ipproto ipv6-tcp no match"
 	fi
 }
 
@@ -320,11 +345,16 @@ fib_rule4_test_match_n_redirect()
 {
 	local match="$1"
 	local getmatch="$2"
-	local description="$3"
+	local getnomatch="$3"
+	local description="$4"
+	local nomatch_description="$5"
 
 	$IP rule add $match table $RTABLE
 	$IP route get $GW_IP4 $getmatch | grep -q "table $RTABLE"
 	log_test $? 0 "rule4 check: $description"
+
+	$IP route get $GW_IP4 $getnomatch 2>&1 | grep -q "table $RTABLE"
+	log_test $? 1 "rule4 check: $nomatch_description"
 
 	fib_rule4_del_by_pref "$match"
 	log_test $? 0 "rule4 del by pref: $description"
@@ -347,6 +377,7 @@ fib_rule4_test_reject()
 fib_rule4_test()
 {
 	local ext_name=$1; shift
+	local getnomatch
 	local getmatch
 	local match
 	local cnt
@@ -358,14 +389,18 @@ fib_rule4_test()
 	$IP route add table $RTABLE default via $GW_IP4 dev $DEV onlink
 
 	match="oif $DEV"
-	fib_rule4_test_match_n_redirect "$match" "$match" "oif redirect to table"
+	getnomatch="oif lo"
+	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
+		"oif redirect to table" "oif no redirect to table"
 
 	# need enable forwarding and disable rp_filter temporarily as all the
 	# addresses are in the same subnet and egress device == ingress device.
 	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec $testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
-	fib_rule4_test_match_n_redirect "$match" "$match" "iif redirect to table"
+	getnomatch="from $SRC_IP iif lo"
+	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
+		"iif redirect to table" "iif no redirect to table"
 	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=0
 
 	# Reject dsfield (tos) options which have ECN bits set
@@ -380,37 +415,53 @@ fib_rule4_test()
 		# Using option 'tos' instead of 'dsfield' as old iproute2
 		# versions don't support 'dsfield' in ip rule show.
 		getmatch="tos $cnt"
+		getnomatch="tos 0x20"
 		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
-						"$getmatch redirect to table"
+			"$getnomatch" "$getmatch redirect to table" \
+			"$getnomatch no redirect to table"
 	done
 
 	match="fwmark 0x64"
 	getmatch="mark 0x64"
-	fib_rule4_test_match_n_redirect "$match" "$getmatch" "fwmark redirect to table"
+	getnomatch="mark 0x63"
+	fib_rule4_test_match_n_redirect "$match" "$getmatch" "$getnomatch" \
+		"fwmark redirect to table" "fwmark no redirect to table"
 
 	fib_check_iproute_support "uidrange" "uid"
 	if [ $? -eq 0 ]; then
 		match="uidrange 100-100"
 		getmatch="uid 100"
-		fib_rule4_test_match_n_redirect "$match" "$getmatch" "uid redirect to table"
+		getnomatch="uid 101"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "uid redirect to table" \
+			"uid no redirect to table"
 	fi
 
 	fib_check_iproute_support "sport" "sport"
 	if [ $? -eq 0 ]; then
 		match="sport 666 dport 777"
-		fib_rule4_test_match_n_redirect "$match" "$match" "sport and dport redirect to table"
+		getnomatch="sport 667 dport 778"
+		fib_rule4_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "sport and dport redirect to table" \
+			"sport and dport no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto tcp"
-		fib_rule4_test_match_n_redirect "$match" "$match" "ipproto tcp match"
+		getnomatch="ipproto udp"
+		fib_rule4_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "ipproto tcp match" \
+			"ipproto udp no match"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto icmp"
-		fib_rule4_test_match_n_redirect "$match" "$match" "ipproto icmp match"
+		getnomatch="ipproto tcp"
+		fib_rule4_test_match_n_redirect "$match" "$match" \
+			"$getnomatch" "ipproto icmp match" \
+			"ipproto tcp no match"
 	fi
 }
 
