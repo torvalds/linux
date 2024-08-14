@@ -824,6 +824,21 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 
 	/*
+	 * Dell AIO (All in Ones) which advertise an UART attached backlight
+	 * controller board in their ACPI tables (and may even have one), but
+	 * which need native backlight control nevertheless.
+	 */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=2303936 */
+	 .callback = video_detect_force_native,
+	 /* Dell OptiPlex 7760 AIO */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 7760 AIO"),
+		},
+	},
+
+	/*
 	 * Models which have nvidia-ec-wmi support, but should not use it.
 	 * Note this indicates a likely firmware bug on these models and should
 	 * be revisited if/when Linux gets support for dynamic mux mode.
