@@ -528,6 +528,9 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 		struct disk_accounting_pos acc_k;
 		bpos_to_disk_accounting_pos(&acc_k, e->pos);
 
+		if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+			continue;
+
 		u64 src_v[BCH_ACCOUNTING_MAX_COUNTERS];
 		u64 dst_v[BCH_ACCOUNTING_MAX_COUNTERS];
 
@@ -760,6 +763,12 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			struct bkey_s_c_accounting a = bkey_s_c_to_accounting(k);
 			unsigned nr = bch2_accounting_counters(k.k);
 
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+
+			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+				continue;
+
 			bch2_accounting_mem_read(c, k.k->p, v, nr);
 
 			if (memcmp(a.v->d, v, nr * sizeof(u64))) {
@@ -774,9 +783,6 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				printbuf_exit(&buf);
 				mismatch = true;
 			}
-
-			struct disk_accounting_pos acc_k;
-			bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 
 			switch (acc_k.type) {
 			case BCH_DISK_ACCOUNTING_persistent_reserved:
