@@ -56,14 +56,6 @@ log_test()
 	fi
 }
 
-log_section()
-{
-	echo
-	echo "######################################################################"
-	echo "TEST SECTION: $*"
-	echo "######################################################################"
-}
-
 check_nettest()
 {
 	if which nettest > /dev/null 2>&1; then
@@ -452,14 +444,6 @@ fib_rule4_connect_test()
 
 	$IP -4 rule del dsfield 0x04 table $RTABLE_PEER
 	cleanup_peer
-}
-
-run_fibrule_tests()
-{
-	log_section "IPv4 fib rule"
-	fib_rule4_test
-	log_section "IPv6 fib rule"
-	fib_rule6_test
 }
 ################################################################################
 # usage
