@@ -3780,7 +3780,7 @@ done:
  *
  * Return: 0 on error, positive on success.
  */
-static inline int mas_wr_spanning_store(struct ma_wr_state *wr_mas)
+static noinline int mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
 	struct maple_subtree_state mast;
 	struct maple_big_node b_node;
@@ -4206,43 +4206,62 @@ slow_path:
 static inline void mas_wr_store_entry(struct ma_wr_state *wr_mas)
 {
 	struct ma_state *mas = wr_mas->mas;
+	unsigned char new_end = mas_wr_new_end(wr_mas);
 
-	wr_mas->content = mas_start(mas);
-	if (mas_is_none(mas) || mas_is_ptr(mas)) {
-		mas_store_root(mas, wr_mas->entry);
+	switch (mas->store_type) {
+	case wr_invalid:
+		MT_BUG_ON(mas->tree, 1);
 		return;
-	}
-
-	if (unlikely(!mas_wr_walk(wr_mas))) {
-		mas_wr_spanning_store(wr_mas);
-		return;
-	}
-
-	/* At this point, we are at the leaf node that needs to be altered. */
-	mas_wr_end_piv(wr_mas);
-	/* New root for a single pointer */
-	if (unlikely(!mas->index && mas->last == ULONG_MAX))
+	case wr_new_root:
 		mas_new_root(mas, wr_mas->entry);
-	else
-		mas_wr_modify(wr_mas);
+		break;
+	case wr_store_root:
+		mas_store_root(mas, wr_mas->entry);
+		break;
+	case wr_exact_fit:
+		rcu_assign_pointer(wr_mas->slots[mas->offset], wr_mas->entry);
+		if (!!wr_mas->entry ^ !!wr_mas->content)
+			mas_update_gap(mas);
+		break;
+	case wr_append:
+		mas_wr_append(wr_mas, new_end);
+		break;
+	case wr_slot_store:
+		mas_wr_slot_store(wr_mas);
+		break;
+	case wr_node_store:
+		mas_wr_node_store(wr_mas, new_end);
+		break;
+	case wr_spanning_store:
+		mas_wr_spanning_store(wr_mas);
+		break;
+	case wr_split_store:
+	case wr_rebalance:
+		mas_wr_bnode(wr_mas);
+		break;
+	}
+
+	return;
 }
 
-static void mas_wr_store_setup(struct ma_wr_state *wr_mas)
+static inline void mas_wr_prealloc_setup(struct ma_wr_state *wr_mas)
 {
-	if (!mas_is_active(wr_mas->mas)) {
-		if (mas_is_start(wr_mas->mas))
-			return;
+	struct ma_state *mas = wr_mas->mas;
 
-		if (unlikely(mas_is_paused(wr_mas->mas)))
+	if (!mas_is_active(mas)) {
+		if (mas_is_start(mas))
+			goto set_content;
+
+		if (unlikely(mas_is_paused(mas)))
 			goto reset;
 
-		if (unlikely(mas_is_none(wr_mas->mas)))
+		if (unlikely(mas_is_none(mas)))
 			goto reset;
 
-		if (unlikely(mas_is_overflow(wr_mas->mas)))
+		if (unlikely(mas_is_overflow(mas)))
 			goto reset;
 
-		if (unlikely(mas_is_underflow(wr_mas->mas)))
+		if (unlikely(mas_is_underflow(mas)))
 			goto reset;
 	}
 
@@ -4251,27 +4270,20 @@ static void mas_wr_store_setup(struct ma_wr_state *wr_mas)
 	 * writes within this node.  This is to stop partial walks in
 	 * mas_prealloc() from being reset.
 	 */
-	if (wr_mas->mas->last > wr_mas->mas->max)
+	if (mas->last > mas->max)
 		goto reset;
 
 	if (wr_mas->entry)
-		return;
+		goto set_content;
 
-	if (mte_is_leaf(wr_mas->mas->node) &&
-	    wr_mas->mas->last == wr_mas->mas->max)
+	if (mte_is_leaf(mas->node) && mas->last == mas->max)
 		goto reset;
 
-	return;
+	goto set_content;
 
 reset:
-	mas_reset(wr_mas->mas);
-}
-
-static inline void mas_wr_prealloc_setup(struct ma_wr_state *wr_mas)
-{
-	struct ma_state *mas = wr_mas->mas;
-
-	mas_wr_store_setup(wr_mas);
+	mas_reset(mas);
+set_content:
 	wr_mas->content = mas_start(mas);
 }
 
@@ -5582,7 +5594,8 @@ void *mas_store(struct ma_state *mas, void *entry)
 	 * want to examine what happens if a single store operation was to
 	 * overwrite multiple entries within a self-balancing B-Tree.
 	 */
-	mas_wr_store_setup(&wr_mas);
+	mas_wr_prealloc_setup(&wr_mas);
+	mas_wr_store_type(&wr_mas);
 	mas_wr_store_entry(&wr_mas);
 	return wr_mas.content;
 }
@@ -5634,7 +5647,8 @@ void mas_store_prealloc(struct ma_state *mas, void *entry)
 {
 	MA_WR_STATE(wr_mas, mas, entry);
 
-	mas_wr_store_setup(&wr_mas);
+	mas_wr_prealloc_setup(&wr_mas);
+	mas_wr_store_type(&wr_mas);
 	trace_ma_write(__func__, mas, 0, entry);
 	mas_wr_store_entry(&wr_mas);
 	MAS_WR_BUG_ON(&wr_mas, mas_is_err(mas));
