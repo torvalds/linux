@@ -1171,7 +1171,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 	uint32_t alloclen, offset, orig_end, orig_start;
 	int ret = 0;
 	unsigned char *comprbuf = NULL, *writebuf;
-	struct page *page;
+	struct folio *folio;
 	unsigned char *pg_ptr;
 
 	memset(&ri, 0, sizeof(ri));
@@ -1317,25 +1317,25 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		BUG_ON(start > orig_start);
 	}
 
-	/* The rules state that we must obtain the page lock *before* f->sem, so
+	/* The rules state that we must obtain the folio lock *before* f->sem, so
 	 * drop f->sem temporarily. Since we also hold c->alloc_sem, nothing's
 	 * actually going to *change* so we're safe; we only allow reading.
 	 *
 	 * It is important to note that jffs2_write_begin() will ensure that its
-	 * page is marked Uptodate before allocating space. That means that if we
-	 * end up here trying to GC the *same* page that jffs2_write_begin() is
-	 * trying to write out, read_cache_page() will not deadlock. */
+	 * folio is marked uptodate before allocating space. That means that if we
+	 * end up here trying to GC the *same* folio that jffs2_write_begin() is
+	 * trying to write out, read_cache_folio() will not deadlock. */
 	mutex_unlock(&f->sem);
-	page = read_cache_page(inode->i_mapping, start >> PAGE_SHIFT,
+	folio = read_cache_folio(inode->i_mapping, start >> PAGE_SHIFT,
 			       __jffs2_read_folio, NULL);
-	if (IS_ERR(page)) {
-		pr_warn("read_cache_page() returned error: %ld\n",
-			PTR_ERR(page));
+	if (IS_ERR(folio)) {
+		pr_warn("read_cache_folio() returned error: %ld\n",
+			PTR_ERR(folio));
 		mutex_lock(&f->sem);
-		return PTR_ERR(page);
+		return PTR_ERR(folio);
 	}
 
-	pg_ptr = kmap(page);
+	pg_ptr = kmap_local_folio(folio, 0);
 	mutex_lock(&f->sem);
 
 	offset = start;
@@ -1400,7 +1400,6 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		}
 	}
 
-	kunmap(page);
-	put_page(page);
+	folio_release_kmap(folio, pg_ptr);
 	return ret;
 }
