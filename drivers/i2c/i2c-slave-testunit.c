@@ -8,6 +8,8 @@
 
 #include <generated/utsrelease.h>
 #include <linux/bitops.h>
+#include <linux/completion.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -22,6 +24,7 @@ enum testunit_cmds {
 	TU_CMD_SMBUS_HOST_NOTIFY,
 	TU_CMD_SMBUS_BLOCK_PROC_CALL,
 	TU_CMD_GET_VERSION_WITH_REP_START,
+	TU_CMD_SMBUS_ALERT_REQUEST,
 	TU_NUM_CMDS
 };
 
@@ -44,9 +47,36 @@ struct testunit_data {
 	u8 read_idx;
 	struct i2c_client *client;
 	struct delayed_work worker;
+	struct gpio_desc *gpio;
+	struct completion alert_done;
 };
 
 static char tu_version_info[] = "v" UTS_RELEASE "\n\0";
+
+static int i2c_slave_testunit_smbalert_cb(struct i2c_client *client,
+					  enum i2c_slave_event event, u8 *val)
+{
+	struct testunit_data *tu = i2c_get_clientdata(client);
+
+	switch (event) {
+	case I2C_SLAVE_READ_PROCESSED:
+		gpiod_set_value(tu->gpio, 0);
+		fallthrough;
+	case I2C_SLAVE_READ_REQUESTED:
+		*val = tu->regs[TU_REG_DATAL];
+		break;
+
+	case I2C_SLAVE_STOP:
+		complete(&tu->alert_done);
+		break;
+
+	case I2C_SLAVE_WRITE_REQUESTED:
+	case I2C_SLAVE_WRITE_RECEIVED:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
 
 static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 				     enum i2c_slave_event event, u8 *val)
@@ -127,8 +157,10 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 static void i2c_slave_testunit_work(struct work_struct *work)
 {
 	struct testunit_data *tu = container_of(work, struct testunit_data, worker.work);
+	unsigned long time_left;
 	struct i2c_msg msg;
 	u8 msgbuf[256];
+	u16 orig_addr;
 	int ret = 0;
 
 	msg.addr = I2C_CLIENT_END;
@@ -148,6 +180,26 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		msgbuf[0] = tu->client->addr;
 		msgbuf[1] = tu->regs[TU_REG_DATAL];
 		msgbuf[2] = tu->regs[TU_REG_DATAH];
+		break;
+
+	case TU_CMD_SMBUS_ALERT_REQUEST:
+		i2c_slave_unregister(tu->client);
+		orig_addr = tu->client->addr;
+		tu->client->addr = 0x0c;
+		ret = i2c_slave_register(tu->client, i2c_slave_testunit_smbalert_cb);
+		if (ret)
+			goto out_smbalert;
+
+		reinit_completion(&tu->alert_done);
+		gpiod_set_value(tu->gpio, 1);
+		time_left = wait_for_completion_timeout(&tu->alert_done, HZ);
+		if (!time_left)
+			ret = -ETIMEDOUT;
+
+		i2c_slave_unregister(tu->client);
+out_smbalert:
+		tu->client->addr = orig_addr;
+		i2c_slave_register(tu->client, i2c_slave_testunit_slave_cb);
 		break;
 
 	default:
@@ -176,7 +228,14 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 
 	tu->client = client;
 	i2c_set_clientdata(client, tu);
+	init_completion(&tu->alert_done);
 	INIT_DELAYED_WORK(&tu->worker, i2c_slave_testunit_work);
+
+	tu->gpio = devm_gpiod_get_index_optional(&client->dev, NULL, 0, GPIOD_OUT_LOW);
+	if (gpiod_cansleep(tu->gpio)) {
+		dev_err(&client->dev, "GPIO access which may sleep is not allowed\n");
+		return -EDEADLK;
+	}
 
 	if (sizeof(tu_version_info) > TU_VERSION_MAX_LENGTH)
 		tu_version_info[TU_VERSION_MAX_LENGTH - 1] = 0;

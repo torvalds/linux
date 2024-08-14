@@ -185,3 +185,51 @@ default response::
 
   # i2cset -y 0 0x30 4 0 0 i; i2cget -y 0 0x30
   0x00
+
+0x05 SMBUS_ALERT_REQUEST
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+  :header-rows: 1
+
+  * - CMD
+    - DATAL
+    - DATAH
+    - DELAY
+
+  * - 0x05
+    - response value (7 MSBs interpreted as I2C address)
+    - currently unused
+    - n * 10ms
+
+This test raises an interrupt via the SMBAlert pin which the host controller
+must handle. The pin must be connected to the testunit as a GPIO. GPIO access
+is not allowed to sleep. Currently, this can only be described using firmware
+nodes. So, for devicetree, you would add something like this to the testunit
+node::
+
+  gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
+
+The following command will trigger the alert with a response of 0xc9 after 1
+second of delay::
+
+  # i2cset -y 0 0x30 5 0xc9 0x00 100 i
+
+If the host controller supports SMBusAlert, this message with debug level
+should appear::
+
+  smbus_alert 0-000c: SMBALERT# from dev 0x64, flag 1
+
+This message may appear more than once because the testunit is software not
+hardware and, thus, may not be able to react to the response of the host fast
+enough. The interrupt count should increase only by one, though::
+
+  # cat /proc/interrupts | grep smbus_alert
+   93:          1  gpio-rcar  26 Edge      smbus_alert
+
+If the host does not respond to the alert within 1 second, the test will be
+aborted and the testunit will report an error.
+
+For this test, the testunit will shortly drop its assigned address and listen
+on the SMBus Alert Response Address (0x0c). It will reassign its original
+address afterwards.
