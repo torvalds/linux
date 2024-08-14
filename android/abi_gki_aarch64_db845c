@@ -447,6 +447,7 @@
   misc_register
   mod_delayed_work_on
   mod_timer
+  __module_get
   module_layout
   __msecs_to_jiffies
   msleep
@@ -848,6 +849,7 @@
   vunmap
   vzalloc
   wait_for_completion_interruptible
+  wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   __wake_up
   wake_up_process
