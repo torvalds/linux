@@ -35,18 +35,13 @@ log_test()
 	local expected=$2
 	local msg="$3"
 
-	$IP rule show | grep -q l3mdev
-	if [ $? -eq 0 ]; then
-		msg="$msg (VRF)"
-	fi
-
 	if [ ${rc} -eq ${expected} ]; then
 		nsuccess=$((nsuccess+1))
-		printf "\n    TEST: %-60s  [ OK ]\n" "${msg}"
+		printf "    TEST: %-60s  [ OK ]\n" "${msg}"
 	else
 		ret=1
 		nfail=$((nfail+1))
-		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
+		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
@@ -205,9 +200,13 @@ fib_rule6_test_reject()
 
 fib_rule6_test()
 {
+	local ext_name=$1; shift
 	local getmatch
 	local match
 	local cnt
+
+	echo
+	echo "IPv6 FIB rule tests $ext_name"
 
 	# setup the fib rule redirect route
 	$IP -6 route add table $RTABLE default via $GW_IP6 dev $DEV onlink
@@ -267,7 +266,7 @@ fib_rule6_test()
 fib_rule6_vrf_test()
 {
 	setup_vrf
-	fib_rule6_test
+	fib_rule6_test "- with VRF"
 	cleanup_vrf
 }
 
@@ -276,6 +275,9 @@ fib_rule6_vrf_test()
 fib_rule6_connect_test()
 {
 	local dsfield
+
+	echo
+	echo "IPv6 FIB rule connect tests"
 
 	if ! check_nettest; then
 		echo "SKIP: Could not run test without nettest tool"
@@ -344,9 +346,13 @@ fib_rule4_test_reject()
 
 fib_rule4_test()
 {
+	local ext_name=$1; shift
 	local getmatch
 	local match
 	local cnt
+
+	echo
+	echo "IPv4 FIB rule tests $ext_name"
 
 	# setup the fib rule redirect route
 	$IP route add table $RTABLE default via $GW_IP4 dev $DEV onlink
@@ -411,7 +417,7 @@ fib_rule4_test()
 fib_rule4_vrf_test()
 {
 	setup_vrf
-	fib_rule4_test
+	fib_rule4_test "- with VRF"
 	cleanup_vrf
 }
 
@@ -420,6 +426,9 @@ fib_rule4_vrf_test()
 fib_rule4_connect_test()
 {
 	local dsfield
+
+	echo
+	echo "IPv4 FIB rule connect tests"
 
 	if ! check_nettest; then
 		echo "SKIP: Could not run test without nettest tool"
