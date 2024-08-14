@@ -323,21 +323,6 @@ endif ## SND_SOC_SOF_APOLLOLAKE
 
 if SND_SOC_INTEL_KBL
 
-config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
-	tristate "KBL with RT5663 and MAX98927 in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_RT5663
-	select SND_SOC_MAX98927
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_SKYLAKE_SSP_CLK
-	help
-	  This adds support for ASoC Onboard Codec I2S machine driver. This will
-	  create an alsa sound card for RT5663 + MAX98927.
-	  Say Y or m if you have such a device. This is a recommended option.
-	  If unsure select "N".
-
 config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
 	depends on I2C && ACPI
