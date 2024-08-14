@@ -1024,7 +1024,7 @@ int spacc_set_operation(struct spacc_device *spacc, int handle, int op,
 	int ret = CRYPTO_OK;
 	struct spacc_job *job = NULL;
 
-	if (handle < 0 || handle > SPACC_MAX_JOBS)
+	if (handle < 0 || handle >= SPACC_MAX_JOBS)
 		return -ENXIO;
 
 	job = &spacc->job[handle];
@@ -1105,7 +1105,7 @@ int spacc_packet_enqueue_ddt_ex(struct spacc_device *spacc, int use_jb,
 	struct spacc_job *job;
 	int ret = CRYPTO_OK, proc_len;
 
-	if (job_idx < 0 || job_idx > SPACC_MAX_JOBS)
+	if (job_idx < 0 || job_idx >= SPACC_MAX_JOBS)
 		return -ENXIO;
 
 	switch (prio)  {
@@ -1331,7 +1331,7 @@ static int spacc_set_auxinfo(struct spacc_device *spacc, int jobid,
 	int ret = CRYPTO_OK;
 	struct spacc_job *job;
 
-	if (jobid < 0 || jobid > SPACC_MAX_JOBS)
+	if (jobid < 0 || jobid >= SPACC_MAX_JOBS)
 		return -ENXIO;
 
 	job = &spacc->job[jobid];
@@ -2364,7 +2364,7 @@ int spacc_set_key_exp(struct spacc_device *spacc, int job_idx)
 	struct spacc_ctx *ctx = NULL;
 	struct spacc_job *job = NULL;
 
-	if (job_idx < 0 || job_idx > SPACC_MAX_JOBS) {
+	if (job_idx < 0 || job_idx >= SPACC_MAX_JOBS) {
 		pr_debug("ERR: Invalid Job id specified (out of range)\n");
 		return -ENXIO;
 	}
