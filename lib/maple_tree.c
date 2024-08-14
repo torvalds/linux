@@ -2823,10 +2823,8 @@ dead_node:
  * orig_l_mas->last is used in mas_consume to find the slots that will need to
  * be either freed or destroyed.  orig_l_mas->depth keeps track of the height of
  * the new sub-tree in case the sub-tree becomes the full tree.
- *
- * Return: the number of elements in b_node during the last loop.
  */
-static int mas_spanning_rebalance(struct ma_state *mas,
+static void mas_spanning_rebalance(struct ma_state *mas,
 		struct maple_subtree_state *mast, unsigned char count)
 {
 	unsigned char split, mid_split;
@@ -2942,7 +2940,7 @@ new_root:
 	mas->offset = l_mas.offset;
 	mas_wmb_replace(mas, old_enode);
 	mtree_range_walk(mas);
-	return mast->bn->b_end;
+	return;
 }
 
 /*
@@ -2952,10 +2950,8 @@ new_root:
  *
  * Rebalance two nodes into a single node or two new nodes that are sufficient.
  * Continue upwards until tree is sufficient.
- *
- * Return: the number of elements in b_node during the last loop.
  */
-static inline int mas_rebalance(struct ma_state *mas,
+static inline void mas_rebalance(struct ma_state *mas,
 				struct maple_big_node *b_node)
 {
 	char empty_count = mas_mt_height(mas);
@@ -3300,9 +3296,8 @@ static inline bool mas_push_data(struct ma_state *mas, int height,
  * mas_split() - Split data that is too big for one node into two.
  * @mas: The maple state
  * @b_node: The maple big node
- * Return: 1 on success, 0 on failure.
  */
-static int mas_split(struct ma_state *mas, struct maple_big_node *b_node)
+static void mas_split(struct ma_state *mas, struct maple_big_node *b_node)
 {
 	struct maple_subtree_state mast;
 	int height = 0;
@@ -3380,7 +3375,7 @@ static int mas_split(struct ma_state *mas, struct maple_big_node *b_node)
 	mas->node = l_mas.node;
 	mas_wmb_replace(mas, old);
 	mtree_range_walk(mas);
-	return 1;
+	return;
 }
 
 /*
@@ -3388,7 +3383,7 @@ static int mas_split(struct ma_state *mas, struct maple_big_node *b_node)
  * @wr_mas: The maple write state
  * @b_node: The maple big node
  */
-static noinline_for_kasan int mas_commit_b_node(struct ma_wr_state *wr_mas,
+static noinline_for_kasan void mas_commit_b_node(struct ma_wr_state *wr_mas,
 			    struct maple_big_node *b_node)
 {
 	enum store_type type = wr_mas->mas->store_type;
@@ -3664,10 +3659,8 @@ static void mte_destroy_walk(struct maple_enode *, struct maple_tree *);
  * @entry: The entry to store.
  *
  * Only valid when the index == 0 and the last == ULONG_MAX
- *
- * Return 0 on error, 1 on success.
  */
-static inline int mas_new_root(struct ma_state *mas, void *entry)
+static inline void mas_new_root(struct ma_state *mas, void *entry)
 {
 	struct maple_enode *root = mas_root_locked(mas);
 	enum maple_type type = maple_leaf_64;
@@ -3699,7 +3692,7 @@ done:
 	if (xa_is_node(root))
 		mte_destroy_walk(root, mas->tree);
 
-	return 1;
+	return;
 }
 /*
  * mas_wr_spanning_store() - Create a subtree with the store operation completed
@@ -3707,10 +3700,8 @@ done:
  * Note that mas is expected to point to the node which caused the store to
  * span.
  * @wr_mas: The maple write state
- *
- * Return: 0 on error, positive on success.
  */
-static noinline int mas_wr_spanning_store(struct ma_wr_state *wr_mas)
+static noinline void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
 	struct maple_subtree_state mast;
 	struct maple_big_node b_node;
@@ -3802,10 +3793,8 @@ static noinline int mas_wr_spanning_store(struct ma_wr_state *wr_mas)
  * @wr_mas: The maple write state
  *
  * Attempts to reuse the node, but may allocate.
- *
- * Return: True if stored, false otherwise
  */
-static inline bool mas_wr_node_store(struct ma_wr_state *wr_mas,
+static inline void mas_wr_node_store(struct ma_wr_state *wr_mas,
 				     unsigned char new_end)
 {
 	struct ma_state *mas = wr_mas->mas;
@@ -3878,16 +3867,14 @@ done:
 	trace_ma_write(__func__, mas, 0, wr_mas->entry);
 	mas_update_gap(mas);
 	mas->end = new_end;
-	return true;
+	return;
 }
 
 /*
  * mas_wr_slot_store: Attempt to store a value in a slot.
  * @wr_mas: the maple write state
- *
- * Return: True if stored, false otherwise
  */
-static inline bool mas_wr_slot_store(struct ma_wr_state *wr_mas)
+static inline void mas_wr_slot_store(struct ma_wr_state *wr_mas)
 {
 	struct ma_state *mas = wr_mas->mas;
 	unsigned char offset = mas->offset;
@@ -3919,7 +3906,7 @@ static inline bool mas_wr_slot_store(struct ma_wr_state *wr_mas)
 		wr_mas->pivots[offset + 1] = mas->last;
 		mas->offset++; /* Keep mas accurate. */
 	} else {
-		return false;
+		return;
 	}
 
 	trace_ma_write(__func__, mas, 0, wr_mas->entry);
@@ -3930,7 +3917,7 @@ static inline bool mas_wr_slot_store(struct ma_wr_state *wr_mas)
 	if (!wr_mas->entry || gap)
 		mas_update_gap(mas);
 
-	return true;
+	return;
 }
 
 static inline void mas_wr_extend_null(struct ma_wr_state *wr_mas)
@@ -4004,10 +3991,8 @@ static inline unsigned char mas_wr_new_end(struct ma_wr_state *wr_mas)
  * This is currently unsafe in rcu mode since the end of the node may be cached
  * by readers while the node contents may be updated which could result in
  * inaccurate information.
- *
- * Return: True if appended, false otherwise
  */
-static inline bool mas_wr_append(struct ma_wr_state *wr_mas,
+static inline void mas_wr_append(struct ma_wr_state *wr_mas,
 		unsigned char new_end)
 {
 	struct ma_state *mas = wr_mas->mas;
@@ -4046,7 +4031,7 @@ static inline bool mas_wr_append(struct ma_wr_state *wr_mas,
 
 	mas->end = new_end;
 	trace_ma_write(__func__, mas, new_end, wr_mas->entry);
-	return  true;
+	return;
 }
 
 /*
