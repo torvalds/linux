@@ -25,6 +25,8 @@ struct xe_preempt_fence {
 	struct xe_exec_queue *q;
 	/** @preempt_work: work struct which issues preemption */
 	struct work_struct preempt_work;
+	/** @lock: dma-fence fence lock */
+	spinlock_t lock;
 	/** @error: preempt fence is in error state */
 	int error;
 };
