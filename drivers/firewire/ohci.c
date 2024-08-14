@@ -174,7 +174,7 @@ struct iso_context {
 	u8 tags;
 };
 
-#define CONFIG_ROM_SIZE 1024
+#define CONFIG_ROM_SIZE		(CSR_CONFIG_ROM_END - CSR_CONFIG_ROM)
 
 struct fw_ohci {
 	struct fw_card card;

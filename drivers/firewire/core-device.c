@@ -564,7 +564,8 @@ static int read_rom(struct fw_device *device,
 	return rcode;
 }
 
-#define MAX_CONFIG_ROM_SIZE 256
+// By quadlet unit.
+#define MAX_CONFIG_ROM_SIZE	((CSR_CONFIG_ROM_END - CSR_CONFIG_ROM) / sizeof(u32))
 
 /*
  * Read the bus info block, perform a speed probe, and read all of the rest of
