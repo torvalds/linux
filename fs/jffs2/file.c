@@ -77,29 +77,27 @@ const struct address_space_operations jffs2_file_address_operations =
 	.write_end =	jffs2_write_end,
 };
 
-static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
+static int jffs2_do_readpage_nolock(struct inode *inode, struct folio *folio)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	unsigned char *pg_buf;
+	unsigned char *kaddr;
 	int ret;
 
 	jffs2_dbg(2, "%s(): ino #%lu, page at offset 0x%lx\n",
-		  __func__, inode->i_ino, pg->index << PAGE_SHIFT);
+		  __func__, inode->i_ino, folio->index << PAGE_SHIFT);
 
-	BUG_ON(!PageLocked(pg));
+	BUG_ON(!folio_test_locked(folio));
 
-	pg_buf = kmap(pg);
-	/* FIXME: Can kmap fail? */
-
-	ret = jffs2_read_inode_range(c, f, pg_buf, pg->index << PAGE_SHIFT,
+	kaddr = kmap_local_folio(folio, 0);
+	ret = jffs2_read_inode_range(c, f, kaddr, folio->index << PAGE_SHIFT,
 				     PAGE_SIZE);
+	kunmap_local(kaddr);
 
 	if (!ret)
-		SetPageUptodate(pg);
+		folio_mark_uptodate(folio);
 
-	flush_dcache_page(pg);
-	kunmap(pg);
+	flush_dcache_folio(folio);
 
 	jffs2_dbg(2, "readpage finished\n");
 	return ret;
@@ -107,7 +105,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 
 int __jffs2_read_folio(struct file *file, struct folio *folio)
 {
-	int ret = jffs2_do_readpage_nolock(folio->mapping->host, &folio->page);
+	int ret = jffs2_do_readpage_nolock(folio->mapping->host, folio);
 	folio_unlock(folio);
 	return ret;
 }
@@ -221,7 +219,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 	 */
 	if (!folio_test_uptodate(folio)) {
 		mutex_lock(&f->sem);
-		ret = jffs2_do_readpage_nolock(inode, &folio->page);
+		ret = jffs2_do_readpage_nolock(inode, folio);
 		mutex_unlock(&f->sem);
 		if (ret) {
 			folio_unlock(folio);
