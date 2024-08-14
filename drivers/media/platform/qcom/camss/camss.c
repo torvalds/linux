@@ -1780,6 +1780,7 @@ err_cleanup:
  */
 static int camss_init_subdevices(struct camss *camss)
 {
+	struct platform_device *pdev = to_platform_device(camss->dev);
 	const struct camss_resources *res = camss->res;
 	unsigned int i;
 	int ret;
@@ -1804,6 +1805,17 @@ static int camss_init_subdevices(struct camss *camss)
 				"Fail to init vfe%d sub-device: %d\n", i, ret);
 			return ret;
 		}
+	}
+
+	/* Get optional CSID wrapper regs shared between CSID devices */
+	if (res->csid_wrapper_res) {
+		char *reg = res->csid_wrapper_res->reg;
+		void __iomem *base;
+
+		base = devm_platform_ioremap_resource_byname(pdev, reg);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+		camss->csid_wrapper_base = base;
 	}
 
 	for (i = 0; i < camss->res->csid_num; i++) {
