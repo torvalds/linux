@@ -1283,6 +1283,7 @@ int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc
 					struct dc_cursor_position *position)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = drm_to_adev(plane->dev);
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
@@ -1314,11 +1315,13 @@ int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc
 		y = 0;
 	}
 	position->enable = true;
-	position->translate_by_source = true;
 	position->x = x;
 	position->y = y;
 	position->x_hotspot = xorigin;
 	position->y_hotspot = yorigin;
+
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) < IP_VERSION(4, 0, 1))
+		position->translate_by_source = true;
 
 	return 0;
 }
