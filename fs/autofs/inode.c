@@ -19,6 +19,7 @@ struct autofs_info *autofs_new_ino(struct autofs_sb_info *sbi)
 		INIT_LIST_HEAD(&ino->expiring);
 		ino->last_used = jiffies;
 		ino->sbi = sbi;
+		ino->exp_timeout = -1;
 		ino->count = 1;
 	}
 	return ino;
@@ -28,6 +29,7 @@ void autofs_clean_ino(struct autofs_info *ino)
 {
 	ino->uid = GLOBAL_ROOT_UID;
 	ino->gid = GLOBAL_ROOT_GID;
+	ino->exp_timeout = -1;
 	ino->last_used = jiffies;
 }
 
