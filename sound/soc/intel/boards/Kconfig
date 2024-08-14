@@ -333,21 +333,6 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	  create an alsa sound card for DA7219 + MAX98357A I2S audio codec.
 	  Say Y if you have such a device.
 
-config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
-	tristate "KBL with DA7219 and MAX98927 in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_DA7219
-	select SND_SOC_MAX98927
-	select SND_SOC_MAX98373_I2C
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	help
-	  This adds support for ASoC Onboard Codec I2S machine driver. This will
-	  create an alsa sound card for DA7219 + MAX98927 I2S audio codec.
-	  Say Y if you have such a device.
-	  If unsure select "N".
-
 endif ## SND_SOC_INTEL_KBL
 
 if SND_SOC_SOF_GEMINILAKE
