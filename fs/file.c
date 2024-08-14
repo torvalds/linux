@@ -162,7 +162,7 @@ out:
  * Expand the file descriptor table.
  * This function will allocate a new fdtable and both fd array and fdset, of
  * the given size.
- * Return <0 error code on error; 1 on successful completion.
+ * Return <0 error code on error; 0 on successful completion.
  * The files->file_lock should be held on entry, and will be held on exit.
  */
 static int expand_fdtable(struct files_struct *files, unsigned int nr)
@@ -191,15 +191,14 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
 		call_rcu(&cur_fdt->rcu, free_fdtable_rcu);
 	/* coupled with smp_rmb() in fd_install() */
 	smp_wmb();
-	return 1;
+	return 0;
 }
 
 /*
  * Expand files.
  * This function will expand the file structures, if the requested size exceeds
  * the current capacity and there is room for expansion.
- * Return <0 error code on error; 0 when nothing done; 1 when files were
- * expanded and execution may have blocked.
+ * Return <0 error code on error; 0 on success.
  * The files->file_lock should be held on entry, and will be held on exit.
  */
 static int expand_files(struct files_struct *files, unsigned int nr)
@@ -207,14 +206,14 @@ static int expand_files(struct files_struct *files, unsigned int nr)
 	__acquires(files->file_lock)
 {
 	struct fdtable *fdt;
-	int expanded = 0;
+	int error;
 
 repeat:
 	fdt = files_fdtable(files);
 
 	/* Do we need to expand? */
 	if (nr < fdt->max_fds)
-		return expanded;
+		return 0;
 
 	/* Can we expand? */
 	if (nr >= sysctl_nr_open)
@@ -222,7 +221,6 @@ repeat:
 
 	if (unlikely(files->resize_in_progress)) {
 		spin_unlock(&files->file_lock);
-		expanded = 1;
 		wait_event(files->resize_wait, !files->resize_in_progress);
 		spin_lock(&files->file_lock);
 		goto repeat;
@@ -230,11 +228,11 @@ repeat:
 
 	/* All good, so we try */
 	files->resize_in_progress = true;
-	expanded = expand_fdtable(files, nr);
+	error = expand_fdtable(files, nr);
 	files->resize_in_progress = false;
 
 	wake_up_all(&files->resize_wait);
-	return expanded;
+	return error;
 }
 
 static inline void __set_close_on_exec(unsigned int fd, struct fdtable *fdt,
@@ -507,12 +505,7 @@ repeat:
 		if (error < 0)
 			goto out;
 
-		/*
-		 * If we needed to expand the fs array we
-		 * might have blocked - try again.
-		 */
-		if (error)
-			goto repeat;
+		goto repeat;
 	}
 
 	if (start <= files->next_fd)
