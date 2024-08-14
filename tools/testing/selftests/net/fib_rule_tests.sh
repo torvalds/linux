@@ -325,6 +325,16 @@ fib_rule6_connect_test()
 		log_test $? 0 "rule6 dsfield tcp connect (dsfield ${dsfield})"
 	done
 
+	# Check that UDP and TCP connections fail when using a DS Field that
+	# does not match the previously configured FIB rule.
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -U -D \
+		-Q 0x20 -l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 1 "rule6 dsfield udp no connect (dsfield 0x20)"
+
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -Q 0x20 \
+		-l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 1 "rule6 dsfield tcp no connect (dsfield 0x20)"
+
 	$IP -6 rule del dsfield 0x04 table $RTABLE_PEER
 	cleanup_peer
 }
@@ -501,6 +511,16 @@ fib_rule4_connect_test()
 			-l 198.51.100.11 -r 198.51.100.11
 		log_test $? 0 "rule4 dsfield tcp connect (dsfield ${dsfield})"
 	done
+
+	# Check that UDP and TCP connections fail when using a DS Field that
+	# does not match the previously configured FIB rule.
+	nettest -q -B -t 5 -N $testns -O $peerns -D -U -Q 0x20 \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 1 "rule4 dsfield udp no connect (dsfield 0x20)"
+
+	nettest -q -B -t 5 -N $testns -O $peerns -Q 0x20 \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 1 "rule4 dsfield tcp no connect (dsfield 0x20)"
 
 	$IP -4 rule del dsfield 0x04 table $RTABLE_PEER
 	cleanup_peer
