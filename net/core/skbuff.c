@@ -4172,8 +4172,7 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 	/* Actual merge is delayed until the point when we know we can
 	 * commit all, so that we don't have to undo partial changes
 	 */
-	if (!to ||
-	    !skb_can_coalesce(tgt, to, skb_frag_page(fragfrom),
+	if (!skb_can_coalesce(tgt, to, skb_frag_page(fragfrom),
 			      skb_frag_off(fragfrom))) {
 		merge = -1;
 	} else {
