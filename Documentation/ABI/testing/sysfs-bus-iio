@@ -575,6 +575,19 @@ Description:
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminanceY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximityY_calibscale_available
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Available values of calibscale. Maybe expressed as either of:
+
+		- a small discrete set of values like "1 8 16"
+		- a range specified as "[min step max]"
+
+		If shared across all channels, <type>_calibscale_available is used.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender
