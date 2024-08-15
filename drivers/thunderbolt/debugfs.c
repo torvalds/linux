@@ -499,9 +499,9 @@ static bool supports_hardware(const struct tb_margining *margining)
 	return margining->caps[2] & USB4_MARGIN_CAP_2_MODES_HW;
 }
 
-static bool both_lanes(const struct tb_margining *margining)
+static bool all_lanes(const struct tb_margining *margining)
 {
-	return margining->caps[0] & USB4_MARGIN_CAP_0_2_LANES;
+	return margining->caps[0] & USB4_MARGIN_CAP_0_ALL_LANES;
 }
 
 static enum usb4_margin_cap_voltage_indp
@@ -655,8 +655,8 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		seq_puts(s, "# hardware margining: no\n");
 	}
 
-	seq_printf(s, "# both lanes simultaneously: %s\n",
-		  both_lanes(margining) ? "yes" : "no");
+	seq_printf(s, "# all lanes simultaneously: %s\n",
+		  str_yes_no(all_lanes(margining)));
 	seq_printf(s, "# voltage margin steps: %u\n",
 		   margining->voltage_steps);
 	seq_printf(s, "# maximum voltage offset: %u mV\n",
@@ -762,7 +762,7 @@ margining_lanes_write(struct file *file, const char __user *user_buf,
 		margining->lanes = 1;
 	} else if (!strcmp(buf, "all")) {
 		/* Needs to be supported */
-		if (both_lanes(margining))
+		if (all_lanes(margining))
 			margining->lanes = 7;
 		else
 			ret = -EINVAL;
@@ -787,7 +787,7 @@ static int margining_lanes_show(struct seq_file *s, void *not_used)
 		return -ERESTARTSYS;
 
 	lanes = margining->lanes;
-	if (both_lanes(margining)) {
+	if (all_lanes(margining)) {
 		if (!lanes)
 			seq_puts(s, "[0] 1 all\n");
 		else if (lanes == 1)
