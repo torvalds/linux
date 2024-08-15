@@ -718,7 +718,7 @@ bool pmo_dcn4_fams2_init_for_vmin(struct dml2_pmo_init_for_vmin_in_out *in_out)
 	const struct dml2_core_mode_support_result *mode_support_result =
 			&in_out->base_display_config->mode_support_result;
 	struct dml2_optimization_stage4_state *state =
-			&in_out->base_display_config->stage4;
+				&in_out->base_display_config->stage4;
 
 	if (in_out->instance->options->disable_dyn_odm ||
 			(in_out->instance->options->disable_dyn_odm_for_multi_stream && display_config->num_streams > 1))
@@ -1444,7 +1444,7 @@ static bool stream_matches_drr_policy(struct dml2_pmo_instance *pmo,
 		/* DRR variable strategies are disallowed due to settings or policy */
 		strategy_matches_drr_requirements = false;
 	} else if (is_bit_set_in_bitfield(PMO_DRR_CLAMPED_STRATEGY_MASK, stream_pstate_method) &&
-			(pmo->options->disable_drr_clamped ||
+		(pmo->options->disable_drr_clamped ||
 			(!stream_descriptor->timing.drr_config.enabled ||
 			(!stream_descriptor->timing.drr_config.drr_active_fixed && !stream_descriptor->timing.drr_config.drr_active_variable)) ||
 			(pmo->options->disable_drr_clamped_when_var_active &&
@@ -1910,7 +1910,8 @@ static void setup_planes_for_vblank_by_mask(struct display_configuation_with_met
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			plane = &display_config->display_config.plane_descriptors[plane_index];
 
-			plane->overrides.reserved_vblank_time_ns = (long)(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us * 1000);
+			plane->overrides.reserved_vblank_time_ns = (long)math_max2(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us * 1000.0,
+					plane->overrides.reserved_vblank_time_ns);
 
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_vblank;
 
@@ -2196,15 +2197,15 @@ bool pmo_dcn4_fams2_test_for_stutter(struct dml2_pmo_test_for_stutter_in_out *in
 
 	unsigned int i;
 
-	for (i = 0; i < in_out->base_display_config->display_config.num_streams; i++) {
+	for (i = 0; i < in_out->base_display_config->display_config.num_planes; i++) {
 		if (pmo->soc_bb->power_management_parameters.z8_stutter_exit_latency_us > 0 &&
 			pmo->scratch.pmo_dcn4.z8_vblank_optimizable &&
-			in_out->base_display_config->display_config.stream_descriptors[i].overrides.minimum_vblank_idle_requirement_us < (int)pmo->soc_bb->power_management_parameters.z8_stutter_exit_latency_us) {
+			in_out->base_display_config->display_config.plane_descriptors[i].overrides.reserved_vblank_time_ns < (int)pmo->soc_bb->power_management_parameters.z8_stutter_exit_latency_us * 1000) {
 			success = false;
 			break;
 		}
 		if (pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us > 0 &&
-			in_out->base_display_config->display_config.stream_descriptors[i].overrides.minimum_vblank_idle_requirement_us < (int)pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us) {
+			in_out->base_display_config->display_config.plane_descriptors[i].overrides.reserved_vblank_time_ns < (int)pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us * 1000) {
 			success = false;
 			break;
 		}
@@ -2223,8 +2224,11 @@ bool pmo_dcn4_fams2_optimize_for_stutter(struct dml2_pmo_optimize_for_stutter_in
 
 	if (!in_out->last_candidate_failed) {
 		if (pmo->scratch.pmo_dcn4.cur_stutter_candidate < pmo->scratch.pmo_dcn4.num_stutter_candidates) {
-			for (i = 0; i < in_out->optimized_display_config->display_config.num_streams; i++) {
-				in_out->optimized_display_config->display_config.stream_descriptors[i].overrides.minimum_vblank_idle_requirement_us = pmo->scratch.pmo_dcn4.optimal_vblank_reserved_time_for_stutter_us[pmo->scratch.pmo_dcn4.cur_stutter_candidate];
+			for (i = 0; i < in_out->optimized_display_config->display_config.num_planes; i++) {
+				/* take the max of the current and the optimal reserved time */
+				in_out->optimized_display_config->display_config.plane_descriptors[i].overrides.reserved_vblank_time_ns =
+						(long)math_max2(pmo->scratch.pmo_dcn4.optimal_vblank_reserved_time_for_stutter_us[pmo->scratch.pmo_dcn4.cur_stutter_candidate] * 1000,
+						in_out->optimized_display_config->display_config.plane_descriptors[i].overrides.reserved_vblank_time_ns);
 			}
 
 			success = true;

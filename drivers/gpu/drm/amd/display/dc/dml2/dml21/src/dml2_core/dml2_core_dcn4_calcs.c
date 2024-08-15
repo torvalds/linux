@@ -8,32 +8,55 @@
 #include "dml2_debug.h"
 #include "lib_float_math.h"
 #include "dml_top_types.h"
-#include "dml2_core_shared.h"
 
-//#define DML_TVM_UPDATE_EN
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
 #define DML_MAX_NUM_OF_SLICES_PER_DSC 4
 
-static void dml2_print_dml_mode_support_info(const struct dml2_core_internal_mode_support_info *support, bool fail_only)
+const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
+{
+	switch (bw_type) {
+	case (dml2_core_internal_bw_sdp):
+		return("dml2_core_internal_bw_sdp");
+	case (dml2_core_internal_bw_dram):
+		return("dml2_core_internal_bw_dram");
+	case (dml2_core_internal_bw_max):
+		return("dml2_core_internal_bw_max");
+	default:
+		return("dml2_core_internal_bw_unknown");
+	}
+}
+
+const char *dml2_core_internal_soc_state_type_str(enum dml2_core_internal_soc_state_type dml2_core_internal_soc_state_type)
+{
+	switch (dml2_core_internal_soc_state_type) {
+	case (dml2_core_internal_soc_state_sys_idle):
+		return("dml2_core_internal_soc_state_sys_idle");
+	case (dml2_core_internal_soc_state_sys_active):
+		return("dml2_core_internal_soc_state_sys_active");
+	case (dml2_core_internal_soc_state_svp_prefetch):
+		return("dml2_core_internal_soc_state_svp_prefetch");
+	case dml2_core_internal_soc_state_max:
+	default:
+		return("dml2_core_internal_soc_state_unknown");
+	}
+}
+
+static double dml2_core_div_rem(double dividend, unsigned int divisor, unsigned int *remainder)
+{
+	*remainder = ((dividend / divisor) - (int)(dividend / divisor) > 0);
+	return dividend / divisor;
+}
+
+static void dml2_print_mode_support_info(const struct dml2_core_internal_mode_support_info *support, bool fail_only)
 {
 	dml2_printf("DML: ===================================== \n");
 	dml2_printf("DML: DML_MODE_SUPPORT_INFO_ST\n");
-	if (!fail_only || support->ImmediateFlipSupport == 0)
-		dml2_printf("DML: support: ImmediateFlipSupport = %d\n", support->ImmediateFlipSupport);
-	if (!fail_only || support->WritebackLatencySupport == 0)
-		dml2_printf("DML: support: WritebackLatencySupport = %d\n", support->WritebackLatencySupport);
 	if (!fail_only || support->ScaleRatioAndTapsSupport == 0)
 		dml2_printf("DML: support: ScaleRatioAndTapsSupport = %d\n", support->ScaleRatioAndTapsSupport);
 	if (!fail_only || support->SourceFormatPixelAndScanSupport == 0)
 		dml2_printf("DML: support: SourceFormatPixelAndScanSupport = %d\n", support->SourceFormatPixelAndScanSupport);
-	if (!fail_only || support->P2IWith420 == 1)
-		dml2_printf("DML: support: P2IWith420 = %d\n", support->P2IWith420);
-	if (!fail_only || support->DSCOnlyIfNecessaryWithBPP == 1)
-		dml2_printf("DML: support: DSCOnlyIfNecessaryWithBPP = %d\n", support->DSCOnlyIfNecessaryWithBPP);
-	if (!fail_only || support->DSC422NativeNotSupported == 1)
-		dml2_printf("DML: support: DSC422NativeNotSupported = %d\n", support->DSC422NativeNotSupported);
-	if (!fail_only || support->DSCSlicesODMModeSupported == 0)
-		dml2_printf("DML: support: DSCSlicesODMModeSupported = %d\n", support->DSCSlicesODMModeSupported);
+	if (!fail_only || support->ViewportSizeSupport == 0)
+		dml2_printf("DML: support: ViewportSizeSupport = %d\n", support->ViewportSizeSupport);
 	if (!fail_only || support->LinkRateDoesNotMatchDPVersion == 1)
 		dml2_printf("DML: support: LinkRateDoesNotMatchDPVersion = %d\n", support->LinkRateDoesNotMatchDPVersion);
 	if (!fail_only || support->LinkRateForMultistreamNotIndicated == 1)
@@ -42,74 +65,87 @@ static void dml2_print_dml_mode_support_info(const struct dml2_core_internal_mod
 		dml2_printf("DML: support: BPPForMultistreamNotIndicated = %d\n", support->BPPForMultistreamNotIndicated);
 	if (!fail_only || support->MultistreamWithHDMIOreDP == 1)
 		dml2_printf("DML: support: MultistreamWithHDMIOreDP = %d\n", support->MultistreamWithHDMIOreDP);
+	if (!fail_only || support->ExceededMultistreamSlots == 1)
+		dml2_printf("DML: support: ExceededMultistreamSlots = %d\n", support->ExceededMultistreamSlots);
 	if (!fail_only || support->MSOOrODMSplitWithNonDPLink == 1)
 		dml2_printf("DML: support: MSOOrODMSplitWithNonDPLink = %d\n", support->MSOOrODMSplitWithNonDPLink);
 	if (!fail_only || support->NotEnoughLanesForMSO == 1)
 		dml2_printf("DML: support: NotEnoughLanesForMSO = %d\n", support->NotEnoughLanesForMSO);
-	if (!fail_only || support->NumberOfOTGSupport == 0)
-		dml2_printf("DML: support: NumberOfOTGSupport = %d\n", support->NumberOfOTGSupport);
-	if (!fail_only || support->NumberOfHDMIFRLSupport == 0)
-		dml2_printf("DML: support: NumberOfHDMIFRLSupport = %d\n", support->NumberOfHDMIFRLSupport);
-	if (!fail_only || support->NumberOfDP2p0Support == 0)
-		dml2_printf("DML: support: NumberOfDP2p0Support = %d\n", support->NumberOfDP2p0Support);
-	if (!fail_only || support->WritebackScaleRatioAndTapsSupport == 0)
-		dml2_printf("DML: support: WritebackScaleRatioAndTapsSupport = %d\n", support->WritebackScaleRatioAndTapsSupport);
-	if (!fail_only || support->CursorSupport == 0)
-		dml2_printf("DML: support: CursorSupport = %d\n", support->CursorSupport);
-	if (!fail_only || support->PitchSupport == 0)
-		dml2_printf("DML: support: PitchSupport = %d\n", support->PitchSupport);
-	if (!fail_only || support->ViewportExceedsSurface == 1)
-		dml2_printf("DML: support: ViewportExceedsSurface = %d\n", support->ViewportExceedsSurface);
-	if (!fail_only || support->ExceededMALLSize == 1)
-		dml2_printf("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
-	if (!fail_only || support->EnoughWritebackUnits == 0)
-		dml2_printf("DML: support: EnoughWritebackUnits = %d\n", support->EnoughWritebackUnits);
-	if (!fail_only || support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe == 1)
-		dml2_printf("DML: support: ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe = %d\n", support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe);
-	if (!fail_only || support->InvalidCombinationOfMALLUseForPStateAndStaticScreen == 1)
-		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPStateAndStaticScreen = %d\n", support->InvalidCombinationOfMALLUseForPStateAndStaticScreen);
-	if (!fail_only || support->InvalidCombinationOfMALLUseForPState == 1)
-		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPState = %d\n", support->InvalidCombinationOfMALLUseForPState);
-	if (!fail_only || support->ExceededMultistreamSlots == 1)
-		dml2_printf("DML: support: ExceededMultistreamSlots = %d\n", support->ExceededMultistreamSlots);
+	if (!fail_only || support->P2IWith420 == 1)
+		dml2_printf("DML: support: P2IWith420 = %d\n", support->P2IWith420);
+	if (!fail_only || support->DSC422NativeNotSupported == 1)
+		dml2_printf("DML: support: DSC422NativeNotSupported = %d\n", support->DSC422NativeNotSupported);
+	if (!fail_only || support->DSCSlicesODMModeSupported == 0)
+		dml2_printf("DML: support: DSCSlicesODMModeSupported = %d\n", support->DSCSlicesODMModeSupported);
 	if (!fail_only || support->NotEnoughDSCUnits == 1)
 		dml2_printf("DML: support: NotEnoughDSCUnits = %d\n", support->NotEnoughDSCUnits);
 	if (!fail_only || support->NotEnoughDSCSlices == 1)
 		dml2_printf("DML: support: NotEnoughDSCSlices = %d\n", support->NotEnoughDSCSlices);
-	if (!fail_only || support->PixelsPerLinePerDSCUnitSupport == 0)
-		dml2_printf("DML: support: PixelsPerLinePerDSCUnitSupport = %d\n", support->PixelsPerLinePerDSCUnitSupport);
+	if (!fail_only || support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe == 1)
+		dml2_printf("DML: support: ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe = %d\n", support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe);
+	if (!fail_only || support->InvalidCombinationOfMALLUseForPStateAndStaticScreen == 1)
+		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPStateAndStaticScreen = %d\n", support->InvalidCombinationOfMALLUseForPStateAndStaticScreen);
 	if (!fail_only || support->DSCCLKRequiredMoreThanSupported == 1)
 		dml2_printf("DML: support: DSCCLKRequiredMoreThanSupported = %d\n", support->DSCCLKRequiredMoreThanSupported);
+	if (!fail_only || support->PixelsPerLinePerDSCUnitSupport == 0)
+		dml2_printf("DML: support: PixelsPerLinePerDSCUnitSupport = %d\n", support->PixelsPerLinePerDSCUnitSupport);
 	if (!fail_only || support->DTBCLKRequiredMoreThanSupported == 1)
 		dml2_printf("DML: support: DTBCLKRequiredMoreThanSupported = %d\n", support->DTBCLKRequiredMoreThanSupported);
-	if (!fail_only || support->LinkCapacitySupport == 0)
-		dml2_printf("DML: support: LinkCapacitySupport = %d\n", support->LinkCapacitySupport);
+	if (!fail_only || support->InvalidCombinationOfMALLUseForPState == 1)
+		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPState = %d\n", support->InvalidCombinationOfMALLUseForPState);
 	if (!fail_only || support->ROBSupport == 0)
 		dml2_printf("DML: support: ROBSupport = %d\n", support->ROBSupport);
 	if (!fail_only || support->OutstandingRequestsSupport == 0)
 		dml2_printf("DML: support: OutstandingRequestsSupport = %d\n", support->OutstandingRequestsSupport);
 	if (!fail_only || support->OutstandingRequestsUrgencyAvoidance == 0)
 		dml2_printf("DML: support: OutstandingRequestsUrgencyAvoidance = %d\n", support->OutstandingRequestsUrgencyAvoidance);
-	if (!fail_only || support->PTEBufferSizeNotExceeded == 0)
-		dml2_printf("DML: support: PTEBufferSizeNotExceeded = %d\n", support->PTEBufferSizeNotExceeded);
-	if (!fail_only || support->AvgBandwidthSupport == 0)
-		dml2_printf("DML: support: AvgBandwidthSupport = %d\n", support->AvgBandwidthSupport);
-	if (!fail_only || support->EnoughUrgentLatencyHidingSupport == 0)
-		dml2_printf("DML: support: EnoughUrgentLatencyHidingSupport = %d\n", support->EnoughUrgentLatencyHidingSupport);
-	if (!fail_only || support->PrefetchSupported == 0)
-		dml2_printf("DML: support: PrefetchSupported = %d\n", support->PrefetchSupported);
-	if (!fail_only || support->DynamicMetadataSupported == 0)
-		dml2_printf("DML: support: DynamicMetadataSupported = %d\n", support->DynamicMetadataSupported);
-	if (!fail_only || support->VRatioInPrefetchSupported == 0)
-		dml2_printf("DML: support: VRatioInPrefetchSupported = %d\n", support->VRatioInPrefetchSupported);
 	if (!fail_only || support->DISPCLK_DPPCLK_Support == 0)
 		dml2_printf("DML: support: DISPCLK_DPPCLK_Support = %d\n", support->DISPCLK_DPPCLK_Support);
 	if (!fail_only || support->TotalAvailablePipesSupport == 0)
 		dml2_printf("DML: support: TotalAvailablePipesSupport = %d\n", support->TotalAvailablePipesSupport);
+	if (!fail_only || support->NumberOfOTGSupport == 0)
+		dml2_printf("DML: support: NumberOfOTGSupport = %d\n", support->NumberOfOTGSupport);
+	if (!fail_only || support->NumberOfHDMIFRLSupport == 0)
+		dml2_printf("DML: support: NumberOfHDMIFRLSupport = %d\n", support->NumberOfHDMIFRLSupport);
+	if (!fail_only || support->NumberOfDP2p0Support == 0)
+		dml2_printf("DML: support: NumberOfDP2p0Support = %d\n", support->NumberOfDP2p0Support);
+	if (!fail_only || support->EnoughWritebackUnits == 0)
+		dml2_printf("DML: support: EnoughWritebackUnits = %d\n", support->EnoughWritebackUnits);
+	if (!fail_only || support->WritebackScaleRatioAndTapsSupport == 0)
+		dml2_printf("DML: support: WritebackScaleRatioAndTapsSupport = %d\n", support->WritebackScaleRatioAndTapsSupport);
+	if (!fail_only || support->WritebackLatencySupport == 0)
+		dml2_printf("DML: support: WritebackLatencySupport = %d\n", support->WritebackLatencySupport);
+	if (!fail_only || support->CursorSupport == 0)
+		dml2_printf("DML: support: CursorSupport = %d\n", support->CursorSupport);
+	if (!fail_only || support->PitchSupport == 0)
+		dml2_printf("DML: support: PitchSupport = %d\n", support->PitchSupport);
+	if (!fail_only || support->ViewportExceedsSurface == 1)
+		dml2_printf("DML: support: ViewportExceedsSurface = %d\n", support->ViewportExceedsSurface);
+	if (!fail_only || support->PrefetchSupported == 0)
+		dml2_printf("DML: support: PrefetchSupported = %d\n", support->PrefetchSupported);
+	if (!fail_only || support->EnoughUrgentLatencyHidingSupport == 0)
+		dml2_printf("DML: support: EnoughUrgentLatencyHidingSupport = %d\n", support->EnoughUrgentLatencyHidingSupport);
+	if (!fail_only || support->AvgBandwidthSupport == 0)
+		dml2_printf("DML: support: AvgBandwidthSupport = %d\n", support->AvgBandwidthSupport);
+	if (!fail_only || support->DynamicMetadataSupported == 0)
+		dml2_printf("DML: support: DynamicMetadataSupported = %d\n", support->DynamicMetadataSupported);
+	if (!fail_only || support->VRatioInPrefetchSupported == 0)
+		dml2_printf("DML: support: VRatioInPrefetchSupported = %d\n", support->VRatioInPrefetchSupported);
+	if (!fail_only || support->PTEBufferSizeNotExceeded == 1)
+		dml2_printf("DML: support: PTEBufferSizeNotExceeded = %d\n", support->PTEBufferSizeNotExceeded);
+	if (!fail_only || support->DCCMetaBufferSizeNotExceeded == 1)
+		dml2_printf("DML: support: DCCMetaBufferSizeNotExceeded = %d\n", support->DCCMetaBufferSizeNotExceeded);
+	if (!fail_only || support->ExceededMALLSize == 1)
+		dml2_printf("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
+	if (!fail_only || support->g6_temp_read_support == 0)
+		dml2_printf("DML: support: g6_temp_read_support = %d\n", support->g6_temp_read_support);
+	if (!fail_only || support->ImmediateFlipSupport == 0)
+		dml2_printf("DML: support: ImmediateFlipSupport = %d\n", support->ImmediateFlipSupport);
+	if (!fail_only || support->LinkCapacitySupport == 0)
+		dml2_printf("DML: support: LinkCapacitySupport = %d\n", support->LinkCapacitySupport);
+
 	if (!fail_only || support->ModeSupport == 0)
 		dml2_printf("DML: support: ModeSupport = %d\n", support->ModeSupport);
-	if (!fail_only || support->ViewportSizeSupport == 0)
-		dml2_printf("DML: support: ViewportSizeSupport = %d\n", support->ViewportSizeSupport);
 	dml2_printf("DML: ===================================== \n");
 }
 
@@ -2849,16 +2885,9 @@ static void CalculateVMRowAndSwath(struct dml2_core_internal_scratch *scratch,
 	s->HostVMDynamicLevels = CalculateHostVMDynamicLevels(p->display_cfg->gpuvm_enable, p->display_cfg->hostvm_enable, p->HostVMMinPageSize, p->display_cfg->hostvm_max_non_cached_page_table_levels);
 
 	for (unsigned int k = 0; k < p->NumberOfActiveSurfaces; ++k) {
-		if (p->display_cfg->hostvm_enable == true) {
+		if (p->display_cfg->gpuvm_enable == true) {
 			p->vm_group_bytes[k] = 512;
 			p->dpte_group_bytes[k] = 512;
-		} else if (p->display_cfg->gpuvm_enable == true) {
-			p->vm_group_bytes[k] = 2048;
-			if (p->display_cfg->plane_descriptors[k].overrides.gpuvm_min_page_size_kbytes >= 64 && dml_is_vertical_rotation(p->myPipe[k].RotationAngle)) {
-				p->dpte_group_bytes[k] = 512;
-			} else {
-				p->dpte_group_bytes[k] = 2048;
-			}
 		} else {
 			p->vm_group_bytes[k] = 0;
 			p->dpte_group_bytes[k] = 0;
@@ -4556,15 +4585,6 @@ static void calculate_tdlut_setting(
 		return;
 	}
 
-
-	if (!p->setup_for_tdlut) {
-		*p->tdlut_groups_per_2row_ub = 0;
-		*p->tdlut_opt_time = 0;
-		*p->tdlut_drain_time = 0;
-		*p->tdlut_bytes_per_group = 0;
-		return;
-	}
-
 	if (p->tdlut_mpc_width_flag) {
 		tdlut_mpc_width = 33;
 		tdlut_bytes_per_group_simple = 39*256;
@@ -4624,7 +4644,7 @@ static void calculate_tdlut_setting(
 
 	//the tdlut is fetched during the 2 row times of prefetch.
 	if (p->setup_for_tdlut) {
-		*p->tdlut_groups_per_2row_ub = (unsigned int)math_ceil2(*p->tdlut_bytes_per_frame / *p->tdlut_bytes_per_group, 1);
+		*p->tdlut_groups_per_2row_ub = (unsigned int)math_ceil2((double) *p->tdlut_bytes_per_frame / *p->tdlut_bytes_per_group, 1);
 		*p->tdlut_opt_time = (*p->tdlut_bytes_per_frame - p->cursor_buffer_size * 1024) / tdlut_drain_rate;
 		*p->tdlut_drain_time = p->cursor_buffer_size * 1024 / tdlut_drain_rate;
 	}
@@ -4637,7 +4657,7 @@ static void calculate_tdlut_setting(
 
 	dml2_printf("DML::%s: dispclk_mhz = %f\n", __func__, p->dispclk_mhz);
 	dml2_printf("DML::%s: tdlut_width = %u\n", __func__, tdlut_width);
-	dml2_printf("DML::%s: tdlut_addressing_mode = %u\n", __func__, p->tdlut_addressing_mode);
+	dml2_printf("DML::%s: tdlut_addressing_mode = %s\n", __func__, (p->tdlut_addressing_mode == dml2_tdlut_sw_linear) ? "sw_linear" : "simple_linear");
 	dml2_printf("DML::%s: tdlut_pitch_bytes = %u\n", __func__, tdlut_pitch_bytes);
 	dml2_printf("DML::%s: tdlut_footprint_bytes = %u\n", __func__, tdlut_footprint_bytes);
 	dml2_printf("DML::%s: tdlut_bytes_per_frame = %u\n", __func__, *p->tdlut_bytes_per_frame);
@@ -4703,11 +4723,12 @@ static void CalculateTarb(
 static double CalculateTWait(
 	long reserved_vblank_time_ns,
 	double UrgentLatency,
-	double Ttrip)
+	double Ttrip,
+	double g6_temp_read_blackout_us)
 {
 	double TWait;
 	double t_urg_trip = math_max2(UrgentLatency, Ttrip);
-	TWait = reserved_vblank_time_ns/1000.0 + t_urg_trip;
+	TWait = math_max2(reserved_vblank_time_ns/1000.0, g6_temp_read_blackout_us) + t_urg_trip;
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: reserved_vblank_time_ns = %d\n", __func__, reserved_vblank_time_ns);
@@ -4855,13 +4876,23 @@ static double get_urgent_bandwidth_required(
 		}
 
 		if (!exclude_this_plane) {
-			surface_required_bw[k] = math_max4(NumberOfDPP[k] * prefetch_vmrow_bw[k],
-					l->per_plane_flip_bw[k] + ReadBandwidthLuma[k] * l->adj_factor_p0 + ReadBandwidthChroma[k] * l->adj_factor_p1 + cursor_bw[k] * l->adj_factor_cur,
-					l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre,
-					(ReadBandwidthLuma[k] + excess_vactive_fill_bw_l[k]) * l->tmp_nom_adj_factor_p0 + (ReadBandwidthChroma[k] + excess_vactive_fill_bw_c[k]) * l->tmp_nom_adj_factor_p1 + dpte_row_bw[k] + meta_row_bw[k]);
+			l->vm_row_bw = NumberOfDPP[k] * prefetch_vmrow_bw[k];
+			l->flip_and_active_bw = l->per_plane_flip_bw[k] + ReadBandwidthLuma[k] * l->adj_factor_p0 + ReadBandwidthChroma[k] * l->adj_factor_p1 + cursor_bw[k] * l->adj_factor_cur;
+			l->flip_and_prefetch_bw = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
+			l->active_and_excess_bw = (ReadBandwidthLuma[k] + excess_vactive_fill_bw_l[k]) * l->tmp_nom_adj_factor_p0 + (ReadBandwidthChroma[k] + excess_vactive_fill_bw_c[k]) * l->tmp_nom_adj_factor_p1 + dpte_row_bw[k] + meta_row_bw[k];
+			surface_required_bw[k] = math_max4(l->vm_row_bw, l->flip_and_active_bw, l->flip_and_prefetch_bw, l->active_and_excess_bw);
 
 			/* export peak required bandwidth for the surface */
 			surface_peak_required_bw[k] = math_max2(surface_required_bw[k], surface_peak_required_bw[k]);
+
+#ifdef __DML_VBA_DEBUG__
+			dml2_printf("DML::%s: k=%d, max1: vm_row_bw=%f\n", __func__, k, l->vm_row_bw);
+			dml2_printf("DML::%s: k=%d, max2: flip_and_active_bw=%f\n", __func__, k, l->flip_and_active_bw);
+			dml2_printf("DML::%s: k=%d, max3: flip_and_prefetch_bw=%f\n", __func__, k, l->flip_and_prefetch_bw);
+			dml2_printf("DML::%s: k=%d, max4: active_and_excess_bw=%f\n", __func__, k, l->active_and_excess_bw);
+			dml2_printf("DML::%s: k=%d, surface_required_bw=%f\n", __func__, k, surface_required_bw[k]);
+			dml2_printf("DML::%s: k=%d, surface_peak_required_bw=%f\n", __func__, k, surface_peak_required_bw[k]);
+#endif
 		} else {
 			surface_required_bw[k] = 0.0;
 		}
@@ -4870,6 +4901,8 @@ static double get_urgent_bandwidth_required(
 
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: k=%d, NumberOfDPP=%d\n", __func__, k, NumberOfDPP[k]);
+		dml2_printf("DML::%s: k=%d, use_qual_row_bw=%d\n", __func__, k, use_qual_row_bw);
+		dml2_printf("DML::%s: k=%d, immediate_flip=%d\n", __func__, k, display_cfg->plane_descriptors[k].immediate_flip);
 		dml2_printf("DML::%s: k=%d, mall_svp_prefetch_factor=%f\n", __func__, k, l->mall_svp_prefetch_factor);
 		dml2_printf("DML::%s: k=%d, adj_factor_p0=%f\n", __func__, k, l->adj_factor_p0);
 		dml2_printf("DML::%s: k=%d, adj_factor_p1=%f\n", __func__, k, l->adj_factor_p1);
@@ -4883,6 +4916,8 @@ static double get_urgent_bandwidth_required(
 		dml2_printf("DML::%s: k=%d, prefetch_vmrow_bw=%f\n", __func__, k, prefetch_vmrow_bw[k]);
 		dml2_printf("DML::%s: k=%d, ReadBandwidthLuma=%f\n", __func__, k, ReadBandwidthLuma[k]);
 		dml2_printf("DML::%s: k=%d, ReadBandwidthChroma=%f\n", __func__, k, ReadBandwidthChroma[k]);
+		dml2_printf("DML::%s: k=%d, excess_vactive_fill_bw_l=%f\n", __func__, k, excess_vactive_fill_bw_l[k]);
+		dml2_printf("DML::%s: k=%d, excess_vactive_fill_bw_c=%f\n", __func__, k, excess_vactive_fill_bw_c[k]);
 		dml2_printf("DML::%s: k=%d, cursor_bw=%f\n", __func__, k, cursor_bw[k]);
 
 		dml2_printf("DML::%s: k=%d, meta_row_bw=%f\n", __func__, k, meta_row_bw[k]);
@@ -5037,7 +5072,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->bytes_pp = 0.0;
 	s->dep_bytes = 0.0;
 	s->min_Lsw_oto = 0.0;
+	s->min_Lsw_equ = 0.0;
 	s->Tsw_est1 = 0.0;
+	s->Tsw_est2 = 0.0;
 	s->Tsw_est3 = 0.0;
 	s->cursor_prefetch_bytes = 0;
 	*p->prefetch_cursor_bw = 0;
@@ -5059,7 +5096,6 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	dml2_printf("DML::%s: GPUVMPageTableLevels = %u\n", __func__, p->display_cfg->gpuvm_max_page_table_levels);
 	dml2_printf("DML::%s: DCCEnable = %u\n", __func__, p->myPipe->DCCEnable);
 	dml2_printf("DML::%s: VStartup = %u\n", __func__, p->VStartup);
-	dml2_printf("DML::%s: MaxVStartup = %u\n", __func__, p->MaxVStartup);
 	dml2_printf("DML::%s: HostVMEnable = %u\n", __func__, p->display_cfg->hostvm_enable);
 	dml2_printf("DML::%s: HostVMInefficiencyFactor = %f\n", __func__, p->HostVMInefficiencyFactor);
 	dml2_printf("DML::%s: TWait = %f\n", __func__, p->TWait);
@@ -5092,21 +5128,15 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 
 	s->LineTime = p->myPipe->HTotal / p->myPipe->PixelClock;
 	s->trip_to_mem = p->Ttrip;
-#ifdef DML_TVM_UPDATE_EN
 	*p->Tvm_trips = p->ExtraLatencyPrefetch + math_max2(s->trip_to_mem * (p->display_cfg->gpuvm_max_page_table_levels * (s->HostVMDynamicLevelsTrips + 1)), p->Turg);
 	if (dcc_mrq_enable)
 		*p->Tvm_trips_flip = *p->Tvm_trips;
 	else
 		*p->Tvm_trips_flip = *p->Tvm_trips - s->trip_to_mem;
-#else
-	*p->Tvm_trips = p->ExtraLatencyPrefetch + s->trip_to_mem * (p->display_cfg->gpuvm_max_page_table_levels * (s->HostVMDynamicLevelsTrips + 1));
-	*p->Tvm_trips_flip = *p->Tvm_trips - s->trip_to_mem;
-#endif
 
 	*p->Tr0_trips_flip = s->trip_to_mem * (s->HostVMDynamicLevelsTrips + 1);
 	*p->Tr0_trips = math_max2(*p->Tr0_trips_flip, p->tdlut_opt_time / 2);
 
-#ifdef DML_TVM_UPDATE_EN
 	if (p->DynamicMetadataVMEnabled == true) {
 		*p->Tdmdl_vm = s->TWait_p + *p->Tvm_trips;
 		*p->Tdmdl = *p->Tdmdl_vm + p->Ttrip;
@@ -5114,15 +5144,6 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		*p->Tdmdl_vm = 0;
 		*p->Tdmdl = s->TWait_p + p->ExtraLatencyPrefetch + p->Ttrip; // Tex
 	}
-#else
-	if (p->DynamicMetadataVMEnabled == true) {
-		*p->Tdmdl_vm = s->TWait_p + *p->Tvm_trips;
-		*p->Tdmdl = *p->Tdmdl_vm + p->Ttrip;
-	} else {
-		*p->Tdmdl_vm = 0;
-		*p->Tdmdl = p->TWait + p->ExtraLatencyPrefetch; // Tex
-	}
-#endif
 
 	if (p->DynamicMetadataEnable == true) {
 		if (p->VStartup * s->LineTime < *p->TSetup + *p->Tdmdl + s->Tdmbf + s->Tdmec + s->Tdmsks) {
@@ -5186,7 +5207,6 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	dml2_printf("DML::%s: DSTYAfterScaler = %u (final)\n", __func__, *p->DSTYAfterScaler);
 #endif
 
-	s->NoTimeToPrefetch = false;
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: Tr0_trips = %f\n", __func__, *p->Tr0_trips);
 	dml2_printf("DML::%s: Tvm_trips = %f\n", __func__, *p->Tvm_trips);
@@ -5199,14 +5219,10 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		s->Tvm_trips_rounded = math_ceil2(4.0 * *p->Tvm_trips / s->LineTime, 1.0) / 4.0 * s->LineTime;
 		*p->Tvm_trips_flip_rounded = math_ceil2(4.0 * *p->Tvm_trips_flip / s->LineTime, 1.0) / 4.0 * s->LineTime;
 	} else {
-#ifdef DML_TVM_UPDATE_EN
 		if (p->DynamicMetadataEnable || dcc_mrq_enable || p->setup_for_tdlut)
 			s->Tvm_trips_rounded = math_max2(s->LineTime * math_ceil2(4.0*math_max3(p->ExtraLatencyPrefetch, p->Turg, s->trip_to_mem)/s->LineTime, 1)/4, s->LineTime/4.0);
 		else
-		s->Tvm_trips_rounded = s->LineTime / 4.0;
-#else
-		s->Tvm_trips_rounded = s->LineTime / 4.0;
-#endif
+			s->Tvm_trips_rounded = s->LineTime / 4.0;
 		*p->Tvm_trips_flip_rounded = s->LineTime / 4.0;
 	}
 
@@ -5235,16 +5251,10 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		*p->Tno_bw = 0;
 	}
 
-#ifdef DML_TVM_UPDATE_EN
 	if (p->mrq_present || p->display_cfg->gpuvm_max_page_table_levels >= 3)
 		*p->Tno_bw_flip = *p->Tno_bw;
 	else
 		*p->Tno_bw_flip = 0; //because there is no 3DLUT for iFlip
-#else
-	*p->Tno_bw_flip = 0;
-	if (p->display_cfg->gpuvm_enable == true)
-		*p->Tno_bw_flip = *p->Tno_bw;
-#endif
 
 	if (dml_is_420(p->myPipe->SourcePixelFormat)) {
 		s->bytes_pp = p->myPipe->BytePerPixelY + p->myPipe->BytePerPixelC / 4.0;
@@ -5265,6 +5275,10 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->min_Lsw_oto = math_max2(p->PrefetchSourceLinesY, p->PrefetchSourceLinesC) / __DML2_CALCS_MAX_VRATIO_PRE_OTO__;
 	s->min_Lsw_oto = math_max2(s->min_Lsw_oto, 2.0);
 	s->min_Lsw_oto = math_max2(s->min_Lsw_oto, p->tdlut_drain_time / s->LineTime);
+
+	s->min_Lsw_equ = math_max2(p->PrefetchSourceLinesY, p->PrefetchSourceLinesC) / __DML2_CALCS_MAX_VRATIO_PRE_EQU__;
+	s->min_Lsw_equ = math_max2(s->min_Lsw_equ, 2.0);
+	s->min_Lsw_equ = math_max2(s->min_Lsw_equ, p->tdlut_drain_time / s->LineTime);
 
 	vm_bytes = p->vm_bytes; // vm_bytes is dpde0_bytes_per_frame_ub_l + dpde0_bytes_per_frame_ub_c + 2*extra_dpde_bytes;
 	extra_tdpe_bytes = (unsigned int)math_max2(0, (p->display_cfg->gpuvm_max_page_table_levels - 1) * 128);
@@ -5289,11 +5303,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML::%s: Tvm_oto max2 = %f\n", __func__, s->LineTime / 4.0);
 #endif
 	} else {
-#ifdef DML_TVM_UPDATE_EN
 		s->Tvm_oto = s->Tvm_trips_rounded;
-#else
-		s->Tvm_oto = s->LineTime / 4.0;
-#endif
 	}
 
 	if ((p->display_cfg->gpuvm_enable == true || p->setup_for_tdlut || dcc_mrq_enable)) {
@@ -5317,19 +5327,16 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	Lo = (unsigned int)(*p->DSTYAfterScaler + (double)*p->DSTXAfterScaler / (double)p->myPipe->HTotal);
 
 	//Tpre_equ in line time
-#ifdef DML_TVM_UPDATE_EN
 	if (p->DynamicMetadataVMEnabled && p->DynamicMetadataEnable)
 		s->dst_y_prefetch_equ = p->VStartup - (*p->TSetup + math_max2(p->TCalc, *p->Tvm_trips) + s->TWait_p) / s->LineTime - Lo;
 	else
 		s->dst_y_prefetch_equ = p->VStartup - (*p->TSetup + math_max2(p->TCalc, p->ExtraLatencyPrefetch) + s->TWait_p) / s->LineTime - Lo;
-#else
-	s->dst_y_prefetch_equ = p->VStartup - (*p->TSetup + math_max2(s->TWait_p + p->TCalc, *p->Tdmdl - p->Ttrip)) / s->LineTime - Lo;
-#endif
 	s->dst_y_prefetch_equ = math_min2(s->dst_y_prefetch_equ, 63.75); // limit to the reg limit of U6.2 for DST_Y_PREFETCH
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: HTotal = %u\n", __func__, p->myPipe->HTotal);
 	dml2_printf("DML::%s: min_Lsw_oto = %f\n", __func__, s->min_Lsw_oto);
+	dml2_printf("DML::%s: min_Lsw_equ = %f\n", __func__, s->min_Lsw_equ);
 	dml2_printf("DML::%s: Tno_bw = %f\n", __func__, *p->Tno_bw);
 	dml2_printf("DML::%s: Tno_bw_flip = %f\n", __func__, *p->Tno_bw_flip);
 	dml2_printf("DML::%s: ExtraLatencyPrefetch = %f\n", __func__, p->ExtraLatencyPrefetch);
@@ -5367,6 +5374,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->dst_y_prefetch_equ = math_floor2(4.0 * (s->dst_y_prefetch_equ + 0.125), 1) / 4.0;
 	s->Tpre_rounded = s->dst_y_prefetch_equ * s->LineTime;
 
+#ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: dst_y_prefetch_equ: %f (after round)\n", __func__, s->dst_y_prefetch_equ);
 	dml2_printf("DML::%s: LineTime: %f\n", __func__, s->LineTime);
 	dml2_printf("DML::%s: VStartup: %u\n", __func__, p->VStartup);
@@ -5387,18 +5395,12 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	dml2_printf("DML::%s: Ttrip: %fus\n", __func__, p->Ttrip);
 	dml2_printf("DML::%s: DSTXAfterScaler: %u pixels - number of pixel clocks pipeline and buffer delay after scaler \n", __func__, *p->DSTXAfterScaler);
 	dml2_printf("DML::%s: DSTYAfterScaler: %u lines - number of lines of pipeline and buffer delay after scaler \n", __func__, *p->DSTYAfterScaler);
-
-	s->dep_bytes = math_max2(vm_bytes * p->HostVMInefficiencyFactor, p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes);
-
-	dml2_printf("DML::%s: dep_bytes: %f\n", __func__, s->dep_bytes);
-	dml2_printf("DML::%s: prefetch_sw_bytes: %f\n", __func__, s->prefetch_sw_bytes);
 	dml2_printf("DML::%s: vm_bytes: %f (hvm inefficiency scaled)\n", __func__, vm_bytes*p->HostVMInefficiencyFactor);
 	dml2_printf("DML::%s: row_bytes: %f (hvm inefficiency scaled, 1 row)\n", __func__, p->PixelPTEBytesPerRow*p->HostVMInefficiencyFactor+p->meta_row_bytes+tdlut_row_bytes);
-
-	if (s->prefetch_sw_bytes < s->dep_bytes) {
-		s->prefetch_sw_bytes = 2 * s->dep_bytes;
-		dml2_printf("DML::%s: bump prefetch_sw_bytes to %f\n", __func__, s->prefetch_sw_bytes);
-	}
+	dml2_printf("DML::%s: Tno_bw: %f\n", __func__, *p->Tno_bw);
+	dml2_printf("DML::%s: Tpre=%f Tpre_rounded: %f, delta=%f\n", __func__, Tpre, s->Tpre_rounded, (s->Tpre_rounded - Tpre));
+	dml2_printf("DML::%s: Tvm_trips=%f Tvm_trips_rounded: %f, delta=%f\n", __func__, *p->Tvm_trips, s->Tvm_trips_rounded, (s->Tvm_trips_rounded - *p->Tvm_trips));
+#endif
 
 	*p->dst_y_per_vm_vblank = 0;
 	*p->dst_y_per_row_vblank = 0;
@@ -5411,7 +5413,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	// Tvm_trips_rounded is Tvm_trips ceiling to 1/4 line time
 	// Tr0_trips_rounded is Tr0_trips ceiling to 1/4 line time
 	// So that means prefetch bw calculated can be higher since the total time availabe for prefetch is less
-	if (s->dst_y_prefetch_equ > 1) {
+	bool min_Lsw_equ_ok = s->Tpre_rounded >= s->Tvm_trips_rounded + 2.0*s->Tr0_trips_rounded + s->min_Lsw_equ*s->LineTime;
+
+	if (s->dst_y_prefetch_equ > 1 && min_Lsw_equ_ok) {
 		s->prefetch_bw1 = 0.;
 		s->prefetch_bw2 = 0.;
 		s->prefetch_bw3 = 0.;
@@ -5428,27 +5432,34 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			s->prefetch_bw1 = 0;
 
 		dml2_printf("DML::%s: prefetch_bw1: %f\n", __func__, s->prefetch_bw1);
-		if ((p->VStartup == p->MaxVStartup) && (s->Tsw_est1 / s->LineTime < s->min_Lsw_oto) && (s->Tpre_rounded - s->min_Lsw_oto * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw > 0)) {
+		if ((s->Tsw_est1 < s->min_Lsw_equ * s->LineTime) && (s->Tpre_rounded - s->min_Lsw_equ * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw > 0)) {
 			s->prefetch_bw1 = (vm_bytes * p->HostVMInefficiencyFactor + 2 * (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes)) /
-				(s->Tpre_rounded - s->min_Lsw_oto * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw);
+				(s->Tpre_rounded - s->min_Lsw_equ * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw);
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: vm and 2 rows bytes = %f\n", __func__, (vm_bytes * p->HostVMInefficiencyFactor + 2 * (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes)));
 			dml2_printf("DML::%s: Tpre_rounded = %f\n", __func__, s->Tpre_rounded);
-			dml2_printf("DML::%s: minus term = %f\n", __func__, s->min_Lsw_oto * s->LineTime + 0.75 * s->LineTime + *p->Tno_bw);
-			dml2_printf("DML::%s: min_Lsw_oto = %f\n", __func__, s->min_Lsw_oto);
+			dml2_printf("DML::%s: minus term = %f\n", __func__, s->min_Lsw_equ * s->LineTime + 0.75 * s->LineTime + *p->Tno_bw);
+			dml2_printf("DML::%s: min_Lsw_equ = %f\n", __func__, s->min_Lsw_equ);
 			dml2_printf("DML::%s: LineTime = %f\n", __func__, s->LineTime);
 			dml2_printf("DML::%s: Tno_bw = %f\n", __func__, *p->Tno_bw);
-			dml2_printf("DML::%s: Time to fetch vm and 2 rows = %f\n", __func__, (s->Tpre_rounded - s->min_Lsw_oto * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw));
+			dml2_printf("DML::%s: Time to fetch vm and 2 rows = %f\n", __func__, (s->Tpre_rounded - s->min_Lsw_equ * s->LineTime - 0.75 * s->LineTime - *p->Tno_bw));
 			dml2_printf("DML::%s: prefetch_bw1: %f (updated)\n", __func__, s->prefetch_bw1);
 #endif
 		}
 
 		// prefetch_bw2: VM + SW
-		if (s->Tpre_rounded - *p->Tno_bw - 2 * s->Tr0_trips_rounded > 0)
+		if (s->Tpre_rounded - *p->Tno_bw - 2.0 * s->Tr0_trips_rounded > 0) {
 			s->prefetch_bw2 = (vm_bytes * p->HostVMInefficiencyFactor + s->prefetch_sw_bytes) /
-			(s->Tpre_rounded - *p->Tno_bw - 2 * s->Tr0_trips_rounded);
-		else
+			(s->Tpre_rounded - *p->Tno_bw - 2.0 * s->Tr0_trips_rounded);
+			s->Tsw_est2 = s->prefetch_sw_bytes / s->prefetch_bw2;
+		} else
 			s->prefetch_bw2 = 0;
+
+		dml2_printf("DML::%s: prefetch_bw2: %f\n", __func__, s->prefetch_bw2);
+		if ((s->Tsw_est2 < s->min_Lsw_equ * s->LineTime) && ((s->Tpre_rounded - *p->Tno_bw - 2.0 * s->Tr0_trips_rounded - s->min_Lsw_equ * s->LineTime - 0.25 * s->LineTime) > 0)) {
+			s->prefetch_bw2 = vm_bytes * p->HostVMInefficiencyFactor / (s->Tpre_rounded - *p->Tno_bw - 2.0 * s->Tr0_trips_rounded - s->min_Lsw_equ * s->LineTime - 0.25 * s->LineTime);
+			dml2_printf("DML::%s: prefetch_bw2: %f (updated)\n", __func__, s->prefetch_bw2);
+		}
 
 		// prefetch_bw3: 2*R0 + SW
 		if (s->Tpre_rounded - s->Tvm_trips_rounded > 0) {
@@ -5459,8 +5470,8 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			s->prefetch_bw3 = 0;
 
 		dml2_printf("DML::%s: prefetch_bw3: %f\n", __func__, s->prefetch_bw3);
-		if (p->VStartup == p->MaxVStartup && (s->Tsw_est3 / s->LineTime < s->min_Lsw_oto) && ((s->Tpre_rounded - s->min_Lsw_oto * s->LineTime - 0.5 * s->LineTime - s->Tvm_trips_rounded) > 0)) {
-			s->prefetch_bw3 = (2 * (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes)) / (s->Tpre_rounded - s->min_Lsw_oto * s->LineTime - 0.5 * s->LineTime - s->Tvm_trips_rounded);
+		if ((s->Tsw_est3 < s->min_Lsw_equ * s->LineTime) && ((s->Tpre_rounded - s->min_Lsw_equ * s->LineTime - 0.5 * s->LineTime - s->Tvm_trips_rounded) > 0)) {
+			s->prefetch_bw3 = (2 * (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes)) / (s->Tpre_rounded - s->min_Lsw_equ * s->LineTime - 0.5 * s->LineTime - s->Tvm_trips_rounded);
 			dml2_printf("DML::%s: prefetch_bw3: %f (updated)\n", __func__, s->prefetch_bw3);
 		}
 
@@ -5476,6 +5487,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML::%s: Tvm_trips=%f Tvm_trips_rounded: %f, delta=%f\n", __func__, *p->Tvm_trips, s->Tvm_trips_rounded, (s->Tvm_trips_rounded - *p->Tvm_trips));
 		dml2_printf("DML::%s: Tr0_trips=%f Tr0_trips_rounded: %f, delta=%f\n", __func__, *p->Tr0_trips, s->Tr0_trips_rounded, (s->Tr0_trips_rounded - *p->Tr0_trips));
 		dml2_printf("DML::%s: Tsw_est1: %f\n", __func__, s->Tsw_est1);
+		dml2_printf("DML::%s: Tsw_est2: %f\n", __func__, s->Tsw_est2);
 		dml2_printf("DML::%s: Tsw_est3: %f\n", __func__, s->Tsw_est3);
 		dml2_printf("DML::%s: prefetch_bw1: %f (final)\n", __func__, s->prefetch_bw1);
 		dml2_printf("DML::%s: prefetch_bw2: %f (final)\n", __func__, s->prefetch_bw2);
@@ -5496,9 +5508,18 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			// here is to make sure equ bw wont be more agressive than the latency-based requirement.
 			// check vm time >= vm_trips
 			// check r0 time >= r0_trips
+
+			double total_row_bytes = (p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes);
+
+			dml2_printf("DML::%s: Tvm_trips_rounded = %f\n", __func__, s->Tvm_trips_rounded);
+			dml2_printf("DML::%s: Tr0_trips_rounded = %f\n", __func__, s->Tr0_trips_rounded);
+
 			if (s->prefetch_bw1 > 0) {
-				if (*p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw1 >= s->Tvm_trips_rounded &&
-					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / s->prefetch_bw1 >= s->Tr0_trips_rounded) {
+				double vm_transfer_time = *p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw1;
+				double row_transfer_time = total_row_bytes / s->prefetch_bw1;
+				dml2_printf("DML::%s: Case1: vm_transfer_time  = %f\n", __func__, vm_transfer_time);
+				dml2_printf("DML::%s: Case1: row_transfer_time = %f\n", __func__, row_transfer_time);
+				if (vm_transfer_time >= s->Tvm_trips_rounded && row_transfer_time >= s->Tr0_trips_rounded) {
 					Case1OK = true;
 				}
 			}
@@ -5508,8 +5529,11 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			// check vm time >= vm_trips
 			// check r0 time < r0_trips
 			if (s->prefetch_bw2 > 0) {
-				if (*p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw2 >= s->Tvm_trips_rounded &&
-					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / s->prefetch_bw2 < s->Tr0_trips_rounded) {
+				double vm_transfer_time = *p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw2;
+				double row_transfer_time = total_row_bytes / s->prefetch_bw2;
+				dml2_printf("DML::%s: Case2: vm_transfer_time  = %f\n", __func__, vm_transfer_time);
+				dml2_printf("DML::%s: Case2: row_transfer_time = %f\n", __func__, row_transfer_time);
+				if (vm_transfer_time >= s->Tvm_trips_rounded && row_transfer_time < s->Tr0_trips_rounded) {
 					Case2OK = true;
 				}
 			}
@@ -5518,8 +5542,11 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			// check vm time < vm_trips
 			// check r0 time >= r0_trips
 			if (s->prefetch_bw3 > 0) {
-				if (*p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw3 < s->Tvm_trips_rounded &&
-					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / s->prefetch_bw3 >= s->Tr0_trips_rounded) {
+				double vm_transfer_time = *p->Tno_bw + vm_bytes * p->HostVMInefficiencyFactor / s->prefetch_bw3;
+				double row_transfer_time = total_row_bytes / s->prefetch_bw3;
+				dml2_printf("DML::%s: Case3: vm_transfer_time  = %f\n", __func__, vm_transfer_time);
+				dml2_printf("DML::%s: Case3: row_transfer_time = %f\n", __func__, row_transfer_time);
+				if (vm_transfer_time < s->Tvm_trips_rounded && row_transfer_time >= s->Tr0_trips_rounded) {
 					Case3OK = true;
 				}
 			}
@@ -5585,13 +5612,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			s->TimeForFetchingVM = s->Tvm_equ;
 			s->TimeForFetchingRowInVBlank = s->Tr0_equ;
 
-			if (p->VStartup == p->MaxVStartup) {
-				*p->dst_y_per_vm_vblank = math_floor2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
-				*p->dst_y_per_row_vblank = math_floor2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
-			} else {
-				*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
-				*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
-			}
+		*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
+		*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+
 #ifdef __DML_VBA_DEBUG__
 			dml2_printf("DML::%s: Using equ bw scheduling for prefetch\n", __func__);
 #endif
@@ -5635,7 +5658,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 						(double)p->MaxNumSwathY * p->SwathHeightY / (s->LinesToRequestPrefetchPixelData - (p->VInitPreFillY - 3.0) / 2.0));
 				} else {
 					s->NoTimeToPrefetch = true;
-					dml2_printf("DML::%s: MyErr set. LinesToRequestPrefetchPixelData=%f VinitPreFillY=%u\n", __func__, s->LinesToRequestPrefetchPixelData, p->VInitPreFillY);
+					dml2_printf("DML::%s: No time to prefetch!. LinesToRequestPrefetchPixelData=%f VinitPreFillY=%u\n", __func__, s->LinesToRequestPrefetchPixelData, p->VInitPreFillY);
 					*p->VRatioPrefetchY = 0;
 				}
 #ifdef __DML_VBA_DEBUG__
@@ -5658,7 +5681,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 					*p->VRatioPrefetchC = math_max2(*p->VRatioPrefetchC, (double)p->MaxNumSwathC * p->SwathHeightC / (s->LinesToRequestPrefetchPixelData - (p->VInitPreFillC - 3.0) / 2.0));
 				} else {
 					s->NoTimeToPrefetch = true;
-					dml2_printf("DML::%s: MyErr set. LinesToRequestPrefetchPixelData=%f VInitPreFillC=%u\n", __func__, s->LinesToRequestPrefetchPixelData, p->VInitPreFillC);
+					dml2_printf("DML::%s: No time to prefetch!. LinesToRequestPrefetchPixelData=%f VInitPreFillC=%u\n", __func__, s->LinesToRequestPrefetchPixelData, p->VInitPreFillC);
 					*p->VRatioPrefetchC = 0;
 				}
 #ifdef __DML_VBA_DEBUG__
@@ -5680,14 +5703,13 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 #endif
 		} else {
 			s->NoTimeToPrefetch = true;
-			dml2_printf("DML::%s: MyErr set, LinesToRequestPrefetchPixelData: %f, should be >= %d\n", __func__, s->LinesToRequestPrefetchPixelData, min_lsw_required);
-			dml2_printf("DML::%s: MyErr set, prefetch_bw_equ: %f, should be > 0\n", __func__, s->prefetch_bw_equ);
+			dml2_printf("DML::%s: No time to prefetch!, LinesToRequestPrefetchPixelData: %f, should be >= %d\n", __func__, s->LinesToRequestPrefetchPixelData, min_lsw_required);
+			dml2_printf("DML::%s: No time to prefetch!, prefetch_bw_equ: %f, should be > 0\n", __func__, s->prefetch_bw_equ);
 			*p->VRatioPrefetchY = 0;
 			*p->VRatioPrefetchC = 0;
 			*p->RequiredPrefetchPixelDataBWLuma = 0;
 			*p->RequiredPrefetchPixelDataBWChroma = 0;
 		}
-
 		dml2_printf("DML: Tpre: %fus - sum of time to request 2 x data pte, swaths\n", (double)s->LinesToRequestPrefetchPixelData * s->LineTime + 2.0 * s->TimeForFetchingRowInVBlank + s->TimeForFetchingVM);
 		dml2_printf("DML: Tvm: %fus - time to fetch vm\n", s->TimeForFetchingVM);
 		dml2_printf("DML: Tr0: %fus - time to fetch first row of data pagetables\n", s->TimeForFetchingRowInVBlank);
@@ -5698,7 +5720,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML: row_bytes = dpte_row_bytes (per_pipe) = PixelPTEBytesPerRow = : %u\n", p->PixelPTEBytesPerRow);
 
 	} else {
-		dml2_printf("DML::%s: MyErr set, dst_y_prefetch_equ = %f (should be > 1)\n", __func__, s->dst_y_prefetch_equ);
+		dml2_printf("DML::%s: No time to prefetch! dst_y_prefetch_equ = %f (should be > 1)\n", __func__, s->dst_y_prefetch_equ);
+		dml2_printf("DML::%s: No time to prefetch! min_Lsw_equ_ok = %d, Tpre_rounded (%f) should be >= Tvm_trips_rounded (%f)  + 2.0*Tr0_trips_rounded (%f) + min_Tsw_equ (%f)\n",
+				__func__, min_Lsw_equ_ok, s->Tpre_rounded, s->Tvm_trips_rounded, 2.0*s->Tr0_trips_rounded, s->min_Lsw_equ*s->LineTime);
 		s->NoTimeToPrefetch = true;
 		s->TimeForFetchingVM = 0;
 		s->TimeForFetchingRowInVBlank = 0;
@@ -5730,7 +5754,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		} else {
 			prefetch_vm_bw = 0;
 			s->NoTimeToPrefetch = true;
-			dml2_printf("DML::%s: MyErr set. dst_y_per_vm_vblank=%f (should be > 0)\n", __func__, *p->dst_y_per_vm_vblank);
+			dml2_printf("DML::%s: No time to prefetch!. dst_y_per_vm_vblank=%f (should be > 0)\n", __func__, *p->dst_y_per_vm_vblank);
 		}
 
 		if (p->PixelPTEBytesPerRow == 0 && tdlut_row_bytes == 0) {
@@ -5746,7 +5770,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		} else {
 			prefetch_row_bw = 0;
 			s->NoTimeToPrefetch = true;
-			dml2_printf("DML::%s: MyErr set. dst_y_per_row_vblank=%f (should be > 0)\n", __func__, *p->dst_y_per_row_vblank);
+			dml2_printf("DML::%s: No time to prefetch!. dst_y_per_row_vblank=%f (should be > 0)\n", __func__, *p->dst_y_per_row_vblank);
 		}
 
 		*p->prefetch_vmrow_bw = math_max2(prefetch_vm_bw, prefetch_row_bw);
@@ -5763,11 +5787,16 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		*p->VRatioPrefetchC = 0;
 		*p->RequiredPrefetchPixelDataBWLuma = 0;
 		*p->RequiredPrefetchPixelDataBWChroma = 0;
+		*p->prefetch_vmrow_bw = 0;
 	}
 
 	dml2_printf("DML::%s: dst_y_per_vm_vblank = %f (final)\n", __func__, *p->dst_y_per_vm_vblank);
 	dml2_printf("DML::%s: dst_y_per_row_vblank = %f (final)\n", __func__, *p->dst_y_per_row_vblank);
+	dml2_printf("DML::%s: prefetch_vmrow_bw = %f (final)\n", __func__, *p->prefetch_vmrow_bw);
+	dml2_printf("DML::%s: RequiredPrefetchPixelDataBWLuma = %f (final)\n", __func__, *p->RequiredPrefetchPixelDataBWLuma);
+	dml2_printf("DML::%s: RequiredPrefetchPixelDataBWChroma = %f (final)\n", __func__, *p->RequiredPrefetchPixelDataBWChroma);
 	dml2_printf("DML::%s: NoTimeToPrefetch=%d\n", __func__, s->NoTimeToPrefetch);
+
 	return s->NoTimeToPrefetch;
 }
 
@@ -6174,7 +6203,7 @@ static void CalculateFlipSchedule(
 {
 	struct dml2_core_shared_CalculateFlipSchedule_locals *l = &s->CalculateFlipSchedule_locals;
 
-	l->dual_plane = dml2_core_shared_is_420(SourcePixelFormat) || SourcePixelFormat == dml2_rgbe_alpha;
+	l->dual_plane = dml_is_420(SourcePixelFormat) || SourcePixelFormat == dml2_rgbe_alpha;
 	l->dpte_row_bytes = DPTEBytesPerRow;
 
 #ifdef __DML_VBA_DEBUG__
@@ -6250,7 +6279,7 @@ static void CalculateFlipSchedule(
 #ifdef __DML_VBA_DEBUG__
 				dml2_printf("DML::%s: max_flip_time = %f\n", __func__, l->max_flip_time);
 				dml2_printf("DML::%s: total vm bytes (hvm ineff scaled) = %f\n", __func__, l->hvm_scaled_vm_bytes);
-				dml2_printf("DML::%s: total row bytes (hvm ineff scaled) = %f\n", __func__, l->hvm_scaled_row_bytes);
+				dml2_printf("DML::%s: total row bytes (%d row, hvm ineff scaled) = %f\n", __func__, l->num_rows, l->hvm_scaled_row_bytes);
 				dml2_printf("DML::%s: total vm+row bytes (hvm ineff scaled) = %f\n", __func__, l->hvm_scaled_vm_row_bytes);
 				dml2_printf("DML::%s: lb_flip_bw for vm and row = %f\n", __func__, l->hvm_scaled_vm_row_bytes / (l->max_flip_time - Tno_bw_flip));
 				dml2_printf("DML::%s: lb_flip_bw for vm = %f\n", __func__, l->hvm_scaled_vm_bytes / (l->max_flip_time - Tno_bw_flip - 2 * Tr0_trips_flip_rounded));
@@ -6261,6 +6290,7 @@ static void CalculateFlipSchedule(
 					dml2_printf("DML::%s: mode_support est Tr0_flip = %f (bw-based)\n", __func__, l->hvm_scaled_row_bytes / l->lb_flip_bw / l->num_rows);
 					dml2_printf("DML::%s: mode_support est dst_y_per_vm_flip = %f (bw-based)\n", __func__, Tno_bw_flip + l->hvm_scaled_vm_bytes / l->lb_flip_bw / LineTime);
 					dml2_printf("DML::%s: mode_support est dst_y_per_row_flip = %f (bw-based)\n", __func__, l->hvm_scaled_row_bytes / l->lb_flip_bw / LineTime / l->num_rows);
+					dml2_printf("DML::%s: Tvm_trips_flip_rounded + 2*Tr0_trips_flip_rounded = %f\n", __func__, (Tvm_trips_flip_rounded + 2 * Tr0_trips_flip_rounded));
 				}
 #endif
 				l->lb_flip_bw = math_max3(l->lb_flip_bw,
@@ -6277,7 +6307,7 @@ static void CalculateFlipSchedule(
 
 			*dst_y_per_vm_flip = 1; // not used
 			*dst_y_per_row_flip = 1; // not used
-			*ImmediateFlipSupportedForPipe = true;
+			*ImmediateFlipSupportedForPipe = l->min_row_time >= (Tvm_trips_flip_rounded + 2 * Tr0_trips_flip_rounded);
 		} else {
 			if (iflip_enable) {
 				l->ImmediateFlipBW = (double)per_pipe_flip_bytes * BandwidthAvailableForImmediateFlip / (double)TotImmediateFlipBytes; // flip_bw(i)
@@ -6343,6 +6373,7 @@ static void CalculateFlipSchedule(
 		dml2_printf("DML::%s: dst_y_per_row_flip = %f (should be < 16)\n", __func__, *dst_y_per_row_flip);
 		dml2_printf("DML::%s: Tvm_flip = %f (final)\n", __func__, l->Tvm_flip);
 		dml2_printf("DML::%s: Tr0_flip = %f (final)\n", __func__, l->Tr0_flip);
+		dml2_printf("DML::%s: Tvm_flip + 2*Tr0_flip = %f (should be <= min_row_time=%f)\n", __func__, l->Tvm_flip + 2 * l->Tr0_flip, l->min_row_time);
 	}
 	dml2_printf("DML::%s: final_flip_bw = %f\n", __func__, *final_flip_bw);
 	dml2_printf("DML::%s: ImmediateFlipSupportedForPipe = %u\n", __func__, *ImmediateFlipSupportedForPipe);
@@ -6373,6 +6404,12 @@ static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	p->Watermark->StutterEnterPlusExitWatermark = p->mmSOCParameters.SREnterPlusExitTime + p->mmSOCParameters.ExtraLatency_sr + 10 / p->DCFClkDeepSleep;
 	p->Watermark->Z8StutterExitWatermark = p->mmSOCParameters.SRExitZ8Time + p->mmSOCParameters.ExtraLatency_sr + 10 / p->DCFClkDeepSleep;
 	p->Watermark->Z8StutterEnterPlusExitWatermark = p->mmSOCParameters.SREnterPlusExitZ8Time + p->mmSOCParameters.ExtraLatency_sr + 10 / p->DCFClkDeepSleep;
+	if (p->mmSOCParameters.qos_type == dml2_qos_param_type_dcn4x) {
+		p->Watermark->StutterExitWatermark += p->mmSOCParameters.max_urgent_latency_us + p->mmSOCParameters.df_response_time_us;
+		p->Watermark->StutterEnterPlusExitWatermark += p->mmSOCParameters.max_urgent_latency_us + p->mmSOCParameters.df_response_time_us;
+		p->Watermark->Z8StutterExitWatermark += p->mmSOCParameters.max_urgent_latency_us + p->mmSOCParameters.df_response_time_us;
+		p->Watermark->Z8StutterEnterPlusExitWatermark += p->mmSOCParameters.max_urgent_latency_us + p->mmSOCParameters.df_response_time_us;
+	}
 	p->Watermark->g6_temp_read_watermark_us = p->mmSOCParameters.g6_temp_read_blackout_us + p->Watermark->UrgentWatermark;
 
 #ifdef __DML_VBA_DEBUG__
@@ -6579,13 +6616,13 @@ static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 			s->src_y_ahead_c = (unsigned int)(math_floor2(p->DETBufferSizeC[k] / p->BytePerPixelDETC[k] / p->SwathWidthC[k], p->SwathHeightC[k]) + s->LBLatencyHidingSourceLinesC[k]);
 			s->sub_vp_lines_c = s->src_y_pstate_c + s->src_y_ahead_c + p->meta_row_height_c[k];
 
-			if (dml2_core_shared_is_420(p->display_cfg->plane_descriptors[k].pixel_format))
+			if (dml_is_420(p->display_cfg->plane_descriptors[k].pixel_format))
 				p->SubViewportLinesNeededInMALL[k] = (unsigned int)(math_max2(s->sub_vp_lines_l, 2 * s->sub_vp_lines_c));
 			else
 				p->SubViewportLinesNeededInMALL[k] = (unsigned int)(math_max2(s->sub_vp_lines_l, s->sub_vp_lines_c));
 
 #ifdef __DML_VBA_DEBUG__
-			dml2_printf("DML::%s: k=%u, meta_row_height_c = %u\n", __func__, p->meta_row_height_c[k]);
+			dml2_printf("DML::%s: k=%u, meta_row_height_c = %u\n", __func__, k, p->meta_row_height_c[k]);
 			dml2_printf("DML::%s: k=%u, src_y_pstate_c = %u\n", __func__, k, s->src_y_pstate_c);
 			dml2_printf("DML::%s: k=%u, src_y_ahead_c = %u\n", __func__, k, s->src_y_ahead_c);
 			dml2_printf("DML::%s: k=%u, sub_vp_lines_c = %u\n", __func__, k, s->sub_vp_lines_c);
@@ -6915,6 +6952,21 @@ static double get_g6_temp_read_blackout_us(
 	return (double)blackout_us;
 }
 
+static double get_max_urgent_latency_us(
+	struct dml2_dcn4x_soc_qos_params *dcn4x,
+	double uclk_freq_mhz,
+	double FabricClock,
+	unsigned int min_clk_index)
+{
+	double latency;
+	latency = dcn4x->per_uclk_dpm_params[min_clk_index].maximum_latency_when_urgent_uclk_cycles / uclk_freq_mhz
+		* (1 + dcn4x->umc_max_latency_margin / 100.0)
+		+ dcn4x->mall_overhead_fclk_cycles / FabricClock
+		+ dcn4x->max_round_trip_to_furthest_cs_fclk_cycles / FabricClock
+		* (1 + dcn4x->fabric_max_transport_latency_margin / 100.0);
+	return latency;
+}
+
 static void calculate_pstate_keepout_dst_lines(
 		const struct dml2_display_cfg *display_cfg,
 		const struct dml2_core_internal_watermarks *watermarks,
@@ -6997,7 +7049,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	dml2_printf("DML::%s: max_dscclk_freq_mhz = %f\n", __func__, mode_lib->ms.max_dscclk_freq_mhz);
 	dml2_printf("DML::%s: max_dppclk_freq_mhz = %f\n", __func__, mode_lib->ms.max_dppclk_freq_mhz);
 	dml2_printf("DML::%s: MaxFabricClock = %f\n", __func__, mode_lib->ms.MaxFabricClock);
-	dml2_printf("DML::%s: max_dscclk_freq_mhz = %f\n", __func__, mode_lib->ms.max_dscclk_freq_mhz);
 	dml2_printf("DML::%s: ip.compressed_buffer_segment_size_in_kbytes = %u\n", __func__, mode_lib->ip.compressed_buffer_segment_size_in_kbytes);
 	dml2_printf("DML::%s: ip.dcn_mrq_present = %u\n", __func__, mode_lib->ip.dcn_mrq_present);
 
@@ -7223,12 +7274,12 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 		}
 #endif
 */
-		mode_lib->ms.MaximumSwathWidthInLineBufferLuma = lb_buffer_size_bits_luma * math_max2(display_cfg->plane_descriptors[k].composition.scaler_info.plane0.h_ratio, 1.0) / 57 /*FIXME_STAGE2 was: LBBitPerPixel*/ /
+		mode_lib->ms.MaximumSwathWidthInLineBufferLuma = lb_buffer_size_bits_luma * math_max2(display_cfg->plane_descriptors[k].composition.scaler_info.plane0.h_ratio, 1.0) / 57 /
 			(display_cfg->plane_descriptors[k].composition.scaler_info.plane0.v_taps + math_max2(math_ceil2(display_cfg->plane_descriptors[k].composition.scaler_info.plane0.v_ratio, 1.0) - 2, 0.0));
 		if (mode_lib->ms.BytePerPixelC[k] == 0.0) {
 			mode_lib->ms.MaximumSwathWidthInLineBufferChroma = 0;
 		} else {
-			mode_lib->ms.MaximumSwathWidthInLineBufferChroma = lb_buffer_size_bits_chroma * math_max2(display_cfg->plane_descriptors[k].composition.scaler_info.plane1.h_ratio, 1.0) / 57 /*FIXME_STAGE2 was: LBBitPerPixel*/ /
+			mode_lib->ms.MaximumSwathWidthInLineBufferChroma = lb_buffer_size_bits_chroma * math_max2(display_cfg->plane_descriptors[k].composition.scaler_info.plane1.h_ratio, 1.0) / 57 /
 				(display_cfg->plane_descriptors[k].composition.scaler_info.plane1.v_taps + math_max2(math_ceil2(display_cfg->plane_descriptors[k].composition.scaler_info.plane1.v_ratio, 1.0) - 2, 0.0));
 		}
 
@@ -7310,7 +7361,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	mode_lib->ms.support.ViewportExceedsSurface = false;
 	if (!display_cfg->overrides.hw.surface_viewport_size_check_disable) {
 		for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
-			if (display_cfg->plane_descriptors[k].composition.viewport.plane0.width > display_cfg->plane_descriptors[k].surface.plane0.width || display_cfg->plane_descriptors[k].composition.viewport.plane0.height > display_cfg->plane_descriptors[k].surface.plane0.height) {
+			if (display_cfg->plane_descriptors[k].composition.viewport.plane0.width > display_cfg->plane_descriptors[k].surface.plane0.width ||
+				display_cfg->plane_descriptors[k].composition.viewport.plane0.height > display_cfg->plane_descriptors[k].surface.plane0.height) {
 				mode_lib->ms.support.ViewportExceedsSurface = true;
 #if defined(__DML_VBA_DEBUG__)
 				dml2_printf("DML::%s: k=%u ViewportWidth = %d\n", __func__, k, display_cfg->plane_descriptors[k].composition.viewport.plane0.width);
@@ -7319,11 +7371,11 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				dml2_printf("DML::%s: k=%u SurfaceHeightY = %d\n", __func__, k, display_cfg->plane_descriptors[k].surface.plane0.height);
 				dml2_printf("DML::%s: k=%u ViewportExceedsSurface = %d\n", __func__, k, mode_lib->ms.support.ViewportExceedsSurface);
 #endif
-				if (dml_is_420(display_cfg->plane_descriptors[k].pixel_format) || display_cfg->plane_descriptors[k].pixel_format == dml2_rgbe_alpha) {
-					if (display_cfg->plane_descriptors[k].composition.viewport.plane1.width > display_cfg->plane_descriptors[k].surface.plane1.width ||
-						display_cfg->plane_descriptors[k].composition.viewport.plane1.height > display_cfg->plane_descriptors[k].surface.plane1.height) {
-						mode_lib->ms.support.ViewportExceedsSurface = true;
-					}
+			}
+			if (dml_is_420(display_cfg->plane_descriptors[k].pixel_format) || display_cfg->plane_descriptors[k].pixel_format == dml2_rgbe_alpha) {
+				if (display_cfg->plane_descriptors[k].composition.viewport.plane1.width > display_cfg->plane_descriptors[k].surface.plane1.width ||
+					display_cfg->plane_descriptors[k].composition.viewport.plane1.height > display_cfg->plane_descriptors[k].surface.plane1.height) {
+					mode_lib->ms.support.ViewportExceedsSurface = true;
 				}
 			}
 		}
@@ -7599,7 +7651,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.scaling_info.h_taps,
 					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.scaling_info.v_taps,
 					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.scaling_info.input_width,
-					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.scaling_info.output_height,
+					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.scaling_info.output_width,
 					display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total,
 					mode_lib->ip.writeback_line_buffer_buffer_size));
 		}
@@ -7684,8 +7736,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_format == dml2_420 && display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.interlaced == 1 && mode_lib->ip.ptoi_supported == true)
 				mode_lib->ms.support.P2IWith420 = true;
 
-			if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.dsc.enable == dml2_dsc_enable_if_necessary && s->OutputBpp[k] != 0)
-				mode_lib->ms.support.DSCOnlyIfNecessaryWithBPP = true;
 			if ((display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.dsc.enable == dml2_dsc_enable || display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.dsc.enable == dml2_dsc_enable_if_necessary) && display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_format == dml2_n422 && !mode_lib->ip.dsc422_native_support)
 				mode_lib->ms.support.DSC422NativeNotSupported = true;
 
@@ -8483,7 +8533,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	{
 		mode_lib->ms.TimeCalc = 24 / mode_lib->ms.dcfclk_deepsleep;
 
-
 		calculate_hostvm_inefficiency_factor(
 				&s->HostVMInefficiencyFactor,
 				&s->HostVMInefficiencyFactorPrefetch,
@@ -8568,7 +8617,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				mode_lib->ms.TWait[k] = CalculateTWait(
 					display_cfg->plane_descriptors[k].overrides.reserved_vblank_time_ns,
 					mode_lib->ms.UrgLatency,
-					mode_lib->ms.TripToMemory);
+					mode_lib->ms.TripToMemory,
+					!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k]) && display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.drr_config.enabled ?
+					get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000), in_out_params->min_clk_index) : 0.0);
 
 				myPipe->Dppclk = mode_lib->ms.RequiredDPPCLK[k];
 				myPipe->Dispclk = mode_lib->ms.RequiredDISPCLK;
@@ -8615,7 +8666,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				CalculatePrefetchSchedule_params->OutputFormat = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_format;
 				CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ip.max_inter_dcn_tile_repeaters;
 				CalculatePrefetchSchedule_params->VStartup = s->MaximumVStartup[k];
-				CalculatePrefetchSchedule_params->MaxVStartup = s->MaximumVStartup[k];
 				CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->soc.hostvm_min_page_size_kbytes;
 				CalculatePrefetchSchedule_params->DynamicMetadataEnable = display_cfg->plane_descriptors[k].dynamic_meta_data.enable;
 				CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ip.dynamic_metadata_vm_enabled;
@@ -8697,8 +8747,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 					dml2_printf("DML::%s: k=%d, dst_y_prefetch=%f (should not be < 2)\n", __func__, k, mode_lib->ms.dst_y_prefetch[k]);
 					dml2_printf("DML::%s: k=%d, LinesForVM=%f (should not be >= 32)\n", __func__, k, mode_lib->ms.LinesForVM[k]);
 					dml2_printf("DML::%s: k=%d, LinesForDPTERow=%f (should not be >= 16)\n", __func__, k, mode_lib->ms.LinesForDPTERow[k]);
-					dml2_printf("DML::%s: k=%d, NoTimeForPrefetch=%d\n", __func__, k, mode_lib->ms.NoTimeForPrefetch[k]);
 					dml2_printf("DML::%s: k=%d, DSTYAfterScaler=%d (should be <= 8)\n", __func__, k, s->DSTYAfterScaler[k]);
+					dml2_printf("DML::%s: k=%d, NoTimeForPrefetch=%d\n", __func__, k, mode_lib->ms.NoTimeForPrefetch[k]);
 				}
 			}
 
@@ -8711,17 +8761,12 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 			mode_lib->ms.support.VRatioInPrefetchSupported = true;
 			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-				if (mode_lib->ms.VRatioPreY[k] > __DML2_CALCS_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
-					mode_lib->ms.VRatioPreC[k] > __DML2_CALCS_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__) {
+				if (mode_lib->ms.VRatioPreY[k] > __DML2_CALCS_MAX_VRATIO_PRE__ ||
+					mode_lib->ms.VRatioPreC[k] > __DML2_CALCS_MAX_VRATIO_PRE__) {
 					mode_lib->ms.support.VRatioInPrefetchSupported = false;
+					dml2_printf("DML::%s: k=%d VRatioPreY = %f (should be <= %f)\n", __func__, k, mode_lib->ms.VRatioPreY[k], __DML2_CALCS_MAX_VRATIO_PRE__);
+					dml2_printf("DML::%s: k=%d VRatioPreC = %f (should be <= %f)\n", __func__, k, mode_lib->ms.VRatioPreC[k], __DML2_CALCS_MAX_VRATIO_PRE__);
 					dml2_printf("DML::%s: VRatioInPrefetchSupported = %u\n", __func__, mode_lib->ms.support.VRatioInPrefetchSupported);
-				}
-			}
-
-			s->AnyLinesForVMOrRowTooLarge = false;
-			for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-				if (mode_lib->ms.LinesForDPTERow[k] >= 16 || mode_lib->ms.LinesForVM[k] >= 32) {
-					s->AnyLinesForVMOrRowTooLarge = true;
 				}
 			}
 
@@ -8961,6 +9006,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 		s->mSOCParameters.USRRetrainingLatency = 0;
 		s->mSOCParameters.SMNLatency = 0;
 		s->mSOCParameters.g6_temp_read_blackout_us = get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000), in_out_params->min_clk_index);
+		s->mSOCParameters.max_urgent_latency_us = get_max_urgent_latency_us(&mode_lib->soc.qos_parameters.qos_params.dcn4x, mode_lib->ms.uclk_freq_mhz, mode_lib->ms.FabricClock, in_out_params->min_clk_index);
+		s->mSOCParameters.df_response_time_us = mode_lib->soc.qos_parameters.qos_params.dcn4x.df_qos_response_time_fclk_cycles / mode_lib->ms.FabricClock;
+		s->mSOCParameters.qos_type = mode_lib->soc.qos_parameters.qos_type;
 
 		CalculateWatermarks_params->display_cfg = display_cfg;
 		CalculateWatermarks_params->USRRetrainingRequired = false;
@@ -8980,7 +9028,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 		CalculateWatermarks_params->DETBufferSizeC = mode_lib->ms.DETBufferSizeC;
 		CalculateWatermarks_params->SwathHeightY = mode_lib->ms.SwathHeightY;
 		CalculateWatermarks_params->SwathHeightC = mode_lib->ms.SwathHeightC;
-		//CalculateWatermarks_params->LBBitPerPixel = 57; // FIXME_STAGE2, need a new ip param?
 		CalculateWatermarks_params->SwathWidthY = mode_lib->ms.SwathWidthY;
 		CalculateWatermarks_params->SwathWidthC = mode_lib->ms.SwathWidthC;
 		CalculateWatermarks_params->DPPPerSurface = mode_lib->ms.NoOfDPP;
@@ -9011,22 +9058,15 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 		calculate_pstate_keepout_dst_lines(display_cfg, &mode_lib->ms.support.watermarks, s->dummy_integer_array[0]);
 	}
-
+	dml2_printf("DML::%s: Done prefetch calculation\n", __func__);
 	// End of Prefetch Check
 
-	dml2_printf("DML::%s: Done prefetch calculation\n", __func__);
+	mode_lib->ms.support.max_urgent_latency_us = s->mSOCParameters.max_urgent_latency_us;
 
 	//Re-ordering Buffer Support Check
-	mode_lib->ms.support.max_urgent_latency_us
-		= mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].maximum_latency_when_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin / 100.0)
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles / mode_lib->ms.FabricClock
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles / mode_lib->ms.FabricClock
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin / 100.0);
-
 	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4x) {
 		if (((mode_lib->ip.rob_buffer_size_kbytes - mode_lib->ip.pixel_chunk_size_kbytes) * 1024
-			/ mode_lib->ms.support.non_urg_bandwidth_required_flip[dml2_core_internal_soc_state_sys_active][dml2_core_internal_bw_sdp]) >= mode_lib->ms.support.max_urgent_latency_us) {
+			/ mode_lib->ms.support.non_urg_bandwidth_required_flip[dml2_core_internal_soc_state_sys_active][dml2_core_internal_bw_sdp]) >= s->mSOCParameters.max_urgent_latency_us) {
 			mode_lib->ms.support.ROBSupport = true;
 		} else {
 			mode_lib->ms.support.ROBSupport = false;
@@ -9055,15 +9095,12 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			mode_lib->ms.dram_change_vactive_det_fill_delay_us);
 
 #ifdef __DML_VBA_DEBUG__
-	dml2_printf("DML::%s: max_urgent_latency_us = %f\n", __func__, mode_lib->ms.support.max_urgent_latency_us);
+	dml2_printf("DML::%s: max_urgent_latency_us = %f\n", __func__, s->mSOCParameters.max_urgent_latency_us);
 	dml2_printf("DML::%s: ROBSupport = %u\n", __func__, mode_lib->ms.support.ROBSupport);
 #endif
 
 	/*Mode Support, Voltage State and SOC Configuration*/
 	{
-		// s->dram_clock_change_support = 1;
-		// s->f_clock_change_support = 1;
-
 		if (mode_lib->ms.support.ScaleRatioAndTapsSupport
 			&& mode_lib->ms.support.SourceFormatPixelAndScanSupport
 			&& mode_lib->ms.support.ViewportSizeSupport
@@ -9074,9 +9111,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			&& !mode_lib->ms.support.ExceededMultistreamSlots
 			&& !mode_lib->ms.support.MSOOrODMSplitWithNonDPLink
 			&& !mode_lib->ms.support.NotEnoughLanesForMSO
-			//&& mode_lib->ms.support.LinkCapacitySupport == true // FIXME_STAGE2
 			&& !mode_lib->ms.support.P2IWith420
-			&& !mode_lib->ms.support.DSCOnlyIfNecessaryWithBPP
 			&& !mode_lib->ms.support.DSC422NativeNotSupported
 			&& mode_lib->ms.support.DSCSlicesODMModeSupported
 			&& !mode_lib->ms.support.NotEnoughDSCUnits
@@ -9144,7 +9179,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 #if defined(__DML_VBA_DEBUG__)
 	if (!mode_lib->ms.support.ModeSupport)
-		dml2_print_dml_mode_support_info(&mode_lib->ms.support, true);
+		dml2_print_mode_support_info(&mode_lib->ms.support, true);
 
 	dml2_printf("DML::%s: --- DONE --- \n", __func__);
 #endif
@@ -9163,6 +9198,10 @@ unsigned int dml2_core_calcs_mode_support_ex(struct dml2_core_calcs_mode_support
 		*in_out_params->out_evaluation_info = in_out_params->mode_lib->ms.support;
 
 	dml2_printf("DML::%s: is_mode_support = %u (min_clk_index=%d)\n", __func__, result, in_out_params->min_clk_index);
+
+	for (unsigned int k = 0; k < in_out_params->in_display_cfg->num_planes; k++)
+	    dml2_printf("DML::%s: plane_%d: reserved_vblank_time_ns = %u\n", __func__, k, in_out_params->in_display_cfg->plane_descriptors[k].overrides.reserved_vblank_time_ns);
+
 	dml2_printf("DML::%s: ------------- DONE ----------\n", __func__);
 
 	return result;
@@ -10697,7 +10736,9 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			mode_lib->mp.TWait[k] = CalculateTWait(
 				display_cfg->plane_descriptors[k].overrides.reserved_vblank_time_ns,
 				mode_lib->mp.UrgentLatency,
-				mode_lib->mp.TripToMemory);
+				mode_lib->mp.TripToMemory,
+				!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k]) && display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.drr_config.enabled ?
+				get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000), in_out_params->min_clk_index) : 0.0);
 
 			myPipe->Dppclk = mode_lib->mp.Dppclk[k];
 			myPipe->Dispclk = mode_lib->mp.Dispclk;
@@ -10743,7 +10784,6 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			CalculatePrefetchSchedule_params->OutputFormat = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_format;
 			CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ip.max_inter_dcn_tile_repeaters;
 			CalculatePrefetchSchedule_params->VStartup = s->MaxVStartupLines[k];
-			CalculatePrefetchSchedule_params->MaxVStartup = s->MaxVStartupLines[k];
 			CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->soc.hostvm_min_page_size_kbytes;
 			CalculatePrefetchSchedule_params->DynamicMetadataEnable = display_cfg->plane_descriptors[k].dynamic_meta_data.enable;
 			CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ip.dynamic_metadata_vm_enabled;
@@ -10829,9 +10869,13 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			if (mode_lib->mp.dst_y_prefetch[k] < 2)
 				s->DestinationLineTimesForPrefetchLessThan2 = true;
 
-			if (mode_lib->mp.VRatioPrefetchY[k] > __DML2_CALCS_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
-				mode_lib->mp.VRatioPrefetchC[k] > __DML2_CALCS_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__)
+			if (mode_lib->mp.VRatioPrefetchY[k] > __DML2_CALCS_MAX_VRATIO_PRE__ ||
+				mode_lib->mp.VRatioPrefetchC[k] > __DML2_CALCS_MAX_VRATIO_PRE__) {
 				s->VRatioPrefetchMoreThanMax = true;
+				dml2_printf("DML::%s: k=%d, VRatioPrefetchY=%f (should not be < %f)\n", __func__, k, mode_lib->mp.VRatioPrefetchY[k], __DML2_CALCS_MAX_VRATIO_PRE__);
+				dml2_printf("DML::%s: k=%d, VRatioPrefetchC=%f (should not be < %f)\n", __func__, k, mode_lib->mp.VRatioPrefetchC[k], __DML2_CALCS_MAX_VRATIO_PRE__);
+				dml2_printf("DML::%s: VRatioPrefetchMoreThanMax = %u\n", __func__, s->VRatioPrefetchMoreThanMax);
+			}
 
 			if (mode_lib->mp.NotEnoughUrgentLatencyHiding[k]) {
 				dml2_printf("DML::%s: k=%u, NotEnoughUrgentLatencyHiding = %u\n", __func__, k, mode_lib->mp.NotEnoughUrgentLatencyHiding[k]);
@@ -11165,6 +11209,9 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		s->mmSOCParameters.USRRetrainingLatency = 0;
 		s->mmSOCParameters.SMNLatency = 0;
 		s->mmSOCParameters.g6_temp_read_blackout_us = get_g6_temp_read_blackout_us(&mode_lib->soc, (unsigned int)(mode_lib->mp.uclk_freq_mhz * 1000), in_out_params->min_clk_index);
+		s->mmSOCParameters.max_urgent_latency_us = get_max_urgent_latency_us(&mode_lib->soc.qos_parameters.qos_params.dcn4x, mode_lib->ms.uclk_freq_mhz, mode_lib->ms.FabricClock, in_out_params->min_clk_index);
+		s->mmSOCParameters.df_response_time_us = mode_lib->soc.qos_parameters.qos_params.dcn4x.df_qos_response_time_fclk_cycles / mode_lib->ms.FabricClock;
+		s->mmSOCParameters.qos_type = mode_lib->soc.qos_parameters.qos_type;
 
 		CalculateWatermarks_params->display_cfg = display_cfg;
 		CalculateWatermarks_params->USRRetrainingRequired = false;
@@ -11184,7 +11231,6 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		CalculateWatermarks_params->DETBufferSizeC = mode_lib->mp.DETBufferSizeC;
 		CalculateWatermarks_params->SwathHeightY = mode_lib->mp.SwathHeightY;
 		CalculateWatermarks_params->SwathHeightC = mode_lib->mp.SwathHeightC;
-		//CalculateWatermarks_params->LBBitPerPixel = 57; //FIXME_STAGE2
 		CalculateWatermarks_params->SwathWidthY = mode_lib->mp.SwathWidthY;
 		CalculateWatermarks_params->SwathWidthC = mode_lib->mp.SwathWidthC;
 		CalculateWatermarks_params->BytePerPixelDETY = mode_lib->mp.BytePerPixelInDETY;
@@ -11515,9 +11561,9 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 
 bool dml2_core_calcs_mode_programming_ex(struct dml2_core_calcs_mode_programming_ex *in_out_params)
 {
+	dml2_printf("DML::%s: ------------- START ----------\n", __func__);
 	bool result = dml_core_mode_programming(in_out_params);
 
-	dml2_printf("DML::%s: ------------- START ----------\n", __func__);
 	dml2_printf("DML::%s: result = %0d\n", __func__, result);
 	dml2_printf("DML::%s: ------------- DONE ----------\n", __func__);
 	return result;
@@ -12427,7 +12473,7 @@ void dml2_core_calcs_get_stream_support_info(const struct dml2_display_cfg *disp
 	phantom_processing_delay_pix = (double)((mode_lib->ip.subvp_fw_processing_delay_us + mode_lib->ip.subvp_pstate_allow_width_us) *
 		((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[plane_index].stream_index].timing.pixel_clock_khz / 1000));
 	phantom_processing_delay_lines = (unsigned int)(phantom_processing_delay_pix / (double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[plane_index].stream_index].timing.h_total);
-	dml2_core_shared_div_rem(phantom_processing_delay_pix,
+	dml2_core_div_rem(phantom_processing_delay_pix,
 				display_cfg->stream_descriptors[display_cfg->plane_descriptors[plane_index].stream_index].timing.h_total,
 				&rem);
 	if (rem)
@@ -12470,7 +12516,7 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.mode_support_info.ScaleRatioAndTapsSupport = mode_lib->ms.support.ScaleRatioAndTapsSupport;
 	out->informative.mode_support_info.SourceFormatPixelAndScanSupport = mode_lib->ms.support.SourceFormatPixelAndScanSupport;
 	out->informative.mode_support_info.P2IWith420 = mode_lib->ms.support.P2IWith420;
-	out->informative.mode_support_info.DSCOnlyIfNecessaryWithBPP = mode_lib->ms.support.DSCOnlyIfNecessaryWithBPP;
+	out->informative.mode_support_info.DSCOnlyIfNecessaryWithBPP = false;
 	out->informative.mode_support_info.DSC422NativeNotSupported = mode_lib->ms.support.DSC422NativeNotSupported;
 	out->informative.mode_support_info.LinkRateDoesNotMatchDPVersion = mode_lib->ms.support.LinkRateDoesNotMatchDPVersion;
 	out->informative.mode_support_info.LinkRateForMultistreamNotIndicated = mode_lib->ms.support.LinkRateForMultistreamNotIndicated;

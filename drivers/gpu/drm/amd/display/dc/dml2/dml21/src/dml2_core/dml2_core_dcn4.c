@@ -273,7 +273,6 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 		programming->fams2_required = display_cfg->stage3.fams2_required;
 
 		dml2_core_calcs_get_global_fams2_programming(&core->clean_me_up.mode_lib, display_cfg, &programming->fams2_global_config);
-		programming->fams2_global_config.features.bits.enable = display_cfg->stage3.fams2_required;
 	}
 
 	// Only loop over all the main streams (the implicit svp streams will be packed as part of the main stream)

@@ -151,6 +151,7 @@ struct dml2_soc_bb {
 	double phy_downspread_percent;
 	double dcn_downspread_percent;
 	double dispclk_dppclk_vco_speed_mhz;
+	bool no_dfs;
 	bool do_urgent_latency_adjustment;
 	unsigned int mem_word_bytes;
 	unsigned int num_dcc_mcaches;

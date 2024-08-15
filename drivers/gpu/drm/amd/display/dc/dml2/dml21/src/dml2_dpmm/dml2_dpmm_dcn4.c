@@ -203,6 +203,26 @@ static bool add_margin_and_round_to_dfs_grainularity(double clock_khz, double ma
 	return true;
 }
 
+static bool round_to_non_dfs_granularity(unsigned long dispclk_khz, unsigned long dpprefclk_khz, unsigned long dtbrefclk_khz,
+	unsigned long *rounded_dispclk_khz, unsigned long *rounded_dpprefclk_khz, unsigned long *rounded_dtbrefclk_khz)
+{
+	unsigned long pll_frequency_khz;
+
+	pll_frequency_khz = (unsigned long) math_max2(600000, math_ceil2(math_max3(dispclk_khz, dpprefclk_khz, dtbrefclk_khz), 1000));
+
+	*rounded_dispclk_khz = pll_frequency_khz / (unsigned long) math_min2(pll_frequency_khz / dispclk_khz, 32);
+
+	*rounded_dpprefclk_khz = pll_frequency_khz / (unsigned long) math_min2(pll_frequency_khz / dpprefclk_khz, 32);
+
+	if (dtbrefclk_khz > 0) {
+		*rounded_dtbrefclk_khz = pll_frequency_khz / (unsigned long) math_min2(pll_frequency_khz / dtbrefclk_khz, 32);
+	} else {
+		*rounded_dtbrefclk_khz = 0;
+	}
+
+	return true;
+}
+
 static bool round_up_and_copy_to_next_dpm(unsigned long min_value, unsigned long *rounded_value, const struct dml2_clk_table *clock_table)
 {
 	bool result = false;
@@ -555,31 +575,39 @@ static bool map_mode_to_soc_dpm(struct dml2_dpmm_map_mode_to_soc_dpm_params_in_o
 	// but still the required dispclk can be more than the maximum dispclk speed:
 	dispclk_khz = math_max2(dispclk_khz, mode_support_result->global.dispclk_khz * (1 + in_out->soc_bb->dcn_downspread_percent / 100.0));
 
-	add_margin_and_round_to_dfs_grainularity(dispclk_khz, 0.0,
-		(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dispclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dispclk_did);
-
 	// DPP Ref is always set to max of all DPP clocks
 	for (i = 0; i < DML2_MAX_DCN_PIPES; i++) {
 		if (in_out->programming->min_clocks.dcn4x.dpprefclk_khz < mode_support_result->per_plane[i].dppclk_khz)
 			in_out->programming->min_clocks.dcn4x.dpprefclk_khz = mode_support_result->per_plane[i].dppclk_khz;
 	}
-
-	add_margin_and_round_to_dfs_grainularity(in_out->programming->min_clocks.dcn4x.dpprefclk_khz, in_out->soc_bb->dcn_downspread_percent / 100.0,
-		(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dpprefclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dpprefclk_did);
-
-	for (i = 0; i < DML2_MAX_DCN_PIPES; i++) {
-		in_out->programming->plane_programming[i].min_clocks.dcn4x.dppclk_khz = (unsigned long)(in_out->programming->min_clocks.dcn4x.dpprefclk_khz / 255.0
-			* math_ceil2(in_out->display_cfg->mode_support_result.per_plane[i].dppclk_khz * (1.0 + in_out->soc_bb->dcn_downspread_percent / 100.0) * 255.0 / in_out->programming->min_clocks.dcn4x.dpprefclk_khz, 1.0));
-	}
+	in_out->programming->min_clocks.dcn4x.dpprefclk_khz = (unsigned long) (in_out->programming->min_clocks.dcn4x.dpprefclk_khz * (1 + in_out->soc_bb->dcn_downspread_percent / 100.0));
 
 	// DTB Ref is always set to max of all DTB clocks
 	for (i = 0; i < DML2_MAX_DCN_PIPES; i++) {
 		if (in_out->programming->min_clocks.dcn4x.dtbrefclk_khz < mode_support_result->per_stream[i].dtbclk_khz)
 			in_out->programming->min_clocks.dcn4x.dtbrefclk_khz = mode_support_result->per_stream[i].dtbclk_khz;
 	}
+	in_out->programming->min_clocks.dcn4x.dtbrefclk_khz = (unsigned long)(in_out->programming->min_clocks.dcn4x.dtbrefclk_khz * (1 + in_out->soc_bb->dcn_downspread_percent / 100.0));
 
-	add_margin_and_round_to_dfs_grainularity(in_out->programming->min_clocks.dcn4x.dtbrefclk_khz, in_out->soc_bb->dcn_downspread_percent / 100.0,
-		(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dtbrefclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dtbrefclk_did);
+	if (in_out->soc_bb->no_dfs) {
+		round_to_non_dfs_granularity((unsigned long)dispclk_khz, in_out->programming->min_clocks.dcn4x.dpprefclk_khz, in_out->programming->min_clocks.dcn4x.dtbrefclk_khz,
+			&in_out->programming->min_clocks.dcn4x.dispclk_khz, &in_out->programming->min_clocks.dcn4x.dpprefclk_khz, &in_out->programming->min_clocks.dcn4x.dtbrefclk_khz);
+	} else {
+		add_margin_and_round_to_dfs_grainularity(dispclk_khz, 0.0,
+			(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dispclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dispclk_did);
+
+		add_margin_and_round_to_dfs_grainularity(in_out->programming->min_clocks.dcn4x.dpprefclk_khz, 0.0,
+			(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dpprefclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dpprefclk_did);
+
+		add_margin_and_round_to_dfs_grainularity(in_out->programming->min_clocks.dcn4x.dtbrefclk_khz, 0.0,
+			(unsigned long)(in_out->soc_bb->dispclk_dppclk_vco_speed_mhz * 1000), &in_out->programming->min_clocks.dcn4x.dtbrefclk_khz, &in_out->programming->min_clocks.dcn4x.divider_ids.dtbrefclk_did);
+	}
+
+
+	for (i = 0; i < DML2_MAX_DCN_PIPES; i++) {
+		in_out->programming->plane_programming[i].min_clocks.dcn4x.dppclk_khz = (unsigned long)(in_out->programming->min_clocks.dcn4x.dpprefclk_khz / 255.0
+			* math_ceil2(in_out->display_cfg->mode_support_result.per_plane[i].dppclk_khz * (1.0 + in_out->soc_bb->dcn_downspread_percent / 100.0) * 255.0 / in_out->programming->min_clocks.dcn4x.dpprefclk_khz, 1.0));
+	}
 
 	in_out->programming->min_clocks.dcn4x.deepsleep_dcfclk_khz = mode_support_result->global.dcfclk_deepsleep_khz;
 	in_out->programming->min_clocks.dcn4x.socclk_khz = mode_support_result->global.socclk_khz;

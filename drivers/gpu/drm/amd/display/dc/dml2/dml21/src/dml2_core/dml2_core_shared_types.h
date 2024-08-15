@@ -9,6 +9,15 @@
 #include "dml_top_display_cfg_types.h"
 #include "dml_top_types.h"
 
+#define __DML_VBA_DEBUG__
+#define __DML2_CALCS_MAX_VRATIO_PRE_OTO__ 4.0 //<brief max vratio for one-to-one prefetch bw scheduling
+#define __DML2_CALCS_MAX_VRATIO_PRE_EQU__ 6.0 //<brief max vratio for equalized prefetch bw scheduling
+#define __DML2_CALCS_MAX_VRATIO_PRE__ 8.0 //<brief max prefetch vratio register limit
+
+#define __DML2_CALCS_DPP_INVALID__ 0
+#define __DML2_CALCS_DCFCLK_FACTOR__ 1.15 //<brief fudge factor for min dcfclk calclation
+#define __DML2_CALCS_PIPE_NO_PLANE__ 99
+
 struct dml2_core_ip_params {
 	unsigned int vblank_nom_default_us;
 	unsigned int remote_iommu_outstanding_translations;
@@ -853,6 +862,9 @@ struct dml2_core_internal_SOCParametersList {
 	double USRRetrainingLatency;
 	double SMNLatency;
 	double g6_temp_read_blackout_us;
+	double max_urgent_latency_us;
+	double df_response_time_us;
+	enum dml2_qos_param_type qos_type;
 };
 
 struct dml2_core_calcs_mode_support_locals {
@@ -914,9 +926,7 @@ struct dml2_core_calcs_mode_support_locals {
 
 	double HostVMInefficiencyFactor;
 	double HostVMInefficiencyFactorPrefetch;
-	unsigned int NextMaxVStartup;
 	unsigned int MaxVStartup;
-	bool AnyLinesForVMOrRowTooLarge;
 	double PixelClockBackEndFactor;
 	unsigned int NumDSCUnitRequired;
 
@@ -1197,11 +1207,14 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double Tdmec;
 	double Tdmsks;
 	double prefetch_sw_bytes;
+	double total_row_bytes;
 	double prefetch_bw_pr;
 	double bytes_pp;
 	double dep_bytes;
 	double min_Lsw_oto;
+	double min_Lsw_equ;
 	double Tsw_est1;
+	double Tsw_est2;
 	double Tsw_est3;
 	double prefetch_bw1;
 	double prefetch_bw2;
@@ -1333,6 +1346,10 @@ struct dml2_core_shared_get_urgent_bandwidth_required_locals {
 	double tmp_nom_adj_factor_p1;
 	double tmp_pref_adj_factor_p0;
 	double tmp_pref_adj_factor_p1;
+	double vm_row_bw;
+	double flip_and_active_bw;
+	double flip_and_prefetch_bw;
+	double active_and_excess_bw;
 };
 
 struct dml2_core_shared_calculate_peak_bandwidth_required_locals {
@@ -1689,7 +1706,6 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	enum dml2_output_format_class OutputFormat;
 	unsigned int MaxInterDCNTileRepeaters;
 	unsigned int VStartup;
-	unsigned int MaxVStartup;
 	unsigned int HostVMMinPageSize;
 	bool DynamicMetadataEnable;
 	bool DynamicMetadataVMEnabled;
