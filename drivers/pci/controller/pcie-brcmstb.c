@@ -210,11 +210,6 @@ enum {
 	PCIE_INTR2_CPU_BASE,
 };
 
-enum {
-	RGR1_SW_INIT_1_INIT_MASK,
-	RGR1_SW_INIT_1_INIT_SHIFT,
-};
-
 enum pcie_type {
 	GENERIC,
 	BCM7425,
