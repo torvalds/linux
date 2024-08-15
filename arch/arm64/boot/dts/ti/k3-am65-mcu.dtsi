@@ -440,6 +440,14 @@
 		};
 	};
 
+	mcu_esm: esm@40800000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x00 0x40800000 0x00 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: mrti0, mrti1 */
+		ti,esm-pins = <104>, <105>;
+	};
+
 	mcu_rti1: watchdog@40610000 {
 		compatible = "ti,j7-rti-wdt";
 		reg = <0x0 0x40610000 0x0 0x100>;

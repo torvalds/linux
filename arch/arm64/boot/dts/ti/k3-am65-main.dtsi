@@ -54,6 +54,14 @@
 		};
 	};
 
+	main_esm: esm@700000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x00 0x700000 0x00 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: rti0, rti1, rti2, rti3 */
+		ti,esm-pins = <224>, <225>, <226>, <227>;
+	};
+
 	serdes0: serdes@900000 {
 		compatible = "ti,phy-am654-serdes";
 		reg = <0x0 0x900000 0x0 0x2000>;
