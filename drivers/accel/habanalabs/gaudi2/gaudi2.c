@@ -5184,7 +5184,7 @@ static void gaudi2_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw
 	else
 		wait_timeout_ms = GAUDI2_RESET_WAIT_MSEC;
 
-	if (fw_reset)
+	if (fw_reset || hdev->cpld_shutdown)
 		goto skip_engines;
 
 	gaudi2_stop_dma_qmans(hdev);
@@ -10522,7 +10522,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		dev_err(hdev->dev, "CPLD shutdown event, reset reason: 0x%llx\n",
 						le64_to_cpu(eq_entry->data[0]));
 		error_count = GAUDI2_NA_EVENT_CAUSE;
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		hl_eq_cpld_shutdown_event_handle(hdev, event_type, &event_mask);
 		break;
 
 	case GAUDI2_EVENT_CPU_PKT_SANITY_FAILED:

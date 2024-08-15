@@ -2965,6 +2965,4 @@ void hl_eq_cpld_shutdown_event_handle(struct hl_device *hdev, u16 event_id, u64 
 	/* Avoid any new accesses to the H/W */
 	hdev->disabled = true;
 	hdev->cpld_shutdown = true;
-	hl_cn_hard_reset_prepare(hdev);
-	hl_cn_stop(hdev);
 }
