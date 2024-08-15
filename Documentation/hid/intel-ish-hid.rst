@@ -404,6 +404,35 @@ For more detailed information, please refer to the flow descriptions provided be
   | ISHTP Driver  |                                                    | ISH Bootloader  |
   +---------------+                                                    +-----------------+
 
+Vendor Custom Firmware Loading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The firmware running inside ISH can be provided by Intel or developed by vendors using the Firmware Development Kit (FDK) provided by Intel.
+Intel will upstream the Intel-built firmware to the ``linux-firmware.git`` repository, located under the path ``intel/ish/``. For the Lunar Lake platform, the Intel-built ISH firmware will be named ``ish_lnlm.bin``.
+Vendors who wish to upstream their custom firmware should follow these guidelines for naming their firmware files:
+
+- The firmware filename should use one of the following patterns:
+
+  - ``ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_NAME_CRC32}_${PRODUCT_SKU_CRC32}.bin``
+  - ``ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_SKU_CRC32}.bin``
+  - ``ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_NAME_CRC32}.bin``
+  - ``ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}.bin``
+
+- ``${intel_plat_gen}`` indicates the Intel platform generation (e.g., ``lnlm`` for Lunar Lake) and must not exceed 8 characters in length.
+- ``${SYS_VENDOR_CRC32}`` is the CRC32 checksum of the ``sys_vendor`` value from the DMI field ``DMI_SYS_VENDOR``.
+- ``${PRODUCT_NAME_CRC32}`` is the CRC32 checksum of the ``product_name`` value from the DMI field ``DMI_PRODUCT_NAME``.
+- ``${PRODUCT_SKU_CRC32}`` is the CRC32 checksum of the ``product_sku`` value from the DMI field ``DMI_PRODUCT_SKU``.
+
+During system boot, the ISH Linux driver will attempt to load the firmware in the following order, prioritizing custom firmware with more precise matching patterns:
+
+1. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_NAME_CRC32}_${PRODUCT_SKU_CRC32}.bin``
+2. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_SKU_CRC32}.bin``
+3. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_NAME_CRC32}.bin``
+4. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}.bin``
+5. ``intel/ish/ish_${intel_plat_gen}.bin``
+
+The driver will load the first matching firmware and skip the rest. If no matching firmware is found, it will proceed to the next pattern in the specified order. If all searches fail, the default Intel firmware, listed last in the order above, will be loaded.
+
 ISH Debugging
 -------------
 
