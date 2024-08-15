@@ -1,7 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="standalone vlan_unaware_bridge vlan_aware_bridge"
+ALL_TESTS="standalone vlan_unaware_bridge vlan_aware_bridge test_vlan \
+	   vlan_over_vlan_unaware_bridged_port vlan_over_vlan_aware_bridged_port \
+	   vlan_over_vlan_unaware_bridge vlan_over_vlan_aware_bridge"
 NUM_NETIFS=2
 PING_COUNT=1
 REQUIRE_MTOOLS=yes
@@ -231,6 +233,30 @@ h2_destroy()
 	simple_if_fini $h2 $H2_IPV4/24 $H2_IPV6/64
 }
 
+h1_vlan_create()
+{
+	simple_if_init $h1
+	vlan_create $h1 100 v$h1 $H1_IPV4/24 $H1_IPV6/64
+}
+
+h1_vlan_destroy()
+{
+	vlan_destroy $h1 100
+	simple_if_fini $h1
+}
+
+h2_vlan_create()
+{
+	simple_if_init $h2
+	vlan_create $h2 100 v$h2 $H2_IPV4/24 $H2_IPV6/64
+}
+
+h2_vlan_destroy()
+{
+	vlan_destroy $h2 100
+	simple_if_fini $h2
+}
+
 bridge_create()
 {
 	local vlan_filtering=$1
@@ -241,14 +267,10 @@ bridge_create()
 
 	ip link set $h2 master br0
 	ip link set $h2 up
-
-	simple_if_init br0 $H2_IPV4/24 $H2_IPV6/64
 }
 
 bridge_destroy()
 {
-	simple_if_fini br0 $H2_IPV4/24 $H2_IPV6/64
-
 	ip link del br0
 }
 
@@ -272,7 +294,7 @@ standalone()
 	h2_create
 	macvlan_create $h2
 
-	run_test $h1 $h2
+	run_test $h1 $h2 "$h2"
 
 	macvlan_destroy
 	h2_destroy
@@ -285,11 +307,13 @@ test_bridge()
 
 	h1_create
 	bridge_create $vlan_filtering
+	simple_if_init br0 $H2_IPV4/24 $H2_IPV6/64
 	macvlan_create br0
 
-	run_test $h1 br0
+	run_test $h1 br0 "vlan_filtering=$vlan_filtering bridge"
 
 	macvlan_destroy
+	simple_if_fini br0 $H2_IPV4/24 $H2_IPV6/64
 	bridge_destroy
 	h1_destroy
 }
@@ -302,6 +326,85 @@ vlan_unaware_bridge()
 vlan_aware_bridge()
 {
 	test_bridge 1
+}
+
+test_vlan()
+{
+	h1_vlan_create
+	h2_vlan_create
+	macvlan_create $h2.100
+
+	run_test $h1.100 $h2.100 "VLAN upper"
+
+	macvlan_destroy
+	h2_vlan_destroy
+	h1_vlan_destroy
+}
+
+vlan_over_bridged_port()
+{
+	local vlan_filtering=$1
+
+	h1_vlan_create
+	h2_vlan_create
+	bridge_create $vlan_filtering
+	macvlan_create $h2.100
+
+	run_test $h1.100 $h2.100 "VLAN over vlan_filtering=$vlan_filtering bridged port"
+
+	macvlan_destroy
+	bridge_destroy
+	h2_vlan_destroy
+	h1_vlan_destroy
+}
+
+vlan_over_vlan_unaware_bridged_port()
+{
+	vlan_over_bridged_port 0
+}
+
+vlan_over_vlan_aware_bridged_port()
+{
+	vlan_over_bridged_port 1
+}
+
+vlan_over_bridge()
+{
+	local vlan_filtering=$1
+
+	h1_vlan_create
+	bridge_create $vlan_filtering
+	simple_if_init br0
+	vlan_create br0 100 vbr0 $H2_IPV4/24 $H2_IPV6/64
+	macvlan_create br0.100
+
+	if [ $vlan_filtering = 1 ]; then
+		bridge vlan add dev $h2 vid 100 master
+		bridge vlan add dev br0 vid 100 self
+	fi
+
+	run_test $h1.100 br0.100 "VLAN over vlan_filtering=$vlan_filtering bridge"
+
+	if [ $vlan_filtering = 1 ]; then
+		bridge vlan del dev br0 vid 100 self
+		bridge vlan del dev $h2 vid 100 master
+	fi
+
+	macvlan_destroy
+	vlan_destroy br0 100
+	simple_if_fini br0
+	bridge_destroy
+	h1_vlan_destroy
+}
+
+vlan_over_vlan_unaware_bridge()
+{
+	vlan_over_bridge 0
+}
+
+vlan_over_vlan_aware_bridge()
+{
+	vlan_over_bridge 1
 }
 
 cleanup()
