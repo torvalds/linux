@@ -1205,6 +1205,10 @@ static void brcm_extend_rbus_timeout(struct brcm_pcie *pcie)
 	const unsigned int REG_OFFSET = PCIE_RGR1_SW_INIT_1(pcie) - 8;
 	u32 timeout_us = 4000000; /* 4 seconds, our setting for L1SS */
 
+	/* 7712 does not have this (RGR1) timer */
+	if (pcie->soc_base == BCM7712)
+		return;
+
 	/* Each unit in timeout register is 1/216,000,000 seconds */
 	writel(216 * timeout_us, pcie->base + REG_OFFSET);
 }
@@ -1676,6 +1680,13 @@ static const int pcie_offsets_bmips_7425[] = {
 	[PCIE_INTR2_CPU_BASE] = 0x4300,
 };
 
+static const int pcie_offset_bcm7712[] = {
+	[EXT_CFG_INDEX]  = 0x9000,
+	[EXT_CFG_DATA]   = 0x9004,
+	[PCIE_HARD_DEBUG] = 0x4304,
+	[PCIE_INTR2_CPU_BASE] = 0x4400,
+};
+
 static const struct pcie_cfg_data generic_cfg = {
 	.offsets	= pcie_offsets,
 	.soc_base	= GENERIC,
@@ -1741,6 +1752,14 @@ static const struct pcie_cfg_data bcm7216_cfg = {
 	.num_inbound_wins = 3,
 };
 
+static const struct pcie_cfg_data bcm7712_cfg = {
+	.offsets	= pcie_offset_bcm7712,
+	.perst_set	= brcm_pcie_perst_set_7278,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
+	.soc_base	= BCM7712,
+	.num_inbound_wins = 10,
+};
+
 static const struct of_device_id brcm_pcie_match[] = {
 	{ .compatible = "brcm,bcm2711-pcie", .data = &bcm2711_cfg },
 	{ .compatible = "brcm,bcm4908-pcie", .data = &bcm4908_cfg },
@@ -1750,6 +1769,7 @@ static const struct of_device_id brcm_pcie_match[] = {
 	{ .compatible = "brcm,bcm7445-pcie", .data = &generic_cfg },
 	{ .compatible = "brcm,bcm7435-pcie", .data = &bcm7435_cfg },
 	{ .compatible = "brcm,bcm7425-pcie", .data = &bcm7425_cfg },
+	{ .compatible = "brcm,bcm7712-pcie", .data = &bcm7712_cfg },
 	{},
 };
 
