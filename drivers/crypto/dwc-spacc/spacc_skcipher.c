@@ -67,6 +67,8 @@ static int spacc_skcipher_fallback(unsigned char *name,
 	tctx->fb.cipher = crypto_alloc_skcipher(name,
 						CRYPTO_ALG_TYPE_SKCIPHER,
 						CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(tctx->fb.cipher))
+		return PTR_ERR(tctx->fb.cipher);
 
 	crypto_skcipher_set_reqsize(reqtfm,
 				    sizeof(struct spacc_crypto_reqctx) +
