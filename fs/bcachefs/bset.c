@@ -885,66 +885,18 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 
 /* Insert */
 
-static void bch2_bset_fix_lookup_table(struct btree *b,
-				       struct bset_tree *t,
-				       struct bkey_packed *_where,
-				       unsigned clobber_u64s,
-				       unsigned new_u64s)
+static void rw_aux_tree_insert_entry(struct btree *b,
+				     struct bset_tree *t,
+				     unsigned idx)
 {
-	int shift = new_u64s - clobber_u64s;
-	unsigned l, j, where = __btree_node_key_to_offset(b, _where);
-
-	EBUG_ON(bset_has_ro_aux_tree(t));
-
-	if (!bset_has_rw_aux_tree(t))
-		return;
-
-	/* returns first entry >= where */
-	l = rw_aux_tree_bsearch(b, t, where);
-
-	if (!l) /* never delete first entry */
-		l++;
-	else if (l < t->size &&
-		 where < t->end_offset &&
-		 rw_aux_tree(b, t)[l].offset == where)
-		rw_aux_tree_set(b, t, l++, _where);
-
-	/* l now > where */
-
-	for (j = l;
-	     j < t->size &&
-	     rw_aux_tree(b, t)[j].offset < where + clobber_u64s;
-	     j++)
-		;
-
-	if (j < t->size &&
-	    rw_aux_tree(b, t)[j].offset + shift ==
-	    rw_aux_tree(b, t)[l - 1].offset)
-		j++;
-
-	memmove(&rw_aux_tree(b, t)[l],
-		&rw_aux_tree(b, t)[j],
-		(void *) &rw_aux_tree(b, t)[t->size] -
-		(void *) &rw_aux_tree(b, t)[j]);
-	t->size -= j - l;
-
-	for (j = l; j < t->size; j++)
-		rw_aux_tree(b, t)[j].offset += shift;
-
-	EBUG_ON(l < t->size &&
-		rw_aux_tree(b, t)[l].offset ==
-		rw_aux_tree(b, t)[l - 1].offset);
+	EBUG_ON(!idx || idx > t->size);
+	struct bkey_packed *start = rw_aux_to_bkey(b, t, idx - 1);
+	struct bkey_packed *end = idx < t->size
+				  ? rw_aux_to_bkey(b, t, idx)
+				  : btree_bkey_last(b, t);
 
 	if (t->size < bset_rw_tree_capacity(b, t) &&
-	    (l < t->size
-	     ? rw_aux_tree(b, t)[l].offset
-	     : t->end_offset) -
-	    rw_aux_tree(b, t)[l - 1].offset >
-	    L1_CACHE_BYTES / sizeof(u64)) {
-		struct bkey_packed *start = rw_aux_to_bkey(b, t, l - 1);
-		struct bkey_packed *end = l < t->size
-			? rw_aux_to_bkey(b, t, l)
-			: btree_bkey_last(b, t);
+	    (void *) end - (void *) start > L1_CACHE_BYTES) {
 		struct bkey_packed *k = start;
 
 		while (1) {
@@ -953,17 +905,73 @@ static void bch2_bset_fix_lookup_table(struct btree *b,
 				break;
 
 			if ((void *) k - (void *) start >= L1_CACHE_BYTES) {
-				memmove(&rw_aux_tree(b, t)[l + 1],
-					&rw_aux_tree(b, t)[l],
+				memmove(&rw_aux_tree(b, t)[idx + 1],
+					&rw_aux_tree(b, t)[idx],
 					(void *) &rw_aux_tree(b, t)[t->size] -
-					(void *) &rw_aux_tree(b, t)[l]);
+					(void *) &rw_aux_tree(b, t)[idx]);
 				t->size++;
-				rw_aux_tree_set(b, t, l, k);
+				rw_aux_tree_set(b, t, idx, k);
 				break;
 			}
 		}
 	}
+}
 
+static void bch2_bset_fix_lookup_table(struct btree *b,
+				       struct bset_tree *t,
+				       struct bkey_packed *_where,
+				       unsigned clobber_u64s,
+				       unsigned new_u64s)
+{
+	int shift = new_u64s - clobber_u64s;
+	unsigned idx, j, where = __btree_node_key_to_offset(b, _where);
+
+	EBUG_ON(bset_has_ro_aux_tree(t));
+
+	if (!bset_has_rw_aux_tree(t))
+		return;
+
+	if (where > rw_aux_tree(b, t)[t->size - 1].offset) {
+		rw_aux_tree_insert_entry(b, t, t->size);
+		goto verify;
+	}
+
+	/* returns first entry >= where */
+	idx = rw_aux_tree_bsearch(b, t, where);
+
+	if (rw_aux_tree(b, t)[idx].offset == where) {
+		if (!idx) { /* never delete first entry */
+			idx++;
+		} else if (where < t->end_offset) {
+			rw_aux_tree_set(b, t, idx++, _where);
+		} else {
+			EBUG_ON(where != t->end_offset);
+			rw_aux_tree_insert_entry(b, t, --t->size);
+			goto verify;
+		}
+	}
+
+	EBUG_ON(idx < t->size && rw_aux_tree(b, t)[idx].offset <= where);
+	if (idx < t->size &&
+	    rw_aux_tree(b, t)[idx].offset + shift ==
+	    rw_aux_tree(b, t)[idx - 1].offset) {
+		memmove(&rw_aux_tree(b, t)[idx],
+			&rw_aux_tree(b, t)[idx + 1],
+			(void *) &rw_aux_tree(b, t)[t->size] -
+			(void *) &rw_aux_tree(b, t)[idx + 1]);
+		t->size -= 1;
+	}
+
+	for (j = idx; j < t->size; j++)
+		rw_aux_tree(b, t)[j].offset += shift;
+
+	EBUG_ON(idx < t->size &&
+		rw_aux_tree(b, t)[idx].offset ==
+		rw_aux_tree(b, t)[idx - 1].offset);
+
+	rw_aux_tree_insert_entry(b, t, idx);
+
+verify:
 	bch2_bset_verify_rw_aux_tree(b, t);
 	bset_aux_tree_verify(b);
 }
