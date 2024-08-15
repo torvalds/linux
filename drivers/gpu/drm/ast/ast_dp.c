@@ -170,6 +170,8 @@ static void ast_dp_power_on_off(struct drm_device *dev, bool on)
 
 	// DP Power on/off
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
+
+	msleep(50);
 }
 
 static void ast_dp_link_training(struct ast_device *ast)
@@ -367,27 +369,18 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 	struct drm_device *dev = connector->dev;
 	struct ast_device *ast = to_ast_device(connector->dev);
 	enum drm_connector_status status = connector_status_disconnected;
-	struct drm_connector_state *connector_state = connector->state;
-	bool is_active = false;
+	bool power_is_on;
 
 	mutex_lock(&ast->modeset_lock);
 
-	if (connector_state && connector_state->crtc) {
-		struct drm_crtc_state *crtc_state = connector_state->crtc->state;
-
-		if (crtc_state && crtc_state->active)
-			is_active = true;
-	}
-
-	if (!is_active && !ast_dp_power_is_on(ast)) {
+	power_is_on = ast_dp_power_is_on(ast);
+	if (!power_is_on)
 		ast_dp_power_on_off(dev, true);
-		msleep(50);
-	}
 
 	if (ast_astdp_is_connected(ast))
 		status = connector_status_connected;
 
-	if (!is_active && status == connector_status_disconnected)
+	if (!power_is_on && status == connector_status_disconnected)
 		ast_dp_power_on_off(dev, false);
 
 	mutex_unlock(&ast->modeset_lock);
