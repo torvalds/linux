@@ -742,6 +742,9 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 	return folio_file_page(folio, index);
 }
 
+static void memcg1_check_events(struct mem_cgroup *memcg, int nid);
+static void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages);
+
 /**
  * mem_cgroup_move_account - move account of the folio
  * @folio: The folio.
@@ -1439,7 +1442,7 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg)
 	}
 }
 
-void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages)
+static void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages)
 {
 	/* pagein of a big page is an event. So, ignore page size */
 	if (nr_pages > 0)
@@ -1484,7 +1487,7 @@ static bool memcg1_event_ratelimit(struct mem_cgroup *memcg,
  * Check events in order.
  *
  */
-void memcg1_check_events(struct mem_cgroup *memcg, int nid)
+static void memcg1_check_events(struct mem_cgroup *memcg, int nid)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
 		return;
