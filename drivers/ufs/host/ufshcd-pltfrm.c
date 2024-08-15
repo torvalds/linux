@@ -31,7 +31,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	const char *name;
 	u32 *clkfreq = NULL;
 	struct ufs_clk_info *clki;
-	size_t sz = 0;
+	ssize_t sz = 0;
 
 	if (!np)
 		goto out;
