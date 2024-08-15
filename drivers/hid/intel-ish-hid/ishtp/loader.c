@@ -43,6 +43,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pfn.h>
+#include <linux/sprintf.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -192,6 +193,23 @@ static int prepare_dma_bufs(struct ishtp_device *dev,
 	return 0;
 }
 
+#define ISH_FW_FILE_DEFAULT_FMT "intel/ish/ish_%s.bin"
+
+#define ISH_FW_FILENAME_LEN_MAX 56
+
+static int request_ish_firmware(const struct firmware **firmware_p,
+				struct device *dev)
+{
+	struct ishtp_device *ishtp = dev_get_drvdata(dev);
+	const char *gen;
+	char filename[ISH_FW_FILENAME_LEN_MAX];
+
+	gen = ishtp->driver_data->fw_generation;
+	snprintf(filename, sizeof(filename), ISH_FW_FILE_DEFAULT_FMT, gen);
+
+	return request_firmware(firmware_p, filename, dev);
+}
+
 /**
  * ishtp_loader_work() - Load the ISHTP firmware
  * @work: The work structure
@@ -220,7 +238,6 @@ void ishtp_loader_work(struct work_struct *work)
 	struct loader_xfer_query query = { .header = cpu_to_le32(query_hdr.val32), };
 	struct loader_start start = { .header = cpu_to_le32(start_hdr.val32), };
 	union loader_recv_message recv_msg;
-	char *filename = dev->driver_data->fw_filename;
 	const struct firmware *ish_fw;
 	void *dma_bufs[FRAGMENT_MAX_NUM] = {};
 	u32 fragment_size;
@@ -228,9 +245,9 @@ void ishtp_loader_work(struct work_struct *work)
 	int retry = ISHTP_LOADER_RETRY_TIMES;
 	int rv;
 
-	rv = request_firmware(&ish_fw, filename, dev->devc);
+	rv = request_ish_firmware(&ish_fw, dev->devc);
 	if (rv < 0) {
-		dev_err(dev->devc, "request firmware %s failed:%d\n", filename, rv);
+		dev_err(dev->devc, "request ISH firmware failed:%d\n", rv);
 		return;
 	}
 
