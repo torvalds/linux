@@ -1236,6 +1236,14 @@ void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq)
 	rq->mpwqe.actual_wq_head = wq->head;
 	rq->mpwqe.umr_in_progress = 0;
 	rq->mpwqe.umr_completed = 0;
+
+	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
+		struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+		u16 len;
+
+		len = (shampo->pi - shampo->ci) & shampo->hd_per_wq;
+		mlx5e_shampo_fill_umr(rq, len);
+	}
 }
 
 void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
