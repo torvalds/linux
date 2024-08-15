@@ -250,17 +250,27 @@ static int __bch2_xattr_emit(const char *prefix,
 	return 0;
 }
 
+static inline const char *bch2_xattr_prefix(unsigned type, struct dentry *dentry)
+{
+	const struct xattr_handler *handler = bch2_xattr_type_to_handler(type);
+
+	if (!xattr_handler_can_list(handler, dentry))
+		return NULL;
+
+	return xattr_prefix(handler);
+}
+
 static int bch2_xattr_emit(struct dentry *dentry,
 			    const struct bch_xattr *xattr,
 			    struct xattr_buf *buf)
 {
-	const struct xattr_handler *handler =
-		bch2_xattr_type_to_handler(xattr->x_type);
+	const char *prefix;
 
-	return handler && (!handler->list || handler->list(dentry))
-		? __bch2_xattr_emit(handler->prefix ?: handler->name,
-				    xattr->x_name, xattr->x_name_len, buf)
-		: 0;
+	prefix = bch2_xattr_prefix(xattr->x_type, dentry);
+	if (!prefix)
+		return 0;
+
+	return __bch2_xattr_emit(prefix, xattr->x_name, xattr->x_name_len, buf);
 }
 
 static int bch2_xattr_list_bcachefs(struct bch_fs *c,
