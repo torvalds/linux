@@ -39,9 +39,68 @@ UNKNOWN_MACV6_MC_ADDR1="33:33:01:02:03:05"
 UNKNOWN_MACV6_MC_ADDR2="33:33:01:02:03:06"
 UNKNOWN_MACV6_MC_ADDR3="33:33:01:02:03:07"
 
-NON_IP_MC="01:02:03:04:05:06"
-NON_IP_PKT="00:04 48:45:4c:4f"
-BC="ff:ff:ff:ff:ff:ff"
+PTP_1588_L2_SYNC=" \
+01:1b:19:00:00:00 00:00:de:ad:be:ef 88:f7 00 02 \
+00 2c 00 00 02 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 00 00 \
+00 00 00 00 00 00 00 00 00 00"
+PTP_1588_L2_FOLLOW_UP=" \
+01:1b:19:00:00:00 00:00:de:ad:be:ef 88:f7 08 02 \
+00 2c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 02 00 \
+00 00 66 83 c5 f1 17 97 ed f0"
+PTP_1588_L2_PDELAY_REQ=" \
+01:80:c2:00:00:0e 00:00:de:ad:be:ef 88:f7 02 02 \
+00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 06 05 7f \
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 00 00"
+PTP_1588_IPV4_SYNC=" \
+01:00:5e:00:01:81 00:00:de:ad:be:ef 08:00 45 00 \
+00 48 0a 9a 40 00 01 11 cb 88 c0 00 02 01 e0 00 \
+01 81 01 3f 01 3f 00 34 a3 c8 00 02 00 2c 00 00 \
+02 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
+63 ff fe cf 17 0e 00 01 00 00 00 00 00 00 00 00 \
+00 00 00 00 00 00"
+PTP_1588_IPV4_FOLLOW_UP="
+01:00:5e:00:01:81 00:00:de:ad:be:ef 08:00 45 00 \
+00 48 0a 9b 40 00 01 11 cb 87 c0 00 02 01 e0 00 \
+01 81 01 40 01 40 00 34 a3 c8 08 02 00 2c 00 00 \
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
+63 ff fe cf 17 0e 00 01 00 00 02 00 00 00 66 83 \
+c6 0f 1d 9a 61 87"
+PTP_1588_IPV4_PDELAY_REQ=" \
+01:00:5e:00:00:6b 00:00:de:ad:be:ef 08:00 45 00 \
+00 52 35 a9 40 00 01 11 a1 85 c0 00 02 01 e0 00 \
+00 6b 01 3f 01 3f 00 3e a2 bc 02 02 00 36 00 00 \
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 3e 37 \
+63 ff fe cf 17 0e 00 01 00 01 05 7f 00 00 00 00 \
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+PTP_1588_IPV6_SYNC=" \
+33:33:00:00:01:81 00:00:de:ad:be:ef 86:dd 60 06 \
+7c 2f 00 36 11 01 20 01 0d b8 00 01 00 00 00 00 \
+00 00 00 00 00 01 ff 0e 00 00 00 00 00 00 00 00 \
+00 00 00 00 01 81 01 3f 01 3f 00 36 2e 92 00 02 \
+00 2c 00 00 02 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 00 00 \
+00 00 00 00 00 00 00 00 00 00 00 00"
+PTP_1588_IPV6_FOLLOW_UP=" \
+33:33:00:00:01:81 00:00:de:ad:be:ef 86:dd 60 0a \
+00 bc 00 36 11 01 20 01 0d b8 00 01 00 00 00 00 \
+00 00 00 00 00 01 ff 0e 00 00 00 00 00 00 00 00 \
+00 00 00 00 01 81 01 40 01 40 00 36 2e 92 08 02 \
+00 2c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 00 02 00 \
+00 00 66 83 c6 2a 32 09 bd 74 00 00"
+PTP_1588_IPV6_PDELAY_REQ=" \
+33:33:00:00:00:6b 00:00:de:ad:be:ef 86:dd 60 0c \
+5c fd 00 40 11 01 fe 80 00 00 00 00 00 00 3c 37 \
+63 ff fe cf 17 0e ff 02 00 00 00 00 00 00 00 00 \
+00 00 00 00 00 6b 01 3f 01 3f 00 40 b4 54 02 02 \
+00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 3e 37 63 ff fe cf 17 0e 00 01 00 01 05 7f \
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+00 00 00 00 00 00"
 
 # Disable promisc to ensure we don't receive unknown MAC DA packets
 export TCPDUMP_EXTRA_FLAGS="-pl"
@@ -49,13 +108,15 @@ export TCPDUMP_EXTRA_FLAGS="-pl"
 h1=${NETIFS[p1]}
 h2=${NETIFS[p2]}
 
-send_non_ip()
+send_raw()
 {
-	local if_name=$1
-	local smac=$2
-	local dmac=$3
+	local if_name=$1; shift
+	local pkt="$1"; shift
+	local smac=$(mac_get $if_name)
 
-	$MZ -q $if_name "$dmac $smac $NON_IP_PKT"
+	pkt="${pkt/00:00:de:ad:be:ef/$smac}"
+
+	$MZ -q $if_name "$pkt"
 }
 
 send_uc_ipv4()
@@ -109,6 +170,7 @@ run_test()
 {
 	local send_if_name=$1; shift
 	local rcv_if_name=$1; shift
+	local skip_ptp=$1; shift
 	local no_unicast_flt=$1; shift
 	local test_name="$1"; shift
 	local smac=$(mac_get $send_if_name)
@@ -149,6 +211,35 @@ run_test()
 
 	mc_route_destroy $rcv_if_name
 	mc_route_destroy $send_if_name
+
+	if [ $skip_ptp = false ]; then
+		ip maddress add 01:1b:19:00:00:00 dev $rcv_if_name
+		send_raw $send_if_name "$PTP_1588_L2_SYNC"
+		send_raw $send_if_name "$PTP_1588_L2_FOLLOW_UP"
+		ip maddress del 01:1b:19:00:00:00 dev $rcv_if_name
+
+		ip maddress add 01:80:c2:00:00:0e dev $rcv_if_name
+		send_raw $send_if_name "$PTP_1588_L2_PDELAY_REQ"
+		ip maddress del 01:80:c2:00:00:0e dev $rcv_if_name
+
+		mc_join $rcv_if_name 224.0.1.129
+		send_raw $send_if_name "$PTP_1588_IPV4_SYNC"
+		send_raw $send_if_name "$PTP_1588_IPV4_FOLLOW_UP"
+		mc_leave
+
+		mc_join $rcv_if_name 224.0.0.107
+		send_raw $send_if_name "$PTP_1588_IPV4_PDELAY_REQ"
+		mc_leave
+
+		mc_join $rcv_if_name ff0e::181
+		send_raw $send_if_name "$PTP_1588_IPV6_SYNC"
+		send_raw $send_if_name "$PTP_1588_IPV6_FOLLOW_UP"
+		mc_leave
+
+		mc_join $rcv_if_name ff02::6b
+		send_raw $send_if_name "$PTP_1588_IPV6_PDELAY_REQ"
+		mc_leave
+	fi
 
 	sleep 1
 
@@ -211,6 +302,44 @@ run_test()
 	check_rcv $rcv_if_name "Multicast IPv6 to unknown group, allmulti" \
 		"$smac > $UNKNOWN_MACV6_MC_ADDR3, ethertype IPv6 (0x86dd)" \
 		true "$test_name"
+
+	if [ $skip_ptp = false ]; then
+		check_rcv $rcv_if_name "1588v2 over L2 transport, Sync" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type : sync msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over L2 transport, Follow-Up" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type : follow up msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over L2 transport, Peer Delay Request" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type : peer delay req msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv4, Sync" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type : sync msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv4, Follow-Up" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type : follow up msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv4, Peer Delay Request" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type : peer delay req msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv6, Sync" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : sync msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv6, Follow-Up" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : follow up msg" \
+			true "$test_name"
+
+		check_rcv $rcv_if_name "1588v2 over IPv6, Peer Delay Request" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : peer delay req msg" \
+			true "$test_name"
+	fi
 
 	tcpdump_cleanup $rcv_if_name
 }
@@ -293,6 +422,7 @@ macvlan_destroy()
 standalone()
 {
 	local no_unicast_flt=true
+	local skip_ptp=false
 
 	if [ $(has_unicast_flt $h2) = yes ]; then
 		no_unicast_flt=false
@@ -302,7 +432,7 @@ standalone()
 	h2_create
 	macvlan_create $h2
 
-	run_test $h1 $h2 $no_unicast_flt "$h2"
+	run_test $h1 $h2 $skip_ptp $no_unicast_flt "$h2"
 
 	macvlan_destroy
 	h2_destroy
@@ -313,13 +443,15 @@ test_bridge()
 {
 	local no_unicast_flt=true
 	local vlan_filtering=$1
+	local skip_ptp=true
 
 	h1_create
 	bridge_create $vlan_filtering
 	simple_if_init br0 $H2_IPV4/24 $H2_IPV6/64
 	macvlan_create br0
 
-	run_test $h1 br0 $no_unicast_flt "vlan_filtering=$vlan_filtering bridge"
+	run_test $h1 br0 $skip_ptp $no_unicast_flt \
+		"vlan_filtering=$vlan_filtering bridge"
 
 	macvlan_destroy
 	simple_if_fini br0 $H2_IPV4/24 $H2_IPV6/64
@@ -340,6 +472,7 @@ vlan_aware_bridge()
 test_vlan()
 {
 	local no_unicast_flt=true
+	local skip_ptp=false
 
 	if [ $(has_unicast_flt $h2) = yes ]; then
 		no_unicast_flt=false
@@ -349,7 +482,7 @@ test_vlan()
 	h2_vlan_create
 	macvlan_create $h2.100
 
-	run_test $h1.100 $h2.100 $no_unicast_flt "VLAN upper"
+	run_test $h1.100 $h2.100 $skip_ptp $no_unicast_flt "VLAN upper"
 
 	macvlan_destroy
 	h2_vlan_destroy
@@ -360,6 +493,7 @@ vlan_over_bridged_port()
 {
 	local no_unicast_flt=true
 	local vlan_filtering=$1
+	local skip_ptp=false
 
 	# br_manage_promisc() will not force a single vlan_filtering port to
 	# promiscuous mode, so we should still expect unicast filtering to take
@@ -373,7 +507,7 @@ vlan_over_bridged_port()
 	bridge_create $vlan_filtering
 	macvlan_create $h2.100
 
-	run_test $h1.100 $h2.100 $no_unicast_flt \
+	run_test $h1.100 $h2.100 $skip_ptp $no_unicast_flt \
 		"VLAN over vlan_filtering=$vlan_filtering bridged port"
 
 	macvlan_destroy
@@ -396,6 +530,7 @@ vlan_over_bridge()
 {
 	local no_unicast_flt=true
 	local vlan_filtering=$1
+	local skip_ptp=true
 
 	h1_vlan_create
 	bridge_create $vlan_filtering
@@ -408,7 +543,7 @@ vlan_over_bridge()
 		bridge vlan add dev br0 vid 100 self
 	fi
 
-	run_test $h1.100 br0.100 $no_unicast_flt \
+	run_test $h1.100 br0.100 $skip_ptp $no_unicast_flt \
 		"VLAN over vlan_filtering=$vlan_filtering bridge"
 
 	if [ $vlan_filtering = 1 ]; then
