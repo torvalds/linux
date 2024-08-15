@@ -1189,8 +1189,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			//sink only can use supported link rate table, we are foreced to enable it
 			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
 				link->panel_config.ilr.optimize_edp_link_rate = true;
-			if (edp_is_ilr_optimization_enabled(link))
-				link->reported_link_cap.link_rate = get_max_link_rate_from_ilr_table(link);
+			link->reported_link_cap.link_rate = get_max_edp_link_rate(link);
 		}
 
 	} else {
