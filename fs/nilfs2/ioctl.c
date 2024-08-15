@@ -1290,6 +1290,68 @@ static int nilfs_ioctl_get_fslabel(struct super_block *sb, void __user *argp)
 	return 0;
 }
 
+/**
+ * nilfs_ioctl_set_fslabel - set the volume name of the file system
+ * @sb:   super block instance
+ * @filp: file object
+ * @argp: pointer to userspace memory that contains the volume name
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-EFAULT	- Error copying input data.
+ * * %-EINVAL	- Label length exceeds record size in superblock.
+ * * %-EIO	- I/O error.
+ * * %-EPERM	- Operation not permitted (insufficient permissions).
+ * * %-EROFS	- Read only file system.
+ */
+static int nilfs_ioctl_set_fslabel(struct super_block *sb, struct file *filp,
+				   void __user *argp)
+{
+	char label[NILFS_MAX_VOLUME_NAME + 1];
+	struct the_nilfs *nilfs = sb->s_fs_info;
+	struct nilfs_super_block **sbp;
+	size_t len;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	if (copy_from_user(label, argp, NILFS_MAX_VOLUME_NAME + 1)) {
+		ret = -EFAULT;
+		goto out_drop_write;
+	}
+
+	len = strnlen(label, NILFS_MAX_VOLUME_NAME + 1);
+	if (len > NILFS_MAX_VOLUME_NAME) {
+		nilfs_err(sb, "unable to set label with more than %zu bytes",
+			  NILFS_MAX_VOLUME_NAME);
+		ret = -EINVAL;
+		goto out_drop_write;
+	}
+
+	down_write(&nilfs->ns_sem);
+	sbp = nilfs_prepare_super(sb, false);
+	if (unlikely(!sbp)) {
+		ret = -EIO;
+		goto out_unlock;
+	}
+
+	strtomem_pad(sbp[0]->s_volume_name, label, 0);
+	if (sbp[1])
+		strtomem_pad(sbp[1]->s_volume_name, label, 0);
+
+	ret = nilfs_commit_super(sb, NILFS_SB_COMMIT_ALL);
+
+out_unlock:
+	up_write(&nilfs->ns_sem);
+out_drop_write:
+	mnt_drop_write_file(filp);
+	return ret;
+}
+
 long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -1334,6 +1396,8 @@ long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return nilfs_ioctl_trim_fs(inode, argp);
 	case FS_IOC_GETFSLABEL:
 		return nilfs_ioctl_get_fslabel(inode->i_sb, argp);
+	case FS_IOC_SETFSLABEL:
+		return nilfs_ioctl_set_fslabel(inode->i_sb, filp, argp);
 	default:
 		return -ENOTTY;
 	}
@@ -1361,6 +1425,7 @@ long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case NILFS_IOCTL_SET_ALLOC_RANGE:
 	case FITRIM:
 	case FS_IOC_GETFSLABEL:
+	case FS_IOC_SETFSLABEL:
 		break;
 	default:
 		return -ENOIOCTLCMD;
