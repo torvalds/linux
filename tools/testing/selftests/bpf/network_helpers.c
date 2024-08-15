@@ -446,6 +446,52 @@ char *ping_command(int family)
 	return "ping";
 }
 
+int remove_netns(const char *name)
+{
+	char *cmd;
+	int r;
+
+	r = asprintf(&cmd, "ip netns del %s >/dev/null 2>&1", name);
+	if (r < 0) {
+		log_err("Failed to malloc cmd");
+		return -1;
+	}
+
+	r = system(cmd);
+	free(cmd);
+	return r;
+}
+
+int make_netns(const char *name)
+{
+	char *cmd;
+	int r;
+
+	r = asprintf(&cmd, "ip netns add %s", name);
+	if (r < 0) {
+		log_err("Failed to malloc cmd");
+		return -1;
+	}
+
+	r = system(cmd);
+	free(cmd);
+
+	if (r)
+		return r;
+
+	r = asprintf(&cmd, "ip -n %s link set lo up", name);
+	if (r < 0) {
+		log_err("Failed to malloc cmd for setting up lo");
+		remove_netns(name);
+		return -1;
+	}
+
+	r = system(cmd);
+	free(cmd);
+
+	return r;
+}
+
 struct nstoken {
 	int orig_netns_fd;
 };
