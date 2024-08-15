@@ -509,14 +509,29 @@ static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
 
 static int ast_dp501_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct ast_device *ast = to_ast_device(connector->dev);
-	const struct drm_edid *drm_edid;
+	struct ast_connector *ast_connector = to_ast_connector(connector);
 	int count;
 
-	drm_edid = drm_edid_read_custom(connector, ast_dp512_read_edid_block, ast);
-	drm_edid_connector_update(connector, drm_edid);
-	count = drm_edid_connector_add_modes(connector);
-	drm_edid_free(drm_edid);
+	if (ast_connector->physical_status == connector_status_connected) {
+		struct ast_device *ast = to_ast_device(connector->dev);
+		const struct drm_edid *drm_edid;
+
+		drm_edid = drm_edid_read_custom(connector, ast_dp512_read_edid_block, ast);
+		drm_edid_connector_update(connector, drm_edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(drm_edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
+
+		/*
+		 * There's no EDID data without a connected monitor. Set BMC-
+		 * compatible modes in this case. The XGA default resolution
+		 * should work well for all BMCs.
+		 */
+		count = drm_add_modes_noedid(connector, 4096, 4096);
+		if (count)
+			drm_set_preferred_mode(connector, 1024, 768);
+	}
 
 	return count;
 }
@@ -530,11 +545,13 @@ static int ast_dp501_connector_helper_detect_ctx(struct drm_connector *connector
 	enum drm_connector_status status = connector_status_disconnected;
 
 	if (ast_dp501_is_connected(ast))
-		return connector_status_connected;
+		status = connector_status_connected;
 
+	if (status != ast_connector->physical_status)
+		++connector->epoch_counter;
 	ast_connector->physical_status = status;
 
-	return status;
+	return connector_status_connected;
 }
 
 static const struct drm_connector_helper_funcs ast_dp501_connector_helper_funcs = {
