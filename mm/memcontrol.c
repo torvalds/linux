@@ -840,19 +840,6 @@ unsigned long memcg_events_local(struct mem_cgroup *memcg, int event)
 	return READ_ONCE(memcg->vmstats->events_local[i]);
 }
 
-void mem_cgroup_charge_statistics(struct mem_cgroup *memcg, int nr_pages)
-{
-	/* pagein of a big page is an event. So, ignore page size */
-	if (nr_pages > 0)
-		__count_memcg_events(memcg, PGPGIN, 1);
-	else {
-		__count_memcg_events(memcg, PGPGOUT, 1);
-		nr_pages = -nr_pages; /* for event */
-	}
-
-	__this_cpu_add(memcg->events_percpu->nr_page_events, nr_pages);
-}
-
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
 {
 	/*
@@ -2366,7 +2353,7 @@ void mem_cgroup_commit_charge(struct folio *folio, struct mem_cgroup *memcg)
 	commit_charge(folio, memcg);
 
 	local_irq_disable();
-	mem_cgroup_charge_statistics(memcg, folio_nr_pages(folio));
+	memcg1_charge_statistics(memcg, folio_nr_pages(folio));
 	memcg1_check_events(memcg, folio_nid(folio));
 	local_irq_enable();
 }
@@ -4742,7 +4729,7 @@ void mem_cgroup_replace_folio(struct folio *old, struct folio *new)
 	commit_charge(new, memcg);
 
 	local_irq_save(flags);
-	mem_cgroup_charge_statistics(memcg, nr_pages);
+	memcg1_charge_statistics(memcg, nr_pages);
 	memcg1_check_events(memcg, folio_nid(new));
 	local_irq_restore(flags);
 }
@@ -4987,7 +4974,7 @@ void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry)
 	 * only synchronisation we have for updating the per-CPU variables.
 	 */
 	memcg_stats_lock();
-	mem_cgroup_charge_statistics(memcg, -nr_entries);
+	memcg1_charge_statistics(memcg, -nr_entries);
 	memcg_stats_unlock();
 	memcg1_check_events(memcg, folio_nid(folio));
 

@@ -853,9 +853,9 @@ static int mem_cgroup_move_account(struct folio *folio,
 	nid = folio_nid(folio);
 
 	local_irq_disable();
-	mem_cgroup_charge_statistics(to, nr_pages);
+	memcg1_charge_statistics(to, nr_pages);
 	memcg1_check_events(to, nid);
-	mem_cgroup_charge_statistics(from, -nr_pages);
+	memcg1_charge_statistics(from, -nr_pages);
 	memcg1_check_events(from, nid);
 	local_irq_enable();
 out:
@@ -1437,6 +1437,19 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg)
 
 		memcg = parent_mem_cgroup(memcg);
 	}
+}
+
+void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages)
+{
+	/* pagein of a big page is an event. So, ignore page size */
+	if (nr_pages > 0)
+		__count_memcg_events(memcg, PGPGIN, 1);
+	else {
+		__count_memcg_events(memcg, PGPGOUT, 1);
+		nr_pages = -nr_pages; /* for event */
+	}
+
+	__this_cpu_add(memcg->events_percpu->nr_page_events, nr_pages);
 }
 
 #define THRESHOLDS_EVENTS_TARGET 128
