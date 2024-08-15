@@ -7,6 +7,7 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -570,16 +571,13 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 {
 	struct tb_margining *margining = s->private;
 	struct tb *tb = margining->port->sw->tb;
-	u32 cap0, cap1;
 
 	if (mutex_lock_interruptible(&tb->lock))
 		return -ERESTARTSYS;
 
 	/* Dump the raw caps first */
-	cap0 = margining->caps[0];
-	seq_printf(s, "0x%08x\n", cap0);
-	cap1 = margining->caps[1];
-	seq_printf(s, "0x%08x\n", cap1);
+	for (int i = 0; i < ARRAY_SIZE(margining->caps); i++)
+		seq_printf(s, "0x%08x\n", margining->caps[i]);
 
 	seq_printf(s, "# software margining: %s\n",
 		   supports_software(margining) ? "yes" : "no");
@@ -623,7 +621,7 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 	if (supports_time(margining)) {
 		seq_puts(s, "# time margining: yes\n");
 		seq_printf(s, "# time margining is destructive: %s\n",
-			   cap1 & USB4_MARGIN_CAP_1_TIME_DESTR ? "yes" : "no");
+			   str_yes_no(margining->caps[1] & USB4_MARGIN_CAP_1_TIME_DESTR));
 
 		switch (independent_time_margins(margining)) {
 		case USB4_MARGIN_CAP_1_TIME_MIN:
@@ -1401,7 +1399,8 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 	margining->index = index;
 	margining->dev = dev;
 
-	ret = usb4_port_margining_caps(port, target, index, margining->caps);
+	ret = usb4_port_margining_caps(port, target, index, margining->caps,
+				       ARRAY_SIZE(margining->caps));
 	if (ret) {
 		kfree(margining);
 		return NULL;

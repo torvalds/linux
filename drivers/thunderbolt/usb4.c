@@ -1631,11 +1631,12 @@ int usb4_port_asym_start(struct tb_port *port)
  * @target: Sideband target
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @caps: Array with at least two elements to hold the results
+ * @ncaps: Number of elements in the caps array
  *
  * Reads the USB4 port lane margining capabilities into @caps.
  */
 int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
-			     u8 index, u32 *caps)
+			     u8 index, u32 *caps, size_t ncaps)
 {
 	int ret;
 
@@ -1645,7 +1646,7 @@ int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, caps,
-				 sizeof(*caps) * 2);
+				 sizeof(*caps) * ncaps);
 }
 
 /**
