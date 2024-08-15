@@ -1,0 +1,152 @@
+/dts-v1/;
+
+/ {
+	#size-cells = <0x02>;
+	#address-cells = <0x02>;
+	model-name = "microwatt";
+	compatible = "microwatt-soc";
+
+	aliases {
+		serial0 = &UART0;
+	};
+
+	reserved-memory {
+		#size-cells = <0x02>;
+		#address-cells = <0x02>;
+		ranges;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000 0x10000000>;
+	};
+
+	cpus {
+		#size-cells = <0x00>;
+		#address-cells = <0x01>;
+
+		ibm,powerpc-cpu-features {
+			display-name = "Microwatt";
+			isa = <3000>;
+			device_type = "cpu-features";
+			compatible = "ibm,powerpc-cpu-features";
+
+			mmu-radix {
+				isa = <3000>;
+				usable-privilege = <2>;
+			};
+
+			little-endian {
+				isa = <2050>;
+				usable-privilege = <3>;
+				hwcap-bit-nr = <1>;
+			};
+
+			cache-inhibited-large-page {
+				isa = <2040>;
+				usable-privilege = <2>;
+			};
+
+			fixed-point-v3 {
+				isa = <3000>;
+				usable-privilege = <3>;
+			};
+
+			no-execute {
+				isa = <2010>;
+				usable-privilege = <2>;
+			};
+
+			floating-point {
+				hwcap-bit-nr = <27>;
+				isa = <0>;
+				usable-privilege = <3>;
+			};
+		};
+
+		PowerPC,Microwatt@0 {
+			i-cache-sets = <2>;
+			ibm,dec-bits = <64>;
+			reservation-granule-size = <64>;
+			clock-frequency = <100000000>;
+			timebase-frequency = <100000000>;
+			i-tlb-sets = <1>;
+			ibm,ppc-interrupt-server#s = <0>;
+			i-cache-block-size = <64>;
+			d-cache-block-size = <64>;
+			d-cache-sets = <2>;
+			i-tlb-size = <64>;
+			cpu-version = <0x990000>;
+			status = "okay";
+			i-cache-size = <0x1000>;
+			ibm,processor-radix-AP-encodings = <0x0c 0xa0000010 0x20000015 0x4000001e>;
+			tlb-size = <0>;
+			tlb-sets = <0>;
+			device_type = "cpu";
+			d-tlb-size = <128>;
+			d-tlb-sets = <2>;
+			reg = <0>;
+			general-purpose;
+			64-bit;
+			d-cache-size = <0x1000>;
+			ibm,chip-id = <0>;
+			ibm,mmu-lpid-bits = <12>;
+			ibm,mmu-pid-bits = <20>;
+		};
+	};
+
+	soc@c0000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&ICS>;
+
+		ranges = <0 0 0xc0000000 0x40000000>;
+
+		interrupt-controller@4000 {
+			compatible = "openpower,xics-presentation", "ibm,ppc-xicp";
+			ibm,interrupt-server-ranges = <0x0 0x1>;
+			reg = <0x4000 0x100>;
+		};
+
+		ICS: interrupt-controller@5000 {
+			compatible = "openpower,xics-sources";
+			interrupt-controller;
+			interrupt-ranges = <0x10 0x10>;
+			reg = <0x5000 0x100>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			#interrupt-cells = <2>;
+		};
+
+		UART0: serial@2000 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x2000 0x8>;
+			clock-frequency = <100000000>;
+			current-speed = <115200>;
+			reg-shift = <2>;
+			fifo-size = <16>;
+			interrupts = <0x10 0x1>;
+		};
+
+		ethernet@8020000 {
+			compatible = "litex,liteeth";
+			reg = <0x8021000 0x100
+				0x8020800 0x100
+				0x8030000 0x2000>;
+			reg-names = "mac", "mido", "buffer";
+			litex,rx-slots = <2>;
+			litex,tx-slots = <2>;
+			litex,slot-size = <0x800>;
+			interrupts = <0x11 0x1>;
+		};
+	};
+
+	chosen {
+		bootargs = "";
+		ibm,architecture-vec-5 = [19 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00
+					  00 00 00 00 00 00 00 00 40 00 40];
+		stdout-path = &UART0;
+	};
+};

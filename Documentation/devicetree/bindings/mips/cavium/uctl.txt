@@ -1,0 +1,46 @@
+* UCTL USB controller glue
+
+Properties:
+- compatible: "cavium,octeon-6335-uctl"
+
+  Compatibility with all cn6XXX SOCs.
+
+- reg: The base address of the UCTL register bank.
+
+- #address-cells: Must be <2>.
+
+- #size-cells: Must be <2>.
+
+- ranges: Empty to signify direct mapping of the children.
+
+- refclk-frequency: A single cell containing the reference clock
+  frequency in Hz.
+
+- refclk-type: A string describing the reference clock connection
+  either "crystal" or "external".
+
+Example:
+	uctl@118006f000000 {
+		compatible = "cavium,octeon-6335-uctl";
+		reg = <0x11800 0x6f000000 0x0 0x100>;
+		ranges; /* Direct mapping */
+		#address-cells = <2>;
+		#size-cells = <2>;
+		/* 12MHz, 24MHz and 48MHz allowed */
+		refclk-frequency = <24000000>;
+		/* Either "crystal" or "external" */
+		refclk-type = "crystal";
+
+		ehci@16f0000000000 {
+			compatible = "cavium,octeon-6335-ehci","usb-ehci";
+			reg = <0x16f00 0x00000000 0x0 0x100>;
+			interrupts = <0 56>;
+			big-endian-regs;
+		};
+		ohci@16f0000000400 {
+			compatible = "cavium,octeon-6335-ohci","usb-ohci";
+			reg = <0x16f00 0x00000400 0x0 0x100>;
+			interrupts = <0 56>;
+			big-endian-regs;
+		};
+	};

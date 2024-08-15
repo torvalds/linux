@@ -1,0 +1,38 @@
+Marvell 88PM800 regulator
+
+Required properties:
+- compatible: "marvell,88pm800"
+- reg: I2C slave address
+- regulators: A node that houses a sub-node for each regulator within the
+  device. Each sub-node is identified using the node's name (or the deprecated
+  regulator-compatible property if present), with valid values listed below.
+  The content of each sub-node is defined by the standard binding for
+  regulators; see regulator.txt.
+
+The valid names for regulators are:
+
+  buck1, buck2, buck3, buck4, buck5, ldo1, ldo2, ldo3, ldo4, ldo5, ldo6, ldo7,
+  ldo8, ldo9, ldo10, ldo11, ldo12, ldo13, ldo14, ldo15, ldo16, ldo17, ldo18, ldo19
+
+Example:
+
+	pmic: 88pm800@31 {
+		compatible = "marvell,88pm800";
+		reg = <0x31>;
+
+		regulators {
+			buck1 {
+			        regulator-min-microvolt = <600000>;
+			        regulator-max-microvolt = <3950000>;
+			        regulator-boot-on;
+			        regulator-always-on;
+			};
+			ldo1 {
+			        regulator-min-microvolt = <600000>;
+			        regulator-max-microvolt = <15000000>;
+			        regulator-boot-on;
+			        regulator-always-on;
+			};
+...
+		};
+	};

@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/socionext,uniphier-ave4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext AVE ethernet controller
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+description: |
+  This describes the devicetree bindings for AVE ethernet controller
+  implemented on Socionext UniPhier SoCs.
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-pro4-ave4
+      - socionext,uniphier-pxs2-ave4
+      - socionext,uniphier-ld11-ave4
+      - socionext,uniphier-ld20-ave4
+      - socionext,uniphier-pxs3-ave4
+      - socionext,uniphier-nx1-ave4
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  phy-mode: true
+
+  phy-handle: true
+
+  mac-address: true
+
+  local-mac-address: true
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names: true
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names: true
+
+  socionext,syscon-phy-mode:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to syscon that configures phy mode
+          - description: ID of MAC instance
+    description:
+      A phandle to syscon with one argument that configures phy mode.
+      The argument is the ID of MAC instance.
+
+  mdio:
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro4-ave4
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: gio
+            - const: ether
+            - const: ether-gb
+            - const: ether-phy
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: ether
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: ether
+        resets:
+          maxItems: 1
+        reset-names:
+          const: ether
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - phy-mode
+  - phy-handle
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - mdio
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ether: ethernet@65000000 {
+        compatible = "socionext,uniphier-ld20-ave4";
+                reg = <0x65000000 0x8500>;
+                interrupts = <0 66 4>;
+                phy-mode = "rgmii";
+                phy-handle = <&ethphy>;
+                clock-names = "ether";
+                clocks = <&sys_clk 6>;
+                reset-names = "ether";
+                resets = <&sys_rst 6>;
+                socionext,syscon-phy-mode = <&soc_glue 0>;
+
+                mdio {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        ethphy: ethernet-phy@1 {
+                                reg = <1>;
+                        };
+                };
+        };

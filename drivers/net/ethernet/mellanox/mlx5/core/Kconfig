@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Mellanox driver configuration
+#
+
+config MLX5_CORE
+	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
+	depends on PCI
+	select AUXILIARY_BUS
+	select NET_DEVLINK
+	depends on VXLAN || !VXLAN
+	depends on MLXFW || !MLXFW
+	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
+	help
+	  Core driver for low level functionality of the ConnectX-4 and
+	  Connect-IB cards by Mellanox Technologies.
+
+config MLX5_FPGA
+	bool "Mellanox Technologies Innova support"
+	depends on MLX5_CORE
+	help
+	  Build support for the Innova family of network cards by Mellanox
+	  Technologies. Innova network cards are comprised of a ConnectX chip
+	  and an FPGA chip on one board. If you select this option, the
+	  mlx5_core driver will include the Innova FPGA core and allow building
+	  sandbox-specific client drivers.
+
+config MLX5_CORE_EN
+	bool "Mellanox 5th generation network adapters (ConnectX series) Ethernet support"
+	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
+	select PAGE_POOL
+	select DIMLIB
+	help
+	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
+
+config MLX5_EN_ARFS
+	bool "Mellanox MLX5 ethernet accelerated receive flow steering (ARFS) support"
+	depends on MLX5_CORE_EN && RFS_ACCEL
+	default y
+	help
+	  Mellanox MLX5 ethernet hardware-accelerated receive flow steering support,
+	  Enables ethernet netdevice arfs support and ntuple filtering.
+
+config MLX5_EN_RXNFC
+	bool "Mellanox MLX5 ethernet rx nfc flow steering support"
+	depends on MLX5_CORE_EN
+	default y
+	help
+	  Mellanox MLX5 ethernet rx nfc flow steering support
+	  Enables ethtool receive network flow classification, which allows user defined
+	  flow rules to direct traffic into arbitrary rx queue via ethtool set/get_rxnfc
+	  API.
+
+config MLX5_MPFS
+	bool "Mellanox Technologies MLX5 MPFS support"
+	depends on MLX5_CORE_EN
+	default y
+	help
+	  Mellanox Technologies Ethernet Multi-Physical Function Switch (MPFS)
+	  support in ConnectX NIC. MPFs is required for when multi-PF configuration
+	  is enabled to allow passing user configured unicast MAC addresses to the
+	  requesting PF.
+
+config MLX5_ESWITCH
+	bool "Mellanox Technologies MLX5 SRIOV E-Switch support"
+	depends on MLX5_CORE_EN && NET_SWITCHDEV
+	default y
+	help
+	  Mellanox Technologies Ethernet SRIOV E-Switch support in ConnectX NIC.
+	  E-Switch provides internal SRIOV packet steering and switching for the
+	  enabled VFs and PF in two available modes:
+	        Legacy SRIOV mode (L2 mac vlan steering based).
+	        Switchdev mode (eswitch offloads).
+
+config MLX5_BRIDGE
+	bool
+	depends on MLX5_ESWITCH && BRIDGE
+	default y
+	help
+	  mlx5 ConnectX offloads support for Ethernet Bridging (BRIDGE).
+	  Enable adding representors of mlx5 uplink and VF ports to Bridge and
+	  offloading rules for traffic between such ports. Supports VLANs (trunk and
+	  access modes).
+
+config MLX5_CLS_ACT
+	bool "MLX5 TC classifier action support"
+	depends on MLX5_ESWITCH && NET_CLS_ACT
+	default y
+	help
+	  mlx5 ConnectX offloads support for TC classifier action (NET_CLS_ACT),
+	  works in both native NIC mode and Switchdev SRIOV mode.
+	  Actions get attached to a Hardware offloaded classifiers and are
+	  invoked after a successful classification. Actions are used to
+	  overwrite the classification result, instantly drop or redirect and/or
+	  reformat packets in wire speeds without involving the host cpu.
+
+	  If set to N, TC offloads in both NIC and switchdev modes will be disabled.
+	  If unsure, set to Y
+
+config MLX5_TC_CT
+	bool "MLX5 TC connection tracking offload support"
+	depends on MLX5_CLS_ACT && NF_FLOW_TABLE && NET_ACT_CT && NET_TC_SKB_EXT
+	default y
+	help
+	  Say Y here if you want to support offloading connection tracking rules
+	  via tc ct action.
+
+	  If unsure, set to Y
+
+config MLX5_TC_SAMPLE
+	bool "MLX5 TC sample offload support"
+	depends on MLX5_CLS_ACT
+	depends on PSAMPLE=y || PSAMPLE=n || MLX5_CORE=m
+	default y
+	help
+	  Say Y here if you want to support offloading sample rules via tc
+	  sample action.
+	  If set to N, will not be able to configure tc rules with sample
+	  action.
+
+	  If unsure, set to Y
+
+config MLX5_CORE_EN_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default y
+	depends on MLX5_CORE_EN && DCB
+	help
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+	  If set to N, will not be able to configure QoS and ratelimit attributes.
+	  This flag is depended on the kernel's DCB support.
+
+	  If unsure, set to Y
+
+config MLX5_CORE_IPOIB
+	bool "Mellanox 5th generation network adapters (connectX series) IPoIB offloads support"
+	depends on MLX5_CORE_EN
+	help
+	  MLX5 IPoIB offloads & acceleration support.
+
+config MLX5_EN_MACSEC
+	bool "Connect-X support for MACSec offload"
+	depends on MLX5_CORE_EN
+	depends on MACSEC
+	default n
+	help
+	  Build support for MACsec cryptography-offload acceleration in the NIC.
+
+config MLX5_EN_IPSEC
+	bool "Mellanox Technologies IPsec Connect-X support"
+	depends on MLX5_CORE_EN
+	depends on XFRM_OFFLOAD
+	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
+	help
+	  Build support for IPsec cryptography-offload acceleration in the NIC.
+
+config MLX5_EN_TLS
+	bool "Mellanox Technologies TLS Connect-X support"
+	depends on TLS_DEVICE
+	depends on TLS=y || MLX5_CORE=m
+	depends on MLX5_CORE_EN
+	help
+	Build support for TLS cryptography-offload acceleration in the NIC.
+
+config MLX5_SW_STEERING
+	bool "Mellanox Technologies software-managed steering"
+	depends on MLX5_CORE_EN && MLX5_ESWITCH
+	select CRC32
+	default y
+	help
+	Build support for software-managed steering in the NIC.
+
+config MLX5_SF
+	bool "Mellanox Technologies subfunction device support using auxiliary device"
+	depends on MLX5_CORE && MLX5_CORE_EN
+	help
+	Build support for subfuction device in the NIC. A Mellanox subfunction
+	device can support RDMA, netdevice and vdpa device.
+	It is similar to a SRIOV VF but it doesn't require SRIOV support.
+
+config MLX5_SF_MANAGER
+	bool
+	depends on MLX5_SF && MLX5_ESWITCH
+	default y
+	help
+	Build support for subfuction port in the NIC. A Mellanox subfunction
+	port is managed through devlink.  A subfunction supports RDMA, netdevice
+	and vdpa device. It is similar to a SRIOV VF but it doesn't require
+	SRIOV support.

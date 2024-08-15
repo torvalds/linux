@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra234.dtsi"
+
+/ {
+	model = "NVIDIA Tegra234 VDK";
+	compatible = "nvidia,tegra234-vdk", "nvidia,tegra234";
+
+	aliases {
+		mmc3 = "/bus@0/mmc@3460000";
+		serial0 = &uarta;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlycon=uart8250,mmio32,0x03100000";
+		stdout-path = "serial0:115200n8";
+	};
+
+	bus@0 {
+		serial@3100000 {
+			status = "okay";
+		};
+
+		mmc@3460000 {
+			status = "okay";
+			bus-width = <8>;
+			non-removable;
+		};
+
+		rtc@c2a0000 {
+			status = "okay";
+		};
+
+		pmc@c360000 {
+			nvidia,invert-interrupt;
+		};
+	};
+};

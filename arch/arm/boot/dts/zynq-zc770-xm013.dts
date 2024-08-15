@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Xilinx ZC770 XM013 board DTS
+ *
+ * Copyright (C) 2013 Xilinx, Inc.
+ */
+/dts-v1/;
+#include "zynq-7000.dtsi"
+
+/ {
+	model = "Xilinx ZC770 XM013 board";
+	compatible = "xlnx,zynq-zc770-xm013", "xlnx,zynq-7000";
+
+	aliases {
+		ethernet0 = &gem1;
+		i2c0 = &i2c1;
+		serial0 = &uart0;
+		spi1 = &spi0;
+	};
+
+	chosen {
+		bootargs = "";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;
+	};
+};
+
+&can1 {
+	status = "okay";
+};
+
+&gem1 {
+	status = "okay";
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethernet_phy>;
+
+	ethernet_phy: ethernet-phy@7 {
+		reg = <7>;
+		device_type = "ethernet-phy";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	si570: clock-generator@55 {
+		#clock-cells = <0>;
+		compatible = "silabs,si570";
+		temperature-stability = <50>;
+		reg = <0x55>;
+		factory-fout = <156250000>;
+		clock-frequency = <148500000>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <4>;
+	is-decoded-cs = <0>;
+	eeprom: eeprom@2 {
+		compatible = "atmel,at25";
+		reg = <2>;
+		spi-max-frequency = <1000000>;
+		size = <8192>;
+		address-width = <16>;
+		pagesize = <32>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

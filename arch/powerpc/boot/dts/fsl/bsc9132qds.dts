@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * BSC9132 QDS Device Tree Source
+ *
+ * Copyright 2014 Freescale Semiconductor Inc.
+ */
+
+/include/ "bsc9132si-pre.dtsi"
+
+/ {
+	model = "fsl,bsc9132qds";
+	compatible = "fsl,bsc9132qds";
+
+	memory {
+		device_type = "memory";
+	};
+
+	ifc: ifc@ff71e000 {
+		/* NOR, NAND Flash on board */
+		ranges = <0x0 0x0 0x0 0x88000000 0x08000000
+			  0x1 0x0 0x0 0xff800000 0x00010000>;
+		reg = <0x0 0xff71e000 0x0 0x2000>;
+	};
+
+	soc: soc@ff700000 {
+		ranges = <0x0 0x0 0xff700000 0x100000>;
+	};
+
+	pci0: pcie@ff70a000 {
+		reg = <0 0xff70a000 0 0x1000>;
+		ranges = <0x2000000 0x0 0x90000000 0 0x90000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xc0010000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0x90000000
+				  0x2000000 0x0 0x90000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+};
+
+/include/ "bsc9132qds.dtsi"
+/include/ "bsc9132si-post.dtsi"

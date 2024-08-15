@@ -1,0 +1,1 @@
+This file has moved to video-interfaces.yaml and video-interface-devices.yaml.

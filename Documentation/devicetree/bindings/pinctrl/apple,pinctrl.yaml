@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/apple,pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple GPIO controller
+
+maintainers:
+  - Mark Kettenis <kettenis@openbsd.org>
+
+description: |
+  The Apple GPIO controller is a simple combined pin and GPIO
+  controller present on Apple ARM SoC platforms, including various
+  iPhone and iPad devices and the "Apple Silicon" Macs.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - apple,t8103-pinctrl
+          - apple,t6000-pinctrl
+      - const: apple,pinctrl
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-ranges:
+    maxItems: 1
+
+  apple,npins:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The number of pins in this GPIO controller.
+
+  interrupts:
+    description: One interrupt for each of the (up to 7) interrupt
+      groups supported by the controller sorted by interrupt group
+      number in ascending order.
+    minItems: 1
+    maxItems: 7
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  power-domains:
+    maxItems: 1
+
+patternProperties:
+  '-pins$':
+    type: object
+    $ref: pinmux-node.yaml#
+
+    properties:
+      pinmux:
+        description:
+          Values are constructed from pin number and alternate function
+          configuration number using the APPLE_PINMUX() helper macro
+          defined in include/dt-bindings/pinctrl/apple.h.
+
+    required:
+      - pinmux
+
+    additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - gpio-ranges
+  - apple,npins
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/apple-aic.h>
+    #include <dt-bindings/pinctrl/apple.h>
+
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      pinctrl: pinctrl@23c100000 {
+        compatible = "apple,t8103-pinctrl", "apple,pinctrl";
+        reg = <0x2 0x3c100000 0x0 0x100000>;
+        clocks = <&gpio_clk>;
+
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&pinctrl 0 0 212>;
+        apple,npins = <212>;
+
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupt-parent = <&aic>;
+        interrupts = <AIC_IRQ 16 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 17 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 18 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 19 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 20 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 21 IRQ_TYPE_LEVEL_HIGH>,
+                     <AIC_IRQ 22 IRQ_TYPE_LEVEL_HIGH>;
+
+        pcie_pins: pcie-pins {
+          pinmux = <APPLE_PINMUX(150, 1)>,
+                   <APPLE_PINMUX(151, 1)>,
+                   <APPLE_PINMUX(32, 1)>;
+        };
+      };
+    };

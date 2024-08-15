@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/socionext,uniphier-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier PCIe host controller
+
+description: |
+  UniPhier PCIe host controller is based on the Synopsys DesignWare
+  PCI core. It shares common features with the PCIe DesignWare core and
+  inherits common properties defined in
+  Documentation/devicetree/bindings/pci/snps,dw-pcie.yaml.
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+allOf:
+  - $ref: /schemas/pci/snps,dw-pcie.yaml#
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-pcie
+
+  reg:
+    minItems: 3
+    maxItems: 4
+
+  reg-names:
+    minItems: 3
+    items:
+      - const: dbi
+      - const: link
+      - const: config
+      - const: atu
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  num-viewport: true
+
+  num-lanes: true
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: pcie-phy
+
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupts:
+        maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    bus {
+        gic: interrupt-controller {
+            interrupt-controller;
+            #interrupt-cells = <3>;
+        };
+    };
+
+    pcie: pcie@66000000 {
+        compatible = "socionext,uniphier-pcie";
+        reg-names = "dbi", "link", "config";
+        reg = <0x66000000 0x1000>, <0x66010000 0x10000>, <0x2fff0000 0x10000>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        clocks = <&sys_clk 24>;
+        resets = <&sys_rst 24>;
+        num-lanes = <1>;
+        num-viewport = <1>;
+        bus-range = <0x0 0xff>;
+        device_type = "pci";
+        ranges = <0x81000000 0 0x00000000  0x2ffe0000  0 0x00010000>,
+                 <0x82000000 0 0x00000000  0x20000000  0 0x0ffe0000>;
+        phy-names = "pcie-phy";
+        phys = <&pcie_phy>;
+        #interrupt-cells = <1>;
+        interrupt-names = "dma", "msi";
+        interrupt-parent = <&gic>;
+        interrupts = <0 224 4>, <0 225 4>;
+        interrupt-map-mask = <0 0 0  7>;
+        interrupt-map = <0 0 0  1  &pcie_intc 0>,
+                        <0 0 0  2  &pcie_intc 1>,
+                        <0 0 0  3  &pcie_intc 2>,
+                        <0 0 0  4  &pcie_intc 3>;
+
+        pcie_intc: interrupt-controller {
+            interrupt-controller;
+            #interrupt-cells = <1>;
+            interrupt-parent = <&gic>;
+            interrupts = <0 226 4>;
+        };
+    };

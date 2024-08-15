@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/allwinner,sun8i-h3-bus-gates-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A10 Bus Gates Clock
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+deprecated: true
+
+properties:
+  "#clock-cells":
+    const: 1
+    description: >
+      This additional argument passed to that clock is the offset of
+      the bit controlling this particular gate in the register.
+
+  compatible:
+    const: allwinner,sun8i-h3-bus-gates-clk
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 4
+
+  clock-names:
+    maxItems: 4
+    description: >
+      The parent order must match the hardware programming order.
+
+  clock-indices:
+    minItems: 1
+    maxItems: 64
+
+  clock-output-names:
+    minItems: 1
+    maxItems: 64
+
+required:
+  - "#clock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-indices
+  - clock-names
+  - clock-output-names
+
+additionalProperties: false
+
+examples:
+  - |
+    clk@1c20060 {
+        #clock-cells = <1>;
+        compatible = "allwinner,sun8i-h3-bus-gates-clk";
+        reg = <0x01c20060 0x14>;
+        clocks = <&ahb1>, <&ahb2>, <&apb1>, <&apb2>;
+        clock-names = "ahb1", "ahb2", "apb1", "apb2";
+        clock-indices = <5>, <6>, <8>,
+                        <9>, <10>, <13>,
+                        <14>, <17>, <18>,
+                        <19>, <20>,
+                        <21>, <23>,
+                        <24>, <25>,
+                        <26>, <27>,
+                        <28>, <29>,
+                        <30>, <31>, <32>,
+                        <35>, <36>, <37>,
+                        <40>, <41>, <43>,
+                        <44>, <52>, <53>,
+                        <54>, <64>,
+                        <65>, <69>, <72>,
+                        <76>, <77>, <78>,
+                        <96>, <97>, <98>,
+                        <112>, <113>,
+                        <114>, <115>,
+                        <116>, <128>, <135>;
+        clock-output-names = "bus_ce", "bus_dma", "bus_mmc0",
+                             "bus_mmc1", "bus_mmc2", "bus_nand",
+                             "bus_sdram", "bus_gmac", "bus_ts",
+                             "bus_hstimer", "bus_spi0",
+                             "bus_spi1", "bus_otg",
+                             "bus_otg_ehci0", "bus_ehci1",
+                             "bus_ehci2", "bus_ehci3",
+                             "bus_otg_ohci0", "bus_ohci1",
+                             "bus_ohci2", "bus_ohci3", "bus_ve",
+                             "bus_lcd0", "bus_lcd1", "bus_deint",
+                             "bus_csi", "bus_tve", "bus_hdmi",
+                             "bus_de", "bus_gpu", "bus_msgbox",
+                             "bus_spinlock", "bus_codec",
+                             "bus_spdif", "bus_pio", "bus_ths",
+                             "bus_i2s0", "bus_i2s1", "bus_i2s2",
+                             "bus_i2c0", "bus_i2c1", "bus_i2c2",
+                             "bus_uart0", "bus_uart1",
+                             "bus_uart2", "bus_uart3",
+                             "bus_scr", "bus_ephy", "bus_dbg";
+    };
+
+...

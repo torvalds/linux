@@ -1,0 +1,45 @@
+Dialog Semiconductor DA7212/DA7213 Audio Codec bindings
+
+======
+
+Required properties:
+- compatible : Should be "dlg,da7212" or "dlg,da7213"
+- reg: Specifies the I2C slave address
+
+Optional properties:
+- clocks : phandle and clock specifier for codec MCLK.
+- clock-names : Clock name string for 'clocks' attribute, should be "mclk".
+
+- dlg,micbias1-lvl : Voltage (mV) for Mic Bias 1
+	[<1600>, <2200>, <2500>, <3000>]
+- dlg,micbias2-lvl : Voltage (mV) for Mic Bias 2
+	[<1600>, <2200>, <2500>, <3000>]
+- dlg,dmic-data-sel : DMIC channel select based on clock edge.
+	["lrise_rfall", "lfall_rrise"]
+- dlg,dmic-samplephase : When to sample audio from DMIC.
+	["on_clkedge", "between_clkedge"]
+- dlg,dmic-clkrate : DMIC clock frequency (Hz).
+	[<1500000>, <3000000>]
+
+ - VDDA-supply : Regulator phandle for Analogue power supply
+ - VDDMIC-supply : Regulator phandle for Mic Bias
+ - VDDIO-supply : Regulator phandle for I/O power supply
+
+======
+
+Example:
+
+	codec_i2c: da7213@1a {
+		compatible = "dlg,da7213";
+ 		reg = <0x1a>;
+
+ 		clocks = <&clks 201>;
+		clock-names = "mclk";
+
+		dlg,micbias1-lvl = <2500>;
+		dlg,micbias2-lvl = <2500>;
+
+		dlg,dmic-data-sel = "lrise_rfall";
+		dlg,dmic-samplephase = "between_clkedge";
+		dlg,dmic-clkrate = <3000000>;
+	};

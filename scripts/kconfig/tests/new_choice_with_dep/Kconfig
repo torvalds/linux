@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config A
+	bool "A"
+	help
+	  This is a new symbol.
+
+choice
+	prompt "Choice ?"
+	depends on A
+	help
+	  "depends on A" has been newly added.
+
+config CHOICE_B
+	bool "Choice B"
+
+config CHOICE_C
+	bool "Choice C"
+	help
+	  This is a new symbol, so should be asked.
+
+endchoice
+
+choice
+	prompt "Choice2 ?"
+
+config CHOICE_D
+	bool "Choice D"
+
+config CHOICE_E
+	bool "Choice E"
+
+config CHOICE_F
+	bool "Choice F"
+	depends on A
+	help
+	  This is a new symbol, so should be asked.
+
+endchoice

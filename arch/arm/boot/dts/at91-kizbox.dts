@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * at91-kizbox.dts - Device Tree file for Overkiz Kizbox board
+ *
+ * Copyright (C) 2012-2014 Boris BREZILLON <b.brezillon@overkiz.com>
+ *               2014-2015 Gaël PORTAY <g.portay@overkiz.com>
+ */
+/dts-v1/;
+#include "at91sam9g20.dtsi"
+#include <dt-bindings/pwm/pwm.h>
+
+/ {
+	model = "Overkiz Kizbox";
+	compatible = "overkiz,kizbox", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "ubi.mtd=ubi";
+		stdout-path = &dbgu;
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x2000000>;
+	};
+
+	clocks {
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-reset {
+			label = "PB_RST";
+			gpios = <&pioB 30 GPIO_ACTIVE_HIGH>;
+			linux,code = <0x100>;
+			wakeup-source;
+		};
+
+		button-user {
+			label = "PB_USER";
+			gpios = <&pioB 31 GPIO_ACTIVE_HIGH>;
+			linux,code = <0x101>;
+			wakeup-source;
+		};
+	};
+
+	led-controller {
+		compatible = "pwm-leds";
+
+		led-1 {
+			label = "pwm:green:network";
+			pwms = <&tcb1_pwm1 0 10000000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-2 {
+			label = "pwm:red:network";
+			pwms = <&tcb1_pwm2 0 10000000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-3 {
+			label = "pwm:green:user";
+			pwms = <&tcb1_pwm0 0 10000000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-4 {
+			label = "pwm:red:user";
+			pwms = <&tcb1_pwm0 1 10000000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>, <1>;
+	};
+
+	timer@2 {
+		compatible = "atmel,tcb-timer";
+		reg = <2>;
+	};
+};
+
+&tcb1 {
+	tcb1_pwm0: pwm@0 {
+		compatible = "atmel,tcb-pwm";
+		reg = <0>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tcb1_tioa0 &pinctrl_tcb1_tiob0>;
+	};
+
+	tcb1_pwm1: pwm@1 {
+		compatible = "atmel,tcb-pwm";
+		reg = <1>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tcb1_tioa1>;
+	};
+
+	tcb1_pwm2: pwm@2 {
+		compatible = "atmel,tcb-pwm";
+		reg = <2>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tcb1_tioa2>;
+	};
+};
+
+&ebi {
+	status = "okay";
+};
+
+&nand_controller {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+	pinctrl-names = "default";
+
+	nand@3 {
+		reg = <0x3 0x0 0x800000>;
+		rb-gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "soft";
+		nand-on-flash-bbt;
+		label = "atmel_nand";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			bootstrap@0 {
+				label = "bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			ubi@20000 {
+				label = "ubi";
+				reg = <0x20000 0x7fe0000>;
+			};
+		};
+	};
+};
+
+&macb0 {
+	phy-mode = "mii";
+	pinctrl-0 = <&pinctrl_macb_rmii
+		     &pinctrl_macb_rmii_mii_alt>;
+	status = "okay";
+};
+
+&usart3 {
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&watchdog {
+	timeout-sec = <15>;
+	atmel,max-heartbeat-sec = <16>;
+	atmel,min-heartbeat-sec = <0>;
+	status = "okay";
+};
+
+&usb0 {
+	num-ports = <1>;
+	status = "okay";
+};
+
+&i2c_gpio0 {
+	status = "okay";
+
+	rtc: pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if ARCH_STI
+
+config STI_RESET_SYSCFG
+	bool
+
+config STIH407_RESET
+	bool
+	select STI_RESET_SYSCFG
+
+endif

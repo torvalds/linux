@@ -1,0 +1,114 @@
+What:		/sys/devices/platform/soc@X/XXXXXXX.ipa/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The /sys/devices/platform/soc@X/XXXXXXX.ipa/ directory
+		contains read-only attributes exposing information about
+		an IPA device.  The X values could vary, but are typically
+		"soc@0/1e40000.ipa".
+
+What:		.../XXXXXXX.ipa/version
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/version file contains the IPA hardware
+		version, as a period-separated set of two or three integers
+		(e.g., "3.5.1" or "4.2").
+
+What:		.../XXXXXXX.ipa/feature/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/ directory contains a set of
+		attributes describing features implemented by the IPA
+		hardware.
+
+What:		.../XXXXXXX.ipa/feature/rx_offload
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/rx_offload file contains a
+		string indicating the type of receive checksum offload
+		that is supported by the hardware.  The possible values
+		are "MAPv4" or "MAPv5".
+
+What:		.../XXXXXXX.ipa/feature/tx_offload
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/tx_offload file contains a
+		string indicating the type of transmit checksum offload
+		that is supported by the hardware.  The possible values
+		are "MAPv4" or "MAPv5".
+
+What:		.../XXXXXXX.ipa/endpoint_id/
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/ directory contains
+		attributes that define IDs associated with IPA
+		endpoints.  The "rx" or "tx" in an endpoint name is
+		from the perspective of the AP.  An endpoint ID is a
+		small unsigned integer.
+
+What:		.../XXXXXXX.ipa/endpoint_id/modem_rx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/modem_rx file contains
+		the ID of the AP endpoint on which packets originating
+		from the embedded modem are received.
+
+What:		.../XXXXXXX.ipa/endpoint_id/modem_tx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/modem_tx file contains
+		the ID of the AP endpoint on which packets destined
+		for the embedded modem are sent.
+
+What:		.../XXXXXXX.ipa/endpoint_id/monitor_rx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/monitor_rx file contains
+		the ID of the AP endpoint on which IPA "monitor" data is
+		received.  The monitor endpoint supplies replicas of
+		packets that enter the IPA hardware for processing.
+		Each replicated packet is preceded by a fixed-size "ODL"
+		header (see .../XXXXXXX.ipa/feature/monitor, above).
+		Large packets are truncated, to reduce the bandwidth
+		required to provide the monitor function.
+
+What:		.../XXXXXXX.ipa/modem/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/modem/ directory contains attributes
+		describing properties of the modem embedded in the SoC.
+
+What:		.../XXXXXXX.ipa/modem/rx_endpoint_id
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/modem/rx_endpoint_id file duplicates
+		the value found in .../XXXXXXX.ipa/endpoint_id/modem_rx.
+
+What:		.../XXXXXXX.ipa/modem/tx_endpoint_id
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/modem/tx_endpoint_id file duplicates
+		the value found in .../XXXXXXX.ipa/endpoint_id/modem_tx.

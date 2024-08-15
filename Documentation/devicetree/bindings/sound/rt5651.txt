@@ -1,0 +1,63 @@
+RT5651 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5651".
+
+- reg : The I2C address of the device.
+
+Optional properties:
+
+- realtek,in2-differential
+  Boolean. Indicate MIC2 input are differential, rather than single-ended.
+
+- realtek,dmic-en
+  Boolean. true if dmic is used.
+
+- realtek,jack-detect-source
+  u32. Valid values:
+  1: Use JD1_1 pin for jack-detect
+  2: Use JD1_2 pin for jack-detect
+  3: Use JD2 pin for jack-detect
+
+- realtek,jack-detect-not-inverted
+  bool. Normal jack-detect switches give an inverted (active-low) signal,
+  set this bool in the rare case you've a jack-detect switch which is not
+  inverted.
+
+- realtek,over-current-threshold-microamp
+  u32, micbias over-current detection threshold in µA, valid values are
+  600, 1500 and 2000µA.
+
+- realtek,over-current-scale-factor
+  u32, micbias over-current detection scale-factor, valid values are:
+  0: Scale current by 0.5
+  1: Scale current by 0.75
+  2: Scale current by 1.0
+  3: Scale current by 1.5
+
+Pins on the device (for linking into audio routes) for RT5651:
+
+  * DMIC L1
+  * DMIC R1
+  * IN1P
+  * IN2P
+  * IN2N
+  * IN3P
+  * HPOL
+  * HPOR
+  * LOUTL
+  * LOUTR
+  * PDML
+  * PDMR
+
+Example:
+
+rt5651: codec@1a {
+	compatible = "realtek,rt5651";
+	reg = <0x1a>;
+	realtek,dmic-en = "true";
+	realtek,in2-diff = "false";
+};

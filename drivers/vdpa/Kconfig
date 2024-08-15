@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig VDPA
+	tristate "vDPA drivers"
+	depends on NET
+	help
+	  Enable this module to support vDPA device that uses a
+	  datapath which complies with virtio specifications with
+	  vendor specific control path.
+
+if VDPA
+
+config VDPA_SIM
+	tristate "vDPA device simulator core"
+	depends on RUNTIME_TESTING_MENU && HAS_DMA
+	select DMA_OPS
+	select VHOST_RING
+	select IOMMU_IOVA
+	help
+	  Enable this module to support vDPA device simulators. These devices
+	  are used for testing, prototyping and development of vDPA.
+
+config VDPA_SIM_NET
+	tristate "vDPA simulator for networking device"
+	depends on VDPA_SIM
+	select GENERIC_NET_UTILS
+	help
+	  vDPA networking device simulator which loops TX traffic back to RX.
+
+config VDPA_SIM_BLOCK
+	tristate "vDPA simulator for block device"
+	depends on VDPA_SIM
+	help
+	  vDPA block device simulator which terminates IO request in a
+	  memory buffer.
+
+config VDPA_USER
+	tristate "VDUSE (vDPA Device in Userspace) support"
+	depends on EVENTFD && MMU && HAS_DMA
+	select DMA_OPS
+	select VHOST_IOTLB
+	select IOMMU_IOVA
+	help
+	  With VDUSE it is possible to emulate a vDPA Device
+	  in a userspace program.
+
+config IFCVF
+	tristate "Intel IFC VF vDPA driver"
+	depends on PCI_MSI
+	help
+	  This kernel module can drive Intel IFC VF NIC to offload
+	  virtio dataplane traffic to hardware.
+	  To compile this driver as a module, choose M here: the module will
+	  be called ifcvf.
+
+config MLX5_VDPA
+	bool
+	select VHOST_IOTLB
+	help
+	  Support library for Mellanox VDPA drivers. Provides code that is
+	  common for all types of VDPA drivers. The following drivers are planned:
+	  net, block.
+
+config MLX5_VDPA_NET
+	tristate "vDPA driver for ConnectX devices"
+	select MLX5_VDPA
+	select VHOST_RING
+	depends on MLX5_CORE
+	help
+	  VDPA network driver for ConnectX6 and newer. Provides offloading
+	  of virtio net datapath such that descriptors put on the ring will
+	  be executed by the hardware. It also supports a variety of stateless
+	  offloads depending on the actual device used and firmware version.
+
+config VP_VDPA
+	tristate "Virtio PCI bridge vDPA driver"
+	select VIRTIO_PCI_LIB
+	depends on PCI_MSI
+	help
+	  This kernel module bridges virtio PCI device to vDPA bus.
+
+config ALIBABA_ENI_VDPA
+	tristate "vDPA driver for Alibaba ENI"
+	select VIRTIO_PCI_LIB_LEGACY
+	depends on PCI_MSI && X86
+	help
+	  VDPA driver for Alibaba ENI (Elastic Network Interface) which is built upon
+	  virtio 0.9.5 specification.
+
+endif # VDPA

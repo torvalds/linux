@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/maxim,max8952.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX8952 voltage regulator
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    const: maxim,max8952
+
+  max8952,default-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    description: |
+      index of default DVS voltage
+
+  max8952,dvs-mode-microvolt:
+    minItems: 4
+    maxItems: 4
+    items:
+      minimum: 770000
+      maximum: 1400000
+    description: |
+      Array of 4 integer values defining DVS voltages in microvolts. All values
+      must be from range <770000, 1400000>.
+
+  max8952,en-gpio:
+    maxItems: 1
+    description: |
+      GPIO used to control enable status of regulator
+
+  max8952,ramp-speed:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 0
+    description: |
+      Voltage ramp speed, values map to:
+       - 0: 32mV/us
+       - 1: 16mV/us
+       - 2: 8mV/us
+       - 3: 4mV/us
+       - 4: 2mV/us
+       - 5: 1mV/us
+       - 6: 0.5mV/us
+       - 7: 0.25mV/us
+      Defaults to 32mV/us if not specified.
+
+  max8952,sync-freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+    default: 0
+    description: |
+      Sync frequency, values map to:
+       - 0: 26 MHz
+       - 1: 13 MHz
+       - 2: 19.2 MHz
+      Defaults to 26 MHz if not specified.
+
+  max8952,vid-gpios:
+    minItems: 2
+    maxItems: 2
+    description: |
+      Array of two GPIO pins used for DVS voltage selection
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - max8952,dvs-mode-microvolt
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@60 {
+            compatible = "maxim,max8952";
+            reg = <0x60>;
+
+            max8952,vid-gpios = <&gpx0 3 GPIO_ACTIVE_HIGH>,
+                                <&gpx0 4 GPIO_ACTIVE_HIGH>;
+            max8952,default-mode = <0>;
+            max8952,dvs-mode-microvolt = <1250000>, <1200000>,
+                                         <1050000>, <950000>;
+            max8952,sync-freq = <0>;
+            max8952,ramp-speed = <0>;
+
+            regulator-name = "VARM_1.2V_C210";
+            regulator-min-microvolt = <770000>;
+            regulator-max-microvolt = <1400000>;
+            regulator-always-on;
+            regulator-boot-on;
+        };
+    };

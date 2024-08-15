@@ -1,0 +1,18 @@
+/dts-v1/;
+
+/include/ "mt7628a.dtsi"
+
+/ {
+	compatible = "onion,omega2+", "ralink,mt7688a-soc", "ralink,mt7628a-soc";
+	model = "Onion Omega2+";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+};

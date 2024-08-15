@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/capella,cm36651.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Capella CM36651 I2C Proximity and Color Light sensor
+
+maintainers:
+  - Beomho Seo <beomho.seo@samsung.com>
+
+properties:
+  compatible:
+    const: capella,cm36651
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vled-supply:
+    description: |
+      Supply for the IR_LED which is part of the cm36651 for proximity detection.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - vled-supply
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@18 {
+            compatible = "capella,cm36651";
+            reg = <0x18>;
+            interrupt-parent = <&gpx0>;
+            interrupts = <2 0>;
+            vled-supply = <&ps_als_reg>;
+        };
+    };
+...

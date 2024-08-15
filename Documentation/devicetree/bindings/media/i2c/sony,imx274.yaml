@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/sony,imx274.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sony 1/2.5-Inch 8.51MP CMOS Digital Image Sensor
+
+maintainers:
+  - Leon Luo <leonl@leopardimaging.com>
+
+description: |
+  The Sony IMX274 is a 1/2.5-inch CMOS active pixel digital image sensor with an
+  active array size of 3864H x 2202V. It is programmable through I2C interface.
+  Image data is sent through MIPI CSI-2, which is configured as 4 lanes at 1440
+  Mbps.
+
+properties:
+  compatible:
+    const: sony,imx274
+
+  reg:
+    const: 0x1a
+
+  reset-gpios:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: inck
+
+  vana-supply:
+    description: Sensor 2.8 V analog supply.
+
+  vdig-supply:
+    description: Sensor 1.8 V digital core supply.
+
+  vddl-supply:
+    description: Sensor digital IO 1.2 V supply.
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+
+required:
+  - compatible
+  - reg
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        imx274: camera-sensor@1a {
+            compatible = "sony,imx274";
+            reg = <0x1a>;
+            reset-gpios = <&gpio_sensor 0 0>;
+
+            port {
+                sensor_out: endpoint {
+                    remote-endpoint = <&csiss_in>;
+                };
+            };
+        };
+    };
+
+...

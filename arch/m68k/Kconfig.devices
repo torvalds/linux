@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: GPL-2.0
+if MMU
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	depends on BROKEN && (Q40 || SUN3X)
+	default y
+
+menu "Platform devices"
+
+config HEARTBEAT
+	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || Q40
+	default y if !AMIGA && !APOLLO && !ATARI && !Q40 && HP300
+	help
+	  Use the power-on LED on your machine as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
+
+# We have a dedicated heartbeat LED. :-)
+config PROC_HARDWARE
+	bool "/proc/hardware support"
+	depends on PROC_FS
+	help
+	  Say Y here to support the /proc/hardware file, which gives you
+	  access to information about the machine you're running on,
+	  including the model, CPU, MMU, clock speed, BogoMIPS rating,
+	  and memory size.
+
+config NATFEAT
+	bool "ARAnyM emulator support"
+	depends on ATARI
+	help
+	  This option enables support for ARAnyM native features, such as
+	  access to a disk image as /dev/hda.
+
+config NFBLOCK
+	tristate "NatFeat block device support"
+	depends on BLOCK && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat block device
+	  which allows direct access to the hard drives without using
+	  the hardware emulation.
+
+config NFCON
+	tristate "NatFeat console driver"
+	depends on TTY && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat console driver
+	  which allows the console output to be redirected to the stderr
+	  output of ARAnyM.
+
+config NFETH
+	tristate "NatFeat Ethernet support"
+	depends on ETHERNET && NATFEAT
+	help
+	  Say Y to include support for the ARAnyM NatFeat network device
+	  which will emulate a regular ethernet device while presenting an
+	  ethertap device to the host system.
+
+config ATARI_ETHERNAT
+	bool "Atari EtherNAT Ethernet support"
+	depends on ATARI
+	help
+	  Say Y to include support for the EtherNAT network adapter for the
+	  CT/60 extension port.
+
+	  To compile the actual ethernet driver, choose Y or M for the SMC91X
+	  option in the network device section; the module will be called smc91x.
+
+config ATARI_ETHERNEC
+	bool "Atari EtherNEC Ethernet support"
+	depends on ATARI_ROM_ISA
+	help
+	  Say Y to include support for the EtherNEC network adapter for the
+	  ROM port. The driver works by polling instead of interrupts, so it
+	  is quite slow.
+
+	  This driver also supports the ethernet part of the NetUSBee ROM
+	  port combined Ethernet/USB adapter.
+
+	  To compile the actual ethernet driver, choose Y or M in for the NE2000
+	  option in the network device section; the module will be called ne.
+
+endmenu
+
+menu "Character devices"
+
+config ATARI_DSP56K
+	tristate "Atari DSP56k support"
+	depends on ATARI
+	help
+	  If you want to be able to use the DSP56001 in Falcons, say Y. This
+	  driver is still experimental, and if you don't know what it is, or
+	  if you don't have this processor, just say N.
+
+	  To compile this driver as a module, choose M here.
+
+config AMIGA_BUILTIN_SERIAL
+	tristate "Amiga builtin serial support"
+	depends on AMIGA && TTY
+	help
+	  If you want to use your Amiga's built-in serial port in Linux,
+	  answer Y.
+
+	  To compile this driver as a module, choose M here.
+
+config HPDCA
+	tristate "HP DCA serial support"
+	depends on DIO && SERIAL_8250
+	help
+	  If you want to use the internal "DCA" serial ports on an HP300
+	  machine, say Y here.
+
+config HPAPCI
+	tristate "HP APCI serial support"
+	depends on HP300 && SERIAL_8250
+	help
+	  If you want to use the internal "APCI" serial ports on an HP400
+	  machine, say Y here.
+
+config SERIAL_CONSOLE
+	bool "Support for serial port console"
+	depends on AMIGA_BUILTIN_SERIAL=y
+	help
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode). This could be useful if some terminal or printer is connected
+	  to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader about how to pass options to the kernel at boot
+	  time.)
+
+	  If you don't have a graphical console and you say Y here, the
+	  kernel will automatically use the first serial line, /dev/ttyS0, as
+	  system console.
+
+	  If unsure, say N.
+
+endmenu
+
+endif

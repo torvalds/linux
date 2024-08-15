@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_I2C_ADV7511
+	tristate "ADV7511 encoder"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_MIPI_DSI
+	help
+	  Support for the Analog Devices ADV7511(W)/13/33/35 HDMI encoders.
+
+config DRM_I2C_ADV7511_AUDIO
+	bool "ADV7511 HDMI Audio driver"
+	depends on DRM_I2C_ADV7511 && SND_SOC
+	select SND_SOC_HDMI_CODEC
+	help
+	  Support the ADV7511 HDMI Audio interface. This is used in
+	  conjunction with the AV7511  HDMI driver.
+
+config DRM_I2C_ADV7511_CEC
+	bool "ADV7511/33/35 HDMI CEC driver"
+	depends on DRM_I2C_ADV7511
+	select CEC_CORE
+	default y
+	help
+	  When selected the HDMI transmitter will support the CEC feature.

@@ -1,0 +1,4 @@
+
+[abi_symbol_list]
+  iio_trigger_generic_data_rdy_poll
+  input_device_enabled

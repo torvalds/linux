@@ -1,0 +1,192 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/nvidia,tegra20-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+title: NVIDIA Tegra I2C controller driver
+
+properties:
+  compatible:
+    oneOf:
+      - description: Tegra20 has 4 generic I2C controller. This can support
+          master and slave mode of I2C communication. The i2c-tegra driver
+          only support master mode of I2C communication. Driver of I2C
+          controller is only compatible with "nvidia,tegra20-i2c".
+        const: nvidia,tegra20-i2c
+      - description: Tegra20 has specific I2C controller called as DVC I2C
+          controller. This only support master mode of I2C communication.
+          Register interface/offset and interrupts handling are different than
+          generic I2C controller. Driver of DVC I2C controller is only
+          compatible with "nvidia,tegra20-i2c-dvc".
+        const: nvidia,tegra20-i2c-dvc
+      - description: |
+          Tegra30 has 5 generic I2C controller. This controller is very much
+          similar to Tegra20 I2C controller with additional feature: Continue
+          Transfer Support. This feature helps to implement M_NO_START as per
+          I2C core API transfer flags. Driver of I2C controller is compatible
+          with "nvidia,tegra30-i2c" to enable the continue transfer support.
+          This is also compatible with "nvidia,tegra20-i2c" without continue
+          transfer support.
+        items:
+          - const: nvidia,tegra30-i2c
+          - const: nvidia,tegra20-i2c
+      - description: |
+          Tegra114 has 5 generic I2C controllers. This controller is very much
+          similar to Tegra30 I2C controller with some hardware modification:
+            - Tegra30/Tegra20 I2C controller has 2 clock source called div-clk
+              and fast-clk. Tegra114 has only one clock source called as
+              div-clk and hence clock mechanism is changed in I2C controller.
+            - Tegra30/Tegra20 I2C controller has enabled per packet transfer
+              by default and there is no way to disable it. Tegra114 has this
+              interrupt disable by default and SW need to enable explicitly.
+          Due to above changes, Tegra114 I2C driver makes incompatible with
+          previous hardware driver. Hence, Tegra114 I2C controller is
+          compatible with "nvidia,tegra114-i2c".
+        const: nvidia,tegra114-i2c
+      - description: |
+          Tegra124 has 6 generic I2C controllers. These controllers are very
+          similar to those found on Tegra114 but also contain several hardware
+          improvements and new registers.
+        const: nvidia,tegra124-i2c
+      - description: |
+          Tegra210 has 6 generic I2C controllers. These controllers are very
+          similar to those found on Tegra124.
+        items:
+          - const: nvidia,tegra210-i2c
+          - const: nvidia,tegra124-i2c
+      - description: |
+          Tegra210 has one I2C controller that is on host1x bus and is part of
+          the VE power domain and typically used for camera use-cases. This VI
+          I2C controller is mostly compatible with the programming model of
+          the regular I2C controllers with a few exceptions. The I2C registers
+          start at an offset of 0xc00 (instead of 0), registers are 16 bytes
+          apart (rather than 4) and the controller does not support slave
+          mode.
+        const: nvidia,tegra210-i2c-vi
+      - description: |
+          Tegra186 has 9 generic I2C controllers, two of which are in the AON
+          (always-on) partition of the SoC. All of these controllers are very
+          similar to those found on Tegra210.
+        const: nvidia,tegra186-i2c
+      - description: |
+          Tegra194 has 8 generic I2C controllers, two of which are in the AON
+          (always-on) partition of the SoC. All of these controllers are very
+          similar to those found on Tegra186. However, these controllers have
+          support for 64 KiB transactions whereas earlier chips supported no
+          more than 4 KiB per transactions.
+        const: nvidia,tegra194-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: i2c
+
+  dmas:
+    items:
+      - description: DMA channel for the reception FIFO
+      - description: DMA channel for the transmission FIFO
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra20-i2c
+              - nvidia,tegra30-i2c
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: div-clk
+            - const: fast-clk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra114-i2c
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: div-clk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-i2c
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: div-clk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-i2c-vi
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: div-clk
+            - const: slow
+        power-domains:
+          items:
+            - description: phandle to the VENC power domain
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c@7000c000 {
+        compatible = "nvidia,tegra20-i2c";
+        reg = <0x7000c000 0x100>;
+        interrupts = <0 38 0x04>;
+        clocks = <&tegra_car 12>, <&tegra_car 124>;
+        clock-names = "div-clk", "fast-clk";
+        resets = <&tegra_car 12>;
+        reset-names = "i2c";
+        dmas = <&apbdma 16>, <&apbdma 16>;
+        dma-names = "rx", "tx";
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

@@ -1,0 +1,7 @@
+What:		/sys/kernel/dma_heap/total_pools_kb
+Date:		Feb 2021
+KernelVersion:	5.10
+Contact:	T.J. Mercier <tjmercier@google.com>
+Description:
+		The total_pools_kb file is read-only and specifies how much
+		memory in KiB is allocated to DMA-BUF heap pools.

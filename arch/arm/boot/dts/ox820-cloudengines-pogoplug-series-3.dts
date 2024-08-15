@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * cloudengines-pogoplug-series-3.dtsi - Device tree file for Cloud Engines PogoPlug Series 3
+ *
+ * Copyright (C) 2016 Neil Armstrong <narmstrong@baylibre.com>
+ */
+
+/dts-v1/;
+#include "ox820.dtsi"
+
+/ {
+	model = "Cloud Engines PogoPlug Series 3";
+
+	compatible = "cloudengines,pogoplugv3", "oxsemi,ox820";
+
+	chosen {
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		/* 128Mbytes DDR */
+		reg = <0x60000000 0x8000000>;
+	};
+
+	aliases {
+		serial0 = &uart0;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		blue {
+			label = "pogoplug:blue";
+			gpios = <&gpio0 2 0>;
+			default-state = "keep";
+		};
+
+		orange {
+			label = "pogoplug:orange";
+			gpios = <&gpio1 16 1>;
+			default-state = "keep";
+		};
+
+		green {
+			label = "pogoplug:green";
+			gpios = <&gpio1 17 1>;
+			default-state = "keep";
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0>;
+};
+
+&nandc {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nand>;
+
+	nand@0 {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-ecc-mode = "soft";
+		nand-ecc-algo = "hamming";
+
+		partition@0 {
+			label = "boot";
+			reg = <0x00000000 0x00e00000>;
+			read-only;
+		};
+
+		partition@e00000 {
+			label = "ubi";
+			reg = <0x00e00000 0x07200000>;
+		};
+	};
+};
+
+&etha {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_etha_mdio>;
+};

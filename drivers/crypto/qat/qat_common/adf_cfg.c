@@ -1,0 +1,339 @@
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/list.h>
+#include <linux/seq_file.h>
+#include "adf_accel_devices.h"
+#include "adf_cfg.h"
+#include "adf_common_drv.h"
+
+static DEFINE_MUTEX(qat_cfg_read_lock);
+
+static void *qat_dev_cfg_start(struct seq_file *sfile, loff_t *pos)
+{
+	struct adf_cfg_device_data *dev_cfg = sfile->private;
+
+	mutex_lock(&qat_cfg_read_lock);
+	return seq_list_start(&dev_cfg->sec_list, *pos);
+}
+
+static int qat_dev_cfg_show(struct seq_file *sfile, void *v)
+{
+	struct list_head *list;
+	struct adf_cfg_section *sec =
+				list_entry(v, struct adf_cfg_section, list);
+
+	seq_printf(sfile, "[%s]\n", sec->name);
+	list_for_each(list, &sec->param_head) {
+		struct adf_cfg_key_val *ptr =
+			list_entry(list, struct adf_cfg_key_val, list);
+		seq_printf(sfile, "%s = %s\n", ptr->key, ptr->val);
+	}
+	return 0;
+}
+
+static void *qat_dev_cfg_next(struct seq_file *sfile, void *v, loff_t *pos)
+{
+	struct adf_cfg_device_data *dev_cfg = sfile->private;
+
+	return seq_list_next(v, &dev_cfg->sec_list, pos);
+}
+
+static void qat_dev_cfg_stop(struct seq_file *sfile, void *v)
+{
+	mutex_unlock(&qat_cfg_read_lock);
+}
+
+static const struct seq_operations qat_dev_cfg_sops = {
+	.start = qat_dev_cfg_start,
+	.next = qat_dev_cfg_next,
+	.stop = qat_dev_cfg_stop,
+	.show = qat_dev_cfg_show
+};
+
+DEFINE_SEQ_ATTRIBUTE(qat_dev_cfg);
+
+/**
+ * adf_cfg_dev_add() - Create an acceleration device configuration table.
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function creates a configuration table for the given acceleration device.
+ * The table stores device specific config values.
+ * To be used by QAT device specific drivers.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
+{
+	struct adf_cfg_device_data *dev_cfg_data;
+
+	dev_cfg_data = kzalloc(sizeof(*dev_cfg_data), GFP_KERNEL);
+	if (!dev_cfg_data)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&dev_cfg_data->sec_list);
+	init_rwsem(&dev_cfg_data->lock);
+	accel_dev->cfg = dev_cfg_data;
+
+	/* accel_dev->debugfs_dir should always be non-NULL here */
+	dev_cfg_data->debug = debugfs_create_file("dev_cfg", S_IRUSR,
+						  accel_dev->debugfs_dir,
+						  dev_cfg_data,
+						  &qat_dev_cfg_fops);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_cfg_dev_add);
+
+static void adf_cfg_section_del_all(struct list_head *head);
+
+void adf_cfg_del_all(struct adf_accel_dev *accel_dev)
+{
+	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
+
+	down_write(&dev_cfg_data->lock);
+	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
+	up_write(&dev_cfg_data->lock);
+	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
+}
+
+/**
+ * adf_cfg_dev_remove() - Clears acceleration device configuration table.
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function removes configuration table from the given acceleration device
+ * and frees all allocated memory.
+ * To be used by QAT device specific drivers.
+ *
+ * Return: void
+ */
+void adf_cfg_dev_remove(struct adf_accel_dev *accel_dev)
+{
+	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
+
+	if (!dev_cfg_data)
+		return;
+
+	down_write(&dev_cfg_data->lock);
+	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
+	up_write(&dev_cfg_data->lock);
+	debugfs_remove(dev_cfg_data->debug);
+	kfree(dev_cfg_data);
+	accel_dev->cfg = NULL;
+}
+EXPORT_SYMBOL_GPL(adf_cfg_dev_remove);
+
+static void adf_cfg_keyval_add(struct adf_cfg_key_val *new,
+			       struct adf_cfg_section *sec)
+{
+	list_add_tail(&new->list, &sec->param_head);
+}
+
+static void adf_cfg_keyval_remove(const char *key, struct adf_cfg_section *sec)
+{
+	struct list_head *head = &sec->param_head;
+	struct list_head *list_ptr, *tmp;
+
+	list_for_each_prev_safe(list_ptr, tmp, head) {
+		struct adf_cfg_key_val *ptr =
+			list_entry(list_ptr, struct adf_cfg_key_val, list);
+
+		if (strncmp(ptr->key, key, sizeof(ptr->key)))
+			continue;
+
+		list_del(list_ptr);
+		kfree(ptr);
+		break;
+	}
+}
+
+static void adf_cfg_keyval_del_all(struct list_head *head)
+{
+	struct list_head *list_ptr, *tmp;
+
+	list_for_each_prev_safe(list_ptr, tmp, head) {
+		struct adf_cfg_key_val *ptr =
+			list_entry(list_ptr, struct adf_cfg_key_val, list);
+		list_del(list_ptr);
+		kfree(ptr);
+	}
+}
+
+static void adf_cfg_section_del_all(struct list_head *head)
+{
+	struct adf_cfg_section *ptr;
+	struct list_head *list, *tmp;
+
+	list_for_each_prev_safe(list, tmp, head) {
+		ptr = list_entry(list, struct adf_cfg_section, list);
+		adf_cfg_keyval_del_all(&ptr->param_head);
+		list_del(list);
+		kfree(ptr);
+	}
+}
+
+static struct adf_cfg_key_val *adf_cfg_key_value_find(struct adf_cfg_section *s,
+						      const char *key)
+{
+	struct list_head *list;
+
+	list_for_each(list, &s->param_head) {
+		struct adf_cfg_key_val *ptr =
+			list_entry(list, struct adf_cfg_key_val, list);
+		if (!strcmp(ptr->key, key))
+			return ptr;
+	}
+	return NULL;
+}
+
+static struct adf_cfg_section *adf_cfg_sec_find(struct adf_accel_dev *accel_dev,
+						const char *sec_name)
+{
+	struct adf_cfg_device_data *cfg = accel_dev->cfg;
+	struct list_head *list;
+
+	list_for_each(list, &cfg->sec_list) {
+		struct adf_cfg_section *ptr =
+			list_entry(list, struct adf_cfg_section, list);
+		if (!strcmp(ptr->name, sec_name))
+			return ptr;
+	}
+	return NULL;
+}
+
+static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
+			       const char *sec_name,
+			       const char *key_name,
+			       char *val)
+{
+	struct adf_cfg_section *sec = adf_cfg_sec_find(accel_dev, sec_name);
+	struct adf_cfg_key_val *keyval = NULL;
+
+	if (sec)
+		keyval = adf_cfg_key_value_find(sec, key_name);
+	if (keyval) {
+		memcpy(val, keyval->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
+		return 0;
+	}
+	return -ENODATA;
+}
+
+/**
+ * adf_cfg_add_key_value_param() - Add key-value config entry to config table.
+ * @accel_dev:  Pointer to acceleration device.
+ * @section_name: Name of the section where the param will be added
+ * @key: The key string
+ * @val: Value pain for the given @key
+ * @type: Type - string, int or address
+ *
+ * Function adds configuration key - value entry in the appropriate section
+ * in the given acceleration device. If the key exists already, the value
+ * is updated.
+ * To be used by QAT device specific drivers.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
+				const char *section_name,
+				const char *key, const void *val,
+				enum adf_cfg_val_type type)
+{
+	struct adf_cfg_device_data *cfg = accel_dev->cfg;
+	struct adf_cfg_key_val *key_val;
+	struct adf_cfg_section *section = adf_cfg_sec_find(accel_dev,
+							   section_name);
+	char temp_val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+
+	if (!section)
+		return -EFAULT;
+
+	key_val = kzalloc(sizeof(*key_val), GFP_KERNEL);
+	if (!key_val)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&key_val->list);
+	strscpy(key_val->key, key, sizeof(key_val->key));
+
+	if (type == ADF_DEC) {
+		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
+			 "%ld", (*((long *)val)));
+	} else if (type == ADF_STR) {
+		strscpy(key_val->val, (char *)val, sizeof(key_val->val));
+	} else if (type == ADF_HEX) {
+		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
+			 "0x%lx", (unsigned long)val);
+	} else {
+		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
+		kfree(key_val);
+		return -EINVAL;
+	}
+	key_val->type = type;
+
+	/* Add the key-value pair as below policy:
+	 * 1. if the key doesn't exist, add it;
+	 * 2. if the key already exists with a different value then update it
+	 *    to the new value (the key is deleted and the newly created
+	 *    key_val containing the new value is added to the database);
+	 * 3. if the key exists with the same value, then return without doing
+	 *    anything (the newly created key_val is freed).
+	 */
+	if (!adf_cfg_key_val_get(accel_dev, section_name, key, temp_val)) {
+		if (strncmp(temp_val, key_val->val, sizeof(temp_val))) {
+			adf_cfg_keyval_remove(key, section);
+		} else {
+			kfree(key_val);
+			return 0;
+		}
+	}
+
+	down_write(&cfg->lock);
+	adf_cfg_keyval_add(key_val, section);
+	up_write(&cfg->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_cfg_add_key_value_param);
+
+/**
+ * adf_cfg_section_add() - Add config section entry to config table.
+ * @accel_dev:  Pointer to acceleration device.
+ * @name: Name of the section
+ *
+ * Function adds configuration section where key - value entries
+ * will be stored.
+ * To be used by QAT device specific drivers.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_cfg_section_add(struct adf_accel_dev *accel_dev, const char *name)
+{
+	struct adf_cfg_device_data *cfg = accel_dev->cfg;
+	struct adf_cfg_section *sec = adf_cfg_sec_find(accel_dev, name);
+
+	if (sec)
+		return 0;
+
+	sec = kzalloc(sizeof(*sec), GFP_KERNEL);
+	if (!sec)
+		return -ENOMEM;
+
+	strscpy(sec->name, name, sizeof(sec->name));
+	INIT_LIST_HEAD(&sec->param_head);
+	down_write(&cfg->lock);
+	list_add_tail(&sec->list, &cfg->sec_list);
+	up_write(&cfg->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_cfg_section_add);
+
+int adf_cfg_get_param_value(struct adf_accel_dev *accel_dev,
+			    const char *section, const char *name,
+			    char *value)
+{
+	struct adf_cfg_device_data *cfg = accel_dev->cfg;
+	int ret;
+
+	down_read(&cfg->lock);
+	ret = adf_cfg_key_val_get(accel_dev, section, name, value);
+	up_read(&cfg->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_cfg_get_param_value);

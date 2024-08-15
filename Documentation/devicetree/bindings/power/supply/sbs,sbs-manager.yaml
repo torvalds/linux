@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/sbs,sbs-manager.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SBS compliant manger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - lltc,ltc1760
+          - enum:
+              - sbs,sbs-manager
+      - items:
+          - const: sbs,sbs-manager
+
+  reg:
+    const: 0xa
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+patternProperties:
+  "^i2c@[1-4]$":
+    type: object
+    $ref: /schemas/i2c/i2c-controller.yaml#
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      batman: battery-manager@a {
+        compatible = "lltc,ltc1760", "sbs,sbs-manager";
+        reg = <0x0a>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio-controller;
+        #gpio-cells = <2>;
+
+        i2c@1 {
+          #address-cells = <1>;
+          #size-cells = <0>;
+          reg = <1>;
+
+          battery@b {
+            compatible = "ti,bq20z65", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 1 1>;
+          };
+        };
+
+        i2c@2 {
+          #address-cells = <1>;
+          #size-cells = <0>;
+          reg = <2>;
+
+          battery@b {
+            compatible = "ti,bq20z65", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 2 1>;
+          };
+        };
+
+        i2c@3 {
+          #address-cells = <1>;
+          #size-cells = <0>;
+          reg = <3>;
+
+          battery@b {
+            compatible = "ti,bq20z65", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 3 1>;
+          };
+        };
+      };
+    };

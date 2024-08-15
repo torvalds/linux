@@ -1,0 +1,49 @@
+Rockchip specific extensions to the Innosilicon HDMI
+================================
+
+Required properties:
+- compatible:
+	"rockchip,rk3036-inno-hdmi";
+- reg:
+	Physical base address and length of the controller's registers.
+- clocks, clock-names:
+	Phandle to hdmi controller clock, name should be "pclk"
+- interrupts:
+	HDMI interrupt number
+- ports:
+	Contain one port node with endpoint definitions as defined in
+	Documentation/devicetree/bindings/graph.txt.
+- pinctrl-0, pinctrl-name:
+	Switch the iomux of HPD/CEC pins to HDMI function.
+
+Example:
+hdmi: hdmi@20034000 {
+	compatible = "rockchip,rk3036-inno-hdmi";
+	reg = <0x20034000 0x4000>;
+	interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&cru  PCLK_HDMI>;
+	clock-names = "pclk";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_ctl>;
+
+	hdmi_in: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		hdmi_in_lcdc: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&lcdc_out_hdmi>;
+		};
+	};
+};
+
+&pinctrl {
+	hdmi {
+		hdmi_ctl: hdmi-ctl {
+			rockchip,pins = <1 8  RK_FUNC_1 &pcfg_pull_none>,
+					<1 9  RK_FUNC_1 &pcfg_pull_none>,
+					<1 10 RK_FUNC_1 &pcfg_pull_none>,
+					<1 11 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+
+};

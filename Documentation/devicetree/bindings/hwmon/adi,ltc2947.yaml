@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/adi,ltc2947.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices LTC2947 high precision power and energy monitor
+
+maintainers:
+  - Nuno Sá <nuno.sa@analog.com>
+
+description: |
+  Analog Devices LTC2947 high precision power and energy monitor over SPI or I2C.
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/LTC2947.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ltc2947
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description:
+      The LTC2947 uses either a trimmed internal oscillator or an external clock
+      as the time base for determining the integration period to represent time,
+      charge and energy. When an external clock is used, this property must be
+      set accordingly.
+    maxItems: 1
+
+  adi,accumulator-ctl-pol:
+    description:
+      This property controls the polarity of current that is accumulated to
+      calculate charge and energy so that, they can be only accumulated for
+      positive current for example. Since there are two sets of registers for
+      the accumulated values, this entry can also have two items which sets
+      energy1/charge1 and energy2/charger2 respectively. Check table 12 of the
+      datasheet for more information on the supported options.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      enum: [0, 1, 2, 3]
+      default: 0
+
+  adi,accumulation-deadband-microamp:
+    description:
+      This property controls the Accumulation Dead band which allows to set the
+      level of current below which no accumulation takes place.
+    maximum: 255
+    default: 0
+
+  adi,gpio-out-pol:
+    description:
+      This property controls the GPIO polarity. Setting it to one makes the GPIO
+      active high, setting it to zero makets it active low. When this property
+      is present, the GPIO is automatically configured as output and set to
+      control a fan as a function of measured temperature.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    default: 0
+
+  adi,gpio-in-accum:
+    description:
+      When set, this property sets the GPIO as input. It is then used to control
+      the accumulation of charge, energy and time. This function can be
+      enabled/configured separately for each of the two sets of accumulation
+      registers. Check table 13 of the datasheet for more information on the
+      supported options. This property cannot be used together with
+      adi,gpio-out-pol.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      enum: [0, 1, 2]
+      default: 0
+
+required:
+  - compatible
+  - reg
+
+
+additionalProperties: false
+
+examples:
+  - |
+    spi {
+           #address-cells = <1>;
+           #size-cells = <0>;
+
+           ltc2947_spi: ltc2947@0 {
+                   compatible = "adi,ltc2947";
+                   reg = <0>;
+                   /* accumulation takes place always for energ1/charge1. */
+                   /* accumulation only on positive current for energy2/charge2. */
+                   adi,accumulator-ctl-pol = <0 1>;
+           };
+    };
+...

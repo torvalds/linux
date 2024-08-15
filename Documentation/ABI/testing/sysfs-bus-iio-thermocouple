@@ -1,0 +1,18 @@
+What:		/sys/bus/iio/devices/iio:deviceX/fault_ovuv
+KernelVersion:	5.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Overvoltage or Undervoltage Input Fault. The internal circuitry
+		is protected from excessive voltages applied to the thermocouple
+		cables. The device can also detect if such a condition occurs.
+
+		Reading returns '1' if input voltage is negative or greater
+		than VDD, otherwise '0'.
+
+What:		/sys/bus/iio/devices/iio:deviceX/fault_oc
+KernelVersion:	5.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Open-circuit fault. The detection of open-circuit faults,
+		such as those caused by broken thermocouple wires.
+		Reading returns '1' if fault, '0' otherwise.

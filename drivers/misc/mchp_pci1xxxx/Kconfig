@@ -1,0 +1,13 @@
+config GP_PCI1XXXX
+       tristate "Microchip PCI1XXXX PCIe to GPIO Expander + OTP/EEPROM manager"
+       depends on PCI
+       depends on GPIOLIB
+       select GPIOLIB_IRQCHIP
+       select AUXILIARY_BUS
+       help
+         PCI1XXXX is a PCIe GEN 3 switch with one of the endpoints having
+         multiple functions and one of the functions is a GPIO controller
+         which also has registers to interface with the OTP and EEPROM.
+         Select yes, no or module here to include or exclude the driver
+         for the GPIO function.
+

@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2019, Jeffrey Hugo. All rights reserved. */
+
+/dts-v1/;
+
+#include "msm8998-clamshell.dtsi"
+
+/ {
+	model = "Lenovo Miix 630";
+	compatible = "lenovo,miix-630", "qcom,msm8998";
+	chassis-type = "convertible";
+};
+
+&blsp1_i2c6 {
+	status = "okay";
+
+	keyboard@3a {
+		compatible = "hid-over-i2c";
+		reg = <0x3a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchpad>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <121 IRQ_TYPE_LEVEL_LOW>;
+
+		hid-descr-addr = <0x0001>;
+	};
+};
+
+&remoteproc_mss {
+	firmware-name = "qcom/LENOVO/81F1/qcdsp1v28998.mbn",
+			"qcom/LENOVO/81F1/qcdsp28998.mbn";
+};
+
+&sdhc2 {
+	cd-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
+};

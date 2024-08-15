@@ -1,0 +1,25 @@
+MediaTek SSUSBSYS controller
+============================
+
+The MediaTek SSUSBSYS controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt7622-ssusbsys", "syscon"
+	- "mediatek,mt7629-ssusbsys", "syscon"
+- #clock-cells: Must be 1
+- #reset-cells: Must be 1
+
+The SSUSBSYS controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+ssusbsys: ssusbsys@1a000000 {
+	compatible = "mediatek,mt7622-ssusbsys", "syscon";
+	reg = <0 0x1a000000 0 0x1000>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

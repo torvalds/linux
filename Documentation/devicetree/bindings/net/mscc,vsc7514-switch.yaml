@@ -1,0 +1,191 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mscc,vsc7514-switch.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip VSC7514 Ethernet switch controller
+
+maintainers:
+  - Vladimir Oltean <vladimir.oltean@nxp.com>
+  - Claudiu Manoil <claudiu.manoil@nxp.com>
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+description: |
+  Bindings for the Microchip VSC7514 switch driver
+
+  The VSC7514 switch driver handles up to 11 ports and can inject/extract
+  packets using CPU. Additionally, PTP is supported as well as FDMA for faster
+  packet extraction/injection.
+
+properties:
+  $nodename:
+    pattern: "^switch@[0-9a-f]+$"
+
+  compatible:
+    const: mscc,vsc7514-switch
+
+  reg:
+    items:
+      - description: system target
+      - description: rewriter target
+      - description: qs target
+      - description: PTP target
+      - description: Port0 target
+      - description: Port1 target
+      - description: Port2 target
+      - description: Port3 target
+      - description: Port4 target
+      - description: Port5 target
+      - description: Port6 target
+      - description: Port7 target
+      - description: Port8 target
+      - description: Port9 target
+      - description: Port10 target
+      - description: QSystem target
+      - description: Analyzer target
+      - description: S0 target
+      - description: S1 target
+      - description: S2 target
+      - description: fdma target
+
+  reg-names:
+    items:
+      - const: sys
+      - const: rew
+      - const: qs
+      - const: ptp
+      - const: port0
+      - const: port1
+      - const: port2
+      - const: port3
+      - const: port4
+      - const: port5
+      - const: port6
+      - const: port7
+      - const: port8
+      - const: port9
+      - const: port10
+      - const: qsys
+      - const: ana
+      - const: s0
+      - const: s1
+      - const: s2
+      - const: fdma
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: PTP ready
+      - description: register based extraction
+      - description: frame dma based extraction
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: ptp_rdy
+      - const: xtr
+      - const: fdma
+
+  ethernet-ports:
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    additionalProperties: false
+
+    patternProperties:
+      "^port@[0-9a-f]+$":
+        type: object
+        description: Ethernet ports handled by the switch
+
+        $ref: ethernet-controller.yaml#
+
+        unevaluatedProperties: false
+
+        properties:
+          reg:
+            description: Switch port number
+
+          phy-handle: true
+
+          phy-mode: true
+
+          fixed-link: true
+
+          mac-address: true
+
+        required:
+          - reg
+          - phy-mode
+
+        oneOf:
+          - required:
+              - phy-handle
+          - required:
+              - fixed-link
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - ethernet-ports
+
+additionalProperties: false
+
+examples:
+  - |
+    switch@1010000 {
+      compatible = "mscc,vsc7514-switch";
+      reg = <0x1010000 0x10000>,
+            <0x1030000 0x10000>,
+            <0x1080000 0x100>,
+            <0x10e0000 0x10000>,
+            <0x11e0000 0x100>,
+            <0x11f0000 0x100>,
+            <0x1200000 0x100>,
+            <0x1210000 0x100>,
+            <0x1220000 0x100>,
+            <0x1230000 0x100>,
+            <0x1240000 0x100>,
+            <0x1250000 0x100>,
+            <0x1260000 0x100>,
+            <0x1270000 0x100>,
+            <0x1280000 0x100>,
+            <0x1800000 0x80000>,
+            <0x1880000 0x10000>,
+            <0x1040000 0x10000>,
+            <0x1050000 0x10000>,
+            <0x1060000 0x10000>,
+            <0x1a0 0x1c4>;
+      reg-names = "sys", "rew", "qs", "ptp", "port0", "port1",
+            "port2", "port3", "port4", "port5", "port6",
+            "port7", "port8", "port9", "port10", "qsys",
+            "ana", "s0", "s1", "s2", "fdma";
+      interrupts = <18 21 16>;
+      interrupt-names = "ptp_rdy", "xtr", "fdma";
+
+      ethernet-ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port0: port@0 {
+          reg = <0>;
+          phy-handle = <&phy0>;
+          phy-mode = "internal";
+        };
+        port1: port@1 {
+          reg = <1>;
+          phy-handle = <&phy1>;
+          phy-mode = "internal";
+        };
+      };
+    };
+
+...

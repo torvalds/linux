@@ -1,0 +1,359 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "qcom-ipq8064.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "MikroTik RB3011UiAS-RM";
+	compatible = "mikrotik,rb3011";
+
+	aliases {
+		serial0 = &gsbi7_serial;
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac3;
+		mdio-gpio0 = &mdio0;
+		mdio-gpio1 = &mdio1;
+	};
+
+	chosen {
+		bootargs = "loglevel=8 console=ttyMSM0,115200";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@42000000 {
+		reg = <0x42000000 0x3e000000>;
+		device_type = "memory";
+	};
+
+	mdio0: mdio-0 {
+		status = "okay";
+		compatible = "virtual,mdio-gpio";
+		gpios = <&qcom_pinmux 1 GPIO_ACTIVE_HIGH>,
+			<&qcom_pinmux 0 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-0 = <&mdio0_pins>;
+		pinctrl-names = "default";
+
+		switch0: switch@10 {
+			compatible = "qca,qca8337";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsa,member = <0 0>;
+
+			pinctrl-0 = <&sw0_reset_pin>;
+			pinctrl-names = "default";
+
+			reset-gpios = <&qcom_pinmux 16 GPIO_ACTIVE_LOW>;
+			reg = <0x10>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switch0cpu: port@0 {
+					reg = <0>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "rgmii-id";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "sw1";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "sw2";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "sw3";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "sw4";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "sw5";
+				};
+			};
+		};
+	};
+
+	mdio1: mdio-1 {
+		status = "okay";
+		compatible = "virtual,mdio-gpio";
+		gpios = <&qcom_pinmux 11 GPIO_ACTIVE_HIGH>,
+			<&qcom_pinmux 10 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-0 = <&mdio1_pins>;
+		pinctrl-names = "default";
+
+		switch1: switch@14 {
+			compatible = "qca,qca8337";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsa,member = <1 0>;
+
+			pinctrl-0 = <&sw1_reset_pin>;
+			pinctrl-names = "default";
+
+			reset-gpios = <&qcom_pinmux 17 GPIO_ACTIVE_LOW>;
+			reg = <0x10>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switch1cpu: port@0 {
+					reg = <0>;
+					label = "cpu";
+					ethernet = <&gmac3>;
+					phy-mode = "sgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "sw6";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "sw7";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "sw8";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "sw9";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "sw10";
+				};
+			};
+		};
+	};
+
+	soc {
+		gsbi5: gsbi@1a200000 {
+			qcom,mode = <GSBI_PROT_SPI>;
+			status = "okay";
+
+			spi4: spi@1a280000 {
+				status = "okay";
+				spi-max-frequency = <50000000>;
+
+				pinctrl-0 = <&spi_pins>;
+				pinctrl-names = "default";
+
+				cs-gpios = <&qcom_pinmux 20 GPIO_ACTIVE_HIGH>;
+
+				norflash: flash@0 {
+					compatible = "jedec,spi-nor";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					spi-max-frequency = <50000000>;
+					reg = <0>;
+
+					partition@0 {
+						label = "RouterBoot";
+						reg = <0x0 0x40000>;
+					};
+				};
+			};
+		};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+			pinctrl-0 = <&buttons_pins>;
+			pinctrl-names = "default";
+
+			button {
+				label = "reset";
+				linux,code = <KEY_RESTART>;
+				gpios = <&qcom_pinmux 66 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+				debounce-interval = <60>;
+			};
+		};
+
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-0 = <&leds_pins>;
+			pinctrl-names = "default";
+
+			led@7 {
+				label = "rb3011:green:user";
+				color = <LED_COLOR_ID_GREEN>;
+				gpios = <&qcom_pinmux 33 GPIO_ACTIVE_HIGH>;
+				default-state = "off";
+			};
+		};
+
+	};
+};
+
+&adm_dma {
+	status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	qcom,id = <0>;
+	phy-handle = <&switch0cpu>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+&gmac3 {
+	status = "okay";
+
+	phy-mode = "sgmii";
+	qcom,id = <3>;
+	phy-handle = <&switch1cpu>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+&gsbi7 {
+	status = "okay";
+	qcom,mode = <GSBI_PROT_I2C_UART>;
+};
+
+&gsbi7_serial {
+	status = "okay";
+};
+
+&hs_phy_1 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+
+	nandcs@0 {
+		compatible = "qcom,nandcs";
+		reg = <0>;
+
+		nand-ecc-strength = <4>;
+		nand-bus-width = <8>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			boot@0 {
+				label = "RouterBoard NAND 1 Boot";
+				reg = <0x0000000 0x0800000>;
+			};
+
+			main@800000 {
+				label = "RouterBoard NAND 1 Main";
+				reg = <0x0800000 0x7800000>;
+			};
+		};
+	};
+};
+
+&qcom_pinmux {
+	buttons_pins: buttons_pins {
+		mux {
+			pins = "gpio66";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	leds_pins: leds_pins {
+		mux {
+			pins = "gpio33";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	mdio1_pins: mdio1_pins {
+		mux {
+			pins = "gpio10", "gpio11";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	sw0_reset_pin: sw0_reset_pin {
+		mux {
+			pins = "gpio16";
+			drive-strength = <16>;
+			function = "gpio";
+			bias-disable;
+			input-disable;
+		};
+	};
+
+	sw1_reset_pin: sw1_reset_pin {
+		mux {
+			pins = "gpio17";
+			drive-strength = <16>;
+			function = "gpio";
+			bias-disable;
+			input-disable;
+		};
+	};
+
+	usb1_pwr_en_pins: usb1_pwr_en_pins {
+		mux {
+			pins = "gpio4";
+			function = "gpio";
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
+	};
+};
+
+&ss_phy_1 {
+	status = "okay";
+};
+
+&usb3_1 {
+	pinctrl-0 = <&usb1_pwr_en_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};

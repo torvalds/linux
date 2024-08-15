@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Ignore header name
+ignore define __LINUX_MEDIA_H
+
+# Ignore macros
+ignore define MEDIA_API_VERSION
+ignore define MEDIA_ENT_F_BASE
+ignore define MEDIA_ENT_F_OLD_BASE
+ignore define MEDIA_ENT_F_OLD_SUBDEV_BASE
+ignore define MEDIA_ENT_F_DTV_DECODER
+ignore define MEDIA_INTF_T_DVB_BASE
+ignore define MEDIA_INTF_T_V4L_BASE
+ignore define MEDIA_INTF_T_ALSA_BASE
+#ignore legacy entity type macros
+ignore define MEDIA_ENT_TYPE_SHIFT
+ignore define MEDIA_ENT_TYPE_MASK
+ignore define MEDIA_ENT_SUBTYPE_MASK
+ignore define MEDIA_ENT_T_DEVNODE_UNKNOWN
+ignore define MEDIA_ENT_T_DEVNODE
+ignore define MEDIA_ENT_T_DEVNODE_V4L
+ignore define MEDIA_ENT_T_DEVNODE_FB
+ignore define MEDIA_ENT_T_DEVNODE_ALSA
+ignore define MEDIA_ENT_T_DEVNODE_DVB
+ignore define MEDIA_ENT_T_UNKNOWN
+ignore define MEDIA_ENT_T_V4L2_VIDEO
+ignore define MEDIA_ENT_T_V4L2_SUBDEV
+ignore define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR
+ignore define MEDIA_ENT_T_V4L2_SUBDEV_FLASH
+ignore define MEDIA_ENT_T_V4L2_SUBDEV_LENS
+ignore define MEDIA_ENT_T_V4L2_SUBDEV_DECODER
+ignore define MEDIA_ENT_T_V4L2_SUBDEV_TUNER

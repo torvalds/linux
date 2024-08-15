@@ -1,0 +1,106 @@
+Device tree bindings for TI's ADS7843, ADS7845, ADS7846, ADS7873, TSC2046
+SPI driven touch screen controllers.
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in
+
+	Documentation/devicetree/bindings/spi/spi-bus.txt
+
+must be specified.
+
+Additional required properties:
+
+	compatible		Must be one of the following, depending on the
+				model:
+					"ti,tsc2046"
+					"ti,ads7843"
+					"ti,ads7845"
+					"ti,ads7846"
+					"ti,ads7873"
+
+	interrupts		An interrupt node describing the IRQ line the chip's
+				!PENIRQ pin is connected to.
+	vcc-supply		A regulator node for the supply voltage.
+
+
+Optional properties:
+
+	ti,vref-delay-usecs		vref supply delay in usecs, 0 for
+					external vref (u16).
+	ti,vref-mv			The VREF voltage, in millivolts (u16).
+					Set to 0 to use internal references
+					(ADS7846).
+	ti,keep-vref-on			set to keep vref on for differential
+					measurements as well
+	ti,settle-delay-usec		Settling time of the analog signals;
+					a function of Vcc and the capacitance
+					on the X/Y drivers.  If set to non-zero,
+					two samples are taken with settle_delay
+					us apart, and the second one is used.
+					~150 uSec with 0.01uF caps (u16).
+	ti,penirq-recheck-delay-usecs	If set to non-zero, after samples are
+					taken this delay is applied and penirq
+					is rechecked, to help avoid false
+					events.  This value is affected by the
+					material used to build the touch layer
+					(u16).
+	ti,x-plate-ohms			Resistance of the X-plate,
+					in Ohms (u16).
+	ti,y-plate-ohms			Resistance of the Y-plate,
+					in Ohms (u16).
+	ti,x-min			Minimum value on the X axis (u16).
+	ti,y-min			Minimum value on the Y axis (u16).
+	ti,debounce-tol			Tolerance used for filtering (u16).
+	ti,debounce-rep			Additional consecutive good readings
+					required after the first two (u16).
+	ti,pendown-gpio-debounce	Platform specific debounce time for the
+					pendown-gpio (u32).
+	pendown-gpio			GPIO handle describing the pin the !PENIRQ
+					line is connected to.
+	wakeup-source			use any event on touchscreen as wakeup event.
+					(Legacy property support: "linux,wakeup")
+	touchscreen-size-x		General touchscreen binding, see [1].
+	touchscreen-size-y		General touchscreen binding, see [1].
+	touchscreen-max-pressure	General touchscreen binding, see [1].
+	touchscreen-min-pressure	General touchscreen binding, see [1].
+	touchscreen-average-samples	General touchscreen binding, see [1].
+	touchscreen-inverted-x		General touchscreen binding, see [1].
+	touchscreen-inverted-y		General touchscreen binding, see [1].
+	touchscreen-swapped-x-y		General touchscreen binding, see [1].
+
+[1] All general touchscreen properties are described in
+    Documentation/devicetree/bindings/input/touchscreen/touchscreen.txt.
+
+Deprecated properties:
+
+	ti,swap-xy			swap x and y axis
+	ti,x-max			Maximum value on the X axis (u16).
+	ti,y-max			Maximum value on the Y axis (u16).
+	ti,pressure-min			Minimum reported pressure value
+					(threshold) - u16.
+	ti,pressure-max			Maximum reported pressure value (u16).
+	ti,debounce-max			Max number of additional readings per
+					sample (u16).
+
+Example for a TSC2046 chip connected to an McSPI controller of an OMAP SoC::
+
+	spi_controller {
+		tsc2046@0 {
+			reg = <0>;	/* CS0 */
+			compatible = "ti,tsc2046";
+			interrupt-parent = <&gpio1>;
+			interrupts = <8 0>;	/* BOOT6 / GPIO 8 */
+			spi-max-frequency = <1000000>;
+			pendown-gpio = <&gpio1 8 0>;
+			vcc-supply = <&reg_vcc3>;
+
+			ti,x-min = /bits/ 16 <0>;
+			ti,x-max = /bits/ 16 <8000>;
+			ti,y-min = /bits/ 16 <0>;
+			ti,y-max = /bits/ 16 <4800>;
+			ti,x-plate-ohms = /bits/ 16 <40>;
+			ti,pressure-max = /bits/ 16 <255>;
+
+			wakeup-source;
+		};
+	};

@@ -1,0 +1,92 @@
+.TH THERMOMETER 8
+# SPDX-License-Identifier: GPL-2.0
+.SH NAME
+\fBthermometer\fP - A thermal profiling tool
+
+.SH SYNOPSIS
+.ft B
+.B thermometer
+.RB [ options ]
+.RB [ command ]
+.br
+.SH DESCRIPTION
+\fBthermometer \fP captures the thermal zones temperature at a
+specified sampling period. It is optimized to reduce as much as
+possible the overhead while doing the temperature acquisition in order
+to prevent disrupting the running application we may want to profile.
+
+This low overhead also allows a high rate sampling for the temperature
+which could be necessary to spot overshots and undershots.
+
+If no configuration file is specified, then all the thermal zones will
+be monitored at 4Hz, so every 250ms. A configuration file specifies
+the thermal zone names and the desired sampling period. A thermal zone
+name can be a regular expression to specify a group of thermal zone.
+
+The sampling of the different thermal zones will be written into
+separate files with the thermal zone name. It is possible to specify a
+postfix to identify them for example for a specific scenario. The
+output directory can be specified in addition.
+
+Without any parameters, \fBthermometer \fP captures all the thermal
+zone temperatures every 250ms and write to the current directory the
+captured files postfixed with the current date.
+
+If a running \fBduration\fP is specified or a \fBcommand\fP, the
+capture ends at the end of the duration if the command did not
+finished before. The \fBduration\fP can be specified alone as well as
+the \fBcommand\fP. If none is specified, the capture will continue
+indefinitively until interrupted by \fBSIGINT\fP or \fBSIGQUIT\fP.
+.PP
+
+.SS Options
+.PP
+The \fB-h, --help\fP option shows a short usage help
+.PP
+The \fB-o <dir>, --output <dir>\fP option defines the output directory to put the
+sampling files
+.PP
+The \fB-c <config>, --config <config>\fP option specifies the configuration file to use
+.PP
+The \fB-d <seconds>, --duration <seconds>\fP option specifies the duration of the capture
+.PP
+The \fB-l <loglevel>, --loglevel <loglevel>\fP option sets the loglevel [DEBUG,INFO,NOTICE,WARN,ERROR]
+.PP
+The \fB-p <string>, --postfix <string>\fP option appends \fBstring\fP at the end of the capture filenames
+.PP
+The \fB-s, --syslog\fP option sets the output to syslog, default is \fBstdout\fP
+.PP
+The \fB-w, --overwrite\fP overwrites the output files if they exist
+.PP
+
+.PP
+
+.SS "Exit status:"
+.TP
+0
+if OK,
+.TP
+1
+Error with the options specified as parameters
+.TP
+2
+Error when configuring the logging facility
+.TP
+3
+Error when configuring the time
+.TP
+4
+Error in the initialization routine
+.TP
+5
+Error during the runtime
+
+.SH Capture file format
+
+Every file contains two columns. The first one is the uptime timestamp
+in order to find a point in time since the system started up if there
+is any thermal event. The second one is the temperature in milli
+degree. The first line contains the label of each column.
+
+.SH AUTHOR
+Daniel Lezcano <daniel.lezcano@kernel.org>

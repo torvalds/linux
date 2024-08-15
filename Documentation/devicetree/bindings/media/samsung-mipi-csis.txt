@@ -1,0 +1,81 @@
+Samsung S5P/Exynos SoC series MIPI CSI-2 receiver (MIPI CSIS)
+-------------------------------------------------------------
+
+Required properties:
+
+- compatible	  : "samsung,s5pv210-csis" for S5PV210 (S5PC110),
+		    "samsung,exynos4210-csis" for Exynos4210 (S5PC210),
+		    "samsung,exynos4212-csis" for Exynos4212/Exynos4412,
+		    "samsung,exynos5250-csis" for Exynos5250;
+- reg		  : offset and length of the register set for the device;
+- interrupts      : should contain MIPI CSIS interrupt; the format of the
+		    interrupt specifier depends on the interrupt controller;
+- bus-width	  : maximum number of data lanes supported (SoC specific);
+- vddio-supply    : MIPI CSIS I/O and PLL voltage supply (e.g. 1.8V);
+- vddcore-supply  : MIPI CSIS Core voltage supply (e.g. 1.1V);
+- clocks	  : list of clock specifiers, corresponding to entries in
+		    clock-names property;
+- clock-names	  : must contain "csis", "sclk_csis" entries, matching entries
+		    in the clocks property.
+
+Optional properties:
+
+- clock-frequency : The IP's main (system bus) clock frequency in Hz, default
+		    value when this property is not specified is 166 MHz;
+- samsung,csis-wclk : CSI-2 wrapper clock selection. If this property is present
+		    external clock from CMU will be used, or the bus clock if
+		    if it's not specified.
+
+The device node should contain one 'port' child node with one child 'endpoint'
+node, according to the bindings defined in Documentation/devicetree/bindings/
+media/video-interfaces.txt. The following are properties specific to those nodes.
+
+port node
+---------
+
+- reg		  : (required) must be 3 for camera C input (CSIS0) or 4 for
+		    camera D input (CSIS1);
+
+endpoint node
+-------------
+
+- data-lanes	  : (required) an array specifying active physical MIPI-CSI2
+		    data input lanes and their mapping to logical lanes; the
+		    array's content is unused, only its length is meaningful;
+
+- samsung,csis-hs-settle : (optional) differential receiver (HS-RX) settle time;
+
+
+Example:
+
+	reg0: regulator@0 {
+	};
+
+	reg1: regulator@1 {
+	};
+
+/* SoC properties */
+
+	csis_0: csis@11880000 {
+		compatible = "samsung,exynos4210-csis";
+		reg = <0x11880000 0x1000>;
+		interrupts = <0 78 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+/* Board properties */
+
+	csis_0: csis@11880000 {
+		clock-frequency = <166000000>;
+		vddio-supply = <&reg0>;
+		vddcore-supply = <&reg1>;
+		port {
+			reg = <3>; /* 3 - CSIS0, 4 - CSIS1 */
+			csis0_ep: endpoint {
+				remote-endpoint = <...>;
+				data-lanes = <1>, <2>;
+				samsung,csis-hs-settle = <12>;
+			};
+		};
+	};

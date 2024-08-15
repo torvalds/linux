@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/qcom,tcsr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Top Control and Status Register
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description:
+  Qualcomm devices have a set of registers that provide various control and
+  status functions for their peripherals.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,msm8998-tcsr
+          - qcom,qcs404-tcsr
+          - qcom,sc7180-tcsr
+          - qcom,sc7280-tcsr
+          - qcom,sdm630-tcsr
+          - qcom,sdm845-tcsr
+          - qcom,sm8150-tcsr
+          - qcom,tcsr-apq8064
+          - qcom,tcsr-apq8084
+          - qcom,tcsr-ipq6018
+          - qcom,tcsr-ipq8064
+          - qcom,tcsr-mdm9615
+          - qcom,tcsr-msm8660
+          - qcom,tcsr-msm8916
+          - qcom,tcsr-msm8953
+          - qcom,tcsr-msm8960
+          - qcom,tcsr-msm8974
+          - qcom,tcsr-msm8996
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    syscon@1a400000 {
+        compatible = "qcom,tcsr-msm8960", "syscon";
+        reg = <0x1a400000 0x100>;
+    };

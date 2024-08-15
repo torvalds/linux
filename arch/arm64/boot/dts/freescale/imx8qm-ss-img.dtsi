@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2021 NXP
+ */
+
+&jpegdec {
+	compatible = "nxp,imx8qm-jpgdec", "nxp,imx8qxp-jpgdec";
+};
+
+&jpegenc {
+	compatible = "nxp,imx8qm-jpgenc", "nxp,imx8qxp-jpgenc";
+};

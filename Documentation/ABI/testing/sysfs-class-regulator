@@ -1,0 +1,453 @@
+What:		/sys/class/regulator/.../state
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		state. This reports the regulator enable control, for
+		regulators which can report that input value.
+
+		This will be one of the following strings:
+
+		'enabled'
+		'disabled'
+		'unknown'
+
+		'enabled' means the regulator output is ON and is supplying
+		power to the system (assuming no error prevents it).
+
+		'disabled' means the regulator output is OFF and is not
+		supplying power to the system (unless some non-Linux
+		control has enabled it).
+
+		'unknown' means software cannot determine the state, or
+		the reported state is invalid.
+
+		NOTE: this field can be used in conjunction with microvolts
+		or microamps to determine configured regulator output levels.
+
+
+What:		/sys/class/regulator/.../status
+Description:
+		Some regulator directories will contain a field called
+		"status". This reports the current regulator status, for
+		regulators which can report that output value.
+
+		This will be one of the following strings:
+
+			- off
+			- on
+			- error
+			- fast
+			- normal
+			- idle
+			- standby
+
+		"off" means the regulator is not supplying power to the
+		system.
+
+		"on" means the regulator is supplying power to the system,
+		and the regulator can't report a detailed operation mode.
+
+		"error" indicates an out-of-regulation status such as being
+		disabled due to thermal shutdown, or voltage being unstable
+		because of problems with the input power supply.
+
+		"fast", "normal", "idle", and "standby" are all detailed
+		regulator operation modes (described elsewhere).  They
+		imply "on", but provide more detail.
+
+		Note that regulator status is a function of many inputs,
+		not limited to control inputs from Linux.  For example,
+		the actual load presented may trigger "error" status; or
+		a regulator may be enabled by another user, even though
+		Linux did not enable it.
+
+
+What:		/sys/class/regulator/.../type
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Each regulator directory will contain a field called
+		type. This holds the regulator type.
+
+		This will be one of the following strings:
+
+		- 'voltage'
+		- 'current'
+		- 'unknown'
+
+		'voltage' means the regulator output voltage can be controlled
+		by software.
+
+		'current' means the regulator output current limit can be
+		controlled by software.
+
+		'unknown' means software cannot control either voltage or
+		current limit.
+
+
+What:		/sys/class/regulator/.../microvolts
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		microvolts. This holds the regulator output voltage setting
+		measured in microvolts (i.e. E-6 Volts), for regulators
+		which can report the control input for voltage.
+
+		NOTE: This value should not be used to determine the regulator
+		output voltage level as this value is the same regardless of
+		whether the regulator is enabled or disabled.
+
+
+What:		/sys/class/regulator/.../microamps
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		microamps. This holds the regulator output current limit
+		setting measured in microamps (i.e. E-6 Amps), for regulators
+		which can report the control input for a current limit.
+
+		NOTE: This value should not be used to determine the regulator
+		output current level as this value is the same regardless of
+		whether the regulator is enabled or disabled.
+
+
+What:		/sys/class/regulator/.../opmode
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		opmode. This holds the current regulator operating mode,
+		for regulators which can report that control input value.
+
+		The opmode value can be one of the following strings:
+
+		- 'fast'
+		- 'normal'
+		- 'idle'
+		- 'standby'
+		- 'unknown'
+
+		The modes are described in include/linux/regulator/consumer.h
+
+		NOTE: This value should not be used to determine the regulator
+		output operating mode as this value is the same regardless of
+		whether the regulator is enabled or disabled.  A "status"
+		attribute may be available to determine the actual mode.
+
+
+What:		/sys/class/regulator/.../min_microvolts
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		min_microvolts. This holds the minimum safe working regulator
+		output voltage setting for this domain measured in microvolts,
+		for regulators which support voltage constraints.
+
+		NOTE: this will return the string 'constraint not defined' if
+		the power domain has no min microvolts constraint defined by
+		platform code.
+
+
+What:		/sys/class/regulator/.../max_microvolts
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		max_microvolts. This holds the maximum safe working regulator
+		output voltage setting for this domain measured in microvolts,
+		for regulators which support voltage constraints.
+
+		NOTE: this will return the string 'constraint not defined' if
+		the power domain has no max microvolts constraint defined by
+		platform code.
+
+
+What:		/sys/class/regulator/.../min_microamps
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		min_microamps. This holds the minimum safe working regulator
+		output current limit setting for this domain measured in
+		microamps, for regulators which support current constraints.
+
+		NOTE: this will return the string 'constraint not defined' if
+		the power domain has no min microamps constraint defined by
+		platform code.
+
+
+What:		/sys/class/regulator/.../max_microamps
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		max_microamps. This holds the maximum safe working regulator
+		output current limit setting for this domain measured in
+		microamps, for regulators which support current constraints.
+
+		NOTE: this will return the string 'constraint not defined' if
+		the power domain has no max microamps constraint defined by
+		platform code.
+
+
+What:		/sys/class/regulator/.../name
+Date:		October 2008
+KernelVersion:	2.6.28
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Each regulator directory will contain a field called
+		name. This holds a string identifying the regulator for
+		display purposes.
+
+		NOTE: this will be empty if no suitable name is provided
+		by platform or regulator drivers.
+
+
+What:		/sys/class/regulator/.../num_users
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Each regulator directory will contain a field called
+		num_users. This holds the number of consumer devices that
+		have called regulator_enable() on this regulator.
+
+
+What:		/sys/class/regulator/.../requested_microamps
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		requested_microamps. This holds the total requested load
+		current in microamps for this regulator from all its consumer
+		devices.
+
+
+What:		/sys/class/regulator/.../parent
+Date:		April 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a link called parent.
+		This points to the parent or supply regulator if one exists.
+
+What:		/sys/class/regulator/.../suspend_mem_microvolts
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_mem_microvolts. This holds the regulator output
+		voltage setting for this domain measured in microvolts when
+		the system is suspended to memory, for voltage regulators
+		implementing suspend voltage configuration constraints.
+
+What:		/sys/class/regulator/.../suspend_disk_microvolts
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_disk_microvolts. This holds the regulator output
+		voltage setting for this domain measured in microvolts when
+		the system is suspended to disk, for voltage regulators
+		implementing suspend voltage configuration constraints.
+
+What:		/sys/class/regulator/.../suspend_standby_microvolts
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_standby_microvolts. This holds the regulator output
+		voltage setting for this domain measured in microvolts when
+		the system is suspended to standby, for voltage regulators
+		implementing suspend voltage configuration constraints.
+
+What:		/sys/class/regulator/.../suspend_mem_mode
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_mem_mode. This holds the regulator operating mode
+		setting for this domain when the system is suspended to
+		memory, for regulators implementing suspend mode
+		configuration constraints.
+
+What:		/sys/class/regulator/.../suspend_disk_mode
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_disk_mode. This holds the regulator operating mode
+		setting for this domain when the system is suspended to disk,
+		for regulators implementing suspend mode configuration
+		constraints.
+
+What:		/sys/class/regulator/.../suspend_standby_mode
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_standby_mode. This holds the regulator operating mode
+		setting for this domain when the system is suspended to
+		standby, for regulators implementing suspend mode
+		configuration constraints.
+
+What:		/sys/class/regulator/.../suspend_mem_state
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_mem_state. This holds the regulator operating state
+		when suspended to memory, for regulators implementing suspend
+		configuration constraints.
+
+		This will be one of the same strings reported by
+		the "state" attribute.
+
+What:		/sys/class/regulator/.../suspend_disk_state
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_disk_state. This holds the regulator operating state
+		when suspended to disk, for regulators implementing
+		suspend configuration constraints.
+
+		This will be one of the same strings reported by
+		the "state" attribute.
+
+What:		/sys/class/regulator/.../suspend_standby_state
+Date:		May 2008
+KernelVersion:	2.6.26
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Some regulator directories will contain a field called
+		suspend_standby_state. This holds the regulator operating
+		state when suspended to standby, for regulators implementing
+		suspend configuration constraints.
+
+		This will be one of the same strings reported by
+		the "state" attribute.
+
+What:		/sys/class/regulator/.../bypass
+Date:		September 2012
+KernelVersion:	3.7
+Contact:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+Description:
+		Some regulator directories will contain a field called
+		bypass.  This indicates if the device is in bypass mode.
+
+		This will be one of the following strings:
+
+		- 'enabled'
+		- 'disabled'
+		- 'unknown'
+
+		'enabled' means the regulator is in bypass mode.
+
+		'disabled' means that the regulator is regulating.
+
+		'unknown' means software cannot determine the state, or
+		the reported state is invalid.
+
+What:		/sys/class/regulator/.../under_voltage
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		under_voltage.  This indicates if the device reports an
+		under-voltage fault (1) or not (0).
+
+What:		/sys/class/regulator/.../over_current
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		over_current.  This indicates if the device reports an
+		over-current fault (1) or not (0).
+
+What:		/sys/class/regulator/.../regulation_out
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		regulation_out.  This indicates if the device reports an
+		out-of-regulation fault (1) or not (0).
+
+What:		/sys/class/regulator/.../fail
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		fail.  This indicates if the device reports an output failure
+		(1) or not (0).
+
+What:		/sys/class/regulator/.../over_temp
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		over_temp.  This indicates if the device reports an
+		over-temperature fault (1) or not (0).
+
+What:		/sys/class/regulator/.../under_voltage_warn
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		under_voltage_warn.  This indicates if the device reports an
+		under-voltage warning (1) or not (0).
+
+What:		/sys/class/regulator/.../over_current_warn
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		over_current_warn.  This indicates if the device reports an
+		over-current warning (1) or not (0).
+
+What:		/sys/class/regulator/.../over_voltage_warn
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		over_voltage_warn.  This indicates if the device reports an
+		over-voltage warning (1) or not (0).
+
+What:		/sys/class/regulator/.../over_temp_warn
+Date:		April 2022
+KernelVersion:	5.18
+Contact:	Zev Weiss <zev@bewilderbeest.net>
+Description:
+		Some regulator directories will contain a field called
+		over_temp_warn.  This indicates if the device reports an
+		over-temperature warning (1) or not (0).

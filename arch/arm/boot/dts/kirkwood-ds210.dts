@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Andrew Lunn <andrew@lunn.ch>
+ * Ben Peddell <klightspeed@killerwolves.net>
+ *
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-synology.dtsi"
+
+/ {
+	model = "Synology DS210 v10, v20, v30, DS211j";
+	compatible = "synology,ds210jv10", "synology,ds210jv20",
+		     "synology,ds210jv30", "synology,ds211j",
+		     "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio-fan-150-32-35 {
+		status = "okay";
+	};
+
+	gpio-leds-hdd-21-2 {
+		status = "okay";
+	};
+
+	regulators-hdd-31 {
+		status = "okay";
+	};
+};
+
+&s35390a {
+	status = "okay";
+};

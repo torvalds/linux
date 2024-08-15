@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	testcase-data {
+		interrupts {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			test_intc0: intc0 {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			test_intc1: intc1 {
+				interrupt-controller;
+				#interrupt-cells = <3>;
+			};
+
+			test_intc2: intc2 {
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			test_intmap0: intmap0 {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				interrupt-map = <1 &test_intc0 9>,
+						<2 &test_intc1 10 11 12>,
+						<3 &test_intc2 13 14>,
+						<4 &test_intc2 15 16>;
+			};
+
+			test_intmap1: intmap1 {
+				#interrupt-cells = <2>;
+				/*
+				 * #address-cells is required
+				 *
+				 * The property is not provided in this node to
+				 * test that the code will properly handle
+				 * this case for legacy .dts files.
+				 *
+				 * Not having #address-cells will result in a
+				 * warning from dtc starting with
+				 * version v1.6.1-19-g0a3a9d3449c8
+				 * The warning is suppressed by adding
+				 * -Wno-interrupt_map to the Makefile for all
+				 * .dts files this include this .dtsi
+				#address-cells = <1>;
+				 */
+				interrupt-map = <0x5000 1 2 &test_intc0 15>;
+			};
+
+			interrupts0 {
+				interrupt-parent = <&test_intc0>;
+				interrupts = <1>, <2>, <3>, <4>;
+			};
+
+			interrupts1 {
+				interrupt-parent = <&test_intmap0>;
+				interrupts = <1>, <2>, <3>, <4>;
+			};
+
+			interrupts-extended0 {
+				reg = <0x5000 0x100>;
+				/*
+				 * Do not remove &test_intmap1 from this
+				 * property - see comment in node intmap1
+				 */
+				interrupts-extended = <&test_intc0 1>,
+						      <&test_intc1 2 3 4>,
+						      <&test_intc2 5 6>,
+						      <&test_intmap0 1>,
+						      <&test_intmap0 2>,
+						      <&test_intmap0 3>,
+						      <&test_intmap1 1 2>;
+			};
+		};
+
+		testcase-device1 {
+			compatible = "testcase-device";
+			interrupt-parent = <&test_intc0>;
+			interrupts = <1>;
+		};
+
+		/*
+		 * testcase data that intentionally results in an error is
+		 * located in testcases.dts instead of in this file so that the
+		 * static overlay apply tests will not include the error.
+		 */
+	};
+};

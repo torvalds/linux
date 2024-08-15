@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright (C) 2016 Amarula Solutions B.V.
+ * Copyright (C) 2016 Engicam S.r.l.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-icore-rqs.dtsi"
+
+/ {
+	model = "Engicam i.CoreM6 DualLite/Solo RQS Starter Kit";
+	compatible = "engicam,imx6-icore-rqs", "fsl,imx6dl";
+};

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARCH_HAS_UBSAN_SANITIZE_ALL
+	bool
+
+menuconfig UBSAN
+	bool "Undefined behaviour sanity checker"
+	help
+	  This option enables the Undefined Behaviour sanity checker.
+	  Compile-time instrumentation is used to detect various undefined
+	  behaviours at runtime. For more details, see:
+	  Documentation/dev-tools/ubsan.rst
+
+if UBSAN
+
+config UBSAN_TRAP
+	bool "On Sanitizer warnings, abort the running kernel code"
+	depends on !COMPILE_TEST
+	depends on $(cc-option, -fsanitize-undefined-trap-on-error)
+	help
+	  Building kernels with Sanitizer features enabled tends to grow
+	  the kernel size by around 5%, due to adding all the debugging
+	  text on failure paths. To avoid this, Sanitizer instrumentation
+	  can just issue a trap. This reduces the kernel size overhead but
+	  turns all warnings (including potentially harmless conditions)
+	  into full exceptions that abort the running kernel code
+	  (regardless of context, locks held, etc), which may destabilize
+	  the system. For some system builders this is an acceptable
+	  trade-off.
+
+config CC_HAS_UBSAN_BOUNDS
+	def_bool $(cc-option,-fsanitize=bounds)
+
+config CC_HAS_UBSAN_ARRAY_BOUNDS
+	def_bool $(cc-option,-fsanitize=array-bounds)
+
+config UBSAN_BOUNDS
+	bool "Perform array index bounds checking"
+	default UBSAN
+	depends on CC_HAS_UBSAN_ARRAY_BOUNDS || CC_HAS_UBSAN_BOUNDS
+	help
+	  This option enables detection of directly indexed out of bounds
+	  array accesses, where the array size is known at compile time.
+	  Note that this does not protect array overflows via bad calls
+	  to the {str,mem}*cpy() family of functions (that is addressed
+	  by CONFIG_FORTIFY_SOURCE).
+
+config UBSAN_ONLY_BOUNDS
+	def_bool CC_HAS_UBSAN_BOUNDS && !CC_HAS_UBSAN_ARRAY_BOUNDS
+	depends on UBSAN_BOUNDS
+	help
+	  This is a weird case: Clang's -fsanitize=bounds includes
+	  -fsanitize=local-bounds, but it's trapping-only, so for
+	  Clang, we must use -fsanitize=array-bounds when we want
+	  traditional array bounds checking enabled. For GCC, we
+	  want -fsanitize=bounds.
+
+config UBSAN_ARRAY_BOUNDS
+	def_bool CC_HAS_UBSAN_ARRAY_BOUNDS
+	depends on UBSAN_BOUNDS
+
+config UBSAN_LOCAL_BOUNDS
+	bool "Perform array local bounds checking"
+	depends on UBSAN_TRAP
+	depends on $(cc-option,-fsanitize=local-bounds)
+	help
+	  This option enables -fsanitize=local-bounds which traps when an
+	  exception/error is detected. Therefore, it may only be enabled
+	  with CONFIG_UBSAN_TRAP.
+
+	  Enabling this option detects errors due to accesses through a
+	  pointer that is derived from an object of a statically-known size,
+	  where an added offset (which may not be known statically) is
+	  out-of-bounds.
+
+config UBSAN_SHIFT
+	bool "Perform checking for bit-shift overflows"
+	default UBSAN
+	depends on $(cc-option,-fsanitize=shift)
+	help
+	  This option enables -fsanitize=shift which checks for bit-shift
+	  operations that overflow to the left or go switch to negative
+	  for signed types.
+
+config UBSAN_DIV_ZERO
+	bool "Perform checking for integer divide-by-zero"
+	depends on $(cc-option,-fsanitize=integer-divide-by-zero)
+	# https://github.com/ClangBuiltLinux/linux/issues/1657
+	# https://github.com/llvm/llvm-project/issues/56289
+	depends on !CC_IS_CLANG
+	help
+	  This option enables -fsanitize=integer-divide-by-zero which checks
+	  for integer division by zero. This is effectively redundant with the
+	  kernel's existing exception handling, though it can provide greater
+	  debugging information under CONFIG_UBSAN_REPORT_FULL.
+
+config UBSAN_UNREACHABLE
+	bool "Perform checking for unreachable code"
+	# objtool already handles unreachable checking and gets angry about
+	# seeing UBSan instrumentation located in unreachable places.
+	depends on !(OBJTOOL && (STACK_VALIDATION || UNWINDER_ORC || HAVE_UACCESS_VALIDATION))
+	depends on $(cc-option,-fsanitize=unreachable)
+	help
+	  This option enables -fsanitize=unreachable which checks for control
+	  flow reaching an expected-to-be-unreachable position.
+
+config UBSAN_BOOL
+	bool "Perform checking for non-boolean values used as boolean"
+	default UBSAN
+	depends on $(cc-option,-fsanitize=bool)
+	help
+	  This option enables -fsanitize=bool which checks for boolean values being
+	  loaded that are neither 0 nor 1.
+
+config UBSAN_ENUM
+	bool "Perform checking for out of bounds enum values"
+	default UBSAN
+	depends on $(cc-option,-fsanitize=enum)
+	help
+	  This option enables -fsanitize=enum which checks for values being loaded
+	  into an enum that are outside the range of given values for the given enum.
+
+config UBSAN_ALIGNMENT
+	bool "Perform checking for misaligned pointer usage"
+	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	depends on !UBSAN_TRAP && !COMPILE_TEST
+	depends on $(cc-option,-fsanitize=alignment)
+	help
+	  This option enables the check of unaligned memory accesses.
+	  Enabling this option on architectures that support unaligned
+	  accesses may produce a lot of false positives.
+
+config UBSAN_SANITIZE_ALL
+	bool "Enable instrumentation for the entire kernel"
+	depends on ARCH_HAS_UBSAN_SANITIZE_ALL
+	default y
+	help
+	  This option activates instrumentation for the entire kernel.
+	  If you don't enable this option, you have to explicitly specify
+	  UBSAN_SANITIZE := y for the files/directories you want to check for UB.
+	  Enabling this option will get kernel image size increased
+	  significantly.
+
+config TEST_UBSAN
+	tristate "Module for testing for undefined behavior detection"
+	depends on m
+	help
+	  This is a test module for UBSAN.
+	  It triggers various undefined behavior, and detect it.
+
+endif	# if UBSAN

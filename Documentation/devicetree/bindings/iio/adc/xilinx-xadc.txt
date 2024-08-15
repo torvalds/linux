@@ -1,0 +1,141 @@
+Xilinx XADC device driver
+
+This binding document describes the bindings for the Xilinx 7 Series XADC as well
+as the UltraScale/UltraScale+ System Monitor.
+
+The Xilinx XADC is an ADC that can be found in the Series 7 FPGAs from Xilinx.
+The XADC has a DRP interface for communication. Currently two different
+frontends for the DRP interface exist. One that is only available on the ZYNQ
+family as a hardmacro in the SoC portion of the ZYNQ. The other one is available
+on all series 7 platforms and is a softmacro with a AXI interface. This binding
+document describes the bindings for both of them since the bindings are very
+similar.
+
+The Xilinx System Monitor is an ADC that is found in the UltraScale and
+UltraScale+ FPGAs from Xilinx. The System Monitor provides a DRP interface for
+communication. Xilinx provides a standard IP core that can be used to access the
+System Monitor through an AXI interface in the FPGA fabric. This IP core is
+called the Xilinx System Management Wizard. This document describes the bindings
+for this IP.
+
+Required properties:
+	- compatible: Should be one of
+		* "xlnx,zynq-xadc-1.00.a": When using the ZYNQ device
+		  configuration interface to interface to the XADC hardmacro.
+		* "xlnx,axi-xadc-1.00.a": When using the axi-xadc pcore to
+		  interface to the XADC hardmacro.
+		* "xlnx,system-management-wiz-1.3": When using the
+		  Xilinx System Management Wizard fabric IP core to access the
+		  UltraScale and UltraScale+ System Monitor.
+	- reg: Address and length of the register set for the device
+	- interrupts: Interrupt for the XADC control interface.
+	- clocks: When using the ZYNQ this must be the ZYNQ PCAP clock,
+	  when using the axi-xadc or the axi-system-management-wizard this must be
+	  the clock that provides the clock to the AXI bus interface of the core.
+
+Optional properties:
+	- xlnx,external-mux:
+		* "none": No external multiplexer is used, this is the default
+		  if the property is omitted.
+		* "single": External multiplexer mode is used with one
+		   multiplexer.
+		* "dual": External multiplexer mode is used with two
+		  multiplexers for simultaneous sampling.
+	- xlnx,external-mux-channel: Configures which pair of pins is used to
+	  sample data in external mux mode.
+	  Valid values for single external multiplexer mode are:
+		0: VP/VN
+		1: VAUXP[0]/VAUXN[0]
+		2: VAUXP[1]/VAUXN[1]
+		...
+		16: VAUXP[15]/VAUXN[15]
+	  Valid values for dual external multiplexer mode are:
+		1: VAUXP[0]/VAUXN[0] - VAUXP[8]/VAUXN[8]
+		2: VAUXP[1]/VAUXN[1] - VAUXP[9]/VAUXN[9]
+		...
+		8: VAUXP[7]/VAUXN[7] - VAUXP[15]/VAUXN[15]
+
+	  This property needs to be present if the device is configured for
+	  external multiplexer mode (either single or dual). If the device is
+	  not using external multiplexer mode the property is ignored.
+	- xnlx,channels: List of external channels that are connected to the ADC
+	  Required properties:
+		* #address-cells: Should be 1.
+		* #size-cells: Should be 0.
+
+	  The child nodes of this node represent the external channels which are
+	  connected to the ADC. If the property is no present no external
+	  channels will be assumed to be connected.
+
+	  Each child node represents one channel and has the following
+	  properties:
+		Required properties:
+			* reg: Pair of pins the channel is connected to.
+				0: VP/VN
+				1: VAUXP[0]/VAUXN[0]
+				2: VAUXP[1]/VAUXN[1]
+				...
+				16: VAUXP[15]/VAUXN[15]
+			  Note each channel number should only be used at most
+			  once.
+		Optional properties:
+			* xlnx,bipolar: If set the channel is used in bipolar
+			  mode.
+
+
+Examples:
+	xadc@f8007100 {
+		compatible = "xlnx,zynq-xadc-1.00.a";
+		reg = <0xf8007100 0x20>;
+		interrupts = <0 7 4>;
+		interrupt-parent = <&gic>;
+		clocks = <&pcap_clk>;
+
+		xlnx,channels {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
+			channel@8 {
+				reg = <8>;
+			};
+		};
+	};
+
+	xadc@43200000 {
+		compatible = "xlnx,axi-xadc-1.00.a";
+		reg = <0x43200000 0x1000>;
+		interrupts = <0 53 4>;
+		interrupt-parent = <&gic>;
+		clocks = <&fpga1_clk>;
+
+		xlnx,channels {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+				xlnx,bipolar;
+			};
+		};
+	};
+
+	adc@80000000 {
+		compatible = "xlnx,system-management-wiz-1.3";
+		reg = <0x80000000 0x1000>;
+		interrupts = <0 81 4>;
+		interrupt-parent = <&gic>;
+		clocks = <&fpga1_clk>;
+
+		xlnx,channels {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+				xlnx,bipolar;
+			};
+		};
+	};

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
+	tristate "Microchip KSZ8795/KSZ9477/LAN937x series switch support"
+	depends on NET_DSA
+	select NET_DSA_TAG_KSZ
+	help
+	  This driver adds support for Microchip KSZ9477 series switch and
+	  KSZ8795/KSZ88x3 switch chips.
+
+config NET_DSA_MICROCHIP_KSZ9477_I2C
+	tristate "KSZ series I2C connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ_COMMON && I2C
+	select REGMAP_I2C
+	help
+	  Select to enable support for registering switches configured through I2C.
+
+config NET_DSA_MICROCHIP_KSZ_SPI
+	tristate "KSZ series SPI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ_COMMON && SPI
+	select REGMAP_SPI
+	help
+	  Select to enable support for registering switches configured through SPI.
+
+config NET_DSA_MICROCHIP_KSZ8863_SMI
+	tristate "KSZ series SMI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ_COMMON
+	select MDIO_BITBANG
+	help
+	  Select to enable support for registering switches configured through
+	  Microchip SMI. It supports the KSZ8863 and KSZ8873 switch.

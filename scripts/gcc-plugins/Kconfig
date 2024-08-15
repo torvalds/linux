@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HAVE_GCC_PLUGINS
+	bool
+	help
+	  An arch should select this symbol if it supports building with
+	  GCC plugins.
+
+menuconfig GCC_PLUGINS
+	bool "GCC plugins"
+	depends on HAVE_GCC_PLUGINS
+	depends on CC_IS_GCC
+	depends on $(success,test -e $(shell,$(CC) -print-file-name=plugin)/include/plugin-version.h)
+	default y
+	help
+	  GCC plugins are loadable modules that provide extra features to the
+	  compiler. They are useful for runtime instrumentation and static analysis.
+
+	  See Documentation/kbuild/gcc-plugins.rst for details.
+
+if GCC_PLUGINS
+
+config GCC_PLUGIN_SANCOV
+	bool
+	# Plugin can be removed once the kernel only supports GCC 6+
+	depends on !CC_HAS_SANCOV_TRACE_PC
+	help
+	  This plugin inserts a __sanitizer_cov_trace_pc() call at the start of
+	  basic blocks. It supports all gcc versions with plugin support (from
+	  gcc-4.5 on). It is based on the commit "Add fuzzing coverage support"
+	  by Dmitry Vyukov <dvyukov@google.com>.
+
+config GCC_PLUGIN_LATENT_ENTROPY
+	bool "Generate some entropy during boot and runtime"
+	help
+	  By saying Y here the kernel will instrument some kernel code to
+	  extract some entropy from both original and artificially created
+	  program state.  This will help especially embedded systems where
+	  there is little 'natural' source of entropy normally.  The cost
+	  is some slowdown of the boot process (about 0.5%) and fork and
+	  irq processing.
+
+	  Note that entropy extracted this way is not cryptographically
+	  secure!
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_ARM_SSP_PER_TASK
+	bool
+	depends on GCC_PLUGINS && ARM
+
+endif

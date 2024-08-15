@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/brcm,iproc-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom iProc I2C controller
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  compatible:
+    enum:
+      - brcm,iproc-i2c
+      - brcm,iproc-nic-i2c
+
+  reg:
+    maxItems: 1
+
+  clock-frequency:
+    enum: [ 100000, 400000 ]
+
+  interrupts:
+    description: |
+      Should contain the I2C interrupt. For certain revisions of the I2C
+      controller, I2C interrupt is unwired to the interrupt controller. In such
+      case, this property should be left unspecified, and driver will fall back
+      to polling mode
+    maxItems: 1
+
+  brcm,ape-hsls-addr-mask:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Host view of address mask into the 'APE' co-processor
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,iproc-nic-i2c
+    then:
+      required:
+        - brcm,ape-hsls-addr-mask
+
+unevaluatedProperties: false
+
+required:
+  - reg
+  - clock-frequency
+  - '#address-cells'
+  - '#size-cells'
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    i2c@18008000 {
+        compatible = "brcm,iproc-i2c";
+        reg = <0x18008000 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+        clock-frequency = <100000>;
+
+        wm8750@1a {
+            compatible = "wlf,wm8750";
+            reg = <0x1a>;
+        };
+    };

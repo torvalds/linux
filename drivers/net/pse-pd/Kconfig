@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Ethernet Power Sourcing Equipment drivers
+#
+
+menuconfig PSE_CONTROLLER
+	bool "Ethernet Power Sourcing Equipment Support"
+	help
+	  Generic Power Sourcing Equipment Controller support.
+
+	  If unsure, say no.
+
+if PSE_CONTROLLER
+
+config PSE_REGULATOR
+	tristate "Regulator based PSE controller"
+	depends on REGULATOR || COMPILE_TEST
+	help
+	  This module provides support for simple regulator based Ethernet Power
+	  Sourcing Equipment without automatic classification support. For
+	  example for basic implementation of PoDL (802.3bu) specification.
+
+endif

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5791.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5791 and similar DACs
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+  - Jonathan Cameron <jic23@kernel.org>
+
+properties:
+
+  compatible:
+    enum:
+      - adi,ad5760
+      - adi,ad5780
+      - adi,ad5781
+      - adi,ad5790
+      - adi,ad5791
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+  vss-supply: true
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+  - vss-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad5791";
+            reg = <0>;
+            vss-supply = <&dac_vss>;
+            vdd-supply = <&dac_vdd>;
+        };
+    };
+...

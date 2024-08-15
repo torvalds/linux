@@ -1,0 +1,92 @@
+* NI XGE Ethernet controller
+
+Required properties:
+- compatible: Should be "ni,xge-enet-3.00", but can be "ni,xge-enet-2.00" for
+              older device trees with DMA engines co-located in the address map,
+              with the one reg entry to describe the whole device.
+- reg: Address and length of the register set for the device. It contains the
+       information of registers in the same order as described by reg-names.
+- reg-names: Should contain the reg names
+	"dma":  DMA engine control and status region
+        "ctrl": MDIO and PHY control and status region
+- interrupts: Should contain tx and rx interrupt
+- interrupt-names: Should be "rx" and "tx"
+- phy-mode: See ethernet.txt file in the same directory.
+- nvmem-cells: Phandle of nvmem cell containing the MAC address
+- nvmem-cell-names: Should be "address"
+
+Optional properties:
+- mdio subnode to indicate presence of MDIO controller
+- fixed-link : Assume a fixed link. See fixed-link.txt in the same directory.
+  Use instead of phy-handle.
+- phy-handle: See ethernet.txt file in the same directory.
+
+Examples (10G generic PHY):
+	nixge0: ethernet@40000000 {
+		compatible = "ni,xge-enet-3.00";
+		reg = <0x40000000 0x4000
+		       0x41002000 0x2000>;
+		reg-names = "dma", "ctrl";
+
+		nvmem-cells = <&eth1_addr>;
+		nvmem-cell-names = "address";
+
+		interrupts = <0 29 IRQ_TYPE_LEVEL_HIGH>, <0 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rx", "tx";
+		interrupt-parent = <&intc>;
+
+		phy-mode = "xgmii";
+		phy-handle = <&ethernet_phy1>;
+
+		mdio {
+			ethernet_phy1: ethernet-phy@4 {
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <4>;
+			};
+		};
+	};
+
+Examples (10G generic PHY, no MDIO):
+	nixge0: ethernet@40000000 {
+		compatible = "ni,xge-enet-2.00";
+		reg = <0x40000000 0x6000>;
+
+		nvmem-cells = <&eth1_addr>;
+		nvmem-cell-names = "address";
+
+		interrupts = <0 29 IRQ_TYPE_LEVEL_HIGH>, <0 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rx", "tx";
+		interrupt-parent = <&intc>;
+
+		phy-mode = "xgmii";
+		phy-handle = <&ethernet_phy1>;
+	};
+
+Examples (1G generic fixed-link + MDIO):
+	nixge0: ethernet@40000000 {
+		compatible = "ni,xge-enet-2.00";
+		reg = <0x40000000 0x6000>;
+
+		nvmem-cells = <&eth1_addr>;
+		nvmem-cell-names = "address";
+
+		interrupts = <0 29 IRQ_TYPE_LEVEL_HIGH>, <0 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rx", "tx";
+		interrupt-parent = <&intc>;
+
+		phy-mode = "xgmii";
+
+		fixed-link {
+			speed = <1000>;
+			pause;
+			link-gpios = <&gpio0 63 GPIO_ACTIVE_HIGH>;
+		};
+
+		mdio {
+			ethernet_phy1: ethernet-phy@4 {
+				compatible = "ethernet-phy-ieee802.3-c22";
+				reg = <4>;
+			};
+		};
+
+	};

@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4412 based Trats 2 board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * Device tree source file for Samsung's Trats 2 board which is based on
+ * Samsung's Exynos4412 SoC.
+ */
+
+/dts-v1/;
+#include "exynos4412-galaxy-s3.dtsi"
+
+/ {
+	model = "Samsung Trats 2 based on Exynos4412";
+	compatible = "samsung,trats2", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+	chassis-type = "handset";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/mmcblk0p5 rootwait earlyprintk panic=5";
+		stdout-path = "serial2:115200n8";
+	};
+};

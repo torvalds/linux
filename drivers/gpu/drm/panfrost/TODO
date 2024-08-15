@@ -1,0 +1,14 @@
+- Thermal support.
+
+- Bifrost support:
+  - DT bindings (Neil, WIP)
+  - MMU page table format and address space setup
+  - Bifrost specific feature and issue handling
+  - Coherent DMA support
+
+- Support userspace controlled GPU virtual addresses. Needed for Vulkan. (Tomeu)
+
+- Compute job support. So called 'compute only' jobs need to be plumbed up to
+  userspace.
+
+- Support core dump on job failure
