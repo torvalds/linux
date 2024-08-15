@@ -1817,12 +1817,19 @@ static void rb_meta_validate_events(struct ring_buffer_per_cpu *cpu_buffer)
 /* Used to calculate data delta */
 static char rb_data_ptr[] = "";
 
+#define THIS_TEXT_PTR		((unsigned long)rb_meta_init_text_addr)
+#define THIS_DATA_PTR		((unsigned long)rb_data_ptr)
+
+static void rb_meta_init_text_addr(struct ring_buffer_meta *meta)
+{
+	meta->text_addr = THIS_TEXT_PTR;
+	meta->data_addr = THIS_DATA_PTR;
+}
+
 static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 {
 	struct ring_buffer_meta *meta;
 	unsigned long delta;
-	unsigned long this_text = (unsigned long)rb_range_meta_init;
-	unsigned long this_data = (unsigned long)rb_data_ptr;
 	void *subbuf;
 	int cpu;
 	int i;
@@ -1839,10 +1846,8 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 			meta->first_buffer += delta;
 			meta->head_buffer += delta;
 			meta->commit_buffer += delta;
-			buffer->last_text_delta = this_text - meta->text_addr;
-			buffer->last_data_delta = this_data - meta->data_addr;
-			meta->text_addr = this_text;
-			meta->data_addr = this_data;
+			buffer->last_text_delta = THIS_TEXT_PTR - meta->text_addr;
+			buffer->last_data_delta = THIS_DATA_PTR - meta->data_addr;
 			continue;
 		}
 
@@ -1859,8 +1864,7 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 		subbuf = rb_subbufs_from_meta(meta);
 
 		meta->first_buffer = (unsigned long)subbuf;
-		meta->text_addr = this_text;
-		meta->data_addr = this_data;
+		rb_meta_init_text_addr(meta);
 
 		/*
 		 * The buffers[] array holds the order of the sub-buffers
@@ -5990,6 +5994,7 @@ static void reset_disabled_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 void ring_buffer_reset_cpu(struct trace_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
+	struct ring_buffer_meta *meta;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return;
@@ -6008,6 +6013,11 @@ void ring_buffer_reset_cpu(struct trace_buffer *buffer, int cpu)
 	atomic_dec(&cpu_buffer->record_disabled);
 	atomic_dec(&cpu_buffer->resize_disabled);
 
+	/* Make sure persistent meta now uses this buffer's addresses */
+	meta = rb_range_meta(buffer, 0, cpu_buffer->cpu);
+	if (meta)
+		rb_meta_init_text_addr(meta);
+
 	mutex_unlock(&buffer->mutex);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
@@ -6022,6 +6032,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
 void ring_buffer_reset_online_cpus(struct trace_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	struct ring_buffer_meta *meta;
 	int cpu;
 
 	/* prevent another thread from changing buffer sizes */
@@ -6048,6 +6059,11 @@ void ring_buffer_reset_online_cpus(struct trace_buffer *buffer)
 			continue;
 
 		reset_disabled_cpu_buffer(cpu_buffer);
+
+		/* Make sure persistent meta now uses this buffer's addresses */
+		meta = rb_range_meta(buffer, 0, cpu_buffer->cpu);
+		if (meta)
+			rb_meta_init_text_addr(meta);
 
 		atomic_dec(&cpu_buffer->record_disabled);
 		atomic_sub(RESET_BIT, &cpu_buffer->resize_disabled);
