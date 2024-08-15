@@ -769,9 +769,9 @@ static int spacc_aead_fallback(struct aead_request *req,
 	ctx->fb.aead = crypto_alloc_aead(aead_name, 0,
 					 CRYPTO_ALG_NEED_FALLBACK |
 					 CRYPTO_ALG_ASYNC);
-	if (!ctx->fb.aead) {
+	if (IS_ERR(ctx->fb.aead)) {
 		pr_err("Spacc aead fallback tfm is NULL!\n");
-		return -EINVAL;
+		return PTR_ERR(ctx->fb.aead);
 	}
 
 	subreq = aead_request_alloc(ctx->fb.aead, GFP_KERNEL);
