@@ -437,7 +437,7 @@ out:
 	return ret;
 }
 
-static void free_resources(struct drm_device *drm, void *arg)
+static void free_resources(void *arg)
 {
 	struct xe_gsc *gsc = arg;
 
@@ -501,7 +501,7 @@ int xe_gsc_init_post_hwconfig(struct xe_gsc *gsc)
 	gsc->q = q;
 	gsc->wq = wq;
 
-	err = drmm_add_action_or_reset(&xe->drm, free_resources, gsc);
+	err = devm_add_action_or_reset(xe->drm.dev, free_resources, gsc);
 	if (err)
 		return err;
 
