@@ -109,9 +109,11 @@ run_test()
 {
 	local send_if_name=$1; shift
 	local rcv_if_name=$1; shift
+	local no_unicast_flt=$1; shift
 	local test_name="$1"; shift
 	local smac=$(mac_get $send_if_name)
 	local rcv_dmac=$(mac_get $rcv_if_name)
+	local should_receive
 
 	tcpdump_start $rcv_if_name
 
@@ -160,26 +162,26 @@ run_test()
 		"$smac > $MACVLAN_ADDR, ethertype IPv4 (0x0800)" \
 		true "$test_name"
 
-	xfail_on_veth $h1 \
-		check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address" \
-			"$smac > $UNKNOWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
-			false "$test_name"
+	[ $no_unicast_flt = true ] && should_receive=true || should_receive=false
+	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address" \
+		"$smac > $UNKNOWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
+		$should_receive "$test_name"
 
 	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address, promisc" \
 		"$smac > $UNKNOWN_UC_ADDR2, ethertype IPv4 (0x0800)" \
 		true "$test_name"
 
-	xfail_on_veth $h1 \
-		check_rcv $rcv_if_name \
-			"Unicast IPv4 to unknown MAC address, allmulti" \
-			"$smac > $UNKNOWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
-			false "$test_name"
+	[ $no_unicast_flt = true ] && should_receive=true || should_receive=false
+	check_rcv $rcv_if_name \
+		"Unicast IPv4 to unknown MAC address, allmulti" \
+		"$smac > $UNKNOWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
+		$should_receive "$test_name"
 
 	check_rcv $rcv_if_name "Multicast IPv4 to joined group" \
 		"$smac > $JOINED_MACV4_MC_ADDR, ethertype IPv4 (0x0800)" \
 		true "$test_name"
 
-	xfail_on_veth $h1 \
+	xfail \
 		check_rcv $rcv_if_name \
 			"Multicast IPv4 to unknown group" \
 			"$smac > $UNKNOWN_MACV4_MC_ADDR1, ethertype IPv4 (0x0800)" \
@@ -197,7 +199,7 @@ run_test()
 		"$smac > $JOINED_MACV6_MC_ADDR, ethertype IPv6 (0x86dd)" \
 		true "$test_name"
 
-	xfail_on_veth $h1 \
+	xfail \
 		check_rcv $rcv_if_name "Multicast IPv6 to unknown group" \
 			"$smac > $UNKNOWN_MACV6_MC_ADDR1, ethertype IPv6 (0x86dd)" \
 			false "$test_name"
@@ -290,11 +292,17 @@ macvlan_destroy()
 
 standalone()
 {
+	local no_unicast_flt=true
+
+	if [ $(has_unicast_flt $h2) = yes ]; then
+		no_unicast_flt=false
+	fi
+
 	h1_create
 	h2_create
 	macvlan_create $h2
 
-	run_test $h1 $h2 "$h2"
+	run_test $h1 $h2 $no_unicast_flt "$h2"
 
 	macvlan_destroy
 	h2_destroy
@@ -303,6 +311,7 @@ standalone()
 
 test_bridge()
 {
+	local no_unicast_flt=true
 	local vlan_filtering=$1
 
 	h1_create
@@ -310,7 +319,7 @@ test_bridge()
 	simple_if_init br0 $H2_IPV4/24 $H2_IPV6/64
 	macvlan_create br0
 
-	run_test $h1 br0 "vlan_filtering=$vlan_filtering bridge"
+	run_test $h1 br0 $no_unicast_flt "vlan_filtering=$vlan_filtering bridge"
 
 	macvlan_destroy
 	simple_if_fini br0 $H2_IPV4/24 $H2_IPV6/64
@@ -330,11 +339,17 @@ vlan_aware_bridge()
 
 test_vlan()
 {
+	local no_unicast_flt=true
+
+	if [ $(has_unicast_flt $h2) = yes ]; then
+		no_unicast_flt=false
+	fi
+
 	h1_vlan_create
 	h2_vlan_create
 	macvlan_create $h2.100
 
-	run_test $h1.100 $h2.100 "VLAN upper"
+	run_test $h1.100 $h2.100 $no_unicast_flt "VLAN upper"
 
 	macvlan_destroy
 	h2_vlan_destroy
@@ -343,14 +358,23 @@ test_vlan()
 
 vlan_over_bridged_port()
 {
+	local no_unicast_flt=true
 	local vlan_filtering=$1
+
+	# br_manage_promisc() will not force a single vlan_filtering port to
+	# promiscuous mode, so we should still expect unicast filtering to take
+	# place if the device can do it.
+	if [ $(has_unicast_flt $h2) = yes ] && [ $vlan_filtering = 1 ]; then
+		no_unicast_flt=false
+	fi
 
 	h1_vlan_create
 	h2_vlan_create
 	bridge_create $vlan_filtering
 	macvlan_create $h2.100
 
-	run_test $h1.100 $h2.100 "VLAN over vlan_filtering=$vlan_filtering bridged port"
+	run_test $h1.100 $h2.100 $no_unicast_flt \
+		"VLAN over vlan_filtering=$vlan_filtering bridged port"
 
 	macvlan_destroy
 	bridge_destroy
@@ -370,6 +394,7 @@ vlan_over_vlan_aware_bridged_port()
 
 vlan_over_bridge()
 {
+	local no_unicast_flt=true
 	local vlan_filtering=$1
 
 	h1_vlan_create
@@ -383,7 +408,8 @@ vlan_over_bridge()
 		bridge vlan add dev br0 vid 100 self
 	fi
 
-	run_test $h1.100 br0.100 "VLAN over vlan_filtering=$vlan_filtering bridge"
+	run_test $h1.100 br0.100 $no_unicast_flt \
+		"VLAN over vlan_filtering=$vlan_filtering bridge"
 
 	if [ $vlan_filtering = 1 ]; then
 		bridge vlan del dev br0 vid 100 self
