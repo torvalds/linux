@@ -2728,6 +2728,7 @@ bool rtw89_mac_is_qta_dbcc(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode)
 
 static int ptcl_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val, reg;
 	int ret;
 
@@ -2764,6 +2765,12 @@ static int ptcl_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 	} else if (mac_idx == RTW89_MAC_1) {
 		rtw89_write8_mask(rtwdev, R_AX_PTCLRPT_FULL_HDL_C1,
 				  B_AX_SPE_RPT_PATH_MASK, FWD_TO_WLCPU);
+	}
+
+	if (chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev)) {
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_AGG_LEN_VHT_0, mac_idx);
+		rtw89_write32_mask(rtwdev, reg,
+				   B_AX_AMPDU_MAX_LEN_VHT_MASK, 0x3FF80);
 	}
 
 	return 0;
