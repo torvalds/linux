@@ -44,46 +44,81 @@ static inline struct net_device *dsa_conduit_find_user(struct net_device *dev,
 	return NULL;
 }
 
-/* If under a bridge with vlan_filtering=0, make sure to send pvid-tagged
- * frames as untagged, since the bridge will not untag them.
+/**
+ * dsa_software_untag_vlan_aware_bridge: Software untagging for VLAN-aware bridge
+ * @skb: Pointer to received socket buffer (packet)
+ * @br: Pointer to bridge upper interface of ingress port
+ * @vid: Parsed VID from packet
+ *
+ * The bridge can process tagged packets. Software like STP/PTP may not. The
+ * bridge can also process untagged packets, to the same effect as if they were
+ * tagged with the PVID of the ingress port. So packets tagged with the PVID of
+ * the bridge port must be software-untagged, to support both use cases.
  */
-static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
+static inline void dsa_software_untag_vlan_aware_bridge(struct sk_buff *skb,
+							struct net_device *br,
+							u16 vid)
 {
-	struct dsa_port *dp = dsa_user_to_port(skb->dev);
-	struct net_device *br = dsa_port_bridge_dev_get(dp);
-	struct net_device *dev = skb->dev;
-	struct net_device *upper_dev;
-	u16 vid, pvid, proto;
+	u16 pvid, proto;
 	int err;
-
-	if (!br || br_vlan_enabled(br))
-		return skb;
 
 	err = br_vlan_get_proto(br, &proto);
 	if (err)
-		return skb;
+		return;
 
-	/* Move VLAN tag from data to hwaccel */
-	if (!skb_vlan_tag_present(skb) && skb->protocol == htons(proto)) {
-		skb = skb_vlan_untag(skb);
-		if (!skb)
-			return NULL;
-	}
-
-	if (!skb_vlan_tag_present(skb))
-		return skb;
-
-	vid = skb_vlan_tag_get_id(skb);
-
-	/* We already run under an RCU read-side critical section since
-	 * we are called from netif_receive_skb_list_internal().
-	 */
-	err = br_vlan_get_pvid_rcu(dev, &pvid);
+	err = br_vlan_get_pvid_rcu(skb->dev, &pvid);
 	if (err)
-		return skb;
+		return;
 
-	if (vid != pvid)
-		return skb;
+	if (vid == pvid && skb->vlan_proto == htons(proto))
+		__vlan_hwaccel_clear_tag(skb);
+}
+
+/**
+ * dsa_software_untag_vlan_unaware_bridge: Software untagging for VLAN-unaware bridge
+ * @skb: Pointer to received socket buffer (packet)
+ * @br: Pointer to bridge upper interface of ingress port
+ * @vid: Parsed VID from packet
+ *
+ * The bridge ignores all VLAN tags. Software like STP/PTP may not (it may run
+ * on the plain port, or on a VLAN upper interface). Maybe packets are coming
+ * to software as tagged with a driver-defined VID which is NOT equal to the
+ * PVID of the bridge port (since the bridge is VLAN-unaware, its configuration
+ * should NOT be committed to hardware). DSA needs a method for this private
+ * VID to be communicated by software to it, and if packets are tagged with it,
+ * software-untag them. Note: the private VID may be different per bridge, to
+ * support the FDB isolation use case.
+ *
+ * FIXME: this is currently implemented based on the broken assumption that
+ * the "private VID" used by the driver in VLAN-unaware mode is equal to the
+ * bridge PVID. It should not be, except for a coincidence; the bridge PVID is
+ * irrelevant to the data path in the VLAN-unaware mode. Thus, the VID that
+ * this function removes is wrong.
+ *
+ * All users of ds->untag_bridge_pvid should fix their drivers, if necessary,
+ * to make the two independent. Only then, if there still remains a need to
+ * strip the private VID from packets, then a new ds->ops->get_private_vid()
+ * API shall be introduced to communicate to DSA what this VID is, which needs
+ * to be stripped here.
+ */
+static inline void dsa_software_untag_vlan_unaware_bridge(struct sk_buff *skb,
+							  struct net_device *br,
+							  u16 vid)
+{
+	struct net_device *upper_dev;
+	u16 pvid, proto;
+	int err;
+
+	err = br_vlan_get_proto(br, &proto);
+	if (err)
+		return;
+
+	err = br_vlan_get_pvid_rcu(skb->dev, &pvid);
+	if (err)
+		return;
+
+	if (vid != pvid || skb->vlan_proto != htons(proto))
+		return;
 
 	/* The sad part about attempting to untag from DSA is that we
 	 * don't know, unless we check, if the skb will end up in
@@ -95,10 +130,50 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 	 * definitely keep the tag, to make sure it keeps working.
 	 */
 	upper_dev = __vlan_find_dev_deep_rcu(br, htons(proto), vid);
-	if (upper_dev)
+	if (!upper_dev)
+		__vlan_hwaccel_clear_tag(skb);
+}
+
+/**
+ * dsa_software_vlan_untag: Software VLAN untagging in DSA receive path
+ * @skb: Pointer to socket buffer (packet)
+ *
+ * Receive path method for switches which cannot avoid tagging all packets
+ * towards the CPU port. Called when ds->untag_bridge_pvid (legacy) or
+ * ds->untag_vlan_aware_bridge_pvid is set to true.
+ *
+ * As a side effect of this method, any VLAN tag from the skb head is moved
+ * to hwaccel.
+ */
+static inline struct sk_buff *dsa_software_vlan_untag(struct sk_buff *skb)
+{
+	struct dsa_port *dp = dsa_user_to_port(skb->dev);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
+	u16 vid;
+
+	/* software untagging for standalone ports not yet necessary */
+	if (!br)
 		return skb;
 
-	__vlan_hwaccel_clear_tag(skb);
+	/* Move VLAN tag from data to hwaccel */
+	if (!skb_vlan_tag_present(skb)) {
+		skb = skb_vlan_untag(skb);
+		if (!skb)
+			return NULL;
+	}
+
+	if (!skb_vlan_tag_present(skb))
+		return skb;
+
+	vid = skb_vlan_tag_get_id(skb);
+
+	if (br_vlan_enabled(br)) {
+		if (dp->ds->untag_vlan_aware_bridge_pvid)
+			dsa_software_untag_vlan_aware_bridge(skb, br, vid);
+	} else {
+		if (dp->ds->untag_bridge_pvid)
+			dsa_software_untag_vlan_unaware_bridge(skb, br, vid);
+	}
 
 	return skb;
 }
