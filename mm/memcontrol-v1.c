@@ -1502,6 +1502,43 @@ void memcg1_check_events(struct mem_cgroup *memcg, int nid)
 	}
 }
 
+void memcg1_commit_charge(struct folio *folio, struct mem_cgroup *memcg)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	memcg1_charge_statistics(memcg, folio_nr_pages(folio));
+	memcg1_check_events(memcg, folio_nid(folio));
+	local_irq_restore(flags);
+}
+
+void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg)
+{
+	/*
+	 * Interrupts should be disabled here because the caller holds the
+	 * i_pages lock which is taken with interrupts-off. It is
+	 * important here to have the interrupts disabled because it is the
+	 * only synchronisation we have for updating the per-CPU variables.
+	 */
+	preempt_disable_nested();
+	VM_WARN_ON_IRQS_ENABLED();
+	memcg1_charge_statistics(memcg, -folio_nr_pages(folio));
+	preempt_enable_nested();
+	memcg1_check_events(memcg, folio_nid(folio));
+}
+
+void memcg1_uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+			   unsigned long nr_memory, int nid)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__count_memcg_events(memcg, PGPGOUT, pgpgout);
+	__this_cpu_add(memcg->events_percpu->nr_page_events, nr_memory);
+	memcg1_check_events(memcg, nid);
+	local_irq_restore(flags);
+}
+
 static int compare_thresholds(const void *a, const void *b)
 {
 	const struct mem_cgroup_threshold *_a = a;

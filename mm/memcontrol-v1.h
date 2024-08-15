@@ -118,6 +118,11 @@ void memcg1_oom_recover(struct mem_cgroup *memcg);
 void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages);
 void memcg1_check_events(struct mem_cgroup *memcg, int nid);
 
+void memcg1_commit_charge(struct folio *folio, struct mem_cgroup *memcg);
+void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg);
+void memcg1_uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+			   unsigned long nr_memory, int nid);
+
 void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s);
 
 void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages);
@@ -149,6 +154,15 @@ static inline void memcg1_oom_recover(struct mem_cgroup *memcg) {}
 
 static inline void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages) {}
 static inline void memcg1_check_events(struct mem_cgroup *memcg, int nid) {}
+
+static inline void memcg1_commit_charge(struct folio *folio,
+					struct mem_cgroup *memcg) {}
+
+static inline void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg) {}
+
+static inline void memcg1_uncharge_batch(struct mem_cgroup *memcg,
+					 unsigned long pgpgout,
+					 unsigned long nr_memory, int nid) {}
 
 static inline void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s) {}
 
