@@ -104,44 +104,45 @@ mc_route_destroy()
 
 run_test()
 {
-	local rcv_if_name=$1
-	local smac=$(mac_get $h1)
+	local send_if_name=$1; shift
+	local rcv_if_name=$1; shift
+	local smac=$(mac_get $send_if_name)
 	local rcv_dmac=$(mac_get $rcv_if_name)
 
 	tcpdump_start $rcv_if_name
 
-	mc_route_prepare $h1
+	mc_route_prepare $send_if_name
 	mc_route_prepare $rcv_if_name
 
-	send_uc_ipv4 $h1 $rcv_dmac
-	send_uc_ipv4 $h1 $MACVLAN_ADDR
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR1
+	send_uc_ipv4 $send_if_name $rcv_dmac
+	send_uc_ipv4 $send_if_name $MACVLAN_ADDR
+	send_uc_ipv4 $send_if_name $UNKNOWN_UC_ADDR1
 
 	ip link set dev $rcv_if_name promisc on
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR2
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR2
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR2
+	send_uc_ipv4 $send_if_name $UNKNOWN_UC_ADDR2
+	mc_send $send_if_name $UNKNOWN_IPV4_MC_ADDR2
+	mc_send $send_if_name $UNKNOWN_IPV6_MC_ADDR2
 	ip link set dev $rcv_if_name promisc off
 
 	mc_join $rcv_if_name $JOINED_IPV4_MC_ADDR
-	mc_send $h1 $JOINED_IPV4_MC_ADDR
+	mc_send $send_if_name $JOINED_IPV4_MC_ADDR
 	mc_leave
 
 	mc_join $rcv_if_name $JOINED_IPV6_MC_ADDR
-	mc_send $h1 $JOINED_IPV6_MC_ADDR
+	mc_send $send_if_name $JOINED_IPV6_MC_ADDR
 	mc_leave
 
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR1
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR1
+	mc_send $send_if_name $UNKNOWN_IPV4_MC_ADDR1
+	mc_send $send_if_name $UNKNOWN_IPV6_MC_ADDR1
 
 	ip link set dev $rcv_if_name allmulticast on
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR3
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR3
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR3
+	send_uc_ipv4 $send_if_name $UNKNOWN_UC_ADDR3
+	mc_send $send_if_name $UNKNOWN_IPV4_MC_ADDR3
+	mc_send $send_if_name $UNKNOWN_IPV6_MC_ADDR3
 	ip link set dev $rcv_if_name allmulticast off
 
 	mc_route_destroy $rcv_if_name
-	mc_route_destroy $h1
+	mc_route_destroy $send_if_name
 
 	sleep 1
 
@@ -267,7 +268,7 @@ standalone()
 	h2_create
 	macvlan_create $h2
 
-	run_test $h2
+	run_test $h1 $h2
 
 	macvlan_destroy
 	h2_destroy
@@ -280,7 +281,7 @@ bridge()
 	bridge_create
 	macvlan_create br0
 
-	run_test br0
+	run_test $h1 br0
 
 	macvlan_destroy
 	bridge_destroy
