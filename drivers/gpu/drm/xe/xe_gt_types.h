@@ -377,6 +377,12 @@ struct xe_gt {
 	} steering[NUM_STEERING_TYPES];
 
 	/**
+	 * @steering_dss_per_grp: number of DSS per steering group (gslice,
+	 *    cslice, etc.).
+	 */
+	unsigned int steering_dss_per_grp;
+
+	/**
 	 * @mcr_lock: protects the MCR_SELECTOR register for the duration
 	 *    of a steered operation
 	 */

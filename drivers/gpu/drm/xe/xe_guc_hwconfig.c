@@ -160,3 +160,43 @@ void xe_guc_hwconfig_dump(struct xe_guc *guc, struct drm_printer *p)
 
 	kfree(hwconfig);
 }
+
+/*
+ * Lookup a specific 32-bit attribute value in the GuC's hwconfig table.
+ */
+int xe_guc_hwconfig_lookup_u32(struct xe_guc *guc, u32 attribute, u32 *val)
+{
+	size_t size = xe_guc_hwconfig_size(guc);
+	u64 num_dw = div_u64(size, sizeof(u32));
+	u32 *hwconfig;
+	bool found = false;
+	int i = 0;
+
+	if (num_dw == 0)
+		return -EINVAL;
+
+	hwconfig = kzalloc(size, GFP_KERNEL);
+	if (!hwconfig)
+		return -ENOMEM;
+
+	xe_guc_hwconfig_copy(guc, hwconfig);
+
+	/* An entry requires at least three dwords for key, length, value */
+	while (i + 3 <= num_dw) {
+		u32 key = hwconfig[i++];
+		u32 len_dw = hwconfig[i++];
+
+		if (key != attribute) {
+			i += len_dw;
+			continue;
+		}
+
+		*val = hwconfig[i];
+		found = true;
+		break;
+	}
+
+	kfree(hwconfig);
+
+	return found ? 0 : -ENOENT;
+}
