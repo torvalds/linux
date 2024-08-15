@@ -202,7 +202,7 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 	struct annotated_member *parent = arg;
 	struct annotated_member *member;
 	Dwarf_Die member_type, die_mem;
-	Dwarf_Word size, loc;
+	Dwarf_Word size, loc, bit_size = 0;
 	Dwarf_Attribute attr;
 	struct strbuf sb;
 	int tag;
@@ -226,15 +226,37 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 	if (dwarf_aggregate_size(&die_mem, &size) < 0)
 		size = 0;
 
-	if (!dwarf_attr_integrate(die, DW_AT_data_member_location, &attr))
-		loc = 0;
-	else
+	if (dwarf_attr_integrate(die, DW_AT_data_member_location, &attr))
 		dwarf_formudata(&attr, &loc);
+	else {
+		/* bitfield member */
+		if (dwarf_attr_integrate(die, DW_AT_data_bit_offset, &attr) &&
+		    dwarf_formudata(&attr, &loc) == 0)
+			loc /= 8;
+		else
+			loc = 0;
+
+		if (dwarf_attr_integrate(die, DW_AT_bit_size, &attr) &&
+		    dwarf_formudata(&attr, &bit_size) == 0)
+			size = (bit_size + 7) / 8;
+	}
 
 	member->type_name = strbuf_detach(&sb, NULL);
 	/* member->var_name can be NULL */
-	if (dwarf_diename(die))
-		member->var_name = strdup(dwarf_diename(die));
+	if (dwarf_diename(die)) {
+		if (bit_size) {
+			if (asprintf(&member->var_name, "%s:%ld",
+				     dwarf_diename(die), (long)bit_size) < 0)
+				member->var_name = NULL;
+		} else {
+			member->var_name = strdup(dwarf_diename(die));
+		}
+
+		if (member->var_name == NULL) {
+			free(member);
+			return DIE_FIND_CB_END;
+		}
+	}
 	member->size = size;
 	member->offset = loc + parent->offset;
 	INIT_LIST_HEAD(&member->children);
