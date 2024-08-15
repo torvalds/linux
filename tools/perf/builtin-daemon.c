@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <internal/lib.h>
+#include <inttypes.h>
 #include <subcmd/parse-options.h>
 #include <api/fd/array.h>
 #include <api/fs/fs.h>
@@ -688,7 +689,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 			/* lock */
 			csv_sep, daemon->base, "lock");
 
-		fprintf(out, "%c%lu",
+		fprintf(out, "%c%" PRIu64,
 			/* session up time */
 			csv_sep, (curr - daemon->start) / 60);
 
@@ -700,7 +701,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				daemon->base, SESSION_OUTPUT);
 			fprintf(out, "  lock:    %s/lock\n",
 				daemon->base);
-			fprintf(out, "  up:      %lu minutes\n",
+			fprintf(out, "  up:      %" PRIu64 " minutes\n",
 				(curr - daemon->start) / 60);
 		}
 	}
@@ -727,7 +728,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				/* session ack */
 				csv_sep, session->base, SESSION_ACK);
 
-			fprintf(out, "%c%lu",
+			fprintf(out, "%c%" PRIu64,
 				/* session up time */
 				csv_sep, (curr - session->start) / 60);
 
@@ -745,7 +746,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				session->base, SESSION_CONTROL);
 			fprintf(out, "  ack:     %s/%s\n",
 				session->base, SESSION_ACK);
-			fprintf(out, "  up:      %lu minutes\n",
+			fprintf(out, "  up:      %" PRIu64 " minutes\n",
 				(curr - session->start) / 60);
 		}
 	}
