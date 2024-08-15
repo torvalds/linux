@@ -517,7 +517,7 @@ static const struct qcom_pdm_domain_data *sm8550_domains[] = {
 	NULL,
 };
 
-static const struct of_device_id qcom_pdm_domains[] = {
+static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,apq8064", .data = NULL, },
 	{ .compatible = "qcom,apq8074", .data = NULL, },
 	{ .compatible = "qcom,apq8084", .data = NULL, },
