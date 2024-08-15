@@ -808,7 +808,7 @@ static int spacc_aead_process(struct aead_request *req, u64 seq, int encrypt)
 	u32 dstoff;
 	int icvremove;
 	int ivaadsize;
-	int ptaadsize;
+	int ptaadsize = 0;
 	int iv_to_context;
 	int spacc_proc_len;
 	u32 spacc_icv_offset = 0;
@@ -959,8 +959,6 @@ static int spacc_aead_process(struct aead_request *req, u64 seq, int encrypt)
 	    tctx->mode == CRYPTO_MODE_NULL) {
 		if (req->cryptlen >= icvremove)
 			ptaadsize = req->cryptlen - icvremove;
-	} else {
-		ptaadsize = 0;
 	}
 
 	/* Calculate and set the below, important parameters
