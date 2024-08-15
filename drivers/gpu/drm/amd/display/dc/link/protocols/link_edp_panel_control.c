@@ -1168,6 +1168,9 @@ static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
 	link_enc_index = link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
 	if (link_res->hpo_dp_link_enc) {
+		if (link->wa_flags.disable_assr_for_uhbr)
+			return;
+
 		link_enc_index = link_res->hpo_dp_link_enc->inst;
 		use_hpo_dp_link_enc = true;
 	}

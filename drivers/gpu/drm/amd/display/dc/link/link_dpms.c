@@ -2358,7 +2358,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
-	else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
+	else if (dc_is_dp_sst_signal(pipe_ctx->stream->signal) &&
 			dp_is_128b_132b_signal(pipe_ctx))
 		update_sst_payload(pipe_ctx, false);
 
@@ -2591,7 +2591,7 @@ void link_set_dpms_on(
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		allocate_mst_payload(pipe_ctx);
-	else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
+	else if (dc_is_dp_sst_signal(pipe_ctx->stream->signal) &&
 			dp_is_128b_132b_signal(pipe_ctx))
 		update_sst_payload(pipe_ctx, true);
 
