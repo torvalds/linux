@@ -1238,10 +1238,10 @@ static void voltage_margin_show(struct seq_file *s,
 {
 	unsigned int tmp, voltage;
 
-	tmp = FIELD_GET(USB4_MARGIN_HW_RES_1_MARGIN_MASK, val);
+	tmp = FIELD_GET(USB4_MARGIN_HW_RES_MARGIN_MASK, val);
 	voltage = tmp * margining->max_voltage_offset / margining->voltage_steps;
 	seq_printf(s, "%u mV (%u)", voltage, tmp);
-	if (val & USB4_MARGIN_HW_RES_1_EXCEEDS)
+	if (val & USB4_MARGIN_HW_RES_EXCEEDS)
 		seq_puts(s, " exceeds maximum");
 	seq_puts(s, "\n");
 	if (margining->optional_voltage_offset_range)
@@ -1253,12 +1253,51 @@ static void time_margin_show(struct seq_file *s,
 {
 	unsigned int tmp, interval;
 
-	tmp = FIELD_GET(USB4_MARGIN_HW_RES_1_MARGIN_MASK, val);
+	tmp = FIELD_GET(USB4_MARGIN_HW_RES_MARGIN_MASK, val);
 	interval = tmp * margining->max_time_offset / margining->time_steps;
 	seq_printf(s, "%u mUI (%u)", interval, tmp);
-	if (val & USB4_MARGIN_HW_RES_1_EXCEEDS)
+	if (val & USB4_MARGIN_HW_RES_EXCEEDS)
 		seq_puts(s, " exceeds maximum");
 	seq_puts(s, "\n");
+}
+
+static u8 margining_hw_result_val(const u32 *results,
+				  enum usb4_margining_lane lane,
+				  bool right_high)
+{
+	u32 val;
+
+	if (lane == USB4_MARGINING_LANE_RX0)
+		val = results[1];
+	else if (lane == USB4_MARGINING_LANE_RX1)
+		val = results[1] >> USB4_MARGIN_HW_RES_LANE_SHIFT;
+	else
+		val = 0;
+
+	return right_high ? val : val >> USB4_MARGIN_HW_RES_LL_SHIFT;
+}
+
+static void margining_hw_result_format(struct seq_file *s,
+				       const struct tb_margining *margining,
+				       enum usb4_margining_lane lane)
+{
+	u8 val;
+
+	if (margining->time) {
+		val = margining_hw_result_val(margining->results, lane, true);
+		seq_printf(s, "# lane %u right time margin: ", lane);
+		time_margin_show(s, margining, val);
+		val = margining_hw_result_val(margining->results, lane, false);
+		seq_printf(s, "# lane %u left time margin: ", lane);
+		time_margin_show(s, margining, val);
+	} else {
+		val = margining_hw_result_val(margining->results, lane, true);
+		seq_printf(s, "# lane %u high voltage margin: ", lane);
+		voltage_margin_show(s, margining, val);
+		val = margining_hw_result_val(margining->results, lane, false);
+		seq_printf(s, "# lane %u low voltage margin: ", lane);
+		voltage_margin_show(s, margining, val);
+	}
 }
 
 static int margining_results_show(struct seq_file *s, void *not_used)
@@ -1273,54 +1312,16 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 	seq_printf(s, "0x%08x\n", margining->results[0]);
 	/* Only the hardware margining has two result dwords */
 	if (!margining->software) {
-		unsigned int val;
-
 		seq_printf(s, "0x%08x\n", margining->results[1]);
 
-		if (margining->time) {
-			if (margining->lanes == USB4_MARGINING_LANE_RX0 ||
-			    margining->lanes == USB4_MARGINING_LANE_ALL) {
-				val = margining->results[1];
-				seq_puts(s, "# lane 0 right time margin: ");
-				time_margin_show(s, margining, val);
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L0_LL_MARGIN_SHIFT;
-				seq_puts(s, "# lane 0 left time margin: ");
-				time_margin_show(s, margining, val);
-			}
-			if (margining->lanes == USB4_MARGINING_LANE_RX1 ||
-			    margining->lanes == USB4_MARGINING_LANE_ALL) {
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L1_RH_MARGIN_SHIFT;
-				seq_puts(s, "# lane 1 right time margin: ");
-				time_margin_show(s, margining, val);
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L1_LL_MARGIN_SHIFT;
-				seq_puts(s, "# lane 1 left time margin: ");
-				time_margin_show(s, margining, val);
-			}
+		if (margining->lanes == USB4_MARGINING_LANE_ALL) {
+			margining_hw_result_format(s, margining,
+						   USB4_MARGINING_LANE_RX0);
+			margining_hw_result_format(s, margining,
+						   USB4_MARGINING_LANE_RX1);
 		} else {
-			if (margining->lanes == USB4_MARGINING_LANE_RX0 ||
-			    margining->lanes == USB4_MARGINING_LANE_ALL) {
-				val = margining->results[1];
-				seq_puts(s, "# lane 0 high voltage margin: ");
-				voltage_margin_show(s, margining, val);
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L0_LL_MARGIN_SHIFT;
-				seq_puts(s, "# lane 0 low voltage margin: ");
-				voltage_margin_show(s, margining, val);
-			}
-			if (margining->lanes == USB4_MARGINING_LANE_RX1 ||
-			    margining->lanes == USB4_MARGINING_LANE_ALL) {
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L1_RH_MARGIN_SHIFT;
-				seq_puts(s, "# lane 1 high voltage margin: ");
-				voltage_margin_show(s, margining, val);
-				val = margining->results[1] >>
-					USB4_MARGIN_HW_RES_1_L1_LL_MARGIN_SHIFT;
-				seq_puts(s, "# lane 1 low voltage margin: ");
-				voltage_margin_show(s, margining, val);
-			}
+			margining_hw_result_format(s, margining,
+						   margining->lanes);
 		}
 	} else {
 		u32 lane_errors, result;

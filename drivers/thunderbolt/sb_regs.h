@@ -89,12 +89,12 @@ enum usb4_sb_opcode {
 #define USB4_MARGIN_HW_OPT_VOLTAGE		BIT(10)
 
 /* Applicable to all margin values */
-#define USB4_MARGIN_HW_RES_1_MARGIN_MASK	GENMASK(6, 0)
-#define USB4_MARGIN_HW_RES_1_EXCEEDS		BIT(7)
-/* Different lane margin shifts */
-#define USB4_MARGIN_HW_RES_1_L0_LL_MARGIN_SHIFT	8
-#define USB4_MARGIN_HW_RES_1_L1_RH_MARGIN_SHIFT	16
-#define USB4_MARGIN_HW_RES_1_L1_LL_MARGIN_SHIFT	24
+#define USB4_MARGIN_HW_RES_MARGIN_MASK		GENMASK(6, 0)
+#define USB4_MARGIN_HW_RES_EXCEEDS		BIT(7)
+
+/* Shifts for parsing the lane results */
+#define USB4_MARGIN_HW_RES_LANE_SHIFT		16
+#define USB4_MARGIN_HW_RES_LL_SHIFT		8
 
 /* USB4_SB_OPCODE_RUN_SW_LANE_MARGINING */
 #define USB4_MARGIN_SW_LANES_MASK		GENMASK(2, 0)
