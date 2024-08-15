@@ -75,7 +75,7 @@ should provide as-safe-as-possible abstractions as needed.
 .. code-block::
 
 	                                                rust/bindings/
-	                                               (rust/helpers.c)
+	                                               (rust/helpers/)
 
 	                                                   include/ -----+ <-+
 	                                                                 |   |
@@ -112,7 +112,7 @@ output files in the ``rust/bindings/`` directory.
 
 For parts of the C header that ``bindgen`` does not auto generate, e.g. C
 ``inline`` functions or non-trivial macros, it is acceptable to add a small
-wrapper function to ``rust/helpers.c`` to make it available for the Rust side as
+wrapper function to ``rust/helpers/`` to make it available for the Rust side as
 well.
 
 Abstractions
