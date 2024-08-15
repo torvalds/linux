@@ -436,6 +436,8 @@ out:
  * @time: %true if time margining is used instead of voltage
  * @right_high: %false if left/low margin test is performed, %true if
  *		right/high
+ * @upper_eye: %false if the lower PAM3 eye is used, %true if the upper
+ *	       eye is used
  */
 struct tb_margining {
 	struct tb_port *port;
@@ -462,6 +464,7 @@ struct tb_margining {
 	bool software;
 	bool time;
 	bool right_high;
+	bool upper_eye;
 };
 
 static int margining_modify_error_counter(struct tb_margining *margining,
@@ -1162,6 +1165,7 @@ static int margining_run_write(void *data, u64 val)
 			.time = margining->time,
 			.voltage_time_offset = margining->voltage_time_offset,
 			.right_high = margining->right_high,
+			.upper_eye = margining->upper_eye,
 			.optional_voltage_offset_range = margining->optional_voltage_offset_range,
 		};
 
@@ -1177,6 +1181,7 @@ static int margining_run_write(void *data, u64 val)
 			.lanes = margining->lanes,
 			.time = margining->time,
 			.right_high = margining->right_high,
+			.upper_eye = margining->upper_eye,
 			.optional_voltage_offset_range = margining->optional_voltage_offset_range,
 		};
 
@@ -1464,6 +1469,55 @@ static int margining_margin_show(struct seq_file *s, void *not_used)
 }
 DEBUGFS_ATTR_RW(margining_margin);
 
+static ssize_t margining_eye_write(struct file *file,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct tb_port *port = s->private;
+	struct usb4_port *usb4 = port->usb4;
+	struct tb *tb = port->sw->tb;
+	int ret = 0;
+	char *buf;
+
+	buf = validate_and_copy_from_user(user_buf, &count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	buf[count - 1] = '\0';
+
+	scoped_cond_guard(mutex_intr, ret = -ERESTARTSYS, &tb->lock) {
+		if (!strcmp(buf, "lower"))
+			usb4->margining->upper_eye = false;
+		else if (!strcmp(buf, "upper"))
+			usb4->margining->upper_eye = true;
+		else
+			ret = -EINVAL;
+	}
+
+	free_page((unsigned long)buf);
+	return ret ? ret : count;
+}
+
+static int margining_eye_show(struct seq_file *s, void *not_used)
+{
+	struct tb_port *port = s->private;
+	struct usb4_port *usb4 = port->usb4;
+	struct tb *tb = port->sw->tb;
+
+	scoped_guard(mutex_intr, &tb->lock) {
+		if (usb4->margining->upper_eye)
+			seq_puts(s, "lower [upper]\n");
+		else
+			seq_puts(s, "[lower] upper\n");
+
+		return 0;
+	}
+
+	return -ERESTARTSYS;
+}
+DEBUGFS_ATTR_RW(margining_eye);
+
 static struct tb_margining *margining_alloc(struct tb_port *port,
 					    struct device *dev,
 					    enum usb4_sb_target target,
@@ -1573,6 +1627,10 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 		debugfs_create_file("dwell_time", DEBUGFS_MODE, dir, margining,
 				    &margining_dwell_time_fops);
 	}
+
+	if (margining->gen >= 4)
+		debugfs_create_file("eye", 0600, dir, port, &margining_eye_fops);
+
 	return margining;
 }
 

@@ -1673,8 +1673,8 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
 	val = params->lanes;
 	if (params->time)
 		val |= USB4_MARGIN_HW_TIME;
-	if (params->right_high)
-		val |= USB4_MARGIN_HW_RH;
+	if (params->right_high || params->upper_eye)
+		val |= USB4_MARGIN_HW_RHU;
 	if (params->ber_level)
 		val |= FIELD_PREP(USB4_MARGIN_HW_BER_MASK, params->ber_level);
 	if (params->optional_voltage_offset_range)
@@ -1723,6 +1723,8 @@ int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
 		val |= USB4_MARGIN_SW_OPT_VOLTAGE;
 	if (params->right_high)
 		val |= USB4_MARGIN_SW_RH;
+	if (params->upper_eye)
+		val |= USB4_MARGIN_SW_UPPER_EYE;
 	val |= FIELD_PREP(USB4_MARGIN_SW_COUNTER_MASK, params->error_counter);
 	val |= FIELD_PREP(USB4_MARGIN_SW_VT_MASK, params->voltage_time_offset);
 
