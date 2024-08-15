@@ -963,6 +963,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 		imxpriv->ahb_clk = devm_clk_get(dev, "ahb");
 		if (IS_ERR(imxpriv->ahb_clk)) {
 			dev_err(dev, "Failed to get ahb clock\n");
+			ret = PTR_ERR(imxpriv->ahb_clk);
 			goto disable_sata;
 		}
 		reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
