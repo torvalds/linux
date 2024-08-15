@@ -163,21 +163,6 @@ to_ast_connector(struct drm_connector *connector)
 }
 
 /*
- * BMC
- */
-
-struct ast_bmc_connector {
-	struct drm_connector base;
-	struct drm_connector *physical_connector;
-};
-
-static inline struct ast_bmc_connector *
-to_ast_bmc_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct ast_bmc_connector, base);
-}
-
-/*
  * Device
  */
 
@@ -222,10 +207,6 @@ struct ast_device {
 			struct drm_encoder encoder;
 			struct ast_connector connector;
 		} astdp;
-		struct {
-			struct drm_encoder encoder;
-			struct ast_bmc_connector bmc_connector;
-		} bmc;
 	} output;
 
 	bool support_wide_screen;
