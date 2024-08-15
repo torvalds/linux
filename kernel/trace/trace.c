@@ -10465,22 +10465,20 @@ __init static void enable_instances(void)
 	str = boot_instance_info;
 
 	while ((curr_str = strsep(&str, "\t"))) {
-		unsigned long start = 0;
-		unsigned long size = 0;
+		phys_addr_t start = 0;
+		phys_addr_t size = 0;
 		unsigned long addr = 0;
 
 		tok = strsep(&curr_str, ",");
 		name = strsep(&tok, "@");
-		if (tok) {
+
+		if (tok && isdigit(*tok)) {
 			start = memparse(tok, &tok);
 			if (!start) {
 				pr_warn("Tracing: Invalid boot instance address for %s\n",
 					name);
 				continue;
 			}
-		}
-
-		if (start) {
 			if (*tok != ':') {
 				pr_warn("Tracing: No size specified for instance %s\n", name);
 				continue;
@@ -10492,10 +10490,19 @@ __init static void enable_instances(void)
 					name);
 				continue;
 			}
+		} else if (tok) {
+			if (!reserve_mem_find_by_name(tok, &start, &size)) {
+				start = 0;
+				pr_warn("Failed to map boot instance %s to %s\n", name, tok);
+				continue;
+			}
+		}
+
+		if (start) {
 			addr = map_pages(start, size);
 			if (addr) {
-				pr_info("Tracing: mapped boot instance %s at physical memory 0x%lx of size 0x%lx\n",
-					name, start, size);
+				pr_info("Tracing: mapped boot instance %s at physical memory %pa of size 0x%lx\n",
+					name, &start, (unsigned long)size);
 			} else {
 				pr_warn("Tracing: Failed to map boot instance %s\n", name);
 				continue;
