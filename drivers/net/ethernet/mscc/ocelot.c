@@ -453,9 +453,158 @@ static u16 ocelot_vlan_unaware_pvid(struct ocelot *ocelot,
 	return VLAN_N_VID - bridge_num - 1;
 }
 
+/**
+ * ocelot_update_vlan_reclassify_rule() - Make switch aware only to bridge VLAN TPID
+ *
+ * @ocelot: Switch private data structure
+ * @port: Index of ingress port
+ *
+ * IEEE 802.1Q-2018 clauses "5.5 C-VLAN component conformance" and "5.6 S-VLAN
+ * component conformance" suggest that a C-VLAN component should only recognize
+ * and filter on C-Tags, and an S-VLAN component should only recognize and
+ * process based on C-Tags.
+ *
+ * In Linux, as per commit 1a0b20b25732 ("Merge branch 'bridge-next'"), C-VLAN
+ * components are largely represented by a bridge with vlan_protocol 802.1Q,
+ * and S-VLAN components by a bridge with vlan_protocol 802.1ad.
+ *
+ * Currently the driver only offloads vlan_protocol 802.1Q, but the hardware
+ * design is non-conformant, because the switch assigns each frame to a VLAN
+ * based on an entirely different question, as detailed in figure "Basic VLAN
+ * Classification Flow" from its manual and reproduced below.
+ *
+ * Set TAG_TYPE, PCP, DEI, VID to port-default values in VLAN_CFG register
+ * if VLAN_AWARE_ENA[port] and frame has outer tag then:
+ *   if VLAN_INNER_TAG_ENA[port] and frame has inner tag then:
+ *     TAG_TYPE = (Frame.InnerTPID <> 0x8100)
+ *     Set PCP, DEI, VID to values from inner VLAN header
+ *   else:
+ *     TAG_TYPE = (Frame.OuterTPID <> 0x8100)
+ *     Set PCP, DEI, VID to values from outer VLAN header
+ *   if VID == 0 then:
+ *     VID = VLAN_CFG.VLAN_VID
+ *
+ * Summarized, the switch will recognize both 802.1Q and 802.1ad TPIDs as VLAN
+ * "with equal rights", and just set the TAG_TYPE bit to 0 (if 802.1Q) or to 1
+ * (if 802.1ad). It will classify based on whichever of the tags is "outer", no
+ * matter what TPID that may have (or "inner", if VLAN_INNER_TAG_ENA[port]).
+ *
+ * In the VLAN Table, the TAG_TYPE information is not accessible - just the
+ * classified VID is - so it is as if each VLAN Table entry is for 2 VLANs:
+ * C-VLAN X, and S-VLAN X.
+ *
+ * Whereas the Linux bridge behavior is to only filter on frames with a TPID
+ * equal to the vlan_protocol, and treat everything else as VLAN-untagged.
+ *
+ * Consider an ingress packet tagged with 802.1ad VID=3 and 802.1Q VID=5,
+ * received on a bridge vlan_filtering=1 vlan_protocol=802.1Q port. This frame
+ * should be treated as 802.1Q-untagged, and classified to the PVID of that
+ * bridge port. Not to VID=3, and not to VID=5.
+ *
+ * The VCAP IS1 TCAM has everything we need to overwrite the choices made in
+ * the basic VLAN classification pipeline: it can match on TAG_TYPE in the key,
+ * and it can modify the classified VID in the action. Thus, for each port
+ * under a vlan_filtering bridge, we can insert a rule in VCAP IS1 lookup 0 to
+ * match on 802.1ad tagged frames and modify their classified VID to the 802.1Q
+ * PVID of the port. This effectively makes it appear to the outside world as
+ * if those packets were processed as VLAN-untagged.
+ *
+ * The rule needs to be updated each time the bridge PVID changes, and needs
+ * to be deleted if the bridge PVID is deleted, or if the port becomes
+ * VLAN-unaware.
+ */
+static int ocelot_update_vlan_reclassify_rule(struct ocelot *ocelot, int port)
+{
+	unsigned long cookie = OCELOT_VCAP_IS1_VLAN_RECLASSIFY(ocelot, port);
+	struct ocelot_vcap_block *block_vcap_is1 = &ocelot->block[VCAP_IS1];
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	const struct ocelot_bridge_vlan *pvid_vlan;
+	struct ocelot_vcap_filter *filter;
+	int err, val, pcp, dei;
+	bool vid_replace_ena;
+	u16 vid;
+
+	pvid_vlan = ocelot_port->pvid_vlan;
+	vid_replace_ena = ocelot_port->vlan_aware && pvid_vlan;
+
+	filter = ocelot_vcap_block_find_filter_by_id(block_vcap_is1, cookie,
+						     false);
+	if (!vid_replace_ena) {
+		/* If the reclassification filter doesn't need to exist, delete
+		 * it if it was previously installed, and exit doing nothing
+		 * otherwise.
+		 */
+		if (filter)
+			return ocelot_vcap_filter_del(ocelot, filter);
+
+		return 0;
+	}
+
+	/* The reclassification rule must apply. See if it already exists
+	 * or if it must be created.
+	 */
+
+	/* Treating as VLAN-untagged means using as classified VID equal to
+	 * the bridge PVID, and PCP/DEI set to the port default QoS values.
+	 */
+	vid = pvid_vlan->vid;
+	val = ocelot_read_gix(ocelot, ANA_PORT_QOS_CFG, port);
+	pcp = ANA_PORT_QOS_CFG_QOS_DEFAULT_VAL_X(val);
+	dei = !!(val & ANA_PORT_QOS_CFG_DP_DEFAULT_VAL);
+
+	if (filter) {
+		bool changed = false;
+
+		/* Filter exists, just update it */
+		if (filter->action.vid != vid) {
+			filter->action.vid = vid;
+			changed = true;
+		}
+		if (filter->action.pcp != pcp) {
+			filter->action.pcp = pcp;
+			changed = true;
+		}
+		if (filter->action.dei != dei) {
+			filter->action.dei = dei;
+			changed = true;
+		}
+
+		if (!changed)
+			return 0;
+
+		return ocelot_vcap_filter_replace(ocelot, filter);
+	}
+
+	/* Filter doesn't exist, create it */
+	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	if (!filter)
+		return -ENOMEM;
+
+	filter->key_type = OCELOT_VCAP_KEY_ANY;
+	filter->ingress_port_mask = BIT(port);
+	filter->vlan.tpid = OCELOT_VCAP_BIT_1;
+	filter->prio = 1;
+	filter->id.cookie = cookie;
+	filter->id.tc_offload = false;
+	filter->block_id = VCAP_IS1;
+	filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+	filter->lookup = 0;
+	filter->action.vid_replace_ena = true;
+	filter->action.pcp_dei_ena = true;
+	filter->action.vid = vid;
+	filter->action.pcp = pcp;
+	filter->action.dei = dei;
+
+	err = ocelot_vcap_filter_add(ocelot, filter, NULL);
+	if (err)
+		kfree(filter);
+
+	return err;
+}
+
 /* Default vlan to clasify for untagged frames (may be zero) */
-static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
-				 const struct ocelot_bridge_vlan *pvid_vlan)
+static int ocelot_port_set_pvid(struct ocelot *ocelot, int port,
+				const struct ocelot_bridge_vlan *pvid_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u16 pvid = ocelot_vlan_unaware_pvid(ocelot, ocelot_port->bridge);
@@ -475,15 +624,23 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 	 * happens automatically), but also 802.1p traffic which gets
 	 * classified to VLAN 0, but that is always in our RX filter, so it
 	 * would get accepted were it not for this setting.
+	 *
+	 * Also, we only support the bridge 802.1Q VLAN protocol, so
+	 * 802.1ad-tagged frames (carrying S-Tags) should be considered
+	 * 802.1Q-untagged, and also dropped.
 	 */
 	if (!pvid_vlan && ocelot_port->vlan_aware)
 		val = ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
-		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA;
+		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA |
+		      ANA_PORT_DROP_CFG_DROP_S_TAGGED_ENA;
 
 	ocelot_rmw_gix(ocelot, val,
 		       ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
-		       ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA,
+		       ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA |
+		       ANA_PORT_DROP_CFG_DROP_S_TAGGED_ENA,
 		       ANA_PORT_DROP_CFG, port);
+
+	return ocelot_update_vlan_reclassify_rule(ocelot, port);
 }
 
 static struct ocelot_bridge_vlan *ocelot_bridge_vlan_find(struct ocelot *ocelot,
@@ -631,7 +788,10 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG_VLAN_POP_CNT_M,
 		       ANA_PORT_VLAN_CFG, port);
 
-	ocelot_port_set_pvid(ocelot, port, ocelot_port->pvid_vlan);
+	err = ocelot_port_set_pvid(ocelot, port, ocelot_port->pvid_vlan);
+	if (err)
+		return err;
+
 	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
@@ -684,9 +844,12 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		return err;
 
 	/* Default ingress vlan classification */
-	if (pvid)
-		ocelot_port_set_pvid(ocelot, port,
-				     ocelot_bridge_vlan_find(ocelot, vid));
+	if (pvid) {
+		err = ocelot_port_set_pvid(ocelot, port,
+					   ocelot_bridge_vlan_find(ocelot, vid));
+		if (err)
+			return err;
+	}
 
 	/* Untagged egress vlan clasification */
 	ocelot_port_manage_port_tag(ocelot, port);
@@ -712,8 +875,11 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 		return err;
 
 	/* Ingress */
-	if (del_pvid)
-		ocelot_port_set_pvid(ocelot, port, NULL);
+	if (del_pvid) {
+		err = ocelot_port_set_pvid(ocelot, port, NULL);
+		if (err)
+			return err;
+	}
 
 	/* Egress */
 	ocelot_port_manage_port_tag(ocelot, port);
@@ -2607,7 +2773,7 @@ int ocelot_port_set_default_prio(struct ocelot *ocelot, int port, u8 prio)
 		       ANA_PORT_QOS_CFG,
 		       port);
 
-	return 0;
+	return ocelot_update_vlan_reclassify_rule(ocelot, port);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_set_default_prio);
 
