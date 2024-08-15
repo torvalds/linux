@@ -1119,7 +1119,6 @@
 		clocks = <&cru CLK_TRNG_NS>, <&cru HCLK_TRNG_NS>;
 		clock-names = "core", "ahb";
 		resets = <&cru SRST_TRNG_NS>;
-		reset-names = "reset";
 		status = "disabled";
 	};
 
