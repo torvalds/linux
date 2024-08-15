@@ -17,6 +17,7 @@
 #include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write_file() */
 #include <linux/buffer_head.h>
 #include <linux/fileattr.h>
+#include <linux/string.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "bmap.h"
@@ -1266,6 +1267,29 @@ out:
 	return ret;
 }
 
+/**
+ * nilfs_ioctl_get_fslabel - get the volume name of the file system
+ * @sb:   super block instance
+ * @argp: pointer to userspace memory where the volume name should be stored
+ *
+ * Return: 0 on success, %-EFAULT if copying to userspace memory fails.
+ */
+static int nilfs_ioctl_get_fslabel(struct super_block *sb, void __user *argp)
+{
+	struct the_nilfs *nilfs = sb->s_fs_info;
+	char label[NILFS_MAX_VOLUME_NAME + 1];
+
+	BUILD_BUG_ON(NILFS_MAX_VOLUME_NAME >= FSLABEL_MAX);
+
+	down_read(&nilfs->ns_sem);
+	memtostr_pad(label, nilfs->ns_sbp[0]->s_volume_name);
+	up_read(&nilfs->ns_sem);
+
+	if (copy_to_user(argp, label, sizeof(label)))
+		return -EFAULT;
+	return 0;
+}
+
 long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -1308,6 +1332,8 @@ long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return nilfs_ioctl_set_alloc_range(inode, argp);
 	case FITRIM:
 		return nilfs_ioctl_trim_fs(inode, argp);
+	case FS_IOC_GETFSLABEL:
+		return nilfs_ioctl_get_fslabel(inode->i_sb, argp);
 	default:
 		return -ENOTTY;
 	}
@@ -1334,6 +1360,7 @@ long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case NILFS_IOCTL_RESIZE:
 	case NILFS_IOCTL_SET_ALLOC_RANGE:
 	case FITRIM:
+	case FS_IOC_GETFSLABEL:
 		break;
 	default:
 		return -ENOIOCTLCMD;
