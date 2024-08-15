@@ -1208,13 +1208,21 @@ void ocelot_ifh_set_basic(void *ifh, struct ocelot *ocelot, int port,
 			  u32 rew_op, struct sk_buff *skb)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct net_device *dev = skb->dev;
 	u64 vlan_tci, tag_type;
+	int qos_class;
 
 	ocelot_xmit_get_vlan_info(skb, ocelot_port->bridge, &vlan_tci,
 				  &tag_type);
 
+	qos_class = netdev_get_num_tc(dev) ?
+		    netdev_get_prio_tc_map(dev, skb->priority) : skb->priority;
+
+	memset(ifh, 0, OCELOT_TAG_LEN);
 	ocelot_ifh_set_bypass(ifh, 1);
+	ocelot_ifh_set_src(ifh, BIT_ULL(ocelot->num_phys_ports));
 	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
+	ocelot_ifh_set_qos_class(ifh, qos_class);
 	ocelot_ifh_set_tag_type(ifh, tag_type);
 	ocelot_ifh_set_vlan_tci(ifh, vlan_tci);
 	if (rew_op)
@@ -1225,7 +1233,7 @@ EXPORT_SYMBOL(ocelot_ifh_set_basic);
 void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 			      u32 rew_op, struct sk_buff *skb)
 {
-	u32 ifh[OCELOT_TAG_LEN / 4] = {0};
+	u32 ifh[OCELOT_TAG_LEN / 4];
 	unsigned int i, count, last;
 
 	ocelot_write_rix(ocelot, QS_INJ_CTRL_GAP_SIZE(1) |
