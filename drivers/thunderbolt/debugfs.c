@@ -415,6 +415,7 @@ out:
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @dev: Pointer to the device that is the target (USB4 port or retimer)
  * @gen: Link generation
+ * @asym_rx: %true% if @port supports asymmetric link with 3 Rx
  * @caps: Port lane margining capabilities
  * @results: Last lane margining results
  * @lanes: %0, %1 or %7 (all)
@@ -445,8 +446,9 @@ struct tb_margining {
 	u8 index;
 	struct device *dev;
 	unsigned int gen;
+	bool asym_rx;
 	u32 caps[3];
-	u32 results[2];
+	u32 results[3];
 	enum usb4_margining_lane lanes;
 	unsigned int min_ber_level;
 	unsigned int max_ber_level;
@@ -735,14 +737,37 @@ out:
 }
 DEBUGFS_ATTR_RO(margining_caps);
 
+static const struct {
+	enum usb4_margining_lane lane;
+	const char *name;
+} lane_names[] = {
+	{
+		.lane = USB4_MARGINING_LANE_RX0,
+		.name = "0",
+	},
+	{
+		.lane = USB4_MARGINING_LANE_RX1,
+		.name = "1",
+	},
+	{
+		.lane = USB4_MARGINING_LANE_RX2,
+		.name = "2",
+	},
+	{
+		.lane = USB4_MARGINING_LANE_ALL,
+		.name = "all",
+	},
+};
+
 static ssize_t
 margining_lanes_write(struct file *file, const char __user *user_buf,
 		      size_t count, loff_t *ppos)
 {
 	struct seq_file *s = file->private_data;
 	struct tb_margining *margining = s->private;
-	struct tb *tb = margining->port->sw->tb;
-	int ret = 0;
+	struct tb_port *port = margining->port;
+	struct tb *tb = port->sw->tb;
+	int lane = -1;
 	char *buf;
 
 	buf = validate_and_copy_from_user(user_buf, &count);
@@ -751,57 +776,60 @@ margining_lanes_write(struct file *file, const char __user *user_buf,
 
 	buf[count - 1] = '\0';
 
-	if (mutex_lock_interruptible(&tb->lock)) {
-		ret = -ERESTARTSYS;
-		goto out_free;
+	for (int i = 0; i < ARRAY_SIZE(lane_names); i++) {
+		if (!strcmp(buf, lane_names[i].name)) {
+			lane = lane_names[i].lane;
+			break;
+		}
 	}
 
-	if (!strcmp(buf, "0")) {
-		margining->lanes = USB4_MARGINING_LANE_RX0;
-	} else if (!strcmp(buf, "1")) {
-		margining->lanes = USB4_MARGINING_LANE_RX1;
-	} else if (!strcmp(buf, "all")) {
-		/* Needs to be supported */
-		if (all_lanes(margining))
-			margining->lanes = USB4_MARGINING_LANE_ALL;
-		else
-			ret = -EINVAL;
-	} else {
-		ret = -EINVAL;
-	}
-
-	mutex_unlock(&tb->lock);
-
-out_free:
 	free_page((unsigned long)buf);
-	return ret < 0 ? ret : count;
+
+	if (lane == -1)
+		return -EINVAL;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &tb->lock) {
+		if (lane == USB4_MARGINING_LANE_ALL && !all_lanes(margining))
+			return -EINVAL;
+		/*
+		 * Enabling on RX2 requires that it is supported by the
+		 * USB4 port.
+		 */
+		if (lane == USB4_MARGINING_LANE_RX2 && !margining->asym_rx)
+			return -EINVAL;
+
+		margining->lanes = lane;
+	}
+
+	return count;
 }
 
 static int margining_lanes_show(struct seq_file *s, void *not_used)
 {
 	struct tb_margining *margining = s->private;
-	struct tb *tb = margining->port->sw->tb;
-	enum usb4_margining_lane lanes;
+	struct tb_port *port = margining->port;
+	struct tb *tb = port->sw->tb;
 
-	if (mutex_lock_interruptible(&tb->lock))
-		return -ERESTARTSYS;
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &tb->lock) {
+		for (int i = 0; i < ARRAY_SIZE(lane_names); i++) {
+			if (lane_names[i].lane == USB4_MARGINING_LANE_ALL &&
+			    !all_lanes(margining))
+				continue;
+			if (lane_names[i].lane == USB4_MARGINING_LANE_RX2 &&
+			    !margining->asym_rx)
+				continue;
 
-	lanes = margining->lanes;
-	if (all_lanes(margining)) {
-		if (lanes == USB4_MARGINING_LANE_RX0)
-			seq_puts(s, "[0] 1 all\n");
-		else if (lanes == USB4_MARGINING_LANE_RX1)
-			seq_puts(s, "0 [1] all\n");
-		else
-			seq_puts(s, "0 1 [all]\n");
-	} else {
-		if (lanes == USB4_MARGINING_LANE_RX0)
-			seq_puts(s, "[0] 1\n");
-		else
-			seq_puts(s, "0 [1]\n");
+			if (i != 0)
+				seq_putc(s, ' ');
+
+			if (lane_names[i].lane == margining->lanes)
+				seq_printf(s, "[%s]", lane_names[i].name);
+			else
+				seq_printf(s, "%s", lane_names[i].name);
+		}
+		seq_puts(s, "\n");
 	}
 
-	mutex_unlock(&tb->lock);
 	return 0;
 }
 DEBUGFS_ATTR_RW(margining_lanes);
@@ -1095,6 +1123,9 @@ static int margining_run_sw(struct tb_margining *margining,
 		else if (margining->lanes == USB4_MARGINING_LANE_RX1)
 			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
 					   margining->results[1]);
+		else if (margining->lanes == USB4_MARGINING_LANE_RX2)
+			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_2_MASK,
+					   margining->results[1]);
 		else if (margining->lanes == USB4_MARGINING_LANE_ALL)
 			errors = margining->results[1];
 
@@ -1113,6 +1144,31 @@ out_stop:
 	margining_modify_error_counter(margining, margining->lanes,
 				       USB4_MARGIN_SW_ERROR_COUNTER_STOP);
 	return ret;
+}
+
+static int validate_margining(struct tb_margining *margining)
+{
+	/*
+	 * For running on RX2 the link must be asymmetric with 3
+	 * receivers. Because this is can change dynamically, check it
+	 * here before we start the margining and report back error if
+	 * expectations are not met.
+	 */
+	if (margining->lanes == USB4_MARGINING_LANE_RX2) {
+		int ret;
+
+		ret = tb_port_get_link_width(margining->port);
+		if (ret < 0)
+			return ret;
+		if (ret != TB_LINK_WIDTH_ASYM_RX) {
+			tb_port_warn(margining->port, "link is %s expected %s",
+				     tb_width_name(ret),
+				     tb_width_name(TB_LINK_WIDTH_ASYM_RX));
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 static int margining_run_write(void *data, u64 val)
@@ -1134,6 +1190,10 @@ static int margining_run_write(void *data, u64 val)
 		ret = -ERESTARTSYS;
 		goto out_rpm_put;
 	}
+
+	ret = validate_margining(margining);
+	if (ret)
+		goto out_unlock;
 
 	if (tb_is_upstream_port(port))
 		down_sw = sw;
@@ -1270,6 +1330,8 @@ static u8 margining_hw_result_val(const u32 *results,
 		val = results[1];
 	else if (lane == USB4_MARGINING_LANE_RX1)
 		val = results[1] >> USB4_MARGIN_HW_RES_LANE_SHIFT;
+	else if (lane == USB4_MARGINING_LANE_RX2)
+		val = results[2];
 	else
 		val = 0;
 
@@ -1319,6 +1381,9 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 						   USB4_MARGINING_LANE_RX0);
 			margining_hw_result_format(s, margining,
 						   USB4_MARGINING_LANE_RX1);
+			if (margining->asym_rx)
+				margining_hw_result_format(s, margining,
+						USB4_MARGINING_LANE_RX2);
 		} else {
 			margining_hw_result_format(s, margining,
 						   margining->lanes);
@@ -1340,6 +1405,13 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
 						margining->results[1]);
 			seq_printf(s, "# lane 1 errors: %u\n", lane_errors);
+		}
+		if (margining->asym_rx &&
+		    (result == USB4_MARGINING_LANE_RX2 ||
+		     result == USB4_MARGINING_LANE_ALL)) {
+			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_2_MASK,
+						margining->results[1]);
+			seq_printf(s, "# lane 2 errors: %u\n", lane_errors);
 		}
 	}
 
@@ -1548,6 +1620,7 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 	margining->index = index;
 	margining->dev = dev;
 	margining->gen = ret;
+	margining->asym_rx = tb_port_width_supported(port, TB_LINK_WIDTH_ASYM_RX);
 
 	ret = usb4_port_margining_caps(port, target, index, margining->caps,
 				       ARRAY_SIZE(margining->caps));

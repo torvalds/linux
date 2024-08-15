@@ -1370,6 +1370,7 @@ enum usb4_margin_sw_error_counter {
 enum usb4_margining_lane {
 	USB4_MARGINING_LANE_RX0 = 0,
 	USB4_MARGINING_LANE_RX1 = 1,
+	USB4_MARGINING_LANE_RX2 = 2,
 	USB4_MARGINING_LANE_ALL = 7,
 };
 
