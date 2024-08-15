@@ -266,6 +266,7 @@ struct brcm_pcie {
 	struct reset_control	*rescal;
 	struct reset_control	*perst_reset;
 	struct reset_control	*bridge_reset;
+	struct reset_control	*swinit_reset;
 	int			num_memc;
 	u64			memc_size[PCIE_BRCM_MAX_MEMC];
 	u32			hw_rev;
@@ -1635,11 +1636,34 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pcie->bridge_reset))
 		return PTR_ERR(pcie->bridge_reset);
 
+	pcie->swinit_reset = devm_reset_control_get_optional_exclusive(&pdev->dev, "swinit");
+	if (IS_ERR(pcie->swinit_reset))
+		return PTR_ERR(pcie->swinit_reset);
+
 	ret = clk_prepare_enable(pcie->clk);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "could not enable clock\n");
 
 	pcie->bridge_sw_init_set(pcie, 0);
+
+	if (pcie->swinit_reset) {
+		ret = reset_control_assert(pcie->swinit_reset);
+		if (ret) {
+			clk_disable_unprepare(pcie->clk);
+			return dev_err_probe(&pdev->dev, ret,
+					     "could not assert reset 'swinit'\n");
+		}
+
+		/* HW team recommends 1us for proper sync and propagation of reset */
+		udelay(1);
+
+		ret = reset_control_deassert(pcie->swinit_reset);
+		if (ret) {
+			clk_disable_unprepare(pcie->clk);
+			return dev_err_probe(&pdev->dev, ret,
+					     "could not de-assert reset 'swinit'\n");
+		}
+	}
 
 	ret = reset_control_reset(pcie->rescal);
 	if (ret) {
