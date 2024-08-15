@@ -305,6 +305,9 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (new_clocks->dtbclk_en && !new_clocks->ref_dtbclk_khz)
 		new_clocks->ref_dtbclk_khz = 600000;
 
+	if (dc->debug.min_disp_clk_khz > 0 && new_clocks->dispclk_khz < dc->debug.min_disp_clk_khz)
+		new_clocks->dispclk_khz = dc->debug.min_disp_clk_khz;
+
 	/*
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
 	 * also if safe to lower is false, we just go in the higher state
