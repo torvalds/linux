@@ -44,7 +44,11 @@
 
 static void update_pages_handler(struct work_struct *work);
 
+#define RING_BUFFER_META_MAGIC	0xBADFEED
+
 struct ring_buffer_meta {
+	int		magic;
+	int		struct_size;
 	unsigned long	text_addr;
 	unsigned long	data_addr;
 	unsigned long	first_buffer;
@@ -1627,6 +1631,13 @@ static bool rb_meta_valid(struct ring_buffer_meta *meta, int cpu,
 	unsigned long buffers_end;
 	int i;
 
+	/* Check the meta magic and meta struct size */
+	if (meta->magic != RING_BUFFER_META_MAGIC ||
+	    meta->struct_size != sizeof(*meta)) {
+		pr_info("Ring buffer boot meta[%d] mismatch of magic or struct size\n", cpu);
+		return false;
+	}
+
 	/* The subbuffer's size and number of subbuffers must match */
 	if (meta->subbuf_size != subbuf_size ||
 	    meta->nr_subbufs != nr_pages + 1) {
@@ -1857,6 +1868,9 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 			next_meta = (void *)buffer->range_addr_end;
 
 		memset(meta, 0, next_meta - (void *)meta);
+
+		meta->magic = RING_BUFFER_META_MAGIC;
+		meta->struct_size = sizeof(*meta);
 
 		meta->nr_subbufs = nr_pages + 1;
 		meta->subbuf_size = PAGE_SIZE;
