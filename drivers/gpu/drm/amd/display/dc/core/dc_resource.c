@@ -5303,3 +5303,16 @@ int resource_calculate_det_for_stream(struct dc_state *state, struct pipe_ctx *o
 	}
 	return det_segments;
 }
+
+bool resource_is_hpo_acquired(struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < MAX_HPO_DP2_ENCODERS; i++) {
+		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}

@@ -461,6 +461,7 @@ struct hw_sequencer_funcs {
 	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
 	void (*program_outstanding_updates)(struct dc *dc,
 			struct dc_state *context);
+	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
 };
 
 void color_space_to_black_color(
