@@ -21,9 +21,23 @@ static const struct drm_encoder_funcs ast_vga_encoder_funcs = {
  * Connector
  */
 
+static int ast_vga_connector_helper_detect_ctx(struct drm_connector *connector,
+					       struct drm_modeset_acquire_ctx *ctx,
+					       bool force)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	enum drm_connector_status status;
+
+	status = drm_connector_helper_detect_from_ddc(connector, ctx, force);
+
+	ast_connector->physical_status = status;
+
+	return status;
+}
+
 static const struct drm_connector_helper_funcs ast_vga_connector_helper_funcs = {
 	.get_modes = drm_connector_helper_get_modes,
-	.detect_ctx = drm_connector_helper_detect_from_ddc,
+	.detect_ctx = ast_vga_connector_helper_detect_ctx,
 };
 
 static const struct drm_connector_funcs ast_vga_connector_funcs = {
@@ -67,7 +81,8 @@ int ast_vga_output_init(struct ast_device *ast)
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
 	struct drm_encoder *encoder = &ast->output.vga.encoder;
-	struct drm_connector *connector = &ast->output.vga.connector;
+	struct ast_connector *ast_connector = &ast->output.vga.connector;
+	struct drm_connector *connector = &ast_connector->base;
 	int ret;
 
 	ret = drm_encoder_init(dev, encoder, &ast_vga_encoder_funcs,
@@ -79,6 +94,7 @@ int ast_vga_output_init(struct ast_device *ast)
 	ret = ast_vga_connector_init(dev, connector);
 	if (ret)
 		return ret;
+	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)

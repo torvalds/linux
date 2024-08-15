@@ -540,11 +540,16 @@ static int ast_dp501_connector_helper_detect_ctx(struct drm_connector *connector
 						 struct drm_modeset_acquire_ctx *ctx,
 						 bool force)
 {
+	struct ast_connector *ast_connector = to_ast_connector(connector);
 	struct ast_device *ast = to_ast_device(connector->dev);
+	enum drm_connector_status status = connector_status_disconnected;
 
 	if (ast_dp501_is_connected(ast))
 		return connector_status_connected;
-	return connector_status_disconnected;
+
+	ast_connector->physical_status = status;
+
+	return status;
 }
 
 static const struct drm_connector_helper_funcs ast_dp501_connector_helper_funcs = {
@@ -584,7 +589,8 @@ int ast_dp501_output_init(struct ast_device *ast)
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
 	struct drm_encoder *encoder = &ast->output.dp501.encoder;
-	struct drm_connector *connector = &ast->output.dp501.connector;
+	struct ast_connector *ast_connector = &ast->output.dp501.connector;
+	struct drm_connector *connector = &ast_connector->base;
 	int ret;
 
 	ret = drm_encoder_init(dev, encoder, &ast_dp501_encoder_funcs,
@@ -598,6 +604,7 @@ int ast_dp501_output_init(struct ast_device *ast)
 	ret = ast_dp501_connector_init(dev, connector);
 	if (ret)
 		return ret;
+	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)

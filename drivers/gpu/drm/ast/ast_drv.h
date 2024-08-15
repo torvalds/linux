@@ -147,6 +147,22 @@ static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
 }
 
 /*
+ * Connector
+ */
+
+struct ast_connector {
+	struct drm_connector base;
+
+	enum drm_connector_status physical_status;
+};
+
+static inline struct ast_connector *
+to_ast_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_connector, base);
+}
+
+/*
  * BMC
  */
 
@@ -192,19 +208,19 @@ struct ast_device {
 	struct {
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} vga;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} sil164;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} dp501;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} astdp;
 		struct {
 			struct drm_encoder encoder;
