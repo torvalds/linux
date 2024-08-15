@@ -115,21 +115,26 @@ struct mt76_connac2_mcu_uni_txd {
 } __packed __aligned(4);
 
 struct mt76_connac2_mcu_rxd {
-	__le32 rxd[6];
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(mt76_connac2_mcu_rxd_hdr, hdr,
+		__le32 rxd[6];
 
-	__le16 len;
-	__le16 pkt_type_id;
+		__le16 len;
+		__le16 pkt_type_id;
 
-	u8 eid;
-	u8 seq;
-	u8 option;
-	u8 rsv;
-	u8 ext_eid;
-	u8 rsv1[2];
-	u8 s2d_index;
+		u8 eid;
+		u8 seq;
+		u8 option;
+		u8 rsv;
+		u8 ext_eid;
+		u8 rsv1[2];
+		u8 s2d_index;
+	);
 
 	u8 tlv[];
 };
+static_assert(offsetof(struct mt76_connac2_mcu_rxd, tlv) == sizeof(struct mt76_connac2_mcu_rxd_hdr),
+	      "struct member likely outside of struct_group_tagged()");
 
 struct mt76_connac2_patch_hdr {
 	char build_date[16];
