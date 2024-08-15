@@ -8,8 +8,8 @@ always-$(CONFIG_RUST) += exports_core_generated.h
 
 # Missing prototypes are expected in the helpers since these are exported
 # for Rust only, thus there is no header nor prototypes.
-obj-$(CONFIG_RUST) += helpers.o
-CFLAGS_REMOVE_helpers.o = -Wmissing-prototypes -Wmissing-declarations
+obj-$(CONFIG_RUST) += helpers/helpers.o
+CFLAGS_REMOVE_helpers/helpers.o = -Wmissing-prototypes -Wmissing-declarations
 
 always-$(CONFIG_RUST) += libmacros.so
 no-clean-files += libmacros.so
@@ -299,7 +299,7 @@ $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_cflags = \
     -I$(objtree)/$(obj) -Wno-missing-prototypes -Wno-missing-declarations
 $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_extra = ; \
     sed -Ei 's/pub fn rust_helper_([a-zA-Z0-9_]*)/#[link_name="rust_helper_\1"]\n    pub fn \1/g' $@
-$(obj)/bindings/bindings_helpers_generated.rs: $(src)/helpers.c FORCE
+$(obj)/bindings/bindings_helpers_generated.rs: $(src)/helpers/helpers.c FORCE
 	$(call if_changed_dep,bindgen)
 
 quiet_cmd_exports = EXPORTS $@
