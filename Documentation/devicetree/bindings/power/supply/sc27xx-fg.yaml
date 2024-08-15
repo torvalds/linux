@@ -27,6 +27,9 @@ properties:
   battery-detect-gpios:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   io-channels:
     items:
       - description: Battery Temperature ADC
@@ -53,6 +56,7 @@ required:
   - compatible
   - reg
   - battery-detect-gpios
+  - interrupts
   - io-channels
   - io-channel-names
   - nvmem-cells
@@ -88,6 +92,8 @@ examples:
         compatible = "sprd,sc2731-fgu";
         reg = <0xa00>;
         battery-detect-gpios = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
+        interrupt-parent = <&sc2731_pmic>;
+        interrupts = <4>;
         io-channels = <&pmic_adc 5>, <&pmic_adc 14>;
         io-channel-names = "bat-temp", "charge-vol";
         nvmem-cells = <&fgu_calib>;
