@@ -20,11 +20,15 @@ static bool ast_astdp_is_connected(struct ast_device *ast)
 	return true;
 }
 
-static int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
+static int ast_astdp_read_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
-	struct ast_device *ast = to_ast_device(dev);
+	struct ast_device *ast = data;
+	size_t rdlen = round_up(len, 4);
 	int ret = 0;
-	u8 i;
+	unsigned int i;
+
+	if (block > 0)
+		return -EIO; /* extension headers not supported */
 
 	/*
 	 * Protect access to I/O registers from concurrent modesetting
@@ -35,13 +39,23 @@ static int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 	/* Start reading EDID data */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE, 0x00);
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < rdlen; i += 4) {
+		unsigned int offset;
 		unsigned int j;
+		u8 ediddata[4];
+		u8 vgacre4;
+
+		offset = (i + block * EDID_LENGTH) / 4;
+		if (offset >= 64) {
+			ret = -EIO;
+			goto out;
+		}
+		vgacre4 = offset;
 
 		/*
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xe4, i);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xe4, vgacre4);
 
 		/*
 		 * CRD7[b0]: valid flag for EDID
@@ -65,7 +79,7 @@ static int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			vgacrd7 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd7);
 			if (vgacrd7 & AST_IO_VGACRD7_EDID_VALID_FLAG) {
 				vgacrd6 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd6);
-				if (vgacrd6 == i)
+				if (vgacrd6 == offset)
 					break;
 			}
 		}
@@ -93,7 +107,8 @@ static int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			ediddata[2] = 0;
 		}
 
-		ediddata += 4;
+		memcpy(buf, ediddata, min((len - i), 4));
+		buf += 4;
 	}
 
 out:
@@ -331,29 +346,17 @@ static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
 
 static int ast_astdp_connector_helper_get_modes(struct drm_connector *connector)
 {
-	void *edid;
-	int succ;
+	struct drm_device *dev = connector->dev;
+	struct ast_device *ast = to_ast_device(dev);
+	const struct drm_edid *drm_edid;
 	int count;
 
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (!edid)
-		goto err_drm_connector_update_edid_property;
-
-	succ = ast_astdp_read_edid(connector->dev, edid);
-	if (succ < 0)
-		goto err_kfree;
-
-	drm_connector_update_edid_property(connector, edid);
-	count = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid = drm_edid_read_custom(connector, ast_astdp_read_edid_block, ast);
+	drm_edid_connector_update(connector, drm_edid);
+	count = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return count;
-
-err_kfree:
-	kfree(edid);
-err_drm_connector_update_edid_property:
-	drm_connector_update_edid_property(connector, NULL);
-	return 0;
 }
 
 static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector,
