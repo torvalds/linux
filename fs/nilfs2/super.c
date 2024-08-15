@@ -1065,6 +1065,7 @@ nilfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	super_set_uuid(sb, nilfs->ns_sbp[0]->s_uuid,
 		       sizeof(nilfs->ns_sbp[0]->s_uuid));
+	super_set_sysfs_name_bdev(sb);
 
 	cno = nilfs_last_cno(nilfs);
 	err = nilfs_attach_checkpoint(sb, cno, true, &fsroot);
