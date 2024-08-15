@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="standalone bridge"
+ALL_TESTS="standalone vlan_unaware_bridge vlan_aware_bridge"
 NUM_NETIFS=2
 PING_COUNT=1
 REQUIRE_MTOOLS=yes
@@ -233,7 +233,9 @@ h2_destroy()
 
 bridge_create()
 {
-	ip link add br0 type bridge
+	local vlan_filtering=$1
+
+	ip link add br0 type bridge vlan_filtering $vlan_filtering
 	ip link set br0 address $BRIDGE_ADDR
 	ip link set br0 up
 
@@ -277,10 +279,12 @@ standalone()
 	h1_destroy
 }
 
-bridge()
+test_bridge()
 {
+	local vlan_filtering=$1
+
 	h1_create
-	bridge_create
+	bridge_create $vlan_filtering
 	macvlan_create br0
 
 	run_test $h1 br0
@@ -288,6 +292,16 @@ bridge()
 	macvlan_destroy
 	bridge_destroy
 	h1_destroy
+}
+
+vlan_unaware_bridge()
+{
+	test_bridge 0
+}
+
+vlan_aware_bridge()
+{
+	test_bridge 1
 }
 
 cleanup()
