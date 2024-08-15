@@ -319,12 +319,15 @@ static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct ast_device *ast = to_ast_device(dev);
+	struct ast_connector *ast_connector = &ast->output.astdp.connector;
 
-	ast_dp_power_on_off(dev, AST_DP_POWER_ON);
-	ast_dp_link_training(ast);
+	if (ast_connector->physical_status == connector_status_connected) {
+		ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+		ast_dp_link_training(ast);
 
-	ast_wait_for_vretrace(ast);
-	ast_dp_set_on_off(dev, 1);
+		ast_wait_for_vretrace(ast);
+		ast_dp_set_on_off(dev, 1);
+	}
 }
 
 static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
@@ -348,15 +351,29 @@ static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
 
 static int ast_astdp_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct ast_device *ast = to_ast_device(dev);
-	const struct drm_edid *drm_edid;
+	struct ast_connector *ast_connector = to_ast_connector(connector);
 	int count;
 
-	drm_edid = drm_edid_read_custom(connector, ast_astdp_read_edid_block, ast);
-	drm_edid_connector_update(connector, drm_edid);
-	count = drm_edid_connector_add_modes(connector);
-	drm_edid_free(drm_edid);
+	if (ast_connector->physical_status == connector_status_connected) {
+		struct ast_device *ast = to_ast_device(connector->dev);
+		const struct drm_edid *drm_edid;
+
+		drm_edid = drm_edid_read_custom(connector, ast_astdp_read_edid_block, ast);
+		drm_edid_connector_update(connector, drm_edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(drm_edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
+
+		/*
+		 * There's no EDID data without a connected monitor. Set BMC-
+		 * compatible modes in this case. The XGA default resolution
+		 * should work well for all BMCs.
+		 */
+		count = drm_add_modes_noedid(connector, 4096, 4096);
+		if (count)
+			drm_set_preferred_mode(connector, 1024, 768);
+	}
 
 	return count;
 }
@@ -385,9 +402,11 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 
 	mutex_unlock(&ast->modeset_lock);
 
+	if (status != ast_connector->physical_status)
+		++connector->epoch_counter;
 	ast_connector->physical_status = status;
 
-	return status;
+	return connector_status_connected;
 }
 
 static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs = {
