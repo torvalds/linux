@@ -247,19 +247,29 @@ bridge_destroy()
 	ip link del br0
 }
 
+macvlan_create()
+{
+	local lower=$1
+
+	ip link add link $lower name macvlan0 type macvlan mode private
+	ip link set macvlan0 address $MACVLAN_ADDR
+	ip link set macvlan0 up
+}
+
+macvlan_destroy()
+{
+	ip link del macvlan0
+}
+
 standalone()
 {
 	h1_create
 	h2_create
-
-	ip link add link $h2 name macvlan0 type macvlan mode private
-	ip link set macvlan0 address $MACVLAN_ADDR
-	ip link set macvlan0 up
+	macvlan_create $h2
 
 	run_test $h2
 
-	ip link del macvlan0
-
+	macvlan_destroy
 	h2_destroy
 	h1_destroy
 }
@@ -268,15 +278,11 @@ bridge()
 {
 	h1_create
 	bridge_create
-
-	ip link add link br0 name macvlan0 type macvlan mode private
-	ip link set macvlan0 address $MACVLAN_ADDR
-	ip link set macvlan0 up
+	macvlan_create br0
 
 	run_test br0
 
-	ip link del macvlan0
-
+	macvlan_destroy
 	bridge_destroy
 	h1_destroy
 }
