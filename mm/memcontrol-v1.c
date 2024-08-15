@@ -1439,6 +1439,34 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg)
 	}
 }
 
+#define THRESHOLDS_EVENTS_TARGET 128
+#define SOFTLIMIT_EVENTS_TARGET 1024
+
+static bool memcg1_event_ratelimit(struct mem_cgroup *memcg,
+				enum mem_cgroup_events_target target)
+{
+	unsigned long val, next;
+
+	val = __this_cpu_read(memcg->events_percpu->nr_page_events);
+	next = __this_cpu_read(memcg->events_percpu->targets[target]);
+	/* from time_after() in jiffies.h */
+	if ((long)(next - val) < 0) {
+		switch (target) {
+		case MEM_CGROUP_TARGET_THRESH:
+			next = val + THRESHOLDS_EVENTS_TARGET;
+			break;
+		case MEM_CGROUP_TARGET_SOFTLIMIT:
+			next = val + SOFTLIMIT_EVENTS_TARGET;
+			break;
+		default:
+			break;
+		}
+		__this_cpu_write(memcg->events_percpu->targets[target], next);
+		return true;
+	}
+	return false;
+}
+
 /*
  * Check events in order.
  *
@@ -1449,11 +1477,11 @@ void memcg1_check_events(struct mem_cgroup *memcg, int nid)
 		return;
 
 	/* threshold event is triggered in finer grain than soft limit */
-	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+	if (unlikely(memcg1_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_THRESH))) {
 		bool do_softlimit;
 
-		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+		do_softlimit = memcg1_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_SOFTLIMIT);
 		mem_cgroup_threshold(memcg);
 		if (unlikely(do_softlimit))

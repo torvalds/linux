@@ -62,8 +62,6 @@ struct memcg1_events_percpu {
 	unsigned long targets[MEM_CGROUP_NTARGETS];
 };
 
-bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
-				enum mem_cgroup_events_target target);
 unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap);
 
 void drain_all_stock(struct mem_cgroup *root_memcg);
