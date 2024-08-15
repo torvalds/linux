@@ -318,32 +318,30 @@ static bool ast_dp501_is_connected(struct ast_device *ast)
 	return true;
 }
 
-static bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata)
+static int ast_dp512_read_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u32 i, boot_address, offset, data;
-	u32 *pEDIDidx;
+	struct ast_device *ast = data;
+	size_t rdlen = round_up(len, 4);
+	u32 i, boot_address, offset, ediddata;
 
-	if (!ast_dp501_is_connected(ast))
-		return false;
+	if (block > (512 / EDID_LENGTH))
+		return -EIO;
+
+	offset = AST_DP501_EDID_DATA + block * EDID_LENGTH;
 
 	if (ast->config_mode == ast_use_p2a) {
 		boot_address = get_fw_base(ast);
 
-		/* Read EDID */
-		offset = AST_DP501_EDID_DATA;
-		for (i = 0; i < 128; i += 4) {
-			data = ast_mindwm(ast, boot_address + offset + i);
-			pEDIDidx = (u32 *)(ediddata + i);
-			*pEDIDidx = data;
+		for (i = 0; i < rdlen; i += 4) {
+			ediddata = ast_mindwm(ast, boot_address + offset + i);
+			memcpy(buf, &ediddata, min((len - i), 4));
+			buf += 4;
 		}
 	} else {
-		/* Read EDID */
-		offset = AST_DP501_EDID_DATA;
-		for (i = 0; i < 128; i += 4) {
-			data = readl(ast->dp501_fw_buf + offset + i);
-			pEDIDidx = (u32 *)(ediddata + i);
-			*pEDIDidx = data;
+		for (i = 0; i < rdlen; i += 4) {
+			ediddata = readl(ast->dp501_fw_buf + offset + i);
+			memcpy(buf, &ediddata, min((len - i), 4));
+			buf += 4;
 		}
 	}
 
@@ -511,29 +509,16 @@ static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
 
 static int ast_dp501_connector_helper_get_modes(struct drm_connector *connector)
 {
-	void *edid;
-	bool succ;
+	struct ast_device *ast = to_ast_device(connector->dev);
+	const struct drm_edid *drm_edid;
 	int count;
 
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (!edid)
-		goto err_drm_connector_update_edid_property;
-
-	succ = ast_dp501_read_edid(connector->dev, edid);
-	if (!succ)
-		goto err_kfree;
-
-	drm_connector_update_edid_property(connector, edid);
-	count = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid = drm_edid_read_custom(connector, ast_dp512_read_edid_block, ast);
+	drm_edid_connector_update(connector, drm_edid);
+	count = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return count;
-
-err_kfree:
-	kfree(edid);
-err_drm_connector_update_edid_property:
-	drm_connector_update_edid_property(connector, NULL);
-	return 0;
 }
 
 static int ast_dp501_connector_helper_detect_ctx(struct drm_connector *connector,
