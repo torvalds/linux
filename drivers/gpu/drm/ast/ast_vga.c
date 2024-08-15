@@ -21,6 +21,27 @@ static const struct drm_encoder_funcs ast_vga_encoder_funcs = {
  * Connector
  */
 
+static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	int count;
+
+	if (ast_connector->physical_status == connector_status_connected) {
+		count = drm_connector_helper_get_modes(connector);
+	} else {
+		/*
+		 * There's no EDID data without a connected monitor. Set BMC-
+		 * compatible modes in this case. The XGA default resolution
+		 * should work well for all BMCs.
+		 */
+		count = drm_add_modes_noedid(connector, 4096, 4096);
+		if (count)
+			drm_set_preferred_mode(connector, 1024, 768);
+	}
+
+	return count;
+}
+
 static int ast_vga_connector_helper_detect_ctx(struct drm_connector *connector,
 					       struct drm_modeset_acquire_ctx *ctx,
 					       bool force)
@@ -30,13 +51,15 @@ static int ast_vga_connector_helper_detect_ctx(struct drm_connector *connector,
 
 	status = drm_connector_helper_detect_from_ddc(connector, ctx, force);
 
+	if (status != ast_connector->physical_status)
+		++connector->epoch_counter;
 	ast_connector->physical_status = status;
 
-	return status;
+	return connector_status_connected;
 }
 
 static const struct drm_connector_helper_funcs ast_vga_connector_helper_funcs = {
-	.get_modes = drm_connector_helper_get_modes,
+	.get_modes = ast_vga_connector_helper_get_modes,
 	.detect_ctx = ast_vga_connector_helper_detect_ctx,
 };
 
