@@ -157,7 +157,7 @@ static int tas2563_digital_gain_get(
 
 	mutex_lock(&tas_dev->codec_lock);
 	/* Read the primary device */
-	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	ret = tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
 	if (ret) {
 		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
 		goto out;
@@ -203,7 +203,7 @@ static int tas2563_digital_gain_put(
 	vol = clamp(vol, 0, max);
 	mutex_lock(&tas_dev->codec_lock);
 	/* Read the primary device */
-	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	ret = tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
 	if (ret) {
 		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
 		rc = -1;
@@ -423,8 +423,7 @@ static int tasdevice_configuration_put(
 	return ret;
 }
 
-static int tasdevice_dsp_create_ctrls(
-	struct tasdevice_priv *tas_priv)
+static int tasdevice_dsp_create_ctrls(struct tasdevice_priv *tas_priv)
 {
 	struct snd_kcontrol_new *dsp_ctrls;
 	char *prog_name, *conf_name;
