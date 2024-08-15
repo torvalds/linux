@@ -4934,12 +4934,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 				if (psr_feature_enabled)
 					amdgpu_dm_set_psr_caps(link);
-
-				/* TODO: Fix vblank control helpers to delay PSR entry to allow this when
-				 * PSR is also supported.
-				 */
-				if (link->psr_settings.psr_feature_enabled)
-					adev_to_drm(adev)->vblank_disable_immediate = false;
 			}
 		}
 		amdgpu_set_panel_orientation(&aconnector->base);
@@ -8232,7 +8226,7 @@ static int amdgpu_dm_encoder_init(struct drm_device *dev,
 
 static void manage_dm_interrupts(struct amdgpu_device *adev,
 				 struct amdgpu_crtc *acrtc,
-				 bool enable)
+				 struct dm_crtc_state *acrtc_state)
 {
 	/*
 	 * We have no guarantee that the frontend index maps to the same
@@ -8244,9 +8238,28 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 		amdgpu_display_crtc_idx_to_irq_type(
 			adev,
 			acrtc->crtc_id);
+	struct drm_vblank_crtc_config config = {0};
+	struct dc_crtc_timing *timing;
+	int offdelay;
 
-	if (enable) {
-		drm_crtc_vblank_on(&acrtc->base);
+	if (acrtc_state) {
+		if (amdgpu_ip_version(adev, DCE_HWIP, 0) <
+		    IP_VERSION(3, 5, 0)) {
+			drm_crtc_vblank_on(&acrtc->base);
+		} else {
+			timing = &acrtc_state->stream->timing;
+
+			/* at least 2 frames */
+			offdelay = DIV64_U64_ROUND_UP((u64)20 *
+						      timing->v_total *
+						      timing->h_total,
+						      timing->pix_clk_100hz);
+
+			config.offdelay_ms = offdelay ?: 30;
+			drm_crtc_vblank_on_config(&acrtc->base,
+						  &config);
+		}
+
 		amdgpu_irq_get(
 			adev,
 			&adev->pageflip_irq,
@@ -9320,7 +9333,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 		if (old_crtc_state->active &&
 		    (!new_crtc_state->active ||
 		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
-			manage_dm_interrupts(adev, acrtc, false);
+			manage_dm_interrupts(adev, acrtc, NULL);
 			dc_stream_release(dm_old_crtc_state->stream);
 		}
 	}
@@ -9835,7 +9848,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
 			dc_stream_retain(dm_new_crtc_state->stream);
 			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
-			manage_dm_interrupts(adev, acrtc, true);
+			manage_dm_interrupts(adev, acrtc, dm_new_crtc_state);
 		}
 		/* Handle vrr on->off / off->on transitions */
 		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state, dm_new_crtc_state);
