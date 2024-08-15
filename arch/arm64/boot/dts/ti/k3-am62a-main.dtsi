@@ -265,6 +265,14 @@
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
 
+	main_esm: esm@420000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x0 0x420000 0x0 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: rti0, rti1, wrti0, rti4, rti2, rti3 */
+		ti,esm-pins = <192>, <193>, <195>, <204>, <209>, <210>;
+	};
+
 	main_timer0: timer@2400000 {
 		compatible = "ti,am654-timer";
 		reg = <0x00 0x2400000 0x00 0x400>;
