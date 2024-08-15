@@ -120,11 +120,10 @@ void dpp401_set_cursor_attributes(
 	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	int cur_rom_en = 0;
 
+	// DCN4 should always do Cursor degamma for Cursor Color modes
 	if (color_format == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA ||
 		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA) {
-		if (cursor_attributes->attribute_flags.bits.ENABLE_CURSOR_DEGAMMA) {
-			cur_rom_en = 1;
-		}
+		cur_rom_en = 1;
 	}
 
 	REG_UPDATE_3(CURSOR0_CONTROL,
