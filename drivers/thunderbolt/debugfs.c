@@ -447,7 +447,7 @@ struct tb_margining {
 	unsigned int gen;
 	u32 caps[3];
 	u32 results[2];
-	unsigned int lanes;
+	enum usb4_margining_lane lanes;
 	unsigned int min_ber_level;
 	unsigned int max_ber_level;
 	unsigned int ber_level;
@@ -757,13 +757,13 @@ margining_lanes_write(struct file *file, const char __user *user_buf,
 	}
 
 	if (!strcmp(buf, "0")) {
-		margining->lanes = 0;
+		margining->lanes = USB4_MARGINING_LANE_RX0;
 	} else if (!strcmp(buf, "1")) {
-		margining->lanes = 1;
+		margining->lanes = USB4_MARGINING_LANE_RX1;
 	} else if (!strcmp(buf, "all")) {
 		/* Needs to be supported */
 		if (all_lanes(margining))
-			margining->lanes = 7;
+			margining->lanes = USB4_MARGINING_LANE_ALL;
 		else
 			ret = -EINVAL;
 	} else {
@@ -781,21 +781,21 @@ static int margining_lanes_show(struct seq_file *s, void *not_used)
 {
 	struct tb_margining *margining = s->private;
 	struct tb *tb = margining->port->sw->tb;
-	unsigned int lanes;
+	enum usb4_margining_lane lanes;
 
 	if (mutex_lock_interruptible(&tb->lock))
 		return -ERESTARTSYS;
 
 	lanes = margining->lanes;
 	if (all_lanes(margining)) {
-		if (!lanes)
+		if (lanes == USB4_MARGINING_LANE_RX0)
 			seq_puts(s, "[0] 1 all\n");
-		else if (lanes == 1)
+		else if (lanes == USB4_MARGINING_LANE_RX1)
 			seq_puts(s, "0 [1] all\n");
 		else
 			seq_puts(s, "0 1 [all]\n");
 	} else {
-		if (!lanes)
+		if (lanes == USB4_MARGINING_LANE_RX0)
 			seq_puts(s, "[0] 1\n");
 		else
 			seq_puts(s, "0 [1]\n");
@@ -1089,13 +1089,13 @@ static int margining_run_sw(struct tb_margining *margining,
 		if (ret)
 			break;
 
-		if (margining->lanes == USB4_MARGIN_SW_LANE_0)
+		if (margining->lanes == USB4_MARGINING_LANE_RX0)
 			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_0_MASK,
 					   margining->results[1]);
-		else if (margining->lanes == USB4_MARGIN_SW_LANE_1)
+		else if (margining->lanes == USB4_MARGINING_LANE_RX1)
 			errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
 					   margining->results[1]);
-		else if (margining->lanes == USB4_MARGIN_SW_ALL_LANES)
+		else if (margining->lanes == USB4_MARGINING_LANE_ALL)
 			errors = margining->results[1];
 
 		/* Any errors stop the test */
@@ -1225,7 +1225,7 @@ static ssize_t margining_results_write(struct file *file,
 	if (margining->software) {
 		/* Clear the error counters */
 		margining_modify_error_counter(margining,
-					       USB4_MARGIN_SW_ALL_LANES,
+					       USB4_MARGINING_LANE_ALL,
 					       USB4_MARGIN_SW_ERROR_COUNTER_CLEAR);
 	}
 
@@ -1278,7 +1278,8 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 		seq_printf(s, "0x%08x\n", margining->results[1]);
 
 		if (margining->time) {
-			if (!margining->lanes || margining->lanes == 7) {
+			if (margining->lanes == USB4_MARGINING_LANE_RX0 ||
+			    margining->lanes == USB4_MARGINING_LANE_ALL) {
 				val = margining->results[1];
 				seq_puts(s, "# lane 0 right time margin: ");
 				time_margin_show(s, margining, val);
@@ -1287,7 +1288,8 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 				seq_puts(s, "# lane 0 left time margin: ");
 				time_margin_show(s, margining, val);
 			}
-			if (margining->lanes == 1 || margining->lanes == 7) {
+			if (margining->lanes == USB4_MARGINING_LANE_RX1 ||
+			    margining->lanes == USB4_MARGINING_LANE_ALL) {
 				val = margining->results[1] >>
 					USB4_MARGIN_HW_RES_1_L1_RH_MARGIN_SHIFT;
 				seq_puts(s, "# lane 1 right time margin: ");
@@ -1298,7 +1300,8 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 				time_margin_show(s, margining, val);
 			}
 		} else {
-			if (!margining->lanes || margining->lanes == 7) {
+			if (margining->lanes == USB4_MARGINING_LANE_RX0 ||
+			    margining->lanes == USB4_MARGINING_LANE_ALL) {
 				val = margining->results[1];
 				seq_puts(s, "# lane 0 high voltage margin: ");
 				voltage_margin_show(s, margining, val);
@@ -1307,7 +1310,8 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 				seq_puts(s, "# lane 0 low voltage margin: ");
 				voltage_margin_show(s, margining, val);
 			}
-			if (margining->lanes == 1 || margining->lanes == 7) {
+			if (margining->lanes == USB4_MARGINING_LANE_RX1 ||
+			    margining->lanes == USB4_MARGINING_LANE_ALL) {
 				val = margining->results[1] >>
 					USB4_MARGIN_HW_RES_1_L1_RH_MARGIN_SHIFT;
 				seq_puts(s, "# lane 1 high voltage margin: ");
@@ -1322,16 +1326,16 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 		u32 lane_errors, result;
 
 		seq_printf(s, "0x%08x\n", margining->results[1]);
-		result = FIELD_GET(USB4_MARGIN_SW_LANES_MASK, margining->results[0]);
 
-		if (result == USB4_MARGIN_SW_LANE_0 ||
-		    result == USB4_MARGIN_SW_ALL_LANES) {
+		result = FIELD_GET(USB4_MARGIN_SW_LANES_MASK, margining->results[0]);
+		if (result == USB4_MARGINING_LANE_RX0 ||
+		    result == USB4_MARGINING_LANE_ALL) {
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_0_MASK,
 						margining->results[1]);
 			seq_printf(s, "# lane 0 errors: %u\n", lane_errors);
 		}
-		if (result == USB4_MARGIN_SW_LANE_1 ||
-		    result == USB4_MARGIN_SW_ALL_LANES) {
+		if (result == USB4_MARGINING_LANE_RX1 ||
+		    result == USB4_MARGINING_LANE_ALL) {
 			lane_errors = FIELD_GET(USB4_MARGIN_SW_ERR_COUNTER_LANE_1_MASK,
 						margining->results[1]);
 			seq_printf(s, "# lane 1 errors: %u\n", lane_errors);
