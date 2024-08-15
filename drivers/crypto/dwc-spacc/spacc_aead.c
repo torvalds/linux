@@ -5,7 +5,6 @@
 #include <crypto/gcm.h>
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
-#include <linux/rtnetlink.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
 #include <linux/platform_device.h>
@@ -540,15 +539,13 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct spacc_crypto_ctx *ctx  = crypto_aead_ctx(tfm);
 	const struct spacc_alg  *salg = spacc_tfm_aead(&tfm->base);
+	struct crypto_authenc_keys authenc_keys;
 	struct spacc_priv	*priv;
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
 	unsigned int authkeylen, enckeylen;
 	const unsigned char *authkey, *enckey;
 	unsigned char xcbc[64];
-
-	int err = -EINVAL;
 	int singlekey = 0;
+	int err;
 
 	/* are keylens valid? */
 	ctx->ctx_valid = false;
@@ -569,26 +566,14 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 		goto skipover;
 	}
 
-	if (!RTA_OK(rta, keylen)		       ||
-	    rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM ||
-	    RTA_PAYLOAD(rta) < sizeof(*param))
-		return -EINVAL;
+	err = crypto_authenc_extractkeys(&authenc_keys, key, keylen);
+	if (err)
+		return err;
 
-	param	  = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-	key	 += RTA_ALIGN(rta->rta_len);
-	keylen	 -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		return -EINVAL;
-
-	authkeylen = keylen - enckeylen;
-
-	/* enckey is at &key[authkeylen] and
-	 * authkey is at &key[0]
-	 */
-	authkey = &key[0];
-	enckey  = &key[authkeylen];
+	authkeylen = authenc_keys.authkeylen;
+	authkey = authenc_keys.authkey;
+	enckeylen = authenc_keys.enckeylen;
+	enckey  = authenc_keys.enckey;
 
 skipover:
 	/* detect RFC3686/4106 and trim from enckeylen(and copy salt..) */
