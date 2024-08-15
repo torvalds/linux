@@ -1100,7 +1100,7 @@ void dcn35_clk_mgr_construct(
 
 	clk_mgr->smu_wm_set.wm_set = (struct dcn35_watermarks *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(struct dcn35_watermarks),
 				&clk_mgr->smu_wm_set.mc_address.quad_part);
 
@@ -1112,7 +1112,7 @@ void dcn35_clk_mgr_construct(
 
 	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn35 *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(DpmClocks_t_dcn35),
 				&smu_dpm_clks.mc_address.quad_part);
 
@@ -1209,7 +1209,7 @@ void dcn35_clk_mgr_construct(
 	}
 
 	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
-		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_GART,
 				smu_dpm_clks.dpm_clks);
 
 	if (ctx->dc->config.disable_ips != DMUB_IPS_DISABLE_ALL) {
