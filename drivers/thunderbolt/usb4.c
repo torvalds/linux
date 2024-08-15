@@ -1655,14 +1655,15 @@ int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
  * @target: Sideband target
  * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @params: Parameters for USB4 hardware margining
- * @results: Array with at least two elements to hold the results
+ * @results: Array to hold the results
+ * @nresults: Number of elements in the results array
  *
  * Runs hardware lane margining on USB4 port and returns the result in
  * @results.
  */
 int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
 			u8 index, const struct usb4_port_margining_params *params,
-			u32 *results)
+			u32 *results, size_t nresults)
 {
 	u32 val;
 	int ret;
@@ -1691,7 +1692,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, results,
-				 sizeof(*results) * 2);
+				 sizeof(*results) * nresults);
 }
 
 /**

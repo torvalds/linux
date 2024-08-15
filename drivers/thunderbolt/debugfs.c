@@ -1191,7 +1191,7 @@ static int margining_run_write(void *data, u64 val)
 			    margining->lanes);
 
 		ret = usb4_port_hw_margin(port, margining->target, margining->index, &params,
-					  margining->results);
+					  margining->results, ARRAY_SIZE(margining->results));
 	}
 
 	if (down_sw)
@@ -1219,8 +1219,7 @@ static ssize_t margining_results_write(struct file *file,
 		return -ERESTARTSYS;
 
 	/* Just clear the results */
-	margining->results[0] = 0;
-	margining->results[1] = 0;
+	memset(margining->results, 0, sizeof(margining->results));
 
 	if (margining->software) {
 		/* Clear the error counters */
@@ -1312,7 +1311,8 @@ static int margining_results_show(struct seq_file *s, void *not_used)
 	seq_printf(s, "0x%08x\n", margining->results[0]);
 	/* Only the hardware margining has two result dwords */
 	if (!margining->software) {
-		seq_printf(s, "0x%08x\n", margining->results[1]);
+		for (int i = 1; i < ARRAY_SIZE(margining->results); i++)
+			seq_printf(s, "0x%08x\n", margining->results[i]);
 
 		if (margining->lanes == USB4_MARGINING_LANE_ALL) {
 			margining_hw_result_format(s, margining,
