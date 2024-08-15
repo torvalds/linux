@@ -4284,7 +4284,7 @@ mwifiex_cfg80211_authenticate(struct wiphy *wiphy,
 	struct mwifiex_txinfo *tx_info;
 	u32 tx_control = 0, pkt_type = PKT_TYPE_MGMT;
 	u8 trans = 1, status_code = 0;
-	u8 *varptr;
+	u8 *varptr = NULL;
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 		mwifiex_dbg(priv->adapter, ERROR, "Interface role is AP\n");
