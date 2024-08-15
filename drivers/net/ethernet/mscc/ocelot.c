@@ -1193,17 +1193,34 @@ bool ocelot_can_inject(struct ocelot *ocelot, int grp)
 }
 EXPORT_SYMBOL(ocelot_can_inject);
 
-void ocelot_ifh_port_set(void *ifh, int port, u32 rew_op, u32 vlan_tag)
+/**
+ * ocelot_ifh_set_basic - Set basic information in Injection Frame Header
+ * @ifh: Pointer to Injection Frame Header memory
+ * @ocelot: Switch private data structure
+ * @port: Egress port number
+ * @rew_op: Egress rewriter operation for PTP
+ * @skb: Pointer to socket buffer (packet)
+ *
+ * Populate the Injection Frame Header with basic information for this skb: the
+ * analyzer bypass bit, destination port, VLAN info, egress rewriter info.
+ */
+void ocelot_ifh_set_basic(void *ifh, struct ocelot *ocelot, int port,
+			  u32 rew_op, struct sk_buff *skb)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u64 vlan_tci, tag_type;
+
+	ocelot_xmit_get_vlan_info(skb, ocelot_port->bridge, &vlan_tci,
+				  &tag_type);
+
 	ocelot_ifh_set_bypass(ifh, 1);
 	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
-	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
-	if (vlan_tag)
-		ocelot_ifh_set_vlan_tci(ifh, vlan_tag);
+	ocelot_ifh_set_tag_type(ifh, tag_type);
+	ocelot_ifh_set_vlan_tci(ifh, vlan_tci);
 	if (rew_op)
 		ocelot_ifh_set_rew_op(ifh, rew_op);
 }
-EXPORT_SYMBOL(ocelot_ifh_port_set);
+EXPORT_SYMBOL(ocelot_ifh_set_basic);
 
 void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 			      u32 rew_op, struct sk_buff *skb)
@@ -1214,7 +1231,7 @@ void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 	ocelot_write_rix(ocelot, QS_INJ_CTRL_GAP_SIZE(1) |
 			 QS_INJ_CTRL_SOF, QS_INJ_CTRL, grp);
 
-	ocelot_ifh_port_set(ifh, port, rew_op, skb_vlan_tag_get(skb));
+	ocelot_ifh_set_basic(ifh, ocelot, port, rew_op, skb);
 
 	for (i = 0; i < OCELOT_TAG_LEN / 4; i++)
 		ocelot_write_rix(ocelot, ifh[i], QS_INJ_WR, grp);
