@@ -35,8 +35,10 @@
 
 #include <linux/cacheflush.h>
 #include <linux/container_of.h>
+#include <linux/crc32.h>
 #include <linux/dev_printk.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/gfp_types.h>
@@ -193,21 +195,117 @@ static int prepare_dma_bufs(struct ishtp_device *dev,
 	return 0;
 }
 
+#define ISH_FW_FILE_VENDOR_NAME_SKU_FMT "intel/ish/ish_%s_%08x_%08x_%08x.bin"
+#define ISH_FW_FILE_VENDOR_SKU_FMT "intel/ish/ish_%s_%08x_%08x.bin"
+#define ISH_FW_FILE_VENDOR_NAME_FMT "intel/ish/ish_%s_%08x_%08x.bin"
+#define ISH_FW_FILE_VENDOR_FMT "intel/ish/ish_%s_%08x.bin"
 #define ISH_FW_FILE_DEFAULT_FMT "intel/ish/ish_%s.bin"
 
 #define ISH_FW_FILENAME_LEN_MAX 56
 
+#define ISH_CRC_INIT (~0u)
+#define ISH_CRC_XOROUT (~0u)
+
+static int _request_ish_firmware(const struct firmware **firmware_p,
+					const char *name, struct device *dev)
+{
+	int ret;
+
+	dev_dbg(dev, "Try to load firmware: %s\n", name);
+	ret = firmware_request_nowarn(firmware_p, name, dev);
+	if (!ret)
+		dev_info(dev, "load firmware: %s\n", name);
+
+	return ret;
+}
+
+/**
+ * request_ish_firmware() - Request and load the ISH firmware.
+ * @firmware_p: Pointer to the firmware image.
+ * @dev: Device for which firmware is being requested.
+ *
+ * This function attempts to load the Integrated Sensor Hub (ISH) firmware
+ * for the given device in the following order, prioritizing custom firmware
+ * with more precise matching patterns:
+ *
+ *   ish_${fw_generation}_${SYS_VENDOR_CRC32}_$(PRODUCT_NAME_CRC32)_${PRODUCT_SKU_CRC32}.bin
+ *   ish_${fw_generation}_${SYS_VENDOR_CRC32}_${PRODUCT_SKU_CRC32}.bin
+ *   ish_${fw_generation}_${SYS_VENDOR_CRC32}_$(PRODUCT_NAME_CRC32).bin
+ *   ish_${fw_generation}_${SYS_VENDOR_CRC32}.bin
+ *   ish_${fw_generation}.bin
+ *
+ * The driver will load the first matching firmware and skip the rest. If no
+ * matching firmware is found, it will proceed to the next pattern in the
+ * specified order. If all searches fail, the default Intel firmware, listed
+ * last in the order above, will be loaded.
+ *
+ * The firmware file name is constructed using CRC32 checksums of strings.
+ * This is done to create a valid file name that does not contain spaces
+ * or special characters which may be present in the original strings.
+ *
+ * The CRC-32 algorithm uses the following parameters:
+ *   Poly: 0x04C11DB7
+ *   Init: 0xFFFFFFFF
+ *   RefIn: true
+ *   RefOut: true
+ *   XorOut: 0xFFFFFFFF
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
 static int request_ish_firmware(const struct firmware **firmware_p,
 				struct device *dev)
 {
+	const char *gen, *sys_vendor, *product_name, *product_sku;
 	struct ishtp_device *ishtp = dev_get_drvdata(dev);
-	const char *gen;
+	u32 vendor_crc, name_crc, sku_crc;
 	char filename[ISH_FW_FILENAME_LEN_MAX];
+	int ret;
 
 	gen = ishtp->driver_data->fw_generation;
-	snprintf(filename, sizeof(filename), ISH_FW_FILE_DEFAULT_FMT, gen);
+	sys_vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	product_name = dmi_get_system_info(DMI_PRODUCT_NAME);
+	product_sku = dmi_get_system_info(DMI_PRODUCT_SKU);
 
-	return request_firmware(firmware_p, filename, dev);
+	if (sys_vendor)
+		vendor_crc = crc32(ISH_CRC_INIT, sys_vendor, strlen(sys_vendor)) ^ ISH_CRC_XOROUT;
+	if (product_name)
+		name_crc = crc32(ISH_CRC_INIT, product_name, strlen(product_name)) ^ ISH_CRC_XOROUT;
+	if (product_sku)
+		sku_crc = crc32(ISH_CRC_INIT, product_sku, strlen(product_sku)) ^ ISH_CRC_XOROUT;
+
+	if (sys_vendor && product_name && product_sku) {
+		snprintf(filename, sizeof(filename), ISH_FW_FILE_VENDOR_NAME_SKU_FMT, gen,
+			 vendor_crc, name_crc, sku_crc);
+		ret = _request_ish_firmware(firmware_p, filename, dev);
+		if (!ret)
+			return 0;
+	}
+
+	if (sys_vendor && product_sku) {
+		snprintf(filename, sizeof(filename), ISH_FW_FILE_VENDOR_SKU_FMT, gen, vendor_crc,
+			 sku_crc);
+		ret = _request_ish_firmware(firmware_p, filename, dev);
+		if (!ret)
+			return 0;
+	}
+
+	if (sys_vendor && product_name) {
+		snprintf(filename, sizeof(filename), ISH_FW_FILE_VENDOR_NAME_FMT, gen, vendor_crc,
+			 name_crc);
+		ret = _request_ish_firmware(firmware_p, filename, dev);
+		if (!ret)
+			return 0;
+	}
+
+	if (sys_vendor) {
+		snprintf(filename, sizeof(filename), ISH_FW_FILE_VENDOR_FMT, gen, vendor_crc);
+		ret = _request_ish_firmware(firmware_p, filename, dev);
+		if (!ret)
+			return 0;
+	}
+
+	snprintf(filename, sizeof(filename), ISH_FW_FILE_DEFAULT_FMT, gen);
+	return _request_ish_firmware(firmware_p, filename, dev);
 }
 
 /**
