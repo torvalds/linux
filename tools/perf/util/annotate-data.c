@@ -1244,7 +1244,6 @@ again:
 
 			pr_debug_dtp("found by insn track: %#x(%s) type-offset=%#x\n",
 				     dloc->op->offset, buf, dloc->type_offset);
-			pr_debug_type_name(type_die, TSR_KIND_TYPE);
 			break;
 		}
 
@@ -1273,6 +1272,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	int fbreg = -1;
 	int fb_offset = 0;
 	bool is_fbreg = false;
+	bool found = false;
 	u64 pc;
 	char buf[64];
 	enum type_match_result result;
@@ -1358,14 +1358,17 @@ retry:
 
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
+		Dwarf_Die mem_die;
+		int type_offset = offset;
+
 		if (reg == DWARF_REG_PC) {
 			if (!die_find_variable_by_addr(&scopes[i], dloc->var_addr,
-						       &var_die, &offset))
+						       &var_die, &type_offset))
 				continue;
 		} else {
 			/* Look up variables/parameters in this scope */
 			if (!die_find_variable_by_reg(&scopes[i], pc, reg,
-						      &offset, is_fbreg, &var_die))
+						      &type_offset, is_fbreg, &var_die))
 				continue;
 		}
 
@@ -1374,43 +1377,50 @@ retry:
 			     i+1, nr_scopes, (long)dwarf_dieoffset(&scopes[i]));
 
 		/* Found a variable, see if it's correct */
-		result = check_variable(dloc, &var_die, type_die, reg, offset, is_fbreg);
+		result = check_variable(dloc, &var_die, &mem_die, reg, type_offset, is_fbreg);
 		if (result == PERF_TMR_OK) {
 			if (reg == DWARF_REG_PC) {
 				pr_debug_dtp("addr=%#"PRIx64" type_offset=%#x\n",
-					     dloc->var_addr, offset);
+					     dloc->var_addr, type_offset);
 			} else if (reg == DWARF_REG_FB || is_fbreg) {
 				pr_debug_dtp("stack_offset=%#x type_offset=%#x\n",
-					     fb_offset, offset);
+					     fb_offset, type_offset);
 			} else {
-				pr_debug_dtp("type_offset=%#x\n", offset);
+				pr_debug_dtp("type_offset=%#x\n", type_offset);
 			}
-			ret = 0;
+
+			if (!found || is_better_type(type_die, &mem_die)) {
+				*type_die = mem_die;
+				dloc->type_offset = type_offset;
+				found = true;
+			}
 		} else {
 			pr_debug_dtp("failed: %s\n", match_result_str(result));
-			ret = -1;
 		}
+
 		pr_debug_location(&var_die, pc, reg);
-		pr_debug_type_name(type_die, TSR_KIND_TYPE);
-		dloc->type_offset = offset;
-		goto out;
+		pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
 	}
 
-	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
+	if (!found && loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
 		reg = loc->reg2;
 		goto retry;
 	}
 
-	if (reg != DWARF_REG_PC) {
+	if (!found && reg != DWARF_REG_PC) {
 		result = find_data_type_block(dloc, &cu_die, scopes,
-					   nr_scopes, type_die);
+					      nr_scopes, type_die);
 		if (result == PERF_TMR_OK) {
 			ann_data_stat.insn_track++;
-			ret = 0;
+			found = true;
 		}
 	}
 
-	if (ret < 0) {
+	if (found) {
+		pr_debug_dtp("final type:");
+		pr_debug_type_name(type_die, TSR_KIND_TYPE);
+		ret = 0;
+	} else {
 		pr_debug_dtp("no variable found\n");
 		ann_data_stat.no_var++;
 	}
