@@ -148,9 +148,6 @@ static int ucsi_read_error(struct ucsi *ucsi, u8 connector_num)
 	if (ret < 0)
 		return ret;
 
-	if (cci & UCSI_CCI_ERROR)
-		return -EIO;
-
 	switch (error) {
 	case UCSI_ERROR_INCOMPATIBLE_PARTNER:
 		return -EOPNOTSUPP;
