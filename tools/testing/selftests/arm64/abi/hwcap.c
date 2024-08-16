@@ -490,7 +490,7 @@ static const struct hwcap_data {
 		.name = "F8DP2",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_F8DP2,
-		.cpuinfo = "f8dp4",
+		.cpuinfo = "f8dp2",
 		.sigill_fn = f8dp2_sigill,
 	},
 	{
