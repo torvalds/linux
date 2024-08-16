@@ -1103,7 +1103,7 @@ int spacc_packet_enqueue_ddt_ex(struct spacc_device *spacc, int use_jb,
 {
 	int i;
 	struct spacc_job *job;
-	int ret = CRYPTO_OK, proc_len;
+	int proc_len;
 
 	if (job_idx < 0 || job_idx >= SPACC_MAX_JOBS)
 		return -ENXIO;
@@ -1222,7 +1222,7 @@ int spacc_packet_enqueue_ddt_ex(struct spacc_device *spacc, int use_jb,
 		job->ctrl &= ~SPACC_CTRL_MASK(SPACC_CTRL_KEY_EXP);
 	}
 
-	return ret;
+	return CRYPTO_OK;
 
 fifo_full:
 	/* try to add a job to the job buffers*/
@@ -1248,7 +1248,7 @@ fifo_full:
 
 	spacc->jb_head = i;
 
-	return CRYPTO_USED_JB;
+	return CRYPTO_OK;
 }
 
 int spacc_packet_enqueue_ddt(struct spacc_device *spacc, int job_idx,

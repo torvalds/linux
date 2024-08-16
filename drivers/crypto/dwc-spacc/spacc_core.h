@@ -333,8 +333,6 @@ enum {
 #define SPACC_MAX_JOB_BUFFERS	192
 #endif
 
-#define CRYPTO_USED_JB	256
-
 /* max DDT particle size */
 #ifndef SPACC_MAX_PARTICLE_SIZE
 #define SPACC_MAX_PARTICLE_SIZE	4096
