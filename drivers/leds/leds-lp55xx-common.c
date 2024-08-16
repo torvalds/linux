@@ -1173,16 +1173,13 @@ static int lp55xx_parse_multi_led(struct device_node *np,
 				  struct lp55xx_led_config *cfg,
 				  int child_number)
 {
-	struct device_node *child;
 	int num_colors = 0, ret;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		ret = lp55xx_parse_multi_led_child(child, cfg, child_number,
 						   num_colors);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return ret;
-		}
 		num_colors++;
 	}
 
