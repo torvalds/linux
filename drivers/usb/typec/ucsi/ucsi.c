@@ -748,104 +748,66 @@ static struct usb_power_delivery_capabilities *ucsi_get_pd_caps(struct ucsi_conn
 							&pd_caps);
 }
 
-static int ucsi_read_identity(struct ucsi_connector *con, u8 recipient,
-			      u8 offset, u8 bytes, void *resp)
+static int ucsi_get_pd_message(struct ucsi_connector *con, u8 recipient,
+			       size_t bytes, void *data, u8 type)
 {
-	struct ucsi *ucsi = con->ucsi;
+	size_t len = min(bytes, UCSI_MAX_DATA_LENGTH(con->ucsi));
 	u64 command;
+	u8 offset;
 	int ret;
 
-	command = UCSI_COMMAND(UCSI_GET_PD_MESSAGE) |
-	    UCSI_CONNECTOR_NUMBER(con->num);
-	command |= UCSI_GET_PD_MESSAGE_RECIPIENT(recipient);
-	command |= UCSI_GET_PD_MESSAGE_OFFSET(offset);
-	command |= UCSI_GET_PD_MESSAGE_BYTES(bytes);
-	command |= UCSI_GET_PD_MESSAGE_TYPE(UCSI_GET_PD_MESSAGE_TYPE_IDENTITY);
+	for (offset = 0; offset < bytes; offset += len) {
+		len = min(len, bytes - offset);
 
-	ret = ucsi_send_command(ucsi, command, resp, bytes);
-	if (ret < 0)
-		dev_err(ucsi->dev, "UCSI_GET_PD_MESSAGE failed (%d)\n", ret);
+		command = UCSI_COMMAND(UCSI_GET_PD_MESSAGE) | UCSI_CONNECTOR_NUMBER(con->num);
+		command |= UCSI_GET_PD_MESSAGE_RECIPIENT(recipient);
+		command |= UCSI_GET_PD_MESSAGE_OFFSET(offset);
+		command |= UCSI_GET_PD_MESSAGE_BYTES(len);
+		command |= UCSI_GET_PD_MESSAGE_TYPE(type);
 
-	return ret;
-}
-
-static int ucsi_get_identity(struct ucsi_connector *con, u8 recipient,
-			      struct usb_pd_identity *id)
-{
-	struct ucsi *ucsi = con->ucsi;
-	struct ucsi_pd_message_disc_id resp = {};
-	int ret;
-
-	if (ucsi->version < UCSI_VERSION_2_0) {
-		/*
-		 * Before UCSI v2.0, MESSAGE_IN is 16 bytes which cannot fit
-		 * the 28 byte identity response including the VDM header.
-		 * First request the VDM header, ID Header VDO, Cert Stat VDO
-		 * and Product VDO.
-		 */
-		ret = ucsi_read_identity(con, recipient, 0, 0x10, &resp);
-		if (ret < 0)
-			return ret;
-
-
-		/* Then request Product Type VDO1 through Product Type VDO3. */
-		ret = ucsi_read_identity(con, recipient, 0x10, 0xc,
-					 &resp.vdo[0]);
-		if (ret < 0)
-			return ret;
-
-	} else {
-		/*
-		 * In UCSI v2.0 and after, MESSAGE_IN is large enough to request
-		 * the large enough to request the full Discover Identity
-		 * response at once.
-		 */
-		ret = ucsi_read_identity(con, recipient, 0x0, 0x1c, &resp);
+		ret = ucsi_send_command(con->ucsi, command, data + offset, len);
 		if (ret < 0)
 			return ret;
 	}
 
-	id->id_header = resp.id_header;
-	id->cert_stat = resp.cert_stat;
-	id->product = resp.product;
-	id->vdo[0] = resp.vdo[0];
-	id->vdo[1] = resp.vdo[1];
-	id->vdo[2] = resp.vdo[2];
 	return 0;
 }
 
 static int ucsi_get_partner_identity(struct ucsi_connector *con)
 {
+	u32 vdo[7] = {};
 	int ret;
 
-	ret = ucsi_get_identity(con, UCSI_RECIPIENT_SOP,
-				 &con->partner_identity);
+	ret = ucsi_get_pd_message(con, UCSI_RECIPIENT_SOP, sizeof(vdo), vdo,
+				  UCSI_GET_PD_MESSAGE_TYPE_IDENTITY);
 	if (ret < 0)
 		return ret;
 
+	/* VDM Header is not part of struct usb_pd_identity, so dropping it. */
+	con->partner_identity = *(struct usb_pd_identity *)&vdo[1];
+
 	ret = typec_partner_set_identity(con->partner);
-	if (ret < 0) {
-		dev_err(con->ucsi->dev, "Failed to set partner identity (%d)\n",
-			ret);
-	}
+	if (ret < 0)
+		dev_err(con->ucsi->dev, "Failed to set partner identity (%d)\n", ret);
 
 	return ret;
 }
 
 static int ucsi_get_cable_identity(struct ucsi_connector *con)
 {
+	u32 vdo[7] = {};
 	int ret;
 
-	ret = ucsi_get_identity(con, UCSI_RECIPIENT_SOP_P,
-				 &con->cable_identity);
+	ret = ucsi_get_pd_message(con, UCSI_RECIPIENT_SOP_P, sizeof(vdo), vdo,
+				  UCSI_GET_PD_MESSAGE_TYPE_IDENTITY);
 	if (ret < 0)
 		return ret;
 
+	con->cable_identity = *(struct usb_pd_identity *)&vdo[1];
+
 	ret = typec_cable_set_identity(con->cable);
-	if (ret < 0) {
-		dev_err(con->ucsi->dev, "Failed to set cable identity (%d)\n",
-			ret);
-	}
+	if (ret < 0)
+		dev_err(con->ucsi->dev, "Failed to set cable identity (%d)\n", ret);
 
 	return ret;
 }

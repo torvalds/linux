@@ -355,18 +355,6 @@ struct ucsi_connector_status {
 #define   UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
 } __packed;
 
-/*
- * Data structure filled by PPM in response to GET_PD_MESSAGE command with the
- * Response Message Type set to Discover Identity Response.
- */
-struct ucsi_pd_message_disc_id {
-	u32 vdm_header;
-	u32 id_header;
-	u32 cert_stat;
-	u32 product;
-	u32 vdo[3];
-} __packed;
-
 /* -------------------------------------------------------------------------- */
 
 struct ucsi_debugfs_entry {
