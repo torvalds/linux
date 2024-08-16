@@ -641,7 +641,7 @@ static void validate_ccs_test_run_tile(struct xe_device *xe, struct xe_tile *til
 	long ret;
 
 	sys_bo = xe_bo_create_user(xe, NULL, NULL, SZ_4M,
-				   DRM_XE_GEM_CPU_CACHING_WC, ttm_bo_type_device,
+				   DRM_XE_GEM_CPU_CACHING_WC,
 				   XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS);
 
 	if (IS_ERR(sys_bo)) {
@@ -664,8 +664,9 @@ static void validate_ccs_test_run_tile(struct xe_device *xe, struct xe_tile *til
 	}
 	xe_bo_unlock(sys_bo);
 
-	ccs_bo = xe_bo_create_user(xe, NULL, NULL, SZ_4M, DRM_XE_GEM_CPU_CACHING_WC,
-				   ttm_bo_type_device, bo_flags | XE_BO_FLAG_NEEDS_CPU_ACCESS);
+	ccs_bo = xe_bo_create_user(xe, NULL, NULL, SZ_4M,
+				   DRM_XE_GEM_CPU_CACHING_WC,
+				   bo_flags | XE_BO_FLAG_NEEDS_CPU_ACCESS);
 
 	if (IS_ERR(ccs_bo)) {
 		KUNIT_FAIL(test, "xe_bo_create() failed with err=%ld\n",
@@ -687,8 +688,9 @@ static void validate_ccs_test_run_tile(struct xe_device *xe, struct xe_tile *til
 	}
 	xe_bo_unlock(ccs_bo);
 
-	vram_bo = xe_bo_create_user(xe, NULL, NULL, SZ_4M, DRM_XE_GEM_CPU_CACHING_WC,
-				    ttm_bo_type_device, bo_flags | XE_BO_FLAG_NEEDS_CPU_ACCESS);
+	vram_bo = xe_bo_create_user(xe, NULL, NULL, SZ_4M,
+				    DRM_XE_GEM_CPU_CACHING_WC,
+				    bo_flags | XE_BO_FLAG_NEEDS_CPU_ACCESS);
 	if (IS_ERR(vram_bo)) {
 		KUNIT_FAIL(test, "xe_bo_create() failed with err=%ld\n",
 			   PTR_ERR(vram_bo));

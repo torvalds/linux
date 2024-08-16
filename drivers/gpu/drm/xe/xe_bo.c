@@ -1499,11 +1499,10 @@ struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_tile *tile,
 struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
 				struct xe_vm *vm, size_t size,
 				u16 cpu_caching,
-				enum ttm_bo_type type,
 				u32 flags)
 {
 	struct xe_bo *bo = __xe_bo_create_locked(xe, tile, vm, size, 0, ~0ULL,
-						 cpu_caching, type,
+						 cpu_caching, ttm_bo_type_device,
 						 flags | XE_BO_FLAG_USER);
 	if (!IS_ERR(bo))
 		xe_bo_unlock_vm_held(bo);
@@ -2027,7 +2026,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	}
 
 	bo = xe_bo_create_user(xe, NULL, vm, args->size, args->cpu_caching,
-			       ttm_bo_type_device, bo_flags);
+			       bo_flags);
 
 	if (vm)
 		xe_vm_unlock(vm);
@@ -2333,7 +2332,6 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 
 	bo = xe_bo_create_user(xe, NULL, NULL, args->size,
 			       DRM_XE_GEM_CPU_CACHING_WC,
-			       ttm_bo_type_device,
 			       XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
 			       XE_BO_FLAG_SCANOUT |
 			       XE_BO_FLAG_NEEDS_CPU_ACCESS);

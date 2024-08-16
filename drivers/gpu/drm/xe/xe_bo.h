@@ -87,7 +87,6 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_tile *tile,
 struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
 				struct xe_vm *vm, size_t size,
 				u16 cpu_caching,
-				enum ttm_bo_type type,
 				u32 flags);
 struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 				   struct xe_vm *vm, size_t size,
