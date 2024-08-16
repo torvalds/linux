@@ -3518,6 +3518,39 @@ static const struct panel_desc olimex_lcd_olinuxino_43ts = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct display_timing ontat_kd50g21_40nt_a1_timing = {
+	.pixelclock = { 30000000, 30000000, 50000000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 1, 40, 255 },
+	.hback_porch = { 1, 40, 87 },
+	.hsync_len = { 1, 48, 87 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 1, 13, 255 },
+	.vback_porch = { 1, 29, 29 },
+	.vsync_len = { 3, 3, 31 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
+};
+
+static const struct panel_desc ontat_kd50g21_40nt_a1 = {
+	.timings = &ontat_kd50g21_40nt_a1_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 108,
+		.height = 65,
+	},
+	.delay = {
+		.prepare = 147,		/* 5 VSDs */
+		.enable = 147,		/* 5 VSDs */
+		.disable = 88,		/* 3 VSDs */
+		.unprepare = 117,	/* 4 VSDs */
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
+};
+
 /*
  * 800x480 CVT. The panel appears to be quite accepting, at least as far as
  * pixel clocks, but this is the timing that was being used in the Adafruit
@@ -4880,6 +4913,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "olimex,lcd-olinuxino-43-ts",
 		.data = &olimex_lcd_olinuxino_43ts,
+	}, {
+		.compatible = "ontat,kd50g21-40nt-a1",
+		.data = &ontat_kd50g21_40nt_a1,
 	}, {
 		.compatible = "ontat,yx700wv03",
 		.data = &ontat_yx700wv03,
