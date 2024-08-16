@@ -445,11 +445,6 @@ static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 	return i2c_find_device_by_fwnode(acpi_fwnode_handle(adev));
 }
 
-static struct i2c_adapter *i2c_acpi_find_adapter_by_adev(struct acpi_device *adev)
-{
-	return i2c_find_adapter_by_fwnode(acpi_fwnode_handle(adev));
-}
-
 static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 			   void *arg)
 {
@@ -476,17 +471,11 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 			break;
 
 		client = i2c_acpi_find_client_by_adev(adev);
-		if (client) {
-			i2c_unregister_device(client);
-			put_device(&client->dev);
-		}
+		if (!client)
+			break;
 
-		adapter = i2c_acpi_find_adapter_by_adev(adev);
-		if (adapter) {
-			acpi_unbind_one(&adapter->dev);
-			put_device(&adapter->dev);
-		}
-
+		i2c_unregister_device(client);
+		put_device(&client->dev);
 		break;
 	}
 
