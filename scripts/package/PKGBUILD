@@ -36,11 +36,15 @@ makedepends=(
 )
 options=(!debug !strip !buildflags !makeflags)
 
-build() {
+_prologue() {
 	# MAKEFLAGS from makepkg.conf override the ones inherited from kbuild.
 	# Bypass this override with a custom variable.
 	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
 	cd "${objtree}"
+}
+
+build() {
+	_prologue
 
 	${MAKE} KERNELRELEASE="${KERNELRELEASE}" KBUILD_BUILD_VERSION="${pkgrel}"
 }
@@ -48,9 +52,9 @@ build() {
 _package() {
 	pkgdesc="The ${pkgdesc} kernel and modules"
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
 	local modulesdir="${pkgdir}/usr/${MODLIB}"
+
+	_prologue
 
 	echo "Installing boot image..."
 	# systemd expects to find the kernel here to allow hibernation
@@ -76,9 +80,9 @@ _package() {
 _package-headers() {
 	pkgdesc="Headers and scripts for building modules for the ${pkgdesc} kernel"
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
 	local builddir="${pkgdir}/usr/${MODLIB}/build"
+
+	_prologue
 
 	if grep -q CONFIG_MODULES=y include/config/auto.conf; then
 		echo "Installing build files..."
@@ -100,8 +104,7 @@ _package-api-headers() {
 	provides=(linux-api-headers)
 	conflicts=(linux-api-headers)
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
+	_prologue
 
 	${MAKE} headers_install INSTALL_HDR_PATH="${pkgdir}/usr"
 }
