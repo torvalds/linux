@@ -408,24 +408,8 @@ static int spacc_cipher_process(struct skcipher_request *req, int enc_dec)
 		for (i = 0; i < 16; i++)
 			ivc1[i] = req->iv[i];
 
-		/* 32-bit counter width */
-		if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3) & (0x2)) {
-
-			for (i = 12; i < 16; i++) {
-				num_iv <<= 8;
-				num_iv |= ivc1[i];
-			}
-
-			diff = SPACC_CTR_IV_MAX32 - num_iv;
-
-			if (len > diff) {
-				name = salg->calg->cra_name;
-				ret = spacc_skcipher_fallback(name,
-							      req, enc_dec);
-				return ret;
-			}
-		} else if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3)
-			  & (0x3)) { /* 64-bit counter width */
+		/* 64-bit counter width */
+		if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3) & (0x3)) {
 
 			for (i = 8; i < 16; i++) {
 				num_iv64 <<= 8;
@@ -440,8 +424,26 @@ static int spacc_cipher_process(struct skcipher_request *req, int enc_dec)
 							      req, enc_dec);
 				return ret;
 			}
+		/* 32-bit counter width */
 		} else if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3)
-			   & (0x1)) { /* 16-bit counter width */
+			& (0x2)) {
+
+			for (i = 12; i < 16; i++) {
+				num_iv <<= 8;
+				num_iv |= ivc1[i];
+			}
+
+			diff = SPACC_CTR_IV_MAX32 - num_iv;
+
+			if (len > diff) {
+				name = salg->calg->cra_name;
+				ret = spacc_skcipher_fallback(name,
+							      req, enc_dec);
+				return ret;
+			}
+		/* 16-bit counter width */
+		} else if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3)
+			   & (0x1)) {
 
 			for (i = 14; i < 16; i++) {
 				num_iv <<= 8;
@@ -456,8 +458,9 @@ static int spacc_cipher_process(struct skcipher_request *req, int enc_dec)
 							      req, enc_dec);
 				return ret;
 			}
-		} else if (readl(device_h->regmap + SPACC_REG_VERSION_EXT_3)
-			   & (0x0)) { /* 8-bit counter width */
+		/* 8-bit counter width */
+		} else if ((readl(device_h->regmap + SPACC_REG_VERSION_EXT_3)
+			    & 0x7) == 0) {
 
 			for (i = 15; i < 16; i++) {
 				num_iv <<= 8;
