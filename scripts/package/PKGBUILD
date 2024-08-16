@@ -40,7 +40,9 @@ _prologue() {
 	# MAKEFLAGS from makepkg.conf override the ones inherited from kbuild.
 	# Bypass this override with a custom variable.
 	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
+
+	# Kbuild works in the output directory, where this PKGBUILD is located.
+	cd "$(dirname "${BASH_SOURCE[0]}")"
 }
 
 build() {
