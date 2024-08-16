@@ -150,7 +150,9 @@ static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_typ
 
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
-	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
+	return a.data_type == BCH_DATA_cached
+		? a.io_time[READ] & LRU_TIME_MAX
+		: 0;
 }
 
 #define DATA_TYPES_MOVABLE		\
