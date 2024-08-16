@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <drm/drm_fixed.h>
+
 #include "i915_drv.h"
 
 #include "intel_atomic.h"
@@ -93,7 +95,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			 * is based on the pipe bpp value, set the actual link bpp
 			 * limit here once the MST BW allocation is fixed.
 			 */
-			link_bpp_x16 = to_bpp_x16(crtc_state->pipe_bpp);
+			link_bpp_x16 = fxp_q4_from_int(crtc_state->pipe_bpp);
 
 		if (link_bpp_x16 > max_bpp_x16) {
 			max_bpp_x16 = link_bpp_x16;

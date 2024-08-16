@@ -45,13 +45,6 @@ struct timer_list;
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
 
-void __printf(3, 4)
-__i915_printk(struct drm_i915_private *dev_priv, const char *level,
-	      const char *fmt, ...);
-
-#define i915_report_error(dev_priv, fmt, ...)				   \
-	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
-
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
 int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
@@ -69,9 +62,12 @@ bool i915_error_injected(void);
 
 #define i915_inject_probe_failure(i915) i915_inject_probe_error((i915), -ENODEV)
 
-#define i915_probe_error(i915, fmt, ...)				   \
-	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
-		      fmt, ##__VA_ARGS__)
+#define i915_probe_error(i915, fmt, ...) ({ \
+	if (i915_error_injected()) \
+		drm_dbg(&(i915)->drm, fmt, ##__VA_ARGS__); \
+	else \
+		drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
+})
 
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \

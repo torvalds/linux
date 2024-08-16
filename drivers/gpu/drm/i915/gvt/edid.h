@@ -80,7 +80,7 @@ enum gmbus_cycle_type {
  *      R/W Protect
  *      Command and Status.
  *      bit0 is the direction bit: 1 is read; 0 is write.
- *      bit1 - bit7 is slave 7-bit address.
+ *      bit1 - bit7 is target 7-bit address.
  *      bit16 - bit24 total byte count (ignore?)
  *
  * GMBUS2:
@@ -130,7 +130,7 @@ struct intel_vgpu_i2c_edid {
 	enum i2c_state state;
 
 	unsigned int port;
-	bool slave_selected;
+	bool target_selected;
 	bool edid_available;
 	unsigned int current_edid_read;
 
