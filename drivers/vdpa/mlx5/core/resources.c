@@ -321,3 +321,76 @@ void mlx5_vdpa_free_resources(struct mlx5_vdpa_dev *mvdev)
 	mutex_destroy(&mvdev->mr_mtx);
 	res->valid = false;
 }
+
+static void virtqueue_cmd_callback(int status, struct mlx5_async_work *context)
+{
+	struct mlx5_vdpa_async_cmd *cmd =
+		container_of(context, struct mlx5_vdpa_async_cmd, cb_work);
+
+	cmd->err = mlx5_cmd_check(context->ctx->dev, status, cmd->in, cmd->out);
+	complete(&cmd->cmd_done);
+}
+
+static int issue_async_cmd(struct mlx5_vdpa_dev *mvdev,
+			   struct mlx5_vdpa_async_cmd *cmds,
+			   int issued,
+			   int *completed)
+
+{
+	struct mlx5_vdpa_async_cmd *cmd = &cmds[issued];
+	int err;
+
+retry:
+	err = mlx5_cmd_exec_cb(&mvdev->async_ctx,
+			       cmd->in, cmd->inlen,
+			       cmd->out, cmd->outlen,
+			       virtqueue_cmd_callback,
+			       &cmd->cb_work);
+	if (err == -EBUSY) {
+		if (*completed < issued) {
+			/* Throttled by own commands: wait for oldest completion. */
+			wait_for_completion(&cmds[*completed].cmd_done);
+			(*completed)++;
+
+			goto retry;
+		} else {
+			/* Throttled by external commands: switch to sync api. */
+			err = mlx5_cmd_exec(mvdev->mdev,
+					    cmd->in, cmd->inlen,
+					    cmd->out, cmd->outlen);
+			if (!err)
+				(*completed)++;
+		}
+	}
+
+	return err;
+}
+
+int mlx5_vdpa_exec_async_cmds(struct mlx5_vdpa_dev *mvdev,
+			      struct mlx5_vdpa_async_cmd *cmds,
+			      int num_cmds)
+{
+	int completed = 0;
+	int issued = 0;
+	int err = 0;
+
+	for (int i = 0; i < num_cmds; i++)
+		init_completion(&cmds[i].cmd_done);
+
+	while (issued < num_cmds) {
+
+		err = issue_async_cmd(mvdev, cmds, issued, &completed);
+		if (err) {
+			mlx5_vdpa_err(mvdev, "error issuing command %d of %d: %d\n",
+				      issued, num_cmds, err);
+			break;
+		}
+
+		issued++;
+	}
+
+	while (completed < issued)
+		wait_for_completion(&cmds[completed++].cmd_done);
+
+	return err;
+}

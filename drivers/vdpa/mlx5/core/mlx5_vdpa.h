@@ -105,6 +105,18 @@ struct mlx5_vdpa_dev {
 	bool suspended;
 };
 
+struct mlx5_vdpa_async_cmd {
+	int err;
+	struct mlx5_async_work cb_work;
+	struct completion cmd_done;
+
+	void *in;
+	size_t inlen;
+
+	void *out;
+	size_t outlen;
+};
+
 int mlx5_vdpa_create_tis(struct mlx5_vdpa_dev *mvdev, void *in, u32 *tisn);
 void mlx5_vdpa_destroy_tis(struct mlx5_vdpa_dev *mvdev, u32 tisn);
 int mlx5_vdpa_create_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 *rqtn);
@@ -134,6 +146,9 @@ int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
 				unsigned int asid);
 int mlx5_vdpa_create_dma_mr(struct mlx5_vdpa_dev *mvdev);
 int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid);
+int mlx5_vdpa_exec_async_cmds(struct mlx5_vdpa_dev *mvdev,
+			      struct mlx5_vdpa_async_cmd *cmds,
+			      int num_cmds);
 
 #define mlx5_vdpa_err(__dev, format, ...)                                                          \
 	dev_err((__dev)->mdev->device, "%s:%d:(pid %d) error: " format, __func__, __LINE__,        \
