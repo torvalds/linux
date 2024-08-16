@@ -55,39 +55,14 @@ int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL_GPL(thermal_zone_for_each_trip);
 
-/**
- * thermal_zone_set_trips - Computes the next trip points for the driver
- * @tz: a pointer to a thermal zone device structure
- *
- * The function computes the next temperature boundaries by browsing
- * the trip points. The result is the closer low and high trip points
- * to the current temperature. These values are passed to the backend
- * driver to let it set its own notification mechanism (usually an
- * interrupt).
- *
- * This function must be called with tz->lock held. Both tz and tz->ops
- * must be valid pointers.
- *
- * It does not return a value
- */
-void thermal_zone_set_trips(struct thermal_zone_device *tz)
+void thermal_zone_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	const struct thermal_trip_desc *td;
-	int low = -INT_MAX, high = INT_MAX;
 	int ret;
 
 	lockdep_assert_held(&tz->lock);
 
 	if (!tz->ops.set_trips)
 		return;
-
-	for_each_trip_desc(tz, td) {
-		if (td->threshold <= tz->temperature && td->threshold > low)
-			low = td->threshold;
-
-		if (td->threshold >= tz->temperature && td->threshold < high)
-			high = td->threshold;
-	}
 
 	/* No need to change trip points */
 	if (tz->prev_low_trip == low && tz->prev_high_trip == high)

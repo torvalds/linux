@@ -547,6 +547,7 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	struct thermal_trip_desc *td;
 	LIST_HEAD(way_down_list);
 	LIST_HEAD(way_up_list);
+	int low = -INT_MAX, high = INT_MAX;
 	int temp, ret;
 
 	if (tz->suspended)
@@ -580,10 +581,17 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	tz->notify_event = event;
 
-	for_each_trip_desc(tz, td)
+	for_each_trip_desc(tz, td) {
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
 
-	thermal_zone_set_trips(tz);
+		if (td->threshold <= tz->temperature && td->threshold > low)
+			low = td->threshold;
+
+		if (td->threshold >= tz->temperature && td->threshold < high)
+			high = td->threshold;
+	}
+
+	thermal_zone_set_trips(tz, low, high);
 
 	list_sort(NULL, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
