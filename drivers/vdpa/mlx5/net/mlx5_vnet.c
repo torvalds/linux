@@ -1675,10 +1675,15 @@ static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mv
 	return suspend_vqs(ndev, mvq->index, 1);
 }
 
-static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
+static int resume_vqs(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs)
 {
+	struct mlx5_vdpa_virtqueue *mvq;
 	int err;
 
+	if (start_vq >= ndev->mvdev.max_vqs)
+		return -EINVAL;
+
+	mvq = &ndev->vqs[start_vq];
 	if (!mvq->initialized)
 		return 0;
 
@@ -1690,13 +1695,9 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 		/* Due to a FW quirk we need to modify the VQ fields first then change state.
 		 * This should be fixed soon. After that, a single command can be used.
 		 */
-		err = modify_virtqueues(ndev, mvq->index, 1, mvq->fw_state);
-		if (err) {
-			mlx5_vdpa_err(&ndev->mvdev,
-				"modify vq properties failed for vq %u, err: %d\n",
-				mvq->index, err);
+		err = modify_virtqueues(ndev, start_vq, num_vqs, mvq->fw_state);
+		if (err)
 			return err;
-		}
 		break;
 	case MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND:
 		if (!is_resumable(ndev)) {
@@ -1712,25 +1713,12 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 		return -EINVAL;
 	}
 
-	err = modify_virtqueues(ndev, mvq->index, 1, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
-	if (err)
-		mlx5_vdpa_err(&ndev->mvdev, "modify to resume failed for vq %u, err: %d\n",
-			      mvq->index, err);
-
-	return err;
+	return modify_virtqueues(ndev, start_vq, num_vqs, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
 }
 
-static int resume_vqs(struct mlx5_vdpa_net *ndev)
+static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
-	int err = 0;
-
-	for (int i = 0; i < ndev->cur_num_vqs; i++) {
-		int local_err = resume_vq(ndev, &ndev->vqs[i]);
-
-		err = local_err ? local_err : err;
-	}
-
-	return err;
+	return resume_vqs(ndev, mvq->index, 1);
 }
 
 static void teardown_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
@@ -3080,7 +3068,7 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
 			return err;
 	}
 
-	resume_vqs(ndev);
+	resume_vqs(ndev, 0, ndev->cur_num_vqs);
 
 	return 0;
 }
@@ -3204,7 +3192,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 				teardown_vq_resources(ndev);
 
 			if (ndev->setup) {
-				err = resume_vqs(ndev);
+				err = resume_vqs(ndev, 0, ndev->cur_num_vqs);
 				if (err) {
 					mlx5_vdpa_warn(mvdev, "failed to resume VQs\n");
 					goto err_driver;
@@ -3628,7 +3616,7 @@ static int mlx5_vdpa_resume(struct vdpa_device *vdev)
 
 	down_write(&ndev->reslock);
 	mvdev->suspended = false;
-	err = resume_vqs(ndev);
+	err = resume_vqs(ndev, 0, ndev->cur_num_vqs);
 	register_link_notifier(ndev);
 	up_write(&ndev->reslock);
 
