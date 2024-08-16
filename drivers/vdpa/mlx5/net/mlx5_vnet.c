@@ -1189,6 +1189,11 @@ struct mlx5_virtqueue_query_mem {
 	u8 out[MLX5_ST_SZ_BYTES(query_virtio_net_q_out)];
 };
 
+struct mlx5_virtqueue_modify_mem {
+	u8 in[MLX5_ST_SZ_BYTES(modify_virtio_net_q_in)];
+	u8 out[MLX5_ST_SZ_BYTES(modify_virtio_net_q_out)];
+};
+
 static void fill_query_virtqueue_cmd(struct mlx5_vdpa_net *ndev,
 				     struct mlx5_vdpa_virtqueue *mvq,
 				     struct mlx5_virtqueue_query_mem *cmd)
@@ -1298,51 +1303,30 @@ static bool modifiable_virtqueue_fields(struct mlx5_vdpa_virtqueue *mvq)
 	return true;
 }
 
-static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
-			    struct mlx5_vdpa_virtqueue *mvq,
-			    int state)
+static void fill_modify_virtqueue_cmd(struct mlx5_vdpa_net *ndev,
+				      struct mlx5_vdpa_virtqueue *mvq,
+				      int state,
+				      struct mlx5_virtqueue_modify_mem *cmd)
 {
-	int inlen = MLX5_ST_SZ_BYTES(modify_virtio_net_q_in);
-	u32 out[MLX5_ST_SZ_DW(modify_virtio_net_q_out)] = {};
 	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
 	struct mlx5_vdpa_mr *desc_mr = NULL;
 	struct mlx5_vdpa_mr *vq_mr = NULL;
-	bool state_change = false;
 	void *obj_context;
 	void *cmd_hdr;
 	void *vq_ctx;
-	void *in;
-	int err;
 
-	if (mvq->fw_state == MLX5_VIRTIO_NET_Q_OBJECT_NONE)
-		return 0;
-
-	if (!modifiable_virtqueue_fields(mvq))
-		return -EINVAL;
-
-	in = kzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	cmd_hdr = MLX5_ADDR_OF(modify_virtio_net_q_in, in, general_obj_in_cmd_hdr);
+	cmd_hdr = MLX5_ADDR_OF(modify_virtio_net_q_in, cmd->in, general_obj_in_cmd_hdr);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, opcode, MLX5_CMD_OP_MODIFY_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_type, MLX5_OBJ_TYPE_VIRTIO_NET_Q);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_id, mvq->virtq_id);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, uid, ndev->mvdev.res.uid);
 
-	obj_context = MLX5_ADDR_OF(modify_virtio_net_q_in, in, obj_context);
+	obj_context = MLX5_ADDR_OF(modify_virtio_net_q_in, cmd->in, obj_context);
 	vq_ctx = MLX5_ADDR_OF(virtio_net_q_object, obj_context, virtio_q_context);
 
-	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_STATE) {
-		if (!is_valid_state_change(mvq->fw_state, state, is_resumable(ndev))) {
-			err = -EINVAL;
-			goto done;
-		}
-
+	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_STATE)
 		MLX5_SET(virtio_net_q_object, obj_context, state, state);
-		state_change = true;
-	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_ADDRS) {
 		MLX5_SET64(virtio_q, vq_ctx, desc_addr, mvq->desc_addr);
@@ -1388,38 +1372,36 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 	}
 
 	MLX5_SET64(virtio_net_q_object, obj_context, modify_field_select, mvq->modified_fields);
-	err = mlx5_cmd_exec(ndev->mvdev.mdev, in, inlen, out, sizeof(out));
-	if (err)
-		goto done;
+}
 
-	if (state_change)
-		mvq->fw_state = state;
+static void modify_virtqueue_end(struct mlx5_vdpa_net *ndev,
+				 struct mlx5_vdpa_virtqueue *mvq,
+				 int state)
+{
+	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
+		unsigned int asid = mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP];
+		struct mlx5_vdpa_mr *vq_mr = mvdev->mr[asid];
+
 		mlx5_vdpa_put_mr(mvdev, mvq->vq_mr);
 		mlx5_vdpa_get_mr(mvdev, vq_mr);
 		mvq->vq_mr = vq_mr;
 	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY) {
+		unsigned int asid = mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP];
+		struct mlx5_vdpa_mr *desc_mr = mvdev->mr[asid];
+
 		mlx5_vdpa_put_mr(mvdev, mvq->desc_mr);
 		mlx5_vdpa_get_mr(mvdev, desc_mr);
 		mvq->desc_mr = desc_mr;
 	}
 
+	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_STATE)
+		mvq->fw_state = state;
+
 	mvq->modified_fields = 0;
-
-done:
-	kfree(in);
-	return err;
-}
-
-static int modify_virtqueue_state(struct mlx5_vdpa_net *ndev,
-				  struct mlx5_vdpa_virtqueue *mvq,
-				  unsigned int state)
-{
-	mvq->modified_fields |= MLX5_VIRTQ_MODIFY_MASK_STATE;
-	return modify_virtqueue(ndev, mvq, state);
 }
 
 static int counter_set_alloc(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
@@ -1572,6 +1554,82 @@ err_fwqp:
 	return err;
 }
 
+static int modify_virtqueues(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs, int state)
+{
+	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
+	struct mlx5_virtqueue_modify_mem *cmd_mem;
+	struct mlx5_vdpa_async_cmd *cmds;
+	int err = 0;
+
+	WARN(start_vq + num_vqs > mvdev->max_vqs, "modify vq range invalid [%d, %d), max_vqs: %u\n",
+	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
+
+	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
+	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	if (!cmds || !cmd_mem) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	for (int i = 0; i < num_vqs; i++) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i];
+		struct mlx5_vdpa_virtqueue *mvq;
+		int vq_idx = start_vq + i;
+
+		mvq = &ndev->vqs[vq_idx];
+
+		if (!modifiable_virtqueue_fields(mvq)) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		if (mvq->fw_state != state) {
+			if (!is_valid_state_change(mvq->fw_state, state, is_resumable(ndev))) {
+				err = -EINVAL;
+				goto done;
+			}
+
+			mvq->modified_fields |= MLX5_VIRTQ_MODIFY_MASK_STATE;
+		}
+
+		cmd->in = &cmd_mem[i].in;
+		cmd->inlen = sizeof(cmd_mem[i].in);
+		cmd->out = &cmd_mem[i].out;
+		cmd->outlen = sizeof(cmd_mem[i].out);
+		fill_modify_virtqueue_cmd(ndev, mvq, state, &cmd_mem[i]);
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(&ndev->mvdev, cmds, num_vqs);
+	if (err) {
+		mlx5_vdpa_err(mvdev, "error issuing modify cmd for vq range [%d, %d)\n",
+			      start_vq, start_vq + num_vqs);
+		goto done;
+	}
+
+	for (int i = 0; i < num_vqs; i++) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i];
+		struct mlx5_vdpa_virtqueue *mvq;
+		int vq_idx = start_vq + i;
+
+		mvq = &ndev->vqs[vq_idx];
+
+		if (cmd->err) {
+			mlx5_vdpa_err(mvdev, "modify vq %d failed, state: %d -> %d, err: %d\n",
+				      vq_idx, mvq->fw_state, state, err);
+			if (!err)
+				err = cmd->err;
+			continue;
+		}
+
+		modify_virtqueue_end(ndev, mvq, state);
+	}
+
+done:
+	kvfree(cmd_mem);
+	kvfree(cmds);
+	return err;
+}
+
 static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
 	struct mlx5_virtq_attr attr;
@@ -1583,7 +1641,7 @@ static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mv
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
 		return 0;
 
-	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
+	err = modify_virtqueues(ndev, mvq->index, 1, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
 	if (err) {
 		mlx5_vdpa_err(&ndev->mvdev, "modify to suspend failed, err: %d\n", err);
 		return err;
@@ -1630,7 +1688,7 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 		/* Due to a FW quirk we need to modify the VQ fields first then change state.
 		 * This should be fixed soon. After that, a single command can be used.
 		 */
-		err = modify_virtqueue(ndev, mvq, 0);
+		err = modify_virtqueues(ndev, mvq->index, 1, mvq->fw_state);
 		if (err) {
 			mlx5_vdpa_err(&ndev->mvdev,
 				"modify vq properties failed for vq %u, err: %d\n",
@@ -1652,7 +1710,7 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 		return -EINVAL;
 	}
 
-	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
+	err = modify_virtqueues(ndev, mvq->index, 1, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
 	if (err)
 		mlx5_vdpa_err(&ndev->mvdev, "modify to resume failed for vq %u, err: %d\n",
 			      mvq->index, err);
