@@ -49,7 +49,6 @@
 
 #define E1000_PF_CONTROL_MSG	0x0100 /* PF control message */
 
-void e1000_init_mbx_ops_generic(struct e1000_hw *hw);
 s32 e1000_init_mbx_params_vf(struct e1000_hw *);
 
 #endif /* _E1000_MBX_H_ */
