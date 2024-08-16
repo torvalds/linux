@@ -92,8 +92,6 @@
 #include <linux/export.h>
 #include <linux/ioam6.h>
 
-#define	INFINITY_LIFE_TIME	0xFFFFFFFF
-
 #define IPV6_MAX_STRLEN \
 	sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
 
