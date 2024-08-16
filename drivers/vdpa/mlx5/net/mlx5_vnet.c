@@ -2850,6 +2850,9 @@ static int event_handler(struct notifier_block *nb, unsigned long event, void *p
 	struct mlx5_eqe *eqe = param;
 	int ret = NOTIFY_DONE;
 
+	if (ndev->mvdev.suspended)
+		return NOTIFY_DONE;
+
 	if (event == MLX5_EVENT_TYPE_PORT_CHANGE) {
 		switch (eqe->sub_type) {
 		case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
@@ -3595,7 +3598,6 @@ static int mlx5_vdpa_suspend(struct vdpa_device *vdev)
 	mlx5_vdpa_info(mvdev, "suspending device\n");
 
 	down_write(&ndev->reslock);
-	unregister_link_notifier(ndev);
 	err = suspend_vqs(ndev, 0, ndev->cur_num_vqs);
 	mlx5_vdpa_cvq_suspend(mvdev);
 	mvdev->suspended = true;
@@ -3617,7 +3619,7 @@ static int mlx5_vdpa_resume(struct vdpa_device *vdev)
 	down_write(&ndev->reslock);
 	mvdev->suspended = false;
 	err = resume_vqs(ndev, 0, ndev->cur_num_vqs);
-	register_link_notifier(ndev);
+	queue_link_work(ndev);
 	up_write(&ndev->reslock);
 
 	return err;
