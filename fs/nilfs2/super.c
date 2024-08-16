@@ -105,6 +105,10 @@ static void nilfs_set_error(struct super_block *sb)
 
 /**
  * __nilfs_error() - report failure condition on a filesystem
+ * @sb:       super block instance
+ * @function: name of calling function
+ * @fmt:      format string for message to be output
+ * @...:      optional arguments to @fmt
  *
  * __nilfs_error() sets an ERROR_FS flag on the superblock as well as
  * reporting an error message.  This function should be called when
