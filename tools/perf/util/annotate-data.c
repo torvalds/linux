@@ -375,6 +375,13 @@ static const char *match_result_str(enum type_match_result tmr)
 	}
 }
 
+static bool is_pointer_type(Dwarf_Die *type_die)
+{
+	int tag = dwarf_tag(type_die);
+
+	return tag == DW_TAG_pointer_type || tag == DW_TAG_array_type;
+}
+
 /* The type info will be saved in @type_die */
 static enum type_match_result check_variable(struct data_loc_info *dloc,
 					     Dwarf_Die *var_die,
@@ -382,15 +389,15 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 					     int offset, bool is_fbreg)
 {
 	Dwarf_Word size;
-	bool is_pointer = true;
+	bool needs_pointer = true;
 	Dwarf_Die sized_type;
 
 	if (reg == DWARF_REG_PC)
-		is_pointer = false;
+		needs_pointer = false;
 	else if (reg == dloc->fbreg || is_fbreg)
-		is_pointer = false;
+		needs_pointer = false;
 	else if (arch__is(dloc->arch, "x86") && reg == X86_REG_SP)
-		is_pointer = false;
+		needs_pointer = false;
 
 	/* Get the type of the variable */
 	if (__die_get_real_type(var_die, type_die) == NULL) {
@@ -403,9 +410,8 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 	 * Convert to a real type it points to.  But global variables
 	 * and local variables are accessed directly without a pointer.
 	 */
-	if (is_pointer) {
-		if ((dwarf_tag(type_die) != DW_TAG_pointer_type &&
-		     dwarf_tag(type_die) != DW_TAG_array_type) ||
+	if (needs_pointer) {
+		if (!is_pointer_type(type_die) ||
 		    __die_get_real_type(type_die, type_die) == NULL) {
 			ann_data_stat.no_typeinfo++;
 			return PERF_TMR_NO_POINTER;
@@ -887,14 +893,13 @@ static enum type_match_result check_matching_type(struct type_state *state,
 		     state->regs[reg].ok, state->regs[reg].kind);
 
 	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_TYPE) {
-		int tag = dwarf_tag(&state->regs[reg].type);
 		Dwarf_Die sized_type;
 
 		/*
 		 * Normal registers should hold a pointer (or array) to
 		 * dereference a memory location.
 		 */
-		if (tag != DW_TAG_pointer_type && tag != DW_TAG_array_type) {
+		if (!is_pointer_type(&state->regs[reg].type)) {
 			if (dloc->op->offset < 0 && reg != state->stack_reg)
 				goto check_kernel;
 
