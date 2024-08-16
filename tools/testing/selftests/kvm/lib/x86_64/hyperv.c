@@ -67,6 +67,14 @@ const struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu)
 	return cpuid;
 }
 
+bool kvm_hv_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	if (!kvm_has_cap(KVM_CAP_SYS_HYPERV_CPUID))
+		return false;
+
+	return kvm_cpuid_has(kvm_get_supported_hv_cpuid(), feature);
+}
+
 struct hyperv_test_pages *vcpu_alloc_hyperv_test_pages(struct kvm_vm *vm,
 						       vm_vaddr_t *p_hv_pages_gva)
 {
