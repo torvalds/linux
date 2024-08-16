@@ -649,7 +649,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 			return -EINVAL;
 		}
 
-		sub_nodes[fled_id] = child_node;
+		sub_nodes[fled_id] = of_node_get(child_node);
 		sub_leds[fled_id].fled_id = fled_id;
 
 		cfg->label[fled_id] =
@@ -968,7 +968,7 @@ static int max77693_led_probe(struct platform_device *pdev)
 
 	ret = max77693_setup(led, &led_cfg);
 	if (ret < 0)
-		return ret;
+		goto err_setup;
 
 	mutex_init(&led->lock);
 
@@ -1000,6 +1000,8 @@ static int max77693_led_probe(struct platform_device *pdev)
 			else
 				goto err_register_led1;
 		}
+		of_node_put(sub_nodes[i]);
+		sub_nodes[i] = NULL;
 	}
 
 	return 0;
@@ -1013,6 +1015,9 @@ err_register_led2:
 err_register_led1:
 	mutex_destroy(&led->lock);
 
+err_setup:
+	for (i = FLED1; i <= FLED2; i++)
+		of_node_put(sub_nodes[i]);
 	return ret;
 }
 
