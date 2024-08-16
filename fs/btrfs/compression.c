@@ -521,6 +521,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		}
 		add_size = min(em->start + em->len, page_end + 1) - cur;
 		free_extent_map(em);
+		unlock_extent(tree, cur, page_end, NULL);
 
 		if (folio->index == end_index) {
 			size_t zero_offset = offset_in_folio(folio, isize);
@@ -534,7 +535,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 
 		if (!bio_add_folio(orig_bio, folio, add_size,
 				   offset_in_folio(folio, cur))) {
-			unlock_extent(tree, cur, page_end, NULL);
 			folio_unlock(folio);
 			folio_put(folio);
 			break;

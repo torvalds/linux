@@ -365,7 +365,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	int ret = 0;
 	u64 len = length;
 	const u64 data_alloc_len = length;
-	bool unlock_extents = false;
+	u32 unlock_bits = EXTENT_LOCKED;
 
 	/*
 	 * We could potentially fault if we have a buffer > PAGE_SIZE, and if
@@ -526,7 +526,6 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 						    start, &len, flags);
 		if (ret < 0)
 			goto unlock_err;
-		unlock_extents = true;
 		/* Recalc len in case the new em is smaller than requested */
 		len = min(len, em->len - (start - em->start));
 		if (dio_data->data_space_reserved) {
@@ -547,22 +546,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 							       release_offset,
 							       release_len);
 		}
-	} else {
-		/*
-		 * We need to unlock only the end area that we aren't using.
-		 * The rest is going to be unlocked by the endio routine.
-		 */
-		lockstart = start + len;
-		if (lockstart < lockend)
-			unlock_extents = true;
 	}
-
-	if (unlock_extents)
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				 EXTENT_LOCKED | EXTENT_DIO_LOCKED,
-				 &cached_state);
-	else
-		free_extent_state(cached_state);
 
 	/*
 	 * Translate extent map information to iomap.
@@ -581,6 +565,23 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	iomap->bdev = fs_info->fs_devices->latest_dev->bdev;
 	iomap->length = len;
 	free_extent_map(em);
+
+	/*
+	 * Reads will hold the EXTENT_DIO_LOCKED bit until the io is completed,
+	 * writes only hold it for this part.  We hold the extent lock until
+	 * we're completely done with the extent map to make sure it remains
+	 * valid.
+	 */
+	if (write)
+		unlock_bits |= EXTENT_DIO_LOCKED;
+
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			 unlock_bits, &cached_state);
+
+	/* We didn't use everything, unlock the dio extent for the remainder. */
+	if (!write && (start + len) < lockend)
+		unlock_dio_extent(&BTRFS_I(inode)->io_tree, start + len,
+				  lockend, NULL);
 
 	return 0;
 
@@ -614,8 +615,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	if (!write && (iomap->type == IOMAP_HOLE)) {
 		/* If reading from a hole, unlock and return */
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, pos, pos + length - 1,
-				 EXTENT_LOCKED | EXTENT_DIO_LOCKED, NULL);
+		unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+				  pos + length - 1, NULL);
 		return 0;
 	}
 
@@ -626,9 +627,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 			btrfs_finish_ordered_extent(dio_data->ordered, NULL,
 						    pos, length, false);
 		else
-			clear_extent_bit(&BTRFS_I(inode)->io_tree, pos,
-					 pos + length - 1,
-					 EXTENT_LOCKED | EXTENT_DIO_LOCKED, NULL);
+			unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+					  pos + length - 1, NULL);
 		ret = -ENOTBLK;
 	}
 	if (write) {
@@ -660,9 +660,8 @@ static void btrfs_dio_end_io(struct btrfs_bio *bbio)
 					    dip->file_offset, dip->bytes,
 					    !bio->bi_status);
 	} else {
-		clear_extent_bit(&inode->io_tree, dip->file_offset,
-				 dip->file_offset + dip->bytes - 1,
-				 EXTENT_LOCKED | EXTENT_DIO_LOCKED, NULL);
+		unlock_dio_extent(&inode->io_tree, dip->file_offset,
+				  dip->file_offset + dip->bytes - 1, NULL);
 	}
 
 	bbio->bio.bi_private = bbio->private;
