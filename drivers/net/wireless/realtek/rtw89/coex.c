@@ -2610,6 +2610,10 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 			rtw89_fw_h2c_cxdrv_role_v1(rtwdev, type);
 		else if (ver->fwlrole == 2)
 			rtw89_fw_h2c_cxdrv_role_v2(rtwdev, type);
+		else if (ver->fwlrole == 7)
+			rtw89_fw_h2c_cxdrv_role_v7(rtwdev, type);
+		else if (ver->fwlrole == 8)
+			rtw89_fw_h2c_cxdrv_role_v8(rtwdev, type);
 		break;
 	case CXDRVINFO_CTRL:
 		if (ver->drvinfo_type == 1)
@@ -2791,7 +2795,7 @@ static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
 	rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
 }
 
-#define BTC_TDMA_WLROLE_MAX 2
+#define BTC_TDMA_WLROLE_MAX 3
 
 static void _set_bt_ignore_wlan_act(struct rtw89_dev *rtwdev, u8 enable)
 {
@@ -5610,6 +5614,14 @@ _update_rssi_state(struct rtw89_dev *rtwdev, u8 pre_state, u8 rssi, u8 thresh)
 	return next_state;
 }
 
+static void _wl_req_mac(struct rtw89_dev *rtwdev, u8 mac)
+{
+	if (mac == RTW89_MAC_0)
+		rtw89_write32_clr(rtwdev, R_AX_BTC_CFG, B_AX_WL_SRC);
+	else
+		rtw89_write32_set(rtwdev, R_AX_BTC_CFG, B_AX_WL_SRC);
+}
+
 static
 void _update_dbcc_band(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
@@ -6108,12 +6120,20 @@ static u8 _chk_dbcc(struct rtw89_dev *rtwdev, struct rtw89_btc_chdef *ch,
 		    u8 *phy, u8 *role, u8 *dbcc_2g_phy)
 {
 	struct rtw89_btc_wl_info *wl = &rtwdev->btc.cx.wl;
-	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &wl->role_info_v8;
+	struct rtw89_btc_wl_role_info_v7 *rinfo_v7 = &wl->role_info_v7;
+	struct rtw89_btc_wl_role_info_v8 *rinfo_v8 = &wl->role_info_v8;
 	bool is_2g_ch_exist = false, is_multi_role_in_2g_phy = false;
-	u8 j, k, dbcc_2g_cid, dbcc_2g_cid2;
+	u8 j, k, dbcc_2g_cid, dbcc_2g_cid2, connect_cnt;
+
+	if (rtwdev->btc.ver->fwlrole == 7)
+		connect_cnt = rinfo_v7->connect_cnt;
+	else if (rtwdev->btc.ver->fwlrole == 8)
+		connect_cnt = rinfo_v8->connect_cnt;
+	else
+		return BTC_WLINK_NOLINK;
 
 	/* find out the 2G-PHY by connect-id ->ch  */
-	for (j = 0; j < wl_rinfo->connect_cnt; j++) {
+	for (j = 0; j < connect_cnt; j++) {
 		if (ch[j].center_ch <= 14) {
 			is_2g_ch_exist = true;
 			break;
@@ -6128,11 +6148,11 @@ static u8 _chk_dbcc(struct rtw89_dev *rtwdev, struct rtw89_btc_chdef *ch,
 	*dbcc_2g_phy = phy[dbcc_2g_cid];
 
 	/* connect_cnt <= 2 */
-	if (wl_rinfo->connect_cnt < BTC_TDMA_WLROLE_MAX)
+	if (connect_cnt < BTC_TDMA_WLROLE_MAX)
 		return (_get_role_link_mode((role[dbcc_2g_cid])));
 
 	/* find the other-port in the 2G-PHY, ex: PHY-0:6G, PHY1: mcc/scc */
-	for (k = 0; k < wl_rinfo->connect_cnt; k++) {
+	for (k = 0; k < connect_cnt; k++) {
 		if (k == dbcc_2g_cid)
 			continue;
 
@@ -6159,29 +6179,54 @@ static u8 _chk_dbcc(struct rtw89_dev *rtwdev, struct rtw89_btc_chdef *ch,
 static void _update_role_link_mode(struct rtw89_dev *rtwdev,
 				   bool client_joined, u32 noa)
 {
-	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &rtwdev->btc.cx.wl.role_info_v8;
+	struct rtw89_btc_wl_role_info_v8 *rinfo_v8 = &rtwdev->btc.cx.wl.role_info_v8;
+	struct rtw89_btc_wl_role_info_v7 *rinfo_v7 = &rtwdev->btc.cx.wl.role_info_v7;
+	u8 role_ver = rtwdev->btc.ver->fwlrole;
 	u32 type = BTC_WLMROLE_NONE, dur = 0;
-	u32 wl_role = wl_rinfo->role_map;
+	u8 link_mode, connect_cnt;
+	u32 wl_role;
+
+	if (role_ver == 7) {
+		wl_role = rinfo_v7->role_map;
+		link_mode = rinfo_v7->link_mode;
+		connect_cnt = rinfo_v7->connect_cnt;
+	} else if (role_ver == 8) {
+		wl_role = rinfo_v8->role_map;
+		link_mode = rinfo_v8->link_mode;
+		connect_cnt = rinfo_v8->connect_cnt;
+	} else {
+		return;
+	}
 
 	/* if no client_joined, don't care P2P-GO/AP role */
 	if (((wl_role & BIT(RTW89_WIFI_ROLE_P2P_GO)) ||
 	     (wl_role & BIT(RTW89_WIFI_ROLE_AP))) && !client_joined) {
-		if (wl_rinfo->link_mode == BTC_WLINK_2G_SCC) {
-			wl_rinfo->link_mode = BTC_WLINK_2G_STA;
-			wl_rinfo->connect_cnt--;
-		} else if (wl_rinfo->link_mode == BTC_WLINK_2G_GO ||
-			wl_rinfo->link_mode == BTC_WLINK_2G_AP) {
-			wl_rinfo->link_mode = BTC_WLINK_NOLINK;
-			wl_rinfo->connect_cnt--;
+		if (link_mode == BTC_WLINK_2G_SCC) {
+			if (role_ver == 7) {
+				rinfo_v7->link_mode = BTC_WLINK_2G_STA;
+				rinfo_v7->connect_cnt--;
+			} else if (role_ver == 8) {
+				rinfo_v8->link_mode = BTC_WLINK_2G_STA;
+				rinfo_v8->connect_cnt--;
+			}
+		} else if (link_mode == BTC_WLINK_2G_GO ||
+			   link_mode == BTC_WLINK_2G_AP) {
+			if (role_ver == 7) {
+				rinfo_v7->link_mode = BTC_WLINK_NOLINK;
+				rinfo_v7->connect_cnt--;
+			} else if (role_ver == 8) {
+				rinfo_v8->link_mode = BTC_WLINK_NOLINK;
+				rinfo_v8->connect_cnt--;
+			}
 		}
 	}
 
 	/* Identify 2-Role type  */
-	if (wl_rinfo->connect_cnt >= 2 &&
-	    (wl_rinfo->link_mode == BTC_WLINK_2G_SCC ||
-	     wl_rinfo->link_mode == BTC_WLINK_2G_MCC ||
-	     wl_rinfo->link_mode == BTC_WLINK_25G_MCC ||
-	     wl_rinfo->link_mode == BTC_WLINK_5G)) {
+	if (connect_cnt >= 2 &&
+	    (link_mode == BTC_WLINK_2G_SCC ||
+	     link_mode == BTC_WLINK_2G_MCC ||
+	     link_mode == BTC_WLINK_25G_MCC ||
+	     link_mode == BTC_WLINK_5G)) {
 		if ((wl_role & BIT(RTW89_WIFI_ROLE_P2P_GO)) ||
 		    (wl_role & BIT(RTW89_WIFI_ROLE_AP)))
 			type = noa ? BTC_WLMROLE_STA_GO_NOA : BTC_WLMROLE_STA_GO;
@@ -6193,8 +6238,167 @@ static void _update_role_link_mode(struct rtw89_dev *rtwdev,
 		dur = noa;
 	}
 
-	wl_rinfo->mrole_type = type;
-	wl_rinfo->mrole_noa_duration = dur;
+	if (role_ver == 7) {
+		rinfo_v7->mrole_type = type;
+		rinfo_v7->mrole_noa_duration = dur;
+	} else if (role_ver == 8) {
+		rinfo_v8->mrole_type = type;
+		rinfo_v8->mrole_noa_duration = dur;
+	}
+}
+
+static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
+{
+	struct rtw89_btc_chdef cid_ch[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER];
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_wl_role_info_v7 *wl_rinfo = &wl->role_info_v7;
+	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
+	struct rtw89_btc_wl_link_info *wl_linfo = wl->link_info;
+	struct rtw89_btc_wl_active_role_v7 *act_role = NULL;
+	u8 i, mode, cnt = 0, cnt_2g = 0, cnt_5g = 0, phy_now = RTW89_PHY_MAX, phy_dbcc;
+	bool b2g = false, b5g = false, client_joined = false, client_inc_2g = false;
+	u8 client_cnt_last[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER] = {};
+	u8 cid_role[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER] = {};
+	u8 cid_phy[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER] = {};
+	u8 mac = RTW89_MAC_0, dbcc_2g_phy = RTW89_PHY_0;
+	u32 noa_duration = 0;
+
+	memset(wl_rinfo, 0, sizeof(*wl_rinfo));
+
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
+		if (!wl_linfo[i].active || wl_linfo[i].phy >= RTW89_PHY_MAX)
+			continue;
+
+		act_role = &wl_rinfo->active_role[i];
+		act_role->role = wl_linfo[i].role;
+
+		/* check if role connect? */
+		if (wl_linfo[i].connected == MLME_NO_LINK) {
+			act_role->connected = 0;
+			continue;
+		} else if (wl_linfo[i].connected == MLME_LINKING) {
+			continue;
+		}
+
+		cnt++;
+		act_role->connected = 1;
+		act_role->pid = wl_linfo[i].pid;
+		act_role->phy = wl_linfo[i].phy;
+		act_role->band = wl_linfo[i].band;
+		act_role->ch = wl_linfo[i].ch;
+		act_role->bw = wl_linfo[i].bw;
+		act_role->noa = wl_linfo[i].noa;
+		act_role->noa_dur = wl_linfo[i].noa_duration;
+		cid_ch[cnt - 1] = wl_linfo[i].chdef;
+		cid_phy[cnt - 1] = wl_linfo[i].phy;
+		cid_role[cnt - 1] = wl_linfo[i].role;
+		wl_rinfo->role_map |= BIT(wl_linfo[i].role);
+
+		if (rid == i)
+			phy_now = act_role->phy;
+
+		if (wl_linfo[i].role == RTW89_WIFI_ROLE_P2P_GO ||
+		    wl_linfo[i].role == RTW89_WIFI_ROLE_AP) {
+			if (wl_linfo[i].client_cnt > 1)
+				client_joined = true;
+			if (client_cnt_last[i] < wl_linfo[i].client_cnt &&
+			    wl_linfo[i].chdef.band == RTW89_BAND_2G)
+				client_inc_2g = true;
+			act_role->client_cnt = wl_linfo[i].client_cnt;
+		} else {
+			act_role->client_cnt = 0;
+		}
+
+		if (act_role->noa && act_role->noa_dur > 0)
+			noa_duration = act_role->noa_dur;
+
+		if (rtwdev->dbcc_en) {
+			phy_dbcc = wl_linfo[i].phy;
+			wl_dinfo->role[phy_dbcc] |= BIT(wl_linfo[i].role);
+			wl_dinfo->op_band[phy_dbcc] = wl_linfo[i].chdef.band;
+		}
+
+		if (wl_linfo[i].chdef.band != RTW89_BAND_2G) {
+			cnt_5g++;
+			b5g = true;
+		} else {
+			if (((wl_linfo[i].role == RTW89_WIFI_ROLE_P2P_GO ||
+			      wl_linfo[i].role == RTW89_WIFI_ROLE_AP) &&
+			     client_joined) ||
+			    wl_linfo[i].role == RTW89_WIFI_ROLE_P2P_CLIENT)
+				wl_rinfo->p2p_2g = 1;
+
+			if ((wl_linfo[i].mode & BIT(BTC_WL_MODE_11B)) ||
+			    (wl_linfo[i].mode & BIT(BTC_WL_MODE_11G)))
+				wl->bg_mode = 1;
+			else if (wl_linfo[i].mode & BIT(BTC_WL_MODE_HE))
+				wl->he_mode = true;
+
+			cnt_2g++;
+			b2g = true;
+		}
+
+		if (act_role->band == RTW89_BAND_5G && act_role->ch >= 100)
+			wl->is_5g_hi_channel = 1;
+		else
+			wl->is_5g_hi_channel = 0;
+	}
+
+	wl_rinfo->connect_cnt = cnt;
+	wl->client_cnt_inc_2g = client_inc_2g;
+
+	if (cnt == 0) {
+		mode = BTC_WLINK_NOLINK;
+		wl_rinfo->role_map = BIT(RTW89_WIFI_ROLE_NONE);
+	} else if (!b2g && b5g) {
+		mode = BTC_WLINK_5G;
+	} else if (wl_rinfo->role_map & BIT(RTW89_WIFI_ROLE_NAN)) {
+		mode = BTC_WLINK_2G_NAN;
+	} else if (cnt > BTC_TDMA_WLROLE_MAX) {
+		mode = BTC_WLINK_OTHER;
+	} else if (rtwdev->dbcc_en) {
+		mode = _chk_dbcc(rtwdev, cid_ch, cid_phy, cid_role, &dbcc_2g_phy);
+
+		/* correct 2G-located PHY band for gnt ctrl */
+		if (dbcc_2g_phy < RTW89_PHY_MAX)
+			wl_dinfo->op_band[dbcc_2g_phy] = RTW89_BAND_2G;
+	} else if (b2g && b5g && cnt == 2) {
+		mode = BTC_WLINK_25G_MCC;
+	} else if (!b5g && cnt == 2) { /* cnt_connect = 2 */
+		if (_chk_role_ch_group(&cid_ch[0], &cid_ch[cnt - 1]))
+			mode = BTC_WLINK_2G_SCC;
+		else
+			mode = BTC_WLINK_2G_MCC;
+	} else if (!b5g && cnt == 1) { /* cnt_connect = 1 */
+		mode = _get_role_link_mode(cid_role[0]);
+	} else {
+		mode = BTC_WLINK_NOLINK;
+	}
+
+	wl_rinfo->link_mode = mode;
+	_update_role_link_mode(rtwdev, client_joined, noa_duration);
+
+	/* todo DBCC related event */
+	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC] wl_info phy_now=%d\n", phy_now);
+
+	if (wl_rinfo->dbcc_en != rtwdev->dbcc_en) {
+		wl_rinfo->dbcc_chg = 1;
+		wl_rinfo->dbcc_en = rtwdev->dbcc_en;
+		btc->cx.cnt_wl[BTC_WCNT_DBCC_CHG]++;
+	}
+
+	if (rtwdev->dbcc_en) {
+		wl_rinfo->dbcc_2g_phy = dbcc_2g_phy;
+
+		if (dbcc_2g_phy == RTW89_PHY_1)
+			mac = RTW89_MAC_1;
+
+		_update_dbcc_band(rtwdev, RTW89_PHY_0);
+		_update_dbcc_band(rtwdev, RTW89_PHY_1);
+	}
+	_wl_req_mac(rtwdev, mac);
+	_fw_set_drv_info(rtwdev, CXDRVINFO_ROLE);
 }
 
 static void _update_wl_info_v8(struct rtw89_dev *rtwdev, u8 role_id, u8 rlink_id,
@@ -7293,6 +7497,9 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 	} else if (ver->fwlrole == 2) {
 		*wlinfo = r;
 		_update_wl_info_v2(rtwdev);
+	} else if (ver->fwlrole == 7) {
+		*wlinfo = r;
+		_update_wl_info_v7(rtwdev, r.pid);
 	} else if (ver->fwlrole == 8) {
 		wlinfo = &wl->rlink_info[r.pid][rlink_id];
 		*wlinfo = r;
