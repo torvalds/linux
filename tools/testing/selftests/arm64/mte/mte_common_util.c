@@ -100,7 +100,7 @@ void *mte_insert_tags(void *ptr, size_t size)
 	int align_size;
 
 	if (!ptr || (unsigned long)(ptr) & MT_ALIGN_GRANULE) {
-		ksft_print_msg("FAIL: Addr=%lx: invalid\n", ptr);
+		ksft_print_msg("FAIL: Addr=%p: invalid\n", ptr);
 		return NULL;
 	}
 	align_size = MT_ALIGN_UP(size);
@@ -112,7 +112,7 @@ void *mte_insert_tags(void *ptr, size_t size)
 void mte_clear_tags(void *ptr, size_t size)
 {
 	if (!ptr || (unsigned long)(ptr) & MT_ALIGN_GRANULE) {
-		ksft_print_msg("FAIL: Addr=%lx: invalid\n", ptr);
+		ksft_print_msg("FAIL: Addr=%p: invalid\n", ptr);
 		return;
 	}
 	size = MT_ALIGN_UP(size);
