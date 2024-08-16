@@ -979,7 +979,8 @@ static int ucsi_register_cable(struct ucsi_connector *con)
 		break;
 	}
 
-	desc.identity = &con->cable_identity;
+	if (con->ucsi->cap.features & UCSI_CAP_GET_PD_MESSAGE)
+		desc.identity = &con->cable_identity;
 	desc.active = !!(UCSI_CABLE_PROP_FLAG_ACTIVE_CABLE &
 			 con->cable_prop.flags);
 	desc.pd_revision = UCSI_CABLE_PROP_FLAG_PD_MAJOR_REV_AS_BCD(
@@ -1058,7 +1059,8 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 	if (pwr_opmode == UCSI_CONSTAT_PWR_OPMODE_PD)
 		ucsi_register_device_pdos(con);
 
-	desc.identity = &con->partner_identity;
+	if (con->ucsi->cap.features & UCSI_CAP_GET_PD_MESSAGE)
+		desc.identity = &con->partner_identity;
 	desc.usb_pd = pwr_opmode == UCSI_CONSTAT_PWR_OPMODE_PD;
 	desc.pd_revision = UCSI_CONCAP_FLAG_PARTNER_PD_MAJOR_REV_AS_BCD(con->cap.flags);
 
