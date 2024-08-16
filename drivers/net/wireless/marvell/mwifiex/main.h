@@ -1303,14 +1303,12 @@ mwifiex_get_priv_by_id(struct mwifiex_adapter *adapter,
 	int i;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_mode == NL80211_IFTYPE_UNSPECIFIED)
-				continue;
+		if (adapter->priv[i]->bss_mode == NL80211_IFTYPE_UNSPECIFIED)
+			continue;
 
-			if ((adapter->priv[i]->bss_num == bss_num) &&
-			    (adapter->priv[i]->bss_type == bss_type))
-				break;
-		}
+		if ((adapter->priv[i]->bss_num == bss_num) &&
+		    (adapter->priv[i]->bss_type == bss_type))
+			break;
 	}
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
 }
@@ -1326,11 +1324,9 @@ mwifiex_get_priv(struct mwifiex_adapter *adapter,
 	int i;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (bss_role == MWIFIEX_BSS_ROLE_ANY ||
-			    GET_BSS_ROLE(adapter->priv[i]) == bss_role)
-				break;
-		}
+		if (bss_role == MWIFIEX_BSS_ROLE_ANY ||
+		    GET_BSS_ROLE(adapter->priv[i]) == bss_role)
+			break;
 	}
 
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
@@ -1348,12 +1344,10 @@ mwifiex_get_unused_bss_num(struct mwifiex_adapter *adapter, u8 bss_type)
 
 	memset(index, 0, sizeof(index));
 	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_type == bss_type &&
-			    !(adapter->priv[i]->bss_mode ==
-			      NL80211_IFTYPE_UNSPECIFIED)) {
-				index[adapter->priv[i]->bss_num] = 1;
-			}
+		if (adapter->priv[i]->bss_type == bss_type &&
+		    !(adapter->priv[i]->bss_mode ==
+		      NL80211_IFTYPE_UNSPECIFIED)) {
+			index[adapter->priv[i]->bss_num] = 1;
 		}
 	for (j = 0; j < MWIFIEX_MAX_BSS_NUM; j++)
 		if (!index[j])

@@ -127,10 +127,8 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 
 	/* Free private structures */
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			mwifiex_free_curr_bcn(adapter->priv[i]);
-			kfree(adapter->priv[i]);
-		}
+		mwifiex_free_curr_bcn(adapter->priv[i]);
+		kfree(adapter->priv[i]);
 	}
 
 	if (adapter->nd_info) {
@@ -1171,7 +1169,7 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 	}
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (!adapter->priv[i] || !adapter->priv[i]->netdev)
+		if (!adapter->priv[i]->netdev)
 			continue;
 		priv = adapter->priv[i];
 		p += sprintf(p, "\n[interface  : \"%s\"]\n",
@@ -1210,7 +1208,7 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
 	if (debug_info) {
 		for (i = 0; i < adapter->priv_num; i++) {
-			if (!adapter->priv[i] || !adapter->priv[i]->netdev)
+			if (!adapter->priv[i]->netdev)
 				continue;
 			priv = adapter->priv[i];
 			mwifiex_get_debug_info(priv, debug_info);
@@ -1472,7 +1470,7 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 	/* Stop data */
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
-		if (priv && priv->netdev) {
+		if (priv->netdev) {
 			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 			if (netif_carrier_ok(priv->netdev))
 				netif_carrier_off(priv->netdev);
@@ -1497,8 +1495,6 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
-		if (!priv)
-			continue;
 		rtnl_lock();
 		if (priv->netdev &&
 		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED) {

@@ -503,8 +503,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	if (disconnect_on_suspend) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (priv)
-				mwifiex_deauthenticate(priv, NULL);
+			mwifiex_deauthenticate(priv, NULL);
 		}
 	}
 

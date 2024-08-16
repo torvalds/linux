@@ -482,7 +482,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 	if ((adapter->event_cause & EVENT_ID_MASK) == EVENT_RADAR_DETECTED) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (priv && mwifiex_is_11h_active(priv)) {
+			if (mwifiex_is_11h_active(priv)) {
 				adapter->event_cause |=
 					((priv->bss_num & 0xff) << 16) |
 					((priv->bss_type & 0xff) << 24);

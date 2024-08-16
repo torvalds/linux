@@ -2051,8 +2051,6 @@ void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (!priv)
-				continue;
 			if (priv->scan_request) {
 				struct cfg80211_scan_info info = {
 					.aborted = true,

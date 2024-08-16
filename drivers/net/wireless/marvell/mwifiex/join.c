@@ -1582,8 +1582,7 @@ void mwifiex_deauthenticate_all(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
-		if (priv)
-			mwifiex_deauthenticate(priv, NULL);
+		mwifiex_deauthenticate(priv, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(mwifiex_deauthenticate_all);
