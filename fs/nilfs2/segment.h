@@ -22,10 +22,10 @@ struct nilfs_root;
  * struct nilfs_recovery_info - Recovery information
  * @ri_need_recovery: Recovery status
  * @ri_super_root: Block number of the last super root
- * @ri_ri_cno: Number of the last checkpoint
+ * @ri_cno: Number of the last checkpoint
  * @ri_lsegs_start: Region for roll-forwarding (start block number)
  * @ri_lsegs_end: Region for roll-forwarding (end block number)
- * @ri_lseg_start_seq: Sequence value of the segment at ri_lsegs_start
+ * @ri_lsegs_start_seq: Sequence value of the segment at ri_lsegs_start
  * @ri_used_segments: List of segments to be mark active
  * @ri_pseg_start: Block number of the last partial segment
  * @ri_seq: Sequence number on the last partial segment
@@ -107,7 +107,7 @@ struct nilfs_segsum_pointer {
  * @sc_wait_daemon: Daemon wait queue
  * @sc_wait_task: Start/end wait queue to control segctord task
  * @sc_seq_request: Request counter
- * @sc_seq_accept: Accepted request count
+ * @sc_seq_accepted: Accepted request count
  * @sc_seq_done: Completion counter
  * @sc_sync: Request of explicit sync operation
  * @sc_interval: Timeout value of background construction
@@ -115,6 +115,7 @@ struct nilfs_segsum_pointer {
  * @sc_lseg_stime: Start time of the latest logical segment
  * @sc_watermark: Watermark for the number of dirty buffers
  * @sc_timer: Timer for segctord
+ * @sc_timer_task: Thread woken up by @sc_timer
  * @sc_task: current thread of segctord
  */
 struct nilfs_sc_info {
