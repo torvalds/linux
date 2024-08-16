@@ -514,7 +514,8 @@ static void populate_dml21_stream_overrides_from_stream_state(
 		break;
 	}
 	if (!stream->ctx->dc->debug.enable_single_display_2to1_odm_policy ||
-			stream->debug.force_odm_combine_segments > 0)
+			stream->debug.force_odm_combine_segments > 0 ||
+			stream->ctx->dc->debug.force_sharpness > 1)
 		stream_desc->overrides.disable_dynamic_odm = true;
 	stream_desc->overrides.disable_subvp = stream->ctx->dc->debug.force_disable_subvp || stream->hw_cursor_req;
 }
@@ -777,6 +778,14 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 		 * certain cases. Hence do corrective active and disable scaling.
 		 */
 		plane->composition.scaler_info.enabled = false;
+	} else if ((plane_state->ctx->dc->config.use_spl == true) &&
+		(plane->composition.scaler_info.enabled == false)) {
+		/* To enable sharpener for 1:1, scaler must be enabled.  If use_spl is set, then
+		 *  allow case where ratio is 1 but taps > 1
+		 */
+		if ((scaler_data->taps.h_taps > 1) || (scaler_data->taps.v_taps > 1) ||
+			(scaler_data->taps.h_taps_c > 1) || (scaler_data->taps.v_taps_c > 1))
+			plane->composition.scaler_info.enabled = true;
 	}
 
 	/* always_scale is only used for debug purposes not used in production but has to be
