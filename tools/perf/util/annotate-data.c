@@ -432,10 +432,8 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 		needs_pointer = false;
 
 	/* Get the type of the variable */
-	if (__die_get_real_type(var_die, type_die) == NULL) {
-		ann_data_stat.no_typeinfo++;
+	if (__die_get_real_type(var_die, type_die) == NULL)
 		return PERF_TMR_NO_TYPE;
-	}
 
 	/*
 	 * Usually it expects a pointer type for a memory access.
@@ -444,10 +442,8 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 	 */
 	if (needs_pointer) {
 		if (!is_pointer_type(type_die) ||
-		    __die_get_real_type(type_die, type_die) == NULL) {
-			ann_data_stat.no_typeinfo++;
+		    __die_get_real_type(type_die, type_die) == NULL)
 			return PERF_TMR_NO_POINTER;
-		}
 	}
 
 	if (dwarf_tag(type_die) == DW_TAG_typedef)
@@ -456,16 +452,12 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 		sized_type = *type_die;
 
 	/* Get the size of the actual type */
-	if (dwarf_aggregate_size(&sized_type, &size) < 0) {
-		ann_data_stat.invalid_size++;
+	if (dwarf_aggregate_size(&sized_type, &size) < 0)
 		return PERF_TMR_NO_SIZE;
-	}
 
 	/* Minimal sanity check */
-	if ((unsigned)offset >= size) {
-		ann_data_stat.bad_offset++;
+	if ((unsigned)offset >= size)
 		return PERF_TMR_BAD_OFFSET;
-	}
 
 	return PERF_TMR_OK;
 }
@@ -1275,7 +1267,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	bool found = false;
 	u64 pc;
 	char buf[64];
-	enum type_match_result result;
+	enum type_match_result result = PERF_TMR_UNKNOWN;
 
 	if (dloc->op->multi_regs)
 		snprintf(buf, sizeof(buf), "reg%d, reg%d", dloc->op->reg1, dloc->op->reg2);
@@ -1317,7 +1309,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 			pr_debug_dtp("found by addr=%#"PRIx64" type_offset=%#x\n",
 				     dloc->var_addr, offset);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
-			ret = 0;
+			found = true;
 			goto out;
 		}
 	}
@@ -1416,16 +1408,37 @@ retry:
 		}
 	}
 
+out:
 	if (found) {
 		pr_debug_dtp("final type:");
 		pr_debug_type_name(type_die, TSR_KIND_TYPE);
 		ret = 0;
 	} else {
-		pr_debug_dtp("no variable found\n");
-		ann_data_stat.no_var++;
+		switch (result) {
+		case PERF_TMR_NO_TYPE:
+		case PERF_TMR_NO_POINTER:
+			pr_debug_dtp("%s\n", match_result_str(result));
+			ann_data_stat.no_typeinfo++;
+			break;
+		case PERF_TMR_NO_SIZE:
+			pr_debug_dtp("%s\n", match_result_str(result));
+			ann_data_stat.invalid_size++;
+			break;
+		case PERF_TMR_BAD_OFFSET:
+			pr_debug_dtp("%s\n", match_result_str(result));
+			ann_data_stat.bad_offset++;
+			break;
+		case PERF_TMR_UNKNOWN:
+		case PERF_TMR_BAIL_OUT:
+		case PERF_TMR_OK:  /* should not reach here */
+		default:
+			pr_debug_dtp("no variable found\n");
+			ann_data_stat.no_var++;
+			break;
+		}
+		ret = -1;
 	}
 
-out:
 	free(scopes);
 	return ret;
 }
