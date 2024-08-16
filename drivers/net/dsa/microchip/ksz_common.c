@@ -277,7 +277,7 @@ static const struct phylink_mac_ops ksz8_phylink_mac_ops = {
 	.mac_link_up	= ksz8_phylink_mac_link_up,
 };
 
-static const struct ksz_dev_ops ksz8_dev_ops = {
+static const struct ksz_dev_ops ksz88x3_dev_ops = {
 	.setup = ksz8_setup,
 	.get_port_addr = ksz8_get_port_addr,
 	.cfg_port_member = ksz8_cfg_port_member,
@@ -307,6 +307,44 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.init = ksz8_switch_init,
 	.exit = ksz8_switch_exit,
 	.change_mtu = ksz8_change_mtu,
+	.pme_write8 = ksz8_pme_write8,
+	.pme_pread8 = ksz8_pme_pread8,
+	.pme_pwrite8 = ksz8_pme_pwrite8,
+};
+
+static const struct ksz_dev_ops ksz87xx_dev_ops = {
+	.setup = ksz8_setup,
+	.get_port_addr = ksz8_get_port_addr,
+	.cfg_port_member = ksz8_cfg_port_member,
+	.flush_dyn_mac_table = ksz8_flush_dyn_mac_table,
+	.port_setup = ksz8_port_setup,
+	.r_phy = ksz8_r_phy,
+	.w_phy = ksz8_w_phy,
+	.r_mib_cnt = ksz8_r_mib_cnt,
+	.r_mib_pkt = ksz8_r_mib_pkt,
+	.r_mib_stat64 = ksz_r_mib_stats64,
+	.freeze_mib = ksz8_freeze_mib,
+	.port_init_cnt = ksz8_port_init_cnt,
+	.fdb_dump = ksz8_fdb_dump,
+	.fdb_add = ksz8_fdb_add,
+	.fdb_del = ksz8_fdb_del,
+	.mdb_add = ksz8_mdb_add,
+	.mdb_del = ksz8_mdb_del,
+	.vlan_filtering = ksz8_port_vlan_filtering,
+	.vlan_add = ksz8_port_vlan_add,
+	.vlan_del = ksz8_port_vlan_del,
+	.mirror_add = ksz8_port_mirror_add,
+	.mirror_del = ksz8_port_mirror_del,
+	.get_caps = ksz8_get_caps,
+	.config_cpu_port = ksz8_config_cpu_port,
+	.enable_stp_addr = ksz8_enable_stp_addr,
+	.reset = ksz8_reset_switch,
+	.init = ksz8_switch_init,
+	.exit = ksz8_switch_exit,
+	.change_mtu = ksz8_change_mtu,
+	.pme_write8 = ksz8_pme_write8,
+	.pme_pread8 = ksz8_pme_pread8,
+	.pme_pwrite8 = ksz8_pme_pwrite8,
 };
 
 static void ksz9477_phylink_mac_link_up(struct phylink_config *config,
@@ -348,9 +386,9 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = ksz9477_change_mtu,
-	.get_wol = ksz9477_get_wol,
-	.set_wol = ksz9477_set_wol,
-	.wol_pre_shutdown = ksz9477_wol_pre_shutdown,
+	.pme_write8 = ksz_write8,
+	.pme_pread8 = ksz_pread8,
+	.pme_pwrite8 = ksz_pwrite8,
 	.config_cpu_port = ksz9477_config_cpu_port,
 	.tc_cbs_set_cinc = ksz9477_tc_cbs_set_cinc,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
@@ -423,6 +461,9 @@ static const u16 ksz8795_regs[] = {
 	[S_MULTICAST_CTRL]		= 0x04,
 	[P_XMII_CTRL_0]			= 0x06,
 	[P_XMII_CTRL_1]			= 0x06,
+	[REG_SW_PME_CTRL]		= 0x8003,
+	[REG_PORT_PME_STATUS]		= 0x8003,
+	[REG_PORT_PME_CTRL]		= 0x8007,
 };
 
 static const u32 ksz8795_masks[] = {
@@ -539,6 +580,9 @@ static const u16 ksz9477_regs[] = {
 	[S_MULTICAST_CTRL]		= 0x0331,
 	[P_XMII_CTRL_0]			= 0x0300,
 	[P_XMII_CTRL_1]			= 0x0301,
+	[REG_SW_PME_CTRL]		= 0x0006,
+	[REG_PORT_PME_STATUS]		= 0x0013,
+	[REG_PORT_PME_CTRL]		= 0x0017,
 };
 
 static const u32 ksz9477_masks[] = {
@@ -1253,12 +1297,12 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.dev_name = "KSZ8795",
 		.num_vlans = 4096,
 		.num_alus = 0,
-		.num_statics = 8,
+		.num_statics = 32,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
 		.num_ipms = 4,
-		.ops = &ksz8_dev_ops,
+		.ops = &ksz87xx_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1294,12 +1338,12 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.dev_name = "KSZ8794",
 		.num_vlans = 4096,
 		.num_alus = 0,
-		.num_statics = 8,
+		.num_statics = 32,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
 		.num_ipms = 4,
-		.ops = &ksz8_dev_ops,
+		.ops = &ksz87xx_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1321,12 +1365,12 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.dev_name = "KSZ8765",
 		.num_vlans = 4096,
 		.num_alus = 0,
-		.num_statics = 8,
+		.num_statics = 32,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
 		.num_ipms = 4,
-		.ops = &ksz8_dev_ops,
+		.ops = &ksz87xx_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1353,7 +1397,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 3,
 		.num_tx_queues = 4,
 		.num_ipms = 4,
-		.ops = &ksz8_dev_ops,
+		.ops = &ksz88x3_dev_ops,
 		.phylink_mac_ops = &ksz8830_phylink_mac_ops,
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
@@ -3742,24 +3786,214 @@ static int ksz_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
+/**
+ * ksz_handle_wake_reason - Handle wake reason on a specified port.
+ * @dev: The device structure.
+ * @port: The port number.
+ *
+ * This function reads the PME (Power Management Event) status register of a
+ * specified port to determine the wake reason. If there is no wake event, it
+ * returns early. Otherwise, it logs the wake reason which could be due to a
+ * "Magic Packet", "Link Up", or "Energy Detect" event. The PME status register
+ * is then cleared to acknowledge the handling of the wake event.
+ *
+ * Return: 0 on success, or an error code on failure.
+ */
+int ksz_handle_wake_reason(struct ksz_device *dev, int port)
+{
+	const struct ksz_dev_ops *ops = dev->dev_ops;
+	const u16 *regs = dev->info->regs;
+	u8 pme_status;
+	int ret;
+
+	ret = ops->pme_pread8(dev, port, regs[REG_PORT_PME_STATUS],
+			      &pme_status);
+	if (ret)
+		return ret;
+
+	if (!pme_status)
+		return 0;
+
+	dev_dbg(dev->dev, "Wake event on port %d due to:%s%s%s\n", port,
+		pme_status & PME_WOL_MAGICPKT ? " \"Magic Packet\"" : "",
+		pme_status & PME_WOL_LINKUP ? " \"Link Up\"" : "",
+		pme_status & PME_WOL_ENERGY ? " \"Energy detect\"" : "");
+
+	return ops->pme_pwrite8(dev, port, regs[REG_PORT_PME_STATUS],
+				pme_status);
+}
+
+/**
+ * ksz_get_wol - Get Wake-on-LAN settings for a specified port.
+ * @ds: The dsa_switch structure.
+ * @port: The port number.
+ * @wol: Pointer to ethtool Wake-on-LAN settings structure.
+ *
+ * This function checks the device PME wakeup_source flag and chip_id.
+ * If enabled and supported, it sets the supported and active WoL
+ * flags.
+ */
 static void ksz_get_wol(struct dsa_switch *ds, int port,
 			struct ethtool_wolinfo *wol)
 {
 	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
+	u8 pme_ctrl;
+	int ret;
 
-	if (dev->dev_ops->get_wol)
-		dev->dev_ops->get_wol(dev, port, wol);
+	if (!is_ksz9477(dev) && !ksz_is_ksz87xx(dev))
+		return;
+
+	if (!dev->wakeup_source)
+		return;
+
+	wol->supported = WAKE_PHY;
+
+	/* Check if the current MAC address on this port can be set
+	 * as global for WAKE_MAGIC support. The result may vary
+	 * dynamically based on other ports configurations.
+	 */
+	if (ksz_is_port_mac_global_usable(dev->ds, port))
+		wol->supported |= WAKE_MAGIC;
+
+	ret = dev->dev_ops->pme_pread8(dev, port, regs[REG_PORT_PME_CTRL],
+				       &pme_ctrl);
+	if (ret)
+		return;
+
+	if (pme_ctrl & PME_WOL_MAGICPKT)
+		wol->wolopts |= WAKE_MAGIC;
+	if (pme_ctrl & (PME_WOL_LINKUP | PME_WOL_ENERGY))
+		wol->wolopts |= WAKE_PHY;
 }
 
+/**
+ * ksz_set_wol - Set Wake-on-LAN settings for a specified port.
+ * @ds: The dsa_switch structure.
+ * @port: The port number.
+ * @wol: Pointer to ethtool Wake-on-LAN settings structure.
+ *
+ * This function configures Wake-on-LAN (WoL) settings for a specified
+ * port. It validates the provided WoL options, checks if PME is
+ * enabled and supported, clears any previous wake reasons, and sets
+ * the Magic Packet flag in the port's PME control register if
+ * specified.
+ *
+ * Return: 0 on success, or other error codes on failure.
+ */
 static int ksz_set_wol(struct dsa_switch *ds, int port,
 		       struct ethtool_wolinfo *wol)
 {
+	u8 pme_ctrl = 0, pme_ctrl_old = 0;
 	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
+	bool magic_switched_off;
+	bool magic_switched_on;
+	int ret;
 
-	if (dev->dev_ops->set_wol)
-		return dev->dev_ops->set_wol(dev, port, wol);
+	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
+		return -EINVAL;
 
-	return -EOPNOTSUPP;
+	if (!is_ksz9477(dev) && !ksz_is_ksz87xx(dev))
+		return -EOPNOTSUPP;
+
+	if (!dev->wakeup_source)
+		return -EOPNOTSUPP;
+
+	ret = ksz_handle_wake_reason(dev, port);
+	if (ret)
+		return ret;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		pme_ctrl |= PME_WOL_MAGICPKT;
+	if (wol->wolopts & WAKE_PHY)
+		pme_ctrl |= PME_WOL_LINKUP | PME_WOL_ENERGY;
+
+	ret = dev->dev_ops->pme_pread8(dev, port, regs[REG_PORT_PME_CTRL],
+				       &pme_ctrl_old);
+	if (ret)
+		return ret;
+
+	if (pme_ctrl_old == pme_ctrl)
+		return 0;
+
+	magic_switched_off = (pme_ctrl_old & PME_WOL_MAGICPKT) &&
+			    !(pme_ctrl & PME_WOL_MAGICPKT);
+	magic_switched_on = !(pme_ctrl_old & PME_WOL_MAGICPKT) &&
+			    (pme_ctrl & PME_WOL_MAGICPKT);
+
+	/* To keep reference count of MAC address, we should do this
+	 * operation only on change of WOL settings.
+	 */
+	if (magic_switched_on) {
+		ret = ksz_switch_macaddr_get(dev->ds, port, NULL);
+		if (ret)
+			return ret;
+	} else if (magic_switched_off) {
+		ksz_switch_macaddr_put(dev->ds);
+	}
+
+	ret = dev->dev_ops->pme_pwrite8(dev, port, regs[REG_PORT_PME_CTRL],
+					pme_ctrl);
+	if (ret) {
+		if (magic_switched_on)
+			ksz_switch_macaddr_put(dev->ds);
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * ksz_wol_pre_shutdown - Prepares the switch device for shutdown while
+ *                        considering Wake-on-LAN (WoL) settings.
+ * @dev: The switch device structure.
+ * @wol_enabled: Pointer to a boolean which will be set to true if WoL is
+ *               enabled on any port.
+ *
+ * This function prepares the switch device for a safe shutdown while taking
+ * into account the Wake-on-LAN (WoL) settings on the user ports. It updates
+ * the wol_enabled flag accordingly to reflect whether WoL is active on any
+ * port.
+ */
+static void ksz_wol_pre_shutdown(struct ksz_device *dev, bool *wol_enabled)
+{
+	const struct ksz_dev_ops *ops = dev->dev_ops;
+	const u16 *regs = dev->info->regs;
+	u8 pme_pin_en = PME_ENABLE;
+	struct dsa_port *dp;
+	int ret;
+
+	*wol_enabled = false;
+
+	if (!is_ksz9477(dev) && !ksz_is_ksz87xx(dev))
+		return;
+
+	if (!dev->wakeup_source)
+		return;
+
+	dsa_switch_for_each_user_port(dp, dev->ds) {
+		u8 pme_ctrl = 0;
+
+		ret = ops->pme_pread8(dev, dp->index,
+				      regs[REG_PORT_PME_CTRL], &pme_ctrl);
+		if (!ret && pme_ctrl)
+			*wol_enabled = true;
+
+		/* make sure there are no pending wake events which would
+		 * prevent the device from going to sleep/shutdown.
+		 */
+		ksz_handle_wake_reason(dev, dp->index);
+	}
+
+	/* Now we are save to enable PME pin. */
+	if (*wol_enabled) {
+		if (dev->pme_active_high)
+			pme_pin_en |= PME_POLARITY;
+		ops->pme_write8(dev, regs[REG_SW_PME_CTRL], pme_pin_en);
+		if (ksz_is_ksz87xx(dev))
+			ksz_write8(dev, KSZ87XX_REG_INT_EN, KSZ87XX_INT_PME_MASK);
+	}
 }
 
 static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
@@ -4072,8 +4306,7 @@ void ksz_switch_shutdown(struct ksz_device *dev)
 {
 	bool wol_enabled = false;
 
-	if (dev->dev_ops->wol_pre_shutdown)
-		dev->dev_ops->wol_pre_shutdown(dev, &wol_enabled);
+	ksz_wol_pre_shutdown(dev, &wol_enabled);
 
 	if (dev->dev_ops->reset && !wol_enabled)
 		dev->dev_ops->reset(dev);
@@ -4475,6 +4708,8 @@ int ksz_switch_register(struct ksz_device *dev)
 
 		dev->wakeup_source = of_property_read_bool(dev->dev->of_node,
 							   "wakeup-source");
+		dev->pme_active_high = of_property_read_bool(dev->dev->of_node,
+							     "microchip,pme-active-high");
 	}
 
 	ret = dsa_register_switch(dev->ds);
