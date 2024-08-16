@@ -197,6 +197,13 @@ enum tx_mgnt_type {
 	MT_TX_ADDBA,
 };
 
+enum tx_frag_idx {
+	MT_TX_FRAG_NONE,
+	MT_TX_FRAG_FIRST,
+	MT_TX_FRAG_MID,
+	MT_TX_FRAG_LAST
+};
+
 #define MT_CT_INFO_APPLY_TXD		BIT(0)
 #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
 #define MT_CT_INFO_MGMT_FRAME		BIT(2)
