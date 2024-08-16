@@ -190,7 +190,8 @@ struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum
 	return rhashtable_lookup_fast(&c->vfs_inodes_table, &inum, bch2_vfs_inodes_params);
 }
 
-static struct bch_inode_info *bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
+static struct bch_inode_info *bch2_inode_hash_find(struct bch_fs *c, struct btree_trans *trans,
+						   subvol_inum inum)
 {
 	struct bch_inode_info *inode;
 repeat:
@@ -202,7 +203,15 @@ repeat:
 			return NULL;
 		}
 		if ((inode->v.i_state & (I_FREEING|I_WILL_FREE))) {
-			__wait_on_freeing_inode(&inode->v);
+			if (!trans) {
+				__wait_on_freeing_inode(&inode->v);
+			} else {
+				bch2_trans_unlock(trans);
+				__wait_on_freeing_inode(&inode->v);
+				int ret = bch2_trans_relock(trans);
+				if (ret)
+					return ERR_PTR(ret);
+			}
 			goto repeat;
 		}
 		__iget(&inode->v);
@@ -226,7 +235,9 @@ static void bch2_inode_hash_remove(struct bch_fs *c, struct bch_inode_info *inod
 	}
 }
 
-static struct bch_inode_info *bch2_inode_hash_insert(struct bch_fs *c, struct bch_inode_info *inode)
+static struct bch_inode_info *bch2_inode_hash_insert(struct bch_fs *c,
+						     struct btree_trans *trans,
+						     struct bch_inode_info *inode)
 {
 	struct bch_inode_info *old = inode;
 
@@ -235,7 +246,7 @@ retry:
 	if (unlikely(rhashtable_lookup_insert_fast(&c->vfs_inodes_table,
 					&inode->hash,
 					bch2_vfs_inodes_params))) {
-		old = bch2_inode_hash_find(c, inode->ei_inum);
+		old = bch2_inode_hash_find(c, trans, inode->ei_inum);
 		if (!old)
 			goto retry;
 
@@ -254,7 +265,7 @@ retry:
 		 */
 		set_nlink(&inode->v, 1);
 		discard_new_inode(&inode->v);
-		inode = old;
+		return old;
 	} else {
 		inode_fake_hash(&inode->v);
 
@@ -263,9 +274,8 @@ retry:
 		mutex_lock(&c->vfs_inodes_lock);
 		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
 		mutex_unlock(&c->vfs_inodes_lock);
+		return inode;
 	}
-
-	return inode;
 }
 
 #define memalloc_flags_do(_flags, _do)						\
@@ -325,9 +335,24 @@ static struct bch_inode_info *bch2_new_inode(struct btree_trans *trans)
 	return inode;
 }
 
+static struct bch_inode_info *bch2_inode_hash_init_insert(struct btree_trans *trans,
+							  subvol_inum inum,
+							  struct bch_inode_unpacked *bi,
+							  struct bch_subvolume *subvol)
+{
+	struct bch_inode_info *inode = bch2_new_inode(trans);
+	if (IS_ERR(inode))
+		return inode;
+
+	bch2_vfs_inode_init(trans, inum, inode, bi, subvol);
+
+	return bch2_inode_hash_insert(trans->c, trans, inode);
+
+}
+
 struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 {
-	struct bch_inode_info *inode = bch2_inode_hash_find(c, inum);
+	struct bch_inode_info *inode = bch2_inode_hash_find(c, NULL, inum);
 	if (inode)
 		return &inode->v;
 
@@ -338,11 +363,7 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 	int ret = lockrestart_do(trans,
 		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
 		bch2_inode_find_by_inum_trans(trans, inum, &inode_u)) ?:
-		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
-	if (!ret) {
-		bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
-		inode = bch2_inode_hash_insert(c, inode);
-	}
+		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 	bch2_trans_put(trans);
 
 	return ret ? ERR_PTR(ret) : &inode->v;
@@ -433,8 +454,16 @@ err_before_quota:
 	 * we must insert the new inode into the inode cache before calling
 	 * bch2_trans_exit() and dropping locks, else we could race with another
 	 * thread pulling the inode in and modifying it:
+	 *
+	 * also, calling bch2_inode_hash_insert() without passing in the
+	 * transaction object is sketchy - if we could ever end up in
+	 * __wait_on_freeing_inode(), we'd risk deadlock.
+	 *
+	 * But that shouldn't be possible, since we still have the inode locked
+	 * that we just created, and we _really_ can't take a transaction
+	 * restart here.
 	 */
-	inode = bch2_inode_hash_insert(c, inode);
+	inode = bch2_inode_hash_insert(c, NULL, inode);
 	bch2_trans_put(trans);
 err:
 	posix_acl_release(default_acl);
@@ -474,7 +503,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	struct bch_inode_info *inode = bch2_inode_hash_find(c, inum);
+	struct bch_inode_info *inode = bch2_inode_hash_find(c, trans, inum);
 	if (inode)
 		goto out;
 
@@ -482,7 +511,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	struct bch_inode_unpacked inode_u;
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
-		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
+		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
 				c, "dirent to missing inode:\n  %s",
@@ -502,9 +531,6 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 		ret = -ENOENT;
 		goto err;
 	}
-
-	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
-	inode = bch2_inode_hash_insert(c, inode);
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
 	printbuf_exit(&buf);
@@ -1545,7 +1571,8 @@ static const struct export_operations bch_export_ops = {
 	.get_name	= bch2_get_name,
 };
 
-static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
+static void bch2_vfs_inode_init(struct btree_trans *trans,
+				subvol_inum inum,
 				struct bch_inode_info *inode,
 				struct bch_inode_unpacked *bi,
 				struct bch_subvolume *subvol)
