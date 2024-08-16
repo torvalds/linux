@@ -103,6 +103,8 @@ struct mlx5_vdpa_dev {
 	struct workqueue_struct *wq;
 	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
 	bool suspended;
+
+	struct mlx5_async_ctx async_ctx;
 };
 
 struct mlx5_vdpa_async_cmd {

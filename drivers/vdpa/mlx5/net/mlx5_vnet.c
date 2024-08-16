@@ -1184,40 +1184,87 @@ struct mlx5_virtq_attr {
 	u16 used_index;
 };
 
-static int query_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq,
-			   struct mlx5_virtq_attr *attr)
+struct mlx5_virtqueue_query_mem {
+	u8 in[MLX5_ST_SZ_BYTES(query_virtio_net_q_in)];
+	u8 out[MLX5_ST_SZ_BYTES(query_virtio_net_q_out)];
+};
+
+static void fill_query_virtqueue_cmd(struct mlx5_vdpa_net *ndev,
+				     struct mlx5_vdpa_virtqueue *mvq,
+				     struct mlx5_virtqueue_query_mem *cmd)
 {
-	int outlen = MLX5_ST_SZ_BYTES(query_virtio_net_q_out);
-	u32 in[MLX5_ST_SZ_DW(query_virtio_net_q_in)] = {};
-	void *out;
-	void *obj_context;
-	void *cmd_hdr;
-	int err;
-
-	out = kzalloc(outlen, GFP_KERNEL);
-	if (!out)
-		return -ENOMEM;
-
-	cmd_hdr = MLX5_ADDR_OF(query_virtio_net_q_in, in, general_obj_in_cmd_hdr);
+	void *cmd_hdr = MLX5_ADDR_OF(query_virtio_net_q_in, cmd->in, general_obj_in_cmd_hdr);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, opcode, MLX5_CMD_OP_QUERY_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_type, MLX5_OBJ_TYPE_VIRTIO_NET_Q);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_id, mvq->virtq_id);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, uid, ndev->mvdev.res.uid);
-	err = mlx5_cmd_exec(ndev->mvdev.mdev, in, sizeof(in), out, outlen);
-	if (err)
-		goto err_cmd;
+}
 
-	obj_context = MLX5_ADDR_OF(query_virtio_net_q_out, out, obj_context);
+static void query_virtqueue_end(struct mlx5_vdpa_net *ndev,
+				struct mlx5_virtqueue_query_mem *cmd,
+				struct mlx5_virtq_attr *attr)
+{
+	void *obj_context = MLX5_ADDR_OF(query_virtio_net_q_out, cmd->out, obj_context);
+
 	memset(attr, 0, sizeof(*attr));
 	attr->state = MLX5_GET(virtio_net_q_object, obj_context, state);
 	attr->available_index = MLX5_GET(virtio_net_q_object, obj_context, hw_available_index);
 	attr->used_index = MLX5_GET(virtio_net_q_object, obj_context, hw_used_index);
-	kfree(out);
-	return 0;
+}
 
-err_cmd:
-	kfree(out);
+static int query_virtqueues(struct mlx5_vdpa_net *ndev,
+			    int start_vq,
+			    int num_vqs,
+			    struct mlx5_virtq_attr *attrs)
+{
+	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
+	struct mlx5_virtqueue_query_mem *cmd_mem;
+	struct mlx5_vdpa_async_cmd *cmds;
+	int err = 0;
+
+	WARN(start_vq + num_vqs > mvdev->max_vqs, "query vq range invalid [%d, %d), max_vqs: %u\n",
+	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
+
+	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
+	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	if (!cmds || !cmd_mem) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	for (int i = 0; i < num_vqs; i++) {
+		cmds[i].in = &cmd_mem[i].in;
+		cmds[i].inlen = sizeof(cmd_mem[i].in);
+		cmds[i].out = &cmd_mem[i].out;
+		cmds[i].outlen = sizeof(cmd_mem[i].out);
+		fill_query_virtqueue_cmd(ndev, &ndev->vqs[start_vq + i], &cmd_mem[i]);
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(&ndev->mvdev, cmds, num_vqs);
+	if (err) {
+		mlx5_vdpa_err(mvdev, "error issuing query cmd for vq range [%d, %d): %d\n",
+			      start_vq, start_vq + num_vqs, err);
+		goto done;
+	}
+
+	for (int i = 0; i < num_vqs; i++) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i];
+		int vq_idx = start_vq + i;
+
+		if (cmd->err) {
+			mlx5_vdpa_err(mvdev, "query vq %d failed, err: %d\n", vq_idx, err);
+			if (!err)
+				err = cmd->err;
+			continue;
+		}
+
+		query_virtqueue_end(ndev, &cmd_mem[i], &attrs[i]);
+	}
+
+done:
+	kvfree(cmd_mem);
+	kvfree(cmds);
 	return err;
 }
 
@@ -1542,7 +1589,7 @@ static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mv
 		return err;
 	}
 
-	err = query_virtqueue(ndev, mvq, &attr);
+	err = query_virtqueues(ndev, mvq->index, 1, &attr);
 	if (err) {
 		mlx5_vdpa_err(&ndev->mvdev, "failed to query virtqueue, err: %d\n", err);
 		return err;
@@ -2528,7 +2575,7 @@ static int mlx5_vdpa_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa
 		return 0;
 	}
 
-	err = query_virtqueue(ndev, mvq, &attr);
+	err = query_virtqueues(ndev, mvq->index, 1, &attr);
 	if (err) {
 		mlx5_vdpa_err(mvdev, "failed to query virtqueue\n");
 		return err;
@@ -2879,7 +2926,7 @@ static int save_channel_info(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqu
 	int err;
 
 	if (mvq->initialized) {
-		err = query_virtqueue(ndev, mvq, &attr);
+		err = query_virtqueues(ndev, mvq->index, 1, &attr);
 		if (err)
 			return err;
 	}
@@ -3854,6 +3901,8 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		ndev->rqt_size = 1;
 	}
 
+	mlx5_cmd_init_async_ctx(mdev, &mvdev->async_ctx);
+
 	ndev->mvdev.mlx_features = device_features;
 	mvdev->vdev.dma_dev = &mdev->pdev->dev;
 	err = mlx5_vdpa_alloc_resources(&ndev->mvdev);
@@ -3935,6 +3984,8 @@ static void mlx5_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 	mvdev->wq = NULL;
 	destroy_workqueue(wq);
 	mgtdev->ndev = NULL;
+
+	mlx5_cmd_cleanup_async_ctx(&mvdev->async_ctx);
 }
 
 static int mlx5_vdpa_set_attr(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *dev,
