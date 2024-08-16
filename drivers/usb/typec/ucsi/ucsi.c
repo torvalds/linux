@@ -115,7 +115,7 @@ static int ucsi_run_command(struct ucsi *ucsi, u64 command, u32 *cci,
 		return ret;
 
 	if (*cci & UCSI_CCI_BUSY)
-		return -EBUSY;
+		return ucsi_run_command(ucsi, UCSI_CANCEL, cci, NULL, 0, false) ?: -EBUSY;
 
 	if (!(*cci & UCSI_CCI_COMMAND_COMPLETE))
 		return -EIO;
@@ -148,15 +148,7 @@ static int ucsi_read_error(struct ucsi *ucsi, u8 connector_num)
 	int ret;
 
 	command = UCSI_GET_ERROR_STATUS | UCSI_CONNECTOR_NUMBER(connector_num);
-	ret = ucsi_run_command(ucsi, command, &cci,
-			       &error, sizeof(error), false);
-
-	if (cci & UCSI_CCI_BUSY) {
-		ret = ucsi_run_command(ucsi, UCSI_CANCEL, &cci, NULL, 0, false);
-
-		return ret ? ret : -EBUSY;
-	}
-
+	ret = ucsi_run_command(ucsi, command, &cci, &error, sizeof(error), false);
 	if (ret < 0)
 		return ret;
 
@@ -238,9 +230,8 @@ static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd,
 	mutex_lock(&ucsi->ppm_lock);
 
 	ret = ucsi_run_command(ucsi, cmd, &cci, data, size, conn_ack);
-	if (cci & UCSI_CCI_BUSY)
-		ret = ucsi_run_command(ucsi, UCSI_CANCEL, &cci, NULL, 0, false) ?: -EBUSY;
-	else if (cci & UCSI_CCI_ERROR)
+
+	if (cci & UCSI_CCI_ERROR)
 		ret = ucsi_read_error(ucsi, connector_num);
 
 	mutex_unlock(&ucsi->ppm_lock);
