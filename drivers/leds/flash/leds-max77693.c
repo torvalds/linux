@@ -599,7 +599,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 {
 	struct device *dev = &led->pdev->dev;
 	struct max77693_sub_led *sub_leds = led->sub_leds;
-	struct device_node *node = dev_of_node(dev), *child_node;
+	struct device_node *node = dev_of_node(dev);
 	struct property *prop;
 	u32 led_sources[2];
 	int i, ret, fled_id;
@@ -608,7 +608,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 	of_property_read_u32(node, "maxim,boost-mvout", &cfg->boost_vout);
 	of_property_read_u32(node, "maxim,mvsys-min", &cfg->low_vsys);
 
-	for_each_available_child_of_node(node, child_node) {
+	for_each_available_child_of_node_scoped(node, child_node) {
 		prop = of_find_property(child_node, "led-sources", NULL);
 		if (prop) {
 			const __be32 *srcs = NULL;
@@ -622,7 +622,6 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		} else {
 			dev_err(dev,
 				"led-sources DT property missing\n");
-			of_node_put(child_node);
 			return -EINVAL;
 		}
 
@@ -638,14 +637,12 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		} else {
 			dev_err(dev,
 				"Wrong led-sources DT property value.\n");
-			of_node_put(child_node);
 			return -EINVAL;
 		}
 
 		if (sub_nodes[fled_id]) {
 			dev_err(dev,
 				"Conflicting \"led-sources\" DT properties\n");
-			of_node_put(child_node);
 			return -EINVAL;
 		}
 
@@ -681,10 +678,8 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 
 		if (++cfg->num_leds == 2 ||
 		    (max77693_fled_used(led, FLED1) &&
-		     max77693_fled_used(led, FLED2))) {
-			of_node_put(child_node);
+		     max77693_fled_used(led, FLED2)))
 			break;
-		}
 	}
 
 	if (cfg->num_leds == 0) {
