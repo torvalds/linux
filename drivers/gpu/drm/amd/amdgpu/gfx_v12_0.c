@@ -202,6 +202,12 @@ static const struct amdgpu_hwip_reg_entry gc_gfx_queue_reg_list_12[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_BUFSZ)
 };
 
+static const struct soc15_reg_golden golden_settings_gc_12_0[] = {
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regDB_MEM_CONFIG, 0x0000000f, 0x0000000f),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regCB_HW_CONTROL_1, 0x03000000, 0x03000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL5, 0x00000070, 0x00000020)
+};
+
 #define DEFAULT_SH_MEM_CONFIG \
 	((SH_MEM_ADDRESS_MODE_64 << SH_MEM_CONFIG__ADDRESS_MODE__SHIFT) | \
 	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
@@ -3432,6 +3438,24 @@ static void gfx_v12_0_disable_gpa_mode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, regCPG_PSP_DEBUG, data);
 }
 
+static void gfx_v12_0_init_golden_registers(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return;
+
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		if (adev->rev_id == 0)
+			soc15_program_register_sequence(adev,
+					golden_settings_gc_12_0,
+					(const u32)ARRAY_SIZE(golden_settings_gc_12_0));
+		break;
+	default:
+		break;
+	}
+}
+
 static int gfx_v12_0_hw_init(void *handle)
 {
 	int r;
@@ -3471,6 +3495,9 @@ static int gfx_v12_0_hw_init(void *handle)
 			return r;
 		}
 	}
+
+	if (!amdgpu_emu_mode)
+		gfx_v12_0_init_golden_registers(adev);
 
 	adev->gfx.is_poweron = true;
 
@@ -3519,33 +3546,9 @@ static int gfx_v12_0_hw_init(void *handle)
 	return r;
 }
 
-static int gfx_v12_0_kiq_disable_kgq(struct amdgpu_device *adev)
-{
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
-	struct amdgpu_ring *kiq_ring = &kiq->ring;
-	int i, r = 0;
-
-	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
-		return -EINVAL;
-
-	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
-					adev->gfx.num_gfx_rings))
-		return -ENOMEM;
-
-	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.gfx_ring[i],
-					   PREEMPT_QUEUES, 0, 0);
-
-	if (adev->gfx.kiq[0].ring.sched.ready)
-		r = amdgpu_ring_test_helper(kiq_ring);
-
-	return r;
-}
-
 static int gfx_v12_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
 	uint32_t tmp;
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
@@ -3553,8 +3556,7 @@ static int gfx_v12_0_hw_fini(void *handle)
 
 	if (!adev->no_hw_access) {
 		if (amdgpu_async_gfx_ring) {
-			r = gfx_v12_0_kiq_disable_kgq(adev);
-			if (r)
+			if (amdgpu_gfx_disable_kgq(adev, 0))
 				DRM_ERROR("KGQ disable failed\n");
 		}
 

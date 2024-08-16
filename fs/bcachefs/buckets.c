@@ -71,17 +71,21 @@ bch2_fs_usage_read_short(struct bch_fs *c)
 	return ret;
 }
 
-void bch2_dev_usage_to_text(struct printbuf *out, struct bch_dev_usage *usage)
+void bch2_dev_usage_to_text(struct printbuf *out,
+			    struct bch_dev *ca,
+			    struct bch_dev_usage *usage)
 {
 	prt_printf(out, "\tbuckets\rsectors\rfragmented\r\n");
 
 	for (unsigned i = 0; i < BCH_DATA_NR; i++) {
 		bch2_prt_data_type(out, i);
 		prt_printf(out, "\t%llu\r%llu\r%llu\r\n",
-			usage->d[i].buckets,
-			usage->d[i].sectors,
-			usage->d[i].fragmented);
+			   usage->d[i].buckets,
+			   usage->d[i].sectors,
+			   usage->d[i].fragmented);
 	}
+
+	prt_printf(out, "capacity\t%llu\r\n", ca->mi.nbuckets);
 }
 
 static int bch2_check_fix_ptr(struct btree_trans *trans,

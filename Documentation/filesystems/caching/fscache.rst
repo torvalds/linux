@@ -318,10 +318,10 @@ where the columns are:
 Debugging
 =========
 
-If CONFIG_FSCACHE_DEBUG is enabled, the FS-Cache facility can have runtime
-debugging enabled by adjusting the value in::
+If CONFIG_NETFS_DEBUG is enabled, the FS-Cache facility and NETFS support can
+have runtime debugging enabled by adjusting the value in::
 
-	/sys/module/fscache/parameters/debug
+	/sys/module/netfs/parameters/debug
 
 This is a bitmask of debugging streams to enable:
 
@@ -343,6 +343,6 @@ This is a bitmask of debugging streams to enable:
 The appropriate set of values should be OR'd together and the result written to
 the control file.  For example::
 
-	echo $((1|8|512)) >/sys/module/fscache/parameters/debug
+	echo $((1|8|512)) >/sys/module/netfs/parameters/debug
 
 will turn on all function entry debugging.

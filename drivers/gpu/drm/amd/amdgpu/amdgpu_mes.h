@@ -82,8 +82,8 @@ struct amdgpu_mes {
 	uint64_t                        default_process_quantum;
 	uint64_t                        default_gang_quantum;
 
-	struct amdgpu_ring              ring;
-	spinlock_t                      ring_lock;
+	struct amdgpu_ring              ring[AMDGPU_MAX_MES_PIPES];
+	spinlock_t                      ring_lock[AMDGPU_MAX_MES_PIPES];
 
 	const struct firmware           *fw[AMDGPU_MAX_MES_PIPES];
 
@@ -112,12 +112,12 @@ struct amdgpu_mes {
 	uint32_t                        gfx_hqd_mask[AMDGPU_MES_MAX_GFX_PIPES];
 	uint32_t                        sdma_hqd_mask[AMDGPU_MES_MAX_SDMA_PIPES];
 	uint32_t                        aggregated_doorbells[AMDGPU_MES_PRIORITY_NUM_LEVELS];
-	uint32_t                        sch_ctx_offs;
-	uint64_t			sch_ctx_gpu_addr;
-	uint64_t			*sch_ctx_ptr;
-	uint32_t			query_status_fence_offs;
-	uint64_t			query_status_fence_gpu_addr;
-	uint64_t			*query_status_fence_ptr;
+	uint32_t                        sch_ctx_offs[AMDGPU_MAX_MES_PIPES];
+	uint64_t			sch_ctx_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint64_t			*sch_ctx_ptr[AMDGPU_MAX_MES_PIPES];
+	uint32_t			query_status_fence_offs[AMDGPU_MAX_MES_PIPES];
+	uint64_t			query_status_fence_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint64_t			*query_status_fence_ptr[AMDGPU_MAX_MES_PIPES];
 	uint32_t                        read_val_offs;
 	uint64_t			read_val_gpu_addr;
 	uint32_t			*read_val_ptr;

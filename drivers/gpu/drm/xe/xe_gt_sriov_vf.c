@@ -850,7 +850,7 @@ static struct vf_runtime_reg *vf_lookup_reg(struct xe_gt *gt, u32 addr)
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
-	return bsearch(&key, runtime->regs, runtime->regs_size, sizeof(key),
+	return bsearch(&key, runtime->regs, runtime->num_regs, sizeof(key),
 		       vf_runtime_reg_cmp);
 }
 
