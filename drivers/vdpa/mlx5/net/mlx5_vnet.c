@@ -2229,25 +2229,27 @@ static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
 		if (err)
 			return err;
 
-		for (i = cur_vqs - 1; i >= new_vqs; i--) {
-			struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[i];
-
-			if (is_resumable(ndev))
-				suspend_vq(ndev, mvq);
-			else
-				teardown_vq(ndev, mvq);
+		if (is_resumable(ndev)) {
+			suspend_vqs(ndev, new_vqs, cur_vqs - new_vqs);
+		} else {
+			for (i = new_vqs; i < cur_vqs; i++)
+				teardown_vq(ndev, &ndev->vqs[i]);
 		}
 
 		ndev->cur_num_vqs = new_vqs;
 	} else {
 		ndev->cur_num_vqs = new_vqs;
-		for (i = cur_vqs; i < new_vqs; i++) {
-			struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[i];
 
-			err = mvq->initialized ? resume_vq(ndev, mvq) : setup_vq(ndev, mvq, true);
+		for (i = cur_vqs; i < new_vqs; i++) {
+			err = setup_vq(ndev, &ndev->vqs[i], false);
 			if (err)
 				goto clean_added;
 		}
+
+		err = resume_vqs(ndev, cur_vqs, new_vqs - cur_vqs);
+		if (err)
+			goto clean_added;
+
 		err = modify_rqt(ndev, new_vqs);
 		if (err)
 			goto clean_added;
