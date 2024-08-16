@@ -4046,7 +4046,7 @@
 				fastrpc {
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
-					label = "cdsp";
+					label = "cdsp1";
 					#address-cells = <1>;
 					#size-cells = <0>;
 
