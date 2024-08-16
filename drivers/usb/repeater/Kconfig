@@ -22,4 +22,16 @@ config QTI_PMIC_EUSB2_REPEATER
 	  repeater for USB HS/FS/LS functionality where eUSB2 repeater is used.
 
 	  To compile this driver as a module, choose M here.
+
+config I2C_EUSB2_REPEATER
+	tristate "eUSB2 i2c repeater driver"
+	depends on ARCH_QCOM
+	depends on USB_REPEATER
+	depends on I2C
+	help
+	  Enable this to support the I2C EUSB2 REPEATER. This driver provides
+	  support to reset, initialize, power up and configure eUSB2 repeater
+	  for USB HS/FS/LS functionality where eUSB2 repeater is used.
+
+	  To compile this driver as a module, choose M here.
 endmenu
