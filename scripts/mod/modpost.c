@@ -67,20 +67,15 @@ static unsigned int nr_unresolved;
 
 #define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
 
-void modpost_log(enum loglevel loglevel, const char *fmt, ...)
+void modpost_log(bool is_error, const char *fmt, ...)
 {
 	va_list arglist;
 
-	switch (loglevel) {
-	case LOG_WARN:
-		fprintf(stderr, "WARNING: ");
-		break;
-	case LOG_ERROR:
+	if (is_error) {
 		fprintf(stderr, "ERROR: ");
 		error_occurred = true;
-		break;
-	default: /* invalid loglevel, ignore */
-		break;
+	} else {
+		fprintf(stderr, "WARNING: ");
 	}
 
 	fprintf(stderr, "modpost: ");
@@ -1689,7 +1684,7 @@ static void check_exports(struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp) {
 			if (!s->weak && nr_unresolved++ < MAX_UNRESOLVED_REPORTS)
-				modpost_log(warn_unresolved ? LOG_WARN : LOG_ERROR,
+				modpost_log(!warn_unresolved,
 					    "\"%s\" [%s.ko] undefined!\n",
 					    s->name, mod->name);
 			continue;
@@ -1712,7 +1707,7 @@ static void check_exports(struct module *mod)
 			basename = mod->name;
 
 		if (!contains_namespace(&mod->imported_namespaces, exp->namespace)) {
-			modpost_log(allow_missing_ns_imports ? LOG_WARN : LOG_ERROR,
+			modpost_log(!allow_missing_ns_imports,
 				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
 				    basename, exp->name, exp->namespace);
 			add_namespace(&mod->missing_namespaces, exp->namespace);
