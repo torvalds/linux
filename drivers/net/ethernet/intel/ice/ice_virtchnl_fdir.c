@@ -26,6 +26,15 @@ enum ice_fdir_tunnel_type {
 	ICE_FDIR_TUNNEL_TYPE_NONE = 0,
 	ICE_FDIR_TUNNEL_TYPE_GTPU,
 	ICE_FDIR_TUNNEL_TYPE_GTPU_EH,
+	ICE_FDIR_TUNNEL_TYPE_ECPRI,
+	ICE_FDIR_TUNNEL_TYPE_GTPU_INNER,
+	ICE_FDIR_TUNNEL_TYPE_GTPU_EH_INNER,
+	ICE_FDIR_TUNNEL_TYPE_GRE,
+	ICE_FDIR_TUNNEL_TYPE_GTPOGRE,
+	ICE_FDIR_TUNNEL_TYPE_GTPOGRE_INNER,
+	ICE_FDIR_TUNNEL_TYPE_GRE_INNER,
+	ICE_FDIR_TUNNEL_TYPE_L2TPV2,
+	ICE_FDIR_TUNNEL_TYPE_L2TPV2_INNER,
 };
 
 struct virtchnl_fdir_fltr_conf {
@@ -33,6 +42,11 @@ struct virtchnl_fdir_fltr_conf {
 	enum ice_fdir_tunnel_type ttype;
 	u64 inset_flag;
 	u32 flow_id;
+
+	struct ice_parser_profile *prof;
+	bool parser_ena;
+	u8 *pkt_buf;
+	u8 pkt_len;
 };
 
 struct virtchnl_fdir_inset_map {
@@ -787,6 +801,107 @@ err_exit:
 }
 
 /**
+ * ice_vc_fdir_is_raw_flow - check if FDIR flow is raw (binary)
+ * @proto: virtchnl protocol headers
+ *
+ * Check if the FDIR rule is raw flow (protocol agnostic flow) or not. Note
+ * that common FDIR rule must have non-zero proto->count. Thus, we choose the
+ * tunnel_level and count of proto as the indicators. If both tunnel_level and
+ * count of proto are zero, this FDIR rule will be regarded as raw flow.
+ *
+ * Returns: true if headers describe raw flow, false otherwise.
+ */
+static bool
+ice_vc_fdir_is_raw_flow(struct virtchnl_proto_hdrs *proto)
+{
+	return (proto->tunnel_level == 0 && proto->count == 0);
+}
+
+/**
+ * ice_vc_fdir_parse_raw - parse a virtchnl raw FDIR rule
+ * @vf: pointer to the VF info
+ * @proto: virtchnl protocol headers
+ * @conf: FDIR configuration for each filter
+ *
+ * Parse the virtual channel filter's raw flow and store it in @conf
+ *
+ * Return: 0 on success or negative errno on failure.
+ */
+static int
+ice_vc_fdir_parse_raw(struct ice_vf *vf,
+		      struct virtchnl_proto_hdrs *proto,
+		      struct virtchnl_fdir_fltr_conf *conf)
+{
+	u8 *pkt_buf, *msk_buf __free(kfree);
+	struct ice_parser_result rslt;
+	struct ice_pf *pf = vf->pf;
+	struct ice_parser *psr;
+	int status = -ENOMEM;
+	struct ice_hw *hw;
+	u16 udp_port = 0;
+
+	pkt_buf = kzalloc(proto->raw.pkt_len, GFP_KERNEL);
+	msk_buf = kzalloc(proto->raw.pkt_len, GFP_KERNEL);
+	if (!pkt_buf || !msk_buf)
+		goto err_mem_alloc;
+
+	memcpy(pkt_buf, proto->raw.spec, proto->raw.pkt_len);
+	memcpy(msk_buf, proto->raw.mask, proto->raw.pkt_len);
+
+	hw = &pf->hw;
+
+	/* Get raw profile info via Parser Lib */
+	psr = ice_parser_create(hw);
+	if (IS_ERR(psr)) {
+		status = PTR_ERR(psr);
+		goto err_mem_alloc;
+	}
+
+	ice_parser_dvm_set(psr, ice_is_dvm_ena(hw));
+
+	if (ice_get_open_tunnel_port(hw, &udp_port, TNL_VXLAN))
+		ice_parser_vxlan_tunnel_set(psr, udp_port, true);
+
+	status = ice_parser_run(psr, pkt_buf, proto->raw.pkt_len, &rslt);
+	if (status)
+		goto err_parser_destroy;
+
+	if (hw->debug_mask & ICE_DBG_PARSER)
+		ice_parser_result_dump(hw, &rslt);
+
+	conf->prof = kzalloc(sizeof(*conf->prof), GFP_KERNEL);
+	if (!conf->prof) {
+		status = -ENOMEM;
+		goto err_parser_destroy;
+	}
+
+	status = ice_parser_profile_init(&rslt, pkt_buf, msk_buf,
+					 proto->raw.pkt_len, ICE_BLK_FD,
+					 conf->prof);
+	if (status)
+		goto err_parser_profile_init;
+
+	if (hw->debug_mask & ICE_DBG_PARSER)
+		ice_parser_profile_dump(hw, conf->prof);
+
+	/* Store raw flow info into @conf */
+	conf->pkt_len = proto->raw.pkt_len;
+	conf->pkt_buf = pkt_buf;
+	conf->parser_ena = true;
+
+	ice_parser_destroy(psr);
+	return 0;
+
+err_parser_profile_init:
+	kfree(conf->prof);
+err_parser_destroy:
+	ice_parser_destroy(psr);
+err_mem_alloc:
+	kfree(pkt_buf);
+	return status;
+}
+
+/**
  * ice_vc_fdir_parse_pattern
  * @vf: pointer to the VF info
  * @fltr: virtual channel add cmd buffer
@@ -812,6 +927,10 @@ ice_vc_fdir_parse_pattern(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 			proto->count, vf->vf_id);
 		return -EINVAL;
 	}
+
+	/* For raw FDIR filters created by the parser */
+	if (ice_vc_fdir_is_raw_flow(proto))
+		return ice_vc_fdir_parse_raw(vf, proto, conf);
 
 	for (i = 0; i < proto->count; i++) {
 		struct virtchnl_proto_hdr *hdr = &proto->proto_hdr[i];
@@ -1101,8 +1220,10 @@ ice_vc_validate_fdir_fltr(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 	struct virtchnl_proto_hdrs *proto = &fltr->rule_cfg.proto_hdrs;
 	int ret;
 
-	if (!ice_vc_validate_pattern(vf, proto))
-		return -EINVAL;
+	/* For raw FDIR filters created by the parser */
+	if (!ice_vc_fdir_is_raw_flow(proto))
+		if (!ice_vc_validate_pattern(vf, proto))
+			return -EINVAL;
 
 	ret = ice_vc_fdir_parse_pattern(vf, fltr, conf);
 	if (ret)
@@ -1295,11 +1416,15 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 		return -ENOMEM;
 
 	ice_fdir_get_prgm_desc(hw, input, &desc, add);
-	ret = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
-	if (ret) {
-		dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
-			vf->vf_id, input->flow_type);
-		goto err_free_pkt;
+	if (conf->parser_ena) {
+		memcpy(pkt, conf->pkt_buf, conf->pkt_len);
+	} else {
+		ret = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
+		if (ret) {
+			dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
+				vf->vf_id, input->flow_type);
+			goto err_free_pkt;
+		}
 	}
 
 	ret = ice_prgm_fdir_fltr(ctrl_vsi, &desc, pkt);
@@ -1519,6 +1644,16 @@ ice_vf_verify_rx_desc(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
 err_exit:
 	ice_vf_fdir_dump_info(vf);
 	return ret;
+}
+
+static int ice_fdir_is_tunnel(enum ice_fdir_tunnel_type ttype)
+{
+	return (ttype == ICE_FDIR_TUNNEL_TYPE_GRE_INNER ||
+		ttype == ICE_FDIR_TUNNEL_TYPE_GTPU_INNER ||
+		ttype == ICE_FDIR_TUNNEL_TYPE_GTPU_EH_INNER ||
+		ttype == ICE_FDIR_TUNNEL_TYPE_GTPOGRE_INNER ||
+		ttype == ICE_FDIR_TUNNEL_TYPE_ECPRI ||
+		ttype == ICE_FDIR_TUNNEL_TYPE_L2TPV2_INNER);
 }
 
 /**
@@ -1782,6 +1917,158 @@ static void ice_vc_fdir_clear_irq_ctx(struct ice_vf *vf)
 }
 
 /**
+ * ice_vc_parser_fv_check_diff - check two parsed FDIR profile fv context
+ * @fv_a: struct of parsed FDIR profile field vector
+ * @fv_b: struct of parsed FDIR profile field vector
+ *
+ * Check if the two parsed FDIR profile field vector context are different,
+ * including proto_id, offset and mask.
+ *
+ * Return: true on different, false on otherwise.
+ */
+static bool ice_vc_parser_fv_check_diff(struct ice_parser_fv *fv_a,
+					struct ice_parser_fv *fv_b)
+{
+	return (fv_a->proto_id	!= fv_b->proto_id ||
+		fv_a->offset	!= fv_b->offset ||
+		fv_a->msk	!= fv_b->msk);
+}
+
+/**
+ * ice_vc_parser_fv_save - save parsed FDIR profile fv context
+ * @fv: struct of parsed FDIR profile field vector
+ * @fv_src: parsed FDIR profile field vector context to save
+ *
+ * Save the parsed FDIR profile field vector context, including proto_id,
+ * offset and mask.
+ *
+ * Return: Void.
+ */
+static void ice_vc_parser_fv_save(struct ice_parser_fv *fv,
+				  struct ice_parser_fv *fv_src)
+{
+	fv->proto_id	= fv_src->proto_id;
+	fv->offset	= fv_src->offset;
+	fv->msk		= fv_src->msk;
+	fv->spec	= 0;
+}
+
+/**
+ * ice_vc_add_fdir_raw - add a raw FDIR filter for VF
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ * @v_ret: the final VIRTCHNL code
+ * @stat: pointer to the VIRTCHNL_OP_ADD_FDIR_FILTER
+ * @len: length of the stat
+ *
+ * Return: 0 on success or negative errno on failure.
+ */
+static int
+ice_vc_add_fdir_raw(struct ice_vf *vf,
+		    struct virtchnl_fdir_fltr_conf *conf,
+		    enum virtchnl_status_code *v_ret,
+		    struct virtchnl_fdir_add *stat, int len)
+{
+	struct ice_vsi *vf_vsi, *ctrl_vsi;
+	struct ice_fdir_prof_info *pi;
+	struct ice_pf *pf = vf->pf;
+	int ret, ptg, id, i;
+	struct device *dev;
+	struct ice_hw *hw;
+	bool fv_found;
+
+	dev = ice_pf_to_dev(pf);
+	hw = &pf->hw;
+	*v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+	stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+
+	id = find_first_bit(conf->prof->ptypes, ICE_FLOW_PTYPE_MAX);
+	ptg = hw->blk[ICE_BLK_FD].xlt1.t[id];
+
+	vf_vsi = ice_get_vf_vsi(vf);
+	if (!vf_vsi) {
+		dev_err(dev, "Can not get FDIR vf_vsi for VF %d\n", vf->vf_id);
+		return -ENODEV;
+	}
+
+	ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
+	if (!ctrl_vsi) {
+		dev_err(dev, "Can not get FDIR ctrl_vsi for VF %d\n",
+			vf->vf_id);
+		return -ENODEV;
+	}
+
+	fv_found = false;
+
+	/* Check if profile info already exists, then update the counter */
+	pi = &vf->fdir_prof_info[ptg];
+	if (pi->fdir_active_cnt != 0) {
+		for (i = 0; i < ICE_MAX_FV_WORDS; i++)
+			if (ice_vc_parser_fv_check_diff(&pi->prof.fv[i],
+							&conf->prof->fv[i]))
+				break;
+		if (i == ICE_MAX_FV_WORDS) {
+			fv_found = true;
+			pi->fdir_active_cnt++;
+		}
+	}
+
+	/* HW profile setting is only required for the first time */
+	if (!fv_found) {
+		ret = ice_flow_set_parser_prof(hw, vf_vsi->idx,
+					       ctrl_vsi->idx, conf->prof,
+					       ICE_BLK_FD);
+
+		if (ret) {
+			*v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+			dev_dbg(dev, "VF %d: insert hw prof failed\n",
+				vf->vf_id);
+			return ret;
+		}
+	}
+
+	ret = ice_vc_fdir_insert_entry(vf, conf, &conf->flow_id);
+	if (ret) {
+		*v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "VF %d: insert FDIR list failed\n",
+			vf->vf_id);
+		return ret;
+	}
+
+	ret = ice_vc_fdir_set_irq_ctx(vf, conf,
+				      VIRTCHNL_OP_ADD_FDIR_FILTER);
+	if (ret) {
+		dev_dbg(dev, "VF %d: set FDIR context failed\n",
+			vf->vf_id);
+		goto err_rem_entry;
+	}
+
+	ret = ice_vc_fdir_write_fltr(vf, conf, true, false);
+	if (ret) {
+		dev_err(dev, "VF %d: adding FDIR raw flow rule failed, ret:%d\n",
+			vf->vf_id, ret);
+		goto err_clr_irq;
+	}
+
+	/* Save parsed profile fv info of the FDIR rule for the first time */
+	if (!fv_found) {
+		for (i = 0; i < conf->prof->fv_num; i++)
+			ice_vc_parser_fv_save(&pi->prof.fv[i],
+					      &conf->prof->fv[i]);
+		pi->prof.fv_num = conf->prof->fv_num;
+		pi->fdir_active_cnt = 1;
+	}
+
+	return 0;
+
+err_clr_irq:
+	ice_vc_fdir_clear_irq_ctx(vf);
+err_rem_entry:
+	ice_vc_fdir_remove_entry(vf, conf, conf->flow_id);
+	return ret;
+}
+
+/**
  * ice_vc_add_fdir_fltr - add a FDIR filter for VF by the msg buffer
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -1846,7 +2133,7 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 	len = sizeof(*stat);
 	ret = ice_vc_validate_fdir_fltr(vf, fltr, conf);
 	if (ret) {
-		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_INVALID;
 		dev_dbg(dev, "Invalid FDIR filter from VF %d\n", vf->vf_id);
 		goto err_free_conf;
@@ -1861,6 +2148,15 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto exit;
 	}
 
+	/* For raw FDIR filters created by the parser */
+	if (conf->parser_ena) {
+		ret = ice_vc_add_fdir_raw(vf, conf, &v_ret, stat, len);
+		if (ret)
+			goto err_free_conf;
+		goto exit;
+	}
+
+	is_tun = ice_fdir_is_tunnel(conf->ttype);
 	ret = ice_vc_fdir_config_input_set(vf, fltr, conf, is_tun);
 	if (ret) {
 		v_ret = VIRTCHNL_STATUS_SUCCESS;
@@ -1922,6 +2218,78 @@ err_exit:
 }
 
 /**
+ * ice_vc_del_fdir_raw - delete a raw FDIR filter for VF
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ * @v_ret: the final VIRTCHNL code
+ * @stat: pointer to the VIRTCHNL_OP_DEL_FDIR_FILTER
+ * @len: length of the stat
+ *
+ * Return: 0 on success or negative errno on failure.
+ */
+static int
+ice_vc_del_fdir_raw(struct ice_vf *vf,
+		    struct virtchnl_fdir_fltr_conf *conf,
+		    enum virtchnl_status_code *v_ret,
+		    struct virtchnl_fdir_del *stat, int len)
+{
+	struct ice_vsi *vf_vsi, *ctrl_vsi;
+	enum ice_block blk = ICE_BLK_FD;
+	struct ice_fdir_prof_info *pi;
+	struct ice_pf *pf = vf->pf;
+	struct device *dev;
+	struct ice_hw *hw;
+	unsigned long id;
+	u16 vsi_num;
+	int ptg;
+	int ret;
+
+	dev = ice_pf_to_dev(pf);
+	hw = &pf->hw;
+	*v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+	stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+
+	id = find_first_bit(conf->prof->ptypes, ICE_FLOW_PTYPE_MAX);
+	ptg = hw->blk[ICE_BLK_FD].xlt1.t[id];
+
+	ret = ice_vc_fdir_write_fltr(vf, conf, false, false);
+	if (ret) {
+		dev_err(dev, "VF %u: deleting FDIR raw flow rule failed: %d\n",
+			vf->vf_id, ret);
+		return ret;
+	}
+
+	vf_vsi = ice_get_vf_vsi(vf);
+	if (!vf_vsi) {
+		dev_err(dev, "Can not get FDIR vf_vsi for VF %u\n", vf->vf_id);
+		return -ENODEV;
+	}
+
+	ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
+	if (!ctrl_vsi) {
+		dev_err(dev, "Can not get FDIR ctrl_vsi for VF %u\n",
+			vf->vf_id);
+		return -ENODEV;
+	}
+
+	pi = &vf->fdir_prof_info[ptg];
+	if (pi->fdir_active_cnt != 0) {
+		pi->fdir_active_cnt--;
+		/* Remove the profile id flow if no active FDIR rule left */
+		if (!pi->fdir_active_cnt) {
+			vsi_num = ice_get_hw_vsi_num(hw, ctrl_vsi->idx);
+			ice_rem_prof_id_flow(hw, blk, vsi_num, id);
+
+			vsi_num = ice_get_hw_vsi_num(hw, vf_vsi->idx);
+			ice_rem_prof_id_flow(hw, blk, vsi_num, id);
+		}
+	}
+
+	conf->parser_ena = false;
+	return 0;
+}
+
+/**
  * ice_vc_del_fdir_fltr - delete a FDIR filter for VF by the msg buffer
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -1933,7 +2301,10 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 	struct virtchnl_fdir_del *fltr = (struct virtchnl_fdir_del *)msg;
 	struct virtchnl_fdir_del *stat = NULL;
 	struct virtchnl_fdir_fltr_conf *conf;
+	struct ice_vf_fdir *fdir = &vf->fdir;
 	enum virtchnl_status_code v_ret;
+	struct ice_fdir_fltr *input;
+	enum ice_fltr_ptype flow;
 	struct device *dev;
 	struct ice_pf *pf;
 	int is_tun = 0;
@@ -1983,6 +2354,15 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_exit;
 	}
 
+	/* For raw FDIR filters created by the parser */
+	if (conf->parser_ena) {
+		ret = ice_vc_del_fdir_raw(vf, conf, &v_ret, stat, len);
+		if (ret)
+			goto err_del_tmr;
+		goto exit;
+	}
+
+	is_tun = ice_fdir_is_tunnel(conf->ttype);
 	ret = ice_vc_fdir_write_fltr(vf, conf, false, is_tun);
 	if (ret) {
 		v_ret = VIRTCHNL_STATUS_SUCCESS;
@@ -1992,6 +2372,13 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_del_tmr;
 	}
 
+	/* Remove unused profiles to avoid unexpected behaviors */
+	input = &conf->input;
+	flow = input->flow_type;
+	if (fdir->fdir_fltr_cnt[flow][is_tun] == 1)
+		ice_vc_fdir_rem_prof(vf, flow, is_tun);
+
+exit:
 	kfree(stat);
 
 	return ret;

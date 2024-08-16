@@ -2981,6 +2981,50 @@ ice_add_prof_attrib(struct ice_prof_map *prof, u8 ptg, u16 ptype,
 }
 
 /**
+ * ice_disable_fd_swap - set register appropriately to disable FD SWAP
+ * @hw: pointer to the HW struct
+ * @prof_id: profile ID
+ */
+static void
+ice_disable_fd_swap(struct ice_hw *hw, u8 prof_id)
+{
+	u16 swap_val, fvw_num;
+	unsigned int i;
+
+	swap_val = ICE_SWAP_VALID;
+	fvw_num = hw->blk[ICE_BLK_FD].es.fvw / ICE_FDIR_REG_SET_SIZE;
+
+	/* Since the SWAP Flag in the Programming Desc doesn't work,
+	 * here add method to disable the SWAP Option via setting
+	 * certain SWAP and INSET register sets.
+	 */
+	for (i = 0; i < fvw_num ; i++) {
+		u32 raw_swap, raw_in;
+		unsigned int j;
+
+		raw_swap = 0;
+		raw_in = 0;
+
+		for (j = 0; j < ICE_FDIR_REG_SET_SIZE; j++) {
+			raw_swap |= (swap_val++) << (j * BITS_PER_BYTE);
+			raw_in |= ICE_INSET_DFLT << (j * BITS_PER_BYTE);
+		}
+
+		/* write the FDIR swap register set */
+		wr32(hw, GLQF_FDSWAP(prof_id, i), raw_swap);
+
+		ice_debug(hw, ICE_DBG_INIT, "swap wr(%d, %d): 0x%x = 0x%08x\n",
+			  prof_id, i, GLQF_FDSWAP(prof_id, i), raw_swap);
+
+		/* write the FDIR inset register set */
+		wr32(hw, GLQF_FDINSET(prof_id, i), raw_in);
+
+		ice_debug(hw, ICE_DBG_INIT, "inset wr(%d, %d): 0x%x = 0x%08x\n",
+			  prof_id, i, GLQF_FDINSET(prof_id, i), raw_in);
+	}
+}
+
+/*
  * ice_add_prof - add profile
  * @hw: pointer to the HW struct
  * @blk: hardware block
@@ -2991,6 +3035,7 @@ ice_add_prof_attrib(struct ice_prof_map *prof, u8 ptg, u16 ptype,
  * @es: extraction sequence (length of array is determined by the block)
  * @masks: mask for extraction sequence
  * @symm: symmetric setting for RSS profiles
+ * @fd_swap: enable/disable FDIR paired src/dst fields swap option
  *
  * This function registers a profile, which matches a set of PTYPES with a
  * particular extraction sequence. While the hardware profile is allocated
@@ -3000,7 +3045,7 @@ ice_add_prof_attrib(struct ice_prof_map *prof, u8 ptg, u16 ptype,
 int
 ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	     const struct ice_ptype_attributes *attr, u16 attr_cnt,
-	     struct ice_fv_word *es, u16 *masks, bool symm)
+	     struct ice_fv_word *es, u16 *masks, bool symm, bool fd_swap)
 {
 	u32 bytes = DIV_ROUND_UP(ICE_FLOW_PTYPE_MAX, BITS_PER_BYTE);
 	DECLARE_BITMAP(ptgs_used, ICE_XLT1_CNT);
@@ -3020,7 +3065,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 		status = ice_alloc_prof_id(hw, blk, &prof_id);
 		if (status)
 			goto err_ice_add_prof;
-		if (blk == ICE_BLK_FD) {
+		if (blk == ICE_BLK_FD && fd_swap) {
 			/* For Flow Director block, the extraction sequence may
 			 * need to be altered in the case where there are paired
 			 * fields that have no match. This is necessary because
@@ -3031,6 +3076,8 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 			status = ice_update_fd_swap(hw, prof_id, es);
 			if (status)
 				goto err_ice_add_prof;
+		} else if (blk == ICE_BLK_FD) {
+			ice_disable_fd_swap(hw, prof_id);
 		}
 		status = ice_update_prof_masking(hw, blk, prof_id, masks);
 		if (status)
@@ -4094,6 +4141,54 @@ err_ice_add_prof_id_flow:
 		list_del(&del1->list);
 		devm_kfree(ice_hw_to_dev(hw), del1);
 	}
+
+	return status;
+}
+
+/**
+ * ice_flow_assoc_fdir_prof - add an FDIR profile for main/ctrl VSI
+ * @hw: pointer to the HW struct
+ * @blk: HW block
+ * @dest_vsi: dest VSI
+ * @fdir_vsi: fdir programming VSI
+ * @hdl: profile handle
+ *
+ * Update the hardware tables to enable the FDIR profile indicated by @hdl for
+ * the VSI specified by @dest_vsi. On success, the flow will be enabled.
+ *
+ * Return: 0 on success or negative errno on failure.
+ */
+int
+ice_flow_assoc_fdir_prof(struct ice_hw *hw, enum ice_block blk,
+			 u16 dest_vsi, u16 fdir_vsi, u64 hdl)
+{
+	u16 vsi_num;
+	int status;
+
+	if (blk != ICE_BLK_FD)
+		return -EINVAL;
+
+	vsi_num = ice_get_hw_vsi_num(hw, dest_vsi);
+	status = ice_add_prof_id_flow(hw, blk, vsi_num, hdl);
+	if (status) {
+		ice_debug(hw, ICE_DBG_FLOW, "Adding HW profile failed for main VSI flow entry: %d\n",
+			  status);
+		return status;
+	}
+
+	vsi_num = ice_get_hw_vsi_num(hw, fdir_vsi);
+	status = ice_add_prof_id_flow(hw, blk, vsi_num, hdl);
+	if (status) {
+		ice_debug(hw, ICE_DBG_FLOW, "Adding HW profile failed for ctrl VSI flow entry: %d\n",
+			  status);
+		goto err;
+	}
+
+	return 0;
+
+err:
+	vsi_num = ice_get_hw_vsi_num(hw, dest_vsi);
+	ice_rem_prof_id_flow(hw, blk, vsi_num, hdl);
 
 	return status;
 }
