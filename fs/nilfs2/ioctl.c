@@ -115,7 +115,11 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 }
 
 /**
- * nilfs_fileattr_get - ioctl to support lsattr
+ * nilfs_fileattr_get - retrieve miscellaneous file attributes
+ * @dentry: the object to retrieve from
+ * @fa:     fileattr pointer
+ *
+ * Return: always 0 as success.
  */
 int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
@@ -127,7 +131,12 @@ int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 /**
- * nilfs_fileattr_set - ioctl to support chattr
+ * nilfs_fileattr_set - change miscellaneous file attributes
+ * @idmap:  idmap of the mount
+ * @dentry: the object to change
+ * @fa:     fileattr pointer
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa)
@@ -160,6 +169,10 @@ int nilfs_fileattr_set(struct mnt_idmap *idmap,
 
 /**
  * nilfs_ioctl_getversion - get info about a file's version (generation number)
+ * @inode: inode object
+ * @argp:  userspace memory where the generation number of @inode is stored
+ *
+ * Return: 0 on success, or %-EFAULT on error.
  */
 static int nilfs_ioctl_getversion(struct inode *inode, void __user *argp)
 {
