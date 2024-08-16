@@ -271,18 +271,15 @@ void nilfs_dat_abort_update(struct inode *dat,
 }
 
 /**
- * nilfs_dat_mark_dirty -
- * @dat: DAT file inode
+ * nilfs_dat_mark_dirty - mark the DAT block buffer containing the specified
+ *                        virtual block address entry as dirty
+ * @dat:      DAT file inode
  * @vblocknr: virtual block number
  *
- * Description:
- *
- * Return Value: On success, 0 is returned. On error, one of the following
- * negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-EINVAL	- Invalid DAT entry (internal code).
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
 {
