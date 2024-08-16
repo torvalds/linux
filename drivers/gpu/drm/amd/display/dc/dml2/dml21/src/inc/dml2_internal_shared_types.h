@@ -870,6 +870,7 @@ struct dml2_check_mode_supported_locals {
 	struct dml2_optimization_phase_locals optimization_phase_locals;
 	struct display_configuation_with_meta base_display_config_with_meta;
 	struct display_configuation_with_meta optimized_display_config_with_meta;
+	struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out dppm_map_mode_params;
 };
 
 struct optimization_init_function_params {

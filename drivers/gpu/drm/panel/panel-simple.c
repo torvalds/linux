@@ -726,16 +726,24 @@ static void panel_simple_shutdown(struct device *dev)
 	 * drm_atomic_helper_shutdown() at shutdown time and that should
 	 * cause the panel to be disabled / unprepared if needed. For now,
 	 * however, we'll keep these calls due to the sheer number of
-	 * different DRM modeset drivers used with panel-simple. The fact that
-	 * we're calling these and _also_ the drm_atomic_helper_shutdown()
-	 * will try to disable/unprepare means that we can get a warning about
-	 * trying to disable/unprepare an already disabled/unprepared panel,
-	 * but that's something we'll have to live with until we've confirmed
-	 * that all DRM modeset drivers are properly calling
-	 * drm_atomic_helper_shutdown().
+	 * different DRM modeset drivers used with panel-simple. Once we've
+	 * confirmed that all DRM modeset drivers using this panel properly
+	 * call drm_atomic_helper_shutdown() we can simply delete the two
+	 * calls below.
+	 *
+	 * TO BE EXPLICIT: THE CALLS BELOW SHOULDN'T BE COPIED TO ANY NEW
+	 * PANEL DRIVERS.
+	 *
+	 * FIXME: If we're still haven't figured out if all DRM modeset
+	 * drivers properly call drm_atomic_helper_shutdown() but we _have_
+	 * managed to make sure that DRM modeset drivers get their shutdown()
+	 * callback before the panel's shutdown() callback (perhaps using
+	 * device link), we could add a WARN_ON here to help move forward.
 	 */
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
+	if (panel->base.enabled)
+		drm_panel_disable(&panel->base);
+	if (panel->base.prepared)
+		drm_panel_unprepare(&panel->base);
 }
 
 static void panel_simple_remove(struct device *dev)
@@ -1057,6 +1065,30 @@ static const struct drm_display_mode auo_g104sn02_mode = {
 
 static const struct panel_desc auo_g104sn02 = {
 	.modes = &auo_g104sn02_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 211,
+		.height = 158,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
+static const struct drm_display_mode auo_g104stn01_mode = {
+	.clock = 40000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 40,
+	.hsync_end = 800 + 40 + 88,
+	.htotal = 800 + 40 + 88 + 128,
+	.vdisplay = 600,
+	.vsync_start = 600 + 1,
+	.vsync_end = 600 + 1 + 23,
+	.vtotal = 600 + 1 + 23 + 4,
+};
+
+static const struct panel_desc auo_g104stn01 = {
+	.modes = &auo_g104stn01_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -2738,6 +2770,7 @@ static const struct display_timing koe_tx26d202vm0bwa_timing = {
 	.vfront_porch = { 3, 5, 10 },
 	.vback_porch = { 2, 5, 10 },
 	.vsync_len = { 5, 5, 5 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
 static const struct panel_desc koe_tx26d202vm0bwa = {
@@ -4533,6 +4566,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,g104sn02",
 		.data = &auo_g104sn02,
+	}, {
+		.compatible = "auo,g104stn01",
+		.data = &auo_g104stn01,
 	}, {
 		.compatible = "auo,g121ean01",
 		.data = &auo_g121ean01,

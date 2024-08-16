@@ -14,6 +14,7 @@ turbostat : turbostat.c
 override CFLAGS +=	-O2 -Wall -Wextra -I../../../include
 override CFLAGS +=	-DMSRHEADER='"../../../../arch/x86/include/asm/msr-index.h"'
 override CFLAGS +=	-DINTEL_FAMILY_HEADER='"../../../../arch/x86/include/asm/intel-family.h"'
+override CFLAGS +=	-DBUILD_BUG_HEADER='"../../../../include/linux/build_bug.h"'
 override CFLAGS +=	-D_FILE_OFFSET_BITS=64
 override CFLAGS +=	-D_FORTIFY_SOURCE=2
 
@@ -44,10 +45,14 @@ snapshot: turbostat
 	@echo "#define GENMASK(h, l) (((~0UL) << (l)) & (~0UL >> (sizeof(long) * 8 - 1 - (h))))" >> $(SNAPSHOT)/bits.h
 	@echo "#define GENMASK_ULL(h, l) (((~0ULL) << (l)) & (~0ULL >> (sizeof(long long) * 8 - 1 - (h))))" >> $(SNAPSHOT)/bits.h
 
+	@echo '#define BUILD_BUG_ON(cond) do { enum { compile_time_check ## __COUNTER__ = 1/(!(cond)) }; } while (0)' > $(SNAPSHOT)/build_bug.h
+	@echo '#define __must_be_array(arr) 0' >> $(SNAPSHOT)/build_bug.h
+
 	@echo PWD=. > $(SNAPSHOT)/Makefile
 	@echo "CFLAGS +=	-DMSRHEADER='\"msr-index.h\"'" >> $(SNAPSHOT)/Makefile
 	@echo "CFLAGS +=	-DINTEL_FAMILY_HEADER='\"intel-family.h\"'" >> $(SNAPSHOT)/Makefile
-	@sed -e's/.*MSRHEADER.*//' -e's/.*INTEL_FAMILY_HEADER.*//' Makefile >> $(SNAPSHOT)/Makefile
+	@echo "CFLAGS +=	-DBUILD_BUG_HEADER='\"build_bug.h\"'" >> $(SNAPSHOT)/Makefile
+	@sed -e's/.*MSRHEADER.*//' -e's/.*INTEL_FAMILY_HEADER.*//' -e's/.*BUILD_BUG_HEADER.*//' Makefile >> $(SNAPSHOT)/Makefile
 
 	@rm -f $(SNAPSHOT).tar.gz
 	tar cvzf $(SNAPSHOT).tar.gz $(SNAPSHOT)

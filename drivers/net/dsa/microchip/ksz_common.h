@@ -22,6 +22,7 @@
 /* all KSZ switches count ports from 1 */
 #define KSZ_PORT_1 0
 #define KSZ_PORT_2 1
+#define KSZ_PORT_4 3
 
 struct ksz_device;
 struct ksz_port;
@@ -66,6 +67,7 @@ struct ksz_chip_data {
 	bool tc_cbs_supported;
 	const struct ksz_dev_ops *ops;
 	const struct phylink_mac_ops *phylink_mac_ops;
+	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;
 	const struct ksz_mib_names *mib_names;
 	int mib_cnt;
@@ -634,6 +636,12 @@ static inline int is_lan937x(struct ksz_device *dev)
 		dev->chip_id == LAN9372_CHIP_ID ||
 		dev->chip_id == LAN9373_CHIP_ID ||
 		dev->chip_id == LAN9374_CHIP_ID;
+}
+
+static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
+{
+	return (dev->chip_id == LAN9371_CHIP_ID ||
+		dev->chip_id == LAN9372_CHIP_ID) && port == KSZ_PORT_4;
 }
 
 /* STP State Defines */

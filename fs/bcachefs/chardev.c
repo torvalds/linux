@@ -5,6 +5,7 @@
 #include "bcachefs_ioctl.h"
 #include "buckets.h"
 #include "chardev.h"
+#include "disk_accounting.h"
 #include "journal.h"
 #include "move.h"
 #include "recovery_passes.h"
@@ -213,16 +214,17 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
-
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
-			bch2_parse_mount_opts(NULL, &thr->opts, optstr);
-		kfree(optstr);
+			bch2_parse_mount_opts(NULL, &thr->opts, NULL, optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
 	}
 
 	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
+	opt_set(thr->opts, read_only, 1);
 
 	/* We need request_key() to be called before we punt to kthread: */
 	opt_set(thr->opts, nostart, true);
@@ -319,7 +321,8 @@ static long bch2_ioctl_disk_add(struct bch_fs *c, struct bch_ioctl_disk arg)
 		return ret;
 
 	ret = bch2_dev_add(c, path);
-	kfree(path);
+	if (!IS_ERR(path))
+		kfree(path);
 
 	return ret;
 }
@@ -501,11 +504,9 @@ static long bch2_ioctl_data(struct bch_fs *c,
 static long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
-	struct bch_ioctl_fs_usage *arg = NULL;
-	struct bch_replicas_usage *dst_e, *dst_end;
-	struct bch_fs_usage_online *src;
+	struct bch_ioctl_fs_usage arg = {};
+	darray_char replicas = {};
 	u32 replica_entries_bytes;
-	unsigned i;
 	int ret = 0;
 
 	if (!test_bit(BCH_FS_started, &c->flags))
@@ -514,62 +515,60 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	if (get_user(replica_entries_bytes, &user_arg->replica_entries_bytes))
 		return -EFAULT;
 
-	arg = kzalloc(size_add(sizeof(*arg), replica_entries_bytes), GFP_KERNEL);
-	if (!arg)
-		return -ENOMEM;
-
-	src = bch2_fs_usage_read(c);
-	if (!src) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	arg->capacity		= c->capacity;
-	arg->used		= bch2_fs_sectors_used(c, src);
-	arg->online_reserved	= src->online_reserved;
-
-	for (i = 0; i < BCH_REPLICAS_MAX; i++)
-		arg->persistent_reserved[i] = src->u.persistent_reserved[i];
-
-	dst_e	= arg->replicas;
-	dst_end = (void *) arg->replicas + replica_entries_bytes;
-
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *src_e =
-			cpu_replicas_entry(&c->replicas, i);
-
-		/* check that we have enough space for one replicas entry */
-		if (dst_e + 1 > dst_end) {
-			ret = -ERANGE;
-			break;
-		}
-
-		dst_e->sectors		= src->u.replicas[i];
-		dst_e->r		= *src_e;
-
-		/* recheck after setting nr_devs: */
-		if (replicas_usage_next(dst_e) > dst_end) {
-			ret = -ERANGE;
-			break;
-		}
-
-		memcpy(dst_e->r.devs, src_e->devs, src_e->nr_devs);
-
-		dst_e = replicas_usage_next(dst_e);
-	}
-
-	arg->replica_entries_bytes = (void *) dst_e - (void *) arg->replicas;
-
-	percpu_up_read(&c->mark_lock);
-	kfree(src);
-
+	ret   = bch2_fs_replicas_usage_read(c, &replicas) ?:
+		(replica_entries_bytes < replicas.nr ? -ERANGE : 0) ?:
+		copy_to_user_errcode(&user_arg->replicas, replicas.data, replicas.nr);
 	if (ret)
 		goto err;
 
-	ret = copy_to_user_errcode(user_arg, arg,
-			sizeof(*arg) + arg->replica_entries_bytes);
+	struct bch_fs_usage_short u = bch2_fs_usage_read_short(c);
+	arg.capacity		= c->capacity;
+	arg.used		= u.used;
+	arg.online_reserved	= percpu_u64_get(c->online_reserved);
+	arg.replica_entries_bytes = replicas.nr;
+
+	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
+		struct disk_accounting_pos k = {
+			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
+			.persistent_reserved.nr_replicas = i,
+		};
+
+		bch2_accounting_mem_read(c,
+					 disk_accounting_pos_to_bpos(&k),
+					 &arg.persistent_reserved[i], 1);
+	}
+
+	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
 err:
-	kfree(arg);
+	darray_exit(&replicas);
+	return ret;
+}
+
+static long bch2_ioctl_query_accounting(struct bch_fs *c,
+			struct bch_ioctl_query_accounting __user *user_arg)
+{
+	struct bch_ioctl_query_accounting arg;
+	darray_char accounting = {};
+	int ret = 0;
+
+	if (!test_bit(BCH_FS_started, &c->flags))
+		return -EINVAL;
+
+	ret   = copy_from_user_errcode(&arg, user_arg, sizeof(arg)) ?:
+		bch2_fs_accounting_read(c, &accounting, arg.accounting_types_mask) ?:
+		(arg.accounting_u64s * sizeof(u64) < accounting.nr ? -ERANGE : 0) ?:
+		copy_to_user_errcode(&user_arg->accounting, accounting.data, accounting.nr);
+	if (ret)
+		goto err;
+
+	arg.capacity		= c->capacity;
+	arg.used		= bch2_fs_usage_read_short(c).used;
+	arg.online_reserved	= percpu_u64_get(c->online_reserved);
+	arg.accounting_u64s	= accounting.nr / sizeof(u64);
+
+	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
+err:
+	darray_exit(&accounting);
 	return ret;
 }
 
@@ -604,7 +603,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	arg.bucket_size		= ca->mi.bucket_size;
 	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
 
-	for (i = 0; i < BCH_DATA_NR; i++) {
+	for (i = 0; i < ARRAY_SIZE(arg.d); i++) {
 		arg.d[i].buckets	= src.d[i].buckets;
 		arg.d[i].sectors	= src.d[i].sectors;
 		arg.d[i].fragmented	= src.d[i].fragmented;
@@ -849,8 +848,9 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
-			bch2_parse_mount_opts(c, &thr->opts, optstr);
-		kfree(optstr);
+			bch2_parse_mount_opts(c, &thr->opts, NULL, optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
@@ -925,6 +925,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(disk_resize_journal, struct bch_ioctl_disk_resize_journal);
 	case BCH_IOCTL_FSCK_ONLINE:
 		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
+	case BCH_IOCTL_QUERY_ACCOUNTING:
+		return bch2_ioctl_query_accounting(c, arg);
 	default:
 		return -ENOTTY;
 	}

@@ -362,7 +362,7 @@ static void sharp_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	/* only detach from host for the DSI-LINK2 interface */
-	if (!sharp)
+	if (sharp)
 		sharp_panel_del(sharp);
 }
 

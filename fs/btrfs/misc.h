@@ -66,7 +66,7 @@ struct rb_simple_node {
 	u64 bytenr;
 };
 
-static inline struct rb_node *rb_simple_search(struct rb_root *root, u64 bytenr)
+static inline struct rb_node *rb_simple_search(const struct rb_root *root, u64 bytenr)
 {
 	struct rb_node *node = root->rb_node;
 	struct rb_simple_node *entry;
@@ -93,7 +93,7 @@ static inline struct rb_node *rb_simple_search(struct rb_root *root, u64 bytenr)
  * Return the rb_node that start at or after @bytenr.  If there is no entry at
  * or after @bytner return NULL.
  */
-static inline struct rb_node *rb_simple_search_first(struct rb_root *root,
+static inline struct rb_node *rb_simple_search_first(const struct rb_root *root,
 						     u64 bytenr)
 {
 	struct rb_node *node = root->rb_node, *ret = NULL;

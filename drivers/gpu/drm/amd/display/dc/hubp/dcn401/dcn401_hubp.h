@@ -243,6 +243,16 @@
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_HIGH, HUBP_3DLUT_ADDRESS_HIGH, mask_sh),\
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_LOW, HUBP_3DLUT_ADDRESS_LOW, mask_sh),\
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, mask_sh),\
+	HUBP_SF(HUBP0_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE, VIEWPORT_MCACHE_SPLIT_COORDINATE, mask_sh),\
+	HUBP_SF(HUBP0_DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE, VIEWPORT_MCACHE_SPLIT_COORDINATE_C, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_REG_READ_1H_P0, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_REG_READ_2H_P0, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_REG_READ_1H_P1, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_REG_READ_2H_P1, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_1H_P0, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_2H_P0, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_1H_P1, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_2H_P1, mask_sh)
 
 void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
 
@@ -302,7 +312,9 @@ void hubp401_program_surface_config(
 void hubp401_set_viewport(struct hubp *hubp,
 		const struct rect *viewport,
 		const struct rect *viewport_c);
-
+void hubp401_program_mcache_id_and_split_coordinate(
+	struct hubp *hubp,
+	struct dml2_hubp_pipe_mcache_regs *mcache_regs);
 void hubp401_set_flip_int(struct hubp *hubp);
 
 bool hubp401_in_blank(struct hubp *hubp);

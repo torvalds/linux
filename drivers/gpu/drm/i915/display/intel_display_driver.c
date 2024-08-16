@@ -217,7 +217,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 			return ret;
 	}
 
-	intel_bios_init(i915);
+	intel_bios_init(display);
 
 	ret = intel_vga_register(i915);
 	if (ret)
@@ -265,7 +265,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_init_quirks(display);
 
-	intel_fbc_init(i915);
+	intel_fbc_init(display);
 
 	return 0;
 
@@ -275,7 +275,7 @@ cleanup_vga_client_pw_domain_dmc:
 cleanup_vga:
 	intel_vga_unregister(i915);
 cleanup_bios:
-	intel_bios_driver_remove(i915);
+	intel_bios_driver_remove(display);
 
 	return ret;
 }
@@ -416,7 +416,8 @@ bool intel_display_driver_check_access(struct drm_i915_private *i915)
 /* part #2: call after irq install, but before gem init */
 int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &i915->drm;
+	struct intel_display *display = &i915->display;
+	struct drm_device *dev = display->drm;
 	enum pipe pipe;
 	int ret;
 
@@ -466,7 +467,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(i915, dev->mode_config.acquire_ctx);
-	intel_acpi_assign_connector_fwnodes(i915);
+	intel_acpi_assign_connector_fwnodes(display);
 	drm_modeset_unlock_all(dev);
 
 	intel_initial_plane_config(i915);
@@ -526,6 +527,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_printer p = drm_dbg_printer(&i915->drm, DRM_UT_KMS,
 					       "i915 display info:");
 
@@ -533,8 +535,8 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 		return;
 
 	/* Must be done after probing outputs */
-	intel_opregion_register(i915);
-	intel_acpi_video_register(i915);
+	intel_opregion_register(display);
+	intel_acpi_video_register(display);
 
 	intel_audio_init(i915);
 
@@ -607,23 +609,27 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	destroy_workqueue(i915->display.wq.flip);
 	destroy_workqueue(i915->display.wq.modeset);
 
-	intel_fbc_cleanup(i915);
+	intel_fbc_cleanup(&i915->display);
 }
 
 /* part #3: call after gem init */
 void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	intel_dmc_fini(i915);
 
 	intel_power_domains_driver_remove(i915);
 
 	intel_vga_unregister(i915);
 
-	intel_bios_driver_remove(i915);
+	intel_bios_driver_remove(display);
 }
 
 void intel_display_driver_unregister(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (!HAS_DISPLAY(i915))
 		return;
 
@@ -643,7 +649,7 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 	drm_atomic_helper_shutdown(&i915->drm);
 
 	acpi_video_unregister();
-	intel_opregion_unregister(i915);
+	intel_opregion_unregister(display);
 }
 
 /*

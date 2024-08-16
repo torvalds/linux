@@ -9,6 +9,8 @@ Industrial I/O
 
    iio_configfs
    iio_devbuf
+   iio_dmabuf_api
+   iio_tools
 
 Industrial I/O Kernel Drivers
 =============================
@@ -18,5 +20,6 @@ Industrial I/O Kernel Drivers
 
    ad7944
    adis16475
+   adis16480
    bno055
    ep93xx_adc

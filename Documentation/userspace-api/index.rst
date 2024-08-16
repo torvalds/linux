@@ -32,6 +32,7 @@ Security-related interfaces
    seccomp_filter
    landlock
    lsm
+   mfd_noexec
    spec_ctrl
    tee
 
@@ -44,7 +45,6 @@ Devices and I/O
    accelerators/ocxl
    dma-buf-alloc-exchange
    gpio/index
-   iommu
    iommufd
    media/index
    dcdbas

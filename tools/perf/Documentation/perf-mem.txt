@@ -21,7 +21,7 @@ and stores are sampled. Use the -t option to limit to loads or stores.
 
 Note that on Intel systems the memory latency reported is the use-latency,
 not the pure load (or store latency). Use latency includes any pipeline
-queueing delays in addition to the memory subsystem latency.
+queuing delays in addition to the memory subsystem latency.
 
 On Arm64 this uses SPE to sample load and store operations, therefore hardware
 and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.

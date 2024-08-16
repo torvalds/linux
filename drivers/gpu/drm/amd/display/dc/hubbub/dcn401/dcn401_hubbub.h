@@ -180,6 +180,11 @@ void hubbub401_det_request_size(
 		bool *p0_req128_vert_wc,
 		bool *p1_req128_horz_wc,
 		bool *p1_req128_vert_wc);
+bool hubbub401_get_dcc_compression_cap(
+		struct hubbub *hubbub,
+		const struct dc_dcc_surface_param *input,
+		struct dc_surface_dcc_cap *output);
+
 void hubbub401_construct(struct dcn20_hubbub *hubbub2,
 	struct dc_context *ctx,
 	const struct dcn_hubbub_registers *hubbub_regs,

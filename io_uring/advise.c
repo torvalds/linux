@@ -17,14 +17,14 @@
 struct io_fadvise {
 	struct file			*file;
 	u64				offset;
-	u32				len;
+	u64				len;
 	u32				advice;
 };
 
 struct io_madvise {
 	struct file			*file;
 	u64				addr;
-	u32				len;
+	u64				len;
 	u32				advice;
 };
 
@@ -33,11 +33,13 @@ int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
 	struct io_madvise *ma = io_kiocb_to_cmd(req, struct io_madvise);
 
-	if (sqe->buf_index || sqe->off || sqe->splice_fd_in)
+	if (sqe->buf_index || sqe->splice_fd_in)
 		return -EINVAL;
 
 	ma->addr = READ_ONCE(sqe->addr);
-	ma->len = READ_ONCE(sqe->len);
+	ma->len = READ_ONCE(sqe->off);
+	if (!ma->len)
+		ma->len = READ_ONCE(sqe->len);
 	ma->advice = READ_ONCE(sqe->fadvise_advice);
 	req->flags |= REQ_F_FORCE_ASYNC;
 	return 0;
@@ -78,11 +80,13 @@ int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_fadvise *fa = io_kiocb_to_cmd(req, struct io_fadvise);
 
-	if (sqe->buf_index || sqe->addr || sqe->splice_fd_in)
+	if (sqe->buf_index || sqe->splice_fd_in)
 		return -EINVAL;
 
 	fa->offset = READ_ONCE(sqe->off);
-	fa->len = READ_ONCE(sqe->len);
+	fa->len = READ_ONCE(sqe->addr);
+	if (!fa->len)
+		fa->len = READ_ONCE(sqe->len);
 	fa->advice = READ_ONCE(sqe->fadvise_advice);
 	if (io_fadvise_force_async(fa))
 		req->flags |= REQ_F_FORCE_ASYNC;

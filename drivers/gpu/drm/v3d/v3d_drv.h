@@ -98,16 +98,15 @@ struct v3d_perfmon {
 struct v3d_dev {
 	struct drm_device drm;
 
-	/* Short representation (e.g. 33, 41) of the V3D tech version
-	 * and revision.
-	 */
+	/* Short representation (e.g. 33, 41) of the V3D tech version */
 	int ver;
+
+	/* Short representation (e.g. 5, 6) of the V3D tech revision */
+	int rev;
+
 	bool single_irq_line;
 
-	/* Different revisions of V3D have different total number of performance
-	 * counters
-	 */
-	unsigned int max_counters;
+	struct v3d_perfmon_info perfmon_info;
 
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];
@@ -351,13 +350,9 @@ struct v3d_timestamp_query {
 	struct drm_syncobj *syncobj;
 };
 
-/* Number of perfmons required to handle all supported performance counters */
-#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_MAX_COUNTERS, \
-				      DRM_V3D_MAX_PERF_COUNTERS)
-
 struct v3d_performance_query {
 	/* Performance monitor IDs for this query */
-	u32 kperfmon_ids[V3D_MAX_PERFMONS];
+	u32 *kperfmon_ids;
 
 	/* Syncobj that indicates the query availability */
 	struct drm_syncobj *syncobj;
@@ -563,11 +558,16 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo);
 void v3d_mmu_remove_ptes(struct v3d_bo *bo);
 
 /* v3d_sched.c */
+void v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
+				   unsigned int count);
+void v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
+				     unsigned int count);
 void v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue);
 int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);
 
 /* v3d_perfmon.c */
+void v3d_perfmon_init(struct v3d_dev *v3d);
 void v3d_perfmon_get(struct v3d_perfmon *perfmon);
 void v3d_perfmon_put(struct v3d_perfmon *perfmon);
 void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon);

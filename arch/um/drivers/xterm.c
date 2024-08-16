@@ -156,7 +156,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 	new = xterm_fd(fd, &data->helper_pid);
 	if (new < 0) {
 		err = new;
-		printk(UM_KERN_ERR "xterm_open : os_rcv_fd failed, err = %d\n",
+		printk(UM_KERN_ERR "xterm_open : xterm_fd failed, err = %d\n",
 		       -err);
 		goto out_kill;
 	}

@@ -228,8 +228,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_fb_pin_to_ggtt(&fb->base, false,
-				   &view, false, &flags);
+	vma = intel_fb_pin_to_ggtt(&fb->base, &view,
+				   fb->min_alignment, 0,
+				   false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;

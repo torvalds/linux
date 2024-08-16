@@ -7,7 +7,7 @@ The leds-blinkm driver supports the devices of the BlinkM family.
 They are RGB-LED modules driven by a (AT)tiny microcontroller and
 communicate through I2C. The default address of these modules is
 0x09 but this can be changed through a command. By this you could
-dasy-chain up to 127 BlinkMs on an I2C bus.
+daisy-chain up to 127 BlinkMs on an I2C bus.
 
 The device accepts RGB and HSB color values through separate commands.
 Also you can store blinking sequences as "scripts" in

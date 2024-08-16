@@ -811,8 +811,7 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 	 * if (!prog)
 	 *   goto out;
 	 */
-	emit(rv_slli(RV_REG_T0, lo(idx_reg), 2), ctx);
-	emit(rv_add(RV_REG_T0, RV_REG_T0, lo(arr_reg)), ctx);
+	emit_sh2add(RV_REG_T0, lo(idx_reg), lo(arr_reg), ctx);
 	off = offsetof(struct bpf_array, ptrs);
 	if (is_12b_check(off, insn))
 		return -1;

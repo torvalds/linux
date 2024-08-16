@@ -41,12 +41,8 @@ kms_cursor_legacy@flip-vs-cursor-crc-legacy,Fail
 kms_cursor_legacy@flip-vs-cursor-legacy,Fail
 kms_flip@flip-vs-modeset-vs-hang,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
-kms_flip@flip-vs-suspend,Timeout
-kms_flip@flip-vs-suspend-interruptible,Timeout
-kms_flip@plain-flip-fb-recreate,Fail
 kms_lease@lease-uevent,Fail
 kms_pipe_crc_basic@nonblocking-crc,Fail
-kms_pipe_crc_basic@nonblocking-crc-frame-sequence,Fail
 kms_writeback@writeback-check-output,Fail
 kms_writeback@writeback-check-output-XRGB2101010,Fail
 kms_writeback@writeback-fb-id,Fail
@@ -54,4 +50,3 @@ kms_writeback@writeback-fb-id-XRGB2101010,Fail
 kms_writeback@writeback-invalid-parameters,Fail
 kms_writeback@writeback-pixel-formats,Fail
 perf@i915-ref-count,Fail
-tools_test@tools_test,Fail

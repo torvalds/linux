@@ -70,6 +70,8 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
+	struct rect odm_slice_src = resource_get_odm_slice_src_rect(pipe_ctx);
+
 	// Assign the function to calculate the number of partitions in the line buffer
 	// This is used to determine the vtap support
 	switch (plane_state->ctx->dce_version)	{
@@ -112,7 +114,8 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	else
 		spl_in->basic_in.mpc_combine_v = resource_get_mpc_slice_index(pipe_ctx);
 
-	spl_in->basic_out.odm_combine_factor = resource_get_odm_slice_count(pipe_ctx);
+	populate_splrect_from_rect(&spl_in->basic_out.odm_slice_rect, &odm_slice_src);
+	spl_in->basic_out.odm_combine_factor = 0;
 	spl_in->odm_slice_index = resource_get_odm_slice_index(pipe_ctx);
 	// Make spl input basic out info output_size width point to stream h active
 	spl_in->basic_out.output_size.width =

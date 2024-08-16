@@ -118,12 +118,14 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * attention grabbing.
 	 */
 	if (gfx_info->max_shader_engines > KFD_MAX_NUM_SE) {
-		pr_err("Exceeded KFD_MAX_NUM_SE, chip reports %d\n",
-		       gfx_info->max_shader_engines);
+		dev_err(mm->dev->adev->dev,
+			"Exceeded KFD_MAX_NUM_SE, chip reports %d\n",
+			gfx_info->max_shader_engines);
 		return;
 	}
 	if (gfx_info->max_sh_per_se > KFD_MAX_NUM_SH_PER_SE) {
-		pr_err("Exceeded KFD_MAX_NUM_SH, chip reports %d\n",
+		dev_err(mm->dev->adev->dev,
+			"Exceeded KFD_MAX_NUM_SH, chip reports %d\n",
 			gfx_info->max_sh_per_se * gfx_info->max_shader_engines);
 		return;
 	}

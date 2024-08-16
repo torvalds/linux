@@ -629,9 +629,11 @@ static bool gfxhub_v1_2_query_utcl2_poison_status(struct amdgpu_device *adev,
 
 	status = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regVM_L2_PROTECTION_FAULT_STATUS);
 	fed = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
-	/* reset page fault status */
-	WREG32_P(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id),
-			regVM_L2_PROTECTION_FAULT_STATUS), 1, ~1);
+	if (!amdgpu_sriov_vf(adev)) {
+		/* clear page fault status and address */
+		WREG32_P(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id),
+			 regVM_L2_PROTECTION_FAULT_CNTL), 1, ~1);
+	}
 
 	return fed;
 }

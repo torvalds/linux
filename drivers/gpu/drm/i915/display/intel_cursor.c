@@ -194,6 +194,13 @@ i845_cursor_max_stride(struct intel_plane *plane,
 	return 2048;
 }
 
+static unsigned int i845_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 32;
+}
+
 static u32 i845_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 cntl = 0;
@@ -342,6 +349,28 @@ i9xx_cursor_max_stride(struct intel_plane *plane,
 		       unsigned int rotation)
 {
 	return plane->base.dev->mode_config.cursor_width * 4;
+}
+
+static unsigned int i830_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	/* "AlmadorM Errata – Requires 32-bpp cursor data to be 16KB aligned." */
+	return 16 * 1024; /* physical */
+}
+
+static unsigned int i85x_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 256; /* physical */
+}
+
+static unsigned int i9xx_cursor_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	return 4 * 1024; /* physical for i915/i945 */
 }
 
 static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
@@ -732,6 +761,17 @@ static bool intel_cursor_format_mod_supported(struct drm_plane *_plane,
 	return format == DRM_FORMAT_ARGB8888;
 }
 
+void intel_cursor_unpin_work(struct kthread_work *base)
+{
+	struct drm_vblank_work *work = to_drm_vblank_work(base);
+	struct intel_plane_state *plane_state =
+		container_of(work, typeof(*plane_state), unpin_work);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+
+	intel_plane_unpin_fb(plane_state);
+	intel_plane_destroy_state(&plane->base, &plane_state->uapi);
+}
+
 static int
 intel_legacy_cursor_update(struct drm_plane *_plane,
 			   struct drm_crtc *_crtc,
@@ -875,14 +915,25 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 
 	intel_psr_unlock(crtc_state);
 
-	intel_plane_unpin_fb(old_plane_state);
+	if (old_plane_state->ggtt_vma != new_plane_state->ggtt_vma) {
+		drm_vblank_work_init(&old_plane_state->unpin_work, &crtc->base,
+				     intel_cursor_unpin_work);
+
+		drm_vblank_work_schedule(&old_plane_state->unpin_work,
+					 drm_crtc_accurate_vblank_count(&crtc->base) + 1,
+					 false);
+
+		old_plane_state = NULL;
+	} else {
+		intel_plane_unpin_fb(old_plane_state);
+	}
 
 out_free:
 	if (new_crtc_state)
 		intel_crtc_destroy_state(&crtc->base, &new_crtc_state->uapi);
 	if (ret)
 		intel_plane_destroy_state(&plane->base, &new_plane_state->uapi);
-	else
+	else if (old_plane_state)
 		intel_plane_destroy_state(&plane->base, &old_plane_state->uapi);
 	return ret;
 
@@ -942,12 +993,21 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->max_stride = i845_cursor_max_stride;
+		cursor->min_alignment = i845_cursor_min_alignment;
 		cursor->update_arm = i845_cursor_update_arm;
 		cursor->disable_arm = i845_cursor_disable_arm;
 		cursor->get_hw_state = i845_cursor_get_hw_state;
 		cursor->check_plane = i845_check_cursor;
 	} else {
 		cursor->max_stride = i9xx_cursor_max_stride;
+
+		if (IS_I830(dev_priv))
+			cursor->min_alignment = i830_cursor_min_alignment;
+		else if (IS_I85X(dev_priv))
+			cursor->min_alignment = i85x_cursor_min_alignment;
+		else
+			cursor->min_alignment = i9xx_cursor_min_alignment;
+
 		cursor->update_arm = i9xx_cursor_update_arm;
 		cursor->disable_arm = i9xx_cursor_disable_arm;
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;

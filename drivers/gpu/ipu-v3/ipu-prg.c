@@ -287,7 +287,7 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 	chan = &prg->chan[prg_chan];
 
 	if (chan->enabled) {
-		ipu_pre_update(prg->pres[chan->used_pre], *eba);
+		ipu_pre_update(prg->pres[chan->used_pre], modifier, *eba);
 		return 0;
 	}
 
@@ -419,15 +419,13 @@ static int ipu_prg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipu_prg_remove(struct platform_device *pdev)
+static void ipu_prg_remove(struct platform_device *pdev)
 {
 	struct ipu_prg *prg = platform_get_drvdata(pdev);
 
 	mutex_lock(&ipu_prg_list_mutex);
 	list_del(&prg->list);
 	mutex_unlock(&ipu_prg_list_mutex);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -471,7 +469,7 @@ static const struct of_device_id ipu_prg_dt_ids[] = {
 
 struct platform_driver ipu_prg_drv = {
 	.probe		= ipu_prg_probe,
-	.remove		= ipu_prg_remove,
+	.remove_new	= ipu_prg_remove,
 	.driver		= {
 		.name	= "imx-ipu-prg",
 		.pm	= &prg_pm_ops,

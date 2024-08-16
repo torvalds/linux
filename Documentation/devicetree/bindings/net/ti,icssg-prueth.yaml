@@ -55,6 +55,14 @@ properties:
     description:
       phandle to MII_RT module's syscon regmap
 
+  ti,pa-stats:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to PA_STATS module's syscon regmap. PA_STATS is a set of
+      registers where different statistics related to ICSSG, are dumped by
+      ICSSG firmware. PA_STATS module's syscon regmap will help the device to
+      access/read/write those statistics.
+
   ti,iep:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 2
@@ -194,6 +202,7 @@ examples:
                     "tx1-0", "tx1-1", "tx1-2", "tx1-3",
                     "rx0", "rx1";
         ti,mii-g-rt = <&icssg2_mii_g_rt>;
+        ti,pa-stats = <&icssg2_pa_stats>;
         ti,iep = <&icssg2_iep0>, <&icssg2_iep1>;
         interrupt-parent = <&icssg2_intc>;
         interrupts = <24 0 2>, <25 1 3>;

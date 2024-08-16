@@ -46,6 +46,10 @@ static inline void nfs_add_stats(const struct inode *inode,
 	nfs_add_server_stats(NFS_SERVER(inode), stat, addend);
 }
 
+/*
+ * This specialized allocator has to be a macro for its allocations to be
+ * accounted separately (to have a separate alloc_tag).
+ */
 #define nfs_alloc_iostats()	alloc_percpu(struct nfs_iostats)
 
 static inline void nfs_free_iostats(struct nfs_iostats __percpu *stats)

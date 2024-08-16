@@ -11,7 +11,7 @@
 void ath12k_debugfs_soc_create(struct ath12k_base *ab);
 void ath12k_debugfs_soc_destroy(struct ath12k_base *ab);
 void ath12k_debugfs_register(struct ath12k *ar);
-
+void ath12k_debugfs_unregister(struct ath12k *ar);
 #else
 static inline void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
@@ -22,6 +22,10 @@ static inline void ath12k_debugfs_soc_destroy(struct ath12k_base *ab)
 }
 
 static inline void ath12k_debugfs_register(struct ath12k *ar)
+{
+}
+
+static inline void ath12k_debugfs_unregister(struct ath12k *ar)
 {
 }
 

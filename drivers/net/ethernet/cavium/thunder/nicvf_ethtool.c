@@ -836,7 +836,7 @@ static int nicvf_set_pauseparam(struct net_device *dev,
 }
 
 static int nicvf_get_ts_info(struct net_device *netdev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 

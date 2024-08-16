@@ -150,7 +150,6 @@ struct fsl_edma_chan {
 	struct virt_dma_chan		vchan;
 	enum dma_status			status;
 	enum fsl_edma_pm_state		pm_state;
-	bool				idle;
 	struct fsl_edma_engine		*edma;
 	struct fsl_edma_desc		*edesc;
 	struct dma_slave_config		cfg;
@@ -172,6 +171,7 @@ struct fsl_edma_chan {
 	int                             priority;
 	int				hw_chanid;
 	int				txirq;
+	irqreturn_t			(*irq_handler)(int irq, void *dev_id);
 	bool				is_rxchan;
 	bool				is_remote;
 	bool				is_multi_fifo;
@@ -194,6 +194,7 @@ struct fsl_edma_desc {
 #define FSL_EDMA_DRV_HAS_PD		BIT(5)
 #define FSL_EDMA_DRV_HAS_CHCLK		BIT(6)
 #define FSL_EDMA_DRV_HAS_CHMUX		BIT(7)
+#define FSL_EDMA_DRV_MEM_REMOTE		BIT(8)
 /* control and status register is in tcd address space, edma3 reg layout */
 #define FSL_EDMA_DRV_SPLIT_REG		BIT(9)
 #define FSL_EDMA_DRV_BUS_8BYTE		BIT(10)
@@ -455,7 +456,6 @@ static inline struct fsl_edma_desc *to_fsl_edma_desc(struct virt_dma_desc *vd)
 static inline void fsl_edma_err_chan_handler(struct fsl_edma_chan *fsl_chan)
 {
 	fsl_chan->status = DMA_ERROR;
-	fsl_chan->idle = true;
 }
 
 void fsl_edma_tx_chan_handler(struct fsl_edma_chan *fsl_chan);

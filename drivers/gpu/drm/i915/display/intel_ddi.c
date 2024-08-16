@@ -2096,6 +2096,9 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 	u32 ln0, ln1, pin_assignment;
 	u8 width;
 
+	if (DISPLAY_VER(dev_priv) >= 14)
+		return;
+
 	if (!intel_encoder_is_tc(&dig_port->base) ||
 	    intel_tc_port_in_tbt_alt_mode(dig_port))
 		return;
@@ -4024,14 +4027,12 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 static void mtl_ddi_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	intel_cx0pll_readout_hw_state(encoder, &crtc_state->dpll_hw_state.cx0pll);
 
-	if (intel_tc_port_in_tbt_alt_mode(dig_port)) {
+	if (crtc_state->dpll_hw_state.cx0pll.tbt_mode)
 		crtc_state->port_clock = intel_mtl_tbt_calc_port_clock(encoder);
-	} else {
-		intel_cx0pll_readout_hw_state(encoder, &crtc_state->dpll_hw_state.cx0pll);
+	else
 		crtc_state->port_clock = intel_cx0pll_calc_port_clock(encoder, &crtc_state->dpll_hw_state.cx0pll);
-	}
 
 	intel_ddi_get_config(encoder, crtc_state);
 }
@@ -4171,7 +4172,8 @@ static void intel_ddi_sync_state(struct intel_encoder *encoder,
 		intel_tc_port_sanitize_mode(enc_to_dig_port(encoder),
 					    crtc_state);
 
-	if (intel_encoder_is_dp(encoder))
+	if ((crtc_state && intel_crtc_has_dp_encoder(crtc_state)) ||
+	    (!crtc_state && intel_encoder_is_dp(encoder)))
 		intel_dp_sync_state(encoder, crtc_state);
 }
 
@@ -4852,9 +4854,10 @@ static bool port_in_use(struct drm_i915_private *i915, enum port port)
 	return false;
 }
 
-void intel_ddi_init(struct drm_i915_private *dev_priv,
+void intel_ddi_init(struct intel_display *display,
 		    const struct intel_bios_encoder_data *devdata)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp;
@@ -4971,7 +4974,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	} else {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+				 "DDI %c/PHY %c", port_name(port), phy_name(phy));
 	}
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);

@@ -6,3 +6,5 @@ vdso_test_correctness
 vdso_test_gettimeofday
 vdso_test_getcpu
 vdso_standalone_test_x86
+vdso_test_getrandom
+vdso_test_chacha

@@ -14,9 +14,10 @@ Description:
 		event to its internal Informational Event log, updates the
 		Event Status register, and if configured, interrupts the host.
 		It is not an error to inject poison into an address that
-		already has poison present and no error is returned. The
-		inject_poison attribute is only visible for devices supporting
-		the capability.
+		already has poison present and no error is returned. If the
+		device returns 'Inject Poison Limit Reached' an -EBUSY error
+		is returned to the user. The inject_poison attribute is only
+		visible for devices supporting the capability.
 
 
 What:		/sys/kernel/debug/memX/clear_poison

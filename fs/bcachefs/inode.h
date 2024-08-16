@@ -88,7 +88,7 @@ struct bkey_inode_buf {
 #define x(_name, _bits)		+ 8 + _bits / 8
 	u8		_pad[0 + BCH_INODE_FIELDS_v3()];
 #undef  x
-} __packed __aligned(8);
+};
 
 void bch2_inode_pack(struct bkey_inode_buf *, const struct bch_inode_unpacked *);
 int bch2_inode_unpack(struct bkey_s_c, struct bch_inode_unpacked *);

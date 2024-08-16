@@ -287,7 +287,7 @@ bool ionic_notifyq_service(struct ionic_cq *cq)
 				clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
 			} else {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
-				ionic_lif_deferred_enqueue(&lif->deferred, work);
+				ionic_lif_deferred_enqueue(lif, work);
 			}
 		}
 		break;

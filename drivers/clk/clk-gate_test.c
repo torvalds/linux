@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Kunit test for clk gate basic type
+ * Kunit tests for clk gate
  */
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -461,4 +461,5 @@ kunit_test_suites(
 	&clk_gate_test_hiword_suite,
 	&clk_gate_test_enabled_suite
 );
+MODULE_DESCRIPTION("Kunit tests for clk gate");
 MODULE_LICENSE("GPL v2");

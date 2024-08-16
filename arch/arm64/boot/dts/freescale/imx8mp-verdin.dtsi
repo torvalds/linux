@@ -241,7 +241,6 @@
 
 	mtl_rx_setup: rx-queues-config {
 		snps,rx-queues-to-use = <5>;
-		snps,rx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -276,7 +275,6 @@
 
 	mtl_tx_setup: tx-queues-config {
 		snps,tx-queues-to-use = <5>;
-		snps,tx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -455,6 +453,13 @@
 			  "SODIMM_256",
 			  "SODIMM_48",
 			  "SODIMM_44";
+};
+
+/* Verdin HDMI_1 */
+&hdmi_tx {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
 };
 
 /* On-module I2C */
@@ -650,8 +655,7 @@
 
 /* Verdin I2C_2_DSI */
 &i2c2 {
-	/* Lower frequency to avoid DDC/EDID issues with certain displays/screens. */
-	clock-frequency = <10000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	pinctrl-1 = <&pinctrl_i2c2_gpio>;
@@ -1117,10 +1121,10 @@
 			<MX8MP_IOMUXC_SAI1_RXFS__GPIO4_IO00		0x1c4>;	/* SODIMM 252 */
 	};
 
-	pinctrl_hdmi_hog: hdmihoggrp {
+	pinctrl_hdmi: hdmigrp {
 		fsl,pins =
-			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x40000019>,	/* SODIMM 63 */
-			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x40000019>;	/* SODIMM 61 */
+			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x140>,	/* SODIMM 63 */
+			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x180>;	/* SODIMM 61 */
 	};
 
 	/* On-module I2C */

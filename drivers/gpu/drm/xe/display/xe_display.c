@@ -23,6 +23,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_encoder.h"
 #include "intel_fbdev.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -126,15 +127,18 @@ int xe_display_init_nommio(struct xe_device *xe)
 static void xe_display_fini_noirq(void *arg)
 {
 	struct xe_device *xe = arg;
+	struct intel_display *display = &xe->display;
 
 	if (!xe->info.probe_display)
 		return;
 
 	intel_display_driver_remove_noirq(xe);
+	intel_opregion_cleanup(display);
 }
 
 int xe_display_init_noirq(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
 	int err;
 
 	if (!xe->info.probe_display)
@@ -143,7 +147,7 @@ int xe_display_init_noirq(struct xe_device *xe)
 	intel_display_driver_early_probe(xe);
 
 	/* Early display init.. */
-	intel_opregion_setup(xe);
+	intel_opregion_setup(display);
 
 	/*
 	 * Fill the dram structure to get the system dram info. This will be
@@ -156,8 +160,10 @@ int xe_display_init_noirq(struct xe_device *xe)
 	intel_display_device_info_runtime_init(xe);
 
 	err = intel_display_driver_probe_noirq(xe);
-	if (err)
+	if (err) {
+		intel_opregion_cleanup(display);
 		return err;
+	}
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_display_fini_noirq, xe);
 }
@@ -246,11 +252,13 @@ void xe_display_irq_handler(struct xe_device *xe, u32 master_ctl)
 
 void xe_display_irq_enable(struct xe_device *xe, u32 gu_misc_iir)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	if (gu_misc_iir & GU_MISC_GSE)
-		intel_opregion_asle_intr(xe);
+		intel_opregion_asle_intr(display);
 }
 
 void xe_display_irq_reset(struct xe_device *xe)
@@ -270,21 +278,6 @@ void xe_display_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 		gen11_de_irq_postinstall(xe);
 }
 
-static void intel_suspend_encoders(struct xe_device *xe)
-{
-	struct drm_device *dev = &xe->drm;
-	struct intel_encoder *encoder;
-
-	if (has_display(xe))
-		return;
-
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
-		if (encoder->suspend)
-			encoder->suspend(encoder);
-	drm_modeset_unlock_all(dev);
-}
-
 static bool suspend_to_idle(void)
 {
 #if IS_ENABLED(CONFIG_ACPI_SLEEP)
@@ -296,6 +289,7 @@ static bool suspend_to_idle(void)
 
 void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 {
+	struct intel_display *display = &xe->display;
 	bool s2idle = suspend_to_idle();
 	if (!xe->info.probe_display)
 		return;
@@ -315,9 +309,9 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	intel_hpd_cancel_work(xe);
 
-	intel_suspend_encoders(xe);
+	intel_encoder_suspend_all(&xe->display);
 
-	intel_opregion_suspend(xe, s2idle ? PCI_D1 : PCI_D3cold);
+	intel_opregion_suspend(display, s2idle ? PCI_D1 : PCI_D3cold);
 
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
 
@@ -347,6 +341,8 @@ void xe_display_pm_resume_early(struct xe_device *xe)
 
 void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
@@ -367,7 +363,7 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 	if (has_display(xe))
 		drm_kms_helper_poll_enable(&xe->drm);
 
-	intel_opregion_resume(xe);
+	intel_opregion_resume(display);
 
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_RUNNING, false);
 

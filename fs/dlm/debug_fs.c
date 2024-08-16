@@ -380,7 +380,7 @@ static const struct seq_operations format4_seq_ops;
 
 static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 {
-	struct dlm_rsb *rsb = list_entry(iter_ptr, struct dlm_rsb, res_rsbs_list);
+	struct dlm_rsb *rsb = list_entry(iter_ptr, struct dlm_rsb, res_slow_list);
 
 	if (seq->op == &format1_seq_ops)
 		print_format1(rsb, seq);
@@ -409,9 +409,9 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	}
 
 	if (seq->op == &format4_seq_ops)
-		list = &ls->ls_toss;
+		list = &ls->ls_slow_inactive;
 	else
-		list = &ls->ls_keep;
+		list = &ls->ls_slow_active;
 
 	read_lock_bh(&ls->ls_rsbtbl_lock);
 	return seq_list_start(list, *pos);
@@ -423,9 +423,9 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 	struct list_head *list;
 
 	if (seq->op == &format4_seq_ops)
-		list = &ls->ls_toss;
+		list = &ls->ls_slow_inactive;
 	else
-		list = &ls->ls_keep;
+		list = &ls->ls_slow_active;
 
 	return seq_list_next(iter_ptr, list, pos);
 }

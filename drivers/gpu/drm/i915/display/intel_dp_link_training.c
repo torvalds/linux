@@ -21,6 +21,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <drm/display/drm_dp_helper.h>
+
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
@@ -114,13 +116,33 @@ intel_dp_set_lttpr_transparent_mode(struct intel_dp *intel_dp, bool enable)
 	u8 val = enable ? DP_PHY_REPEATER_MODE_TRANSPARENT :
 			  DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
 
-	return drm_dp_dpcd_write(&intel_dp->aux, DP_PHY_REPEATER_MODE, &val, 1) == 1;
+	if (drm_dp_dpcd_write(&intel_dp->aux, DP_PHY_REPEATER_MODE, &val, 1) != 1)
+		return false;
+
+	intel_dp->lttpr_common_caps[DP_PHY_REPEATER_MODE -
+				    DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV] = val;
+
+	return true;
 }
 
-static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+static bool intel_dp_lttpr_transparent_mode_enabled(struct intel_dp *intel_dp)
+{
+	return intel_dp->lttpr_common_caps[DP_PHY_REPEATER_MODE -
+					   DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV] ==
+		DP_PHY_REPEATER_MODE_TRANSPARENT;
+}
+
+/*
+ * Read the LTTPR common capabilities and switch the LTTPR PHYs to
+ * non-transparent mode if this is supported. Preserve the
+ * transparent/non-transparent mode on an active link.
+ *
+ * Return the number of detected LTTPRs in non-transparent mode or 0 if the
+ * LTTPRs are in transparent mode or the detection failed.
+ */
+static int intel_dp_init_lttpr_phys(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	int lttpr_count;
-	int i;
 
 	if (!intel_dp_read_lttpr_common_caps(intel_dp, dpcd))
 		return 0;
@@ -135,6 +157,19 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 		return 0;
 
 	/*
+	 * Don't change the mode on an active link, to prevent a loss of link
+	 * synchronization. See DP Standard v2.0 3.6.7. about the LTTPR
+	 * resetting its internal state when the mode is changed from
+	 * non-transparent to transparent.
+	 */
+	if (intel_dp->link_trained) {
+		if (lttpr_count < 0 || intel_dp_lttpr_transparent_mode_enabled(intel_dp))
+			goto out_reset_lttpr_count;
+
+		return lttpr_count;
+	}
+
+	/*
 	 * See DP Standard v2.0 3.6.6.1. about the explicit disabling of
 	 * non-transparent mode and the disable->enable non-transparent mode
 	 * sequence.
@@ -147,17 +182,31 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 	 * still taking into account any LTTPR common lane- rate/count limits.
 	 */
 	if (lttpr_count < 0)
-		return 0;
+		goto out_reset_lttpr_count;
 
 	if (!intel_dp_set_lttpr_transparent_mode(intel_dp, false)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
 		       "Switching to LTTPR non-transparent LT mode failed, fall-back to transparent mode\n");
 
 		intel_dp_set_lttpr_transparent_mode(intel_dp, true);
-		intel_dp_reset_lttpr_count(intel_dp);
 
-		return 0;
+		goto out_reset_lttpr_count;
 	}
+
+	return lttpr_count;
+
+out_reset_lttpr_count:
+	intel_dp_reset_lttpr_count(intel_dp);
+
+	return 0;
+}
+
+static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	int lttpr_count;
+	int i;
+
+	lttpr_count = intel_dp_init_lttpr_phys(intel_dp, dpcd);
 
 	for (i = 0; i < lttpr_count; i++)
 		intel_dp_read_lttpr_phy_caps(intel_dp, dpcd, DP_PHY_LTTPR(i));
@@ -656,26 +705,28 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp,
 	return true;
 }
 
-static void
-intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
-				const struct intel_crtc_state *crtc_state)
+void intel_dp_link_training_set_mode(struct intel_dp *intel_dp, int link_rate, bool is_vrr)
 {
 	u8 link_config[2];
 
-	link_config[0] = crtc_state->vrr.flipline ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
-	link_config[1] = intel_dp_is_uhbr(crtc_state) ?
+	link_config[0] = is_vrr ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
+	link_config[1] = drm_dp_is_uhbr_rate(link_rate) ?
 			 DP_SET_ANSI_128B132B : DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 }
 
-static void
-intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
-			    const struct intel_crtc_state *crtc_state,
-			    u8 link_bw, u8 rate_select)
+static void intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
+					    const struct intel_crtc_state *crtc_state)
 {
-	u8 lane_count = crtc_state->lane_count;
+	intel_dp_link_training_set_mode(intel_dp,
+					crtc_state->port_clock, crtc_state->vrr.flipline);
+}
 
-	if (crtc_state->enhanced_framing)
+void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
+				   int link_bw, int rate_select, int lane_count,
+				   bool enhanced_framing)
+{
+	if (enhanced_framing)
 		lane_count |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	if (link_bw) {
@@ -697,6 +748,14 @@ intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_LANE_COUNT_SET, lane_count);
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_LINK_RATE_SET, rate_select);
 	}
+}
+
+static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state,
+					u8 link_bw, u8 rate_select)
+{
+	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, crtc_state->lane_count,
+				      crtc_state->enhanced_framing);
 }
 
 /*
@@ -1111,6 +1170,36 @@ static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
 	return true;
 }
 
+static bool reduce_link_params_in_bw_order(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state,
+					   int *new_link_rate, int *new_lane_count)
+{
+	int link_rate;
+	int lane_count;
+	int i;
+
+	i = intel_dp_link_config_index(intel_dp, crtc_state->port_clock, crtc_state->lane_count);
+	for (i--; i >= 0; i--) {
+		intel_dp_link_config_get(intel_dp, i, &link_rate, &lane_count);
+
+		if ((intel_dp->link.force_rate &&
+		     intel_dp->link.force_rate != link_rate) ||
+		    (intel_dp->link.force_lane_count &&
+		     intel_dp->link.force_lane_count != lane_count))
+			continue;
+
+		break;
+	}
+
+	if (i < 0)
+		return false;
+
+	*new_link_rate = link_rate;
+	*new_lane_count = lane_count;
+
+	return true;
+}
+
 static int reduce_link_rate(struct intel_dp *intel_dp, int current_rate)
 {
 	int rate_index;
@@ -1146,6 +1235,41 @@ static int reduce_lane_count(struct intel_dp *intel_dp, int current_lane_count)
 	return current_lane_count >> 1;
 }
 
+static bool reduce_link_params_in_rate_lane_order(struct intel_dp *intel_dp,
+						  const struct intel_crtc_state *crtc_state,
+						  int *new_link_rate, int *new_lane_count)
+{
+	int link_rate;
+	int lane_count;
+
+	lane_count = crtc_state->lane_count;
+	link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
+	if (link_rate < 0) {
+		lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
+		link_rate = intel_dp_max_common_rate(intel_dp);
+	}
+
+	if (lane_count < 0)
+		return false;
+
+	*new_link_rate = link_rate;
+	*new_lane_count = lane_count;
+
+	return true;
+}
+
+static bool reduce_link_params(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state,
+			       int *new_link_rate, int *new_lane_count)
+{
+	/* TODO: Use the same fallback logic on SST as on MST. */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
+		return reduce_link_params_in_bw_order(intel_dp, crtc_state,
+						      new_link_rate, new_lane_count);
+	else
+		return reduce_link_params_in_rate_lane_order(intel_dp, crtc_state,
+							     new_link_rate, new_lane_count);
+}
+
 static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 						   const struct intel_crtc_state *crtc_state)
 {
@@ -1159,14 +1283,7 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		return 0;
 	}
 
-	new_lane_count = crtc_state->lane_count;
-	new_link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
-	if (new_link_rate < 0) {
-		new_lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
-		new_link_rate = intel_dp_max_common_rate(intel_dp);
-	}
-
-	if (new_lane_count < 0)
+	if (!reduce_link_params(intel_dp, crtc_state, &new_link_rate, &new_lane_count))
 		return -1;
 
 	if (intel_dp_is_edp(intel_dp) &&
@@ -1187,12 +1304,10 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	return 0;
 }
 
-/* NOTE: @state is only valid for MST links and can be %NULL for SST. */
 static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *state,
 						     struct intel_dp *intel_dp,
 						     const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 	if (!intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base)) {
@@ -1207,11 +1322,6 @@ static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *
 	} else if (intel_dp_get_link_train_fallback_values(intel_dp, crtc_state)) {
 		return false;
 	}
-
-	if (drm_WARN_ON(&i915->drm,
-			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
-			!state))
-		return false;
 
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
 	intel_dp_queue_modeset_retry_for_link(state, encoder, crtc_state);
@@ -1471,8 +1581,6 @@ intel_dp_128b132b_link_train(struct intel_dp *intel_dp,
  * retraining with reduced link rate/lane parameters if the link training
  * fails.
  * After calling this function intel_dp_stop_link_train() must be called.
- *
- * NOTE: @state is only valid for MST links and can be %NULL for SST.
  */
 void intel_dp_start_link_train(struct intel_atomic_state *state,
 			       struct intel_dp *intel_dp,
@@ -1482,17 +1590,12 @@ void intel_dp_start_link_train(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	bool passed;
-
 	/*
-	 * TODO: Reiniting LTTPRs here won't be needed once proper connector
-	 * HW state readout is added.
+	 * Reinit the LTTPRs here to ensure that they are switched to
+	 * non-transparent mode. During an earlier LTTPR detection this
+	 * could've been prevented by an active link.
 	 */
 	int lttpr_count = intel_dp_init_lttpr_and_dprx_caps(intel_dp);
-
-	if (drm_WARN_ON(&i915->drm,
-			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
-			!state))
-		return;
 
 	if (lttpr_count < 0)
 		/* Still continue with enabling the port and link training. */

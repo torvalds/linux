@@ -13,6 +13,35 @@ description: |+
   MediaTek MT7621 PCIe subsys supports a single Root Complex (RC)
   with 3 Root Ports. Each Root Port supports a Gen1 1-lane Link
 
+                          MT7621 PCIe HOST Topology
+
+                                   .-------.
+                                   |       |
+                                   |  CPU  |
+                                   |       |
+                                   '-------'
+                                       |
+                                       |
+                                       |
+                                       v
+                              .------------------.
+                  .-----------|  HOST/PCI Bridge |------------.
+                  |           '------------------'            | Type1
+             BUS0 |                     |                     | Access
+                  v                     v                     v On Bus0
+          .-------------.        .-------------.       .-------------.
+          | VIRTUAL P2P |        | VIRTUAL P2P |       | VIRTUAL P2P |
+          |    BUS0     |        |    BUS0     |       |    BUS0     |
+          |    DEV0     |        |    DEV1     |       |    DEV2     |
+          '-------------'        '-------------'       '-------------'
+    Type0        |          Type0       |         Type0       |
+   Access   BUS1 |         Access   BUS2|        Access   BUS3|
+   On Bus1       v         On Bus2      v        On Bus3      v
+           .----------.           .----------.          .----------.
+           | Device 0 |           | Device 0 |          | Device 0 |
+           |  Func 0  |           |  Func 0  |          |  Func 0  |
+           '----------'           '----------'          '----------'
+
 allOf:
   - $ref: /schemas/pci/pci-host-bridge.yaml#
 

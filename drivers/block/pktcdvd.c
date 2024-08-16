@@ -2622,6 +2622,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	struct queue_limits lim = {
 		.max_hw_sectors		= PACKET_MAX_SECTORS,
 		.logical_block_size	= CD_FRAMESIZE,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	int idx;
 	int ret = -ENOMEM;

@@ -90,7 +90,8 @@ static inline struct gpio_device *to_gpio_device(struct device *dev)
 }
 
 /* gpio suffixes used for ACPI and device tree lookup */
-static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
+extern const char *const gpio_suffixes[];
+extern const size_t gpio_suffix_count;
 
 /**
  * struct gpio_array - Opaque descriptor for a structure of GPIO array attributes
@@ -242,6 +243,7 @@ int gpio_set_debounce_timeout(struct gpio_desc *desc, unsigned int debounce);
 int gpiod_hog(struct gpio_desc *desc, const char *name,
 		unsigned long lflags, enum gpiod_flags dflags);
 int gpiochip_get_ngpios(struct gpio_chip *gc, struct device *dev);
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
 const char *gpiod_get_label(struct gpio_desc *desc);
 
 /*

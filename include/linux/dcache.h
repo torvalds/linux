@@ -71,7 +71,7 @@ extern const struct qstr dotdot_name;
 # define DNAME_INLINE_LEN 40 /* 192 bytes */
 #else
 # ifdef CONFIG_SMP
-#  define DNAME_INLINE_LEN 40 /* 128 bytes */
+#  define DNAME_INLINE_LEN 36 /* 128 bytes */
 # else
 #  define DNAME_INLINE_LEN 44 /* 128 bytes */
 # endif
@@ -89,13 +89,18 @@ struct dentry {
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
 					 * negative */
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
+	/* --- cacheline 1 boundary (64 bytes) was 32 bytes ago --- */
 
 	/* Ref lookup also touches following */
-	struct lockref d_lockref;	/* per-dentry lock and refcount */
 	const struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	unsigned long d_time;		/* used by d_revalidate */
 	void *d_fsdata;			/* fs-specific data */
+	/* --- cacheline 2 boundary (128 bytes) --- */
+	struct lockref d_lockref;	/* per-dentry lock and refcount
+					 * keep separate from RCU lookup area if
+					 * possible!
+					 */
 
 	union {
 		struct list_head d_lru;		/* LRU list */
@@ -277,6 +282,8 @@ static inline unsigned d_count(const struct dentry *dentry)
 {
 	return dentry->d_lockref.count;
 }
+
+ino_t d_parent_ino(struct dentry *dentry);
 
 /*
  * helper function for dentry_operations.d_dname() members

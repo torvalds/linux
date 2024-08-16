@@ -32,6 +32,10 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 				       struct intel_crtc *crtc);
 void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
 			       const struct intel_plane_state *from_plane_state);
+void intel_plane_async_flip(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state,
+			    bool async_flip);
 void intel_plane_update_noarm(struct intel_plane *plane,
 			      const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state);
@@ -67,5 +71,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 			       struct intel_plane_state *plane_state);
 void intel_plane_helper_add(struct intel_plane *plane);
 bool intel_plane_needs_physical(struct intel_plane *plane);
+void intel_plane_init_cursor_vblank_work(struct intel_plane_state *old_plane_state,
+					 struct intel_plane_state *new_plane_state);
 
 #endif /* __INTEL_ATOMIC_PLANE_H__ */

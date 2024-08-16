@@ -99,6 +99,7 @@ static const char *mes_v12_0_opcodes[] = {
 	"SET_LOG_BUFFER",
 	"CHANGE_GANG_PRORITY",
 	"QUERY_SCHEDULER_STATUS",
+	"unused",
 	"SET_DEBUG_VMID",
 	"MISC",
 	"UPDATE_ROOT_PAGE_TABLE",
@@ -144,18 +145,18 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 						    void *pkt, int size,
 						    int api_status_off)
 {
-	int ndw = size / 4;
-	signed long r;
-	union MESAPI__MISC *x_pkt = pkt;
-	struct MES_API_STATUS *api_status;
+	union MESAPI__QUERY_MES_STATUS mes_status_pkt;
+	signed long timeout = 3000000; /* 3000 ms */
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
-	unsigned long flags;
+	struct MES_API_STATUS *api_status;
+	union MESAPI__MISC *x_pkt = pkt;
 	const char *op_str, *misc_op_str;
-	signed long timeout = 3000000; /* 3000 ms */
-	u32 fence_offset;
-	u64 fence_gpu_addr;
-	u64 *fence_ptr;
+	unsigned long flags;
+	u64 status_gpu_addr;
+	u32 status_offset;
+	u64 *status_ptr;
+	signed long r;
 	int ret;
 
 	if (x_pkt->header.opcode >= MES_SCH_API_MAX)
@@ -167,28 +168,38 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 		/* Worst case in sriov where all other 15 VF timeout, each VF needs about 600ms */
 		timeout = 15 * 600 * 1000;
 	}
-	BUG_ON(size % 4 != 0);
 
-	ret = amdgpu_device_wb_get(adev, &fence_offset);
+	ret = amdgpu_device_wb_get(adev, &status_offset);
 	if (ret)
 		return ret;
-	fence_gpu_addr =
-		adev->wb.gpu_addr + (fence_offset * 4);
-	fence_ptr = (u64 *)&adev->wb.wb[fence_offset];
-	*fence_ptr = 0;
+
+	status_gpu_addr = adev->wb.gpu_addr + (status_offset * 4);
+	status_ptr = (u64 *)&adev->wb.wb[status_offset];
+	*status_ptr = 0;
 
 	spin_lock_irqsave(&mes->ring_lock, flags);
-	if (amdgpu_ring_alloc(ring, ndw)) {
-		spin_unlock_irqrestore(&mes->ring_lock, flags);
-		amdgpu_device_wb_free(adev, fence_offset);
-		return -ENOMEM;
-	}
+	r = amdgpu_ring_alloc(ring, (size + sizeof(mes_status_pkt)) / 4);
+	if (r)
+		goto error_unlock_free;
 
 	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
-	api_status->api_completion_fence_addr = fence_gpu_addr;
+	api_status->api_completion_fence_addr = status_gpu_addr;
 	api_status->api_completion_fence_value = 1;
 
-	amdgpu_ring_write_multiple(ring, pkt, ndw);
+	amdgpu_ring_write_multiple(ring, pkt, size / 4);
+
+	memset(&mes_status_pkt, 0, sizeof(mes_status_pkt));
+	mes_status_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_status_pkt.header.opcode = MES_SCH_API_QUERY_SCHEDULER_STATUS;
+	mes_status_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+	mes_status_pkt.api_status.api_completion_fence_addr =
+		ring->fence_drv.gpu_addr;
+	mes_status_pkt.api_status.api_completion_fence_value =
+		++ring->fence_drv.sync_seq;
+
+	amdgpu_ring_write_multiple(ring, &mes_status_pkt,
+				   sizeof(mes_status_pkt) / 4);
+
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&mes->ring_lock, flags);
 
@@ -196,16 +207,17 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	misc_op_str = mes_v12_0_get_misc_op_string(x_pkt);
 
 	if (misc_op_str)
-		dev_dbg(adev->dev, "MES msg=%s (%s) was emitted\n", op_str, misc_op_str);
+		dev_dbg(adev->dev, "MES msg=%s (%s) was emitted\n", op_str,
+			misc_op_str);
 	else if (op_str)
 		dev_dbg(adev->dev, "MES msg=%s was emitted\n", op_str);
 	else
-		dev_dbg(adev->dev, "MES msg=%d was emitted\n", x_pkt->header.opcode);
+		dev_dbg(adev->dev, "MES msg=%d was emitted\n",
+			x_pkt->header.opcode);
 
-	r = amdgpu_mes_fence_wait_polling(fence_ptr, (u64)1, timeout);
-	amdgpu_device_wb_free(adev, fence_offset);
+	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq, timeout);
+	if (r < 1 || !*status_ptr) {
 
-	if (r < 1) {
 		if (misc_op_str)
 			dev_err(adev->dev, "MES failed to respond to msg=%s (%s)\n",
 				op_str, misc_op_str);
@@ -219,10 +231,19 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 		while (halt_if_hws_hang)
 			schedule();
 
-		return -ETIMEDOUT;
+		r = -ETIMEDOUT;
+		goto error_wb_free;
 	}
 
+	amdgpu_device_wb_free(adev, status_offset);
 	return 0;
+
+error_unlock_free:
+	spin_unlock_irqrestore(&mes->ring_lock, flags);
+
+error_wb_free:
+	amdgpu_device_wb_free(adev, status_offset);
+	return r;
 }
 
 static int convert_to_mes_queue_type(int queue_type)
@@ -530,8 +551,10 @@ static int mes_v12_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
 	mes_set_hw_res_pkt.unmapped_doorbell_handling = 1;
 
-	mes_set_hw_res_pkt.enable_mes_event_int_logging = 0;
-	mes_set_hw_res_pkt.event_intr_history_gpu_mc_ptr = mes->event_log_gpu_addr;
+	if (amdgpu_mes_log_enable) {
+		mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
+		mes_set_hw_res_pkt.event_intr_history_gpu_mc_ptr = mes->event_log_gpu_addr;
+	}
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
@@ -1215,6 +1238,8 @@ static int mes_v12_0_sw_init(void *handle)
 	adev->mes.funcs = &mes_v12_0_funcs;
 	adev->mes.kiq_hw_init = &mes_v12_0_kiq_hw_init;
 	adev->mes.kiq_hw_fini = &mes_v12_0_kiq_hw_fini;
+
+	adev->mes.event_log_size = AMDGPU_MES_LOG_BUFFER_SIZE;
 
 	r = amdgpu_mes_init(adev);
 	if (r)

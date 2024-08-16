@@ -633,4 +633,5 @@ static struct kunit_suite string_test_suite = {
 
 kunit_test_suites(&string_test_suite);
 
+MODULE_DESCRIPTION("Test cases for string functions");
 MODULE_LICENSE("GPL v2");

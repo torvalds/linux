@@ -2049,7 +2049,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 #endif
 
 static const struct i2c_device_id ssif_id[] = {
-	{ DEVICE_NAME, 0 },
+	{ DEVICE_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssif_id);

@@ -153,18 +153,11 @@ bio_free() will automatically free the bip.
 4.2 Block Device
 ----------------
 
-Because the format of the protection data is tied to the physical
-disk, each block device has been extended with a block integrity
-profile (struct blk_integrity).  This optional profile is registered
-with the block layer using blk_integrity_register().
-
-The profile contains callback functions for generating and verifying
-the protection data, as well as getting and setting application tags.
-The profile also contains a few constants to aid in completing,
-merging and splitting the integrity metadata.
+Block devices can set up the integrity information in the integrity
+sub-struture of the queue_limits structure.
 
 Layered block devices will need to pick a profile that's appropriate
-for all subdevices.  blk_integrity_compare() can help with that.  DM
+for all subdevices.  queue_limits_stack_integrity() can help with that.  DM
 and MD linear, RAID0 and RAID1 are currently supported.  RAID4/5/6
 will require extra work due to the application tag.
 
@@ -249,42 +242,6 @@ will require extra work due to the application tag.
       It is up to the receiver to process them and verify data
       integrity upon completion.
 
-
-5.4 Registering A Block Device As Capable Of Exchanging Integrity Metadata
---------------------------------------------------------------------------
-
-    To enable integrity exchange on a block device the gendisk must be
-    registered as capable:
-
-    `int blk_integrity_register(gendisk, blk_integrity);`
-
-      The blk_integrity struct is a template and should contain the
-      following::
-
-        static struct blk_integrity my_profile = {
-            .name                   = "STANDARDSBODY-TYPE-VARIANT-CSUM",
-            .generate_fn            = my_generate_fn,
-	    .verify_fn              = my_verify_fn,
-	    .tuple_size             = sizeof(struct my_tuple_size),
-	    .tag_size               = <tag bytes per hw sector>,
-        };
-
-      'name' is a text string which will be visible in sysfs.  This is
-      part of the userland API so chose it carefully and never change
-      it.  The format is standards body-type-variant.
-      E.g. T10-DIF-TYPE1-IP or T13-EPP-0-CRC.
-
-      'generate_fn' generates appropriate integrity metadata (for WRITE).
-
-      'verify_fn' verifies that the data buffer matches the integrity
-      metadata.
-
-      'tuple_size' must be set to match the size of the integrity
-      metadata per sector.  I.e. 8 for DIF and EPP.
-
-      'tag_size' must be set to identify how many bytes of tag space
-      are available per hardware sector.  For DIF this is either 2 or
-      0 depending on the value of the Control Mode Page ATO bit.
 
 ----------------------------------------------------------------------
 

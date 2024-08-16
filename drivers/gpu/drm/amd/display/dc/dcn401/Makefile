@@ -1,6 +1,5 @@
-#
-# Copyright © 2023 Advanced Micro Devices, Inc. All rights reserved.
-#
+# SPDX-License-Identifier: MIT
+# Copyright © 2024 Advanced Micro Devices, Inc. All rights reserved.
 
 DCN401 += dcn401_dio_link_encoder.o
 DCN401 += dcn401_dio_stream_encoder.o

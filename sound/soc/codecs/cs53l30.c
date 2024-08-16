@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <sound/pcm_params.h>
@@ -901,7 +900,7 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs53l30_regmap = {
+static const struct regmap_config cs53l30_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

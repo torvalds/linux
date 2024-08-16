@@ -26,6 +26,8 @@ bool dcn401_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate);
 
+void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
+
 /* Following are definitions for run time init of reg offsets */
 
 /* HUBP */

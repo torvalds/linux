@@ -34,12 +34,56 @@ static const struct regmap_range_cfg inv_icm42600_regmap_ranges[] = {
 	},
 };
 
+static const struct regmap_range inv_icm42600_regmap_volatile_yes_ranges[] = {
+	/* Sensor data registers */
+	regmap_reg_range(0x001D, 0x002A),
+	/* INT status, FIFO, APEX data */
+	regmap_reg_range(0x002D, 0x0038),
+	/* Signal path reset */
+	regmap_reg_range(0x004B, 0x004B),
+	/* FIFO lost packets */
+	regmap_reg_range(0x006C, 0x006D),
+	/* Timestamp value */
+	regmap_reg_range(0x1062, 0x1064),
+};
+
+static const struct regmap_range inv_icm42600_regmap_volatile_no_ranges[] = {
+	regmap_reg_range(0x0000, 0x001C),
+	regmap_reg_range(0x006E, 0x1061),
+	regmap_reg_range(0x1065, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_volatile_accesses[] = {
+	{
+		.yes_ranges = inv_icm42600_regmap_volatile_yes_ranges,
+		.n_yes_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_yes_ranges),
+		.no_ranges = inv_icm42600_regmap_volatile_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_no_ranges),
+	},
+};
+
+static const struct regmap_range inv_icm42600_regmap_rd_noinc_no_ranges[] = {
+	regmap_reg_range(0x0000, INV_ICM42600_REG_FIFO_DATA - 1),
+	regmap_reg_range(INV_ICM42600_REG_FIFO_DATA + 1, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_rd_noinc_accesses[] = {
+	{
+		.no_ranges = inv_icm42600_regmap_rd_noinc_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_rd_noinc_no_ranges),
+	},
+};
+
 const struct regmap_config inv_icm42600_regmap_config = {
+	.name = "inv_icm42600",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x4FFF,
 	.ranges = inv_icm42600_regmap_ranges,
 	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
+	.volatile_table = inv_icm42600_regmap_volatile_accesses,
+	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
+	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_NS_GPL(inv_icm42600_regmap_config, IIO_ICM42600);
 
@@ -248,6 +292,23 @@ int inv_icm42600_set_accel_conf(struct inv_icm42600_state *st,
 	if (conf->filter < 0)
 		conf->filter = oldconf->filter;
 
+	/* force power mode against ODR when sensor is on */
+	switch (conf->mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		if (conf->odr <= INV_ICM42600_ODR_1KHZ_LN) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+			conf->filter = INV_ICM42600_FILTER_BW_ODR_DIV_2;
+		} else if (conf->odr >= INV_ICM42600_ODR_6_25HZ_LP &&
+			   conf->odr <= INV_ICM42600_ODR_1_5625HZ_LP) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_POWER;
+			conf->filter = INV_ICM42600_FILTER_AVG_16X;
+		}
+		break;
+	default:
+		break;
+	}
+
 	/* set ACCEL_CONFIG0 register (accel fullscale & odr) */
 	if (conf->fs != oldconf->fs || conf->odr != oldconf->odr) {
 		val = INV_ICM42600_ACCEL_CONFIG0_FS(conf->fs) |
@@ -435,9 +496,18 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 		return ret;
 
 	/* sensor data in big-endian (default) */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG0,
-				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN,
-				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN);
+	ret = regmap_set_bits(st->map, INV_ICM42600_REG_INTF_CONFIG0,
+			      INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN);
+	if (ret)
+		return ret;
+
+	/*
+	 * Use RC clock for accel low-power to fix glitches when switching
+	 * gyro on/off while accel low-power is on.
+	 */
+	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG1,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC);
 	if (ret)
 		return ret;
 
@@ -532,11 +602,12 @@ static int inv_icm42600_irq_init(struct inv_icm42600_state *st, int irq,
 		return ret;
 
 	/* Deassert async reset for proper INT pin operation (cf datasheet) */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INT_CONFIG1,
-				 INV_ICM42600_INT_CONFIG1_ASYNC_RESET, 0);
+	ret = regmap_clear_bits(st->map, INV_ICM42600_REG_INT_CONFIG1,
+				INV_ICM42600_INT_CONFIG1_ASYNC_RESET);
 	if (ret)
 		return ret;
 
+	irq_type |= IRQF_ONESHOT;
 	return devm_request_threaded_irq(dev, irq, inv_icm42600_irq_timestamp,
 					 inv_icm42600_irq_handler, irq_type,
 					 "inv_icm42600", st);

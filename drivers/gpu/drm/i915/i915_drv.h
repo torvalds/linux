@@ -678,9 +678,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	((sizes) & ~RUNTIME_INFO(i915)->page_sizes) == 0; \
 })
 
-/* Early gen2 have a totally busted CS tlb and require pinned batches. */
-#define HAS_BROKEN_CS_TLB(i915)	(IS_I830(i915) || IS_I845G(i915))
-
 #define NEEDS_RC6_CTX_CORRUPTION_WA(i915)	\
 	(IS_BROADWELL(i915) || GRAPHICS_VER(i915) == 9)
 
@@ -724,8 +721,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define HAS_64K_PAGES(i915) (INTEL_INFO(i915)->has_64k_pages)
 
-#define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
-#define HAS_LMEM(i915) HAS_REGION(i915, REGION_LMEM)
+#define HAS_REGION(i915, id) (INTEL_INFO(i915)->memory_regions & BIT(id))
+#define HAS_LMEM(i915) HAS_REGION(i915, INTEL_REGION_LMEM_0)
 
 #define HAS_EXTRA_GT_LIST(i915)   (INTEL_INFO(i915)->extra_gt_list)
 

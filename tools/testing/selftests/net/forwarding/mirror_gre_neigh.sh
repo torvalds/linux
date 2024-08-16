@@ -60,41 +60,32 @@ test_span_gre_neigh()
 	local addr=$1; shift
 	local tundev=$1; shift
 	local direction=$1; shift
+	local forward_type=$1; shift
+	local backward_type=$1; shift
 	local what=$1; shift
 
 	RET=0
 
 	ip neigh replace dev $swp3 $addr lladdr 00:11:22:33:44:55
-	mirror_install $swp1 $direction $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 $direction $tundev "matchall"
+	fail_test_span_gre_dir $tundev "$forward_type" "$backward_type"
 	ip neigh del dev $swp3 $addr
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev "$forward_type" "$backward_type"
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction $what: neighbor change ($tcflags)"
+	log_test "$direction $what: neighbor change"
 }
 
 test_gretap()
 {
-	test_span_gre_neigh 192.0.2.130 gt4 ingress "mirror to gretap"
-	test_span_gre_neigh 192.0.2.130 gt4 egress "mirror to gretap"
+	test_span_gre_neigh 192.0.2.130 gt4 ingress 8 0 "mirror to gretap"
+	test_span_gre_neigh 192.0.2.130 gt4 egress 0 8 "mirror to gretap"
 }
 
 test_ip6gretap()
 {
-	test_span_gre_neigh 2001:db8:2::2 gt6 ingress "mirror to ip6gretap"
-	test_span_gre_neigh 2001:db8:2::2 gt6 egress "mirror to ip6gretap"
-}
-
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
+	test_span_gre_neigh 2001:db8:2::2 gt6 ingress 8 0 "mirror to ip6gretap"
+	test_span_gre_neigh 2001:db8:2::2 gt6 egress 0 8 "mirror to ip6gretap"
 }
 
 trap cleanup EXIT
@@ -102,14 +93,6 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

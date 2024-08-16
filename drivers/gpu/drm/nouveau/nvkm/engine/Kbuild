@@ -19,7 +19,6 @@ include $(src)/nvkm/engine/nvenc/Kbuild
 include $(src)/nvkm/engine/nvdec/Kbuild
 include $(src)/nvkm/engine/nvjpg/Kbuild
 include $(src)/nvkm/engine/ofa/Kbuild
-include $(src)/nvkm/engine/pm/Kbuild
 include $(src)/nvkm/engine/sec/Kbuild
 include $(src)/nvkm/engine/sec2/Kbuild
 include $(src)/nvkm/engine/sw/Kbuild

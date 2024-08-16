@@ -470,4 +470,5 @@ static struct platform_driver goldfish_tty_platform_driver = {
 
 module_platform_driver(goldfish_tty_platform_driver);
 
+MODULE_DESCRIPTION("Goldfish TTY Driver");
 MODULE_LICENSE("GPL v2");

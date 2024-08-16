@@ -1168,17 +1168,13 @@ static int iwl_dump_ini_config_iter(struct iwl_fw_runtime *fwrt,
 		   le32_to_cpu(reg->dev_addr.offset);
 	int i;
 
-	/* we shouldn't get here if the trans doesn't have read_config32 */
-	if (WARN_ON_ONCE(!trans->ops->read_config32))
-		return -EOPNOTSUPP;
-
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = reg->dev_addr.size;
 	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
 		int ret;
 		u32 tmp;
 
-		ret = trans->ops->read_config32(trans, addr + i, &tmp);
+		ret = iwl_trans_read_config32(trans, addr + i, &tmp);
 		if (ret < 0)
 			return ret;
 

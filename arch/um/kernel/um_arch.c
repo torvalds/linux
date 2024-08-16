@@ -126,9 +126,6 @@ unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
 unsigned long end_vm;
 
-/* Set in uml_ncpus_setup */
-int ncpus = 1;
-
 /* Set in early boot */
 static int have_root __initdata;
 static int have_console __initdata;

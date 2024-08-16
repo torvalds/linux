@@ -446,9 +446,10 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 } while(0)
 
 void
-nouveau_display_hpd_resume(struct drm_device *dev)
+nouveau_display_hpd_resume(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	if (drm->headless)
+		return;
 
 	spin_lock_irq(&drm->hpd_lock);
 	drm->hpd_pending = ~0;
@@ -635,7 +636,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	if (!runtime)
+	if (!runtime && !drm->headless)
 		cancel_work_sync(&drm->hpd_work);
 
 	drm_kms_helper_poll_disable(dev);
@@ -729,6 +730,7 @@ nouveau_display_create(struct drm_device *dev)
 		/* no display hw */
 		if (ret == -ENODEV) {
 			ret = 0;
+			drm->headless = true;
 			goto disp_create_err;
 		}
 

@@ -45,6 +45,7 @@ static struct platform_driver simatic_ipc_batt_driver = {
 
 module_platform_driver(simatic_ipc_batt_driver);
 
+MODULE_DESCRIPTION("CMOS Battery monitoring for Simatic IPCs based on Apollo Lake GPIO");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_SOFTDEP("pre: simatic-ipc-batt platform:apollolake-pinctrl");

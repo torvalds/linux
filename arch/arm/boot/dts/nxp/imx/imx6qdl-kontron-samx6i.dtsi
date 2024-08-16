@@ -61,6 +61,18 @@
 		vin-supply = <&reg_smarc_suppy>;
 	};
 
+	reg_sdio: regulator-sdio {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_sdio>;
+		regulator-name = "V_3V3_SD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		off-on-delay-us = <20000>;
+	};
+
 	reg_smarc_lcdbklt: regulator-smarc-lcdbklt {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -137,7 +149,7 @@
 		status = "disabled";
 	};
 
-	i2c_intern: i2c-gpio-intern {
+	i2c_intern: i2c-0 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_intern>;
@@ -148,7 +160,7 @@
 		#size-cells = <0>;
 	};
 
-	i2c_lcd: i2c-gpio-lcd {
+	i2c_lcd: i2c-1 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_lcd>;
@@ -160,7 +172,7 @@
 		status = "disabled";
 	};
 
-	i2c_cam: i2c-gpio-cam {
+	i2c_cam: i2c-2 {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_gpio_cam>;
@@ -178,7 +190,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_audmux>;
 
-	audmux_ssi1 {
+	mux-ssi1 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT1_SSI0>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSEL(MX51_AUDMUX_PORT3) |
@@ -190,7 +202,7 @@
 		>;
 	};
 
-	audmux_adu3 {
+	mux-aud3 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT3>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
@@ -198,7 +210,7 @@
 		>;
 	};
 
-	audmux_ssi2 {
+	mux-ssi2 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT2_SSI1>;
 		fsl,port-config = <
 			(IMX_AUDMUX_V2_PTCR_TFSEL(MX51_AUDMUX_PORT4) |
@@ -210,7 +222,7 @@
 		>;
 	};
 
-	audmux_adu4 {
+	mux-aud4 {
 		fsl,audmux-port = <MX51_AUDMUX_PORT4>;
 		fsl,port-config = <
 			IMX_AUDMUX_V2_PTCR_SYN
@@ -244,7 +256,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	cs-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>,
-		   <&gpio3 29 GPIO_ACTIVE_LOW>;
+		   <&gpio3 29 GPIO_ACTIVE_LOW>,
+		   <&gpio3 25 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	/* default boot source: workaround #1 for errata ERR006282 */
@@ -259,7 +272,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-connection-type = "rgmii-id";
 	phy-handle = <&ethphy>;
 
 	mdio {
@@ -269,7 +282,7 @@
 		ethphy: ethernet-phy@1 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <1>;
-			reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <1000>;
 		};
 	};
@@ -356,10 +369,6 @@
 				regulator-always-on;
 			};
 
-			/*
-			 * Per schematics, of all VGEN's, only VGEN5 has some
-			 * usage ... but even that - over DNI resistor
-			 */
 			vgen1 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
@@ -380,8 +389,7 @@
 				regulator-max-microvolt = <3300000>;
 			};
 
-			reg_2p5v_s0: vgen5 {
-				regulator-name = "V_2V5_S0";
+			vgen5 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -464,6 +472,8 @@
 			MX6QDL_PAD_EIM_D24__GPIO3_IO24 0x1b0b0
 			/* SPI_IMX_CS0# - connected to SMARC SPI0_CS0# */
 			MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0
+			/* SPI4_CS3# - connected to SMARC SPI0_CS1# */
+			MX6QDL_PAD_EIM_D25__GPIO3_IO25 0x1b0b0
 		>;
 	};
 
@@ -516,7 +526,7 @@
 			MX6QDL_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
 			MX6QDL_PAD_ENET_MDC__ENET_MDC         0x1b0b0
 			MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
-			MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25    0x1b0b0 /* RST_GBE0_PHY# */
+			MX6QDL_PAD_NANDF_D1__GPIO2_IO01       0x1b0b0 /* RST_GBE0_PHY# */
 		>;
 	};
 
@@ -642,6 +652,12 @@
 		>;
 	};
 
+	pinctrl_reg_sdio: reg-sdiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x1b0b0 /* SDIO_PWR_EN */
+		>;
+	};
+
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA 0x1b0b1
@@ -694,7 +710,6 @@
 
 			MX6QDL_PAD_NANDF_CS1__GPIO6_IO14 0x1b0b0 /* CD */
 			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x1b0b0 /* WP */
-			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x1b0b0 /* PWR_EN */
 		>;
 	};
 
@@ -728,8 +743,7 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
-	wake-up-gpio = <&gpio6 18 GPIO_ACTIVE_HIGH>;
-	reset-gpio = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+	reset-gpio = <&gpio3 13 GPIO_ACTIVE_LOW>;
 };
 
 /* LCD_BKLT_PWM */
@@ -797,12 +811,12 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&reg_sdio>;
 	no-1-8-v;
 };
 
 /* SDMMC */
 &usdhc4 {
-	/* Internal eMMC, optional on some boards */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
@@ -811,11 +825,13 @@
 	non-removable;
 	vmmc-supply = <&reg_3p3v_s0>;
 	vqmmc-supply = <&reg_1p8v_s0>;
+	status = "okay";
 };
 
 &wdog1 {
 	/* CPLD is feeded by watchdog (hardwired) */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog1>;
+	fsl,ext-reset-output;
 	status = "okay";
 };

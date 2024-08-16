@@ -15,6 +15,7 @@
 #define BCH_RECOVERY_PASSES()							\
 	x(scan_for_btree_nodes,			37, 0)				\
 	x(check_topology,			 4, 0)				\
+	x(accounting_read,			39, PASS_ALWAYS)		\
 	x(alloc_read,				 0, PASS_ALWAYS)		\
 	x(stripes_read,				 1, PASS_ALWAYS)		\
 	x(initialize_subvolumes,		 2, 0)				\

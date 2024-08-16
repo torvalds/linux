@@ -162,6 +162,11 @@ typedef u16 blk_short_t;
  */
 #define BLK_STS_DURATION_LIMIT	((__force blk_status_t)17)
 
+/*
+ * Invalid size or alignment.
+ */
+#define BLK_STS_INVAL	((__force blk_status_t)19)
+
 /**
  * blk_path_error - returns true if error may be path related
  * @error: status the request was completed with
@@ -349,6 +354,7 @@ enum req_op {
 	REQ_OP_LAST		= (__force blk_opf_t)36,
 };
 
+/* Keep cmd_flag_name[] in sync with the definitions below */
 enum req_flag_bits {
 	__REQ_FAILFAST_DEV =	/* no driver retries of device errors */
 		REQ_OP_BITS,
@@ -370,7 +376,7 @@ enum req_flag_bits {
 	__REQ_SWAP,		/* swap I/O */
 	__REQ_DRV,		/* for driver use */
 	__REQ_FS_PRIVATE,	/* for file system (submitter) use */
-
+	__REQ_ATOMIC,		/* for atomic write operations */
 	/*
 	 * Command specific flags, keep last:
 	 */
@@ -402,6 +408,7 @@ enum req_flag_bits {
 #define REQ_SWAP	(__force blk_opf_t)(1ULL << __REQ_SWAP)
 #define REQ_DRV		(__force blk_opf_t)(1ULL << __REQ_DRV)
 #define REQ_FS_PRIVATE	(__force blk_opf_t)(1ULL << __REQ_FS_PRIVATE)
+#define REQ_ATOMIC	(__force blk_opf_t)(1ULL << __REQ_ATOMIC)
 
 #define REQ_NOUNMAP	(__force blk_opf_t)(1ULL << __REQ_NOUNMAP)
 

@@ -50,9 +50,9 @@ void serial_test_fexit_stress(void)
 
 out:
 	for (i = 0; i < bpf_max_tramp_links; i++) {
-		if (link_fd[i])
+		if (link_fd[i] > 0)
 			close(link_fd[i]);
-		if (fexit_fd[i])
+		if (fexit_fd[i] > 0)
 			close(fexit_fd[i]);
 	}
 	free(fd);

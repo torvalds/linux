@@ -76,7 +76,7 @@ __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for d
 	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN_DEFAULT_REGIONS \
-	.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_STOLEN_SMEM)
 
 #define I830_FEATURES \
 	GEN(2), \
@@ -655,7 +655,7 @@ static const struct intel_device_info rkl_info = {
 };
 
 #define DGFX_FEATURES \
-	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_LMEM_0) | BIT(INTEL_REGION_STOLEN_LMEM), \
 	.has_llc = 0, \
 	.has_pxp = 0, \
 	.has_snoop = 1, \
@@ -781,7 +781,7 @@ static const struct intel_device_info mtl_info = {
 	.has_snoop = 1,
 	.max_pat_index = 4,
 	.has_pxp = 1,
-	.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
+	.memory_regions = BIT(INTEL_REGION_SMEM) | BIT(INTEL_REGION_STOLEN_LMEM),
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
 	MTL_CACHELEVEL,
 };
@@ -880,7 +880,7 @@ static void i915_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_i915_private *i915;
 
-	i915 = pci_get_drvdata(pdev);
+	i915 = pdev_to_i915(pdev);
 	if (!i915) /* driver load aborted, nothing to cleanup */
 		return;
 
@@ -1003,7 +1003,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	if (i915_inject_probe_failure(pci_get_drvdata(pdev))) {
+	if (i915_inject_probe_failure(pdev_to_i915(pdev))) {
 		i915_pci_remove(pdev);
 		return -ENODEV;
 	}
@@ -1025,7 +1025,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void i915_pci_shutdown(struct pci_dev *pdev)
 {
-	struct drm_i915_private *i915 = pci_get_drvdata(pdev);
+	struct drm_i915_private *i915 = pdev_to_i915(pdev);
 
 	i915_driver_shutdown(i915);
 }

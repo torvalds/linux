@@ -35,7 +35,7 @@
 int
 base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -48,7 +48,7 @@ base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 int
 base507c_image_clr(struct nv50_wndw *wndw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 4)))
@@ -65,7 +65,7 @@ base507c_image_clr(struct nv50_wndw *wndw)
 static int
 base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 13)))
@@ -118,7 +118,7 @@ base507c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 int
 base507c_xlut_clr(struct nv50_wndw *wndw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -132,7 +132,7 @@ base507c_xlut_clr(struct nv50_wndw *wndw)
 int
 base507c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -158,7 +158,7 @@ base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 int
 base507c_ntfy_clr(struct nv50_wndw *wndw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -171,7 +171,7 @@ base507c_ntfy_clr(struct nv50_wndw *wndw)
 int
 base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 3)))
@@ -195,7 +195,7 @@ base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
 int
 base507c_sema_clr(struct nv50_wndw *wndw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -208,7 +208,7 @@ base507c_sema_clr(struct nv50_wndw *wndw)
 int
 base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	struct nvif_push *push = wndw->wndw.push;
+	struct nvif_push *push = &wndw->wndw.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 5)))
@@ -307,7 +307,6 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	struct nvif_disp_chan_v0 args = {
 		.id = head,
 	};
-	struct nouveau_display *disp = nouveau_display(drm->dev);
 	struct nv50_disp *disp50 = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
 	int ret;
@@ -318,7 +317,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp.object,
+	ret = nv50_dmac_create(drm,
 			       &oclass, head, &args, sizeof(args),
 			       disp50->sync->offset, &wndw->wndw);
 	if (ret) {

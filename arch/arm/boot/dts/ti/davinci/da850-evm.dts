@@ -65,7 +65,7 @@
 
 		display-timings {
 			native-mode = <&timing0>;
-			timing0: 480x272 {
+			timing0: timing-480x272 {
 				clock-frequency = <9000000>;
 				hactive = <480>;
 				vactive = <272>;

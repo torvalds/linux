@@ -1485,7 +1485,6 @@ static void sti_hdmi_remove(struct platform_device *pdev)
 struct platform_driver sti_hdmi_driver = {
 	.driver = {
 		.name = "sti-hdmi",
-		.owner = THIS_MODULE,
 		.of_match_table = hdmi_of_match,
 	},
 	.probe = sti_hdmi_probe,

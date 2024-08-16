@@ -38,3 +38,8 @@ config GENERIC_VDSO_OVERFLOW_PROTECT
 	  in the hotpath.
 
 endif
+
+config VDSO_GETRANDOM
+	bool
+	help
+	  Selected by architectures that support vDSO getrandom().

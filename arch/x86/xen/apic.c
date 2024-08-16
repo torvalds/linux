@@ -10,8 +10,6 @@
 #include <xen/xen.h>
 #include <xen/interface/physdev.h>
 #include "xen-ops.h"
-#include "pmu.h"
-#include "smp.h"
 
 static unsigned int xen_io_apic_read(unsigned apic, unsigned reg)
 {

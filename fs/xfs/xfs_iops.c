@@ -17,6 +17,8 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trans.h"
+#include "xfs_trans_space.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
@@ -26,6 +28,7 @@
 #include "xfs_ioctl.h"
 #include "xfs_xattr.h"
 #include "xfs_file.h"
+#include "xfs_bmap.h"
 
 #include <linux/posix_acl.h>
 #include <linux/security.h>
@@ -157,8 +160,6 @@ xfs_create_need_xattr(
 	if (dir->i_sb->s_security)
 		return true;
 #endif
-	if (xfs_has_parent(XFS_I(dir)->i_mount))
-		return true;
 	return false;
 }
 
@@ -172,49 +173,55 @@ xfs_generic_create(
 	dev_t			rdev,
 	struct file		*tmpfile)	/* unnamed file */
 {
-	struct inode	*inode;
-	struct xfs_inode *ip = NULL;
-	struct posix_acl *default_acl, *acl;
-	struct xfs_name	name;
-	int		error;
+	struct xfs_icreate_args	args = {
+		.idmap		= idmap,
+		.pip		= XFS_I(dir),
+		.rdev		= rdev,
+		.mode		= mode,
+	};
+	struct inode		*inode;
+	struct xfs_inode	*ip = NULL;
+	struct posix_acl	*default_acl, *acl;
+	struct xfs_name		name;
+	int			error;
 
 	/*
 	 * Irix uses Missed'em'V split, but doesn't want to see
 	 * the upper 5 bits of (14bit) major.
 	 */
-	if (S_ISCHR(mode) || S_ISBLK(mode)) {
-		if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
+	if (S_ISCHR(args.mode) || S_ISBLK(args.mode)) {
+		if (unlikely(!sysv_valid_dev(args.rdev) ||
+			     MAJOR(args.rdev) & ~0x1ff))
 			return -EINVAL;
 	} else {
-		rdev = 0;
+		args.rdev = 0;
 	}
 
-	error = posix_acl_create(dir, &mode, &default_acl, &acl);
+	error = posix_acl_create(dir, &args.mode, &default_acl, &acl);
 	if (error)
 		return error;
 
 	/* Verify mode is valid also for tmpfile case */
-	error = xfs_dentry_mode_to_name(&name, dentry, mode);
+	error = xfs_dentry_mode_to_name(&name, dentry, args.mode);
 	if (unlikely(error))
 		goto out_free_acl;
 
 	if (!tmpfile) {
-		error = xfs_create(idmap, XFS_I(dir), &name, mode, rdev,
-				xfs_create_need_xattr(dir, default_acl, acl),
-				&ip);
+		if (xfs_create_need_xattr(dir, default_acl, acl))
+			args.flags |= XFS_ICREATE_INIT_XATTRS;
+
+		error = xfs_create(&args, &name, &ip);
 	} else {
-		bool	init_xattrs = false;
+		args.flags |= XFS_ICREATE_TMPFILE;
 
 		/*
-		 * If this temporary file will be linkable, set up the file
-		 * with an attr fork to receive a parent pointer.
+		 * If this temporary file will not be linkable, don't bother
+		 * creating an attr fork to receive a parent pointer.
 		 */
-		if (!(tmpfile->f_flags & O_EXCL) &&
-		    xfs_has_parent(XFS_I(dir)->i_mount))
-			init_xattrs = true;
+		if (tmpfile->f_flags & O_EXCL)
+			args.flags |= XFS_ICREATE_UNLINKABLE;
 
-		error = xfs_create_tmpfile(idmap, XFS_I(dir), mode,
-				init_xattrs, &ip);
+		error = xfs_create_tmpfile(&args, &ip);
 	}
 	if (unlikely(error))
 		goto out_free_acl;
@@ -811,6 +818,7 @@ xfs_setattr_size(
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags = 0;
+	uint			resblks = 0;
 	bool			did_zeroing = false;
 
 	xfs_assert_ilocked(ip, XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL);
@@ -917,7 +925,17 @@ xfs_setattr_size(
 			return error;
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	/*
+	 * For realtime inode with more than one block rtextsize, we need the
+	 * block reservation for bmap btree block allocations/splits that can
+	 * happen since it could split the tail written extent and convert the
+	 * right beyond EOF one to unwritten.
+	 */
+	if (xfs_inode_has_bigrtalloc(ip))
+		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, resblks,
+				0, 0, &tp);
 	if (error)
 		return error;
 

@@ -9,6 +9,7 @@
 #include "err.h"
 #include "bpf_experimental.h"
 #include "bpf_compiler.h"
+#include "bpf_misc.h"
 
 #ifndef NULL
 #define NULL 0
@@ -132,10 +133,6 @@ struct {
 	__type(value, bool);
 	__uint(max_entries, 16);
 } disallowed_exec_inodes SEC(".maps");
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
-#endif
 
 static INLINE bool IS_ERR(const void* ptr)
 {

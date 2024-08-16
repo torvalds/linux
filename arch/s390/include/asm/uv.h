@@ -414,7 +414,6 @@ static inline bool uv_has_feature(u8 feature_bit)
 	return test_bit_inv(feature_bit, &uv_info.uv_feature_indications);
 }
 
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 extern int prot_virt_guest;
 
 static inline int is_prot_virt_guest(void)
@@ -466,13 +465,6 @@ static inline int uv_remove_shared(unsigned long addr)
 	return share(addr, UVC_CMD_REMOVE_SHARED_ACCESS);
 }
 
-#else
-#define is_prot_virt_guest() 0
-static inline int uv_set_shared(unsigned long addr) { return 0; }
-static inline int uv_remove_shared(unsigned long addr) { return 0; }
-#endif
-
-#if IS_ENABLED(CONFIG_KVM)
 extern int prot_virt_host;
 
 static inline int is_prot_virt_host(void)
@@ -483,35 +475,11 @@ static inline int is_prot_virt_host(void)
 int uv_pin_shared(unsigned long paddr);
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
 int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
-int uv_destroy_owned_page(unsigned long paddr);
-int uv_convert_from_secure(unsigned long paddr);
-int uv_convert_owned_from_secure(unsigned long paddr);
+int uv_destroy_folio(struct folio *folio);
+int uv_destroy_pte(pte_t pte);
+int uv_convert_from_secure_pte(pte_t pte);
 int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr);
 
 void setup_uv(void);
-#else
-#define is_prot_virt_host() 0
-static inline void setup_uv(void) {}
-
-static inline int uv_pin_shared(unsigned long paddr)
-{
-	return 0;
-}
-
-static inline int uv_destroy_owned_page(unsigned long paddr)
-{
-	return 0;
-}
-
-static inline int uv_convert_from_secure(unsigned long paddr)
-{
-	return 0;
-}
-
-static inline int uv_convert_owned_from_secure(unsigned long paddr)
-{
-	return 0;
-}
-#endif
 
 #endif /* _ASM_S390_UV_H */

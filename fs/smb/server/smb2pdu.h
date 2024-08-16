@@ -72,6 +72,8 @@ struct create_durable_req_v2 {
 	__u8 CreateGuid[16];
 } __packed;
 
+#define DURABLE_HANDLE_MAX_TIMEOUT	300000
+
 struct create_durable_reconn_req {
 	struct create_context_hdr ccontext;
 	__u8   Name[8];

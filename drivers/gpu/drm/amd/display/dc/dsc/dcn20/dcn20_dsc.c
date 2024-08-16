@@ -32,16 +32,6 @@
 
 static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals);
 
-/* Object I/F functions */
-static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
-static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-		struct dsc_optc_config *dsc_optc_cfg);
-static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
-static void dsc2_disable(struct display_stream_compressor *dsc);
-static void dsc2_disconnect(struct display_stream_compressor *dsc);
-static void dsc2_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
-
 static const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
 	.dsc_read_state = dsc2_read_state,
@@ -156,7 +146,7 @@ void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
  * into a dcn_dsc_state struct.
  */
-static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s)
+void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s)
 {
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
@@ -173,7 +163,7 @@ static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_ds
 }
 
 
-static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
+bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
 {
 	struct dsc_optc_config dsc_optc_cfg;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
@@ -196,7 +186,7 @@ void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_conf
 	DC_LOG_DSC("\tcolor_depth %d", config->color_depth);
 }
 
-static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg)
 {
 	bool is_config_ok;
@@ -233,7 +223,7 @@ bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc
 }
 
 
-static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe)
+void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe)
 {
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 	int dsc_clock_en;
@@ -258,7 +248,7 @@ static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe)
 }
 
 
-static void dsc2_disable(struct display_stream_compressor *dsc)
+void dsc2_disable(struct display_stream_compressor *dsc)
 {
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 	int dsc_clock_en;
@@ -277,14 +267,14 @@ static void dsc2_disable(struct display_stream_compressor *dsc)
 		DSC_CLOCK_EN, 0);
 }
 
-static void dsc2_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
+void dsc2_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
 {
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
 	REG_WAIT(DSCRM_DSC_FORWARD_CONFIG, DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING, 0, 2, 50000);
 }
 
-static void dsc2_disconnect(struct display_stream_compressor *dsc)
+void dsc2_disconnect(struct display_stream_compressor *dsc)
 {
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 

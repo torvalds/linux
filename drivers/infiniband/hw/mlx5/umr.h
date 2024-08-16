@@ -16,6 +16,9 @@
 int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev);
 void mlx5r_umr_resource_cleanup(struct mlx5_ib_dev *dev);
 
+int mlx5r_umr_init(struct mlx5_ib_dev *dev);
+void mlx5r_umr_cleanup(struct mlx5_ib_dev *dev);
+
 static inline bool mlx5r_umr_can_load_pas(struct mlx5_ib_dev *dev,
 					  size_t length)
 {

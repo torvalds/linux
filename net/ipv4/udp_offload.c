@@ -278,6 +278,10 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 	if (gso_skb->len <= sizeof(*uh) + mss)
 		return ERR_PTR(-EINVAL);
 
+	if (unlikely(skb_checksum_start(gso_skb) !=
+		     skb_transport_header(gso_skb)))
+		return ERR_PTR(-EINVAL);
+
 	if (skb_gso_ok(gso_skb, features | NETIF_F_GSO_ROBUST)) {
 		/* Packet is from an untrusted source, reset gso_segs. */
 		skb_shinfo(gso_skb)->gso_segs = DIV_ROUND_UP(gso_skb->len - sizeof(*uh),
@@ -356,6 +360,14 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		gso_reset_checksum(seg, ~check);
 	else
 		uh->check = gso_make_checksum(seg, ~check) ? : CSUM_MANGLED_0;
+
+	/* On the TX path, CHECKSUM_NONE and CHECKSUM_UNNECESSARY have the same
+	 * meaning. However, check for bad offloads in the GSO stack expects the
+	 * latter, if the checksum was calculated in software. To vouch for the
+	 * segment skbs we actually need to set it on the gso_skb.
+	 */
+	if (gso_skb->ip_summed == CHECKSUM_NONE)
+		gso_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	/* update refcount for the packet */
 	if (copy_dtor) {

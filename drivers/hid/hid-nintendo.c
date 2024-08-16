@@ -658,7 +658,6 @@ struct joycon_ctlr {
 	(ctlr->ctlr_type == JOYCON_CTLR_TYPE_JCR || \
 	 ctlr->ctlr_type == JOYCON_CTLR_TYPE_PRO)
 
-
 /*
  * Controller device helpers
  *
@@ -669,29 +668,9 @@ struct joycon_ctlr {
  * These helpers are most useful early during the HID probe or in conjunction
  * with the capability helpers below.
  */
-static inline bool joycon_device_is_procon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_PROCON;
-}
-
 static inline bool joycon_device_is_chrggrip(struct joycon_ctlr *ctlr)
 {
 	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_CHRGGRIP;
-}
-
-static inline bool joycon_device_is_snescon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_SNESCON;
-}
-
-static inline bool joycon_device_is_gencon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_GENCON;
-}
-
-static inline bool joycon_device_is_n64con(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_N64CON;
 }
 
 /*

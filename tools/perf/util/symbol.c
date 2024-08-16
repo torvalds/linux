@@ -1607,7 +1607,7 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 
 	if (!bfd_check_format(abfd, bfd_object)) {
 		pr_debug2("%s: cannot read %s bfd file.\n", __func__,
-			  dso->long_name);
+			  dso__long_name(dso));
 		goto out_close;
 	}
 
@@ -1640,12 +1640,13 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 		}
 		if (i < symbols_count) {
 			/* PE symbols can only have 4 bytes, so use .text high bits */
-			dso->text_offset = section->vma - (u32)section->vma;
-			dso->text_offset += (u32)bfd_asymbol_value(symbols[i]);
-			dso->text_end = (section->vma - dso->text_offset) + section->size;
+			u64 text_offset = (section->vma - (u32)section->vma)
+				+ (u32)bfd_asymbol_value(symbols[i]);
+			dso__set_text_offset(dso, text_offset);
+			dso__set_text_end(dso, (section->vma - text_offset) + section->size);
 		} else {
-			dso->text_offset = section->vma - section->filepos;
-			dso->text_end = section->filepos + section->size;
+			dso__set_text_offset(dso, section->vma - section->filepos);
+			dso__set_text_end(dso, section->filepos + section->size);
 		}
 	}
 
@@ -1671,7 +1672,7 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 		else
 			len = section->size - sym->value;
 
-		start = bfd_asymbol_value(sym) - dso->text_offset;
+		start = bfd_asymbol_value(sym) - dso__text_offset(dso);
 		symbol = symbol__new(start, len, bfd2elf_binding(sym), STT_FUNC,
 				     bfd_asymbol_name(sym));
 		if (!symbol)
@@ -1799,7 +1800,8 @@ int dso__load(struct dso *dso, struct map *map)
 	const char *map_path = dso__long_name(dso);
 
 	mutex_lock(dso__lock(dso));
-	perfmap = strncmp(dso__name(dso), "/tmp/perf-", 10) == 0;
+	perfmap = is_perf_pid_map_name(map_path);
+
 	if (perfmap) {
 		if (dso__nsinfo(dso) &&
 		    (dso__find_perf_map(newmapname, sizeof(newmapname),
@@ -1816,10 +1818,7 @@ int dso__load(struct dso *dso, struct map *map)
 		goto out;
 	}
 
-	kmod = dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+	kmod = dso__is_kmod(dso);
 
 	if (dso__kernel(dso) && !kmod) {
 		if (dso__kernel(dso) == DSO_SPACE__KERNEL)

@@ -859,8 +859,8 @@ static u8 _rtl92e_query_is_short(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 
-	tmp_Short = (TxHT == 1) ? ((tcb_desc->bUseShortGI) ? 1 : 0) :
-			((tcb_desc->bUseShortPreamble) ? 1 : 0);
+	tmp_Short = (TxHT == 1) ? ((tcb_desc->use_short_gi) ? 1 : 0) :
+			((tcb_desc->use_short_preamble) ? 1 : 0);
 	if (TxHT == 1 && TxRate != DESC90_RATEMCS15)
 		tmp_Short = 0;
 
@@ -892,18 +892,18 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 		pTxFwInfo->RxAMD = 0;
 	}
 
-	pTxFwInfo->RtsEnable =	(cb_desc->bRTSEnable) ? 1 : 0;
-	pTxFwInfo->CtsEnable = (cb_desc->bCTSEnable) ? 1 : 0;
-	pTxFwInfo->RtsSTBC = (cb_desc->bRTSSTBC) ? 1 : 0;
+	pTxFwInfo->RtsEnable =	(cb_desc->rts_enable) ? 1 : 0;
+	pTxFwInfo->CtsEnable = (cb_desc->cts_enable) ? 1 : 0;
+	pTxFwInfo->RtsSTBC = (cb_desc->rtsstbc) ? 1 : 0;
 	pTxFwInfo->RtsHT = (cb_desc->rts_rate & 0x80) ? 1 : 0;
 	pTxFwInfo->RtsRate = _rtl92e_rate_mgn_to_hw(cb_desc->rts_rate);
 	pTxFwInfo->RtsBandwidth = 0;
 	pTxFwInfo->RtsSubcarrier = cb_desc->RTSSC;
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
 			  (cb_desc->rts_use_short_preamble ? 1 : 0) :
-			  (cb_desc->bRTSUseShortGI ? 1 : 0);
+			  (cb_desc->rts_use_short_gi ? 1 : 0);
 	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20_40) {
-		if (cb_desc->bPacketBW) {
+		if (cb_desc->packet_bw) {
 			pTxFwInfo->TxBandwidth = 1;
 			pTxFwInfo->TxSubCarrier = 0;
 		} else {
@@ -934,7 +934,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	pdesc->NoEnc = 1;
 	pdesc->SecType = 0x0;
-	if (cb_desc->bHwSec) {
+	if (cb_desc->hw_sec) {
 		static u8 tmp;
 
 		if (!tmp)
@@ -1640,13 +1640,12 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	if (stats->Length < 24)
 		stats->bHwError |= 1;
 
-	if (stats->bHwError) {
+	if (stats->bHwError)
 		return false;
-	}
 
 	stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
 	stats->RxBufShift = (pdesc->Shift) & 0x03;
-	stats->Decrypted = !pdesc->SWDec;
+	stats->decrypted = !pdesc->SWDec;
 
 	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 

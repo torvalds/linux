@@ -119,17 +119,6 @@ int ia_css_util_check_vf_out_info(
 	return 0;
 }
 
-int ia_css_util_check_res(unsigned int width, unsigned int height)
-{
-	/* height can be odd number for jpeg/embedded data from ISYS2401 */
-	if (((width  == 0)   ||
-	     (height == 0)   ||
-	     IS_ODD(width))) {
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /* ISP2401 */
 bool ia_css_util_res_leq(struct ia_css_resolution a, struct ia_css_resolution b)
 {
@@ -142,10 +131,18 @@ bool ia_css_util_resolution_is_zero(const struct ia_css_resolution resolution)
 	return (resolution.width == 0) || (resolution.height == 0);
 }
 
-/* ISP2401 */
-bool ia_css_util_resolution_is_even(const struct ia_css_resolution resolution)
+int ia_css_util_check_res(unsigned int width, unsigned int height)
 {
-	return IS_EVEN(resolution.height) && IS_EVEN(resolution.width);
+	const struct ia_css_resolution resolution = { .width = width, .height = height };
+
+	if (ia_css_util_resolution_is_zero(resolution))
+		return -EINVAL;
+
+	/* height can be odd number for jpeg/embedded data from ISYS2401 */
+	if (width & 1)
+		return -EINVAL;
+
+	return 0;
 }
 
 bool ia_css_util_is_input_format_raw(enum atomisp_input_format format)

@@ -31,6 +31,50 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 		       sizeof(kvm_vcpu_stats_desc),
 };
 
+static void kvm_update_stolen_time(struct kvm_vcpu *vcpu)
+{
+	u32 version;
+	u64 steal;
+	gpa_t gpa;
+	struct kvm_memslots *slots;
+	struct kvm_steal_time __user *st;
+	struct gfn_to_hva_cache *ghc;
+
+	ghc = &vcpu->arch.st.cache;
+	gpa = vcpu->arch.st.guest_addr;
+	if (!(gpa & KVM_STEAL_PHYS_VALID))
+		return;
+
+	gpa &= KVM_STEAL_PHYS_MASK;
+	slots = kvm_memslots(vcpu->kvm);
+	if (slots->generation != ghc->generation || gpa != ghc->gpa) {
+		if (kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, gpa, sizeof(*st))) {
+			ghc->gpa = INVALID_GPA;
+			return;
+		}
+	}
+
+	st = (struct kvm_steal_time __user *)ghc->hva;
+	unsafe_get_user(version, &st->version, out);
+	if (version & 1)
+		version += 1; /* first time write, random junk */
+
+	version += 1;
+	unsafe_put_user(version, &st->version, out);
+	smp_wmb();
+
+	unsafe_get_user(steal, &st->steal, out);
+	steal += current->sched_info.run_delay - vcpu->arch.st.last_steal;
+	vcpu->arch.st.last_steal = current->sched_info.run_delay;
+	unsafe_put_user(steal, &st->steal, out);
+
+	smp_wmb();
+	version += 1;
+	unsafe_put_user(version, &st->version, out);
+out:
+	mark_page_dirty_in_slot(vcpu->kvm, ghc->memslot, gpa_to_gfn(ghc->gpa));
+}
+
 /*
  * kvm_check_requests - check and handle pending vCPU requests
  *
@@ -48,7 +92,20 @@ static int kvm_check_requests(struct kvm_vcpu *vcpu)
 	if (kvm_dirty_ring_check_request(vcpu))
 		return RESUME_HOST;
 
+	if (kvm_check_request(KVM_REQ_STEAL_UPDATE, vcpu))
+		kvm_update_stolen_time(vcpu);
+
 	return RESUME_GUEST;
+}
+
+static void kvm_late_check_requests(struct kvm_vcpu *vcpu)
+{
+	lockdep_assert_irqs_disabled();
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH_GPA, vcpu))
+		if (vcpu->arch.flush_gpa != INVALID_GPA) {
+			kvm_flush_tlb_gpa(vcpu, vcpu->arch.flush_gpa);
+			vcpu->arch.flush_gpa = INVALID_GPA;
+		}
 }
 
 /*
@@ -101,6 +158,13 @@ static int kvm_pre_enter_guest(struct kvm_vcpu *vcpu)
 		/* Make sure the vcpu mode has been written */
 		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 		kvm_check_vpid(vcpu);
+
+		/*
+		 * Called after function kvm_check_vpid()
+		 * Since it updates CSR.GSTAT used by kvm_flush_tlb_gpa(),
+		 * and it may also clear KVM_REQ_TLB_FLUSH_GPA pending bit
+		 */
+		kvm_late_check_requests(vcpu);
 		vcpu->arch.host_eentry = csr_read64(LOONGARCH_CSR_EENTRY);
 		/* Clear KVM_LARCH_SWCSR_LATEST as CSR will change when enter guest */
 		vcpu->arch.aux_inuse &= ~KVM_LARCH_SWCSR_LATEST;
@@ -354,6 +418,17 @@ static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 		return -EINVAL;
 
 	if (id == LOONGARCH_CSR_ESTAT) {
+		preempt_disable();
+		vcpu_load(vcpu);
+		/*
+		 * Sync pending interrupts into ESTAT so that interrupt
+		 * remains during VM migration stage
+		 */
+		kvm_deliver_intr(vcpu);
+		vcpu->arch.aux_inuse &= ~KVM_LARCH_SWCSR_LATEST;
+		vcpu_put(vcpu);
+		preempt_enable();
+
 		/* ESTAT IP0~IP7 get from GINTC */
 		gintc = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_GINTC) & 0xff;
 		*val = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_ESTAT) | (gintc << 2);
@@ -662,6 +737,16 @@ static int kvm_loongarch_cpucfg_has_attr(struct kvm_vcpu *vcpu,
 	return -ENXIO;
 }
 
+static int kvm_loongarch_pvtime_has_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	if (!kvm_pvtime_supported() ||
+			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+		return -ENXIO;
+
+	return 0;
+}
+
 static int kvm_loongarch_vcpu_has_attr(struct kvm_vcpu *vcpu,
 				       struct kvm_device_attr *attr)
 {
@@ -671,6 +756,9 @@ static int kvm_loongarch_vcpu_has_attr(struct kvm_vcpu *vcpu,
 	case KVM_LOONGARCH_VCPU_CPUCFG:
 		ret = kvm_loongarch_cpucfg_has_attr(vcpu, attr);
 		break;
+	case KVM_LOONGARCH_VCPU_PVTIME_CTRL:
+		ret = kvm_loongarch_pvtime_has_attr(vcpu, attr);
+		break;
 	default:
 		break;
 	}
@@ -678,7 +766,7 @@ static int kvm_loongarch_vcpu_has_attr(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-static int kvm_loongarch_get_cpucfg_attr(struct kvm_vcpu *vcpu,
+static int kvm_loongarch_cpucfg_get_attr(struct kvm_vcpu *vcpu,
 					 struct kvm_device_attr *attr)
 {
 	int ret = 0;
@@ -694,6 +782,23 @@ static int kvm_loongarch_get_cpucfg_attr(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
+static int kvm_loongarch_pvtime_get_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	u64 gpa;
+	u64 __user *user = (u64 __user *)attr->addr;
+
+	if (!kvm_pvtime_supported() ||
+			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+		return -ENXIO;
+
+	gpa = vcpu->arch.st.guest_addr;
+	if (put_user(gpa, user))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int kvm_loongarch_vcpu_get_attr(struct kvm_vcpu *vcpu,
 				       struct kvm_device_attr *attr)
 {
@@ -701,7 +806,10 @@ static int kvm_loongarch_vcpu_get_attr(struct kvm_vcpu *vcpu,
 
 	switch (attr->group) {
 	case KVM_LOONGARCH_VCPU_CPUCFG:
-		ret = kvm_loongarch_get_cpucfg_attr(vcpu, attr);
+		ret = kvm_loongarch_cpucfg_get_attr(vcpu, attr);
+		break;
+	case KVM_LOONGARCH_VCPU_PVTIME_CTRL:
+		ret = kvm_loongarch_pvtime_get_attr(vcpu, attr);
 		break;
 	default:
 		break;
@@ -716,6 +824,43 @@ static int kvm_loongarch_cpucfg_set_attr(struct kvm_vcpu *vcpu,
 	return -ENXIO;
 }
 
+static int kvm_loongarch_pvtime_set_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	int idx, ret = 0;
+	u64 gpa, __user *user = (u64 __user *)attr->addr;
+	struct kvm *kvm = vcpu->kvm;
+
+	if (!kvm_pvtime_supported() ||
+			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+		return -ENXIO;
+
+	if (get_user(gpa, user))
+		return -EFAULT;
+
+	if (gpa & ~(KVM_STEAL_PHYS_MASK | KVM_STEAL_PHYS_VALID))
+		return -EINVAL;
+
+	if (!(gpa & KVM_STEAL_PHYS_VALID)) {
+		vcpu->arch.st.guest_addr = gpa;
+		return 0;
+	}
+
+	/* Check the address is in a valid memslot */
+	idx = srcu_read_lock(&kvm->srcu);
+	if (kvm_is_error_hva(gfn_to_hva(kvm, gpa >> PAGE_SHIFT)))
+		ret = -EINVAL;
+	srcu_read_unlock(&kvm->srcu, idx);
+
+	if (!ret) {
+		vcpu->arch.st.guest_addr = gpa;
+		vcpu->arch.st.last_steal = current->sched_info.run_delay;
+		kvm_make_request(KVM_REQ_STEAL_UPDATE, vcpu);
+	}
+
+	return ret;
+}
+
 static int kvm_loongarch_vcpu_set_attr(struct kvm_vcpu *vcpu,
 				       struct kvm_device_attr *attr)
 {
@@ -724,6 +869,9 @@ static int kvm_loongarch_vcpu_set_attr(struct kvm_vcpu *vcpu,
 	switch (attr->group) {
 	case KVM_LOONGARCH_VCPU_CPUCFG:
 		ret = kvm_loongarch_cpucfg_set_attr(vcpu, attr);
+		break;
+	case KVM_LOONGARCH_VCPU_PVTIME_CTRL:
+		ret = kvm_loongarch_pvtime_set_attr(vcpu, attr);
 		break;
 	default:
 		break;
@@ -994,6 +1142,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	struct loongarch_csrs *csr;
 
 	vcpu->arch.vpid = 0;
+	vcpu->arch.flush_gpa = INVALID_GPA;
 
 	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
 	vcpu->arch.swtimer.function = kvm_swtimer_wakeup;
@@ -1084,6 +1233,7 @@ static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Control guest page CCA attribute */
 	change_csr_gcfg(CSR_GCFG_MATC_MASK, CSR_GCFG_MATC_ROOT);
+	kvm_make_request(KVM_REQ_STEAL_UPDATE, vcpu);
 
 	/* Don't bother restoring registers multiple times unless necessary */
 	if (vcpu->arch.aux_inuse & KVM_LARCH_HWCSR_USABLE)
@@ -1266,7 +1416,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			kvm_complete_iocsr_read(vcpu, run);
 	}
 
-	if (run->immediate_exit)
+	if (!vcpu->wants_to_run)
 		return r;
 
 	/* Clear exit_reason */

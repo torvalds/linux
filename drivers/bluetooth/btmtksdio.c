@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/skbuff.h>
+#include <linux/usb.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio_ids.h>
@@ -1116,6 +1117,9 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
 			return err;
 		}
+
+		btmtk_fw_get_filename(fwname, sizeof(fwname), dev_id,
+				      fw_version, 0);
 
 		snprintf(fwname, sizeof(fwname),
 			 "mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",

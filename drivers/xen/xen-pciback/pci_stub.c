@@ -1708,5 +1708,6 @@ static void __exit xen_pcibk_cleanup(void)
 module_init(xen_pcibk_init);
 module_exit(xen_pcibk_cleanup);
 
+MODULE_DESCRIPTION("Xen PCI-device stub driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("xen-backend:pci");

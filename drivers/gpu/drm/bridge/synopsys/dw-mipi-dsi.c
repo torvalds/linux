@@ -722,7 +722,12 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PCKHDL_CFG, CRC_RX_EN | ECC_RX_EN | BTA_EN);
+	u32 val = CRC_RX_EN | ECC_RX_EN | BTA_EN | EOTP_TX_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET)
+		val &= ~EOTP_TX_EN;
+
+	dsi_write(dsi, DSI_PCKHDL_CFG, val);
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,

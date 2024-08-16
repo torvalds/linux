@@ -129,18 +129,20 @@ err_restore_ptps:
 	return status;
 }
 
-static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
+static int sys_set_trip_temp(struct thermal_zone_device *tzd,
+			     const struct thermal_trip *trip,
 			     int temp)
 {
 	struct intel_soc_dts_sensor_entry *dts = thermal_zone_device_priv(tzd);
 	struct intel_soc_dts_sensors *sensors = dts->sensors;
+	unsigned int trip_index = THERMAL_TRIP_PRIV_TO_INT(trip->priv);
 	int status;
 
 	if (temp > sensors->tj_max)
 		return -EINVAL;
 
 	mutex_lock(&sensors->dts_update_lock);
-	status = update_trip_temp(sensors, trip, temp);
+	status = update_trip_temp(sensors, trip_index, temp);
 	mutex_unlock(&sensors->dts_update_lock);
 
 	return status;
@@ -293,11 +295,12 @@ static void dts_trips_reset(struct intel_soc_dts_sensors *sensors, int dts_index
 }
 
 static void set_trip(struct thermal_trip *trip, enum thermal_trip_type type,
-		     u8 flags, int temp)
+		     u8 flags, int temp, unsigned int index)
 {
 	trip->type = type;
 	trip->flags = flags;
 	trip->temperature = temp;
+	trip->priv = THERMAL_INT_TO_TRIP_PRIV(index);
 }
 
 struct intel_soc_dts_sensors *
@@ -332,7 +335,7 @@ intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
 		sensors->soc_dts[i].sensors = sensors;
 
 		set_trip(&trips[i][0], THERMAL_TRIP_PASSIVE,
-			 THERMAL_TRIP_FLAG_RW_TEMP, 0);
+			 THERMAL_TRIP_FLAG_RW_TEMP, 0, 0);
 
 		ret = update_trip_temp(sensors, 0, 0);
 		if (ret)
@@ -340,10 +343,10 @@ intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
 
 		if (critical_trip) {
 			temp = sensors->tj_max - crit_offset;
-			set_trip(&trips[i][1], THERMAL_TRIP_CRITICAL, 0, temp);
+			set_trip(&trips[i][1], THERMAL_TRIP_CRITICAL, 0, temp, 1);
 		} else {
 			set_trip(&trips[i][1], THERMAL_TRIP_PASSIVE,
-				 THERMAL_TRIP_FLAG_RW_TEMP, 0);
+				 THERMAL_TRIP_FLAG_RW_TEMP, 0, 1);
 			temp = 0;
 		}
 

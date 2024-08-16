@@ -58,6 +58,10 @@
  *       in
  * @name: Match name found by the auxiliary device driver,
  * @id: unique identitier if multiple devices of the same name are exported,
+ * @sysfs: embedded struct which hold all sysfs related fields,
+ * @sysfs.irqs: irqs xarray contains irq indices which are used by the device,
+ * @sysfs.lock: Synchronize irq sysfs creation,
+ * @sysfs.irq_dir_exists: whether "irqs" directory exists,
  *
  * An auxiliary_device represents a part of its parent device's functionality.
  * It is given a name that, combined with the registering drivers
@@ -139,6 +143,11 @@ struct auxiliary_device {
 	struct device dev;
 	const char *name;
 	u32 id;
+	struct {
+		struct xarray irqs;
+		struct mutex lock; /* Synchronize irq sysfs creation */
+		bool irq_dir_exists;
+	} sysfs;
 };
 
 /**
@@ -203,7 +212,7 @@ static inline struct auxiliary_device *to_auxiliary_dev(struct device *dev)
 	return container_of(dev, struct auxiliary_device, dev);
 }
 
-static inline struct auxiliary_driver *to_auxiliary_drv(struct device_driver *drv)
+static inline const struct auxiliary_driver *to_auxiliary_drv(const struct device_driver *drv)
 {
 	return container_of(drv, struct auxiliary_driver, driver);
 }
@@ -212,8 +221,24 @@ int auxiliary_device_init(struct auxiliary_device *auxdev);
 int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname);
 #define auxiliary_device_add(auxdev) __auxiliary_device_add(auxdev, KBUILD_MODNAME)
 
+#ifdef CONFIG_SYSFS
+int auxiliary_device_sysfs_irq_add(struct auxiliary_device *auxdev, int irq);
+void auxiliary_device_sysfs_irq_remove(struct auxiliary_device *auxdev,
+				       int irq);
+#else /* CONFIG_SYSFS */
+static inline int
+auxiliary_device_sysfs_irq_add(struct auxiliary_device *auxdev, int irq)
+{
+	return 0;
+}
+
+static inline void
+auxiliary_device_sysfs_irq_remove(struct auxiliary_device *auxdev, int irq) {}
+#endif
+
 static inline void auxiliary_device_uninit(struct auxiliary_device *auxdev)
 {
+	mutex_destroy(&auxdev->sysfs.lock);
 	put_device(&auxdev->dev);
 }
 

@@ -263,6 +263,9 @@ static const struct proc_ops simdisk_proc_ops = {
 static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
 {
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	char tmp[2] = { '0' + which, 0 };
 	int err;
 
@@ -271,7 +274,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	spin_lock_init(&dev->lock);
 	dev->users = 0;
 
-	dev->gd = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	dev->gd = blk_alloc_disk(&lim, NUMA_NO_NODE);
 	if (IS_ERR(dev->gd)) {
 		err = PTR_ERR(dev->gd);
 		goto out;

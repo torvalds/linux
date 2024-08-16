@@ -44,6 +44,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
+#include <linux/memblock.h>
 #include <linux/nsproxy.h>
 #include <linux/capability.h>
 #include <linux/cpu.h>
@@ -114,6 +115,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
+
+#include <kunit/visibility.h>
 
 /*
  * Minimum number of threads to boot the kernel
@@ -205,9 +208,10 @@ static bool try_release_thread_stack_to_cache(struct vm_struct *vm)
 	unsigned int i;
 
 	for (i = 0; i < NR_CACHED_STACKS; i++) {
-		if (this_cpu_cmpxchg(cached_stacks[i], NULL, vm) != NULL)
-			continue;
-		return true;
+		struct vm_struct *tmp = NULL;
+
+		if (this_cpu_try_cmpxchg(cached_stacks[i], &tmp, vm))
+			return true;
 	}
 	return false;
 }
@@ -616,12 +620,6 @@ static void dup_mm_exe_file(struct mm_struct *mm, struct mm_struct *oldmm)
 
 	exe_file = get_mm_exe_file(oldmm);
 	RCU_INIT_POINTER(mm->exe_file, exe_file);
-	/*
-	 * We depend on the oldmm having properly denied write access to the
-	 * exe_file already.
-	 */
-	if (exe_file && deny_write_access(exe_file))
-		pr_warn_once("deny_write_access() failed in %s\n", __func__);
 }
 
 #ifdef CONFIG_MMU
@@ -996,10 +994,10 @@ void __init __weak arch_task_cache_init(void) { }
 /*
  * set_max_threads
  */
-static void set_max_threads(unsigned int max_threads_suggested)
+static void __init set_max_threads(unsigned int max_threads_suggested)
 {
 	u64 threads;
-	unsigned long nr_pages = totalram_pages();
+	unsigned long nr_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
 
 	/*
 	 * The number of threads shall be limited such that the thread
@@ -1022,7 +1020,7 @@ static void set_max_threads(unsigned int max_threads_suggested)
 int arch_task_struct_size __read_mostly;
 #endif
 
-static void task_struct_whitelist(unsigned long *offset, unsigned long *size)
+static void __init task_struct_whitelist(unsigned long *offset, unsigned long *size)
 {
 	/* Fetch thread_struct whitelist for the architecture. */
 	arch_thread_struct_whitelist(offset, size);
@@ -1334,6 +1332,7 @@ struct mm_struct *mm_alloc(void)
 	memset(mm, 0, sizeof(*mm));
 	return mm_init(mm, current, current_user_ns());
 }
+EXPORT_SYMBOL_IF_KUNIT(mm_alloc);
 
 static inline void __mmput(struct mm_struct *mm)
 {
@@ -1412,20 +1411,11 @@ int set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 	 */
 	old_exe_file = rcu_dereference_raw(mm->exe_file);
 
-	if (new_exe_file) {
-		/*
-		 * We expect the caller (i.e., sys_execve) to already denied
-		 * write access, so this is unlikely to fail.
-		 */
-		if (unlikely(deny_write_access(new_exe_file)))
-			return -EACCES;
+	if (new_exe_file)
 		get_file(new_exe_file);
-	}
 	rcu_assign_pointer(mm->exe_file, new_exe_file);
-	if (old_exe_file) {
-		allow_write_access(old_exe_file);
+	if (old_exe_file)
 		fput(old_exe_file);
-	}
 	return 0;
 }
 
@@ -1464,9 +1454,6 @@ int replace_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 			return ret;
 	}
 
-	ret = deny_write_access(new_exe_file);
-	if (ret)
-		return -EACCES;
 	get_file(new_exe_file);
 
 	/* set the new file */
@@ -1475,10 +1462,8 @@ int replace_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 	rcu_assign_pointer(mm->exe_file, new_exe_file);
 	mmap_write_unlock(mm);
 
-	if (old_exe_file) {
-		allow_write_access(old_exe_file);
+	if (old_exe_file)
 		fput(old_exe_file);
-	}
 	return 0;
 }
 
@@ -1536,14 +1521,13 @@ struct mm_struct *get_task_mm(struct task_struct *task)
 {
 	struct mm_struct *mm;
 
+	if (task->flags & PF_KTHREAD)
+		return NULL;
+
 	task_lock(task);
 	mm = task->mm;
-	if (mm) {
-		if (task->flags & PF_KTHREAD)
-			mm = NULL;
-		else
-			mmget(mm);
-	}
+	if (mm)
+		mmget(mm);
 	task_unlock(task);
 	return mm;
 }
@@ -2941,8 +2925,6 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 }
 #endif
 
-#ifdef __ARCH_WANT_SYS_CLONE3
-
 noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 					      struct clone_args __user *uargs,
 					      size_t usize)
@@ -3086,6 +3068,11 @@ SYSCALL_DEFINE2(clone3, struct clone_args __user *, uargs, size_t, size)
 	struct kernel_clone_args kargs;
 	pid_t set_tid[MAX_PID_NS_LEVEL];
 
+#ifdef __ARCH_BROKEN_SYS_CLONE3
+#warning clone3() entry point is missing, please fix
+	return -ENOSYS;
+#endif
+
 	kargs.set_tid = set_tid;
 
 	err = copy_clone_args_from_user(&kargs, uargs, size);
@@ -3097,7 +3084,6 @@ SYSCALL_DEFINE2(clone3, struct clone_args __user *, uargs, size_t, size)
 
 	return kernel_clone(&kargs);
 }
-#endif
 
 void walk_process_tree(struct task_struct *top, proc_visitor visitor, void *data)
 {
@@ -3418,7 +3404,7 @@ int unshare_files(void)
 	return 0;
 }
 
-int sysctl_max_threads(struct ctl_table *table, int write,
+int sysctl_max_threads(const struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;

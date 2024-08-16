@@ -65,6 +65,7 @@ enum ds_type {
 #	define DS1340_BIT_CENTURY_EN	0x80	/* in REG_HOUR */
 #	define DS1340_BIT_CENTURY	0x40	/* in REG_HOUR */
 #define DS1307_REG_WDAY		0x03	/* 01-07 */
+#	define MCP794XX_BIT_OSCRUN	BIT(5)
 #	define MCP794XX_BIT_VBATEN	0x08
 #define DS1307_REG_MDAY		0x04	/* 01-31 */
 #define DS1307_REG_MONTH	0x05	/* 01-12 */
@@ -242,6 +243,10 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	    regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
 		dev_warn_once(dev, "oscillator failed, set time!\n");
 		return -EINVAL;
+	} else if (ds1307->type == mcp794xx &&
+	    !(regs[DS1307_REG_WDAY] & MCP794XX_BIT_OSCRUN)) {
+		dev_warn_once(dev, "oscillator failed, set time!\n");
+		return -EINVAL;
 	}
 
 	tmp = regs[DS1307_REG_SECS];
@@ -354,7 +359,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	regs[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
 
 	/* assume 20YY not 19YY */
-	tmp = t->tm_year - 100;
+	tmp = t->tm_year % 100;
 	regs[DS1307_REG_YEAR] = bin2bcd(tmp);
 
 	if (chip->century_enable_bit)

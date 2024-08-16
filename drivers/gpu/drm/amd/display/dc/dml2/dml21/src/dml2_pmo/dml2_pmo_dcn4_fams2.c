@@ -929,7 +929,8 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 
 			/* check recout height covers entire otg vactive, and single plane */
 			if (num_planes_per_stream[plane_descriptor->stream_index] > 1 ||
-					!plane_descriptor->composition.rect_out_height_spans_vactive) {
+					!plane_descriptor->composition.rect_out_height_spans_vactive ||
+					plane_descriptor->composition.rotation_angle != dml2_rotation_0) {
 				return false;
 			}
 		}
@@ -1081,12 +1082,17 @@ static bool is_timing_group_schedulable(
 
 	/* init allow start and end lines for timing group */
 	stream_method_fams2_meta = get_per_method_common_meta(pmo, per_stream_pstate_strategy[base_stream_idx], base_stream_idx);
+	if (!stream_method_fams2_meta)
+		return false;
+
 	group_fams2_meta->allow_start_otg_vline = stream_method_fams2_meta->allow_start_otg_vline;
 	group_fams2_meta->allow_end_otg_vline = stream_method_fams2_meta->allow_end_otg_vline;
 	group_fams2_meta->period_us = stream_method_fams2_meta->period_us;
 	for (i = base_stream_idx + 1; i < display_cfg->display_config.num_streams; i++) {
 		if (is_bit_set_in_bitfield(pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], i)) {
 			stream_method_fams2_meta = get_per_method_common_meta(pmo, per_stream_pstate_strategy[i], i);
+			if (!stream_method_fams2_meta)
+				continue;
 
 			if (group_fams2_meta->allow_start_otg_vline < stream_method_fams2_meta->allow_start_otg_vline) {
 				/* set group allow start to larger otg vline */
@@ -1157,7 +1163,6 @@ static bool is_config_schedulable(
 	schedulable = true;
 
 	/* sort disallow times from greatest to least */
-	unsigned int temp;
 	for (i = 0; i < s->pmo_dcn4.num_timing_groups; i++) {
 		bool swapped = false;
 
@@ -1166,9 +1171,8 @@ static bool is_config_schedulable(
 			double jp1_disallow_us = s->pmo_dcn4.group_common_fams2_meta[s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1]].disallow_time_us;
 			if (j_disallow_us < jp1_disallow_us) {
 				/* swap as A < B */
-				temp = s->pmo_dcn4.sorted_group_gtl_disallow_index[j];
-				s->pmo_dcn4.sorted_group_gtl_disallow_index[j] = s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1];
-				s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1] = temp;
+				swap(s->pmo_dcn4.sorted_group_gtl_disallow_index[j],
+				     s->pmo_dcn4.sorted_group_gtl_disallow_index[j+1]);
 				swapped = true;
 			}
 		}
@@ -1226,9 +1230,8 @@ static bool is_config_schedulable(
 			double jp1_period_us = s->pmo_dcn4.group_common_fams2_meta[s->pmo_dcn4.sorted_group_gtl_period_index[j + 1]].period_us;
 			if (j_period_us < jp1_period_us) {
 				/* swap as A < B */
-				temp = s->pmo_dcn4.sorted_group_gtl_period_index[j];
-				s->pmo_dcn4.sorted_group_gtl_period_index[j] = s->pmo_dcn4.sorted_group_gtl_period_index[j + 1];
-				s->pmo_dcn4.sorted_group_gtl_period_index[j + 1] = temp;
+				swap(s->pmo_dcn4.sorted_group_gtl_period_index[j],
+				     s->pmo_dcn4.sorted_group_gtl_period_index[j+1]);
 				swapped = true;
 			}
 		}
@@ -1361,7 +1364,7 @@ static bool validate_pstate_support_strategy_cofunctionality(struct dml2_pmo_ins
 			break;
 		}
 
-		strategy_matches_drr_requirements =
+		strategy_matches_drr_requirements &=
 				stream_matches_drr_policy(pmo, display_cfg, per_stream_pstate_strategy[stream_index], stream_index);
 
 		if (per_stream_pstate_strategy[stream_index] == dml2_pmo_pstate_strategy_fw_svp ||

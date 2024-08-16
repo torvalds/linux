@@ -285,8 +285,8 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	data->slope_thres = val;
 
 	/* Set default interrupt mode */
-	ret = regmap_update_bits(data->regmap, BMG160_REG_INT_EN_1,
-				 BMG160_INT1_BIT_OD, 0);
+	ret = regmap_clear_bits(data->regmap, BMG160_REG_INT_EN_1,
+				BMG160_INT1_BIT_OD);
 	if (ret < 0) {
 		dev_err(dev, "Error updating bits in reg_int_en_1\n");
 		return ret;

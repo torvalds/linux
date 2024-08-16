@@ -102,9 +102,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 	struct dml2_soc_state_table *dml_clk_table = &dml_soc_bb->clk_table;
 
 	/* override clocks if smu is present */
-	if (in_dc->clk_mgr &&
-			in_dc->clk_mgr->funcs->is_smu_present &&
-			in_dc->clk_mgr->funcs->is_smu_present(in_dc->clk_mgr)) {
+	if (in_dc->clk_mgr->funcs->is_smu_present && in_dc->clk_mgr->funcs->is_smu_present(in_dc->clk_mgr)) {
 		/* dcfclk */
 		if (dc_clk_table->num_entries_per_clk.num_dcfclk_levels) {
 			dml_clk_table->dcfclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dcfclk_levels;
@@ -1002,7 +1000,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 				/* apply forced pstate policy */
 				if (dml_ctx->config.pmo.force_pstate_method_enable) {
 					dml_dispcfg->plane_descriptors[disp_cfg_plane_location].overrides.uclk_pstate_change_strategy =
-							dml21_force_pstate_method_to_uclk_state_change_strategy(dml_ctx->config.pmo.force_pstate_method_value);
+							dml21_force_pstate_method_to_uclk_state_change_strategy(dml_ctx->config.pmo.force_pstate_method_values[stream_index]);
 				}
 			}
 		}

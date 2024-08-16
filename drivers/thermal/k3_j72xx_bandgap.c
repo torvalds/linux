@@ -178,6 +178,7 @@ struct k3_j72xx_bandgap {
 	void __iomem *base;
 	void __iomem *cfg2_base;
 	struct k3_thermal_data *ts_data[K3_VTM_MAX_NUM_TS];
+	int cnt;
 };
 
 /* common data structures */
@@ -338,24 +339,52 @@ static void print_look_up_table(struct device *dev, int *ref_table)
 		dev_dbg(dev, "%d       %d %d\n", i, derived_table[i], ref_table[i]);
 }
 
+static void k3_j72xx_bandgap_init_hw(struct k3_j72xx_bandgap *bgp)
+{
+	struct k3_thermal_data *data;
+	int id, high_max, low_temp;
+	u32 val;
+
+	for (id = 0; id < bgp->cnt; id++) {
+		data = bgp->ts_data[id];
+		val = readl(bgp->cfg2_base + data->ctrl_offset);
+		val |= (K3_VTM_TMPSENS_CTRL_MAXT_OUTRG_EN |
+			K3_VTM_TMPSENS_CTRL_SOC |
+			K3_VTM_TMPSENS_CTRL_CLRZ | BIT(4));
+		writel(val, bgp->cfg2_base + data->ctrl_offset);
+	}
+
+	/*
+	 * Program TSHUT thresholds
+	 * Step 1: set the thresholds to ~123C and 105C WKUP_VTM_MISC_CTRL2
+	 * Step 2: WKUP_VTM_TMPSENS_CTRL_j set the MAXT_OUTRG_EN  bit
+	 *         This is already taken care as per of init
+	 * Step 3: WKUP_VTM_MISC_CTRL set the ANYMAXT_OUTRG_ALERT_EN  bit
+	 */
+	high_max = k3_j72xx_bandgap_temp_to_adc_code(MAX_TEMP);
+	low_temp = k3_j72xx_bandgap_temp_to_adc_code(COOL_DOWN_TEMP);
+
+	writel((low_temp << 16) | high_max, bgp->cfg2_base + K3_VTM_MISC_CTRL2_OFFSET);
+	writel(K3_VTM_ANYMAXT_OUTRG_ALERT_EN, bgp->cfg2_base + K3_VTM_MISC_CTRL_OFFSET);
+}
+
 struct k3_j72xx_bandgap_data {
 	const bool has_errata_i2128;
 };
 
 static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 {
-	int ret = 0, cnt, val, id;
-	int high_max, low_temp;
-	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct k3_j72xx_bandgap *bgp;
-	struct k3_thermal_data *data;
-	bool workaround_needed = false;
 	const struct k3_j72xx_bandgap_data *driver_data;
 	struct thermal_zone_device *ti_thermal;
-	int *ref_table;
+	struct device *dev = &pdev->dev;
+	bool workaround_needed = false;
+	struct k3_j72xx_bandgap *bgp;
+	struct k3_thermal_data *data;
 	struct err_values err_vals;
 	void __iomem *fuse_base;
+	int ret = 0, val, id;
+	struct resource *res;
+	int *ref_table;
 
 	const s64 golden_factors[] = {
 		-490019999999999936,
@@ -422,10 +451,10 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 
 	/* Get the sensor count in the VTM */
 	val = readl(bgp->base + K3_VTM_DEVINFO_PWR0_OFFSET);
-	cnt = val & K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK;
-	cnt >>= __ffs(K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK);
+	bgp->cnt = val & K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK;
+	bgp->cnt >>= __ffs(K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK);
 
-	data = devm_kcalloc(bgp->dev, cnt, sizeof(*data), GFP_KERNEL);
+	data = devm_kcalloc(bgp->dev, bgp->cnt, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -449,8 +478,8 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	else
 		init_table(3, ref_table, pvt_wa_factors);
 
-	/* Register the thermal sensors */
-	for (id = 0; id < cnt; id++) {
+	/* Precompute the derived table & fill each thermal sensor struct */
+	for (id = 0; id < bgp->cnt; id++) {
 		data[id].bgp = bgp;
 		data[id].ctrl_offset = K3_VTM_TMPSENS0_CTRL_OFFSET + id * 0x20;
 		data[id].stat_offset = data[id].ctrl_offset +
@@ -470,13 +499,13 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		else if (id == 0 && !workaround_needed)
 			memcpy(derived_table, ref_table, TABLE_SIZE * 4);
 
-		val = readl(data[id].bgp->cfg2_base + data[id].ctrl_offset);
-		val |= (K3_VTM_TMPSENS_CTRL_MAXT_OUTRG_EN |
-			K3_VTM_TMPSENS_CTRL_SOC |
-			K3_VTM_TMPSENS_CTRL_CLRZ | BIT(4));
-		writel(val, data[id].bgp->cfg2_base + data[id].ctrl_offset);
-
 		bgp->ts_data[id] = &data[id];
+	}
+
+	k3_j72xx_bandgap_init_hw(bgp);
+
+	/* Register the thermal sensors */
+	for (id = 0; id < bgp->cnt; id++) {
 		ti_thermal = devm_thermal_of_zone_register(bgp->dev, id, &data[id],
 							   &k3_of_thermal_ops);
 		if (IS_ERR(ti_thermal)) {
@@ -486,21 +515,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		}
 	}
 
-	/*
-	 * Program TSHUT thresholds
-	 * Step 1: set the thresholds to ~123C and 105C WKUP_VTM_MISC_CTRL2
-	 * Step 2: WKUP_VTM_TMPSENS_CTRL_j set the MAXT_OUTRG_EN  bit
-	 *         This is already taken care as per of init
-	 * Step 3: WKUP_VTM_MISC_CTRL set the ANYMAXT_OUTRG_ALERT_EN  bit
-	 */
-	high_max = k3_j72xx_bandgap_temp_to_adc_code(MAX_TEMP);
-	low_temp = k3_j72xx_bandgap_temp_to_adc_code(COOL_DOWN_TEMP);
-
-	writel((low_temp << 16) | high_max, data[0].bgp->cfg2_base +
-	       K3_VTM_MISC_CTRL2_OFFSET);
-	mdelay(100);
-	writel(K3_VTM_ANYMAXT_OUTRG_ALERT_EN, data[0].bgp->cfg2_base +
-	       K3_VTM_MISC_CTRL_OFFSET);
+	platform_set_drvdata(pdev, bgp);
 
 	print_look_up_table(dev, ref_table);
 	/*
@@ -526,6 +541,35 @@ static void k3_j72xx_bandgap_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
+
+static int k3_j72xx_bandgap_suspend(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
+	return 0;
+}
+
+static int k3_j72xx_bandgap_resume(struct device *dev)
+{
+	struct k3_j72xx_bandgap *bgp = dev_get_drvdata(dev);
+	int ret;
+
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		pm_runtime_disable(dev);
+		return ret;
+	}
+
+	k3_j72xx_bandgap_init_hw(bgp);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(k3_j72xx_bandgap_pm_ops,
+				k3_j72xx_bandgap_suspend,
+				k3_j72xx_bandgap_resume);
 
 static const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j721e_data = {
 	.has_errata_i2128 = true,
@@ -554,6 +598,7 @@ static struct platform_driver k3_j72xx_bandgap_sensor_driver = {
 	.driver = {
 		.name = "k3-j72xx-soc-thermal",
 		.of_match_table	= of_k3_j72xx_bandgap_match,
+		.pm = pm_sleep_ptr(&k3_j72xx_bandgap_pm_ops),
 	},
 };
 

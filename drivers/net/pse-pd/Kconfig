@@ -23,6 +23,7 @@ config PSE_REGULATOR
 config PSE_PD692X0
 	tristate "PD692X0 PSE controller"
 	depends on I2C
+	select FW_LOADER
 	select FW_UPLOAD
 	help
 	  This module provides support for PD692x0 regulator based Ethernet

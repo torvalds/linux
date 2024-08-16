@@ -297,7 +297,7 @@ static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
 	return 0;
 }
 
-const char *snd_soc_dai_name_get(struct snd_soc_dai *dai)
+const char *snd_soc_dai_name_get(const struct snd_soc_dai *dai)
 {
 	/* see snd_soc_is_matching_dai() */
 	if (dai->driver->name)
@@ -3430,7 +3430,7 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_clock_provider_raw);
 
-int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream)
+int snd_soc_get_stream_cpu(const struct snd_soc_dai_link *dai_link, int stream)
 {
 	/*
 	 * [Normal]

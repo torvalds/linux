@@ -253,6 +253,21 @@ int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
+static unsigned int vlv_sprite_min_alignment(struct intel_plane *plane,
+					     const struct drm_framebuffer *fb,
+					     int color_plane)
+{
+	switch (fb->modifier) {
+	case I915_FORMAT_MOD_X_TILED:
+		return 4 * 1024;
+	case DRM_FORMAT_MOD_LINEAR:
+		return 128 * 1024;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
 static u32 vlv_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 sprctl = 0;
@@ -964,6 +979,13 @@ hsw_sprite_max_stride(struct intel_plane *plane,
 	return min(8192 * cpp, 16 * 1024);
 }
 
+static unsigned int g4x_sprite_min_alignment(struct intel_plane *plane,
+					     const struct drm_framebuffer *fb,
+					     int color_plane)
+{
+	return 4 * 1024;
+}
+
 static u32 g4x_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 dvscntr = 0;
@@ -1570,6 +1592,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->get_hw_state = vlv_sprite_get_hw_state;
 		plane->check_plane = vlv_sprite_check;
 		plane->max_stride = i965_plane_max_stride;
+		plane->min_alignment = vlv_sprite_min_alignment;
 		plane->min_cdclk = vlv_plane_min_cdclk;
 
 		if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
@@ -1596,6 +1619,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			plane->min_cdclk = ivb_sprite_min_cdclk;
 		}
 
+		plane->min_alignment = g4x_sprite_min_alignment;
+
 		formats = snb_sprite_formats;
 		num_formats = ARRAY_SIZE(snb_sprite_formats);
 
@@ -1607,6 +1632,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->get_hw_state = g4x_sprite_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 		plane->max_stride = g4x_sprite_max_stride;
+		plane->min_alignment = g4x_sprite_min_alignment;
 		plane->min_cdclk = g4x_sprite_min_cdclk;
 
 		if (IS_SANDYBRIDGE(dev_priv)) {

@@ -333,10 +333,10 @@ int ps3_mmio_region_init(struct ps3_system_bus_device *dev,
 EXPORT_SYMBOL_GPL(ps3_mmio_region_init);
 
 static int ps3_system_bus_match(struct device *_dev,
-	struct device_driver *_drv)
+	const struct device_driver *_drv)
 {
 	int result;
-	struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
+	const struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
 	if (!dev->match_sub_id)

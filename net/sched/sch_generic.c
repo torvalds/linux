@@ -633,6 +633,7 @@ EXPORT_SYMBOL_GPL(netif_carrier_event);
 static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 			struct sk_buff **to_free)
 {
+	dev_core_stats_tx_dropped_inc(skb->dev);
 	__qdisc_drop(skb, to_free);
 	return NET_XMIT_CN;
 }
@@ -676,6 +677,7 @@ struct Qdisc noop_qdisc = {
 		.qlen = 0,
 		.lock = __SPIN_LOCK_UNLOCKED(noop_qdisc.skb_bad_txq.lock),
 	},
+	.owner = -1,
 };
 EXPORT_SYMBOL(noop_qdisc);
 

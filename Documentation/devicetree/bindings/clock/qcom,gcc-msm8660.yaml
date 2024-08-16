@@ -34,6 +34,8 @@ properties:
       - const: pxo
       - const: cxo
 
+  '#power-domain-cells': false
+
 required:
   - compatible
 
@@ -47,7 +49,6 @@ examples:
       reg = <0x900000 0x4000>;
       #clock-cells = <1>;
       #reset-cells = <1>;
-      #power-domain-cells = <1>;
       clocks = <&pxo_board>, <&cxo_board>;
       clock-names = "pxo", "cxo";
     };

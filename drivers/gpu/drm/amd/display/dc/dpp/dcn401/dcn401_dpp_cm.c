@@ -153,57 +153,7 @@ void dpp401_set_cursor_position(
 	uint32_t height)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
-	int x_pos = pos->x - param->recout.x;
-	int y_pos = pos->y - param->recout.y;
-	int x_hotspot = pos->x_hotspot;
-	int y_hotspot = pos->y_hotspot;
-	int rec_x_offset = x_pos - pos->x_hotspot;
-	int rec_y_offset = y_pos - pos->y_hotspot;
-	int cursor_height = (int)height;
-	int cursor_width = (int)width;
 	uint32_t cur_en = pos->enable ? 1 : 0;
-
-	// Transform cursor width / height and hotspots for offset calculations
-	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		swap(cursor_height, cursor_width);
-		swap(x_hotspot, y_hotspot);
-
-		if (param->rotation == ROTATION_ANGLE_90) {
-			// hotspot = (-y, x)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-			rec_y_offset = y_pos - y_hotspot;
-		} else if (param->rotation == ROTATION_ANGLE_270) {
-			// hotspot = (y, -x)
-			rec_x_offset = x_pos - x_hotspot;
-			rec_y_offset = y_pos - (cursor_height - y_hotspot);
-		}
-	} else if (param->rotation == ROTATION_ANGLE_180) {
-		// hotspot = (-x, -y)
-		if (!param->mirror)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-
-		rec_y_offset = y_pos - (cursor_height - y_hotspot);
-	}
-
-	if (param->rotation == ROTATION_ANGLE_0 && !param->mirror) {
-		if (rec_x_offset >= (int)param->recout.width)
-			cur_en = 0;  /* not visible beyond right edge*/
-
-		if (rec_y_offset >= (int)param->recout.height)
-			cur_en = 0;  /* not visible beyond bottom edge*/
-	} else {
-		if (rec_x_offset > (int)param->recout.width)
-			cur_en = 0;  /* not visible beyond right edge*/
-
-		if (rec_y_offset > (int)param->recout.height)
-			cur_en = 0;  /* not visible beyond bottom edge*/
-	}
-
-	if (rec_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
-
-	if (rec_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL, CUR0_ENABLE, cur_en);
 

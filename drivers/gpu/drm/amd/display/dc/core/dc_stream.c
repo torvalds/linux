@@ -35,8 +35,10 @@
 #include "dc_stream_priv.h"
 
 #define DC_LOGGER dc->ctx->logger
+#ifndef MIN
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(x, y) ((x > y) ? x : y)
+#endif
 
 /*******************************************************************************
  * Private functions
@@ -415,6 +417,35 @@ bool dc_stream_program_cursor_position(
 		/* re-enable idle optimizations if necessary */
 		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
 			dc_allow_idle_optimizations(dc, true);
+
+		/* apply/update visual confirm */
+		if (dc->debug.visual_confirm == VISUAL_CONFIRM_HW_CURSOR) {
+			/* update software state */
+			uint32_t color_value = MAX_TG_COLOR_VALUE;
+			int i;
+
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+				/* adjust visual confirm color for all pipes with current stream */
+				if (stream == pipe_ctx->stream) {
+					if (stream->cursor_position.enable) {
+						pipe_ctx->visual_confirm_color.color_r_cr = color_value;
+						pipe_ctx->visual_confirm_color.color_g_y = 0;
+						pipe_ctx->visual_confirm_color.color_b_cb = 0;
+					} else {
+						pipe_ctx->visual_confirm_color.color_r_cr = 0;
+						pipe_ctx->visual_confirm_color.color_g_y = 0;
+						pipe_ctx->visual_confirm_color.color_b_cb = color_value;
+					}
+
+					/* programming hardware */
+					if (pipe_ctx->plane_state)
+						dc->hwss.update_visual_confirm_color(dc, pipe_ctx,
+								pipe_ctx->plane_res.hubp->mpcc_id);
+				}
+			}
+		}
 
 		return true;
 	}
@@ -946,7 +977,7 @@ static int dc_stream_calculate_flickerless_refresh_rate(struct dc_stream_state *
 	}
 
 	if (search_for_max_increase)
-		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
+		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
 	else
 		return stream->lumin_data.refresh_rate_hz[0];
 }
@@ -995,7 +1026,7 @@ static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc
 	if (stream->timing.v_total * stream->timing.h_total == 0)
 		return 0;
 
-	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
+	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*(long long)stream->timing.h_total);
 
 	int safe_refresh_hz = dc_stream_calculate_flickerless_refresh_rate(stream,
 							 dc_stream_get_brightness_millinits_from_refresh(stream, current_refresh_hz),
@@ -1003,12 +1034,12 @@ static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc
 							 is_gaming,
 							 increase);
 
-	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*stream->timing.h_total);
+	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*(long long)stream->timing.h_total);
 
 	if (increase)
-		return ((stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
+		return (((int) stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
 
-	return ((safe_refresh_v_total - stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
+	return ((safe_refresh_v_total - (int) stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
 }
 
 /*

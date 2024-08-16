@@ -77,6 +77,7 @@ static struct smbios_call call_blacklist[] = {
 	/* handled by kernel: dell-laptop */
 	{0x0000, CLASS_INFO, SELECT_RFKILL},
 	{0x0000, CLASS_KBD_BACKLIGHT, SELECT_KBD_BACKLIGHT},
+	{0x0000, CLASS_INFO, SELECT_THERMAL_MANAGEMENT},
 };
 
 struct token_range {
@@ -320,6 +321,31 @@ out_smbios_call:
 }
 EXPORT_SYMBOL_GPL(dell_smbios_call);
 
+void dell_fill_request(struct calling_interface_buffer *buffer,
+			       u32 arg0, u32 arg1, u32 arg2, u32 arg3)
+{
+	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+	buffer->input[0] = arg0;
+	buffer->input[1] = arg1;
+	buffer->input[2] = arg2;
+	buffer->input[3] = arg3;
+}
+EXPORT_SYMBOL_GPL(dell_fill_request);
+
+int dell_send_request(struct calling_interface_buffer *buffer,
+			     u16 class, u16 select)
+{
+	int ret;
+
+	buffer->cmd_class = class;
+	buffer->cmd_select = select;
+	ret = dell_smbios_call(buffer);
+	if (ret != 0)
+		return ret;
+	return dell_smbios_error(buffer->output[0]);
+}
+EXPORT_SYMBOL_GPL(dell_send_request);
+
 struct calling_interface_token *dell_smbios_find_token(int tokenid)
 {
 	int i;
@@ -355,6 +381,15 @@ void dell_laptop_call_notifier(unsigned long action, void *data)
 	blocking_notifier_call_chain(&dell_laptop_chain_head, action, data);
 }
 EXPORT_SYMBOL_GPL(dell_laptop_call_notifier);
+
+bool dell_smbios_class_is_supported(u16 class)
+{
+	/* Classes over 30 always unsupported */
+	if (class > 30)
+		return false;
+	return da_supported_commands & (1 << class);
+}
+EXPORT_SYMBOL_GPL(dell_smbios_class_is_supported);
 
 static void __init parse_da_table(const struct dmi_header *dm)
 {

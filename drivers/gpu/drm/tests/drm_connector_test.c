@@ -777,6 +777,7 @@ struct drm_get_tv_mode_from_name_test drm_get_tv_mode_from_name_valid_tests[] = 
 	TV_MODE_NAME("PAL-M", DRM_MODE_TV_MODE_PAL_M),
 	TV_MODE_NAME("PAL-N", DRM_MODE_TV_MODE_PAL_N),
 	TV_MODE_NAME("SECAM", DRM_MODE_TV_MODE_SECAM),
+	TV_MODE_NAME("Mono", DRM_MODE_TV_MODE_MONOCHROME),
 };
 
 static void

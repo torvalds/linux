@@ -35,6 +35,7 @@ use proc_macro::TokenStream;
 ///     author: "Rust for Linux Contributors",
 ///     description: "My very own kernel module!",
 ///     license: "GPL",
+///     alias: ["alternate_module_name"],
 /// }
 ///
 /// struct MyModule;
@@ -55,13 +56,45 @@ use proc_macro::TokenStream;
 /// }
 /// ```
 ///
+/// ## Firmware
+///
+/// The following example shows how to declare a kernel module that needs
+/// to load binary firmware files. You need to specify the file names of
+/// the firmware in the `firmware` field. The information is embedded
+/// in the `modinfo` section of the kernel module. For example, a tool to
+/// build an initramfs uses this information to put the firmware files into
+/// the initramfs image.
+///
+/// ```ignore
+/// use kernel::prelude::*;
+///
+/// module!{
+///     type: MyDeviceDriverModule,
+///     name: "my_device_driver_module",
+///     author: "Rust for Linux Contributors",
+///     description: "My device driver requires firmware",
+///     license: "GPL",
+///     firmware: ["my_device_firmware1.bin", "my_device_firmware2.bin"],
+/// }
+///
+/// struct MyDeviceDriverModule;
+///
+/// impl kernel::Module for MyDeviceDriverModule {
+///     fn init() -> Result<Self> {
+///         Ok(Self)
+///     }
+/// }
+/// ```
+///
 /// # Supported argument types
 ///   - `type`: type which implements the [`Module`] trait (required).
-///   - `name`: byte array of the name of the kernel module (required).
-///   - `author`: byte array of the author of the kernel module.
-///   - `description`: byte array of the description of the kernel module.
-///   - `license`: byte array of the license of the kernel module (required).
-///   - `alias`: byte array of alias name of the kernel module.
+///   - `name`: ASCII string literal of the name of the kernel module (required).
+///   - `author`: string literal of the author of the kernel module.
+///   - `description`: string literal of the description of the kernel module.
+///   - `license`: ASCII string literal of the license of the kernel module (required).
+///   - `alias`: array of ASCII string literals of the alias names of the kernel module.
+///   - `firmware`: array of ASCII string literals of the firmware files of
+/// the kernel module.
 #[proc_macro]
 pub fn module(ts: TokenStream) -> TokenStream {
     module::module(ts)
@@ -312,7 +345,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Currently supported modifiers are:
 /// * `span`: change the span of concatenated identifier to the span of the specified token. By
-/// default the span of the `[< >]` group is used.
+///   default the span of the `[< >]` group is used.
 /// * `lower`: change the identifier to lower case.
 /// * `upper`: change the identifier to upper case.
 ///

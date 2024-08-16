@@ -16,7 +16,7 @@
 	bits-per-pixel = <32>;
 	display-timings {
 		native-mode = <&timing0>;
-		timing0: 800x480 {
+		timing0: timing-800x480 {
 			clock-frequency = <0>; /* unused but required */
 			hactive = <800>;
 			vactive = <480>;

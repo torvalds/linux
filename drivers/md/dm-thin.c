@@ -4079,10 +4079,10 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	if (io_opt_sectors < pool->sectors_per_block ||
 	    !is_factor(io_opt_sectors, pool->sectors_per_block)) {
 		if (is_factor(pool->sectors_per_block, limits->max_sectors))
-			blk_limits_io_min(limits, limits->max_sectors << SECTOR_SHIFT);
+			limits->io_min = limits->max_sectors << SECTOR_SHIFT;
 		else
-			blk_limits_io_min(limits, pool->sectors_per_block << SECTOR_SHIFT);
-		blk_limits_io_opt(limits, pool->sectors_per_block << SECTOR_SHIFT);
+			limits->io_min = pool->sectors_per_block << SECTOR_SHIFT;
+		limits->io_opt = pool->sectors_per_block << SECTOR_SHIFT;
 	}
 
 	/*

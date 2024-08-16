@@ -1576,10 +1576,10 @@ void vio_unregister_device(struct vio_dev *viodev)
 }
 EXPORT_SYMBOL(vio_unregister_device);
 
-static int vio_bus_match(struct device *dev, struct device_driver *drv)
+static int vio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct vio_driver *vio_drv = to_vio_driver(drv);
+	const struct vio_driver *vio_drv = to_vio_driver(drv);
 	const struct vio_device_id *ids = vio_drv->id_table;
 
 	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
@@ -1689,7 +1689,7 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 	/* construct the kobject name from the device node */
 	if (of_node_is_type(vnode_parent, "vdevice")) {
 		const __be32 *prop;
-		
+
 		prop = of_get_property(vnode, "reg", NULL);
 		if (!prop)
 			goto out;

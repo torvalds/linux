@@ -557,6 +557,16 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	spin_unlock_irqrestore(&i915->drm.vblank_time_lock, irqflags);
 }
 
+int intel_mode_vdisplay(const struct drm_display_mode *mode)
+{
+	int vdisplay = mode->crtc_vdisplay;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vdisplay = DIV_ROUND_UP(vdisplay, 2);
+
+	return vdisplay;
+}
+
 int intel_mode_vblank_start(const struct drm_display_mode *mode)
 {
 	int vblank_start = mode->crtc_vblank_start;
@@ -642,7 +652,8 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	 */
 	if (intel_color_uses_dsb(new_crtc_state) ||
 	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
-		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+		evade->min -= intel_mode_vblank_start(adjusted_mode) -
+			intel_mode_vdisplay(adjusted_mode);
 }
 
 /* must be called with vblank interrupt already enabled! */

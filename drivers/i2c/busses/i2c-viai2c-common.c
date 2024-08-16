@@ -17,6 +17,7 @@ int viai2c_wait_bus_not_busy(struct viai2c *i2c)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(viai2c_wait_bus_not_busy);
 
 static int viai2c_write(struct viai2c *i2c, struct i2c_msg *pmsg, int last)
 {
@@ -121,6 +122,7 @@ int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	return (ret < 0) ? ret : i;
 }
+EXPORT_SYMBOL_GPL(viai2c_xfer);
 
 /*
  * Main process of the byte mode xfer
@@ -130,7 +132,7 @@ int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
  *  0: there is still data that needs to be transferred
  *  -EIO: error occurred
  */
-static int viai2c_irq_xfer(struct viai2c *i2c)
+int viai2c_irq_xfer(struct viai2c *i2c)
 {
 	u16 val;
 	struct i2c_msg *msg = i2c->msg;
@@ -171,51 +173,11 @@ static int viai2c_irq_xfer(struct viai2c *i2c)
 
 	return i2c->xfered_len == msg->len;
 }
-
-int __weak viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq)
-{
-	return 0;
-}
-
-static irqreturn_t viai2c_isr(int irq, void *data)
-{
-	struct viai2c *i2c = data;
-	u8 status;
-
-	/* save the status and write-clear it */
-	status = readw(i2c->base + VIAI2C_REG_ISR);
-	if (!status && i2c->platform == VIAI2C_PLAT_ZHAOXIN)
-		return IRQ_NONE;
-
-	writew(status, i2c->base + VIAI2C_REG_ISR);
-
-	i2c->ret = 0;
-	if (status & VIAI2C_ISR_NACK_ADDR)
-		i2c->ret = -EIO;
-
-	if (i2c->platform == VIAI2C_PLAT_WMT && (status & VIAI2C_ISR_SCL_TIMEOUT))
-		i2c->ret = -ETIMEDOUT;
-
-	if (!i2c->ret) {
-		if (i2c->mode == VIAI2C_BYTE_MODE)
-			i2c->ret = viai2c_irq_xfer(i2c);
-		else
-			i2c->ret = viai2c_fifo_irq_xfer(i2c, true);
-	}
-
-	/* All the data has been successfully transferred or error occurred */
-	if (i2c->ret)
-		complete(&i2c->complete);
-
-	return IRQ_HANDLED;
-}
+EXPORT_SYMBOL_GPL(viai2c_irq_xfer);
 
 int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat)
 {
-	int err;
-	int irq_flags;
 	struct viai2c *i2c;
-	struct device_node *np = pdev->dev.of_node;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -225,27 +187,7 @@ int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat)
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
-	if (plat == VIAI2C_PLAT_WMT) {
-		irq_flags = 0;
-		i2c->irq = irq_of_parse_and_map(np, 0);
-		if (!i2c->irq)
-			return -EINVAL;
-	} else if (plat == VIAI2C_PLAT_ZHAOXIN) {
-		irq_flags = IRQF_SHARED;
-		i2c->irq = platform_get_irq(pdev, 0);
-		if (i2c->irq < 0)
-			return i2c->irq;
-	} else {
-		return dev_err_probe(&pdev->dev, -EINVAL, "wrong platform type\n");
-	}
-
 	i2c->platform = plat;
-
-	err = devm_request_irq(&pdev->dev, i2c->irq, viai2c_isr,
-			       irq_flags, pdev->name, i2c);
-	if (err)
-		return dev_err_probe(&pdev->dev, err,
-				"failed to request irq %i\n", i2c->irq);
 
 	i2c->dev = &pdev->dev;
 	init_completion(&i2c->complete);
@@ -254,3 +196,8 @@ int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat)
 	*pi2c = i2c;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(viai2c_init);
+
+MODULE_DESCRIPTION("Via/Wondermedia/Zhaoxin I2C controller core");
+MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
+MODULE_LICENSE("GPL");

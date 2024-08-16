@@ -608,7 +608,7 @@ int platform_device_add_resources(struct platform_device *pdev,
 	struct resource *r = NULL;
 
 	if (res) {
-		r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
+		r = kmemdup_array(res, num, sizeof(*r), GFP_KERNEL);
 		if (!r)
 			return -ENOMEM;
 	}
@@ -1122,7 +1122,7 @@ static int platform_legacy_resume(struct device *dev)
 
 int platform_pm_suspend(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1140,7 +1140,7 @@ int platform_pm_suspend(struct device *dev)
 
 int platform_pm_resume(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1162,7 +1162,7 @@ int platform_pm_resume(struct device *dev)
 
 int platform_pm_freeze(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1180,7 +1180,7 @@ int platform_pm_freeze(struct device *dev)
 
 int platform_pm_thaw(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1198,7 +1198,7 @@ int platform_pm_thaw(struct device *dev)
 
 int platform_pm_poweroff(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1216,7 +1216,7 @@ int platform_pm_poweroff(struct device *dev)
 
 int platform_pm_restore(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
+	const struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (!drv)
@@ -1332,7 +1332,7 @@ __ATTRIBUTE_GROUPS(platform_dev);
  * and compare it against the name of the driver. Return whether they match
  * or not.
  */
-static int platform_match(struct device *dev, struct device_driver *drv)
+static int platform_match(struct device *dev, const struct device_driver *drv)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct platform_driver *pdrv = to_platform_driver(drv);
@@ -1420,14 +1420,8 @@ static void platform_remove(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 
-	if (drv->remove_new) {
-		drv->remove_new(dev);
-	} else if (drv->remove) {
-		int ret = drv->remove(dev);
-
-		if (ret)
-			dev_warn(_dev, "remove callback returned a non-zero value. This will be ignored.\n");
-	}
+	if (drv->remove)
+		drv->remove(dev);
 	dev_pm_domain_detach(_dev, true);
 }
 

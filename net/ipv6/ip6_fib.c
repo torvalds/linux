@@ -987,7 +987,7 @@ static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
 		if (pcpu_rt && rcu_access_pointer(pcpu_rt->from) == match) {
 			struct fib6_info *from;
 
-			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
+			from = unrcu_pointer(xchg(&pcpu_rt->from, NULL));
 			fib6_info_release(from);
 		}
 	}
@@ -2514,7 +2514,8 @@ int __init fib6_init(void)
 		goto out_kmem_cache_create;
 
 	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETROUTE, NULL,
-				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED);
+				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED |
+				   RTNL_FLAG_DUMP_SPLIT_NLM_DONE);
 	if (ret)
 		goto out_unregister_subsys;
 

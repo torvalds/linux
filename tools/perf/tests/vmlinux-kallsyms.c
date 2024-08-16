@@ -26,7 +26,6 @@ static bool is_ignored_symbol(const char *name, char type)
 		 * when --all-symbols is specified so exclude them to get a
 		 * stable symbol list.
 		 */
-		"kallsyms_addresses",
 		"kallsyms_offsets",
 		"kallsyms_relative_base",
 		"kallsyms_num_syms",

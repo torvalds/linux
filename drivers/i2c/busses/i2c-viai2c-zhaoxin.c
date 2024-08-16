@@ -38,7 +38,7 @@
 #define ZXI2C_GOLD_FSTP_400K	0x38
 #define ZXI2C_GOLD_FSTP_1M	0x13
 #define ZXI2C_GOLD_FSTP_3400K	0x37
-#define ZXI2C_HS_MASTER_CODE	(0x08 << 8)
+#define ZXI2C_HS_CTRL_CODE	(0x08 << 8)
 
 #define ZXI2C_FIFO_SIZE		32
 
@@ -49,8 +49,7 @@ struct viai2c_zhaoxin {
 	u16			xfer_len;
 };
 
-/* 'irq == true' means in interrupt context */
-int viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq)
+static int viai2c_fifo_xfer(struct viai2c *i2c)
 {
 	u16 i;
 	u8 tmp;
@@ -58,17 +57,6 @@ int viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq)
 	void __iomem *base = i2c->base;
 	bool read = !!(msg->flags & I2C_M_RD);
 	struct viai2c_zhaoxin *priv = i2c->pltfm_priv;
-
-	if (irq) {
-		/* get the received data */
-		if (read)
-			for (i = 0; i < priv->xfer_len; i++)
-				msg->buf[i2c->xfered_len + i] = ioread8(base + ZXI2C_REG_HRDR);
-
-		i2c->xfered_len += priv->xfer_len;
-		if (i2c->xfered_len == msg->len)
-			return 1;
-	}
 
 	/* reset fifo buffer */
 	tmp = ioread8(base + ZXI2C_REG_HCR);
@@ -92,22 +80,63 @@ int viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq)
 		iowrite8(tmp, base + VIAI2C_REG_CR);
 	}
 
-	if (irq) {
-		/* continue transmission */
-		tmp = ioread8(base + VIAI2C_REG_CR);
-		iowrite8(tmp |= VIAI2C_CR_CPU_RDY, base + VIAI2C_REG_CR);
-	} else {
-		u16 tcr_val = i2c->tcr;
+	u16 tcr_val = i2c->tcr;
 
-		/* start transmission */
-		tcr_val |= read ? VIAI2C_TCR_READ : 0;
-		writew(tcr_val | msg->addr, base + VIAI2C_REG_TCR);
-	}
+	/* start transmission */
+	tcr_val |= read ? VIAI2C_TCR_READ : 0;
+	writew(tcr_val | msg->addr, base + VIAI2C_REG_TCR);
 
 	return 0;
 }
 
-static int zxi2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+static int viai2c_fifo_irq_xfer(struct viai2c *i2c)
+{
+	u16 i;
+	u8 tmp;
+	struct i2c_msg *msg = i2c->msg;
+	void __iomem *base = i2c->base;
+	bool read = !!(msg->flags & I2C_M_RD);
+	struct viai2c_zhaoxin *priv = i2c->pltfm_priv;
+
+	/* get the received data */
+	if (read)
+		for (i = 0; i < priv->xfer_len; i++)
+			msg->buf[i2c->xfered_len + i] = ioread8(base + ZXI2C_REG_HRDR);
+
+	i2c->xfered_len += priv->xfer_len;
+	if (i2c->xfered_len == msg->len)
+		return 1;
+
+	/* reset fifo buffer */
+	tmp = ioread8(base + ZXI2C_REG_HCR);
+	iowrite8(tmp | ZXI2C_HCR_RST_FIFO, base + ZXI2C_REG_HCR);
+
+	/* set xfer len */
+	priv->xfer_len = min_t(u16, msg->len - i2c->xfered_len, ZXI2C_FIFO_SIZE);
+	if (read) {
+		iowrite8(priv->xfer_len - 1, base + ZXI2C_REG_HRLR);
+	} else {
+		iowrite8(priv->xfer_len - 1, base + ZXI2C_REG_HTLR);
+		/* set write data */
+		for (i = 0; i < priv->xfer_len; i++)
+			iowrite8(msg->buf[i2c->xfered_len + i], base + ZXI2C_REG_HTDR);
+	}
+
+	/* prepare to stop transmission */
+	if (priv->hrv && msg->len == (i2c->xfered_len + priv->xfer_len)) {
+		tmp = ioread8(base + VIAI2C_REG_CR);
+		tmp |= read ? VIAI2C_CR_RX_END : VIAI2C_CR_TX_END;
+		iowrite8(tmp, base + VIAI2C_REG_CR);
+	}
+
+	/* continue transmission */
+	tmp = ioread8(base + VIAI2C_REG_CR);
+	iowrite8(tmp |= VIAI2C_CR_CPU_RDY, base + VIAI2C_REG_CR);
+
+	return 0;
+}
+
+static int zxi2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	u8 tmp;
 	int ret;
@@ -135,7 +164,7 @@ static int zxi2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int
 		priv->xfer_len = 0;
 		i2c->xfered_len = 0;
 
-		viai2c_fifo_irq_xfer(i2c, 0);
+		viai2c_fifo_xfer(i2c);
 
 		if (!wait_for_completion_timeout(&i2c->complete, VIAI2C_TIMEOUT))
 			return -ETIMEDOUT;
@@ -165,8 +194,8 @@ static u32 zxi2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm zxi2c_algorithm = {
-	.master_xfer	= zxi2c_master_xfer,
-	.functionality	= zxi2c_func,
+	.xfer = zxi2c_xfer,
+	.functionality = zxi2c_func,
 };
 
 static const struct i2c_adapter_quirks zxi2c_quirks = {
@@ -221,11 +250,41 @@ static void zxi2c_get_bus_speed(struct viai2c *i2c)
 
 	i2c->tcr = params[1];
 	priv->mcr = ioread16(i2c->base + VIAI2C_REG_MCR);
-	/* for Hs-mode, use 0x80 as master code */
+	/* for Hs-mode, use 0x80 as controller code */
 	if (params[0] == I2C_MAX_HIGH_SPEED_MODE_FREQ)
-		priv->mcr |= ZXI2C_HS_MASTER_CODE;
+		priv->mcr |= ZXI2C_HS_CTRL_CODE;
 
 	dev_info(i2c->dev, "speed mode is %s\n", i2c_freq_mode_string(params[0]));
+}
+
+static irqreturn_t zxi2c_isr(int irq, void *data)
+{
+	struct viai2c *i2c = data;
+	u8 status;
+
+	/* save the status and write-clear it */
+	status = readw(i2c->base + VIAI2C_REG_ISR);
+	if (!status)
+		return IRQ_NONE;
+
+	writew(status, i2c->base + VIAI2C_REG_ISR);
+
+	i2c->ret = 0;
+	if (status & VIAI2C_ISR_NACK_ADDR)
+		i2c->ret = -EIO;
+
+	if (!i2c->ret) {
+		if (i2c->mode == VIAI2C_BYTE_MODE)
+			i2c->ret = viai2c_irq_xfer(i2c);
+		else
+			i2c->ret = viai2c_fifo_irq_xfer(i2c);
+	}
+
+	/* All the data has been successfully transferred or error occurred */
+	if (i2c->ret)
+		complete(&i2c->complete);
+
+	return IRQ_HANDLED;
 }
 
 static int zxi2c_probe(struct platform_device *pdev)
@@ -238,6 +297,16 @@ static int zxi2c_probe(struct platform_device *pdev)
 	error = viai2c_init(pdev, &i2c, VIAI2C_PLAT_ZHAOXIN);
 	if (error)
 		return error;
+
+	i2c->irq = platform_get_irq(pdev, 0);
+	if (i2c->irq < 0)
+		return i2c->irq;
+
+	error = devm_request_irq(&pdev->dev, i2c->irq, zxi2c_isr,
+				 IRQF_SHARED, pdev->name, i2c);
+	if (error)
+		return dev_err_probe(&pdev->dev, error,
+				"failed to request irq %i\n", i2c->irq);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

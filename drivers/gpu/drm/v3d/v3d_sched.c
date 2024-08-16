@@ -73,24 +73,46 @@ v3d_sched_job_free(struct drm_sched_job *sched_job)
 	v3d_job_cleanup(job);
 }
 
+void
+v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
+			      unsigned int count)
+{
+	if (query_info->queries) {
+		unsigned int i;
+
+		for (i = 0; i < count; i++)
+			drm_syncobj_put(query_info->queries[i].syncobj);
+
+		kvfree(query_info->queries);
+	}
+}
+
+void
+v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
+				unsigned int count)
+{
+	if (query_info->queries) {
+		unsigned int i;
+
+		for (i = 0; i < count; i++) {
+			drm_syncobj_put(query_info->queries[i].syncobj);
+			kvfree(query_info->queries[i].kperfmon_ids);
+		}
+
+		kvfree(query_info->queries);
+	}
+}
+
 static void
 v3d_cpu_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_cpu_job *job = to_cpu_job(sched_job);
-	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
-	struct v3d_performance_query_info *performance_query = &job->performance_query;
 
-	if (timestamp_query->queries) {
-		for (int i = 0; i < timestamp_query->count; i++)
-			drm_syncobj_put(timestamp_query->queries[i].syncobj);
-		kvfree(timestamp_query->queries);
-	}
+	v3d_timestamp_query_info_free(&job->timestamp_query,
+				      job->timestamp_query.count);
 
-	if (performance_query->queries) {
-		for (int i = 0; i < performance_query->count; i++)
-			drm_syncobj_put(performance_query->queries[i].syncobj);
-		kvfree(performance_query->queries);
-	}
+	v3d_performance_query_info_free(&job->performance_query,
+					job->performance_query.count);
 
 	v3d_job_cleanup(&job->base);
 }
@@ -399,18 +421,23 @@ v3d_reset_timestamp_queries(struct v3d_cpu_job *job)
 	v3d_put_bo_vaddr(bo);
 }
 
-static void
-write_to_buffer(void *dst, u32 idx, bool do_64bit, u64 value)
+static void write_to_buffer_32(u32 *dst, unsigned int idx, u32 value)
 {
-	if (do_64bit) {
-		u64 *dst64 = (u64 *)dst;
+	dst[idx] = value;
+}
 
-		dst64[idx] = value;
-	} else {
-		u32 *dst32 = (u32 *)dst;
+static void write_to_buffer_64(u64 *dst, unsigned int idx, u64 value)
+{
+	dst[idx] = value;
+}
 
-		dst32[idx] = (u32)value;
-	}
+static void
+write_to_buffer(void *dst, unsigned int idx, bool do_64bit, u64 value)
+{
+	if (do_64bit)
+		write_to_buffer_64(dst, idx, value);
+	else
+		write_to_buffer_32(dst, idx, value);
 }
 
 static void
@@ -483,18 +510,24 @@ v3d_reset_performance_queries(struct v3d_cpu_job *job)
 }
 
 static void
-v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 query)
+v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data,
+				   unsigned int query)
 {
-	struct v3d_performance_query_info *performance_query = &job->performance_query;
-	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_performance_query_info *performance_query =
+						&job->performance_query;
 	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_performance_query *perf_query =
+			&performance_query->queries[query];
 	struct v3d_dev *v3d = job->base.v3d;
-	struct v3d_perfmon *perfmon;
-	u64 counter_values[V3D_MAX_COUNTERS];
+	unsigned int i, j, offset;
 
-	for (int i = 0; i < performance_query->nperfmons; i++) {
+	for (i = 0, offset = 0;
+	     i < performance_query->nperfmons;
+	     i++, offset += DRM_V3D_MAX_PERF_COUNTERS) {
+		struct v3d_perfmon *perfmon;
+
 		perfmon = v3d_perfmon_find(v3d_priv,
-					   performance_query->queries[query].kperfmon_ids[i]);
+					   perf_query->kperfmon_ids[i]);
 		if (!perfmon) {
 			DRM_DEBUG("Failed to find perfmon.");
 			continue;
@@ -502,14 +535,18 @@ v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 quer
 
 		v3d_perfmon_stop(v3d, perfmon, true);
 
-		memcpy(&counter_values[i * DRM_V3D_MAX_PERF_COUNTERS], perfmon->values,
-		       perfmon->ncounters * sizeof(u64));
+		if (job->copy.do_64bit) {
+			for (j = 0; j < perfmon->ncounters; j++)
+				write_to_buffer_64(data, offset + j,
+						   perfmon->values[j]);
+		} else {
+			for (j = 0; j < perfmon->ncounters; j++)
+				write_to_buffer_32(data, offset + j,
+						   perfmon->values[j]);
+		}
 
 		v3d_perfmon_put(perfmon);
 	}
-
-	for (int i = 0; i < performance_query->ncounters; i++)
-		write_to_buffer(data, i, copy->do_64bit, counter_values[i]);
 }
 
 static void
@@ -616,7 +653,7 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 
 	/* Unblock schedulers and restart their jobs. */
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_start(&v3d->queue[q].sched, true);
+		drm_sched_start(&v3d->queue[q].sched);
 	}
 
 	mutex_unlock(&v3d->reset_lock);

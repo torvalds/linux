@@ -51,12 +51,14 @@ dm_block_t dm_bm_nr_blocks(struct dm_block_manager *bm);
  */
 struct dm_block_validator {
 	const char *name;
-	void (*prepare_for_write)(struct dm_block_validator *v, struct dm_block *b, size_t block_size);
+	void (*prepare_for_write)(const struct dm_block_validator *v,
+				  struct dm_block *b, size_t block_size);
 
 	/*
 	 * Return 0 if the checksum is valid or < 0 on error.
 	 */
-	int (*check)(struct dm_block_validator *v, struct dm_block *b, size_t block_size);
+	int (*check)(const struct dm_block_validator *v,
+		     struct dm_block *b, size_t block_size);
 };
 
 /*----------------------------------------------------------------*/
@@ -73,11 +75,11 @@ struct dm_block_validator {
  * written back to the disk sometime after dm_bm_unlock is called.
  */
 int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **result);
 
 int dm_bm_write_lock(struct dm_block_manager *bm, dm_block_t b,
-		     struct dm_block_validator *v,
+		     const struct dm_block_validator *v,
 		     struct dm_block **result);
 
 /*
@@ -85,7 +87,7 @@ int dm_bm_write_lock(struct dm_block_manager *bm, dm_block_t b,
  * available immediately.
  */
 int dm_bm_read_try_lock(struct dm_block_manager *bm, dm_block_t b,
-			struct dm_block_validator *v,
+			const struct dm_block_validator *v,
 			struct dm_block **result);
 
 /*
@@ -93,7 +95,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm, dm_block_t b,
  * overwrite the block completely.  It saves a disk read.
  */
 int dm_bm_write_lock_zero(struct dm_block_manager *bm, dm_block_t b,
-			  struct dm_block_validator *v,
+			  const struct dm_block_validator *v,
 			  struct dm_block **result);
 
 void dm_bm_unlock(struct dm_block *b);

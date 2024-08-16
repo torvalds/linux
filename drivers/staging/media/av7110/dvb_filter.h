@@ -1,6 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * dvb_filter.h
- *
  * Copyright (C) 2003 Convergence GmbH
  *
  * This program is free software; you can redistribute it and/or
@@ -21,7 +20,7 @@
 
 #include <media/demux.h>
 
-typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
+typedef int (dvb_filter_pes2ts_cb_t)(void *, unsigned char *);
 
 struct dvb_filter_pes2ts {
 	unsigned char buf[188];
@@ -35,7 +34,6 @@ void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts, unsigned short pid,
 
 int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 		      int len, int payload_start);
-
 
 #define PROG_STREAM_MAP  0xBC
 #define PRIVATE_STREAM1  0xBD
@@ -78,7 +76,6 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 #define INIT_DISP_HORIZONTAL_SIZE   540
 #define INIT_DISP_VERTICAL_SIZE     576
 
-
 //flags2
 #define PTS_DTS_FLAGS    0xC0
 #define ESCR_FLAG        0x20
@@ -119,9 +116,8 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 #define PIECE_RATE     0x40
 #define SEAM_SPLICE    0x20
 
-
 #define MAX_PLENGTH 0xFFFF
-#define MMAX_PLENGTH (256*MAX_PLENGTH)
+#define MMAX_PLENGTH (256 * MAX_PLENGTH)
 
 #ifndef IPACKS
 #define IPACKS 2048
@@ -187,10 +183,11 @@ struct mpg_picture {
 	s8        matrix_change_flag;
 
 	u8        picture_header_parameter;
-  /* bit 0 - 2: bwd f code
-     bit 3    : fpb vector
-     bit 4 - 6: fwd f code
-     bit 7    : fpf vector */
+	/* bit 0 - 2: bwd f code
+	 * bit 3    : fpb vector
+	 * bit 4 - 6: fwd f code
+	 * bit 7    : fpf vector
+	 */
 
 	int       mpeg1_flag;
 	int       progressive_sequence;
@@ -230,13 +227,12 @@ struct dvb_audio_info {
 	u32 bit_rate;
 	u32 frequency;
 	u32 mode;
-	u32 mode_extension ;
+	u32 mode_extension;
 	u32 emphasis;
 	u32 framesize;
 	u32 off;
 };
 
 int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int pr);
-
 
 #endif

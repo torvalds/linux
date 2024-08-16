@@ -15,8 +15,9 @@ struct i915_gtt_view;
 
 struct i915_vma *
 intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
-		     bool phys_cursor,
 		     const struct i915_gtt_view *view,
+		     unsigned int alignment,
+		     unsigned int phys_alignment,
 		     bool uses_fence,
 		     unsigned long *out_flags);
 

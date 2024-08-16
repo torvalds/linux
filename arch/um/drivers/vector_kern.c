@@ -1115,10 +1115,11 @@ static int irq_rr;
 static int vector_net_close(struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
-	unsigned long flags;
 
 	netif_stop_queue(dev);
 	del_timer(&vp->tl);
+
+	vp->opened = false;
 
 	if (vp->fds == NULL)
 		return 0;
@@ -1158,10 +1159,7 @@ static int vector_net_close(struct net_device *dev)
 		destroy_queue(vp->tx_queue);
 	kfree(vp->fds);
 	vp->fds = NULL;
-	spin_lock_irqsave(&vp->lock, flags);
-	vp->opened = false;
 	vp->in_error = false;
-	spin_unlock_irqrestore(&vp->lock, flags);
 	return 0;
 }
 
@@ -1203,17 +1201,12 @@ static void vector_reset_tx(struct work_struct *work)
 static int vector_net_open(struct net_device *dev)
 {
 	struct vector_private *vp = netdev_priv(dev);
-	unsigned long flags;
 	int err = -EINVAL;
 	struct vector_device *vdevice;
 
-	spin_lock_irqsave(&vp->lock, flags);
-	if (vp->opened) {
-		spin_unlock_irqrestore(&vp->lock, flags);
+	if (vp->opened)
 		return -ENXIO;
-	}
 	vp->opened = true;
-	spin_unlock_irqrestore(&vp->lock, flags);
 
 	vp->bpf = uml_vector_user_bpf(get_bpf_file(vp->parsed));
 
@@ -1387,8 +1380,6 @@ static int vector_net_load_bpf_flash(struct net_device *dev,
 		return -1;
 	}
 
-	spin_lock(&vp->lock);
-
 	if (vp->bpf != NULL) {
 		if (vp->opened)
 			uml_vector_detach_bpf(vp->fds->rx_fd, vp->bpf);
@@ -1417,15 +1408,12 @@ static int vector_net_load_bpf_flash(struct net_device *dev,
 	if (vp->opened)
 		result = uml_vector_attach_bpf(vp->fds->rx_fd, vp->bpf);
 
-	spin_unlock(&vp->lock);
-
 	return result;
 
 free_buffer:
 	release_firmware(fw);
 
 flash_fail:
-	spin_unlock(&vp->lock);
 	if (vp->bpf != NULL)
 		kfree(vp->bpf->filter);
 	kfree(vp->bpf);
@@ -1631,7 +1619,6 @@ static void vector_eth_configure(
 	INIT_WORK(&vp->reset_tx, vector_reset_tx);
 
 	timer_setup(&vp->tl, vector_timer_expire, 0);
-	spin_lock_init(&vp->lock);
 
 	/* FIXME */
 	dev->netdev_ops = &vector_netdev_ops;

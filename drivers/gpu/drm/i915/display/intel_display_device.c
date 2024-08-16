@@ -1529,9 +1529,11 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
  */
 bool intel_display_device_enabled(struct drm_i915_private *i915)
 {
-	/* Only valid when HAS_DISPLAY() is true */
-	drm_WARN_ON(&i915->drm, !HAS_DISPLAY(i915));
+	struct intel_display *display = &i915->display;
 
-	return !i915->display.params.disable_display &&
-		!intel_opregion_headless_sku(i915);
+	/* Only valid when HAS_DISPLAY() is true */
+	drm_WARN_ON(display->drm, !HAS_DISPLAY(display));
+
+	return !display->params.disable_display &&
+		!intel_opregion_headless_sku(display);
 }

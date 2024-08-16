@@ -260,16 +260,16 @@ struct node {
 void add_label(struct label **labels, char *label);
 void delete_labels(struct label **labels);
 
-struct property *build_property(char *name, struct data val,
+struct property *build_property(const char *name, struct data val,
 				struct srcpos *srcpos);
-struct property *build_property_delete(char *name);
+struct property *build_property_delete(const char *name);
 struct property *chain_property(struct property *first, struct property *list);
 struct property *reverse_properties(struct property *first);
 
 struct node *build_node(struct property *proplist, struct node *children,
 			struct srcpos *srcpos);
 struct node *build_node_delete(struct srcpos *srcpos);
-struct node *name_node(struct node *node, char *name);
+struct node *name_node(struct node *node, const char *name);
 struct node *omit_node_if_unused(struct node *node);
 struct node *reference_node(struct node *node);
 struct node *chain_node(struct node *first, struct node *list);
@@ -336,9 +336,9 @@ struct dt_info *build_dt_info(unsigned int dtsflags,
 			      struct reserve_info *reservelist,
 			      struct node *tree, uint32_t boot_cpuid_phys);
 void sort_tree(struct dt_info *dti);
-void generate_label_tree(struct dt_info *dti, char *name, bool allocph);
-void generate_fixups_tree(struct dt_info *dti, char *name);
-void generate_local_fixups_tree(struct dt_info *dti, char *name);
+void generate_label_tree(struct dt_info *dti, const char *name, bool allocph);
+void generate_fixups_tree(struct dt_info *dti, const char *name);
+void generate_local_fixups_tree(struct dt_info *dti, const char *name);
 
 /* Checks */
 

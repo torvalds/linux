@@ -225,8 +225,8 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->uapi.plane->dev);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int src_x, src_y, src_w;
 	u32 offset;
@@ -267,7 +267,7 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	 * despite them not using the linear offset anymore.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
-		unsigned int alignment = intel_surf_alignment(fb, 0);
+		unsigned int alignment = plane->min_alignment(plane, fb, 0);
 		int cpp = fb->format->cpp[0];
 
 		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].mapping_stride) {
@@ -764,6 +764,66 @@ i8xx_plane_max_stride(struct intel_plane *plane,
 		return 8 * 1024;
 }
 
+static unsigned int vlv_primary_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	switch (fb->modifier) {
+	case I915_FORMAT_MOD_X_TILED:
+		if (HAS_ASYNC_FLIPS(i915))
+			return 256 * 1024;
+		return 4 * 1024;
+	case DRM_FORMAT_MOD_LINEAR:
+		return 128 * 1024;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
+static unsigned int g4x_primary_min_alignment(struct intel_plane *plane,
+					      const struct drm_framebuffer *fb,
+					      int color_plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	switch (fb->modifier) {
+	case I915_FORMAT_MOD_X_TILED:
+		if (HAS_ASYNC_FLIPS(i915))
+			return 256 * 1024;
+		return 4 * 1024;
+	case DRM_FORMAT_MOD_LINEAR:
+		return 4 * 1024;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
+static unsigned int i965_plane_min_alignment(struct intel_plane *plane,
+					     const struct drm_framebuffer *fb,
+					     int color_plane)
+{
+	switch (fb->modifier) {
+	case I915_FORMAT_MOD_X_TILED:
+		return 4 * 1024;
+	case DRM_FORMAT_MOD_LINEAR:
+		return 128 * 1024;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
+static unsigned int i9xx_plane_min_alignment(struct intel_plane *plane,
+					     const struct drm_framebuffer *fb,
+					     int color_plane)
+{
+	return 0;
+}
+
 static const struct drm_plane_funcs i965_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -868,6 +928,15 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		else
 			plane->max_stride = ilk_primary_max_stride;
 	}
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		plane->min_alignment = vlv_primary_min_alignment;
+	else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
+		plane->min_alignment = g4x_primary_min_alignment;
+	else if (DISPLAY_VER(dev_priv) == 4)
+		plane->min_alignment = i965_plane_min_alignment;
+	else
+		plane->min_alignment = i9xx_plane_min_alignment;
 
 	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {
 		plane->update_arm = i830_plane_update_arm;

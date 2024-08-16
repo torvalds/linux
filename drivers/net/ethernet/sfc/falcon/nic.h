@@ -297,7 +297,7 @@ static inline struct falcon_board *falcon_board(struct ef4_nic *efx)
 	return &data->board;
 }
 
-struct ethtool_ts_info;
+struct kernel_ethtool_ts_info;
 
 extern const struct ef4_nic_type falcon_a1_nic_type;
 extern const struct ef4_nic_type falcon_b0_nic_type;

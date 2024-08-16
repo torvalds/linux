@@ -95,11 +95,6 @@ enum dynamic_range {
 	CEA
 };
 
-enum pll_status {
-	PLL_UNLOCKED,
-	PLL_LOCKED
-};
-
 enum clock_recovery_m_value_type {
 	CALCULATED_M,
 	REGISTER_M
@@ -191,7 +186,7 @@ void analogix_dp_swreset(struct analogix_dp_device *dp);
 void analogix_dp_config_interrupt(struct analogix_dp_device *dp);
 void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp);
 void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp);
-enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp);
+int analogix_dp_wait_pll_locked(struct analogix_dp_device *dp);
 void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable);
 void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				       enum analog_power_block block,

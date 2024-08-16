@@ -7,7 +7,7 @@
  * Copyright 2011 Solarflare Communications Inc.
  */
 
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/kref.h>

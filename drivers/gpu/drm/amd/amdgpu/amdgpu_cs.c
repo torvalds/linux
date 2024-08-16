@@ -1093,6 +1093,21 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	unsigned int i;
 	int r;
 
+	/*
+	 * We can't use gang submit on with reserved VMIDs when the VM changes
+	 * can't be invalidated by more than one engine at the same time.
+	 */
+	if (p->gang_size > 1 && !p->adev->vm_manager.concurrent_flush) {
+		for (i = 0; i < p->gang_size; ++i) {
+			struct drm_sched_entity *entity = p->entities[i];
+			struct drm_gpu_scheduler *sched = entity->rq->sched;
+			struct amdgpu_ring *ring = to_amdgpu_ring(sched);
+
+			if (amdgpu_vmid_uses_reserved(vm, ring->vm_hub))
+				return -EINVAL;
+		}
+	}
+
 	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		return r;
@@ -1763,7 +1778,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va_mapping *mapping;
-	int r;
+	int i, r;
 
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1778,13 +1793,13 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	if (dma_resv_locking_ctx((*bo)->tbo.base.resv) != &parser->exec.ticket)
 		return -EINVAL;
 
-	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {
-		(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-		amdgpu_bo_placement_from_domain(*bo, (*bo)->allowed_domains);
-		r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, &ctx);
-		if (r)
-			return r;
-	}
+	(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	amdgpu_bo_placement_from_domain(*bo, (*bo)->allowed_domains);
+	for (i = 0; i < (*bo)->placement.num_placement; i++)
+		(*bo)->placements[i].flags |= TTM_PL_FLAG_CONTIGUOUS;
+	r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, &ctx);
+	if (r)
+		return r;
 
 	return amdgpu_ttm_alloc_gart(&(*bo)->tbo);
 }

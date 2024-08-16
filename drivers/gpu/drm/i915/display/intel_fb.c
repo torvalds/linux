@@ -11,6 +11,7 @@
 
 #include "gem/i915_gem_object.h"
 #include "i915_drv.h"
+#include "intel_atomic_plane.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
@@ -584,12 +585,6 @@ static bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int color_pl
 	return intel_fb_rc_ccs_cc_plane(fb) == color_plane;
 }
 
-static bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane)
-{
-	return intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
-		color_plane == 1;
-}
-
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
 {
 	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
@@ -774,105 +769,6 @@ bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 {
 	return to_i915(fb->dev)->display.params.enable_dpt &&
 		intel_fb_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
-}
-
-unsigned int intel_cursor_alignment(const struct drm_i915_private *i915)
-{
-	if (IS_I830(i915))
-		return 16 * 1024;
-	else if (IS_I85X(i915))
-		return 256;
-	else if (IS_I845G(i915) || IS_I865G(i915))
-		return 32;
-	else
-		return 4 * 1024;
-}
-
-static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
-{
-	if (DISPLAY_VER(dev_priv) >= 9)
-		return 256 * 1024;
-	else if (IS_I965G(dev_priv) || IS_I965GM(dev_priv) ||
-		 IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return 128 * 1024;
-	else if (DISPLAY_VER(dev_priv) >= 4)
-		return 4 * 1024;
-	else
-		return 0;
-}
-
-unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
-				  int color_plane)
-{
-	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-
-	if (intel_fb_uses_dpt(fb)) {
-		/* AUX_DIST needs only 4K alignment */
-		if (intel_fb_is_ccs_aux_plane(fb, color_plane))
-			return 512 * 4096;
-
-		/*
-		 * FIXME ADL sees GGTT/DMAR faults with async
-		 * flips unless we align to 16k at least.
-		 * Figure out what's going on here...
-		 */
-		if (IS_ALDERLAKE_P(dev_priv) &&
-		    !intel_fb_is_ccs_modifier(fb->modifier) &&
-		    HAS_ASYNC_FLIPS(dev_priv))
-			return 512 * 16 * 1024;
-
-		return 512 * 4096;
-	}
-
-	/* AUX_DIST needs only 4K alignment */
-	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
-		return 4096;
-
-	if (is_semiplanar_uv_plane(fb, color_plane)) {
-		/*
-		 * TODO: cross-check wrt. the bspec stride in bytes * 64 bytes
-		 * alignment for linear UV planes on all platforms.
-		 */
-		if (DISPLAY_VER(dev_priv) >= 12) {
-			if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
-				return intel_linear_alignment(dev_priv);
-
-			return intel_tile_row_size(fb, color_plane);
-		}
-
-		return 4096;
-	}
-
-	drm_WARN_ON(&dev_priv->drm, color_plane != 0);
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-		return intel_linear_alignment(dev_priv);
-	case I915_FORMAT_MOD_X_TILED:
-		if (HAS_ASYNC_FLIPS(dev_priv))
-			return 256 * 1024;
-		return 0;
-	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
-	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
-	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
-	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
-		return 16 * 1024;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_4_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-		return 1 * 1024 * 1024;
-	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
-	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
-	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
-		return 16 * 1024;
-	default:
-		MISSING_CASE(fb->modifier);
-		return 0;
-	}
 }
 
 void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
@@ -1099,17 +995,12 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 				       const struct intel_plane_state *state,
 				       int color_plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(state->uapi.plane);
-	struct drm_i915_private *i915 = to_i915(intel_plane->base.dev);
+	struct intel_plane *plane = to_intel_plane(state->uapi.plane);
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int rotation = state->hw.rotation;
 	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
-	unsigned int alignment;
-
-	if (intel_plane->id == PLANE_CURSOR)
-		alignment = intel_cursor_alignment(i915);
-	else
-		alignment = intel_surf_alignment(fb, color_plane);
+	unsigned int alignment = plane->min_alignment(plane, fb, color_plane);
 
 	return intel_compute_aligned_offset(i915, x, y, fb, color_plane,
 					    pitch, rotation, alignment);
@@ -1123,11 +1014,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	struct drm_i915_private *i915 = to_i915(fb->dev);
 	unsigned int height, alignment, unused;
 
-	if (DISPLAY_VER(i915) >= 12 &&
-	    !intel_fb_needs_pot_stride_remap(to_intel_framebuffer(fb)) &&
-	    is_semiplanar_uv_plane(fb, color_plane))
-		alignment = intel_tile_row_size(fb, color_plane);
-	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
+	if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
 		alignment = intel_tile_size(i915);
 	else
 		alignment = 0;
@@ -1617,6 +1504,32 @@ bool intel_fb_supports_90_270_rotation(const struct intel_framebuffer *fb)
 	       fb->base.modifier == I915_FORMAT_MOD_Yf_TILED;
 }
 
+static unsigned int intel_fb_min_alignment(const struct drm_framebuffer *fb)
+{
+	struct drm_i915_private *i915 = to_i915(fb->dev);
+	struct intel_plane *plane;
+	unsigned int min_alignment = 0;
+
+	for_each_intel_plane(&i915->drm, plane) {
+		unsigned int plane_min_alignment;
+
+		if (!drm_plane_has_format(&plane->base, fb->format->format, fb->modifier))
+			continue;
+
+		plane_min_alignment = plane->min_alignment(plane, fb, 0);
+
+		drm_WARN_ON(&i915->drm, plane_min_alignment &&
+			    !is_power_of_2(plane_min_alignment));
+
+		if (intel_plane_needs_physical(plane))
+			continue;
+
+		min_alignment = max(min_alignment, plane_min_alignment);
+	}
+
+	return min_alignment;
+}
+
 int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb)
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
@@ -1698,6 +1611,8 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 			    mul_u32_u32(max_size, tile_size), intel_bo_to_drm_bo(obj)->size);
 		return -EINVAL;
 	}
+
+	fb->min_alignment = intel_fb_min_alignment(&fb->base);
 
 	return 0;
 }

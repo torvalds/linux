@@ -293,7 +293,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 /* The function is return back the capability of timestamping feature when
  * requested through ethtool -T <interface> utility
  */
-int ksz_get_ts_info(struct dsa_switch *ds, int port, struct ethtool_ts_info *ts)
+int ksz_get_ts_info(struct dsa_switch *ds, int port, struct kernel_ethtool_ts_info *ts)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_ptp_data *ptp_data;

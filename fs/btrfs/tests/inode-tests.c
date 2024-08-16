@@ -117,7 +117,7 @@ static void setup_file_extents(struct btrfs_root *root, u32 sectorsize)
 
 	/* Now for a regular extent */
 	insert_extent(root, offset, sectorsize - 1, sectorsize - 1, 0,
-		      disk_bytenr, sectorsize, BTRFS_FILE_EXTENT_REG, 0, slot);
+		      disk_bytenr, sectorsize - 1, BTRFS_FILE_EXTENT_REG, 0, slot);
 	slot++;
 	disk_bytenr += sectorsize;
 	offset += sectorsize - 1;
@@ -264,8 +264,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_HOLE) {
+		test_err("expected a hole, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	free_extent_map(em);
@@ -283,8 +283,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_INLINE) {
-		test_err("expected an inline, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_INLINE) {
+		test_err("expected an inline, got %llu", em->disk_bytenr);
 		goto out;
 	}
 
@@ -321,8 +321,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_HOLE) {
+		test_err("expected a hole, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != 4) {
@@ -344,8 +344,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize - 1) {
@@ -358,9 +358,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -372,8 +371,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -386,12 +385,11 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	disk_bytenr = em->block_start;
+	disk_bytenr = extent_map_block_start(em);
 	orig_start = em->start;
 	offset = em->start + em->len;
 	free_extent_map(em);
@@ -401,8 +399,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_HOLE) {
+		test_err("expected a hole, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -423,8 +421,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != 2 * sectorsize) {
@@ -437,15 +435,15 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != orig_start) {
-		test_err("wrong orig offset, want %llu, have %llu",
-			 orig_start, em->orig_start);
+	if (em->start - em->offset != orig_start) {
+		test_err("wrong offset, em->start=%llu em->offset=%llu orig_start=%llu",
+			 em->start, em->offset, orig_start);
 		goto out;
 	}
 	disk_bytenr += (em->start - orig_start);
-	if (em->block_start != disk_bytenr) {
+	if (extent_map_block_start(em) != disk_bytenr) {
 		test_err("wrong block start, want %llu, have %llu",
-			 disk_bytenr, em->block_start);
+			 disk_bytenr, extent_map_block_start(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -457,8 +455,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -472,9 +470,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 prealloc_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -486,8 +483,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -501,12 +498,11 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 prealloc_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	disk_bytenr = em->block_start;
+	disk_bytenr = extent_map_block_start(em);
 	orig_start = em->start;
 	offset = em->start + em->len;
 	free_extent_map(em);
@@ -516,8 +512,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_HOLE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_HOLE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -530,15 +526,14 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != orig_start) {
-		test_err("unexpected orig offset, wanted %llu, have %llu",
-			 orig_start, em->orig_start);
+	if (em->start - em->offset != orig_start) {
+		test_err("unexpected offset, wanted %llu, have %llu",
+			 em->start - orig_start, em->offset);
 		goto out;
 	}
-	if (em->block_start != (disk_bytenr + (em->start - em->orig_start))) {
+	if (extent_map_block_start(em) != disk_bytenr + em->offset) {
 		test_err("unexpected block start, wanted %llu, have %llu",
-			 disk_bytenr + (em->start - em->orig_start),
-			 em->block_start);
+			 disk_bytenr + em->offset, extent_map_block_start(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -549,8 +544,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != 2 * sectorsize) {
@@ -564,15 +559,14 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 prealloc_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != orig_start) {
-		test_err("wrong orig offset, want %llu, have %llu", orig_start,
-			 em->orig_start);
+	if (em->start - em->offset != orig_start) {
+		test_err("wrong offset, em->start=%llu em->offset=%llu orig_start=%llu",
+			 em->start, em->offset, orig_start);
 		goto out;
 	}
-	if (em->block_start != (disk_bytenr + (em->start - em->orig_start))) {
+	if (extent_map_block_start(em) != disk_bytenr + em->offset) {
 		test_err("unexpected block start, wanted %llu, have %llu",
-			 disk_bytenr + (em->start - em->orig_start),
-			 em->block_start);
+			 disk_bytenr + em->offset, extent_map_block_start(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -584,8 +578,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != 2 * sectorsize) {
@@ -599,9 +593,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 compressed_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu",
-			 em->start, em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
@@ -618,8 +611,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -633,9 +626,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 compressed_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu",
-			 em->start, em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
@@ -643,7 +635,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
 		goto out;
 	}
-	disk_bytenr = em->block_start;
+	disk_bytenr = extent_map_block_start(em);
 	orig_start = em->start;
 	offset = em->start + em->len;
 	free_extent_map(em);
@@ -653,8 +645,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -667,9 +659,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -680,9 +671,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != disk_bytenr) {
+	if (extent_map_block_start(em) != disk_bytenr) {
 		test_err("block start does not match, want %llu got %llu",
-			 disk_bytenr, em->block_start);
+			 disk_bytenr, extent_map_block_start(em));
 		goto out;
 	}
 	if (em->start != offset || em->len != 2 * sectorsize) {
@@ -696,9 +687,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 compressed_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != orig_start) {
-		test_err("wrong orig offset, want %llu, have %llu",
-			 em->start, orig_start);
+	if (em->start - em->offset != orig_start) {
+		test_err("wrong offset, em->start=%llu em->offset=%llu orig_start=%llu",
+			 em->start, em->offset, orig_start);
 		goto out;
 	}
 	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
@@ -715,8 +706,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -729,9 +720,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -742,8 +732,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole extent, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_HOLE) {
+		test_err("expected a hole extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	/*
@@ -762,9 +752,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 vacancy_only, em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -775,8 +764,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (em->disk_bytenr >= EXTENT_MAP_LAST_BYTE) {
+		test_err("expected a real extent, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != offset || em->len != sectorsize) {
@@ -789,9 +778,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	if (em->orig_start != em->start) {
-		test_err("wrong orig offset, want %llu, have %llu", em->start,
-			 em->orig_start);
+	if (em->offset != 0) {
+		test_err("wrong orig offset, want 0, have %llu", em->offset);
 		goto out;
 	}
 	ret = 0;
@@ -855,8 +843,8 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole, got %llu", em->block_start);
+	if (em->disk_bytenr != EXTENT_MAP_HOLE) {
+		test_err("expected a hole, got %llu", em->disk_bytenr);
 		goto out;
 	}
 	if (em->start != 0 || em->len != sectorsize) {
@@ -877,8 +865,8 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != sectorsize) {
-		test_err("expected a real extent, got %llu", em->block_start);
+	if (extent_map_block_start(em) != sectorsize) {
+		test_err("expected a real extent, got %llu", extent_map_block_start(em));
 		goto out;
 	}
 	if (em->start != sectorsize || em->len != sectorsize) {

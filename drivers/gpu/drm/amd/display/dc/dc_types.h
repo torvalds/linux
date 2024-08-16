@@ -1036,6 +1036,7 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
+	Replay_Set_General_Cmd,
 };
 
 union replay_error_status {
@@ -1091,6 +1092,8 @@ struct replay_settings {
 	uint32_t coasting_vtotal;
 	/* Coasting vtotal table */
 	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Defer Update Coasting vtotal table */
+	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	uint32_t link_off_frame_count;
 	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */

@@ -634,7 +634,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			const struct iov_iter *iter, gfp_t gfp_mask)
 {
 	bool copy = false, map_bvec = false;
-	unsigned long align = q->dma_pad_mask | queue_dma_alignment(q);
+	unsigned long align = blk_lim_dma_alignment_and_pad(&q->limits);
 	struct bio *bio = NULL;
 	struct iov_iter i;
 	int ret = -EINVAL;
@@ -756,6 +756,9 @@ int blk_rq_unmap_user(struct bio *bio)
 		} else {
 			bio_release_pages(bio, bio_data_dir(bio) == READ);
 		}
+
+		if (bio_integrity(bio))
+			bio_integrity_unmap_user(bio);
 
 		next_bio = bio;
 		bio = bio->bi_next;

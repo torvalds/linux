@@ -72,57 +72,100 @@ static struct svc_pool_map svc_pool_map = {
 static DEFINE_MUTEX(svc_pool_map_mutex);/* protects svc_pool_map.count only */
 
 static int
-param_set_pool_mode(const char *val, const struct kernel_param *kp)
+__param_set_pool_mode(const char *val, struct svc_pool_map *m)
 {
-	int *ip = (int *)kp->arg;
-	struct svc_pool_map *m = &svc_pool_map;
-	int err;
+	int err, mode;
 
 	mutex_lock(&svc_pool_map_mutex);
 
-	err = -EBUSY;
-	if (m->count)
-		goto out;
-
 	err = 0;
 	if (!strncmp(val, "auto", 4))
-		*ip = SVC_POOL_AUTO;
+		mode = SVC_POOL_AUTO;
 	else if (!strncmp(val, "global", 6))
-		*ip = SVC_POOL_GLOBAL;
+		mode = SVC_POOL_GLOBAL;
 	else if (!strncmp(val, "percpu", 6))
-		*ip = SVC_POOL_PERCPU;
+		mode = SVC_POOL_PERCPU;
 	else if (!strncmp(val, "pernode", 7))
-		*ip = SVC_POOL_PERNODE;
+		mode = SVC_POOL_PERNODE;
 	else
 		err = -EINVAL;
 
+	if (err)
+		goto out;
+
+	if (m->count == 0)
+		m->mode = mode;
+	else if (mode != m->mode)
+		err = -EBUSY;
 out:
 	mutex_unlock(&svc_pool_map_mutex);
 	return err;
 }
 
 static int
-param_get_pool_mode(char *buf, const struct kernel_param *kp)
+param_set_pool_mode(const char *val, const struct kernel_param *kp)
 {
-	int *ip = (int *)kp->arg;
+	struct svc_pool_map *m = kp->arg;
 
-	switch (*ip)
+	return __param_set_pool_mode(val, m);
+}
+
+int sunrpc_set_pool_mode(const char *val)
+{
+	return __param_set_pool_mode(val, &svc_pool_map);
+}
+EXPORT_SYMBOL(sunrpc_set_pool_mode);
+
+/**
+ * sunrpc_get_pool_mode - get the current pool_mode for the host
+ * @buf: where to write the current pool_mode
+ * @size: size of @buf
+ *
+ * Grab the current pool_mode from the svc_pool_map and write
+ * the resulting string to @buf. Returns the number of characters
+ * written to @buf (a'la snprintf()).
+ */
+int
+sunrpc_get_pool_mode(char *buf, size_t size)
+{
+	struct svc_pool_map *m = &svc_pool_map;
+
+	switch (m->mode)
 	{
 	case SVC_POOL_AUTO:
-		return sysfs_emit(buf, "auto\n");
+		return snprintf(buf, size, "auto");
 	case SVC_POOL_GLOBAL:
-		return sysfs_emit(buf, "global\n");
+		return snprintf(buf, size, "global");
 	case SVC_POOL_PERCPU:
-		return sysfs_emit(buf, "percpu\n");
+		return snprintf(buf, size, "percpu");
 	case SVC_POOL_PERNODE:
-		return sysfs_emit(buf, "pernode\n");
+		return snprintf(buf, size, "pernode");
 	default:
-		return sysfs_emit(buf, "%d\n", *ip);
+		return snprintf(buf, size, "%d", m->mode);
 	}
+}
+EXPORT_SYMBOL(sunrpc_get_pool_mode);
+
+static int
+param_get_pool_mode(char *buf, const struct kernel_param *kp)
+{
+	char str[16];
+	int len;
+
+	len = sunrpc_get_pool_mode(str, ARRAY_SIZE(str));
+
+	/* Ensure we have room for newline and NUL */
+	len = min_t(int, len, ARRAY_SIZE(str) - 2);
+
+	/* tack on the newline */
+	str[len] = '\n';
+	str[len + 1] = '\0';
+
+	return sysfs_emit(buf, str);
 }
 
 module_param_call(pool_mode, param_set_pool_mode, param_get_pool_mode,
-		 &svc_pool_map.mode, 0644);
+		  &svc_pool_map, 0644);
 
 /*
  * Detect best pool mapping mode heuristically,
@@ -250,10 +293,8 @@ svc_pool_map_get(void)
 	int npools = -1;
 
 	mutex_lock(&svc_pool_map_mutex);
-
 	if (m->count++) {
 		mutex_unlock(&svc_pool_map_mutex);
-		WARN_ON_ONCE(m->npools <= 1);
 		return m->npools;
 	}
 
@@ -275,32 +316,21 @@ svc_pool_map_get(void)
 		m->mode = SVC_POOL_GLOBAL;
 	}
 	m->npools = npools;
-
-	if (npools == 1)
-		/* service is unpooled, so doesn't hold a reference */
-		m->count--;
-
 	mutex_unlock(&svc_pool_map_mutex);
 	return npools;
 }
 
 /*
- * Drop a reference to the global map of cpus to pools, if
- * pools were in use, i.e. if npools > 1.
+ * Drop a reference to the global map of cpus to pools.
  * When the last reference is dropped, the map data is
- * freed; this allows the sysadmin to change the pool
- * mode using the pool_mode module option without
- * rebooting or re-loading sunrpc.ko.
+ * freed; this allows the sysadmin to change the pool.
  */
 static void
-svc_pool_map_put(int npools)
+svc_pool_map_put(void)
 {
 	struct svc_pool_map *m = &svc_pool_map;
 
-	if (npools <= 1)
-		return;
 	mutex_lock(&svc_pool_map_mutex);
-
 	if (!--m->count) {
 		kfree(m->to_pool);
 		m->to_pool = NULL;
@@ -308,7 +338,6 @@ svc_pool_map_put(int npools)
 		m->pool_to = NULL;
 		m->npools = 0;
 	}
-
 	mutex_unlock(&svc_pool_map_mutex);
 }
 
@@ -553,9 +582,10 @@ struct svc_serv *svc_create_pooled(struct svc_program *prog,
 	serv = __svc_create(prog, stats, bufsize, npools, threadfn);
 	if (!serv)
 		goto out_err;
+	serv->sv_is_pooled = true;
 	return serv;
 out_err:
-	svc_pool_map_put(npools);
+	svc_pool_map_put();
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(svc_create_pooled);
@@ -585,7 +615,8 @@ svc_destroy(struct svc_serv **servp)
 
 	cache_clean_deferred(serv);
 
-	svc_pool_map_put(serv->sv_nrpools);
+	if (serv->sv_is_pooled)
+		svc_pool_map_put();
 
 	for (i = 0; i < serv->sv_nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
@@ -1557,9 +1588,11 @@ out_drop:
  */
 void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 {
+	struct rpc_timeout timeout = {
+		.to_increment		= 0,
+	};
 	struct rpc_task *task;
 	int proc_error;
-	struct rpc_timeout timeout;
 
 	/* Build the svc_rqst used by the common processing routine */
 	rqstp->rq_xid = req->rq_xid;
@@ -1612,6 +1645,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 		timeout.to_initval = req->rq_xprt->timeout->to_initval;
 		timeout.to_retries = req->rq_xprt->timeout->to_retries;
 	}
+	timeout.to_maxval = timeout.to_initval;
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
 	task = rpc_run_bc_task(req, &timeout);
 

@@ -3,10 +3,11 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
-		Control BACKLIGHT power, values are FB_BLANK_* from fb.h
+		Control BACKLIGHT power, values are compatible with
+		FB_BLANK_* from fb.h
 
-		 - FB_BLANK_UNBLANK (0)   : power on.
-		 - FB_BLANK_POWERDOWN (4) : power off
+		 - 0 (FB_BLANK_UNBLANK)   : power on.
+		 - 4 (FB_BLANK_POWERDOWN) : power off
 Users:		HAL
 
 What:		/sys/class/backlight/<backlight>/brightness

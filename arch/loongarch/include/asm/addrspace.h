@@ -37,6 +37,10 @@ extern unsigned long vm_map_base;
 #define UNCACHE_BASE		CSR_DMW0_BASE
 #endif
 
+#ifndef WRITECOMBINE_BASE
+#define WRITECOMBINE_BASE	CSR_DMW2_BASE
+#endif
+
 #define DMW_PABITS	48
 #define TO_PHYS_MASK	((1ULL << DMW_PABITS) - 1)
 

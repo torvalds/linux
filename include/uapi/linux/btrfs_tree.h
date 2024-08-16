@@ -747,21 +747,9 @@ struct btrfs_raid_stride {
 	__le64 physical;
 } __attribute__ ((__packed__));
 
-/* The stripe_extent::encoding, 1:1 mapping of enum btrfs_raid_types. */
-#define BTRFS_STRIPE_RAID0	1
-#define BTRFS_STRIPE_RAID1	2
-#define BTRFS_STRIPE_DUP	3
-#define BTRFS_STRIPE_RAID10	4
-#define BTRFS_STRIPE_RAID5	5
-#define BTRFS_STRIPE_RAID6	6
-#define BTRFS_STRIPE_RAID1C3	7
-#define BTRFS_STRIPE_RAID1C4	8
-
 struct btrfs_stripe_extent {
-	__u8 encoding;
-	__u8 reserved[7];
 	/* An array of raid strides this stripe is composed of. */
-	struct btrfs_raid_stride strides[];
+	__DECLARE_FLEX_ARRAY(struct btrfs_raid_stride, strides);
 } __attribute__ ((__packed__));
 
 #define BTRFS_HEADER_FLAG_WRITTEN	(1ULL << 0)
@@ -777,6 +765,14 @@ struct btrfs_stripe_extent {
 #define BTRFS_SUPER_FLAG_CHANGING_FSID	(1ULL << 35)
 #define BTRFS_SUPER_FLAG_CHANGING_FSID_V2 (1ULL << 36)
 
+/*
+ * Those are temporaray flags utilized by btrfs-progs to do offline conversion.
+ * They are rejected by kernel.
+ * But still keep them all here to avoid conflicts.
+ */
+#define BTRFS_SUPER_FLAG_CHANGING_BG_TREE	(1ULL << 38)
+#define BTRFS_SUPER_FLAG_CHANGING_DATA_CSUM	(1ULL << 39)
+#define BTRFS_SUPER_FLAG_CHANGING_META_CSUM	(1ULL << 40)
 
 /*
  * items in the extent btree are used to record the objectid of the

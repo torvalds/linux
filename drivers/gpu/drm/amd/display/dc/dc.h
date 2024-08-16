@@ -55,13 +55,14 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.286"
+#define DC_VER "3.2.291"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
+#define MAX_HOST_ROUTERS_NUM 2
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -291,6 +292,9 @@ struct dc_caps {
 	uint8_t subvp_drr_vblank_start_margin_us;
 	bool cursor_not_scaled;
 	bool dcmode_power_limits_present;
+	bool sequential_ono;
+	/* Conservative limit for DCC cases which require ODM4:1 to support*/
+	uint32_t dcc_plane_width_limit;
 };
 
 struct dc_bug_wa {
@@ -304,6 +308,7 @@ struct dc_bug_wa {
 		uint8_t dcfclk : 1;
 		uint8_t dcfclk_ds: 1;
 	} clock_update_disable_mask;
+	bool skip_psr_ips_crtc_disable;
 	//Customer Specific WAs
 	uint32_t force_backlight_start_level;
 };
@@ -330,6 +335,9 @@ struct dc_dcc_setting {
 		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN 3.0
 		uint32_t dcc_256_128_128 : 1;		//available starting with DCN 3.0
 		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN 3.0 (the best compression case)
+		uint32_t dcc_256_256 : 1;  //available in ASICs starting with DCN 4.0x (the best compression case)
+		uint32_t dcc_256_128 : 1;  //available in ASICs starting with DCN 4.0x
+		uint32_t dcc_256_64 : 1;   //available in ASICs starting with DCN 4.0x (the worst compression case)
 	} dcc_controls;
 };
 
@@ -473,6 +481,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
+	VISUAL_CONFIRM_HW_CURSOR = 20,
 };
 
 enum dc_psr_power_opts {
@@ -592,6 +601,7 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+	int host_router_bw_kbps[MAX_HOST_ROUTERS_NUM];
 
 	/*
 	 * @fw_based_mclk_switching
@@ -922,6 +932,7 @@ struct dc_debug_options {
 	bool disable_z9_mpc;
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
+	bool ips_disallow_entry;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool disable_idle_power_optimizations;
@@ -1031,9 +1042,10 @@ struct dc_debug_options {
 	unsigned int static_screen_wait_frames;
 	uint32_t pwm_freq;
 	bool force_chroma_subsampling_1tap;
+	unsigned int dcc_meta_propagation_delay_us;
 	bool disable_422_left_edge_pixel;
 	bool dml21_force_pstate_method;
-	uint32_t dml21_force_pstate_method_value;
+	uint32_t dml21_force_pstate_method_values[MAX_PIPES];
 	uint32_t dml21_disable_pstate_method_mask;
 	union dmub_fams2_global_feature_config fams2_config;
 	bool enable_legacy_clock_update;
@@ -1042,7 +1054,7 @@ struct dc_debug_options {
 	unsigned int force_easf;
 	unsigned int force_sharpness;
 	unsigned int force_lls;
-	bool edp_oled_no_backlight_enable;
+	bool notify_dpia_hr_bw;
 };
 
 
@@ -1445,6 +1457,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
+	struct dml2_configuration_options dml2_tmp;
 	enum dc_acpi_cm_power_state power_state;
 
 };
@@ -2466,6 +2479,8 @@ void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 
 bool dc_set_replay_allow_active(struct dc *dc, bool active);
+
+bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips);
 
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);

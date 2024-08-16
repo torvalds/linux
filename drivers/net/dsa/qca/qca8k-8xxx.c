@@ -565,7 +565,7 @@ qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_
 	return qca8k_regmap_update_bits_mii(priv, reg, mask, write_val);
 }
 
-static struct regmap_config qca8k_regmap_config = {
+static const struct regmap_config qca8k_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 32,
 	.reg_stride = 4,

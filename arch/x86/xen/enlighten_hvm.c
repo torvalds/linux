@@ -28,8 +28,6 @@
 #include <asm/xen/page.h>
 
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
 
 static unsigned long shared_info_pfn;
 

@@ -85,8 +85,8 @@ void find_pipe_regs_idx(const struct dml2_context *dml_ctx,
 int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 		struct dc_state *context,
 		struct dml2_context *dml_ctx,
-		struct pipe_ctx **dc_main_pipes,
-		struct pipe_ctx **dc_phantom_pipes,
+		struct pipe_ctx *dc_main_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__],
+		struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__],
 		int dml_plane_idx)
 {
 	unsigned int dml_stream_index;
@@ -100,11 +100,16 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	struct dc_plane_state *dc_phantom_plane;
 	int num_pipes = 0;
 
+	memset(dc_main_pipes, 0, sizeof(struct pipe_ctx *) * __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+	memset(dc_phantom_pipes, 0, sizeof(struct pipe_ctx *) * __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+
 	dml_stream_index = dml_ctx->v21.mode_programming.programming->plane_programming[dml_plane_idx].plane_descriptor->stream_index;
 	main_stream_id = dml_ctx->v21.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id[dml_stream_index];
 
 	dc_main_stream = dml_ctx->config.callbacks.get_stream_from_id(context, main_stream_id);
 	dc_main_stream_status = dml_ctx->config.callbacks.get_stream_status(context, dc_main_stream);
+	if (!dc_main_stream_status)
+		return num_pipes;
 
 	/* find main plane based on id */
 	dc_plane_index = dml21_get_dc_plane_idx_from_plane_id(dml_ctx->v21.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_id[dml_plane_idx]);
@@ -115,7 +120,8 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	} else {
 		/* stream was configured with dummy plane, so get pipes from opp head */
 		struct pipe_ctx *otg_master_pipe = dml_ctx->config.callbacks.get_otg_master_for_stream(&context->res_ctx, dc_main_stream);
-		num_pipes = dml_ctx->config.callbacks.get_opp_heads_for_otg_master(otg_master_pipe, &context->res_ctx, dc_main_pipes);
+		if (otg_master_pipe != NULL)
+			num_pipes = dml_ctx->config.callbacks.get_opp_heads_for_otg_master(otg_master_pipe, &context->res_ctx, dc_main_pipes);
 	}
 
 	/* if phantom exists, find associated pipes */
@@ -123,10 +129,15 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	if (dc_phantom_stream && num_pipes > 0) {
 		dc_phantom_stream_status = dml_ctx->config.callbacks.get_stream_status(context, dc_phantom_stream);
 
-		/* phantom plane will have same index as main */
-		dc_phantom_plane = dc_phantom_stream_status->plane_states[dc_plane_index];
+		if (dc_phantom_stream_status) {
+			/* phantom plane will have same index as main */
+			dc_phantom_plane = dc_phantom_stream_status->plane_states[dc_plane_index];
 
-		dml_ctx->config.callbacks.get_dpp_pipes_for_plane(dc_phantom_plane, &context->res_ctx, dc_phantom_pipes);
+			if (dc_phantom_plane) {
+				/* only care about phantom pipes if they contain the phantom plane */
+				dml_ctx->config.callbacks.get_dpp_pipes_for_plane(dc_phantom_plane, &context->res_ctx, dc_phantom_pipes);
+			}
+		}
 	}
 
 	return num_pipes;
@@ -317,6 +328,8 @@ static struct dc_stream_state *dml21_add_phantom_stream(struct dml2_context *dml
 	struct dml2_stream_parameters *phantom_stream_descriptor = &stream_programming->phantom_stream.descriptor;
 
 	phantom_stream = dml_ctx->config.svp_pstate.callbacks.create_phantom_stream(dc, context, main_stream);
+	if (!phantom_stream)
+		return NULL;
 
 	/* copy details of phantom stream from main */
 	memcpy(&phantom_stream->timing, &main_stream->timing, sizeof(phantom_stream->timing));
@@ -352,6 +365,8 @@ static struct dc_plane_state *dml21_add_phantom_plane(struct dml2_context *dml_c
 	struct dc_plane_state *phantom_plane;
 
 	phantom_plane = dml_ctx->config.svp_pstate.callbacks.create_phantom_plane(dc, context, main_plane);
+	if (!phantom_plane)
+		return NULL;
 
 	phantom_plane->format = main_plane->format;
 	phantom_plane->rotation = main_plane->rotation;
@@ -401,7 +416,7 @@ void dml21_handle_phantom_streams_planes(const struct dc *dc, struct dc_state *c
 
 			main_stream_status = dml_ctx->config.callbacks.get_stream_status(context, main_stream);
 
-			if (main_stream_status->plane_count == 0)
+			if (!main_stream_status || main_stream_status->plane_count == 0)
 				continue;
 
 			/* create phantom stream for subvp enabled stream */
@@ -410,6 +425,9 @@ void dml21_handle_phantom_streams_planes(const struct dc *dc, struct dc_state *c
 					context,
 					main_stream,
 					&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_index]);
+
+			if (!phantom_stream)
+				continue;
 
 			/* iterate through DML planes associated with this stream */
 			for (dml_plane_index = 0; dml_plane_index < dml_ctx->v21.mode_programming.programming->display_config.num_planes; dml_plane_index++) {
@@ -499,6 +517,9 @@ void dml21_build_fams2_programming(const struct dc *dc,
 			break;
 		case FAMS2_STREAM_TYPE_SUBVP:
 			phantom_stream = dml_ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(context, stream);
+			if (!phantom_stream)
+				break;
+
 			phantom_status = dml_ctx->config.callbacks.get_stream_status(context, phantom_stream);
 
 			/* phantom status should always be present */

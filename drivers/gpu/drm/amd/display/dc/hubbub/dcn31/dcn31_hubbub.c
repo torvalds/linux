@@ -866,6 +866,7 @@ static bool hubbub31_get_dcc_compression_cap(struct hubbub *hubbub,
 		return false;
 
 	switch (dcc_control) {
+	case dcc_control__256_256:
 	case dcc_control__256_256_xxx:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
 		output->grph.rgb.max_compressed_blk_size = 256;
@@ -881,12 +882,14 @@ static bool hubbub31_get_dcc_compression_cap(struct hubbub *hubbub,
 		output->grph.rgb.dcc_controls.dcc_256_128_128 = 1;
 		break;
 	case dcc_control__256_64_64:
+	case dcc_control__256_64:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
 		output->grph.rgb.max_compressed_blk_size = 64;
 		output->grph.rgb.independent_64b_blks = true;
 		output->grph.rgb.dcc_controls.dcc_256_64_64 = 1;
 		break;
 	case dcc_control__256_128_128:
+	case dcc_control__256_128:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
 		output->grph.rgb.max_compressed_blk_size = 128;
 		output->grph.rgb.independent_64b_blks = false;

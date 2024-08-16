@@ -89,6 +89,22 @@ static int map_benchmark_thread(void *data)
 		atomic64_add(map_sq, &map->sum_sq_map);
 		atomic64_add(unmap_sq, &map->sum_sq_unmap);
 		atomic64_inc(&map->loops);
+
+		/*
+		 * We may test for a long time so periodically check whether
+		 * we need to schedule to avoid starving the others. Otherwise
+		 * we may hangup the kernel in a non-preemptible kernel when
+		 * the test kthreads number >= CPU number, the test kthreads
+		 * will run endless on every CPU since the thread resposible
+		 * for notifying the kthread stop (in do_map_benchmark())
+		 * could not be scheduled.
+		 *
+		 * Note this may degrade the test concurrency since the test
+		 * threads may need to share the CPU time with other load
+		 * in the system. So it's recommended to run this benchmark
+		 * on an idle system.
+		 */
+		cond_resched();
 	}
 
 out:

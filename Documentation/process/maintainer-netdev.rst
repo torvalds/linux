@@ -25,9 +25,8 @@ drivers/net (i.e. hardware specific drivers) in the Linux source tree.
 Note that some subsystems (e.g. wireless drivers) which have a high
 volume of traffic have their own specific mailing lists and trees.
 
-The netdev list is managed (like many other Linux mailing lists) through
-VGER (http://vger.kernel.org/) with archives available at
-https://lore.kernel.org/netdev/
+Like many other Linux mailing lists, the netdev list is hosted at
+kernel.org with archives available at https://lore.kernel.org/netdev/.
 
 Aside from subsystems like those mentioned above, all network-related
 Linux development (i.e. RFC, review, comments, etc.) takes place on

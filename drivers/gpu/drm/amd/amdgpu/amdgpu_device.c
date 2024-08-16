@@ -2350,7 +2350,6 @@ void amdgpu_device_set_sriov_virtual_display(struct amdgpu_device *adev)
 static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 {
 	const char *chip_name;
-	char fw_name[40];
 	int err;
 	const struct gpu_info_firmware_header_v1_0 *hdr;
 
@@ -2384,12 +2383,12 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		break;
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
-	err = amdgpu_ucode_request(adev, &adev->firmware.gpu_info_fw, fw_name);
+	err = amdgpu_ucode_request(adev, &adev->firmware.gpu_info_fw,
+				   "amdgpu/%s_gpu_info.bin", chip_name);
 	if (err) {
 		dev_err(adev->dev,
-			"Failed to get gpu_info firmware \"%s\"\n",
-			fw_name);
+			"Failed to get gpu_info firmware \"%s_gpu_info.bin\"\n",
+			chip_name);
 		goto out;
 	}
 
@@ -3143,7 +3142,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	amdgpu_ras_set_error_query_ready(adev, true);
+	if (!amdgpu_in_reset(adev))
+		amdgpu_ras_set_error_query_ready(adev, true);
 
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_GATE);
@@ -5070,6 +5070,9 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	struct amdgpu_hive_info *hive = NULL;
 
 	if (test_bit(AMDGPU_HOST_FLR, &reset_context->flags)) {
+		if (!amdgpu_ras_get_fed_status(adev))
+			amdgpu_virt_ready_to_reset(adev);
+		amdgpu_virt_wait_reset(adev);
 		clear_bit(AMDGPU_HOST_FLR, &reset_context->flags);
 		r = amdgpu_virt_request_full_gpu(adev, true);
 	} else {
@@ -5223,10 +5226,13 @@ int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "GPU mode1 reset\n");
 
+	/* Cache the state before bus master disable. The saved config space
+	 * values are used in other cases like restore after mode-2 reset.
+	 */
+	amdgpu_device_cache_pci_state(adev->pdev);
+
 	/* disable BM */
 	pci_clear_master(adev->pdev);
-
-	amdgpu_device_cache_pci_state(adev->pdev);
 
 	if (amdgpu_dpm_is_mode1_reset_supported(adev)) {
 		dev_info(adev->dev, "GPU smu mode1 reset\n");
@@ -5833,6 +5839,12 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	/* Actual ASIC resets if needed.*/
 	/* Host driver will handle XGMI hive reset for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_ras_get_fed_status(adev) || amdgpu_virt_rcvd_ras_interrupt(adev)) {
+			dev_dbg(adev->dev, "Detected RAS error, wait for FLR completion\n");
+			amdgpu_ras_set_fed(adev, true);
+			set_bit(AMDGPU_HOST_FLR, &reset_context->flags);
+		}
+
 		r = amdgpu_device_reset_sriov(adev, reset_context);
 		if (AMDGPU_RETRY_SRIOV_RESET(r) && (retry_limit--) > 0) {
 			amdgpu_virt_release_full_gpu(adev, true);
@@ -5867,7 +5879,7 @@ skip_hw_reset:
 			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
-			drm_sched_start(&ring->sched, true);
+			drm_sched_start(&ring->sched);
 		}
 
 		if (!drm_drv_uses_atomic_modeset(adev_to_drm(tmp_adev)) && !job_signaled)
@@ -6275,20 +6287,11 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	struct amdgpu_reset_context reset_context;
 	u32 memsize;
 	struct list_head device_list;
-	struct amdgpu_hive_info *hive;
-	int hive_ras_recovery = 0;
-	struct amdgpu_ras *ras;
 
 	/* PCI error slot reset should be skipped During RAS recovery */
-	hive = amdgpu_get_xgmi_hive(adev);
-	if (hive) {
-		hive_ras_recovery = atomic_read(&hive->ras_recovery);
-		amdgpu_put_xgmi_hive(hive);
-	}
-	ras = amdgpu_ras_get_context(adev);
 	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
-	    ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
+	    amdgpu_ras_in_recovery(adev))
 		return PCI_ERS_RESULT_RECOVERED;
 
 	DRM_INFO("PCI error: slot reset callback!!\n");
@@ -6371,7 +6374,7 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
-		drm_sched_start(&ring->sched, true);
+		drm_sched_start(&ring->sched);
 	}
 
 	amdgpu_device_unset_mp1_state(adev);
@@ -6531,6 +6534,22 @@ void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_device_get_gang - return a reference to the current gang
+ * @adev: amdgpu_device pointer
+ *
+ * Returns: A new reference to the current gang leader.
+ */
+struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev)
+{
+	struct dma_fence *fence;
+
+	rcu_read_lock();
+	fence = dma_fence_get_rcu_safe(&adev->gang_submit);
+	rcu_read_unlock();
+	return fence;
+}
+
+/**
  * amdgpu_device_switch_gang - switch to a new gang
  * @adev: amdgpu_device pointer
  * @gang: the gang to switch to
@@ -6546,10 +6565,7 @@ struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 
 	do {
 		dma_fence_put(old);
-		rcu_read_lock();
-		old = dma_fence_get_rcu_safe(&adev->gang_submit);
-		rcu_read_unlock();
-
+		old = amdgpu_device_get_gang(adev);
 		if (old == gang)
 			break;
 

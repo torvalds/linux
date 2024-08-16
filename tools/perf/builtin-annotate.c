@@ -571,8 +571,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		goto out;
 
 	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout, false);
-		evlist__fprintf_nr_events(session->evlist, stdout, false);
+		perf_session__fprintf_nr_events(session, stdout);
+		evlist__fprintf_nr_events(session->evlist, stdout);
 		goto out;
 	}
 

@@ -31,6 +31,7 @@ properties:
 required:
   - compatible
   - clocks
+  - '#power-domain-cells'
 
 unevaluatedProperties: false
 

@@ -16,10 +16,55 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <linux/ioctl.h>
 
 #include "pidfd.h"
 #include "../clone3/clone3_selftests.h"
 #include "../kselftest_harness.h"
+
+#ifndef PIDFS_IOCTL_MAGIC
+#define PIDFS_IOCTL_MAGIC 0xFF
+#endif
+
+#ifndef PIDFD_GET_CGROUP_NAMESPACE
+#define PIDFD_GET_CGROUP_NAMESPACE            _IO(PIDFS_IOCTL_MAGIC, 1)
+#endif
+
+#ifndef PIDFD_GET_IPC_NAMESPACE
+#define PIDFD_GET_IPC_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 2)
+#endif
+
+#ifndef PIDFD_GET_MNT_NAMESPACE
+#define PIDFD_GET_MNT_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 3)
+#endif
+
+#ifndef PIDFD_GET_NET_NAMESPACE
+#define PIDFD_GET_NET_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 4)
+#endif
+
+#ifndef PIDFD_GET_PID_NAMESPACE
+#define PIDFD_GET_PID_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 5)
+#endif
+
+#ifndef PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE
+#define PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE  _IO(PIDFS_IOCTL_MAGIC, 6)
+#endif
+
+#ifndef PIDFD_GET_TIME_NAMESPACE
+#define PIDFD_GET_TIME_NAMESPACE              _IO(PIDFS_IOCTL_MAGIC, 7)
+#endif
+
+#ifndef PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE
+#define PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE _IO(PIDFS_IOCTL_MAGIC, 8)
+#endif
+
+#ifndef PIDFD_GET_USER_NAMESPACE
+#define PIDFD_GET_USER_NAMESPACE              _IO(PIDFS_IOCTL_MAGIC, 9)
+#endif
+
+#ifndef PIDFD_GET_UTS_NAMESPACE
+#define PIDFD_GET_UTS_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 10)
+#endif
 
 enum {
 	PIDFD_NS_USER,
@@ -31,22 +76,25 @@ enum {
 	PIDFD_NS_CGROUP,
 	PIDFD_NS_PIDCLD,
 	PIDFD_NS_TIME,
+	PIDFD_NS_TIMECLD,
 	PIDFD_NS_MAX
 };
 
 const struct ns_info {
 	const char *name;
 	int flag;
+	unsigned int pidfd_ioctl;
 } ns_info[] = {
-	[PIDFD_NS_USER]   = { "user",             CLONE_NEWUSER,   },
-	[PIDFD_NS_MNT]    = { "mnt",              CLONE_NEWNS,     },
-	[PIDFD_NS_PID]    = { "pid",              CLONE_NEWPID,    },
-	[PIDFD_NS_UTS]    = { "uts",              CLONE_NEWUTS,    },
-	[PIDFD_NS_IPC]    = { "ipc",              CLONE_NEWIPC,    },
-	[PIDFD_NS_NET]    = { "net",              CLONE_NEWNET,    },
-	[PIDFD_NS_CGROUP] = { "cgroup",           CLONE_NEWCGROUP, },
-	[PIDFD_NS_PIDCLD] = { "pid_for_children", 0,               },
-	[PIDFD_NS_TIME]	  = { "time",             CLONE_NEWTIME,   },
+	[PIDFD_NS_USER]    = { "user",              CLONE_NEWUSER,   PIDFD_GET_USER_NAMESPACE,              },
+	[PIDFD_NS_MNT]     = { "mnt",               CLONE_NEWNS,     PIDFD_GET_MNT_NAMESPACE,               },
+	[PIDFD_NS_PID]     = { "pid",               CLONE_NEWPID,    PIDFD_GET_PID_NAMESPACE,               },
+	[PIDFD_NS_UTS]     = { "uts",               CLONE_NEWUTS,    PIDFD_GET_UTS_NAMESPACE,               },
+	[PIDFD_NS_IPC]     = { "ipc",               CLONE_NEWIPC,    PIDFD_GET_IPC_NAMESPACE,               },
+	[PIDFD_NS_NET]     = { "net",               CLONE_NEWNET,    PIDFD_GET_NET_NAMESPACE,               },
+	[PIDFD_NS_CGROUP]  = { "cgroup",            CLONE_NEWCGROUP, PIDFD_GET_CGROUP_NAMESPACE,            },
+	[PIDFD_NS_TIME]	   = { "time",              CLONE_NEWTIME,   PIDFD_GET_TIME_NAMESPACE,              },
+	[PIDFD_NS_PIDCLD]  = { "pid_for_children",  0,               PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE,  },
+	[PIDFD_NS_TIMECLD] = { "time_for_children", 0,               PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE, },
 };
 
 FIXTURE(current_nsset)
@@ -54,6 +102,7 @@ FIXTURE(current_nsset)
 	pid_t pid;
 	int pidfd;
 	int nsfds[PIDFD_NS_MAX];
+	int child_pidfd_derived_nsfds[PIDFD_NS_MAX];
 
 	pid_t child_pid_exited;
 	int child_pidfd_exited;
@@ -61,10 +110,12 @@ FIXTURE(current_nsset)
 	pid_t child_pid1;
 	int child_pidfd1;
 	int child_nsfds1[PIDFD_NS_MAX];
+	int child_pidfd_derived_nsfds1[PIDFD_NS_MAX];
 
 	pid_t child_pid2;
 	int child_pidfd2;
 	int child_nsfds2[PIDFD_NS_MAX];
+	int child_pidfd_derived_nsfds2[PIDFD_NS_MAX];
 };
 
 static int sys_waitid(int which, pid_t pid, int options)
@@ -128,9 +179,12 @@ FIXTURE_SETUP(current_nsset)
 	char c;
 
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
-		self->nsfds[i]		= -EBADF;
-		self->child_nsfds1[i]	= -EBADF;
-		self->child_nsfds2[i]	= -EBADF;
+		self->nsfds[i]				= -EBADF;
+		self->child_nsfds1[i]			= -EBADF;
+		self->child_nsfds2[i]			= -EBADF;
+		self->child_pidfd_derived_nsfds[i]	= -EBADF;
+		self->child_pidfd_derived_nsfds1[i]	= -EBADF;
+		self->child_pidfd_derived_nsfds2[i]	= -EBADF;
 	}
 
 	proc_fd = open("/proc/self/ns", O_DIRECTORY | O_CLOEXEC);
@@ -139,6 +193,11 @@ FIXTURE_SETUP(current_nsset)
 	}
 
 	self->pid = getpid();
+	self->pidfd = sys_pidfd_open(self->pid, 0);
+	EXPECT_GT(self->pidfd, 0) {
+		TH_LOG("%m - Failed to open pidfd for process %d", self->pid);
+	}
+
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
 		const struct ns_info *info = &ns_info[i];
 		self->nsfds[i] = openat(proc_fd, info->name, O_RDONLY | O_CLOEXEC);
@@ -148,20 +207,27 @@ FIXTURE_SETUP(current_nsset)
 				       info->name, self->pid);
 			}
 		}
-	}
 
-	self->pidfd = sys_pidfd_open(self->pid, 0);
-	EXPECT_GT(self->pidfd, 0) {
-		TH_LOG("%m - Failed to open pidfd for process %d", self->pid);
+		self->child_pidfd_derived_nsfds[i] = ioctl(self->pidfd, info->pidfd_ioctl, 0);
+		if (self->child_pidfd_derived_nsfds[i] < 0) {
+			EXPECT_EQ(errno, EOPNOTSUPP) {
+				TH_LOG("%m - Failed to derive %s namespace from pidfd of process %d",
+				       info->name, self->pid);
+			}
+		}
 	}
 
 	/* Create task that exits right away. */
-	self->child_pid_exited = create_child(&self->child_pidfd_exited,
-					      CLONE_NEWUSER | CLONE_NEWNET);
+	self->child_pid_exited = create_child(&self->child_pidfd_exited, 0);
 	EXPECT_GE(self->child_pid_exited, 0);
 
-	if (self->child_pid_exited == 0)
+	if (self->child_pid_exited == 0) {
+		if (self->nsfds[PIDFD_NS_USER] >= 0 && unshare(CLONE_NEWUSER) < 0)
+			_exit(EXIT_FAILURE);
+		if (self->nsfds[PIDFD_NS_NET] >= 0 && unshare(CLONE_NEWNET) < 0)
+			_exit(EXIT_FAILURE);
 		_exit(EXIT_SUCCESS);
+	}
 
 	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, WEXITED | WNOWAIT), 0);
 
@@ -174,18 +240,43 @@ FIXTURE_SETUP(current_nsset)
 	EXPECT_EQ(ret, 0);
 
 	/* Create tasks that will be stopped. */
-	self->child_pid1 = create_child(&self->child_pidfd1,
-					CLONE_NEWUSER | CLONE_NEWNS |
-					CLONE_NEWCGROUP | CLONE_NEWIPC |
-					CLONE_NEWUTS | CLONE_NEWPID |
-					CLONE_NEWNET);
+	if (self->nsfds[PIDFD_NS_USER] >= 0 && self->nsfds[PIDFD_NS_PID] >= 0)
+		self->child_pid1 = create_child(&self->child_pidfd1, CLONE_NEWUSER | CLONE_NEWPID);
+	else if (self->nsfds[PIDFD_NS_PID] >= 0)
+		self->child_pid1 = create_child(&self->child_pidfd1, CLONE_NEWPID);
+	else if (self->nsfds[PIDFD_NS_USER] >= 0)
+		self->child_pid1 = create_child(&self->child_pidfd1, CLONE_NEWUSER);
+	else
+		self->child_pid1 = create_child(&self->child_pidfd1, 0);
 	EXPECT_GE(self->child_pid1, 0);
 
 	if (self->child_pid1 == 0) {
 		close(ipc_sockets[0]);
 
-		if (!switch_timens())
+		if (self->nsfds[PIDFD_NS_MNT] >= 0 && unshare(CLONE_NEWNS) < 0) {
+			TH_LOG("%m - Failed to unshare mount namespace for process %d", self->pid);
 			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_CGROUP] >= 0 && unshare(CLONE_NEWCGROUP) < 0) {
+			TH_LOG("%m - Failed to unshare cgroup namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_IPC] >= 0 && unshare(CLONE_NEWIPC) < 0) {
+			TH_LOG("%m - Failed to unshare ipc namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_UTS] >= 0 && unshare(CLONE_NEWUTS) < 0) {
+			TH_LOG("%m - Failed to unshare uts namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_NET] >= 0 && unshare(CLONE_NEWNET) < 0) {
+			TH_LOG("%m - Failed to unshare net namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_TIME] >= 0 && !switch_timens()) {
+			TH_LOG("%m - Failed to unshare time namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
 
 		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
 			_exit(EXIT_FAILURE);
@@ -203,18 +294,43 @@ FIXTURE_SETUP(current_nsset)
 	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
 	EXPECT_EQ(ret, 0);
 
-	self->child_pid2 = create_child(&self->child_pidfd2,
-					CLONE_NEWUSER | CLONE_NEWNS |
-					CLONE_NEWCGROUP | CLONE_NEWIPC |
-					CLONE_NEWUTS | CLONE_NEWPID |
-					CLONE_NEWNET);
+	if (self->nsfds[PIDFD_NS_USER] >= 0 && self->nsfds[PIDFD_NS_PID] >= 0)
+		self->child_pid2 = create_child(&self->child_pidfd2, CLONE_NEWUSER | CLONE_NEWPID);
+	else if (self->nsfds[PIDFD_NS_PID] >= 0)
+		self->child_pid2 = create_child(&self->child_pidfd2, CLONE_NEWPID);
+	else if (self->nsfds[PIDFD_NS_USER] >= 0)
+		self->child_pid2 = create_child(&self->child_pidfd2, CLONE_NEWUSER);
+	else
+		self->child_pid2 = create_child(&self->child_pidfd2, 0);
 	EXPECT_GE(self->child_pid2, 0);
 
 	if (self->child_pid2 == 0) {
 		close(ipc_sockets[0]);
 
-		if (!switch_timens())
+		if (self->nsfds[PIDFD_NS_MNT] >= 0 && unshare(CLONE_NEWNS) < 0) {
+			TH_LOG("%m - Failed to unshare mount namespace for process %d", self->pid);
 			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_CGROUP] >= 0 && unshare(CLONE_NEWCGROUP) < 0) {
+			TH_LOG("%m - Failed to unshare cgroup namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_IPC] >= 0 && unshare(CLONE_NEWIPC) < 0) {
+			TH_LOG("%m - Failed to unshare ipc namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_UTS] >= 0 && unshare(CLONE_NEWUTS) < 0) {
+			TH_LOG("%m - Failed to unshare uts namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_NET] >= 0 && unshare(CLONE_NEWNET) < 0) {
+			TH_LOG("%m - Failed to unshare net namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
+		if (self->nsfds[PIDFD_NS_TIME] >= 0 && !switch_timens()) {
+			TH_LOG("%m - Failed to unshare time namespace for process %d", self->pid);
+			_exit(EXIT_FAILURE);
+		}
 
 		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
 			_exit(EXIT_FAILURE);
@@ -267,6 +383,22 @@ FIXTURE_SETUP(current_nsset)
 				       info->name, self->child_pid1);
 			}
 		}
+
+		self->child_pidfd_derived_nsfds1[i] = ioctl(self->child_pidfd1, info->pidfd_ioctl, 0);
+		if (self->child_pidfd_derived_nsfds1[i] < 0) {
+			EXPECT_EQ(errno, EOPNOTSUPP) {
+				TH_LOG("%m - Failed to derive %s namespace from pidfd of process %d",
+				       info->name, self->child_pid1);
+			}
+		}
+
+		self->child_pidfd_derived_nsfds2[i] = ioctl(self->child_pidfd2, info->pidfd_ioctl, 0);
+		if (self->child_pidfd_derived_nsfds2[i] < 0) {
+			EXPECT_EQ(errno, EOPNOTSUPP) {
+				TH_LOG("%m - Failed to derive %s namespace from pidfd of process %d",
+				       info->name, self->child_pid2);
+			}
+		}
 	}
 
 	close(proc_fd);
@@ -288,6 +420,12 @@ FIXTURE_TEARDOWN(current_nsset)
 			close(self->child_nsfds1[i]);
 		if (self->child_nsfds2[i] >= 0)
 			close(self->child_nsfds2[i]);
+		if (self->child_pidfd_derived_nsfds[i] >= 0)
+			close(self->child_pidfd_derived_nsfds[i]);
+		if (self->child_pidfd_derived_nsfds1[i] >= 0)
+			close(self->child_pidfd_derived_nsfds1[i]);
+		if (self->child_pidfd_derived_nsfds2[i] >= 0)
+			close(self->child_pidfd_derived_nsfds2[i]);
 	}
 
 	if (self->child_pidfd1 >= 0)
@@ -446,6 +584,42 @@ TEST_F(current_nsset, nsfd_incremental_setns)
 	}
 }
 
+TEST_F(current_nsset, pidfd_derived_nsfd_incremental_setns)
+{
+	int i;
+	pid_t pid;
+
+	pid = getpid();
+	for (i = 0; i < PIDFD_NS_MAX; i++) {
+		const struct ns_info *info = &ns_info[i];
+		int nsfd;
+
+		if (self->child_pidfd_derived_nsfds1[i] < 0)
+			continue;
+
+		if (info->flag) {
+			ASSERT_EQ(setns(self->child_pidfd_derived_nsfds1[i], info->flag), 0) {
+				TH_LOG("%m - Failed to setns to %s namespace of %d via nsfd %d",
+				       info->name, self->child_pid1,
+				       self->child_pidfd_derived_nsfds1[i]);
+			}
+		}
+
+		/* Verify that we have changed to the correct namespaces. */
+		if (info->flag == CLONE_NEWPID)
+			nsfd = self->child_pidfd_derived_nsfds[i];
+		else
+			nsfd = self->child_pidfd_derived_nsfds1[i];
+		ASSERT_EQ(in_same_namespace(nsfd, pid, info->name), 1) {
+			TH_LOG("setns failed to place us correctly into %s namespace of %d via nsfd %d",
+			       info->name, self->child_pid1,
+			       self->child_pidfd_derived_nsfds1[i]);
+		}
+		TH_LOG("Managed to correctly setns to %s namespace of %d via nsfd %d",
+		       info->name, self->child_pid1, self->child_pidfd_derived_nsfds1[i]);
+	}
+}
+
 TEST_F(current_nsset, pidfd_one_shot_setns)
 {
 	unsigned flags = 0;
@@ -541,6 +715,28 @@ TEST_F(current_nsset, no_foul_play)
 		TH_LOG("%m - Correctly failed to setns to %s namespace of %d via nsfd %d",
 		       info->name, self->child_pid2,
 		       self->child_nsfds2[i]);
+	}
+
+	/*
+	 * Can't setns to a user namespace outside of our hierarchy since we
+	 * don't have caps in there and didn't create it. That means that under
+	 * no circumstances should we be able to setns to any of the other
+	 * ones since they aren't owned by our user namespace.
+	 */
+	for (i = 0; i < PIDFD_NS_MAX; i++) {
+		const struct ns_info *info = &ns_info[i];
+
+		if (self->child_pidfd_derived_nsfds2[i] < 0 || !info->flag)
+			continue;
+
+		ASSERT_NE(setns(self->child_pidfd_derived_nsfds2[i], info->flag), 0) {
+			TH_LOG("Managed to setns to %s namespace of %d via nsfd %d",
+			       info->name, self->child_pid2,
+			       self->child_pidfd_derived_nsfds2[i]);
+		}
+		TH_LOG("%m - Correctly failed to setns to %s namespace of %d via nsfd %d",
+		       info->name, self->child_pid2,
+		       self->child_pidfd_derived_nsfds2[i]);
 	}
 }
 

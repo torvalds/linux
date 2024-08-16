@@ -1596,11 +1596,6 @@ void dml1_rq_dlg_get_dlg_params(
 		swath_width_pixels_ub_c = swath_width_ub_c * 1;
 	}
 
-	hscale_pixel_rate_l = 0.;
-	hscale_pixel_rate_c = 0.;
-	min_hratio_fact_l = 1.0;
-	min_hratio_fact_c = 1.0;
-
 	if (htaps_l <= 1)
 		min_hratio_fact_l = 2.0;
 	else if (htaps_l <= 6) {

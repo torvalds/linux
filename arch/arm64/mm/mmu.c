@@ -124,7 +124,8 @@ bool pgattr_change_is_safe(u64 old, u64 new)
 	 * The following mapping attributes may be updated in live
 	 * kernel mappings without the need for break-before-make.
 	 */
-	pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
+	pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG |
+			PTE_SWBITS_MASK;
 
 	/* creating or taking down mappings is always safe */
 	if (!pte_valid(__pte(old)) || !pte_valid(__pte(new)))

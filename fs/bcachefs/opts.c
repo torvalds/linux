@@ -378,6 +378,10 @@ int bch2_opt_parse(struct bch_fs *c,
 		break;
 	case BCH_OPT_FN:
 		ret = opt->fn.parse(c, val, res, err);
+
+		if (ret == -BCH_ERR_option_needs_open_fs)
+			return ret;
+
 		if (ret < 0) {
 			if (err)
 				prt_printf(err, "%s: parse error",
@@ -460,14 +464,81 @@ int bch2_opts_check_may_set(struct bch_fs *c)
 	return 0;
 }
 
+int bch2_parse_one_mount_opt(struct bch_fs *c, struct bch_opts *opts,
+			     struct printbuf *parse_later,
+			     const char *name, const char *val)
+{
+	struct printbuf err = PRINTBUF;
+	u64 v;
+	int ret, id;
+
+	id = bch2_mount_opt_lookup(name);
+
+	/* Check for the form "noopt", negation of a boolean opt: */
+	if (id < 0 &&
+	    !val &&
+	    !strncmp("no", name, 2)) {
+		id = bch2_mount_opt_lookup(name + 2);
+		val = "0";
+	}
+
+	/* Unknown options are ignored: */
+	if (id < 0)
+		return 0;
+
+	if (!(bch2_opt_table[id].flags & OPT_MOUNT))
+		goto bad_opt;
+
+	if (id == Opt_acl &&
+	    !IS_ENABLED(CONFIG_BCACHEFS_POSIX_ACL))
+		goto bad_opt;
+
+	if ((id == Opt_usrquota ||
+	     id == Opt_grpquota) &&
+	    !IS_ENABLED(CONFIG_BCACHEFS_QUOTA))
+		goto bad_opt;
+
+	ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
+	if (ret == -BCH_ERR_option_needs_open_fs && parse_later) {
+		prt_printf(parse_later, "%s=%s,", name, val);
+		if (parse_later->allocation_failure) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = 0;
+		goto out;
+	}
+
+	if (ret < 0)
+		goto bad_val;
+
+	if (opts)
+		bch2_opt_set_by_id(opts, id, v);
+
+	ret = 0;
+	goto out;
+
+bad_opt:
+	pr_err("Bad mount option %s", name);
+	ret = -BCH_ERR_option_name;
+	goto out;
+
+bad_val:
+	pr_err("Invalid mount option %s", err.buf);
+	ret = -BCH_ERR_option_value;
+
+out:
+	printbuf_exit(&err);
+	return ret;
+}
+
 int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
-			  char *options)
+			  struct printbuf *parse_later, char *options)
 {
 	char *copied_opts, *copied_opts_start;
 	char *opt, *name, *val;
-	int ret, id;
-	struct printbuf err = PRINTBUF;
-	u64 v;
+	int ret;
 
 	if (!options)
 		return 0;
@@ -488,53 +559,16 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 		name	= strsep(&opt, "=");
 		val	= opt;
 
-		id = bch2_mount_opt_lookup(name);
-
-		/* Check for the form "noopt", negation of a boolean opt: */
-		if (id < 0 &&
-		    !val &&
-		    !strncmp("no", name, 2)) {
-			id = bch2_mount_opt_lookup(name + 2);
-			val = "0";
-		}
-
-		/* Unknown options are ignored: */
-		if (id < 0)
-			continue;
-
-		if (!(bch2_opt_table[id].flags & OPT_MOUNT))
-			goto bad_opt;
-
-		if (id == Opt_acl &&
-		    !IS_ENABLED(CONFIG_BCACHEFS_POSIX_ACL))
-			goto bad_opt;
-
-		if ((id == Opt_usrquota ||
-		     id == Opt_grpquota) &&
-		    !IS_ENABLED(CONFIG_BCACHEFS_QUOTA))
-			goto bad_opt;
-
-		ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
+		ret = bch2_parse_one_mount_opt(c, opts, parse_later, name, val);
 		if (ret < 0)
-			goto bad_val;
-
-		bch2_opt_set_by_id(opts, id, v);
+			goto out;
 	}
 
 	ret = 0;
 	goto out;
 
-bad_opt:
-	pr_err("Bad mount option %s", name);
-	ret = -BCH_ERR_option_name;
-	goto out;
-bad_val:
-	pr_err("Invalid mount option %s", err.buf);
-	ret = -BCH_ERR_option_value;
-	goto out;
 out:
 	kfree(copied_opts_start);
-	printbuf_exit(&err);
 	return ret;
 }
 

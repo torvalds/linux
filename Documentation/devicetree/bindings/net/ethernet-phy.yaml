@@ -93,6 +93,14 @@ properties:
       the turn around line low at end of the control phase of the
       MDIO transaction.
 
+  brr-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If set, indicates the network cable interface is an alternative one as
+      defined in the BroadR-Reach link mode specification under 1BR-100 and
+      1BR-10 names. The PHY must be configured to operate in BroadR-Reach mode
+      by software.
+
   clocks:
     maxItems: 1
     description:

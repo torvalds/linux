@@ -50,7 +50,7 @@
 
 #define AMDGPU_DM_MAX_NUM_EDP 2
 
-#define AMDGPU_DMUB_NOTIFICATION_MAX 5
+#define AMDGPU_DMUB_NOTIFICATION_MAX 6
 
 #define HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_IEEE_REGISTRATION_ID 0x00001A
 #define AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE 0x40
@@ -137,6 +137,13 @@ struct vblank_control_work {
 	bool enable;
 };
 
+/**
+ * struct idle_workqueue - Work data for periodic action in idle
+ * @work: Kernel work data for the work event
+ * @dm: amdgpu display manager device
+ * @enable: true if idle worker is enabled
+ * @running: true if idle worker is running
+ */
 struct idle_workqueue {
 	struct work_struct work;
 	struct amdgpu_display_manager *dm;
@@ -180,6 +187,14 @@ struct amdgpu_dm_backlight_caps {
 	 * @aux_support: Describes if the display supports AUX backlight.
 	 */
 	bool aux_support;
+	/**
+	 * @ac_level: the default brightness if booted on AC
+	 */
+	u8 ac_level;
+	/**
+	 * @dc_level: the default brightness if booted on DC
+	 */
+	u8 dc_level;
 };
 
 /**
@@ -494,6 +509,12 @@ struct amdgpu_display_manager {
 	 * Deferred work for vblank control events.
 	 */
 	struct workqueue_struct *vblank_control_workqueue;
+
+	/**
+	 * @idle_workqueue:
+	 *
+	 * Periodic work for idle events.
+	 */
 	struct idle_workqueue *idle_workqueue;
 
 	struct drm_atomic_state *cached_state;
@@ -579,7 +600,9 @@ struct amdgpu_display_manager {
 	 */
 	struct mutex dpia_aux_lock;
 
-	/*
+	/**
+	 * @bb_from_dmub:
+	 *
 	 * Bounding box data read from dmub during early initialization for DCN4+
 	 */
 	struct dml2_soc_bb *bb_from_dmub;
@@ -834,6 +857,11 @@ struct dm_plane_state {
 	enum amdgpu_transfer_function blend_tf;
 };
 
+enum amdgpu_dm_cursor_mode {
+	DM_CURSOR_NATIVE_MODE = 0,
+	DM_CURSOR_OVERLAY_MODE,
+};
+
 struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
@@ -864,6 +892,8 @@ struct dm_crtc_state {
 	 * encoding.
 	 */
 	enum amdgpu_transfer_function regamma_tf;
+
+	enum amdgpu_dm_cursor_mode cursor_mode;
 };
 
 #define to_dm_crtc_state(x) container_of(x, struct dm_crtc_state, base)
@@ -974,4 +1004,7 @@ void *dm_allocate_gpu_mem(struct amdgpu_device *adev,
 						  enum dc_gpu_mem_alloc_type type,
 						  size_t size,
 						  long long *addr);
+
+bool amdgpu_dm_is_headless(struct amdgpu_device *adev);
+
 #endif /* __AMDGPU_DM_H__ */

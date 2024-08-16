@@ -35,12 +35,6 @@ enum {
 	ERR_UNKNOWN	= 3,
 };
 
-#define MAX_SYNDROME_REGS 4
-
-struct error_syndrome {
-	u64 reg[MAX_SYNDROME_REGS];
-};
-
 struct error_descr {
 	int	type;
 	u64	mask;

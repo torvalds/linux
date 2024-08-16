@@ -581,7 +581,7 @@ static void lan966x_vcap_move(struct net_device *dev,
 	lan966x_vcap_wait_update(lan966x, admin->tgt_inst);
 }
 
-static struct vcap_operations lan966x_vcap_ops = {
+static const struct vcap_operations lan966x_vcap_ops = {
 	.validate_keyset = lan966x_vcap_validate_keyset,
 	.add_default_fields = lan966x_vcap_add_default_fields,
 	.cache_erase = lan966x_vcap_cache_erase,

@@ -183,6 +183,26 @@ static int of_pci_prop_interrupts(struct pci_dev *pdev,
 	return of_changeset_add_prop_u32(ocs, np, "interrupts", (u32)pin);
 }
 
+static int of_pci_prop_intr_ctrl(struct pci_dev *pdev, struct of_changeset *ocs,
+				 struct device_node *np)
+{
+	int ret;
+	u8 pin;
+
+	ret = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
+	if (ret != 0)
+		return ret;
+
+	if (!pin)
+		return 0;
+
+	ret = of_changeset_add_prop_u32(ocs, np, "#interrupt-cells", 1);
+	if (ret)
+		return ret;
+
+	return of_changeset_add_prop_bool(ocs, np, "interrupt-controller");
+}
+
 static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 				struct device_node *np)
 {
@@ -334,6 +354,10 @@ int of_pci_add_properties(struct pci_dev *pdev, struct of_changeset *ocs,
 			return ret;
 
 		ret = of_pci_prop_intr_map(pdev, ocs, np);
+		if (ret)
+			return ret;
+	} else {
+		ret = of_pci_prop_intr_ctrl(pdev, ocs, np);
 		if (ret)
 			return ret;
 	}

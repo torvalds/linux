@@ -439,7 +439,7 @@ static void carl9170_cancel_worker(struct ar9170 *ar)
 	cancel_work_sync(&ar->ampdu_work);
 }
 
-static void carl9170_op_stop(struct ieee80211_hw *hw)
+static void carl9170_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ar9170 *ar = hw->priv;
 

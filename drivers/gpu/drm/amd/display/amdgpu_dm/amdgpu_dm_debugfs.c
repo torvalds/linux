@@ -1008,6 +1008,7 @@ static int replay_capability_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink support: %s\n", str_yes_no(sink_support_replay));
 	seq_printf(m, "Driver support: %s\n", str_yes_no(driver_support_replay));
+	seq_printf(m, "Config support: %s\n", str_yes_no(link->replay_settings.config.replay_supported));
 
 	return 0;
 }
@@ -1419,7 +1420,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	uint8_t param_nums = 0;
 	bool ret = false;
 
-	if (!aconnector || !aconnector->dc_link)
+	if (!aconnector->dc_link)
 		return -EINVAL;
 
 	if (size == 0)
@@ -3074,7 +3075,7 @@ static int psr_read_residency(void *data, u64 *val)
 	struct dc_link *link = connector->dc_link;
 	u32 residency = 0;
 
-	link->dc->link_srv->edp_get_psr_residency(link, &residency);
+	link->dc->link_srv->edp_get_psr_residency(link, &residency, PSR_RESIDENCY_MODE_PHY);
 
 	*val = (u64)residency;
 
@@ -3794,6 +3795,7 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 	struct dc_link *link = NULL;
+	int ret;
 
 	if (val == 1) {
 		drm_connector_list_iter_begin(dev, &iter);
@@ -3805,7 +3807,9 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 				dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
 				mutex_unlock(&adev->dm.dc_lock);
 
-				drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+				ret = drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+				if (ret < 0)
+					DRM_ERROR("DM_MST: Failed to set the device into MST mode!");
 			}
 		}
 	} else if (val == 0) {

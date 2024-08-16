@@ -224,7 +224,6 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	priv = xilinx_pwm_chip_to_priv(chip);
-	platform_set_drvdata(pdev, chip);
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -263,35 +262,22 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	 * alas, such properties are not allowed to be used.
 	 */
 
-	priv->clk = devm_clk_get(dev, "s_axi_aclk");
+	priv->clk = devm_clk_get_enabled(dev, "s_axi_aclk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Could not get clock\n");
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = devm_clk_rate_exclusive_get(dev, priv->clk);
 	if (ret)
-		return dev_err_probe(dev, ret, "Clock enable failed\n");
-	clk_rate_exclusive_get(priv->clk);
+		return dev_err_probe(dev, ret,
+				     "Failed to lock clock rate\n");
 
 	chip->ops = &xilinx_pwm_ops;
-	ret = pwmchip_add(chip);
-	if (ret) {
-		clk_rate_exclusive_put(priv->clk);
-		clk_disable_unprepare(priv->clk);
+	ret = devm_pwmchip_add(dev, chip);
+	if (ret)
 		return dev_err_probe(dev, ret, "Could not register PWM chip\n");
-	}
 
 	return 0;
-}
-
-static void xilinx_pwm_remove(struct platform_device *pdev)
-{
-	struct pwm_chip *chip = platform_get_drvdata(pdev);
-	struct xilinx_timer_priv *priv = xilinx_pwm_chip_to_priv(chip);
-
-	pwmchip_remove(chip);
-	clk_rate_exclusive_put(priv->clk);
-	clk_disable_unprepare(priv->clk);
 }
 
 static const struct of_device_id xilinx_pwm_of_match[] = {
@@ -302,7 +288,6 @@ MODULE_DEVICE_TABLE(of, xilinx_pwm_of_match);
 
 static struct platform_driver xilinx_pwm_driver = {
 	.probe = xilinx_pwm_probe,
-	.remove_new = xilinx_pwm_remove,
 	.driver = {
 		.name = "xilinx-pwm",
 		.of_match_table = of_match_ptr(xilinx_pwm_of_match),

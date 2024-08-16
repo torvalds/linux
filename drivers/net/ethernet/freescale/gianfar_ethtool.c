@@ -1448,7 +1448,7 @@ static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 }
 
 static int gfar_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct platform_device *ptp_dev;

@@ -33,6 +33,7 @@ config RAVB
 	select CRC32
 	select MII
 	select MDIO_BITBANG
+	select PAGE_POOL
 	select PHYLIB
 	select RESET_CONTROLLER
 	help
@@ -57,5 +58,15 @@ config RENESAS_GEN4_PTP
 	select PHYLIB
 	help
 	  Renesas R-Car Gen4 gPTP device driver.
+
+config RTSN
+	tristate "Renesas Ethernet-TSN support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PTP_1588_CLOCK
+	select CRC32
+	select PHYLIB
+	select RENESAS_GEN4_PTP
+	help
+	  Renesas Ethernet-TSN device driver.
 
 endif # NET_VENDOR_RENESAS

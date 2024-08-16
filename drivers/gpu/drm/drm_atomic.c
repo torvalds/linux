@@ -608,7 +608,6 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	unsigned int fb_width, fb_height;
 	struct drm_mode_rect *clips;
 	uint32_t num_clips;
-	int ret;
 
 	/* either *both* CRTC and FB must be set, or neither */
 	if (crtc && !fb) {
@@ -635,14 +634,12 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->format->format,
-					   fb->modifier);
-	if (ret) {
+	if (!drm_plane_has_format(plane, fb->format->format, fb->modifier)) {
 		drm_dbg_atomic(plane->dev,
 			       "[PLANE:%d:%s] invalid pixel format %p4cc, modifier 0x%llx\n",
 			       plane->base.id, plane->name,
 			       &fb->format->format, fb->modifier);
-		return ret;
+		return -EINVAL;
 	}
 
 	/* Give drivers some help against integer overflows */

@@ -842,25 +842,97 @@ setup_bridge() {
 	run_cmd ${ns_a} ip link set veth_A-C master br0
 }
 
-setup_ovs_vxlan_or_geneve() {
+setup_ovs_via_internal_utility() {
 	type="${1}"
 	a_addr="${2}"
 	b_addr="${3}"
+	dport="${4}"
 
-	if [ "${type}" = "vxlan" ]; then
-		opts="${opts} ttl 64 dstport 4789"
-		opts_b="local ${b_addr}"
+	run_cmd python3 ./openvswitch/ovs-dpctl.py add-if ovs_br0 ${type}_a -t ${type} || return 1
+
+	ports=$(python3 ./openvswitch/ovs-dpctl.py show)
+	br0_port=$(echo "$ports" | grep -E "\sovs_br0" | sed -e 's@port @@' | cut -d: -f1 | xargs)
+	type_a_port=$(echo "$ports" | grep ${type}_a | sed -e 's@port @@' | cut -d: -f1 | xargs)
+	veth_a_port=$(echo "$ports" | grep veth_A | sed -e 's@port @@' | cut -d: -f1 | xargs)
+
+	v4_a_tun="${prefix4}.${a_r1}.1"
+	v4_b_tun="${prefix4}.${b_r1}.1"
+
+	v6_a_tun="${prefix6}:${a_r1}::1"
+	v6_b_tun="${prefix6}:${b_r1}::1"
+
+	if [ "${v4_a_tun}" = "${a_addr}" ]; then
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x0800),ipv4()" \
+		    "set(tunnel(tun_id=1,dst=${v4_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x86dd),ipv6()" \
+		    "set(tunnel(tun_id=1,dst=${v4_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,src=${v4_b_tun},dst=${v4_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x0800),ipv4()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,src=${v4_b_tun},dst=${v4_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x86dd),ipv6()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,src=${v4_b_tun},dst=${v4_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x0806),arp()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x0806),arp(sip=${veth4_c_addr},tip=${tunnel4_b_addr})" \
+		    "set(tunnel(tun_id=1,dst=${v4_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
+	else
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x0800),ipv4()" \
+		    "set(tunnel(tun_id=1,ipv6_dst=${v6_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x86dd),ipv6()" \
+		    "set(tunnel(tun_id=1,ipv6_dst=${v6_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,ipv6_src=${v6_b_tun},ipv6_dst=${v6_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x0800),ipv4()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,ipv6_src=${v6_b_tun},ipv6_dst=${v6_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x86dd),ipv6()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),tunnel(tun_id=1,ipv6_src=${v6_b_tun},ipv6_dst=${v6_a_tun}),in_port(${type_a_port}),eth(),eth_type(0x0806),arp()" \
+		    "${veth_a_port}"
+		run_cmd python3 ./openvswitch/ovs-dpctl.py add-flow ovs_br0 \
+		    "recirc_id(0),in_port(${veth_a_port}),eth(),eth_type(0x0806),arp(sip=${veth4_c_addr},tip=${tunnel4_b_addr})" \
+		    "set(tunnel(tun_id=1,ipv6_dst=${v6_b_tun},ttl=64,tp_dst=${dport},flags(df|csum))),${type_a_port}"
 	fi
+}
+
+setup_ovs_via_vswitchd() {
+	type="${1}"
+	b_addr="${2}"
 
 	run_cmd ovs-vsctl add-port ovs_br0 ${type}_a -- \
 		set interface ${type}_a type=${type} \
 		options:remote_ip=${b_addr} options:key=1 options:csum=true || return 1
+}
+
+setup_ovs_vxlan_or_geneve() {
+	type="${1}"
+	a_addr="${2}"
+	b_addr="${3}"
+	dport="6081"
+
+	if [ "${type}" = "vxlan" ]; then
+		dport="4789"
+		opts="${opts} ttl 64 dstport 4789"
+		opts_b="local ${b_addr}"
+	fi
+
+	setup_ovs_via_internal_utility "${type}" "${a_addr}" "${b_addr}" \
+				       "${dport}" || \
+	    setup_ovs_via_vswitchd "${type}" "${b_addr}" || return 1
 
 	run_cmd ${ns_b} ip link add ${type}_b type ${type} id 1 ${opts_b} remote ${a_addr} ${opts} || return 1
 
 	run_cmd ${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask} dev ${type}_b
 	run_cmd ${ns_b} ip addr add ${tunnel6_b_addr}/${tunnel6_mask} dev ${type}_b
 
+	run_cmd ip link set ${type}_a up
 	run_cmd ${ns_b} ip link set ${type}_b up
 }
 
@@ -880,8 +952,24 @@ setup_ovs_vxlan6() {
 	setup_ovs_vxlan_or_geneve vxlan  ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1
 }
 
+setup_ovs_br_internal() {
+	run_cmd python3 ./openvswitch/ovs-dpctl.py add-dp ovs_br0 || \
+		return 1
+}
+
+setup_ovs_br_vswitchd() {
+	run_cmd ovs-vsctl add-br ovs_br0 || return 1
+}
+
+setup_ovs_add_if() {
+	ifname="${1}"
+	run_cmd python3 ./openvswitch/ovs-dpctl.py add-if ovs_br0 \
+		"${ifname}" || \
+		run_cmd ovs-vsctl add-port ovs_br0 "${ifname}"
+}
+
 setup_ovs_bridge() {
-	run_cmd ovs-vsctl add-br ovs_br0 || return $ksft_skip
+	setup_ovs_br_internal || setup_ovs_br_vswitchd || return $ksft_skip
 	run_cmd ip link set ovs_br0 up
 
 	run_cmd ${ns_c} ip link add veth_C-A type veth peer name veth_A-C
@@ -891,7 +979,7 @@ setup_ovs_bridge() {
 	run_cmd ${ns_c} ip link set veth_C-A up
 	run_cmd ${ns_c} ip addr add ${veth4_c_addr}/${veth4_mask} dev veth_C-A
 	run_cmd ${ns_c} ip addr add ${veth6_c_addr}/${veth6_mask} dev veth_C-A
-	run_cmd ovs-vsctl add-port ovs_br0 veth_A-C
+	setup_ovs_add_if veth_A-C
 
 	# Move veth_A-R1 to init
 	run_cmd ${ns_a} ip link set veth_A-R1 netns 1
@@ -922,6 +1010,18 @@ trace() {
 	sleep 1
 }
 
+cleanup_del_ovs_internal() {
+	# squelch the output of the del-if commands since it can be wordy
+	python3 ./openvswitch/ovs-dpctl.py del-if ovs_br0 -d true vxlan_a	>/dev/null	2>&1
+	python3 ./openvswitch/ovs-dpctl.py del-if ovs_br0 -d true geneve_a	>/dev/null	2>&1
+	python3 ./openvswitch/ovs-dpctl.py del-dp ovs_br0			>/dev/null	2>&1
+}
+
+cleanup_del_ovs_vswitchd() {
+	ovs-vsctl --if-exists del-port vxlan_a	2>/dev/null
+	ovs-vsctl --if-exists del-br ovs_br0	2>/dev/null
+}
+
 cleanup() {
 	for pid in ${tcpdump_pids}; do
 		kill ${pid}
@@ -940,10 +1040,10 @@ cleanup() {
 
 	cleanup_all_ns
 
-	ip link del veth_A-C			2>/dev/null
-	ip link del veth_A-R1			2>/dev/null
-	ovs-vsctl --if-exists del-port vxlan_a	2>/dev/null
-	ovs-vsctl --if-exists del-br ovs_br0	2>/dev/null
+	ip link del veth_A-C		2>/dev/null
+	ip link del veth_A-R1		2>/dev/null
+	cleanup_del_ovs_internal
+	cleanup_del_ovs_vswitchd
 	rm -f "$tmpoutfile"
 }
 
@@ -1397,6 +1497,12 @@ test_pmtu_ipvX_over_ovs_vxlanY_or_geneveY_exception() {
 	outer_family=${3}
 	ll_mtu=4000
 
+	if [ "${type}" = "vxlan" ]; then
+		tun_a="vxlan_sys_4789"
+	elif [ "${type}" = "geneve" ]; then
+		tun_a="genev_sys_6081"
+	fi
+
 	if [ ${outer_family} -eq 4 ]; then
 		setup namespaces routing ovs_bridge ovs_${type}4 || return $ksft_skip
 		#                      IPv4 header   UDP header   VXLAN/GENEVE header   Ethernet header
@@ -1407,17 +1513,11 @@ test_pmtu_ipvX_over_ovs_vxlanY_or_geneveY_exception() {
 		exp_mtu=$((${ll_mtu} - 40          - 8          - 8                   - 14))
 	fi
 
-	if [ "${type}" = "vxlan" ]; then
-		tun_a="vxlan_sys_4789"
-	elif [ "${type}" = "geneve" ]; then
-		tun_a="genev_sys_6081"
-	fi
-
-	trace ""        "${tun_a}"  "${ns_b}"  ${type}_b \
-	      ""        veth_A-R1   "${ns_r1}" veth_R1-A \
-	      "${ns_b}" veth_B-R1   "${ns_r1}" veth_R1-B \
-	      ""        ovs_br0     ""         veth-A-C  \
-	      "${ns_c}" veth_C-A
+	trace ""        ${type}_a    "${ns_b}"  ${type}_b \
+	      ""        veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_b}" veth_B-R1    "${ns_r1}" veth_R1-B \
+	      ""        ovs_br0      ""         veth-A_C  \
+	      "${ns_c}" veth_C-A     ""         "${tun_a}"
 
 	if [ ${family} -eq 4 ]; then
 		ping=ping
@@ -1436,8 +1536,9 @@ test_pmtu_ipvX_over_ovs_vxlanY_or_geneveY_exception() {
 	mtu "${ns_b}"  veth_B-R1 ${ll_mtu}
 	mtu "${ns_r1}" veth_R1-B ${ll_mtu}
 
-	mtu ""        ${tun_a}  $((${ll_mtu} + 1000))
-	mtu "${ns_b}" ${type}_b $((${ll_mtu} + 1000))
+	mtu ""        ${tun_a}  $((${ll_mtu} + 1000)) 2>/dev/null || \
+		mtu ""        ${type}_a  $((${ll_mtu} + 1000)) 2>/dev/null
+	mtu "${ns_b}" ${type}_b  $((${ll_mtu} + 1000))
 
 	run_cmd ${ns_c} ${ping} -q -M want -i 0.1 -c 20 -s $((${ll_mtu} + 500)) ${dst} || return 1
 

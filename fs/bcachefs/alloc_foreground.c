@@ -496,12 +496,6 @@ again:
 		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
 		     alloc_cursor < k.k->p.offset;
 		     alloc_cursor++) {
-			ret = btree_trans_too_many_iters(trans);
-			if (ret) {
-				ob = ERR_PTR(ret);
-				break;
-			}
-
 			s->buckets_seen++;
 
 			u64 bucket = alloc_cursor & ~(~0ULL << 56);
@@ -621,13 +615,13 @@ again:
 	avail = dev_buckets_free(ca, *usage, watermark);
 
 	if (usage->d[BCH_DATA_need_discard].buckets > avail)
-		bch2_do_discards(c);
+		bch2_dev_do_discards(ca);
 
 	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
 		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
-		bch2_do_invalidates(c);
+		bch2_dev_do_invalidates(ca);
 
 	if (!avail) {
 		if (cl && !waiting) {
@@ -1589,7 +1583,7 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 	}
 }
 
-static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct open_bucket *ob)
+void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct open_bucket *ob)
 {
 	struct bch_dev *ca = ob_dev(c, ob);
 	unsigned data_type = ob->data_type;
@@ -1703,17 +1697,18 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
+	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 24);
 
-	percpu_down_read(&c->mark_lock);
-	prt_printf(out, "hidden\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.hidden));
-	prt_printf(out, "btree\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.btree));
-	prt_printf(out, "data\t%llu\n",				bch2_fs_usage_read_one(c, &c->usage_base->b.data));
-	prt_printf(out, "cached\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.cached));
-	prt_printf(out, "reserved\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.reserved));
-	prt_printf(out, "online_reserved\t%llu\n",		percpu_u64_get(c->online_reserved));
-	prt_printf(out, "nr_inodes\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes));
-	percpu_up_read(&c->mark_lock);
+	prt_printf(out, "capacity\t%llu\n",		c->capacity);
+	prt_printf(out, "reserved\t%llu\n",		c->reserved);
+	prt_printf(out, "hidden\t%llu\n",		percpu_u64_get(&c->usage->hidden));
+	prt_printf(out, "btree\t%llu\n",		percpu_u64_get(&c->usage->btree));
+	prt_printf(out, "data\t%llu\n",			percpu_u64_get(&c->usage->data));
+	prt_printf(out, "cached\t%llu\n",		percpu_u64_get(&c->usage->cached));
+	prt_printf(out, "reserved\t%llu\n",		percpu_u64_get(&c->usage->reserved));
+	prt_printf(out, "online_reserved\t%llu\n",	percpu_u64_get(c->online_reserved));
+	prt_printf(out, "nr_inodes\t%llu\n",		percpu_u64_get(&c->usage->nr_inodes));
 
 	prt_newline(out);
 	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
@@ -1736,6 +1731,7 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
+	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 12);
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);

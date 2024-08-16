@@ -72,4 +72,5 @@ static struct kunit_suite bits_test_suite = {
 };
 kunit_test_suite(bits_test_suite);
 
+MODULE_DESCRIPTION("Test cases for functions and macros in bits.h");
 MODULE_LICENSE("GPL");

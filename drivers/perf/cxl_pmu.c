@@ -972,6 +972,7 @@ static __exit void cxl_pmu_exit(void)
 	cpuhp_remove_multi_state(cxl_pmu_cpuhp_state_num);
 }
 
+MODULE_DESCRIPTION("CXL Performance Monitor Driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(CXL);
 module_init(cxl_pmu_init);

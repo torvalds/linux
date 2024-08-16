@@ -272,8 +272,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 /* drm_plane.c */
 int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
-int drm_plane_check_pixel_format(struct drm_plane *plane,
-				 u32 format, u64 modifier);
 struct drm_mode_rect *
 __drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
@@ -315,6 +313,13 @@ drm_edid_load_firmware(struct drm_connector *connector)
 {
 	return ERR_PTR(-ENOENT);
 }
+#endif
+
+/* drm_panic.c */
+#ifdef CONFIG_DRM_PANIC
+bool drm_panic_is_enabled(struct drm_device *dev);
+#else
+static inline bool drm_panic_is_enabled(struct drm_device *dev) { return false; }
 #endif
 
 #endif /* __DRM_CRTC_INTERNAL_H__ */

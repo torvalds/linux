@@ -1740,4 +1740,5 @@ kunit_test_suites(
 );
 
 MODULE_AUTHOR("Maxime Ripard <mripard@kernel.org>");
+MODULE_DESCRIPTION("Kunit test for drm_hdmi_state_helper functions");
 MODULE_LICENSE("GPL");

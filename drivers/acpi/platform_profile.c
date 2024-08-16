@@ -217,4 +217,5 @@ int platform_profile_remove(void)
 EXPORT_SYMBOL_GPL(platform_profile_remove);
 
 MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
+MODULE_DESCRIPTION("ACPI platform profile sysfs interface");
 MODULE_LICENSE("GPL");

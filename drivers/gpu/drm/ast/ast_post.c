@@ -351,7 +351,7 @@ void ast_post_gpu(struct drm_device *dev)
 
 	if (IS_AST_GEN7(ast)) {
 		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
-			ast_dp_launch(dev);
+			ast_dp_launch(ast);
 	} else if (ast->config_mode == ast_use_p2a) {
 		if (IS_AST_GEN6(ast))
 			ast_post_chip_2500(dev);

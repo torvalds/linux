@@ -155,4 +155,5 @@ static struct hid_driver stadia_driver = {
 };
 module_hid_driver(stadia_driver);
 
+MODULE_DESCRIPTION("Google Stadia controller rumble support.");
 MODULE_LICENSE("GPL");

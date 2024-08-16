@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #define MSCC_MIIM_REG_STATUS		0x0
 #define		MSCC_MIIM_STATUS_STAT_PENDING	BIT(2)
@@ -271,9 +272,16 @@ static int mscc_miim_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct regmap *mii_regmap, *phy_regmap;
 	struct device *dev = &pdev->dev;
+	struct reset_control *reset;
 	struct mscc_miim_dev *miim;
 	struct mii_bus *bus;
 	int ret;
+
+	reset = devm_reset_control_get_optional_shared(dev, "switch");
+	if (IS_ERR(reset))
+		return dev_err_probe(dev, PTR_ERR(reset), "Failed to get reset\n");
+
+	reset_control_reset(reset);
 
 	mii_regmap = ocelot_regmap_from_resource(pdev, 0,
 						 &mscc_miim_regmap_config);

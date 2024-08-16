@@ -35,7 +35,6 @@ static ssize_t dpaa_eth_show_fqids(struct device *dev,
 	u32 last_fqid = 0;
 	ssize_t bytes = 0;
 	char *str;
-	int i = 0;
 
 	list_for_each_entry_safe(fq, tmp, &priv->dpaa_fq_list, list) {
 		switch (fq->fq_type) {
@@ -85,7 +84,6 @@ static ssize_t dpaa_eth_show_fqids(struct device *dev,
 
 		prev = fq;
 		prevstr = str;
-		i++;
 	}
 
 	if (prev) {
