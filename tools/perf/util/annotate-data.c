@@ -382,6 +382,38 @@ static bool is_pointer_type(Dwarf_Die *type_die)
 	return tag == DW_TAG_pointer_type || tag == DW_TAG_array_type;
 }
 
+/* returns if Type B has better information than Type A */
+static bool is_better_type(Dwarf_Die *type_a, Dwarf_Die *type_b)
+{
+	Dwarf_Word size_a, size_b;
+	Dwarf_Die die_a, die_b;
+
+	/* pointer type is preferred */
+	if (is_pointer_type(type_a) != is_pointer_type(type_b))
+		return is_pointer_type(type_b);
+
+	if (is_pointer_type(type_b)) {
+		/*
+		 * We want to compare the target type, but 'void *' can fail to
+		 * get the target type.
+		 */
+		if (die_get_real_type(type_a, &die_a) == NULL)
+			return true;
+		if (die_get_real_type(type_b, &die_b) == NULL)
+			return false;
+
+		type_a = &die_a;
+		type_b = &die_b;
+	}
+
+	/* bigger type is preferred */
+	if (dwarf_aggregate_size(type_a, &size_a) < 0 ||
+	    dwarf_aggregate_size(type_b, &size_b) < 0)
+		return false;
+
+	return size_a < size_b;
+}
+
 /* The type info will be saved in @type_die */
 static enum type_match_result check_variable(struct data_loc_info *dloc,
 					     Dwarf_Die *var_die,
@@ -741,24 +773,33 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 		if (!dwarf_offdie(dloc->di->dbg, var->die_off, &mem_die))
 			continue;
 
-		if (var->reg == DWARF_REG_FB) {
-			findnew_stack_state(state, var->offset, TSR_KIND_TYPE,
+		if (var->reg == DWARF_REG_FB || var->reg == fbreg) {
+			int offset = var->offset;
+			struct type_state_stack *stack;
+
+			if (var->reg != DWARF_REG_FB)
+				offset -= fb_offset;
+
+			stack = find_stack_state(state, offset);
+			if (stack && stack->kind == TSR_KIND_TYPE &&
+			    !is_better_type(&stack->type, &mem_die))
+				continue;
+
+			findnew_stack_state(state, offset, TSR_KIND_TYPE,
 					    &mem_die);
 
 			pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
-				     insn_offset, -var->offset);
-			pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
-		} else if (var->reg == fbreg) {
-			findnew_stack_state(state, var->offset - fb_offset,
-					    TSR_KIND_TYPE, &mem_die);
-
-			pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
-				     insn_offset, -var->offset + fb_offset);
+				     insn_offset, -offset);
 			pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
 		} else if (has_reg_type(state, var->reg) && var->offset == 0) {
 			struct type_state_reg *reg;
 
 			reg = &state->regs[var->reg];
+
+			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
+			    !is_better_type(&reg->type, &mem_die))
+				continue;
+
 			reg->type = mem_die;
 			reg->kind = TSR_KIND_TYPE;
 			reg->ok = true;
