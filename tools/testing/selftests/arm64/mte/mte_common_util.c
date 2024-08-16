@@ -319,10 +319,9 @@ int mte_default_setup(void)
 	unsigned long en = 0;
 	int ret;
 
-	if (!(hwcaps2 & HWCAP2_MTE)) {
-		ksft_print_msg("SKIP: MTE features unavailable\n");
-		return KSFT_SKIP;
-	}
+	if (!(hwcaps2 & HWCAP2_MTE))
+		ksft_exit_skip("MTE features unavailable\n");
+
 	/* Get current mte mode */
 	ret = prctl(PR_GET_TAGGED_ADDR_CTRL, en, 0, 0, 0);
 	if (ret < 0) {
