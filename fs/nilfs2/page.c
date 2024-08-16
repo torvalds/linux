@@ -357,9 +357,8 @@ repeat:
 /**
  * nilfs_clear_dirty_pages - discard dirty pages in address space
  * @mapping: address space with dirty pages for discarding
- * @silent: suppress [true] or print [false] warning messages
  */
-void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
+void nilfs_clear_dirty_pages(struct address_space *mapping)
 {
 	struct folio_batch fbatch;
 	unsigned int i;
@@ -380,7 +379,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
 			 * was acquired.  Skip processing in that case.
 			 */
 			if (likely(folio->mapping == mapping))
-				nilfs_clear_folio_dirty(folio, silent);
+				nilfs_clear_folio_dirty(folio);
 
 			folio_unlock(folio);
 		}
@@ -392,19 +391,12 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
 /**
  * nilfs_clear_folio_dirty - discard dirty folio
  * @folio: dirty folio that will be discarded
- * @silent: suppress [true] or print [false] warning messages
  */
-void nilfs_clear_folio_dirty(struct folio *folio, bool silent)
+void nilfs_clear_folio_dirty(struct folio *folio)
 {
-	struct inode *inode = folio->mapping->host;
-	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh, *head;
 
 	BUG_ON(!folio_test_locked(folio));
-
-	if (!silent)
-		nilfs_warn(sb, "discard dirty page: offset=%lld, ino=%lu",
-			   folio_pos(folio), inode->i_ino);
 
 	folio_clear_uptodate(folio);
 	folio_clear_mappedtodisk(folio);
@@ -419,11 +411,6 @@ void nilfs_clear_folio_dirty(struct folio *folio, bool silent)
 		bh = head;
 		do {
 			lock_buffer(bh);
-			if (!silent)
-				nilfs_warn(sb,
-					   "discard dirty block: blocknr=%llu, size=%zu",
-					   (u64)bh->b_blocknr, bh->b_size);
-
 			set_mask_bits(&bh->b_state, clear_bits, 0);
 			unlock_buffer(bh);
 		} while (bh = bh->b_this_page, bh != head);
