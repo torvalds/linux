@@ -191,6 +191,8 @@ static int add_delta_time(
 		ptr = g_sysmon_stats.sysmon_power_stats_cdsp;
 	} else if (dsp_id == SLPI) {
 		ptr = g_sysmon_stats.sysmon_power_stats_slpi;
+	} else {
+		return -EINVAL;
 	}
 
 	if (ptr == NULL)
