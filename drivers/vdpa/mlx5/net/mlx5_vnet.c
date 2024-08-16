@@ -2219,16 +2219,17 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
 {
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
-	int cur_qps = ndev->cur_num_vqs / 2;
+	int cur_vqs = ndev->cur_num_vqs;
+	int new_vqs = newqps * 2;
 	int err;
 	int i;
 
-	if (cur_qps > newqps) {
-		err = modify_rqt(ndev, 2 * newqps);
+	if (cur_vqs > new_vqs) {
+		err = modify_rqt(ndev, new_vqs);
 		if (err)
 			return err;
 
-		for (i = ndev->cur_num_vqs - 1; i >= 2 * newqps; i--) {
+		for (i = cur_vqs - 1; i >= new_vqs; i--) {
 			struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[i];
 
 			if (is_resumable(ndev))
@@ -2237,27 +2238,27 @@ static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
 				teardown_vq(ndev, mvq);
 		}
 
-		ndev->cur_num_vqs = 2 * newqps;
+		ndev->cur_num_vqs = new_vqs;
 	} else {
-		ndev->cur_num_vqs = 2 * newqps;
-		for (i = cur_qps * 2; i < 2 * newqps; i++) {
+		ndev->cur_num_vqs = new_vqs;
+		for (i = cur_vqs; i < new_vqs; i++) {
 			struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[i];
 
 			err = mvq->initialized ? resume_vq(ndev, mvq) : setup_vq(ndev, mvq, true);
 			if (err)
 				goto clean_added;
 		}
-		err = modify_rqt(ndev, 2 * newqps);
+		err = modify_rqt(ndev, new_vqs);
 		if (err)
 			goto clean_added;
 	}
 	return 0;
 
 clean_added:
-	for (--i; i >= 2 * cur_qps; --i)
+	for (--i; i >= cur_vqs; --i)
 		teardown_vq(ndev, &ndev->vqs[i]);
 
-	ndev->cur_num_vqs = 2 * cur_qps;
+	ndev->cur_num_vqs = cur_vqs;
 
 	return err;
 }
