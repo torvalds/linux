@@ -163,6 +163,14 @@ struct intel_modifier_desc {
 
 static const struct intel_modifier_desc intel_modifiers[] = {
 	{
+		.modifier = I915_FORMAT_MOD_4_TILED_LNL_CCS,
+		.display_ver = { 20, -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_BMG_CCS,
+		.display_ver = { 14, -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+	}, {
 		.modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS,
 		.display_ver = { 14, 14 },
 		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
@@ -437,6 +445,14 @@ static bool plane_has_modifier(struct drm_i915_private *i915,
 	    HAS_FLAT_CCS(i915) != !md->ccs.packed_aux_planes)
 		return false;
 
+	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
+	    (GRAPHICS_VER(i915) < 20 || !IS_DGFX(i915)))
+		return false;
+
+	if (md->modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS &&
+	    (GRAPHICS_VER(i915) < 20 || IS_DGFX(i915)))
+		return false;
+
 	return true;
 }
 
@@ -653,6 +669,8 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 128;
 		else
 			return 512;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
 	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
 	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
 	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
