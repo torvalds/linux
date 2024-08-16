@@ -1630,47 +1630,49 @@ done:
 	return err;
 }
 
-static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
+static int suspend_vqs(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs)
 {
-	struct mlx5_virtq_attr attr;
+	struct mlx5_vdpa_virtqueue *mvq;
+	struct mlx5_virtq_attr *attrs;
+	int vq_idx, i;
 	int err;
 
+	if (start_vq >= ndev->cur_num_vqs)
+		return -EINVAL;
+
+	mvq = &ndev->vqs[start_vq];
 	if (!mvq->initialized)
 		return 0;
 
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
 		return 0;
 
-	err = modify_virtqueues(ndev, mvq->index, 1, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
-	if (err) {
-		mlx5_vdpa_err(&ndev->mvdev, "modify to suspend failed, err: %d\n", err);
+	err = modify_virtqueues(ndev, start_vq, num_vqs, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
+	if (err)
 		return err;
+
+	attrs = kcalloc(num_vqs, sizeof(struct mlx5_virtq_attr), GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
+	err = query_virtqueues(ndev, start_vq, num_vqs, attrs);
+	if (err)
+		goto done;
+
+	for (i = 0, vq_idx = start_vq; i < num_vqs; i++, vq_idx++) {
+		mvq = &ndev->vqs[vq_idx];
+		mvq->avail_idx = attrs[i].available_index;
+		mvq->used_idx = attrs[i].used_index;
 	}
 
-	err = query_virtqueues(ndev, mvq->index, 1, &attr);
-	if (err) {
-		mlx5_vdpa_err(&ndev->mvdev, "failed to query virtqueue, err: %d\n", err);
-		return err;
-	}
-
-	mvq->avail_idx = attr.available_index;
-	mvq->used_idx = attr.used_index;
-
-	return 0;
+done:
+	kfree(attrs);
+	return err;
 }
 
-static int suspend_vqs(struct mlx5_vdpa_net *ndev)
+static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
-	int err = 0;
-	int i;
-
-	for (i = 0; i < ndev->cur_num_vqs; i++) {
-		int local_err = suspend_vq(ndev, &ndev->vqs[i]);
-
-		err = local_err ? local_err : err;
-	}
-
-	return err;
+	return suspend_vqs(ndev, mvq->index, 1);
 }
 
 static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
@@ -3053,7 +3055,7 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
 	bool teardown = !is_resumable(ndev);
 	int err;
 
-	suspend_vqs(ndev);
+	suspend_vqs(ndev, 0, ndev->cur_num_vqs);
 	if (teardown) {
 		err = save_channels_info(ndev);
 		if (err)
@@ -3606,7 +3608,7 @@ static int mlx5_vdpa_suspend(struct vdpa_device *vdev)
 
 	down_write(&ndev->reslock);
 	unregister_link_notifier(ndev);
-	err = suspend_vqs(ndev);
+	err = suspend_vqs(ndev, 0, ndev->cur_num_vqs);
 	mlx5_vdpa_cvq_suspend(mvdev);
 	mvdev->suspended = true;
 	up_write(&ndev->reslock);
