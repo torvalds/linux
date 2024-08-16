@@ -1538,13 +1538,13 @@ static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mv
 
 	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "modify to suspend failed, err: %d\n", err);
+		mlx5_vdpa_err(&ndev->mvdev, "modify to suspend failed, err: %d\n", err);
 		return err;
 	}
 
 	err = query_virtqueue(ndev, mvq, &attr);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue, err: %d\n", err);
+		mlx5_vdpa_err(&ndev->mvdev, "failed to query virtqueue, err: %d\n", err);
 		return err;
 	}
 
@@ -1585,7 +1585,7 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 		 */
 		err = modify_virtqueue(ndev, mvq, 0);
 		if (err) {
-			mlx5_vdpa_warn(&ndev->mvdev,
+			mlx5_vdpa_err(&ndev->mvdev,
 				"modify vq properties failed for vq %u, err: %d\n",
 				mvq->index, err);
 			return err;
@@ -1600,15 +1600,15 @@ static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 	case MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY:
 		return 0;
 	default:
-		mlx5_vdpa_warn(&ndev->mvdev, "resume vq %u called from bad state %d\n",
+		mlx5_vdpa_err(&ndev->mvdev, "resume vq %u called from bad state %d\n",
 			       mvq->index, mvq->fw_state);
 		return -EINVAL;
 	}
 
 	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
 	if (err)
-		mlx5_vdpa_warn(&ndev->mvdev, "modify to resume failed for vq %u, err: %d\n",
-			       mvq->index, err);
+		mlx5_vdpa_err(&ndev->mvdev, "modify to resume failed for vq %u, err: %d\n",
+			      mvq->index, err);
 
 	return err;
 }
@@ -2002,13 +2002,13 @@ static int setup_steering(struct mlx5_vdpa_net *ndev)
 
 	ns = mlx5_get_flow_namespace(ndev->mvdev.mdev, MLX5_FLOW_NAMESPACE_BYPASS);
 	if (!ns) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to get flow namespace\n");
+		mlx5_vdpa_err(&ndev->mvdev, "failed to get flow namespace\n");
 		return -EOPNOTSUPP;
 	}
 
 	ndev->rxft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ndev->rxft)) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to create flow table\n");
+		mlx5_vdpa_err(&ndev->mvdev, "failed to create flow table\n");
 		return PTR_ERR(ndev->rxft);
 	}
 	mlx5_vdpa_add_rx_flow_table(ndev);
@@ -2530,7 +2530,7 @@ static int mlx5_vdpa_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa
 
 	err = query_virtqueue(ndev, mvq, &attr);
 	if (err) {
-		mlx5_vdpa_warn(mvdev, "failed to query virtqueue\n");
+		mlx5_vdpa_err(mvdev, "failed to query virtqueue\n");
 		return err;
 	}
 	state->split.avail_index = attr.used_index;
@@ -3189,7 +3189,7 @@ static int mlx5_vdpa_compat_reset(struct vdpa_device *vdev, u32 flags)
 	if ((flags & VDPA_RESET_F_CLEAN_MAP) &&
 	    MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
 		if (mlx5_vdpa_create_dma_mr(mvdev))
-			mlx5_vdpa_warn(mvdev, "create MR failed\n");
+			mlx5_vdpa_err(mvdev, "create MR failed\n");
 	}
 	if (vq_reset)
 		setup_vq_resources(ndev, false);
@@ -3244,7 +3244,7 @@ static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
 		new_mr = mlx5_vdpa_create_mr(mvdev, iotlb);
 		if (IS_ERR(new_mr)) {
 			err = PTR_ERR(new_mr);
-			mlx5_vdpa_warn(mvdev, "create map failed(%d)\n", err);
+			mlx5_vdpa_err(mvdev, "create map failed(%d)\n", err);
 			return err;
 		}
 	} else {
@@ -3257,7 +3257,7 @@ static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
 	} else {
 		err = mlx5_vdpa_change_map(mvdev, new_mr, asid);
 		if (err) {
-			mlx5_vdpa_warn(mvdev, "change map failed(%d)\n", err);
+			mlx5_vdpa_err(mvdev, "change map failed(%d)\n", err);
 			goto out_err;
 		}
 	}

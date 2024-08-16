@@ -135,6 +135,11 @@ int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
 int mlx5_vdpa_create_dma_mr(struct mlx5_vdpa_dev *mvdev);
 int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid);
 
+#define mlx5_vdpa_err(__dev, format, ...)                                                          \
+	dev_err((__dev)->mdev->device, "%s:%d:(pid %d) error: " format, __func__, __LINE__,        \
+		 current->pid, ##__VA_ARGS__)
+
+
 #define mlx5_vdpa_warn(__dev, format, ...)                                                         \
 	dev_warn((__dev)->mdev->device, "%s:%d:(pid %d) warning: " format, __func__, __LINE__,     \
 		 current->pid, ##__VA_ARGS__)
