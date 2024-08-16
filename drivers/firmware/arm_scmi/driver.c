@@ -2733,14 +2733,14 @@ scmi_txrx_setup(struct scmi_info *info, struct device_node *of_node,
 static int scmi_channels_setup(struct scmi_info *info)
 {
 	int ret;
-	struct device_node *child, *top_np = info->dev->of_node;
+	struct device_node *top_np = info->dev->of_node;
 
 	/* Initialize a common generic channel at first */
 	ret = scmi_txrx_setup(info, top_np, SCMI_PROTOCOL_BASE);
 	if (ret)
 		return ret;
 
-	for_each_available_child_of_node(top_np, child) {
+	for_each_available_child_of_node_scoped(top_np, child) {
 		u32 prot_id;
 
 		if (of_property_read_u32(child, "reg", &prot_id))
@@ -2751,10 +2751,8 @@ static int scmi_channels_setup(struct scmi_info *info)
 				"Out of range protocol %d\n", prot_id);
 
 		ret = scmi_txrx_setup(info, child, prot_id);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
