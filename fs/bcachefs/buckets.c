@@ -925,7 +925,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
