@@ -345,9 +345,20 @@ static bool find_cu_die(struct debuginfo *di, u64 pc, Dwarf_Die *cu_die)
 	return false;
 }
 
+enum type_match_result {
+	PERF_TMR_UNKNOWN = 0,
+	PERF_TMR_OK,
+	PERF_TMR_NO_TYPE,
+	PERF_TMR_NO_POINTER,
+	PERF_TMR_NO_SIZE,
+	PERF_TMR_BAD_OFFSET,
+};
+
 /* The type info will be saved in @type_die */
-static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
-			  Dwarf_Die *type_die, int reg, int offset, bool is_fbreg)
+static enum type_match_result check_variable(struct data_loc_info *dloc,
+					     Dwarf_Die *var_die,
+					     Dwarf_Die *type_die, int reg,
+					     int offset, bool is_fbreg)
 {
 	Dwarf_Word size;
 	bool is_pointer = true;
@@ -364,7 +375,7 @@ static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
 	if (__die_get_real_type(var_die, type_die) == NULL) {
 		pr_debug_dtp("variable has no type\n");
 		ann_data_stat.no_typeinfo++;
-		return -1;
+		return PERF_TMR_NO_TYPE;
 	}
 
 	/*
@@ -378,7 +389,7 @@ static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
 		    __die_get_real_type(type_die, type_die) == NULL) {
 			pr_debug_dtp("no pointer or no type\n");
 			ann_data_stat.no_typeinfo++;
-			return -1;
+			return PERF_TMR_NO_POINTER;
 		}
 	}
 
@@ -391,7 +402,7 @@ static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
 	if (dwarf_aggregate_size(&sized_type, &size) < 0) {
 		pr_debug_dtp("type size is unknown\n");
 		ann_data_stat.invalid_size++;
-		return -1;
+		return PERF_TMR_NO_SIZE;
 	}
 
 	/* Minimal sanity check */
@@ -399,10 +410,10 @@ static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
 		pr_debug_dtp("offset: %d is bigger than size: %"PRIu64"\n",
 			     offset, size);
 		ann_data_stat.bad_offset++;
-		return -1;
+		return PERF_TMR_BAD_OFFSET;
 	}
 
-	return 0;
+	return PERF_TMR_OK;
 }
 
 struct type_state_stack *find_stack_state(struct type_state *state,
@@ -652,7 +663,7 @@ bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	/* Try to get the variable by address first */
 	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, &offset) &&
 	    check_variable(dloc, &var_die, type_die, DWARF_REG_PC, offset,
-			   /*is_fbreg=*/false) == 0) {
+			   /*is_fbreg=*/false) == PERF_TMR_OK) {
 		var_name = dwarf_diename(&var_die);
 		*var_offset = offset;
 		goto ok;
@@ -666,7 +677,7 @@ bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	/* Try to get the name of global variable */
 	if (die_find_variable_at(cu_die, var_name, pc, &var_die) &&
 	    check_variable(dloc, &var_die, type_die, DWARF_REG_PC, *var_offset,
-			   /*is_fbreg=*/false) == 0)
+			   /*is_fbreg=*/false) == PERF_TMR_OK)
 		goto ok;
 
 	return false;
@@ -1205,6 +1216,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	bool is_fbreg = false;
 	u64 pc;
 	char buf[64];
+	enum type_match_result result;
 
 	if (dloc->op->multi_regs)
 		snprintf(buf, sizeof(buf), "reg%d, reg%d", dloc->op->reg1, dloc->op->reg2);
@@ -1299,8 +1311,8 @@ retry:
 		}
 
 		/* Found a variable, see if it's correct */
-		ret = check_variable(dloc, &var_die, type_die, reg, offset, is_fbreg);
-		if (ret == 0) {
+		result = check_variable(dloc, &var_die, type_die, reg, offset, is_fbreg);
+		if (result == PERF_TMR_OK) {
 			pr_debug_dtp("found \"%s\" in scope=%d/%d (die: %#lx) ",
 				     dwarf_diename(&var_die), i+1, nr_scopes,
 				     (long)dwarf_dieoffset(&scopes[i]));
@@ -1315,12 +1327,14 @@ retry:
 			}
 			pr_debug_location(&var_die, pc, reg);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
+			ret = 0;
 		} else {
 			pr_debug_dtp("check variable \"%s\" failed (die: %#lx)\n",
 				     dwarf_diename(&var_die),
 				     (long)dwarf_dieoffset(&var_die));
 			pr_debug_location(&var_die, pc, reg);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
+			ret = -1;
 		}
 		dloc->type_offset = offset;
 		goto out;
