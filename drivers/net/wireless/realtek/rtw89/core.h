@@ -21,6 +21,7 @@ struct rtw89_efuse_block_cfg;
 struct rtw89_h2c_rf_tssi;
 struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
+struct rtw89_debugfs;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -5528,6 +5529,8 @@ struct rtw89_dev {
 	struct net_device *netdev;
 	struct napi_struct napi;
 	int napi_budget_countdown;
+
+	struct rtw89_debugfs *debugfs;
 
 	/* HCI related data, keep last */
 	u8 priv[] __aligned(sizeof(void *));

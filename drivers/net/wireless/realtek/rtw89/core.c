@@ -4767,6 +4767,8 @@ EXPORT_SYMBOL(rtw89_core_register);
 void rtw89_core_unregister(struct rtw89_dev *rtwdev)
 {
 	rtw89_core_unregister_hw(rtwdev);
+
+	rtw89_debugfs_deinit(rtwdev);
 }
 EXPORT_SYMBOL(rtw89_core_unregister);
 
