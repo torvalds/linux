@@ -6,6 +6,7 @@
  * Ingi Kim <ingi2.kim@samsung.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/leds-expresswire.h>
@@ -208,7 +209,6 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 			    struct ktd2692_led_config_data *cfg)
 {
 	struct device_node *np = dev_of_node(dev);
-	struct device_node *child_node;
 	int ret;
 
 	if (!np)
@@ -239,7 +239,8 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 		}
 	}
 
-	child_node = of_get_next_available_child(np, NULL);
+	struct device_node *child_node __free(device_node) =
+		of_get_next_available_child(np, NULL);
 	if (!child_node) {
 		dev_err(dev, "No DT child node found for connected LED.\n");
 		return -EINVAL;
@@ -252,26 +253,24 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 				   &cfg->movie_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse led-max-microamp\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-microamp",
 				   &cfg->flash_max_microamp);
 	if (ret) {
 		dev_err(dev, "failed to parse flash-max-microamp\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
 				   &cfg->flash_max_timeout);
 	if (ret) {
 		dev_err(dev, "failed to parse flash-max-timeout-us\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
-err_parse_dt:
-	of_node_put(child_node);
-	return ret;
+	return 0;
 }
 
 static const struct led_flash_ops flash_ops = {
