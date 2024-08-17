@@ -3128,7 +3128,8 @@ out:
 	return addr_cpumode;
 }
 
-struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id)
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename,
+				    const struct dso_id *id)
 {
 	return dsos__findnew_id(&machine->dsos, filename, id);
 }

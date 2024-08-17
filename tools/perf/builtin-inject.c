@@ -411,7 +411,7 @@ static int perf_event__jit_repipe_mmap(const struct perf_tool *tool,
 #endif
 
 static struct dso *findnew_dso(int pid, int tid, const char *filename,
-			       struct dso_id *id, struct machine *machine)
+			       const struct dso_id *id, struct machine *machine)
 {
 	struct thread *thread;
 	struct nsinfo *nsi = NULL;

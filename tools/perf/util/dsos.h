@@ -32,7 +32,7 @@ int __dsos__add(struct dsos *dsos, struct dso *dso);
 int dsos__add(struct dsos *dsos, struct dso *dso);
 struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
 
-struct dso *dsos__findnew_id(struct dsos *dsos, const char *name, struct dso_id *id);
+struct dso *dsos__findnew_id(struct dsos *dsos, const char *name, const struct dso_id *id);
  
 bool dsos__read_build_ids(struct dsos *dsos, bool with_hits);
 
