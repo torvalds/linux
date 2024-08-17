@@ -166,9 +166,6 @@ struct thread;
 #define map__for_each_symbol_by_name(map, sym_name, pos, idx)	\
 	__map__for_each_symbol_by_name(map, sym_name, (pos), idx)
 
-void map__init(struct map *map,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso);
-
 struct dso_id;
 struct build_id;
 
@@ -285,14 +282,14 @@ static inline void map__set_reloc(struct map *map, u64 reloc)
 	RC_CHK_ACCESS(map)->reloc = reloc;
 }
 
-static inline void map__set_priv(struct map *map, int priv)
+static inline void map__set_priv(struct map *map)
 {
-	RC_CHK_ACCESS(map)->priv = priv;
+	RC_CHK_ACCESS(map)->priv = true;
 }
 
-static inline void map__set_erange_warned(struct map *map, bool erange_warned)
+static inline void map__set_erange_warned(struct map *map)
 {
-	RC_CHK_ACCESS(map)->erange_warned = erange_warned;
+	RC_CHK_ACCESS(map)->erange_warned = true;
 }
 
 static inline void map__set_dso(struct map *map, struct dso *dso)

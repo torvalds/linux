@@ -191,7 +191,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 	if (use_browser <= 0)
 		sleep(5);
 
-	map__set_erange_warned(map, true);
+	map__set_erange_warned(map);
 }
 
 static void perf_top__record_precise_ip(struct perf_top *top,
