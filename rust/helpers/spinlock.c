@@ -12,16 +12,13 @@ void rust_helper___spin_lock_init(spinlock_t *lock, const char *name,
 	spin_lock_init(lock);
 #endif
 }
-EXPORT_SYMBOL_GPL(rust_helper___spin_lock_init);
 
 void rust_helper_spin_lock(spinlock_t *lock)
 {
 	spin_lock(lock);
 }
-EXPORT_SYMBOL_GPL(rust_helper_spin_lock);
 
 void rust_helper_spin_unlock(spinlock_t *lock)
 {
 	spin_unlock(lock);
 }
-EXPORT_SYMBOL_GPL(rust_helper_spin_unlock);

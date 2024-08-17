@@ -7,4 +7,3 @@ const char *rust_helper_errname(int err)
 {
 	return errname(err);
 }
-EXPORT_SYMBOL_GPL(rust_helper_errname);

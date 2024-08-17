@@ -7,4 +7,3 @@ struct kunit *rust_helper_kunit_get_current_test(void)
 {
 	return kunit_get_current_test();
 }
-EXPORT_SYMBOL_GPL(rust_helper_kunit_get_current_test);

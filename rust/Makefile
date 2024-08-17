@@ -16,8 +16,8 @@ no-clean-files += libmacros.so
 
 always-$(CONFIG_RUST) += bindings/bindings_generated.rs bindings/bindings_helpers_generated.rs
 obj-$(CONFIG_RUST) += alloc.o bindings.o kernel.o
-always-$(CONFIG_RUST) += exports_alloc_generated.h exports_bindings_generated.h \
-    exports_kernel_generated.h
+always-$(CONFIG_RUST) += exports_alloc_generated.h exports_helpers_generated.h \
+    exports_bindings_generated.h exports_kernel_generated.h
 
 always-$(CONFIG_RUST) += uapi/uapi_generated.rs
 obj-$(CONFIG_RUST) += uapi.o
@@ -311,6 +311,18 @@ $(obj)/exports_core_generated.h: $(obj)/core.o FORCE
 	$(call if_changed,exports)
 
 $(obj)/exports_alloc_generated.h: $(obj)/alloc.o FORCE
+	$(call if_changed,exports)
+
+# Even though Rust kernel modules should never use the bindings directly,
+# symbols from the `bindings` crate and the C helpers need to be exported
+# because Rust generics and inlined functions may not get their code generated
+# in the crate where they are defined. Other helpers, called from non-inline
+# functions, may not be exported, in principle. However, in general, the Rust
+# compiler does not guarantee codegen will be performed for a non-inline
+# function either. Therefore, we export all symbols from helpers and bindings.
+# In the future, this may be revisited to reduce the number of exports after
+# the compiler is informed about the places codegen is required.
+$(obj)/exports_helpers_generated.h: $(obj)/helpers/helpers.o FORCE
 	$(call if_changed,exports)
 
 $(obj)/exports_bindings_generated.h: $(obj)/bindings.o FORCE
