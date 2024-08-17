@@ -85,7 +85,7 @@ static void iter_unmark_lpis(struct kvm *kvm)
 	struct vgic_irq *irq;
 	unsigned long intid;
 
-	xa_for_each(&dist->lpi_xa, intid, irq) {
+	xa_for_each_marked(&dist->lpi_xa, intid, irq, LPI_XA_MARK_DEBUG_ITER) {
 		xa_clear_mark(&dist->lpi_xa, intid, LPI_XA_MARK_DEBUG_ITER);
 		vgic_put_irq(kvm, irq);
 	}
