@@ -538,6 +538,14 @@ static bool spl_is_yuv420(enum spl_pixel_format format)
 	return false;
 }
 
+static bool spl_is_rgb8(enum spl_pixel_format format)
+{
+	if (format == SPL_PIXEL_FORMAT_ARGB8888)
+		return true;
+
+	return false;
+}
+
 /*Calculate inits and viewport */
 static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		struct spl_scratch *spl_scratch)
@@ -773,6 +781,19 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 	bool skip_easf = false;
 	bool lls_enable_easf = true;
 
+	if (spl_in->disable_easf)
+		skip_easf = true;
+
+	vratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert);
+	hratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz);
+
+	/*
+	 * No EASF support for downscaling > 2:1
+	 * EASF support for upscaling or downscaling up to 2:1
+	 */
+	if ((vratio > 2) || (hratio > 2))
+		skip_easf = true;
+
 	/*
 	 * If lls_pref is LLS_PREF_DONT_CARE, then use pixel format and transfer
 	 *  function to determine whether to use LINEAR or NONLINEAR scaling
@@ -782,17 +803,7 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 			spl_in->basic_in.tf_type, spl_in->basic_in.tf_predefined_type,
 			&spl_in->lls_pref);
 
-	vratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert);
-	hratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz);
-
-	if (!lls_enable_easf || spl_in->disable_easf)
-		skip_easf = true;
-
-	/*
-	 * No EASF support for downscaling > 2:1
-	 * EASF support for upscaling or downscaling up to 2:1
-	 */
-	if ((vratio > 2) || (hratio > 2))
+	if (!lls_enable_easf)
 		skip_easf = true;
 
 	/* Check for linear scaling or EASF preferred */
@@ -819,12 +830,12 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	struct spl_taps taps = spl_scratch->scl_data.taps;
 	bool fullscreen = spl_is_video_fullscreen(spl_in);
 
-	vratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert);
-	hratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz);
-
 	/* Return if adaptive sharpness is disabled */
 	if (spl_in->adaptive_sharpness.enable == false)
 		return enable_isharp;
+
+	vratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert);
+	hratio = spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz);
 
 	/* No iSHARP support for downscaling */
 	if (vratio > 1 || hratio > 1)
@@ -1154,10 +1165,44 @@ static void spl_set_dscl_prog_data(struct spl_in *spl_in, struct spl_scratch *sp
 	spl_set_filters_data(dscl_prog_data, data, enable_easf_v, enable_easf_h);
 }
 
+/* Calculate C0-C3 coefficients based on HDR_mult */
+static void spl_calculate_c0_c3_hdr(struct dscl_prog_data *dscl_prog_data, uint32_t hdr_multx100)
+{
+	struct spl_fixed31_32 hdr_mult, c0_mult, c1_mult, c2_mult;
+	struct spl_fixed31_32 c0_calc, c1_calc, c2_calc;
+	struct spl_custom_float_format fmt;
+
+	SPL_ASSERT(hdr_multx100);
+	hdr_mult = spl_fixpt_from_fraction((long long)hdr_multx100, 100LL);
+	c0_mult = spl_fixpt_from_fraction(2126LL, 10000LL);
+	c1_mult = spl_fixpt_from_fraction(7152LL, 10000LL);
+	c2_mult = spl_fixpt_from_fraction(722LL, 10000LL);
+
+	c0_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c0_mult, spl_fixpt_from_fraction(
+		16384LL, 125LL)));
+	c1_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c1_mult, spl_fixpt_from_fraction(
+		16384LL, 125LL)));
+	c2_calc = spl_fixpt_mul(hdr_mult, spl_fixpt_mul(c2_mult, spl_fixpt_from_fraction(
+		16384LL, 125LL)));
+
+	fmt.exponenta_bits = 5;
+	fmt.mantissa_bits = 10;
+	fmt.sign = true;
+
+	// fp1.5.10, C0 coefficient (LN_rec709:  HDR_MULT * 0.212600 * 2^14/125)
+	spl_convert_to_custom_float_format(c0_calc, &fmt, &dscl_prog_data->easf_matrix_c0);
+	// fp1.5.10, C1 coefficient (LN_rec709:  HDR_MULT * 0.715200 * 2^14/125)
+	spl_convert_to_custom_float_format(c1_calc, &fmt, &dscl_prog_data->easf_matrix_c1);
+	// fp1.5.10, C2 coefficient (LN_rec709:  HDR_MULT * 0.072200 * 2^14/125)
+	spl_convert_to_custom_float_format(c2_calc, &fmt, &dscl_prog_data->easf_matrix_c2);
+	dscl_prog_data->easf_matrix_c3 = 0x0; // fp1.5.10, C3 coefficient
+}
+
 /* Set EASF data */
 static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *spl_out, bool enable_easf_v,
 	bool enable_easf_h, enum linear_light_scaling lls_pref,
-	enum spl_pixel_format format, enum system_setup setup)
+	enum spl_pixel_format format, enum system_setup setup,
+	uint32_t hdr_multx100)
 {
 	struct dscl_prog_data *dscl_prog_data = spl_out->dscl_prog_data;
 	if (enable_easf_v) {
@@ -1463,16 +1508,10 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 
 	if (lls_pref == LLS_PREF_YES)	{
 		dscl_prog_data->easf_ltonl_en = 1;	// Linear input
-		if (setup == HDR_L) {
-			dscl_prog_data->easf_matrix_c0 =
-				0x504E;	// fp1.5.10, C0 coefficient (LN_BT2020:  0.2627 * (2^14)/125 = 34.43750000)
-			dscl_prog_data->easf_matrix_c1 =
-				0x558E;	// fp1.5.10, C1 coefficient (LN_BT2020:  0.6780 * (2^14)/125 = 88.87500000)
-			dscl_prog_data->easf_matrix_c2 =
-				0x47C6;	// fp1.5.10, C2 coefficient (LN_BT2020:  0.0593 * (2^14)/125 = 7.77343750)
-			dscl_prog_data->easf_matrix_c3 =
-				0x0;	// fp1.5.10, C3 coefficient
-		} else { // SDR_L
+		if ((setup == HDR_L) && (spl_is_rgb8(format))) {
+			/* Calculate C0-C3 coefficients based on HDR multiplier */
+			spl_calculate_c0_c3_hdr(dscl_prog_data, hdr_multx100);
+		} else { // HDR_L ( DWM ) and SDR_L
 			dscl_prog_data->easf_matrix_c0 =
 				0x4EF7;	// fp1.5.10, C0 coefficient (LN_rec709:  0.2126 * (2^14)/125 = 27.86590720)
 			dscl_prog_data->easf_matrix_c1 =
@@ -1570,9 +1609,9 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		dscl_prog_data->isharp_lba.base_seg[1] = 63; // ISHARP LBA PWL for Seg 1. BASE value in U0.6 format
 		dscl_prog_data->isharp_lba.slope_seg[1] = 0; // ISHARP LBA for Seg 1. SLOPE value in S5.3 format
 		// ISHARP_LBA_PWL_SEG2: ISHARP LBA PWL Segment 2
-		dscl_prog_data->isharp_lba.in_seg[2] = 312; // ISHARP LBA PWL for Seg 2. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.in_seg[2] = 450; // ISHARP LBA PWL for Seg 2. INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[2] = 63; // ISHARP LBA PWL for Seg 2. BASE value in U0.6 format
-		dscl_prog_data->isharp_lba.slope_seg[2] = 0x1D9; // ISHARP LBA for Seg 2. SLOPE value in S5.3 format = -39
+		dscl_prog_data->isharp_lba.slope_seg[2] = 0x18D; // ISHARP LBA for Seg 2. SLOPE value in S5.3 format = -115
 		// ISHARP_LBA_PWL_SEG3: ISHARP LBA PWL Segment 3
 		dscl_prog_data->isharp_lba.in_seg[3] = 520; // ISHARP LBA PWL for Seg 3.INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[3] = 0; // ISHARP LBA PWL for Seg 3. BASE value in U0.6 format
@@ -1584,19 +1623,43 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		// ISHARP_LBA_PWL_SEG5: ISHARP LBA PWL Segment 5
 		dscl_prog_data->isharp_lba.in_seg[5] = 520; // ISHARP LBA PWL for Seg 5.INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[5] = 0;	// ISHARP LBA PWL for Seg 5. BASE value in U0.6 format
-	} else {
+	} else if (setup == HDR_L) {
 		// ISHARP_LBA_PWL_SEG0: ISHARP Local Brightness Adjustment PWL Segment 0
 		dscl_prog_data->isharp_lba.in_seg[0] = 0;	// ISHARP LBA PWL for Seg 0. INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[0] = 0;	// ISHARP LBA PWL for Seg 0. BASE value in U0.6 format
 		dscl_prog_data->isharp_lba.slope_seg[0] = 32;	// ISHARP LBA for Seg 0. SLOPE value in S5.3 format
 		// ISHARP_LBA_PWL_SEG1: ISHARP LBA PWL Segment 1
-		dscl_prog_data->isharp_lba.in_seg[1] = 256;	// ISHARP LBA PWL for Seg 1. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.in_seg[1] = 254;	// ISHARP LBA PWL for Seg 1. INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[1] = 63; // ISHARP LBA PWL for Seg 1. BASE value in U0.6 format
 		dscl_prog_data->isharp_lba.slope_seg[1] = 0; // ISHARP LBA for Seg 1. SLOPE value in S5.3 format
 		// ISHARP_LBA_PWL_SEG2: ISHARP LBA PWL Segment 2
-		dscl_prog_data->isharp_lba.in_seg[2] = 614; // ISHARP LBA PWL for Seg 2. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.in_seg[2] = 559; // ISHARP LBA PWL for Seg 2. INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[2] = 63; // ISHARP LBA PWL for Seg 2. BASE value in U0.6 format
-		dscl_prog_data->isharp_lba.slope_seg[2] = 0x1EC; // ISHARP LBA for Seg 2. SLOPE value in S5.3 format = -20
+		dscl_prog_data->isharp_lba.slope_seg[2] = 0x10C; // ISHARP LBA for Seg 2. SLOPE value in S5.3 format = -244
+		// ISHARP_LBA_PWL_SEG3: ISHARP LBA PWL Segment 3
+		dscl_prog_data->isharp_lba.in_seg[3] = 592; // ISHARP LBA PWL for Seg 3.INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[3] = 0; // ISHARP LBA PWL for Seg 3. BASE value in U0.6 format
+		dscl_prog_data->isharp_lba.slope_seg[3] = 0; // ISHARP LBA for Seg 3. SLOPE value in S5.3 format
+		// ISHARP_LBA_PWL_SEG4: ISHARP LBA PWL Segment 4
+		dscl_prog_data->isharp_lba.in_seg[4] = 1023; // ISHARP LBA PWL for Seg 4.INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[4] = 0; // ISHARP LBA PWL for Seg 4. BASE value in U0.6 format
+		dscl_prog_data->isharp_lba.slope_seg[4] = 0; // ISHARP LBA for Seg 4. SLOPE value in S5.3 format
+		// ISHARP_LBA_PWL_SEG5: ISHARP LBA PWL Segment 5
+		dscl_prog_data->isharp_lba.in_seg[5] = 1023; // ISHARP LBA PWL for Seg 5.INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[5] = 0;	// ISHARP LBA PWL for Seg 5. BASE value in U0.6 format
+	} else {
+		// ISHARP_LBA_PWL_SEG0: ISHARP Local Brightness Adjustment PWL Segment 0
+		dscl_prog_data->isharp_lba.in_seg[0] = 0;	// ISHARP LBA PWL for Seg 0. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[0] = 0;	// ISHARP LBA PWL for Seg 0. BASE value in U0.6 format
+		dscl_prog_data->isharp_lba.slope_seg[0] = 40;	// ISHARP LBA for Seg 0. SLOPE value in S5.3 format
+		// ISHARP_LBA_PWL_SEG1: ISHARP LBA PWL Segment 1
+		dscl_prog_data->isharp_lba.in_seg[1] = 204;	// ISHARP LBA PWL for Seg 1. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[1] = 63; // ISHARP LBA PWL for Seg 1. BASE value in U0.6 format
+		dscl_prog_data->isharp_lba.slope_seg[1] = 0; // ISHARP LBA for Seg 1. SLOPE value in S5.3 format
+		// ISHARP_LBA_PWL_SEG2: ISHARP LBA PWL Segment 2
+		dscl_prog_data->isharp_lba.in_seg[2] = 818; // ISHARP LBA PWL for Seg 2. INPUT value in U0.10 format
+		dscl_prog_data->isharp_lba.base_seg[2] = 63; // ISHARP LBA PWL for Seg 2. BASE value in U0.6 format
+		dscl_prog_data->isharp_lba.slope_seg[2] = 0x1D9; // ISHARP LBA for Seg 2. SLOPE value in S5.3 format = -39
 		// ISHARP_LBA_PWL_SEG3: ISHARP LBA PWL Segment 3
 		dscl_prog_data->isharp_lba.in_seg[3] = 1023; // ISHARP LBA PWL for Seg 3.INPUT value in U0.10 format
 		dscl_prog_data->isharp_lba.base_seg[3] = 0; // ISHARP LBA PWL for Seg 3. BASE value in U0.6 format
@@ -1696,7 +1759,7 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 
 	// Set EASF
 	spl_set_easf_data(&spl_scratch, spl_out, enable_easf_v, enable_easf_h, spl_in->lls_pref,
-		spl_in->basic_in.format, setup);
+		spl_in->basic_in.format, setup, spl_in->hdr_multx100);
 
 	// Set iSHARP
 	vratio = spl_fixpt_ceil(spl_scratch.scl_data.ratios.vert);
