@@ -707,6 +707,28 @@ static void lpm_idle_exit(void *unused, int state, struct cpuidle_device *dev)
 	}
 }
 
+static int suspend_lpm_notify(struct notifier_block *nb,
+			      unsigned long mode, void *_unused)
+{
+	int cpu;
+
+	switch (mode) {
+	case PM_SUSPEND_PREPARE:
+		suspend_in_progress = true;
+		break;
+	case PM_POST_SUSPEND:
+		suspend_in_progress = false;
+		break;
+	default:
+		break;
+	}
+
+	for_each_online_cpu(cpu)
+		wake_up_if_idle(cpu);
+
+	return 0;
+}
+
 /**
  * lpm_enable_device() - Initialize the governor's data for the CPU
  * @drv:      cpuidle driver
@@ -831,6 +853,10 @@ static struct cpuidle_governor lpm_governor = {
 	.reflect =	lpm_reflect,
 };
 
+static struct notifier_block suspend_lpm_nb = {
+	.notifier_call = suspend_lpm_notify,
+};
+
 static int __init qcom_lpm_governor_init(void)
 {
 	int ret;
@@ -855,6 +881,8 @@ static int __init qcom_lpm_governor_init(void)
 				lpm_online_cpu, lpm_offline_cpu);
 	if (ret < 0)
 		goto cpuhp_setup_fail;
+
+	register_pm_notifier(&suspend_lpm_nb);
 
 	return 0;
 
