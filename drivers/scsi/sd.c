@@ -3308,6 +3308,9 @@ static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 
 static unsigned int sd_discard_mode(struct scsi_disk *sdkp)
 {
+	if (!sdkp->lbpme)
+		return SD_LBP_FULL;
+
 	if (!sdkp->lbpvpd) {
 		/* LBP VPD page not provided */
 		if (sdkp->max_unmap_blocks)
