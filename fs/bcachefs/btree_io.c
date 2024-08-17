@@ -836,14 +836,13 @@ fsck_err:
 	return ret;
 }
 
-static int bset_key_invalid(struct bch_fs *c, struct btree *b,
-			    struct bkey_s_c k,
-			    bool updated_range, int rw,
-			    struct printbuf *err)
+static int bset_key_validate(struct bch_fs *c, struct btree *b,
+			     struct bkey_s_c k,
+			     bool updated_range, int rw)
 {
-	return __bch2_bkey_invalid(c, k, btree_node_type(b), READ, err) ?:
-		(!updated_range ? bch2_bkey_in_btree_node(c, b, k, err) : 0) ?:
-		(rw == WRITE ? bch2_bkey_val_invalid(c, k, READ, err) : 0);
+	return __bch2_bkey_validate(c, k, btree_node_type(b), 0) ?:
+		(!updated_range ? bch2_bkey_in_btree_node(c, b, k, 0) : 0) ?:
+		(rw == WRITE ? bch2_bkey_val_validate(c, k, 0) : 0);
 }
 
 static bool bkey_packed_valid(struct bch_fs *c, struct btree *b,
@@ -858,12 +857,9 @@ static bool bkey_packed_valid(struct bch_fs *c, struct btree *b,
 	if (!bkeyp_u64s_valid(&b->format, k))
 		return false;
 
-	struct printbuf buf = PRINTBUF;
 	struct bkey tmp;
 	struct bkey_s u = __bkey_disassemble(b, k, &tmp);
-	bool ret = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b), READ, &buf);
-	printbuf_exit(&buf);
-	return ret;
+	return !__bch2_bkey_validate(c, u.s_c, btree_node_type(b), BCH_VALIDATE_silent);
 }
 
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,
@@ -915,19 +911,11 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 
 		u = __bkey_disassemble(b, k, &tmp);
 
-		printbuf_reset(&buf);
-		if (bset_key_invalid(c, b, u.s_c, updated_range, write, &buf)) {
-			printbuf_reset(&buf);
-			bset_key_invalid(c, b, u.s_c, updated_range, write, &buf);
-			prt_printf(&buf, "\n  ");
-			bch2_bkey_val_to_text(&buf, c, u.s_c);
-
-			btree_err(-BCH_ERR_btree_node_read_err_fixable,
-				  c, NULL, b, i, k,
-				  btree_node_bad_bkey,
-				  "invalid bkey: %s", buf.buf);
+		ret = bset_key_validate(c, b, u.s_c, updated_range, write);
+		if (ret == -BCH_ERR_fsck_delete_bkey)
 			goto drop_this_key;
-		}
+		if (ret)
+			goto fsck_err;
 
 		if (write)
 			bch2_bkey_compat(b->c.level, b->c.btree_id, version,
@@ -1228,23 +1216,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		struct bkey tmp;
 		struct bkey_s u = __bkey_disassemble(b, k, &tmp);
 
-		printbuf_reset(&buf);
-
-		if (bch2_bkey_val_invalid(c, u.s_c, READ, &buf) ||
+		ret = bch2_bkey_val_validate(c, u.s_c, READ);
+		if (ret == -BCH_ERR_fsck_delete_bkey ||
 		    (bch2_inject_invalid_keys &&
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
-			printbuf_reset(&buf);
-
-			prt_printf(&buf, "invalid bkey: ");
-			bch2_bkey_val_invalid(c, u.s_c, READ, &buf);
-			prt_printf(&buf, "\n  ");
-			bch2_bkey_val_to_text(&buf, c, u.s_c);
-
-			btree_err(-BCH_ERR_btree_node_read_err_fixable,
-				  c, NULL, b, i, k,
-				  btree_node_bad_bkey,
-				  "%s", buf.buf);
-
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
@@ -1253,6 +1228,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			set_btree_bset_end(b, b->set);
 			continue;
 		}
+		if (ret)
+			goto fsck_err;
 
 		if (u.k->type == KEY_TYPE_btree_ptr_v2) {
 			struct bkey_s_btree_ptr_v2 bp = bkey_s_to_btree_ptr_v2(u);
@@ -1767,6 +1744,8 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 
 	set_btree_node_read_in_flight(b);
 
+	/* we can't pass the trans to read_done() for fsck errors, so it must be unlocked */
+	bch2_trans_unlock(trans);
 	bch2_btree_node_read(trans, b, true);
 
 	if (btree_node_read_error(b)) {
@@ -1952,18 +1931,14 @@ static void btree_node_write_endio(struct bio *bio)
 static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 				   struct bset *i, unsigned sectors)
 {
-	struct printbuf buf = PRINTBUF;
 	bool saw_error;
-	int ret;
 
-	ret = bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key),
-				BKEY_TYPE_btree, WRITE, &buf);
-
-	if (ret)
-		bch2_fs_inconsistent(c, "invalid btree node key before write: %s", buf.buf);
-	printbuf_exit(&buf);
-	if (ret)
+	int ret = bch2_bkey_validate(c, bkey_i_to_s_c(&b->key),
+				     BKEY_TYPE_btree, WRITE);
+	if (ret) {
+		bch2_fs_inconsistent(c, "invalid btree node key before write");
 		return ret;
+	}
 
 	ret = validate_bset_keys(c, b, i, WRITE, false, &saw_error) ?:
 		validate_bset(c, NULL, b, i, b->written, sectors, WRITE, false, &saw_error);
