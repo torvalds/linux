@@ -377,44 +377,6 @@ static int perf_event__repipe_sample(const struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_mmap(const struct perf_tool *tool,
-				   union perf_event *event,
-				   struct perf_sample *sample,
-				   struct machine *machine)
-{
-	int err;
-
-	err = perf_event__process_mmap(tool, event, sample, machine);
-	perf_event__repipe(tool, event, sample, machine);
-
-	return err;
-}
-
-#ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap(const struct perf_tool *tool,
-				       union perf_event *event,
-				       struct perf_sample *sample,
-				       struct machine *machine)
-{
-	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u64 n = 0;
-	int ret;
-
-	/*
-	 * if jit marker, then inject jit mmaps and generate ELF images
-	 */
-	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap.filename, event->mmap.pid, event->mmap.tid, &n);
-	if (ret < 0)
-		return ret;
-	if (ret) {
-		inject->bytes_written += n;
-		return 0;
-	}
-	return perf_event__repipe_mmap(tool, event, sample, machine);
-}
-#endif
-
 static struct dso *findnew_dso(int pid, int tid, const char *filename,
 			       const struct dso_id *id, struct machine *machine)
 {
@@ -460,22 +422,45 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	return dso;
 }
 
-static int perf_event__repipe_buildid_mmap(const struct perf_tool *tool,
-					   union perf_event *event,
-					   struct perf_sample *sample,
-					   struct machine *machine)
+static int perf_event__repipe_mmap(const struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine)
 {
-	struct dso *dso;
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 
-	dso = findnew_dso(event->mmap.pid, event->mmap.tid,
-			  event->mmap.filename, NULL, machine);
+#ifdef HAVE_JITDUMP
+	if (inject->jit_mode) {
+		u64 n = 0;
+		int ret;
 
-	if (dso && !dso__hit(dso)) {
-		dso__set_hit(dso);
-		dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
+		/* If jit marker, then inject jit mmaps and generate ELF images. */
+		ret = jit_process(inject->session, &inject->output, machine,
+				  event->mmap.filename, event->mmap.pid, event->mmap.tid, &n);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			inject->bytes_written += n;
+			return 0;
+		}
 	}
-	dso__put(dso);
+#endif
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_ALL) {
+		struct dso *dso = findnew_dso(event->mmap.pid, event->mmap.tid,
+					      event->mmap.filename, NULL, machine);
 
+		if (dso && !dso__hit(dso)) {
+			dso__set_hit(dso);
+			dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
+		}
+		dso__put(dso);
+	} else {
+		/* Create the thread, map, etc. Not done for the unordered inject all case. */
+		int err = perf_event__process_mmap(tool, event, sample, machine);
+
+		if (err)
+			return err;
+	}
 	return perf_event__repipe(tool, event, sample, machine);
 }
 
@@ -484,90 +469,61 @@ static int perf_event__repipe_mmap2(const struct perf_tool *tool,
 				   struct perf_sample *sample,
 				   struct machine *machine)
 {
-	int err;
-
-	err = perf_event__process_mmap2(tool, event, sample, machine);
-	perf_event__repipe(tool, event, sample, machine);
-
-	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
-		struct dso *dso;
-
-		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
-				  event->mmap2.filename, NULL, machine);
-		if (dso) {
-			/* mark it not to inject build-id */
-			dso__set_hit(dso);
-		}
-		dso__put(dso);
-	}
-
-	return err;
-}
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	struct dso *dso = NULL;
 
 #ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap2(const struct perf_tool *tool,
-					union perf_event *event,
-					struct perf_sample *sample,
-					struct machine *machine)
-{
-	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u64 n = 0;
-	int ret;
+	if (inject->jit_mode) {
+		u64 n = 0;
+		int ret;
 
-	/*
-	 * if jit marker, then inject jit mmaps and generate ELF images
-	 */
-	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap2.filename, event->mmap2.pid, event->mmap2.tid, &n);
-	if (ret < 0)
-		return ret;
-	if (ret) {
-		inject->bytes_written += n;
-		return 0;
+		/* If jit marker, then inject jit mmaps and generate ELF images. */
+		ret = jit_process(inject->session, &inject->output, machine,
+				event->mmap2.filename, event->mmap2.pid, event->mmap2.tid, &n);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			inject->bytes_written += n;
+			return 0;
+		}
 	}
-	return perf_event__repipe_mmap2(tool, event, sample, machine);
-}
 #endif
-
-static int perf_event__repipe_buildid_mmap2(const struct perf_tool *tool,
-					    union perf_event *event,
-					    struct perf_sample *sample,
-					    struct machine *machine)
-{
-	struct dso_id dso_id = {
-		.maj = event->mmap2.maj,
-		.min = event->mmap2.min,
-		.ino = event->mmap2.ino,
-		.ino_generation = event->mmap2.ino_generation,
-	};
-	struct dso *dso;
-
 	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
-		/* cannot use dso_id since it'd have invalid info */
 		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
 				  event->mmap2.filename, NULL, machine);
 		if (dso) {
 			/* mark it not to inject build-id */
 			dso__set_hit(dso);
 		}
-		dso__put(dso);
-		perf_event__repipe(tool, event, sample, machine);
-		return 0;
 	}
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_ALL) {
+		if (!(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+			struct dso_id dso_id = {
+				.maj = event->mmap2.maj,
+				.min = event->mmap2.min,
+				.ino = event->mmap2.ino,
+				.ino_generation = event->mmap2.ino_generation,
+			};
 
-	dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
-			  event->mmap2.filename, &dso_id, machine);
+			dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+					  event->mmap2.filename, &dso_id, machine);
+		}
+		if (dso && !dso__hit(dso)) {
+			dso__set_hit(dso);
+			dso__inject_build_id(dso, tool, machine, sample->cpumode,
+					event->mmap2.flags);
+		}
+	} else {
+		/* Create the thread, map, etc. Not done for the unordered inject all case. */
+		int err = perf_event__process_mmap(tool, event, sample, machine);
 
-	if (dso && !dso__hit(dso)) {
-		dso__set_hit(dso);
-		dso__inject_build_id(dso, tool, machine, sample->cpumode,
-				     event->mmap2.flags);
+		if (err) {
+			dso__put(dso);
+			return err;
+		}
 	}
 	dso__put(dso);
-
-	perf_event__repipe(tool, event, sample, machine);
-
-	return 0;
+	return perf_event__repipe(tool, event, sample, machine);
 }
 
 static int perf_event__repipe_fork(const struct perf_tool *tool,
@@ -2032,10 +1988,7 @@ static int __cmd_inject(struct perf_inject *inject)
 
 	output_data_offset = perf_session__data_offset(session->evlist);
 
-	if (inject->build_id_style == BID_RWS__INJECT_HEADER_ALL) {
-		inject->tool.mmap	  = perf_event__repipe_buildid_mmap;
-		inject->tool.mmap2	  = perf_event__repipe_buildid_mmap2;
-	} else if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY) {
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct evsel *evsel;
@@ -2430,8 +2383,8 @@ int cmd_inject(int argc, const char **argv)
 
 #ifdef HAVE_JITDUMP
 	if (inject.jit_mode) {
-		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
-		inject.tool.mmap	   = perf_event__jit_repipe_mmap;
+		inject.tool.mmap2	   = perf_event__repipe_mmap2;
+		inject.tool.mmap	   = perf_event__repipe_mmap;
 		inject.tool.ordering_requires_timestamps = true;
 		/*
 		 * JIT MMAP injection injects all MMAP events in one go, so it
