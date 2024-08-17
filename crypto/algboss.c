@@ -64,6 +64,7 @@ static int cryptomgr_probe(void *data)
 	crypto_tmpl_put(tmpl);
 
 out:
+	param->larval->alg.cra_flags |= CRYPTO_ALG_DEAD;
 	complete_all(&param->larval->completion);
 	crypto_alg_put(&param->larval->alg);
 	kfree(param);

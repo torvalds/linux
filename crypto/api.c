@@ -37,6 +37,8 @@ DEFINE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
 #endif
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
+static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
+					    u32 mask);
 
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg)
 {
@@ -201,8 +203,11 @@ static void crypto_start_test(struct crypto_larval *larval)
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 {
-	struct crypto_larval *larval = (void *)alg;
+	struct crypto_larval *larval;
 	long time_left;
+
+again:
+	larval = container_of(alg, struct crypto_larval, alg);
 
 	if (!crypto_boot_test_finished())
 		crypto_start_test(larval);
@@ -215,9 +220,16 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 		alg = ERR_PTR(-EINTR);
 	else if (!time_left)
 		alg = ERR_PTR(-ETIMEDOUT);
-	else if (!alg)
-		alg = ERR_PTR(-ENOENT);
-	else if (IS_ERR(alg))
+	else if (!alg) {
+		u32 type;
+		u32 mask;
+
+		alg = &larval->alg;
+		type = alg->cra_flags & ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
+		mask = larval->mask;
+		alg = crypto_alg_lookup(alg->cra_name, type, mask) ?:
+		      ERR_PTR(-ENOENT);
+	} else if (IS_ERR(alg))
 		;
 	else if (crypto_is_test_larval(larval) &&
 		 !(alg->cra_flags & CRYPTO_ALG_TESTED))
@@ -227,6 +239,9 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	else if (!crypto_mod_get(alg))
 		alg = ERR_PTR(-EAGAIN);
 	crypto_mod_put(&larval->alg);
+
+	if (!IS_ERR(alg) && crypto_is_larval(alg))
+		goto again;
 
 	return alg;
 }
