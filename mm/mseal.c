@@ -54,27 +54,6 @@ static bool is_ro_anon(struct vm_area_struct *vma)
 }
 
 /*
- * Check if the vmas of a memory range are allowed to be modified.
- * the memory ranger can have a gap (unallocated memory).
- * return true, if it is allowed.
- */
-bool can_modify_mm(struct mm_struct *mm, unsigned long start, unsigned long end)
-{
-	struct vm_area_struct *vma;
-
-	VMA_ITERATOR(vmi, mm, start);
-
-	/* going through each vma to check. */
-	for_each_vma_range(vmi, vma, end) {
-		if (unlikely(!can_modify_vma(vma)))
-			return false;
-	}
-
-	/* Allow by default. */
-	return true;
-}
-
-/*
  * Check if a vma is allowed to be modified by madvise.
  */
 bool can_modify_vma_madv(struct vm_area_struct *vma, int behavior)

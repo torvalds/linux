@@ -1359,24 +1359,10 @@ static inline int can_do_mseal(unsigned long flags)
 	return 0;
 }
 
-bool can_modify_mm(struct mm_struct *mm, unsigned long start,
-		unsigned long end);
 #else
 static inline int can_do_mseal(unsigned long flags)
 {
 	return -EPERM;
-}
-
-static inline bool can_modify_mm(struct mm_struct *mm, unsigned long start,
-		unsigned long end)
-{
-	return true;
-}
-
-static inline bool can_modify_mm_madv(struct mm_struct *mm, unsigned long start,
-		unsigned long end, int behavior)
-{
-	return true;
 }
 #endif
 
