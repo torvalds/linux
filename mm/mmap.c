@@ -1740,16 +1740,7 @@ int do_vma_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, struct list_head *uf,
 		bool unlock)
 {
-	struct mm_struct *mm = vma->vm_mm;
-
-	/*
-	 * Check if memory is sealed, prevent unmapping a sealed VMA.
-	 * can_modify_mm assumes we have acquired the lock on MM.
-	 */
-	if (unlikely(!can_modify_mm(mm, start, end)))
-		return -EPERM;
-
-	return do_vmi_align_munmap(vmi, vma, mm, start, end, uf, unlock);
+	return do_vmi_align_munmap(vmi, vma, vma->vm_mm, start, end, uf, unlock);
 }
 
 /*
