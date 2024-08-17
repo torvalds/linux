@@ -43,7 +43,7 @@ struct ioam6_lwt {
 	atomic_t pkt_cnt;
 	u8 mode;
 	struct in6_addr tundst;
-	struct ioam6_lwt_encap	tuninfo;
+	struct ioam6_lwt_encap tuninfo;
 };
 
 static const struct netlink_range_validation freq_range = {
@@ -73,7 +73,8 @@ static const struct nla_policy ioam6_iptunnel_policy[IOAM6_IPTUNNEL_MAX + 1] = {
 						   IOAM6_IPTUNNEL_MODE_MIN,
 						   IOAM6_IPTUNNEL_MODE_MAX),
 	[IOAM6_IPTUNNEL_DST]	= NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
-	[IOAM6_IPTUNNEL_TRACE]	= NLA_POLICY_EXACT_LEN(sizeof(struct ioam6_trace_hdr)),
+	[IOAM6_IPTUNNEL_TRACE]	= NLA_POLICY_EXACT_LEN(
+					sizeof(struct ioam6_trace_hdr)),
 };
 
 static bool ioam6_validate_trace_hdr(struct ioam6_trace_hdr *trace)
@@ -459,9 +460,9 @@ static int ioam6_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 static const struct lwtunnel_encap_ops ioam6_iptun_ops = {
 	.build_state		= ioam6_build_state,
 	.destroy_state		= ioam6_destroy_state,
-	.output		= ioam6_output,
+	.output			= ioam6_output,
 	.fill_encap		= ioam6_fill_encap_info,
-	.get_encap_size	= ioam6_encap_nlsize,
+	.get_encap_size		= ioam6_encap_nlsize,
 	.cmp_encap		= ioam6_encap_cmp,
 	.owner			= THIS_MODULE,
 };
