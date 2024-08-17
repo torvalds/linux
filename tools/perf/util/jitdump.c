@@ -710,7 +710,7 @@ jit_process_dump(struct jit_buf_desc *jd)
 }
 
 static int
-jit_inject(struct jit_buf_desc *jd, char *path)
+jit_inject(struct jit_buf_desc *jd, const char *path)
 {
 	int ret;
 
@@ -737,7 +737,7 @@ jit_inject(struct jit_buf_desc *jd, char *path)
  * as captured in the RECORD_MMAP record
  */
 static int
-jit_detect(char *mmap_name, pid_t pid, struct nsinfo *nsi)
+jit_detect(const char *mmap_name, pid_t pid, struct nsinfo *nsi)
  {
 	char *p;
 	char *end = NULL;
@@ -821,7 +821,7 @@ int
 jit_process(struct perf_session *session,
 	    struct perf_data *output,
 	    struct machine *machine,
-	    char *filename,
+	    const char *filename,
 	    pid_t pid,
 	    pid_t tid,
 	    u64 *nbytes)
