@@ -1140,7 +1140,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 				PSbIsNextTBTTWakeUp((void *)priv);
 
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
-			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
+			     priv->op_mode == NL80211_IFTYPE_ADHOC) &&
 			    priv->vif->bss_conf.enable_beacon)
 				MACvOneShotTimer1MicroSec(priv,
 							  (priv->vif->bss_conf.beacon_int -
@@ -1535,7 +1535,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	    priv->op_mode != NL80211_IFTYPE_AP) {
 		if (vif->cfg.assoc && conf->beacon_rate) {
 			card_update_tsf(priv, conf->beacon_rate->hw_value,
-				       conf->sync_tsf);
+					conf->sync_tsf);
 
 			card_set_beacon_period(priv, conf->beacon_int);
 
@@ -1763,7 +1763,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	priv->memaddr = pci_resource_start(pcid, 0);
 	priv->ioaddr = pci_resource_start(pcid, 1);
 	priv->port_offset = ioremap(priv->memaddr & PCI_BASE_ADDRESS_MEM_MASK,
-				   256);
+				    256);
 	if (!priv->port_offset) {
 		dev_err(&pcid->dev, ": Failed to IO remapping ..\n");
 		device_free_info(priv);
