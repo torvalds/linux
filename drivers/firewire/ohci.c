@@ -1919,7 +1919,7 @@ static int get_self_id_pos(struct fw_ohci *ohci, u32 self_id,
 	return i;
 }
 
-static bool initiated_reset(struct fw_ohci *ohci)
+static int detect_initiated_reset(struct fw_ohci *ohci, bool *is_initiated_reset)
 {
 	int reg;
 
@@ -1946,7 +1946,9 @@ static bool initiated_reset(struct fw_ohci *ohci)
 		return reg;
 
 	// bit 3 indicates "initiated reset"
-	return !!((reg & 0x08) == 0x08);
+	*is_initiated_reset = !!((reg & 0x08) == 0x08);
+
+	return 0;
 }
 
 /*
@@ -1956,7 +1958,8 @@ static bool initiated_reset(struct fw_ohci *ohci)
  */
 static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 {
-	int reg, i, pos;
+	int reg, i, pos, err;
+	bool is_initiated_reset;
 	u32 self_id = 0;
 
 	// link active 1, speed 3, bridge 0, contender 1, more packets 0.
@@ -1985,7 +1988,6 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 
 	for (i = 0; i < 3; i++) {
 		enum phy_packet_self_id_port_status status;
-		int err;
 
 		err = get_status_for_port(ohci, i, &status);
 		if (err < 0)
@@ -1994,7 +1996,10 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 		self_id_sequence_set_port_status(&self_id, 1, i, status);
 	}
 
-	phy_packet_self_id_zero_set_initiated_reset(&self_id, initiated_reset(ohci));
+	err = detect_initiated_reset(ohci, &is_initiated_reset);
+	if (err < 0)
+		return err;
+	phy_packet_self_id_zero_set_initiated_reset(&self_id, is_initiated_reset);
 
 	pos = get_self_id_pos(ohci, self_id, self_id_count);
 	if (pos >= 0) {
