@@ -406,7 +406,6 @@ int snd_trident_create_gameport(struct snd_trident *trident);
 int snd_trident_pcm(struct snd_trident *trident, int device);
 int snd_trident_foldback_pcm(struct snd_trident *trident, int device);
 int snd_trident_spdif_pcm(struct snd_trident *trident, int device);
-int snd_trident_attach_synthesizer(struct snd_trident * trident);
 struct snd_trident_voice *snd_trident_alloc_voice(struct snd_trident * trident, int type,
 					     int client, int port);
 void snd_trident_free_voice(struct snd_trident * trident, struct snd_trident_voice *voice);
@@ -419,9 +418,5 @@ extern const struct dev_pm_ops snd_trident_pm;
 struct snd_util_memblk *snd_trident_alloc_pages(struct snd_trident *trident,
 						struct snd_pcm_substream *substream);
 int snd_trident_free_pages(struct snd_trident *trident, struct snd_util_memblk *blk);
-struct snd_util_memblk *snd_trident_synth_alloc(struct snd_trident *trident, unsigned int size);
-int snd_trident_synth_free(struct snd_trident *trident, struct snd_util_memblk *blk);
-int snd_trident_synth_copy_from_user(struct snd_trident *trident, struct snd_util_memblk *blk,
-				     int offset, const char __user *data, int size);
 
 #endif /* __SOUND_TRIDENT_H */
