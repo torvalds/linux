@@ -813,14 +813,6 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 	return skip_easf;
 }
 
-/* Check if video is in fullscreen mode */
-static bool spl_is_video_fullscreen(struct spl_in *spl_in)
-{
-	if (spl_is_yuv420(spl_in->basic_in.format) && spl_in->is_fullscreen)
-		return true;
-	return false;
-}
-
 static bool spl_get_isharp_en(struct spl_in *spl_in,
 	struct spl_scratch *spl_scratch)
 {
@@ -828,7 +820,6 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	int vratio = 0;
 	int hratio = 0;
 	struct spl_taps taps = spl_scratch->scl_data.taps;
-	bool fullscreen = spl_is_video_fullscreen(spl_in);
 
 	/* Return if adaptive sharpness is disabled */
 	if (spl_in->adaptive_sharpness.enable == false)
@@ -845,10 +836,8 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 
 	/*
 	 * Apply sharpness to all RGB surfaces and to
-	 *  NV12/P010 surfaces if in fullscreen
+	 *  NV12/P010 surfaces
 	 */
-	if (spl_is_yuv420(spl_in->basic_in.format) && !fullscreen)
-		return enable_isharp;
 
 	/*
 	 * Apply sharpness if supports horizontal taps 4,6 AND
