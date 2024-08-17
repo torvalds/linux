@@ -266,7 +266,6 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 	struct ksz_port *prt;
 	struct dsa_port *dp;
 	bool tag_en = false;
-	int ret;
 
 	dsa_switch_for_each_user_port(dp, dev->ds) {
 		prt = &dev->ports[dp->index];
@@ -277,9 +276,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 	}
 
 	if (tag_en) {
-		ret = ptp_schedule_worker(ptp_data->clock, 0);
-		if (ret)
-			return ret;
+		ptp_schedule_worker(ptp_data->clock, 0);
 	} else {
 		ptp_cancel_worker_sync(ptp_data->clock);
 	}
