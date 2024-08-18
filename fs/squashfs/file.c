@@ -551,7 +551,6 @@ static void squashfs_readahead(struct readahead_control *ractl)
 		return;
 
 	for (;;) {
-		pgoff_t index;
 		int res, bsize;
 		u64 block = 0;
 		unsigned int expected;
@@ -570,13 +569,8 @@ static void squashfs_readahead(struct readahead_control *ractl)
 		if (readahead_pos(ractl) >= i_size_read(inode))
 			goto skip_pages;
 
-		index = pages[0]->index >> shift;
-
-		if ((pages[nr_pages - 1]->index >> shift) != index)
-			goto skip_pages;
-
-		if (index == file_end && squashfs_i(inode)->fragment_block !=
-						SQUASHFS_INVALID_BLK) {
+		if (start >> msblk->block_log == file_end &&
+				squashfs_i(inode)->fragment_block != SQUASHFS_INVALID_BLK) {
 			res = squashfs_readahead_fragment(pages, nr_pages,
 							  expected);
 			if (res)
@@ -584,7 +578,7 @@ static void squashfs_readahead(struct readahead_control *ractl)
 			continue;
 		}
 
-		bsize = read_blocklist(inode, index, &block);
+		bsize = read_blocklist(inode, start >> msblk->block_log, &block);
 		if (bsize == 0)
 			goto skip_pages;
 
@@ -602,7 +596,7 @@ static void squashfs_readahead(struct readahead_control *ractl)
 
 			/* Last page (if present) may have trailing bytes not filled */
 			bytes = res % PAGE_SIZE;
-			if (index == file_end && bytes && last_page)
+			if (start >> msblk->block_log == file_end && bytes && last_page)
 				memzero_page(last_page, bytes,
 					     PAGE_SIZE - bytes);
 
@@ -616,6 +610,8 @@ static void squashfs_readahead(struct readahead_control *ractl)
 			unlock_page(pages[i]);
 			put_page(pages[i]);
 		}
+
+		start += readahead_batch_length(ractl);
 	}
 
 	kfree(pages);
