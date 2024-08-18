@@ -76,9 +76,13 @@ properties:
     minItems: 1
     maxItems: 3
 
-  clocks: true
+  clocks:
+    minItems: 1
+    maxItems: 4
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    maxItems: 4
 
   dmas:
     minItems: 4
