@@ -475,6 +475,9 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_compression_opt_to_text(out, background_compression(*io_opts));
 	prt_newline(out);
 
+	prt_str(out, "opts.replicas:\t");
+	prt_u64(out, io_opts->data_replicas);
+
 	prt_str(out, "extra replicas:\t");
 	prt_u64(out, data_opts->extra_replicas);
 }

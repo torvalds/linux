@@ -1017,6 +1017,8 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 
 		prt_printf(out, "ptr: %u:%llu:%u gen %u",
 			   ptr->dev, b, offset, ptr->gen);
+		if (ca->mi.durability != 1)
+			prt_printf(out, " d=%u", ca->mi.durability);
 		if (ptr->cached)
 			prt_str(out, " cached");
 		if (ptr->unwritten)
