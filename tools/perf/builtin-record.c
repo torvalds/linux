@@ -2374,13 +2374,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
 
-	if (rec->opts.record_namespaces)
-		tool->namespace_events = true;
-
 	if (rec->opts.record_cgroup) {
-#ifdef HAVE_FILE_HANDLE
-		tool->cgroup_events = true;
-#else
+#ifndef HAVE_FILE_HANDLE
 		pr_err("cgroup tracking is not supported\n");
 		return -1;
 #endif
@@ -2406,6 +2401,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	tool->mmap2		= build_id__process_mmap2;
 	tool->itrace_start	= process_timestamp_boundary;
 	tool->aux		= process_timestamp_boundary;
+	tool->namespace_events	= rec->opts.record_namespaces;
+	tool->cgroup_events	= rec->opts.record_cgroup;
 	session = perf_session__new(data, tool);
 	if (IS_ERR(session)) {
 		pr_err("Perf session creation failed.\n");
