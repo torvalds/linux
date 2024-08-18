@@ -1008,14 +1008,14 @@ static const struct of_device_id ad7124_of_match[] = {
 		.data = &ad7124_chip_info_tbl[ID_AD7124_4], },
 	{ .compatible = "adi,ad7124-8",
 		.data = &ad7124_chip_info_tbl[ID_AD7124_8], },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
 
 static const struct spi_device_id ad71124_ids[] = {
 	{ "ad7124-4", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_4] },
 	{ "ad7124-8", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_8] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad71124_ids);
 

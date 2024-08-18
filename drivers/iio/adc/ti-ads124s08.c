@@ -357,7 +357,7 @@ MODULE_DEVICE_TABLE(spi, ads124s_id);
 static const struct of_device_id ads124s_of_table[] = {
 	{ .compatible = "ti,ads124s06" },
 	{ .compatible = "ti,ads124s08" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ads124s_of_table);
 

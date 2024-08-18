@@ -1052,12 +1052,12 @@ static void ina2xx_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina2xx_id[] = {
-	{"ina219", ina219},
-	{"ina220", ina219},
-	{"ina226", ina226},
-	{"ina230", ina226},
-	{"ina231", ina226},
-	{}
+	{ "ina219", ina219 },
+	{ "ina220", ina219 },
+	{ "ina226", ina226 },
+	{ "ina230", ina226 },
+	{ "ina231", ina226 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
 
@@ -1082,7 +1082,7 @@ static const struct of_device_id ina2xx_of_match[] = {
 		.compatible = "ti,ina231",
 		.data = (void *)ina226
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ina2xx_of_match);
 

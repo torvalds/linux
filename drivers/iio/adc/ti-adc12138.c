@@ -519,7 +519,7 @@ static const struct of_device_id adc12138_dt_ids[] = {
 	{ .compatible = "ti,adc12130", },
 	{ .compatible = "ti,adc12132", },
 	{ .compatible = "ti,adc12138", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adc12138_dt_ids);
 
@@ -527,7 +527,7 @@ static const struct spi_device_id adc12138_id[] = {
 	{ "adc12130", adc12130 },
 	{ "adc12132", adc12132 },
 	{ "adc12138", adc12138 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc12138_id);
 

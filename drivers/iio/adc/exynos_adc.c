@@ -519,7 +519,7 @@ static const struct of_device_id exynos_adc_match[] = {
 		.compatible = "samsung,exynos7-adc",
 		.data = &exynos7_adc_data,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, exynos_adc_match);
 

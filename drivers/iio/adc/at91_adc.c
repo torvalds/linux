@@ -1335,7 +1335,7 @@ static const struct of_device_id at91_adc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g45-adc", .data = &at91sam9g45_caps },
 	{ .compatible = "atmel,at91sam9x5-adc", .data = &at91sam9x5_caps },
 	{ .compatible = "atmel,sama5d3-adc", .data = &sama5d3_caps },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
 

@@ -355,7 +355,7 @@ static int mt6360_adc_probe(struct platform_device *pdev)
 
 static const struct of_device_id mt6360_adc_of_id[] = {
 	{ .compatible = "mediatek,mt6360-adc", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mt6360_adc_of_id);
 

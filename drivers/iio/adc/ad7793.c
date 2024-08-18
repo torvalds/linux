@@ -824,16 +824,16 @@ static int ad7793_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7793_id[] = {
-	{"ad7785", ID_AD7785},
-	{"ad7792", ID_AD7792},
-	{"ad7793", ID_AD7793},
-	{"ad7794", ID_AD7794},
-	{"ad7795", ID_AD7795},
-	{"ad7796", ID_AD7796},
-	{"ad7797", ID_AD7797},
-	{"ad7798", ID_AD7798},
-	{"ad7799", ID_AD7799},
-	{}
+	{ "ad7785", ID_AD7785 },
+	{ "ad7792", ID_AD7792 },
+	{ "ad7793", ID_AD7793 },
+	{ "ad7794", ID_AD7794 },
+	{ "ad7795", ID_AD7795 },
+	{ "ad7796", ID_AD7796 },
+	{ "ad7797", ID_AD7797 },
+	{ "ad7798", ID_AD7798 },
+	{ "ad7799", ID_AD7799 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7793_id);
 
