@@ -549,7 +549,8 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_VEGA20)
 		return false;
 
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(11, 0, 0))
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(11, 0, 0)) &&
+	    amdgpu_device_ip_is_valid(adev, AMD_IP_BLOCK_TYPE_SMC))
 		return true;
 
 	return false;
