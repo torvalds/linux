@@ -484,10 +484,14 @@ static int ak8975_who_i_am(struct i2c_client *client,
 		if (wia_val[1] == AK09916_DEVICE_ID)
 			return 0;
 		break;
-	default:
-		dev_err(&client->dev, "Type %d unknown\n", type);
 	}
-	return -ENODEV;
+
+	dev_info(&client->dev, "Device ID %x is unknown.\n", wia_val[1]);
+	/*
+	 * Let driver to probe on unknown id for support more register
+	 * compatible variants.
+	 */
+	return 0;
 }
 
 /*
