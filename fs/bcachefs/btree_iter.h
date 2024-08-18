@@ -529,6 +529,12 @@ void bch2_set_btree_iter_dontneed(struct btree_iter *);
 
 void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
 
+/**
+ * bch2_trans_kmalloc - allocate memory for use by the current transaction
+ *
+ * Must be called after bch2_trans_begin, which on second and further calls
+ * frees all memory allocated in this transaction
+ */
 static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
 	size = roundup(size, 8);
