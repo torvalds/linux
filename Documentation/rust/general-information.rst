@@ -22,10 +22,17 @@ Rust kernel code is documented using ``rustdoc``, its built-in documentation
 generator.
 
 The generated HTML docs include integrated search, linked items (e.g. types,
-functions, constants), source code, etc. They may be read at (TODO: link when
-in mainline and generated alongside the rest of the documentation):
+functions, constants), source code, etc. They may be read at:
 
-	http://kernel.org/
+	https://rust.docs.kernel.org
+
+For linux-next, please see:
+
+	https://rust.docs.kernel.org/next/
+
+There are also tags for each main release, e.g.:
+
+	https://rust.docs.kernel.org/6.10/
 
 The docs can also be easily generated and read locally. This is quite fast
 (same order as compiling the code itself) and no special tools or environment
