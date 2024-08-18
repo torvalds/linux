@@ -67,7 +67,8 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	 * Create a "page actor" which will kmap and kunmap the
 	 * page cache pages appropriately within the decompressor
 	 */
-	actor = squashfs_page_actor_init_special(msblk, page, pages, expected);
+	actor = squashfs_page_actor_init_special(msblk, page, pages, expected,
+						start_index << PAGE_SHIFT);
 	if (actor == NULL)
 		goto out;
 

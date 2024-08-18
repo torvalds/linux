@@ -29,7 +29,8 @@ extern struct squashfs_page_actor *squashfs_page_actor_init(void **buffer,
 				int pages, int length);
 extern struct squashfs_page_actor *squashfs_page_actor_init_special(
 				struct squashfs_sb_info *msblk,
-				struct page **page, int pages, int length);
+				struct page **page, int pages, int length,
+				loff_t start_index);
 static inline struct page *squashfs_page_actor_free(struct squashfs_page_actor *actor)
 {
 	struct page *last_page = actor->last_page;

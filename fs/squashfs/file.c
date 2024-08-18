@@ -589,7 +589,7 @@ static void squashfs_readahead(struct readahead_control *ractl)
 			goto skip_pages;
 
 		actor = squashfs_page_actor_init_special(msblk, pages, nr_pages,
-							 expected);
+							expected, start);
 		if (!actor)
 			goto skip_pages;
 
