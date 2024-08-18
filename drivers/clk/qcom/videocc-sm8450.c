@@ -46,6 +46,21 @@ static const struct alpha_pll_config video_cc_pll0_config = {
 	.user_ctl_hi_val = 0x00000805,
 };
 
+static const struct alpha_pll_config sm8475_video_cc_pll0_config = {
+	/* .l includes CAL_L_VAL, L_VAL fields */
+	.l = 0x1e,
+	.alpha = 0x0,
+	.config_ctl_val = 0x20485699,
+	.config_ctl_hi_val = 0x00182261,
+	.config_ctl_hi1_val = 0x82aa299c,
+	.test_ctl_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00000005,
+};
+
 static struct clk_alpha_pll video_cc_pll0 = {
 	.offset = 0x0,
 	.vco_table = lucid_evo_vco,
@@ -72,6 +87,21 @@ static const struct alpha_pll_config video_cc_pll1_config = {
 	.config_ctl_hi1_val = 0x32aa299c,
 	.user_ctl_val = 0x00000000,
 	.user_ctl_hi_val = 0x00000805,
+};
+
+static const struct alpha_pll_config sm8475_video_cc_pll1_config = {
+	/* .l includes CAL_L_VAL, L_VAL fields */
+	.l = 0x2b,
+	.alpha = 0xc000,
+	.config_ctl_val = 0x20485699,
+	.config_ctl_hi_val = 0x00182261,
+	.config_ctl_hi1_val = 0x82aa299c,
+	.test_ctl_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00000005,
 };
 
 static struct clk_alpha_pll video_cc_pll1 = {
@@ -397,6 +427,7 @@ static struct qcom_cc_desc video_cc_sm8450_desc = {
 
 static const struct of_device_id video_cc_sm8450_match_table[] = {
 	{ .compatible = "qcom,sm8450-videocc" },
+	{ .compatible = "qcom,sm8475-videocc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, video_cc_sm8450_match_table);
@@ -420,8 +451,19 @@ static int video_cc_sm8450_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
-	clk_lucid_evo_pll_configure(&video_cc_pll0, regmap, &video_cc_pll0_config);
-	clk_lucid_evo_pll_configure(&video_cc_pll1, regmap, &video_cc_pll1_config);
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sm8475-videocc")) {
+		/* Update VideoCC PLL0 */
+		video_cc_pll0.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE];
+
+		/* Update VideoCC PLL1 */
+		video_cc_pll1.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE];
+
+		clk_lucid_ole_pll_configure(&video_cc_pll0, regmap, &sm8475_video_cc_pll0_config);
+		clk_lucid_ole_pll_configure(&video_cc_pll1, regmap, &sm8475_video_cc_pll1_config);
+	} else {
+		clk_lucid_evo_pll_configure(&video_cc_pll0, regmap, &video_cc_pll0_config);
+		clk_lucid_evo_pll_configure(&video_cc_pll1, regmap, &video_cc_pll1_config);
+	}
 
 	/* Keep some clocks always-on */
 	qcom_branch_set_clk_en(regmap, 0x80e4); /* VIDEO_CC_AHB_CLK */
@@ -445,5 +487,5 @@ static struct platform_driver video_cc_sm8450_driver = {
 
 module_platform_driver(video_cc_sm8450_driver);
 
-MODULE_DESCRIPTION("QTI VIDEOCC SM8450 Driver");
+MODULE_DESCRIPTION("QTI VIDEOCC SM8450 / SM8475 Driver");
 MODULE_LICENSE("GPL");
