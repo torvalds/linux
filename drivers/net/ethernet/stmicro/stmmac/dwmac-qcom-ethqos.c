@@ -2832,5 +2832,12 @@ module_init(qcom_ethqos_init_module)
 
 module_exit(qcom_ethqos_exit_module)
 
+#if IS_ENABLED(CONFIG_AQUANTIA_PHY)
+MODULE_SOFTDEP("post: aquantia");
+#endif
+#if IS_ENABLED(CONFIG_MARVELL_PHY)
+MODULE_SOFTDEP("post: marvell");
+#endif
+
 MODULE_DESCRIPTION("Qualcomm ETHQOS driver");
 MODULE_LICENSE("GPL v2");
