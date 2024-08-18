@@ -35,12 +35,15 @@ properties:
     minItems: 2
     maxItems: 3
 
-  clock-names: true
+  clock-names:
+    minItems: 2
+    maxItems: 3
 
   resets:
     maxItems: 2
 
-  reset-names: true
+  reset-names:
+    maxItems: 2
 
   vbus-supply:
     description: A phandle to the regulator for USB VBUS, only for USB host
