@@ -15,6 +15,8 @@ but not `std <https://doc.rust-lang.org/std/>`_. Crates for use in the
 kernel must opt into this behavior using the ``#![no_std]`` attribute.
 
 
+.. _rust_code_documentation:
+
 Code documentation
 ------------------
 
