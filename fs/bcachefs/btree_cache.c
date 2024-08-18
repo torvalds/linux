@@ -974,6 +974,10 @@ retry:
 
 		bch2_btree_node_wait_on_read(b);
 
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			return ERR_PTR(ret);
+
 		/*
 		 * should_be_locked is not set on this path yet, so we need to
 		 * relock it specifically:
