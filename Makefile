@@ -1946,7 +1946,7 @@ clean: $(clean-dirs)
 		-o -name '*.c.[012]*.*' \
 		-o -name '*.ll' \
 		-o -name '*.gcno' \
-		-o -name '*.*.symversions' \) -type f -print \
+		\) -type f -print \
 		-o -name '.tmp_*' -print \
 		| xargs rm -rf
 
