@@ -206,6 +206,28 @@ test_branch_counter() {
   echo "Branch counter test [Success]"
 }
 
+test_cgroup() {
+  echo "Cgroup sampling test"
+  if ! perf record -aB --synth=cgroup --all-cgroups -o "${perfdata}" ${testprog} 2> /dev/null
+  then
+    echo "Cgroup sampling [Skipped not supported]"
+    return
+  fi
+  if ! perf report -i "${perfdata}" -D | grep -q "CGROUP"
+  then
+    echo "Cgroup sampling [Failed missing output]"
+    err=1
+    return
+  fi
+  if ! perf script -i "${perfdata}" -F cgroup | grep -q -v "unknown"
+  then
+    echo "Cgroup sampling [Failed cannot resolve cgroup names]"
+    err=1
+    return
+  fi
+  echo "Cgroup sampling test [Success]"
+}
+
 # raise the limit of file descriptors to minimum
 if [[ $default_fd_limit -lt $min_fd_limit ]]; then
        ulimit -Sn $min_fd_limit
@@ -216,6 +238,7 @@ test_register_capture
 test_system_wide
 test_workload
 test_branch_counter
+test_cgroup
 
 # restore the default value
 ulimit -Sn $default_fd_limit
