@@ -385,6 +385,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 					       const char *event,
 					       const char *symbol,
 					       struct tracepoint *tpoint,
+					       struct module *mod,
 					       int maxactive,
 					       int nargs, bool is_return)
 {
@@ -405,6 +406,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 		tf->fp.entry_handler = fentry_dispatcher;
 
 	tf->tpoint = tpoint;
+	tf->mod = mod;
 	tf->fp.nr_maxactive = maxactive;
 
 	ret = trace_probe_init(&tf->tp, event, group, false, nargs);
@@ -895,7 +897,22 @@ static struct notifier_block tracepoint_module_nb = {
 struct __find_tracepoint_cb_data {
 	const char *tp_name;
 	struct tracepoint *tpoint;
+	struct module *mod;
 };
+
+static void __find_tracepoint_module_cb(struct tracepoint *tp, struct module *mod, void *priv)
+{
+	struct __find_tracepoint_cb_data *data = priv;
+
+	if (!data->tpoint && !strcmp(data->tp_name, tp->name)) {
+		data->tpoint = tp;
+		data->mod = mod;
+		if (!try_module_get(data->mod)) {
+			data->tpoint = NULL;
+			data->mod = NULL;
+		}
+	}
+}
 
 static void __find_tracepoint_cb(struct tracepoint *tp, void *priv)
 {
@@ -905,13 +922,27 @@ static void __find_tracepoint_cb(struct tracepoint *tp, void *priv)
 		data->tpoint = tp;
 }
 
-static struct tracepoint *find_tracepoint(const char *tp_name)
+/*
+ * Find a tracepoint from kernel and module. If the tracepoint is in a module,
+ * this increments the module refcount to prevent unloading until the
+ * trace_fprobe is registered to the list. After registering the trace_fprobe
+ * on the trace_fprobe list, the module refcount is decremented because
+ * tracepoint_probe_module_cb will handle it.
+ */
+static struct tracepoint *find_tracepoint(const char *tp_name,
+					  struct module **tp_mod)
 {
 	struct __find_tracepoint_cb_data data = {
 		.tp_name = tp_name,
+		.mod = NULL,
 	};
 
 	for_each_kernel_tracepoint(__find_tracepoint_cb, &data);
+
+	if (!data.tpoint && IS_ENABLED(CONFIG_MODULES)) {
+		for_each_module_tracepoint(__find_tracepoint_module_cb, &data);
+		*tp_mod = data.mod;
+	}
 
 	return data.tpoint;
 }
@@ -996,6 +1027,7 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 	char abuf[MAX_BTF_ARGS_LEN];
 	char *dbuf = NULL;
 	bool is_tracepoint = false;
+	struct module *tp_mod = NULL;
 	struct tracepoint *tpoint = NULL;
 	struct traceprobe_parse_context ctx = {
 		.flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE,
@@ -1080,7 +1112,7 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 
 	if (is_tracepoint) {
 		ctx.flags |= TPARG_FL_TPOINT;
-		tpoint = find_tracepoint(symbol);
+		tpoint = find_tracepoint(symbol, &tp_mod);
 		if (!tpoint) {
 			trace_probe_log_set_index(1);
 			trace_probe_log_err(0, NO_TRACEPOINT);
@@ -1110,18 +1142,14 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 		goto out;
 
 	/* setup a probe */
-	tf = alloc_trace_fprobe(group, event, symbol, tpoint, maxactive,
-				argc, is_return);
+	tf = alloc_trace_fprobe(group, event, symbol, tpoint, tp_mod,
+				maxactive, argc, is_return);
 	if (IS_ERR(tf)) {
 		ret = PTR_ERR(tf);
 		/* This must return -ENOMEM, else there is a bug */
 		WARN_ON_ONCE(ret != -ENOMEM);
 		goto out;	/* We know tf is not allocated */
 	}
-
-	if (is_tracepoint)
-		tf->mod = __module_text_address(
-				(unsigned long)tf->tpoint->probestub);
 
 	/* parse arguments */
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
@@ -1155,6 +1183,8 @@ static int __trace_fprobe_create(int argc, const char *argv[])
 	}
 
 out:
+	if (tp_mod)
+		module_put(tp_mod);
 	traceprobe_finish_parse(&ctx);
 	trace_probe_log_clear();
 	kfree(new_argv);
