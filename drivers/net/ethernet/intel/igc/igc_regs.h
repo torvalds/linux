@@ -310,6 +310,9 @@
 #define IGC_IPCNFG	0x0E38 /* Internal PHY Configuration */
 #define IGC_EEE_SU	0x0E34 /* EEE Setup */
 
+/* MULTI GBT AN Control Register - reg. 7.32 */
+#define IGC_ANEG_MULTIGBT_AN_CTRL	0x0020
+
 /* EEE ANeg Advertisement Register - reg 7.60 and reg 7.62 */
 #define IGC_ANEG_EEE_AB1	0x003c
 #define IGC_ANEG_EEE_AB2	0x003e
