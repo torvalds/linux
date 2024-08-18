@@ -695,16 +695,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * Increasing replication is an explicit operation triggered by
 	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
 	 */
-	if (!(m->data_opts.write_flags & BCH_WRITE_CACHED) &&
-	    !durability_required) {
-		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
-		m->data_opts.rewrite_ptrs = 0;
-		/* if iter == NULL, it's just a promote */
-		if (iter)
-			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
-		goto out;
-	}
-
 	m->op.nr_replicas = min(durability_removing, durability_required) +
 		m->data_opts.extra_replicas;
 
@@ -716,16 +706,21 @@ int bch2_data_update_init(struct btree_trans *trans,
 	if (!(durability_have + durability_removing))
 		m->op.nr_replicas = max((unsigned) m->op.nr_replicas, 1);
 
-	if (!m->op.nr_replicas) {
-		struct printbuf buf = PRINTBUF;
+	m->op.nr_replicas_required = m->op.nr_replicas;
 
-		bch2_data_update_to_text(&buf, m);
-		WARN(1, "trying to move an extent, but nr_replicas=0\n%s", buf.buf);
-		printbuf_exit(&buf);
+	/*
+	 * It might turn out that we don't need any new replicas, if the
+	 * replicas or durability settings have been changed since the extent
+	 * was written:
+	 */
+	if (!m->op.nr_replicas) {
+		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
+		m->data_opts.rewrite_ptrs = 0;
+		/* if iter == NULL, it's just a promote */
+		if (iter)
+			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
 		goto out;
 	}
-
-	m->op.nr_replicas_required = m->op.nr_replicas;
 
 	if (reserve_sectors) {
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
