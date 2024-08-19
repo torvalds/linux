@@ -1616,7 +1616,8 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 			break;
 		default:
 			if (!ras || !adev->ras_enabled ||
-			    adev->gmc.xgmi.pending_reset) {
+			    (adev->init_lvl->level ==
+			     AMDGPU_INIT_LEVEL_MINIMAL_XGMI)) {
 				if (amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 				    IP_VERSION(11, 0, 2)) {
 					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);

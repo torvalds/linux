@@ -3185,7 +3185,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	 * when the GPU is pending on XGMI reset during probe time
 	 * (Mostly after second bus reset), skip it now
 	 */
-	if (adev->gmc.xgmi.pending_reset)
+	if (adev->init_lvl->level == AMDGPU_INIT_LEVEL_MINIMAL_XGMI)
 		return 0;
 	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
 	/*
