@@ -59,6 +59,17 @@ static struct gpio_device *swnode_get_gpio_device(struct fwnode_handle *fwnode)
 	return gdev ?: ERR_PTR(-EPROBE_DEFER);
 }
 
+static int swnode_gpio_get_reference(const struct fwnode_handle *fwnode,
+				     const char *propname, unsigned int idx,
+				     struct fwnode_reference_args *args)
+{
+	/*
+	 * We expect all swnode-described GPIOs have GPIO number and
+	 * polarity arguments, hence nargs is set to 2.
+	 */
+	return fwnode_property_get_reference_args(fwnode, propname, NULL, 2, idx, args);
+}
+
 struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 				   const char *con_id, unsigned int idx,
 				   unsigned long *flags)
@@ -75,11 +86,7 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 
 	swnode_format_propname(con_id, propname, sizeof(propname));
 
-	/*
-	 * We expect all swnode-described GPIOs have GPIO number and
-	 * polarity arguments, hence nargs is set to 2.
-	 */
-	ret = fwnode_property_get_reference_args(fwnode, propname, NULL, 2, idx, &args);
+	ret = swnode_gpio_get_reference(fwnode, propname, idx, &args);
 	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%pfwP[%d]'\n",
 			__func__, propname, fwnode, idx);
@@ -128,8 +135,7 @@ int swnode_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 	 * 1 or 2 entries.
 	 */
 	count = 0;
-	while (fwnode_property_get_reference_args(fwnode, propname, NULL, 0,
-						  count, &args) == 0) {
+	while (swnode_gpio_get_reference(fwnode, propname, count, &args) == 0) {
 		fwnode_handle_put(args.fwnode);
 		count++;
 	}
