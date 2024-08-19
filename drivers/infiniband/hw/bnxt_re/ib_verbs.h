@@ -171,10 +171,24 @@ static inline u16 bnxt_re_get_rwqe_size(int nsge)
 	return sizeof(struct rq_wqe_hdr) + (nsge * sizeof(struct sq_sge));
 }
 
+enum {
+	BNXT_RE_UCNTX_CAP_POW2_DISABLED = 0x1ULL,
+	BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED = 0x2ULL,
+};
+
 static inline u32 bnxt_re_init_depth(u32 ent, struct bnxt_re_ucontext *uctx)
 {
-	return uctx ? (uctx->cmask & BNXT_RE_UCNTX_CMASK_POW2_DISABLED) ?
+	return uctx ? (uctx->cmask & BNXT_RE_UCNTX_CAP_POW2_DISABLED) ?
 		ent : roundup_pow_of_two(ent) : ent;
+}
+
+static inline bool bnxt_re_is_var_size_supported(struct bnxt_re_dev *rdev,
+						 struct bnxt_re_ucontext *uctx)
+{
+	if (uctx)
+		return uctx->cmask & BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
+	else
+		return rdev->chip_ctx->modes.wqe_mode;
 }
 
 int bnxt_re_query_device(struct ib_device *ibdev,
