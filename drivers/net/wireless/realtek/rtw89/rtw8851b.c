@@ -1587,30 +1587,31 @@ static void rtw8851b_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8851b_aack(rtwdev);
 	rtw8851b_rck(rtwdev);
 	rtw8851b_dack(rtwdev);
-	rtw8851b_rx_dck(rtwdev, RTW89_PHY_0);
+	rtw8851b_rx_dck(rtwdev, RTW89_PHY_0, RTW89_CHANCTX_0);
 }
 
 static void rtw8851b_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
-	rtw8851b_rx_dck(rtwdev, phy_idx);
-	rtw8851b_iqk(rtwdev, phy_idx);
-	rtw8851b_tssi(rtwdev, phy_idx, true);
-	rtw8851b_dpk(rtwdev, phy_idx);
+	rtw8851b_rx_dck(rtwdev, phy_idx, chanctx_idx);
+	rtw8851b_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8851b_tssi(rtwdev, phy_idx, true, chanctx_idx);
+	rtw8851b_dpk(rtwdev, phy_idx, chanctx_idx);
 }
 
 static void rtw8851b_rfk_band_changed(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      const struct rtw89_chan *chan)
 {
-	rtw8851b_tssi_scan(rtwdev, phy_idx);
+	rtw8851b_tssi_scan(rtwdev, phy_idx, chan);
 }
 
 static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      bool start)
 {
-	rtw8851b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
+	rtw8851b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx, rtwvif->chanctx_idx);
 }
 
 static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
