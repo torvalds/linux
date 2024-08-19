@@ -59,6 +59,7 @@ struct dc_dsc_config_options {
 	uint32_t max_target_bpp_limit_override_x16;
 	uint32_t slice_height_granularity;
 	uint32_t dsc_force_odm_hslice_override;
+	bool force_dsc_when_not_needed;
 };
 
 bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
