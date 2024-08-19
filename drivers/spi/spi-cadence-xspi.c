@@ -331,7 +331,7 @@ static struct cdns_xspi_driver_data cdns_driver_data = {
 	.mrvl_hw_overlay = false,
 };
 
-const int cdns_mrvl_xspi_clk_div_list[] = {
+static const int cdns_mrvl_xspi_clk_div_list[] = {
 	4,	//0x0 = Divide by 4.   SPI clock is 200 MHz.
 	6,	//0x1 = Divide by 6.   SPI clock is 133.33 MHz.
 	8,	//0x2 = Divide by 8.   SPI clock is 100 MHz.
