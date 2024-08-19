@@ -809,13 +809,13 @@ static int bnxt_qplib_alloc_init_swq(struct bnxt_qplib_q *que)
 {
 	int indx;
 
-	que->swq = kcalloc(que->max_wqe, sizeof(*que->swq), GFP_KERNEL);
+	que->swq = kcalloc(que->max_sw_wqe, sizeof(*que->swq), GFP_KERNEL);
 	if (!que->swq)
 		return -ENOMEM;
 
 	que->swq_start = 0;
-	que->swq_last = que->max_wqe - 1;
-	for (indx = 0; indx < que->max_wqe; indx++)
+	que->swq_last = que->max_sw_wqe - 1;
+	for (indx = 0; indx < que->max_sw_wqe; indx++)
 		que->swq[indx].next_idx = indx + 1;
 	que->swq[que->swq_last].next_idx = 0; /* Make it circular */
 	que->swq_last = 0;
@@ -851,7 +851,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	hwq_attr.res = res;
 	hwq_attr.sginfo = &sq->sg_info;
 	hwq_attr.stride = sizeof(struct sq_sge);
-	hwq_attr.depth = bnxt_qplib_get_depth(sq);
+	hwq_attr.depth = bnxt_qplib_get_depth(sq, qp->wqe_mode, false);
 	hwq_attr.type = HWQ_TYPE_QUEUE;
 	rc = bnxt_qplib_alloc_init_hwq(&sq->hwq, &hwq_attr);
 	if (rc)
@@ -879,7 +879,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		hwq_attr.res = res;
 		hwq_attr.sginfo = &rq->sg_info;
 		hwq_attr.stride = sizeof(struct sq_sge);
-		hwq_attr.depth = bnxt_qplib_get_depth(rq);
+		hwq_attr.depth = bnxt_qplib_get_depth(rq, qp->wqe_mode, false);
 		hwq_attr.type = HWQ_TYPE_QUEUE;
 		rc = bnxt_qplib_alloc_init_hwq(&rq->hwq, &hwq_attr);
 		if (rc)
@@ -1011,7 +1011,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	hwq_attr.res = res;
 	hwq_attr.sginfo = &sq->sg_info;
 	hwq_attr.stride = sizeof(struct sq_sge);
-	hwq_attr.depth = bnxt_qplib_get_depth(sq);
+	hwq_attr.depth = bnxt_qplib_get_depth(sq, qp->wqe_mode, true);
 	hwq_attr.aux_stride = psn_sz;
 	hwq_attr.aux_depth = psn_sz ? bnxt_qplib_set_sq_size(sq, qp->wqe_mode)
 				    : 0;
@@ -1052,7 +1052,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		hwq_attr.res = res;
 		hwq_attr.sginfo = &rq->sg_info;
 		hwq_attr.stride = sizeof(struct sq_sge);
-		hwq_attr.depth = bnxt_qplib_get_depth(rq);
+		hwq_attr.depth = bnxt_qplib_get_depth(rq, qp->wqe_mode, false);
 		hwq_attr.aux_stride = 0;
 		hwq_attr.aux_depth = 0;
 		hwq_attr.type = HWQ_TYPE_QUEUE;
@@ -2492,7 +2492,7 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 	}
 	sq = &qp->sq;
 
-	cqe_sq_cons = le16_to_cpu(hwcqe->sq_cons_idx) % sq->max_wqe;
+	cqe_sq_cons = le16_to_cpu(hwcqe->sq_cons_idx) % sq->max_sw_wqe;
 	if (qp->sq.flushed) {
 		dev_dbg(&cq->hwq.pdev->dev,
 			"%s: QP in Flush QP = %p\n", __func__, qp);
@@ -2882,7 +2882,7 @@ static int bnxt_qplib_cq_process_terminal(struct bnxt_qplib_cq *cq,
 	cqe_cons = le16_to_cpu(hwcqe->sq_cons_idx);
 	if (cqe_cons == 0xFFFF)
 		goto do_rq;
-	cqe_cons %= sq->max_wqe;
+	cqe_cons %= sq->max_sw_wqe;
 
 	if (qp->sq.flushed) {
 		dev_dbg(&cq->hwq.pdev->dev,
