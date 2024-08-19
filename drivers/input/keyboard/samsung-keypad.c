@@ -318,7 +318,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct input_dev *input_dev;
 	unsigned int row_shift;
-	unsigned int keymap_size;
 	int error;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -345,9 +344,10 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 		pdata->cfg_gpio(pdata->rows, pdata->cols);
 
 	row_shift = get_count_order(pdata->cols);
-	keymap_size = (pdata->rows << row_shift) * sizeof(keypad->keycodes[0]);
 
-	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad) + keymap_size,
+	keypad = devm_kzalloc(&pdev->dev,
+			      struct_size(keypad, keycodes,
+					  pdata->rows << row_shift),
 			      GFP_KERNEL);
 	if (!keypad)
 		return -ENOMEM;
