@@ -19,8 +19,6 @@
 #define SOC_SDW_MAX_CPU_DAIS 16
 #define SOC_SDW_INTEL_BIDIR_PDI_BASE 2
 
-#define SDW_MAX_LINKS		4
-
 /* 8 combinations with 4 links + unused group 0 */
 #define SDW_MAX_GROUPS 9
 
@@ -57,7 +55,7 @@ enum {
 struct intel_mc_ctx {
 	struct sof_hdmi_private hdmi;
 	/* To store SDW Pin index for each SoundWire link */
-	unsigned int sdw_pin_index[SDW_MAX_LINKS];
+	unsigned int sdw_pin_index[SDW_INTEL_MAX_LINKS];
 };
 
 extern unsigned long sof_sdw_quirk;
