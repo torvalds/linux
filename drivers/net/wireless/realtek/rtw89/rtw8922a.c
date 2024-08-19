@@ -1993,10 +1993,12 @@ static void rtw8922a_rfk_init(struct rtw89_dev *rtwdev)
 
 static void rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+
 	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, RTW89_PHY_0, 5);
 
-	rtw89_phy_rfk_dack_and_wait(rtwdev, RTW89_PHY_0, 58);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+	rtw89_phy_rfk_dack_and_wait(rtwdev, RTW89_PHY_0, chan, 58);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, 32);
 }
 
 static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
@@ -2020,8 +2022,10 @@ static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
 
 static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
-	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB, RTW89_CHANCTX_0);
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB, chanctx_idx);
 	u32 tx_en;
 
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_START);
@@ -2029,11 +2033,11 @@ static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtw
 	_wait_rx_mode(rtwdev, RF_AB);
 
 	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
-	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, 54);
-	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, 84);
-	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_NORMAL, 6);
-	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, 34);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, chan, 54);
+	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, chan, 84);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_NORMAL, 6);
+	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, chan, 34);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, 32);
 
 	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_STOP);
@@ -2043,7 +2047,7 @@ static void rtw8922a_rfk_band_changed(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      const struct rtw89_chan *chan)
 {
-	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_SCAN, 6);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_SCAN, 6);
 }
 
 static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,

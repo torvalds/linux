@@ -3084,6 +3084,7 @@ EXPORT_SYMBOL(rtw89_phy_rfk_pre_ntfy_and_wait);
 
 int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				enum rtw89_tssi_mode tssi_mode,
 				unsigned int ms)
 {
@@ -3091,7 +3092,7 @@ int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_tssi(rtwdev, phy_idx, tssi_mode);
+	ret = rtw89_fw_h2c_rf_tssi(rtwdev, phy_idx, chan, tssi_mode);
 	if (ret)
 		return ret;
 
@@ -3101,13 +3102,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_tssi_and_wait);
 
 int rtw89_phy_rfk_iqk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_iqk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_iqk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3117,13 +3119,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_iqk_and_wait);
 
 int rtw89_phy_rfk_dpk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_dpk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_dpk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3133,13 +3136,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_dpk_and_wait);
 
 int rtw89_phy_rfk_txgapk_and_wait(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
+				  const struct rtw89_chan *chan,
 				  unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_txgapk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_txgapk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3149,13 +3153,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_txgapk_and_wait);
 
 int rtw89_phy_rfk_dack_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_dack(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_dack(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3165,13 +3170,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_dack_and_wait);
 
 int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx,
+				 const struct rtw89_chan *chan,
 				 unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
