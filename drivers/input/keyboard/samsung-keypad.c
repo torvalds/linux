@@ -44,8 +44,7 @@
 #define S5PV210_KEYIFSTSCLR_R_INT_OFFSET	16
 
 /* SAMSUNG_KEYIFCOL */
-#define SAMSUNG_KEYIFCOL_MASK			(0xff << 0)
-#define S5PV210_KEYIFCOLEN_MASK			(0xff << 8)
+#define SAMSUNG_KEYIFCOL_MASK			0xff
 
 /* SAMSUNG_KEYIFROW */
 #define SAMSUNG_KEYIFROW_MASK			(0xff << 0)
@@ -54,12 +53,12 @@
 /* SAMSUNG_KEYIFFC */
 #define SAMSUNG_KEYIFFC_MASK			(0x3ff << 0)
 
-enum samsung_keypad_type {
-	KEYPAD_TYPE_SAMSUNG,
-	KEYPAD_TYPE_S5PV210,
+struct samsung_chip_info {
+	unsigned int column_shift;
 };
 
 struct samsung_keypad {
+	const struct samsung_chip_info *chip;
 	struct input_dev *input_dev;
 	struct platform_device *pdev;
 	struct clk *clk;
@@ -68,7 +67,6 @@ struct samsung_keypad {
 	bool stopped;
 	bool wake_enabled;
 	int irq;
-	enum samsung_keypad_type type;
 	unsigned int row_shift;
 	unsigned int rows;
 	unsigned int cols;
@@ -83,13 +81,8 @@ static void samsung_keypad_scan(struct samsung_keypad *keypad,
 	unsigned int val;
 
 	for (col = 0; col < keypad->cols; col++) {
-		if (keypad->type == KEYPAD_TYPE_S5PV210) {
-			val = S5PV210_KEYIFCOLEN_MASK;
-			val &= ~(1 << col) << 8;
-		} else {
-			val = SAMSUNG_KEYIFCOL_MASK;
-			val &= ~(1 << col);
-		}
+		val = SAMSUNG_KEYIFCOL_MASK & ~(1 << col);
+		val <<= keypad->chip->column_shift;
 
 		writel(val, keypad->base + SAMSUNG_KEYIFCOL);
 		mdelay(1);
@@ -314,6 +307,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 {
 	const struct samsung_keypad_platdata *pdata;
 	const struct matrix_keymap_data *keymap_data;
+	const struct platform_device_id *id;
 	struct samsung_keypad *keypad;
 	struct resource *res;
 	struct input_dev *input_dev;
@@ -378,11 +372,17 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	keypad->stopped = true;
 	init_waitqueue_head(&keypad->wait);
 
-	if (pdev->dev.of_node)
-		keypad->type = of_device_is_compatible(pdev->dev.of_node,
-					"samsung,s5pv210-keypad");
-	else
-		keypad->type = platform_get_device_id(pdev)->driver_data;
+	keypad->chip = device_get_match_data(&pdev->dev);
+	if (!keypad->chip) {
+		id = platform_get_device_id(pdev);
+		if (id)
+			keypad->chip = (const void *)id->driver_data;
+	}
+
+	if (!keypad->chip) {
+		dev_err(&pdev->dev, "Unable to determine chip type");
+		return -EINVAL;
+	}
 
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
@@ -542,11 +542,24 @@ static const struct dev_pm_ops samsung_keypad_pm_ops = {
 		       samsung_keypad_runtime_resume, NULL)
 };
 
+static const struct samsung_chip_info samsung_s3c6410_chip_info = {
+	.column_shift = 0,
+};
+
+static const struct samsung_chip_info samsung_s5pv210_chip_info = {
+	.column_shift = 8,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id samsung_keypad_dt_match[] = {
-	{ .compatible = "samsung,s3c6410-keypad" },
-	{ .compatible = "samsung,s5pv210-keypad" },
-	{},
+	{
+		.compatible = "samsung,s3c6410-keypad",
+		.data = &samsung_s3c6410_chip_info,
+	}, {
+		.compatible = "samsung,s5pv210-keypad",
+		.data = &samsung_s5pv210_chip_info,
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
 #endif
@@ -554,12 +567,12 @@ MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
 static const struct platform_device_id samsung_keypad_driver_ids[] = {
 	{
 		.name		= "samsung-keypad",
-		.driver_data	= KEYPAD_TYPE_SAMSUNG,
+		.driver_data	= (kernel_ulong_t)&samsung_s3c6410_chip_info,
 	}, {
 		.name		= "s5pv210-keypad",
-		.driver_data	= KEYPAD_TYPE_S5PV210,
+		.driver_data	= (kernel_ulong_t)&samsung_s5pv210_chip_info,
 	},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, samsung_keypad_driver_ids);
 
