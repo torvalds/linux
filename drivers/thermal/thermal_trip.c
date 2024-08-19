@@ -55,12 +55,6 @@ int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL_GPL(thermal_zone_for_each_trip);
 
-int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
-{
-	return tz->num_trips;
-}
-EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
-
 /**
  * thermal_zone_set_trips - Computes the next trip points for the driver
  * @tz: a pointer to a thermal zone device structure
@@ -114,20 +108,6 @@ void thermal_zone_set_trips(struct thermal_zone_device *tz)
 		dev_err(&tz->device, "Failed to set trips: %d\n", ret);
 }
 
-int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
-			  struct thermal_trip *trip)
-{
-	if (!tz || !trip || trip_id < 0 || trip_id >= tz->num_trips)
-		return -EINVAL;
-
-	mutex_lock(&tz->lock);
-	*trip = tz->trips[trip_id].trip;
-	mutex_unlock(&tz->lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(thermal_zone_get_trip);
-
 int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip)
 {
@@ -138,11 +118,11 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 	return trip_to_trip_desc(trip) - tz->trips;
 }
 
-void thermal_zone_trip_updated(struct thermal_zone_device *tz,
-			       const struct thermal_trip *trip)
+void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,
+				struct thermal_trip *trip, int hyst)
 {
+	WRITE_ONCE(trip->hysteresis, hyst);
 	thermal_notify_tz_trip_change(tz, trip);
-	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 }
 
 void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
