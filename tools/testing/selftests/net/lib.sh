@@ -146,6 +146,7 @@ cleanup_ns()
 
 	for ns in "$@"; do
 		[ -z "${ns}" ] && continue
+		ip netns pids "${ns}" 2> /dev/null | xargs -r kill || true
 		ip netns delete "${ns}" &> /dev/null || true
 		if ! busywait $BUSYWAIT_TIMEOUT ip netns list \| grep -vq "^$ns$" &> /dev/null; then
 			echo "Warn: Failed to remove namespace $ns"

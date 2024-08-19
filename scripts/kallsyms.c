@@ -5,8 +5,7 @@
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
- * Usage: kallsyms [--all-symbols] [--absolute-percpu]
- *                         [--lto-clang] in.map > out.S
+ * Usage: kallsyms [--all-symbols] [--absolute-percpu]  in.map > out.S
  *
  *      Table compression uses all the unused char codes on the symbols and
  *  maps these to the most used substrings (tokens). For instance, it might
@@ -62,7 +61,6 @@ static struct sym_entry **table;
 static unsigned int table_size, table_cnt;
 static int all_symbols;
 static int absolute_percpu;
-static int lto_clang;
 
 static int token_profit[0x10000];
 
@@ -73,8 +71,7 @@ static unsigned char best_table_len[256];
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] "
-			"[--lto-clang] in.map > out.S\n");
+	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] in.map > out.S\n");
 	exit(1);
 }
 
@@ -344,25 +341,6 @@ static bool symbol_absolute(const struct sym_entry *s)
 	return s->percpu_absolute;
 }
 
-static void cleanup_symbol_name(char *s)
-{
-	char *p;
-
-	/*
-	 * ASCII[.]   = 2e
-	 * ASCII[0-9] = 30,39
-	 * ASCII[A-Z] = 41,5a
-	 * ASCII[_]   = 5f
-	 * ASCII[a-z] = 61,7a
-	 *
-	 * As above, replacing the first '.' in ".llvm." with '\0' does not
-	 * affect the main sorting, but it helps us with subsorting.
-	 */
-	p = strstr(s, ".llvm.");
-	if (p)
-		*p = '\0';
-}
-
 static int compare_names(const void *a, const void *b)
 {
 	int ret;
@@ -525,10 +503,6 @@ static void write_src(void)
 	output_label("kallsyms_relative_base");
 	output_address(relative_base);
 	printf("\n");
-
-	if (lto_clang)
-		for (i = 0; i < table_cnt; i++)
-			cleanup_symbol_name((char *)table[i]->sym);
 
 	sort_symbols_by_name();
 	output_label("kallsyms_seqs_of_names");
@@ -807,7 +781,6 @@ int main(int argc, char **argv)
 		static const struct option long_options[] = {
 			{"all-symbols",     no_argument, &all_symbols,     1},
 			{"absolute-percpu", no_argument, &absolute_percpu, 1},
-			{"lto-clang",       no_argument, &lto_clang,       1},
 			{},
 		};
 
