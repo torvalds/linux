@@ -781,7 +781,7 @@ struct thermal_zone_device *thermal_zone_get_by_id(int id)
  *
  * Return: 0 on success, the proper error value otherwise.
  */
-int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
+static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 				     const struct thermal_trip *trip,
 				     struct thermal_cooling_device *cdev,
 				     unsigned long upper, unsigned long lower,
@@ -885,7 +885,6 @@ free_mem:
 	kfree(dev);
 	return result;
 }
-EXPORT_SYMBOL_GPL(thermal_bind_cdev_to_trip);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     int trip_index,
@@ -921,9 +920,9 @@ EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
  *
  * Return: 0 on success, the proper error value otherwise.
  */
-int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
-				  const struct thermal_trip *trip,
-				  struct thermal_cooling_device *cdev)
+static int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
+					 const struct thermal_trip *trip,
+					 struct thermal_cooling_device *cdev)
 {
 	struct thermal_instance *pos, *next;
 
@@ -953,7 +952,6 @@ unbind:
 	kfree(pos);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(thermal_unbind_cdev_from_trip);
 
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 				       int trip_index,
