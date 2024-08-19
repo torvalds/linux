@@ -209,6 +209,16 @@
 };
 
 &gpio1 {
+	gpio-line-names =
+		/* 00 */ "", "", "USB_C_ALERT#", "PMIC_IRQ#",
+		/* 04 */ "", "", "", "",
+		/* 08 */ "", "", "", "BM2_TEMP_EVENT_MOD#",
+		/* 12 */ "PEX_INT#", "", "RTC_EVENT#", "",
+		/* 16 */ "", "", "", "",
+		/* 20 */ "", "", "", "",
+		/* 24 */ "", "", "", "",
+		/* 28 */ "", "", "", "";
+
 	expander-irq-hog {
 		gpio-hog;
 		gpios = <12 GPIO_ACTIVE_LOW>;
@@ -227,21 +237,60 @@
 &gpio2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio2>;
+
+	gpio-line-names =
+		/* 00 */ "", "", "", "",
+		/* 04 */ "", "", "", "AFE_RESET#",
+		/* 08 */ "AFE_SYNC", "AFE_DRDY", "MIPI_CSI_TRIGGER", "MIPI_CSI_SYNC",
+		/* 12 */ "", "", "", "",
+		/* 16 */ "X1_19", "X1_29", "X1_25", "X1_21",
+		/* 20 */ "X1_23", "X1_17", "", "",
+		/* 24 */ "AFE_INT#", "", "X1_15", "",
+		/* 28 */ "", "", "", "";
 };
 
 &gpio3 {
+	gpio-line-names =
+		/* 00 */ "SD2_CD#", "", "", "",
+		/* 04 */ "", "", "", "SD2_RST#",
+		/* 08 */ "", "", "", "",
+		/* 12 */ "", "", "", "",
+		/* 16 */ "", "", "", "",
+		/* 20 */ "", "", "", "",
+		/* 24 */ "", "", "ENET1_INT#", "ENET2_INT#",
+		/* 28 */ "", "", "", "";
+
 	ethphy-eqos-irq-hog {
 		gpio-hog;
 		gpios = <26 GPIO_ACTIVE_LOW>;
 		input;
-		line-name = "ENET0_IRQ#";
+		line-name = "ENET1_INT#";
 	};
 
 	ethphy-fec-irq-hog {
 		gpio-hog;
 		gpios = <27 GPIO_ACTIVE_LOW>;
 		input;
-		line-name = "ENET1_IRQ#";
+		line-name = "ENET2_INT#";
+	};
+};
+
+&gpio4 {
+	gpio-line-names =
+		/* 00 */ "", "", "", "",
+		/* 04 */ "", "", "", "",
+		/* 08 */ "", "", "", "",
+		/* 12 */ "", "", "", "",
+		/* 16 */ "", "", "", "",
+		/* 20 */ "", "", "", "",
+		/* 24 */ "", "", "", "",
+		/* 28 */ "", "DP_INT", "", "";
+
+	dp-int-hog {
+		gpio-hog;
+		gpios = <29 GPIO_ACTIVE_LOW>;
+		input;
+		line-name = "DP_INT";
 	};
 };
 
@@ -378,7 +427,7 @@
 		#gpio-cells = <2>;
 		vcc-supply = <&reg_3v3>;
 		gpio-line-names = "LCD_RESET#", "LCD_PWR_EN",
-				  "LCD_BL_EN", "DP_EN",
+				  "LCD_BLT_EN", "DP_EN",
 				  "MIPI_CSI_EN", "MIPI_CSI_RST#",
 				  "USER_LED1", "USER_LED2";
 	};
