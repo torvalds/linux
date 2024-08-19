@@ -10,6 +10,7 @@
 #include <dt-bindings/clock/qcom,sa8775p-gpucc.h>
 #include <dt-bindings/interconnect/qcom,sa8775p-rpmh.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
+#include <dt-bindings/firmware/qcom,scm.h>
 #include <dt-bindings/power/qcom,rpmhpd.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
@@ -3998,6 +3999,190 @@
 
 				label = "cdsp";
 				qcom,remote-pid = <5>;
+
+				fastrpc {
+					compatible = "qcom,fastrpc";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					label = "cdsp";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					compute-cb@1 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <1>;
+						iommus = <&apps_smmu 0x2141 0x04a0>,
+							 <&apps_smmu 0x2161 0x04a0>,
+							 <&apps_smmu 0x2181 0x0400>,
+							 <&apps_smmu 0x21c1 0x04a0>,
+							 <&apps_smmu 0x21e1 0x04a0>,
+							 <&apps_smmu 0x2541 0x04a0>,
+							 <&apps_smmu 0x2561 0x04a0>,
+							 <&apps_smmu 0x2581 0x0400>,
+							 <&apps_smmu 0x25c1 0x04a0>,
+							 <&apps_smmu 0x25e1 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@2 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <2>;
+						iommus = <&apps_smmu 0x2142 0x04a0>,
+							 <&apps_smmu 0x2162 0x04a0>,
+							 <&apps_smmu 0x2182 0x0400>,
+							 <&apps_smmu 0x21c2 0x04a0>,
+							 <&apps_smmu 0x21e2 0x04a0>,
+							 <&apps_smmu 0x2542 0x04a0>,
+							 <&apps_smmu 0x2562 0x04a0>,
+							 <&apps_smmu 0x2582 0x0400>,
+							 <&apps_smmu 0x25c2 0x04a0>,
+							 <&apps_smmu 0x25e2 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@3 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <3>;
+						iommus = <&apps_smmu 0x2143 0x04a0>,
+							 <&apps_smmu 0x2163 0x04a0>,
+							 <&apps_smmu 0x2183 0x0400>,
+							 <&apps_smmu 0x21c3 0x04a0>,
+							 <&apps_smmu 0x21e3 0x04a0>,
+							 <&apps_smmu 0x2543 0x04a0>,
+							 <&apps_smmu 0x2563 0x04a0>,
+							 <&apps_smmu 0x2583 0x0400>,
+							 <&apps_smmu 0x25c3 0x04a0>,
+							 <&apps_smmu 0x25e3 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@4 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <4>;
+						iommus = <&apps_smmu 0x2144 0x04a0>,
+							 <&apps_smmu 0x2164 0x04a0>,
+							 <&apps_smmu 0x2184 0x0400>,
+							 <&apps_smmu 0x21c4 0x04a0>,
+							 <&apps_smmu 0x21e4 0x04a0>,
+							 <&apps_smmu 0x2544 0x04a0>,
+							 <&apps_smmu 0x2564 0x04a0>,
+							 <&apps_smmu 0x2584 0x0400>,
+							 <&apps_smmu 0x25c4 0x04a0>,
+							 <&apps_smmu 0x25e4 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@5 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <5>;
+						iommus = <&apps_smmu 0x2145 0x04a0>,
+							 <&apps_smmu 0x2165 0x04a0>,
+							 <&apps_smmu 0x2185 0x0400>,
+							 <&apps_smmu 0x21c5 0x04a0>,
+							 <&apps_smmu 0x21e5 0x04a0>,
+							 <&apps_smmu 0x2545 0x04a0>,
+							 <&apps_smmu 0x2565 0x04a0>,
+							 <&apps_smmu 0x2585 0x0400>,
+							 <&apps_smmu 0x25c5 0x04a0>,
+							 <&apps_smmu 0x25e5 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@6 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <6>;
+						iommus = <&apps_smmu 0x2146 0x04a0>,
+							 <&apps_smmu 0x2166 0x04a0>,
+							 <&apps_smmu 0x2186 0x0400>,
+							 <&apps_smmu 0x21c6 0x04a0>,
+							 <&apps_smmu 0x21e6 0x04a0>,
+							 <&apps_smmu 0x2546 0x04a0>,
+							 <&apps_smmu 0x2566 0x04a0>,
+							 <&apps_smmu 0x2586 0x0400>,
+							 <&apps_smmu 0x25c6 0x04a0>,
+							 <&apps_smmu 0x25e6 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@7 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <7>;
+						iommus = <&apps_smmu 0x2147 0x04a0>,
+							 <&apps_smmu 0x2167 0x04a0>,
+							 <&apps_smmu 0x2187 0x0400>,
+							 <&apps_smmu 0x21c7 0x04a0>,
+							 <&apps_smmu 0x21e7 0x04a0>,
+							 <&apps_smmu 0x2547 0x04a0>,
+							 <&apps_smmu 0x2567 0x04a0>,
+							 <&apps_smmu 0x2587 0x0400>,
+							 <&apps_smmu 0x25c7 0x04a0>,
+							 <&apps_smmu 0x25e7 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@8 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <8>;
+						iommus = <&apps_smmu 0x2148 0x04a0>,
+							 <&apps_smmu 0x2168 0x04a0>,
+							 <&apps_smmu 0x2188 0x0400>,
+							 <&apps_smmu 0x21c8 0x04a0>,
+							 <&apps_smmu 0x21e8 0x04a0>,
+							 <&apps_smmu 0x2548 0x04a0>,
+							 <&apps_smmu 0x2568 0x04a0>,
+							 <&apps_smmu 0x2588 0x0400>,
+							 <&apps_smmu 0x25c8 0x04a0>,
+							 <&apps_smmu 0x25e8 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@9 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <9>;
+						iommus = <&apps_smmu 0x2149 0x04a0>,
+							 <&apps_smmu 0x2169 0x04a0>,
+							 <&apps_smmu 0x2189 0x0400>,
+							 <&apps_smmu 0x21c9 0x04a0>,
+							 <&apps_smmu 0x21e9 0x04a0>,
+							 <&apps_smmu 0x2549 0x04a0>,
+							 <&apps_smmu 0x2569 0x04a0>,
+							 <&apps_smmu 0x2589 0x0400>,
+							 <&apps_smmu 0x25c9 0x04a0>,
+							 <&apps_smmu 0x25e9 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@10 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <10>;
+						iommus = <&apps_smmu 0x214a 0x04a0>,
+							 <&apps_smmu 0x216a 0x04a0>,
+							 <&apps_smmu 0x218a 0x0400>,
+							 <&apps_smmu 0x21ca 0x04a0>,
+							 <&apps_smmu 0x21ea 0x04a0>,
+							 <&apps_smmu 0x254a 0x04a0>,
+							 <&apps_smmu 0x256a 0x04a0>,
+							 <&apps_smmu 0x258a 0x0400>,
+							 <&apps_smmu 0x25ca 0x04a0>,
+							 <&apps_smmu 0x25ea 0x04a0>;
+						dma-coherent;
+					};
+
+					compute-cb@11 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <11>;
+						iommus = <&apps_smmu 0x214b 0x04a0>,
+							 <&apps_smmu 0x216b 0x04a0>,
+							 <&apps_smmu 0x218b 0x0400>,
+							 <&apps_smmu 0x21cb 0x04a0>,
+							 <&apps_smmu 0x21eb 0x04a0>,
+							 <&apps_smmu 0x254b 0x04a0>,
+							 <&apps_smmu 0x256b 0x04a0>,
+							 <&apps_smmu 0x258b 0x0400>,
+							 <&apps_smmu 0x25cb 0x04a0>,
+							 <&apps_smmu 0x25eb 0x04a0>;
+						dma-coherent;
+					};
+				};
 			};
 		};
 
@@ -4300,6 +4485,39 @@
 
 				label = "lpass";
 				qcom,remote-pid = <2>;
+
+				fastrpc {
+					compatible = "qcom,fastrpc";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					label = "adsp";
+					memory-region = <&adsp_rpc_remote_heap_mem>;
+					qcom,vmids = <QCOM_SCM_VMID_LPASS
+							  QCOM_SCM_VMID_ADSP_HEAP>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					compute-cb@3 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <3>;
+						iommus = <&apps_smmu 0x3003 0x0>;
+						dma-coherent;
+					};
+
+					compute-cb@4 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <4>;
+						iommus = <&apps_smmu 0x3004 0x0>;
+						dma-coherent;
+					};
+
+					compute-cb@5 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <5>;
+						iommus = <&apps_smmu 0x3005 0x0>;
+						qcom,nsessions = <5>;
+						dma-coherent;
+					};
+				};
 			};
 		};
 	};
