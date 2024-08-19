@@ -383,7 +383,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->open = samsung_keypad_open;
 	input_dev->close = samsung_keypad_close;
