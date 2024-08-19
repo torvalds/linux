@@ -609,7 +609,7 @@ static int acpi_thermal_bind_unbind_cdev(struct thermal_zone_device *thermal,
 		.thermal = thermal, .cdev = cdev, .bind = bind
 	};
 
-	return for_each_thermal_trip(thermal, bind_unbind_cdev_cb, &bd);
+	return thermal_zone_for_each_trip(thermal, bind_unbind_cdev_cb, &bd);
 }
 
 static int
