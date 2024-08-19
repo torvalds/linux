@@ -236,7 +236,6 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 			      unsigned int image_length)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int tx_count, fw_qualifier, val;
 	int ret;
 
@@ -265,8 +264,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_DESTINATION_ADDR, dest_addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_MSG_LENGTH, image_length);
 
-	/* psp_send_cmd only required for vangogh platform (rev - 5) */
-	if (desc->rev == 5 && !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
+	/* psp_send_cmd only required for vangogh platform */
+	if (adata->pci_rev == ACP_VANGOGH_PCI_ID &&
+	    !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
 		/* Modify IRAM and DRAM size */
 		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
 		if (ret)
@@ -285,8 +285,8 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return ret;
 	}
 
-	/* psp_send_cmd only required for renoir platform (rev - 3) */
-	if (desc->rev == 3) {
+	/* psp_send_cmd only required for renoir platform*/
+	if (adata->pci_rev == ACP_RN_PCI_ID) {
 		ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 		if (ret)
 			return ret;
@@ -405,7 +405,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, ACP_ERROR_IRQ_MASK);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_sw0_i2s_err_reason, 0);
 		/* ACP_SW1_I2S_ERROR_REASON is newly added register from rmb platform onwards */
-		if (desc->rev >= 6)
+		if (adata->pci_rev >= ACP_RMB_PCI_ID)
 			snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SW1_I2S_ERROR_REASON, 0);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_error_stat, 0);
 		irq_flag = 1;
@@ -431,6 +431,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 static int acp_power_on(struct snd_sof_dev *sdev)
 {
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	unsigned int base = desc->pgfsm_base;
 	unsigned int val;
 	unsigned int acp_pgfsm_status_mask, acp_pgfsm_cntl_mask;
@@ -441,13 +442,14 @@ static int acp_power_on(struct snd_sof_dev *sdev)
 	if (val == ACP_POWERED_ON)
 		return 0;
 
-	switch (desc->rev) {
-	case 3:
-	case 5:
+	switch (adata->pci_rev) {
+	case ACP_RN_PCI_ID:
+	case ACP_VANGOGH_PCI_ID:
 		acp_pgfsm_status_mask = ACP3X_PGFSM_STATUS_MASK;
 		acp_pgfsm_cntl_mask = ACP3X_PGFSM_CNTL_POWER_ON_MASK;
 		break;
-	case 6:
+	case ACP_RMB_PCI_ID:
+	case ACP63_PCI_ID:
 		acp_pgfsm_status_mask = ACP6X_PGFSM_STATUS_MASK;
 		acp_pgfsm_cntl_mask = ACP6X_PGFSM_CNTL_POWER_ON_MASK;
 		break;
