@@ -427,12 +427,12 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 
 	/* print type info */
 	if (be->indent == 0 && !member->var_name) {
-		ui_browser__printf(uib, " %10d %10d  %s%s",
+		ui_browser__printf(uib, " %#10x %#10x  %s%s",
 				   member->offset, member->size,
 				   member->type_name,
 				   list_empty(&member->children) || be->folded? ";" : " {");
 	} else {
-		ui_browser__printf(uib, " %10d %10d  %*s%s\t%s%s",
+		ui_browser__printf(uib, " %#10x %#10x  %*s%s\t%s%s",
 				   member->offset, member->size,
 				   be->indent * 4, "", member->type_name,
 				   member->var_name ?: "",

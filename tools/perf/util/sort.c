@@ -2312,7 +2312,7 @@ static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 				 he->mem_type_off, true);
 	buf[4095] = '\0';
 
-	return repsep_snprintf(bf, size, "%s %+d (%s)", he_type->self.type_name,
+	return repsep_snprintf(bf, size, "%s +%#x (%s)", he_type->self.type_name,
 			       he->mem_type_off, buf);
 }
 

@@ -1704,7 +1704,7 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 		nr_events++;
 	}
 
-	printf(" %10d %10d  %*s%s\t%s",
+	printf(" %#10x %#10x  %*s%s\t%s",
 	       member->offset, member->size, indent, "", member->type_name,
 	       member->var_name ?: "");
 
