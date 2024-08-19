@@ -58,12 +58,12 @@ __retval(33)
 SEC("tc")
 int tailcall_bpf2bpf_hierarchy_2(struct __sk_buff *skb)
 {
-	volatile int ret = 0;
+	int ret = 0;
 
 	subprog_tail0(skb);
 	subprog_tail1(skb);
 
-	asm volatile (""::"r+"(ret));
+	__sink(ret);
 	return (count1 << 16) | count0;
 }
 
