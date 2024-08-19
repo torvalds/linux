@@ -353,22 +353,17 @@ static int __init cros_ec_dev_init(void)
 {
 	int ret;
 
-	ret  = class_register(&cros_class);
+	ret = class_register(&cros_class);
 	if (ret) {
 		pr_err(CROS_EC_DEV_NAME ": failed to register device class\n");
 		return ret;
 	}
 
-	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_dev_driver);
-	if (ret < 0) {
+	if (ret) {
 		pr_warn(CROS_EC_DEV_NAME ": can't register driver: %d\n", ret);
-		goto failed_devreg;
+		class_unregister(&cros_class);
 	}
-	return 0;
-
-failed_devreg:
-	class_unregister(&cros_class);
 	return ret;
 }
 
