@@ -67,7 +67,7 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 	struct fwnode_reference_args args;
 	struct gpio_desc *desc;
 	char propname[32]; /* 32 is max size of property name */
-	int error;
+	int ret;
 
 	swnode = to_software_node(fwnode);
 	if (!swnode)
@@ -79,11 +79,11 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 	 * We expect all swnode-described GPIOs have GPIO number and
 	 * polarity arguments, hence nargs is set to 2.
 	 */
-	error = fwnode_property_get_reference_args(fwnode, propname, NULL, 2, idx, &args);
-	if (error) {
+	ret = fwnode_property_get_reference_args(fwnode, propname, NULL, 2, idx, &args);
+	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%pfwP[%d]'\n",
 			__func__, propname, fwnode, idx);
-		return ERR_PTR(error);
+		return ERR_PTR(ret);
 	}
 
 	struct gpio_device *gdev __free(gpio_device_put) =
