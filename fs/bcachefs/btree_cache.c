@@ -671,9 +671,7 @@ struct btree *bch2_btree_node_mem_alloc(struct btree_trans *trans, bool pcpu_rea
 		: &bc->freed_nonpcpu;
 	struct btree *b, *b2;
 	u64 start_time = local_clock();
-	unsigned flags;
 
-	flags = memalloc_nofs_save();
 	mutex_lock(&bc->lock);
 
 	/*
@@ -745,8 +743,6 @@ out:
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_mem_alloc],
 			       start_time);
 
-	memalloc_nofs_restore(flags);
-
 	int ret = bch2_trans_relock(trans);
 	if (unlikely(ret)) {
 		bch2_btree_node_to_freelist(c, b);
@@ -781,7 +777,6 @@ err:
 	}
 
 	mutex_unlock(&bc->lock);
-	memalloc_nofs_restore(flags);
 	return ERR_PTR(-BCH_ERR_ENOMEM_btree_node_mem_alloc);
 }
 
