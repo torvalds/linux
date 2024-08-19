@@ -89,14 +89,13 @@ static inline struct gpio_device *to_gpio_device(struct device *dev)
 	return container_of(dev, struct gpio_device, dev);
 }
 
-/* gpio suffixes used for ACPI and device tree lookup */
+/* GPIO suffixes used for ACPI and device tree lookup */
 extern const char *const gpio_suffixes[];
-extern const size_t gpio_suffix_count;
 
 #define for_each_gpio_property_name(propname, con_id)					\
-	for (unsigned int __i = 0;							\
-	     __i < gpio_suffix_count && ({						\
-		     const char *__gs = gpio_suffixes[__i];				\
+	for (const char * const *__suffixes = gpio_suffixes;				\
+	     *__suffixes && ({								\
+		const char *__gs = *__suffixes;						\
 											\
 		if (con_id)								\
 			snprintf(propname, sizeof(propname), "%s-%s", con_id, __gs);	\
@@ -104,7 +103,7 @@ extern const size_t gpio_suffix_count;
 			snprintf(propname, sizeof(propname), "%s", __gs);		\
 		1;									\
 	     });									\
-	     __i++)
+	     __suffixes++)
 
 /**
  * struct gpio_array - Opaque descriptor for a structure of GPIO array attributes
