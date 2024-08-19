@@ -212,6 +212,9 @@ OPTIONS for 'perf sched timehist'
 --state::
 	Show task state when it switched out.
 
+--show-prio::
+	Show task priority.
+
 OPTIONS for 'perf sched replay'
 ------------------------------
 
