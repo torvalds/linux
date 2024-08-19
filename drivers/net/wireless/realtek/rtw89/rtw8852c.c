@@ -1817,7 +1817,7 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 				       RTW89_SCH_TX_SEL_ALL);
 		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, false);
 		rtw8852c_dfs_en(rtwdev, false);
-		rtw8852c_tssi_cont_en_phyidx(rtwdev, false, phy_idx);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, false, phy_idx, chan);
 		rtw8852c_adc_en(rtwdev, false);
 		fsleep(40);
 		rtw8852c_bb_reset_en(rtwdev, chan->band_type, phy_idx, false);
@@ -1825,7 +1825,7 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, true);
 		rtw8852c_adc_en(rtwdev, true);
 		rtw8852c_dfs_en(rtwdev, true);
-		rtw8852c_tssi_cont_en_phyidx(rtwdev, true, phy_idx);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, true, phy_idx, chan);
 		rtw8852c_bb_reset_en(rtwdev, chan->band_type, phy_idx, true);
 		rtw89_chip_resume_sch_tx(rtwdev, mac_idx, p->tx_en);
 	}
@@ -1842,19 +1842,20 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8852c_dpk_init(rtwdev);
 
 	rtw8852c_rck(rtwdev);
-	rtw8852c_dack(rtwdev);
+	rtw8852c_dack(rtwdev, RTW89_CHANCTX_0);
 	rtw8852c_rx_dck(rtwdev, RTW89_PHY_0, false);
 }
 
 static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
 	rtw8852c_mcc_get_ch_info(rtwdev, phy_idx);
 	rtw8852c_rx_dck(rtwdev, phy_idx, false);
-	rtw8852c_iqk(rtwdev, phy_idx);
-	rtw8852c_tssi(rtwdev, phy_idx);
-	rtw8852c_dpk(rtwdev, phy_idx);
+	rtw8852c_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8852c_tssi(rtwdev, phy_idx, chanctx_idx);
+	rtw8852c_dpk(rtwdev, phy_idx, chanctx_idx);
 	rtw89_fw_h2c_rf_ntfy_mcc(rtwdev);
 }
 
@@ -1862,7 +1863,7 @@ static void rtw8852c_rfk_band_changed(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      const struct rtw89_chan *chan)
 {
-	rtw8852c_tssi_scan(rtwdev, phy_idx);
+	rtw8852c_tssi_scan(rtwdev, phy_idx, chan);
 }
 
 static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
