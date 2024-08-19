@@ -349,8 +349,11 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad) + keymap_size,
 			      GFP_KERNEL);
+	if (!keypad)
+		return -ENOMEM;
+
 	input_dev = devm_input_allocate_device(&pdev->dev);
-	if (!keypad || !input_dev)
+	if (!input_dev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
