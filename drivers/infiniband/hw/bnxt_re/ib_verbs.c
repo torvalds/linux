@@ -1042,6 +1042,8 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 			    qplib_qp->sq.max_wqe :
 			    ((qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size) /
 			      sizeof(struct bnxt_qplib_sge));
+		if (_is_host_msn_table(rdev->qplib_res.dattr->dev_cap_flags2))
+			psn_nume = roundup_pow_of_two(psn_nume);
 		bytes += (psn_nume * psn_sz);
 	}
 
