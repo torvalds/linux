@@ -955,7 +955,7 @@
 		};
 
 		qdma: dma-controller@8380000 {
-			compatible = "fsl,ls1021a-qdma", "fsl,ls1043a-qdma";
+			compatible = "fsl,ls1043a-qdma", "fsl,ls1021a-qdma";
 			reg = <0x0 0x8380000 0x0 0x1000>, /* Controller regs */
 			      <0x0 0x8390000 0x0 0x10000>, /* Status regs */
 			      <0x0 0x83a0000 0x0 0x40000>; /* Block regs */
