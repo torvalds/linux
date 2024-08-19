@@ -4263,8 +4263,13 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 u8 rtw89_acquire_mac_id(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 mac_id_num = chip->support_macid_num;
+	u8 mac_id_num;
 	u8 mac_id;
+
+	if (rtwdev->support_mlo)
+		mac_id_num = chip->support_macid_num / chip->support_link_num;
+	else
+		mac_id_num = chip->support_macid_num;
 
 	mac_id = find_first_zero_bit(rtwdev->mac_id_map, mac_id_num);
 	if (mac_id == mac_id_num)
@@ -4681,6 +4686,9 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	if (chip->chip_gen == RTW89_CHIP_BE)
 		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
 
+	if (rtwdev->support_mlo)
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->wiphy->max_scan_ssids = RTW89_SCANOFLD_MAX_SSID;
@@ -4783,6 +4791,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	struct ieee80211_ops *ops;
 	u32 driver_data_size;
 	int fw_format = -1;
+	bool support_mlo;
 	bool no_chanctx;
 
 	firmware = rtw89_early_fw_feature_recognize(device, chip, &early_fw, &fw_format);
@@ -4811,6 +4820,14 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	if (!hw)
 		goto err;
 
+	/* TODO: When driver MLO arch. is done, determine whether to support MLO
+	 * according to the following conditions.
+	 * 1. run with chanctx_ops
+	 * 2. chip->support_link_num != 0
+	 * 3. FW feature supports AP_LINK_PS
+	 */
+	support_mlo = false;
+
 	hw->wiphy->iface_combinations = rtw89_iface_combs;
 
 	if (no_chanctx || chip->support_chanctx_num == 1)
@@ -4825,9 +4842,12 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->chip = chip;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
+	rtwdev->support_mlo = support_mlo;
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW, "probe driver %s chanctx\n",
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "probe driver %s chanctx\n",
 		    no_chanctx ? "without" : "with");
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "probe driver %s MLO cap\n",
+		    support_mlo ? "with" : "without");
 
 	return rtwdev;
 
