@@ -145,7 +145,7 @@
 //!         }
 //!     }
 //!     // Implement the internal `PinData` trait that marks the pin-data struct as a pin-data
-//!     // struct. This is important to ensure that no user can implement a rouge `__pin_data`
+//!     // struct. This is important to ensure that no user can implement a rogue `__pin_data`
 //!     // function without using `unsafe`.
 //!     unsafe impl<T> ::kernel::init::__internal::PinData for __ThePinData<T> {
 //!         type Datee = Bar<T>;
@@ -156,7 +156,7 @@
 //!     // case no such fields exist, hence this is almost empty. The two phantomdata fields exist
 //!     // for two reasons:
 //!     // - `__phantom`: every generic must be used, since we cannot really know which generics
-//!     //   are used, we declere all and then use everything here once.
+//!     //   are used, we declare all and then use everything here once.
 //!     // - `__phantom_pin`: uses the `'__pin` lifetime and ensures that this struct is invariant
 //!     //   over it. The lifetime is needed to work around the limitation that trait bounds must
 //!     //   not be trivial, e.g. the user has a `#[pin] PhantomPinned` field -- this is
