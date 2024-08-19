@@ -86,6 +86,7 @@ enum hist_column {
 	HISTC_TYPE,
 	HISTC_TYPE_OFFSET,
 	HISTC_SYMBOL_OFFSET,
+	HISTC_TYPE_CACHELINE,
 	HISTC_NR_COLS, /* Last entry */
 };
 
