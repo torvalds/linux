@@ -8,3 +8,5 @@ obj-$(CONFIG_INTEL_RAPL) += intel_rapl_msr.o
 obj-$(CONFIG_IDLE_INJECT) += idle_inject.o
 obj-$(CONFIG_QCOM_EPM) += qti_epm_hardware.o
 qti_epm_hardware-y	+= qti_epm_hw.o qti_epm_interface.o
+obj-$(CONFIG_QCOM_POWER_TELEMETRY) += qcom_power_telemetry.o
+qcom_power_telemetry-y	+= qti_power_telemetry.o qti_power_telemetry_interface.o
