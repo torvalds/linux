@@ -28,8 +28,8 @@
 #include "atom.h"
 
 #ifndef CONFIG_DEV_COREDUMP
-void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
-		     struct amdgpu_reset_context *reset_context)
+void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
+		     bool vram_lost, struct amdgpu_job *job)
 {
 }
 #else
@@ -315,7 +315,9 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 		}
 	}
 
-	if (coredump->reset_vram_lost)
+	if (coredump->skip_vram_check)
+		drm_printf(&p, "VRAM lost check is skipped!\n");
+	else if (coredump->reset_vram_lost)
 		drm_printf(&p, "VRAM is lost due to GPU reset!\n");
 
 	return count - iter.remain;
@@ -326,12 +328,11 @@ static void amdgpu_devcoredump_free(void *data)
 	kfree(data);
 }
 
-void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
-		     struct amdgpu_reset_context *reset_context)
+void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
+		     bool vram_lost, struct amdgpu_job *job)
 {
-	struct amdgpu_coredump_info *coredump;
 	struct drm_device *dev = adev_to_drm(adev);
-	struct amdgpu_job *job = reset_context->job;
+	struct amdgpu_coredump_info *coredump;
 	struct drm_sched_job *s_job;
 
 	coredump = kzalloc(sizeof(*coredump), GFP_NOWAIT);
@@ -341,11 +342,12 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
 		return;
 	}
 
+	coredump->skip_vram_check = skip_vram_check;
 	coredump->reset_vram_lost = vram_lost;
 
-	if (reset_context->job && reset_context->job->vm) {
+	if (job && job->vm) {
+		struct amdgpu_vm *vm = job->vm;
 		struct amdgpu_task_info *ti;
-		struct amdgpu_vm *vm = reset_context->job->vm;
 
 		ti = amdgpu_vm_get_task_info_vm(vm);
 		if (ti) {
