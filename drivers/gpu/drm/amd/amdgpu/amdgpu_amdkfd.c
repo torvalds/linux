@@ -783,22 +783,6 @@ int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev,
-			int hub_inst, int hub_type)
-{
-	if (!hub_type) {
-		if (adev->gfxhub.funcs->query_utcl2_poison_status)
-			return adev->gfxhub.funcs->query_utcl2_poison_status(adev, hub_inst);
-		else
-			return false;
-	} else {
-		if (adev->mmhub.funcs->query_utcl2_poison_status)
-			return adev->mmhub.funcs->query_utcl2_poison_status(adev, hub_inst);
-		else
-			return false;
-	}
-}
-
 int amdgpu_amdkfd_check_and_lock_kfd(struct amdgpu_device *adev)
 {
 	return kgd2kfd_check_and_lock_kfd();
