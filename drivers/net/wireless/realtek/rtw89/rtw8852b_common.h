@@ -121,13 +121,14 @@ struct rtw8852bx_info {
 	void (*bb_cfg_txrx_path)(struct rtw89_dev *rtwdev);
 	void (*bb_cfg_tx_path)(struct rtw89_dev *rtwdev, u8 tx_path);
 	void (*bb_ctrl_rx_path)(struct rtw89_dev *rtwdev,
-				enum rtw89_rf_path_bit rx_path);
+				enum rtw89_rf_path_bit rx_path,
+				const struct rtw89_chan *chan);
 	void (*bb_set_plcp_tx)(struct rtw89_dev *rtwdev);
 	void (*bb_set_power)(struct rtw89_dev *rtwdev, s16 pwr_dbm,
 			     enum rtw89_phy_idx idx);
 	void (*bb_set_pmac_pkt_tx)(struct rtw89_dev *rtwdev, u8 enable,
 				   u16 tx_cnt, u16 period, u16 tx_time,
-				   enum rtw89_phy_idx idx);
+				   enum rtw89_phy_idx idx, const struct rtw89_chan *chan);
 	void (*bb_backup_tssi)(struct rtw89_dev *rtwdev, enum rtw89_phy_idx idx,
 			       struct rtw8852bx_bb_tssi_bak *bak);
 	void (*bb_restore_tssi)(struct rtw89_dev *rtwdev, enum rtw89_phy_idx idx,
@@ -207,9 +208,10 @@ void rtw8852bx_bb_cfg_tx_path(struct rtw89_dev *rtwdev, u8 tx_path)
 
 static inline
 void rtw8852bx_bb_ctrl_rx_path(struct rtw89_dev *rtwdev,
-			       enum rtw89_rf_path_bit rx_path)
+			       enum rtw89_rf_path_bit rx_path,
+			       const struct rtw89_chan *chan)
 {
-	rtw8852bx_info.bb_ctrl_rx_path(rtwdev, rx_path);
+	rtw8852bx_info.bb_ctrl_rx_path(rtwdev, rx_path, chan);
 }
 
 static inline
@@ -228,9 +230,10 @@ void rtw8852bx_bb_set_power(struct rtw89_dev *rtwdev, s16 pwr_dbm,
 static inline
 void rtw8852bx_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 				  u16 tx_cnt, u16 period, u16 tx_time,
-				  enum rtw89_phy_idx idx)
+				  enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
-	rtw8852bx_info.bb_set_pmac_pkt_tx(rtwdev, enable, tx_cnt, period, tx_time, idx);
+	rtw8852bx_info.bb_set_pmac_pkt_tx(rtwdev, enable, tx_cnt, period, tx_time, idx,
+					  chan);
 }
 
 static inline

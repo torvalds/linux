@@ -1445,10 +1445,8 @@ static void rtw8852bx_start_pmac_tx(struct rtw89_dev *rtwdev,
 static
 void rtw8852bx_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			      struct rtw8852bx_bb_pmac_info *tx_info,
-			      enum rtw89_phy_idx idx)
+			      enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
-
 	if (!tx_info->en_pmac_tx) {
 		rtw8852bx_stop_pmac_tx(rtwdev, tx_info, idx);
 		rtw89_phy_write32_idx(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0, idx);
@@ -1473,7 +1471,7 @@ void rtw8852bx_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 static
 void __rtw8852bx_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 				    u16 tx_cnt, u16 period, u16 tx_time,
-				    enum rtw89_phy_idx idx)
+				    enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
 	struct rtw8852bx_bb_pmac_info tx_info = {0};
 
@@ -1484,7 +1482,7 @@ void __rtw8852bx_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 	tx_info.period = period;
 	tx_info.tx_time = tx_time;
 
-	rtw8852bx_bb_set_pmac_tx(rtwdev, &tx_info, idx);
+	rtw8852bx_bb_set_pmac_tx(rtwdev, &tx_info, idx, chan);
 }
 
 static
@@ -1623,9 +1621,9 @@ static void __rtw8852bx_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
 
 static
 void __rtw8852bx_bb_ctrl_rx_path(struct rtw89_dev *rtwdev,
-				 enum rtw89_rf_path_bit rx_path)
+				 enum rtw89_rf_path_bit rx_path,
+				 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	u32 rst_mask0;
 	u32 rst_mask1;
 
@@ -1713,9 +1711,10 @@ static void rtw8852bx_bb_ctrl_rf_mode_rx_path(struct rtw89_dev *rtwdev,
 static void __rtw8852bx_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	enum rtw89_rf_path_bit rx_path = hal->antenna_rx ? hal->antenna_rx : RF_AB;
 
-	rtw8852bx_bb_ctrl_rx_path(rtwdev, rx_path);
+	rtw8852bx_bb_ctrl_rx_path(rtwdev, rx_path, chan);
 	rtw8852bx_bb_ctrl_rf_mode_rx_path(rtwdev, rx_path);
 
 	if (rtwdev->hal.rx_nss == 1) {

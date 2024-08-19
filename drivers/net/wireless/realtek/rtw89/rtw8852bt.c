@@ -480,12 +480,12 @@ static void rtw8852bt_tssi_cont_en(struct rtw89_dev *rtwdev, bool en,
 }
 
 static void rtw8852bt_tssi_cont_en_phyidx(struct rtw89_dev *rtwdev, bool en,
-					  u8 phy_idx)
+					  u8 phy_idx, const struct rtw89_chan *chan)
 {
 	if (!rtwdev->dbcc_en) {
 		rtw8852bt_tssi_cont_en(rtwdev, en, RF_PATH_A);
 		rtw8852bt_tssi_cont_en(rtwdev, en, RF_PATH_B);
-		rtw8852bt_tssi_scan(rtwdev, phy_idx);
+		rtw8852bt_tssi_scan(rtwdev, phy_idx, chan);
 	} else {
 		if (phy_idx == RTW89_PHY_0)
 			rtw8852bt_tssi_cont_en(rtwdev, en, RF_PATH_A);
@@ -511,14 +511,14 @@ static void rtw8852bt_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	if (enter) {
 		rtw89_chip_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
-		rtw8852bt_tssi_cont_en_phyidx(rtwdev, false, RTW89_PHY_0);
+		rtw8852bt_tssi_cont_en_phyidx(rtwdev, false, RTW89_PHY_0, chan);
 		rtw8852bt_adc_en(rtwdev, false);
 		fsleep(40);
 		rtw8852bt_bb_reset_en(rtwdev, chan->band_type, phy_idx, false);
 	} else {
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 		rtw8852bt_adc_en(rtwdev, true);
-		rtw8852bt_tssi_cont_en_phyidx(rtwdev, true, RTW89_PHY_0);
+		rtw8852bt_tssi_cont_en_phyidx(rtwdev, true, RTW89_PHY_0, chan);
 		rtw8852bt_bb_reset_en(rtwdev, chan->band_type, phy_idx, true);
 		rtw89_chip_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
 	}
@@ -531,31 +531,32 @@ static void rtw8852bt_rfk_init(struct rtw89_dev *rtwdev)
 
 	rtw8852bt_dpk_init(rtwdev);
 	rtw8852bt_rck(rtwdev);
-	rtw8852bt_dack(rtwdev);
-	rtw8852bt_rx_dck(rtwdev, RTW89_PHY_0);
+	rtw8852bt_dack(rtwdev, RTW89_CHANCTX_0);
+	rtw8852bt_rx_dck(rtwdev, RTW89_PHY_0, RTW89_CHANCTX_0);
 }
 
 static void rtw8852bt_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
-	rtw8852bt_rx_dck(rtwdev, phy_idx);
-	rtw8852bt_iqk(rtwdev, phy_idx);
-	rtw8852bt_tssi(rtwdev, phy_idx, true);
-	rtw8852bt_dpk(rtwdev, phy_idx);
+	rtw8852bt_rx_dck(rtwdev, phy_idx, chanctx_idx);
+	rtw8852bt_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8852bt_tssi(rtwdev, phy_idx, true, chanctx_idx);
+	rtw8852bt_dpk(rtwdev, phy_idx, chanctx_idx);
 }
 
 static void rtw8852bt_rfk_band_changed(struct rtw89_dev *rtwdev,
 				       enum rtw89_phy_idx phy_idx,
 				       const struct rtw89_chan *chan)
 {
-	rtw8852bt_tssi_scan(rtwdev, phy_idx);
+	rtw8852bt_tssi_scan(rtwdev, phy_idx, chan);
 }
 
 static void rtw8852bt_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			       bool start)
 {
-	rtw8852bt_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
+	rtw8852bt_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx, rtwvif->chanctx_idx);
 }
 
 static void rtw8852bt_rfk_track(struct rtw89_dev *rtwdev)
