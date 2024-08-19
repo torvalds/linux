@@ -7,6 +7,7 @@
  * Author: Donghwa Lee <dh09.lee@samsung.com>
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -29,11 +30,11 @@
 #define SAMSUNG_KEYIFFC				0x10
 
 /* SAMSUNG_KEYIFCON */
-#define SAMSUNG_KEYIFCON_INT_F_EN		(1 << 0)
-#define SAMSUNG_KEYIFCON_INT_R_EN		(1 << 1)
-#define SAMSUNG_KEYIFCON_DF_EN			(1 << 2)
-#define SAMSUNG_KEYIFCON_FC_EN			(1 << 3)
-#define SAMSUNG_KEYIFCON_WAKEUPEN		(1 << 4)
+#define SAMSUNG_KEYIFCON_INT_F_EN		BIT(0)
+#define SAMSUNG_KEYIFCON_INT_R_EN		BIT(1)
+#define SAMSUNG_KEYIFCON_DF_EN			BIT(2)
+#define SAMSUNG_KEYIFCON_FC_EN			BIT(3)
+#define SAMSUNG_KEYIFCON_WAKEUPEN		BIT(4)
 
 /* SAMSUNG_KEYIFSTSCLR */
 #define SAMSUNG_KEYIFSTSCLR_P_INT_MASK		(0xff << 0)
@@ -81,14 +82,14 @@ static void samsung_keypad_scan(struct samsung_keypad *keypad,
 	unsigned int val;
 
 	for (col = 0; col < keypad->cols; col++) {
-		val = SAMSUNG_KEYIFCOL_MASK & ~(1 << col);
+		val = SAMSUNG_KEYIFCOL_MASK & ~BIT(col);
 		val <<= keypad->chip->column_shift;
 
 		writel(val, keypad->base + SAMSUNG_KEYIFCOL);
 		mdelay(1);
 
 		val = readl(keypad->base + SAMSUNG_KEYIFROW);
-		row_state[col] = ~val & ((1 << keypad->rows) - 1);
+		row_state[col] = ~val & GENMASK(keypad->rows - 1, 0);
 	}
 
 	/* KEYIFCOL reg clear */
@@ -112,10 +113,10 @@ static bool samsung_keypad_report(struct samsung_keypad *keypad,
 			continue;
 
 		for (row = 0; row < keypad->rows; row++) {
-			if (!(changed & (1 << row)))
+			if (!(changed & BIT(row)))
 				continue;
 
-			pressed = row_state[col] & (1 << row);
+			pressed = row_state[col] & BIT(row);
 
 			dev_dbg(&keypad->input_dev->dev,
 				"key %s, row: %d, col: %d\n",
