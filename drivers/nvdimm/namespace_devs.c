@@ -1612,9 +1612,6 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 {
 	int i;
 
-	if (!pmem_id)
-		return -ENODEV;
-
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
@@ -1789,9 +1786,6 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	switch (rc) {
 	case -EINVAL:
 		dev_dbg(&nd_region->dev, "invalid label(s)\n");
-		break;
-	case -ENODEV:
-		dev_dbg(&nd_region->dev, "label not found\n");
 		break;
 	default:
 		dev_dbg(&nd_region->dev, "unexpected err: %d\n", rc);
@@ -1980,9 +1974,6 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			case -EAGAIN:
 				/* skip invalid labels */
 				continue;
-			case -ENODEV:
-				/* fallthrough to seed creation */
-				break;
 			default:
 				goto err;
 			}
