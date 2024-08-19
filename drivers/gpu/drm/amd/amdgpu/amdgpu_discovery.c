@@ -278,7 +278,7 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 			msg = RREG32(mmMP0_SMN_C2PMSG_33);
 			if (msg & 0x80000000)
 				break;
-			usleep_range(1000, 1100);
+			msleep(1);
 		}
 	}
 
