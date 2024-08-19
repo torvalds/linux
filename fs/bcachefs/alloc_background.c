@@ -556,7 +556,7 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		struct bpos pos = alloc_gens_pos(iter.pos, &offset);
 		int ret2 = 0;
 
-		if (have_bucket_gens_key && bkey_cmp(iter.pos, pos)) {
+		if (have_bucket_gens_key && !bkey_eq(g.k.p, pos)) {
 			ret2 =  bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0) ?:
 				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 			if (ret2)
