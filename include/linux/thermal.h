@@ -92,10 +92,6 @@ struct cooling_spec {
 };
 
 struct thermal_zone_device_ops {
-	int (*bind) (struct thermal_zone_device *,
-		     struct thermal_cooling_device *);
-	int (*unbind) (struct thermal_zone_device *,
-		       struct thermal_cooling_device *);
 	bool (*should_bind) (struct thermal_zone_device *,
 			     const struct thermal_trip *,
 			     struct thermal_cooling_device *,
@@ -247,12 +243,6 @@ const char *thermal_zone_device_type(struct thermal_zone_device *tzd);
 int thermal_zone_device_id(struct thermal_zone_device *tzd);
 struct device *thermal_zone_device(struct thermal_zone_device *tzd);
 
-int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
-				     struct thermal_cooling_device *,
-				     unsigned long, unsigned long,
-				     unsigned int);
-int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
-				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *,
 				enum thermal_notify_event);
 
