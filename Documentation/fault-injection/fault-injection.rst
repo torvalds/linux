@@ -291,7 +291,7 @@ kernel may crash because it may not be able to handle the error.
 There are 4 types of errors defined in include/asm-generic/error-injection.h
 
 EI_ETYPE_NULL
-  This function will return `NULL` if it fails. e.g. return an allocateed
+  This function will return `NULL` if it fails. e.g. return an allocated
   object address.
 
 EI_ETYPE_ERRNO
