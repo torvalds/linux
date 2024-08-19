@@ -258,9 +258,7 @@ static void l2tp_ip_destroy_sock(struct sock *sk)
 {
 	struct l2tp_tunnel *tunnel;
 
-	lock_sock(sk);
-	ip_flush_pending_frames(sk);
-	release_sock(sk);
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	tunnel = l2tp_sk_to_tunnel(sk);
 	if (tunnel) {
