@@ -38,6 +38,10 @@ properties:
 
   managed: true
 
+  phys:
+    description: A reference to the SerDes lane(s)
+    maxItems: 1
+
 required:
   - reg
 

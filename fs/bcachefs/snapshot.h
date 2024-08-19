@@ -5,11 +5,11 @@
 enum bch_validate_flags;
 
 void bch2_snapshot_tree_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-int bch2_snapshot_tree_invalid(struct bch_fs *, struct bkey_s_c,
-			       enum bch_validate_flags, struct printbuf *);
+int bch2_snapshot_tree_validate(struct bch_fs *, struct bkey_s_c,
+			       enum bch_validate_flags);
 
 #define bch2_bkey_ops_snapshot_tree ((struct bkey_ops) {	\
-	.key_invalid	= bch2_snapshot_tree_invalid,		\
+	.key_validate	= bch2_snapshot_tree_validate,		\
 	.val_to_text	= bch2_snapshot_tree_to_text,		\
 	.min_val_size	= 8,					\
 })
@@ -19,14 +19,13 @@ struct bkey_i_snapshot_tree *__bch2_snapshot_tree_create(struct btree_trans *);
 int bch2_snapshot_tree_lookup(struct btree_trans *, u32, struct bch_snapshot_tree *);
 
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-int bch2_snapshot_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
+int bch2_snapshot_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s,
 		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
-	.key_invalid	= bch2_snapshot_invalid,		\
+	.key_validate	= bch2_snapshot_validate,		\
 	.val_to_text	= bch2_snapshot_to_text,		\
 	.trigger	= bch2_mark_snapshot,			\
 	.min_val_size	= 24,					\

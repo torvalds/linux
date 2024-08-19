@@ -170,6 +170,7 @@ void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 		report_partial_fault(iopf_param, fault);
 		iopf_put_dev_fault_param(iopf_param);
 		/* A request that is not the last does not need to be ack'd */
+		return;
 	}
 
 	/*

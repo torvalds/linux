@@ -313,7 +313,7 @@ static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owne
  * with all locks dropped.
  */
 bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
-			   unsigned long flags)
+			   unsigned long flags) __releases(&irq->irq_lock)
 {
 	struct kvm_vcpu *vcpu;
 

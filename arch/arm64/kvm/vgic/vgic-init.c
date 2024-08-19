@@ -438,13 +438,12 @@ void kvm_vgic_destroy(struct kvm *kvm)
 	unsigned long i;
 
 	mutex_lock(&kvm->slots_lock);
+	mutex_lock(&kvm->arch.config_lock);
 
 	vgic_debug_destroy(kvm);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		__kvm_vgic_vcpu_destroy(vcpu);
-
-	mutex_lock(&kvm->arch.config_lock);
 
 	kvm_vgic_dist_destroy(kvm);
 

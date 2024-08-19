@@ -160,38 +160,6 @@ unsigned long kallsyms_sym_address(int idx)
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
 }
 
-static void cleanup_symbol_name(char *s)
-{
-	char *res;
-
-	if (!IS_ENABLED(CONFIG_LTO_CLANG))
-		return;
-
-	/*
-	 * LLVM appends various suffixes for local functions and variables that
-	 * must be promoted to global scope as part of LTO.  This can break
-	 * hooking of static functions with kprobes. '.' is not a valid
-	 * character in an identifier in C. Suffixes only in LLVM LTO observed:
-	 * - foo.llvm.[0-9a-f]+
-	 */
-	res = strstr(s, ".llvm.");
-	if (res)
-		*res = '\0';
-
-	return;
-}
-
-static int compare_symbol_name(const char *name, char *namebuf)
-{
-	/* The kallsyms_seqs_of_names is sorted based on names after
-	 * cleanup_symbol_name() (see scripts/kallsyms.c) if clang lto is enabled.
-	 * To ensure correct bisection in kallsyms_lookup_names(), do
-	 * cleanup_symbol_name(namebuf) before comparing name and namebuf.
-	 */
-	cleanup_symbol_name(namebuf);
-	return strcmp(name, namebuf);
-}
-
 static unsigned int get_symbol_seq(int index)
 {
 	unsigned int i, seq = 0;
@@ -219,7 +187,7 @@ static int kallsyms_lookup_names(const char *name,
 		seq = get_symbol_seq(mid);
 		off = get_symbol_offset(seq);
 		kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
-		ret = compare_symbol_name(name, namebuf);
+		ret = strcmp(name, namebuf);
 		if (ret > 0)
 			low = mid + 1;
 		else if (ret < 0)
@@ -236,7 +204,7 @@ static int kallsyms_lookup_names(const char *name,
 		seq = get_symbol_seq(low - 1);
 		off = get_symbol_offset(seq);
 		kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
-		if (compare_symbol_name(name, namebuf))
+		if (strcmp(name, namebuf))
 			break;
 		low--;
 	}
@@ -248,7 +216,7 @@ static int kallsyms_lookup_names(const char *name,
 			seq = get_symbol_seq(high + 1);
 			off = get_symbol_offset(seq);
 			kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
-			if (compare_symbol_name(name, namebuf))
+			if (strcmp(name, namebuf))
 				break;
 			high++;
 		}
@@ -407,8 +375,7 @@ static int kallsyms_lookup_buildid(unsigned long addr,
 		if (modbuildid)
 			*modbuildid = NULL;
 
-		ret = strlen(namebuf);
-		goto found;
+		return strlen(namebuf);
 	}
 
 	/* See if it's in a module or a BPF JITed image. */
@@ -422,8 +389,6 @@ static int kallsyms_lookup_buildid(unsigned long addr,
 		ret = ftrace_mod_address_lookup(addr, symbolsize,
 						offset, modname, namebuf);
 
-found:
-	cleanup_symbol_name(namebuf);
 	return ret;
 }
 
@@ -450,8 +415,6 @@ const char *kallsyms_lookup(unsigned long addr,
 
 int lookup_symbol_name(unsigned long addr, char *symname)
 {
-	int res;
-
 	symname[0] = '\0';
 	symname[KSYM_NAME_LEN - 1] = '\0';
 
@@ -462,16 +425,10 @@ int lookup_symbol_name(unsigned long addr, char *symname)
 		/* Grab name */
 		kallsyms_expand_symbol(get_symbol_offset(pos),
 				       symname, KSYM_NAME_LEN);
-		goto found;
+		return 0;
 	}
 	/* See if it's in a module. */
-	res = lookup_module_symbol_name(addr, symname);
-	if (res)
-		return res;
-
-found:
-	cleanup_symbol_name(symname);
-	return 0;
+	return lookup_module_symbol_name(addr, symname);
 }
 
 /* Look up a kernel symbol and return it in a text buffer. */
