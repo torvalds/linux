@@ -51,6 +51,7 @@
 #define COMM_LEN		20
 #define SYM_LEN			129
 #define MAX_PID			1024000
+#define MAX_PRIO		140
 
 static const char *cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -234,6 +235,8 @@ struct perf_sched {
 	struct perf_time_interval ptime;
 	struct perf_time_interval hist_time;
 	volatile bool   thread_funcs_exit;
+	const char	*prio_str;
+	DECLARE_BITMAP(prio_bitmap, MAX_PRIO);
 };
 
 /* per thread run time data */
@@ -2504,10 +2507,31 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 				 struct perf_sample *sample)
 {
 	bool rc = false;
+	int prio = -1;
+	struct thread_runtime *tr = NULL;
 
 	if (thread__is_filtered(thread)) {
 		rc = true;
 		sched->skipped_samples++;
+	}
+
+	if (sched->prio_str) {
+		/*
+		 * Because priority may be changed during task execution,
+		 * first read priority from prev sched_in event for current task.
+		 * If prev sched_in event is not saved, then read priority from
+		 * current task sched_out event.
+		 */
+		tr = thread__get_runtime(thread);
+		if (tr && tr->prio != -1)
+			prio = tr->prio;
+		else if (evsel__name_is(evsel, "sched:sched_switch"))
+			prio = evsel__intval(evsel, sample, "prev_prio");
+
+		if (prio != -1 && !test_bit(prio, sched->prio_bitmap)) {
+			rc = true;
+			sched->skipped_samples++;
+		}
 	}
 
 	if (sched->idle_hist) {
@@ -2723,7 +2747,7 @@ static int timehist_sched_change_event(const struct perf_tool *tool,
 		goto out;
 	}
 
-	if (sched->show_prio)
+	if (sched->show_prio || sched->prio_str)
 		timehist_update_task_prio(evsel, sample, machine);
 
 	thread = timehist_get_thread(sched, sample, machine, evsel);
@@ -3143,6 +3167,47 @@ static int timehist_check_attr(struct perf_sched *sched,
 	return 0;
 }
 
+static int timehist_parse_prio_str(struct perf_sched *sched)
+{
+	char *p;
+	unsigned long start_prio, end_prio;
+	const char *str = sched->prio_str;
+
+	if (!str)
+		return 0;
+
+	while (isdigit(*str)) {
+		p = NULL;
+		start_prio = strtoul(str, &p, 0);
+		if (start_prio >= MAX_PRIO || (*p != '\0' && *p != ',' && *p != '-'))
+			return -1;
+
+		if (*p == '-') {
+			str = ++p;
+			p = NULL;
+			end_prio = strtoul(str, &p, 0);
+
+			if (end_prio >= MAX_PRIO || (*p != '\0' && *p != ','))
+				return -1;
+
+			if (end_prio < start_prio)
+				return -1;
+		} else {
+			end_prio = start_prio;
+		}
+
+		for (; start_prio <= end_prio; start_prio++)
+			__set_bit(start_prio, sched->prio_bitmap);
+
+		if (*p)
+			++p;
+
+		str = p;
+	}
+
+	return 0;
+}
+
 static int perf_sched__timehist(struct perf_sched *sched)
 {
 	struct evsel_str_handler handlers[] = {
@@ -3203,6 +3268,11 @@ static int perf_sched__timehist(struct perf_sched *sched)
 
 	if (timehist_check_attr(sched, evlist) != 0)
 		goto out;
+
+	if (timehist_parse_prio_str(sched) != 0) {
+		pr_err("Invalid prio string\n");
+		goto out;
+	}
 
 	setup_pager();
 
@@ -3761,6 +3831,8 @@ int cmd_sched(int argc, const char **argv)
 		   "analyze events only for given thread id(s)"),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_BOOLEAN(0, "show-prio", &sched.show_prio, "Show task priority"),
+	OPT_STRING(0, "prio", &sched.prio_str, "prio",
+		   "analyze events only for given task priority(ies)"),
 	OPT_PARENT(sched_options)
 	};
 
