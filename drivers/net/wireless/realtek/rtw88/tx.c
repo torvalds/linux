@@ -46,7 +46,8 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 		      le32_encode_bits(pkt_info->ls, RTW_TX_DESC_W0_LS) |
 		      le32_encode_bits(pkt_info->dis_qselseq, RTW_TX_DESC_W0_DISQSELSEQ);
 
-	tx_desc->w1 = le32_encode_bits(pkt_info->qsel, RTW_TX_DESC_W1_QSEL) |
+	tx_desc->w1 = le32_encode_bits(pkt_info->mac_id, RTW_TX_DESC_W1_MACID) |
+		      le32_encode_bits(pkt_info->qsel, RTW_TX_DESC_W1_QSEL) |
 		      le32_encode_bits(pkt_info->rate_id, RTW_TX_DESC_W1_RATE_ID) |
 		      le32_encode_bits(pkt_info->sec_type, RTW_TX_DESC_W1_SEC_TYPE) |
 		      le32_encode_bits(pkt_info->pkt_offset, RTW_TX_DESC_W1_PKT_OFFSET) |
@@ -401,14 +402,18 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_vif *vif = info->control.vif;
 	struct rtw_sta_info *si;
-	struct ieee80211_vif *vif = NULL;
+	struct rtw_vif *rtwvif;
 	__le16 fc = hdr->frame_control;
 	bool bmc;
 
 	if (sta) {
 		si = (struct rtw_sta_info *)sta->drv_priv;
-		vif = si->vif;
+		pkt_info->mac_id = si->mac_id;
+	} else if (vif) {
+		rtwvif = (struct rtw_vif *)vif->drv_priv;
+		pkt_info->mac_id = rtwvif->mac_id;
 	}
 
 	if (ieee80211_is_mgmt(fc) || ieee80211_is_nullfunc(fc))
