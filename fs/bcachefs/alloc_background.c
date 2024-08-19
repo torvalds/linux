@@ -829,7 +829,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	if (likely(new.k->type == KEY_TYPE_alloc_v4)) {
 		new_a = bkey_s_to_alloc_v4(new).v;
 	} else {
-		BUG_ON(!(flags & BTREE_TRIGGER_gc));
+		BUG_ON(!(flags & (BTREE_TRIGGER_gc|BTREE_TRIGGER_check_repair)));
 
 		struct bkey_i_alloc_v4 *new_ka = bch2_alloc_to_v4_mut_inlined(trans, new.s_c);
 		ret = PTR_ERR_OR_ZERO(new_ka);
