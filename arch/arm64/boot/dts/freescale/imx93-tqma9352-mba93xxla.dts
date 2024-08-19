@@ -222,6 +222,11 @@
 	};
 };
 
+&gpio2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio2>;
+};
+
 &gpio3 {
 	ethphy-eqos-irq-hog {
 		gpio-hog;
@@ -524,6 +529,19 @@
 };
 
 &iomuxc {
+	pinctrl_afe: afegrp {
+		fsl,pins = <
+			/* FSEL_2 | DSE X4 */
+			MX93_PAD_GPIO_IO07__GPIO2_IO07			0x011e
+			/* PD | FSEL_2 | DSE X4 */
+			MX93_PAD_GPIO_IO08__GPIO2_IO08			0x051e
+			/* HYS | PD */
+			MX93_PAD_GPIO_IO09__GPIO2_IO09			0x1400
+			/* HYS */
+			MX93_PAD_GPIO_IO24__GPIO2_IO24			0x1000
+		>;
+	};
+
 	pinctrl_eqos: eqosgrp {
 		fsl,pins = <
 			/* PD | FSEL_2 | DSE X4 */
@@ -606,6 +624,28 @@
 		>;
 	};
 
+	pinctrl_gpio2: gpio2grp {
+		fsl,pins = <
+			/* HYS | PD | FSEL_2 | DSE X4 */
+			MX93_PAD_GPIO_IO16__GPIO2_IO16			0x151e
+			MX93_PAD_GPIO_IO17__GPIO2_IO17			0x151e
+			MX93_PAD_GPIO_IO18__GPIO2_IO18			0x151e
+			MX93_PAD_GPIO_IO19__GPIO2_IO19			0x151e
+			MX93_PAD_GPIO_IO20__GPIO2_IO20			0x151e
+			MX93_PAD_GPIO_IO21__GPIO2_IO21			0x151e
+			MX93_PAD_GPIO_IO26__GPIO2_IO26			0x151e
+		>;
+	};
+
+	pinctrl_jtag: jtaggrp {
+		fsl,pins = <
+			MX93_PAD_DAP_TCLK_SWCLK__JTAG_MUX_TCK		0x051e
+			MX93_PAD_DAP_TDI__JTAG_MUX_TDI			0x1200
+			MX93_PAD_DAP_TDO_TRACESWO__JTAG_MUX_TDO		0x031e
+			MX93_PAD_DAP_TMS_SWDIO__JTAG_MUX_TMS		0x1200
+		>;
+	};
+
 	pinctrl_lpi2c3: lpi2c3grp {
 		fsl,pins = <
 			/* SION | HYS | OD | FSEL_3 | DSE X4 */
@@ -636,6 +676,14 @@
 		fsl,pins = <
 			/* FSEL_2 | DSE X4 */
 			MX93_PAD_GPIO_IO00__GPIO2_IO00			0x011e
+		>;
+	};
+
+	pinctrl_mipi_csi: mipicsigrp {
+		fsl,pins = <
+			MX93_PAD_CCM_CLKO3__CCMSRCGPCMIX_CLKO3		0x051e /* MCLK */
+			MX93_PAD_GPIO_IO10__GPIO2_IO10			0x051e /* TRIGGER */
+			MX93_PAD_GPIO_IO11__GPIO2_IO11			0x1400 /* SYNC */
 		>;
 	};
 
