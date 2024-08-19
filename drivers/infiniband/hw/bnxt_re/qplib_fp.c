@@ -2471,6 +2471,32 @@ out:
 	return rc;
 }
 
+static int bnxt_qplib_get_cqe_sq_cons(struct bnxt_qplib_q *sq, u32 cqe_slot)
+{
+	struct bnxt_qplib_hwq *sq_hwq;
+	struct bnxt_qplib_swq *swq;
+	int cqe_sq_cons = -1;
+	u32 start, last;
+
+	sq_hwq = &sq->hwq;
+
+	start = sq->swq_start;
+	last = sq->swq_last;
+
+	while (last != start) {
+		swq = &sq->swq[last];
+		if (swq->slot_idx  == cqe_slot) {
+			cqe_sq_cons = swq->next_idx;
+			dev_err(&sq_hwq->pdev->dev, "%s: Found cons wqe = %d slot = %d\n",
+				__func__, cqe_sq_cons, cqe_slot);
+			break;
+		}
+
+		last = swq->next_idx;
+	}
+	return cqe_sq_cons;
+}
+
 static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 				     struct cq_req *hwcqe,
 				     struct bnxt_qplib_cqe **pcqe, int *budget,
@@ -2478,9 +2504,10 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 {
 	struct bnxt_qplib_swq *swq;
 	struct bnxt_qplib_cqe *cqe;
+	u32 cqe_sq_cons, slot_num;
 	struct bnxt_qplib_qp *qp;
 	struct bnxt_qplib_q *sq;
-	u32 cqe_sq_cons;
+	int cqe_cons;
 	int rc = 0;
 
 	qp = (struct bnxt_qplib_qp *)((unsigned long)
@@ -2498,6 +2525,20 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 			"%s: QP in Flush QP = %p\n", __func__, qp);
 		goto done;
 	}
+
+	if (__is_err_cqe_for_var_wqe(qp, hwcqe->status)) {
+		slot_num = le16_to_cpu(hwcqe->sq_cons_idx);
+		cqe_cons = bnxt_qplib_get_cqe_sq_cons(sq, slot_num);
+		if (cqe_cons < 0) {
+			dev_err(&cq->hwq.pdev->dev, "%s: Wrong SQ cons cqe_slot_indx = %d\n",
+				__func__, slot_num);
+			goto done;
+		}
+		cqe_sq_cons = cqe_cons;
+		dev_err(&cq->hwq.pdev->dev, "%s: cqe_sq_cons = %d swq_last = %d swq_start = %d\n",
+			__func__, cqe_sq_cons, sq->swq_last, sq->swq_start);
+	}
+
 	/* Require to walk the sq's swq to fabricate CQEs for all previously
 	 * signaled SWQEs due to CQE aggregation from the current sq cons
 	 * to the cqe_sq_cons
