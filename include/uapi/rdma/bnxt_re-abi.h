@@ -66,6 +66,7 @@ enum bnxt_re_wqe_mode {
 
 enum {
 	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
+	BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT = 0x02,
 };
 
 struct bnxt_re_uctx_req {
