@@ -1491,11 +1491,10 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 #ifdef __BIG_ENDIAN
 	{
-		const __le16 *src = sbi->upcase;
 		u16 *dst = sbi->upcase;
 
 		for (i = 0; i < 0x10000; i++)
-			*dst++ = le16_to_cpu(*src++);
+			__swab16s(dst++);
 	}
 #endif
 
