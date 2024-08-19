@@ -836,13 +836,12 @@ void thermal_cooling_device_stats_reinit(struct thermal_cooling_device *cdev)
 ssize_t
 trip_point_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	struct thermal_instance *instance;
 
-	instance =
-	    container_of(attr, struct thermal_instance, attr);
+	instance = container_of(attr, struct thermal_instance, attr);
 
-	return sprintf(buf, "%d\n",
-		       thermal_zone_trip_id(instance->tz, instance->trip));
+	return sprintf(buf, "%d\n", thermal_zone_trip_id(tz, instance->trip));
 }
 
 ssize_t
@@ -858,6 +857,7 @@ weight_show(struct device *dev, struct device_attribute *attr, char *buf)
 ssize_t weight_store(struct device *dev, struct device_attribute *attr,
 		     const char *buf, size_t count)
 {
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	struct thermal_instance *instance;
 	int ret, weight;
 
@@ -868,14 +868,13 @@ ssize_t weight_store(struct device *dev, struct device_attribute *attr,
 	instance = container_of(attr, struct thermal_instance, weight_attr);
 
 	/* Don't race with governors using the 'weight' value */
-	mutex_lock(&instance->tz->lock);
+	mutex_lock(&tz->lock);
 
 	instance->weight = weight;
 
-	thermal_governor_update_tz(instance->tz,
-				   THERMAL_INSTANCE_WEIGHT_CHANGED);
+	thermal_governor_update_tz(tz, THERMAL_INSTANCE_WEIGHT_CHANGED);
 
-	mutex_unlock(&instance->tz->lock);
+	mutex_unlock(&tz->lock);
 
 	return count;
 }
