@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) "ap72200-reg: %s: " fmt, __func__
 
@@ -44,6 +44,8 @@ static int ap72200_vreg_enable(struct regulator_dev *rdev)
 	struct ap72200_vreg *vreg = rdev_get_drvdata(rdev);
 	int rc, val;
 
+	gpiod_set_value_cansleep(vreg->ena_gpiod, 1);
+
 	val = DIV_ROUND_UP(vreg->rdesc.fixed_uV - AP72200_MIN_UV, AP72200_STEP_UV);
 
 	/* Set the voltage */
@@ -81,6 +83,8 @@ static int ap72200_vreg_disable(struct regulator_dev *rdev)
 	}
 
 	vreg->is_enabled = false;
+
+	gpiod_set_value_cansleep(vreg->ena_gpiod, 0);
 
 	return rc;
 }
@@ -156,9 +160,6 @@ static int ap72200_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to get enable GPIO\n");
 		return PTR_ERR(vreg->ena_gpiod);
 	}
-
-	/* Keep the EN pin of this regulator always high */
-	gpiod_set_value_cansleep(vreg->ena_gpiod, 1);
 
 	vreg->rdev = devm_regulator_register(vreg->dev, &vreg->rdesc, &reg_config);
 	if (IS_ERR(vreg->rdev)) {
