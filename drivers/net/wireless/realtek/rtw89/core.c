@@ -370,7 +370,7 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	roc_idx = atomic_read(&hal->roc_entity_idx);
+	roc_idx = atomic_read(&hal->roc_chanctx_idx);
 	if (roc_idx != RTW89_CHANCTX_IDLE)
 		chanctx_idx = roc_idx;
 
@@ -409,7 +409,7 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 		return -EINVAL;
 	}
 
-	roc_idx = atomic_read(&hal->roc_entity_idx);
+	roc_idx = atomic_read(&hal->roc_chanctx_idx);
 	if (roc_idx != RTW89_CHANCTX_IDLE)
 		chanctx_idx = roc_idx;
 

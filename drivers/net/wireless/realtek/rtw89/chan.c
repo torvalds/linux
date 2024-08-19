@@ -191,7 +191,7 @@ void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
 	enum rtw89_chanctx_idx cur;
 
 	if (chandef) {
-		cur = atomic_cmpxchg(&hal->roc_entity_idx,
+		cur = atomic_cmpxchg(&hal->roc_chanctx_idx,
 				     RTW89_CHANCTX_IDLE, idx);
 		if (cur != RTW89_CHANCTX_IDLE) {
 			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
@@ -201,7 +201,7 @@ void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
 
 		hal->roc_chandef = *chandef;
 	} else {
-		cur = atomic_cmpxchg(&hal->roc_entity_idx, idx,
+		cur = atomic_cmpxchg(&hal->roc_chanctx_idx, idx,
 				     RTW89_CHANCTX_IDLE);
 		if (cur == idx)
 			return;
@@ -230,7 +230,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	hal->entity_pause = false;
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_CHANCTX);
 	bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
-	atomic_set(&hal->roc_entity_idx, RTW89_CHANCTX_IDLE);
+	atomic_set(&hal->roc_chanctx_idx, RTW89_CHANCTX_IDLE);
 	rtw89_config_default_chandef(rtwdev);
 }
 
@@ -2395,11 +2395,11 @@ static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
 			rtwvif->chanctx_idx = idx1;
 	}
 
-	cur = atomic_read(&hal->roc_entity_idx);
+	cur = atomic_read(&hal->roc_chanctx_idx);
 	if (cur == idx1)
-		atomic_set(&hal->roc_entity_idx, idx2);
+		atomic_set(&hal->roc_chanctx_idx, idx2);
 	else if (cur == idx2)
-		atomic_set(&hal->roc_entity_idx, idx1);
+		atomic_set(&hal->roc_chanctx_idx, idx1);
 }
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
