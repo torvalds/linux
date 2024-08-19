@@ -361,16 +361,10 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	if (!keypad->base)
 		return -EBUSY;
 
-	keypad->clk = devm_clk_get(&pdev->dev, "keypad");
+	keypad->clk = devm_clk_get_prepared(&pdev->dev, "keypad");
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get keypad clk\n");
 		return PTR_ERR(keypad->clk);
-	}
-
-	error = clk_prepare(keypad->clk);
-	if (error) {
-		dev_err(&pdev->dev, "keypad clock prepare failed\n");
-		return error;
 	}
 
 	keypad->input_dev = input_dev;
@@ -399,7 +393,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 					   keypad->keycodes, input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto err_unprepare_clk;
+		return error;
 	}
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -411,7 +405,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	keypad->irq = platform_get_irq(pdev, 0);
 	if (keypad->irq < 0) {
 		error = keypad->irq;
-		goto err_unprepare_clk;
+		return error;
 	}
 
 	error = devm_request_threaded_irq(&pdev->dev, keypad->irq, NULL,
@@ -419,7 +413,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 					  dev_name(&pdev->dev), keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register keypad interrupt\n");
-		goto err_unprepare_clk;
+		return error;
 	}
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
@@ -439,20 +433,12 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
-err_unprepare_clk:
-	clk_unprepare(keypad->clk);
 	return error;
 }
 
 static void samsung_keypad_remove(struct platform_device *pdev)
 {
-	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
-
-	input_unregister_device(keypad->input_dev);
-
-	clk_unprepare(keypad->clk);
 }
 
 static int samsung_keypad_runtime_suspend(struct device *dev)
