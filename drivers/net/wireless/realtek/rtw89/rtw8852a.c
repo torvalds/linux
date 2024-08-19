@@ -1346,25 +1346,26 @@ static void rtw8852a_rfk_init(struct rtw89_dev *rtwdev)
 	rtwdev->is_tssi_mode[RF_PATH_B] = false;
 
 	rtw8852a_rck(rtwdev);
-	rtw8852a_dack(rtwdev);
-	rtw8852a_rx_dck(rtwdev, RTW89_PHY_0, true);
+	rtw8852a_dack(rtwdev, RTW89_CHANCTX_0);
+	rtw8852a_rx_dck(rtwdev, RTW89_PHY_0, true, RTW89_CHANCTX_0);
 }
 
 static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
-	rtw8852a_rx_dck(rtwdev, phy_idx, true);
-	rtw8852a_iqk(rtwdev, phy_idx);
-	rtw8852a_tssi(rtwdev, phy_idx);
-	rtw8852a_dpk(rtwdev, phy_idx);
+	rtw8852a_rx_dck(rtwdev, phy_idx, true, chanctx_idx);
+	rtw8852a_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8852a_tssi(rtwdev, phy_idx, chanctx_idx);
+	rtw8852a_dpk(rtwdev, phy_idx, chanctx_idx);
 }
 
 static void rtw8852a_rfk_band_changed(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      const struct rtw89_chan *chan)
 {
-	rtw8852a_tssi_scan(rtwdev, phy_idx);
+	rtw8852a_tssi_scan(rtwdev, phy_idx, chan);
 }
 
 static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
@@ -1550,10 +1551,8 @@ static void rtw8852a_start_pmac_tx(struct rtw89_dev *rtwdev,
 
 void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			     struct rtw8852a_bb_pmac_info *tx_info,
-			     enum rtw89_phy_idx idx)
+			     enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
-
 	if (!tx_info->en_pmac_tx) {
 		rtw8852a_stop_pmac_tx(rtwdev, tx_info, idx);
 		rtw89_phy_write32_idx(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0, idx);
@@ -1575,7 +1574,7 @@ void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 
 void rtw8852a_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 				 u16 tx_cnt, u16 period, u16 tx_time,
-				 enum rtw89_phy_idx idx)
+				 enum rtw89_phy_idx idx, const struct rtw89_chan *chan)
 {
 	struct rtw8852a_bb_pmac_info tx_info = {0};
 
@@ -1585,7 +1584,7 @@ void rtw8852a_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 	tx_info.tx_cnt = tx_cnt;
 	tx_info.period = period;
 	tx_info.tx_time = tx_time;
-	rtw8852a_bb_set_pmac_tx(rtwdev, &tx_info, idx);
+	rtw8852a_bb_set_pmac_tx(rtwdev, &tx_info, idx, chan);
 }
 
 void rtw8852a_bb_set_power(struct rtw89_dev *rtwdev, s16 pwr_dbm,
