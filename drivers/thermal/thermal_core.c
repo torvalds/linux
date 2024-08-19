@@ -999,10 +999,59 @@ static struct class *thermal_class;
 
 static inline
 void print_bind_err_msg(struct thermal_zone_device *tz,
+			const struct thermal_trip *trip,
 			struct thermal_cooling_device *cdev, int ret)
 {
+	if (trip) {
+		dev_err(&tz->device, "binding cdev %s to trip %d failed: %d\n",
+			cdev->type, thermal_zone_trip_id(tz, trip), ret);
+		return;
+	}
+
 	dev_err(&tz->device, "binding zone %s with cdev %s failed:%d\n",
 		tz->type, cdev->type, ret);
+}
+
+static void thermal_zone_cdev_binding(struct thermal_zone_device *tz,
+				      struct thermal_cooling_device *cdev)
+{
+	struct thermal_trip_desc *td;
+	int ret;
+
+	/*
+	 * Old-style binding. The .bind() callback is expected to call
+	 * thermal_bind_cdev_to_trip() under the thermal zone lock.
+	 */
+	if (tz->ops.bind) {
+		ret = tz->ops.bind(tz, cdev);
+		if (ret)
+			print_bind_err_msg(tz, NULL, cdev, ret);
+
+		return;
+	}
+
+	if (!tz->ops.should_bind)
+		return;
+
+	mutex_lock(&tz->lock);
+
+	for_each_trip_desc(tz, td) {
+		struct thermal_trip *trip = &td->trip;
+		struct cooling_spec c = {
+			.upper = THERMAL_NO_LIMIT,
+			.lower = THERMAL_NO_LIMIT,
+			.weight = THERMAL_WEIGHT_DEFAULT
+		};
+
+		if (tz->ops.should_bind(tz, trip, cdev, &c)) {
+			ret = thermal_bind_cdev_to_trip(tz, trip, cdev, c.upper,
+							c.lower, c.weight);
+			if (ret)
+				print_bind_err_msg(tz, trip, cdev, ret);
+		}
+	}
+
+	mutex_unlock(&tz->lock);
 }
 
 /**
@@ -1100,13 +1149,8 @@ __thermal_cooling_device_register(struct device_node *np,
 	list_add(&cdev->node, &thermal_cdev_list);
 
 	/* Update binding information for 'this' new cdev */
-	list_for_each_entry(pos, &thermal_tz_list, node) {
-		if (pos->ops.bind) {
-			ret = pos->ops.bind(pos, cdev);
-			if (ret)
-				print_bind_err_msg(pos, cdev, ret);
-		}
-	}
+	list_for_each_entry(pos, &thermal_tz_list, node)
+		thermal_zone_cdev_binding(pos, cdev);
 
 	list_for_each_entry(pos, &thermal_tz_list, node)
 		if (atomic_cmpxchg(&pos->need_update, 1, 0))
@@ -1307,6 +1351,28 @@ unlock_list:
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_update);
 
+static void thermal_zone_cdev_unbinding(struct thermal_zone_device *tz,
+					struct thermal_cooling_device *cdev)
+{
+	struct thermal_trip_desc *td;
+
+	/*
+	 * Old-style unbinding.  The .unbind callback is expected to call
+	 * thermal_unbind_cdev_from_trip() under the thermal zone lock.
+	 */
+	if (tz->ops.unbind) {
+		tz->ops.unbind(tz, cdev);
+		return;
+	}
+
+	mutex_lock(&tz->lock);
+
+	for_each_trip_desc(tz, td)
+		thermal_unbind_cdev_from_trip(tz, &td->trip, cdev);
+
+	mutex_unlock(&tz->lock);
+}
+
 /**
  * thermal_cooling_device_unregister - removes a thermal cooling device
  * @cdev:	the thermal cooling device to remove.
@@ -1333,10 +1399,8 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 	list_del(&cdev->node);
 
 	/* Unbind all thermal zones associated with 'this' cdev */
-	list_for_each_entry(tz, &thermal_tz_list, node) {
-		if (tz->ops.unbind)
-			tz->ops.unbind(tz, cdev);
-	}
+	list_for_each_entry(tz, &thermal_tz_list, node)
+		thermal_zone_cdev_unbinding(tz, cdev);
 
 	mutex_unlock(&thermal_list_lock);
 
@@ -1411,6 +1475,7 @@ thermal_zone_device_register_with_trips(const char *type,
 					unsigned int polling_delay)
 {
 	const struct thermal_trip *trip = trips;
+	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *tz;
 	struct thermal_trip_desc *td;
 	int id;
@@ -1433,8 +1498,9 @@ thermal_zone_device_register_with_trips(const char *type,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!ops || !ops->get_temp) {
-		pr_err("Thermal zone device ops not defined\n");
+	if (!ops || !ops->get_temp || (ops->should_bind && ops->bind) ||
+	    (ops->should_bind && ops->unbind)) {
+		pr_err("Thermal zone device ops not defined or invalid\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1547,15 +1613,8 @@ thermal_zone_device_register_with_trips(const char *type,
 	mutex_unlock(&tz->lock);
 
 	/* Bind cooling devices for this zone */
-	if (tz->ops.bind) {
-		struct thermal_cooling_device *cdev;
-
-		list_for_each_entry(cdev, &thermal_cdev_list, node) {
-			result = tz->ops.bind(tz, cdev);
-			if (result)
-				print_bind_err_msg(tz, cdev, result);
-		}
-	}
+	list_for_each_entry(cdev, &thermal_cdev_list, node)
+		thermal_zone_cdev_binding(tz, cdev);
 
 	mutex_unlock(&thermal_list_lock);
 
@@ -1649,8 +1708,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 	/* Unbind all cdevs associated with 'this' thermal zone */
 	list_for_each_entry(cdev, &thermal_cdev_list, node)
-		if (tz->ops.unbind)
-			tz->ops.unbind(tz, cdev);
+		thermal_zone_cdev_unbinding(tz, cdev);
 
 	mutex_unlock(&thermal_list_lock);
 
