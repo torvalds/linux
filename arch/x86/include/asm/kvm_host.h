@@ -2192,6 +2192,8 @@ void kvm_configure_mmu(bool enable_tdp, int tdp_forced_root_level,
 #define kvm_arch_has_private_mem(kvm) false
 #endif
 
+#define kvm_arch_has_readonly_mem(kvm) (!(kvm)->arch.has_protected_state)
+
 static inline u16 kvm_read_ldt(void)
 {
 	u16 ldt;

@@ -126,9 +126,8 @@ static inline bool is_zero(char *start, char *end)
 
 #define field_end(p, member)	(((void *) (&p.member)) + sizeof(p.member))
 
-int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags,
-			    struct printbuf *err)
+int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
+			     enum bch_validate_flags flags)
 {
 	struct disk_accounting_pos acc_k;
 	bpos_to_disk_accounting_pos(&acc_k, k.k->p);
@@ -144,18 +143,18 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 		break;
 	case BCH_DISK_ACCOUNTING_replicas:
 		bkey_fsck_err_on(!acc_k.replicas.nr_devs,
-				 c, err, accounting_key_replicas_nr_devs_0,
+				 c, accounting_key_replicas_nr_devs_0,
 				 "accounting key replicas entry with nr_devs=0");
 
 		bkey_fsck_err_on(acc_k.replicas.nr_required > acc_k.replicas.nr_devs ||
 				 (acc_k.replicas.nr_required > 1 &&
 				  acc_k.replicas.nr_required == acc_k.replicas.nr_devs),
-				 c, err, accounting_key_replicas_nr_required_bad,
+				 c, accounting_key_replicas_nr_required_bad,
 				 "accounting key replicas entry with bad nr_required");
 
 		for (unsigned i = 0; i + 1 < acc_k.replicas.nr_devs; i++)
-			bkey_fsck_err_on(acc_k.replicas.devs[i] > acc_k.replicas.devs[i + 1],
-					 c, err, accounting_key_replicas_devs_unsorted,
+			bkey_fsck_err_on(acc_k.replicas.devs[i] >= acc_k.replicas.devs[i + 1],
+					 c, accounting_key_replicas_devs_unsorted,
 					 "accounting key replicas entry with unsorted devs");
 
 		end = (void *) &acc_k.replicas + replicas_entry_bytes(&acc_k.replicas);
@@ -178,7 +177,7 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	bkey_fsck_err_on(!is_zero(end, (void *) (&acc_k + 1)),
-			 c, err, accounting_key_junk_at_end,
+			 c, accounting_key_junk_at_end,
 			 "junk at end of accounting key");
 fsck_err:
 	return ret;
@@ -528,6 +527,9 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 		struct disk_accounting_pos acc_k;
 		bpos_to_disk_accounting_pos(&acc_k, e->pos);
 
+		if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+			continue;
+
 		u64 src_v[BCH_ACCOUNTING_MAX_COUNTERS];
 		u64 dst_v[BCH_ACCOUNTING_MAX_COUNTERS];
 
@@ -564,7 +566,7 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 					struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
 
 					accounting_key_init(&k_i.k, &acc_k, src_v, nr);
-					bch2_accounting_mem_mod_locked(trans, bkey_i_to_s_c_accounting(&k_i.k), false);
+					bch2_accounting_mem_mod_locked(trans, bkey_i_to_s_c_accounting(&k_i.k), false, false);
 
 					preempt_disable();
 					struct bch_fs_usage_base *dst = this_cpu_ptr(c->usage);
@@ -593,7 +595,7 @@ static int accounting_read_key(struct btree_trans *trans, struct bkey_s_c k)
 		return 0;
 
 	percpu_down_read(&c->mark_lock);
-	int ret = __bch2_accounting_mem_mod(c, bkey_s_c_to_accounting(k), false);
+	int ret = bch2_accounting_mem_mod_locked(trans, bkey_s_c_to_accounting(k), false, true);
 	percpu_up_read(&c->mark_lock);
 
 	if (bch2_accounting_key_is_zero(bkey_s_c_to_accounting(k)) &&
@@ -760,6 +762,15 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			struct bkey_s_c_accounting a = bkey_s_c_to_accounting(k);
 			unsigned nr = bch2_accounting_counters(k.k);
 
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+
+			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+				continue;
+
+			if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+				continue;
+
 			bch2_accounting_mem_read(c, k.k->p, v, nr);
 
 			if (memcmp(a.v->d, v, nr * sizeof(u64))) {
@@ -774,9 +785,6 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				printbuf_exit(&buf);
 				mismatch = true;
 			}
-
-			struct disk_accounting_pos acc_k;
-			bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 
 			switch (acc_k.type) {
 			case BCH_DISK_ACCOUNTING_persistent_reserved:
