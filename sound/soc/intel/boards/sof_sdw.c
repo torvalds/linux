@@ -5,12 +5,14 @@
  *  sof_sdw - ASOC Machine driver for Intel SoundWire platforms
  */
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/soundwire/sdw_intel.h>
 #include <sound/soc-acpi.h>
 #include "sof_sdw_common.h"
 #include "../../codecs/rt711.h"
@@ -883,7 +885,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 	struct intel_mc_ctx *intel_ctx = (struct intel_mc_ctx *)ctx->private;
 	int ret, i;
 
-	for (i = 0; i < SDW_MAX_LINKS; i++)
+	for (i = 0; i < SDW_INTEL_MAX_LINKS; i++)
 		intel_ctx->sdw_pin_index[i] = SOC_SDW_INTEL_BIDIR_PDI_BASE;
 
 	/* generate DAI links by each sdw link */

@@ -222,6 +222,13 @@ static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
 	return false;
 }
 
+static inline int sdw_intel_get_link_count(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, get_link_count))
+		return SDW_INTEL_OPS(sdw, get_link_count)(sdw);
+	return 4; /* default on older generations */
+}
+
 /* common bus management */
 int intel_start_bus(struct sdw_intel *sdw);
 int intel_start_bus_after_reset(struct sdw_intel *sdw);
