@@ -789,25 +789,17 @@ int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *dev;
 	struct thermal_instance *pos;
-	struct thermal_zone_device *pos1;
-	struct thermal_cooling_device *pos2;
 	bool upper_no_limit;
 	int result;
 
-	list_for_each_entry(pos1, &thermal_tz_list, node) {
-		if (pos1 == tz)
-			break;
-	}
-	list_for_each_entry(pos2, &thermal_cdev_list, node) {
-		if (pos2 == cdev)
-			break;
-	}
+	lockdep_assert_held(&thermal_list_lock);
 
-	if (tz != pos1 || cdev != pos2)
+	if (list_empty(&tz->node) || list_empty(&cdev->node))
 		return -EINVAL;
 
 	/* lower default 0, upper default max_state */
-	lower = lower == THERMAL_NO_LIMIT ? 0 : lower;
+	if (lower == THERMAL_NO_LIMIT)
+		lower = 0;
 
 	if (upper == THERMAL_NO_LIMIT) {
 		upper = cdev->max_state;
