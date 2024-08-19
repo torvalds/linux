@@ -24,20 +24,6 @@
 
 #define GPIOLIB_SWNODE_UNDEFINED_NAME "swnode-gpio-undefined"
 
-static void swnode_format_propname(const char *con_id, char *propname,
-				   size_t max_size)
-{
-	/*
-	 * Note we do not need to try both -gpios and -gpio suffixes,
-	 * as, unlike OF and ACPI, we can fix software nodes to conform
-	 * to the proper binding.
-	 */
-	if (con_id)
-		snprintf(propname, max_size, "%s-gpios", con_id);
-	else
-		strscpy(propname, "gpios", max_size);
-}
-
 static struct gpio_device *swnode_get_gpio_device(struct fwnode_handle *fwnode)
 {
 	const struct software_node *gdev_node;
@@ -84,9 +70,11 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 	if (!swnode)
 		return ERR_PTR(-EINVAL);
 
-	swnode_format_propname(con_id, propname, sizeof(propname));
-
-	ret = swnode_gpio_get_reference(fwnode, propname, idx, &args);
+	for_each_gpio_property_name(propname, con_id) {
+		ret = swnode_gpio_get_reference(fwnode, propname, idx, &args);
+		if (ret == 0)
+			break;
+	}
 	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%pfwP[%d]'\n",
 			__func__, propname, fwnode, idx);
@@ -128,19 +116,21 @@ int swnode_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 	char propname[32];
 	int count;
 
-	swnode_format_propname(con_id, propname, sizeof(propname));
-
 	/*
 	 * This is not very efficient, but GPIO lists usually have only
 	 * 1 or 2 entries.
 	 */
-	count = 0;
-	while (swnode_gpio_get_reference(fwnode, propname, count, &args) == 0) {
-		fwnode_handle_put(args.fwnode);
-		count++;
+	for_each_gpio_property_name(propname, con_id) {
+		count = 0;
+		while (swnode_gpio_get_reference(fwnode, propname, count, &args) == 0) {
+			fwnode_handle_put(args.fwnode);
+			count++;
+		}
+		if (count)
+			return count;
 	}
 
-	return count ?: -ENOENT;
+	return -ENOENT;
 }
 
 #if IS_ENABLED(CONFIG_GPIO_SWNODE_UNDEFINED)
