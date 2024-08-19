@@ -453,6 +453,6 @@ extern const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops;
 /*
  * Max number of links supported in hardware
  */
-#define SDW_INTEL_MAX_LINKS                4
+#define SDW_INTEL_MAX_LINKS                5
 
 #endif
