@@ -2085,6 +2085,7 @@ static const struct platform_device_id ssif_plat_ids[] = {
     { "dmi-ipmi-ssif", 0 },
     { }
 };
+MODULE_DEVICE_TABLE(platform, ssif_plat_ids);
 
 static struct platform_driver ipmi_driver = {
 	.driver = {
