@@ -1598,8 +1598,7 @@ static void hclge_query_reg_info_of_ssu(struct hclge_dev *hdev)
 {
 	u32 loop_para[HCLGE_MOD_MSG_PARA_ARRAY_MAX_SIZE] = {0};
 	struct hclge_mod_reg_common_msg msg;
-	u8 i, j, num;
-	u32 loop_time;
+	u8 i, j, num, loop_time;
 
 	num = ARRAY_SIZE(hclge_ssu_reg_common_msg);
 	for (i = 0; i < num; i++) {
@@ -1609,7 +1608,8 @@ static void hclge_query_reg_info_of_ssu(struct hclge_dev *hdev)
 		loop_time = 1;
 		loop_para[0] = 0;
 		if (msg.need_para) {
-			loop_time = hdev->ae_dev->dev_specs.tnl_num;
+			loop_time = min(hdev->ae_dev->dev_specs.tnl_num,
+					HCLGE_MOD_MSG_PARA_ARRAY_MAX_SIZE);
 			for (j = 0; j < loop_time; j++)
 				loop_para[j] = j + 1;
 		}

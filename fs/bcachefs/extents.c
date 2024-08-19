@@ -171,17 +171,16 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 /* KEY_TYPE_btree_ptr: */
 
-int bch2_btree_ptr_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags,
-			   struct printbuf *err)
+int bch2_btree_ptr_validate(struct bch_fs *c, struct bkey_s_c k,
+			    enum bch_validate_flags flags)
 {
 	int ret = 0;
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) > BCH_REPLICAS_MAX, c, err,
-			 btree_ptr_val_too_big,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > BCH_REPLICAS_MAX,
+			 c, btree_ptr_val_too_big,
 			 "value too big (%zu > %u)", bkey_val_u64s(k.k), BCH_REPLICAS_MAX);
 
-	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
 }
@@ -192,28 +191,27 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
-int bch2_btree_ptr_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
-			      enum bch_validate_flags flags,
-			      struct printbuf *err)
+int bch2_btree_ptr_v2_validate(struct bch_fs *c, struct bkey_s_c k,
+			       enum bch_validate_flags flags)
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX,
-			 c, err, btree_ptr_v2_val_too_big,
+			 c, btree_ptr_v2_val_too_big,
 			 "value too big (%zu > %zu)",
 			 bkey_val_u64s(k.k), BKEY_BTREE_PTR_VAL_U64s_MAX);
 
 	bkey_fsck_err_on(bpos_ge(bp.v->min_key, bp.k->p),
-			 c, err, btree_ptr_v2_min_key_bad,
+			 c, btree_ptr_v2_min_key_bad,
 			 "min_key > key");
 
 	if (flags & BCH_VALIDATE_write)
 		bkey_fsck_err_on(!bp.v->sectors_written,
-				 c, err, btree_ptr_v2_written_0,
+				 c, btree_ptr_v2_written_0,
 				 "sectors_written == 0");
 
-	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
 }
@@ -399,15 +397,14 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 
 /* KEY_TYPE_reservation: */
 
-int bch2_reservation_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bch_validate_flags flags,
-			     struct printbuf *err)
+int bch2_reservation_validate(struct bch_fs *c, struct bkey_s_c k,
+			      enum bch_validate_flags flags)
 {
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
 	int ret = 0;
 
-	bkey_fsck_err_on(!r.v->nr_replicas || r.v->nr_replicas > BCH_REPLICAS_MAX, c, err,
-			 reservation_key_nr_replicas_invalid,
+	bkey_fsck_err_on(!r.v->nr_replicas || r.v->nr_replicas > BCH_REPLICAS_MAX,
+			 c, reservation_key_nr_replicas_invalid,
 			 "invalid nr_replicas (%u)", r.v->nr_replicas);
 fsck_err:
 	return ret;
@@ -1102,14 +1099,12 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 	}
 }
 
-
-static int extent_ptr_invalid(struct bch_fs *c,
-			      struct bkey_s_c k,
-			      enum bch_validate_flags flags,
-			      const struct bch_extent_ptr *ptr,
-			      unsigned size_ondisk,
-			      bool metadata,
-			      struct printbuf *err)
+static int extent_ptr_validate(struct bch_fs *c,
+			       struct bkey_s_c k,
+			       enum bch_validate_flags flags,
+			       const struct bch_extent_ptr *ptr,
+			       unsigned size_ondisk,
+			       bool metadata)
 {
 	int ret = 0;
 
@@ -1128,28 +1123,27 @@ static int extent_ptr_invalid(struct bch_fs *c,
 
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	bkey_for_each_ptr(ptrs, ptr2)
-		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev, c, err,
-				 ptr_to_duplicate_device,
+		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev,
+				 c, ptr_to_duplicate_device,
 				 "multiple pointers to same device (%u)", ptr->dev);
 
 
-	bkey_fsck_err_on(bucket >= nbuckets, c, err,
-			 ptr_after_last_bucket,
+	bkey_fsck_err_on(bucket >= nbuckets,
+			 c, ptr_after_last_bucket,
 			 "pointer past last bucket (%llu > %llu)", bucket, nbuckets);
-	bkey_fsck_err_on(bucket < first_bucket, c, err,
-			 ptr_before_first_bucket,
+	bkey_fsck_err_on(bucket < first_bucket,
+			 c, ptr_before_first_bucket,
 			 "pointer before first bucket (%llu < %u)", bucket, first_bucket);
-	bkey_fsck_err_on(bucket_offset + size_ondisk > bucket_size, c, err,
-			 ptr_spans_multiple_buckets,
+	bkey_fsck_err_on(bucket_offset + size_ondisk > bucket_size,
+			 c, ptr_spans_multiple_buckets,
 			 "pointer spans multiple buckets (%u + %u > %u)",
 		       bucket_offset, size_ondisk, bucket_size);
 fsck_err:
 	return ret;
 }
 
-int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags,
-			   struct printbuf *err)
+int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
+			    enum bch_validate_flags flags)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -1164,25 +1158,24 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 		size_ondisk = btree_sectors(c);
 
 	bkey_extent_entry_for_each(ptrs, entry) {
-		bkey_fsck_err_on(__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX, c, err,
-			extent_ptrs_invalid_entry,
-			"invalid extent entry type (got %u, max %u)",
-			__extent_entry_type(entry), BCH_EXTENT_ENTRY_MAX);
+		bkey_fsck_err_on(__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX,
+				 c, extent_ptrs_invalid_entry,
+				 "invalid extent entry type (got %u, max %u)",
+				 __extent_entry_type(entry), BCH_EXTENT_ENTRY_MAX);
 
 		bkey_fsck_err_on(bkey_is_btree_ptr(k.k) &&
-				 !extent_entry_is_ptr(entry), c, err,
-				 btree_ptr_has_non_ptr,
+				 !extent_entry_is_ptr(entry),
+				 c, btree_ptr_has_non_ptr,
 				 "has non ptr field");
 
 		switch (extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
-			ret = extent_ptr_invalid(c, k, flags, &entry->ptr,
-						 size_ondisk, false, err);
+			ret = extent_ptr_validate(c, k, flags, &entry->ptr, size_ondisk, false);
 			if (ret)
 				return ret;
 
-			bkey_fsck_err_on(entry->ptr.cached && have_ec, c, err,
-					 ptr_cached_and_erasure_coded,
+			bkey_fsck_err_on(entry->ptr.cached && have_ec,
+					 c, ptr_cached_and_erasure_coded,
 					 "cached, erasure coded ptr");
 
 			if (!entry->ptr.unwritten)
@@ -1199,44 +1192,50 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 		case BCH_EXTENT_ENTRY_crc128:
 			crc = bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			bkey_fsck_err_on(crc.offset + crc.live_size > crc.uncompressed_size, c, err,
-					 ptr_crc_uncompressed_size_too_small,
+			bkey_fsck_err_on(crc.offset + crc.live_size > crc.uncompressed_size,
+					 c, ptr_crc_uncompressed_size_too_small,
 					 "checksum offset + key size > uncompressed size");
-			bkey_fsck_err_on(!bch2_checksum_type_valid(c, crc.csum_type), c, err,
-					 ptr_crc_csum_type_unknown,
+			bkey_fsck_err_on(!bch2_checksum_type_valid(c, crc.csum_type),
+					 c, ptr_crc_csum_type_unknown,
 					 "invalid checksum type");
-			bkey_fsck_err_on(crc.compression_type >= BCH_COMPRESSION_TYPE_NR, c, err,
-					 ptr_crc_compression_type_unknown,
+			bkey_fsck_err_on(crc.compression_type >= BCH_COMPRESSION_TYPE_NR,
+					 c, ptr_crc_compression_type_unknown,
 					 "invalid compression type");
 
 			if (bch2_csum_type_is_encryption(crc.csum_type)) {
 				if (nonce == UINT_MAX)
 					nonce = crc.offset + crc.nonce;
 				else if (nonce != crc.offset + crc.nonce)
-					bkey_fsck_err(c, err, ptr_crc_nonce_mismatch,
+					bkey_fsck_err(c, ptr_crc_nonce_mismatch,
 						      "incorrect nonce");
 			}
 
-			bkey_fsck_err_on(crc_since_last_ptr, c, err,
-					 ptr_crc_redundant,
+			bkey_fsck_err_on(crc_since_last_ptr,
+					 c, ptr_crc_redundant,
 					 "redundant crc entry");
 			crc_since_last_ptr = true;
 
 			bkey_fsck_err_on(crc_is_encoded(crc) &&
 					 (crc.uncompressed_size > c->opts.encoded_extent_max >> 9) &&
-					 (flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)), c, err,
-					 ptr_crc_uncompressed_size_too_big,
+					 (flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)),
+					 c, ptr_crc_uncompressed_size_too_big,
 					 "too large encoded extent");
 
 			size_ondisk = crc.compressed_size;
 			break;
 		case BCH_EXTENT_ENTRY_stripe_ptr:
-			bkey_fsck_err_on(have_ec, c, err,
-					 ptr_stripe_redundant,
+			bkey_fsck_err_on(have_ec,
+					 c, ptr_stripe_redundant,
 					 "redundant stripe entry");
 			have_ec = true;
 			break;
 		case BCH_EXTENT_ENTRY_rebalance: {
+			/*
+			 * this shouldn't be a fsck error, for forward
+			 * compatibility; the rebalance code should just refetch
+			 * the compression opt if it's unknown
+			 */
+#if 0
 			const struct bch_extent_rebalance *r = &entry->rebalance;
 
 			if (!bch2_compression_opt_valid(r->compression)) {
@@ -1245,28 +1244,29 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 					   opt.type, opt.level);
 				return -BCH_ERR_invalid_bkey;
 			}
+#endif
 			break;
 		}
 		}
 	}
 
-	bkey_fsck_err_on(!nr_ptrs, c, err,
-			 extent_ptrs_no_ptrs,
+	bkey_fsck_err_on(!nr_ptrs,
+			 c, extent_ptrs_no_ptrs,
 			 "no ptrs");
-	bkey_fsck_err_on(nr_ptrs > BCH_BKEY_PTRS_MAX, c, err,
-			 extent_ptrs_too_many_ptrs,
+	bkey_fsck_err_on(nr_ptrs > BCH_BKEY_PTRS_MAX,
+			 c, extent_ptrs_too_many_ptrs,
 			 "too many ptrs: %u > %u", nr_ptrs, BCH_BKEY_PTRS_MAX);
-	bkey_fsck_err_on(have_written && have_unwritten, c, err,
-			 extent_ptrs_written_and_unwritten,
+	bkey_fsck_err_on(have_written && have_unwritten,
+			 c, extent_ptrs_written_and_unwritten,
 			 "extent with unwritten and written ptrs");
-	bkey_fsck_err_on(k.k->type != KEY_TYPE_extent && have_unwritten, c, err,
-			 extent_ptrs_unwritten,
+	bkey_fsck_err_on(k.k->type != KEY_TYPE_extent && have_unwritten,
+			 c, extent_ptrs_unwritten,
 			 "has unwritten ptrs");
-	bkey_fsck_err_on(crc_since_last_ptr, c, err,
-			 extent_ptrs_redundant_crc,
+	bkey_fsck_err_on(crc_since_last_ptr,
+			 c, extent_ptrs_redundant_crc,
 			 "redundant crc entry");
-	bkey_fsck_err_on(have_ec, c, err,
-			 extent_ptrs_redundant_stripe,
+	bkey_fsck_err_on(have_ec,
+			 c, extent_ptrs_redundant_stripe,
 			 "redundant stripe entry");
 fsck_err:
 	return ret;

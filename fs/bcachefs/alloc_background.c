@@ -196,75 +196,71 @@ static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
 
-int bch2_alloc_v1_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bch_validate_flags flags,
-			  struct printbuf *err)
+int bch2_alloc_v1_validate(struct bch_fs *c, struct bkey_s_c k,
+			   enum bch_validate_flags flags)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 	int ret = 0;
 
 	/* allow for unknown fields */
-	bkey_fsck_err_on(bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v), c, err,
-			 alloc_v1_val_size_bad,
+	bkey_fsck_err_on(bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v),
+			 c, alloc_v1_val_size_bad,
 			 "incorrect value size (%zu < %u)",
 			 bkey_val_u64s(a.k), bch_alloc_v1_val_u64s(a.v));
 fsck_err:
 	return ret;
 }
 
-int bch2_alloc_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bch_validate_flags flags,
-			  struct printbuf *err)
+int bch2_alloc_v2_validate(struct bch_fs *c, struct bkey_s_c k,
+			   enum bch_validate_flags flags)
 {
 	struct bkey_alloc_unpacked u;
 	int ret = 0;
 
-	bkey_fsck_err_on(bch2_alloc_unpack_v2(&u, k), c, err,
-			 alloc_v2_unpack_error,
+	bkey_fsck_err_on(bch2_alloc_unpack_v2(&u, k),
+			 c, alloc_v2_unpack_error,
 			 "unpack error");
 fsck_err:
 	return ret;
 }
 
-int bch2_alloc_v3_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bch_validate_flags flags,
-			  struct printbuf *err)
+int bch2_alloc_v3_validate(struct bch_fs *c, struct bkey_s_c k,
+			   enum bch_validate_flags flags)
 {
 	struct bkey_alloc_unpacked u;
 	int ret = 0;
 
-	bkey_fsck_err_on(bch2_alloc_unpack_v3(&u, k), c, err,
-			 alloc_v2_unpack_error,
+	bkey_fsck_err_on(bch2_alloc_unpack_v3(&u, k),
+			 c, alloc_v2_unpack_error,
 			 "unpack error");
 fsck_err:
 	return ret;
 }
 
-int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bch_validate_flags flags, struct printbuf *err)
+int bch2_alloc_v4_validate(struct bch_fs *c, struct bkey_s_c k,
+			   enum bch_validate_flags flags)
 {
 	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
 	int ret = 0;
 
-	bkey_fsck_err_on(alloc_v4_u64s_noerror(a.v) > bkey_val_u64s(k.k), c, err,
-			 alloc_v4_val_size_bad,
+	bkey_fsck_err_on(alloc_v4_u64s_noerror(a.v) > bkey_val_u64s(k.k),
+			 c, alloc_v4_val_size_bad,
 			 "bad val size (%u > %zu)",
 			 alloc_v4_u64s_noerror(a.v), bkey_val_u64s(k.k));
 
 	bkey_fsck_err_on(!BCH_ALLOC_V4_BACKPOINTERS_START(a.v) &&
-			 BCH_ALLOC_V4_NR_BACKPOINTERS(a.v), c, err,
-			 alloc_v4_backpointers_start_bad,
+			 BCH_ALLOC_V4_NR_BACKPOINTERS(a.v),
+			 c, alloc_v4_backpointers_start_bad,
 			 "invalid backpointers_start");
 
-	bkey_fsck_err_on(alloc_data_type(*a.v, a.v->data_type) != a.v->data_type, c, err,
-			 alloc_key_data_type_bad,
+	bkey_fsck_err_on(alloc_data_type(*a.v, a.v->data_type) != a.v->data_type,
+			 c, alloc_key_data_type_bad,
 			 "invalid data type (got %u should be %u)",
 			 a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
 
 	for (unsigned i = 0; i < 2; i++)
 		bkey_fsck_err_on(a.v->io_time[i] > LRU_TIME_MAX,
-				 c, err,
-				 alloc_key_io_time_bad,
+				 c, alloc_key_io_time_bad,
 				 "invalid io_time[%s]: %llu, max %llu",
 				 i == READ ? "read" : "write",
 				 a.v->io_time[i], LRU_TIME_MAX);
@@ -282,7 +278,7 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 				 a.v->dirty_sectors ||
 				 a.v->cached_sectors ||
 				 a.v->stripe,
-				 c, err, alloc_key_empty_but_have_data,
+				 c, alloc_key_empty_but_have_data,
 				 "empty data type free but have data %u.%u.%u %u",
 				 stripe_sectors,
 				 a.v->dirty_sectors,
@@ -296,7 +292,7 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_DATA_parity:
 		bkey_fsck_err_on(!a.v->dirty_sectors &&
 				 !stripe_sectors,
-				 c, err, alloc_key_dirty_sectors_0,
+				 c, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
 				 bch2_data_type_str(a.v->data_type));
 		break;
@@ -305,12 +301,12 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 				 a.v->dirty_sectors ||
 				 stripe_sectors ||
 				 a.v->stripe,
-				 c, err, alloc_key_cached_inconsistency,
+				 c, alloc_key_cached_inconsistency,
 				 "data type inconsistency");
 
 		bkey_fsck_err_on(!a.v->io_time[READ] &&
 				 c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
-				 c, err, alloc_key_cached_but_read_time_zero,
+				 c, alloc_key_cached_but_read_time_zero,
 				 "cached bucket with read_time == 0");
 		break;
 	case BCH_DATA_stripe:
@@ -513,14 +509,13 @@ static unsigned alloc_gen(struct bkey_s_c k, unsigned offset)
 		: 0;
 }
 
-int bch2_bucket_gens_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bch_validate_flags flags,
-			     struct printbuf *err)
+int bch2_bucket_gens_validate(struct bch_fs *c, struct bkey_s_c k,
+			     enum bch_validate_flags flags)
 {
 	int ret = 0;
 
-	bkey_fsck_err_on(bkey_val_bytes(k.k) != sizeof(struct bch_bucket_gens), c, err,
-			 bucket_gens_val_size_bad,
+	bkey_fsck_err_on(bkey_val_bytes(k.k) != sizeof(struct bch_bucket_gens),
+			 c, bucket_gens_val_size_bad,
 			 "bad val size (%zu != %zu)",
 			 bkey_val_bytes(k.k), sizeof(struct bch_bucket_gens));
 fsck_err:
@@ -829,7 +824,19 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
+
+	struct bch_alloc_v4 *new_a;
+	if (likely(new.k->type == KEY_TYPE_alloc_v4)) {
+		new_a = bkey_s_to_alloc_v4(new).v;
+	} else {
+		BUG_ON(!(flags & BTREE_TRIGGER_gc));
+
+		struct bkey_i_alloc_v4 *new_ka = bch2_alloc_to_v4_mut_inlined(trans, new.s_c);
+		ret = PTR_ERR_OR_ZERO(new_ka);
+		if (unlikely(ret))
+			goto err;
+		new_a = &new_ka->v;
+	}
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		alloc_data_type_set(new_a, new_a->data_type);

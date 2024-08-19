@@ -110,7 +110,7 @@ DEFINE_CLASS(get_unused_fd, int, if (_T >= 0) put_unused_fd(_T),
  *
  * f = dentry_open(&path, O_RDONLY, current_cred());
  * if (IS_ERR(f))
- *         return PTR_ERR(fd);
+ *         return PTR_ERR(f);
  *
  * fd_install(fd, f);
  * return take_fd(fd);
