@@ -93,6 +93,19 @@ static inline struct gpio_device *to_gpio_device(struct device *dev)
 extern const char *const gpio_suffixes[];
 extern const size_t gpio_suffix_count;
 
+#define for_each_gpio_property_name(propname, con_id)					\
+	for (unsigned int __i = 0;							\
+	     __i < gpio_suffix_count && ({						\
+		     const char *__gs = gpio_suffixes[__i];				\
+											\
+		if (con_id)								\
+			snprintf(propname, sizeof(propname), "%s-%s", con_id, __gs);	\
+		else									\
+			snprintf(propname, sizeof(propname), "%s", __gs);		\
+		1;									\
+	     });									\
+	     __i++)
+
 /**
  * struct gpio_array - Opaque descriptor for a structure of GPIO array attributes
  *

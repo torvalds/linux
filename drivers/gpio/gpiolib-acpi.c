@@ -973,18 +973,9 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	struct gpio_desc *desc;
 	char propname[32];
-	int i;
 
 	/* Try first from _DSD */
-	for (i = 0; i < gpio_suffix_count; i++) {
-		if (con_id) {
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		} else {
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-		}
-
+	for_each_gpio_property_name(propname, con_id) {
 		if (adev)
 			desc = acpi_get_gpiod_by_index(adev,
 						       propname, idx, info);
@@ -1450,17 +1441,9 @@ int acpi_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 	int count = -ENOENT;
 	int ret;
 	char propname[32];
-	unsigned int i;
 
 	/* Try first from _DSD */
-	for (i = 0; i < gpio_suffix_count; i++) {
-		if (con_id)
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		else
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-
+	for_each_gpio_property_name(propname, con_id) {
 		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY, &obj);
 		if (ret == 0) {
 			if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)
