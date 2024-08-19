@@ -184,7 +184,6 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
 	int bit;
-	int cpu;
 
 	if (unlikely(!tr->function_enabled))
 		return;
@@ -195,8 +194,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 
 	trace_ctx = tracing_gen_ctx();
 
-	cpu = smp_processor_id();
-	data = per_cpu_ptr(tr->array_buffer.data, cpu);
+	data = this_cpu_ptr(tr->array_buffer.data);
 	if (!atomic_read(&data->disabled))
 		trace_function(tr, ip, parent_ip, trace_ctx);
 
@@ -300,7 +298,6 @@ function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 	unsigned int trace_ctx;
 	unsigned long flags;
 	int bit;
-	int cpu;
 
 	if (unlikely(!tr->function_enabled))
 		return;
@@ -309,8 +306,7 @@ function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 	if (bit < 0)
 		return;
 
-	cpu = smp_processor_id();
-	data = per_cpu_ptr(tr->array_buffer.data, cpu);
+	data = this_cpu_ptr(tr->array_buffer.data);
 	if (atomic_read(&data->disabled))
 		goto out;
 
@@ -321,7 +317,7 @@ function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 	 * TODO: think about a solution that is better than just hoping to be
 	 * lucky.
 	 */
-	last_info = per_cpu_ptr(tr->last_func_repeats, cpu);
+	last_info = this_cpu_ptr(tr->last_func_repeats);
 	if (is_repeat_check(tr, last_info, ip, parent_ip))
 		goto out;
 
