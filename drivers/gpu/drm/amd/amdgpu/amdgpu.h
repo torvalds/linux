@@ -823,6 +823,24 @@ struct amdgpu_mqd {
 			struct amdgpu_mqd_prop *p);
 };
 
+/*
+ * Custom Init levels could be defined for different situations where a full
+ * initialization of all hardware blocks are not expected. Sample cases are
+ * custom init sequences after resume after S0i3/S3, reset on initialization,
+ * partial reset of blocks etc. Presently, this defines only two levels. Levels
+ * are described in corresponding struct definitions - amdgpu_init_default,
+ * amdgpu_init_minimal_xgmi.
+ */
+enum amdgpu_init_lvl_id {
+	AMDGPU_INIT_LEVEL_DEFAULT,
+	AMDGPU_INIT_LEVEL_MINIMAL_XGMI,
+};
+
+struct amdgpu_init_level {
+	enum amdgpu_init_lvl_id level;
+	uint32_t hwini_ip_block_mask;
+};
+
 #define AMDGPU_RESET_MAGIC_NUM 64
 #define AMDGPU_MAX_DF_PERFMONS 4
 struct amdgpu_reset_domain;
@@ -1168,6 +1186,8 @@ struct amdgpu_device {
 	bool				enforce_isolation[MAX_XCP];
 	/* Added this mutex for cleaner shader isolation between GFX and compute processes */
 	struct mutex                    enforce_isolation_mutex;
+
+	struct amdgpu_init_level *init_lvl;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
@@ -1621,4 +1641,6 @@ extern const struct attribute_group amdgpu_vram_mgr_attr_group;
 extern const struct attribute_group amdgpu_gtt_mgr_attr_group;
 extern const struct attribute_group amdgpu_flash_attr_group;
 
+void amdgpu_set_init_level(struct amdgpu_device *adev,
+			   enum amdgpu_init_lvl_id lvl);
 #endif
