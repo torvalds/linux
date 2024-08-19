@@ -59,13 +59,13 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 	.to_text	= bch2_sb_quota_to_text,
 };
 
-int bch2_quota_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bch_validate_flags flags, struct printbuf *err)
+int bch2_quota_validate(struct bch_fs *c, struct bkey_s_c k,
+			enum bch_validate_flags flags)
 {
 	int ret = 0;
 
-	bkey_fsck_err_on(k.k->p.inode >= QTYP_NR, c, err,
-			 quota_type_invalid,
+	bkey_fsck_err_on(k.k->p.inode >= QTYP_NR,
+			 c, quota_type_invalid,
 			 "invalid quota type (%llu >= %u)",
 			 k.k->p.inode, QTYP_NR);
 fsck_err:

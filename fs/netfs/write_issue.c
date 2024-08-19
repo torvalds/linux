@@ -94,6 +94,8 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 {
 	struct netfs_io_request *wreq;
 	struct netfs_inode *ictx;
+	bool is_buffered = (origin == NETFS_WRITEBACK ||
+			    origin == NETFS_WRITETHROUGH);
 
 	wreq = netfs_alloc_request(mapping, file, start, 0, origin);
 	if (IS_ERR(wreq))
@@ -102,7 +104,7 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 	_enter("R=%x", wreq->debug_id);
 
 	ictx = netfs_inode(wreq->inode);
-	if (test_bit(NETFS_RREQ_WRITE_TO_CACHE, &wreq->flags))
+	if (is_buffered && netfs_is_cache_enabled(ictx))
 		fscache_begin_write_operation(&wreq->cache_resources, netfs_i_cookie(ictx));
 
 	wreq->contiguity = wreq->start;

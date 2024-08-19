@@ -55,7 +55,7 @@ static inline void io_napi_add(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct socket *sock;
 
-	if (!READ_ONCE(ctx->napi_busy_poll_dt))
+	if (!READ_ONCE(ctx->napi_enabled))
 		return;
 
 	sock = sock_from_file(req->file);

@@ -100,20 +100,19 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.is_visible	= dirent_is_visible,
 };
 
-int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags,
-			struct printbuf *err)
+int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
+			 enum bch_validate_flags flags)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
 	int ret = 0;
 
-	bkey_fsck_err_on(!d_name.len, c, err,
-			 dirent_empty_name,
+	bkey_fsck_err_on(!d_name.len,
+			 c, dirent_empty_name,
 			 "empty name");
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len), c, err,
-			 dirent_val_too_big,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len),
+			 c, dirent_val_too_big,
 			 "value too big (%zu > %u)",
 			 bkey_val_u64s(k.k), dirent_val_u64s(d_name.len));
 
@@ -121,27 +120,27 @@ int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX, c, err,
-			 dirent_name_too_long,
+	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
+			 c, dirent_name_too_long,
 			 "dirent name too big (%u > %u)",
 			 d_name.len, BCH_NAME_MAX);
 
-	bkey_fsck_err_on(d_name.len != strnlen(d_name.name, d_name.len), c, err,
-			 dirent_name_embedded_nul,
+	bkey_fsck_err_on(d_name.len != strnlen(d_name.name, d_name.len),
+			 c, dirent_name_embedded_nul,
 			 "dirent has stray data after name's NUL");
 
 	bkey_fsck_err_on((d_name.len == 1 && !memcmp(d_name.name, ".", 1)) ||
-			 (d_name.len == 2 && !memcmp(d_name.name, "..", 2)), c, err,
-			 dirent_name_dot_or_dotdot,
+			 (d_name.len == 2 && !memcmp(d_name.name, "..", 2)),
+			 c, dirent_name_dot_or_dotdot,
 			 "invalid name");
 
-	bkey_fsck_err_on(memchr(d_name.name, '/', d_name.len), c, err,
-			 dirent_name_has_slash,
+	bkey_fsck_err_on(memchr(d_name.name, '/', d_name.len),
+			 c, dirent_name_has_slash,
 			 "name with /");
 
 	bkey_fsck_err_on(d.v->d_type != DT_SUBVOL &&
-			 le64_to_cpu(d.v->d_inum) == d.k->p.inode, c, err,
-			 dirent_to_itself,
+			 le64_to_cpu(d.v->d_inum) == d.k->p.inode,
+			 c, dirent_to_itself,
 			 "dirent points to own directory");
 fsck_err:
 	return ret;

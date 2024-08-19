@@ -810,6 +810,20 @@ static int __trigger_extent(struct btree_trans *trans,
 		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, &replicas_sectors, 1, gc);
 		if (ret)
 			return ret;
+	} else {
+		bool insert = !(flags & BTREE_TRIGGER_overwrite);
+		struct disk_accounting_pos acc_inum_key = {
+			.type		= BCH_DISK_ACCOUNTING_inum,
+			.inum.inum	= k.k->p.inode,
+		};
+		s64 v[3] = {
+			insert ? 1 : -1,
+			insert ? k.k->size : -((s64) k.k->size),
+			replicas_sectors,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc_inum_key, v, ARRAY_SIZE(v), gc);
+		if (ret)
+			return ret;
 	}
 
 	if (bch2_bkey_rebalance_opts(k)) {
@@ -901,7 +915,6 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	int ret = 0;
 
@@ -911,7 +924,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
@@ -1032,13 +1045,18 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *ca,
 			enum btree_iter_update_trigger_flags flags)
 {
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	struct bch_fs *c = trans->c;
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_layout layout = ca->disk_sb.sb->layout;
+	mutex_unlock(&c->sb_lock);
+
 	u64 bucket = 0;
 	unsigned i, bucket_sectors = 0;
 	int ret;
 
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+	for (i = 0; i < layout.nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout.sb_offset[i]);
 
 		if (offset == BCH_SB_SECTOR) {
 			ret = bch2_trans_mark_metadata_sectors(trans, ca,
@@ -1049,7 +1067,7 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *c
 		}
 
 		ret = bch2_trans_mark_metadata_sectors(trans, ca, offset,
-				      offset + (1 << layout->sb_max_size_bits),
+				      offset + (1 << layout.sb_max_size_bits),
 				      BCH_DATA_sb, &bucket, &bucket_sectors, flags);
 		if (ret)
 			return ret;
