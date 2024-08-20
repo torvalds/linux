@@ -7,9 +7,24 @@
 #include <linux/auxiliary_bus.h>
 #include "ice.h"
 
+struct ice_sf_dev {
+	struct auxiliary_device adev;
+	struct ice_dynamic_port *dyn_port;
+	struct ice_sf_priv *priv;
+};
+
 struct ice_sf_priv {
 	struct ice_sf_dev *dev;
 	struct devlink_port devlink_port;
 };
+
+static inline struct
+ice_sf_dev *ice_adev_to_sf_dev(struct auxiliary_device *adev)
+{
+	return container_of(adev, struct ice_sf_dev, adev);
+}
+
+int ice_sf_driver_register(void);
+void ice_sf_driver_unregister(void);
 
 #endif /* _ICE_SF_ETH_H_ */
