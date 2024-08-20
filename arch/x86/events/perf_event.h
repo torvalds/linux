@@ -674,18 +674,16 @@ enum hybrid_cpu_type {
 	HYBRID_INTEL_CORE	= 0x40,
 };
 
-enum hybrid_pmu_type {
-	not_hybrid,
-	hybrid_small		= BIT(0),
-	hybrid_big		= BIT(1),
-
-	hybrid_big_small	= hybrid_big | hybrid_small, /* only used for matching */
-};
-
 #define X86_HYBRID_PMU_ATOM_IDX		0
 #define X86_HYBRID_PMU_CORE_IDX		1
 
-#define X86_HYBRID_NUM_PMUS		2
+enum hybrid_pmu_type {
+	not_hybrid,
+	hybrid_small		= BIT(X86_HYBRID_PMU_ATOM_IDX),
+	hybrid_big		= BIT(X86_HYBRID_PMU_CORE_IDX),
+
+	hybrid_big_small	= hybrid_big | hybrid_small, /* only used for matching */
+};
 
 struct x86_hybrid_pmu {
 	struct pmu			pmu;
