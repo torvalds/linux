@@ -54,11 +54,8 @@
 #define PACK_TARGET_INFO(s, r)		\
 	(FIELD_PREP(SENDER_ID_MASK, (s)) | FIELD_PREP(RECEIVER_ID_MASK, (r)))
 
-/*
- * Keeping RX TX buffer size as 4K for now
- * 64K may be preferred to keep it min a page in 64K PAGE_SIZE config
- */
-#define RXTX_BUFFER_SIZE	SZ_4K
+#define RXTX_MAP_MIN_BUFSZ_MASK	GENMASK(1, 0)
+#define RXTX_MAP_MIN_BUFSZ(x)	((x) & RXTX_MAP_MIN_BUFSZ_MASK)
 
 #define FFA_MAX_NOTIFICATIONS		64
 
@@ -99,6 +96,7 @@ struct ffa_drv_info {
 	struct mutex tx_lock; /* lock to protect Tx buffer */
 	void *rx_buffer;
 	void *tx_buffer;
+	size_t rxtx_bufsz;
 	bool mem_ops_native;
 	bool msg_direct_req2_supp;
 	bool bitmap_created;
@@ -454,7 +452,7 @@ static int ffa_msg_send2(u16 src_id, u16 dst_id, void *buf, size_t sz)
 	ffa_value_t ret;
 	int retval = 0;
 
-	if (sz > (RXTX_BUFFER_SIZE - sizeof(*msg)))
+	if (sz > (drv_info->rxtx_bufsz - sizeof(*msg)))
 		return -ERANGE;
 
 	mutex_lock(&drv_info->tx_lock);
@@ -689,9 +687,10 @@ static int ffa_memory_ops(u32 func_id, struct ffa_mem_ops_args *args)
 {
 	int ret;
 	void *buffer;
+	size_t rxtx_bufsz = drv_info->rxtx_bufsz;
 
 	if (!args->use_txbuf) {
-		buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
+		buffer = alloc_pages_exact(rxtx_bufsz, GFP_KERNEL);
 		if (!buffer)
 			return -ENOMEM;
 	} else {
@@ -699,12 +698,12 @@ static int ffa_memory_ops(u32 func_id, struct ffa_mem_ops_args *args)
 		mutex_lock(&drv_info->tx_lock);
 	}
 
-	ret = ffa_setup_and_transmit(func_id, buffer, RXTX_BUFFER_SIZE, args);
+	ret = ffa_setup_and_transmit(func_id, buffer, rxtx_bufsz, args);
 
 	if (args->use_txbuf)
 		mutex_unlock(&drv_info->tx_lock);
 	else
-		free_pages_exact(buffer, RXTX_BUFFER_SIZE);
+		free_pages_exact(buffer, rxtx_bufsz);
 
 	return ret < 0 ? ret : 0;
 }
@@ -1718,6 +1717,8 @@ cleanup:
 static int __init ffa_init(void)
 {
 	int ret;
+	u32 buf_sz;
+	size_t rxtx_bufsz = SZ_4K;
 
 	ret = ffa_transport_init(&invoke_ffa_fn);
 	if (ret)
@@ -1737,13 +1738,24 @@ static int __init ffa_init(void)
 		goto free_drv_info;
 	}
 
-	drv_info->rx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
+	ret = ffa_features(FFA_FN_NATIVE(RXTX_MAP), 0, &buf_sz, NULL);
+	if (!ret) {
+		if (RXTX_MAP_MIN_BUFSZ(buf_sz) == 1)
+			rxtx_bufsz = SZ_64K;
+		else if (RXTX_MAP_MIN_BUFSZ(buf_sz) == 2)
+			rxtx_bufsz = SZ_16K;
+		else
+			rxtx_bufsz = SZ_4K;
+	}
+
+	drv_info->rxtx_bufsz = rxtx_bufsz;
+	drv_info->rx_buffer = alloc_pages_exact(rxtx_bufsz, GFP_KERNEL);
 	if (!drv_info->rx_buffer) {
 		ret = -ENOMEM;
 		goto free_pages;
 	}
 
-	drv_info->tx_buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
+	drv_info->tx_buffer = alloc_pages_exact(rxtx_bufsz, GFP_KERNEL);
 	if (!drv_info->tx_buffer) {
 		ret = -ENOMEM;
 		goto free_pages;
@@ -1751,7 +1763,7 @@ static int __init ffa_init(void)
 
 	ret = ffa_rxtx_map(virt_to_phys(drv_info->tx_buffer),
 			   virt_to_phys(drv_info->rx_buffer),
-			   RXTX_BUFFER_SIZE / FFA_PAGE_SIZE);
+			   rxtx_bufsz / FFA_PAGE_SIZE);
 	if (ret) {
 		pr_err("failed to register FFA RxTx buffers\n");
 		goto free_pages;
@@ -1781,8 +1793,8 @@ cleanup_notifs:
 	ffa_notifications_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
-		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
-	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
+		free_pages_exact(drv_info->tx_buffer, rxtx_bufsz);
+	free_pages_exact(drv_info->rx_buffer, rxtx_bufsz);
 free_drv_info:
 	kfree(drv_info);
 	return ret;
@@ -1794,8 +1806,8 @@ static void __exit ffa_exit(void)
 	ffa_notifications_cleanup();
 	ffa_partitions_cleanup();
 	ffa_rxtx_unmap(drv_info->vm_id);
-	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
-	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
+	free_pages_exact(drv_info->tx_buffer, drv_info->rxtx_bufsz);
+	free_pages_exact(drv_info->rx_buffer, drv_info->rxtx_bufsz);
 	kfree(drv_info);
 }
 module_exit(ffa_exit);
