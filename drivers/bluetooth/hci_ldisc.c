@@ -507,6 +507,9 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	hu->alignment = 1;
 	hu->padding = 0;
 
+	/* Use serial port speed as oper_speed */
+	hu->oper_speed = tty->termios.c_ospeed;
+
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
 
