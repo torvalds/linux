@@ -267,7 +267,7 @@ static const struct engine_info engine_infos[] = {
 	},
 };
 
-static void hw_engine_fini(struct drm_device *drm, void *arg)
+static void hw_engine_fini(void *arg)
 {
 	struct xe_hw_engine *hwe = arg;
 
@@ -585,7 +585,7 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
 		gt->usm.reserved_bcs_instance = hwe->instance;
 
-	return drmm_add_action_or_reset(&xe->drm, hw_engine_fini, hwe);
+	return devm_add_action_or_reset(xe->drm.dev, hw_engine_fini, hwe);
 
 err_kernel_lrc:
 	xe_lrc_put(hwe->kernel_lrc);
