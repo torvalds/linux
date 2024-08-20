@@ -493,9 +493,7 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
-		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
-		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
-		.get_pipe_update_pending = optc3_get_pipe_update_pending,
+		.get_double_buffer_pending = optc32_get_double_buffer_pending,
 };
 
 void dcn401_timing_generator_init(struct optc *optc1)
