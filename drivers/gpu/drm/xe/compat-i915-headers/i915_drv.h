@@ -80,8 +80,6 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 
 #define IS_MOBILE(xe) (xe && 0)
 
-#define HAS_GMD_ID(xe) GRAPHICS_VERx100(xe) >= 1270
-
 #define INTEL_DISPLAY_STEP(xe) ((xe)->info.step.display)
 
 /* Workarounds not handled yet */
