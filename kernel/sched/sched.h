@@ -68,6 +68,7 @@
 #include <linux/wait_api.h>
 #include <linux/wait_bit.h>
 #include <linux/workqueue_api.h>
+#include <linux/delayacct.h>
 
 #include <trace/events/power.h>
 #include <trace/events/sched.h>
@@ -645,10 +646,6 @@ struct cfs_rq {
 	u64			min_vruntime_fi;
 #endif
 
-#ifndef CONFIG_64BIT
-	u64			min_vruntime_copy;
-#endif
-
 	struct rb_root_cached	tasks_timeline;
 
 	/*
@@ -891,6 +888,9 @@ static inline void se_update_runnable(struct sched_entity *se)
 
 static inline long se_runnable(struct sched_entity *se)
 {
+	if (se->sched_delayed)
+		return false;
+
 	if (entity_is_task(se))
 		return !!se->on_rq;
 	else
@@ -905,6 +905,9 @@ static inline void se_update_runnable(struct sched_entity *se) { }
 
 static inline long se_runnable(struct sched_entity *se)
 {
+	if (se->sched_delayed)
+		return false;
+
 	return !!se->on_rq;
 }
 
@@ -2317,11 +2320,13 @@ extern const u32		sched_prio_to_wmult[40];
  *
  */
 
-#define DEQUEUE_SLEEP		0x01
+#define DEQUEUE_SLEEP		0x01 /* Matches ENQUEUE_WAKEUP */
 #define DEQUEUE_SAVE		0x02 /* Matches ENQUEUE_RESTORE */
 #define DEQUEUE_MOVE		0x04 /* Matches ENQUEUE_MOVE */
 #define DEQUEUE_NOCLOCK		0x08 /* Matches ENQUEUE_NOCLOCK */
+#define DEQUEUE_SPECIAL		0x10
 #define DEQUEUE_MIGRATING	0x100 /* Matches ENQUEUE_MIGRATING */
+#define DEQUEUE_DELAYED		0x200 /* Matches ENQUEUE_DELAYED */
 
 #define ENQUEUE_WAKEUP		0x01
 #define ENQUEUE_RESTORE		0x02
@@ -2337,6 +2342,7 @@ extern const u32		sched_prio_to_wmult[40];
 #endif
 #define ENQUEUE_INITIAL		0x80
 #define ENQUEUE_MIGRATING	0x100
+#define ENQUEUE_DELAYED		0x200
 
 #define RETRY_TASK		((void *)-1UL)
 
@@ -2355,7 +2361,7 @@ struct sched_class {
 #endif
 
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int flags);
-	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int flags);
+	bool (*dequeue_task) (struct rq *rq, struct task_struct *p, int flags);
 	void (*yield_task)   (struct rq *rq);
 	bool (*yield_to_task)(struct rq *rq, struct task_struct *p);
 
@@ -2709,6 +2715,19 @@ static inline void sub_nr_running(struct rq *rq, unsigned count)
 
 	/* Check if we still need preemption */
 	sched_update_tick_dependency(rq);
+}
+
+static inline void __block_task(struct rq *rq, struct task_struct *p)
+{
+	WRITE_ONCE(p->on_rq, 0);
+	ASSERT_EXCLUSIVE_WRITER(p->on_rq);
+	if (p->sched_contributes_to_load)
+		rq->nr_uninterruptible++;
+
+	if (p->in_iowait) {
+		atomic_inc(&rq->nr_iowait);
+		delayacct_blkio_start();
+	}
 }
 
 extern void activate_task(struct rq *rq, struct task_struct *p, int flags);
@@ -3736,7 +3755,7 @@ extern int __sched_setaffinity(struct task_struct *p, struct affinity_context *c
 extern void __setscheduler_prio(struct task_struct *p, int prio);
 extern void set_load_weight(struct task_struct *p, bool update_load);
 extern void enqueue_task(struct rq *rq, struct task_struct *p, int flags);
-extern void dequeue_task(struct rq *rq, struct task_struct *p, int flags);
+extern bool dequeue_task(struct rq *rq, struct task_struct *p, int flags);
 
 extern void check_class_changing(struct rq *rq, struct task_struct *p,
 				 const struct sched_class *prev_class);

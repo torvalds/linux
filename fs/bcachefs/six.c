@@ -335,7 +335,7 @@ static inline bool six_owner_running(struct six_lock *lock)
 	 */
 	rcu_read_lock();
 	struct task_struct *owner = READ_ONCE(lock->owner);
-	bool ret = owner ? owner_on_cpu(owner) : !rt_task(current);
+	bool ret = owner ? owner_on_cpu(owner) : !rt_or_dl_task(current);
 	rcu_read_unlock();
 
 	return ret;

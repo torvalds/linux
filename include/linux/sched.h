@@ -151,8 +151,9 @@ struct user_event_mm;
  * Special states are those that do not use the normal wait-loop pattern. See
  * the comment with set_special_state().
  */
-#define is_special_task_state(state)				\
-	((state) & (__TASK_STOPPED | __TASK_TRACED | TASK_PARKED | TASK_DEAD))
+#define is_special_task_state(state)					\
+	((state) & (__TASK_STOPPED | __TASK_TRACED | TASK_PARKED |	\
+		    TASK_DEAD | TASK_FROZEN))
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 # define debug_normal_state_change(state_value)				\
@@ -543,9 +544,14 @@ struct sched_entity {
 	struct rb_node			run_node;
 	u64				deadline;
 	u64				min_vruntime;
+	u64				min_slice;
 
 	struct list_head		group_node;
-	unsigned int			on_rq;
+	unsigned char			on_rq;
+	unsigned char			sched_delayed;
+	unsigned char			rel_deadline;
+	unsigned char			custom_slice;
+					/* hole */
 
 	u64				exec_start;
 	u64				sum_exec_runtime;

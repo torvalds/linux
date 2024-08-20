@@ -2162,7 +2162,7 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 		enqueue_pushable_dl_task(rq, p);
 }
 
-static void dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
+static bool dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_curr_dl(rq);
 
@@ -2172,6 +2172,8 @@ static void dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 	dequeue_dl_entity(&p->dl, flags);
 	if (!p->dl.dl_throttled && !dl_server(&p->dl))
 		dequeue_pushable_dl_task(rq, p);
+
+	return true;
 }
 
 /*
@@ -2426,7 +2428,6 @@ again:
 		else
 			p = dl_se->server_pick_next(dl_se);
 		if (!p) {
-			WARN_ON_ONCE(1);
 			dl_se->dl_yielded = 1;
 			update_curr_dl_se(rq, dl_se, 0);
 			goto again;
