@@ -478,14 +478,12 @@ static int as3645a_detect(struct as3645a *flash)
 	return as3645a_write(flash, AS_BOOST_REG, AS_BOOST_CURRENT_DISABLE);
 }
 
-static int as3645a_parse_node(struct as3645a *flash,
-			      struct fwnode_handle *fwnode)
+static int as3645a_parse_node(struct device *dev, struct as3645a *flash)
 {
 	struct as3645a_config *cfg = &flash->cfg;
-	struct fwnode_handle *child;
 	int rval;
 
-	fwnode_for_each_child_node(fwnode, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		u32 id = 0;
 
 		fwnode_property_read_u32(child, "reg", &id);
@@ -686,7 +684,7 @@ static int as3645a_probe(struct i2c_client *client)
 
 	flash->client = client;
 
-	rval = as3645a_parse_node(flash, dev_fwnode(&client->dev));
+	rval = as3645a_parse_node(&client->dev, flash);
 	if (rval < 0)
 		return rval;
 
