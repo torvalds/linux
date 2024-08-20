@@ -3037,7 +3037,7 @@ static int tb_resume_noirq(struct tb *tb)
 			/* Only need to do it once */
 			usb3_delay = 0;
 		}
-		tb_tunnel_restart(tunnel);
+		tb_tunnel_activate(tunnel);
 	}
 	if (!list_empty(&tcm->tunnel_list)) {
 		/*
@@ -3147,7 +3147,7 @@ static int tb_runtime_resume(struct tb *tb)
 	tb_free_invalid_tunnels(tb);
 	tb_restore_children(tb->root_switch);
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
-		tb_tunnel_restart(tunnel);
+		tb_tunnel_activate(tunnel);
 	tb_switch_enter_redrive(tb->root_switch);
 	tcm->hotplug_active = true;
 	mutex_unlock(&tb->lock);

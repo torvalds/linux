@@ -2170,12 +2170,12 @@ bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel)
 }
 
 /**
- * tb_tunnel_restart() - activate a tunnel after a hardware reset
- * @tunnel: Tunnel to restart
+ * tb_tunnel_activate() - activate a tunnel
+ * @tunnel: Tunnel to activate
  *
  * Return: 0 on success and negative errno in case if failure
  */
-int tb_tunnel_restart(struct tb_tunnel *tunnel)
+int tb_tunnel_activate(struct tb_tunnel *tunnel)
 {
 	int res, i;
 
@@ -2216,27 +2216,6 @@ err:
 	tb_tunnel_warn(tunnel, "activation failed\n");
 	tb_tunnel_deactivate(tunnel);
 	return res;
-}
-
-/**
- * tb_tunnel_activate() - activate a tunnel
- * @tunnel: Tunnel to activate
- *
- * Return: Returns 0 on success or an error code on failure.
- */
-int tb_tunnel_activate(struct tb_tunnel *tunnel)
-{
-	int i;
-
-	for (i = 0; i < tunnel->npaths; i++) {
-		if (tunnel->paths[i]->activated) {
-			tb_tunnel_WARN(tunnel,
-				       "trying to activate an already activated tunnel\n");
-			return -EINVAL;
-		}
-	}
-
-	return tb_tunnel_restart(tunnel);
 }
 
 /**
