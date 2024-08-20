@@ -322,6 +322,7 @@ int bch2_journal_replay(struct bch_fs *c)
 		}
 	}
 
+	bch2_trans_unlock_long(trans);
 	/*
 	 * Now, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:
