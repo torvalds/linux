@@ -73,6 +73,11 @@
 #define FFA_FN64_MEM_PERM_GET		FFA_SMC_64(0x88)
 #define FFA_MEM_PERM_SET		FFA_SMC_32(0x89)
 #define FFA_FN64_MEM_PERM_SET		FFA_SMC_64(0x89)
+#define FFA_CONSOLE_LOG			FFA_SMC_32(0x8A)
+#define FFA_PARTITION_INFO_GET_REGS	FFA_SMC_64(0x8B)
+#define FFA_EL3_INTR_HANDLE		FFA_SMC_32(0x8C)
+#define FFA_MSG_SEND_DIRECT_REQ2	FFA_SMC_64(0x8D)
+#define FFA_MSG_SEND_DIRECT_RESP2	FFA_SMC_64(0x8E)
 
 /*
  * For some calls it is necessary to use SMC64 to pass or return 64-bit values.
