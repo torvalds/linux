@@ -1932,47 +1932,32 @@ static void dccg35_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst,
 }
 
 /*get other front end connected to this backend*/
-static uint8_t dccg35_get_other_enabled_symclk_fe(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+static uint8_t dccg35_get_number_enabled_symclk_fe_connected_to_be(struct dccg *dccg, uint32_t link_enc_inst)
 {
 	uint8_t num_enabled_symclk_fe = 0;
-	uint32_t be_clk_en = 0, fe_clk_en[5] = {0}, be_clk_sel[5] = {0};
+	uint32_t fe_clk_en[5] = {0}, be_clk_sel[5] = {0};
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
-	switch (link_enc_inst) {
-	case 0:
-		REG_GET_3(SYMCLKA_CLOCK_ENABLE, SYMCLKA_CLOCK_ENABLE, &be_clk_en,
-				SYMCLKA_FE_EN, &fe_clk_en[0],
-				SYMCLKA_FE_SRC_SEL, &be_clk_sel[0]);
-				break;
-	case 1:
-		REG_GET_3(SYMCLKB_CLOCK_ENABLE, SYMCLKB_CLOCK_ENABLE, &be_clk_en,
-				SYMCLKB_FE_EN, &fe_clk_en[1],
-				SYMCLKB_FE_SRC_SEL, &be_clk_sel[1]);
-				break;
-	case 2:
-			REG_GET_3(SYMCLKC_CLOCK_ENABLE, SYMCLKC_CLOCK_ENABLE, &be_clk_en,
-				SYMCLKC_FE_EN, &fe_clk_en[2],
-				SYMCLKC_FE_SRC_SEL, &be_clk_sel[2]);
-				break;
-	case 3:
-			REG_GET_3(SYMCLKD_CLOCK_ENABLE, SYMCLKD_CLOCK_ENABLE, &be_clk_en,
-				SYMCLKD_FE_EN, &fe_clk_en[3],
-				SYMCLKD_FE_SRC_SEL, &be_clk_sel[3]);
-				break;
-	case 4:
-			REG_GET_3(SYMCLKE_CLOCK_ENABLE, SYMCLKE_CLOCK_ENABLE, &be_clk_en,
-				SYMCLKE_FE_EN, &fe_clk_en[4],
-				SYMCLKE_FE_SRC_SEL, &be_clk_sel[4]);
-				break;
-	}
-	if (be_clk_en) {
-	/* for DPMST, this backend could be used by multiple front end.
-	only disable the backend if this stream_enc_ins is the last active stream enc connected to this back_end*/
-		uint8_t i;
-		for (i = 0; i != link_enc_inst && i < ARRAY_SIZE(fe_clk_en); i++) {
-			if (fe_clk_en[i] && be_clk_sel[i] == link_enc_inst)
-				num_enabled_symclk_fe++;
-		}
+	REG_GET_2(SYMCLKA_CLOCK_ENABLE, SYMCLKA_FE_EN, &fe_clk_en[0],
+		SYMCLKA_FE_SRC_SEL, &be_clk_sel[0]);
+
+	REG_GET_2(SYMCLKB_CLOCK_ENABLE, SYMCLKB_FE_EN, &fe_clk_en[1],
+		SYMCLKB_FE_SRC_SEL, &be_clk_sel[1]);
+
+	REG_GET_2(SYMCLKC_CLOCK_ENABLE, SYMCLKC_FE_EN, &fe_clk_en[2],
+		SYMCLKC_FE_SRC_SEL, &be_clk_sel[2]);
+
+	REG_GET_2(SYMCLKD_CLOCK_ENABLE,	SYMCLKD_FE_EN, &fe_clk_en[3],
+		SYMCLKD_FE_SRC_SEL, &be_clk_sel[3]);
+
+	REG_GET_2(SYMCLKE_CLOCK_ENABLE,	SYMCLKE_FE_EN, &fe_clk_en[4],
+		SYMCLKE_FE_SRC_SEL, &be_clk_sel[4]);
+
+	uint8_t i;
+
+	for (i = 0; i < ARRAY_SIZE(fe_clk_en); i++) {
+		if (fe_clk_en[i] && be_clk_sel[i] == link_enc_inst)
+			num_enabled_symclk_fe++;
 	}
 	return num_enabled_symclk_fe;
 }
@@ -2020,9 +2005,9 @@ static void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 		break;
 	}
 
-	/*check other enabled symclk fe */
-	num_enabled_symclk_fe = dccg35_get_other_enabled_symclk_fe(dccg, stream_enc_inst, link_enc_inst);
-	/*only turn off backend clk if other front end attachecd to this backend are all off,
+	/*check other enabled symclk fe connected to this be */
+	num_enabled_symclk_fe = dccg35_get_number_enabled_symclk_fe_connected_to_be(dccg, link_enc_inst);
+	/*only turn off backend clk if other front end attached to this backend are all off,
 	 for mst, only turn off the backend if this is the last front end*/
 	if (num_enabled_symclk_fe == 0) {
 		switch (link_enc_inst) {
