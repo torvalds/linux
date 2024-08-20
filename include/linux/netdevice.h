@@ -645,9 +645,6 @@ struct netdev_queue {
 #ifdef CONFIG_SYSFS
 	struct kobject		kobj;
 #endif
-#if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
-	int			numa_node;
-#endif
 	unsigned long		tx_maxrate;
 	/*
 	 * Number of TX timeouts for this queue
@@ -660,13 +657,13 @@ struct netdev_queue {
 #ifdef CONFIG_XDP_SOCKETS
 	struct xsk_buff_pool    *pool;
 #endif
-	/* NAPI instance for the queue
-	 * Readers and writers must hold RTNL
-	 */
-	struct napi_struct      *napi;
+
 /*
  * write-mostly part
  */
+#ifdef CONFIG_BQL
+	struct dql		dql;
+#endif
 	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
 	int			xmit_lock_owner;
 	/*
@@ -676,8 +673,16 @@ struct netdev_queue {
 
 	unsigned long		state;
 
-#ifdef CONFIG_BQL
-	struct dql		dql;
+/*
+ * slow- / control-path part
+ */
+	/* NAPI instance for the queue
+	 * Readers and writers must hold RTNL
+	 */
+	struct napi_struct	*napi;
+
+#if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
+	int			numa_node;
 #endif
 } ____cacheline_aligned_in_smp;
 
