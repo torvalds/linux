@@ -1592,6 +1592,8 @@ u64 cmt_latency_data(struct perf_event *event, u64 status);
 
 u64 lnl_latency_data(struct perf_event *event, u64 status);
 
+u64 arl_h_latency_data(struct perf_event *event, u64 status);
+
 extern struct event_constraint intel_core2_pebs_event_constraints[];
 
 extern struct event_constraint intel_atom_pebs_event_constraints[];
@@ -1710,6 +1712,8 @@ void intel_pmu_pebs_data_source_adl(void);
 void intel_pmu_pebs_data_source_grt(void);
 
 void intel_pmu_pebs_data_source_mtl(void);
+
+void intel_pmu_pebs_data_source_arl_h(void);
 
 void intel_pmu_pebs_data_source_cmt(void);
 
