@@ -853,8 +853,8 @@ config DATA_SHIFT_BOOL
 	bool "Set custom data alignment"
 	depends on ADVANCED_OPTIONS
 	depends on STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE
-	depends on PPC_BOOK3S_32 || (PPC_8xx && !PIN_TLB_DATA && !STRICT_KERNEL_RWX) || \
-		   PPC_85xx
+	depends on (PPC_8xx && !PIN_TLB_DATA && (!STRICT_KERNEL_RWX || !PIN_TLB_TEXT)) || \
+		   PPC_BOOK3S_32 || PPC_85xx
 	help
 	  This option allows you to set the kernel data alignment. When
 	  RAM is mapped by blocks, the alignment needs to fit the size and
@@ -870,9 +870,9 @@ config DATA_SHIFT
 	range 20 24 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_85xx
 	default 22 if STRICT_KERNEL_RWX && PPC_BOOK3S_32
 	default 18 if (DEBUG_PAGEALLOC || KFENCE) && PPC_BOOK3S_32
-	default 23 if STRICT_KERNEL_RWX && PPC_8xx
-	default 23 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx && PIN_TLB_DATA
-	default 19 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx
+	default 23 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_8xx && \
+		      (PIN_TLB_DATA || PIN_TLB_TEXT)
+	default 19 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_8xx
 	default 24 if STRICT_KERNEL_RWX && PPC_85xx
 	default PAGE_SHIFT
 	help
