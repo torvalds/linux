@@ -165,7 +165,7 @@ structure below:
      u16                 flags;
      struct block_device *bdev;
      struct dax_device   *dax_dev;
-     voidw               *inline_data;
+     void                *inline_data;
      void                *private;
      const struct iomap_folio_ops *folio_ops;
      u64                 validity_cookie;
