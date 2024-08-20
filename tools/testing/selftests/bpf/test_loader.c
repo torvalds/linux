@@ -365,6 +365,8 @@ static int parse_test_spec(struct test_loader *tester,
 	const char *description = NULL;
 	bool has_unpriv_result = false;
 	bool has_unpriv_retval = false;
+	bool unpriv_xlated_on_next_line = true;
+	bool xlated_on_next_line = true;
 	bool unpriv_jit_on_next_line;
 	bool jit_on_next_line;
 	bool collect_jit = false;
@@ -461,12 +463,14 @@ static int parse_test_spec(struct test_loader *tester,
 				spec->mode_mask |= UNPRIV;
 			}
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
-			err = push_msg(msg, &spec->priv.expect_xlated);
+			err = push_disasm_msg(msg, &xlated_on_next_line,
+					      &spec->priv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
-			err = push_msg(msg, &spec->unpriv.expect_xlated);
+			err = push_disasm_msg(msg, &unpriv_xlated_on_next_line,
+					      &spec->unpriv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
