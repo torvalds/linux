@@ -1064,7 +1064,6 @@ got_group:
 		    EXT4_MB_GRP_IBITMAP_CORRUPT(grp))
 			goto next_group;
 
-repeat_in_this_group:
 		ret2 = find_inode_bit(sb, group, inode_bitmap_bh, &ino);
 		if (!ret2)
 			goto next_group;
@@ -1114,8 +1113,6 @@ repeat_in_this_group:
 		if (!ret2)
 			goto got; /* we grabbed the inode! */
 
-		if (ino < EXT4_INODES_PER_GROUP(sb))
-			goto repeat_in_this_group;
 next_group:
 		if (++group == ngroups)
 			group = 0;
