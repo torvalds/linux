@@ -89,8 +89,7 @@ static void xe_sched_job_free_fences(struct xe_sched_job *job)
 
 		if (ptrs->lrc_fence)
 			xe_lrc_free_seqno_fence(ptrs->lrc_fence);
-		if (ptrs->chain_fence)
-			dma_fence_chain_free(ptrs->chain_fence);
+		dma_fence_chain_free(ptrs->chain_fence);
 	}
 }
 
