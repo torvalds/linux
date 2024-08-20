@@ -240,6 +240,12 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 {
 	int err;
 
+	if (!phy_common) {
+		pr_err("%s: Defering the probe: Failed to get the required phy handle!!\n",
+			__func__);
+		return -EPROBE_DEFER;
+	}
+
 	if (of_device_is_compatible(phy_common->dev->of_node,
 				"qcom,msm8996-ufs-phy-qmp-14nm"))
 		goto skip_txrx_clk;
