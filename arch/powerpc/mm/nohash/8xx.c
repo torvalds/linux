@@ -177,7 +177,8 @@ int mmu_mark_initmem_nx(void)
 	if (!debug_pagealloc_enabled_or_kfence())
 		err = mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL, false);
 
-	mmu_pin_tlb(block_mapped_ram, false);
+	if (IS_ENABLED(CONFIG_PIN_TLB_TEXT))
+		mmu_pin_tlb(block_mapped_ram, false);
 
 	return err;
 }
