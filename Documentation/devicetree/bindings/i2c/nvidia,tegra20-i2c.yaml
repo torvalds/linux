@@ -124,6 +124,8 @@ allOf:
               - nvidia,tegra30-i2c
     then:
       properties:
+        clocks:
+          minItems: 2
         clock-names:
           items:
             - const: div-clk
@@ -138,6 +140,8 @@ allOf:
               - nvidia,tegra210-i2c
     then:
       properties:
+        clocks:
+          maxItems: 1
         clock-names:
           items:
             - const: div-clk
@@ -149,6 +153,8 @@ allOf:
             const: nvidia,tegra210-i2c-vi
     then:
       properties:
+        clocks:
+          minItems: 2
         clock-names:
           items:
             - const: div-clk
