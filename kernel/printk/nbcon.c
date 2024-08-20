@@ -1344,6 +1344,7 @@ EXPORT_SYMBOL_GPL(nbcon_device_try_acquire);
 void nbcon_device_release(struct console *con)
 {
 	struct nbcon_context *ctxt = &ACCESS_PRIVATE(con, nbcon_device_ctxt);
+	struct console_flush_type ft;
 	int cookie;
 
 	if (!nbcon_context_exit_unsafe(ctxt))
@@ -1359,12 +1360,17 @@ void nbcon_device_release(struct console *con)
 	cookie = console_srcu_read_lock();
 	if (console_is_usable(con, console_srcu_read_flags(con)) &&
 	    prb_read_valid(prb, nbcon_seq_read(con), NULL)) {
-		if (!have_boot_console) {
+		/*
+		 * If nbcon_atomic flushing is not available, fallback to
+		 * using the legacy loop.
+		 */
+		printk_get_console_flush_type(&ft);
+		if (ft.nbcon_atomic) {
 			__nbcon_atomic_flush_pending_con(con, prb_next_reserve_seq(prb), false);
-		} else if (!is_printk_legacy_deferred()) {
+		} else if (ft.legacy_direct) {
 			if (console_trylock())
 				console_unlock();
-		} else {
+		} else if (ft.legacy_offload) {
 			printk_trigger_flush();
 		}
 	}
