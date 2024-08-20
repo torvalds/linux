@@ -1868,14 +1868,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		 * cause issues if non-supported panels are used.
 		 */
 		if (!intel_dp->psr.panel_replay_enabled &&
-		    (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
+		    (IS_DISPLAY_VER_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
 		     IS_ALDERLAKE_P(dev_priv)))
 			intel_de_rmw(dev_priv, hsw_chicken_trans_reg(dev_priv, cpu_transcoder),
 				     0, ADLP_1_BASED_X_GRANULARITY);
 
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
 		if (!intel_dp->psr.panel_replay_enabled &&
-		    IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
+		    IS_DISPLAY_VER_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
 				     MTL_CLKGATE_DIS_TRANS(dev_priv, cpu_transcoder),
 				     0,
@@ -2057,7 +2057,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	if (intel_dp->psr.sel_update_enabled) {
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
 		if (!intel_dp->psr.panel_replay_enabled &&
-		    IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
+		    IS_DISPLAY_VER_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
 				     MTL_CLKGATE_DIS_TRANS(dev_priv, cpu_transcoder),
 				     MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS, 0);
@@ -2542,7 +2542,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 
 	/* Wa_14014971492 */
 	if (!crtc_state->has_panel_replay &&
-	    ((IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
+	    ((IS_DISPLAY_VER_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
 	      IS_ALDERLAKE_P(dev_priv) || IS_TIGERLAKE(dev_priv))) &&
 	    crtc_state->splitter.enable)
 		crtc_state->psr2_su_area.y1 = 0;
