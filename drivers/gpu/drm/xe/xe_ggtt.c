@@ -166,7 +166,7 @@ static void ggtt_fini_early(struct drm_device *drm, void *arg)
 	drm_mm_takedown(&ggtt->mm);
 }
 
-static void ggtt_fini(struct drm_device *drm, void *arg)
+static void ggtt_fini(void *arg)
 {
 	struct xe_ggtt *ggtt = arg;
 
@@ -374,7 +374,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 
 	xe_ggtt_initial_clear(ggtt);
 
-	return drmm_add_action_or_reset(&xe->drm, ggtt_fini, ggtt);
+	return devm_add_action_or_reset(xe->drm.dev, ggtt_fini, ggtt);
 err:
 	ggtt->scratch = NULL;
 	return err;
