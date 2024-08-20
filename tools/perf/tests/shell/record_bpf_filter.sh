@@ -116,6 +116,36 @@ test_bpf_filter_group() {
   echo "Group bpf-filter test [Success]"
 }
 
+test_bpf_filter_multi() {
+  echo "Multiple bpf-filter test"
+
+  if ! perf record -e task-clock --filter 'period > 100000' \
+       -e page-faults --filter 'ip < 0xffffffff00000000' \
+       -o "${perfdata}" true 2> /dev/null
+  then
+    echo "Multiple bpf-filter test [Failed record]"
+    err=1
+    return
+  fi
+
+  if ! perf script -i "${perfdata}" -F period,event | grep task-clock | \
+	  awk '{ if (int($1) <= 100000) { print $0; exit(1); } }'
+  then
+    echo "Multiple bpf-filter test [Failed task-clock period]"
+    err=1
+    return
+  fi
+
+  if perf script -i "${perfdata}" -F event,ip | grep page-fault | \
+	  grep 'ffffffff[0-9a-f]*'
+  then
+    echo "Multiple bpf-filter test [Failed page-faults ip]"
+    err=1
+    return
+  fi
+
+  echo "Multiple bpf-filter test [Success]"
+}
 
 test_bpf_filter_priv
 
@@ -129,6 +159,10 @@ fi
 
 if [ $err = 0 ]; then
   test_bpf_filter_group
+fi
+
+if [ $err = 0 ]; then
+  test_bpf_filter_multi
 fi
 
 cleanup
