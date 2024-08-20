@@ -868,6 +868,12 @@ struct svm_range_list {
 	struct task_struct		*faulting_task;
 	/* check point ts decides if page fault recovery need be dropped */
 	uint64_t			checkpoint_ts[MAX_GPU_INSTANCE];
+
+	/* Default granularity to use in buffer migration
+	 * and restoration of backing memory while handling
+	 * recoverable page faults
+	 */
+	uint8_t default_granularity;
 };
 
 /* Process data */
