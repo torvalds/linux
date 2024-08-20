@@ -31,6 +31,9 @@
 )
 // end copied section
 
+#define CPUID_LEAF_MODEL_ID			0x1A
+#define CPUID_LEAF_MODEL_ID_CORE_TYPE_SHIFT	24
+
 #define X86_VENDOR_INTEL	0
 
 #include INTEL_FAMILY_HEADER
@@ -88,6 +91,9 @@
 #define COUNTER_KIND_PERF_PREFIX_LEN strlen(COUNTER_KIND_PERF_PREFIX)
 #define PERF_DEV_NAME_BYTES 32
 #define PERF_EVT_NAME_BYTES 32
+
+#define INTEL_ECORE_TYPE	0x20
+#define INTEL_PCORE_TYPE	0x40
 
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
 enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
@@ -1848,6 +1854,7 @@ struct cpu_topology {
 	int logical_node_id;	/* 0-based count within the package */
 	int physical_core_id;
 	int thread_id;
+	int type;
 	cpu_set_t *put_ids;	/* Processing Unit/Thread IDs */
 } *cpus;
 
@@ -5653,6 +5660,32 @@ int init_thread_id(int cpu)
 	return 0;
 }
 
+int set_my_cpu_type(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	unsigned int max_level;
+
+	__cpuid(0, max_level, ebx, ecx, edx);
+
+	if (max_level < CPUID_LEAF_MODEL_ID)
+		return 0;
+
+	__cpuid(CPUID_LEAF_MODEL_ID, eax, ebx, ecx, edx);
+
+	return (eax >> CPUID_LEAF_MODEL_ID_CORE_TYPE_SHIFT);
+}
+
+int set_cpu_hybrid_type(int cpu)
+{
+	if (cpu_migrate(cpu))
+		return -1;
+
+	int type = set_my_cpu_type();
+
+	cpus[cpu].type = type;
+	return 0;
+}
+
 /*
  * snapshot_proc_interrupts()
  *
@@ -8281,6 +8314,8 @@ void topology_probe(bool startup)
 
 	for_all_proc_cpus(init_thread_id);
 
+	for_all_proc_cpus(set_cpu_hybrid_type);
+
 	/*
 	 * For online cpus
 	 * find max_core_id, max_package_id
@@ -8545,6 +8580,35 @@ void check_perf_access(void)
 		bic_enabled &= ~BIC_IPC;
 }
 
+bool perf_has_hybrid_devices(void)
+{
+	/*
+	 *  0: unknown
+	 *  1: has separate perf device for p and e core
+	 * -1: doesn't have separate perf device for p and e core
+	 */
+	static int cached;
+
+	if (cached > 0)
+		return true;
+
+	if (cached < 0)
+		return false;
+
+	if (access("/sys/bus/event_source/devices/cpu_core", F_OK)) {
+		cached = -1;
+		return false;
+	}
+
+	if (access("/sys/bus/event_source/devices/cpu_atom", F_OK)) {
+		cached = -1;
+		return false;
+	}
+
+	cached = 1;
+	return true;
+}
+
 int added_perf_counters_init_(struct perf_counter_info *pinfo)
 {
 	size_t num_domains = 0;
@@ -8601,29 +8665,56 @@ int added_perf_counters_init_(struct perf_counter_info *pinfo)
 			if (domain_visited[next_domain])
 				continue;
 
-			perf_type = read_perf_type(pinfo->device);
+			/*
+			 * Intel hybrid platforms expose different perf devices for P and E cores.
+			 * Instead of one, "/sys/bus/event_source/devices/cpu" device, there are
+			 * "/sys/bus/event_source/devices/{cpu_core,cpu_atom}".
+			 *
+			 * This makes it more complicated to the user, because most of the counters
+			 * are available on both and have to be handled manually, otherwise.
+			 *
+			 * Code below, allow user to use the old "cpu" name, which is translated accordingly.
+			 */
+			const char *perf_device = pinfo->device;
+
+			if (strcmp(perf_device, "cpu") == 0 && perf_has_hybrid_devices()) {
+				switch (cpus[cpu].type) {
+				case INTEL_PCORE_TYPE:
+					perf_device = "cpu_core";
+					break;
+
+				case INTEL_ECORE_TYPE:
+					perf_device = "cpu_atom";
+					break;
+
+				default: /* Don't change, we will probably fail and report a problem soon. */
+					break;
+				}
+			}
+
+			perf_type = read_perf_type(perf_device);
 			if (perf_type == (unsigned int)-1) {
 				warnx("%s: perf/%s/%s: failed to read %s",
-				      __func__, pinfo->device, pinfo->event, "type");
+				      __func__, perf_device, pinfo->event, "type");
 				continue;
 			}
 
-			perf_config = read_perf_config(pinfo->device, pinfo->event);
+			perf_config = read_perf_config(perf_device, pinfo->event);
 			if (perf_config == (unsigned int)-1) {
 				warnx("%s: perf/%s/%s: failed to read %s",
-				      __func__, pinfo->device, pinfo->event, "config");
+				      __func__, perf_device, pinfo->event, "config");
 				continue;
 			}
 
 			/* Scale is not required, some counters just don't have it. */
-			perf_scale = read_perf_scale(pinfo->device, pinfo->event);
+			perf_scale = read_perf_scale(perf_device, pinfo->event);
 			if (perf_scale == 0.0)
 				perf_scale = 1.0;
 
 			fd_perf = open_perf_counter(cpu, perf_type, perf_config, -1, 0);
 			if (fd_perf == -1) {
 				warnx("%s: perf/%s/%s: failed to open counter on cpu%d",
-				      __func__, pinfo->device, pinfo->event, cpu);
+				      __func__, perf_device, pinfo->event, cpu);
 				continue;
 			}
 
@@ -8633,7 +8724,7 @@ int added_perf_counters_init_(struct perf_counter_info *pinfo)
 
 			if (debug)
 				fprintf(stderr, "Add perf/%s/%s cpu%d: %d\n",
-					pinfo->device, pinfo->event, cpu, pinfo->fd_perf_per_domain[next_domain]);
+					perf_device, pinfo->event, cpu, pinfo->fd_perf_per_domain[next_domain]);
 		}
 
 		pinfo = pinfo->next;
