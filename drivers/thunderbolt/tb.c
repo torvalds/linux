@@ -1864,7 +1864,7 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 	return NULL;
 }
 
-static bool tb_tunnel_one_dp(struct tb *tb, struct tb_port *in,
+static void tb_tunnel_one_dp(struct tb *tb, struct tb_port *in,
 			     struct tb_port *out)
 {
 	int available_up, available_down, ret, link_nr;
@@ -1954,7 +1954,7 @@ static bool tb_tunnel_one_dp(struct tb *tb, struct tb_port *in,
 	 * TMU mode to HiFi for CL0s to work.
 	 */
 	tb_increase_tmu_accuracy(tunnel);
-	return true;
+	return;
 
 err_deactivate:
 	tb_tunnel_deactivate(tunnel);
@@ -1971,8 +1971,6 @@ err_rpm_put:
 	pm_runtime_put_autosuspend(&out->sw->dev);
 	pm_runtime_mark_last_busy(&in->sw->dev);
 	pm_runtime_put_autosuspend(&in->sw->dev);
-
-	return false;
 }
 
 static void tb_tunnel_dp(struct tb *tb)
