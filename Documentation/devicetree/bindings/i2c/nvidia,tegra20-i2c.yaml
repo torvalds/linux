@@ -133,18 +133,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: nvidia,tegra114-i2c
-    then:
-      properties:
-        clock-names:
-          items:
-            - const: div-clk
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: nvidia,tegra210-i2c
+            enum:
+              - nvidia,tegra114-i2c
+              - nvidia,tegra210-i2c
     then:
       properties:
         clock-names:
