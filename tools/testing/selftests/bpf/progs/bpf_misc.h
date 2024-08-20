@@ -36,6 +36,39 @@
  *                   Regular expressions could be specified same way as in __msg.
  * __xlated_unpriv   Same as __xlated but for unprivileged mode.
  *
+ * __jited           Match a line in a disassembly of the jited BPF program.
+ *                   Has to be used after __arch_* macro.
+ *                   For example:
+ *
+ *                       __arch_x86_64
+ *                       __jited("   endbr64")
+ *                       __jited("   nopl    (%rax,%rax)")
+ *                       __jited("   xorq    %rax, %rax")
+ *                       ...
+ *                       __naked void some_test(void)
+ *                       {
+ *                           asm volatile (... ::: __clobber_all);
+ *                       }
+ *
+ *                   Regular expressions could be included in patterns same way
+ *                   as in __msg.
+ *
+ *                   By default assume that each pattern has to be matched on the
+ *                   next consecutive line of disassembly, e.g.:
+ *
+ *                       __jited("   endbr64")             # matched on line N
+ *                       __jited("   nopl    (%rax,%rax)") # matched on line N+1
+ *
+ *                   If match occurs on a wrong line an error is reported.
+ *                   To override this behaviour use literal "...", e.g.:
+ *
+ *                       __jited("   endbr64")             # matched on line N
+ *                       __jited("...")                    # not matched
+ *                       __jited("   nopl    (%rax,%rax)") # matched on any line >= N
+ *
+ * __jited_unpriv    Same as __jited but for unprivileged mode.
+ *
+ *
  * __success         Expect program load success in privileged mode.
  * __success_unpriv  Expect program load success in unprivileged mode.
  *
@@ -76,11 +109,13 @@
  */
 #define __msg(msg)		__attribute__((btf_decl_tag("comment:test_expect_msg=" XSTR(__COUNTER__) "=" msg)))
 #define __xlated(msg)		__attribute__((btf_decl_tag("comment:test_expect_xlated=" XSTR(__COUNTER__) "=" msg)))
+#define __jited(msg)		__attribute__((btf_decl_tag("comment:test_jited=" XSTR(__COUNTER__) "=" msg)))
 #define __failure		__attribute__((btf_decl_tag("comment:test_expect_failure")))
 #define __success		__attribute__((btf_decl_tag("comment:test_expect_success")))
 #define __description(desc)	__attribute__((btf_decl_tag("comment:test_description=" desc)))
 #define __msg_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_msg_unpriv=" XSTR(__COUNTER__) "=" msg)))
 #define __xlated_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_expect_xlated_unpriv=" XSTR(__COUNTER__) "=" msg)))
+#define __jited_unpriv(msg)	__attribute__((btf_decl_tag("comment:test_jited=" XSTR(__COUNTER__) "=" msg)))
 #define __failure_unpriv	__attribute__((btf_decl_tag("comment:test_expect_failure_unpriv")))
 #define __success_unpriv	__attribute__((btf_decl_tag("comment:test_expect_success_unpriv")))
 #define __log_level(lvl)	__attribute__((btf_decl_tag("comment:test_log_level="#lvl)))

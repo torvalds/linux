@@ -10,6 +10,7 @@
 #include "disasm_helpers.h"
 #include "unpriv_helpers.h"
 #include "cap_helpers.h"
+#include "jit_disasm_helpers.h"
 
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
@@ -33,6 +34,8 @@
 #define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
 #define TEST_BTF_PATH "comment:test_btf_path="
 #define TEST_TAG_ARCH "comment:test_arch="
+#define TEST_TAG_JITED_PFX "comment:test_jited="
+#define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -68,6 +71,7 @@ struct test_subspec {
 	bool expect_failure;
 	struct expected_msgs expect_msgs;
 	struct expected_msgs expect_xlated;
+	struct expected_msgs jited;
 	int retval;
 	bool execute;
 };
@@ -124,6 +128,8 @@ static void free_test_spec(struct test_spec *spec)
 	free_msgs(&spec->unpriv.expect_msgs);
 	free_msgs(&spec->priv.expect_xlated);
 	free_msgs(&spec->unpriv.expect_xlated);
+	free_msgs(&spec->priv.jited);
+	free_msgs(&spec->unpriv.jited);
 
 	free(spec->priv.name);
 	free(spec->unpriv.name);
@@ -237,6 +243,21 @@ static int push_msg(const char *substr, struct expected_msgs *msgs)
 	return __push_msg(substr, false, msgs);
 }
 
+static int push_disasm_msg(const char *regex_str, bool *on_next_line, struct expected_msgs *msgs)
+{
+	int err;
+
+	if (strcmp(regex_str, "...") == 0) {
+		*on_next_line = false;
+		return 0;
+	}
+	err = __push_msg(regex_str, *on_next_line, msgs);
+	if (err)
+		return err;
+	*on_next_line = true;
+	return 0;
+}
+
 static int parse_int(const char *str, int *val, const char *name)
 {
 	char *end;
@@ -320,6 +341,18 @@ enum arch {
 	ARCH_RISCV64	= 0x4,
 };
 
+static int get_current_arch(void)
+{
+#if defined(__x86_64__)
+	return ARCH_X86_64;
+#elif defined(__aarch64__)
+	return ARCH_ARM64;
+#elif defined(__riscv) && __riscv_xlen == 64
+	return ARCH_RISCV64;
+#endif
+	return 0;
+}
+
 /* Uses btf_decl_tag attributes to describe the expected test
  * behavior, see bpf_misc.h for detailed description of each attribute
  * and attribute combinations.
@@ -332,9 +365,13 @@ static int parse_test_spec(struct test_loader *tester,
 	const char *description = NULL;
 	bool has_unpriv_result = false;
 	bool has_unpriv_retval = false;
+	bool unpriv_jit_on_next_line;
+	bool jit_on_next_line;
+	bool collect_jit = false;
 	int func_id, i, err = 0;
 	u32 arch_mask = 0;
 	struct btf *btf;
+	enum arch arch;
 
 	memset(spec, 0, sizeof(*spec));
 
@@ -399,6 +436,30 @@ static int parse_test_spec(struct test_loader *tester,
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX))) {
+			if (arch_mask == 0) {
+				PRINT_FAIL("__jited used before __arch_*");
+				goto cleanup;
+			}
+			if (collect_jit) {
+				err = push_disasm_msg(msg, &jit_on_next_line,
+						      &spec->priv.jited);
+				if (err)
+					goto cleanup;
+				spec->mode_mask |= PRIV;
+			}
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX_UNPRIV))) {
+			if (arch_mask == 0) {
+				PRINT_FAIL("__unpriv_jited used before __arch_*");
+				goto cleanup;
+			}
+			if (collect_jit) {
+				err = push_disasm_msg(msg, &unpriv_jit_on_next_line,
+						      &spec->unpriv.jited);
+				if (err)
+					goto cleanup;
+				spec->mode_mask |= UNPRIV;
+			}
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
 			err = push_msg(msg, &spec->priv.expect_xlated);
 			if (err)
@@ -459,16 +520,20 @@ static int parse_test_spec(struct test_loader *tester,
 		} else if (str_has_pfx(s, TEST_TAG_ARCH)) {
 			val = s + sizeof(TEST_TAG_ARCH) - 1;
 			if (strcmp(val, "X86_64") == 0) {
-				arch_mask |= ARCH_X86_64;
+				arch = ARCH_X86_64;
 			} else if (strcmp(val, "ARM64") == 0) {
-				arch_mask |= ARCH_ARM64;
+				arch = ARCH_ARM64;
 			} else if (strcmp(val, "RISCV64") == 0) {
-				arch_mask |= ARCH_RISCV64;
+				arch = ARCH_RISCV64;
 			} else {
 				PRINT_FAIL("bad arch spec: '%s'", val);
 				err = -EINVAL;
 				goto cleanup;
 			}
+			arch_mask |= arch;
+			collect_jit = get_current_arch() == arch;
+			unpriv_jit_on_next_line = true;
+			jit_on_next_line = true;
 		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
 			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
 		}
@@ -521,6 +586,8 @@ static int parse_test_spec(struct test_loader *tester,
 			clone_msgs(&spec->priv.expect_msgs, &spec->unpriv.expect_msgs);
 		if (spec->unpriv.expect_xlated.cnt == 0)
 			clone_msgs(&spec->priv.expect_xlated, &spec->unpriv.expect_xlated);
+		if (spec->unpriv.jited.cnt == 0)
+			clone_msgs(&spec->priv.jited, &spec->unpriv.jited);
 	}
 
 	spec->valid = true;
@@ -575,16 +642,29 @@ static void emit_xlated(const char *xlated, bool force)
 	fprintf(stdout, "XLATED:\n=============\n%s=============\n", xlated);
 }
 
+static void emit_jited(const char *jited, bool force)
+{
+	if (!force && env.verbosity == VERBOSE_NONE)
+		return;
+	fprintf(stdout, "JITED:\n=============\n%s=============\n", jited);
+}
+
 static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 			  void (*emit_fn)(const char *buf, bool force))
 {
+	const char *log = log_buf, *prev_match;
 	regmatch_t reg_match[1];
-	const char *log = log_buf;
+	int prev_match_line;
+	int match_line;
 	int i, j, err;
 
+	prev_match_line = -1;
+	match_line = 0;
+	prev_match = log;
 	for (i = 0; i < msgs->cnt; i++) {
 		struct expect_msg *msg = &msgs->patterns[i];
-		const char *match = NULL;
+		const char *match = NULL, *pat_status;
+		bool wrong_line = false;
 
 		if (!msg->is_regex) {
 			match = strstr(log, msg->substr);
@@ -598,19 +678,41 @@ static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 			}
 		}
 
-		if (!match) {
+		if (match) {
+			for (; prev_match < match; ++prev_match)
+				if (*prev_match == '\n')
+					++match_line;
+			wrong_line = msg->on_next_line && prev_match_line >= 0 &&
+				     prev_match_line + 1 != match_line;
+		}
+
+		if (!match || wrong_line) {
 			PRINT_FAIL("expect_msg\n");
 			if (env.verbosity == VERBOSE_NONE)
 				emit_fn(log_buf, true /*force*/);
 			for (j = 0; j <= i; j++) {
 				msg = &msgs->patterns[j];
+				if (j < i)
+					pat_status = "MATCHED   ";
+				else if (wrong_line)
+					pat_status = "WRONG LINE";
+				else
+					pat_status = "EXPECTED  ";
+				msg = &msgs->patterns[j];
 				fprintf(stderr, "%s %s: '%s'\n",
-					j < i ? "MATCHED " : "EXPECTED",
+					pat_status,
 					msg->is_regex ? " REGEX" : "SUBSTR",
 					msg->substr);
 			}
-			return;
+			if (wrong_line) {
+				fprintf(stderr,
+					"expecting match at line %d, actual match is at line %d\n",
+					prev_match_line + 1, match_line);
+			}
+			break;
 		}
+
+		prev_match_line = match_line;
 	}
 }
 
@@ -769,20 +871,6 @@ out:
 	return err;
 }
 
-static bool run_on_current_arch(int arch_mask)
-{
-	if (arch_mask == 0)
-		return true;
-#if defined(__x86_64__)
-	return arch_mask & ARCH_X86_64;
-#elif defined(__aarch64__)
-	return arch_mask & ARCH_ARM64;
-#elif defined(__riscv) && __riscv_xlen == 64
-	return arch_mask & ARCH_RISCV64;
-#endif
-	return false;
-}
-
 /* this function is forced noinline and has short generic name to look better
  * in test_progs output (in case of a failure)
  */
@@ -807,7 +895,7 @@ void run_subtest(struct test_loader *tester,
 	if (!test__start_subtest(subspec->name))
 		return;
 
-	if (!run_on_current_arch(spec->arch_mask)) {
+	if ((get_current_arch() & spec->arch_mask) == 0) {
 		test__skip();
 		return;
 	}
@@ -882,6 +970,21 @@ void run_subtest(struct test_loader *tester,
 			goto tobj_cleanup;
 		emit_xlated(tester->log_buf, false /*force*/);
 		validate_msgs(tester->log_buf, &subspec->expect_xlated, emit_xlated);
+	}
+
+	if (subspec->jited.cnt) {
+		err = get_jited_program_text(bpf_program__fd(tprog),
+					     tester->log_buf, tester->log_buf_sz);
+		if (err == -EOPNOTSUPP) {
+			printf("%s:SKIP: jited programs disassembly is not supported,\n", __func__);
+			printf("%s:SKIP: tests are built w/o LLVM development libs\n", __func__);
+			test__skip();
+			goto tobj_cleanup;
+		}
+		if (!ASSERT_EQ(err, 0, "get_jited_program_text"))
+			goto tobj_cleanup;
+		emit_jited(tester->log_buf, false /*force*/);
+		validate_msgs(tester->log_buf, &subspec->jited, emit_jited);
 	}
 
 	if (should_do_test_run(spec, subspec)) {
