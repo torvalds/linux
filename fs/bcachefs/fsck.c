@@ -2469,8 +2469,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 			: bch2_inode_unpack(inode_k, &inode);
 		if (ret) {
 			/* Should have been caught in dirents pass */
-			if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				bch_err(c, "error looking up parent directory: %i", ret);
+			bch_err_msg(c, ret, "error looking up parent directory");
 			break;
 		}
 
