@@ -1912,6 +1912,7 @@ config RUST
 	depends on !CFI_CLANG || RUSTC_VERSION >= 107900 && $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108000
+	depends on !KASAN_SW_TAGS
 	help
 	  Enables Rust support in the kernel.
 
