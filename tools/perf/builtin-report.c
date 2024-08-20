@@ -795,8 +795,13 @@ static int count_lost_samples_event(const struct perf_tool *tool,
 
 	evsel = evlist__id2evsel(rep->session->evlist, sample->id);
 	if (evsel) {
-		hists__inc_nr_lost_samples(evsel__hists(evsel),
-					   event->lost_samples.lost);
+		struct hists *hists = evsel__hists(evsel);
+		u32 count = event->lost_samples.lost;
+
+		if (event->header.misc & PERF_RECORD_MISC_LOST_SAMPLES_BPF)
+			hists__inc_nr_dropped_samples(hists, count);
+		else
+			hists__inc_nr_lost_samples(hists, count);
 	}
 	return 0;
 }

@@ -1290,8 +1290,9 @@ static int machines__deliver_event(struct machines *machines,
 			evlist->stats.total_lost += event->lost.lost;
 		return tool->lost(tool, event, sample, machine);
 	case PERF_RECORD_LOST_SAMPLES:
-		if (tool->lost_samples == perf_event__process_lost_samples &&
-		    !(event->header.misc & PERF_RECORD_MISC_LOST_SAMPLES_BPF))
+		if (event->header.misc & PERF_RECORD_MISC_LOST_SAMPLES_BPF)
+			evlist->stats.total_dropped_samples += event->lost_samples.lost;
+		else if (tool->lost_samples == perf_event__process_lost_samples)
 			evlist->stats.total_lost_samples += event->lost_samples.lost;
 		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:

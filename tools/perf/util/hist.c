@@ -2385,6 +2385,11 @@ void hists__inc_nr_lost_samples(struct hists *hists, u32 lost)
 	hists->stats.nr_lost_samples += lost;
 }
 
+void hists__inc_nr_dropped_samples(struct hists *hists, u32 lost)
+{
+	hists->stats.nr_dropped_samples += lost;
+}
+
 static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 						 struct hist_entry *pair)
 {
@@ -2729,18 +2734,24 @@ size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp)
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
+		u64 total_samples = hists->stats.nr_samples;
 
-		if (symbol_conf.skip_empty && !hists->stats.nr_samples &&
-		    !hists->stats.nr_lost_samples)
+		total_samples += hists->stats.nr_lost_samples;
+		total_samples += hists->stats.nr_dropped_samples;
+
+		if (symbol_conf.skip_empty && total_samples == 0)
 			continue;
 
 		ret += fprintf(fp, "%s stats:\n", evsel__name(pos));
 		if (hists->stats.nr_samples)
-			ret += fprintf(fp, "%16s events: %10d\n",
+			ret += fprintf(fp, "%20s events: %10d\n",
 				       "SAMPLE", hists->stats.nr_samples);
 		if (hists->stats.nr_lost_samples)
-			ret += fprintf(fp, "%16s events: %10d\n",
+			ret += fprintf(fp, "%20s events: %10d\n",
 				       "LOST_SAMPLES", hists->stats.nr_lost_samples);
+		if (hists->stats.nr_dropped_samples)
+			ret += fprintf(fp, "%20s events: %10d\n",
+				       "LOST_SAMPLES (BPF)", hists->stats.nr_dropped_samples);
 	}
 
 	return ret;
