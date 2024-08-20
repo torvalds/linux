@@ -26,9 +26,13 @@ enum tb_tunnel_type {
  *	      tunnels may be %NULL or null adapter port instead.
  * @paths: All paths required by the tunnel
  * @npaths: Number of paths in @paths
- * @init: Optional tunnel specific initialization
- * @deinit: Optional tunnel specific de-initialization
+ * @pre_activate: Optional tunnel specific initialization called before
+ *		  activation. Can touch hardware.
  * @activate: Optional tunnel specific activation/deactivation
+ * @post_deactivate: Optional tunnel specific de-initialization called
+ *		     after deactivation. Can touch hardware.
+ * @destroy: Optional tunnel specific callback called when the tunnel
+ *	     memory is being released. Should not touch hardware.
  * @maximum_bandwidth: Returns maximum possible bandwidth for this tunnel
  * @allocated_bandwidth: Return how much bandwidth is allocated for the tunnel
  * @alloc_bandwidth: Change tunnel bandwidth allocation
@@ -52,9 +56,10 @@ struct tb_tunnel {
 	struct tb_port *dst_port;
 	struct tb_path **paths;
 	size_t npaths;
-	int (*init)(struct tb_tunnel *tunnel);
-	void (*deinit)(struct tb_tunnel *tunnel);
+	int (*pre_activate)(struct tb_tunnel *tunnel);
 	int (*activate)(struct tb_tunnel *tunnel, bool activate);
+	void (*post_deactivate)(struct tb_tunnel *tunnel);
+	void (*destroy)(struct tb_tunnel *tunnel);
 	int (*maximum_bandwidth)(struct tb_tunnel *tunnel, int *max_up,
 				 int *max_down);
 	int (*allocated_bandwidth)(struct tb_tunnel *tunnel, int *allocated_up,

@@ -851,7 +851,7 @@ static int tb_dp_bandwidth_alloc_mode_enable(struct tb_tunnel *tunnel)
 	return 0;
 }
 
-static int tb_dp_init(struct tb_tunnel *tunnel)
+static int tb_dp_pre_activate(struct tb_tunnel *tunnel)
 {
 	struct tb_port *in = tunnel->src_port;
 	struct tb_switch *sw = in->sw;
@@ -877,7 +877,7 @@ static int tb_dp_init(struct tb_tunnel *tunnel)
 	return tb_dp_bandwidth_alloc_mode_enable(tunnel);
 }
 
-static void tb_dp_deinit(struct tb_tunnel *tunnel)
+static void tb_dp_post_deactivate(struct tb_tunnel *tunnel)
 {
 	struct tb_port *in = tunnel->src_port;
 
@@ -1368,9 +1368,9 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 	if (!tunnel)
 		return NULL;
 
-	tunnel->init = tb_dp_init;
-	tunnel->deinit = tb_dp_deinit;
+	tunnel->pre_activate = tb_dp_pre_activate;
 	tunnel->activate = tb_dp_activate;
+	tunnel->post_deactivate = tb_dp_post_deactivate;
 	tunnel->maximum_bandwidth = tb_dp_maximum_bandwidth;
 	tunnel->allocated_bandwidth = tb_dp_allocated_bandwidth;
 	tunnel->alloc_bandwidth = tb_dp_alloc_bandwidth;
@@ -1464,9 +1464,9 @@ struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 	if (!tunnel)
 		return NULL;
 
-	tunnel->init = tb_dp_init;
-	tunnel->deinit = tb_dp_deinit;
+	tunnel->pre_activate = tb_dp_pre_activate;
 	tunnel->activate = tb_dp_activate;
+	tunnel->post_deactivate = tb_dp_post_deactivate;
 	tunnel->maximum_bandwidth = tb_dp_maximum_bandwidth;
 	tunnel->allocated_bandwidth = tb_dp_allocated_bandwidth;
 	tunnel->alloc_bandwidth = tb_dp_alloc_bandwidth;
@@ -1623,7 +1623,7 @@ static void tb_dma_release_credits(struct tb_path_hop *hop)
 	}
 }
 
-static void tb_dma_deinit_path(struct tb_path *path)
+static void tb_dma_destroy_path(struct tb_path *path)
 {
 	struct tb_path_hop *hop;
 
@@ -1631,14 +1631,14 @@ static void tb_dma_deinit_path(struct tb_path *path)
 		tb_dma_release_credits(hop);
 }
 
-static void tb_dma_deinit(struct tb_tunnel *tunnel)
+static void tb_dma_destroy(struct tb_tunnel *tunnel)
 {
 	int i;
 
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (!tunnel->paths[i])
 			continue;
-		tb_dma_deinit_path(tunnel->paths[i]);
+		tb_dma_destroy_path(tunnel->paths[i]);
 	}
 }
 
@@ -1684,7 +1684,7 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 
 	tunnel->src_port = nhi;
 	tunnel->dst_port = dst;
-	tunnel->deinit = tb_dma_deinit;
+	tunnel->destroy = tb_dma_destroy;
 
 	credits = min_not_zero(dma_credits, nhi->sw->max_dma_credits);
 
@@ -1796,7 +1796,7 @@ static int tb_usb3_max_link_rate(struct tb_port *up, struct tb_port *down)
 	return min(up_max_rate, down_max_rate);
 }
 
-static int tb_usb3_init(struct tb_tunnel *tunnel)
+static int tb_usb3_pre_activate(struct tb_tunnel *tunnel)
 {
 	tb_tunnel_dbg(tunnel, "allocating initial bandwidth %d/%d Mb/s\n",
 		      tunnel->allocated_up, tunnel->allocated_down);
@@ -2027,7 +2027,7 @@ struct tb_tunnel *tb_tunnel_discover_usb3(struct tb *tb, struct tb_port *down,
 		tb_tunnel_dbg(tunnel, "currently allocated bandwidth %d/%d Mb/s\n",
 			      tunnel->allocated_up, tunnel->allocated_down);
 
-		tunnel->init = tb_usb3_init;
+		tunnel->pre_activate = tb_usb3_pre_activate;
 		tunnel->consumed_bandwidth = tb_usb3_consumed_bandwidth;
 		tunnel->release_unused_bandwidth =
 			tb_usb3_release_unused_bandwidth;
@@ -2116,7 +2116,7 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 		tunnel->allocated_up = min(max_rate, max_up);
 		tunnel->allocated_down = min(max_rate, max_down);
 
-		tunnel->init = tb_usb3_init;
+		tunnel->pre_activate = tb_usb3_pre_activate;
 		tunnel->consumed_bandwidth = tb_usb3_consumed_bandwidth;
 		tunnel->release_unused_bandwidth =
 			tb_usb3_release_unused_bandwidth;
@@ -2140,8 +2140,8 @@ void tb_tunnel_free(struct tb_tunnel *tunnel)
 	if (!tunnel)
 		return;
 
-	if (tunnel->deinit)
-		tunnel->deinit(tunnel);
+	if (tunnel->destroy)
+		tunnel->destroy(tunnel);
 
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (tunnel->paths[i])
@@ -2192,8 +2192,8 @@ int tb_tunnel_restart(struct tb_tunnel *tunnel)
 		}
 	}
 
-	if (tunnel->init) {
-		res = tunnel->init(tunnel);
+	if (tunnel->pre_activate) {
+		res = tunnel->pre_activate(tunnel);
 		if (res)
 			return res;
 	}
@@ -2256,6 +2256,9 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
 		if (tunnel->paths[i] && tunnel->paths[i]->activated)
 			tb_path_deactivate(tunnel->paths[i]);
 	}
+
+	if (tunnel->post_deactivate)
+		tunnel->post_deactivate(tunnel);
 }
 
 /**
