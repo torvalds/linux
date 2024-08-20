@@ -19,7 +19,20 @@ enum tb_tunnel_type {
 };
 
 /**
+ * enum tb_tunnel_state - State of a tunnel
+ * @TB_TUNNEL_INACTIVE: tb_tunnel_activate() is not called for the tunnel
+ * @TB_TUNNEL_ACTIVATING: tb_tunnel_activate() returned successfully for the tunnel
+ * @TB_TUNNEL_ACTIVE: The tunnel is fully active
+ */
+enum tb_tunnel_state {
+	TB_TUNNEL_INACTIVE,
+	TB_TUNNEL_ACTIVATING,
+	TB_TUNNEL_ACTIVE,
+};
+
+/**
  * struct tb_tunnel - Tunnel between two ports
+ * @kref: Reference count
  * @tb: Pointer to the domain
  * @src_port: Source port of the tunnel
  * @dst_port: Destination port of the tunnel. For discovered incomplete
@@ -41,6 +54,7 @@ enum tb_tunnel_type {
  * @reclaim_available_bandwidth: Reclaim back available bandwidth
  * @list: Tunnels are linked using this field
  * @type: Type of the tunnel
+ * @state: Current state of the tunnel
  * @max_up: Maximum upstream bandwidth (Mb/s) available for the tunnel.
  *	    Only set if the bandwidth needs to be limited.
  * @max_down: Maximum downstream bandwidth (Mb/s) available for the tunnel.
@@ -49,8 +63,14 @@ enum tb_tunnel_type {
  * @allocated_down: Allocated downstream bandwidth (only for USB3)
  * @bw_mode: DP bandwidth allocation mode registers can be used to
  *	     determine consumed and allocated bandwidth
+ * @dprx_canceled: Was DPRX capabilities read poll canceled
+ * @dprx_timeout: If set DPRX capabilities read poll work will timeout after this passes
+ * @dprx_work: Worker that is scheduled to poll completion of DPRX capabilities read
+ * @callback: Optional callback called when DP tunnel is fully activated
+ * @callback_data: Optional data for @callback
  */
 struct tb_tunnel {
+	struct kref kref;
 	struct tb *tb;
 	struct tb_port *src_port;
 	struct tb_port *dst_port;
@@ -74,11 +94,17 @@ struct tb_tunnel {
 					    int *available_down);
 	struct list_head list;
 	enum tb_tunnel_type type;
+	enum tb_tunnel_state state;
 	int max_up;
 	int max_down;
 	int allocated_up;
 	int allocated_down;
 	bool bw_mode;
+	bool dprx_canceled;
+	ktime_t dprx_timeout;
+	struct delayed_work dprx_work;
+	void (*callback)(struct tb_tunnel *tunnel, void *data);
+	void *callback_data;
 };
 
 struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down,
@@ -91,7 +117,9 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in,
 					bool alloc_hopid);
 struct tb_tunnel *tb_tunnel_alloc_dp(struct tb *tb, struct tb_port *in,
 				     struct tb_port *out, int link_nr,
-				     int max_up, int max_down);
+				     int max_up, int max_down,
+				     void (*callback)(struct tb_tunnel *, void *),
+				     void *callback_data);
 struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 				      struct tb_port *dst, int transmit_path,
 				      int transmit_ring, int receive_path,
@@ -104,9 +132,24 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 				       struct tb_port *down, int max_up,
 				       int max_down);
 
-void tb_tunnel_free(struct tb_tunnel *tunnel);
+void tb_tunnel_put(struct tb_tunnel *tunnel);
 int tb_tunnel_activate(struct tb_tunnel *tunnel);
 void tb_tunnel_deactivate(struct tb_tunnel *tunnel);
+
+/**
+ * tb_tunnel_is_active() - Is tunnel fully activated
+ * @tunnel: Tunnel to check
+ *
+ * Returns %true if @tunnel is fully activated. For other than DP
+ * tunnels this is pretty much once tb_tunnel_activate() returns
+ * successfully. However, for DP tunnels this returns %true only once the
+ * DPRX capabilities read has been issued successfully.
+ */
+static inline bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
+{
+	return tunnel->state == TB_TUNNEL_ACTIVE;
+}
+
 bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel);
 bool tb_tunnel_port_on_path(const struct tb_tunnel *tunnel,
 			    const struct tb_port *port);
