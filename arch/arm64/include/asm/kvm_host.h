@@ -599,6 +599,16 @@ struct kvm_host_data {
 		struct cpu_sve_state *sve_state;
 	};
 
+	union {
+		/* HYP VA pointer to the host storage for FPMR */
+		u64	*fpmr_ptr;
+		/*
+		 * Used by pKVM only, as it needs to provide storage
+		 * for the host
+		 */
+		u64	fpmr;
+	};
+
 	/* Ownership of the FP regs */
 	enum {
 		FP_STATE_FREE,

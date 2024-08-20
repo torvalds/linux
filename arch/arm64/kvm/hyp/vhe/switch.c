@@ -312,6 +312,9 @@ static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
 {
 	__fpsimd_save_state(*host_data_ptr(fpsimd_state));
+
+	if (kvm_has_fpmr(vcpu->kvm))
+		**host_data_ptr(fpmr_ptr) = read_sysreg_s(SYS_FPMR);
 }
 
 static bool kvm_hyp_handle_tlbi_el2(struct kvm_vcpu *vcpu, u64 *exit_code)
