@@ -377,11 +377,11 @@ static void ice_pg_exe(struct ice_parser_rt *rt)
 
 static void ice_flg_add(struct ice_parser_rt *rt, int idx, bool val)
 {
-	rt->pu.flg_msk |= BIT(idx);
+	rt->pu.flg_msk |= BIT_ULL(idx);
 	if (val)
-		rt->pu.flg_val |= BIT(idx);
+		rt->pu.flg_val |= BIT_ULL(idx);
 	else
-		rt->pu.flg_val &= ~BIT(idx);
+		rt->pu.flg_val &= ~BIT_ULL(idx);
 
 	ice_debug(rt->psr->hw, ICE_DBG_PARSER, "Pending update for flag %d value %d\n",
 		  idx, val);
