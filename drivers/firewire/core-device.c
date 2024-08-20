@@ -928,56 +928,6 @@ static void fw_device_update(struct work_struct *work)
 	device_for_each_child(&device->device, NULL, update_unit);
 }
 
-/*
- * If a device was pending for deletion because its node went away but its
- * bus info block and root directory header matches that of a newly discovered
- * device, revive the existing fw_device.
- * The newly allocated fw_device becomes obsolete instead.
- */
-static int lookup_existing_device(struct device *dev, void *data)
-{
-	struct fw_device *old = fw_device(dev);
-	struct fw_device *new = data;
-	struct fw_card *card = new->card;
-	int match = 0;
-
-	if (!is_fw_device(dev))
-		return 0;
-
-	guard(rwsem_read)(&fw_device_rwsem); // serialize config_rom access
-	guard(spinlock_irq)(&card->lock); // serialize node access
-
-	if (memcmp(old->config_rom, new->config_rom, 6 * 4) == 0 &&
-	    atomic_cmpxchg(&old->state,
-			   FW_DEVICE_GONE,
-			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
-		struct fw_node *current_node = new->node;
-		struct fw_node *obsolete_node = old->node;
-
-		new->node = obsolete_node;
-		new->node->data = new;
-		old->node = current_node;
-		old->node->data = old;
-
-		old->max_speed = new->max_speed;
-		old->node_id = current_node->node_id;
-		smp_wmb();  /* update node_id before generation */
-		old->generation = card->generation;
-		old->config_rom_retries = 0;
-		fw_notice(card, "rediscovered device %s\n", dev_name(dev));
-
-		old->workfn = fw_device_update;
-		fw_schedule_device_work(old, 0);
-
-		if (current_node == card->root_node)
-			fw_schedule_bm_work(card, 0);
-
-		match = 1;
-	}
-
-	return match;
-}
-
 enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
 
 static void set_broadcast_channel(struct fw_device *device, int generation)
@@ -1038,12 +988,24 @@ int fw_device_set_broadcast_channel(struct device *dev, void *gen)
 	return 0;
 }
 
+static int compare_configuration_rom(struct device *dev, void *data)
+{
+	const struct fw_device *old = fw_device(dev);
+	const u32 *config_rom = data;
+
+	if (!is_fw_device(dev))
+		return 0;
+
+	// Compare the bus information block and root_length/root_crc.
+	return !memcmp(old->config_rom, config_rom, 6 * 4);
+}
+
 static void fw_device_init(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 	struct fw_card *card = device->card;
-	struct device *revived_dev;
+	struct device *found;
 	u32 minor;
 	int ret;
 
@@ -1071,13 +1033,53 @@ static void fw_device_init(struct work_struct *work)
 		return;
 	}
 
-	revived_dev = device_find_child(card->device,
-					device, lookup_existing_device);
-	if (revived_dev) {
-		put_device(revived_dev);
-		fw_device_release(&device->device);
+	// If a device was pending for deletion because its node went away but its bus info block
+	// and root directory header matches that of a newly discovered device, revive the
+	// existing fw_device. The newly allocated fw_device becomes obsolete instead.
+	//
+	// serialize config_rom access.
+	scoped_guard(rwsem_read, &fw_device_rwsem) {
+		found = device_find_child(card->device, (void *)device->config_rom,
+					  compare_configuration_rom);
+	}
+	if (found) {
+		struct fw_device *reused = fw_device(found);
 
-		return;
+		if (atomic_cmpxchg(&reused->state,
+				   FW_DEVICE_GONE,
+				   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
+			// serialize node access
+			scoped_guard(spinlock_irq, &card->lock) {
+				struct fw_node *current_node = device->node;
+				struct fw_node *obsolete_node = reused->node;
+
+				device->node = obsolete_node;
+				device->node->data = device;
+				reused->node = current_node;
+				reused->node->data = reused;
+
+				reused->max_speed = device->max_speed;
+				reused->node_id = current_node->node_id;
+				smp_wmb();  /* update node_id before generation */
+				reused->generation = card->generation;
+				reused->config_rom_retries = 0;
+				fw_notice(card, "rediscovered device %s\n",
+					  dev_name(found));
+
+				reused->workfn = fw_device_update;
+				fw_schedule_device_work(reused, 0);
+
+				if (current_node == card->root_node)
+					fw_schedule_bm_work(card, 0);
+			}
+
+			put_device(found);
+			fw_device_release(&device->device);
+
+			return;
+		}
+
+		put_device(found);
 	}
 
 	device_initialize(&device->device);
