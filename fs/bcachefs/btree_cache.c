@@ -873,6 +873,10 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 
 		bch2_btree_node_read(trans, b, sync);
 
+		int ret = bch2_trans_relock(trans);
+		if (ret)
+			return ERR_PTR(ret);
+
 		if (!sync)
 			return NULL;
 
