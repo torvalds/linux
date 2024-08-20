@@ -199,18 +199,7 @@ instruction_counter:
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 	INVALIDATE_ADJACENT_PAGES_CPU15(r10, r11)
 	mtspr	SPRN_MD_EPN, r10
-#ifdef CONFIG_EXECMEM
-	mfcr	r11
-	compare_to_kernel_boundary r10, r10
-#endif
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
-#ifdef CONFIG_EXECMEM
-	blt+	3f
-	rlwinm	r10, r10, 0, 20, 31
-	oris	r10, r10, (swapper_pg_dir - PAGE_OFFSET)@ha
-3:
-	mtcr	r11
-#endif
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
 	mtspr	SPRN_MD_TWC, r11
 	mfspr	r10, SPRN_MD_TWC
