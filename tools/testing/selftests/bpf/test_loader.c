@@ -19,12 +19,10 @@
 #define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
 #define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
 #define TEST_TAG_EXPECT_MSG_PFX "comment:test_expect_msg="
-#define TEST_TAG_EXPECT_REGEX_PFX "comment:test_expect_regex="
 #define TEST_TAG_EXPECT_XLATED_PFX "comment:test_expect_xlated="
 #define TEST_TAG_EXPECT_FAILURE_UNPRIV "comment:test_expect_failure_unpriv"
 #define TEST_TAG_EXPECT_SUCCESS_UNPRIV "comment:test_expect_success_unpriv"
 #define TEST_TAG_EXPECT_MSG_PFX_UNPRIV "comment:test_expect_msg_unpriv="
-#define TEST_TAG_EXPECT_REGEX_PFX_UNPRIV "comment:test_expect_regex_unpriv="
 #define TEST_TAG_EXPECT_XLATED_PFX_UNPRIV "comment:test_expect_xlated_unpriv="
 #define TEST_TAG_LOG_LEVEL_PFX "comment:test_log_level="
 #define TEST_TAG_PROG_FLAGS_PFX "comment:test_prog_flags="
@@ -55,8 +53,9 @@ enum mode {
 
 struct expect_msg {
 	const char *substr; /* substring match */
-	const char *regex_str; /* regex-based match */
 	regex_t regex;
+	bool is_regex;
+	bool on_next_line;
 };
 
 struct expected_msgs {
@@ -111,7 +110,7 @@ static void free_msgs(struct expected_msgs *msgs)
 	int i;
 
 	for (i = 0; i < msgs->cnt; i++)
-		if (msgs->patterns[i].regex_str)
+		if (msgs->patterns[i].is_regex)
 			regfree(&msgs->patterns[i].regex);
 	free(msgs->patterns);
 	msgs->patterns = NULL;
@@ -132,12 +131,71 @@ static void free_test_spec(struct test_spec *spec)
 	spec->unpriv.name = NULL;
 }
 
-static int push_msg(const char *substr, const char *regex_str, struct expected_msgs *msgs)
+/* Compiles regular expression matching pattern.
+ * Pattern has a special syntax:
+ *
+ *   pattern := (<verbatim text> | regex)*
+ *   regex := "{{" <posix extended regular expression> "}}"
+ *
+ * In other words, pattern is a verbatim text with inclusion
+ * of regular expressions enclosed in "{{" "}}" pairs.
+ * For example, pattern "foo{{[0-9]+}}" matches strings like
+ * "foo0", "foo007", etc.
+ */
+static int compile_regex(const char *pattern, regex_t *regex)
 {
-	void *tmp;
-	int regcomp_res;
-	char error_msg[100];
+	char err_buf[256], buf[256] = {}, *ptr, *buf_end;
+	const char *original_pattern = pattern;
+	bool in_regex = false;
+	int err;
+
+	buf_end = buf + sizeof(buf);
+	ptr = buf;
+	while (*pattern && ptr < buf_end - 2) {
+		if (!in_regex && str_has_pfx(pattern, "{{")) {
+			in_regex = true;
+			pattern += 2;
+			continue;
+		}
+		if (in_regex && str_has_pfx(pattern, "}}")) {
+			in_regex = false;
+			pattern += 2;
+			continue;
+		}
+		if (in_regex) {
+			*ptr++ = *pattern++;
+			continue;
+		}
+		/* list of characters that need escaping for extended posix regex */
+		if (strchr(".[]\\()*+?{}|^$", *pattern)) {
+			*ptr++ = '\\';
+			*ptr++ = *pattern++;
+			continue;
+		}
+		*ptr++ = *pattern++;
+	}
+	if (*pattern) {
+		PRINT_FAIL("Regexp too long: '%s'\n", original_pattern);
+		return -EINVAL;
+	}
+	if (in_regex) {
+		PRINT_FAIL("Regexp has open '{{' but no closing '}}': '%s'\n", original_pattern);
+		return -EINVAL;
+	}
+	err = regcomp(regex, buf, REG_EXTENDED | REG_NEWLINE);
+	if (err != 0) {
+		regerror(err, regex, err_buf, sizeof(err_buf));
+		PRINT_FAIL("Regexp compilation error in '%s': '%s'\n", buf, err_buf);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int __push_msg(const char *pattern, bool on_next_line, struct expected_msgs *msgs)
+{
 	struct expect_msg *msg;
+	void *tmp;
+	int err;
 
 	tmp = realloc(msgs->patterns,
 		      (1 + msgs->cnt) * sizeof(struct expect_msg));
@@ -147,24 +205,36 @@ static int push_msg(const char *substr, const char *regex_str, struct expected_m
 	}
 	msgs->patterns = tmp;
 	msg = &msgs->patterns[msgs->cnt];
-
-	if (substr) {
-		msg->substr = substr;
-		msg->regex_str = NULL;
-	} else {
-		msg->regex_str = regex_str;
-		msg->substr = NULL;
-		regcomp_res = regcomp(&msg->regex, regex_str, REG_EXTENDED|REG_NEWLINE);
-		if (regcomp_res != 0) {
-			regerror(regcomp_res, &msg->regex, error_msg, sizeof(error_msg));
-			PRINT_FAIL("Regexp compilation error in '%s': '%s'\n",
-				   regex_str, error_msg);
-			return -EINVAL;
-		}
+	msg->on_next_line = on_next_line;
+	msg->substr = pattern;
+	msg->is_regex = false;
+	if (strstr(pattern, "{{")) {
+		err = compile_regex(pattern, &msg->regex);
+		if (err)
+			return err;
+		msg->is_regex = true;
 	}
-
 	msgs->cnt += 1;
 	return 0;
+}
+
+static int clone_msgs(struct expected_msgs *from, struct expected_msgs *to)
+{
+	struct expect_msg *msg;
+	int i, err;
+
+	for (i = 0; i < from->cnt; i++) {
+		msg = &from->patterns[i];
+		err = __push_msg(msg->substr, msg->on_next_line, to);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int push_msg(const char *substr, struct expected_msgs *msgs)
+{
+	return __push_msg(substr, false, msgs);
 }
 
 static int parse_int(const char *str, int *val, const char *name)
@@ -320,32 +390,22 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->auxiliary = true;
 			spec->mode_mask |= UNPRIV;
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX))) {
-			err = push_msg(msg, NULL, &spec->priv.expect_msgs);
+			err = push_msg(msg, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV))) {
-			err = push_msg(msg, NULL, &spec->unpriv.expect_msgs);
-			if (err)
-				goto cleanup;
-			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_REGEX_PFX))) {
-			err = push_msg(NULL, msg, &spec->priv.expect_msgs);
-			if (err)
-				goto cleanup;
-			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_REGEX_PFX_UNPRIV))) {
-			err = push_msg(NULL, msg, &spec->unpriv.expect_msgs);
+			err = push_msg(msg, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
-			err = push_msg(msg, NULL, &spec->priv.expect_xlated);
+			err = push_msg(msg, &spec->priv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
 		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
-			err = push_msg(msg, NULL, &spec->unpriv.expect_xlated);
+			err = push_msg(msg, &spec->unpriv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
@@ -457,26 +517,10 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->unpriv.execute = spec->priv.execute;
 		}
 
-		if (spec->unpriv.expect_msgs.cnt == 0) {
-			for (i = 0; i < spec->priv.expect_msgs.cnt; i++) {
-				struct expect_msg *msg = &spec->priv.expect_msgs.patterns[i];
-
-				err = push_msg(msg->substr, msg->regex_str,
-					       &spec->unpriv.expect_msgs);
-				if (err)
-					goto cleanup;
-			}
-		}
-		if (spec->unpriv.expect_xlated.cnt == 0) {
-			for (i = 0; i < spec->priv.expect_xlated.cnt; i++) {
-				struct expect_msg *msg = &spec->priv.expect_xlated.patterns[i];
-
-				err = push_msg(msg->substr, msg->regex_str,
-					       &spec->unpriv.expect_xlated);
-				if (err)
-					goto cleanup;
-			}
-		}
+		if (spec->unpriv.expect_msgs.cnt == 0)
+			clone_msgs(&spec->priv.expect_msgs, &spec->unpriv.expect_msgs);
+		if (spec->unpriv.expect_xlated.cnt == 0)
+			clone_msgs(&spec->priv.expect_xlated, &spec->unpriv.expect_xlated);
 	}
 
 	spec->valid = true;
@@ -542,7 +586,7 @@ static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 		struct expect_msg *msg = &msgs->patterns[i];
 		const char *match = NULL;
 
-		if (msg->substr) {
+		if (!msg->is_regex) {
 			match = strstr(log, msg->substr);
 			if (match)
 				log = match + strlen(msg->substr);
@@ -562,8 +606,8 @@ static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 				msg = &msgs->patterns[j];
 				fprintf(stderr, "%s %s: '%s'\n",
 					j < i ? "MATCHED " : "EXPECTED",
-					msg->substr ? "SUBSTR" : " REGEX",
-					msg->substr ?: msg->regex_str);
+					msg->is_regex ? " REGEX" : "SUBSTR",
+					msg->substr);
 			}
 			return;
 		}
