@@ -601,16 +601,14 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	aq->pdev = pdev;
 
 	/* Map the registers */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi_base");
-	aq->regs = devm_ioremap_resource(&pdev->dev, res);
+	aq->regs = devm_platform_ioremap_resource_byname(pdev, "qspi_base");
 	if (IS_ERR(aq->regs)) {
 		dev_err(&pdev->dev, "missing registers\n");
 		return PTR_ERR(aq->regs);
 	}
 
 	/* Map the AHB memory */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi_mmap");
-	aq->mem = devm_ioremap_resource(&pdev->dev, res);
+	aq->mem = devm_platform_ioremap_resource_byname(pdev, "qspi_mmap");
 	if (IS_ERR(aq->mem)) {
 		dev_err(&pdev->dev, "missing AHB memory\n");
 		return PTR_ERR(aq->mem);
