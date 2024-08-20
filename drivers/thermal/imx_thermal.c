@@ -765,7 +765,7 @@ static void imx_thermal_remove(struct platform_device *pdev)
 	imx_thermal_unregister_legacy_cooling(data);
 }
 
-static int __maybe_unused imx_thermal_suspend(struct device *dev)
+static int imx_thermal_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -784,7 +784,7 @@ static int __maybe_unused imx_thermal_suspend(struct device *dev)
 	return pm_runtime_force_suspend(data->dev);
 }
 
-static int __maybe_unused imx_thermal_resume(struct device *dev)
+static int imx_thermal_resume(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -796,7 +796,7 @@ static int __maybe_unused imx_thermal_resume(struct device *dev)
 	return thermal_zone_device_enable(data->tz);
 }
 
-static int __maybe_unused imx_thermal_runtime_suspend(struct device *dev)
+static int imx_thermal_runtime_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	const struct thermal_soc_data *socdata = data->socdata;
@@ -818,7 +818,7 @@ static int __maybe_unused imx_thermal_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx_thermal_runtime_resume(struct device *dev)
+static int imx_thermal_runtime_resume(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	const struct thermal_soc_data *socdata = data->socdata;
@@ -849,15 +849,15 @@ static int __maybe_unused imx_thermal_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx_thermal_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx_thermal_suspend, imx_thermal_resume)
-	SET_RUNTIME_PM_OPS(imx_thermal_runtime_suspend,
-			   imx_thermal_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(imx_thermal_suspend, imx_thermal_resume)
+	RUNTIME_PM_OPS(imx_thermal_runtime_suspend,
+		       imx_thermal_runtime_resume, NULL)
 };
 
 static struct platform_driver imx_thermal = {
 	.driver = {
 		.name	= "imx_thermal",
-		.pm	= &imx_thermal_pm_ops,
+		.pm	= pm_ptr(&imx_thermal_pm_ops),
 		.of_match_table = of_imx_thermal_match,
 	},
 	.probe		= imx_thermal_probe,
