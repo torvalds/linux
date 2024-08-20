@@ -5619,8 +5619,7 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
 }
 
 static void ipv6_store_devconf(const struct ipv6_devconf *cnf,
@@ -6175,8 +6174,7 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFINFO, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
 }
 
 static inline size_t inet6_prefix_nlmsg_size(void)
@@ -6243,8 +6241,7 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_PREFIX, NULL, GFP_ATOMIC);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_PREFIX, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_PREFIX, err);
 }
 
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
