@@ -154,6 +154,7 @@ static inline bool console_is_usable(struct console *con, short flags) { return 
 #endif /* CONFIG_PRINTK */
 
 extern bool have_boot_console;
+extern bool legacy_allow_panic_sync;
 
 extern struct printk_buffers printk_shared_pbufs;
 

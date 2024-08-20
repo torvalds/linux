@@ -471,7 +471,9 @@ static DEFINE_MUTEX(syslog_lock);
 static bool have_legacy_console;
 
 /*
- * Specifies if an nbcon console is registered.
+ * Specifies if an nbcon console is registered. If nbcon consoles are present,
+ * synchronous printing of legacy consoles will not occur during panic until
+ * the backtrace has been stored to the ringbuffer.
  */
 static bool have_nbcon_console;
 
@@ -482,6 +484,9 @@ static bool have_nbcon_console;
  * have mapped the same hardware.
  */
 bool have_boot_console;
+
+/* See printk_legacy_allow_panic_sync() for details. */
+bool legacy_allow_panic_sync;
 
 /*
  * Specifies if the console lock/unlock dance is needed for console
@@ -2330,12 +2335,28 @@ out:
 	return ret;
 }
 
+/*
+ * This acts as a one-way switch to allow legacy consoles to print from
+ * the printk() caller context on a panic CPU. It also attempts to flush
+ * the legacy consoles in this context.
+ */
+void printk_legacy_allow_panic_sync(void)
+{
+	legacy_allow_panic_sync = true;
+
+	if (printing_via_unlock && !is_printk_legacy_deferred()) {
+		if (console_trylock())
+			console_unlock();
+	}
+}
+
 asmlinkage int vprintk_emit(int facility, int level,
 			    const struct dev_printk_info *dev_info,
 			    const char *fmt, va_list args)
 {
+	bool do_trylock_unlock = printing_via_unlock;
+	bool defer_legacy = false;
 	int printed_len;
-	bool in_sched = false;
 
 	/* Suppress unimportant messages after panic happens */
 	if (unlikely(suppress_printk))
@@ -2349,17 +2370,35 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (other_cpu_in_panic() && !panic_triggering_all_cpu_backtrace)
 		return 0;
 
+	/* If called from the scheduler, we can not call up(). */
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
-		in_sched = true;
+		defer_legacy = do_trylock_unlock;
+		do_trylock_unlock = false;
 	}
 
 	printk_delay(level);
 
 	printed_len = vprintk_store(facility, level, dev_info, fmt, args);
 
-	/* If called from the scheduler, we can not call up(). */
-	if (!in_sched && printing_via_unlock) {
+	if (have_nbcon_console && !have_boot_console) {
+		nbcon_atomic_flush_pending();
+
+		/*
+		 * In panic, the legacy consoles are not allowed to print from
+		 * the printk calling context unless explicitly allowed. This
+		 * gives the safe nbcon consoles a chance to print out all the
+		 * panic messages first. This restriction only applies if
+		 * there are nbcon consoles registered and they are allowed to
+		 * flush.
+		 */
+		if (this_cpu_in_panic() && !legacy_allow_panic_sync) {
+			do_trylock_unlock = false;
+			defer_legacy = false;
+		}
+	}
+
+	if (do_trylock_unlock) {
 		/*
 		 * The caller may be holding system-critical or
 		 * timing-sensitive locks. Disable preemption during
@@ -2379,7 +2418,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		preempt_enable();
 	}
 
-	if (in_sched && printing_via_unlock)
+	if (defer_legacy)
 		defer_console_output();
 	else
 		wake_up_klogd();
@@ -3292,7 +3331,9 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	if (!have_boot_console)
 		nbcon_atomic_flush_pending();
 
-	console_flush_all(false, &next_seq, &handover);
+	/* Flush legacy consoles once allowed, even when dangerous. */
+	if (legacy_allow_panic_sync)
+		console_flush_all(false, &next_seq, &handover);
 }
 
 /*
