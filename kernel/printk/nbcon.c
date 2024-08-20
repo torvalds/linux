@@ -1326,10 +1326,30 @@ EXPORT_SYMBOL_GPL(nbcon_device_try_acquire);
 void nbcon_device_release(struct console *con)
 {
 	struct nbcon_context *ctxt = &ACCESS_PRIVATE(con, nbcon_device_ctxt);
+	int cookie;
 
 	if (!nbcon_context_exit_unsafe(ctxt))
 		return;
 
 	nbcon_context_release(ctxt);
+
+	/*
+	 * This context must flush any new records added while the console
+	 * was locked. The console_srcu_read_lock must be taken to ensure
+	 * the console is usable throughout flushing.
+	 */
+	cookie = console_srcu_read_lock();
+	if (console_is_usable(con, console_srcu_read_flags(con)) &&
+	    prb_read_valid(prb, nbcon_seq_read(con), NULL)) {
+		if (!have_boot_console) {
+			__nbcon_atomic_flush_pending_con(con, prb_next_reserve_seq(prb));
+		} else if (!is_printk_legacy_deferred()) {
+			if (console_trylock())
+				console_unlock();
+		} else {
+			printk_trigger_flush();
+		}
+	}
+	console_srcu_read_unlock(cookie);
 }
 EXPORT_SYMBOL_GPL(nbcon_device_release);
