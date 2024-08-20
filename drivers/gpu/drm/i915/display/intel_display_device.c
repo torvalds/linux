@@ -1715,6 +1715,8 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 		drm_printf(p, "display version: %u\n",
 			   runtime->ip.ver);
 
+	drm_printf(p, "display stepping: %s\n", intel_step_name(runtime->step));
+
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
