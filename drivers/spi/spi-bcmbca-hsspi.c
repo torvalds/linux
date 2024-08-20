@@ -433,7 +433,6 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *host;
 	struct bcmbca_hsspi *bs;
-	struct resource *res_mem;
 	void __iomem *spim_ctrl;
 	void __iomem *regs;
 	struct device *dev = &pdev->dev;
@@ -445,17 +444,11 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hsspi");
-	if (!res_mem)
-		return -EINVAL;
-	regs = devm_ioremap_resource(dev, res_mem);
+	regs = devm_platform_ioremap_resource_byname(pdev, "hsspi");
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spim-ctrl");
-	if (!res_mem)
-		return -EINVAL;
-	spim_ctrl = devm_ioremap_resource(dev, res_mem);
+	spim_ctrl = devm_platform_ioremap_resource_byname(pdev, "spim-ctrl");
 	if (IS_ERR(spim_ctrl))
 		return PTR_ERR(spim_ctrl);
 
