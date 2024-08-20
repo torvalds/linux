@@ -33,6 +33,13 @@ OPT_FLAGS	?= $(if $(RELEASE),-O2,-O0)
 LIBELF_CFLAGS	:= $(shell $(PKG_CONFIG) libelf --cflags 2>/dev/null)
 LIBELF_LIBS	:= $(shell $(PKG_CONFIG) libelf --libs 2>/dev/null || echo -lelf)
 
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(CURDIR)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+endif
+
 CFLAGS += -g $(OPT_FLAGS) -rdynamic					\
 	  -Wall -Werror -fno-omit-frame-pointer				\
 	  $(GENFLAGS) $(SAN_CFLAGS) $(LIBELF_CFLAGS)			\
@@ -59,6 +66,9 @@ progs/test_sk_lookup.c-CFLAGS := -fno-strict-aliasing
 progs/timer_crash.c-CFLAGS := -fno-strict-aliasing
 progs/test_global_func9.c-CFLAGS := -fno-strict-aliasing
 progs/verifier_nocsr.c-CFLAGS := -fno-strict-aliasing
+
+# Some utility functions use LLVM libraries
+jit_disasm_helpers.c-CFLAGS = $(LLVM_CFLAGS)
 
 ifneq ($(LLVM),)
 # Silence some warnings when compiled with clang
@@ -167,6 +177,31 @@ override define CLEAN
 endef
 
 include ../lib.mk
+
+NON_CHECK_FEAT_TARGETS := clean docs-clean
+CHECK_FEAT := $(filter-out $(NON_CHECK_FEAT_TARGETS),$(or $(MAKECMDGOALS), "none"))
+ifneq ($(CHECK_FEAT),)
+FEATURE_USER := .selftests
+FEATURE_TESTS := llvm
+FEATURE_DISPLAY := $(FEATURE_TESTS)
+
+# Makefile.feature expects OUTPUT to end with a slash
+$(let OUTPUT,$(OUTPUT)/,\
+	$(eval include ../../../build/Makefile.feature))
+endif
+
+ifeq ($(feature-llvm),1)
+  LLVM_CFLAGS  += -DHAVE_LLVM_SUPPORT
+  LLVM_CONFIG_LIB_COMPONENTS := mcdisassembler all-targets
+  # both llvm-config and lib.mk add -D_GNU_SOURCE, which ends up as conflict
+  LLVM_CFLAGS  += $(filter-out -D_GNU_SOURCE,$(shell $(LLVM_CONFIG) --cflags))
+  LLVM_LDLIBS  += $(shell $(LLVM_CONFIG) --libs $(LLVM_CONFIG_LIB_COMPONENTS))
+  ifeq ($(shell $(LLVM_CONFIG) --shared-mode),static)
+    LLVM_LDLIBS += $(shell $(LLVM_CONFIG) --system-libs $(LLVM_CONFIG_LIB_COMPONENTS))
+    LLVM_LDLIBS += -lstdc++
+  endif
+  LLVM_LDFLAGS += $(shell $(LLVM_CONFIG) --ldflags)
+endif
 
 SCRATCH_DIR := $(OUTPUT)/tools
 BUILD_DIR := $(SCRATCH_DIR)/build
@@ -612,6 +647,10 @@ ifeq ($(filter clean docs-clean,$(MAKECMDGOALS)),)
 include $(wildcard $(TRUNNER_TEST_OBJS:.o=.d))
 endif
 
+# add per extra obj CFGLAGS definitions
+$(foreach N,$(patsubst $(TRUNNER_OUTPUT)/%.o,%,$(TRUNNER_EXTRA_OBJS)),	\
+	$(eval $(TRUNNER_OUTPUT)/$(N).o: CFLAGS += $($(N).c-CFLAGS)))
+
 $(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
 		       %.c						\
 		       $(TRUNNER_EXTRA_HDRS)				\
@@ -628,6 +667,9 @@ ifneq ($2:$(OUTPUT),:$(shell pwd))
 	$(Q)rsync -aq $$^ $(TRUNNER_OUTPUT)/
 endif
 
+$(OUTPUT)/$(TRUNNER_BINARY): LDLIBS += $$(LLVM_LDLIBS)
+$(OUTPUT)/$(TRUNNER_BINARY): LDFLAGS += $$(LLVM_LDFLAGS)
+
 # some X.test.o files have runtime dependencies on Y.bpf.o files
 $(OUTPUT)/$(TRUNNER_BINARY): | $(TRUNNER_BPF_OBJS)
 
@@ -637,7 +679,7 @@ $(OUTPUT)/$(TRUNNER_BINARY): $(TRUNNER_TEST_OBJS)			\
 			     $(TRUNNER_BPFTOOL)				\
 			     | $(TRUNNER_BINARY)-extras
 	$$(call msg,BINARY,,$$@)
-	$(Q)$$(CC) $$(CFLAGS) $$(filter %.a %.o,$$^) $$(LDLIBS) -o $$@
+	$(Q)$$(CC) $$(CFLAGS) $$(filter %.a %.o,$$^) $$(LDLIBS) $$(LDFLAGS) -o $$@
 	$(Q)$(RESOLVE_BTFIDS) --btf $(TRUNNER_OUTPUT)/btf_data.bpf.o $$@
 	$(Q)ln -sf $(if $2,..,.)/tools/build/bpftool/$(USE_BOOTSTRAP)bpftool \
 		   $(OUTPUT)/$(if $2,$2/)bpftool
@@ -656,6 +698,7 @@ TRUNNER_EXTRA_SOURCES := test_progs.c		\
 			 cap_helpers.c		\
 			 unpriv_helpers.c 	\
 			 netlink_helpers.c	\
+			 jit_disasm_helpers.c	\
 			 test_loader.c		\
 			 xsk.c			\
 			 disasm.c		\
@@ -798,7 +841,8 @@ EXTRA_CLEAN := $(SCRATCH_DIR) $(HOST_SCRATCH_DIR)			\
 	$(addprefix $(OUTPUT)/,*.o *.d *.skel.h *.lskel.h *.subskel.h	\
 			       no_alu32 cpuv4 bpf_gcc bpf_testmod.ko	\
 			       bpf_test_no_cfi.ko			\
-			       liburandom_read.so)
+			       liburandom_read.so)			\
+	$(OUTPUT)/FEATURE-DUMP.selftests
 
 .PHONY: docs docs-clean
 
