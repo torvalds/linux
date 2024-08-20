@@ -11,7 +11,6 @@
 struct xe_step_info {
 	u8 graphics;
 	u8 media;
-	u8 display;
 	u8 basedie;
 };
 
