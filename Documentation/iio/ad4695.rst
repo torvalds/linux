@@ -143,13 +143,18 @@ present, then the external reference voltage is used and the internal buffer is
 disabled. If ``refin-supply`` is present, then the internal buffered reference
 voltage is used.
 
+Gain/offset calibration
+-----------------------
+
+System calibration is supported using the channel gain and offset registers via
+the ``calibscale`` and ``calibbias`` attributes respectively.
+
 Unimplemented features
 ----------------------
 
 - Additional wiring modes
 - Threshold events
 - Oversampling
-- Gain/offset calibration
 - GPIO support
 - CRC support
 
