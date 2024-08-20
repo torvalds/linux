@@ -1242,7 +1242,7 @@ ffa_bus_notifier(struct notifier_block *nb, unsigned long action, void *data)
 
 	if (action == BUS_NOTIFY_BIND_DRIVER) {
 		struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
-		const struct ffa_device_id *id_table= ffa_drv->id_table;
+		const struct ffa_device_id *id_table = ffa_drv->id_table;
 
 		/*
 		 * FF-A v1.1 provides UUID for each partition as part of the
@@ -1327,8 +1327,6 @@ static int ffa_setup_partitions(void)
 	/* Allocate for the host */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		pr_err("%s: failed to alloc Host partition ID 0x%x. Abort.\n",
-		       __func__, drv_info->vm_id);
 		/* Already registered devices are freed on bus_exit */
 		ffa_partitions_cleanup();
 		return -ENOMEM;
@@ -1609,9 +1607,8 @@ static int __init ffa_init(void)
 		return ret;
 
 	drv_info = kzalloc(sizeof(*drv_info), GFP_KERNEL);
-	if (!drv_info) {
+	if (!drv_info)
 		return -ENOMEM;
-	}
 
 	ret = ffa_version_check(&drv_info->version);
 	if (ret)
