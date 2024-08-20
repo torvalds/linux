@@ -545,7 +545,7 @@ static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 		if (msg->substr) {
 			match = strstr(log, msg->substr);
 			if (match)
-				log += strlen(msg->substr);
+				log = match + strlen(msg->substr);
 		} else {
 			err = regexec(&msg->regex, log, 1, reg_match, 0);
 			if (err == 0) {
