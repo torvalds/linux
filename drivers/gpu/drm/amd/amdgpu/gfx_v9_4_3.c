@@ -3052,6 +3052,9 @@ static void gfx_v9_4_3_ring_soft_recovery(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t value = 0;
 
+	if (!adev->debug_exp_resets)
+		return;
+
 	value = REG_SET_FIELD(value, SQ_CMD, CMD, 0x03);
 	value = REG_SET_FIELD(value, SQ_CMD, MODE, 0x01);
 	value = REG_SET_FIELD(value, SQ_CMD, CHECK_VMID, 1);
@@ -3474,6 +3477,9 @@ static int gfx_v9_4_3_reset_kcq(struct amdgpu_ring *ring,
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	unsigned long flags;
 	int r, i;
+
+	if (!adev->debug_exp_resets)
+		return -EINVAL;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
