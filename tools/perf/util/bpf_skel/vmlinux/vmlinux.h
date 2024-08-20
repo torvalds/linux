@@ -175,6 +175,11 @@ struct perf_sample_data {
 	u64			 code_page_size;
 } __attribute__((__aligned__(64))) __attribute__((preserve_access_index));
 
+struct perf_event {
+	struct perf_event	*parent;
+	u64			id;
+} __attribute__((preserve_access_index));
+
 struct bpf_perf_event_data_kern {
 	struct perf_sample_data *data;
 	struct perf_event	*event;

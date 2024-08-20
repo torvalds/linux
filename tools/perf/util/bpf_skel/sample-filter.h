@@ -1,8 +1,9 @@
 #ifndef PERF_UTIL_BPF_SKEL_SAMPLE_FILTER_H
 #define PERF_UTIL_BPF_SKEL_SAMPLE_FILTER_H
 
-#define MAX_FILTERS  64
-#define MAX_PIDS     (16 * 1024)
+#define MAX_FILTERS   64
+#define MAX_IDX_HASH  (16 * 1024)
+#define MAX_EVT_HASH  (1024 * 1024)
 
 /* supported filter operations */
 enum perf_bpf_filter_op {
@@ -60,6 +61,12 @@ struct perf_bpf_filter_entry {
 	__u32 part; /* sub-sample type info when it has multiple values */
 	enum perf_bpf_filter_term term;
 	__u64 value;
+};
+
+struct idx_hash_key {
+	__u64 evt_id;
+	__u32 tgid;
+	__u32 reserved;
 };
 
 #endif /* PERF_UTIL_BPF_SKEL_SAMPLE_FILTER_H */

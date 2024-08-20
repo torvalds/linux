@@ -1,4 +1,45 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/**
+ * Generic event filter for sampling events in BPF.
+ *
+ * The BPF program is fixed and just to read filter expressions in the 'filters'
+ * map and compare the sample data in order to reject samples that don't match.
+ * Each filter expression contains a sample flag (term) to compare, an operation
+ * (==, >=, and so on) and a value.
+ *
+ * Note that each entry has an array of filter expressions and it only succeeds
+ * when all of the expressions are satisfied.  But it supports the logical OR
+ * using a GROUP operation which is satisfied when any of its member expression
+ * is evaluated to true.  But it doesn't allow nested GROUP operations for now.
+ *
+ * To support non-root users, the filters map can be loaded and pinned in the BPF
+ * filesystem by root (perf record --setup-filter pin).  Then each user will get
+ * a new entry in the shared filters map to fill the filter expressions.  And the
+ * BPF program will find the filter using (task-id, event-id) as a key.
+ *
+ * The pinned BPF object (shared for regular users) has:
+ *
+ *                  event_hash                   |
+ *                  |        |                   |
+ *   event->id ---> |   id   | ---+   idx_hash   |     filters
+ *                  |        |    |   |      |   |    |       |
+ *                  |  ....  |    +-> |  idx | --+--> | exprs | --->  perf_bpf_filter_entry[]
+ *                                |   |      |   |    |       |               .op
+ *   task id (tgid) --------------+   | .... |   |    |  ...  |               .term (+ part)
+ *                                               |                            .value
+ *                                               |
+ *   ======= (root would skip this part) ========                     (compares it in a loop)
+ *
+ * This is used for per-task use cases while system-wide profiling (normally from
+ * root user) uses a separate copy of the program and the maps for its own so that
+ * it can proceed even if a lot of non-root users are using the filters at the
+ * same time.  In this case the filters map has a single entry and no need to use
+ * the hash maps to get the index (key) of the filters map (IOW it's always 0).
+ *
+ * The BPF program returns 1 to accept the sample or 0 to drop it.
+ * The 'dropped' map is to keep how many samples it dropped by the filter and
+ * it will be reported as lost samples.
+ */
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -6,6 +47,7 @@
 
 #include <bpf/bpf.h>
 #include <linux/err.h>
+#include <linux/list.h>
 #include <api/fs/fs.h>
 #include <internal/xyarray.h>
 #include <perf/threadmap.h>
@@ -27,7 +69,14 @@
 #define PERF_SAMPLE_TYPE(_st, opt)	__PERF_SAMPLE_TYPE(PBF_TERM_##_st, PERF_SAMPLE_##_st, opt)
 
 /* Index in the pinned 'filters' map.  Should be released after use. */
-static int pinned_filter_idx = -1;
+struct pinned_filter_idx {
+	struct list_head list;
+	struct evsel *evsel;
+	u64 event_id;
+	int hash_idx;
+};
+
+static LIST_HEAD(pinned_filters);
 
 static const struct perf_sample_info {
 	enum perf_bpf_filter_term type;
@@ -175,24 +224,145 @@ static int convert_to_tgid(int tid)
 	return tgid;
 }
 
-static int update_pid_hash(struct evsel *evsel, struct perf_bpf_filter_entry *entry)
+/*
+ * The event might be closed already so we cannot get the list of ids using FD
+ * like in create_event_hash() below, let's iterate the event_hash map and
+ * delete all entries that have the event id as a key.
+ */
+static void destroy_event_hash(u64 event_id)
+{
+	int fd;
+	u64 key, *prev_key = NULL;
+	int num = 0, alloced = 32;
+	u64 *ids = calloc(alloced, sizeof(*ids));
+
+	if (ids == NULL)
+		return;
+
+	fd = get_pinned_fd("event_hash");
+	if (fd < 0) {
+		pr_debug("cannot get fd for 'event_hash' map\n");
+		free(ids);
+		return;
+	}
+
+	/* Iterate the whole map to collect keys for the event id. */
+	while (!bpf_map_get_next_key(fd, prev_key, &key)) {
+		u64 id;
+
+		if (bpf_map_lookup_elem(fd, &key, &id) == 0 && id == event_id) {
+			if (num == alloced) {
+				void *tmp;
+
+				alloced *= 2;
+				tmp = realloc(ids, alloced * sizeof(*ids));
+				if (tmp == NULL)
+					break;
+
+				ids = tmp;
+			}
+			ids[num++] = key;
+		}
+
+		prev_key = &key;
+	}
+
+	for (int i = 0; i < num; i++)
+		bpf_map_delete_elem(fd, &ids[i]);
+
+	free(ids);
+	close(fd);
+}
+
+/*
+ * Return a representative id if ok, or 0 for failures.
+ *
+ * The perf_event->id is good for this, but an evsel would have multiple
+ * instances for CPUs and tasks.  So pick up the first id and setup a hash
+ * from id of each instance to the representative id (the first one).
+ */
+static u64 create_event_hash(struct evsel *evsel)
+{
+	int x, y, fd;
+	u64 the_id = 0, id;
+
+	fd = get_pinned_fd("event_hash");
+	if (fd < 0) {
+		pr_err("cannot get fd for 'event_hash' map\n");
+		return 0;
+	}
+
+	for (x = 0; x < xyarray__max_x(evsel->core.fd); x++) {
+		for (y = 0; y < xyarray__max_y(evsel->core.fd); y++) {
+			int ret = ioctl(FD(evsel, x, y), PERF_EVENT_IOC_ID, &id);
+
+			if (ret < 0) {
+				pr_err("Failed to get the event id\n");
+				if (the_id)
+					destroy_event_hash(the_id);
+				return 0;
+			}
+
+			if (the_id == 0)
+				the_id = id;
+
+			bpf_map_update_elem(fd, &id, &the_id, BPF_ANY);
+		}
+	}
+
+	close(fd);
+	return the_id;
+}
+
+static void destroy_idx_hash(struct pinned_filter_idx *pfi)
+{
+	int fd, nr;
+	struct perf_thread_map *threads;
+
+	fd = get_pinned_fd("filters");
+	bpf_map_delete_elem(fd, &pfi->hash_idx);
+	close(fd);
+
+	if (pfi->event_id)
+		destroy_event_hash(pfi->event_id);
+
+	threads = perf_evsel__threads(&pfi->evsel->core);
+	if (threads == NULL)
+		return;
+
+	fd = get_pinned_fd("idx_hash");
+	nr = perf_thread_map__nr(threads);
+	for (int i = 0; i < nr; i++) {
+		/* The target task might be dead already, just try the pid */
+		struct idx_hash_key key = {
+			.evt_id = pfi->event_id,
+			.tgid = perf_thread_map__pid(threads, i),
+		};
+
+		bpf_map_delete_elem(fd, &key);
+	}
+	close(fd);
+}
+
+/* Maintain a hashmap from (tgid, event-id) to filter index */
+static int create_idx_hash(struct evsel *evsel, struct perf_bpf_filter_entry *entry)
 {
 	int filter_idx;
 	int fd, nr, last;
+	u64 event_id = 0;
+	struct pinned_filter_idx *pfi = NULL;
 	struct perf_thread_map *threads;
 
 	fd = get_pinned_fd("filters");
 	if (fd < 0) {
-		pr_debug("cannot get fd for 'filters' map\n");
+		pr_err("cannot get fd for 'filters' map\n");
 		return fd;
 	}
 
 	/* Find the first available entry in the filters map */
 	for (filter_idx = 0; filter_idx < MAX_FILTERS; filter_idx++) {
-		if (bpf_map_update_elem(fd, &filter_idx, entry, BPF_NOEXIST) == 0) {
-			pinned_filter_idx = filter_idx;
+		if (bpf_map_update_elem(fd, &filter_idx, entry, BPF_NOEXIST) == 0)
 			break;
-		}
 	}
 	close(fd);
 
@@ -201,22 +371,44 @@ static int update_pid_hash(struct evsel *evsel, struct perf_bpf_filter_entry *en
 		return -EBUSY;
 	}
 
+	pfi = zalloc(sizeof(*pfi));
+	if (pfi == NULL) {
+		pr_err("Cannot save pinned filter index\n");
+		goto err;
+	}
+
+	pfi->evsel = evsel;
+	pfi->hash_idx = filter_idx;
+
+	event_id = create_event_hash(evsel);
+	if (event_id == 0) {
+		pr_err("Cannot update the event hash\n");
+		goto err;
+	}
+
+	pfi->event_id = event_id;
+
 	threads = perf_evsel__threads(&evsel->core);
 	if (threads == NULL) {
 		pr_err("Cannot get the thread list of the event\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	/* save the index to a hash map */
-	fd = get_pinned_fd("pid_hash");
-	if (fd < 0)
-		return fd;
+	fd = get_pinned_fd("idx_hash");
+	if (fd < 0) {
+		pr_err("cannot get fd for 'idx_hash' map\n");
+		goto err;
+	}
 
 	last = -1;
 	nr = perf_thread_map__nr(threads);
 	for (int i = 0; i < nr; i++) {
 		int pid = perf_thread_map__pid(threads, i);
 		int tgid;
+		struct idx_hash_key key = {
+			.evt_id = event_id,
+		};
 
 		/* it actually needs tgid, let's get tgid from /proc. */
 		tgid = convert_to_tgid(pid);
@@ -228,16 +420,25 @@ static int update_pid_hash(struct evsel *evsel, struct perf_bpf_filter_entry *en
 		if (tgid == last)
 			continue;
 		last = tgid;
+		key.tgid = tgid;
 
-		if (bpf_map_update_elem(fd, &tgid, &filter_idx, BPF_ANY) < 0) {
-			pr_err("Failed to update the pid hash\n");
+		if (bpf_map_update_elem(fd, &key, &filter_idx, BPF_ANY) < 0) {
+			pr_err("Failed to update the idx_hash\n");
 			close(fd);
-			return -1;
+			goto err;
 		}
-		pr_debug("pid hash: %d -> %d\n", tgid, filter_idx);
+		pr_debug("bpf-filter: idx_hash (task=%d,%s) -> %d\n",
+			 tgid, evsel__name(evsel), filter_idx);
 	}
+
+	list_add(&pfi->list, &pinned_filters);
 	close(fd);
-	return 0;
+	return filter_idx;
+
+err:
+	destroy_idx_hash(pfi);
+	free(pfi);
+	return -1;
 }
 
 int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
@@ -247,7 +448,7 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 	struct bpf_program *prog;
 	struct bpf_link *link;
 	struct perf_bpf_filter_entry *entry;
-	bool needs_pid_hash = !target__has_cpu(target) && !target->uid_str;
+	bool needs_idx_hash = !target__has_cpu(target) && !target->uid_str;
 
 	entry = calloc(MAX_FILTERS, sizeof(*entry));
 	if (entry == NULL)
@@ -259,11 +460,11 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 		goto err;
 	}
 
-	if (needs_pid_hash && geteuid() != 0) {
+	if (needs_idx_hash && geteuid() != 0) {
 		int zero = 0;
 
 		/* The filters map is shared among other processes */
-		ret = update_pid_hash(evsel, entry);
+		ret = create_idx_hash(evsel, entry);
 		if (ret < 0)
 			goto err;
 
@@ -274,7 +475,7 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 		}
 
 		/* Reset the lost count */
-		bpf_map_update_elem(fd, &pinned_filter_idx, &zero, BPF_ANY);
+		bpf_map_update_elem(fd, &ret, &zero, BPF_ANY);
 		close(fd);
 
 		fd = get_pinned_fd("perf_sample_filter");
@@ -288,6 +489,7 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 				ret = ioctl(FD(evsel, x, y), PERF_EVENT_IOC_SET_BPF, fd);
 				if (ret < 0) {
 					pr_err("Failed to attach perf sample-filter\n");
+					close(fd);
 					goto err;
 				}
 			}
@@ -332,6 +534,15 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 
 err:
 	free(entry);
+	if (!list_empty(&pinned_filters)) {
+		struct pinned_filter_idx *pfi, *tmp;
+
+		list_for_each_entry_safe(pfi, tmp, &pinned_filters, list) {
+			destroy_idx_hash(pfi);
+			list_del(&pfi->list);
+			free(pfi);
+		}
+	}
 	sample_filter_bpf__destroy(skel);
 	return ret;
 }
@@ -339,6 +550,7 @@ err:
 int perf_bpf_filter__destroy(struct evsel *evsel)
 {
 	struct perf_bpf_filter_expr *expr, *tmp;
+	struct pinned_filter_idx *pfi, *pos;
 
 	list_for_each_entry_safe(expr, tmp, &evsel->bpf_filters, list) {
 		list_del(&expr->list);
@@ -346,14 +558,11 @@ int perf_bpf_filter__destroy(struct evsel *evsel)
 	}
 	sample_filter_bpf__destroy(evsel->bpf_skel);
 
-	if (pinned_filter_idx >= 0) {
-		int fd = get_pinned_fd("filters");
-
-		bpf_map_delete_elem(fd, &pinned_filter_idx);
-		pinned_filter_idx = -1;
-		close(fd);
+	list_for_each_entry_safe(pfi, pos, &pinned_filters, list) {
+		destroy_idx_hash(pfi);
+		list_del(&pfi->list);
+		free(pfi);
 	}
-
 	return 0;
 }
 
@@ -364,10 +573,20 @@ u64 perf_bpf_filter__lost_count(struct evsel *evsel)
 	if (list_empty(&evsel->bpf_filters))
 		return 0;
 
-	if (pinned_filter_idx >= 0) {
+	if (!list_empty(&pinned_filters)) {
 		int fd = get_pinned_fd("dropped");
+		struct pinned_filter_idx *pfi;
 
-		bpf_map_lookup_elem(fd, &pinned_filter_idx, &count);
+		if (fd < 0)
+			return 0;
+
+		list_for_each_entry(pfi, &pinned_filters, list) {
+			if (pfi->evsel != evsel)
+				continue;
+
+			bpf_map_lookup_elem(fd, &pfi->hash_idx, &count);
+			break;
+		}
 		close(fd);
 	} else if (evsel->bpf_skel) {
 		struct sample_filter_bpf *skel = evsel->bpf_skel;
@@ -429,9 +648,10 @@ int perf_bpf_filter__pin(void)
 
 	/* pinned program will use pid-hash */
 	bpf_map__set_max_entries(skel->maps.filters, MAX_FILTERS);
-	bpf_map__set_max_entries(skel->maps.pid_hash, MAX_PIDS);
+	bpf_map__set_max_entries(skel->maps.event_hash, MAX_EVT_HASH);
+	bpf_map__set_max_entries(skel->maps.idx_hash, MAX_IDX_HASH);
 	bpf_map__set_max_entries(skel->maps.dropped, MAX_FILTERS);
-	skel->rodata->use_pid_hash = 1;
+	skel->rodata->use_idx_hash = 1;
 
 	if (sample_filter_bpf__load(skel) < 0) {
 		ret = -errno;
@@ -484,8 +704,12 @@ int perf_bpf_filter__pin(void)
 		pr_debug("chmod for filters failed\n");
 		ret = -errno;
 	}
-	if (fchmodat(dir_fd, "pid_hash", 0666, 0) < 0) {
-		pr_debug("chmod for pid_hash failed\n");
+	if (fchmodat(dir_fd, "event_hash", 0666, 0) < 0) {
+		pr_debug("chmod for event_hash failed\n");
+		ret = -errno;
+	}
+	if (fchmodat(dir_fd, "idx_hash", 0666, 0) < 0) {
+		pr_debug("chmod for idx_hash failed\n");
 		ret = -errno;
 	}
 	if (fchmodat(dir_fd, "dropped", 0666, 0) < 0) {
