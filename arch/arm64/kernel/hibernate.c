@@ -120,8 +120,10 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	hdr->ttbr1_el1		= __pa_symbol(swapper_pg_dir);
 	hdr->reenter_kernel	= _cpu_resume;
 
+#ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_save_cpu_resume(&hdr->android_vendor_data1,
 						__pa(cpu_resume));
+#endif
 
 	/* We can't use __hyp_get_vectors() because kvm may still be loaded */
 	if (el2_reset_needed())

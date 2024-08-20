@@ -191,6 +191,8 @@
   gic_nonsecure_priorities
   gpiochip_add_data_with_key
   gpiochip_find
+  gpiochip_generic_free
+  gpiochip_generic_request
   gpiochip_get_data
   gpiochip_remove
   gpiod_get_value_cansleep
@@ -355,6 +357,7 @@
   of_address_to_resource
   of_alias_get_id
   of_clk_get_by_name
+  of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
   of_device_is_big_endian
@@ -490,6 +493,7 @@
   register_pernet_device
   register_pernet_subsys
   register_pm_notifier
+  register_reboot_notifier
   register_syscore_ops
   regulator_bulk_disable
   regulator_bulk_enable
@@ -660,6 +664,7 @@
   unregister_pernet_device
   unregister_pernet_subsys
   unregister_pm_notifier
+  unregister_reboot_notifier
   up_read
   up_write
   usb_alloc_urb
@@ -816,7 +821,6 @@
   dma_pool_create
   dma_pool_destroy
   dma_pool_free
-  of_count_phandle_with_args
   usb_add_gadget_udc
   usb_del_gadget_udc
   usb_ep_set_maxpacket_limit
@@ -1353,6 +1357,7 @@
   scsi_remove_device
   scsi_remove_host
   scsi_rescan_device
+  scsi_resume_device
   scsi_schedule_eh
   scsi_sense_desc_find
   scsi_set_sense_field_pointer
@@ -1449,8 +1454,6 @@
   gpiochip_disable_irq
   gpiochip_enable_irq
   gpiochip_generic_config
-  gpiochip_generic_free
-  gpiochip_generic_request
   gpiochip_irq_relres
   gpiochip_irq_reqres
   of_pinctrl_get
@@ -1527,6 +1530,9 @@
   usb_set_configuration
   work_busy
 
+# required by reboot_data_save.ko
+  ktime_get_real_ts64
+
 # required by rfcomm.ko
   kthread_should_stop
   kthread_stop
@@ -1543,11 +1549,9 @@
 # required by rtc-brcmstb-waketimer.ko
   devm_rtc_allocate_device
   __devm_rtc_register_device
-  register_reboot_notifier
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_update_irq
-  unregister_reboot_notifier
 
 # required by rtl8150.ko
   usb_control_msg_send

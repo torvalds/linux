@@ -83,6 +83,7 @@
 #include <trace/events/migrate.h>
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/mm.h>
+#include <trace/hooks/vmscan.h>
 
 #include "internal.h"
 
@@ -2518,6 +2519,18 @@ static void rmap_walk_file(struct folio *folio,
 	pgoff_start = folio_pgoff(folio);
 	pgoff_end = pgoff_start + folio_nr_pages(folio) - 1;
 	if (!locked) {
+		bool got_lock = false;
+		bool skip = false;
+
+		trace_android_vh_do_folio_trylock(folio,
+			&mapping->i_mmap_rwsem, &got_lock, &skip);
+		if (skip) {
+			if (!got_lock)
+				return;
+			else
+				goto lookup;
+		}
+
 		if (i_mmap_trylock_read(mapping))
 			goto lookup;
 

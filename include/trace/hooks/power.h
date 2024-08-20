@@ -33,6 +33,10 @@ DECLARE_HOOK(android_vh_freq_qos_remove_request,
 		TP_PROTO(struct freq_qos_request *req),
 		TP_ARGS(req));
 
+DECLARE_HOOK(android_vh_hibernate_state,
+		TP_PROTO(int error),
+		TP_ARGS(error));
+
 #endif /* _TRACE_HOOK_POWER_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

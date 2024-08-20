@@ -450,7 +450,8 @@ regular_page:
 
 		if (!pte_present(ptent)) {
 			entry = pte_to_swp_entry(ptent);
-			trace_android_vh_madvise_pageout_swap_entry(entry,
+			if (!is_migration_entry(entry))
+				trace_android_vh_madvise_pageout_swap_entry(entry,
 					swp_swapcount(entry));
 			continue;
 		}
