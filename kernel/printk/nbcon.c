@@ -974,6 +974,25 @@ update_con:
 }
 
 /**
+ * nbcon_get_default_prio - The appropriate nbcon priority to use for nbcon
+ *				printing on the current CPU
+ *
+ * Context:	Any context.
+ * Return:	The nbcon_prio to use for acquiring an nbcon console in this
+ *		context for printing.
+ *
+ * The function is safe for reading per-CPU data in any context because
+ * preemption is disabled if the current CPU is in the panic state.
+ */
+enum nbcon_prio nbcon_get_default_prio(void)
+{
+	if (this_cpu_in_panic())
+		return NBCON_PRIO_PANIC;
+
+	return NBCON_PRIO_NORMAL;
+}
+
+/**
  * nbcon_alloc - Allocate and init the nbcon console specific data
  * @con:	Console to initialize
  *
