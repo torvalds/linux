@@ -99,6 +99,7 @@ struct ffa_drv_info {
 	void *rx_buffer;
 	void *tx_buffer;
 	bool mem_ops_native;
+	bool msg_direct_req2_supp;
 	bool bitmap_created;
 	bool notif_enabled;
 	unsigned int sched_recv_irq;
@@ -466,6 +467,35 @@ static int ffa_msg_send2(u16 src_id, u16 dst_id, void *buf, size_t sz)
 
 	mutex_unlock(&drv_info->tx_lock);
 	return retval;
+}
+
+static int ffa_msg_send_direct_req2(u16 src_id, u16 dst_id, const uuid_t *uuid,
+				    struct ffa_send_direct_data2 *data)
+{
+	u32 src_dst_ids = PACK_TARGET_INFO(src_id, dst_id);
+	ffa_value_t ret, args = {
+		.a0 = FFA_MSG_SEND_DIRECT_REQ2, .a1 = src_dst_ids,
+	};
+
+	export_uuid((u8 *)&args.a2, uuid);
+	memcpy((void *)&args + offsetof(ffa_value_t, a4), data, sizeof(*data));
+
+	invoke_ffa_fn(args, &ret);
+
+	while (ret.a0 == FFA_INTERRUPT)
+		invoke_ffa_fn((ffa_value_t){
+			      .a0 = FFA_RUN, .a1 = ret.a1,
+			      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	if (ret.a0 == FFA_MSG_SEND_DIRECT_RESP2) {
+		memcpy(data, &ret.a4, sizeof(*data));
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
@@ -923,11 +953,15 @@ static int ffa_run(struct ffa_device *dev, u16 vcpu)
 	return 0;
 }
 
-static void ffa_set_up_mem_ops_native_flag(void)
+static void ffa_drvinfo_flags_init(void)
 {
 	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
 	    !ffa_features(FFA_FN_NATIVE(MEM_SHARE), 0, NULL, NULL))
 		drv_info->mem_ops_native = true;
+
+	if (!ffa_features(FFA_MSG_SEND_DIRECT_REQ2, 0, NULL, NULL) ||
+	    !ffa_features(FFA_MSG_SEND_DIRECT_RESP2, 0, NULL, NULL))
+		drv_info->msg_direct_req2_supp = true;
 }
 
 static u32 ffa_api_version_get(void)
@@ -971,6 +1005,16 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 static int ffa_indirect_msg_send(struct ffa_device *dev, void *buf, size_t sz)
 {
 	return ffa_msg_send2(drv_info->vm_id, dev->vm_id, buf, sz);
+}
+
+static int ffa_sync_send_receive2(struct ffa_device *dev, const uuid_t *uuid,
+				  struct ffa_send_direct_data2 *data)
+{
+	if (!drv_info->msg_direct_req2_supp)
+		return -EOPNOTSUPP;
+
+	return ffa_msg_send_direct_req2(drv_info->vm_id, dev->vm_id,
+					uuid, data);
 }
 
 static int ffa_memory_share(struct ffa_mem_ops_args *args)
@@ -1256,6 +1300,7 @@ static const struct ffa_msg_ops ffa_drv_msg_ops = {
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
 	.indirect_send = ffa_indirect_msg_send,
+	.sync_send_receive2 = ffa_sync_send_receive2,
 };
 
 static const struct ffa_mem_ops ffa_drv_mem_ops = {
@@ -1708,7 +1753,7 @@ static int __init ffa_init(void)
 	mutex_init(&drv_info->rx_lock);
 	mutex_init(&drv_info->tx_lock);
 
-	ffa_set_up_mem_ops_native_flag();
+	ffa_drvinfo_flags_init();
 
 	ffa_notifications_setup();
 
