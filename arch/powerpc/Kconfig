@@ -1269,23 +1269,24 @@ config TASK_SIZE_BOOL
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000" if PPC_8xx
-	default "0xb0000000" if PPC_BOOK3S_32
+	default "0xb0000000" if PPC_BOOK3S_32 && EXECMEM
 	default "0xc0000000"
 
 config MODULES_SIZE_BOOL
 	bool "Set custom size for modules/execmem area"
 	depends on EXECMEM && ADVANCED_OPTIONS
-	depends on PPC_8xx
 	help
 	  This option allows you to set the size of kernel virtual address
 	  space dedicated for modules/execmem.
-	  For the time being it is only for 8xx.
+	  For the time being it is only for 8xx and book3s/32. Other
+	  platform share it with vmalloc space.
 
 	  Say N here unless you know what you are doing.
 
 config MODULES_SIZE
 	int "Size of modules/execmem area (In Mbytes)" if MODULES_SIZE_BOOL
 	range 1 256 if EXECMEM
+	default 64 if EXECMEM && PPC_BOOK3S_32
 	default 32 if EXECMEM && PPC_8xx
 	default 0
 
