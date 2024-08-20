@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GCC_NIOBE_H
@@ -224,6 +224,7 @@
 #define GCC_PCIE_1_PHY_AUX_CLK					214
 #define GCC_PCIE_1_PHY_AUX_CLK_SRC				215
 #define GCC_USB30_PRIM_ATB_CLK					216
+#define GCC_PWM0_XO512_DIV_CLK_SRC				217
 
 /* GCC resets */
 #define GCC_CAMERA_BCR						0
