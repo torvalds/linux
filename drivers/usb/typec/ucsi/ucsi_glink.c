@@ -367,12 +367,16 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 		ucsi->port_orientation[port] = desc;
 	}
 
-	ucsi->client = devm_pmic_glink_register_client(dev,
-						       PMIC_GLINK_OWNER_USBC,
-						       pmic_glink_ucsi_callback,
-						       pmic_glink_ucsi_pdr_notify,
-						       ucsi);
-	return PTR_ERR_OR_ZERO(ucsi->client);
+	ucsi->client = devm_pmic_glink_client_alloc(dev, PMIC_GLINK_OWNER_USBC,
+						    pmic_glink_ucsi_callback,
+						    pmic_glink_ucsi_pdr_notify,
+						    ucsi);
+	if (IS_ERR(ucsi->client))
+		return PTR_ERR(ucsi->client);
+
+	pmic_glink_client_register(ucsi->client);
+
+	return 0;
 }
 
 static void pmic_glink_ucsi_remove(struct auxiliary_device *adev)
