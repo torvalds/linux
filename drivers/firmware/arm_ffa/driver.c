@@ -26,6 +26,7 @@
 #include <linux/arm_ffa.h>
 #include <linux/bitfield.h>
 #include <linux/cpuhotplug.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/hashtable.h>
 #include <linux/interrupt.h>
@@ -397,6 +398,18 @@ static int ffa_id_get(u16 *vm_id)
 	return 0;
 }
 
+static inline void ffa_msg_send_wait_for_completion(ffa_value_t *ret)
+{
+	while (ret->a0 == FFA_INTERRUPT || ret->a0 == FFA_YIELD) {
+		if (ret->a0 == FFA_YIELD)
+			fsleep(1000);
+
+		invoke_ffa_fn((ffa_value_t){
+			      .a0 = FFA_RUN, .a1 = ret->a1,
+			      }, ret);
+	}
+}
+
 static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 				   struct ffa_send_direct_data *data)
 {
@@ -417,10 +430,7 @@ static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 		      .a6 = data->data3, .a7 = data->data4,
 		      }, &ret);
 
-	while (ret.a0 == FFA_INTERRUPT)
-		invoke_ffa_fn((ffa_value_t){
-			      .a0 = FFA_RUN, .a1 = ret.a1,
-			      }, &ret);
+	ffa_msg_send_wait_for_completion(&ret);
 
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
@@ -482,10 +492,7 @@ static int ffa_msg_send_direct_req2(u16 src_id, u16 dst_id, const uuid_t *uuid,
 
 	invoke_ffa_fn(args, &ret);
 
-	while (ret.a0 == FFA_INTERRUPT)
-		invoke_ffa_fn((ffa_value_t){
-			      .a0 = FFA_RUN, .a1 = ret.a1,
-			      }, &ret);
+	ffa_msg_send_wait_for_completion(&ret);
 
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
