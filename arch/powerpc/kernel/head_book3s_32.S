@@ -469,27 +469,22 @@ InstructionAddressInvalid:
 DataLoadTLBMiss:
 	/* Get PTE (linux-style) and check access */
 	mfspr	r0,SPRN_DMISS
-	lis	r1, TASK_SIZE@h		/* check if kernel address */
-	cmplw	0,r1,r0
 	mfspr	r2, SPRN_SDR1
-	li	r1, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_READ
-	rlwinm	r2, r2, 28, 0xfffff000
-	li	r3, 3
-	bgt-	112f
-	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
-	li	r3, 0
-	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
-112:	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
-	lwz	r2,0(r2)		/* get pmd entry */
+	rlwinm	r1, r2, 28, 0xfffff000
+	rlwimi	r1,r0,12,20,29		/* insert top 10 bits of address */
+	lwz	r2,0(r1)		/* get pmd entry */
+	rlwinm	r3, r0, 4, 0xf
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
-	rlwimi	r2,r0,22,20,29		/* insert next 10 bits of address */
+	subi	r3, r3, (TASK_SIZE >> 28) & 0xf
+	beq-	2f			/* bail if no mapping */
+1:	rlwimi	r2,r0,22,20,29		/* insert next 10 bits of address */
 	lwz	r2,0(r2)		/* get linux-style pte */
+	li	r1, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_READ
 	andc.	r1,r1,r2		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwinm	r1,r2,32-9,30,30	/* _PAGE_WRITE -> PP msb */
-	rlwimi	r2,r3,0,30,31		/* userspace ? -> PP */
+	rlwimi	r2,r3,2,30,31		/* userspace ? -> PP */
 	rlwimi	r1,r2,32-3,24,24	/* _PAGE_WRITE -> _PAGE_DIRTY */
 	xori	r1,r1,_PAGE_DIRTY	/* clear dirty when not rw */
 	ori	r1,r1,0xe04		/* clear out reserved bits */
@@ -518,6 +513,16 @@ MMU_FTR_SECTION_ELSE
 	tlbld	r0
 	rfi
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+
+2:	lis     r2, (swapper_pg_dir - PAGE_OFFSET)@ha
+	addi    r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l        /* kernel page table */
+	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
+	lwz	r2,0(r2)		/* get pmd entry */
+	cmpwi	cr0,r2,0
+	beq-	DataAddressInvalid	/* return if no mapping */
+	stw	r2,0(r1)
+	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
+	b	1b
 DataAddressInvalid:
 	mfspr	r3,SPRN_SRR1
 	rlwinm	r1,r3,9,6,6	/* Get load/store bit */
@@ -543,26 +548,22 @@ DataAddressInvalid:
 DataStoreTLBMiss:
 	/* Get PTE (linux-style) and check access */
 	mfspr	r0,SPRN_DMISS
-	lis	r1, TASK_SIZE@h		/* check if kernel address */
-	cmplw	0,r1,r0
 	mfspr	r2, SPRN_SDR1
-	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT | _PAGE_ACCESSED
-	rlwinm	r2, r2, 28, 0xfffff000
-	li	r3, 3
-	bgt-	112f
-	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
-	li	r3, 0
-	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
-112:	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
-	lwz	r2,0(r2)		/* get pmd entry */
+	rlwinm	r1, r2, 28, 0xfffff000
+	rlwimi	r1,r0,12,20,29		/* insert top 10 bits of address */
+	lwz	r2,0(r1)		/* get pmd entry */
+	rlwinm	r3, r0, 4, 0xf
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
+	subi	r3, r3, (TASK_SIZE >> 28) & 0xf
+	beq-	2f			/* bail if no mapping */
+1:
 	rlwimi	r2,r0,22,20,29		/* insert next 10 bits of address */
 	lwz	r2,0(r2)		/* get linux-style pte */
+	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT | _PAGE_ACCESSED
 	andc.	r1,r1,r2		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
-	rlwimi	r2,r3,0,31,31		/* userspace ? -> PP lsb */
+	rlwimi	r2,r3,1,31,31		/* userspace ? -> PP lsb */
 	li	r1,0xe06		/* clear out reserved bits & PP msb */
 	andc	r1,r2,r1		/* PP = user? 1: 0 */
 BEGIN_FTR_SECTION
@@ -591,6 +592,16 @@ MMU_FTR_SECTION_ELSE
 	tlbld	r0
 	rfi
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+
+2:	lis     r2, (swapper_pg_dir - PAGE_OFFSET)@ha
+	addi    r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l        /* kernel page table */
+	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
+	lwz	r2,0(r2)		/* get pmd entry */
+	cmpwi	cr0,r2,0
+	beq-	DataAddressInvalid	/* return if no mapping */
+	stw	r2,0(r1)
+	rlwinm	r2,r2,0,0,19		/* extract address of pte page */
+	b	1b
 
 #ifndef CONFIG_ALTIVEC
 #define altivec_assist_exception	unknown_exception
