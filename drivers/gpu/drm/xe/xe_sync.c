@@ -249,10 +249,8 @@ void xe_sync_entry_cleanup(struct xe_sync_entry *sync)
 {
 	if (sync->syncobj)
 		drm_syncobj_put(sync->syncobj);
-	if (sync->fence)
-		dma_fence_put(sync->fence);
-	if (sync->chain_fence)
-		dma_fence_chain_free(sync->chain_fence);
+	dma_fence_put(sync->fence);
+	dma_fence_chain_free(sync->chain_fence);
 	if (sync->ufence)
 		user_fence_put(sync->ufence);
 }
