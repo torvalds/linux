@@ -18747,7 +18747,7 @@ M:	Bryan O'Donoghue <bryan.odonoghue@linaro.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/admin-guide/media/qcom_camss.rst
-F:	Documentation/devicetree/bindings/media/*camss*
+F:	Documentation/devicetree/bindings/media/qcom,*camss*
 F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CLOCK DRIVERS
