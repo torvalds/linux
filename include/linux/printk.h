@@ -202,6 +202,7 @@ void printk_trigger_flush(void);
 void console_try_replay_all(void);
 extern bool nbcon_device_try_acquire(struct console *con);
 extern void nbcon_device_release(struct console *con);
+void nbcon_atomic_flush_unsafe(void);
 #else
 static inline __printf(1, 0)
 int vprintk(const char *s, va_list args)
@@ -291,6 +292,10 @@ static inline bool nbcon_device_try_acquire(struct console *con)
 }
 
 static inline void nbcon_device_release(struct console *con)
+{
+}
+
+static inline void nbcon_atomic_flush_unsafe(void)
 {
 }
 
