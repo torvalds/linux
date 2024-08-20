@@ -413,6 +413,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
+
 	return 0;
 err:
 	irq_domain_remove(mpc8xxx_gc->irq);
@@ -429,6 +431,31 @@ static void mpc8xxx_remove(struct platform_device *pdev)
 	}
 }
 
+#ifdef CONFIG_PM
+static int mpc8xxx_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
+
+	if (mpc8xxx_gc->irqn && device_may_wakeup(&pdev->dev))
+		enable_irq_wake(mpc8xxx_gc->irqn);
+
+	return 0;
+}
+
+static int mpc8xxx_resume(struct platform_device *pdev)
+{
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
+
+	if (mpc8xxx_gc->irqn && device_may_wakeup(&pdev->dev))
+		disable_irq_wake(mpc8xxx_gc->irqn);
+
+	return 0;
+}
+#else
+#define mpc8xxx_suspend NULL
+#define mpc8xxx_resume NULL
+#endif
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id gpio_acpi_ids[] = {
 	{"NXP0031",},
@@ -440,6 +467,8 @@ MODULE_DEVICE_TABLE(acpi, gpio_acpi_ids);
 static struct platform_driver mpc8xxx_plat_driver = {
 	.probe		= mpc8xxx_probe,
 	.remove_new	= mpc8xxx_remove,
+	.suspend	= mpc8xxx_suspend,
+	.resume		= mpc8xxx_resume,
 	.driver		= {
 		.name = "gpio-mpc8xxx",
 		.of_match_table	= mpc8xxx_gpio_ids,
