@@ -635,6 +635,8 @@ static int qcom_pdm_probe(struct auxiliary_device *auxdev,
 			ret = PTR_ERR(data);
 		else
 			__qcom_pdm_data = data;
+	} else {
+		refcount_inc(&__qcom_pdm_data->refcnt);
 	}
 
 	auxiliary_set_drvdata(auxdev, __qcom_pdm_data);
