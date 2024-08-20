@@ -103,6 +103,9 @@ properties:
     items:
       - const: i2c
 
+  power-domains:
+    maxItems: 1
+
   dmas:
     items:
       - description: DMA channel for the reception FIFO
@@ -162,6 +165,9 @@ allOf:
         power-domains:
           items:
             - description: phandle to the VENC power domain
+    else:
+      properties:
+        power-domains: false
 
 unevaluatedProperties: false
 
