@@ -413,22 +413,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 InstructionTLBMiss:
 	/* Get PTE (linux-style) and check access */
 	mfspr	r0,SPRN_IMISS
-#ifdef CONFIG_EXECMEM
-	lis	r1, TASK_SIZE@h		/* check if kernel address */
-	cmplw	0,r1,r0
-#endif
 	mfspr	r2, SPRN_SDR1
 	li	r1,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
 	rlwinm	r2, r2, 28, 0xfffff000
-#ifdef CONFIG_EXECMEM
-	li	r3, 3
-	bgt-	112f
-	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
-	li	r3, 0
-	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
-#endif
-112:	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
+	rlwimi	r2,r0,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
+#ifdef CONFIG_EXECMEM
+	rlwinm	r3, r0, 4, 0xf
+	subi	r3, r3, (TASK_SIZE >> 28) & 0xf
+#endif
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
 	beq-	InstructionAddressInvalid	/* return if no mapping */
 	rlwimi	r2,r0,22,20,29		/* insert next 10 bits of address */
@@ -437,7 +430,7 @@ InstructionTLBMiss:
 	bne-	InstructionAddressInvalid /* return if access not permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 #ifdef CONFIG_EXECMEM
-	rlwimi	r2, r3, 0, 31, 31	/* userspace ? -> PP lsb */
+	rlwimi	r2, r3, 1, 31, 31	/* userspace ? -> PP lsb */
 #endif
 	ori	r1, r1, 0xe06		/* clear out reserved bits */
 	andc	r1, r2, r1		/* PP = user? 1 : 0 */
