@@ -62,7 +62,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	struct evsel *pos;
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
-	int i, nr_members = 1;
+	int i = 0, nr_members = 1;
 	struct hpp_fmt_value *values;
 
 	if (evsel__is_group_event(evsel))
@@ -72,15 +72,15 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	if (values == NULL)
 		return 0;
 
-	i = 0;
-	for_each_group_evsel(pos, evsel)
-		values[i++].hists = evsel__hists(pos);
-
+	values[0].hists = evsel__hists(evsel);
 	values[0].val = get_field(he);
 	values[0].samples = he->stat.nr_events;
 
 	if (evsel__is_group_event(evsel)) {
 		struct hist_entry *pair;
+
+		for_each_group_member(pos, evsel)
+			values[++i].hists = evsel__hists(pos);
 
 		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
 			for (i = 0; i < nr_members; i++) {
