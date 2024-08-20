@@ -275,8 +275,3 @@ const char *intel_step_name(enum intel_step step)
 		return "**";
 	}
 }
-
-const char *intel_display_step_name(struct drm_i915_private *i915)
-{
-	return intel_step_name(RUNTIME_INFO(i915)->step.display_step);
-}
