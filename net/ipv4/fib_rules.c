@@ -186,7 +186,7 @@ INDIRECT_CALLABLE_SCOPE int fib4_rule_match(struct fib_rule *rule,
 	    ((daddr ^ r->dst) & r->dstmask))
 		return 0;
 
-	if (r->dscp && r->dscp != inet_dsfield_to_dscp(fl4->flowi4_tos))
+	if (r->dscp && !fib_dscp_masked_match(r->dscp, fl4))
 		return 0;
 
 	if (rule->ip_proto && (rule->ip_proto != fl4->flowi4_proto))
