@@ -23,6 +23,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/minmax.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -225,7 +226,11 @@ static const struct iio_chan_spec ad4695_channel_template = {
 	.indexed = 1,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			      BIT(IIO_CHAN_INFO_SCALE) |
-			      BIT(IIO_CHAN_INFO_OFFSET),
+			      BIT(IIO_CHAN_INFO_OFFSET) |
+			      BIT(IIO_CHAN_INFO_CALIBSCALE) |
+			      BIT(IIO_CHAN_INFO_CALIBBIAS),
+	.info_mask_separate_available = BIT(IIO_CHAN_INFO_CALIBSCALE) |
+					BIT(IIO_CHAN_INFO_CALIBBIAS),
 	.scan_type = {
 		.sign = 'u',
 		.realbits = 16,
@@ -619,7 +624,8 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 	struct ad4695_state *st = iio_priv(indio_dev);
 	struct ad4695_channel_config *cfg = &st->channels_cfg[chan->scan_index];
 	u8 realbits = chan->scan_type.realbits;
-	int ret;
+	unsigned int reg_val;
+	int ret, tmp;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -670,6 +676,152 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = regmap_read(st->regmap16,
+					AD4695_REG_GAIN_IN(chan->scan_index),
+					&reg_val);
+				if (ret)
+					return ret;
+
+				*val = reg_val;
+				*val2 = 15;
+
+				return IIO_VAL_FRACTIONAL_LOG2;
+			}
+			unreachable();
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = regmap_read(st->regmap16,
+					AD4695_REG_OFFSET_IN(chan->scan_index),
+					&reg_val);
+				if (ret)
+					return ret;
+
+				tmp = sign_extend32(reg_val, 15);
+
+				*val = tmp / 4;
+				*val2 = abs(tmp) % 4 * MICRO / 4;
+
+				if (tmp < 0 && *val2) {
+					*val *= -1;
+					*val2 *= -1;
+				}
+
+				return IIO_VAL_INT_PLUS_MICRO;
+			}
+			unreachable();
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4695_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	unsigned int reg_val;
+
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		switch (mask) {
+		case IIO_CHAN_INFO_CALIBSCALE:
+			switch (chan->type) {
+			case IIO_VOLTAGE:
+				if (val < 0 || val2 < 0)
+					reg_val = 0;
+				else if (val > 1)
+					reg_val = U16_MAX;
+				else
+					reg_val = (val * (1 << 16) +
+						   mul_u64_u32_div(val2, 1 << 16,
+								   MICRO)) / 2;
+
+				return regmap_write(st->regmap16,
+					AD4695_REG_GAIN_IN(chan->scan_index),
+					reg_val);
+			default:
+				return -EINVAL;
+			}
+		case IIO_CHAN_INFO_CALIBBIAS:
+			switch (chan->type) {
+			case IIO_VOLTAGE:
+				if (val2 >= 0 && val > S16_MAX / 4)
+					reg_val = S16_MAX;
+				else if ((val2 < 0 ? -val : val) < S16_MIN / 4)
+					reg_val = S16_MIN;
+				else if (val2 < 0)
+					reg_val = clamp_t(int,
+						-(val * 4 + -val2 * 4 / MICRO),
+						S16_MIN, S16_MAX);
+				else if (val < 0)
+					reg_val = clamp_t(int,
+						val * 4 - val2 * 4 / MICRO,
+						S16_MIN, S16_MAX);
+				else
+					reg_val = clamp_t(int,
+						val * 4 + val2 * 4 / MICRO,
+						S16_MIN, S16_MAX);
+
+				return regmap_write(st->regmap16,
+					AD4695_REG_OFFSET_IN(chan->scan_index),
+					reg_val);
+			default:
+				return -EINVAL;
+			}
+		default:
+			return -EINVAL;
+		}
+	}
+	unreachable();
+}
+
+static int ad4695_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
+{
+	static const int ad4695_calibscale_available[6] = {
+		/* Range of 0 (inclusive) to 2 (exclusive) */
+		0, 15, 1, 15, U16_MAX, 15
+	};
+	static const int ad4695_calibbias_available[6] = {
+		/*
+		 * Datasheet says FSR/8 which translates to signed/4. The step
+		 * depends on oversampling ratio which is always 1 for now.
+		 */
+		S16_MIN / 4, 0, 0, MICRO / 4, S16_MAX / 4, S16_MAX % 4 * MICRO / 4
+	};
+
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*vals = ad4695_calibscale_available;
+			*type = IIO_VAL_FRACTIONAL_LOG2;
+			return IIO_AVAIL_RANGE;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*vals = ad4695_calibbias_available;
+			*type = IIO_VAL_INT_PLUS_MICRO;
+			return IIO_AVAIL_RANGE;
+		default:
+			return -EINVAL;
+		}
 	default:
 		return -EINVAL;
 	}
@@ -705,6 +857,8 @@ static int ad4695_debugfs_reg_access(struct iio_dev *indio_dev,
 
 static const struct iio_info ad4695_info = {
 	.read_raw = &ad4695_read_raw,
+	.write_raw = &ad4695_write_raw,
+	.read_avail = &ad4695_read_avail,
 	.debugfs_reg_access = &ad4695_debugfs_reg_access,
 };
 
