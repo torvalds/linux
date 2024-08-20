@@ -1086,7 +1086,7 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 }
 
 /* This can handle encryption stuffs */
-static int f2fs_submit_page_read(struct inode *inode, struct page *page,
+static int f2fs_submit_page_read(struct inode *inode, struct folio *folio,
 				 block_t blkaddr, blk_opf_t op_flags,
 				 bool for_write)
 {
@@ -1094,14 +1094,14 @@ static int f2fs_submit_page_read(struct inode *inode, struct page *page,
 	struct bio *bio;
 
 	bio = f2fs_grab_read_bio(inode, blkaddr, 1, op_flags,
-					page->index, for_write);
+					folio->index, for_write);
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
 	/* wait for GCed page writeback via META_MAPPING */
 	f2fs_wait_on_block_writeback(inode, blkaddr);
 
-	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+	if (!bio_add_folio(bio, folio, PAGE_SIZE, 0)) {
 		iostat_update_and_unbind_ctx(bio);
 		if (bio->bi_private)
 			mempool_free(bio->bi_private, bio_post_read_ctx_pool);
@@ -1269,7 +1269,7 @@ got_it:
 		return page;
 	}
 
-	err = f2fs_submit_page_read(inode, page, dn.data_blkaddr,
+	err = f2fs_submit_page_read(inode, page_folio(page), dn.data_blkaddr,
 						op_flags, for_write);
 	if (err)
 		goto put_err;
@@ -3668,8 +3668,8 @@ repeat:
 			goto fail;
 		}
 		err = f2fs_submit_page_read(use_cow ?
-				F2FS_I(inode)->cow_inode : inode, page,
-				blkaddr, 0, true);
+				F2FS_I(inode)->cow_inode : inode,
+				page_folio(page), blkaddr, 0, true);
 		if (err)
 			goto fail;
 
