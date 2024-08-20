@@ -668,6 +668,12 @@ enum {
 #define PERF_PEBS_DATA_SOURCE_GRT_MAX	0x10
 #define PERF_PEBS_DATA_SOURCE_GRT_MASK	(PERF_PEBS_DATA_SOURCE_GRT_MAX - 1)
 
+/*
+ * CPUID.1AH.EAX[31:0] uniquely identifies the microarchitecture
+ * of the core. Bits 31-24 indicates its core type (Core or Atom)
+ * and Bits [23:0] indicates the native model ID of the core.
+ * Core type and native model ID are defined in below enumerations.
+ */
 enum hybrid_cpu_type {
 	HYBRID_INTEL_NONE,
 	HYBRID_INTEL_ATOM	= 0x20,
@@ -676,13 +682,23 @@ enum hybrid_cpu_type {
 
 #define X86_HYBRID_PMU_ATOM_IDX		0
 #define X86_HYBRID_PMU_CORE_IDX		1
+#define X86_HYBRID_PMU_TINY_IDX		2
 
 enum hybrid_pmu_type {
 	not_hybrid,
 	hybrid_small		= BIT(X86_HYBRID_PMU_ATOM_IDX),
 	hybrid_big		= BIT(X86_HYBRID_PMU_CORE_IDX),
+	hybrid_tiny		= BIT(X86_HYBRID_PMU_TINY_IDX),
 
-	hybrid_big_small	= hybrid_big | hybrid_small, /* only used for matching */
+	/* The belows are only used for matching */
+	hybrid_big_small	= hybrid_big   | hybrid_small,
+	hybrid_small_tiny	= hybrid_small | hybrid_tiny,
+	hybrid_big_small_tiny	= hybrid_big   | hybrid_small_tiny,
+};
+
+enum atom_native_id {
+	cmt_native_id           = 0x2,  /* Crestmont */
+	skt_native_id           = 0x3,  /* Skymont */
 };
 
 struct x86_hybrid_pmu {
