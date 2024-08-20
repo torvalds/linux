@@ -161,7 +161,7 @@ enum intel_display_subplatform {
 #define SUPPORTS_TV(i915)		(DISPLAY_INFO(i915)->supports_tv)
 
 /* Check that device has a display IP version within the specific range. */
-#define IS_DISPLAY_IP_RANGE(__i915, from, until) ( \
+#define IS_DISPLAY_VER_FULL(__i915, from, until) ( \
 	BUILD_BUG_ON_ZERO((from) < IP_VER(2, 0)) + \
 	(DISPLAY_VER_FULL(__i915) >= (from) && \
 	 DISPLAY_VER_FULL(__i915) <= (until)))
@@ -182,7 +182,7 @@ enum intel_display_subplatform {
  * stepping bound for the specified IP version.
  */
 #define IS_DISPLAY_IP_STEP(__i915, ipver, from, until) \
-	(IS_DISPLAY_IP_RANGE((__i915), (ipver), (ipver)) && \
+	(IS_DISPLAY_VER_FULL((__i915), (ipver), (ipver)) && \
 	 IS_DISPLAY_STEP((__i915), (from), (until)))
 
 #define DISPLAY_INFO(i915)		(__to_intel_display(i915)->info.__device_info)
