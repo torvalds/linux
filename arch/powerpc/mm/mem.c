@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(walk_system_ram_range);
 #ifdef CONFIG_EXECMEM
 static struct execmem_info execmem_info __ro_after_init;
 
-#ifdef CONFIG_PPC_8xx
+#if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC_BOOK3S_603)
 static void prealloc_execmem_pgtable(void)
 {
 	unsigned long va;
