@@ -772,7 +772,7 @@ int ext4_mark_inode_used(struct super_block *sb, int ino)
 	}
 
 	gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
-	if (!gdp || !group_desc_bh) {
+	if (!gdp) {
 		err = -EINVAL;
 		goto out;
 	}
