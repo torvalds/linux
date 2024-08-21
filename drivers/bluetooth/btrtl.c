@@ -890,10 +890,8 @@ static int rtl_load_file(struct hci_dev *hdev, const char *name, u8 **buff)
 	if (ret < 0)
 		return ret;
 	ret = fw->size;
-	*buff = kvmalloc(fw->size, GFP_KERNEL);
-	if (*buff)
-		memcpy(*buff, fw->data, ret);
-	else
+	*buff = kvmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!*buff)
 		ret = -ENOMEM;
 
 	release_firmware(fw);
