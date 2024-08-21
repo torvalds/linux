@@ -329,7 +329,7 @@ enum {
 	GLF_BLOCKING			= 15,
 	GLF_UNLOCKED			= 16, /* Wait for glock to be unlocked */
 	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
-	GLF_VERIFY_EVICT		= 18, /* iopen glocks only */
+	GLF_VERIFY_DELETE		= 18, /* iopen glocks only */
 };
 
 struct gfs2_glock {
