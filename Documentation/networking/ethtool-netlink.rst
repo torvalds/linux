@@ -2198,9 +2198,12 @@ Retrieve information about a given Ethernet PHY sitting on the link. The DO
 operation returns all available information about dev->phydev. User can also
 specify a PHY_INDEX, in which case the DO request returns information about that
 specific PHY.
+
 As there can be more than one PHY, the DUMP operation can be used to list the PHYs
 present on a given interface, by passing an interface index or name in
 the dump request.
+
+For more information, refer to :ref:`phy_link_topology`
 
 Request contents:
 
