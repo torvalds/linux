@@ -404,6 +404,13 @@ static bool is_pointer_type(Dwarf_Die *type_die)
 	return tag == DW_TAG_pointer_type || tag == DW_TAG_array_type;
 }
 
+static bool is_compound_type(Dwarf_Die *type_die)
+{
+	int tag = dwarf_tag(type_die);
+
+	return tag == DW_TAG_structure_type || tag == DW_TAG_union_type;
+}
+
 /* returns if Type B has better information than Type A */
 static bool is_better_type(Dwarf_Die *type_a, Dwarf_Die *type_b)
 {
@@ -433,7 +440,18 @@ static bool is_better_type(Dwarf_Die *type_a, Dwarf_Die *type_b)
 	    dwarf_aggregate_size(type_b, &size_b) < 0)
 		return false;
 
-	return size_a < size_b;
+	if (size_a != size_b)
+		return size_a < size_b;
+
+	/* struct or union is preferred */
+	if (is_compound_type(type_a) != is_compound_type(type_b))
+		return is_compound_type(type_b);
+
+	/* typedef is preferred */
+	if (dwarf_tag(type_b) == DW_TAG_typedef)
+		return true;
+
+	return false;
 }
 
 /* The type info will be saved in @type_die */
