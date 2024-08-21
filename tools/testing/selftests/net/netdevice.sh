@@ -67,8 +67,12 @@ kci_net_setup()
 		return $ksft_skip
 	fi
 
-	# TODO what ipaddr to set ? DHCP ?
-	echo "SKIP: $netdev: set IP address"
+	if [ "$veth_created" ]; then
+		echo "XFAIL: $netdev: set IP address unsupported for veth*"
+	else
+		# TODO what ipaddr to set ? DHCP ?
+		echo "SKIP: $netdev: set IP address"
+	fi
 	return $ksft_skip
 }
 
@@ -86,7 +90,7 @@ kci_netdev_ethtool_test()
 	ret=$?
 	if [ $ret -ne 0 ];then
 		if [ $ret -eq "$1" ];then
-			echo "SKIP: $netdev: ethtool $2 not supported"
+			echo "XFAIL: $netdev: ethtool $2 not supported"
 			return $ksft_skip
 		else
 			echo "FAIL: $netdev: ethtool $2"
