@@ -960,9 +960,16 @@ static enum type_match_result check_matching_type(struct type_state *state,
 	Dwarf_Word size;
 	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
 	int reg = dloc->op->reg1;
+	int offset = dloc->op->offset;
+	const char *offset_sign = "";
 
-	pr_debug_dtp("chk [%x] reg%d offset=%#x ok=%d kind=%d ",
-		     insn_offset, reg, dloc->op->offset,
+	if (offset < 0) {
+		offset = -offset;
+		offset_sign = "-";
+	}
+
+	pr_debug_dtp("chk [%x] reg%d offset=%s%#x ok=%d kind=%d ",
+		     insn_offset, reg, offset_sign, offset,
 		     state->regs[reg].ok, state->regs[reg].kind);
 
 	if (!state->regs[reg].ok)
@@ -970,6 +977,12 @@ static enum type_match_result check_matching_type(struct type_state *state,
 
 	if (state->regs[reg].kind == TSR_KIND_TYPE) {
 		Dwarf_Die sized_type;
+		struct strbuf sb;
+
+		strbuf_init(&sb, 32);
+		die_get_typename_from_type(&state->regs[reg].type, &sb);
+		pr_debug_dtp("(%s)", sb.buf);
+		strbuf_release(&sb);
 
 		/*
 		 * Normal registers should hold a pointer (or array) to
@@ -1119,7 +1132,6 @@ check_non_register:
 check_kernel:
 	if (dso__kernel(map__dso(dloc->ms->map))) {
 		u64 addr;
-		int offset;
 
 		/* Direct this-cpu access like "%gs:0x34740" */
 		if (dloc->op->segment == INSN_SEG_X86_GS && dloc->op->imm &&
@@ -1271,6 +1283,13 @@ again:
 					    cu_die, type_die);
 		if (ret == PERF_TMR_OK) {
 			char buf[64];
+			int offset = dloc->op->offset;
+			const char *offset_sign = "";
+
+			if (offset < 0) {
+				offset = -offset;
+				offset_sign = "-";
+			}
 
 			if (dloc->op->multi_regs)
 				snprintf(buf, sizeof(buf), "reg%d, reg%d",
@@ -1278,8 +1297,8 @@ again:
 			else
 				snprintf(buf, sizeof(buf), "reg%d", dloc->op->reg1);
 
-			pr_debug_dtp("found by insn track: %#x(%s) type-offset=%#x\n",
-				     dloc->op->offset, buf, dloc->type_offset);
+			pr_debug_dtp("found by insn track: %s%#x(%s) type-offset=%#x\n",
+				     offset_sign, offset, buf, dloc->type_offset);
 			break;
 		}
 
@@ -1302,7 +1321,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	struct annotated_op_loc *loc = dloc->op;
 	Dwarf_Die cu_die, var_die;
 	Dwarf_Die *scopes = NULL;
-	int reg, offset;
+	int reg, offset = loc->offset;
 	int ret = -1;
 	int i, nr_scopes;
 	int fbreg = -1;
@@ -1312,6 +1331,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	u64 pc;
 	char buf[64];
 	enum type_match_result result = PERF_TMR_UNKNOWN;
+	const char *offset_sign = "";
 
 	if (dloc->op->multi_regs)
 		snprintf(buf, sizeof(buf), "reg%d, reg%d", dloc->op->reg1, dloc->op->reg2);
@@ -1320,10 +1340,15 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	else
 		snprintf(buf, sizeof(buf), "reg%d", dloc->op->reg1);
 
+	if (offset < 0) {
+		offset = -offset;
+		offset_sign = "-";
+	}
+
 	pr_debug_dtp("-----------------------------------------------------------\n");
-	pr_debug_dtp("find data type for %#x(%s) at %s+%#"PRIx64"\n",
-		     dloc->op->offset, buf, dloc->ms->sym->name,
-		     dloc->ip - dloc->ms->sym->start);
+	pr_debug_dtp("find data type for %s%#x(%s) at %s+%#"PRIx64"\n",
+		     offset_sign, offset, buf,
+		     dloc->ms->sym->name, dloc->ip - dloc->ms->sym->start);
 
 	/*
 	 * IP is a relative instruction address from the start of the map, as
@@ -1453,8 +1478,8 @@ retry:
 	}
 
 out:
+	pr_debug_dtp("final result: ");
 	if (found) {
-		pr_debug_dtp("final type:");
 		pr_debug_type_name(type_die, TSR_KIND_TYPE);
 		ret = 0;
 	} else {
