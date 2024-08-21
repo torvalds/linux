@@ -282,6 +282,7 @@ static void update_insn_state_x86(struct type_state *state,
 			    !strcmp(var_name, "this_cpu_off") &&
 			    tsr->kind == TSR_KIND_CONST) {
 				tsr->kind = TSR_KIND_PERCPU_BASE;
+				tsr->ok = true;
 				imm_value = tsr->imm_value;
 			}
 		}
@@ -533,9 +534,11 @@ retry:
 							&var_name, &offset) &&
 				    !strcmp(var_name, "__per_cpu_offset")) {
 					tsr->kind = TSR_KIND_PERCPU_BASE;
+					tsr->ok = true;
 
 					pr_debug_dtp("mov [%x] percpu base reg%d\n",
 						     insn_offset, dst->reg1);
+					return;
 				}
 			}
 

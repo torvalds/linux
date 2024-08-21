@@ -965,7 +965,10 @@ static enum type_match_result check_matching_type(struct type_state *state,
 		     insn_offset, reg, dloc->op->offset,
 		     state->regs[reg].ok, state->regs[reg].kind);
 
-	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_TYPE) {
+	if (!state->regs[reg].ok)
+		goto check_non_register;
+
+	if (state->regs[reg].kind == TSR_KIND_TYPE) {
 		Dwarf_Die sized_type;
 
 		/*
@@ -998,6 +1001,65 @@ static enum type_match_result check_matching_type(struct type_state *state,
 		return PERF_TMR_OK;
 	}
 
+	if (state->regs[reg].kind == TSR_KIND_POINTER) {
+		pr_debug_dtp("percpu ptr");
+
+		/*
+		 * It's actaully pointer but the address was calculated using
+		 * some arithmetic.  So it points to the actual type already.
+		 */
+		*type_die = state->regs[reg].type;
+
+		dloc->type_offset = dloc->op->offset;
+
+		/* Get the size of the actual type */
+		if (dwarf_aggregate_size(type_die, &size) < 0 ||
+		    (unsigned)dloc->type_offset >= size)
+			return PERF_TMR_BAIL_OUT;
+
+		return PERF_TMR_OK;
+	}
+
+	if (state->regs[reg].kind == TSR_KIND_CANARY) {
+		pr_debug_dtp("stack canary");
+
+		/*
+		 * This is a saved value of the stack canary which will be handled
+		 * in the outer logic when it returns failure here.  Pretend it's
+		 * from the stack canary directly.
+		 */
+		setup_stack_canary(dloc);
+
+		return PERF_TMR_BAIL_OUT;
+	}
+
+	if (state->regs[reg].kind == TSR_KIND_PERCPU_BASE) {
+		u64 var_addr = dloc->op->offset;
+		int var_offset;
+
+		pr_debug_dtp("percpu var");
+
+		if (dloc->op->multi_regs) {
+			int reg2 = dloc->op->reg2;
+
+			if (dloc->op->reg2 == reg)
+				reg2 = dloc->op->reg1;
+
+			if (has_reg_type(state, reg2) && state->regs[reg2].ok &&
+			    state->regs[reg2].kind == TSR_KIND_CONST)
+				var_addr += state->regs[reg2].imm_value;
+		}
+
+		if (get_global_var_type(cu_die, dloc, dloc->ip, var_addr,
+					&var_offset, type_die)) {
+			dloc->type_offset = var_offset;
+			return PERF_TMR_OK;
+		}
+		/* No need to retry per-cpu (global) variables */
+		return PERF_TMR_BAIL_OUT;
+	}
+
+check_non_register:
 	if (reg == dloc->fbreg) {
 		struct type_state_stack *stack;
 
@@ -1052,64 +1114,6 @@ static enum type_match_result check_matching_type(struct type_state *state,
 		dloc->type_offset -= fboff + stack->offset;
 
 		return PERF_TMR_OK;
-	}
-
-	if (state->regs[reg].kind == TSR_KIND_PERCPU_BASE) {
-		u64 var_addr = dloc->op->offset;
-		int var_offset;
-
-		pr_debug_dtp("percpu var");
-
-		if (dloc->op->multi_regs) {
-			int reg2 = dloc->op->reg2;
-
-			if (dloc->op->reg2 == reg)
-				reg2 = dloc->op->reg1;
-
-			if (has_reg_type(state, reg2) && state->regs[reg2].ok &&
-			    state->regs[reg2].kind == TSR_KIND_CONST)
-				var_addr += state->regs[reg2].imm_value;
-		}
-
-		if (get_global_var_type(cu_die, dloc, dloc->ip, var_addr,
-					&var_offset, type_die)) {
-			dloc->type_offset = var_offset;
-			return PERF_TMR_OK;
-		}
-		/* No need to retry per-cpu (global) variables */
-		return PERF_TMR_BAIL_OUT;
-	}
-
-	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_POINTER) {
-		pr_debug_dtp("percpu ptr");
-
-		/*
-		 * It's actaully pointer but the address was calculated using
-		 * some arithmetic.  So it points to the actual type already.
-		 */
-		*type_die = state->regs[reg].type;
-
-		dloc->type_offset = dloc->op->offset;
-
-		/* Get the size of the actual type */
-		if (dwarf_aggregate_size(type_die, &size) < 0 ||
-		    (unsigned)dloc->type_offset >= size)
-			return PERF_TMR_BAIL_OUT;
-
-		return PERF_TMR_OK;
-	}
-
-	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_CANARY) {
-		pr_debug_dtp("stack canary");
-
-		/*
-		 * This is a saved value of the stack canary which will be handled
-		 * in the outer logic when it returns failure here.  Pretend it's
-		 * from the stack canary directly.
-		 */
-		setup_stack_canary(dloc);
-
-		return PERF_TMR_BAIL_OUT;
 	}
 
 check_kernel:
