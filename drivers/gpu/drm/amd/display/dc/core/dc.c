@@ -2690,6 +2690,9 @@ static enum surface_update_type check_update_surfaces_for_stream(
 				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
 			su_flags->bits.fams_changed = 1;
 
+		if (stream_update->scaler_sharpener_update)
+			su_flags->bits.scaler_sharpener = 1;
+
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
 
@@ -3022,6 +3025,8 @@ static void copy_stream_update_to_stream(struct dc *dc,
 			update->dsc_config = NULL;
 		}
 	}
+	if (update->scaler_sharpener_update)
+		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 }
 
 static void backup_planes_and_stream_state(
@@ -4713,7 +4718,8 @@ static bool full_update_required(struct dc *dc,
 			stream_update->func_shaper ||
 			stream_update->lut3d_func ||
 			stream_update->pending_test_pattern ||
-			stream_update->crtc_timing_adjust))
+			stream_update->crtc_timing_adjust ||
+			stream_update->scaler_sharpener_update))
 		return true;
 
 	if (stream) {

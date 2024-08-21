@@ -957,6 +957,7 @@ static void dpp401_dscl_set_isharp_filter(
  */
 static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 		const struct scaler_data *scl_data,
+		bool program_isharp_1dlut,
 		bool *bs_coeffs_updated)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
@@ -1015,7 +1016,8 @@ static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 		ISHARP_LBA_PWL_BASE_SEG5, scl_data->dscl_prog_data.isharp_lba.base_seg[5]);
 
 	/* ISHARP_DELTA_LUT */
-	dpp401_dscl_set_isharp_filter(dpp, scl_data->dscl_prog_data.isharp_delta);
+	if (!program_isharp_1dlut)
+		dpp401_dscl_set_isharp_filter(dpp, scl_data->dscl_prog_data.isharp_delta);
 
 	/* ISHARP_NLDELTA_SOFT_CLIP */
 	REG_SET_6(ISHARP_NLDELTA_SOFT_CLIP, 0,
@@ -1071,12 +1073,28 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
+	bool program_isharp_1dlut = false;
 	bool bs_coeffs_updated = false;
+
 
 	if (memcmp(&dpp->scl_data, scl_data, sizeof(*scl_data)) == 0)
 		return;
 
 	PERF_TRACE();
+
+	/* If only sharpness has changed, then only update 1dlut, then return */
+	if (scl_data->dscl_prog_data.isharp_en &&
+		(dpp->scl_data.dscl_prog_data.sharpness_level
+		!= scl_data->dscl_prog_data.sharpness_level)) {
+		/* ISHARP_DELTA_LUT */
+		dpp401_dscl_set_isharp_filter(dpp, scl_data->dscl_prog_data.isharp_delta);
+		dpp->scl_data.dscl_prog_data.sharpness_level = scl_data->dscl_prog_data.sharpness_level;
+		dpp->scl_data.dscl_prog_data.isharp_delta = scl_data->dscl_prog_data.isharp_delta;
+
+		if (memcmp(&dpp->scl_data, scl_data, sizeof(*scl_data)) == 0)
+			return;
+		program_isharp_1dlut = true;
+	}
 
 	dpp->scl_data = *scl_data;
 
@@ -1131,7 +1149,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS) {
 		if (dpp->base.ctx->dc->config.prefer_easf)
 			dpp401_dscl_disable_easf(dpp_base, scl_data);
-		dpp401_dscl_program_isharp(dpp_base, scl_data, &bs_coeffs_updated);
+		dpp401_dscl_program_isharp(dpp_base, scl_data, program_isharp_1dlut, &bs_coeffs_updated);
 		return;
 	}
 
@@ -1165,7 +1183,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	 *   WB scaler coeffs and toggle coeff RAM together
 	 */
 	//if (dpp->base.ctx->dc->config.prefer_easf)
-	dpp401_dscl_program_isharp(dpp_base, scl_data, &bs_coeffs_updated);
+	dpp401_dscl_program_isharp(dpp_base, scl_data, program_isharp_1dlut, &bs_coeffs_updated);
 
 	dpp401_dscl_set_scl_filter(dpp, scl_data, ycbcr, bs_coeffs_updated);
 	/* Edge adaptive scaler function configuration */

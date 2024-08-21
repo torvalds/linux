@@ -460,114 +460,6 @@ static uint16_t filter_isharp_bs_4tap_in_6_64p_s1_12[198];
 static uint16_t filter_isharp_bs_4tap_64p_s1_12[132];
 static uint16_t filter_isharp_bs_3tap_64p_s1_12[99];
 
-struct scale_ratio_to_sharpness_level_lookup scale_to_sharp_sdr_nl[3][6] = {
-	{ /* LOW */
-		{1125, 1000, 75, 100},
-		{11, 10, 6, 10},
-		{1075, 1000, 45, 100},
-		{105, 100, 3, 10},
-		{1025, 1000, 15, 100},
-		{1, 1, 0, 1},
-	},
-	{ /* MID */
-		{1125, 1000, 2, 1},
-		{11, 10, 175, 100},
-		{1075, 1000, 15, 10},
-		{105, 100, 125, 100},
-		{1025, 1000, 1, 1},
-		{1, 1, 75, 100},
-	},
-	{ /* HIGH */
-		{1125, 1000, 35, 10},
-		{11, 10, 32, 10},
-		{1075, 1000, 29, 10},
-		{105, 100, 26, 10},
-		{1025, 1000, 23, 10},
-		{1, 1, 2, 1},
-	},
-};
-
-struct scale_ratio_to_sharpness_level_lookup scale_to_sharp_sdr_l[3][6] = {
-	{ /* LOW */
-		{1125, 1000, 75, 100},
-		{11, 10, 6, 10},
-		{1075, 1000, 45, 100},
-		{105, 100, 3, 10},
-		{1025, 1000, 15, 100},
-		{1, 1, 0, 1},
-	},
-	{ /* MID */
-		{1125, 1000, 15, 10},
-		{11, 10, 135, 100},
-		{1075, 1000, 12, 10},
-		{105, 100, 105, 100},
-		{1025, 1000, 9, 10},
-		{1, 1, 75, 100},
-	},
-	{ /* HIGH */
-		{1125, 1000, 25, 10},
-		{11, 10, 23, 10},
-		{1075, 1000, 21, 10},
-		{105, 100, 19, 10},
-		{1025, 1000, 17, 10},
-		{1, 1, 15, 10},
-	},
-};
-
-struct scale_ratio_to_sharpness_level_lookup scale_to_sharp_hdr_nl[3][6] = {
-	{ /* LOW */
-		{1125, 1000, 5, 10},
-		{11, 10, 4, 10},
-		{1075, 1000, 3, 10},
-		{105, 100, 2, 10},
-		{1025, 1000, 1, 10},
-		{1, 1, 0, 1},
-	},
-	{ /* MID */
-		{1125, 1000, 1, 1},
-		{11, 10, 9, 10},
-		{1075, 1000, 8, 10},
-		{105, 100, 7, 10},
-		{1025, 1000, 6, 10},
-		{1, 1, 5, 10},
-	},
-	{ /* HIGH */
-		{1125, 1000, 15, 10},
-		{11, 10, 14, 10},
-		{1075, 1000, 13, 10},
-		{105, 100, 12, 10},
-		{1025, 1000, 11, 10},
-		{1, 1, 1, 1},
-	},
-};
-
-struct scale_ratio_to_sharpness_level_lookup scale_to_sharp_hdr_l[3][6] = {
-	{ /* LOW */
-		{1125, 1000, 75, 100},
-		{11, 10, 6, 10},
-		{1075, 1000, 45, 100},
-		{105, 100, 3, 10},
-		{1025, 1000, 15, 100},
-		{1, 1, 0, 1},
-	},
-	{ /* MID */
-		{1125, 1000, 15, 10},
-		{11, 10, 135, 100},
-		{1075, 1000, 12, 10},
-		{105, 100, 105, 100},
-		{1025, 1000, 9, 10},
-		{1, 1, 75, 100},
-	},
-	{ /* HIGH */
-		{1125, 1000, 25, 10},
-		{11, 10, 23, 10},
-		{1075, 1000, 21, 10},
-		{105, 100, 19, 10},
-		{1025, 1000, 17, 10},
-		{1, 1, 15, 10},
-	},
-};
-
 /* Pre-generated 1DLUT for given setup and sharpness level */
 struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = {
 	{
@@ -649,73 +541,71 @@ uint16_t *spl_get_filter_isharp_bs_3tap_64p(void)
 	return filter_isharp_bs_3tap_64p_s1_12;
 }
 
-void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup, enum explicit_sharpness sharpness)
+static unsigned int spl_calculate_sharpness_level(int discrete_sharpness_level, enum system_setup setup,
+		struct spl_sharpness_range sharpness_range)
+{
+	unsigned int sharpness_level = 0;
+
+	int min_sharpness, max_sharpness, mid_sharpness;
+
+	switch (setup) {
+
+	case HDR_L:
+		min_sharpness = sharpness_range.hdr_rgb_min;
+		max_sharpness = sharpness_range.hdr_rgb_max;
+		mid_sharpness = sharpness_range.hdr_rgb_mid;
+		break;
+	case HDR_NL:
+		/* currently no use case, use Non-linear SDR values for now */
+	case SDR_NL:
+		min_sharpness = sharpness_range.sdr_yuv_min;
+		max_sharpness = sharpness_range.sdr_yuv_max;
+		mid_sharpness = sharpness_range.sdr_yuv_mid;
+		break;
+	case SDR_L:
+	default:
+		min_sharpness = sharpness_range.sdr_rgb_min;
+		max_sharpness = sharpness_range.sdr_rgb_max;
+		mid_sharpness = sharpness_range.sdr_rgb_mid;
+		break;
+	}
+
+	int lower_half_step_size = (mid_sharpness - min_sharpness) / 5;
+	int upper_half_step_size = (max_sharpness - mid_sharpness) / 5;
+
+	// lower half linear approximation
+	if (discrete_sharpness_level < 5)
+		sharpness_level = min_sharpness + (lower_half_step_size * discrete_sharpness_level);
+	// upper half linear approximation
+	else
+		sharpness_level = mid_sharpness + (upper_half_step_size * (discrete_sharpness_level - 5));
+
+	return sharpness_level;
+}
+
+void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup,
+	struct adaptive_sharpness sharpness)
 {
 	uint8_t *byte_ptr_1dlut_src, *byte_ptr_1dlut_dst;
-	struct spl_fixed31_32 sharp_base, sharp_calc, sharp_level, ratio_level;
+	struct spl_fixed31_32 sharp_base, sharp_calc, sharp_level;
 	int j;
-	struct scale_ratio_to_sharpness_level_lookup *setup_lookup_ptr;
-	int num_sharp_ramp_levels;
 	int size_1dlut;
 	int sharp_calc_int;
 	uint32_t filter_pregen_store[ISHARP_LUT_TABLE_SIZE];
 
-	/*
-	 * Given scaling ratio, setup and sharpness, build pregenerated
-	 * 1DLUT tables
-	 *
-	 * Based on setup ( HDR/SDR, L/NL ), get base scale ratio to
-	 *  sharpness curve
-	 */
-	switch (setup) {
-	case HDR_L:
-		setup_lookup_ptr = scale_to_sharp_hdr_l[sharpness];
-		num_sharp_ramp_levels = sizeof(scale_to_sharp_hdr_l[sharpness])/
-			sizeof(struct scale_ratio_to_sharpness_level_lookup);
-		break;
-	case HDR_NL:
-		setup_lookup_ptr = scale_to_sharp_hdr_nl[sharpness];
-		num_sharp_ramp_levels = sizeof(scale_to_sharp_hdr_nl[sharpness])/
-			sizeof(struct scale_ratio_to_sharpness_level_lookup);
-		break;
-	case SDR_L:
-		setup_lookup_ptr = scale_to_sharp_sdr_l[sharpness];
-		num_sharp_ramp_levels = sizeof(scale_to_sharp_sdr_l[sharpness])/
-			sizeof(struct scale_ratio_to_sharpness_level_lookup);
-		break;
-	case SDR_NL:
-	default:
-		setup_lookup_ptr = scale_to_sharp_sdr_nl[sharpness];
-		num_sharp_ramp_levels = sizeof(scale_to_sharp_sdr_nl[sharpness])/
-			sizeof(struct scale_ratio_to_sharpness_level_lookup);
-		break;
-	}
-
-	/*
-	 * Compare desired scaling ratio and find adjusted sharpness from
-	 *  base scale ratio to sharpness curve
-	 */
-	j = 0;
-	sharp_level = spl_fixpt_zero;
-	while (j < num_sharp_ramp_levels) {
-		ratio_level = spl_fixpt_from_fraction(setup_lookup_ptr->ratio_numer,
-			setup_lookup_ptr->ratio_denom);
-		if (ratio.value >= ratio_level.value) {
-			sharp_level = spl_fixpt_from_fraction(setup_lookup_ptr->sharpness_numer,
-				setup_lookup_ptr->sharpness_denom);
-			break;
-		}
-		setup_lookup_ptr++;
-		j++;
-	}
+	/* Custom sharpnessX1000 value */
+	unsigned int sharpnessX1000 = spl_calculate_sharpness_level(sharpness.sharpness_level,
+			setup, sharpness.sharpness_range);
+	sharp_level = spl_fixpt_from_fraction(sharpnessX1000, 1000);
 
 	/*
 	 * Check if pregen 1dlut table is already precalculated
 	 * If numer/denom is different, then recalculate
 	 */
-	if ((filter_isharp_1D_lut_pregen[setup].sharpness_numer == setup_lookup_ptr->sharpness_numer) &&
-		(filter_isharp_1D_lut_pregen[setup].sharpness_denom == setup_lookup_ptr->sharpness_denom))
+	if ((filter_isharp_1D_lut_pregen[setup].sharpness_numer == sharpnessX1000) &&
+		(filter_isharp_1D_lut_pregen[setup].sharpness_denom == 1000))
 		return;
+
 
 	/*
 	 * Calculate LUT_128_gained with this equation:
@@ -737,8 +627,9 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 		sharp_calc = spl_fixpt_min(spl_fixpt_from_int(255), sharp_calc);
 		sharp_calc = spl_fixpt_add(sharp_calc, spl_fixpt_from_fraction(1, 2));
 		sharp_calc_int = spl_fixpt_floor(sharp_calc);
-		if (sharp_calc_int > 255)
-			sharp_calc_int = 255;
+		/* Clamp it at 0x7F so it doesn't wrap */
+		if (sharp_calc_int > 127)
+			sharp_calc_int = 127;
 		*byte_ptr_1dlut_dst = (uint8_t)sharp_calc_int;
 
 		byte_ptr_1dlut_src++;
@@ -747,8 +638,8 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 
 	/* Update 1dlut table and sharpness level */
 	memcpy((void *)filter_isharp_1D_lut_pregen[setup].value, (void *)filter_pregen_store, size_1dlut);
-	filter_isharp_1D_lut_pregen[setup].sharpness_numer = setup_lookup_ptr->sharpness_numer;
-	filter_isharp_1D_lut_pregen[setup].sharpness_denom = setup_lookup_ptr->sharpness_denom;
+	filter_isharp_1D_lut_pregen[setup].sharpness_numer = sharpnessX1000;
+	filter_isharp_1D_lut_pregen[setup].sharpness_denom = 1000;
 }
 
 uint32_t *spl_get_pregen_filter_isharp_1D_lut(enum system_setup setup)

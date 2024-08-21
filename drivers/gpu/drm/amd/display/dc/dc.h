@@ -1052,6 +1052,7 @@ struct dc_debug_options {
 	unsigned int disable_spl;
 	unsigned int force_easf;
 	unsigned int force_sharpness;
+	unsigned int force_sharpness_level;
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
 	bool enable_ips_visual_confirm;
@@ -1348,7 +1349,7 @@ struct dc_plane_state {
 	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
-	unsigned int sharpnessX1000;
+	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
 };
 

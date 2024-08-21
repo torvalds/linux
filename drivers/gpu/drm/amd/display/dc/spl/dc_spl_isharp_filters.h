@@ -45,6 +45,6 @@ void spl_init_blur_scale_coeffs(void);
 void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
 	const struct spl_scaler_data *data);
 
-void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup, enum explicit_sharpness sharpness);
+void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup, struct adaptive_sharpness sharpness);
 uint32_t *spl_get_pregen_filter_isharp_1D_lut(enum system_setup setup);
 #endif /* __DC_SPL_ISHARP_FILTERS_H__ */

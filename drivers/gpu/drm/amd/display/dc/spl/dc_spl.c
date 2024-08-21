@@ -1662,8 +1662,10 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		dscl_prog_data->isharp_lba.base_seg[5] = 0;	// ISHARP LBA PWL for Seg 5. BASE value in U0.6 format
 	}
 
-	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness.sharpness);
+
+	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness);
 	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
+	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
 
 	// Program the nldelta soft clip values
 	if (lls_pref == LLS_PREF_YES) {

@@ -407,6 +407,7 @@ struct dscl_prog_data {
 	/* blur and scale filter */
 	const uint16_t *filter_blur_scale_v;
 	const uint16_t *filter_blur_scale_h;
+	int sharpness_level; /* Track sharpness level */
 };
 
 /* SPL input and output definitions */
@@ -460,14 +461,26 @@ struct basic_out {
 	bool alpha_en;
 	bool use_two_pixels_per_container;
 };
-enum explicit_sharpness	{
-	SHARPNESS_LOW = 0,
-	SHARPNESS_MID,
-	SHARPNESS_HIGH
+enum sharpness_setting	{
+	SHARPNESS_HW_OFF = 0,
+	SHARPNESS_ZERO,
+	SHARPNESS_CUSTOM
 };
-struct adaptive_sharpness	{
+struct spl_sharpness_range {
+	int sdr_rgb_min;
+	int sdr_rgb_max;
+	int sdr_rgb_mid;
+	int sdr_yuv_min;
+	int sdr_yuv_max;
+	int sdr_yuv_mid;
+	int hdr_rgb_min;
+	int hdr_rgb_max;
+	int hdr_rgb_mid;
+};
+struct adaptive_sharpness {
 	bool enable;
-	enum explicit_sharpness sharpness;
+	int sharpness_level;
+	struct spl_sharpness_range sharpness_range;
 };
 enum linear_light_scaling	{	// convert it in translation logic
 	LLS_PREF_DONT_CARE = 0,

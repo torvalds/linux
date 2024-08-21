@@ -139,24 +139,36 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	else if (pipe_ctx->stream->ctx->dc->debug.force_easf == 2)
 		spl_in->disable_easf = true;
 	/* Translate adaptive sharpening preference */
-	if (pipe_ctx->stream->ctx->dc->debug.force_sharpness > 0) {
-		spl_in->adaptive_sharpness.enable = (pipe_ctx->stream->ctx->dc->debug.force_sharpness > 1) ? true : false;
-		if (pipe_ctx->stream->ctx->dc->debug.force_sharpness == 2)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_LOW;
-		else if (pipe_ctx->stream->ctx->dc->debug.force_sharpness == 3)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_MID;
-		else if (pipe_ctx->stream->ctx->dc->debug.force_sharpness >= 4)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_HIGH;
-	} else {
-		spl_in->adaptive_sharpness.enable = plane_state->adaptive_sharpness_en;
-		if (plane_state->sharpnessX1000 == 0)
+	unsigned int sharpness_setting = pipe_ctx->stream->ctx->dc->debug.force_sharpness;
+	unsigned int force_sharpness_level = pipe_ctx->stream->ctx->dc->debug.force_sharpness_level;
+	if (sharpness_setting == SHARPNESS_HW_OFF)
+		spl_in->adaptive_sharpness.enable = false;
+	else if (sharpness_setting == SHARPNESS_ZERO) {
+		spl_in->adaptive_sharpness.enable = true;
+		spl_in->adaptive_sharpness.sharpness_level = 0;
+	} else if (sharpness_setting == SHARPNESS_CUSTOM) {
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_max = 1750;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_mid = 750;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_max = 3500;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_mid = 1500;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_max = 2750;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_mid = 1500;
+
+		if (force_sharpness_level > 0) {
+			if (force_sharpness_level > 10)
+				force_sharpness_level = 10;
+			spl_in->adaptive_sharpness.enable = true;
+			spl_in->adaptive_sharpness.sharpness_level = force_sharpness_level;
+		} else if (!plane_state->adaptive_sharpness_en) {
 			spl_in->adaptive_sharpness.enable = false;
-		else if (plane_state->sharpnessX1000 < 999)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_LOW;
-		else if (plane_state->sharpnessX1000 < 1999)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_MID;
-		else // Any other value is high sharpness
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_HIGH;
+			spl_in->adaptive_sharpness.sharpness_level = 0;
+		} else {
+			spl_in->adaptive_sharpness.enable = true;
+			spl_in->adaptive_sharpness.sharpness_level = plane_state->sharpness_level;
+		}
 	}
 	// Translate linear light scaling preference
 	if (pipe_ctx->stream->ctx->dc->debug.force_lls > 0)
