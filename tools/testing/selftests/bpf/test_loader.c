@@ -10,6 +10,7 @@
 #include "disasm_helpers.h"
 #include "unpriv_helpers.h"
 #include "cap_helpers.h"
+#include "jit_disasm_helpers.h"
 
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
@@ -19,12 +20,10 @@
 #define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
 #define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
 #define TEST_TAG_EXPECT_MSG_PFX "comment:test_expect_msg="
-#define TEST_TAG_EXPECT_REGEX_PFX "comment:test_expect_regex="
 #define TEST_TAG_EXPECT_XLATED_PFX "comment:test_expect_xlated="
 #define TEST_TAG_EXPECT_FAILURE_UNPRIV "comment:test_expect_failure_unpriv"
 #define TEST_TAG_EXPECT_SUCCESS_UNPRIV "comment:test_expect_success_unpriv"
 #define TEST_TAG_EXPECT_MSG_PFX_UNPRIV "comment:test_expect_msg_unpriv="
-#define TEST_TAG_EXPECT_REGEX_PFX_UNPRIV "comment:test_expect_regex_unpriv="
 #define TEST_TAG_EXPECT_XLATED_PFX_UNPRIV "comment:test_expect_xlated_unpriv="
 #define TEST_TAG_LOG_LEVEL_PFX "comment:test_log_level="
 #define TEST_TAG_PROG_FLAGS_PFX "comment:test_prog_flags="
@@ -35,6 +34,8 @@
 #define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
 #define TEST_BTF_PATH "comment:test_btf_path="
 #define TEST_TAG_ARCH "comment:test_arch="
+#define TEST_TAG_JITED_PFX "comment:test_jited="
+#define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -55,8 +56,9 @@ enum mode {
 
 struct expect_msg {
 	const char *substr; /* substring match */
-	const char *regex_str; /* regex-based match */
 	regex_t regex;
+	bool is_regex;
+	bool on_next_line;
 };
 
 struct expected_msgs {
@@ -69,6 +71,7 @@ struct test_subspec {
 	bool expect_failure;
 	struct expected_msgs expect_msgs;
 	struct expected_msgs expect_xlated;
+	struct expected_msgs jited;
 	int retval;
 	bool execute;
 };
@@ -111,7 +114,7 @@ static void free_msgs(struct expected_msgs *msgs)
 	int i;
 
 	for (i = 0; i < msgs->cnt; i++)
-		if (msgs->patterns[i].regex_str)
+		if (msgs->patterns[i].is_regex)
 			regfree(&msgs->patterns[i].regex);
 	free(msgs->patterns);
 	msgs->patterns = NULL;
@@ -125,6 +128,8 @@ static void free_test_spec(struct test_spec *spec)
 	free_msgs(&spec->unpriv.expect_msgs);
 	free_msgs(&spec->priv.expect_xlated);
 	free_msgs(&spec->unpriv.expect_xlated);
+	free_msgs(&spec->priv.jited);
+	free_msgs(&spec->unpriv.jited);
 
 	free(spec->priv.name);
 	free(spec->unpriv.name);
@@ -132,12 +137,71 @@ static void free_test_spec(struct test_spec *spec)
 	spec->unpriv.name = NULL;
 }
 
-static int push_msg(const char *substr, const char *regex_str, struct expected_msgs *msgs)
+/* Compiles regular expression matching pattern.
+ * Pattern has a special syntax:
+ *
+ *   pattern := (<verbatim text> | regex)*
+ *   regex := "{{" <posix extended regular expression> "}}"
+ *
+ * In other words, pattern is a verbatim text with inclusion
+ * of regular expressions enclosed in "{{" "}}" pairs.
+ * For example, pattern "foo{{[0-9]+}}" matches strings like
+ * "foo0", "foo007", etc.
+ */
+static int compile_regex(const char *pattern, regex_t *regex)
 {
-	void *tmp;
-	int regcomp_res;
-	char error_msg[100];
+	char err_buf[256], buf[256] = {}, *ptr, *buf_end;
+	const char *original_pattern = pattern;
+	bool in_regex = false;
+	int err;
+
+	buf_end = buf + sizeof(buf);
+	ptr = buf;
+	while (*pattern && ptr < buf_end - 2) {
+		if (!in_regex && str_has_pfx(pattern, "{{")) {
+			in_regex = true;
+			pattern += 2;
+			continue;
+		}
+		if (in_regex && str_has_pfx(pattern, "}}")) {
+			in_regex = false;
+			pattern += 2;
+			continue;
+		}
+		if (in_regex) {
+			*ptr++ = *pattern++;
+			continue;
+		}
+		/* list of characters that need escaping for extended posix regex */
+		if (strchr(".[]\\()*+?{}|^$", *pattern)) {
+			*ptr++ = '\\';
+			*ptr++ = *pattern++;
+			continue;
+		}
+		*ptr++ = *pattern++;
+	}
+	if (*pattern) {
+		PRINT_FAIL("Regexp too long: '%s'\n", original_pattern);
+		return -EINVAL;
+	}
+	if (in_regex) {
+		PRINT_FAIL("Regexp has open '{{' but no closing '}}': '%s'\n", original_pattern);
+		return -EINVAL;
+	}
+	err = regcomp(regex, buf, REG_EXTENDED | REG_NEWLINE);
+	if (err != 0) {
+		regerror(err, regex, err_buf, sizeof(err_buf));
+		PRINT_FAIL("Regexp compilation error in '%s': '%s'\n", buf, err_buf);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int __push_msg(const char *pattern, bool on_next_line, struct expected_msgs *msgs)
+{
 	struct expect_msg *msg;
+	void *tmp;
+	int err;
 
 	tmp = realloc(msgs->patterns,
 		      (1 + msgs->cnt) * sizeof(struct expect_msg));
@@ -147,23 +211,50 @@ static int push_msg(const char *substr, const char *regex_str, struct expected_m
 	}
 	msgs->patterns = tmp;
 	msg = &msgs->patterns[msgs->cnt];
-
-	if (substr) {
-		msg->substr = substr;
-		msg->regex_str = NULL;
-	} else {
-		msg->regex_str = regex_str;
-		msg->substr = NULL;
-		regcomp_res = regcomp(&msg->regex, regex_str, REG_EXTENDED|REG_NEWLINE);
-		if (regcomp_res != 0) {
-			regerror(regcomp_res, &msg->regex, error_msg, sizeof(error_msg));
-			PRINT_FAIL("Regexp compilation error in '%s': '%s'\n",
-				   regex_str, error_msg);
-			return -EINVAL;
-		}
+	msg->on_next_line = on_next_line;
+	msg->substr = pattern;
+	msg->is_regex = false;
+	if (strstr(pattern, "{{")) {
+		err = compile_regex(pattern, &msg->regex);
+		if (err)
+			return err;
+		msg->is_regex = true;
 	}
-
 	msgs->cnt += 1;
+	return 0;
+}
+
+static int clone_msgs(struct expected_msgs *from, struct expected_msgs *to)
+{
+	struct expect_msg *msg;
+	int i, err;
+
+	for (i = 0; i < from->cnt; i++) {
+		msg = &from->patterns[i];
+		err = __push_msg(msg->substr, msg->on_next_line, to);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int push_msg(const char *substr, struct expected_msgs *msgs)
+{
+	return __push_msg(substr, false, msgs);
+}
+
+static int push_disasm_msg(const char *regex_str, bool *on_next_line, struct expected_msgs *msgs)
+{
+	int err;
+
+	if (strcmp(regex_str, "...") == 0) {
+		*on_next_line = false;
+		return 0;
+	}
+	err = __push_msg(regex_str, *on_next_line, msgs);
+	if (err)
+		return err;
+	*on_next_line = true;
 	return 0;
 }
 
@@ -215,11 +306,52 @@ static void update_flags(int *flags, int flag, bool clear)
 		*flags |= flag;
 }
 
+/* Matches a string of form '<pfx>[^=]=.*' and returns it's suffix.
+ * Used to parse btf_decl_tag values.
+ * Such values require unique prefix because compiler does not add
+ * same __attribute__((btf_decl_tag(...))) twice.
+ * Test suite uses two-component tags for such cases:
+ *
+ *   <pfx> __COUNTER__ '='
+ *
+ * For example, two consecutive __msg tags '__msg("foo") __msg("foo")'
+ * would be encoded as:
+ *
+ *   [18] DECL_TAG 'comment:test_expect_msg=0=foo' type_id=15 component_idx=-1
+ *   [19] DECL_TAG 'comment:test_expect_msg=1=foo' type_id=15 component_idx=-1
+ *
+ * And the purpose of this function is to extract 'foo' from the above.
+ */
+static const char *skip_dynamic_pfx(const char *s, const char *pfx)
+{
+	const char *msg;
+
+	if (strncmp(s, pfx, strlen(pfx)) != 0)
+		return NULL;
+	msg = s + strlen(pfx);
+	msg = strchr(msg, '=');
+	if (!msg)
+		return NULL;
+	return msg + 1;
+}
+
 enum arch {
 	ARCH_X86_64	= 0x1,
 	ARCH_ARM64	= 0x2,
 	ARCH_RISCV64	= 0x4,
 };
+
+static int get_current_arch(void)
+{
+#if defined(__x86_64__)
+	return ARCH_X86_64;
+#elif defined(__aarch64__)
+	return ARCH_ARM64;
+#elif defined(__riscv) && __riscv_xlen == 64
+	return ARCH_RISCV64;
+#endif
+	return 0;
+}
 
 /* Uses btf_decl_tag attributes to describe the expected test
  * behavior, see bpf_misc.h for detailed description of each attribute
@@ -233,9 +365,15 @@ static int parse_test_spec(struct test_loader *tester,
 	const char *description = NULL;
 	bool has_unpriv_result = false;
 	bool has_unpriv_retval = false;
+	bool unpriv_xlated_on_next_line = true;
+	bool xlated_on_next_line = true;
+	bool unpriv_jit_on_next_line;
+	bool jit_on_next_line;
+	bool collect_jit = false;
 	int func_id, i, err = 0;
 	u32 arch_mask = 0;
 	struct btf *btf;
+	enum arch arch;
 
 	memset(spec, 0, sizeof(*spec));
 
@@ -290,39 +428,49 @@ static int parse_test_spec(struct test_loader *tester,
 		} else if (strcmp(s, TEST_TAG_AUXILIARY_UNPRIV) == 0) {
 			spec->auxiliary = true;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_MSG_PFX)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_MSG_PFX) - 1;
-			err = push_msg(msg, NULL, &spec->priv.expect_msgs);
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX))) {
+			err = push_msg(msg, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_MSG_PFX_UNPRIV) - 1;
-			err = push_msg(msg, NULL, &spec->unpriv.expect_msgs);
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV))) {
+			err = push_msg(msg, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_REGEX_PFX)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_REGEX_PFX) - 1;
-			err = push_msg(NULL, msg, &spec->priv.expect_msgs);
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX))) {
+			if (arch_mask == 0) {
+				PRINT_FAIL("__jited used before __arch_*");
+				goto cleanup;
+			}
+			if (collect_jit) {
+				err = push_disasm_msg(msg, &jit_on_next_line,
+						      &spec->priv.jited);
+				if (err)
+					goto cleanup;
+				spec->mode_mask |= PRIV;
+			}
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX_UNPRIV))) {
+			if (arch_mask == 0) {
+				PRINT_FAIL("__unpriv_jited used before __arch_*");
+				goto cleanup;
+			}
+			if (collect_jit) {
+				err = push_disasm_msg(msg, &unpriv_jit_on_next_line,
+						      &spec->unpriv.jited);
+				if (err)
+					goto cleanup;
+				spec->mode_mask |= UNPRIV;
+			}
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
+			err = push_disasm_msg(msg, &xlated_on_next_line,
+					      &spec->priv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_REGEX_PFX_UNPRIV)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_REGEX_PFX_UNPRIV) - 1;
-			err = push_msg(NULL, msg, &spec->unpriv.expect_msgs);
-			if (err)
-				goto cleanup;
-			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_XLATED_PFX)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_XLATED_PFX) - 1;
-			err = push_msg(msg, NULL, &spec->priv.expect_xlated);
-			if (err)
-				goto cleanup;
-			spec->mode_mask |= PRIV;
-		} else if (str_has_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV)) {
-			msg = s + sizeof(TEST_TAG_EXPECT_XLATED_PFX_UNPRIV) - 1;
-			err = push_msg(msg, NULL, &spec->unpriv.expect_xlated);
+		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
+			err = push_disasm_msg(msg, &unpriv_xlated_on_next_line,
+					      &spec->unpriv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
@@ -376,16 +524,20 @@ static int parse_test_spec(struct test_loader *tester,
 		} else if (str_has_pfx(s, TEST_TAG_ARCH)) {
 			val = s + sizeof(TEST_TAG_ARCH) - 1;
 			if (strcmp(val, "X86_64") == 0) {
-				arch_mask |= ARCH_X86_64;
+				arch = ARCH_X86_64;
 			} else if (strcmp(val, "ARM64") == 0) {
-				arch_mask |= ARCH_ARM64;
+				arch = ARCH_ARM64;
 			} else if (strcmp(val, "RISCV64") == 0) {
-				arch_mask |= ARCH_RISCV64;
+				arch = ARCH_RISCV64;
 			} else {
 				PRINT_FAIL("bad arch spec: '%s'", val);
 				err = -EINVAL;
 				goto cleanup;
 			}
+			arch_mask |= arch;
+			collect_jit = get_current_arch() == arch;
+			unpriv_jit_on_next_line = true;
+			jit_on_next_line = true;
 		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
 			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
 		}
@@ -434,26 +586,12 @@ static int parse_test_spec(struct test_loader *tester,
 			spec->unpriv.execute = spec->priv.execute;
 		}
 
-		if (spec->unpriv.expect_msgs.cnt == 0) {
-			for (i = 0; i < spec->priv.expect_msgs.cnt; i++) {
-				struct expect_msg *msg = &spec->priv.expect_msgs.patterns[i];
-
-				err = push_msg(msg->substr, msg->regex_str,
-					       &spec->unpriv.expect_msgs);
-				if (err)
-					goto cleanup;
-			}
-		}
-		if (spec->unpriv.expect_xlated.cnt == 0) {
-			for (i = 0; i < spec->priv.expect_xlated.cnt; i++) {
-				struct expect_msg *msg = &spec->priv.expect_xlated.patterns[i];
-
-				err = push_msg(msg->substr, msg->regex_str,
-					       &spec->unpriv.expect_xlated);
-				if (err)
-					goto cleanup;
-			}
-		}
+		if (spec->unpriv.expect_msgs.cnt == 0)
+			clone_msgs(&spec->priv.expect_msgs, &spec->unpriv.expect_msgs);
+		if (spec->unpriv.expect_xlated.cnt == 0)
+			clone_msgs(&spec->priv.expect_xlated, &spec->unpriv.expect_xlated);
+		if (spec->unpriv.jited.cnt == 0)
+			clone_msgs(&spec->priv.jited, &spec->unpriv.jited);
 	}
 
 	spec->valid = true;
@@ -508,21 +646,34 @@ static void emit_xlated(const char *xlated, bool force)
 	fprintf(stdout, "XLATED:\n=============\n%s=============\n", xlated);
 }
 
+static void emit_jited(const char *jited, bool force)
+{
+	if (!force && env.verbosity == VERBOSE_NONE)
+		return;
+	fprintf(stdout, "JITED:\n=============\n%s=============\n", jited);
+}
+
 static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 			  void (*emit_fn)(const char *buf, bool force))
 {
+	const char *log = log_buf, *prev_match;
 	regmatch_t reg_match[1];
-	const char *log = log_buf;
+	int prev_match_line;
+	int match_line;
 	int i, j, err;
 
+	prev_match_line = -1;
+	match_line = 0;
+	prev_match = log;
 	for (i = 0; i < msgs->cnt; i++) {
 		struct expect_msg *msg = &msgs->patterns[i];
-		const char *match = NULL;
+		const char *match = NULL, *pat_status;
+		bool wrong_line = false;
 
-		if (msg->substr) {
+		if (!msg->is_regex) {
 			match = strstr(log, msg->substr);
 			if (match)
-				log += strlen(msg->substr);
+				log = match + strlen(msg->substr);
 		} else {
 			err = regexec(&msg->regex, log, 1, reg_match, 0);
 			if (err == 0) {
@@ -531,18 +682,41 @@ static void validate_msgs(char *log_buf, struct expected_msgs *msgs,
 			}
 		}
 
-		if (!ASSERT_OK_PTR(match, "expect_msg")) {
+		if (match) {
+			for (; prev_match < match; ++prev_match)
+				if (*prev_match == '\n')
+					++match_line;
+			wrong_line = msg->on_next_line && prev_match_line >= 0 &&
+				     prev_match_line + 1 != match_line;
+		}
+
+		if (!match || wrong_line) {
+			PRINT_FAIL("expect_msg\n");
 			if (env.verbosity == VERBOSE_NONE)
 				emit_fn(log_buf, true /*force*/);
 			for (j = 0; j <= i; j++) {
 				msg = &msgs->patterns[j];
+				if (j < i)
+					pat_status = "MATCHED   ";
+				else if (wrong_line)
+					pat_status = "WRONG LINE";
+				else
+					pat_status = "EXPECTED  ";
+				msg = &msgs->patterns[j];
 				fprintf(stderr, "%s %s: '%s'\n",
-					j < i ? "MATCHED " : "EXPECTED",
-					msg->substr ? "SUBSTR" : " REGEX",
-					msg->substr ?: msg->regex_str);
+					pat_status,
+					msg->is_regex ? " REGEX" : "SUBSTR",
+					msg->substr);
 			}
-			return;
+			if (wrong_line) {
+				fprintf(stderr,
+					"expecting match at line %d, actual match is at line %d\n",
+					prev_match_line + 1, match_line);
+			}
+			break;
 		}
+
+		prev_match_line = match_line;
 	}
 }
 
@@ -701,20 +875,6 @@ out:
 	return err;
 }
 
-static bool run_on_current_arch(int arch_mask)
-{
-	if (arch_mask == 0)
-		return true;
-#if defined(__x86_64__)
-	return arch_mask & ARCH_X86_64;
-#elif defined(__aarch64__)
-	return arch_mask & ARCH_ARM64;
-#elif defined(__riscv) && __riscv_xlen == 64
-	return arch_mask & ARCH_RISCV64;
-#endif
-	return false;
-}
-
 /* this function is forced noinline and has short generic name to look better
  * in test_progs output (in case of a failure)
  */
@@ -739,7 +899,7 @@ void run_subtest(struct test_loader *tester,
 	if (!test__start_subtest(subspec->name))
 		return;
 
-	if (!run_on_current_arch(spec->arch_mask)) {
+	if ((get_current_arch() & spec->arch_mask) == 0) {
 		test__skip();
 		return;
 	}
@@ -814,6 +974,21 @@ void run_subtest(struct test_loader *tester,
 			goto tobj_cleanup;
 		emit_xlated(tester->log_buf, false /*force*/);
 		validate_msgs(tester->log_buf, &subspec->expect_xlated, emit_xlated);
+	}
+
+	if (subspec->jited.cnt) {
+		err = get_jited_program_text(bpf_program__fd(tprog),
+					     tester->log_buf, tester->log_buf_sz);
+		if (err == -EOPNOTSUPP) {
+			printf("%s:SKIP: jited programs disassembly is not supported,\n", __func__);
+			printf("%s:SKIP: tests are built w/o LLVM development libs\n", __func__);
+			test__skip();
+			goto tobj_cleanup;
+		}
+		if (!ASSERT_EQ(err, 0, "get_jited_program_text"))
+			goto tobj_cleanup;
+		emit_jited(tester->log_buf, false /*force*/);
+		validate_msgs(tester->log_buf, &subspec->jited, emit_jited);
 	}
 
 	if (should_do_test_run(spec, subspec)) {

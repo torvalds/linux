@@ -78,6 +78,7 @@ __naked void canary_arm64_riscv64(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("3: exit")
 __success
 __naked void canary_zero_spills(void)
@@ -94,7 +95,9 @@ SEC("raw_tp")
 __arch_x86_64
 __log_level(4) __msg("stack depth 16")
 __xlated("1: *(u64 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r2 = *(u64 *)(r10 -16)")
 __success
 __naked void wrong_reg_in_pattern1(void)
@@ -113,7 +116,9 @@ __naked void wrong_reg_in_pattern1(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -16) = r6")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r6 = *(u64 *)(r10 -16)")
 __success
 __naked void wrong_reg_in_pattern2(void)
@@ -132,7 +137,9 @@ __naked void wrong_reg_in_pattern2(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -16) = r0")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r0 = *(u64 *)(r10 -16)")
 __success
 __naked void wrong_reg_in_pattern3(void)
@@ -151,7 +158,9 @@ __naked void wrong_reg_in_pattern3(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("2: *(u64 *)(r2 -16) = r1")
+__xlated("...")
 __xlated("4: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("6: r1 = *(u64 *)(r10 -16)")
 __success
 __naked void wrong_base_in_pattern(void)
@@ -171,7 +180,9 @@ __naked void wrong_base_in_pattern(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r2 = 1")
 __success
 __naked void wrong_insn_in_pattern(void)
@@ -191,7 +202,9 @@ __naked void wrong_insn_in_pattern(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("2: *(u64 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("4: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("6: r1 = *(u64 *)(r10 -8)")
 __success
 __naked void wrong_off_in_pattern1(void)
@@ -211,7 +224,9 @@ __naked void wrong_off_in_pattern1(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u32 *)(r10 -4) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u32 *)(r10 -4)")
 __success
 __naked void wrong_off_in_pattern2(void)
@@ -230,7 +245,9 @@ __naked void wrong_off_in_pattern2(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u32 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u32 *)(r10 -16)")
 __success
 __naked void wrong_size_in_pattern(void)
@@ -249,7 +266,9 @@ __naked void wrong_size_in_pattern(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("2: *(u32 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("4: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("6: r1 = *(u32 *)(r10 -8)")
 __success
 __naked void partial_pattern(void)
@@ -275,11 +294,15 @@ __xlated("1: r2 = 2")
 /* not patched, spills for -8, -16 not removed */
 __xlated("2: *(u64 *)(r10 -8) = r1")
 __xlated("3: *(u64 *)(r10 -16) = r2")
+__xlated("...")
 __xlated("5: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("7: r2 = *(u64 *)(r10 -16)")
 __xlated("8: r1 = *(u64 *)(r10 -8)")
 /* patched, spills for -24, -32 removed */
+__xlated("...")
 __xlated("10: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("12: exit")
 __success
 __naked void min_stack_offset(void)
@@ -308,7 +331,9 @@ __naked void min_stack_offset(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u64 *)(r10 -8)")
 __success
 __naked void bad_fixed_read(void)
@@ -330,7 +355,9 @@ __naked void bad_fixed_read(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u64 *)(r10 -8)")
 __success
 __naked void bad_fixed_write(void)
@@ -352,7 +379,9 @@ __naked void bad_fixed_write(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("6: *(u64 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("8: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("10: r1 = *(u64 *)(r10 -16)")
 __success
 __naked void bad_varying_read(void)
@@ -379,7 +408,9 @@ __naked void bad_varying_read(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("6: *(u64 *)(r10 -16) = r1")
+__xlated("...")
 __xlated("8: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("10: r1 = *(u64 *)(r10 -16)")
 __success
 __naked void bad_varying_write(void)
@@ -406,7 +437,9 @@ __naked void bad_varying_write(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u64 *)(r10 -8)")
 __success
 __naked void bad_write_in_subprog(void)
@@ -438,7 +471,9 @@ __naked static void bad_write_in_subprog_aux(void)
 SEC("raw_tp")
 __arch_x86_64
 __xlated("1: *(u64 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u64 *)(r10 -8)")
 __success
 __naked void bad_helper_write(void)
@@ -466,13 +501,19 @@ SEC("raw_tp")
 __arch_x86_64
 /* main, not patched */
 __xlated("1: *(u64 *)(r10 -8) = r1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("5: r1 = *(u64 *)(r10 -8)")
+__xlated("...")
 __xlated("9: call pc+1")
+__xlated("...")
 __xlated("10: exit")
 /* subprogram, patched */
 __xlated("11: r1 = 1")
+__xlated("...")
 __xlated("13: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("15: exit")
 __success
 __naked void invalidate_one_subprog(void)
@@ -510,12 +551,16 @@ SEC("raw_tp")
 __arch_x86_64
 /* main */
 __xlated("0: r1 = 1")
+__xlated("...")
 __xlated("2: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("4: call pc+1")
 __xlated("5: exit")
 /* subprogram */
 __xlated("6: r1 = 1")
+__xlated("...")
 __xlated("8: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 __xlated("10: *(u64 *)(r10 -16) = r1")
 __xlated("11: exit")
 __success
@@ -576,7 +621,9 @@ __log_level(4) __msg("stack depth 16")
 /* may_goto counter at -16 */
 __xlated("0: *(u64 *)(r10 -16) =")
 __xlated("1: r1 = 1")
+__xlated("...")
 __xlated("3: r0 = &(void __percpu *)(r0)")
+__xlated("...")
 /* may_goto expansion starts */
 __xlated("5: r11 = *(u64 *)(r10 -16)")
 __xlated("6: if r11 == 0x0 goto pc+3")
@@ -623,13 +670,15 @@ __xlated("5: r0 = *(u32 *)(r0 +0)")
 __xlated("6: r2 =")
 __xlated("7: r3 = 0")
 __xlated("8: r4 = 0")
+__xlated("...")
 /* ... part of the inlined bpf_loop */
 __xlated("12: *(u64 *)(r10 -32) = r6")
 __xlated("13: *(u64 *)(r10 -24) = r7")
 __xlated("14: *(u64 *)(r10 -16) = r8")
-/* ... */
+__xlated("...")
 __xlated("21: call pc+8") /* dummy_loop_callback */
 /* ... last insns of the bpf_loop_interaction1 */
+__xlated("...")
 __xlated("28: r0 = 0")
 __xlated("29: exit")
 /* dummy_loop_callback */
@@ -670,7 +719,7 @@ __xlated("5: r0 = *(u32 *)(r0 +0)")
 __xlated("6: *(u64 *)(r10 -16) = r1")
 __xlated("7: call")
 __xlated("8: r1 = *(u64 *)(r10 -16)")
-/* ... */
+__xlated("...")
 /* ... part of the inlined bpf_loop */
 __xlated("15: *(u64 *)(r10 -40) = r6")
 __xlated("16: *(u64 *)(r10 -32) = r7")

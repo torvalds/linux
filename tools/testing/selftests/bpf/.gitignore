@@ -8,6 +8,7 @@ test_lru_map
 test_lpm_map
 test_tag
 FEATURE-DUMP.libbpf
+FEATURE-DUMP.selftests
 fixdep
 /test_progs
 /test_progs-no_alu32
