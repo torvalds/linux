@@ -2612,7 +2612,7 @@ struct folio *writeback_iter(struct address_space *mapping,
 
 done:
 	if (wbc->range_cyclic)
-		mapping->writeback_index = folio->index + folio_nr_pages(folio);
+		mapping->writeback_index = folio_next_index(folio);
 	folio_batch_release(&wbc->fbatch);
 	return NULL;
 }
