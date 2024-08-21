@@ -4867,7 +4867,7 @@ set_dev_info(const struct device *dev, struct dev_printk_info *dev_info)
 	else
 		return;
 
-	strscpy(dev_info->subsystem, subsys, sizeof(dev_info->subsystem));
+	strscpy(dev_info->subsystem, subsys);
 
 	/*
 	 * Add device identifier DEVICE=:
