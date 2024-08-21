@@ -1054,14 +1054,14 @@ static unsigned long cpr_get_opp_hz_for_req(struct dev_pm_opp *ref,
 	if (!ref_np)
 		goto out_ref;
 
-	do {
+	for_each_available_child_of_node(desc_np, child_np) {
 		of_node_put(child_req_np);
-		child_np = of_get_next_available_child(desc_np, child_np);
 		child_req_np = of_parse_phandle(child_np, "required-opps", 0);
-	} while (child_np && child_req_np != ref_np);
-
-	if (child_np && child_req_np == ref_np)
-		of_property_read_u64(child_np, "opp-hz", &rate);
+		if (child_req_np == ref_np) {
+			of_property_read_u64(child_np, "opp-hz", &rate);
+			break;
+		}
+	}
 
 	of_node_put(child_req_np);
 	of_node_put(child_np);
