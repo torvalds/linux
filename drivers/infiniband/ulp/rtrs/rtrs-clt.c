@@ -355,7 +355,7 @@ static void rtrs_clt_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 			  ib_wc_status_msg(wc->status));
 		rtrs_rdma_error_recovery(con);
 	}
-	req->need_inv = false;
+	req->mr->need_inval = false;
 	if (req->need_inv_comp)
 		complete(&req->inv_comp);
 	else
@@ -391,7 +391,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	clt_path = to_clt_path(con->c.path);
 
 	if (req->sg_cnt) {
-		if (req->need_inv) {
+		if (req->mr->need_inval) {
 			/*
 			 * We are here to invalidate read/write requests
 			 * ourselves.  In normal scenario server should
@@ -494,7 +494,7 @@ static void process_io_rsp(struct rtrs_clt_path *clt_path, u32 msg_id,
 
 	req = &clt_path->reqs[msg_id];
 	/* Drop need_inv if server responded with send with invalidation */
-	req->need_inv &= !w_inval;
+	req->mr->need_inval &= !w_inval;
 	complete_rdma_req(req, errno, true, false);
 }
 
@@ -961,7 +961,7 @@ static void rtrs_clt_init_req(struct rtrs_clt_io_req *req,
 	req->dir = dir;
 	req->con = rtrs_permit_to_clt_con(clt_path, permit);
 	req->conf = conf;
-	req->need_inv = false;
+	req->mr->need_inval = false;
 	req->need_inv_comp = false;
 	req->inv_errno = 0;
 	refcount_set(&req->ref, 1);
@@ -1140,8 +1140,8 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 		};
 		wr = &rwr.wr;
 		fr_en = true;
-		req->need_inv = true;
 		refcount_inc(&req->ref);
+		req->mr->need_inval = true;
 	}
 	/*
 	 * Update stats now, after request is successfully sent it is not
@@ -1159,8 +1159,8 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 			    clt_path->hca_port);
 		if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&clt_path->stats->inflight);
-		if (req->need_inv) {
-			req->need_inv = false;
+		if (req->mr->need_inval) {
+			req->mr->need_inval = false;
 			refcount_dec(&req->ref);
 		}
 		if (req->sg_cnt)
@@ -1236,7 +1236,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 		msg->desc[0].len = cpu_to_le32(req->mr->length);
 
 		/* Further invalidation is required */
-		req->need_inv = !!RTRS_MSG_NEED_INVAL_F;
+		req->mr->need_inval = !!RTRS_MSG_NEED_INVAL_F;
 
 	} else {
 		msg->sg_cnt = 0;
@@ -1269,7 +1269,7 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 			    clt_path->hca_port);
 		if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&clt_path->stats->inflight);
-		req->need_inv = false;
+		req->mr->need_inval = false;
 		if (req->sg_cnt)
 			ib_dma_unmap_sg(dev->ib_dev, req->sglist,
 					req->sg_cnt, req->dir);

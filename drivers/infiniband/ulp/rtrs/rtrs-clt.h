@@ -115,7 +115,6 @@ struct rtrs_clt_io_req {
 	struct completion	inv_comp;
 	int			inv_errno;
 	bool			need_inv_comp;
-	bool			need_inv;
 	refcount_t		ref;
 };
 
