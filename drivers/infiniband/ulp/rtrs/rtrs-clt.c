@@ -391,11 +391,12 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	clt_path = to_clt_path(con->c.path);
 
 	if (req->sg_cnt) {
-		if (req->dir == DMA_FROM_DEVICE && req->need_inv) {
+		if (req->need_inv) {
 			/*
-			 * We are here to invalidate read requests
+			 * We are here to invalidate read/write requests
 			 * ourselves.  In normal scenario server should
-			 * send INV for all read requests, but
+			 * send INV for all read requests, we do chained local
+			 * invalidate for write requests, but
 			 * we are here, thus two things could happen:
 			 *
 			 *    1.  this is failover, when errno != 0
@@ -422,14 +423,6 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 					  req->mr->rkey, err);
 			} else if (can_wait) {
 				wait_for_completion(&req->inv_comp);
-			} else {
-				/*
-				 * Something went wrong, so request will be
-				 * completed from INV callback.
-				 */
-				WARN_ON_ONCE(1);
-
-				return;
 			}
 			if (!refcount_dec_and_test(&req->ref))
 				return;
@@ -1146,6 +1139,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 		};
 		wr = &rwr.wr;
 		fr_en = true;
+		req->need_inv = true;
 		refcount_inc(&req->ref);
 	}
 	/*
@@ -1164,6 +1158,10 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 			    clt_path->hca_port);
 		if (req->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&clt_path->stats->inflight);
+		if (req->need_inv) {
+			req->need_inv = false;
+			refcount_dec(&req->ref);
+		}
 		if (req->sg_cnt)
 			ib_dma_unmap_sg(clt_path->s.dev->ib_dev, req->sglist,
 					req->sg_cnt, req->dir);
