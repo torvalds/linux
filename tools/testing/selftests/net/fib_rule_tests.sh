@@ -51,31 +51,6 @@ log_test()
 	fi
 }
 
-check_nettest()
-{
-	if which nettest > /dev/null 2>&1; then
-		return 0
-	fi
-
-	# Add the selftest directory to PATH if not already done
-	if [ "${SELFTEST_PATH}" = "" ]; then
-		SELFTEST_PATH="$(dirname $0)"
-		PATH="${PATH}:${SELFTEST_PATH}"
-
-		# Now retry with the new path
-		if which nettest > /dev/null 2>&1; then
-			return 0
-		fi
-
-		if [ "${ret}" -eq 0 ]; then
-			ret="${ksft_skip}"
-		fi
-		echo "nettest not found (try 'make -C ${SELFTEST_PATH} nettest')"
-	fi
-
-	return 1
-}
-
 setup()
 {
 	set -e
@@ -317,11 +292,6 @@ fib_rule6_connect_test()
 	echo
 	echo "IPv6 FIB rule connect tests"
 
-	if ! check_nettest; then
-		echo "SKIP: Could not run test without nettest tool"
-		return
-	fi
-
 	setup_peer
 	$IP -6 rule add dsfield 0x04 table $RTABLE_PEER
 
@@ -516,11 +486,6 @@ fib_rule4_connect_test()
 	echo
 	echo "IPv4 FIB rule connect tests"
 
-	if ! check_nettest; then
-		echo "SKIP: Could not run test without nettest tool"
-		return
-	fi
-
 	setup_peer
 	$IP -4 rule add dsfield 0x04 table $RTABLE_PEER
 
@@ -583,6 +548,8 @@ if [ ! -x "$(command -v ip)" ]; then
 	echo "SKIP: Could not run test without ip tool"
 	exit $ksft_skip
 fi
+
+check_gen_prog "nettest"
 
 # start clean
 cleanup &> /dev/null
