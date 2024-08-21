@@ -1040,36 +1040,30 @@ static unsigned int cpr_get_fuse_corner(struct dev_pm_opp *opp)
 static unsigned long cpr_get_opp_hz_for_req(struct dev_pm_opp *ref,
 					    struct device *cpu_dev)
 {
-	u64 rate = 0;
-	struct device_node *ref_np;
-	struct device_node *desc_np;
-	struct device_node *child_np = NULL;
-	struct device_node *child_req_np = NULL;
+	struct device_node *ref_np __free(device_node) = NULL;
+	struct device_node *desc_np __free(device_node) =
+		dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 
-	desc_np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!desc_np)
 		return 0;
 
 	ref_np = dev_pm_opp_get_of_node(ref);
 	if (!ref_np)
-		goto out_ref;
+		return 0;
 
-	for_each_available_child_of_node(desc_np, child_np) {
-		of_node_put(child_req_np);
-		child_req_np = of_parse_phandle(child_np, "required-opps", 0);
+	for_each_available_child_of_node_scoped(desc_np, child_np) {
+		struct device_node *child_req_np __free(device_node) =
+			of_parse_phandle(child_np, "required-opps", 0);
+
 		if (child_req_np == ref_np) {
+			u64 rate;
+
 			of_property_read_u64(child_np, "opp-hz", &rate);
-			break;
+			return (unsigned long) rate;
 		}
 	}
 
-	of_node_put(child_req_np);
-	of_node_put(child_np);
-	of_node_put(ref_np);
-out_ref:
-	of_node_put(desc_np);
-
-	return (unsigned long) rate;
+	return 0;
 }
 
 static int cpr_corner_init(struct cpr_drv *drv)
