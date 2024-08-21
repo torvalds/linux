@@ -528,9 +528,9 @@ PAGEFLAG(XenRemapped, xen_remapped, PF_NO_COMPOUND)
 PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
 	__CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
 	__SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-PAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
-	__CLEARPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
-	__SETPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
+FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
+	__FOLIO_CLEAR_FLAG(swapbacked, FOLIO_HEAD_PAGE)
+	__FOLIO_SET_FLAG(swapbacked, FOLIO_HEAD_PAGE)
 
 /*
  * Private page markings that may be used by the filesystem that owns the page
