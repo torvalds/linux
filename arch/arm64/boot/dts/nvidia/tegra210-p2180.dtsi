@@ -33,6 +33,22 @@
 		status = "okay";
 	};
 
+	serial@70006300 {
+		/delete-property/ reg-shift;
+		status = "okay";
+		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
+
+		bluetooth {
+			compatible = "brcm,bcm43540-bt";
+			device-wakeup-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&gpio TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 5) IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names = "host-wakeup";
+		};
+	};
+
 	i2c@7000c400 {
 		status = "okay";
 
