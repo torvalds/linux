@@ -1494,7 +1494,9 @@ static bool rtrs_clt_change_state_get_old(struct rtrs_clt_path *clt_path,
 static void rtrs_clt_hb_err_handler(struct rtrs_con *c)
 {
 	struct rtrs_clt_con *con = container_of(c, typeof(*con), c);
+	struct rtrs_clt_path *clt_path = to_clt_path(con->c.path);
 
+	rtrs_err(con->c.path, "HB err handler for path=%s\n", kobject_name(&clt_path->kobj));
 	rtrs_rdma_error_recovery(con);
 }
 

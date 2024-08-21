@@ -672,6 +672,10 @@ err:
 
 static void rtrs_srv_hb_err_handler(struct rtrs_con *c)
 {
+	struct rtrs_srv_con *con = container_of(c, typeof(*con), c);
+	struct rtrs_srv_path *srv_path = to_srv_path(con->c.path);
+
+	rtrs_err(con->c.path, "HB err handler for path=%s\n", kobject_name(&srv_path->kobj));
 	close_path(to_srv_path(c->path));
 }
 
