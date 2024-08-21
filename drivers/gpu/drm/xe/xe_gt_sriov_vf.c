@@ -495,6 +495,25 @@ u64 xe_gt_sriov_vf_lmem(struct xe_gt *gt)
 	return gt->sriov.vf.self_config.lmem_size;
 }
 
+static struct xe_ggtt_node *
+vf_balloon_ggtt_node(struct xe_ggtt *ggtt, u64 start, u64 end)
+{
+	struct xe_ggtt_node *node;
+	int err;
+
+	node = xe_ggtt_node_init(ggtt);
+	if (IS_ERR(node))
+		return node;
+
+	err = xe_ggtt_node_insert_balloon(node, start, end);
+	if (err) {
+		xe_ggtt_node_fini(node);
+		return ERR_PTR(err);
+	}
+
+	return node;
+}
+
 static int vf_balloon_ggtt(struct xe_gt *gt)
 {
 	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
@@ -502,7 +521,6 @@ static int vf_balloon_ggtt(struct xe_gt *gt)
 	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	struct xe_device *xe = gt_to_xe(gt);
 	u64 start, end;
-	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(xe));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
@@ -528,37 +546,31 @@ static int vf_balloon_ggtt(struct xe_gt *gt)
 	start = xe_wopcm_size(xe);
 	end = config->ggtt_base;
 	if (end != start) {
-		err = xe_ggtt_node_insert_balloon(ggtt, &tile->sriov.vf.ggtt_balloon[0],
-						  start, end);
-		if (err)
-			goto failed;
+		tile->sriov.vf.ggtt_balloon[0] = vf_balloon_ggtt_node(ggtt, start, end);
+		if (IS_ERR(tile->sriov.vf.ggtt_balloon[0]))
+			return PTR_ERR(tile->sriov.vf.ggtt_balloon[0]);
 	}
 
 	start = config->ggtt_base + config->ggtt_size;
 	end = GUC_GGTT_TOP;
 	if (end != start) {
-		err = xe_ggtt_node_insert_balloon(ggtt, &tile->sriov.vf.ggtt_balloon[1],
-						  start, end);
-		if (err)
-			goto deballoon;
+		tile->sriov.vf.ggtt_balloon[1] = vf_balloon_ggtt_node(ggtt, start, end);
+		if (IS_ERR(tile->sriov.vf.ggtt_balloon[1])) {
+			xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[0]);
+			return PTR_ERR(tile->sriov.vf.ggtt_balloon[1]);
+		}
 	}
 
 	return 0;
-
-deballoon:
-	xe_ggtt_node_remove_balloon(ggtt, &tile->sriov.vf.ggtt_balloon[0]);
-failed:
-	return err;
 }
 
 static void deballoon_ggtt(struct drm_device *drm, void *arg)
 {
 	struct xe_tile *tile = arg;
-	struct xe_ggtt *ggtt = tile->mem.ggtt;
 
 	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
-	xe_ggtt_node_remove_balloon(ggtt, &tile->sriov.vf.ggtt_balloon[1]);
-	xe_ggtt_node_remove_balloon(ggtt, &tile->sriov.vf.ggtt_balloon[0]);
+	xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[1]);
+	xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[0]);
 }
 
 /**
