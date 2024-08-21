@@ -30,7 +30,12 @@
 #define AXP20X_PWR_STATUS_VBUS_PRESENT	BIT(5)
 #define AXP20X_PWR_STATUS_VBUS_USED	BIT(4)
 
+#define AXP717_PWR_STATUS_VBUS_GOOD	BIT(5)
+
 #define AXP20X_USB_STATUS_VBUS_VALID	BIT(2)
+
+#define AXP717_PMU_FAULT_VBUS		BIT(5)
+#define AXP717_PMU_FAULT_VSYS		BIT(3)
 
 #define AXP20X_VBUS_VHOLD_uV(b)		(4000000 + (((b) >> 3) & 7) * 100000)
 #define AXP20X_VBUS_VHOLD_MASK		GENMASK(5, 3)
@@ -38,6 +43,12 @@
 
 #define AXP20X_ADC_EN1_VBUS_CURR	BIT(2)
 #define AXP20X_ADC_EN1_VBUS_VOLT	BIT(3)
+
+#define AXP717_INPUT_VOL_LIMIT_MASK	GENMASK(3, 0)
+#define AXP717_INPUT_CUR_LIMIT_MASK	GENMASK(5, 0)
+#define AXP717_ADC_DATA_MASK		GENMASK(14, 0)
+
+#define AXP717_ADC_EN_VBUS_VOLT		BIT(2)
 
 /*
  * Note do not raise the debounce time, we must report Vusb high within
@@ -141,6 +152,24 @@ static void axp20x_usb_power_poll_vbus(struct work_struct *work)
 out:
 	if (axp20x_usb_vbus_needs_polling(power))
 		mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
+}
+
+static void axp717_usb_power_poll_vbus(struct work_struct *work)
+{
+	struct axp20x_usb_power *power =
+		container_of(work, struct axp20x_usb_power, vbus_detect.work);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(power->regmap, AXP717_ON_INDICATE, &val);
+	if (ret)
+		return;
+
+	val &= AXP717_PWR_STATUS_VBUS_GOOD;
+	if (val != power->old_status)
+		power_supply_changed(power->supply);
+
+	power->old_status = val;
 }
 
 static int axp20x_get_usb_type(struct axp20x_usb_power *power,
@@ -288,6 +317,91 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int axp717_usb_power_get_property(struct power_supply *psy,
+	enum power_supply_property psp, union power_supply_propval *val)
+{
+	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
+	unsigned int v;
+	int ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_HEALTH:
+		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		ret = regmap_read(power->regmap, AXP717_ON_INDICATE, &v);
+		if (ret)
+			return ret;
+
+		if (!(v & AXP717_PWR_STATUS_VBUS_GOOD))
+			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+		ret = regmap_read(power->regmap, AXP717_PMU_FAULT_VBUS, &v);
+		if (ret)
+			return ret;
+
+		v &= (AXP717_PMU_FAULT_VBUS | AXP717_PMU_FAULT_VSYS);
+		if (v) {
+			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+			regmap_write(power->regmap, AXP717_PMU_FAULT_VBUS, v);
+		}
+
+		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		ret = regmap_read(power->regmap, AXP717_INPUT_CUR_LIMIT_CTRL, &v);
+		if (ret)
+			return ret;
+
+		/* 50ma step size with 100ma offset. */
+		v &= AXP717_INPUT_CUR_LIMIT_MASK;
+		val->intval = (v * 50000) + 100000;
+		break;
+	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_PRESENT:
+		ret = regmap_read(power->regmap, AXP717_ON_INDICATE, &v);
+		if (ret)
+			return ret;
+		val->intval = !!(v & AXP717_PWR_STATUS_VBUS_GOOD);
+		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		return axp20x_get_usb_type(power, val);
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
+		ret = regmap_read(power->regmap, AXP717_INPUT_VOL_LIMIT_CTRL, &v);
+		if (ret)
+			return ret;
+
+		/* 80mv step size with 3.88v offset. */
+		v &= AXP717_INPUT_VOL_LIMIT_MASK;
+		val->intval = (v * 80000) + 3880000;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
+			ret = iio_read_channel_processed(power->vbus_v,
+							 &val->intval);
+			if (ret)
+				return ret;
+
+			/*
+			 * IIO framework gives mV but Power Supply framework
+			 * gives uV.
+			 */
+			val->intval *= 1000;
+			return 0;
+		}
+
+		ret = axp20x_read_variable_width(power->regmap,
+						 AXP717_VBUS_V_H, 16);
+		if (ret < 0)
+			return ret;
+
+		val->intval = (ret % AXP717_ADC_DATA_MASK) * 1000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+
+}
+
 static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 					    int intval)
 {
@@ -312,6 +426,22 @@ static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 	}
 
 	return -EINVAL;
+}
+
+static int axp717_usb_power_set_voltage_min(struct axp20x_usb_power *power,
+					    int intval)
+{
+	int val;
+
+	/* Minimum value of 3.88v and maximum of 5.08v. */
+	if (intval < 3880000 || intval > 5080000)
+		return -EINVAL;
+
+	/* step size of 80ma with 3.88v offset. */
+	val = (intval - 3880000) / 80000;
+	return regmap_update_bits(power->regmap,
+				  AXP717_INPUT_VOL_LIMIT_CTRL,
+				  AXP717_INPUT_VOL_LIMIT_MASK, val);
 }
 
 static int axp20x_usb_power_set_input_current_limit(struct axp20x_usb_power *power,
@@ -354,6 +484,29 @@ static int axp20x_usb_power_set_input_current_limit(struct axp20x_usb_power *pow
 	return regmap_field_write(power->curr_lim_fld, reg);
 }
 
+static int axp717_usb_power_set_input_current_limit(struct axp20x_usb_power *power,
+						    int intval)
+{
+	int tmp;
+
+	/* Minimum value of 100mA and maximum value of 3.25A*/
+	if (intval < 100000 || intval > 3250000)
+		return -EINVAL;
+
+	if (power->max_input_cur && (intval > power->max_input_cur)) {
+		dev_warn(power->dev,
+			 "reqested current %d clamped to max current %d\n",
+			 intval, power->max_input_cur);
+		intval = power->max_input_cur;
+	}
+
+	/* Minimum value of 100mA with step size of 50mA. */
+	tmp = (intval - 100000) / 50000;
+	return regmap_update_bits(power->regmap,
+				  AXP717_INPUT_CUR_LIMIT_CTRL,
+				  AXP717_INPUT_CUR_LIMIT_MASK, tmp);
+}
+
 static int axp20x_usb_power_set_property(struct power_supply *psy,
 					 enum power_supply_property psp,
 					 const union power_supply_propval *val)
@@ -372,6 +525,24 @@ static int axp20x_usb_power_set_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		return axp20x_usb_power_set_input_current_limit(power, val->intval);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int axp717_usb_power_set_property(struct power_supply *psy,
+					 enum power_supply_property psp,
+					 const union power_supply_propval *val)
+{
+	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return axp717_usb_power_set_input_current_limit(power, val->intval);
+
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
+		return axp717_usb_power_set_voltage_min(power, val->intval);
 
 	default:
 		return -EINVAL;
@@ -399,6 +570,13 @@ static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 	       psp == POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
 }
 
+static int axp717_usb_power_prop_writeable(struct power_supply *psy,
+					   enum power_supply_property psp)
+{
+	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
+	       psp == POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
+}
+
 static int axp20x_configure_iio_channels(struct platform_device *pdev,
 					 struct axp20x_usb_power *power)
 {
@@ -419,6 +597,19 @@ static int axp20x_configure_iio_channels(struct platform_device *pdev,
 	return 0;
 }
 
+static int axp717_configure_iio_channels(struct platform_device *pdev,
+					 struct axp20x_usb_power *power)
+{
+	power->vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
+	if (IS_ERR(power->vbus_v)) {
+		if (PTR_ERR(power->vbus_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		return PTR_ERR(power->vbus_v);
+	}
+
+	return 0;
+}
+
 static int axp20x_configure_adc_registers(struct axp20x_usb_power *power)
 {
 	/* Enable vbus voltage and current measurement */
@@ -427,6 +618,14 @@ static int axp20x_configure_adc_registers(struct axp20x_usb_power *power)
 				  AXP20X_ADC_EN1_VBUS_VOLT,
 				  AXP20X_ADC_EN1_VBUS_CURR |
 				  AXP20X_ADC_EN1_VBUS_VOLT);
+}
+
+static int axp717_configure_adc_registers(struct axp20x_usb_power *power)
+{
+	/* Enable vbus voltage measurement  */
+	return regmap_update_bits(power->regmap, AXP717_ADC_CH_EN_CONTROL,
+				  AXP717_ADC_EN_VBUS_VOLT,
+				  AXP717_ADC_EN_VBUS_VOLT);
 }
 
 static enum power_supply_property axp20x_usb_power_properties[] = {
@@ -445,6 +644,16 @@ static enum power_supply_property axp22x_usb_power_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+};
+
+static enum power_supply_property axp717_usb_power_properties[] = {
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_USB_TYPE,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
 static enum power_supply_property axp813_usb_power_properties[] = {
@@ -476,6 +685,20 @@ static const struct power_supply_desc axp22x_usb_power_desc = {
 	.set_property = axp20x_usb_power_set_property,
 };
 
+static const struct power_supply_desc axp717_usb_power_desc = {
+	.name = "axp20x-usb",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = axp717_usb_power_properties,
+	.num_properties = ARRAY_SIZE(axp717_usb_power_properties),
+	.property_is_writeable = axp717_usb_power_prop_writeable,
+	.get_property = axp717_usb_power_get_property,
+	.set_property = axp717_usb_power_set_property,
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
+};
+
 static const struct power_supply_desc axp813_usb_power_desc = {
 	.name = "axp20x-usb",
 	.type = POWER_SUPPLY_TYPE_USB,
@@ -500,6 +723,12 @@ static const char * const axp20x_irq_names[] = {
 static const char * const axp22x_irq_names[] = {
 	"VBUS_PLUGIN",
 	"VBUS_REMOVAL",
+};
+
+static const char * const axp717_irq_names[] = {
+	"VBUS_PLUGIN",
+	"VBUS_REMOVAL",
+	"VBUS_OVER_V",
 };
 
 static int axp192_usb_curr_lim_table[] = {
@@ -587,6 +816,20 @@ static const struct axp_data axp223_data = {
 	.axp20x_read_vbus = &axp20x_usb_power_poll_vbus,
 	.axp20x_cfg_iio_chan = axp20x_configure_iio_channels,
 	.axp20x_cfg_adc_reg = axp20x_configure_adc_registers,
+};
+
+static const struct axp_data axp717_data = {
+	.power_desc     = &axp717_usb_power_desc,
+	.irq_names      = axp717_irq_names,
+	.num_irq_names  = ARRAY_SIZE(axp717_irq_names),
+	.curr_lim_fld   = REG_FIELD(AXP717_INPUT_CUR_LIMIT_CTRL, 0, 5),
+	.usb_bc_en_bit  = REG_FIELD(AXP717_MODULE_EN_CONTROL_1, 4, 4),
+	.usb_bc_det_fld = REG_FIELD(AXP717_BC_DETECT, 5, 7),
+	.vbus_mon_bit   = REG_FIELD(AXP717_ADC_CH_EN_CONTROL, 2, 2),
+	.vbus_needs_polling = false,
+	.axp20x_read_vbus = &axp717_usb_power_poll_vbus,
+	.axp20x_cfg_iio_chan = axp717_configure_iio_channels,
+	.axp20x_cfg_adc_reg = axp717_configure_adc_registers,
 };
 
 static const struct axp_data axp813_data = {
@@ -816,6 +1059,9 @@ static const struct of_device_id axp20x_usb_power_match[] = {
 	}, {
 		.compatible = "x-powers,axp223-usb-power-supply",
 		.data = &axp223_data,
+	}, {
+		.compatible = "x-powers,axp717-usb-power-supply",
+		.data = &axp717_data,
 	}, {
 		.compatible = "x-powers,axp813-usb-power-supply",
 		.data = &axp813_data,
