@@ -219,7 +219,7 @@ void iio_backend_debugfs_add(struct iio_backend *back,
 	snprintf(name, sizeof(name), "backend%d", back->idx);
 
 	back_d = debugfs_create_dir(name, d);
-	if (!back_d)
+	if (IS_ERR(back_d))
 		return;
 
 	if (back->ops->debugfs_reg_access)
