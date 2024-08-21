@@ -39,7 +39,7 @@
 #include <asm/unaligned.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/ufs.h>
+#include "ufs_trace.h"
 
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
 				 UTP_TASK_REQ_COMPL |\
