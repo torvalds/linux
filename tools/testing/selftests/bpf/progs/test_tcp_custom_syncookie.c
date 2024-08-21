@@ -486,17 +486,10 @@ static int tcp_validate_cookie(struct tcp_syncookie *ctx)
 		goto err;
 
 	mssind = (cookie & (3 << 6)) >> 6;
-	if (ctx->ipv4) {
-		if (mssind > ARRAY_SIZE(msstab4))
-			goto err;
-
+	if (ctx->ipv4)
 		ctx->attrs.mss = msstab4[mssind];
-	} else {
-		if (mssind > ARRAY_SIZE(msstab6))
-			goto err;
-
+	else
 		ctx->attrs.mss = msstab6[mssind];
-	}
 
 	ctx->attrs.snd_wscale = cookie & BPF_SYNCOOKIE_WSCALE_MASK;
 	ctx->attrs.rcv_wscale = ctx->attrs.snd_wscale;
