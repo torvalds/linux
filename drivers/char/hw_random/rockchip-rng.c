@@ -52,7 +52,6 @@
 struct rk_rng {
 	struct hwrng rng;
 	void __iomem *base;
-	struct reset_control *rst;
 	int clk_num;
 	struct clk_bulk_data *clk_bulks;
 };
@@ -132,6 +131,7 @@ out:
 static int rk_rng_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct reset_control *rst;
 	struct rk_rng *rk_rng;
 	int ret;
 
@@ -148,14 +148,13 @@ static int rk_rng_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, rk_rng->clk_num,
 				     "Failed to get clks property\n");
 
-	rk_rng->rst = devm_reset_control_array_get_exclusive(&pdev->dev);
-	if (IS_ERR(rk_rng->rst))
-		return dev_err_probe(dev, PTR_ERR(rk_rng->rst),
-				     "Failed to get reset property\n");
+	rst = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(rst))
+		return dev_err_probe(dev, PTR_ERR(rst), "Failed to get reset property\n");
 
-	reset_control_assert(rk_rng->rst);
+	reset_control_assert(rst);
 	udelay(2);
-	reset_control_deassert(rk_rng->rst);
+	reset_control_deassert(rst);
 
 	platform_set_drvdata(pdev, rk_rng);
 
