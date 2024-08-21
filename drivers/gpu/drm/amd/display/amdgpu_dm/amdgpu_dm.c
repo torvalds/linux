@@ -808,6 +808,20 @@ static void dmub_hpd_callback(struct amdgpu_device *adev,
 }
 
 /**
+ * dmub_hpd_sense_callback - DMUB HPD sense processing callback.
+ * @adev: amdgpu_device pointer
+ * @notify: dmub notification structure
+ *
+ * HPD sense changes can occur during low power states and need to be
+ * notified from firmware to driver.
+ */
+static void dmub_hpd_sense_callback(struct amdgpu_device *adev,
+			      struct dmub_notification *notify)
+{
+	DRM_DEBUG_DRIVER("DMUB HPD SENSE callback.\n");
+}
+
+/**
  * register_dmub_notify_callback - Sets callback for DMUB notify
  * @adev: amdgpu_device pointer
  * @type: Type of dmub notification
@@ -3806,6 +3820,12 @@ static int register_hpd_handlers(struct amdgpu_device *adev)
 		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_HPD_IRQ,
 			dmub_hpd_callback, true)) {
 			DRM_ERROR("amdgpu: fail to register dmub hpd callback");
+			return -EINVAL;
+		}
+
+		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_HPD_SENSE_NOTIFY,
+			dmub_hpd_sense_callback, true)) {
+			DRM_ERROR("amdgpu: fail to register dmub hpd sense callback");
 			return -EINVAL;
 		}
 	}
