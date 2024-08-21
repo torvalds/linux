@@ -4537,8 +4537,8 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 	u64 *prog;
 	int err;
 
-	prog = kmemdup(nfp_prog->prog, nfp_prog->prog_len * sizeof(u64),
-		       GFP_KERNEL);
+	prog = kmemdup_array(nfp_prog->prog, nfp_prog->prog_len, sizeof(u64),
+			     GFP_KERNEL);
 	if (!prog)
 		return ERR_PTR(-ENOMEM);
 
