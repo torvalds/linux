@@ -253,8 +253,8 @@ Basic Management
 
 mlocked pages - pages mapped into a VM_LOCKED VMA - are a class of unevictable
 pages.  When such a page has been "noticed" by the memory management subsystem,
-the page is marked with the PG_mlocked flag.  This can be manipulated using the
-PageMlocked() functions.
+the folio is marked with the PG_mlocked flag.  This can be manipulated using
+folio_set_mlocked() and folio_clear_mlocked() functions.
 
 A PG_mlocked page will be placed on the unevictable list when it is added to
 the LRU.  Such pages can be "noticed" by memory management in several places:
