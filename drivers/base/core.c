@@ -98,12 +98,9 @@ static int __fwnode_link_add(struct fwnode_handle *con,
 int fwnode_link_add(struct fwnode_handle *con, struct fwnode_handle *sup,
 		    u8 flags)
 {
-	int ret;
+	guard(mutex)(&fwnode_link_lock);
 
-	mutex_lock(&fwnode_link_lock);
-	ret = __fwnode_link_add(con, sup, flags);
-	mutex_unlock(&fwnode_link_lock);
-	return ret;
+	return __fwnode_link_add(con, sup, flags);
 }
 
 /**
@@ -144,10 +141,10 @@ static void fwnode_links_purge_suppliers(struct fwnode_handle *fwnode)
 {
 	struct fwnode_link *link, *tmp;
 
-	mutex_lock(&fwnode_link_lock);
+	guard(mutex)(&fwnode_link_lock);
+
 	list_for_each_entry_safe(link, tmp, &fwnode->suppliers, c_hook)
 		__fwnode_link_del(link);
-	mutex_unlock(&fwnode_link_lock);
 }
 
 /**
@@ -160,10 +157,10 @@ static void fwnode_links_purge_consumers(struct fwnode_handle *fwnode)
 {
 	struct fwnode_link *link, *tmp;
 
-	mutex_lock(&fwnode_link_lock);
+	guard(mutex)(&fwnode_link_lock);
+
 	list_for_each_entry_safe(link, tmp, &fwnode->consumers, s_hook)
 		__fwnode_link_del(link);
-	mutex_unlock(&fwnode_link_lock);
 }
 
 /**
@@ -1059,20 +1056,16 @@ int device_links_check_suppliers(struct device *dev)
 	 * Device waiting for supplier to become available is not allowed to
 	 * probe.
 	 */
-	mutex_lock(&fwnode_link_lock);
-	sup_fw = fwnode_links_check_suppliers(dev->fwnode);
-	if (sup_fw) {
-		if (!dev_is_best_effort(dev)) {
-			fwnode_ret = -EPROBE_DEFER;
-			dev_err_probe(dev, -EPROBE_DEFER,
-				    "wait for supplier %pfwf\n", sup_fw);
-		} else {
-			fwnode_ret = -EAGAIN;
+	scoped_guard(mutex, &fwnode_link_lock) {
+		sup_fw = fwnode_links_check_suppliers(dev->fwnode);
+		if (sup_fw) {
+			if (dev_is_best_effort(dev))
+				fwnode_ret = -EAGAIN;
+			else
+				return dev_err_probe(dev, -EPROBE_DEFER,
+						     "wait for supplier %pfwf\n", sup_fw);
 		}
 	}
-	mutex_unlock(&fwnode_link_lock);
-	if (fwnode_ret == -EPROBE_DEFER)
-		return fwnode_ret;
 
 	device_links_write_lock();
 
@@ -1247,9 +1240,8 @@ static ssize_t waiting_for_supplier_show(struct device *dev,
 	bool val;
 
 	device_lock(dev);
-	mutex_lock(&fwnode_link_lock);
-	val = !!fwnode_links_check_suppliers(dev->fwnode);
-	mutex_unlock(&fwnode_link_lock);
+	scoped_guard(mutex, &fwnode_link_lock)
+		val = !!fwnode_links_check_suppliers(dev->fwnode);
 	device_unlock(dev);
 	return sysfs_emit(buf, "%u\n", val);
 }
@@ -1322,13 +1314,15 @@ void device_links_driver_bound(struct device *dev)
 	 */
 	if (dev->fwnode && dev->fwnode->dev == dev) {
 		struct fwnode_handle *child;
+
 		fwnode_links_purge_suppliers(dev->fwnode);
-		mutex_lock(&fwnode_link_lock);
+
+		guard(mutex)(&fwnode_link_lock);
+
 		fwnode_for_each_available_child_node(dev->fwnode, child)
 			__fw_devlink_pickup_dangling_consumers(child,
 							       dev->fwnode);
 		__fw_devlink_link_to_consumers(dev);
-		mutex_unlock(&fwnode_link_lock);
 	}
 	device_remove_file(dev, &dev_attr_waiting_for_supplier);
 
@@ -2337,10 +2331,10 @@ static void fw_devlink_link_device(struct device *dev)
 
 	fw_devlink_parse_fwtree(fwnode);
 
-	mutex_lock(&fwnode_link_lock);
+	guard(mutex)(&fwnode_link_lock);
+
 	__fw_devlink_link_to_consumers(dev);
 	__fw_devlink_link_to_suppliers(dev, fwnode);
-	mutex_unlock(&fwnode_link_lock);
 }
 
 /* Device links support end. */
