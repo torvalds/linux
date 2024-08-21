@@ -793,7 +793,7 @@ void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *
 	prt_printf(out, "skipped_accessed:\t%lu\r\n",	bc->skipped_accessed);
 	prt_printf(out, "skipped_lock_fail:\t%lu\r\n",	bc->skipped_lock_fail);
 	prt_newline(out);
-	prt_printf(out, "pending:\t%lu\r\n",		per_cpu_sum(bc->nr_pending));
+	prt_printf(out, "pending:\t%zu\r\n",		per_cpu_sum(bc->nr_pending));
 }
 
 void bch2_btree_key_cache_exit(void)
