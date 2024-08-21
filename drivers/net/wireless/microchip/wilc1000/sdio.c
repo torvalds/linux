@@ -1006,6 +1006,9 @@ static int wilc_sdio_resume(struct device *dev)
 	if (!wilc->initialized)
 		return 0;
 
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_prepare_enable(wilc->rtc_clk);
+
 	wilc_sdio_init(wilc, true);
 	wilc_sdio_enable_interrupt(wilc);
 
