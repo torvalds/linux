@@ -626,6 +626,7 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 
 	/* TODO: ideally we should inherit abi from parent */
 	profile->label.flags |= FLAG_NULL;
+	profile->attach.xmatch = aa_get_pdb(nullpdb);
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
 	rules->file = aa_get_pdb(nullpdb);
 	rules->policy = aa_get_pdb(nullpdb);
