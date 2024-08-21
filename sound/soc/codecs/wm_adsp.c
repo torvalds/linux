@@ -828,7 +828,7 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 		}
 	} else if (asoc_component_prefix) {
 		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
-						   cirrus_dir, "xiaomi-elish",
+						   cirrus_dir, "xiaomi-lmi",
 						   NULL, "wmfw")) {
 			adsp_dbg(dsp, "Found '%s'\n", *wmfw_filename);
 			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
