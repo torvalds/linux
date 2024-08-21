@@ -574,15 +574,10 @@ static __always_inline bool folio_test_swapcache(const struct folio *folio)
 			test_bit(PG_swapcache, const_folio_flags(folio, 0));
 }
 
-static __always_inline bool PageSwapCache(const struct page *page)
-{
-	return folio_test_swapcache(page_folio(page));
-}
-
-SETPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
-CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
+FOLIO_SET_FLAG(swapcache, FOLIO_HEAD_PAGE)
+FOLIO_CLEAR_FLAG(swapcache, FOLIO_HEAD_PAGE)
 #else
-PAGEFLAG_FALSE(SwapCache, swapcache)
+FOLIO_FLAG_FALSE(swapcache)
 #endif
 
 PAGEFLAG(Unevictable, unevictable, PF_HEAD)

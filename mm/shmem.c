@@ -502,8 +502,8 @@ static int shmem_replace_entry(struct address_space *mapping,
  * Sometimes, before we decide whether to proceed or to fail, we must check
  * that an entry was not already brought back from swap by a racing thread.
  *
- * Checking page is not enough: by the time a SwapCache page is locked, it
- * might be reused, and again be SwapCache, using the same swap as before.
+ * Checking folio is not enough: by the time a swapcache folio is locked, it
+ * might be reused, and again be swapcache, using the same swap as before.
  */
 static bool shmem_confirm_swap(struct address_space *mapping,
 			       pgoff_t index, swp_entry_t swap)
@@ -1965,9 +1965,10 @@ static int shmem_replace_folio(struct folio **foliop, gfp_t gfp,
 
 	if (unlikely(error)) {
 		/*
-		 * Is this possible?  I think not, now that our callers check
-		 * both PageSwapCache and page_private after getting page lock;
-		 * but be defensive.  Reverse old to newpage for clear and free.
+		 * Is this possible?  I think not, now that our callers
+		 * check both the swapcache flag and folio->private
+		 * after getting the folio lock; but be defensive.
+		 * Reverse old to newpage for clear and free.
 		 */
 		old = new;
 	} else {
