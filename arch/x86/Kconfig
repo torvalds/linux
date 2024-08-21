@@ -2979,9 +2979,13 @@ config OLPC_XO15_SCI
 	   - AC adapter status updates
 	   - Battery status updates
 
+config GEODE_COMMON
+	bool
+
 config ALIX
 	bool "PCEngines ALIX System Support (LED setup)"
 	select GPIOLIB
+	select GEODE_COMMON
 	help
 	  This option enables system support for the PCEngines ALIX.
 	  At present this just sets up LEDs for GPIO control on
@@ -2996,12 +3000,14 @@ config ALIX
 config NET5501
 	bool "Soekris Engineering net5501 System Support (LEDS, GPIO, etc)"
 	select GPIOLIB
+	select GEODE_COMMON
 	help
 	  This option enables system support for the Soekris Engineering net5501.
 
 config GEOS
 	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
 	select GPIOLIB
+	select GEODE_COMMON
 	depends on DMI
 	help
 	  This option enables system support for the Traverse Technologies GEOS.
