@@ -155,7 +155,7 @@ struct cb_desc {
 enum sw_chnl_cmd_id {
 	cmd_id_end,
 	cmd_id_set_tx_power_level,
-	CmdID_BBRegWrite10,
+	cmd_id_bbreg_write10,
 	CmdID_WritePortUlong,
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
