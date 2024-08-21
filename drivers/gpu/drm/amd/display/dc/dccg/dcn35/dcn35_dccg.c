@@ -1748,10 +1748,6 @@ void dccg35_init(struct dccg *dccg)
 			dccg35_set_dpstreamclk_root_clock_gating(dccg, otg_inst, false);
 		}
 
-	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
-		for (otg_inst = 0; otg_inst < 4; otg_inst++)
-			dccg35_set_dppclk_root_clock_gating(dccg, otg_inst, 0);
-
 /*
 	dccg35_enable_global_fgcg_rep(
 		dccg, dccg->ctx->dc->debug.enable_fine_grain_clock_gating.bits
@@ -2336,6 +2332,14 @@ static void dccg35_disable_symclk_se_cb(
 	/* DMU PHY sequence switches SYMCLK_BE (link_enc_inst) to ref clock once PHY is turned off */
 }
 
+void dccg35_root_gate_disable_control(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating)
+{
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp) {
+		dccg35_set_dppclk_root_clock_gating(dccg, pipe_idx, disable_clock_gating);
+	}
+}
+
 static const struct dccg_funcs dccg35_funcs_new = {
 	.update_dpp_dto = dccg35_update_dpp_dto_cb,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control_cb,
@@ -2396,7 +2400,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,
 	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src,
-
+	.dccg_root_gate_disable_control = dccg35_root_gate_disable_control,
 };
 
 struct dccg *dccg35_create(
