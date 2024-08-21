@@ -395,9 +395,9 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 			/*
 			 * We are here to invalidate read/write requests
 			 * ourselves.  In normal scenario server should
-			 * send INV for all read requests, we do chained local
-			 * invalidate for write requests, but
-			 * we are here, thus two things could happen:
+			 * send INV for all read requests, we do local
+			 * invalidate for write requests ourselves, but
+			 * we are here, thus three things could happen:
 			 *
 			 *    1.  this is failover, when errno != 0
 			 *        and can_wait == 1,
@@ -405,6 +405,9 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 			 *    2.  something totally bad happened and
 			 *        server forgot to send INV, so we
 			 *        should do that ourselves.
+			 *
+			 *    3.  write request finishes, we need to do local
+			 *        invalidate
 			 */
 
 			if (can_wait) {
@@ -1085,7 +1088,6 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 	int ret, count = 0;
 	u32 imm, buf_id;
 	struct ib_reg_wr rwr;
-	struct ib_send_wr inv_wr;
 	struct ib_send_wr *wr = NULL;
 	bool fr_en = false;
 
@@ -1126,13 +1128,6 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 					req->sg_cnt, req->dir);
 			return ret;
 		}
-		inv_wr = (struct ib_send_wr) {
-			.opcode		    = IB_WR_LOCAL_INV,
-			.wr_cqe		    = &req->inv_cqe,
-			.send_flags	    = IB_SEND_SIGNALED,
-			.ex.invalidate_rkey = req->mr->rkey,
-		};
-		req->inv_cqe.done = rtrs_clt_inv_rkey_done;
 		rwr = (struct ib_reg_wr) {
 			.wr.opcode = IB_WR_REG_MR,
 			.wr.wr_cqe = &fast_reg_cqe,
@@ -1142,7 +1137,6 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 		};
 		wr = &rwr.wr;
 		fr_en = true;
-		refcount_inc(&req->ref);
 		req->mr->need_inval = true;
 	}
 	/*
@@ -1153,7 +1147,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 
 	ret = rtrs_post_rdma_write_sg(req->con, req, rbuf, fr_en, count,
 				      req->usr_len + sizeof(*msg),
-				      imm, wr, &inv_wr);
+				      imm, wr, NULL);
 	if (ret) {
 		rtrs_err_rl(s,
 			    "Write request failed: error=%d path=%s [%s:%u]\n",
