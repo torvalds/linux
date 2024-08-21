@@ -50,10 +50,6 @@ struct ftrace_insn {
 	s32 disp;
 } __packed;
 
-#ifdef CONFIG_MODULES
-static char *ftrace_plt;
-#endif /* CONFIG_MODULES */
-
 static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 {
 	const char *tstart, *tend;
@@ -99,7 +95,6 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	if (mod) {
 		next_trampoline = &mod->arch.next_trampoline;
 		trampolines_end = mod->arch.trampolines_end;
-		shared = ftrace_plt;
 	}
 #endif
 
@@ -214,25 +209,6 @@ void ftrace_arch_code_modify_post_process(void)
 	 */
 	text_poke_sync_lock();
 }
-
-#ifdef CONFIG_MODULES
-
-static int __init ftrace_plt_init(void)
-{
-	const char *start, *end;
-
-	ftrace_plt = execmem_alloc(EXECMEM_FTRACE, PAGE_SIZE);
-	if (!ftrace_plt)
-		panic("cannot allocate ftrace plt\n");
-
-	start = ftrace_shared_hotpatch_trampoline(&end);
-	memcpy(ftrace_plt, start, end - start);
-	set_memory_rox((unsigned long)ftrace_plt, 1);
-	return 0;
-}
-device_initcall(ftrace_plt_init);
-
-#endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
