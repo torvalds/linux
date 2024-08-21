@@ -956,12 +956,18 @@ enum pagetype {
 #define folio_test_type(folio, flag)					\
 	((READ_ONCE(folio->page.page_type) & (PAGE_TYPE_BASE | flag))  == PAGE_TYPE_BASE)
 
-static inline int page_type_has_type(unsigned int page_type)
+static inline bool page_type_has_type(int page_type)
 {
-	return (int)page_type < PAGE_MAPCOUNT_RESERVE;
+	return page_type < PAGE_MAPCOUNT_RESERVE;
 }
 
-static inline int page_has_type(const struct page *page)
+/* This takes a mapcount which is one more than page->_mapcount */
+static inline bool page_mapcount_is_type(unsigned int mapcount)
+{
+	return page_type_has_type(mapcount - 1);
+}
+
+static inline bool page_has_type(const struct page *page)
 {
 	return page_type_has_type(READ_ONCE(page->page_type));
 }

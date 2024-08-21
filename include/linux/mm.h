@@ -1228,8 +1228,7 @@ static inline int folio_mapcount(const struct folio *folio)
 
 	if (likely(!folio_test_large(folio))) {
 		mapcount = atomic_read(&folio->_mapcount) + 1;
-		/* Handle page_has_type() pages */
-		if (mapcount < PAGE_MAPCOUNT_RESERVE + 1)
+		if (page_mapcount_is_type(mapcount))
 			mapcount = 0;
 		return mapcount;
 	}
