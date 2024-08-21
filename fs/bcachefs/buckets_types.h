@@ -24,7 +24,7 @@ struct bucket_array {
 	u16			first_bucket;
 	size_t			nbuckets;
 	size_t			nbuckets_minus_first;
-	struct bucket		b[];
+	struct bucket		b[] __counted_by(nbuckets);
 };
 
 struct bucket_gens {
