@@ -26,7 +26,10 @@ MODULE_LICENSE("GPL");
 #define DEFAULT_SESS_QUEUE_DEPTH 512
 #define MAX_HDR_SIZE PAGE_SIZE
 
-static struct rtrs_rdma_dev_pd dev_pd;
+static const struct rtrs_rdma_dev_pd_ops dev_pd_ops;
+static struct rtrs_rdma_dev_pd dev_pd = {
+	.ops = &dev_pd_ops
+};
 const struct class rtrs_dev_class = {
 	.name = "rtrs-server",
 };
@@ -2268,6 +2271,34 @@ static int check_module_params(void)
 
 	return 0;
 }
+
+void rtrs_srv_ib_event_handler(struct ib_event_handler *handler,
+			       struct ib_event *ibevent)
+{
+	pr_info("Handling event: %s (%d).\n", ib_event_msg(ibevent->event),
+		ibevent->event);
+}
+
+static int rtrs_srv_ib_dev_init(struct rtrs_ib_dev *dev)
+{
+	INIT_IB_EVENT_HANDLER(&dev->event_handler, dev->ib_dev,
+			      rtrs_srv_ib_event_handler);
+	ib_register_event_handler(&dev->event_handler);
+
+	return 0;
+}
+
+static void rtrs_srv_ib_dev_deinit(struct rtrs_ib_dev *dev)
+{
+	ib_unregister_event_handler(&dev->event_handler);
+}
+
+
+static const struct rtrs_rdma_dev_pd_ops dev_pd_ops = {
+	.init = rtrs_srv_ib_dev_init,
+	.deinit = rtrs_srv_ib_dev_deinit
+};
+
 
 static int __init rtrs_server_init(void)
 {

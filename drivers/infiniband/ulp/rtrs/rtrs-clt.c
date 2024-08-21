@@ -3149,8 +3149,20 @@ close_path:
 	return err;
 }
 
+void rtrs_clt_ib_event_handler(struct ib_event_handler *handler,
+			       struct ib_event *ibevent)
+{
+	pr_info("Handling event: %s (%d).\n", ib_event_msg(ibevent->event),
+		ibevent->event);
+}
+
+
 static int rtrs_clt_ib_dev_init(struct rtrs_ib_dev *dev)
 {
+	INIT_IB_EVENT_HANDLER(&dev->event_handler, dev->ib_dev,
+			      rtrs_clt_ib_event_handler);
+	ib_register_event_handler(&dev->event_handler);
+
 	if (!(dev->ib_dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		pr_err("Memory registrations not supported.\n");
@@ -3160,8 +3172,15 @@ static int rtrs_clt_ib_dev_init(struct rtrs_ib_dev *dev)
 	return 0;
 }
 
+static void rtrs_clt_ib_dev_deinit(struct rtrs_ib_dev *dev)
+{
+	ib_unregister_event_handler(&dev->event_handler);
+}
+
+
 static const struct rtrs_rdma_dev_pd_ops dev_pd_ops = {
-	.init = rtrs_clt_ib_dev_init
+	.init = rtrs_clt_ib_dev_init,
+	.deinit = rtrs_clt_ib_dev_deinit
 };
 
 static int __init rtrs_client_init(void)
