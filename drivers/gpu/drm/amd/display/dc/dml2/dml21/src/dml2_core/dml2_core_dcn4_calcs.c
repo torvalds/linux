@@ -6887,7 +6887,8 @@ struct dml2_core_internal_g6_temp_read_blackouts_table {
 	} entries[DML_MAX_CLK_TABLE_SIZE];
 };
 
-struct dml2_core_internal_g6_temp_read_blackouts_table core_dcn4_g6_temp_read_blackout_table = {
+static const struct dml2_core_internal_g6_temp_read_blackouts_table
+	core_dcn4_g6_temp_read_blackout_table = {
 	.entries = {
 		{
 			.uclk_khz = 96000,
