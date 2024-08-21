@@ -92,7 +92,7 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
 		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
 	if (page_has_type(&folio->page))
-		pr_warn("page_type: %pGt\n", &folio->page.page_type);
+		pr_warn("page_type: %x\n", folio->page.page_type);
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
