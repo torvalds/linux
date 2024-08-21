@@ -1175,20 +1175,15 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
 #define PAGE_FLAGS_PRIVATE				\
 	(1UL << PG_private | 1UL << PG_private_2)
 /**
- * page_has_private - Determine if page has private stuff
- * @page: The page to be checked
+ * folio_has_private - Determine if folio has private stuff
+ * @folio: The folio to be checked
  *
- * Determine if a page has private stuff, indicating that release routines
+ * Determine if a folio has private stuff, indicating that release routines
  * should be invoked upon it.
  */
-static inline int page_has_private(const struct page *page)
+static inline int folio_has_private(const struct folio *folio)
 {
-	return !!(page->flags & PAGE_FLAGS_PRIVATE);
-}
-
-static inline bool folio_has_private(const struct folio *folio)
-{
-	return page_has_private(&folio->page);
+	return !!(folio->flags & PAGE_FLAGS_PRIVATE);
 }
 
 #undef PF_ANY
