@@ -850,12 +850,19 @@ static int msm_ssphy_qmp_notify_disconnect(struct usb_phy *uphy,
 {
 	struct msm_ssphy_qmp *phy = container_of(uphy, struct msm_ssphy_qmp,
 					phy);
+	bool clk_enabled = phy->clk_enabled;
 
 	atomic_notifier_call_chain(&uphy->notifier, 0, uphy);
 	if (phy->phy.flags & PHY_HOST_MODE) {
+		if (!clk_enabled)
+			msm_ssphy_qmp_enable_clks(phy, true);
+
 		writel_relaxed(0x00,
 			phy->base + phy->phy_reg[USB3_PHY_POWER_DOWN_CONTROL]);
 		readl_relaxed(phy->base + phy->phy_reg[USB3_PHY_POWER_DOWN_CONTROL]);
+
+		if (!clk_enabled)
+			msm_ssphy_qmp_enable_clks(phy, false);
 	}
 
 	dev_dbg(uphy->dev, "QMP phy disconnect notification\n");
