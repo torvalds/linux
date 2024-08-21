@@ -8,12 +8,12 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  */
 
+#include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_data/gpio-ath79.h>
 #include <linux/platform_device.h>
 
@@ -239,12 +239,12 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (np) {
-		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
+		err = device_property_read_u32(dev, "ngpios", &ath79_gpio_count);
 		if (err) {
 			dev_err(dev, "ngpios property is not valid\n");
 			return err;
 		}
-		oe_inverted = of_device_is_compatible(np, "qca,ar9340-gpio");
+		oe_inverted = device_is_compatible(dev, "qca,ar9340-gpio");
 	} else if (pdata) {
 		ath79_gpio_count = pdata->ngpios;
 		oe_inverted = pdata->oe_inverted;
@@ -276,7 +276,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Optional interrupt setup */
-	if (!np || of_property_read_bool(np, "interrupt-controller")) {
+	if (device_property_read_bool(dev, "interrupt-controller")) {
 		girq = &ctrl->gc.irq;
 		gpio_irq_chip_set_chip(girq, &ath79_gpio_irqchip);
 		girq->parent_handler = ath79_gpio_irq_handler;
