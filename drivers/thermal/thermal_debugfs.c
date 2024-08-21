@@ -178,11 +178,11 @@ struct thermal_debugfs {
 void thermal_debug_init(void)
 {
 	d_root = debugfs_create_dir("thermal", NULL);
-	if (!d_root)
+	if (IS_ERR(d_root))
 		return;
 
 	d_cdev = debugfs_create_dir("cooling_devices", d_root);
-	if (!d_cdev)
+	if (IS_ERR(d_cdev))
 		return;
 
 	d_tz = debugfs_create_dir("thermal_zones", d_root);
@@ -202,7 +202,7 @@ static struct thermal_debugfs *thermal_debugfs_add_id(struct dentry *d, int id)
 	snprintf(ids, IDSLENGTH, "%d", id);
 
 	thermal_dbg->d_top = debugfs_create_dir(ids, d);
-	if (!thermal_dbg->d_top) {
+	if (IS_ERR(thermal_dbg->d_top)) {
 		kfree(thermal_dbg);
 		return NULL;
 	}
