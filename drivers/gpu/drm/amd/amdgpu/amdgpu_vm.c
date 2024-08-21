@@ -1169,6 +1169,12 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 				     AMDGPU_SYNC_EQ_OWNER, vm);
 		if (r)
 			goto error_free;
+		if (bo) {
+			r = amdgpu_sync_kfd(&sync, bo->tbo.base.resv);
+			if (r)
+				goto error_free;
+		}
+
 	} else {
 		struct drm_gem_object *obj = &bo->tbo.base;
 
