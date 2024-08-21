@@ -673,6 +673,9 @@ postcore_initcall(devlink_class_init);
  * @supplier: Supplier end of the link.
  * @flags: Link flags.
  *
+ * Return: On success, a device_link struct will be returned.
+ *         On error or invalid flag settings, NULL will be returned.
+ *
  * The caller is responsible for the proper synchronization of the link creation
  * with runtime PM.  First, setting the DL_FLAG_PM_RUNTIME flag will cause the
  * runtime PM framework to take the link into account.  Second, if the
