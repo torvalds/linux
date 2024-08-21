@@ -9,7 +9,7 @@
 #include "dml2_debug.h"
 #include "lib_float_math.h"
 
-struct dml2_core_ip_params core_dcn4_ip_caps_base = {
+static const struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	// Hardcoded values for DCN3x
 	.vblank_nom_default_us = 668,
 	.remote_iommu_outstanding_translations = 256,
