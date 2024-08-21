@@ -556,14 +556,14 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 						  0, 0, 0);
 		_rtl92e_phy_set_sw_chnl_cmd_array(dev, ieee->PreCommonCmd,
 						  PreCommonCmdCnt++,
-						  MAX_PRECMD_CNT, CmdID_End,
+						  MAX_PRECMD_CNT, cmd_id_end,
 						  0, 0, 0);
 
 		PostCommonCmdCnt = 0;
 
 		_rtl92e_phy_set_sw_chnl_cmd_array(dev, ieee->PostCommonCmd,
 						  PostCommonCmdCnt++,
-						  MAX_POSTCMD_CNT, CmdID_End,
+						  MAX_POSTCMD_CNT, cmd_id_end,
 						  0, 0, 0);
 
 		RfDependCmdCnt = 0;
@@ -585,7 +585,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 						  ieee->RfDependCmd,
 						  RfDependCmdCnt++,
 						  MAX_RFDEPENDCMD_CNT,
-						  CmdID_End, 0, 0, 0);
+						  cmd_id_end, 0, 0, 0);
 
 		do {
 			switch (*stage) {
@@ -600,7 +600,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			}
 
-			if (CurrentCmd && CurrentCmd->CmdID == CmdID_End) {
+			if (CurrentCmd && CurrentCmd->CmdID == cmd_id_end) {
 				if ((*stage) == 2)
 					return true;
 				(*stage)++;
