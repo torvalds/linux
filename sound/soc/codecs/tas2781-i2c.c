@@ -582,13 +582,13 @@ static const struct snd_soc_dapm_widget tasdevice_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SPK("SPK", tasdevice_dapm_event),
 	SND_SOC_DAPM_OUTPUT("OUT"),
-	SND_SOC_DAPM_INPUT("DMIC")
+	SND_SOC_DAPM_INPUT("DMIC"),
 };
 
 static const struct snd_soc_dapm_route tasdevice_audio_map[] = {
 	{"SPK", NULL, "ASI"},
 	{"OUT", NULL, "SPK"},
-	{"ASI OUT", NULL, "DMIC"}
+	{"ASI OUT", NULL, "DMIC"},
 };
 
 static int tasdevice_startup(struct snd_pcm_substream *substream,
@@ -730,8 +730,7 @@ static void tasdevice_deinit(void *context)
 	tas_priv->fw_state = TASDEVICE_DSP_FW_PENDING;
 }
 
-static void tasdevice_codec_remove(
-	struct snd_soc_component *codec)
+static void tasdevice_codec_remove(struct snd_soc_component *codec)
 {
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
