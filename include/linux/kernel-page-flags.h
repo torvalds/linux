@@ -10,7 +10,7 @@
  */
 #define KPF_RESERVED		32
 #define KPF_MLOCKED		33
-#define KPF_MAPPEDTODISK	34
+#define KPF_OWNER_2		34
 #define KPF_PRIVATE		35
 #define KPF_PRIVATE_2		36
 #define KPF_OWNER_PRIVATE	37

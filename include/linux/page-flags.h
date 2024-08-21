@@ -101,12 +101,12 @@ enum pageflags {
 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
 	PG_active,
 	PG_workingset,
-	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
+	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use */
+	PG_owner_2,		/* Owner use. If pagecache, fs may use */
 	PG_arch_1,
 	PG_reserved,
 	PG_private,		/* If pagecache, has fs-private data */
 	PG_private_2,		/* If pagecache, has fs aux data */
-	PG_mappedtodisk,	/* Has blocks allocated on-disk */
 	PG_reclaim,		/* To be reclaimed asap */
 	PG_swapbacked,		/* Page is backed by RAM/swap */
 	PG_unevictable,		/* Page is "unevictable"  */
@@ -131,6 +131,11 @@ enum pageflags {
 
 	PG_readahead = PG_reclaim,
 
+	/* Anonymous memory (and shmem) */
+	PG_swapcache = PG_owner_priv_1, /* Swap page: swp_entry_t in private */
+	/* Some filesystems */
+	PG_checked = PG_owner_priv_1,
+
 	/*
 	 * Depending on the way an anonymous folio can be mapped into a page
 	 * table (e.g., single PMD/PUD/CONT of the head page vs. PTE-mapped
@@ -138,13 +143,13 @@ enum pageflags {
 	 * tail pages of an anonymous folio. For now, we only expect it to be
 	 * set on tail pages for PTE-mapped THP.
 	 */
-	PG_anon_exclusive = PG_mappedtodisk,
+	PG_anon_exclusive = PG_owner_2,
 
-	/* Filesystems */
-	PG_checked = PG_owner_priv_1,
-
-	/* SwapBacked */
-	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
+	/*
+	 * Set if all buffer heads in the folio are mapped.
+	 * Filesystems which do not use BHs can use it for their own purpose.
+	 */
+	PG_mappedtodisk = PG_owner_2,
 
 	/* Two page bits are conscripted by FS-Cache to maintain local caching
 	 * state.  These bits are set on pages belonging to the netfs's inodes
@@ -539,6 +544,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
  */
 PAGEFLAG(Private, private, PF_ANY)
 PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
+
+/* owner_2 can be set on tail pages for anon memory */
+FOLIO_FLAG(owner_2, FOLIO_HEAD_PAGE)
 
 /*
  * Only test-and-set exist for PG_writeback.  The unconditional operators are
