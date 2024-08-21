@@ -471,8 +471,8 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
-		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
-			  V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
+		drm_err(drm, "V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
+			V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
 		ret = -EINVAL;
 		goto err_put_runtime_pm;
 	}
@@ -485,7 +485,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vc4_irq_install(drm, vc4->irq);
 	if (ret) {
-		DRM_ERROR("Failed to install IRQ handler\n");
+		drm_err(drm, "Failed to install IRQ handler\n");
 		goto err_put_runtime_pm;
 	}
 
