@@ -1,4 +1,5 @@
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -6,15 +7,21 @@
 #include <linux/pinctrl/devinfo.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-#define MAX_NUM_REGULATORS	8
-
-static struct vreg {
+struct vreg {
 	const char *name;
 	unsigned int load_uA;
-} vregs [MAX_NUM_REGULATORS] = {
+};
+
+struct qca_cfg_data {
+	const struct vreg *vregs;
+	size_t num_vregs;
+};
+
+static const struct vreg qca6390_vregs[] = {
 	/* 2.0 V */
 	{ "vddpcie2", 15000 },
 	{ "vddrfa3", 400000 },
@@ -32,19 +39,25 @@ static struct vreg {
 	{ "vddio", 20000 },
 };
 
-struct qca639x_data {
-	struct regulator_bulk_data regulators[MAX_NUM_REGULATORS];
-	size_t num_vregs;
-	struct device *dev;
-	struct pinctrl_state *active_state;
-	struct generic_pm_domain pd;
+static const struct qca_cfg_data qca6390_cfg_data = {
+	.vregs = qca6390_vregs,
+	.num_vregs = ARRAY_SIZE(qca6390_vregs),
 };
 
-#define domain_to_data(domain) container_of(domain, struct qca639x_data, pd)
+struct qca_data {
+	size_t num_vregs;
+	struct device *dev;
+	struct generic_pm_domain pd;
+	struct gpio_desc *wlan_en_gpio;
+	struct gpio_desc *bt_en_gpio;
+	struct regulator_bulk_data regulators[];
+};
 
-static int qca639x_power_on(struct generic_pm_domain *domain)
+#define domain_to_data(domain) container_of(domain, struct qca_data, pd)
+
+static int qca_power_on(struct generic_pm_domain *domain)
 {
-	struct qca639x_data *data = domain_to_data(domain);
+	struct qca_data *data = domain_to_data(domain);
 	int ret;
 
 	dev_warn(&domain->dev, "DUMMY POWER ON\n");
@@ -58,11 +71,10 @@ static int qca639x_power_on(struct generic_pm_domain *domain)
 	/* Wait for 1ms before toggling enable pins. */
 	msleep(1);
 
-	ret = pinctrl_select_state(data->dev->pins->p, data->active_state);
-	if (ret) {
-		dev_err(data->dev, "Failed to select active state");
-		return ret;
-	}
+	if (data->wlan_en_gpio)
+		gpiod_set_value(data->wlan_en_gpio, 1);
+	if (data->bt_en_gpio)
+		gpiod_set_value(data->bt_en_gpio, 1);
 
 	/* Wait for all power levels to stabilize */
 	msleep(6);
@@ -70,56 +82,66 @@ static int qca639x_power_on(struct generic_pm_domain *domain)
 	return 0;
 }
 
-static int qca639x_power_off(struct generic_pm_domain *domain)
+static int qca_power_off(struct generic_pm_domain *domain)
 {
-	struct qca639x_data *data = domain_to_data(domain);
+	struct qca_data *data = domain_to_data(domain);
 
 	dev_warn(&domain->dev, "DUMMY POWER OFF\n");
 
-	pinctrl_select_default_state(data->dev);
+	if (data->wlan_en_gpio)
+		gpiod_set_value(data->wlan_en_gpio, 0);
+	if (data->bt_en_gpio)
+		gpiod_set_value(data->bt_en_gpio, 0);
+
 	regulator_bulk_disable(data->num_vregs, data->regulators);
 
 	return 0;
 }
 
-static int qca639x_probe(struct platform_device *pdev)
+static int qca_probe(struct platform_device *pdev)
 {
-	struct qca639x_data *data;
+	const struct qca_cfg_data *cfg;
+	struct qca_data *data;
 	struct device *dev = &pdev->dev;
 	int i, ret;
+
+	cfg = device_get_match_data(&pdev->dev);
+	if (!cfg)
+		return -EINVAL;
 
 	if (!dev->pins || IS_ERR_OR_NULL(dev->pins->default_state))
 		return -EINVAL;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, struct_size(data, regulators, cfg->num_vregs), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	data->dev = dev;
-	data->num_vregs = ARRAY_SIZE(vregs);
-
-	data->active_state = pinctrl_lookup_state(dev->pins->p, "active");
-	if (IS_ERR(data->active_state)) {
-		ret = PTR_ERR(data->active_state);
-		dev_err(dev, "Failed to get active_state: %d\n", ret);
-		return ret;
-	}
+	data->num_vregs = cfg->num_vregs;
 
 	for (i = 0; i < data->num_vregs; i++)
-		data->regulators[i].supply = vregs[i].name;
+		data->regulators[i].supply = cfg->vregs[i].name;
 	ret = devm_regulator_bulk_get(dev, data->num_vregs, data->regulators);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < data->num_vregs; i++) {
-		ret = regulator_set_load(data->regulators[i].consumer, vregs[i].load_uA);
+		ret = regulator_set_load(data->regulators[i].consumer, cfg->vregs[i].load_uA);
 		if (ret)
 			return ret;
 	}
 
+	data->wlan_en_gpio = devm_gpiod_get_optional(&pdev->dev, "wlan-en", GPIOD_OUT_LOW);
+	if (IS_ERR(data->wlan_en_gpio))
+		return PTR_ERR(data->wlan_en_gpio);
+
+	data->bt_en_gpio = devm_gpiod_get_optional(&pdev->dev, "bt-en", GPIOD_OUT_LOW);
+	if (IS_ERR(data->bt_en_gpio))
+		return PTR_ERR(data->bt_en_gpio);
+
 	data->pd.name = dev_name(dev);
-	data->pd.power_on = qca639x_power_on;
-	data->pd.power_off = qca639x_power_off;
+	data->pd.power_on = qca_power_on;
+	data->pd.power_off = qca_power_off;
 
 	ret = pm_genpd_init(&data->pd, NULL, true);
 	if (ret < 0)
@@ -136,27 +158,28 @@ static int qca639x_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qca639x_remove(struct platform_device *pdev)
+static int qca_remove(struct platform_device *pdev)
 {
-	struct qca639x_data *data = platform_get_drvdata(pdev);
+	struct qca_data *data = platform_get_drvdata(pdev);
 
 	pm_genpd_remove(&data->pd);
 
 	return 0;
 }
 
-static const struct of_device_id qca639x_of_match[] = {
-	{ .compatible = "qcom,qca639x" },
+static const struct of_device_id qca_of_match[] = {
+	{ .compatible = "qcom,qca6390", .data = &qca6390_cfg_data },
+	{ },
 };
 
-static struct platform_driver qca639x_driver = {
-	.probe = qca639x_probe,
-	.remove = qca639x_remove,
+static struct platform_driver qca_driver = {
+	.probe = qca_probe,
+	.remove = qca_remove,
 	.driver = {
 		.name = "qca639x",
-		.of_match_table = qca639x_of_match,
+		.of_match_table = qca_of_match,
 	},
 };
 
-module_platform_driver(qca639x_driver);
+module_platform_driver(qca_driver);
 MODULE_LICENSE("GPL v2");
