@@ -382,6 +382,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 		tsr->type = state->regs[src->reg1].type;
 		tsr->kind = state->regs[src->reg1].kind;
+		tsr->imm_value = state->regs[src->reg1].imm_value;
 		tsr->ok = true;
 
 		pr_debug_dtp("mov [%x] reg%d -> reg%d",
