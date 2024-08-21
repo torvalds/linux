@@ -616,7 +616,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 					_rtl92e_set_tx_power_level(dev,
 								   channel);
 				break;
-			case CmdID_WritePortUlong:
+			case cmd_id_write_port_ulong:
 				rtl92e_writel(dev, CurrentCmd->Para1,
 					      CurrentCmd->Para2);
 				break;

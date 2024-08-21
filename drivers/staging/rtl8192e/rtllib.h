@@ -156,7 +156,7 @@ enum sw_chnl_cmd_id {
 	cmd_id_end,
 	cmd_id_set_tx_power_level,
 	cmd_id_bbreg_write10,
-	CmdID_WritePortUlong,
+	cmd_id_write_port_ulong,
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
 	CmdID_RF_WriteReg,
