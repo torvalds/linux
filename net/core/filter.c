@@ -1265,8 +1265,8 @@ static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 	 * so we need to keep the user BPF around until the 2nd
 	 * pass. At this time, the user BPF is stored in fp->insns.
 	 */
-	old_prog = kmemdup(fp->insns, old_len * sizeof(struct sock_filter),
-			   GFP_KERNEL | __GFP_NOWARN);
+	old_prog = kmemdup_array(fp->insns, old_len, sizeof(struct sock_filter),
+				 GFP_KERNEL | __GFP_NOWARN);
 	if (!old_prog) {
 		err = -ENOMEM;
 		goto out_err;
