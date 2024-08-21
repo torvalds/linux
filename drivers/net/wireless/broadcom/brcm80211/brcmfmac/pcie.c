@@ -2711,6 +2711,7 @@ static struct pci_driver brcmf_pciedrvr = {
 	.id_table = brcmf_pcie_devid_table,
 	.probe = brcmf_pcie_probe,
 	.remove = brcmf_pcie_remove,
+	.shutdown = brcmf_pcie_remove,
 #ifdef CONFIG_PM
 	.driver.pm = &brcmf_pciedrvr_pm,
 #endif
