@@ -765,15 +765,7 @@ struct thermal_zone_device *thermal_zone_get_by_id(int id)
  * @tz:		pointer to struct thermal_zone_device
  * @trip:	trip point the cooling devices is associated with in this zone.
  * @cdev:	pointer to struct thermal_cooling_device
- * @upper:	the Maximum cooling state for this trip point.
- *		THERMAL_NO_LIMIT means no upper limit,
- *		and the cooling device can be in max_state.
- * @lower:	the Minimum cooling state can be used for this trip point.
- *		THERMAL_NO_LIMIT means no lower limit,
- *		and the cooling device can be in cooling state 0.
- * @weight:	The weight of the cooling device to be bound to the
- *		thermal zone. Use THERMAL_WEIGHT_DEFAULT for the
- *		default value
+ * @cool_spec:	cooling specification for @trip and @cdev
  *
  * This interface function bind a thermal cooling device to the certain trip
  * point of a thermal zone device.
@@ -784,8 +776,7 @@ struct thermal_zone_device *thermal_zone_get_by_id(int id)
 static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 				     const struct thermal_trip *trip,
 				     struct thermal_cooling_device *cdev,
-				     unsigned long upper, unsigned long lower,
-				     unsigned int weight)
+				     struct cooling_spec *cool_spec)
 {
 	struct thermal_instance *dev;
 	struct thermal_instance *pos;
@@ -799,17 +790,17 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 		return -EINVAL;
 
 	/* lower default 0, upper default max_state */
-	if (lower == THERMAL_NO_LIMIT)
-		lower = 0;
+	if (cool_spec->lower == THERMAL_NO_LIMIT)
+		cool_spec->lower = 0;
 
-	if (upper == THERMAL_NO_LIMIT) {
-		upper = cdev->max_state;
+	if (cool_spec->upper == THERMAL_NO_LIMIT) {
+		cool_spec->upper = cdev->max_state;
 		upper_no_limit = true;
 	} else {
 		upper_no_limit = false;
 	}
 
-	if (lower > upper || upper > cdev->max_state)
+	if (cool_spec->lower > cool_spec->upper || cool_spec->upper > cdev->max_state)
 		return -EINVAL;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -818,11 +809,11 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	dev->tz = tz;
 	dev->cdev = cdev;
 	dev->trip = trip;
-	dev->upper = upper;
+	dev->upper = cool_spec->upper;
 	dev->upper_no_limit = upper_no_limit;
-	dev->lower = lower;
+	dev->lower = cool_spec->lower;
 	dev->target = THERMAL_NO_TARGET;
-	dev->weight = weight;
+	dev->weight = cool_spec->weight;
 
 	result = ida_alloc(&tz->ida, GFP_KERNEL);
 	if (result < 0)
@@ -895,12 +886,10 @@ free_mem:
  * This interface function unbind a thermal cooling device from the certain
  * trip point of a thermal zone device.
  * This function is usually called in the thermal zone device .unbind callback.
- *
- * Return: 0 on success, the proper error value otherwise.
  */
-static int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
-					 const struct thermal_trip *trip,
-					 struct thermal_cooling_device *cdev)
+static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
+					  const struct thermal_trip *trip,
+					  struct thermal_cooling_device *cdev)
 {
 	struct thermal_instance *pos, *next;
 
@@ -920,7 +909,7 @@ static int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 	}
 	mutex_unlock(&cdev->lock);
 
-	return -ENODEV;
+	return;
 
 unbind:
 	device_remove_file(&tz->device, &pos->weight_attr);
@@ -928,7 +917,6 @@ unbind:
 	sysfs_remove_link(&tz->device.kobj, pos->name);
 	ida_free(&tz->ida, pos->id);
 	kfree(pos);
-	return 0;
 }
 
 static void thermal_release(struct device *dev)
@@ -967,7 +955,6 @@ static void thermal_zone_cdev_binding(struct thermal_zone_device *tz,
 				      struct thermal_cooling_device *cdev)
 {
 	struct thermal_trip_desc *td;
-	int ret;
 
 	if (!tz->ops.should_bind)
 		return;
@@ -981,13 +968,14 @@ static void thermal_zone_cdev_binding(struct thermal_zone_device *tz,
 			.lower = THERMAL_NO_LIMIT,
 			.weight = THERMAL_WEIGHT_DEFAULT
 		};
+		int ret;
 
-		if (tz->ops.should_bind(tz, trip, cdev, &c)) {
-			ret = thermal_bind_cdev_to_trip(tz, trip, cdev, c.upper,
-							c.lower, c.weight);
-			if (ret)
-				print_bind_err_msg(tz, trip, cdev, ret);
-		}
+		if (!tz->ops.should_bind(tz, trip, cdev, &c))
+			continue;
+
+		ret = thermal_bind_cdev_to_trip(tz, trip, cdev, &c);
+		if (ret)
+			print_bind_err_msg(tz, trip, cdev, ret);
 	}
 
 	mutex_unlock(&tz->lock);
