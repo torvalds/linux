@@ -478,7 +478,7 @@
 		ranges = <0x0 0x0 0x00100000 0x1c000>;
 
 		serdes0_clk: clock@4080 {
-			compatible = "ti,am654-serdes-ctrl", "syscon";
+			compatible = "ti,am654-serdes-ctrl", "syscon", "simple-mfd";
 			reg = <0x4080 0x4>;
 
 			serdes0_mux: mux-controller {
@@ -489,7 +489,7 @@
 		};
 
 		serdes1_clk: clock@4090 {
-			compatible = "ti,am654-serdes-ctrl", "syscon";
+			compatible = "ti,am654-serdes-ctrl", "syscon", "simple-mfd";
 			reg = <0x4090 0x4>;
 
 			serdes1_mux: mux-controller {
