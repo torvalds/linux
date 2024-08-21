@@ -141,13 +141,12 @@ bpf_testmod_test_mod_kfunc(int i)
 
 __bpf_kfunc int bpf_iter_testmod_seq_new(struct bpf_iter_testmod_seq *it, s64 value, int cnt)
 {
-	if (cnt < 0) {
-		it->cnt = 0;
+	it->cnt = cnt;
+
+	if (cnt < 0)
 		return -EINVAL;
-	}
 
 	it->value = value;
-	it->cnt = cnt;
 
 	return 0;
 }
@@ -160,6 +159,14 @@ __bpf_kfunc s64 *bpf_iter_testmod_seq_next(struct bpf_iter_testmod_seq* it)
 	it->cnt--;
 
 	return &it->value;
+}
+
+__bpf_kfunc s64 bpf_iter_testmod_seq_value(int val, struct bpf_iter_testmod_seq* it__iter)
+{
+	if (it__iter->cnt < 0)
+		return 0;
+
+	return val + it__iter->value;
 }
 
 __bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
@@ -531,6 +538,7 @@ BTF_KFUNCS_START(bpf_testmod_common_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_value)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
 BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
