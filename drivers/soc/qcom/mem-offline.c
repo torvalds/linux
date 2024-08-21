@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/memory.h>
@@ -477,7 +477,7 @@ static unsigned long get_section_allocated_memory(unsigned long sec_nr)
 {
 	unsigned long block_sz = memory_block_size_bytes();
 	unsigned long pages_per_blk = block_sz / PAGE_SIZE;
-	unsigned long tot_free_pages = 0, pfn, end_pfn, flags;
+	unsigned long tot_free_pages = 0, pfn, end_pfn;
 	unsigned long used;
 	struct zone *movable_zone = &NODE_DATA(numa_node_id())->node_zones[ZONE_MOVABLE];
 	struct page *page;
@@ -491,7 +491,6 @@ static unsigned long get_section_allocated_memory(unsigned long sec_nr)
 	if (!zone_intersects(movable_zone, pfn, pages_per_blk))
 		return 0;
 
-	spin_lock_irqsave(&movable_zone->lock, flags);
 	while (pfn < end_pfn) {
 		if (!pfn_valid(pfn) || !PageBuddy(pfn_to_page(pfn))) {
 			pfn++;
@@ -501,7 +500,6 @@ static unsigned long get_section_allocated_memory(unsigned long sec_nr)
 		tot_free_pages += 1 << page_private(page);
 		pfn += 1 << page_private(page);
 	}
-	spin_unlock_irqrestore(&movable_zone->lock, flags);
 
 	used = block_sz - (tot_free_pages * PAGE_SIZE);
 
