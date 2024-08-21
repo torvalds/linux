@@ -977,6 +977,9 @@ static int wilc_sdio_suspend(struct device *dev)
 
 	dev_info(dev, "sdio suspend\n");
 
+	if (!wilc->initialized)
+		return 0;
+
 	if (!IS_ERR(wilc->rtc_clk))
 		clk_disable_unprepare(wilc->rtc_clk);
 
@@ -999,6 +1002,10 @@ static int wilc_sdio_resume(struct device *dev)
 	struct wilc *wilc = sdio_get_drvdata(func);
 
 	dev_info(dev, "sdio resume\n");
+
+	if (!wilc->initialized)
+		return 0;
+
 	wilc_sdio_init(wilc, true);
 	wilc_sdio_enable_interrupt(wilc);
 
