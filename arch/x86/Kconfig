@@ -1799,6 +1799,7 @@ config X86_PAT
 	def_bool y
 	prompt "x86 PAT support" if EXPERT
 	depends on MTRR
+	select ARCH_USES_PG_ARCH_2
 	help
 	  Use PAT attributes to setup page level cache control.
 
@@ -1809,10 +1810,6 @@ config X86_PAT
 	  spontaneous reboots) or a non-working video driver.
 
 	  If unsure, say Y.
-
-config ARCH_USES_PG_UNCACHED
-	def_bool y
-	depends on X86_PAT
 
 config X86_UMIP
 	def_bool y

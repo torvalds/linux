@@ -71,12 +71,6 @@
 #define IF_HAVE_PG_MLOCK(_name)
 #endif
 
-#ifdef CONFIG_ARCH_USES_PG_UNCACHED
-#define IF_HAVE_PG_UNCACHED(_name) ,{1UL << PG_##_name, __stringify(_name)}
-#else
-#define IF_HAVE_PG_UNCACHED(_name)
-#endif
-
 #ifdef CONFIG_MEMORY_FAILURE
 #define IF_HAVE_PG_HWPOISON(_name) ,{1UL << PG_##_name, __stringify(_name)}
 #else
@@ -89,10 +83,16 @@
 #define IF_HAVE_PG_IDLE(_name)
 #endif
 
-#ifdef CONFIG_ARCH_USES_PG_ARCH_X
-#define IF_HAVE_PG_ARCH_X(_name) ,{1UL << PG_##_name, __stringify(_name)}
+#ifdef CONFIG_ARCH_USES_PG_ARCH_2
+#define IF_HAVE_PG_ARCH_2(_name) ,{1UL << PG_##_name, __stringify(_name)}
 #else
-#define IF_HAVE_PG_ARCH_X(_name)
+#define IF_HAVE_PG_ARCH_2(_name)
+#endif
+
+#ifdef CONFIG_ARCH_USES_PG_ARCH_3
+#define IF_HAVE_PG_ARCH_3(_name) ,{1UL << PG_##_name, __stringify(_name)}
+#else
+#define IF_HAVE_PG_ARCH_3(_name)
 #endif
 
 #define DEF_PAGEFLAG_NAME(_name) { 1UL <<  PG_##_name, __stringify(_name) }
@@ -118,12 +118,11 @@
 	DEF_PAGEFLAG_NAME(swapbacked),					\
 	DEF_PAGEFLAG_NAME(unevictable)					\
 IF_HAVE_PG_MLOCK(mlocked)						\
-IF_HAVE_PG_UNCACHED(uncached)						\
 IF_HAVE_PG_HWPOISON(hwpoison)						\
 IF_HAVE_PG_IDLE(idle)							\
 IF_HAVE_PG_IDLE(young)							\
-IF_HAVE_PG_ARCH_X(arch_2)						\
-IF_HAVE_PG_ARCH_X(arch_3)
+IF_HAVE_PG_ARCH_2(arch_2)						\
+IF_HAVE_PG_ARCH_3(arch_3)
 
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\

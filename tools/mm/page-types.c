@@ -76,7 +76,7 @@
 #define KPF_PRIVATE_2		36
 #define KPF_OWNER_PRIVATE	37
 #define KPF_ARCH		38
-#define KPF_UNCACHED		39
+#define KPF_UNCACHED		39	/* unused */
 #define KPF_SOFTDIRTY		40
 #define KPF_ARCH_2		41
 
@@ -134,7 +134,6 @@ static const char * const page_flag_names[] = {
 	[KPF_PRIVATE_2]		= "p:private_2",
 	[KPF_OWNER_PRIVATE]	= "O:owner_private",
 	[KPF_ARCH]		= "h:arch",
-	[KPF_UNCACHED]		= "c:uncached",
 	[KPF_SOFTDIRTY]		= "f:softdirty",
 	[KPF_ARCH_2]		= "H:arch_2",
 

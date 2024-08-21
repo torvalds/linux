@@ -113,9 +113,6 @@ enum pageflags {
 #ifdef CONFIG_MMU
 	PG_mlocked,		/* Page is vma mlocked */
 #endif
-#ifdef CONFIG_ARCH_USES_PG_UNCACHED
-	PG_uncached,		/* Page has been mapped as uncached */
-#endif
 #ifdef CONFIG_MEMORY_FAILURE
 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
 #endif
@@ -123,8 +120,10 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
-#ifdef CONFIG_ARCH_USES_PG_ARCH_X
+#ifdef CONFIG_ARCH_USES_PG_ARCH_2
 	PG_arch_2,
+#endif
+#ifdef CONFIG_ARCH_USES_PG_ARCH_3
 	PG_arch_3,
 #endif
 	__NR_PAGEFLAGS,
@@ -600,12 +599,6 @@ FOLIO_FLAG_FALSE(mlocked)
 	__FOLIO_CLEAR_FLAG_NOOP(mlocked)
 	FOLIO_TEST_CLEAR_FLAG_FALSE(mlocked)
 	FOLIO_TEST_SET_FLAG_FALSE(mlocked)
-#endif
-
-#ifdef CONFIG_ARCH_USES_PG_UNCACHED
-PAGEFLAG(Uncached, uncached, PF_NO_COMPOUND)
-#else
-PAGEFLAG_FALSE(Uncached, uncached)
 #endif
 
 #ifdef CONFIG_MEMORY_FAILURE

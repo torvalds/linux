@@ -2100,7 +2100,8 @@ config ARM64_MTE
 	depends on ARM64_PAN
 	select ARCH_HAS_SUBPAGE_FAULTS
 	select ARCH_USES_HIGH_VMA_FLAGS
-	select ARCH_USES_PG_ARCH_X
+	select ARCH_USES_PG_ARCH_2
+	select ARCH_USES_PG_ARCH_3
 	help
 	  Memory Tagging (part of the ARMv8.5 Extensions) provides
 	  architectural support for run-time, always-on detection of

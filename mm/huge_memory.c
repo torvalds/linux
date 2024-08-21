@@ -2993,8 +2993,10 @@ static void __split_huge_page_tail(struct folio *folio, int tail,
 			 (1L << PG_workingset) |
 			 (1L << PG_locked) |
 			 (1L << PG_unevictable) |
-#ifdef CONFIG_ARCH_USES_PG_ARCH_X
+#ifdef CONFIG_ARCH_USES_PG_ARCH_2
 			 (1L << PG_arch_2) |
+#endif
+#ifdef CONFIG_ARCH_USES_PG_ARCH_3
 			 (1L << PG_arch_3) |
 #endif
 			 (1L << PG_dirty) |
