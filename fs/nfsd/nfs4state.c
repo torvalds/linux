@@ -1663,9 +1663,7 @@ static void release_openowner(struct nfs4_openowner *oo)
 {
 	struct nfs4_ol_stateid *stp;
 	struct nfs4_client *clp = oo->oo_owner.so_client;
-	struct list_head reaplist;
-
-	INIT_LIST_HEAD(&reaplist);
+	LIST_HEAD(reaplist);
 
 	spin_lock(&clp->cl_lock);
 	unhash_openowner_locked(oo);
@@ -2369,9 +2367,8 @@ __destroy_client(struct nfs4_client *clp)
 	int i;
 	struct nfs4_openowner *oo;
 	struct nfs4_delegation *dp;
-	struct list_head reaplist;
+	LIST_HEAD(reaplist);
 
-	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&state_lock);
 	while (!list_empty(&clp->cl_delegations)) {
 		dp = list_entry(clp->cl_delegations.next, struct nfs4_delegation, dl_perclnt);
@@ -6615,9 +6612,8 @@ deleg_reaper(struct nfsd_net *nn)
 {
 	struct list_head *pos, *next;
 	struct nfs4_client *clp;
-	struct list_head cblist;
+	LIST_HEAD(cblist);
 
-	INIT_LIST_HEAD(&cblist);
 	spin_lock(&nn->client_lock);
 	list_for_each_safe(pos, next, &nn->client_lru) {
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
