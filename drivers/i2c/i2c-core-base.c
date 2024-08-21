@@ -1395,10 +1395,6 @@ struct i2c_adapter *i2c_verify_adapter(struct device *dev)
 }
 EXPORT_SYMBOL(i2c_verify_adapter);
 
-#ifdef CONFIG_I2C_COMPAT
-static struct class_compat *i2c_adapter_compat_class;
-#endif
-
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
 	struct i2c_devinfo	*devinfo;
@@ -1574,14 +1570,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		goto out_reg;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
-
-#ifdef CONFIG_I2C_COMPAT
-	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
-				       adap->dev.parent);
-	if (res)
-		dev_warn(&adap->dev,
-			 "Failed to create compatibility class link\n");
-#endif
 
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
@@ -1788,11 +1776,6 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	 * them up properly, so we give them a chance to do that first. */
 	device_for_each_child(&adap->dev, NULL, __unregister_client);
 	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
-
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
-				 adap->dev.parent);
-#endif
 
 	/* device name is gone after device_unregister */
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
@@ -2102,13 +2085,6 @@ static int __init i2c_init(void)
 
 	i2c_debugfs_root = debugfs_create_dir("i2c", NULL);
 
-#ifdef CONFIG_I2C_COMPAT
-	i2c_adapter_compat_class = class_compat_register("i2c-adapter");
-	if (!i2c_adapter_compat_class) {
-		retval = -ENOMEM;
-		goto bus_err;
-	}
-#endif
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
@@ -2121,10 +2097,6 @@ static int __init i2c_init(void)
 	return 0;
 
 class_err:
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_unregister(i2c_adapter_compat_class);
-bus_err:
-#endif
 	is_registered = false;
 	bus_unregister(&i2c_bus_type);
 	return retval;
@@ -2137,9 +2109,6 @@ static void __exit i2c_exit(void)
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
 		WARN_ON(of_reconfig_notifier_unregister(&i2c_of_notifier));
 	i2c_del_driver(&dummy_driver);
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_unregister(i2c_adapter_compat_class);
-#endif
 	debugfs_remove_recursive(i2c_debugfs_root);
 	bus_unregister(&i2c_bus_type);
 	tracepoint_synchronize_unregister();
