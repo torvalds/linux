@@ -15884,10 +15884,10 @@ F:	include/linux/fddidevice.h
 F:	include/linux/hippidevice.h
 F:	include/linux/if_*
 F:	include/linux/inetdevice.h
-F:	include/linux/netdevice.h
+F:	include/linux/netdev*
 F:	include/uapi/linux/cn_proc.h
 F:	include/uapi/linux/if_*
-F:	include/uapi/linux/netdevice.h
+F:	include/uapi/linux/netdev*
 F:	tools/testing/selftests/drivers/net/
 X:	drivers/net/wireless/
 
@@ -15940,13 +15940,13 @@ F:	include/linux/framer/framer.h
 F:	include/linux/in.h
 F:	include/linux/indirect_call_wrapper.h
 F:	include/linux/net.h
-F:	include/linux/netdevice.h
-F:	include/linux/skbuff.h
+F:	include/linux/netdev*
+F:	include/linux/skbuff*
 F:	include/net/
 F:	include/uapi/linux/in.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/net_namespace.h
-F:	include/uapi/linux/netdevice.h
+F:	include/uapi/linux/netdev*
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
