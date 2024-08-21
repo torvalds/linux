@@ -955,19 +955,22 @@ static void setup_stack_canary(struct data_loc_info *dloc)
 static enum type_match_result check_matching_type(struct type_state *state,
 						  struct data_loc_info *dloc,
 						  Dwarf_Die *cu_die,
+						  struct disasm_line *dl,
 						  Dwarf_Die *type_die)
 {
 	Dwarf_Word size;
-	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
+	u32 insn_offset = dl->al.offset;
 	int reg = dloc->op->reg1;
 	int offset = dloc->op->offset;
 	const char *offset_sign = "";
+	bool retry = true;
 
 	if (offset < 0) {
 		offset = -offset;
 		offset_sign = "-";
 	}
 
+again:
 	pr_debug_dtp("chk [%x] reg%d offset=%s%#x ok=%d kind=%d ",
 		     insn_offset, reg, offset_sign, offset,
 		     state->regs[reg].ok, state->regs[reg].kind);
@@ -1079,8 +1082,17 @@ check_non_register:
 		pr_debug_dtp("fbreg");
 
 		stack = find_stack_state(state, dloc->type_offset);
-		if (stack == NULL)
+		if (stack == NULL) {
+			if (retry) {
+				pr_debug_dtp(" : retry\n");
+				retry = false;
+
+				/* update type info it's the first store to the stack */
+				update_insn_state(state, dloc, cu_die, dl);
+				goto again;
+			}
 			return PERF_TMR_NO_TYPE;
+		}
 
 		if (stack->kind == TSR_KIND_CANARY) {
 			setup_stack_canary(dloc);
@@ -1111,8 +1123,17 @@ check_non_register:
 			return PERF_TMR_NO_TYPE;
 
 		stack = find_stack_state(state, dloc->type_offset - fboff);
-		if (stack == NULL)
+		if (stack == NULL) {
+			if (retry) {
+				pr_debug_dtp(" : retry\n");
+				retry = false;
+
+				/* update type info it's the first store to the stack */
+				update_insn_state(state, dloc, cu_die, dl);
+				goto again;
+			}
 			return PERF_TMR_NO_TYPE;
+		}
 
 		if (stack->kind == TSR_KIND_CANARY) {
 			setup_stack_canary(dloc);
@@ -1202,7 +1223,7 @@ static enum type_match_result find_data_type_insn(struct data_loc_info *dloc,
 
 			if (this_ip == dloc->ip) {
 				ret = check_matching_type(&state, dloc,
-							  cu_die, type_die);
+							  cu_die, dl, type_die);
 				pr_debug_dtp(" : %s\n", match_result_str(ret));
 				goto out;
 			}
