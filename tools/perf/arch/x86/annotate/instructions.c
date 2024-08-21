@@ -267,6 +267,7 @@ static void update_insn_state_x86(struct type_state *state,
 			return;
 
 		tsr = &state->regs[dst->reg1];
+		tsr->copied_from = -1;
 
 		if (src->imm)
 			imm_value = src->offset;
@@ -326,6 +327,8 @@ static void update_insn_state_x86(struct type_state *state,
 			return;
 
 		tsr = &state->regs[dst->reg1];
+		tsr->copied_from = -1;
+
 		if (dso__kernel(map__dso(dloc->ms->map)) &&
 		    src->segment == INSN_SEG_X86_GS && src->imm) {
 			u64 ip = dloc->ms->sym->start + dl->al.offset;
@@ -386,6 +389,10 @@ static void update_insn_state_x86(struct type_state *state,
 		tsr->imm_value = state->regs[src->reg1].imm_value;
 		tsr->ok = true;
 
+		/* To copy back the variable type later (hopefully) */
+		if (tsr->kind == TSR_KIND_TYPE)
+			tsr->copied_from = src->reg1;
+
 		pr_debug_dtp("mov [%x] reg%d -> reg%d",
 			     insn_offset, src->reg1, dst->reg1);
 		pr_debug_type_name(&tsr->type, tsr->kind);
@@ -398,6 +405,7 @@ static void update_insn_state_x86(struct type_state *state,
 			return;
 
 		tsr = &state->regs[dst->reg1];
+		tsr->copied_from = -1;
 
 retry:
 		/* Check stack variables with offset */

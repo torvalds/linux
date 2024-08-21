@@ -774,6 +774,11 @@ ok:
 	return true;
 }
 
+static bool die_is_same(Dwarf_Die *die_a, Dwarf_Die *die_b)
+{
+	return (die_a->cu == die_b->cu) && (die_a->addr == die_b->addr);
+}
+
 /**
  * update_var_state - Update type state using given variables
  * @state: type state table
@@ -825,12 +830,15 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
 		} else if (has_reg_type(state, var->reg) && var->offset == 0) {
 			struct type_state_reg *reg;
+			Dwarf_Die orig_type;
 
 			reg = &state->regs[var->reg];
 
 			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
 			    !is_better_type(&reg->type, &mem_die))
 				continue;
+
+			orig_type = reg->type;
 
 			reg->type = mem_die;
 			reg->kind = TSR_KIND_TYPE;
@@ -839,6 +847,29 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			pr_debug_dtp("var [%"PRIx64"] reg%d",
 				     insn_offset, var->reg);
 			pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
+
+			/*
+			 * If this register is directly copied from another and it gets a
+			 * better type, also update the type of the source register.  This
+			 * is usually the case of container_of() macro with offset of 0.
+			 */
+			if (has_reg_type(state, reg->copied_from)) {
+				struct type_state_reg *copy_reg;
+
+				copy_reg = &state->regs[reg->copied_from];
+
+				/* TODO: check if type is compatible or embedded */
+				if (!copy_reg->ok || (copy_reg->kind != TSR_KIND_TYPE) ||
+				    !die_is_same(&copy_reg->type, &orig_type) ||
+				    !is_better_type(&copy_reg->type, &mem_die))
+					continue;
+
+				copy_reg->type = mem_die;
+
+				pr_debug_dtp("var [%"PRIx64"] copyback reg%d",
+					     insn_offset, reg->copied_from);
+				pr_debug_type_name(&mem_die, TSR_KIND_TYPE);
+			}
 		}
 	}
 }

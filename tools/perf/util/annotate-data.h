@@ -176,6 +176,7 @@ struct type_state_reg {
 	bool ok;
 	bool caller_saved;
 	u8 kind;
+	u8 copied_from;
 };
 
 /* Type information in a stack location, dynamically allocated */
