@@ -9,29 +9,29 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/blkdev.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
+#include <linux/dma-map-ops.h> /* for dma_default_coherent */
 #include <linux/err.h>
 #include <linux/fwnode.h>
 #include <linux/init.h>
+#include <linux/kdev_t.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/kdev_t.h>
+#include <linux/mutex.h>
+#include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/blkdev.h>
-#include <linux/mutex.h>
 #include <linux/pm_runtime.h>
-#include <linux/netdevice.h>
 #include <linux/rcupdate.h>
-#include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/slab.h>
 #include <linux/string_helpers.h>
 #include <linux/swiotlb.h>
 #include <linux/sysfs.h>
-#include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
 #include "base.h"
 #include "physical_location.h"
