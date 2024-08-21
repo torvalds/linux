@@ -457,9 +457,9 @@ void startup_kernel(void)
 	 */
 	kaslr_large_page_offset = __kaslr_offset & ~_SEGMENT_MASK;
 	if (kaslr_enabled()) {
-		unsigned long end = ident_map_size - kaslr_large_page_offset;
+		unsigned long size = kernel_size + kaslr_large_page_offset;
 
-		__kaslr_offset_phys = randomize_within_range(kernel_size, _SEGMENT_SIZE, 0, end);
+		__kaslr_offset_phys = randomize_within_range(size, _SEGMENT_SIZE, 0, ident_map_size);
 	}
 	if (!__kaslr_offset_phys)
 		__kaslr_offset_phys = nokaslr_offset_phys;
