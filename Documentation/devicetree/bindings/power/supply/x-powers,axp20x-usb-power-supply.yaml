@@ -23,6 +23,7 @@ properties:
           - x-powers,axp202-usb-power-supply
           - x-powers,axp221-usb-power-supply
           - x-powers,axp223-usb-power-supply
+          - x-powers,axp717-usb-power-supply
           - x-powers,axp813-usb-power-supply
       - items:
           - const: x-powers,axp803-usb-power-supply
@@ -74,6 +75,19 @@ allOf:
       properties:
         input-current-limit-microamp:
           enum: [500000, 900000]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp717-usb-power-supply
+    then:
+      properties:
+        input-current-limit-microamp:
+          description: Maximum input current in increments of 50000 uA.
+          minimum: 100000
+          maximum: 3250000
 
   - if:
       properties:
