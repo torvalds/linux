@@ -165,9 +165,41 @@ void ksmbd_all_conn_set_status(u64 sess_id, u32 status)
 	up_read(&conn_list_lock);
 }
 
-void ksmbd_conn_wait_idle(struct ksmbd_conn *conn, u64 sess_id)
+void ksmbd_conn_wait_idle(struct ksmbd_conn *conn)
 {
 	wait_event(conn->req_running_q, atomic_read(&conn->req_running) < 2);
+}
+
+int ksmbd_conn_wait_idle_sess_id(struct ksmbd_conn *curr_conn, u64 sess_id)
+{
+	struct ksmbd_conn *conn;
+	int rc, retry_count = 0, max_timeout = 120;
+	int rcount = 1;
+
+retry_idle:
+	if (retry_count >= max_timeout)
+		return -EIO;
+
+	down_read(&conn_list_lock);
+	list_for_each_entry(conn, &conn_list, conns_list) {
+		if (conn->binding || xa_load(&conn->sessions, sess_id)) {
+			if (conn == curr_conn)
+				rcount = 2;
+			if (atomic_read(&conn->req_running) >= rcount) {
+				rc = wait_event_timeout(conn->req_running_q,
+					atomic_read(&conn->req_running) < rcount,
+					HZ);
+				if (!rc) {
+					up_read(&conn_list_lock);
+					retry_count++;
+					goto retry_idle;
+				}
+			}
+		}
+	}
+	up_read(&conn_list_lock);
+
+	return 0;
 }
 
 int ksmbd_conn_write(struct ksmbd_work *work)
