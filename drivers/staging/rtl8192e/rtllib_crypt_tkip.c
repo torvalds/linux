@@ -638,10 +638,7 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 	if (seq) {
 		/* Return the sequence number of the last transmitted frame. */
 		u16 iv16 = tkey->tx_iv16;
-		u32 iv32 = tkey->tx_iv32;
 
-		if (iv16 == 0)
-			iv32--;
 		iv16--;
 		seq[0] = tkey->tx_iv16;
 		seq[1] = tkey->tx_iv16 >> 8;
