@@ -837,7 +837,7 @@ static void qcom_geni_serial_handle_rx_dma(struct uart_port *uport, bool drop)
 	rx_in = readl(uport->membase + SE_DMA_RX_LEN_IN);
 	if (!rx_in) {
 		dev_warn(uport->dev, "serial engine reports 0 RX bytes in!\n");
-		return;
+		//return;
 	}
 
 	if (!drop)

@@ -1,0 +1,11 @@
+#
+# Novatek NT36523 touchscreen driver configuration
+#
+config TOUCHSCREEN_NT36523_SPI
+	tristate "Novatek NT36523 no flash SPI driver"
+	default n
+	help
+	  Say Y here if you have a Novatek NT36523 no flash touchscreen connected
+	  to your system by SPI bus.
+
+	  If unsure, say N.

@@ -22034,6 +22034,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/regulator/silergy,sy8106a.yaml
 F:	drivers/regulator/sy8106a-regulator.c
 
+SYNAPTICS TCM ONCELL TOUCHSCREEN DRIVER
+M:	Caleb Connolly <caleb@postmarketos.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/touchscreen/syna,tcm-oncell.yaml
+F:	drivers/input/touchscreen/synaptics_tcm_oncell.c
+
 SYNC FILE FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 R:	Gustavo Padovan <gustavo@padovan.org>

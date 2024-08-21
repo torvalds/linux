@@ -30,6 +30,10 @@
 	qcom,msm-id = <QCOM_ID_SM8250 0x20001>; /* SM8250 v2.1 */
 	qcom,board-id = <0x10008 0>;
 
+	aliases {
+		hsuart0 = &uart6;
+	};
+
 	chosen {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -112,6 +116,25 @@
 		regulator-max-microvolt = <880000>;
 		regulator-always-on;
 		vin-supply = <&vph_pwr>;
+	};
+
+	qca639x: qca639x {
+		compatible = "qcom,qca6390";
+		#power-domain-cells = <0>;
+
+		vddaon-supply = <&vreg_s6a_0p95>;
+		vddpmu-supply = <&vreg_s6a_0p95>;
+		vddrfa1-supply = <&vreg_s6a_0p95>;
+		vddrfa2-supply = <&vreg_s8c_1p35>;
+		vddrfa3-supply = <&vreg_s5a_1p9>;
+		vddpcie1-supply = <&vreg_s8c_1p35>;
+		vddpcie2-supply = <&vreg_s5a_1p9>;
+		vddio-supply = <&vreg_s4a_1p8>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_en_state>;
+
+		wlan-en-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
 	};
 
 	reserved-memory {
@@ -617,6 +640,9 @@
 	vdda-phy-supply = <&vreg_l5a_0p88>;
 	vdda-pll-supply = <&vreg_l9a_1p2>;
 	status = "okay";
+
+	/* Power on QCA639x chip, otherwise PCIe bus timeouts */
+	power-domains = <&qca639x>;
 };
 
 &pm8150_gpios {
@@ -701,6 +727,41 @@
 
 &tlmm {
 	gpio-reserved-ranges = <40 4>;
+
+	bt_en_state: bt-default-state {
+		bt-en-pins {
+			pins = "gpio21";
+			function = "gpio";
+
+			drive-strength = <16>;
+			output-low;
+			bias-pull-up;
+		};
+	};
+
+	wlan_en_state: wlan-default-state {
+		wlan-en-pins {
+			pins = "gpio20";
+			function = "gpio";
+
+			drive-strength = <16>;
+			output-low;
+			bias-pull-up;
+		};
+	};
+};
+
+&uart6 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,qca6390-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_en_state>;
+
+		power-domains = <&qca639x>;
+		enable-gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &usb_1 {

@@ -1811,6 +1811,8 @@ static int qca_power_on(struct hci_dev *hdev)
 			gpiod_set_value_cansleep(qcadev->bt_en, 1);
 			/* Controller needs time to bootup. */
 			msleep(150);
+			serdev_device_close(hu->serdev);
+			ret = serdev_device_open(hu->serdev);
 		}
 	}
 

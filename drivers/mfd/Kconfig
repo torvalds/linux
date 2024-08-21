@@ -1135,6 +1135,18 @@ config MFD_PM8XXX
 	  Say M here if you want to include support for PM8xxx chips as a
 	  module. This will build a module called "pm8xxx-core".
 
+config MFD_QCOM_QCA639X
+	tristate "Qualcomm QCA639x WiFi/Bluetooth module support"
+	depends on REGULATOR && PM_GENERIC_DOMAINS
+	help
+	  If you say yes to this option, support will be included for Qualcomm
+	  QCA639x family of WiFi and Bluetooth SoCs. Note, this driver supports
+	  only power control for this SoC, you still have to enable individual
+	  Bluetooth and WiFi drivers.
+
+	  Say M here if you want to include support for QCA639x chips as a
+	  module. This will build a module called "qcom-qca639x".
+
 config MFD_QCOM_RPM
 	tristate "Qualcomm Resource Power Manager (RPM)"
 	depends on ARCH_QCOM && OF

@@ -821,6 +821,46 @@ void mipi_dsi_generic_write_multi(struct mipi_dsi_multi_context *ctx,
 EXPORT_SYMBOL(mipi_dsi_generic_write_multi);
 
 /**
+ * mipi_dsi_generic_write_raw_multi() - transmit data using a generic write packet of
+ * a specific type
+ * @ctx: Context for multiple DSI transactions
+ * @type: data type of the packet
+ * @payload: buffer containing the payload
+ * @size: size of payload buffer
+ *
+ * This function will automatically choose the right data type depending on
+ * the payload length.
+ *
+ * Return: The number of bytes transmitted on success or a negative error code
+ * on failure.
+ */
+ssize_t mipi_dsi_generic_write_raw_multi(struct mipi_dsi_multi_context *ctx,
+					  u8 type, const void *payload, size_t size)
+{
+	struct mipi_dsi_device *dsi = ctx->dsi;
+	struct mipi_dsi_msg msg = {
+		.channel = dsi->channel,
+		.tx_buf = payload,
+		.tx_len = size,
+		.type = type,
+	};
+	ssize_t ret;
+
+	if (ctx->accum_err)
+		return 0;
+
+	ret = mipi_dsi_device_transfer(dsi, &msg);
+	if (ret < 0) {
+		ctx->accum_err = ret;
+		dev_err(&dsi->dev, "sending generic data %*ph failed: %zd\n",
+			(int)size, payload, ret);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(mipi_dsi_generic_write_raw_multi);
+
+/**
  * mipi_dsi_generic_read() - receive data using a generic read packet
  * @dsi: DSI peripheral device
  * @params: buffer containing the request parameters

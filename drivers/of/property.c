@@ -1352,7 +1352,7 @@ static struct device_node *parse_remote_endpoint(struct device_node *np,
 	if (index > 0 || strcmp(prop_name, "remote-endpoint"))
 		return NULL;
 
-	return of_graph_get_remote_port_parent(np);
+	return of_graph_get_remote_port(np);
 }
 
 static const struct supplier_bindings of_supplier_bindings[] = {
