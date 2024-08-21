@@ -201,8 +201,9 @@ struct intel_display_runtime_info {
 	struct intel_display_ip_ver {
 		u16 ver;
 		u16 rel;
-		u16 step;
+		u16 step; /* hardware */
 	} ip;
+	int step; /* symbolic */
 
 	u32 rawclk_freq;
 
