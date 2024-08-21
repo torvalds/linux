@@ -566,6 +566,7 @@ enum amd_reset_method {
 	AMD_RESET_METHOD_MODE2,
 	AMD_RESET_METHOD_BACO,
 	AMD_RESET_METHOD_PCI,
+	AMD_RESET_METHOD_ON_INIT,
 };
 
 struct amdgpu_video_codec_info {
