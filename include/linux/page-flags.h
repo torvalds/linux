@@ -923,42 +923,29 @@ PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
 #endif
 
 /*
- * For pages that are never mapped to userspace,
- * page_type may be used.  Because it is initialised to -1, we invert the
- * sense of the bit, so __SetPageFoo *clears* the bit used for PageFoo, and
- * __ClearPageFoo *sets* the bit used for PageFoo.  We reserve a few high and
- * low bits so that an underflow or overflow of _mapcount won't be
- * mistaken for a page type value.
+ * For pages that do not use mapcount, page_type may be used.
+ * The low 24 bits of pagetype may be used for your own purposes, as long
+ * as you are careful to not affect the top 8 bits.  The low bits of
+ * pagetype will be overwritten when you clear the page_type from the page.
  */
-
 enum pagetype {
-	PG_buddy	= 0x40000000,
-	PG_offline	= 0x20000000,
-	PG_table	= 0x10000000,
-	PG_guard	= 0x08000000,
-	PG_hugetlb	= 0x04000000,
-	PG_slab		= 0x02000000,
-	PG_zsmalloc	= 0x01000000,
-	PG_unaccepted	= 0x00800000,
+	/* 0x00-0x7f are positive numbers, ie mapcount */
+	/* Reserve 0x80-0xef for mapcount overflow. */
+	PGTY_buddy	= 0xf0,
+	PGTY_offline	= 0xf1,
+	PGTY_table	= 0xf2,
+	PGTY_guard	= 0xf3,
+	PGTY_hugetlb	= 0xf4,
+	PGTY_slab	= 0xf5,
+	PGTY_zsmalloc	= 0xf6,
+	PGTY_unaccepted	= 0xf7,
 
-	PAGE_TYPE_BASE	= 0x80000000,
-
-	/*
-	 * Reserve 0xffff0000 - 0xfffffffe to catch _mapcount underflows and
-	 * allow owners that set a type to reuse the lower 16 bit for their own
-	 * purposes.
-	 */
-	PAGE_MAPCOUNT_RESERVE	= ~0x0000ffff,
+	PGTY_mapcount_underflow = 0xff
 };
-
-#define PageType(page, flag)						\
-	((READ_ONCE(page->page_type) & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
-#define folio_test_type(folio, flag)					\
-	((READ_ONCE(folio->page.page_type) & (PAGE_TYPE_BASE | flag))  == PAGE_TYPE_BASE)
 
 static inline bool page_type_has_type(int page_type)
 {
-	return page_type < PAGE_MAPCOUNT_RESERVE;
+	return page_type < (PGTY_mapcount_underflow << 24);
 }
 
 /* This takes a mapcount which is one more than page->_mapcount */
@@ -969,40 +956,41 @@ static inline bool page_mapcount_is_type(unsigned int mapcount)
 
 static inline bool page_has_type(const struct page *page)
 {
-	return page_type_has_type(READ_ONCE(page->page_type));
+	return page_mapcount_is_type(data_race(page->page_type));
 }
 
 #define FOLIO_TYPE_OPS(lname, fname)					\
-static __always_inline bool folio_test_##fname(const struct folio *folio)\
+static __always_inline bool folio_test_##fname(const struct folio *folio) \
 {									\
-	return folio_test_type(folio, PG_##lname);			\
+	return data_race(folio->page.page_type >> 24) == PGTY_##lname;	\
 }									\
 static __always_inline void __folio_set_##fname(struct folio *folio)	\
 {									\
-	VM_BUG_ON_FOLIO(!folio_test_type(folio, 0), folio);		\
-	folio->page.page_type &= ~PG_##lname;				\
+	VM_BUG_ON_FOLIO(data_race(folio->page.page_type) != UINT_MAX,	\
+			folio);						\
+	folio->page.page_type = (unsigned int)PGTY_##lname << 24;	\
 }									\
 static __always_inline void __folio_clear_##fname(struct folio *folio)	\
 {									\
 	VM_BUG_ON_FOLIO(!folio_test_##fname(folio), folio);		\
-	folio->page.page_type |= PG_##lname;				\
+	folio->page.page_type = UINT_MAX;				\
 }
 
 #define PAGE_TYPE_OPS(uname, lname, fname)				\
 FOLIO_TYPE_OPS(lname, fname)						\
 static __always_inline int Page##uname(const struct page *page)		\
 {									\
-	return PageType(page, PG_##lname);				\
+	return data_race(page->page_type >> 24) == PGTY_##lname;	\
 }									\
 static __always_inline void __SetPage##uname(struct page *page)		\
 {									\
-	VM_BUG_ON_PAGE(!PageType(page, 0), page);			\
-	page->page_type &= ~PG_##lname;					\
+	VM_BUG_ON_PAGE(data_race(page->page_type) != UINT_MAX, page);	\
+	page->page_type = (unsigned int)PGTY_##lname << 24;		\
 }									\
 static __always_inline void __ClearPage##uname(struct page *page)	\
 {									\
 	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
-	page->page_type |= PG_##lname;					\
+	page->page_type = UINT_MAX;					\
 }
 
 /*
