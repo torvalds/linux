@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <linux/uuid.h>
 
 #include "common.h"
@@ -230,7 +231,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 	dev_dbg(int3472->dev, "%s %s pin %d active-%s\n", func,
 		agpio->resource_source.string_ptr, agpio->pin_table[0],
-		(polarity == GPIO_ACTIVE_HIGH) ? "high" : "low");
+		str_high_low(polarity == GPIO_ACTIVE_HIGH));
 
 	switch (type) {
 	case INT3472_GPIO_TYPE_RESET:
