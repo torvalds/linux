@@ -183,6 +183,17 @@ int class_register(const struct class *cls)
 
 	pr_debug("device class '%s': registering\n", cls->name);
 
+	if (cls->ns_type && !cls->namespace) {
+		pr_err("%s: class '%s' does not have namespace\n",
+		       __func__, cls->name);
+		return -EINVAL;
+	}
+	if (!cls->ns_type && cls->namespace) {
+		pr_err("%s: class '%s' does not have ns_type\n",
+		       __func__, cls->name);
+		return -EINVAL;
+	}
+
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;

@@ -2584,7 +2584,7 @@ static const void *device_namespace(const struct kobject *kobj)
 	const struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
 
-	if (dev->class && dev->class->ns_type)
+	if (dev->class && dev->class->namespace)
 		ns = dev->class->namespace(dev);
 
 	return ns;
