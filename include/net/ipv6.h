@@ -851,7 +851,7 @@ static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int
 	 *	we should *never* get to this point since that
 	 *	would mean the addrs are equal
 	 *
-	 *	However, we do get to it 8) And exacly, when
+	 *	However, we do get to it 8) And exactly, when
 	 *	addresses are equal 8)
 	 *
 	 *	ip route add 1111::/128 via ...
@@ -973,7 +973,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 	hash = skb_get_hash_flowi6(skb, fl6);
 
 	/* Since this is being sent on the wire obfuscate hash a bit
-	 * to minimize possbility that any useful information to an
+	 * to minimize possibility that any useful information to an
 	 * attacker is leaked. Only lower 20 bits are relevant.
 	 */
 	hash = rol32(hash, 16);
