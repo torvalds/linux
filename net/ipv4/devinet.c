@@ -1943,8 +1943,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	rtnl_notify(skb, net, portid, RTNLGRP_IPV4_IFADDR, nlh, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV4_IFADDR, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_IFADDR, err);
 }
 
 static size_t inet_get_link_af_size(const struct net_device *dev,
@@ -2140,8 +2139,7 @@ void inet_netconf_notify_devconf(struct net *net, int event, int type,
 	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_NETCONF, NULL, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV4_NETCONF, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_NETCONF, err);
 }
 
 static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
