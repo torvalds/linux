@@ -3438,13 +3438,11 @@ static struct ext4_ext_path *ext4_split_extent(handle_t *handle,
  *    that are allocated and initialized.
  *    It is guaranteed to be >= map->m_len.
  */
-static int ext4_ext_convert_to_initialized(handle_t *handle,
-					   struct inode *inode,
-					   struct ext4_map_blocks *map,
-					   struct ext4_ext_path **ppath,
-					   int flags)
+static struct ext4_ext_path *
+ext4_ext_convert_to_initialized(handle_t *handle, struct inode *inode,
+			struct ext4_map_blocks *map, struct ext4_ext_path *path,
+			int flags, unsigned int *allocated)
 {
-	struct ext4_ext_path *path = *ppath;
 	struct ext4_sb_info *sbi;
 	struct ext4_extent_header *eh;
 	struct ext4_map_blocks split_map;
@@ -3454,7 +3452,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	unsigned int ee_len, depth, map_len = map->m_len;
 	int err = 0;
 	int split_flag = EXT4_EXT_DATA_VALID2;
-	int allocated = 0;
 	unsigned int max_zeroout = 0;
 
 	ext_debug(inode, "logical block %llu, max_blocks %u\n",
@@ -3495,6 +3492,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	 *  - L2: we only attempt to merge with an extent stored in the
 	 *    same extent tree node.
 	 */
+	*allocated = 0;
 	if ((map->m_lblk == ee_block) &&
 		/* See if we can merge left */
 		(map_len < ee_len) &&		/*L1*/
@@ -3524,7 +3522,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			(prev_len < (EXT_INIT_MAX_LEN - map_len))) {	/*C4*/
 			err = ext4_ext_get_access(handle, inode, path + depth);
 			if (err)
-				goto out;
+				goto errout;
 
 			trace_ext4_ext_convert_to_initialized_fastpath(inode,
 				map, ex, abut_ex);
@@ -3539,7 +3537,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			abut_ex->ee_len = cpu_to_le16(prev_len + map_len);
 
 			/* Result: number of initialized blocks past m_lblk */
-			allocated = map_len;
+			*allocated = map_len;
 		}
 	} else if (((map->m_lblk + map_len) == (ee_block + ee_len)) &&
 		   (map_len < ee_len) &&	/*L1*/
@@ -3570,7 +3568,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		    (next_len < (EXT_INIT_MAX_LEN - map_len))) {	/*C4*/
 			err = ext4_ext_get_access(handle, inode, path + depth);
 			if (err)
-				goto out;
+				goto errout;
 
 			trace_ext4_ext_convert_to_initialized_fastpath(inode,
 				map, ex, abut_ex);
@@ -3585,18 +3583,20 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			abut_ex->ee_len = cpu_to_le16(next_len + map_len);
 
 			/* Result: number of initialized blocks past m_lblk */
-			allocated = map_len;
+			*allocated = map_len;
 		}
 	}
-	if (allocated) {
+	if (*allocated) {
 		/* Mark the block containing both extents as dirty */
 		err = ext4_ext_dirty(handle, inode, path + depth);
 
 		/* Update path to point to the right extent */
 		path[depth].p_ext = abut_ex;
+		if (err)
+			goto errout;
 		goto out;
 	} else
-		allocated = ee_len - (map->m_lblk - ee_block);
+		*allocated = ee_len - (map->m_lblk - ee_block);
 
 	WARN_ON(map->m_lblk < ee_block);
 	/*
@@ -3623,21 +3623,21 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	split_map.m_lblk = map->m_lblk;
 	split_map.m_len = map->m_len;
 
-	if (max_zeroout && (allocated > split_map.m_len)) {
-		if (allocated <= max_zeroout) {
+	if (max_zeroout && (*allocated > split_map.m_len)) {
+		if (*allocated <= max_zeroout) {
 			/* case 3 or 5 */
 			zero_ex1.ee_block =
 				 cpu_to_le32(split_map.m_lblk +
 					     split_map.m_len);
 			zero_ex1.ee_len =
-				cpu_to_le16(allocated - split_map.m_len);
+				cpu_to_le16(*allocated - split_map.m_len);
 			ext4_ext_store_pblock(&zero_ex1,
 				ext4_ext_pblock(ex) + split_map.m_lblk +
 				split_map.m_len - ee_block);
 			err = ext4_ext_zeroout(inode, &zero_ex1);
 			if (err)
 				goto fallback;
-			split_map.m_len = allocated;
+			split_map.m_len = *allocated;
 		}
 		if (split_map.m_lblk - ee_block + split_map.m_len <
 								max_zeroout) {
@@ -3655,27 +3655,24 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 
 			split_map.m_len += split_map.m_lblk - ee_block;
 			split_map.m_lblk = ee_block;
-			allocated = map->m_len;
+			*allocated = map->m_len;
 		}
 	}
 
 fallback:
 	path = ext4_split_extent(handle, inode, path, &split_map, split_flag,
 				 flags, NULL);
-	if (IS_ERR(path)) {
-		err = PTR_ERR(path);
-		*ppath = NULL;
-		goto out;
-	}
-	err = 0;
-	*ppath = path;
+	if (IS_ERR(path))
+		return path;
 out:
 	/* If we have gotten a failure, don't zero out status tree */
-	if (!err) {
-		ext4_zeroout_es(inode, &zero_ex1);
-		ext4_zeroout_es(inode, &zero_ex2);
-	}
-	return err ? err : allocated;
+	ext4_zeroout_es(inode, &zero_ex1);
+	ext4_zeroout_es(inode, &zero_ex2);
+	return path;
+
+errout:
+	ext4_free_ext_path(path);
+	return ERR_PTR(err);
 }
 
 /*
@@ -3897,7 +3894,6 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 			struct ext4_ext_path **ppath, int flags,
 			unsigned int allocated, ext4_fsblk_t newblock)
 {
-	int ret = 0;
 	int err = 0;
 
 	ext_debug(inode, "logical block %llu, max_blocks %u, flags 0x%x, allocated %u\n",
@@ -3977,23 +3973,24 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	 * For buffered writes, at writepage time, etc.  Convert a
 	 * discovered unwritten extent to written.
 	 */
-	ret = ext4_ext_convert_to_initialized(handle, inode, map, ppath, flags);
-	if (ret < 0) {
-		err = ret;
+	*ppath = ext4_ext_convert_to_initialized(handle, inode, map, *ppath,
+						 flags, &allocated);
+	if (IS_ERR(*ppath)) {
+		err = PTR_ERR(*ppath);
+		*ppath = NULL;
 		goto out2;
 	}
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 	/*
-	 * shouldn't get a 0 return when converting an unwritten extent
+	 * shouldn't get a 0 allocated when converting an unwritten extent
 	 * unless m_len is 0 (bug) or extent has been corrupted
 	 */
-	if (unlikely(ret == 0)) {
-		EXT4_ERROR_INODE(inode, "unexpected ret == 0, m_len = %u",
+	if (unlikely(allocated == 0)) {
+		EXT4_ERROR_INODE(inode, "unexpected allocated == 0, m_len = %u",
 				 map->m_len);
 		err = -EFSCORRUPTED;
 		goto out2;
 	}
-	allocated = ret;
 
 out:
 	map->m_flags |= EXT4_MAP_NEW;
