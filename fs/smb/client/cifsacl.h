@@ -33,7 +33,7 @@
  * Security Descriptor length containing DACL with 3 ACEs (one each for
  * owner, group and world).
  */
-#define DEFAULT_SEC_DESC_LEN (sizeof(struct cifs_ntsd) + \
+#define DEFAULT_SEC_DESC_LEN (sizeof(struct smb_ntsd) + \
 			      sizeof(struct cifs_acl) + \
 			      (sizeof(struct cifs_ace) * 4))
 
@@ -55,7 +55,7 @@
 #define SID_STRING_BASE_SIZE (2 + 3 + 15 + 1)
 #define SID_STRING_SUBAUTH_SIZE (11) /* size of a single subauth string */
 
-struct cifs_ntsd {
+struct smb_ntsd {
 	__le16 revision; /* revision level */
 	__le16 type;
 	__le32 osidoffset;
@@ -194,6 +194,6 @@ struct owner_group_sids {
  * Minimum security descriptor can be one without any SACL and DACL and can
  * consist of revision, type, and two sids of minimum size for owner and group
  */
-#define MIN_SEC_DESC_LEN  (sizeof(struct cifs_ntsd) + (2 * MIN_SID_LEN))
+#define MIN_SEC_DESC_LEN  (sizeof(struct smb_ntsd) + (2 * MIN_SID_LEN))
 
 #endif /* _CIFSACL_H */

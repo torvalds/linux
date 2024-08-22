@@ -3048,11 +3048,11 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
-static struct cifs_ntsd *
+static struct smb_ntsd *
 get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 		    const struct cifs_fid *cifsfid, u32 *pacllen, u32 info)
 {
-	struct cifs_ntsd *pntsd = NULL;
+	struct smb_ntsd *pntsd = NULL;
 	unsigned int xid;
 	int rc = -EOPNOTSUPP;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
@@ -3077,11 +3077,11 @@ get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 
 }
 
-static struct cifs_ntsd *
+static struct smb_ntsd *
 get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 		     const char *path, u32 *pacllen, u32 info)
 {
-	struct cifs_ntsd *pntsd = NULL;
+	struct smb_ntsd *pntsd = NULL;
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	unsigned int xid;
 	int rc;
@@ -3144,7 +3144,7 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 }
 
 static int
-set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+set_smb2_acl(struct smb_ntsd *pnntsd, __u32 acllen,
 		struct inode *inode, const char *path, int aclflag)
 {
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
@@ -3202,12 +3202,12 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 }
 
 /* Retrieve an ACL from the server */
-static struct cifs_ntsd *
+static struct smb_ntsd *
 get_smb2_acl(struct cifs_sb_info *cifs_sb,
 	     struct inode *inode, const char *path,
 	     u32 *pacllen, u32 info)
 {
-	struct cifs_ntsd *pntsd = NULL;
+	struct smb_ntsd *pntsd = NULL;
 	struct cifsFileInfo *open_file = NULL;
 
 	if (inode && !(info & SACL_SECINFO))
