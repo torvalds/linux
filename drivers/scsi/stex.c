@@ -1797,7 +1797,8 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	snprintf(hba->work_q_name, sizeof(hba->work_q_name),
 		 "stex_wq_%d", host->host_no);
-	hba->work_q = create_singlethread_workqueue(hba->work_q_name);
+	hba->work_q =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, hba->work_q_name);
 	if (!hba->work_q) {
 		printk(KERN_ERR DRV_NAME "(%s): create workqueue failed\n",
 			pci_name(pdev));

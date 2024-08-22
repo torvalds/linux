@@ -114,7 +114,8 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 
 	snprintf(cb->work_q_name, sizeof(cb->work_q_name),
 		 "myrb_wq_%d", cb->host->host_no);
-	cb->work_q = create_singlethread_workqueue(cb->work_q_name);
+	cb->work_q =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, cb->work_q_name);
 	if (!cb->work_q) {
 		dma_pool_destroy(cb->dcdb_pool);
 		cb->dcdb_pool = NULL;

@@ -799,16 +799,16 @@ struct fcoe_ctlr_device *fcoe_ctlr_device_add(struct device *parent,
 
 	snprintf(ctlr->work_q_name, sizeof(ctlr->work_q_name),
 		 "ctlr_wq_%d", ctlr->id);
-	ctlr->work_q = create_singlethread_workqueue(
-		ctlr->work_q_name);
+	ctlr->work_q = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
+					       ctlr->work_q_name);
 	if (!ctlr->work_q)
 		goto out_del;
 
 	snprintf(ctlr->devloss_work_q_name,
 		 sizeof(ctlr->devloss_work_q_name),
 		 "ctlr_dl_wq_%d", ctlr->id);
-	ctlr->devloss_work_q = create_singlethread_workqueue(
-		ctlr->devloss_work_q_name);
+	ctlr->devloss_work_q = alloc_ordered_workqueue(
+		"%s", WQ_MEM_RECLAIM, ctlr->devloss_work_q_name);
 	if (!ctlr->devloss_work_q)
 		goto out_del_q;
 

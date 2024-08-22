@@ -1800,7 +1800,8 @@ static void ufshcd_init_clk_scaling(struct ufs_hba *hba)
 
 	snprintf(wq_name, sizeof(wq_name), "ufs_clkscaling_%d",
 		 hba->host->host_no);
-	hba->clk_scaling.workq = create_singlethread_workqueue(wq_name);
+	hba->clk_scaling.workq =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, wq_name);
 
 	hba->clk_scaling.is_initialized = true;
 }
@@ -10444,7 +10445,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Initialize work queues */
 	snprintf(eh_wq_name, sizeof(eh_wq_name), "ufs_eh_wq_%d",
 		 hba->host->host_no);
-	hba->eh_wq = create_singlethread_workqueue(eh_wq_name);
+	hba->eh_wq = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, eh_wq_name);
 	if (!hba->eh_wq) {
 		dev_err(hba->dev, "%s: failed to create eh workqueue\n",
 			__func__);

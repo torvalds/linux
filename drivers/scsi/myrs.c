@@ -2208,7 +2208,8 @@ static bool myrs_create_mempools(struct pci_dev *pdev, struct myrs_hba *cs)
 
 	snprintf(cs->work_q_name, sizeof(cs->work_q_name),
 		 "myrs_wq_%d", shost->host_no);
-	cs->work_q = create_singlethread_workqueue(cs->work_q_name);
+	cs->work_q =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, cs->work_q_name);
 	if (!cs->work_q) {
 		dma_pool_destroy(cs->dcdb_pool);
 		cs->dcdb_pool = NULL;

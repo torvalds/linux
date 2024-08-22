@@ -3537,7 +3537,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	init_completion(&vscsi->unconfig);
 
 	snprintf(wq_name, 24, "ibmvscsis%s", dev_name(&vdev->dev));
-	vscsi->work_q = create_workqueue(wq_name);
+	vscsi->work_q = alloc_workqueue("%s", WQ_MEM_RECLAIM, 1, wq_name);
 	if (!vscsi->work_q) {
 		rc = -ENOMEM;
 		dev_err(&vscsi->dev, "create_workqueue failed\n");
