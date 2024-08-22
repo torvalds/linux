@@ -1145,17 +1145,15 @@ static long _rtl92e_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 			_pdrvinfo->RxRate == DESC90_RATE11M) &&\
 			!_pdrvinfo->RxHT)
 
-static void _rtl92e_query_rxphystatus(
-	struct r8192_priv *priv,
-	struct rtllib_rx_stats *pstats,
-	struct rx_desc  *pdesc,
-	struct rx_fwinfo   *pdrvinfo,
-	struct rtllib_rx_stats *precord_stats,
-	bool bpacket_match_bssid,
-	bool bpacket_toself,
-	bool bPacketBeacon,
-	bool bToSelfBA
-	)
+static void _rtl92e_query_rxphystatus(struct r8192_priv *priv,
+				      struct rtllib_rx_stats *pstats,
+				      struct rx_desc  *pdesc,
+				      struct rx_fwinfo   *pdrvinfo,
+				      struct rtllib_rx_stats *precord_stats,
+				      bool bpacket_match_bssid,
+				      bool bpacket_toself,
+				      bool bPacketBeacon,
+				      bool bToSelfBA)
 {
 	struct phy_sts_ofdm_819xpci *pofdm_buf;
 	struct phy_sts_cck_819xpci *pcck_buf;
