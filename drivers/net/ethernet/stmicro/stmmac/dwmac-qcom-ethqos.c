@@ -2377,7 +2377,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	} else {
 		ETHQOSERR("Phy interrupt configuration failed");
 	}
-	if (ethqos->emac_ver == EMAC_HW_v2_3_2_RG) {
+	if (ethqos->emac_ver == EMAC_HW_v2_3_2_RG || ethqos->emac_ver == EMAC_HW_v2_3_1) {
 		ethqos_pps_irq_config(ethqos);
 		create_pps_interrupt_device_node(&ethqos->avb_class_a_dev_t,
 						 &ethqos->avb_class_a_cdev,
