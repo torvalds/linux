@@ -2495,6 +2495,7 @@
   snd_soc_bytes_info_ext
   snd_soc_bytes_tlv_callback
   snd_soc_card_jack_new
+  snd_soc_cnew
   snd_soc_component_exit_regmap
   snd_soc_component_init_regmap
   snd_soc_component_read
