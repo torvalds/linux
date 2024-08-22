@@ -1322,8 +1322,7 @@ static void _rtl92e_query_rxphystatus(
 
 	if (is_cck_rate) {
 		pstats->SignalStrength = precord_stats->SignalStrength =
-					 _rtl92e_signal_scale_mapping(priv,
-					 (long)pwdb_all);
+					 _rtl92e_signal_scale_mapping(priv, (long)pwdb_all);
 
 	} else {
 		if (rf_rx_num != 0)
