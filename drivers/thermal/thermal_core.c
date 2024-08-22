@@ -787,12 +787,6 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	bool upper_no_limit;
 	int result;
 
-	lockdep_assert_held(&thermal_list_lock);
-	lockdep_assert_held(&tz->lock);
-
-	if (list_empty(&tz->node) || list_empty(&cdev->node))
-		return -EINVAL;
-
 	/* lower default 0, upper default max_state */
 	if (cool_spec->lower == THERMAL_NO_LIMIT)
 		cool_spec->lower = 0;
