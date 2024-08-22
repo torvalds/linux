@@ -1449,23 +1449,15 @@ int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp,
 		}
 	}
 
-	pm_runtime_set_autosuspend_delay(dev, 50);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
 	/* Register with the SPI framework */
 	dev_set_drvdata(dev, drv_data);
 	status = spi_register_controller(controller);
 	if (status) {
 		dev_err_probe(dev, status, "problem registering SPI controller\n");
-		goto out_error_pm_runtime_enabled;
+		goto out_error_clock_enabled;
 	}
 
 	return status;
-
-out_error_pm_runtime_enabled:
-	pm_runtime_disable(dev);
 
 out_error_clock_enabled:
 	clk_disable_unprepare(ssp->clk);
@@ -1483,8 +1475,6 @@ void pxa2xx_spi_remove(struct device *dev)
 	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
 
-	pm_runtime_get_sync(dev);
-
 	spi_unregister_controller(drv_data->controller);
 
 	/* Disable the SSP at the peripheral and SOC level */
@@ -1494,9 +1484,6 @@ void pxa2xx_spi_remove(struct device *dev)
 	/* Release DMA */
 	if (drv_data->controller_info->enable_dma)
 		pxa2xx_spi_dma_release(drv_data);
-
-	pm_runtime_put_noidle(dev);
-	pm_runtime_disable(dev);
 
 	/* Release IRQ */
 	free_irq(ssp->irq, drv_data);
