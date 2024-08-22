@@ -300,10 +300,8 @@ snic_add_host(struct Scsi_Host *shost, struct pci_dev *pdev)
 	}
 
 	SNIC_BUG_ON(shost->work_q != NULL);
-	snprintf(shost->work_q_name, sizeof(shost->work_q_name), "scsi_wq_%d",
-		 shost->host_no);
-	shost->work_q = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
-						shost->work_q_name);
+	shost->work_q = alloc_ordered_workqueue("scsi_wq_%d", WQ_MEM_RECLAIM,
+						shost->host_no);
 	if (!shost->work_q) {
 		SNIC_HOST_ERR(shost, "Failed to Create ScsiHost wq.\n");
 
