@@ -416,10 +416,6 @@ void vme_slave_free(struct vme_resource *resource)
 
 	slave_image = list_entry(resource->entry, struct vme_slave_resource,
 				 list);
-	if (!slave_image) {
-		dev_err(bridge->parent, "Can't find slave resource\n");
-		return;
-	}
 
 	/* Unlock image */
 	mutex_lock(&slave_image->mtx);
@@ -794,10 +790,6 @@ void vme_master_free(struct vme_resource *resource)
 
 	master_image = list_entry(resource->entry, struct vme_master_resource,
 				  list);
-	if (!master_image) {
-		dev_err(bridge->parent, "Can't find master resource\n");
-		return;
-	}
 
 	/* Unlock image */
 	spin_lock(&master_image->lock);
