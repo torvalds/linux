@@ -2279,27 +2279,26 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 {
 	int err;
 	ext4_fsblk_t leaf;
+	int k = depth - 1;
 
 	/* free index block */
-	depth--;
-	path = path + depth;
-	leaf = ext4_idx_pblock(path->p_idx);
-	if (unlikely(path->p_hdr->eh_entries == 0)) {
-		EXT4_ERROR_INODE(inode, "path->p_hdr->eh_entries == 0");
+	leaf = ext4_idx_pblock(path[k].p_idx);
+	if (unlikely(path[k].p_hdr->eh_entries == 0)) {
+		EXT4_ERROR_INODE(inode, "path[%d].p_hdr->eh_entries == 0", k);
 		return -EFSCORRUPTED;
 	}
-	err = ext4_ext_get_access(handle, inode, path);
+	err = ext4_ext_get_access(handle, inode, path + k);
 	if (err)
 		return err;
 
-	if (path->p_idx != EXT_LAST_INDEX(path->p_hdr)) {
-		int len = EXT_LAST_INDEX(path->p_hdr) - path->p_idx;
+	if (path[k].p_idx != EXT_LAST_INDEX(path[k].p_hdr)) {
+		int len = EXT_LAST_INDEX(path[k].p_hdr) - path[k].p_idx;
 		len *= sizeof(struct ext4_extent_idx);
-		memmove(path->p_idx, path->p_idx + 1, len);
+		memmove(path[k].p_idx, path[k].p_idx + 1, len);
 	}
 
-	le16_add_cpu(&path->p_hdr->eh_entries, -1);
-	err = ext4_ext_dirty(handle, inode, path);
+	le16_add_cpu(&path[k].p_hdr->eh_entries, -1);
+	err = ext4_ext_dirty(handle, inode, path + k);
 	if (err)
 		return err;
 	ext_debug(inode, "index is empty, remove it, free block %llu\n", leaf);
@@ -2308,15 +2307,14 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	ext4_free_blocks(handle, inode, NULL, leaf, 1,
 			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
 
-	while (--depth >= 0) {
-		if (path->p_idx != EXT_FIRST_INDEX(path->p_hdr))
+	while (--k >= 0) {
+		if (path[k + 1].p_idx != EXT_FIRST_INDEX(path[k + 1].p_hdr))
 			break;
-		path--;
-		err = ext4_ext_get_access(handle, inode, path);
+		err = ext4_ext_get_access(handle, inode, path + k);
 		if (err)
 			break;
-		path->p_idx->ei_block = (path+1)->p_idx->ei_block;
-		err = ext4_ext_dirty(handle, inode, path);
+		path[k].p_idx->ei_block = path[k + 1].p_idx->ei_block;
+		err = ext4_ext_dirty(handle, inode, path + k);
 		if (err)
 			break;
 	}
