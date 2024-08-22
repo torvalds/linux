@@ -1620,6 +1620,9 @@ static int l2tp_validate_socket(const struct sock *sk, const struct net *net,
 	    (encap == L2TP_ENCAPTYPE_IP && sk->sk_protocol != IPPROTO_L2TP))
 		return -EPROTONOSUPPORT;
 
+	if (encap == L2TP_ENCAPTYPE_UDP && sk->sk_user_data)
+		return -EBUSY;
+
 	tunnel = l2tp_sk_to_tunnel(sk);
 	if (tunnel) {
 		l2tp_tunnel_put(tunnel);
