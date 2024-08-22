@@ -69,11 +69,7 @@ static int skl_int3472_fill_gpiod_lookup(struct gpiod_lookup *table_entry,
 	if (!adev)
 		return -ENODEV;
 
-	table_entry->key = acpi_dev_name(adev);
-	table_entry->chip_hwnum = agpio->pin_table[0];
-	table_entry->con_id = func;
-	table_entry->idx = 0;
-	table_entry->flags = polarity;
+	*table_entry = GPIO_LOOKUP(acpi_dev_name(adev), agpio->pin_table[0], func, polarity);
 
 	return 0;
 }
