@@ -146,18 +146,19 @@ void ast_dp_power_on_off(struct drm_device *dev, bool on)
 void ast_dp_link_training(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
-	unsigned int i = 10;
+	int i;
 
-	while (i--) {
-		u8 vgacrdc = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdc);
+	for (i = 0; i < 10; i++) {
+		u8 vgacrdc;
 
-		if (vgacrdc & AST_IO_VGACRDC_LINK_SUCCESS)
-			break;
 		if (i)
 			msleep(100);
+
+		vgacrdc = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdc);
+		if (vgacrdc & AST_IO_VGACRDC_LINK_SUCCESS)
+			return;
 	}
-	if (!i)
-		drm_err(dev, "Link training failed\n");
+	drm_err(dev, "Link training failed\n");
 }
 
 void ast_dp_set_on_off(struct drm_device *dev, bool on)

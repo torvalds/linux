@@ -98,22 +98,6 @@ struct drm_mode_config_funcs {
 	const struct drm_format_info *(*get_format_info)(const struct drm_mode_fb_cmd2 *mode_cmd);
 
 	/**
-	 * @output_poll_changed:
-	 *
-	 * Callback used by helpers to inform the driver of output configuration
-	 * changes.
-	 *
-	 * Drivers implementing fbdev emulation use drm_kms_helper_hotplug_event()
-	 * to call this hook to inform the fbdev helper of output changes.
-	 *
-	 * This hook is deprecated, drivers should instead implement fbdev
-	 * support with struct drm_client, which takes care of any necessary
-	 * hotplug event forwarding already without further involvement by
-	 * the driver.
-	 */
-	void (*output_poll_changed)(struct drm_device *dev);
-
-	/**
 	 * @mode_valid:
 	 *
 	 * Device specific validation of display modes. Can be used to reject
