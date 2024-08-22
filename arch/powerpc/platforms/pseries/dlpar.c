@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <asm/rtas.h>
 #include <asm/rtas-work-area.h>
+#include <asm/prom.h>
 
 static struct workqueue_struct *pseries_hp_wq;
 
@@ -261,6 +262,20 @@ int dlpar_detach_node(struct device_node *dn)
 
 	return 0;
 }
+static int dlpar_changeset_attach_cc_nodes(struct of_changeset *ocs,
+					struct device_node *dn)
+{
+	int rc;
+
+	rc = of_changeset_attach_node(ocs, dn);
+
+	if (!rc && dn->child)
+		rc = dlpar_changeset_attach_cc_nodes(ocs, dn->child);
+	if (!rc && dn->sibling)
+		rc = dlpar_changeset_attach_cc_nodes(ocs, dn->sibling);
+
+	return rc;
+}
 
 #define DR_ENTITY_SENSE		9003
 #define DR_ENTITY_PRESENT	1
@@ -325,6 +340,118 @@ int dlpar_unisolate_drc(u32 drc_index)
 	rtas_set_indicator(ISOLATION_STATE, drc_index, UNISOLATE);
 
 	return 0;
+}
+
+static struct device_node *
+get_device_node_with_drc_index(u32 index)
+{
+	struct device_node *np = NULL;
+	u32 node_index;
+	int rc;
+
+	for_each_node_with_property(np, "ibm,my-drc-index") {
+		rc = of_property_read_u32(np, "ibm,my-drc-index",
+					     &node_index);
+		if (rc) {
+			pr_err("%s: %pOF: of_property_read_u32 %s: %d\n",
+			       __func__, np, "ibm,my-drc-index", rc);
+			of_node_put(np);
+			return NULL;
+		}
+
+		if (index == node_index)
+			break;
+	}
+
+	return np;
+}
+
+static struct device_node *
+get_device_node_with_drc_info(u32 index)
+{
+	struct device_node *np = NULL;
+	struct of_drc_info drc;
+	struct property *info;
+	const __be32 *value;
+	u32 node_index;
+	int i, j, count;
+
+	for_each_node_with_property(np, "ibm,drc-info") {
+		info = of_find_property(np, "ibm,drc-info", NULL);
+		if (info == NULL) {
+			/* XXX can this happen? */
+			of_node_put(np);
+			return NULL;
+		}
+		value = of_prop_next_u32(info, NULL, &count);
+		if (value == NULL)
+			continue;
+		value++;
+		for (i = 0; i < count; i++) {
+			if (of_read_drc_info_cell(&info, &value, &drc))
+				break;
+			if (index > drc.last_drc_index)
+				continue;
+			node_index = drc.drc_index_start;
+			for (j = 0; j < drc.num_sequential_elems; j++) {
+				if (index == node_index)
+					return np;
+				node_index += drc.sequential_inc;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+static int dlpar_hp_dt_add(u32 index)
+{
+	struct device_node *np, *nodes;
+	struct of_changeset ocs;
+	int rc;
+
+	/*
+	 * Do not add device node(s) if already exists in the
+	 * device tree.
+	 */
+	np = get_device_node_with_drc_index(index);
+	if (np) {
+		pr_err("%s: Adding device node for index (%d), but "
+				"already exists in the device tree\n",
+				__func__, index);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	np = get_device_node_with_drc_info(index);
+
+	if (!np)
+		return -EIO;
+
+	/* Next, configure the connector. */
+	nodes = dlpar_configure_connector(cpu_to_be32(index), np);
+	if (!nodes) {
+		rc = -EIO;
+		goto out;
+	}
+
+	/*
+	 * Add the new nodes from dlpar_configure_connector() onto
+	 * the device-tree.
+	 */
+	of_changeset_init(&ocs);
+	rc = dlpar_changeset_attach_cc_nodes(&ocs, nodes);
+
+	if (!rc)
+		rc = of_changeset_apply(&ocs);
+	else
+		dlpar_free_cc_nodes(nodes);
+
+	of_changeset_destroy(&ocs);
+
+out:
+	of_node_put(np);
+	return rc;
 }
 
 static int changeset_detach_node_recursive(struct of_changeset *ocs,
@@ -394,6 +521,9 @@ static int dlpar_hp_dt(struct pseries_hp_errorlog *phpe)
 	lock_device_hotplug();
 
 	switch (phpe->action) {
+	case PSERIES_HP_ELOG_ACTION_ADD:
+		rc = dlpar_hp_dt_add(drc_index);
+		break;
 	case PSERIES_HP_ELOG_ACTION_REMOVE:
 		rc = dlpar_hp_dt_remove(drc_index);
 		break;
