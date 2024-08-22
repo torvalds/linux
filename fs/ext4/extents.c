@@ -106,6 +106,12 @@ static int ext4_ext_trunc_restart_fn(struct inode *inode, int *dropped)
 	return 0;
 }
 
+static inline void ext4_ext_path_brelse(struct ext4_ext_path *path)
+{
+	brelse(path->p_bh);
+	path->p_bh = NULL;
+}
+
 static void ext4_ext_drop_refs(struct ext4_ext_path *path)
 {
 	int depth, i;
@@ -113,10 +119,8 @@ static void ext4_ext_drop_refs(struct ext4_ext_path *path)
 	if (!path)
 		return;
 	depth = path->p_depth;
-	for (i = 0; i <= depth; i++, path++) {
-		brelse(path->p_bh);
-		path->p_bh = NULL;
-	}
+	for (i = 0; i <= depth; i++, path++)
+		ext4_ext_path_brelse(path);
 }
 
 void ext4_free_ext_path(struct ext4_ext_path *path)
@@ -635,8 +639,7 @@ int ext4_ext_precache(struct inode *inode)
 		 */
 		if ((i == depth) ||
 		    path[i].p_idx > EXT_LAST_INDEX(path[i].p_hdr)) {
-			brelse(path[i].p_bh);
-			path[i].p_bh = NULL;
+			ext4_ext_path_brelse(path + i);
 			i--;
 			continue;
 		}
@@ -1889,8 +1892,7 @@ static void ext4_ext_try_to_merge_up(handle_t *handle,
 		(path[1].p_ext - EXT_FIRST_EXTENT(path[1].p_hdr));
 	path[0].p_hdr->eh_max = cpu_to_le16(max_root);
 
-	brelse(path[1].p_bh);
-	path[1].p_bh = NULL;
+	ext4_ext_path_brelse(path + 1);
 	ext4_free_blocks(handle, inode, NULL, blk, 1,
 			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
 }
@@ -2959,8 +2961,7 @@ again:
 			err = ext4_ext_rm_leaf(handle, inode, path,
 					       &partial, start, end);
 			/* root level has p_bh == NULL, brelse() eats this */
-			brelse(path[i].p_bh);
-			path[i].p_bh = NULL;
+			ext4_ext_path_brelse(path + i);
 			i--;
 			continue;
 		}
@@ -3022,8 +3023,7 @@ again:
 				err = ext4_ext_rm_idx(handle, inode, path, i);
 			}
 			/* root level has p_bh == NULL, brelse() eats this */
-			brelse(path[i].p_bh);
-			path[i].p_bh = NULL;
+			ext4_ext_path_brelse(path + i);
 			i--;
 			ext_debug(inode, "return to level %d\n", i);
 		}
