@@ -1403,6 +1403,7 @@ ext4_ext_create_new_leaf(handle_t *handle, struct inode *inode,
 {
 	struct ext4_ext_path *curp;
 	int depth, i, err = 0;
+	ext4_lblk_t ee_block = le32_to_cpu(newext->ee_block);
 
 repeat:
 	i = depth = ext_depth(inode);
@@ -1424,33 +1425,30 @@ repeat:
 			goto errout;
 
 		/* refill path */
-		path = ext4_find_extent(inode,
-				    (ext4_lblk_t)le32_to_cpu(newext->ee_block),
-				    path, gb_flags);
+		path = ext4_find_extent(inode, ee_block, path, gb_flags);
 		return path;
-	} else {
-		/* tree is full, time to grow in depth */
-		err = ext4_ext_grow_indepth(handle, inode, mb_flags);
-		if (err)
-			goto errout;
-
-		/* refill path */
-		path = ext4_find_extent(inode,
-				   (ext4_lblk_t)le32_to_cpu(newext->ee_block),
-				    path, gb_flags);
-		if (IS_ERR(path))
-			return path;
-
-		/*
-		 * only first (depth 0 -> 1) produces free space;
-		 * in all other cases we have to split the grown tree
-		 */
-		depth = ext_depth(inode);
-		if (path[depth].p_hdr->eh_entries == path[depth].p_hdr->eh_max) {
-			/* now we need to split */
-			goto repeat;
-		}
 	}
+
+	/* tree is full, time to grow in depth */
+	err = ext4_ext_grow_indepth(handle, inode, mb_flags);
+	if (err)
+		goto errout;
+
+	/* refill path */
+	path = ext4_find_extent(inode, ee_block, path, gb_flags);
+	if (IS_ERR(path))
+		return path;
+
+	/*
+	 * only first (depth 0 -> 1) produces free space;
+	 * in all other cases we have to split the grown tree
+	 */
+	depth = ext_depth(inode);
+	if (path[depth].p_hdr->eh_entries == path[depth].p_hdr->eh_max) {
+		/* now we need to split */
+		goto repeat;
+	}
+
 	return path;
 
 errout:
