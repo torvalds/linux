@@ -1874,26 +1874,26 @@ static void bch2_do_discards_work(struct work_struct *work)
 	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
 			      bch2_err_str(ret));
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
 void bch2_dev_do_discards(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_write_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->discard_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_write_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
 void bch2_do_discards(struct bch_fs *c)
