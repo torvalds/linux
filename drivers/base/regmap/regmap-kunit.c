@@ -151,8 +151,6 @@ static struct regmap *gen_regmap(struct kunit *test,
 	struct reg_default *defaults;
 
 	config->cache_type = param->cache;
-	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
-					config->cache_type == REGCACHE_MAPLE;
 
 	if (config->max_register == 0) {
 		config->max_register = param->from_reg;
