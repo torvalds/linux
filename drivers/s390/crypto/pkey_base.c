@@ -300,6 +300,35 @@ int pkey_handler_apqns_for_keytype(enum pkey_key_type keysubtype,
 }
 EXPORT_SYMBOL(pkey_handler_apqns_for_keytype);
 
+void pkey_handler_request_modules(void)
+{
+#ifdef CONFIG_MODULES
+	static const char * const pkey_handler_modules[] = {
+		"pkey_cca", "pkey_ep11", "pkey_pckmo" };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pkey_handler_modules); i++) {
+		const struct pkey_handler *h;
+		bool found = false;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(h, &handler_list, list) {
+			if (h->module &&
+			    !strcmp(h->module->name, pkey_handler_modules[i])) {
+				found = true;
+				break;
+			}
+		}
+		rcu_read_unlock();
+		if (!found) {
+			pr_debug("request_module(%s)\n", pkey_handler_modules[i]);
+			request_module(pkey_handler_modules[i]);
+		}
+	}
+#endif
+}
+EXPORT_SYMBOL(pkey_handler_request_modules);
+
 /*
  * Module init
  */

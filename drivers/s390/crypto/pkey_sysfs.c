@@ -17,6 +17,32 @@
 #include "pkey_base.h"
 
 /*
+ * Wrapper around pkey_handler_gen_key() which deals with the
+ * ENODEV return code and then tries to enforce a pkey handler
+ * module load.
+ */
+static int sys_pkey_handler_gen_key(u32 keytype, u32 keysubtype,
+				    u32 keybitsize, u32 flags,
+				    u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
+{
+	int rc;
+
+	rc = pkey_handler_gen_key(NULL, 0,
+				  keytype, keysubtype,
+				  keybitsize, flags,
+				  keybuf, keybuflen, keyinfo);
+	if (rc == -ENODEV) {
+		pkey_handler_request_modules();
+		rc = pkey_handler_gen_key(NULL, 0,
+					  keytype, keysubtype,
+					  keybitsize, flags,
+					  keybuf, keybuflen, keyinfo);
+	}
+
+	return rc;
+}
+
+/*
  * Sysfs attribute read function for all protected key binary attributes.
  * The implementation can not deal with partial reads, because a new random
  * protected key blob is generated with each read. In case of partial reads
@@ -41,10 +67,9 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	protkeytoken.keytype = keytype;
 
 	protkey.len = sizeof(protkey.protkey);
-	rc = pkey_handler_gen_key(NULL, 0, keytype,
-				  PKEY_TYPE_PROTKEY, 0, 0,
-				  protkey.protkey, &protkey.len,
-				  &protkey.type);
+	rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_PROTKEY, 0, 0,
+				      protkey.protkey, &protkey.len,
+				      &protkey.type);
 	if (rc)
 		return rc;
 
@@ -56,10 +81,9 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	if (is_xts) {
 		/* xts needs a second protected key, reuse protkey struct */
 		protkey.len = sizeof(protkey.protkey);
-		rc = pkey_handler_gen_key(NULL, 0, keytype,
-					  PKEY_TYPE_PROTKEY, 0, 0,
-					  protkey.protkey, &protkey.len,
-					  &protkey.type);
+		rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_PROTKEY, 0, 0,
+					      protkey.protkey, &protkey.len,
+					      &protkey.type);
 		if (rc)
 			return rc;
 
@@ -165,18 +189,16 @@ static ssize_t pkey_ccadata_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 			return -EINVAL;
 
 	buflen = sizeof(seckey->seckey);
-	rc = pkey_handler_gen_key(NULL, 0, keytype,
-				  PKEY_TYPE_CCA_DATA, 0, 0,
-				  seckey->seckey, &buflen, NULL);
+	rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_CCA_DATA, 0, 0,
+				      seckey->seckey, &buflen, NULL);
 	if (rc)
 		return rc;
 
 	if (is_xts) {
 		seckey++;
 		buflen = sizeof(seckey->seckey);
-		rc = pkey_handler_gen_key(NULL, 0, keytype,
-					  PKEY_TYPE_CCA_DATA, 0, 0,
-					  seckey->seckey, &buflen, NULL);
+		rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_CCA_DATA, 0, 0,
+					      seckey->seckey, &buflen, NULL);
 		if (rc)
 			return rc;
 
@@ -279,20 +301,19 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
-	rc = pkey_handler_gen_key(NULL, 0,
-				  pkey_aes_bitsize_to_keytype(keybits),
-				  PKEY_TYPE_CCA_CIPHER, keybits, 0,
-				  buf, &keysize, NULL);
+	rc = sys_pkey_handler_gen_key(pkey_aes_bitsize_to_keytype(keybits),
+				      PKEY_TYPE_CCA_CIPHER, keybits, 0,
+				      buf, &keysize, NULL);
 	if (rc)
 		return rc;
 
 	if (is_xts) {
 		keysize = CCACIPHERTOKENSIZE;
 		buf += CCACIPHERTOKENSIZE;
-		rc = pkey_handler_gen_key(NULL, 0,
-					  pkey_aes_bitsize_to_keytype(keybits),
-					  PKEY_TYPE_CCA_CIPHER, keybits, 0,
-					  buf, &keysize, NULL);
+		rc = sys_pkey_handler_gen_key(
+			pkey_aes_bitsize_to_keytype(keybits),
+			PKEY_TYPE_CCA_CIPHER, keybits, 0,
+			buf, &keysize, NULL);
 		if (rc)
 			return rc;
 		return 2 * CCACIPHERTOKENSIZE;
@@ -395,20 +416,19 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
-	rc = pkey_handler_gen_key(NULL, 0,
-				  pkey_aes_bitsize_to_keytype(keybits),
-				  PKEY_TYPE_EP11_AES, keybits, 0,
-				  buf, &keysize, NULL);
+	rc = sys_pkey_handler_gen_key(pkey_aes_bitsize_to_keytype(keybits),
+				      PKEY_TYPE_EP11_AES, keybits, 0,
+				      buf, &keysize, NULL);
 	if (rc)
 		return rc;
 
 	if (is_xts) {
 		keysize = MAXEP11AESKEYBLOBSIZE;
 		buf += MAXEP11AESKEYBLOBSIZE;
-		rc = pkey_handler_gen_key(NULL, 0,
-					  pkey_aes_bitsize_to_keytype(keybits),
-					  PKEY_TYPE_EP11_AES, keybits, 0,
-					  buf, &keysize, NULL);
+		rc = sys_pkey_handler_gen_key(
+			pkey_aes_bitsize_to_keytype(keybits),
+			PKEY_TYPE_EP11_AES, keybits, 0,
+			buf, &keysize, NULL);
 		if (rc)
 			return rc;
 		return 2 * MAXEP11AESKEYBLOBSIZE;

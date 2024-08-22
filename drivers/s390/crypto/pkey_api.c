@@ -54,8 +54,17 @@ static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 int pkey_key2protkey(const u8 *key, u32 keylen,
 		     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	return key2protkey(NULL, 0, key, keylen,
-			   protkey, protkeylen, protkeytype);
+	int rc;
+
+	rc = key2protkey(NULL, 0, key, keylen,
+			 protkey, protkeylen, protkeytype);
+	if (rc == -ENODEV) {
+		pkey_handler_request_modules();
+		rc = key2protkey(NULL, 0, key, keylen,
+				 protkey, protkeylen, protkeytype);
+	}
+
+	return rc;
 }
 EXPORT_SYMBOL(pkey_key2protkey);
 

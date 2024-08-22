@@ -176,4 +176,9 @@ int pkey_handler_apqns_for_keytype(enum pkey_key_type ktype,
 				   u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
 				   struct pkey_apqn *apqns, size_t *nr_apqns);
 
+/*
+ * Unconditional try to load all handler modules
+ */
+void pkey_handler_request_modules(void);
+
 #endif /* _PKEY_BASE_H_ */
