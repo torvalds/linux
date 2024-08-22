@@ -82,13 +82,14 @@ int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni = ntfs_i(inode);
 	u32 flags = fa->flags;
 	unsigned int new_fl = 0;
 
 	if (fileattr_has_fsx(fa))
 		return -EOPNOTSUPP;
 
-	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL))
+	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_COMPR_FL))
 		return -EOPNOTSUPP;
 
 	if (flags & FS_IMMUTABLE_FL)
@@ -96,6 +97,15 @@ int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	if (flags & FS_APPEND_FL)
 		new_fl |= S_APPEND;
+
+	/* Allowed to change compression for empty files and for directories only. */
+	if (!is_dedup(ni) && !is_encrypted(ni) &&
+	    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))) {
+		/* Change compress state. */
+		int err = ni_set_compress(inode, flags & FS_COMPR_FL);
+		if (err)
+			return err;
+	}
 
 	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
 
