@@ -64,14 +64,14 @@ struct smb_ntsd {
 	__le32 dacloffset;
 } __attribute__((packed));
 
-struct cifs_sid {
+struct smb_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[NUM_AUTHS];
 	__le32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
-/* size of a struct cifs_sid, sans sub_auth array */
+/* size of a struct smb_sid, sans sub_auth array */
 #define CIFS_SID_BASE_SIZE (1 + 1 + NUM_AUTHS)
 
 struct cifs_acl {
@@ -116,7 +116,7 @@ struct cifs_ace {
 	__u8 flags;
 	__le16 size;
 	__le32 access_req;
-	struct cifs_sid sid; /* ie UUID of user or group who gets these perms */
+	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
 } __attribute__((packed));
 
 /*
