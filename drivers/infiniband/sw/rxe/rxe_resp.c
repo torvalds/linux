@@ -341,7 +341,7 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 	/*
 	 * See IBA C9-92
 	 * For UD QPs we only check if the packet will fit in the
-	 * receive buffer later. For rmda operations additional
+	 * receive buffer later. For RDMA operations additional
 	 * length checks are performed in check_rkey.
 	 */
 	if ((qp_type(qp) == IB_QPT_GSI) || (qp_type(qp) == IB_QPT_UD)) {
