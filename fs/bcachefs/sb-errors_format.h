@@ -23,7 +23,7 @@ enum bch_fsck_flags {
 	x(jset_past_bucket_end,					  9,	0)		\
 	x(jset_seq_blacklisted,					 10,	0)		\
 	x(journal_entries_missing,				 11,	0)		\
-	x(journal_entry_replicas_not_marked,			 12,	0)		\
+	x(journal_entry_replicas_not_marked,			 12,	FSCK_AUTOFIX)	\
 	x(journal_entry_past_jset_end,				 13,	0)		\
 	x(journal_entry_replicas_data_mismatch,			 14,	0)		\
 	x(journal_entry_bkey_u64s_0,				 15,	0)		\
@@ -288,10 +288,10 @@ enum bch_fsck_flags {
 	x(invalid_btree_id,					274,	0)		\
 	x(alloc_key_io_time_bad,				275,	0)		\
 	x(alloc_key_fragmentation_lru_wrong,			276,	FSCK_AUTOFIX)	\
-	x(accounting_key_junk_at_end,				277,	0)		\
-	x(accounting_key_replicas_nr_devs_0,			278,	0)		\
-	x(accounting_key_replicas_nr_required_bad,		279,	0)		\
-	x(accounting_key_replicas_devs_unsorted,		280,	0)		\
+	x(accounting_key_junk_at_end,				277,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_nr_devs_0,			278,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_nr_required_bad,		279,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
