@@ -348,6 +348,7 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 
 	context->session_id = ta_id;
 
+	mutex_lock(&psp->ras_context.mutex);
 	ret = prep_ta_mem_context(&context->mem_context, shared_buf, shared_buf_len);
 	if (ret)
 		goto err_free_shared_buf;
@@ -366,6 +367,7 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 		ret = -EFAULT;
 
 err_free_shared_buf:
+	mutex_unlock(&psp->ras_context.mutex);
 	kfree(shared_buf);
 
 	return ret;

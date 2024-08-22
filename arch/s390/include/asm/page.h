@@ -174,12 +174,10 @@ static inline int devmem_is_allowed(unsigned long pfn)
 #define HAVE_ARCH_FREE_PAGE
 #define HAVE_ARCH_ALLOC_PAGE
 
-#if IS_ENABLED(CONFIG_PGSTE)
 int arch_make_folio_accessible(struct folio *folio);
 #define HAVE_ARCH_MAKE_FOLIO_ACCESSIBLE
 int arch_make_page_accessible(struct page *page);
 #define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
-#endif
 
 struct vm_layout {
 	unsigned long kaslr_offset;

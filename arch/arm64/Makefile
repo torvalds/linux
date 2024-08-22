@@ -182,7 +182,13 @@ $(BOOT_TARGETS): vmlinux
 Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-install: KBUILD_IMAGE := $(boot)/Image
+ifeq ($(CONFIG_COMPRESSED_INSTALL),y)
+ DEFAULT_KBUILD_IMAGE = $(KBUILD_IMAGE)
+else
+ DEFAULT_KBUILD_IMAGE = $(boot)/Image
+endif
+
+install: KBUILD_IMAGE := $(DEFAULT_KBUILD_IMAGE)
 install zinstall:
 	$(call cmd,install)
 
@@ -229,7 +235,7 @@ define archhelp
   echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '  image.fit     - Flat Image Tree (arch/$(ARCH)/boot/image.fit)'
-  echo  '  install       - Install uncompressed kernel'
+  echo  '  install       - Install kernel (compressed if COMPRESSED_INSTALL set)'
   echo  '  zinstall      - Install compressed kernel'
   echo  '                  Install using (your) ~/bin/installkernel or'
   echo  '                  (distribution) /sbin/installkernel or'

@@ -18,6 +18,7 @@ properties:
       - usb424,2412
       - usb424,2417
       - usb424,2514
+      - usb424,2517
 
   reg: true
 

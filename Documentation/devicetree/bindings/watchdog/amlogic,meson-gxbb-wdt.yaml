@@ -21,6 +21,7 @@ properties:
           - amlogic,t7-wdt
       - items:
           - enum:
+              - amlogic,a4-wdt
               - amlogic,c3-wdt
               - amlogic,s4-wdt
           - const: amlogic,t7-wdt

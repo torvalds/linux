@@ -44,6 +44,8 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 		audit_log_format(ab, ", mand");
 	if (flags & MS_DIRSYNC)
 		audit_log_format(ab, ", dirsync");
+	if (flags & MS_NOSYMFOLLOW)
+		audit_log_format(ab, ", nosymfollow");
 	if (flags & MS_NOATIME)
 		audit_log_format(ab, ", noatime");
 	if (flags & MS_NODIRATIME)

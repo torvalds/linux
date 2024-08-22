@@ -87,7 +87,53 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	spin_unlock(&xe->clients.lock);
 
 	file->driver_priv = xef;
+	kref_init(&xef->refcount);
+
 	return 0;
+}
+
+static void xe_file_destroy(struct kref *ref)
+{
+	struct xe_file *xef = container_of(ref, struct xe_file, refcount);
+	struct xe_device *xe = xef->xe;
+
+	xa_destroy(&xef->exec_queue.xa);
+	mutex_destroy(&xef->exec_queue.lock);
+	xa_destroy(&xef->vm.xa);
+	mutex_destroy(&xef->vm.lock);
+
+	spin_lock(&xe->clients.lock);
+	xe->clients.count--;
+	spin_unlock(&xe->clients.lock);
+
+	xe_drm_client_put(xef->client);
+	kfree(xef);
+}
+
+/**
+ * xe_file_get() - Take a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Anyone with a pointer to xef must take a reference to the xe file
+ * object using this call.
+ *
+ * Return: xe file pointer
+ */
+struct xe_file *xe_file_get(struct xe_file *xef)
+{
+	kref_get(&xef->refcount);
+	return xef;
+}
+
+/**
+ * xe_file_put() - Drop a reference to the xe file object
+ * @xef: Pointer to the xe file
+ *
+ * Used to drop reference to the xef object
+ */
+void xe_file_put(struct xe_file *xef)
+{
+	kref_put(&xef->refcount, xe_file_destroy);
 }
 
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
@@ -97,6 +143,8 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	struct xe_vm *vm;
 	struct xe_exec_queue *q;
 	unsigned long idx;
+
+	xe_pm_runtime_get(xe);
 
 	/*
 	 * No need for exec_queue.lock here as there is no contention for it
@@ -108,21 +156,14 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 		xe_exec_queue_kill(q);
 		xe_exec_queue_put(q);
 	}
-	xa_destroy(&xef->exec_queue.xa);
-	mutex_destroy(&xef->exec_queue.lock);
 	mutex_lock(&xef->vm.lock);
 	xa_for_each(&xef->vm.xa, idx, vm)
 		xe_vm_close_and_put(vm);
 	mutex_unlock(&xef->vm.lock);
-	xa_destroy(&xef->vm.xa);
-	mutex_destroy(&xef->vm.lock);
 
-	spin_lock(&xe->clients.lock);
-	xe->clients.count--;
-	spin_unlock(&xe->clients.lock);
+	xe_file_put(xef);
 
-	xe_drm_client_put(xef->client);
-	kfree(xef);
+	xe_pm_runtime_put(xe);
 }
 
 static const struct drm_ioctl_desc xe_ioctls[] = {
@@ -854,6 +895,13 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
 	return address & GENMASK_ULL(xe->info.va_bits - 1, 0);
 }
 
+static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_device *xe = arg;
+
+	xe_pm_runtime_put(xe);
+}
+
 /**
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
@@ -870,10 +918,20 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  */
 void xe_device_declare_wedged(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	if (xe->wedged.mode == 0) {
 		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
 		return;
 	}
+
+	if (drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe)) {
+		drm_err(&xe->drm, "Failed to register xe_device_wedged_fini clean-up. Although device is wedged.\n");
+		return;
+	}
+
+	xe_pm_runtime_get_noresume(xe);
 
 	if (!atomic_xchg(&xe->wedged.flag, 1)) {
 		xe->needs_flr_on_fini = true;
@@ -883,4 +941,7 @@ void xe_device_declare_wedged(struct xe_device *xe)
 			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
 			dev_name(xe->drm.dev));
 	}
+
+	for_each_gt(gt, xe, id)
+		xe_gt_declare_wedged(gt);
 }

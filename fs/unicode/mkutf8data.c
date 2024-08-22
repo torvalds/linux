@@ -3352,6 +3352,7 @@ static void write_file(void)
 	fprintf(file, "};\n");
 	fprintf(file, "EXPORT_SYMBOL_GPL(utf8_data_table);");
 	fprintf(file, "\n");
+	fprintf(file, "MODULE_DESCRIPTION(\"UTF8 data table\");\n");
 	fprintf(file, "MODULE_LICENSE(\"GPL v2\");\n");
 	fclose(file);
 }

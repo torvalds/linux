@@ -82,6 +82,9 @@ int smb3_encryption_required(const struct cifs_tcon *tcon)
 	if (tcon->seal &&
 	    (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
 		return 1;
+	if (((global_secflags & CIFSSEC_MUST_SEAL) == CIFSSEC_MUST_SEAL) &&
+	    (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
+		return 1;
 	return 0;
 }
 
@@ -1562,8 +1565,14 @@ SMB2_sess_sendreceive(struct SMB2_sess_data *sess_data)
 	cifs_small_buf_release(sess_data->iov[0].iov_base);
 	if (rc == 0)
 		sess_data->ses->expired_pwd = false;
-	else if ((rc == -EACCES) || (rc == -EKEYEXPIRED) || (rc == -EKEYREVOKED))
+	else if ((rc == -EACCES) || (rc == -EKEYEXPIRED) || (rc == -EKEYREVOKED)) {
+		if (sess_data->ses->expired_pwd == false)
+			trace_smb3_key_expired(sess_data->server->hostname,
+					       sess_data->ses->user_name,
+					       sess_data->server->conn_id,
+					       &sess_data->server->dstaddr, rc);
 		sess_data->ses->expired_pwd = true;
+	}
 
 	memcpy(&sess_data->iov[0], &rsp_iov, sizeof(struct kvec));
 

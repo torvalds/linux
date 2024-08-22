@@ -723,6 +723,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.min_prefetch_in_strobe_ns = 60000, // 60us
 	.disable_unbounded_requesting = false,
 	.enable_legacy_fast_update = false,
+	.dcc_meta_propagation_delay_us = 10,
 	.fams2_config = {
 		.bits = {
 			.enable = true,

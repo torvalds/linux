@@ -161,9 +161,9 @@ static int pic32_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return ret;
 }
 
-int pic32_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
-			   const u32 *intspec, unsigned int intsize,
-			   irq_hw_number_t *out_hwirq, unsigned int *out_type)
+static int pic32_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+				  const u32 *intspec, unsigned int intsize,
+				  irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
 	struct evic_chip_data *priv = d->host_data;
 
@@ -190,13 +190,11 @@ static void __init pic32_ext_irq_of_init(struct irq_domain *domain)
 {
 	struct device_node *node = irq_domain_get_of_node(domain);
 	struct evic_chip_data *priv = domain->host_data;
-	struct property *prop;
-	const __le32 *p;
 	u32 hwirq;
 	int i = 0;
 	const char *pname = "microchip,external-irqs";
 
-	of_property_for_each_u32(node, pname, prop, p, hwirq) {
+	of_property_for_each_u32(node, pname, hwirq) {
 		if (i >= ARRAY_SIZE(priv->ext_irqs)) {
 			pr_warn("More than %d external irq, skip rest\n",
 				ARRAY_SIZE(priv->ext_irqs));

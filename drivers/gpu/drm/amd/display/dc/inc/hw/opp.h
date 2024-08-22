@@ -205,9 +205,24 @@ struct gamma_coefficients {
 	struct fixed31_32 user_brightness;
 };
 
+/**
+ * struct pwl_float_data - Fixed point RGB color
+ */
 struct pwl_float_data {
+	/**
+	 * @r: Component Red.
+	 */
 	struct fixed31_32 r;
+
+	/**
+	 * @g: Component Green.
+	 */
+
 	struct fixed31_32 g;
+
+	/**
+	 * @b: Component Blue.
+	 */
 	struct fixed31_32 b;
 };
 

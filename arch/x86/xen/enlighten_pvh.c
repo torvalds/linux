@@ -9,6 +9,7 @@
 #include <asm/io_apic.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
+#include <asm/setup.h>
 
 #include <xen/xen.h>
 #include <asm/xen/interface.h>
@@ -27,54 +28,6 @@
 bool __ro_after_init xen_pvh;
 EXPORT_SYMBOL_GPL(xen_pvh);
 
-void __init xen_pvh_init(struct boot_params *boot_params)
-{
-	u32 msr;
-	u64 pfn;
-
-	xen_pvh = 1;
-	xen_domain_type = XEN_HVM_DOMAIN;
-	xen_start_flags = pvh_start_info.flags;
-
-	msr = cpuid_ebx(xen_cpuid_base() + 2);
-	pfn = __pa(hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-
-	if (xen_initial_domain())
-		x86_init.oem.arch_setup = xen_add_preferred_consoles;
-	x86_init.oem.banner = xen_banner;
-
-	xen_efi_init(boot_params);
-
-	if (xen_initial_domain()) {
-		struct xen_platform_op op = {
-			.cmd = XENPF_get_dom0_console,
-		};
-		int ret = HYPERVISOR_platform_op(&op);
-
-		if (ret > 0)
-			xen_init_vga(&op.u.dom0_console,
-				     min(ret * sizeof(char),
-					 sizeof(op.u.dom0_console)),
-				     &boot_params->screen_info);
-	}
-}
-
-void __init mem_map_via_hcall(struct boot_params *boot_params_p)
-{
-	struct xen_memory_map memmap;
-	int rc;
-
-	memmap.nr_entries = ARRAY_SIZE(boot_params_p->e820_table);
-	set_xen_guest_handle(memmap.buffer, boot_params_p->e820_table);
-	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
-	if (rc) {
-		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
-		BUG();
-	}
-	boot_params_p->e820_entries = memmap.nr_entries;
-}
-
 /*
  * Reserve e820 UNUSABLE regions to inflate the memory balloon.
  *
@@ -89,8 +42,9 @@ void __init mem_map_via_hcall(struct boot_params *boot_params_p)
  * hypervisor should notify us which memory ranges are suitable for creating
  * foreign mappings, but that's not yet implemented.
  */
-void __init xen_reserve_extra_memory(struct boot_params *bootp)
+static void __init pvh_reserve_extra_memory(void)
 {
+	struct boot_params *bootp = &boot_params;
 	unsigned int i, ram_pages = 0, extra_pages;
 
 	for (i = 0; i < bootp->e820_entries; i++) {
@@ -140,4 +94,59 @@ void __init xen_reserve_extra_memory(struct boot_params *bootp)
 
 		xen_add_extra_mem(PFN_UP(e->addr), pages);
 	}
+}
+
+static void __init pvh_arch_setup(void)
+{
+	pvh_reserve_extra_memory();
+
+	if (xen_initial_domain())
+		xen_add_preferred_consoles();
+}
+
+void __init xen_pvh_init(struct boot_params *boot_params)
+{
+	u32 msr;
+	u64 pfn;
+
+	xen_pvh = 1;
+	xen_domain_type = XEN_HVM_DOMAIN;
+	xen_start_flags = pvh_start_info.flags;
+
+	msr = cpuid_ebx(xen_cpuid_base() + 2);
+	pfn = __pa(hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+
+	x86_init.oem.arch_setup = pvh_arch_setup;
+	x86_init.oem.banner = xen_banner;
+
+	xen_efi_init(boot_params);
+
+	if (xen_initial_domain()) {
+		struct xen_platform_op op = {
+			.cmd = XENPF_get_dom0_console,
+		};
+		int ret = HYPERVISOR_platform_op(&op);
+
+		if (ret > 0)
+			xen_init_vga(&op.u.dom0_console,
+				     min(ret * sizeof(char),
+					 sizeof(op.u.dom0_console)),
+				     &boot_params->screen_info);
+	}
+}
+
+void __init mem_map_via_hcall(struct boot_params *boot_params_p)
+{
+	struct xen_memory_map memmap;
+	int rc;
+
+	memmap.nr_entries = ARRAY_SIZE(boot_params_p->e820_table);
+	set_xen_guest_handle(memmap.buffer, boot_params_p->e820_table);
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc) {
+		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
+		BUG();
+	}
+	boot_params_p->e820_entries = memmap.nr_entries;
 }

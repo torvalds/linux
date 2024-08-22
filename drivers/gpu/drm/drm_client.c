@@ -355,7 +355,7 @@ int drm_client_buffer_vmap_local(struct drm_client_buffer *buffer,
 
 err_drm_gem_vmap_unlocked:
 	drm_gem_unlock(gem);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_client_buffer_vmap_local);
 

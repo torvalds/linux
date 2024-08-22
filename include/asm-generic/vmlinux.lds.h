@@ -911,13 +911,12 @@
 #define CON_INITCALL							\
 	BOUNDED_SECTION_POST_LABEL(.con_initcall.init, __con_initcall, _start, _end)
 
-#define RUNTIME_NAME(t,x) runtime_##t##_##x
+#define NAMED_SECTION(name) \
+	. = ALIGN(8); \
+	name : AT(ADDR(name) - LOAD_OFFSET) \
+	{ BOUNDED_SECTION_PRE_LABEL(name, name, __start_, __stop_) }
 
-#define RUNTIME_CONST(t,x)						\
-	. = ALIGN(8);							\
-	RUNTIME_NAME(t,x) : AT(ADDR(RUNTIME_NAME(t,x)) - LOAD_OFFSET) {	\
-		*(RUNTIME_NAME(t,x));					\
-	}
+#define RUNTIME_CONST(t,x) NAMED_SECTION(runtime_##t##_##x)
 
 /* Alignment must be consistent with (kunit_suite *) in include/kunit/test.h */
 #define KUNIT_TABLE()							\

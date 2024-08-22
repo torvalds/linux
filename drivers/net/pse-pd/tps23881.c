@@ -5,6 +5,7 @@
  * Copyright (c) 2023 Bootlin, Kory Maincent <kory.maincent@bootlin.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -29,6 +30,8 @@
 #define TPS23881_REG_TPON	BIT(0)
 #define TPS23881_REG_FWREV	0x41
 #define TPS23881_REG_DEVID	0x43
+#define TPS23881_REG_DEVID_MASK	0xF0
+#define TPS23881_DEVICE_ID	0x02
 #define TPS23881_REG_SRAM_CTRL	0x60
 #define TPS23881_REG_SRAM_DATA	0x61
 
@@ -750,7 +753,7 @@ static int tps23881_i2c_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	if (ret != 0x22) {
+	if (FIELD_GET(TPS23881_REG_DEVID_MASK, ret) != TPS23881_DEVICE_ID) {
 		dev_err(dev, "Wrong device ID\n");
 		return -ENXIO;
 	}

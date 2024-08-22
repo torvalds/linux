@@ -46,6 +46,7 @@ snapshot: turbostat
 	@echo "#define GENMASK_ULL(h, l) (((~0ULL) << (l)) & (~0ULL >> (sizeof(long long) * 8 - 1 - (h))))" >> $(SNAPSHOT)/bits.h
 
 	@echo '#define BUILD_BUG_ON(cond) do { enum { compile_time_check ## __COUNTER__ = 1/(!(cond)) }; } while (0)' > $(SNAPSHOT)/build_bug.h
+	@echo '#define __must_be_array(arr) 0' >> $(SNAPSHOT)/build_bug.h
 
 	@echo PWD=. > $(SNAPSHOT)/Makefile
 	@echo "CFLAGS +=	-DMSRHEADER='\"msr-index.h\"'" >> $(SNAPSHOT)/Makefile

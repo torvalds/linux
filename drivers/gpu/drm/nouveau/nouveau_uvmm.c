@@ -1803,6 +1803,7 @@ nouveau_uvmm_bo_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(vm_bo->obj);
 
+	nouveau_bo_placement_set(nvbo, nvbo->valid_domains, 0);
 	return nouveau_bo_validate(nvbo, true, false);
 }
 

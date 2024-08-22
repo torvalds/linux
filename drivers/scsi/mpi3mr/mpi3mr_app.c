@@ -100,7 +100,8 @@ retry_trace:
 			dprint_init(mrioc,
 			    "trying to allocate trace diag buffer of size = %dKB\n",
 			    trace_size / 1024);
-		if (mpi3mr_alloc_trace_buffer(mrioc, trace_size)) {
+		if (get_order(trace_size) > MAX_PAGE_ORDER ||
+		    mpi3mr_alloc_trace_buffer(mrioc, trace_size)) {
 			retry = true;
 			trace_size -= trace_dec_size;
 			dprint_init(mrioc, "trace diag buffer allocation failed\n"
@@ -118,8 +119,12 @@ retry_fw:
 	diag_buffer->type = MPI3_DIAG_BUFFER_TYPE_FW;
 	diag_buffer->status = MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED;
 	if ((mrioc->facts.diag_fw_sz < fw_size) && (fw_size >= fw_min_size)) {
-		diag_buffer->addr = dma_alloc_coherent(&mrioc->pdev->dev,
-		    fw_size, &diag_buffer->dma_addr, GFP_KERNEL);
+		if (get_order(fw_size) <= MAX_PAGE_ORDER) {
+			diag_buffer->addr
+				= dma_alloc_coherent(&mrioc->pdev->dev, fw_size,
+						     &diag_buffer->dma_addr,
+						     GFP_KERNEL);
+		}
 		if (!retry)
 			dprint_init(mrioc,
 			    "%s:trying to allocate firmware diag buffer of size = %dKB\n",

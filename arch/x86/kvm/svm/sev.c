@@ -2276,30 +2276,24 @@ static int sev_gmem_post_populate(struct kvm *kvm, gfn_t gfn_start, kvm_pfn_t pf
 
 	for (gfn = gfn_start, i = 0; gfn < gfn_start + npages; gfn++, i++) {
 		struct sev_data_snp_launch_update fw_args = {0};
-		bool assigned;
+		bool assigned = false;
 		int level;
-
-		if (!kvm_mem_is_private(kvm, gfn)) {
-			pr_debug("%s: Failed to ensure GFN 0x%llx has private memory attribute set\n",
-				 __func__, gfn);
-			ret = -EINVAL;
-			goto err;
-		}
 
 		ret = snp_lookup_rmpentry((u64)pfn + i, &assigned, &level);
 		if (ret || assigned) {
 			pr_debug("%s: Failed to ensure GFN 0x%llx RMP entry is initial shared state, ret: %d assigned: %d\n",
 				 __func__, gfn, ret, assigned);
-			ret = -EINVAL;
+			ret = ret ? -EINVAL : -EEXIST;
 			goto err;
 		}
 
 		if (src) {
 			void *vaddr = kmap_local_pfn(pfn + i);
 
-			ret = copy_from_user(vaddr, src + i * PAGE_SIZE, PAGE_SIZE);
-			if (ret)
+			if (copy_from_user(vaddr, src + i * PAGE_SIZE, PAGE_SIZE)) {
+				ret = -EFAULT;
 				goto err;
+			}
 			kunmap_local(vaddr);
 		}
 
@@ -2548,6 +2542,14 @@ static int snp_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	memcpy(data->host_data, params.host_data, KVM_SEV_SNP_FINISH_DATA_SIZE);
 	data->gctx_paddr = __psp_pa(sev->snp_context);
 	ret = sev_issue_cmd(kvm, SEV_CMD_SNP_LAUNCH_FINISH, data, &argp->error);
+
+	/*
+	 * Now that there will be no more SNP_LAUNCH_UPDATE ioctls, private pages
+	 * can be given to the guest simply by marking the RMP entry as private.
+	 * This can happen on first access and also with KVM_PRE_FAULT_MEMORY.
+	 */
+	if (!ret)
+		kvm->arch.pre_fault_allowed = true;
 
 	kfree(id_auth);
 

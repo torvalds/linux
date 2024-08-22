@@ -18,11 +18,22 @@
 #include <asm/sections.h>
 #include <asm/uv.h>
 
+#if !IS_ENABLED(CONFIG_KVM)
+unsigned long __gmap_translate(struct gmap *gmap, unsigned long gaddr)
+{
+	return 0;
+}
+
+int gmap_fault(struct gmap *gmap, unsigned long gaddr,
+	       unsigned int fault_flags)
+{
+	return 0;
+}
+#endif
+
 /* the bootdata_preserved fields come from ones in arch/s390/boot/uv.c */
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
 EXPORT_SYMBOL(prot_virt_guest);
-#endif
 
 /*
  * uv_info contains both host and guest information but it's currently only
@@ -35,7 +46,6 @@ EXPORT_SYMBOL(prot_virt_guest);
 struct uv_info __bootdata_preserved(uv_info);
 EXPORT_SYMBOL(uv_info);
 
-#if IS_ENABLED(CONFIG_KVM)
 int __bootdata_preserved(prot_virt_host);
 EXPORT_SYMBOL(prot_virt_host);
 
@@ -543,9 +553,6 @@ int arch_make_page_accessible(struct page *page)
 	return arch_make_folio_accessible(page_folio(page));
 }
 EXPORT_SYMBOL_GPL(arch_make_page_accessible);
-#endif
-
-#if defined(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) || IS_ENABLED(CONFIG_KVM)
 static ssize_t uv_query_facilities(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buf)
 {
@@ -721,24 +728,13 @@ static struct attribute_group uv_query_attr_group = {
 static ssize_t uv_is_prot_virt_guest(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
 {
-	int val = 0;
-
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
-	val = prot_virt_guest;
-#endif
-	return sysfs_emit(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", prot_virt_guest);
 }
 
 static ssize_t uv_is_prot_virt_host(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
-	int val = 0;
-
-#if IS_ENABLED(CONFIG_KVM)
-	val = prot_virt_host;
-#endif
-
-	return sysfs_emit(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", prot_virt_host);
 }
 
 static struct kobj_attribute uv_prot_virt_guest =
@@ -790,4 +786,3 @@ out_kobj:
 	return rc;
 }
 device_initcall(uv_info_init);
-#endif

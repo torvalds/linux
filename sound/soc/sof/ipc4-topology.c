@@ -1358,7 +1358,13 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 		ipc4_copier = dai->private;
 
 		if (pipeline->use_chain_dma) {
-			pipeline->msg.primary = 0;
+			/*
+			 * Preserve the DMA Link ID and clear other bits since
+			 * the DMA Link ID is only configured once during
+			 * dai_config, other fields are expected to be 0 for
+			 * re-configuration
+			 */
+			pipeline->msg.primary &= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
 			pipeline->msg.extension = 0;
 		}
 
@@ -3095,8 +3101,14 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 		return 0;
 
 	if (pipeline->use_chain_dma) {
-		pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
-		pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+		/*
+		 * Only configure the DMA Link ID for ChainDMA when this op is
+		 * invoked with SOF_DAI_CONFIG_FLAGS_HW_PARAMS
+		 */
+		if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) {
+			pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
+			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+		}
 		return 0;
 	}
 

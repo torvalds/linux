@@ -564,13 +564,11 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 			  struct tiadc_device *adc_dev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct property *prop;
-	const __be32 *cur;
 	int channels = 0;
 	u32 val;
 	int i;
 
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	of_property_for_each_u32(node, "ti,adc-channels", val) {
 		adc_dev->channel_line[channels] = val;
 
 		/* Set Default values for optional DT parameters */

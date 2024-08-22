@@ -233,13 +233,12 @@ static ssize_t nuse_show(struct device *dev, struct device_attribute *attr,
 {
 	struct nvme_ns_head *head = dev_to_ns_head(dev);
 	struct gendisk *disk = dev_to_disk(dev);
-	struct block_device *bdev = disk->part0;
 	int ret;
 
-	if (nvme_disk_is_ns_head(bdev->bd_disk))
+	if (nvme_disk_is_ns_head(disk))
 		ret = ns_head_update_nuse(head);
 	else
-		ret = ns_update_nuse(bdev->bd_disk->private_data);
+		ret = ns_update_nuse(disk->private_data);
 	if (ret)
 		return ret;
 

@@ -12,8 +12,8 @@
 
 static inline bool is_lowcore_addr(void *addr)
 {
-	return addr >= (void *)&S390_lowcore &&
-	       addr < (void *)(&S390_lowcore + 1);
+	return addr >= (void *)get_lowcore() &&
+	       addr < (void *)(get_lowcore() + 1);
 }
 
 static inline void *arch_kmsan_get_meta_or_null(void *addr, bool is_origin)
@@ -25,7 +25,7 @@ static inline void *arch_kmsan_get_meta_or_null(void *addr, bool is_origin)
 		 * order to get a distinct struct page.
 		 */
 		addr += (void *)lowcore_ptr[raw_smp_processor_id()] -
-			(void *)&S390_lowcore;
+			(void *)get_lowcore();
 		if (KMSAN_WARN_ON(is_lowcore_addr(addr)))
 			return NULL;
 		return kmsan_get_metadata(addr, is_origin);

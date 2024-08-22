@@ -1027,7 +1027,7 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 
 	/* Is the folio fully inside i_size? */
 	if (folio_pos(folio) + len <= i_size) {
-		if (folio_pos(folio) >= synced_i_size) {
+		if (folio_pos(folio) + len > synced_i_size) {
 			err = inode->i_sb->s_op->write_inode(inode, NULL);
 			if (err)
 				goto out_redirty;

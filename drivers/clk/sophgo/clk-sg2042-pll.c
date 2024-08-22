@@ -387,7 +387,7 @@ static int sg2042_clk_pll_set_rate(struct clk_hw *hw,
 	struct sg2042_pll_clock *pll = to_sg2042_pll_clk(hw);
 	struct sg2042_pll_ctrl pctrl_table;
 	unsigned long flags;
-	u32 value;
+	u32 value = 0;
 	int ret;
 
 	spin_lock_irqsave(pll->lock, flags);

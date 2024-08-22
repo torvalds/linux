@@ -74,7 +74,7 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	echo "/lib/modules/%{KERNELRELEASE}"
 
 	for x in alias alias.bin builtin.alias.bin builtin.bin dep dep.bin \
-					devname softdep symbols symbols.bin; do
+				devname softdep symbols symbols.bin weakdep; do
 		echo "%ghost /lib/modules/%{KERNELRELEASE}/modules.${x}"
 	done
 

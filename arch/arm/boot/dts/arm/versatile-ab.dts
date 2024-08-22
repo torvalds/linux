@@ -157,7 +157,7 @@
 			clocks = <&xtal24mhz>;
 		};
 
-		pclk: clock-24000000 {
+		pclk: clock-pclk {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <1>;

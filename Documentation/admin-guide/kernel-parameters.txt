@@ -3830,9 +3830,6 @@
 
 	noalign		[KNL,ARM]
 
-	noaltinstr	[S390,EARLY] Disables alternative instructions
-			patching (CPU alternatives feature).
-
 	noapic		[SMP,APIC,EARLY] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
@@ -4801,11 +4798,9 @@
 
 	profile=	[KNL] Enable kernel profiling via /proc/profile
 			Format: [<profiletype>,]<number>
-			Param: <profiletype>: "schedule", "sleep", or "kvm"
+			Param: <profiletype>: "schedule" or "kvm"
 				[defaults to kernel profiling]
 			Param: "schedule" - profile schedule points.
-			Param: "sleep" - profile D-state sleeping (millisecs).
-				Requires CONFIG_SCHEDSTATS
 			Param: "kvm" - profile VM exits.
 			Param: <number> - step/bucket size as a power of 2 for
 				statistical time based profiling.

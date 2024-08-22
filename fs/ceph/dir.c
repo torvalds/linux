@@ -1589,7 +1589,7 @@ void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di)
 	}
 
 	spin_lock(&mdsc->dentry_list_lock);
-	__dentry_dir_lease_touch(mdsc, di),
+	__dentry_dir_lease_touch(mdsc, di);
 	spin_unlock(&mdsc->dentry_list_lock);
 }
 

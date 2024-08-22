@@ -81,13 +81,11 @@ err:
 static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 {
 	struct of_phandle_args clkspec;
-	struct property	*prop;
-	const __be32 *cur;
 	int rc, index = 0;
 	struct clk *clk;
 	u32 rate;
 
-	of_property_for_each_u32(node, "assigned-clock-rates", prop, cur, rate) {
+	of_property_for_each_u32(node, "assigned-clock-rates", rate) {
 		if (rate) {
 			rc = of_parse_phandle_with_args(node, "assigned-clocks",
 					"#clock-cells",	index, &clkspec);

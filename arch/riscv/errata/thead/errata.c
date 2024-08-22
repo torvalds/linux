@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <asm/patch.h>
 #include <asm/vendorid_list.h>
+#include <asm/vendor_extensions.h>
 
 #define CSR_TH_SXSTATUS		0x5c0
 #define SXSTATUS_MAEE		_AC(0x200000, UL)
@@ -165,6 +166,8 @@ void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 	u32 cpu_req_errata = thead_errata_probe(stage, archid, impid);
 	u32 tmp;
 	void *oldptr, *altptr;
+
+	BUILD_BUG_ON(ERRATA_THEAD_NUMBER >= RISCV_VENDOR_EXT_ALTERNATIVES_BASE);
 
 	for (alt = begin; alt < end; alt++) {
 		if (alt->vendor_id != THEAD_VENDOR_ID)

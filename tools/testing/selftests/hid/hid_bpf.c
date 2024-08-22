@@ -532,6 +532,7 @@ static void load_programs(const struct test_program programs[],
 			  FIXTURE_DATA(hid_bpf) * self,
 			  const FIXTURE_VARIANT(hid_bpf) * variant)
 {
+	struct bpf_map *iter_map;
 	int err = -EINVAL;
 
 	ASSERT_LE(progs_count, ARRAY_SIZE(self->hid_links))
@@ -563,6 +564,13 @@ static void load_programs(const struct test_program programs[],
 
 		*ops_hid_id = self->hid_id;
 	}
+
+	/* we disable the auto-attach feature of all maps because we
+	 * only want the tested one to be manually attached in the next
+	 * call to bpf_map__attach_struct_ops()
+	 */
+	bpf_object__for_each_map(iter_map, *self->skel->skeleton->obj)
+		bpf_map__set_autoattach(iter_map, false);
 
 	err = hid__load(self->skel);
 	ASSERT_OK(err) TH_LOG("hid_skel_load failed: %d", err);
@@ -684,6 +692,24 @@ TEST_F(hid_bpf, subprog_raw_event)
 	err = read(self->hidraw_fd, buf, sizeof(buf));
 	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
 	ASSERT_EQ(buf[2], 52);
+}
+
+/*
+ * Attach hid_first_event to the given uhid device,
+ * attempt at re-attaching it, we should not lock and
+ * return an invalid struct bpf_link
+ */
+TEST_F(hid_bpf, multiple_attach)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_first_event" },
+	};
+	struct bpf_link *link;
+
+	LOAD_PROGRAMS(progs);
+
+	link = bpf_map__attach_struct_ops(self->skel->maps.first_event);
+	ASSERT_NULL(link) TH_LOG("unexpected return value when re-attaching the struct_ops");
 }
 
 /*

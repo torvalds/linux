@@ -156,7 +156,7 @@ static void test_hw_debug(pid_t child, int type, const char *type_name)
 		/* Zero is not currently architecturally valid */
 		ksft_test_result(arch, "%s_arch_set\n", type_name);
 	} else {
-		ksft_test_result_skip("%s_arch_set\n");
+		ksft_test_result_skip("%s_arch_set\n", type_name);
 	}
 }
 

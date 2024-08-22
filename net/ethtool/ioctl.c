@@ -1331,13 +1331,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u32 dev_indir_size = 0, dev_key_size = 0, i;
+	u32 user_indir_len = 0, indir_bytes = 0;
 	struct ethtool_rxfh_param rxfh_dev = {};
 	struct ethtool_rxfh_context *ctx = NULL;
 	struct netlink_ext_ack *extack = NULL;
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
 	bool locked = false; /* dev->ethtool->rss_lock taken */
-	u32 indir_bytes = 0;
 	bool create = false;
 	u8 *rss_config;
 	int ret;
@@ -1369,23 +1369,25 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EOPNOTSUPP;
 	create = rxfh.rss_context == ETH_RXFH_CONTEXT_ALLOC;
 
-	/* If either indir, hash key or function is valid, proceed further.
-	 * Must request at least one change: indir size, hash key, function
-	 * or input transformation.
-	 */
 	if ((rxfh.indir_size &&
 	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
-	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
+	    (rxfh.key_size && rxfh.key_size != dev_key_size))
+		return -EINVAL;
+
+	/* Must request at least one change: indir size, hash key, function
+	 * or input transformation.
+	 * There's no need for any of it in case of context creation.
+	 */
+	if (!create &&
 	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
-	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
-		indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
+	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
-	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
+	rss_config = kzalloc(indir_bytes + dev_key_size, GFP_USER);
 	if (!rss_config)
 		return -ENOMEM;
 
@@ -1400,6 +1402,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	 */
 	if (rxfh.indir_size &&
 	    rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
+		user_indir_len = indir_bytes;
 		rxfh_dev.indir = (u32 *)rss_config;
 		rxfh_dev.indir_size = dev_indir_size;
 		ret = ethtool_copy_validate_indir(rxfh_dev.indir,
@@ -1426,7 +1429,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		rxfh_dev.key_size = dev_key_size;
 		rxfh_dev.key = rss_config + indir_bytes;
 		if (copy_from_user(rxfh_dev.key,
-				   useraddr + rss_cfg_offset + indir_bytes,
+				   useraddr + rss_cfg_offset + user_indir_len,
 				   rxfh.key_size)) {
 			ret = -EFAULT;
 			goto out;
@@ -1449,12 +1452,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 
 		if (ops->create_rxfh_context) {
-			u32 limit = ops->rxfh_max_context_id ?: U32_MAX;
+			u32 limit = ops->rxfh_max_num_contexts ?: U32_MAX;
 			u32 ctx_id;
 
 			/* driver uses new API, core allocates ID */
 			ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
-				       XA_LIMIT(1, limit), GFP_KERNEL_ACCOUNT);
+				       XA_LIMIT(1, limit - 1),
+				       GFP_KERNEL_ACCOUNT);
 			if (ret < 0) {
 				kfree(ctx);
 				goto out;
@@ -1474,16 +1478,21 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
 	if (rxfh.rss_context && ops->create_rxfh_context) {
-		if (create)
+		if (create) {
 			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev,
 						       extack);
-		else if (rxfh_dev.rss_delete)
+			/* Make sure driver populates defaults */
+			WARN_ON_ONCE(!ret && !rxfh_dev.key &&
+				     !memchr_inv(ethtool_rxfh_context_key(ctx),
+						 0, ctx->key_size));
+		} else if (rxfh_dev.rss_delete) {
 			ret = ops->remove_rxfh_context(dev, ctx,
 						       rxfh.rss_context,
 						       extack);
-		else
+		} else {
 			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev,
 						       extack);
+		}
 	} else {
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	}
@@ -1522,6 +1531,22 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			kfree(ctx);
 			goto out;
 		}
+
+		/* Fetch the defaults for the old API, in the new API drivers
+		 * should write defaults into ctx themselves.
+		 */
+		rxfh_dev.indir = (u32 *)rss_config;
+		rxfh_dev.indir_size = dev_indir_size;
+
+		rxfh_dev.key = rss_config + indir_bytes;
+		rxfh_dev.key_size = dev_key_size;
+
+		ret = ops->get_rxfh(dev, &rxfh_dev);
+		if (WARN_ON(ret)) {
+			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
+			kfree(ctx);
+			goto out;
+		}
 	}
 	if (rxfh_dev.rss_delete) {
 		WARN_ON(xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context) != ctx);
@@ -1530,12 +1555,14 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		if (rxfh_dev.indir) {
 			for (i = 0; i < dev_indir_size; i++)
 				ethtool_rxfh_context_indir(ctx)[i] = rxfh_dev.indir[i];
-			ctx->indir_configured = 1;
+			ctx->indir_configured =
+				rxfh.indir_size &&
+				rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE;
 		}
 		if (rxfh_dev.key) {
 			memcpy(ethtool_rxfh_context_key(ctx), rxfh_dev.key,
 			       dev_key_size);
-			ctx->key_configured = 1;
+			ctx->key_configured = !!rxfh.key_size;
 		}
 		if (rxfh_dev.hfunc != ETH_RSS_HASH_NO_CHANGE)
 			ctx->hfunc = rxfh_dev.hfunc;

@@ -21,38 +21,32 @@ void erofs_put_metabuf(struct erofs_buf *buf)
 	if (!buf->page)
 		return;
 	erofs_unmap_metabuf(buf);
-	put_page(buf->page);
+	folio_put(page_folio(buf->page));
 	buf->page = NULL;
 }
 
-/*
- * Derive the block size from inode->i_blkbits to make compatible with
- * anonymous inode in fscache mode.
- */
 void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 		  enum erofs_kmap_type type)
 {
 	pgoff_t index = offset >> PAGE_SHIFT;
-	struct page *page = buf->page;
-	struct folio *folio;
-	unsigned int nofs_flag;
+	struct folio *folio = NULL;
 
-	if (!page || page->index != index) {
+	if (buf->page) {
+		folio = page_folio(buf->page);
+		if (folio_file_page(folio, index) != buf->page)
+			erofs_unmap_metabuf(buf);
+	}
+	if (!folio || !folio_contains(folio, index)) {
 		erofs_put_metabuf(buf);
-
-		nofs_flag = memalloc_nofs_save();
-		folio = read_cache_folio(buf->mapping, index, NULL, NULL);
-		memalloc_nofs_restore(nofs_flag);
+		folio = read_mapping_folio(buf->mapping, index, NULL);
 		if (IS_ERR(folio))
 			return folio;
-
-		/* should already be PageUptodate, no need to lock page */
-		page = folio_file_page(folio, index);
-		buf->page = page;
 	}
+	buf->page = folio_file_page(folio, index);
+
 	if (buf->kmap_type == EROFS_NO_KMAP) {
 		if (type == EROFS_KMAP)
-			buf->base = kmap_local_page(page);
+			buf->base = kmap_local_page(buf->page);
 		buf->kmap_type = type;
 	} else if (buf->kmap_type != type) {
 		DBG_BUGON(1);
