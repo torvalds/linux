@@ -7,7 +7,6 @@
 #include "ipe.h"
 #include "eval.h"
 #include "hooks.h"
-#include "eval.h"
 
 extern const char *const ipe_boot_policy;
 bool ipe_enabled;
