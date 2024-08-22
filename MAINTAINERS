@@ -3504,7 +3504,9 @@ S:	Maintained
 W:	http://linux-atm.sourceforge.net
 F:	drivers/atm/
 F:	include/linux/atm*
+F:	include/linux/sonet.h
 F:	include/uapi/linux/atm*
+F:	include/uapi/linux/sonet.h
 
 ATMEL MACB ETHERNET DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
@@ -11993,7 +11995,7 @@ F:	fs/jfs/
 JME NETWORK DRIVER
 M:	Guo-Fu Tseng <cooldavid@cooldavid.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/ethernet/jme.*
 
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
@@ -15877,15 +15879,19 @@ F:	drivers/net/
 F:	include/dt-bindings/net/
 F:	include/linux/cn_proc.h
 F:	include/linux/etherdevice.h
+F:	include/linux/ethtool_netlink.h
 F:	include/linux/fcdevice.h
 F:	include/linux/fddidevice.h
 F:	include/linux/hippidevice.h
 F:	include/linux/if_*
 F:	include/linux/inetdevice.h
-F:	include/linux/netdevice.h
+F:	include/linux/netdev*
+F:	include/linux/platform_data/wiznet.h
 F:	include/uapi/linux/cn_proc.h
+F:	include/uapi/linux/ethtool_netlink.h
 F:	include/uapi/linux/if_*
-F:	include/uapi/linux/netdevice.h
+F:	include/uapi/linux/netdev*
+F:	tools/testing/selftests/drivers/net/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
@@ -15936,14 +15942,28 @@ F:	include/linux/framer/framer-provider.h
 F:	include/linux/framer/framer.h
 F:	include/linux/in.h
 F:	include/linux/indirect_call_wrapper.h
+F:	include/linux/inet.h
+F:	include/linux/inet_diag.h
 F:	include/linux/net.h
-F:	include/linux/netdevice.h
-F:	include/linux/skbuff.h
+F:	include/linux/netdev*
+F:	include/linux/netlink.h
+F:	include/linux/netpoll.h
+F:	include/linux/rtnetlink.h
+F:	include/linux/seq_file_net.h
+F:	include/linux/skbuff*
 F:	include/net/
+F:	include/uapi/linux/genetlink.h
+F:	include/uapi/linux/hsr_netlink.h
 F:	include/uapi/linux/in.h
+F:	include/uapi/linux/inet_diag.h
+F:	include/uapi/linux/nbd-netlink.h
 F:	include/uapi/linux/net.h
 F:	include/uapi/linux/net_namespace.h
-F:	include/uapi/linux/netdevice.h
+F:	include/uapi/linux/netconf.h
+F:	include/uapi/linux/netdev*
+F:	include/uapi/linux/netlink.h
+F:	include/uapi/linux/netlink_diag.h
+F:	include/uapi/linux/rtnetlink.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
@@ -21054,6 +21074,7 @@ SOCKET TIMESTAMPING
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
 S:	Maintained
 F:	Documentation/networking/timestamping.rst
+F:	include/linux/net_tstamp.h
 F:	include/uapi/linux/net_tstamp.h
 F:	tools/testing/selftests/net/so_txtime.c
 

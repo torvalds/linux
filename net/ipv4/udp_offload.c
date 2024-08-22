@@ -279,7 +279,8 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		return ERR_PTR(-EINVAL);
 
 	if (unlikely(skb_checksum_start(gso_skb) !=
-		     skb_transport_header(gso_skb)))
+		     skb_transport_header(gso_skb) &&
+		     !(skb_shinfo(gso_skb)->gso_type & SKB_GSO_FRAGLIST)))
 		return ERR_PTR(-EINVAL);
 
 	/* We don't know if egress device can segment and checksum the packet

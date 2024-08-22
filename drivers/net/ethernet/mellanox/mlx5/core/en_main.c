@@ -1236,6 +1236,14 @@ void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq)
 	rq->mpwqe.actual_wq_head = wq->head;
 	rq->mpwqe.umr_in_progress = 0;
 	rq->mpwqe.umr_completed = 0;
+
+	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
+		struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+		u16 len;
+
+		len = (shampo->pi - shampo->ci) & shampo->hd_per_wq;
+		mlx5e_shampo_fill_umr(rq, len);
+	}
 }
 
 void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
@@ -3020,15 +3028,18 @@ int mlx5e_update_tx_netdev_queues(struct mlx5e_priv *priv)
 static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 					   struct mlx5e_params *params)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	int num_comp_vectors, ix, irq;
-
-	num_comp_vectors = mlx5_comp_vectors_max(mdev);
+	int ix;
 
 	for (ix = 0; ix < params->num_channels; ix++) {
-		cpumask_clear(priv->scratchpad.cpumask);
+		int num_comp_vectors, irq, vec_ix;
+		struct mlx5_core_dev *mdev;
 
-		for (irq = ix; irq < num_comp_vectors; irq += params->num_channels) {
+		mdev = mlx5_sd_ch_ix_get_dev(priv->mdev, ix);
+		num_comp_vectors = mlx5_comp_vectors_max(mdev);
+		cpumask_clear(priv->scratchpad.cpumask);
+		vec_ix = mlx5_sd_ch_ix_get_vec_ix(mdev, ix);
+
+		for (irq = vec_ix; irq < num_comp_vectors; irq += params->num_channels) {
 			int cpu = mlx5_comp_vector_get_cpu(mdev, irq);
 
 			cpumask_set_cpu(cpu, priv->scratchpad.cpumask);
