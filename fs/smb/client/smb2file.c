@@ -21,7 +21,7 @@
 #include "cifs_unicode.h"
 #include "fscache.h"
 #include "smb2proto.h"
-#include "smb2status.h"
+#include "../common/smb2status.h"
 
 static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 {

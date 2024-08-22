@@ -21,7 +21,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_unicode.h"
-#include "smb2status.h"
+#include "../common/smb2status.h"
 #include "smb2glob.h"
 #include "cifs_ioctl.h"
 #include "smbdirect.h"
