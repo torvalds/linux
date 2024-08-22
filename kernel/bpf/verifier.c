@@ -16125,7 +16125,7 @@ static int visit_func_call_insn(int t, struct bpf_insn *insns,
  */
 static u32 helper_fastcall_clobber_mask(const struct bpf_func_proto *fn)
 {
-	u8 mask;
+	u32 mask;
 	int i;
 
 	mask = 0;
@@ -16151,6 +16151,26 @@ static bool verifier_inlines_helper_call(struct bpf_verifier_env *env, s32 imm)
 	default:
 		return false;
 	}
+}
+
+/* Same as helper_fastcall_clobber_mask() but for kfuncs, see comment above */
+static u32 kfunc_fastcall_clobber_mask(struct bpf_kfunc_call_arg_meta *meta)
+{
+	u32 vlen, i, mask;
+
+	vlen = btf_type_vlen(meta->func_proto);
+	mask = 0;
+	if (!btf_type_is_void(btf_type_by_id(meta->btf, meta->func_proto->type)))
+		mask |= BIT(BPF_REG_0);
+	for (i = 0; i < vlen; ++i)
+		mask |= BIT(BPF_REG_1 + i);
+	return mask;
+}
+
+/* Same as verifier_inlines_helper_call() but for kfuncs, see comment above */
+static bool is_fastcall_kfunc_call(struct bpf_kfunc_call_arg_meta *meta)
+{
+	return false;
 }
 
 /* LLVM define a bpf_fastcall function attribute.
@@ -16248,6 +16268,19 @@ static void mark_fastcall_pattern_for_call(struct bpf_verifier_env *env,
 		can_be_inlined = fn->allow_fastcall &&
 				 (verifier_inlines_helper_call(env, call->imm) ||
 				  bpf_jit_inlines_helper_call(call->imm));
+	}
+
+	if (bpf_pseudo_kfunc_call(call)) {
+		struct bpf_kfunc_call_arg_meta meta;
+		int err;
+
+		err = fetch_kfunc_meta(env, call, &meta, NULL);
+		if (err < 0)
+			/* error would be reported later */
+			return;
+
+		clobbered_regs_mask = kfunc_fastcall_clobber_mask(&meta);
+		can_be_inlined = is_fastcall_kfunc_call(&meta);
 	}
 
 	if (clobbered_regs_mask == ALL_CALLER_SAVED_REGS)
