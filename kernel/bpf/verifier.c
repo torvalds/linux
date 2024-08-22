@@ -16170,6 +16170,9 @@ static u32 kfunc_fastcall_clobber_mask(struct bpf_kfunc_call_arg_meta *meta)
 /* Same as verifier_inlines_helper_call() but for kfuncs, see comment above */
 static bool is_fastcall_kfunc_call(struct bpf_kfunc_call_arg_meta *meta)
 {
+	if (meta->btf == btf_vmlinux)
+		return meta->func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx] ||
+		       meta->func_id == special_kfunc_list[KF_bpf_rdonly_cast];
 	return false;
 }
 
