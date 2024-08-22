@@ -50,8 +50,10 @@
 
 #define ICSSG_MAX_RFLOWS	8	/* per slice */
 
+#define ICSSG_NUM_PA_STATS	4
+#define ICSSG_NUM_MIIG_STATS	60
 /* Number of ICSSG related stats */
-#define ICSSG_NUM_STATS 60
+#define ICSSG_NUM_STATS (ICSSG_NUM_MIIG_STATS + ICSSG_NUM_PA_STATS)
 #define ICSSG_NUM_STANDARD_STATS 31
 #define ICSSG_NUM_ETHTOOL_STATS (ICSSG_NUM_STATS - ICSSG_NUM_STANDARD_STATS)
 
@@ -190,7 +192,8 @@ struct prueth_emac {
 	int port_vlan;
 
 	struct delayed_work stats_work;
-	u64 stats[ICSSG_NUM_STATS];
+	u64 stats[ICSSG_NUM_MIIG_STATS];
+	u64 pa_stats[ICSSG_NUM_PA_STATS];
 
 	/* RX IRQ Coalescing Related */
 	struct hrtimer rx_hrtimer;
@@ -230,6 +233,7 @@ struct icssg_firmwares {
  * @registered_netdevs: list of registered netdevs
  * @miig_rt: regmap to mii_g_rt block
  * @mii_rt: regmap to mii_rt block
+ * @pa_stats: regmap to pa_stats block
  * @pru_id: ID for each of the PRUs
  * @pdev: pointer to ICSSG platform device
  * @pdata: pointer to platform data for ICSSG driver
@@ -263,6 +267,7 @@ struct prueth {
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
 	struct regmap *miig_rt;
 	struct regmap *mii_rt;
+	struct regmap *pa_stats;
 
 	enum pruss_pru_id pru_id[PRUSS_NUM_PRUS];
 	struct platform_device *pdev;
