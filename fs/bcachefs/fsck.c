@@ -2215,6 +2215,8 @@ int bch2_check_xattrs(struct bch_fs *c)
 			NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
 		check_xattr(trans, &iter, k, &hash_info, &inode)));
+
+	inode_walker_exit(&inode);
 	bch_err_fn(c, ret);
 	return ret;
 }
