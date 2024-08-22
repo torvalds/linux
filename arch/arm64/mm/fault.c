@@ -23,6 +23,7 @@
 #include <linux/sched/debug.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
+#include <linux/pkeys.h>
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
 
@@ -486,6 +487,23 @@ static void do_bad_area(unsigned long far, unsigned long esr,
 	}
 }
 
+static bool fault_from_pkey(unsigned long esr, struct vm_area_struct *vma,
+			unsigned int mm_flags)
+{
+	unsigned long iss2 = ESR_ELx_ISS2(esr);
+
+	if (!system_supports_poe())
+		return false;
+
+	if (esr_fsc_is_permission_fault(esr) && (iss2 & ESR_ELx_Overlay))
+		return true;
+
+	return !arch_vma_access_permitted(vma,
+			mm_flags & FAULT_FLAG_WRITE,
+			mm_flags & FAULT_FLAG_INSTRUCTION,
+			false);
+}
+
 static bool is_el0_instruction_abort(unsigned long esr)
 {
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
@@ -511,6 +529,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 	unsigned long addr = untagged_addr(far);
 	struct vm_area_struct *vma;
 	int si_code;
+	int pkey = -1;
 
 	if (kprobe_page_fault(regs, esr))
 		return 0;
@@ -575,6 +594,16 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
 		goto bad_area;
 	}
+
+	if (fault_from_pkey(esr, vma, mm_flags)) {
+		pkey = vma_pkey(vma);
+		vma_end_read(vma);
+		fault = 0;
+		si_code = SEGV_PKUERR;
+		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
+		goto bad_area;
+	}
+
 	fault = handle_mm_fault(vma, addr, mm_flags | FAULT_FLAG_VMA_LOCK, regs);
 	if (!(fault & (VM_FAULT_RETRY | VM_FAULT_COMPLETED)))
 		vma_end_read(vma);
@@ -610,7 +639,16 @@ retry:
 		goto bad_area;
 	}
 
+	if (fault_from_pkey(esr, vma, mm_flags)) {
+		pkey = vma_pkey(vma);
+		mmap_read_unlock(mm);
+		fault = 0;
+		si_code = SEGV_PKUERR;
+		goto bad_area;
+	}
+
 	fault = handle_mm_fault(vma, addr, mm_flags, regs);
+
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
@@ -669,8 +707,23 @@ bad_area:
 
 		arm64_force_sig_mceerr(BUS_MCEERR_AR, far, lsb, inf->name);
 	} else {
+		/*
+		 * The pkey value that we return to userspace can be different
+		 * from the pkey that caused the fault.
+		 *
+		 * 1. T1   : mprotect_key(foo, PAGE_SIZE, pkey=4);
+		 * 2. T1   : set POR_EL0 to deny access to pkey=4, touches, page
+		 * 3. T1   : faults...
+		 * 4.    T2: mprotect_key(foo, PAGE_SIZE, pkey=5);
+		 * 5. T1   : enters fault handler, takes mmap_lock, etc...
+		 * 6. T1   : reaches here, sees vma_pkey(vma)=5, when we really
+		 *	     faulted on a pte with its pkey=4.
+		 */
 		/* Something tried to access memory that out of memory map */
-		arm64_force_sig_fault(SIGSEGV, si_code, far, inf->name);
+		if (si_code == SEGV_PKUERR)
+			arm64_force_sig_fault_pkey(far, inf->name, pkey);
+		else
+			arm64_force_sig_fault(SIGSEGV, si_code, far, inf->name);
 	}
 
 	return 0;
