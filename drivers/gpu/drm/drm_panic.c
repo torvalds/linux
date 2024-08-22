@@ -85,7 +85,7 @@ static struct drm_panic_line panic_msg[] = {
 	PANIC_LINE(""), /* will be replaced by the panic description */
 };
 
-#define PANIC_MSG_LINES ARRAY_SIZE(panic_msg)
+static const size_t panic_msg_lines = ARRAY_SIZE(panic_msg);
 
 static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE("     .--.        _"),
@@ -97,7 +97,7 @@ static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE(" \\___)=(___/"),
 };
 
-#define PANIC_LOGO_LINES ARRAY_SIZE(logo_ascii)
+static const size_t logo_ascii_lines = ARRAY_SIZE(logo_ascii);
 
 #if defined(CONFIG_LOGO) && !defined(MODULE)
 static const struct linux_logo *logo_mono;
@@ -496,31 +496,44 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 	}
 }
 
+static void drm_panic_logo_rect(struct drm_rect *rect, const struct font_desc *font)
+{
+	if (logo_mono) {
+		drm_rect_init(rect, 0, 0, logo_mono->width, logo_mono->height);
+	} else {
+		int logo_width = get_max_line_len(logo_ascii, logo_ascii_lines) * font->width;
+
+		drm_rect_init(rect, 0, 0, logo_width, logo_ascii_lines * font->height);
+	}
+}
+
+static void drm_panic_logo_draw(struct drm_scanout_buffer *sb, struct drm_rect *rect,
+				const struct font_desc *font, u32 fg_color)
+{
+	if (logo_mono)
+		drm_panic_blit(sb, rect, logo_mono->data,
+			       DIV_ROUND_UP(drm_rect_width(rect), 8), 1, fg_color);
+	else
+		draw_txt_rectangle(sb, font, logo_ascii, logo_ascii_lines, false, rect,
+				   fg_color);
+}
+
 static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 {
 	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
 	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg;
-	unsigned int logo_width, logo_height;
 	unsigned int msg_width, msg_height;
 
 	if (!font)
 		return;
 
 	r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
+	drm_panic_logo_rect(&r_logo, font);
 
-	if (logo_mono) {
-		logo_width = logo_mono->width;
-		logo_height = logo_mono->height;
-	} else {
-		logo_width = get_max_line_len(logo_ascii, PANIC_LOGO_LINES) * font->width;
-		logo_height = PANIC_LOGO_LINES * font->height;
-	}
-	r_logo = DRM_RECT_INIT(0, 0, logo_width, logo_height);
-
-	msg_width = min(get_max_line_len(panic_msg, PANIC_MSG_LINES) * font->width, sb->width);
-	msg_height = min(PANIC_MSG_LINES * font->height, sb->height);
+	msg_width = min(get_max_line_len(panic_msg, panic_msg_lines) * font->width, sb->width);
+	msg_height = min(panic_msg_lines * font->height, sb->height);
 	r_msg = DRM_RECT_INIT(0, 0, msg_width, msg_height);
 
 	/* Center the panic message */
@@ -529,15 +542,10 @@ static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 	/* Fill with the background color, and draw text on top */
 	drm_panic_fill(sb, &r_screen, bg_color);
 
-	if (!drm_rect_overlap(&r_logo, &r_msg)) {
-		if (logo_mono)
-			drm_panic_blit(sb, &r_logo, logo_mono->data, DIV_ROUND_UP(logo_width, 8),
-				       fg_color);
-		else
-			draw_txt_rectangle(sb, font, logo_ascii, PANIC_LOGO_LINES, false, &r_logo,
-					   fg_color);
-	}
-	draw_txt_rectangle(sb, font, panic_msg, PANIC_MSG_LINES, true, &r_msg, fg_color);
+	if (!drm_rect_overlap(&r_logo, &r_msg))
+		drm_panic_logo_draw(sb, &r_logo, font, fg_color);
+
+	draw_txt_rectangle(sb, font, panic_msg, panic_msg_lines, true, &r_msg, fg_color);
 }
 
 /*
@@ -647,7 +655,7 @@ static void drm_panic_set_description(const char *description)
 	u32 len;
 
 	if (description) {
-		struct drm_panic_line *desc_line = &panic_msg[PANIC_MSG_LINES - 1];
+		struct drm_panic_line *desc_line = &panic_msg[panic_msg_lines - 1];
 
 		desc_line->txt = description;
 		len = strlen(description);
@@ -660,7 +668,7 @@ static void drm_panic_set_description(const char *description)
 
 static void drm_panic_clear_description(void)
 {
-	struct drm_panic_line *desc_line = &panic_msg[PANIC_MSG_LINES - 1];
+	struct drm_panic_line *desc_line = &panic_msg[panic_msg_lines - 1];
 
 	desc_line->len = 0;
 	desc_line->txt = NULL;
