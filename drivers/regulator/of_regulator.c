@@ -747,18 +747,18 @@ static int is_supply_name(const char *name)
  * This helper function allows drivers to get several regulator
  * consumers in one operation.  If any of the regulators cannot be
  * acquired then any regulators that were allocated will be freed
- * before returning to the caller.
+ * before returning to the caller, and @consumers will not be
+ * changed.
  */
 int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
 			      struct regulator_bulk_data **consumers)
 {
 	int num_consumers = 0;
 	struct regulator *tmp;
+	struct regulator_bulk_data *_consumers = NULL;
 	struct property *prop;
 	int i, n = 0, ret;
 	char name[64];
-
-	*consumers = NULL;
 
 	/*
 	 * first pass: get numbers of xxx-supply
@@ -769,7 +769,7 @@ restart:
 		i = is_supply_name(prop->name);
 		if (i == 0)
 			continue;
-		if (!*consumers) {
+		if (!_consumers) {
 			num_consumers++;
 			continue;
 		} else {
@@ -777,28 +777,31 @@ restart:
 			name[i] = '\0';
 			tmp = regulator_get(dev, name);
 			if (IS_ERR(tmp)) {
-				ret = -EINVAL;
+				ret = PTR_ERR(tmp);
 				goto error;
 			}
-			(*consumers)[n].consumer = tmp;
+			_consumers[n].consumer = tmp;
 			n++;
 			continue;
 		}
 	}
-	if (*consumers)
+	if (_consumers) {
+		*consumers = _consumers;
 		return num_consumers;
+	}
 	if (num_consumers == 0)
 		return 0;
-	*consumers = kmalloc_array(num_consumers,
+	_consumers = kmalloc_array(num_consumers,
 				   sizeof(struct regulator_bulk_data),
 				   GFP_KERNEL);
-	if (!*consumers)
+	if (!_consumers)
 		return -ENOMEM;
 	goto restart;
 
 error:
 	while (--n >= 0)
-		regulator_put(consumers[n]->consumer);
+		regulator_put(_consumers[n].consumer);
+	kfree(_consumers);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_regulator_bulk_get_all);
