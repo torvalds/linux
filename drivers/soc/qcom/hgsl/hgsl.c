@@ -1593,20 +1593,6 @@ static struct hgsl_context *hgsl_remove_context(struct hgsl_priv *priv,
 	return ctxt;
 }
 
-static int hgsl_check_context_owner(struct hgsl_priv *priv,
-	uint32_t context_id)
-{
-	struct hgsl_context *ctxt = hgsl_get_context_owner(priv, context_id);
-	int ret = -EINVAL;
-
-	if (ctxt) {
-		hgsl_put_context(ctxt);
-		ret = 0;
-	}
-
-	return ret;
-}
-
 static void hgsl_put_context(struct hgsl_context *ctxt)
 {
 	if (ctxt)
@@ -1738,11 +1724,18 @@ static int hgsl_ioctl_put_shadowts_mem(
 	void *data)
 {
 	struct hgsl_priv *priv = filep->private_data;
-	struct hgsl_ioctl_put_shadowts_mem_params
-		*params = data;
+	struct hgsl_ioctl_put_shadowts_mem_params *params = data;
+	struct hgsl_context *ctxt = hgsl_get_context_owner(priv,
+		params->ctxthandle);
+	int ret = -EINVAL;
+
+	if (ctxt) {
+		hgsl_put_context(ctxt);
+		ret = 0;
+	}
 
 	/* return OK and keep shadow ts until we destroy context*/
-	return hgsl_check_context_owner(priv, params->ctxthandle);
+	return ret;
 }
 
 static bool dbq_check_ibdesc_state(struct qcom_hgsl *hgsl,
@@ -2654,14 +2647,13 @@ out:
 
 static int hgsl_db_issueib_with_alloc_list(struct hgsl_priv *priv,
 	struct hgsl_ioctl_issueib_with_alloc_list_params *param,
+	struct hgsl_context *ctxt,
 	struct gsl_command_buffer_object_t *ib,
 	struct gsl_memory_object_t *allocations,
 	struct gsl_memdesc_t *be_descs,
 	uint64_t *be_offsets,
 	uint32_t *timestamp)
 {
-	struct qcom_hgsl *hgsl = priv->dev;
-	struct hgsl_context *ctxt = hgsl_get_context(hgsl, param->ctxthandle);
 	int ret = 0;
 	struct hgsl_fw_ib_desc *ib_descs = NULL;
 	uint32_t gmu_flags = CMDBATCH_NOTIFY;
@@ -2699,17 +2691,16 @@ static int hgsl_db_issueib_with_alloc_list(struct hgsl_priv *priv,
 	ret = hgsl_db_issue_cmd(priv, ctxt, param->num_ibs, gmu_flags,
 			timestamp, ib_descs, user_profile_gpuaddr);
 out:
-	hgsl_put_context(ctxt);
 	hgsl_free(ib_descs);
 	return ret;
 }
 
 static int hgsl_db_issueib(struct hgsl_priv *priv,
 	struct hgsl_ioctl_issueib_params *param,
-	struct hgsl_ibdesc *ibs, uint32_t *timestamp)
+	struct hgsl_context *ctxt,
+	struct hgsl_ibdesc *ibs,
+	uint32_t *timestamp)
 {
-	struct qcom_hgsl *hgsl = priv->dev;
-	struct hgsl_context *ctxt = hgsl_get_context(hgsl, param->ctxthandle);
 	int ret = 0;
 	struct hgsl_fw_ib_desc *ib_descs = NULL;
 	uint32_t gmu_flags = CMDBATCH_NOTIFY;
@@ -2735,7 +2726,6 @@ static int hgsl_db_issueib(struct hgsl_priv *priv,
 	ret = hgsl_db_issue_cmd(priv, ctxt, param->num_ibs, gmu_flags,
 			timestamp, ib_descs, user_profile_gpuaddr);
 out:
-	hgsl_put_context(ctxt);
 	hgsl_free(ib_descs);
 	return ret;
 }
@@ -2751,15 +2741,13 @@ static int hgsl_ioctl_issueib(
 	size_t ib_size = 0;
 	uint32_t ts = 0;
 	bool remote_issueib = false;
+	struct hgsl_context *ctxt = hgsl_get_context_owner(
+		priv, params->ctxthandle);
 
-	if (params->num_ibs == 0) {
+	if (params->num_ibs == 0 || !ctxt) {
+		LOGE("num_ibs %u or invalid context id %d",
+			params->num_ibs, params->ctxthandle);
 		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = hgsl_check_context_owner(priv, params->ctxthandle);
-	if (ret) {
-		LOGE("Invalid context id %d", params->ctxthandle);
 		goto out;
 	}
 
@@ -2778,7 +2766,7 @@ static int hgsl_ioctl_issueib(
 		}
 
 		ts = params->timestamp;
-		ret = hgsl_db_issueib(priv, params, ibs, &ts);
+		ret = hgsl_db_issueib(priv, params, ctxt, ibs, &ts);
 		if (!ret) {
 			params->rval = GSL_SUCCESS;
 			params->timestamp = ts;
@@ -2788,6 +2776,7 @@ static int hgsl_ioctl_issueib(
 	if (remote_issueib)
 		ret = hgsl_hyp_issueib(&priv->hyp_priv, params, ibs);
 out:
+	hgsl_put_context(ctxt);
 	hgsl_free(ibs);
 	return ret;
 }
@@ -2809,15 +2798,13 @@ static int hgsl_ioctl_issueib_with_alloc_list(
 	uint64_t *be_offsets = NULL;
 	uint32_t ts = 0;
 	bool remote_issueib = false;
+	struct hgsl_context *ctxt = hgsl_get_context_owner(
+		priv, params->ctxthandle);
 
-	if (params->num_ibs == 0) {
+	if (params->num_ibs == 0 || !ctxt) {
+		LOGE("num_ibs %u or invalid context id %d",
+			params->num_ibs, params->ctxthandle);
 		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = hgsl_check_context_owner(priv, params->ctxthandle);
-	if (ret) {
-		LOGE("Invalid context id %d", params->ctxthandle);
 		goto out;
 	}
 
@@ -2871,7 +2858,7 @@ static int hgsl_ioctl_issueib_with_alloc_list(
 		}
 
 		ts = params->timestamp;
-		ret = hgsl_db_issueib_with_alloc_list(priv, params, ibs,
+		ret = hgsl_db_issueib_with_alloc_list(priv, params, ctxt, ibs,
 					allocations, be_descs, be_offsets, &ts);
 		if (!ret) {
 			params->rval = GSL_SUCCESS;
@@ -2884,6 +2871,7 @@ static int hgsl_ioctl_issueib_with_alloc_list(
 			params, ibs, allocations, be_descs, be_offsets);
 
 out:
+	hgsl_put_context(ctxt);
 	hgsl_free(ibs);
 	hgsl_free(allocations);
 	hgsl_free(be_descs);
