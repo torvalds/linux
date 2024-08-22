@@ -41,7 +41,6 @@ struct netlink_sock {
 	struct netlink_callback	cb;
 	struct mutex		nl_cb_mutex;
 
-	struct mutex		*dump_cb_mutex;
 	void			(*netlink_rcv)(struct sk_buff *skb);
 	int			(*netlink_bind)(struct net *net, int group);
 	void			(*netlink_unbind)(struct net *net, int group);
