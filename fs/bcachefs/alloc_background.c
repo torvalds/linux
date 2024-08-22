@@ -240,71 +240,73 @@ fsck_err:
 int bch2_alloc_v4_validate(struct bch_fs *c, struct bkey_s_c k,
 			   enum bch_validate_flags flags)
 {
-	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
+	struct bch_alloc_v4 a;
 	int ret = 0;
 
-	bkey_fsck_err_on(alloc_v4_u64s_noerror(a.v) > bkey_val_u64s(k.k),
+	bkey_val_copy(&a, bkey_s_c_to_alloc_v4(k));
+
+	bkey_fsck_err_on(alloc_v4_u64s_noerror(&a) > bkey_val_u64s(k.k),
 			 c, alloc_v4_val_size_bad,
 			 "bad val size (%u > %zu)",
-			 alloc_v4_u64s_noerror(a.v), bkey_val_u64s(k.k));
+			 alloc_v4_u64s_noerror(&a), bkey_val_u64s(k.k));
 
-	bkey_fsck_err_on(!BCH_ALLOC_V4_BACKPOINTERS_START(a.v) &&
-			 BCH_ALLOC_V4_NR_BACKPOINTERS(a.v),
+	bkey_fsck_err_on(!BCH_ALLOC_V4_BACKPOINTERS_START(&a) &&
+			 BCH_ALLOC_V4_NR_BACKPOINTERS(&a),
 			 c, alloc_v4_backpointers_start_bad,
 			 "invalid backpointers_start");
 
-	bkey_fsck_err_on(alloc_data_type(*a.v, a.v->data_type) != a.v->data_type,
+	bkey_fsck_err_on(alloc_data_type(a, a.data_type) != a.data_type,
 			 c, alloc_key_data_type_bad,
 			 "invalid data type (got %u should be %u)",
-			 a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
+			 a.data_type, alloc_data_type(a, a.data_type));
 
 	for (unsigned i = 0; i < 2; i++)
-		bkey_fsck_err_on(a.v->io_time[i] > LRU_TIME_MAX,
+		bkey_fsck_err_on(a.io_time[i] > LRU_TIME_MAX,
 				 c, alloc_key_io_time_bad,
 				 "invalid io_time[%s]: %llu, max %llu",
 				 i == READ ? "read" : "write",
-				 a.v->io_time[i], LRU_TIME_MAX);
+				 a.io_time[i], LRU_TIME_MAX);
 
-	unsigned stripe_sectors = BCH_ALLOC_V4_BACKPOINTERS_START(a.v) * sizeof(u64) >
+	unsigned stripe_sectors = BCH_ALLOC_V4_BACKPOINTERS_START(&a) * sizeof(u64) >
 		offsetof(struct bch_alloc_v4, stripe_sectors)
-		? a.v->stripe_sectors
+		? a.stripe_sectors
 		: 0;
 
-	switch (a.v->data_type) {
+	switch (a.data_type) {
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
 	case BCH_DATA_need_discard:
 		bkey_fsck_err_on(stripe_sectors ||
-				 a.v->dirty_sectors ||
-				 a.v->cached_sectors ||
-				 a.v->stripe,
+				 a.dirty_sectors ||
+				 a.cached_sectors ||
+				 a.stripe,
 				 c, alloc_key_empty_but_have_data,
 				 "empty data type free but have data %u.%u.%u %u",
 				 stripe_sectors,
-				 a.v->dirty_sectors,
-				 a.v->cached_sectors,
-				 a.v->stripe);
+				 a.dirty_sectors,
+				 a.cached_sectors,
+				 a.stripe);
 		break;
 	case BCH_DATA_sb:
 	case BCH_DATA_journal:
 	case BCH_DATA_btree:
 	case BCH_DATA_user:
 	case BCH_DATA_parity:
-		bkey_fsck_err_on(!a.v->dirty_sectors &&
+		bkey_fsck_err_on(!a.dirty_sectors &&
 				 !stripe_sectors,
 				 c, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
-				 bch2_data_type_str(a.v->data_type));
+				 bch2_data_type_str(a.data_type));
 		break;
 	case BCH_DATA_cached:
-		bkey_fsck_err_on(!a.v->cached_sectors ||
-				 a.v->dirty_sectors ||
+		bkey_fsck_err_on(!a.cached_sectors ||
+				 a.dirty_sectors ||
 				 stripe_sectors ||
-				 a.v->stripe,
+				 a.stripe,
 				 c, alloc_key_cached_inconsistency,
 				 "data type inconsistency");
 
-		bkey_fsck_err_on(!a.v->io_time[READ] &&
+		bkey_fsck_err_on(!a.io_time[READ] &&
 				 c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
 				 c, alloc_key_cached_but_read_time_zero,
 				 "cached bucket with read_time == 0");
