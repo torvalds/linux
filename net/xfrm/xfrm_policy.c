@@ -1252,13 +1252,10 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 {
 	struct net *net = container_of(work, struct net,
 				       xfrm.policy_hthresh.work);
-	unsigned int hmask;
 	struct xfrm_policy *pol;
 	struct xfrm_policy *policy;
 	struct hlist_head *chain;
-	struct hlist_head *odst;
 	struct hlist_node *newpos;
-	int i;
 	int dir;
 	unsigned seq;
 	u8 lbits4, rbits4, lbits6, rbits6;
@@ -1322,23 +1319,7 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 			goto out_unlock;
 	}
 
-	/* reset the bydst and inexact table in all directions */
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		struct hlist_node *n;
-
-		hlist_for_each_entry_safe(policy, n,
-					  &net->xfrm.policy_inexact[dir],
-					  bydst_inexact_list) {
-			hlist_del_rcu(&policy->bydst);
-			hlist_del_init(&policy->bydst_inexact_list);
-		}
-
-		hmask = net->xfrm.policy_bydst[dir].hmask;
-		odst = net->xfrm.policy_bydst[dir].table;
-		for (i = hmask; i >= 0; i--) {
-			hlist_for_each_entry_safe(policy, n, odst + i, bydst)
-				hlist_del_rcu(&policy->bydst);
-		}
 		if ((dir & XFRM_POLICY_MASK) == XFRM_POLICY_OUT) {
 			/* dir out => dst = remote, src = local */
 			net->xfrm.policy_bydst[dir].dbits4 = rbits4;
@@ -1363,6 +1344,10 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 			/* skip socket policies */
 			continue;
 		}
+
+		hlist_del_rcu(&policy->bydst);
+		hlist_del_init(&policy->bydst_inexact_list);
+
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
 					  policy->family, dir);
@@ -4484,63 +4469,50 @@ EXPORT_SYMBOL_GPL(xfrm_audit_policy_delete);
 #endif
 
 #ifdef CONFIG_XFRM_MIGRATE
-static bool xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
-					const struct xfrm_selector *sel_tgt)
-{
-	if (sel_cmp->proto == IPSEC_ULPROTO_ANY) {
-		if (sel_tgt->family == sel_cmp->family &&
-		    xfrm_addr_equal(&sel_tgt->daddr, &sel_cmp->daddr,
-				    sel_cmp->family) &&
-		    xfrm_addr_equal(&sel_tgt->saddr, &sel_cmp->saddr,
-				    sel_cmp->family) &&
-		    sel_tgt->prefixlen_d == sel_cmp->prefixlen_d &&
-		    sel_tgt->prefixlen_s == sel_cmp->prefixlen_s) {
-			return true;
-		}
-	} else {
-		if (memcmp(sel_tgt, sel_cmp, sizeof(*sel_tgt)) == 0) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static struct xfrm_policy *xfrm_migrate_policy_find(const struct xfrm_selector *sel,
 						    u8 dir, u8 type, struct net *net, u32 if_id)
 {
 	struct xfrm_policy *pol, *ret = NULL;
-	struct hlist_head *chain;
-	u32 priority = ~0U;
+	struct flowi fl;
 
-	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
-	chain = policy_hash_direct(net, &sel->daddr, &sel->saddr, sel->family, dir);
-	hlist_for_each_entry(pol, chain, bydst) {
-		if ((if_id == 0 || pol->if_id == if_id) &&
-		    xfrm_migrate_selector_match(sel, &pol->selector) &&
-		    pol->type == type) {
-			ret = pol;
-			priority = ret->priority;
+	memset(&fl, 0, sizeof(fl));
+
+	fl.flowi_proto = sel->proto;
+
+	switch (sel->family) {
+	case AF_INET:
+		fl.u.ip4.saddr = sel->saddr.a4;
+		fl.u.ip4.daddr = sel->daddr.a4;
+		if (sel->proto == IPSEC_ULPROTO_ANY)
 			break;
-		}
+		fl.u.flowi4_oif = sel->ifindex;
+		fl.u.ip4.fl4_sport = sel->sport;
+		fl.u.ip4.fl4_dport = sel->dport;
+		break;
+	case AF_INET6:
+		fl.u.ip6.saddr = sel->saddr.in6;
+		fl.u.ip6.daddr = sel->daddr.in6;
+		if (sel->proto == IPSEC_ULPROTO_ANY)
+			break;
+		fl.u.flowi6_oif = sel->ifindex;
+		fl.u.ip6.fl4_sport = sel->sport;
+		fl.u.ip6.fl4_dport = sel->dport;
+		break;
+	default:
+		return ERR_PTR(-EAFNOSUPPORT);
 	}
-	chain = &net->xfrm.policy_inexact[dir];
-	hlist_for_each_entry(pol, chain, bydst_inexact_list) {
-		if ((pol->priority >= priority) && ret)
-			break;
 
-		if ((if_id == 0 || pol->if_id == if_id) &&
-		    xfrm_migrate_selector_match(sel, &pol->selector) &&
-		    pol->type == type) {
-			ret = pol;
-			break;
-		}
-	}
+	rcu_read_lock();
 
-	xfrm_pol_hold(ret);
+	pol = xfrm_policy_lookup_bytype(net, type, &fl, sel->family, dir, if_id);
+	if (IS_ERR_OR_NULL(pol))
+		goto out_unlock;
 
-	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
-
-	return ret;
+	if (!xfrm_pol_hold_rcu(ret))
+		pol = NULL;
+out_unlock:
+	rcu_read_unlock();
+	return pol;
 }
 
 static int migrate_tmpl_match(const struct xfrm_migrate *m, const struct xfrm_tmpl *t)
@@ -4677,9 +4649,9 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 
 	/* Stage 1 - find policy */
 	pol = xfrm_migrate_policy_find(sel, dir, type, net, if_id);
-	if (!pol) {
+	if (IS_ERR_OR_NULL(pol)) {
 		NL_SET_ERR_MSG(extack, "Target policy not found");
-		err = -ENOENT;
+		err = IS_ERR(pol) ? PTR_ERR(pol) : -ENOENT;
 		goto out;
 	}
 
