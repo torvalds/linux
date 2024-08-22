@@ -2776,9 +2776,9 @@ retry_probe:
 			goto free_cid_que;
 		}
 
-		sprintf(host_buf, "qedi_ofld%d", qedi->shost->host_no);
-		qedi->offload_thread =
-			alloc_workqueue("%s", WQ_MEM_RECLAIM, 1, host_buf);
+		qedi->offload_thread = alloc_workqueue("qedi_ofld%d",
+						       WQ_MEM_RECLAIM,
+						       1, qedi->shost->host_no);
 		if (!qedi->offload_thread) {
 			QEDI_ERR(&qedi->dbg_ctx,
 				 "Unable to start offload thread!\n");
