@@ -196,8 +196,6 @@ xfrm_policy_inexact_lookup_rcu(struct net *net,
 static struct xfrm_policy *
 xfrm_policy_insert_list(struct hlist_head *chain, struct xfrm_policy *policy,
 			bool excl);
-static void xfrm_policy_insert_inexact_list(struct hlist_head *chain,
-					    struct xfrm_policy *policy);
 
 static bool
 xfrm_policy_find_inexact_candidates(struct xfrm_pol_inexact_candidates *cand,
@@ -410,7 +408,6 @@ struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp)
 	if (policy) {
 		write_pnet(&policy->xp_net, net);
 		INIT_LIST_HEAD(&policy->walk.all);
-		INIT_HLIST_NODE(&policy->bydst_inexact_list);
 		INIT_HLIST_NODE(&policy->bydst);
 		INIT_HLIST_NODE(&policy->byidx);
 		rwlock_init(&policy->lock);
@@ -1228,9 +1225,6 @@ xfrm_policy_inexact_insert(struct xfrm_policy *policy, u8 dir, int excl)
 		return ERR_PTR(-EEXIST);
 	}
 
-	chain = &net->xfrm.policy_inexact[dir];
-	xfrm_policy_insert_inexact_list(chain, policy);
-
 	if (delpol)
 		__xfrm_policy_inexact_prune_bin(bin, false);
 
@@ -1346,7 +1340,6 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 		}
 
 		hlist_del_rcu(&policy->bydst);
-		hlist_del_init(&policy->bydst_inexact_list);
 
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
@@ -1514,36 +1507,6 @@ static const struct rhashtable_params xfrm_pol_inexact_params = {
 	.obj_cmpfn		= xfrm_pol_bin_cmp,
 	.automatic_shrinking	= true,
 };
-
-static void xfrm_policy_insert_inexact_list(struct hlist_head *chain,
-					    struct xfrm_policy *policy)
-{
-	struct xfrm_policy *pol, *delpol = NULL;
-	struct hlist_node *newpos = NULL;
-
-	hlist_for_each_entry(pol, chain, bydst_inexact_list) {
-		if (pol->type == policy->type &&
-		    pol->if_id == policy->if_id &&
-		    !selector_cmp(&pol->selector, &policy->selector) &&
-		    xfrm_policy_mark_match(&policy->mark, pol) &&
-		    xfrm_sec_ctx_match(pol->security, policy->security) &&
-		    !WARN_ON(delpol)) {
-			delpol = pol;
-			if (policy->priority > pol->priority)
-				continue;
-		} else if (policy->priority >= pol->priority) {
-			newpos = &pol->bydst_inexact_list;
-			continue;
-		}
-		if (delpol)
-			break;
-	}
-
-	if (newpos && policy->xdo.type != XFRM_DEV_OFFLOAD_PACKET)
-		hlist_add_behind_rcu(&policy->bydst_inexact_list, newpos);
-	else
-		hlist_add_head_rcu(&policy->bydst_inexact_list, chain);
-}
 
 static struct xfrm_policy *xfrm_policy_insert_list(struct hlist_head *chain,
 						   struct xfrm_policy *policy,
@@ -2346,7 +2309,6 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 	/* Socket policies are not hashed. */
 	if (!hlist_unhashed(&pol->bydst)) {
 		hlist_del_rcu(&pol->bydst);
-		hlist_del_init(&pol->bydst_inexact_list);
 		hlist_del(&pol->byidx);
 	}
 
