@@ -1266,7 +1266,7 @@ struct super_block {
 	time64_t		   s_time_min;
 	time64_t		   s_time_max;
 #ifdef CONFIG_FSNOTIFY
-	__u32			s_fsnotify_mask;
+	u32			s_fsnotify_mask;
 	struct fsnotify_sb_info	*s_fsnotify_info;
 #endif
 
