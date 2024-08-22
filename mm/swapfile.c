@@ -3198,28 +3198,14 @@ static unsigned long read_swap_header(struct swap_info_struct *si,
 static int setup_swap_map_and_extents(struct swap_info_struct *si,
 					union swap_header *swap_header,
 					unsigned char *swap_map,
-					struct swap_cluster_info *cluster_info,
 					unsigned long maxpages,
 					sector_t *span)
 {
-	unsigned int j, k;
 	unsigned int nr_good_pages;
+	unsigned long i;
 	int nr_extents;
-	unsigned long nr_clusters = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
-	unsigned long col = si->cluster_next / SWAPFILE_CLUSTER % SWAP_CLUSTER_COLS;
-	unsigned long i, idx;
 
 	nr_good_pages = maxpages - 1;	/* omit header page */
-
-	INIT_LIST_HEAD(&si->free_clusters);
-	INIT_LIST_HEAD(&si->full_clusters);
-	INIT_LIST_HEAD(&si->discard_clusters);
-
-	for (i = 0; i < SWAP_NR_ORDERS; i++) {
-		INIT_LIST_HEAD(&si->nonfull_clusters[i]);
-		INIT_LIST_HEAD(&si->frag_clusters[i]);
-		si->frag_cluster_nr[i] = 0;
-	}
 
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 		unsigned int page_nr = swap_header->info.badpages[i];
@@ -3228,25 +3214,11 @@ static int setup_swap_map_and_extents(struct swap_info_struct *si,
 		if (page_nr < maxpages) {
 			swap_map[page_nr] = SWAP_MAP_BAD;
 			nr_good_pages--;
-			/*
-			 * Haven't marked the cluster free yet, no list
-			 * operation involved
-			 */
-			inc_cluster_info_page(si, cluster_info, page_nr);
 		}
 	}
 
-	/* Haven't marked the cluster free yet, no list operation involved */
-	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
-		inc_cluster_info_page(si, cluster_info, i);
-
 	if (nr_good_pages) {
 		swap_map[0] = SWAP_MAP_BAD;
-		/*
-		 * Not mark the cluster free yet, no list
-		 * operation involved
-		 */
-		inc_cluster_info_page(si, cluster_info, 0);
 		si->max = maxpages;
 		si->pages = nr_good_pages;
 		nr_extents = setup_swap_extents(si, span);
@@ -3259,8 +3231,70 @@ static int setup_swap_map_and_extents(struct swap_info_struct *si,
 		return -EINVAL;
 	}
 
+	return nr_extents;
+}
+
+static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
+						union swap_header *swap_header,
+						unsigned long maxpages)
+{
+	unsigned long nr_clusters = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
+	unsigned long col = si->cluster_next / SWAPFILE_CLUSTER % SWAP_CLUSTER_COLS;
+	struct swap_cluster_info *cluster_info;
+	unsigned long i, j, k, idx;
+	int cpu, err = -ENOMEM;
+
+	cluster_info = kvcalloc(nr_clusters, sizeof(*cluster_info), GFP_KERNEL);
 	if (!cluster_info)
-		return nr_extents;
+		goto err;
+
+	for (i = 0; i < nr_clusters; i++)
+		spin_lock_init(&cluster_info[i].lock);
+
+	si->cluster_next_cpu = alloc_percpu(unsigned int);
+	if (!si->cluster_next_cpu)
+		goto err_free;
+
+	/* Random start position to help with wear leveling */
+	for_each_possible_cpu(cpu)
+		per_cpu(*si->cluster_next_cpu, cpu) =
+		get_random_u32_inclusive(1, si->highest_bit);
+
+	si->percpu_cluster = alloc_percpu(struct percpu_cluster);
+	if (!si->percpu_cluster)
+		goto err_free;
+
+	for_each_possible_cpu(cpu) {
+		struct percpu_cluster *cluster;
+
+		cluster = per_cpu_ptr(si->percpu_cluster, cpu);
+		for (i = 0; i < SWAP_NR_ORDERS; i++)
+			cluster->next[i] = SWAP_NEXT_INVALID;
+	}
+
+	/*
+	 * Mark unusable pages as unavailable. The clusters aren't
+	 * marked free yet, so no list operations are involved yet.
+	 *
+	 * See setup_swap_map_and_extents(): header page, bad pages,
+	 * and the EOF part of the last cluster.
+	 */
+	inc_cluster_info_page(si, cluster_info, 0);
+	for (i = 0; i < swap_header->info.nr_badpages; i++)
+		inc_cluster_info_page(si, cluster_info,
+				      swap_header->info.badpages[i]);
+	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
+		inc_cluster_info_page(si, cluster_info, i);
+
+	INIT_LIST_HEAD(&si->free_clusters);
+	INIT_LIST_HEAD(&si->full_clusters);
+	INIT_LIST_HEAD(&si->discard_clusters);
+
+	for (i = 0; i < SWAP_NR_ORDERS; i++) {
+		INIT_LIST_HEAD(&si->nonfull_clusters[i]);
+		INIT_LIST_HEAD(&si->frag_clusters[i]);
+		si->frag_cluster_nr[i] = 0;
+	}
 
 	/*
 	 * Reduce false cache line sharing between cluster_info and
@@ -3283,7 +3317,13 @@ static int setup_swap_map_and_extents(struct swap_info_struct *si,
 			list_add_tail(&ci->list, &si->free_clusters);
 		}
 	}
-	return nr_extents;
+
+	return cluster_info;
+
+err_free:
+	kvfree(cluster_info);
+err:
+	return ERR_PTR(err);
 }
 
 SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
@@ -3379,6 +3419,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		goto bad_swap_unlock_inode;
 	}
 
+	error = swap_cgroup_swapon(si->type, maxpages);
+	if (error)
+		goto bad_swap_unlock_inode;
+
+	nr_extents = setup_swap_map_and_extents(si, swap_header, swap_map,
+						maxpages, &span);
+	if (unlikely(nr_extents < 0)) {
+		error = nr_extents;
+		goto bad_swap_unlock_inode;
+	}
+
 	if (si->bdev && bdev_stable_writes(si->bdev))
 		si->flags |= SWP_STABLE_WRITES;
 
@@ -3386,61 +3437,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		si->flags |= SWP_SYNCHRONOUS_IO;
 
 	if (si->bdev && bdev_nonrot(si->bdev)) {
-		int cpu, i;
-		unsigned long ci, nr_cluster;
-
 		si->flags |= SWP_SOLIDSTATE;
-		si->cluster_next_cpu = alloc_percpu(unsigned int);
-		if (!si->cluster_next_cpu) {
-			error = -ENOMEM;
+
+		cluster_info = setup_clusters(si, swap_header, maxpages);
+		if (IS_ERR(cluster_info)) {
+			error = PTR_ERR(cluster_info);
+			cluster_info = NULL;
 			goto bad_swap_unlock_inode;
-		}
-		/*
-		 * select a random position to start with to help wear leveling
-		 * SSD
-		 */
-		for_each_possible_cpu(cpu) {
-			per_cpu(*si->cluster_next_cpu, cpu) =
-				get_random_u32_inclusive(1, si->highest_bit);
-		}
-		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
-
-		cluster_info = kvcalloc(nr_cluster, sizeof(*cluster_info),
-					GFP_KERNEL);
-		if (!cluster_info) {
-			error = -ENOMEM;
-			goto bad_swap_unlock_inode;
-		}
-
-		for (ci = 0; ci < nr_cluster; ci++)
-			spin_lock_init(&((cluster_info + ci)->lock));
-
-		si->percpu_cluster = alloc_percpu(struct percpu_cluster);
-		if (!si->percpu_cluster) {
-			error = -ENOMEM;
-			goto bad_swap_unlock_inode;
-		}
-		for_each_possible_cpu(cpu) {
-			struct percpu_cluster *cluster;
-
-			cluster = per_cpu_ptr(si->percpu_cluster, cpu);
-			for (i = 0; i < SWAP_NR_ORDERS; i++)
-				cluster->next[i] = SWAP_NEXT_INVALID;
 		}
 	} else {
 		atomic_inc(&nr_rotate_swap);
 		inced_nr_rotate_swap = true;
-	}
-
-	error = swap_cgroup_swapon(si->type, maxpages);
-	if (error)
-		goto bad_swap_unlock_inode;
-
-	nr_extents = setup_swap_map_and_extents(si, swap_header, swap_map,
-		cluster_info, maxpages, &span);
-	if (unlikely(nr_extents < 0)) {
-		error = nr_extents;
-		goto bad_swap_unlock_inode;
 	}
 
 	if ((swap_flags & SWAP_FLAG_DISCARD) &&
