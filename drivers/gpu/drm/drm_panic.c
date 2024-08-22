@@ -18,6 +18,8 @@
 #include <linux/overflow.h>
 #include <linux/printk.h>
 #include <linux/types.h>
+#include <linux/utsname.h>
+#include <linux/zlib.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
@@ -26,6 +28,7 @@
 #include <drm/drm_panic.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_print.h>
+#include <drm/drm_rect.h>
 
 #include "drm_crtc_internal.h"
 
@@ -627,6 +630,233 @@ static void draw_panic_static_kmsg(struct drm_scanout_buffer *sb)
 	}
 }
 
+#if defined(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+/*
+ * It is unwise to allocate memory in the panic callback, so the buffers are
+ * pre-allocated. Only 2 buffers and the zlib workspace are needed.
+ * Two buffers are enough, using the following buffer usage:
+ * 1) kmsg messages are dumped in buffer1
+ * 2) kmsg is zlib-compressed into buffer2
+ * 3) compressed kmsg is encoded as QR-code Numeric stream in buffer1
+ * 4) QR-code image is generated in buffer2
+ * The Max QR code size is V40, 177x177, 4071 bytes for image, 2956 bytes for
+ * data segments.
+ *
+ * Typically, ~7500 bytes of kmsg, are compressed into 2800 bytes, which fits in
+ * a V40 QR-code (177x177).
+ *
+ * If CONFIG_DRM_PANIC_SCREEN_QR_CODE_URL is not set, the kmsg data will be put
+ * directly in the QR code.
+ * 1) kmsg messages are dumped in buffer1
+ * 2) kmsg message is encoded as byte stream in buffer2
+ * 3) QR-code image is generated in buffer1
+ */
+
+static uint panic_qr_version = CONFIG_DRM_PANIC_SCREEN_QR_VERSION;
+module_param(panic_qr_version, uint, 0644);
+MODULE_PARM_DESC(panic_qr_version, "maximum version (size) of the QR code");
+
+#define MAX_QR_DATA 2956
+#define MAX_ZLIB_RATIO 3
+#define QR_BUFFER1_SIZE (MAX_ZLIB_RATIO * MAX_QR_DATA) /* Must also be > 4071  */
+#define QR_BUFFER2_SIZE 4096
+#define QR_MARGIN	4	/* 4 modules of foreground color around the qr code */
+
+/* Compression parameters */
+#define COMPR_LEVEL 6
+#define WINDOW_BITS 12
+#define MEM_LEVEL 4
+
+static char *qrbuf1;
+static char *qrbuf2;
+static struct z_stream_s stream;
+
+static void __init drm_panic_qr_init(void)
+{
+	qrbuf1 = kmalloc(QR_BUFFER1_SIZE, GFP_KERNEL);
+	qrbuf2 = kmalloc(QR_BUFFER2_SIZE, GFP_KERNEL);
+	stream.workspace = kmalloc(zlib_deflate_workspacesize(WINDOW_BITS, MEM_LEVEL),
+				   GFP_KERNEL);
+}
+
+static void drm_panic_qr_exit(void)
+{
+	kfree(qrbuf1);
+	qrbuf1 = NULL;
+	kfree(qrbuf2);
+	qrbuf2 = NULL;
+	kfree(stream.workspace);
+	stream.workspace = NULL;
+}
+
+extern size_t drm_panic_qr_max_data_size(u8 version, size_t url_len);
+
+extern u8 drm_panic_qr_generate(const char *url, u8 *data, size_t data_len, size_t data_size,
+				u8 *tmp, size_t tmp_size);
+
+static int drm_panic_get_qr_code_url(u8 **qr_image)
+{
+	struct kmsg_dump_iter iter;
+	char url[256];
+	size_t kmsg_len, max_kmsg_size;
+	char *kmsg;
+	int max_qr_data_size, url_len;
+
+	url_len = snprintf(url, sizeof(url), CONFIG_DRM_PANIC_SCREEN_QR_CODE_URL "?a=%s&v=%s&zl=",
+			   utsname()->machine, utsname()->release);
+
+	max_qr_data_size = drm_panic_qr_max_data_size(panic_qr_version, url_len);
+	max_kmsg_size = min(MAX_ZLIB_RATIO * max_qr_data_size, QR_BUFFER1_SIZE);
+
+	/* get kmsg to buffer 1 */
+	kmsg_dump_rewind(&iter);
+	kmsg_dump_get_buffer(&iter, false, qrbuf1, max_kmsg_size, &kmsg_len);
+
+	if (!kmsg_len)
+		return -ENODATA;
+	kmsg = qrbuf1;
+
+try_again:
+	if (zlib_deflateInit2(&stream, COMPR_LEVEL, Z_DEFLATED, WINDOW_BITS,
+			      MEM_LEVEL, Z_DEFAULT_STRATEGY) != Z_OK)
+		return -EINVAL;
+
+	stream.next_in = kmsg;
+	stream.avail_in = kmsg_len;
+	stream.total_in = 0;
+	stream.next_out = qrbuf2;
+	stream.avail_out = QR_BUFFER2_SIZE;
+	stream.total_out = 0;
+
+	if (zlib_deflate(&stream, Z_FINISH) != Z_STREAM_END)
+		return -EINVAL;
+
+	if (zlib_deflateEnd(&stream) != Z_OK)
+		return -EINVAL;
+
+	if (stream.total_out > max_qr_data_size) {
+		/* too much data for the QR code, so skip the first line and try again */
+		kmsg = strchr(kmsg, '\n');
+		if (!kmsg)
+			return -EINVAL;
+		/* skip the first \n */
+		kmsg += 1;
+		kmsg_len = strlen(kmsg);
+		goto try_again;
+	}
+	*qr_image = qrbuf2;
+
+	/* generate qr code image in buffer2 */
+	return drm_panic_qr_generate(url, qrbuf2, stream.total_out, QR_BUFFER2_SIZE,
+				     qrbuf1, QR_BUFFER1_SIZE);
+}
+
+static int drm_panic_get_qr_code_raw(u8 **qr_image)
+{
+	struct kmsg_dump_iter iter;
+	size_t kmsg_len;
+	size_t max_kmsg_size = min(drm_panic_qr_max_data_size(panic_qr_version, 0),
+				   QR_BUFFER1_SIZE);
+
+	kmsg_dump_rewind(&iter);
+	kmsg_dump_get_buffer(&iter, false, qrbuf1, max_kmsg_size, &kmsg_len);
+	if (!kmsg_len)
+		return -ENODATA;
+
+	*qr_image = qrbuf1;
+	return drm_panic_qr_generate(NULL, qrbuf1, kmsg_len, QR_BUFFER1_SIZE,
+				     qrbuf2, QR_BUFFER2_SIZE);
+}
+
+static int drm_panic_get_qr_code(u8 **qr_image)
+{
+	if (strlen(CONFIG_DRM_PANIC_SCREEN_QR_CODE_URL) > 0)
+		return drm_panic_get_qr_code_url(qr_image);
+	else
+		return drm_panic_get_qr_code_raw(qr_image);
+}
+
+/*
+ * Draw the panic message at the center of the screen, with a QR Code
+ */
+static int _draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
+{
+	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
+	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
+	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
+	struct drm_rect r_screen, r_logo, r_msg, r_qr, r_qr_canvas;
+	unsigned int max_qr_size, scale;
+	unsigned int msg_width, msg_height;
+	int qr_width, qr_canvas_width, qr_pitch, v_margin;
+	u8 *qr_image;
+
+	if (!font || !qrbuf1 || !qrbuf2 || !stream.workspace)
+		return -ENOMEM;
+
+	r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
+
+	drm_panic_logo_rect(&r_logo, font);
+
+	msg_width = min(get_max_line_len(panic_msg, panic_msg_lines) * font->width, sb->width);
+	msg_height = min(panic_msg_lines * font->height, sb->height);
+	r_msg = DRM_RECT_INIT(0, 0, msg_width, msg_height);
+
+	max_qr_size = min(3 * sb->width / 4, 3 * sb->height / 4);
+
+	qr_width = drm_panic_get_qr_code(&qr_image);
+	if (qr_width <= 0)
+		return -ENOSPC;
+
+	qr_canvas_width = qr_width + QR_MARGIN * 2;
+	scale = max_qr_size / qr_canvas_width;
+	/* QR code is not readable if not scaled at least by 2 */
+	if (scale < 2)
+		return -ENOSPC;
+
+	pr_debug("QR width %d and scale %d\n", qr_width, scale);
+	r_qr_canvas = DRM_RECT_INIT(0, 0, qr_canvas_width * scale, qr_canvas_width * scale);
+
+	v_margin = (sb->height - drm_rect_height(&r_qr_canvas) - drm_rect_height(&r_msg)) / 5;
+
+	drm_rect_translate(&r_qr_canvas, (sb->width - r_qr_canvas.x2) / 2, 2 * v_margin);
+	r_qr = DRM_RECT_INIT(r_qr_canvas.x1 + QR_MARGIN * scale, r_qr_canvas.y1 + QR_MARGIN * scale,
+			     qr_width * scale, qr_width * scale);
+
+	/* Center the panic message */
+	drm_rect_translate(&r_msg, (sb->width - r_msg.x2) / 2,
+			   3 * v_margin + drm_rect_height(&r_qr_canvas));
+
+	/* Fill with the background color, and draw text on top */
+	drm_panic_fill(sb, &r_screen, bg_color);
+
+	if (!drm_rect_overlap(&r_logo, &r_msg) && !drm_rect_overlap(&r_logo, &r_qr))
+		drm_panic_logo_draw(sb, &r_logo, font, fg_color);
+
+	draw_txt_rectangle(sb, font, panic_msg, panic_msg_lines, true, &r_msg, fg_color);
+
+	/* Draw the qr code */
+	qr_pitch = DIV_ROUND_UP(qr_width, 8);
+	drm_panic_fill(sb, &r_qr_canvas, fg_color);
+	drm_panic_fill(sb, &r_qr, bg_color);
+	drm_panic_blit(sb, &r_qr, qr_image, qr_pitch, scale, fg_color);
+	return 0;
+}
+
+static void draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
+{
+	if (_draw_panic_static_qr_code(sb))
+		draw_panic_static_user(sb);
+}
+#else
+static void draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
+{
+	draw_panic_static_user(sb);
+}
+
+static void drm_panic_qr_init(void) {};
+static void drm_panic_qr_exit(void) {};
+#endif
+
 /*
  * drm_panic_is_format_supported()
  * @format: a fourcc color code
@@ -645,6 +875,8 @@ static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
 {
 	if (!strcmp(drm_panic_screen, "kmsg")) {
 		draw_panic_static_kmsg(sb);
+	} else if (!strcmp(drm_panic_screen, "qr_code")) {
+		draw_panic_static_qr_code(sb);
 	} else {
 		draw_panic_static_user(sb);
 	}
@@ -813,4 +1045,20 @@ void drm_panic_unregister(struct drm_device *dev)
 			continue;
 		kmsg_dump_unregister(&plane->kmsg_panic);
 	}
+}
+
+/**
+ * drm_panic_init() - initialize DRM panic.
+ */
+void __init drm_panic_init(void)
+{
+	drm_panic_qr_init();
+}
+
+/**
+ * drm_panic_exit() - Free the resources taken by drm_panic_exit()
+ */
+void drm_panic_exit(void)
+{
+	drm_panic_qr_exit();
 }
