@@ -1988,8 +1988,15 @@ void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
 	if (shost->no_highmem)
 		lim->features |= BLK_FEAT_BOUNCE_HIGH;
 
-	dma_set_seg_boundary(dev, shost->dma_boundary);
-	dma_set_max_seg_size(dev, shost->max_segment_size);
+	/*
+	 * Propagate the DMA formation properties to the dma-mapping layer as
+	 * a courtesy service to the LLDDs.  This needs to check that the buses
+	 * actually support the DMA API first, though.
+	 */
+	if (dev->dma_parms) {
+		dma_set_seg_boundary(dev, shost->dma_boundary);
+		dma_set_max_seg_size(dev, shost->max_segment_size);
+	}
 }
 EXPORT_SYMBOL_GPL(scsi_init_limits);
 
