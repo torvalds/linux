@@ -381,7 +381,6 @@ struct ag71xx {
 
 	struct reset_control *mdio_reset;
 	struct clk *clk_mdio;
-	struct clk *clk_eth;
 };
 
 static int ag71xx_desc_empty(struct ag71xx_desc *desc)
@@ -1799,6 +1798,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	const struct ag71xx_dcfg *dcfg;
 	struct net_device *ndev;
 	struct resource *res;
+	struct clk *clk_eth;
 	int tx_size, err, i;
 	struct ag71xx *ag;
 
@@ -1829,10 +1829,10 @@ static int ag71xx_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ag->clk_eth = devm_clk_get_enabled(&pdev->dev, "eth");
-	if (IS_ERR(ag->clk_eth)) {
+	clk_eth = devm_clk_get_enabled(&pdev->dev, "eth");
+	if (IS_ERR(clk_eth)) {
 		netif_err(ag, probe, ndev, "Failed to get eth clk.\n");
-		return PTR_ERR(ag->clk_eth);
+		return PTR_ERR(clk_eth);
 	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
