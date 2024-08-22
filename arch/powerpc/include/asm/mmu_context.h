@@ -116,9 +116,6 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
-extern int use_cop(unsigned long acop, struct mm_struct *mm);
-extern void drop_cop(unsigned long acop, struct mm_struct *mm);
-
 #ifdef CONFIG_PPC_BOOK3S_64
 static inline void inc_mm_active_cpus(struct mm_struct *mm)
 {
