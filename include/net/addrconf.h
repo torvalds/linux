@@ -333,7 +333,7 @@ static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 /**
  * __in6_dev_stats_get - get inet6_dev pointer for stats
  * @dev: network device
- * @skb: skb for original incoming interface if neeeded
+ * @skb: skb for original incoming interface if needed
  *
  * Caller must hold rcu_read_lock or RTNL, because this function
  * does not take a reference on the inet6_dev.

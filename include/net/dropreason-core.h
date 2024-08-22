@@ -155,8 +155,8 @@ enum skb_drop_reason {
 	/** @SKB_DROP_REASON_SOCKET_RCVBUFF: socket receive buff is full */
 	SKB_DROP_REASON_SOCKET_RCVBUFF,
 	/**
-	 * @SKB_DROP_REASON_PROTO_MEM: proto memory limition, such as udp packet
-	 * drop out of udp_memory_allocated.
+	 * @SKB_DROP_REASON_PROTO_MEM: proto memory limitation, such as
+	 * udp packet drop out of udp_memory_allocated.
 	 */
 	SKB_DROP_REASON_PROTO_MEM,
 	/**
@@ -217,7 +217,7 @@ enum skb_drop_reason {
 	 */
 	SKB_DROP_REASON_TCP_ZEROWINDOW,
 	/**
-	 * @SKB_DROP_REASON_TCP_OLD_DATA: the TCP data reveived is already
+	 * @SKB_DROP_REASON_TCP_OLD_DATA: the TCP data received is already
 	 * received before (spurious retrans may happened), see
 	 * LINUX_MIB_DELAYEDACKLOST
 	 */

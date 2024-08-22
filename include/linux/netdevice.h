@@ -1237,7 +1237,7 @@ struct netdev_net_notifier {
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 vid)
- *	Deletes the FDB entry from dev coresponding to addr.
+ *	Deletes the FDB entry from dev corresponding to addr.
  * int (*ndo_fdb_del_bulk)(struct nlmsghdr *nlh, struct net_device *dev,
  *			   struct netlink_ext_ack *extack);
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
@@ -3514,7 +3514,7 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 	dql_completed(&dev_queue->dql, bytes);
 
 	/*
-	 * Without the memory barrier there is a small possiblity that
+	 * Without the memory barrier there is a small possibility that
 	 * netdev_tx_sent_queue will miss the update and cause the queue to
 	 * be stopped forever
 	 */
@@ -4583,7 +4583,7 @@ void dev_uc_flush(struct net_device *dev);
 void dev_uc_init(struct net_device *dev);
 
 /**
- *  __dev_uc_sync - Synchonize device's unicast list
+ *  __dev_uc_sync - Synchronize device's unicast list
  *  @dev:  device to sync
  *  @sync: function to call if address should be added
  *  @unsync: function to call if address should be removed
@@ -4627,7 +4627,7 @@ void dev_mc_flush(struct net_device *dev);
 void dev_mc_init(struct net_device *dev);
 
 /**
- *  __dev_mc_sync - Synchonize device's multicast list
+ *  __dev_mc_sync - Synchronize device's multicast list
  *  @dev:  device to sync
  *  @sync: function to call if address should be added
  *  @unsync: function to call if address should be removed
