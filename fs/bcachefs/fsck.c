@@ -2006,7 +2006,6 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	if (ret) {
 		bch_err(c, "subvol %u points to missing inode root %llu", target_subvol, target_inum);
 		ret = -BCH_ERR_fsck_repair_unimplemented;
-		ret = 0;
 		goto err;
 	}
 
