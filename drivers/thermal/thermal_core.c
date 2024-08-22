@@ -804,7 +804,7 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	dev->tz = tz;
+
 	dev->cdev = cdev;
 	dev->trip = trip;
 	dev->upper = cool_spec->upper;

@@ -213,7 +213,6 @@ int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip
 struct thermal_instance {
 	int id;
 	char name[THERMAL_NAME_LENGTH];
-	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
 	const struct thermal_trip *trip;
 	bool initialized;
