@@ -543,7 +543,7 @@ static int parse_test_spec(struct test_loader *tester,
 		}
 	}
 
-	spec->arch_mask = arch_mask;
+	spec->arch_mask = arch_mask ?: -1;
 
 	if (spec->mode_mask == 0)
 		spec->mode_mask = PRIV;

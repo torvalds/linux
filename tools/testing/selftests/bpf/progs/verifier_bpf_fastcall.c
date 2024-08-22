@@ -2,8 +2,11 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
+#include <stdbool.h>
+#include "bpf_kfuncs.h"
 
 SEC("raw_tp")
 __arch_x86_64
@@ -39,7 +42,7 @@ __naked void simple(void)
 	: __clobber_all);
 }
 
-/* The logic for detecting and verifying nocsr pattern is the same for
+/* The logic for detecting and verifying bpf_fastcall pattern is the same for
  * any arch, however x86 differs from arm64 or riscv64 in a way
  * bpf_get_smp_processor_id is rewritten:
  * - on x86 it is done by verifier
@@ -52,7 +55,7 @@ __naked void simple(void)
  *
  * It is really desirable to check instruction indexes in the xlated
  * patterns, so add this canary test to check that function rewrite by
- * jit is correctly processed by nocsr logic, keep the rest of the
+ * jit is correctly processed by bpf_fastcall logic, keep the rest of the
  * tests as x86.
  */
 SEC("raw_tp")
@@ -463,7 +466,7 @@ __naked static void bad_write_in_subprog_aux(void)
 {
 	asm volatile (
 	"r0 = 1;"
-	"*(u64 *)(r1 - 0) = r0;"	/* invalidates nocsr contract for caller: */
+	"*(u64 *)(r1 - 0) = r0;"	/* invalidates bpf_fastcall contract for caller: */
 	"exit;"				/* caller stack at -8 used outside of the pattern */
 	::: __clobber_all);
 }
@@ -480,7 +483,7 @@ __naked void bad_helper_write(void)
 {
 	asm volatile (
 	"r1 = 1;"
-	/* nocsr pattern with stack offset -8 */
+	/* bpf_fastcall pattern with stack offset -8 */
 	"*(u64 *)(r10 - 8) = r1;"
 	"call %[bpf_get_smp_processor_id];"
 	"r1 = *(u64 *)(r10 - 8);"
@@ -488,7 +491,7 @@ __naked void bad_helper_write(void)
 	"r1 += -8;"
 	"r2 = 1;"
 	"r3 = 42;"
-	/* read dst is fp[-8], thus nocsr rewrite not applied */
+	/* read dst is fp[-8], thus bpf_fastcall rewrite not applied */
 	"call %[bpf_probe_read_kernel];"
 	"exit;"
 	:
@@ -598,7 +601,7 @@ __arch_x86_64
 __log_level(4) __msg("stack depth 8")
 __xlated("2: r0 = &(void __percpu *)(r0)")
 __success
-__naked void helper_call_does_not_prevent_nocsr(void)
+__naked void helper_call_does_not_prevent_bpf_fastcall(void)
 {
 	asm volatile (
 	"r1 = 1;"
@@ -689,7 +692,7 @@ __naked int bpf_loop_interaction1(void)
 {
 	asm volatile (
 	"r1 = 1;"
-	/* nocsr stack region at -16, but could be removed */
+	/* bpf_fastcall stack region at -16, but could be removed */
 	"*(u64 *)(r10 - 16) = r1;"
 	"call %[bpf_get_smp_processor_id];"
 	"r1 = *(u64 *)(r10 - 16);"
@@ -729,7 +732,7 @@ __naked int bpf_loop_interaction2(void)
 {
 	asm volatile (
 	"r1 = 42;"
-	/* nocsr stack region at -16, cannot be removed */
+	/* bpf_fastcall stack region at -16, cannot be removed */
 	"*(u64 *)(r10 - 16) = r1;"
 	"call %[bpf_get_smp_processor_id];"
 	"r1 = *(u64 *)(r10 - 16);"
@@ -759,8 +762,8 @@ __msg("stack depth 512+0")
 __xlated("r0 = &(void __percpu *)(r0)")
 __success
 /* cumulative_stack_depth() stack usage is MAX_BPF_STACK,
- * called subprogram uses an additional slot for nocsr spill/fill,
- * since nocsr spill/fill could be removed the program still fits
+ * called subprogram uses an additional slot for bpf_fastcall spill/fill,
+ * since bpf_fastcall spill/fill could be removed the program still fits
  * in MAX_BPF_STACK and should be accepted.
  */
 __naked int cumulative_stack_depth(void)
@@ -798,7 +801,7 @@ __xlated("3: r0 = &(void __percpu *)(r0)")
 __xlated("4: r0 = *(u32 *)(r0 +0)")
 __xlated("5: exit")
 __success
-__naked int nocsr_max_stack_ok(void)
+__naked int bpf_fastcall_max_stack_ok(void)
 {
 	asm volatile(
 	"r1 = 42;"
@@ -820,7 +823,7 @@ __arch_x86_64
 __log_level(4)
 __msg("stack depth 520")
 __failure
-__naked int nocsr_max_stack_fail(void)
+__naked int bpf_fastcall_max_stack_fail(void)
 {
 	asm volatile(
 	"r1 = 42;"
@@ -828,7 +831,7 @@ __naked int nocsr_max_stack_fail(void)
 	"*(u64 *)(r10 - %[max_bpf_stack_8]) = r1;"
 	"call %[bpf_get_smp_processor_id];"
 	"r1 = *(u64 *)(r10 - %[max_bpf_stack_8]);"
-	/* call to prandom blocks nocsr rewrite */
+	/* call to prandom blocks bpf_fastcall rewrite */
 	"*(u64 *)(r10 - %[max_bpf_stack_8]) = r1;"
 	"call %[bpf_get_prandom_u32];"
 	"r1 = *(u64 *)(r10 - %[max_bpf_stack_8]);"
@@ -840,6 +843,58 @@ __naked int nocsr_max_stack_fail(void)
 	  __imm(bpf_get_prandom_u32)
 	: __clobber_all
 	);
+}
+
+SEC("cgroup/getsockname_unix")
+__xlated("0: r2 = 1")
+/* bpf_cast_to_kern_ctx is replaced by a single assignment */
+__xlated("1: r0 = r1")
+__xlated("2: r0 = r2")
+__xlated("3: exit")
+__success
+__naked void kfunc_bpf_cast_to_kern_ctx(void)
+{
+	asm volatile (
+	"r2 = 1;"
+	"*(u64 *)(r10 - 32) = r2;"
+	"call %[bpf_cast_to_kern_ctx];"
+	"r2 = *(u64 *)(r10 - 32);"
+	"r0 = r2;"
+	"exit;"
+	:
+	: __imm(bpf_cast_to_kern_ctx)
+	: __clobber_all);
+}
+
+SEC("raw_tp")
+__xlated("3: r3 = 1")
+/* bpf_rdonly_cast is replaced by a single assignment */
+__xlated("4: r0 = r1")
+__xlated("5: r0 = r3")
+void kfunc_bpf_rdonly_cast(void)
+{
+	asm volatile (
+	"r2 = %[btf_id];"
+	"r3 = 1;"
+	"*(u64 *)(r10 - 32) = r3;"
+	"call %[bpf_rdonly_cast];"
+	"r3 = *(u64 *)(r10 - 32);"
+	"r0 = r3;"
+	:
+	: __imm(bpf_rdonly_cast),
+	 [btf_id]"r"(bpf_core_type_id_kernel(union bpf_attr))
+	: __clobber_common);
+}
+
+/* BTF FUNC records are not generated for kfuncs referenced
+ * from inline assembly. These records are necessary for
+ * libbpf to link the program. The function below is a hack
+ * to ensure that BTF FUNC records are generated.
+ */
+void kfunc_root(void)
+{
+	bpf_cast_to_kern_ctx(0);
+	bpf_rdonly_cast(0, 0);
 }
 
 char _license[] SEC("license") = "GPL";
