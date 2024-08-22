@@ -72,8 +72,6 @@
 #define TM_DEBUG(x...) do { } while(0)
 #endif
 
-extern unsigned long _get_SP(void);
-
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 /*
  * Are we running in "Suspend disabled" mode? If so we have to block any
