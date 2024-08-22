@@ -22,102 +22,29 @@
 /*
  * Helper functions
  */
-
-static int key2protkey_fallback(const struct clearkeytoken *t,
-				u8 *protkey, u32 *protkeylen, u32 *protkeytype)
-{
-	size_t tmpbuflen = max_t(size_t, SECKEYBLOBSIZE, MAXEP11AESKEYBLOBSIZE);
-	u32 keysize, keybitsize, tmplen;
-	u8 *tmpbuf = NULL;
-	int i, rc;
-
-	/* As of now only for AES keys a fallback is available */
-
-	keysize = pkey_keytype_aes_to_size(t->keytype);
-	if (!keysize) {
-		PKEY_DBF_ERR("%s unknown/unsupported keytype %u\n",
-			     __func__, t->keytype);
-		return -EINVAL;
-	}
-	if (t->len != keysize) {
-		PKEY_DBF_ERR("%s clear key AES token: invalid key len %u\n",
-			     __func__, t->len);
-		return -EINVAL;
-	}
-	keybitsize = 8 * keysize;
-
-	/* alloc tmp key buffer */
-	tmpbuf = kmalloc(tmpbuflen, GFP_ATOMIC);
-	if (!tmpbuf)
-		return -ENOMEM;
-
-	/* try two times in case of failure */
-	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
-
-		/* CCA secure key way */
-		tmplen = tmpbuflen;
-		rc = pkey_handler_clr_to_key(NULL, 0,
-					     t->keytype, PKEY_TYPE_CCA_DATA,
-					     keybitsize, 0,
-					     t->clearkey, t->len,
-					     tmpbuf, &tmplen, NULL);
-		pr_debug("clr_to_key()=%d\n", rc);
-		if (rc)
-			goto try_via_ep11;
-		rc = pkey_handler_key_to_protkey(NULL, 0,
-						 tmpbuf, tmplen,
-						 protkey, protkeylen,
-						 protkeytype);
-		pr_debug("key_to_protkey()=%d\n", rc);
-		if (!rc)
-			break;
-
-try_via_ep11:
-		/* the CCA way failed, try via EP11 */
-		tmplen = tmpbuflen;
-		rc = pkey_handler_clr_to_key(NULL, 0,
-					     t->keytype, PKEY_TYPE_EP11_AES,
-					     keybitsize, 0,
-					     t->clearkey, t->len,
-					     tmpbuf, &tmplen, NULL);
-		pr_debug("clr_to_key()=%d\n", rc);
-		if (rc)
-			continue;
-		rc = pkey_handler_key_to_protkey(NULL, 0,
-						 tmpbuf, tmplen,
-						 protkey, protkeylen,
-						 protkeytype);
-		pr_debug("key_to_protkey()=%d\n", rc);
-	}
-
-	kfree(tmpbuf);
-
-	return rc;
-}
-
 static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 		       const u8 *key, size_t keylen,
 		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	struct keytoken_header *hdr = (struct keytoken_header *)key;
-	int i, rc;
+	int rc;
 
-	/* retry two times */
-	for (rc = -ENODEV, i = 0; rc && i < 2; i++) {
-		/* First try the direct way */
-		rc = pkey_handler_key_to_protkey(apqns, nr_apqns,
-						 key, keylen,
-						 protkey, protkeylen,
-						 protkeytype);
-		/* For some clear key tokens there exists a fallback way */
-		if (rc &&
-		    hdr->type == TOKTYPE_NON_CCA &&
-		    hdr->version == TOKVER_CLEAR_KEY)
-			rc = key2protkey_fallback((struct clearkeytoken *)key,
-						  protkey, protkeylen,
-						  protkeytype);
+	/* try the direct way */
+	rc = pkey_handler_key_to_protkey(apqns, nr_apqns,
+					 key, keylen,
+					 protkey, protkeylen,
+					 protkeytype);
+
+	/* if this did not work, try the slowpath way */
+	if (rc == -ENODEV) {
+		rc = pkey_handler_slowpath_key_to_protkey(apqns, nr_apqns,
+							  key, keylen,
+							  protkey, protkeylen,
+							  protkeytype);
+		if (rc)
+			rc = -ENODEV;
 	}
 
+	pr_debug("rc=%d\n", rc);
 	return rc;
 }
 

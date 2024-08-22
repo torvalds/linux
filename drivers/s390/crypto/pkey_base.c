@@ -167,6 +167,46 @@ int pkey_handler_key_to_protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 }
 EXPORT_SYMBOL(pkey_handler_key_to_protkey);
 
+/*
+ * This handler invocation is special as there may be more than
+ * one handler providing support for the very same key (type).
+ * And the handler may not respond true on is_supported_key(),
+ * so simple try and check return value here.
+ */
+int pkey_handler_slowpath_key_to_protkey(const struct pkey_apqn *apqns,
+					 size_t nr_apqns,
+					 const u8 *key, u32 keylen,
+					 u8 *protkey, u32 *protkeylen,
+					 u32 *protkeytype)
+{
+	const struct pkey_handler *h, *htmp[10];
+	int i, n = 0, rc = -ENODEV;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(h, &handler_list, list) {
+		if (!try_module_get(h->module))
+			continue;
+		if (h->slowpath_key_to_protkey && n < ARRAY_SIZE(htmp))
+			htmp[n++] = h;
+		else
+			module_put(h->module);
+	}
+	rcu_read_unlock();
+
+	for (i = 0; i < n; i++) {
+		h = htmp[i];
+		if (rc)
+			rc = h->slowpath_key_to_protkey(apqns, nr_apqns,
+							key, keylen,
+							protkey, protkeylen,
+							protkeytype);
+		module_put(h->module);
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(pkey_handler_slowpath_key_to_protkey);
+
 int pkey_handler_gen_key(const struct pkey_apqn *apqns, size_t nr_apqns,
 			 u32 keytype, u32 keysubtype,
 			 u32 keybitsize, u32 flags,

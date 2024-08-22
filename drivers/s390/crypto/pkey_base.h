@@ -113,6 +113,11 @@ struct pkey_handler {
 	int (*key_to_protkey)(const struct pkey_apqn *apqns, size_t nr_apqns,
 			      const u8 *key, u32 keylen,
 			      u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+	int (*slowpath_key_to_protkey)(const struct pkey_apqn *apqns,
+				       size_t nr_apqns,
+				       const u8 *key, u32 keylen,
+				       u8 *protkey, u32 *protkeylen,
+				       u32 *protkeytype);
 	int (*gen_key)(const struct pkey_apqn *apqns, size_t nr_apqns,
 		       u32 keytype, u32 keysubtype,
 		       u32 keybitsize, u32 flags,
@@ -148,6 +153,11 @@ void pkey_handler_put(const struct pkey_handler *handler);
 int pkey_handler_key_to_protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 				const u8 *key, u32 keylen,
 				u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+int pkey_handler_slowpath_key_to_protkey(const struct pkey_apqn *apqns,
+					 size_t nr_apqns,
+					 const u8 *key, u32 keylen,
+					 u8 *protkey, u32 *protkeylen,
+					 u32 *protkeytype);
 int pkey_handler_gen_key(const struct pkey_apqn *apqns, size_t nr_apqns,
 			 u32 keytype, u32 keysubtype,
 			 u32 keybitsize, u32 flags,

@@ -490,17 +490,70 @@ out:
 	return rc;
 }
 
+/*
+ * This function provides an alternate but usually slow way
+ * to convert a 'clear key token' with AES key material into
+ * a protected key. That is done via an intermediate step
+ * which creates an EP11 AES secure key first and then derives
+ * the protected key from this secure key.
+ */
+static int ep11_slowpath_key2protkey(const struct pkey_apqn *apqns,
+				     size_t nr_apqns,
+				     const u8 *key, u32 keylen,
+				     u8 *protkey, u32 *protkeylen,
+				     u32 *protkeytype)
+{
+	const struct keytoken_header *hdr = (const struct keytoken_header *)key;
+	const struct clearkeytoken *t = (const struct clearkeytoken *)key;
+	u32 tmplen, keysize = 0;
+	u8 *tmpbuf;
+	int i, rc;
+
+	if (keylen < sizeof(*hdr))
+		return -EINVAL;
+
+	if (hdr->type == TOKTYPE_NON_CCA &&
+	    hdr->version == TOKVER_CLEAR_KEY)
+		keysize = pkey_keytype_aes_to_size(t->keytype);
+	if (!keysize || t->len != keysize)
+		return -EINVAL;
+
+	/* alloc tmp key buffer */
+	tmpbuf = kmalloc(MAXEP11AESKEYBLOBSIZE, GFP_ATOMIC);
+	if (!tmpbuf)
+		return -ENOMEM;
+
+	/* try two times in case of failure */
+	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
+		tmplen = MAXEP11AESKEYBLOBSIZE;
+		rc = ep11_clr2key(NULL, 0, t->keytype, PKEY_TYPE_EP11,
+				  8 * keysize, 0, t->clearkey, t->len,
+				  tmpbuf, &tmplen, NULL);
+		pr_debug("ep11_clr2key()=%d\n", rc);
+		if (rc)
+			continue;
+		rc = ep11_key2protkey(NULL, 0, tmpbuf, tmplen,
+				      protkey, protkeylen, protkeytype);
+		pr_debug("ep11_key2protkey()=%d\n", rc);
+	}
+
+	kfree(tmpbuf);
+	pr_debug("rc=%d\n", rc);
+	return rc;
+}
+
 static struct pkey_handler ep11_handler = {
-	.module		      = THIS_MODULE,
-	.name		      = "PKEY EP11 handler",
-	.is_supported_key     = is_ep11_key,
-	.is_supported_keytype = is_ep11_keytype,
-	.key_to_protkey	      = ep11_key2protkey,
-	.gen_key	      = ep11_gen_key,
-	.clr_to_key	      = ep11_clr2key,
-	.verify_key	      = ep11_verifykey,
-	.apqns_for_key	      = ep11_apqns4key,
-	.apqns_for_keytype    = ep11_apqns4type,
+	.module			 = THIS_MODULE,
+	.name			 = "PKEY EP11 handler",
+	.is_supported_key	 = is_ep11_key,
+	.is_supported_keytype	 = is_ep11_keytype,
+	.key_to_protkey		 = ep11_key2protkey,
+	.slowpath_key_to_protkey = ep11_slowpath_key2protkey,
+	.gen_key		 = ep11_gen_key,
+	.clr_to_key		 = ep11_clr2key,
+	.verify_key		 = ep11_verifykey,
+	.apqns_for_key		 = ep11_apqns4key,
+	.apqns_for_keytype	 = ep11_apqns4type,
 };
 
 /*

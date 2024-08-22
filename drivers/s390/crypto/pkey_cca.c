@@ -541,17 +541,70 @@ out:
 	return rc;
 }
 
+/*
+ * This function provides an alternate but usually slow way
+ * to convert a 'clear key token' with AES key material into
+ * a protected key. This is done via an intermediate step
+ * which creates a CCA AES DATA secure key first and then
+ * derives the protected key from this secure key.
+ */
+static int cca_slowpath_key2protkey(const struct pkey_apqn *apqns,
+				    size_t nr_apqns,
+				    const u8 *key, u32 keylen,
+				    u8 *protkey, u32 *protkeylen,
+				    u32 *protkeytype)
+{
+	const struct keytoken_header *hdr = (const struct keytoken_header *)key;
+	const struct clearkeytoken *t = (const struct clearkeytoken *)key;
+	u32 tmplen, keysize = 0;
+	u8 *tmpbuf;
+	int i, rc;
+
+	if (keylen < sizeof(*hdr))
+		return -EINVAL;
+
+	if (hdr->type == TOKTYPE_NON_CCA &&
+	    hdr->version == TOKVER_CLEAR_KEY)
+		keysize = pkey_keytype_aes_to_size(t->keytype);
+	if (!keysize || t->len != keysize)
+		return -EINVAL;
+
+	/* alloc tmp key buffer */
+	tmpbuf = kmalloc(SECKEYBLOBSIZE, GFP_ATOMIC);
+	if (!tmpbuf)
+		return -ENOMEM;
+
+	/* try two times in case of failure */
+	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
+		tmplen = SECKEYBLOBSIZE;
+		rc = cca_clr2key(NULL, 0, t->keytype, PKEY_TYPE_CCA_DATA,
+				 8 * keysize, 0, t->clearkey, t->len,
+				 tmpbuf, &tmplen, NULL);
+		pr_debug("cca_clr2key()=%d\n", rc);
+		if (rc)
+			continue;
+		rc = cca_key2protkey(NULL, 0, tmpbuf, tmplen,
+				     protkey, protkeylen, protkeytype);
+		pr_debug("cca_key2protkey()=%d\n", rc);
+	}
+
+	kfree(tmpbuf);
+	pr_debug("rc=%d\n", rc);
+	return rc;
+}
+
 static struct pkey_handler cca_handler = {
-	.module		      = THIS_MODULE,
-	.name		      = "PKEY CCA handler",
-	.is_supported_key     = is_cca_key,
-	.is_supported_keytype = is_cca_keytype,
-	.key_to_protkey	      = cca_key2protkey,
-	.gen_key	      = cca_gen_key,
-	.clr_to_key	      = cca_clr2key,
-	.verify_key	      = cca_verifykey,
-	.apqns_for_key	      = cca_apqns4key,
-	.apqns_for_keytype    = cca_apqns4type,
+	.module			 = THIS_MODULE,
+	.name			 = "PKEY CCA handler",
+	.is_supported_key	 = is_cca_key,
+	.is_supported_keytype	 = is_cca_keytype,
+	.key_to_protkey		 = cca_key2protkey,
+	.slowpath_key_to_protkey = cca_slowpath_key2protkey,
+	.gen_key		 = cca_gen_key,
+	.clr_to_key		 = cca_clr2key,
+	.verify_key		 = cca_verifykey,
+	.apqns_for_key		 = cca_apqns4key,
+	.apqns_for_keytype	 = cca_apqns4type,
 };
 
 /*
