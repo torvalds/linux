@@ -25,6 +25,7 @@ typedef struct {
 	refcount_t	pinned;
 	void		*vdso;
 	unsigned long	flags;
+	u8		pkey_allocation_map;
 } mm_context_t;
 
 /*
