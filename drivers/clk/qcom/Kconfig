@@ -1508,6 +1508,51 @@ config SXR_GPUCC_NEO
 	  NEO devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config SXR_CAMCC_NEO
+	tristate "NEO Camera Clock Controller"
+	select SXR_GCC_NEO
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc.
+	  NEO devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config SXR_DISPCC_NEO
+	tristate "NEO Display Clock Controller"
+	select SXR_GCC_NEO
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  NEO devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config SXR_VIDEOCC_NEO
+	tristate "NEO Video Clock Controller"
+	select SXR_GCC_NEO
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  NEO devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
+
+config SXR_DEBUGCC_NEO
+	tristate "NEO Debug Clock Controller"
+	depends on SXR_GCC_NEO
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc.
+	  NEO devices.
+	  Say Y if you want to support the debug clocks such as clock measurement
+	  functionality.
+
+config SXR_TCSRCC_NEO
+	tristate "Top-Level CSR Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the TCSR clock controller on Qualcomm Technologies, Inc
+	  NEO devices.
+	  Say Y if you want to support miscellaneous top-level clocks
+	  such as for the PHY references.
 endif
 
 config VIRTIO_CLK
