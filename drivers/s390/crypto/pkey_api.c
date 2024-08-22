@@ -10,271 +10,26 @@
 #define KMSG_COMPONENT "pkey"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/kallsyms.h>
-#include <linux/debugfs.h>
-#include <linux/cpufeature.h>
-#include <asm/zcrypt.h>
-#include <asm/cpacf.h>
-#include <asm/pkey.h>
 
 #include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
-#include "zcrypt_ep11misc.h"
 
 #include "pkey_base.h"
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("s390 protected key interface");
-
-/*
- * Debug feature data and functions
- */
-
-debug_info_t *pkey_dbf_info;
-
-static void __init pkey_debug_init(void)
-{
-	/* 5 arguments per dbf entry (including the format string ptr) */
-	pkey_dbf_info = debug_register("pkey", 1, 1, 5 * sizeof(long));
-	debug_register_view(pkey_dbf_info, &debug_sprintf_view);
-	debug_set_level(pkey_dbf_info, 3);
-}
-
-static void __exit pkey_debug_exit(void)
-{
-	debug_unregister(pkey_dbf_info);
-}
 
 /*
  * Helper functions
  */
 
-static int apqns4key(const u8 *key, size_t keylen, u32 flags,
-		     struct pkey_apqn *apqns, size_t *nr_apqns)
-{
-	if (pkey_is_cca_key(key, keylen)) {
-		return pkey_cca_apqns4key(key, keylen, flags,
-					  apqns, nr_apqns);
-	} else if (pkey_is_ep11_key(key, keylen)) {
-		return pkey_ep11_apqns4key(key, keylen, flags,
-					   apqns, nr_apqns);
-	} else {
-		struct keytoken_header *hdr = (struct keytoken_header *)key;
-
-		PKEY_DBF_ERR("%s unknown/unsupported key type %d version %d\n",
-			     __func__, hdr->type, hdr->version);
-		return -EINVAL;
-	}
-}
-
-static int apqns4keytype(enum pkey_key_type ktype,
-			 u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
-			 struct pkey_apqn *apqns, size_t *nr_apqns)
-{
-	if (pkey_is_cca_keytype(ktype)) {
-		return pkey_cca_apqns4type(ktype, cur_mkvp, alt_mkvp, flags,
-					   apqns, nr_apqns);
-	} else if (pkey_is_ep11_keytype(ktype)) {
-		return pkey_ep11_apqns4type(ktype, cur_mkvp, alt_mkvp, flags,
-					    apqns, nr_apqns);
-	} else {
-		PKEY_DBF_ERR("%s unknown/unsupported key type %d\n",
-			     __func__, ktype);
-		return -EINVAL;
-	}
-}
-
-static int genseck2(const struct pkey_apqn *apqns, size_t nr_apqns,
-		    enum pkey_key_type keytype, enum pkey_key_size keybitsize,
-		    u32 flags, u8 *keybuf, u32 *keybuflen)
-{
-	int i, rc;
-	u32 u;
-
-	if (pkey_is_cca_keytype(keytype)) {
-		/* As of now only CCA AES key generation is supported */
-		u = pkey_aes_bitsize_to_keytype(keybitsize);
-		if (!u) {
-			PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
-				     __func__, keybitsize);
-			return -EINVAL;
-		}
-		for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
-			rc = pkey_cca_gen_key(apqns[i].card,
-					      apqns[i].domain,
-					      u, keytype, keybitsize, flags,
-					      keybuf, keybuflen, NULL);
-		}
-	} else if (pkey_is_ep11_keytype(keytype)) {
-		/* As of now only EP11 AES key generation is supported */
-		u = pkey_aes_bitsize_to_keytype(keybitsize);
-		if (!u) {
-			PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
-				     __func__, keybitsize);
-			return -EINVAL;
-		}
-		for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
-			rc = pkey_ep11_gen_key(apqns[i].card,
-					       apqns[i].domain,
-					       u, keytype, keybitsize, flags,
-					       keybuf, keybuflen, NULL);
-		}
-	} else {
-		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n",
-			     __func__, keytype);
-		return -EINVAL;
-	}
-
-	return rc;
-}
-
-static int clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
-		       enum pkey_key_type keytype, enum pkey_key_size kbitsize,
-		       u32 flags, const u8 *clrkey, u8 *keybuf, u32 *keybuflen)
-{
-	int i, rc;
-	u32 u;
-
-	if (pkey_is_cca_keytype(keytype)) {
-		/* As of now only CCA AES key generation is supported */
-		u = pkey_aes_bitsize_to_keytype(kbitsize);
-		if (!u) {
-			PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
-				     __func__, kbitsize);
-			return -EINVAL;
-		}
-		for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
-			rc = pkey_cca_clr2key(apqns[i].card,
-					      apqns[i].domain,
-					      u, keytype, kbitsize, flags,
-					      clrkey, kbitsize / 8,
-					      keybuf, keybuflen, NULL);
-		}
-	} else if (pkey_is_ep11_keytype(keytype)) {
-		/* As of now only EP11 AES key generation is supported */
-		u = pkey_aes_bitsize_to_keytype(kbitsize);
-		if (!u) {
-			PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
-				     __func__, kbitsize);
-			return -EINVAL;
-		}
-		for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
-			rc = pkey_ep11_clr2key(apqns[i].card,
-					       apqns[i].domain,
-					       u, keytype, kbitsize, flags,
-					       clrkey, kbitsize / 8,
-					       keybuf, keybuflen, NULL);
-		}
-	} else {
-		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n",
-			     __func__, keytype);
-		return -EINVAL;
-	}
-
-	return rc;
-}
-
-static int ccakey2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
-			  const u8 *key, size_t keylen,
-			  u8 *protkey, u32 *protkeylen, u32 *protkeytype)
-{
-	struct pkey_apqn *local_apqns = NULL;
-	int i, j, rc;
-
-	/* alloc space for list of apqns if no list given */
-	if (!apqns || (nr_apqns == 1 &&
-		       apqns[0].card == 0xFFFF && apqns[0].domain == 0xFFFF)) {
-		nr_apqns = MAXAPQNSINLIST;
-		local_apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn),
-					    GFP_KERNEL);
-		if (!local_apqns)
-			return -ENOMEM;
-		apqns = local_apqns;
-	}
-
-	/* try two times in case of failure */
-	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
-		if (local_apqns) {
-			/* gather list of apqns able to deal with this key */
-			nr_apqns = MAXAPQNSINLIST;
-			rc = pkey_cca_apqns4key(key, keylen, 0,
-						local_apqns, &nr_apqns);
-			if (rc)
-				continue;
-		}
-		/* go through the list of apqns until success or end */
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			rc = pkey_cca_key2protkey(apqns[j].card,
-						  apqns[j].domain,
-						  key, keylen,
-						  protkey, protkeylen,
-						  protkeytype);
-		}
-	}
-
-	kfree(local_apqns);
-
-	return rc;
-}
-
-static int ep11key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
-			   const u8 *key, size_t keylen,
-			   u8 *protkey, u32 *protkeylen, u32 *protkeytype)
-{
-	struct pkey_apqn *local_apqns = NULL;
-	int i, j, rc;
-
-	/* alloc space for list of apqns if no list given */
-	if (!apqns || (nr_apqns == 1 &&
-		       apqns[0].card == 0xFFFF && apqns[0].domain == 0xFFFF)) {
-		nr_apqns = MAXAPQNSINLIST;
-		local_apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn),
-					    GFP_KERNEL);
-		if (!local_apqns)
-			return -ENOMEM;
-		apqns = local_apqns;
-	}
-
-	/* try two times in case of failure */
-	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
-		if (local_apqns) {
-			/* gather list of apqns able to deal with this key */
-			nr_apqns = MAXAPQNSINLIST;
-			rc = pkey_ep11_apqns4key(key, keylen, 0,
-						 local_apqns, &nr_apqns);
-			if (rc)
-				continue;
-		}
-		/* go through the list of apqns until success or end */
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			rc = pkey_ep11_key2protkey(apqns[j].card,
-						   apqns[j].domain,
-						   key, keylen,
-						   protkey, protkeylen,
-						   protkeytype);
-		}
-	}
-
-	kfree(local_apqns);
-
-	return rc;
-}
-
-static int pckmokey2protkey_fallback(const struct clearkeytoken *t,
-				     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+static int key2protkey_fallback(const struct clearkeytoken *t,
+				u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	size_t tmpbuflen = max_t(size_t, SECKEYBLOBSIZE, MAXEP11AESKEYBLOBSIZE);
-	struct pkey_apqn *apqns = NULL;
-	u32 keysize, tmplen;
+	u32 keysize, keybitsize, tmplen;
 	u8 *tmpbuf = NULL;
-	size_t nr_apqns;
-	int i, j, rc;
+	int i, rc;
 
 	/* As of now only for AES keys a fallback is available */
 
@@ -289,110 +44,53 @@ static int pckmokey2protkey_fallback(const struct clearkeytoken *t,
 			     __func__, t->len);
 		return -EINVAL;
 	}
+	keybitsize = 8 * keysize;
 
-	/* alloc tmp buffer and space for apqns */
+	/* alloc tmp key buffer */
 	tmpbuf = kmalloc(tmpbuflen, GFP_ATOMIC);
 	if (!tmpbuf)
 		return -ENOMEM;
-	nr_apqns = MAXAPQNSINLIST;
-	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
-	if (!apqns) {
-		kfree(tmpbuf);
-		return -ENOMEM;
-	}
 
 	/* try two times in case of failure */
 	for (i = 0, rc = -ENODEV; i < 2 && rc; i++) {
 
 		/* CCA secure key way */
-		nr_apqns = MAXAPQNSINLIST;
-		rc = pkey_cca_apqns4type(PKEY_TYPE_CCA_DATA,
-					 NULL, NULL, 0, apqns, &nr_apqns);
-		pr_debug("pkey_cca_apqns4type(CCA_DATA)=%d\n", rc);
+		tmplen = tmpbuflen;
+		rc = pkey_handler_clr_to_key(NULL, 0,
+					     t->keytype, PKEY_TYPE_CCA_DATA,
+					     keybitsize, 0,
+					     t->clearkey, t->len,
+					     tmpbuf, &tmplen, NULL);
+		pr_debug("clr_to_key()=%d\n", rc);
 		if (rc)
 			goto try_via_ep11;
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			tmplen = tmpbuflen;
-			rc = pkey_cca_clr2key(apqns[j].card, apqns[j].domain,
-					      t->keytype, PKEY_TYPE_CCA_DATA,
-					      8 * keysize, 0,
-					      t->clearkey, t->len,
-					      tmpbuf, &tmplen, NULL);
-			pr_debug("pkey_cca_clr2key()=%d\n", rc);
-		}
-		if (rc)
-			goto try_via_ep11;
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			rc = pkey_cca_key2protkey(apqns[j].card,
-						  apqns[j].domain,
-						  tmpbuf, tmplen,
-						  protkey, protkeylen,
-						  protkeytype);
-			pr_debug("pkey_cca_key2protkey()=%d\n", rc);
-		}
+		rc = pkey_handler_key_to_protkey(NULL, 0,
+						 tmpbuf, tmplen,
+						 protkey, protkeylen,
+						 protkeytype);
+		pr_debug("key_to_protkey()=%d\n", rc);
 		if (!rc)
 			break;
 
 try_via_ep11:
 		/* the CCA way failed, try via EP11 */
-		nr_apqns = MAXAPQNSINLIST;
-		rc = pkey_ep11_apqns4type(PKEY_TYPE_EP11_AES,
-					  NULL, NULL, 0, apqns, &nr_apqns);
-		pr_debug("pkey_ep11_apqns4type(EP11_AES)=%d\n", rc);
+		tmplen = tmpbuflen;
+		rc = pkey_handler_clr_to_key(NULL, 0,
+					     t->keytype, PKEY_TYPE_EP11_AES,
+					     keybitsize, 0,
+					     t->clearkey, t->len,
+					     tmpbuf, &tmplen, NULL);
+		pr_debug("clr_to_key()=%d\n", rc);
 		if (rc)
 			continue;
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			tmplen = tmpbuflen;
-			rc = pkey_ep11_clr2key(apqns[j].card, apqns[j].domain,
-					       t->keytype, PKEY_TYPE_EP11_AES,
-					       8 * keysize, 0,
-					       t->clearkey, t->len,
-					       tmpbuf, &tmplen, NULL);
-			pr_debug("pkey_ep11_clr2key()=%d\n", rc);
-		}
-		if (rc)
-			continue;
-		for (j = 0, rc = -ENODEV; j < nr_apqns && rc; j++) {
-			rc = pkey_ep11_key2protkey(apqns[j].card,
-						   apqns[j].domain,
-						   tmpbuf, tmplen,
-						   protkey, protkeylen,
-						   protkeytype);
-			pr_debug("pkey_ep11_key2protkey()=%d\n", rc);
-		}
+		rc = pkey_handler_key_to_protkey(NULL, 0,
+						 tmpbuf, tmplen,
+						 protkey, protkeylen,
+						 protkeytype);
+		pr_debug("key_to_protkey()=%d\n", rc);
 	}
 
 	kfree(tmpbuf);
-	kfree(apqns);
-
-	return rc;
-}
-
-static int pckmokey2protkey(const u8 *key, size_t keylen,
-			    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
-{
-	int rc;
-
-	rc = pkey_pckmo_key2protkey(0, 0, key, keylen,
-				    protkey, protkeylen, protkeytype);
-	if (rc == -ENODEV) {
-		struct keytoken_header *hdr = (struct keytoken_header *)key;
-		struct clearkeytoken *t = (struct clearkeytoken *)key;
-
-		/* maybe a fallback is possible */
-		if (hdr->type == TOKTYPE_NON_CCA &&
-		    hdr->version == TOKVER_CLEAR_KEY) {
-			rc = pckmokey2protkey_fallback(t, protkey,
-						       protkeylen,
-						       protkeytype);
-			if (rc)
-				rc = -ENODEV;
-		}
-	}
-
-	if (rc)
-		PKEY_DBF_ERR("%s unable to build protected key from clear, rc=%d",
-			     __func__, rc);
 
 	return rc;
 }
@@ -401,22 +99,26 @@ static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 		       const u8 *key, size_t keylen,
 		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	if (pkey_is_cca_key(key, keylen)) {
-		return ccakey2protkey(apqns, nr_apqns, key, keylen,
-				      protkey, protkeylen, protkeytype);
-	} else if (pkey_is_ep11_key(key, keylen)) {
-		return ep11key2protkey(apqns, nr_apqns, key, keylen,
-				       protkey, protkeylen, protkeytype);
-	} else if (pkey_is_pckmo_key(key, keylen)) {
-		return pckmokey2protkey(key, keylen,
-					protkey, protkeylen, protkeytype);
-	} else {
-		struct keytoken_header *hdr = (struct keytoken_header *)key;
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int i, rc;
 
-		PKEY_DBF_ERR("%s unknown/unsupported key type %d version %d\n",
-			     __func__, hdr->type, hdr->version);
-		return -EINVAL;
+	/* retry two times */
+	for (rc = -ENODEV, i = 0; rc && i < 2; i++) {
+		/* First try the direct way */
+		rc = pkey_handler_key_to_protkey(apqns, nr_apqns,
+						 key, keylen,
+						 protkey, protkeylen,
+						 protkeytype);
+		/* For some clear key tokens there exists a fallback way */
+		if (rc &&
+		    hdr->type == TOKTYPE_NON_CCA &&
+		    hdr->version == TOKVER_CLEAR_KEY)
+			rc = key2protkey_fallback((struct clearkeytoken *)key,
+						  protkey, protkeylen,
+						  protkeytype);
 	}
+
+	return rc;
 }
 
 /*
@@ -453,16 +155,20 @@ static void *_copy_apqns_from_user(void __user *uapqns, size_t nr_apqns)
 static int pkey_ioctl_genseck(struct pkey_genseck __user *ugs)
 {
 	struct pkey_genseck kgs;
+	struct pkey_apqn apqn;
 	u32 keybuflen;
 	int rc;
 
 	if (copy_from_user(&kgs, ugs, sizeof(kgs)))
 		return -EFAULT;
+
+	apqn.card = kgs.cardnr;
+	apqn.domain = kgs.domain;
 	keybuflen = sizeof(kgs.seckey.seckey);
-	rc = pkey_cca_gen_key(kgs.cardnr, kgs.domain,
-			      kgs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
-			      kgs.seckey.seckey, &keybuflen, NULL);
-	pr_debug("pkey_cca_gen_key()=%d\n", rc);
+	rc = pkey_handler_gen_key(&apqn, 1,
+				  kgs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
+				  kgs.seckey.seckey, &keybuflen, NULL);
+	pr_debug("gen_key()=%d\n", rc);
 	if (!rc && copy_to_user(ugs, &kgs, sizeof(kgs)))
 		rc = -EFAULT;
 	memzero_explicit(&kgs, sizeof(kgs));
@@ -473,18 +179,22 @@ static int pkey_ioctl_genseck(struct pkey_genseck __user *ugs)
 static int pkey_ioctl_clr2seck(struct pkey_clr2seck __user *ucs)
 {
 	struct pkey_clr2seck kcs;
+	struct pkey_apqn apqn;
 	u32 keybuflen;
 	int rc;
 
 	if (copy_from_user(&kcs, ucs, sizeof(kcs)))
 		return -EFAULT;
+
+	apqn.card = kcs.cardnr;
+	apqn.domain = kcs.domain;
 	keybuflen = sizeof(kcs.seckey.seckey);
-	rc = pkey_cca_clr2key(kcs.cardnr, kcs.domain,
-			      kcs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
-			      kcs.clrkey.clrkey,
-			      pkey_keytype_aes_to_size(kcs.keytype),
-			      kcs.seckey.seckey, &keybuflen, NULL);
-	pr_debug("pkey_cca_clr2key()=%d\n", rc);
+	rc = pkey_handler_clr_to_key(&apqn, 1,
+				     kcs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
+				     kcs.clrkey.clrkey,
+				     pkey_keytype_aes_to_size(kcs.keytype),
+				     kcs.seckey.seckey, &keybuflen, NULL);
+	pr_debug("clr_to_key()=%d\n", rc);
 	if (!rc && copy_to_user(ucs, &kcs, sizeof(kcs)))
 		rc = -EFAULT;
 	memzero_explicit(&kcs, sizeof(kcs));
@@ -495,16 +205,21 @@ static int pkey_ioctl_clr2seck(struct pkey_clr2seck __user *ucs)
 static int pkey_ioctl_sec2protk(struct pkey_sec2protk __user *usp)
 {
 	struct pkey_sec2protk ksp;
+	struct pkey_apqn apqn;
 	int rc;
 
 	if (copy_from_user(&ksp, usp, sizeof(ksp)))
 		return -EFAULT;
+
+	apqn.card = ksp.cardnr;
+	apqn.domain = ksp.domain;
 	ksp.protkey.len = sizeof(ksp.protkey.protkey);
-	rc = pkey_cca_key2protkey(ksp.cardnr, ksp.domain,
-				  ksp.seckey.seckey, sizeof(ksp.seckey.seckey),
-				  ksp.protkey.protkey,
-				  &ksp.protkey.len, &ksp.protkey.type);
-	pr_debug("pkey_cca_key2protkey()=%d\n", rc);
+	rc = pkey_handler_key_to_protkey(&apqn, 1,
+					 ksp.seckey.seckey,
+					 sizeof(ksp.seckey.seckey),
+					 ksp.protkey.protkey,
+					 &ksp.protkey.len, &ksp.protkey.type);
+	pr_debug("key_to_protkey()=%d\n", rc);
 	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
 		rc = -EFAULT;
 	memzero_explicit(&ksp, sizeof(ksp));
@@ -515,16 +230,43 @@ static int pkey_ioctl_sec2protk(struct pkey_sec2protk __user *usp)
 static int pkey_ioctl_clr2protk(struct pkey_clr2protk __user *ucp)
 {
 	struct pkey_clr2protk kcp;
+	struct clearkeytoken *t;
+	u32 keylen;
+	u8 *tmpbuf;
 	int rc;
 
 	if (copy_from_user(&kcp, ucp, sizeof(kcp)))
 		return -EFAULT;
+
+	/* build a 'clear key token' from the clear key value */
+	keylen = pkey_keytype_aes_to_size(kcp.keytype);
+	if (!keylen) {
+		PKEY_DBF_ERR("%s unknown/unsupported keytype %u\n",
+			     __func__, kcp.keytype);
+		memzero_explicit(&kcp, sizeof(kcp));
+		return -EINVAL;
+	}
+	tmpbuf = kzalloc(sizeof(*t) + keylen, GFP_KERNEL);
+	if (!tmpbuf) {
+		memzero_explicit(&kcp, sizeof(kcp));
+		return -ENOMEM;
+	}
+	t = (struct clearkeytoken *)tmpbuf;
+	t->type = TOKTYPE_NON_CCA;
+	t->version = TOKVER_CLEAR_KEY;
+	t->keytype = (keylen - 8) >> 3;
+	t->len = keylen;
+	memcpy(t->clearkey, kcp.clrkey.clrkey, keylen);
 	kcp.protkey.len = sizeof(kcp.protkey.protkey);
-	rc = pkey_pckmo_clr2key(0, 0, kcp.keytype, 0, 0, 0,
-				kcp.clrkey.clrkey, 0,
-				kcp.protkey.protkey,
-				&kcp.protkey.len, &kcp.protkey.type);
-	pr_debug("pkey_pckmo_clr2key()=%d\n", rc);
+
+	rc = key2protkey(NULL, 0,
+			 tmpbuf, sizeof(*t) + keylen,
+			 kcp.protkey.protkey,
+			 &kcp.protkey.len, &kcp.protkey.type);
+	pr_debug("key2protkey()=%d\n", rc);
+
+	kfree_sensitive(tmpbuf);
+
 	if (!rc && copy_to_user(ucp, &kcp, sizeof(kcp)))
 		rc = -EFAULT;
 	memzero_explicit(&kcp, sizeof(kcp));
@@ -542,23 +284,21 @@ static int pkey_ioctl_findcard(struct pkey_findcard __user *ufc)
 	if (copy_from_user(&kfc, ufc, sizeof(kfc)))
 		return -EFAULT;
 
-	if (!pkey_is_cca_key(kfc.seckey.seckey, sizeof(kfc.seckey.seckey)))
-		return -EINVAL;
-
 	nr_apqns = MAXAPQNSINLIST;
 	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
 	if (!apqns)
 		return -ENOMEM;
-	rc = pkey_cca_apqns4key(kfc.seckey.seckey,
-				sizeof(kfc.seckey.seckey),
-				PKEY_FLAGS_MATCH_CUR_MKVP,
-				apqns, &nr_apqns);
-	if (rc == -ENODEV)
-		rc = pkey_cca_apqns4key(kfc.seckey.seckey,
+
+	rc = pkey_handler_apqns_for_key(kfc.seckey.seckey,
 					sizeof(kfc.seckey.seckey),
-					PKEY_FLAGS_MATCH_ALT_MKVP,
+					PKEY_FLAGS_MATCH_CUR_MKVP,
 					apqns, &nr_apqns);
-	pr_debug("pkey_cca_apqns4key()=%d\n", rc);
+	if (rc == -ENODEV)
+		rc = pkey_handler_apqns_for_key(kfc.seckey.seckey,
+						sizeof(kfc.seckey.seckey),
+						PKEY_FLAGS_MATCH_ALT_MKVP,
+						apqns, &nr_apqns);
+	pr_debug("apqns_for_key()=%d\n", rc);
 	if (rc) {
 		kfree(apqns);
 		return rc;
@@ -575,38 +315,19 @@ static int pkey_ioctl_findcard(struct pkey_findcard __user *ufc)
 static int pkey_ioctl_skey2pkey(struct pkey_skey2pkey __user *usp)
 {
 	struct pkey_skey2pkey ksp;
-	struct pkey_apqn *apqns;
-	size_t nr_apqns;
-	int i, rc;
+	int rc;
 
 	if (copy_from_user(&ksp, usp, sizeof(ksp)))
 		return -EFAULT;
 
-	if (!pkey_is_cca_key(ksp.seckey.seckey, sizeof(ksp.seckey.seckey)))
-		return -EINVAL;
-
-	nr_apqns = MAXAPQNSINLIST;
-	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
-	if (!apqns)
-		return -ENOMEM;
-	rc = pkey_cca_apqns4key(ksp.seckey.seckey, sizeof(ksp.seckey.seckey),
-				0, apqns, &nr_apqns);
-	pr_debug("pkey_cca_apqns4key()=%d\n", rc);
-	if (rc) {
-		kfree(apqns);
-		return rc;
-	}
 	ksp.protkey.len = sizeof(ksp.protkey.protkey);
-	for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
-		rc = pkey_cca_key2protkey(apqns[i].card, apqns[i].domain,
-					  ksp.seckey.seckey,
-					  sizeof(ksp.seckey.seckey),
-					  ksp.protkey.protkey,
-					  &ksp.protkey.len,
-					  &ksp.protkey.type);
-		pr_debug("pkey_cca_key2protkey()=%d\n", rc);
-	}
-	kfree(apqns);
+	rc = pkey_handler_key_to_protkey(NULL, 0,
+					 ksp.seckey.seckey,
+					 sizeof(ksp.seckey.seckey),
+					 ksp.protkey.protkey,
+					 &ksp.protkey.len,
+					 &ksp.protkey.type);
+	pr_debug("key_to_protkey()=%d\n", rc);
 	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
 		rc = -EFAULT;
 	memzero_explicit(&ksp, sizeof(ksp));
@@ -622,12 +343,14 @@ static int pkey_ioctl_verifykey(struct pkey_verifykey __user *uvk)
 
 	if (copy_from_user(&kvk, uvk, sizeof(kvk)))
 		return -EFAULT;
+
 	kvk.cardnr = 0xFFFF;
 	kvk.domain = 0xFFFF;
-	rc = pkey_cca_verifykey(kvk.seckey.seckey, sizeof(kvk.seckey.seckey),
-				&kvk.cardnr, &kvk.domain,
-				&keytype, &keybitsize, &flags);
-	pr_debug("pkey_cca_verifykey()=%d\n", rc);
+	rc = pkey_handler_verify_key(kvk.seckey.seckey,
+				     sizeof(kvk.seckey.seckey),
+				     &kvk.cardnr, &kvk.domain,
+				     &keytype, &keybitsize, &flags);
+	pr_debug("verify_key()=%d\n", rc);
 	if (!rc && keytype != PKEY_TYPE_CCA_DATA)
 		rc = -EINVAL;
 	kvk.attributes = PKEY_VERIFY_ATTR_AES;
@@ -648,11 +371,13 @@ static int pkey_ioctl_genprotk(struct pkey_genprotk __user *ugp)
 
 	if (copy_from_user(&kgp, ugp, sizeof(kgp)))
 		return -EFAULT;
+
 	kgp.protkey.len = sizeof(kgp.protkey.protkey);
-	rc = pkey_pckmo_gen_key(0, 0, kgp.keytype, 0, 0, 0,
-				kgp.protkey.protkey,
-				&kgp.protkey.len, &kgp.protkey.type);
-	pr_debug("pkey_pckmo_gen_key()=%d\n", rc);
+	rc = pkey_handler_gen_key(NULL, 0, kgp.keytype,
+				  PKEY_TYPE_PROTKEY, 0, 0,
+				  kgp.protkey.protkey, &kgp.protkey.len,
+				  &kgp.protkey.type);
+	pr_debug("gen_key()=%d\n", rc);
 	if (!rc && copy_to_user(ugp, &kgp, sizeof(kgp)))
 		rc = -EFAULT;
 	memzero_explicit(&kgp, sizeof(kgp));
@@ -663,13 +388,40 @@ static int pkey_ioctl_genprotk(struct pkey_genprotk __user *ugp)
 static int pkey_ioctl_verifyprotk(struct pkey_verifyprotk __user *uvp)
 {
 	struct pkey_verifyprotk kvp;
+	struct protaeskeytoken *t;
+	u32 keytype;
+	u8 *tmpbuf;
 	int rc;
 
 	if (copy_from_user(&kvp, uvp, sizeof(kvp)))
 		return -EFAULT;
-	rc = pkey_pckmo_verifykey(kvp.protkey.protkey, kvp.protkey.len,
-				  0, 0, &kvp.protkey.type, 0, 0);
-	pr_debug("pkey_pckmo_verifykey()=%d\n", rc);
+
+	keytype = pkey_aes_bitsize_to_keytype(8 * kvp.protkey.len);
+	if (!keytype) {
+		PKEY_DBF_ERR("%s unknown/unsupported protkey length %u\n",
+			     __func__, kvp.protkey.len);
+		memzero_explicit(&kvp, sizeof(kvp));
+		return -EINVAL;
+	}
+
+	/* build a 'protected key token' from the raw protected key */
+	tmpbuf = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!tmpbuf) {
+		memzero_explicit(&kvp, sizeof(kvp));
+		return -ENOMEM;
+	}
+	t = (struct protaeskeytoken *)tmpbuf;
+	t->type = TOKTYPE_NON_CCA;
+	t->version = TOKVER_PROTECTED_KEY;
+	t->keytype = keytype;
+	t->len = kvp.protkey.len;
+	memcpy(t->protkey, kvp.protkey.protkey, kvp.protkey.len);
+
+	rc = pkey_handler_verify_key(tmpbuf, sizeof(*t),
+				     NULL, NULL, NULL, NULL, NULL);
+	pr_debug("verify_key()=%d\n", rc);
+
+	kfree_sensitive(tmpbuf);
 	memzero_explicit(&kvp, sizeof(kvp));
 
 	return rc;
@@ -706,9 +458,16 @@ static int pkey_ioctl_genseck2(struct pkey_genseck2 __user *ugs)
 	struct pkey_apqn *apqns;
 	u8 *kkey;
 	int rc;
+	u32 u;
 
 	if (copy_from_user(&kgs, ugs, sizeof(kgs)))
 		return -EFAULT;
+	u = pkey_aes_bitsize_to_keytype(kgs.size);
+	if (!u) {
+		PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			     __func__, kgs.size);
+		return -EINVAL;
+	}
 	apqns = _copy_apqns_from_user(kgs.apqns, kgs.apqn_entries);
 	if (IS_ERR(apqns))
 		return PTR_ERR(apqns);
@@ -717,10 +476,10 @@ static int pkey_ioctl_genseck2(struct pkey_genseck2 __user *ugs)
 		kfree(apqns);
 		return -ENOMEM;
 	}
-	rc = genseck2(apqns, kgs.apqn_entries,
-		      kgs.type, kgs.size, kgs.keygenflags,
-		      kkey, &klen);
-	pr_debug("genseckey2()=%d\n", rc);
+	rc = pkey_handler_gen_key(apqns, kgs.apqn_entries,
+				  u, kgs.type, kgs.size, kgs.keygenflags,
+				  kkey, &klen, NULL);
+	pr_debug("gen_key()=%d\n", rc);
 	kfree(apqns);
 	if (rc) {
 		kfree_sensitive(kkey);
@@ -751,9 +510,17 @@ static int pkey_ioctl_clr2seck2(struct pkey_clr2seck2 __user *ucs)
 	struct pkey_apqn *apqns;
 	u8 *kkey;
 	int rc;
+	u32 u;
 
 	if (copy_from_user(&kcs, ucs, sizeof(kcs)))
 		return -EFAULT;
+	u = pkey_aes_bitsize_to_keytype(kcs.size);
+	if (!u) {
+		PKEY_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			     __func__, kcs.size);
+		memzero_explicit(&kcs, sizeof(kcs));
+		return -EINVAL;
+	}
 	apqns = _copy_apqns_from_user(kcs.apqns, kcs.apqn_entries);
 	if (IS_ERR(apqns)) {
 		memzero_explicit(&kcs, sizeof(kcs));
@@ -765,10 +532,11 @@ static int pkey_ioctl_clr2seck2(struct pkey_clr2seck2 __user *ucs)
 		memzero_explicit(&kcs, sizeof(kcs));
 		return -ENOMEM;
 	}
-	rc = clr2seckey2(apqns, kcs.apqn_entries,
-			 kcs.type, kcs.size, kcs.keygenflags,
-			 kcs.clrkey.clrkey, kkey, &klen);
-	pr_debug("clr2seckey2()=%d\n", rc);
+	rc = pkey_handler_clr_to_key(apqns, kcs.apqn_entries,
+				     u, kcs.type, kcs.size, kcs.keygenflags,
+				     kcs.clrkey.clrkey, kcs.size / 8,
+				     kkey, &klen, NULL);
+	pr_debug("clr_to_key()=%d\n", rc);
 	kfree(apqns);
 	if (rc) {
 		kfree_sensitive(kkey);
@@ -807,26 +575,17 @@ static int pkey_ioctl_verifykey2(struct pkey_verifykey2 __user *uvk)
 	kkey = _copy_key_from_user(kvk.key, kvk.keylen);
 	if (IS_ERR(kkey))
 		return PTR_ERR(kkey);
-	if (pkey_is_cca_key(kkey, kvk.keylen)) {
-		rc = pkey_cca_verifykey(kkey, kvk.keylen,
-					&kvk.cardnr, &kvk.domain,
-					&kvk.type, &kvk.size, &kvk.flags);
-		pr_debug("pkey_cca_verifykey()=%d\n", rc);
-	} else if (pkey_is_ep11_key(kkey, kvk.keylen)) {
-		rc = pkey_ep11_verifykey(kkey, kvk.keylen,
-					 &kvk.cardnr, &kvk.domain,
-					 &kvk.type, &kvk.size, &kvk.flags);
-		pr_debug("pkey_ep11_verifykey()=%d\n", rc);
-	} else {
-		rc = -EINVAL;
-	}
+
+	rc = pkey_handler_verify_key(kkey, kvk.keylen,
+				     &kvk.cardnr, &kvk.domain,
+				     &kvk.type, &kvk.size, &kvk.flags);
+	pr_debug("verify_key()=%d\n", rc);
+
 	kfree_sensitive(kkey);
-	if (rc)
-		return rc;
-	if (copy_to_user(uvk, &kvk, sizeof(kvk)))
+	if (!rc && copy_to_user(uvk, &kvk, sizeof(kvk)))
 		return -EFAULT;
 
-	return 0;
+	return rc;
 }
 
 static int pkey_ioctl_kblob2protk2(struct pkey_kblob2pkey2 __user *utp)
@@ -883,9 +642,9 @@ static int pkey_ioctl_apqns4k(struct pkey_apqns4key __user *uak)
 		kfree(apqns);
 		return PTR_ERR(kkey);
 	}
-	rc = apqns4key(kkey, kak.keylen, kak.flags,
-		       apqns, &nr_apqns);
-	pr_debug("apqns4key()=%d\n", rc);
+	rc = pkey_handler_apqns_for_key(kkey, kak.keylen, kak.flags,
+					apqns, &nr_apqns);
+	pr_debug("apqns_for_key()=%d\n", rc);
 	kfree_sensitive(kkey);
 	if (rc && rc != -ENOSPC) {
 		kfree(apqns);
@@ -929,9 +688,10 @@ static int pkey_ioctl_apqns4kt(struct pkey_apqns4keytype __user *uat)
 		if (!apqns)
 			return -ENOMEM;
 	}
-	rc = apqns4keytype(kat.type, kat.cur_mkvp, kat.alt_mkvp,
-			   kat.flags, apqns, &nr_apqns);
-	pr_debug("apqns4keytype()=%d\n", rc);
+	rc = pkey_handler_apqns_for_keytype(kat.type,
+					    kat.cur_mkvp, kat.alt_mkvp,
+					    kat.flags, apqns, &nr_apqns);
+	pr_debug("apqns_for_keytype()=%d\n", rc);
 	if (rc && rc != -ENOSPC) {
 		kfree(apqns);
 		return rc;
@@ -1092,43 +852,13 @@ static struct miscdevice pkey_dev = {
 	.groups = pkey_attr_groups,
 };
 
-/*
- * Module init
- */
-static int __init pkey_init(void)
+int __init pkey_api_init(void)
 {
-	cpacf_mask_t func_mask;
-
-	/*
-	 * The pckmo instruction should be available - even if we don't
-	 * actually invoke it. This instruction comes with MSA 3 which
-	 * is also the minimum level for the kmc instructions which
-	 * are able to work with protected keys.
-	 */
-	if (!cpacf_query(CPACF_PCKMO, &func_mask))
-		return -ENODEV;
-
-	/* check for kmc instructions available */
-	if (!cpacf_query(CPACF_KMC, &func_mask))
-		return -ENODEV;
-	if (!cpacf_test_func(&func_mask, CPACF_KMC_PAES_128) ||
-	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_192) ||
-	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_256))
-		return -ENODEV;
-
-	pkey_debug_init();
-
+	/* register as a misc device */
 	return misc_register(&pkey_dev);
 }
 
-/*
- * Module exit
- */
-static void __exit pkey_exit(void)
+void __exit pkey_api_exit(void)
 {
 	misc_deregister(&pkey_dev);
-	pkey_debug_exit();
 }
-
-module_cpu_feature_match(S390_CPU_FEATURE_MSA, pkey_init);
-module_exit(pkey_exit);

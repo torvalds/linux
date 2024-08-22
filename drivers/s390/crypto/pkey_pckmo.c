@@ -8,71 +8,20 @@
 #define KMSG_COMPONENT "pkey"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/cpufeature.h>
 #include <asm/cpacf.h>
 #include <crypto/aes.h>
 #include <linux/random.h>
 
 #include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
-
 #include "pkey_base.h"
 
-/*
- * Prototypes
- */
-
-static bool is_pckmo_key(const u8 *key, u32 keylen);
-static int pckmo_key2protkey(const u8 *key, u32 keylen,
-			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-static int pckmo_gen_protkey(u32 keytype,
-			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
-			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
-				u32 protkeytype);
-
-/*
- * Wrapper functions
- */
-
-bool pkey_is_pckmo_key(const u8 *key, u32 keylen)
-{
-	return is_pckmo_key(key, keylen);
-}
-
-int pkey_pckmo_key2protkey(u16 _card, u16 _dom,
-			   const u8 *key, u32 keylen,
-			   u8 *protkey, u32 *protkeylen, u32 *keyinfo)
-{
-	return pckmo_key2protkey(key, keylen,
-				 protkey, protkeylen, keyinfo);
-}
-
-int pkey_pckmo_gen_key(u16 _card, u16 _dom,
-		       u32 keytype, u32 _keysubtype,
-		       u32 _keybitsize, u32 _flags,
-		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
-{
-	return pckmo_gen_protkey(keytype,
-				 keybuf, keybuflen, keyinfo);
-}
-
-int pkey_pckmo_clr2key(u16 _card, u16 _dom,
-		       u32 keytype, u32 _keysubtype,
-		       u32 _keybitsize, u32 _flags,
-		       const u8 *clrkey, u32 clrkeylen,
-		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
-{
-	return pckmo_clr2protkey(keytype, clrkey, clrkeylen,
-				 keybuf, keybuflen, keyinfo);
-}
-
-int pkey_pckmo_verifykey(const u8 *key, u32 keylen,
-			 u16 *_card, u16 *_dom,
-			 u32 *keytype, u32 *_keybitsize, u32 *_flags)
-{
-	return pckmo_verify_protkey(key, keylen, *keytype);
-}
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("IBM Corporation");
+MODULE_DESCRIPTION("s390 protected key PCKMO handler");
 
 /*
  * Check key blob for known and supported here.
@@ -112,122 +61,14 @@ static bool is_pckmo_key(const u8 *key, u32 keylen)
 	}
 }
 
-static int pckmo_key2protkey(const u8 *key, u32 keylen,
-			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+static bool is_pckmo_keytype(enum pkey_key_type keytype)
 {
-	struct keytoken_header *hdr = (struct keytoken_header *)key;
-	int rc = -EINVAL;
-
-	if (keylen < sizeof(*hdr))
-		return -EINVAL;
-	if (hdr->type != TOKTYPE_NON_CCA)
-		return -EINVAL;
-
-	switch (hdr->version) {
-	case TOKVER_PROTECTED_KEY: {
-		struct protaeskeytoken *t;
-
-		if (keylen != sizeof(struct protaeskeytoken))
-			goto out;
-		t = (struct protaeskeytoken *)key;
-		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
-		if (rc)
-			goto out;
-		memcpy(protkey, t->protkey, t->len);
-		*protkeylen = t->len;
-		*protkeytype = t->keytype;
-		break;
-	}
-	case TOKVER_CLEAR_KEY: {
-		struct clearkeytoken *t = (struct clearkeytoken *)key;
-		u32 keysize = 0;
-
-		if (keylen < sizeof(struct clearkeytoken) ||
-		    keylen != sizeof(*t) + t->len)
-			goto out;
-		switch (t->keytype) {
-		case PKEY_KEYTYPE_AES_128:
-		case PKEY_KEYTYPE_AES_192:
-		case PKEY_KEYTYPE_AES_256:
-			keysize = pkey_keytype_aes_to_size(t->keytype);
-			break;
-		case PKEY_KEYTYPE_ECC_P256:
-			keysize = 32;
-			break;
-		case PKEY_KEYTYPE_ECC_P384:
-			keysize = 48;
-			break;
-		case PKEY_KEYTYPE_ECC_P521:
-			keysize = 80;
-			break;
-		case PKEY_KEYTYPE_ECC_ED25519:
-			keysize = 32;
-			break;
-		case PKEY_KEYTYPE_ECC_ED448:
-			keysize = 64;
-			break;
-		default:
-			break;
-		}
-		if (!keysize) {
-			PKEY_DBF_ERR("%s clear key token: unknown keytype %u\n",
-				     __func__, t->keytype);
-			goto out;
-		}
-		if (t->len != keysize) {
-			PKEY_DBF_ERR("%s clear key token: invalid key len %u\n",
-				     __func__, t->len);
-			goto out;
-		}
-		rc = pckmo_clr2protkey(t->keytype, t->clearkey, t->len,
-				       protkey, protkeylen, protkeytype);
-		break;
-	}
+	switch (keytype) {
+	case PKEY_TYPE_PROTKEY:
+		return true;
 	default:
-		PKEY_DBF_ERR("%s unknown non-CCA token version %d\n",
-			     __func__, hdr->version);
-		break;
+		return false;
 	}
-
-out:
-	pr_debug("rc=%d\n", rc);
-	return rc;
-}
-
-/*
- * Generate a random protected key.
- * Currently only the generation of AES protected keys
- * is supported.
- */
-static int pckmo_gen_protkey(u32 keytype, u8 *protkey,
-			     u32 *protkeylen, u32 *protkeytype)
-{
-	u8 clrkey[32];
-	int keysize;
-	int rc;
-
-	keysize = pkey_keytype_aes_to_size(keytype);
-	if (!keysize) {
-		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n", __func__,
-			     keytype);
-		return -EINVAL;
-	}
-
-	/* generate a dummy random clear key */
-	get_random_bytes(clrkey, keysize);
-
-	/* convert it to a dummy protected key */
-	rc = pckmo_clr2protkey(keytype, clrkey, keysize,
-			       protkey, protkeylen, protkeytype);
-	if (rc)
-		goto out;
-
-	/* replace the key part of the protected key with random bytes */
-	get_random_bytes(protkey, keysize);
-
-out:
-	pr_debug("rc=%d\n", rc);
-	return rc;
 }
 
 /*
@@ -346,7 +187,7 @@ out:
 }
 
 /*
- * Verify a protected key blob.
+ * Verify a raw protected key blob.
  * Currently only AES protected keys are supported.
  */
 static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
@@ -405,3 +246,232 @@ out:
 	pr_debug("rc=%d\n", rc);
 	return rc;
 }
+
+static int pckmo_key2protkey(const u8 *key, u32 keylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int rc = -EINVAL;
+
+	if (keylen < sizeof(*hdr))
+		return -EINVAL;
+	if (hdr->type != TOKTYPE_NON_CCA)
+		return -EINVAL;
+
+	switch (hdr->version) {
+	case TOKVER_PROTECTED_KEY: {
+		struct protaeskeytoken *t;
+
+		if (keylen != sizeof(struct protaeskeytoken))
+			goto out;
+		t = (struct protaeskeytoken *)key;
+		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
+		if (rc)
+			goto out;
+		memcpy(protkey, t->protkey, t->len);
+		*protkeylen = t->len;
+		*protkeytype = t->keytype;
+		break;
+	}
+	case TOKVER_CLEAR_KEY: {
+		struct clearkeytoken *t = (struct clearkeytoken *)key;
+		u32 keysize = 0;
+
+		if (keylen < sizeof(struct clearkeytoken) ||
+		    keylen != sizeof(*t) + t->len)
+			goto out;
+		switch (t->keytype) {
+		case PKEY_KEYTYPE_AES_128:
+		case PKEY_KEYTYPE_AES_192:
+		case PKEY_KEYTYPE_AES_256:
+			keysize = pkey_keytype_aes_to_size(t->keytype);
+			break;
+		case PKEY_KEYTYPE_ECC_P256:
+			keysize = 32;
+			break;
+		case PKEY_KEYTYPE_ECC_P384:
+			keysize = 48;
+			break;
+		case PKEY_KEYTYPE_ECC_P521:
+			keysize = 80;
+			break;
+		case PKEY_KEYTYPE_ECC_ED25519:
+			keysize = 32;
+			break;
+		case PKEY_KEYTYPE_ECC_ED448:
+			keysize = 64;
+			break;
+		default:
+			break;
+		}
+		if (!keysize) {
+			PKEY_DBF_ERR("%s clear key token: unknown keytype %u\n",
+				     __func__, t->keytype);
+			goto out;
+		}
+		if (t->len != keysize) {
+			PKEY_DBF_ERR("%s clear key token: invalid key len %u\n",
+				     __func__, t->len);
+			goto out;
+		}
+		rc = pckmo_clr2protkey(t->keytype, t->clearkey, t->len,
+				       protkey, protkeylen, protkeytype);
+		break;
+	}
+	default:
+		PKEY_DBF_ERR("%s unknown non-CCA token version %d\n",
+			     __func__, hdr->version);
+		break;
+	}
+
+out:
+	pr_debug("rc=%d\n", rc);
+	return rc;
+}
+
+/*
+ * Generate a random protected key.
+ * Currently only the generation of AES protected keys
+ * is supported.
+ */
+static int pckmo_gen_protkey(u32 keytype, u32 subtype,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+{
+	u8 clrkey[32];
+	int keysize;
+	int rc;
+
+	keysize = pkey_keytype_aes_to_size(keytype);
+	if (!keysize) {
+		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n", __func__,
+			     keytype);
+		return -EINVAL;
+	}
+	if (subtype != PKEY_TYPE_PROTKEY) {
+		PKEY_DBF_ERR("%s unknown/unsupported subtype %d\n",
+			     __func__, subtype);
+		return -EINVAL;
+	}
+
+	/* generate a dummy random clear key */
+	get_random_bytes(clrkey, keysize);
+
+	/* convert it to a dummy protected key */
+	rc = pckmo_clr2protkey(keytype, clrkey, keysize,
+			       protkey, protkeylen, protkeytype);
+	if (rc)
+		goto out;
+
+	/* replace the key part of the protected key with random bytes */
+	get_random_bytes(protkey, keysize);
+
+out:
+	pr_debug("rc=%d\n", rc);
+	return rc;
+}
+
+/*
+ * Verify a protected key token blob.
+ * Currently only AES protected keys are supported.
+ */
+static int pckmo_verify_key(const u8 *key, u32 keylen)
+{
+	struct keytoken_header *hdr = (struct keytoken_header *)key;
+	int rc = -EINVAL;
+
+	if (keylen < sizeof(*hdr))
+		return -EINVAL;
+	if (hdr->type != TOKTYPE_NON_CCA)
+		return -EINVAL;
+
+	switch (hdr->version) {
+	case TOKVER_PROTECTED_KEY: {
+		struct protaeskeytoken *t;
+
+		if (keylen != sizeof(struct protaeskeytoken))
+			goto out;
+		t = (struct protaeskeytoken *)key;
+		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
+		break;
+	}
+	default:
+		PKEY_DBF_ERR("%s unknown non-CCA token version %d\n",
+			     __func__, hdr->version);
+		break;
+	}
+
+out:
+	pr_debug("rc=%d\n", rc);
+	return rc;
+}
+
+/*
+ * Wrapper functions used for the pkey handler struct
+ */
+
+static int pkey_pckmo_key2protkey(const struct pkey_apqn *_apqns,
+				  size_t _nr_apqns,
+				  const u8 *key, u32 keylen,
+				  u8 *protkey, u32 *protkeylen, u32 *keyinfo)
+{
+	return pckmo_key2protkey(key, keylen,
+				 protkey, protkeylen, keyinfo);
+}
+
+static int pkey_pckmo_gen_key(const struct pkey_apqn *_apqns, size_t _nr_apqns,
+			      u32 keytype, u32 keysubtype,
+			      u32 _keybitsize, u32 _flags,
+			      u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
+{
+	return pckmo_gen_protkey(keytype, keysubtype,
+				 keybuf, keybuflen, keyinfo);
+}
+
+static int pkey_pckmo_verifykey(const u8 *key, u32 keylen,
+				u16 *_card, u16 *_dom,
+				u32 *_keytype, u32 *_keybitsize, u32 *_flags)
+{
+	return pckmo_verify_key(key, keylen);
+}
+
+static struct pkey_handler pckmo_handler = {
+	.module		      = THIS_MODULE,
+	.name		      = "PKEY PCKMO handler",
+	.is_supported_key     = is_pckmo_key,
+	.is_supported_keytype = is_pckmo_keytype,
+	.key_to_protkey	      = pkey_pckmo_key2protkey,
+	.gen_key	      = pkey_pckmo_gen_key,
+	.verify_key	      = pkey_pckmo_verifykey,
+};
+
+/*
+ * Module init
+ */
+static int __init pkey_pckmo_init(void)
+{
+	cpacf_mask_t func_mask;
+
+	/*
+	 * The pckmo instruction should be available - even if we don't
+	 * actually invoke it. This instruction comes with MSA 3 which
+	 * is also the minimum level for the kmc instructions which
+	 * are able to work with protected keys.
+	 */
+	if (!cpacf_query(CPACF_PCKMO, &func_mask))
+		return -ENODEV;
+
+	/* register this module as pkey handler for all the pckmo stuff */
+	return pkey_handler_register(&pckmo_handler);
+}
+
+/*
+ * Module exit
+ */
+static void __exit pkey_pckmo_exit(void)
+{
+	/* unregister this module as pkey handler */
+	pkey_handler_unregister(&pckmo_handler);
+}
+
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, pkey_pckmo_init);
+module_exit(pkey_pckmo_exit);

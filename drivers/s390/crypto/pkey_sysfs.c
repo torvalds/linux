@@ -8,7 +8,6 @@
 #define KMSG_COMPONENT "pkey"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <asm/pkey.h>
 #include <linux/sysfs.h>
 
 #include "zcrypt_api.h"
@@ -42,10 +41,10 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	protkeytoken.keytype = keytype;
 
 	protkey.len = sizeof(protkey.protkey);
-	rc = pkey_pckmo_gen_key(0, 0,
-				protkeytoken.keytype, 0, 0, 0,
-				protkey.protkey, &protkey.len,
-				&protkey.type);
+	rc = pkey_handler_gen_key(NULL, 0, keytype,
+				  PKEY_TYPE_PROTKEY, 0, 0,
+				  protkey.protkey, &protkey.len,
+				  &protkey.type);
 	if (rc)
 		return rc;
 
@@ -57,10 +56,10 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	if (is_xts) {
 		/* xts needs a second protected key, reuse protkey struct */
 		protkey.len = sizeof(protkey.protkey);
-		rc = pkey_pckmo_gen_key(0, 0,
-					protkeytoken.keytype, 0, 0, 0,
-					protkey.protkey, &protkey.len,
-					&protkey.type);
+		rc = pkey_handler_gen_key(NULL, 0, keytype,
+					  PKEY_TYPE_PROTKEY, 0, 0,
+					  protkey.protkey, &protkey.len,
+					  &protkey.type);
 		if (rc)
 			return rc;
 
@@ -166,18 +165,18 @@ static ssize_t pkey_ccadata_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 			return -EINVAL;
 
 	buflen = sizeof(seckey->seckey);
-	rc = pkey_cca_gen_key(-1, -1, keytype,
-			      PKEY_TYPE_CCA_DATA, 0, 0,
-			      seckey->seckey, &buflen, NULL);
+	rc = pkey_handler_gen_key(NULL, 0, keytype,
+				  PKEY_TYPE_CCA_DATA, 0, 0,
+				  seckey->seckey, &buflen, NULL);
 	if (rc)
 		return rc;
 
 	if (is_xts) {
 		seckey++;
 		buflen = sizeof(seckey->seckey);
-		rc = pkey_cca_gen_key(-1, -1, keytype,
-				      PKEY_TYPE_CCA_DATA, 0, 0,
-				      seckey->seckey, &buflen, NULL);
+		rc = pkey_handler_gen_key(NULL, 0, keytype,
+					  PKEY_TYPE_CCA_DATA, 0, 0,
+					  seckey->seckey, &buflen, NULL);
 		if (rc)
 			return rc;
 
@@ -270,9 +269,7 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 					    size_t count)
 {
 	u32 keysize = CCACIPHERTOKENSIZE;
-	struct pkey_apqn *apqns = NULL;
-	int i, rc, card, dom;
-	size_t nr_apqns;
+	int rc;
 
 	if (off != 0 || count < CCACIPHERTOKENSIZE)
 		return -EINVAL;
@@ -280,50 +277,26 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 		if (count < 2 * CCACIPHERTOKENSIZE)
 			return -EINVAL;
 
-	nr_apqns = MAXAPQNSINLIST;
-	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
-	if (!apqns)
-		return -ENOMEM;
-
-	/* build a list of apqns able to generate an cipher key */
-	rc = pkey_cca_apqns4type(PKEY_TYPE_CCA_CIPHER,
-				 NULL, NULL, 0,
-				 apqns, &nr_apqns);
-	if (rc) {
-		kfree(apqns);
-		return rc;
-	}
-
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
-	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; rc && i < nr_apqns; i++) {
-		card = apqns[i].card;
-		dom = apqns[i].domain;
-		rc = pkey_cca_gen_key(card, dom,
-				      pkey_aes_bitsize_to_keytype(keybits),
-				      PKEY_TYPE_CCA_CIPHER, keybits, 0,
-				      buf, &keysize, NULL);
-	}
-	if (rc) {
-		kfree(apqns);
+	rc = pkey_handler_gen_key(NULL, 0,
+				  pkey_aes_bitsize_to_keytype(keybits),
+				  PKEY_TYPE_CCA_CIPHER, keybits, 0,
+				  buf, &keysize, NULL);
+	if (rc)
 		return rc;
-	}
 
 	if (is_xts) {
 		keysize = CCACIPHERTOKENSIZE;
 		buf += CCACIPHERTOKENSIZE;
-		rc = pkey_cca_gen_key(card, dom,
-				      pkey_aes_bitsize_to_keytype(keybits),
-				      PKEY_TYPE_CCA_CIPHER, keybits, 0,
-				      buf, &keysize, NULL);
-		kfree(apqns);
+		rc = pkey_handler_gen_key(NULL, 0,
+					  pkey_aes_bitsize_to_keytype(keybits),
+					  PKEY_TYPE_CCA_CIPHER, keybits, 0,
+					  buf, &keysize, NULL);
 		if (rc)
 			return rc;
 		return 2 * CCACIPHERTOKENSIZE;
 	}
-
-	kfree(apqns);
 
 	return CCACIPHERTOKENSIZE;
 }
@@ -412,9 +385,7 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 				       size_t count)
 {
 	u32 keysize = MAXEP11AESKEYBLOBSIZE;
-	struct pkey_apqn *apqns = NULL;
-	int i, rc, card, dom;
-	size_t nr_apqns;
+	int rc;
 
 	if (off != 0 || count < MAXEP11AESKEYBLOBSIZE)
 		return -EINVAL;
@@ -422,50 +393,26 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 		if (count < 2 * MAXEP11AESKEYBLOBSIZE)
 			return -EINVAL;
 
-	nr_apqns = MAXAPQNSINLIST;
-	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
-	if (!apqns)
-		return -ENOMEM;
-
-	/* build a list of apqns able to generate an EP11 AES key */
-	rc = pkey_ep11_apqns4type(PKEY_TYPE_EP11_AES,
-				  NULL, NULL, 0,
-				  apqns, &nr_apqns);
-	if (rc) {
-		kfree(apqns);
-		return rc;
-	}
-
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
-	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; rc && i < nr_apqns; i++) {
-		card = apqns[i].card;
-		dom = apqns[i].domain;
-		rc = pkey_ep11_gen_key(card, dom,
-				       pkey_aes_bitsize_to_keytype(keybits),
-				       PKEY_TYPE_EP11_AES, keybits, 0,
-				       buf, &keysize, NULL);
-	}
-	if (rc) {
-		kfree(apqns);
+	rc = pkey_handler_gen_key(NULL, 0,
+				  pkey_aes_bitsize_to_keytype(keybits),
+				  PKEY_TYPE_EP11_AES, keybits, 0,
+				  buf, &keysize, NULL);
+	if (rc)
 		return rc;
-	}
 
 	if (is_xts) {
 		keysize = MAXEP11AESKEYBLOBSIZE;
 		buf += MAXEP11AESKEYBLOBSIZE;
-		rc = pkey_ep11_gen_key(card, dom,
-				       pkey_aes_bitsize_to_keytype(keybits),
-				       PKEY_TYPE_EP11_AES, keybits, 0,
-				       buf, &keysize, NULL);
-		kfree(apqns);
+		rc = pkey_handler_gen_key(NULL, 0,
+					  pkey_aes_bitsize_to_keytype(keybits),
+					  PKEY_TYPE_EP11_AES, keybits, 0,
+					  buf, &keysize, NULL);
 		if (rc)
 			return rc;
 		return 2 * MAXEP11AESKEYBLOBSIZE;
 	}
-
-	kfree(apqns);
 
 	return MAXEP11AESKEYBLOBSIZE;
 }
