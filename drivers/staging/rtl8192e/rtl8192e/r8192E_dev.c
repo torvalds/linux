@@ -289,7 +289,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 		for (i = 0; i < 6; i += 2) {
 			usValue = rtl92e_eeprom_read(dev,
-				 (EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1);
+						     (EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1);
 			*(u16 *)(&addr[i]) = usValue;
 		}
 		eth_hw_addr_set(dev, addr);
