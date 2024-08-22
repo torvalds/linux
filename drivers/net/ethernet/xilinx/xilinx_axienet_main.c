@@ -437,17 +437,26 @@ static void axienet_set_multicast_list(struct net_device *ndev)
 	u32 reg, af0reg, af1reg;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
-	    netdev_mc_count(ndev) > XAE_MULTICAST_CAM_TABLE_NUM) {
-		reg = axienet_ior(lp, XAE_FMI_OFFSET);
+	reg = axienet_ior(lp, XAE_FMI_OFFSET);
+	reg &= ~XAE_FMI_PM_MASK;
+	if (ndev->flags & IFF_PROMISC)
 		reg |= XAE_FMI_PM_MASK;
+	else
+		reg &= ~XAE_FMI_PM_MASK;
+	axienet_iow(lp, XAE_FMI_OFFSET, reg);
+
+	if (ndev->flags & IFF_ALLMULTI ||
+	    netdev_mc_count(ndev) > XAE_MULTICAST_CAM_TABLE_NUM) {
+		reg &= 0xFFFFFF00;
 		axienet_iow(lp, XAE_FMI_OFFSET, reg);
+		axienet_iow(lp, XAE_AF0_OFFSET, 1); /* Multicast bit */
+		axienet_iow(lp, XAE_AF1_OFFSET, 0);
+		axienet_iow(lp, XAE_AM0_OFFSET, 1); /* ditto */
+		axienet_iow(lp, XAE_AM1_OFFSET, 0);
+		axienet_iow(lp, XAE_FFE_OFFSET, 1);
+		i = 1;
 	} else if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
-
-		reg = axienet_ior(lp, XAE_FMI_OFFSET);
-		reg &= ~XAE_FMI_PM_MASK;
-		axienet_iow(lp, XAE_FMI_OFFSET, reg);
 
 		netdev_for_each_mc_addr(ha, ndev) {
 			if (i >= XAE_MULTICAST_CAM_TABLE_NUM)
@@ -461,24 +470,21 @@ static void axienet_set_multicast_list(struct net_device *ndev)
 			af1reg = (ha->addr[4]);
 			af1reg |= (ha->addr[5] << 8);
 
-			reg = axienet_ior(lp, XAE_FMI_OFFSET) & 0xFFFFFF00;
+			reg &= 0xFFFFFF00;
 			reg |= i;
 
 			axienet_iow(lp, XAE_FMI_OFFSET, reg);
 			axienet_iow(lp, XAE_AF0_OFFSET, af0reg);
 			axienet_iow(lp, XAE_AF1_OFFSET, af1reg);
+			axienet_iow(lp, XAE_AM0_OFFSET, 0xffffffff);
+			axienet_iow(lp, XAE_AM1_OFFSET, 0x0000ffff);
 			axienet_iow(lp, XAE_FFE_OFFSET, 1);
 			i++;
 		}
-	} else {
-		reg = axienet_ior(lp, XAE_FMI_OFFSET);
-		reg &= ~XAE_FMI_PM_MASK;
-
-		axienet_iow(lp, XAE_FMI_OFFSET, reg);
 	}
 
 	for (; i < XAE_MULTICAST_CAM_TABLE_NUM; i++) {
-		reg = axienet_ior(lp, XAE_FMI_OFFSET) & 0xFFFFFF00;
+		reg &= 0xFFFFFF00;
 		reg |= i;
 		axienet_iow(lp, XAE_FMI_OFFSET, reg);
 		axienet_iow(lp, XAE_FFE_OFFSET, 0);
