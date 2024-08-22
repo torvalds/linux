@@ -485,6 +485,16 @@ config SA_CAMCC_8775P
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config QCS_GCC_8300
+	tristate "QCS8300 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  QCS8300 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SC_CAMCC_7180
 	tristate "SC7180 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
