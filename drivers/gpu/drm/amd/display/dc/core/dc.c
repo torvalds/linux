@@ -5756,6 +5756,27 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 }
 
 /**
+ * dc_process_dmub_dpia_set_tps_notification - Submits tps notification
+ *
+ * @dc: [in] dc structure
+ * @link_index: [in] link index
+ * @ts: [in] request tps
+ *
+ * Submits set_tps_notification command to dmub via inbox message
+ */
+void dc_process_dmub_dpia_set_tps_notification(const struct dc *dc, uint32_t link_index, uint8_t tps)
+{
+	union dmub_rb_cmd cmd = {0};
+
+	cmd.set_tps_notification.header.type = DMUB_CMD__DPIA;
+	cmd.set_tps_notification.header.sub_type = DMUB_CMD__DPIA_SET_TPS_NOTIFICATION;
+	cmd.set_tps_notification.tps_notification.instance = dc->links[link_index]->ddc_hw_inst;
+	cmd.set_tps_notification.tps_notification.tps = tps;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+/**
  * dc_process_dmub_dpia_hpd_int_enable - Submits DPIA DPD interruption
  *
  * @dc: [in] dc structure

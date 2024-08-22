@@ -462,6 +462,7 @@ struct dc_config {
 	bool support_edp0_on_dp1;
 	unsigned int enable_fpo_flicker_detection;
 	bool disable_hbr_audio_dp2;
+	bool consolidated_dpia_dp_lt;
 };
 
 enum visual_confirm {
@@ -762,7 +763,8 @@ union dpia_debug_options {
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
-		uint32_t reserved:26;
+		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
+		uint32_t reserved:25;
 	} bits;
 	uint32_t raw;
 };
@@ -2524,6 +2526,8 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
+
+void dc_process_dmub_dpia_set_tps_notification(const struct dc *dc, uint32_t link_index, uint8_t tps);
 
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
