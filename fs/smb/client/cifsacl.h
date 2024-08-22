@@ -34,7 +34,7 @@
  * owner, group and world).
  */
 #define DEFAULT_SEC_DESC_LEN (sizeof(struct smb_ntsd) + \
-			      sizeof(struct cifs_acl) + \
+			      sizeof(struct smb_acl) + \
 			      (sizeof(struct cifs_ace) * 4))
 
 /*
@@ -74,7 +74,7 @@ struct smb_sid {
 /* size of a struct smb_sid, sans sub_auth array */
 #define CIFS_SID_BASE_SIZE (1 + 1 + NUM_AUTHS)
 
-struct cifs_acl {
+struct smb_acl {
 	__le16 revision; /* revision level */
 	__le16 size;
 	__le32 num_aces;

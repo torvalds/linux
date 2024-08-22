@@ -758,7 +758,7 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 }
 #endif
 
-static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
+static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 		       struct smb_sid *pownersid, struct smb_sid *pgrpsid,
 		       struct cifs_fattr *fattr, bool mode_from_special_sid)
 {
@@ -793,7 +793,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	fattr->cf_mode &= ~(0777);
 
 	acl_base = (char *)pdacl;
-	acl_size = sizeof(struct cifs_acl);
+	acl_size = sizeof(struct smb_acl);
 
 	num_aces = le32_to_cpu(pdacl->num_aces);
 	if (num_aces > 0) {
@@ -1034,7 +1034,7 @@ set_size:
 	*pnsize = nsize;
 }
 
-static __u16 replace_sids_and_copy_aces(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
+static __u16 replace_sids_and_copy_aces(struct smb_acl *pdacl, struct smb_acl *pndacl,
 		struct smb_sid *pownersid, struct smb_sid *pgrpsid,
 		struct smb_sid *pnownersid, struct smb_sid *pngrpsid)
 {
@@ -1049,11 +1049,11 @@ static __u16 replace_sids_and_copy_aces(struct cifs_acl *pdacl, struct cifs_acl 
 	u16 ace_size = 0;
 
 	acl_base = (char *)pdacl;
-	size = sizeof(struct cifs_acl);
+	size = sizeof(struct smb_acl);
 	src_num_aces = le32_to_cpu(pdacl->num_aces);
 
 	nacl_base = (char *)pndacl;
-	nsize = sizeof(struct cifs_acl);
+	nsize = sizeof(struct smb_acl);
 
 	/* Go through all the ACEs */
 	for (i = 0; i < src_num_aces; ++i) {
@@ -1074,7 +1074,7 @@ static __u16 replace_sids_and_copy_aces(struct cifs_acl *pdacl, struct cifs_acl 
 	return nsize;
 }
 
-static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
+static int set_chmod_dacl(struct smb_acl *pdacl, struct smb_acl *pndacl,
 		struct smb_sid *pownersid,	struct smb_sid *pgrpsid,
 		__u64 *pnmode, bool mode_from_sid)
 {
@@ -1091,7 +1091,7 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 
 	/* Assuming that pndacl and pnmode are never NULL */
 	nacl_base = (char *)pndacl;
-	nsize = sizeof(struct cifs_acl);
+	nsize = sizeof(struct smb_acl);
 
 	/* If pdacl is NULL, we don't have a src. Simply populate new ACL. */
 	if (!pdacl) {
@@ -1103,7 +1103,7 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 	}
 
 	acl_base = (char *)pdacl;
-	size = sizeof(struct cifs_acl);
+	size = sizeof(struct smb_acl);
 	src_num_aces = le32_to_cpu(pdacl->num_aces);
 
 	/* Retain old ACEs which we can retain */
@@ -1196,7 +1196,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 {
 	int rc = 0;
 	struct smb_sid *owner_sid_ptr, *group_sid_ptr;
-	struct cifs_acl *dacl_ptr; /* no need for SACL ptr */
+	struct smb_acl *dacl_ptr; /* no need for SACL ptr */
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 	__u32 dacloffset;
 
@@ -1208,7 +1208,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 	group_sid_ptr = (struct smb_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->gsidoffset));
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
-	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+	dacl_ptr = (struct smb_acl *)((char *)pntsd + dacloffset);
 	cifs_dbg(NOISY, "revision %d type 0x%x ooffset 0x%x goffset 0x%x sacloffset 0x%x dacloffset 0x%x\n",
 		 pntsd->revision, pntsd->type, le32_to_cpu(pntsd->osidoffset),
 		 le32_to_cpu(pntsd->gsidoffset),
@@ -1259,14 +1259,14 @@ static int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *pnntsd,
 	__u32 sidsoffset;
 	struct smb_sid *owner_sid_ptr, *group_sid_ptr;
 	struct smb_sid *nowner_sid_ptr = NULL, *ngroup_sid_ptr = NULL;
-	struct cifs_acl *dacl_ptr = NULL;  /* no need for SACL ptr */
-	struct cifs_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
+	struct smb_acl *dacl_ptr = NULL;  /* no need for SACL ptr */
+	struct smb_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
 	char *end_of_acl = ((char *)pntsd) + secdesclen;
 	u16 size = 0;
 
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
 	if (dacloffset) {
-		dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+		dacl_ptr = (struct smb_acl *)((char *)pntsd + dacloffset);
 		if (end_of_acl < (char *)dacl_ptr + le16_to_cpu(dacl_ptr->size)) {
 			cifs_dbg(VFS, "Server returned illegal ACL size\n");
 			return -EINVAL;
@@ -1280,7 +1280,7 @@ static int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *pnntsd,
 
 	if (pnmode && *pnmode != NO_CHANGE_64) { /* chmod */
 		ndacloffset = sizeof(struct smb_ntsd);
-		ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
+		ndacl_ptr = (struct smb_acl *)((char *)pnntsd + ndacloffset);
 		ndacl_ptr->revision =
 			dacloffset ? dacl_ptr->revision : cpu_to_le16(ACL_REVISION);
 
@@ -1298,7 +1298,7 @@ static int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *pnntsd,
 		*aclflag |= CIFS_ACL_DACL;
 	} else {
 		ndacloffset = sizeof(struct smb_ntsd);
-		ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
+		ndacl_ptr = (struct smb_acl *)((char *)pnntsd + ndacloffset);
 		ndacl_ptr->revision =
 			dacloffset ? dacl_ptr->revision : cpu_to_le16(ACL_REVISION);
 		ndacl_ptr->num_aces = dacl_ptr ? dacl_ptr->num_aces : 0;
@@ -1580,7 +1580,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 	__u32 secdesclen = 0;
 	__u32 nsecdesclen = 0;
 	__u32 dacloffset = 0;
-	struct cifs_acl *dacl_ptr = NULL;
+	struct smb_acl *dacl_ptr = NULL;
 	struct smb_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct smb_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -1633,7 +1633,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 		nsecdesclen = sizeof(struct smb_ntsd) + (sizeof(struct smb_sid) * 2);
 		dacloffset = le32_to_cpu(pntsd->dacloffset);
 		if (dacloffset) {
-			dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+			dacl_ptr = (struct smb_acl *)((char *)pntsd + dacloffset);
 			if (mode_from_sid)
 				nsecdesclen +=
 					le32_to_cpu(dacl_ptr->num_aces) * sizeof(struct cifs_ace);
