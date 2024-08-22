@@ -8244,10 +8244,9 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 
 	if (acrtc_state) {
 		if (amdgpu_ip_version(adev, DCE_HWIP, 0) <
-		    IP_VERSION(3, 5, 0)) {
-			drm_crtc_vblank_on(&acrtc->base);
-		} else if (acrtc_state->stream->link->psr_settings.psr_version <
-			   DC_PSR_VERSION_UNSUPPORTED) {
+		    IP_VERSION(3, 5, 0) ||
+		    acrtc_state->stream->link->psr_settings.psr_version <
+		    DC_PSR_VERSION_UNSUPPORTED) {
 			timing = &acrtc_state->stream->timing;
 
 			/* at least 2 frames */
@@ -8257,13 +8256,12 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 						      timing->pix_clk_100hz);
 
 			config.offdelay_ms = offdelay ?: 30;
-			drm_crtc_vblank_on_config(&acrtc->base,
-						  &config);
 		} else {
 			config.disable_immediate = true;
-			drm_crtc_vblank_on_config(&acrtc->base,
-						  &config);
 		}
+
+		drm_crtc_vblank_on_config(&acrtc->base,
+					  &config);
 
 		amdgpu_irq_get(
 			adev,
