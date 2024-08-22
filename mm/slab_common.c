@@ -495,7 +495,7 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 fail:
 	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++)
 		kmem_cache_destroy((*b)[idx]);
-	kfree(b);
+	kmem_cache_free(kmem_buckets_cache, b);
 
 	return NULL;
 }
