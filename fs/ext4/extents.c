@@ -3746,12 +3746,11 @@ static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 				 allocated);
 }
 
-static int ext4_convert_unwritten_extents_endio(handle_t *handle,
-						struct inode *inode,
-						struct ext4_map_blocks *map,
-						struct ext4_ext_path **ppath)
+static struct ext4_ext_path *
+ext4_convert_unwritten_extents_endio(handle_t *handle, struct inode *inode,
+				     struct ext4_map_blocks *map,
+				     struct ext4_ext_path *path)
 {
-	struct ext4_ext_path *path = *ppath;
 	struct ext4_extent *ex;
 	ext4_lblk_t ee_block;
 	unsigned int ee_len;
@@ -3781,24 +3780,19 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 #endif
 		path = ext4_split_convert_extents(handle, inode, map, path,
 						EXT4_GET_BLOCKS_CONVERT, NULL);
-		if (IS_ERR(path)) {
-			*ppath = NULL;
-			return PTR_ERR(path);
-		}
+		if (IS_ERR(path))
+			return path;
 
 		path = ext4_find_extent(inode, map->m_lblk, path, 0);
-		if (IS_ERR(path)) {
-			*ppath = NULL;
-			return PTR_ERR(path);
-		}
-		*ppath = path;
+		if (IS_ERR(path))
+			return path;
 		depth = ext_depth(inode);
 		ex = path[depth].p_ext;
 	}
 
 	err = ext4_ext_get_access(handle, inode, path + depth);
 	if (err)
-		goto out;
+		goto errout;
 	/* first mark the extent as initialized */
 	ext4_ext_mark_initialized(ex);
 
@@ -3809,9 +3803,15 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 
 	/* Mark modified extent as dirty */
 	err = ext4_ext_dirty(handle, inode, path + path->p_depth);
-out:
+	if (err)
+		goto errout;
+
 	ext4_ext_show_leaf(inode, path);
-	return err;
+	return path;
+
+errout:
+	ext4_free_ext_path(path);
+	return ERR_PTR(err);
 }
 
 static int
@@ -3939,10 +3939,13 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	}
 	/* IO end_io complete, convert the filled extent to written */
 	if (flags & EXT4_GET_BLOCKS_CONVERT) {
-		err = ext4_convert_unwritten_extents_endio(handle, inode, map,
-							   ppath);
-		if (err < 0)
+		*ppath = ext4_convert_unwritten_extents_endio(handle, inode,
+							      map, *ppath);
+		if (IS_ERR(*ppath)) {
+			err = PTR_ERR(*ppath);
+			*ppath = NULL;
 			goto out2;
+		}
 		ext4_update_inode_fsync_trans(handle, inode, 1);
 		goto map_out;
 	}
