@@ -1258,11 +1258,18 @@ static struct netconsole_target *alloc_param_target(char *target_config,
 		goto fail;
 
 	err = netpoll_setup(&nt->np);
-	if (err)
-		goto fail;
-
+	if (err) {
+		pr_err("Not enabling netconsole for %s%d. Netpoll setup failed\n",
+		       NETCONSOLE_PARAM_TARGET_PREFIX, cmdline_count);
+		if (!IS_ENABLED(CONFIG_NETCONSOLE_DYNAMIC))
+			/* only fail if dynamic reconfiguration is set,
+			 * otherwise, keep the target in the list, but disabled.
+			 */
+			goto fail;
+	} else {
+		nt->enabled = true;
+	}
 	populate_configfs_item(nt, cmdline_count);
-	nt->enabled = true;
 
 	return nt;
 
