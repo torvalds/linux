@@ -916,7 +916,7 @@ const unsigned int cs35l56_tx_input_values[] = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, SND_SOC_CS35L56_SHARED);
 
-struct regmap_config cs35l56_regmap_i2c = {
+const struct regmap_config cs35l56_regmap_i2c = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -932,7 +932,7 @@ struct regmap_config cs35l56_regmap_i2c = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, SND_SOC_CS35L56_SHARED);
 
-struct regmap_config cs35l56_regmap_spi = {
+const struct regmap_config cs35l56_regmap_spi = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.pad_bits = 16,
@@ -949,7 +949,7 @@ struct regmap_config cs35l56_regmap_spi = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, SND_SOC_CS35L56_SHARED);
 
-struct regmap_config cs35l56_regmap_sdw = {
+const struct regmap_config cs35l56_regmap_sdw = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
