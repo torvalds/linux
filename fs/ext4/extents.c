@@ -3888,18 +3888,18 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 	return 0;
 }
 
-static int
+static struct ext4_ext_path *
 ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 			struct ext4_map_blocks *map,
-			struct ext4_ext_path **ppath, int flags,
-			unsigned int allocated, ext4_fsblk_t newblock)
+			struct ext4_ext_path *path, int flags,
+			unsigned int *allocated, ext4_fsblk_t newblock)
 {
 	int err = 0;
 
 	ext_debug(inode, "logical block %llu, max_blocks %u, flags 0x%x, allocated %u\n",
 		  (unsigned long long)map->m_lblk, map->m_len, flags,
-		  allocated);
-	ext4_ext_show_leaf(inode, *ppath);
+		  *allocated);
+	ext4_ext_show_leaf(inode, path);
 
 	/*
 	 * When writing into unwritten space, we should not fail to
@@ -3908,40 +3908,34 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	flags |= EXT4_GET_BLOCKS_METADATA_NOFAIL;
 
 	trace_ext4_ext_handle_unwritten_extents(inode, map, flags,
-						    allocated, newblock);
+						*allocated, newblock);
 
 	/* get_block() before submitting IO, split the extent */
 	if (flags & EXT4_GET_BLOCKS_PRE_IO) {
-		*ppath = ext4_split_convert_extents(handle, inode, map, *ppath,
-				flags | EXT4_GET_BLOCKS_CONVERT, &allocated);
-		if (IS_ERR(*ppath)) {
-			err = PTR_ERR(*ppath);
-			*ppath = NULL;
-			goto out2;
-		}
+		path = ext4_split_convert_extents(handle, inode, map, path,
+				flags | EXT4_GET_BLOCKS_CONVERT, allocated);
+		if (IS_ERR(path))
+			return path;
 		/*
 		 * shouldn't get a 0 allocated when splitting an extent unless
 		 * m_len is 0 (bug) or extent has been corrupted
 		 */
-		if (unlikely(allocated == 0)) {
+		if (unlikely(*allocated == 0)) {
 			EXT4_ERROR_INODE(inode,
 					 "unexpected allocated == 0, m_len = %u",
 					 map->m_len);
 			err = -EFSCORRUPTED;
-			goto out2;
+			goto errout;
 		}
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
 		goto out;
 	}
 	/* IO end_io complete, convert the filled extent to written */
 	if (flags & EXT4_GET_BLOCKS_CONVERT) {
-		*ppath = ext4_convert_unwritten_extents_endio(handle, inode,
-							      map, *ppath);
-		if (IS_ERR(*ppath)) {
-			err = PTR_ERR(*ppath);
-			*ppath = NULL;
-			goto out2;
-		}
+		path = ext4_convert_unwritten_extents_endio(handle, inode,
+							    map, path);
+		if (IS_ERR(path))
+			return path;
 		ext4_update_inode_fsync_trans(handle, inode, 1);
 		goto map_out;
 	}
@@ -3973,23 +3967,20 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	 * For buffered writes, at writepage time, etc.  Convert a
 	 * discovered unwritten extent to written.
 	 */
-	*ppath = ext4_ext_convert_to_initialized(handle, inode, map, *ppath,
-						 flags, &allocated);
-	if (IS_ERR(*ppath)) {
-		err = PTR_ERR(*ppath);
-		*ppath = NULL;
-		goto out2;
-	}
+	path = ext4_ext_convert_to_initialized(handle, inode, map, path,
+					       flags, allocated);
+	if (IS_ERR(path))
+		return path;
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 	/*
 	 * shouldn't get a 0 allocated when converting an unwritten extent
 	 * unless m_len is 0 (bug) or extent has been corrupted
 	 */
-	if (unlikely(allocated == 0)) {
+	if (unlikely(*allocated == 0)) {
 		EXT4_ERROR_INODE(inode, "unexpected allocated == 0, m_len = %u",
 				 map->m_len);
 		err = -EFSCORRUPTED;
-		goto out2;
+		goto errout;
 	}
 
 out:
@@ -3998,12 +3989,15 @@ map_out:
 	map->m_flags |= EXT4_MAP_MAPPED;
 out1:
 	map->m_pblk = newblock;
-	if (allocated > map->m_len)
-		allocated = map->m_len;
-	map->m_len = allocated;
-	ext4_ext_show_leaf(inode, *ppath);
-out2:
-	return err ? err : allocated;
+	if (*allocated > map->m_len)
+		*allocated = map->m_len;
+	map->m_len = *allocated;
+	ext4_ext_show_leaf(inode, path);
+	return path;
+
+errout:
+	ext4_free_ext_path(path);
+	return ERR_PTR(err);
 }
 
 /*
@@ -4201,7 +4195,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_extent newex, *ex, ex2;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	ext4_fsblk_t newblock = 0, pblk;
-	int err = 0, depth, ret;
+	int err = 0, depth;
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
@@ -4275,13 +4269,11 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 				goto out;
 			}
 
-			ret = ext4_ext_handle_unwritten_extents(
-				handle, inode, map, &path, flags,
-				allocated, newblock);
-			if (ret < 0)
-				err = ret;
-			else
-				allocated = ret;
+			path = ext4_ext_handle_unwritten_extents(
+				handle, inode, map, path, flags,
+				&allocated, newblock);
+			if (IS_ERR(path))
+				err = PTR_ERR(path);
 			goto out;
 		}
 	}
