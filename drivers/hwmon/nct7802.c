@@ -1129,17 +1129,14 @@ static int nct7802_configure_channels(struct device *dev,
 {
 	/* Enable local temperature sensor by default */
 	u8 mode_mask = MODE_LTD_EN, mode_val = MODE_LTD_EN;
-	struct device_node *node;
 	int err;
 
 	if (dev->of_node) {
-		for_each_child_of_node(dev->of_node, node) {
+		for_each_child_of_node_scoped(dev->of_node, node) {
 			err = nct7802_get_channel_config(dev, node, &mode_mask,
 							 &mode_val);
-			if (err) {
-				of_node_put(node);
+			if (err)
 				return err;
-			}
 		}
 	}
 
