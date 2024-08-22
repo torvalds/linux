@@ -1344,444 +1344,546 @@ static void *_copy_apqns_from_user(void __user *uapqns, size_t nr_apqns)
 	return memdup_user(uapqns, nr_apqns * sizeof(struct pkey_apqn));
 }
 
+static int pkey_ioctl_genseck(struct pkey_genseck __user *ugs)
+{
+	struct pkey_genseck kgs;
+	int rc;
+
+	if (copy_from_user(&kgs, ugs, sizeof(kgs)))
+		return -EFAULT;
+	rc = cca_genseckey(kgs.cardnr, kgs.domain,
+			   kgs.keytype, kgs.seckey.seckey);
+	pr_debug("%s cca_genseckey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(ugs, &kgs, sizeof(kgs)))
+		rc = -EFAULT;
+	memzero_explicit(&kgs, sizeof(kgs));
+
+	return rc;
+}
+
+static int pkey_ioctl_clr2seck(struct pkey_clr2seck __user *ucs)
+{
+	struct pkey_clr2seck kcs;
+	int rc;
+
+	if (copy_from_user(&kcs, ucs, sizeof(kcs)))
+		return -EFAULT;
+	rc = cca_clr2seckey(kcs.cardnr, kcs.domain, kcs.keytype,
+			    kcs.clrkey.clrkey, kcs.seckey.seckey);
+	pr_debug("%s cca_clr2seckey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(ucs, &kcs, sizeof(kcs)))
+		rc = -EFAULT;
+	memzero_explicit(&kcs, sizeof(kcs));
+
+	return rc;
+}
+
+static int pkey_ioctl_sec2protk(struct pkey_sec2protk __user *usp)
+{
+	struct pkey_sec2protk ksp;
+	int rc;
+
+	if (copy_from_user(&ksp, usp, sizeof(ksp)))
+		return -EFAULT;
+	ksp.protkey.len = sizeof(ksp.protkey.protkey);
+	rc = cca_sec2protkey(ksp.cardnr, ksp.domain,
+			     ksp.seckey.seckey, ksp.protkey.protkey,
+			     &ksp.protkey.len, &ksp.protkey.type);
+	pr_debug("%s cca_sec2protkey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
+		rc = -EFAULT;
+	memzero_explicit(&ksp, sizeof(ksp));
+
+	return rc;
+}
+
+static int pkey_ioctl_clr2protk(struct pkey_clr2protk __user *ucp)
+{
+	struct pkey_clr2protk kcp;
+	int rc;
+
+	if (copy_from_user(&kcp, ucp, sizeof(kcp)))
+		return -EFAULT;
+	kcp.protkey.len = sizeof(kcp.protkey.protkey);
+	rc = pkey_clr2protkey(kcp.keytype, kcp.clrkey.clrkey,
+			      kcp.protkey.protkey,
+			      &kcp.protkey.len, &kcp.protkey.type);
+	pr_debug("%s pkey_clr2protkey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(ucp, &kcp, sizeof(kcp)))
+		rc = -EFAULT;
+	memzero_explicit(&kcp, sizeof(kcp));
+
+	return rc;
+}
+
+static int pkey_ioctl_findcard(struct pkey_findcard __user *ufc)
+{
+	struct pkey_findcard kfc;
+	int rc;
+
+	if (copy_from_user(&kfc, ufc, sizeof(kfc)))
+		return -EFAULT;
+	rc = cca_findcard(kfc.seckey.seckey,
+			  &kfc.cardnr, &kfc.domain, 1);
+	pr_debug("%s cca_findcard()=%d\n", __func__, rc);
+	if (rc < 0)
+		return rc;
+	if (copy_to_user(ufc, &kfc, sizeof(kfc)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int pkey_ioctl_skey2pkey(struct pkey_skey2pkey __user *usp)
+{
+	struct pkey_skey2pkey ksp;
+	int rc;
+
+	if (copy_from_user(&ksp, usp, sizeof(ksp)))
+		return -EFAULT;
+	ksp.protkey.len = sizeof(ksp.protkey.protkey);
+	rc = pkey_skey2pkey(ksp.seckey.seckey, ksp.protkey.protkey,
+			    &ksp.protkey.len, &ksp.protkey.type);
+	pr_debug("%s pkey_skey2pkey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
+		rc = -EFAULT;
+	memzero_explicit(&ksp, sizeof(ksp));
+
+	return rc;
+}
+
+static int pkey_ioctl_verifykey(struct pkey_verifykey __user *uvk)
+{
+	struct pkey_verifykey kvk;
+	int rc;
+
+	if (copy_from_user(&kvk, uvk, sizeof(kvk)))
+		return -EFAULT;
+	rc = pkey_verifykey(&kvk.seckey, &kvk.cardnr, &kvk.domain,
+			    &kvk.keysize, &kvk.attributes);
+	pr_debug("%s pkey_verifykey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(uvk, &kvk, sizeof(kvk)))
+		rc = -EFAULT;
+	memzero_explicit(&kvk, sizeof(kvk));
+
+	return rc;
+}
+
+static int pkey_ioctl_genprotk(struct pkey_genprotk __user *ugp)
+{
+	struct pkey_genprotk kgp;
+	int rc;
+
+	if (copy_from_user(&kgp, ugp, sizeof(kgp)))
+		return -EFAULT;
+	kgp.protkey.len = sizeof(kgp.protkey.protkey);
+	rc = pkey_genprotkey(kgp.keytype, kgp.protkey.protkey,
+			     &kgp.protkey.len, &kgp.protkey.type);
+	pr_debug("%s pkey_genprotkey()=%d\n", __func__, rc);
+	if (!rc && copy_to_user(ugp, &kgp, sizeof(kgp)))
+		rc = -EFAULT;
+	memzero_explicit(&kgp, sizeof(kgp));
+
+	return rc;
+}
+
+static int pkey_ioctl_verifyprotk(struct pkey_verifyprotk __user *uvp)
+{
+	struct pkey_verifyprotk kvp;
+	int rc;
+
+	if (copy_from_user(&kvp, uvp, sizeof(kvp)))
+		return -EFAULT;
+	rc = pkey_verifyprotkey(kvp.protkey.protkey,
+				kvp.protkey.len, kvp.protkey.type);
+	pr_debug("%s pkey_verifyprotkey()=%d\n", __func__, rc);
+	memzero_explicit(&kvp, sizeof(kvp));
+
+	return rc;
+}
+
+static int pkey_ioctl_kblob2protk(struct pkey_kblob2pkey __user *utp)
+{
+	struct pkey_kblob2pkey ktp;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&ktp, utp, sizeof(ktp)))
+		return -EFAULT;
+	kkey = _copy_key_from_user(ktp.key, ktp.keylen);
+	if (IS_ERR(kkey))
+		return PTR_ERR(kkey);
+	ktp.protkey.len = sizeof(ktp.protkey.protkey);
+	rc = pkey_keyblob2pkey(kkey, ktp.keylen, ktp.protkey.protkey,
+			       &ktp.protkey.len, &ktp.protkey.type);
+	pr_debug("%s pkey_keyblob2pkey()=%d\n", __func__, rc);
+	kfree_sensitive(kkey);
+	if (!rc && copy_to_user(utp, &ktp, sizeof(ktp)))
+		rc = -EFAULT;
+	memzero_explicit(&ktp, sizeof(ktp));
+
+	return rc;
+}
+
+static int pkey_ioctl_genseck2(struct pkey_genseck2 __user *ugs)
+{
+	size_t klen = KEYBLOBBUFSIZE;
+	struct pkey_genseck2 kgs;
+	struct pkey_apqn *apqns;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&kgs, ugs, sizeof(kgs)))
+		return -EFAULT;
+	apqns = _copy_apqns_from_user(kgs.apqns, kgs.apqn_entries);
+	if (IS_ERR(apqns))
+		return PTR_ERR(apqns);
+	kkey = kzalloc(klen, GFP_KERNEL);
+	if (!kkey) {
+		kfree(apqns);
+		return -ENOMEM;
+	}
+	rc = pkey_genseckey2(apqns, kgs.apqn_entries,
+			     kgs.type, kgs.size, kgs.keygenflags,
+			     kkey, &klen);
+	pr_debug("%s pkey_genseckey2()=%d\n", __func__, rc);
+	kfree(apqns);
+	if (rc) {
+		kfree_sensitive(kkey);
+		return rc;
+	}
+	if (kgs.key) {
+		if (kgs.keylen < klen) {
+			kfree_sensitive(kkey);
+			return -EINVAL;
+		}
+		if (copy_to_user(kgs.key, kkey, klen)) {
+			kfree_sensitive(kkey);
+			return -EFAULT;
+		}
+	}
+	kgs.keylen = klen;
+	if (copy_to_user(ugs, &kgs, sizeof(kgs)))
+		rc = -EFAULT;
+	kfree_sensitive(kkey);
+
+	return rc;
+}
+
+static int pkey_ioctl_clr2seck2(struct pkey_clr2seck2 __user *ucs)
+{
+	size_t klen = KEYBLOBBUFSIZE;
+	struct pkey_clr2seck2 kcs;
+	struct pkey_apqn *apqns;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&kcs, ucs, sizeof(kcs)))
+		return -EFAULT;
+	apqns = _copy_apqns_from_user(kcs.apqns, kcs.apqn_entries);
+	if (IS_ERR(apqns)) {
+		memzero_explicit(&kcs, sizeof(kcs));
+		return PTR_ERR(apqns);
+	}
+	kkey = kzalloc(klen, GFP_KERNEL);
+	if (!kkey) {
+		kfree(apqns);
+		memzero_explicit(&kcs, sizeof(kcs));
+		return -ENOMEM;
+	}
+	rc = pkey_clr2seckey2(apqns, kcs.apqn_entries,
+			      kcs.type, kcs.size, kcs.keygenflags,
+			      kcs.clrkey.clrkey, kkey, &klen);
+	pr_debug("%s pkey_clr2seckey2()=%d\n", __func__, rc);
+	kfree(apqns);
+	if (rc) {
+		kfree_sensitive(kkey);
+		memzero_explicit(&kcs, sizeof(kcs));
+		return rc;
+	}
+	if (kcs.key) {
+		if (kcs.keylen < klen) {
+			kfree_sensitive(kkey);
+			memzero_explicit(&kcs, sizeof(kcs));
+			return -EINVAL;
+		}
+		if (copy_to_user(kcs.key, kkey, klen)) {
+			kfree_sensitive(kkey);
+			memzero_explicit(&kcs, sizeof(kcs));
+			return -EFAULT;
+		}
+	}
+	kcs.keylen = klen;
+	if (copy_to_user(ucs, &kcs, sizeof(kcs)))
+		rc = -EFAULT;
+	memzero_explicit(&kcs, sizeof(kcs));
+	kfree_sensitive(kkey);
+
+	return rc;
+}
+
+static int pkey_ioctl_verifykey2(struct pkey_verifykey2 __user *uvk)
+{
+	struct pkey_verifykey2 kvk;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&kvk, uvk, sizeof(kvk)))
+		return -EFAULT;
+	kkey = _copy_key_from_user(kvk.key, kvk.keylen);
+	if (IS_ERR(kkey))
+		return PTR_ERR(kkey);
+	rc = pkey_verifykey2(kkey, kvk.keylen,
+			     &kvk.cardnr, &kvk.domain,
+			     &kvk.type, &kvk.size, &kvk.flags);
+	pr_debug("%s pkey_verifykey2()=%d\n", __func__, rc);
+	kfree_sensitive(kkey);
+	if (rc)
+		return rc;
+	if (copy_to_user(uvk, &kvk, sizeof(kvk)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int pkey_ioctl_kblob2protk2(struct pkey_kblob2pkey2 __user *utp)
+{
+	struct pkey_apqn *apqns = NULL;
+	struct pkey_kblob2pkey2 ktp;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&ktp, utp, sizeof(ktp)))
+		return -EFAULT;
+	apqns = _copy_apqns_from_user(ktp.apqns, ktp.apqn_entries);
+	if (IS_ERR(apqns))
+		return PTR_ERR(apqns);
+	kkey = _copy_key_from_user(ktp.key, ktp.keylen);
+	if (IS_ERR(kkey)) {
+		kfree(apqns);
+		return PTR_ERR(kkey);
+	}
+	ktp.protkey.len = sizeof(ktp.protkey.protkey);
+	rc = pkey_keyblob2pkey2(apqns, ktp.apqn_entries,
+				kkey, ktp.keylen,
+				ktp.protkey.protkey, &ktp.protkey.len,
+				&ktp.protkey.type);
+	pr_debug("%s pkey_keyblob2pkey2()=%d\n", __func__, rc);
+	kfree(apqns);
+	kfree_sensitive(kkey);
+	if (!rc && copy_to_user(utp, &ktp, sizeof(ktp)))
+		rc = -EFAULT;
+	memzero_explicit(&ktp, sizeof(ktp));
+
+	return rc;
+}
+
+static int pkey_ioctl_apqns4k(struct pkey_apqns4key __user *uak)
+{
+	struct pkey_apqn *apqns = NULL;
+	struct pkey_apqns4key kak;
+	size_t nr_apqns, len;
+	u8 *kkey;
+	int rc;
+
+	if (copy_from_user(&kak, uak, sizeof(kak)))
+		return -EFAULT;
+	nr_apqns = kak.apqn_entries;
+	if (nr_apqns) {
+		apqns = kmalloc_array(nr_apqns,
+				      sizeof(struct pkey_apqn),
+				      GFP_KERNEL);
+		if (!apqns)
+			return -ENOMEM;
+	}
+	kkey = _copy_key_from_user(kak.key, kak.keylen);
+	if (IS_ERR(kkey)) {
+		kfree(apqns);
+		return PTR_ERR(kkey);
+	}
+	rc = pkey_apqns4key(kkey, kak.keylen, kak.flags,
+			    apqns, &nr_apqns);
+	pr_debug("%s pkey_apqns4key()=%d\n", __func__, rc);
+	kfree_sensitive(kkey);
+	if (rc && rc != -ENOSPC) {
+		kfree(apqns);
+		return rc;
+	}
+	if (!rc && kak.apqns) {
+		if (nr_apqns > kak.apqn_entries) {
+			kfree(apqns);
+			return -EINVAL;
+		}
+		len = nr_apqns * sizeof(struct pkey_apqn);
+		if (len) {
+			if (copy_to_user(kak.apqns, apqns, len)) {
+				kfree(apqns);
+				return -EFAULT;
+			}
+		}
+	}
+	kak.apqn_entries = nr_apqns;
+	if (copy_to_user(uak, &kak, sizeof(kak)))
+		rc = -EFAULT;
+	kfree(apqns);
+
+	return rc;
+}
+
+static int pkey_ioctl_apqns4kt(struct pkey_apqns4keytype __user *uat)
+{
+	struct pkey_apqn *apqns = NULL;
+	struct pkey_apqns4keytype kat;
+	size_t nr_apqns, len;
+	int rc;
+
+	if (copy_from_user(&kat, uat, sizeof(kat)))
+		return -EFAULT;
+	nr_apqns = kat.apqn_entries;
+	if (nr_apqns) {
+		apqns = kmalloc_array(nr_apqns,
+				      sizeof(struct pkey_apqn),
+				      GFP_KERNEL);
+		if (!apqns)
+			return -ENOMEM;
+	}
+	rc = pkey_apqns4keytype(kat.type, kat.cur_mkvp, kat.alt_mkvp,
+				kat.flags, apqns, &nr_apqns);
+	pr_debug("%s pkey_apqns4keytype()=%d\n", __func__, rc);
+	if (rc && rc != -ENOSPC) {
+		kfree(apqns);
+		return rc;
+	}
+	if (!rc && kat.apqns) {
+		if (nr_apqns > kat.apqn_entries) {
+			kfree(apqns);
+			return -EINVAL;
+		}
+		len = nr_apqns * sizeof(struct pkey_apqn);
+		if (len) {
+			if (copy_to_user(kat.apqns, apqns, len)) {
+				kfree(apqns);
+				return -EFAULT;
+			}
+		}
+	}
+	kat.apqn_entries = nr_apqns;
+	if (copy_to_user(uat, &kat, sizeof(kat)))
+		rc = -EFAULT;
+	kfree(apqns);
+
+	return rc;
+}
+
+static int pkey_ioctl_kblob2protk3(struct pkey_kblob2pkey3 __user *utp)
+{
+	u32 protkeylen = PROTKEYBLOBBUFSIZE;
+	struct pkey_apqn *apqns = NULL;
+	struct pkey_kblob2pkey3 ktp;
+	u8 *kkey, *protkey;
+	int rc;
+
+	if (copy_from_user(&ktp, utp, sizeof(ktp)))
+		return -EFAULT;
+	apqns = _copy_apqns_from_user(ktp.apqns, ktp.apqn_entries);
+	if (IS_ERR(apqns))
+		return PTR_ERR(apqns);
+	kkey = _copy_key_from_user(ktp.key, ktp.keylen);
+	if (IS_ERR(kkey)) {
+		kfree(apqns);
+		return PTR_ERR(kkey);
+	}
+	protkey = kmalloc(protkeylen, GFP_KERNEL);
+	if (!protkey) {
+		kfree(apqns);
+		kfree_sensitive(kkey);
+		return -ENOMEM;
+	}
+	rc = pkey_keyblob2pkey3(apqns, ktp.apqn_entries,
+				kkey, ktp.keylen,
+				protkey, &protkeylen, &ktp.pkeytype);
+	pr_debug("%s pkey_keyblob2pkey3()=%d\n", __func__, rc);
+	kfree(apqns);
+	kfree_sensitive(kkey);
+	if (rc) {
+		kfree_sensitive(protkey);
+		return rc;
+	}
+	if (ktp.pkey && ktp.pkeylen) {
+		if (protkeylen > ktp.pkeylen) {
+			kfree_sensitive(protkey);
+			return -EINVAL;
+		}
+		if (copy_to_user(ktp.pkey, protkey, protkeylen)) {
+			kfree_sensitive(protkey);
+			return -EFAULT;
+		}
+	}
+	kfree_sensitive(protkey);
+	ktp.pkeylen = protkeylen;
+	if (copy_to_user(utp, &ktp, sizeof(ktp)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	int rc;
 
 	switch (cmd) {
-	case PKEY_GENSECK: {
-		struct pkey_genseck __user *ugs = (void __user *)arg;
-		struct pkey_genseck kgs;
-
-		if (copy_from_user(&kgs, ugs, sizeof(kgs)))
-			return -EFAULT;
-		rc = cca_genseckey(kgs.cardnr, kgs.domain,
-				   kgs.keytype, kgs.seckey.seckey);
-		pr_debug("%s cca_genseckey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(ugs, &kgs, sizeof(kgs)))
-			rc = -EFAULT;
-		memzero_explicit(&kgs, sizeof(kgs));
+	case PKEY_GENSECK:
+		rc = pkey_ioctl_genseck((struct pkey_genseck __user *)arg);
 		break;
-	}
-	case PKEY_CLR2SECK: {
-		struct pkey_clr2seck __user *ucs = (void __user *)arg;
-		struct pkey_clr2seck kcs;
-
-		if (copy_from_user(&kcs, ucs, sizeof(kcs)))
-			return -EFAULT;
-		rc = cca_clr2seckey(kcs.cardnr, kcs.domain, kcs.keytype,
-				    kcs.clrkey.clrkey, kcs.seckey.seckey);
-		pr_debug("%s cca_clr2seckey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(ucs, &kcs, sizeof(kcs)))
-			rc = -EFAULT;
-		memzero_explicit(&kcs, sizeof(kcs));
+	case PKEY_CLR2SECK:
+		rc = pkey_ioctl_clr2seck((struct pkey_clr2seck __user *)arg);
 		break;
-	}
-	case PKEY_SEC2PROTK: {
-		struct pkey_sec2protk __user *usp = (void __user *)arg;
-		struct pkey_sec2protk ksp;
-
-		if (copy_from_user(&ksp, usp, sizeof(ksp)))
-			return -EFAULT;
-		ksp.protkey.len = sizeof(ksp.protkey.protkey);
-		rc = cca_sec2protkey(ksp.cardnr, ksp.domain,
-				     ksp.seckey.seckey, ksp.protkey.protkey,
-				     &ksp.protkey.len, &ksp.protkey.type);
-		pr_debug("%s cca_sec2protkey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
-			rc = -EFAULT;
-		memzero_explicit(&ksp, sizeof(ksp));
+	case PKEY_SEC2PROTK:
+		rc = pkey_ioctl_sec2protk((struct pkey_sec2protk __user *)arg);
 		break;
-	}
-	case PKEY_CLR2PROTK: {
-		struct pkey_clr2protk __user *ucp = (void __user *)arg;
-		struct pkey_clr2protk kcp;
-
-		if (copy_from_user(&kcp, ucp, sizeof(kcp)))
-			return -EFAULT;
-		kcp.protkey.len = sizeof(kcp.protkey.protkey);
-		rc = pkey_clr2protkey(kcp.keytype, kcp.clrkey.clrkey,
-				      kcp.protkey.protkey,
-				      &kcp.protkey.len, &kcp.protkey.type);
-		pr_debug("%s pkey_clr2protkey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(ucp, &kcp, sizeof(kcp)))
-			rc = -EFAULT;
-		memzero_explicit(&kcp, sizeof(kcp));
+	case PKEY_CLR2PROTK:
+		rc = pkey_ioctl_clr2protk((struct pkey_clr2protk __user *)arg);
 		break;
-	}
-	case PKEY_FINDCARD: {
-		struct pkey_findcard __user *ufc = (void __user *)arg;
-		struct pkey_findcard kfc;
-
-		if (copy_from_user(&kfc, ufc, sizeof(kfc)))
-			return -EFAULT;
-		rc = cca_findcard(kfc.seckey.seckey,
-				  &kfc.cardnr, &kfc.domain, 1);
-		pr_debug("%s cca_findcard()=%d\n", __func__, rc);
-		if (rc < 0)
-			break;
-		if (copy_to_user(ufc, &kfc, sizeof(kfc)))
-			return -EFAULT;
+	case PKEY_FINDCARD:
+		rc = pkey_ioctl_findcard((struct pkey_findcard __user *)arg);
 		break;
-	}
-	case PKEY_SKEY2PKEY: {
-		struct pkey_skey2pkey __user *usp = (void __user *)arg;
-		struct pkey_skey2pkey ksp;
-
-		if (copy_from_user(&ksp, usp, sizeof(ksp)))
-			return -EFAULT;
-		ksp.protkey.len = sizeof(ksp.protkey.protkey);
-		rc = pkey_skey2pkey(ksp.seckey.seckey, ksp.protkey.protkey,
-				    &ksp.protkey.len, &ksp.protkey.type);
-		pr_debug("%s pkey_skey2pkey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
-			rc = -EFAULT;
-		memzero_explicit(&ksp, sizeof(ksp));
+	case PKEY_SKEY2PKEY:
+		rc = pkey_ioctl_skey2pkey((struct pkey_skey2pkey __user *)arg);
 		break;
-	}
-	case PKEY_VERIFYKEY: {
-		struct pkey_verifykey __user *uvk = (void __user *)arg;
-		struct pkey_verifykey kvk;
-
-		if (copy_from_user(&kvk, uvk, sizeof(kvk)))
-			return -EFAULT;
-		rc = pkey_verifykey(&kvk.seckey, &kvk.cardnr, &kvk.domain,
-				    &kvk.keysize, &kvk.attributes);
-		pr_debug("%s pkey_verifykey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(uvk, &kvk, sizeof(kvk)))
-			rc = -EFAULT;
-		memzero_explicit(&kvk, sizeof(kvk));
+	case PKEY_VERIFYKEY:
+		rc = pkey_ioctl_verifykey((struct pkey_verifykey __user *)arg);
 		break;
-	}
-	case PKEY_GENPROTK: {
-		struct pkey_genprotk __user *ugp = (void __user *)arg;
-		struct pkey_genprotk kgp;
-
-		if (copy_from_user(&kgp, ugp, sizeof(kgp)))
-			return -EFAULT;
-		kgp.protkey.len = sizeof(kgp.protkey.protkey);
-		rc = pkey_genprotkey(kgp.keytype, kgp.protkey.protkey,
-				     &kgp.protkey.len, &kgp.protkey.type);
-		pr_debug("%s pkey_genprotkey()=%d\n", __func__, rc);
-		if (!rc && copy_to_user(ugp, &kgp, sizeof(kgp)))
-			rc = -EFAULT;
-		memzero_explicit(&kgp, sizeof(kgp));
+	case PKEY_GENPROTK:
+		rc = pkey_ioctl_genprotk((struct pkey_genprotk __user *)arg);
 		break;
-	}
-	case PKEY_VERIFYPROTK: {
-		struct pkey_verifyprotk __user *uvp = (void __user *)arg;
-		struct pkey_verifyprotk kvp;
-
-		if (copy_from_user(&kvp, uvp, sizeof(kvp)))
-			return -EFAULT;
-		rc = pkey_verifyprotkey(kvp.protkey.protkey,
-					kvp.protkey.len, kvp.protkey.type);
-		pr_debug("%s pkey_verifyprotkey()=%d\n", __func__, rc);
-		memzero_explicit(&kvp, sizeof(kvp));
+	case PKEY_VERIFYPROTK:
+		rc = pkey_ioctl_verifyprotk((struct pkey_verifyprotk __user *)arg);
 		break;
-	}
-	case PKEY_KBLOB2PROTK: {
-		struct pkey_kblob2pkey __user *utp = (void __user *)arg;
-		struct pkey_kblob2pkey ktp;
-		u8 *kkey;
-
-		if (copy_from_user(&ktp, utp, sizeof(ktp)))
-			return -EFAULT;
-		kkey = _copy_key_from_user(ktp.key, ktp.keylen);
-		if (IS_ERR(kkey))
-			return PTR_ERR(kkey);
-		ktp.protkey.len = sizeof(ktp.protkey.protkey);
-		rc = pkey_keyblob2pkey(kkey, ktp.keylen, ktp.protkey.protkey,
-				       &ktp.protkey.len, &ktp.protkey.type);
-		pr_debug("%s pkey_keyblob2pkey()=%d\n", __func__, rc);
-		kfree_sensitive(kkey);
-		if (!rc && copy_to_user(utp, &ktp, sizeof(ktp)))
-			rc = -EFAULT;
-		memzero_explicit(&ktp, sizeof(ktp));
+	case PKEY_KBLOB2PROTK:
+		rc = pkey_ioctl_kblob2protk((struct pkey_kblob2pkey __user *)arg);
 		break;
-	}
-	case PKEY_GENSECK2: {
-		struct pkey_genseck2 __user *ugs = (void __user *)arg;
-		size_t klen = KEYBLOBBUFSIZE;
-		struct pkey_genseck2 kgs;
-		struct pkey_apqn *apqns;
-		u8 *kkey;
-
-		if (copy_from_user(&kgs, ugs, sizeof(kgs)))
-			return -EFAULT;
-		apqns = _copy_apqns_from_user(kgs.apqns, kgs.apqn_entries);
-		if (IS_ERR(apqns))
-			return PTR_ERR(apqns);
-		kkey = kzalloc(klen, GFP_KERNEL);
-		if (!kkey) {
-			kfree(apqns);
-			return -ENOMEM;
-		}
-		rc = pkey_genseckey2(apqns, kgs.apqn_entries,
-				     kgs.type, kgs.size, kgs.keygenflags,
-				     kkey, &klen);
-		pr_debug("%s pkey_genseckey2()=%d\n", __func__, rc);
-		kfree(apqns);
-		if (rc) {
-			kfree_sensitive(kkey);
-			break;
-		}
-		if (kgs.key) {
-			if (kgs.keylen < klen) {
-				kfree_sensitive(kkey);
-				return -EINVAL;
-			}
-			if (copy_to_user(kgs.key, kkey, klen)) {
-				kfree_sensitive(kkey);
-				return -EFAULT;
-			}
-		}
-		kgs.keylen = klen;
-		if (copy_to_user(ugs, &kgs, sizeof(kgs)))
-			rc = -EFAULT;
-		kfree_sensitive(kkey);
+	case PKEY_GENSECK2:
+		rc = pkey_ioctl_genseck2((struct pkey_genseck2 __user *)arg);
 		break;
-	}
-	case PKEY_CLR2SECK2: {
-		struct pkey_clr2seck2 __user *ucs = (void __user *)arg;
-		size_t klen = KEYBLOBBUFSIZE;
-		struct pkey_clr2seck2 kcs;
-		struct pkey_apqn *apqns;
-		u8 *kkey;
-
-		if (copy_from_user(&kcs, ucs, sizeof(kcs)))
-			return -EFAULT;
-		apqns = _copy_apqns_from_user(kcs.apqns, kcs.apqn_entries);
-		if (IS_ERR(apqns)) {
-			memzero_explicit(&kcs, sizeof(kcs));
-			return PTR_ERR(apqns);
-		}
-		kkey = kzalloc(klen, GFP_KERNEL);
-		if (!kkey) {
-			kfree(apqns);
-			memzero_explicit(&kcs, sizeof(kcs));
-			return -ENOMEM;
-		}
-		rc = pkey_clr2seckey2(apqns, kcs.apqn_entries,
-				      kcs.type, kcs.size, kcs.keygenflags,
-				      kcs.clrkey.clrkey, kkey, &klen);
-		pr_debug("%s pkey_clr2seckey2()=%d\n", __func__, rc);
-		kfree(apqns);
-		if (rc) {
-			kfree_sensitive(kkey);
-			memzero_explicit(&kcs, sizeof(kcs));
-			break;
-		}
-		if (kcs.key) {
-			if (kcs.keylen < klen) {
-				kfree_sensitive(kkey);
-				memzero_explicit(&kcs, sizeof(kcs));
-				return -EINVAL;
-			}
-			if (copy_to_user(kcs.key, kkey, klen)) {
-				kfree_sensitive(kkey);
-				memzero_explicit(&kcs, sizeof(kcs));
-				return -EFAULT;
-			}
-		}
-		kcs.keylen = klen;
-		if (copy_to_user(ucs, &kcs, sizeof(kcs)))
-			rc = -EFAULT;
-		memzero_explicit(&kcs, sizeof(kcs));
-		kfree_sensitive(kkey);
+	case PKEY_CLR2SECK2:
+		rc = pkey_ioctl_clr2seck2((struct pkey_clr2seck2 __user *)arg);
 		break;
-	}
-	case PKEY_VERIFYKEY2: {
-		struct pkey_verifykey2 __user *uvk = (void __user *)arg;
-		struct pkey_verifykey2 kvk;
-		u8 *kkey;
-
-		if (copy_from_user(&kvk, uvk, sizeof(kvk)))
-			return -EFAULT;
-		kkey = _copy_key_from_user(kvk.key, kvk.keylen);
-		if (IS_ERR(kkey))
-			return PTR_ERR(kkey);
-		rc = pkey_verifykey2(kkey, kvk.keylen,
-				     &kvk.cardnr, &kvk.domain,
-				     &kvk.type, &kvk.size, &kvk.flags);
-		pr_debug("%s pkey_verifykey2()=%d\n", __func__, rc);
-		kfree_sensitive(kkey);
-		if (rc)
-			break;
-		if (copy_to_user(uvk, &kvk, sizeof(kvk)))
-			return -EFAULT;
+	case PKEY_VERIFYKEY2:
+		rc = pkey_ioctl_verifykey2((struct pkey_verifykey2 __user *)arg);
 		break;
-	}
-	case PKEY_KBLOB2PROTK2: {
-		struct pkey_kblob2pkey2 __user *utp = (void __user *)arg;
-		struct pkey_apqn *apqns = NULL;
-		struct pkey_kblob2pkey2 ktp;
-		u8 *kkey;
-
-		if (copy_from_user(&ktp, utp, sizeof(ktp)))
-			return -EFAULT;
-		apqns = _copy_apqns_from_user(ktp.apqns, ktp.apqn_entries);
-		if (IS_ERR(apqns))
-			return PTR_ERR(apqns);
-		kkey = _copy_key_from_user(ktp.key, ktp.keylen);
-		if (IS_ERR(kkey)) {
-			kfree(apqns);
-			return PTR_ERR(kkey);
-		}
-		ktp.protkey.len = sizeof(ktp.protkey.protkey);
-		rc = pkey_keyblob2pkey2(apqns, ktp.apqn_entries,
-					kkey, ktp.keylen,
-					ktp.protkey.protkey, &ktp.protkey.len,
-					&ktp.protkey.type);
-		pr_debug("%s pkey_keyblob2pkey2()=%d\n", __func__, rc);
-		kfree(apqns);
-		kfree_sensitive(kkey);
-		if (!rc && copy_to_user(utp, &ktp, sizeof(ktp)))
-			rc = -EFAULT;
-		memzero_explicit(&ktp, sizeof(ktp));
+	case PKEY_KBLOB2PROTK2:
+		rc = pkey_ioctl_kblob2protk2((struct pkey_kblob2pkey2 __user *)arg);
 		break;
-	}
-	case PKEY_APQNS4K: {
-		struct pkey_apqns4key __user *uak = (void __user *)arg;
-		struct pkey_apqn *apqns = NULL;
-		struct pkey_apqns4key kak;
-		size_t nr_apqns, len;
-		u8 *kkey;
-
-		if (copy_from_user(&kak, uak, sizeof(kak)))
-			return -EFAULT;
-		nr_apqns = kak.apqn_entries;
-		if (nr_apqns) {
-			apqns = kmalloc_array(nr_apqns,
-					      sizeof(struct pkey_apqn),
-					      GFP_KERNEL);
-			if (!apqns)
-				return -ENOMEM;
-		}
-		kkey = _copy_key_from_user(kak.key, kak.keylen);
-		if (IS_ERR(kkey)) {
-			kfree(apqns);
-			return PTR_ERR(kkey);
-		}
-		rc = pkey_apqns4key(kkey, kak.keylen, kak.flags,
-				    apqns, &nr_apqns);
-		pr_debug("%s pkey_apqns4key()=%d\n", __func__, rc);
-		kfree_sensitive(kkey);
-		if (rc && rc != -ENOSPC) {
-			kfree(apqns);
-			break;
-		}
-		if (!rc && kak.apqns) {
-			if (nr_apqns > kak.apqn_entries) {
-				kfree(apqns);
-				return -EINVAL;
-			}
-			len = nr_apqns * sizeof(struct pkey_apqn);
-			if (len) {
-				if (copy_to_user(kak.apqns, apqns, len)) {
-					kfree(apqns);
-					return -EFAULT;
-				}
-			}
-		}
-		kak.apqn_entries = nr_apqns;
-		if (copy_to_user(uak, &kak, sizeof(kak)))
-			rc = -EFAULT;
-		kfree(apqns);
+	case PKEY_APQNS4K:
+		rc = pkey_ioctl_apqns4k((struct pkey_apqns4key __user *)arg);
 		break;
-	}
-	case PKEY_APQNS4KT: {
-		struct pkey_apqns4keytype __user *uat = (void __user *)arg;
-		struct pkey_apqn *apqns = NULL;
-		struct pkey_apqns4keytype kat;
-		size_t nr_apqns, len;
-
-		if (copy_from_user(&kat, uat, sizeof(kat)))
-			return -EFAULT;
-		nr_apqns = kat.apqn_entries;
-		if (nr_apqns) {
-			apqns = kmalloc_array(nr_apqns,
-					      sizeof(struct pkey_apqn),
-					      GFP_KERNEL);
-			if (!apqns)
-				return -ENOMEM;
-		}
-		rc = pkey_apqns4keytype(kat.type, kat.cur_mkvp, kat.alt_mkvp,
-					kat.flags, apqns, &nr_apqns);
-		pr_debug("%s pkey_apqns4keytype()=%d\n", __func__, rc);
-		if (rc && rc != -ENOSPC) {
-			kfree(apqns);
-			break;
-		}
-		if (!rc && kat.apqns) {
-			if (nr_apqns > kat.apqn_entries) {
-				kfree(apqns);
-				return -EINVAL;
-			}
-			len = nr_apqns * sizeof(struct pkey_apqn);
-			if (len) {
-				if (copy_to_user(kat.apqns, apqns, len)) {
-					kfree(apqns);
-					return -EFAULT;
-				}
-			}
-		}
-		kat.apqn_entries = nr_apqns;
-		if (copy_to_user(uat, &kat, sizeof(kat)))
-			rc = -EFAULT;
-		kfree(apqns);
+	case PKEY_APQNS4KT:
+		rc = pkey_ioctl_apqns4kt((struct pkey_apqns4keytype __user *)arg);
 		break;
-	}
-	case PKEY_KBLOB2PROTK3: {
-		struct pkey_kblob2pkey3 __user *utp = (void __user *)arg;
-		u32 protkeylen = PROTKEYBLOBBUFSIZE;
-		struct pkey_apqn *apqns = NULL;
-		struct pkey_kblob2pkey3 ktp;
-		u8 *kkey, *protkey;
-
-		if (copy_from_user(&ktp, utp, sizeof(ktp)))
-			return -EFAULT;
-		apqns = _copy_apqns_from_user(ktp.apqns, ktp.apqn_entries);
-		if (IS_ERR(apqns))
-			return PTR_ERR(apqns);
-		kkey = _copy_key_from_user(ktp.key, ktp.keylen);
-		if (IS_ERR(kkey)) {
-			kfree(apqns);
-			return PTR_ERR(kkey);
-		}
-		protkey = kmalloc(protkeylen, GFP_KERNEL);
-		if (!protkey) {
-			kfree(apqns);
-			kfree_sensitive(kkey);
-			return -ENOMEM;
-		}
-		rc = pkey_keyblob2pkey3(apqns, ktp.apqn_entries,
-					kkey, ktp.keylen,
-					protkey, &protkeylen, &ktp.pkeytype);
-		pr_debug("%s pkey_keyblob2pkey3()=%d\n", __func__, rc);
-		kfree(apqns);
-		kfree_sensitive(kkey);
-		if (rc) {
-			kfree_sensitive(protkey);
-			break;
-		}
-		if (ktp.pkey && ktp.pkeylen) {
-			if (protkeylen > ktp.pkeylen) {
-				kfree_sensitive(protkey);
-				return -EINVAL;
-			}
-			if (copy_to_user(ktp.pkey, protkey, protkeylen)) {
-				kfree_sensitive(protkey);
-				return -EFAULT;
-			}
-		}
-		kfree_sensitive(protkey);
-		ktp.pkeylen = protkeylen;
-		if (copy_to_user(utp, &ktp, sizeof(ktp)))
-			return -EFAULT;
+	case PKEY_KBLOB2PROTK3:
+		rc = pkey_ioctl_kblob2protk3((struct pkey_kblob2pkey3 __user *)arg);
 		break;
-	}
 	default:
 		/* unknown/unsupported ioctl cmd */
 		return -ENOTTY;
