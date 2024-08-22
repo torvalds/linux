@@ -1749,12 +1749,23 @@ static int ext4_ext_correct_indexes(handle_t *handle, struct inode *inode,
 			break;
 		err = ext4_ext_get_access(handle, inode, path + k);
 		if (err)
-			break;
+			goto clean;
 		path[k].p_idx->ei_block = border;
 		err = ext4_ext_dirty(handle, inode, path + k);
 		if (err)
-			break;
+			goto clean;
 	}
+	return 0;
+
+clean:
+	/*
+	 * The path[k].p_bh is either unmodified or with no verified bit
+	 * set (see ext4_ext_get_access()). So just clear the verified bit
+	 * of the successfully modified extents buffers, which will force
+	 * these extents to be checked to avoid using inconsistent data.
+	 */
+	while (++k < depth)
+		clear_buffer_verified(path[k].p_bh);
 
 	return err;
 }
@@ -2312,12 +2323,24 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 			break;
 		err = ext4_ext_get_access(handle, inode, path + k);
 		if (err)
-			break;
+			goto clean;
 		path[k].p_idx->ei_block = path[k + 1].p_idx->ei_block;
 		err = ext4_ext_dirty(handle, inode, path + k);
 		if (err)
-			break;
+			goto clean;
 	}
+	return 0;
+
+clean:
+	/*
+	 * The path[k].p_bh is either unmodified or with no verified bit
+	 * set (see ext4_ext_get_access()). So just clear the verified bit
+	 * of the successfully modified extents buffers, which will force
+	 * these extents to be checked to avoid using inconsistent data.
+	 */
+	while (++k < depth)
+		clear_buffer_verified(path[k].p_bh);
+
 	return err;
 }
 
