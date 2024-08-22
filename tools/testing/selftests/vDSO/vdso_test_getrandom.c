@@ -21,6 +21,7 @@
 
 #include "../kselftest.h"
 #include "parse_vdso.h"
+#include "vdso_config.h"
 
 #ifndef timespecsub
 #define	timespecsub(tsp, usp, vsp)					\
@@ -100,15 +101,18 @@ static void vgetrandom_put_state(void *state)
 
 static void vgetrandom_init(void)
 {
+	const char *version = versions[VDSO_VERSION];
+	const char *name = names[VDSO_NAMES][6];
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
+
 	if (!sysinfo_ehdr) {
 		printf("AT_SYSINFO_EHDR is not present!\n");
 		exit(KSFT_SKIP);
 	}
 	vdso_init_from_sysinfo_ehdr(sysinfo_ehdr);
-	vgrnd.fn = (__typeof__(vgrnd.fn))vdso_sym("LINUX_2.6", "__vdso_getrandom");
+	vgrnd.fn = (__typeof__(vgrnd.fn))vdso_sym(version, name);
 	if (!vgrnd.fn) {
-		printf("__vdso_getrandom is missing!\n");
+		printf("%s is missing!\n", name);
 		exit(KSFT_FAIL);
 	}
 	if (vgrnd.fn(NULL, 0, 0, &vgrnd.params, ~0UL) != 0) {
