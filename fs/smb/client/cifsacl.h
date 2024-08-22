@@ -35,7 +35,7 @@
  */
 #define DEFAULT_SEC_DESC_LEN (sizeof(struct smb_ntsd) + \
 			      sizeof(struct smb_acl) + \
-			      (sizeof(struct cifs_ace) * 4))
+			      (sizeof(struct smb_ace) * 4))
 
 /*
  * Maximum size of a string representation of a SID:
@@ -111,7 +111,7 @@ struct smb_acl {
 #define SUCCESSFUL_ACCESS_ACE_FLAG 0x40
 #define FAILED_ACCESS_ACE_FLAG	0x80
 
-struct cifs_ace {
+struct smb_ace {
 	__u8 type; /* see above and MS-DTYP 2.4.4.1 */
 	__u8 flags;
 	__le16 size;

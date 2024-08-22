@@ -205,7 +205,7 @@ struct cifs_cred {
 	struct smb_sid osid;
 	struct smb_sid gsid;
 	struct cifs_ntace *ntaces;
-	struct cifs_ace *aces;
+	struct smb_ace *aces;
 };
 
 struct cifs_open_info_data {
