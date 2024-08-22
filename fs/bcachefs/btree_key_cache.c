@@ -726,6 +726,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 
 	mark_btree_node_locked(trans, path, 0, BTREE_NODE_UNLOCKED);
 	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	path->should_be_locked = false;
 }
 
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
