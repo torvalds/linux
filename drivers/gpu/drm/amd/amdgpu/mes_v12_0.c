@@ -1266,6 +1266,7 @@ static int mes_v12_0_sw_init(void *handle)
 	adev->mes.funcs = &mes_v12_0_funcs;
 	adev->mes.kiq_hw_init = &mes_v12_0_kiq_hw_init;
 	adev->mes.kiq_hw_fini = &mes_v12_0_kiq_hw_fini;
+	adev->mes.enable_legacy_queue_map = true;
 
 	adev->mes.event_log_size = AMDGPU_MES_LOG_BUFFER_SIZE;
 
@@ -1422,9 +1423,11 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 		mes_v12_0_set_hw_resources_1(&adev->mes, AMDGPU_MES_KIQ_PIPE);
 	}
 
-	r = mes_v12_0_hw_init(adev);
-	if (r)
-		goto failure;
+	if (adev->mes.enable_legacy_queue_map) {
+		r = mes_v12_0_hw_init(adev);
+		if (r)
+			goto failure;
+	}
 
 	return r;
 

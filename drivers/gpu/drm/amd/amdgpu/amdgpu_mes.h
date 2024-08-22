@@ -75,6 +75,7 @@ struct amdgpu_mes {
 
 	uint32_t			sched_version;
 	uint32_t			kiq_version;
+	bool                            enable_legacy_queue_map;
 
 	uint32_t                        total_max_queue;
 	uint32_t                        max_doorbell_slices;
