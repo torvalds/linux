@@ -71,8 +71,7 @@ int pkey_ep11_key2protkey(u16 card, u16 dom,
 						3, key, keylen, 1))
 			return -EINVAL;
 		rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-					protkey, protkeylen,
-					protkeytype);
+					protkey, protkeylen, protkeytype);
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_ECC_WITH_HEADER &&
 		   is_ep11_keyblob(key + sizeof(struct ep11kblob_header))) {
@@ -81,8 +80,7 @@ int pkey_ep11_key2protkey(u16 card, u16 dom,
 						3, key, keylen, 1))
 			return -EINVAL;
 		rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-					protkey, protkeylen,
-					protkeytype);
+					protkey, protkeylen, protkeytype);
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_AES &&
 		   is_ep11_keyblob(key)) {
@@ -90,8 +88,7 @@ int pkey_ep11_key2protkey(u16 card, u16 dom,
 		if (ep11_check_aes_key(pkey_dbf_info, 3, key, keylen, 1))
 			return -EINVAL;
 		rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-					protkey, protkeylen,
-					protkeytype);
+					protkey, protkeylen, protkeytype);
 	} else {
 		PKEY_DBF_ERR("%s unknown/unsupported blob type %d version %d\n",
 			     __func__, hdr->type, hdr->version);
@@ -114,7 +111,7 @@ int pkey_ep11_key2protkey(u16 card, u16 dom,
 int pkey_ep11_gen_key(u16 card, u16 dom,
 		      u32 keytype, u32 subtype,
 		      u32 keybitsize, u32 flags,
-		      u8 *keybuf, u32 *keybuflen)
+		      u8 *keybuf, u32 *keybuflen, u32 *_keyinfo)
 {
 	int len, rc;
 
@@ -171,7 +168,7 @@ int pkey_ep11_clr2key(u16 card, u16 dom,
 		      u32 keytype, u32 subtype,
 		      u32 keybitsize, u32 flags,
 		      const u8 *clrkey, u32 clrkeylen,
-		      u8 *keybuf, u32 *keybuflen)
+		      u8 *keybuf, u32 *keybuflen, u32 *_keyinfo)
 {
 	int len, rc;
 

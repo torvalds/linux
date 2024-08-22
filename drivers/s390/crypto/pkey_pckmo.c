@@ -18,9 +18,66 @@
 #include "pkey_base.h"
 
 /*
+ * Prototypes
+ */
+
+static bool is_pckmo_key(const u8 *key, u32 keylen);
+static int pckmo_key2protkey(const u8 *key, u32 keylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+static int pckmo_gen_protkey(u32 keytype,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
+				u32 protkeytype);
+
+/*
+ * Wrapper functions
+ */
+
+bool pkey_is_pckmo_key(const u8 *key, u32 keylen)
+{
+	return is_pckmo_key(key, keylen);
+}
+
+int pkey_pckmo_key2protkey(u16 _card, u16 _dom,
+			   const u8 *key, u32 keylen,
+			   u8 *protkey, u32 *protkeylen, u32 *keyinfo)
+{
+	return pckmo_key2protkey(key, keylen,
+				 protkey, protkeylen, keyinfo);
+}
+
+int pkey_pckmo_gen_key(u16 _card, u16 _dom,
+		       u32 keytype, u32 _keysubtype,
+		       u32 _keybitsize, u32 _flags,
+		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
+{
+	return pckmo_gen_protkey(keytype,
+				 keybuf, keybuflen, keyinfo);
+}
+
+int pkey_pckmo_clr2key(u16 _card, u16 _dom,
+		       u32 keytype, u32 _keysubtype,
+		       u32 _keybitsize, u32 _flags,
+		       const u8 *clrkey, u32 clrkeylen,
+		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo)
+{
+	return pckmo_clr2protkey(keytype, clrkey, clrkeylen,
+				 keybuf, keybuflen, keyinfo);
+}
+
+int pkey_pckmo_verifykey(const u8 *key, u32 keylen,
+			 u16 *_card, u16 *_dom,
+			 u32 *keytype, u32 *_keybitsize, u32 *_flags)
+{
+	return pckmo_verify_protkey(key, keylen, *keytype);
+}
+
+/*
  * Check key blob for known and supported here.
  */
-bool pkey_is_pckmo_key(const u8 *key, u32 keylen)
+static bool is_pckmo_key(const u8 *key, u32 keylen)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	struct clearkeytoken *t = (struct clearkeytoken *)key;
@@ -55,8 +112,8 @@ bool pkey_is_pckmo_key(const u8 *key, u32 keylen)
 	}
 }
 
-int pkey_pckmo_key2protkey(const u8 *key, u32 keylen,
-			   u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+static int pckmo_key2protkey(const u8 *key, u32 keylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
 	int rc = -EINVAL;
@@ -73,8 +130,7 @@ int pkey_pckmo_key2protkey(const u8 *key, u32 keylen,
 		if (keylen != sizeof(struct protaeskeytoken))
 			goto out;
 		t = (struct protaeskeytoken *)key;
-		rc = pkey_pckmo_verify_protkey(t->protkey, t->len,
-					       t->keytype);
+		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
 		if (rc)
 			goto out;
 		memcpy(protkey, t->protkey, t->len);
@@ -123,8 +179,8 @@ int pkey_pckmo_key2protkey(const u8 *key, u32 keylen,
 				     __func__, t->len);
 			goto out;
 		}
-		rc = pkey_pckmo_clr2protkey(t->keytype, t->clearkey,
-					    protkey, protkeylen, protkeytype);
+		rc = pckmo_clr2protkey(t->keytype, t->clearkey, t->len,
+				       protkey, protkeylen, protkeytype);
 		break;
 	}
 	default:
@@ -143,8 +199,8 @@ out:
  * Currently only the generation of AES protected keys
  * is supported.
  */
-int pkey_pckmo_gen_protkey(u32 keytype, u8 *protkey,
-			   u32 *protkeylen, u32 *protkeytype)
+static int pckmo_gen_protkey(u32 keytype, u8 *protkey,
+			     u32 *protkeylen, u32 *protkeytype)
 {
 	u8 clrkey[32];
 	int keysize;
@@ -161,8 +217,8 @@ int pkey_pckmo_gen_protkey(u32 keytype, u8 *protkey,
 	get_random_bytes(clrkey, keysize);
 
 	/* convert it to a dummy protected key */
-	rc = pkey_pckmo_clr2protkey(keytype, clrkey,
-				    protkey, protkeylen, protkeytype);
+	rc = pckmo_clr2protkey(keytype, clrkey, keysize,
+			       protkey, protkeylen, protkeytype);
 	if (rc)
 		goto out;
 
@@ -177,8 +233,8 @@ out:
 /*
  * Create a protected key from a clear key value via PCKMO instruction.
  */
-int pkey_pckmo_clr2protkey(u32 keytype, const u8 *clrkey,
-			   u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	/* mask of available pckmo subfunctions */
 	static cpacf_mask_t pckmo_functions;
@@ -243,6 +299,11 @@ int pkey_pckmo_clr2protkey(u32 keytype, const u8 *clrkey,
 		goto out;
 	}
 
+	if (clrkeylen && clrkeylen < keysize) {
+		PKEY_DBF_ERR("%s clear key size too small: %u < %d\n",
+			     __func__, clrkeylen, keysize);
+		goto out;
+	}
 	if (*protkeylen < keysize + AES_WK_VP_SIZE) {
 		PKEY_DBF_ERR("%s prot key buffer size too small: %u < %d\n",
 			     __func__, *protkeylen, keysize + AES_WK_VP_SIZE);
@@ -288,8 +349,8 @@ out:
  * Verify a protected key blob.
  * Currently only AES protected keys are supported.
  */
-int pkey_pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
-			      u32 protkeytype)
+static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
+				u32 protkeytype)
 {
 	struct {
 		u8 iv[AES_BLOCK_SIZE];

@@ -97,12 +97,12 @@ int pkey_cca_key2protkey(u16 card, u16 dom,
 int pkey_cca_gen_key(u16 card, u16 dom,
 		     u32 keytype, u32 keysubtype,
 		     u32 keybitsize, u32 flags,
-		     u8 *keybuf, u32 *keybuflen);
+		     u8 *keybuf, u32 *keybuflen, u32 *_keyinfo);
 int pkey_cca_clr2key(u16 card, u16 dom,
 		     u32 keytype, u32 keysubtype,
 		     u32 keybitsize, u32 flags,
 		     const u8 *clrkey, u32 clrkeylen,
-		     u8 *keybuf, u32 *keybuflen);
+		     u8 *keybuf, u32 *keybuflen, u32 *_keyinfo);
 int pkey_cca_verifykey(const u8 *key, u32 keylen,
 		       u16 *card, u16 *dom,
 		       u32 *keytype, u32 *keybitsize, u32 *flags);
@@ -124,12 +124,12 @@ int pkey_ep11_key2protkey(u16 card, u16 dom,
 int pkey_ep11_gen_key(u16 card, u16 dom,
 		      u32 keytype, u32 keysubtype,
 		      u32 keybitsize, u32 flags,
-		      u8 *keybuf, u32 *keybuflen);
+		      u8 *keybuf, u32 *keybuflen, u32 *_keyinfo);
 int pkey_ep11_clr2key(u16 card, u16 dom,
 		      u32 keytype, u32 keysubtype,
 		      u32 keybitsize, u32 flags,
 		      const u8 *clrkey, u32 clrkeylen,
-		      u8 *keybuf, u32 *keybuflen);
+		      u8 *keybuf, u32 *keybuflen, u32 *_keyinfo);
 int pkey_ep11_verifykey(const u8 *key, u32 keylen,
 			u16 *card, u16 *dom,
 			u32 *keytype, u32 *keybitsize, u32 *flags);
@@ -144,14 +144,21 @@ int pkey_ep11_apqns4type(enum pkey_key_type ktype,
  */
 
 bool pkey_is_pckmo_key(const u8 *key, u32 keylen);
-int pkey_pckmo_key2protkey(const u8 *key, u32 keylen,
+int pkey_pckmo_key2protkey(u16 _card, u16 _dom,
+			   const u8 *key, u32 keylen,
 			   u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-int pkey_pckmo_gen_protkey(u32 keytype,
-			   u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-int pkey_pckmo_clr2protkey(u32 keytype, const u8 *clrkey,
-			   u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-int pkey_pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
-			      u32 protkeytype);
+int pkey_pckmo_gen_key(u16 _card, u16 _dom,
+		       u32 keytype, u32 _keysubtype,
+		       u32 _keybitsize, u32 _flags,
+		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+int pkey_pckmo_clr2key(u16 _card, u16 _dom,
+		       u32 keytype, u32 _keysubtype,
+		       u32 _keybitsize, u32 _flags,
+		       const u8 *clrkey, u32 clrkeylen,
+		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+int pkey_pckmo_verifykey(const u8 *key, u32 keylen,
+			 u16 *_card, u16 *_dom,
+			 u32 *keytype, u32 *_keybitsize, u32 *_flags);
 
 /*
  * pkey_sysfs.c:

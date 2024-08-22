@@ -112,7 +112,7 @@ int pkey_cca_key2protkey(u16 card, u16 dom,
 int pkey_cca_gen_key(u16 card, u16 dom,
 		     u32 keytype, u32 subtype,
 		     u32 keybitsize, u32 flags,
-		     u8 *keybuf, u32 *keybuflen)
+		     u8 *keybuf, u32 *keybuflen, u32 *_keyinfo)
 {
 	int len, rc;
 
@@ -173,7 +173,7 @@ int pkey_cca_clr2key(u16 card, u16 dom,
 		     u32 keytype, u32 subtype,
 		     u32 keybitsize, u32 flags,
 		     const u8 *clrkey, u32 clrkeylen,
-		     u8 *keybuf, u32 *keybuflen)
+		     u8 *keybuf, u32 *keybuflen, u32 *_keyinfo)
 {
 	int len, rc;
 
