@@ -30,6 +30,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
 #include <linux/sort.h>
+#include <linux/jiffies.h>
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *, u64);
 
@@ -2183,7 +2184,7 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
-		if (last_updated + HZ * 10 < jiffies) {
+		if (time_after(jiffies, last_updated + HZ * 10)) {
 			bch_info(ca, "%s: currently at %llu/%llu",
 				 __func__, iter.pos.offset, ca->mi.nbuckets);
 			last_updated = jiffies;

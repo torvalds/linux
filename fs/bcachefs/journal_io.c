@@ -1950,7 +1950,8 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	if (error ||
 	    w->noflush ||
 	    (!w->must_flush &&
-	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	     time_before(jiffies, j->last_flush_write +
+		 msecs_to_jiffies(c->opts.journal_flush_delay)) &&
 	     test_bit(JOURNAL_may_skip_flush, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(w->data, true);
