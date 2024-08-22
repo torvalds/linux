@@ -3700,21 +3700,21 @@ out:
  * being filled will be convert to initialized by the end_io callback function
  * via ext4_convert_unwritten_extents().
  *
- * Returns the size of unwritten extent to be written on success.
+ * The size of unwritten extent to be written is passed to the caller via the
+ * allocated pointer. Return an extent path pointer on success, or an error
+ * pointer on failure.
  */
-static int ext4_split_convert_extents(handle_t *handle,
+static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 					struct inode *inode,
 					struct ext4_map_blocks *map,
-					struct ext4_ext_path **ppath,
-					int flags)
+					struct ext4_ext_path *path,
+					int flags, unsigned int *allocated)
 {
-	struct ext4_ext_path *path = *ppath;
 	ext4_lblk_t eof_block;
 	ext4_lblk_t ee_block;
 	struct ext4_extent *ex;
 	unsigned int ee_len;
 	int split_flag = 0, depth;
-	unsigned int allocated = 0;
 
 	ext_debug(inode, "logical block %llu, max_blocks %u\n",
 		  (unsigned long long)map->m_lblk, map->m_len);
@@ -3742,14 +3742,8 @@ static int ext4_split_convert_extents(handle_t *handle,
 		split_flag |= (EXT4_EXT_MARK_UNWRIT2 | EXT4_EXT_DATA_VALID2);
 	}
 	flags |= EXT4_GET_BLOCKS_PRE_IO;
-	path = ext4_split_extent(handle, inode, path, map, split_flag, flags,
-				 &allocated);
-	if (IS_ERR(path)) {
-		*ppath = NULL;
-		return PTR_ERR(path);
-	}
-	*ppath = path;
-	return allocated;
+	return ext4_split_extent(handle, inode, path, map, split_flag, flags,
+				 allocated);
 }
 
 static int ext4_convert_unwritten_extents_endio(handle_t *handle,
@@ -3785,11 +3779,14 @@ static int ext4_convert_unwritten_extents_endio(handle_t *handle,
 			     inode->i_ino, (unsigned long long)ee_block, ee_len,
 			     (unsigned long long)map->m_lblk, map->m_len);
 #endif
-		err = ext4_split_convert_extents(handle, inode, map, ppath,
-						 EXT4_GET_BLOCKS_CONVERT);
-		if (err < 0)
-			return err;
-		path = ext4_find_extent(inode, map->m_lblk, *ppath, 0);
+		path = ext4_split_convert_extents(handle, inode, map, path,
+						EXT4_GET_BLOCKS_CONVERT, NULL);
+		if (IS_ERR(path)) {
+			*ppath = NULL;
+			return PTR_ERR(path);
+		}
+
+		path = ext4_find_extent(inode, map->m_lblk, path, 0);
 		if (IS_ERR(path)) {
 			*ppath = NULL;
 			return PTR_ERR(path);
@@ -3846,11 +3843,14 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 		  (unsigned long long)ee_block, ee_len);
 
 	if (ee_block != map->m_lblk || ee_len > map->m_len) {
-		err = ext4_split_convert_extents(handle, inode, map, ppath,
-				EXT4_GET_BLOCKS_CONVERT_UNWRITTEN);
-		if (err < 0)
-			return err;
-		path = ext4_find_extent(inode, map->m_lblk, *ppath, 0);
+		path = ext4_split_convert_extents(handle, inode, map, path,
+				EXT4_GET_BLOCKS_CONVERT_UNWRITTEN, NULL);
+		if (IS_ERR(path)) {
+			*ppath = NULL;
+			return PTR_ERR(path);
+		}
+
+		path = ext4_find_extent(inode, map->m_lblk, path, 0);
 		if (IS_ERR(path)) {
 			*ppath = NULL;
 			return PTR_ERR(path);
@@ -3916,19 +3916,20 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 
 	/* get_block() before submitting IO, split the extent */
 	if (flags & EXT4_GET_BLOCKS_PRE_IO) {
-		ret = ext4_split_convert_extents(handle, inode, map, ppath,
-					 flags | EXT4_GET_BLOCKS_CONVERT);
-		if (ret < 0) {
-			err = ret;
+		*ppath = ext4_split_convert_extents(handle, inode, map, *ppath,
+				flags | EXT4_GET_BLOCKS_CONVERT, &allocated);
+		if (IS_ERR(*ppath)) {
+			err = PTR_ERR(*ppath);
+			*ppath = NULL;
 			goto out2;
 		}
 		/*
-		 * shouldn't get a 0 return when splitting an extent unless
+		 * shouldn't get a 0 allocated when splitting an extent unless
 		 * m_len is 0 (bug) or extent has been corrupted
 		 */
-		if (unlikely(ret == 0)) {
+		if (unlikely(allocated == 0)) {
 			EXT4_ERROR_INODE(inode,
-					 "unexpected ret == 0, m_len = %u",
+					 "unexpected allocated == 0, m_len = %u",
 					 map->m_len);
 			err = -EFSCORRUPTED;
 			goto out2;
@@ -3989,9 +3990,9 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 		err = -EFSCORRUPTED;
 		goto out2;
 	}
+	allocated = ret;
 
 out:
-	allocated = ret;
 	map->m_flags |= EXT4_MAP_NEW;
 map_out:
 	map->m_flags |= EXT4_MAP_MAPPED;
