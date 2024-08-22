@@ -2,8 +2,11 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
+#include <stdbool.h>
+#include "bpf_kfuncs.h"
 
 SEC("raw_tp")
 __arch_x86_64
@@ -840,6 +843,58 @@ __naked int bpf_fastcall_max_stack_fail(void)
 	  __imm(bpf_get_prandom_u32)
 	: __clobber_all
 	);
+}
+
+SEC("cgroup/getsockname_unix")
+__xlated("0: r2 = 1")
+/* bpf_cast_to_kern_ctx is replaced by a single assignment */
+__xlated("1: r0 = r1")
+__xlated("2: r0 = r2")
+__xlated("3: exit")
+__success
+__naked void kfunc_bpf_cast_to_kern_ctx(void)
+{
+	asm volatile (
+	"r2 = 1;"
+	"*(u64 *)(r10 - 32) = r2;"
+	"call %[bpf_cast_to_kern_ctx];"
+	"r2 = *(u64 *)(r10 - 32);"
+	"r0 = r2;"
+	"exit;"
+	:
+	: __imm(bpf_cast_to_kern_ctx)
+	: __clobber_all);
+}
+
+SEC("raw_tp")
+__xlated("3: r3 = 1")
+/* bpf_rdonly_cast is replaced by a single assignment */
+__xlated("4: r0 = r1")
+__xlated("5: r0 = r3")
+void kfunc_bpf_rdonly_cast(void)
+{
+	asm volatile (
+	"r2 = %[btf_id];"
+	"r3 = 1;"
+	"*(u64 *)(r10 - 32) = r3;"
+	"call %[bpf_rdonly_cast];"
+	"r3 = *(u64 *)(r10 - 32);"
+	"r0 = r3;"
+	:
+	: __imm(bpf_rdonly_cast),
+	 [btf_id]"r"(bpf_core_type_id_kernel(union bpf_attr))
+	: __clobber_common);
+}
+
+/* BTF FUNC records are not generated for kfuncs referenced
+ * from inline assembly. These records are necessary for
+ * libbpf to link the program. The function below is a hack
+ * to ensure that BTF FUNC records are generated.
+ */
+void kfunc_root(void)
+{
+	bpf_cast_to_kern_ctx(0);
+	bpf_rdonly_cast(0, 0);
 }
 
 char _license[] SEC("license") = "GPL";
