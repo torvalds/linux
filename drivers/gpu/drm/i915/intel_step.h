@@ -17,7 +17,6 @@ struct intel_step_info {
 	 */
 	u8 graphics_step;	/* Represents the compute tile on Xe_HPC */
 	u8 media_step;
-	u8 basedie_step;
 };
 
 #define STEP_ENUM_VAL(name)  STEP_##name,

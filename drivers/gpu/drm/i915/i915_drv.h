@@ -410,7 +410,6 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 
 #define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
 #define INTEL_MEDIA_STEP(__i915) (RUNTIME_INFO(__i915)->step.media_step)
-#define INTEL_BASEDIE_STEP(__i915) (RUNTIME_INFO(__i915)->step.basedie_step)
 
 #define IS_GRAPHICS_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_NONE), \
@@ -419,10 +418,6 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 #define IS_MEDIA_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
 	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
-
-#define IS_BASEDIE_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_NONE), \
-	 INTEL_BASEDIE_STEP(__i915) >= (since) && INTEL_BASEDIE_STEP(__i915) < (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
