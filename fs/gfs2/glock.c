@@ -1028,8 +1028,6 @@ static void delete_work_func(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct gfs2_glock *gl = container_of(dwork, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct inode *inode;
-	u64 no_addr = gl->gl_name.ln_number;
 
 	if (test_and_clear_bit(GLF_TRY_TO_EVICT, &gl->gl_flags)) {
 		/*
@@ -1059,6 +1057,9 @@ static void delete_work_func(struct work_struct *work)
 	}
 
 	if (test_and_clear_bit(GLF_VERIFY_DELETE, &gl->gl_flags)) {
+		u64 no_addr = gl->gl_name.ln_number;
+		struct inode *inode;
+
 		inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
 					    GFS2_BLKST_UNLINKED);
 		if (IS_ERR(inode)) {
