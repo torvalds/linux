@@ -945,19 +945,19 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 		case IG_Restore:
 			BitMask = 0x7f;
 			rtl92e_set_bb_reg(dev, rOFDM0_XAAGCCore1, BitMask,
-					 (u32)priv->initgain_backup.xaagccore1);
+					  (u32)priv->initgain_backup.xaagccore1);
 			rtl92e_set_bb_reg(dev, rOFDM0_XBAGCCore1, BitMask,
-					 (u32)priv->initgain_backup.xbagccore1);
+					  (u32)priv->initgain_backup.xbagccore1);
 			rtl92e_set_bb_reg(dev, rOFDM0_XCAGCCore1, BitMask,
-					 (u32)priv->initgain_backup.xcagccore1);
+					  (u32)priv->initgain_backup.xcagccore1);
 			rtl92e_set_bb_reg(dev, rOFDM0_XDAGCCore1, BitMask,
-					 (u32)priv->initgain_backup.xdagccore1);
+					  (u32)priv->initgain_backup.xdagccore1);
 			BitMask  = bMaskByte2;
 			rtl92e_set_bb_reg(dev, rCCK0_CCA, BitMask,
-					 (u32)priv->initgain_backup.cca);
+					  (u32)priv->initgain_backup.cca);
 
 			rtl92e_set_tx_power(dev,
-					 priv->rtllib->current_network.channel);
+					    priv->rtllib->current_network.channel);
 			break;
 		}
 	}
