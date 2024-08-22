@@ -105,15 +105,25 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 
 static int __xe_exec_queue_init(struct xe_exec_queue *q)
 {
+	struct xe_vm *vm = q->vm;
 	int i, err;
+
+	if (vm) {
+		err = xe_vm_lock(vm, true);
+		if (err)
+			return err;
+	}
 
 	for (i = 0; i < q->width; ++i) {
 		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K);
 		if (IS_ERR(q->lrc[i])) {
 			err = PTR_ERR(q->lrc[i]);
-			goto err_lrc;
+			goto err_unlock;
 		}
 	}
+
+	if (vm)
+		xe_vm_unlock(vm);
 
 	err = q->ops->init(q);
 	if (err)
@@ -121,6 +131,9 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 
 	return 0;
 
+err_unlock:
+	if (vm)
+		xe_vm_unlock(vm);
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
 		xe_lrc_put(q->lrc[i]);
@@ -140,15 +153,7 @@ struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *v
 	if (IS_ERR(q))
 		return q;
 
-	if (vm) {
-		err = xe_vm_lock(vm, true);
-		if (err)
-			goto err_post_alloc;
-	}
-
 	err = __xe_exec_queue_init(q);
-	if (vm)
-		xe_vm_unlock(vm);
 	if (err)
 		goto err_post_alloc;
 
@@ -638,7 +643,6 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 
 		if (xe_vm_in_preempt_fence_mode(vm)) {
 			q->lr.context = dma_fence_context_alloc(1);
-			spin_lock_init(&q->lr.lock);
 
 			err = xe_vm_add_compute_exec_queue(vm, q);
 			if (XE_IOCTL_DBG(xe, err))
