@@ -2407,8 +2407,7 @@ static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 
 errout:
 	kfree_skb(skb);
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV4_MROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_MROUTE, err);
 }
 
 static size_t igmpmsg_netlink_msgsize(size_t payloadlen)
