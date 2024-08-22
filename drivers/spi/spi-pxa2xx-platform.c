@@ -63,7 +63,7 @@ static struct ssp_device *pxa2xx_spi_ssp_request(struct platform_device *pdev)
 
 	ssp = pxa_ssp_request(pdev->id, pdev->name);
 	if (!ssp)
-		return ssp;
+		return NULL;
 
 	status = devm_add_action_or_reset(&pdev->dev, pxa2xx_spi_ssp_release, ssp);
 	if (status)
@@ -148,8 +148,6 @@ static int pxa2xx_spi_platform_probe(struct platform_device *pdev)
 		platform_info = pxa2xx_spi_init_pdata(pdev);
 		if (IS_ERR(platform_info))
 			return dev_err_probe(dev, PTR_ERR(platform_info), "missing platform data\n");
-
-		dev->platform_data = platform_info;
 	}
 
 	ssp = pxa2xx_spi_ssp_request(pdev);
@@ -158,7 +156,7 @@ static int pxa2xx_spi_platform_probe(struct platform_device *pdev)
 	if (!ssp)
 		ssp = &platform_info->ssp;
 
-	return pxa2xx_spi_probe(dev, ssp);
+	return pxa2xx_spi_probe(dev, ssp, platform_info);
 }
 
 static void pxa2xx_spi_platform_remove(struct platform_device *pdev)

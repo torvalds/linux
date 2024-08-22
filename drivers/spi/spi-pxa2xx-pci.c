@@ -297,7 +297,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return ret;
 	ssp->irq = pci_irq_vector(dev, 0);
 
-	return pxa2xx_spi_probe(&dev->dev, ssp);
+	return pxa2xx_spi_probe(&dev->dev, ssp, pdata);
 }
 
 static void pxa2xx_spi_pci_remove(struct pci_dev *dev)

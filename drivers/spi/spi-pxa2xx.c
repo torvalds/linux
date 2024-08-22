@@ -1277,16 +1277,15 @@ static size_t pxa2xx_spi_max_dma_transfer_size(struct spi_device *spi)
 	return MAX_DMA_LEN;
 }
 
-int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp)
+int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp,
+		     struct pxa2xx_spi_controller *platform_info)
 {
-	struct pxa2xx_spi_controller *platform_info;
 	struct spi_controller *controller;
 	struct driver_data *drv_data;
 	const struct lpss_config *config;
 	int status;
 	u32 tmp;
 
-	platform_info = dev_get_platdata(dev);
 	if (platform_info->is_target)
 		controller = devm_spi_alloc_target(dev, sizeof(*drv_data));
 	else
