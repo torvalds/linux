@@ -883,6 +883,7 @@ static const struct drm_connector_funcs hdmi_connector_funcs = {
 static int hdmi_get_modes(struct drm_connector *connector)
 {
 	struct hdmi_context *hdata = connector_to_hdmi(connector);
+	const struct drm_display_info *info = &connector->display_info;
 	struct edid *edid;
 	int ret;
 
@@ -893,10 +894,10 @@ static int hdmi_get_modes(struct drm_connector *connector)
 	if (!edid)
 		goto no_edid;
 
-	hdata->dvi_mode = !connector->display_info.is_hdmi;
+	hdata->dvi_mode = !info->is_hdmi;
 	DRM_DEV_DEBUG_KMS(hdata->dev, "%s : width[%d] x height[%d]\n",
 			  (hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
-			  edid->width_cm, edid->height_cm);
+			  info->width_mm / 10, info->height_mm / 10);
 
 	drm_connector_update_edid_property(connector, edid);
 	cec_notifier_set_phys_addr_from_edid(hdata->notifier, edid);
