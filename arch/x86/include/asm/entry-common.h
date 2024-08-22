@@ -8,6 +8,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/io_bitmap.h>
 #include <asm/fpu/api.h>
+#include <asm/fred.h>
 
 /* Check that the stack and regs on entry from user mode are sane. */
 static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
@@ -62,6 +63,8 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 {
 	if (IS_ENABLED(CONFIG_X86_DEBUG_FPU) || unlikely(ti_work))
 		arch_exit_work(ti_work);
+
+	fred_update_rsp0();
 
 #ifdef CONFIG_COMPAT
 	/*

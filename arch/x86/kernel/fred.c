@@ -21,6 +21,9 @@
 
 #define FRED_STKLVL(vector, lvl)	((lvl) << (2 * (vector)))
 
+DEFINE_PER_CPU(unsigned long, fred_rsp0);
+EXPORT_PER_CPU_SYMBOL(fred_rsp0);
+
 void cpu_init_fred_exceptions(void)
 {
 	/* When FRED is enabled by default, remove this log message */
