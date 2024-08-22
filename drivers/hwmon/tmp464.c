@@ -562,18 +562,15 @@ static int tmp464_probe_child_from_dt(struct device *dev,
 static int tmp464_probe_from_dt(struct device *dev, struct tmp464_data *data)
 {
 	const struct device_node *np = dev->of_node;
-	struct device_node *child;
 	int err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 
 		err = tmp464_probe_child_from_dt(dev, child, data);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			return err;
-		}
 	}
 
 	return 0;
