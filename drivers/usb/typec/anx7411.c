@@ -1577,6 +1577,7 @@ static const struct of_device_id anx_match_table[] = {
 	{.compatible = "analogix,anx7411",},
 	{},
 };
+MODULE_DEVICE_TABLE(of, anx_match_table);
 
 static struct i2c_driver anx7411_driver = {
 	.driver = {
