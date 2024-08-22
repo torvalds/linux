@@ -84,16 +84,16 @@ int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap)
 	if (IS_ERR_OR_NULL(pbs))
 		return -EINVAL;
 
-	mutex_lock(&pbs->lock);
+	guard(mutex)(&pbs->lock);
 	ret = regmap_read(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, &val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (val == PBS_CLIENT_SCRATCH2_ERROR) {
 		/* PBS error - clear SCRATCH2 register */
 		ret = regmap_write(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, 0);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	for (bit_pos = 0; bit_pos < 8; bit_pos++) {
@@ -104,37 +104,31 @@ int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap)
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2,
 					 BIT(bit_pos), 0);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Set the PBS sequence bit position */
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1,
 					 BIT(bit_pos), BIT(bit_pos));
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Initiate the SW trigger */
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_TRIG_CTL,
 					 PBS_CLIENT_SW_TRIG_BIT, PBS_CLIENT_SW_TRIG_BIT);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		ret = qcom_pbs_wait_for_ack(pbs, bit_pos);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Clear the PBS sequence bit position */
 		regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, BIT(bit_pos), 0);
 		regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, BIT(bit_pos), 0);
 	}
 
-out_clear_scratch1:
 	/* Clear all the requested bitmap */
-	ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, bitmap, 0);
-
-out:
-	mutex_unlock(&pbs->lock);
-
-	return ret;
+	return regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, bitmap, 0);
 }
 EXPORT_SYMBOL_GPL(qcom_pbs_trigger_event);
 
