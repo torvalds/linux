@@ -901,6 +901,10 @@ struct ntstatus {
 #define STATUS_DEVICE_ENUMERATION_ERROR cpu_to_le32(0xC0000366)
 #define STATUS_MOUNT_POINT_NOT_RESOLVED cpu_to_le32(0xC0000368)
 #define STATUS_INVALID_DEVICE_OBJECT_PARAMETER cpu_to_le32(0xC0000369)
+/*
+ * 'OCCURED' is typo in MS-ERREF, it should be 'OCCURRED',
+ * but we'll keep it consistent with MS-ERREF.
+ */
 #define STATUS_MCA_OCCURED cpu_to_le32(0xC000036A)
 #define STATUS_DRIVER_BLOCKED_CRITICAL cpu_to_le32(0xC000036B)
 #define STATUS_DRIVER_BLOCKED cpu_to_le32(0xC000036C)
