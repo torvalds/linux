@@ -455,21 +455,21 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 			if (separator)
 				ptr += sprintf(ptr, "%c", separator);
 			if (operand->flags & OPERAND_GPR)
-				ptr += sprintf(ptr, "%%r%i", value);
+				ptr += sprintf(ptr, "%%r%u", value);
 			else if (operand->flags & OPERAND_FPR)
-				ptr += sprintf(ptr, "%%f%i", value);
+				ptr += sprintf(ptr, "%%f%u", value);
 			else if (operand->flags & OPERAND_AR)
-				ptr += sprintf(ptr, "%%a%i", value);
+				ptr += sprintf(ptr, "%%a%u", value);
 			else if (operand->flags & OPERAND_CR)
-				ptr += sprintf(ptr, "%%c%i", value);
+				ptr += sprintf(ptr, "%%c%u", value);
 			else if (operand->flags & OPERAND_VR)
-				ptr += sprintf(ptr, "%%v%i", value);
+				ptr += sprintf(ptr, "%%v%u", value);
 			else if (operand->flags & OPERAND_PCREL) {
 				void *pcrel = (void *)((int)value + addr);
 
 				ptr += sprintf(ptr, "%px", pcrel);
 			} else if (operand->flags & OPERAND_SIGNED)
-				ptr += sprintf(ptr, "%i", value);
+				ptr += sprintf(ptr, "%i", (int)value);
 			else
 				ptr += sprintf(ptr, "%u", value);
 			if (operand->flags & OPERAND_DISP)
