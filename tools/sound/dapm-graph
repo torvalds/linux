@@ -134,11 +134,17 @@ process_dapm_widget()
 	    # Collect any links. We could use "in" links or "out" links,
 	    # let's use "in" links
 	    if echo "${line}" | grep -q '^in '; then
+		local w_route=$(echo "$line" | awk -F\" '{print $2}')
 		local w_src=$(echo "$line" |
 				  awk -F\" '{print $6 "_" $4}' |
 				  sed  's/^(null)_/ROOT_/')
 		dbg_echo "     - Input route from: ${w_src}"
-		echo "  \"${w_src}\" -> \"$w_tag\"" >> "${links_file}"
+		dbg_echo "     - Route: ${w_route}"
+		local w_edge_attrs=""
+		if [ "${w_route}" != "static" ]; then
+		    w_edge_attrs=" [label=\"${w_route}\"]"
+		fi
+		echo "  \"${w_src}\" -> \"$w_tag\"${w_edge_attrs}" >> "${links_file}"
 	    fi
 	done
 
@@ -220,7 +226,7 @@ process_dapm_tree()
     echo "digraph G {" > "${dot_file}"
     echo "  fontname=\"sans-serif\"" >> "${dot_file}"
     echo "  node [fontname=\"sans-serif\"]" >> "${dot_file}"
-
+    echo "  edge [fontname=\"sans-serif\"]" >> "${dot_file}"
 
     # Process root directory (no component)
     process_dapm_component "${tmp_dir}" "${dapm_dir}/dapm" "ROOT"
