@@ -336,9 +336,10 @@ static const char *skip_dynamic_pfx(const char *s, const char *pfx)
 }
 
 enum arch {
-	ARCH_X86_64	= 0x1,
-	ARCH_ARM64	= 0x2,
-	ARCH_RISCV64	= 0x4,
+	ARCH_UNKNOWN	= 0x1,
+	ARCH_X86_64	= 0x2,
+	ARCH_ARM64	= 0x4,
+	ARCH_RISCV64	= 0x8,
 };
 
 static int get_current_arch(void)
@@ -350,7 +351,7 @@ static int get_current_arch(void)
 #elif defined(__riscv) && __riscv_xlen == 64
 	return ARCH_RISCV64;
 #endif
-	return 0;
+	return ARCH_UNKNOWN;
 }
 
 /* Uses btf_decl_tag attributes to describe the expected test
