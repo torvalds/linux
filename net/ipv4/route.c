@@ -1263,7 +1263,7 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		struct flowi4 fl4 = {
 			.daddr = iph->daddr,
 			.saddr = iph->saddr,
-			.flowi4_tos = iph->tos & IPTOS_RT_MASK,
+			.flowi4_tos = iph->tos & INET_DSCP_MASK,
 			.flowi4_oif = rt->dst.dev->ifindex,
 			.flowi4_iif = skb->dev->ifindex,
 			.flowi4_mark = skb->mark,
@@ -2160,7 +2160,7 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (rt->rt_type != RTN_LOCAL)
 		goto skip_validate_source;
 
-	tos &= IPTOS_RT_MASK;
+	tos &= INET_DSCP_MASK;
 	err = fib_validate_source(skb, saddr, daddr, tos, 0, dev, in_dev, &tag);
 	if (err < 0)
 		goto martian_source;
@@ -2470,7 +2470,7 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	struct fib_result res;
 	int err;
 
-	tos &= IPTOS_RT_MASK;
+	tos &= INET_DSCP_MASK;
 	rcu_read_lock();
 	err = ip_route_input_rcu(skb, daddr, saddr, tos, dev, &res);
 	rcu_read_unlock();
@@ -3286,7 +3286,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		skb->dev	= dev;
 		skb->mark	= mark;
 		err = ip_route_input_rcu(skb, dst, src,
-					 rtm->rtm_tos & IPTOS_RT_MASK, dev,
+					 rtm->rtm_tos & INET_DSCP_MASK, dev,
 					 &res);
 
 		rt = skb_rtable(skb);
