@@ -366,9 +366,9 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 		xe_bo_runtime_pm_release_mmap_offset(bo);
 	mutex_unlock(&xe->mem_access.vram_userfault.lock);
 
-	if (xe->d3cold.allowed) {
-		xe_display_pm_suspend(xe, true);
+	xe_display_pm_runtime_suspend(xe);
 
+	if (xe->d3cold.allowed) {
 		err = xe_bo_evict_all(xe);
 		if (err)
 			goto out;
@@ -431,12 +431,14 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	for_each_gt(gt, xe, id)
 		xe_gt_resume(gt);
 
+	xe_display_pm_runtime_resume(xe);
+
 	if (xe->d3cold.allowed) {
-		xe_display_pm_resume(xe, true);
 		err = xe_bo_restore_user(xe);
 		if (err)
 			goto out;
 	}
+
 out:
 	lock_map_release(&xe_pm_runtime_lockdep_map);
 	xe_pm_write_callback_task(xe, NULL);

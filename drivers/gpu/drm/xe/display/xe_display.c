@@ -308,6 +308,18 @@ static void xe_display_flush_cleanup_work(struct xe_device *xe)
 	}
 }
 
+/* TODO: System and runtime suspend/resume sequences will be sanitized as a follow-up. */
+void xe_display_pm_runtime_suspend(struct xe_device *xe)
+{
+	if (!xe->info.probe_display)
+		return;
+
+	if (xe->d3cold.allowed)
+		xe_display_pm_suspend(xe, true);
+
+	intel_hpd_poll_enable(xe);
+}
+
 void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 {
 	struct intel_display *display = &xe->display;
@@ -352,6 +364,17 @@ void xe_display_pm_suspend_late(struct xe_device *xe)
 	intel_power_domains_suspend(xe, s2idle);
 
 	intel_display_power_suspend_late(xe);
+}
+
+void xe_display_pm_runtime_resume(struct xe_device *xe)
+{
+	if (!xe->info.probe_display)
+		return;
+
+	intel_hpd_poll_disable(xe);
+
+	if (xe->d3cold.allowed)
+		xe_display_pm_resume(xe, true);
 }
 
 void xe_display_pm_resume_early(struct xe_device *xe)
