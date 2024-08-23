@@ -59,7 +59,7 @@ __jited("	movq	-0x10(%rbp), %rax")
 __jited("	callq	0x{{.*}}")		/* call to sub()          */
 __jited("	xorl	%eax, %eax")
 __jited("	leave")
-__jited("	retq")
+__jited("	{{(retq|jmp	0x)}}")		/* return or jump to rethunk */
 __jited("...")
 /* subprogram entry for sub(), regular function prologue */
 __jited("	endbr64")
@@ -89,7 +89,7 @@ __jited("	popq	%rax")
 __jited("	popq	%rax")
 __jited("	jmp	{{.*}}")		/* jump to tail call tgt   */
 __jited("L0:	leave")
-__jited("	retq")
+__jited("	{{(retq|jmp	0x)}}")		/* return or jump to rethunk */
 SEC("tc")
 __naked int main(void)
 {
