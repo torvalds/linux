@@ -8,6 +8,8 @@
 
 set -eu
 
+STYLE_COMPONENT_ON="color=dodgerblue;style=bold"
+STYLE_COMPONENT_OFF="color=gray40;style=filled;fillcolor=gray90"
 STYLE_NODE_ON="shape=box,style=bold,color=green4"
 STYLE_NODE_OFF="shape=box,style=filled,color=gray30,fillcolor=gray95"
 
@@ -159,6 +161,7 @@ process_dapm_component()
     local is_component=0
     local dot_file="${tmp_dir}/main.dot"
     local links_file="${tmp_dir}/links.dot"
+    local c_attribs=""
 
     if [ -z "${c_name}" ]; then
 	is_component=1
@@ -166,15 +169,27 @@ process_dapm_component()
 	# Extract directory name into component name:
 	#   "./cs42l51.0-004a/dapm" -> "cs42l51.0-004a"
 	c_name="$(basename $(dirname "${c_dir}"))"
+    fi
+
+    dbg_echo " * Component: ${c_name}"
+
+    if [ ${is_component} = 1 ]; then
+	if [ -f "${c_dir}/bias_level" ]; then
+	    c_onoff=$(sed -n -e 1p "${c_dir}/bias_level" | awk '{print $1}')
+	    dbg_echo "   - bias_level: ${c_onoff}"
+	    if [ "$c_onoff" = "On" ]; then
+		c_attribs="${STYLE_COMPONENT_ON}"
+	    elif [ "$c_onoff" = "Off" ]; then
+		c_attribs="${STYLE_COMPONENT_OFF}"
+	    fi
+	fi
 
 	echo ""                           >> "${dot_file}"
 	echo "  subgraph \"${c_name}\" {" >> "${dot_file}"
 	echo "    cluster = true"         >> "${dot_file}"
 	echo "    label = \"${c_name}\""  >> "${dot_file}"
-	echo "    color=dodgerblue"       >> "${dot_file}"
+	echo "    ${c_attribs}"           >> "${dot_file}"
     fi
-
-    dbg_echo " * Component: ${c_name}"
 
     # Create empty file to ensure it will exist in all cases
     >"${links_file}"
