@@ -371,6 +371,7 @@ static void rcu_dump_cpu_stacks(void)
 	struct rcu_node *rnp;
 
 	rcu_for_each_leaf_node(rnp) {
+		printk_deferred_enter();
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		for_each_leaf_node_possible_cpu(rnp, cpu)
 			if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
@@ -380,6 +381,7 @@ static void rcu_dump_cpu_stacks(void)
 					dump_cpu_task(cpu);
 			}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		printk_deferred_exit();
 	}
 }
 
