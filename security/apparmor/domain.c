@@ -680,12 +680,17 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			/* hack ix fallback - improve how this is detected */
 			goto audit;
 		} else if (!new) {
-			error = -EACCES;
 			info = "profile transition not found";
-			/* remove MAY_EXEC to audit as failure */
+			/* remove MAY_EXEC to audit as failure or complaint */
 			perms.allow &= ~MAY_EXEC;
+			if (COMPLAIN_MODE(profile)) {
+				/* create null profile instead of failing */
+				goto create_learning_profile;
+			}
+			error = -EACCES;
 		}
 	} else if (COMPLAIN_MODE(profile)) {
+create_learning_profile:
 		/* no exec permission - learning mode */
 		struct aa_profile *new_profile = NULL;
 
