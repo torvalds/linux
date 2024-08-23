@@ -518,7 +518,7 @@ struct spl_in	{
 	bool is_hdr_on;
 	int h_active;
 	int v_active;
-	int hdr_multx100;
+	int sdr_white_level_nits;
 };
 // end of SPL inputs
 

@@ -191,14 +191,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	 */
 	spl_in->is_fullscreen = dm_helpers_is_fullscreen(pipe_ctx->stream->ctx, pipe_ctx->stream);
 	spl_in->is_hdr_on = dm_helpers_is_hdr_on(pipe_ctx->stream->ctx, pipe_ctx->stream);
-	spl_in->hdr_multx100 = 0;
-	if (spl_in->is_hdr_on) {
-		spl_in->hdr_multx100 = (uint32_t)dc_fixpt_floor(dc_fixpt_mul(plane_state->hdr_mult,
-			dc_fixpt_from_int(100)));
-		/* Disable sharpness for HDR Mult > 6.0 */
-		if (spl_in->hdr_multx100 > 600)
-			spl_in->adaptive_sharpness.enable = false;
-	}
+	spl_in->sdr_white_level_nits = plane_state->sdr_white_level_nits;
 }
 
 /// @brief Translate SPL output parameters to pipe context

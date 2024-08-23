@@ -2596,6 +2596,12 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 			elevate_update_type(&overall_type, UPDATE_TYPE_MED);
 		}
 
+	if (u->sdr_white_level_nits)
+		if (u->sdr_white_level_nits != u->surface->sdr_white_level_nits) {
+			update_flags->bits.sdr_white_level_nits = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL);
+		}
+
 	if (u->cm2_params) {
 		if ((u->cm2_params->component_settings.shaper_3dlut_setting
 					!= u->surface->mcm_shaper_3dlut_setting)
@@ -2875,6 +2881,10 @@ static void copy_surface_update_to_plane(
 	if (srf_update->hdr_mult.value)
 		surface->hdr_mult =
 				srf_update->hdr_mult;
+
+	if (srf_update->sdr_white_level_nits)
+		surface->sdr_white_level_nits =
+				srf_update->sdr_white_level_nits;
 
 	if (srf_update->blend_tf)
 		memcpy(&surface->blend_tf, srf_update->blend_tf,
@@ -4679,6 +4689,8 @@ static bool full_update_required(struct dc *dc,
 				srf_updates[i].scaling_info ||
 				(srf_updates[i].hdr_mult.value &&
 				srf_updates[i].hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
+				(srf_updates[i].sdr_white_level_nits &&
+				srf_updates[i].sdr_white_level_nits != srf_updates->surface->sdr_white_level_nits) ||
 				srf_updates[i].in_transfer_func ||
 				srf_updates[i].func_shaper ||
 				srf_updates[i].lut3d_func ||

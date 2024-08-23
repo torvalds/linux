@@ -1155,14 +1155,19 @@ static void spl_set_dscl_prog_data(struct spl_in *spl_in, struct spl_scratch *sp
 }
 
 /* Calculate C0-C3 coefficients based on HDR_mult */
-static void spl_calculate_c0_c3_hdr(struct dscl_prog_data *dscl_prog_data, uint32_t hdr_multx100)
+static void spl_calculate_c0_c3_hdr(struct dscl_prog_data *dscl_prog_data, uint32_t sdr_white_level_nits)
 {
 	struct spl_fixed31_32 hdr_mult, c0_mult, c1_mult, c2_mult;
 	struct spl_fixed31_32 c0_calc, c1_calc, c2_calc;
 	struct spl_custom_float_format fmt;
+	uint32_t hdr_multx100_int;
 
-	SPL_ASSERT(hdr_multx100);
-	hdr_mult = spl_fixpt_from_fraction((long long)hdr_multx100, 100LL);
+	if ((sdr_white_level_nits >= 80) && (sdr_white_level_nits <= 480))
+		hdr_multx100_int = sdr_white_level_nits * 100 / 80;
+	else
+		hdr_multx100_int = 100; /* default for 80 nits otherwise */
+
+	hdr_mult = spl_fixpt_from_fraction((long long)hdr_multx100_int, 100LL);
 	c0_mult = spl_fixpt_from_fraction(2126LL, 10000LL);
 	c1_mult = spl_fixpt_from_fraction(7152LL, 10000LL);
 	c2_mult = spl_fixpt_from_fraction(722LL, 10000LL);
@@ -1191,7 +1196,7 @@ static void spl_calculate_c0_c3_hdr(struct dscl_prog_data *dscl_prog_data, uint3
 static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *spl_out, bool enable_easf_v,
 	bool enable_easf_h, enum linear_light_scaling lls_pref,
 	enum spl_pixel_format format, enum system_setup setup,
-	uint32_t hdr_multx100)
+	uint32_t sdr_white_level_nits)
 {
 	struct dscl_prog_data *dscl_prog_data = spl_out->dscl_prog_data;
 	if (enable_easf_v) {
@@ -1499,7 +1504,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 		dscl_prog_data->easf_ltonl_en = 1;	// Linear input
 		if ((setup == HDR_L) && (spl_is_rgb8(format))) {
 			/* Calculate C0-C3 coefficients based on HDR multiplier */
-			spl_calculate_c0_c3_hdr(dscl_prog_data, hdr_multx100);
+			spl_calculate_c0_c3_hdr(dscl_prog_data, sdr_white_level_nits);
 		} else { // HDR_L ( DWM ) and SDR_L
 			dscl_prog_data->easf_matrix_c0 =
 				0x4EF7;	// fp1.5.10, C0 coefficient (LN_rec709:  0.2126 * (2^14)/125 = 27.86590720)
@@ -1750,7 +1755,7 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 
 	// Set EASF
 	spl_set_easf_data(&spl_scratch, spl_out, enable_easf_v, enable_easf_h, spl_in->lls_pref,
-		spl_in->basic_in.format, setup, spl_in->hdr_multx100);
+		spl_in->basic_in.format, setup, spl_in->sdr_white_level_nits);
 
 	// Set iSHARP
 	vratio = spl_fixpt_ceil(spl_scratch.scl_data.ratios.vert);

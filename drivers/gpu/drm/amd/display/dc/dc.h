@@ -1269,6 +1269,7 @@ union surface_update_flags {
 		uint32_t tmz_changed:1;
 		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
 		uint32_t full_update:1;
+		uint32_t sdr_white_level_nits:1;
 	} bits;
 
 	uint32_t raw;
@@ -1351,6 +1352,7 @@ struct dc_plane_state {
 	bool adaptive_sharpness_en;
 	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
+	unsigned int sdr_white_level_nits;
 };
 
 struct dc_plane_info {
@@ -1508,6 +1510,7 @@ struct dc_surface_update {
 	 */
 	struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
+	unsigned int sdr_white_level_nits;
 };
 
 /*
