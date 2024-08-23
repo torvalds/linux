@@ -6744,11 +6744,17 @@
 			event, and all events under the "initcall" system.
 
 			Flags can be added to the instance to modify its behavior when it is
-			created. The flags are separated by '^'. Currently there's only one flag
-			defined, and that's "traceoff", to have the tracing instance tracing
-			disabled after it is created.
+			created. The flags are separated by '^'.
 
-				trace_instance=foo^traceoff,sched,irq
+			The available flags are:
+
+			    traceoff	- Have the tracing instance tracing disabled after it is created.
+			    traceprintk	- Have trace_printk() write into this trace instance
+					  (note, "printk" and "trace_printk" can also be used)
+					  Currently, traceprintk flag cannot be used for memory
+					  mapped ring buffers as described below.
+
+				trace_instance=foo^traceoff^traceprintk,sched,irq
 
 			The flags must come before the defined events.
 

@@ -500,6 +500,8 @@ static struct trace_array global_trace = {
 	.trace_flags = TRACE_DEFAULT_FLAGS,
 };
 
+static struct trace_array *printk_trace = &global_trace;
+
 void trace_set_ring_buffer_expanded(struct trace_array *tr)
 {
 	if (!tr)
@@ -1117,7 +1119,7 @@ EXPORT_SYMBOL_GPL(__trace_array_puts);
  */
 int __trace_puts(unsigned long ip, const char *str, int size)
 {
-	return __trace_array_puts(&global_trace, ip, str, size);
+	return __trace_array_puts(printk_trace, ip, str, size);
 }
 EXPORT_SYMBOL_GPL(__trace_puts);
 
@@ -1128,6 +1130,7 @@ EXPORT_SYMBOL_GPL(__trace_puts);
  */
 int __trace_bputs(unsigned long ip, const char *str)
 {
+	struct trace_array *tr = printk_trace;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
 	struct bputs_entry *entry;
@@ -1135,14 +1138,14 @@ int __trace_bputs(unsigned long ip, const char *str)
 	int size = sizeof(struct bputs_entry);
 	int ret = 0;
 
-	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
+	if (!(tr->trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	if (unlikely(tracing_selftest_running || tracing_disabled))
 		return 0;
 
 	trace_ctx = tracing_gen_ctx();
-	buffer = global_trace.array_buffer.buffer;
+	buffer = tr->array_buffer.buffer;
 
 	ring_buffer_nest_start(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
@@ -1155,7 +1158,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	entry->str			= str;
 
 	__buffer_unlock_commit(buffer, event);
-	ftrace_trace_stack(&global_trace, buffer, trace_ctx, 4, NULL);
+	ftrace_trace_stack(tr, buffer, trace_ctx, 4, NULL);
 
 	ret = 1;
  out:
@@ -3025,7 +3028,7 @@ void trace_dump_stack(int skip)
 	/* Skip 1 to skip this function. */
 	skip++;
 #endif
-	__ftrace_trace_stack(global_trace.array_buffer.buffer,
+	__ftrace_trace_stack(printk_trace->array_buffer.buffer,
 			     tracing_gen_ctx(), skip, NULL);
 }
 EXPORT_SYMBOL_GPL(trace_dump_stack);
@@ -3244,7 +3247,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	struct trace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
-	struct trace_array *tr = &global_trace;
+	struct trace_array *tr = printk_trace;
 	struct bprint_entry *entry;
 	unsigned int trace_ctx;
 	char *tbuffer;
@@ -3342,7 +3345,7 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	memcpy(&entry->buf, tbuffer, len + 1);
 	if (!call_filter_check_discard(call, entry, buffer, event)) {
 		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(&global_trace, buffer, trace_ctx, 6, NULL);
+		ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
 	}
 
 out:
@@ -3438,7 +3441,7 @@ int trace_array_printk_buf(struct trace_buffer *buffer,
 	int ret;
 	va_list ap;
 
-	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
+	if (!(printk_trace->trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	va_start(ap, fmt);
@@ -3450,7 +3453,7 @@ int trace_array_printk_buf(struct trace_buffer *buffer,
 __printf(2, 0)
 int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	return trace_array_vprintk(&global_trace, ip, fmt, args);
+	return trace_array_vprintk(printk_trace, ip, fmt, args);
 }
 EXPORT_SYMBOL_GPL(trace_vprintk);
 
@@ -9666,6 +9669,9 @@ static int __remove_instance(struct trace_array *tr)
 			set_tracer_flag(tr, 1 << i, 0);
 	}
 
+	if (printk_trace == tr)
+		printk_trace = &global_trace;
+
 	tracing_set_nop(tr);
 	clear_ftrace_function_probes(tr);
 	event_trace_del_tracer(tr);
@@ -10468,6 +10474,7 @@ __init static void enable_instances(void)
 		phys_addr_t start = 0;
 		phys_addr_t size = 0;
 		unsigned long addr = 0;
+		bool traceprintk = false;
 		bool traceoff = false;
 		char *flag_delim;
 		char *addr_delim;
@@ -10489,11 +10496,16 @@ __init static void enable_instances(void)
 			char *flag;
 
 			while ((flag = strsep(&flag_delim, "^"))) {
-				if (strcmp(flag, "traceoff") == 0)
+				if (strcmp(flag, "traceoff") == 0) {
 					traceoff = true;
-				else
+				} else if ((strcmp(flag, "printk") == 0) ||
+					   (strcmp(flag, "traceprintk") == 0) ||
+					   (strcmp(flag, "trace_printk") == 0)) {
+					traceprintk = true;
+				} else {
 					pr_info("Tracing: Invalid instance flag '%s' for %s\n",
 						flag, name);
+				}
 			}
 		}
 
@@ -10547,6 +10559,18 @@ __init static void enable_instances(void)
 
 		if (traceoff)
 			tracer_tracing_off(tr);
+
+		if (traceprintk) {
+			/*
+			 * The binary format of traceprintk can cause a crash if used
+			 * by a buffer from another boot. Do not allow it for the
+			 * memory mapped ring buffers.
+			 */
+			if (start)
+				pr_warn("Tracing: WARNING: memory mapped ring buffers cannot be used for trace_printk\n");
+			else
+				printk_trace = tr;
+		}
 
 		/* Only allow non mapped buffers to be deleted */
 		if (!start)
