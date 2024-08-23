@@ -1591,10 +1591,13 @@ static enum print_line_t trace_print_print(struct trace_iterator *iter,
 {
 	struct print_entry *field;
 	struct trace_seq *s = &iter->seq;
+	unsigned long ip;
 
 	trace_assign_type(field, iter->ent);
 
-	seq_print_ip_sym(s, field->ip, flags);
+	ip = field->ip + iter->tr->text_delta;
+
+	seq_print_ip_sym(s, ip, flags);
 	trace_seq_printf(s, ": %s", field->buf);
 
 	return trace_handle_return(s);

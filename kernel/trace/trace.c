@@ -502,6 +502,17 @@ static struct trace_array global_trace = {
 
 static struct trace_array *printk_trace = &global_trace;
 
+static __always_inline bool printk_binsafe(struct trace_array *tr)
+{
+	/*
+	 * The binary format of traceprintk can cause a crash if used
+	 * by a buffer from another boot. Force the use of the
+	 * non binary version of trace_printk if the trace_printk
+	 * buffer is a boot mapped ring buffer.
+	 */
+	return !(tr->flags & TRACE_ARRAY_FL_BOOT);
+}
+
 void trace_set_ring_buffer_expanded(struct trace_array *tr)
 {
 	if (!tr)
@@ -1130,13 +1141,16 @@ EXPORT_SYMBOL_GPL(__trace_puts);
  */
 int __trace_bputs(unsigned long ip, const char *str)
 {
-	struct trace_array *tr = printk_trace;
+	struct trace_array *tr = READ_ONCE(printk_trace);
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
 	struct bputs_entry *entry;
 	unsigned int trace_ctx;
 	int size = sizeof(struct bputs_entry);
 	int ret = 0;
+
+	if (!printk_binsafe(tr))
+		return __trace_puts(ip, str, strlen(str));
 
 	if (!(tr->trace_flags & TRACE_ITER_PRINTK))
 		return 0;
@@ -3247,11 +3261,14 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	struct trace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
-	struct trace_array *tr = printk_trace;
+	struct trace_array *tr = READ_ONCE(printk_trace);
 	struct bprint_entry *entry;
 	unsigned int trace_ctx;
 	char *tbuffer;
 	int len = 0, size;
+
+	if (!printk_binsafe(tr))
+		return trace_vprintk(ip, fmt, args);
 
 	if (unlikely(tracing_selftest_running || tracing_disabled))
 		return 0;
@@ -10560,20 +10577,17 @@ __init static void enable_instances(void)
 		if (traceoff)
 			tracer_tracing_off(tr);
 
-		if (traceprintk) {
-			/*
-			 * The binary format of traceprintk can cause a crash if used
-			 * by a buffer from another boot. Do not allow it for the
-			 * memory mapped ring buffers.
-			 */
-			if (start)
-				pr_warn("Tracing: WARNING: memory mapped ring buffers cannot be used for trace_printk\n");
-			else
-				printk_trace = tr;
-		}
+		if (traceprintk)
+			printk_trace = tr;
 
-		/* Only allow non mapped buffers to be deleted */
-		if (!start)
+		/*
+		 * If start is set, then this is a mapped buffer, and
+		 * cannot be deleted by user space, so keep the reference
+		 * to it.
+		 */
+		if (start)
+			tr->flags |= TRACE_ARRAY_FL_BOOT;
+		else
 			trace_array_put(tr);
 
 		while ((tok = strsep(&curr_str, ","))) {

@@ -429,7 +429,8 @@ struct trace_array {
 };
 
 enum {
-	TRACE_ARRAY_FL_GLOBAL	= (1 << 0)
+	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
+	TRACE_ARRAY_FL_BOOT	= BIT(1),
 };
 
 extern struct list_head ftrace_trace_arrays;

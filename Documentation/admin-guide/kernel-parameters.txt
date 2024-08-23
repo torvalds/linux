@@ -6751,8 +6751,6 @@
 			    traceoff	- Have the tracing instance tracing disabled after it is created.
 			    traceprintk	- Have trace_printk() write into this trace instance
 					  (note, "printk" and "trace_printk" can also be used)
-					  Currently, traceprintk flag cannot be used for memory
-					  mapped ring buffers as described below.
 
 				trace_instance=foo^traceoff^traceprintk,sched,irq
 
@@ -6785,7 +6783,7 @@
 			mix with events of the current boot (unless you are debugging a random crash
 			at boot up).
 
-				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff@trace,sched,irq
+				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff^traceprintk@trace,sched,irq
 
 
 	trace_options=[option-list]
