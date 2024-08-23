@@ -1090,8 +1090,7 @@ static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
 		    info->nlh, gfp_any());
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(info->nl_net, RTNLGRP_NEXTHOP, err);
+	rtnl_set_sk_err(info->nl_net, RTNLGRP_NEXTHOP, err);
 }
 
 static unsigned long nh_res_bucket_used_time(const struct nh_res_bucket *bucket)
@@ -1211,8 +1210,7 @@ static void nexthop_bucket_notify(struct nh_res_table *res_table,
 	rtnl_notify(skb, nh->net, 0, RTNLGRP_NEXTHOP, NULL, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(nh->net, RTNLGRP_NEXTHOP, err);
+	rtnl_set_sk_err(nh->net, RTNLGRP_NEXTHOP, err);
 }
 
 static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
