@@ -472,6 +472,17 @@ static void __inode_add_lru(struct inode *inode, bool rotate)
 		inode->i_state |= I_REFERENCED;
 }
 
+struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
+					    struct inode *inode, u32 bit)
+{
+        void *bit_address;
+
+        bit_address = inode_state_wait_address(inode, bit);
+        init_wait_var_entry(wqe, bit_address, 0);
+        return __var_waitqueue(bit_address);
+}
+EXPORT_SYMBOL(inode_bit_waitqueue);
+
 /*
  * Add inode to LRU if needed (inode is unused and clean).
  *
