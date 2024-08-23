@@ -39,8 +39,6 @@
 #include <drm/drm_cache.h>
 #include <drm/drm_vma_manager.h>
 
-#include "display/intel_display.h"
-
 #include "gem/i915_gem_clflush.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
