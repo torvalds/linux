@@ -53,16 +53,13 @@ do {								\
 do {								\
 	typeof(_mask) (_m) = (_mask);				\
 	cmdq_pkt_poll_mask(&((cmd)->pkt), id,			\
-		(base) + (ofst), (val), (_m));			\
+		(base) + (ofst), (val),				\
+		(((_m) & (ofst##_MASK)) == (ofst##_MASK)) ?	\
+			(0xffffffff) : (_m));			\
 } while (0)
 
-#define MM_REG_POLL(cmd, id, base, ofst, val, mask)		\
-do {								\
-	typeof(mask) (m) = (mask);				\
-	MM_REG_POLL_MASK((cmd), id, base, ofst, val,		\
-		(((m) & (ofst##_MASK)) == (ofst##_MASK)) ?	\
-			(0xffffffff) : (m));			\
-} while (0)
+#define MM_REG_POLL(cmd, id, base, ofst, val)			\
+	cmdq_pkt_poll(&((cmd)->pkt), id, (base) + (ofst), (val))
 
 enum mtk_mdp_comp_id {
 	MDP_COMP_NONE = -1,	/* Invalid engine */
