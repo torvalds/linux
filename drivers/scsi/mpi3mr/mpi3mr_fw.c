@@ -2760,8 +2760,8 @@ void mpi3mr_start_watchdog(struct mpi3mr_ioc *mrioc)
 	snprintf(mrioc->watchdog_work_q_name,
 	    sizeof(mrioc->watchdog_work_q_name), "watchdog_%s%d", mrioc->name,
 	    mrioc->id);
-	mrioc->watchdog_work_q =
-	    create_singlethread_workqueue(mrioc->watchdog_work_q_name);
+	mrioc->watchdog_work_q = alloc_ordered_workqueue(
+		"%s", WQ_MEM_RECLAIM, mrioc->watchdog_work_q_name);
 	if (!mrioc->watchdog_work_q) {
 		ioc_err(mrioc, "%s: failed (line=%d)\n", __func__, __LINE__);
 		return;
