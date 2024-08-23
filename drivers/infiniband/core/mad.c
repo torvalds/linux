@@ -2939,7 +2939,6 @@ static int ib_mad_port_open(struct ib_device *device,
 	int ret, cq_size;
 	struct ib_mad_port_private *port_priv;
 	unsigned long flags;
-	char name[sizeof "ib_mad123"];
 	int has_smi;
 
 	if (WARN_ON(rdma_max_mad_size(device, port_num) < IB_MGMT_MAD_SIZE))
@@ -2992,8 +2991,8 @@ static int ib_mad_port_open(struct ib_device *device,
 			goto error7;
 	}
 
-	snprintf(name, sizeof(name), "ib_mad%u", port_num);
-	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
+	port_priv->wq = alloc_ordered_workqueue("ib_mad%u", WQ_MEM_RECLAIM,
+						port_num);
 	if (!port_priv->wq) {
 		ret = -ENOMEM;
 		goto error8;
