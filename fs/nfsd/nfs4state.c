@@ -8837,7 +8837,6 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct file_lock_context *ctx;
 	struct file_lease *fl;
-	struct nfs4_delegation *dp;
 	struct iattr attrs;
 	struct nfs4_cb_fattr *ncf;
 
@@ -8862,7 +8861,8 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 			goto break_lease;
 		}
 		if (type == F_WRLCK) {
-			dp = fl->c.flc_owner;
+			struct nfs4_delegation *dp = fl->c.flc_owner;
+
 			if (dp->dl_recall.cb_clp == *(rqstp->rq_lease_breaker)) {
 				spin_unlock(&ctx->flc_lock);
 				return 0;
@@ -8870,6 +8870,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 break_lease:
 			nfsd_stats_wdeleg_getattr_inc(nn);
 			dp = fl->c.flc_owner;
+			refcount_inc(&dp->dl_stid.sc_count);
 			ncf = &dp->dl_cb_fattr;
 			nfs4_cb_getattr(&dp->dl_cb_fattr);
 			spin_unlock(&ctx->flc_lock);
@@ -8879,8 +8880,10 @@ break_lease:
 				/* Recall delegation only if client didn't respond */
 				status = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
 				if (status != nfserr_jukebox ||
-						!nfsd_wait_for_delegreturn(rqstp, inode))
+						!nfsd_wait_for_delegreturn(rqstp, inode)) {
+					nfs4_put_stid(&dp->dl_stid);
 					return status;
+				}
 			}
 			if (!ncf->ncf_file_modified &&
 					(ncf->ncf_initial_cinfo != ncf->ncf_cb_change ||
@@ -8900,6 +8903,7 @@ break_lease:
 				*size = ncf->ncf_cur_fsize;
 				*modified = true;
 			}
+			nfs4_put_stid(&dp->dl_stid);
 			return 0;
 		}
 		break;
