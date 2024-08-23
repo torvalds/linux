@@ -6785,6 +6785,8 @@
 
 				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff^traceprintk@trace,sched,irq
 
+			See also Documentation/trace/debugging.rst
+
 
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
