@@ -48,9 +48,10 @@ CFLAGS += -g $(OPT_FLAGS) -rdynamic					\
 LDFLAGS += $(SAN_LDFLAGS)
 LDLIBS += $(LIBELF_LIBS) -lz -lrt -lpthread
 
-LDLIBS += $(shell $(PKG_CONFIG) --libs libpcap 2>/dev/null)
-CFLAGS += $(shell $(PKG_CONFIG) --cflags libpcap 2>/dev/null)
-CFLAGS += $(shell $(PKG_CONFIG) --exists libpcap 2>/dev/null && echo "-DTRAFFIC_MONITOR=1")
+PCAP_CFLAGS	:= $(shell $(PKG_CONFIG) --cflags libpcap 2>/dev/null && echo "-DTRAFFIC_MONITOR=1")
+PCAP_LIBS	:= $(shell $(PKG_CONFIG) --libs libpcap 2>/dev/null)
+LDLIBS += $(PCAP_LIBS)
+CFLAGS += $(PCAP_CFLAGS)
 
 # The following tests perform type punning and they may break strict
 # aliasing rules, which are exploited by both GCC and clang by default
