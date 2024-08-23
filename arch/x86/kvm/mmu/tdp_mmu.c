@@ -1590,6 +1590,9 @@ static void recover_huge_pages_range(struct kvm *kvm,
 	u64 huge_spte;
 	int r;
 
+	if (WARN_ON_ONCE(kvm_slot_dirty_track_enabled(slot)))
+		return;
+
 	rcu_read_lock();
 
 	for_each_tdp_pte_min_level(iter, root, PG_LEVEL_2M, start, end) {
