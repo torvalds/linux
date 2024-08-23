@@ -152,7 +152,7 @@ nfsd_file_mark_put(struct nfsd_file_mark *nfm)
 }
 
 static struct nfsd_file_mark *
-nfsd_file_mark_find_or_create(struct nfsd_file *nf, struct inode *inode)
+nfsd_file_mark_find_or_create(struct inode *inode)
 {
 	int			err;
 	struct fsnotify_mark	*mark;
@@ -1078,7 +1078,7 @@ out:
 
 open_file:
 	trace_nfsd_file_alloc(nf);
-	nf->nf_mark = nfsd_file_mark_find_or_create(nf, inode);
+	nf->nf_mark = nfsd_file_mark_find_or_create(inode);
 	if (nf->nf_mark) {
 		if (file) {
 			get_file(file);
