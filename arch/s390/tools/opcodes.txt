@@ -527,7 +527,7 @@ b938	sortl	RRE_RR
 b939	dfltcc	RRF_R0RR2
 b93a	kdsa	RRE_RR
 b93b	nnpa	RRE_00
-b93c	ppno	RRE_RR
+b93c	prno	RRE_RR
 b93e	kimd	RRE_RR
 b93f	klmd	RRE_RR
 b941	cfdtr	RRF_UURF
@@ -1017,12 +1017,12 @@ e7bb	vac	VRR_VVVU0V
 e7bc	vgfma	VRR_VVVU0V
 e7bd	vsbcbi	VRR_VVVU0V
 e7bf	vsbi	VRR_VVVU0V
-e7c0	vclgd	VRR_VV0UUU
-e7c1	vcdlg	VRR_VV0UUU
-e7c2	vcgd	VRR_VV0UUU
-e7c3	vcdg	VRR_VV0UUU
-e7c4	vlde	VRR_VV0UU2
-e7c5	vled	VRR_VV0UUU
+e7c0	vclfp	VRR_VV0UUU
+e7c1	vcfpl	VRR_VV0UUU
+e7c2	vcsfp	VRR_VV0UUU
+e7c3	vcfps	VRR_VV0UUU
+e7c4	vfll	VRR_VV0UU2
+e7c5	vflr	VRR_VV0UUU
 e7c7	vfi	VRR_VV0UUU
 e7ca	wfk	VRR_VV0UU2
 e7cb	wfc	VRR_VV0UU2
