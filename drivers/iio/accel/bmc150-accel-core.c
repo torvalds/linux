@@ -387,7 +387,7 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 						   struct iio_mount_matrix *orientation)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct acpi_device *adev = ACPI_COMPANION(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	char *name, *alt_name, *label;
 
 	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
@@ -398,9 +398,9 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 		label = "accel-display";
 	}
 
-	if (acpi_has_method(adev->handle, "ROTM")) {
+	if (acpi_has_method(handle, "ROTM")) {
 		name = "ROTM";
-	} else if (acpi_has_method(adev->handle, alt_name)) {
+	} else if (acpi_has_method(handle, alt_name)) {
 		name = alt_name;
 		indio_dev->label = label;
 	} else {
