@@ -182,7 +182,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	spin_lock_init(&ct->fast_lock);
 	xa_init(&ct->fence_lookup);
 	INIT_WORK(&ct->g2h_worker, g2h_worker_func);
-	INIT_DELAYED_WORK(&ct->safe_mode_worker,  safe_mode_worker_func);
+	INIT_DELAYED_WORK(&ct->safe_mode_worker, safe_mode_worker_func);
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);
 
@@ -852,7 +852,7 @@ static bool retry_failure(struct xe_guc_ct *ct, int ret)
 #define ct_alive(ct)	\
 	(xe_guc_ct_enabled(ct) && !ct->ctbs.h2g.info.broken && \
 	 !ct->ctbs.g2h.info.broken)
-	if (!wait_event_interruptible_timeout(ct->wq, ct_alive(ct),  HZ * 5))
+	if (!wait_event_interruptible_timeout(ct->wq, ct_alive(ct), HZ * 5))
 		return false;
 #undef ct_alive
 
