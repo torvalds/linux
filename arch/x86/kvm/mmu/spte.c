@@ -262,20 +262,30 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	return wrprot;
 }
 
-static u64 make_spte_executable(u64 spte)
+static u64 modify_spte_protections(u64 spte, u64 set, u64 clear)
 {
 	bool is_access_track = is_access_track_spte(spte);
 
 	if (is_access_track)
 		spte = restore_acc_track_spte(spte);
 
-	spte &= ~shadow_nx_mask;
-	spte |= shadow_x_mask;
+	KVM_MMU_WARN_ON(set & clear);
+	spte = (spte | set) & ~clear;
 
 	if (is_access_track)
 		spte = mark_spte_for_access_track(spte);
 
 	return spte;
+}
+
+static u64 make_spte_executable(u64 spte)
+{
+	return modify_spte_protections(spte, shadow_x_mask, shadow_nx_mask);
+}
+
+static u64 make_spte_nonexecutable(u64 spte)
+{
+	return modify_spte_protections(spte, shadow_nx_mask, shadow_x_mask);
 }
 
 /*
@@ -314,6 +324,26 @@ u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
 	return child_spte;
 }
 
+u64 make_huge_spte(struct kvm *kvm, u64 small_spte, int level)
+{
+	u64 huge_spte;
+
+	KVM_BUG_ON(!is_shadow_present_pte(small_spte) || level == PG_LEVEL_4K, kvm);
+
+	huge_spte = small_spte | PT_PAGE_SIZE_MASK;
+
+	/*
+	 * huge_spte already has the address of the sub-page being collapsed
+	 * from small_spte, so just clear the lower address bits to create the
+	 * huge page address.
+	 */
+	huge_spte &= KVM_HPAGE_MASK(level) | ~PAGE_MASK;
+
+	if (is_nx_huge_page_enabled(kvm))
+		huge_spte = make_spte_nonexecutable(huge_spte);
+
+	return huge_spte;
+}
 
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
