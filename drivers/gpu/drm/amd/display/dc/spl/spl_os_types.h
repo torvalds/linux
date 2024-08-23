@@ -18,7 +18,6 @@
  * general debug capabilities
  *
  */
-// TODO: need backport
 #define SPL_BREAK_TO_DEBUGGER() ASSERT(0)
 
 static inline uint64_t spl_div_u64_rem(uint64_t dividend, uint32_t divisor, uint32_t *remainder)
