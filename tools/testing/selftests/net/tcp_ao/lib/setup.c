@@ -111,7 +111,7 @@ static void sig_int(int signo)
 
 int open_netns(void)
 {
-	const char *netns_path = "/proc/self/ns/net";
+	const char *netns_path = "/proc/thread-self/ns/net";
 	int fd;
 
 	fd = open(netns_path, O_RDONLY);
