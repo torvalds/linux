@@ -288,6 +288,13 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->wlan_gpio),
 				     "Failed to get the WLAN enable GPIO\n");
 
+	/*
+	 * Set direction to output but keep the current value in order to not
+	 * disable the WLAN module accidentally if it's already powered on.
+	 */
+	gpiod_direction_output(ctx->wlan_gpio,
+			       gpiod_get_value_cansleep(ctx->wlan_gpio));
+
 	ctx->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(ctx->clk))
 		return dev_err_probe(dev, PTR_ERR(ctx->clk),
