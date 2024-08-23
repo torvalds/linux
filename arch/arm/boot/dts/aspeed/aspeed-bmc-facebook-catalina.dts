@@ -1024,7 +1024,7 @@
 		"CX_TWARN_CX0_L","CX_TWARN_CX1_L",
 		"CX_OVT_SHDN_CX0","CX_OVT_SHDN_CX1",
 		"FNP_L_CX0","FNP_L_CX1",
-		"","","","";
+		"","MCU_GPIO","MCU_RST_N","MCU_RECOVERY_N";
 };
 
 &io_expander8 {
@@ -1035,7 +1035,7 @@
 		"SEC_CX_TWARN_CX0_L","SEC_CX_TWARN_CX1_L",
 		"SEC_CX_OVT_SHDN_CX0","SEC_CX_OVT_SHDN_CX1",
 		"SEC_FNP_L_CX0","SEC_FNP_L_CX1",
-		"","","","";
+		"","SEC_MCU_GPIO","SEC_MCU_RST_N","SEC_MCU_RECOVERY_N";
 };
 
 &io_expander9 {
