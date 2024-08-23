@@ -583,48 +583,6 @@ static inline int __must_check tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	return 0;
 }
 
-static inline int __must_check tdp_mmu_zap_spte_atomic(struct kvm *kvm,
-						       struct tdp_iter *iter)
-{
-	int ret;
-
-	lockdep_assert_held_read(&kvm->mmu_lock);
-
-	/*
-	 * Freeze the SPTE by setting it to a special, non-present value. This
-	 * will stop other threads from immediately installing a present entry
-	 * in its place before the TLBs are flushed.
-	 *
-	 * Delay processing of the zapped SPTE until after TLBs are flushed and
-	 * the FROZEN_SPTE is replaced (see below).
-	 */
-	ret = __tdp_mmu_set_spte_atomic(iter, FROZEN_SPTE);
-	if (ret)
-		return ret;
-
-	kvm_flush_remote_tlbs_gfn(kvm, iter->gfn, iter->level);
-
-	/*
-	 * No other thread can overwrite the frozen SPTE as they must either
-	 * wait on the MMU lock or use tdp_mmu_set_spte_atomic() which will not
-	 * overwrite the special frozen SPTE value. Use the raw write helper to
-	 * avoid an unnecessary check on volatile bits.
-	 */
-	__kvm_tdp_mmu_write_spte(iter->sptep, SHADOW_NONPRESENT_VALUE);
-
-	/*
-	 * Process the zapped SPTE after flushing TLBs, and after replacing
-	 * FROZEN_SPTE with 0. This minimizes the amount of time vCPUs are
-	 * blocked by the FROZEN_SPTE and reduces contention on the child
-	 * SPTEs.
-	 */
-	handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
-			    SHADOW_NONPRESENT_VALUE, iter->level, true);
-
-	return 0;
-}
-
-
 /*
  * tdp_mmu_set_spte - Set a TDP MMU SPTE and handle the associated bookkeeping
  * @kvm:	      KVM instance
@@ -1596,13 +1554,16 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 	gfn_t end = start + slot->npages;
 	struct tdp_iter iter;
 	int max_mapping_level;
+	bool flush = false;
 
 	rcu_read_lock();
 
 	for_each_tdp_pte_min_level(iter, root, PG_LEVEL_2M, start, end) {
 retry:
-		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
+		if (tdp_mmu_iter_cond_resched(kvm, &iter, flush, true)) {
+			flush = false;
 			continue;
+		}
 
 		if (iter.level > KVM_MAX_HUGEPAGE_LEVEL ||
 		    !is_shadow_present_pte(iter.old_spte))
@@ -1630,10 +1591,14 @@ retry:
 		if (max_mapping_level < iter.level)
 			continue;
 
-		/* Note, a successful atomic zap also does a remote TLB flush. */
-		if (tdp_mmu_zap_spte_atomic(kvm, &iter))
+		if (tdp_mmu_set_spte_atomic(kvm, &iter, SHADOW_NONPRESENT_VALUE))
 			goto retry;
+
+		flush = true;
 	}
+
+	if (flush)
+		kvm_flush_remote_tlbs_memslot(kvm, slot);
 
 	rcu_read_unlock();
 }
