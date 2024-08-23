@@ -69,6 +69,14 @@ properties:
     minItems: 1
     maxItems: 2
 
+  num-viewport:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
+    description:
+      Number of outbound view ports configured in hardware. It's the same as
+      the number of outbound AT windows.
+    maximum: 256
+
 required:
   - compatible
   - reg
