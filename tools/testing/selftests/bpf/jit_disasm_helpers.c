@@ -16,6 +16,11 @@
  */
 #define MAX_LOCAL_LABELS 32
 
+/* Local labels are encoded as 'L42', this requires 4 bytes of storage:
+ * 3 characters + zero byte
+ */
+#define LOCAL_LABEL_LEN 4
+
 static bool llvm_initialized;
 
 struct local_labels {
@@ -23,7 +28,7 @@ struct local_labels {
 	__u32 prog_len;
 	__u32 cnt;
 	__u32 pcs[MAX_LOCAL_LABELS];
-	char names[MAX_LOCAL_LABELS][4];
+	char names[MAX_LOCAL_LABELS][LOCAL_LABEL_LEN];
 };
 
 static const char *lookup_symbol(void *data, uint64_t ref_value, uint64_t *ref_type,
@@ -118,8 +123,14 @@ static int disasm_one_func(FILE *text_out, uint8_t *image, __u32 len)
 	}
 	qsort(labels.pcs, labels.cnt, sizeof(*labels.pcs), cmp_u32);
 	for (i = 0; i < labels.cnt; ++i)
-		/* use (i % 100) to avoid format truncation warning */
-		snprintf(labels.names[i], sizeof(labels.names[i]), "L%d", i % 100);
+		/* gcc is unable to infer upper bound for labels.cnt and assumes
+		 * it to be U32_MAX. U32_MAX takes 10 decimal digits.
+		 * snprintf below prints into labels.names[*],
+		 * which has space only for two digits and a letter.
+		 * To avoid truncation warning use (i % MAX_LOCAL_LABELS),
+		 * which informs gcc about printed value upper bound.
+		 */
+		snprintf(labels.names[i], sizeof(labels.names[i]), "L%d", i % MAX_LOCAL_LABELS);
 
 	/* now print with labels */
 	labels.print_phase = true;
