@@ -70,6 +70,7 @@ config ARM_SCMI_DEBUG_COUNTERS
 	  SCMI monitoring.
 
 source "drivers/firmware/arm_scmi/transports/Kconfig"
+source "drivers/firmware/arm_scmi/vendors/imx/Kconfig"
 
 endif #ARM_SCMI_PROTOCOL
 
