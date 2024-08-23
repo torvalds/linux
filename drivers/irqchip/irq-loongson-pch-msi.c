@@ -278,4 +278,18 @@ int __init pch_msi_acpi_init(struct irq_domain *parent, struct acpi_madt_msi_pic
 
 	return ret;
 }
+
+int __init pch_msi_acpi_init_avec(struct irq_domain *parent)
+{
+	if (pch_msi_handle[0])
+		return 0;
+
+	pch_msi_handle[0] = parent->fwnode;
+	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
+
+	parent->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
+	parent->msi_parent_ops = &pch_msi_parent_ops;
+
+	return 0;
+}
 #endif
