@@ -1827,6 +1827,17 @@ config RTC_DRV_BBNSM
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-bbnsm".
 
+config RTC_DRV_IMX_BBM_SCMI
+	depends on IMX_SCMI_BBM_EXT || COMPILE_TEST
+	default y if ARCH_MXC
+	tristate "NXP i.MX BBM SCMI RTC support"
+	help
+	  If you say yes here you get support for the NXP i.MX BBSM SCMI
+	  RTC module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-imx-sm-bbm.
+
 config RTC_DRV_IMX_SC
 	depends on IMX_SCU
 	depends on HAVE_ARM_SMCCC
