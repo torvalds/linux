@@ -482,7 +482,7 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_export);
 	 TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO |		\
 	 TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |			\
 	 TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS |			\
-	 TRACE_ITER_HASH_PTR)
+	 TRACE_ITER_HASH_PTR | TRACE_ITER_TRACE_PRINTK)
 
 /* trace_options that are only supported by global_trace */
 #define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER_PRINTK |			\
@@ -490,7 +490,7 @@ EXPORT_SYMBOL_GPL(unregister_ftrace_export);
 
 /* trace_flags that are default zero for instances */
 #define ZEROED_TRACE_FLAGS \
-	(TRACE_ITER_EVENT_FORK | TRACE_ITER_FUNC_FORK)
+	(TRACE_ITER_EVENT_FORK | TRACE_ITER_FUNC_FORK | TRACE_ITER_TRACE_PRINTK)
 
 /*
  * The global_trace is the descriptor that holds the top-level tracing
@@ -511,6 +511,16 @@ static __always_inline bool printk_binsafe(struct trace_array *tr)
 	 * buffer is a boot mapped ring buffer.
 	 */
 	return !(tr->flags & TRACE_ARRAY_FL_BOOT);
+}
+
+static void update_printk_trace(struct trace_array *tr)
+{
+	if (printk_trace == tr)
+		return;
+
+	printk_trace->trace_flags &= ~TRACE_ITER_TRACE_PRINTK;
+	printk_trace = tr;
+	tr->trace_flags |= TRACE_ITER_TRACE_PRINTK;
 }
 
 void trace_set_ring_buffer_expanded(struct trace_array *tr)
@@ -5300,7 +5310,8 @@ int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set)
 int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 {
 	if ((mask == TRACE_ITER_RECORD_TGID) ||
-	    (mask == TRACE_ITER_RECORD_CMD))
+	    (mask == TRACE_ITER_RECORD_CMD) ||
+	    (mask == TRACE_ITER_TRACE_PRINTK))
 		lockdep_assert_held(&event_mutex);
 
 	/* do nothing if flag is already set */
@@ -5311,6 +5322,25 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 	if (tr->current_trace->flag_changed)
 		if (tr->current_trace->flag_changed(tr, mask, !!enabled))
 			return -EINVAL;
+
+	if (mask == TRACE_ITER_TRACE_PRINTK) {
+		if (enabled) {
+			update_printk_trace(tr);
+		} else {
+			/*
+			 * The global_trace cannot clear this.
+			 * It's flag only gets cleared if another instance sets it.
+			 */
+			if (printk_trace == &global_trace)
+				return -EINVAL;
+			/*
+			 * An instance must always have it set.
+			 * by default, that's the global_trace instane.
+			 */
+			if (printk_trace == tr)
+				update_printk_trace(&global_trace);
+		}
+	}
 
 	if (enabled)
 		tr->trace_flags |= mask;
@@ -9687,7 +9717,7 @@ static int __remove_instance(struct trace_array *tr)
 	}
 
 	if (printk_trace == tr)
-		printk_trace = &global_trace;
+		update_printk_trace(&global_trace);
 
 	tracing_set_nop(tr);
 	clear_ftrace_function_probes(tr);
@@ -10578,7 +10608,7 @@ __init static void enable_instances(void)
 			tracer_tracing_off(tr);
 
 		if (traceprintk)
-			printk_trace = tr;
+			update_printk_trace(tr);
 
 		/*
 		 * If start is set, then this is a mapped buffer, and
