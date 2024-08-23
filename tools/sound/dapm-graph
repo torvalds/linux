@@ -150,28 +150,31 @@ process_dapm_widget()
 #
 # $1 = temporary work dir
 # $2 = component directory
-# $3 = forced component name (extracted for path if empty)
+# $3 = "ROOT" for the root card directory, empty otherwise
 process_dapm_component()
 {
     local tmp_dir="${1}"
     local c_dir="${2}"
     local c_name="${3}"
+    local is_component=0
     local dot_file="${tmp_dir}/main.dot"
     local links_file="${tmp_dir}/links.dot"
 
     if [ -z "${c_name}" ]; then
+	is_component=1
+
 	# Extract directory name into component name:
 	#   "./cs42l51.0-004a/dapm" -> "cs42l51.0-004a"
 	c_name="$(basename $(dirname "${c_dir}"))"
+
+	echo ""                           >> "${dot_file}"
+	echo "  subgraph \"${c_name}\" {" >> "${dot_file}"
+	echo "    cluster = true"         >> "${dot_file}"
+	echo "    label = \"${c_name}\""  >> "${dot_file}"
+	echo "    color=dodgerblue"       >> "${dot_file}"
     fi
 
     dbg_echo " * Component: ${c_name}"
-
-    echo ""                           >> "${dot_file}"
-    echo "  subgraph \"${c_name}\" {" >> "${dot_file}"
-    echo "    cluster = true"         >> "${dot_file}"
-    echo "    label = \"${c_name}\""  >> "${dot_file}"
-    echo "    color=dodgerblue"       >> "${dot_file}"
 
     # Create empty file to ensure it will exist in all cases
     >"${links_file}"
@@ -181,7 +184,9 @@ process_dapm_component()
 	process_dapm_widget "${tmp_dir}" "${c_name}" "${w_file}"
     done
 
-    echo "  }" >> "${dot_file}"
+    if [ ${is_component} = 1 ]; then
+	echo "  }" >> "${dot_file}"
+    fi
 
     cat "${links_file}" >> "${dot_file}"
 }
