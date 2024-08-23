@@ -989,7 +989,6 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 
 	wcss = rproc->priv;
 	wcss->dev = &pdev->dev;
-	wcss->version = desc->version;
 
 	wcss->version = desc->version;
 	wcss->requires_force_stop = desc->requires_force_stop;
