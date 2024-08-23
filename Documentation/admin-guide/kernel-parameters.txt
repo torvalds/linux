@@ -6743,6 +6743,15 @@
 			the same thing would happen if it was left off). The irq_handler_entry
 			event, and all events under the "initcall" system.
 
+			Flags can be added to the instance to modify its behavior when it is
+			created. The flags are separated by '^'. Currently there's only one flag
+			defined, and that's "traceoff", to have the tracing instance tracing
+			disabled after it is created.
+
+				trace_instance=foo^traceoff,sched,irq
+
+			The flags must come before the defined events.
+
 			If memory has been reserved (see memmap for x86), the instance
 			can use that memory:
 
@@ -6764,6 +6773,14 @@
 			Also note that the layout of the ring buffer data may change between
 			kernel versions where the validator will fail and reset the ring buffer
 			if the layout is not the same as the previous kernel.
+
+			If the ring buffer is used for persistent bootups and has events enabled,
+			it is recommend to disable tracing so that events from a previous boot do not
+			mix with events of the current boot (unless you are debugging a random crash
+			at boot up).
+
+				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff@trace,sched,irq
+
 
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.

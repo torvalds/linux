@@ -10468,10 +10468,36 @@ __init static void enable_instances(void)
 		phys_addr_t start = 0;
 		phys_addr_t size = 0;
 		unsigned long addr = 0;
+		bool traceoff = false;
+		char *flag_delim;
+		char *addr_delim;
 
 		tok = strsep(&curr_str, ",");
-		name = strsep(&tok, "@");
 
+		flag_delim = strchr(tok, '^');
+		addr_delim = strchr(tok, '@');
+
+		if (addr_delim)
+			*addr_delim++ = '\0';
+
+		if (flag_delim)
+			*flag_delim++ = '\0';
+
+		name = tok;
+
+		if (flag_delim) {
+			char *flag;
+
+			while ((flag = strsep(&flag_delim, "^"))) {
+				if (strcmp(flag, "traceoff") == 0)
+					traceoff = true;
+				else
+					pr_info("Tracing: Invalid instance flag '%s' for %s\n",
+						flag, name);
+			}
+		}
+
+		tok = addr_delim;
 		if (tok && isdigit(*tok)) {
 			start = memparse(tok, &tok);
 			if (!start) {
@@ -10518,6 +10544,9 @@ __init static void enable_instances(void)
 			pr_warn("Tracing: Failed to create instance buffer %s\n", curr_str);
 			continue;
 		}
+
+		if (traceoff)
+			tracer_tracing_off(tr);
 
 		/* Only allow non mapped buffers to be deleted */
 		if (!start)
