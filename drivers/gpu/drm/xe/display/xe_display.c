@@ -318,7 +318,8 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
 	if (has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
-		intel_display_driver_disable_user_access(xe);
+		if (!runtime)
+			intel_display_driver_disable_user_access(xe);
 	}
 
 	if (!runtime)
@@ -330,7 +331,7 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	intel_hpd_cancel_work(xe);
 
-	if (has_display(xe))
+	if (!runtime && has_display(xe))
 		intel_display_driver_suspend_access(xe);
 
 	intel_encoder_suspend_all(&xe->display);
@@ -374,7 +375,7 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 	intel_display_driver_init_hw(xe);
 	intel_hpd_init(xe);
 
-	if (has_display(xe))
+	if (!runtime && has_display(xe))
 		intel_display_driver_resume_access(xe);
 
 	/* MST sideband requires HPD interrupts enabled */
@@ -384,7 +385,8 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 
 	if (has_display(xe)) {
 		drm_kms_helper_poll_enable(&xe->drm);
-		intel_display_driver_enable_user_access(xe);
+		if (!runtime)
+			intel_display_driver_enable_user_access(xe);
 	}
 	intel_hpd_poll_disable(xe);
 
