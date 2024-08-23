@@ -122,8 +122,8 @@ static int add_map_configs(struct device *dev, struct pinctrl_map **map,
 	if (WARN_ON(*num_maps == *reserved_maps))
 		return -ENOSPC;
 
-	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
-			      GFP_KERNEL);
+	dup_configs = kmemdup_array(configs, num_configs, sizeof(*dup_configs),
+				    GFP_KERNEL);
 	if (!dup_configs)
 		return -ENOMEM;
 
