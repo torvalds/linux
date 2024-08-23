@@ -242,10 +242,9 @@ static const struct regmap_irq_chip wcd937x_regmap_irq_chip = {
 
 static void wcd937x_reset(struct wcd937x_priv *wcd937x)
 {
-	usleep_range(20, 30);
-
 	gpiod_set_value(wcd937x->reset_gpio, 1);
-
+	usleep_range(20, 30);
+	gpiod_set_value(wcd937x->reset_gpio, 0);
 	usleep_range(20, 30);
 }
 
