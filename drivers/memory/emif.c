@@ -7,6 +7,7 @@
  * Aneesh V <aneesh@ti.com>
  * Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
@@ -68,7 +69,6 @@ struct emif_data {
 
 static struct emif_data *emif1;
 static DEFINE_SPINLOCK(emif_lock);
-static unsigned long	irq_state;
 static LIST_HEAD(device_list);
 
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
@@ -522,18 +522,18 @@ out:
 static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 {
 	u32		old_temp_level;
-	irqreturn_t	ret = IRQ_HANDLED;
+	irqreturn_t	ret;
 	struct emif_custom_configs *custom_configs;
 
-	spin_lock_irqsave(&emif_lock, irq_state);
+	guard(spinlock_irqsave)(&emif_lock);
 	old_temp_level = emif->temperature_level;
 	get_temperature_level(emif);
 
 	if (unlikely(emif->temperature_level == old_temp_level)) {
-		goto out;
+		return IRQ_HANDLED;
 	} else if (!emif->curr_regs) {
 		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
-		goto out;
+		return IRQ_HANDLED;
 	}
 
 	custom_configs = emif->plat_data->custom_configs;
@@ -553,8 +553,7 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 			 * from thread context
 			 */
 			emif->temperature_level = SDRAM_TEMP_VERY_HIGH_SHUTDOWN;
-			ret = IRQ_WAKE_THREAD;
-			goto out;
+			return IRQ_WAKE_THREAD;
 		}
 	}
 
@@ -570,10 +569,9 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 		/* Temperature is going up - handle immediately */
 		setup_temperature_sensitive_regs(emif, emif->curr_regs);
 		do_freq_update();
+		ret = IRQ_HANDLED;
 	}
 
-out:
-	spin_unlock_irqrestore(&emif_lock, irq_state);
 	return ret;
 }
 
@@ -616,6 +614,7 @@ static irqreturn_t emif_interrupt_handler(int irq, void *dev_id)
 static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 {
 	struct emif_data	*emif = dev_id;
+	unsigned long		irq_state;
 
 	if (emif->temperature_level == SDRAM_TEMP_VERY_HIGH_SHUTDOWN) {
 		dev_emerg(emif->dev, "SDRAM temperature exceeds operating limit.. Needs shut down!!!\n");
