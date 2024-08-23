@@ -17,6 +17,8 @@
 #include <linux/syscore_ops.h>
 #include <asm/numa.h>
 
+#include "irq-loongson.h"
+
 #define EIOINTC_REG_NODEMAP	0x14a0
 #define EIOINTC_REG_IPMAP	0x14c0
 #define EIOINTC_REG_ENABLE	0x1600

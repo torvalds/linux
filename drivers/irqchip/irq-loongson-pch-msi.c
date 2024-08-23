@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include "irq-msi-lib.h"
+#include "irq-loongson.h"
 
 static int nr_pics;
 

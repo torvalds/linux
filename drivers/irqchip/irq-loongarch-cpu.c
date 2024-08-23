@@ -13,6 +13,8 @@
 #include <asm/loongarch.h>
 #include <asm/setup.h>
 
+#include "irq-loongson.h"
+
 static struct irq_domain *irq_domain;
 struct fwnode_handle *cpuintc_handle;
 

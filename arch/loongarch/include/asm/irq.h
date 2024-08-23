@@ -88,20 +88,6 @@ struct acpi_madt_bio_pic;
 struct acpi_madt_msi_pic;
 struct acpi_madt_lpc_pic;
 
-int liointc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_lio_pic *acpi_liointc);
-int eiointc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_eio_pic *acpi_eiointc);
-
-int htvec_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_ht_pic *acpi_htvec);
-int pch_lpc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_lpc_pic *acpi_pchlpc);
-int pch_msi_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_msi_pic *acpi_pchmsi);
-int pch_pic_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_bio_pic *acpi_pchpic);
-int find_pch_pic(u32 gsi);
 struct fwnode_handle *get_pch_msi_handle(int pci_segment);
 
 extern struct acpi_madt_lio_pic *acpi_liointc;
