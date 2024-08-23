@@ -116,6 +116,12 @@ static int has_vrfs(int *err)
 	return ret;
 }
 
+static int has_ftrace(int *err)
+{
+	*err = test_setup_tracing();
+	return 0;
+}
+
 #define KCONFIG_UNKNOWN			1
 static pthread_mutex_t kconfig_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct kconfig_t kconfig[__KCONFIG_LAST__] = {
@@ -124,6 +130,7 @@ static struct kconfig_t kconfig[__KCONFIG_LAST__] = {
 	{ KCONFIG_UNKNOWN, has_tcp_ao },
 	{ KCONFIG_UNKNOWN, has_tcp_md5 },
 	{ KCONFIG_UNKNOWN, has_vrfs },
+	{ KCONFIG_UNKNOWN, has_ftrace },
 };
 
 const char *tests_skip_reason[__KCONFIG_LAST__] = {
@@ -132,6 +139,7 @@ const char *tests_skip_reason[__KCONFIG_LAST__] = {
 	"Tests require TCP-AO support (CONFIG_TCP_AO)",
 	"setsockopt(TCP_MD5SIG_EXT) is not supported (CONFIG_TCP_MD5)",
 	"VRFs are not supported (CONFIG_NET_VRF)",
+	"Ftrace points are not supported (CONFIG_TRACEPOINTS)",
 };
 
 bool kernel_config_has(enum test_needs_kconfig k)

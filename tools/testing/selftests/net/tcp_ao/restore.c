@@ -208,22 +208,36 @@ static void *client_fn(void *arg)
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.snt_isn += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong send ISN", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT, TEST_CNT_BAD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.rcv_isn += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong receive ISN", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT, TEST_CNT_BAD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.snd_sne += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	/* not expecting server => client mismatches as only snd sne is broken */
 	test_sk_restore("TCP-AO with wrong send SEQ ext number", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT,
 			TEST_CNT_NS_BAD | TEST_CNT_GOOD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.rcv_sne += 1;
+	/* not expecting client => server mismatches as only rcv sne is broken */
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong receive SEQ ext number", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT,
 			TEST_CNT_NS_GOOD | TEST_CNT_BAD);
@@ -233,6 +247,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(20, server_fn, client_fn);
+	test_init(21, server_fn, client_fn);
 	return 0;
 }

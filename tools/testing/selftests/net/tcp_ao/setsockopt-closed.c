@@ -830,6 +830,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(120, client_fn, NULL);
+	test_init(121, client_fn, NULL);
 	return 0;
 }

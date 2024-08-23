@@ -674,24 +674,38 @@ static void *client_fn(void *arg)
 
 	try_connect("AO server (INADDR_ANY): AO client", port++, NULL, 0,
 		    &addr_any, 0, 100, 100, 0, 0, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (INADDR_ANY): unsigned client", port++, NULL, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &this_ip_addr);
 	try_connect("AO server (AO_REQUIRED): AO client", port++, NULL, 0,
 		    &addr_any, 0, 100, 100, 0, 0, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &client2);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("MD5 server (INADDR_ANY): AO client", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 	try_connect("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, 0, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("MD5 server (INADDR_ANY): no sign client", port++, NULL, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("no sign server: AO client", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("no sign server: MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 	try_connect("no sign server: no sign client", port++, NULL, 0,
@@ -699,25 +713,37 @@ static void *client_fn(void *arg)
 
 	try_connect("AO+MD5 server: AO client (matching)", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, 0, 1, &client2);
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("AO+MD5 server: AO client (misconfig, matching MD5)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &this_ip_addr);
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, client3, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("AO+MD5 server: AO client (misconfig, non-matching)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &client3);
 	try_connect("AO+MD5 server: MD5 client (matching)", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, 0, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: MD5 client (misconfig, matching AO)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, client3,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: MD5 client (misconfig, non-matching)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client3);
 	try_connect("AO+MD5 server: no sign client (unmatched)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, 0, 1, &client3);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: no sign client (misconfig, matching AO)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
+	trace_hash_event_expect(TCP_HASH_MD5_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: no sign client (misconfig, matching MD5)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &this_ip_addr);
@@ -739,6 +765,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(72, server_fn, client_fn);
+	test_init(73, server_fn, client_fn);
 	return 0;
 }

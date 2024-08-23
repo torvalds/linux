@@ -250,9 +250,9 @@ void __test_init(unsigned int ntests, int family, unsigned int prefix,
 	test_print("rand seed %u", (unsigned int)seed);
 	srand(seed);
 
-
 	ksft_print_header();
 	init_namespaces();
+	test_init_ftrace(nsfd_parent, nsfd_child);
 
 	if (add_veth(veth_name, nsfd_parent, nsfd_child))
 		test_error("Failed to add veth");

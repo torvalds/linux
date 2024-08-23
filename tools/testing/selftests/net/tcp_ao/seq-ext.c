@@ -116,6 +116,14 @@ static void *server_fn(void *arg)
 	sk = test_sk_restore(&img, &ao_img, &saddr, this_ip_dest,
 			     client_new_port, &ao1);
 
+	trace_ao_event_sne_expect(TCP_AO_SND_SNE_UPDATE, this_ip_addr,
+			this_ip_dest, test_server_port + 1, client_new_port, 1);
+	trace_ao_event_sne_expect(TCP_AO_SND_SNE_UPDATE, this_ip_dest,
+			this_ip_addr, client_new_port, test_server_port + 1, 1);
+	trace_ao_event_sne_expect(TCP_AO_RCV_SNE_UPDATE, this_ip_addr,
+			this_ip_dest, test_server_port + 1, client_new_port, 1);
+	trace_ao_event_sne_expect(TCP_AO_RCV_SNE_UPDATE, this_ip_dest,
+			this_ip_addr, client_new_port, test_server_port + 1, 1);
 	synchronize_threads(); /* 5: verify the connection during SEQ-number rollover */
 	bytes = test_server_run(sk, quota, TEST_TIMEOUT_SEC);
 	if (bytes != quota) {
@@ -242,6 +250,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(7, server_fn, client_fn);
+	test_init(8, server_fn, client_fn);
 	return 0;
 }
