@@ -33,6 +33,39 @@ static void get_cpu_machine_subfuntions(struct kvm_vm *vm,
 	TEST_ASSERT(!r, "Get cpu subfunctions failed r=%d errno=%d", r, errno);
 }
 
+/* Testing Crypto Perform Random Number Operation (PRNO) CPU subfunction's ASM block */
+static void test_prno_asm_block(u8 (*query)[16])
+{
+	asm volatile("	la	%%r1,%[query]\n"
+			"	xgr	%%r0,%%r0\n"
+			"	.insn	rre,0xb93c0000,2,4\n"
+			: [query] "=R" (*query)
+			:
+			: "cc", "r0", "r1");
+}
+
+/* Testing Crypto Cipher Message with Authentication (KMA) CPU subfunction's ASM block */
+static void test_kma_asm_block(u8 (*query)[16])
+{
+	asm volatile("	la	%%r1,%[query]\n"
+			"	xgr	%%r0,%%r0\n"
+			"	.insn	rrf,0xb9290000,2,4,6,0\n"
+			: [query] "=R" (*query)
+			:
+			: "cc", "r0", "r1");
+}
+
+/* Testing Crypto Compute Digital Signature Authentication (KDSA) CPU subfunction's ASM block */
+static void test_kdsa_asm_block(u8 (*query)[16])
+{
+	asm volatile("	la	%%r1,%[query]\n"
+			"	xgr	%%r0,%%r0\n"
+			"	.insn	rre,0xb93a0000,0,2\n"
+			: [query] "=R" (*query)
+			:
+			: "cc", "r0", "r1");
+}
+
 /* Testing Sort Lists (SORTL) CPU subfunction's ASM block */
 static void test_sortl_asm_block(u8 (*query)[32])
 {
@@ -64,6 +97,12 @@ struct testdef {
 	testfunc_t test;
 	int facility_bit;
 } testlist[] = {
+	/* MSA5 - Facility bit 57 */
+	{ "PPNO", cpu_subfunc.ppno, sizeof(cpu_subfunc.ppno), test_prno_asm_block, 57 },
+	/* MSA8 - Facility bit 146 */
+	{ "KMA", cpu_subfunc.kma, sizeof(cpu_subfunc.kma), test_kma_asm_block, 146 },
+	/* MSA9 - Facility bit 155 */
+	{ "KDSA", cpu_subfunc.kdsa, sizeof(cpu_subfunc.kdsa), test_kdsa_asm_block, 155 },
 	/* SORTL - Facility bit 150 */
 	{ "SORTL", cpu_subfunc.sortl, sizeof(cpu_subfunc.sortl), test_sortl_asm_block, 150 },
 	/* DFLTCC - Facility bit 151 */
