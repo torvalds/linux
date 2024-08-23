@@ -115,24 +115,40 @@ static bool __rcu_pending_has_pending(struct rcu_pending_pcpu *p)
 static void rcu_pending_list_merge(struct rcu_pending_list *l1,
 				   struct rcu_pending_list *l2)
 {
+#ifdef __KERNEL__
 	if (!l1->head)
 		l1->head = l2->head;
 	else
 		l1->tail->next = l2->head;
-	l1->tail = l2->tail;
+#else
+	if (!l1->head)
+		l1->head = l2->head;
+	else
+		l1->tail->next.next = (void *) l2->head;
+#endif
 
+	l1->tail = l2->tail;
 	l2->head = l2->tail = NULL;
 }
 
 static void rcu_pending_list_add(struct rcu_pending_list *l,
 				 struct rcu_head *n)
 {
+#ifdef __KERNEL__
 	if (!l->head)
 		l->head = n;
 	else
 		l->tail->next = n;
 	l->tail = n;
 	n->next = NULL;
+#else
+	if (!l->head)
+		l->head = n;
+	else
+		l->tail->next.next = (void *) n;
+	l->tail = n;
+	n->next.next = NULL;
+#endif
 }
 
 static void merge_expired_lists(struct rcu_pending_pcpu *p)
@@ -143,6 +159,19 @@ static void merge_expired_lists(struct rcu_pending_pcpu *p)
 		if (i->head && __poll_state_synchronize_rcu(p->parent->srcu, i->seq))
 			rcu_pending_list_merge(expired, i);
 }
+
+#ifndef __KERNEL__
+static inline void kfree_bulk(size_t nr, void ** p)
+{
+	while (nr--)
+		kfree(*p);
+}
+
+#define local_irq_save(flags)		\
+do {					\
+	flags = 0;			\
+} while (0)
+#endif
 
 static noinline void __process_finished_items(struct rcu_pending *pending,
 					      struct rcu_pending_pcpu *p,
@@ -177,7 +206,11 @@ static noinline void __process_finished_items(struct rcu_pending *pending,
 
 		while (list) {
 			struct rcu_head *obj = list;
+#ifdef __KERNEL__
 			list = obj->next;
+#else
+			list = (void *) obj->next.next;
+#endif
 
 			/*
 			 * low bit of pointer indicates whether rcu_head needs
@@ -204,7 +237,11 @@ static noinline void __process_finished_items(struct rcu_pending *pending,
 
 		while (list) {
 			struct rcu_head *obj = list;
+#ifdef __KERNEL__
 			list = obj->next;
+#else
+			list = (void *) obj->next.next;
+#endif
 			obj->func(obj);
 		}
 		break;
@@ -216,7 +253,11 @@ static noinline void __process_finished_items(struct rcu_pending *pending,
 
 		while (list) {
 			struct rcu_head *obj = list;
+#ifdef __KERNEL__
 			list = obj->next;
+#else
+			list = (void *) obj->next.next;
+#endif
 			pending->process(pending, obj);
 		}
 		break;
@@ -265,11 +306,13 @@ static void rcu_pending_rcu_cb(struct rcu_head *rcu)
 
 	unsigned long flags;
 	spin_lock_irqsave(&p->lock, flags);
-	if (__rcu_pending_has_pending(p))
+	if (__rcu_pending_has_pending(p)) {
+		spin_unlock_irqrestore(&p->lock, flags);
 		__call_rcu(p->parent->srcu, &p->cb, rcu_pending_rcu_cb);
-	else
+	} else {
 		p->cb_armed = false;
-	spin_unlock_irqrestore(&p->lock, flags);
+		spin_unlock_irqrestore(&p->lock, flags);
+	}
 }
 
 static __always_inline struct rcu_pending_seq *
@@ -489,7 +532,11 @@ static struct rcu_head *rcu_pending_pcpu_dequeue(struct rcu_pending_pcpu *p)
 	static_array_for_each(p->lists, i)
 		if (i->head) {
 			ret = i->head;
+#ifdef __KERNEL__
 			i->head = ret->next;
+#else
+			i->head = (void *) ret->next.next;
+#endif
 			if (!i->head)
 				i->tail = NULL;
 			goto out;
