@@ -5519,11 +5519,12 @@ union bpf_attr {
  *		**-EOPNOTSUPP** if the hash calculation failed or **-EINVAL** if
  *		invalid arguments are passed.
  *
- * void *bpf_kptr_xchg(void *map_value, void *ptr)
+ * void *bpf_kptr_xchg(void *dst, void *ptr)
  *	Description
- *		Exchange kptr at pointer *map_value* with *ptr*, and return the
- *		old value. *ptr* can be NULL, otherwise it must be a referenced
- *		pointer which will be released when this helper is called.
+ *		Exchange kptr at pointer *dst* with *ptr*, and return the old value.
+ *		*dst* can be map value or local kptr. *ptr* can be NULL, otherwise
+ *		it must be a referenced pointer which will be released when this helper
+ *		is called.
  *	Return
  *		The old value of kptr (which can be NULL). The returned pointer
  *		if not NULL, is a reference which must be released using its
