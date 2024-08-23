@@ -10,16 +10,16 @@
 #include "mtk-mdp3-cmdq.h"
 
 #define MM_REG_WRITE_MASK(cmd, id, base, ofst, val, mask)	\
-	cmdq_pkt_write_mask(&((cmd)->pkt), id,			\
-		(base) + (ofst), (val), (mask))
-
-#define MM_REG_WRITE(cmd, id, base, ofst, val, mask)		\
 do {								\
 	typeof(mask) (m) = (mask);				\
-	MM_REG_WRITE_MASK(cmd, id, base, ofst, val,		\
+	cmdq_pkt_write_mask(&((cmd)->pkt), id, (base) + (ofst),	\
+			    (val),				\
 		(((m) & (ofst##_MASK)) == (ofst##_MASK)) ?	\
 			(0xffffffff) : (m));			\
 } while (0)
+
+#define MM_REG_WRITE(cmd, id, base, ofst, val)			\
+	cmdq_pkt_write(&((cmd)->pkt), id, (base) + (ofst), (val))
 
 #define MM_REG_WAIT(cmd, evt)					\
 do {								\
