@@ -295,8 +295,8 @@ static u64 make_spte_nonexecutable(u64 spte)
  * This is used during huge page splitting to build the SPTEs that make up the
  * new page table.
  */
-u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
-			      union kvm_mmu_page_role role, int index)
+u64 make_small_spte(struct kvm *kvm, u64 huge_spte,
+		    union kvm_mmu_page_role role, int index)
 {
 	u64 child_spte = huge_spte;
 
