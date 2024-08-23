@@ -321,14 +321,11 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 	 */
 	intel_power_domains_disable(xe);
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
-	if (has_display(xe)) {
+	if (!runtime && has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
-		if (!runtime)
-			intel_display_driver_disable_user_access(xe);
-	}
-
-	if (!runtime)
+		intel_display_driver_disable_user_access(xe);
 		intel_display_driver_suspend(xe);
+	}
 
 	xe_display_flush_cleanup_work(xe);
 
@@ -387,15 +384,12 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 
 	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(xe);
-	if (!runtime)
+	if (!runtime && has_display(xe)) {
 		intel_display_driver_resume(xe);
-
-	if (has_display(xe)) {
 		drm_kms_helper_poll_enable(&xe->drm);
-		if (!runtime)
-			intel_display_driver_enable_user_access(xe);
+		intel_display_driver_enable_user_access(xe);
+		intel_hpd_poll_disable(xe);
 	}
-	intel_hpd_poll_disable(xe);
 
 	intel_opregion_resume(display);
 
