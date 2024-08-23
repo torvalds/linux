@@ -53,14 +53,18 @@ static struct xe_user_fence *user_fence_create(struct xe_device *xe, u64 addr,
 					       u64 value)
 {
 	struct xe_user_fence *ufence;
+	u64 __user *ptr = u64_to_user_ptr(addr);
+
+	if (!access_ok(ptr, sizeof(ptr)))
+		return ERR_PTR(-EFAULT);
 
 	ufence = kmalloc(sizeof(*ufence), GFP_KERNEL);
 	if (!ufence)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ufence->xe = xe;
 	kref_init(&ufence->refcount);
-	ufence->addr = u64_to_user_ptr(addr);
+	ufence->addr = ptr;
 	ufence->value = value;
 	ufence->mm = current->mm;
 	mmgrab(ufence->mm);
@@ -183,8 +187,8 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		} else {
 			sync->ufence = user_fence_create(xe, sync_in.addr,
 							 sync_in.timeline_value);
-			if (XE_IOCTL_DBG(xe, !sync->ufence))
-				return -ENOMEM;
+			if (XE_IOCTL_DBG(xe, IS_ERR(sync->ufence)))
+				return PTR_ERR(sync->ufence);
 		}
 
 		break;

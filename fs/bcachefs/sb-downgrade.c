@@ -72,7 +72,10 @@
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_required_bad,	\
 	  BCH_FSCK_ERR_accounting_key_replicas_devs_unsorted,	\
-	  BCH_FSCK_ERR_accounting_key_junk_at_end)
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
+	x(disk_accounting_inum,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\
@@ -104,6 +107,7 @@
 	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
 	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
 	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_accounting_replicas_not_marked,		\
 	  BCH_FSCK_ERR_bkey_version_in_future)
 
 struct upgrade_downgrade_entry {

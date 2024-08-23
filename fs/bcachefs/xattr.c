@@ -70,17 +70,16 @@ const struct bch_hash_desc bch2_xattr_hash_desc = {
 	.cmp_bkey	= xattr_cmp_bkey,
 };
 
-int bch2_xattr_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bch_validate_flags flags,
-		       struct printbuf *err)
+int bch2_xattr_validate(struct bch_fs *c, struct bkey_s_c k,
+		       enum bch_validate_flags flags)
 {
 	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 	unsigned val_u64s = xattr_val_u64s(xattr.v->x_name_len,
 					   le16_to_cpu(xattr.v->x_val_len));
 	int ret = 0;
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) < val_u64s, c, err,
-			 xattr_val_size_too_small,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) < val_u64s,
+			 c, xattr_val_size_too_small,
 			 "value too small (%zu < %u)",
 			 bkey_val_u64s(k.k), val_u64s);
 
@@ -88,17 +87,17 @@ int bch2_xattr_invalid(struct bch_fs *c, struct bkey_s_c k,
 	val_u64s = xattr_val_u64s(xattr.v->x_name_len,
 				  le16_to_cpu(xattr.v->x_val_len) + 4);
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) > val_u64s, c, err,
-			 xattr_val_size_too_big,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > val_u64s,
+			 c, xattr_val_size_too_big,
 			 "value too big (%zu > %u)",
 			 bkey_val_u64s(k.k), val_u64s);
 
-	bkey_fsck_err_on(!bch2_xattr_type_to_handler(xattr.v->x_type), c, err,
-			 xattr_invalid_type,
+	bkey_fsck_err_on(!bch2_xattr_type_to_handler(xattr.v->x_type),
+			 c, xattr_invalid_type,
 			 "invalid type (%u)", xattr.v->x_type);
 
-	bkey_fsck_err_on(memchr(xattr.v->x_name, '\0', xattr.v->x_name_len), c, err,
-			 xattr_name_invalid_chars,
+	bkey_fsck_err_on(memchr(xattr.v->x_name, '\0', xattr.v->x_name_len),
+			 c, xattr_name_invalid_chars,
 			 "xattr name has invalid characters");
 fsck_err:
 	return ret;
