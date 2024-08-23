@@ -112,6 +112,9 @@ DECLARE_RESTRICTED_HOOK(android_rvh_madvise_pageout_end,
 DECLARE_RESTRICTED_HOOK(android_rvh_reclaim_folio_list,
 			TP_PROTO(struct list_head *folio_list, void *private),
 			TP_ARGS(folio_list, private), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_mapping_shrinkable,
+			TP_PROTO(bool *shrinkable),
+			TP_ARGS(shrinkable), 1);
 DECLARE_HOOK(android_vh_smaps_pte_entry,
 	TP_PROTO(swp_entry_t entry, unsigned long *writeback,
 		unsigned long *same, unsigned long *huge),
