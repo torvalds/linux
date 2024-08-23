@@ -587,11 +587,13 @@ static bool soc15_need_reset_on_resume(struct amdgpu_device *adev)
 	 * 2) S3 suspend abort and TOS already launched.
 	 */
 	if (adev->flags & AMD_IS_APU && adev->in_s3 &&
-			!adev->suspend_complete &&
-			sol_reg)
+			sol_reg) {
+		adev->suspend_complete = false;
 		return true;
-
-	return false;
+	} else {
+		adev->suspend_complete = true;
+		return false;
+	}
 }
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
