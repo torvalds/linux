@@ -264,16 +264,6 @@ struct mmc_cqe_ops {
 	void	(*cqe_recovery_finish)(struct mmc_host *host);
 };
 
-struct mmc_async_req {
-	/* active mmc request */
-	struct mmc_request	*mrq;
-	/*
-	 * Check error status of completed mmc request.
-	 * Returns 0 if success otherwise non zero.
-	 */
-	enum mmc_blk_status (*err_check)(struct mmc_card *, struct mmc_async_req *);
-};
-
 /**
  * struct mmc_slot - MMC slot functions
  *
