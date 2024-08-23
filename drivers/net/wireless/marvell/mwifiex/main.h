@@ -799,7 +799,7 @@ struct mwifiex_auto_tdls_peer {
 	u8 mac_addr[ETH_ALEN];
 	u8 tdls_status;
 	int rssi;
-	long rssi_jiffies;
+	unsigned long rssi_jiffies;
 	u8 failure_count;
 	u8 do_discover;
 	u8 do_setup;
