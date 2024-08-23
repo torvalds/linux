@@ -2156,7 +2156,7 @@ struct rapl_package *rapl_find_package_domain_cpuslocked(int id, struct rapl_if_
 		      topology_physical_package_id(id) : topology_logical_die_id(id);
 		if (uid < 0) {
 			pr_err("topology_logical_(package/die)_id() returned a negative value");
-			return ERR_PTR(-EINVAL);
+			return NULL;
 		}
 	}
 	else
