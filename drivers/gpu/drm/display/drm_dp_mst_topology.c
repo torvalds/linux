@@ -5569,7 +5569,6 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_check_mgr);
  * drm_dp_atomic_release_time_slots()
  *
  * Returns:
- *
  * 0 if the new state is valid, negative error code otherwise.
  */
 int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
@@ -5606,7 +5605,6 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
  * topology object.
  *
  * RETURNS:
- *
  * The MST topology state or error pointer.
  */
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
@@ -5626,7 +5624,6 @@ EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
  * topology object.
  *
  * Returns:
- *
  * The old MST topology state, or NULL if there's no topology state for this MST mgr
  * in the global atomic state
  */
@@ -5651,7 +5648,6 @@ EXPORT_SYMBOL(drm_atomic_get_old_mst_topology_state);
  * topology object.
  *
  * Returns:
- *
  * The new MST topology state, or NULL if there's no topology state for this MST mgr
  * in the global atomic state
  */
