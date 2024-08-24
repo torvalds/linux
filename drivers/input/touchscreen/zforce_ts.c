@@ -95,9 +95,7 @@ struct zforce_point {
  * @suspending		in the process of going to suspend (don't emit wakeup
  *			events for commands executed to suspend the device)
  * @suspended		device suspended
- * @access_mutex	serialize i2c-access, to keep multipart reads together
  * @command_done	completion to wait for the command result
- * @command_mutex	serialize commands sent to the ic
  * @command_waiting	the id of the command that is currently waiting
  *			for a result
  * @command_result	returned result of the command
@@ -123,10 +121,7 @@ struct zforce_ts {
 	u16			version_build;
 	u16			version_rev;
 
-	struct mutex		access_mutex;
-
 	struct completion	command_done;
-	struct mutex		command_mutex;
 	int			command_waiting;
 	int			command_result;
 };
@@ -143,9 +138,7 @@ static int zforce_command(struct zforce_ts *ts, u8 cmd)
 	buf[1] = 1; /* data size, command only */
 	buf[2] = cmd;
 
-	mutex_lock(&ts->access_mutex);
 	ret = i2c_master_send(client, &buf[0], ARRAY_SIZE(buf));
-	mutex_unlock(&ts->access_mutex);
 	if (ret < 0) {
 		dev_err(&client->dev, "i2c send data request error: %d\n", ret);
 		return ret;
@@ -169,37 +162,24 @@ static int zforce_send_wait(struct zforce_ts *ts, const char *buf, int len)
 	struct i2c_client *client = ts->client;
 	int ret;
 
-	ret = mutex_trylock(&ts->command_mutex);
-	if (!ret) {
-		dev_err(&client->dev, "already waiting for a command\n");
-		return -EBUSY;
-	}
-
 	dev_dbg(&client->dev, "sending %d bytes for command 0x%x\n",
 		buf[1], buf[2]);
 
 	ts->command_waiting = buf[2];
 
-	mutex_lock(&ts->access_mutex);
 	ret = i2c_master_send(client, buf, len);
-	mutex_unlock(&ts->access_mutex);
 	if (ret < 0) {
 		dev_err(&client->dev, "i2c send data request error: %d\n", ret);
-		goto unlock;
+		return ret;;
 	}
 
 	dev_dbg(&client->dev, "waiting for result for command 0x%x\n", buf[2]);
 
-	if (wait_for_completion_timeout(&ts->command_done, WAIT_TIMEOUT) == 0) {
-		ret = -ETIME;
-		goto unlock;
-	}
+	if (wait_for_completion_timeout(&ts->command_done, WAIT_TIMEOUT) == 0)
+		return -ETIME;
 
 	ret = ts->command_result;
-
-unlock:
-	mutex_unlock(&ts->command_mutex);
-	return ret;
+	return 0;
 }
 
 static int zforce_command_wait(struct zforce_ts *ts, u8 cmd)
@@ -412,41 +392,35 @@ static int zforce_read_packet(struct zforce_ts *ts, u8 *buf)
 	struct i2c_client *client = ts->client;
 	int ret;
 
-	mutex_lock(&ts->access_mutex);
-
 	/* read 2 byte message header */
 	ret = i2c_master_recv(client, buf, 2);
 	if (ret < 0) {
 		dev_err(&client->dev, "error reading header: %d\n", ret);
-		goto unlock;
+		return ret;
 	}
 
 	if (buf[PAYLOAD_HEADER] != FRAME_START) {
 		dev_err(&client->dev, "invalid frame start: %d\n", buf[0]);
-		ret = -EIO;
-		goto unlock;
+		return -EIO;
 	}
 
 	if (buf[PAYLOAD_LENGTH] == 0) {
 		dev_err(&client->dev, "invalid payload length: %d\n",
 			buf[PAYLOAD_LENGTH]);
-		ret = -EIO;
-		goto unlock;
+		return -EIO;
 	}
 
 	/* read the message */
 	ret = i2c_master_recv(client, &buf[PAYLOAD_BODY], buf[PAYLOAD_LENGTH]);
 	if (ret < 0) {
 		dev_err(&client->dev, "error reading payload: %d\n", ret);
-		goto unlock;
+		return ret;
 	}
 
 	dev_dbg(&client->dev, "read %d bytes for response command 0x%x\n",
 		buf[PAYLOAD_LENGTH], buf[PAYLOAD_BODY]);
 
-unlock:
-	mutex_unlock(&ts->access_mutex);
-	return ret;
+	return 0;
 }
 
 static void zforce_complete(struct zforce_ts *ts, int cmd, int result)
@@ -800,9 +774,6 @@ static int zforce_probe(struct i2c_client *client)
 		dev_err(&client->dev, "could not allocate input device\n");
 		return -ENOMEM;
 	}
-
-	mutex_init(&ts->access_mutex);
-	mutex_init(&ts->command_mutex);
 
 	ts->client = client;
 	ts->input = input_dev;
