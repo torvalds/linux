@@ -826,7 +826,11 @@ static int zforce_probe(struct i2c_client *client)
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR, 0,
 			     ZFORCE_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
-	input_mt_init_slots(input_dev, ZFORCE_REPORT_POINTS, INPUT_MT_DIRECT);
+
+	ret = input_mt_init_slots(input_dev, ZFORCE_REPORT_POINTS,
+				  INPUT_MT_DIRECT);
+	if (ret)
+		return ret;
 
 	input_set_drvdata(ts->input, ts);
 
