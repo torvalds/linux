@@ -346,13 +346,11 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 	}
 
 	/* Create a mixer item for selecting the active profile */
-	name = devm_kzalloc(tas_priv->dev, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-		GFP_KERNEL);
+	name = devm_kstrdup(tas_priv->dev, "Speaker Profile Id", GFP_KERNEL);
 	if (!name) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "Speaker Profile Id");
 	prof_ctrls[mix_index].name = name;
 	prof_ctrls[mix_index].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	prof_ctrls[mix_index].info = tasdevice_info_profile;
@@ -441,18 +439,13 @@ static int tasdevice_dsp_create_ctrls(struct tasdevice_priv *tas_priv)
 		goto out;
 	}
 
-	/* Create a mixer item for selecting the active profile */
-	prog_name = devm_kzalloc(tas_priv->dev,
-		SNDRV_CTL_ELEM_ID_NAME_MAXLEN, GFP_KERNEL);
-	conf_name = devm_kzalloc(tas_priv->dev, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+	/* Create mixer items for selecting the active Program and Config */
+	prog_name = devm_kstrdup(tas_priv->dev, "Speaker Program Id",
 		GFP_KERNEL);
-	if (!prog_name || !conf_name) {
+	if (!prog_name) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	scnprintf(prog_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-		"Speaker Program Id");
 	dsp_ctrls[mix_index].name = prog_name;
 	dsp_ctrls[mix_index].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	dsp_ctrls[mix_index].info = tasdevice_info_programs;
@@ -460,8 +453,12 @@ static int tasdevice_dsp_create_ctrls(struct tasdevice_priv *tas_priv)
 	dsp_ctrls[mix_index].put = tasdevice_program_put;
 	mix_index++;
 
-	scnprintf(conf_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-		"Speaker Config Id");
+	conf_name = devm_kstrdup(tas_priv->dev, "Speaker Config Id",
+		GFP_KERNEL);
+	if (!conf_name) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	dsp_ctrls[mix_index].name = conf_name;
 	dsp_ctrls[mix_index].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	dsp_ctrls[mix_index].info = tasdevice_info_configurations;
