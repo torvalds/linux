@@ -5853,7 +5853,7 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 
 	/*
 	 * Now that the deleg is set, check again to ensure that nothing
-	 * raced in and changed the mode while we weren't lookng.
+	 * raced in and changed the mode while we weren't looking.
 	 */
 	status = nfsd4_verify_setuid_write(open, fp->fi_deleg_file);
 	if (status)
@@ -8326,7 +8326,7 @@ out:
  * @cstate: NFSv4 COMPOUND state
  * @u: RELEASE_LOCKOWNER arguments
  *
- * Check if theree are any locks still held and if not - free the lockowner
+ * Check if there are any locks still held and if not, free the lockowner
  * and any lock state that is owned.
  *
  * Return values:
