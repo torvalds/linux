@@ -386,10 +386,8 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 		/* the zforce id starts with "1", so needs to be decreased */
 		input_mt_slot(ts->input, point.id - 1);
 
-		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER,
-						point.state != STATE_UP);
-
-		if (point.state != STATE_UP) {
+		if (input_mt_report_slot_state(ts->input, MT_TOOL_FINGER,
+					       point.state != STATE_UP)) {
 			touchscreen_report_pos(ts->input, &ts->prop,
 					       point.coord_x, point.coord_y,
 					       true);
