@@ -146,16 +146,6 @@ static int zforce_command(struct zforce_ts *ts, u8 cmd)
 	return 0;
 }
 
-static void zforce_reset_assert(struct zforce_ts *ts)
-{
-	gpiod_set_value_cansleep(ts->gpio_rst, 1);
-}
-
-static void zforce_reset_deassert(struct zforce_ts *ts)
-{
-	gpiod_set_value_cansleep(ts->gpio_rst, 0);
-}
-
 static int zforce_send_wait(struct zforce_ts *ts, const char *buf, int len)
 {
 	struct i2c_client *client = ts->client;
@@ -672,7 +662,7 @@ static void zforce_reset(void *data)
 {
 	struct zforce_ts *ts = data;
 
-	zforce_reset_assert(ts);
+	gpiod_set_value_cansleep(ts->gpio_rst, 1);
 	udelay(10);
 }
 
@@ -807,7 +797,7 @@ static int zforce_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ts);
 
 	/* let the controller boot */
-	zforce_reset_deassert(ts);
+	gpiod_set_value_cansleep(ts->gpio_rst, 0);
 
 	ts->command_waiting = NOTIFICATION_BOOTCOMPLETE;
 	if (wait_for_completion_timeout(&ts->command_done, WAIT_TIMEOUT) == 0)
