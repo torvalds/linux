@@ -578,17 +578,13 @@ static void zforce_input_close(struct input_dev *dev)
 	return;
 }
 
-static int zforce_suspend(struct device *dev)
+static int __zforce_suspend(struct zforce_ts *ts)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct zforce_ts *ts = i2c_get_clientdata(client);
+	struct i2c_client *client = ts->client;
 	struct input_dev *input = ts->input;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&input->mutex);
-
-	WRITE_ONCE(ts->suspending, true);
-	smp_mb();
+	guard(mutex)(&input->mutex);
 
 	/*
 	 * When configured as a wakeup source device should always wake
@@ -601,7 +597,7 @@ static int zforce_suspend(struct device *dev)
 		if (!input_device_enabled(input)) {
 			ret = zforce_start(ts);
 			if (ret)
-				goto unlock;
+				return ret;
 		}
 
 		enable_irq_wake(client->irq);
@@ -611,18 +607,28 @@ static int zforce_suspend(struct device *dev)
 
 		ret = zforce_stop(ts);
 		if (ret)
-			goto unlock;
+			return ret;
 
 		disable_irq(client->irq);
 	}
 
 	ts->suspended = true;
+	return 0;
+}
 
-unlock:
+static int zforce_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct zforce_ts *ts = i2c_get_clientdata(client);
+	int ret;
+
+	WRITE_ONCE(ts->suspending, true);
+	smp_mb();
+
+	ret = __zforce_suspend(ts);
+
 	smp_mb();
 	WRITE_ONCE(ts->suspending, false);
-
-	mutex_unlock(&input->mutex);
 
 	return ret;
 }
@@ -632,9 +638,9 @@ static int zforce_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct zforce_ts *ts = i2c_get_clientdata(client);
 	struct input_dev *input = ts->input;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&input->mutex);
+	guard(mutex)(&input->mutex);
 
 	ts->suspended = false;
 
@@ -647,7 +653,7 @@ static int zforce_resume(struct device *dev)
 		if (!input_device_enabled(input)) {
 			ret = zforce_stop(ts);
 			if (ret)
-				goto unlock;
+				return ret;
 		}
 	} else if (input_device_enabled(input)) {
 		dev_dbg(&client->dev, "resume without being a wakeup source\n");
@@ -656,13 +662,10 @@ static int zforce_resume(struct device *dev)
 
 		ret = zforce_start(ts);
 		if (ret < 0)
-			goto unlock;
+			return ret;
 	}
 
-unlock:
-	mutex_unlock(&input->mutex);
-
-	return ret;
+	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(zforce_pm_ops, zforce_suspend, zforce_resume);
