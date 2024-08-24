@@ -742,23 +742,21 @@ static int zforce_probe(struct i2c_client *client)
 					     "failed to request reset GPIO\n");
 	}
 
-	ts->reg_vdd = devm_regulator_get_optional(&client->dev, "vdd");
+	ts->reg_vdd = devm_regulator_get(&client->dev, "vdd");
 	error = PTR_ERR_OR_ZERO(ts->gpio_rst);
-	if (error) {
-		if (error != -ENOENT)
-			return dev_err_probe(&client->dev, error,
-					     "failed to request vdd supply\n");
-	} else {
-		error = regulator_enable(ts->reg_vdd);
-		if (error)
-			return error;
+	if (error)
+		return dev_err_probe(&client->dev, error,
+				     "failed to request vdd supply\n");
 
-		/*
-		 * according to datasheet add 100us grace time after regular
-		 * regulator enable delay.
-		 */
-		udelay(100);
-	}
+	error = regulator_enable(ts->reg_vdd);
+	if (error)
+		return error;
+
+	/*
+	 * According to datasheet add 100us grace time after regular
+	 * regulator enable delay.
+	 */
+	usleep_range(100, 200);
 
 	error = devm_add_action_or_reset(&client->dev, zforce_reset, ts);
 	if (error)
