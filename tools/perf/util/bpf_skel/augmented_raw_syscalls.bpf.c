@@ -124,6 +124,13 @@ struct augmented_args_tmp {
 	__uint(max_entries, 1);
 } augmented_args_tmp SEC(".maps");
 
+struct beauty_map_enter {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, int);
+	__type(value, __u32[6]);
+	__uint(max_entries, 512);
+} beauty_map_enter SEC(".maps");
+
 static inline struct augmented_args_payload *augmented_args_payload(void)
 {
 	int key = 0;
