@@ -803,15 +803,12 @@ static int zforce_probe(struct i2c_client *client)
 		udelay(100);
 	}
 
-	ret = devm_add_action(&client->dev, zforce_reset, ts);
+	ret = devm_add_action_or_reset(&client->dev, zforce_reset, ts);
 	if (ret) {
 		dev_err(&client->dev, "failed to register reset action, %d\n",
 			ret);
 
 		/* hereafter the regulator will be disabled by the action */
-		if (!IS_ERR(ts->reg_vdd))
-			regulator_disable(ts->reg_vdd);
-
 		return ret;
 	}
 
