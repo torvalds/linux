@@ -402,5 +402,10 @@ long get_tagged_addr_ctrl(struct task_struct *task);
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
 
+int get_tsc_mode(unsigned long adr);
+int set_tsc_mode(unsigned int val);
+#define GET_TSC_CTL(adr)        get_tsc_mode((adr))
+#define SET_TSC_CTL(val)        set_tsc_mode((val))
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

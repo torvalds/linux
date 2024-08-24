@@ -601,18 +601,26 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 
 static void cntvct_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_read_counter());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_read_counter());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void cntfrq_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_get_rate());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_get_rate());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void mrs_handler(unsigned long esr, struct pt_regs *regs)
