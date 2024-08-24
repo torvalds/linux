@@ -318,6 +318,7 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 	struct i2c_client *client = ts->client;
 	struct zforce_point point;
 	int count, i, num = 0;
+	u8 *p;
 
 	count = payload[0];
 	if (count > ZFORCE_REPORT_POINTS) {
@@ -328,8 +329,10 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 	}
 
 	for (i = 0; i < count; i++) {
-		point.coord_x = get_unaligned_le16(&payload[9 * i + 1]);
-		point.coord_y = get_unaligned_le16(&payload[9 * i + 3]);
+		p = &payload[i * 9 + 1];
+
+		point.coord_x = get_unaligned_le16(&p[0]);
+		point.coord_y = get_unaligned_le16(&p[2]);
 
 		if (point.coord_x > ts->prop.max_x ||
 		    point.coord_y > ts->prop.max_y) {
@@ -338,18 +341,16 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 			point.coord_x = point.coord_y = 0;
 		}
 
-		point.state = payload[9 * i + 5] & 0x0f;
-		point.id = (payload[9 * i + 5] & 0xf0) >> 4;
+		point.state = p[4] & 0x0f;
+		point.id = (p[4] & 0xf0) >> 4;
 
 		/* determine touch major, minor and orientation */
-		point.area_major = max(payload[9 * i + 6],
-					  payload[9 * i + 7]);
-		point.area_minor = min(payload[9 * i + 6],
-					  payload[9 * i + 7]);
-		point.orientation = payload[9 * i + 6] > payload[9 * i + 7];
+		point.area_major = max(p[5], p[6]);
+		point.area_minor = min(p[5], p[6]);
+		point.orientation = p[5] > p[6];
 
-		point.pressure = payload[9 * i + 8];
-		point.prblty = payload[9 * i + 9];
+		point.pressure = p[7];
+		point.prblty = p[8];
 
 		dev_dbg(&client->dev,
 			"point %d/%d: state %d, id %d, pressure %d, prblty %d, x %d, y %d, amajor %d, aminor %d, ori %d\n",
