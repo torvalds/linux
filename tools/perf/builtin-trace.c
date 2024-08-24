@@ -65,6 +65,7 @@
 #include "syscalltbl.h"
 #include "rb_resort.h"
 #include "../perf.h"
+#include "trace_augment.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -864,6 +865,10 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 	  { .scnprintf	= SCA_FILENAME, \
 	    .from_user	= true, }
 
+static size_t syscall_arg__scnprintf_buf(char *bf, size_t size, struct syscall_arg *arg);
+
+#define SCA_BUF syscall_arg__scnprintf_buf
+
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
@@ -1387,6 +1392,8 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [2] = { .scnprintf = SCA_WAITID_OPTIONS, /* options */ }, }, },
 	{ .name	    = "waitid",	    .errpid = true,
 	  .arg = { [3] = { .scnprintf = SCA_WAITID_OPTIONS, /* options */ }, }, },
+	{ .name	    = "write",	    .errpid = true,
+	  .arg = { [1] = { .scnprintf = SCA_BUF /* buf */, .from_user = true, }, }, },
 };
 
 static int syscall_fmt__cmp(const void *name, const void *fmtp)
@@ -1756,6 +1763,32 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 
 	thread__set_filename_pos(arg->thread, bf, ptr);
 	return 0;
+}
+
+#define MAX_CONTROL_CHAR 31
+#define MAX_ASCII 127
+
+static size_t syscall_arg__scnprintf_buf(char *bf, size_t size, struct syscall_arg *arg)
+{
+	struct augmented_arg *augmented_arg = arg->augmented.args;
+	unsigned char *orig = (unsigned char *)augmented_arg->value;
+	size_t printed = 0;
+	int consumed;
+
+	if (augmented_arg == NULL)
+		return 0;
+
+	for (int j = 0; j < augmented_arg->size; ++j) {
+		bool control_char = orig[j] <= MAX_CONTROL_CHAR || orig[j] >= MAX_ASCII;
+		/* print control characters (0~31 and 127), and non-ascii characters in \(digits) */
+		printed += scnprintf(bf + printed, size - printed, control_char ? "\\%d" : "%c", (int)orig[j]);
+	}
+
+	consumed = sizeof(*augmented_arg) + augmented_arg->size;
+	arg->augmented.args = ((void *)arg->augmented.args) + consumed;
+	arg->augmented.size -= consumed;
+
+	return printed;
 }
 
 static bool trace__filter_duration(struct trace *trace, double t)
