@@ -454,6 +454,7 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 	int ret;
 	u8 payload_buffer[FRAME_MAXSIZE];
 	u8 *payload;
+	bool suspending;
 
 	/*
 	 * When still suspended, return.
@@ -467,7 +468,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 	dev_dbg(&client->dev, "handling interrupt\n");
 
 	/* Don't emit wakeup events from commands run by zforce_suspend */
-	if (!ts->suspending && device_may_wakeup(&client->dev))
+	suspending = READ_ONCE(ts->suspending);
+	if (!suspending && device_may_wakeup(&client->dev))
 		pm_stay_awake(&client->dev);
 
 	/*
@@ -495,7 +497,7 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 			 * Always report touch-events received while
 			 * suspending, when being a wakeup source
 			 */
-			if (ts->suspending && device_may_wakeup(&client->dev))
+			if (suspending && device_may_wakeup(&client->dev))
 				pm_wakeup_event(&client->dev, 500);
 			zforce_touch_event(ts, &payload[RESPONSE_DATA]);
 			break;
@@ -548,7 +550,7 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 		}
 	} while (gpiod_get_value_cansleep(ts->gpio_int));
 
-	if (!ts->suspending && device_may_wakeup(&client->dev))
+	if (!suspending && device_may_wakeup(&client->dev))
 		pm_relax(&client->dev);
 
 	dev_dbg(&client->dev, "finished interrupt\n");
@@ -584,7 +586,9 @@ static int zforce_suspend(struct device *dev)
 	int ret = 0;
 
 	mutex_lock(&input->mutex);
-	ts->suspending = true;
+
+	WRITE_ONCE(ts->suspending, true);
+	smp_mb();
 
 	/*
 	 * When configured as a wakeup source device should always wake
@@ -615,7 +619,9 @@ static int zforce_suspend(struct device *dev)
 	ts->suspended = true;
 
 unlock:
-	ts->suspending = false;
+	smp_mb();
+	WRITE_ONCE(ts->suspending, false);
+
 	mutex_unlock(&input->mutex);
 
 	return ret;
