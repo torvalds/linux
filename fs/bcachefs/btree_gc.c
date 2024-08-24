@@ -753,10 +753,8 @@ static void bch2_gc_free(struct bch_fs *c)
 	genradix_free(&c->reflink_gc_table);
 	genradix_free(&c->gc_stripes);
 
-	for_each_member_device(c, ca) {
-		kvfree(rcu_dereference_protected(ca->buckets_gc, 1));
-		ca->buckets_gc = NULL;
-	}
+	for_each_member_device(c, ca)
+		genradix_free(&ca->buckets_gc);
 }
 
 static int bch2_gc_start(struct bch_fs *c)
@@ -910,20 +908,12 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 	int ret = 0;
 
 	for_each_member_device(c, ca) {
-		struct bucket_array *buckets = kvmalloc(sizeof(struct bucket_array) +
-				ca->mi.nbuckets * sizeof(struct bucket),
-				GFP_KERNEL|__GFP_ZERO);
-		if (!buckets) {
+		ret = genradix_prealloc(&ca->buckets_gc, ca->mi.nbuckets, GFP_KERNEL);
+		if (ret) {
 			bch2_dev_put(ca);
 			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
 			break;
 		}
-
-		buckets->first_bucket	= ca->mi.first_bucket;
-		buckets->nbuckets	= ca->mi.nbuckets;
-		buckets->nbuckets_minus_first =
-			buckets->nbuckets - buckets->first_bucket;
-		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
 	bch_err_fn(c, ret);

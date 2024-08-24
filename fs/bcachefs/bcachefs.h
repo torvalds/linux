@@ -542,7 +542,7 @@ struct bch_dev {
 	 * gc_gens_lock, for device resize - holding any is sufficient for
 	 * access: Or rcu_read_lock(), but only for dev_ptr_stale():
 	 */
-	struct bucket_array __rcu *buckets_gc;
+	GENRADIX(struct bucket)	buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
