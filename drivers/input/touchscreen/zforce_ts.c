@@ -107,8 +107,6 @@ struct zforce_ts {
 	struct touchscreen_properties prop;
 	char			phys[32];
 
-	struct regulator	*reg_vdd;
-
 	struct gpio_desc	*gpio_int;
 	struct gpio_desc	*gpio_rst;
 
@@ -675,11 +673,7 @@ static void zforce_reset(void *data)
 	struct zforce_ts *ts = data;
 
 	zforce_reset_assert(ts);
-
 	udelay(10);
-
-	if (!IS_ERR(ts->reg_vdd))
-		regulator_disable(ts->reg_vdd);
 }
 
 static void zforce_ts_parse_legacy_properties(struct zforce_ts *ts)
@@ -742,15 +736,10 @@ static int zforce_probe(struct i2c_client *client)
 					     "failed to request reset GPIO\n");
 	}
 
-	ts->reg_vdd = devm_regulator_get(&client->dev, "vdd");
-	error = PTR_ERR_OR_ZERO(ts->gpio_rst);
+	error = devm_regulator_get_enable(&client->dev, "vdd");
 	if (error)
 		return dev_err_probe(&client->dev, error,
 				     "failed to request vdd supply\n");
-
-	error = regulator_enable(ts->reg_vdd);
-	if (error)
-		return error;
 
 	/*
 	 * According to datasheet add 100us grace time after regular
