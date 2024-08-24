@@ -9,21 +9,19 @@
  * Author: Pieter Truter<ptruter@intrinsyc.com>
  */
 
-#include <linux/module.h>
-#include <linux/hrtimer.h>
-#include <linux/slab.h>
-#include <linux/input.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/gpio/consumer.h>
 #include <linux/device.h>
-#include <linux/sysfs.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/platform_data/zforce_ts.h>
-#include <linux/regulator/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/property.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 
@@ -108,7 +106,6 @@ struct zforce_ts {
 	struct i2c_client	*client;
 	struct input_dev	*input;
 	struct touchscreen_properties prop;
-	const struct zforce_ts_platdata *pdata;
 	char			phys[32];
 
 	struct regulator	*reg_vdd;
@@ -702,38 +699,23 @@ static void zforce_reset(void *data)
 		regulator_disable(ts->reg_vdd);
 }
 
-static struct zforce_ts_platdata *zforce_parse_dt(struct device *dev)
+static void zforce_ts_parse_legacy_properties(struct zforce_ts *ts)
 {
-	struct zforce_ts_platdata *pdata;
-	struct device_node *np = dev->of_node;
+	u32 x_max = 0;
+	u32 y_max = 0;
 
-	if (!np)
-		return ERR_PTR(-ENOENT);
+	device_property_read_u32(&ts->client->dev, "x-size", &x_max);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, x_max, 0, 0);
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "failed to allocate platform data\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	of_property_read_u32(np, "x-size", &pdata->x_max);
-	of_property_read_u32(np, "y-size", &pdata->y_max);
-
-	return pdata;
+	device_property_read_u32(&ts->client->dev, "y-size", &y_max);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, y_max, 0, 0);
 }
 
 static int zforce_probe(struct i2c_client *client)
 {
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
 	struct zforce_ts *ts;
 	struct input_dev *input_dev;
 	int ret;
-
-	if (!pdata) {
-		pdata = zforce_parse_dt(&client->dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(struct zforce_ts), GFP_KERNEL);
 	if (!ts)
@@ -822,7 +804,6 @@ static int zforce_probe(struct i2c_client *client)
 	mutex_init(&ts->access_mutex);
 	mutex_init(&ts->command_mutex);
 
-	ts->pdata = pdata;
 	ts->client = client;
 	ts->input = input_dev;
 
@@ -837,12 +818,7 @@ static int zforce_probe(struct i2c_client *client)
 	__set_bit(EV_SYN, input_dev->evbit);
 	__set_bit(EV_ABS, input_dev->evbit);
 
-	/* For multi touch */
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0,
-			     pdata->x_max, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0,
-			     pdata->y_max, 0, 0);
-
+	zforce_ts_parse_legacy_properties(ts);
 	touchscreen_parse_properties(input_dev, true, &ts->prop);
 	if (ts->prop.max_x == 0 || ts->prop.max_y == 0) {
 		dev_err(&client->dev, "no size specified\n");
