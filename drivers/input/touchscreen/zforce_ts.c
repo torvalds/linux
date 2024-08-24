@@ -22,6 +22,7 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 
@@ -327,10 +328,8 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 	}
 
 	for (i = 0; i < count; i++) {
-		point.coord_x =
-			payload[9 * i + 2] << 8 | payload[9 * i + 1];
-		point.coord_y =
-			payload[9 * i + 4] << 8 | payload[9 * i + 3];
+		point.coord_x = get_unaligned_le16(&payload[9 * i + 1]);
+		point.coord_y = get_unaligned_le16(&payload[9 * i + 3]);
 
 		if (point.coord_x > ts->prop.max_x ||
 		    point.coord_y > ts->prop.max_y) {
@@ -521,14 +520,15 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 			 * Version Payload Results
 			 * [2:major] [2:minor] [2:build] [2:rev]
 			 */
-			ts->version_major = (payload[RESPONSE_DATA + 1] << 8) |
-						payload[RESPONSE_DATA];
-			ts->version_minor = (payload[RESPONSE_DATA + 3] << 8) |
-						payload[RESPONSE_DATA + 2];
-			ts->version_build = (payload[RESPONSE_DATA + 5] << 8) |
-						payload[RESPONSE_DATA + 4];
-			ts->version_rev   = (payload[RESPONSE_DATA + 7] << 8) |
-						payload[RESPONSE_DATA + 6];
+			ts->version_major =
+				get_unaligned_le16(&payload[RESPONSE_DATA]);
+			ts->version_minor =
+				get_unaligned_le16(&payload[RESPONSE_DATA + 2]);
+			ts->version_build =
+				get_unaligned_le16(&payload[RESPONSE_DATA + 4]);
+			ts->version_rev =
+				get_unaligned_le16(&payload[RESPONSE_DATA + 6]);
+
 			dev_dbg(&ts->client->dev,
 				"Firmware Version %04x:%04x %04x:%04x\n",
 				ts->version_major, ts->version_minor,
