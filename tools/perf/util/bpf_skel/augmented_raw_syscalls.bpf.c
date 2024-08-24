@@ -7,6 +7,8 @@
  */
 
 #include "vmlinux.h"
+#include "../trace_augment.h"
+
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
 
@@ -131,6 +133,18 @@ struct beauty_map_enter {
 	__uint(max_entries, 512);
 } beauty_map_enter SEC(".maps");
 
+struct beauty_payload_enter {
+	struct syscall_enter_args args;
+	struct augmented_arg aug_args[6];
+};
+
+struct beauty_payload_enter_map {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, int);
+	__type(value, struct beauty_payload_enter);
+	__uint(max_entries, 1);
+} beauty_payload_enter_map SEC(".maps");
+
 static inline struct augmented_args_payload *augmented_args_payload(void)
 {
 	int key = 0;
@@ -141,6 +155,11 @@ static inline int augmented__output(void *ctx, struct augmented_args_payload *ar
 {
 	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
 	return bpf_perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, args, len);
+}
+
+static inline int augmented__beauty_output(void *ctx, void *data, int len)
+{
+	return bpf_perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, data, len);
 }
 
 static inline
@@ -401,6 +420,91 @@ static bool pid_filter__has(struct pids_filtered *pids, pid_t pid)
 	return bpf_map_lookup_elem(pids, &pid) != NULL;
 }
 
+static int augment_sys_enter(void *ctx, struct syscall_enter_args *args)
+{
+	bool augmented, do_output = false;
+	int zero = 0, size, aug_size, index, output = 0,
+	    value_size = sizeof(struct augmented_arg) - offsetof(struct augmented_arg, value);
+	unsigned int nr, *beauty_map;
+	struct beauty_payload_enter *payload;
+	void *arg, *payload_offset;
+
+	/* fall back to do predefined tail call */
+	if (args == NULL)
+		return 1;
+
+	/* use syscall number to get beauty_map entry */
+	nr             = (__u32)args->syscall_nr;
+	beauty_map     = bpf_map_lookup_elem(&beauty_map_enter, &nr);
+
+	/* set up payload for output */
+	payload        = bpf_map_lookup_elem(&beauty_payload_enter_map, &zero);
+	payload_offset = (void *)&payload->aug_args;
+
+	if (beauty_map == NULL || payload == NULL)
+		return 1;
+
+	/* copy the sys_enter header, which has the syscall_nr */
+	__builtin_memcpy(&payload->args, args, sizeof(struct syscall_enter_args));
+
+	/*
+	 * Determine what type of argument and how many bytes to read from user space, using the
+	 * value in the beauty_map. This is the relation of parameter type and its corresponding
+	 * value in the beauty map, and how many bytes we read eventually:
+	 *
+	 * string: 1			      -> size of string
+	 * struct: size of struct	      -> size of struct
+	 * buffer: -1 * (index of paired len) -> value of paired len (maximum: TRACE_AUG_MAX_BUF)
+	 */
+	for (int i = 0; i < 6; i++) {
+		arg = (void *)args->args[i];
+		augmented = false;
+		size = beauty_map[i];
+		aug_size = size; /* size of the augmented data read from user space */
+
+		if (size == 0 || arg == NULL)
+			continue;
+
+		if (size == 1) { /* string */
+			aug_size = bpf_probe_read_user_str(((struct augmented_arg *)payload_offset)->value, value_size, arg);
+			/* minimum of 0 to pass the verifier */
+			if (aug_size < 0)
+				aug_size = 0;
+
+			augmented = true;
+		} else if (size > 0 && size <= value_size) { /* struct */
+			if (!bpf_probe_read_user(((struct augmented_arg *)payload_offset)->value, size, arg))
+				augmented = true;
+		} else if (size < 0 && size >= -6) { /* buffer */
+			index = -(size + 1);
+			aug_size = args->args[index];
+
+			if (aug_size > TRACE_AUG_MAX_BUF)
+				aug_size = TRACE_AUG_MAX_BUF;
+
+			if (aug_size > 0) {
+				if (!bpf_probe_read_user(((struct augmented_arg *)payload_offset)->value, aug_size, arg))
+					augmented = true;
+			}
+		}
+
+		/* write data to payload */
+		if (augmented) {
+			int written = offsetof(struct augmented_arg, value) + aug_size;
+
+			((struct augmented_arg *)payload_offset)->size = aug_size;
+			output += written;
+			payload_offset += written;
+			do_output = true;
+		}
+	}
+
+	if (!do_output)
+		return 1;
+
+	return augmented__beauty_output(ctx, payload, sizeof(struct syscall_enter_args) + output);
+}
+
 SEC("tp/raw_syscalls/sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
@@ -429,7 +533,8 @@ int sys_enter(struct syscall_enter_args *args)
 	 * "!raw_syscalls:unaugmented" that will just return 1 to return the
 	 * unaugmented tracepoint payload.
 	 */
-	bpf_tail_call(args, &syscalls_sys_enter, augmented_args->args.syscall_nr);
+	if (augment_sys_enter(args, &augmented_args->args))
+		bpf_tail_call(args, &syscalls_sys_enter, augmented_args->args.syscall_nr);
 
 	// If not found on the PROG_ARRAY syscalls map, then we're filtering it:
 	return 0;
