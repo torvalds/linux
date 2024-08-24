@@ -753,7 +753,7 @@ static int zforce_probe(struct i2c_client *client)
 	ts->reg_vdd = devm_regulator_get_optional(&client->dev, "vdd");
 	if (IS_ERR(ts->reg_vdd)) {
 		ret = PTR_ERR(ts->reg_vdd);
-		if (ret == -EPROBE_DEFER)
+		if (ret != -ENOENT)
 			return ret;
 	} else {
 		ret = regulator_enable(ts->reg_vdd);
