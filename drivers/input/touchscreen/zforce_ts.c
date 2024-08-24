@@ -850,6 +850,7 @@ static struct i2c_driver zforce_driver = {
 		.name	= "zforce-ts",
 		.pm	= pm_sleep_ptr(&zforce_pm_ops),
 		.of_match_table	= of_match_ptr(zforce_dt_idtable),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= zforce_probe,
 	.id_table	= zforce_idtable,
