@@ -795,7 +795,7 @@ u64 xe_ggtt_print_holes(struct xe_ggtt *ggtt, u64 alignment, struct drm_printer 
 	const struct drm_mm_node *entry;
 	u64 hole_min_start = xe_wopcm_size(tile_to_xe(ggtt->tile));
 	u64 hole_start, hole_end, hole_size;
-	u64 total;
+	u64 total = 0;
 	char buf[10];
 
 	mutex_lock(&ggtt->lock);

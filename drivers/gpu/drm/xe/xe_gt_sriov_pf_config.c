@@ -2110,7 +2110,7 @@ int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_prin
 {
 	struct xe_ggtt *ggtt = gt_to_tile(gt)->mem.ggtt;
 	u64 alignment = pf_get_ggtt_alignment(gt);
-	u64 spare, avail, total = 0;
+	u64 spare, avail, total;
 	char buf[10];
 
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
