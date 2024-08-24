@@ -799,8 +799,7 @@ static int zforce_probe(struct i2c_client *client)
 	 */
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  zforce_irq, zforce_irq_thread,
-					  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					  input_dev->name, ts);
+					  IRQF_ONESHOT, input_dev->name, ts);
 	if (error)
 		return dev_err_probe(&client->dev, error,
 				     "irq %d request failed\n", client->irq);
