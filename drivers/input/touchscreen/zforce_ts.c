@@ -814,10 +814,6 @@ static int zforce_probe(struct i2c_client *client)
 	input_dev->open = zforce_input_open;
 	input_dev->close = zforce_input_close;
 
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(EV_SYN, input_dev->evbit);
-	__set_bit(EV_ABS, input_dev->evbit);
-
 	zforce_ts_parse_legacy_properties(ts);
 	touchscreen_parse_properties(input_dev, true, &ts->prop);
 	if (ts->prop.max_x == 0 || ts->prop.max_y == 0) {
