@@ -5,7 +5,7 @@
 pkgbase=${PACMAN_PKGBASE:-linux-upstream}
 pkgname=("${pkgbase}")
 
-_extrapackages=${PACMAN_EXTRAPACKAGES-headers api-headers}
+_extrapackages=${PACMAN_EXTRAPACKAGES-headers api-headers debug}
 for pkg in $_extrapackages; do
 	pkgname+=("${pkgbase}-${pkg}")
 done
@@ -109,6 +109,19 @@ _package-api-headers() {
 	_prologue
 
 	${MAKE} headers_install INSTALL_HDR_PATH="${pkgdir}/usr"
+}
+
+_package-debug(){
+	pkgdesc="Non-stripped vmlinux file for the ${pkgdesc} kernel"
+
+	local debugdir="${pkgdir}/usr/src/debug/${pkgbase}"
+	local builddir="${pkgdir}/usr/${MODLIB}/build"
+
+	_prologue
+
+	install -Dt "${debugdir}" -m644 vmlinux
+	mkdir -p "${builddir}"
+	ln -sr "${debugdir}/vmlinux" "${builddir}/vmlinux"
 }
 
 for _p in "${pkgname[@]}"; do
