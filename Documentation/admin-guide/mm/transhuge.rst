@@ -551,6 +551,11 @@ split_deferred
         it would free up some memory. Pages on split queue are going to
         be split under memory pressure, if splitting is possible.
 
+nr_anon
+       the number of anonymous THP we have in the whole system. These THPs
+       might be currently entirely mapped or have partially unmapped/unused
+       subpages.
+
 As the system ages, allocating huge pages may be expensive as the
 system uses memory compaction to copy data around memory to free a
 huge page for use. There are some counters in ``/proc/vmstat`` to help
