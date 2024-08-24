@@ -212,6 +212,7 @@ struct trace {
 	bool			show_string_prefix;
 	bool			force;
 	bool			vfs_getname;
+	bool			force_btf;
 	int			trace_pgfaults;
 	char			*perfconfig_events;
 	struct {
@@ -2363,7 +2364,9 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 			default_scnprintf = sc->arg_fmt[arg.idx].scnprintf;
 
-			if (default_scnprintf == NULL || default_scnprintf == SCA_PTR) {
+			if (trace->force_btf ||
+			    (default_scnprintf == NULL ||
+			     (default_scnprintf == SCA_PTR && strstr(field->type, "struct")))) {
 				btf_printed = trace__btf_scnprintf(trace, &arg, bf + printed,
 								   size - printed, val, field->type);
 				if (btf_printed) {
@@ -5171,6 +5174,8 @@ int cmd_trace(int argc, const char **argv)
 	OPT_INTEGER('D', "delay", &trace.opts.target.initial_delay,
 		     "ms to wait before starting measurement after program "
 		     "start"),
+	OPT_BOOLEAN(0, "force-btf", &trace.force_btf, "Prefer btf_dump general pretty printer"
+		       "to customized ones"),
 	OPTS_EVSWITCH(&trace.evswitch),
 	OPT_END()
 	};
