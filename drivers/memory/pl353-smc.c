@@ -74,7 +74,6 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct device_node *of_node = adev->dev.of_node;
 	const struct of_device_id *match = NULL;
 	struct pl353_smc_data *pl353_smc;
-	struct device_node *child;
 
 	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
 	if (!pl353_smc)
@@ -93,21 +92,19 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_set_drvdata(adev, pl353_smc);
 
 	/* Find compatible children. Only a single child is supported */
-	for_each_available_child_of_node(of_node, child) {
+	for_each_available_child_of_node_scoped(of_node, child) {
 		match = of_match_node(pl353_smc_supported_children, child);
 		if (!match) {
 			dev_warn(&adev->dev, "unsupported child node\n");
 			continue;
 		}
+		of_platform_device_create(child, NULL, &adev->dev);
 		break;
 	}
 	if (!match) {
 		dev_err(&adev->dev, "no matching children\n");
 		return -ENODEV;
 	}
-
-	of_platform_device_create(child, NULL, &adev->dev);
-	of_node_put(child);
 
 	return 0;
 }
