@@ -916,20 +916,18 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 	 */
 	lockdep_assert_not_held(&reset_list_mutex);
 
-	mutex_lock(&reset_gpio_lookup_mutex);
+	guard(mutex)(&reset_gpio_lookup_mutex);
 
 	list_for_each_entry(rgpio_dev, &reset_gpio_lookup_list, list) {
 		if (args->np == rgpio_dev->of_args.np) {
 			if (of_phandle_args_equal(args, &rgpio_dev->of_args))
-				goto out; /* Already on the list, done */
+				return 0; /* Already on the list, done */
 		}
 	}
 
 	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
-	if (id < 0) {
-		ret = id;
-		goto err_unlock;
-	}
+	if (id < 0)
+		return id;
 
 	/* Not freed on success, because it is persisent subsystem data. */
 	rgpio_dev = kzalloc(sizeof(*rgpio_dev), GFP_KERNEL);
@@ -959,9 +957,6 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 
 	list_add(&rgpio_dev->list, &reset_gpio_lookup_list);
 
-out:
-	mutex_unlock(&reset_gpio_lookup_mutex);
-
 	return 0;
 
 err_put:
@@ -970,8 +965,6 @@ err_kfree:
 	kfree(rgpio_dev);
 err_ida_free:
 	ida_free(&reset_gpio_ida, id);
-err_unlock:
-	mutex_unlock(&reset_gpio_lookup_mutex);
 
 	return ret;
 }
