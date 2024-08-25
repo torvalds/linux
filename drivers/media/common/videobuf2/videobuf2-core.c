@@ -2602,13 +2602,6 @@ int vb2_core_queue_init(struct vb2_queue *q)
 		return -EINVAL;
 
 	/*
-	 * The minimum requirement is 2: one buffer is used
-	 * by the hardware while the other is being processed by userspace.
-	 */
-	if (q->min_reqbufs_allocation < 2)
-		q->min_reqbufs_allocation = 2;
-
-	/*
 	 * If the driver needs 'min_queued_buffers' in the queue before
 	 * calling start_streaming() then the minimum requirement is
 	 * 'min_queued_buffers + 1' to keep at least one buffer available
