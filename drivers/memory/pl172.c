@@ -187,6 +187,13 @@ static int pl172_parse_cs_config(struct amba_device *adev,
 	return -EINVAL;
 }
 
+static void pl172_amba_release_regions(void *data)
+{
+	struct amba_device *adev = data;
+
+	amba_release_regions(adev);
+}
+
 static const char * const pl172_revisions[] = {"r1", "r2", "r2p3", "r2p4"};
 static const char * const pl175_revisions[] = {"r1"};
 static const char * const pl176_revisions[] = {"r0"};
@@ -232,13 +239,14 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(dev, pl172_amba_release_regions, adev);
+	if (ret)
+		return ret;
+
 	pl172->base = devm_ioremap(dev, adev->res.start,
 				   resource_size(&adev->res));
-	if (!pl172->base) {
-		dev_err(dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err_no_ioremap;
-	}
+	if (!pl172->base)
+		return dev_err_probe(dev, -ENOMEM, "ioremap failed\n");
 
 	amba_set_drvdata(adev, pl172);
 
@@ -256,15 +264,6 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	return 0;
-
-err_no_ioremap:
-	amba_release_regions(adev);
-	return ret;
-}
-
-static void pl172_remove(struct amba_device *adev)
-{
-	amba_release_regions(adev);
 }
 
 static const struct amba_id pl172_ids[] = {
@@ -292,7 +291,6 @@ static struct amba_driver pl172_driver = {
 		.name	= "memory-pl172",
 	},
 	.probe		= pl172_probe,
-	.remove		= pl172_remove,
 	.id_table	= pl172_ids,
 };
 module_amba_driver(pl172_driver);
