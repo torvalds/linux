@@ -415,6 +415,63 @@ put_clks_node:
 	return ret;
 }
 
+static int pruss_of_setup_memories(struct device *dev, struct pruss *pruss)
+{
+	struct device_node *np = dev_of_node(dev);
+	struct device_node *child;
+	const struct pruss_private_data *data = of_device_get_match_data(dev);
+	const char *mem_names[PRUSS_MEM_MAX] = { "dram0", "dram1", "shrdram2" };
+	int i;
+
+	child = of_get_child_by_name(np, "memories");
+	if (!child)
+		return dev_err_probe(dev, -ENODEV,
+				     "%pOF is missing its 'memories' node\n",
+				     child);
+
+	for (i = 0; i < PRUSS_MEM_MAX; i++) {
+		struct resource res;
+		int index;
+
+		/*
+		 * On AM437x one of two PRUSS units don't contain Shared RAM,
+		 * skip it
+		 */
+		if (data && data->has_no_sharedram && i == PRUSS_MEM_SHRD_RAM2)
+			continue;
+
+		index = of_property_match_string(child, "reg-names",
+						 mem_names[i]);
+		if (index < 0) {
+			of_node_put(child);
+			return index;
+		}
+
+		if (of_address_to_resource(child, index, &res)) {
+			of_node_put(child);
+			return -EINVAL;
+		}
+
+		pruss->mem_regions[i].va = devm_ioremap(dev, res.start,
+							resource_size(&res));
+		if (!pruss->mem_regions[i].va) {
+			of_node_put(child);
+			return dev_err_probe(dev, -ENOMEM,
+					     "failed to parse and map memory resource %d %s\n",
+					     i, mem_names[i]);
+		}
+		pruss->mem_regions[i].pa = res.start;
+		pruss->mem_regions[i].size = resource_size(&res);
+
+		dev_dbg(dev, "memory %8s: pa %pa size 0x%zx va %pK\n",
+			mem_names[i], &pruss->mem_regions[i].pa,
+			pruss->mem_regions[i].size, pruss->mem_regions[i].va);
+	}
+	of_node_put(child);
+
+	return 0;
+}
+
 static struct regmap_config regmap_conf = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -471,15 +528,8 @@ node_put:
 static int pruss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
 	struct pruss *pruss;
-	struct resource res;
-	int ret, i, index;
-	const struct pruss_private_data *data;
-	const char *mem_names[PRUSS_MEM_MAX] = { "dram0", "dram1", "shrdram2" };
-
-	data = of_device_get_match_data(&pdev->dev);
+	int ret;
 
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
@@ -494,48 +544,9 @@ static int pruss_probe(struct platform_device *pdev)
 	pruss->dev = dev;
 	mutex_init(&pruss->lock);
 
-	child = of_get_child_by_name(np, "memories");
-	if (!child) {
-		dev_err(dev, "%pOF is missing its 'memories' node\n", child);
-		return -ENODEV;
-	}
-
-	for (i = 0; i < PRUSS_MEM_MAX; i++) {
-		/*
-		 * On AM437x one of two PRUSS units don't contain Shared RAM,
-		 * skip it
-		 */
-		if (data && data->has_no_sharedram && i == PRUSS_MEM_SHRD_RAM2)
-			continue;
-
-		index = of_property_match_string(child, "reg-names",
-						 mem_names[i]);
-		if (index < 0) {
-			of_node_put(child);
-			return index;
-		}
-
-		if (of_address_to_resource(child, index, &res)) {
-			of_node_put(child);
-			return -EINVAL;
-		}
-
-		pruss->mem_regions[i].va = devm_ioremap(dev, res.start,
-							resource_size(&res));
-		if (!pruss->mem_regions[i].va) {
-			dev_err(dev, "failed to parse and map memory resource %d %s\n",
-				i, mem_names[i]);
-			of_node_put(child);
-			return -ENOMEM;
-		}
-		pruss->mem_regions[i].pa = res.start;
-		pruss->mem_regions[i].size = resource_size(&res);
-
-		dev_dbg(dev, "memory %8s: pa %pa size 0x%zx va %pK\n",
-			mem_names[i], &pruss->mem_regions[i].pa,
-			pruss->mem_regions[i].size, pruss->mem_regions[i].va);
-	}
-	of_node_put(child);
+	ret = pruss_of_setup_memories(dev, pruss);
+	if (ret < 0)
+		return ret;
 
 	platform_set_drvdata(pdev, pruss);
 
