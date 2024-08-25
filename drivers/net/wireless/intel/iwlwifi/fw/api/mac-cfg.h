@@ -710,7 +710,7 @@ enum iwl_esr_trans_fail_code {
 /**
  * struct iwl_esr_trans_fail_notif - FW reports a failure in EMLSR transition
  *
- * @link_id: the link_id that was activated / de-activated
+ * @link_id: the link_id that still works after the failure
  * @activation: true if the link was activated, false otherwise
  * @err_code: see &enum iwl_esr_trans_fail_code
  */
