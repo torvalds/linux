@@ -20,6 +20,76 @@
 #include "subvolume.h"
 #include "trace.h"
 
+static void bkey_put_dev_refs(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	bkey_for_each_ptr(ptrs, ptr)
+		bch2_dev_put(bch2_dev_have_ref(c, ptr->dev));
+}
+
+static bool bkey_get_dev_refs(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		if (!bch2_dev_tryget(c, ptr->dev)) {
+			bkey_for_each_ptr(ptrs, ptr2) {
+				if (ptr2 == ptr)
+					break;
+				bch2_dev_put(bch2_dev_have_ref(c, ptr2->dev));
+			}
+			return false;
+		}
+	}
+	return true;
+}
+
+static void bkey_nocow_unlock(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
+		struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
+
+		bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
+	}
+}
+
+static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
+		struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
+
+		if (ctxt) {
+			bool locked;
+
+			move_ctxt_wait_event(ctxt,
+				(locked = bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) ||
+				list_empty(&ctxt->ios));
+
+			if (!locked)
+				bch2_bucket_nocow_lock(&c->nocow_locks, bucket, 0);
+		} else {
+			if (!bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) {
+				bkey_for_each_ptr(ptrs, ptr2) {
+					if (ptr2 == ptr)
+						break;
+
+					bucket = PTR_BUCKET_POS(ca, ptr2);
+					bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
+				}
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 static void trace_move_extent_finish2(struct bch_fs *c, struct bkey_s_c k)
 {
 	if (trace_move_extent_finish_enabled()) {
@@ -355,17 +425,11 @@ void bch2_data_update_read_done(struct data_update *m,
 void bch2_data_update_exit(struct data_update *update)
 {
 	struct bch_fs *c = update->op.c;
-	struct bkey_ptrs_c ptrs =
-		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
+	struct bkey_s_c k = bkey_i_to_s_c(update->k.k);
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
-		if (c->opts.nocow_enabled)
-			bch2_bucket_nocow_unlock(&c->nocow_locks,
-						 PTR_BUCKET_POS(ca, ptr), 0);
-		bch2_dev_put(ca);
-	}
-
+	if (c->opts.nocow_enabled)
+		bkey_nocow_unlock(c, k);
+	bkey_put_dev_refs(c, k);
 	bch2_bkey_buf_exit(&update->k, c);
 	bch2_disk_reservation_put(c, &update->op.res);
 	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
@@ -475,6 +539,9 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_compression_opt_to_text(out, background_compression(*io_opts));
 	prt_newline(out);
 
+	prt_str(out, "opts.replicas:\t");
+	prt_u64(out, io_opts->data_replicas);
+
 	prt_str(out, "extra replicas:\t");
 	prt_u64(out, data_opts->extra_replicas);
 }
@@ -543,7 +610,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
-	unsigned ptrs_locked = 0;
 	int ret = 0;
 
 	/*
@@ -553,6 +619,15 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 */
 	if (unlikely(k.k->p.snapshot && !bch2_snapshot_equiv(c, k.k->p.snapshot)))
 		return -BCH_ERR_data_update_done;
+
+	if (!bkey_get_dev_refs(c, k))
+		return -BCH_ERR_data_update_done;
+
+	if (c->opts.nocow_enabled &&
+	    !bkey_nocow_lock(c, ctxt, k)) {
+		bkey_put_dev_refs(c, k);
+		return -BCH_ERR_nocow_lock_blocked;
+	}
 
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
@@ -575,40 +650,24 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->op.compression_opt	= background_compression(io_opts);
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		if (!bch2_dev_tryget(c, ptr->dev)) {
-			bkey_for_each_ptr(ptrs, ptr2) {
-				if (ptr2 == ptr)
-					break;
-				bch2_dev_put(bch2_dev_have_ref(c, ptr2->dev));
-			}
-			return -BCH_ERR_data_update_done;
-		}
-	}
-
 	unsigned durability_have = 0, durability_removing = 0;
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bch_dev *ca = bch2_dev_have_ref(c, p.ptr.dev);
-		struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
-		bool locked;
+		if (!p.ptr.cached) {
+			rcu_read_lock();
+			if (BIT(i) & m->data_opts.rewrite_ptrs) {
+				if (crc_is_compressed(p.crc))
+					reserve_sectors += k.k->size;
 
-		rcu_read_lock();
-		if (((1U << i) & m->data_opts.rewrite_ptrs)) {
-			BUG_ON(p.ptr.cached);
-
-			if (crc_is_compressed(p.crc))
-				reserve_sectors += k.k->size;
-
-			m->op.nr_replicas += bch2_extent_ptr_desired_durability(c, &p);
-			durability_removing += bch2_extent_ptr_desired_durability(c, &p);
-		} else if (!p.ptr.cached &&
-			   !((1U << i) & m->data_opts.kill_ptrs)) {
-			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
-			durability_have += bch2_extent_ptr_durability(c, &p);
+				m->op.nr_replicas += bch2_extent_ptr_desired_durability(c, &p);
+				durability_removing += bch2_extent_ptr_desired_durability(c, &p);
+			} else if (!(BIT(i) & m->data_opts.kill_ptrs)) {
+				bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
+				durability_have += bch2_extent_ptr_durability(c, &p);
+			}
+			rcu_read_unlock();
 		}
-		rcu_read_unlock();
 
 		/*
 		 * op->csum_type is normally initialized from the fs/file's
@@ -623,24 +682,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
 
-		if (c->opts.nocow_enabled) {
-			if (ctxt) {
-				move_ctxt_wait_event(ctxt,
-						(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
-									  bucket, 0)) ||
-						list_empty(&ctxt->ios));
-
-				if (!locked)
-					bch2_bucket_nocow_lock(&c->nocow_locks, bucket, 0);
-			} else {
-				if (!bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) {
-					ret = -BCH_ERR_nocow_lock_blocked;
-					goto err;
-				}
-			}
-			ptrs_locked |= (1U << i);
-		}
-
 		i++;
 	}
 
@@ -654,16 +695,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * Increasing replication is an explicit operation triggered by
 	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
 	 */
-	if (!(m->data_opts.write_flags & BCH_WRITE_CACHED) &&
-	    !durability_required) {
-		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
-		m->data_opts.rewrite_ptrs = 0;
-		/* if iter == NULL, it's just a promote */
-		if (iter)
-			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
-		goto done;
-	}
-
 	m->op.nr_replicas = min(durability_removing, durability_required) +
 		m->data_opts.extra_replicas;
 
@@ -675,17 +706,21 @@ int bch2_data_update_init(struct btree_trans *trans,
 	if (!(durability_have + durability_removing))
 		m->op.nr_replicas = max((unsigned) m->op.nr_replicas, 1);
 
-	if (!m->op.nr_replicas) {
-		struct printbuf buf = PRINTBUF;
-
-		bch2_data_update_to_text(&buf, m);
-		WARN(1, "trying to move an extent, but nr_replicas=0\n%s", buf.buf);
-		printbuf_exit(&buf);
-		ret = -BCH_ERR_data_update_done;
-		goto done;
-	}
-
 	m->op.nr_replicas_required = m->op.nr_replicas;
+
+	/*
+	 * It might turn out that we don't need any new replicas, if the
+	 * replicas or durability settings have been changed since the extent
+	 * was written:
+	 */
+	if (!m->op.nr_replicas) {
+		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
+		m->data_opts.rewrite_ptrs = 0;
+		/* if iter == NULL, it's just a promote */
+		if (iter)
+			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
+		goto out;
+	}
 
 	if (reserve_sectors) {
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
@@ -693,30 +728,16 @@ int bch2_data_update_init(struct btree_trans *trans,
 				? 0
 				: BCH_DISK_RESERVATION_NOFAIL);
 		if (ret)
-			goto err;
+			goto out;
 	}
 
 	if (bkey_extent_is_unwritten(k)) {
 		bch2_update_unwritten_extent(trans, m);
-		goto done;
+		goto out;
 	}
 
 	return 0;
-err:
-	i = 0;
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bch_dev *ca = bch2_dev_have_ref(c, p.ptr.dev);
-		struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
-		if ((1U << i) & ptrs_locked)
-			bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
-		bch2_dev_put(ca);
-		i++;
-	}
-
-	bch2_bkey_buf_exit(&m->k, c);
-	bch2_bio_free_pages_pool(c, &m->op.wbio.bio);
-	return ret;
-done:
+out:
 	bch2_data_update_exit(m);
 	return ret ?: -BCH_ERR_data_update_done;
 }
