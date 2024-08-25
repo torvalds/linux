@@ -111,7 +111,7 @@
 #define DMUB_MAX_PHANTOM_PLANES ((DMUB_MAX_PLANES) / 2)
 
 /* Trace buffer offset for entry */
-#define TRACE_BUFFER_ENTRY_OFFSET  16
+#define TRACE_BUFFER_ENTRY_OFFSET 16
 
 /**
  * Maximum number of dirty rects supported by FW.
