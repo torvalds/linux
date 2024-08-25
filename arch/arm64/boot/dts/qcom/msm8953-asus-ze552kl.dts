@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, Antony Kurniawan S. <postmarketos@smankusors.com>
+ */
+/dts-v1/;
+
+#include "msm8953-asus-common.dtsi"
+
+/ {
+	compatible = "asus,zenfone3", "asus,ze552kl", "qcom,msm8953";
+	model = "Asus Zenfone 3 (ZE552KL)";
+};
+
+&battery {
+	charge-full-design-microamp-hours = <2900000>;
+};
+
+&sound_card {
+	model = "asus-ze552kl";
+};
