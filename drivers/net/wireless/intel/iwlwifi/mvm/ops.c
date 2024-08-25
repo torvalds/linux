@@ -1198,10 +1198,12 @@ static void iwl_mvm_trig_link_selection(struct wiphy *wiphy,
 	struct iwl_mvm *mvm =
 		container_of(wk, struct iwl_mvm, trig_link_selection_wk);
 
+	mutex_lock(&mvm->mutex);
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_find_link_selection_vif,
 					    NULL);
+	mutex_unlock(&mvm->mutex);
 }
 
 static struct iwl_op_mode *
