@@ -636,15 +636,14 @@ static const char *shmem_format_huge(int huge)
 #endif
 
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-		struct shrink_control *sc, unsigned long nr_to_split)
+		struct shrink_control *sc, unsigned long nr_to_free)
 {
 	LIST_HEAD(list), *pos, *next;
-	LIST_HEAD(to_remove);
 	struct inode *inode;
 	struct shmem_inode_info *info;
 	struct folio *folio;
 	unsigned long batch = sc ? sc->nr_to_scan : 128;
-	int split = 0;
+	unsigned long split = 0, freed = 0;
 
 	if (list_empty(&sbinfo->shrinklist))
 		return SHRINK_STOP;
@@ -662,13 +661,6 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 			goto next;
 		}
 
-		/* Check if there's anything to gain */
-		if (round_up(inode->i_size, PAGE_SIZE) ==
-				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
-			list_move(&info->shrinklist, &to_remove);
-			goto next;
-		}
-
 		list_move(&info->shrinklist, &list);
 next:
 		sbinfo->shrinklist_len--;
@@ -677,30 +669,32 @@ next:
 	}
 	spin_unlock(&sbinfo->shrinklist_lock);
 
-	list_for_each_safe(pos, next, &to_remove) {
-		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-		inode = &info->vfs_inode;
-		list_del_init(&info->shrinklist);
-		iput(inode);
-	}
-
 	list_for_each_safe(pos, next, &list) {
+		pgoff_t next, end;
+		loff_t i_size;
 		int ret;
-		pgoff_t index;
 
 		info = list_entry(pos, struct shmem_inode_info, shrinklist);
 		inode = &info->vfs_inode;
 
-		if (nr_to_split && split >= nr_to_split)
+		if (nr_to_free && freed >= nr_to_free)
 			goto move_back;
 
-		index = (inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT;
-		folio = filemap_get_folio(inode->i_mapping, index);
-		if (IS_ERR(folio))
+		i_size = i_size_read(inode);
+		folio = filemap_get_entry(inode->i_mapping, i_size / PAGE_SIZE);
+		if (!folio || xa_is_value(folio))
 			goto drop;
 
-		/* No huge page at the end of the file: nothing to split */
+		/* No large folio at the end of the file: nothing to split */
 		if (!folio_test_large(folio)) {
+			folio_put(folio);
+			goto drop;
+		}
+
+		/* Check if there is anything to gain from splitting */
+		next = folio_next_index(folio);
+		end = shmem_fallocend(inode, DIV_ROUND_UP(i_size, PAGE_SIZE));
+		if (end <= folio->index || end >= next) {
 			folio_put(folio);
 			goto drop;
 		}
@@ -725,6 +719,7 @@ next:
 		if (ret)
 			goto move_back;
 
+		freed += next - end;
 		split++;
 drop:
 		list_del_init(&info->shrinklist);
@@ -769,7 +764,7 @@ static long shmem_unused_huge_count(struct super_block *sb,
 #define shmem_huge SHMEM_HUGE_DENY
 
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-		struct shrink_control *sc, unsigned long nr_to_split)
+		struct shrink_control *sc, unsigned long nr_to_free)
 {
 	return 0;
 }
@@ -1851,7 +1846,7 @@ allocated:
 		 * Try to reclaim some space by splitting a few
 		 * large folios beyond i_size on the filesystem.
 		 */
-		shmem_unused_huge_shrink(sbinfo, NULL, 2);
+		shmem_unused_huge_shrink(sbinfo, NULL, pages);
 		/*
 		 * And do a shmem_recalc_inode() to account for freed pages:
 		 * except our folio is there in cache, so not quite balanced.
