@@ -201,18 +201,25 @@ static const struct kobj_type virtio_fs_ktype = {
 };
 
 /* Make sure virtiofs_mutex is held */
+static void virtio_fs_put_locked(struct virtio_fs *fs)
+{
+	lockdep_assert_held(&virtio_fs_mutex);
+
+	kobject_put(&fs->kobj);
+}
+
 static void virtio_fs_put(struct virtio_fs *fs)
 {
-	kobject_put(&fs->kobj);
+	mutex_lock(&virtio_fs_mutex);
+	virtio_fs_put_locked(fs);
+	mutex_unlock(&virtio_fs_mutex);
 }
 
 static void virtio_fs_fiq_release(struct fuse_iqueue *fiq)
 {
 	struct virtio_fs *vfs = fiq->priv;
 
-	mutex_lock(&virtio_fs_mutex);
 	virtio_fs_put(vfs);
-	mutex_unlock(&virtio_fs_mutex);
 }
 
 static void virtio_fs_drain_queue(struct virtio_fs_vq *fsvq)
@@ -1052,7 +1059,7 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 
 	vdev->priv = NULL;
 	/* Put device reference on virtio_fs object */
-	virtio_fs_put(fs);
+	virtio_fs_put_locked(fs);
 	mutex_unlock(&virtio_fs_mutex);
 }
 
@@ -1596,9 +1603,7 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 
 out_err:
 	kfree(fc);
-	mutex_lock(&virtio_fs_mutex);
 	virtio_fs_put(fs);
-	mutex_unlock(&virtio_fs_mutex);
 	return err;
 }
 
