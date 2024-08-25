@@ -241,11 +241,10 @@ static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
 static void tegra_kbc_keypress_timer(struct timer_list *t)
 {
 	struct tegra_kbc *kbc = from_timer(kbc, t, timer);
-	unsigned long flags;
 	u32 val;
 	unsigned int i;
 
-	spin_lock_irqsave(&kbc->lock, flags);
+	guard(spinlock_irqsave)(&kbc->lock);
 
 	val = (readl(kbc->mmio + KBC_INT_0) >> 4) & 0xf;
 	if (val) {
@@ -270,17 +269,14 @@ static void tegra_kbc_keypress_timer(struct timer_list *t)
 		/* All keys are released so enable the keypress interrupt */
 		tegra_kbc_set_fifo_interrupt(kbc, true);
 	}
-
-	spin_unlock_irqrestore(&kbc->lock, flags);
 }
 
 static irqreturn_t tegra_kbc_isr(int irq, void *args)
 {
 	struct tegra_kbc *kbc = args;
-	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&kbc->lock, flags);
+	guard(spinlock_irqsave)(&kbc->lock);
 
 	/*
 	 * Quickly bail out & reenable interrupts if the fifo threshold
@@ -300,8 +296,6 @@ static irqreturn_t tegra_kbc_isr(int irq, void *args)
 		/* We can be here only through system resume path */
 		kbc->keypress_caused_wake = true;
 	}
-
-	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -413,14 +407,13 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 
 static void tegra_kbc_stop(struct tegra_kbc *kbc)
 {
-	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&kbc->lock, flags);
-	val = readl(kbc->mmio + KBC_CONTROL_0);
-	val &= ~1;
-	writel(val, kbc->mmio + KBC_CONTROL_0);
-	spin_unlock_irqrestore(&kbc->lock, flags);
+	scoped_guard(spinlock_irqsave, &kbc->lock) {
+		val = readl(kbc->mmio + KBC_CONTROL_0);
+		val &= ~1;
+		writel(val, kbc->mmio + KBC_CONTROL_0);
+	}
 
 	disable_irq(kbc->irq);
 	del_timer_sync(&kbc->timer);
@@ -724,7 +717,8 @@ static int tegra_kbc_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 
-	mutex_lock(&kbc->idev->mutex);
+	guard(mutex)(&kbc->idev->mutex);
+
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq(kbc->irq);
 		del_timer_sync(&kbc->timer);
@@ -747,11 +741,9 @@ static int tegra_kbc_suspend(struct device *dev)
 		tegra_kbc_set_keypress_interrupt(kbc, true);
 		enable_irq(kbc->irq);
 		enable_irq_wake(kbc->irq);
-	} else {
-		if (input_device_enabled(kbc->idev))
-			tegra_kbc_stop(kbc);
+	} else if (input_device_enabled(kbc->idev)) {
+		tegra_kbc_stop(kbc);
 	}
-	mutex_unlock(&kbc->idev->mutex);
 
 	return 0;
 }
@@ -760,9 +752,10 @@ static int tegra_kbc_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
-	int err = 0;
+	int err;
 
-	mutex_lock(&kbc->idev->mutex);
+	guard(mutex)(&kbc->idev->mutex);
+
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(kbc->irq);
 		tegra_kbc_setup_wakekeys(kbc, false);
@@ -787,13 +780,13 @@ static int tegra_kbc_resume(struct device *dev)
 			input_report_key(kbc->idev, kbc->wakeup_key, 0);
 			input_sync(kbc->idev);
 		}
-	} else {
-		if (input_device_enabled(kbc->idev))
-			err = tegra_kbc_start(kbc);
+	} else if (input_device_enabled(kbc->idev)) {
+		err = tegra_kbc_start(kbc);
+		if (err)
+			return err;
 	}
-	mutex_unlock(&kbc->idev->mutex);
 
-	return err;
+	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(tegra_kbc_pm_ops,
