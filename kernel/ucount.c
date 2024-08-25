@@ -70,7 +70,7 @@ static long ue_int_max = INT_MAX;
 		.extra1		= &ue_zero,			\
 		.extra2		= &ue_int_max,			\
 	}
-static struct ctl_table user_table[] = {
+static const struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_user_namespaces"),
 	UCOUNT_ENTRY("max_pid_namespaces"),
 	UCOUNT_ENTRY("max_uts_namespaces"),
