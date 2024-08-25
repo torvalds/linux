@@ -734,7 +734,23 @@ static void __init memblock_add_physmem_info(void)
 }
 
 /*
- * Reserve memory used for lowcore/command line/kernel image.
+ * Reserve memory used for lowcore.
+ */
+static void __init reserve_lowcore(void)
+{
+	void *lowcore_start = get_lowcore();
+	void *lowcore_end = lowcore_start + sizeof(struct lowcore);
+	void *start, *end;
+
+	if ((void *)__identity_base < lowcore_end) {
+		start = max(lowcore_start, (void *)__identity_base);
+		end = min(lowcore_end, (void *)(__identity_base + ident_map_size));
+		memblock_reserve(__pa(start), __pa(end));
+	}
+}
+
+/*
+ * Reserve memory used for absolute lowcore/command line/kernel image.
  */
 static void __init reserve_kernel(void)
 {
@@ -918,6 +934,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_pgtables();
+	reserve_lowcore();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
