@@ -4531,6 +4531,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 {
 	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
+
+	if (adev->mman.initialized)
+		drain_workqueue(adev->mman.bdev.wq);
 	adev->shutdown = true;
 
 	/* make sure IB test finished before entering exclusive mode
@@ -4550,9 +4553,6 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 			drm_atomic_helper_shutdown(adev_to_drm(adev));
 	}
 	amdgpu_fence_driver_hw_fini(adev);
-
-	if (adev->mman.initialized)
-		drain_workqueue(adev->mman.bdev.wq);
 
 	if (adev->pm.sysfs_initialized)
 		amdgpu_pm_sysfs_fini(adev);
