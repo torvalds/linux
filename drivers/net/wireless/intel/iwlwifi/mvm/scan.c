@@ -1659,6 +1659,17 @@ iwl_mvm_umac_scan_cfg_channels_v7(struct iwl_mvm *mvm,
 		cfg->v2.channel_num = channels[i]->hw_value;
 		if (cfg80211_channel_is_psc(channels[i]))
 			cfg->flags = 0;
+
+		if (band == NL80211_BAND_6GHZ) {
+			/* 6 GHz channels should only appear in a scan request
+			 * that has scan_6ghz set. The only exception is MLO
+			 * scan, which has to be passive.
+			 */
+			WARN_ON_ONCE(cfg->flags != 0);
+			cfg->flags =
+				cpu_to_le32(IWL_UHB_CHAN_CFG_FLAG_FORCE_PASSIVE);
+		}
+
 		cfg->v2.iter_count = 1;
 		cfg->v2.iter_interval = 0;
 		if (version < 17)
