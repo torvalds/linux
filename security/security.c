@@ -33,30 +33,6 @@
 #include <net/flow.h>
 #include <net/sock.h>
 
-/* How many LSMs were built into the kernel? */
-#define LSM_COUNT (__end_lsm_info - __start_lsm_info)
-
-/*
- * How many LSMs are built into the kernel as determined at
- * build time. Used to determine fixed array sizes.
- * The capability module is accounted for by CONFIG_SECURITY
- */
-#define LSM_CONFIG_COUNT ( \
-	(IS_ENABLED(CONFIG_SECURITY) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_SELINUX) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_SMACK) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_TOMOYO) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_APPARMOR) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_YAMA) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_LOADPIN) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_SAFESETID) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_LOCKDOWN_LSM) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_BPF_LSM) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_LANDLOCK) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_IMA) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_EVM) ? 1 : 0) + \
-	(IS_ENABLED(CONFIG_SECURITY_IPE) ? 1 : 0))
-
 #define SECURITY_HOOK_ACTIVE_KEY(HOOK, IDX) security_hook_active_##HOOK##_##IDX
 
 /*
@@ -130,7 +106,7 @@ static __initdata const char *chosen_major_lsm;
 static __initconst const char *const builtin_lsm_order = CONFIG_LSM;
 
 /* Ordered list of LSMs to initialize. */
-static __initdata struct lsm_info **ordered_lsms;
+static __initdata struct lsm_info *ordered_lsms[MAX_LSM_COUNT + 1];
 static __initdata struct lsm_info *exclusive;
 
 #ifdef CONFIG_HAVE_STATIC_CALL
@@ -242,7 +218,7 @@ static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 	if (exists_ordered_lsm(lsm))
 		return;
 
-	if (WARN(last_lsm == LSM_COUNT, "%s: out of LSM static calls!?\n", from))
+	if (WARN(last_lsm == MAX_LSM_COUNT, "%s: out of LSM static calls!?\n", from))
 		return;
 
 	/* Enable this LSM, if it is not already set. */
@@ -345,7 +321,7 @@ static void __init initialize_lsm(struct lsm_info *lsm)
  * Current index to use while initializing the lsm id list.
  */
 u32 lsm_active_cnt __ro_after_init;
-const struct lsm_id *lsm_idlist[LSM_CONFIG_COUNT];
+const struct lsm_id *lsm_idlist[MAX_LSM_COUNT];
 
 /* Populate ordered LSMs list from comma-separated LSM name list. */
 static void __init ordered_lsm_parse(const char *order, const char *origin)
@@ -474,9 +450,6 @@ static void __init ordered_lsm_init(void)
 {
 	struct lsm_info **lsm;
 
-	ordered_lsms = kcalloc(LSM_COUNT + 1, sizeof(*ordered_lsms),
-			       GFP_KERNEL);
-
 	if (chosen_lsm_order) {
 		if (chosen_major_lsm) {
 			pr_warn("security=%s is ignored because it is superseded by lsm=%s\n",
@@ -525,8 +498,6 @@ static void __init ordered_lsm_init(void)
 	lsm_early_task(current);
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		initialize_lsm(*lsm);
-
-	kfree(ordered_lsms);
 }
 
 int __init early_security_init(void)
@@ -653,7 +624,7 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	 * Look at the previous entry, if there is one, for duplication.
 	 */
 	if (lsm_active_cnt == 0 || lsm_idlist[lsm_active_cnt - 1] != lsmid) {
-		if (lsm_active_cnt >= LSM_CONFIG_COUNT)
+		if (lsm_active_cnt >= MAX_LSM_COUNT)
 			panic("%s Too many LSMs registered.\n", __func__);
 		lsm_idlist[lsm_active_cnt++] = lsmid;
 	}
