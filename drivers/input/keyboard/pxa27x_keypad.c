@@ -682,7 +682,7 @@ static int pxa27x_keypad_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
-	int ret = 0;
+	int error;
 
 	/*
 	 * If the keypad is used as wake up source, the clock is not turned
@@ -691,19 +691,19 @@ static int pxa27x_keypad_resume(struct device *dev)
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(keypad->irq);
 	} else {
-		mutex_lock(&input_dev->mutex);
+		guard(mutex)(&input_dev->mutex);
 
 		if (input_device_enabled(input_dev)) {
 			/* Enable unit clock */
-			ret = clk_prepare_enable(keypad->clk);
-			if (!ret)
-				pxa27x_keypad_config(keypad);
-		}
+			error = clk_prepare_enable(keypad->clk);
+			if (error)
+				return error;
 
-		mutex_unlock(&input_dev->mutex);
+			pxa27x_keypad_config(keypad);
+		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(pxa27x_keypad_pm_ops,
