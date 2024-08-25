@@ -144,7 +144,7 @@ static void omap4_keypad_scan_keys(struct omap4_keypad *keypad_data, u64 keys)
 {
 	u64 changed;
 
-	mutex_lock(&keypad_data->lock);
+	guard(mutex)(&keypad_data->lock);
 
 	changed = keys ^ keypad_data->keys;
 
@@ -158,8 +158,6 @@ static void omap4_keypad_scan_keys(struct omap4_keypad *keypad_data, u64 keys)
 	omap4_keypad_report_keys(keypad_data, changed & keys, true);
 
 	keypad_data->keys = keys;
-
-	mutex_unlock(&keypad_data->lock);
 }
 
 /* Interrupt handlers */
