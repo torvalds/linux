@@ -1582,13 +1582,16 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 		return;
 
 	/* Fill up the score histogram */
-	memset(quota->histogram, 0, sizeof(quota->histogram));
+	memset(c->regions_score_histogram, 0,
+			sizeof(*c->regions_score_histogram) *
+			(DAMOS_MAX_SCORE + 1));
 	damon_for_each_target(t, c) {
 		damon_for_each_region(r, t) {
 			if (!__damos_valid_target(r, s))
 				continue;
 			score = c->ops.get_scheme_score(c, t, r, s);
-			quota->histogram[score] += damon_sz_region(r);
+			c->regions_score_histogram[score] +=
+				damon_sz_region(r);
 			if (score > max_score)
 				max_score = score;
 		}
@@ -1596,7 +1599,7 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 
 	/* Set the min score limit */
 	for (cumulated_sz = 0, score = max_score; ; score--) {
-		cumulated_sz += quota->histogram[score];
+		cumulated_sz += c->regions_score_histogram[score];
 		if (cumulated_sz >= quota->esz || !score)
 			break;
 	}
