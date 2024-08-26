@@ -94,8 +94,7 @@
 
 		remoteproc_vpx0: remoteproc_vpx@0x18000000 {
 			compatible = "snps,vpx-rproc";
-			reg = <0x18000000 0x01000000>,
-			      <0x30001000 0x01000000>;
+			reg = <0x18000000 0x01000000>;
 			firmware-name = "Deployment_vpx.elf";
 			snps,arcsync-ctrl = <&arcsync0>;
 			snps,arcsync-core-id = <0x0>;
