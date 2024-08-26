@@ -3942,8 +3942,11 @@ enum rtw89_wow_h2c_func {
 	NUM_OF_RTW89_WOW_H2C_FUNC,
 };
 
-#define RTW89_WOW_WAIT_COND(func) \
-	(NUM_OF_RTW89_WOW_H2C_FUNC + (func))
+#define RTW89_WOW_WAIT_COND(tag, func) \
+	((tag) * NUM_OF_RTW89_WOW_H2C_FUNC + (func))
+
+#define RTW89_WOW_WAIT_COND_AOAC \
+	RTW89_WOW_WAIT_COND(0 /* don't care */, H2C_FUNC_AOAC_REPORT_REQ)
 
 /* CLASS 2 - PS */
 #define H2C_CL_MAC_PS			0x2

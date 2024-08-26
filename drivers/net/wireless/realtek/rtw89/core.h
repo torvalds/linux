@@ -5293,6 +5293,9 @@ struct rtw89_wow_param {
 	u8 gtk_alg;
 	u8 ptk_keyidx;
 	u8 akm;
+
+	/* see RTW89_WOW_WAIT_COND series for wait condition */
+	struct rtw89_wait_info wait;
 };
 
 struct rtw89_mcc_limit {

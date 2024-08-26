@@ -4278,6 +4278,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 
 	rtw89_init_wait(&rtwdev->mcc.wait);
 	rtw89_init_wait(&rtwdev->mac.fw_ofld_wait);
+	rtw89_init_wait(&rtwdev->wow.wait);
 
 	INIT_WORK(&rtwdev->c2h_work, rtw89_fw_c2h_work);
 	INIT_WORK(&rtwdev->ips_work, rtw89_ips_work);
