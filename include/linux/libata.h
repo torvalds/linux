@@ -2006,7 +2006,6 @@ extern unsigned int ata_sff_data_xfer(struct ata_queued_cmd *qc,
 extern unsigned int ata_sff_data_xfer32(struct ata_queued_cmd *qc,
 			unsigned char *buf, unsigned int buflen, int rw);
 extern void ata_sff_irq_on(struct ata_port *ap);
-extern void ata_sff_irq_clear(struct ata_port *ap);
 extern int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 			    u8 status, int in_wq);
 extern void ata_sff_queue_work(struct work_struct *work);
