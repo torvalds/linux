@@ -1333,7 +1333,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		return;
 
 	if (cb->cb_status) {
-		WARN_ON_ONCE(task->tk_status);
+		WARN_ONCE(task->tk_status, "cb_status=%d tk_status=%d",
+			  cb->cb_status, task->tk_status);
 		task->tk_status = cb->cb_status;
 	}
 
