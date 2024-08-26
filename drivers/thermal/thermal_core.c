@@ -891,8 +891,6 @@ static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *pos, *next;
 
-	lockdep_assert_held(&tz->lock);
-
 	mutex_lock(&cdev->lock);
 	list_for_each_entry_safe(pos, next, &tz->thermal_instances, tz_node) {
 		if (pos->trip == trip && pos->cdev == cdev) {
