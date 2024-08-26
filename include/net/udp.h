@@ -232,7 +232,7 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	}
 
 	/* Since this is being sent on the wire obfuscate hash a bit
-	 * to minimize possbility that any useful information to an
+	 * to minimize possibility that any useful information to an
 	 * attacker is leaked. Only upper 16 bits are relevant in the
 	 * computation for 16 bit port value.
 	 */

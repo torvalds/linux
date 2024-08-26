@@ -125,14 +125,14 @@ struct netns_sctp {
 	int pf_expose;
 
 	/*
-	 * Policy for preforming sctp/socket accounting
+	 * Policy for performing sctp/socket accounting
 	 * 0   - do socket level accounting, all assocs share sk_sndbuf
 	 * 1   - do sctp accounting, each asoc may use sk_sndbuf bytes
 	 */
 	int sndbuf_policy;
 
 	/*
-	 * Policy for preforming sctp/socket accounting
+	 * Policy for performing sctp/socket accounting
 	 * 0   - do socket level accounting, all assocs share sk_rcvbuf
 	 * 1   - do sctp accounting, each asoc may use sk_rcvbuf bytes
 	 */

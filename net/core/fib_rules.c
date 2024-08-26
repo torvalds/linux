@@ -72,7 +72,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 	r->suppress_prefixlen = -1;
 	r->suppress_ifgroup = -1;
 
-	/* The lock is not required here, the list in unreacheable
+	/* The lock is not required here, the list in unreachable
 	 * at the moment this function is called */
 	list_add_tail(&r->list, &ops->rules_list);
 	return 0;
