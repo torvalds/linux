@@ -99,5 +99,7 @@ time slot, by reaching out to the maintainer.
 
 Schedules and available reservation time slots are available at the Google `doc
 <https://docs.google.com/document/d/1v43Kcj3ly4CYqmAkMaZzLiM2GEnWfgdGbZAH3mi2vpM/edit?usp=sharing>`.
-DAMON maintainer will also provide periodic reminder to the mailing list
-(damon@lists.linux.dev).
+There is also a public Google `calendar
+<https://calendar.google.com/calendar/u/0?cid=ZDIwOTA4YTMxNjc2MDQ3NTIyMmUzYTM5ZmQyM2U4NDA0ZGIwZjBiYmJlZGQxNDM0MmY4ZTRjOTE0NjdhZDRiY0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t>`
+that has the events.  Anyone can subscribe it.  DAMON maintainer will also
+provide periodic reminder to the mailing list (damon@lists.linux.dev).
