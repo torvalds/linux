@@ -15,6 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/uio.h>
 #include <linux/fiemap.h>
+#include <linux/random.h>
 #include "nilfs.h"
 #include "btnode.h"
 #include "segment.h"
@@ -320,7 +321,6 @@ static int nilfs_insert_inode_locked(struct inode *inode,
 struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
-	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct inode *inode;
 	struct nilfs_inode_info *ii;
 	struct nilfs_root *root;
@@ -381,9 +381,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
 	nilfs_set_inode_flags(inode);
-	spin_lock(&nilfs->ns_next_gen_lock);
-	inode->i_generation = nilfs->ns_next_generation++;
-	spin_unlock(&nilfs->ns_next_gen_lock);
+	inode->i_generation = get_random_u32();
 	if (nilfs_insert_inode_locked(inode, root, ino) < 0) {
 		err = -EIO;
 		goto failed_after_creation;
