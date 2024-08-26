@@ -12,18 +12,8 @@
    :maxdepth: 1
 
    process/howto
-
-
-리눅스 커널 메모리 배리어
--------------------------
+   core-api/wrappers/memory-barriers.rst
 
 .. raw:: latex
 
-    \footnotesize
-
-.. include:: ./memory-barriers.txt
-    :literal:
-
-.. raw:: latex
-
-    }\kerneldocEndKR
+       }\kerneldocEndKR
