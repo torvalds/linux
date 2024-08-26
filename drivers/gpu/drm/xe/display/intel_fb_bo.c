@@ -7,6 +7,7 @@
 #include <drm/ttm/ttm_bo.h>
 
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "xe_bo.h"
 
@@ -27,6 +28,14 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 {
 	struct xe_device *xe = to_xe_device(bo->ttm.base.dev);
 	int ret;
+
+	/*
+	 * Some modifiers require physical alignment of 64KiB VRAM pages;
+	 * require that the BO in those cases is created correctly.
+	 */
+	if (XE_IOCTL_DBG(xe, intel_fb_needs_64k_phys(mode_cmd->modifier[0]) &&
+			     !(bo->flags & XE_BO_FLAG_NEEDS_64K)))
+		return -EINVAL;
 
 	xe_bo_get(bo);
 
