@@ -641,6 +641,11 @@ properties:
           - const: leez,p710
           - const: rockchip,rk3399
 
+      - description: LCKFB Taishan Pi RK3566
+        items:
+          - const: lckfb,tspi-rk3566
+          - const: rockchip,rk3566
+
       - description: Lunzn FastRhino R66S / R68S
         items:
           - enum:
