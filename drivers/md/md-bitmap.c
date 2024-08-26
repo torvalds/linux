@@ -32,6 +32,186 @@
 #include "md.h"
 #include "md-bitmap.h"
 
+#define BITMAP_MAJOR_LO 3
+/* version 4 insists the bitmap is in little-endian order
+ * with version 3, it is host-endian which is non-portable
+ * Version 5 is currently set only for clustered devices
+ */
+#define BITMAP_MAJOR_HI 4
+#define BITMAP_MAJOR_CLUSTERED 5
+#define	BITMAP_MAJOR_HOSTENDIAN 3
+
+/*
+ * in-memory bitmap:
+ *
+ * Use 16 bit block counters to track pending writes to each "chunk".
+ * The 2 high order bits are special-purpose, the first is a flag indicating
+ * whether a resync is needed.  The second is a flag indicating whether a
+ * resync is active.
+ * This means that the counter is actually 14 bits:
+ *
+ * +--------+--------+------------------------------------------------+
+ * | resync | resync |               counter                          |
+ * | needed | active |                                                |
+ * |  (0-1) |  (0-1) |              (0-16383)                         |
+ * +--------+--------+------------------------------------------------+
+ *
+ * The "resync needed" bit is set when:
+ *    a '1' bit is read from storage at startup.
+ *    a write request fails on some drives
+ *    a resync is aborted on a chunk with 'resync active' set
+ * It is cleared (and resync-active set) when a resync starts across all drives
+ * of the chunk.
+ *
+ *
+ * The "resync active" bit is set when:
+ *    a resync is started on all drives, and resync_needed is set.
+ *       resync_needed will be cleared (as long as resync_active wasn't already set).
+ * It is cleared when a resync completes.
+ *
+ * The counter counts pending write requests, plus the on-disk bit.
+ * When the counter is '1' and the resync bits are clear, the on-disk
+ * bit can be cleared as well, thus setting the counter to 0.
+ * When we set a bit, or in the counter (to start a write), if the fields is
+ * 0, we first set the disk bit and set the counter to 1.
+ *
+ * If the counter is 0, the on-disk bit is clear and the stripe is clean
+ * Anything that dirties the stripe pushes the counter to 2 (at least)
+ * and sets the on-disk bit (lazily).
+ * If a periodic sweep find the counter at 2, it is decremented to 1.
+ * If the sweep find the counter at 1, the on-disk bit is cleared and the
+ * counter goes to zero.
+ *
+ * Also, we'll hijack the "map" pointer itself and use it as two 16 bit block
+ * counters as a fallback when "page" memory cannot be allocated:
+ *
+ * Normal case (page memory allocated):
+ *
+ *     page pointer (32-bit)
+ *
+ *     [ ] ------+
+ *               |
+ *               +-------> [   ][   ]..[   ] (4096 byte page == 2048 counters)
+ *                          c1   c2    c2048
+ *
+ * Hijacked case (page memory allocation failed):
+ *
+ *     hijacked page pointer (32-bit)
+ *
+ *     [		  ][		  ] (no page memory allocated)
+ *      counter #1 (16-bit) counter #2 (16-bit)
+ *
+ */
+
+#define PAGE_BITS (PAGE_SIZE << 3)
+#define PAGE_BIT_SHIFT (PAGE_SHIFT + 3)
+
+#define NEEDED(x) (((bitmap_counter_t) x) & NEEDED_MASK)
+#define RESYNC(x) (((bitmap_counter_t) x) & RESYNC_MASK)
+#define COUNTER(x) (((bitmap_counter_t) x) & COUNTER_MAX)
+
+/* how many counters per page? */
+#define PAGE_COUNTER_RATIO (PAGE_BITS / COUNTER_BITS)
+/* same, except a shift value for more efficient bitops */
+#define PAGE_COUNTER_SHIFT (PAGE_BIT_SHIFT - COUNTER_BIT_SHIFT)
+/* same, except a mask value for more efficient bitops */
+#define PAGE_COUNTER_MASK  (PAGE_COUNTER_RATIO - 1)
+
+#define BITMAP_BLOCK_SHIFT 9
+
+/*
+ * bitmap structures:
+ */
+
+/* the in-memory bitmap is represented by bitmap_pages */
+struct bitmap_page {
+	/*
+	 * map points to the actual memory page
+	 */
+	char *map;
+	/*
+	 * in emergencies (when map cannot be alloced), hijack the map
+	 * pointer and use it as two counters itself
+	 */
+	unsigned int hijacked:1;
+	/*
+	 * If any counter in this page is '1' or '2' - and so could be
+	 * cleared then that page is marked as 'pending'
+	 */
+	unsigned int pending:1;
+	/*
+	 * count of dirty bits on the page
+	 */
+	unsigned int  count:30;
+};
+
+/* the main bitmap structure - one per mddev */
+struct bitmap {
+
+	struct bitmap_counts {
+		spinlock_t lock;
+		struct bitmap_page *bp;
+		/* total number of pages in the bitmap */
+		unsigned long pages;
+		/* number of pages not yet allocated */
+		unsigned long missing_pages;
+		/* chunksize = 2^chunkshift (for bitops) */
+		unsigned long chunkshift;
+		/* total number of data chunks for the array */
+		unsigned long chunks;
+	} counts;
+
+	struct mddev *mddev; /* the md device that the bitmap is for */
+
+	__u64	events_cleared;
+	int need_sync;
+
+	struct bitmap_storage {
+		/* backing disk file */
+		struct file *file;
+		/* cached copy of the bitmap file superblock */
+		struct page *sb_page;
+		unsigned long sb_index;
+		/* list of cache pages for the file */
+		struct page **filemap;
+		/* attributes associated filemap pages */
+		unsigned long *filemap_attr;
+		/* number of pages in the file */
+		unsigned long file_pages;
+		/* total bytes in the bitmap */
+		unsigned long bytes;
+	} storage;
+
+	unsigned long flags;
+
+	int allclean;
+
+	atomic_t behind_writes;
+	/* highest actual value at runtime */
+	unsigned long behind_writes_used;
+
+	/*
+	 * the bitmap daemon - periodically wakes up and sweeps the bitmap
+	 * file, cleaning up bits and flushing out pages to disk as necessary
+	 */
+	unsigned long daemon_lastrun; /* jiffies of last run */
+	/*
+	 * when we lasted called end_sync to update bitmap with resync
+	 * progress.
+	 */
+	unsigned long last_end_sync;
+
+	/* pending writes to the bitmap file */
+	atomic_t pending_writes;
+	wait_queue_head_t write_wait;
+	wait_queue_head_t overflow_wait;
+	wait_queue_head_t behind_wait;
+
+	struct kernfs_node *sysfs_can_clear;
+	/* slot offset for clustered env */
+	int cluster_slot;
+};
+
 static int __bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 			   int chunksize, bool init);
 
@@ -491,9 +671,10 @@ static void md_bitmap_wait_writes(struct bitmap *bitmap)
 
 
 /* update the event counter and sync the superblock to disk */
-static void bitmap_update_sb(struct bitmap *bitmap)
+static void bitmap_update_sb(void *data)
 {
 	bitmap_super_t *sb;
+	struct bitmap *bitmap = data;
 
 	if (!bitmap || !bitmap->mddev) /* no bitmap for this array */
 		return;
@@ -1844,10 +2025,11 @@ static void bitmap_flush(struct mddev *mddev)
 	bitmap_update_sb(bitmap);
 }
 
-static void md_bitmap_free(struct bitmap *bitmap)
+static void md_bitmap_free(void *data)
 {
 	unsigned long k, pages;
 	struct bitmap_page *bp;
+	struct bitmap *bitmap = data;
 
 	if (!bitmap) /* there was no bitmap */
 		return;
@@ -2076,7 +2258,7 @@ out:
 }
 
 /* caller need to free returned bitmap with md_bitmap_free() */
-static struct bitmap *bitmap_get_from_slot(struct mddev *mddev, int slot)
+static void *bitmap_get_from_slot(struct mddev *mddev, int slot)
 {
 	int rv = 0;
 	struct bitmap *bitmap;
@@ -2143,15 +2325,18 @@ static int bitmap_copy_from_slot(struct mddev *mddev, int slot, sector_t *low,
 	return rv;
 }
 
-static void bitmap_set_pages(struct bitmap *bitmap, unsigned long pages)
+static void bitmap_set_pages(void *data, unsigned long pages)
 {
+	struct bitmap *bitmap = data;
+
 	bitmap->counts.pages = pages;
 }
 
-static int bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
+static int bitmap_get_stats(void *data, struct md_bitmap_stats *stats)
 {
 	struct bitmap_storage *storage;
 	struct bitmap_counts *counts;
+	struct bitmap *bitmap = data;
 	bitmap_super_t *sb;
 
 	if (!bitmap)
@@ -2510,6 +2695,7 @@ space_show(struct mddev *mddev, char *page)
 static ssize_t
 space_store(struct mddev *mddev, const char *buf, size_t len)
 {
+	struct bitmap *bitmap;
 	unsigned long sectors;
 	int rv;
 
@@ -2520,8 +2706,8 @@ space_store(struct mddev *mddev, const char *buf, size_t len)
 	if (sectors == 0)
 		return -EINVAL;
 
-	if (mddev->bitmap &&
-	    sectors < (mddev->bitmap->storage.bytes + 511) >> 9)
+	bitmap = mddev->bitmap;
+	if (bitmap && sectors < (bitmap->storage.bytes + 511) >> 9)
 		return -EFBIG; /* Bitmap is too big for this small space */
 
 	/* could make sure it isn't too big, but that isn't really
@@ -2698,10 +2884,13 @@ __ATTR(metadata, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 static ssize_t can_clear_show(struct mddev *mddev, char *page)
 {
 	int len;
+	struct bitmap *bitmap;
+
 	spin_lock(&mddev->lock);
-	if (mddev->bitmap)
-		len = sprintf(page, "%s\n", (mddev->bitmap->need_sync ?
-					     "false" : "true"));
+	bitmap = mddev->bitmap;
+	if (bitmap)
+		len = sprintf(page, "%s\n", (bitmap->need_sync ? "false" :
+								 "true"));
 	else
 		len = sprintf(page, "\n");
 	spin_unlock(&mddev->lock);
@@ -2710,17 +2899,24 @@ static ssize_t can_clear_show(struct mddev *mddev, char *page)
 
 static ssize_t can_clear_store(struct mddev *mddev, const char *buf, size_t len)
 {
-	if (mddev->bitmap == NULL)
+	struct bitmap *bitmap = mddev->bitmap;
+
+	if (!bitmap)
 		return -ENOENT;
-	if (strncmp(buf, "false", 5) == 0)
-		mddev->bitmap->need_sync = 1;
-	else if (strncmp(buf, "true", 4) == 0) {
+
+	if (strncmp(buf, "false", 5) == 0) {
+		bitmap->need_sync = 1;
+		return len;
+	}
+
+	if (strncmp(buf, "true", 4) == 0) {
 		if (mddev->degraded)
 			return -EBUSY;
-		mddev->bitmap->need_sync = 0;
-	} else
-		return -EINVAL;
-	return len;
+		bitmap->need_sync = 0;
+		return len;
+	}
+
+	return -EINVAL;
 }
 
 static struct md_sysfs_entry bitmap_can_clear =
@@ -2730,21 +2926,26 @@ static ssize_t
 behind_writes_used_show(struct mddev *mddev, char *page)
 {
 	ssize_t ret;
+	struct bitmap *bitmap;
+
 	spin_lock(&mddev->lock);
-	if (mddev->bitmap == NULL)
+	bitmap = mddev->bitmap;
+	if (!bitmap)
 		ret = sprintf(page, "0\n");
 	else
-		ret = sprintf(page, "%lu\n",
-			      mddev->bitmap->behind_writes_used);
+		ret = sprintf(page, "%lu\n", bitmap->behind_writes_used);
 	spin_unlock(&mddev->lock);
+
 	return ret;
 }
 
 static ssize_t
 behind_writes_used_reset(struct mddev *mddev, const char *buf, size_t len)
 {
-	if (mddev->bitmap)
-		mddev->bitmap->behind_writes_used = 0;
+	struct bitmap *bitmap = mddev->bitmap;
+
+	if (bitmap)
+		bitmap->behind_writes_used = 0;
 	return len;
 }
 
