@@ -22,18 +22,20 @@ description:
 
 properties:
   compatible:
-    enum:
-      - fsl,ls1021a-pcie
-      - fsl,ls2080a-pcie
-      - fsl,ls2085a-pcie
-      - fsl,ls2088a-pcie
-      - fsl,ls1088a-pcie
-      - fsl,ls1046a-pcie
-      - fsl,ls1043a-pcie
-      - fsl,ls1012a-pcie
-      - fsl,ls1028a-pcie
-      - fsl,lx2160a-pcie
-
+    oneOf:
+      - enum:
+          - fsl,ls1012a-pcie
+          - fsl,ls1021a-pcie
+          - fsl,ls1028a-pcie
+          - fsl,ls1043a-pcie
+          - fsl,ls1046a-pcie
+          - fsl,ls1088a-pcie
+          - fsl,ls2080a-pcie
+          - fsl,ls2085a-pcie
+          - fsl,ls2088a-pcie
+      - items:
+          - const: fsl,lx2160ar2-pcie
+          - const: fsl,ls2088a-pcie
   reg:
     maxItems: 2
 
