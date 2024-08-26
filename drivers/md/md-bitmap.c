@@ -1690,10 +1690,12 @@ static void bitmap_close_sync(struct mddev *mddev)
 	}
 }
 
-void md_bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force)
+static void bitmap_cond_end_sync(struct mddev *mddev, sector_t sector,
+				 bool force)
 {
 	sector_t s = 0;
 	sector_t blocks;
+	struct bitmap *bitmap = mddev->bitmap;
 
 	if (!bitmap)
 		return;
@@ -1718,7 +1720,6 @@ void md_bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force)
 	bitmap->last_end_sync = jiffies;
 	sysfs_notify_dirent_safe(bitmap->mddev->sysfs_completed);
 }
-EXPORT_SYMBOL(md_bitmap_cond_end_sync);
 
 void md_bitmap_sync_with_cluster(struct mddev *mddev,
 			      sector_t old_lo, sector_t old_hi,
@@ -2747,6 +2748,7 @@ static struct bitmap_operations bitmap_ops = {
 	.endwrite		= bitmap_endwrite,
 	.start_sync		= bitmap_start_sync,
 	.end_sync		= bitmap_end_sync,
+	.cond_end_sync		= bitmap_cond_end_sync,
 	.close_sync		= bitmap_close_sync,
 
 	.update_sb		= bitmap_update_sb,
