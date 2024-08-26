@@ -143,6 +143,12 @@
 			 <RZG2L_PORT_PINMUX(45, 3, 1)>; /* RXD */
 	};
 
+	ssi1_pins: ssi1 {
+		pinmux = <RZG2L_PORT_PINMUX(46, 0, 1)>, /* BCK */
+			 <RZG2L_PORT_PINMUX(46, 1, 1)>, /* RCK */
+			 <RZG2L_PORT_PINMUX(46, 2, 1)>; /* TXD */
+	};
+
 	usb0_pins: usb0 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 0, 1)>, /* VBUS */
 			 <RZG2L_PORT_PINMUX(5, 0, 1)>, /* OVC */
