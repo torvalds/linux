@@ -2307,6 +2307,7 @@
   teo_cpu_get_util_threshold
   teo_cpu_set_util_threshold
   thermal_cdev_update
+  thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_pressure
@@ -2405,6 +2406,7 @@
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
+  __traceiter_android_vh_set_task_comm
   __traceiter_android_vh_si_meminfo_adjust
   __traceiter_android_vh_sound_usb_support_cpu_suspend
   __traceiter_android_vh_sysrq_crash
@@ -2535,6 +2537,7 @@
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
+  __tracepoint_android_vh_set_task_comm
   __tracepoint_android_vh_si_meminfo_adjust
   __tracepoint_android_vh_sound_usb_support_cpu_suspend
   __tracepoint_android_vh_sysrq_crash
