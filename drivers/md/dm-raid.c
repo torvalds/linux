@@ -4068,7 +4068,8 @@ static int raid_preresume(struct dm_target *ti)
 	       mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)))) {
 		int chunksize = to_bytes(rs->requested_bitmap_chunk_sectors) ?: mddev->bitmap_info.chunksize;
 
-		r = md_bitmap_resize(mddev, mddev->dev_sectors, chunksize, false);
+		r = mddev->bitmap_ops->resize(mddev, mddev->dev_sectors,
+					      chunksize, false);
 		if (r)
 			DMERR("Failed to resize bitmap");
 	}

@@ -2374,8 +2374,8 @@ err:
 	return ret;
 }
 
-int md_bitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize,
-		     bool init)
+static int bitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize,
+			 bool init)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
@@ -2384,7 +2384,6 @@ int md_bitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize,
 
 	return __bitmap_resize(bitmap, blocks, chunksize, init);
 }
-EXPORT_SYMBOL_GPL(md_bitmap_resize);
 
 static ssize_t
 location_show(struct mddev *mddev, char *page)
@@ -2763,6 +2762,7 @@ const struct attribute_group md_bitmap_group = {
 
 static struct bitmap_operations bitmap_ops = {
 	.create			= bitmap_create,
+	.resize			= bitmap_resize,
 	.load			= bitmap_load,
 	.destroy		= bitmap_destroy,
 	.flush			= bitmap_flush,
