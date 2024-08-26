@@ -91,9 +91,9 @@ list (damon@lists.linux.dev).
 .. [1] https://git.kernel.org/akpm/mm/h/mm-unstable
 .. [2] https://git.kernel.org/sj/h/damon/next
 .. [3] https://git.kernel.org/akpm/mm/h/mm-stable
-.. [4] https://github.com/awslabs/damon-tests/blob/master/corr/run.sh#L49
-.. [5] https://github.com/awslabs/damon-tests/blob/master/corr/tests/kunit.sh
-.. [6] https://github.com/awslabs/damon-tests/tree/master/corr
-.. [7] https://github.com/awslabs/damon-tests/tree/master/perf
+.. [4] https://github.com/damonitor/damon-tests/blob/master/corr/run.sh#L49
+.. [5] https://github.com/damonitor/damon-tests/blob/master/corr/tests/kunit.sh
+.. [6] https://github.com/damonitor/damon-tests/tree/master/corr
+.. [7] https://github.com/damonitor/damon-tests/tree/master/perf
 .. [8] https://github.com/damonitor/hackermail
 .. [9] https://docs.google.com/document/d/1v43Kcj3ly4CYqmAkMaZzLiM2GEnWfgdGbZAH3mi2vpM/edit?usp=sharing

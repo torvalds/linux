@@ -7,19 +7,19 @@ Detailed Usages
 DAMON provides below interfaces for different users.
 
 - *DAMON user space tool.*
-  `This <https://github.com/awslabs/damo>`_ is for privileged people such as
+  `This <https://github.com/damonitor/damo>`_ is for privileged people such as
   system administrators who want a just-working human-friendly interface.
   Using this, users can use the DAMON’s major features in a human-friendly way.
   It may not be highly tuned for special cases, though.  For more detail,
   please refer to its `usage document
-  <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
+  <https://github.com/damonitor/damo/blob/next/USAGE.md>`_.
 - *sysfs interface.*
   :ref:`This <sysfs_interface>` is for privileged user space programmers who
   want more optimized use of DAMON.  Using this, users can use DAMON’s major
   features by reading from and writing to special sysfs files.  Therefore,
   you can write and use your personalized DAMON sysfs wrapper programs that
   reads/writes the sysfs files instead of you.  The `DAMON user space tool
-  <https://github.com/awslabs/damo>`_ is one example of such programs.
+  <https://github.com/damonitor/damo>`_ is one example of such programs.
 - *Kernel Space Programming Interface.*
   :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
@@ -543,7 +543,7 @@ memory rate becomes larger than 60%, or lower than 30%". ::
     # echo 300 > watermarks/low
 
 Please note that it's highly recommended to use user space tools like `damo
-<https://github.com/awslabs/damo>`_ rather than manually reading and writing
+<https://github.com/damonitor/damo>`_ rather than manually reading and writing
 the files as above.  Above is only for an example.
 
 .. _tracepoint:
