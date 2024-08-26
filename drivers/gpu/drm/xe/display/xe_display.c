@@ -10,6 +10,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/xe_drm.h>
 
 #include "soc/intel_dram.h"

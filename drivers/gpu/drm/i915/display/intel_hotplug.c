@@ -23,6 +23,8 @@
 
 #include <linux/kernel.h>
 
+#include <drm/drm_probe_helper.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_display_power.h"
