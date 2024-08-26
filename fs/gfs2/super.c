@@ -1045,7 +1045,7 @@ static int gfs2_drop_inode(struct inode *inode)
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		gfs2_glock_hold(gl);
-		if (!gfs2_queue_try_to_evict(gl))
+		if (!gfs2_queue_verify_delete(gl, true))
 			gfs2_glock_put_async(gl);
 		return 0;
 	}
