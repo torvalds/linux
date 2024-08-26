@@ -19,39 +19,23 @@ struct btrfs_fs_info;
  *
  * This structure records how they are organized in the bitmap:
  *
- * /- uptodate_offset	/- dirty_offset	/- ordered_offset
+ * /- uptodate          /- dirty        /- ordered
  * |			|		|
  * v			v		v
  * |u|u|u|u|........|u|u|d|d|.......|d|d|o|o|.......|o|o|
- * |<- bitmap_nr_bits ->|
- * |<----------------- total_nr_bits ------------------>|
+ * |< sectors_per_page >|
+ *
+ * Unlike regular macro-like enums, here we do not go upper-case names, as
+ * these names will be utilized in various macros to define function names.
  */
-struct btrfs_subpage_info {
-	/* Number of bits for each bitmap */
-	unsigned int bitmap_nr_bits;
-
-	/* Total number of bits for the whole bitmap */
-	unsigned int total_nr_bits;
-
-	/*
-	 * *_offset indicates where the bitmap starts, the length is always
-	 * @bitmap_size, which is calculated from PAGE_SIZE / sectorsize.
-	 */
-	unsigned int uptodate_offset;
-	unsigned int dirty_offset;
-	unsigned int writeback_offset;
-	unsigned int ordered_offset;
-	unsigned int checked_offset;
-
-	/*
-	 * For locked bitmaps, normally it's subpage representation for folio
-	 * Locked flag, but metadata is different:
-	 *
-	 * - Metadata doesn't really lock the folio
-	 *   It's just to prevent page::private get cleared before the last
-	 *   end_page_read().
-	 */
-	unsigned int locked_offset;
+enum {
+	btrfs_bitmap_nr_uptodate = 0,
+	btrfs_bitmap_nr_dirty,
+	btrfs_bitmap_nr_writeback,
+	btrfs_bitmap_nr_ordered,
+	btrfs_bitmap_nr_checked,
+	btrfs_bitmap_nr_locked,
+	btrfs_bitmap_nr_max
 };
 
 /*
@@ -99,7 +83,6 @@ static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 }
 #endif
 
-void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize);
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct folio *folio, enum btrfs_subpage_type type);
 void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio);

@@ -703,8 +703,8 @@ struct btrfs_fs_info {
 	 * running.
 	 */
 	refcount_t scrub_workers_refcnt;
+	u32 sectors_per_page;
 	struct workqueue_struct *scrub_workers;
-	struct btrfs_subpage_info *subpage_info;
 
 	struct btrfs_discard_ctl discard_ctl;
 
