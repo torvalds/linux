@@ -2361,26 +2361,20 @@ int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 {
 	int up_bw = 0, down_bw = 0;
 
-	if (!tb_tunnel_is_active(tunnel))
-		goto out;
-
-	if (tunnel->consumed_bandwidth) {
+	if (tb_tunnel_is_active(tunnel) && tunnel->consumed_bandwidth) {
 		int ret;
 
 		ret = tunnel->consumed_bandwidth(tunnel, &up_bw, &down_bw);
 		if (ret)
 			return ret;
-
-		tb_tunnel_dbg(tunnel, "consumed bandwidth %d/%d Mb/s\n", up_bw,
-			      down_bw);
 	}
 
-out:
 	if (consumed_up)
 		*consumed_up = up_bw;
 	if (consumed_down)
 		*consumed_down = down_bw;
 
+	tb_tunnel_dbg(tunnel, "consumed bandwidth %d/%d Mb/s\n", up_bw, down_bw);
 	return 0;
 }
 
