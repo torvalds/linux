@@ -167,8 +167,8 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 	if (fp->nr_rates > 0) {
-		rate_table = kmemdup(fp->rate_table,
-				     sizeof(int) * fp->nr_rates, GFP_KERNEL);
+		rate_table = kmemdup_array(fp->rate_table, fp->nr_rates, sizeof(int),
+					   GFP_KERNEL);
 		if (!rate_table) {
 			kfree(fp);
 			return -ENOMEM;
