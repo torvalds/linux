@@ -512,8 +512,7 @@ void md_bitmap_update_sb(struct bitmap *bitmap)
 }
 EXPORT_SYMBOL(md_bitmap_update_sb);
 
-/* print out the bitmap file superblock */
-void md_bitmap_print_sb(struct bitmap *bitmap)
+static void bitmap_print_sb(struct bitmap *bitmap)
 {
 	bitmap_super_t *sb;
 
@@ -760,7 +759,7 @@ out_no_sb:
 			bitmap->mddev->bitmap_info.space > sectors_reserved)
 			bitmap->mddev->bitmap_info.space = sectors_reserved;
 	} else {
-		md_bitmap_print_sb(bitmap);
+		bitmap_print_sb(bitmap);
 		if (bitmap->cluster_slot < 0)
 			md_cluster_stop(bitmap->mddev);
 	}
