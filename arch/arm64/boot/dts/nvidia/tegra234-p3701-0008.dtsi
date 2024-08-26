@@ -4,4 +4,26 @@
 
 / {
 	compatible = "nvidia,p3701-0008", "nvidia,tegra234";
+
+	thermal-zones {
+		tj-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				tj_trip_active0: active-0 {
+					temperature = <85000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				tj_trip_active1: active-1 {
+					temperature = <105000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+			};
+		};
+	};
 };
