@@ -2335,7 +2335,7 @@ static int migrate_longterm_unpinnable_folios(
 			folio_get(folio);
 			gup_put_folio(folio, 1, FOLL_PIN);
 
-			if (migrate_device_coherent_page(&folio->page)) {
+			if (migrate_device_coherent_folio(folio)) {
 				ret = -EBUSY;
 				goto err;
 			}

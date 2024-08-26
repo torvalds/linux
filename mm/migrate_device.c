@@ -708,7 +708,7 @@ static void __migrate_device_pages(unsigned long *src_pfns,
 
 			/*
 			 * The only time there is no vma is when called from
-			 * migrate_device_coherent_page(). However this isn't
+			 * migrate_device_coherent_folio(). However this isn't
 			 * called if the page could not be unmapped.
 			 */
 			VM_BUG_ON(!migrate);
@@ -921,38 +921,38 @@ int migrate_device_range(unsigned long *src_pfns, unsigned long start,
 EXPORT_SYMBOL(migrate_device_range);
 
 /*
- * Migrate a device coherent page back to normal memory. The caller should have
- * a reference on page which will be copied to the new page if migration is
+ * Migrate a device coherent folio back to normal memory. The caller should have
+ * a reference on folio which will be copied to the new folio if migration is
  * successful or dropped on failure.
  */
-int migrate_device_coherent_page(struct page *page)
+int migrate_device_coherent_folio(struct folio *folio)
 {
 	unsigned long src_pfn, dst_pfn = 0;
-	struct page *dpage;
+	struct folio *dfolio;
 
-	WARN_ON_ONCE(PageCompound(page));
+	WARN_ON_ONCE(folio_test_large(folio));
 
-	lock_page(page);
-	src_pfn = migrate_pfn(page_to_pfn(page)) | MIGRATE_PFN_MIGRATE;
+	folio_lock(folio);
+	src_pfn = migrate_pfn(folio_pfn(folio)) | MIGRATE_PFN_MIGRATE;
 
 	/*
 	 * We don't have a VMA and don't need to walk the page tables to find
-	 * the source page. So call migrate_vma_unmap() directly to unmap the
-	 * page as migrate_vma_setup() will fail if args.vma == NULL.
+	 * the source folio. So call migrate_vma_unmap() directly to unmap the
+	 * folio as migrate_vma_setup() will fail if args.vma == NULL.
 	 */
 	migrate_device_unmap(&src_pfn, 1, NULL);
 	if (!(src_pfn & MIGRATE_PFN_MIGRATE))
 		return -EBUSY;
 
-	dpage = alloc_page(GFP_USER | __GFP_NOWARN);
-	if (dpage) {
-		lock_page(dpage);
-		dst_pfn = migrate_pfn(page_to_pfn(dpage));
+	dfolio = folio_alloc(GFP_USER | __GFP_NOWARN, 0);
+	if (dfolio) {
+		folio_lock(dfolio);
+		dst_pfn = migrate_pfn(folio_pfn(dfolio));
 	}
 
 	migrate_device_pages(&src_pfn, &dst_pfn, 1);
 	if (src_pfn & MIGRATE_PFN_MIGRATE)
-		copy_highpage(dpage, page);
+		folio_copy(dfolio, folio);
 	migrate_device_finalize(&src_pfn, &dst_pfn, 1);
 
 	if (src_pfn & MIGRATE_PFN_MIGRATE)

@@ -1208,7 +1208,7 @@ int numa_migrate_check(struct folio *folio, struct vm_fault *vmf,
 		      int *last_cpupid);
 
 void free_zone_device_folio(struct folio *folio);
-int migrate_device_coherent_page(struct page *page);
+int migrate_device_coherent_folio(struct folio *folio);
 
 /*
  * mm/gup.c
