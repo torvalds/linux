@@ -1977,7 +1977,7 @@ static int bitmap_create(struct mddev *mddev, int slot)
 	return 0;
 }
 
-int md_bitmap_load(struct mddev *mddev)
+static int bitmap_load(struct mddev *mddev)
 {
 	int err = 0;
 	sector_t start = 0;
@@ -2033,7 +2033,6 @@ int md_bitmap_load(struct mddev *mddev)
 out:
 	return err;
 }
-EXPORT_SYMBOL_GPL(md_bitmap_load);
 
 /* caller need to free returned bitmap with md_bitmap_free() */
 struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot)
@@ -2425,7 +2424,7 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 			if (rv)
 				goto out;
 
-			rv = md_bitmap_load(mddev);
+			rv = bitmap_load(mddev);
 			if (rv) {
 				mddev->bitmap_info.offset = 0;
 				md_bitmap_destroy(mddev);
@@ -2724,6 +2723,7 @@ const struct attribute_group md_bitmap_group = {
 
 static struct bitmap_operations bitmap_ops = {
 	.create			= bitmap_create,
+	.load			= bitmap_load,
 };
 
 void mddev_set_bitmap_ops(struct mddev *mddev)

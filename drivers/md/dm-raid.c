@@ -3949,7 +3949,9 @@ static int __load_dirty_region_bitmap(struct raid_set *rs)
 	/* Try loading the bitmap unless "raid0", which does not have one */
 	if (!rs_is_raid0(rs) &&
 	    !test_and_set_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags)) {
-		r = md_bitmap_load(&rs->md);
+		struct mddev *mddev = &rs->md;
+
+		r = mddev->bitmap_ops->load(mddev);
 		if (r)
 			DMERR("Failed to load bitmap");
 	}
