@@ -1224,22 +1224,21 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	return ret;
 }
 
-void md_bitmap_write_all(struct bitmap *bitmap)
+/* just flag bitmap pages as needing to be written. */
+static void bitmap_write_all(struct mddev *mddev)
 {
-	/* We don't actually write all bitmap blocks here,
-	 * just flag them as needing to be written
-	 */
 	int i;
+	struct bitmap *bitmap = mddev->bitmap;
 
 	if (!bitmap || !bitmap->storage.filemap)
 		return;
+
+	/* Only one copy, so nothing needed */
 	if (bitmap->storage.file)
-		/* Only one copy, so nothing needed */
 		return;
 
 	for (i = 0; i < bitmap->storage.file_pages; i++)
-		set_page_attr(bitmap, i,
-			      BITMAP_PAGE_NEEDWRITE);
+		set_page_attr(bitmap, i, BITMAP_PAGE_NEEDWRITE);
 	bitmap->allclean = 0;
 }
 
@@ -2720,6 +2719,7 @@ static struct bitmap_operations bitmap_ops = {
 	.load			= bitmap_load,
 	.destroy		= bitmap_destroy,
 	.flush			= bitmap_flush,
+	.write_all		= bitmap_write_all,
 
 	.update_sb		= bitmap_update_sb,
 	.get_stats		= bitmap_get_stats,
