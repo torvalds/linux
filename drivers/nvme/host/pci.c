@@ -2508,6 +2508,12 @@ static unsigned int nvme_pci_nr_maps(struct nvme_dev *dev)
 
 static void nvme_pci_update_nr_queues(struct nvme_dev *dev)
 {
+	if (!dev->ctrl.tagset) {
+		nvme_alloc_io_tag_set(&dev->ctrl, &dev->tagset, &nvme_mq_ops,
+				nvme_pci_nr_maps(dev), sizeof(struct nvme_iod));
+		return;
+	}
+
 	blk_mq_update_nr_hw_queues(&dev->tagset, dev->online_queues - 1);
 	/* free previously allocated queues that are no longer usable */
 	nvme_free_queues(dev, dev->online_queues);
