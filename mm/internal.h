@@ -417,7 +417,6 @@ extern unsigned long highest_memmap_pfn;
  * in mm/vmscan.c:
  */
 bool folio_isolate_lru(struct folio *folio);
-void putback_lru_page(struct page *page);
 void folio_putback_lru(struct folio *folio);
 extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason);
 
