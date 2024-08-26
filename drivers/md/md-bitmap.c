@@ -2132,11 +2132,10 @@ static int bitmap_copy_from_slot(struct mddev *mddev, int slot, sector_t *low,
 	return rv;
 }
 
-void md_bitmap_set_pages(struct bitmap *bitmap, unsigned long pages)
+static void bitmap_set_pages(struct bitmap *bitmap, unsigned long pages)
 {
 	bitmap->counts.pages = pages;
 }
-EXPORT_SYMBOL_GPL(md_bitmap_set_pages);
 
 static int bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
 {
@@ -2782,6 +2781,7 @@ static struct bitmap_operations bitmap_ops = {
 	.sync_with_cluster	= bitmap_sync_with_cluster,
 	.get_from_slot		= bitmap_get_from_slot,
 	.copy_from_slot		= bitmap_copy_from_slot,
+	.set_pages		= bitmap_set_pages,
 };
 
 void mddev_set_bitmap_ops(struct mddev *mddev)
