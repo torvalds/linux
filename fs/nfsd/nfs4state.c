@@ -8815,7 +8815,7 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
 /**
  * nfsd4_deleg_getattr_conflict - Recall if GETATTR causes conflict
  * @rqstp: RPC transaction context
- * @inode: file to be checked for a conflict
+ * @dentry: dentry of inode to be checked for a conflict
  * @modified: return true if file was modified
  * @size: new size of file if modified is true
  *
@@ -8830,7 +8830,7 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
  * code is returned.
  */
 __be32
-nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
+nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct dentry *dentry,
 				bool *modified, u64 *size)
 {
 	__be32 status;
@@ -8839,6 +8839,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 	struct file_lease *fl;
 	struct iattr attrs;
 	struct nfs4_cb_fattr *ncf;
+	struct inode *inode = d_inode(dentry);
 
 	*modified = false;
 	ctx = locks_inode_context(inode);
@@ -8890,15 +8891,22 @@ break_lease:
 					ncf->ncf_cur_fsize != ncf->ncf_cb_fsize))
 				ncf->ncf_file_modified = true;
 			if (ncf->ncf_file_modified) {
+				int err;
+
 				/*
 				 * Per section 10.4.3 of RFC 8881, the server would
 				 * not update the file's metadata with the client's
 				 * modified size
 				 */
 				attrs.ia_mtime = attrs.ia_ctime = current_time(inode);
-				attrs.ia_valid = ATTR_MTIME | ATTR_CTIME;
-				setattr_copy(&nop_mnt_idmap, inode, &attrs);
-				mark_inode_dirty(inode);
+				attrs.ia_valid = ATTR_MTIME | ATTR_CTIME | ATTR_DELEG;
+				inode_lock(inode);
+				err = notify_change(&nop_mnt_idmap, dentry, &attrs, NULL);
+				inode_unlock(inode);
+				if (err) {
+					nfs4_put_stid(&dp->dl_stid);
+					return nfserrno(err);
+				}
 				ncf->ncf_cur_fsize = ncf->ncf_cb_fsize;
 				*size = ncf->ncf_cur_fsize;
 				*modified = true;
