@@ -68,7 +68,7 @@ test_bpf_filter_fail() {
 
   # 'cpu' requires PERF_SAMPLE_CPU flag
   if ! perf record -e task-clock --filter 'cpu > 0' \
-	  -o /dev/null true 2>&1 | grep PERF_SAMPLE_CPU
+	  -o /dev/null true 2>&1 | grep -q PERF_SAMPLE_CPU
   then
     echo "Failing bpf-filter test [Failed forbidden CPU]"
     err=1
@@ -98,7 +98,7 @@ test_bpf_filter_group() {
   fi
 
   if ! perf record -e task-clock --filter 'cpu > 0 || ip > 0' \
-	  -o /dev/null true 2>&1 | grep PERF_SAMPLE_CPU
+	  -o /dev/null true 2>&1 | grep -q PERF_SAMPLE_CPU
   then
     echo "Group bpf-filter test [Failed forbidden CPU]"
     err=1
@@ -106,7 +106,7 @@ test_bpf_filter_group() {
   fi
 
   if ! perf record -e task-clock --filter 'period > 0 || code_pgsz > 4096' \
-	  -o /dev/null true 2>&1 | grep PERF_SAMPLE_CODE_PAGE_SIZE
+	  -o /dev/null true 2>&1 | grep -q PERF_SAMPLE_CODE_PAGE_SIZE
   then
     echo "Group bpf-filter test [Failed forbidden CODE_PAGE_SIZE]"
     err=1
@@ -147,6 +147,35 @@ test_bpf_filter_multi() {
   echo "Multiple bpf-filter test [Success]"
 }
 
+test_bpf_filter_cgroup() {
+  echo "Cgroup bpf-filter test"
+
+  if ! perf record -e task-clock --filter 'cgroup == /' \
+       -a --all-cgroups --synth=cgroup -o "${perfdata}" true 2> /dev/null
+  then
+    echo "Cgroup bpf-filter test [Skipped cgroup not supported]"
+    return
+  fi
+
+  # 'cgroup' requires PERF_SAMPLE_CGROUP flag
+  if ! perf record -e task-clock --filter 'cgroup == /' \
+	  -o /dev/null true 2>&1 | grep -q PERF_SAMPLE_CGROUP
+  then
+    echo "Cgroup bpf-filter test [Failed CGROUP requires --all-cgroups]"
+    err=1
+    return
+  fi
+
+  if ! perf report -i "${perfdata}" -s cgroup -q | grep -q -F '100.00%'
+  then
+    echo "Cgroup bpf-filter test [Failed root cgroup does not have 100%]"
+    err=1
+    return
+  fi
+
+  echo "Cgroup bpf-filter test [Success]"
+}
+
 test_bpf_filter_priv
 
 if [ $err = 0 ]; then
@@ -163,6 +192,10 @@ fi
 
 if [ $err = 0 ]; then
   test_bpf_filter_multi
+fi
+
+if [ $err = 0 ]; then
+  test_bpf_filter_cgroup
 fi
 
 cleanup
