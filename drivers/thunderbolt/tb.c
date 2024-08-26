@@ -76,6 +76,7 @@ struct tb_hotplug_event {
 	bool unplug;
 };
 
+static void tb_scan_port(struct tb_port *port);
 static void tb_handle_hotplug(struct work_struct *work);
 
 static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
@@ -1237,8 +1238,6 @@ static void tb_configure_link(struct tb_port *down, struct tb_port *up,
 	/* Set the link configured */
 	tb_switch_configure_link(sw);
 }
-
-static void tb_scan_port(struct tb_port *port);
 
 /*
  * tb_scan_switch() - scan for and initialize downstream switches
