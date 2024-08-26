@@ -74,10 +74,8 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 		p--;
 	p++;
 
-	strncpy(entry->func, f->data.func, TRACE_FUNC_SIZE);
-	strncpy(entry->file, p, TRACE_FILE_SIZE);
-	entry->func[TRACE_FUNC_SIZE] = 0;
-	entry->file[TRACE_FILE_SIZE] = 0;
+	strscpy(entry->func, f->data.func);
+	strscpy(entry->file, p);
 	entry->constant = f->constant;
 	entry->line = f->data.line;
 	entry->correct = val == expect;
