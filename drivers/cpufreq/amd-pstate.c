@@ -811,36 +811,6 @@ static void amd_pstste_sched_prefcore_workfn(struct work_struct *work)
 }
 static DECLARE_WORK(sched_prefcore_work, amd_pstste_sched_prefcore_workfn);
 
-/*
- * Get the highest performance register value.
- * @cpu: CPU from which to get highest performance.
- * @highest_perf: Return address.
- *
- * Return: 0 for success, -EIO otherwise.
- */
-static int amd_pstate_get_highest_perf(int cpu, u32 *highest_perf)
-{
-	int ret;
-
-	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
-		u64 cap1;
-
-		ret = rdmsrl_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &cap1);
-		if (ret)
-			return ret;
-		WRITE_ONCE(*highest_perf, AMD_CPPC_HIGHEST_PERF(cap1));
-	} else {
-		u64 cppc_highest_perf;
-
-		ret = cppc_get_highest_perf(cpu, &cppc_highest_perf);
-		if (ret)
-			return ret;
-		WRITE_ONCE(*highest_perf, cppc_highest_perf);
-	}
-
-	return (ret);
-}
-
 #define CPPC_MAX_PERF	U8_MAX
 
 static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
@@ -848,7 +818,7 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
 	int ret, prio;
 	u32 highest_perf;
 
-	ret = amd_pstate_get_highest_perf(cpudata->cpu, &highest_perf);
+	ret = amd_get_highest_perf(cpudata->cpu, &highest_perf);
 	if (ret)
 		return;
 
@@ -892,7 +862,7 @@ static void amd_pstate_update_limits(unsigned int cpu)
 	if ((!amd_pstate_prefcore) || (!cpudata->hw_prefcore))
 		goto free_cpufreq_put;
 
-	ret = amd_pstate_get_highest_perf(cpu, &cur_high);
+	ret = amd_get_highest_perf(cpu, &cur_high);
 	if (ret)
 		goto free_cpufreq_put;
 

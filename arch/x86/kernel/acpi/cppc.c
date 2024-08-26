@@ -116,6 +116,36 @@ void init_freq_invariance_cppc(void)
 	mutex_unlock(&freq_invariance_lock);
 }
 
+/*
+ * Get the highest performance register value.
+ * @cpu: CPU from which to get highest performance.
+ * @highest_perf: Return address for highest performance value.
+ *
+ * Return: 0 for success, negative error code otherwise.
+ */
+int amd_get_highest_perf(unsigned int cpu, u32 *highest_perf)
+{
+	u64 val;
+	int ret;
+
+	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
+		ret = rdmsrl_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &val);
+		if (ret)
+			goto out;
+
+		val = AMD_CPPC_HIGHEST_PERF(val);
+	} else {
+		ret = cppc_get_highest_perf(cpu, &val);
+		if (ret)
+			goto out;
+	}
+
+	WRITE_ONCE(*highest_perf, (u32)val);
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(amd_get_highest_perf);
+
 /**
  * amd_get_boost_ratio_numerator: Get the numerator to use for boost ratio calculation
  * @cpu: CPU to get numerator for.
