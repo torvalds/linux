@@ -853,14 +853,16 @@ static void fpga_init(struct mgb4_vin_dev *vindev)
 	mgb4_write_reg(video, regs->config, 1U << 9);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void debugfs_init(struct mgb4_vin_dev *vindev)
+static void create_debugfs(struct mgb4_vin_dev *vindev)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct mgb4_regs *video = &vindev->mgbdev->video;
+	struct dentry *entry;
 
-	vindev->debugfs = debugfs_create_dir(vindev->vdev.name,
-					     vindev->mgbdev->debugfs);
-	if (!vindev->debugfs)
+	if (IS_ERR_OR_NULL(vindev->mgbdev->debugfs))
+		return;
+	entry = debugfs_create_dir(vindev->vdev.name, vindev->mgbdev->debugfs);
+	if (IS_ERR(entry))
 		return;
 
 	vindev->regs[0].name = "CONFIG";
@@ -892,10 +894,9 @@ static void debugfs_init(struct mgb4_vin_dev *vindev)
 	vindev->regset.base = video->membase;
 	vindev->regset.regs = vindev->regs;
 
-	debugfs_create_regset32("registers", 0444, vindev->debugfs,
-				&vindev->regset);
-}
+	debugfs_create_regset32("registers", 0444, entry, &vindev->regset);
 #endif
+}
 
 struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 {
@@ -1001,9 +1002,7 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 		goto err_video_dev;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_init(vindev);
-#endif
+	create_debugfs(vindev);
 
 	return vindev;
 
@@ -1033,10 +1032,6 @@ void mgb4_vin_free(struct mgb4_vin_dev *vindev)
 
 	free_irq(vin_irq, vindev);
 	free_irq(err_irq, vindev);
-
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(vindev->debugfs);
-#endif
 
 	groups = MGB4_IS_GMSL(vindev->mgbdev)
 	  ? mgb4_gmsl_in_groups : mgb4_fpdl3_in_groups;
