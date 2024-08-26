@@ -253,14 +253,13 @@ struct bitmap_operations {
 	void (*flush)(struct mddev *mddev);
 
 	void (*update_sb)(struct bitmap *bitmap);
+	int (*get_stats)(struct bitmap *bitmap, struct md_bitmap_stats *stats);
 };
 
 /* the bitmap API */
 void mddev_set_bitmap_ops(struct mddev *mddev);
 
 /* these are used only by md/bitmap */
-
-int md_bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats);
 
 int  md_bitmap_setallbits(struct bitmap *bitmap);
 void md_bitmap_write_all(struct bitmap *bitmap);

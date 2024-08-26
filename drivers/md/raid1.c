@@ -1599,7 +1599,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			 * Not if there are too many, or cannot
 			 * allocate memory, or a reader on WriteMostly
 			 * is waiting for behind writes to flush */
-			err = md_bitmap_get_stats(bitmap, &stats);
+			err = mddev->bitmap_ops->get_stats(bitmap, &stats);
 			if (!err && write_behind && !stats.behind_wait &&
 			    stats.behind_writes < max_write_behind)
 				alloc_behind_master_bio(r1_bio, bio);

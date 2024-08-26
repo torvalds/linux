@@ -1378,7 +1378,7 @@ static u64 md_bitmap_events_cleared(struct mddev *mddev)
 	struct md_bitmap_stats stats;
 	int err;
 
-	err = md_bitmap_get_stats(mddev->bitmap, &stats);
+	err = mddev->bitmap_ops->get_stats(mddev->bitmap, &stats);
 	if (err)
 		return 0;
 
@@ -2354,11 +2354,12 @@ super_1_allow_new_offset(struct md_rdev *rdev,
 		return 0;
 
 	if (!rdev->mddev->bitmap_info.file) {
+		struct mddev *mddev = rdev->mddev;
 		struct md_bitmap_stats stats;
 		int err;
 
-		err = md_bitmap_get_stats(rdev->mddev->bitmap, &stats);
-		if (!err && rdev->sb_start + rdev->mddev->bitmap_info.offset +
+		err = mddev->bitmap_ops->get_stats(mddev->bitmap, &stats);
+		if (!err && rdev->sb_start + mddev->bitmap_info.offset +
 		    stats.file_pages * (PAGE_SIZE >> 9) > new_offset)
 			return 0;
 	}
@@ -7588,7 +7589,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 		} else {
 			struct md_bitmap_stats stats;
 
-			rv = md_bitmap_get_stats(mddev->bitmap, &stats);
+			rv = mddev->bitmap_ops->get_stats(mddev->bitmap, &stats);
 			if (rv)
 				goto err;
 
@@ -8388,7 +8389,7 @@ static void md_bitmap_status(struct seq_file *seq, struct mddev *mddev)
 	unsigned long chunk_kb;
 	int err;
 
-	err = md_bitmap_get_stats(mddev->bitmap, &stats);
+	err = mddev->bitmap_ops->get_stats(mddev->bitmap, &stats);
 	if (err)
 		return;
 
