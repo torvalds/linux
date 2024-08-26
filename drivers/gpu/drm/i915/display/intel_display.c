@@ -43,6 +43,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
