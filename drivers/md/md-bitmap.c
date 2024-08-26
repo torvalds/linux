@@ -1665,12 +1665,11 @@ static void __bitmap_end_sync(struct bitmap *bitmap, sector_t offset,
 	spin_unlock_irqrestore(&bitmap->counts.lock, flags);
 }
 
-void md_bitmap_end_sync(struct bitmap *bitmap, sector_t offset,
-			sector_t *blocks)
+static void bitmap_end_sync(struct mddev *mddev, sector_t offset,
+			    sector_t *blocks)
 {
-	__bitmap_end_sync(bitmap, offset, blocks, true);
+	__bitmap_end_sync(mddev->bitmap, offset, blocks, true);
 }
-EXPORT_SYMBOL(md_bitmap_end_sync);
 
 void md_bitmap_close_sync(struct bitmap *bitmap)
 {
@@ -2745,6 +2744,7 @@ static struct bitmap_operations bitmap_ops = {
 	.startwrite		= bitmap_startwrite,
 	.endwrite		= bitmap_endwrite,
 	.start_sync		= bitmap_start_sync,
+	.end_sync		= bitmap_end_sync,
 
 	.update_sb		= bitmap_update_sb,
 	.get_stats		= bitmap_get_stats,
