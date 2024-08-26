@@ -26,10 +26,8 @@
 #ifndef __INTEL_DISPLAY_TYPES_H__
 #define __INTEL_DISPLAY_TYPES_H__
 
-#include <linux/i2c.h>
 #include <linux/pm_qos.h>
 #include <linux/pwm.h>
-#include <linux/sched/clock.h>
 
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
@@ -38,7 +36,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank_work.h>
