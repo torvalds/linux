@@ -4,20 +4,4 @@
 
 / {
 	compatible = "nvidia,p3701-0008", "nvidia,tegra234";
-
-	bpmp {
-		i2c {
-			status = "okay";
-
-			thermal-sensor@4c {
-				status = "okay";
-				reg = <0x4c>;
-				vcc-supply = <&vdd_1v8_ao>;
-			};
-		};
-
-		thermal {
-			status = "okay";
-		};
-	};
 };
