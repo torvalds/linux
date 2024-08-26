@@ -579,7 +579,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 						  ieee->RfDependCmd,
 						  RfDependCmdCnt++,
 						  MAX_RFDEPENDCMD_CNT,
-						  CmdID_RF_WriteReg,
+						  cmd_id_rf_write_reg,
 						  rZebra1_Channel,
 						  channel, 10);
 		_rtl92e_phy_set_sw_chnl_cmd_array(dev,
@@ -629,7 +629,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				rtl92e_writeb(dev, CurrentCmd->Para1,
 					      CurrentCmd->Para2);
 				break;
-			case CmdID_RF_WriteReg:
+			case cmd_id_rf_write_reg:
 				for (eRFPath = 0; eRFPath <
 				     priv->num_total_rf_path; eRFPath++)
 					rtl92e_set_rf_reg(dev,

@@ -159,7 +159,7 @@ enum sw_chnl_cmd_id {
 	cmd_id_write_port_ulong,
 	cmd_id_write_port_ushort,
 	cmd_id_write_port_uchar,
-	CmdID_RF_WriteReg,
+	cmd_id_rf_write_reg,
 };
 
 struct sw_chnl_cmd {
