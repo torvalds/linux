@@ -9,6 +9,7 @@
 #include <asm/processor.h>
 #include <asm/topology.h>
 
+#define CPPC_HIGHEST_PERF_PERFORMANCE	196
 #define CPPC_HIGHEST_PERF_PREFCORE	166
 
 enum amd_pref_core {
@@ -244,6 +245,21 @@ int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator)
 	if (!prefcore) {
 		*numerator = boost_numerator;
 		return 0;
+	}
+
+	/*
+	 * For AMD CPUs with Family ID 19H and Model ID range 0x70 to 0x7f,
+	 * the highest performance level is set to 196.
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=218759
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_ZEN4)) {
+		switch (boot_cpu_data.x86_model) {
+		case 0x70 ... 0x7f:
+			*numerator = CPPC_HIGHEST_PERF_PERFORMANCE;
+			return 0;
+		default:
+			break;
+		}
 	}
 	*numerator = CPPC_HIGHEST_PERF_PREFCORE;
 
