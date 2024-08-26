@@ -6,33 +6,6 @@
 	model = "NVIDIA Jetson AGX Orin";
 	compatible = "nvidia,p3701-0000", "nvidia,tegra234";
 
-	bus@0 {
-
-		padctl@3520000 {
-			vclamp-usb-supply = <&vdd_1v8_ao>;
-			avdd-usb-supply = <&vdd_3v3_ao>;
-
-			ports {
-				usb2-0 {
-					vbus-supply = <&vdd_5v0_sys>;
-				};
-
-				usb2-1 {
-					vbus-supply = <&vdd_5v0_sys>;
-				};
-
-				usb2-2 {
-					vbus-supply = <&vdd_5v0_sys>;
-				};
-
-				usb2-3 {
-					vbus-supply = <&vdd_5v0_sys>;
-				};
-			};
-		};
-
-	};
-
 	thermal-zones {
 		tj-thermal {
 			polling-delay = <1000>;

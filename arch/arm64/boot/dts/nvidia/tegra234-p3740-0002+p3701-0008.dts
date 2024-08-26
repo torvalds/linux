@@ -121,8 +121,6 @@
 		};
 
 		padctl@3520000 {
-			vclamp-usb-supply = <&vdd_1v8_ao>;
-			avdd-usb-supply = <&vdd_3v3_ao>;
 			status = "okay";
 
 			pads {
@@ -175,25 +173,21 @@
 					mode = "otg";
 					usb-role-switch;
 					status = "okay";
-					vbus-supply = <&vdd_5v0_sys>;
 				};
 
 				usb2-1 {
 					mode = "host";
 					status = "okay";
-					vbus-supply = <&vdd_5v0_sys>;
 				};
 
 				usb2-2 {
 					mode = "host";
 					status = "okay";
-					vbus-supply = <&vdd_5v0_sys>;
 				};
 
 				usb2-3 {
 					mode = "host";
 					status = "okay";
-					vbus-supply = <&vdd_5v0_sys>;
 				};
 
 				usb3-0 {
