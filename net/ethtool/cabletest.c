@@ -77,7 +77,7 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 				      info->extack);
 	if (IS_ERR_OR_NULL(phydev)) {
 		ret = -EOPNOTSUPP;
-		goto out_dev_put;
+		goto out_rtnl;
 	}
 
 	ops = ethtool_phy_ops;
@@ -99,7 +99,6 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 
 out_rtnl:
 	rtnl_unlock();
-out_dev_put:
 	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }
