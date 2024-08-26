@@ -388,20 +388,17 @@ static void pagefault_fini(void *arg)
 {
 	struct xe_gt *gt = arg;
 	struct xe_device *xe = gt_to_xe(gt);
-	int i;
 
 	if (!xe->info.has_usm)
 		return;
 
 	destroy_workqueue(gt->usm.acc_wq);
 	destroy_workqueue(gt->usm.pf_wq);
-
-	for (i = 0; i < NUM_PF_QUEUE; ++i)
-		kfree(gt->usm.pf_queue[i].data);
 }
 
 static int xe_alloc_pf_queue(struct xe_gt *gt, struct pf_queue *pf_queue)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	xe_dss_mask_t all_dss;
 	int num_dss, num_eus;
 
@@ -417,7 +414,8 @@ static int xe_alloc_pf_queue(struct xe_gt *gt, struct pf_queue *pf_queue)
 		(num_eus + XE_NUM_HW_ENGINES) * PF_MSG_LEN_DW;
 
 	pf_queue->gt = gt;
-	pf_queue->data = kcalloc(pf_queue->num_dw, sizeof(u32), GFP_KERNEL);
+	pf_queue->data = devm_kcalloc(xe->drm.dev, pf_queue->num_dw,
+				      sizeof(u32), GFP_KERNEL);
 	if (!pf_queue->data)
 		return -ENOMEM;
 
