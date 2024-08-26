@@ -1650,7 +1650,7 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	ssize_t res;
 
-	if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
+	if (!is_sync_kiocb(iocb)) {
 		res = fuse_direct_IO(iocb, to);
 	} else {
 		struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
@@ -1664,7 +1664,6 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
 	ssize_t res;
 	bool exclusive;
 
@@ -1672,9 +1671,11 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	res = generic_write_checks(iocb, from);
 	if (res > 0) {
 		task_io_account_write(res);
-		if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
+		if (!is_sync_kiocb(iocb)) {
 			res = fuse_direct_IO(iocb, from);
 		} else {
+			struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
+
 			res = fuse_direct_io(&io, from, &iocb->ki_pos,
 					     FUSE_DIO_WRITE);
 			fuse_write_update_attr(inode, iocb->ki_pos, res);
