@@ -28,17 +28,13 @@
  * @ino: inode number
  * @cno: checkpoint number
  * @root: pointer on NILFS root object (mounted checkpoint)
- * @for_gc: inode for GC flag
- * @for_btnc: inode for B-tree node cache flag
- * @for_shadow: inode for shadowed page cache flag
+ * @type: inode type
  */
 struct nilfs_iget_args {
 	u64 ino;
 	__u64 cno;
 	struct nilfs_root *root;
-	bool for_gc;
-	bool for_btnc;
-	bool for_shadow;
+	unsigned int type;
 };
 
 static int nilfs_iget_test(struct inode *inode, void *opaque);
@@ -315,8 +311,7 @@ static int nilfs_insert_inode_locked(struct inode *inode,
 				     unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return insert_inode_locked4(inode, ino, nilfs_iget_test, &args);
@@ -343,6 +338,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	root = NILFS_I(dir)->i_root;
 	ii = NILFS_I(inode);
 	ii->i_state = BIT(NILFS_I_NEW);
+	ii->i_type = NILFS_I_TYPE_NORMAL;
 	ii->i_root = root;
 
 	err = nilfs_ifile_create_inode(root->ifile, &ino, &bh);
@@ -546,23 +542,10 @@ static int nilfs_iget_test(struct inode *inode, void *opaque)
 		return 0;
 
 	ii = NILFS_I(inode);
-	if (test_bit(NILFS_I_BTNC, &ii->i_state)) {
-		if (!args->for_btnc)
-			return 0;
-	} else if (args->for_btnc) {
+	if (ii->i_type != args->type)
 		return 0;
-	}
-	if (test_bit(NILFS_I_SHADOW, &ii->i_state)) {
-		if (!args->for_shadow)
-			return 0;
-	} else if (args->for_shadow) {
-		return 0;
-	}
 
-	if (!test_bit(NILFS_I_GCINODE, &ii->i_state))
-		return !args->for_gc;
-
-	return args->for_gc && args->cno == ii->i_cno;
+	return !(args->type & NILFS_I_TYPE_GC) || args->cno == ii->i_cno;
 }
 
 static int nilfs_iget_set(struct inode *inode, void *opaque)
@@ -572,15 +555,9 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 	inode->i_ino = args->ino;
 	NILFS_I(inode)->i_cno = args->cno;
 	NILFS_I(inode)->i_root = args->root;
+	NILFS_I(inode)->i_type = args->type;
 	if (args->root && args->ino == NILFS_ROOT_INO)
 		nilfs_get_root(args->root);
-
-	if (args->for_gc)
-		NILFS_I(inode)->i_state = BIT(NILFS_I_GCINODE);
-	if (args->for_btnc)
-		NILFS_I(inode)->i_state |= BIT(NILFS_I_BTNC);
-	if (args->for_shadow)
-		NILFS_I(inode)->i_state |= BIT(NILFS_I_SHADOW);
 	return 0;
 }
 
@@ -588,8 +565,7 @@ struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
 			    unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return ilookup5(sb, ino, nilfs_iget_test, &args);
@@ -599,8 +575,7 @@ struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
 				unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
@@ -631,8 +606,7 @@ struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
 				__u64 cno)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = NULL, .cno = cno, .for_gc = true,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = NULL, .cno = cno, .type = NILFS_I_TYPE_GC
 	};
 	struct inode *inode;
 	int err;
@@ -677,9 +651,7 @@ int nilfs_attach_btree_node_cache(struct inode *inode)
 	args.ino = inode->i_ino;
 	args.root = ii->i_root;
 	args.cno = ii->i_cno;
-	args.for_gc = test_bit(NILFS_I_GCINODE, &ii->i_state) != 0;
-	args.for_btnc = true;
-	args.for_shadow = test_bit(NILFS_I_SHADOW, &ii->i_state) != 0;
+	args.type = ii->i_type | NILFS_I_TYPE_BTNC;
 
 	btnc_inode = iget5_locked(inode->i_sb, inode->i_ino, nilfs_iget_test,
 				  nilfs_iget_set, &args);
@@ -733,8 +705,8 @@ void nilfs_detach_btree_node_cache(struct inode *inode)
 struct inode *nilfs_iget_for_shadow(struct inode *inode)
 {
 	struct nilfs_iget_args args = {
-		.ino = inode->i_ino, .root = NULL, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = true
+		.ino = inode->i_ino, .root = NULL, .cno = 0,
+		.type = NILFS_I_TYPE_SHADOW
 	};
 	struct inode *s_inode;
 	int err;
@@ -900,7 +872,7 @@ static void nilfs_clear_inode(struct inode *inode)
 	if (test_bit(NILFS_I_BMAP, &ii->i_state))
 		nilfs_bmap_clear(ii->i_bmap);
 
-	if (!test_bit(NILFS_I_BTNC, &ii->i_state))
+	if (!(ii->i_type & NILFS_I_TYPE_BTNC))
 		nilfs_detach_btree_node_cache(inode);
 
 	if (ii->i_root && inode->i_ino == NILFS_ROOT_INO)

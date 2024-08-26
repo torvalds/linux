@@ -519,7 +519,7 @@ static void nilfs_segctor_end_finfo(struct nilfs_sc_info *sci,
 
 	ii = NILFS_I(inode);
 
-	if (test_bit(NILFS_I_GCINODE, &ii->i_state))
+	if (ii->i_type & NILFS_I_TYPE_GC)
 		cno = ii->i_cno;
 	else if (NILFS_ROOT_METADATA_FILE(inode->i_ino))
 		cno = 0;

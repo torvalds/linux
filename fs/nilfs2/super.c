@@ -160,6 +160,7 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	ii->i_bh = NULL;
 	ii->i_state = 0;
+	ii->i_type = 0;
 	ii->i_cno = 0;
 	ii->i_assoc_inode = NULL;
 	ii->i_bmap = &ii->i_bmap_data;
