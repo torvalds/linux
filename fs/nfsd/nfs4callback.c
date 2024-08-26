@@ -1223,6 +1223,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	 * cb_seq_status is only set in decode_cb_sequence4res,
 	 * and so will remain 1 if an rpc level failure occurs.
 	 */
+	trace_nfsd_cb_rpc_prepare(clp);
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	if (minorversion && !nfsd41_cb_get_slot(cb, task))
@@ -1329,6 +1330,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_client *clp = cb->cb_clp;
 
+	trace_nfsd_cb_rpc_done(clp);
+
 	if (!nfsd4_cb_sequence_done(task, cb))
 		return;
 
@@ -1359,6 +1362,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 static void nfsd4_cb_release(void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
+
+	trace_nfsd_cb_rpc_release(cb->cb_clp);
 
 	if (cb->cb_need_restart)
 		nfsd4_queue_cb(cb);

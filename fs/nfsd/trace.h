@@ -1486,6 +1486,9 @@ DEFINE_NFSD_CB_EVENT(new_state);
 DEFINE_NFSD_CB_EVENT(probe);
 DEFINE_NFSD_CB_EVENT(lost);
 DEFINE_NFSD_CB_EVENT(shutdown);
+DEFINE_NFSD_CB_EVENT(rpc_prepare);
+DEFINE_NFSD_CB_EVENT(rpc_done);
+DEFINE_NFSD_CB_EVENT(rpc_release);
 
 TRACE_DEFINE_ENUM(RPC_AUTH_NULL);
 TRACE_DEFINE_ENUM(RPC_AUTH_UNIX);
@@ -1845,6 +1848,7 @@ DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_recall_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_notify_lock_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_layout_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_offload_done);
+DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_getattr_done);
 
 TRACE_EVENT(nfsd_cb_recall_any_done,
 	TP_PROTO(
