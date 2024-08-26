@@ -1579,24 +1579,26 @@ static void bitmap_endwrite(struct mddev *mddev, sector_t offset,
 	}
 }
 
-static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks,
-			       int degraded)
+static bool __bitmap_start_sync(struct bitmap *bitmap, sector_t offset,
+				sector_t *blocks, bool degraded)
 {
 	bitmap_counter_t *bmc;
-	int rv;
+	bool rv;
+
 	if (bitmap == NULL) {/* FIXME or bitmap set as 'failed' */
 		*blocks = 1024;
-		return 1; /* always resync if no bitmap */
+		return true; /* always resync if no bitmap */
 	}
 	spin_lock_irq(&bitmap->counts.lock);
+
+	rv = false;
 	bmc = md_bitmap_get_counter(&bitmap->counts, offset, blocks, 0);
-	rv = 0;
 	if (bmc) {
 		/* locked */
-		if (RESYNC(*bmc))
-			rv = 1;
-		else if (NEEDED(*bmc)) {
-			rv = 1;
+		if (RESYNC(*bmc)) {
+			rv = true;
+		} else if (NEEDED(*bmc)) {
+			rv = true;
 			if (!degraded) { /* don't set/clear bits if degraded */
 				*bmc |= RESYNC_MASK;
 				*bmc &= ~NEEDED_MASK;
@@ -1604,11 +1606,12 @@ static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t 
 		}
 	}
 	spin_unlock_irq(&bitmap->counts.lock);
+
 	return rv;
 }
 
-int md_bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks,
-			 int degraded)
+static bool bitmap_start_sync(struct mddev *mddev, sector_t offset,
+			      sector_t *blocks, bool degraded)
 {
 	/* bitmap_start_sync must always report on multiples of whole
 	 * pages, otherwise resync (which is very PAGE_SIZE based) will
@@ -1617,19 +1620,19 @@ int md_bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *block
 	 * At least PAGE_SIZE>>9 blocks are covered.
 	 * Return the 'or' of the result.
 	 */
-	int rv = 0;
+	bool rv = false;
 	sector_t blocks1;
 
 	*blocks = 0;
 	while (*blocks < (PAGE_SIZE>>9)) {
-		rv |= __bitmap_start_sync(bitmap, offset,
+		rv |= __bitmap_start_sync(mddev->bitmap, offset,
 					  &blocks1, degraded);
 		offset += blocks1;
 		*blocks += blocks1;
 	}
+
 	return rv;
 }
-EXPORT_SYMBOL(md_bitmap_start_sync);
 
 void md_bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted)
 {
@@ -1723,7 +1726,7 @@ void md_bitmap_sync_with_cluster(struct mddev *mddev,
 	WARN((blocks > new_lo) && old_lo, "alignment is not correct for lo\n");
 
 	for (sector = old_hi; sector < new_hi; ) {
-		md_bitmap_start_sync(bitmap, sector, &blocks, 0);
+		bitmap_start_sync(mddev, sector, &blocks, false);
 		sector += blocks;
 	}
 	WARN((blocks > new_hi) && old_hi, "alignment is not correct for hi\n");
@@ -2005,7 +2008,7 @@ static int bitmap_load(struct mddev *mddev)
 	 */
 	while (sector < mddev->resync_max_sectors) {
 		sector_t blocks;
-		md_bitmap_start_sync(bitmap, sector, &blocks, 0);
+		bitmap_start_sync(mddev, sector, &blocks, false);
 		sector += blocks;
 	}
 	md_bitmap_close_sync(bitmap);
@@ -2734,6 +2737,7 @@ static struct bitmap_operations bitmap_ops = {
 
 	.startwrite		= bitmap_startwrite,
 	.endwrite		= bitmap_endwrite,
+	.start_sync		= bitmap_start_sync,
 
 	.update_sb		= bitmap_update_sb,
 	.get_stats		= bitmap_get_stats,
